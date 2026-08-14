@@ -6,7 +6,7 @@ import {
 	type ProjectFeatureRequirementsReport,
 } from '../project-feature-requirements.ts';
 import { snapshotProjectFeatureCapabilities } from '../project-feature-capabilities.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { isMaintainedProjectFeatureSchema } from '../project-schema-version.ts';
 
 interface ProjectWithFeatureRequirements {
 	readonly schemaVersion?: unknown;
@@ -38,7 +38,7 @@ export function createProjectFeatureCompatibilityService(
 	function evaluate(project: unknown): ProjectFeatureRequirementsReport | null {
 		if (!project || typeof project !== 'object' || Array.isArray(project)) return null;
 		const candidate = project as ProjectWithFeatureRequirements;
-		if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return null;
+		if (!isMaintainedProjectFeatureSchema(candidate.schemaVersion)) return null;
 		return evaluateProjectFeatureRequirements(
 			candidate.featureRequirements as ProjectFeatureRequirementsManifest,
 			{

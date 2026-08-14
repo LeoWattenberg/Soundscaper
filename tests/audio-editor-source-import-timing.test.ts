@@ -8,6 +8,7 @@ import {
 	createImportVideoFile,
 	type ImportVideoRuntime,
 } from '../src/common/editor/controller/source-import.ts';
+import { planVideoImportTiming } from '../src/common/editor/controller/video-import-timing.ts';
 import { createFixture } from './audio-editor-source-import.test.ts';
 import { videoFile } from './helpers/audio-editor-source-import-fixture.ts';
 
@@ -80,6 +81,64 @@ test('failed exact-timing import preserves newer original and timing generations
 	assert.equal(storageKeys.length, 2);
 	assert.deepEqual(fixture.mediaDiscardAttempts, [...storageKeys].reverse());
 	assert.deepEqual(fixture.deletedMedia, []);
+});
+
+test('exact timing owns imported source duration and one aligned A/V placement', async () => {
+	const fixture = createFixture();
+	const runtime = fixture.runtime as MutableImportVideoRuntime;
+	runtime.store = {
+		...(runtime.store as Readonly<Record<string, unknown>>),
+		async getMediaAssetMetadata() { return null; },
+		async loadMediaAsset() { return null; },
+	};
+	const presentationTicks = Array.from({ length: 32 }, (_, index) => BigInt(index));
+	runtime.ffmpeg = {
+		...(runtime.ffmpeg as Readonly<Record<string, unknown>>),
+		async probeVideoTiming() {
+			return {
+				timescale: 15,
+				presentationTicks,
+				finalFrameDurationTicks: 1n,
+				nominalRate: { num: 15, den: 1 },
+			};
+		},
+	};
+	let fittedFrames = 0;
+	runtime.fitAudioBufferToFrames = (buffer: Readonly<Record<string, unknown>>, frameCount: number) => {
+		fittedFrames = frameCount;
+		return { ...buffer, length: frameCount };
+	};
+
+	await createImportVideoFile(runtime)(new File([Uint8Array.of(1, 2, 3)], 'exact.webm', {
+		type: 'video/webm',
+	}));
+
+	const commands = fixture.commits[0]?.command.commands as readonly Readonly<Record<string, unknown>>[];
+	const sources = commands.filter(({ type }) => type === 'source/add')
+		.map(({ source }) => source as Readonly<Record<string, unknown>>);
+	const clips = commands.filter(({ type }) => type === 'clip/add')
+		.map(({ clip }) => clip as Readonly<Record<string, unknown>>);
+	assert.equal(sources.find(({ kind }) => kind === 'video')?.sampleFrameCount, 102_400);
+	assert.equal(sources.find(({ kind }) => kind === 'audio')?.frameCount, 102_400);
+	assert.equal(clips.find(({ kind }) => kind === 'video')?.sequenceFrameCount, 64);
+	assert.equal(clips.find(({ kind }) => kind === 'audio')?.durationFrames, 102_400);
+	assert.equal(fittedFrames, 102_400);
+	assert.deepEqual(planVideoImportTiming({
+		metadataDurationFrames: 101_789,
+		sampleRate: 48_000,
+		timingIndex: {
+			encoding: 'soundscaper-video-timing-v1', timescale: 15, frameCount: 32,
+			presentationTicks, finalFrameDurationTicks: 1n, endTicks: 32n,
+		},
+		timelineStartFrame: 0,
+		sequenceRate: { num: 30, den: 1 },
+	}), {
+		sourceDurationFrames: 102_400,
+		sequenceStartFrame: 0,
+		sequenceEndFrame: 64,
+		timelineStartFrame: 0,
+		timelineDurationFrames: 102_400,
+	});
 });
 
 test('probe failure stores genuinely conformed CFR media and reprobes its exact timing', async () => {

@@ -1,23 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { commitProject } from './project.js';
-import { dispatchEditorCommand } from './commands/registry.ts';
-import { createEditorCommandRuntime } from './commands/runtime-registry.ts';
-import { pruneMissingProjectSelections } from './commands/shared-runtime.js';
-import { isFoundationProjectSchema, projectForCommandConsumers } from './project-current-runtime.ts';
+import { projectForCommandConsumers } from './project-current-runtime.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	isTrackFolderProjectSchema,
 } from './project-schema-version.ts';
-import { brandRuntimeProjectProjection } from './runtime-clip-projection.ts';
-import {
-	FOUNDATION_EDIT_OPERATION,
-	LEGACY_TRACK_STRUCTURE_EDIT,
-} from './commands/command-projection-transients.ts';
-import { createTrackLockAdmission } from './commands/track-lock-admission.ts';
-import {
-	createVideoRetimePreservationAdmission,
-} from './commands/video-retime-preservation-admission.ts';
+import { createEditorCommandMutationTransaction } from './commands/mutation-transaction.ts';
 
 export {
 	collectClipTransformIds,
@@ -126,74 +114,10 @@ export function applyEditorCommand(project, command, options = {}) {
 		throw new TypeError('A serializable editor command is required.');
 	}
 	const commandProject = projectForCommandConsumers(project);
-	const admission = createCommandAdmission(project, commandProject);
-	const mutate = createCommandMutator(admission);
+	const transaction = createEditorCommandMutationTransaction(project, commandProject);
 	const result = /** @type {Project} */ (commitProject(commandProject, (draft) => {
-		if (isFoundationProjectSchema(project.schemaVersion)) {
-			brandRuntimeProjectProjection(draft);
-		}
-		mutate(draft, command);
-		pruneMissingProjectSelections(draft);
+		transaction.mutate(draft, command);
 	}, { ...options, persistedBase: project }));
-	admission.assertPersistedResult(result);
+	transaction.assertPersistedResult(result);
 	return result;
-}
-
-function createCommandAdmission(persistedProject, commandProject) {
-	const admissions = [
-		createTrackLockAdmission(persistedProject, commandProject),
-		createVideoRetimePreservationAdmission(persistedProject, commandProject),
-	];
-	return Object.freeze({
-		beforeCommand: (project, command) => {
-			for (const admission of admissions) admission.beforeCommand(project, command);
-		},
-		afterCommand: (project) => {
-			for (const admission of admissions) admission.afterCommand(project);
-		},
-		assertPersistedResult: (project) => {
-			for (const admission of admissions) admission.assertPersistedResult(project);
-		},
-	});
-}
-
-function createCommandMutator(admission) {
-	let handlers;
-	const mutate = (project, command) => mutateCommand(project, command, handlers, admission);
-	handlers = createEditorCommandRuntime(mutate);
-	return mutate;
-}
-
-function mutateCommand(project, command, handlers, admission) {
-	const isChild = command.type !== 'batch';
-	if (isChild) admission.beforeCommand(project, command);
-	if (isTrackFolderProjectSchema(project.schemaVersion)
-		&& (command.type === 'track/add' || command.type === 'track/remove' || command.type === 'track/reorder')
-		&& !(Array.isArray(project.trackFolders) && project.trackFolders.length > 0)) {
-		project[LEGACY_TRACK_STRUCTURE_EDIT] = true;
-	}
-	if (isFoundationProjectSchema(project.schemaVersion) && isChild) {
-		const before = new Map(project.clips.map((clip) => [clip.id, commandTimingSignature(clip)]));
-		dispatchEditorCommand(handlers, project, command);
-		const operation = {};
-		for (const clip of project.clips) {
-			const previous = before.get(clip.id);
-			if (previous != null && previous !== commandTimingSignature(clip)) {
-				clip[FOUNDATION_EDIT_OPERATION] = operation;
-			}
-		}
-		admission.afterCommand(project);
-		return;
-	}
-	dispatchEditorCommand(handlers, project, command);
-	if (isChild) admission.afterCommand(project);
-}
-
-function commandTimingSignature(clip) {
-	return [
-		clip.timelineStartFrame,
-		clip.durationFrames,
-		clip.sourceStartFrame,
-		clip.sourceDurationFrames,
-	].map((value) => `${typeof value}:${String(value)}`).join('|');
 }

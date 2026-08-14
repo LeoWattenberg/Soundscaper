@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-13",
+	"groundedAt": "2026-08-14",
 	"modelDocument": "docs/production-threat-model.md",
 	"statusDefinitions": {
 		"enforced": "Every named control for the narrowly described current surface has implementation and automated verification evidence.",
@@ -3124,34 +3124,58 @@
 		},
 		{
 			"id": "reviewed-web-effect-packages",
-			"title": "Future third-party Web effect packages gain same-origin JavaScript authority",
+			"title": "Release-catalog reviewed WebAssembly effects gain audio-engine authority",
 			"boundaryIds": ["untrusted-runtime-to-audio-engine", "dependency-to-release-artifact"],
-			"assets": ["origin storage", "project confidentiality", "editor integrity"],
-			"actor": "A future reviewed effect package is malicious, compromised, or has a confused-deputy import surface.",
+			"assets": ["origin storage", "project confidentiality", "editor integrity", "audio render availability"],
+			"actor": "A malformed, substituted, revoked, or catalog-confused reviewed-effect artifact attempts to exceed its declared authority.",
 			"impact": "critical",
-			"status": "planned",
-			"releaseDisposition": "surface-disabled",
+			"status": "enforced",
+			"releaseDisposition": "qualified-current-surface",
 			"ownerMilestone": "4",
 			"currentControls": [
 				{
-					"id": "bundled-nyquist-registry-only",
-					"summary": "The maintained registry currently exposes only reviewed, source-pinned bundled Nyquist plug-ins; no generic package loader exists.",
+					"id": "release-pinned-reviewed-effect-catalog",
+					"summary": "The current loader accepts only an exact id and version from an immutable release catalog. The catalog returns isolated copies of repository-owned bytes, fails closed for absent and explicitly revoked revisions, and verifies the catalog's lowercase SHA-256 over the copied artifact before compilation. Package references are closed data containing no URL, caller-supplied bytes, signature key, or trust override; the only approved package is Utility Gain 1.0.0, while its 0.9.0 witness is revoked. This current claim does not authorize remote fetching, user installation, a marketplace, or an externally authored package.",
 					"evidence": [
-						{ "kind": "implementation", "path": "src/common/editor/nyquist/plugin-registry.js" },
-						{ "kind": "document", "path": "src/common/editor/nyquist/plugins/source-manifest.json" },
-						{ "kind": "test", "path": "tests/nyquist-plugin-registry.test.js" }
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/catalog.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/hash.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/runtime.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/utility-gain-package.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-reviewed-effects.test.ts" }
+					]
+				},
+				{
+					"id": "closed-reviewed-effect-wasm-abi",
+					"summary": "Admission validates a closed planar-f32 manifest and binary ABI before execution: zero imports, exact exports and process signature, no tables or start function, one bounded, unshared 32-bit memory, exact ABI-version, latency and tail metadata, bounded parameters, module bytes, channels, block frames, input, output, and memory pages. Runtime processing validates finite equal-shape PCM and parameter ranges before entering WebAssembly, checks status and memory after return, and rejects non-finite output. Focused tests cover malformed function signatures, forbidden imports, excess memory, declared latency or tail drift, malformed manifests, oversized or non-finite PCM, and Utility Gain reference vectors.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/manifest.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/wasm-abi.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/runtime.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-reviewed-effects.test.ts" }
+					]
+				},
+				{
+					"id": "terminating-reviewed-effect-offline-worker",
+					"summary": "Offline processing uses static first-party code in one dedicated module worker per admitted block and a closed request and response protocol. The client copies and transfers bounded input, binds output to the exact request and catalog package key, revalidates channel shape, output bytes, and finite samples, and on result, error, malformed response, processing timeout, or abort removes listeners and terminates the worker. The Utility Gain deadline is 250 ms. Focused worker-port evidence covers success, timeout, cancellation, catalog mismatch, oversized output, malformed requests, and termination; it does not claim an operating-system sandbox or browser scheduler timing.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/offline-worker-client.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/offline-worker-entry.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/offline-worker-runtime.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-reviewed-effects.test.ts" }
+					]
+				},
+				{
+					"id": "static-reviewed-effect-realtime-host",
+					"summary": "Only separately realtime-approved catalog keys may enter the static first-party AudioWorklet host; approval is checked by both the main-thread catalog and the worklet's closed package policy and is not inferred from a valid hash. The host passes a prevalidated WebAssembly.Module rather than package JavaScript, and the worklet rechecks zero imports and exact exports, channel, block, memory, parameter, and finite-output bounds before publishing samples, silencing a failed block. The exact current realtime package is repository-owned Utility Gain 1.0.0. Constructor and reference-vector tests exercise the static host contract, but this qualification does not qualify another package, hostile CPU behavior, actual browser realtime scheduling, device behavior, or an operating-system sandbox.",
+					"evidence": [
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/realtime-worklet-host.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/realtime-worklet.js" },
+						{ "kind": "implementation", "path": "src/common/editor/reviewed-effects/runtime.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-reviewed-effects.test.ts" }
 					]
 				}
 			],
-			"residualRisks": [
-				{
-					"id": "web-effect-package-abi",
-					"exposure": "A reviewed Web effect package ABI, import allowlist, signature/hash policy, revocation model, and worker lifecycle are not implemented.",
-					"requiredControl": "Instantiate pure WebAssembly packages in dedicated workers through a minimal allowlisted host ABI; do not import arbitrary third-party JavaScript into the application origin.",
-					"ownerMilestone": "4",
-					"acceptanceCriteria": ["Malformed ABI, forbidden import, timeout, oversized output, hash mismatch, and revocation tests pass before a package loader is exposed."]
-				}
-			]
+			"residualRisks": []
 		},
 		{
 			"id": "native-helper-processes",

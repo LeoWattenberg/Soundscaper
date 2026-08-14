@@ -26,7 +26,11 @@ import {
 	workspacePanelLabel,
 } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { DEFAULT_PANELS } from '../src/common/editor/workspace-layout-defaults.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import type { RuntimeTimelineAnnotationProjection } from '../src/common/editor/runtime-timeline-annotation-projection.ts';
 
@@ -398,6 +402,10 @@ test('the marker list is a dockable workspace panel that stays closed until it i
 test('the marker panel stays out of the dock until the project and product carry annotations', () => {
 	const snapshot = annotationSnapshotFixture();
 	assert.equal(timelineAnnotationsAvailable(snapshot), true);
+	assert.equal(timelineAnnotationsAvailable({
+		...snapshot,
+		project: { ...snapshot.project, schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION },
+	}), true);
 	assert.equal(timelineAnnotationsAvailable(null), false);
 	assert.equal(timelineAnnotationsAvailable({ ...snapshot, capabilities: { timelineAnnotations: false } }), false);
 	assert.equal(timelineAnnotationsAvailable({
@@ -408,6 +416,23 @@ test('the marker panel stays out of the dock until the project and product carry
 		...snapshot,
 		project: { ...snapshot.project, timelineAnnotations: undefined },
 	}), false);
+	let annotationReads = 0;
+	for (const schemaVersion of [
+		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1,
+	]) {
+		assert.equal(timelineAnnotationsAvailable({
+			...snapshot,
+			project: {
+				schemaVersion,
+				get timelineAnnotations(): never {
+					annotationReads += 1;
+					throw new Error('foreign timelineAnnotations was traversed');
+				},
+			},
+		}), false);
+	}
+	assert.equal(annotationReads, 0);
 });
 
 test('the ruler-corner marker actions stay hidden until Show markers is enabled', () => {

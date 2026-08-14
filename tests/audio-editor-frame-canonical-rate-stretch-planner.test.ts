@@ -15,6 +15,10 @@ import {
 } from '../src/common/editor/project-v10.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
+import {
 	brandRuntimeProjectProjection,
 	isRuntimeProjectProjection,
 } from '../src/common/editor/runtime-clip-projection.ts';
@@ -78,6 +82,27 @@ test('right and left stretch anchor the opposite edge and preserve canonical sou
 	assert.deepEqual(previewRanges(left.previews), [[
 		'video', boundary(5, PAL), boundary(20, PAL), 100, 110,
 	]]);
+});
+
+test('frame-canonical planning retains authority on selected exact product schemas', () => {
+	const current = fixture();
+	for (const schemaVersion of [
+		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	]) {
+		const withoutTimelineAnnotations = { ...current.project, timelineAnnotations: undefined };
+		const project = brandRuntimeProjectProjection(Object.freeze({
+			...(schemaVersion === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
+				? current.project
+				: withoutTimelineAnnotations),
+			schemaVersion,
+		}));
+		const plan = planFrameCanonicalRateStretch(project, current.timingViews, {
+			activeClipId: 'video', edge: 'right', requestedBoundarySample: boundary(25, PAL),
+		});
+		assert.equal(plan.kind, 'transform');
+		assert.equal(plan.appliedSequenceFrame, 25);
+	}
 });
 
 test('one scale point-rounds unequal videos once on separate lanes', () => {

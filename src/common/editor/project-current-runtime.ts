@@ -5,6 +5,7 @@ import { reconcileProjectOwnedFeatureRequirements } from './project-owned-featur
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
 	isSourceCharacteristicsProjectSchema,
 } from './project-schema-version.ts';
 import {
@@ -27,11 +28,12 @@ import {
 
 type DataRecord = Record<string, unknown>;
 
-/** V10 introduced the authoritative foundation retained by V11 through V17. */
+/** V10 introduced the authoritative foundation retained through product-owned V21. */
 export function isFoundationProjectSchema(schemaVersion: unknown): boolean {
 	return schemaVersion === AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION
 		|| schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION
-		|| schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
+		|| schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+		|| schemaVersion === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
 }
 
 /** Resolve authoritative project timing into the transient coordinates shared consumers expect. */

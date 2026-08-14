@@ -5,9 +5,11 @@ import {
 	createAudioSourceV10,
 	createAudioTrackV10,
 } from '../../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV17 } from '../../src/common/editor/project-v17.ts';
 import { exportScapeProject, SCAPE_MIME_TYPE } from '../../src/common/editor/scape-project.js';
 import { createProjectStore } from '../../src/common/editor/storage.js';
+import { createFramescaperProjectV19 } from '../../src/framescaper/editor-project-v19.ts';
+import { FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v19.ts';
+import { createSoundscaperProjectV21 } from '../../src/soundscaper/editor-project-v21.ts';
 import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
@@ -185,7 +187,7 @@ test.describe('audio warp and transient workflow', () => {
 	test('Framescaper preserves authored warp maps read-only and exposes no menu or surface', async ({ page }) => {
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
-		await openAudioWarpArchive(editor, true);
+		await openAudioWarpArchive(editor, true, 'framescaper-v19');
 		const decision = page.getByRole('dialog', { name: 'Project features unavailable', exact: true });
 		await expect(decision).toBeVisible();
 		await expect(decision).toContainText('Audio warp maps');
@@ -248,7 +250,7 @@ async function installWarpCapture(page) {
 		if (!NativeOfflineAudioContext) throw new Error('OfflineAudioContext is required for warp parity.');
 		class CapturingAudioContext extends NativeOfflineAudioContext {
 			constructor() {
-				super(1, frameCount, sampleRate);
+				super(2, frameCount, sampleRate);
 				globalThis.__audioWarpCaptureContext = this;
 				globalThis.__audioWarpCaptureStarts = 0;
 			}
@@ -282,21 +284,22 @@ async function installWarpCapture(page) {
 	}, { frameCount: FRAME_COUNT, sampleRate: SAMPLE_RATE });
 }
 
-async function openAudioWarpArchive(editor, withWarpMap) {
+async function openAudioWarpArchive(editor, withWarpMap, authority = 'soundscaper-v21') {
 	await editor.locator('[data-aup4-input]').setInputFiles({
 		name: `audio-warp-${withWarpMap ? 'authored' : 'plain'}.scape`,
 		mimeType: SCAPE_MIME_TYPE,
-		buffer: await audioWarpArchive(withWarpMap),
+		buffer: await audioWarpArchive(withWarpMap, authority),
 	});
 }
 
 const archives = new Map();
-function audioWarpArchive(withWarpMap) {
-	if (!archives.has(withWarpMap)) archives.set(withWarpMap, createAudioWarpArchive(withWarpMap));
-	return archives.get(withWarpMap);
+function audioWarpArchive(withWarpMap, authority) {
+	const key = `${authority}:${String(withWarpMap)}`;
+	if (!archives.has(key)) archives.set(key, createAudioWarpArchive(withWarpMap, authority));
+	return archives.get(key);
 }
 
-async function createAudioWarpArchive(withWarpMap) {
+async function createAudioWarpArchive(withWarpMap, authority) {
 	const nonidentity = typeof withWarpMap === 'string' && withWarpMap.startsWith('nonidentity-');
 	const store = createProjectStore({
 		indexedDB: null,
@@ -317,16 +320,19 @@ async function createAudioWarpArchive(withWarpMap) {
 	});
 	try {
 		await persistAttacks(store, source, nonidentity);
-		const project = createAudioEditorProjectV17({
+		const options = {
 			id: nonidentity ? `${PROJECT_ID}-${String(withWarpMap)}` : PROJECT_ID,
 			title: 'Browser audio warp project',
 			now: '2026-08-12T12:00:00.000Z',
 			sampleRate: SAMPLE_RATE,
-			masterChannels: 1,
+			masterChannels: 2,
 			sources: [source],
 			clips: [clip],
 			tracks: [createAudioTrackV10({ id: TRACK_ID, name: 'Drums', clipIds: [CLIP_ID] })],
-		});
+		};
+		const project = authority === 'framescaper-v19'
+			? createFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, options)
+			: createSoundscaperProjectV21(options);
 		const exported = await exportScapeProject(project, store);
 		if (!(exported.blob instanceof Blob)) throw new Error('Audio warp fixture export did not return a Blob.');
 		return Buffer.from(await exported.blob.arrayBuffer());

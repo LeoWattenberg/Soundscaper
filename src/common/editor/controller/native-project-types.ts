@@ -316,6 +316,7 @@ export interface NativeProjectServiceRuntime {
 	readonly createAup4Client: (options: Readonly<Record<string, unknown>>) => NativeAup4Client;
 	readonly initialAup4Client?: NativeAup4Client | null;
 	readonly aup4Options?: Readonly<Record<string, unknown>>;
+	readonly adaptAudacityProject?: (value: unknown) => NativeProjectDocument;
 	readonly migrateProject: (value: unknown) => Readonly<{ project: NativeProjectDocument }>;
 	readonly importScapeProject: (
 		file: NativeScapeProjectFile,

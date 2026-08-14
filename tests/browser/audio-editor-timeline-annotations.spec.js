@@ -21,7 +21,6 @@ import {
 } from './audio-editor-test-helpers.js';
 
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
-const ANNOTATION_CAPABILITY_ID = 'org.soundscaper.capability.timeline-annotations';
 
 test.describe('native timeline annotations', () => {
 	registerAudioEditorHooks(test);
@@ -167,7 +166,7 @@ test.describe('native timeline annotations', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('keeps Framescaper unavailable and preserves annotations through a read-only Scape handoff', async ({ browser, page, browserName }) => {
+	test('keeps Framescaper unavailable and preserves annotations after an exact-schema handoff refusal', async ({ browser, page, browserName }) => {
 		test.skip(browserName === 'webkit', 'Milestone 3 qualifies this boundary in Chromium and Firefox.');
 		test.setTimeout(90_000);
 		const originErrors = collectClientErrors(page);
@@ -195,30 +194,26 @@ test.describe('native timeline annotations', () => {
 			await routeTranslations(framesPage);
 			const frameErrors = collectClientErrors(framesPage);
 			const framescaper = await bootEditor(framesPage, '/framescaper/embed/en/');
+			const framescaperProjectId = await framescaper.getAttribute('data-project-id');
 			await openScapeArchive(framescaper, outbound, 'timeline-annotations.scape');
-			const decision = framesPage.getByRole('dialog', { name: 'Project features unavailable', exact: true });
-			await expect(decision).toHaveAttribute('data-scape-open-decision', 'compatibility');
-			await expect(decision).toContainText('Timeline markers and regions');
-			await expect(decision).toContainText(ANNOTATION_CAPABILITY_ID);
-			await expect(decision).toContainText(/Unavailable.*Bypass declared/isu);
-			await decision.getByRole('button', { name: 'Open read-only', exact: true }).click();
+			await expect(framescaper.locator('[data-status]')).toHaveAttribute('data-state', 'error', {
+				timeout: 20_000,
+			});
+			await expect(framescaper.locator('[data-status]')).toContainText(
+				/Unsupported Framescaper project schema version: 21/iu,
+			);
 			await expect(framescaper).toHaveAttribute('data-product', 'framescaper');
-			await expect(framescaper).toHaveAttribute('data-project-id', projectId);
-			await expect(framescaper).toHaveAttribute('data-edit-block-reason', 'read-only');
+			await expect(framescaper).toHaveAttribute('data-project-id', framescaperProjectId);
 			await expect(framescaper.getByRole('region', { name: 'Markers and named regions' })).toHaveCount(0);
 			await expect(framescaper.getByRole('listbox', { name: 'Markers and named regions' })).toHaveCount(0);
-			const notice = framescaper.locator(`[data-project-feature-requirement="${ANNOTATION_CAPABILITY_ID}"]`);
-			await expect(notice).toContainText('Timeline markers and regions');
-			await expect(notice).toHaveAttribute('data-declared-disposition', 'bypass');
-			await expect(notice).toHaveAttribute('data-effective-disposition', 'bypassed');
-
-			const returned = await captureScapeArchive(framesPage, framescaper);
+			await expect(framesPage.getByRole('dialog', { name: 'Project features unavailable' }))
+				.toHaveCount(0);
 			const homePage = await browser.newPage({ baseURL, serviceWorkers: 'block' });
 			openedPages.push(homePage);
 			await routeTranslations(homePage);
 			const homeErrors = collectClientErrors(homePage);
 			const home = await bootEditor(homePage, '/embed/en/');
-			await openScapeArchive(home, returned, 'timeline-annotations-return.scape');
+			await openScapeArchive(home, outbound, 'timeline-annotations-return.scape');
 			await expect(home).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
 			await expect(home).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 			await expect(home.locator('[data-project-feature-compatibility]')).toHaveCount(0);

@@ -7,6 +7,7 @@ import type {
 	EffectTarget,
 } from './effect-selection-service.ts';
 import type { PersistEffectResultOptions, SelectionEffectResult } from './effect-result-service.ts';
+import { createIsolatedTrackRenderProjectV21 } from './isolated-track-render-project-v21.ts';
 import {
 	inspectSpectralEditChannels,
 	MAXIMUM_SPECTRAL_EDIT_USEFUL_BINARY_BYTES,
@@ -57,11 +58,7 @@ export interface EffectAudioProject extends Readonly<Record<string, unknown>> {
 	readonly clips: readonly EffectAudioClip[];
 	readonly selection?: EffectSelection | null;
 	readonly master: Readonly<{ readonly gain?: number; readonly effects: readonly EffectAudioEffect[] }>;
-	readonly mixer: Readonly<{
-		readonly groups: readonly unknown[];
-		readonly sends: readonly unknown[];
-		readonly routes: Readonly<Record<string, unknown>>;
-	}>;
+	readonly mixer: Readonly<Record<string, unknown>>;
 }
 
 interface MutableEffectAudioTrack extends Record<string, unknown> {
@@ -74,7 +71,7 @@ interface MutableEffectAudioTrack extends Record<string, unknown> {
 	pan: number;
 	mute: boolean;
 	solo: boolean;
-	envelope: unknown[];
+	envelope?: unknown[];
 }
 
 interface MutableEffectAudioProject extends Record<string, unknown> {
@@ -85,7 +82,7 @@ interface MutableEffectAudioProject extends Record<string, unknown> {
 	clips: EffectAudioClip[];
 	selection: EffectSelection | null;
 	master: { gain?: number; effects: EffectAudioEffect[] };
-	mixer: { groups: unknown[]; sends: unknown[]; routes: Record<string, unknown> };
+	mixer: Record<string, unknown>;
 }
 
 export interface EffectAudioState {
@@ -222,22 +219,28 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		if (!track) throw new Error(runtime.copy.audioTrackNotFound);
 		const channelCount = requestedChannelCount
 			?? (runtime.audacitySelectionChannelCount(project, trackId, startFrame, endFrame) || 1);
-		const snapshot = runtime.cloneProject(project) as unknown as MutableEffectAudioProject;
+		let snapshot = runtime.cloneProject(project) as unknown as MutableEffectAudioProject;
 		const clipIdSet = requestedClipIds?.length ? new Set(requestedClipIds) : null;
-		snapshot.tracks = snapshot.tracks
-			.filter((candidate) => candidate.id === trackId)
-			.map((candidate) => ({
-				...candidate,
-				...(clipIdSet ? { clipIds: candidate.clipIds.filter((clipId) => clipIdSet.has(clipId)) } : {}),
-				gain: 1,
-				pan: 0,
-				mute: false,
-				solo: false,
-				effects: [],
-				envelope: [],
-			}));
-		snapshot.master = { gain: 1, effects: [] };
-		snapshot.mixer = { groups: [], sends: [], routes: {} };
+		if (snapshot.schemaVersion === 21) {
+			snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
+				trackId, effects: [], clipIds: requestedClipIds,
+			}) as unknown as MutableEffectAudioProject;
+		} else {
+			snapshot.tracks = snapshot.tracks
+				.filter((candidate) => candidate.id === trackId)
+				.map((candidate) => ({
+					...candidate,
+					...(clipIdSet ? { clipIds: candidate.clipIds.filter((clipId) => clipIdSet.has(clipId)) } : {}),
+					gain: 1,
+					pan: 0,
+					mute: false,
+					solo: false,
+					effects: [],
+					envelope: [],
+				}));
+			snapshot.master = { gain: 1, effects: [] };
+			snapshot.mixer = { groups: [], sends: [], routes: {} };
+		}
 		const rendered = await runtime.renderSnapshot(snapshot, {
 			startFrame,
 			endFrame,
@@ -261,20 +264,27 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 	): Promise<Float32Array[]> {
 		const project = runtime.getProject();
 		const token = runtime.captureProject();
-		const snapshot = runtime.cloneProject(project) as unknown as MutableEffectAudioProject;
+		let snapshot = runtime.cloneProject(project) as unknown as MutableEffectAudioProject;
 		const trackId = requestedTrackId;
 		if (scope === 'track') {
 			const track = findMutableTrack(snapshot, trackId);
 			if (!track) throw new Error(runtime.copy.audioTrackNotFound);
 			const effectIndex = track.effects.findIndex((candidate) => candidate.id === effect.id);
 			if (effectIndex < 0) throw new Error(runtime.copy.rackEffectNotFound);
-			track.effects = track.effects.slice(0, effectIndex);
-			track.gain = 1;
-			track.pan = 0;
-			track.mute = false;
-			track.solo = false;
-			track.envelope = [];
-			snapshot.mixer = { ...snapshot.mixer, groups: [], sends: [], routes: {} };
+			const prefix = track.effects.slice(0, effectIndex);
+			if (snapshot.schemaVersion === 21) {
+				snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
+					trackId: requireTrackId(trackId), effects: prefix,
+				}) as unknown as MutableEffectAudioProject;
+			} else {
+				track.effects = prefix;
+				track.gain = 1;
+				track.pan = 0;
+				track.mute = false;
+				track.solo = false;
+				track.envelope = [];
+				snapshot.mixer = { ...snapshot.mixer, groups: [], sends: [], routes: {} };
+			}
 		} else {
 			const effectIndex = snapshot.master.effects.findIndex((candidate) => candidate.id === effect.id);
 			if (effectIndex < 0) throw new Error(runtime.copy.rackEffectNotFound);

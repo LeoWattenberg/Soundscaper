@@ -4,10 +4,11 @@
 > mixer-graph decisions, their invariants, and the bounded work packets.
 > The [roadmap](../roadmap.md#4-parallel-production-surfaces) owns scope
 > and status; the compatibility, security, and licensing policies own
-> their claims. Re-grounded on 2026-08-13 against the maintained exact
-> Framescaper V18 base: milestone 3 and external qualification remain open,
+> their claims. Re-grounded on 2026-08-14 against the maintained Soundscaper
+> V17 and Framescaper bases: milestone 3 and external qualification remain open,
 > while the project owner has explicitly cleared the implementation sequencing
-> gate for Framescaper 4B. That clearance does not relabel evidence.
+> gates for Framescaper 4B and Soundscaper 4A. Those clearances do not relabel
+> evidence.
 
 ## Goals and ordering principle
 
@@ -33,7 +34,7 @@ transition curve, and caption timing decision after them; they land
 first, once, under review, schema-neutral, before any dependent schema
 revision.
 
-## Prerequisites and pickup state (grounded 2026-08-13)
+## Prerequisites and pickup state (grounded 2026-08-14)
 
 Milestone 4 depends on milestone 3. The shared exact-time foundation and the
 maintained Soundscaper and Framescaper editorial base now exist, but roadmap
@@ -43,25 +44,36 @@ correctness is green; its reference-GPU qualification is also
 `pending-external`.
 
 On 2026-08-13 the project owner explicitly cleared the milestone-3
-implementation sequencing gate for the Framescaper 4B track against that
-maintained base. This authorizes 4B pickup and implementation without claiming
-milestone-3 completion, waiving a manual or external row, or changing an
-observed result. It does not authorize the Soundscaper 4A track, which remains
-unstarted, and it does not close the milestone-4 exit gate.
+implementation sequencing gate for the Framescaper 4B track. On 2026-08-14 the
+owner explicitly cleared the maintained Soundscaper base for 4A by directing
+implementation of milestone 4A. These directions authorize pickup and
+implementation without claiming milestone-3 completion, waiving a manual or
+external row, changing an observed result, or closing either track or the
+milestone-4 exit gate.
 
-The pickup leaves concurrent milestone-3 work and its evidence state untouched.
-Framescaper's selected exact schema is V18, so 4B-1 owns the next bounded
-product revision, V19, under the unchanged pre-release no-migration policy.
+The pickups leave concurrent milestone-3 work and its evidence state untouched.
+Framescaper V19 is the browser App authority and its dormant V20 candidate is
+implemented, but V20 activation, external keyed-parity, reference-GPU, and
+manual evidence remain open. The next globally serialized schema slot, V21, is
+therefore allocated to the now-authorized Soundscaper automation/mixer/PDC
+revision. Planned and unimplemented Framescaper transitions move to V22. No
+implemented V18, V19, or V20 statement changes.
 
-## 2026-08-13 implementation decisions
+## 2026-08-14 implementation decisions
 
 - Serialized 4.0 is implemented provisionally. The Framescaper 4B-1
   implementation candidate is complete apart from manual/reference-GPU
-  qualification, and 4B-2 is in progress under the explicit sequencing
-  clearance. Both are decomposed in
-  [`docs/milestone-4b-framescaper-finishing.md`](milestone-4b-framescaper-finishing.md).
-  Soundscaper 4A is unstarted; both track exit gates and the overall
-  milestone-4 exit gate remain open.
+  qualification, and the dormant V20 4B-2 candidate remains in progress with
+  activation and external evidence open under its
+  [pickup contract](milestone-4b-framescaper-finishing.md). Soundscaper 4A now
+  has explicit sequencing clearance and an active
+  [V21 pickup contract](milestone-4a-soundscaper-production.md). Its local
+  implementation candidate is complete and the maintained Soundscaper
+  App/runtime/storage route is selected. Packets 4A-1 through 4A-6 are
+  implemented provisionally and 4A-7's local automated acceptance is green;
+  hosted no-retry, packaged-runtime, manual, and reference-GPU qualification
+  remain open. Neither track is qualified or complete, and both track exit
+  gates and the overall milestone-4 exit gate remain open.
 - Automation uses one timebase per lane, a 4,096-point persisted cap, and
   deterministic adaptive thinning that preserves endpoints, discontinuities,
   mode boundaries, and the highest-error extrema.
@@ -364,10 +376,11 @@ distribution gate, config/production-licensing-matrix.json:321-325).
 Serialized product-wide, one in flight, atomic with validators,
 commands, and fixtures, under the pre-release policy (no migrations)
 until the first shipped release — unchanged from milestone 3
-(docs/milestone-3b-work-packets.md:25-28, 44-48). Expected bounded
-revisions, each designed at pickup: the automation-lane/mixer-graph
-revision (4A), the transform/keyframe/transition revision (4B), the
-caption-track revision (4B), and the new-kind revisions (4B). Every
+(docs/milestone-3b-work-packets.md:25-28, 44-48). The bounded sequence is V19
+for the 4B-1 transform candidate, V20 for the implemented-but-dormant 4B-2
+keyframe candidate, V21 for the Soundscaper automation-lane/mixer-graph/PDC
+revision, and V22 for planned and unimplemented 4B-3 transitions; caption-track
+and new-kind revisions are assigned only at their own pickup. Every
 revision walks the full registration path — command discriminants and
 one domain registry (`src/common/editor/commands/protocol.ts:9-12`,
 `commands/registry.ts:80-137`), capability id and both product profiles
@@ -390,22 +403,32 @@ per the standing duties (roadmap.md:844-846).
 | 4A | Parallel track | Soundscaper production: automation lanes and modes, mixer graph, per-path PDC, freeze, restoration/metering, reviewed effect packages |
 | 4B | Parallel track | Framescaper finishing: transforms/keyframes, transitions, new kinds and inspector, color/motion, styled captions, Framescaper audio finishing |
 
-**Implementation status (2026-08-13):** shared phase 4.0 is implemented and
+**Implementation status (2026-08-14):** shared phase 4.0 is implemented and
 its hosted correctness acceptance is green. Reference-GPU qualification remains
 `pending-external`, and milestone 3 remains recorded **In progress** with its
 manual/external evidence unchanged. The project owner explicitly cleared the
 Framescaper implementation sequencing gate: the 4B-1 implementation candidate
-is complete apart from manual/reference-GPU qualification, and 4B-2 is
-**In progress** under the
-[pickup contract](milestone-4b-framescaper-finishing.md). 4A is unstarted.
+is complete apart from manual/reference-GPU qualification, and the dormant V20
+4B-2 candidate is **In progress** under the
+[pickup contract](milestone-4b-framescaper-finishing.md), with product-route
+activation and external evidence still open. The owner also explicitly cleared
+Soundscaper 4A sequencing. Its V21 candidate is **Implemented (provisional)**
+under the [4A pickup contract](milestone-4a-soundscaper-production.md), and the
+maintained Soundscaper App/runtime/storage route is selected. Packets 4A-1
+through 4A-6 are locally implemented and 4A-7 local automated acceptance is
+green. The hosted no-retry, packaged-runtime, manual, and reference-GPU rows
+remain open, so neither track is qualified or complete and the overall
+milestone-4 exit gate remains open.
 
 ## Work packets
 
-The 4.0 packets are decomposed here; 4A packets remain summarized against the
-five fields until pickup. The complete 4B decomposition and detailed 4B-1
-contract are maintained in
+The 4.0 packets are decomposed here. The complete 4A decomposition and exact
+V21 automation/mixer/PDC/freeze contract are maintained in
+[`docs/milestone-4a-soundscaper-production.md`](milestone-4a-soundscaper-production.md).
+The complete 4B decomposition and detailed 4B contracts are maintained in
 [`docs/milestone-4b-framescaper-finishing.md`](milestone-4b-framescaper-finishing.md),
-written at pickup before feature publication (docs/milestone-3-plan.md:467-470).
+each written at pickup before feature publication
+(docs/milestone-3-plan.md:467-470).
 
 ### WP-4.0.0 — Interpolation vocabulary (schema-neutral)
 
@@ -487,9 +510,14 @@ written at pickup before feature publication (docs/milestone-3-plan.md:467-470).
   on existing behavior — that is a defect to fix, not a baseline to
   move (docs/quality-budgets.md:543-550).
 
-### 4A packets (Soundscaper track; slice docs at pickup)
+### 4A packets (Soundscaper track; pickup contract active)
 
-- **4A-1 — Automation lanes and modes.** Outcome: the lane document
+The owning decomposition, exact V21 wire, preservation matrix, and acceptance
+suite are in
+[`docs/milestone-4a-soundscaper-production.md`](milestone-4a-soundscaper-production.md).
+
+- **4A-1 — Automation lanes and modes. Status: Implemented (provisional).**
+  Outcome: the lane document
   type over the vocabulary and address space, lane UI reached through
   existing track/mixer menus, read/trim/touch/latch/write modes with
   safe playback ownership and single-transaction commits. Invariants:
@@ -499,7 +527,8 @@ written at pickup before feature publication (docs/milestone-3-plan.md:467-470).
   Non-goals: no tempo-map rewriting; no MIDI-shaped state. Stop: any
   lane needing dense persisted data — that is the declared external
   asset path.
-- **4A-2 — Mixer graph revision.** Outcome: nested buses, multiple
+- **4A-2 — Mixer graph revision. Status: Implemented (provisional).** Outcome:
+  nested buses, multiple
   assignments, pre/post-fader sends, VCAs, cue mixes, output
   placeholders, explicit sidechains, channel mapping, cycle
   validation; folder single-layer rule lifted with the folder-bus
@@ -507,13 +536,15 @@ written at pickup before feature publication (docs/milestone-3-plan.md:467-470).
   authority split preserved. Acceptance: graph validation matrices,
   routing round trips, cross-product preservation. Stop: any graph
   state whose audibility resolves in two places.
-- **4A-3 — Per-path PDC.** Outcome: per-path compensation across
+- **4A-3 — Per-path PDC. Status: Implemented (provisional).** Outcome: per-path
+  compensation across
   playback, monitoring, automation, sends, sidechains, render, freeze;
   every effect latency-reporting via its descriptor. Acceptance:
   `parity.pdcErrorSamples eq 0` on the harness; underrun metrics
   unchanged. Stop: any path where compensation would require persisted
   derived state.
-- **4A-4 — Freeze, unfreeze, commit.** Outcome: reversible freeze with
+- **4A-4 — Freeze, unfreeze, commit. Status: Implemented (provisional).**
+  Outcome: reversible freeze with
   retained editable state, digest-bound freshness, explicit commit;
   rendered-fallback publication for cross-product availability where
   eligible. Invariants: no source deletion (mix-and-render remains the
@@ -521,23 +552,26 @@ written at pickup before feature publication (docs/milestone-3-plan.md:467-470).
   Acceptance: freeze/edit/unfreeze/commit matrices, stale-freeze
   detection, `.scape`/desktop round trips; `audio-freeze-fallback`
   rule flipped. Stop: any freeze byte entering the document.
-- **4A-5 — Restoration and metering.** Outcome: restoration workflow
-  surface over the existing Audacity DSP; phase/correlation/surround
-  metering per strip (today per-strip meters are peak/RMS only,
-  `src/common/editor/engine/transport-scheduler.ts:63-70, 397-402`);
-  loudness history as bounded session state over the existing EBU R128
+- **4A-5 — Restoration and metering. Status: Implemented (provisional).**
+  Outcome: restoration workflow surface over the existing Audacity DSP;
+  phase/correlation/surround metering per strip; loudness history as bounded
+  session state over the existing EBU R128
   meter (`src/common/editor/ebu-r128.js`); scalable scheduling.
   Non-goals: no export-time normalization (milestone 6). Stop: any
   meter needing document persistence.
-- **4A-6 — Reviewed effect packages.** Outcome: the package ABI,
-  loader, hash/revocation policy, and threat-model/security-matrix
-  revision in one change, per the decision above; licensing-gate rows
-  for any shipped package. Acceptance: the matrix's recorded
+- **4A-6 — Reviewed effect packages. Status: Implemented (provisional).**
+  Outcome: the package ABI, loader, hash/revocation policy, and
+  threat-model/security-matrix revision in one change, per the decision above;
+  licensing-gate rows for any shipped package. The built-in, release-pinned
+  Utility Gain package ships through the reviewed pure-WASM paths; external
+  packages, arbitrary URLs, and user trust overrides remain fenced. Acceptance:
+  the matrix's recorded
   malformed-ABI/timeout/oversize/hash/revocation suite. Stop: any
   package requiring JavaScript import or same-origin access.
-- **4A-7 — Exit evidence.** The 4A surface run against the parity
-  workload and registered budgets, recorded without relabeling
-  unprovisioned rows.
+- **4A-7 — Exit evidence. Status: Implemented locally (provisional).** The local
+  automated 4A surface passes the parity workload and registered budgets. The
+  4A hosted no-retry, packaged-runtime, manual, and reference-GPU evidence
+  remains open and no unprovisioned row is relabelled.
 
 ### 4B packets (Framescaper track; pickup contract active)
 

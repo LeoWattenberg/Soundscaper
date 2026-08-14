@@ -12,7 +12,11 @@ import type {
 	ProjectFeatureFallback,
 	ProjectFeatureRequirementsReport,
 } from '../src/common/editor/project-feature-requirements.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 
 const AUDIO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
 const VIDEO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.videoEffects;
@@ -82,6 +86,21 @@ test('a foreign audio effect type is named instead of staying invisible', () => 
 	assert.equal(foreign.channel, 'audio-effect');
 	assert.equal(foreign.scope, 'track');
 	assert.equal(foreign.ownerId, 'track-a');
+});
+
+test('selected product schemas retain inherited affected-object attribution', () => {
+	for (const schemaVersion of [
+		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	]) {
+		const source = { ...project(), schemaVersion };
+		const index = projectFeatureAffectedObjects(source, report());
+		assert.deepEqual(
+			index?.requirements[0]?.objects.map(({ objectId }) => objectId),
+			['effect-foreign'],
+			`schema ${String(schemaVersion)} must retain inherited attribution`,
+		);
+	}
 });
 
 test('registered effect types are left to their own placeholder section', () => {

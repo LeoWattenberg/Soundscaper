@@ -23,6 +23,7 @@ import type {
 } from './project-feature-requirement-types.ts';
 import { normalizeVideoEffects } from './video-effects.js';
 import { resolveRuntimeClipProjection } from './runtime-clip-projection.ts';
+import { normalizeAudioTrackFreezeV1 } from './audio-track-freeze-v21.ts';
 
 export type {
 	EvaluateProjectFeatureRequirementsOptions,
@@ -167,7 +168,9 @@ function normalizeFallback(
 			'requirement.fallback.targetTrackId',
 			PROJECT_FEATURE_REQUIREMENTS_LIMITS.maximumSourceIdLength,
 		);
-		validateAudioTrackFallback(featureId, targetTrackId, sourceId, source, clips, tracks);
+		validateAudioTrackFallback(
+			featureId, targetTrackId, sourceId, candidate.sha256, source, clips, tracks,
+		);
 		return Object.freeze({
 			role,
 			kind: 'audio',
@@ -219,19 +222,26 @@ function validateAudioTrackFallback(
 	featureId: string,
 	targetTrackId: string,
 	fallbackSourceId: string,
+	fallbackSha256: string,
 	fallbackSource: ProjectSourceReference,
 	clips: readonly ProjectTimelineClipReference[],
 	tracks: readonly ProjectTrackReference[],
 ): void {
-	if (featureId !== PROJECT_FEATURE_CAPABILITY_IDS.audioEffects) {
-		throw new RangeError('An audio track rendered fallback requires the maintained audio-effects feature.');
-	}
 	const targets = tracks.filter((track) => track.id === targetTrackId);
 	if (targets.length !== 1) {
 		throw new ReferenceError(`An audio track rendered fallback requires exactly one target track ${targetTrackId}.`);
 	}
 	const target = targets[0]!;
 	if (target.type !== 'audio') throw new RangeError(`Fallback target ${targetTrackId} must be an audio track.`);
+	if (featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze) {
+		validateAudioFreezeTrackFallback(
+			target, targetTrackId, fallbackSourceId, fallbackSha256, fallbackSource, clips,
+		);
+		return;
+	}
+	if (featureId !== PROJECT_FEATURE_CAPABILITY_IDS.audioEffects) {
+		throw new RangeError('An audio track rendered fallback requires the maintained audio-effects feature.');
+	}
 	if (target.effectsActive === false) {
 		throw new RangeError(`Fallback target ${targetTrackId} requires an active effect rack.`);
 	}
@@ -268,6 +278,38 @@ function validateAudioTrackFallback(
 	}
 	if (fallbackSource.frameCount !== extentFrames) {
 		throw new RangeError('An audio track rendered fallback source frameCount must equal the target track extent.');
+	}
+}
+
+function validateAudioFreezeTrackFallback(
+	target: ProjectTrackReference,
+	targetTrackId: string,
+	fallbackSourceId: string,
+	fallbackSha256: string,
+	fallbackSource: ProjectSourceReference,
+	clips: readonly ProjectTimelineClipReference[],
+): void {
+	const freeze = normalizeAudioTrackFreezeV1(target.audioFreeze);
+	if (freeze.derivedSourceId !== fallbackSourceId) {
+		throw new RangeError(`Frozen fallback target ${targetTrackId} must bind its exact derived source.`);
+	}
+	if (fallbackSource.contentSha256 !== fallbackSha256) {
+		throw new RangeError('A frozen track fallback digest must match its derived source content identity.');
+	}
+	if (fallbackSource.frameCount !== freeze.renderFrameCount) {
+		throw new RangeError('A frozen track fallback source frameCount must equal its exact render range.');
+	}
+	if (!Array.isArray(target.clipIds) || target.clipIds.length === 0) {
+		throw new RangeError(`Frozen fallback target ${targetTrackId} requires retained editable clips.`);
+	}
+	for (const clipId of target.clipIds) {
+		const matches = clips.filter((clip) => clip.id === clipId);
+		if (matches.length !== 1) {
+			throw new ReferenceError(`Frozen fallback target ${targetTrackId} references a missing timeline clip.`);
+		}
+		if (matches[0]!.sourceId === fallbackSourceId) {
+			throw new RangeError('A frozen track fallback source cannot replace retained editable authority in the document.');
+		}
 	}
 }
 

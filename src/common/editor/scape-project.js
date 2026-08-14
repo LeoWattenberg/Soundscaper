@@ -47,8 +47,8 @@ import { preflightScapeImportCapacity } from './scape-import-capacity.ts';
 import { indexScapeProjectAssets, indexScapeProjectTimingAssets } from './scape-project-assets.ts';
 import { parseScapeProjectDocument } from './scape-project-document.ts';
 import { withScapeProjectInput } from './scape-project-input.ts';
+import { remapScapeProjectSourceReferences } from './scape-project-source-remap.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
-import { remapTakeGroupSourceIds } from './take-group-source-references.ts';
 import {
 	normalizeVideoTimingAssetReference,
 	validateVideoTimingAssetBytes,
@@ -78,6 +78,7 @@ export async function exportScapeProject(project, store, options = {}) {
 		maximumBlobBytes: options.maximumBlobBytes,
 		output: writable || createWritable ? 'stream' : 'blob',
 		signal,
+		currentProjectSchemaVersion: options.currentProjectSchemaVersion,
 	});
 	const resolvedWritable = createWritable
 		? await awaitScapeOperation(createWritable(plan.maximumArchiveBytes), signal)
@@ -305,6 +306,12 @@ export async function importScapeProject(input, store, options = {}) {
 			}
 			remapScapeProjectSourceReferences(project, sourceIdMap);
 			if (!loaded.readOnly && project.schemaVersion === scapeCurrentProjectSchemaVersion(options)) {
+				if (options.rebindProjectSourceIdentities !== undefined) {
+					if (typeof options.rebindProjectSourceIdentities !== 'function') {
+						throw new TypeError('The .scape project source-identity rebinder must be a function.');
+					}
+					options.rebindProjectSourceIdentities(project, sourceIdMap);
+				}
 				project.featureRequirements = remapProjectFeatureRequirementSourceIds(
 					project.featureRequirements,
 					sourceIdMap,
@@ -446,13 +453,6 @@ export async function importScapeProject(input, store, options = {}) {
 		if (transaction) return transaction.rollback(error);
 		throw error;
 	}
-}
-
-function remapScapeProjectSourceReferences(project, sourceIdMap) {
-	for (const clip of [...(project.clips || []), ...(project.projectBin?.clips || [])]) {
-		clip.sourceId = sourceIdMap.get(clip.sourceId) || clip.sourceId;
-	}
-	remapTakeGroupSourceIds(project, sourceIdMap);
 }
 
 function indexScapeTimingReferences(sources) {

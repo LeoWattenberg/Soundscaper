@@ -7,6 +7,7 @@ import { extname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 
 const FRAMESCAPER_V10_PRELOAD_BUNDLE = 'project-library-v10-sandbox-preload.cjs';
+const SOUNDSCAPER_V10_PRELOAD_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
 
 const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/application-lifecycle.js',
@@ -149,7 +150,77 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/framescaper/editor-project-v18-sequence.js',
 	'src/framescaper/editor-project-v18-subsequence.js',
 	'src/framescaper/editor-project-v18-validation.js',
-]);
+	'desktop/soundscaper-project-library-v10-catalog.js',
+	'desktop/soundscaper-project-library-v10-contract.js',
+	'desktop/soundscaper-project-library-v10-current-project.js',
+	'desktop/soundscaper-project-library-v10-database.js',
+	'desktop/soundscaper-project-library-v10-handshake-gate.js',
+	'desktop/soundscaper-project-library-v10-ipc.js',
+	'desktop/soundscaper-project-library-v10-lifecycle-contract.js',
+	'desktop/soundscaper-project-library-v10-lifecycle-host.js',
+	'desktop/soundscaper-project-library-v10-main-channels.js',
+	'desktop/soundscaper-project-library-v10-main-ipc.js',
+	'desktop/soundscaper-project-library-v10-main-session.js',
+	'desktop/soundscaper-project-library-v10-main.js',
+	'desktop/soundscaper-project-library-v10-media-binding.js',
+	'desktop/soundscaper-project-library-v10-metadata.js',
+	'desktop/soundscaper-project-library-v10-persistence-codecs.js',
+	'desktop/soundscaper-project-library-v10-publication-contract.js',
+	'desktop/soundscaper-project-library-v10-publication-files.js',
+	'desktop/soundscaper-project-library-v10-publication-host.js',
+	'desktop/soundscaper-project-library-v10-publication-persistence.js',
+	'desktop/soundscaper-project-library-v10-publication-transport.js',
+	'desktop/soundscaper-project-library-v10-transfer-contract.js',
+	'desktop/soundscaper-project-library-v10-transfer-service.js',
+	'src/common/editor/audacity-effects/live.js',
+	'src/common/editor/audacity-effects/manifest.js',
+	'src/common/editor/audacity-effects/spectral.js',
+	'src/common/editor/audio-track-freeze-lifecycle-v21.js',
+	'src/common/editor/audio-track-freeze-v21.js',
+	'src/common/editor/automation-lane-v21.js',
+	'src/common/editor/commands/audio-production.js',
+	'src/common/editor/commands/command-projection-transients.js',
+	'src/common/editor/commands/domain-registry.js',
+	'src/common/editor/commands/video-keyframe-carrier.js',
+	'src/common/editor/commands/video-keyframe-command-reconcile.js',
+	'src/common/editor/effect-parameter-descriptors.js',
+	'src/common/editor/effects.js',
+	'src/common/editor/folder-mixer-graph-v21.js',
+	'src/common/editor/inert-json-snapshot.js',
+	'src/common/editor/interpolation-curve-math.js',
+	'src/common/editor/interpolation-curve.js',
+	'src/common/editor/mixer-graph-v21.js',
+	'src/common/editor/parameter-address.js',
+	'src/common/editor/pffft.js',
+	'src/common/editor/project-current-runtime.js',
+	'src/common/editor/project-v10-command-projection.js',
+	'src/common/editor/project-v10-validation.js',
+	'src/common/editor/project-v11-validation.js',
+	'src/common/editor/project-v13-hierarchy-reconcile.js',
+	'src/common/editor/project.js',
+	'src/common/editor/reviewed-effects/catalog.js',
+	'src/common/editor/reviewed-effects/errors.js',
+	'src/common/editor/reviewed-effects/hash.js',
+	'src/common/editor/reviewed-effects/manifest.js',
+	'src/common/editor/reviewed-effects/offline-worker-client.js',
+	'src/common/editor/reviewed-effects/offline-worker-runtime.js',
+	'src/common/editor/reviewed-effects/runtime.js',
+	'src/common/editor/reviewed-effects/selection-effect.js',
+	'src/common/editor/reviewed-effects/utility-gain-package.js',
+	'src/common/editor/reviewed-effects/wasm-abi.js',
+	'src/common/editor/scape-abort.js',
+	'src/common/editor/scape-archive-envelope.js',
+	'src/common/editor/scape-archive-media.js',
+	'src/common/editor/scape-expanded-byte-budget.js',
+	'src/common/editor/track-hierarchy-mutation-v12.js',
+	'src/common/editor/video-keyframe-curves.js',
+	'src/common/editor/video-keyframe-time-domain.js',
+	'src/common/editor/wavpack/pcm.js',
+	'src/common/i18n/canonical-extras.js',
+	'src/common/i18n/locale.js',
+	'src/soundscaper/editor-project-feature-requirements-v21.js',
+	'src/soundscaper/editor-project-v21-validation.js',
+].sort());
 
 export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outputRoot }) {
 	const root = resolveRequiredPath(repositoryRoot, 'repository root');
@@ -161,7 +232,7 @@ export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outp
 		'--project', resolve(root, 'tsconfig.desktop-runtime.json'),
 		'--outDir', output,
 	], root);
-	await bundleVideoTimingAssetHash(root, output);
+	await bundleRuntimeHashModules(root, output);
 	const files = await listRuntimeFiles(output);
 	assertExpectedRuntime(files);
 	for (const name of files) {
@@ -171,22 +242,30 @@ export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outp
 	return Object.freeze({ files: Object.freeze(files) });
 }
 
-async function bundleVideoTimingAssetHash(root, output) {
-	const outputPath = join(output, 'src/common/editor/video-timing-asset.js');
-	const result = await build({
-		entryPoints: [outputPath],
-		bundle: true,
-		platform: 'node',
-		format: 'esm',
-		target: 'node26',
-		write: false,
-		nodePaths: [join(root, 'node_modules')],
-		logLevel: 'silent',
-	});
-	if (result.outputFiles?.length !== 1) {
-		throw new Error('Desktop timing asset hash bundling produced an unexpected output set');
+async function bundleRuntimeHashModules(root, output) {
+	for (const name of [
+		'src/common/editor/audio-track-freeze-v21.js',
+		'src/common/editor/pffft.js',
+		'src/common/editor/scape-archive-media.js',
+		'src/common/editor/video-timing-asset.js',
+		'src/soundscaper/editor-project-feature-requirements-v21.js',
+	]) {
+		const outputPath = join(output, name);
+		const result = await build({
+			entryPoints: [outputPath],
+			bundle: true,
+			platform: 'node',
+			format: 'esm',
+			target: 'node26',
+			write: false,
+			nodePaths: [join(root, 'node_modules')],
+			logLevel: 'silent',
+		});
+		if (result.outputFiles?.length !== 1) {
+			throw new Error(`Desktop runtime hash bundling produced an unexpected output set for ${name}`);
+		}
+		await writeFile(outputPath, result.outputFiles[0].contents);
 	}
-	await writeFile(outputPath, result.outputFiles[0].contents);
 }
 
 export async function stageDesktopApplicationSources({
@@ -204,14 +283,21 @@ export async function stageDesktopApplicationSources({
 		filter: (source) => extname(source) !== '.ts',
 	});
 	await cp(compiledRoot, join(applicationRoot, 'project-library-runtime'), { recursive: true });
-	await bundleFramescaperV10SandboxPreload({
+	await bundleV10SandboxPreload({
 		entryPoint: join(sourceRoot, 'project-library-v10-sandbox-preload.ts'),
 		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
 		outputPath: join(applicationRoot, FRAMESCAPER_V10_PRELOAD_BUNDLE),
+		productName: 'Framescaper',
+	});
+	await bundleV10SandboxPreload({
+		entryPoint: join(sourceRoot, 'soundscaper-project-library-v10-sandbox-preload.ts'),
+		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
+		outputPath: join(applicationRoot, SOUNDSCAPER_V10_PRELOAD_BUNDLE),
+		productName: 'Soundscaper',
 	});
 }
 
-async function bundleFramescaperV10SandboxPreload({ entryPoint, cryptoShim, outputPath }) {
+async function bundleV10SandboxPreload({ entryPoint, cryptoShim, outputPath, productName }) {
 	await build({
 		entryPoints: [entryPoint],
 		outfile: outputPath,
@@ -226,7 +312,7 @@ async function bundleFramescaperV10SandboxPreload({ entryPoint, cryptoShim, outp
 	const source = await readFile(outputPath, 'utf8');
 	const required = [...source.matchAll(/require\(["']([^"']+)["']\)/gu)].map((match) => match[1]);
 	if (required.length !== 1 || required[0] !== 'electron') {
-		throw new Error(`Framescaper V10 sandbox preload retained unsupported modules: ${required.join(', ')}`);
+		throw new Error(`${productName} V10 sandbox preload retained unsupported modules: ${required.join(', ')}`);
 	}
 }
 

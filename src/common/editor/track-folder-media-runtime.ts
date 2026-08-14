@@ -4,10 +4,7 @@ import {
 	deriveTrackFolderStateProjectionV12,
 	type TrackFolderStateNodeV12,
 } from './track-folder-state-projection.ts';
-import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION,
-} from './project-schema-version.ts';
+import { isActiveAudioEditorProjectSchema } from './project-schema-version.ts';
 import { TRACK_FOLDER_V12_LIMITS } from './track-folder-v12.ts';
 import { TRACK_HIERARCHY_V12_LIMITS } from './track-hierarchy-v12.ts';
 
@@ -16,9 +13,6 @@ export const TRACK_FOLDER_STATE_PROJECTION_MARKER = 'trackFolderStateProjectionV
 
 type DataRecord = Record<PropertyKey, unknown>;
 
-// Pinned to the exact current revision so a schema bump fails closed here
-// instead of projecting a document this derivation was never reviewed against.
-const EXACT_TRACK_FOLDER_SCHEMA_VERSION = AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION;
 const TRUSTED_MEDIA_PROJECTIONS = new WeakMap<object, string>();
 // Re-projection cache per canonical input identity. The fingerprint is the
 // folder lineage PLUS leaf audibility flags, so a hit skips hierarchy
@@ -35,10 +29,10 @@ const MEDIA_PROJECTION_CACHE = new WeakMap<object, { fingerprint: string; projec
  * WeakMap prevents persisted or caller-forged markers from bypassing derivation.
  */
 export function projectTrackFolderMediaStateV12<Project extends object>(project: Project): Project {
-	if (AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION !== EXACT_TRACK_FOLDER_SCHEMA_VERSION) return project;
 	const candidate = dataRecord(project, 'track folder media project');
-	if (optionalOwnData(candidate, 'schemaVersion', 'track folder media project')
-		!== EXACT_TRACK_FOLDER_SCHEMA_VERSION) return project;
+	if (!isActiveAudioEditorProjectSchema(
+		optionalOwnData(candidate, 'schemaVersion', 'track folder media project'),
+	)) return project;
 	const marker = ownDescriptor(candidate, TRACK_FOLDER_STATE_PROJECTION_MARKER);
 	if (marker !== undefined) {
 		if (isTrackFolderMediaStateProjectionV12(candidate)) return project;
@@ -121,10 +115,11 @@ export function inheritTrackFolderMediaStateProjectionV12<Project extends object
 	source: object,
 	target: Project,
 ): Project {
-	if (AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION !== EXACT_TRACK_FOLDER_SCHEMA_VERSION) return target;
 	const sourceRecord = dataRecord(source, 'track folder media projection source');
-	if (optionalOwnData(sourceRecord, 'schemaVersion', 'track folder media projection source')
-		!== EXACT_TRACK_FOLDER_SCHEMA_VERSION) return target;
+	const sourceSchemaVersion = optionalOwnData(
+		sourceRecord, 'schemaVersion', 'track folder media projection source',
+	);
+	if (!isActiveAudioEditorProjectSchema(sourceSchemaVersion)) return target;
 	const sourceLineage = TRUSTED_MEDIA_PROJECTIONS.get(source);
 	if (!isTrackFolderMediaStateProjectionV12(source) || sourceLineage === undefined) {
 		if (ownDescriptor(sourceRecord, TRACK_FOLDER_STATE_PROJECTION_MARKER)) {
@@ -137,7 +132,7 @@ export function inheritTrackFolderMediaStateProjectionV12<Project extends object
 		throw new TypeError('A derived track folder media projection must retain its exact marker.');
 	}
 	if (optionalOwnData(candidate, 'schemaVersion', 'track folder media projection target')
-		!== EXACT_TRACK_FOLDER_SCHEMA_VERSION) {
+		!== sourceSchemaVersion) {
 		throw new TypeError('A derived track folder media projection must retain exact current schema.');
 	}
 	if (mediaProjectionLineage(candidate) !== sourceLineage) {
@@ -149,9 +144,11 @@ export function inheritTrackFolderMediaStateProjectionV12<Project extends object
 
 /** Return whether a transient project carries both the exact marker and private trust. */
 export function isTrackFolderMediaStateProjectionV12(value: unknown): boolean {
-	return Boolean(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION === EXACT_TRACK_FOLDER_SCHEMA_VERSION
-		&& value && typeof value === 'object' && !Array.isArray(value)
+	return Boolean(value && typeof value === 'object' && !Array.isArray(value)
 		&& TRUSTED_MEDIA_PROJECTIONS.has(value)
+		&& isActiveAudioEditorProjectSchema(optionalOwnData(
+			value as DataRecord, 'schemaVersion', 'track folder media projection',
+		))
 		&& hasExactMarker(value as DataRecord));
 }
 

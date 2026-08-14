@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-13",
+	"groundedAt": "2026-08-14",
 	"policyDocument": "docs/production-licensing-policy.md",
 	"lockfile": {
 		"path": "package-lock.json",
@@ -324,6 +324,14 @@
 			"evidence": ["src/common/editor/wavpack/source-manifest.json", "src/common/editor/wavpack/NOTICE.md", "scripts/audit-wavpack-wasm.mjs"]
 		},
 		{
+			"id": "reviewed-effect-utility-gain-wasm",
+			"status": "documented",
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"provenanceKind": "repository-owned-inline-conformance-bytes",
+			"license": "AGPL-3.0-only",
+			"evidence": ["package.json", "LICENSE", "src/common/editor/reviewed-effects/utility-gain-package.ts", "tests/audio-editor-reviewed-effects.test.ts"]
+		},
+		{
 			"id": "ffmpeg-core-wasm",
 			"status": "blocked",
 			"artifactSurfaces": ["web-runtime-assets", "electron-runtime-assets", "desktop-release-assets"],
@@ -397,8 +405,10 @@
 		{
 			"id": "web-effect-packages",
 			"status": "disabled",
+			"scope": "externally-authored-or-non-repository-owned-packages",
+			"blocker": "The current Utility Gain conformance package is repository-owned application code in the closed release catalog; it does not admit an externally authored or non-repository-owned package or satisfy that package's inventory, source, notice, and review duties.",
 			"enableRequires": ["package-and-transitive-license-inventory", "immutable-source-and-artifact-pins", "web-notice-delivery", "sandbox-and-effect-abi-review"],
-			"evidence": ["roadmap.md#4-parallel-production-surfaces", "docs/production-licensing-policy.md"]
+			"evidence": ["roadmap.md#4-parallel-production-surfaces", "docs/production-licensing-policy.md", "src/common/editor/reviewed-effects/catalog.ts", "src/common/editor/reviewed-effects/utility-gain-package.ts", "tests/audio-editor-reviewed-effects.test.ts"]
 		},
 		{
 			"id": "native-plugins",

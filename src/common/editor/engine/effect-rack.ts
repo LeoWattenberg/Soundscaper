@@ -60,6 +60,7 @@ export interface EffectAnalyserEntry {
 
 export interface EffectRackOptions {
 	readonly sidechainInputs?: ReadonlyMap<string, AudioNode>;
+	readonly sidechainInputByEffectId?: ReadonlyMap<string, AudioNode>;
 	readonly baseSidechainDelayFrames?: unknown;
 	readonly sidechainDelayFrames?: unknown;
 	readonly scope?: string;
@@ -147,6 +148,9 @@ export function applyEffect(
 ): AudioNode {
 	const type = String(effect.type || effect.kind || '').toLowerCase();
 	const params = effect.params || effect as UnknownRecord;
+	const explicitSidechainInput = typeof effect.id === 'string'
+		? options.sidechainInputByEffectId?.get(effect.id) || null
+		: null;
 	if (isAudacityLiveEffect(type)) {
 		if (!isAudacityWorkletLoaded(context)) {
 			throw new Error(`The Audacity real-time processor was not loaded for ${type}.`);
@@ -158,9 +162,14 @@ export function applyEffect(
 			throw new Error('The PFFFT WASM module was not compiled for the Audacity processor.');
 		}
 		const sidechain = type === 'audacity-auto-duck';
+		if (explicitSidechainInput && !sidechain) {
+			throw new Error(`Effect ${String(effect.id)} does not expose a sidechain input.`);
+		}
 		const controlTrackId = sidechain ? effect.context?.controlTrackId : null;
-		const controlInput = sidechain ? options.sidechainInputs?.get(String(controlTrackId)) : null;
-		if (sidechain && (!controlTrackId || !controlInput)) {
+		const controlInput = sidechain
+			? explicitSidechainInput || options.sidechainInputs?.get(String(controlTrackId))
+			: null;
+		if (sidechain && (!controlInput || (!explicitSidechainInput && !controlTrackId))) {
 			throw new Error('Auto Duck requires a valid control track.');
 		}
 		const processor = addNode(nodes, new WorkletNode(context, 'kw-audacity-live-effect', {
@@ -176,7 +185,9 @@ export function applyEffect(
 		}));
 		connect(input, processor);
 		if (sidechain && controlInput) {
-			const delayFrames = nonNegativeInteger(options.sidechainDelayFrames, 0);
+			const delayFrames = explicitSidechainInput
+				? 0
+				: nonNegativeInteger(options.sidechainDelayFrames, 0);
 			if (delayFrames > 0) {
 				if (typeof context.createDelay !== 'function') {
 					throw new Error('This browser cannot align the Auto Duck control track.');
@@ -194,14 +205,18 @@ export function applyEffect(
 		const WorkletNode = audioWorkletNodeConstructor();
 		if (WorkletNode) {
 			const dynamics = addNode(nodes, new WorkletNode(context, 'kw-audio-dynamics', {
-				numberOfInputs: 1,
+				numberOfInputs: explicitSidechainInput ? 2 : 1,
 				numberOfOutputs: 1,
 				outputChannelCount: [clamp(positiveInteger(options.effectChannelCount, 2), 1, 32)],
 				processorOptions: { type, params },
 			}));
 			connect(input, dynamics);
+			if (explicitSidechainInput) connect(explicitSidechainInput, dynamics, 0, 1);
 			return dynamics;
 		}
+	}
+	if (explicitSidechainInput) {
+		throw new Error(`Effect ${String(effect.id)} cannot consume its authored sidechain in this runtime.`);
 	}
 	if (isParametricEqType(type)) {
 		if (!isParametricEqWorkletLoaded(context)) throw new Error('The parametric EQ processor was not loaded.');

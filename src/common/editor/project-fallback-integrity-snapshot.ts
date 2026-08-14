@@ -5,13 +5,19 @@ import {
 	type ScapeProjectFallbackClaim,
 } from './scape-project-assets.ts';
 import {
+	normalizeProjectFeatureRequirements,
 	PROJECT_FEATURE_REQUIREMENTS_LIMITS,
 	type ProjectFeatureRequirement,
 } from './project-feature-requirements.ts';
 import type { ProjectAudioFallbackSource } from './project-fallback-integrity-audio.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	isMaintainedRenderedFallbackProjectSchema,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from './project-schema-version.ts';
+import { snapshotInertJsonValue } from './inert-json-snapshot.ts';
 
 export interface ProjectFallbackIntegritySource extends ProjectAudioFallbackSource {
+	readonly contentSha256?: string;
 	readonly width?: number;
 	readonly height?: number;
 	readonly sampleFrameCount?: number;
@@ -31,12 +37,13 @@ export interface CapturedProjectFallbackIntegrity {
 	readonly sources: readonly ProjectFallbackIntegritySource[];
 	readonly clips: readonly Readonly<Record<PropertyKey, unknown>>[];
 	readonly tracks: readonly Readonly<Record<PropertyKey, unknown>>[];
+	readonly automationLanes: readonly Readonly<Record<PropertyKey, unknown>>[];
 }
 
 export function captureProjectFallbackIntegrity(project: unknown): CapturedProjectFallbackIntegrity {
 	const candidate = objectRecord(project, 'The project fallback integrity candidate');
 	const schemaVersion = ownDataValue(candidate, 'schemaVersion', 'project');
-	if (schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+	if (!isMaintainedRenderedFallbackProjectSchema(schemaVersion)) {
 		return Object.freeze({
 			schemaVersion,
 			sampleRate: undefined,
@@ -47,8 +54,10 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 			sources: Object.freeze([]),
 			clips: Object.freeze([]),
 			tracks: Object.freeze([]),
+			automationLanes: Object.freeze([]),
 		});
 	}
+	const freezeAuthority = schemaVersion === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
 	const sources = snapshotArray(
 		ownDataValue(candidate, 'sources', 'project'),
 		'project.sources',
@@ -57,11 +66,20 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 	const clipsValue = optionalOwnDataValue(candidate, 'clips', 'project');
 	const clips = clipsValue === undefined
 		? Object.freeze([])
-		: snapshotArray(clipsValue, 'project.clips', snapshotClip);
+		: snapshotArray(clipsValue, 'project.clips', (value, index) => (
+			freezeAuthority ? snapshotFreezeAuthority(value, `project.clips[${String(index)}]`) : snapshotClip(value, index)
+		));
 	const tracksValue = optionalOwnDataValue(candidate, 'tracks', 'project');
 	const tracks = tracksValue === undefined
 		? Object.freeze([])
-		: snapshotArray(tracksValue, 'project.tracks', snapshotTrack);
+		: snapshotArray(tracksValue, 'project.tracks', (value, index) => (
+			freezeAuthority ? snapshotFreezeAuthority(value, `project.tracks[${String(index)}]`) : snapshotTrack(value, index)
+		));
+	const automationLanes = freezeAuthority ? snapshotArray(
+		ownDataValue(candidate, 'automationLanes', 'project'),
+		'project.automationLanes',
+		(value, index) => snapshotFreezeAuthority(value, `project.automationLanes[${String(index)}]`),
+	) : Object.freeze([]);
 	const sampleRate = ownDataValue(candidate, 'sampleRate', 'project');
 	const primarySequenceId = ownDataValue(candidate, 'primarySequenceId', 'project');
 	const sequences = snapshotArray(
@@ -72,16 +90,15 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 	const featureRequirements = snapshotFeatureRequirements(
 		ownDataValue(candidate, 'featureRequirements', 'project'),
 	);
-	const snapshot = snapshotScapeProjectFallbackIntegrity(Object.freeze({
-		schemaVersion,
-		sampleRate,
-		primarySequenceId,
-		sequences,
-		sources,
-		clips,
-		tracks,
-		featureRequirements,
-	}));
+	const snapshot = freezeAuthority
+		? soundscaperV21FallbackSnapshot({
+			schemaVersion, sampleRate, primarySequenceId, sequences, sources, clips, tracks,
+			featureRequirements,
+		})
+		: snapshotScapeProjectFallbackIntegrity(Object.freeze({
+			schemaVersion, sampleRate, primarySequenceId, sequences, sources, clips, tracks,
+			featureRequirements,
+		}), { currentProjectSchemaVersion: Number(schemaVersion) });
 	return Object.freeze({
 		schemaVersion,
 		sampleRate,
@@ -92,6 +109,7 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 		sources,
 		clips,
 		tracks,
+		automationLanes,
 	});
 }
 
@@ -106,7 +124,8 @@ export function sameCapturedProjectFallbackIntegrity(
 		|| left.claims.length !== right.claims.length
 		|| left.sources.length !== right.sources.length
 		|| left.clips.length !== right.clips.length
-		|| left.tracks.length !== right.tracks.length) return false;
+		|| left.tracks.length !== right.tracks.length
+		|| !sameSnapshotValue(left.automationLanes, right.automationLanes)) return false;
 	for (let index = 0; index < left.claims.length; index += 1) {
 		const first = left.claims[index];
 		const second = right.claims[index];
@@ -141,6 +160,7 @@ function snapshotSource(value: unknown, index: number): ProjectFallbackIntegrity
 		sourceFrameCount: optionalOwnDataValue(source, 'sourceFrameCount', `project source ${id}`) as number,
 		channelCount: optionalOwnDataValue(source, 'channelCount', `project source ${id}`) as number,
 		chunkFrames: optionalOwnDataValue(source, 'chunkFrames', `project source ${id}`) as number,
+		contentSha256: optionalOwnDataValue(source, 'contentSha256', `project source ${id}`) as string | undefined,
 		sampleRate: optionalOwnDataValue(source, 'sampleRate', `project source ${id}`) as number | undefined,
 		width: optionalOwnDataValue(source, 'width', `project source ${id}`) as number | undefined,
 		height: optionalOwnDataValue(source, 'height', `project source ${id}`) as number | undefined,
@@ -240,6 +260,47 @@ function snapshotRequirement(value: unknown, index: number): Readonly<Record<str
 			: Object.freeze(snapshotEnumerableDataRecord(objectRecord(fallback, `${label}.fallback`), `${label}.fallback`)));
 	}
 	return Object.freeze(output);
+}
+
+function soundscaperV21FallbackSnapshot(context: Readonly<{
+	readonly schemaVersion: unknown;
+	readonly sampleRate: unknown;
+	readonly primarySequenceId: unknown;
+	readonly sequences: readonly Readonly<Record<PropertyKey, unknown>>[];
+	readonly sources: readonly ProjectFallbackIntegritySource[];
+	readonly clips: readonly Readonly<Record<PropertyKey, unknown>>[];
+	readonly tracks: readonly Readonly<Record<PropertyKey, unknown>>[];
+	readonly featureRequirements: Readonly<Record<string, unknown>>;
+}>): Readonly<{
+	readonly featureRequirements: Readonly<{ readonly requirements: readonly ProjectFeatureRequirement[] }>;
+	readonly claims: readonly ScapeProjectFallbackClaim[];
+}> {
+	const featureRequirements = normalizeProjectFeatureRequirements(context.featureRequirements, {
+		sources: context.sources,
+		clips: context.clips,
+		tracks: context.tracks,
+		schemaVersion: context.schemaVersion,
+		sampleRate: context.sampleRate,
+		sequences: context.sequences,
+		primarySequenceId: context.primarySequenceId,
+	});
+	const claims = Object.freeze(featureRequirements.requirements.flatMap((requirement) => (
+		requirement.disposition === 'rendered-fallback' && requirement.fallback
+			? [Object.freeze({ ...requirement.fallback })]
+			: []
+	)));
+	return Object.freeze({ featureRequirements, claims });
+}
+
+function snapshotFreezeAuthority(
+	value: unknown,
+	label: string,
+): Readonly<Record<PropertyKey, unknown>> {
+	const snapshot = snapshotInertJsonValue(value, label, {
+		maximumArrayLength: 100_000,
+		maximumNodes: 250_000,
+	});
+	return objectRecord(snapshot, label);
 }
 
 function snapshotVideoEffects(value: unknown, label: string): readonly unknown[] {
@@ -353,6 +414,7 @@ function sameSource(
 ): boolean {
 	return Boolean(left && right && left.id === right.id && left.kind === right.kind
 		&& left.storageKey === right.storageKey && left.frameCount === right.frameCount
+		&& left.contentSha256 === right.contentSha256
 		&& left.sampleFrameCount === right.sampleFrameCount
 		&& left.sourceFrameCount === right.sourceFrameCount
 		&& left.channelCount === right.channelCount && left.chunkFrames === right.chunkFrames
@@ -376,20 +438,42 @@ function snapshotOptionalRecordValue(
 	));
 }
 
-function sameSnapshotValue(left: unknown, right: unknown, remainingDepth = 4): boolean {
-	if (Object.is(left, right)) return true;
-	if (remainingDepth === 0) return false;
-	if (Array.isArray(left) || Array.isArray(right)) {
-		if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
-		return left.every((value, index) => sameSnapshotValue(value, right[index], remainingDepth - 1));
+function sameSnapshotValue(left: unknown, right: unknown): boolean {
+	const pending: Array<readonly [unknown, unknown]> = [[left, right]];
+	const compared = new WeakMap<object, WeakSet<object>>();
+	while (pending.length > 0) {
+		const [first, second] = pending.pop()!;
+		if (Object.is(first, second)) continue;
+		if (Array.isArray(first) || Array.isArray(second)) {
+			if (!Array.isArray(first) || !Array.isArray(second) || first.length !== second.length) return false;
+		} else if (!first || !second || typeof first !== 'object' || typeof second !== 'object') {
+			return false;
+		}
+		const firstObject = first as object;
+		const secondObject = second as object;
+		let matches = compared.get(firstObject);
+		if (matches?.has(secondObject)) continue;
+		if (!matches) {
+			matches = new WeakSet<object>();
+			compared.set(firstObject, matches);
+		}
+		matches.add(secondObject);
+		if (Array.isArray(first) && Array.isArray(second)) {
+			for (let index = first.length - 1; index >= 0; index -= 1) {
+				pending.push([first[index], second[index]]);
+			}
+			continue;
+		}
+		const firstRecord = first as Readonly<Record<string, unknown>>;
+		const secondRecord = second as Readonly<Record<string, unknown>>;
+		const firstKeys = Object.keys(firstRecord);
+		const secondKeys = Object.keys(secondRecord);
+		if (firstKeys.length !== secondKeys.length) return false;
+		for (let index = firstKeys.length - 1; index >= 0; index -= 1) {
+			const key = firstKeys[index]!;
+			if (key !== secondKeys[index]) return false;
+			pending.push([firstRecord[key], secondRecord[key]]);
+		}
 	}
-	if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
-	const leftRecord = left as Readonly<Record<string, unknown>>;
-	const rightRecord = right as Readonly<Record<string, unknown>>;
-	const leftKeys = Object.keys(leftRecord);
-	const rightKeys = Object.keys(rightRecord);
-	return leftKeys.length === rightKeys.length && leftKeys.every((key, index) => (
-		key === rightKeys[index]
-			&& sameSnapshotValue(leftRecord[key], rightRecord[key], remainingDepth - 1)
-	));
+	return true;
 }

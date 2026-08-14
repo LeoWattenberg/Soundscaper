@@ -469,6 +469,42 @@ test('AUP3 open uses the shared lifecycle, diagnostics, and close cleanup', asyn
 	assert.ok(fixture.statuses.some(({ message }) => message === 'Importing 50%'));
 });
 
+test('Audacity open uses its dedicated project adapter instead of general native migration', async () => {
+	const decodedProject = { ...project('decoded-v17'), schemaVersion: 17 };
+	const importedProject = { ...project('imported-v21'), schemaVersion: 21 };
+	let adapterCalls = 0;
+	let migrationCalls = 0;
+	const fixture = createFixture({
+		createAup4Client: () => ({
+			initialize: async () => ({ opfs: false }),
+			create: async () => undefined,
+			openFile: async () => ({ readOnly: false, validation: { issues: [] } }),
+			decode: async () => ({ project: decodedProject, sources: [] }),
+			writeSnapshot: async () => ({}),
+			commit: async () => undefined,
+			export: async () => ({ bytes: Uint8Array.of(1) }),
+			inspect: async () => ({}),
+			delete: async () => undefined,
+		}),
+		adaptAudacityProject: (value) => {
+			adapterCalls += 1;
+			assert.strictEqual(value, decodedProject);
+			return importedProject;
+		},
+		migrateProject: () => {
+			migrationCalls += 1;
+			throw new Error('general native migration must remain fenced');
+		},
+	});
+	const service = createNativeProjectService(fixture.runtime);
+
+	const result = await service.openAudacityProject(nativeFile('interchange.AUP3', 10));
+
+	assert.equal((result?.project as NativeProjectDocument).schemaVersion, 21);
+	assert.equal(adapterCalls, 1);
+	assert.equal(migrationCalls, 0);
+});
+
 test('cancelled desktop targets and retryable initialization do not mutate save state', async () => {
 	let initializeCalls = 0;
 	const fixture = createFixture({

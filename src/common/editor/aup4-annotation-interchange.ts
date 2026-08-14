@@ -2,7 +2,7 @@
 
 import { addAup4CompatibilityItem } from './aup4-profile.js';
 import { projectForRuntimeConsumers } from './project-current-runtime.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import { isTimelineAnnotationProjectSchema } from './project-schema-version.ts';
 import type { RuntimeClipProject } from './runtime-clip-projection.ts';
 import {
 	resolveRuntimeTimelineAnnotationsProjection,
@@ -18,7 +18,7 @@ export function flattenAup4TimelineAnnotations(
 	compatibilityReport: DataRecord,
 ): void {
 	const project = projectForRuntimeConsumers(projectValue) as RuntimeClipProject & DataRecord;
-	if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return;
+	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) return;
 	const projected = resolveRuntimeTimelineAnnotationsProjection(
 		project as unknown as Parameters<typeof resolveRuntimeTimelineAnnotationsProjection>[0],
 	);

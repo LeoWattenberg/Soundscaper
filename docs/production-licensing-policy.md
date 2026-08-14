@@ -134,11 +134,20 @@ each versioned runtime.
 
 ## Future distribution gates
 
-The following capabilities remain disabled until their matrix requirements
-are implemented:
+The reviewed-effect catalog currently contains only Utility Gain, a repository-
+owned inline WebAssembly conformance artifact distributed as application source
+under the repository's AGPL-3.0-only license. Its literal artifact bytes,
+release-catalog digest, and executable reference vectors are checked in; it
+does not introduce a third-party package, transitive dependency, or separate
+third-party notice. This narrow provenance record does not satisfy the gate for
+adding externally authored or non-repository-owned effect packages.
 
-- reviewed web effect packages need a complete transitive inventory, immutable
-  artifact/source pins, notice delivery, and sandbox/ABI review;
+The following broader capabilities remain disabled until their matrix
+requirements are implemented:
+
+- externally authored or non-repository-owned reviewed web effect packages need
+  a complete transitive inventory, immutable artifact/source pins, notice
+  delivery, and sandbox/ABI review;
 - native plug-ins need per-format and per-platform license and redistribution
   rules, user-installation policy, isolation, notices, and source delivery where
   required;

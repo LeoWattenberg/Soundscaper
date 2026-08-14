@@ -28,6 +28,7 @@ import {
 	createAudioEditorProjectV17,
 	type AudioEditorProjectV17,
 } from '../src/common/editor/project-v17.ts';
+import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
 
 const NOW = '2026-08-12T12:00:00.000Z';
 
@@ -161,6 +162,24 @@ test('the controller plans audition and commits promotion and boundary edits as 
 	fixture.setEditingBlocked(true);
 	assert.throws(() => fixture.service.removeGroup('group-a'), /Editing is blocked/u);
 	assert.equal(fixture.commands.length, 3);
+});
+
+test('the controller reads take plans from exact Soundscaper V21 authority', () => {
+	const v17 = project();
+	const v21 = createSoundscaperProjectV21({
+		...v17,
+		mixer: undefined,
+	}) as unknown as AudioEditorProjectV17;
+	const service = createTakeCompService({
+		lifetime: { assertActive: () => undefined },
+		getProject: () => v21,
+		editingBlocked: () => false,
+		commit: () => undefined,
+	});
+	assert.deepEqual(service.auditionTake('group-a', 'take-b'), {
+		kind: 'audition-take', groupId: 'group-a', takeId: 'take-b', laneId: 'lane-b',
+		startSample: 100, endSample: 500,
+	});
 });
 
 test('the controller creates, replaces, and removes groups only after full document validation', () => {

@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { validatePersistedAudioEffects } from './persisted-audio-effect-validation.ts';
-import { validateProjectV9Media, type ProjectV9MediaCollections } from './project-v9-media-validation.ts';
+import {
+	validateProjectV9Media,
+	type ProjectV9MediaCollections,
+} from './project-v9-media-validation.ts';
 import {
 	projectArray,
 	projectBoolean,
@@ -22,7 +25,18 @@ export interface ValidatedProjectV9Document {
 	readonly media: ProjectV9MediaCollections;
 }
 
-export function validateProjectV9Document(value: unknown): ValidatedProjectV9Document {
+export interface ProjectV9AudioAuthorityValidation {
+	readonly stripEnvelopeAuthority?: 'required' | 'forbidden';
+	readonly validateMixer?: (
+		value: unknown,
+		tracks: readonly ProjectDataRecord[],
+	) => void;
+}
+
+export function validateProjectV9Document(
+	value: unknown,
+	audioAuthority: ProjectV9AudioAuthorityValidation = {},
+): ValidatedProjectV9Document {
 	const project = projectRecord(value, 'project');
 	projectString(project.id, 'project.id');
 	projectString(project.title, 'project.title');
@@ -38,9 +52,10 @@ export function validateProjectV9Document(value: unknown): ValidatedProjectV9Doc
 	validateSelection(project.selection, sampleRate);
 	validateLoop(project.loop);
 	validateView(project.view);
-	const media = validateProjectV9Media(project, sampleRate);
-	validateMaster(project.master);
-	validateMixer(project.mixer, media.tracks);
+	const stripEnvelopeAuthority = audioAuthority.stripEnvelopeAuthority ?? 'required';
+	const media = validateProjectV9Media(project, sampleRate, { stripEnvelopeAuthority });
+	validateMaster(project.master, stripEnvelopeAuthority);
+	(audioAuthority.validateMixer ?? validateMixer)(project.mixer, media.tracks);
 	return { project, metadata, media };
 }
 
@@ -129,13 +144,16 @@ function validateView(value: unknown): void {
 	projectRecord(view.panelState, 'view.panelState');
 }
 
-function validateMaster(value: unknown): void {
+function validateMaster(value: unknown, stripEnvelopeAuthority: 'required' | 'forbidden'): void {
 	const master = projectRecord(value, 'project.master');
 	projectFiniteInRange(master.gain, 0, 4, 'master.gain');
 	projectFiniteInRange(master.pan, -1, 1, 'master.pan');
 	projectBoolean(master.mute, 'master.mute');
 	projectBoolean(master.solo, 'master.solo');
-	validateProjectEnvelope(master.envelope, 'master.envelope');
+	if (stripEnvelopeAuthority === 'required') validateProjectEnvelope(master.envelope, 'master.envelope');
+	else if (Object.hasOwn(master, 'envelope')) {
+		throw new RangeError('master.envelope is forbidden by the current strip authority.');
+	}
 	projectBoolean(master.collapsed, 'master.collapsed');
 	projectBoolean(master.effectsActive, 'master.effectsActive');
 	validatePersistedAudioEffects(master.effects, 'master.effects');

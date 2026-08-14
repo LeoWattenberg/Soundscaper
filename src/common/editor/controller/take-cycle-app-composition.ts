@@ -16,6 +16,7 @@ import {
 import {
 	createTakeCycleProductionComposition,
 	type TakeCycleProductionComposition,
+	type TakeCycleProductionCompositionDependencies,
 } from './take-cycle-production-composition.ts';
 import type { TakeCycleRoutedCaptureRuntime } from './take-cycle-routed-capture-types.ts';
 import { resolveTakeCycleGroupId } from './take-cycle-group-id.ts';
@@ -69,6 +70,8 @@ export interface TakeCycleAppCompositionDependencies {
 	soundActivationEnabled(): boolean;
 	recordingRouteSourceKey(route: RecordingRoute): string;
 	createId(prefix: string): string;
+	readonly applyProjectCommand?: TakeCycleProductionCompositionDependencies['applyProjectCommand'];
+	readonly validateProject?: TakeCycleProductionCompositionDependencies['validateProject'];
 	createRecordingName(trackName: string): string;
 	preflightRecording(bytes: number): Promise<void>;
 	releaseInputs(): void;
@@ -85,6 +88,7 @@ export function createTakeCycleAppComposition(
 	if (!hasDurableTakeCycleRepositories(dependencies.store)) return unavailableComposition();
 	const publication = createTakeCycleCurrentProjectPublicationService({
 		session: dependencies.session,
+		...(dependencies.applyProjectCommand ? { applyProjectCommand: dependencies.applyProjectCommand } : {}),
 		getActiveProject: dependencies.getProject,
 		getActiveHistory: () => dependencies.state.history,
 		setActiveProject: (project) => dependencies.setProject(appProject(project)),
@@ -104,6 +108,8 @@ export function createTakeCycleAppComposition(
 		captureProject: () => dependencies.projectGeneration.capture(dependencies.getProject()?.id ?? null),
 		assertProject: (token) => dependencies.projectGeneration.assertCurrent(token),
 		createId: (prefix) => dependencies.createId(prefix),
+		...(dependencies.applyProjectCommand ? { applyProjectCommand: dependencies.applyProjectCommand } : {}),
+		...(dependencies.validateProject ? { validateProject: dependencies.validateProject } : {}),
 		publishCurrentProject: publication.publish,
 		activateCommittedSource: activateCommittedSource,
 		synchronizeActivatedProject: async () => dependencies.synchronizeProject(requireProject()),

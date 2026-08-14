@@ -369,7 +369,7 @@ test('registry accepts only closed own-data descriptor snapshots', () => {
 	assert.equal(({} as { automatable?: unknown }).automatable, undefined);
 });
 
-test('effect bindings expose stable native and worklet targets without posting eagerly', () => {
+test('effect bindings expose native targets and refuse worklet producers without a consumer', () => {
 	const nativeRegistry = new ScheduledParameterRegistry();
 	const frequency = mockAudioParam();
 	registerEffectAudioParam(
@@ -392,15 +392,13 @@ test('effect bindings expose stable native and worklet targets without posting e
 		{ postMessage: (message: unknown) => { messages.push(structuredClone(message)); } } as MessagePort,
 		{ parameterRegistry: messageRegistry, scope: 'master', targetId: null, parameterLatencyFrames: 64 },
 	);
-	assert.equal(messageRegistry.size, 3);
+	assert.equal(messageRegistry.size, 0);
 	assert.deepEqual(messages, []);
 	const feedback = messageRegistry.get({
 		kind: 'effect', strip: { kind: 'master' }, effectId: 'delay-1', parameterId: 'feedback',
 	});
-	assert.ok(feedback);
-	feedback.schedule([{ kind: 'set', frame: 0, value: 0.5 }], scheduleOptions());
-	assert.equal(messages.length, 1);
-	assert.equal((messages[0] as { events: readonly { frameOffset: number }[] }).events[0]?.frameOffset, 64);
+	assert.equal(feedback, null);
+	assert.equal(messages.length, 0);
 });
 
 test('worklet producer contracts cover every automatable scalar without claiming a consumer', () => {

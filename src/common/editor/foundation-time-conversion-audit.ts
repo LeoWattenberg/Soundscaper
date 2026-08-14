@@ -78,6 +78,18 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'automation-lane-frame-evaluation',
+		file: 'src/common/editor/automation-lane-v21.ts',
+		behavior: 'Musical automation evaluation exactly inverts the authoritative sample frame into its tempo-map beat before evaluating the persisted beat-domain curve.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
+		id: 'automation-lane-interval-editing',
+		file: 'src/common/editor/automation-lane-interval-edit-v21.ts',
+		behavior: 'Musical automation interval edits exactly invert each conformed sample boundary once before applying the requested edit in the lane-owned beat domain.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
 		id: 'scheduled-parameter-context-offset',
 		file: 'src/common/editor/engine/scheduled-parameter-registry.ts',
 		behavior: 'Scheduled worklet events convert one exact project-frame delta and transport-rate ratio to the nearest context frame with later-frame ownership at exact half ties.',
@@ -230,8 +242,18 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 	{
 		id: 'video-source-import-placement',
 		file: 'src/common/editor/controller/source-import.ts',
-		behavior: 'Imported video duration encloses the probed source while timeline placement resolves absolute endpoints as point coordinates.',
-		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['enclosingEnd', 'point'] }],
+		behavior: 'Metadata-only imported video duration encloses the probed source; exact timing-sidecar placement is delegated to its separately registered authority helper.',
+		conversions: [{ helper: 'sampleFrameToVideoFrame', policies: ['enclosingEnd'] }],
+	},
+	{
+		id: 'video-import-exact-timing-authority',
+		file: 'src/common/editor/controller/video-import-timing.ts',
+		behavior: 'Exact timing-sidecar duration is point-rounded once into sample authority before both placement endpoints are point-conformed through the destination sequence grid.',
+		conversions: [
+			{ helper: 'roundRational', policies: ['point'] },
+			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameToSampleFrame', policies: ['point'] },
+		],
 	},
 	{
 		id: 'transport-metronome-schedule',

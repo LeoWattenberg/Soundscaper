@@ -12,6 +12,7 @@ import { createTakeCycleLiveCaptureSpool } from './take-cycle-live-capture-spool
 import {
 	createTakeCycleRecordingRepositoryComposition,
 	type TakeCyclePublishedProject,
+	type TakeCycleRecordingRepositoryDependencies,
 } from './take-cycle-recording-repository-composition.ts';
 import {
 	createTakeCycleRoutedCaptureService,
@@ -33,6 +34,8 @@ export interface TakeCycleProductionCompositionDependencies {
 	captureProject(): EditorProjectToken;
 	assertProject(token: EditorProjectToken): void;
 	createId(prefix: StableIdPrefix): string;
+	readonly applyProjectCommand?: TakeCycleRecordingRepositoryDependencies['applyProjectCommand'];
+	readonly validateProject?: TakeCycleRecordingRepositoryDependencies['validateProject'];
 	publishCurrentProject(publication: TakeCyclePublishedProject): PromiseLike<void> | void;
 	activateCommittedSource(mediaId: string): PromiseLike<void> | void;
 	synchronizeActivatedProject(): PromiseLike<void> | void;
@@ -70,6 +73,8 @@ export function createTakeCycleProductionComposition(
 			{ signal: ownership.signal },
 		),
 		createCompRegionId: () => dependencies.createId('comp-region'),
+		...(dependencies.applyProjectCommand ? { applyProjectCommand: dependencies.applyProjectCommand } : {}),
+		...(dependencies.validateProject ? { validateProject: dependencies.validateProject } : {}),
 		publishCurrentProject: dependencies.publishCurrentProject,
 		...(dependencies.now ? { now: dependencies.now } : {}),
 	});

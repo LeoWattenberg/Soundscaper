@@ -180,6 +180,10 @@ test('track duplication prepares stable track, clip, and effect identities in on
 	assert.equal(addTrack.track.name, 'Picture copy');
 	assert.equal(addTrack.track.armed, false);
 	assert.equal(addTrack.track.laneGroupId, null);
+	assert.deepEqual(addTrack.productionDuplicate, {
+		sourceTrackId: 'video-track',
+		effectIds: [{ sourceId: 'rack-effect', targetId: 'effect-2' }],
+	});
 	assert.deepEqual((addTrack.track.effects as ReadonlyArray<Readonly<Record<string, unknown>>>).map((effect) => effect.id), ['effect-2']);
 	assert.equal(addClip.clip.id, 'clip-3');
 	assert.equal(addClip.clip.avLinkId, null);

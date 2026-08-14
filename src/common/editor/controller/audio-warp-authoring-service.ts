@@ -32,10 +32,15 @@ import type {
 } from '../commands/protocol.ts';
 import {
 	validateAudioEditorProjectV17,
-	type AudioEditorProjectV17,
 } from '../project-v17-validation.ts';
+import type { AudioEditorFolderHierarchyDocument } from '../project-v12-validation.ts';
+import { isAudioWarpProjectSchema } from '../project-schema-version.ts';
 import type { RationalInput } from '../timeline-time.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
+
+export type AudioWarpAuthoringProject = AudioEditorFolderHierarchyDocument & Readonly<{
+	readonly schemaVersion: 17 | 21;
+}>;
 
 export interface PreparedAudioWarpClipEdit {
 	readonly clipId: string;
@@ -52,7 +57,7 @@ export interface AudioWarpGrooveApplicationOptions {
 
 export interface AudioWarpAuthoringServiceDependencies {
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive'>;
-	getProject(): AudioEditorProjectV17;
+	getProject(): AudioWarpAuthoringProject;
 	editingBlocked(): boolean;
 	commit(command: AudioEditorCommand): unknown;
 }
@@ -197,11 +202,16 @@ export function createAudioWarpAuthoringService(
 		return value;
 	}
 
-	function writableProject(): AudioEditorProjectV17 {
+	function writableProject(): AudioWarpAuthoringProject {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) throw new RangeError('Editing is blocked.');
 		const project = dependencies.getProject();
-		validateAudioEditorProjectV17(project);
+		if (!isAudioWarpProjectSchema(project.schemaVersion)) {
+			throw new RangeError('Audio warp authoring requires an exact audio-warp project schema.');
+		}
+		// V21 is admitted and validated by the selected Soundscaper runtime before
+		// this common controller is composed and again at its atomic commit boundary.
+		if (project.schemaVersion === 17) validateAudioEditorProjectV17(project);
 		return project;
 	}
 }
@@ -232,7 +242,7 @@ function canonicalQuantizeOptions(value: AudioWarpQuantizeOptions): Readonly<Aud
 	});
 }
 
-function assertCurrentTrackWritable(project: AudioEditorProjectV17, clipId: string): void {
+function assertCurrentTrackWritable(project: AudioWarpAuthoringProject, clipId: string): void {
 	const owners = project.tracks.filter((track) => (
 		Array.isArray(track.clipIds) && track.clipIds.includes(clipId)
 	));
@@ -240,13 +250,13 @@ function assertCurrentTrackWritable(project: AudioEditorProjectV17, clipId: stri
 	assertTrackWritable(project, String(owners[0]!.id));
 }
 
-function assertTrackWritable(project: AudioEditorProjectV17, trackId: string): void {
+function assertTrackWritable(project: AudioWarpAuthoringProject, trackId: string): void {
 	const track = project.tracks.find((candidate) => candidate.id === trackId);
 	if (!track) throw new ReferenceError(`Unknown audio warp track: ${trackId}.`);
 	if (track.locked === true) throw new RangeError(`Track ${trackId} is locked.`);
 }
 
-function authorityProject(project: AudioEditorProjectV17): AudioWarpAuthorityProject {
+function authorityProject(project: AudioWarpAuthoringProject): AudioWarpAuthorityProject {
 	return project as unknown as AudioWarpAuthorityProject;
 }
 

@@ -45,6 +45,7 @@ export function createWorkspaceApplicationMenus({
 		setNyquistTarget,
 		setShowArmControls,
 		showArmControls,
+		soundscaperProduction,
 		snapshot,
 		toggleFullscreen,
 		toggleRecording,
@@ -73,6 +74,7 @@ export function createWorkspaceApplicationMenus({
 			uiFlags,
 			actionRuntime: parityRuntime.actions,
 			actions: {
+				soundscaperProduction,
 				executeMulticameraCommand: (command) => run(() => {
 					switch (command?.type) {
 						case 'multicamera/create':

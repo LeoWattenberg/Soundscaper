@@ -6,6 +6,7 @@ import test from 'node:test';
 import { createExportPlan } from '../src/common/editor/export.js';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createAudioEditorProjectV10, createLabelTrackV10 } from '../src/common/editor/project-v10.ts';
+import { SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { createRiffMarkerChunks, parseRiffMarkers } from '../src/common/editor/riff-markers.ts';
 import {
 	createRiffAnnotationExport,
@@ -80,6 +81,32 @@ test('RIFF import creates fresh primary-sequence markers and positive regions wi
 	assert.equal(result.report.items.length, 0);
 });
 
+test('RIFF annotation interchange retains the inherited annotation authority on exact Soundscaper V21', () => {
+	const current = annotationProject([
+		annotation({ id: 'v21-marker', kind: 'marker', anchor: 'sample', positionFrame: 120 }),
+	]);
+	const project = {
+		...current,
+		schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	};
+	const exported = createRiffAnnotationExport(project, {
+		range: { startFrame: 0, endFrame: 200 },
+		outputSampleRate: 48_000,
+	});
+	assert.deepEqual(exported.markers.map(({ sampleOffset, label }) => ({ sampleOffset, label })), [
+		{ sampleOffset: 120, label: 'v21-marker' },
+	]);
+	const imported = createRiffAnnotationImport(project, parseRiffMarkersFromChunks(createRiffMarkerChunks([
+		{ id: 21, sampleOffset: 160, label: 'Imported V21 marker' },
+	])), {
+		sourceSampleRate: 48_000,
+		timelineStartFrame: 0,
+		idFactory: () => 'v21-imported-marker',
+	});
+	assert.equal(imported.annotations[0]?.id, 'v21-imported-marker');
+	assert.equal(imported.annotations[0]?.sequenceId, current.primarySequenceId);
+});
+
 test('RIFF import loss-accounts sub-sample region expansion and rejects unsafe expansion', () => {
 	const project = annotationProject([]);
 	const marker = parseRiffMarkersFromChunks(createRiffMarkerChunks([
@@ -147,7 +174,7 @@ test('WAV planning keeps annotations and maintained label tracks explicitly sele
 		range: { startFrame: 0, endFrame: 1 },
 		outputSampleRate: 48_000,
 		markerSource: 'timeline-annotations',
-	}), /exact current project schema/iu);
+	}), /maintained timeline-annotation project schema/iu);
 });
 
 function annotation(overrides: Record<string, unknown>): Record<string, unknown> {

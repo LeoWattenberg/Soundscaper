@@ -47,6 +47,7 @@ export function OutputTrackDock({
 	selection,
 	height,
 	automationToolEnabled,
+	stripEnvelopeAvailable,
 	blocked,
 	mobile,
 	copy,
@@ -139,6 +140,7 @@ export function OutputTrackDock({
 				durationFrames={durationFrames}
 				selection={selection}
 				automationToolEnabled={automationToolEnabled}
+				stripEnvelopeAvailable={stripEnvelopeAvailable}
 				blocked={blocked}
 				mobile={mobile}
 				copy={copy}
@@ -173,6 +175,7 @@ export function OutputTrackRow({
 	durationFrames,
 	selection,
 	automationToolEnabled,
+	stripEnvelopeAvailable,
 	blocked,
 	mobile,
 	copy,
@@ -234,7 +237,7 @@ export function OutputTrackRow({
 	}, [bus.id, controller, scope]);
 
 	useEffect(() => {
-		if (!envelopeEditActive) return undefined;
+		if (!stripEnvelopeAvailable || !envelopeEditActive) return undefined;
 		const finishEnvelopeEdit = () => globalThis.setTimeout(() => {
 			const points = previewRef.current;
 			setEnvelopeEditActive(false);
@@ -257,7 +260,7 @@ export function OutputTrackRow({
 		}, 0);
 		document.addEventListener('mouseup', finishEnvelopeEdit);
 		return () => document.removeEventListener('mouseup', finishEnvelopeEdit);
-	}, [bus.envelope, canonicalDurationFrames, envelopeEditActive, envelopeEndFrame, envelopeStartFrame, run, sampleRate, update]);
+	}, [bus.envelope, canonicalDurationFrames, envelopeEditActive, envelopeEndFrame, envelopeStartFrame, run, sampleRate, stripEnvelopeAvailable, update]);
 
 	useEffect(() => {
 		if (automationToolEnabled) return;
@@ -313,7 +316,7 @@ export function OutputTrackRow({
 					data-output-id={scope === 'master' ? 'master' : bus.id}
 					role="region"
 					tabIndex={0}
-					aria-label={`${scope === 'master' ? copy.master : bus.name}: ${copy.volumeEnvelope || copy.clipGain}`}
+					aria-label={`${scope === 'master' ? copy.master : bus.name}: ${stripEnvelopeAvailable ? copy.volumeEnvelope || copy.clipGain : copy.output}`}
 					style={{
 						width: timelineWidth,
 						height: rowHeight,
@@ -351,7 +354,7 @@ export function OutputTrackRow({
 							width: Math.max(1, (selection.endTime - selection.startTime) * pixelsPerSecond),
 						}}
 					/>}
-					<div
+					{stripEnvelopeAvailable && <div
 						className="audio-editor-output-envelope"
 						style={{ left: envelopeLeft, width: envelopeWidth }}
 						onMouseDownCapture={(event) => {
@@ -384,7 +387,7 @@ export function OutputTrackRow({
 							height={rowHeight}
 							duration={envelopeDurationSeconds}
 						/>
-					</div>
+					</div>}
 					<div
 						className="audio-editor-output-playhead"
 						aria-hidden="true"

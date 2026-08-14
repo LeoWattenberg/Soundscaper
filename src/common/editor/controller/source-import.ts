@@ -17,6 +17,7 @@ import {
 	normalizeVideoSourceCharacteristics,
 } from '../video-source-characteristics.ts';
 import { publishVideoTimingAsset } from '../video-timing-storage.ts';
+import { planVideoImportTiming } from './video-import-timing.ts';
 export interface ImportVideoRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -98,7 +99,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			prepared = {
 				startingProjectId, startingProjectToken,
 				sampleRate, timingProbe, canonicalVideoFile, conformedAtIngest,
-				durationFrames: Math.max(1, Math.round(extractor.metadata.durationSeconds * sampleRate)),
+				metadataDurationFrames: Math.max(1, Math.round(extractor.metadata.durationSeconds * sampleRate)),
 				videoSourceId: createStableId('video-source'),
 				videoClipId: createStableId('video-clip'),
 				binItemId: createStableId('bin-item'),
@@ -117,7 +118,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			throw error;
 		}
 		const {
-			startingProjectId, startingProjectToken, sampleRate, durationFrames, videoSourceId, videoClipId,
+			startingProjectId, startingProjectToken, sampleRate, metadataDurationFrames, videoSourceId, videoClipId,
 			binItemId, trackName, sourceName, timingProbe, canonicalVideoFile, conformedAtIngest,
 		} = prepared;
 		const assertImportProjectCurrent = () => {
@@ -146,6 +147,19 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		};
 		try {
 			assertImportProjectCurrent();
+			const activeProject = getProject();
+			const sequenceId = activeProject.primarySequenceId || 'main-sequence';
+			const sequence = activeProject.sequences?.find((candidate: RuntimeValue) => candidate.id === sequenceId)
+				|| { id: sequenceId, rate: { num: 30, den: 1 } };
+			const {
+				sourceDurationFrames: durationFrames,
+				sequenceStartFrame, sequenceEndFrame, timelineStartFrame, timelineDurationFrames,
+			} = planVideoImportTiming({
+				metadataDurationFrames, sampleRate,
+				timingIndex: timingProbe.decision === 'timing-asset' ? timingProbe.timing : null,
+				timelineStartFrame: importOptions.timelineStartFrame,
+				sequenceRate: sequence.rate,
+			});
 			let sourceContentSha256: string;
 			if (!linkedVideoLocatorId) {
 				const published = await publishImportedVideo(
@@ -240,7 +254,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 						copy,
 					);
 					const resampled = await canonicalizeBuffer(decodedBuffer, context, sampleRate, copy);
-					canonicalAudio = fitAudioBufferToFrames(resampled, durationFrames, context);
+					canonicalAudio = fitAudioBufferToFrames(resampled, timelineDurationFrames, context);
 				}
 			} catch {
 				canonicalAudio = null;
@@ -336,12 +350,6 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				originalSampleRate: originalAudioSampleRate,
 				opaqueExtensions: { originVideoSourceId: videoSourceId },
 			} : null;
-			const activeProject = getProject();
-			const sequenceId = activeProject.primarySequenceId || 'main-sequence';
-			const sequence = activeProject.sequences?.find((candidate: RuntimeValue) => candidate.id === sequenceId)
-				|| { id: sequenceId, rate: { num: 30, den: 1 } };
-			const sequenceStartFrame = sampleFrameToVideoFrame(importOptions.timelineStartFrame, sequence.rate, sampleRate, 'point');
-			const sequenceEndFrame = sampleFrameToVideoFrame(importOptions.timelineStartFrame + durationFrames, sequence.rate, sampleRate, 'point');
 			const videoClip = {
 				kind: 'video',
 				id: videoClipId,
@@ -349,7 +357,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				title: trackName,
 				sequenceId,
 				sequenceStartFrame,
-				sequenceFrameCount: Math.max(1, sequenceEndFrame - sequenceStartFrame),
+				sequenceFrameCount: sequenceEndFrame - sequenceStartFrame,
 				sourceInFrame: 0,
 				sourceFrameCount,
 				trimStartFrames: 0,
@@ -367,10 +375,10 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				id: audioClipId,
 				sourceId: audioSourceId,
 				title: `${trackName} Audio`,
-				timelineStartFrame: importOptions.timelineStartFrame,
+				timelineStartFrame,
 				sourceStartFrame: 0,
-				sourceDurationFrames: durationFrames,
-				durationFrames,
+				sourceDurationFrames: timelineDurationFrames,
+				durationFrames: timelineDurationFrames,
 				trimStartFrames: 0,
 				trimEndFrames: 0,
 				groupId: null,

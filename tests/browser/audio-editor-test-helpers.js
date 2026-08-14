@@ -5,6 +5,7 @@ import {
 	test,
 	TRANSLATIONS_ROOT,
 } from './audio-editor-test-fixtures.js';
+import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 export function registerAudioEditorHooks() {
 	test.beforeEach(async ({ page }) => {
@@ -256,43 +257,49 @@ export async function showToolbarButton(page, editor, label) {
 }
 
 export async function chooseCommandAction(page, editor, menu, action) {
-	const menubar = editor.getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ });
-	await menubar.getByRole('menuitem', { name: menu, exact: true }).click();
-	const commandMenu = page.getByRole('menu', { name: menu, exact: true });
-	await expect(commandMenu).toBeVisible();
+	const commandMenu = await openCommandMenu(page, editor, menu);
 	const item = getMenuItem(commandMenu, action);
 	await item.focus();
 	await page.keyboard.press('Enter');
 }
-
 export async function chooseNestedCommandAction(page, editor, menu, actions) {
-	const menubar = editor.getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ });
-	await menubar.getByRole('menuitem', { name: menu, exact: true }).click();
-	const commandMenu = page.getByRole('menu', { name: menu, exact: true });
-	await expect(commandMenu).toBeVisible();
-	let currentMenu = commandMenu;
+	let currentMenu = await openCommandMenu(page, editor, menu);
 	for (const [index, action] of actions.entries()) {
 		const item = getMenuItem(currentMenu, action);
 		if (index < actions.length - 1) {
-			// Use the component's ARIA menu-keyboard contract for flyouts. Firefox
-			// can deliver mouseleave while a newly positioned submenu crosses the
-			// pointer, which closes the flyout before its leaf receives a click.
-			await item.focus();
-			await page.keyboard.press('ArrowRight');
-			currentMenu = item.getByRole('menu');
-			await expect(currentMenu).toBeVisible();
+			currentMenu = await openMenuItemSubmenu(page, item);
 		} else {
-			// Do not move the pointer across the flyout boundary for the leaf: in
-			// Firefox that can deliver mouseleave before click and detach the nested
-			// menu. Activating the already-visible item by keyboard also verifies the
-			// required accessible command path.
-			await expect(item).toBeEnabled();
-			await item.focus();
+			let target = item;
+			if (await item.locator(':scope > .context-menu-item-content .context-menu-item-arrow').count()) {
+				const terminalMenu = await openMenuItemSubmenu(page, item);
+				target = getMenuItem(terminalMenu, action);
+			}
+			await expect(target).toBeEnabled();
+			await target.focus();
 			await page.keyboard.press('Enter');
 		}
 	}
 }
-
+export async function openNestedCommandMenu(page, editor, menu, actions) {
+	let currentMenu = await openCommandMenu(page, editor, menu);
+	for (const action of actions) currentMenu = await openMenuItemSubmenu(page, getMenuItem(currentMenu, action));
+	return currentMenu;
+}
+async function openCommandMenu(page, editor, menu) {
+	await editor.getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ })
+		.getByRole('menuitem', { name: menu, exact: true }).click();
+	const commandMenu = page.getByRole('menu', { name: menu, exact: true });
+	await expect(commandMenu).toBeVisible();
+	return commandMenu;
+}
+async function openMenuItemSubmenu(page, item) {
+	await expect(item).toBeEnabled();
+	await item.focus();
+	await page.keyboard.press('ArrowRight');
+	const submenu = item.getByRole('menu');
+	await expect(submenu).toBeVisible();
+	return submenu;
+}
 export function getMenuItem(menu, label) {
 	const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const name = new RegExp(`^${escapedLabel}(?:\\s|$)`);
@@ -450,8 +457,8 @@ export async function assertNoSeriousAxeViolations(page, selector = '#kw-audio-e
 }
 
 export async function sourcePeakChannels(page, sourceName) {
-	return page.evaluate((name) => new Promise((resolve, reject) => {
-		const openRequest = indexedDB.open('kw-media-audio-editor');
+	return page.evaluate(({ databaseName, name }) => new Promise((resolve, reject) => {
+		const openRequest = indexedDB.open(databaseName);
 		openRequest.onerror = () => reject(openRequest.error);
 		openRequest.onsuccess = () => {
 			const database = openRequest.result;
@@ -483,12 +490,12 @@ export async function sourcePeakChannels(page, sourceName) {
 				};
 			};
 		};
-	}), sourceName);
+	}), { databaseName: SOUNDSCAPER_DATABASE_NAME, name: sourceName });
 }
 
 export async function effectSourceMetadata(page) {
-	return page.evaluate(() => new Promise((resolve, reject) => {
-		const openRequest = indexedDB.open('kw-media-audio-editor');
+	return page.evaluate((databaseName) => new Promise((resolve, reject) => {
+		const openRequest = indexedDB.open(databaseName);
 		openRequest.onerror = () => reject(openRequest.error);
 		openRequest.onsuccess = () => {
 			const database = openRequest.result;
@@ -502,13 +509,13 @@ export async function effectSourceMetadata(page) {
 				resolve(request.result.filter((source) => source.id?.startsWith('audacity-effect-')));
 			};
 		};
-	}));
+	}), SOUNDSCAPER_DATABASE_NAME);
 }
 
 export async function effectSourcePeak(page, name) {
-	return page.evaluate(async (effectName) => {
+	return page.evaluate(async ({ databaseName, effectName }) => {
 		const { source, peaks } = await new Promise((resolve, reject) => {
-			const openRequest = indexedDB.open('kw-media-audio-editor');
+			const openRequest = indexedDB.open(databaseName);
 			openRequest.onerror = () => reject(openRequest.error);
 			openRequest.onsuccess = () => {
 				const database = openRequest.result;
@@ -540,7 +547,7 @@ export async function effectSourcePeak(page, name) {
 			}
 		}
 		return peak;
-	}, name);
+	}, { databaseName: SOUNDSCAPER_DATABASE_NAME, effectName: name });
 }
 
 export function collectClientErrors(page) {
@@ -562,9 +569,7 @@ export function collectClientErrors(page) {
 	});
 	page.on('requestfailed', (request) => {
 		const reason = request.failure()?.errorText || 'request failed';
-		// Browsers abort still-loading dependencies when the element or document
-		// that asked for them goes away. That cancellation is not a rejection, and
-		// a genuinely broken dependency still surfaces through the response check.
+		// Navigation may abort dependencies that are still loading.
 		if (/^(?:NS_BINDING_ABORTED|net::ERR_ABORTED)$/u.test(reason)) return;
 		if (isBrowserDependency(request)) reportRequest(request, reason);
 	});

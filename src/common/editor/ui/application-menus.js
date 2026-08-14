@@ -1,20 +1,14 @@
 import { applyAudacityParityToMenus } from '../audacity-action-parity.js';
 import { listNyquistPlugins } from '../nyquist/plugin-registry.js';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
-import {
-	EFFECT_MENU_GROUPS,
-	audioEditorTrackBlockBounds,
-	createSnapMenu,
-	trackSourceChannelCount,
-	trackSources,
-} from './application-menu-model.js';
+import { EFFECT_MENU_GROUPS, audioEditorTrackBlockBounds, createSnapMenu, trackSourceChannelCount, trackSources } from './application-menu-model.js';
 import { timelineAnnotationsAvailable } from './timeline/timeline-annotation-ui-model.ts';
 import { ANALYZER_PANEL_ID_SET, WORKSPACE_PANEL_IDS, workspacePanelLabel } from './workspace/workspace-panel-model.ts';
 import { filterProductMenus } from './application-menu-product-filter.js';
 import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
 import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-video-trim-application-menu.ts';
 import { createFramescaperVideoFinishingMenuItems } from './framescaper-video-finishing-menu.ts';
-import { createApplicationMenuProductTrackItems } from './application-menu-product-items.js';
+import { createApplicationMenuProductItems, extendApplicationMenuProductPanelItem } from './application-menu-product-items.js';
 import { createTrackLockMenuItems, createTrackLockMenuModel } from './track-lock-menu-model.ts';
 import { createClipSelectionNavigationMenuModel } from './clip-selection-navigation-menu-model.ts';
 import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
@@ -103,7 +97,7 @@ export default function createApplicationMenus({
 		editingBlocked: editBlocked,
 		copy, actions,
 	});
-	const productTrackItems = createApplicationMenuProductTrackItems({ productId, project, editBlocked, copy, actions });
+	const productItems = createApplicationMenuProductItems({ productId, capabilities, project, snapshot, editBlocked, copy, actions });
 	const trackLock = createTrackLockMenuItems(createTrackLockMenuModel({ project, selectedTrackId: snapshot.selectedTrackId ?? null, editingBlocked: editBlocked,
 		copy: { lockTrack: copy.lockTrack, unlockTrack: copy.unlockTrack },
 	}), { setTrackLocked: actions.setTrackLocked });
@@ -344,14 +338,14 @@ export default function createApplicationMenus({
 								disabled: !selectedAudioTrack,
 								onClick: actions.openEffects,
 							}
-							: {
+							: extendApplicationMenuProductPanelItem(panelId, {
 								id: `panel-${panelId}`,
 								label: workspacePanelLabel(copy, panelId),
 								checked: panelId === 'project-bin'
 									? projectBinEffectivelyOpen
 									: preferences.workspace.panels[panelId].visible,
 								onClick: () => actions.togglePanel(panelId),
-							}),
+							}, productItems)),
 					],
 				},
 				{
@@ -436,7 +430,7 @@ export default function createApplicationMenus({
 						{ id: 'new-label-track', label: copy.labelTrack, disabled: editBlocked, onClick: actions.addLabelTrack },
 					],
 				},
-				...productTrackItems,
+				...productItems.tracks,
 				...createTakeCompApplicationMenuItems({ productId, capability: Boolean(capabilities.takeComp), project, copy, open: actions.openTakeComp }),
 				{ id: 'duplicate-track', label: copy.duplicateTrack, disabled: editBlocked || !selectedAudioTrack, onClick: actions.duplicateTrack },
 				{ id: 'remove-track', label: copy.removeTracks, disabled: editBlocked || !selectedTrack, onClick: actions.removeTrack },
@@ -535,6 +529,7 @@ export default function createApplicationMenus({
 				{ id: 'realtime-effects', label: copy.addRealtimeEffects, disabled: !selectedAudioTrack, onClick: actions.openEffects },
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.repeatLastEffect, label: copy.repeatLastEffect, disabled: editBlocked || !editSelectionActive || !snapshot.effects?.canRepeatLast, onClick: actions.repeatLastEffect },
 				divider(),
+				...productItems.effect,
 				...effectGroups,
 				{ id: 'pitch-tempo', label: copy.pitchTempo, items: createPitchAndTempoApplicationMenuItems({
 					productId, capabilities, project, selectedClipId: selectedClip?.id ?? null,
@@ -562,6 +557,7 @@ export default function createApplicationMenus({
 			items: [
 				createRepeatAnalyzerMenuItem(importAnalysisMenuContext),
 				divider(),
+				...productItems.analyze,
 				{ id: 'analysis', label: copy.analysisCommand, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('levels') },
 				{ id: 'plot-spectrum', label: copy.plotSpectrum, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('spectrum') },
 				{ id: 'find-clipping', label: copy.findClipping, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('clipping') },
@@ -575,6 +571,7 @@ export default function createApplicationMenus({
 			label: copy.toolsMenu,
 			items: [
 				...createImportAnalysisToolMenuItems(importAnalysisMenuContext),
+				...productItems.tools,
 				{ id: 'manage-macros', label: copy.macroManager, disabled: !project, onClick: actions.openMacroManager },
 				{ id: 'nyquist-prompt', label: copy.nyquistPrompt, disabled: !project, onClick: () => actions.openNyquist() },
 			],

@@ -7,6 +7,11 @@ import {
 	planSpectralEditJobAdmission,
 } from '../spectral-edit-admission.ts';
 import type { EditorProjectToken } from './lifecycle.ts';
+import {
+	applyReviewedUtilityGainSelectionOffline,
+	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE,
+} from '../reviewed-effects/selection-effect.ts';
+import type { ReviewedEffectOfflineOptions } from '../reviewed-effects/offline-worker-client.ts';
 
 const DEFAULT_EFFECT_WORKER_TIMEOUT_MS = 120_000;
 const INTRINSIC_TYPED_ARRAY_SET = intrinsicTypedArraySet();
@@ -82,6 +87,12 @@ export interface SelectionEffectWorkerServiceRuntime {
 		params: unknown,
 		context: SelectionEffectWorkerContext & Readonly<{ wasmModule?: unknown }>,
 	) => Promise<Float32Array[]>;
+	readonly applyReviewedSelectionEffect?: (
+		channels: unknown,
+		sampleRate: number,
+		params: unknown,
+		options?: ReviewedEffectOfflineOptions,
+	) => Promise<readonly Float32Array[]>;
 	readonly applySpectralGain: (
 		channels: Float32Array[],
 		options: SpectralEditOptions,
@@ -107,6 +118,7 @@ export interface EffectWorkerRunOptions {
 export function createSelectionEffectWorkerService(runtime: SelectionEffectWorkerServiceRuntime) {
 	let selectionOwner: WorkerOwner | null = null;
 	let spectralOwner: WorkerOwner | null = null;
+	let reviewedOwner: AbortController | null = null;
 	const scheduleTimeout = runtime.setTimeout ?? ((callback, delay) => globalThis.setTimeout(callback, delay));
 	const clearScheduledTimeout = runtime.clearTimeout ?? ((handle) => globalThis.clearTimeout(handle));
 
@@ -121,7 +133,31 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 			: payload;
 		runtime.assertProject(projectToken);
 		throwIfAborted(options.signal);
-		if (!workerIsAvailable(runtime)) {
+		if (request.operation === 'apply'
+			&& request.effectType === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
+			selectionOwner?.cancel(new WorkerRequestCancelledError());
+			reviewedOwner?.abort(new WorkerRequestCancelledError());
+			const owner = new AbortController();
+			reviewedOwner = owner;
+			const onAbort = (): void => owner.abort(abortReason(options.signal));
+			options.signal?.addEventListener('abort', onAbort, { once: true });
+			try {
+				const channels = await (
+					runtime.applyReviewedSelectionEffect ?? applyReviewedUtilityGainSelectionOffline
+				)(request.channels, request.sampleRate, request.params, { signal: owner.signal });
+				runtime.assertProject(projectToken);
+				throwIfAborted(options.signal);
+				return { channels: [...channels] };
+			} catch (error) {
+				if (owner.signal.aborted) throw abortReason(owner.signal);
+				throw error;
+			} finally {
+				options.signal?.removeEventListener('abort', onAbort);
+				if (reviewedOwner === owner) reviewedOwner = null;
+			}
+		}
+		const workersAvailable = workerIsAvailable(runtime);
+		if (!workersAvailable) {
 			if (request.operation === 'capture-noise-profile') {
 				await runtime.initializePffft();
 				runtime.assertProject(projectToken);
@@ -234,6 +270,7 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 	function cancelWorkers(reason: Error = new WorkerRequestCancelledError()): void {
 		selectionOwner?.cancel(reason);
 		spectralOwner?.cancel(reason);
+		reviewedOwner?.abort(reason);
 	}
 
 	return Object.freeze({ cancelWorkers, runSelectionEffectWorker, runSpectralEditWorker });

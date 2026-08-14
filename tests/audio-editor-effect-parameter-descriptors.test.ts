@@ -145,7 +145,7 @@ test('compound descriptor defaults and topology metadata come from owning defini
 	);
 });
 
-test('Audacity scalar descriptors retain manifest ranges and block latency-changing parameters', () => {
+test('Audacity scalar descriptors retain manifest ranges and block every unconsumed worklet parameter', () => {
 	const effect = createEffect('audacity-compressor', { id: 'compressor-1' });
 	const inventory = effectParameterInventory(TRACK, effect, { sampleRate: 48_000 });
 	const threshold = inventory.descriptors.find((descriptor) => (
@@ -162,10 +162,39 @@ test('Audacity scalar descriptors retain manifest ranges and block latency-chang
 		step: threshold?.step,
 		automatable: threshold?.automatable,
 	}, {
-		minimum: -60, maximum: 0, defaultValue: -10, unit: 'dB', step: 0.1, automatable: true,
+		minimum: -60, maximum: 0, defaultValue: -10, unit: 'dB', step: 0.1, automatable: false,
 	});
+	assert.match(threshold?.automationBlockReason || '', /worklet|queue/iu);
 	assert.equal(lookahead?.automatable, false);
 	assert.match(lookahead?.automationBlockReason || '', /latency/iu);
+});
+
+test('worklet-backed rack parameters stay nonautomatable until their processors consume the bounded queue', () => {
+	for (const type of ['eq', 'limiter', 'gate', 'delay', ...AUDACITY_RACK_EFFECT_TYPES]) {
+		const inventory = effectParameterInventory(TRACK, createEffect(type, { id: `${type}-all-parameters` }));
+		assert.ok(inventory.descriptors.every(({ automatable }) => !automatable), type);
+	}
+	for (const [type, parameterId] of [
+		['eq', 'outputGain'],
+		['limiter', 'ceiling'],
+		['limiter', 'release'],
+		['gate', 'threshold'],
+		['delay', 'mix'],
+		['audacity-compressor', 'thresholdDb'],
+	] as const) {
+		const descriptor = parameterDescriptor(
+			effectParameterInventory(TRACK, createEffect(type, { id: `${type}-worklet-fence` })),
+			parameterId,
+		);
+		assert.equal(descriptor.automatable, false, `${type}.${parameterId}`);
+		assert.match(descriptor.automationBlockReason || '', /worklet|queue/iu, `${type}.${parameterId}`);
+	}
+	for (const parameterId of ['frequency', 'q']) {
+		assert.equal(parameterDescriptor(
+			effectParameterInventory(TRACK, createEffect('highpass', { id: 'native-filter' })),
+			parameterId,
+		).automatable, true, `highpass.${parameterId}`);
+	}
 });
 
 test('compound parameters without stable element IDs become explicit 4A revision inputs', () => {

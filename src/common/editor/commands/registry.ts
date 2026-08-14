@@ -1,6 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	AUDIO_PRODUCTION_COMMAND_TYPES,
+	defineAudioProductionCommandHandlers,
+	type AudioProductionCommandHandlers,
+	type AudioProductionCommandType,
+} from './audio-production.ts';
+import {
 	AUDIO_WARP_COMMAND_TYPES,
 	defineAudioWarpCommandHandlers,
 	type AudioWarpCommandHandlers,
@@ -107,6 +113,8 @@ export {
 	VIDEO_KEYFRAMES_COMMAND_TYPES,
 	TRACK_FOLDER_COMMAND_TYPES,
 	TRACK_MIXER_LABEL_COMMAND_TYPES,
+	AUDIO_PRODUCTION_COMMAND_TYPES,
+	defineAudioProductionCommandHandlers,
 };
 
 export interface EditorCommandHandlerDomains {
@@ -122,6 +130,7 @@ export interface EditorCommandHandlerDomains {
 	readonly timelineAnnotation: TimelineAnnotationCommandHandlers;
 	readonly videoComposition: VideoCompositionCommandHandlers;
 	readonly videoKeyframes: VideoKeyframesCommandHandlers;
+	readonly audioProduction: AudioProductionCommandHandlers;
 }
 
 type RegisteredDomainCommandType =
@@ -136,7 +145,8 @@ type RegisteredDomainCommandType =
 	| EffectsVideoCommandType
 	| TimelineAnnotationCommandType
 	| VideoCompositionCommandType
-	| VideoKeyframesCommandType;
+	| VideoKeyframesCommandType
+	| AudioProductionCommandType;
 
 type DomainsAreExhaustive = [
 	Exclude<AudioEditorCommandType, RegisteredDomainCommandType>,
@@ -166,6 +176,7 @@ export function defineEditorCommandHandlerRegistry(
 		defineTimelineAnnotationCommandHandlers(domains.timelineAnnotation),
 		defineVideoCompositionCommandHandlers(domains.videoComposition),
 		defineVideoKeyframesCommandHandlers(domains.videoKeyframes),
+		defineAudioProductionCommandHandlers(domains.audioProduction),
 	] as const;
 	const combined: Partial<Record<AudioEditorCommandType, EditorCommandHandler>> = {};
 	for (const domain of domainRegistries) {

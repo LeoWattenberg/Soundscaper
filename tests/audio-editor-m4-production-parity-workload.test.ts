@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
@@ -7,8 +8,11 @@ import {
 	compareM4ProductionParityAudio,
 	compileM4ProductionParityAudioPlan,
 	createM4ProductionParityAudioFixture,
+	createM4ProductionParityEngineProject,
 	encodeM4ProductionParityAudio,
 } from '../src/common/editor/quality/m4-production-parity-workload.ts';
+import { compileProjectPathPdcPlanV21 } from '../src/common/editor/engine/project-path-pdc-plan-v21.ts';
+import type { MixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 
 test('the milestone 4 production parity audio fixture is deterministic and digest-pinned', () => {
 	const first = createM4ProductionParityAudioFixture();
@@ -66,15 +70,16 @@ test('production PDC and gain scheduling plans are metric-sensitive', () => {
 	const fixture = createM4ProductionParityAudioFixture();
 	const plan = compileM4ProductionParityAudioPlan();
 	assert.equal(plan.pdcLatencyFrames, M4_PRODUCTION_PARITY_SPECIFICATION.pdcLatencyFrames);
+	assert.equal(plan.pdcErrorSamples, 0);
 	assert.deepEqual(plan.gainEvents.map(({ kind, value, time }) => ({
 		kind,
 		value,
 		frame: Math.round(time * M4_PRODUCTION_PARITY_SPECIFICATION.sampleRate),
 	})), [
-		{ kind: 'set', value: 0.75, frame: 37 },
-		{ kind: 'linear', value: 0.75, frame: 24_036 },
-		{ kind: 'linear', value: 0.5, frame: 24_037 },
-		{ kind: 'linear', value: 0.5, frame: 48_037 },
+		{ kind: 'set', value: 0.75, frame: 27 },
+		{ kind: 'linear', value: 0.75, frame: 24_026 },
+		{ kind: 'linear', value: 0.5, frame: 24_027 },
+		{ kind: 'linear', value: 0.5, frame: 48_027 },
 	]);
 
 	const perturbedPdc = compileM4ProductionParityAudioPlan(38);
@@ -93,6 +98,43 @@ test('production PDC and gain scheduling plans are metric-sensitive', () => {
 		projectFixtureFromProductionPlan(fixture.input, perturbedScheduling),
 		fixture.reference,
 	).maximumAbsoluteSampleError > 0.000_001);
+});
+
+test('the registered workload compiles a production V21 sidechain, send, and nested parallel graph', () => {
+	const project = createM4ProductionParityEngineProject();
+	const plan = compileProjectPathPdcPlanV21(project, {
+		sampleRate: M4_PRODUCTION_PARITY_SPECIFICATION.sampleRate,
+	});
+	const mixer = project.mixer as MixerGraphV21 | undefined;
+	assert.equal(project.schemaVersion, 21);
+	assert.deepEqual(project.tracks?.map(({ id }) => id), ['program', 'control']);
+	assert.deepEqual(mixer?.groups.map(({ id }) => id), ['fast', 'parent']);
+	assert.deepEqual(mixer?.sends.map(({ id }) => id), ['slow']);
+	assert.ok(mixer?.edges.some(({ kind }) => kind === 'sidechain'));
+	assert.ok(mixer?.edges.some(({ kind }) => kind === 'send'));
+	assert.deepEqual(project.automationLanes?.map((lane) => (
+		(lane as Readonly<Record<string, unknown>>).id
+	)), ['program-gain']);
+	assert.equal(plan.nodeInputLatencyFrames.get('track:program'), 7);
+	assert.equal(plan.nodeOutputLatencyFrames.get('track:program'), 27);
+	assert.equal(plan.edgeCompensationFrames.get('fast-parent'), 10);
+	assert.equal(plan.latencyFrames, M4_PRODUCTION_PARITY_SPECIFICATION.pdcLatencyFrames);
+	assert.equal(plan.pdcErrorSamples, 0);
+});
+
+test('the browser collector delegates audio to the production graph and scheduler harness', async () => {
+	const [harness, collector] = await Promise.all([
+		readFile(new URL(
+			'../src/common/editor/quality/m4-production-parity-browser-harness.ts',
+			import.meta.url,
+		), 'utf8'),
+		readFile(new URL('./browser/audio-editor-m4-production-parity.spec.js', import.meta.url), 'utf8'),
+	]);
+	assert.match(harness, /buildProjectGraph\(/u);
+	assert.match(harness, /scheduleProjectClips\(/u);
+	assert.match(collector, /renderM4ProductionParityProductionPath/u);
+	assert.doesNotMatch(collector, /compileM4ProductionParityAudioPlan/u);
+	assert.doesNotMatch(collector, /\.createDelay\(/u);
 });
 
 test('audio evidence uses canonical interleaved little-endian Float32 bytes', () => {

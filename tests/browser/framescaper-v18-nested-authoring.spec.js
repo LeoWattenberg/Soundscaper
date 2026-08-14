@@ -10,10 +10,9 @@ import {
 	collectClientErrors,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-framescaper-editor-v18';
-
-test.describe('Framescaper V18 nested-sequence authoring', () => {
+test.describe('Framescaper selected-web nested-sequence authoring', () => {
 	registerAudioEditorHooks();
 
 	test('creates, places, moves, reopens, removes, and deletes through Tracks', async ({ page }) => {
@@ -151,5 +150,5 @@ async function storedNestedState(page, projectId) {
 				} : null);
 			};
 		};
-	}), { databaseName: DATABASE_NAME, id: projectId });
+	}), { databaseName: FRAMESCAPER_DATABASE_NAME, id: projectId });
 }

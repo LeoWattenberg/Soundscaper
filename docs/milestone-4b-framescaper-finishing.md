@@ -10,7 +10,11 @@
 
 **Status on 2026-08-14:** the 4B-1 implementation candidate is complete apart
 from manual/reference-GPU qualification. 4B-2 is **In progress**. 4B-3 through
-4B-8 are planned. The Soundscaper 4A track is unstarted.
+4B-8 are planned. The owner has separately cleared Soundscaper 4A sequencing;
+its V21 local implementation candidate is **Implemented (provisional)** and the
+maintained Soundscaper route is selected under the
+[4A pickup contract](milestone-4a-soundscaper-production.md), without a
+qualification or milestone-completion claim.
 
 The 4B-1 browser implementation candidate includes exact V19 composition state,
 commands/history, clipboard V5 and edit preservation, the shared render
@@ -693,23 +697,26 @@ initially maintains `dissolve`; future maintained types extend that registry
 rather than extending the wire shape or accepting project-supplied code.
 
 4B-3 depends on 4B-1's atomic track-layer composition and on 4B-2's exact curve
-and preview/export foundations. V21 implementation must start from a clean,
-selected, and fully qualified V20 activation boundary. It must not select V21,
+and preview/export foundations. V22 implementation must start from a clean,
+selected, and fully qualified V20 activation boundary. It must not select V22,
 flip a transition capability, or mix a V20 activation repair into a transition
 schema change while the current V20 route, storage, export, or packaged
 authority remains dormant. The current 4B-2 work above therefore does not
-authorize an early V21 product selection.
+authorize an early V22 product selection. V21 is now allocated to the
+owner-authorized Soundscaper 4A automation/mixer/PDC revision; 4B-3 remains
+planned and unimplemented, so its reservation moves without changing any
+implemented V18, V19, or V20 statement.
 
-Exact V21 has no implicit-transition dialect. A version-gated adapter may
+Exact V22 has no implicit-transition dialect. A version-gated adapter may
 continue to present inferred linear dissolves for schema versions at most 20,
 but it must construct a transient descriptor and call the same resolver as
-V21. It never writes V21 state. Exact-current validation never invents an
+V22. It never writes V22 state. Exact-current validation never invents an
 object or an ID. A typed V20 re-import/factory adapter may convert a proper
 legacy overlap only when its caller supplies the explicit fresh transition ID;
-it creates the default dissolve below before strict V21 validation. Raw V20
+it creates the default dissolve below before strict V22 validation. Raw V20
 load remains a typed re-import refusal, not an in-place migration.
 
-### Exact V21 ownership and wire
+### Exact V22 ownership and wire
 
 Every video track has one mandatory `videoTransitions` array. Audio and label
 tracks must not carry that property, no transition is clip-owned, and the
@@ -782,7 +789,7 @@ overlaps, a reversed pair, a dangling or cross-track/cross-sequence reference,
 two objects for one pair, an unowned object, and any interval with three active
 clips reject.
 
-V21 TDD must freeze four deliberately unresolved protocol details before any
+V22 TDD must freeze four deliberately unresolved protocol details before any
 schema implementation: deterministic `videoTransitions` array ordering;
 explicit per-track and project transition-count and duration ceilings; the
 closed field inventory of `CanonicalTransitionClipEdges` below; and the
@@ -818,7 +825,7 @@ sets the incoming start to `S'` and outgoing end to `E'`, preserving their
 outer edges and reconciling source in/out coordinates through the canonical
 edit geometry. It refuses insufficient source handles, nonpositive clip
 duration, sequence-boundary overflow, lock/read-only state, a three-way
-overlap, or any source/sequence coordinate outside the frozen V21 limits.
+overlap, or any source/sequence coordinate outside the frozen V22 limits.
 
 Changing duration scales every curve anchor and Bezier control position by the
 exact rational `D' / D`; it never samples or approximates a curve. Values and
@@ -851,13 +858,13 @@ provider, interval/export planning, and offline frame production all consume
 that resolver's result. The existing `videoTransitionOpacity` and
 `previewTransitionWeight` calculations are removed. CFR, VFR, nested, preview,
 and export callers may map into the exact sequence position, but none may
-recalculate progress, infer a V21 pair, interpolate endpoint weights with a
+recalculate progress, infer a V22 pair, interpolate endpoint weights with a
 second formula, or substitute a backend transition primitive.
 
 The first-party registry is a frozen, side-effect-free inventory. Each entry
 binds one slug to its feature identity, localized label, renderer-neutral
 resolver contract, preview consumer, export consumer, and parity fixtures.
-Initial V21 contains only `dissolve`. Registry completeness tests require a
+Initial V22 contains only `dissolve`. Registry completeness tests require a
 one-to-one registration across capabilities, requirements, i18n, menu/dialog
 choices, preview, export, consumer ledgers, and golden evidence. Adding a type
 is a reviewed first-party code change; neither a project nor an extension may
@@ -889,7 +896,7 @@ Register exactly one direct transition command in one focused domain:
 
 `CanonicalTransitionClipEdges` is a closed planner-owned exact snapshot of the
 two clips' boundary authority. Its concrete field inventory must be frozen by
-V21 protocol tests before the discriminant is registered; no implementation
+V22 protocol tests before the discriminant is registered; no implementation
 may replace it with a partial private object. `expectedTransition` and
 `transition` are non-null. Addition and removal belong to topology commands and
 their reconciliation, not a nullable interpretation of `video-transition/set`.
@@ -899,7 +906,7 @@ references, and the current canonical edge snapshot to agree with the target
 track and current project. The replacement keeps the same transition identity
 and pair ownership. It compares current state to `expectedTransition` and
 `expectedEdges`, validates the replacement object and `edges` as one complete
-V21 candidate, checks both transition capabilities and owning-track locks, and
+V22 candidate, checks both transition capabilities and owning-track locks, and
 publishes both clip edges and the transition atomically. A stale object or edge,
 wrong pair, unavailable type, invalid curve/geometry, read-only project, or
 failed requirement reconciliation leaves the project, revision, timestamp,
@@ -971,7 +978,7 @@ resolved progress, cut, weight, or renderer description enters project JSON.
 
 Current-format `.scape`, browser storage, archive cloning, desktop handoff,
 history, and explicit cross-product handoff preserve the complete track-owned
-object. V21 advances every Framescaper runtime, repository, archive, desktop
+object. V22 advances every Framescaper runtime, repository, archive, desktop
 library, bootstrap, and fixture pin atomically; it never teaches an earlier
 selected authority to ignore `videoTransitions`.
 
@@ -1014,7 +1021,7 @@ Add these exact capability registrations:
 | `videoTransitions` | `org.soundscaper.capability.video-transitions` | `false` in both products |
 | `videoTransitionDissolve` | `org.soundscaper.capability.video-transition.dissolve` | `false` in both products |
 
-Framescaper flips both only in the V21 activation change after the complete
+Framescaper flips both only in the V22 activation change after the complete
 native workflow passes. Soundscaper keeps both known unavailable. The umbrella
 capability authorizes explicit transition ownership and editing; the type
 capability authorizes the maintained resolver and both render consumers. A
@@ -1043,14 +1050,14 @@ until a separate reviewed fallback/revert workflow exists.
 ### Test-first implementation and activation gates
 
 1. Freeze the four pre-code protocol decisions above, requirement display
-   names, and lower-only test seams before writing V21 validators or commands.
+   names, and lower-only test seams before writing V22 validators or commands.
    Record one canonical default fixture and deterministic array/cap vectors.
 2. Unit-test closed hostile-input admission, slug grammar, global identity,
    curve endpoint/control/rational bounds, freeze/detachment/idempotence,
    unknown-type preservation, exact track ownership, and every missing,
    duplicate, dangling, unowned, disjoint, touching, nested, equal-boundary,
    cross-sequence, and three-way geometry case.
-3. Prove exact V21 create, validate, clone, selected load/save, history,
+3. Prove exact V22 create, validate, clone, selected load/save, history,
    clipboard V7, Project Bin exclusion, `.scape`, browser repository, archive,
    desktop library, copy-only transfer, typed V20 re-import refusal, and future
    opaque-read-only behavior. No exact-current fixture relies on normalization
@@ -1080,10 +1087,10 @@ until a separate reviewed fallback/revert workflow exists.
    create/edit/remove/reset, keyboard and focus return, localized errors,
    forced colors, serious axe checks, undo/redo, save/reopen, export, no
    Soundscaper authoring entry, and no new default-visible surface.
-10. Keep V21 dormant and both capabilities unavailable until canonical tests,
+10. Keep V22 dormant and both capabilities unavailable until canonical tests,
     full browser tests, build/chunk ceilings, security registration, quality
     budgets, desktop/package transport, manual/reference-GPU rows, and the
-    complete V20-to-V21 clean activation rehearsal pass. Flip model, storage,
+    complete V20-to-V22 clean activation rehearsal pass. Flip model, storage,
     runtime, bootstrap, product capabilities, and menu selection in one atomic
     activation change only after those gates.
 
@@ -1097,13 +1104,13 @@ optical-flow interpolation, renderer-specific persisted expression, normalized
 curve time, default-visible timeline handle, or milestone-6 delivery workflow.
 
 Stop 4B-3 if V20 is not a clean selected base; a pre-code wire/cap decision is
-still private; a V21 overlap can exist without exactly one object; an object can
+still private; a V22 overlap can exist without exactly one object; an object can
 exist without its exact pair; an edit handler allocates an ID; topology,
 timeline, preview, nested playback, and export disagree about geometry or
 progress; a curve is sampled during preservation; a clipboard or edit drops,
 aliases, or dangles state; an unknown type renders or disappears silently; a
 backend transition alias replaces the shared resolver; more than two clips can
-be active; an audio schema is pulled into V21; a new control is visible by
+be active; an audio schema is pulled into V22; a new control is visible by
 default; or a route/capability flips before native, packaged, security, quality,
 manual, and reference-GPU evidence is honestly recorded.
 

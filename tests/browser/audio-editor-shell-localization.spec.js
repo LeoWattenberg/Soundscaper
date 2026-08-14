@@ -34,7 +34,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true');
 	});
 
-	test('keeps a non-dismissible warning visible when project storage is ephemeral', async ({ page }) => {
+	test('fails closed when exact V21 durable project storage is unavailable', async ({ page }) => {
 		await page.addInitScript(() => {
 			Object.defineProperty(globalThis, 'indexedDB', {
 				configurable: true,
@@ -42,18 +42,21 @@ test.describe('audio editor React/design-system workflows', () => {
 			});
 		});
 
-		let editor = await bootEditor(page, '/embed/en/');
-		let warning = editor.locator('[data-storage-ephemeral-warning]');
-		await expect(warning).toBeVisible();
-		await expect(warning).toHaveAttribute('role', 'alert');
-		await expect(warning).toHaveText('Persistent local storage is unavailable. Changes will be lost when this page is closed or reloaded.');
-		await expect(warning.getByRole('button')).toHaveCount(0);
+		await page.goto('/embed/en/');
+		let failure = page.getByRole('alert');
+		await expect(failure).toContainText(
+			'Durable storage is required; memory V21 project storage is unsupported.',
+		);
+		await expect(failure.getByRole('button')).toHaveCount(0);
+		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
 
 		await page.reload();
-		editor = await waitForEditor(page);
-		warning = editor.locator('[data-storage-ephemeral-warning]');
-		await expect(warning).toBeVisible();
-		await expect(warning.getByRole('button')).toHaveCount(0);
+		failure = page.getByRole('alert');
+		await expect(failure).toContainText(
+			'Durable storage is required; memory V21 project storage is unsupported.',
+		);
+		await expect(failure.getByRole('button')).toHaveCount(0);
+		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
 	});
 
 	test('uses the Framescaper video workspace from the site sidebar', async ({ page }) => {

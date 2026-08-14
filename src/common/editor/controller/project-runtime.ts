@@ -32,6 +32,22 @@ export interface ControllerRuntimeHistory {
 	readonly redoStack: readonly unknown[];
 }
 
+export interface ControllerTrackDuplicateEffectMapping {
+	readonly sourceId: string;
+	readonly targetId: string;
+}
+
+export interface ControllerTrackDuplicateRequest {
+	readonly sourceTrackId: string;
+	readonly targetTrackId: string;
+	readonly effectIds: readonly Readonly<ControllerTrackDuplicateEffectMapping>[];
+}
+
+export interface ControllerTrackDuplicateCarrier {
+	readonly sourceTrackId: string;
+	readonly effectIds: readonly Readonly<ControllerTrackDuplicateEffectMapping>[];
+}
+
 export interface ControllerProjectRuntime {
 	readonly createProject: (options?: Readonly<Record<string, unknown>>) => ControllerRuntimeProject;
 	readonly cloneProject: (project: unknown) => ControllerRuntimeProject;
@@ -47,6 +63,10 @@ export interface ControllerProjectRuntime {
 		project: unknown,
 		descriptor: AudioEditorClipboard,
 	) => AudioEditorClipboard;
+	readonly prepareTrackDuplicateCarrier: (
+		project: unknown,
+		request: Readonly<ControllerTrackDuplicateRequest>,
+	) => Readonly<ControllerTrackDuplicateCarrier>;
 	readonly createHistory: (project: unknown) => ControllerRuntimeHistory;
 	readonly executeCommand: (
 		history: ControllerRuntimeHistory,
@@ -79,6 +99,10 @@ const DEFAULT_RUNTIME = Object.freeze({
 		projectForRuntimeConsumers(project as never) as ControllerRuntimeProject
 	),
 	prepareEditClipboardDescriptor: (_project: unknown, descriptor: AudioEditorClipboard) => descriptor,
+	prepareTrackDuplicateCarrier: (_project: unknown, request: ControllerTrackDuplicateRequest) => ({
+		sourceTrackId: request.sourceTrackId,
+		effectIds: request.effectIds,
+	}),
 	createHistory: createEditorHistory,
 	executeCommand: executeEditorCommand,
 	applyCommand: applyEditorCommand,
@@ -104,6 +128,14 @@ export function resolveControllerProjectRuntime(
 			throw new TypeError(`A complete controller project runtime requires ${name}.`);
 		}
 		snapshot[name] = descriptor.value;
+	}
+	const duplicateCarrier = Object.getOwnPropertyDescriptor(runtime, 'prepareTrackDuplicateCarrier');
+	if (duplicateCarrier === undefined) {
+		snapshot.prepareTrackDuplicateCarrier = DEFAULT_RUNTIME.prepareTrackDuplicateCarrier;
+	} else if (!Object.hasOwn(duplicateCarrier, 'value') || typeof duplicateCarrier.value !== 'function') {
+		throw new TypeError('Controller project runtime prepareTrackDuplicateCarrier must be a method.');
+	} else {
+		snapshot.prepareTrackDuplicateCarrier = duplicateCarrier.value;
 	}
 	return Object.freeze(snapshot) as unknown as ControllerProjectRuntime;
 }

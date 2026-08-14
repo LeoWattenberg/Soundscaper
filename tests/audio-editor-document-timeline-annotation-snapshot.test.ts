@@ -7,9 +7,13 @@ import {
 	createDocumentTimelineAnnotationSnapshot,
 } from '../src/common/editor/controller/document-timeline-annotation-snapshot.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 
-test('document annotation snapshot projects the exact current annotation document and sorts by runtime timing', () => {
+test('document annotation snapshot projects active V17 and Soundscaper V21 documents by runtime timing', () => {
 	const project = createCurrentAudioEditorProject({
 		id: 'annotation-view',
 		now: 1_700_000_000_000,
@@ -29,9 +33,16 @@ test('document annotation snapshot projects the exact current annotation documen
 	assert.equal(snapshot[0]?.timelineStartFrame, 24_000);
 	assert.equal(Object.isFrozen(snapshot), true);
 	assert.equal(Object.isFrozen(snapshot[0]), true);
+	assert.deepEqual(
+		createDocumentTimelineAnnotationSnapshot({
+			...project,
+			schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+		}).map(({ id }) => id),
+		['musical-first', 'sample-late'],
+	);
 });
 
-test('document annotation snapshot does not traverse older, future, or absent schema state', () => {
+test('document annotation snapshot does not traverse obsolete, Framescaper, future, or absent schema state', () => {
 	const hostile = (schemaVersion: number) => ({
 		schemaVersion,
 		get timelineAnnotations(): never {
@@ -39,9 +50,8 @@ test('document annotation snapshot does not traverse older, future, or absent sc
 		},
 	});
 	assert.deepEqual(createDocumentTimelineAnnotationSnapshot(hostile(10)), []);
-	assert.deepEqual(createDocumentTimelineAnnotationSnapshot(hostile(
-		AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
-	)), []);
+	assert.deepEqual(createDocumentTimelineAnnotationSnapshot(hostile(FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION)), []);
+	assert.deepEqual(createDocumentTimelineAnnotationSnapshot(hostile(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1)), []);
 	assert.deepEqual(createDocumentTimelineAnnotationSnapshot({
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	}), []);

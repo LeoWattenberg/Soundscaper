@@ -143,7 +143,7 @@ test('canonical EQ selection processing uses pre-roll and commits all selected t
 
 	try {
 		await controller.ready;
-		assert.equal(controller.getSnapshot().effects.selectionTypes.at(-1).type, 'eq');
+		assert(controller.getSnapshot().effects.selectionTypes.some(({ type }) => type === 'eq'));
 		controller.actions.timeline.selectTrack('effect-track-a');
 		controller.actions.timeline.setSelection(startFrame, endFrame, {
 			trackIds: ['effect-track-a', 'effect-track-b'],

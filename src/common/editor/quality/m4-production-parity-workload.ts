@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { compileProjectGainEvents } from '../engine/project-gain-event-plan.ts';
-import { compileProjectPdcPlan } from '../engine/project-pdc-plan.ts';
-import type { EngineProject, EngineTrack } from '../engine/types.ts';
+import { compileAutomationLaneEventsV21 } from '../engine/automation-lane-scheduler-v21.ts';
+import { compileProjectPathPdcPlanV21 } from '../engine/project-path-pdc-plan-v21.ts';
+import type { EngineEffect, EngineProject, EngineTrack } from '../engine/types.ts';
+import type { MixerEdgeV21, MixerGraphV21, MixerStripV21 } from '../mixer-graph-v21.ts';
 
 export const M4_PRODUCTION_PARITY_WORKLOAD_ID = 'm4-production-render-parity';
 export const M4_PRODUCTION_PARITY_FIXTURE_ID = 'm4-production-parity-v1';
@@ -48,6 +49,7 @@ export interface M4ProductionParityAudioMetrics {
 
 export interface M4ProductionParityAudioPlan {
 	readonly pdcLatencyFrames: number;
+	readonly pdcErrorSamples: number;
 	readonly gainEvents: readonly Readonly<{
 		readonly kind: 'set' | 'linear';
 		readonly value: number;
@@ -78,50 +80,189 @@ export const M4_PRODUCTION_PARITY_SPECIFICATION: M4ProductionParitySpecification
 	videoHeight: 72,
 });
 
-/** Compile the fixture through the same PDC and gain-event planners as the engine graph. */
+/** Build the persisted V21 graph rendered by the registered browser workload. */
+export function createM4ProductionParityEngineProject(
+	latencyFrames = PDC_LATENCY_FRAMES,
+): EngineProject {
+	const totalLatencyFrames = normalizedParityLatencyFrames(latencyFrames);
+	const program = parityTrack('program', 20, 0.75);
+	const control = parityTrack('control', 7, 1);
+	const mixer: MixerGraphV21 = Object.freeze({
+		schemaVersion: 1,
+		groups: Object.freeze([parityStrip('fast', 0), parityStrip('parent', 0)]),
+		sends: Object.freeze([parityStrip('slow', totalLatencyFrames - 27)]),
+		cues: Object.freeze([]),
+		vcas: Object.freeze([]),
+		outputs: Object.freeze([Object.freeze({
+			id: 'main', name: 'Main', role: 'main', channelCount: CHANNEL_COUNT,
+		})]),
+		edges: Object.freeze([
+			parityEdge('control-program', 'sidechain', { kind: 'track', id: 'control' }, {
+				kind: 'effect-sidechain',
+				strip: { kind: 'track', id: 'program' },
+				effectId: 'program-limiter',
+			}),
+			parityEdge('program-fast', 'assignment', { kind: 'track', id: 'program' }, {
+				kind: 'mixer-node', id: 'fast',
+			}, 0.5),
+			parityEdge('program-slow', 'send', { kind: 'track', id: 'program' }, {
+				kind: 'mixer-node', id: 'slow',
+			}, 0.5),
+			parityEdge('fast-parent', 'assignment', { kind: 'mixer-node', id: 'fast' }, {
+				kind: 'mixer-node', id: 'parent',
+			}),
+			parityEdge('slow-parent', 'assignment', { kind: 'mixer-node', id: 'slow' }, {
+				kind: 'mixer-node', id: 'parent',
+			}),
+			parityEdge('parent-master', 'assignment', { kind: 'mixer-node', id: 'parent' }, {
+				kind: 'master',
+			}),
+			parityEdge('control-master', 'assignment', { kind: 'track', id: 'control' }, {
+				kind: 'master',
+			}, 0),
+			parityEdge('master-main', 'assignment', { kind: 'master' }, {
+				kind: 'output', id: 'main',
+			}),
+		]),
+	});
+	return Object.freeze({
+		schemaVersion: 21,
+		sampleRate: SAMPLE_RATE,
+		masterChannels: CHANNEL_COUNT,
+		clips: Object.freeze([
+			parityClip('program-clip', 'program-source'),
+			parityClip('control-clip', 'program-source'),
+		]),
+		tracks: Object.freeze([program, control]),
+		sources: Object.freeze([Object.freeze({
+			id: 'program-source', channelCount: CHANNEL_COUNT,
+		})]),
+		master: Object.freeze({
+			gain: 1, pan: 0, mute: false, solo: false, effectsActive: true, effects: Object.freeze([]),
+		}),
+		mixer,
+		automationLanes: Object.freeze([parityAutomationLane()]),
+	});
+}
+
+/** Compile the fixture through the V21 path-PDC and persisted-lane planners used by the engine. */
 export function compileM4ProductionParityAudioPlan(
 	latencyFrames = PDC_LATENCY_FRAMES,
 ): M4ProductionParityAudioPlan {
-	const track: EngineTrack = {
-		id: 'm4-production-parity-track',
-		type: 'audio',
-		gain: 1,
-		effectsActive: true,
-		effects: [{
-			id: 'm4-production-parity-limiter',
-			type: 'limiter',
-			enabled: true,
-			params: { lookahead: latencyFrames / SAMPLE_RATE },
-		}],
-		envelope: [
-			{ frame: 0, value: 0.75 },
-			{ frame: AUTOMATION_CHANGE_FRAME - 1, value: 0.75 },
-			{ frame: AUTOMATION_CHANGE_FRAME, value: 0.5 },
-			{ frame: FRAME_COUNT, value: 0.5 },
-		],
-	};
-	const project: EngineProject = {
+	const project = createM4ProductionParityEngineProject(latencyFrames);
+	const lane = project.automationLanes?.[0];
+	if (!lane) throw new Error('The M4 production parity automation lane is unavailable.');
+	const pdcPlan = compileProjectPathPdcPlanV21(project, { sampleRate: SAMPLE_RATE });
+	const address = (lane as Readonly<{ readonly address: unknown }>).address;
+	const laneLatencyFrames = pdcPlan.automationLatencyFrames(address);
+	const gainEvents = compileAutomationLaneEventsV21(lane, {
+		fromFrame: 0,
+		toFrame: FRAME_COUNT,
 		sampleRate: SAMPLE_RATE,
-		masterChannels: CHANNEL_COUNT,
-		tracks: [track],
-		mixer: { groups: [], sends: [], routes: {} },
-		master: { gain: 1, effectsActive: true, effects: [], envelope: [] },
-	};
-	const pdcPlan = compileProjectPdcPlan(project, { sampleRate: SAMPLE_RATE });
-	const trackLatencyFrames = pdcPlan.trackLatencyFrames.get(String(track.id)) ?? 0;
+	});
 	return Object.freeze({
 		pdcLatencyFrames: pdcPlan.latencyFrames,
-		gainEvents: compileProjectGainEvents(track, {
-			fromFrame: 0,
-			toFrame: FRAME_COUNT,
-			durationFrames: FRAME_COUNT,
-			contextStartTime: 0,
-			sampleRate: SAMPLE_RATE,
-			contextSampleRate: SAMPLE_RATE,
-			transportRate: 1,
-			latencyFrames: trackLatencyFrames,
+		pdcErrorSamples: pdcPlan.pdcErrorSamples,
+		gainEvents: Object.freeze(gainEvents.map(({ kind, value, frame }) => Object.freeze({
+			kind,
+			value,
+			time: (frame + laneLatencyFrames) / SAMPLE_RATE,
+		}))),
+	});
+}
+
+function parityTrack(id: string, latencyFrames: number, gain: number): EngineTrack {
+	return Object.freeze({
+		id,
+		type: 'audio',
+		gain,
+		pan: 0,
+		mute: false,
+		solo: false,
+		effectsActive: true,
+		effects: Object.freeze([parityLimiter(`${id}-limiter`, latencyFrames)]),
+		clipIds: Object.freeze([`${id}-clip`]),
+	});
+}
+
+function parityStrip(id: string, latencyFrames: number): MixerStripV21 {
+	return Object.freeze({
+		id,
+		name: id,
+		color: '#000000',
+		gain: 1,
+		pan: 0,
+		mute: false,
+		solo: false,
+		collapsed: false,
+		effectsActive: true,
+		effects: latencyFrames === 0
+			? Object.freeze([])
+			: Object.freeze([parityLimiter(`${id}-limiter`, latencyFrames) as Readonly<Record<string, unknown>>]),
+		channelCount: CHANNEL_COUNT,
+	});
+}
+
+function parityLimiter(id: string, latencyFrames: number): EngineEffect {
+	return Object.freeze({
+		id,
+		type: 'limiter',
+		enabled: true,
+		bypassed: false,
+		params: Object.freeze({
+			lookahead: latencyFrames === 0 ? 0 : (latencyFrames - 0.001) / SAMPLE_RATE,
+			ceiling: 0,
+			release: 0.01,
 		}),
 	});
+}
+
+function parityEdge(
+	id: string,
+	kind: MixerEdgeV21['kind'],
+	source: MixerEdgeV21['source'],
+	destination: MixerEdgeV21['destination'],
+	level = 1,
+): MixerEdgeV21 {
+	return Object.freeze({
+		id, kind, source: Object.freeze(source), destination: Object.freeze(destination),
+		position: 'post-fader', level, enabled: true, channelMap: Object.freeze([0, 1]),
+	});
+}
+
+function parityClip(id: string, sourceId: string): Readonly<Record<string, unknown>> {
+	return Object.freeze({
+		id, sourceId, timelineStartFrame: 0, durationFrames: FRAME_COUNT,
+		sourceStartFrame: 0, sourceDurationFrames: FRAME_COUNT, gain: 1,
+	});
+}
+
+function parityAutomationLane(): Readonly<Record<string, unknown>> {
+	return Object.freeze({
+		id: 'program-gain',
+		address: Object.freeze({
+			kind: 'strip', strip: Object.freeze({ kind: 'track', id: 'program' }), parameterId: 'gain',
+		}),
+		timebase: 'absolute-samples',
+		points: Object.freeze([
+			Object.freeze({ id: 'gain-start', position: 0, value: 0.75 }),
+			Object.freeze({ id: 'gain-hold-end', position: AUTOMATION_CHANGE_FRAME - 1, value: 0.75 }),
+			Object.freeze({ id: 'gain-change', position: AUTOMATION_CHANGE_FRAME, value: 0.5 }),
+			Object.freeze({ id: 'gain-end', position: FRAME_COUNT, value: 0.5 }),
+		]),
+		segments: Object.freeze([
+			Object.freeze({ kind: 'linear' }),
+			Object.freeze({ kind: 'linear' }),
+			Object.freeze({ kind: 'linear' }),
+		]),
+	});
+}
+
+function normalizedParityLatencyFrames(value: number): number {
+	if (!Number.isSafeInteger(value) || value < 27 || value > SAMPLE_RATE) {
+		throw new RangeError(`M4 production parity latency must be an integer from 27 through ${SAMPLE_RATE}.`);
+	}
+	return value;
 }
 
 /** Create the seeded stereo input and an independent exact scheduling oracle. */

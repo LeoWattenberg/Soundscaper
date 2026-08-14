@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
+import {
+	SOUNDSCAPER_DATABASE_NAME,
+	SOUNDSCAPER_OPFS_DIRECTORY_NAME,
+} from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-audio-editor';
+const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
 const DATABASE_VERSION = 8;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const fixture = createWavFixture({
@@ -184,7 +188,7 @@ async function applySampleEdit(page, editor, name) {
 }
 
 async function persistedPcmState(page, name) {
-	return page.evaluate(async ({ databaseName, databaseVersion, sourceName }) => {
+	return page.evaluate(async ({ databaseName, databaseVersion, opfsDirectoryName, sourceName }) => {
 		const request = (input) => new Promise((resolve, reject) => {
 			input.onsuccess = () => resolve(input.result);
 			input.onerror = () => reject(input.error);
@@ -199,7 +203,7 @@ async function persistedPcmState(page, name) {
 			let footerMagic = null;
 			if (source.storage === 'opfs-pcm-v1') {
 				const root = await navigator.storage.getDirectory();
-				const directory = await root.getDirectoryHandle('audio-editor-sources');
+				const directory = await root.getDirectoryHandle(opfsDirectoryName);
 				const file = await (await directory.getFileHandle(source.path)).getFile();
 				containerMagic = new TextDecoder().decode(await file.slice(0, 8).arrayBuffer());
 				const footerBytes = await file.slice(file.size - 32).arrayBuffer();
@@ -235,6 +239,7 @@ async function persistedPcmState(page, name) {
 	}, {
 		databaseName: DATABASE_NAME,
 		databaseVersion: DATABASE_VERSION,
+		opfsDirectoryName: SOUNDSCAPER_OPFS_DIRECTORY_NAME,
 		sourceName: name,
 	});
 }
@@ -269,6 +274,7 @@ async function seedLegacyIndexedDbSource(page, name) {
 	return page.evaluate(async ({
 		databaseName,
 		databaseVersion,
+		opfsDirectoryName,
 		sourceName,
 	}) => {
 		const request = (input) => new Promise((resolve, reject) => {
@@ -339,13 +345,14 @@ async function seedLegacyIndexedDbSource(page, name) {
 			database.close();
 			if (oldPath) {
 				const root = await navigator.storage.getDirectory();
-				const directory = await root.getDirectoryHandle('audio-editor-sources');
+				const directory = await root.getDirectoryHandle(opfsDirectoryName);
 				await directory.removeEntry(oldPath).catch(() => undefined);
 			}
 		}
 	}, {
 		databaseName: DATABASE_NAME,
 		databaseVersion: DATABASE_VERSION,
+		opfsDirectoryName: SOUNDSCAPER_OPFS_DIRECTORY_NAME,
 		sourceName: name,
 	});
 }

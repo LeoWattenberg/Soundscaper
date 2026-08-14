@@ -7,6 +7,7 @@ import type {
 	EditorTaskScope,
 } from './lifecycle.ts';
 import type { EffectTarget } from './effect-selection-service.ts';
+import { createIsolatedTrackRenderProjectV21 } from './isolated-track-render-project-v21.ts';
 
 const EFFECT_MACRO_TASK = 'selection-effect-macro';
 
@@ -38,11 +39,12 @@ interface MacroTrack extends Record<string, unknown> {
 	pan: number;
 	mute: boolean;
 	solo: boolean;
-	envelope: unknown[];
+	envelope?: unknown[];
 }
 
 interface MacroProject {
 	readonly id: string;
+	readonly schemaVersion?: number;
 	readonly tracks: readonly Readonly<Record<string, unknown>>[];
 	readonly master: Readonly<Record<string, unknown>>;
 	readonly mixer: Readonly<Record<string, unknown>>;
@@ -50,6 +52,7 @@ interface MacroProject {
 
 interface MutableMacroProject extends Record<string, unknown> {
 	id: string;
+	schemaVersion?: number;
 	tracks: MacroTrack[];
 	master: Record<string, unknown>;
 	mixer: Record<string, unknown>;
@@ -180,17 +183,24 @@ export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
 		try {
 			await runtime.preflightStorage(outputBytes, 'effect');
 			assertOwnership(runtime, ownership);
-			const snapshot = runtime.cloneProject(project) as MutableMacroProject;
+			let snapshot = runtime.cloneProject(project) as MutableMacroProject;
 			const snapshotTrack = snapshot.tracks.find((track) => track.id === target.track.id);
 			if (!snapshotTrack) throw new Error(runtime.copy.audioTrackNotFound);
-			snapshotTrack.effects = effects;
-			snapshotTrack.gain = 1;
-			snapshotTrack.pan = 0;
-			snapshotTrack.mute = false;
-			snapshotTrack.solo = false;
-			snapshotTrack.envelope = [];
-			snapshot.master = { ...snapshot.master, gain: 1, pan: 0, mute: false, effects: [] };
-			snapshot.mixer = { ...snapshot.mixer, groups: [], sends: [], routes: {} };
+			if (snapshot.schemaVersion === 21) {
+				snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
+					trackId: target.track.id,
+					effects,
+				}) as unknown as MutableMacroProject;
+			} else {
+				snapshotTrack.effects = effects;
+				snapshotTrack.gain = 1;
+				snapshotTrack.pan = 0;
+				snapshotTrack.mute = false;
+				snapshotTrack.solo = false;
+				snapshotTrack.envelope = [];
+				snapshot.master = { ...snapshot.master, gain: 1, pan: 0, mute: false, effects: [] };
+				snapshot.mixer = { ...snapshot.mixer, groups: [], sends: [], routes: {} };
+			}
 			const rendered = await runtime.renderSnapshot(snapshot, {
 				startFrame: target.startFrame,
 				endFrame: target.endFrame,

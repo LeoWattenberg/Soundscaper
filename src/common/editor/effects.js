@@ -10,6 +10,10 @@ import {
 	audacityLiveEffectTailFrames,
 } from './audacity-effects/live.js';
 import { canonicalCopyValue, effectNameCopyKey } from '../i18n/canonical-extras.js';
+import {
+	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_DEFINITION, REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_LABEL,
+	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE,
+} from './reviewed-effects/selection-effect.ts';
 
 const EQ_FREQUENCIES = Object.freeze([100, 500, 2_000, 8_000]);
 export const MISSING_EFFECT_TYPE = 'missing';
@@ -183,6 +187,7 @@ export const AUDIO_SELECTION_EFFECT_DEFINITIONS = Object.freeze({
 		...AUDIO_EFFECT_DEFINITIONS.eq,
 		preRollSeconds: 10,
 	}),
+	[REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE]: REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_DEFINITION,
 });
 
 export function audioEffectTypes() {
@@ -200,6 +205,7 @@ export function audioSelectionEffectDefinition(type) {
 }
 
 export function audioSelectionEffectLabel(type, copyOrLocale = 'en') {
+	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) return REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_LABEL;
 	return AUDACITY_EFFECT_DEFINITIONS[type]
 		? audacityEffectLabel(type, copyOrLocale)
 		: audioEffectLabel(type, copyOrLocale);
@@ -208,14 +214,14 @@ export function audioSelectionEffectLabel(type, copyOrLocale = 'en') {
 export function audioSelectionEffectDefaults(type, effectId = null) {
 	if (AUDACITY_EFFECT_DEFINITIONS[type]) return audacityEffectDefaults(type);
 	audioSelectionEffectDefinition(type);
-	return normalizeEffectParams(type, clone(AUDIO_EFFECT_DEFINITIONS[type].defaults), effectId);
+	return normalizeEffectParams(type, clone(AUDIO_SELECTION_EFFECT_DEFINITIONS[type].defaults), effectId);
 }
 
 export function normalizeAudioSelectionEffectParams(type, params = {}, effectId = null) {
 	if (AUDACITY_EFFECT_DEFINITIONS[type]) return normalizeAudacityEffectParams(type, params);
 	audioSelectionEffectDefinition(type);
 	return normalizeEffectParams(type, {
-		...clone(AUDIO_EFFECT_DEFINITIONS[type].defaults),
+		...clone(AUDIO_SELECTION_EFFECT_DEFINITIONS[type].defaults),
 		...clone(params),
 	}, effectId);
 }
@@ -430,7 +436,7 @@ function normalizeEffectParams(type, params, effectId = null) {
 		};
 	}
 
-	const definition = AUDIO_EFFECT_DEFINITIONS[type];
+	const definition = AUDIO_EFFECT_DEFINITIONS[type] ?? AUDIO_SELECTION_EFFECT_DEFINITIONS[type];
 	const output = {};
 	for (const [name, [minimum, maximum]] of Object.entries(definition.ranges)) {
 		output[name] = range(params[name], minimum, maximum, `${type}.${name}`);

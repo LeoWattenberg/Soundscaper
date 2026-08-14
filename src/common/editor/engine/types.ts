@@ -71,6 +71,7 @@ export interface EngineProject extends Readonly<Record<string, unknown>> {
 	readonly tempoMap?: import('../timeline-time.ts').HoldTempoMap;
 	readonly metadata?: Readonly<{ adm?: unknown }>;
 	readonly loop?: EngineLoop;
+	readonly automationLanes?: readonly unknown[];
 	readonly clips?: readonly EngineClip[];
 	readonly tracks?: readonly EngineTrack[];
 	readonly sources?: readonly Readonly<{
@@ -80,6 +81,7 @@ export interface EngineProject extends Readonly<Record<string, unknown>> {
 	readonly mixer?: Readonly<{
 		groups?: readonly EngineMixerBus[];
 		sends?: readonly EngineMixerBus[];
+		cues?: readonly EngineMixerBus[];
 		routes?: Readonly<Record<string, EngineMixerRoute>>;
 	}>;
 	readonly master?: EngineGainOwner;

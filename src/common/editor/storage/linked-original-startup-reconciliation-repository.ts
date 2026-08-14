@@ -38,6 +38,8 @@ export interface LinkedOriginalStartupReconciliationRepositoryOptions {
 	readonly maximumRoots?: number;
 	readonly maximumInventoryRecords?: number;
 	readonly maximumInventoryReferences?: number;
+	/** Product-owned stores may prove roots against their exact document generation. */
+	readonly validateProject?: (value: unknown) => boolean;
 }
 
 interface BindingRow {
@@ -72,6 +74,7 @@ export class LinkedOriginalStartupReconciliationRepository {
 	readonly #maximumRoots: number;
 	readonly #maximumInventoryRecords: number;
 	readonly #maximumInventoryReferences: number;
+	readonly #validateProject: (value: unknown) => boolean;
 
 	constructor(
 		port: StorageRepositoryPort,
@@ -80,7 +83,11 @@ export class LinkedOriginalStartupReconciliationRepository {
 		if (!port || typeof port.database !== 'function' || !port.memory) {
 			throw new TypeError('A linked-original startup reconciliation storage port is required.');
 		}
+		if (options.validateProject !== undefined && typeof options.validateProject !== 'function') {
+			throw new TypeError('A linked-original startup project validator must be a function.');
+		}
 		this.#port = port;
+		this.#validateProject = options.validateProject ?? validateCurrentAudioEditorProject;
 		this.#maximumCatalogProjects = boundedLimit(
 			options.maximumCatalogProjects ?? MAX_LINKED_ORIGINAL_CANONICAL_PROJECTS,
 			MAX_LINKED_ORIGINAL_CANONICAL_PROJECTS,
@@ -165,6 +172,7 @@ export class LinkedOriginalStartupReconciliationRepository {
 						catalogRevision as number,
 						this.#maximumRetainedRevisions,
 						this.#maximumRoots - aggregateRoots,
+						this.#validateProject,
 					);
 				if (projectRoots === ROOT_LIMIT_EXCEEDED) {
 					aggregateVerifiable = false;
@@ -256,14 +264,16 @@ async function exactProjectRoots(
 	catalogRevision: number,
 	maximumRetainedRevisions: number,
 	maximumRoots: number,
+	validateProject: (value: unknown) => boolean,
 ): Promise<ProjectRoots> {
 	let current: AudioEditorProjectCurrent;
 	const roots = new Set<string>();
 	try {
 		const value = await request(projects.get(projectId));
-		if (!validateCurrentAudioEditorProject(value) || value.id !== projectId
-			|| value.revision !== catalogRevision) return null;
-		current = value;
+		if (!validateProject(value)) return null;
+		const project = value as AudioEditorProjectCurrent;
+		if (project.id !== projectId || project.revision !== catalogRevision) return null;
+		current = project;
 		collectRoots(current, roots, maximumRoots);
 	} catch (error) {
 		return error instanceof StartupRootLimitError ? ROOT_LIMIT_EXCEEDED : null;
@@ -275,6 +285,7 @@ async function exactProjectRoots(
 		roots,
 		maximumRetainedRevisions,
 		maximumRoots,
+		validateProject,
 	);
 }
 
@@ -285,6 +296,7 @@ function retainedProjectRoots(
 	roots: Set<string>,
 	maximumRetainedRevisions: number,
 	maximumRoots: number,
+	validateProject: (value: unknown) => boolean,
 ): Promise<ProjectRoots> {
 	return new Promise((resolve, reject) => {
 		let count = 0;
@@ -303,7 +315,12 @@ function retainedProjectRoots(
 			try {
 				count += 1;
 				if (count > maximumRetainedRevisions) { resolve(null); return; }
-				const revision = storedProjectRevision(cursor.value, cursor.primaryKey, projectId);
+				const revision = storedProjectRevision(
+					cursor.value,
+					cursor.primaryKey,
+					projectId,
+					validateProject,
+				);
 				collectRoots(revision.project, roots, maximumRoots);
 				if (revision.revision === currentRevision) matchesCurrent = true;
 				cursor.continue();
@@ -318,6 +335,7 @@ function storedProjectRevision(
 	value: unknown,
 	primaryKey: IDBValidKey,
 	projectId: string,
+	validateProject: (value: unknown) => boolean,
 ): StoredProjectRevision {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('A startup project revision must be an object.');
@@ -341,11 +359,14 @@ function storedProjectRevision(
 		&& typeof dataField(value, 'creationFence', 'project revision') !== 'string') {
 		throw new TypeError('A startup project revision creation fence must be a string.');
 	}
-	if (!validateCurrentAudioEditorProject(project) || project.id !== projectId
-		|| project.revision !== revisionValue) {
+	if (!validateProject(project)) {
+		throw new Error('A startup project revision document is not the selected exact schema.');
+	}
+	const validatedProject = project as AudioEditorProjectCurrent;
+	if (validatedProject.id !== projectId || validatedProject.revision !== revisionValue) {
 		throw new Error('A startup project revision document does not match its identity.');
 	}
-	return { key, projectId, revision: Number(revisionValue), project };
+	return { key, projectId, revision: Number(revisionValue), project: validatedProject };
 }
 
 function collectRoots(

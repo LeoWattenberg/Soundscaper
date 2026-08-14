@@ -13,11 +13,14 @@ export function isNeutralAdmSignalPath(project: unknown): boolean {
 	const candidate = record(project);
 	const mixer = record(candidate?.mixer);
 	if (!candidate || !mixer || !Array.isArray(candidate.tracks)) return false;
-	return isNeutralStrip(candidate.master)
-		&& candidate.tracks.every((track) => record(track)?.type !== 'audio' || isNeutralStrip(track))
-		&& Array.isArray(mixer.groups) && mixer.groups.length === 0
-		&& Array.isArray(mixer.sends) && mixer.sends.length === 0
-		&& isNeutralRoutes(mixer.routes);
+	const exactV21 = candidate.schemaVersion === 21 && mixer.schemaVersion === 1;
+	return isNeutralStrip(candidate.master, exactV21)
+		&& candidate.tracks.every((track) => record(track)?.type !== 'audio' || isNeutralStrip(track, exactV21))
+		&& (exactV21
+			? isNeutralV21MixerGraph(candidate, mixer)
+			: Array.isArray(mixer.groups) && mixer.groups.length === 0
+				&& Array.isArray(mixer.sends) && mixer.sends.length === 0
+				&& isNeutralRoutes(mixer.routes));
 }
 
 export function resolveExactAdmPassthroughTimelineSource(
@@ -87,14 +90,69 @@ function isExactFullSourceClip(
 		&& clip.stretchToTempo === false;
 }
 
-function isNeutralStrip(value: unknown): boolean {
+function isNeutralStrip(value: unknown, envelopeMayBeOmitted = false): boolean {
 	const candidate = record(value);
 	return candidate?.gain === 1
 		&& candidate.pan === 0
 		&& candidate.mute === false
 		&& candidate.solo === false
-		&& Array.isArray(candidate.envelope) && candidate.envelope.length === 0
+		&& (Array.isArray(candidate.envelope)
+			? candidate.envelope.length === 0
+			: envelopeMayBeOmitted && !Object.hasOwn(candidate, 'envelope'))
 		&& Array.isArray(candidate.effects) && candidate.effects.length === 0;
+}
+
+function isNeutralV21MixerGraph(
+	project: Readonly<Record<string, unknown>>,
+	mixer: Readonly<Record<string, unknown>>,
+): boolean {
+	if (!Array.isArray(project.automationLanes) || project.automationLanes.length !== 0
+		|| !Array.isArray(project.tracks)
+		|| !emptyArray(mixer.groups) || !emptyArray(mixer.sends)
+		|| !emptyArray(mixer.cues) || !emptyArray(mixer.vcas)
+		|| !Array.isArray(mixer.outputs) || mixer.outputs.length !== 1
+		|| !Array.isArray(mixer.edges)) return false;
+	const masterChannels = project.masterChannels;
+	if (!Number.isSafeInteger(masterChannels) || Number(masterChannels) < 1 || Number(masterChannels) > 32) return false;
+	const output = record(mixer.outputs[0]);
+	if (!output || typeof output.id !== 'string' || output.role !== 'main'
+		|| output.channelCount !== masterChannels) return false;
+	const trackIds = project.tracks
+		.filter((track) => record(track)?.type === 'audio')
+		.map((track) => record(track)?.id);
+	if (trackIds.some((id) => typeof id !== 'string')
+		|| new Set(trackIds).size !== trackIds.length
+		|| mixer.edges.length !== trackIds.length + 1) return false;
+	const remainingTrackIds = new Set(trackIds as string[]);
+	let mainOutputEdges = 0;
+	for (const value of mixer.edges) {
+		const edge = record(value);
+		const source = record(edge?.source);
+		const destination = record(edge?.destination);
+		if (!edge || !source || !destination
+			|| edge.kind !== 'assignment' || edge.position !== 'post-fader'
+			|| edge.level !== 1 || edge.enabled !== true
+			|| !identityChannelMap(edge.channelMap, Number(masterChannels))) return false;
+		if (source.kind === 'track' && typeof source.id === 'string'
+			&& destination.kind === 'master' && remainingTrackIds.delete(source.id)) continue;
+		if (source.kind === 'master' && destination.kind === 'output'
+			&& destination.id === output.id) {
+			mainOutputEdges += 1;
+			continue;
+		}
+		return false;
+	}
+	return remainingTrackIds.size === 0 && mainOutputEdges === 1;
+}
+
+function emptyArray(value: unknown): boolean {
+	return Array.isArray(value) && value.length === 0;
+}
+
+function identityChannelMap(value: unknown, channelCount: number): boolean {
+	return Array.isArray(value)
+		&& value.length === channelCount
+		&& value.every((sourceChannel, destinationChannel) => sourceChannel === destinationChannel);
 }
 
 function isNeutralRoutes(value: unknown): boolean {

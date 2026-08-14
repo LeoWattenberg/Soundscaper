@@ -90,7 +90,7 @@ export function createFramescaperMulticameraMenuItems(
 ): Readonly<FramescaperMulticameraMenu> | null {
 	if (input.productId !== 'framescaper') return null;
 	const project = record(input.project);
-	const enabled = project?.schemaVersion === 18 && !input.editingBlocked;
+	const enabled = (project?.schemaVersion === 18 || project?.schemaVersion === 19) && !input.editingBlocked;
 	const selectedClip = enabled ? selectedVideoClip(project) : null;
 	const groups = records(project?.multicameraGroups);
 	const current = selectedClip

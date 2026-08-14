@@ -40,6 +40,9 @@ test('take comp application menu is Soundscaper-only, capability-owned, and open
 	assert.equal(createTakeCompApplicationMenuItems({
 		...context, project: { schemaVersion: 16 },
 	})[0]?.disabled, true);
+	assert.equal(createTakeCompApplicationMenuItems({
+		...context, project: { schemaVersion: 21 },
+	})[0]?.disabled, false);
 
 	const [menus, runtime, overlays] = await Promise.all([
 		readFile(new URL('../src/common/editor/ui/application-menus.js', import.meta.url), 'utf8'),
@@ -70,6 +73,9 @@ test('dialog model lists canonical groups, lanes, takes, and regions from one sn
 		{ id: 'region-b', takeId: 'take-b', startSample: 300, endSample: 500 },
 	]);
 	assert.equal(editable.operationsBlocked, false);
+	assert.equal(createTakeCompDialogModel({
+		productId: 'soundscaper', project: { ...project(), schemaVersion: 21 }, snapshot: {},
+	}).groups.length, 1);
 
 	for (const [label, model] of [
 		['read-only', createTakeCompDialogModel({ productId: 'soundscaper', project: project(), snapshot: { readOnly: true } })],

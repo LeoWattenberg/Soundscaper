@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
+import type {
+	ControllerTrackDuplicateCarrier,
+	ControllerTrackDuplicateRequest,
+} from './project-runtime.ts';
 
 interface DuplicableEffect extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -47,6 +51,10 @@ export interface TrackDuplicationServiceDependencies {
 		trackId: string,
 		clip: CommandObject,
 	) => Extract<AudioEditorCommand, { type: 'clip/add' }>;
+	readonly prepareTrackDuplicateCarrier?: (
+		project: TrackDuplicationProject,
+		request: Readonly<ControllerTrackDuplicateRequest>,
+	) => Readonly<ControllerTrackDuplicateCarrier>;
 	readonly commit: (command: AudioEditorCommand, selection: TrackDuplicationSelection) => unknown;
 }
 
@@ -62,7 +70,7 @@ export function createTrackDuplicationService(dependencies: TrackDuplicationServ
 			...structuredClone(effect),
 			id: dependencies.createId('effect'),
 		}));
-		const commands: AudioEditorCommand[] = [dependencies.createAddTrackCommand({
+		const addTrack = dependencies.createAddTrackCommand({
 			...track,
 			id: trackId,
 			name: `${track.name} ${dependencies.copySuffix}`,
@@ -70,7 +78,22 @@ export function createTrackDuplicationService(dependencies: TrackDuplicationServ
 			effects,
 			clipIds: [],
 			laneGroupId: null,
-		})];
+		});
+		const duplicateRequest = Object.freeze({
+			sourceTrackId: track.id,
+			targetTrackId: trackId,
+			effectIds: Object.freeze((track.effects || []).map((effect, index) => Object.freeze({
+				sourceId: effect.id,
+				targetId: effects[index]!.id,
+			}))),
+		});
+		const productionDuplicate = dependencies.prepareTrackDuplicateCarrier
+			? dependencies.prepareTrackDuplicateCarrier(project, duplicateRequest)
+			: legacyDuplicateCarrier(duplicateRequest);
+		const commands: AudioEditorCommand[] = [{
+			...addTrack,
+			productionDuplicate,
+		}];
 		let selectedClipId: string | null = null;
 		for (const clipId of track.clipIds) {
 			const clip = dependencies.findClip(project, clipId);
@@ -93,4 +116,13 @@ export function createTrackDuplicationService(dependencies: TrackDuplicationServ
 			{ selectTrackId: trackId, selectClipId: selectedClipId },
 		);
 	}
+}
+
+function legacyDuplicateCarrier(
+	request: Readonly<ControllerTrackDuplicateRequest>,
+): Readonly<ControllerTrackDuplicateCarrier> {
+	return Object.freeze({
+		sourceTrackId: request.sourceTrackId,
+		effectIds: request.effectIds,
+	});
 }

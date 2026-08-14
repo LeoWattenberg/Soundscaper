@@ -12,11 +12,18 @@ import { processParametricEqChannelsWasm } from './parametric-eq/destructive.js'
 import { PARAMETRIC_EQ_WASM_MEMORY_BYTES } from './parametric-eq/wasm-runtime.js';
 import { applySpectralReplacement } from './spectral-edit.js';
 import { initializePffft } from './pffft.js';
+import {
+	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE, applyReviewedUtilityGainSelection,
+	estimateReviewedUtilityGainOutputFrames, estimateReviewedUtilityGainPeakBytes,
+} from './reviewed-effects/selection-effect.ts';
 
 const FLOAT32_BYTES = Float32Array.BYTES_PER_ELEMENT;
 const MEMORY_ESTIMATE_OVERHEAD_BYTES = 2 * 1024 ** 2;
 
 export function estimateAudioSelectionEffectOutputFrames(type, inputFrames, params = {}) {
+	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
+		return estimateReviewedUtilityGainOutputFrames(inputFrames, params);
+	}
 	if (type !== 'eq') return estimateAudacityEffectOutputFrames(type, inputFrames, params);
 	const frames = positiveInteger(inputFrames, 'inputFrames');
 	normalizeAudioSelectionEffectParams(type, params);
@@ -24,6 +31,9 @@ export function estimateAudioSelectionEffectOutputFrames(type, inputFrames, para
 }
 
 export function estimateAudioSelectionEffectPeakBytes(type, inputFrames, params = {}, options = {}) {
+	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
+		return estimateReviewedUtilityGainPeakBytes(inputFrames, params, options.channelCount ?? 2);
+	}
 	if (type !== 'eq') return estimateAudacityEffectPeakBytes(type, inputFrames, params, options);
 	const frames = positiveInteger(inputFrames, 'inputFrames');
 	const channelCount = positiveInteger(options.channelCount ?? 2, 'channelCount', 32);
@@ -51,6 +61,9 @@ export function estimateAudioSelectionEffectPeakBytes(type, inputFrames, params 
 export async function applyAudioSelectionEffectAsync(type, channels, sampleRate, params = {}, context = {}) {
 	if (!AUDIO_SELECTION_EFFECT_DEFINITIONS[type]) {
 		throw new RangeError(`Unsupported selection effect: ${type}.`);
+	}
+	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
+		return applyReviewedUtilityGainSelection(channels, sampleRate, params);
 	}
 	if (type !== 'eq') return applyAudacityEffectAsync(type, channels, sampleRate, params, context);
 	await initializePffft();

@@ -274,11 +274,11 @@ test('Framescaper edit-control menus own their projected timing boundary', () =>
 		id: 'framescaper-edit-control-menus',
 		surface: 'timeline',
 		file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts',
-		entryPoint: 'createFramescaperEditControlMenuModel',
-		inputIdentifier: 'persistedProject',
-		projectedIdentifier: 'project',
+		entryPoint: 'projectForLinkedControls',
+		inputIdentifier: 'project',
+		projectedIdentifier: null,
 		boundary: 'projectForRuntimeConsumers',
-		evidence: 'Framescaper linked-audio menu admission compares clip endpoints only after the selected document crosses the shared runtime projection boundary.',
+		evidence: 'Framescaper linked-audio menu admission crosses the shared runtime projection boundary after removing only V19’s validated-empty unavailable annotation carrier.',
 	});
 	assert.deepEqual(
 		FOUNDATION_RUNTIME_SHIELDED_OWNERS.find(({ file }) => file === consumer?.file),

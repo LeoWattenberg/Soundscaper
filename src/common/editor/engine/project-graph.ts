@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { connectSurroundMonitoring } from '../surround-monitoring.ts';
+import { SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION } from '../project-schema-version.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import { stripParameterDescriptor } from '../effect-parameter-descriptors.ts';
@@ -26,6 +27,12 @@ import {
 } from './effect-rack.ts';
 import { activeRackEffects } from './project-effects.ts';
 import { compileProjectPdcPlan } from './project-pdc-plan.ts';
+import {
+	buildProjectGraphV21,
+	projectGraphLatencyFramesV21,
+} from './project-graph-v21.ts';
+import type { ProjectPathPdcPlanV21 } from './project-path-pdc-plan-v21.ts';
+import type { StripMeterAnalyserBankV21 } from './strip-meter-analyser-bank-v21.ts';
 import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import type {
 	EngineMixerBus,
@@ -46,6 +53,9 @@ export function projectGraphLatencyFrames(
 		sampleRate = project?.sampleRate || DEFAULT_SAMPLE_RATE,
 	}: ProjectGraphLatencyOptions = {},
 ): number {
+	if (project?.schemaVersion === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION) {
+		return projectGraphLatencyFramesV21(project, { trackId, includeMaster, sampleRate });
+	}
 	return compileProjectPdcPlan(project, { trackId, includeMaster, sampleRate }).latencyFrames;
 }
 
@@ -76,6 +86,9 @@ export interface ProjectGraph {
 	readonly effectNodes: Map<string, AudioNode>;
 	readonly effectAnalysers: Map<string, EffectAnalyserEntry>;
 	readonly effectMessageSequences: Map<string, number>;
+	readonly mixerEdgeGainParams?: ReadonlyMap<string, ScheduledGainParam>;
+	readonly pathPdcPlanV21?: ProjectPathPdcPlanV21;
+	readonly productionStripAnalysersV21?: ReadonlyMap<string, StripMeterAnalyserBankV21>;
 	readonly latencyFrames: number;
 }
 
@@ -113,6 +126,12 @@ export function buildProjectGraph(
 		onParametricEqError,
 	}: BuildProjectGraphOptions = {},
 ): ProjectGraph {
+	if (project.schemaVersion === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION) {
+		return buildProjectGraphV21(context, destination, project, {
+			metering, respectMuteSolo, trackId: onlyTrackId, includeMaster, includeTrackPan,
+			effectAnalysis, monitoring, parametricEqWasmModule, onParametricEqError,
+		});
+	}
 	project = projectTrackFolderMediaStateV12(project);
 	const nodes: AudioNodeArray = [];
 	const sources = new Set<AudioScheduledSourceNode>();

@@ -31,7 +31,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
 	});
 
-	test('pins automated send and master tracks below media tracks', async ({ page }) => {
+	test('pins V21 send and master strips below media tracks without legacy strip envelopes', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		let editor = await bootEditor(page, '/embed/en/');
 		const addTrack = editor.getByRole('button', { name: 'Add track', exact: true });
@@ -105,17 +105,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(firstSend.getByRole('button', { name: 'Solo', exact: true })).toBeVisible();
 		await expect(firstSend.getByRole('button', { name: 'Effects', exact: true })).toBeVisible();
 
-		const automation = editor.getByRole('button', { name: 'Clip gain', exact: true });
-		await automation.click();
 		const envelope = firstSend.locator('.audio-editor-output-envelope');
-		await expect(envelope.locator('.envelope-point')).toHaveCount(2);
-		const envelopeBounds = await envelope.boundingBox();
-		expect(envelopeBounds).not.toBeNull();
-		await page.mouse.click(
-			envelopeBounds.x + envelopeBounds.width / 3,
-			envelopeBounds.y + envelopeBounds.height * 0.42,
-		);
-		await expect(envelope.locator('.envelope-point')).toHaveCount(3);
+		await expect(envelope).toHaveCount(0);
 
 		const transfer = await fileDataTransfer(page, [toneA]);
 		await firstSend.locator('[data-output-lane]').dispatchEvent('drop', { dataTransfer: transfer });
@@ -128,7 +119,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const restoredRows = editor.locator('[data-output-track-row]');
 		await expect(restoredRows).toHaveCount(6);
 		await expect(restoredRows.first()).toHaveAttribute('data-collapsed', 'false');
-		await expect(restoredRows.first().locator('.envelope-point')).toHaveCount(3);
+		await expect(restoredRows.first().locator('.audio-editor-output-envelope')).toHaveCount(0);
 		await expect(restoredRows.last()).toHaveAttribute('data-output-scope', 'master');
 		expect(errors).toEqual([]);
 	});

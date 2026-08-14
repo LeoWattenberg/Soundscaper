@@ -69,6 +69,9 @@ export interface TakeCycleRecordingRepositoryDependencies {
 	describeSource(operation: TakeCycleStageReceiptOperation): MaybePromise<TakeCycleSourceDescription>;
 	readPassChunks(operation: TakeCyclePassOperation): MaybePromise<AsyncIterable<readonly Float32Array[]>>;
 	createCompRegionId(operation: TakeCycleProjectPreparationOperation): string;
+	applyProjectCommand?(project: AudioEditorProjectV17, command: AudioEditorCommand,
+		options?: Readonly<{ readonly now?: Date | string }>): AudioEditorProjectV17;
+	validateProject?(project: unknown): void;
 	now?(): Date | string;
 	onStageReceipt?(receipt: AudioSourceStageReceipt): void;
 	publishCurrentProject?(publication: TakeCyclePublishedProject): MaybePromise<void>;
@@ -145,8 +148,8 @@ export function createTakeCycleRecordingRepositoryComposition(
 			base, operation, targetOwnership, sourceEntries,
 			dependencies.createCompRegionId(operation),
 		);
-		const target = applyEditorCommand(base, command, { now: dependencies.now?.() });
-		validateAudioEditorProjectV17(target);
+		const target = applyProjectCommand(base, command, { now: dependencies.now?.() });
+		validateProject(target);
 		const baseDocument = serializeScapeProjectDocument(base);
 		const targetProjectDocument = serializeScapeProjectDocument(target);
 		const baseSha256 = documentDigest(baseDocument);
@@ -269,7 +272,7 @@ export function createTakeCycleRecordingRepositoryComposition(
 		reason: 'finalize' | 'recovery',
 	): Promise<TakeCycleProjectPublicationEvidence> {
 		const targetValue = parseScapeProjectDocument(envelope.targetProjectDocument);
-		validateAudioEditorProjectV17(targetValue);
+		validateProject(targetValue);
 		const target = targetValue as AudioEditorProjectV17;
 		const current = await loadProject(envelope.projectFence.projectId);
 		const currentEvidence = projectEvidence(current);
@@ -306,7 +309,7 @@ export function createTakeCycleRecordingRepositoryComposition(
 		reason: 'finalize' | 'recovery',
 	): Promise<void> {
 		if (!dependencies.publishCurrentProject) return;
-		validateAudioEditorProjectV17(targetValue);
+		validateProject(targetValue);
 		const prepared = preparedProjects.get(envelope.projectFence.targetSha256);
 		let base: AudioEditorProjectV17;
 		let command: AudioEditorCommand | null;
@@ -320,7 +323,7 @@ export function createTakeCycleRecordingRepositoryComposition(
 			if (!baseValue || documentDigest(serializeScapeProjectDocument(baseValue)) !== envelope.projectFence.baseSha256) {
 				throw new Error('Exact take cycle base revision is unavailable for current-project publication.');
 			}
-			validateAudioEditorProjectV17(baseValue);
+			validateProject(baseValue);
 			base = baseValue as AudioEditorProjectV17;
 			command = null;
 		}
@@ -331,8 +334,19 @@ export function createTakeCycleRecordingRepositoryComposition(
 	async function loadProject(projectId: string, signal?: AbortSignal): Promise<AudioEditorProjectV17> {
 		const value = await dependencies.projects.load(projectId, signal ? { signal } : {});
 		if (!value) throw new Error(`Take cycle project ${projectId} is not durably available.`);
-		validateAudioEditorProjectV17(value);
+		validateProject(value);
 		return value as AudioEditorProjectV17;
+	}
+
+	function applyProjectCommand(base: AudioEditorProjectV17, command: AudioEditorCommand,
+		options: Readonly<{ readonly now?: Date | string }>): AudioEditorProjectV17 {
+		return dependencies.applyProjectCommand?.(base, command, options)
+			?? applyEditorCommand(base, command, options);
+	}
+
+	function validateProject(value: unknown): void {
+		if (dependencies.validateProject) dependencies.validateProject(value);
+		else validateAudioEditorProjectV17(value);
 	}
 
 	async function storedSourceMatches(

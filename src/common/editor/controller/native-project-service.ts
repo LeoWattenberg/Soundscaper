@@ -198,7 +198,9 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				},
 			});
 			assertOwnership(operation.task, operation.projectToken);
-			const importedProject = runtime.migrateProject(decoded.project).project;
+			const importedProject = runtime.adaptAudacityProject
+				? runtime.adaptAudacityProject(decoded.project)
+				: runtime.migrateProject(decoded.project).project;
 			const decodedBytes = decoded.sources.reduce((total, source) => total + source.channels.reduce(
 				(channelTotal, channel) => channelTotal + channel.byteLength,
 				0,

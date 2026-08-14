@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-import { chooseFileAction } from './audio-editor-test-helpers.js';
+import { chooseFileAction, getMenuItem } from './audio-editor-test-helpers.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
-const SOUNDSCAPER_DATABASE = 'kw-media-audio-editor';
-const FRAMESCAPER_V18_DATABASE = 'kw-media-framescaper-editor-v18';
+const SOUNDSCAPER_DATABASE = 'kw-media-soundscaper-editor-v21';
+const FRAMESCAPER_V19_DATABASE = 'kw-media-framescaper-editor-v19';
 
 test.describe('Soundscaper and Framescaper product surfaces', () => {
 	test.beforeEach(async ({ page }) => {
@@ -17,7 +17,7 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 	test('renders the product shell while the editor chunk is still loading', async ({ page }) => {
 		let releaseEditorChunk;
 		const editorChunkGate = new Promise((resolve) => { releaseEditorChunk = resolve; });
-		await page.route(/\/assets\/AudioEditorBootstrap-[^/]+\.js$/u, async (route) => {
+		await page.route(/\/assets\/SoundscaperAudioEditorBootstrapV21-[^/]+\.js$/u, async (route) => {
 			await editorChunkGate;
 			await route.continue();
 		});
@@ -58,12 +58,20 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 			.getByRole('menuitem', { name: /^Nested sequences(?:\s|$)/u })).toBeVisible();
 		await expect(page.getByRole('menu', { name: 'Tracks', exact: true })
 			.getByRole('menuitem', { name: /^Multicamera(?:\s|$)/u })).toBeVisible();
+		await expect(getMenuItem(page.getByRole('menu', { name: 'Tracks', exact: true }), 'Automation'))
+			.toHaveCount(0);
+		await expect(getMenuItem(page.getByRole('menu', { name: 'Tracks', exact: true }), 'Freeze'))
+			.toHaveCount(0);
 		await page.keyboard.press('Escape');
+		await expectFramescaperProductionEntryAbsent(page, framescaper, 'View', ['Panels'], 'Routing graph…');
+		await expectFramescaperProductionEntryAbsent(page, framescaper, 'Effect', [], 'Restoration…');
+		await expectFramescaperProductionEntryAbsent(page, framescaper, 'Analyze', [], 'Production meters…');
+		await expectFramescaperProductionEntryAbsent(page, framescaper, 'Tools', [], 'Reviewed effects…');
 		await page.getByRole('menuitem', { name: 'Help', exact: true }).click();
 		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Framescaper', exact: true })).toBeVisible();
 	});
 
-	test('the File menu reaches an isolated V18 library while Soundscaper remains V17', async ({ page }) => {
+	test('the File menu keeps exact V21 and V19 product libraries isolated', async ({ page }) => {
 		await page.goto('/en/');
 		const soundscaper = await readyEditor(page, 'soundscaper');
 		const soundscaperProjectId = await soundscaper.getAttribute('data-project-id');
@@ -86,11 +94,11 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await saveProject(page, framescaper);
 
 		await expect.poll(() => storedProject(page, SOUNDSCAPER_DATABASE, soundscaperProjectId))
-			.toEqual({ id: soundscaperProjectId, schemaVersion: 17 });
-		await expect.poll(() => storedProject(page, FRAMESCAPER_V18_DATABASE, framescaperProjectId))
-			.toEqual({ id: framescaperProjectId, schemaVersion: 18 });
+			.toEqual({ id: soundscaperProjectId, schemaVersion: 21 });
+		await expect.poll(() => storedProject(page, FRAMESCAPER_V19_DATABASE, framescaperProjectId))
+			.toEqual({ id: framescaperProjectId, schemaVersion: 19 });
 		expect(await storedProject(page, SOUNDSCAPER_DATABASE, framescaperProjectId)).toBeNull();
-		expect(await storedProject(page, FRAMESCAPER_V18_DATABASE, soundscaperProjectId)).toBeNull();
+		expect(await storedProject(page, FRAMESCAPER_V19_DATABASE, soundscaperProjectId)).toBeNull();
 
 		await page.goto(`/framescaper/en/?project=${encodeURIComponent(framescaperProjectId)}`);
 		const reopenedFramescaper = await readyEditor(page, 'framescaper');
@@ -139,4 +147,24 @@ async function readyEditor(page, productId, statusState = 'success') {
 	const decline = page.getByRole('button', { name: 'Decline', exact: true });
 	if (await decline.isVisible()) await decline.click();
 	return editor;
+}
+
+async function expectFramescaperProductionEntryAbsent(page, editor, owner, submenus, label) {
+	const trigger = editor.getByRole('menuitem', { name: owner, exact: true });
+	if (await trigger.count() === 0) {
+		await expect(trigger).toHaveCount(0);
+		return;
+	}
+	await trigger.click();
+	let menu = page.getByRole('menu', { name: owner, exact: true });
+	await expect(menu).toBeVisible();
+	for (const submenuLabel of submenus) {
+		const item = getMenuItem(menu, submenuLabel);
+		await item.focus();
+		await page.keyboard.press('ArrowRight');
+		menu = item.getByRole('menu');
+		await expect(menu).toBeVisible();
+	}
+	await expect(getMenuItem(menu, label)).toHaveCount(0);
+	for (let index = 0; index <= submenus.length; index += 1) await page.keyboard.press('Escape');
 }

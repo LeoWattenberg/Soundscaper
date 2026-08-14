@@ -29,6 +29,7 @@ import {
 import {
 	buildProjectGraph,
 } from './project-graph.ts';
+import { resetProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
 import {
 	disposeGraph,
 } from './transport-scheduler.ts';
@@ -261,6 +262,7 @@ continueLoudnessMeasurement() {
 resetLoudnessMeasurement() {
 		this.masterLoudnessMeter?.reset();
 		this.masterLoudnessMeter?.requestSnapshot();
+		resetProductionMeterSessionV21(this);
 		return this.getLoudnessMeasurementState();
 	},
 
@@ -319,6 +321,7 @@ async scrub(frame, { durationMs = DEFAULT_SCRUB_FRAME_MS } = {}) {
 				trackInputs: graph.trackInputs,
 				trackGainParams: graph.trackGainParams,
 				projectGainParams: graph.projectGainParams,
+				parameterRegistry: graph.parameterRegistry,
 				fromFrame,
 				toFrame,
 				contextStartTime: context.currentTime,

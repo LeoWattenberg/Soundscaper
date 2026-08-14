@@ -12,7 +12,11 @@ import {
 import {
 	createProjectFeatureCompatibilityService,
 } from '../src/common/editor/controller/project-feature-compatibility-service.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 
 type Requirement = Readonly<{
 	id: string;
@@ -79,16 +83,36 @@ test('capability availability is a strict immutable construction-time snapshot',
 	assert.equal(Object.isFrozen(service), true);
 });
 
-test('future project schemas remain opaque to feature compatibility evaluation', () => {
+test('dormant and future project schemas remain opaque to feature compatibility evaluation', () => {
 	const service = createProjectFeatureCompatibilityService(PRODUCT_PROFILES.soundscaper.capabilities);
-	const futureProject = {
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
-		get featureRequirements(): never {
-			throw new Error('future feature metadata was traversed');
-		},
-	};
+	for (const schemaVersion of [
+		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION + 1,
+		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1,
+	]) {
+		const unsupportedProject = {
+			schemaVersion,
+			get featureRequirements(): never {
+				throw new Error('unsupported feature metadata was traversed');
+			},
+		};
+		assert.equal(service.evaluate(unsupportedProject), null);
+	}
+});
 
-	assert.equal(service.evaluate(futureProject), null);
+test('selected product schemas retain feature compatibility evaluation after activation', () => {
+	const service = createProjectFeatureCompatibilityService(PRODUCT_PROFILES.soundscaper.capabilities);
+	for (const schemaVersion of [
+		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	]) {
+		const report = service.evaluate({
+			...featureProject([
+				requirement('video-effects', PROJECT_FEATURE_CAPABILITY_IDS.videoEffects, 'Video effects'),
+			]),
+			schemaVersion,
+		});
+		assert.equal(report?.items[0]?.availability, 'unavailable');
+	}
 });
 
 function featureProject(requirements: readonly Requirement[]) {

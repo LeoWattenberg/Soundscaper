@@ -4,7 +4,7 @@ import { bundledCopyForLocale } from '../i18n/catalogs.js';
 import BrandSidebar from './BrandSidebar.jsx';
 import './site.css';
 
-const AudioEditorBootstrap = lazy(() => import('../editor/ui/AudioEditorBootstrap.jsx'));
+const SoundscaperAudioEditorBootstrapV21 = lazy(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrapV21.tsx'));
 const FramescaperAudioEditorBootstrapV18 = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrapV18.tsx'));
 const FramescaperAudioEditorBootstrapV19 = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrapV19.tsx'));
 
@@ -12,7 +12,7 @@ export default function App({ route }) {
 	const { direction, embedded, locale, productId } = route;
 	const copy = bundledCopyForLocale(locale);
 	const EditorBootstrap = productId !== 'framescaper'
-		? AudioEditorBootstrap
+		? SoundscaperAudioEditorBootstrapV21
 		: hasFramescaperDesktopBridge()
 			? FramescaperAudioEditorBootstrapV18
 			: FramescaperAudioEditorBootstrapV19;

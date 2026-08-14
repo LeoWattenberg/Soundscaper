@@ -26,7 +26,7 @@ test.describe('persisted shared track locking', () => {
 		}));
 	});
 
-	test('Soundscaper lock survives undo, redo, reload, and Framescaper handoff', async ({ page }) => {
+	test('Soundscaper lock survives undo, redo, reload, and a refused Framescaper handoff', async ({ page }) => {
 		test.setTimeout(120_000);
 		const editor = await bootEditor(page, '/en/');
 		await importFiles(editor, [toneA]);
@@ -62,12 +62,20 @@ test.describe('persisted shared track locking', () => {
 		await page.waitForURL((url) => (
 			url.pathname === '/framescaper/en/' && url.searchParams.get('project') === projectId
 		));
+		restored = await waitForBoundEditor(page, 'error');
+		await expect(restored.locator('[data-status]')).toContainText('The project was not found.');
+		await expect(restored).toHaveAttribute('data-product', 'framescaper');
+		await expect(restored).not.toHaveAttribute('data-project-id', projectId);
+		await expect(restored).toHaveAttribute('data-clip-count', '0');
+		await expectPersistedLock(page, projectId, trackId, true, SOUNDSCAPER_DATABASE_NAME);
+		await expectNoVisibleLockControl(restored);
+
+		await page.goto(`/en/?project=${encodeURIComponent(projectId)}`);
 		restored = await waitForEditor(page);
 		await selectAudioTrack(restored, toneA.name);
 		await expectTrackMenuItem(page, restored, 'Unlock track', true);
 		await chooseCommandAction(page, restored, 'Tracks', 'Unlock track');
-		await expectPersistedLock(page, projectId, trackId, false, FRAMESCAPER_DATABASE_NAME);
-		await expectNoVisibleLockControl(restored);
+		await expectPersistedLock(page, projectId, trackId, false, SOUNDSCAPER_DATABASE_NAME);
 	});
 
 	test('a locked Framescaper video lane refuses trim and is skipped by edit navigation', async ({ browserName, page }) => {
@@ -116,6 +124,16 @@ async function addVideoToTimeline(editor) {
 	const action = editor.getByRole('button', { name: `Add to timeline: ${name}`, exact: true });
 	await expect(action).toBeVisible({ timeout: 60_000 });
 	await action.click();
+}
+
+async function waitForBoundEditor(page, state) {
+	const editor = page.locator('[data-audio-editor]');
+	await expect(editor).toBeVisible();
+	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
+	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', state, {
+		timeout: 15_000,
+	});
+	return editor;
 }
 
 async function selectAudioTrack(editor, name) {

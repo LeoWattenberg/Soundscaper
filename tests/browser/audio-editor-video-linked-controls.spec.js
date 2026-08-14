@@ -5,6 +5,7 @@ import {
 	chooseNestedCommandAction,
 	getMenuItem,
 	importFiles,
+	openNestedCommandMenu,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
@@ -156,12 +157,7 @@ async function selectOnlyVideoClip(editor) {
 }
 
 async function expectNestedMenuItem(page, editor, menuLabel, submenuLabel, itemLabel) {
-	const menu = await openApplicationMenu(page, editor, menuLabel);
-	const submenuItem = getMenuItem(menu, submenuLabel);
-	await submenuItem.focus();
-	await page.keyboard.press('ArrowRight');
-	const submenu = submenuItem.getByRole('menu');
-	await expect(submenu).toBeVisible();
+	const submenu = await openNestedCommandMenu(page, editor, menuLabel, [submenuLabel]);
 	const item = getMenuItem(submenu, itemLabel);
 	await expect(item).toBeVisible();
 	await expect(item).toBeEnabled();

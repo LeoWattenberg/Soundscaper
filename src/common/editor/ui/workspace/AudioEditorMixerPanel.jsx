@@ -4,6 +4,10 @@ import { Button, Knob, MixerPanel } from '@dilsonspickles/components';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import RecordingInputSelectors from '../RecordingInputSelectors.jsx';
 import { rackEffectLabel } from '../dialogs/editor-dialog-model.js';
+import {
+	isMixerGraphV21Surface,
+	mixerTrackSurfaceRouteV21,
+} from '../../mixer-graph-surface-v21.ts';
 
 export default function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControls, displayAudioSupported, onOpenEffects }) {
 	const meters = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters);
@@ -11,7 +15,9 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 	const tracks = (project?.tracks || []).filter((track) => track.type === 'audio');
 	const groups = project?.mixer?.groups || [];
 	const sends = project?.mixer?.sends || [];
-	const routes = project?.mixer?.routes || {};
+	const routes = isMixerGraphV21Surface(project?.mixer)
+		? Object.fromEntries(tracks.map((track) => [track.id, mixerTrackSurfaceRouteV21(project.mixer, track.id)]))
+		: project?.mixer?.routes || {};
 	const mixerBuses = [
 		...groups.map((bus) => ({ type: 'group', bus })),
 		...sends.map((bus) => ({ type: 'send', bus })),
@@ -112,7 +118,7 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 						const route = routes[track.id] || { groupId: null, sends: {} };
 						return <tr key={track.id}>
 							<th scope="row">{track.name}</th>
-							<td><select aria-label={`${copy.output}: ${track.name}`} disabled={snapshot.readOnly} value={route.groupId || ''} onChange={(event) => run(() => controller.actions.mixer.setRoute(track.id, { groupId: event.currentTarget.value || null }))}>
+							<td><select aria-label={`${copy.output}: ${track.name}`} disabled={snapshot.readOnly || route.groupEditable === false} value={route.groupId || ''} onChange={(event) => run(() => controller.actions.mixer.setRoute(track.id, { groupId: event.currentTarget.value || null }))}>
 								<option value="">{copy.master}</option>
 								{groups.map((bus) => <option key={bus.id} value={bus.id}>{bus.name}</option>)}
 							</select></td>
@@ -140,9 +146,11 @@ function MixerSendControls({ track, route, sends, copy, disabled, onChange }) {
 	if (!selectedSend) return null;
 	const label = `${copy.sendLevel}: ${track.name} → ${selectedSend.name}`;
 	const gain = linearMixerGainToDb(route.sends?.[selectedSend.id] || 0);
+	const sendDisabled = disabled || (Array.isArray(route.editableSendIds)
+		&& !route.editableSendIds.includes(selectedSend.id));
 	return (
 		<div className="kw-audio-editor__mixer-send-controls" data-mixer-sends={track.id}>
-			<MixerSendKnob label={label} value={gain} disabled={disabled} onChange={(value) => onChange(selectedSend.id, mixerDbToLinearGain(value))} />
+			<MixerSendKnob label={label} value={gain} disabled={sendDisabled} onChange={(value) => onChange(selectedSend.id, mixerDbToLinearGain(value))} />
 			<select aria-label={`${copy.sends}: ${track.name}`} disabled={disabled} value={selectedSend.id} onChange={(event) => setSendId(event.currentTarget.value)}>
 				{sends.map((bus) => <option key={bus.id} value={bus.id}>{bus.name}</option>)}
 			</select>

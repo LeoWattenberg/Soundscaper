@@ -7,7 +7,11 @@ import {
 	createSelectionViewService,
 	type SelectionViewServiceRuntime,
 } from '../src/common/editor/controller/selection-view-service.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 
 function createFixture() {
 	type TestProject = {
@@ -218,7 +222,7 @@ test('selection frame validation and normalization remain centralized', () => {
 	assert.equal(next.selection.endFrame, 100);
 });
 
-test('track, clip, and time selection intentionally clear annotation focus and selection', () => {
+test('track, clip, and time selection clear V17 annotation focus and selection', () => {
 	const fixture = createFixture();
 	fixture.updateProject({
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
@@ -252,6 +256,60 @@ test('track, clip, and time selection intentionally clear annotation focus and s
 	fixture.service.setSelection(12, 24, { trackIds: ['track-a'] });
 	assert.equal(fixture.state.selectedAnnotationId, null);
 	assert.deepEqual(fixture.project().selection?.annotationIds, []);
+});
+
+test('track selection clears Soundscaper V21 annotation focus and durable selection', () => {
+	const fixture = createFixture();
+	fixture.updateProject({
+		schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+		timelineAnnotations: [],
+		selection: {
+			startFrame: 10,
+			endFrame: 30,
+			trackIds: ['track-a'],
+			clipIds: [],
+			annotationIds: ['annotation-a'],
+		},
+	});
+	fixture.state.selectedAnnotationId = 'annotation-a';
+
+	fixture.service.selectTrack('track-b');
+
+	assert.equal(fixture.state.selectedAnnotationId, null);
+	assert.deepEqual(fixture.project().selection?.annotationIds, []);
+});
+
+test('selection does not traverse Framescaper or future annotation storage', () => {
+	let annotationReads = 0;
+	for (const schemaVersion of [
+		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1,
+	]) {
+		const fixture = createFixture();
+		fixture.updateProject({
+			schemaVersion,
+			timelineAnnotations: undefined,
+			selection: {
+				startFrame: 10,
+				endFrame: 30,
+				trackIds: ['track-a'],
+				clipIds: [],
+				annotationIds: ['opaque-annotation'],
+			},
+		});
+		Object.defineProperty(fixture.project(), 'timelineAnnotations', {
+			configurable: true,
+			get(): never {
+				annotationReads += 1;
+				throw new Error('foreign timelineAnnotations was traversed');
+			},
+		});
+
+		fixture.service.selectTrack('track-b');
+
+		assert.deepEqual(fixture.project().selection?.annotationIds, ['opaque-annotation']);
+	}
+	assert.equal(annotationReads, 0);
 });
 
 test('selection does not infer annotation ownership without the current annotation collection', () => {

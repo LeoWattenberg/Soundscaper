@@ -126,6 +126,7 @@ test('shipped Electron is tracked separately from the non-development npm closur
 test('runtime provenance entries and release gates fail closed without claiming legal clearance', async () => {
 	const matrix = await readJson(matrixUrl);
 	const gates = new Map(matrix.releaseGates.map((gate) => [gate.id, gate]));
+	const provenance = new Map(matrix.runtimeProvenance.map((artifact) => [artifact.id, artifact]));
 
 	assert.equal(gates.size, matrix.releaseGates.length, 'release gate IDs must be unique');
 	assert.equal(gates.get('desktop-notice-delivery').status, 'implemented');
@@ -144,6 +145,19 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.match(gates.get('ffmpeg-enabled-library-corresponding-source').blocker, /every enabled library/u);
 	assert.match(gates.get('ffmpeg-enabled-codec-patent-review').blocker, /jurisdiction/u);
 	assert.match(gates.get('web-notice-delivery').blocker, /web route|web artifact/u);
+	assert.deepEqual(provenance.get('reviewed-effect-utility-gain-wasm'), {
+		id: 'reviewed-effect-utility-gain-wasm',
+		status: 'documented',
+		artifactSurfaces: ['web-pages-bundle', 'electron-renderer'],
+		provenanceKind: 'repository-owned-inline-conformance-bytes',
+		license: 'AGPL-3.0-only',
+		evidence: [
+			'package.json',
+			'LICENSE',
+			'src/common/editor/reviewed-effects/utility-gain-package.ts',
+			'tests/audio-editor-reviewed-effects.test.ts',
+		],
+	});
 
 	for (const artifact of matrix.runtimeProvenance) {
 		assert.match(artifact.status, /^(documented|blocked)$/u);
@@ -156,6 +170,7 @@ test('runtime provenance entries and release gates fail closed without claiming 
 
 test('future third-party execution and model surfaces remain disabled behind explicit gates', async () => {
 	const matrix = await readJson(matrixUrl);
+	const gates = new Map(matrix.futureDistributionGates.map((gate) => [gate.id, gate]));
 
 	assert.deepEqual(matrix.futureDistributionGates.map(({ id }) => id).sort(), FUTURE_GATE_IDS);
 	for (const gate of matrix.futureDistributionGates) {
@@ -163,6 +178,13 @@ test('future third-party execution and model surfaces remain disabled behind exp
 		assert.ok(gate.enableRequires.length >= 3, `${gate.id} needs concrete enablement requirements`);
 		await assertEvidence(gate.evidence);
 	}
+	assert.equal(gates.get('web-effect-packages').scope, 'externally-authored-or-non-repository-owned-packages');
+	assert.match(gates.get('web-effect-packages').blocker, /Utility Gain.*repository-owned.*does not admit/iu);
+	for (const path of [
+		'src/common/editor/reviewed-effects/catalog.ts',
+		'src/common/editor/reviewed-effects/utility-gain-package.ts',
+		'tests/audio-editor-reviewed-effects.test.ts',
+	]) assert.ok(gates.get('web-effect-packages').evidence.includes(path));
 });
 
 function productionClosure(lock, packageMetadata) {

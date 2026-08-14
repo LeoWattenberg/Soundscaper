@@ -14,6 +14,10 @@ import {
 	validateCurrentAudioEditorProject,
 	type AudioEditorProjectCurrent,
 } from '../src/common/editor/project-current.ts';
+import {
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 
 const NOW = '2026-08-10T16:00:00.000Z';
 
@@ -139,14 +143,23 @@ test('the document snapshot exposes per-sequence rows with structural state', ()
 	const kickRow = rows[1];
 	assert.equal(kickRow.kind === 'track' && kickRow.type === 'audio' && kickRow.effectiveSoloed, true);
 	assert.equal(kickRow.rowHidden, true, 'a collapsed ancestor suppresses the row');
+	const soundscaperSnapshot = createDocumentTrackFolderSnapshot({
+		...folderedProject(),
+		schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	});
+	assert.deepEqual(soundscaperSnapshot, snapshot);
 });
 
-test('the snapshot never traverses older, future, folder-free, or hostile documents', () => {
+test('the snapshot never traverses obsolete, Framescaper, future, folder-free, or hostile documents', () => {
 	assert.deepEqual(createDocumentTrackFolderSnapshot(null).sequences, []);
 	assert.deepEqual(createDocumentTrackFolderSnapshot({ schemaVersion: 12 }).sequences, []);
-	assert.deepEqual(createDocumentTrackFolderSnapshot({ schemaVersion: 18 }).sequences, []);
+	assert.deepEqual(createDocumentTrackFolderSnapshot({ schemaVersion: FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION }).sequences, []);
 	assert.deepEqual(createDocumentTrackFolderSnapshot({
-		schemaVersion: 18,
+		schemaVersion: FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+		get trackFolders(): never { throw new Error('trackFolders was traversed'); },
+	}).sequences, []);
+	assert.deepEqual(createDocumentTrackFolderSnapshot({
+		schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1,
 		get trackFolders(): never { throw new Error('trackFolders was traversed'); },
 	}).sequences, []);
 	const folderFree = createCurrentAudioEditorProject({

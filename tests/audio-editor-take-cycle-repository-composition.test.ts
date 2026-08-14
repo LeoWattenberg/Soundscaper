@@ -20,6 +20,7 @@ import type { TakeCycleFinalizationRequest } from '../src/common/editor/controll
 import { createEditorHistory, executeEditorCommand } from '../src/common/editor/history.js';
 import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 import { createAudioEditorProjectV17, type AudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
+import { validateAudioEditorProjectV17 } from '../src/common/editor/project-v17-validation.ts';
 import { createScapeDigest, scapeHex } from '../src/common/editor/scape-archive-media.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import type { TakeCycleRecoveryEnvelope } from '../src/common/editor/take-cycle-recovery-envelope.ts';
@@ -63,6 +64,25 @@ test('repository composition publishes receipt-owned PCM and one real V17 histor
 
 	const reopened = await fixture.projects.load('project-cycle');
 	assert.deepEqual(reopened, persisted);
+});
+
+test('repository composition delegates product-owned command and validation authority', async () => {
+	const fixture = await compositionFixture();
+	let applyCount = 0;
+	let validationCount = 0;
+	const composition = createComposition(fixture, {
+		applyProjectCommand(base: AudioEditorProjectV17, command: AudioEditorCommand) {
+			applyCount += 1;
+			return applyEditorCommand(base, command, { now: NOW });
+		},
+		validateProject(value: unknown) {
+			validationCount += 1;
+			validateAudioEditorProjectV17(value);
+		},
+	});
+	await composition.finalize(request());
+	assert.equal(applyCount, 1);
+	assert.ok(validationCount >= 3, `expected repeated product validation, received ${String(validationCount)}`);
 });
 
 test('two complete passes publish as deterministic independently auditionable lanes', async () => {

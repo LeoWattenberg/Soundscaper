@@ -3,7 +3,10 @@ import { expect, test } from '@playwright/test';
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
-import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import {
+	FRAMESCAPER_DATABASE_NAME,
+	FRAMESCAPER_OPFS_DIRECTORY_NAME,
+} from './helpers/editor-databases.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
@@ -111,7 +114,7 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 });
 
 async function persistedTimingEvidence(page) {
-	return page.evaluate(async ({ databaseName, sourceNames }) => {
+	return page.evaluate(async ({ databaseName, opfsDirectoryName, sourceNames }) => {
 		const request = (input) => new Promise((resolve, reject) => {
 			input.onsuccess = () => resolve(input.result);
 			input.onerror = () => reject(input.error);
@@ -119,7 +122,7 @@ async function persistedTimingEvidence(page) {
 		const readMediaAssetBytes = async (record, mediaChunks) => {
 			if (record.storage === 'opfs') {
 				const root = await navigator.storage.getDirectory();
-				const directory = await root.getDirectoryHandle('audio-editor-sources');
+				const directory = await root.getDirectoryHandle(opfsDirectoryName);
 				const handle = await directory.getFileHandle(record.path);
 				return new Uint8Array(await (await handle.getFile()).arrayBuffer());
 			}
@@ -161,6 +164,7 @@ async function persistedTimingEvidence(page) {
 		}
 	}, {
 		databaseName: DATABASE_NAME,
+		opfsDirectoryName: FRAMESCAPER_OPFS_DIRECTORY_NAME,
 		sourceNames: videoTimingProbeMedia.map(({ file }) => file.name),
 	});
 }

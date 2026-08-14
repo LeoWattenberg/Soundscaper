@@ -13,7 +13,7 @@ import {
 	projectFeatureVideoClipRenderV1Playback,
 	type ProjectFeatureVideoClipRenderV1Metadata,
 } from './project-feature-video-clip-render-v1.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import { isMaintainedRenderedFallbackProjectSchema } from './project-schema-version.ts';
 import {
 	sampleFrameToVideoFrame,
 	type RationalRate,
@@ -71,7 +71,9 @@ export function projectFeatureVideoRenderedFallbackPlayback<Project extends obje
 	report: ProjectFeatureRequirementsReport | null | undefined,
 ): ProjectFeatureVideoRenderedFallbackProjection<Project> {
 	const projectRecord = recordValue(project, 'project');
-	if (optionalDataProperty(projectRecord, 'schemaVersion', 'project') !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return unchanged(project);
+	if (!isMaintainedRenderedFallbackProjectSchema(
+		optionalDataProperty(projectRecord, 'schemaVersion', 'project'),
+	)) return unchanged(project);
 	const qualified = qualifyingFallback(report);
 	if (!qualified) return unchanged(project);
 	if (isQualifiedClipFallback(qualified)) {

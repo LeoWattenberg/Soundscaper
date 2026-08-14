@@ -29,6 +29,11 @@ import {
 	createAudioSourceV10,
 	createAudioTrackV10,
 } from '../src/common/editor/project-v10.ts';
+import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
+import {
+	createSoundscaperProjectV21,
+	type SoundscaperProjectV21,
+} from '../src/soundscaper/editor-project-v21.ts';
 
 const NOW = '2026-08-12T15:00:00.000Z';
 const TEMPO_MAP = {
@@ -80,6 +85,23 @@ test('the persisted service sets and clears exact maps with deterministic undo, 
 	assert.deepEqual(loadCurrentAudioEditorProject(JSON.parse(JSON.stringify(cloned)) as unknown), {
 		project: cloned, readOnly: false, reason: null,
 	});
+});
+
+test('the persisted service authors an exact Soundscaper V21 project', () => {
+	let project = soundscaperProject();
+	const service = createAudioWarpAuthoringService({
+		lifetime: { assertActive: () => undefined },
+		getProject: () => project,
+		editingBlocked: () => false,
+		commit(command) {
+			project = applySoundscaperProjectCommandV21(project, command, { now: NOW });
+			return project;
+		},
+	});
+
+	service.setWarpMap(service.prepareClipEdit('clip'), SAMPLE_WARP);
+	assert.equal(project.schemaVersion, 21);
+	assert.deepEqual(clipOf(project).warpMap, canonical(SAMPLE_WARP));
 });
 
 test('transient quantization persists exact zero, one, and intermediate strength', () => {
@@ -297,6 +319,23 @@ function identityProject(): AudioEditorProjectCurrent {
 		id: 'identity-warp-project', now: NOW, tempoMap: TEMPO_MAP,
 		sources: [source], clips: [clip],
 		tracks: [createAudioTrackV10({ id: 'track', clipIds: ['clip'] })],
+	});
+}
+
+function soundscaperProject(): SoundscaperProjectV21 {
+	const source = createAudioSourceV10({
+		id: 'source', storageKey: 'source', name: 'Source',
+		frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
+	});
+	const clip = createAudioClipV10({
+		id: 'clip', sourceId: source.id, title: 'Clip', anchor: 'sample',
+		timelineStartFrame: 1_000, durationFrames: 100,
+		sourceStartFrame: 100, sourceDurationFrames: 200, warpMap: null,
+	});
+	return createSoundscaperProjectV21({
+		id: 'soundscaper-warp-project', now: NOW, tempoMap: TEMPO_MAP,
+		sources: [source], clips: [clip],
+		tracks: [createAudioTrackV10({ id: 'track', name: 'Track', clipIds: ['clip'] })],
 	});
 }
 

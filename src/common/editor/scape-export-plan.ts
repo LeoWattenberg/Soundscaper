@@ -87,6 +87,7 @@ export interface ScapeExportPlanOptions {
 	readonly maximumBlobBytes?: unknown;
 	readonly output: 'blob' | 'stream';
 	readonly signal?: AbortSignal;
+	readonly currentProjectSchemaVersion?: number;
 }
 
 export async function prepareScapeExport(
@@ -117,7 +118,9 @@ export async function prepareScapeExport(
 	const audioChunkBudget = createScapeAudioExportChunkBudget(sources);
 	const signal = options.signal;
 	throwIfScapeAborted(signal);
-	const fallbackSnapshot = snapshotScapeProjectFallbackIntegrity(project);
+	const fallbackSnapshot = snapshotScapeProjectFallbackIntegrity(project, {
+		currentProjectSchemaVersion: options.currentProjectSchemaVersion,
+	});
 	if (fallbackSnapshot.featureRequirements) {
 		project.featureRequirements = fallbackSnapshot.featureRequirements;
 	}

@@ -14,8 +14,9 @@ import {
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 import { deterministicAvMedia } from './fixtures/deterministic-av-media.js';
+import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-audio-editor';
+const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
 const ENVIRONMENT_ID = 'reference-linux-gpu-01';
 const SAMPLE_RATE = 48_000;
 const VIDEO_FRAME_SAMPLES = 1_600;

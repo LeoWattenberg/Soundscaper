@@ -712,7 +712,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		findClip,
 		cloneVideoEffects,
 		createAddTrackCommand,
-		createAddClipCommand,
+		createAddClipCommand, prepareTrackDuplicateCarrier: projectRuntime.prepareTrackDuplicateCarrier,
 		commit,
 	});
 	const projectAdminService = createProjectAdminService({
@@ -876,7 +876,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		saveAup4Result,
 		createAup4Client,
 		initialAup4Client: options.aup4Client || null,
-		aup4Options: options.aup4 || {},
+		aup4Options: options.aup4 || {}, adaptAudacityProject: options.adaptAudacityProject,
 		migrateProject: projectRuntime.migrateProject,
 		importScapeProject: options.scapeProjectRuntime?.importScapeProject || importScapeProject,
 		exportScapeProject: options.scapeProjectRuntime?.exportScapeProject || exportScapeProject,
@@ -1646,7 +1646,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const takeCycleRecording = createTakeCycleAppComposition({ lifetime, store, session: sessionController, projectGeneration, state, recording: recordingCaptureRuntime, getProject: () => project, setProject: (value) => { project = value; }, activeSelection,
 		findAudioSource: (value, mediaId) => findSource(value, mediaId), trackName: (value, trackId) => findTrack(value, trackId)?.name || copy.recordingLabel, getRoutes: () => state.recordingRouting.routes,
 		soundActivationEnabled: () => soundActivationPolicyService.getSnapshot().preferences.enabled, recordingRouteSourceKey, createId: createStableId, createRecordingName: (name) => `${name} ${new Date().toLocaleTimeString(locale)}`,
-		preflightRecording: (bytes) => preflightStorage(bytes, 'recording'), releaseInputs: releaseUnretainedRecordingInputs, activateStoredSource: (source, metadata) => activateStoredSource(source, metadata, { requireChunkStream: true }),
+		preflightRecording: (bytes) => preflightStorage(bytes, 'recording'), releaseInputs: releaseUnretainedRecordingInputs, activateStoredSource: (source, metadata) => activateStoredSource(source, metadata, { requireChunkStream: true }), applyProjectCommand: projectRuntime.applyCommand, validateProject: (value) => { projectRuntime.cloneProject(value); },
 		publishProject: () => { projectRetentionService.retainLiveClipIds(); publishProjectState(); }, synchronizeProject: async (value) => { await applyProjectToPlaybackEngine(value); publishProjectState(); }, now: () => new Date(currentTimeMs()) });
 	takeCycleOpenRecoveryBinding.bind(createTakeCycleOpenRecoveryCoordinator({ state, inspect: takeCycleRecording.inspectOpenRecovery, recover: takeCycleRecording.recoverOnOpen, getCurrentProjectId: () => project?.id ?? null, isDisposed: () => state.disposed, isCurrentProjectWritable: () => Boolean(project && state.projectLock && !state.readOnly && !state.projectLock.readOnly), publish: publishDocumentSnapshot }));
 	const takeCycleRecordingSession = createTakeCycleRecordingAppSession({ cycle: takeCycleRecording, prepareCurrentProject: flushProject, recordingMessage: copy.recording, setTransportState: updateTransportState, setStatus });

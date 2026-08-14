@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { projectForRuntimeConsumers } from './project-current-runtime.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import { isTimelineAnnotationProjectSchema } from './project-schema-version.ts';
 import type { RiffMarker, RiffMarkerInput } from './riff-markers.ts';
 import type { RuntimeClipProject } from './runtime-clip-projection.ts';
 import {
@@ -122,8 +122,8 @@ export function createRiffAnnotationImport(
 	markers: readonly RiffMarker[],
 	options: RiffAnnotationImportOptions,
 ): RiffAnnotationImportResult {
-	if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		throw new RangeError('RIFF annotation import requires the exact current project schema.');
+	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) {
+		throw new RangeError('RIFF annotation import requires a maintained timeline-annotation project schema.');
 	}
 	if (!Array.isArray(markers)) throw new TypeError('RIFF annotation import markers must be an array.');
 	const sourceSampleRate = positiveSafeInteger(options.sourceSampleRate, 'sourceSampleRate');
@@ -388,13 +388,13 @@ function markerSource(project: DataRecord, options: RiffAnnotationExportOptions)
 			throw new RangeError('markerSource must be timeline-annotations, label-track, or none.');
 		}
 		if (options.markerSource === 'timeline-annotations'
-			&& project.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-			throw new RangeError('Timeline annotation RIFF export requires the exact current project schema.');
+			&& !isTimelineAnnotationProjectSchema(project.schemaVersion)) {
+			throw new RangeError('Timeline annotation RIFF export requires a maintained timeline-annotation project schema.');
 		}
 		return options.markerSource;
 	}
 	if (options.markerTrackId !== undefined) return 'label-track';
-	return project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+	return isTimelineAnnotationProjectSchema(project.schemaVersion)
 		? 'timeline-annotations'
 		: 'label-track';
 }

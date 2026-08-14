@@ -50,7 +50,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'binary-opaque-native-state': 'implemented',
 		'unavailable-native-feature': 'planned',
 		'video-proxy-fallback': 'planned',
-		'audio-freeze-fallback': 'planned',
+		'audio-freeze-fallback': 'implemented',
 		'future-archive-format-rejection': 'implemented',
 	};
 	assert.deepEqual(
@@ -454,8 +454,11 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const audioFreezeFallback = rules.get('audio-freeze-fallback');
 	assert.match(
 		audioFreezeFallback.currentBehavior,
-		/offline rendering.*narrow exact-schema-17 audio and video playback fallback relationships.*bounded operation-verified video fallback delivery exist.*audio freeze, unfreeze, commit, relink, freshness.*generic cross-platform fallback-authoring semantics.*not implemented/iu,
+		/Soundscaper V21 owns audio-track freeze, refresh, unfreeze, and commit.*post-insert, pre-strip.*no PCM enters project JSON.*digest-bound.*Only a fresh record owns an audio-track-render-v1 rendered fallback.*stale or unverifiable record.*bypass with no fallback.*never selected for playback.*format-1 Scape.*Soundscaper desktop V10.*Administrative Scape source-ID remapping.*Framescaper keeps audioTrackFreeze unavailable.*byte-stable return/iu,
 	);
+	assert.ok(audioFreezeFallback.evidence.includes('src/common/editor/audio-track-freeze-v21.ts'));
+	assert.ok(audioFreezeFallback.evidence.includes('src/soundscaper/editor-project-feature-requirements-v21.ts'));
+	assert.ok(audioFreezeFallback.evidence.includes('tests/audio-editor-soundscaper-v21-persistence-interchange.test.ts'));
 	const videoProxyFallback = rules.get('video-proxy-fallback');
 	assert.match(
 		videoProxyFallback.currentBehavior,

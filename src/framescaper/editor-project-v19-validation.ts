@@ -10,11 +10,12 @@ import {
 	framescaperProjectFeatureRequirementsForV18FoundationV19,
 	validateFramescaperProjectFeatureRequirementsV19,
 } from './editor-project-feature-requirements-v19.ts';
+import { FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION } from '../common/editor/project-schema-version.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v18.ts';
 import { validateFramescaperProjectV18 } from './editor-project-v18-validation.ts';
 import { assertFramescaperProjectV19Profile } from './editor-project-v19-profile.ts';
 
-export const FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION = 19 as const;
+export { FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION } from '../common/editor/project-schema-version.ts';
 
 export interface FramescaperVideoClipV19 extends Readonly<Record<string, unknown>> {
 	readonly kind: 'video';

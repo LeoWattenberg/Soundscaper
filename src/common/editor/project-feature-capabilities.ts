@@ -18,6 +18,9 @@ export const PROJECT_FEATURE_CAPABILITY_IDS = Object.freeze({
 	audioAnalysis: 'org.soundscaper.capability.audio-analysis',
 	audioMacros: 'org.soundscaper.capability.audio-macros',
 	audioSampleEditing: 'org.soundscaper.capability.audio-sample-editing',
+	audioAutomation: 'org.soundscaper.capability.audio-automation',
+	audioMixerGraph: 'org.soundscaper.capability.audio-mixer-graph',
+	audioTrackFreeze: 'org.soundscaper.capability.audio-track-freeze',
 	videoEffects: 'org.soundscaper.capability.video-effects',
 	videoCompositing: 'org.soundscaper.capability.video-compositing',
 	videoGeometry: 'org.soundscaper.capability.video-geometry',
@@ -58,6 +61,7 @@ export const PROJECT_FEATURE_AUDIO_CAPABILITY_IDS = Object.freeze([
 	PROJECT_FEATURE_CAPABILITY_IDS.audioAnalysis,
 	PROJECT_FEATURE_CAPABILITY_IDS.audioMacros,
 	PROJECT_FEATURE_CAPABILITY_IDS.audioSampleEditing,
+	PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze,
 	PROJECT_FEATURE_CAPABILITY_IDS.musicalTimeline,
 ] as const);
 

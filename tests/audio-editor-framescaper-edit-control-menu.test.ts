@@ -7,6 +7,7 @@ import {
 	createFramescaperEditControlMenuModel,
 	createFramescaperEditControlMenuItems,
 } from '../src/common/editor/ui/framescaper-edit-control-menu-model.ts';
+import { FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { createPersistedVideoProject } from './helpers/persisted-video-project-fixture.ts';
 
 const COPY = Object.freeze({
@@ -223,4 +224,26 @@ test('current persisted video coordinates resolve through the shared runtime pro
 	assert.deepEqual(linkable.link?.operation, {
 		kind: 'link', videoClipId: 'persisted-timeline-video', audioClipId: 'persisted-timeline-audio',
 	});
+});
+
+test('exact Framescaper V19 projects its required empty annotation carrier for linked controls', () => {
+	const persisted = structuredClone(createPersistedVideoProject({ timeline: true }).project) as unknown as {
+		schemaVersion: number;
+		timelineAnnotations: unknown[];
+	};
+	persisted.schemaVersion = FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION;
+	persisted.timelineAnnotations = [];
+	const model = createFramescaperEditControlMenuModel({
+		productId: 'framescaper', project: persisted, selectedClipId: 'persisted-timeline-video',
+		selectedTrackId: 'persisted-video-track', editBlocked: false, copy: COPY,
+	});
+	assert.equal(model.link?.label, 'Unlink audio');
+	assert.equal(model.link?.disabled, false);
+	persisted.timelineAnnotations = [{ id: 'unsupported' }];
+	const blocked = createFramescaperEditControlMenuModel({
+		productId: 'framescaper', project: persisted, selectedClipId: 'persisted-timeline-video',
+		selectedTrackId: 'persisted-video-track', editBlocked: false, copy: COPY,
+	});
+	assert.equal(blocked.link?.label, 'Link audio');
+	assert.equal(blocked.link?.disabled, true);
 });

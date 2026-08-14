@@ -4,6 +4,7 @@ import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	createCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
+import { SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -189,6 +190,14 @@ test('an unknown feature can bind the closed whole-project video role', () => {
 	assert.equal(projected.metadata?.sourceId, 'fallback-video');
 	assert.equal((projected.project as typeof input).clips[1]?.sourceId, 'fallback-video');
 	assert.deepEqual(input, before, 'the canonical project must remain unchanged');
+});
+
+test('selected Soundscaper V21 can project the maintained whole-project video fallback contract', () => {
+	const input = { ...project(), schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION };
+	const projected = projectFeatureVideoRenderedFallbackPlayback(input, report());
+
+	assert.equal(projected.metadata?.role, 'project-video-render-v1');
+	assert.equal((projected.project as typeof input).clips[1]?.sourceId, 'fallback-video');
 });
 
 test('a known non-video feature cannot bind the closed whole-project video role', () => {

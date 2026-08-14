@@ -5,7 +5,11 @@ import test from 'node:test';
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 import {
 	PROJECT_FEATURE_VIDEO_EFFECT_BYPASS_LIMITS,
 	projectFeatureVideoEffectPlaybackBypass,
@@ -101,6 +105,22 @@ test('declared unavailable first-party video effects are bypassed only in a boun
 	assert.equal(Object.isFrozen(result.metadata), true);
 	assert.equal(Object.isFrozen(result.metadata?.placeholders), true);
 	assert.equal(Object.isFrozen(result.metadata?.placeholders[0]), true);
+});
+
+test('selected product schemas retain the inherited video-effect playback projection', () => {
+	for (const schemaVersion of [
+		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	]) {
+		const input = { ...project(), schemaVersion };
+		const result = projectFeatureVideoEffectPlaybackBypass(input, report());
+		assert.equal(
+			result.metadata?.placeholders.length,
+			2,
+			`schema ${String(schemaVersion)} must retain inherited video-effect bypass`,
+		);
+		assert.equal(result.project.clips[0]?.videoEffects[0]?.enabled, false);
+	}
 });
 
 test('the video projector ignores unsupported reports and returns before future-schema traversal', () => {

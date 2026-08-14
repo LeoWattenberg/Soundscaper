@@ -8,12 +8,12 @@ import {
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-framescaper-editor-v18';
 const MULTICAMERA_REQUIREMENT_ID = 'framescaper.multicamera';
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 
-test.describe('Framescaper V18 multicamera workflow', () => {
+test.describe('Framescaper selected-web multicamera workflow', () => {
 	test.beforeEach(async ({ page }) => {
 		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
@@ -24,7 +24,7 @@ test.describe('Framescaper V18 multicamera workflow', () => {
 		}));
 	});
 
-	test('creates, switches, saves, and reopens an exact V18 camera group from Tracks', async ({ page, browserName }, testInfo) => {
+	test('creates, switches, saves, and reopens an exact V19 camera group from Tracks', async ({ page, browserName }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit',
 			'Playwright WebKit rejects the IndexedDB Blob write that persists imported A/V sources.');
 		test.setTimeout(180_000);
@@ -156,5 +156,5 @@ async function storedProject(page, projectId) {
 		} finally {
 			database.close();
 		}
-	}, { databaseName: DATABASE_NAME, id: projectId });
+	}, { databaseName: FRAMESCAPER_DATABASE_NAME, id: projectId });
 }

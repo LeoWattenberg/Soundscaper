@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from './project-feature-capabilities.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	isMaintainedRenderedFallbackProjectSchema,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from './project-schema-version.ts';
 import {
 	projectFeatureAudioTrackRenderV1Playback,
 	type ProjectFeatureAudioTrackRenderV1Metadata,
@@ -46,7 +49,9 @@ interface QualifiedMixFallback {
 }
 
 interface QualifiedTrackFallback {
-	readonly featureId: typeof PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
+	readonly featureId:
+		| typeof PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+		| typeof PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze;
 	readonly requirementId: string;
 	readonly fallback: ProjectFeatureAudioTrackRenderFallback;
 }
@@ -66,12 +71,14 @@ export function projectFeatureAudioRenderedFallbackPlayback<Project extends obje
 	report: ProjectFeatureRequirementsReport | null | undefined,
 ): ProjectFeatureAudioRenderedFallbackProjection<Project> {
 	const projectRecord = recordValue(project, 'project');
-	if (optionalDataProperty(projectRecord, 'schemaVersion', 'project') !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return unchanged(project);
+	const schemaVersion = optionalDataProperty(projectRecord, 'schemaVersion', 'project');
+	if (!isMaintainedRenderedFallbackProjectSchema(schemaVersion)) return unchanged(project);
 	const qualified = qualifyingFallback(report);
 	if (!qualified) return unchanged(project);
 	if (isQualifiedTrackFallback(qualified)) {
 		return projectFeatureAudioTrackRenderV1Playback(project, qualified);
 	}
+	if (schemaVersion === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION) return unchanged(project);
 	assertManifestBinding(projectRecord, qualified);
 	const sources = arrayValue(dataProperty(projectRecord, 'sources', 'project'), 'project.sources');
 	const source = fallbackSource(sources, qualified.fallback.sourceId);
@@ -141,7 +148,7 @@ function qualifyingFallback(
 	const item = candidates[0]!;
 	if (item.fallback.role === 'audio-track-render-v1') {
 		return Object.freeze({
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+			featureId: item.featureId as QualifiedTrackFallback['featureId'],
 			requirementId: canonicalString(item.requirementId, 'Rendered fallback requirement ID'),
 			fallback: item.fallback,
 		});
@@ -164,7 +171,8 @@ function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): item is P
 	// The track relationship is first-party, so its feature is always known.
 	return item.fallback.role === 'audio-track-render-v1'
 		&& item.availability === 'unavailable'
-		&& item.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
+		&& (item.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+			|| item.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze);
 }
 
 function isQualifiedTrackFallback(qualified: QualifiedFallback): qualified is QualifiedTrackFallback {

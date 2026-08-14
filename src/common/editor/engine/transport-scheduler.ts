@@ -27,6 +27,7 @@ import {
 import {
 	buildProjectGraph,
 } from './project-graph.ts';
+import { sampleProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
 import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import {
 	ENGINE_CANCEL_SCRUB,
@@ -246,6 +247,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 				trackInputs: this.graph.trackInputs,
 				trackGainParams: this.graph.trackGainParams,
 				projectGainParams: this.graph.projectGainParams,
+				parameterRegistry: this.graph.parameterRegistry,
 				fromFrame,
 				toFrame: this.playEndFrame,
 				contextStartTime: scheduledTime,
@@ -358,6 +360,7 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 				trackInputs: this.graph.trackInputs,
 				trackGainParams: this.graph.trackGainParams,
 				projectGainParams: this.graph.projectGainParams,
+				parameterRegistry: this.graph.parameterRegistry,
 				fromFrame: this.loop.startFrame,
 				toFrame: this.loop.endFrame,
 				contextStartTime: this.loopScheduleTime,
@@ -420,7 +423,15 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 		if (this.latestMasterLoudnessMeter?.loudness) {
 			master.loudness = this.latestMasterLoudnessMeter.loudness;
 		}
-		const meter = { master, tracks, groups, sends };
+		const production = this.project?.schemaVersion === 21
+			? sampleProductionMeterSessionV21(
+				this,
+				this.project,
+				this.graph.productionStripAnalysersV21,
+				this.latestMasterLoudnessMeter,
+			)
+			: {};
+		const meter = { master, tracks, groups, sends, ...production };
 		for (const listener of this.meterListeners) listener(meter);
 	},
 

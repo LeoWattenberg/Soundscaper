@@ -3,6 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import {
+	createAudioClipV9,
+	createAudioSourceV9,
+	createAudioTrackV9,
+} from '../src/common/editor/project-v9.ts';
 import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
 import {
 	DEFAULT_VIDEO_CLIP_COMPOSITION,
@@ -80,6 +85,22 @@ test('each nested playback occurrence owns a detached composition snapshot', () 
 	);
 });
 
+test('V19 playback admits and projects one maintained whole-mix rendered fallback', () => {
+	const service = createFramescaperPlaybackProjectServiceV19(PROFILE);
+	const project = audioFallbackProject();
+	const admission = service.projectForActivationAdmission?.(project);
+	const playback = service.projectForPlayback(project);
+
+	assert.equal(admission?.project, project);
+	assert.equal(admission?.audioRenderedFallback?.sourceId, 'fallback-source');
+	assert.deepEqual(admission?.requiredAudioSourceIds, ['fallback-source']);
+	assert.equal(playback.project.schemaVersion, 17);
+	assert.equal(playback.audioRenderedFallback?.sourceId, 'fallback-source');
+	assert.deepEqual(playback.requiredAudioSourceIds, ['fallback-source']);
+	assert.ok(playback.project.clips.some(({ sourceId }) => sourceId === 'fallback-source'));
+	assert.equal(project.clips[0]?.sourceId, 'original-source');
+});
+
 test('non-V19 projects stay opaque and produce no source requirements', () => {
 	const service = createFramescaperPlaybackProjectServiceV19(PROFILE);
 	let nestedReads = 0;
@@ -120,6 +141,44 @@ function videoProject() {
 		})],
 		sequences: [{ id: 'main', rate, trackIds: ['track'] }],
 		primarySequenceId: 'main',
+	});
+}
+
+function audioFallbackProject() {
+	const original = {
+		...createAudioSourceV9({
+			id: 'original-source', storageKey: 'original-source', frameCount: 4,
+			channelCount: 2, sampleRate: 48_000,
+		}),
+		contentSha256: '12'.repeat(32),
+	};
+	const fallback = {
+		...createAudioSourceV9({
+			id: 'fallback-source', storageKey: 'fallback-source', frameCount: 6,
+			channelCount: 2, sampleRate: 48_000,
+		}),
+		contentSha256: '34'.repeat(32),
+	};
+	const clip = createAudioClipV9({
+		id: 'original-clip', sourceId: original.id, durationFrames: original.frameCount,
+	});
+	return createFramescaperProjectV19(PROFILE, {
+		id: 'fallback-v19',
+		title: 'Fallback V19',
+		now: '2026-08-13T12:00:00.000Z',
+		sources: [original, fallback],
+		clips: [clip],
+		tracks: [createAudioTrackV9({ id: 'track', name: 'Audio', clipIds: [clip.id] })],
+		featureRequirements: { schemaVersion: 2, requirements: [{
+			id: 'publisher-render',
+			featureId: 'org.example.future-mixer',
+			displayName: 'Future mixer',
+			disposition: 'rendered-fallback',
+			fallback: {
+				role: 'project-audio-mix-v1', kind: 'audio',
+				sourceId: fallback.id, sha256: fallback.contentSha256,
+			},
+		}] },
 	});
 }
 

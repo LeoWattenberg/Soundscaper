@@ -20,6 +20,7 @@ import {
 	importFiles,
 	openClipProperties,
 	openEffectsForTrack,
+	openNestedCommandMenu,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -500,8 +501,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels']);
-		const panelsMenu = page.getByRole('menu', { name: 'Panels', exact: true });
+		const panelsMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
 		await expect(panelsMenu.getByRole('menuitem', { name: 'Spectrogram', exact: true })).toHaveCount(0);
 		await page.keyboard.press('Escape');
 		await expect(panelsMenu).toBeHidden();

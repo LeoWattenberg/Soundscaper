@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isTakeCompProjectSchema } from '../project-schema-version.ts';
+
 export interface TakeCompApplicationMenuInput {
 	readonly productId: string;
 	readonly capability: boolean;
@@ -14,7 +16,7 @@ export function createTakeCompApplicationMenuItems(input: TakeCompApplicationMen
 	return Object.freeze([Object.freeze({
 		id: 'take-comp-editor',
 		label: input.copy.takeCompMenu,
-		disabled: input.project?.schemaVersion !== 17,
+		disabled: !isTakeCompProjectSchema(input.project?.schemaVersion),
 		onClick: input.open,
 	})]);
 }

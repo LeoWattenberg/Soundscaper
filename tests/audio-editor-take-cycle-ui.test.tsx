@@ -165,6 +165,14 @@ function editableSnapshot() {
 	};
 }
 
+test('cycle recording admits the exact Soundscaper V21 project authority', () => {
+	const snapshot = editableSnapshot();
+	assert.deepEqual(selectTakeCycleStartAdmission({
+		...snapshot,
+		project: { ...snapshot.project, schemaVersion: 21 },
+	}), { allowed: true, reason: null });
+});
+
 function project({
 	loop = { enabled: true, startFrame: 0, endFrame: 48_000 },
 	locked = false,

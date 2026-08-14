@@ -8,7 +8,10 @@ import {
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
-import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import {
+	FRAMESCAPER_DATABASE_NAME,
+	FRAMESCAPER_OPFS_DIRECTORY_NAME,
+} from './helpers/editor-databases.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
@@ -499,7 +502,7 @@ async function persistedClips(page, scope) {
 }
 
 async function persistedTimingAssetBytes(page, storageKey) {
-	return page.evaluate(async ({ databaseName, key }) => {
+	return page.evaluate(async ({ databaseName, key, opfsDirectoryName }) => {
 		const result = (request) => new Promise((resolve, reject) => {
 			request.onsuccess = () => resolve(request.result);
 			request.onerror = () => reject(request.error);
@@ -514,7 +517,7 @@ async function persistedTimingAssetBytes(page, storageKey) {
 			const record = records.find(({ sourceId }) => sourceId === key);
 			if (record?.storage === 'opfs') {
 				const root = await navigator.storage.getDirectory();
-				const directory = await root.getDirectoryHandle('audio-editor-sources');
+				const directory = await root.getDirectoryHandle(opfsDirectoryName);
 				const file = await (await directory.getFileHandle(record.path)).getFile();
 				return [...new Uint8Array(await file.arrayBuffer())];
 			}
@@ -527,7 +530,7 @@ async function persistedTimingAssetBytes(page, storageKey) {
 		} finally {
 			database.close();
 		}
-	}, { databaseName: DATABASE_NAME, key: storageKey });
+	}, { databaseName: DATABASE_NAME, key: storageKey, opfsDirectoryName: FRAMESCAPER_OPFS_DIRECTORY_NAME });
 }
 
 async function persistedTimeline(page, projectId) {

@@ -77,7 +77,7 @@ export default function EditorToolToolbar({
 	const telemetry = { playbackMode, positionFrame, transportState };
 	const project = snapshot.project;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type === 'audio');
-	const outputAutomationAvailable = Boolean(
+	const outputAutomationAvailable = project?.schemaVersion !== 21 && Boolean(
 		project?.mixer?.groups?.length
 		|| project?.mixer?.sends?.length
 		|| snapshot.preferences?.view?.showMasterTrack,

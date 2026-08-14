@@ -7,7 +7,11 @@ import {
 	createProjectSessionSelectionService,
 	type ProjectSessionSelectionMetadata,
 } from '../src/common/editor/controller/project-session-selection-service.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 
 interface TestProject {
 	readonly schemaVersion?: unknown;
@@ -108,19 +112,24 @@ test('project session selection falls back to the first label and then null when
 	});
 });
 
-test('project session selection restores an existing annotation only for the current timeline-annotation schema', () => {
-	const fixture = createFixture({
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-		timelineAnnotations: [{ id: 'annotation' }, { id: 'other' }],
-		tracks: [],
-		clips: [],
-	});
+test('project session selection restores annotations for active V17 and Soundscaper V21 documents', () => {
+	for (const schemaVersion of [
+		AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	]) {
+		const fixture = createFixture({
+			schemaVersion,
+			timelineAnnotations: [{ id: 'annotation' }, { id: 'other' }],
+			tracks: [],
+			clips: [],
+		});
 
-	fixture.service.restore(fixture.project, { selectedAnnotationId: 'annotation' });
+		fixture.service.restore(fixture.project, { selectedAnnotationId: 'annotation' });
 
-	assert.equal(fixture.state.selectedAnnotationId, 'annotation');
-	fixture.service.restore(fixture.project, { selectedAnnotationId: 'stale' });
-	assert.equal(fixture.state.selectedAnnotationId, null);
+		assert.equal(fixture.state.selectedAnnotationId, 'annotation');
+		fixture.service.restore(fixture.project, { selectedAnnotationId: 'stale' });
+		assert.equal(fixture.state.selectedAnnotationId, null);
+	}
 });
 
 test('project session selection clears malformed annotation focus', () => {
@@ -154,21 +163,26 @@ test('project session selection clears malformed annotation focus', () => {
 	assert.equal(older.state.selectedAnnotationId, null);
 });
 
-test('project session selection does not traverse future annotation storage', () => {
+test('project session selection does not traverse Framescaper or future annotation storage', () => {
 	let annotationReads = 0;
-	const futureProject: TestProject = {
-		schemaVersion: 18,
-		get timelineAnnotations(): never {
-			annotationReads += 1;
-			throw new Error('future timelineAnnotations was traversed');
-		},
-		tracks: [],
-		clips: [],
-	};
-	const fixture = createFixture(futureProject, null, null, 'previous');
+	for (const schemaVersion of [
+		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1,
+	]) {
+		const foreignProject: TestProject = {
+			schemaVersion,
+			get timelineAnnotations(): never {
+				annotationReads += 1;
+				throw new Error('foreign timelineAnnotations was traversed');
+			},
+			tracks: [],
+			clips: [],
+		};
+		const fixture = createFixture(foreignProject, null, null, 'previous');
 
-	fixture.service.restore(futureProject, { selectedAnnotationId: 'annotation' });
+		fixture.service.restore(foreignProject, { selectedAnnotationId: 'annotation' });
 
-	assert.equal(fixture.state.selectedAnnotationId, null);
+		assert.equal(fixture.state.selectedAnnotationId, null);
+	}
 	assert.equal(annotationReads, 0);
 });

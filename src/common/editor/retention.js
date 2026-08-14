@@ -9,6 +9,7 @@ import { collectTakeGroupSourceIds } from './take-group-source-references.ts';
 
 /** Product schemas are not importable from common, so V18 is named here. */
 const FRAMESCAPER_MULTICAMERA_SCHEMA_VERSION = 18;
+const SOUNDSCAPER_PRODUCTION_SCHEMA_VERSION = 21;
 
 /**
  * A schema only ever adds reference kinds, so each walk is gated on the
@@ -19,6 +20,7 @@ const SOURCE_REFERENCE_WALKS = [
 	{ since: AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION, collect: collectTakeGroupSourceIds },
 	{ since: AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION, collect: collectFeatureFallbackSourceIds },
 	{ since: FRAMESCAPER_MULTICAMERA_SCHEMA_VERSION, collect: collectMulticameraMemberSourceIds },
+	{ since: SOUNDSCAPER_PRODUCTION_SCHEMA_VERSION, collect: collectAudioTrackFreezeSourceIds },
 ];
 
 export function collectProjectSourceIds(project, target = new Set()) {
@@ -54,6 +56,15 @@ function collectMulticameraMemberSourceIds(project, target) {
 		for (const member of members) {
 			if (typeof member?.sourceId === 'string' && member.sourceId) target.add(member.sourceId);
 		}
+	}
+}
+
+/** Preserve a freeze render even while a stale relationship is fail-closed. */
+function collectAudioTrackFreezeSourceIds(project, target) {
+	const tracks = Array.isArray(project?.tracks) ? project.tracks : [];
+	for (const track of tracks) {
+		const sourceId = track?.audioFreeze?.derivedSourceId;
+		if (typeof sourceId === 'string' && sourceId) target.add(sourceId);
 	}
 }
 

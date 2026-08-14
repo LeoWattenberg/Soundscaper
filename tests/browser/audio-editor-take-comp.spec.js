@@ -4,9 +4,11 @@ import {
 	createAudioSourceV10,
 	createAudioTrackV10,
 } from '../../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV17 } from '../../src/common/editor/project-v17.ts';
 import { exportScapeProject, SCAPE_MIME_TYPE } from '../../src/common/editor/scape-project.js';
 import { createProjectStore } from '../../src/common/editor/storage.js';
+import { FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v19.ts';
+import { createFramescaperProjectV19 } from '../../src/framescaper/editor-project-v19.ts';
+import { createSoundscaperProjectV21 } from '../../src/soundscaper/editor-project-v21.ts';
 import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
@@ -33,7 +35,7 @@ test.describe('take lane and comp workflow', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await expect(editor.locator('[data-editor-surface="take-comp"]')).toHaveCount(0);
 		await installAudioResumeProbe(page);
-		await openTakeCompArchive(editor);
+		await openTakeCompArchive(editor, 'soundscaper');
 		await expect(editor).toHaveAttribute('data-project-id', PROJECT_ID, { timeout: 20_000 });
 		await expect(page.getByRole('dialog', { name: 'Project features unavailable', exact: true })).toHaveCount(0);
 
@@ -119,7 +121,7 @@ test.describe('take lane and comp workflow', () => {
 	test('Framescaper keeps take comps unavailable with bypass-only preservation and no menu', async ({ page }) => {
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
-		await openTakeCompArchive(editor);
+		await openTakeCompArchive(editor, 'framescaper');
 		const decision = page.getByRole('dialog', { name: 'Project features unavailable', exact: true });
 		await expect(decision).toBeVisible();
 		await expect(decision).toContainText('Take lanes and comps');
@@ -141,21 +143,21 @@ async function openTakeCompDialog(page, editor) {
 	return dialog;
 }
 
-async function openTakeCompArchive(editor) {
+async function openTakeCompArchive(editor, productId) {
 	await editor.locator('[data-aup4-input]').setInputFiles({
 		name: 'take-comp-workflow.scape',
 		mimeType: SCAPE_MIME_TYPE,
-		buffer: await takeCompArchive(),
+		buffer: await takeCompArchive(productId),
 	});
 }
 
-let archivePromise;
-function takeCompArchive() {
-	archivePromise ??= createTakeCompArchive();
-	return archivePromise;
+const archivePromises = new Map();
+function takeCompArchive(productId) {
+	if (!archivePromises.has(productId)) archivePromises.set(productId, createTakeCompArchive(productId));
+	return archivePromises.get(productId);
 }
 
-async function createTakeCompArchive() {
+async function createTakeCompArchive(productId) {
 	const store = createProjectStore({
 		indexedDB: null,
 		databaseName: `browser-take-comp-fixture-${String(Date.now())}`,
@@ -176,7 +178,10 @@ async function createTakeCompArchive() {
 			persistTone(store, sources[0], 330),
 			persistTone(store, sources[1], 660),
 		]);
-		const project = createAudioEditorProjectV17({
+		const createProject = productId === 'soundscaper'
+			? createSoundscaperProjectV21
+			: (options) => createFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, options);
+		const project = createProject({
 			id: PROJECT_ID,
 			title: 'Browser take comp project',
 			now: '2026-08-12T12:00:00.000Z',

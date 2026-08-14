@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
+import { FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION } from '../project-schema-version.ts';
 import type { RuntimeClipProject } from '../runtime-clip-projection.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
@@ -69,9 +70,7 @@ export function createFramescaperEditControlMenuModel(
 	const persistedProject = record(input.project);
 	let project: DataRecord | null = null;
 	try {
-		project = projectForRuntimeConsumers(
-			persistedProject as RuntimeClipProject,
-		) as unknown as DataRecord;
+		project = persistedProject === null ? null : projectForLinkedControls(persistedProject);
 	} catch {
 		// A menu must stay inert instead of rejecting an unprojectable document.
 	}
@@ -93,6 +92,18 @@ export function createFramescaperEditControlMenuModel(
 			visibilityOperation,
 		),
 	});
+}
+
+function projectForLinkedControls(project: DataRecord): DataRecord {
+	if (project.schemaVersion !== FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION) {
+		return projectForRuntimeConsumers(project as RuntimeClipProject) as unknown as DataRecord;
+	}
+	if (!Array.isArray(project.timelineAnnotations) || project.timelineAnnotations.length !== 0) {
+		throw new TypeError('Framescaper V19 requires an empty timeline annotation carrier.');
+	}
+	const projectionInput = { ...project };
+	delete projectionInput.timelineAnnotations;
+	return projectForRuntimeConsumers(projectionInput as RuntimeClipProject) as unknown as DataRecord;
 }
 
 /** Bind the derived state to the already-owned controller actions. */

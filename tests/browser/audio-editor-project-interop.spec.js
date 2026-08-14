@@ -24,6 +24,7 @@ import {
 	openAnalysisPanel,
 	openClipProperties,
 	openEffectsForTrack,
+	openNestedCommandMenu,
 	registerAudioEditorHooks,
 	seekOnRuler,
 	showToolbarButton,
@@ -127,8 +128,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			await expect(analyzerPanel).toHaveCount(0);
 		}
 
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels']);
-		const panelsMenu = page.getByRole('menu', { name: 'Panels', exact: true });
+		const panelsMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
 		for (const analyzerName of ['Analysis', 'Plot spectrum', 'Find clipping', 'Contrast', 'EBU R 128']) {
 			await expect(panelsMenu.getByRole('menuitem', { name: analyzerName, exact: true })).toHaveCount(0);
 		}

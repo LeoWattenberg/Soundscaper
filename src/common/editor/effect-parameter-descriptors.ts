@@ -26,6 +26,8 @@ import {
 } from './parameter-address.ts';
 
 const DEFAULT_SAMPLE_RATE = 48_000;
+const WORKLET_PARAMETER_AUTOMATION_BLOCK_REASON =
+	'This worklet parameter cannot be automated until its processor consumes the bounded schedule-parameter-v1 frame-offset queue.';
 
 interface EffectLike {
 	readonly id?: unknown;
@@ -80,6 +82,7 @@ export function effectParameterInventory(
 	const type = String(effect.type);
 	const rate = positiveSampleRate(sampleRate);
 	const latencyFrames = effectLatency(type, effect.params, rate);
+	const workletQueueBlocked = workletBackedWithoutParameterQueue(type);
 	const tailFrames = effectTailFrames(effect, rate);
 	const descriptors: ParameterDescriptor[] = [];
 	const revisionInputs: ParameterRevisionInput[] = [];
@@ -102,7 +105,7 @@ export function effectParameterInventory(
 			? 'This parameter changes effect latency and requires a graph rebuild.'
 			: explicitlyBlocked && typeof definition.automationBlockReason === 'string'
 				? definition.automationBlockReason
-				: undefined;
+				: workletQueueBlocked ? WORKLET_PARAMETER_AUTOMATION_BLOCK_REASON : undefined;
 		descriptors.push(Object.freeze({
 			id: canonicalParameterAddressKey(address),
 			address,
@@ -113,7 +116,7 @@ export function effectParameterInventory(
 			step: stepOf(definition),
 			taper: taperOf(definition, minimum),
 			automationTolerance: toleranceOf(definition, minimum, maximum),
-			automatable: !latencyChanging && !explicitlyBlocked,
+			automatable: !latencyChanging && !explicitlyBlocked && !workletQueueBlocked,
 			...(automationBlockReason ? { automationBlockReason } : {}),
 			latencyFrames,
 			tailFrames,
@@ -206,6 +209,11 @@ export function effectParameterInventory(
 		add(parameterId, range.metadata, range.minimum, range.maximum, defaultValue);
 	}
 	return frozenInventory(descriptors, revisionInputs);
+}
+
+function workletBackedWithoutParameterQueue(type: string): boolean {
+	return type === 'eq' || type === 'limiter' || type === 'gate' || type === 'delay'
+		|| isAudacityRackEffectType(type);
 }
 
 export function stripParameterDescriptor(

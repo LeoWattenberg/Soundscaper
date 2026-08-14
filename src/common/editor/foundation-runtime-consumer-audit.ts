@@ -174,6 +174,10 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'The command transaction brands a verified transient draft and is an edit adapter rather than a runtime consumer.',
 	},
 	{
+		file: 'src/common/editor/commands/mutation-transaction.ts',
+		reason: 'The shared mutation transaction verifies and brands a caller-owned command draft before applying registered edit handlers; it is not a runtime media consumer.',
+	},
+	{
 		file: 'src/common/editor/commands/track-lock-admission.ts',
 		reason: 'The command invariant compares protected resolved timing across transient and persisted authority domains; it does not serve runtime media consumers.',
 	},
@@ -503,11 +507,11 @@ export const FOUNDATION_RUNTIME_CONSUMER_SURFACES: readonly FoundationRuntimeCon
 		id: 'framescaper-edit-control-menus',
 		surface: 'timeline',
 		file: 'src/common/editor/ui/framescaper-edit-control-menu-model.ts',
-		entryPoint: 'createFramescaperEditControlMenuModel',
-		inputIdentifier: 'persistedProject',
-		projectedIdentifier: 'project',
+		entryPoint: 'projectForLinkedControls',
+		inputIdentifier: 'project',
+		projectedIdentifier: null,
 		boundary: 'projectForRuntimeConsumers',
-		evidence: 'Framescaper linked-audio menu admission compares clip endpoints only after the selected document crosses the shared runtime projection boundary.',
+		evidence: 'Framescaper linked-audio menu admission crosses the shared runtime projection boundary after removing only V19’s validated-empty unavailable annotation carrier.',
 	},
 	{
 		id: 'waveform-visible-clips',

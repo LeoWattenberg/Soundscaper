@@ -10,10 +10,7 @@ import {
 } from '../edit-blocking.ts';
 
 import { trackSourceRate } from '../application-menu-model.js';
-import {
-	loadPlaybackMeterSettings,
-	loadRecordingMeterSettings,
-} from '../meter-settings.ts';
+import { loadPlaybackMeterSettings, loadRecordingMeterSettings } from '../meter-settings.ts';
 import EditorToolToolbar from '../toolbar/EditorToolToolbar.jsx';
 import AudioEditorWorkspaceView from './AudioEditorWorkspaceView.jsx';
 import { withDesktopProjectReadDescriptor } from './desktop-project-file-routing.ts';
@@ -24,14 +21,11 @@ import { useDesktopEditorBridge } from './useDesktopEditorBridge.js';
 import { useScapeOpenDecisionContinuation } from './useScapeOpenDecisionContinuation.ts';
 import { useWorkspaceParityRequests } from './useWorkspaceParityRequests.js';
 import { useWorkspaceSearchRuntime } from './useWorkspaceSearchRuntime.js';
+import { useSoundscaperProductionWorkspace } from './useSoundscaperProductionWorkspace.ts';
 import { createWorkspaceApplicationMenus } from './workspace-application-menu-runtime.js';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
 import { partitionWorkspaceFiles } from './workspace-file-routing.js';
-import {
-	desktopExternalDestination,
-	formatDateTimeLocalInput,
-	useMediaQuery,
-} from '../workspace-runtime.js';
+import { desktopExternalDestination, formatDateTimeLocalInput, useMediaQuery } from '../workspace-runtime.js';
 
 export default function AudioEditorWorkspace({
 	locale,
@@ -266,6 +260,7 @@ export default function AudioEditorWorkspace({
 		}
 		setActiveSurface(surface);
 	}, [setActiveSurface]);
+	const soundscaperProduction = useSoundscaperProductionWorkspace({ productId, controller, project, selectedTrackId: snapshot.selectedTrackId, openSurface });
 
 	const openEffects = useCallback((trackId, _anchorRect = null, scope = 'track') => {
 		if (!trackId && scope !== 'master') return;
@@ -437,6 +432,7 @@ export default function AudioEditorWorkspace({
 		setNyquistTarget,
 		setShowArmControls,
 		showArmControls,
+		soundscaperProduction,
 		snapshot,
 		toggleFullscreen,
 		toggleRecording,
@@ -579,6 +575,7 @@ export default function AudioEditorWorkspace({
 		setShowArmControls,
 		settleScapeOpenDecision,
 		showArmControls,
+		soundscaperProduction,
 		snapshot,
 		statusMessage,
 		statusState,

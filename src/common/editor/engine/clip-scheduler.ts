@@ -36,6 +36,8 @@ import type {
 	EngineSourceResolver,
 	UnknownRecord,
 } from './types.ts';
+import { scheduleProjectAutomationLanesV21 } from './project-automation-scheduler-v21.ts';
+import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 
 const STREAM_RESAMPLE_RADIUS = 24;
 
@@ -98,6 +100,7 @@ export interface ScheduleProjectClipsOptions {
 	readonly trackInputs: ReadonlyMap<string, AudioNode>;
 	readonly trackGainParams?: ReadonlyMap<string, ScheduledGainParam>;
 	readonly projectGainParams?: ProjectGainParams | null;
+	readonly parameterRegistry?: ScheduledParameterRegistry | null;
 	readonly fromFrame: number;
 	readonly toFrame: number;
 	readonly contextStartTime: number;
@@ -132,6 +135,7 @@ export async function scheduleProjectClips({
 	trackInputs,
 	trackGainParams = new Map(),
 	projectGainParams = null,
+	parameterRegistry = null,
 	fromFrame,
 	toFrame,
 	contextStartTime,
@@ -228,6 +232,15 @@ export async function scheduleProjectClips({
 		contextStartTime: actualContextStartTime,
 		sampleRate,
 		transportRate,
+	});
+	if (parameterRegistry) scheduleProjectAutomationLanesV21(project, parameterRegistry, {
+		fromFrame,
+		toFrame,
+		contextStartTime: actualContextStartTime,
+		sampleRate,
+		contextSampleRate: context.sampleRate || sampleRate,
+		transportRate,
+		tempoMap: project.tempoMap,
 	});
 	for (const plan of plans) {
 		if (!plan.originalBuffer) continue;

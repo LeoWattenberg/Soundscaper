@@ -9,6 +9,9 @@ import { snapshotInertEditorCommand } from '../commands/editor-command-snapshot.
 
 export interface EditorCommandCapabilities {
 	readonly audioEffects: boolean;
+	readonly audioAutomation?: boolean;
+	readonly audioMixerGraph?: boolean;
+	readonly audioTrackFreeze?: boolean;
 	readonly audioRecording: boolean;
 	readonly audioSpectralEditing: boolean;
 	readonly audioWarp: boolean;
@@ -99,6 +102,15 @@ function assertCommandCapabilities(
 	}
 	if (!capabilities.audioEffects && command.type.startsWith('effect/')) {
 		unsupported(productName, 'audioEffects');
+	}
+	if (!capabilities.audioAutomation && command.type.startsWith('automation-lane/')) {
+		unsupported(productName, 'audioAutomation');
+	}
+	if (!capabilities.audioMixerGraph && command.type.startsWith('mixer-graph/')) {
+		unsupported(productName, 'audioMixerGraph');
+	}
+	if (!capabilities.audioTrackFreeze && command.type.startsWith('audio-freeze/')) {
+		unsupported(productName, 'audioTrackFreeze');
 	}
 	if (!capabilities.videoEffects && command.type === 'clip/update'
 		&& hasOwn(command.changes, 'videoEffects')) {

@@ -11,7 +11,10 @@ import {
 	type ProjectFeatureRequirementsManifest,
 } from './project-feature-requirements.ts';
 import { AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION } from './project-schema-version.ts';
-import { validateProjectV9Document } from './project-v9-document-validation.ts';
+import {
+	validateProjectV9Document,
+	type ProjectV9AudioAuthorityValidation,
+} from './project-v9-document-validation.ts';
 import { projectRecord, projectUniqueStrings } from './project-v9-validation-primitives.ts';
 import {
 	admitAudioEditorProjectV9ValidationStructure,
@@ -99,6 +102,7 @@ export function validateAudioEditorFolderHierarchyDocument(
 	project: unknown,
 	expectedSchemaVersion: number,
 	options: AudioEditorProjectV12ValidationOptions = {},
+	audioAuthority: ProjectV9AudioAuthorityValidation = {},
 ): project is AudioEditorProjectV12 {
 	const limits = resolveAudioEditorProjectV9ValidationLimits(options.limits ?? {});
 	admitAudioEditorProjectV9ValidationStructure(project, limits);
@@ -110,7 +114,7 @@ export function validateAudioEditorFolderHierarchyDocument(
 		|| Object.hasOwn(candidate, 'trackFolderStateProjectionVersion')) {
 		throw new RangeError('A persisted project cannot contain a runtime projection marker.');
 	}
-	const { metadata, media } = validateProjectV9Document(candidate);
+	const { metadata, media } = validateProjectV9Document(candidate, audioAuthority);
 	validateProjectBextMetadata(metadata);
 	if (metadata.ixml != null) normalizeIxmlMetadata(metadata.ixml as IxmlMetadataInput);
 	if (metadata.cart != null) normalizeCartMetadata(metadata.cart as CartMetadataInput);

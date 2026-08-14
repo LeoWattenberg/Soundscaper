@@ -10,8 +10,9 @@ import {
 	chooseNestedCommandAction,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
-import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
+import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
@@ -56,8 +57,8 @@ test.describe('milestone 2 browser storage durability', () => {
 	});
 
 	test('opfs-quota-refusal preserves the project or uses the IndexedDB fallback', async ({ page }) => {
-		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 		test.setTimeout(60_000);
+		await installPinnedFfmpegRuntimeRoutes(page);
 		let wrappedWorkerRequests = 0;
 		await page.route(/\/assets\/opfs-sync-worker-[^/?]+\.js(?:\?.*)?$/u, async (route) => {
 			wrappedWorkerRequests += 1;
@@ -76,7 +77,7 @@ test.describe('milestone 2 browser storage durability', () => {
 		});
 
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
-		const fixture = await generatedVideoFixture(page);
+		const fixture = createDeterministicAvFixture('m2-opfs-quota.webm');
 		await editor.locator('[data-import-input]').setInputFiles(fixture);
 		await expect.poll(async () => {
 			const clipCount = Number(await editor.getAttribute('data-clip-count'));
@@ -173,64 +174,6 @@ async function exportProject(page, editor) {
 	const archive = await readFile(path);
 	await download.delete();
 	return archive;
-}
-
-async function generatedVideoFixture(page) {
-	const base64 = await page.evaluate(async () => {
-		const canvas = document.createElement('canvas');
-		canvas.width = 96;
-		canvas.height = 54;
-		const context = canvas.getContext('2d');
-		const videoStream = canvas.captureStream(15);
-		const audioContext = new AudioContext({ sampleRate: 48_000 });
-		const oscillator = audioContext.createOscillator();
-		const gain = audioContext.createGain();
-		const audioDestination = audioContext.createMediaStreamDestination();
-		oscillator.frequency.value = 330;
-		gain.gain.value = 0.06;
-		oscillator.connect(gain).connect(audioDestination);
-		oscillator.start();
-		await audioContext.resume();
-		const stream = new MediaStream([
-			...videoStream.getVideoTracks(),
-			...audioDestination.stream.getAudioTracks(),
-		]);
-		const recorder = new MediaRecorder(stream, {
-			mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-				? 'video/webm;codecs=vp8,opus'
-				: MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-					? 'video/webm;codecs=vp8'
-				: 'video/webm',
-			videoBitsPerSecond: 120_000,
-		});
-		const chunks = [];
-		recorder.addEventListener('dataavailable', (event) => {
-			if (event.data.size) chunks.push(event.data);
-		});
-		const stopped = new Promise((resolve) => recorder.addEventListener('stop', resolve, { once: true }));
-		recorder.start();
-		for (let frame = 0; frame < 16; frame += 1) {
-			context.fillStyle = frame % 2 ? '#245fce' : '#d92f45';
-			context.fillRect(0, 0, canvas.width, canvas.height);
-			context.fillStyle = '#ffffff';
-			context.fillRect(frame * 5, 20, 12, 12);
-			await new Promise((resolve) => setTimeout(resolve, 65));
-		}
-		recorder.stop();
-		await stopped;
-		stream.getTracks().forEach((track) => track.stop());
-		oscillator.stop();
-		await audioContext.close();
-		const bytes = new Uint8Array(await new Blob(chunks, { type: 'video/webm' }).arrayBuffer());
-		let binary = '';
-		for (const byte of bytes) binary += String.fromCharCode(byte);
-		return btoa(binary);
-	});
-	return {
-		name: 'm2-opfs-quota.webm',
-		mimeType: 'video/webm',
-		buffer: Buffer.from(base64, 'base64'),
-	};
 }
 
 async function persistedSourceStorageKinds(page) {

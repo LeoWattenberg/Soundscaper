@@ -23,7 +23,10 @@ import { createTrackFoldersV12, type TrackFolderV12Options } from '../src/common
 import { createTrackHierarchyV12 } from '../src/common/editor/track-hierarchy-v12.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import { resolveActiveVideoLayers } from '../src/common/editor/video-timeline.js';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 
 type DataRecord = Record<string, unknown>;
 
@@ -75,6 +78,17 @@ test('transient V12 media projection flattens folder state without mutating loca
 	assert.equal(track(cloned, 'nested-muted').mute, true);
 	assert.equal(project.trackFolders[0]?.collapsed, true, 'collapse stays a UI-only local flag');
 	assert.equal(project.trackFolders[0]?.height, 320, 'folder height stays a UI-only local value');
+});
+
+test('transient folder media projection preserves inherited audibility on exact Soundscaper V21', () => {
+	const current = audioFolderProject({ branch: { solo: true }, muted: { mute: true } });
+	const project = { ...current, schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION };
+	const projected = projectTrackFolderMediaStateV12(project);
+	assert.notStrictEqual(projected, project);
+	assert.equal(track(projected, 'selected').solo, true);
+	assert.equal(track(projected, 'nested-muted').mute, true);
+	assert.equal(track(projected, 'outside').solo, false);
+	assert.equal(isTrackFolderMediaStateProjectionV12(projected), true);
 });
 
 test('only exact V12 privately branded projections can bypass folder traversal', () => {

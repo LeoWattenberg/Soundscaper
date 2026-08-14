@@ -11,7 +11,11 @@ import {
 
 import { createUnreportedVideoSourceCharacteristics } from '../../src/common/editor/video-source-characteristics.ts';
 import { resolveRuntimeClipProjection } from '../../src/common/editor/runtime-clip-projection.ts';
-import { validateCurrentAudioEditorProject } from '../../src/common/editor/project-current.ts';
+import {
+	FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+} from '../../src/framescaper/editor-project-runtime-profile-v19.ts';
+import { validateFramescaperProjectV19 } from '../../src/framescaper/editor-project-v19-validation.ts';
+import { validateSoundscaperProjectV21 } from '../../src/soundscaper/editor-project-v21-validation.ts';
 
 import {
 	asymmetricStereoTone,
@@ -27,10 +31,10 @@ import {
 	collectClientErrors,
 	importFiles,
 	registerAudioEditorHooks,
-	trackNameText,
 } from './audio-editor-test-helpers.js';
 import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import { promoteFramescaperArchiveToSoundscaperV21 } from './helpers/scape-exact-project-fixtures.js';
 
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 const PRODUCT_PATHS = {
@@ -56,31 +60,35 @@ const VIDEO_EFFECT = {
 
 const WORKFLOWS = [{
 	id: 'audio-whole-mix-web-roundtrip',
-	origin: 'soundscaper',
+	origin: 'framescaper',
 	recipient: 'framescaper',
 	kind: 'audio',
 	role: 'project-audio-mix-v1',
+	schemaVersion: 19,
 }, {
 	id: 'audio-track-render-web-roundtrip',
-	origin: 'soundscaper',
+	origin: 'framescaper',
 	recipient: 'framescaper',
 	kind: 'audio',
 	role: 'audio-track-render-v1',
+	schemaVersion: 19,
 }, {
 	id: 'video-full-project-web-roundtrip',
-	origin: 'framescaper',
+	origin: 'soundscaper',
 	recipient: 'soundscaper',
 	kind: 'video',
 	role: 'project-video-render-v1',
+	schemaVersion: 21,
 }, {
 	id: 'video-clip-render-web-roundtrip',
-	origin: 'framescaper',
+	origin: 'soundscaper',
 	recipient: 'soundscaper',
 	kind: 'video',
 	role: 'video-clip-render-v1',
+	schemaVersion: 21,
 }];
 
-test.describe('rendered-fallback Scape return roundtrips', () => {
+test.describe('exact-product rendered-fallback Scape return roundtrips', () => {
 	registerAudioEditorHooks();
 
 	for (const workflow of WORKFLOWS) {
@@ -88,13 +96,15 @@ test.describe('rendered-fallback Scape return roundtrips', () => {
 			if (workflow.kind === 'video') test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 			test.setTimeout(120_000);
 			await installPinnedFfmpegRuntimeRoutes(page);
-			const origin = await bootEditor(page, PRODUCT_PATHS[workflow.origin]);
+			const fixtureProduct = workflow.kind === 'video' ? 'framescaper' : workflow.origin;
+			const origin = await bootEditor(page, PRODUCT_PATHS[fixtureProduct]);
 			const originErrors = collectClientErrors(page);
 			const base = workflow.kind === 'audio'
 				? { archive: await createAudioBaseArchive(page, origin), fallback: null }
 				: await createVideoBaseArchive(page, origin, workflow.id);
 			const outboundArchive = await renderedFallbackArchive(base.archive, workflow, base.fallback);
 			const outbound = await inspectScapeArchive(outboundArchive);
+			expect(outbound.project.schemaVersion).toBe(workflow.schemaVersion);
 
 			const baseURL = new URL(page.url()).origin;
 			const runtimes = [];
@@ -115,22 +125,15 @@ test.describe('rendered-fallback Scape return roundtrips', () => {
 				const home = await openProductRuntime(browser, baseURL, workflow.origin);
 				runtimes.push(home);
 				const homeErrors = collectClientErrors(home.page);
+				if (workflow.kind === 'audio') await installAudioScheduleProbe(home.page);
 				await openScapeArchive(home.editor, returningArchive, `${workflow.id}-return.scape`);
-				await expect(home.editor).toHaveAttribute('data-project-id', outbound.project.id, {
-					timeout: 20_000,
-				});
-				await expect(home.editor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
-				await expect(home.editor.locator('[data-project-feature-compatibility]')).toHaveCount(0);
-				await renameFirstTrack(home.editor, `${workflow.id} editable`);
-				await expect(home.editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
-				const edited = await inspectScapeArchive(await exportScapeArchive(home.page, home.editor));
-				expect(edited.assets).toEqual(outbound.assets);
-				expect(edited.project.sources).toEqual(outbound.project.sources);
-				expect(edited.project.clips).toEqual(outbound.project.clips);
-				expect(edited.project.featureRequirements).toEqual(outbound.project.featureRequirements);
-				expect(edited.project.opaqueExtensions).toEqual(outbound.project.opaqueExtensions);
-				expect(normalizeTrackNames(edited.project.tracks, outbound.project.tracks))
-					.toEqual(outbound.project.tracks);
+				await acceptReadOnlyFallback(home, workflow, outbound.project.id);
+				await assertFallbackPlayback(home, workflow);
+				const returnedAgain = await inspectScapeArchive(
+					await exportScapeArchive(home.page, home.editor),
+				);
+				expect(returnedAgain.project).toEqual(outbound.project);
+				expect(returnedAgain.assets).toEqual(outbound.assets);
 
 				expect(originErrors).toEqual([]);
 				expect(recipientErrors).toEqual([]);
@@ -158,13 +161,24 @@ async function createAudioBaseArchive(page, editor) {
 }
 
 async function createVideoBaseArchive(page, editor, id) {
-	const canonical = await createGeneratedVideoFixture(page, `${id}-canonical.webm`);
-	const fallback = await createGeneratedVideoFixture(page, `${id}-fallback.webm`, { withAudio: false });
+	const canonical = await createGeneratedVideoFixture(page, `${id}-canonical.webm`, {
+		variant: 'canonical',
+		withAudio: false,
+	});
+	const fallback = await createGeneratedVideoFixture(page, `${id}-fallback.webm`, {
+		variant: 'fallback',
+		withAudio: false,
+	});
 	await importFiles(editor, [canonical]);
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
 		timeout: 10_000,
 	});
-	return { archive: await exportScapeArchive(page, editor), fallback };
+	const v19Archive = await exportScapeArchive(page, editor);
+	const archive = await promoteFramescaperArchiveToSoundscaperV21(v19Archive, {
+		id: `${id}-base`,
+		title: `${id} base`,
+	}, rewriteArchive);
+	return { archive, fallback };
 }
 
 async function renderedFallbackArchive(input, workflow, fallbackFixture) {
@@ -239,7 +253,17 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 				track.clipIds = track.clipIds.filter((id) => !fallbackClipIds.has(id));
 			}
 		}
-		project.tracks = project.tracks.filter((track) => track.type === 'label' || track.clipIds.length > 0);
+		if (fallbackClipIds.size > 0) {
+			const retainedLaneGroupIds = new Set(project.tracks
+				.filter((track) => track.type !== 'label' && track.clipIds.length > 0)
+				.map(({ laneGroupId }) => laneGroupId)
+				.filter((laneGroupId) => typeof laneGroupId === 'string'));
+			project.tracks = project.tracks.filter((track) => (
+				track.type === 'label'
+				|| track.clipIds.length > 0
+				|| retainedLaneGroupIds.has(track.laneGroupId)
+			));
+		}
 		const retainedTrackIds = new Set(project.tracks.map(({ id }) => id));
 		for (const sequence of project.sequences) {
 			sequence.trackIds = sequence.trackIds.filter((id) => retainedTrackIds.has(id));
@@ -295,7 +319,14 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 				},
 			}],
 		};
-		validateCurrentAudioEditorProject(project);
+		if (project.schemaVersion !== workflow.schemaVersion) {
+			throw new Error(`${workflow.id} requires exact schema ${String(workflow.schemaVersion)}.`);
+		}
+		if (workflow.schemaVersion === 19) {
+			validateFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, project);
+		} else {
+			validateSoundscaperProjectV21(project);
+		}
 	});
 }
 
@@ -386,23 +417,6 @@ async function openScapeArchive(editor, archive, name) {
 	});
 }
 
-async function renameFirstTrack(editor, name) {
-	const closeVideoPreview = editor.getByRole('button', { name: 'Close: Video preview', exact: true });
-	if (await closeVideoPreview.isVisible()) await closeVideoPreview.click();
-	const label = trackNameText(editor).first();
-	await label.dblclick();
-	const input = editor.locator('[data-track-name] input');
-	await expect(input).toBeFocused();
-	await input.fill(name);
-	await input.press('Enter');
-	await expect(label, `Editor status: ${await editor.locator('[data-status]').textContent()}`).toHaveText(name);
-}
-
-function normalizeTrackNames(tracks, expectedTracks) {
-	const expectedNames = new Map(expectedTracks.map(({ id, name }) => [id, name]));
-	return tracks.map((track) => ({ ...track, name: expectedNames.get(track.id) }));
-}
-
 async function rewriteArchive(input, mutate) {
 	const reader = new ZipReader(new BlobReader(new Blob([input])), { useWebWorkers: false });
 	const entries = await reader.getEntries();
@@ -486,8 +500,11 @@ async function installAudioScheduleProbe(page) {
 	});
 }
 
-async function createGeneratedVideoFixture(page, name, { withAudio = true } = {}) {
-	const base64 = await page.evaluate(async (includeAudio) => {
+async function createGeneratedVideoFixture(page, name, {
+	variant = 'canonical',
+	withAudio = true,
+} = {}) {
+	const base64 = await page.evaluate(async ({ includeAudio, fixtureVariant }) => {
 		const canvas = document.createElement('canvas');
 		canvas.width = 96;
 		canvas.height = 54;
@@ -532,9 +549,9 @@ async function createGeneratedVideoFixture(page, name, { withAudio = true } = {}
 		const stopped = new Promise((resolve) => recorder.addEventListener('stop', resolve, { once: true }));
 		recorder.start();
 		for (let frame = 0; frame < 8; frame += 1) {
-			drawing.fillStyle = '#1d4ed8';
+			drawing.fillStyle = fixtureVariant === 'fallback' ? '#7c2d12' : '#1d4ed8';
 			drawing.fillRect(0, 0, canvas.width, canvas.height);
-			drawing.fillStyle = '#fbbf24';
+			drawing.fillStyle = fixtureVariant === 'fallback' ? '#67e8f9' : '#fbbf24';
 			drawing.fillRect(frame * 10, 20, 18, 14);
 			await new Promise((resolve) => setTimeout(resolve, 65));
 		}
@@ -547,6 +564,6 @@ async function createGeneratedVideoFixture(page, name, { withAudio = true } = {}
 		let binary = '';
 		for (const byte of bytes) binary += String.fromCharCode(byte);
 		return btoa(binary);
-	}, withAudio);
+	}, { includeAudio: withAudio, fixtureVariant: variant });
 	return { name, mimeType: 'video/webm', buffer: Buffer.from(base64, 'base64') };
 }

@@ -91,6 +91,7 @@ export interface ProjectSourceReference {
 	readonly height?: unknown;
 	readonly frameRate?: unknown;
 	readonly hasAudio?: unknown;
+	readonly contentSha256?: unknown;
 }
 
 export interface ProjectTimelineClipReference {
@@ -111,6 +112,7 @@ export interface ProjectTrackReference {
 	readonly effectsActive?: unknown;
 	readonly effects?: unknown;
 	readonly clipIds?: unknown;
+	readonly audioFreeze?: unknown;
 }
 
 export interface NormalizeProjectFeatureRequirementsOptions {

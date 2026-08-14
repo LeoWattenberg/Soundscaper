@@ -3,6 +3,8 @@
 import type { NormalizedLoop, PlanarPcm } from './buffer-math.ts';
 import type { EffectSpectrumMetadata } from './effect-rack.ts';
 import type { AudioWarpRenderPathStatus } from '../audio-warp-runtime.ts';
+import type { SessionLoudnessHistorySnapshot } from '../production-audio/loudness-history-session.ts';
+import type { StripMeterSnapshot } from '../production-audio/strip-meter-session.ts';
 import type {
 	EngineChunkSource,
 	EngineLoop,
@@ -61,6 +63,8 @@ export interface EngineMeterSnapshot {
 	readonly tracks: Readonly<Record<string, EngineMeterReading>>;
 	readonly groups: Readonly<Record<string, EngineMeterReading>>;
 	readonly sends: Readonly<Record<string, EngineMeterReading>>;
+	readonly productionMeters?: readonly StripMeterSnapshot[];
+	readonly productionLoudnessHistory?: SessionLoudnessHistorySnapshot;
 }
 
 export interface EngineProgress {
@@ -187,6 +191,7 @@ export interface EnginePublicApi {
 	subscribeMeters(listener: (meter: EngineMeterSnapshot) => void): () => boolean | void;
 	subscribeState(listener: (state: string) => void): () => boolean | void;
 	subscribeParametricEqErrors(listener: (error: unknown) => void): () => boolean | void;
+	previewScheduledParameter(address: unknown, value: number): boolean;
 	configureRackEffect(scope: EngineEffectScope, targetId: unknown, effectId: string, params: UnknownRecord, options?: EngineEffectMessageOptions): number | false;
 	configureParametricEq(scope: EngineEffectScope, targetId: unknown, effectId: string, params: UnknownRecord, options?: EngineEffectMessageOptions): number | false;
 	auditionParametricEq(scope: EngineEffectScope, targetId: unknown, effectId: string, bandId?: string | null): number | false;

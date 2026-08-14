@@ -8,7 +8,10 @@ import {
 	verifyProjectFallbackIntegrity,
 	type ProjectAudioFallbackIntegritySelector,
 } from '../src/common/editor/project-fallback-integrity.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 
 const AUDIO_CHUNKS = Object.freeze([
 	chunk(0, [Float32Array.of(0.25, -0.5), Float32Array.of(0.75, -1)]),
@@ -28,7 +31,9 @@ const AUDIO_SELECTOR: ProjectAudioFallbackIntegritySelector = Object.freeze({
 test('selected audio verifies only its exact canonical body and exposes a private provider', async () => {
 	let audioScans = 0;
 	let videoReads = 0;
-	const admission = await verifyProjectFallbackIntegrity(fallbackProject(), {
+	const candidate = fallbackProject();
+	candidate.schemaVersion = FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION;
+	const admission = await verifyProjectFallbackIntegrity(candidate, {
 		async *readSourceChunks(sourceId) {
 			assert.equal(sourceId, 'audio-storage');
 			audioScans += 1;

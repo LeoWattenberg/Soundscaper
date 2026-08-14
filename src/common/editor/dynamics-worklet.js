@@ -15,13 +15,14 @@ export class DynamicsProcessor extends (globalThis.AudioWorkletProcessor || clas
 
 	process(inputs, outputs) {
 		const input = inputs[0] || [];
+		const detector = inputs[1]?.length ? inputs[1] : input;
 		const output = outputs[0] || [];
-		if (this.type === 'limiter') this.processLimiter(input, output);
-		else this.processGate(input, output);
+		if (this.type === 'limiter') this.processLimiter(input, detector, output);
+		else this.processGate(input, detector, output);
 		return true;
 	}
 
-	processGate(input, output) {
+	processGate(input, detectorInput, output) {
 		const frames = output[0]?.length || 0;
 		const threshold = dbToGain(this.params.threshold ?? -50);
 		const closedGain = dbToGain(this.params.rangeDb ?? -80);
@@ -30,7 +31,7 @@ export class DynamicsProcessor extends (globalThis.AudioWorkletProcessor || clas
 		const hold = Math.max(0, Math.round((this.params.hold || 0) * globalThis.sampleRate));
 		for (let frame = 0; frame < frames; frame += 1) {
 			let detector = 0;
-			for (const channel of input) detector = Math.max(detector, Math.abs(channel[frame] || 0));
+			for (const channel of detectorInput) detector = Math.max(detector, Math.abs(channel[frame] || 0));
 			if (detector >= threshold) this.holdFrames = hold;
 			else if (this.holdFrames > 0) this.holdFrames -= 1;
 			const target = detector >= threshold || this.holdFrames > 0 ? 1 : closedGain;
@@ -40,7 +41,7 @@ export class DynamicsProcessor extends (globalThis.AudioWorkletProcessor || clas
 		}
 	}
 
-	processLimiter(input, output) {
+	processLimiter(input, detectorInput, output) {
 		const frames = output[0]?.length || 0;
 		const ceiling = dbToGain(this.params.ceiling ?? -1);
 		const release = coefficient(this.params.release ?? 0.1);
@@ -51,8 +52,8 @@ export class DynamicsProcessor extends (globalThis.AudioWorkletProcessor || clas
 			for (let channel = 0; channel < output.length; channel += 1) {
 				const sample = input[channel]?.[frame] || 0;
 				this.rings[channel][this.writeIndex] = sample;
-				peak = Math.max(peak, Math.abs(sample));
 			}
+			for (const channel of detectorInput) peak = Math.max(peak, Math.abs(channel[frame] || 0));
 			const target = peak > ceiling && peak > 0 ? ceiling / peak : 1;
 			this.envelope = target < this.envelope ? target : 1 + release * (this.envelope - 1);
 			const readIndex = (this.writeIndex + 1) % ringLength;

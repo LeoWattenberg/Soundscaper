@@ -12,25 +12,27 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
+import { FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
 import { asymmetricStereoTone, expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
-	addRackEffect,
 	bootEditor,
 	chooseCommandAction,
 	chooseFileAction,
 	clipByName,
-	closeEffectsPanel,
 	collectClientErrors,
 	importFiles,
-	openEffectsForTrack,
 	registerAudioEditorHooks,
 	stubStorageEstimate,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import {
+	createScapePcmPayload,
+	promoteFramescaperArchiveToSoundscaperV21,
+	publisherRequirementManifest,
+} from './helpers/scape-exact-project-fixtures.js';
 
 const SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES = 32 * 1024 * 1024;
 const OVERSIZED_FALLBACK_FRAME_COUNT = SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES
@@ -49,7 +51,7 @@ test.describe('Scape open feature decisions', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const originalId = await editor.getAttribute('data-project-id');
 		await expect(editor.locator('[data-project-feature-compatibility]')).toHaveCount(0);
-		await importFiles(editor, [toneA]);
+		await importFiles(editor, [asymmetricStereoTone]);
 		const exported = await captureScapeArchive(page, editor);
 		const incomingId = `${originalId}-incompatible`;
 		const archive = await incompatibleArchive(exported, {
@@ -107,8 +109,7 @@ test.describe('Scape open feature decisions', () => {
 		await expect(rendered).toContainText('Unknown · Rendered fallback declared');
 		await expect(rendered).toHaveAttribute('data-declared-disposition', 'rendered-fallback');
 		await expect(rendered).toHaveAttribute('data-effective-disposition', 'rendered-fallback');
-		await expect(rendered.locator('[data-project-feature-audio-rendered-fallback]'))
-			.toHaveText('Rendered fallback active during editor playback');
+		await expect(rendered.locator('[data-project-feature-audio-rendered-fallback]')).toHaveCount(0);
 		await expect(notice.getByRole('button')).toHaveCount(0);
 		await expect(notice).not.toContainText(/plug-?in|third-party|feature code/iu);
 		await notice.focus();
@@ -135,7 +136,7 @@ test.describe('Scape open feature decisions', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const originalId = await editor.getAttribute('data-project-id');
-		await importFiles(editor, [toneA]);
+		await importFiles(editor, [asymmetricStereoTone]);
 		const exported = await captureScapeArchive(page, editor);
 		const archive = await incompatibleArchive(exported, {
 			id: originalId,
@@ -160,55 +161,57 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens Soundscaper rack effects in Framescaper as persistent control-free bypass placeholders', async ({ page }) => {
+	test('opens exact V19 audio rack effects as persistent control-free bypass placeholders', async ({ page }) => {
 		const errors = collectClientErrors(page);
-		const soundscaper = await bootEditor(page, '/embed/en/');
-		await expect(soundscaper).toHaveAttribute('data-product', 'soundscaper');
-		const originalId = await soundscaper.getAttribute('data-project-id');
+		const publisher = await bootEditor(page, '/framescaper/embed/en/');
+		await expect(publisher).toHaveAttribute('data-product', 'framescaper');
+		const originalId = await publisher.getAttribute('data-project-id');
 		expect(originalId).toBeTruthy();
-		await importFiles(soundscaper, [toneA]);
-		const effectsPanel = await openEffectsForTrack(soundscaper, 1);
-		await addRackEffect(page, effectsPanel, 'track', 'Invert');
-		await expect(effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: 'Invert' })).toHaveCount(1);
-		await closeEffectsPanel(effectsPanel);
+		await importFiles(publisher, [toneA]);
 
-		const exported = await captureScapeArchive(page, soundscaper);
-		const incomingId = `${originalId}-framescaper-audio-effect`;
+		const exported = await captureScapeArchive(page, publisher);
+		const incomingId = `${originalId}-audio-effect`;
 		const archive = await rewriteArchive(exported, ({ project }) => {
 			project.id = incomingId;
-			project.title = 'Soundscaper effect handoff';
+			project.title = 'Exact V19 audio effect';
+			const track = project.tracks.find((candidate) => candidate.type === 'audio');
+			if (!track) throw new Error('V19 audio-effect fixture requires an audio track.');
+			track.effectsActive = true;
+			track.effects = [{ id: 'fixture-invert', type: 'audacity-invert', enabled: true, params: {} }];
+			project.featureRequirements = publisherRequirementManifest(project, {
+				id: 'publisher-audio-effects',
+				featureId: 'org.soundscaper.capability.audio-effects',
+				displayName: 'Audio effects',
+				disposition: 'bypass',
+				fallback: null,
+			});
 		});
-		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
-		await expect(framescaper).toHaveAttribute('data-product', 'framescaper');
-		await setScapeInput(framescaper.locator('[data-aup4-input]'), archive);
+		const recipient = await bootEditor(page, '/framescaper/embed/en/');
+		await setScapeInput(recipient.locator('[data-aup4-input]'), archive);
 
 		const dialog = page.getByRole('dialog', { name: 'Project features unavailable', exact: true });
 		await expect(dialog).toHaveAttribute('data-scape-open-decision', 'compatibility');
 		await expect(dialog.getByText('Audio effects', { exact: true })).toBeVisible();
 		await dialog.getByRole('button', { name: 'Open read-only', exact: true }).click();
-		await expect(framescaper).toHaveAttribute('data-project-id', incomingId);
-		await expect(framescaper).toHaveAttribute('data-edit-block-reason', 'read-only');
+		await expect(recipient).toHaveAttribute('data-project-id', incomingId);
+		await expect(recipient).toHaveAttribute('data-edit-block-reason', 'read-only');
 
-		await assertAffectedInvertPlaceholder(framescaper);
+		await assertAffectedInvertPlaceholder(recipient);
 		expect(errors).toEqual([]);
 	});
 
-	test('plays an admitted Soundscaper audio-effects render in Framescaper', async ({ page }) => {
+	test('plays an admitted exact V19 audio-effects render in Framescaper', async ({ page }) => {
 		const errors = collectClientErrors(page);
-		const soundscaper = await bootEditor(page, '/embed/en/');
-		await expect(soundscaper).toHaveAttribute('data-product', 'soundscaper');
-		const originalId = await soundscaper.getAttribute('data-project-id');
+		const publisher = await bootEditor(page, '/framescaper/embed/en/');
+		const originalId = await publisher.getAttribute('data-project-id');
 		expect(originalId).toBeTruthy();
-		await importFiles(soundscaper, [toneA, asymmetricStereoTone]);
-		const effectsPanel = await openEffectsForTrack(soundscaper, 1);
-		await addRackEffect(page, effectsPanel, 'track', 'Invert');
-		await closeEffectsPanel(effectsPanel);
+		await importFiles(publisher, [toneA, asymmetricStereoTone]);
 
-		const exported = await captureScapeArchive(page, soundscaper);
-		const incomingId = `${originalId}-framescaper-audio-render`;
+		const exported = await captureScapeArchive(page, publisher);
+		const incomingId = `${originalId}-audio-render`;
 		const archive = await audioEffectsRenderedFallbackArchive(exported, {
 			id: incomingId,
-			title: 'Soundscaper rendered fallback handoff',
+			title: 'Exact V19 rendered fallback',
 			fallbackSourceName: asymmetricStereoTone.name,
 		});
 		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
@@ -250,23 +253,20 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('streams an oversized admitted Soundscaper audio-effects render in Framescaper', async ({ page }) => {
+	test('streams an oversized admitted exact V19 audio-effects render in Framescaper', async ({ page }) => {
 		test.setTimeout(120_000);
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const errors = collectClientErrors(page);
-		const soundscaper = await bootEditor(page, '/embed/en/');
-		const originalId = await soundscaper.getAttribute('data-project-id');
+		const publisher = await bootEditor(page, '/framescaper/embed/en/');
+		const originalId = await publisher.getAttribute('data-project-id');
 		expect(originalId).toBeTruthy();
-		await importFiles(soundscaper, [toneA, asymmetricStereoTone]);
-		const effectsPanel = await openEffectsForTrack(soundscaper, 1);
-		await addRackEffect(page, effectsPanel, 'track', 'Invert');
-		await closeEffectsPanel(effectsPanel);
+		await importFiles(publisher, [toneA, asymmetricStereoTone]);
 
-		const exported = await captureScapeArchive(page, soundscaper);
-		const incomingId = `${originalId}-framescaper-streamed-audio-render`;
+		const exported = await captureScapeArchive(page, publisher);
+		const incomingId = `${originalId}-streamed-audio-render`;
 		const archive = await audioEffectsRenderedFallbackArchive(exported, {
 			id: incomingId,
-			title: 'Soundscaper streamed fallback handoff',
+			title: 'Exact V19 streamed fallback',
 			fallbackSourceName: asymmetricStereoTone.name,
 			fallbackFrameCount: OVERSIZED_FALLBACK_FRAME_COUNT,
 		});
@@ -346,7 +346,7 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens Framescaper video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }, testInfo) => {
+	test('opens exact V21 video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(90_000);
 		await installPinnedFfmpegRuntimeRoutes(page);
@@ -378,10 +378,10 @@ test.describe('Scape open feature decisions', () => {
 		const exported = await captureScapeArchive(page, framescaper);
 		const originalFramescaperId = await framescaper.getAttribute('data-project-id');
 		const incomingId = `${originalFramescaperId}-soundscaper-video-effect`;
-		const archive = await rewriteArchive(exported, ({ project }) => {
-			project.id = incomingId;
-			project.title = 'Framescaper effect handoff';
-		});
+		const archive = await promoteFramescaperArchiveToSoundscaperV21(exported, {
+			id: incomingId,
+			title: 'Exact V21 video effect',
+		}, rewriteArchive);
 		const soundscaper = await bootEditor(page, '/embed/en/');
 		await expect(soundscaper).toHaveAttribute('data-product', 'soundscaper');
 		const originalSoundscaperId = await soundscaper.getAttribute('data-project-id');
@@ -404,7 +404,7 @@ test.describe('Scape open feature decisions', () => {
 		await page.keyboard.press('Enter');
 		await expect(soundscaper).toHaveAttribute('data-project-id', originalSoundscaperId);
 		await expect(soundscaper.locator('[data-project-feature-video-effect-placeholders]')).toHaveCount(0);
-		const incomingTab = soundscaper.getByRole('tab', { name: 'Framescaper effect handoff', exact: true });
+		const incomingTab = soundscaper.getByRole('tab', { name: 'Exact V21 video effect', exact: true });
 		await expect(incomingTab).toBeEnabled();
 		await incomingTab.focus();
 		await page.keyboard.press('Enter');
@@ -413,7 +413,7 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('preserves V16 retime curves only after explicit read-only consent', async ({ page }, testInfo) => {
+	test('preserves exact V21 retime curves only after explicit read-only consent', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(120_000);
 		await installPinnedFfmpegRuntimeRoutes(page);
@@ -422,28 +422,25 @@ test.describe('Scape open feature decisions', () => {
 		await importFiles(framescaper, [createDeterministicAvFixture('retime-preservation.webm')]);
 		const exported = await captureScapeArchive(page, framescaper);
 		let expectedCurve;
-		const archive = await rewriteArchive(exported, ({ project }) => {
-			project.id = `${project.id}-retime-handoff`;
-			project.title = 'V16 retime preservation';
-			const clip = project.clips.find((candidate) => candidate.kind === 'video');
-			if (!clip) throw new Error('V16 retime fixture requires a video clip.');
-			expectedCurve = {
-				feature: 'video-retime', version: 2,
-				points: [
-					{ outerFrame: 0, sourceFrame: { num: clip.sourceInFrame, den: 1 } },
-					{ outerFrame: clip.sequenceFrameCount, sourceFrame: {
-						num: clip.sourceInFrame + clip.sourceFrameCount, den: 1,
-					} },
-				],
-				segments: [{ mode: 'constant-forward' }],
-			};
-			clip.retimeMap = expectedCurve;
-			project.featureRequirements.requirements.push({
-				id: 'framescaper.video-retime',
-				featureId: 'org.soundscaper.capability.video-retime',
-				displayName: 'Video retime maps', disposition: 'bypass', fallback: null,
-			});
-		});
+		const archive = await promoteFramescaperArchiveToSoundscaperV21(exported, {
+			id: `${await framescaper.getAttribute('data-project-id')}-retime`,
+			title: 'Exact V21 retime preservation',
+			mutate(foundation) {
+				const clip = foundation.clips.find((candidate) => candidate.kind === 'video');
+				if (!clip) throw new Error('V21 retime fixture requires a video clip.');
+				expectedCurve = {
+					feature: 'video-retime', version: 2,
+					points: [
+						{ outerFrame: 0, sourceFrame: { num: clip.sourceInFrame, den: 1 } },
+						{ outerFrame: clip.sequenceFrameCount, sourceFrame: {
+							num: clip.sourceInFrame + clip.sourceFrameCount, den: 1,
+						} },
+					],
+					segments: [{ mode: 'constant-forward' }],
+				};
+				clip.retimeMap = expectedCurve;
+			},
+		}, rewriteArchive);
 		const soundscaper = await bootEditor(page, '/embed/en/');
 		const originalId = await soundscaper.getAttribute('data-project-id');
 		const input = soundscaper.locator('[data-aup4-input]');
@@ -501,10 +498,12 @@ async function incompatibleArchive(input, { id, title }) {
 		const audioSource = project.sources.find((source) => source.id === audioAsset?.sourceId);
 		if (!audioAsset || !audioSource) throw new Error('Compatibility fixture requires one exported audio source.');
 		audioSource.sampleRate = project.sampleRate;
-		project.masterChannels = audioSource.channelCount;
+		const retained = project.featureRequirements.requirements.filter(({ id }) => (
+			id !== 'video-effects' && id !== 'future-mixer'
+		));
 		project.featureRequirements = {
-			schemaVersion: 1,
-			requirements: [{
+			schemaVersion: 2,
+			requirements: [...retained, {
 				id: 'video-effects',
 				featureId: 'org.soundscaper.capability.video-effects',
 				displayName: 'Video effects',
@@ -515,7 +514,12 @@ async function incompatibleArchive(input, { id, title }) {
 				featureId: 'org.example.future-mixer',
 				displayName: 'Future mixer',
 				disposition: 'rendered-fallback',
-				fallback: { kind: 'audio', sourceId: audioSource.id, sha256: audioAsset.sha256 },
+				fallback: {
+					role: 'project-audio-mix-v1',
+					kind: 'audio',
+					sourceId: audioSource.id,
+					sha256: audioAsset.sha256,
+				},
 			}],
 		};
 	});
@@ -528,9 +532,9 @@ async function audioEffectsRenderedFallbackArchive(input, {
 	fallbackFrameCount = null,
 }) {
 	return rewriteArchive(input, ({ project, manifest, payloads }) => {
-		if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+		if (project.schemaVersion !== FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION) {
 			throw new Error(
-				`Rendered fallback fixture requires schema ${AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION}.`,
+				`Rendered fallback fixture requires schema ${FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION}.`,
 			);
 		}
 		project.id = id;
@@ -554,6 +558,7 @@ async function audioEffectsRenderedFallbackArchive(input, {
 			asset.size = payload.byteLength;
 			asset.sha256 = createHash('sha256').update(payload).digest('hex');
 		}
+		source.contentSha256 = asset.sha256;
 		const clipIds = new Set(project.clips
 			.filter((clip) => clip.kind === 'audio' && clip.sourceId === source.id)
 			.map((clip) => clip.id));
@@ -562,18 +567,27 @@ async function audioEffectsRenderedFallbackArchive(input, {
 		for (const track of project.tracks) {
 			if (Array.isArray(track.clipIds)) track.clipIds = track.clipIds.filter((clipId) => !clipIds.has(clipId));
 		}
-		project.featureRequirements = {
-			schemaVersion: 1,
-			requirements: [{
-				id: 'publisher-audio-render',
-				featureId: 'org.soundscaper.capability.audio-effects',
-				displayName: 'Audio effects',
-				disposition: 'rendered-fallback',
-				fallback: { kind: 'audio', sourceId: source.id, sha256: asset.sha256 },
-			}],
-		};
+		const targetTrack = project.tracks.find((track) => (
+			track.type === 'audio' && track.clipIds.length > 0
+		));
+		if (!targetTrack) throw new Error('Rendered fallback fixture requires one affected audio track.');
+		targetTrack.effectsActive = true;
+		targetTrack.effects = [{ id: 'fixture-invert', type: 'audacity-invert', enabled: true, params: {} }];
+		project.featureRequirements = publisherRequirementManifest(project, {
+			id: 'publisher-audio-render',
+			featureId: 'org.soundscaper.capability.audio-effects',
+			displayName: 'Audio effects',
+			disposition: 'rendered-fallback',
+			fallback: {
+				role: 'project-audio-mix-v1',
+				kind: 'audio',
+				sourceId: source.id,
+				sha256: asset.sha256,
+			},
+		});
 	});
 }
+
 
 async function rewriteArchive(input, mutate) {
 	const reader = new ZipReader(new BlobReader(new Blob([input])), { useWebWorkers: false });
@@ -657,31 +671,6 @@ async function scheduledAudioBufferCount(page) {
 
 async function scheduledAudioBuffers(page) {
 	return page.evaluate(() => globalThis.__scapeCompatibilityScheduledAudio);
-}
-
-function createScapePcmPayload(source) {
-	const chunkCount = Math.ceil(source.frameCount / source.chunkFrames);
-	const output = Buffer.alloc(
-		source.frameCount * source.channelCount * Float32Array.BYTES_PER_ELEMENT + chunkCount * 4,
-	);
-	let frameOffset = 0;
-	let byteOffset = 0;
-	while (frameOffset < source.frameCount) {
-		const frames = Math.min(source.chunkFrames, source.frameCount - frameOffset);
-		output.writeUInt32LE(frames, byteOffset);
-		byteOffset += 4;
-		for (let channel = 0; channel < source.channelCount; channel += 1) {
-			if (frameOffset === 0) {
-				const value = channel === 0 ? 0.125 : 0.75;
-				for (let frame = 0; frame < Math.min(frames, 2_048); frame += 1) {
-					output.writeFloatLE(value, byteOffset + frame * Float32Array.BYTES_PER_ELEMENT);
-				}
-			}
-			byteOffset += frames * Float32Array.BYTES_PER_ELEMENT;
-		}
-		frameOffset += frames;
-	}
-	return output;
 }
 
 async function installChunkStreamProtocolProbe(page) {

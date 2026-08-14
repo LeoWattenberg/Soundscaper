@@ -1,13 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type {
-	TimelineAnnotationColor,
-	TimelineAnnotationV11,
-} from '../timeline-annotation.ts';
+import type { TimelineAnnotationColor, TimelineAnnotationV11 } from '../timeline-annotation.ts';
 import type { Rational } from '../timeline-time.ts';
 import type { VideoClipComposition } from '../video-clip-composition.ts';
+import { AUDIO_PRODUCTION_COMMAND_TYPES, type AudioProductionCommandPayloads } from './audio-production.ts';
+import type { TrackAddCommandPayload } from './track-add-command-payload.d.ts';
 import type { VideoKeyframesSetCommandPayload } from './video-keyframes-command-payload.d.ts';
-
 /**
  * Authoritative command discriminants. Adding a command starts here, then the
  * payload map and exactly one domain registry must be updated.
@@ -105,6 +103,7 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'video-effect/reorder',
 	'video-composition/set',
 	'video-keyframes/set',
+	...AUDIO_PRODUCTION_COMMAND_TYPES,
 ] as const;
 
 export type AudioEditorCommandType = typeof AUDIO_EDITOR_COMMAND_TYPES[number];
@@ -290,7 +289,7 @@ export type EffectRackTarget =
 	| { readonly scope: 'track'; readonly trackId: string; readonly busId?: never }
 	| { readonly scope: 'group' | 'send'; readonly busId?: string; readonly trackId?: string };
 
-type NonBatchAudioEditorCommandPayloads = {
+type LegacyNonBatchAudioEditorCommandPayloads = {
 	readonly 'project/rename': { readonly title: string };
 	readonly 'selection/set': {
 		readonly startFrame: number;
@@ -373,13 +372,7 @@ type NonBatchAudioEditorCommandPayloads = {
 		readonly templates?: readonly CommandObject[];
 		readonly shortfallMode: 'keep-spacing' | 'contract-gaps';
 	};
-	readonly 'track/add': {
-		readonly track: CommandObject;
-		readonly index?: number;
-		readonly sequenceId?: string;
-		readonly parentFolderId?: string | null;
-		readonly parentIndex?: number;
-	};
+	readonly 'track/add': TrackAddCommandPayload;
 	readonly 'track/remove': { readonly trackId: string };
 	readonly 'track/update': { readonly trackId: string; readonly changes: CommandObject };
 	readonly 'track/reorder': { readonly trackId: string; readonly index: number };
@@ -554,6 +547,8 @@ type NonBatchAudioEditorCommandPayloads = {
 	};
 	readonly 'video-keyframes/set': VideoKeyframesSetCommandPayload;
 };
+
+type NonBatchAudioEditorCommandPayloads = LegacyNonBatchAudioEditorCommandPayloads & AudioProductionCommandPayloads;
 
 export interface BatchAudioEditorCommand {
 	readonly type: 'batch';

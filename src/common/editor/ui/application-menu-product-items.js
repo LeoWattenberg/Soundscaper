@@ -2,8 +2,15 @@
 
 import { createFramescaperNestedSequenceMenuItems } from './framescaper-nested-sequence-menu.ts';
 import { createFramescaperMulticameraMenuItems } from './framescaper-multicamera-menu.ts';
+import { createSoundscaperProductionApplicationMenuItems } from './soundscaper-production-application-menu.ts';
 
 export function createApplicationMenuProductTrackItems({ productId, project, editBlocked, copy, actions }) {
+	return createApplicationMenuProductItems({ productId, project, editBlocked, copy, actions }).tracks;
+}
+
+export function createApplicationMenuProductItems({
+	productId, capabilities = {}, project, snapshot = {}, editBlocked, copy, actions,
+}) {
 	const nestedSequences = createFramescaperNestedSequenceMenuItems({
 		productId, project, editingBlocked: editBlocked, copy: {
 			nestedSequences: copy.nestedSequences,
@@ -24,5 +31,40 @@ export function createApplicationMenuProductTrackItems({ productId, project, edi
 			removeMulticamera: copy.removeMulticamera,
 		},
 	}, { execute: actions.executeMulticameraCommand });
-	return [nestedSequences, multicamera].filter(Boolean);
+	const productionRuntime = actions.soundscaperProduction || null;
+	const production = createSoundscaperProductionApplicationMenuItems({
+		productId,
+		capabilities: productionRuntime ? {
+			...capabilities,
+			reviewedEffectPackages: productionRuntime.reviewedPackagesAvailable === true,
+		} : {},
+		project,
+		selectedTrackId: snapshot.selectedTrackId ?? null,
+		automationMode: productionRuntime?.automationMode,
+		freezeStatus: productionRuntime?.freezeStatus,
+		freezeActionsAvailable: productionRuntime?.freezeActionsAvailable === true,
+		editingBlocked: editBlocked,
+		readOnly: snapshot.readOnly === true,
+		copy,
+	}, {
+		open: (surface) => productionRuntime?.open(surface),
+		setAutomationMode: (mode) => productionRuntime?.setAutomationMode(mode),
+		freeze: (operation, trackId) => productionRuntime?.freeze(operation, trackId),
+	});
+	return Object.freeze({
+		...production,
+		tracks: Object.freeze([nestedSequences, multicamera, ...production.tracks].filter(Boolean)),
+	});
+}
+
+export function extendApplicationMenuProductPanelItem(panelId, item, productItems) {
+	if (panelId !== 'mixer' || !productItems.mixer.length) return item;
+	return {
+		id: item.id,
+		label: item.label,
+		items: [
+			{ ...item, id: `${item.id}-visibility` },
+			...productItems.mixer,
+		],
+	};
 }

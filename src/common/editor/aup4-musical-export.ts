@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { addAup4CompatibilityItem } from './aup4-profile.js';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import { isActiveAudioEditorProjectSchema } from './project-schema-version.ts';
 
 type DataRecord = Record<string, unknown>;
 
@@ -22,7 +22,7 @@ const AUP4_MAXIMUM_SIGNATURE_DENOMINATOR = 0x4000_0000;
 
 /** Identify documents that require the current runtime projection at the AUP4 boundary. */
 export function isCurrentAup4MusicalSnapshot(project: DataRecord): boolean {
-	return project.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
+	return isActiveAudioEditorProjectSchema(project.schemaVersion);
 }
 
 /** Flatten AUP4's singleton tempo/signature while loss-accounting later map events. */

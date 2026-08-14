@@ -63,3 +63,23 @@ test('EQ selection estimates include pre-roll while preserving length and valida
 		/match the parametric EQ channel count/,
 	);
 });
+
+test('reviewed Utility Gain processes selections in bounded pure-WASM blocks', async () => {
+	const input = Float32Array.from({ length: 4_097 }, (_, index) => (index % 17) / 17 - 0.5);
+	const rollback = input.slice();
+	assert.equal(estimateAudioSelectionEffectOutputFrames(
+		'reviewed-utility-gain', input.length, { gain: 2 },
+	), input.length);
+	assert.ok(estimateAudioSelectionEffectPeakBytes(
+		'reviewed-utility-gain', input.length, { gain: 2 }, { channelCount: 1 },
+	) > input.byteLength * 2);
+	const output = await applyAudioSelectionEffectAsync(
+		'reviewed-utility-gain', [input], 48_000, { gain: 2 },
+	);
+	assert.equal(output.length, 1);
+	assert.equal(output[0].length, input.length);
+	for (let frame = 0; frame < input.length; frame += 1) {
+		assert.ok(Math.abs(output[0][frame] - input[frame] * 2) < 1e-7);
+	}
+	assert.deepEqual(input, rollback);
+});

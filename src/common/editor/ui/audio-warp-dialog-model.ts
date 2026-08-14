@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { selectAudioEditorEditBlock, type AudioEditorEditBlockingSnapshot } from '../edit-blocking.ts';
+import { isAudioWarpProjectSchema } from '../project-schema-version.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -24,7 +25,7 @@ export interface AudioWarpDialogModel {
 export function createAudioWarpDialogModel(input: AudioWarpDialogModelInput): Readonly<AudioWarpDialogModel> {
 	if (input.productId !== 'soundscaper') return emptyModel();
 	const project = dataRecord(input.project);
-	if (!project || project.schemaVersion !== 17) return emptyModel();
+	if (!project || !isAudioWarpProjectSchema(project.schemaVersion)) return emptyModel();
 	const selectedClipId = typeof input.snapshot.selectedClipId === 'string'
 		? input.snapshot.selectedClipId
 		: null;

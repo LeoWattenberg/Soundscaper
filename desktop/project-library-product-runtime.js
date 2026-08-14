@@ -8,7 +8,10 @@ const START_FIELDS = Object.freeze([
 const BRIDGE_FIELDS = Object.freeze([
 	'desktopRoot', 'handle', 'ownerFor', 'removeHandler', 'session',
 ]);
-const FRAMESCAPER_PRELOAD = 'project-library-v10-sandbox-preload.cjs';
+const V10_PRELOAD_BY_PRODUCT = Object.freeze({
+	framescaper: 'project-library-v10-sandbox-preload.cjs',
+	soundscaper: 'soundscaper-project-library-v10-sandbox-preload.cjs',
+});
 
 /** Selects exactly one main-owned library generation from the packaged product profile. */
 export async function startDesktopProjectLibraryProductRuntime(value) {
@@ -46,7 +49,32 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 				ownerFor: bridge.ownerFor,
 				main: host,
 			}),
-			smokeEvidence: (projectId) => createFramescaperV10SmokeEvidence(host, projectId),
+			smokeEvidence: (projectId) => createV10SmokeEvidence(host, projectId, 'Framescaper'),
+		});
+	}
+	if (productId === 'soundscaper') {
+		const [{ createSoundscaperDesktopProjectLibraryV10Handshake },
+			{ SoundscaperDesktopProjectLibraryV10Main },
+			{ registerSoundscaperDesktopProjectLibraryV10MainIpc }] = await Promise.all([
+			import('./project-library-runtime/desktop/soundscaper-project-library-v10-contract.js'),
+			import('./project-library-runtime/desktop/soundscaper-project-library-v10-main.js'),
+			import('./project-library-runtime/desktop/soundscaper-project-library-v10-main-ipc.js'),
+		]);
+		const host = await SoundscaperDesktopProjectLibraryV10Main.start({
+			appDataPath,
+			owner,
+			handshake: createSoundscaperDesktopProjectLibraryV10Handshake(),
+		});
+		return new DesktopProjectLibraryProductRuntime({
+			productId,
+			host,
+			register: (bridge) => registerSoundscaperDesktopProjectLibraryV10MainIpc({
+				handle: bridge.handle,
+				removeHandler: bridge.removeHandler,
+				ownerFor: bridge.ownerFor,
+				main: host,
+			}),
+			smokeEvidence: (projectId) => createV10SmokeEvidence(host, projectId, 'Soundscaper'),
 		});
 	}
 	const [{ registerDesktopProjectLibraryIpc }, { createDesktopProjectLibrarySmokeEvidence },
@@ -81,7 +109,7 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 	});
 }
 
-async function createFramescaperV10SmokeEvidence(host, projectId) {
+async function createV10SmokeEvidence(host, projectId, productName) {
 	const session = host.openSession(host.localHandshake);
 	let bundle = null;
 	let readFailure = null;
@@ -92,14 +120,14 @@ async function createFramescaperV10SmokeEvidence(host, projectId) {
 		if (readFailure) {
 			throw new AggregateError(
 				[readFailure, error],
-				'Framescaper V10 smoke readback cleanup failed',
+				`${productName} V10 smoke readback cleanup failed`,
 				{ cause: error },
 			);
 		}
 		throw error;
 	}
 	if (readFailure) throw readFailure;
-	if (!bundle) throw new Error('Framescaper V10 smoke project was not persisted by main');
+	if (!bundle) throw new Error(`${productName} V10 smoke project was not persisted by main`);
 	const snapshot = host.snapshot();
 	return Object.freeze({
 		host: Object.freeze({
@@ -154,14 +182,15 @@ class DesktopProjectLibraryProductRuntime {
 			throw new TypeError('Desktop project-library renderer bridge seams are invalid');
 		}
 		let preloadId = null;
-		if (this.#productId === 'framescaper') {
+		const preloadFile = V10_PRELOAD_BY_PRODUCT[this.#productId];
+		if (preloadFile) {
 			if (!options.session || typeof options.session.registerPreloadScript !== 'function'
 				|| typeof options.session.unregisterPreloadScript !== 'function') {
-				throw new TypeError('Framescaper V10 requires an exact session preload owner');
+				throw new TypeError(`${this.#productId} V10 requires an exact session preload owner`);
 			}
 			preloadId = options.session.registerPreloadScript({
 				type: 'frame',
-				filePath: resolve(absolutePath(options.desktopRoot, 'desktop root'), FRAMESCAPER_PRELOAD),
+				filePath: resolve(absolutePath(options.desktopRoot, 'desktop root'), preloadFile),
 			});
 		}
 		let registration;

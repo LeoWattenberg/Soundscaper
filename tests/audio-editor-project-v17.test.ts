@@ -17,6 +17,9 @@ import {
 } from '../src/common/editor/project-current.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	isActiveAudioEditorProjectSchema,
 	isTakeCompProjectSchema,
 	isVideoRetimeCurveProjectSchema,
 } from '../src/common/editor/project-schema-version.ts';
@@ -42,6 +45,14 @@ import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../src/common/editor/proj
 import { normalizeProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 
 const NOW = '2026-08-12T10:00:00.000Z';
+
+test('active audio-authoring schemas admit V17 and Soundscaper V21 only', () => {
+	assert.equal(isActiveAudioEditorProjectSchema(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION), true);
+	assert.equal(isActiveAudioEditorProjectSchema(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION), true);
+	assert.equal(isActiveAudioEditorProjectSchema(16), false);
+	assert.equal(isActiveAudioEditorProjectSchema(FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION), false);
+	assert.equal(isActiveAudioEditorProjectSchema(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1), false);
+});
 
 function options(takeGroups: readonly unknown[] = [group()]): Record<string, unknown> {
 	return {

@@ -8,6 +8,10 @@ import {
 } from '@zip.js/zip.js';
 
 import {
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../../src/common/editor/project-schema-version.ts';
+import {
 	expect,
 	test,
 	toneA,
@@ -20,101 +24,117 @@ import {
 	collectClientErrors,
 	importFiles,
 	registerAudioEditorHooks,
-	trackNameText,
 } from './audio-editor-test-helpers.js';
-import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
-const LEGACY_SHARED_PROJECT_SCHEMA_VERSION = 17;
 const PRODUCT_PATHS = {
 	soundscaper: '/embed/en/',
 	framescaper: '/framescaper/embed/en/',
 };
 
-const WORKFLOWS = [{
-	id: 'web-soundscaper-to-framescaper-to-soundscaper-scape',
-	origin: 'soundscaper',
-	recipient: 'framescaper',
-}, {
-	id: 'web-framescaper-to-soundscaper-to-framescaper-scape',
-	origin: 'framescaper',
-	recipient: 'soundscaper',
-}];
-
-test.describe('legacy shared-schema-17 cross-product Scape handoff roundtrips', () => {
+test.describe('exact selected-schema cross-product Scape handoffs', () => {
 	registerAudioEditorHooks();
 
-	for (const workflow of WORKFLOWS) {
-		test(workflow.id, async ({ browser, page }) => {
-			test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
-			test.setTimeout(120_000);
-			await installPinnedFfmpegRuntimeRoutes(page);
-			await disableDirectScapeSave(page);
-			const origin = await bootEditor(page, PRODUCT_PATHS[workflow.origin]);
-			const originErrors = collectClientErrors(page);
-			await expect(origin).toHaveAttribute('data-product', workflow.origin);
-			const video = await createGeneratedVideoFixture(page, `${workflow.id}.webm`);
-			await importFiles(origin, [toneA, video]);
-			await expect(clipByName(origin, toneA.name)).toBeVisible();
-			await expect(origin.locator('[data-clip-kind="video"]')).toHaveCount(1);
-			await expect(origin.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
-				timeout: 10_000,
+	test('Framescaper V19 refuses V21 activation without damaging the Soundscaper archive', async ({ browser, page }) => {
+		await disableDirectScapeSave(page);
+		const originErrors = collectClientErrors(page);
+		const origin = await bootEditor(page, PRODUCT_PATHS.soundscaper);
+		await importFiles(origin, [toneA]);
+		await expect(clipByName(origin, toneA.name)).toBeVisible();
+		const projectId = await origin.getAttribute('data-project-id');
+		expect(projectId).toBeTruthy();
+		const outboundArchive = await exportScapeArchive(page, origin);
+		const outbound = await inspectScapeArchive(outboundArchive);
+		expect(outbound.project.id).toBe(projectId);
+		expect(outbound.project.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION);
+
+		const baseURL = new URL(page.url()).origin;
+		const openedRuntimes = [];
+		try {
+			const recipient = await openProductRuntime(browser, baseURL, 'framescaper');
+			openedRuntimes.push(recipient);
+			const recipientErrors = collectClientErrors(recipient.page);
+			const recipientProjectId = await recipient.editor.getAttribute('data-project-id');
+			await openScapeArchive(recipient.editor, outboundArchive, 'soundscaper-v21-outbound.scape');
+			await expect(recipient.editor.locator('[data-status]')).toHaveAttribute('data-state', 'error', {
+				timeout: 20_000,
 			});
+			await expect(recipient.editor.locator('[data-status]')).toContainText(
+				/Unsupported Framescaper project schema version: 21/iu,
+			);
+			await expect(recipient.editor).toHaveAttribute('data-project-id', recipientProjectId);
 
-			const projectId = await origin.getAttribute('data-project-id');
-			expect(projectId).toBeTruthy();
-			const outboundArchive = await exportScapeArchive(page, origin);
-			const outbound = await inspectScapeArchive(outboundArchive);
-			expect(outbound.projectId).toBe(projectId);
-			expect(outbound.schemaVersion).toBe(LEGACY_SHARED_PROJECT_SCHEMA_VERSION);
-			expect([...new Set(outbound.assets.map(({ kind }) => kind))].sort())
-				.toEqual(['audio', 'video', 'video-timing']);
+			const home = await openProductRuntime(browser, baseURL, 'soundscaper');
+			openedRuntimes.push(home);
+			const homeErrors = collectClientErrors(home.page);
+			await openScapeArchive(home.editor, outboundArchive, 'soundscaper-v21-return.scape');
+			await expect(home.editor).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
+			await expect(home.editor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
+			await expect(clipByName(home.editor, toneA.name)).toBeVisible();
+			await assertPlayback(home.editor);
 
-			const baseURL = new URL(page.url()).origin;
-			const openedRuntimes = [];
-			try {
-				const recipientRuntime = await openProductRuntime(browser, baseURL, workflow.recipient);
-				openedRuntimes.push(recipientRuntime);
-				const recipientErrors = collectClientErrors(recipientRuntime.page);
-				await openScapeArchive(recipientRuntime.editor, outboundArchive, `${workflow.id}-outbound.scape`);
-				await assertActivatedMixedMediaProject(recipientRuntime.editor, workflow.recipient, projectId, video.name);
-				await assertPlayback(recipientRuntime.editor);
-
-				const editedTrackName = `${workflow.recipient} handoff edit`;
-				await renameFirstTrack(recipientRuntime.editor, editedTrackName);
-				await expect(recipientRuntime.editor.getByRole('button', { name: 'Undo', exact: true })).toBeEnabled();
-				await chooseFileAction(recipientRuntime.page, recipientRuntime.editor, 'Save project');
-				await expect(recipientRuntime.editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
-
-				const returningArchive = await exportScapeArchive(recipientRuntime.page, recipientRuntime.editor);
-				const returning = await inspectScapeArchive(returningArchive);
-				expect(returning.projectId).toBe(projectId);
-				expect(returning.assets).toEqual(outbound.assets);
-
-				const homeRuntime = await openProductRuntime(browser, baseURL, workflow.origin);
-				openedRuntimes.push(homeRuntime);
-				const homeErrors = collectClientErrors(homeRuntime.page);
-				await openScapeArchive(homeRuntime.editor, returningArchive, `${workflow.id}-return.scape`);
-				await assertActivatedMixedMediaProject(homeRuntime.editor, workflow.origin, projectId, video.name);
-				await expect(trackNameText(homeRuntime.editor).filter({ hasText: editedTrackName })).toHaveCount(1);
-				await assertPlayback(homeRuntime.editor);
-
-				expect(originErrors).toEqual([]);
-				expect(recipientErrors).toEqual([]);
-				expect(homeErrors).toEqual([]);
-			} finally {
-				for (const runtime of openedRuntimes.reverse()) {
-					if (!runtime.page.isClosed()) await runtime.page.close({ runBeforeUnload: false });
-				}
+			expect(originErrors).toEqual([]);
+			expect(recipientErrors).toEqual([]);
+			expect(homeErrors).toEqual([]);
+		} finally {
+			for (const runtime of openedRuntimes.reverse()) {
+				if (!runtime.page.isClosed()) await runtime.page.close({ runBeforeUnload: false });
 			}
-		});
-	}
+		}
+	});
+
+	test('Soundscaper V21 refuses a Framescaper V19 document that remains valid at home', async ({ browser, page }) => {
+		await disableDirectScapeSave(page);
+		const originErrors = collectClientErrors(page);
+		const origin = await bootEditor(page, PRODUCT_PATHS.framescaper);
+		await importFiles(origin, [toneA]);
+		const projectId = await origin.getAttribute('data-project-id');
+		expect(projectId).toBeTruthy();
+		const outboundArchive = await exportScapeArchive(page, origin);
+		const outbound = await inspectScapeArchive(outboundArchive);
+		expect(outbound.project.id).toBe(projectId);
+		expect(outbound.project.schemaVersion).toBe(FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION);
+
+		const baseURL = new URL(page.url()).origin;
+		const openedRuntimes = [];
+		try {
+			const recipient = await openProductRuntime(browser, baseURL, 'soundscaper');
+			openedRuntimes.push(recipient);
+			const recipientErrors = collectClientErrors(recipient.page);
+			const recipientProjectId = await recipient.editor.getAttribute('data-project-id');
+			await openScapeArchive(recipient.editor, outboundArchive, 'framescaper-v19-outbound.scape');
+			await expect(recipient.editor.locator('[data-status]')).toHaveAttribute('data-state', 'error', {
+				timeout: 20_000,
+			});
+			await expect(recipient.editor.locator('[data-status]')).toContainText(
+				/requires re-import into exact V21 authority/iu,
+			);
+			await expect(recipient.editor).toHaveAttribute('data-project-id', recipientProjectId);
+			await expect(recipient.page.getByRole('dialog', { name: 'Project features unavailable' }))
+				.toHaveCount(0);
+
+			const home = await openProductRuntime(browser, baseURL, 'framescaper');
+			openedRuntimes.push(home);
+			const homeErrors = collectClientErrors(home.page);
+			await openScapeArchive(home.editor, outboundArchive, 'framescaper-v19-home.scape');
+			await expect(home.editor).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
+			await expect(home.editor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
+			await expect(clipByName(home.editor, toneA.name)).toBeVisible();
+			await assertPlayback(home.editor);
+
+			expect(originErrors).toEqual([]);
+			expect(recipientErrors).toEqual([]);
+			expect(homeErrors).toEqual([]);
+		} finally {
+			for (const runtime of openedRuntimes.reverse()) {
+				if (!runtime.page.isClosed()) await runtime.page.close({ runBeforeUnload: false });
+			}
+		}
+	});
 });
 
 async function openProductRuntime(browser, baseURL, productId) {
 	const page = await browser.newPage({ baseURL, serviceWorkers: 'block' });
-	await installPinnedFfmpegRuntimeRoutes(page);
 	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 		status: 200,
 		contentType: 'application/json',
@@ -153,33 +173,10 @@ async function openScapeArchive(editor, archive, name) {
 	});
 }
 
-async function assertActivatedMixedMediaProject(editor, productId, projectId, videoName) {
-	const videoTitle = videoName.replace(/\.webm$/iu, '');
-	await expect(editor).toHaveAttribute('data-product', productId);
-	await expect(editor).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
-	await expect(editor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
-	await expect(clipByName(editor, toneA.name)).toBeVisible();
-	await expect(editor.getByRole('group', { name: `Video clip: ${videoTitle}`, exact: true })).toBeVisible();
-	await expect(editor.locator('[data-clip-kind="video"]')).toHaveCount(1);
-}
-
 async function assertPlayback(editor) {
 	await editor.getByRole('button', { name: 'Play', exact: true }).click();
 	await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
-	await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
-}
-
-async function renameFirstTrack(editor, name) {
-	const closeVideoPreview = editor.getByRole('button', { name: 'Close: Video preview', exact: true });
-	if (await closeVideoPreview.isVisible()) await closeVideoPreview.click();
-	const label = trackNameText(editor).first();
-	await label.dblclick();
-	const input = editor.locator('[data-track-name] input');
-	await expect(input).toBeFocused();
-	await input.fill(name);
-	await input.press('Enter');
-	await expect(label).toHaveText(name);
 }
 
 async function inspectScapeArchive(archive) {
@@ -202,8 +199,7 @@ async function inspectScapeArchive(archive) {
 			});
 		}
 		return {
-			projectId: project.id,
-			schemaVersion: project.schemaVersion,
+			project,
 			assets: assets.sort((left, right) => left.sourceId.localeCompare(right.sourceId)),
 		};
 	} finally {
@@ -215,58 +211,4 @@ async function readZipEntry(entries, name) {
 	const entry = entries.get(name);
 	if (!entry || entry.directory) throw new Error(`Missing Scape archive entry ${name}.`);
 	return entry.getData(new Uint8ArrayWriter());
-}
-
-async function createGeneratedVideoFixture(page, name) {
-	const base64 = await page.evaluate(async () => {
-		const canvas = document.createElement('canvas');
-		canvas.width = 96;
-		canvas.height = 54;
-		const drawing = canvas.getContext('2d');
-		const videoStream = canvas.captureStream(15);
-		const audioContext = new AudioContext({ sampleRate: 48_000 });
-		const oscillator = audioContext.createOscillator();
-		const gain = audioContext.createGain();
-		const audioDestination = audioContext.createMediaStreamDestination();
-		oscillator.frequency.value = 330;
-		gain.gain.value = 0.06;
-		oscillator.connect(gain).connect(audioDestination);
-		oscillator.start();
-		await audioContext.resume();
-		const stream = new MediaStream([
-			...videoStream.getVideoTracks(),
-			...audioDestination.stream.getAudioTracks(),
-		]);
-		const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-			? 'video/webm;codecs=vp8,opus'
-			: 'video/webm';
-		const recorder = new MediaRecorder(stream, {
-			mimeType,
-			videoBitsPerSecond: 120_000,
-			audioBitsPerSecond: 32_000,
-		});
-		const chunks = [];
-		recorder.addEventListener('dataavailable', (event) => {
-			if (event.data.size) chunks.push(event.data);
-		});
-		const stopped = new Promise((resolve) => recorder.addEventListener('stop', resolve, { once: true }));
-		recorder.start();
-		for (let frame = 0; frame < 8; frame += 1) {
-			drawing.fillStyle = '#1d4ed8';
-			drawing.fillRect(0, 0, canvas.width, canvas.height);
-			drawing.fillStyle = '#fbbf24';
-			drawing.fillRect(frame * 10, 20, 18, 14);
-			await new Promise((resolve) => setTimeout(resolve, 65));
-		}
-		recorder.stop();
-		await stopped;
-		stream.getTracks().forEach((track) => track.stop());
-		oscillator.stop();
-		await audioContext.close();
-		const bytes = new Uint8Array(await new Blob(chunks, { type: 'video/webm' }).arrayBuffer());
-		let binary = '';
-		for (const byte of bytes) binary += String.fromCharCode(byte);
-		return btoa(binary);
-	});
-	return { name, mimeType: 'video/webm', buffer: Buffer.from(base64, 'base64') };
 }

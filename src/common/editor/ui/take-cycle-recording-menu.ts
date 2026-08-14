@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isTakeCompProjectSchema } from '../project-schema-version.ts';
+
 type DataRecord = Readonly<Record<string, unknown>>;
 
 export type TakeCycleStartBlockReason =
@@ -37,7 +39,7 @@ export function selectTakeCycleStartAdmission(snapshot: DataRecord): Readonly<Ta
 		|| snapshot.transportState === 'playing') return blocked('busy');
 	const project = dataRecord(snapshot.project);
 	const loop = dataRecord(project?.loop);
-	if (project?.schemaVersion !== 17 || loop?.enabled !== true
+	if (!isTakeCompProjectSchema(project?.schemaVersion) || loop?.enabled !== true
 		|| !nonNegativeSafeInteger(loop.startFrame)
 		|| !nonNegativeSafeInteger(loop.endFrame)
 		|| Number(loop.endFrame) <= Number(loop.startFrame)) return blocked('loop');

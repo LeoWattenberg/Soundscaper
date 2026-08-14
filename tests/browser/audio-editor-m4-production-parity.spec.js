@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { buildSync } from 'esbuild';
 import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
+import { createReadStream, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { cpus, totalmem } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 import {
 	M4_PRODUCTION_PARITY_FIXTURE_ID,
@@ -10,7 +12,6 @@ import {
 	M4_PRODUCTION_PARITY_SPECIFICATION,
 	M4_PRODUCTION_PARITY_WORKLOAD_ID,
 	compareM4ProductionParityAudio,
-	compileM4ProductionParityAudioPlan,
 	createM4ProductionParityAudioFixture,
 	decodeM4ProductionParityAudio,
 	encodeM4ProductionParityAudio,
@@ -40,7 +41,9 @@ const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.61.1';
 const REFERENCE_ENVIRONMENT_ID = 'reference-linux-gpu-01';
 const ENVIRONMENT_ID = process.env.SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID
 	|| (process.env.GITHUB_ACTIONS === 'true' ? HOSTED_ENVIRONMENT_ID : LOCAL_ENVIRONMENT_ID);
+const AUDIO_ENGINE_HARNESS_SOURCE = bundleAudioEngineHarness(productionDynamicsWorkletPath());
 const RUNTIME_ROUTES = new Map([
+	[`${ROUTE_ROOT}/engine/harness.js`, { body: AUDIO_ENGINE_HARNESS_SOURCE, contentType: 'text/javascript' }],
 	[`${ROUTE_ROOT}/ffmpeg/classes.js`, route('../../node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js', 'text/javascript')],
 	[`${ROUTE_ROOT}/ffmpeg/const.js`, route('../../node_modules/@ffmpeg/ffmpeg/dist/esm/const.js', 'text/javascript')],
 	[`${ROUTE_ROOT}/ffmpeg/errors.js`, route('../../node_modules/@ffmpeg/ffmpeg/dist/esm/errors.js', 'text/javascript')],
@@ -92,17 +95,14 @@ test('collects complete M4 PCM, RGBA, and render-ledger evidence without qualify
 	await initializeRuntime(page);
 
 	const fixture = createM4ProductionParityAudioFixture();
-	const productionAudioPlan = compileM4ProductionParityAudioPlan();
-	expect(productionAudioPlan.pdcLatencyFrames).toBe(
-		M4_PRODUCTION_PARITY_SPECIFICATION.pdcLatencyFrames,
-	);
 	const inputBase64 = Buffer.from(encodeM4ProductionParityAudio(fixture.input)).toString('base64');
 	const audio = await renderAudioParity(
 		page,
 		inputBase64,
 		M4_PRODUCTION_PARITY_SPECIFICATION,
-		productionAudioPlan,
 	);
+	expect(audio.previewEvidence).toEqual(productionPathEvidence('live', true));
+	expect(audio.exportEvidence).toEqual(productionPathEvidence('offline', false));
 	const referenceBase64 = Buffer.from(
 		encodeM4ProductionParityAudio(fixture.reference),
 	).toString('base64');
@@ -233,6 +233,52 @@ function route(relativePath, contentType) {
 	return { file: new URL(relativePath, import.meta.url), contentType };
 }
 
+function bundleAudioEngineHarness(dynamicsWorkletPath) {
+	const result = buildSync({
+		entryPoints: [fileURLToPath(new URL(
+			'../../src/common/editor/quality/m4-production-parity-browser-harness.ts',
+			import.meta.url,
+		))],
+		bundle: true,
+		write: false,
+		platform: 'browser',
+		format: 'esm',
+		target: 'chrome120',
+		external: ['module'],
+		legalComments: 'none',
+	});
+	if (result.outputFiles.length !== 1) throw new Error('The M4 audio engine harness did not produce one bundle.');
+	const marker = 'new URL("../dynamics-worklet.js", import.meta.url)';
+	const source = result.outputFiles[0].text;
+	if (source.split(marker).length !== 2) {
+		throw new Error('The M4 audio engine harness did not preserve one production dynamics-worklet URL.');
+	}
+	return Buffer.from(source.replace(
+		marker,
+		`new URL(${JSON.stringify(dynamicsWorkletPath)}, import.meta.url)`,
+	));
+}
+
+function productionDynamicsWorkletPath() {
+	const assetsDirectory = fileURLToPath(new URL('../../dist/assets/', import.meta.url));
+	const matches = readdirSync(assetsDirectory).filter((name) => /^dynamics-worklet-[\w-]+\.js$/u.test(name));
+	if (matches.length !== 1) throw new Error('The production build must contain one dynamics worklet asset.');
+	return `/assets/${matches[0]}`;
+}
+
+function productionPathEvidence(schedulerMode, monitoring) {
+	return {
+		schemaVersion: 1,
+		schedulerMode,
+		monitoring,
+		scheduledClipCount: 2,
+		latencyFrames: M4_PRODUCTION_PARITY_SPECIFICATION.pdcLatencyFrames,
+		pdcErrorSamples: 0,
+		programInputLatencyFrames: 7,
+		fastPathCompensationFrames: 10,
+	};
+}
+
 function effect(id, type, params = {}) {
 	return Object.freeze({
 		id,
@@ -308,7 +354,7 @@ async function installRuntimeRoutes(page) {
 			await requestRoute.fulfill({ status: 404, body: 'Not found' });
 			return;
 		}
-		const body = await readFile(descriptor.file);
+		const body = descriptor.body ?? await readFile(descriptor.file);
 		await requestRoute.fulfill({
 			status: 200,
 			contentType: descriptor.contentType,
@@ -320,9 +366,10 @@ async function installRuntimeRoutes(page) {
 
 async function initializeRuntime(page) {
 	await page.evaluate(async (root) => {
-		const [{ FFmpeg }, compositor] = await Promise.all([
+		const [{ FFmpeg }, compositor, audioEngine] = await Promise.all([
 			import(`${root}/ffmpeg/classes.js`),
 			import(`${root}/source/common/editor/ui/video-preview-compositor.js`),
+			import(`${root}/engine/harness.js`),
 		]);
 		const logs = [];
 		const ffmpeg = new FFmpeg();
@@ -338,14 +385,15 @@ async function initializeRuntime(page) {
 		window.__m4ProductionParity = {
 			VideoPreviewCompositor: compositor.VideoPreviewCompositor,
 			shouldContinueVideoPreviewPlayback: compositor.shouldContinueVideoPreviewPlayback,
+			renderM4ProductionParityProductionPath: audioEngine.renderM4ProductionParityProductionPath,
 			ffmpeg,
 			logs,
 		};
 	}, ROUTE_ROOT);
 }
 
-async function renderAudioParity(page, inputBase64, specification, productionPlan) {
-	return page.evaluate(async ({ encoded, fixture, plan }) => {
+async function renderAudioParity(page, inputBase64, specification) {
+	return page.evaluate(async ({ encoded, fixture }) => {
 		const bytes = Uint8Array.from(atob(encoded), (value) => value.charCodeAt(0));
 		const channels = Array.from(
 			{ length: fixture.channelCount },
@@ -359,50 +407,28 @@ async function renderAudioParity(page, inputBase64, specification, productionPla
 				offset += 4;
 			}
 		}
-		const render = async (splitPaths) => {
-			const context = new OfflineAudioContext(
-				fixture.channelCount,
-				fixture.frameCount,
-				fixture.sampleRate,
-			);
-			const buffer = context.createBuffer(
-				fixture.channelCount,
-				fixture.frameCount,
-				fixture.sampleRate,
-			);
-			channels.forEach((channel, index) => buffer.copyToChannel(channel, index));
-			const source = context.createBufferSource();
-			source.buffer = buffer;
-			const delay = context.createDelay(1);
-			delay.delayTime.setValueAtTime(plan.pdcLatencyFrames / fixture.sampleRate, 0);
-			const gain = context.createGain();
-			for (const event of plan.gainEvents) {
-				if (event.kind === 'set') gain.gain.setValueAtTime(event.value, event.time);
-				else gain.gain.linearRampToValueAtTime(event.value, event.time);
-			}
-			source.connect(delay).connect(gain);
-			if (splitPaths) {
-				const pathA = context.createGain();
-				const pathB = context.createGain();
-				pathA.gain.value = 0.5;
-				pathB.gain.value = 0.5;
-				gain.connect(pathA).connect(context.destination);
-				gain.connect(pathB).connect(context.destination);
-			} else gain.connect(context.destination);
-			source.start(0);
-			const rendered = await context.startRendering();
+		const render = async (mode) => {
+			const rendered = await window.__m4ProductionParity
+				.renderM4ProductionParityProductionPath(channels, mode);
 			const result = new Uint8Array(fixture.frameCount * fixture.channelCount * 4);
 			const resultView = new DataView(result.buffer);
 			let resultOffset = 0;
 			for (let frame = 0; frame < fixture.frameCount; frame += 1) {
 				for (let channel = 0; channel < fixture.channelCount; channel += 1) {
-					resultView.setFloat32(resultOffset, rendered.getChannelData(channel)[frame], true);
+					resultView.setFloat32(resultOffset, rendered.channels[channel][frame], true);
 					resultOffset += 4;
 				}
 			}
-			return bytesToBase64(result);
+			return { base64: bytesToBase64(result), evidence: rendered.evidence };
 		};
-		return { previewBase64: await render(true), exportBase64: await render(false) };
+		const preview = await render('preview');
+		const exported = await render('export');
+		return {
+			previewBase64: preview.base64,
+			exportBase64: exported.base64,
+			previewEvidence: preview.evidence,
+			exportEvidence: exported.evidence,
+		};
 
 		function bytesToBase64(value) {
 			let binary = '';
@@ -411,7 +437,7 @@ async function renderAudioParity(page, inputBase64, specification, productionPla
 			}
 			return btoa(binary);
 		}
-	}, { encoded: inputBase64, fixture: specification, plan: productionPlan });
+	}, { encoded: inputBase64, fixture: specification });
 }
 
 async function auditDeliberateOmission(page) {

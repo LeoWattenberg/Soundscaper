@@ -13,7 +13,7 @@ import {
 	type AudioWarpMap,
 	type AudioWarpQuantizeOptions,
 } from '../audio-warp-domain.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { isAudioWarpProjectSchema } from '../project-schema-version.ts';
 import {
 	defineAudioWarpCommandHandlers,
 	type AudioWarpCommandHandlers,
@@ -101,8 +101,8 @@ function incrementRenderCacheRevision(clip: DataRecord): void {
 
 function warpProject(project: EditorCommandProject): MutableAudioWarpProject {
 	const candidate = project as MutableAudioWarpProject;
-	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
-		throw new RangeError('Audio warp commands require the exact current project schema.');
+	if (!isAudioWarpProjectSchema(candidate.schemaVersion)) {
+		throw new RangeError('Audio warp commands require an exact audio-warp project schema.');
 	}
 	if (!Array.isArray(candidate.clips) || !Array.isArray(candidate.tracks)) {
 		throw new TypeError('An audio warp command project requires clips and tracks.');

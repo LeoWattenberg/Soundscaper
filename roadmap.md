@@ -184,7 +184,7 @@ Known architectural constraints that drive later work:
 | 1. Baseline contracts | **In progress — external qualification** | Close reproducible quality qualification. |
 | 2. Shared platform/storage/media | **In progress — current priority** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
 | 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
-| 4. Production surfaces | **Planned** | Complete automation, routing, compositing, captions, and finishing. |
+| 4. Production surfaces | **In progress — provisional candidates** | Complete automation, routing, compositing, captions, and finishing. |
 | 5. Electron-native services | **Planned** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **Planned** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
@@ -569,39 +569,52 @@ Packet boundaries, dependencies, and acceptance are owned by
 ## 4. Parallel production surfaces
 
 **Depends on:** milestone 3.
-**Status:** **In progress — shared 4.0 implemented provisionally; Framescaper
-4B-1 implementation candidate in progress.** The project owner cleared the
-maintained Framescaper base for 4B implementation while leaving milestone-3
-manual/packaged evidence and the milestone-4 reference-GPU qualification open.
-Soundscaper 4A remains gated and unstarted.
+**Status:** **In progress — shared 4.0 and Soundscaper 4A implemented
+provisionally; Framescaper 4B remains in progress.** The project owner cleared
+the maintained Framescaper base for 4B implementation and, on 2026-08-14,
+explicitly cleared the maintained Soundscaper base for 4A implementation. The
+Framescaper V20 keyframe candidate remains dormant and unselected with its
+activation/evidence gates open. Soundscaper V21 is the selected maintained
+App/runtime/storage route and its local implementation candidate is complete:
+packets 4A-1 through 4A-6 are implemented provisionally and 4A-7 local automated
+acceptance is green. It is not qualified; the 4A hosted no-retry,
+packaged-runtime, manual, and reference-GPU rows remain open, as do milestone-3
+manual/packaged evidence, Framescaper 4B, and the milestone-4 exit gate.
 **Goal:** complete non-MIDI Soundscaper production and non-recording Framescaper
 finishing over the stable editorial models.
 
 Sequencing, the automation/keyframe and mixer-graph decisions, their
 invariants, and the bounded work packets are owned by the
-[milestone-4 plan](docs/milestone-4-plan.md).
+[milestone-4 plan](docs/milestone-4-plan.md). The exact Soundscaper V21 packet
+contract is the
+[milestone-4A pickup](docs/milestone-4a-soundscaper-production.md); sequencing
+clearance does not close either track or milestone exit gate.
 
 ### Soundscaper track
 
-- **Shared / Web Core — Planned:** automation lanes for gain, pan, mute, sends,
-  buses, plug-in parameters, and tempo-addressable values with line, hold, and
-  curve interpolation.
-- **Web Core — Planned:** read, trim, touch, latch, and write modes with safe
-  playback ownership and deterministic history commits.
-- **Shared / Web Core — Planned:** nested buses, multiple assignments,
-  pre/post-fader sends, VCAs, cue/control-room mixes, output placeholders,
+- **Shared / Web Core — Implemented (provisional):** automation lanes for gain,
+  pan, mute, sends, buses, plug-in parameters, and tempo-addressable values with
+  line, hold, and curve interpolation.
+- **Web Core — Implemented (provisional):** read, trim, touch, latch, and write
+  modes with safe playback ownership and deterministic history commits.
+- **Shared / Web Core — Implemented (provisional):** nested buses, multiple
+  assignments, pre/post-fader sends, VCAs, cue/control-room mixes, output placeholders,
   sidechains, channel mapping, and cycle validation. Nested buses lift the
   milestone-3 single-layer folder rule so a track folder at any depth can own a
-  bus, which also requires per-path plugin delay compensation instead of the
-  present single-stage compensation.
-- **Web Core — Planned:** plug-in delay compensation across playback,
-  monitoring, automation, buses, sidechains, render, and freeze.
-- **Shared / Web Core — Planned:** freeze, unfreeze, commit, and rendered
-  fallback without losing editable or native-effect state.
-- **Web Core — Planned:** restoration, phase/correlation/surround metering,
-  loudness history, and scalable scheduling.
-- **Web Core — Planned:** constrained reviewed WebAssembly/AudioWorklet effect
-  packages with declared resources and no arbitrary same-origin access.
+  bus; the same V21 revision replaces single-stage compensation with per-path
+  plug-in delay compensation.
+- **Web Core — Implemented (provisional):** plug-in delay compensation across
+  playback, monitoring, automation, buses, sidechains, render, and freeze.
+- **Shared / Web Core — Implemented (provisional):** freeze, unfreeze, commit,
+  and rendered fallback without losing editable or native-effect state.
+- **Web Core — Implemented (provisional):** restoration,
+  phase/correlation/surround metering, loudness history, and scalable
+  scheduling.
+- **Web Core — Implemented (provisional):** constrained reviewed
+  WebAssembly/AudioWorklet effect packages with declared resources and no
+  arbitrary same-origin access. The built-in, release-pinned Utility Gain
+  package ships; external packages, arbitrary URLs, and user trust overrides
+  remain fenced.
 
 ### Framescaper track
 

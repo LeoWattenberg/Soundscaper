@@ -7,10 +7,12 @@ const SOURCE_MODULES = new Map([
 	['common/editor/video-clip-composition.ts', '../../src/common/editor/video-clip-composition.ts'],
 	['common/editor/ui/video-preview-composition-blend.ts', '../../src/common/editor/ui/video-preview-composition-blend.ts'],
 	['common/editor/ui/video-preview-compositor.js', '../../src/common/editor/ui/video-preview-compositor.js'],
+	['common/editor/ui/video-preview-compositor-size.js', '../../src/common/editor/ui/video-preview-compositor-size.js'],
 	['common/editor/ui/video-preview-effects.js', '../../src/common/editor/ui/video-preview-effects.js'],
 	['common/editor/ui/video-preview-geometry-shader.ts', '../../src/common/editor/ui/video-preview-geometry-shader.ts'],
 	['common/editor/ui/video-preview-render-description.ts', '../../src/common/editor/ui/video-preview-render-description.ts'],
 	['common/editor/ui/video-preview-render-ledger.js', '../../src/common/editor/ui/video-preview-render-ledger.js'],
+	['common/editor/ui/video-preview-render-size.js', '../../src/common/editor/ui/video-preview-render-size.js'],
 	['common/editor/ui/video-preview-render-target.js', '../../src/common/editor/ui/video-preview-render-target.js'],
 	['common/editor/ui/video-preview-viewports.js', '../../src/common/editor/ui/video-preview-viewports.js'],
 ]);

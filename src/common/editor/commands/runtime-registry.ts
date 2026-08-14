@@ -2,6 +2,7 @@
 
 import { createClipRangeClipboardRuntimeHandlers } from './clip-range-clipboard-runtime.js';
 import { createAudioWarpRuntimeHandlers } from './audio-warp-runtime.ts';
+import { createAudioProductionRuntimeHandlers } from './audio-production.ts';
 import { createEffectsVideoRuntimeHandlers } from './effects-video-runtime.js';
 import { createProjectSourceBinRuntimeHandlers } from './project-source-bin-runtime.js';
 import { createSequenceTimingRuntimeHandlers } from './sequence-timing-runtime.ts';
@@ -42,5 +43,6 @@ export function createEditorCommandRuntime(
 		timelineAnnotation: createTimelineAnnotationRuntimeHandlers(),
 		videoComposition: createVideoCompositionRuntimeHandlers(),
 		videoKeyframes: createVideoKeyframesRuntimeHandlers(),
+		audioProduction: createAudioProductionRuntimeHandlers(),
 	});
 }

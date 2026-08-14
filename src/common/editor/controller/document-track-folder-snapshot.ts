@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { isActiveAudioEditorProjectSchema } from '../project-schema-version.ts';
 import {
 	deriveTrackFolderStateProjectionV12,
 	type TrackFolderStateNodeV12,
@@ -22,7 +22,7 @@ const EMPTY_SNAPSHOT: DocumentTrackFolderSnapshot = Object.freeze({
 });
 
 /**
- * UI-facing folder rows for the exact current schema: per-sequence flattened
+ * UI-facing folder rows for active audio-authoring schemas: per-sequence flattened
  * hierarchy state carrying depth, ancestors, collapse suppression, audio
  * descendants, and effective audibility. Older, future, or hostile documents
  * yield the empty snapshot without traversing any folder state.
@@ -35,7 +35,7 @@ export function createDocumentTrackFolderSnapshot(value: unknown): DocumentTrack
 		tracks?: unknown;
 		sequences?: unknown;
 	}>;
-	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return EMPTY_SNAPSHOT;
+	if (!isActiveAudioEditorProjectSchema(candidate.schemaVersion)) return EMPTY_SNAPSHOT;
 	if (!Array.isArray(candidate.trackFolders) || candidate.trackFolders.length === 0) return EMPTY_SNAPSHOT;
 	if (!Array.isArray(candidate.sequences) || !Array.isArray(candidate.tracks)) return EMPTY_SNAPSHOT;
 	const projection = deriveTrackFolderStateProjectionV12(

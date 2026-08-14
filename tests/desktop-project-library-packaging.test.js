@@ -163,7 +163,77 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/framescaper/editor-project-v18-sequence.js',
 		'src/framescaper/editor-project-v18-subsequence.js',
 		'src/framescaper/editor-project-v18-validation.js',
-	]);
+		'desktop/soundscaper-project-library-v10-catalog.js',
+		'desktop/soundscaper-project-library-v10-contract.js',
+		'desktop/soundscaper-project-library-v10-current-project.js',
+		'desktop/soundscaper-project-library-v10-database.js',
+		'desktop/soundscaper-project-library-v10-handshake-gate.js',
+		'desktop/soundscaper-project-library-v10-ipc.js',
+		'desktop/soundscaper-project-library-v10-lifecycle-contract.js',
+		'desktop/soundscaper-project-library-v10-lifecycle-host.js',
+		'desktop/soundscaper-project-library-v10-main-channels.js',
+		'desktop/soundscaper-project-library-v10-main-ipc.js',
+		'desktop/soundscaper-project-library-v10-main-session.js',
+		'desktop/soundscaper-project-library-v10-main.js',
+		'desktop/soundscaper-project-library-v10-media-binding.js',
+		'desktop/soundscaper-project-library-v10-metadata.js',
+		'desktop/soundscaper-project-library-v10-persistence-codecs.js',
+		'desktop/soundscaper-project-library-v10-publication-contract.js',
+		'desktop/soundscaper-project-library-v10-publication-files.js',
+		'desktop/soundscaper-project-library-v10-publication-host.js',
+		'desktop/soundscaper-project-library-v10-publication-persistence.js',
+		'desktop/soundscaper-project-library-v10-publication-transport.js',
+		'desktop/soundscaper-project-library-v10-transfer-contract.js',
+		'desktop/soundscaper-project-library-v10-transfer-service.js',
+		'src/common/editor/audacity-effects/live.js',
+		'src/common/editor/audacity-effects/manifest.js',
+		'src/common/editor/audacity-effects/spectral.js',
+		'src/common/editor/audio-track-freeze-lifecycle-v21.js',
+		'src/common/editor/audio-track-freeze-v21.js',
+		'src/common/editor/automation-lane-v21.js',
+		'src/common/editor/commands/audio-production.js',
+		'src/common/editor/commands/command-projection-transients.js',
+		'src/common/editor/commands/domain-registry.js',
+		'src/common/editor/commands/video-keyframe-carrier.js',
+		'src/common/editor/commands/video-keyframe-command-reconcile.js',
+		'src/common/editor/effect-parameter-descriptors.js',
+		'src/common/editor/effects.js',
+		'src/common/editor/folder-mixer-graph-v21.js',
+		'src/common/editor/inert-json-snapshot.js',
+		'src/common/editor/interpolation-curve-math.js',
+		'src/common/editor/interpolation-curve.js',
+		'src/common/editor/mixer-graph-v21.js',
+		'src/common/editor/parameter-address.js',
+		'src/common/editor/pffft.js',
+		'src/common/editor/project-current-runtime.js',
+		'src/common/editor/project-v10-command-projection.js',
+		'src/common/editor/project-v10-validation.js',
+		'src/common/editor/project-v11-validation.js',
+		'src/common/editor/project-v13-hierarchy-reconcile.js',
+		'src/common/editor/project.js',
+		'src/common/editor/reviewed-effects/catalog.js',
+		'src/common/editor/reviewed-effects/errors.js',
+		'src/common/editor/reviewed-effects/hash.js',
+		'src/common/editor/reviewed-effects/manifest.js',
+		'src/common/editor/reviewed-effects/offline-worker-client.js',
+		'src/common/editor/reviewed-effects/offline-worker-runtime.js',
+		'src/common/editor/reviewed-effects/runtime.js',
+		'src/common/editor/reviewed-effects/selection-effect.js',
+		'src/common/editor/reviewed-effects/utility-gain-package.js',
+		'src/common/editor/reviewed-effects/wasm-abi.js',
+		'src/common/editor/scape-abort.js',
+		'src/common/editor/scape-archive-envelope.js',
+		'src/common/editor/scape-archive-media.js',
+		'src/common/editor/scape-expanded-byte-budget.js',
+		'src/common/editor/track-hierarchy-mutation-v12.js',
+		'src/common/editor/video-keyframe-curves.js',
+		'src/common/editor/video-keyframe-time-domain.js',
+		'src/common/editor/wavpack/pcm.js',
+		'src/common/i18n/canonical-extras.js',
+		'src/common/i18n/locale.js',
+		'src/soundscaper/editor-project-feature-requirements-v21.js',
+		'src/soundscaper/editor-project-v21-validation.js',
+	].sort());
 	for (const name of result.files) {
 		const source = await readFile(join(outputRoot, name), 'utf8');
 		assert.doesNotMatch(source, /from ['"].*\.ts['"]/u);
@@ -174,7 +244,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	assert.ok(result.files.includes('src/common/editor/timeline-annotation.js'));
 	assert.equal(result.files.includes('src/common/editor/project-current.js'), false);
 	assert.equal(result.files.includes('src/common/editor/project-v11.js'), false);
-	assert.equal(result.files.includes('src/common/editor/pffft.js'), false);
+	assert.equal(result.files.includes('src/common/editor/pffft.js'), true);
 	const runtime = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-host.js')).href}?test=${Date.now()}`);
 	const linkedVideoRegistry = await import(`${pathToFileURL(join(outputRoot, 'desktop/linked-video-locator-registry.js')).href}?test=${Date.now()}`);
 	const linkedVideoStore = await import(`${pathToFileURL(join(outputRoot, 'desktop/linked-video-locator-store.js')).href}?test=${Date.now()}`);
@@ -276,6 +346,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-ipc.js'));
 	await access(join(applicationDesktopRoot, 'project-library-product-runtime.js'));
 	await access(join(applicationDesktopRoot, 'project-library-v10-sandbox-preload.cjs'));
+	await access(join(applicationDesktopRoot, 'soundscaper-project-library-v10-sandbox-preload.cjs'));
 	await access(join(applicationDesktopRoot, 'read-selection-service.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-service.js'));
@@ -286,6 +357,8 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-host.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v10-main.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v10-main-ipc.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/soundscaper-project-library-v10-main.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/soundscaper-project-library-v10-main-ipc.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media-binding.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media-body.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media-capacity.js'));

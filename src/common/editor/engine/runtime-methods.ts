@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { engineAutomationControlMethods } from './automation-control-v21.ts';
 import { engineEffectControlMethods } from './effect-control.ts';
 import { engineLifecycleMethods } from './lifecycle.ts';
 import { installEngineMethodMaps } from './method-installer.ts';
@@ -43,6 +44,7 @@ export const ENGINE_PUBLIC_METHOD_NAMES = [
 	'subscribeMeters',
 	'subscribeState',
 	'subscribeParametricEqErrors',
+	'previewScheduledParameter',
 	'configureRackEffect',
 	'configureParametricEq',
 	'auditionParametricEq',
@@ -66,6 +68,7 @@ export function installEngineRuntimeMethods(target: object): void {
 		engineLifecycleMethods,
 		engineTransportControlMethods,
 		engineTransportAccessors,
+		engineAutomationControlMethods,
 		engineEffectControlMethods,
 		engineRenderingMethods,
 		engineTransportSchedulerMethods,

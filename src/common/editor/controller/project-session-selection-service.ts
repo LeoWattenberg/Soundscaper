@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { isActiveAudioEditorProjectSchema } from '../project-schema-version.ts';
 
 export interface ProjectSessionSelectionState {
 	selectedTrackId: string | null;
@@ -67,15 +67,15 @@ export function createProjectSessionSelectionService<
 			?? project.tracks[0]?.id
 			?? null;
 		dependencies.state.selectedClipId = dependencies.findClip(project, metadata.selectedClipId)?.id ?? null;
-		dependencies.state.selectedAnnotationId = existingCurrentAnnotationId(project, metadata.selectedAnnotationId);
+		dependencies.state.selectedAnnotationId = existingActiveAnnotationId(project, metadata.selectedAnnotationId);
 	}
 }
 
-function existingCurrentAnnotationId(
+function existingActiveAnnotationId(
 	project: ProjectSessionSelectionProject,
 	requestedAnnotationId: unknown,
 ): string | null {
-	if (project.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+	if (!isActiveAudioEditorProjectSchema(project.schemaVersion)
 		|| typeof requestedAnnotationId !== 'string'
 		|| !requestedAnnotationId) return null;
 	try {

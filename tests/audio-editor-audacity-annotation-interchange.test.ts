@@ -15,7 +15,10 @@ import { createAup4ExportPlan } from '../src/common/editor/aup4-export.js';
 import { createAup4ProjectTree } from '../src/common/editor/aup4-profile.js';
 import { parseAudioEditorLabels } from '../src/common/editor/label-io.js';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 import { createLabelTrackV10 } from '../src/common/editor/project-v10.ts';
 
 const NOW = '2026-08-09T00:00:00.000Z';
@@ -195,6 +198,23 @@ test('AUP4 export adds a distinct projected annotation label track and reports s
 	assert.deepEqual(xmlChildren(tree, 'labeltrack').map((node) => (
 		String(xmlAttribute(node, 'name', ''))
 	)), ['Internal labels', 'Timeline annotations']);
+});
+
+test('AUP4 export projects inherited timeline annotations from exact Soundscaper V21', () => {
+	const current = createCurrentAudioEditorProject({
+		id: 'aup4-v21-annotation-export',
+		title: 'AUP4 V21 annotation export',
+		now: NOW,
+		timelineAnnotations: [annotation({
+			id: 'v21-annotation', name: 'V21 marker', kind: 'marker', anchor: 'sample', positionFrame: 24_000,
+		})],
+	});
+	const plan = createAup4ExportPlan({
+		...current,
+		schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	});
+	const projected = plan.project.tracks.find(({ name }: { name?: string }) => name === 'Timeline annotations');
+	assert.deepEqual(projected?.labels.map(({ title }: { title: string }) => title), ['V21 marker']);
 });
 
 test('maintained TXT/SRT/VTT label parsing remains an explicitly distinct internal-label path', () => {

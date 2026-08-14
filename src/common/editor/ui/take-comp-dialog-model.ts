@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { selectAudioEditorEditBlock, type AudioEditorEditBlockingSnapshot } from '../edit-blocking.ts';
+import { isTakeCompProjectSchema } from '../project-schema-version.ts';
 import {
 	createTakeCompDocumentGroupsV17,
 	type TakeCompDocumentGroup,
@@ -71,7 +72,7 @@ export function readTakeCompNumberEntry(text: string): Readonly<TakeCompNumberEn
 export function createTakeCompDialogModel(input: TakeCompDialogModelInput): Readonly<TakeCompDialogModel> {
 	if (input.productId !== 'soundscaper') return emptyModel();
 	const project = dataRecord(input.project);
-	if (!project || project.schemaVersion !== 17) return emptyModel();
+	if (!project || !isTakeCompProjectSchema(project.schemaVersion)) return emptyModel();
 	const canonical = createTakeCompDocumentGroupsV17(project.takeGroups, project);
 	const tracks = dataRecords(project.tracks);
 	const sources = dataRecords(project.sources);

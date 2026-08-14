@@ -54,6 +54,8 @@ export interface LinkedOriginalProjectReachabilityRepositoryOptions {
 	readonly maximumInventoryReferences?: number;
 	/** Narrow compatibility facades only; generic ownership manages both kinds. */
 	readonly managedKinds?: readonly LinkedOriginalKind[];
+	/** Product-owned stores may admit their exact document generation without changing generic V17 authority. */
+	readonly validateProject?: (value: unknown) => boolean;
 }
 
 interface RootAccumulator {
@@ -85,6 +87,7 @@ export class LinkedOriginalProjectReachabilityRepository {
 	readonly #maximumInventoryRecords: number;
 	readonly #maximumInventoryReferences: number;
 	readonly #managedKinds: ReadonlySet<LinkedOriginalKind>;
+	readonly #validateProject: (value: unknown) => boolean;
 
 	constructor(
 		port: StorageRepositoryPort,
@@ -93,7 +96,11 @@ export class LinkedOriginalProjectReachabilityRepository {
 		if (!port || typeof port.database !== 'function' || !port.memory) {
 			throw new TypeError('A linked original project reachability storage port is required.');
 		}
+		if (options.validateProject !== undefined && typeof options.validateProject !== 'function') {
+			throw new TypeError('A linked original project reachability validator must be a function.');
+		}
 		this.#port = port;
+		this.#validateProject = options.validateProject ?? validateCurrentAudioEditorProject;
 		this.#maximumRetainedRevisions = boundedLimit(
 			options.maximumRetainedRevisions ?? MAX_LINKED_ORIGINAL_PROJECT_REVISIONS,
 			MAX_LINKED_ORIGINAL_PROJECT_REVISIONS,
@@ -144,6 +151,7 @@ export class LinkedOriginalProjectReachabilityRepository {
 				this.#maximumRetainedRevisions,
 				this.#maximumRoots,
 				this.#managedKinds,
+				this.#validateProject,
 			);
 			if (!state) return null;
 			const bindings = this.#port.memory.linkedVideoOriginalBindings;
@@ -182,6 +190,7 @@ export class LinkedOriginalProjectReachabilityRepository {
 				protectedRoots,
 				this.#maximumRoots,
 				this.#managedKinds,
+				this.#validateProject,
 			);
 			if (!state) return null;
 			const revisionsValid = await collectIndexedDbRevisionRoots(
@@ -189,6 +198,7 @@ export class LinkedOriginalProjectReachabilityRepository {
 				projectId,
 				state,
 				this.#maximumRetainedRevisions,
+				this.#validateProject,
 			);
 			if (!revisionsValid) return null;
 			const bindings = stores[LINKED_ORIGINAL_STORE_NAME];
@@ -225,20 +235,22 @@ function currentProjectRootState(
 	protectedRoots: ReadonlySet<string>,
 	maximumRoots: number,
 	managedKindsValue?: ReadonlySet<LinkedOriginalKind>,
+	validateProject: (value: unknown) => boolean = validateCurrentAudioEditorProject,
 ): CurrentProjectRootState | null {
 	try {
-		if (!validateCurrentAudioEditorProject(value)) throw new TypeError('Current project is not the exact current schema.');
-		if (value.id !== projectId) throw new Error('Current project identity does not match its key.');
+		if (!validateProject(value)) throw new TypeError('Current project is not the selected exact schema.');
+		const project = value as AudioEditorProjectCurrent;
+		if (project.id !== projectId) throw new Error('Current project identity does not match its key.');
 		const accumulator: RootAccumulator = {
 			durable: new Map(),
 			retained: new Set(protectedRoots),
 			maximumRoots,
 			managedKinds: managedKindsValue ?? managedKinds(),
 		};
-		collectOriginalRoots(value, projectId, accumulator);
+		collectOriginalRoots(project, projectId, accumulator);
 		return {
 			accumulator,
-			revision: value.revision,
+			revision: project.revision,
 		};
 	} catch { return null; }
 }
@@ -250,6 +262,7 @@ function memoryRootState(
 	maximumRetainedRevisions: number,
 	maximumRoots: number,
 	managedKindsValue: ReadonlySet<LinkedOriginalKind>,
+	validateProject: (value: unknown) => boolean,
 ): CurrentProjectRootState | null {
 	const state = currentProjectRootState(
 		memory.projects.get(projectId),
@@ -257,6 +270,7 @@ function memoryRootState(
 		protectedRoots,
 		maximumRoots,
 		managedKindsValue,
+		validateProject,
 	);
 	if (!state) return null;
 	let count = 0;
@@ -266,7 +280,7 @@ function memoryRootState(
 			if (!isPotentialTargetMemoryRevision(primaryKey, value, projectId)) continue;
 			count += 1;
 			if (count > maximumRetainedRevisions) return null;
-			const revision = storedProjectRevision(value, primaryKey, projectId);
+			const revision = storedProjectRevision(value, primaryKey, projectId, validateProject);
 			collectOriginalRoots(revision.project, projectId, state.accumulator);
 			if (revision.revision === state.revision) matchingCurrent = true;
 		}
@@ -279,6 +293,7 @@ function collectIndexedDbRevisionRoots(
 	projectId: string,
 	state: CurrentProjectRootState,
 	maximumRetainedRevisions: number,
+	validateProject: (value: unknown) => boolean,
 ): Promise<boolean> {
 	return new Promise((resolve, reject) => {
 		let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
@@ -294,7 +309,12 @@ function collectIndexedDbRevisionRoots(
 			try {
 				count += 1;
 				if (count > maximumRetainedRevisions) { resolve(false); return; }
-				const revision = storedProjectRevision(cursor.value, cursor.primaryKey, projectId);
+				const revision = storedProjectRevision(
+					cursor.value,
+					cursor.primaryKey,
+					projectId,
+					validateProject,
+				);
 				collectOriginalRoots(revision.project, projectId, state.accumulator);
 				if (revision.revision === state.revision) matchingCurrent = true;
 				cursor.continue();
@@ -307,6 +327,7 @@ function storedProjectRevision(
 	value: unknown,
 	primaryKey: IDBValidKey,
 	projectId: string,
+	validateProject: (value: unknown) => boolean,
 ): StoredProjectRevision {
 	const record = closedRevisionRecord(value);
 	if (typeof record.key !== 'string' || record.key !== primaryKey
@@ -317,11 +338,12 @@ function storedProjectRevision(
 		throw new TypeError('Stored project revision number must be a non-negative safe integer.');
 	}
 	const project = record.project;
-	if (!validateCurrentAudioEditorProject(project)) throw new TypeError('Stored project revision is not the exact current schema.');
-	if (project.id !== projectId || project.revision !== record.revision) {
+	if (!validateProject(project)) throw new TypeError('Stored project revision is not the selected exact schema.');
+	const validatedProject = project as AudioEditorProjectCurrent;
+	if (validatedProject.id !== projectId || validatedProject.revision !== record.revision) {
 		throw new Error('Stored project revision document does not match its authoritative identity.');
 	}
-	return record as unknown as StoredProjectRevision;
+	return { ...record, project: validatedProject } as unknown as StoredProjectRevision;
 }
 
 function closedRevisionRecord(value: unknown): Record<string, unknown> {

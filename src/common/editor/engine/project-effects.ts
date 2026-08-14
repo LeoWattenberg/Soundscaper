@@ -37,6 +37,7 @@ export function* projectEffectRacks(
 	for (const [scope, buses] of [
 		['group', project?.mixer?.groups],
 		['send', project?.mixer?.sends],
+		['group', project?.mixer?.cues],
 	] as const) {
 		for (const bus of Array.isArray(buses) ? buses : []) {
 			yield {

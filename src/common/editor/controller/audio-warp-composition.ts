@@ -7,10 +7,10 @@ import {
 	type AudioWarpMap,
 	type AudioWarpQuantizeOptions,
 } from '../audio-warp-domain.ts';
-import type { AudioEditorProjectV17 } from '../project-v17-validation.ts';
 import type { Rational } from '../timeline-time.ts';
 import {
 	createAudioWarpAuthoringService,
+	type AudioWarpAuthoringProject,
 	type AudioWarpGrooveApplicationOptions,
 	type PreparedAudioWarpClipEdit,
 } from './audio-warp-authoring-service.ts';
@@ -59,7 +59,7 @@ export interface AudioWarpControllerCompositionDependencies {
 	}>;
 	readonly pcmAccess?: TransientAnalysisPcmAccess;
 	readonly analyzeChannels?: TransientAnalysisServiceDependencies['analyzeChannels'];
-	getProject(): AudioEditorProjectV17;
+	getProject(): AudioWarpAuthoringProject;
 	getSelectedClipId(): string | null;
 	editingBlocked(): boolean;
 	commit(command: AudioEditorCommand): unknown;
@@ -301,7 +301,7 @@ function transientSources(
 }
 
 function selectedAudioClip(
-	project: AudioEditorProjectV17,
+	project: AudioWarpAuthoringProject,
 	clipId: string | null,
 ): DataRecord | null {
 	if (!clipId) return null;
@@ -309,7 +309,7 @@ function selectedAudioClip(
 	return clip?.kind === 'audio' ? clip : null;
 }
 
-function owningTrack(project: AudioEditorProjectV17, clipId: string): DataRecord | null {
+function owningTrack(project: AudioWarpAuthoringProject, clipId: string): DataRecord | null {
 	const owners = project.tracks.filter((track) => (
 		Array.isArray(track.clipIds) && track.clipIds.includes(clipId)
 	));

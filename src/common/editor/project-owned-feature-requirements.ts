@@ -11,6 +11,8 @@ import type {
 import { PROJECT_FEATURE_REQUIREMENTS_LIMITS } from './project-feature-requirements.ts';
 import { projectHasReportedSourceCharacteristics } from './source-characteristics-v14.ts';
 import { isVideoRetimeCurveProjectSchema } from './project-schema-version.ts';
+import { createDefaultMixerGraphV21, normalizeMixerGraphV21 } from './mixer-graph-v21.ts';
+import { resolveTerminalChannelWidths } from './terminal-channel-widths.ts';
 import { VIDEO_EFFECT_TYPES } from './video-effects.js';
 
 export const PROJECT_OWNED_FEATURE_REQUIREMENT_IDS = Object.freeze({
@@ -21,6 +23,8 @@ export const PROJECT_OWNED_FEATURE_REQUIREMENT_IDS = Object.freeze({
 	trackFolders: 'soundscaper.track-folders',
 	takeComp: 'soundscaper.take-comp',
 	audioWarp: 'soundscaper.audio-warp',
+	audioAutomation: 'soundscaper.audio-automation',
+	audioMixerGraph: 'soundscaper.audio-mixer-graph',
 	sequenceTiming: 'framescaper.sequence-timing',
 	videoRetime: 'framescaper.video-retime',
 	videoTimingAssets: 'framescaper.video-timing-assets',
@@ -58,6 +62,8 @@ const FOUNDATION_REQUIREMENTS = Object.freeze({
 	trackFolders: requirement('trackFolders', 'Nested track folders'),
 	takeComp: requirement('takeComp', 'Take lanes and comps'),
 	audioWarp: requirement('audioWarp', 'Audio warp maps'),
+	audioAutomation: requirement('audioAutomation', 'Audio automation'),
+	audioMixerGraph: requirement('audioMixerGraph', 'Audio mixer graph'),
 	sequenceTiming: requirement('sequenceTiming', 'Sequence timing'),
 	videoRetime: requirement('videoRetime', 'Video retime maps'),
 	videoTimingAssets: requirement('videoTimingAssets', 'Exact video timing assets'),
@@ -93,6 +99,16 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 		(project) => projectHasClipField(project, 'audio', 'warpMap'),
 		(project) => projectHasClipField(project, 'audio', 'warpMap'),
 	),
+	foundationOwned(
+		FOUNDATION_REQUIREMENTS.audioAutomation,
+		(project) => dataArray(project, 'automationLanes').length > 0,
+		() => true,
+	),
+	foundationOwned(
+		FOUNDATION_REQUIREMENTS.audioMixerGraph,
+		projectHasAuthoredMixerGraphV21,
+		() => true,
+	),
 	foundationOwned(FOUNDATION_REQUIREMENTS.sequenceTiming, projectHasNonDefaultSequenceTiming),
 	foundationOwned(
 		FOUNDATION_REQUIREMENTS.videoRetime,
@@ -107,7 +123,8 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 ]);
 
 function requirement(
-	key: 'musicalTimeline' | 'timelineAnnotations' | 'trackFolders' | 'takeComp' | 'audioWarp' | 'sequenceTiming'
+	key: 'musicalTimeline' | 'timelineAnnotations' | 'trackFolders' | 'takeComp' | 'audioWarp'
+		| 'audioAutomation' | 'audioMixerGraph' | 'sequenceTiming'
 		| 'videoRetime' | 'videoTimingAssets' | 'sourceCharacteristics',
 	displayName: string,
 ): ProjectFeatureRequirement {
@@ -285,6 +302,21 @@ function projectHasVideoTimingAsset(project: Readonly<Record<string, unknown>>):
 	return dataArray(project, 'sources').some((source) => isRecord(source)
 		&& dataProperty(source, 'kind') === 'video'
 		&& dataProperty(source, 'timingAsset') != null);
+}
+
+function projectHasAuthoredMixerGraphV21(project: Readonly<Record<string, unknown>>): boolean {
+	if (dataProperty(project, 'schemaVersion') !== 21) return false;
+	const masterChannels = Number(dataProperty(project, 'masterChannels'));
+	const trackWidths = resolveTerminalChannelWidths(project as never, masterChannels).tracks;
+	const audioTracks = dataArray(project, 'tracks')
+		.filter((track) => isRecord(track) && dataProperty(track, 'type') === 'audio')
+		.map((track) => {
+			const id = String(dataProperty(track as RecordValue, 'id'));
+			return { id, channelCount: trackWidths.get(id) ?? masterChannels };
+		});
+	const graph = normalizeMixerGraphV21(dataProperty(project, 'mixer'));
+	const expected = createDefaultMixerGraphV21(audioTracks, masterChannels);
+	return JSON.stringify(graph) !== JSON.stringify(expected);
 }
 
 function projectClips(project: Readonly<Record<string, unknown>>): readonly unknown[] {

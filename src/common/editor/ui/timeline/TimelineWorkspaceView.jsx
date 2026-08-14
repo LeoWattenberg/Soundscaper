@@ -481,6 +481,7 @@ export function TimelineWorkspaceView({
 				selection={timeSelection}
 				height={outputDockHeight}
 				automationToolEnabled={automationToolEnabled}
+				stripEnvelopeAvailable={project.schemaVersion !== 21}
 				blocked={mutationsBlocked}
 				mobile={mobile}
 				copy={copy}

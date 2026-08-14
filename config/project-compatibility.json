@@ -1497,12 +1497,24 @@
 		},
 		{
 			"id": "audio-freeze-fallback",
-			"status": "planned",
+			"status": "implemented",
 			"milestone": "4",
 			"requiredOutcome": "Freeze, unfreeze, commit, and rendered fallback state preserve the editable source and native-effect metadata.",
-			"currentBehavior": "Offline rendering, the narrow exact-schema-17 audio and video playback fallback relationships, and bounded operation-verified video fallback delivery exist. Audio freeze, unfreeze, commit, relink, freshness, and generic cross-platform fallback-authoring semantics are not implemented.",
+			"currentBehavior": "Soundscaper V21 owns audio-track freeze, refresh, unfreeze, and commit through exact expected-state commands and one history transaction. Freeze captures post-insert, pre-strip audio while retaining editable clips, the insert rack, strip automation, and routing; no PCM enters project JSON. Freshness is digest-bound to the exact clip and verified source-content identities, rack state, effect automation, render interval, and sample rate. Only a fresh record owns an audio-track-render-v1 rendered fallback bound to its verified derived-source SHA-256; a stale or unverifiable record remains editable but reconciles to bypass with no fallback and is never selected for playback. Browser storage, format-1 Scape, managed handoff, and the product-owned Soundscaper desktop V10 library preserve the relationship and verify its PCM body before activation. Administrative Scape source-ID remapping rebinds only a previously admitted fresh relationship, while stale state retains its old digest authority. Framescaper keeps audioTrackFreeze unavailable and can only custody an exact V21 archive opaquely for byte-stable return.",
 			"evidence": [
-				"src/common/editor/controller/mix-render-service.ts",
+				"src/common/editor/audio-track-freeze-v21.ts",
+				"src/common/editor/audio-track-freeze-lifecycle-v21.ts",
+				"src/common/editor/audio-track-freeze-coordinator-v21.ts",
+				"src/soundscaper/editor-audio-track-freeze-actions-v21.ts",
+				"src/soundscaper/editor-audio-track-freeze-playback-v21.ts",
+				"src/soundscaper/editor-project-feature-requirements-v21.ts",
+				"src/soundscaper/editor-scape-native-v21.ts",
+				"src/soundscaper/desktop-project-library-v10-renderer.ts",
+				"tests/audio-editor-audio-track-freeze-v21.test.ts",
+				"tests/audio-editor-soundscaper-v21-freeze-browser-integration.test.ts",
+				"tests/audio-editor-soundscaper-v21-persistence-interchange.test.ts",
+				"tests/audio-editor-soundscaper-desktop-v10-renderer.test.ts",
+				"tests/browser/audio-editor-soundscaper-production-v21.spec.js",
 				"roadmap.md#4-parallel-production-surfaces"
 			]
 		},

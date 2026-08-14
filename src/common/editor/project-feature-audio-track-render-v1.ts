@@ -2,13 +2,17 @@
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from './project-feature-capabilities.ts';
 import type { ProjectFeatureAudioTrackRenderFallback } from './project-feature-requirements.ts';
+import { normalizeAudioTrackFreezeV1, type AudioTrackFreezeV1 } from './audio-track-freeze-v21.ts';
+import { normalizeMixerGraphV21 } from './mixer-graph-v21.ts';
 
 export const PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS = Object.freeze({
 	clip: 'soundscaper:rendered-audio-fallback:track-clip',
 });
 
 export interface ProjectFeatureAudioTrackRenderV1Descriptor {
-	readonly featureId: typeof PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
+	readonly featureId:
+		| typeof PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+		| typeof PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze;
 	readonly requirementId: string;
 	readonly fallback: ProjectFeatureAudioTrackRenderFallback;
 }
@@ -16,7 +20,7 @@ export interface ProjectFeatureAudioTrackRenderV1Descriptor {
 export interface ProjectFeatureAudioTrackRenderV1Metadata {
 	readonly schemaVersion: 1;
 	readonly role: 'audio-track-render-v1';
-	readonly featureId: typeof PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
+	readonly featureId: ProjectFeatureAudioTrackRenderV1Descriptor['featureId'];
 	readonly requirementId: string;
 	readonly sourceId: string;
 	readonly targetTrackId: string;
@@ -49,24 +53,28 @@ export function projectFeatureAudioTrackRenderV1Playback<Project extends object>
 	if (dataProperty(target.value, 'type', target.name) !== 'audio') {
 		throw new RangeError('An audio track rendered fallback target must be an audio track.');
 	}
-	if (dataProperty(target.value, 'effectsActive', target.name) === false) {
-		throw new RangeError('An audio track rendered fallback target requires an active effect rack.');
-	}
-	const effects = arrayValue(dataProperty(target.value, 'effects', target.name), `${target.name}.effects`);
-	if (!effects.some((effect) => isRecord(effect)
-		&& optionalDataProperty(effect, 'enabled', `${target.name} effect`) !== false
-		&& optionalDataProperty(effect, 'bypassed', `${target.name} effect`) !== true)) {
-		throw new RangeError('An audio track rendered fallback target requires at least one enabled audio effect.');
-	}
+	const freeze = descriptor.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze
+		? normalizeAudioTrackFreezeV1(dataProperty(target.value, 'audioFreeze', target.name))
+		: null;
+	if (freeze === null) assertActiveEffectRack(target.value, target.name);
 	const sources = arrayValue(dataProperty(projectRecord, 'sources', 'project'), 'project.sources');
 	const fallbackSource = exactRecordById(sources, descriptor.fallback.sourceId, 'fallback source').value;
 	const clips = arrayValue(dataProperty(projectRecord, 'clips', 'project'), 'project.clips');
 	const laneClipIds = targetLaneClipIds(target.value, target.name);
-	const extentFrames = laneExtentFrames(clips, laneClipIds, descriptor.fallback.sourceId, target.name);
-	assertSourceGeometry(projectRecord, fallbackSource, extentFrames);
+	const placement = freeze === null
+		? Object.freeze({ startFrame: 0, frameCount: laneExtentFrames(
+			clips, laneClipIds, descriptor.fallback.sourceId, target.name,
+		) })
+		: freezePlacement(clips, laneClipIds, descriptor, fallbackSource, freeze, target.name);
+	assertSourceGeometry(projectRecord, fallbackSource, placement.frameCount);
 	assertReservedClipIdAvailable(projectRecord, clips);
 
-	const renderedClip = renderedLaneClip(descriptor.fallback.sourceId, extentFrames);
+	const renderedClip = renderedLaneClip(
+		descriptor.fallback.sourceId,
+		placement.startFrame,
+		placement.frameCount,
+		freeze !== null,
+	);
 	const projectedClips: unknown[] = [];
 	let inserted = false;
 	for (const clip of clips) {
@@ -78,7 +86,8 @@ export function projectFeatureAudioTrackRenderV1Playback<Project extends object>
 		projectedClips.push(clip);
 	}
 	if (!inserted) projectedClips.unshift(renderedClip);
-	const projectedTarget = replaceDataProperties(target.value, {
+	const targetAuthority = freeze === null ? target.value : removeDataProperties(target.value, ['audioFreeze']);
+	const projectedTarget = replaceDataProperties(targetAuthority, {
 		clipIds: Object.freeze([PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS.clip]),
 		effectsActive: false,
 		effects: Object.freeze([]),
@@ -86,14 +95,21 @@ export function projectFeatureAudioTrackRenderV1Playback<Project extends object>
 	const projectedTracks = Object.freeze(
 		tracks.map((track, index) => index === target.index ? projectedTarget : track),
 	);
-	const projected = replaceDataProperties(projectRecord, {
+	const replacements: Record<string, unknown> = {
 		clips: Object.freeze(projectedClips),
 		tracks: projectedTracks,
-	}) as unknown as Project;
+	};
+	if (Object.hasOwn(projectRecord, 'automationLanes')) {
+		replacements.automationLanes = projectedAutomationLanes(projectRecord, descriptor.fallback.targetTrackId);
+	}
+	if (Object.hasOwn(projectRecord, 'mixer')) {
+		replacements.mixer = projectedMixerGraph(projectRecord, descriptor.fallback.targetTrackId);
+	}
+	const projected = replaceDataProperties(projectRecord, replacements) as unknown as Project;
 	const metadata = Object.freeze({
 		schemaVersion: 1 as const,
 		role: 'audio-track-render-v1' as const,
-		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+		featureId: descriptor.featureId,
 		requirementId: descriptor.requirementId,
 		sourceId: descriptor.fallback.sourceId,
 		targetTrackId: descriptor.fallback.targetTrackId,
@@ -103,7 +119,8 @@ export function projectFeatureAudioTrackRenderV1Playback<Project extends object>
 }
 
 function assertDescriptor(descriptor: ProjectFeatureAudioTrackRenderV1Descriptor): void {
-	if (descriptor.featureId !== PROJECT_FEATURE_CAPABILITY_IDS.audioEffects) {
+	if (descriptor.featureId !== PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
+		&& descriptor.featureId !== PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze) {
 		throw new RangeError('An audio track rendered fallback requires the maintained audio-effects feature.');
 	}
 	canonicalString(descriptor.requirementId, 'Audio track rendered fallback requirement ID');
@@ -144,6 +161,43 @@ function assertManifestBinding(
 		|| dataProperty(fallback, 'targetTrackId', 'project feature requirement fallback')
 			!== descriptor.fallback.targetTrackId
 	) throw new Error('The rendered fallback descriptor does not match the project manifest.');
+}
+
+function assertActiveEffectRack(target: RecordValue, name: string): void {
+	if (dataProperty(target, 'effectsActive', name) === false) {
+		throw new RangeError('An audio track rendered fallback target requires an active effect rack.');
+	}
+	const effects = arrayValue(dataProperty(target, 'effects', name), `${name}.effects`);
+	if (!effects.some((effect) => isRecord(effect)
+		&& optionalDataProperty(effect, 'enabled', `${name} effect`) !== false
+		&& optionalDataProperty(effect, 'bypassed', `${name} effect`) !== true)) {
+		throw new RangeError('An audio track rendered fallback target requires at least one enabled audio effect.');
+	}
+}
+
+function freezePlacement(
+	clips: readonly unknown[],
+	laneClipIds: ReadonlySet<string>,
+	descriptor: ProjectFeatureAudioTrackRenderV1Descriptor,
+	fallbackSource: RecordValue,
+	freeze: AudioTrackFreezeV1,
+	name: string,
+): Readonly<{ startFrame: number; frameCount: number }> {
+	if (freeze.derivedSourceId !== descriptor.fallback.sourceId) {
+		throw new Error('The frozen track fallback no longer matches its derived source relationship.');
+	}
+	if (dataProperty(fallbackSource, 'contentSha256', 'frozen fallback source')
+		!== descriptor.fallback.sha256) {
+		throw new Error('The frozen track fallback content digest no longer matches its manifest.');
+	}
+	for (const clipId of laneClipIds) {
+		const clip = exactRecordById(clips, clipId, 'frozen target lane clip').value;
+		if (dataProperty(clip, 'sourceId', `frozen target lane clip ${clipId}`)
+			=== descriptor.fallback.sourceId) {
+			throw new RangeError(`Frozen fallback target ${name} no longer retains editable authority.`);
+		}
+	}
+	return Object.freeze({ startFrame: freeze.renderStartFrame, frameCount: freeze.renderFrameCount });
 }
 
 function targetLaneClipIds(track: RecordValue, name: string): ReadonlySet<string> {
@@ -243,13 +297,18 @@ function assertReservedClipIdAvailable(project: RecordValue, clips: readonly unk
 	}
 }
 
-function renderedLaneClip(sourceId: string, frameCount: number): RecordValue {
+function renderedLaneClip(
+	sourceId: string,
+	timelineStartFrame: number,
+	frameCount: number,
+	v21: boolean,
+): RecordValue {
 	return Object.freeze({
 		id: PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS.clip,
 		kind: 'audio',
 		sourceId,
 		title: 'Rendered track fallback',
-		timelineStartFrame: 0,
+		timelineStartFrame,
 		sourceStartFrame: 0,
 		sourceDurationFrames: frameCount,
 		durationFrames: frameCount,
@@ -270,6 +329,40 @@ function renderedLaneClip(sourceId: string, frameCount: number): RecordValue {
 		avLinkId: null,
 		binItemId: null,
 		opaqueExtensions: Object.freeze({}),
+		...(v21 ? {
+			anchor: 'sample',
+			musicalStartBeat: null,
+			musicalExtent: 'fixedSamples',
+			musicalDurationBeats: null,
+			warpMap: null,
+		} : {}),
+	});
+}
+
+function projectedAutomationLanes(project: RecordValue, targetTrackId: string): readonly unknown[] {
+	const lanes = arrayValue(dataProperty(project, 'automationLanes', 'project'), 'project.automationLanes');
+	return Object.freeze(lanes.filter((candidate, index) => {
+		const lane = recordValue(candidate, `project.automationLanes[${String(index)}]`);
+		const address = recordValue(
+			dataProperty(lane, 'address', `project.automationLanes[${String(index)}]`),
+			`project.automationLanes[${String(index)}].address`,
+		);
+		if (dataProperty(address, 'kind', 'automation address') !== 'effect') return true;
+		const strip = recordValue(dataProperty(address, 'strip', 'automation address'), 'automation address.strip');
+		return dataProperty(strip, 'kind', 'automation address.strip') !== 'track'
+			|| dataProperty(strip, 'id', 'automation address.strip') !== targetTrackId;
+	}));
+}
+
+function projectedMixerGraph(project: RecordValue, targetTrackId: string): unknown {
+	const mixer = recordValue(dataProperty(project, 'mixer', 'project'), 'project.mixer');
+	if (!Object.hasOwn(mixer, 'edges')) return mixer;
+	const graph = normalizeMixerGraphV21(mixer);
+	return normalizeMixerGraphV21({
+		...graph,
+		edges: graph.edges.filter((edge) => edge.destination.kind !== 'effect-sidechain'
+			|| edge.destination.strip.kind !== 'track'
+			|| edge.destination.strip.id !== targetTrackId),
 	});
 }
 
@@ -350,4 +443,13 @@ function replaceDataProperties(value: RecordValue, replacements: Record<string, 
 		descriptors[key] = { configurable: true, enumerable: true, writable: true, value: replacement };
 	}
 	return Object.freeze(Object.create(Object.getPrototypeOf(value) as object | null, descriptors) as RecordValue);
+}
+
+function removeDataProperties(value: RecordValue, fields: readonly string[]): RecordValue {
+	const descriptors = Object.getOwnPropertyDescriptors(value);
+	for (const field of fields) delete descriptors[field];
+	return Object.freeze(Object.create(
+		Object.getPrototypeOf(value) as object | null,
+		descriptors,
+	) as RecordValue);
 }

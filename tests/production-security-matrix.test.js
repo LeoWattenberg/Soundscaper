@@ -130,7 +130,7 @@ test('security matrix covers the production threat-model surfaces without promot
 		'desktop-write-path-capabilities': 'partial',
 		'shared-desktop-project-library-integrity': 'partial',
 		'nyquist-untrusted-code-runtime': 'enforced',
-		'reviewed-web-effect-packages': 'planned',
+		'reviewed-web-effect-packages': 'enforced',
 		'native-helper-processes': 'planned',
 		'native-plugin-hosting': 'planned',
 		'long-job-cancellation': 'partial',
@@ -172,11 +172,11 @@ test('security matrix covers the production threat-model surfaces without promot
 	}
 });
 
-test('planned native and plug-in surfaces stay disabled and portable archive controls are qualified', async () => {
+test('planned native plug-in surfaces stay disabled and portable archive controls are qualified', async () => {
 	const matrix = await readMatrix();
 	const risks = new Map(matrix.risks.map((risk) => [risk.id, risk]));
 
-	for (const riskId of ['reviewed-web-effect-packages', 'native-helper-processes', 'native-plugin-hosting']) {
+	for (const riskId of ['native-helper-processes', 'native-plugin-hosting']) {
 		const risk = risks.get(riskId);
 		assert.equal(risk.status, 'planned');
 		assert.equal(risk.releaseDisposition, 'surface-disabled');

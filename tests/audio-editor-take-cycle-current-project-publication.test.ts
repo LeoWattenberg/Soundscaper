@@ -33,6 +33,18 @@ test('live CAS publication becomes one exact undo step and is already saved', as
 	assert.deepEqual(fixture.synchronized, [fixture.project]);
 });
 
+test('live CAS publication delegates its exact target assertion to product command authority', async () => {
+	let applyCount = 0;
+	const fixture = publicationFixture({
+		applyProjectCommand(project, command, options) {
+			applyCount += 1;
+			return applyEditorCommand(project, command, options);
+		},
+	});
+	await fixture.publish(livePublication(fixture.base));
+	assert.equal(applyCount, 1);
+});
+
 test('restart recovery replaces an exact base without inventing undo history', async () => {
 	const fixture = publicationFixture();
 	const publication = livePublication(fixture.base);
@@ -66,7 +78,9 @@ test('restart recovery accepts an already exact target but refuses stale base au
 	assert.equal(stale.synchronized.length, 0);
 });
 
-function publicationFixture() {
+function publicationFixture(options: Readonly<{
+	readonly applyProjectCommand?: typeof applyEditorCommand;
+}> = {}) {
 	const base = createAudioEditorProjectV17({
 		id: 'project-cycle', title: 'Cycle', now: NOW,
 		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: [] })],
@@ -79,6 +93,7 @@ function publicationFixture() {
 	let history = session.getProjectHistory(base.id) as TakeCyclePublicationHistory;
 	const synchronized: typeof base[] = [];
 	const service = createTakeCycleCurrentProjectPublicationService({
+		...options,
 		getActiveProject: () => project,
 		getActiveHistory: () => history,
 		setActiveProject: (value) => { project = value; },

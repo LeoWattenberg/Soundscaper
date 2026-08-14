@@ -65,28 +65,29 @@ export function createFramescaperNestedSequenceMenuItems(
 	if (input.productId !== 'framescaper') return null;
 	const project = record(input.project);
 	const schemaVersion = safeInteger(project?.schemaVersion, 18);
+	const exactAuthority = schemaVersion === 18 || schemaVersion === 19;
 	const sequences = records(project?.sequences);
 	const subsequences = records(project?.subsequences);
 	const primaryId = typeof project?.primarySequenceId === 'string' ? project.primarySequenceId : null;
 	const parent = sequences.find(({ id }) => id === primaryId) ?? null;
 	const source = sequences.find(({ id }) => id !== primaryId) ?? null;
 	const existing = subsequences[0] ?? null;
-	const createCommand = schemaVersion === 18 && !input.editingBlocked && parent
+	const createCommand = exactAuthority && !input.editingBlocked && parent
 		? createCommandFor(parent, sequences)
 		: null;
-	const addCommand = schemaVersion === 18 && !input.editingBlocked && parent && source
+	const addCommand = exactAuthority && !input.editingBlocked && parent && source
 		? addCommandFor(parent, source, subsequences)
 		: null;
-	const updateCommand = schemaVersion === 18 && !input.editingBlocked && existing
+	const updateCommand = exactAuthority && !input.editingBlocked && existing
 		? updateCommandFor(existing)
 		: null;
-	const removeCommand = schemaVersion === 18 && !input.editingBlocked && existing
+	const removeCommand = exactAuthority && !input.editingBlocked && existing
 		? removeCommandFor(existing)
 		: null;
 	const deletable = project ? sequences.find((sequence) => (
 		sequence.id !== primaryId && canDeleteSequence(project, sequence, subsequences)
 	)) ?? null : null;
-	const deleteCommand = schemaVersion === 18 && !input.editingBlocked && deletable
+	const deleteCommand = exactAuthority && !input.editingBlocked && deletable
 		? deleteCommandFor(deletable)
 		: null;
 	const items = Object.freeze([

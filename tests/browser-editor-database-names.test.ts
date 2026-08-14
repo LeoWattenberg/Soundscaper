@@ -44,14 +44,21 @@ test('the browser workflows open the database the web Framescaper bootstrap moun
 	);
 });
 
-test('the browser workflows open the database the Soundscaper editor defaults to', async () => {
-	const storage = await readFile(resolve(ROOT, 'src/common/editor/storage.js'), 'utf8');
-	const defaultName = /const DEFAULT_DATABASE_NAME = '([^']+)';/u.exec(storage);
-	assert.ok(defaultName, 'src/common/editor/storage.js declares no default database name.');
+test('the browser workflows open the database the web Soundscaper bootstrap mounts', async () => {
+	const app = await readFile(resolve(ROOT, 'src/common/site/App.jsx'), 'utf8');
+	const mounted = /productId !== 'framescaper'\s*\?\s*SoundscaperAudioEditorBootstrapV(\d+)/u.exec(app);
+	assert.ok(mounted, 'Could not tell which Soundscaper bootstrap src/common/site/App.jsx mounts.');
+	const profile = await readFile(
+		resolve(ROOT, `src/soundscaper/editor-project-storage-profile-v${mounted[1]}.ts`),
+		'utf8',
+	);
+	const databaseName = /databaseName: '([^']+)'/u.exec(profile);
+	assert.ok(databaseName, `The V${mounted[1]} Soundscaper storage profile declares no database name literal.`);
 	assert.equal(
 		SOUNDSCAPER_DATABASE_NAME,
-		defaultName[1],
-		`The Soundscaper editor defaults to ${defaultName[1]}, but the browser workflows open`
-		+ ` ${SOUNDSCAPER_DATABASE_NAME}. Follow it in tests/browser/helpers/editor-databases.js.`,
+		databaseName[1],
+		`The web Soundscaper bootstrap mounts V${mounted[1]}, which persists to ${databaseName[1]}, but the`
+		+ ` browser workflows open ${SOUNDSCAPER_DATABASE_NAME}. Follow the mounted profile in`
+		+ ' tests/browser/helpers/editor-databases.js.',
 	);
 });

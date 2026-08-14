@@ -1,5 +1,6 @@
 import React from 'react';
 import ScapeOpenDecisionDialog from './ScapeOpenDecisionDialog.jsx';
+import SoundscaperProductionWorkspaceOverlay from './SoundscaperProductionWorkspaceOverlay.tsx';
 
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
@@ -59,6 +60,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		toggleWorkspacePanel,
 	} = model;
 	return <>
+			<SoundscaperProductionWorkspaceOverlay model={model} />
 
 			{capabilities.audioEffects && effectWindow && (
 				<div data-effects-window-host>

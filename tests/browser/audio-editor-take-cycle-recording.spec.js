@@ -13,8 +13,9 @@ import {
 	importFiles,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
-const DATABASE_NAME = 'kw-media-audio-editor';
+const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
 const RAW_SPOOL_PREFIX = 'raw-pcm-spool-registry-v1:';
 const RECOVERY_ENVELOPE_PREFIX = 'take-cycle-recovery-envelope-v1:';
 

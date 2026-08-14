@@ -145,7 +145,7 @@ test('a graph with no lanes preserves the existing gain event stream exactly', (
 	]);
 });
 
-test('native limiter and delay bindings cover the owning automatable descriptors', () => {
+test('native AudioParams register while production-worklet fallback parameters remain fenced', () => {
 	const context = new MockContext();
 	const input = new MockNode('input');
 	const registry = new ScheduledParameterRegistry();
@@ -154,6 +154,13 @@ test('native limiter and delay bindings cover the owning automatable descriptors
 		scope: 'track',
 		targetId: 'track-1',
 	};
+	applyEffect(
+		context as unknown as BaseAudioContext,
+		input as unknown as AudioNode,
+		createEffect('compressor', { id: 'compressor-1' }),
+		[],
+		options,
+	);
 	applyEffect(
 		context as unknown as BaseAudioContext,
 		input as unknown as AudioNode,
@@ -169,11 +176,11 @@ test('native limiter and delay bindings cover the owning automatable descriptors
 		options,
 	);
 	assert.deepEqual(registry.entries().map((entry) => effectParameterId(entry.descriptor.address)), [
-		'limiter-1:ceiling',
-		'limiter-1:release',
-		'delay-1:time',
-		'delay-1:feedback',
-		'delay-1:mix',
+		'compressor-1:threshold',
+		'compressor-1:knee',
+		'compressor-1:ratio',
+		'compressor-1:attack',
+		'compressor-1:release',
 	]);
 	assert.equal(registry.has({
 		kind: 'effect',
@@ -181,29 +188,12 @@ test('native limiter and delay bindings cover the owning automatable descriptors
 		effectId: 'limiter-1',
 		parameterId: 'threshold',
 	}), false);
-	const mix = registry.get({
+	assert.equal(registry.has({
 		kind: 'effect',
 		strip: { kind: 'track', id: 'track-1' },
 		effectId: 'delay-1',
 		parameterId: 'mix',
-	});
-	assert.ok(mix);
-	assert.equal(mix.binding.kind, 'audio-param');
-	if (mix.binding.kind !== 'audio-param') return;
-	assert.equal(mix.binding.params.length, 2);
-	mix.schedule([{ kind: 'set', frame: 0, value: 0.8 }], {
-		fromFrame: 0,
-		contextStartTime: 0,
-		sampleRate: 48_000,
-		contextSampleRate: 48_000,
-	});
-	assert.deepEqual(
-		mix.binding.params.map(({ param }) => (param as unknown as MockParam).calls),
-		[
-			[['set', 0.75, 0], ['cancel', 0], ['set', 1 - 0.8, 0]],
-			[['set', 0.25, 0], ['cancel', 0], ['set', 0.8, 0]],
-		],
-	);
+	}), false);
 });
 
 test('a no-lane graph accepts existing long track, effect, bus, and send IDs', () => {
@@ -239,7 +229,7 @@ test('a no-lane graph accepts existing long track, effect, bus, and send IDs', (
 	}), true);
 	assert.equal(graph.parameterRegistry.has({
 		kind: 'effect', strip: { kind: 'track', id: trackId }, effectId, parameterId: 'mix',
-	}), true);
+	}), false);
 	assert.equal(graph.parameterRegistry.has({
 		kind: 'strip', strip: { kind: 'mixer-node', id: groupId }, parameterId: 'gain',
 	}), true);
@@ -287,8 +277,8 @@ test('effect parameter targets carry the latency standing ahead of them', () => 
 	// The rack head is uncompensated; a later effect carries its upstream rack
 	// latency, and a master effect carries the whole track stage, exactly as the
 	// strip gain target on the same graph already does.
-	assert.deepEqual([...(latencies.get('limiter-1') ?? [])], [0]);
-	assert.deepEqual([...(latencies.get('delay-1') ?? [])], [480]);
+	assert.deepEqual([...(latencies.get('limiter-1') ?? [])], []);
+	assert.deepEqual([...(latencies.get('delay-1') ?? [])], []);
 	assert.deepEqual([...(latencies.get('compressor-1') ?? [])], [480]);
 	assert.equal(graph.parameterRegistry.get({
 		kind: 'strip', strip: { kind: 'track', id: 'track-1' }, parameterId: 'gain',

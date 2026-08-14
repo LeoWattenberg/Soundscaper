@@ -28,9 +28,14 @@ export interface ProjectV9MediaCollections {
 	readonly binClips: readonly ProjectDataRecord[];
 }
 
+export interface ProjectV9MediaValidationOptions {
+	readonly stripEnvelopeAuthority?: 'required' | 'forbidden';
+}
+
 export function validateProjectV9Media(
 	project: ProjectDataRecord,
 	sampleRate: number,
+	options: ProjectV9MediaValidationOptions = {},
 ): ProjectV9MediaCollections {
 	const foundation = Number(project.schemaVersion) >= 10;
 	const sources = recordArray(project.sources, 'project.sources');
@@ -44,7 +49,12 @@ export function validateProjectV9Media(
 	for (const source of sources) validateSource(source, foundation);
 	for (const clip of clips) validateClip(clip, false, foundation);
 	for (const clip of binClips) validateClip(clip, true, foundation);
-	for (const track of tracks) validateTrack(track, sampleRate, foundation);
+	for (const track of tracks) validateTrack(
+		track,
+		sampleRate,
+		foundation,
+		options.stripEnvelopeAuthority ?? 'required',
+	);
 	validateMediaGraph({ project, sources, clips, tracks, binClips }, foundation);
 	return { sources, clips, tracks, binClips };
 }
@@ -132,7 +142,12 @@ function validateClip(clip: ProjectDataRecord, inProjectBin: boolean, foundation
 	normalizeVideoEffects(clip.videoEffects, `${prefix}.videoEffects`);
 }
 
-function validateTrack(track: ProjectDataRecord, sampleRate: number, foundation: boolean): void {
+function validateTrack(
+	track: ProjectDataRecord,
+	sampleRate: number,
+	foundation: boolean,
+	stripEnvelopeAuthority: 'required' | 'forbidden',
+): void {
 	const prefix = `track ${String(track.id)}`;
 	projectString(track.id, `${prefix}.id`);
 	projectString(track.name, `${prefix}.name`);
@@ -163,9 +178,23 @@ function validateTrack(track: ProjectDataRecord, sampleRate: number, foundation:
 	}
 	projectString(track.color, `${prefix}.color`);
 	validateSpectrogram(track.spectrogram, sampleRate, `${prefix}.spectrogram`);
-	validateProjectEnvelope(track.envelope, `${prefix}.envelope`);
+	validateStripEnvelope(track, prefix, stripEnvelopeAuthority);
 	projectBoolean(track.effectsActive, `${prefix}.effectsActive`);
 	validatePersistedAudioEffects(track.effects, `${prefix}.effects`);
+}
+
+function validateStripEnvelope(
+	strip: ProjectDataRecord,
+	name: string,
+	authority: 'required' | 'forbidden',
+): void {
+	if (authority === 'required') {
+		validateProjectEnvelope(strip.envelope, `${name}.envelope`);
+		return;
+	}
+	if (Object.hasOwn(strip, 'envelope')) {
+		throw new RangeError(`${name}.envelope is forbidden by the current strip authority.`);
+	}
 }
 
 function validateLabel(label: ProjectDataRecord, trackName: string, foundation: boolean): void {

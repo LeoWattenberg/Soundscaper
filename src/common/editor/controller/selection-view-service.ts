@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../project-schema-version.ts';
+import { isActiveAudioEditorProjectSchema } from '../project-schema-version.ts';
 import { createClipSelectionNavigationService } from './clip-selection-navigation-service.ts';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Explicitly named legacy ports keep the migration seam typo-safe while project shapes are narrowed. */
@@ -85,7 +85,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 			state.selectedAnnotationId = null;
 			if (project?.schemaVersion >= 2 && (
 				project.selection?.clipIds?.length
-				|| (hasCurrentTimelineAnnotations(project) && project.selection?.annotationIds?.length)
+				|| (hasActiveTimelineAnnotations(project) && project.selection?.annotationIds?.length)
 			)) {
 				const selection = project.selection;
 				return updateSelection({
@@ -161,7 +161,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	}
 
 	function clearDurableAnnotationSelection(project: any) {
-		if (!hasCurrentTimelineAnnotations(project) || !project.selection?.annotationIds?.length) return false;
+		if (!hasActiveTimelineAnnotations(project) || !project.selection?.annotationIds?.length) return false;
 		const selection = project.selection;
 		updateSelection({
 			type: 'selection/set', startFrame: selection.startFrame, endFrame: selection.endFrame,
@@ -172,7 +172,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	}
 
 	function clearedAnnotationSelectionDetails(project: any) {
-		return hasCurrentTimelineAnnotations(project) && project.selection?.annotationIds?.length ? { annotationIds: [] } : {};
+		return hasActiveTimelineAnnotations(project) && project.selection?.annotationIds?.length ? { annotationIds: [] } : {};
 	}
 
 	function selectAllTracks() {
@@ -367,7 +367,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 	});
 }
 
-function hasCurrentTimelineAnnotations(project: any): boolean {
-	return project?.schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+function hasActiveTimelineAnnotations(project: any): boolean {
+	return isActiveAudioEditorProjectSchema(project?.schemaVersion)
 		&& Array.isArray(project.timelineAnnotations);
 }

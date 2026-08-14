@@ -47,7 +47,7 @@ export function validateAudioEditorProjectV17(
 }
 
 /** Current-schema native warp state must be consumable by the exact runtime. */
-function validateAudioWarpRuntimeAuthorityV17(project: Record<string, unknown>): void {
+export function validateAudioWarpRuntimeAuthorityV17(project: Record<string, unknown>): void {
 	const runtimeProject = project as unknown as Parameters<typeof normalizeAudioWarpMapForClip>[0];
 	const clips = dataArray(project, 'clips', 'project');
 	for (const [index, value] of clips.entries()) {

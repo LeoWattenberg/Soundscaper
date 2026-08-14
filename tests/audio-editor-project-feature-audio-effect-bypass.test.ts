@@ -9,7 +9,11 @@ import {
 } from '../src/common/editor/project-feature-audio-effect-bypass.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 
 const AUDIO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
 
@@ -101,6 +105,22 @@ test('declared unavailable first-party audio effects are bypassed only in a boun
 	assert.equal(Object.isFrozen(result.metadata), true);
 	assert.equal(Object.isFrozen(result.metadata?.placeholders), true);
 	assert.equal(Object.isFrozen(result.metadata?.placeholders[0]), true);
+});
+
+test('selected product schemas retain the inherited audio-effect playback projection', () => {
+	for (const schemaVersion of [
+		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	]) {
+		const input = { ...project(), schemaVersion };
+		const result = projectFeatureAudioEffectPlaybackBypass(input, report());
+		assert.equal(
+			result.metadata?.placeholders.length,
+			3,
+			`schema ${String(schemaVersion)} must retain inherited audio-effect bypass`,
+		);
+		assert.equal(result.project.tracks[0]?.effects[0]?.bypassed, true);
+	}
 });
 
 test('the projector ignores unsupported dispositions, unknown IDs, future schemas, and missing effects', () => {

@@ -34,6 +34,12 @@ function createHarness(options: Readonly<{
 	spectralFactory?: () => FakeWorker;
 	spectralMaximumUsefulBinaryBytes?: number;
 	applySpectralGain?: (channels: Float32Array[]) => Promise<Float32Array[]> | Float32Array[];
+	applyReviewedSelectionEffect?: (
+		channels: unknown,
+		sampleRate: number,
+		params: unknown,
+		options?: Readonly<{ signal?: AbortSignal }>,
+	) => Promise<readonly Float32Array[]>;
 }> = { workers: true }) {
 	const state: EffectWorkerState = { audacityEffectWorker: null, spectralWorker: null };
 	const selectionWorkers: FakeWorker[] = [];
@@ -70,6 +76,7 @@ function createHarness(options: Readonly<{
 			fallbackApplications += 1;
 			return channels.map((channel) => Float32Array.from(channel, (sample) => sample * 2));
 		},
+		applyReviewedSelectionEffect: options.applyReviewedSelectionEffect,
 		applySpectralGain: async (channels) => {
 			spectralApplications += 1;
 			return options.applySpectralGain?.(channels)
@@ -162,6 +169,68 @@ test('fallback EQ loading and effect completion are project scoped', async () =>
 	const pending = harness.service.runSelectionEffectWorker(APPLY_REQUEST);
 	harness.switchProject();
 	await assert.rejects(pending, { code: 'PROJECT_CHANGED' });
+});
+
+test('reviewed packages fail closed instead of running on the main-thread fallback', async () => {
+	const harness = createHarness({ workers: false });
+	await assert.rejects(
+		harness.service.runSelectionEffectWorker({
+			...APPLY_REQUEST,
+			effectType: 'reviewed-utility-gain',
+			params: { gain: 1 },
+		}),
+		/dedicated Web Worker/u,
+	);
+	assert.equal(harness.fallbackApplications, 0);
+});
+
+test('reviewed packages use only the dedicated offline processor and preserve project fencing', async () => {
+	let calls = 0;
+	let observedSignal: AbortSignal | undefined;
+	const harness = createHarness({
+		workers: true,
+		applyReviewedSelectionEffect: async (channels, sampleRate, params, options) => {
+			calls += 1;
+			observedSignal = options?.signal;
+			assert.equal(sampleRate, 48_000);
+			assert.deepEqual(params, { gain: 2 });
+			return (channels as Float32Array[]).map((channel) => Float32Array.from(
+				channel,
+				(sample) => sample * 2,
+			));
+		},
+	});
+	const result = await harness.service.runSelectionEffectWorker({
+		...APPLY_REQUEST,
+		effectType: 'reviewed-utility-gain',
+		params: { gain: 2 },
+	});
+	assert.equal(calls, 1);
+	assert.equal(observedSignal?.aborted, false);
+	assert.equal(harness.selectionWorkers.length, 0);
+	assert.equal(harness.fallbackApplications, 0);
+	assert.deepEqual(result.channels?.[0], new Float32Array([0.5, -1]));
+});
+
+test('reviewed package cancellation aborts the dedicated processor', async () => {
+	let observedSignal: AbortSignal | undefined;
+	const harness = createHarness({
+		applyReviewedSelectionEffect: (_channels, _sampleRate, _params, options) => {
+			observedSignal = options?.signal;
+			return new Promise((_resolve, reject) => {
+				options?.signal?.addEventListener('abort', () => reject(options.signal?.reason), { once: true });
+			});
+		},
+	});
+	const pending = harness.service.runSelectionEffectWorker({
+		...APPLY_REQUEST,
+		effectType: 'reviewed-utility-gain',
+		params: { gain: 2 },
+	});
+	harness.service.cancelWorkers();
+	await assert.rejects(pending, { name: 'AbortError' });
+	assert.equal(observedSignal?.aborted, true);
+	assert.equal(harness.selectionWorkers.length, 0);
 });
 
 test('fallback noise-profile capture initializes the FFT runtime', async () => {

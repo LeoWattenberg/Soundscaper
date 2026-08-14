@@ -3,6 +3,7 @@
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
 } from '../project-schema-version.ts';
 import { AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION } from '../project-v10-validation.ts';
 import { videoFrameToSampleFrame, type RationalRate } from '../timeline-time.ts';
@@ -133,7 +134,8 @@ function rationalRate(value: unknown, name: string): RationalRate {
 function isFoundationSchema(value: unknown): boolean {
 	return value === AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION
-		|| value === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
+		|| value === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
+		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
 }
 
 function nonNegativeSafeInteger(value: unknown, name: string): number {

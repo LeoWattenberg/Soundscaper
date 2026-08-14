@@ -24,6 +24,7 @@ import {
 	validateAudioEditorProjectV17,
 	type AudioEditorProjectV17,
 } from '../project-v17-validation.ts';
+import { isTakeCompProjectSchema } from '../project-schema-version.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
 
 export interface TakeLaneAuditionPlan {
@@ -197,7 +198,15 @@ export function createTakeCompService(
 
 	function validProject(): AudioEditorProjectV17 {
 		const project = dependencies.getProject();
-		validateAudioEditorProjectV17(project);
+		const schemaVersion = (project as unknown as Readonly<Record<string, unknown>>).schemaVersion;
+		if (!isTakeCompProjectSchema(schemaVersion)) {
+			throw new RangeError(`Take comps require schema V17 or V21, received ${String(schemaVersion)}.`);
+		}
+		if (schemaVersion === 17) validateAudioEditorProjectV17(project);
+		else createTakeCompDocumentGroupsV17(
+			(project as unknown as Readonly<Record<string, unknown>>).takeGroups,
+			project as unknown as Readonly<Record<string, unknown>>,
+		);
 		return project;
 	}
 }

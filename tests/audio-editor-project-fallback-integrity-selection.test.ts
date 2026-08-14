@@ -8,7 +8,10 @@ import {
 	verifyProjectFallbackIntegrity,
 	type ProjectVideoFallbackIntegritySelector,
 } from '../src/common/editor/project-fallback-integrity.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 
 const VIDEO_BYTES = Uint8Array.of(0x66, 0x61, 0x6c, 0x6c, 0x62, 0x61, 0x63, 0x6b);
 const VIDEO_SHA256 = digest(VIDEO_BYTES);
@@ -22,9 +25,34 @@ const VIDEO_SELECTOR: ProjectVideoFallbackIntegritySelector = Object.freeze({
 	targetClipId: null,
 });
 
+interface FallbackRequirementFixture extends Record<string, unknown> {
+	id: string;
+	featureId: string;
+	displayName: string;
+	disposition: string;
+	fallback: { kind: 'audio' | 'video'; sourceId: string; sha256: string; role?: string };
+}
+
 test('selected video verification skips a missing unrelated body and retains one canonical Blob', async () => {
 	let videoLoads = 0;
-	const admission = await verifyProjectFallbackIntegrity(fallbackProject(), {
+	const candidate = fallbackProject();
+	candidate.schemaVersion = SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+	candidate.clips = [];
+	candidate.tracks = [];
+	candidate.automationLanes = [];
+	candidate.featureRequirements = {
+		schemaVersion: 2,
+		requirements: candidate.featureRequirements.requirements.map((requirement) => ({
+			...requirement,
+			fallback: {
+				...requirement.fallback,
+				role: requirement.fallback.kind === 'audio'
+					? 'project-audio-mix-v1'
+					: 'project-video-render-v1',
+			},
+		})),
+	};
+	const admission = await verifyProjectFallbackIntegrity(candidate, {
 		getMediaAssetMetadata(sourceId) {
 			assert.equal(sourceId, 'video-storage');
 			return { size: VIDEO_BYTES.byteLength };
@@ -138,7 +166,10 @@ function fallbackProject(): {
 	primarySequenceId: string;
 	sequences: Array<Record<string, unknown>>;
 	sources: Array<Record<string, unknown>>;
-	featureRequirements: { schemaVersion: number; requirements: Array<Record<string, unknown>> };
+	clips?: Array<Record<string, unknown>>;
+	tracks?: Array<Record<string, unknown>>;
+	automationLanes?: Array<Record<string, unknown>>;
+	featureRequirements: { schemaVersion: number; requirements: FallbackRequirementFixture[] };
 } {
 	return {
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
@@ -165,7 +196,7 @@ function requirement(
 	kind: 'audio' | 'video',
 	sourceId: string,
 	sha256: string,
-): Record<string, unknown> {
+): FallbackRequirementFixture {
 	return { id, featureId, displayName: id, disposition: 'rendered-fallback', fallback: { kind, sourceId, sha256 } };
 }
 

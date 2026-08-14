@@ -6,8 +6,8 @@ import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseFileAction,
-	getMenuItem,
 	importFiles,
+	openNestedCommandMenu,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
@@ -113,17 +113,7 @@ test.describe('Framescaper V19 video composition authoring', () => {
 		const editor = await bootEditor(page, '/en/');
 		await expect(editor).toHaveAttribute('data-product', 'soundscaper');
 
-		const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
-		const edit = menubar.getByRole('menuitem', { name: 'Edit', exact: true });
-		await edit.focus();
-		await edit.press('Enter');
-		const editMenu = page.getByRole('menu', { name: 'Edit', exact: true });
-		await expect(editMenu).toBeVisible();
-		const clipBoundaries = getMenuItem(editMenu, 'Audio clips');
-		await clipBoundaries.focus();
-		await page.keyboard.press('ArrowRight');
-		const clipBoundariesMenu = clipBoundaries.getByRole('menu');
-		await expect(clipBoundariesMenu).toBeVisible();
+		const clipBoundariesMenu = await openNestedCommandMenu(page, editor, 'Edit', ['Audio clips']);
 		await expect(clipBoundariesMenu.getByRole('menuitem', {
 			name: 'Transform and compositing',
 			exact: true,
@@ -134,15 +124,7 @@ test.describe('Framescaper V19 video composition authoring', () => {
 async function openCompositionDialog(page, editor, { inspectMenu = false } = {}) {
 	const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
 	const edit = menubar.getByRole('menuitem', { name: 'Edit', exact: true });
-	await edit.focus();
-	await edit.press('Enter');
-	const editMenu = page.getByRole('menu', { name: 'Edit', exact: true });
-	await expect(editMenu).toBeVisible();
-	const clipBoundaries = getMenuItem(editMenu, 'Audio clips');
-	await clipBoundaries.focus();
-	await page.keyboard.press('ArrowRight');
-	const clipBoundariesMenu = clipBoundaries.getByRole('menu');
-	await expect(clipBoundariesMenu).toBeVisible();
+	const clipBoundariesMenu = await openNestedCommandMenu(page, editor, 'Edit', ['Audio clips']);
 	const composition = clipBoundariesMenu.getByRole('menuitem', {
 		name: 'Transform and compositing',
 		exact: true,

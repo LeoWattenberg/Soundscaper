@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isAudioWarpProjectSchema } from '../project-schema-version.ts';
+
 type DataRecord = Readonly<Record<string, unknown>>;
 
 export interface AudioWarpApplicationMenuInput {
@@ -26,7 +28,7 @@ export function createAudioWarpApplicationMenuItems(input: AudioWarpApplicationM
 	return Object.freeze([Object.freeze({
 		id: 'audio-warp-editor',
 		label: input.copy.audioWarpMenu,
-		disabled: project?.schemaVersion !== 17 || !selectedAudio
+		disabled: !isAudioWarpProjectSchema(project?.schemaVersion) || !selectedAudio
 			|| input.editingBlocked || owners[0]?.locked === true,
 		onClick: input.open,
 	})]);

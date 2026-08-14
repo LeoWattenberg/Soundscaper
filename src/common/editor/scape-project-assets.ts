@@ -94,7 +94,9 @@ export function indexScapeProjectAssets(
 			}
 		}
 	}
-	assertScapeProjectFallbackAssets(snapshotScapeProjectFallbackIntegrity(project).claims, assetBySourceId);
+	assertScapeProjectFallbackAssets(snapshotScapeProjectFallbackIntegrity(project, {
+		currentProjectSchemaVersion,
+	}).claims, assetBySourceId);
 	indexScapeProjectTimingAssets(project, manifest);
 	return assetBySourceId;
 }
@@ -136,12 +138,15 @@ export function indexScapeProjectTimingAssets(
 }
 
 /** Snapshots the bounded normalized fallback contract from the exact current project schema. */
-export function snapshotScapeProjectFallbackIntegrity(project: unknown): ScapeProjectFallbackSnapshot {
+export function snapshotScapeProjectFallbackIntegrity(
+	project: unknown,
+	options: ScapeProjectAssetIndexOptions = {},
+): ScapeProjectFallbackSnapshot {
 	if (!project || typeof project !== 'object' || Array.isArray(project)) {
 		throw new TypeError('The migrated .scape project must be an object.');
 	}
 	const candidate = project as ScapeProjectWithSources;
-	if (candidate.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return NO_FALLBACK_SNAPSHOT;
+	if (candidate.schemaVersion !== scapeAssetSchemaVersion(options)) return NO_FALLBACK_SNAPSHOT;
 	const sources = projectSources(project) as readonly Readonly<{ id?: unknown; kind?: unknown }>[];
 	const clips = Array.isArray(candidate.clips)
 		? candidate.clips as readonly Readonly<Record<string, unknown>>[]

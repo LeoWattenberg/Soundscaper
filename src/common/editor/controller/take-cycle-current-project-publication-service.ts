@@ -36,6 +36,11 @@ export interface TakeCyclePublicationSession {
 
 export interface TakeCycleCurrentProjectPublicationDependencies {
 	readonly session: TakeCyclePublicationSession;
+	readonly applyProjectCommand?: (
+		project: AudioEditorProjectV17,
+		command: AudioEditorCommand,
+		options?: Readonly<{ readonly now?: Date | string }>,
+	) => AudioEditorProjectV17;
 	getActiveProject(): AudioEditorProjectV17 | null;
 	getActiveHistory(): TakeCyclePublicationHistory | null;
 	setActiveProject(project: AudioEditorProjectV17): void;
@@ -80,7 +85,12 @@ export function createTakeCycleCurrentProjectPublicationService(
 			if (publication.reason !== 'finalize' || !atBase) {
 				throw new Error('A live take cycle command requires the exact active base.');
 			}
-			assertCommandTarget(base, target, publication.command);
+			assertCommandTarget(
+				base,
+				target,
+				publication.command,
+				dependencies.applyProjectCommand ?? applyEditorCommand,
+			);
 			nextHistory = Object.freeze({
 				...capture.history,
 				present: target,
@@ -125,8 +135,9 @@ function assertCommandTarget(
 	base: AudioEditorProjectV17,
 	target: AudioEditorProjectV17,
 	command: AudioEditorCommand,
+	applyProjectCommand: NonNullable<TakeCycleCurrentProjectPublicationDependencies['applyProjectCommand']>,
 ): void {
-	const applied = applyEditorCommand(base, command, { now: target.updatedAt });
+	const applied = applyProjectCommand(base, command, { now: target.updatedAt });
 	if (!sameProject(applied, target)) {
 		throw new Error('Prepared take cycle command does not produce its exact durable target.');
 	}
