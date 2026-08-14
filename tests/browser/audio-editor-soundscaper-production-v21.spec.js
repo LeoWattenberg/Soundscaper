@@ -333,9 +333,13 @@ test.describe('Soundscaper exact V21 production UI', () => {
 			frameCount: expectedFrameCount,
 			sampleRate: FREEZE_SAMPLE_RATE,
 		});
+		// The freeze captures the track pre-master and pre-pan, so it renders at the
+		// track's own width. This track is mono, and rendering it at the programme width
+		// upmixed it into a stereo frozen source it never had.
 		expect(pcm.storage).toMatchObject({
 			storage: 'indexeddb-chunks',
 			frameCount: expectedFrameCount,
+			channelCount: 1,
 			chunkCount: 1,
 		});
 		expect(pcm.effects.map(({ type }) => type)).toEqual(['limiter', 'delay']);
@@ -346,7 +350,7 @@ test.describe('Soundscaper exact V21 production UI', () => {
 
 		expect(nativeRender.renderStarts).toBe(1);
 		expect(nativeRender.contexts).toContainEqual({
-			numberOfChannels: 2,
+			numberOfChannels: 1,
 			length: expectedFrameCount + FREEZE_INSERT_LATENCY_FRAMES,
 			sampleRate: FREEZE_SAMPLE_RATE,
 		});
@@ -369,7 +373,7 @@ test.describe('Soundscaper exact V21 production UI', () => {
 		));
 		expect(inputNonZeroFrames[0]).toBe(0);
 		expect(inputNonZeroFrames.at(-1)).toBe(FREEZE_INPUT_FRAMES - 1);
-		expect(pcm.channels).toHaveLength(2);
+		expect(pcm.channels).toHaveLength(1);
 		for (const channel of pcm.channels) {
 			expect(channel).toHaveLength(expectedFrameCount);
 			const nonZeroFrames = channel.flatMap((sample, frame) => (
