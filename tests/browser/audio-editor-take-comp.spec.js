@@ -17,9 +17,8 @@ import {
 	collectClientErrors,
 	registerAudioEditorHooks,
 	stubStorageEstimate,
-	chooseTrackMenuAction,
-	TRACK_MENU_TRIGGER,
 } from './audio-editor-test-helpers.js';
+import { TRACK_MENU_TRIGGER, chooseTrackMenuAction } from './helpers/track-menu.js';
 
 const FRAME_COUNT = 12_000;
 const SAMPLE_RATE = 48_000;

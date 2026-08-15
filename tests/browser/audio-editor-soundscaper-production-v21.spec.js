@@ -9,7 +9,6 @@ import {
 	bootEditor,
 	chooseFileAction,
 	chooseNestedCommandAction,
-	chooseTrackMenuAction,
 	closeDialog,
 	closeEffectsPanel,
 	commitInput,
@@ -20,6 +19,7 @@ import {
 	openEffectsForTrack,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+import { chooseTrackMenuAction } from './helpers/track-menu.js';
 import { longTone } from './audio-editor-test-fixtures.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';

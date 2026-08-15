@@ -2,13 +2,12 @@ import { expect, test, toneA, TRANSLATIONS_ROOT } from './audio-editor-test-fixt
 import {
 	bootEditor,
 	chooseCommandAction,
-	chooseTrackMenuAction,
-	TRACK_MENU_TRIGGER,
 	clipByName,
 	getMenuItem,
 	importFiles,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
+import { TRACK_MENU_TRIGGER, chooseTrackMenuAction } from './helpers/track-menu.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';

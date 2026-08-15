@@ -20,8 +20,8 @@ import {
 	getMenuItem,
 	registerAudioEditorHooks,
 	stubStorageEstimate,
-	chooseTrackMenuAction,
 } from './audio-editor-test-helpers.js';
+import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 const FRAME_COUNT = 12_000;
 const SAMPLE_RATE = 48_000;

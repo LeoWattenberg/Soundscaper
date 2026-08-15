@@ -30,8 +30,8 @@ import {
 	showToolbarButton,
 	trackNameText,
 	waitForEditor,
-	chooseTrackMenuAction,
 } from './audio-editor-test-helpers.js';
+import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
