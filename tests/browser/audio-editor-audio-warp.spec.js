@@ -14,13 +14,13 @@ import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
 	bootEditor,
-	chooseCommandAction,
 	chooseNestedCommandAction,
 	clipByName,
 	collectClientErrors,
 	getMenuItem,
 	registerAudioEditorHooks,
 	stubStorageEstimate,
+	chooseTrackMenuAction,
 } from './audio-editor-test-helpers.js';
 
 const FRAME_COUNT = 12_000;
@@ -115,9 +115,9 @@ test.describe('audio warp and transient workflow', () => {
 		await page.keyboard.press('Escape');
 		await expect(dialog).toBeHidden();
 		await expect(editor.getByRole('menuitem', { name: 'Effect', exact: true })).toBeFocused();
-		await chooseCommandAction(page, editor, 'Tracks', 'Lock track');
+		await chooseTrackMenuAction(page, editor, null, 'Lock track');
 		await expectAudioWarpMenuDisabled(page, editor);
-		await chooseCommandAction(page, editor, 'Tracks', 'Unlock track');
+		await chooseTrackMenuAction(page, editor, null, 'Unlock track');
 		dialog = await openAudioWarpDialog(page, editor);
 		await expect(dialog.getByText('No warp map is authored.', { exact: true })).toBeVisible();
 		await page.keyboard.press('Escape');

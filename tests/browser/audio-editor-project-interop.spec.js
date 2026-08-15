@@ -30,6 +30,7 @@ import {
 	showToolbarButton,
 	trackNameText,
 	waitForEditor,
+	chooseTrackMenuAction,
 } from './audio-editor-test-helpers.js';
 
 test.describe('audio editor React/design-system workflows', () => {
@@ -153,7 +154,10 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await test.step('import and split a stereo clip into panned mono tracks', async () => {
 			await importFiles(editor, [toneA]);
-			await chooseNestedCommandAction(page, editor, 'Tracks', ['Track channels', 'Split stereo to L/R mono']);
+			await chooseTrackMenuAction(
+				page, editor, editor.locator('[data-track-row]').last(),
+				['Track channels', 'Split stereo to left/right mono'],
+			);
 			await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 			await expect(editor).toHaveAttribute('data-track-count', '3');
 			await expect(editor).toHaveAttribute('data-clip-count', '2');
@@ -174,7 +178,12 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await test.step('recombine the mono pair and persist the stereo project', async () => {
 			await editor.locator('.audio-editor-track-controls').nth(1).click();
-			await chooseNestedCommandAction(page, editor, 'Tracks', ['Track channels', 'Make stereo track']);
+			// Recombine from the selected left mono track, which is the one with a
+			// compatible partner; the empty default track has none.
+			await chooseTrackMenuAction(
+				page, editor, editor.locator('[data-track-row]').nth(1),
+				['Track channels', 'Make stereo track'],
+			);
 			await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 			await expect(editor).toHaveAttribute('data-track-count', '2');
 			await expect(editor).toHaveAttribute('data-clip-count', '1');

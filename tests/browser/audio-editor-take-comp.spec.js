@@ -13,11 +13,12 @@ import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
 	bootEditor,
-	chooseCommandAction,
 	clipByName,
 	collectClientErrors,
 	registerAudioEditorHooks,
 	stubStorageEstimate,
+	chooseTrackMenuAction,
+	TRACK_MENU_TRIGGER,
 } from './audio-editor-test-helpers.js';
 
 const FRAME_COUNT = 12_000;
@@ -56,14 +57,16 @@ test.describe('take lane and comp workflow', () => {
 
 		await page.keyboard.press('Escape');
 		await expect(dialog).toBeHidden();
-		await expect(editor.getByRole('menuitem', { name: 'Tracks', exact: true })).toBeFocused();
-		await chooseCommandAction(page, editor, 'Tracks', 'Lock track');
+		// Focus returns to the control that opened the dialog, which is the track
+		// overflow trigger rather than a menubar entry.
+		await expect(editor.getByRole('button', { name: TRACK_MENU_TRIGGER }).first()).toBeFocused();
+		await chooseTrackMenuAction(page, editor, null, 'Lock track');
 		dialog = await openTakeCompDialog(page, editor);
 		await expect(dialog.getByText('Take operations are unavailable while the owning track is locked.', { exact: true })).toBeVisible();
 		await expect(dialog.getByRole('button', { name: 'Audition lane', exact: true }).first()).toBeDisabled();
 		await expect(dialog.getByRole('button', { name: 'Flatten comp', exact: true })).toBeDisabled();
 		await page.keyboard.press('Escape');
-		await chooseCommandAction(page, editor, 'Tracks', 'Unlock track');
+		await chooseTrackMenuAction(page, editor, null, 'Unlock track');
 
 		dialog = await openTakeCompDialog(page, editor);
 		const takeResumeBaseline = await audioResumeCount(page);
@@ -137,7 +140,7 @@ test.describe('take lane and comp workflow', () => {
 });
 
 async function openTakeCompDialog(page, editor) {
-	await chooseCommandAction(page, editor, 'Tracks', 'Take lanes and comps');
+	await chooseTrackMenuAction(page, editor, null, 'Take lanes and comps');
 	const dialog = page.getByRole('dialog', { name: 'Take lanes and comps', exact: true });
 	await expect(dialog).toBeVisible();
 	return dialog;
