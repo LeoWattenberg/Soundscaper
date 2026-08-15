@@ -3,7 +3,7 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { transformWithEsbuild } from 'vite';
+import { transform } from 'esbuild';
 
 const ROUTE_ROOT = '/__video-keyframe-offline-rgba__';
 
@@ -187,7 +187,8 @@ async function transpileEditorModules() {
 		if (discovered.has(url.href)) continue;
 		const filename = fileURLToPath(url);
 		const source = await readFile(url, 'utf8');
-		const transformed = await transformWithEsbuild(source, filename, {
+		const transformed = await transform(source, {
+			sourcefile: filename,
 			loader: filename.endsWith('.ts') ? 'ts' : 'js',
 			format: 'esm',
 			target: 'es2022',

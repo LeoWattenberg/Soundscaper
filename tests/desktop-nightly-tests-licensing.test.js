@@ -40,13 +40,23 @@ test('nightly-with-tests notices pin the shipped test tools and browser revision
 		'@axe-core/playwright',
 		'@playwright/test',
 		'axe-core',
+		// The browser specs compile the sources they serve, so the payload ships
+		// the compilers too; a bundled tool with no notice is a licensing defect.
+		'esbuild',
 		'playwright',
 		'playwright-core',
+		'typescript',
 	]) {
 		const version = lock.packages[`node_modules/${dependency}`]?.version;
 		assert.ok(version, `${dependency} must have a lockfile version`);
 		assert.ok(notices.includes(`\`${dependency}\` ${version}`), `${dependency} notice is missing`);
 	}
+	// Only the target's own esbuild binary package ships, and it carries no notice
+	// file of its own, so the notice must cover the whole platform family.
+	assert.ok(
+		notices.includes('`@esbuild/<platform>-<architecture>`'),
+		'the staged esbuild binary package notice is missing',
+	);
 
 	for (const browserName of ['chromium', 'firefox', 'webkit']) {
 		const browser = browsers.browsers.find(({ name }) => name === browserName);

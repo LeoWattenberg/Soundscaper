@@ -82,11 +82,16 @@ export function startDesktopNightlyTestsStaticServer(options: {
 	readonly root: string;
 }): Promise<DesktopNightlyTestsStaticServer>;
 
+export function resolveDesktopNightlyTestsEsbuildBinary(options: {
+	readonly payloadRoot: string;
+}): Promise<string | null>;
+
 export function createDesktopNightlyTestsPlaywrightPlan(options: {
 	readonly executablePath: string;
 	readonly payloadRoot: string;
 	readonly runRoot: string;
 	readonly baseURL: string;
+	readonly esbuildBinaryPath?: string | null;
 	readonly environment?: DesktopNightlyTestsEnvironment;
 }): DesktopNightlyTestsPlaywrightPlan;
 
@@ -131,6 +136,7 @@ export interface DesktopNightlyTestsDependencies {
 	readonly now?: () => Date;
 	readonly createRunDirectory?: typeof createDesktopNightlyTestsRunDirectory;
 	readonly startStaticServer?: typeof startDesktopNightlyTestsStaticServer;
+	readonly resolveEsbuildBinary?: typeof resolveDesktopNightlyTestsEsbuildBinary;
 	readonly runPlaywright?: (
 		plan: DesktopNightlyTestsPlaywrightPlan,
 	) => Promise<{ readonly code: number | null; readonly signal: string | null }>;

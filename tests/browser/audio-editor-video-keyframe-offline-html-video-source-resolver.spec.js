@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 import { expect, test } from '@playwright/test';
-import { transformWithEsbuild } from 'vite';
+import { transform } from 'esbuild';
 
 import { videoRetimePreviewMedia } from './fixtures/video-retime-preview-media.js';
 
@@ -166,7 +166,8 @@ async function transpileModules() {
 		if (discovered.has(url.href)) continue;
 		const filename = fileURLToPath(url);
 		const source = await readFile(url, 'utf8');
-		const transformed = await transformWithEsbuild(source, filename, {
+		const transformed = await transform(source, {
+			sourcefile: filename,
 			loader: filename.endsWith('.ts') ? 'ts' : 'js',
 			format: 'esm',
 			target: 'es2022',

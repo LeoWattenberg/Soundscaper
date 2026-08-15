@@ -174,6 +174,8 @@ browser workflows without an npm installation:
 - `@playwright/test` 1.61.1, `playwright` 1.61.1, and `playwright-core` 1.61.1 — Apache-2.0; Copyright Microsoft Corporation; source: <https://github.com/microsoft/playwright/tree/v1.61.1>
 - `@axe-core/playwright` 4.12.1 and `axe-core` 4.12.1 — MPL-2.0; Copyright Deque Systems, Inc.; source: <https://github.com/dequelabs/axe-core/tree/v4.12.1>
 - WinLDD `PrintDeps.exe` (Playwright revision 1007) — MIT; Copyright (c) 2020 Julien Waechter; source and embedded license header: <https://github.com/microsoft/playwright/blob/v1.61.1/browser_patches/winldd/PrintDeps.cpp>; binary-only archive recipe: <https://github.com/microsoft/playwright/blob/v1.61.1/browser_patches/winldd/archive.sh>; bundled terms: [`LICENSES/Playwright-winldd-MIT.txt`](LICENSES/Playwright-winldd-MIT.txt)
+- `esbuild` 0.28.1 — MIT; Copyright (c) 2020 Evan Wallace; source: <https://github.com/evanw/esbuild/tree/v0.28.1>; the browser specs compile the TypeScript sources they serve to each engine. Each package targets exactly one platform, so the artifact carries only the `@esbuild/<platform>-<architecture>` 0.28.1 binary package its own target runs, under the same MIT terms and the `esbuild` `LICENSE.md` staged beside it
+- `typescript` 6.0.3 — Apache-2.0; Copyright Microsoft Corporation; source: <https://github.com/microsoft/TypeScript/tree/v6.0.3>
 
 Playwright's pinned browser inventory for that artifact identifies
 Chrome for Testing 149.0.7827.55 (Playwright revision 1228),

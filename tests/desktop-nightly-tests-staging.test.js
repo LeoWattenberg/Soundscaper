@@ -25,6 +25,7 @@ import {
 const EXPECTED_RUNTIME_PACKAGES = [
 	'@axe-core/playwright',
 	'@echogarden/pffft-wasm',
+	'@esbuild/linux-x64',
 	'@ffmpeg/core',
 	'@ffmpeg/ffmpeg',
 	'@ffmpeg/types',
@@ -32,11 +33,13 @@ const EXPECTED_RUNTIME_PACKAGES = [
 	'@playwright/test',
 	'@zip.js/zip.js',
 	'axe-core',
+	'esbuild',
 	'fflate',
 	'playwright',
 	'playwright-core',
 	'saxes',
 	'sql.js',
+	'typescript',
 	'xmlchars',
 ];
 
@@ -59,9 +62,11 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'@noble/hashes',
 		'@playwright/test',
 		'@zip.js/zip.js',
+		'esbuild',
 		'fflate',
 		'saxes',
 		'sql.js',
+		'typescript',
 	]);
 
 	const packageMetadata = await readJson(join(fixture.outputRoot, 'package.json'));
@@ -200,6 +205,33 @@ test('nightly test staging requires the dedicated WinLDD MIT notice before repla
 		/required Playwright WinLDD MIT notice.*missing/iu,
 	);
 	assert.equal(await readFile(join(fixture.outputRoot, 'keep.txt'), 'utf8'), 'existing payload\n');
+});
+
+test('nightly test staging admits exactly one esbuild binary package for the target', async (context) => {
+	const fixture = await createFixture(context);
+	const scopeRoot = join(fixture.repositoryRoot, 'node_modules/@esbuild');
+
+	// Two installed binary packages leave the payload unable to say which binary
+	// its target runs, and none leaves the bundling specs without a compiler.
+	await writeFixturePackage(fixture.repositoryRoot, '@esbuild/win32-arm64', {});
+	await assert.rejects(
+		() => stageDesktopNightlyTests({
+			repositoryRoot: fixture.repositoryRoot,
+			outputRoot: fixture.outputRoot,
+			browserSourceRoot: fixture.browserSourceRoot,
+		}),
+		/exactly one @esbuild binary package.*found 2.*linux-x64, win32-arm64/isu,
+	);
+
+	await rm(scopeRoot, { recursive: true });
+	await assert.rejects(
+		() => stageDesktopNightlyTests({
+			repositoryRoot: fixture.repositoryRoot,
+			outputRoot: fixture.outputRoot,
+			browserSourceRoot: fixture.browserSourceRoot,
+		}),
+		/installed esbuild binary package scope is missing/iu,
+	);
 });
 
 test('nightly test staging rejects symlinked repository content and escaping browser links', async (context) => {
@@ -391,6 +423,10 @@ async function createFixture(context) {
 		['desktop/nightly-tests-manifest.mjs', 'export const manifest = true;\n'],
 		['scripts/lib/desktop-nightly-tests-runtime.mjs', 'export const runtime = true;\n'],
 		['scripts/lib/desktop-nightly-tests-static-route.mjs', 'export const staticRoute = true;\n'],
+		['scripts/lib/m4-production-parity-identity.mjs', 'export const identity = true;\n'],
+		['scripts/lib/m4-production-parity-metrics.mjs', 'export const metrics = true;\n'],
+		['scripts/lib/m4b2-keyframe-parity-metrics.mjs', 'export const keyframeMetrics = true;\n'],
+		['scripts/lib/strict-json-snapshot.mjs', 'export const snapshot = true;\n'],
 		['dist/en/index.html', '<p>fixture</p>'],
 		['tests/browser/example.spec.js', 'export const test = true;\n'],
 		['tests/browser/example.spec.js-snapshots/example-chromium-linux.png', 'png'],
@@ -412,9 +448,15 @@ async function createFixture(context) {
 		['playwright', { dependencies: { 'playwright-core': '1.61.1' }, licenses: ['LICENSE', 'NOTICE', 'ThirdPartyNotices.txt'] }],
 		['playwright-core', { licenses: ['LICENSE', 'NOTICE', 'ThirdPartyNotices.txt'] }],
 		['@zip.js/zip.js', { licenses: ['LICENSE'] }],
+		// esbuild resolves its compiled binary from an optional per-platform
+		// dependency, which the closure walk ignores; staging admits the one the
+		// build host installed instead.
+		['esbuild', { licenses: ['LICENSE.md'] }],
+		['@esbuild/linux-x64', {}],
 		['fflate', { licenses: ['LICENSE'] }],
 		['saxes', { dependencies: { xmlchars: '2.2.0' } }],
 		['sql.js', { licenses: ['LICENSE'] }],
+		['typescript', { licenses: ['LICENSE.txt', 'ThirdPartyNoticeText.txt'] }],
 		['xmlchars', { licenses: ['LICENSE'] }],
 	]);
 	for (const [name, metadata] of packages) {

@@ -30,16 +30,30 @@ export const NIGHTLY_TEST_RUNTIME_PACKAGE_ROOTS = Object.freeze([
 	'@noble/hashes',
 	'@playwright/test',
 	'@zip.js/zip.js',
+	'esbuild',
 	'fflate',
 	'saxes',
 	'sql.js',
+	'typescript',
 ]);
 
-const REQUIRED_INPUTS = Object.freeze([
+// esbuild publishes its compiled binary as one optional dependency per platform
+// and resolves it from `process.arch` at run time. The closure walk deliberately
+// ignores optional dependencies, so the installed binary package is admitted
+// here instead: exactly one may be present, and the launcher points
+// ESBUILD_BINARY_PATH at it so the packaged runner never repeats that lookup
+// against an Electron whose architecture differs from the build host's Node.
+const ESBUILD_BINARY_SCOPE = '@esbuild';
+
+export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'desktop/nightly-tests-main.mjs', destination: 'desktop/nightly-tests-main.mjs', kind: 'file', label: 'nightly test launcher' },
 	{ source: 'desktop/nightly-tests-manifest.mjs', destination: 'desktop/nightly-tests-manifest.mjs', kind: 'file', label: 'nightly test manifest reader' },
 	{ source: 'scripts/lib/desktop-nightly-tests-runtime.mjs', destination: 'scripts/lib/desktop-nightly-tests-runtime.mjs', kind: 'file', label: 'nightly test runtime' },
 	{ source: 'scripts/lib/desktop-nightly-tests-static-route.mjs', destination: 'scripts/lib/desktop-nightly-tests-static-route.mjs', kind: 'file', label: 'nightly test static route resolver' },
+	{ source: 'scripts/lib/m4-production-parity-identity.mjs', destination: 'scripts/lib/m4-production-parity-identity.mjs', kind: 'file', label: 'M4 production parity identity' },
+	{ source: 'scripts/lib/m4-production-parity-metrics.mjs', destination: 'scripts/lib/m4-production-parity-metrics.mjs', kind: 'file', label: 'M4 production parity metrics' },
+	{ source: 'scripts/lib/m4b2-keyframe-parity-metrics.mjs', destination: 'scripts/lib/m4b2-keyframe-parity-metrics.mjs', kind: 'file', label: 'M4B2 keyframe parity metrics' },
+	{ source: 'scripts/lib/strict-json-snapshot.mjs', destination: 'scripts/lib/strict-json-snapshot.mjs', kind: 'file', label: 'strict JSON snapshot helper' },
 	{ source: 'playwright.nightly-tests.config.mjs', destination: 'playwright.nightly-tests.config.mjs', kind: 'file', label: 'nightly test Playwright config' },
 	{ source: 'dist', destination: 'dist', kind: 'directory', label: 'production web build' },
 	{ source: 'src', destination: 'src', kind: 'directory', label: 'browser-test source tree' },
@@ -53,10 +67,12 @@ const REQUIRED_NOTICE_FILES = Object.freeze({
 	'@echogarden/pffft-wasm': Object.freeze(['COPYING']),
 	'@playwright/test': Object.freeze(['LICENSE', 'NOTICE']),
 	'axe-core': Object.freeze(['LICENSE', 'LICENSE-3RD-PARTY.txt']),
+	esbuild: Object.freeze(['LICENSE.md']),
 	playwright: Object.freeze(['LICENSE', 'NOTICE', 'ThirdPartyNotices.txt']),
 	'playwright-core': Object.freeze(['LICENSE', 'NOTICE', 'ThirdPartyNotices.txt']),
+	typescript: Object.freeze(['LICENSE.txt', 'ThirdPartyNoticeText.txt']),
 });
-const NOTICE_NAME = /^(?:copying|licen[cs]e|notice|thirdpartynotices)(?:[._-].*)?$/iu;
+const NOTICE_NAME = /^(?:copying|licen[cs]e|notice|thirdpartynotice[a-z]*)(?:[._-].*)?$/iu;
 const PACKAGE_NAME = /^(?:@[a-z\d](?:[a-z\d._-]*[a-z\d])?\/[a-z\d](?:[a-z\d._-]*[a-z\d])?|[a-z\d](?:[a-z\d._-]*[a-z\d])?)$/u;
 const SOURCE_REVISION = /^[a-f\d]{40}$/u;
 
@@ -83,7 +99,7 @@ export async function stageDesktopNightlyTests({
 	}
 
 	await validateRequiredInputs(root);
-	const runtimePackages = await resolveRuntimePackages(root);
+	const runtimePackages = await resolveNightlyTestRuntimePackages(root);
 	await validateRuntimePackages(root, runtimePackages);
 	const browserRevisions = await validateBrowserCache(root, browsers);
 	await validateLicenses(root, runtimePackages);
@@ -138,7 +154,7 @@ export async function stageDesktopNightlyTests({
 }
 
 async function validateRequiredInputs(root) {
-	for (const input of REQUIRED_INPUTS) {
+	for (const input of NIGHTLY_TEST_PAYLOAD_INPUTS) {
 		const path = join(root, input.source);
 		if (input.kind === 'directory') await assertDirectory(path, `required ${input.label}`);
 		else await assertRegularFile(path, `required ${input.label}`);
@@ -156,16 +172,17 @@ async function validateRequiredInputs(root) {
 }
 
 async function copyRequiredInputs(root, output) {
-	for (const input of REQUIRED_INPUTS) {
+	for (const input of NIGHTLY_TEST_PAYLOAD_INPUTS) {
 		await copyTree(join(root, input.source), join(output, input.destination), {
 			excludedRootNames: input.exclude ?? new Set(),
 		});
 	}
 }
 
-async function resolveRuntimePackages(root) {
+export async function resolveNightlyTestRuntimePackages(root) {
 	const packages = new Map();
 	const pending = [...NIGHTLY_TEST_RUNTIME_PACKAGE_ROOTS];
+	if (pending.includes('esbuild')) pending.push(await resolveEsbuildBinaryPackage(root));
 	while (pending.length) {
 		const name = pending.shift();
 		assertPackageName(name);
@@ -182,6 +199,22 @@ async function resolveRuntimePackages(root) {
 		}
 	}
 	return [...packages.values()].sort((left, right) => left.name.localeCompare(right.name));
+}
+
+async function resolveEsbuildBinaryPackage(root) {
+	const scopeRoot = join(root, 'node_modules', ESBUILD_BINARY_SCOPE);
+	await assertDirectory(scopeRoot, 'installed esbuild binary package scope');
+	const installed = (await readdir(scopeRoot, { withFileTypes: true }))
+		.filter((entry) => entry.isDirectory())
+		.map((entry) => entry.name)
+		.sort();
+	if (installed.length !== 1) {
+		throw new Error(
+			`Exactly one ${ESBUILD_BINARY_SCOPE} binary package must be installed, found ${installed.length}`
+			+ `${installed.length ? `: ${installed.join(', ')}` : '.'}`,
+		);
+	}
+	return `${ESBUILD_BINARY_SCOPE}/${installed[0]}`;
 }
 
 async function validateRuntimePackages(root, runtimePackages) {

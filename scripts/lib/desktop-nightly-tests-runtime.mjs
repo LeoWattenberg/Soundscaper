@@ -5,6 +5,7 @@ import { createReadStream } from 'node:fs';
 import {
 	mkdtemp,
 	open,
+	readdir,
 	realpath,
 	rename,
 	stat,
@@ -145,11 +146,33 @@ export async function startDesktopNightlyTestsStaticServer({ root } = {}) {
 	});
 }
 
+// The staged esbuild binary belongs to whichever platform package the build
+// host installed, but esbuild resolves that package from the architecture of the
+// process importing it. Those disagree wherever the payload is staged by a Node
+// of one architecture and run by an Electron of another — the Windows ARM64 job
+// stages with x64 Node — so the launcher names the staged binary outright.
+export async function resolveDesktopNightlyTestsEsbuildBinary({ payloadRoot } = {}) {
+	assertAbsolutePath(payloadRoot, { isAbsolute }, 'Desktop nightly tests payload root');
+	const scopeRoot = join(payloadRoot, 'node_modules', '@esbuild');
+	const entries = await readdir(scopeRoot, { withFileTypes: true }).catch(() => null);
+	if (entries === null) return null;
+	const installed = entries.filter((entry) => entry.isDirectory()).map(({ name }) => name);
+	if (installed.length !== 1) return null;
+	const [binaryPackage] = installed;
+	const binary = join(scopeRoot, binaryPackage, binaryPackage.startsWith('win32-') ? 'esbuild.exe' : 'bin/esbuild');
+	// Staging admits exactly one binary package, so an unreadable binary here is a
+	// damaged payload. Fall back to esbuild's own lookup rather than failing the
+	// launch: that keeps one broken tool from costing the whole suite its run.
+	const details = await stat(binary).catch(() => null);
+	return details?.isFile() ? binary : null;
+}
+
 export function createDesktopNightlyTestsPlaywrightPlan({
 	executablePath,
 	payloadRoot,
 	runRoot,
 	baseURL,
+	esbuildBinaryPath = null,
 	environment = process.env,
 } = {}) {
 	for (const [value, label] of [
@@ -157,6 +180,9 @@ export function createDesktopNightlyTestsPlaywrightPlan({
 		[payloadRoot, 'Desktop nightly tests payload root'],
 		[runRoot, 'Desktop nightly tests run root'],
 	]) assertAbsolutePath(value, { isAbsolute }, label);
+	if (esbuildBinaryPath !== null) {
+		assertAbsolutePath(esbuildBinaryPath, { isAbsolute }, 'Desktop nightly tests esbuild binary path');
+	}
 	assertLoopbackBaseUrl(baseURL);
 	const paths = runPaths(runRoot);
 	const env = Object.freeze({
@@ -164,6 +190,7 @@ export function createDesktopNightlyTestsPlaywrightPlan({
 		ELECTRON_RUN_AS_NODE: '1',
 		PLAYWRIGHT_BROWSERS_PATH: join(payloadRoot, '.local-browsers'),
 		PLAYWRIGHT_HTML_OPEN: 'never',
+		...(esbuildBinaryPath === null ? {} : { ESBUILD_BINARY_PATH: esbuildBinaryPath }),
 		SOUNDSCAPER_NIGHTLY_TESTS_BASE_URL: baseURL,
 		SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT: payloadRoot,
 		SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: runRoot,
@@ -273,11 +300,13 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 	let failure = null;
 	try {
 		server = await startStaticServer({ root: join(options.payloadRoot, 'dist') });
+		const resolveEsbuildBinary = dependencies.resolveEsbuildBinary ?? resolveDesktopNightlyTestsEsbuildBinary;
 		const plan = createDesktopNightlyTestsPlaywrightPlan({
 			executablePath: options.executablePath,
 			payloadRoot: options.payloadRoot,
 			runRoot,
 			baseURL: server.baseURL,
+			esbuildBinaryPath: await resolveEsbuildBinary({ payloadRoot: options.payloadRoot }),
 			environment,
 		});
 		const child = await runPlaywright(plan);

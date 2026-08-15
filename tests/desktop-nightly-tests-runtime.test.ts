@@ -20,6 +20,7 @@ import {
 	createDesktopNightlyTestsResultEnvelope,
 	createDesktopNightlyTestsRunDirectory,
 	mapDesktopNightlyTestsExit,
+	resolveDesktopNightlyTestsEsbuildBinary,
 	resolveDesktopNightlyTestsOutputRoot,
 	runDesktopNightlyTests,
 	startDesktopNightlyTestsStaticServer,
@@ -241,6 +242,70 @@ test('the Playwright plan is closed over the packaged payload and sibling run ro
 	assert.deepEqual(environment, { PATH: '/usr/bin', SECRET_TOKEN: 'preserved-for-child' });
 	assert.equal(plan.logFile, '/tmp/Soundscaper-playwright-run/console.log');
 	assert.equal(Object.isFrozen(plan), true);
+});
+
+test('the Playwright plan names the staged esbuild binary for the browser specs that bundle', async (context) => {
+	const payloadRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-esbuild-'));
+	context.after(() => rm(payloadRoot, { recursive: true, force: true }));
+	const scopeRoot = join(payloadRoot, 'node_modules/@esbuild');
+
+	assert.equal(await resolveDesktopNightlyTestsEsbuildBinary({ payloadRoot }), null);
+
+	// The Windows ARM64 job stages with x64 Node, so the packaged ARM64 Electron
+	// would never find the binary through esbuild's own architecture lookup.
+	await mkdir(join(scopeRoot, 'win32-x64'), { recursive: true });
+	await writeFile(join(scopeRoot, 'win32-x64/esbuild.exe'), 'binary');
+	assert.equal(
+		await resolveDesktopNightlyTestsEsbuildBinary({ payloadRoot }),
+		join(scopeRoot, 'win32-x64/esbuild.exe'),
+	);
+
+	await rm(join(scopeRoot, 'win32-x64'), { recursive: true });
+	await mkdir(join(scopeRoot, 'linux-arm64/bin'), { recursive: true });
+	await writeFile(join(scopeRoot, 'linux-arm64/bin/esbuild'), 'binary');
+	const binary = join(scopeRoot, 'linux-arm64/bin/esbuild');
+	assert.equal(await resolveDesktopNightlyTestsEsbuildBinary({ payloadRoot }), binary);
+
+	// A payload staging two binary packages cannot say which one it meant, and a
+	// package whose binary is missing is damaged. Both defer to esbuild rather
+	// than costing every other spec its run.
+	await mkdir(join(scopeRoot, 'darwin-arm64/bin'), { recursive: true });
+	await writeFile(join(scopeRoot, 'darwin-arm64/bin/esbuild'), 'binary');
+	assert.equal(await resolveDesktopNightlyTestsEsbuildBinary({ payloadRoot }), null);
+	await rm(join(scopeRoot, 'darwin-arm64'), { recursive: true });
+	await rm(binary);
+	assert.equal(await resolveDesktopNightlyTestsEsbuildBinary({ payloadRoot }), null);
+
+	const plan = createDesktopNightlyTestsPlaywrightPlan({
+		executablePath: '/opt/Soundscaper Tests/soundscaper-tests',
+		payloadRoot: '/opt/Soundscaper Tests/resources/nightly-tests',
+		runRoot: '/tmp/Soundscaper-playwright-run',
+		baseURL: 'http://127.0.0.1:45678',
+		esbuildBinaryPath: '/opt/Soundscaper Tests/resources/nightly-tests/node_modules/@esbuild/win32-x64/esbuild.exe',
+		environment: {},
+	});
+	assert.equal(
+		plan.env.ESBUILD_BINARY_PATH,
+		'/opt/Soundscaper Tests/resources/nightly-tests/node_modules/@esbuild/win32-x64/esbuild.exe',
+	);
+	assert.equal(
+		Object.hasOwn(createDesktopNightlyTestsPlaywrightPlan({
+			executablePath: '/opt/Soundscaper Tests/soundscaper-tests',
+			payloadRoot: '/opt/Soundscaper Tests/resources/nightly-tests',
+			runRoot: '/tmp/Soundscaper-playwright-run',
+			baseURL: 'http://127.0.0.1:45678',
+			environment: {},
+		}).env, 'ESBUILD_BINARY_PATH'),
+		false,
+	);
+	assert.throws(() => createDesktopNightlyTestsPlaywrightPlan({
+		executablePath: '/opt/Soundscaper Tests/soundscaper-tests',
+		payloadRoot: '/opt/Soundscaper Tests/resources/nightly-tests',
+		runRoot: '/tmp/Soundscaper-playwright-run',
+		baseURL: 'http://127.0.0.1:45678',
+		esbuildBinaryPath: 'node_modules/@esbuild/win32-x64/esbuild.exe',
+		environment: {},
+	}), /esbuild binary path/u);
 });
 
 test('Playwright exit mapping and result envelopes distinguish failures from infrastructure errors', () => {

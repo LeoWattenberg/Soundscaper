@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 import { expect, test } from '@playwright/test';
-import { transformWithEsbuild } from 'vite';
+import { transform } from 'esbuild';
 
 import {
 	createVideoRetimePreviewOrdinalRgb,
@@ -637,7 +637,8 @@ async function transpileStrictModules() {
 	for (const descriptor of MODULE_SOURCES) {
 		const filename = fileURLToPath(descriptor.file);
 		const source = await readFile(descriptor.file, 'utf8');
-		const transformed = await transformWithEsbuild(source, filename, {
+		const transformed = await transform(source, {
+			sourcefile: filename,
 			loader: 'ts',
 			format: 'esm',
 			target: 'es2022',
