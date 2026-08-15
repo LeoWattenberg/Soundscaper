@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const DATABASE_VERSION = 8;
@@ -51,7 +52,7 @@ test.describe('dedicated OPFS storage worker', () => {
 		const fixture = createDeterministicAvFixture('opfs-worker-video.webm');
 		await importVideo(editor, fixture);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 20_000 });
-		await expect(editor.locator('[data-video-preview-clip]')).toBeVisible();
+		await expectPersistedPreviewClip(page, editor);
 
 		const inventory = await persistedOpfsInventory(page, fixture.name);
 		expect(inventory.sourceStorage).toBe('opfs-pcm-v1');
@@ -63,7 +64,7 @@ test.describe('dedicated OPFS storage worker', () => {
 
 		await page.reload();
 		editor = await waitForVideoEditor(page);
-		await expect(editor.locator('[data-video-preview-clip]')).toBeVisible();
+		await expectPersistedPreviewClip(page, editor);
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await page.waitForTimeout(150);
@@ -80,7 +81,7 @@ test.describe('dedicated OPFS storage worker', () => {
 		}));
 		await secondPage.goto('/framescaper/en/');
 		const second = await waitForVideoEditor(secondPage);
-		await expect(second.locator('[data-video-preview-clip]')).toBeVisible();
+		await expectPersistedPreviewClip(secondPage, second);
 		const firstAddTrack = editor.getByRole('button', { name: 'Add track', exact: true });
 		const secondAddTrack = second.getByRole('button', { name: 'Add track', exact: true });
 		await expect(editor).toHaveAttribute('data-edit-block-reason', 'read-only', { timeout: 5_000 });
@@ -94,6 +95,19 @@ test.describe('dedicated OPFS storage worker', () => {
 		await expect(firstAddTrack).toBeEnabled();
 	});
 });
+
+/**
+ * The evidence this test wants from the preview is that the persisted media came back as a
+ * clip, not that it painted. A raw contain-fit video is never a valid stand-in for a
+ * canonical render description, so the panel deliberately hides the element wherever the
+ * WebGL2 compositor cannot start - which is how CI's Firefox runner is configured.
+ */
+async function expectPersistedPreviewClip(page, editor) {
+	const clip = editor.locator('[data-video-preview-clip]');
+	await expect(clip).toHaveCount(1);
+	if (await page.evaluate(hasWebGl2Capability)) await expect(clip).toBeVisible();
+	else await expect(clip).toHaveAttribute('data-identity-fallback-hidden', 'true');
+}
 
 async function waitForVideoEditor(page) {
 	const editor = page.locator('[data-audio-editor]');
