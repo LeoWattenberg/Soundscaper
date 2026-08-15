@@ -41,6 +41,7 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.ok(payload);
 	assert.ok(payload.filter.includes('package.json'));
 	assert.ok(payload.filter.includes('playwright.nightly-tests.config.mjs'));
+	assert.ok(payload.filter.includes('scripts/lib/**/*'));
 	assert.equal(payload.filter.includes('playwright.config.mjs'), false);
 	assert.equal(payload.filter.includes('node_modules/**/*'), false);
 	assert.deepEqual(

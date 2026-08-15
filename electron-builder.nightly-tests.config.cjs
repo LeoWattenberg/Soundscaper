@@ -32,6 +32,10 @@ module.exports = {
 				'licenses/**/*',
 				'package.json',
 				'playwright.nightly-tests.config.mjs',
+				// The browser specs import spec-support helpers from here. The
+				// launcher's own modules reach the main process through `files`
+				// above, so this carries the payload's copies, not the launcher's.
+				'scripts/lib/**/*',
 				'src/**/*',
 				'stage-manifest.json',
 				'tests/**/*',

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { readdir } from 'node:fs/promises';
 import { builtinModules } from 'node:module';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { isAbsolute, join, matchesGlob, relative, resolve, sep } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
@@ -58,11 +58,21 @@ test('the nightly test payload satisfies every import its browser specs reach', 
 	});
 
 	const staged = new Set((await resolveNightlyTestRuntimePackages(REPOSITORY_ROOT)).map(({ name }) => name));
+	const packagedFilter = await readPackagedPayloadFilter();
+	const reached = Object.keys(result.metafile.inputs)
+		.map((input) => relative(REPOSITORY_ROOT, resolve(REPOSITORY_ROOT, input)));
 	const failures = [
-		...Object.keys(result.metafile.inputs)
-			.map((input) => relative(REPOSITORY_ROOT, resolve(REPOSITORY_ROOT, input)))
+		...reached
 			.filter((input) => !isStagedInput(input))
 			.map((input) => `NIGHTLY_TEST_PAYLOAD_INPUTS is missing ${input}`),
+		// Staging a file only puts it in .desktop-build; the packaged payload
+		// carries whatever electron-builder's filter admits, so a staged file the
+		// filter drops is still missing from the artifact the tester runs.
+		...reached
+			.map((input) => packagedPathOf(input))
+			.filter((packaged) => packaged !== null
+				&& !packagedFilter.some((pattern) => matchesGlob(packaged, pattern)))
+			.map((packaged) => `the nightly-tests extraResources filter drops ${packaged}`),
 		...[...externals]
 			.filter(([specifier]) => !BUILTIN_MODULES.has(specifier) && !staged.has(packageNameOf(specifier)))
 			.map(([specifier, importers]) => (
@@ -87,6 +97,30 @@ function isStagedInput(input) {
 		if (stagedSegments.some((segment, index) => segments[index] !== segment)) return false;
 		return !(staged.exclude ?? new Set()).has(segments[stagedSegments.length]);
 	});
+}
+
+async function readPackagedPayloadFilter() {
+	const { default: config } = await import('../electron-builder.nightly-tests.config.cjs');
+	const payload = config.extraResources.find(({ to }) => to === 'nightly-tests');
+	assert.ok(payload?.filter, 'the nightly-tests payload must be packaged through a filtered resource');
+	return payload.filter;
+}
+
+// The packaged path is the staged destination, which the payload contract is
+// free to relocate away from the repository-relative source.
+function packagedPathOf(input) {
+	const segments = input.split(sep);
+	for (const staged of NIGHTLY_TEST_PAYLOAD_INPUTS) {
+		const stagedSegments = staged.source.split('/');
+		if (staged.kind === 'file') {
+			if (input === stagedSegments.join(sep)) return staged.destination;
+			continue;
+		}
+		if (segments.length <= stagedSegments.length) continue;
+		if (stagedSegments.some((segment, index) => segments[index] !== segment)) continue;
+		return [staged.destination, ...segments.slice(stagedSegments.length)].join('/');
+	}
+	return null;
 }
 
 function packageNameOf(specifier) {
