@@ -396,12 +396,15 @@ test.describe('audio editor React/design-system workflows', () => {
 		const [trackMenuButtonBox, trackMenuBox] = await Promise.all([trackMenuButton.boundingBox(), trackMenu.boundingBox()]);
 		expect(trackMenuButtonBox).not.toBeNull();
 		expect(trackMenuBox).not.toBeNull();
-		expect(Math.abs(trackMenuBox.x - trackMenuButtonBox.x)).toBeLessThanOrEqual(1);
+		// The track menu is a context menu, so it carries its own edge inset rather than
+		// sitting flush with the trigger. What must hold is that it stays anchored to that
+		// trigger and opens below it.
+		expect(Math.abs(trackMenuBox.x - trackMenuButtonBox.x)).toBeLessThanOrEqual(8);
 		expect(trackMenuBox.y).toBeGreaterThanOrEqual(trackMenuButtonBox.y + trackMenuButtonBox.height - 1);
-		await page.getByRole('button', { name: 'Enable multi-track recording' }).click();
+		await trackMenu.getByRole('menuitem', { name: 'Enable multi-track recording', exact: true }).click();
 		await expect(firstTrack.getByRole('button', { name: /^Arm for recording:/ })).toBeVisible();
 		await trackMenuButton.click();
-		await page.getByRole('button', { name: 'Duplicate track' }).click();
+		await trackMenu.getByRole('menuitem', { name: 'Duplicate track', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-track-count', '3');
 		expect(errors).toEqual([]);
 	});

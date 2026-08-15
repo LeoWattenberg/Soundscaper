@@ -146,11 +146,16 @@ test.describe('audio editor video composition workflow', () => {
 		await thirdVideo.locator('.audio-editor-video-track-controls__title button').click();
 		const trackMenu = page.locator('.audio-editor-track-menu');
 		await expect(trackMenu).toBeVisible();
-		await trackMenu.getByRole('menuitem', { name: 'Move track to top', exact: true }).click();
+		// Track ordering moved under the track menu's Move track submenu.
+		const moveTrack = trackMenu.getByRole('menuitem', { name: /^Move track(?:\s|$)/u });
+		await moveTrack.focus();
+		await page.keyboard.press('ArrowRight');
+		await moveTrack.getByRole('menu')
+			.getByRole('menuitem', { name: 'Move track to top', exact: true }).click();
 		await expect(videoRows.first()).toHaveAttribute('data-track-id', thirdVideoId);
 		await expect(preview.locator('[data-video-preview-layer]').last()).toHaveAttribute('data-track-id', thirdVideoId);
 
-		await thirdVideo.locator('[data-track-action="visibility"]').click();
+		await thirdVideo.locator('[data-track-action="mute"]').click();
 		await expect(thirdVideo).toHaveAttribute('data-hidden', 'true');
 		await expect(preview.locator(`[data-video-preview-layer][data-track-id="${thirdVideoId}"]`)).toHaveCount(0);
 		await expect(preview.locator('[data-video-preview-layer]').last()).toHaveAttribute('data-track-id', firstVideoId);
