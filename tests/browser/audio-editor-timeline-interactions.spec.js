@@ -422,7 +422,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			'data-parity-status',
 			'supplemental',
 		);
-		await trackMenu.getByRole('button', { name: 'Enable multi-track recording', exact: true }).click();
+		await trackMenu.getByRole('menuitem', { name: 'Enable multi-track recording', exact: true }).click();
 		await expect(firstTrack.getByRole('button', { name: /^Arm for recording:/ })).toBeVisible();
 
 		const clip = clipByName(editor, toneA.name);
@@ -473,7 +473,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const clipBody = clip.locator('.clip-body');
 
 		await track.getByRole('button', { name: 'Track menu', exact: true }).click();
-		await page.locator('.audio-editor-track-menu').getByRole('button', { name: 'Track color', exact: true }).click();
+		await page.locator('.audio-editor-track-menu').getByRole('menuitem', { name: 'Track color', exact: true }).click();
 		await page.getByRole('menuitem', { name: 'Track color: Red', exact: true }).click();
 		await expect(track).toHaveAttribute('data-track-color', 'red');
 		await expect(clipBody).toHaveAttribute('data-color', 'red');
@@ -484,7 +484,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(clipBody).toHaveAttribute('data-color', 'green');
 
 		await track.getByRole('button', { name: 'Track menu', exact: true }).click();
-		await page.locator('.audio-editor-track-menu').getByRole('button', { name: 'Track color', exact: true }).click();
+		await page.locator('.audio-editor-track-menu').getByRole('menuitem', { name: 'Track color', exact: true }).click();
 		await page.getByRole('menuitem', { name: 'Track color: Yellow', exact: true }).click();
 		await expect(track).toHaveAttribute('data-track-color', 'yellow');
 		await expect(clipBody).toHaveAttribute('data-color', 'green');

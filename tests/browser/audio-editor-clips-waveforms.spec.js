@@ -357,7 +357,12 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		const track = zoomedClip.locator('xpath=ancestor::div[@data-track-row]');
 		await track.getByRole('button', { name: 'Track menu', exact: true }).click();
-		await page.locator('.audio-editor-track-menu').getByRole('button', { name: 'Multi-view', exact: true }).click();
+		// The view modes now sit under the track menu's Display submenu.
+		const trackMenu = page.locator('.audio-editor-track-menu');
+		const display = trackMenu.getByRole('menuitem', { name: /^Display(?:\s|$)/u });
+		await display.focus();
+		await page.keyboard.press('ArrowRight');
+		await display.getByRole('menu').getByRole('menuitem', { name: 'Multi-view', exact: true }).click();
 		await expect(track).toHaveAttribute('data-display-mode', 'multiview');
 		await expect(waveform).toHaveAttribute('data-waveform-owner', 'audacity');
 		const spectrogramColors = await waveform.evaluate((canvas) => {

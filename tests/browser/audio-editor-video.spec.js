@@ -146,7 +146,7 @@ test.describe('audio editor video composition workflow', () => {
 		await thirdVideo.locator('.audio-editor-video-track-controls__title button').click();
 		const trackMenu = page.locator('.audio-editor-track-menu');
 		await expect(trackMenu).toBeVisible();
-		await trackMenu.getByRole('button', { name: 'Move track to top', exact: true }).click();
+		await trackMenu.getByRole('menuitem', { name: 'Move track to top', exact: true }).click();
 		await expect(videoRows.first()).toHaveAttribute('data-track-id', thirdVideoId);
 		await expect(preview.locator('[data-video-preview-layer]').last()).toHaveAttribute('data-track-id', thirdVideoId);
 

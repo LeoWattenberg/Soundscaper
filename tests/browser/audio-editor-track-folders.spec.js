@@ -13,7 +13,7 @@ test.describe('audio editor track folder tree', () => {
 		await trackHeader.getByRole('button', { name: 'Track menu', exact: true }).click();
 		const trackMenu = page.locator('.audio-editor-track-menu');
 		await expect(trackMenu).toBeVisible();
-		await trackMenu.getByRole('button', { name: 'Move selection into new folder', exact: true }).click();
+		await trackMenu.getByRole('menuitem', { name: 'Move selection into new folder', exact: true }).click();
 		const folderRow = editor.locator('[data-track-folder-row]');
 		await expect(folderRow).toHaveCount(1);
 		return { editor, folderRow: folderRow.first() };
