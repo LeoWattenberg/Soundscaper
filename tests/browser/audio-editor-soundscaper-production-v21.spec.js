@@ -19,7 +19,7 @@ import {
 	openEffectsForTrack,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
-import { chooseTrackMenuAction } from './helpers/track-menu.js';
+import { chooseUncheckedTrackMenuAction } from './helpers/track-menu.js';
 import { longTone } from './audio-editor-test-fixtures.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
@@ -302,13 +302,19 @@ test.describe('Soundscaper exact V21 production UI', () => {
 		expect(projectId).toBeTruthy();
 		const history = await openHistoryPanel(page, editor);
 		const historyBeforeResample = await history.locator('[data-history-list] > li').count();
-		await chooseTrackMenuAction(
+		// Import decodes through the device AudioContext, so the track arrives at whatever
+		// rate that clock runs at: CI drives Firefox from a 48 kHz null sink and this
+		// machine from a 44.1 kHz one. Resampling to a rate the track already carries
+		// commits nothing, so only claim the entry where the command had work to do.
+		const resampled = await chooseUncheckedTrackMenuAction(
 			page, editor,
 			editor.locator(`[data-track-row][data-track-id="${trackId}"]`),
 			['Sample rate', '48000 Hz'],
 		);
-		await expect(history.locator('[data-history-list] > li'))
-			.toHaveCount(historyBeforeResample + 1, { timeout: 10_000 });
+		if (resampled) {
+			await expect(history.locator('[data-history-list] > li'))
+				.toHaveCount(historyBeforeResample + 1, { timeout: 10_000 });
+		}
 		await history.getByRole('button', { name: 'Close: History', exact: true }).click();
 		await expect(history).toBeHidden();
 
