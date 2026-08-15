@@ -99,7 +99,7 @@ test.describe('Soundscaper exact V21 production UI', () => {
 		await page.keyboard.press('Escape');
 		await page.keyboard.press('Escape');
 
-		await assertMenuPath(page, editor, 'View', ['Panels', 'Mixer', 'Routing graph…']);
+		await assertMenuPath(page, editor, 'View', ['Panels', 'Routing graph…']);
 		await assertMenuPath(page, editor, 'Effect', ['Restoration…']);
 		await assertMenuPath(page, editor, 'Analyze', ['Production meters…']);
 		await assertMenuPath(page, editor, 'Tools', ['Reviewed effects…']);

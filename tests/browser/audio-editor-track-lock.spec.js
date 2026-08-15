@@ -2,6 +2,7 @@ import { expect, test, toneA, TRANSLATIONS_ROOT } from './audio-editor-test-fixt
 import {
 	bootEditor,
 	chooseCommandAction,
+	chooseTrackMenuAction,
 	chooseNestedCommandAction,
 	clipByName,
 	getMenuItem,
@@ -40,7 +41,7 @@ test.describe('persisted shared track locking', () => {
 		expect(trackId).toBeTruthy();
 
 		await expectNoVisibleLockControl(editor);
-		await chooseCommandAction(page, editor, 'Tracks', 'Lock track');
+		await chooseTrackMenuAction(page, editor, trackRow(editor, trackId), 'Lock track');
 		await expectPersistedLock(page, projectId, trackId, true, SOUNDSCAPER_DATABASE_NAME);
 		await expectNoVisibleLockControl(editor);
 
@@ -74,7 +75,7 @@ test.describe('persisted shared track locking', () => {
 		restored = await waitForEditor(page);
 		await selectAudioTrack(restored, toneA.name);
 		await expectTrackMenuItem(page, restored, 'Unlock track', true);
-		await chooseCommandAction(page, restored, 'Tracks', 'Unlock track');
+		await chooseTrackMenuAction(page, restored, trackRow(restored, trackId), 'Unlock track');
 		await expectPersistedLock(page, projectId, trackId, false, SOUNDSCAPER_DATABASE_NAME);
 	});
 
@@ -99,7 +100,7 @@ test.describe('persisted shared track locking', () => {
 		expect(state.video.sequenceFrameCount).toBeGreaterThan(2);
 		await setProgramFrame(editor, state.sequence.rate.num, 1);
 
-		await chooseCommandAction(page, editor, 'Tracks', 'Lock track');
+		await chooseTrackMenuAction(page, editor, trackRow(editor, state.track.id), 'Lock track');
 		await expectPersistedLock(page, projectId, state.track.id, true, FRAMESCAPER_DATABASE_NAME);
 		await expectNoVisibleLockControl(editor);
 		await expectTrimItemsDisabled(page, editor);
@@ -113,7 +114,7 @@ test.describe('persisted shared track locking', () => {
 		await expect(editor.locator('[data-sequence-timecode]'))
 			.toHaveAttribute('data-sequence-timecode', before);
 
-		await chooseCommandAction(page, editor, 'Tracks', 'Unlock track');
+		await chooseTrackMenuAction(page, editor, trackRow(editor, state.track.id), 'Unlock track');
 		await expectPersistedLock(page, projectId, state.track.id, false, FRAMESCAPER_DATABASE_NAME);
 		await expectTrimItemsEnabled(page, editor);
 	});
@@ -263,4 +264,9 @@ async function videoState(page, projectId, databaseName) {
 			database.close();
 		}
 	}, { databaseName, id: projectId });
+}
+
+
+function trackRow(editor, trackId) {
+	return editor.locator(`[data-track-row][data-track-id="${trackId}"]`);
 }

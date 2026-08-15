@@ -154,7 +154,7 @@ test.describe('Soundscaper V21 structured routing editor', () => {
 });
 
 async function openRoutingEditor(page, editor) {
-	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer', 'Routing graph…']);
+	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Routing graph…']);
 	const dialog = page.getByRole('dialog', { name: 'Production audio', exact: true });
 	await expect(dialog).toBeVisible();
 	await expect(dialog.getByRole('tab', { name: 'Routing graph', exact: true })).toBeFocused();

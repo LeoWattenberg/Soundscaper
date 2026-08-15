@@ -280,6 +280,31 @@ export async function chooseNestedCommandAction(page, editor, menu, actions) {
 		}
 	}
 }
+/**
+ * Drive a per-track command from the track control panel's overflow menu, which is where
+ * track-scoped commands live rather than the application menubar. Pass a nested path to
+ * reach a submenu such as Move track or Display.
+ */
+export async function chooseTrackMenuAction(page, editor, trackRow, path) {
+	const steps = Array.isArray(path) ? path : [path];
+	const row = trackRow ?? editor.locator('[data-track-row]').first();
+	await row.getByRole('button', { name: 'Track menu', exact: true }).click();
+	let menu = page.locator('.audio-editor-track-menu');
+	await expect(menu).toBeVisible();
+	for (const [index, step] of steps.entries()) {
+		const item = menu.getByRole('menuitem', { name: new RegExp(`^${escapeMenuLabel(step)}(?:\\s|$)`, 'u') }).first();
+		if (index === steps.length - 1) {
+			await item.click();
+			return;
+		}
+		menu = await openMenuItemSubmenu(page, item);
+	}
+}
+
+function escapeMenuLabel(value) {
+	return String(value).replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
 export async function openNestedCommandMenu(page, editor, menu, actions) {
 	let currentMenu = await openCommandMenu(page, editor, menu);
 	for (const action of actions) currentMenu = await openMenuItemSubmenu(page, getMenuItem(currentMenu, action));
