@@ -272,7 +272,7 @@ function createProjectDocument({ projectId, title, audio, video, workflowId }) {
 			},
 			{
 				type: 'video', id: video.trackId, name: 'Packaged picture', clipIds: [video.clipId],
-				mute: false, hidden: false, locked: false, collapsed: false, height: 120,
+				mute: false, solo: false, hidden: false, locked: false, collapsed: false, height: 120,
 				laneGroupId: null, opaqueExtensions: {},
 			},
 		],

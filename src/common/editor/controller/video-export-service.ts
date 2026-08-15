@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createVisibleVideoTrackPredicate } from '../video-timeline.js';
+
 import { prepareBrowserExportBlob } from '../browser-export-output.ts';
 import { getVideoExportFormat } from '../video-export.js';
 import {
@@ -78,9 +80,9 @@ export function createEditorVideoExportAction(
 				deliveredProject,
 				cloneProject(deliveredProject),
 			);
+		const visibleVideoTrack = createVisibleVideoTrackPredicate(exportProject.tracks);
 		const hasTimelineVideo = exportProject.tracks.some((track: RuntimeValue) => (
-			track.type === 'video'
-			&& track.hidden !== true
+			visibleVideoTrack(track)
 			&& (track.clipIds || []).some((clipId: RuntimeValue) => findClip(exportProject, clipId)?.kind === 'video')
 		));
 		if (!hasTimelineVideo) throw new Error('Add a visible video clip to the timeline before exporting video.');

@@ -368,8 +368,8 @@ export function VideoTrackControls({
 				<button
 					type="button"
 					className="audio-editor-video-track-control"
-					data-track-action="visibility"
-					aria-pressed={!track.hidden}
+					data-track-action="mute"
+					aria-pressed={Boolean(track.hidden)}
 					disabled={blocked}
 					tabIndex={controlTabIndex}
 					onClick={(event) => {
@@ -378,6 +378,20 @@ export function VideoTrackControls({
 					}}
 				>
 					{track.hidden ? (copy.videoVisible || 'Show video') : (copy.videoHidden || 'Hide video')}
+				</button>
+				<button
+					type="button"
+					className="audio-editor-video-track-control"
+					data-track-action="solo"
+					aria-pressed={Boolean(track.solo)}
+					disabled={blocked}
+					tabIndex={controlTabIndex}
+					onClick={(event) => {
+						event.stopPropagation();
+						run(() => controller.actions.track.update(track.id, { solo: !track.solo }));
+					}}
+				>
+					{copy.soloTrack || 'Solo'}
 				</button>
 				<button
 					type="button"

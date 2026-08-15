@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createVisibleVideoTrackPredicate } from './video-timeline.js';
+
 import {
 	sequenceFrameAtSample,
 	sequenceFrameBoundarySample,
@@ -202,10 +204,9 @@ function editableVideoTracks(context: SequenceContext): DataRecord[] {
 }
 
 function visibleVideoTracks(context: SequenceContext): DataRecord[] {
+	const visible = createVisibleVideoTrackPredicate(arrayOf(context.project.tracks));
 	return arrayOf(context.project.tracks).filter((track) => (
-		track.type === 'video'
-		&& track.hidden !== true
-		&& context.memberTrackIds.has(String(track.id))
+		visible(track) && context.memberTrackIds.has(String(track.id))
 	));
 }
 

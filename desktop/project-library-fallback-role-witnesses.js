@@ -245,7 +245,7 @@ function audioTrack(id, clipId, effect) {
 
 function videoTrack(id, clipId) {
 	return {
-		type: 'video', id, name: 'Packaged fallback witness', clipIds: [clipId], mute: false,
+		type: 'video', id, name: 'Packaged fallback witness', clipIds: [clipId], mute: false, solo: false,
 		hidden: false, locked: false, collapsed: false, height: 120, laneGroupId: null, opaqueExtensions: {},
 	};
 }

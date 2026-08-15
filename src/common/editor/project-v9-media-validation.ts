@@ -164,6 +164,7 @@ function validateTrack(
 	projectUniqueStrings(track.clipIds, `${prefix}.clipIds`);
 	if (track.type === 'video') {
 		projectBoolean(track.mute, `${prefix}.mute`);
+		projectBoolean(track.solo, `${prefix}.solo`);
 		projectBoolean(track.hidden, `${prefix}.hidden`);
 		return;
 	}

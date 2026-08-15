@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createVisibleVideoTrackPredicate } from '../video-timeline.js';
+
 import { loadVideoTimingAsset } from '../video-timing-storage.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import {
@@ -136,9 +138,10 @@ function selectVisibleVideoSources(
 	if (!Array.isArray(project.tracks)) throw new TypeError('The video export project requires tracks.');
 	const sources: DataRecord[] = [];
 	const seen = new Set<string>();
+	const visibleVideoTrack = createVisibleVideoTrackPredicate(project.tracks);
 	for (const trackValue of project.tracks) {
 		const track = record(trackValue, 'video export track');
-		if (track.type !== 'video' || track.hidden === true || !Array.isArray(track.clipIds)) continue;
+		if (!visibleVideoTrack(track) || !Array.isArray(track.clipIds)) continue;
 		for (const clipId of track.clipIds) {
 			if (typeof clipId !== 'string' || !clipId) continue;
 			const clipValue = dependencies.findClip(project, clipId);

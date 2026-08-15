@@ -154,7 +154,7 @@ function updateTrack(project, trackId, changes = {}) {
 		return;
 	}
 	if (track.type === 'video') {
-		const allowed = new Set(['name', 'mute', 'hidden', 'collapsed', 'height']);
+		const allowed = new Set(['name', 'mute', 'solo', 'hidden', 'collapsed', 'height']);
 		if (isTrackLockProjectSchema(project.schemaVersion)) allowed.add('locked');
 		for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Video track field cannot be updated: ${key}.`);
 		Object.assign(track, normalizeTrackForProject(project, { ...track, ...changes, clipIds: track.clipIds }));

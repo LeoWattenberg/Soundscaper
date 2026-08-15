@@ -1,7 +1,6 @@
 import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
-	chooseCommandAction,
 	chooseNestedCommandAction,
 	getMenuItem,
 	importFiles,
@@ -14,7 +13,7 @@ import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 
-test.describe('Framescaper linked audio and video visibility menus', () => {
+test.describe('Framescaper linked audio menus and video visibility controls', () => {
 	test.beforeEach(async ({ page }) => {
 		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
@@ -89,8 +88,8 @@ test.describe('Framescaper linked audio and video visibility menus', () => {
 		await clickHistory(editor, 'Redo');
 		await expectPersistedLinks(page, projectId, linksWithId(initial.links, relinkedLinkId));
 
-		await expectTopLevelMenuItem(page, editor, 'Tracks', 'Hide video');
-		await chooseCommandAction(page, editor, 'Tracks', 'Hide video');
+		// Picture visibility is the video track's mute control now, not a menu command.
+		await videoTrack.getByRole('button', { name: 'Hide video', exact: true }).click();
 		await expect(videoTrack).toHaveAttribute('data-hidden', 'true');
 		await expect(previewLayer).toHaveCount(0);
 		await expectPersistedHidden(page, projectId, true);
@@ -120,8 +119,7 @@ test.describe('Framescaper linked audio and video visibility menus', () => {
 		await expectPersistedHidden(page, projectId, true);
 
 		await selectOnlyVideoClip(restored);
-		await expectTopLevelMenuItem(page, restored, 'Tracks', 'Show video');
-		await chooseCommandAction(page, restored, 'Tracks', 'Show video');
+		await restoredTrack.getByRole('button', { name: 'Show video', exact: true }).click();
 		await expect(restoredTrack).toHaveAttribute('data-hidden', 'false');
 		await expect(restoredLayer).toHaveCount(1);
 		await expectPersistedHidden(page, projectId, false);
@@ -163,22 +161,6 @@ async function expectNestedMenuItem(page, editor, menuLabel, submenuLabel, itemL
 	await expect(item).toBeEnabled();
 	await page.keyboard.press('Escape');
 	await page.keyboard.press('Escape');
-}
-
-async function expectTopLevelMenuItem(page, editor, menuLabel, itemLabel) {
-	const menu = await openApplicationMenu(page, editor, menuLabel);
-	const item = getMenuItem(menu, itemLabel);
-	await expect(item).toBeVisible();
-	await expect(item).toBeEnabled();
-	await page.keyboard.press('Escape');
-}
-
-async function openApplicationMenu(page, editor, label) {
-	const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
-	await menubar.getByRole('menuitem', { name: label, exact: true }).click();
-	const menu = page.getByRole('menu', { name: label, exact: true });
-	await expect(menu).toBeVisible();
-	return menu;
 }
 
 async function clickHistory(editor, label) {

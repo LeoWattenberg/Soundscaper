@@ -134,6 +134,12 @@ function selectActiveMedia(
 	const activeSources = new Set<string>();
 	const linked = new Map<string, string>();
 	const trackIds = new Set<string>();
+	// Solo is a statement about the whole video track set, so resolve it once before
+	// walking the tracks; the exported picture must match what playback composes.
+	const soloedVideo = project.tracks.some((track) => (
+		data(track, 'type', 'video keyframe export track') === 'video'
+		&& optionalData(track, 'solo', false, 'video keyframe export track') === true
+	));
 	for (const [trackIndex, track] of project.tracks.entries()) {
 		const name = `video keyframe export track ${String(trackIndex)}`;
 		const trackId = id(data(track, 'id', name), 'track.id');
@@ -142,6 +148,9 @@ function selectActiveMedia(
 		if (data(track, 'type', name) !== 'video') continue;
 		const hidden = optionalData(track, 'hidden', false, name);
 		if (typeof hidden !== 'boolean') throw new TypeError(`Video track ${trackId}.hidden must be boolean.`);
+		const solo = optionalData(track, 'solo', false, name);
+		if (typeof solo !== 'boolean') throw new TypeError(`Video track ${trackId}.solo must be boolean.`);
+		const composes = soloedVideo ? solo : !hidden;
 		const local = new Set<string>();
 		for (const clipIdValue of denseArray(
 			data(track, 'clipIds', name),
@@ -171,7 +180,7 @@ function selectActiveMedia(
 				`video clip ${clipId}.durationFrames`,
 			);
 			const clipEnd = safeAdd(clipStart, duration, `video clip ${clipId} end`);
-			if (hidden !== true && clipEnd > startFrame && clipStart < endFrame) {
+			if (composes && clipEnd > startFrame && clipStart < endFrame) {
 				activeClipIds.push(clipId);
 				if (!activeSources.has(sourceId)) {
 					activeSources.add(sourceId);

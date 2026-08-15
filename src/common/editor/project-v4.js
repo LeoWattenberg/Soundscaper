@@ -250,6 +250,7 @@ export function createVideoTrackV4(options = {}) {
 		name: String(options.name || 'Video track'),
 		clipIds: uniqueStrings(options.clipIds || [], 'track.clipIds'),
 		mute: Boolean(options.mute),
+		solo: Boolean(options.solo),
 		hidden: Boolean(options.hidden),
 		collapsed: Boolean(options.collapsed),
 		height: safeInteger(options.height ?? 120, 40, 'track.height'),

@@ -28,14 +28,8 @@ export {
 	VIDEO_THUMBNAIL_MINIMUM_SPACING_PIXELS,
 } from './video-source-time.ts';
 
-/**
- * A video track participates in the visual stack unless it is explicitly
- * hidden. `mute` remains independent so a future UI can use it for media audio
- * without changing picture composition.
- */
-export function isVisibleVideoTrack(track) {
-	return Boolean(track && track.type === 'video' && track.hidden !== true);
-}
+export { createVisibleVideoTrackPredicate, isVisibleVideoTrack } from './video-track-visibility.js';
+import { createVisibleVideoTrackPredicate } from './video-track-visibility.js';
 
 export function videoClipEndFrame(clip) {
 	return nonNegativeSafeInteger(clip?.timelineStartFrame, 'clip.timelineStartFrame')
@@ -460,9 +454,11 @@ function runtimeProject(project) {
 }
 
 function videoTrackVisibility(project, requested) {
-	if (typeof requested !== 'function') return isVisibleVideoTrack;
+	const visible = createVisibleVideoTrackPredicate(project?.tracks);
+	if (typeof requested !== 'function') return visible;
+	// An explicit predicate still replaces the default outright for a legacy project.
 	if (!isTrackFolderMediaStateProjectionV12(project)) return requested;
-	return (track) => isVisibleVideoTrack(track) && requested(track);
+	return (track) => visible(track) && requested(track);
 }
 
 function normalizeClipLookup(value) {

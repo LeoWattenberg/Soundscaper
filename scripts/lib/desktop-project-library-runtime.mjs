@@ -164,6 +164,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-source-timing-view.js',
 	'src/common/editor/video-source-timing-views.js',
 	'src/common/editor/video-timeline.js',
+	'src/common/editor/video-track-visibility.js',
 	'src/common/editor/video-timing-asset-reference.js',
 	'src/common/editor/video-timing-asset.js',
 	'src/common/editor/wav-opaque-chunks.js',

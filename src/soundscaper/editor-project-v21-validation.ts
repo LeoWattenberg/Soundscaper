@@ -66,7 +66,7 @@ const AUDIO_TRACK_FIELDS = new Set([
 	'opaqueExtensions', 'laneGroupId', 'locked', 'audioFreeze',
 ])
 const VIDEO_TRACK_FIELDS = new Set([
-	'id', 'type', 'name', 'clipIds', 'mute', 'hidden', 'collapsed', 'height',
+	'id', 'type', 'name', 'clipIds', 'mute', 'solo', 'hidden', 'collapsed', 'height',
 	'laneGroupId', 'opaqueExtensions', 'locked',
 ])
 const LABEL_TRACK_FIELDS = new Set([

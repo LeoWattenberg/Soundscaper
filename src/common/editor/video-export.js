@@ -1,8 +1,9 @@
 import {
-	isVisibleVideoTrack,
+	createVisibleVideoTrackPredicate,
 	resolveVideoCompositionIntervals,
 	videoClipEndFrame,
 } from './video-timeline.js';
+import { isTrackFolderMediaStateProjectionV12 } from './track-folder-media-runtime.ts';
 import { normalizeVideoEffects } from './video-effects.js';
 import { assertStaticVideoKeyframesForExport } from './video-keyframe-export-admission.ts';
 import { approximatePositiveRational } from './rational-approximation.ts';
@@ -12,7 +13,6 @@ import {
 } from './runtime-clip-projection.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
-	isTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
 } from './track-folder-media-runtime.ts';
 import {
@@ -486,9 +486,11 @@ function ensureRuntimeProject(project) {
 }
 
 function videoTrackVisibility(project, requested) {
-	if (typeof requested !== 'function') return isVisibleVideoTrack;
+	const visible = createVisibleVideoTrackPredicate(project?.tracks);
+	if (typeof requested !== 'function') return visible;
+	// An explicit predicate still replaces the default outright for a legacy project.
 	if (!isTrackFolderMediaStateProjectionV12(project)) return requested;
-	return (track) => isVisibleVideoTrack(track) && requested(track);
+	return (track) => visible(track) && requested(track);
 }
 
 function nonNegativeSafeInteger(value, name) {

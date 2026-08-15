@@ -1,6 +1,5 @@
 import { AUDACITY_TRACK_CONTEXT_ACTION_IDS } from '../../audacity-context-menu.js';
 import { trackSourceChannelCount, trackSources } from '../application-menu-model.js';
-import { createFramescaperEditControlMenuItems } from '../framescaper-edit-control-menu-model.ts';
 import { createSoundscaperProductionApplicationMenuItems } from '../soundscaper-production-application-menu.ts';
 import { createTakeCompApplicationMenuItems } from '../take-comp-application-menu.ts';
 import { resolveSoundscaperFreezeStatus, selectedTrackAutomationLaneId } from '../workspace/useSoundscaperProductionWorkspace.ts';
@@ -275,16 +274,10 @@ function createTrackOverflowItems({
 		copy,
 		open: () => onOpenSurface?.('take-comp'),
 	});
-	const framescaperVisibility = createFramescaperEditControlMenuItems({
-		productId, project, selectedClipId: null, selectedTrackId: track.id, editBlocked: mutationsBlocked,
-		copy: { linkAudio: copy.linkAudio, unlinkAudio: copy.unlinkAudio, showVideo: copy.videoVisible, hideVideo: copy.videoHidden },
-	}, {
-		link: () => undefined,
-		unlink: () => undefined,
-		setVideoHidden: (trackId, hidden) => run(() => controller.actions.track.update(trackId, { hidden })),
-	}).visibility;
 	return {
-		display: framescaperVisibility ? [framescaperVisibility] : [],
+		// Picture visibility is a track control, not a menu command: the video track
+		// control panel carries it as mute, with solo hiding every other video track.
+		display: [],
 		shared: [
 			{
 				id: 'track-lock-toggle', label: track.locked ? copy.unlockTrack : copy.lockTrack,
