@@ -1,7 +1,7 @@
 import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
-	chooseCommandAction,
+	chooseTrackMenuAction,
 	getMenuItem,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
@@ -141,7 +141,11 @@ test.describe('Framescaper frame-canonical roll and ripple trim qualification', 
 
 		// Persisted track authority disables every menu route and refuses the pointer route.
 		await setProgramFrame(editor, baseline, active.sequenceStartFrame + 1);
-		await chooseCommandAction(page, editor, 'Spuren', 'Spur sperren');
+		await chooseTrackMenuAction(
+			page, editor,
+			editor.locator(`[data-track-row][data-track-id="${active.trackId}"]`),
+			'Spur sperren',
+		);
 		const locked = withTrackLock(baseline, active.trackId, true);
 		await expectPersistedTimeline(page, projectId, locked);
 		const boundaries = await openClipBoundariesByKeyboard(page, editor);

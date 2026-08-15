@@ -1,7 +1,7 @@
 import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
-	chooseCommandAction,
+	chooseTrackMenuAction,
 	getMenuItem,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
@@ -125,7 +125,11 @@ test.describe('Framescaper frame-canonical uniform rate-stretch qualification', 
 		}
 
 		// Locking is the persisted final authority: both menus refuse and no stale preview leaks.
-		await chooseCommandAction(page, editor, 'Spuren', 'Spur sperren');
+		await chooseTrackMenuAction(
+			page, editor,
+			editor.locator(`[data-track-row][data-track-id="${active.trackId}"]`),
+			'Spur sperren',
+		);
 		const locked = withTrackLock(baseline, active.trackId, true);
 		await expectPersistedTimeline(page, projectId, locked);
 		const lockedBoundaries = await openClipBoundariesByKeyboard(page, editor);

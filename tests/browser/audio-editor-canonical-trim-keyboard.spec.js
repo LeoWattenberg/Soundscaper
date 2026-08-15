@@ -1,5 +1,5 @@
 import { expect, test, toneA, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, importFiles, waitForEditor } from './audio-editor-test-helpers.js';
+import { bootEditor, importFiles, waitForEditor, chooseTrackMenuAction } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
@@ -85,7 +85,11 @@ test.describe('Framescaper canonical clip-focus trim keyboard routing', () => {
 		// still mutate the unlocked audio, so this proves canonical refusal routing.
 		const current = await persistedTimeline(page, projectId);
 		await selectClip(editor, current.video.id);
-		await chooseCommandAction(page, editor, 'Spuren', 'Spur sperren');
+		await chooseTrackMenuAction(
+			page, editor,
+			editor.locator(`[data-track-row][data-track-id="${current.video.trackId}"]`),
+			'Spur sperren',
+		);
 		await expect.poll(async () => (
 			(await persistedTimeline(page, projectId)).tracks
 				.find(({ id }) => id === current.video.trackId)?.locked

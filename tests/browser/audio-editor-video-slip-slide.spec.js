@@ -1,7 +1,7 @@
 import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
-	chooseCommandAction,
+	chooseTrackMenuAction,
 	getMenuItem,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
@@ -141,7 +141,11 @@ test.describe('Framescaper frame-canonical slip and slide qualification', () => 
 		await selectVideoClip(editor, active.id);
 
 		// Persisted lock authority disables all menu routes and refuses both body gestures.
-		await chooseCommandAction(page, editor, 'Spuren', 'Spur sperren');
+		await chooseTrackMenuAction(
+			page, editor,
+			editor.locator(`[data-track-row][data-track-id="${active.trackId}"]`),
+			'Spur sperren',
+		);
 		const locked = withTrackLock(baseline, active.trackId, true);
 		await expectPersistedTimeline(page, projectId, locked);
 		const boundaries = await openClipBoundariesByKeyboard(page, editor);
