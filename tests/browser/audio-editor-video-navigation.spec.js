@@ -1,13 +1,11 @@
 import { expect, test } from '@playwright/test';
 
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
-import { chooseNestedCommandAction, getMenuItem } from './audio-editor-test-helpers.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
-const TRANSPORT_MENU = 'Playback and recording';
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 
 test.describe('3B-4a shuttle and edit-point navigation', () => {
@@ -21,7 +19,7 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 		}));
 	});
 
-	test('the Transport submenu and fixed keys share one programme playhead', async ({ browserName, page }) => {
+	test('the fixed shuttle and edit-point keys drive one programme playhead', async ({ browserName, page }) => {
 		test.skip(browserName === 'webkit', 'Milestone 3 inherits the explicit WebKit qualification deferral.');
 		test.setTimeout(180_000);
 
@@ -51,22 +49,9 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 		expect(rate.den).toBe(1);
 		await expectSequenceFrame(readout, rate.num, editPoints[0]);
 
-		// Every command is discoverable in the existing menu; one menu activation
-		// and the matching workspace keys then traverse strict, non-wrapping points.
-		const initialMenu = await openShuttleMenu(page, editor);
-		for (const label of [
-			'Previous edit',
-			'Reverse shuttle',
-			'Shuttle stop',
-			'Forward shuttle',
-			'Next edit',
-		]) {
-			await expect(getMenuItem(initialMenu, label)).toBeVisible();
-		}
-		await page.keyboard.press('Escape');
-		await page.keyboard.press('Escape');
-
-		await chooseNestedCommandAction(page, editor, TRANSPORT_MENU, ['Shuttle and edit points', 'Next edit']);
+		// Shuttle and edit-point navigation is reached by its fixed workspace keys; the
+		// menubar no longer carries a transport menu for them.
+		await pressWorkspaceKey(page, editor, 'ArrowDown');
 		await expectSequenceFrame(readout, rate.num, editPoints[1]);
 		for (let index = 2; index < editPoints.length; index += 1) {
 			await pressWorkspaceKey(page, editor, 'ArrowDown');
@@ -76,7 +61,7 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 		await expectSequenceFrame(readout, rate.num, editPoints.at(-1));
 		await pressWorkspaceKey(page, editor, 'ArrowUp');
 		await expectSequenceFrame(readout, rate.num, editPoints.at(-2));
-		await chooseNestedCommandAction(page, editor, TRANSPORT_MENU, ['Shuttle and edit points', 'Previous edit']);
+		await pressWorkspaceKey(page, editor, 'ArrowUp');
 		await expectSequenceFrame(readout, rate.num, editPoints.at(-3));
 		for (let index = editPoints.length - 4; index >= 1; index -= 1) {
 			await pressWorkspaceKey(page, editor, 'ArrowUp');
@@ -84,16 +69,12 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 		}
 		await expectSequenceFrame(readout, rate.num, editPoints[1]);
 
-		// Menu forward shuttle and keyboard stop operate on the same session.
-		await chooseNestedCommandAction(page, editor, TRANSPORT_MENU, ['Shuttle and edit points', 'Forward shuttle']);
+		// Forward shuttle and keyboard stop operate on the same session.
+		await pressWorkspaceKey(page, editor, 'L');
 		await expect.poll(() => sequenceFrame(readout, rate.num)).toBeGreaterThan(editPoints[1]);
 		await pressWorkspaceKey(page, editor, 'K');
 		const forwardStopFrame = await sequenceFrame(readout, rate.num);
 		expect(forwardStopFrame).toBeGreaterThan(editPoints[1]);
-		const stoppedMenu = await openShuttleMenu(page, editor);
-		await expect(getMenuItem(stoppedMenu, 'Shuttle stop')).toHaveAttribute('aria-checked', 'true');
-		await page.keyboard.press('Escape');
-		await page.keyboard.press('Escape');
 		await expectSequenceFrame(readout, rate.num, forwardStopFrame);
 
 		// A held L emits one deliberate keydown followed by repeat=true. It stays at
@@ -106,11 +87,7 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 		await expect(editor.locator('[data-status]')).toContainText(/1(?:x|×)/u);
 		await pressWorkspaceKey(page, editor, 'L');
 		await expect(editor.locator('[data-status]')).toContainText(/2(?:x|×)/u);
-		const runningMenu = await openShuttleMenu(page, editor);
-		await expect(getMenuItem(runningMenu, 'Forward shuttle')).toHaveAttribute('aria-checked', 'true');
-		await expect(getMenuItem(page.getByRole('menu', { name: TRANSPORT_MENU, exact: true }), 'Loop'))
-			.toHaveAttribute('aria-checked', 'false');
-		await page.keyboard.press('Escape');
+		// The shuttle rung is reported in the status line rather than a menu check mark.
 		await page.keyboard.press('Escape');
 		await pressWorkspaceKey(page, editor, 'K');
 
@@ -142,19 +119,6 @@ async function openFramescaper(page) {
 	const decline = page.getByRole('button', { name: 'Decline', exact: true });
 	if (await decline.isVisible()) await decline.click();
 	return editor;
-}
-
-async function openShuttleMenu(page, editor) {
-	const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
-	await menubar.getByRole('menuitem', { name: TRANSPORT_MENU, exact: true }).click();
-	const transport = page.getByRole('menu', { name: TRANSPORT_MENU, exact: true });
-	await expect(transport).toBeVisible();
-	const shuttleItem = getMenuItem(transport, 'Shuttle and edit points');
-	await shuttleItem.focus();
-	await page.keyboard.press('ArrowRight');
-	const shuttle = shuttleItem.getByRole('menu');
-	await expect(shuttle).toBeVisible();
-	return shuttle;
 }
 
 async function focusWorkspace(editor) {

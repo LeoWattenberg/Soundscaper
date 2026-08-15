@@ -280,6 +280,8 @@ export async function chooseNestedCommandAction(page, editor, menu, actions) {
 		}
 	}
 }
+export const TRACK_MENU_TRIGGER = /^(?:Track menu|Track options|Spuroptionen|Spurmen\u00fc)$/u;
+
 /**
  * Drive a per-track command from the track control panel's overflow menu, which is where
  * track-scoped commands live rather than the application menubar. Pass a nested path to
@@ -288,7 +290,9 @@ export async function chooseNestedCommandAction(page, editor, menu, actions) {
 export async function chooseTrackMenuAction(page, editor, trackRow, path) {
 	const steps = Array.isArray(path) ? path : [path];
 	const row = trackRow ?? editor.locator('[data-track-row]').first();
-	await row.getByRole('button', { name: 'Track menu', exact: true }).click();
+	// Audio rows label the overflow trigger from the design system, video rows from
+	// product copy, so accept either name rather than assume one row type.
+	await row.getByRole('button', { name: TRACK_MENU_TRIGGER }).first().click();
 	let menu = page.locator('.audio-editor-track-menu');
 	await expect(menu).toBeVisible();
 	for (const [index, step] of steps.entries()) {

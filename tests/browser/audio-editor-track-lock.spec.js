@@ -3,7 +3,7 @@ import {
 	bootEditor,
 	chooseCommandAction,
 	chooseTrackMenuAction,
-	chooseNestedCommandAction,
+	TRACK_MENU_TRIGGER,
 	clipByName,
 	getMenuItem,
 	importFiles,
@@ -14,7 +14,6 @@ import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtim
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
-const TRANSPORT_MENU = 'Playback and recording';
 
 test.describe('persisted shared track locking', () => {
 	test.beforeEach(async ({ page }) => {
@@ -56,7 +55,7 @@ test.describe('persisted shared track locking', () => {
 		await page.reload();
 		let restored = await waitForEditor(page);
 		await selectAudioTrack(restored, toneA.name);
-		await expectTrackMenuItem(page, restored, 'Unlock track', true);
+		await expectTrackMenuItem(page, restored, trackId, 'Unlock track', true);
 		await expectPersistedLock(page, projectId, trackId, true, SOUNDSCAPER_DATABASE_NAME);
 
 		await chooseCommandAction(page, restored, 'File', 'Edit in Framescaper');
@@ -74,7 +73,7 @@ test.describe('persisted shared track locking', () => {
 		await page.goto(`/en/?project=${encodeURIComponent(projectId)}`);
 		restored = await waitForEditor(page);
 		await selectAudioTrack(restored, toneA.name);
-		await expectTrackMenuItem(page, restored, 'Unlock track', true);
+		await expectTrackMenuItem(page, restored, trackId, 'Unlock track', true);
 		await chooseTrackMenuAction(page, restored, trackRow(restored, trackId), 'Unlock track');
 		await expectPersistedLock(page, projectId, trackId, false, SOUNDSCAPER_DATABASE_NAME);
 	});
@@ -107,9 +106,8 @@ test.describe('persisted shared track locking', () => {
 
 		const before = await editor.locator('[data-sequence-timecode]')
 			.getAttribute('data-sequence-timecode');
-		await chooseNestedCommandAction(
-			page, editor, TRANSPORT_MENU, ['Shuttle and edit points', 'Next edit'],
-		);
+		// Edit-point navigation is keyboard-reached now that the transport menu is retired.
+		await pressWorkspaceKey(page, editor, 'ArrowDown');
 		await expect(editor.locator('[data-status]')).toContainText('No next edit point');
 		await expect(editor.locator('[data-sequence-timecode]'))
 			.toHaveAttribute('data-sequence-timecode', before);
@@ -145,10 +143,12 @@ async function selectAudioTrack(editor, name) {
 	await expect(row.locator('[data-track-lane]')).toHaveAttribute('data-selected', 'true');
 }
 
-async function expectTrackMenuItem(page, editor, label, enabled) {
-	const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
-	await menubar.getByRole('menuitem', { name: 'Tracks', exact: true }).click();
-	const menu = page.getByRole('menu', { name: 'Tracks', exact: true });
+async function expectTrackMenuItem(page, editor, trackId, label, enabled) {
+	// Lock is a per-track command, so it is asserted where it now lives: the track
+	// control panel overflow menu rather than the application menubar.
+	await trackRow(editor, trackId).getByRole('button', { name: TRACK_MENU_TRIGGER }).first().click();
+	const menu = page.locator('.audio-editor-track-menu');
+	await expect(menu).toBeVisible();
 	const item = getMenuItem(menu, label);
 	await expect(item).toBeVisible();
 	if (enabled) await expect(item).toBeEnabled();
@@ -269,4 +269,12 @@ async function videoState(page, projectId, databaseName) {
 
 function trackRow(editor, trackId) {
 	return editor.locator(`[data-track-row][data-track-id="${trackId}"]`);
+}
+
+async function pressWorkspaceKey(page, editor, key) {
+	await editor.evaluate((element) => {
+		element.tabIndex = -1;
+		element.focus({ preventScroll: true });
+	});
+	await page.keyboard.press(key);
 }
