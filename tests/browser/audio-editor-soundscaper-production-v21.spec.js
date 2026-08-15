@@ -9,6 +9,7 @@ import {
 	bootEditor,
 	chooseFileAction,
 	chooseNestedCommandAction,
+	chooseTrackMenuAction,
 	closeDialog,
 	closeEffectsPanel,
 	commitInput,
@@ -89,14 +90,10 @@ test.describe('Soundscaper exact V21 production UI', () => {
 		await expect(dialog).toBeHidden();
 		await expect(tracksTrigger).toBeFocused();
 
+		// Freeze is offered only where there is realtime effect work to bake, so a track
+		// with an empty rack carries no Freeze menu at all.
 		const freezeTracks = await openMenu(page, editor, 'Tracks');
-		const freeze = getMenuItem(freezeTracks, 'Freeze');
-		await freeze.focus();
-		await page.keyboard.press('ArrowRight');
-		const freezeMenu = freeze.getByRole('menu');
-		await expect(freezeMenu).toBeVisible();
-		await expect(getMenuItem(freezeMenu, 'Freeze track')).toHaveAttribute('aria-disabled', 'true');
-		await page.keyboard.press('Escape');
+		await expect(getMenuItem(freezeTracks, 'Freeze')).toHaveCount(0);
 		await page.keyboard.press('Escape');
 
 		await assertMenuPath(page, editor, 'View', ['Panels', 'Routing graph…']);
@@ -201,6 +198,12 @@ test.describe('Soundscaper exact V21 production UI', () => {
 			.toHaveValue('hold');
 		await closeProductionDialog(historyDialog);
 
+		// Freeze is offered only where a realtime rack exists to bake.
+		const freezeEffects = await openEffectsForTrack(editor, 1);
+		await addRackEffect(page, freezeEffects, 'track', 'Delay');
+		await closeDialog(page.getByRole('dialog', { name: 'Delay', exact: true }));
+		await closeEffectsPanel(freezeEffects);
+
 		const history = await openHistoryPanel(page, editor);
 		const historyBeforeFreeze = await history.locator('[data-history-list] > li').count();
 		await freezeSelectedTrack(page, editor, history, historyBeforeFreeze);
@@ -299,7 +302,11 @@ test.describe('Soundscaper exact V21 production UI', () => {
 		expect(projectId).toBeTruthy();
 		const history = await openHistoryPanel(page, editor);
 		const historyBeforeResample = await history.locator('[data-history-list] > li').count();
-		await chooseNestedCommandAction(page, editor, 'Tracks', ['Sample rate', '48000 Hz']);
+		await chooseTrackMenuAction(
+			page, editor,
+			editor.locator(`[data-track-row][data-track-id="${trackId}"]`),
+			['Sample rate', '48000 Hz'],
+		);
 		await expect(history.locator('[data-history-list] > li'))
 			.toHaveCount(historyBeforeResample + 1, { timeout: 10_000 });
 		await history.getByRole('button', { name: 'Close: History', exact: true }).click();
