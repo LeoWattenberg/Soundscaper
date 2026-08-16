@@ -14,13 +14,19 @@ import {
 	NATIVE_HELPER_ADDON_TARGETS,
 	verifyNativeAddonPayloadManifest,
 } from './lib/native-addon-payload-manifest.mjs';
-import { auditNativeHelperAddon } from './lib/native-helper-addon-build.mjs';
+import { auditFixturePlugins } from './lib/native-fixture-plugins.mjs';
+import {
+	NATIVE_HELPER_ADDON_TARGETS as ADDON_TARGETS,
+	auditNativeHelperAddon,
+} from './lib/native-helper-addon-build.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const { manifest, findings } = auditNativeHelperAddon({ repositoryRoot: root });
 
-if (findings.length > 0) {
-	throw new Error(`Native helper addon audit failed:\n${findings.join('\n')}`);
+const fixtureFindings = ADDON_TARGETS.flatMap((target) =>
+	auditFixturePlugins({ repositoryRoot: root, manifest, targetId: target.id }));
+if (findings.length > 0 || fixtureFindings.length > 0) {
+	throw new Error(`Native helper addon audit failed:\n${[...findings, ...fixtureFindings].join('\n')}`);
 }
 
 /* Every claimed target is verified, not just the build host's: the shipped

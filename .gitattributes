@@ -13,5 +13,7 @@ patches/**/*.patch text eol=lf
 /native/soundscaper-helper-addon/src/*.c text eol=lf
 /native/soundscaper-helper-addon/src/*.h text eol=lf
 /native/soundscaper-helper-addon/prebuilt/** binary
+/native/soundscaper-fixture-plugins/src/*.c text eol=lf
+/native/soundscaper-fixture-plugins/prebuilt/** binary
 /docs/production-threat-model.md text eol=lf
 /r2-cors.json text eol=lf

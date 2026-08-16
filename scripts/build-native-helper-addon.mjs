@@ -12,6 +12,7 @@
 import { resolve } from 'node:path';
 
 import { repinNativeAddonPayloadManifest } from './lib/native-addon-payload-manifest.mjs';
+import { buildFixturePlugins, fixturePluginSourcePins } from './lib/native-fixture-plugins.mjs';
 import {
 	buildNativeHelperAddon,
 	repinNativeHelperAddonSources,
@@ -30,7 +31,16 @@ const build = buildNativeHelperAddon({
 	compiler: optionValue('compiler') ?? process.env.CC ?? 'cc',
 	includeDirectories: includeArgument ? includeArgument.split(',').map((entry) => entry.trim()) : undefined,
 });
-repinNativeHelperAddonSources({ repositoryRoot: root, build });
+const fixtures = buildFixturePlugins({
+	repositoryRoot: root,
+	targetId: build.target.id,
+	compiler: optionValue('compiler') ?? process.env.CC ?? 'cc',
+});
+repinNativeHelperAddonSources({
+	repositoryRoot: root,
+	build,
+	fixtures: { ...fixtures, sourceFiles: fixturePluginSourcePins(root) },
+});
 await repinNativeAddonPayloadManifest({ repositoryRoot: root });
 
 console.log(`Built ${build.target.id} native helper addon`);
@@ -38,3 +48,4 @@ console.log(`  payload    ${build.outputPath}`);
 console.log(`  byteLength ${build.payload.byteLength}`);
 console.log(`  sha256     ${build.payload.sha256}`);
 console.log(`  toolchain  ${build.toolchainIdentity}`);
+console.log(`  fixtures   ${String(fixtures.files.length)} benign format fixtures in ${fixtures.outputRoot}`);

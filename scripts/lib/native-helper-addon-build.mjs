@@ -176,7 +176,7 @@ export function buildNativeHelperAddon({
 	});
 }
 
-export function repinNativeHelperAddonSources({ repositoryRoot, build = null }) {
+export function repinNativeHelperAddonSources({ repositoryRoot, build = null, fixtures = null }) {
 	const path = resolve(repositoryRoot, NATIVE_HELPER_ADDON_SOURCE_MANIFEST);
 	const manifest = readNativeHelperAddonSourceManifest(repositoryRoot);
 	const sourceRoot = resolve(repositoryRoot, NATIVE_HELPER_ADDON_ROOT, 'src');
@@ -196,7 +196,15 @@ export function repinNativeHelperAddonSources({ repositoryRoot, build = null }) 
 			payload: { name: manifest.payloadName, ...build.payload },
 		};
 	}
-	const updated = { ...manifest, sourceFiles, targets };
+	const fixturePlugins = { ...manifest.fixturePlugins };
+	if (fixtures) {
+		fixturePlugins.sourceFiles = fixtures.sourceFiles;
+		fixturePlugins.targets = {
+			...(fixturePlugins.targets ?? {}),
+			[fixtures.targetId]: { status: 'built', files: fixtures.files },
+		};
+	}
+	const updated = { ...manifest, sourceFiles, targets, fixturePlugins };
 	writeFileSync(path, `${JSON.stringify(updated, null, '\t')}\n`);
 	return updated;
 }

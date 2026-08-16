@@ -30,8 +30,8 @@
 	"sourceFiles": [
 		{
 			"path": "addon.c",
-			"byteLength": 16154,
-			"sha256": "a8665fd5f6bf6e7e20179b700d1467b30df09f9ff0a4798cb6e2c4f85fa6ea1d"
+			"byteLength": 29145,
+			"sha256": "51f9de144f77febbcfafe0350529cb50c47cf3da79eef0bd5b448f850310807e"
 		},
 		{
 			"path": "audio_backends.c",
@@ -42,6 +42,31 @@
 			"path": "audio_backends.h",
 			"byteLength": 2468,
 			"sha256": "3f5d892d5473a33d13a7f8288d2a77773ca8662cafc85b2335927d772fe17e1f"
+		},
+		{
+			"path": "fixture_plugin_abi.h",
+			"byteLength": 3405,
+			"sha256": "48d6cc3c70c46f32183e0240ad24a25b0f3be8e9c6a301c86d94019ba24c5ca5"
+		},
+		{
+			"path": "plugin_host.c",
+			"byteLength": 5351,
+			"sha256": "b75a2b848fbac954e1a8132bd646ae74fe6b0f22f98619009ba0383c644b6953"
+		},
+		{
+			"path": "plugin_host.h",
+			"byteLength": 2305,
+			"sha256": "b97658b24c0cad9e9e010f750c40396a09d520eb7eee6bde53f1bcb9ee54644a"
+		},
+		{
+			"path": "plugin_scan.c",
+			"byteLength": 5409,
+			"sha256": "e8b60d380844d9385535ced482754e489de9c157daca1274be8d422ce3658189"
+		},
+		{
+			"path": "plugin_scan.h",
+			"byteLength": 2594,
+			"sha256": "07d49fa8cafcdb7e0a9aa2321c931012eef76926ef35d7c53cce6c15422bbf15"
 		},
 		{
 			"path": "synthetic_engine.c",
@@ -61,8 +86,8 @@
 			"toolchainIdentity": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
 			"payload": {
 				"name": "soundscaper_helper.node",
-				"byteLength": 31120,
-				"sha256": "a04333770cfb69bf40b717ea0211fe03a68796bc0701609a8c182cc283b1c14e"
+				"byteLength": 45464,
+				"sha256": "8868a72f88b936f468b811910a7455d5bb6099f17c2e322e7dea908896821514"
 			}
 		},
 		"linux-arm64": {
@@ -88,6 +113,101 @@
 			"blockedBy": "No Windows ARM64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
 			"toolchainIdentity": null,
 			"payload": null
+		}
+	},
+	"fixturePlugins": {
+		"root": "native/soundscaper-fixture-plugins",
+		"suffix": ".scapefx",
+		"description": "Benign format fixtures the scanner and host machinery is proven against while every real plug-in format stays fail-closed behind its licensing row.",
+		"sourceFiles": [
+			{
+				"path": "fixture_plugin.c",
+				"byteLength": 6034,
+				"sha256": "1ae88acaf1afca77b87481200a2971439472cf74ff3a65ed1771f027d309f02d"
+			}
+		],
+		"targets": {
+			"linux-x64": {
+				"status": "built",
+				"files": [
+					{
+						"name": "clean-effect.scapefx",
+						"byteLength": 15912,
+						"sha256": "adf04c0bb769081d846cc916c7f4f20c92ce972cf30e11ea3569460a170967ee"
+					},
+					{
+						"name": "gain-effect.scapefx",
+						"byteLength": 15912,
+						"sha256": "052e52410dba9910493926a2f3c70e8c5b924d0a3c09ef2398b3d0ac9ea5f5cd"
+					},
+					{
+						"name": "impulse-effect.scapefx",
+						"byteLength": 15912,
+						"sha256": "2c11925a489c5cf5b52dbec533ce1b7f94dfd347d84e2e27d5f067bd05f40bba"
+					},
+					{
+						"name": "instrument.scapefx",
+						"byteLength": 15912,
+						"sha256": "c15406a07fd5e977f7ad3d4a52d4171a883e4f4e19dec203c06d2e36e5cb66e9"
+					},
+					{
+						"name": "duplicate-identity.scapefx",
+						"byteLength": 15912,
+						"sha256": "a46ebb988624acf3e9c9def82231433d75abe7b83f00d90478e182351b6cc7da"
+					},
+					{
+						"name": "crash-on-scan.scapefx",
+						"byteLength": 15424,
+						"sha256": "b9b3ba1e251fbb33d41cf15e3f3f9a35c7d302cbc459fa8e75e704795ca9b11b"
+					},
+					{
+						"name": "hang-on-scan.scapefx",
+						"byteLength": 15424,
+						"sha256": "95f778d41fcab04a7382d4eaa6dc9d216865c71864494ea2dbd65ac88fe08618"
+					},
+					{
+						"name": "crash-on-process.scapefx",
+						"byteLength": 15960,
+						"sha256": "f4d3bfffea2e2e456bb45678577a39f250ffa50ac11c872c92680c11e4b97312"
+					},
+					{
+						"name": "oversize-state.scapefx",
+						"byteLength": 15912,
+						"sha256": "d0dd8ef0ae36e0463ea363d82f504d3b8f6fc33d5eefdcd2dbc274982df17bee"
+					},
+					{
+						"name": "unstable-latency.scapefx",
+						"byteLength": 15912,
+						"sha256": "0945dfd257da03e4e1b294efd5a53b7b7336c322078e538af6e5dd20c2e5f98b"
+					},
+					{
+						"name": "not-a-module.scapefx",
+						"byteLength": 49,
+						"sha256": "e65ec414e0fc40bc40f513f0e1a96a6ee08b95c0a8c8a0a00996f4fe2ec97c3e"
+					},
+					{
+						"name": "no-entry-point.scapefx",
+						"byteLength": 15144,
+						"sha256": "cbbdd7c8927ccf57bfaa191b2e7ed24b9a2cc41f54e05539103d5349f04d885d"
+					}
+				]
+			},
+			"linux-arm64": {
+				"status": "pending-external",
+				"files": []
+			},
+			"mac-arm64": {
+				"status": "pending-external",
+				"files": []
+			},
+			"win-x64": {
+				"status": "pending-external",
+				"files": []
+			},
+			"win-arm64": {
+				"status": "pending-external",
+				"files": []
+			}
 		}
 	}
 }

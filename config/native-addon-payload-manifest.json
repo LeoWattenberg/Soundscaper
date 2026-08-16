@@ -28,8 +28,8 @@
 			"toolchainIdentity": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
 			"payload": {
 				"path": "native/soundscaper-helper-addon/prebuilt/linux-x64/soundscaper_helper.node",
-				"byteLength": 31120,
-				"sha256": "a04333770cfb69bf40b717ea0211fe03a68796bc0701609a8c182cc283b1c14e"
+				"byteLength": 45464,
+				"sha256": "8868a72f88b936f468b811910a7455d5bb6099f17c2e322e7dea908896821514"
 			}
 		},
 		{
