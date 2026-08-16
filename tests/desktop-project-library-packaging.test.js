@@ -449,10 +449,8 @@ test('desktop main initializes, exposes, and disposes the shared library through
 		'the native tier must register through the trusted IPC wrapper with main-owned seams');
 	assert.match(mainSource, /name: 'native tier', run: \(\) => disposeDesktopNativeTier\(nativeTier\)/u,
 		'every native helper must join the ordered shutdown barrier together');
-	assert.match(mainSource, /nativeTier: \(\) => nativeTier/u,
-		'renderer ownership cleanup must reach the whole native tier');
-	assert.match(mainSource, /revokeNativeTierOwner: revokeDesktopNativeTierOwner/u,
-		'every native surface must drain together when a renderer goes away');
+	assert.match(mainSource, /revokeNativeTier: \(owner\) => revokeDesktopNativeTierOwner\(nativeTier, owner\)/u,
+		'renderer ownership cleanup must drain every native surface together when a renderer goes away');
 	assert.match(mainSource, /\.\.\.desktopNativeTierMenu\(settings\)/u,
 		'the native surfaces must stay menu-reached');
 	assert.match(mainSource, /name: 'read capabilities'.*readCapabilities\.dispose\(\)/su);
@@ -521,7 +519,7 @@ test('desktop main owns file capabilities by committed renderer document', async
 		'revocation closes document admission synchronously before asynchronous cleanup',
 	);
 	assert.match(cleanupSource, /const owner = this\.#ownership\.revoke\(webContents\)/u);
-	assert.match(cleanupSource, /this\.#revokeNativeTierOwner\?\.\(this\.#nativeTier\?\.\(\), owner\)/u);
+	assert.match(cleanupSource, /this\.#revokeNativeTier\?\.\(owner\)/u);
 	assert.match(cleanupSource, /this\.#projectLibraryIpc\(\)\?\.revokeOwner\(owner\)/u);
 	assert.match(cleanupSource, /this\.#readCapabilities\.revokeOwner\(owner\)/u);
 	assert.match(cleanupSource, /this\.#saves\.revokeOwner\(owner\)/u);

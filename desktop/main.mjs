@@ -76,8 +76,7 @@ let allowNextClose = false;
 let applicationIsQuitting = false;
 
 const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
-	nativeTier: () => nativeTier,
-	revokeNativeTierOwner: revokeDesktopNativeTierOwner,
+	revokeNativeTier: (owner) => revokeDesktopNativeTierOwner(nativeTier, owner),
 	linkedVideoLocators: () => linkedVideoLocators,
 	ownership: rendererSaveOwnership,
 	projectLibraryIpc: () => projectLibraryIpc,

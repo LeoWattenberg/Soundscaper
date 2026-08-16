@@ -3,8 +3,7 @@
 /** Drains every main-owned capability associated with one renderer identity. */
 export class DesktopRendererOwnershipCleanup {
 	#drains = new WeakMap();
-	#nativeTier;
-	#revokeNativeTierOwner;
+	#revokeNativeTier;
 	#linkedVideoLocators;
 	#ownership;
 	#projectLibraryIpc;
@@ -12,9 +11,8 @@ export class DesktopRendererOwnershipCleanup {
 	#reportError;
 	#saves;
 
-	constructor({ linkedVideoLocators, nativeTier, ownership, projectLibraryIpc, readCapabilities, reportError, revokeNativeTierOwner, saves }) {
-		this.#nativeTier = nativeTier;
-		this.#revokeNativeTierOwner = revokeNativeTierOwner;
+	constructor({ linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, reportError, revokeNativeTier, saves }) {
+		this.#revokeNativeTier = revokeNativeTier;
 		this.#linkedVideoLocators = linkedVideoLocators;
 		this.#ownership = ownership;
 		this.#projectLibraryIpc = projectLibraryIpc;
@@ -47,7 +45,7 @@ export class DesktopRendererOwnershipCleanup {
 
 	async #drainOwner(owner) {
 		const results = await Promise.allSettled([
-			this.#revokeNativeTierOwner?.(this.#nativeTier?.(), owner),
+			this.#revokeNativeTier?.(owner),
 			this.#linkedVideoLocators()?.revokeOwner(owner),
 			this.#projectLibraryIpc()?.revokeOwner(owner),
 			this.#readCapabilities.revokeOwner(owner),
