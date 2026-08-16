@@ -634,12 +634,9 @@ clearance does not close either track or milestone exit gate.
 **Depends on:** milestones 2–4. Research may begin after milestone 2, but product
 integration waits for the owning shared contract.
 
-**Status:** **In progress — 5A-0a and 5A-0b implemented provisionally/local,
-with native audio backend discovery as the first 5A-1 slice; 5A-0c next.** The
-native payload exists for `linux-x64` only; the other four claimed targets are
-pending-external with named blockers. Device opening, the real-time transport,
-plug-in scanning and hosting, product progress hookup, and native-lab
-qualification remain open.
+**Status:** **In progress — 5A-0a/5A-0b implemented provisionally/local plus native
+audio discovery; 5A-0c next.** Only `linux-x64` has a native payload; device opening,
+real-time transport, plug-ins and lab qualification stay open.
 
 **Goal:** make Electron materially more capable without weakening the renderer
 sandbox or creating a second editor engine.
@@ -655,25 +652,19 @@ owns Soundscaper readiness, architecture, and acceptance.
   quiescent cancellation, heartbeat generations, qualifying-fault quarantine,
   and bounded monotonic progress. Task-coordinator/UI consumption is follow-on.
 - **Electron Enhanced — In progress:** the real off-by-default probe enforces
-  input, duration, concurrency, and RSS limits. Native payloads are now
-  target-selected and digest-pinned, verified at staging, at pack time and
-  before every spawn, and a test drives the helper across Electron's real
-  `utilityProcess` boundary. Durable quarantine and direct real-time transport
-  remain 5A-0c or later work. Helpers cannot publish revisions.
+  input, duration, concurrency, and RSS limits. Native payloads are now target-
+  selected, digest-pinned, and re-verified at staging, pack time and every spawn
+  across a real `utilityProcess`; helpers still cannot publish revisions.
 - **Electron Only — Planned:** out-of-process effect plug-in scanning,
   descriptors, quarantine, and isolated hosting. Instrument-class exposure
   remains blocked until milestone 8B.
 
 ### Soundscaper native tier
 
-- **Electron Enhanced — In progress:** appropriate low-latency OS audio
-  backends, with exclusive/shared modes, channel topology, recording
-  destinations, monitoring metadata, latency calibration, underrun reporting,
-  and Web Core fallback. Backend discovery is implemented behind a menu-reached,
-  off-by-default surface: ALSA and JACK are reached by dlopen so an absent
-  library is a truthful status rather than a load failure, discovery never
-  starts a sound server, and every backend reports its exact platform
-  diagnostic. No device is opened yet.
+- **Electron Enhanced — In progress:** appropriate low-latency OS audio backends,
+  with exclusive/shared modes, channel topology, recording destinations, monitoring
+  metadata, latency calibration, underrun reporting, and Web Core fallback. Only
+  dlopen ALSA/JACK discovery exists; no device opens.
 - **Electron Only — Planned:** VST3 and CLAP cross-platform, Audio Units on
   macOS, and LV2 on Linux, subject to licensing and packaging gates. Vendor UI
   receives no direct renderer authority.
