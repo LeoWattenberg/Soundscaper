@@ -86,6 +86,7 @@ produced by writing code.
 | Canonical plan admission | `native-media-plan-canonical-form.ts`, `native-media-plan-v6-admission.ts`, `native-media-plan-envelope.ts` |
 | Capability reporting | `native-media-capability-snapshot.ts` |
 | Backends and comparison | `native-media-backend-policy.ts`, `native-media-semantic-comparison.ts` |
+| Data-plane sequencing | `native-media-transfer-sequence.ts` |
 | Atomic publication | `native-media-atomic-publication.ts` |
 | Professional tier | `native-media-professional-characteristics.ts`, `native-media-professional-profiles.ts` |
 | Image sequences and proxies | `native-media-image-sequence.ts`, `native-media-proxy-recipe.ts` |
