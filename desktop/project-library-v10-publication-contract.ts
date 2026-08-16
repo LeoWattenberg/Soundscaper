@@ -2,6 +2,7 @@
 
 import { createHash } from 'node:crypto';
 
+import { isStrictlyHigherProjectRevision } from '../src/common/editor/project-revision-cas.ts';
 import {
 	validateFramescaperDesktopCurrentProjectV18,
 } from './project-library-v10-current-project.ts';
@@ -112,8 +113,8 @@ export function planFramescaperDesktopProjectLibraryV10Publication(
 			|| current[0]!.sha256 !== expectedProject.projectSha256) {
 			throw new Error('Framescaper V10 expected project failed compare-and-swap');
 		}
-		if (Number(project.revision) !== increment(expectedProject.projectRevision, 'project revision')) {
-			throw new Error('Framescaper V10 publication project revision must advance by exactly one');
+		if (!isStrictlyHigherProjectRevision(project.revision, expectedProject.projectRevision)) {
+			throw new Error('Framescaper V10 publication requires a strictly higher project revision');
 		}
 	}
 	const projectBytes = new TextEncoder().encode(document);

@@ -119,6 +119,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/project-feature-requirement-types.js',
 	'src/common/editor/project-feature-requirements.js',
 	'src/common/editor/project-owned-feature-requirements.js',
+	'src/common/editor/project-revision-cas.js',
 	'src/common/editor/project-runtime-profile-prerequisite.js',
 	'src/common/editor/project-runtime-profile.js',
 	'src/common/editor/project-schema-version.js',

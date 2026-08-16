@@ -115,6 +115,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/project-feature-requirement-types.js',
 		'src/common/editor/project-feature-requirements.js',
 		'src/common/editor/project-owned-feature-requirements.js',
+		'src/common/editor/project-revision-cas.js',
 		'src/common/editor/project-runtime-profile-prerequisite.js',
 		'src/common/editor/project-runtime-profile.js',
 		'src/common/editor/project-schema-version.js',

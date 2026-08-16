@@ -95,6 +95,40 @@ test('owns the lease, publishes through one exact session, and closes the databa
 	} finally { database.close(); }
 });
 
+test('main accepts a higher coalesced project revision under exact base CAS', async (context) => {
+	const appDataPath = await temporaryRoot(context);
+	const main = await startMain(appDataPath);
+	context.after(() => main.close());
+	const session = main.openSession(createFramescaperDesktopProjectLibraryV10Handshake());
+	const base = await uploadV10MainPublication(session);
+	const jumped = await uploadV10MainPublication(session, coalescedPublication(3, base));
+	assert.equal(jumped.metadataRevision, base.metadataRevision + 1);
+	assert.equal(jumped.project.projectRevision, 3);
+
+	await assert.rejects(
+		uploadV10MainPublication(session, coalescedPublication(3, jumped, 'e1')),
+		/strictly higher project revision/iu,
+	);
+	await assert.rejects(
+		uploadV10MainPublication(session, coalescedPublication(2, jumped, 'e2')),
+		/strictly higher project revision/iu,
+	);
+	await assert.rejects(
+		uploadV10MainPublication(session, {
+			...coalescedPublication(4, jumped, 'e3'),
+			request: {
+				...coalescedPublication(4, jumped, 'e3').request,
+				expectedProject: { projectRevision: jumped.project.projectRevision, projectSha256: 'ff'.repeat(32) },
+			},
+		}),
+		/compare-and-swap/iu,
+	);
+	const retained = await session.readProjectBundle(V10_MAIN_PROJECT_ID);
+	assert.ok(retained);
+	assert.equal(retained.metadataRevision, jumped.metadataRevision);
+	assert.equal(retained.project.projectRevision, 3);
+});
+
 test('sessions expose main-owned catalog, duplicate, and exact delete lifecycle operations', async (context) => {
 	const appDataPath = await temporaryRoot(context);
 	const main = await startMain(appDataPath);
@@ -279,6 +313,26 @@ async function startMain(appDataPath: string) {
 		owner: OWNER,
 		handshake: createFramescaperDesktopProjectLibraryV10Handshake(),
 	});
+}
+
+function coalescedPublication(
+	revision: number,
+	base: Readonly<{ metadataRevision: number; project: Readonly<{ projectRevision: number; sha256: string }> }>,
+	publicationByte?: string,
+) {
+	const fixture = v10MainPublication(revision);
+	return {
+		...fixture,
+		request: {
+			...fixture.request,
+			...(publicationByte === undefined ? {} : { publicationId: publicationByte.repeat(24) }),
+			expectedMetadataRevision: base.metadataRevision,
+			expectedProject: {
+				projectRevision: base.project.projectRevision,
+				projectSha256: base.project.sha256,
+			},
+		},
+	};
 }
 
 async function seedPreparedPublication(appDataPath: string): Promise<void> {

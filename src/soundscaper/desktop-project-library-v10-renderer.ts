@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { throwIfScapeAborted } from '../common/editor/scape-abort.ts'
+import { isStrictlyHigherProjectRevision } from '../common/editor/project-revision-cas.ts'
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts'
 import { assertSoundscaperProjectV21Profile } from './editor-project-v21-profile.ts'
 import { soundscaperProjectStoreAuthorityV21 } from './editor-project-store-v21.ts'
@@ -451,12 +452,6 @@ function shadowMode(
 		throw new Error('Desktop reconciliation requires a strictly higher V21 shadow revision.')
 	}
 	return 'update'
-}
-
-function isStrictlyHigherProjectRevision(nextValue: unknown, currentValue: unknown): boolean {
-	return typeof nextValue === 'number' && Number.isSafeInteger(nextValue)
-		&& typeof currentValue === 'number' && Number.isSafeInteger(currentValue)
-		&& nextValue > currentValue
 }
 
 function assertShadowStore(value: unknown): asserts value is SoundscaperDesktopProjectLibraryV10ShadowStore {

@@ -3,6 +3,7 @@
 import type { ScapeArchiveEntry } from '../common/editor/scape-archive-envelope.ts';
 import { throwIfScapeAborted } from '../common/editor/scape-abort.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import { isStrictlyHigherProjectRevision } from '../common/editor/project-revision-cas.ts';
 import { serializeScapeProjectDocument } from '../common/editor/scape-project-document.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
 import { cloneFramescaperProjectV18, type FramescaperProjectV18 } from './editor-project-v18.ts';
@@ -472,18 +473,11 @@ function assertPublicationResult(
 
 function shadowPublication(current: FramescaperProjectV18 | null, project: FramescaperProjectV18) {
 	if (current === null) return Object.freeze({ mode: 'create' as const });
-	const revision = Number(current.revision);
-	if (String(current.id) !== String(project.id) || !Number.isSafeInteger(revision)
-		|| !isStrictlyHigherProjectRevision(project.revision, revision)) {
+	if (String(current.id) !== String(project.id)
+		|| !isStrictlyHigherProjectRevision(project.revision, Number(current.revision))) {
 		throw new Error('Desktop reconciliation requires a strictly higher V18 shadow revision.');
 	}
 	return Object.freeze({ mode: 'compare-and-swap' as const, expected: current, project });
-}
-
-function isStrictlyHigherProjectRevision(nextValue: unknown, currentValue: unknown): boolean {
-	return typeof nextValue === 'number' && Number.isSafeInteger(nextValue)
-		&& typeof currentValue === 'number' && Number.isSafeInteger(currentValue)
-		&& nextValue > currentValue;
 }
 
 function manifest(snapshot: Readonly<FramescaperDesktopV10BundleSnapshot>): Readonly<Record<string, unknown>> {

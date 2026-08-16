@@ -7,6 +7,7 @@ import {
 import {
 	editorProjectRuntimeProfilePrerequisiteDefinition,
 } from '../common/editor/project-runtime-profile-prerequisite.ts';
+import { isStrictlyHigherProjectRevision } from '../common/editor/project-revision-cas.ts';
 import { throwIfScapeAborted } from '../common/editor/scape-abort.ts';
 import type { ScapeArchiveEntry } from '../common/editor/scape-archive-envelope.ts';
 import {
@@ -496,8 +497,10 @@ function normalizeTarget(
 		const expectedRevision = framescaperScapeProjectRevisionV18(expected);
 		if (framescaperScapeProjectIdentifierV18(origin) !== framescaperScapeProjectIdentifierV18(expected)
 			|| framescaperScapeProjectIdentifierV18(project) !== framescaperScapeProjectIdentifierV18(expected)
-			|| expectedRevision === Number.MAX_SAFE_INTEGER
-			|| framescaperScapeProjectRevisionV18(project) <= expectedRevision) {
+			|| !isStrictlyHigherProjectRevision(
+				framescaperScapeProjectRevisionV18(project),
+				expectedRevision,
+			)) {
 			throw new Error('Archive replacement must compare and swap a strictly higher revision.');
 		}
 		assertFramescaperScapePreservedAttachmentsV18(origin, project);

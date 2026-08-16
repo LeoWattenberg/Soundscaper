@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import { isStrictlyHigherProjectRevision } from '../common/editor/project-revision-cas.ts';
 import { serializeScapeProjectDocument } from '../common/editor/scape-project-document.ts';
 import { collectProjectStorageKeys } from '../common/editor/retention.js';
 import { request, transact } from '../common/editor/storage/indexeddb-backend.ts';
@@ -181,8 +182,7 @@ function normalizePublication(
 		}
 	} else {
 		if (!expected || projectId !== projectIdentifier(expected) || originId !== projectIdentifier(expected)
-			|| projectRevisionValue < nextRevision(projectRevision(expected))
-			|| !Number.isSafeInteger(projectRevisionValue)) {
+			|| !isStrictlyHigherProjectRevision(projectRevisionValue, projectRevision(expected))) {
 			throw new Error('Archive replacement must compare and swap a strictly higher revision.');
 		}
 	}
@@ -309,13 +309,6 @@ function publicationMode(value: unknown): FramescaperProjectV18ArchivePublicatio
 
 function revisionKey(projectId: string, revision: number): string {
 	return `${projectId}:${String(revision).padStart(12, '0')}`;
-}
-
-function nextRevision(value: number): number {
-	if (!Number.isSafeInteger(value) || value < 0 || value === Number.MAX_SAFE_INTEGER) {
-		throw new RangeError('The archive replacement revision cannot be incremented safely.');
-	}
-	return value + 1;
 }
 
 function projectIdentifier(project: FramescaperProjectV18): string {
