@@ -15,12 +15,17 @@ provisioned hardware remains open. See the
 [implementation record](#implementation-record-2026-08-16) for exactly which is
 which.
 
-Milestone 5B does not begin product implementation until milestones 2 through
-4 and every milestone 5.0 acceptance check pass. Before that gate closes, 5B
-may land only documentation, deterministic fixtures, build and licensing
-research, and non-product spikes. It must not add production imports, menu
-entries, capability activation, shipped native binaries, or packaging-manifest
-entries.
+Milestones 2 through 4 and the milestone 5.0 acceptance checks are all still
+open, and 5B does not exit ahead of them. It has deliberately moved past the
+documentation-only fence: the native services menu module is imported and
+invoked from the shared product-item builder, and the persistent-render-queue
+and external-display port families are registered as active. What remains
+constrained is what a build can actually do. No native capability is activated:
+every capability entry is default-off, no native binary is compiled,
+digest-pinned, or named in a packaging manifest, and no job kind outside the
+accepted 5.0 set is admitted. A build without a native-services controller emits
+no menu entries at all, so the group is absent rather than present-but-inert
+until that controller exists.
 
 The milestone-7 assistance implementation is not a 5.0-conformant substrate
 unless it has first been re-audited and revised under the shared helper
@@ -38,10 +43,13 @@ The qualifying platform set is:
 - macOS ARM64; and
 - Linux x64 and ARM64.
 
-macOS x64 is explicitly deferred. A dedicated five-target 5B evidence
-environment records this scope without deleting the broader native OS matrix.
-All native features are Framescaper-only, menu-reached, and disabled by
-default. Disabling every helper must leave a usable Web Core and an accurate
+macOS x64 is explicitly deferred. The milestone-2 closure inventory retires the
+`macos-x64` desktop target, and the shared `native-os-lab-matrix` environment has
+carried no macOS-x64 fingerprint since 5A removed that slot, so the deferral is
+an absent row rather than a null qualification row. The five 5B evidence
+workloads register against that same five-target matrix; there is no 5B-private
+evidence environment. All native features are Framescaper-only, menu-reached,
+and disabled by default. Disabling every helper must leave a usable Web Core and an accurate
 capability report.
 
 ## Pre-gate research track
@@ -518,10 +526,10 @@ Every feature is reached through an existing menu family and opens lazily:
 
 - `File > Import > Image Sequence…`;
 - `File > Export > Add to Render Queue…`;
-- `Project > Proxies > Generate/Attach/Detach/Relink…`;
 - `Tools > Background Jobs…`;
 - `Tools > Watch Folders…`;
-- `Preferences > Native Media and Scratch…`;
+- `Tools > Proxies > Generate/Attach/Detach/Relink…`;
+- `Tools > Native Media and Scratch…`;
 - `View > External Display…`; and
 - `Effects > Video Effects > Add/Manage OFX…`.
 
