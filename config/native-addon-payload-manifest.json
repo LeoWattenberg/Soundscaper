@@ -1,0 +1,72 @@
+{
+	"schemaVersion": 1,
+	"id": "soundscaper-helper-addon-1.0.0",
+	"addon": {
+		"name": "soundscaper-helper-addon",
+		"version": "1.0.0",
+		"napiVersion": 8,
+		"license": "AGPL-3.0-only",
+		"payloadName": "soundscaper_helper.node",
+		"sourceManifestPath": "native/soundscaper-helper-addon/source-manifest.json"
+	},
+	"staging": {
+		"runtimePrefix": "native",
+		"manifestName": "native-addon-payload-manifest.json"
+	},
+	"security": {
+		"matrixPath": "config/production-security-matrix.json",
+		"riskId": "native-helper-processes",
+		"controlId": "verified-native-helper-payload-selection"
+	},
+	"targets": [
+		{
+			"id": "linux-x64",
+			"platform": "linux",
+			"arch": "x64",
+			"status": "built",
+			"blockedBy": null,
+			"toolchainIdentity": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+			"payload": {
+				"path": "native/soundscaper-helper-addon/prebuilt/linux-x64/soundscaper_helper.node",
+				"byteLength": 21768,
+				"sha256": "10d9c102fcd06c86056c7881b5aab3e64474fcbe2fc59a82e16349425141597a"
+			}
+		},
+		{
+			"id": "linux-arm64",
+			"platform": "linux",
+			"arch": "arm64",
+			"status": "pending-external",
+			"blockedBy": "No Linux ARM64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
+			"toolchainIdentity": null,
+			"payload": null
+		},
+		{
+			"id": "mac-arm64",
+			"platform": "darwin",
+			"arch": "arm64",
+			"status": "pending-external",
+			"blockedBy": "No macOS ARM64 build host is provisioned; the Apple toolchain and signing identity are the named milestone-5 external blockers.",
+			"toolchainIdentity": null,
+			"payload": null
+		},
+		{
+			"id": "win-x64",
+			"platform": "win32",
+			"arch": "x64",
+			"status": "pending-external",
+			"blockedBy": "No Windows x64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
+			"toolchainIdentity": null,
+			"payload": null
+		},
+		{
+			"id": "win-arm64",
+			"platform": "win32",
+			"arch": "arm64",
+			"status": "pending-external",
+			"blockedBy": "No Windows ARM64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
+			"toolchainIdentity": null,
+			"payload": null
+		}
+	]
+}

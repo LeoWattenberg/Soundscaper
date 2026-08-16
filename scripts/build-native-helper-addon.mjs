@@ -11,6 +11,7 @@
 
 import { resolve } from 'node:path';
 
+import { repinNativeAddonPayloadManifest } from './lib/native-addon-payload-manifest.mjs';
 import {
 	buildNativeHelperAddon,
 	repinNativeHelperAddonSources,
@@ -30,6 +31,7 @@ const build = buildNativeHelperAddon({
 	includeDirectories: includeArgument ? includeArgument.split(',').map((entry) => entry.trim()) : undefined,
 });
 repinNativeHelperAddonSources({ repositoryRoot: root, build });
+await repinNativeAddonPayloadManifest({ repositoryRoot: root });
 
 console.log(`Built ${build.target.id} native helper addon`);
 console.log(`  payload    ${build.outputPath}`);

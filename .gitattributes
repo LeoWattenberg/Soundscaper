@@ -3,6 +3,7 @@ patches/**/*.patch text eol=lf
 /LICENSES/Playwright-winldd-MIT.txt text eol=lf
 /THIRD_PARTY_LICENSES.md text eol=lf
 /config/ffmpeg-runtime-manifest.json text eol=lf
+/config/native-addon-payload-manifest.json text eol=lf
 /config/production-licensing-matrix.json text eol=lf
 /config/production-security-matrix.json text eol=lf
 /config/release-severity-policy.json text eol=lf
