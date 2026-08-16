@@ -187,7 +187,13 @@ of them may be simulated, inferred, or filled in from a neighbouring target.
 
 - macOS: CoreAudio. Windows: WASAPI shared and exclusive, plus separately
   licensed and selected ASIO. Linux: **PipeWire is the primary backend**, with
-  ALSA retained for direct `hw:` access. This revises the original
+  ALSA as the working backup and for direct `hw:` access. A caller supplies an
+  ordered candidate chain, each entry naming its own backend and its own
+  device, because a device handle means nothing outside the backend that issued
+  it; the answer reports every attempt and which one was granted, so a fallback
+  is a visible sequence of refusals rather than a plain success. A backend that
+  is absent is a reason to try the next candidate; a format or mode the caller
+  asked for and the device refused stops the chain. This revises the original
   JACK-plus-ALSA decision deliberately: PipeWire is the session manager on every
   mainstream desktop, so reaching it through its ALSA or JACK compatibility
   shims would make the editor a compat client rather than a graph node the user

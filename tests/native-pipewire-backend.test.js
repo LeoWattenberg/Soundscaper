@@ -35,8 +35,13 @@ function addon() {
 }
 
 const OUTPUT = 1;
+const PIPEWIRE_ONLY = Object.freeze([Object.freeze({ backend: 'pipewire', deviceHandle: '@DEFAULT_SINK@' })]);
+const WITH_ALSA_BACKUP = Object.freeze([
+	Object.freeze({ backend: 'pipewire', deviceHandle: '@DEFAULT_SINK@' }),
+	Object.freeze({ backend: 'alsa', deviceHandle: 'null' }),
+]);
 const BASE_REQUEST = Object.freeze({
-	deviceHandle: '@DEFAULT_SINK@',
+	candidates: PIPEWIRE_ONLY,
 	direction: OUTPUT,
 	exclusive: 0,
 	sampleRate: 48_000,
@@ -113,7 +118,10 @@ test('a malformed open request is refused before any device is touched', { skip:
 		assert.equal(result.status, 'invalid-request', `${field}=${String(value)} must be refused`);
 		assert.equal(result.session, undefined);
 	}
-	assert.throws(() => native.openAudioDevice({ deviceHandle: '' }), /requires its device handle/u);
+	assert.throws(() => native.openAudioDevice({ ...BASE_REQUEST, candidates: [] }),
+		/ordered candidate list/u);
+	assert.throws(() => native.openAudioDevice({ ...BASE_REQUEST, candidates: [{ backend: 'nope', deviceHandle: 'x' }] }),
+		/ordered candidate list/u);
 });
 
 test('duplex is refused rather than faked from two half-duplex handles', { skip: !built }, () => {
@@ -124,11 +132,58 @@ test('duplex is refused rather than faked from two half-duplex handles', { skip:
 
 test('transferring on a closed or absent session is a status, not a crash', { skip: !built }, () => {
 	const native = addon();
-	const opened = native.openAudioDevice(BASE_REQUEST);
+	const opened = native.openAudioDevice({ ...BASE_REQUEST, candidates: WITH_ALSA_BACKUP });
 	if (opened.status !== 'ok') return;
 	native.closeAudioDevice(opened.session);
 	const channels = [new Float32Array(64), new Float32Array(64)];
 	assert.equal(native.writeAudioDevice(opened.session, 64, channels).status, 'closed');
 	// Closing twice must not reach the library with a freed handle.
 	assert.equal(native.closeAudioDevice(opened.session), true);
+});
+
+
+test('ALSA is a real backup, and falling back to it is never silent', { skip: !built }, () => {
+	const native = addon();
+	const result = native.openAudioDevice({ ...BASE_REQUEST, candidates: WITH_ALSA_BACKUP });
+	// Every attempt is reported in order, whatever the outcome.
+	assert.ok(result.attempts.length >= 1);
+	assert.equal(result.attempts[0].backend, 'pipewire');
+	assert.equal(result.requestedBackend, 'pipewire');
+	if (result.status !== 'ok') return;
+	assert.equal(result.grantedBackend === result.requestedBackend, result.fellBack === false);
+	if (result.fellBack) {
+		assert.equal(result.grantedBackend, 'alsa');
+		assert.equal(result.attempts.length, 2);
+		assert.notEqual(result.attempts[0].status, 'ok', 'a fallback must record why the primary was refused');
+	}
+	native.closeAudioDevice(result.session);
+});
+
+test('the ALSA backup actually moves frames when it is the granted backend', { skip: !built }, () => {
+	const native = addon();
+	const result = native.openAudioDevice({ ...BASE_REQUEST, candidates: WITH_ALSA_BACKUP });
+	if (result.status !== 'ok' || result.grantedBackend !== 'alsa') return;
+	const channels = [new Float32Array(1_024), new Float32Array(1_024)];
+	const transfer = native.writeAudioDevice(result.session, 1_024, channels);
+	assert.match(transfer.status, /^(?:ok|recovered)$/u);
+	assert.equal(transfer.framesTransferred > 0, true, 'a granted ALSA session must actually transfer frames');
+	native.closeAudioDevice(result.session);
+});
+
+test('a mode the device refused stops the chain rather than trying the next backend', { skip: !built }, () => {
+	// Exclusive against a shared ALSA name is a decision, not an outage: the
+	// chain must not answer it by opening something else entirely.
+	const result = addon().openAudioDevice({
+		...BASE_REQUEST,
+		exclusive: 1,
+		candidates: [
+			// `null` opens on any host but is not a `hw:` name, so exclusive is a
+			// refusal rather than an outage — the distinction under test.
+			{ backend: 'alsa', deviceHandle: 'null' },
+			{ backend: 'alsa', deviceHandle: 'null' },
+		],
+	});
+	assert.equal(result.status, 'mode-refused');
+	assert.equal(result.attempts.length, 1, 'a refused mode must not fall through to another device');
+	if (result.session) addon().closeAudioDevice(result.session);
 });
