@@ -6,6 +6,7 @@ import { parseDesktopSmokeConfigurationWithProjectPlan } from './desktop-smoke-c
 import {
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
 	DESKTOP_DIRECT_WAV_SMOKE_PREFIX,
+	DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY,
 	DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS,
 	createDirectWavSmokeTargetHarness,
 	runDirectWavRendererSmoke,
@@ -160,7 +161,12 @@ export function createDesktopSmokeProbe(options) {
 		attachedWindow = window;
 		leaseSession?.attach(window);
 		timeout = schedule(() => {
-			void fail(`${prefixFor(configuration.mode)} timed out`);
+			void (async () => {
+				const stage = configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE
+					? await stalledStage(window, { schedule, cancel })
+					: null;
+				await fail(`${prefixFor(configuration.mode)} timed out${stage ? ` waiting for ${stage}` : ''}`);
+			})();
 		}, timeoutFor(configuration.mode));
 		window.webContents.once('did-fail-load', (_event, code, description) => {
 			void fail(`${prefixFor(configuration.mode)} load failed: ${String(code)} ${String(description)}`);
@@ -554,6 +560,29 @@ function timeoutFor(mode) {
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE || mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return 90_000;
 	if (mode === DESKTOP_VIDEO_TIMING_PROBE_MODE) return DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS;
 	return 15_000;
+}
+
+/**
+ * Reads the stage marker the renderer smoke maintains, so a watchdog timeout
+ * names the stage that stalled. Never throws and never outlives its own bound:
+ * the renderer is already unresponsive by assumption, so an unavailable marker
+ * degrades to an unqualified timeout rather than delaying the failure.
+ */
+async function stalledStage(window, { schedule, cancel }, budgetMs = 5_000) {
+	const contents = window?.webContents;
+	if (!contents || typeof contents.executeJavaScript !== 'function' || contents.isDestroyed?.()) return null;
+	let timer = null;
+	try {
+		const stage = await Promise.race([
+			contents.executeJavaScript(`globalThis[${JSON.stringify(DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY)}] ?? null`, true),
+			new Promise((resolve) => { timer = schedule(() => resolve(null), budgetMs); }),
+		]);
+		return typeof stage === 'string' && stage ? stage.slice(0, 128) : null;
+	} catch {
+		return null;
+	} finally {
+		if (timer !== null) cancel(timer);
+	}
 }
 
 function prefixFor(mode) {

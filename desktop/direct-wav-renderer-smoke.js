@@ -19,6 +19,12 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 	const delay = (milliseconds) => new Promise((resolve) => scope.setTimeout(resolve, milliseconds));
 	const bw64ExportTimeout = 300_000;
 	const waitFor = async (read, label, timeout = 45_000) => {
+		// The supervising watchdog in main reads this marker when it fires, so a
+		// timeout names the stage that stalled instead of only the whole smoke.
+		// This function is stringified into the renderer, so the key is a literal
+		// rather than an imported constant; DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY in
+		// direct-wav-smoke.js pins the same value and its test holds them equal.
+		scope.__scapeDirectWavSmokeStage = label;
 		const deadline = Date.now() + timeout;
 		while (true) {
 			const value = read();

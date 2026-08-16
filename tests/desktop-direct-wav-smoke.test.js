@@ -35,6 +35,10 @@ import {
 	runBoundedDesktopDirectWavChild,
 	runDesktopDirectWavSmoke,
 } from '../scripts/lib/desktop-direct-wav-smoke.mjs';
+import {
+	DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS,
+	runDirectWavRendererSmoke,
+} from '../desktop/direct-wav-smoke.js';
 import { validDesktopDirectBw64FileEvidence } from './helpers/desktop-direct-bw64-file-evidence.js';
 import { validDesktopDirectBwfFileEvidence } from './helpers/desktop-direct-bwf-file-evidence.js';
 import {
@@ -55,7 +59,7 @@ test('direct-WAV packaged smoke plans are strict canonical token-only JSON', () 
 	});
 	assert.equal(Object.isFrozen(plan), true);
 	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_MODE, 'direct-wav-export-v1');
-	assert.equal(DESKTOP_DIRECT_WAV_CHILD_TIMEOUT_MS, 480_000);
+	assert.equal(DESKTOP_DIRECT_WAV_CHILD_TIMEOUT_MS, 1_320_000);
 	assert.deepEqual(DESKTOP_DIRECT_WAV_SMOKE_FIXTURE, {
 		input: { sampleRate: 48_000, channelCount: 2, frameCount: 792_000 },
 		output: {
@@ -462,6 +466,39 @@ test('direct-WAV script is a thin runner wrapper', async () => {
 	assert.match(source, /runDesktopDirectWavSmoke/u);
 	assert.match(source, /formatDesktopDirectWavSmokeAggregate/u);
 	assert.doesNotMatch(source, /spawn\(|createReadStream|showSaveFilePicker/u);
+});
+
+test('each direct-WAV timeout outlasts the one it supervises', () => {
+	// The budgets nest: the driver kills the child, the child's watchdog gives
+	// up on the renderer, and the renderer bounds each stage. A budget that is
+	// shorter than what it supervises fires first and hides the real stall,
+	// which is how the packaged smoke came to report only "timed out". The
+	// stage windows live inside runDirectWavRendererSmoke because that function
+	// is stringified into the renderer, so they are read back from its source.
+	const source = runDirectWavRendererSmoke.toString();
+	const milliseconds = (value) => Number(String(value).replaceAll('_', ''));
+	const labelled = [...source.matchAll(/,\s*'([^']+)',\s*([\d_]+)\s*\)/gu)]
+		.map(([, label, value]) => ({ label, budget: milliseconds(value) }));
+	const bw64Export = milliseconds(/bw64ExportTimeout = ([\d_]+)/u.exec(source)?.[1]);
+	const cancellationHold = Math.max(...[...source.matchAll(/delay\((\d[\d_]*)\)/gu)]
+		.map(([, value]) => milliseconds(value)));
+
+	// Fail loudly if a refactor moves the budgets out of reach of this reader
+	// rather than silently supervising nothing.
+	assert.ok(labelled.length >= 4, `expected the renderer stage windows to be readable, found ${labelled.length}`);
+	assert.ok(Number.isSafeInteger(bw64Export) && bw64Export > 0, 'BW64 export window is readable');
+	assert.ok(Number.isSafeInteger(cancellationHold) && cancellationHold > 0, 'cancellation hold is readable');
+
+	const supervised = labelled.reduce((total, { budget }) => total + budget, 0)
+		+ bw64Export + cancellationHold;
+	assert.ok(
+		DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS >= supervised * 1.25,
+		`watchdog ${DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS}ms must exceed its ${supervised}ms of stage windows with headroom`,
+	);
+	assert.ok(
+		DESKTOP_DIRECT_WAV_CHILD_TIMEOUT_MS > DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS,
+		'the driver must outlast the application watchdog so the stalled stage is reported',
+	);
 });
 
 function directWavStagingPrefix(payloadBytes) {

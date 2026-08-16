@@ -59,7 +59,10 @@ export {
 	verifyDesktopDirectWavFile,
 };
 
-export const DESKTOP_DIRECT_WAV_CHILD_TIMEOUT_MS = 8 * 60 * 1000;
+// Must outlast the packaged application's own watchdog
+// (DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS) so a stalled run is reported by the
+// application, which names the stalled stage, rather than killed here first.
+export const DESKTOP_DIRECT_WAV_CHILD_TIMEOUT_MS = 22 * 60 * 1000;
 export const MAX_DESKTOP_DIRECT_WAV_PLAN_BYTES = 4 * 1024;
 
 const MIB = 1024 * 1024;

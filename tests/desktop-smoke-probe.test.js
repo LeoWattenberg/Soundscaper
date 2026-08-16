@@ -317,7 +317,7 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 	});
 
 	fixture.probe.attach(fixture.window);
-	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS, 420_000);
+	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS, 1_200_000);
 	assert.deepEqual(fixture.scheduledDelays, [DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS]);
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[0]);
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[1]);
@@ -340,6 +340,48 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 		native: validDesktopDirectWavNativeEvidence(),
 	});
 	assert.doesNotMatch(fixture.logs[0], /private\/smoke/u);
+});
+
+test('a direct-WAV watchdog timeout names the stage the renderer stalled on', async () => {
+	const fixture = probeFixture({
+		argv: directWavArgv(),
+		executionResult: 'completed BW64 export',
+		productId: 'soundscaper',
+		directWavTargetHarness: {
+			resolveSavePath: async () => '/private/smoke/completed.wav',
+			evidence: async () => validDesktopDirectWavNativeEvidence(),
+		},
+	});
+	fixture.probe.attach(fixture.window);
+	assert.equal(fixture.scheduledCallbacks.length, 1);
+
+	fixture.scheduledCallbacks[0]();
+	await flushAsync();
+
+	assert.equal(fixture.errors.length, 1);
+	assert.match(fixture.errors[0], /timed out waiting for completed BW64 export/u);
+	assert.deepEqual(fixture.exits, [2]);
+	assert.match(fixture.window.webContents.executions.at(-1), /__scapeDirectWavSmokeStage/u);
+});
+
+test('a direct-WAV watchdog timeout stays unqualified when the stage marker is unreadable', async () => {
+	const fixture = probeFixture({
+		argv: directWavArgv(),
+		executionError: new Error('renderer is unresponsive'),
+		productId: 'soundscaper',
+		directWavTargetHarness: {
+			resolveSavePath: async () => '/private/smoke/completed.wav',
+			evidence: async () => validDesktopDirectWavNativeEvidence(),
+		},
+	});
+	fixture.probe.attach(fixture.window);
+
+	fixture.scheduledCallbacks[0]();
+	await flushAsync();
+
+	assert.equal(fixture.errors.length, 1);
+	assert.equal(fixture.errors[0], `${DESKTOP_DIRECT_WAV_SMOKE_PREFIX} timed out`);
+	assert.deepEqual(fixture.exits, [2]);
 });
 
 test('direct-WAV lifecycle reports validation failures under its own bounded prefix', async () => {
@@ -518,6 +560,7 @@ function probeFixture({
 	const exits = [];
 	const evidenceCalls = [];
 	const scheduledDelays = [];
+	const scheduledCallbacks = [];
 	const window = fakeWindow(executionResult, executionError);
 	const target = plan?.target ?? handoffPlan().target;
 	const probe = createDesktopSmokeProbe({
@@ -554,13 +597,33 @@ function probeFixture({
 			};
 		},
 		directWavTargetHarness,
-		setTimeout: (_callback, delay) => {
+		setTimeout: (callback, delay) => {
 			scheduledDelays.push(delay);
+			scheduledCallbacks.push(callback);
 			return 1;
 		},
 		clearTimeout: () => undefined,
 	});
-	return { errors, evidenceCalls, exits, logs, probe, scheduledDelays, window };
+	return { errors, evidenceCalls, exits, logs, probe, scheduledCallbacks, scheduledDelays, window };
+}
+
+async function flushAsync() {
+	for (let turn = 0; turn < 8; turn += 1) await new Promise((resolve) => { setImmediate(resolve); });
+}
+
+function directWavArgv() {
+	return [
+		'/opt/Soundscaper',
+		'--soundscaper-smoke',
+		`--soundscaper-smoke-mode=${DIRECT_WAV_MODE}`,
+		`--soundscaper-smoke-plan=${encodePlan({
+			schemaVersion: 1,
+			mode: DIRECT_WAV_MODE,
+			productId: 'soundscaper',
+			token: DIRECT_WAV_TOKEN,
+		})}`,
+		'--soundscaper-smoke-app-data=/private/smoke-root',
+	];
 }
 
 function fakeWindow(executionResult, executionError) {

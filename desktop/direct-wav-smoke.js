@@ -9,7 +9,16 @@ export { runDirectWavRendererSmoke };
 
 export const DESKTOP_DIRECT_WAV_SMOKE_MODE = 'direct-wav-export-v1';
 export const DESKTOP_DIRECT_WAV_SMOKE_PREFIX = 'SOUNDSCAPER_DESKTOP_DIRECT_WAV_SMOKE';
-export const DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS = 7 * 60 * 1000;
+// The renderer smoke records the stage it is waiting on under this key so the
+// supervising watchdog can name it. runDirectWavRendererSmoke is stringified
+// into the renderer, so it assigns the same literal rather than this binding.
+export const DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY = '__scapeDirectWavSmokeStage';
+// This watchdog supervises the renderer smoke's own per-stage windows, so it
+// must exceed their sum or it fires first and hides which stage stalled. The
+// stage windows live inside runDirectWavRendererSmoke because that function is
+// stringified into the renderer; desktop-direct-wav-smoke.test.js reads them
+// back out of its source and holds this budget above their total.
+export const DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS = 20 * 60 * 1000;
 export const DIRECT_AIFF_SMOKE_FILE_BYTES = 202_751_798;
 export const DIRECT_BW64_SMOKE_FILE_BYTES = 202_755_508;
 export const DIRECT_BWF_SMOKE_FILE_BYTES = 202_752_510;
