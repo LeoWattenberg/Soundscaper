@@ -543,10 +543,10 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 			'cancelVideoSourceProbe',
 			'checkForUpdates', 'chooseFiles', 'chooseLinkedAudioOriginal', 'chooseLinkedVideoOriginal', 'chooseSaveTarget', 'commitSharedProject',
 			'deleteSharedProject', 'describeNativeAudioBackend', 'editText', 'finishSharedSourceWrite', 'finishWrite',
-			'getEnvironment', 'installAssistanceModel', 'listAssistanceModels', 'listSharedProjects', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'nativeAudioHelperAvailability', 'onAssistanceInstallProgress', 'onCloseRequested', 'onFullscreenChanged',
+			'getEnvironment', 'installAssistanceModel', 'listAssistanceModels', 'listNativePlugins', 'listSharedProjects', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'nativeAudioHelperAvailability', 'nativePluginAvailability', 'onAssistanceInstallProgress', 'onCloseRequested', 'onFullscreenChanged',
 			'onMenuCommand', 'onOpenProject', 'openExternal', 'patchFinalPrefix', 'probeHelperAvailability', 'readSharedProject',
-			'readSharedProjectBundle', 'readSharedSourceChunk', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'removeAssistanceModel', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'respondToClose',
-			'setFullscreen', 'setLocale', 'signalReady', 'writeChunk', 'writeSharedSourceChunk',
+			'readSharedProjectBundle', 'readSharedSourceChunk', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'removeAssistanceModel', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'respondToClose', 'scanNativePlugins',
+			'setFullscreen', 'setLocale', 'setNativePluginConsent', 'signalReady', 'writeChunk', 'writeSharedSourceChunk',
 		].sort(),
 	);
 	assert.equal(Object.isFrozen(bridge.v1), true);

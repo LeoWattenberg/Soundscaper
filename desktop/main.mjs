@@ -27,7 +27,7 @@ import {
 } from './constants.js';
 import { DesktopApplicationShutdown, resolveDesktopProjectLibraryAppData } from './project-library-runtime/desktop/application-lifecycle.js';
 import { registerAssistance } from './assistance-registration.mjs';
-import { desktopNativeTierMenu, disposeDesktopNativeTier, registerDesktopNativeTier } from './native-tier-registration.mjs';
+import { desktopNativeTierMenu, disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
 import {
@@ -76,8 +76,8 @@ let allowNextClose = false;
 let applicationIsQuitting = false;
 
 const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
-	helperProbes: () => nativeTier?.probe,
-	nativeAudio: () => nativeTier?.audio,
+	nativeTier: () => nativeTier,
+	revokeNativeTierOwner: revokeDesktopNativeTierOwner,
 	linkedVideoLocators: () => linkedVideoLocators,
 	ownership: rendererSaveOwnership,
 	projectLibraryIpc: () => projectLibraryIpc,
@@ -520,7 +520,7 @@ function installMenu() {
 			],
 		},
 		{ label: 'View', submenu: [{ role: 'reload', visible: !app.isPackaged }, { role: 'toggleDevTools', visible: !app.isPackaged }, { type: 'separator', visible: !app.isPackaged }, { role: 'togglefullscreen' }] },
-		...desktopNativeTierMenu(),
+		...desktopNativeTierMenu(settings),
 		{ label: 'Window', role: 'windowMenu' },
 		{
 			label: 'Help',

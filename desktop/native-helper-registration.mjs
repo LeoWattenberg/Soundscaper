@@ -69,7 +69,18 @@ export function registerDesktopNativeAudioHelper({
 	handle(channels.nativeAudioInventory, (event, value) =>
 		service.describeBackend({ owner: ownerFor(event), backend: String(value?.backend || '') }));
 	registered = { service, settings };
-	return service;
+	// The supervisor and the payload description are shared with plug-in
+	// discovery: one payload, one supervisor, one concurrent job, exactly as
+	// contract v1 admits.
+	return Object.freeze({
+		availability: () => service.availability(),
+		clearQuarantine: () => service.clearQuarantine(),
+		describeBackend: (request) => service.describeBackend(request),
+		revokeOwner: (owner) => service.revokeOwner(owner),
+		dispose: () => service.dispose(),
+		supervisorPort: supervisor,
+		describePayload: () => describeNativeAddonAvailability(location),
+	});
 }
 
 /**

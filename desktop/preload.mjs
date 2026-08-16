@@ -4,6 +4,9 @@
  * available while BrowserWindow sandboxing is enabled.
  */
 const { contextBridge, ipcRenderer } = require('electron');
+/* Keys main may hold but the renderer may never see, whatever the shape. */
+const PLUGIN_PATH_KEYS = new Set(['binaryPath', 'rootPath', 'path', 'absolutePath', 'filePath']);
+
 const CHANNELS = Object.freeze({
 	environment: 'soundscaper:v1:environment',
 	chooseFiles: 'soundscaper:v1:files:choose',
@@ -38,6 +41,10 @@ const CHANNELS = Object.freeze({
 	helperProbeCancel: 'soundscaper:v1:helper:probe-cancel',
 	nativeAudioAvailability: 'soundscaper:v1:helper:native-audio-availability',
 	nativeAudioInventory: 'soundscaper:v1:helper:native-audio-inventory',
+	nativePluginAvailability: 'soundscaper:v1:helper:native-plugin-availability',
+	nativePluginConsent: 'soundscaper:v1:helper:native-plugin-consent',
+	nativePluginScan: 'soundscaper:v1:helper:native-plugin-scan',
+	nativePluginInventory: 'soundscaper:v1:helper:native-plugin-inventory',
 	listAssistanceModels: 'soundscaper:v1:assistance:list',
 	installAssistanceModel: 'soundscaper:v1:assistance:install',
 	removeAssistanceModel: 'soundscaper:v1:assistance:remove',
@@ -163,6 +170,17 @@ const api = Object.freeze({
 	describeNativeAudioBackend: (request) => ipcRenderer.invoke(CHANNELS.nativeAudioInventory, {
 		backend: text(request?.backend, 32),
 	}).then(nativeAudioInventory),
+	nativePluginAvailability: () => ipcRenderer.invoke(CHANNELS.nativePluginAvailability).then(nativePluginStatus),
+	setNativePluginConsent: (request) => ipcRenderer.invoke(CHANNELS.nativePluginConsent, {
+		format: text(request?.format, 32),
+		action: text(request?.action ?? 'grant', 32),
+		rootId: text(request?.rootId ?? '', 256),
+	}).then(nativePluginStatus),
+	scanNativePlugins: (request) => ipcRenderer.invoke(CHANNELS.nativePluginScan, {
+		format: text(request?.format, 32),
+		rootId: text(request?.rootId, 256),
+	}).then(nativePluginStatus),
+	listNativePlugins: () => ipcRenderer.invoke(CHANNELS.nativePluginInventory).then(nativePluginStatus),
 	listAssistanceModels: () => ipcRenderer.invoke(CHANNELS.listAssistanceModels).then(assistanceStatus),
 	installAssistanceModel: (modelId) => ipcRenderer.invoke(CHANNELS.installAssistanceModel, assistanceModelId(modelId)).then(assistanceModel),
 	removeAssistanceModel: (modelId) => ipcRenderer.invoke(CHANNELS.removeAssistanceModel, assistanceModelId(modelId)).then(safeInteger),
@@ -667,6 +685,26 @@ function nativeAudioInventory(value) {
 
 function bounded(value, maximum) {
 	return Array.isArray(value) ? value.slice(0, maximum) : [];
+}
+
+/**
+ * Plug-in answers are already closed-schema validated in main, so this bounds
+ * and freezes rather than re-parsing. It walks the whole reply because the one
+ * thing that must never reach the renderer is a filesystem path, and a deep
+ * clone is the only way to be sure none rode in on a nested field.
+ */
+function nativePluginStatus(value, depth = 0) {
+	if (typeof value === 'string') return text(value, 1024);
+	if (typeof value === 'number' || typeof value === 'boolean' || value === null) return value;
+	if (depth >= 8) return null;
+	if (Array.isArray(value)) return Object.freeze(bounded(value, 512).map((entry) => nativePluginStatus(entry, depth + 1)));
+	if (!value || typeof value !== 'object') return null;
+	const output = {};
+	for (const key of Object.keys(value).slice(0, 64)) {
+		if (PLUGIN_PATH_KEYS.has(key)) continue;
+		output[text(key, 64)] = nativePluginStatus(value[key], depth + 1);
+	}
+	return Object.freeze(output);
 }
 
 function helperProbeCompletion(value) {

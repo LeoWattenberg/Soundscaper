@@ -13,6 +13,7 @@ const DEFAULTS = Object.freeze({
 	modelsDirectory: null,
 	nativeProbeHelperEnabled: false,
 	nativeAudioHelperEnabled: false,
+	nativePluginDiscoveryEnabled: false,
 });
 
 const MAX_MODELS_DIRECTORY_LENGTH = 4096;
@@ -89,6 +90,13 @@ export class DesktopSettingsStore {
 		return this.#settings.nativeAudioHelperEnabled;
 	}
 
+	/** Native plug-in discovery stays off until the user turns it on. */
+	async setNativePluginDiscoveryEnabled(enabled) {
+		this.#settings.nativePluginDiscoveryEnabled = enabled === true;
+		await this.#write();
+		return this.#settings.nativePluginDiscoveryEnabled;
+	}
+
 	async recordUpdateCheck(timestamp = Date.now()) {
 		this.#settings.lastUpdateCheck = new Date(timestamp).toISOString();
 		await this.#write();
@@ -135,5 +143,6 @@ function validateSettings(value) {
 		modelsDirectory,
 		nativeProbeHelperEnabled: value.nativeProbeHelperEnabled === true,
 		nativeAudioHelperEnabled: value.nativeAudioHelperEnabled === true,
+		nativePluginDiscoveryEnabled: value.nativePluginDiscoveryEnabled === true,
 	};
 }

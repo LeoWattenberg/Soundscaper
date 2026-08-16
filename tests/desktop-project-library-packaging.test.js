@@ -34,6 +34,11 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/helper-probe-service.js',
 		'desktop/helper-supervisor.js',
 		'desktop/native-addon-payload.js',
+		'desktop/plugin-scan-service.js',
+		'desktop/plugin-scan-results.js',
+		'desktop/plugin-registry.js',
+		'desktop/plugin-quarantine.js',
+		'desktop/plugin-consent.js',
 		'desktop/native-helper-results.js',
 		'desktop/native-helper-service.js',
 		'desktop/helper-wire-admission.js',
@@ -444,11 +449,11 @@ test('desktop main initializes, exposes, and disposes the shared library through
 		'the native tier must register through the trusted IPC wrapper with main-owned seams');
 	assert.match(mainSource, /name: 'native tier', run: \(\) => disposeDesktopNativeTier\(nativeTier\)/u,
 		'every native helper must join the ordered shutdown barrier together');
-	assert.match(mainSource, /helperProbes: \(\) => nativeTier\?\.probe/u,
-		'renderer ownership cleanup must drain helper probes');
-	assert.match(mainSource, /nativeAudio: \(\) => nativeTier\?\.audio/u,
-		'renderer ownership cleanup must drain the native audio helper too');
-	assert.match(mainSource, /\.\.\.desktopNativeTierMenu\(\)/u,
+	assert.match(mainSource, /nativeTier: \(\) => nativeTier/u,
+		'renderer ownership cleanup must reach the whole native tier');
+	assert.match(mainSource, /revokeNativeTierOwner: revokeDesktopNativeTierOwner/u,
+		'every native surface must drain together when a renderer goes away');
+	assert.match(mainSource, /\.\.\.desktopNativeTierMenu\(settings\)/u,
 		'the native surfaces must stay menu-reached');
 	assert.match(mainSource, /name: 'read capabilities'.*readCapabilities\.dispose\(\)/su);
 	assert.match(mainSource, /name: 'save sessions'.*saves\.dispose\(\)/su);
@@ -516,7 +521,7 @@ test('desktop main owns file capabilities by committed renderer document', async
 		'revocation closes document admission synchronously before asynchronous cleanup',
 	);
 	assert.match(cleanupSource, /const owner = this\.#ownership\.revoke\(webContents\)/u);
-	assert.match(cleanupSource, /this\.#helperProbes\?\.\(\)\?\.revokeOwner\(owner\)/u);
+	assert.match(cleanupSource, /this\.#revokeNativeTierOwner\?\.\(this\.#nativeTier\?\.\(\), owner\)/u);
 	assert.match(cleanupSource, /this\.#projectLibraryIpc\(\)\?\.revokeOwner\(owner\)/u);
 	assert.match(cleanupSource, /this\.#readCapabilities\.revokeOwner\(owner\)/u);
 	assert.match(cleanupSource, /this\.#saves\.revokeOwner\(owner\)/u);
