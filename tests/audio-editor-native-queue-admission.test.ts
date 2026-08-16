@@ -89,6 +89,20 @@ test('a job may declare a higher free-space floor than the volume policy', () =>
 	assert.deepEqual(admission.deferred, [{ jobId: jobId('01'), reason: 'free-space-reservation' }]);
 });
 
+test('an admitted job keeps its declared floor against the jobs behind it', () => {
+	const admission = admitNativeQueueJobs(
+		[
+			job('01', { position: 0, reservations: { scratchBytes: 10 * GIB, minimumFreeBytes: 80 * GIB } }),
+			job('02', { position: 1, reservations: { scratchBytes: 70 * GIB } }),
+		],
+		0,
+		capacity({ availableScratchBytes: 100 * GIB, volumeFreeBytes: 100 * GIB, reservedFreeBytes: 10 * GIB }),
+	);
+
+	assert.deepEqual(admission.admitted, [jobId('01')]);
+	assert.deepEqual(admission.deferred, [{ jobId: jobId('02'), reason: 'free-space-reservation' }]);
+});
+
 test('two jobs cannot hold the same hardware backend at once', () => {
 	const admission = admitNativeQueueJobs(
 		[

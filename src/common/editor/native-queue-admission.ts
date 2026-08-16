@@ -80,7 +80,7 @@ export function admitNativeQueueJobs(
 	let rssBytes = nonNegativeInteger(capacity.availableProcessTreeRssBytes, 'availableProcessTreeRssBytes');
 	let scratchBytes = nonNegativeInteger(capacity.availableScratchBytes, 'availableScratchBytes');
 	let freeBytes = nonNegativeInteger(capacity.volumeFreeBytes, 'volumeFreeBytes');
-	const reservedFreeBytes = nonNegativeInteger(capacity.reservedFreeBytes, 'reservedFreeBytes');
+	let reservedFreeBytes = nonNegativeInteger(capacity.reservedFreeBytes, 'reservedFreeBytes');
 	const busyHardware = new Set(capacity.busyHardwareBackends ?? []);
 
 	const admitted: string[] = [];
@@ -102,6 +102,10 @@ export function admitNativeQueueJobs(
 		rssBytes -= record.reservations.processTreeRssBytes;
 		scratchBytes -= record.reservations.scratchBytes;
 		freeBytes -= record.reservations.scratchBytes;
+		// An admitted job holds its declared floor for as long as it runs, so the
+		// floor joins the volume's own reserve and the jobs behind it must leave
+		// it alone too.
+		reservedFreeBytes = Math.max(reservedFreeBytes, record.reservations.minimumFreeBytes);
 		if (record.reservations.hardwareBackend !== null) {
 			busyHardware.add(record.reservations.hardwareBackend);
 		}

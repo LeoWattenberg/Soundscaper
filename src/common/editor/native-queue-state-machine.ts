@@ -24,7 +24,9 @@ import {
 	type NativeQueueState,
 } from './native-queue-record.ts';
 
-export const NATIVE_QUEUE_TERMINAL_STATES: readonly NativeQueueState[] = Object.freeze(['completed']);
+export const NATIVE_QUEUE_TERMINAL_STATES: readonly NativeQueueState[] = Object.freeze([
+	'completed', 'failed', 'cancelled',
+]);
 
 export const NATIVE_QUEUE_ACTIVE_STATES: readonly NativeQueueState[] = Object.freeze([
 	'queued', 'running', 'paused', 'blocked', 'needs-authorization',
@@ -118,10 +120,13 @@ export function applyNativeQueueTransition(
 /**
  * Decide what one row read back from the database may do next.
  *
- * An unauthorized root is `needs-authorization` because the user can fix it; a
- * changed plan, revision, input, licensing row, helper build, or scratch
- * identity is `blocked`, because silently running under the new facts would
- * render something the user never asked for.
+ * A settled row is left exactly as the user left it: a cancelled or failed job
+ * comes back cancelled or failed, and only an explicit retry puts it in line
+ * again, because restarting the application is not consent to render work the
+ * user stopped. An unauthorized root is `needs-authorization` because the user
+ * can fix it; a changed plan, revision, input, licensing row, helper build, or
+ * scratch identity is `blocked`, because silently running under the new facts
+ * would render something the user never asked for.
  */
 export function recoverNativeQueueRecord(
 	record: NativeQueueRecordV1,
@@ -132,15 +137,16 @@ export function recoverNativeQueueRecord(
 	if (NATIVE_QUEUE_TERMINAL_STATES.includes(record.state)) {
 		return unchanged(record);
 	}
+	const timestamp = recoveryTimestamp(record, atMs);
 	if (!revalidation.rootGrantAuthorized) {
-		return applyNativeQueueTransition(runnable(record, atMs).record, { kind: 'require-authorization' }, atMs);
+		return applyNativeQueueTransition(record, { kind: 'require-authorization' }, timestamp);
 	}
 	const blockCode = firstBlockCode(revalidation);
 	if (blockCode !== null) {
-		return applyNativeQueueTransition(runnable(record, atMs).record, { kind: 'block', code: blockCode }, atMs);
+		return applyNativeQueueTransition(record, { kind: 'block', code: blockCode }, timestamp);
 	}
 	if (record.state === 'paused') return unchanged(record);
-	return requeueForRecovery(record, revalidation, atMs);
+	return requeueForRecovery(record, revalidation, timestamp);
 }
 
 function firstBlockCode(revalidation: NativeQueueRevalidationV1): NativeQueueBlockCode | null {
@@ -171,7 +177,7 @@ function requeueForRecovery(
 		record: next(record, {
 			state: 'queued',
 			progress: resumable ? verified / planned : null,
-			updatedAtMs: atMs,
+			updatedAtMs: timestampAtOrAfter(record, atMs),
 		}),
 		discardedPartialOutput: !resumable,
 		idempotent: false,
@@ -344,16 +350,6 @@ function reorder(
 	};
 }
 
-/** Roll a settled row back into an active one so recovery can act on it. */
-function runnable(record: NativeQueueRecordV1, atMs: number): NativeQueueTransitionResultV1 {
-	if (NATIVE_QUEUE_ACTIVE_STATES.includes(record.state)) return unchanged(record);
-	return {
-		record: next(record, { state: 'queued', progress: null, updatedAtMs: atMs }),
-		discardedPartialOutput: true,
-		idempotent: false,
-	};
-}
-
 function unchanged(record: NativeQueueRecordV1): NativeQueueTransitionResultV1 {
 	return { record, discardedPartialOutput: false, idempotent: true };
 }
@@ -372,4 +368,16 @@ function timestampAtOrAfter(record: NativeQueueRecordV1, atMs: number): number {
 		throw new RangeError('A native queue transition timestamp never precedes the row it updates.');
 	}
 	return atMs;
+}
+
+/**
+ * A row written before the clock was corrected backwards is a fact about the
+ * machine, not a caller mistake, so recovery keeps the later of the two stamps
+ * and still answers with a typed decision rather than an error.
+ */
+function recoveryTimestamp(record: NativeQueueRecordV1, atMs: number): number {
+	if (!Number.isSafeInteger(atMs) || atMs < 0) {
+		throw new RangeError('A native queue recovery timestamp must be a non-negative safe integer.');
+	}
+	return Math.max(atMs, record.updatedAtMs);
 }

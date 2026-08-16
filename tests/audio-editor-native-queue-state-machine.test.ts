@@ -16,6 +16,7 @@ import {
 import {
 	applyNativeQueueTransition,
 	NATIVE_QUEUE_BLOCK_CODES,
+	NATIVE_QUEUE_TERMINAL_STATES,
 	NativeQueueTransitionError,
 	recoverNativeQueueRecord,
 	type NativeQueueRevalidationV1,
@@ -274,15 +275,73 @@ test('recovery leaves a completed job and a paused job alone', () => {
 	assert.strictEqual(recoverNativeQueueRecord(paused, revalidation(), 30).record, paused);
 });
 
-test('a settled job whose world changed is still reported, not silently dropped', () => {
+test('a settled job keeps the state the user left it in, whatever the world now says', () => {
+	assert.deepEqual([...NATIVE_QUEUE_TERMINAL_STATES], ['completed', 'failed', 'cancelled']);
+
+	const running = applyNativeQueueTransition(queued(), { kind: 'dispatch' }, 10).record;
+	const failed = applyNativeQueueTransition(running, { kind: 'fail', code: 'encoder-exited' }, 20).record;
+	const cancelled = applyNativeQueueTransition(running, { kind: 'cancel' }, 20).record;
+
+	for (const settled of [failed, cancelled]) {
+		for (const facts of [revalidation(), revalidation({ planFingerprintMatches: false })]) {
+			const recovered = recoverNativeQueueRecord(settled, facts, 30);
+			assert.strictEqual(recovered.record, settled, settled.state);
+			assert.equal(recovered.idempotent, true, settled.state);
+			assert.equal(recovered.discardedPartialOutput, false, settled.state);
+		}
+	}
+	assert.equal(failed.lastFailureCode, 'encoder-exited');
+});
+
+test('a cancelled job never renders itself again after a restart', () => {
+	const cancelled = applyNativeQueueTransition(
+		applyNativeQueueTransition(queued(), { kind: 'dispatch' }, 10).record,
+		{ kind: 'cancel' }, 20,
+	).record;
+
+	const recovered = recoverNativeQueueRecord(cancelled, revalidation(), 30);
+	assert.equal(recovered.record.state, 'cancelled');
+
+	const retried = applyNativeQueueTransition(recovered.record, { kind: 'retry' }, 40);
+	assert.equal(retried.record.state, 'queued', 'only the user brings a cancelled job back');
+});
+
+test('a failed job waits for a retry instead of charging an attempt every restart', () => {
 	const failed = applyNativeQueueTransition(
 		applyNativeQueueTransition(queued(), { kind: 'dispatch' }, 10).record,
 		{ kind: 'fail', code: 'encoder-exited' }, 20,
 	).record;
-	const recovered = recoverNativeQueueRecord(failed, revalidation({ planFingerprintMatches: false }), 30);
 
-	assert.equal(recovered.record.state, 'blocked');
-	assert.equal(recovered.record.lastFailureCode, 'plan-fingerprint-changed');
+	let recovered = failed;
+	for (const atMs of [30, 40, 50]) {
+		recovered = recoverNativeQueueRecord(recovered, revalidation(), atMs).record;
+	}
+
+	assert.equal(recovered.state, 'failed');
+	assert.equal(recovered.attempt, 1);
+	assert.equal(recovered.lastFailureCode, 'encoder-exited');
+});
+
+test('recovery stays total when the wall clock regressed since the row was written', () => {
+	const running = applyNativeQueueTransition(queued(), { kind: 'dispatch' }, 10_000).record;
+
+	const blocked = recoverNativeQueueRecord(running, revalidation({ helperBuildMatches: false }), 9_000);
+	assert.equal(blocked.record.state, 'blocked');
+	assert.equal(blocked.record.lastFailureCode, 'helper-build-changed');
+
+	const unauthorized = recoverNativeQueueRecord(running, revalidation({ rootGrantAuthorized: false }), 9_000);
+	assert.equal(unauthorized.record.state, 'needs-authorization');
+
+	const requeued = recoverNativeQueueRecord(running, revalidation(), 9_000);
+	assert.equal(requeued.record.state, 'queued');
+
+	for (const recovered of [blocked, unauthorized, requeued]) {
+		assert.ok(
+			recovered.record.updatedAtMs >= running.updatedAtMs,
+			`a recovered row never travels backwards in time: ${recovered.record.state}`,
+		);
+	}
+	assert.throws(() => recoverNativeQueueRecord(running, revalidation(), Number.NaN), RangeError);
 });
 
 function revalidation(
