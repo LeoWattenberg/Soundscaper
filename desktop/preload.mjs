@@ -36,6 +36,8 @@ const CHANNELS = Object.freeze({
 	helperProbeBegin: 'soundscaper:v1:helper:probe-begin',
 	helperProbeAwait: 'soundscaper:v1:helper:probe-await',
 	helperProbeCancel: 'soundscaper:v1:helper:probe-cancel',
+	nativeAudioAvailability: 'soundscaper:v1:helper:native-audio-availability',
+	nativeAudioInventory: 'soundscaper:v1:helper:native-audio-inventory',
 	listAssistanceModels: 'soundscaper:v1:assistance:list',
 	installAssistanceModel: 'soundscaper:v1:assistance:install',
 	removeAssistanceModel: 'soundscaper:v1:assistance:remove',
@@ -157,6 +159,10 @@ const api = Object.freeze({
 	cancelVideoSourceProbe: (request) => ipcRenderer.invoke(CHANNELS.helperProbeCancel, {
 		probeId: opaqueId(request?.probeId, 40),
 	}).then((value) => Object.freeze({ cancelled: value?.cancelled === true })),
+	nativeAudioHelperAvailability: () => ipcRenderer.invoke(CHANNELS.nativeAudioAvailability).then(nativeAudioAvailability),
+	describeNativeAudioBackend: (request) => ipcRenderer.invoke(CHANNELS.nativeAudioInventory, {
+		backend: text(request?.backend, 32),
+	}).then(nativeAudioInventory),
 	listAssistanceModels: () => ipcRenderer.invoke(CHANNELS.listAssistanceModels).then(assistanceStatus),
 	installAssistanceModel: (modelId) => ipcRenderer.invoke(CHANNELS.installAssistanceModel, assistanceModelId(modelId)).then(assistanceModel),
 	removeAssistanceModel: (modelId) => ipcRenderer.invoke(CHANNELS.removeAssistanceModel, assistanceModelId(modelId)).then(safeInteger),
@@ -624,6 +630,49 @@ function positiveSafeInteger(value) {
 	if (number === 0) throw new RangeError('Expected a positive safe integer');
 	return number;
 }
+/**
+ * The renderer is told what is available and why it is not, never how: no
+ * payload path, no library name, no backend binary ever crosses this bridge.
+ */
+function nativeAudioAvailability(value) {
+	return Object.freeze({
+		enabled: value?.enabled === true,
+		quarantined: value?.quarantined === true,
+		payload: Object.freeze({
+			status: value?.payload?.status === 'available' ? 'available' : 'unavailable',
+			reason: value?.payload?.reason == null ? null : text(value.payload.reason, 64),
+			detail: text(value?.payload?.detail ?? '', 512),
+		}),
+		backends: Object.freeze((Array.isArray(value?.backends) ? value.backends : [])
+			.slice(0, 16)
+			.map((backend) => text(backend, 32))),
+	});
+}
+
+function nativeAudioInventory(value) {
+	if (value?.status !== 'described') {
+		return Object.freeze({
+			status: 'failed',
+			code: text(value?.code ?? 'helper-failed', 32),
+			message: text(value?.message ?? '', 512),
+		});
+	}
+	const devices = Array.isArray(value.inventory?.devices) ? value.inventory.devices : [];
+	return Object.freeze({
+		status: 'described',
+		inventory: Object.freeze({
+			backend: text(value.inventory?.backend, 32),
+			status: text(value.inventory?.status, 32),
+			detail: text(value.inventory?.detail ?? '', 512),
+			devices: Object.freeze(devices.slice(0, 128).map((device) => Object.freeze({
+				handle: text(device?.handle, 256),
+				label: text(device?.label, 256),
+				direction: text(device?.direction, 16),
+			}))),
+		}),
+	});
+}
+
 function helperProbeCompletion(value) {
 	if (value?.status === 'probed') {
 		const timingAsset = binary(value.timingAsset);
