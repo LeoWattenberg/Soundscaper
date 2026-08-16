@@ -191,6 +191,7 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 	const matrix = await readJson(matrixUrl);
 
 	assert.deepEqual(matrix.nativeFormatPolicies.map(({ id }) => id), [
+		'plugin-format-soundscaper-fixture',
 		'plugin-format-vst3',
 		'plugin-format-clap',
 		'plugin-format-audio-units',
@@ -205,6 +206,16 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 	]);
 	for (const row of matrix.nativeFormatPolicies) {
 		assert.match(row.kind, /^(?:plugin-format|codec-capability)$/u, row.id);
+		if (row.id === 'plugin-format-soundscaper-fixture') {
+			// The one implemented row is this project's own fixture format: no
+			// third-party code, so no gate to wait on. It is named explicitly
+			// rather than exempted by a pattern, so a future row cannot become
+			// implemented by resembling it.
+			assert.equal(row.status, 'implemented');
+			assert.equal(row.blocker, null);
+			await assertEvidence(row.evidence);
+			continue;
+		}
 		assert.equal(row.status, 'blocked', `${row.id} must stay fail-closed until its review is recorded`);
 		assert.ok(row.blocker.length > 0, `${row.id} needs a named blocker`);
 		assert.ok(row.upstreamLicensing.length > 0, `${row.id} needs its upstream licensing form`);

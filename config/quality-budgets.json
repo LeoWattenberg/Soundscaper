@@ -963,7 +963,13 @@
 				"docs/milestone-5a-soundscaper-native.md",
 				"tests/desktop-helper-contract.test.ts",
 				"tests/desktop-helper-supervisor.test.ts",
-				"tests/desktop-helper-probe-process.test.js"
+				"tests/desktop-helper-probe-process.test.js",
+				"tests/desktop-native-helper-real-process.test.js",
+				"tests/desktop-native-helper-process.test.js",
+				"tests/native-fixture-plugin-format.test.js",
+				"scripts/lib/m5-native-helper-metrics.mjs",
+				"scripts/collect-m5-native-helper-quality.mjs",
+				"tests/quality-budget-m5-native-helper-collector.test.ts"
 			]
 		},
 		{
@@ -1308,7 +1314,10 @@
 				"docs/milestone-5a-soundscaper-native.md",
 				"tests/desktop-helper-contract.test.ts",
 				"tests/desktop-helper-supervisor.test.ts",
-				"tests/desktop-helper-probe-process.test.js"
+				"tests/desktop-helper-probe-process.test.js",
+				"tests/desktop-native-helper-real-process.test.js",
+				"scripts/collect-m5-native-helper-quality.mjs",
+				"tests/quality-budget-m5-native-helper-collector.test.ts"
 			]
 		},
 		{

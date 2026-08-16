@@ -431,6 +431,21 @@
 	],
 	"nativeFormatPolicies": [
 		{
+			"id": "plugin-format-soundscaper-fixture",
+			"kind": "plugin-format",
+			"upstreamLicensing": "None. The fixture format, its ABI header and every fixture binary are this project's own work under AGPL-3.0-only.",
+			"agplCompatibilityDirection": "No third-party code is combined, so no compatibility question arises.",
+			"redistribution": "The fixture binaries are test evidence built from checked-in sources and are never offered to users as installable effects.",
+			"status": "implemented",
+			"blocker": null,
+			"evidence": [
+				"native/soundscaper-fixture-plugins/src/fixture_plugin.c",
+				"native/soundscaper-helper-addon/src/fixture_plugin_abi.h",
+				"tests/native-fixture-plugin-format.test.js",
+				"tests/desktop-native-helper-scan-job.test.js"
+			]
+		},
+		{
 			"id": "plugin-format-vst3",
 			"kind": "plugin-format",
 			"upstreamLicensing": "Dual: proprietary Steinberg VST 3 license or GPL-3.0-only",

@@ -10,13 +10,25 @@
 
 ## Status and readiness
 
-**Status on 2026-08-16: 5A-0a and 5A-0b are implemented provisionally in the
-local tree, and the first 5A-1 slice — native audio backend discovery behind a
-menu-reached, off-by-default surface — is implemented alongside them. Device
-opening, the real-time data plane, plug-in scanning and plug-in hosting remain
-unimplemented and disabled.** The plan was grounded at commit `9d8427dd`; this
-implementation status is not a formal qualification claim, and the native
-payload exists for exactly one of the five claimed targets.
+**Status on 2026-08-16: 5A-0a, 5A-0b, 5A-0c, 5A-1, 5A-2 and 5A-3 are implemented
+provisionally in the local tree, and 5A-4's collector and verifier exist and
+deliberately refuse to publish. Nothing is qualified.** The plan was grounded at
+commit `9d8427dd`. Three facts bound every claim below and are repeated here
+because they are the ones most easily read as better than they are:
+
+1. **The native payload exists for `linux-x64` only.** The other four claimed
+   targets are `pending-external` with named blockers, stage no payload, and
+   report a typed unavailability.
+2. **Every third-party plug-in format remains fail-closed.** VST3, CLAP, Audio
+   Units and LV2 keep their blocked licensing rows. The scanner, registry,
+   quarantine and host machinery is proven against a benign fixture format that
+   is this project's own code, exactly as 5A-3 asks; the scanner reports real
+   formats it finds as seen-and-not-enabled rather than skipping them. The
+   format waits; the gate does not bend.
+3. **No latency, underrun, recovery or RSS number is qualified.**
+   `native-os-lab-matrix` is unprovisioned with five null fingerprints, so the
+   M5 collector emits `pending-external` and refuses to run on a hosted runner
+   at all.
 
 The prerequisite foundations are physically present:
 
@@ -97,11 +109,11 @@ remaining gaps are explicit:
    identity and hardware qualification may remain externally blocked while
    implementation proceeds; no blocked row is promoted or simulated.
 
-The entry rule is therefore exact: **finish 5A-0c next**. Backend discovery has
-landed because it opens no device and grants no project audio; device opening,
-real-time hosting and plug-in execution all still require the 5A-0c transport
-proof, and scanning still requires its own 5A-2 consent and quarantine model.
-Do not start host breadth merely because the hardened proof helper exists.
+The entry rule is therefore exact: **the remaining work is external, not
+architectural.** What is owed is a build host per claimed target, a licensing
+review per plug-in format, and a provisioned native lab — not another design
+pass. Any of those arriving unblocks its row without changing the contract; none
+of them may be simulated, inferred, or filled in from a neighbouring target.
 
 ## Non-negotiable invariants
 
