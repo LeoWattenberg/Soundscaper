@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { ScapeArchiveEntry } from '../common/editor/scape-archive-envelope.ts';
 import { throwIfScapeAborted } from '../common/editor/scape-abort.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { isStrictlyHigherProjectRevision } from '../common/editor/project-revision-cas.ts';
@@ -15,7 +14,6 @@ import {
 	validateFramescaperDesktopV10Abort,
 	validateFramescaperDesktopV10Acknowledgement,
 	validateFramescaperDesktopV10Admission,
-	validateFramescaperDesktopV10BodyChunk,
 	validateFramescaperDesktopV10Bundle,
 	validateFramescaperDesktopV10CatalogSnapshot,
 	validateFramescaperDesktopV10ProjectId,
@@ -25,6 +23,10 @@ import {
 	type FramescaperDesktopV10ProjectSummary,
 	type FramescaperDesktopV10RendererBridge,
 } from './desktop-project-library-v10-renderer-contract.ts';
+import {
+	framescaperDesktopV10ArchiveEntries,
+	framescaperDesktopV10ArchiveManifest,
+} from './desktop-project-library-v10-archive-projection.ts';
 import {
 	FramescaperDesktopProjectLibraryV10CommittedError,
 	FramescaperDesktopProjectLibraryV10IndeterminateError,
@@ -387,10 +389,10 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 		}
 		const publication = shadowPublication(current, snapshot.project);
 		const result = await this.#archive.importProject({
-			manifest: manifest(snapshot),
+			manifest: framescaperDesktopV10ArchiveManifest(snapshot),
 			project: snapshot.project,
 			decision: 'continue',
-			entries: snapshotEntries(snapshot, this.#bridge, signal),
+			entries: framescaperDesktopV10ArchiveEntries(snapshot, this.#bridge, signal),
 			operationId: createFramescaperDesktopV10RendererOperationId(),
 			publication,
 			...(signal ? { signal } : {}),
@@ -478,75 +480,6 @@ function shadowPublication(current: FramescaperProjectV18 | null, project: Frame
 		throw new Error('Desktop reconciliation requires a strictly higher V18 shadow revision.');
 	}
 	return Object.freeze({ mode: 'compare-and-swap' as const, expected: current, project });
-}
-
-function manifest(snapshot: Readonly<FramescaperDesktopV10BundleSnapshot>): Readonly<Record<string, unknown>> {
-	return Object.freeze({
-		format: 'scape-project',
-		formatVersion: snapshot.assets.length === 0 ? 1 : 2,
-		project: Object.freeze({
-			entry: 'project.json', mimeType: 'application/json', schemaVersion: 18,
-			size: snapshot.bundle.project.byteLength, sha256: snapshot.bundle.project.sha256,
-		}),
-		assets: snapshot.assets,
-	});
-}
-
-function snapshotEntries(
-	snapshot: Readonly<FramescaperDesktopV10BundleSnapshot>,
-	bridge: FramescaperDesktopV10RendererBridge,
-	signal?: AbortSignal,
-): readonly ScapeArchiveEntry[] {
-	return Object.freeze(snapshot.assets.map((asset, index) => {
-		const body = snapshot.bundle.bodies[index]!;
-		if (asset.sourceId !== body.storageKey || asset.size !== body.byteLength || asset.sha256 !== body.sha256) {
-			throw new Error('The desktop V10 body no longer matches its V18 archive descriptor.');
-		}
-		return Object.freeze({
-			filename: asset.entry,
-			directory: false,
-			encrypted: false,
-			compressionMethod: 0,
-			compressedSize: body.byteLength,
-			uncompressedSize: body.byteLength,
-			getData: (writable: WritableStream<Uint8Array>, options?: Readonly<{ signal?: AbortSignal }>) => (
-				transferBody(snapshot, body, bridge, writable, options?.signal ?? signal)
-			),
-		});
-	}));
-}
-
-async function transferBody(
-	snapshot: Readonly<FramescaperDesktopV10BundleSnapshot>,
-	body: Readonly<FramescaperDesktopV10Body>,
-	bridge: FramescaperDesktopV10RendererBridge,
-	writable: WritableStream<Uint8Array>,
-	signal?: AbortSignal,
-): Promise<void> {
-	const writer = writable.getWriter();
-	try {
-		for (let offset = 0; offset < body.byteLength; offset += FRAMESCAPER_DESKTOP_V10_MAXIMUM_CHUNK_BYTES) {
-			throwIfScapeAborted(signal);
-			const length = Math.min(FRAMESCAPER_DESKTOP_V10_MAXIMUM_CHUNK_BYTES, body.byteLength - offset);
-			const bytes = validateFramescaperDesktopV10BodyChunk(await bridge.readBodyChunk({
-				projectId: snapshot.bundle.project.projectId,
-				metadataRevision: snapshot.bundle.metadataRevision,
-				projectRevision: snapshot.bundle.project.projectRevision,
-				projectSha256: snapshot.bundle.project.sha256,
-				body,
-				offset,
-				length,
-			}), length);
-			throwIfScapeAborted(signal);
-			await writer.write(bytes);
-		}
-		await writer.close();
-	} catch (error) {
-		try { await writer.abort(error); } catch { /* the primary transfer error owns the refusal */ }
-		throw error;
-	} finally {
-		writer.releaseLock();
-	}
 }
 
 function sameProject(left: FramescaperProjectV18, right: FramescaperProjectV18): boolean {

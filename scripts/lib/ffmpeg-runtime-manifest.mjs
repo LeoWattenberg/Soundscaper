@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
-import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises';
-import { basename, dirname, posix, resolve } from 'node:path';
+import { lstat, readFile, readdir, realpath, writeFile } from 'node:fs/promises';
+import { basename, posix, resolve } from 'node:path';
 
+import { renameIntoPlaceExclusively } from './exclusive-rename.mjs';
 import { createFfmpegRuntimeEvidenceRepinner } from './ffmpeg-runtime-manifest-repin.mjs';
 
 export const FFMPEG_RUNTIME_MANIFEST_PATH = 'config/ffmpeg-runtime-manifest.json';
@@ -124,21 +125,13 @@ export async function verifyFfmpegRuntimeManifest({
 export async function stageVerifiedFfmpegRuntime({ release, outputRoot }) {
 	const snapshot = snapshotVerifiedFfmpegRuntime(release);
 	assert(typeof outputRoot === 'string' && outputRoot, 'outputRoot is required');
-	const destination = resolve(outputRoot);
-	const parent = dirname(destination);
-	await mkdir(parent, { recursive: true });
-	await assertPathMissing(destination, 'FFmpeg runtime output');
-	const temporary = await mkdtemp(resolve(parent, `.${basename(destination)}-`));
-	try {
+	await renameIntoPlaceExclusively(resolve(outputRoot), 'FFmpeg runtime output', async (temporary) => {
 		for (const { name, bytes } of snapshot.runtimeFiles) {
 			await writeFile(resolve(temporary, name), bytes, { flag: 'wx' });
 		}
 		await writeFile(resolve(temporary, release.manifest.publication.manifestName), snapshot.manifestBytes, { flag: 'wx' });
-		await assertPathMissing(destination, 'FFmpeg runtime output');
-		await rename(temporary, destination);
-	} finally {
-		await rm(temporary, { recursive: true, force: true });
-	}
+		return temporary;
+	});
 	return ffmpegRuntimeStageSummary(release);
 }
 
@@ -525,28 +518,11 @@ function assertCleanHttpsUrl(value, label) {
 
 async function writeVerifiedFileExclusive(outputPath, bytes, label) {
 	const destination = resolve(outputPath);
-	const parent = dirname(destination);
-	await mkdir(parent, { recursive: true });
-	await assertPathMissing(destination, label);
-	const temporary = await mkdtemp(resolve(parent, `.${basename(destination)}-`));
-	const staged = resolve(temporary, basename(destination));
-	try {
+	await renameIntoPlaceExclusively(destination, label, async (temporary) => {
+		const staged = resolve(temporary, basename(destination));
 		await writeFile(staged, bytes, { flag: 'wx' });
-		await assertPathMissing(destination, label);
-		await rename(staged, destination);
-	} finally {
-		await rm(temporary, { recursive: true, force: true });
-	}
-}
-
-async function assertPathMissing(path, label) {
-	try {
-		await lstat(path);
-	} catch (error) {
-		if (error?.code === 'ENOENT') return;
-		throw error;
-	}
-	throw new Error(`${label} already exists: ${path}`);
+		return staged;
+	});
 }
 
 async function readStagedRegularFile(path, label) {
