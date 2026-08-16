@@ -13,6 +13,7 @@
  * re-checks the bytes itself, and refuses to load anything else.
  */
 
+import { createNativePluginHostJobRunner } from './native-helper-host-job.js';
 import { createNativePluginScanJobRunner } from './native-helper-scan-job.js';
 import {
 	HELPER_CONTRACT_VERSION,
@@ -23,7 +24,7 @@ import {
 } from '#desktop-runtime/helper-contract';
 
 /** The kinds this helper implements today; unannounced kinds are refused. */
-export const NATIVE_HELPER_JOB_KINDS = Object.freeze(['audio-device', 'plugin-scan']);
+export const NATIVE_HELPER_JOB_KINDS = Object.freeze(['audio-device', 'plugin-scan', 'plugin-host']);
 
 /** The loopback device the synthetic backend exposes for the transport proof. */
 export const SYNTHETIC_LOOPBACK_DEVICE_HANDLE = 'synthetic:loopback';
@@ -53,6 +54,7 @@ export function createNativeHelperWorker({
 	post,
 	runDeviceJob,
 	runScanJob = null,
+	runHostJob = null,
 	heartbeatIntervalMs = HELPER_HEARTBEAT_INTERVAL_MS,
 	setIntervalImpl = setInterval,
 	clearIntervalImpl = clearInterval,
@@ -112,7 +114,7 @@ export function createNativeHelperWorker({
 			dispose(1);
 			return;
 		}
-		const runner = message.kind === 'plugin-scan' ? runScanJob : runDeviceJob;
+		const runner = { 'plugin-scan': runScanJob, 'plugin-host': runHostJob }[message.kind] ?? runDeviceJob;
 		if (!NATIVE_HELPER_JOB_KINDS.includes(message.kind) || typeof runner !== 'function') {
 			sendError(message.jobId, new RangeError(`This helper does not implement ${message.kind} jobs.`));
 			return;
@@ -341,16 +343,15 @@ if (parentPort && typeof parentPort.on === 'function') {
 	const { createHash } = await import('node:crypto');
 	const { readFile } = await import('node:fs/promises');
 	const addonSeams = { addonPath: config.addonPath, addonSha256: config.addonSha256, loadAddon: loadVerifiedNativeAddon };
+	const hashFile = async (path) => {
+		const bytes = await readFile(path);
+		return { byteLength: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') };
+	};
 	const worker = createNativeHelperWorker({
 		post: (message) => parentPort.postMessage(message),
 		runDeviceJob: createNativeDeviceJobRunner({ ...addonSeams, hash: () => createHash('sha256') }),
-		runScanJob: createNativePluginScanJobRunner({
-			...addonSeams,
-			hashFile: async (path) => {
-				const bytes = await readFile(path);
-				return { byteLength: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') };
-			},
-		}),
+		runScanJob: createNativePluginScanJobRunner({ ...addonSeams, hashFile }),
+		runHostJob: createNativePluginHostJobRunner({ ...addonSeams, hashFile, hash: () => createHash('sha256') }),
 		exit: (code) => process.exit(code),
 	});
 	parentPort.on('message', (event) => worker.handleMessage(event.data));

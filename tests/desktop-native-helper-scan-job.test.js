@@ -144,7 +144,7 @@ test('the helper announces scanning and routes a scan job to the scan runner', a
 		heartbeatIntervalMs: 1_000_000,
 		exit: () => undefined,
 	});
-	assert.deepEqual(posted[0].kinds, ['audio-device', 'plugin-scan']);
+	assert.deepEqual(posted[0].kinds, ['audio-device', 'plugin-scan', 'plugin-host']);
 	worker.handleMessage({
 		contractVersion: 1,
 		type: 'job',

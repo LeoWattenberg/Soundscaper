@@ -110,7 +110,7 @@ test('the native helper runs the verified addon across a real Electron utility p
 	const terminal = observed.messages.filter(({ type }) => type !== 'progress');
 	assert.deepEqual(terminal.map(({ type }) => type), ['hello', 'result', 'cancelled', 'error']);
 	const [hello, result, cancelled, refused] = terminal;
-	assert.deepEqual(hello.kinds, ['audio-device', 'plugin-scan']);
+	assert.deepEqual(hello.kinds, ['audio-device', 'plugin-scan', 'plugin-host']);
 	assert.ok(observed.heartbeats >= 2,
 		`the helper must keep reporting liveness across the real channel while idle (saw ${observed.heartbeats})`);
 
