@@ -1,23 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import {
-	access,
-	cp,
-	mkdir,
-	mkdtemp,
-	readFile,
-	readdir,
-	rm,
-	symlink,
-	writeFile,
-} from 'node:fs/promises';
+import { access, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { registerHooks } from 'node:module';
-import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
+
+import {
+	REQUIRED_LICENSING_GATES,
+	createFixture,
+	descriptor,
+	writeBytes,
+	writeJson,
+	writeManifest,
+} from './helpers/ffmpeg-runtime-fixture.mjs';
 
 import {
 	stageVerifiedFfmpegNotice,
@@ -26,7 +23,6 @@ import {
 } from '../scripts/lib/ffmpeg-runtime-manifest.mjs';
 import { publishFfmpegRuntime } from '../scripts/lib/ffmpeg-runtime-publisher.mjs';
 import {
-	NATIVE_ADDON_PAYLOAD_MANIFEST_PATH,
 	nativeAddonPayloadStageSummary,
 	stageVerifiedNativeAddonPayload,
 	verifyNativeAddonPayloadManifest,
@@ -36,13 +32,6 @@ import { admitDesktopFfmpegAssembly } from '../scripts/desktop-prepare.mjs';
 import { validateDesktopRuntimeManifests } from '../scripts/desktop-release-assets.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
-const REQUIRED_LICENSING_GATES = [
-	'ffmpeg-enabled-codec-patent-review', 'ffmpeg-enabled-library-corresponding-source', 'web-notice-delivery',
-];
-const ALL_LICENSING_GATES = [
-	'dependency-notice-version-audit', 'desktop-notice-delivery', 'ffmpeg-enabled-codec-patent-review',
-	'ffmpeg-enabled-library-corresponding-source', 'ffmpeg-runtime-manifest-integrity', 'web-notice-delivery',
-];
 
 test('a policy manifest stages and publishes only its verified buffered bytes', async (context) => {
 	const fixture = await createFixture(context);
@@ -465,222 +454,6 @@ async function assertNoSideEffects(fixture, expectedError) {
 	);
 	assert.equal(calls, 0, 'invalid publication constructs no Wrangler operation');
 	await assert.rejects(access(outputRoot), /ENOENT/u);
-}
-
-async function createFixture(context) {
-	const root = await mkdtemp(join(tmpdir(), 'soundscaper-ffmpeg-runtime-'));
-	context.after(() => rm(root, { recursive: true, force: true }));
-	// The beforePack hook verifies the whole staged tree, so the synthetic
-	// repository carries the real native payload provenance alongside the
-	// synthetic FFmpeg runtime.
-	await mkdir(join(root, 'config'), { recursive: true });
-	await cp(join(ROOT, NATIVE_ADDON_PAYLOAD_MANIFEST_PATH), join(root, NATIVE_ADDON_PAYLOAD_MANIFEST_PATH));
-	await cp(join(ROOT, 'native/soundscaper-helper-addon'), join(root, 'native/soundscaper-helper-addon'), { recursive: true });
-	const javascript = Buffer.from('fixture ffmpeg JavaScript');
-	const wasm = Buffer.from('fixture ffmpeg WebAssembly');
-	const cors = Buffer.from(JSON.stringify({
-		rules: [{
-			allowed: {
-				origins: ['https://soundscaper.org'],
-				methods: ['GET', 'HEAD'],
-				headers: ['Range'],
-			},
-			exposeHeaders: ['Content-Length', 'Content-Range', 'ETag'],
-			maxAgeSeconds: 86_400,
-		}],
-	}));
-	const packageEntry = {
-		version: '0.12.10',
-		resolved: 'https://registry.npmjs.org/@ffmpeg/core/-/core-0.12.10.tgz',
-		integrity: 'sha512-fixture-integrity',
-		license: 'GPL-2.0-or-later',
-	};
-	const paths = {
-		lineEndings: '.gitattributes',
-		correspondingSource: 'desktop/ffmpeg-corresponding-source.json',
-		notices: 'THIRD_PARTY_LICENSES.md',
-		releaseSeverityPolicy: 'config/release-severity-policy.json',
-		licensingPolicy: 'docs/production-licensing-policy.md',
-		licensingMatrix: 'config/production-licensing-matrix.json',
-		securityMatrix: 'config/production-security-matrix.json',
-		threatModel: 'docs/production-threat-model.md',
-	};
-	const sourceDescriptor = {
-		url: 'https://example.test/ffmpeg-source.tar.gz',
-		fileName: 'ffmpeg-source.tar.gz',
-		byteLength: 12,
-		sha256: '1'.repeat(64),
-	};
-	const buildSourceDescriptor = {
-		url: 'https://github.com/ffmpegwasm/ffmpeg.wasm/archive/refs/tags/v12.15.tar.gz',
-		fileName: 'ffmpeg-build-source.tar.gz',
-		byteLength: 13,
-		sha256: '2'.repeat(64),
-	};
-	const securityMatrix = {
-		schemaVersion: 1,
-		risks: [{
-			id: 'runtime-supply-chain',
-			currentControls: [{ id: 'validated-ffmpeg-runtime-publication' }],
-		}],
-	};
-	const lineEndings = Buffer.from([
-		'/.gitattributes text eol=lf',
-		'/THIRD_PARTY_LICENSES.md text eol=lf',
-		'/config/ffmpeg-runtime-manifest.json text eol=lf',
-		'/config/production-licensing-matrix.json text eol=lf',
-		'/config/production-security-matrix.json text eol=lf',
-		'/config/release-severity-policy.json text eol=lf',
-		'/desktop/ffmpeg-corresponding-source.json text eol=lf',
-		'/docs/production-licensing-policy.md text eol=lf',
-		'/docs/production-threat-model.md text eol=lf',
-		'/r2-cors.json text eol=lf',
-		'',
-	].join('\n'));
-	const evidenceBytes = {
-		lineEndings,
-		correspondingSource: Buffer.from(JSON.stringify({
-			schemaVersion: 1,
-			runtime: {
-				package: '@ffmpeg/core',
-				version: '0.12.10',
-				javascriptSha256: sha256(javascript),
-				wasmSha256: sha256(wasm),
-			},
-			source: sourceDescriptor,
-			buildSource: buildSourceDescriptor,
-		})),
-		notices: Buffer.from('Fixture notices for `@ffmpeg/core` 0.12.10 from https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v12.15\n'),
-		releaseSeverityPolicy: Buffer.from(JSON.stringify({
-			schemaVersion: 1,
-			releaseGate: { maximumOpen: { critical: 0, high: 0 } },
-		})),
-		licensingPolicy: Buffer.from('# Fixture licensing policy\n'),
-		licensingMatrix: Buffer.from(JSON.stringify({
-			schemaVersion: 1,
-			releaseGates: ALL_LICENSING_GATES.map((id) => ({ id, status: 'implemented' })),
-		})),
-		securityMatrix: Buffer.from(JSON.stringify(securityMatrix)),
-		threatModel: Buffer.from('# Fixture threat model\n'),
-	};
-	await Promise.all([
-		writeJson(join(root, 'package.json'), {
-			name: 'soundscaper',
-			dependencies: { '@ffmpeg/core': '0.12.10' },
-		}),
-		writeJson(join(root, 'package-lock.json'), {
-			lockfileVersion: 3,
-			packages: { 'node_modules/@ffmpeg/core': packageEntry },
-		}),
-		writeJson(join(root, 'node_modules/@ffmpeg/core/package.json'), {
-			name: '@ffmpeg/core',
-			version: '0.12.10',
-			license: 'GPL-2.0-or-later',
-		}),
-		writeBytes(join(root, 'node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.js'), javascript),
-		writeBytes(join(root, 'node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.wasm'), wasm),
-		...Object.entries(evidenceBytes).map(([id, bytes]) => writeBytes(join(root, paths[id]), bytes)),
-		writeBytes(join(root, 'r2-cors.json'), cors),
-	]);
-	const manifestPath = join(root, 'config/ffmpeg-runtime-manifest.json');
-	const manifest = {
-		schemaVersion: 1,
-		id: 'ffmpeg-core-0.12.10',
-		package: {
-			name: '@ffmpeg/core',
-			version: '0.12.10',
-			lockPath: 'node_modules/@ffmpeg/core',
-			resolved: packageEntry.resolved,
-			integrity: packageEntry.integrity,
-			license: packageEntry.license,
-		},
-		runtime: {
-			publicPrefix: 'runtime/ffmpeg/0.12.10',
-			cacheControl: 'public, max-age=31536000, immutable',
-			files: [
-				fileDescriptor('ffmpeg-core.js', javascript, 'text/javascript; charset=utf-8'),
-				fileDescriptor('ffmpeg-core.wasm', wasm, 'application/wasm'),
-			],
-		},
-		publication: {
-			bucket: 'soundscaper-assets',
-			jurisdiction: 'eu',
-			manifestName: 'manifest.json',
-			noticeName: 'THIRD_PARTY_LICENSES.md',
-			correspondingSourceName: 'ffmpeg-corresponding-source.json',
-			corsOrigins: ['https://soundscaper.org'],
-			cors: descriptor('r2-cors.json', cors),
-		},
-		evidence: Object.fromEntries(Object.entries(paths).map(([id, path]) => [
-			id,
-			descriptor(path, evidenceBytes[id]),
-		])),
-		security: {
-			matrixPath: 'config/production-security-matrix.json',
-			riskId: 'runtime-supply-chain',
-			controlId: 'validated-ffmpeg-runtime-publication',
-		},
-		authorizations: {
-			desktopAssembly: { status: 'approved', blockedBy: [] },
-			runtimePublication: { status: 'approved', blockedBy: [] },
-			desktopRelease: { status: 'approved', blockedBy: [] },
-		},
-		review: {
-			status: 'approved',
-			reviewedAt: '2026-07-29',
-			reviewer: 'Fixture release reviewer',
-			scopes: ['desktop-assembly', 'desktop-release-policy', 'runtime-publication-policy'],
-			payloadSha256: '',
-		},
-	};
-	const fixture = {
-		root,
-		manifest,
-		manifestPath,
-		javascript,
-		wasm,
-		cors,
-		javascriptPath: join(root, 'node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.js'),
-		wasmPath: join(root, 'node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.wasm'),
-	};
-	await writeManifest(fixture);
-	return fixture;
-}
-
-async function writeManifest(fixture) {
-	fixture.manifest.review.payloadSha256 = sha256(Buffer.from(canonicalJson(
-		Object.fromEntries(Object.entries(fixture.manifest).filter(([key]) => key !== 'review')),
-	)));
-	await writeJson(fixture.manifestPath, fixture.manifest);
-}
-
-function fileDescriptor(name, bytes, contentType) {
-	return { name, byteLength: bytes.byteLength, sha256: sha256(bytes), contentType };
-}
-
-function descriptor(path, bytes) {
-	return { path, byteLength: bytes.byteLength, sha256: sha256(bytes) };
-}
-
-function canonicalJson(value) {
-	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-	if (value && typeof value === 'object') {
-		return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
-	}
-	return JSON.stringify(value);
-}
-
-function sha256(bytes) {
-	return createHash('sha256').update(bytes).digest('hex');
-}
-
-async function writeJson(path, value) {
-	await writeBytes(path, Buffer.from(`${JSON.stringify(value, null, 2)}\n`));
-}
-
-async function writeBytes(path, bytes) {
-	await mkdir(dirname(path), { recursive: true });
-	await writeFile(path, bytes);
 }
 
 async function readdirNames(path) {

@@ -25,8 +25,15 @@ export const HELPER_PROBE_JOB_KINDS = Object.freeze([
 	'probe-video-source',
 ] as const satisfies readonly HelperJobKind[]);
 
+/**
+ * `synthetic` is the milestone-5A-0c loopback proof backend. It is a real
+ * backend on the wire so the transport, supervision and fault suites exercise
+ * exactly the admission path an operating-system backend will, but it never
+ * names an operating-system device and is never offered as one: the device
+ * inventory refuses to publish it.
+ */
 export const HELPER_AUDIO_BACKENDS = Object.freeze([
-	'coreaudio', 'wasapi', 'asio', 'jack', 'alsa',
+	'coreaudio', 'wasapi', 'asio', 'jack', 'alsa', 'synthetic',
 ] as const);
 export type HelperAudioBackend = (typeof HELPER_AUDIO_BACKENDS)[number];
 
