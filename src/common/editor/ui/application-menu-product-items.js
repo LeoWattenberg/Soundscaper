@@ -55,6 +55,7 @@ export function createApplicationMenuProductItems({
 	const nativeRuntime = actions.framescaperNativeServices || null;
 	const nativeServices = createFramescaperNativeServicesMenuItems({
 		productId,
+		runtimeAvailable: nativeRuntime !== null,
 		snapshot: nativeRuntime?.capabilitySnapshot ?? null,
 		project,
 		editingBlocked: editBlocked,

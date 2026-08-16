@@ -17,11 +17,22 @@ import {
 
 test('Soundscaper receives no native video or OFX surface at all', () => {
 	const items = createFramescaperNativeServicesMenuItems(
-		{ productId: 'soundscaper', snapshot: enabledSnapshot(), project: {}, editingBlocked: false },
+		{
+			productId: 'soundscaper', runtimeAvailable: true, snapshot: enabledSnapshot(),
+			project: {}, editingBlocked: false,
+		},
 		noopActions(),
 	);
 
 	assert.deepEqual(items, {
+		fileImport: [], fileExport: [], view: [], tools: [], effect: [],
+	});
+});
+
+test('a build with no native-services controller shows no entries at all', () => {
+	// A menu item that opens nothing is worse than an absent one: the user
+	// cannot tell "not built" from "broken".
+	assert.deepEqual(menu({ runtimeAvailable: false }), {
 		fileImport: [], fileExport: [], view: [], tools: [], effect: [],
 	});
 });
@@ -61,7 +72,10 @@ test('the surfaces sit in the menu families the plan names', () => {
 test('an enabled tier with an open project makes every surface actionable', () => {
 	const opened: string[] = [];
 	const items = createFramescaperNativeServicesMenuItems(
-		{ productId: 'framescaper', snapshot: enabledSnapshot(), project: {}, editingBlocked: false },
+		{
+			productId: 'framescaper', runtimeAvailable: true, snapshot: enabledSnapshot(),
+			project: {}, editingBlocked: false,
+		},
 		{ open: (surface) => opened.push(surface), openExternalDisplay: () => undefined },
 	);
 
@@ -92,7 +106,10 @@ test('with the tier switched off the user can still reach the pane that turns it
 test('a disabled command never invokes its action', () => {
 	let opened = 0;
 	const items = createFramescaperNativeServicesMenuItems(
-		{ productId: 'framescaper', snapshot: null, project: null, editingBlocked: true },
+		{
+			productId: 'framescaper', runtimeAvailable: true, snapshot: null,
+			project: null, editingBlocked: true,
+		},
 		{ open: () => { opened += 1; }, openExternalDisplay: () => undefined },
 	);
 
@@ -137,6 +154,7 @@ test('the external display submenu lists non-primary displays and a None entry',
 	const chosen: (string | null)[] = [];
 	const items = createFramescaperNativeServicesMenuItems({
 		productId: 'framescaper',
+		runtimeAvailable: true,
 		snapshot: enabledSnapshot(),
 		project: {},
 		editingBlocked: false,
@@ -244,6 +262,7 @@ function noopActions() {
 function menu(overrides: Record<string, unknown> = {}) {
 	return createFramescaperNativeServicesMenuItems({
 		productId: 'framescaper',
+		runtimeAvailable: true,
 		snapshot: enabledSnapshot(),
 		project: {},
 		editingBlocked: false,

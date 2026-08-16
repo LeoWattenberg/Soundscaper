@@ -68,6 +68,13 @@ export interface FramescaperNativeServicesMenuItems {
 
 export interface FramescaperNativeServicesMenuInput {
 	readonly productId: string;
+	/**
+	 * Whether this build has a native-services controller at all. A build
+	 * without one shows no entries: a menu item that opens nothing is worse
+	 * than an absent one, because the user cannot tell the difference between
+	 * "not built" and "broken".
+	 */
+	readonly runtimeAvailable: boolean;
 	readonly snapshot: NativeMediaCapabilitySnapshotV1 | null;
 	readonly project: unknown;
 	readonly editingBlocked: boolean;
@@ -94,7 +101,7 @@ export function createFramescaperNativeServicesMenuItems(
 	input: FramescaperNativeServicesMenuInput,
 	actions: FramescaperNativeServicesMenuActions,
 ): FramescaperNativeServicesMenuItems {
-	if (input.productId !== 'framescaper') return EMPTY;
+	if (input.productId !== 'framescaper' || !input.runtimeAvailable) return EMPTY;
 	const copy = resolveFramescaperNativeServicesCopy(input.copy);
 	const snapshot = input.snapshot;
 	const hasProject = input.project != null;
