@@ -114,6 +114,12 @@ interface QualityBudgetConfig {
 
 const configUrl = new URL('../config/quality-budgets.json', import.meta.url);
 
+/** A metric name that states its quantity binds the unit it may be published in. */
+const metricSuffixUnits: Readonly<Record<string, string>> = Object.freeze({
+	Seconds: 'seconds', Ms: 'ms', Samples: 'samples', Frames: 'frames',
+	Bytes: 'bytes', Ratio: 'ratio', Db: 'dB', Lu: 'LU', Rtf: 'RTF',
+});
+
 test('quality budget contract names numeric gates and the exact qualified structural set', async () => {
 	const config = JSON.parse(await readFile(configUrl, 'utf8')) as QualityBudgetConfig;
 	const packageMetadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
@@ -200,6 +206,12 @@ test('quality budget contract names numeric gates and the exact qualified struct
 			assert.ok(['eq', 'gte', 'lte'].includes(threshold.comparison), `${threshold.metricId} has an invalid comparison`);
 			assert.ok(Number.isFinite(threshold.value), `${threshold.metricId} must have a finite threshold`);
 			assert.ok(config.units.includes(threshold.unit), `${threshold.metricId} has an unknown unit`);
+			const named = Object.keys(metricSuffixUnits)
+				.find((suffix) => threshold.metricId.endsWith(suffix));
+			if (named) {
+				assert.equal(threshold.unit, metricSuffixUnits[named],
+					`${threshold.metricId} contradicts the quantity it names`);
+			}
 		}
 	}
 

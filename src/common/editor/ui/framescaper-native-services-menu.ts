@@ -19,6 +19,8 @@
 import {
 	isNativeMediaCapabilityUsable,
 	nativeMediaCapabilityEntry,
+	NATIVE_MEDIA_CAPABILITY_IDS,
+	type NativeMediaCapabilityRefV1,
 	type NativeMediaCapabilitySnapshotV1,
 } from '../native-media-capability-snapshot.ts';
 import type {
@@ -106,13 +108,14 @@ export function createFramescaperNativeServicesMenuItems(
 	const snapshot = input.snapshot;
 	const hasProject = input.project != null;
 	const mutable = hasProject && !input.editingBlocked && input.readOnly !== true;
-	const usable = (domain: 'codec' | 'queue' | 'watch' | 'scratch' | 'ofx', id: string): boolean => (
-		snapshot !== null && isNativeMediaCapabilityUsable(nativeMediaCapabilityEntry(snapshot, domain, id))
+	const usable = (ref: NativeMediaCapabilityRefV1): boolean => (
+		snapshot !== null
+		&& isNativeMediaCapabilityUsable(nativeMediaCapabilityEntry(snapshot, ref.domain, ref.id))
 	);
-	const queueUsable = usable('queue', 'persistent-render-queue');
-	const watchUsable = usable('watch', 'watch-folders');
-	const proxyUsable = usable('codec', 'prores-proxy');
-	const ofxUsable = usable('ofx', 'isolated-host');
+	const queueUsable = usable(NATIVE_MEDIA_CAPABILITY_IDS.renderQueue);
+	const watchUsable = usable(NATIVE_MEDIA_CAPABILITY_IDS.watchFolders);
+	const proxyUsable = usable(NATIVE_MEDIA_CAPABILITY_IDS.proxyCodec);
+	const ofxUsable = usable(NATIVE_MEDIA_CAPABILITY_IDS.ofxHost);
 	const leaf = (
 		id: string,
 		label: string,

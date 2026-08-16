@@ -124,6 +124,19 @@ No benchmark retry may turn a failure into a pass. A failed run may be repeated
 for diagnosis, but both runs remain evidence and the original result remains
 failed.
 
+## Metric units
+
+Every threshold declares its unit from the `units` enum in
+`config/quality-budgets.json`: `bytes`, `count`, `dB`, `frames`, `LU`,
+`MiB/hour`, `ms`, `ratio`, `RTF`, `samples`, `seconds`.
+
+A metric name that states its quantity binds the unit it may be published in — a
+metric ending in `Seconds` is published in `seconds`, one ending in `Bytes` in
+`bytes`, and so on. Enum membership alone is not enough: a threshold that names
+one quantity and declares another leaves the collector to choose between
+emitting the wrong unit and being rejected for emitting the right one, and the
+published evidence record then misstates what was measured.
+
 ## Portable structural environment
 
 `portable-node-structural-26.5.0` is active only for the five frozen milestone 2

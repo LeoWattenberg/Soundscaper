@@ -95,7 +95,8 @@
 		"ms",
 		"ratio",
 		"RTF",
-		"samples"
+		"samples",
+		"seconds"
 	],
 	"softwareInputs": {
 		"node": {
@@ -1599,19 +1600,19 @@
 					"metricId": "cleanDisplay.corruptFrames",
 					"comparison": "eq",
 					"value": 0,
-					"unit": "count"
+					"unit": "frames"
 				},
 				{
 					"metricId": "cleanDisplay.reorderedFrames",
 					"comparison": "eq",
 					"value": 0,
-					"unit": "count"
+					"unit": "frames"
 				},
 				{
 					"metricId": "cleanDisplay.unexplainedDroppedFrames",
 					"comparison": "eq",
 					"value": 0,
-					"unit": "count"
+					"unit": "frames"
 				},
 				{
 					"metricId": "cleanDisplay.avDriftFrames",
@@ -1623,7 +1624,7 @@
 					"metricId": "cleanDisplay.soakDurationSeconds",
 					"comparison": "gte",
 					"value": 1800,
-					"unit": "samples"
+					"unit": "seconds"
 				}
 			],
 			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-external-display.test.ts"]

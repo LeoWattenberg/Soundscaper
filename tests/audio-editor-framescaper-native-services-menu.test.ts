@@ -12,8 +12,12 @@ import {
 } from '../src/common/editor/ui/framescaper-native-services-menu.ts';
 import {
 	createNativeMediaCapabilitySnapshotV1,
+	NATIVE_MEDIA_CAPABILITY_IDS,
 	type NativeMediaCapabilityDomain,
 } from '../src/common/editor/native-media-capability-snapshot.ts';
+import {
+	NATIVE_MEDIA_PROXY_PROFILE_ID,
+} from '../src/common/editor/native-media-proxy-recipe.ts';
 
 test('Soundscaper receives no native video or OFX surface at all', () => {
 	const items = createFramescaperNativeServicesMenuItems(
@@ -134,10 +138,10 @@ test('a capability the user has not opted into leaves its command disabled', () 
 		snapshot: createNativeMediaCapabilitySnapshotV1({
 			masterEnabled: true,
 			entries: [
-				entry('queue', 'persistent-render-queue', true),
-				entry('watch', 'watch-folders', false),
-				entry('codec', 'prores-proxy', false),
-				entry('ofx', 'isolated-host', false),
+				ref('renderQueue', true),
+				ref('watchFolders', false),
+				ref('proxyCodec', false),
+				ref('ofxHost', false),
 			],
 		}),
 	});
@@ -148,6 +152,20 @@ test('a capability the user has not opted into leaves its command disabled', () 
 	assert.equal(item(items, 'framescaper-ofx-add')?.disabled, true);
 	// Detach and relink repair authored state and do not need the codec.
 	assert.equal(item(items, 'framescaper-proxy-detach')?.disabled, false);
+});
+
+test('the proxy commands read the capability row the proxy recipe already names', () => {
+	// A producer keyed to the encode profile reports this row and no other; a
+	// menu spelling it differently would stay disabled with the tier ready.
+	const items = menu({
+		snapshot: createNativeMediaCapabilitySnapshotV1({
+			masterEnabled: true,
+			entries: [entry('codec', NATIVE_MEDIA_PROXY_PROFILE_ID, true)],
+		}),
+	});
+
+	assert.equal(item(items, 'framescaper-proxy-generate')?.disabled, false);
+	assert.equal(item(items, 'framescaper-proxy-attach')?.disabled, false);
 });
 
 test('the external display submenu lists non-primary displays and a None entry', () => {
@@ -224,6 +242,14 @@ function item(
 	return allItems(items).find((entry_) => entry_.id === id);
 }
 
+function ref(
+	key: keyof typeof NATIVE_MEDIA_CAPABILITY_IDS,
+	userEnabled: boolean,
+) {
+	const pinned = NATIVE_MEDIA_CAPABILITY_IDS[key];
+	return entry(pinned.domain, pinned.id, userEnabled);
+}
+
 function entry(domain: NativeMediaCapabilityDomain, id: string, userEnabled: boolean) {
 	return {
 		domain,
@@ -240,10 +266,10 @@ function enabledSnapshot() {
 	return createNativeMediaCapabilitySnapshotV1({
 		masterEnabled: true,
 		entries: [
-			entry('queue', 'persistent-render-queue', true),
-			entry('watch', 'watch-folders', true),
-			entry('codec', 'prores-proxy', true),
-			entry('ofx', 'isolated-host', true),
+			ref('renderQueue', true),
+			ref('watchFolders', true),
+			ref('proxyCodec', true),
+			ref('ofxHost', true),
 		],
 	});
 }

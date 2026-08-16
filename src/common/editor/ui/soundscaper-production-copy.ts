@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	resolveCopyCatalogOverrides,
+} from './copy-catalog-overrides.ts';
+
 export const SOUNDSCAPER_PRODUCTION_COPY = Object.freeze({
 	productionAudio: 'Production audio',
 	productionAudioWorkflows: 'Production audio workflows',
@@ -162,12 +166,5 @@ export type SoundscaperProductionCopy = Readonly<{
 export function resolveSoundscaperProductionCopy(
 	copy: Readonly<Record<string, string | undefined>> = {},
 ): SoundscaperProductionCopy {
-	const output: { -readonly [Key in keyof SoundscaperProductionCopy]: string } = {
-		...SOUNDSCAPER_PRODUCTION_COPY,
-	};
-	for (const key of Object.keys(output) as Array<keyof SoundscaperProductionCopy>) {
-		const candidate = copy[key];
-		if (typeof candidate === 'string' && candidate.length > 0) output[key] = candidate;
-	}
-	return Object.freeze(output);
+	return resolveCopyCatalogOverrides(SOUNDSCAPER_PRODUCTION_COPY, copy);
 }

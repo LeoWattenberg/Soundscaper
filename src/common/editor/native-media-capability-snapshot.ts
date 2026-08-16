@@ -17,6 +17,11 @@
  * rather than testing the state alone.
  */
 
+import {
+	createNativeValidators,
+	NATIVE_SHA256_HEX_PATTERN,
+} from './native-validation.ts';
+
 export const NATIVE_MEDIA_CAPABILITY_SNAPSHOT_VERSION = 1;
 
 export const NATIVE_MEDIA_CAPABILITY_STATES = Object.freeze([
@@ -42,6 +47,31 @@ export const NATIVE_MEDIA_CAPABILITY_DOMAINS = Object.freeze([
 ] as const);
 
 export type NativeMediaCapabilityDomain = (typeof NATIVE_MEDIA_CAPABILITY_DOMAINS)[number];
+
+export interface NativeMediaCapabilityRefV1 {
+	readonly domain: NativeMediaCapabilityDomain;
+	readonly id: string;
+}
+
+/**
+ * The rows the milestone-5B surfaces gate on, named once.
+ *
+ * An id is a contract between whoever reports a capability and whoever consumes
+ * it, and a lookup that misses is indistinguishable from a capability that is
+ * genuinely off — so the two sides read the same constant rather than two
+ * spellings that happen to agree today. The proxy row carries the encode
+ * profile id the proxy recipe already pins, because that is the capability it
+ * describes.
+ */
+export const NATIVE_MEDIA_CAPABILITY_IDS: Readonly<Record<
+	'renderQueue' | 'watchFolders' | 'proxyCodec' | 'ofxHost',
+	NativeMediaCapabilityRefV1
+>> = Object.freeze({
+	renderQueue: Object.freeze({ domain: 'queue', id: 'persistent-render-queue' }),
+	watchFolders: Object.freeze({ domain: 'watch', id: 'watch-folders' }),
+	proxyCodec: Object.freeze({ domain: 'codec', id: 'encode-mov-prores-proxy' }),
+	ofxHost: Object.freeze({ domain: 'ofx', id: 'isolated-host' }),
+});
 
 /** Exactly one reason per state, so a report can never say "off, unspecified". */
 export const NATIVE_MEDIA_CAPABILITY_REASONS = Object.freeze([
@@ -124,7 +154,6 @@ export class NativeMediaCapabilityError extends Error {
 }
 
 const CAPABILITY_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/u;
-const BUILD_FINGERPRINT_PATTERN = /^[a-f0-9]{64}$/u;
 const MAXIMUM_DETAIL_LENGTH = 512;
 const MAXIMUM_ENTRIES = 1_024;
 const ENTRY_KEYS = Object.freeze([
@@ -133,6 +162,13 @@ const ENTRY_KEYS = Object.freeze([
 const SNAPSHOT_KEYS = Object.freeze([
 	'snapshotVersion', 'masterEnabled', 'buildFingerprint', 'entries',
 ]);
+
+const { exactKeys, plainRecord: record } = createNativeValidators({
+	subject: 'A native media capability snapshot',
+	raise: (message: string): never => {
+		throw new NativeMediaCapabilityError(message);
+	},
+});
 
 /**
  * Every observation defaults to its fail-closed value: nothing is cleared,
@@ -310,7 +346,7 @@ function capabilityId(value: unknown): string {
 
 function optionalFingerprint(value: unknown): string | null {
 	if (value === null || value === undefined) return null;
-	if (typeof value !== 'string' || !BUILD_FINGERPRINT_PATTERN.test(value)) {
+	if (typeof value !== 'string' || !NATIVE_SHA256_HEX_PATTERN.test(value)) {
 		throw new NativeMediaCapabilityError('A native media build fingerprint must be a lowercase SHA-256 digest.');
 	}
 	return value;
@@ -322,18 +358,4 @@ function optionalDetail(value: unknown): string | null {
 		throw new NativeMediaCapabilityError('A native media capability detail must be bounded non-empty text.');
 	}
 	return value;
-}
-
-function record(value: unknown, label: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new NativeMediaCapabilityError(`A ${label} must be a plain record.`);
-	}
-	return value as Record<string, unknown>;
-}
-
-function exactKeys(value: Record<string, unknown>, keys: readonly string[], label: string): void {
-	const present = Object.keys(value);
-	if (present.length !== keys.length || present.some((key) => !keys.includes(key))) {
-		throw new NativeMediaCapabilityError(`A ${label} must carry exactly its schema keys.`);
-	}
 }

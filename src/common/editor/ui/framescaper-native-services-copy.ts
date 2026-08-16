@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	resolveCopyCatalogOverrides,
+} from './copy-catalog-overrides.ts';
+
 export const FRAMESCAPER_NATIVE_SERVICES_COPY = Object.freeze({
 	importImageSequence: 'Image sequence…',
 	addToRenderQueue: 'Add to render queue…',
@@ -27,12 +31,5 @@ export type FramescaperNativeServicesCopy = Readonly<{
 export function resolveFramescaperNativeServicesCopy(
 	copy: Readonly<Record<string, string | undefined>> = {},
 ): FramescaperNativeServicesCopy {
-	const output: { -readonly [Key in keyof FramescaperNativeServicesCopy]: string } = {
-		...FRAMESCAPER_NATIVE_SERVICES_COPY,
-	};
-	for (const key of Object.keys(output) as (keyof FramescaperNativeServicesCopy)[]) {
-		const candidate = copy[key];
-		if (typeof candidate === 'string' && candidate.length > 0) output[key] = candidate;
-	}
-	return Object.freeze(output);
+	return resolveCopyCatalogOverrides(FRAMESCAPER_NATIVE_SERVICES_COPY, copy);
 }

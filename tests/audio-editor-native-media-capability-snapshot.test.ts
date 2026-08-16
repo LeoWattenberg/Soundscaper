@@ -11,10 +11,17 @@ import {
 	nativeMediaCapabilityRefusals,
 	NATIVE_MEDIA_CAPABILITY_CLOSED_OBSERVATION,
 	NATIVE_MEDIA_CAPABILITY_DOMAINS,
+	NATIVE_MEDIA_CAPABILITY_IDS,
 	NATIVE_MEDIA_CAPABILITY_STATES,
 	NativeMediaCapabilityError,
 	resolveNativeMediaCapability,
 } from '../src/common/editor/native-media-capability-snapshot.ts';
+import {
+	NATIVE_MEDIA_PROXY_PROFILE_ID,
+} from '../src/common/editor/native-media-proxy-recipe.ts';
+import {
+	nativeMediaProfile,
+} from '../src/common/editor/native-media-professional-profiles.ts';
 
 const FINGERPRINT = 'a1'.repeat(32);
 
@@ -25,6 +32,32 @@ test('the report distinguishes every state the milestone-5B contract names', () 
 	assert.deepEqual([...NATIVE_MEDIA_CAPABILITY_DOMAINS], [
 		'codec', 'operation', 'backend', 'queue', 'watch', 'scratch', 'display', 'ofx',
 	]);
+});
+
+test('the gated capability rows are named once, and the proxy row names its profile', () => {
+	assert.deepEqual(NATIVE_MEDIA_CAPABILITY_IDS, {
+		renderQueue: { domain: 'queue', id: 'persistent-render-queue' },
+		watchFolders: { domain: 'watch', id: 'watch-folders' },
+		proxyCodec: { domain: 'codec', id: 'encode-mov-prores-proxy' },
+		ofxHost: { domain: 'ofx', id: 'isolated-host' },
+	});
+	// A second spelling of the proxy codec would gate the menu on a row no
+	// producer keyed to the encode profile will ever report.
+	assert.equal(NATIVE_MEDIA_CAPABILITY_IDS.proxyCodec.id, NATIVE_MEDIA_PROXY_PROFILE_ID);
+	assert.notEqual(nativeMediaProfile(NATIVE_MEDIA_CAPABILITY_IDS.proxyCodec.id), null);
+
+	const snapshot = createNativeMediaCapabilitySnapshotV1({
+		masterEnabled: true,
+		entries: Object.values(NATIVE_MEDIA_CAPABILITY_IDS)
+			.map((ref) => ready(ref.domain, ref.id, { userEnabled: true })),
+	});
+	for (const ref of Object.values(NATIVE_MEDIA_CAPABILITY_IDS)) {
+		assert.equal(
+			isNativeMediaCapabilityUsable(nativeMediaCapabilityEntry(snapshot, ref.domain, ref.id)),
+			true,
+			ref.id,
+		);
+	}
 });
 
 test('every observation is closed by default, so nothing is capable until proven', () => {
@@ -122,15 +155,16 @@ test('disabling every helper still reports what each capability would have been'
 		masterEnabled: false,
 		buildFingerprint: FINGERPRINT,
 		entries: [
-			ready('codec', 'prores', { userEnabled: true }),
+			ready('codec', NATIVE_MEDIA_CAPABILITY_IDS.proxyCodec.id, { userEnabled: true }),
 			{ domain: 'codec', id: 'hevc', policyCleared: false },
-			ready('queue', 'persistent-render-queue', { quarantined: true }),
+			ready('queue', NATIVE_MEDIA_CAPABILITY_IDS.renderQueue.id, { quarantined: true }),
 		],
 	});
+	const proxyCodec = NATIVE_MEDIA_CAPABILITY_IDS.proxyCodec;
 
 	assert.equal(snapshot.masterEnabled, false);
-	assert.equal(nativeMediaCapabilityEntry(snapshot, 'codec', 'prores')?.state, 'disabled');
-	assert.equal(nativeMediaCapabilityEntry(snapshot, 'codec', 'prores')?.reason, 'master-switch-off');
+	assert.equal(nativeMediaCapabilityEntry(snapshot, 'codec', proxyCodec.id)?.state, 'disabled');
+	assert.equal(nativeMediaCapabilityEntry(snapshot, 'codec', proxyCodec.id)?.reason, 'master-switch-off');
 	assert.equal(nativeMediaCapabilityEntry(snapshot, 'codec', 'hevc')?.state, 'blocked-policy');
 	assert.equal(nativeMediaCapabilityEntry(snapshot, 'queue', 'persistent-render-queue')?.state, 'quarantined');
 	assert.deepEqual(
