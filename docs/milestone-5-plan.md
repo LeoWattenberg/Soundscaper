@@ -446,6 +446,9 @@ applicable 5A-0 proof closes.
 
 ### 5B packets (Framescaper native tier; slice docs at pickup)
 
+The owning pickup contract is
+[`milestone-5b-framescaper-native-tier.md`](milestone-5b-framescaper-native-tier.md).
+
 - **5B-1 — Native media engine helper.** Outcome: multithreaded FFmpeg
   decode/encode and hardware acceleration as per-feature opt-ins with
   mandatory CPU fallback, behind the contract; render-plan parity —
