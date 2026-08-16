@@ -1,0 +1,82 @@
+{
+	"schemaVersion": 1,
+	"addonVersion": "1.0.0",
+	"napiVersion": 8,
+	"payloadName": "soundscaper_helper.node",
+	"license": "AGPL-3.0-only",
+	"description": "The only native code milestone 5A loads. It runs exclusively inside a supervised Electron utility process and depends on nothing beyond Node-API and the C standard library, so one payload per target keeps working across Electron upgrades.",
+	"toolchain": {
+		"language": "c11",
+		"sourceDateEpoch": 1755302400,
+		"includeDirectories": [
+			"/usr/include/node"
+		],
+		"compileFlags": [
+			"-std=c11",
+			"-O2",
+			"-fPIC",
+			"-fvisibility=hidden",
+			"-fno-ident",
+			"-fno-strict-aliasing",
+			"-D_POSIX_C_SOURCE=200809L"
+		],
+		"linkFlags": [
+			"-shared",
+			"-Wl,--build-id=none",
+			"-lm"
+		]
+	},
+	"sourceFiles": [
+		{
+			"path": "addon.c",
+			"byteLength": 13306,
+			"sha256": "12b791945b38f7c0daee4c74e23e534d37b2ee21fd086af2a54f3a8025096654"
+		},
+		{
+			"path": "synthetic_engine.c",
+			"byteLength": 6594,
+			"sha256": "7817b9ad8d212486d9a10e2fe9f6c18dd9889135d097397c34fba7b5a8dc75f1"
+		},
+		{
+			"path": "synthetic_engine.h",
+			"byteLength": 3052,
+			"sha256": "05a49913a384c52c80a36f2196ed923c53e5afb8ea0eb4224818c4405ab50e1f"
+		}
+	],
+	"targets": {
+		"linux-x64": {
+			"status": "built",
+			"blockedBy": null,
+			"toolchainIdentity": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+			"payload": {
+				"name": "soundscaper_helper.node",
+				"byteLength": 21768,
+				"sha256": "10d9c102fcd06c86056c7881b5aab3e64474fcbe2fc59a82e16349425141597a"
+			}
+		},
+		"linux-arm64": {
+			"status": "pending-external",
+			"blockedBy": "No Linux ARM64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
+			"toolchainIdentity": null,
+			"payload": null
+		},
+		"mac-arm64": {
+			"status": "pending-external",
+			"blockedBy": "No macOS ARM64 build host is provisioned; the Apple toolchain and signing identity are the named milestone-5 external blockers.",
+			"toolchainIdentity": null,
+			"payload": null
+		},
+		"win-x64": {
+			"status": "pending-external",
+			"blockedBy": "No Windows x64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
+			"toolchainIdentity": null,
+			"payload": null
+		},
+		"win-arm64": {
+			"status": "pending-external",
+			"blockedBy": "No Windows ARM64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
+			"toolchainIdentity": null,
+			"payload": null
+		}
+	}
+}

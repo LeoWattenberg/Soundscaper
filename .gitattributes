@@ -8,5 +8,9 @@ patches/**/*.patch text eol=lf
 /config/release-severity-policy.json text eol=lf
 /desktop/ffmpeg-corresponding-source.json text eol=lf
 /docs/production-licensing-policy.md text eol=lf
+/native/soundscaper-helper-addon/source-manifest.json text eol=lf
+/native/soundscaper-helper-addon/src/*.c text eol=lf
+/native/soundscaper-helper-addon/src/*.h text eol=lf
+/native/soundscaper-helper-addon/prebuilt/** binary
 /docs/production-threat-model.md text eol=lf
 /r2-cors.json text eol=lf
