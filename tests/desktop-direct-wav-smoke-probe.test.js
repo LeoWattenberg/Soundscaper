@@ -13,6 +13,7 @@ import {
 	DIRECT_WAV_SMOKE_FILE_BYTES,
 	createDirectWavSmokeTargetHarness,
 	decodeDirectWavSmokePlan,
+	directWavRendererSmokeContract,
 	encodeDirectWavSmokePlan,
 	runDirectWavRendererSmoke,
 	validateDirectWavRendererResult,
@@ -70,10 +71,21 @@ test('direct WAV smoke plans are canonical, bounded, token-only base64url JSON',
 	assert.throws(() => decodeDirectWavSmokePlan(nonCanonicalJson), /canonical/iu);
 });
 
-test('serialized renderer grants authored BW64 a five-minute bounded export window', () => {
-	const source = runDirectWavRendererSmoke.toString();
-	assert.match(source, /const bw64ExportTimeout = 300_000;/u);
-	assert.match(source, /'completed BW64 export', bw64ExportTimeout\)/u);
+test('serialized renderer grants authored BW64 a five-minute bounded export window', async () => {
+	// The routine is stringified into the renderer, so it declares its stage
+	// windows as one table and reports them through this contract; the authored
+	// BW64 render is the slowest stage and outlasts the shorter containers.
+	const { stageWindows } = await directWavRendererSmokeContract();
+	assert.equal(stageWindows.completedBw64Export, 5 * 60_000);
+	assert.ok(
+		stageWindows.completedBw64Export > stageWindows.completedExport,
+		'the authored BW64 export window outlasts the WAV, AIFF, and BWF export window',
+	);
+	assert.equal(
+		Math.max(...Object.values(stageWindows)),
+		stageWindows.completedBw64Export,
+		'no stage is granted a longer window than the authored BW64 export',
+	);
 });
 
 test('direct WAV target harness pins argv, creates one exclusive private root, and reports bounded evidence', async () => {

@@ -1,8 +1,25 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export async function runDirectWavRendererSmoke(scope, plan) {
-	const document = scope?.document;
-	const bridge = scope?.scapeDesktop?.v1;
+	const bw64ExportTimeout = 300_000;
+	// The supervising watchdog in main has to outlast every window a stage can
+	// wait out, so the windows are one table rather than call-site literals and
+	// waitFor refuses any window the table does not declare. This function is
+	// stringified into the renderer, so the table and the stage marker key are
+	// declared here; a scopeless call reports both to direct-wav-smoke.js.
+	const stageWindows = Object.freeze({
+		stage: 45_000,
+		fixtureImport: 30_000,
+		bw64FixtureImport: 60_000,
+		completedExport: 150_000,
+		completedBw64Export: bw64ExportTimeout,
+		cancellationHold: 5_000,
+	});
+	const stageKey = '__scapeDirectWavSmokeStage';
+	if (!scope) return Object.freeze({ stageKey, stageWindows });
+	const declaredWindows = new Set(Object.values(stageWindows));
+	const document = scope.document;
+	const bridge = scope.scapeDesktop?.v1;
 	if (!document || !bridge
 		|| typeof bridge.chooseSaveTarget !== 'function'
 		|| typeof bridge.beginWrite !== 'function'
@@ -17,14 +34,11 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		throw new TypeError('Packaged direct WAV plan is invalid');
 	}
 	const delay = (milliseconds) => new Promise((resolve) => scope.setTimeout(resolve, milliseconds));
-	const bw64ExportTimeout = 300_000;
-	const waitFor = async (read, label, timeout = 45_000) => {
+	const waitFor = async (read, label, timeout = stageWindows.stage) => {
+		if (!declaredWindows.has(timeout)) throw new Error(`Packaged direct WAV smoke stage ${label} has no declared window`);
 		// The supervising watchdog in main reads this marker when it fires, so a
 		// timeout names the stage that stalled instead of only the whole smoke.
-		// This function is stringified into the renderer, so the key is a literal
-		// rather than an imported constant; DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY in
-		// direct-wav-smoke.js pins the same value and its test holds them equal.
-		scope.__scapeDirectWavSmokeStage = label;
+		scope[stageKey] = label;
 		const deadline = Date.now() + timeout;
 		while (true) {
 			const value = read();
@@ -154,7 +168,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		await waitFor(() => !document.querySelector('[data-workspace-panel="project-bin"]'), 'project bin close');
 	}
 	const input = await waitFor(() => document.querySelector('[data-import-input]'), 'import input');
-	const importFixture = async (file, label, timeout = 30_000) => {
+	const importFixture = async (file, label, timeout = stageWindows.fixtureImport) => {
 		const initialClips = Number(editor.getAttribute('data-clip-count') || 0);
 		const transfer = new scope.DataTransfer();
 		transfer.items.add(file);
@@ -230,7 +244,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		firstStart.click();
 		await waitFor(() => dialog.querySelector('[data-export-action="cancel"] button'), 'first export start');
 		await waitFor(() => realtimeCount === 1, 'first realtime render');
-		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed export', 150_000);
+		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed export', stageWindows.completedExport);
 		const completedStatus = document.querySelector('[data-status]');
 		if (completedStatus?.getAttribute('data-state') !== 'success') {
 			const detail = String(completedStatus?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
@@ -242,7 +256,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		secondStart.click();
 		await waitFor(() => dialog.querySelector('[data-export-action="cancel"] button'), 'second export start');
 		await waitFor(() => realtimeCount === 2, 'second realtime render');
-		await delay(5_000);
+		await delay(stageWindows.cancellationHold);
 		const cancel = dialog.querySelector('[data-export-action="cancel"] button');
 		if (!cancel) throw new Error('Packaged direct WAV second export completed before cancellation');
 		cancel.click();
@@ -261,7 +275,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		aiffStart.click();
 		await waitFor(() => dialog.querySelector('[data-export-action="cancel"] button'), 'AIFF export start');
 		await waitFor(() => realtimeCount === 3, 'AIFF realtime render');
-		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed AIFF export', 150_000);
+		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed AIFF export', stageWindows.completedExport);
 		const aiffStatus = document.querySelector('[data-status]');
 		if (aiffStatus?.getAttribute('data-state') !== 'success') {
 			const detail = String(aiffStatus?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
@@ -316,7 +330,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		bwfStart.click();
 		await waitFor(() => dialog.querySelector('[data-export-action="cancel"] button'), 'BWF export start');
 		await waitFor(() => realtimeCount === 4, 'BWF realtime render');
-		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed BWF export', 150_000);
+		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed BWF export', stageWindows.completedExport);
 		const bwfStatus = document.querySelector('[data-status]');
 		if (bwfStatus?.getAttribute('data-state') !== 'success') {
 			const detail = String(bwfStatus?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
@@ -340,7 +354,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			frameCount: 2_112_000,
 			identicalChannels: true,
 			name: `direct-bw64-smoke-${plan.token}.wav`,
-		}), 'BW64 fixture', 60_000);
+		}), 'BW64 fixture', stageWindows.bw64FixtureImport);
 
 		exportButton.click();
 		dialog = await waitFor(() => document.querySelector('[data-export-dialog]'), 'BW64 export dialog');

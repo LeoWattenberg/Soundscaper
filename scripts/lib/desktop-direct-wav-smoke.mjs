@@ -6,6 +6,7 @@ import { access, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
+import { DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS } from '../../desktop/direct-wav-smoke.js';
 import {
 	packagedExecutableCandidates,
 	resolveSmokeArchitecture,
@@ -59,10 +60,14 @@ export {
 	verifyDesktopDirectWavFile,
 };
 
-// Must outlast the packaged application's own watchdog
-// (DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS) so a stalled run is reported by the
-// application, which names the stalled stage, rather than killed here first.
-export const DESKTOP_DIRECT_WAV_CHILD_TIMEOUT_MS = 22 * 60 * 1000;
+// Must outlast the packaged application's own watchdog so a stalled run is
+// reported by the application, which names the stalled stage, rather than
+// killed here first. That watchdog is the budget held above the renderer's
+// stage-window table, so deriving this bound from it means no stage window can
+// grow past what the driver covers.
+export const DESKTOP_DIRECT_WAV_CHILD_MARGIN_MS = 2 * 60 * 1000;
+export const DESKTOP_DIRECT_WAV_CHILD_TIMEOUT_MS
+	= DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS + DESKTOP_DIRECT_WAV_CHILD_MARGIN_MS;
 export const MAX_DESKTOP_DIRECT_WAV_PLAN_BYTES = 4 * 1024;
 
 const MIB = 1024 * 1024;
