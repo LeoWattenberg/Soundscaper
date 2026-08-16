@@ -3,6 +3,7 @@
 import { chmod, mkdir } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 
+import { admitLowerOnly } from '../src/common/editor/lower-only-seam.ts';
 import {
 	SoundscaperDesktopProjectLibraryV10Catalog,
 	type SoundscaperDesktopProjectLibraryV10Lease,
@@ -305,10 +306,14 @@ function validateQualification(
  * would let the matrix report a fence the shipped product does not enforce.
  */
 function lowerOnlyMilliseconds(value: unknown, ceiling: number, name: string): number {
-	if (!Number.isSafeInteger(value) || (value as number) < 1 || (value as number) > ceiling) {
-		throw new RangeError(`Soundscaper V10 qualification ${name} must be an integer from 1 through ${ceiling} milliseconds`);
-	}
-	return value as number;
+	return admitLowerOnly(value, {
+		ceiling,
+		floor: 1,
+		absent: 'refuse',
+		refuse: () => new RangeError(
+			`Soundscaper V10 qualification ${name} must be an integer from 1 through ${ceiling} milliseconds`,
+		),
+	});
 }
 
 async function createPrivateLibrary(

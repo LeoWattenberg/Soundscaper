@@ -2,6 +2,7 @@
 
 import { statfs } from 'node:fs/promises';
 
+import { admitLowerOnly } from '../src/common/editor/lower-only-seam.ts';
 import {
 	MAX_LIBRARY_MEDIA,
 	MAX_LIBRARY_METADATA_BYTES,
@@ -170,11 +171,14 @@ export class DesktopLibraryMediaCapacity {
 }
 
 function lowerOnlyLimit(value: unknown, hardMaximum: number, label: string): number {
-	const limit = value === undefined ? hardMaximum : value;
-	if (!Number.isSafeInteger(limit) || Number(limit) < 0 || Number(limit) > hardMaximum) {
-		throw new RangeError(`Desktop library ${label} must be a lower-only safe integer no greater than ${hardMaximum}`);
-	}
-	return Number(limit);
+	return admitLowerOnly(value, {
+		ceiling: hardMaximum,
+		floor: 0,
+		absent: 'ceiling',
+		refuse: () => new RangeError(
+			`Desktop library ${label} must be a lower-only safe integer no greater than ${hardMaximum}`,
+		),
+	});
 }
 
 export function availableStorageBytes(details: unknown): bigint {

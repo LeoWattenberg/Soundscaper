@@ -10,6 +10,7 @@
  * the renderer bridge.
  */
 
+import { admitLowerOnly } from '../src/common/editor/lower-only-seam.ts';
 import {
 	VIDEO_TIMING_ASSET_HEADER_BYTES,
 	VIDEO_TIMING_ASSET_MAXIMUM_BYTES,
@@ -444,11 +445,14 @@ function exactOptionalWireKeys(
 }
 
 function lowerOnlyLimit(value: unknown, hardMaximum: number, label: string): number {
-	if (value === undefined) return hardMaximum;
-	if (!Number.isSafeInteger(value) || (value as number) < 1 || (value as number) > hardMaximum) {
-		throw new RangeError(`Helper ${label} must be a lower-only safe integer no greater than ${hardMaximum}.`);
-	}
-	return value as number;
+	return admitLowerOnly(value, {
+		ceiling: hardMaximum,
+		floor: 1,
+		absent: 'ceiling',
+		refuse: () => new RangeError(
+			`Helper ${label} must be a lower-only safe integer no greater than ${hardMaximum}.`,
+		),
+	});
 }
 
 function denyOnly(value: unknown, label: string): false {

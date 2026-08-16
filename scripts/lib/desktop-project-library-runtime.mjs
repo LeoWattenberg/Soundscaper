@@ -111,6 +111,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/frame-canonical-edge-trim-domain.js',
 	'src/common/editor/indexed-tempo-projector.js',
 	'src/common/editor/ixml.js',
+	'src/common/editor/lower-only-seam.js',
 	'src/common/editor/musical-map-contract.js',
 	'src/common/editor/persisted-audio-effect-validation.js',
 	'src/common/editor/project-bext-metadata.js',

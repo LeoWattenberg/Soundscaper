@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { admitLowerOnly } from './lower-only-seam.ts';
 import {
 	PROJECT_FEATURE_AUDIO_EFFECT_TYPES,
 	PROJECT_FEATURE_CAPABILITY_IDS,
@@ -421,12 +422,14 @@ function boundedString(value: unknown, maximumLength: number): string | null {
 }
 
 function lowerOnlyLimit(value: unknown, production: number, name: string): number {
-	if (value === undefined) return production;
-	if (!Number.isSafeInteger(value) || Number(value) < 0) {
-		throw new RangeError(`${name} must be a non-negative safe integer.`);
-	}
-	if (Number(value) > production) throw new RangeError(`${name} cannot raise the production limit.`);
-	return Number(value);
+	return admitLowerOnly(value, {
+		ceiling: production,
+		floor: 0,
+		absent: 'ceiling',
+		refuse: (refusal) => new RangeError(refusal === 'ceiling'
+			? `${name} cannot raise the production limit.`
+			: `${name} must be a non-negative safe integer.`),
+	});
 }
 
 function isRecord(value: unknown): value is RecordValue {

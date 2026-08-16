@@ -107,6 +107,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/frame-canonical-edge-trim-domain.js',
 		'src/common/editor/indexed-tempo-projector.js',
 		'src/common/editor/ixml.js',
+		'src/common/editor/lower-only-seam.js',
 		'src/common/editor/musical-map-contract.js',
 		'src/common/editor/persisted-audio-effect-validation.js',
 		'src/common/editor/project-bext-metadata.js',
