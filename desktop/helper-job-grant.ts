@@ -37,8 +37,15 @@ export const HELPER_AUDIO_BACKENDS = Object.freeze([
 ] as const);
 export type HelperAudioBackend = (typeof HELPER_AUDIO_BACKENDS)[number];
 
+/**
+ * `fixture` is the benign proof format milestone 5A-3 asks for. It is a real
+ * format on the wire so the scanner, registry, host and fault suites exercise
+ * exactly the admission a licensed format will, but it names only our own
+ * fixture binaries: every third-party format below stays fail-closed behind its
+ * licensing row, and the format waits rather than the gate bending.
+ */
 export const HELPER_PLUGIN_FORMATS = Object.freeze([
-	'vst3', 'clap', 'au', 'lv2',
+	'vst3', 'clap', 'au', 'lv2', 'fixture',
 ] as const);
 export type HelperPluginFormat = (typeof HELPER_PLUGIN_FORMATS)[number];
 

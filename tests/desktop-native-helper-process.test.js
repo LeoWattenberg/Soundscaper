@@ -93,7 +93,7 @@ test('the helper announces exactly the kinds it implements', () => {
 	const { types, posted } = createWorker(() => manualJob().handle);
 	assert.deepEqual(types(), ['hello']);
 	assert.deepEqual(posted[0].kinds, [...NATIVE_HELPER_JOB_KINDS]);
-	assert.deepEqual([...NATIVE_HELPER_JOB_KINDS], ['audio-device']);
+	assert.deepEqual([...NATIVE_HELPER_JOB_KINDS], ['audio-device', 'plugin-scan']);
 });
 
 test('an unannounced kind is refused without taking the helper down', () => {

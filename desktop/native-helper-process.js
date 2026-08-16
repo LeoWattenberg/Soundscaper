@@ -13,6 +13,7 @@
  * re-checks the bytes itself, and refuses to load anything else.
  */
 
+import { createNativePluginScanJobRunner } from './native-helper-scan-job.js';
 import {
 	HELPER_CONTRACT_VERSION,
 	HELPER_HEARTBEAT_INTERVAL_MS,
@@ -22,7 +23,7 @@ import {
 } from '#desktop-runtime/helper-contract';
 
 /** The kinds this helper implements today; unannounced kinds are refused. */
-export const NATIVE_HELPER_JOB_KINDS = Object.freeze(['audio-device']);
+export const NATIVE_HELPER_JOB_KINDS = Object.freeze(['audio-device', 'plugin-scan']);
 
 /** The loopback device the synthetic backend exposes for the transport proof. */
 export const SYNTHETIC_LOOPBACK_DEVICE_HANDLE = 'synthetic:loopback';
@@ -51,6 +52,7 @@ export const SYNTHETIC_ENGINE_FAULTS = Object.freeze({
 export function createNativeHelperWorker({
 	post,
 	runDeviceJob,
+	runScanJob = null,
 	heartbeatIntervalMs = HELPER_HEARTBEAT_INTERVAL_MS,
 	setIntervalImpl = setInterval,
 	clearIntervalImpl = clearInterval,
@@ -110,14 +112,15 @@ export function createNativeHelperWorker({
 			dispose(1);
 			return;
 		}
-		if (!NATIVE_HELPER_JOB_KINDS.includes(message.kind)) {
+		const runner = message.kind === 'plugin-scan' ? runScanJob : runDeviceJob;
+		if (!NATIVE_HELPER_JOB_KINDS.includes(message.kind) || typeof runner !== 'function') {
 			sendError(message.jobId, new RangeError(`This helper does not implement ${message.kind} jobs.`));
 			return;
 		}
-		startJob(message);
+		startJob(message, runner);
 	}
 
-	function startJob(message) {
+	function startJob(message, runner) {
 		// The job record is published before the runner starts, because a runner
 		// that reports progress synchronously would otherwise emit against a job
 		// the worker does not yet own — and that progress would be dropped.
@@ -125,7 +128,7 @@ export function createNativeHelperWorker({
 		activeJob = job;
 		let handle;
 		try {
-			handle = runDeviceJob({
+			handle = runner({
 				grant: message.grant,
 				resourcePolicy: message.resourcePolicy,
 				onProgress: (value) => {
@@ -336,13 +339,17 @@ if (parentPort && typeof parentPort.on === 'function') {
 	const argument = process.argv.find((value) => value.startsWith('--helper-addon-config='));
 	const config = JSON.parse(argument ? argument.slice('--helper-addon-config='.length) : '{}');
 	const { createHash } = await import('node:crypto');
+	const { readFile } = await import('node:fs/promises');
+	const addonSeams = { addonPath: config.addonPath, addonSha256: config.addonSha256, loadAddon: loadVerifiedNativeAddon };
 	const worker = createNativeHelperWorker({
 		post: (message) => parentPort.postMessage(message),
-		runDeviceJob: createNativeDeviceJobRunner({
-			addonPath: config.addonPath,
-			addonSha256: config.addonSha256,
-			loadAddon: loadVerifiedNativeAddon,
-			hash: () => createHash('sha256'),
+		runDeviceJob: createNativeDeviceJobRunner({ ...addonSeams, hash: () => createHash('sha256') }),
+		runScanJob: createNativePluginScanJobRunner({
+			...addonSeams,
+			hashFile: async (path) => {
+				const bytes = await readFile(path);
+				return { byteLength: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') };
+			},
 		}),
 		exit: (code) => process.exit(code),
 	});
