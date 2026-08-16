@@ -162,7 +162,31 @@ export function validateDesktopRuntimeManifests(manifests, runtimeRelease) {
 		const identity = /^runtime-manifest-soundscaper-(linux|mac|win)-(arm64|x64)\.json$/u.exec(manifest.name);
 		assert(manifest.value.productId === 'soundscaper' && manifest.value.target?.platform === identity?.[1]
 			&& manifest.value.target?.arch === identity?.[2], `${manifest.name} has invalid product or target identity.`);
+		validateDesktopNativeAddonSummary(manifest, `${identity?.[1]}-${identity?.[2]}`);
 	}
+}
+
+/**
+ * Unlike the FFmpeg runtime, the native payload summary is deliberately
+ * different per target, so it is checked against the target the filename
+ * declares rather than folded into the identical-across-targets comparison. A
+ * release-shaped build must also have declared its target: a summary that fell
+ * back to the build host is a local build and is never release evidence.
+ */
+export function validateDesktopNativeAddonSummary(manifest, targetId) {
+	const summary = manifest.value.nativeAddons;
+	assert(summary && typeof summary === 'object',
+		`${manifest.name} does not record a staged native addon payload summary.`);
+	assert(summary.target === targetId,
+		`${manifest.name} records the native addon payload for ${String(summary.target)} rather than ${targetId}.`);
+	assert(summary.targetSource === 'declared',
+		`${manifest.name} records a build-host native addon target; release evidence requires a declared target.`);
+	assert(summary.status === 'built' || summary.status === 'pending-external',
+		`${manifest.name} records an unsupported native addon payload status.`);
+	assert(summary.status === 'built'
+		? summary.payload !== null && summary.blockedBy === null
+		: summary.payload === null && typeof summary.blockedBy === 'string' && summary.blockedBy.trim().length >= 8,
+	`${manifest.name} records a native addon payload status that disagrees with its payload.`);
 }
 
 async function fetchVerified(url, output, descriptor, label) {

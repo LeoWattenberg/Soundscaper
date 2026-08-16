@@ -92,6 +92,32 @@ export function deriveNativeAddonPayloadManifest(sourceManifest) {
 	};
 }
 
+/**
+ * Resolves which target a staging run is packaging for. A declared target — the
+ * one CI stamps into the environment — always wins. Falling back to the build
+ * host is only ever right for a local build of the machine you are sitting at,
+ * so the fallback is recorded as such and release assembly refuses it.
+ */
+export function resolveNativeAddonPayloadTarget({
+	platform = null,
+	arch = null,
+	hostPlatform = process.platform,
+	hostArch = process.arch,
+} = {}) {
+	const declaredPlatform = typeof platform === 'string' ? platform.trim() : '';
+	const declaredArch = typeof arch === 'string' ? arch.trim() : '';
+	if (declaredPlatform && declaredArch) {
+		const declared = NATIVE_HELPER_ADDON_TARGETS.find(({ id }) => id === `${declaredPlatform}-${declaredArch}`);
+		assert(declared, `The declared desktop target ${declaredPlatform}-${declaredArch} is not a claimed milestone-5A target.`);
+		return Object.freeze({ id: declared.id, source: 'declared' });
+	}
+	assert(!declaredPlatform && !declaredArch,
+		'A desktop target must declare both its platform and its architecture, or neither.');
+	const host = nativeHelperAddonTargetForRuntime(hostPlatform, hostArch);
+	assert(host, `The build host ${hostPlatform}-${hostArch} is not a claimed milestone-5A target.`);
+	return Object.freeze({ id: host.id, source: 'build-host' });
+}
+
 export function serializeNativeAddonPayloadManifest(manifest) {
 	return `${JSON.stringify(manifest, null, '\t')}\n`;
 }
@@ -109,9 +135,10 @@ export async function repinNativeAddonPayloadManifest({ repositoryRoot }) {
  * required: silently defaulting to the build host's architecture is exactly how
  * a wrong-arch package gets produced.
  */
-export async function verifyNativeAddonPayloadManifest({ repositoryRoot, target }) {
+export async function verifyNativeAddonPayloadManifest({ repositoryRoot, target, targetSource = 'declared' }) {
 	assert(typeof repositoryRoot === 'string' && repositoryRoot, 'repositoryRoot is required');
 	assert(typeof target === 'string' && target, 'A native addon payload target is required and never inferred.');
+	assert(targetSource === 'declared' || targetSource === 'build-host', 'An unsupported native addon target source was given.');
 	const root = resolve(repositoryRoot);
 	const manifestBytes = await readRegularFile(root, NATIVE_ADDON_PAYLOAD_MANIFEST_PATH, 'native addon payload manifest');
 	const manifest = parseJson(manifestBytes, 'native addon payload manifest');
@@ -135,6 +162,7 @@ export async function verifyNativeAddonPayloadManifest({ repositoryRoot, target 
 		manifestBytes,
 		manifestSha256: sha256(manifestBytes),
 		target: selected,
+		targetSource,
 		payload,
 	});
 	VERIFIED_RELEASES.add(release);
@@ -150,6 +178,7 @@ export function nativeAddonPayloadStageSummary(release) {
 		license: release.manifest.addon.license,
 		payloadManifest: { id: release.manifest.id, sha256: release.manifestSha256 },
 		target: release.target.id,
+		targetSource: release.targetSource,
 		status: release.target.status,
 		blockedBy: release.target.blockedBy,
 		payload: release.payload === null

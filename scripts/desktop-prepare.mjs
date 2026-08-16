@@ -25,6 +25,11 @@ import {
 	stageVerifiedFfmpegRuntime,
 	verifyFfmpegRuntimeManifest,
 } from './lib/ffmpeg-runtime-manifest.mjs';
+import {
+	resolveNativeAddonPayloadTarget,
+	stageVerifiedNativeAddonPayload,
+	verifyNativeAddonPayloadManifest,
+} from './lib/native-addon-payload-manifest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD_ROOT = resolve(ROOT, '.desktop-build');
@@ -36,12 +41,15 @@ const DESKTOP_NOTICE_PATH = resolve(BUILD_ROOT, 'licenses/THIRD_PARTY_LICENSES.m
 const TRANSLATION_ROOT = resolve(RUNTIME_ROOT, 'translations/audacity/4');
 const DEFAULT_TRANSLATIONS_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 // The assistance service validates its catalog against the licensing register
-// at runtime, and the probe helper verifies its engine payload against the
-// runtime manifest's digest pins, so all three ship inside the application
-// archive rather than only the catalog.
+// at runtime, the probe helper verifies its engine payload against the runtime
+// manifest's digest pins, and the native helper re-verifies its addon payload
+// against the native payload manifest, so all four ship inside the application
+// archive rather than only the catalog. The addon itself stays outside the
+// asar; only its pins live inside it.
 const ASSISTANCE_REGISTERS = Object.freeze([
 	'config/ffmpeg-runtime-manifest.json',
 	'config/local-model-catalog.json',
+	'config/native-addon-payload-manifest.json',
 	'config/production-licensing-matrix.json',
 ]);
 const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
@@ -53,6 +61,18 @@ async function main() {
 	assert(projectPackage.name === 'soundscaper', 'Run desktop preparation from the Soundscaper checkout.');
 	await assertFile(resolve(ROOT, 'desktop/main.mjs'), 'desktop/main.mjs');
 	await assertFile(resolve(ROOT, 'desktop/preload.mjs'), 'desktop/preload.mjs');
+	// Resolving and verifying the native payload before the build tree is
+	// destroyed keeps a bad native manifest from costing the previous build,
+	// exactly as the FFmpeg admission wrapper does.
+	const nativeTarget = resolveNativeAddonPayloadTarget({
+		platform: process.env.SOUNDSCAPER_DESKTOP_TARGET_PLATFORM ?? null,
+		arch: process.env.SOUNDSCAPER_DESKTOP_TARGET_ARCH ?? null,
+	});
+	const nativeAddonRelease = await verifyNativeAddonPayloadManifest({
+		repositoryRoot: ROOT,
+		target: nativeTarget.id,
+		targetSource: nativeTarget.source,
+	});
 	await admitDesktopFfmpegAssembly({
 		repositoryRoot: ROOT,
 		assemble: async (ffmpegRelease) => {
@@ -63,6 +83,7 @@ async function main() {
 				outputRoot: DESKTOP_RUNTIME_ROOT,
 			});
 			const ffmpeg = await stageFfmpeg(ffmpegRelease);
+			const nativeAddons = await stageNativeAddons(nativeAddonRelease);
 			const translations = await stageTranslations();
 			await generateDesktopIcon({
 				...(PRODUCT_ID === 'framescaper' ? { sourcePath: resolve(ROOT, 'public/logo/framescaper-icon.svg') } : {}),
@@ -80,6 +101,7 @@ async function main() {
 				},
 				desktopRuntime,
 				ffmpeg,
+				nativeAddons,
 				translations,
 			};
 			await writeJson(resolve(BUILD_ROOT, 'stage-manifest.json'), stageManifest);
@@ -102,6 +124,18 @@ async function stageFfmpeg(release) {
 	const summary = await stageVerifiedFfmpegRuntime({ release, outputRoot });
 	await stageVerifiedFfmpegNotice({ release, outputPath: DESKTOP_NOTICE_PATH });
 	return summary;
+}
+
+/**
+ * Native payloads stage under the runtime root, which already ships as an
+ * extraResource, so the addon lands outside the asar with no `asarUnpack` entry
+ * and no runtime rebuild — the two things the packaging decision forbids.
+ */
+async function stageNativeAddons(release) {
+	return stageVerifiedNativeAddonPayload({
+		release,
+		outputRoot: resolve(RUNTIME_ROOT, `native/${release.target.id}`),
+	});
 }
 
 async function stageTranslations() {

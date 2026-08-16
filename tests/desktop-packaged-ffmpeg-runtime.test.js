@@ -10,6 +10,10 @@ import {
 	stageVerifiedFfmpegRuntime,
 	verifyFfmpegRuntimeManifest,
 } from '../scripts/lib/ffmpeg-runtime-manifest.mjs';
+import {
+	stageVerifiedNativeAddonPayload,
+	verifyNativeAddonPayloadManifest,
+} from '../scripts/lib/native-addon-payload-manifest.mjs';
 
 test('afterPack verifies copied FFmpeg resources before fuse work', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-ffmpeg-'));
@@ -24,6 +28,11 @@ test('afterPack verifies copied FFmpeg resources before fuse work', async (conte
 	await stageVerifiedFfmpegRuntime({ release, outputRoot: runtimeRoot });
 	await mkdir(join(resources, 'licenses'), { recursive: true });
 	await stageVerifiedFfmpegNotice({ release, outputPath: noticePath });
+	const nativeRelease = await verifyNativeAddonPayloadManifest({ repositoryRoot: process.cwd(), target: 'linux-x64' });
+	await stageVerifiedNativeAddonPayload({
+		release: nativeRelease,
+		outputRoot: join(resources, 'runtime/native/linux-x64'),
+	});
 
 	const fuseCalls = [];
 	const invoke = () => hardenPackagedElectron(packagingContext(root, resources), {

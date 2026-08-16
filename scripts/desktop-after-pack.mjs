@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -9,6 +10,10 @@ import {
 	verifyFfmpegRuntimeManifest,
 	verifyStagedFfmpegRuntime,
 } from './lib/ffmpeg-runtime-manifest.mjs';
+import {
+	verifyNativeAddonPayloadManifest,
+	verifyStagedNativeAddonPayload,
+} from './lib/native-addon-payload-manifest.mjs';
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -18,6 +23,7 @@ const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  */
 export default async function hardenPackagedElectron(context, dependencies = {}) {
 	await verifyPackagedFfmpegResources(context, dependencies);
+	await verifyPackagedNativeAddonResources(context, dependencies);
 	const extension = {
 		darwin: '.app',
 		mas: '.app',
@@ -61,6 +67,38 @@ export async function verifyPackagedFfmpegResources(context, dependencies = {}) 
 			release,
 			outputRoot: resolve(resourcesRoot, `runtime/ffmpeg/${release.manifest.package.version}`),
 			noticePath: resolve(resourcesRoot, 'licenses/THIRD_PARTY_LICENSES.md'),
+		});
+	} catch (error) {
+		throw packagedResourceError(error);
+	}
+}
+
+/**
+ * The packed native payload is verified before any fuse is flipped, against the
+ * target the staging run recorded rather than against the host, so a resource
+ * tree that lost or gained a byte can never reach a signed package.
+ */
+export async function verifyPackagedNativeAddonResources(context, dependencies = {}) {
+	const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
+	const resourcesRoot = context?.packager?.getResourcesDir?.(context.appOutDir);
+	if (typeof resourcesRoot !== 'string' || resourcesRoot.length === 0) {
+		throw new TypeError('Electron packaged resources directory is unavailable.');
+	}
+	// The packaged tree names its own target, so this check needs nothing from
+	// the build directory and cannot be satisfied by a stale stage manifest.
+	// Exactly one target may be packaged: zero means the payload never shipped,
+	// and more than one means the package carries another architecture's bytes.
+	const nativeRoot = resolve(resourcesRoot, 'runtime/native');
+	const entries = await readdir(nativeRoot, { withFileTypes: true }).catch(() => []);
+	const targets = entries.filter((entry) => entry.isDirectory()).map(({ name }) => name);
+	if (targets.length !== 1) {
+		throw new Error(`Packaged native addon payload must carry exactly one target; found ${targets.join(', ') || '<none>'}.`);
+	}
+	const release = await verifyNativeAddonPayloadManifest({ repositoryRoot, target: targets[0] });
+	try {
+		return await verifyStagedNativeAddonPayload({
+			release,
+			outputRoot: resolve(nativeRoot, release.target.id),
 		});
 	} catch (error) {
 		throw packagedResourceError(error);

@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import {
 	access,
+	cp,
 	mkdir,
 	mkdtemp,
 	readFile,
@@ -24,6 +25,12 @@ import {
 	verifyFfmpegRuntimeManifest,
 } from '../scripts/lib/ffmpeg-runtime-manifest.mjs';
 import { publishFfmpegRuntime } from '../scripts/lib/ffmpeg-runtime-publisher.mjs';
+import {
+	NATIVE_ADDON_PAYLOAD_MANIFEST_PATH,
+	nativeAddonPayloadStageSummary,
+	stageVerifiedNativeAddonPayload,
+	verifyNativeAddonPayloadManifest,
+} from '../scripts/lib/native-addon-payload-manifest.mjs';
 import verifyDesktopRuntimeBeforePack from '../scripts/desktop-before-pack.mjs';
 import { admitDesktopFfmpegAssembly } from '../scripts/desktop-prepare.mjs';
 import { validateDesktopRuntimeManifests } from '../scripts/desktop-release-assets.mjs';
@@ -115,9 +122,23 @@ test('desktop packaging revalidates staged bytes and the retained policy summary
 	const noticePath = join(fixture.root, '.desktop-build/licenses/THIRD_PARTY_LICENSES.md');
 	const summary = await stageVerifiedFfmpegRuntime({ release, outputRoot });
 	await stageVerifiedFfmpegNotice({ release, outputPath: noticePath });
+	const nativeRelease = await verifyNativeAddonPayloadManifest({ repositoryRoot: fixture.root, target: 'linux-x64' });
+	const nativeAddons = await stageVerifiedNativeAddonPayload({
+		release: nativeRelease,
+		outputRoot: join(fixture.root, '.desktop-build/runtime/native/linux-x64'),
+	});
 	const stageManifestPath = join(fixture.root, '.desktop-build/stage-manifest.json');
-	await writeJson(stageManifestPath, { schemaVersion: 1, ffmpeg: summary });
+	await writeJson(stageManifestPath, { schemaVersion: 1, ffmpeg: summary, nativeAddons });
 	await assert.doesNotReject(verifyDesktopRuntimeBeforePack({ packager: { projectDir: fixture.root } }));
+
+	const nativePayloadPath = join(fixture.root, '.desktop-build/runtime/native/linux-x64/soundscaper_helper.node');
+	const nativePayload = await readFile(nativePayloadPath);
+	await writeFile(nativePayloadPath, Buffer.from('post-prepare native tamper'));
+	await assert.rejects(
+		verifyDesktopRuntimeBeforePack({ packager: { projectDir: fixture.root } }),
+		/staged native addon payload linux-x64.*(?:byte length|digest)/iu,
+	);
+	await writeFile(nativePayloadPath, nativePayload);
 
 	await writeFile(join(outputRoot, 'ffmpeg-core.wasm'), Buffer.from('post-prepare tamper'));
 	await assert.rejects(
@@ -132,7 +153,7 @@ test('desktop packaging revalidates staged bytes and the retained policy summary
 		verifyDesktopRuntimeBeforePack({ packager: { projectDir: fixture.root } }),
 		/stage manifest.*verified FFmpeg runtime summary/iu,
 	);
-	await writeJson(stageManifestPath, { schemaVersion: 1, ffmpeg: summary });
+	await writeJson(stageManifestPath, { schemaVersion: 1, ffmpeg: summary, nativeAddons });
 	await writeFile(join(outputRoot, 'manifest.json'), Buffer.from('post-prepare manifest tamper'));
 	await assert.rejects(
 		verifyDesktopRuntimeBeforePack({ packager: { projectDir: fixture.root } }),
@@ -215,11 +236,13 @@ test('desktop release assembly rejects identically corrupted platform manifests'
 		release,
 		outputRoot: join(fixture.root, 'release-fixture-runtime'),
 	});
+	const nativeRelease = await verifyNativeAddonPayloadManifest({ repositoryRoot: fixture.root, target: 'linux-x64' });
+	const nativeAddons = nativeAddonPayloadStageSummary(nativeRelease);
 	const corrupted = structuredClone(summary);
 	corrupted.files['ffmpeg-core.wasm'].sha256 = '0'.repeat(64);
 	const manifests = Array.from({ length: 6 }, (_, index) => ({
 		name: `runtime-manifest-${index}.json`,
-		value: { ffmpeg: structuredClone(corrupted) },
+		value: { ffmpeg: structuredClone(corrupted), nativeAddons: structuredClone(nativeAddons) },
 	}));
 	assert.throws(
 		() => validateDesktopRuntimeManifests(manifests, release),
@@ -227,8 +250,28 @@ test('desktop release assembly rejects identically corrupted platform manifests'
 	);
 	assert.throws(() => validateDesktopRuntimeManifests([{
 		name: 'runtime-manifest-soundscaper-linux-x64.json',
-		value: { ffmpeg: summary, productId: 'framescaper', target: { platform: 'linux', arch: 'x64' } },
+		value: { ffmpeg: summary, nativeAddons, productId: 'framescaper', target: { platform: 'linux', arch: 'x64' } },
 	}], release), /invalid product or target identity/iu);
+
+	const identified = (value) => [{
+		name: 'runtime-manifest-soundscaper-linux-x64.json',
+		value: { ffmpeg: summary, productId: 'soundscaper', target: { platform: 'linux', arch: 'x64' }, ...value },
+	}];
+	assert.doesNotThrow(() => validateDesktopRuntimeManifests(identified({ nativeAddons }), release));
+	assert.throws(() => validateDesktopRuntimeManifests(identified({}), release),
+		/does not record a staged native addon payload summary/iu);
+	assert.throws(
+		() => validateDesktopRuntimeManifests(identified({ nativeAddons: { ...nativeAddons, target: 'win-x64' } }), release),
+		/records the native addon payload for win-x64 rather than linux-x64/iu,
+	);
+	assert.throws(
+		() => validateDesktopRuntimeManifests(identified({ nativeAddons: { ...nativeAddons, targetSource: 'build-host' } }), release),
+		/build-host native addon target; release evidence requires a declared target/iu,
+	);
+	assert.throws(
+		() => validateDesktopRuntimeManifests(identified({ nativeAddons: { ...nativeAddons, payload: null } }), release),
+		/status that disagrees with its payload/iu,
+	);
 });
 
 test('incomplete runtime evidence fails both gates before side effects', async (context) => {
@@ -427,6 +470,12 @@ async function assertNoSideEffects(fixture, expectedError) {
 async function createFixture(context) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-ffmpeg-runtime-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
+	// The beforePack hook verifies the whole staged tree, so the synthetic
+	// repository carries the real native payload provenance alongside the
+	// synthetic FFmpeg runtime.
+	await mkdir(join(root, 'config'), { recursive: true });
+	await cp(join(ROOT, NATIVE_ADDON_PAYLOAD_MANIFEST_PATH), join(root, NATIVE_ADDON_PAYLOAD_MANIFEST_PATH));
+	await cp(join(ROOT, 'native/soundscaper-helper-addon'), join(root, 'native/soundscaper-helper-addon'), { recursive: true });
 	const javascript = Buffer.from('fixture ffmpeg JavaScript');
 	const wasm = Buffer.from('fixture ffmpeg WebAssembly');
 	const cors = Buffer.from(JSON.stringify({
