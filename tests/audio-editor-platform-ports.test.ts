@@ -149,6 +149,7 @@ test('runtime policy exposes only the enacted port families and keeps deferred c
 	assert.deepEqual(PLATFORM_PORT_CONTRACT.activeFamilies, [
 		'audio-device',
 		'audio-effect-host',
+		'external-display',
 		'media-decode',
 		'media-encode',
 		'media-probe',
@@ -173,6 +174,7 @@ test('port contracts remain direct owner imports without a platform barrel', () 
 		'audio-device': 'src/common/editor/platform/audio-device-port.ts',
 		'audio-effect-host': 'src/common/editor/platform/audio-effect-host-port.ts',
 		'bounded-transfer': 'src/common/editor/platform/bounded-transfer.ts',
+		'external-display': 'src/common/editor/platform/external-display-port.ts',
 		'media-codec': 'src/common/editor/platform/media-codec-port.ts',
 		'media-stream': 'src/common/editor/platform/media-stream-port.ts',
 		'persistent-render-queue': 'src/common/editor/platform/persistent-render-queue-port.ts',
