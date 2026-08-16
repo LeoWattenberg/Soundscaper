@@ -10,10 +10,13 @@
 
 ## Status and readiness
 
-**Status on 2026-08-14: 5A-0a is implemented provisionally in the local tree;
-5A-0b is next. Native audio and plug-in surfaces remain disabled.** The plan
-was grounded at commit `9d8427dd`; this implementation status includes the
-implemented 5A-0a slice and is not a formal qualification claim.
+**Status on 2026-08-16: 5A-0a and 5A-0b are implemented provisionally in the
+local tree, and the first 5A-1 slice — native audio backend discovery behind a
+menu-reached, off-by-default surface — is implemented alongside them. Device
+opening, the real-time data plane, plug-in scanning and plug-in hosting remain
+unimplemented and disabled.** The plan was grounded at commit `9d8427dd`; this
+implementation status is not a formal qualification claim, and the native
+payload exists for exactly one of the five claimed targets.
 
 The prerequisite foundations are physically present:
 
@@ -68,10 +71,22 @@ remaining gaps are explicit:
    recovery against the five-second ceiling. The callback is suitable for the
    existing task coordinator, but the product progress UI/coordinator hookup is
    deliberately follow-on work.
-3. **5A-0b native payload provenance and packaged proof.** The probe reuses pinned FFmpeg WebAssembly
-   bytes. There is no target-selected N-API/addon manifest, native build,
-   staging rule, release inventory, or packaged native-helper smoke yet. These
-   are 5A-0b deliverables.
+3. **5A-0b native payload provenance and packaged proof — implemented
+   provisionally.** A Node-API addon is built from pinned sources with a pinned
+   toolchain, per-target rows in a source manifest, and a derived
+   `config/native-addon-payload-manifest.json` that ships inside the
+   fuse-protected archive while the payload ships outside it as a verified
+   resource. Staging, `beforePack`, `afterPack`, the release inventory and every
+   spawn re-verify it; a tampered source, swapped binary, wrong-target package,
+   or drifted manifest each fails closed, and the audit runs in ordinary CI with
+   no compiler. A test launches the helper through Electron's real
+   `utilityProcess` from a staged application tree and compares the audio it
+   rendered against the same pinned addon loaded independently. **Only
+   `linux-x64` is built.** `linux-arm64`, `mac-arm64`, `win-x64` and `win-arm64`
+   are `pending-external` with named blockers, stage no payload, and report a
+   typed unavailability; filling one of those rows from another target's bytes
+   is forbidden. JUCE and CLAP source pins are not yet required because the
+   addon has no third-party source, and are owed by 5A-2/5A-3.
 4. **5A-0c real-time data plane.** The current chunk stream is renderer worker ->
    renderer client -> AudioWorklet. No helper -> AudioWorklet path exists. The
    existing promise/chunk ports are valid control and offline abstractions but
@@ -82,9 +97,11 @@ remaining gaps are explicit:
    identity and hardware qualification may remain externally blocked while
    implementation proceeds; no blocked row is promoted or simulated.
 
-The entry rule is therefore exact: **start 5A-0b next**. Do not start backend
-or host breadth merely because the hardened proof helper exists. Scanning may
-start after 5A-0b; native audio and real-time hosting also require 5A-0c.
+The entry rule is therefore exact: **finish 5A-0c next**. Backend discovery has
+landed because it opens no device and grants no project audio; device opening,
+real-time hosting and plug-in execution all still require the 5A-0c transport
+proof, and scanning still requires its own 5A-2 consent and quarantine model.
+Do not start host breadth merely because the hardened proof helper exists.
 
 ## Non-negotiable invariants
 
