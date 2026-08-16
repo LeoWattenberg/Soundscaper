@@ -49,6 +49,9 @@ export interface ClipHeaderProps {
   timeSelectionRange?: { startTime: number; endTime: number } | null;
   /** Pixels per second (timeline zoom level) */
   pixelsPerSecond?: number;
+  /** Called when the user commits a new name via inline rename
+   * (Enter / F2 / double-click on the name → input → Enter). */
+  onRename?: (newName: string) => void;
 }
 
 /**
@@ -79,7 +82,40 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
   clipDuration = 0,
   timeSelectionRange = null,
   pixelsPerSecond = 100,
+  onRename,
 }) => {
+  const [isRenaming, setIsRenaming] = React.useState(false);
+  const [renameDraft, setRenameDraft] = React.useState(name);
+  const renameInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isRenaming) {
+      const t = window.setTimeout(() => {
+        renameInputRef.current?.focus();
+        renameInputRef.current?.select();
+      }, 0);
+      return () => window.clearTimeout(t);
+    }
+  }, [isRenaming]);
+
+  React.useEffect(() => {
+    if (!isRenaming) setRenameDraft(name);
+  }, [name, isRenaming]);
+
+  const startRename = () => {
+    if (!onRename) return;
+    setRenameDraft(name);
+    setIsRenaming(true);
+  };
+  const commitRename = () => {
+    const next = renameDraft.trim();
+    if (next && next !== name) onRename?.(next);
+    setIsRenaming(false);
+  };
+  const cancelRename = () => {
+    setRenameDraft(name);
+    setIsRenaming(false);
+  };
   const style = {
     // Clip background tiles use the same brand palette in both themes, so
     // the header text needs to stay dark in dark mode to keep contrast.
@@ -145,7 +181,38 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
         />
       )}
       <div className="clip-header__content">
-        <span className="clip-header__name">{name}</span>
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            className="clip-header__name-input"
+            value={renameDraft}
+            onChange={(e) => setRenameDraft(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                commitRename();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelRename();
+              }
+            }}
+            onBlur={commitRename}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            aria-label="Clip name"
+          />
+        ) : (
+          <span
+            className="clip-header__name"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              startRename();
+            }}
+          >
+            {name}
+          </span>
+        )}
 
         <div className="clip-header__info">
           {showPitch && (

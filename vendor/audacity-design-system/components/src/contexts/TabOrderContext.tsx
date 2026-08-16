@@ -16,7 +16,7 @@ interface TabOrderContextValue {
   registerElement: (groupId: string, itemIndex: number, totalItems: number) => number;
 }
 
-const TabOrderContext = createContext<TabOrderContextValue | undefined>(undefined);
+const TabOrderContext = /* @__PURE__ */ createContext<TabOrderContextValue | undefined>(undefined);
 
 interface TabOrderProviderProps {
   children: ReactNode;

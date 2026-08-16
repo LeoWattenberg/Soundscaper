@@ -58,6 +58,13 @@ export interface EnvelopeDragState {
 export interface TimeSelection {
   startTime: number;
   endTime: number;
+  /** Optional list of track indices the selection spans. Populated by
+   *  the gesture that created the selection (drag: rows crossed;
+   *  keyboard: focused track) so operations and rendering can scope to
+   *  those rows independently of the broader track selection. Empty /
+   *  undefined = consumers fall back to selectedTrackIndices, then to
+   *  their own default scope. */
+  tracks?: number[];
 }
 
 export interface Label {
@@ -88,6 +95,27 @@ export interface TimeSelectionDragState {
 }
 
 /**
+ * Minimal structural type for a clip as consumed by selection hooks.
+ * The sandbox Track/Clip satisfies this structurally.
+ */
+export interface ClipLike {
+  id: number;
+  start: number;
+  duration: number;
+  waveformLeft?: number[];
+  waveformRight?: number[];
+}
+
+/**
+ * Minimal structural type for a track as consumed by selection hooks.
+ */
+export interface TrackLike {
+  clips: ClipLike[];
+  height?: number;
+  viewMode?: 'waveform' | 'spectrogram' | 'split';
+}
+
+/**
  * Configuration for time selection behavior
  */
 export interface TimeSelectionConfig {
@@ -96,7 +124,7 @@ export interface TimeSelectionConfig {
   /** Left padding before timeline starts (in pixels) */
   leftPadding: number;
   /** Array of tracks with height information */
-  tracks: Track[];
+  tracks: TrackLike[];
   /** Default track height when not specified */
   defaultTrackHeight: number;
   /** Gap between tracks (in pixels) */

@@ -7,7 +7,7 @@ import { Dialog } from '../Dialog';
 import { Button } from '../Button';
 import { Carousel } from '../Carousel';
 import { LabeledCheckbox } from '../LabeledCheckbox';
-import { usePreferences } from '../contexts/PreferencesContext';
+import { useGeneralPrefs } from '../contexts/PreferencesContext';
 import { useTheme } from '../ThemeProvider';
 import './WelcomeDialog.css';
 
@@ -80,7 +80,7 @@ export function WelcomeDialog({
   onClose,
   storageKey = 'audacity-welcome-dialog-dismissed',
 }: WelcomeDialogProps) {
-  const { preferences, updatePreference } = usePreferences();
+  const { operatingSystem, showWelcomeDialog, updatePreference } = useGeneralPrefs();
   const { theme } = useTheme();
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -102,7 +102,7 @@ export function WelcomeDialog({
     <Dialog
       isOpen={isOpen}
       title="Welcome"
-      os={preferences.operatingSystem}
+      os={operatingSystem}
       onClose={handleClose}
       width={800}
       noPadding={true}
@@ -126,7 +126,7 @@ export function WelcomeDialog({
         >
           <LabeledCheckbox
             label="Show on startup"
-            checked={preferences.showWelcomeDialog}
+            checked={showWelcomeDialog}
             onChange={(checked) => updatePreference('showWelcomeDialog', checked)}
           />
 
@@ -182,12 +182,12 @@ export function WelcomeDialog({
  * Hook to manage welcome dialog visibility based on preferences
  */
 export function useWelcomeDialog() {
-  const { preferences } = usePreferences();
+  const { showWelcomeDialog } = useGeneralPrefs();
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     // Show welcome dialog on first load if preference is enabled
-    if (preferences.showWelcomeDialog) {
+    if (showWelcomeDialog) {
       setIsOpen(true);
     }
   }, []); // Only check on mount

@@ -39,6 +39,7 @@ export default function AudioEditorMenuBar({
 	const { activeProfile } = useAccessibilityProfile();
 	const menuButtonsRef = useRef([]);
 	const openMenuRef = useRef(null);
+	const openMenuContainerRef = useRef(null);
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [openMenu, setOpenMenu] = useState(null);
 	openMenuRef.current = openMenu;
@@ -209,6 +210,7 @@ export default function AudioEditorMenuBar({
 
 	const onOpenMenuKeyDownCapture = (event) => {
 		if (!openMenu) return;
+		if (!(openMenuContainerRef.current?.contains(event.target))) return;
 		const inSubmenu = event.target instanceof Element && Boolean(event.target.closest('.context-menu-submenu'));
 		const submenuItem = event.target instanceof Element ? event.target.closest('.context-menu-item') : null;
 		const hasSubmenu = Boolean(submenuItem?.querySelector(
@@ -233,6 +235,7 @@ export default function AudioEditorMenuBar({
 		} else if (event.key === 'Tab') {
 			event.preventDefault();
 			event.stopPropagation();
+			event.stopImmediatePropagation?.();
 			const trigger = menuButtonsRef.current[openMenu.index];
 			const nextMenuIndex = openMenu.index + 1;
 			setOpenMenu(null);
@@ -254,6 +257,19 @@ export default function AudioEditorMenuBar({
 			});
 		}
 	};
+
+	// The design system's ContextMenu listens for keydown on `document` in the
+	// capture phase and stops the event dead for Tab and Escape, which is early
+	// enough to beat React's root listener — so the menubar's own capture
+	// handler has to sit on `document` too, registered at mount so it runs
+	// first and can claim Tab before the menu's generic "just close" handling.
+	const openMenuKeyDownRef = useRef(onOpenMenuKeyDownCapture);
+	openMenuKeyDownRef.current = onOpenMenuKeyDownCapture;
+	useEffect(() => {
+		const handleKeyDownCapture = (event) => openMenuKeyDownRef.current(event);
+		document.addEventListener('keydown', handleKeyDownCapture, true);
+		return () => document.removeEventListener('keydown', handleKeyDownCapture, true);
+	}, []);
 
 	const onOpenMenuClickCapture = (event) => {
 		if (!(event.target instanceof Element)) return;
@@ -335,7 +351,7 @@ export default function AudioEditorMenuBar({
 
 			<span className="kw-audio-editor-sr-only" data-project-name>{projectName}</span>
 			{currentMenu && (
-				<div onClickCapture={onOpenMenuClickCapture} onKeyDownCapture={onOpenMenuKeyDownCapture}>
+				<div ref={openMenuContainerRef} onClickCapture={onOpenMenuClickCapture}>
 					<ContextMenu
 						isOpen
 						x={openMenu.x}

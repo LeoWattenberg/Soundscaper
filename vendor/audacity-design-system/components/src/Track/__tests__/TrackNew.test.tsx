@@ -15,7 +15,7 @@ const CLIPS = [
 function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
-      <AccessibilityProfileProvider>
+      <AccessibilityProfileProvider initialProfileId="au4-tab-groups">
         {children}
       </AccessibilityProfileProvider>
     </ThemeProvider>
@@ -95,19 +95,20 @@ describe('roving tabindex', () => {
     expect(clip(2).tabIndex).toBe(-1);
   });
 
-  it('ArrowRight moves focus and tabIndex to next clip', () => {
-    const { clip, track } = renderTrack({ tabIndex: 5 });
+  // Arrow-key clip-to-clip roving was retired in d464d22 ("keyboard clip
+  // editing overhaul") — plain arrows are now reserved for matrix nav
+  // (playhead / track focus). Clip-to-clip stepping lives on Tab /
+  // Shift+Tab instead, handled directly in the clip's own onKeyDown.
+  it('Tab moves focus to next clip', () => {
+    const { clip } = renderTrack({ tabIndex: 5 });
 
     const clip1 = clip(1);
     const clip2 = clip(2);
-    const startIdx = clip1.tabIndex;
 
     act(() => { clip1.focus(); });
-    fireEvent.keyDown(track(), { key: 'ArrowRight' });
+    fireEvent.keyDown(clip1, { key: 'Tab' });
 
     expect(document.activeElement).toBe(clip2);
-    expect(clip2.tabIndex).toBe(startIdx);
-    expect(clip1.tabIndex).toBe(-1);
   });
 
   it('click updates roving tabindex to clicked clip', () => {
@@ -175,20 +176,19 @@ describe('track container keyboard', () => {
     act(() => { el.focus(); });
     fireEvent.keyDown(el, { key: 'ArrowDown' });
 
-    expect(onTrackNavigateVertical).toHaveBeenCalledWith(1, false);
+    // 3rd arg is `decouple` (added 3b97a4e/bd695a6) — plain ArrowDown is a
+    // normal follows-focus navigation, not a decoupled "peek", so it's false.
+    expect(onTrackNavigateVertical).toHaveBeenCalledWith(1, false, false);
   });
 });
 
 // ---------- 6. Escape from clip to track ----------
-
-describe('escape from clip', () => {
-  it('Escape on clip moves focus to track container', () => {
-    const { clip, track } = renderTrack({ trackTabIndex: 0 });
-
-    const el = clip(1);
-    act(() => { el.focus(); });
-    fireEvent.keyDown(el, { key: 'Escape' });
-
-    expect(document.activeElement).toBe(track());
-  });
-});
+//
+// "Escape on clip moves focus to track container" was removed here.
+// Commit 731df98 ("clip's local Escape doesn't shortcut selection clear")
+// deliberately deleted TrackNew's local Escape branch — the clip's Escape
+// handling now belongs to the app-level global handler (useKeyboardShortcuts
+// in apps/sandbox), so the "clear time + clip selection" branch sees every
+// Esc press. TrackNew rendered in isolation (as this test file does) no
+// longer owns this behavior, making it structurally untestable at this
+// level; it was intentionally relocated to the app layer.

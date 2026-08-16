@@ -6,6 +6,7 @@ import type { SpectrogramScale } from './FrequencyRuler';
 import type { WaveformRulerFormat } from '../RulerFlyout';
 import { getScaleMinFreq } from '../utils/spectrogramScales';
 import { useTheme } from '../ThemeProvider';
+import { useAccessibilityProfile } from '../contexts/AccessibilityProfileContext';
 import './VerticalRulerPanel.css';
 
 export interface TrackRulerConfig {
@@ -134,6 +135,8 @@ export const VerticalRulerPanel: React.FC<VerticalRulerPanelProps> = ({
   onRulerFocus,
 }) => {
   const { theme } = useTheme();
+  const { activeProfile } = useAccessibilityProfile();
+  const isFlatNavigation = activeProfile.config.tabNavigation === 'sequential';
   const trackRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const style = {
@@ -144,8 +147,16 @@ export const VerticalRulerPanel: React.FC<VerticalRulerPanelProps> = ({
     '--panel-header-border': theme.border.default,
     '--panel-canvas-bg': theme.background.canvas.default,
     '--panel-grid-border': '#323644',
-    '--panel-track-idle': theme.background.canvas.default,
-    '--panel-track-selected': theme.background.canvas.track.selected,
+    // Solid pre-composited equivalents of the canvas track overlays.
+    // The vertical ruler doesn't render a grid underneath so it
+    // paints solid values that match what the canvas track pixel
+    // composites to when the overlay hits the dark canvas floor.
+    // Header (spacer) sits a shade darker than the body in every
+    // state so the header vs body hierarchy stays legible.
+    '--panel-track-idle': '#31333F',
+    '--panel-track-selected': '#454752',
+    '--panel-track-spacer-idle': '#2A2C36',
+    '--panel-track-spacer-selected': '#3A3C46',
   } as React.CSSProperties;
 
   return (
@@ -192,6 +203,8 @@ export const VerticalRulerPanel: React.FC<VerticalRulerPanelProps> = ({
               trackRefs.current[index] = el;
             }}
               className={`vertical-ruler-panel__track ${
+                track.selected ? 'vertical-ruler-panel__track--selected' : ''
+              } ${
                 track.focused ? 'vertical-ruler-panel__track--focused' : ''
               } ${track.containerFocused ? 'vertical-ruler-panel__track--container-focused' : ''}`}
               style={{ height: `${track.height}px` }}
@@ -201,16 +214,24 @@ export const VerticalRulerPanel: React.FC<VerticalRulerPanelProps> = ({
               data-track-ruler-index={index}
               onFocus={isFocusable ? () => onRulerFocus?.(index) : undefined}
               onKeyDown={isFocusable ? (e: React.KeyboardEvent) => {
-                if (e.key === 'Tab' && !e.shiftKey) {
+                // In flat-nav mode, Tab is routed by the EditorLayout
+                // interceptor — the ruler must NOT redirect focus to
+                // the next track wrapper, otherwise the next track's
+                // header is bypassed entirely.
+                if (!isFlatNavigation && e.key === 'Tab' && !e.shiftKey) {
                   e.preventDefault();
                   onTabFromRuler?.(index);
-                } else if (e.key === 'Tab' && e.shiftKey) {
+                } else if (!isFlatNavigation && e.key === 'Tab' && e.shiftKey) {
                   e.preventDefault();
                   onShiftTabFromRuler?.(index);
                 } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                   e.preventDefault();
                   onRulerNavigateVertical?.(index, e.key === 'ArrowDown' ? 1 : -1);
-                } else if (e.key === 'Enter' || e.key === ' ') {
+                } else if (e.key === 'F10' && e.shiftKey) {
+                  // Only Shift+F10 (the standard "context-menu"
+                  // keystroke) opens the ruler flyout — Enter / Space
+                  // were too easy to hit by accident while just
+                  // tabbing past the ruler.
                   e.preventDefault();
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   onRulerActivate?.(index, rect);

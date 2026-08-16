@@ -8,7 +8,7 @@ import {
   yToTrackIndex,
   trackIndexToY,
 } from '../coordinates';
-import type { Track } from '../../types';
+import type { TrackLike } from '../../types';
 
 describe('pixelsToTime', () => {
   it('converts pixels to time at 100px/s', () => {
@@ -50,21 +50,21 @@ describe('timeToPixels', () => {
 
 describe('getTrackHeight', () => {
   it('returns custom height when set', () => {
-    const track = { id: 0, name: 't', clips: [], height: 200 } satisfies Track;
+    const track = { clips: [], height: 200 } satisfies TrackLike;
     expect(getTrackHeight(track, 114)).toBe(200);
   });
 
   it('returns default height when height is undefined', () => {
-    const track = { id: 0, name: 't', clips: [] } satisfies Track;
+    const track = { clips: [] } satisfies TrackLike;
     expect(getTrackHeight(track, 114)).toBe(114);
   });
 });
 
 describe('clampTrackIndex', () => {
-  const tracks: Track[] = [
-    { id: 0, name: 'a', clips: [] },
-    { id: 1, name: 'b', clips: [] },
-    { id: 2, name: 'c', clips: [] },
+  const tracks: TrackLike[] = [
+    { clips: [] },
+    { clips: [] },
+    { clips: [] },
   ];
 
   it('clamps negative index to 0', () => {
@@ -95,10 +95,10 @@ describe('getTrackRange', () => {
 });
 
 describe('yToTrackIndex', () => {
-  const tracks: Track[] = [
-    { id: 0, name: 'a', clips: [], height: 100 },
-    { id: 1, name: 'b', clips: [], height: 150 },
-    { id: 2, name: 'c', clips: [] },
+  const tracks: TrackLike[] = [
+    { clips: [], height: 100 },
+    { clips: [], height: 150 },
+    { clips: [] },
   ];
 
   it('returns 0 for Y inside first track', () => {
@@ -113,10 +113,10 @@ describe('yToTrackIndex', () => {
 });
 
 describe('trackIndexToY', () => {
-  const tracks: Track[] = [
-    { id: 0, name: 'a', clips: [], height: 100 },
-    { id: 1, name: 'b', clips: [], height: 150 },
-    { id: 2, name: 'c', clips: [] },
+  const tracks: TrackLike[] = [
+    { clips: [], height: 100 },
+    { clips: [], height: 150 },
+    { clips: [] },
   ];
 
   it('returns initialGap for track 0', () => {

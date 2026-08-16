@@ -2,7 +2,7 @@
  * Coordinate conversion utilities for time selection and track positioning
  */
 
-import { Track } from '../types';
+import { TrackLike } from '../types';
 
 /**
  * Convert pixel X position to time in seconds
@@ -37,7 +37,7 @@ export function timeToPixels(time: number, pixelsPerSecond: number, leftPadding:
  */
 export function yToTrackIndex(
   y: number,
-  tracks: Track[],
+  tracks: TrackLike[],
   initialGap: number,
   trackGap: number,
   defaultTrackHeight: number
@@ -71,7 +71,7 @@ export function yToTrackIndex(
  */
 export function trackIndexToY(
   trackIndex: number,
-  tracks: Track[],
+  tracks: TrackLike[],
   initialGap: number,
   trackGap: number,
   defaultTrackHeight: number
@@ -92,7 +92,7 @@ export function trackIndexToY(
  * @param defaultTrackHeight - Default height when track.height is undefined
  * @returns Track height in pixels
  */
-export function getTrackHeight(track: Track, defaultTrackHeight: number): number {
+export function getTrackHeight(track: TrackLike, defaultTrackHeight: number): number {
   return track.height ?? defaultTrackHeight;
 }
 
@@ -102,7 +102,7 @@ export function getTrackHeight(track: Track, defaultTrackHeight: number): number
  * @param tracks - Array of tracks
  * @returns Clamped track index
  */
-export function clampTrackIndex(trackIndex: number, tracks: Track[]): number {
+export function clampTrackIndex(trackIndex: number, tracks: TrackLike[]): number {
   return Math.max(0, Math.min(tracks.length - 1, trackIndex));
 }
 

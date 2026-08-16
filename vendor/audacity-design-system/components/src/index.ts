@@ -170,5 +170,6 @@ export * from './utils/waveform';
 export * from './utils/spectrogram';
 export * from './utils/projectStorage';
 export * from './utils/scrollIntoViewIfNeeded';
+export * from './utils/announce';
 // Note: envelope utilities are available via direct import from '@dilsonspickles/components/utils/envelope'
 // Not re-exported here to avoid naming conflicts with EnvelopePoint component

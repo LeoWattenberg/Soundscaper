@@ -1,6 +1,6 @@
 import React from 'react';
 import figma from '@figma/code-connect';
-import { PanKnob } from './PanKnob';
+import { PanKnob } from '../PanKnob/PanKnob';
 
 /**
  * Figma Code Connect for PanKnob component

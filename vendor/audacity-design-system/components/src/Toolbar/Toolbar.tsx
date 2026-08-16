@@ -97,7 +97,11 @@ export function Toolbar({
   const { onKeyDown, onBlur, containerProps, initTabIndices } = useContainerTabGroup({
     containerRef: toolbarRef,
     groupId: tabGroupId,
-    selector: 'button, select, input, [role="group"]',
+    // Includes ARIA-roled composite widgets (BpmStepper = spinbutton,
+    // TimeSignatureSelector = combobox, MasterMeter knob = slider, the
+    // Snap toggle = checkbox) so they participate in roving-tabindex
+    // arrow-key navigation and don't escape into the document Tab order.
+    selector: 'button, select, input, [role="group"], [role="checkbox"], [role="combobox"], [role="spinbutton"], [role="slider"]',
     filter: toolbarFilter,
     ariaLabel: 'Tool toolbar',
   });

@@ -179,13 +179,19 @@ export const Dropdown: React.FC<DropdownProps> = ({
 
   const { theme } = useTheme();
 
+  // Trigger + menu backgrounds come from the input-control token, not a
+  // hardcoded white: its light value IS #FFFFFF (so light mode / the website
+  // is unchanged) while dark mode gets the dark input surface. Without this,
+  // the themed --dropdown-text (light in dark mode) sat on a white box.
+  const controlBg = theme.background.control.input.idle;
+
   const style = {
-    '--dropdown-bg': '#FFFFFF',
+    '--dropdown-bg': controlBg,
     '--dropdown-border': theme.border.input.idle,
     '--dropdown-border-hover': theme.border.input.hover,
     '--dropdown-border-active': theme.border.focus,
     '--dropdown-text': theme.foreground.text.primary,
-    '--dropdown-menu-bg': '#FFFFFF',
+    '--dropdown-menu-bg': controlBg,
     '--dropdown-menu-shadow': '0px 10px 30px 0px rgba(20, 21, 26, 0.3)',
     '--dropdown-option-hover-bg': theme.background.surface.hover,
     '--dropdown-option-hover-outline': theme.border.focus,
@@ -230,7 +236,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
             top: `${menuPosition.top}px`,
             left: `${menuPosition.left}px`,
             width: `${menuPosition.width}px`,
-            '--dropdown-menu-bg': '#FFFFFF',
+            '--dropdown-menu-bg': controlBg,
             '--dropdown-border': theme.border.input.idle,
             '--dropdown-menu-shadow': '0px 10px 30px 0px rgba(20, 21, 26, 0.3)',
             '--dropdown-text': theme.foreground.text.primary,

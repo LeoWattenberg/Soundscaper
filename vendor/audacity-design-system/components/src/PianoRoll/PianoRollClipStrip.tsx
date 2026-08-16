@@ -41,7 +41,7 @@ export const PianoRollClipStrip: React.FC<PianoRollClipStripProps> = ({
 }) => {
   const { theme } = useTheme();
   const pr = theme.audio.pianoRoll;
-  const clipColors = trackColor ? (theme.audio.clip as Record<string, any>)[trackColor] : null;
+  const clipColors = trackColor ? (theme.audio.clip as Record<string, any>)[trackColor] : null; // justified: dynamic string-index into theme tokens (no index signature)
   const dragRef = useRef<{
     clipId: number;
     edge: 'left' | 'right';

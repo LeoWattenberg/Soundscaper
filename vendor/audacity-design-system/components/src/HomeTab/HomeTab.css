@@ -808,6 +808,64 @@
   flex: 1;
 }
 
+/* Muse ID is the umbrella identity, not a peer of the services beneath it —
+   it spans the full row regardless of how many columns the auto-fit grid
+   above resolves to. */
+.home-tab__accounts-section--primary {
+  grid-column: 1 / -1;
+}
+
+/* "Connected services" group — MuseHub + audio.com live here, visually
+   subordinate to the primary Muse ID card above. The group itself spans the
+   full grid row; its own children pair up side by side within it. */
+.home-tab__accounts-services {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.home-tab__accounts-services-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--home-tab-card-meta);
+  margin: 0;
+}
+
+.home-tab__accounts-services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px 16px;
+  align-items: start;
+}
+
+/* Secondary/subordinate treatment for the service cards nested inside the
+   "Connected services" group — quieter heading, smaller avatar and card
+   padding than the primary Muse ID identity card. */
+.home-tab__accounts-section-title--secondary {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--home-tab-card-meta);
+}
+
+.home-tab__accounts-card--secondary {
+  padding: 12px;
+  gap: 12px;
+}
+
+.home-tab__accounts-card--secondary .home-tab__accounts-avatar {
+  width: 64px;
+  height: 64px;
+}
+
+.home-tab__accounts-card--secondary .home-tab__accounts-title {
+  font-size: 16px;
+  line-height: 24px;
+}
+
 /* Plugins page */
 .home-tab__header-controls {
   display: flex;

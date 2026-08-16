@@ -251,7 +251,7 @@ export const DbRuler: React.FC<DbRulerProps> = ({
     '--ruler-text-primary': theme.foreground.text.contrastPrimary,
     '--ruler-text-secondary': theme.foreground.text.contrastSecondary,
     '--ruler-grid-measure': theme.stroke.grid.measure,
-    '--ruler-bg': theme.background.panel.ruler,
+    '--ruler-bg': 'transparent',
   } as React.CSSProperties;
 
   return (

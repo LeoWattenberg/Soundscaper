@@ -109,7 +109,9 @@ export const FrequencyRuler: React.FC<FrequencyRulerProps> = ({
     '--ruler-text-primary': theme.foreground.text.contrastPrimary,
     '--ruler-text-secondary': theme.foreground.text.contrastSecondary,
     '--ruler-grid-measure': theme.stroke.grid.measure,
-    '--ruler-bg': theme.background.panel.ruler,
+    // Transparent so the vertical-ruler-panel__track background
+     //(idle / selected) shows through.
+    '--ruler-bg': 'transparent',
   } as React.CSSProperties;
 
   // Find the last and first ticks that will show a label, for edge clamping

@@ -101,7 +101,7 @@ export const NoteRect: React.FC<NoteRectProps> = ({
   const noteName = pitchToName(note.pitch);
 
   // Use track color from clip theme when available, otherwise fall back to piano roll theme
-  const clipColors = trackColor ? (theme.audio.clip as Record<string, any>)[trackColor] : null;
+  const clipColors = trackColor ? (theme.audio.clip as Record<string, any>)[trackColor] : null; // justified: dynamic string-index into theme tokens (no index signature)
   const noteFill = clipColors?.header ?? pr.noteFill;
   const noteFillSelected = clipColors?.headerSelected ?? pr.noteFillSelected;
   const noteBorder = clipColors?.waveform ?? pr.noteBorder;

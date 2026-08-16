@@ -10,6 +10,7 @@ import {
 	bootEditor,
 	clipByName,
 	clipField,
+	clipNameAccessiblePattern,
 	closeDialog,
 	collectClientErrors,
 	getMenuItem,
@@ -21,6 +22,18 @@ import {
 
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
+
+	test('announces each clip placement in its accessible name', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		await expect(clip).toHaveAttribute(
+			'aria-label',
+			`${toneA.name} clip, starts at 0 seconds, 0.8 seconds long`,
+		);
+		expect(errors).toEqual([]);
+	});
 
 	test('moves and trims clips with frame-canonical pointer edits', async ({ page }) => {
 		const errors = collectClientErrors(page);
@@ -91,8 +104,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await expect(editor).toHaveAttribute('data-track-count', '3');
 		await expect(editor.locator('[data-track-row]').last().getByRole('group', {
-			name: `${toneA.name} clip`,
-			exact: true,
+			name: clipNameAccessiblePattern(toneA.name),
 		})).toHaveCount(1);
 		await editor.getByRole('button', { name: 'Undo' }).click();
 		await expect(editor).toHaveAttribute('data-track-count', '2');

@@ -355,11 +355,14 @@ export function TimeCode({
   const caretColor = variant === 'light' ? theme.foreground.text.primary : '#f4f5f9';
 
   const style = {
-    '--timecode-bg': variant === 'light' ? '#FFFFFF' : '#212433',
+    // Dark-variant chip background is theme-aware: #212433 in the light app
+    // theme (unchanged) and #171F25 in dark. The light variant (label editor)
+    // stays white.
+    '--timecode-bg': variant === 'light' ? '#FFFFFF' : theme.background.control.timecode.idle,
     '--timecode-text': variant === 'light' ? theme.foreground.text.primary : '#f4f5f9',
     '--timecode-hover': variant === 'light' ? 'rgba(0, 0, 0, 0.05)' : '#4a5068',
     '--timecode-border': variant === 'light' ? '#D4D5D9' : 'transparent',
-    '--timecode-unit-bg': variant === 'light' ? '#FFFFFF' : '#212433',
+    '--timecode-unit-bg': variant === 'light' ? '#FFFFFF' : theme.background.control.timecode.idle,
     '--timecode-unit-text': variant === 'light' ? theme.foreground.text.primary : '#c5c6cd',
     '--timecode-unit-hover-bg': variant === 'light' ? 'rgba(0, 0, 0, 0.05)' : '#4a5068',
     '--timecode-unit-hover-text': variant === 'light' ? theme.foreground.text.primary : '#f4f5f9',

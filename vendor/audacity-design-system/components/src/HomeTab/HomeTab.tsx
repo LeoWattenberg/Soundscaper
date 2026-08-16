@@ -59,6 +59,22 @@ export interface HomeTabProps {
    *  render its own `<div class="home-tab__accounts-section">` so styling
    *  stays consistent with the built-in Audio.com card. */
   extraAccountsSections?: React.ReactNode;
+  /** Hides the built-in Audio.com card on the "My accounts" page. For a
+   *  consumer that has absorbed audio.com into a unified identity card
+   *  (rendered via `extraAccountsSections`) so the same service isn't shown
+   *  twice. Defaults to false — no behavior change for existing consumers. */
+  hideBuiltInAccountCard?: boolean;
+  /** Override the "You are not signed in" empty-state title shown on the
+   *  Cloud projects / Cloud audio files tabs when `isSignedIn` is false.
+   *  Provide together with `cloudSignedOutDescription`/`cloudSignedOutActions`
+   *  to swap in different copy (e.g. a deferred account-linking prompt)
+   *  without touching the built-in sign-in flow. Omit to keep the default. */
+  cloudSignedOutTitle?: string;
+  /** See `cloudSignedOutTitle`. */
+  cloudSignedOutDescription?: React.ReactNode;
+  /** See `cloudSignedOutTitle`. Replaces the default Create account/Sign in
+   *  buttons — supply your own action(s). */
+  cloudSignedOutActions?: React.ReactNode;
 }
 
 export function HomeTab({
@@ -81,6 +97,10 @@ export function HomeTab({
   audioFiles: externalAudioFiles,
   onDeleteAudioFile,
   extraAccountsSections,
+  hideBuiltInAccountCard = false,
+  cloudSignedOutTitle,
+  cloudSignedOutDescription,
+  cloudSignedOutActions,
 }: HomeTabProps) {
   const { theme } = useTheme();
   const [activeSidebarItem, setActiveSidebarItem] = React.useState<'my-accounts' | 'project' | 'plugins' | 'learn'>('project');
@@ -95,7 +115,7 @@ export function HomeTab({
   const [pluginsSearchQuery, setPluginsSearchQuery] = React.useState('');
   const [pluginsCategory, setPluginsCategory] = React.useState('all');
   const [pluginsLoading, setPluginsLoading] = React.useState(false);
-  const [availablePlugins, setAvailablePlugins] = React.useState<any[]>([]);
+  const [availablePlugins, setAvailablePlugins] = React.useState<any[]>([]); // justified: plugin registry rows — open shape, pending components sweep
   const pluginsScrollRef = React.useRef<HTMLDivElement>(null);
   const itemsPerPage = 12;
 
@@ -497,7 +517,6 @@ export function HomeTab({
                             isUploading={project.isUploading}
                             isCurrent={project.id === currentProjectId}
                             onClick={() => {
-                              console.log('Open project:', project.id);
                               if (onOpenProject) {
                                 onOpenProject(project.id);
                               }
@@ -548,7 +567,6 @@ export function HomeTab({
                           <button
                             className="home-tab__list-item"
                             onClick={() => {
-                              console.log('Open project:', project.id);
                               if (onOpenProject) {
                                 onOpenProject(project.id);
                               }
@@ -604,18 +622,24 @@ export function HomeTab({
               {activeSection === 'cloud-projects' && !isSignedIn && (
                 <div className="home-tab__empty-state">
                   <div className="home-tab__empty-text">
-                    <div className="home-tab__empty-title">You are not signed in</div>
+                    <div className="home-tab__empty-title">{cloudSignedOutTitle ?? 'You are not signed in'}</div>
                     <div className="home-tab__empty-description">
-                      Log in or create a new account <a href="#">audio.com</a> to view cloud saved projects
+                      {cloudSignedOutDescription ?? (
+                        <>Log in or create a new account <a href="#">audio.com</a> to view cloud saved projects</>
+                      )}
                     </div>
                   </div>
                   <div className="home-tab__empty-actions">
-                    <Button variant="secondary" size="default" onClick={onCreateAccount}>
-                      Create account
-                    </Button>
-                    <Button variant="secondary" size="default" onClick={onSignIn}>
-                      Sign in
-                    </Button>
+                    {cloudSignedOutActions ?? (
+                      <>
+                        <Button variant="secondary" size="default" onClick={onCreateAccount}>
+                          Create account
+                        </Button>
+                        <Button variant="secondary" size="default" onClick={onSignIn}>
+                          Sign in
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -841,7 +865,6 @@ export function HomeTab({
                             <button
                               className="home-tab__list-item home-tab__list-item--audio"
                               onClick={() => {
-                                console.log('Open audio file:', audioFile.id);
                               }}
                             >
                               <div className="home-tab__list-item-audio-name">
@@ -974,7 +997,6 @@ export function HomeTab({
                             description={plugin.description}
                             imageUrl={plugin.imageUrl}
                             onActionClick={() => {
-                              console.log(`Install plugin: ${plugin.name}`);
                             }}
                           />
                         ))}
@@ -1008,6 +1030,7 @@ export function HomeTab({
                   {extraAccountsSections}
 
                   {/* Audio.com Service */}
+                  {!hideBuiltInAccountCard && (
                   <div className="home-tab__accounts-section">
                     <h2 className="home-tab__accounts-section-title">Audio.com</h2>
                     <div className="home-tab__accounts-card">
@@ -1047,6 +1070,7 @@ export function HomeTab({
                       </div>
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
             </>
@@ -1091,7 +1115,6 @@ export function HomeTab({
           <ContextMenuItem
             label="Open"
             onClick={() => {
-              console.log('Open:', contextMenu.itemId);
               setContextMenu(null);
             }}
             onClose={() => setContextMenu(null)}
@@ -1109,7 +1132,6 @@ export function HomeTab({
           <ContextMenuItem
             label="Rename"
             onClick={() => {
-              console.log('Rename:', contextMenu.itemId);
               setContextMenu(null);
             }}
             onClose={() => setContextMenu(null)}
@@ -1117,7 +1139,6 @@ export function HomeTab({
           <ContextMenuItem
             label="Duplicate"
             onClick={() => {
-              console.log('Duplicate:', contextMenu.itemId);
               setContextMenu(null);
             }}
             onClose={() => setContextMenu(null)}
@@ -1126,7 +1147,6 @@ export function HomeTab({
             <ContextMenuItem
               label="Download"
               onClick={() => {
-                console.log('Download:', contextMenu.itemId);
                 setContextMenu(null);
               }}
               onClose={() => setContextMenu(null)}

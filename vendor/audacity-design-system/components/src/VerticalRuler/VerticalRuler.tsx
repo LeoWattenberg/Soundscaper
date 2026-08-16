@@ -216,7 +216,10 @@ export const VerticalRuler: React.FC<VerticalRulerProps> = ({
     '--ruler-text-primary': theme.foreground.text.contrastPrimary,
     '--ruler-text-secondary': theme.foreground.text.contrastSecondary,
     '--ruler-grid-measure': theme.stroke.grid.measure,
-    '--ruler-bg': theme.background.panel.ruler,
+    // Transparent so the parent track row's background (idle /
+    // selected) shows through. VerticalRulerPanel paints the row
+    // fill; the ruler layer paints only ticks and text on top.
+    '--ruler-bg': 'transparent',
   } as React.CSSProperties;
 
   return (

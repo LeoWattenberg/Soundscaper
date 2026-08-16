@@ -63,6 +63,13 @@ export const AU4_TAB_GROUPS_PROFILE: AccessibilityProfile = {
         wrap: true,
       },
 
+      // Project toolbar history cluster (Undo / Redo)
+      'project-toolbar-history': {
+        tabindex: 'roving',
+        arrows: true,
+        wrap: true,
+      },
+
       // Add track button
       'add-track': {
         tabindex: 'roving',
@@ -204,8 +211,9 @@ export const AU4_TAB_GROUPS_PROFILE: AccessibilityProfile = {
       'project-toolbar':           2,
       'project-toolbar-actions':   3,
       'project-toolbar-workspace': 4,
-      'tool-toolbar':              5,
-      'effects-panel':             6,
+      'project-toolbar-history':   5, // Undo / Redo cluster
+      'tool-toolbar':              6,
+      'effects-panel':             7,
       'add-track':                98,
       'timeline-ruler':           99,
       'tracks':                  100, // base — stride 4 per track: container +0, panel +1, clips +2, ruler +3
@@ -276,6 +284,12 @@ export const WCAG_FLAT_PROFILE: AccessibilityProfile = {
       },
 
       'project-toolbar-workspace': {
+        tabindex: 'sequential',
+        arrows: false,
+        wrap: false,
+      },
+
+      'project-toolbar-history': {
         tabindex: 'sequential',
         arrows: false,
         wrap: false,

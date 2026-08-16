@@ -126,6 +126,26 @@ export const Knob: React.FC<KnobProps> = ({
     ? clampedValue !== (min + max) / 2
     : normalizedValue > 0;
 
+  // Keyboard adjustment — fired when the knob's button has DOM focus,
+  // not when the surrounding slot has it. Arrow up/right increases,
+  // down/left decreases; Shift accelerates 10×.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled || !onChange) return;
+    if (
+      e.key === 'ArrowUp' ||
+      e.key === 'ArrowRight' ||
+      e.key === 'ArrowDown' ||
+      e.key === 'ArrowLeft'
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      const direction = e.key === 'ArrowUp' || e.key === 'ArrowRight' ? 1 : -1;
+      const stepSize = e.shiftKey ? step * 10 : step;
+      const newValue = Math.max(min, Math.min(max, clampedValue + direction * stepSize));
+      if (newValue !== clampedValue) onChange(newValue);
+    }
+  };
+
   // Handle mouse drag
   const handleMouseDown = (e: React.MouseEvent) => {
     if (disabled || !onChange) return;
@@ -193,6 +213,7 @@ export const Knob: React.FC<KnobProps> = ({
       aria-valuenow={clampedValue}
       style={style}
       onMouseDown={handleMouseDown}
+      onKeyDown={handleKeyDown}
     >
       {/* Background gauge */}
       <div className="knob__gauge" />

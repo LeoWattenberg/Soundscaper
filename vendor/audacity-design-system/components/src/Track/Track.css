@@ -23,14 +23,11 @@
   bottom: -2px;
 }
 
-/* Container-focused: 1px white + 1px black instead of solid color */
-.track-wrapper--container-focused.track-wrapper--focused::before {
-  background: linear-gradient(to bottom, white 50%, black 50%);
-}
-
-.track-wrapper--container-focused.track-wrapper--focused::after {
-  background: linear-gradient(to bottom, black 50%, white 50%);
-}
+/* Container-focused visual (black/white bars) intentionally removed —
+   both Tab-focus and arrow-focus now use the same blue bars painted
+   by .track-wrapper--focused above. The container-focused state is
+   still tracked in JS in case we want to reintroduce a distinct
+   Tab-focus visual later. */
 
 /* Suppress browser default focus outline — wrapper bars serve as focus indicator */
 .track {

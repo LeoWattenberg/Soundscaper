@@ -426,6 +426,16 @@ test.describe('audio editor React/design-system workflows', () => {
 		await output.selectOption({ label: 'Group bus 1' });
 		await expect(output).toHaveValue(/group-bus/);
 		const sendLevel = mixer.getByRole('slider', { name: 'Send level: Track 1 → Send bus 1', exact: true });
+		// One arrow press moves one step: the knob owns arrow keys, the panel owns
+		// Home and End, and neither may double up on the other's key.
+		await sendLevel.press('ArrowUp');
+		await expect(sendLevel).toHaveAttribute('aria-valuenow', '-59');
+		await sendLevel.press('ArrowDown');
+		await expect(sendLevel).toHaveAttribute('aria-valuenow', '-60');
+		await sendLevel.press('End');
+		await expect(sendLevel).toHaveAttribute('aria-valuenow', '12');
+		await sendLevel.press('Home');
+		await expect(sendLevel).toHaveAttribute('aria-valuenow', '-60');
 		await sendLevel.press('ArrowUp');
 		await expect(sendLevel).toHaveAttribute('aria-valuenow', '-59');
 		const sendTarget = mixer.getByRole('combobox', { name: 'Sends: Track 1', exact: true });

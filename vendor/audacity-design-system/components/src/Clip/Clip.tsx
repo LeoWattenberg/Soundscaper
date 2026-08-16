@@ -87,6 +87,9 @@ export interface ClipProps {
   cursorPosition?: { time: number; db: number } | null;
   /** Callback when clip header is clicked */
   onHeaderClick?: (shiftKey: boolean, metaKey: boolean) => void;
+  /** Callback when the user commits a clip rename inline (header
+   *  double-click → input → Enter / blur). */
+  onRename?: (newName: string) => void;
   /** Callback when clip menu button is clicked */
   onMenuClick?: (x: number, y: number) => void;
   /** Callback when dragging left or right edge to trim clip */
@@ -118,6 +121,15 @@ export interface ClipProps {
   midiNotes?: MidiNote[];
   /** Force header hover state (e.g. when hovering the corresponding clip strip in piano roll) */
   forceHeaderHover?: boolean;
+  /** When set, briefly renders a shake bar on the given edge. Cleared
+   *  by the caller after the animation duration; each transition
+   *  from null → 'left' | 'right' restarts the animation. */
+  shakeEdge?: 'left' | 'right' | null;
+  /** Monotonically-increasing counter that bumps whenever the shake
+   *  is retriggered — used as the shake element's React key so a
+   *  fresh DOM node is created and the CSS animation restarts, even
+   *  when the same edge is hit twice in quick succession. */
+  shakeToken?: number;
 }
 
 /**
@@ -156,6 +168,7 @@ const ClipComponent: React.FC<ClipProps> = ({
   hoveredPointIndices = EMPTY_NUMBER_ARRAY,
   cursorPosition = null,
   onHeaderClick,
+  onRename,
   onMenuClick,
   onTrimEdge,
   onStretchEdge,
@@ -167,11 +180,29 @@ const ClipComponent: React.FC<ClipProps> = ({
   spectrogramScale,
   midiNotes,
   forceHeaderHover = false,
+  shakeEdge = null,
+  shakeToken = 0,
 }) => {
   const [isHovering, setIsHovering] = useState(false);
   const [isHeaderHovering, setIsHeaderHovering] = useState(false);
   const [trimEdge, setTrimEdge] = useState<'left' | 'right' | null>(null);
   const [stretchEdge, setStretchEdge] = useState<'left' | 'right' | null>(null);
+  const outerRef = React.useRef<HTMLDivElement>(null);
+
+  // Restart the source-boundary shake animation on every trigger.
+  // The CSS keyframes are wired via [data-shake-edge], but changing
+  // an attribute doesn't restart a running animation. We disable the
+  // animation inline, then re-enable on the next animation frame —
+  // no synchronous reflow, so the keypress itself stays snappy.
+  React.useEffect(() => {
+    if (!shakeEdge || !outerRef.current) return;
+    const el = outerRef.current;
+    el.style.animation = 'none';
+    const rafId = requestAnimationFrame(() => {
+      el.style.animation = '';
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [shakeEdge, shakeToken]);
 
   const isTruncated = height <= MIN_CLIP_HEIGHT;
   const showHeader = !isTruncated || isHovering;
@@ -218,12 +249,27 @@ const ClipComponent: React.FC<ClipProps> = ({
     }
   };
 
-  // Handle global mouse move and up for trim
+  // Handle global mouse move and up for trim.
+  //
+  // onTrimEdge / onStretchEdge get a fresh inline function every render
+  // (TrackNew builds them per-clip), so listing them as effect deps
+  // caused the listener to detach + re-attach on every mousemove during
+  // a drag. That churn made it easy for a mouseup to slip through
+  // between the removeEventListener and the following addEventListener,
+  // leaving `trimEdge` set forever and every subsequent mousemove
+  // re-triggering trim — the "sticky mouse" the user was hitting.
+  // Stashing the callback in a ref lets the effect only re-run when the
+  // drag actually starts or ends.
+  const onTrimEdgeRef = React.useRef(onTrimEdge);
+  React.useEffect(() => {
+    onTrimEdgeRef.current = onTrimEdge;
+  }, [onTrimEdge]);
+
   React.useEffect(() => {
     if (!trimEdge) return;
 
     const handleMouseMoveGlobal = (e: MouseEvent) => {
-      onTrimEdge?.({ edge: trimEdge, clientX: e.clientX });
+      onTrimEdgeRef.current?.({ edge: trimEdge, clientX: e.clientX });
     };
 
     const handleMouseUp = () => {
@@ -237,7 +283,7 @@ const ClipComponent: React.FC<ClipProps> = ({
       document.removeEventListener('mousemove', handleMouseMoveGlobal);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [trimEdge, onTrimEdge]);
+  }, [trimEdge]);
 
   // Visible handles (rendered when `selected`). Mouse-down on a handle starts
   // a drag — the same pattern as the invisible edge trim above. Stretch is
@@ -254,11 +300,23 @@ const ClipComponent: React.FC<ClipProps> = ({
     setStretchEdge(edge);
   };
 
+  // Clip handles are mouse-only affordances; their trim/stretch
+  // actions are reachable via dedicated keyboard shortcuts, so we
+  // don't add a separate keyboard path through the buttons themselves.
+
+  // Same rationale as onTrimEdgeRef above — onStretchEdge is inline
+  // per render, so stash it in a ref to keep this effect from
+  // re-registering listeners on every mousemove.
+  const onStretchEdgeRef = React.useRef(onStretchEdge);
+  React.useEffect(() => {
+    onStretchEdgeRef.current = onStretchEdge;
+  }, [onStretchEdge]);
+
   React.useEffect(() => {
     if (!stretchEdge) return;
 
     const onMove = (e: MouseEvent) => {
-      onStretchEdge?.({ edge: stretchEdge, clientX: e.clientX });
+      onStretchEdgeRef.current?.({ edge: stretchEdge, clientX: e.clientX });
     };
     const onUp = () => setStretchEdge(null);
 
@@ -268,15 +326,17 @@ const ClipComponent: React.FC<ClipProps> = ({
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
-  }, [stretchEdge, onStretchEdge]);
+  }, [stretchEdge]);
 
   return (
     <div
+      ref={outerRef}
       className={className}
       style={{ width: `${width}px`, height: `${height}px`, position: 'relative' }}
       data-color={color}
       data-state={state}
       data-selected={selected}
+      data-shake-edge={shakeEdge || undefined}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
       onMouseMove={handleMouseMove}
@@ -294,6 +354,7 @@ const ClipComponent: React.FC<ClipProps> = ({
             inTimeSelection={inTimeSelection}
             state={isHeaderHovering || forceHeaderHover ? 'hover' : 'default'}
             name={name}
+            onRename={onRename}
             width={width}
             showMenu={!isRecording}
             showStretch={clipStretchFactor !== 1}
@@ -305,6 +366,10 @@ const ClipComponent: React.FC<ClipProps> = ({
             timeSelectionRange={timeSelectionRange}
             pixelsPerSecond={pixelsPerSecond}
             onClick={(e) => {
+              // The clip header is the only surface that registers
+              // selection clicks (plain, shift+range, cmd+toggle) —
+              // body clicks with modifiers are intentionally no-ops
+              // so the body stays a pure time-selection / pan surface.
               e.stopPropagation();
               onHeaderClick?.(e.shiftKey, e.metaKey || e.ctrlKey);
             }}
@@ -377,9 +442,13 @@ const ClipComponent: React.FC<ClipProps> = ({
           onStretchEdge is absent. */}
       {selected && (
         <>
+          {/* Mouse-only handles. tabIndex={-1} keeps them out of the
+              main tab order; the equivalent actions are reachable via
+              dedicated keyboard shortcuts. */}
           {onTrimEdge && (
             <button
               type="button"
+              tabIndex={-1}
               className="clip-display__handle clip-display__handle--trim-left"
               aria-label="Trim left edge"
               onMouseDown={handleVisibleTrimMouseDown('left')}
@@ -387,9 +456,19 @@ const ClipComponent: React.FC<ClipProps> = ({
               <TrimLeftIcon />
             </button>
           )}
+          <button
+            type="button"
+            tabIndex={-1}
+            className="clip-display__handle clip-display__handle--stretch-left"
+            aria-label="Stretch left edge"
+            onMouseDown={handleStretchMouseDown('left')}
+          >
+            <StretchIcon />
+          </button>
           {onTrimEdge && (
             <button
               type="button"
+              tabIndex={-1}
               className="clip-display__handle clip-display__handle--trim-right"
               aria-label="Trim right edge"
               onMouseDown={handleVisibleTrimMouseDown('right')}
@@ -399,14 +478,7 @@ const ClipComponent: React.FC<ClipProps> = ({
           )}
           <button
             type="button"
-            className="clip-display__handle clip-display__handle--stretch-left"
-            aria-label="Stretch left edge"
-            onMouseDown={handleStretchMouseDown('left')}
-          >
-            <StretchIcon />
-          </button>
-          <button
-            type="button"
+            tabIndex={-1}
             className="clip-display__handle clip-display__handle--stretch-right"
             aria-label="Stretch right edge"
             onMouseDown={handleStretchMouseDown('right')}

@@ -76,6 +76,101 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
   const itemRef = useRef<HTMLDivElement>(null);
   const submenuRef = useRef<HTMLDivElement>(null);
 
+  // Safe-triangle "angle of escape": when the pointer leaves the
+  // parent item, we build a triangle from the exit point to the two
+  // leading corners of the submenu rect. As long as the pointer stays
+  // inside that triangle we keep the submenu open — this is the
+  // path a user cuts diagonally from parent to child. Once the
+  // pointer leaves the triangle (or drifts too long without arriving)
+  // we close.
+  const safeTriangleRef = useRef<
+    | {
+        origin: { x: number; y: number };
+        topCorner: { x: number; y: number };
+        bottomCorner: { x: number; y: number };
+      }
+    | null
+  >(null);
+  const safeTriangleTimeoutRef = useRef<number | null>(null);
+  const SAFE_TRIANGLE_TIMEOUT = 300; // safety cap — if pointer stalls in triangle, close anyway.
+
+  const clearSafeTriangle = () => {
+    safeTriangleRef.current = null;
+    if (safeTriangleTimeoutRef.current !== null) {
+      window.clearTimeout(safeTriangleTimeoutRef.current);
+      safeTriangleTimeoutRef.current = null;
+    }
+    document.removeEventListener('mousemove', trackSafeTriangleMove);
+  };
+
+  const isPointInTriangle = (
+    p: { x: number; y: number },
+    a: { x: number; y: number },
+    b: { x: number; y: number },
+    c: { x: number; y: number },
+  ) => {
+    // Barycentric coordinate check — cheap and stable at boundaries.
+    const denom = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+    if (denom === 0) return false;
+    const wa = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denom;
+    const wb = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denom;
+    const wc = 1 - wa - wb;
+    return wa >= 0 && wb >= 0 && wc >= 0;
+  };
+
+  const trackSafeTriangleMove = (e: MouseEvent) => {
+    const tri = safeTriangleRef.current;
+    if (!tri) return;
+    const p = { x: e.clientX, y: e.clientY };
+    // If the pointer re-enters the parent item or the submenu, tear
+    // the tracker down — hover handlers on those elements take over.
+    if (
+      itemRef.current?.contains(e.target as Node)
+      || submenuRef.current?.contains(e.target as Node)
+    ) {
+      clearSafeTriangle();
+      return;
+    }
+    if (!isPointInTriangle(p, tri.origin, tri.topCorner, tri.bottomCorner)) {
+      clearSafeTriangle();
+      setSubmenuOpen(false);
+    }
+  };
+
+  const armSafeTriangle = (originClientX: number, originClientY: number) => {
+    const submenu = submenuRef.current;
+    if (!submenu) {
+      setSubmenuOpen(false);
+      return;
+    }
+    const r = submenu.getBoundingClientRect();
+    // Pick the leading edge closest to the parent — usually the
+    // left edge (submenu opens right of parent), but if the exit
+    // point is to the right of the submenu we mirror to the right
+    // edge so left-opening submenus still work.
+    const submenuOnRight = r.left >= originClientX;
+    const edgeX = submenuOnRight ? r.left : r.right;
+    safeTriangleRef.current = {
+      origin: { x: originClientX, y: originClientY },
+      topCorner: { x: edgeX, y: r.top },
+      bottomCorner: { x: edgeX, y: r.bottom },
+    };
+    if (safeTriangleTimeoutRef.current !== null) {
+      window.clearTimeout(safeTriangleTimeoutRef.current);
+    }
+    safeTriangleTimeoutRef.current = window.setTimeout(() => {
+      safeTriangleTimeoutRef.current = null;
+      // Only auto-close if the pointer is still outside both the
+      // parent and the submenu. Otherwise the hover handlers own
+      // the state.
+      clearSafeTriangle();
+      setSubmenuOpen(false);
+    }, SAFE_TRIANGLE_TIMEOUT);
+    document.addEventListener('mousemove', trackSafeTriangleMove);
+  };
+
+  useEffect(() => () => clearSafeTriangle(), []);
+
   const style = {
     '--context-menu-item-text': theme.foreground.text.primary,
     '--context-menu-item-hover-bg': theme.background.menu.item.hover,
@@ -95,7 +190,13 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
 
     if (hasSubmenu || children) {
       e.stopPropagation();
-      setSubmenuOpen(!submenuOpen);
+      // Clicking a submenu parent used to toggle the child, so a
+      // user hovering to open then clicking to activate would
+      // accidentally dismiss the just-opened submenu. Always leave
+      // the submenu open — hover-out (via the safe-triangle) or an
+      // outside click is what closes it.
+      setSubmenuOpen(true);
+      clearSafeTriangle();
     } else {
       onClick?.();
       onClose?.();
@@ -142,20 +243,79 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
   };
 
   const handleMouseEnter = () => {
+    // Re-entering the parent item tears down any active
+    // safe-triangle tracking — hover state resumes normally.
+    clearSafeTriangle();
     if (hasSubmenu || children) {
+      // Any sibling parent that still has its submenu open should
+      // close now that the pointer has moved on. We broadcast a
+      // cheap DOM event; every ContextMenuItem listens and
+      // closes its own submenu if it wasn't the one that fired.
+      document.dispatchEvent(
+        new CustomEvent('context-menu-hover', {
+          detail: { source: itemRef.current },
+        }),
+      );
       setSubmenuOpen(true);
     }
   };
 
   const handleMouseLeave = (e: React.MouseEvent) => {
-    // Check if mouse is moving to submenu
+    if (!(hasSubmenu || children) || !submenuOpen) return;
+
+    // Fast-path: the pointer is heading straight into the submenu.
     if (submenuRef.current && e.relatedTarget instanceof Node) {
       if (submenuRef.current.contains(e.relatedTarget)) {
         return;
       }
     }
-    setSubmenuOpen(false);
+    // Moving to a sibling menu item (parent's peer): close
+    // immediately so the sibling's submenu can take over without
+    // the two overlapping.
+    const rel = e.relatedTarget as HTMLElement | null;
+    if (rel && rel !== itemRef.current) {
+      const parentMenu = itemRef.current?.closest('[role="menu"]');
+      const relParentMenu = rel.closest?.('[role="menu"]');
+      const relItem = rel.closest?.('[role="menuitem"]');
+      if (
+        parentMenu
+        && relParentMenu === parentMenu
+        && relItem
+        && relItem !== itemRef.current
+      ) {
+        clearSafeTriangle();
+        setSubmenuOpen(false);
+        return;
+      }
+    }
+
+    // Otherwise arm the safe-triangle: the user is now traversing
+    // the empty gap between parent and child. As long as the
+    // pointer stays inside the triangle drawn from the exit point
+    // to the submenu's leading edge corners, the submenu stays
+    // open. Any deviation outside — or the timeout — closes it.
+    armSafeTriangle(e.clientX, e.clientY);
   };
+
+  // Sibling-parent broadcast: when any sibling's hover opens its
+  // submenu, close ours so we don't end up with two children
+  // showing at the same time.
+  useEffect(() => {
+    if (!submenuOpen) return;
+    const onSiblingHover = (e: Event) => {
+      const source = (e as CustomEvent).detail?.source as HTMLElement | null;
+      if (!source || !itemRef.current) return;
+      if (source === itemRef.current) return;
+      const parentMenu = itemRef.current.closest('[role="menu"]');
+      const sourceParentMenu = source.closest('[role="menu"]');
+      if (parentMenu && parentMenu === sourceParentMenu) {
+        clearSafeTriangle();
+        setSubmenuOpen(false);
+      }
+    };
+    document.addEventListener('context-menu-hover', onSiblingHover);
+    return () => document.removeEventListener('context-menu-hover', onSiblingHover);
+  }, [submenuOpen]);
 
   // Close submenu when clicking outside
   useEffect(() => {
@@ -265,10 +425,15 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
       </div>
 
       {(hasSubmenu || children) && submenuOpen && (
-        <div ref={submenuRef} className="context-menu-submenu" role="menu">
+        <div
+          ref={submenuRef}
+          className="context-menu-submenu"
+          role="menu"
+          onMouseEnter={clearSafeTriangle}
+        >
           {React.Children.map(children, child => {
             if (React.isValidElement(child)) {
-              return React.cloneElement(child, { onClose } as any);
+              return React.cloneElement(child, { onClose } as any); // justified: cloneElement with extra props needs cast — pending components sweep
             }
             return child;
           })}

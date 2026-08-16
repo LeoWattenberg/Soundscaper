@@ -32,7 +32,7 @@ export interface MixerPanelProps {
    */
   onMenuClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
   /**
-   * Master channel props (always shown as the first channel)
+   * Master channel props (always rendered last, after `channels`)
    */
   masterChannel?: Omit<MixerChannelProps, 'className'>;
   /**

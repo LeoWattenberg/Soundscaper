@@ -97,11 +97,11 @@ export function ToolbarGroup({
       // In grouped navigation, only first gets startTabIndex, others get -1
       const tabIndexValue = isFlatNavigation ? 0 : (index === 0 ? startTabIndex : -1);
 
-      return cloneElement(child as React.ReactElement<any>, {
+      return cloneElement(child as React.ReactElement<any>, { // justified: cloneElement with extra props needs <any> — pending components sweep
         tabIndex: tabIndexValue,
         onKeyDown: isFlatNavigation ? undefined : (e: React.KeyboardEvent) => {
           // Call original onKeyDown if it exists
-          const originalOnKeyDown = (child as any).props?.onKeyDown;
+          const originalOnKeyDown = (child as any).props?.onKeyDown; // justified: ReactElement child props are unknown — pending components sweep
           if (originalOnKeyDown) {
             originalOnKeyDown(e);
           }

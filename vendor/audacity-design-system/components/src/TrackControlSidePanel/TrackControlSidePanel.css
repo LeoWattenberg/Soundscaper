@@ -22,6 +22,21 @@
   box-sizing: border-box;
 }
 
+/* The Add-new button is the only Button that sits on the recessed
+   panel rail, so the shared secondary button token doesn't have
+   enough contrast against it. Button.tsx writes --button-bg-idle
+   etc. as INLINE STYLE, which beats a scoped rule — hence
+   !important on the background properties directly. */
+.track-control-side-panel__header .button--secondary {
+  background-color: var(--tcsp-add-btn-bg-idle, #C0C1C9) !important;
+}
+.track-control-side-panel__header .button--secondary:hover:not(.button--disabled) {
+  background-color: var(--tcsp-add-btn-bg-hover, #B4B5BE) !important;
+}
+.track-control-side-panel__header .button--secondary:active:not(.button--disabled) {
+  background-color: var(--tcsp-add-btn-bg-active, #A8AAB3) !important;
+}
+
 .track-control-side-panel__title {
   font-size: 14px;
   font-weight: 600;

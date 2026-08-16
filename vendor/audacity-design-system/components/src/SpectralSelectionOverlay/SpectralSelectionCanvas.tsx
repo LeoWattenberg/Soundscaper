@@ -110,12 +110,12 @@ export function SpectralSelectionCanvas({
     const clipBodyHeight = trackHeight - coordinateConfig.clipHeaderHeight;
 
     // For split view, spectral selection is only in top half
-    const isSplitView = (track as any).viewMode === 'split';
-    const isSpectrogramMode = (track as any).viewMode === 'spectrogram';
+    const isSplitView = (track as any).viewMode === 'split'; // justified: Track type lacks viewMode field — pending components sweep
+    const isSpectrogramMode = (track as any).viewMode === 'spectrogram'; // justified: Track type lacks viewMode field — pending components sweep
     // Determine stereo from the first clip in the track (or the specific clip if specified)
     const firstClip = clip || track.clips[0];
-    const isStereo = firstClip && (firstClip as any).waveformLeft && (firstClip as any).waveformRight;
-    const channelSplitRatio = (track as any).channelSplitRatio ?? 0.5;
+    const isStereo = firstClip && (firstClip as any).waveformLeft && (firstClip as any).waveformRight; // justified: Clip type lacks stereo waveform fields — pending components sweep
+    const channelSplitRatio = (track as any).channelSplitRatio ?? 0.5; // justified: Track type lacks channelSplitRatio field — pending components sweep
 
     const spectralAreaHeight = isSplitView ? clipBodyHeight / 2 : clipBodyHeight;
 

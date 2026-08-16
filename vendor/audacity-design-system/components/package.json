@@ -1,6 +1,6 @@
 {
   "name": "@dilsonspickles/components",
-  "version": "0.9.0",
+  "version": "0.10.1",
   "type": "module",
   "description": "UI component library for Audacity Design System",
   "main": "./dist/index.js",
@@ -30,8 +30,8 @@
     "AGENTS.md"
   ],
   "scripts": {
-    "build": "NODE_OPTIONS='--max-old-space-size=8192' tsup",
-    "dev": "NODE_OPTIONS='--max-old-space-size=8192' tsup --watch",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 tsup",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=8192 tsup --watch",
     "lint": "echo 'No linting configured yet'",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -63,6 +63,7 @@
     "@audacity-ui/core": "workspace:*",
     "@audacity-ui/tokens": "workspace:*",
     "@testing-library/jest-dom": "^6.9.1",
+    "cross-env": "^7.0.3",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.0.0",

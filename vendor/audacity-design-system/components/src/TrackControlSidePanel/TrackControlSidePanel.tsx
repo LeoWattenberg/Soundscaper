@@ -173,6 +173,13 @@ export const TrackControlSidePanel: React.FC<TrackControlSidePanelProps> = ({
   const [addTrackFlyoutAutoFocus, setAddTrackFlyoutAutoFocus] = useState(false);
   const addButtonRef = React.useRef<HTMLDivElement>(null);
   const addButtonElementRef = React.useRef<HTMLButtonElement>(null);
+  // Captures the panel's menu button that opened the side-panel
+  // context menu so focus can return there when the menu closes —
+  // including after an item (e.g. Track color) is picked.
+  const menuTriggerRef = React.useRef<HTMLElement | null>(null);
+  // Remembered track index for the fallback path when the original
+  // trigger no longer exists (e.g. user picked "Delete").
+  const menuTrackIndexRef = React.useRef<number>(-1);
 
   const addButtonTabIndex = useTabOrder('add-track');
 
@@ -181,14 +188,25 @@ export const TrackControlSidePanel: React.FC<TrackControlSidePanelProps> = ({
     '--tcsp-header-bg': theme.background.trackHeader.parent,
     '--tcsp-title-color': theme.foreground.text.primary,
     '--tcsp-list-bg': theme.background.trackHeader.parent,
-    '--tcsp-border': theme.border.onSurface,
+    // The side panel sits on the recessed rail, not the default app
+    // surface, so we source its outline from `onElevated` (which
+    // moved alongside the darker rail) rather than `onSurface`
+    // (which is calibrated for the light toolbar background).
+    '--tcsp-border': theme.border.onElevated,
     '--tcsp-focus-outline': theme.border.focus,
+    // Feeds the scoped !important override in TrackControlSidePanel.css —
+    // without these the CSS falls back to light-mode hexes in every theme.
+    '--tcsp-add-btn-bg-idle': theme.background.trackHeader.addButton.idle,
+    '--tcsp-add-btn-bg-hover': theme.background.trackHeader.addButton.hover,
+    '--tcsp-add-btn-bg-active': theme.background.trackHeader.addButton.active,
   } as React.CSSProperties;
 
   const handleMenuClick = (trackIndex: number, event?: React.MouseEvent) => {
+    menuTrackIndexRef.current = trackIndex;
     // If event is provided, use the button's position
     if (event) {
       const button = event.currentTarget as HTMLElement;
+      menuTriggerRef.current = button;
       const rect = button.getBoundingClientRect();
       setMenuState({
         isOpen: true,
@@ -200,6 +218,12 @@ export const TrackControlSidePanel: React.FC<TrackControlSidePanelProps> = ({
       // Fallback: Get the track control panel element to position menu
       const trackElement = document.querySelector(`.track-control-side-panel__track:nth-child(${trackIndex + 1})`);
       if (trackElement) {
+        // Best-effort: capture the menu button inside the panel so we
+        // can still restore focus when the user opened the menu via
+        // keyboard rather than a mouse click.
+        menuTriggerRef.current = trackElement.querySelector<HTMLElement>(
+          '[aria-label="Track menu"]',
+        );
         const rect = trackElement.getBoundingClientRect();
         setMenuState({
           isOpen: true,
@@ -211,8 +235,46 @@ export const TrackControlSidePanel: React.FC<TrackControlSidePanelProps> = ({
     }
   };
 
+  // Restores focus to the panel button that opened the side-panel
+  // context menu. If that button is gone (e.g. the user just deleted
+  // the track), falls back to the next nearest panel's menu button,
+  // and finally to the side-panel header's "Add new" button.
+  //
+  // handleMenuClose tends to fire twice in a row — once from the
+  // action handler (e.g. swatch onClick) and once from the
+  // ContextMenu's own close mechanism. Bailing here when the trigger
+  // and fallback are both gone prevents the second call from
+  // overriding the first restore with the "Add new" last-resort
+  // fallback.
+  const restoreMenuTriggerFocus = () => {
+    const trigger = menuTriggerRef.current;
+    const fallbackIndex = menuTrackIndexRef.current;
+    if (!trigger && fallbackIndex < 0) return;
+    menuTriggerRef.current = null;
+    menuTrackIndexRef.current = -1;
+    setTimeout(() => {
+      if (trigger && document.contains(trigger)) {
+        trigger.focus();
+        return;
+      }
+      const panels = document.querySelectorAll<HTMLElement>('.track-control-panel');
+      if (panels.length > 0 && fallbackIndex >= 0) {
+        const targetIdx = Math.max(0, Math.min(panels.length - 1, fallbackIndex));
+        const candidate = panels[targetIdx].querySelector<HTMLElement>(
+          '[aria-label="Track menu"]',
+        );
+        if (candidate) {
+          candidate.focus();
+          return;
+        }
+      }
+      addButtonElementRef.current?.focus();
+    }, 0);
+  };
+
   const handleMenuClose = () => {
     setMenuState({ isOpen: false, trackIndex: -1, x: 0, y: 0 });
+    restoreMenuTriggerFocus();
   };
 
   return (
@@ -229,7 +291,18 @@ export const TrackControlSidePanel: React.FC<TrackControlSidePanelProps> = ({
       {/* Header */}
       <div className="track-control-side-panel__header">
         <h2 className="track-control-side-panel__title">Tracks</h2>
-        <div ref={addButtonRef}>
+        {/* role="group" marks this as an island tab stop so the global
+            ArrowUp/Down track-focus handler doesn't steal arrow keys
+            pressed while the Add-new button has focus. The class is
+            what the global shortcut handler keys on to no-op every
+            arrow key from within this group. */}
+        <div
+          ref={addButtonRef}
+          role="group"
+          aria-label="Add track"
+          className="track-control-side-panel__add-group"
+        >
+
           <Button
             ref={addButtonElementRef}
             variant="secondary"
@@ -245,7 +318,7 @@ export const TrackControlSidePanel: React.FC<TrackControlSidePanelProps> = ({
 
                 // Check if this was triggered by keyboard (Enter/Space)
                 // React synthetic events don't expose nativeEvent.detail, so we check if it's a MouseEvent
-                const isKeyboard = e && (e as any).nativeEvent && (e as any).nativeEvent.detail === 0;
+                const isKeyboard = e && (e as any).nativeEvent && (e as any).nativeEvent.detail === 0; // justified: nativeEvent.detail not on React.MouseEvent type — pending components sweep
                 setAddTrackFlyoutAutoFocus(isKeyboard);
                 setAddTrackFlyoutOpen(!addTrackFlyoutOpen);
               } else if (onAddTrack) {
@@ -276,7 +349,7 @@ export const TrackControlSidePanel: React.FC<TrackControlSidePanelProps> = ({
           const isFocused = child.props.isFocused !== undefined
             ? child.props.isFocused
             : focusedTrackIndex === index;
-          const isContainerFocused = (child.props as any).containerFocused || false;
+          const isContainerFocused = (child.props as any).containerFocused || false; // justified: containerFocused is a non-standard extension on child props — pending components sweep
           return (
             <ResizablePanel
               key={child.key || index}
@@ -286,6 +359,7 @@ export const TrackControlSidePanel: React.FC<TrackControlSidePanelProps> = ({
               style={undefined}
               isFirstPanel={index === 0}
               onHeightChange={(newHeight) => onTrackResize?.(index, newHeight)}
+              onResizeEnd={(finalHeight) => onTrackResize?.(index, finalHeight)}
             >
               {cloneElement(child, {
                 ...child.props,

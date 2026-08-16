@@ -164,18 +164,22 @@ export function Dialog({
     }
   };
 
-  // Handle escape key
+  // Handle escape key. Registered in CAPTURE phase + stopImmediate
+  // so the app-level Escape handler (which otherwise shuffles track
+  // focus) doesn't fire alongside the dialog close.
   useEffect(() => {
     if (!isOpen || !closeOnEscape) return;
 
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && onClose) {
-        onClose();
-      }
+      if (e.key !== 'Escape' || !onClose) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      onClose();
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', handleEscape, true);
+    return () => document.removeEventListener('keydown', handleEscape, true);
   }, [isOpen, closeOnEscape, onClose]);
 
   // Prevent body scroll when dialog is open

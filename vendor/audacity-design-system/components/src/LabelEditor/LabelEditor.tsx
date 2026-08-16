@@ -92,7 +92,7 @@ export function LabelEditor({
   const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(new Set());
   const [timeCodeFormat, setTimeCodeFormat] = useState<TimeCodeFormat>('hh:mm:ss');
 
-  const handleLabelChange = (labelId: string, field: keyof Label, value: any) => {
+  const handleLabelChange = (labelId: string, field: keyof Label, value: any) => { // justified: heterogeneous field setter — value type depends on field — pending components sweep
     if (!onChange) return;
 
     const newLabels = labels.map((label) => {

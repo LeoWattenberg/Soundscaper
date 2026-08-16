@@ -270,6 +270,14 @@ export interface ThemeTokens {
       selected: string;
       /** Background of the parent container that holds the track header rows. */
       parent: string;
+      /** The header's Add-new button sits on the recessed rail (`parent`),
+       *  where the shared secondary button token has no contrast — these
+       *  are its dedicated background states. */
+      addButton: {
+        idle: string;
+        hover: string;
+        active: string;
+      };
     };
 
     /** Panel backgrounds (rulers, sidebars) */

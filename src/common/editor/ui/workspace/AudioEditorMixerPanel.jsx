@@ -165,12 +165,13 @@ function MixerSendKnob({ label, value, disabled, onChange }) {
 		if (!knob) return undefined;
 		knob.setAttribute('type', 'button');
 		knob.setAttribute('aria-label', label);
+		// Arrow keys are the Knob's own business since design-system 0.10.1 — it
+		// steps by the same 1 dB within the same bounds. Handling them here too
+		// moved the send twice per press. Home and End remain ours.
 		const handleKeyDown = (event) => {
-			if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+			if (!['Home', 'End'].includes(event.key)) return;
 			event.preventDefault();
-			if (event.key === 'Home') onChange(-60);
-			else if (event.key === 'End') onChange(12);
-			else onChange(Math.max(-60, Math.min(12, value + (['ArrowRight', 'ArrowUp'].includes(event.key) ? 1 : -1))));
+			onChange(event.key === 'Home' ? -60 : 12);
 		};
 		knob.addEventListener('keydown', handleKeyDown);
 		return () => knob.removeEventListener('keydown', handleKeyDown);

@@ -90,6 +90,7 @@ export const MasterMeter: React.FC<MasterMeterProps> = ({
   const { theme } = useTheme();
   const rootRef = React.useRef<HTMLDivElement>(null);
   const trackRef = React.useRef<HTMLDivElement>(null);
+  const thumbRef = React.useRef<HTMLDivElement>(null);
   const scaleRef = React.useRef<HTMLDivElement>(null);
   const draggingRef = React.useRef(false);
   const onVolumeChangeRef = React.useRef(onVolumeChange);
@@ -218,7 +219,25 @@ export const MasterMeter: React.FC<MasterMeterProps> = ({
   } as React.CSSProperties;
 
   return (
-    <div ref={rootRef} className={`master-meter ${className}`} style={style}>
+    <div
+      ref={rootRef}
+      className={`master-meter ${className}`}
+      style={style}
+      role="group"
+      aria-label="Master playback meter"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        // The toolbar's roving tab-index lands here on the component as a
+        // unit. Enter / Space "grabs" the slider so arrow keys then adjust
+        // volume; Escape on the slider returns focus here.
+        if (e.key === 'Enter' || e.key === ' ') {
+          if (document.activeElement === rootRef.current && thumbRef.current) {
+            e.preventDefault();
+            thumbRef.current.focus();
+          }
+        }
+      }}
+    >
       <div className="master-meter__main">
       {/* Meter bars + slider track */}
       <div className="master-meter__row">
@@ -254,8 +273,11 @@ export const MasterMeter: React.FC<MasterMeterProps> = ({
             )}
           </div>
 
-          {/* Volume thumb */}
+          {/* Volume thumb — only focusable programmatically (tabIndex -1)
+              so it sits inside the outer role="group" wrapper without
+              competing for tab order. Escape kicks focus back out. */}
           <div
+            ref={thumbRef}
             className="master-meter__thumb"
             style={{ left: `${thumbPercent}%` }}
             role="slider"
@@ -263,8 +285,14 @@ export const MasterMeter: React.FC<MasterMeterProps> = ({
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(volume * 100)}
-            tabIndex={0}
+            tabIndex={-1}
             onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                rootRef.current?.focus();
+                return;
+              }
               if (!onVolumeChange) return;
               e.stopPropagation();
               const step = e.shiftKey ? 0.1 : 0.02;

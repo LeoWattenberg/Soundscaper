@@ -9,7 +9,7 @@ interface ThemeContextValue {
   theme: ThemeTokens;
 }
 
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+const ThemeContext = /* @__PURE__ */ createContext<ThemeContextValue | undefined>(undefined);
 
 export interface ThemeProviderProps {
   /** Theme tokens to use */

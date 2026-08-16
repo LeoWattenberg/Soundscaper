@@ -32,6 +32,13 @@
   gap: 12px;
 }
 
+/* Override ToolbarGroup's default 8px gap for these inline ghost-button
+   clusters — they sit visually as tight rows of icon buttons. */
+.project-toolbar__history-group,
+.project-toolbar__workspace-compact-group {
+  gap: 2px !important;
+}
+
 .project-toolbar__menu-item {
   height: 40px;
   padding: 0 16px;

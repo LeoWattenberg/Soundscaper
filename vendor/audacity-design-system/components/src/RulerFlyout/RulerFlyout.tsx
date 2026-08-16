@@ -218,21 +218,26 @@ export const RulerFlyout: React.FC<RulerFlyoutProps> = ({
     return () => clearTimeout(timer);
   }, [isOpen, getGroups]);
 
-  // Escape to close
+  // Escape to close. Registered in CAPTURE phase + stopPropagation so
+  // the global app-level Escape (which otherwise shuffles track focus)
+  // doesn't fire and steal focus before the flyout can hand it back to
+  // its trigger.
   React.useEffect(() => {
     if (!isOpen) return;
 
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-        if (triggerRef?.current) {
-          setTimeout(() => triggerRef.current?.focus(), 0);
-        }
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      onClose();
+      if (triggerRef?.current) {
+        setTimeout(() => triggerRef.current?.focus(), 0);
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', handleEscape, true);
+    return () => document.removeEventListener('keydown', handleEscape, true);
   }, [isOpen, onClose, triggerRef]);
 
   // Keyboard handler for tab group navigation

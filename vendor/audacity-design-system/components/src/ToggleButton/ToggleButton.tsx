@@ -23,9 +23,10 @@ export interface ToggleButtonProps {
    */
   iconSize?: number;
   /**
-   * Click handler
+   * Click handler. Receives the underlying mouse event so callers can
+   * inspect modifier keys (e.g. cmd/ctrl+click for exclusive toggles).
    */
-  onClick?: () => void;
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
   /**
    * Whether the button is disabled
    */

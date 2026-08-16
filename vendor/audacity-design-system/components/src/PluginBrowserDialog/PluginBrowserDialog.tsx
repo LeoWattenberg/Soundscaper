@@ -319,7 +319,6 @@ export const PluginBrowserDialog: React.FC<PluginBrowserDialogProps> = ({
                     imageUrl={plugin.imageUrl}
                     requiresVersion={plugin.requiresVersion}
                     onActionClick={() => {
-                      console.log(`Get plugin: ${plugin.name}`);
                       // In real implementation, would open MuseHub or external link
                     }}
                   />
@@ -343,7 +342,6 @@ export const PluginBrowserDialog: React.FC<PluginBrowserDialogProps> = ({
           <Button
             variant="secondary"
             onClick={() => {
-              console.log('Become a partner clicked');
               // In real implementation, would open external link or partner page
             }}
           >

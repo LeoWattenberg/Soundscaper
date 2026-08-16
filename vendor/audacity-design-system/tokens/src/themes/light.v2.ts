@@ -26,9 +26,15 @@ export const lightTheme: ThemeTokens = {
     canvas: {
       default: '#252837',        // Main audio canvas (dark even in light theme)
       track: {
-        idle: 'rgba(255, 255, 255, 0.05)',   // Track idle (semi-transparent so grid lines show through)
-        selected: 'rgba(255, 255, 255, 0.1)', // Track selected
-        hover: 'rgba(255, 255, 255, 0.075)', // Track hover
+        // Semi-transparent overlays on top of `canvas.default` — the
+        // canvas grid renders between the base fill and these
+        // overlays, so it stays visible through the track band.
+        // Vertical ruler consumers that don't render a grid use
+        // solid pre-composited equivalents instead (see
+        // VerticalRulerPanel.tsx).
+        idle: 'rgba(255, 255, 255, 0.075)',
+        selected: 'rgba(255, 255, 255, 0.16)',
+        hover: 'rgba(255, 255, 255, 0.1)',
       },
       grid: {
         major: '#31354a',        // Major grid lines
@@ -47,7 +53,7 @@ export const lightTheme: ThemeTokens = {
         secondary: {
           idle: '#D3D4DC',       // Secondary button (subtle gray)
           hover: '#C8CAD3',      // Darker on hover (depressed)
-          active: '#BDC1CC',     
+          active: '#BDC1CC',
           disabled: '#F2F3F5',   // Very light gray
         },
         ghost: {
@@ -137,7 +143,7 @@ export const lightTheme: ThemeTokens = {
       },
 
       timecode: {
-        idle: '#FFFFFF',         // White background
+        idle: '#212433',         // Timecode chip — dark in BOTH themes (transport uses variant='dark'); this is the light-app value, unchanged from the prior hardcode
         hover: '#F9F9FA',        // Slight gray on hover
         active: '#84B5FF',       // Blue when active/editing
       },
@@ -194,15 +200,20 @@ export const lightTheme: ThemeTokens = {
     },
 
     trackHeader: {
-      idle: '#EEEEF1',           // Matches previous surface.subtle (track-panel idle)
-      hover: '#F2F2F7',          // Matches previous surface.hover (track-panel hover)
-      selected: '#F8F8F9',       // Matches previous surface.default (track-panel active)
-      parent: '#E3E3E8',         // Parent panel that holds the track header rows
+      idle: '#ECECEF',           // Track-panel idle — brighter than parent so headers separate cleanly from the rail
+      hover: '#ECECEF',          // Hover intentionally matches idle — hover state disabled while we settle the idle/selected contrast
+      selected: '#F8F8F9',       // Track-panel active — near-white, pops off the neutral idle rows
+      parent: '#D5D5DB',         // Knocked-back parent panel — pushes the track rows forward so selected vs idle contrast reads better
+      addButton: {               // Add-new button on the recessed rail — darker than the shared secondary button so it separates from `parent`
+        idle: '#C0C1C9',
+        hover: '#B4B5BE',
+        active: '#A8AAB3',
+      },
     },
 
     panel: {
       ruler: '#262932',          // Vertical ruler (dark, sits over canvas)
-      timeline: '#E3E3E8',       // Horizontal timeline ruler (light)
+      timeline: '#D5D5DB',       // Horizontal timeline ruler — matches trackHeader.parent so the top rail and the side rail read as one recessed surface
     },
 
     toolbar: '#F8F8F9',          // Main + project toolbar surface
@@ -247,8 +258,8 @@ export const lightTheme: ThemeTokens = {
     error: '#F08080',            // Red error border
     success: '#74BE59',          // Green success border
     warning: '#FF9E65',          // Orange warning border
-    divider: '#D4D5D9',          // Divider/separator color - matches main border
-    onElevated: '#D4D5D9',       // Border on elevated surfaces (ruler, dialogs) - matches Figma
+    divider: '#BFC0C7',          // Divider between tracks / rail cells — darkened so it stays visible on the new #D5D5DB rail
+    onElevated: '#BFC0C7',       // Border on the timeline ruler and side-panel rail — darkened alongside the surfaces they sit on
     onSurface: '#E9E9E9',        // Border on default surfaces (toolbars, panels) - same contrast as onElevated
     input: {
       idle: '#D2D6DD',           // Input border default
@@ -482,8 +493,8 @@ export const lightTheme: ThemeTokens = {
     timeline: {
       background: '#262932',     // Dark ruler background
       text: '#949CAC',           // Medium gray text
-      tickMajor: '#828387',      // Medium gray major ticks
-      tickMinor: '#828387',      // Medium gray minor ticks (same as major for now)
+      tickMajor: '#6E6F77',      // Darker major ticks — knocked down to keep contrast on the new #D5D5DB timeline rail
+      tickMinor: '#6E6F77',      // Darker minor ticks (same as major for now)
       playhead: '#ef4444',       // Red playhead cursor
       playheadShadow: '#dc2626', // Darker red shadow
       loopRegionFill: 'rgba(0, 255, 0, 0.2)', // Semi-transparent green fill (active)

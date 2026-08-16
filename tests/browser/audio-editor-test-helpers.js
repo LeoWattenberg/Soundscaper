@@ -103,9 +103,7 @@ export function trackNameText(editor) {
 	return editor.locator('.track-control-panel__track-name-text');
 }
 
-export function clipByName(editor, name) {
-	return editor.getByRole('group', { name: `${name} clip`, exact: true });
-}
+export { clipByName, clipNameAccessiblePattern } from './audio-editor-clip-locators.js';
 
 export function clipField(editor, name) {
 	return editor.locator(`[data-clip-field="${name}"] input`);

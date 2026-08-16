@@ -363,7 +363,6 @@ export function useTabGroup({
 
   // Blur handler to track when focus leaves the group
   const handleBlur = useCallback((e: React.FocusEvent) => {
-    console.log(`[useTabGroup handleBlur] groupId=${groupId}, itemIndex=${itemIndex}`);
     // Use setTimeout to check if focus moved to another item in the group
     setTimeout(() => {
       if (itemRefs?.current) {
@@ -372,10 +371,8 @@ export function useTabGroup({
         // Also check if focus moved to a descendant of any group item (e.g., dropdown menu)
         const focusInDescendant = itemRefs.current.some(el => el && el.contains(document.activeElement));
 
-        console.log(`[useTabGroup handleBlur setTimeout] groupId=${groupId}, itemIndex=${itemIndex}, hasFocus=${hasFocus}, focusInDescendant=${focusInDescendant}, document.activeElement=`, document.activeElement);
 
         if (!hasFocus && !focusInDescendant) {
-          console.log(`[useTabGroup handleBlur] Clearing groupHasFocusRef`);
           groupHasFocusRef.current = false;
           lastFocusedElementRef.current = null;
         }

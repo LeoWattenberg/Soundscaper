@@ -69,20 +69,20 @@ function TabGroupField({
           if (keyEvent.key === ' ' || keyEvent.key === 'Enter') {
             return;
           }
-          onKeyDown(e as any);
+          onKeyDown(e as any); // justified: native Event → React.KeyboardEvent bridge — pending components sweep
         };
         focusableElement.addEventListener('keydown', keydownHandler);
         handlers.push({ type: 'keydown', handler: keydownHandler });
       }
 
       if (onFocus) {
-        focusableElement.addEventListener('focus', onFocus as any);
-        handlers.push({ type: 'focus', handler: onFocus as any });
+        focusableElement.addEventListener('focus', onFocus as any); // justified: native EventListener → React.FocusEventHandler bridge — pending components sweep
+        handlers.push({ type: 'focus', handler: onFocus as any }); // justified: native EventListener → React.FocusEventHandler bridge — pending components sweep
       }
 
       if (onBlur) {
-        focusableElement.addEventListener('blur', onBlur as any);
-        handlers.push({ type: 'blur', handler: onBlur as any });
+        focusableElement.addEventListener('blur', onBlur as any); // justified: native EventListener → React.FocusEventHandler bridge — pending components sweep
+        handlers.push({ type: 'blur', handler: onBlur as any }); // justified: native EventListener → React.FocusEventHandler bridge — pending components sweep
       }
 
       return () => {
@@ -95,7 +95,7 @@ function TabGroupField({
 
   const childrenWithProps = React.Children.map(children, (child) => {
     if (React.isValidElement(child)) {
-      return React.cloneElement(child as React.ReactElement<any>, {
+      return React.cloneElement(child as React.ReactElement<any>, { // justified: cloneElement with extra props needs <any> — pending components sweep
         tabIndex,
       });
     }

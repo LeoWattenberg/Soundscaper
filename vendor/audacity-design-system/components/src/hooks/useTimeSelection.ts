@@ -26,6 +26,11 @@ interface ExtendedDragState extends TimeSelectionDragState {
   initialSelection?: TimeSelection | null;
   initialSelectedTracks?: number[];
   startedInsideClip?: boolean; // Track whether drag started inside a clip
+  /** True when the drag was initiated in the empty canvas space below
+   *  the last track. In that case the user is saying "select
+   *  everything vertically", so the range spans all tracks even if
+   *  they drag back up into an individual row. */
+  startedBelowAllTracks?: boolean;
   fixedTimeBounds?: { startTime: number; endTime: number }; // Fixed time bounds from spectral conversion
 }
 
@@ -67,6 +72,9 @@ export interface UseTimeSelectionReturn {
   startDrag: (x: number, y: number, allowConversionToSpectral?: boolean, fixedTimeBounds?: { startTime: number; endTime: number }) => void;
   /** Function to handle mouse move for cursor updates - call from container's onMouseMove */
   handleMouseMove: (x: number, y: number) => void;
+  /** Reset cursor to default — call from container's onMouseLeave so a
+   *  stale `ew-resize` from a previous hover doesn't linger. */
+  resetCursor: () => void;
   /** Function to check if we just finished dragging (to prevent click events) */
   wasJustDragging: () => boolean;
 }
@@ -125,7 +133,7 @@ export function useTimeSelection({
     let currentY = initialGap;
 
     for (let trackIndex = 0; trackIndex < tracks.length; trackIndex++) {
-      const track = tracks[trackIndex] as any;
+      const track = tracks[trackIndex];
       const trackHeight = track.height || defaultTrackHeight;
 
       // Check if y is within this track (including both header and body)
@@ -168,6 +176,17 @@ export function useTimeSelection({
     }
   }, [enabled, getEdgeProximity]);
 
+  /**
+   * Reset the cursor to default. Called when the pointer leaves the
+   * container so a lingering `ew-resize` / `text` from a previous
+   * hover doesn't stay stuck if the pointer never crosses back over
+   * the container to re-run handleMouseMove.
+   */
+  const resetCursor = useCallback(() => {
+    if (dragStateRef.current) return; // Preserve cursor mid-drag
+    setCursorStyle('default');
+  }, []);
+
   useEffect(() => {
     if (!enabled || !containerRef.current) return;
 
@@ -192,11 +211,13 @@ export function useTimeSelection({
           onTimeSelectionChange({
             startTime: initialSelection.endTime,
             endTime: newStartTime,
+            tracks: initialSelection.tracks,
           });
         } else {
           onTimeSelectionChange({
             startTime: newStartTime,
             endTime: initialSelection.endTime,
+            tracks: initialSelection.tracks,
           });
         }
       } else if (mode === 'resize-end' && initialSelection) {
@@ -208,11 +229,13 @@ export function useTimeSelection({
           onTimeSelectionChange({
             startTime: newEndTime,
             endTime: initialSelection.startTime,
+            tracks: initialSelection.tracks,
           });
         } else {
           onTimeSelectionChange({
             startTime: initialSelection.startTime,
             endTime: newEndTime,
+            tracks: initialSelection.tracks,
           });
         }
       } else if (mode === 'create') {
@@ -247,8 +270,21 @@ export function useTimeSelection({
         const clampedStartTrack = clampTrackIndex(startTrackIndex, tracks);
         const clampedCurrentTrack = clampTrackIndex(currentTrackIndex, tracks);
 
-        // Get all tracks in the range
-        const selectedIndices = getTrackRange(clampedStartTrack, clampedCurrentTrack);
+        // A drag that started below all tracks should span every track
+        // even if the pointer moves back up into an individual row —
+        // the intent was "select everything", not "select the last
+        // row I happened to clamp into".
+        const dragRange = dragStateRef.current.startedBelowAllTracks
+          ? getTrackRange(0, Math.max(0, tracks.length - 1))
+          : getTrackRange(clampedStartTrack, clampedCurrentTrack);
+        // If the drag started on an already-selected track, union the
+        // drag range with the full selection — the user is acting on
+        // their selection. If it started on an unselected track, scope
+        // to just the drag range (they're targeting that track only).
+        const dragStartedOnSelected = currentSelectedTracks.includes(clampedStartTrack);
+        const selectedIndices = dragStartedOnSelected
+          ? [...new Set([...dragRange, ...currentSelectedTracks])].sort((a, b) => a - b)
+          : dragRange;
 
         // If the drag started inside a clip (i.e., converted from spectral selection),
         // check if we should convert back to spectral when entering a spectral clip
@@ -259,7 +295,7 @@ export function useTimeSelection({
             const { trackIndex, clipId } = clipAtPosition;
 
             // Check if this track has spectral view enabled
-            const track = tracks[trackIndex] as any;
+            const track = tracks[trackIndex];
             const hasSpectralView = track.viewMode === 'spectrogram' || track.viewMode === 'split';
 
             if (hasSpectralView) {
@@ -275,10 +311,14 @@ export function useTimeSelection({
           }
         }
 
-        // Normal time selection behavior
+        // Normal time selection behavior. `tracks` carries the drag's
+        // vertical scope so rendering and operations can act on only
+        // the rows the drag crossed — selectedTrackIndices is no
+        // longer touched by drags (the Canvas consumer is a no-op).
         onTimeSelectionChange({
           startTime: Math.min(startTime, endTime),
           endTime: Math.max(startTime, endTime),
+          tracks: selectedIndices,
         });
         onSelectedTracksChange(selectedIndices);
       }
@@ -292,10 +332,18 @@ export function useTimeSelection({
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      const { mode, startX } = dragStateRef.current;
+      const { mode, startX, initialSelectedTracks } = dragStateRef.current;
 
       // Only set wasDragging flag if we actually moved the mouse (not just a click)
       const didActuallyDrag = Math.abs(x - startX) > 5; // 5px threshold for accidental movement
+
+      // Plain click: restore the pre-drag track selection so any
+      // mousemove-driven update that snuck in gets undone. Skipped
+      // for resize-* modes (they operate on an existing selection
+      // and shouldn't touch the track set).
+      if (!didActuallyDrag && mode === 'create' && initialSelectedTracks) {
+        onSelectedTracksChange(initialSelectedTracks);
+      }
 
       if (didActuallyDrag) {
         // Set flag to prevent click handlers from firing immediately after drag
@@ -412,11 +460,17 @@ export function useTimeSelection({
         // Check if we started inside a spectral-enabled clip
         const clipAtStart = findClipAtPosition(x, y);
         if (clipAtStart && spectrogramMode) {
-          const track = tracks[clipAtStart.trackIndex] as any;
+          const track = tracks[clipAtStart.trackIndex];
           const hasSpectralView = track.viewMode === 'spectrogram' || track.viewMode === 'split';
           startedInsideClip = hasSpectralView;
         }
       }
+
+      // yToTrackIndex returns a math-derived index when y is past the
+      // last row — trackIndex >= tracks.length means the pointer
+      // landed in the empty area below all tracks. We use that to
+      // switch the drag into "select every track" mode.
+      const startedBelowAllTracks = trackIndex >= tracks.length && tracks.length > 0;
 
       dragStateRef.current = {
         startX: x,
@@ -424,6 +478,14 @@ export function useTimeSelection({
         startTrackIndex: trackIndex,
         mode: 'create',
         startedInsideClip,
+        startedBelowAllTracks,
+        // Snapshot the pre-drag track selection. On mouseup, if the
+        // gesture never crossed the drag threshold (i.e. it was a
+        // plain click), we restore this — any mousemove-driven
+        // `onSelectedTracksChange` fired mid-motion is treated as
+        // provisional and undone. This keeps track selection sticky
+        // across canvas clicks.
+        initialSelectedTracks: currentSelectedTracks,
         fixedTimeBounds, // Store the fixed time bounds from spectral conversion
       };
 
@@ -448,6 +510,7 @@ export function useTimeSelection({
     cursorStyle,
     startDrag,
     handleMouseMove,
+    resetCursor,
     wasJustDragging: () => wasDraggingRef.current,
   };
 }

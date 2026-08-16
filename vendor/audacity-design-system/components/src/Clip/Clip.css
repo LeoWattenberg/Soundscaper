@@ -41,17 +41,49 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
 }
 
-/* Keyboard focus outline for clips */
+/* Keyboard focus outline for clips — clear without being shouty.
+   2px focus-blue ring just outside the clip edge, with a thin black
+   contrast ring so it reads against any background. z-index lifts
+   the focused clip above siblings on the same track so the ring
+   isn't clipped. */
 [data-clip-id]:focus {
-  outline: 1px solid white;
-  box-shadow: 0 0 0 2px black;
+  outline: 2px solid #84B5FF;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7);
   border-radius: 4px;
+  z-index: 5;
+}
+
+/* Source-boundary shake: fires when the user hits [ / ] against an
+   edge that has no more source audio to reveal. The clip itself
+   deforms with transform-origin anchored to the OPPOSITE edge, so
+   the affected edge visibly bounces in / out while the other side
+   stays put. No overlay, no extra colour — just the clip's outline
+   flexing. */
+@keyframes clip-edge-shake-left {
+  0%,100% { transform: scaleX(1) translateX(0); }
+  35%     { transform: scaleX(1.012) translateX(-1.5px); }
+  70%     { transform: scaleX(0.996) translateX(0.5px); }
+}
+@keyframes clip-edge-shake-right {
+  0%,100% { transform: scaleX(1) translateX(0); }
+  35%     { transform: scaleX(1.012) translateX(1.5px); }
+  70%     { transform: scaleX(0.996) translateX(-0.5px); }
+}
+.clip-display[data-shake-edge="left"] {
+  transform-origin: right center;
+  animation: clip-edge-shake-left 160ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+.clip-display[data-shake-edge="right"] {
+  transform-origin: left center;
+  animation: clip-edge-shake-right 160ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
 
 /* Suppress focus outline on mouse clicks — only show for keyboard navigation. */
 [data-clip-id][data-focus-mouse]:focus {
   outline: none;
   box-shadow: none;
+  z-index: auto;
 }
 
 /* ===========================================================================

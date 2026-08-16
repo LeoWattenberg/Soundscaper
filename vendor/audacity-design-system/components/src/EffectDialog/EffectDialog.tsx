@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTheme } from '../ThemeProvider';
-import { usePreferences } from '../contexts/PreferencesContext';
+import { useGeneralPrefs } from '../contexts/PreferencesContext';
 import { DialogHeader } from '../DialogHeader';
 import { EffectDialogFooter } from './EffectDialogFooter';
 import './EffectDialog.css';
@@ -92,7 +92,7 @@ export const EffectDialog: React.FC<EffectDialogProps> = ({
   hideFooter = false,
 }) => {
   const { theme } = useTheme();
-  const { preferences } = usePreferences();
+  const { operatingSystem } = useGeneralPrefs();
 
   const style = {
     '--effect-dialog-bg': theme.background.surface.default,
@@ -144,7 +144,7 @@ export const EffectDialog: React.FC<EffectDialogProps> = ({
         <DialogHeader
           title={effectName}
           onClose={onClose}
-          os={preferences.operatingSystem}
+          os={operatingSystem}
         />
 
         {/* Effect Header (automation, presets, etc.) */}

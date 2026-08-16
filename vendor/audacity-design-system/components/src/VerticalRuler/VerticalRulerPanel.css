@@ -7,7 +7,10 @@
   flex-direction: column;
   width: var(--panel-width);
   height: 100%;
-  background-color: var(--panel-canvas-bg) !important;
+  /* Sourced from the same idle overlay the tracks use, so the panel
+     background composites at the same tone as an unselected track
+     row — no dark strip peeking through the gaps. */
+  background-color: var(--panel-track-idle) !important;
   border-left: 1px solid #323644;
   flex-shrink: 0;
   overflow: hidden; /* Hide overflow on the panel itself */
@@ -33,7 +36,7 @@
   overflow: visible; /* Allow all tracks to render */
   padding-top: var(--panel-track-gap);
   border-left: 1px solid #323644;
-  background-color: var(--panel-canvas-bg);
+  background-color: var(--panel-track-idle);
 }
 
 /* Individual track */
@@ -44,35 +47,14 @@
   background-color: var(--panel-track-idle);
 }
 
-/* Selected track - focus borders top and bottom only, outside the track (same as Track.css) */
+/* Selected track — background lift only, matching the canvas track's
+   selected state. Focus bars are reserved for the focused state. */
 .vertical-ruler-panel__track--selected {
   background-color: var(--panel-track-selected);
 }
 
-.vertical-ruler-panel__track--selected::before,
-.vertical-ruler-panel__track--selected::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background-color: var(--focus-color);
-  pointer-events: none;
-}
-
-.vertical-ruler-panel__track--selected::before {
-  top: -2px;
-}
-
-.vertical-ruler-panel__track--selected::after {
-  bottom: -2px;
-}
-
-/* Focused track - same as selected */
-.vertical-ruler-panel__track--focused {
-  background-color: var(--panel-track-selected);
-}
-
+/* Focused track — focus bars only, background left alone so focus
+   doesn't get confused with selection. */
 .vertical-ruler-panel__track--focused::before,
 .vertical-ruler-panel__track--focused::after {
   content: '';
@@ -92,14 +74,8 @@
   bottom: -2px;
 }
 
-/* Container-focused: 1px white + 1px black bars */
-.vertical-ruler-panel__track--container-focused.vertical-ruler-panel__track--focused::before {
-  background: linear-gradient(to bottom, white 50%, black 50%);
-}
-
-.vertical-ruler-panel__track--container-focused.vertical-ruler-panel__track--focused::after {
-  background: linear-gradient(to bottom, black 50%, white 50%);
-}
+/* Container-focused visual (black/white bars) intentionally removed —
+   Tab-focus and arrow-focus share the blue focus bars above. */
 
 /* Focus-visible outline for keyboard-focused ruler — inset black+white double stroke.
    Uses ::after overlay so it renders above child backgrounds (spacer, ruler). */
@@ -160,12 +136,18 @@
   flex-shrink: 0;
 }
 
-/* Track spacer - clip header recess alignment */
+/* Track spacer — the 20px band that aligns with the clip-header
+   recess in the canvas. Kept a shade darker than the ruler body so
+   the header / body hierarchy reads across the whole strip. */
 .vertical-ruler-panel__track-spacer {
   height: 20px;
   width: 100%;
-  background-color: #191D29;
+  background-color: var(--panel-track-spacer-idle);
   flex-shrink: 0;
+}
+
+.vertical-ruler-panel__track--selected .vertical-ruler-panel__track-spacer {
+  background-color: var(--panel-track-spacer-selected);
 }
 
 /* Horizontal cursor line */

@@ -270,7 +270,7 @@ export function generateSurfaceColors(baseColor: string) {
 /**
  * Example: Create a custom theme by extending light theme
  */
-export function createCustomTheme(baseTheme: any, overrides: any) {
+export function createCustomTheme(baseTheme: any, overrides: any) { // justified: open theme extension API — Theme type too strict for partial overrides — pending tokens sweep
   return {
     ...baseTheme,
     ...overrides,

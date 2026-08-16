@@ -62,7 +62,9 @@ export function SearchField({
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const style = {
-    '--search-field-bg': '#FFFFFF',
+    // Themed input surface, not a hardcoded white: light value is #FFFFFF
+    // (unchanged) while dark mode gets the dark input background.
+    '--search-field-bg': theme.background.control.input.idle,
     '--search-field-border': theme.border.input.idle,
     '--search-field-border-hover': theme.border.input.hover,
     '--search-field-border-focus': theme.border.focus,

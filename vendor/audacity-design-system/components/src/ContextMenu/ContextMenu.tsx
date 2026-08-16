@@ -140,9 +140,13 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
       switch (e.key) {
         case 'Escape':
+          // stopImmediatePropagation + capture-phase listener (below)
+          // beats the app-level Escape, which otherwise clears clip
+          // selection / shuffles focus before we get a chance to close.
           e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           onClose();
-          // Restore focus to trigger element
           if (triggerElementRef.current) {
             const trigger = triggerElementRef.current;
             triggerElementRef.current = null;
@@ -153,6 +157,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         case 'Tab':
           // Tab (with or without Shift) closes menu and moves focus outside
           e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           onClose();
           break;
 
@@ -188,8 +194,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [isOpen, onClose]);
 
   // Adjust position if menu would go off-screen

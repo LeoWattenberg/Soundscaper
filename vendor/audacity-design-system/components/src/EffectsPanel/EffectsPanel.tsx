@@ -426,12 +426,29 @@ export const EffectsPanel: React.FC<EffectsPanelProps> = ({
     tabGroup.initTabIndices();
   }, [trackSection, masterSection, tabGroup.initTabIndices]);
 
-  // Give the panel container invisible focus on mount so the next Tab lands on the first child
+  // On open, move keyboard focus to the close button so the panel
+  // announces itself with a visible focus ring and a familiar "X to
+  // dismiss" affordance. setTimeout(0) lets layout settle so the
+  // .focus() doesn't race the initial paint.
   const hasAutoFocused = React.useRef(false);
   React.useEffect(() => {
     if (isOpen && panelRef.current && !hasAutoFocused.current) {
       hasAutoFocused.current = true;
-      panelRef.current.focus({ preventScroll: true });
+      // Prefer the Track section's "Add effect" button — that's the
+      // canonical action when the user opens the panel (typically via
+      // the E shortcut). Falls back to the close button if the panel
+      // is rendered without an add button (e.g. label tracks), and
+      // finally to the panel container itself.
+      const addBtn = panelRef.current.querySelector<HTMLElement>(
+        '.effects-stack-header__add-button',
+      );
+      const closeBtn = panelRef.current.querySelector<HTMLElement>(
+        '.effects-panel-header__close-button',
+      );
+      setTimeout(() => {
+        const target = addBtn ?? closeBtn ?? panelRef.current;
+        target?.focus({ preventScroll: true });
+      }, 0);
     }
     if (!isOpen) {
       hasAutoFocused.current = false;

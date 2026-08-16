@@ -10,7 +10,7 @@ export interface CoordinateConfig {
   trackGap: number;
   initialGap: number;
   clipHeaderHeight: number;
-  tracks?: any[]; // Optional tracks array for split view detection and channel split ratio
+  tracks?: any[]; // justified: Track type not available in components package without circular dep — pending components sweep
 }
 
 /**

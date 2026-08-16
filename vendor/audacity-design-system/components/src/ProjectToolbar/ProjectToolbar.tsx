@@ -236,7 +236,7 @@ export function ProjectToolbar({
     ? (
         <>
           {isWorkspaceCompact ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <ToolbarGroup ariaLabel="Workspace controls" tabGroupId="project-toolbar-workspace" className="project-toolbar__workspace-compact-group">
               <div ref={workspaceIconRef} style={{ display: 'inline-flex' }}>
                 <GhostButton
                   icon="workspace"
@@ -261,7 +261,7 @@ export function ProjectToolbar({
                   />
                 </>
               )}
-            </div>
+            </ToolbarGroup>
           ) : (
             <>
               <span style={{ fontSize: '13px', color: 'var(--toolbar-text-primary)', marginRight: '4px' }}>
@@ -276,7 +276,7 @@ export function ProjectToolbar({
                 />
               </ToolbarGroup>
               {historyActions && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <ToolbarGroup ariaLabel="History" tabGroupId="project-toolbar-history" className="project-toolbar__history-group">
                   <GhostButton
                     icon="undo"
                     ariaLabel="Undo"
@@ -289,7 +289,7 @@ export function ProjectToolbar({
                     size="medium"
                     onClick={historyActions.onRedo}
                   />
-                </div>
+                </ToolbarGroup>
               )}
             </>
           )}

@@ -24,7 +24,7 @@ interface AccessibilityProfileContextValue {
   setProfile: (profileId: string) => void;
 }
 
-const AccessibilityProfileContext = createContext<AccessibilityProfileContextValue | undefined>(
+const AccessibilityProfileContext = /* @__PURE__ */ createContext<AccessibilityProfileContextValue | undefined>(
   undefined
 );
 

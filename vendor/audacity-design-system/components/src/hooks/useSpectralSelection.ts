@@ -12,22 +12,9 @@
 
 import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { CLIP_CONTENT_OFFSET } from '../constants';
-import { SpectralSelection } from '@audacity-ui/core';
+import { ClipLike, SpectralSelection, TrackLike } from '@audacity-ui/core';
 
 export type { SpectralSelection };
-
-interface SpectralTrack {
-  id: number;
-  clips: SpectralClip[];
-  height?: number;
-  viewMode?: 'waveform' | 'spectrogram' | 'split';
-}
-
-interface SpectralClip {
-  id: number;
-  start: number;
-  duration: number;
-}
 
 export interface UseSpectralSelectionConfig {
   /** Ref to the container element */
@@ -35,7 +22,7 @@ export interface UseSpectralSelectionConfig {
   /** Current spectral selection */
   currentSpectralSelection: SpectralSelection | null;
   /** Tracks data */
-  tracks: SpectralTrack[];
+  tracks: TrackLike[];
   /** Pixels per second - zoom level */
   pixelsPerSecond: number;
   /** Default track height */
@@ -168,7 +155,7 @@ export function useSpectralSelection(
    * Find which clip (if any) is at the given position
    * For split view, only returns clip if position is in spectral area (top half)
    */
-  const findClipAtPosition = useCallback((x: number, y: number): { trackIndex: number; clip: SpectralClip } | null => {
+  const findClipAtPosition = useCallback((x: number, y: number): { trackIndex: number; clip: ClipLike } | null => {
     let currentY = initialGap;
 
     for (let trackIndex = 0; trackIndex < tracks.length; trackIndex++) {
@@ -418,7 +405,7 @@ export function useSpectralSelection(
     // For stereo tracks, also check the mirrored channel bounds
     const track = tracks[trackIndex];
     const clip = track.clips.find(c => c.id === clipId);
-    const isStereo = clip && (clip as any).waveformLeft && (clip as any).waveformRight;
+    const isStereo = clip && clip.waveformLeft && clip.waveformRight;
     const isSpectrogramMode = track.viewMode === 'spectrogram';
     const isSplitView = track.viewMode === 'split';
 
@@ -618,7 +605,7 @@ export function useSpectralSelection(
         // Apply stereo channel constraints if needed
         const track = tracks[trackIndex];
         const clip = track.clips.find(c => c.id === clipId);
-        const isStereo = clip && (clip as any).waveformLeft && (clip as any).waveformRight;
+        const isStereo = clip && clip.waveformLeft && clip.waveformRight;
         const isSpectrogramMode = track.viewMode === 'spectrogram';
         const isSplitView = track.viewMode === 'split';
 
@@ -698,7 +685,7 @@ export function useSpectralSelection(
       // For stereo spectrogram/split, constrain frequencies to stay within the channel where drag started
       const track = tracks[trackIndex];
       const clip = track.clips.find(c => c.id === clipId);
-      const isStereo = clip && (clip as any).waveformLeft && (clip as any).waveformRight;
+      const isStereo = clip && clip.waveformLeft && clip.waveformRight;
       const isSpectrogramMode = track.viewMode === 'spectrogram';
       const isSplitView = track.viewMode === 'split';
 
@@ -859,7 +846,7 @@ export function useSpectralSelection(
       // For stereo spectrogram or split view, constrain frequencies to stay within the channel of the initial selection during resize
       const track = tracks[trackIndex];
       const clip = track.clips.find(c => c.id === clipId);
-      const isStereo = clip && (clip as any).waveformLeft && (clip as any).waveformRight;
+      const isStereo = clip && clip.waveformLeft && clip.waveformRight;
       const isSpectrogramMode = track.viewMode === 'spectrogram';
       const isSplitView = track.viewMode === 'split';
 

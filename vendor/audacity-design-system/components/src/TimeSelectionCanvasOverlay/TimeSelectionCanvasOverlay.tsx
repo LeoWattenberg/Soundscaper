@@ -85,7 +85,7 @@ export const TimeSelectionCanvasOverlay: React.FC<TimeSelectionCanvasOverlayProp
         backgroundColor,
         pointerEvents: 'none', // Allow clicks to pass through
         zIndex: 5, // Above tracks but below UI controls
-        mixBlendMode: mixBlendMode as any, // Blend mode for overlay (use 'normal' for no blending)
+        mixBlendMode: mixBlendMode as any, // justified: CSS mixBlendMode string → React.CSSProperties union cast — pending components sweep
       }}
     />
   );

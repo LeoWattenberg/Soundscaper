@@ -11,7 +11,7 @@ export interface StoredProject {
   thumbnailUrl?: string;
   isCloudProject: boolean;
   isUploading?: boolean;
-  data?: any; // Project-specific data (tracks, clips, etc.)
+  data?: any; // justified: open project serialization shape — pending components sweep
 }
 
 const STORAGE_KEY = 'audacity-projects';
