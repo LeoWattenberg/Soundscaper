@@ -9,9 +9,10 @@ export const DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE = 'project-library-lease-m
 export const DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_LEASE ';
 
 const ACTIONS = new Set([
-	'observe-hold', 'commit-hold', 'commit', 'verify',
+	'observe-hold', 'commit-hold', 'commit', 'commit-contend', 'verify',
 	'crash-prepared', 'crash-committed', 'renderer-loss',
 ]);
+const RENDERER_LOSS_PARK_MS = 100;
 
 export function decodeDesktopProjectLibraryLeaseSmokePlan(encoded) {
 	if (typeof encoded !== 'string' || !/^[A-Za-z0-9_-]+$/u.test(encoded)) {
@@ -61,6 +62,7 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 				if (admitted.action !== 'renderer-loss') parkUntilTerminated();
 				if (!attachedWindow || attachedWindow.isDestroyed()) throw new Error('Lease smoke renderer is unavailable');
 				attachedWindow.webContents.forcefullyCrashRenderer();
+				parkFor(RENDERER_LOSS_PARK_MS);
 			},
 		}),
 		async rendererReady(webContents) {
@@ -106,10 +108,15 @@ export async function runDesktopProjectLibraryLeaseRendererSmoke(scope, plan) {
 	}
 	// Publish against exactly the base this case read. Main arbitrates the
 	// compare-and-swap, so contenders that read the same base race there rather
-	// than being pre-screened here.
-	const expectedProject = bundle === null
-		? null
-		: { projectRevision: bundle.project.projectRevision, projectSha256: bundle.project.sha256 };
+	// than being pre-screened here. A contender publishes against the base the
+	// matrix handed it instead, so the one that arrives after the winner is the
+	// loser main refuses.
+	const expectedProject = bundle === null ? null : {
+		projectRevision: plan.action === 'commit-contend'
+			? plan.request.expectedRevision
+			: bundle.project.projectRevision,
+		projectSha256: bundle.project.sha256,
+	};
 	if ((plan.request.expectedRevision === null) !== (expectedProject === null)) {
 		return { status: 'conflict', ...observed, reason: 'destination-presence' };
 	}
@@ -123,7 +130,7 @@ export async function runDesktopProjectLibraryLeaseRendererSmoke(scope, plan) {
 			bodies: [],
 		});
 	} catch (error) {
-		return { status: 'conflict', ...observed, reason: leaseSmokeReason(error) };
+		return refusal(error);
 	}
 	try {
 		const result = await api.finishPublication({ publicationId });
@@ -136,7 +143,7 @@ export async function runDesktopProjectLibraryLeaseRendererSmoke(scope, plan) {
 		};
 	} catch (error) {
 		await api.abortPublication({ publicationId }).catch(() => false);
-		return { status: 'conflict', ...observed, reason: leaseSmokeReason(error) };
+		return refusal(error);
 	}
 
 	function publicationIdFor(globalScope) {
@@ -145,8 +152,18 @@ export async function runDesktopProjectLibraryLeaseRendererSmoke(scope, plan) {
 		return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 	}
 
-	function leaseSmokeReason(error) {
-		return String(error && error.message ? error.message : error).slice(0, 256);
+	/**
+	 * Only the refusals main arbitrates are outcomes of the workflow. Anything
+	 * else — a fenced host, a closed session, a failed write — is a defect the
+	 * matrix must see rather than a contender that lost fairly.
+	 */
+	function refusal(error) {
+		const message = String(error && error.message ? error.message : error);
+		const reason = /failed compare-and-swap/u.test(message) ? 'compare-and-swap'
+			: /expected an absent project/u.test(message) ? 'destination-presence'
+				: /requires a strictly higher project revision/u.test(message) ? 'revision-order' : null;
+		if (reason === null) throw error;
+		return { status: 'conflict', ...observed, reason };
 	}
 }
 
@@ -231,6 +248,15 @@ function atomicJsonSync(path, value) {
  */
 function parkUntilTerminated() {
 	Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+}
+
+/**
+ * Hold the publication open across the renderer loss it just staged. The
+ * checkpoint is synchronous, so returning immediately would let the publication
+ * settle before the renderer being killed has gone.
+ */
+function parkFor(durationMs) {
+	Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, durationMs);
 }
 
 async function atomicJson(path, value) {

@@ -101,7 +101,6 @@ test('staged product selector isolates V10 handlers, preload, sessions, and clos
 		appDataPath: fixture.appDataPath,
 		processId: 812,
 		instanceId: 'framescaper-maintained-runtime',
-		v9HostOptions: {},
 		onLeaseLost: () => {},
 		v10Qualification: null,
 	});
@@ -186,7 +185,6 @@ test('staged product selector isolates V10 handlers, preload, sessions, and clos
 		appDataPath: join(fixture.appDataPath, 'soundscaper'),
 		processId: 813,
 		instanceId: 'soundscaper-maintained-runtime',
-		v9HostOptions: {},
 		onLeaseLost: () => {},
 		v10Qualification: null,
 	});

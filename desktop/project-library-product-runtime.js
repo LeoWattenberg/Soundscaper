@@ -3,8 +3,7 @@
 import { isAbsolute, resolve } from 'node:path';
 
 const START_FIELDS = Object.freeze([
-	'productId', 'appDataPath', 'processId', 'instanceId', 'v9HostOptions', 'onLeaseLost',
-	'v10Qualification',
+	'productId', 'appDataPath', 'processId', 'instanceId', 'onLeaseLost', 'v10Qualification',
 ]);
 const BRIDGE_FIELDS = Object.freeze([
 	'desktopRoot', 'handle', 'ownerFor', 'removeHandler', 'session',
@@ -24,8 +23,7 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 		processId: positiveSafeInteger(options.processId, 'process id'),
 		instanceId: opaqueId(options.instanceId, 'instance id'),
 	});
-	if (!options.v9HostOptions || typeof options.v9HostOptions !== 'object'
-		|| Array.isArray(options.v9HostOptions) || typeof options.onLeaseLost !== 'function') {
+	if (typeof options.onLeaseLost !== 'function') {
 		throw new TypeError('Desktop project-library startup seams are invalid');
 	}
 	if (productId === 'framescaper') {
@@ -90,7 +88,6 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 		import('./project-library-runtime/desktop/project-library-media-binding.js'),
 	]);
 	const host = await DesktopProjectLibraryHost.start({
-		...options.v9HostOptions,
 		appDataPath,
 		owner,
 		onLeaseLost: options.onLeaseLost,
