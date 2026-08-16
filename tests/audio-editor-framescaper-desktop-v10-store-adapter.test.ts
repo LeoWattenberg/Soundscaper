@@ -81,11 +81,20 @@ test('save refuses missing and stale private witnesses before main or local muta
 	assert.equal(fixture.main.publications, 0);
 	assert.equal(await fixture.localStore.loadProject(String(current.id)), null);
 
+	// A witness admits only a strictly higher revision: replaying the witnessed
+	// revision is stale, while a coalesced autosave that advanced the in-memory
+	// project more than once is admitted.
 	await fixture.store.loadProject(String(current.id));
-	const skipped = projectFixture({ id: String(current.id), revision: 2 });
-	await assert.rejects(fixture.store.saveProject(skipped), /stale.*witness/iu);
+	const replayed = projectFixture({ id: String(current.id), revision: 0 });
+	await assert.rejects(fixture.store.saveProject(replayed), /stale.*witness/iu);
 	assert.equal(fixture.main.publications, 0);
 	assert.deepEqual(await fixture.localStore.loadProject(String(current.id)), current);
+
+	await fixture.store.loadProject(String(current.id));
+	const coalesced = projectFixture({ id: String(current.id), revision: 2 });
+	assert.deepEqual(await fixture.store.saveProject(coalesced), coalesced);
+	assert.equal(fixture.main.publications, 1);
+	assert.deepEqual(await fixture.localStore.loadProject(String(current.id)), coalesced);
 });
 
 test('create is main-first, collision-safe, and consumes its absence witness once', async (context) => {

@@ -249,7 +249,10 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 			if (Number(request.project.revision) !== 0) {
 				throw new Error('The desktop V10 absence witness can publish only fresh revision zero.');
 			}
-		} else if (Number(request.project.revision) !== witness.expectedProject.projectRevision + 1) {
+		} else if (!isStrictlyHigherProjectRevision(
+			request.project.revision,
+			witness.expectedProject.projectRevision,
+		)) {
 			throw new Error('The desktop V10 publication is stale against its private revision witness.');
 		}
 		try {
@@ -451,7 +454,7 @@ function assertLocalCas(
 	const snapshot = snapshotFramescaperDesktopV10Project(profile, current);
 	if (Number(current.revision) !== request.expectedProject.projectRevision
 		|| snapshot.sha256 !== request.expectedProject.projectSha256
-		|| Number(request.project.revision) !== Number(current.revision) + 1) {
+		|| !isStrictlyHigherProjectRevision(request.project.revision, current.revision)) {
 		throw new Error('The V18 shadow failed the desktop publication compare-and-swap.');
 	}
 }
@@ -471,10 +474,16 @@ function shadowPublication(current: FramescaperProjectV18 | null, project: Frame
 	if (current === null) return Object.freeze({ mode: 'create' as const });
 	const revision = Number(current.revision);
 	if (String(current.id) !== String(project.id) || !Number.isSafeInteger(revision)
-		|| revision === Number.MAX_SAFE_INTEGER || Number(project.revision) !== revision + 1) {
-		throw new Error('Desktop reconciliation requires the exact next V18 shadow revision.');
+		|| !isStrictlyHigherProjectRevision(project.revision, revision)) {
+		throw new Error('Desktop reconciliation requires a strictly higher V18 shadow revision.');
 	}
 	return Object.freeze({ mode: 'compare-and-swap' as const, expected: current, project });
+}
+
+function isStrictlyHigherProjectRevision(nextValue: unknown, currentValue: unknown): boolean {
+	return typeof nextValue === 'number' && Number.isSafeInteger(nextValue)
+		&& typeof currentValue === 'number' && Number.isSafeInteger(currentValue)
+		&& nextValue > currentValue;
 }
 
 function manifest(snapshot: Readonly<FramescaperDesktopV10BundleSnapshot>): Readonly<Record<string, unknown>> {

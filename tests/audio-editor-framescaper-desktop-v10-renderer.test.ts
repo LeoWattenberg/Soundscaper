@@ -167,6 +167,37 @@ test('publishes bounded pathless bodies in main before claim-bound shadow reconc
 	]);
 });
 
+test('publishes a coalesced autosave that advances more than one revision', async (context) => {
+	// Coalesced autosaves may advance to any strictly higher safe-integer
+	// revision under the exact prior revision-and-SHA witness
+	// (docs/milestone-5-plan.md). Refusing the jump stalled the packaged
+	// Framescaper timing probe, whose two-fixture import publishes once.
+	const fixture = await createFramescaperV18ArchiveFixture(context);
+	const archive = createArchive(fixture);
+	const current = archiveProject({ id: 'desktop-coalesced-autosave', revision: 0 });
+	const events: string[] = [];
+	const bridge = bridgeFixture(transferBundle(current, 11), events);
+	installBridge(context, bridge.api);
+	const renderer = await connectFramescaperDesktopProjectLibraryV10Renderer(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		{ store: fixture.store, archive },
+	);
+	assert.ok(renderer);
+	await renderer.readProject(String(current.id));
+
+	const project = structuredClone(current) as FramescaperProjectV18;
+	(project as unknown as { revision: number }).revision = 2;
+	(project as unknown as { title: string }).title = 'Coalesced through desktop V10';
+	const published = await renderer.publishProject({ project });
+
+	assert.deepEqual(published, project);
+	const begin = bridge.lastBegin as unknown as {
+		readonly expectedProject: { readonly projectRevision: number } | null;
+	};
+	assert.equal(begin.expectedProject?.projectRevision, 0);
+	assert.deepEqual(await fixture.store.loadProject(String(project.id)), project);
+});
+
 interface TransferBody {
 	readonly kind: 'video-proxy' | 'video-timing';
 	readonly encoding: string;

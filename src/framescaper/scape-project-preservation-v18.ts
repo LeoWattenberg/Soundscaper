@@ -497,8 +497,8 @@ function normalizeTarget(
 		if (framescaperScapeProjectIdentifierV18(origin) !== framescaperScapeProjectIdentifierV18(expected)
 			|| framescaperScapeProjectIdentifierV18(project) !== framescaperScapeProjectIdentifierV18(expected)
 			|| expectedRevision === Number.MAX_SAFE_INTEGER
-			|| framescaperScapeProjectRevisionV18(project) !== expectedRevision + 1) {
-			throw new Error('Archive replacement must compare and swap exactly the next revision.');
+			|| framescaperScapeProjectRevisionV18(project) <= expectedRevision) {
+			throw new Error('Archive replacement must compare and swap a strictly higher revision.');
 		}
 		assertFramescaperScapePreservedAttachmentsV18(origin, project);
 		return { mode, expected, project };

@@ -181,8 +181,9 @@ function normalizePublication(
 		}
 	} else {
 		if (!expected || projectId !== projectIdentifier(expected) || originId !== projectIdentifier(expected)
-			|| projectRevisionValue !== nextRevision(projectRevision(expected))) {
-			throw new Error('Archive replacement must compare and swap exactly the next revision.');
+			|| projectRevisionValue < nextRevision(projectRevision(expected))
+			|| !Number.isSafeInteger(projectRevisionValue)) {
+			throw new Error('Archive replacement must compare and swap a strictly higher revision.');
 		}
 	}
 	assertSamePreservedAttachments(origin, project);
