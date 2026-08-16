@@ -1,0 +1,335 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/**
+ * `NativeMediaPlanEnvelopeV1` — the closed union of exact canonical export
+ * plans a milestone-5B native media consumer may execute.
+ *
+ * The native tier accelerates the canonical plan; it never reinterprets it. So
+ * an envelope carries the plan in its canonical form, the fingerprint both
+ * consumers derive independently, and a version-normalized semantic summary
+ * that makes Web/native parity checkable field by field. At grounding time the
+ * union contains exactly the static V6 composition plan and the keyed V7 RGBA
+ * plan. Admitting a further version is a deliberate change here — a new
+ * adapter, validator, fingerprint rule, and parity golden — never a generic
+ * "unknown but plausible" acceptance.
+ */
+
+import {
+	assertNativeMediaPlanV6,
+	nativeMediaPlanV6VideoEffectCount,
+	type NativeMediaPlanV6,
+} from './native-media-plan-v6-admission.ts';
+import {
+	fingerprintNativeMediaPlan,
+	nativeMediaPlanViolation,
+} from './native-media-plan-canonical-form.ts';
+import {
+	assertVideoKeyframeExportPlanV7,
+	type VideoKeyframeExportPlanV7,
+} from './video-keyframe-export-plan-v7.ts';
+
+export {
+	NativeMediaPlanViolationError,
+	NATIVE_MEDIA_PLAN_CANONICAL_MAXIMUM_BYTES,
+} from './native-media-plan-canonical-form.ts';
+export type { NativeMediaPlanViolationCode } from './native-media-plan-canonical-form.ts';
+
+export const NATIVE_MEDIA_PLAN_ENVELOPE_VERSION = 1;
+
+/** The exact canonical plan versions this envelope admits. Closed by design. */
+export const NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS = Object.freeze([6, 7] as const);
+
+export type NativeMediaPlanVersion = (typeof NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS)[number];
+
+export const NATIVE_MEDIA_PLAN_STRATEGIES = Object.freeze({
+	6: 'framescaper-static-composition-v6',
+	7: 'framescaper-keyframed-rgba-v1',
+} as const);
+
+export type NativeMediaPlanStrategy =
+	(typeof NATIVE_MEDIA_PLAN_STRATEGIES)[NativeMediaPlanVersion];
+
+/**
+ * A rate is reported the way its plan states it. V7 states an exact rational;
+ * V6 states a decimal it already reduced. Neither is re-derived into the other,
+ * because guessing a rational back out of a decimal is exactly the inference
+ * the canonical-plan discipline forbids.
+ */
+export type NativeMediaPlanRateV1 =
+	| Readonly<{ readonly kind: 'rational'; readonly num: number; readonly den: number }>
+	| Readonly<{ readonly kind: 'decimal'; readonly value: number }>;
+
+export type NativeMediaPlanDurationV1 =
+	| Readonly<{ readonly kind: 'rational-seconds'; readonly num: number; readonly den: number }>
+	| Readonly<{ readonly kind: 'decimal-seconds'; readonly seconds: number }>;
+
+export interface NativeMediaPlanSourceInputV1 {
+	readonly inputIndex: number;
+	readonly sourceId: string;
+	readonly mimeType: string;
+	readonly contentSha256: string | null;
+}
+
+/**
+ * The version-normalized semantic projection every consumer compares on. Fields
+ * a plan version does not state are `null` — unreported, never inferred.
+ */
+export interface NativeMediaPlanSummaryV1 {
+	readonly planVersion: NativeMediaPlanVersion;
+	readonly strategy: NativeMediaPlanStrategy;
+	readonly container: string;
+	readonly extension: string;
+	readonly mimeType: string;
+	readonly videoCodec: string;
+	readonly videoEncoder: string;
+	readonly audioCodec: string | null;
+	readonly audioEncoder: string | null;
+	readonly pixelFormat: string;
+	readonly width: number;
+	readonly height: number;
+	readonly backgroundColor: string;
+	readonly frameRate: NativeMediaPlanRateV1;
+	readonly startFrame: number;
+	readonly endFrame: number;
+	readonly durationFrames: number;
+	readonly outputFrameCount: number;
+	readonly duration: NativeMediaPlanDurationV1;
+	readonly includesAudio: boolean;
+	readonly projectSampleRate: number | null;
+	readonly videoSourceInputs: readonly NativeMediaPlanSourceInputV1[];
+	readonly compositionIntervalCount: number | null;
+	readonly videoEffectCount: number | null;
+	readonly activeClipCount: number | null;
+}
+
+export interface NativeMediaPlanEnvelopeV1 {
+	readonly envelopeVersion: typeof NATIVE_MEDIA_PLAN_ENVELOPE_VERSION;
+	readonly planVersion: NativeMediaPlanVersion;
+	readonly strategy: NativeMediaPlanStrategy;
+	readonly fingerprint: string;
+	readonly canonicalByteLength: number;
+	readonly summary: NativeMediaPlanSummaryV1;
+	readonly plan: Readonly<Record<string, unknown>>;
+}
+
+const ENVELOPE_KEYS = Object.freeze([
+	'envelopeVersion', 'planVersion', 'strategy', 'fingerprint',
+	'canonicalByteLength', 'summary', 'plan',
+]);
+
+/**
+ * Admit one canonical plan and seal it into an envelope. The stored plan is the
+ * canonical re-parse, so an envelope's fingerprint always describes exactly the
+ * bytes it carries and no later mutation of the caller's object can desync it.
+ */
+export function createNativeMediaPlanEnvelopeV1(value: unknown): NativeMediaPlanEnvelopeV1 {
+	const planVersion = acceptedPlanVersion(value);
+	const fingerprint = fingerprintNativeMediaPlan(value);
+	const plan = deepFreeze(JSON.parse(fingerprint.canonical) as Record<string, unknown>);
+	const summary = planVersion === 6
+		? summarizeV6(admitV6(plan))
+		: summarizeV7(admitV7(plan));
+	return Object.freeze({
+		envelopeVersion: NATIVE_MEDIA_PLAN_ENVELOPE_VERSION,
+		planVersion,
+		strategy: NATIVE_MEDIA_PLAN_STRATEGIES[planVersion],
+		fingerprint: fingerprint.sha256,
+		canonicalByteLength: fingerprint.byteLength,
+		summary,
+		plan,
+	});
+}
+
+/**
+ * Admit an independently parsed envelope. Every declared field is re-derived
+ * from the carried plan: a peer cannot assert a fingerprint, strategy, or
+ * summary its plan does not actually produce.
+ */
+export function assertNativeMediaPlanEnvelopeV1(
+	value: unknown,
+): asserts value is NativeMediaPlanEnvelopeV1 {
+	const envelope = record(value, 'native media plan envelope');
+	const present = Object.keys(envelope);
+	if (present.length !== ENVELOPE_KEYS.length || present.some((key) => !ENVELOPE_KEYS.includes(key))) {
+		nativeMediaPlanViolation('malformed', 'A native media plan envelope must carry exactly its schema keys.');
+	}
+	if (envelope.envelopeVersion !== NATIVE_MEDIA_PLAN_ENVELOPE_VERSION) {
+		nativeMediaPlanViolation('unsupported-version', 'The native media plan envelope version is unsupported.');
+	}
+	const derived = createNativeMediaPlanEnvelopeV1(envelope.plan);
+	if (envelope.planVersion !== derived.planVersion
+		|| envelope.strategy !== derived.strategy
+		|| envelope.fingerprint !== derived.fingerprint
+		|| envelope.canonicalByteLength !== derived.canonicalByteLength) {
+		nativeMediaPlanViolation('malformed', 'A native media plan envelope does not describe its own plan.');
+	}
+	if (divergentNativeMediaPlanSummaryFields(envelope.summary, derived.summary).length > 0) {
+		nativeMediaPlanViolation('malformed', 'A native media plan envelope summary does not describe its own plan.');
+	}
+}
+
+/**
+ * List the semantic fields on which two consumers disagree. An empty result is
+ * the plan-parity claim milestone 5B's exit gate makes: the same envelope means
+ * the same render on the Web and native paths.
+ */
+export function divergentNativeMediaPlanSummaryFields(
+	left: unknown,
+	right: NativeMediaPlanSummaryV1,
+): readonly string[] {
+	const candidate = left === null || typeof left !== 'object' || Array.isArray(left)
+		? null
+		: left as Readonly<Record<string, unknown>>;
+	if (!candidate) return Object.freeze(['summary']);
+	const divergent: string[] = [];
+	for (const key of Object.keys(right) as (keyof NativeMediaPlanSummaryV1)[]) {
+		if (!sameJson(candidate[key], right[key])) divergent.push(key);
+	}
+	for (const key of Object.keys(candidate)) {
+		if (!Object.hasOwn(right, key)) divergent.push(key);
+	}
+	return Object.freeze(divergent.sort());
+}
+
+/** Compare two independently produced envelopes for the same canonical plan. */
+export function divergentNativeMediaPlanEnvelopeFields(
+	left: NativeMediaPlanEnvelopeV1,
+	right: NativeMediaPlanEnvelopeV1,
+): readonly string[] {
+	const divergent: string[] = [];
+	if (left.planVersion !== right.planVersion) divergent.push('planVersion');
+	if (left.strategy !== right.strategy) divergent.push('strategy');
+	if (left.fingerprint !== right.fingerprint) divergent.push('fingerprint');
+	if (left.canonicalByteLength !== right.canonicalByteLength) divergent.push('canonicalByteLength');
+	for (const field of divergentNativeMediaPlanSummaryFields(left.summary, right.summary)) {
+		divergent.push(`summary.${field}`);
+	}
+	return Object.freeze(divergent.sort());
+}
+
+function acceptedPlanVersion(value: unknown): NativeMediaPlanVersion {
+	const plan = record(value, 'native media plan');
+	const descriptor = Object.getOwnPropertyDescriptor(plan, 'version');
+	const version = descriptor && Object.hasOwn(descriptor, 'value') ? descriptor.value : undefined;
+	if (version !== 6 && version !== 7) {
+		nativeMediaPlanViolation(
+			'unsupported-version',
+			'A native media plan envelope admits only the exact canonical plan versions 6 and 7.',
+		);
+	}
+	return version;
+}
+
+function admitV6(plan: Readonly<Record<string, unknown>>): NativeMediaPlanV6 {
+	assertNativeMediaPlanV6(plan);
+	return plan;
+}
+
+function admitV7(plan: Readonly<Record<string, unknown>>): VideoKeyframeExportPlanV7 {
+	assertVideoKeyframeExportPlanV7(plan);
+	return plan;
+}
+
+function summarizeV6(plan: NativeMediaPlanV6): NativeMediaPlanSummaryV1 {
+	const audioInput = plan.inputs.find((input) => input.kind === 'staged-audio-mix') ?? null;
+	return Object.freeze({
+		planVersion: 6,
+		strategy: NATIVE_MEDIA_PLAN_STRATEGIES[6],
+		container: plan.container,
+		extension: plan.extension,
+		mimeType: plan.mimeType,
+		videoCodec: plan.codecs.video,
+		videoEncoder: plan.codecs.videoEncoder,
+		audioCodec: plan.codecs.audio,
+		audioEncoder: plan.codecs.audioEncoder,
+		pixelFormat: plan.codecs.pixelFormat,
+		width: plan.canvas.width,
+		height: plan.canvas.height,
+		backgroundColor: plan.canvas.backgroundColor,
+		frameRate: Object.freeze({ kind: 'decimal' as const, value: plan.canvas.frameRate }),
+		startFrame: plan.range.startFrame,
+		endFrame: plan.range.endFrame,
+		durationFrames: plan.range.durationFrames,
+		outputFrameCount: plan.outputFrameCount,
+		duration: Object.freeze({ kind: 'decimal-seconds' as const, seconds: plan.durationSeconds }),
+		includesAudio: audioInput !== null,
+		projectSampleRate: audioInput === null ? null : audioInput.sampleRate,
+		videoSourceInputs: Object.freeze(plan.inputs
+			.filter((input) => input.kind === 'video-source')
+			.map((input) => Object.freeze({
+				inputIndex: input.inputIndex,
+				sourceId: input.sourceId,
+				mimeType: input.mimeType,
+				contentSha256: null,
+			}))),
+		compositionIntervalCount: plan.intervals.length,
+		videoEffectCount: nativeMediaPlanV6VideoEffectCount(plan),
+		activeClipCount: null,
+	});
+}
+
+function summarizeV7(plan: VideoKeyframeExportPlanV7): NativeMediaPlanSummaryV1 {
+	return Object.freeze({
+		planVersion: 7,
+		strategy: NATIVE_MEDIA_PLAN_STRATEGIES[7],
+		container: plan.container,
+		extension: plan.extension,
+		mimeType: plan.mimeType,
+		videoCodec: plan.codecs.video,
+		videoEncoder: plan.codecs.videoEncoder,
+		audioCodec: plan.codecs.audio,
+		audioEncoder: plan.codecs.audioEncoder,
+		pixelFormat: plan.codecs.pixelFormat,
+		width: plan.canvas.width,
+		height: plan.canvas.height,
+		backgroundColor: plan.canvas.backgroundColor,
+		frameRate: Object.freeze({
+			kind: 'rational' as const,
+			num: plan.canvas.frameRate.num,
+			den: plan.canvas.frameRate.den,
+		}),
+		startFrame: plan.range.startFrame,
+		endFrame: plan.range.endFrame,
+		durationFrames: plan.range.durationFrames,
+		outputFrameCount: plan.outputFrameCount,
+		duration: Object.freeze({
+			kind: 'rational-seconds' as const,
+			num: plan.duration.num,
+			den: plan.duration.den,
+		}),
+		includesAudio: plan.codecs.audio !== null,
+		projectSampleRate: plan.sampleRate,
+		videoSourceInputs: Object.freeze(plan.inputs
+			.filter((input): input is Extract<typeof input, { kind: 'video-source' }> => (
+				input.kind === 'video-source'
+			))
+			.map((input) => Object.freeze({
+				inputIndex: input.inputIndex,
+				sourceId: input.sourceId,
+				mimeType: input.mimeType,
+				contentSha256: input.contentSha256,
+			}))),
+		compositionIntervalCount: null,
+		videoEffectCount: null,
+		activeClipCount: plan.activeClipIds.length,
+	});
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+	if (left === right) return true;
+	if (typeof left !== 'object' || typeof right !== 'object' || !left || !right) return false;
+	return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function record(value: unknown, label: string): Record<string, unknown> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		nativeMediaPlanViolation('malformed', `A ${label} must be a plain record.`);
+	}
+	return value as Record<string, unknown>;
+}
+
+function deepFreeze<Value>(value: Value): Value {
+	if (value === null || typeof value !== 'object') return value;
+	for (const nested of Object.values(value as Record<string, unknown>)) deepFreeze(nested);
+	return Object.freeze(value);
+}
