@@ -33,6 +33,9 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/helper-job-grant.js',
 		'desktop/helper-probe-service.js',
 		'desktop/helper-supervisor.js',
+		'desktop/native-addon-payload.js',
+		'desktop/native-helper-results.js',
+		'desktop/native-helper-service.js',
 		'desktop/helper-wire-admission.js',
 		'desktop/linked-original-locator-validation.js',
 		'desktop/linked-video-locator-registry.js',
@@ -437,14 +440,16 @@ test('desktop main initializes, exposes, and disposes the shared library through
 	assert.match(mainSource, /ownerFor:\s*rendererSaveOwnerFor/u);
 	assert.match(mainSource, /new DesktopApplicationShutdown/u);
 	assert.match(mainSource, /name: 'project library', run: closeProjectLibraryHost/u);
-	assert.match(mainSource, /helperProbeService = registerDesktopHelperProbe\(\{ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings/u,
-		'the probe helper must register through the trusted IPC wrapper with main-owned seams');
-	assert.match(mainSource, /name: 'helper probe', run: \(\) => helperProbeService\?\.dispose\(\)/u,
-		'the probe helper must join the ordered shutdown barrier');
-	assert.match(mainSource, /helperProbes: \(\) => helperProbeService/u,
+	assert.match(mainSource, /nativeTier = registerDesktopNativeTier\(\{ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings/u,
+		'the native tier must register through the trusted IPC wrapper with main-owned seams');
+	assert.match(mainSource, /name: 'native tier', run: \(\) => disposeDesktopNativeTier\(nativeTier\)/u,
+		'every native helper must join the ordered shutdown barrier together');
+	assert.match(mainSource, /helperProbes: \(\) => nativeTier\?\.probe/u,
 		'renderer ownership cleanup must drain helper probes');
-	assert.match(mainSource, /\.\.\.desktopHelperProbeMenu\(\)/u,
-		'the helper surface must stay menu-reached');
+	assert.match(mainSource, /nativeAudio: \(\) => nativeTier\?\.audio/u,
+		'renderer ownership cleanup must drain the native audio helper too');
+	assert.match(mainSource, /\.\.\.desktopNativeTierMenu\(\)/u,
+		'the native surfaces must stay menu-reached');
 	assert.match(mainSource, /name: 'read capabilities'.*readCapabilities\.dispose\(\)/su);
 	assert.match(mainSource, /name: 'save sessions'.*saves\.dispose\(\)/su);
 	const startIndex = mainSource.indexOf('void startApplication()');
