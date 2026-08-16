@@ -123,7 +123,10 @@ export class NativeRealtimeTransportProcessor extends ProcessorBase {
 		if (!blockFrames || !this.running) return true;
 
 		let written = 0;
-		while (written < blockFrames) {
+		// Releasing a packet can end the generation mid-quantum, and the frames
+		// after that belong to no generation at all: they stay silent rather than
+		// draining what the closed stream left queued behind it.
+		while (this.running && written < blockFrames) {
 			if (!this.current) {
 				this.current = this.receiver.consume();
 				this.currentChannels = this.current?.channels || null;
@@ -270,8 +273,11 @@ export class NativeRealtimeTransportProcessor extends ProcessorBase {
 			// Handing the buffers back is the sender's only credit, so release
 			// is not a courtesy that can be deferred past the quantum.
 			const returned = this.receiver.returnPacket(packet);
-			this.releasedBuffers += returned.transfer.length;
 			this.helperPort?.postMessage(returned.message, returned.transfer);
+			// Counted only once the buffers have left. Credit that never reached
+			// the peer is the leak below, and the ledger main reads to find a
+			// lost buffer must not be the thing that hides it.
+			this.releasedBuffers += returned.transfer.length;
 		} catch {
 			this.#closeGeneration('pool-leak');
 		}

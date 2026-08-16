@@ -1,217 +1,69 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	AUDIO_EDITOR_STREAM_QUEUE_PACKET_LIMIT,
-	AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
-} from './chunk-stream.js';
+	NATIVE_REALTIME_PACKET_FRAMES,
+	NATIVE_REALTIME_MAX_GENERATION,
+	NATIVE_REALTIME_MAX_QUEUE_PACKETS,
+	NATIVE_REALTIME_PROTOCOL_VERSION,
+	NATIVE_REALTIME_REPLAY_POLICY,
+	NativeRealtimeProtocolError,
+	asNativeRealtimeError as asProtocolError,
+	assertOrdinaryNativeRealtimeBuffer as assertOrdinaryBuffer,
+	boundedNativeRealtimeInteger as boundedInteger,
+	describeNativeRealtimeValue as describe,
+	isNativeRealtimeCloseReason as isCloseReason,
+	nativeRealtimeError as fail,
+	transferListForNativeRealtimeChannels,
+	validateNativeRealtimeMessage,
+	type NativeRealtimeAudioMessage,
+	type NativeRealtimeCloseEvent,
+	type NativeRealtimeCloseMessage,
+	type NativeRealtimeCloseReason,
+	type NativeRealtimeMessage,
+	type NativeRealtimeOpenMessage,
+	type NativeRealtimePacketDispatch,
+	type NativeRealtimeReturnMessage,
+	type NativeRealtimeTransfer,
+} from './native-realtime-protocol.ts';
 import { PLATFORM_TRANSFER_HARD_LIMITS } from './platform/bounded-transfer.ts';
 
 /**
  * The milestone 5A real-time data plane: a supervised native helper and an
  * AudioWorklet exchange planar float packets over a directly transferred
  * MessagePort, with renderer main present only for setup and revocation.
- * Nothing here allocates once the pool exists, because the consuming end runs
- * on the audio callback, and nothing reaches for SharedArrayBuffer, because the
- * browser build ships without cross-origin isolation and 5A does not add it.
+ * Sample memory is allocated once, when the pool is built: the audio callback
+ * drains an already queued packet without allocating, and the control path
+ * costs only the bounded envelope it validates. The wire vocabulary and its
+ * validator live in native-realtime-protocol.ts and are re-exported here, so a
+ * consumer only ever imports this module.
  */
 
-export const NATIVE_REALTIME_PROTOCOL_VERSION = 1;
-export const NATIVE_REALTIME_PACKET_FRAMES: number = AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES;
-export const NATIVE_REALTIME_MAX_QUEUE_PACKETS: number = AUDIO_EDITOR_STREAM_QUEUE_PACKET_LIMIT;
-export const NATIVE_REALTIME_MAX_GENERATION = 0xffff_ffff;
+export {
+	NATIVE_REALTIME_CLOSE_REASONS,
+	NATIVE_REALTIME_ERROR_CODES,
+	NATIVE_REALTIME_MAX_GENERATION,
+	NATIVE_REALTIME_MAX_QUEUE_PACKETS,
+	NATIVE_REALTIME_PACKET_FRAMES,
+	NATIVE_REALTIME_PROTOCOL_VERSION,
+	NATIVE_REALTIME_REPLAY_POLICY,
+	NativeRealtimeProtocolError,
+	transferListForNativeRealtimeChannels,
+	validateNativeRealtimeMessage,
+} from './native-realtime-protocol.ts';
+export type {
+	NativeRealtimeAudioMessage,
+	NativeRealtimeCloseEvent,
+	NativeRealtimeCloseMessage,
+	NativeRealtimeCloseReason,
+	NativeRealtimeErrorCode,
+	NativeRealtimeMessage,
+	NativeRealtimeOpenMessage,
+	NativeRealtimePacketDispatch,
+	NativeRealtimeReturnMessage,
+	NativeRealtimeTransfer,
+} from './native-realtime-protocol.ts';
 
 const BYTES_PER_SAMPLE = Float32Array.BYTES_PER_ELEMENT;
-
-export const NATIVE_REALTIME_CLOSE_REASONS = Object.freeze([
-	'completed', 'cancelled', 'underrun', 'non-contiguous',
-	'queue-overflow', 'pool-leak', 'peer-loss', 'protocol-violation',
-] as const);
-
-export const NATIVE_REALTIME_ERROR_CODES = Object.freeze([
-	'CLOSED_GENERATION', 'INVALID_FIELD', 'PACKET_DETACHED', 'PAYLOAD_TOO_LARGE', 'POOL_LEDGER',
-	'PROTOCOL_VERSION', 'SHARED_MEMORY_FORBIDDEN', 'STALE_REPLAY', 'UNKNOWN_KEY', 'UNKNOWN_KIND',
-] as const);
-
-/**
- * An offline render is compared before it is committed, so it may be retried
- * from the canonical plan. A real-time generation has already been heard by the
- * time a retry could run, so a late packet is dropped and its generation closes
- * rather than replaying stale audio into the device.
- */
-export const NATIVE_REALTIME_REPLAY_POLICY = Object.freeze({ realtime: 'never', offline: 'retry-from-canonical-plan' } as const);
-
-export type NativeRealtimeCloseReason = (typeof NATIVE_REALTIME_CLOSE_REASONS)[number];
-export type NativeRealtimeErrorCode = (typeof NATIVE_REALTIME_ERROR_CODES)[number];
-export type NativeRealtimeCloseEvent = Readonly<{ generation: number; reason: NativeRealtimeCloseReason }>;
-export type NativeRealtimeTransfer<Message> = Readonly<{ message: Message; transfer: readonly ArrayBuffer[] }>;
-
-export class NativeRealtimeProtocolError extends Error {
-	readonly code: NativeRealtimeErrorCode;
-	readonly field: string;
-
-	constructor(code: NativeRealtimeErrorCode, message: string, field = '') {
-		super(message);
-		this.name = 'NativeRealtimeProtocolError';
-		this.code = code;
-		this.field = field;
-	}
-}
-
-type Envelope = Readonly<{ protocolVersion: number; generation: number }>;
-type Planes = Readonly<{ channels: readonly Float32Array[] }>;
-
-export type NativeRealtimeOpenMessage = Envelope & Readonly<{ kind: 'open'; startFrame: number; channelCount: number; frameCount: number; queueCapacity: number }>;
-export type NativeRealtimeAudioMessage = Envelope & Planes & Readonly<{ kind: 'audio'; packetId: number; sequence: number; startFrame: number; frameCount: number }>;
-export type NativeRealtimeReturnMessage = Envelope & Planes & Readonly<{ kind: 'return'; packetId: number }>;
-export type NativeRealtimeCloseMessage = Envelope & Readonly<{ kind: 'close'; reason: NativeRealtimeCloseReason }>;
-export type NativeRealtimeMessage =
-	NativeRealtimeOpenMessage | NativeRealtimeAudioMessage | NativeRealtimeReturnMessage | NativeRealtimeCloseMessage;
-
-const MESSAGE_KEYS = Object.freeze({
-	open: ['channelCount', 'frameCount', 'generation', 'kind', 'protocolVersion', 'queueCapacity', 'startFrame'],
-	audio: ['channels', 'frameCount', 'generation', 'kind', 'packetId', 'protocolVersion', 'sequence', 'startFrame'],
-	return: ['channels', 'generation', 'kind', 'packetId', 'protocolVersion'],
-	close: ['generation', 'kind', 'protocolVersion', 'reason'],
-} as const);
-
-const NUMERIC_LIMITS: Readonly<Record<string, readonly [number, number]>> = Object.freeze({
-	generation: [0, NATIVE_REALTIME_MAX_GENERATION], packetId: [0, NATIVE_REALTIME_MAX_QUEUE_PACKETS - 1],
-	startFrame: [0, Number.MAX_SAFE_INTEGER], sequence: [0, Number.MAX_SAFE_INTEGER],
-	channelCount: [1, PLATFORM_TRANSFER_HARD_LIMITS.audioChunkChannels], queueCapacity: [1, NATIVE_REALTIME_MAX_QUEUE_PACKETS],
-	frameCount: [1, PLATFORM_TRANSFER_HARD_LIMITS.audioChunkFrames],
-});
-
-/**
- * Validates one wire message against a closed schema. Foreign prototypes,
- * accessor properties, unknown keys, non-finite numbers, shared memory and
- * oversize control payloads are all rejected before any field is trusted, so a
- * peer can neither run a getter on this side nor make it walk unbounded data.
- */
-export function validateNativeRealtimeMessage(value: unknown): NativeRealtimeMessage {
-	const record = asPlainRecord(value);
-	assertControlPayloadSize(record);
-	const version = readField(record, 'protocolVersion');
-	if (version !== NATIVE_REALTIME_PROTOCOL_VERSION) {
-		throw fail('PROTOCOL_VERSION', `Unsupported native real-time protocol version ${describe(version)}.`, 'protocolVersion');
-	}
-	const kind = readField(record, 'kind');
-	if (!isMessageKind(kind)) throw fail('UNKNOWN_KIND', `Unknown message kind ${describe(kind)}.`, 'kind');
-	assertClosedKeySet(record, MESSAGE_KEYS[kind]);
-	const fields: Record<string, unknown> = { protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind };
-	for (const key of MESSAGE_KEYS[kind] as readonly string[]) {
-		const limits = NUMERIC_LIMITS[key];
-		if (limits) fields[key] = boundedInteger(readField(record, key), key, limits[0], limits[1]);
-	}
-	if (kind === 'close') {
-		const reason = readField(record, 'reason');
-		if (!isCloseReason(reason)) throw fail('INVALID_FIELD', `${describe(reason)} is not a close reason.`, 'reason');
-		fields.reason = reason;
-	} else if (kind !== 'open') {
-		const frames = kind === 'audio' ? (fields.frameCount as number) : null;
-		fields.channels = validateChannels(readField(record, 'channels'), frames);
-	}
-	// Safe by construction: the key set is closed to this kind's schema and
-	// every one of its fields has just been bounded or narrowed above.
-	return Object.freeze(fields) as unknown as NativeRealtimeMessage;
-}
-
-function asPlainRecord(value: unknown): Readonly<Record<string, unknown>> {
-	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-		throw fail('INVALID_FIELD', `A wire message must be a plain object, received ${describe(value)}.`);
-	}
-	const prototype: unknown = Object.getPrototypeOf(value);
-	if (prototype !== Object.prototype && prototype !== null) throw fail('INVALID_FIELD', 'A wire message must not carry a class prototype.');
-	return value as Readonly<Record<string, unknown>>;
-}
-
-/**
- * Bounds the control half of a message before the schema is applied. PCM rides
- * its own bounded channel, so string cost is what matters; every property is
- * charged its worst-case UTF-8 size, which keeps both a megabyte-long field and
- * a key explosion out of a limit that is stated in bytes.
- */
-function assertControlPayloadSize(record: Readonly<Record<string, unknown>>): void {
-	let bytes = 0;
-	for (const key of Object.getOwnPropertyNames(record)) {
-		const descriptor = Object.getOwnPropertyDescriptor(record, key);
-		const held = descriptor && 'value' in descriptor ? descriptor.value : undefined;
-		bytes += key.length * 3 + (typeof held === 'string' ? held.length * 3 : 8);
-		if (bytes > PLATFORM_TRANSFER_HARD_LIMITS.messageBytes) {
-			throw fail('PAYLOAD_TOO_LARGE', `A control payload may not exceed ${PLATFORM_TRANSFER_HARD_LIMITS.messageBytes} bytes.`, key);
-		}
-	}
-}
-
-function assertClosedKeySet(record: Readonly<Record<string, unknown>>, expected: readonly string[]): void {
-	if (Object.getOwnPropertySymbols(record).length > 0) throw fail('UNKNOWN_KEY', 'A wire message must not carry symbol keys.');
-	const allowed = new Set(expected);
-	for (const key of Object.getOwnPropertyNames(record)) {
-		if (!allowed.delete(key)) throw fail('UNKNOWN_KEY', `Unknown wire message key ${JSON.stringify(key)}.`, key);
-	}
-	for (const missing of allowed) throw fail('INVALID_FIELD', `${missing} is required.`, missing);
-}
-
-function readField(record: Readonly<Record<string, unknown>>, key: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(record, key);
-	if (!descriptor) throw fail('INVALID_FIELD', `${key} is required.`, key);
-	if (!('value' in descriptor)) throw fail('INVALID_FIELD', `${key} must be a data property, not an accessor.`, key);
-	return descriptor.value;
-}
-
-function boundedInteger(value: unknown, field: string, minimum: number, maximum: number): number {
-	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < minimum || value > maximum) {
-		throw fail('INVALID_FIELD', `${field} must be a safe integer in [${minimum}, ${maximum}], received ${describe(value)}.`, field);
-	}
-	return value;
-}
-
-function validateChannels(value: unknown, frameCount: number | null): readonly Float32Array[] {
-	const maxChannels = PLATFORM_TRANSFER_HARD_LIMITS.audioChunkChannels;
-	if (!Array.isArray(value) || value.length < 1 || value.length > maxChannels) {
-		throw fail('INVALID_FIELD', `channels must hold 1 to ${maxChannels} planar Float32Array channels.`, 'channels');
-	}
-	const planes = value as readonly unknown[];
-	const head = planes[0];
-	const frames = frameCount ?? (head instanceof Float32Array ? head.length : 0);
-	if (frames < 1 || frames > PLATFORM_TRANSFER_HARD_LIMITS.audioChunkFrames) {
-		throw fail('INVALID_FIELD', `channels must hold 1 to ${PLATFORM_TRANSFER_HARD_LIMITS.audioChunkFrames} frames.`, 'channels');
-	}
-	const channels: Float32Array[] = [];
-	for (const [index, channel] of planes.entries()) {
-		const field = `channels[${index}]`;
-		if (!(channel instanceof Float32Array)) throw fail('INVALID_FIELD', `${field} must be a Float32Array.`, field);
-		assertOrdinaryBuffer(channel.buffer, field);
-		if (channel.length !== frames) throw fail('INVALID_FIELD', `${field} must hold exactly ${frames} frames.`, field);
-		channels.push(channel);
-	}
-	return Object.freeze(channels);
-}
-
-function assertOrdinaryBuffer(buffer: ArrayBufferLike, field: string): void {
-	if (buffer instanceof ArrayBuffer) return;
-	if (typeof SharedArrayBuffer !== 'undefined' && buffer instanceof SharedArrayBuffer) {
-		throw fail('SHARED_MEMORY_FORBIDDEN', `${field} must not be backed by SharedArrayBuffer.`, field);
-	}
-	throw fail('INVALID_FIELD', `${field} must be backed by an ordinary ArrayBuffer.`, field);
-}
-
-function isMessageKind(value: unknown): value is keyof typeof MESSAGE_KEYS {
-	return typeof value === 'string' && Object.hasOwn(MESSAGE_KEYS, value);
-}
-
-function isCloseReason(value: unknown): value is NativeRealtimeCloseReason {
-	return typeof value === 'string' && (NATIVE_REALTIME_CLOSE_REASONS as readonly string[]).includes(value);
-}
-
-function fail(code: NativeRealtimeErrorCode, message: string, field = ''): NativeRealtimeProtocolError {
-	return new NativeRealtimeProtocolError(code, message, field);
-}
-
-function describe(value: unknown): string {
-	if (typeof value === 'string') return JSON.stringify(value);
-	if (typeof value === 'object' && value !== null) return Object.prototype.toString.call(value);
-	return String(value);
-}
 
 export interface NativeRealtimePacketLease {
 	readonly packetId: number; readonly channelCount: number; readonly capacityFrames: number; readonly detached: boolean;
@@ -224,14 +76,14 @@ export type NativeRealtimePacketPoolOptions = Readonly<{ capacity: number; chann
 interface MutableLease extends NativeRealtimePacketLease { detached: boolean }
 
 interface PoolSlot {
-	readonly packetId: number; channels: Float32Array[];
-	state: 'free' | 'leased' | 'in-flight'; lease: MutableLease | null; sentAt: number;
+	readonly packetId: number; channels: Float32Array[]; state: 'free' | 'leased' | 'in-flight';
+	lease: MutableLease | null; sentAt: number; sentGeneration: number; sentSequence: number;
 }
 
 interface PoolState {
 	readonly slots: readonly PoolSlot[]; readonly free: number[];
 	readonly capacityFrames: number; readonly channelCount: number;
-	allocationCount: number; inFlightCount: number;
+	readonly allocationCount: number; inFlightCount: number;
 }
 
 const POOL_STATE = new WeakMap<object, PoolState>();
@@ -248,24 +100,19 @@ export function createNativeRealtimePacketPool(options: NativeRealtimePacketPool
 	const capacityFrames = boundedInteger(options.frameCount ?? NATIVE_REALTIME_PACKET_FRAMES, 'frameCount', 1, PLATFORM_TRANSFER_HARD_LIMITS.audioChunkFrames);
 	const slots: PoolSlot[] = [];
 	const free: number[] = [];
-	let allocationCount = 0;
 	for (let packetId = 0; packetId < capacity; packetId += 1) {
-		const channels: Float32Array[] = [];
-		for (let channel = 0; channel < channelCount; channel += 1) {
-			channels.push(new Float32Array(new ArrayBuffer(capacityFrames * BYTES_PER_SAMPLE)));
-			allocationCount += 1;
-		}
-		slots.push({ packetId, channels, state: 'free', lease: null, sentAt: 0 });
+		const channels = Array.from({ length: channelCount }, () => new Float32Array(capacityFrames));
+		slots.push({ packetId, channels, state: 'free', lease: null, sentAt: 0, sentGeneration: -1, sentSequence: -1 });
 		free.push(packetId);
 	}
-	const state: PoolState = { slots, free, capacityFrames, channelCount, allocationCount, inFlightCount: 0 };
+	const state: PoolState = { slots, free, capacityFrames, channelCount, allocationCount: capacity * channelCount, inFlightCount: 0 };
 	const pool = {
 		capacity,
 		channelCount,
 		frameCount: capacityFrames,
 		get availableCount(): number { return state.free.length; },
 		get inFlightCount(): number { return state.inFlightCount; },
-		/** Buffers allocated over the pool's whole life; never more than capacity. */
+		/** Sample buffers allocated over this pool's whole life: one per channel per packet, and never another. */
 		get allocationCount(): number { return state.allocationCount; },
 		acquire(): NativeRealtimePacketLease | null {
 			const packetId = state.free.pop();
@@ -282,14 +129,24 @@ export function createNativeRealtimePacketPool(options: NativeRealtimePacketPool
 			slot.state = 'free';
 			state.free.push(slot.packetId);
 		},
-		release(packetId: number, channels: readonly Float32Array[]): void {
-			const slot = state.slots[boundedInteger(packetId, 'packetId', 0, capacity - 1)];
-			if (slot.state !== 'in-flight') throw fail('POOL_LEDGER', `Packet ${packetId} was returned while it was not in flight.`, 'packetId');
-			slot.channels = adoptReturnedChannels(channels, state);
+		/**
+		 * A buffer belongs to the pool rather than to the generation that sent
+		 * it, so a late return still restores credit and a cancelled generation
+		 * cannot strand the pool it borrowed from. The return must name the
+		 * exact dispatch it acknowledges: a duplicate would otherwise credit a
+		 * packet that is legitimately in flight again, and the pool would hand
+		 * the same memory to a second writer.
+		 */
+		release(dispatch: NativeRealtimePacketDispatch): void {
+			const slot = state.slots[boundedInteger(dispatch.packetId, 'packetId', 0, capacity - 1)];
+			if (slot.state !== 'in-flight' || slot.sentGeneration !== dispatch.generation || slot.sentSequence !== dispatch.sequence) {
+				throw fail('POOL_LEDGER', `Packet ${dispatch.packetId} does not match a dispatch that is in flight.`, 'packetId');
+			}
+			slot.channels = adoptReturnedChannels(dispatch.channels, state);
 			slot.state = 'free';
 			slot.lease = null;
 			state.inFlightCount -= 1;
-			state.free.push(packetId);
+			state.free.push(slot.packetId);
 		},
 	};
 	POOL_STATE.set(pool, state);
@@ -300,10 +157,7 @@ export type NativeRealtimePacketPool = ReturnType<typeof createNativeRealtimePac
 
 function createLease(slot: PoolSlot, channelCount: number, capacityFrames: number): MutableLease {
 	const lease: MutableLease = {
-		packetId: slot.packetId,
-		channelCount,
-		capacityFrames,
-		detached: false,
+		packetId: slot.packetId, channelCount, capacityFrames, detached: false,
 		channels() {
 			if (lease.detached) throw fail('PACKET_DETACHED', `Packet ${slot.packetId} was transferred; this end no longer owns its buffers.`);
 			return slot.channels;
@@ -314,26 +168,32 @@ function createLease(slot: PoolSlot, channelCount: number, capacityFrames: numbe
 
 function slotForLease(state: PoolState, lease: NativeRealtimePacketLease, expected: PoolSlot['state']): PoolSlot {
 	const slot = state.slots[lease.packetId];
-	if (!slot || slot.lease !== lease || slot.state !== expected) {
-		throw fail('POOL_LEDGER', `Packet ${String(lease.packetId)} is not ${expected} in this pool.`);
-	}
+	if (!slot || slot.lease !== lease || slot.state !== expected) throw fail('POOL_LEDGER', `Packet ${String(lease.packetId)} is not ${expected} in this pool.`);
 	return slot;
 }
 
 /**
- * Re-adopts the buffers a peer handed back. A view that already spans its whole
- * buffer is kept as-is, so the steady state allocates nothing; only a short
- * final packet costs one view object, and never a new ArrayBuffer.
+ * Re-adopts the buffers a peer handed back. Transfer destroys object identity,
+ * so the pool can only insist on its own shape: one whole buffer per channel,
+ * and never two channels over one buffer, which would silently cost it a buffer
+ * and leave the survivors aliased. A view that already spans its buffer is kept
+ * as-is, so the steady state allocates nothing; only a short final packet costs
+ * one view object, and never a new ArrayBuffer.
  */
 function adoptReturnedChannels(channels: readonly Float32Array[], state: PoolState): Float32Array[] {
 	if (channels.length !== state.channelCount) throw fail('POOL_LEDGER', `A returned packet must carry ${state.channelCount} channels.`, 'channels');
 	const bytes = state.capacityFrames * BYTES_PER_SAMPLE;
-	return channels.map((channel, index) => {
+	const adopted: Float32Array[] = [];
+	for (const [index, channel] of channels.entries()) {
 		const field = `channels[${index}]`;
 		assertOrdinaryBuffer(channel.buffer, field);
 		if (channel.buffer.byteLength !== bytes) throw fail('POOL_LEDGER', `${field} is not a pool buffer of ${bytes} bytes.`, field);
-		return channel.byteOffset === 0 && channel.length === state.capacityFrames ? channel : new Float32Array(channel.buffer);
-	});
+		for (const seen of adopted) {
+			if (seen.buffer === channel.buffer) throw fail('POOL_LEDGER', `${field} aliases another returned channel.`, field);
+		}
+		adopted.push(channel.byteOffset === 0 && channel.length === state.capacityFrames ? channel : new Float32Array(channel.buffer));
+	}
+	return adopted;
 }
 
 interface CloseLifecycle {
@@ -365,16 +225,6 @@ function closeMessage(generation: number, reason: NativeRealtimeCloseReason): Na
 	return Object.freeze({ protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind: 'close' as const, generation, reason });
 }
 
-export function transferListForNativeRealtimeChannels(channels: readonly Float32Array[]): readonly ArrayBuffer[] {
-	const buffers: ArrayBuffer[] = [];
-	for (const [index, channel] of channels.entries()) {
-		assertOrdinaryBuffer(channel.buffer, `channels[${index}]`);
-		const buffer = channel.buffer as ArrayBuffer;
-		if (!buffers.includes(buffer)) buffers.push(buffer);
-	}
-	return Object.freeze(buffers);
-}
-
 export interface NativeRealtimeSenderOptions {
 	readonly pool: NativeRealtimePacketPool; readonly generation: number;
 	readonly startFrame?: number; readonly queueCapacity?: number; readonly leaseTimeoutMs?: number;
@@ -400,6 +250,14 @@ export function createNativeRealtimeSender(options: NativeRealtimeSenderOptions)
 	const lifecycle = createCloseLifecycle(generation, options.onClose);
 	let nextSequence = 0;
 	let nextFrame = startFrame;
+	let lastError: NativeRealtimeProtocolError | null = null;
+
+	// Throwing out of a port handler would only strand the peer, so a cause the
+	// sender decides on is kept for its supervisor instead of being dropped.
+	const closeOnError = (error: unknown, reason: NativeRealtimeCloseReason): void => {
+		lastError = asProtocolError(error);
+		lifecycle.close(reason);
+	};
 
 	return {
 		generation,
@@ -410,6 +268,8 @@ export function createNativeRealtimeSender(options: NativeRealtimeSenderOptions)
 		get inFlightCount(): number { return pool.inFlightCount; },
 		get closed(): boolean { return lifecycle.closed; },
 		get closeReason(): NativeRealtimeCloseReason | null { return lifecycle.reason; },
+		/** The typed cause behind a close this end decided, if there was one. */
+		get lastError(): NativeRealtimeProtocolError | null { return lastError; },
 		openMessage(): NativeRealtimeOpenMessage {
 			return Object.freeze({
 				protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind: 'open' as const, generation, startFrame,
@@ -433,6 +293,8 @@ export function createNativeRealtimeSender(options: NativeRealtimeSenderOptions)
 			(lease as MutableLease).detached = true;
 			slot.state = 'in-flight';
 			slot.sentAt = now();
+			slot.sentGeneration = generation;
+			slot.sentSequence = nextSequence;
 			state.inFlightCount += 1;
 			nextSequence += 1;
 			nextFrame += frames;
@@ -442,17 +304,18 @@ export function createNativeRealtimeSender(options: NativeRealtimeSenderOptions)
 			let message: NativeRealtimeMessage;
 			try {
 				message = validateNativeRealtimeMessage(raw);
-			} catch {
-				return void lifecycle.close('protocol-violation');
+			} catch (error) {
+				return void closeOnError(error, 'protocol-violation');
 			}
-			if (message.kind !== 'return') return void lifecycle.close('protocol-violation');
-			if (message.generation !== generation) return;
+			if (message.kind !== 'return') {
+				return void closeOnError(fail('UNKNOWN_KIND', `A sender only accepts return messages, received ${message.kind}.`, 'kind'), 'protocol-violation');
+			}
 			try {
-				pool.release(message.packetId, message.channels);
-			} catch {
+				pool.release(message);
+			} catch (error) {
 				// A return the ledger cannot account for means a pool buffer is
 				// either lost or duplicated; neither is recoverable in real time.
-				lifecycle.close('pool-leak');
+				closeOnError(error, 'pool-leak');
 			}
 		},
 		/** A buffer that never comes home is a leak, so the deadline closes it. */
@@ -497,6 +360,7 @@ export function createNativeRealtimeReceiver(options: NativeRealtimeReceiverOpti
 	let generation: number | null = null;
 	let queueCapacity = maxQueue;
 	let channelCount = maxChannels;
+	let packetFrames = maxFrames;
 	let expectedSequence = 0;
 	let expectedFrame = 0;
 	let discardedPacketCount = 0;
@@ -507,8 +371,11 @@ export function createNativeRealtimeReceiver(options: NativeRealtimeReceiverOpti
 	};
 
 	const closeWith = (reason: NativeRealtimeCloseReason, error: NativeRealtimeProtocolError | null): NativeRealtimeAcceptResult => {
-		lifecycle?.close(reason);
-		return result('closed', 'generation-closed', generation, lifecycle?.reason ?? reason, error);
+		// Nothing has opened yet, so there is no generation to close and none to
+		// invent; the caller still learns why the message was refused.
+		if (lifecycle === null) return result('ignored', 'no-generation', null, null, error);
+		lifecycle.close(reason);
+		return result('closed', 'generation-closed', generation, lifecycle.reason, error);
 	};
 
 	const openGeneration = (message: NativeRealtimeOpenMessage): NativeRealtimeAcceptResult => {
@@ -521,6 +388,7 @@ export function createNativeRealtimeReceiver(options: NativeRealtimeReceiverOpti
 		lifecycle = createCloseLifecycle(message.generation, options.onClose);
 		generation = message.generation;
 		channelCount = message.channelCount;
+		packetFrames = message.frameCount;
 		queueCapacity = message.queueCapacity;
 		expectedSequence = 0;
 		expectedFrame = message.startFrame;
@@ -528,7 +396,9 @@ export function createNativeRealtimeReceiver(options: NativeRealtimeReceiverOpti
 	};
 
 	const acceptAudio = (message: NativeRealtimeAudioMessage): NativeRealtimeAcceptResult => {
-		if (message.channels.length !== channelCount || message.frameCount > maxFrames) {
+		// The open negotiated the shape this end sized its render around, so a
+		// packet outside it is refused even where the hard limits would allow it.
+		if (message.channels.length !== channelCount || message.frameCount > packetFrames) {
 			return closeWith('protocol-violation', fail('INVALID_FIELD', 'The packet shape does not match the open generation.', 'channels'));
 		}
 		if (message.sequence !== expectedSequence) {
@@ -557,7 +427,7 @@ export function createNativeRealtimeReceiver(options: NativeRealtimeReceiverOpti
 			try {
 				message = validateNativeRealtimeMessage(raw);
 			} catch (error) {
-				return closeWith('protocol-violation', error instanceof NativeRealtimeProtocolError ? error : fail('INVALID_FIELD', String(error)));
+				return closeWith('protocol-violation', asProtocolError(error));
 			}
 			if (message.kind === 'open') return openGeneration(message);
 			if (generation === null || message.generation !== generation) {
@@ -576,8 +446,8 @@ export function createNativeRealtimeReceiver(options: NativeRealtimeReceiverOpti
 			returned.add(packet);
 			return Object.freeze({
 				message: Object.freeze({
-					protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind: 'return' as const,
-					generation: packet.generation, packetId: packet.packetId, channels: packet.channels,
+					protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind: 'return' as const, generation: packet.generation,
+					packetId: packet.packetId, sequence: packet.sequence, channels: packet.channels,
 				}),
 				transfer: transferListForNativeRealtimeChannels(packet.channels),
 			});

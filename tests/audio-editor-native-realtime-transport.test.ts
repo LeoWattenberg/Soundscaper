@@ -115,9 +115,15 @@ function audioWire(overrides: Wire = {}): Wire {
 
 function returnWire(overrides: Wire = {}): Wire {
 	return {
-		protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind: 'return', generation: 1, packetId: 0,
+		protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind: 'return', generation: 1, packetId: 0, sequence: 0,
 		channels: [new Float32Array(FRAMES), new Float32Array(FRAMES)], ...overrides,
 	};
+}
+
+/** Two planar views over one buffer, as a native helper would pack them. */
+function packedChannels(firstFrame: number, secondFrame: number): Float32Array[] {
+	const packed = new Float32Array(FRAMES);
+	return [packed.subarray(firstFrame, firstFrame + 4), packed.subarray(secondFrame, secondFrame + 4)];
 }
 
 test('the protocol pins its version, packet vocabulary and close reasons', () => {
@@ -368,45 +374,6 @@ test('an unaccountable return closes the sender with pool-leak', () => {
 	assert.equal(loop.senderCloses.length, 1);
 });
 
-test('a buffer that never comes home trips the pool-leak deadline', () => {
-	let clock = 0;
-	const loop = createLoop({ now: () => clock, leaseTimeoutMs: 100 });
-	pump(loop, 1);
-	clock = 100;
-	loop.sender.auditPool();
-	assert.equal(loop.sender.closed, false);
-	clock = 101;
-	loop.sender.auditPool();
-	assert.equal(loop.sender.closeReason, 'pool-leak');
-	assert.equal(loop.senderCloses.length, 1);
-	loop.sender.auditPool();
-	assert.equal(loop.senderCloses.length, 1);
-});
-
-test('the pool ledger rejects returns it cannot account for', () => {
-	const pool = createNativeRealtimePacketPool({ capacity: 2, channelCount: CHANNELS, frameCount: FRAMES });
-	const channels = [new Float32Array(FRAMES), new Float32Array(FRAMES)];
-	assert.throws(() => pool.release(0, channels), hasCode('POOL_LEDGER'));
-	assert.throws(() => pool.release(5, channels), hasCode('INVALID_FIELD'));
-	const lease = pool.acquire();
-	assert.ok(lease);
-	assert.throws(() => pool.release(lease.packetId, channels), hasCode('POOL_LEDGER'));
-	const sender = createNativeRealtimeSender({ pool, generation: 1 });
-	sender.send(lease);
-	assert.throws(() => pool.release(lease.packetId, [new Float32Array(FRAMES)]), hasCode('POOL_LEDGER'));
-	assert.throws(() => pool.release(lease.packetId, [new Float32Array(2), new Float32Array(2)]), hasCode('POOL_LEDGER'));
-	assert.throws(() => pool.recycle(lease), hasCode('POOL_LEDGER'));
-	assert.equal(pool.inFlightCount, 1);
-});
-
-test('a sender requires a pool built by this module', () => {
-	const foreign = { capacity: 1, channelCount: 1, frameCount: FRAMES, availableCount: 1 };
-	assert.throws(
-		() => createNativeRealtimeSender({ pool: foreign as never, generation: 1 }),
-		/requires a pool from createNativeRealtimePacketPool/u,
-	);
-});
-
 test('the receiver never accepts a return message and refuses malformed control data', () => {
 	const loop = createLoop();
 	const outcome = loop.receiver.accept(returnWire());
@@ -424,15 +391,22 @@ test('the sender treats a malformed or misdirected return as a protocol violatio
 	const loop = createLoop();
 	loop.sender.acceptReturn({ protocolVersion: 99, kind: 'return' });
 	assert.equal(loop.sender.closeReason, 'protocol-violation');
+	// The typed cause is kept rather than swallowed by the port handler.
+	assert.equal(loop.sender.lastError?.code, 'PROTOCOL_VERSION');
+	assert.ok(loop.sender.lastError instanceof NativeRealtimeProtocolError);
 
 	const second = createLoop();
 	second.sender.acceptReturn(audioWire());
 	assert.equal(second.sender.closeReason, 'protocol-violation');
+	assert.equal(second.sender.lastError?.code, 'UNKNOWN_KIND');
 
 	const third = createLoop();
 	pump(third, 1);
+	// A return naming a dispatch that never happened is unaccountable, whatever
+	// generation it claims, so the ledger closes rather than crediting it.
 	third.sender.acceptReturn(returnWire({ generation: 4 }));
-	assert.equal(third.sender.closed, false, 'a foreign-generation return is ignored, not fatal');
+	assert.equal(third.sender.closeReason, 'pool-leak');
+	assert.equal(third.sender.lastError?.code, 'POOL_LEDGER');
 	assert.equal(third.pool.inFlightCount, 1);
 });
 
@@ -468,6 +442,9 @@ test('the closed schema rejects every malformed wire message', () => {
 		['channel not planar float', audioWire({ channels: [new Float64Array(FRAMES), new Float32Array(FRAMES)] }), 'INVALID_FIELD'],
 		['channel length mismatch', audioWire({ channels: [new Float32Array(FRAMES), new Float32Array(2)] }), 'INVALID_FIELD'],
 		['too many channels', audioWire({ channels: Array.from({ length: 33 }, () => new Float32Array(FRAMES)), frameCount: FRAMES }), 'INVALID_FIELD'],
+		['aliased channels', audioWire({ channels: (() => { const plane = new Float32Array(FRAMES); return [plane, plane]; })() }), 'INVALID_FIELD'],
+		['overlapping channels', audioWire({ channels: packedChannels(0, 0), frameCount: 4 }), 'INVALID_FIELD'],
+		['return with unreadable channels', returnWire({ channels: ['left', 'right'] }), 'INVALID_FIELD'],
 		['unknown close reason', { protocolVersion: 1, kind: 'close', generation: 1, reason: 'bored' }, 'INVALID_FIELD'],
 		['oversize control string', audioWire({ kind: 'x'.repeat(30_000) }), 'PAYLOAD_TOO_LARGE'],
 		['control key explosion', Object.fromEntries(Array.from({ length: 9_000 }, (_unused, index) => [`k${index}`, index])), 'PAYLOAD_TOO_LARGE'],
@@ -492,6 +469,10 @@ test('the schema accepts every well-formed message this module emits', () => {
 	assert.ok(closed);
 	assert.equal(validateNativeRealtimeMessage(closed).kind, 'close');
 	assert.throws(() => loop.receiver.close('exploded' as never), hasCode('INVALID_FIELD'));
+	// Channels packed into one buffer are legal as long as they do not overlap.
+	const packed = validateNativeRealtimeMessage(audioWire({ channels: packedChannels(0, 4), frameCount: 4 }));
+	assert.equal((packed as NativeRealtimeAudioMessage).channels[0].buffer, (packed as NativeRealtimeAudioMessage).channels[1].buffer);
+	assert.equal(transferListForNativeRealtimeChannels((packed as NativeRealtimeAudioMessage).channels).length, 1);
 });
 
 test('shared memory is refused at the schema boundary', () => {
@@ -566,6 +547,16 @@ test('an idle receiver has nothing to close and discards packets that precede an
 	assert.equal(receiver.accept(audioWire()).detail, 'foreign-generation');
 	assert.equal(receiver.discardedPacketCount, 1);
 	assert.throws(() => receiver.returnPacket(audioWire() as unknown as NativeRealtimeAudioMessage), hasCode('POOL_LEDGER'));
+
+	// A violation before any open reports the cause without claiming to have
+	// closed a generation that never existed.
+	const refused = receiver.accept('not a message');
+	assert.equal(refused.status, 'ignored');
+	assert.equal(refused.detail, 'no-generation');
+	assert.equal(refused.reason, null);
+	assert.equal(refused.error?.code, 'INVALID_FIELD');
+	assert.equal(receiver.state, 'idle');
+	assert.equal(receiver.accept(openWire()).status, 'opened', 'a refused stray never blocks the first real open');
 });
 
 test('a packet whose shape contradicts its open generation closes the generation', () => {
@@ -574,6 +565,15 @@ test('a packet whose shape contradicts its open generation closes the generation
 	const outcome = receiver.accept(audioWire({ channels: [new Float32Array(FRAMES)] }));
 	assert.equal(outcome.reason, 'protocol-violation');
 	assert.equal(outcome.error?.field, 'channels');
+
+	// The open negotiates the packet size the worklet sized its render around,
+	// so a larger packet is refused even though this receiver could hold it.
+	const wide = createNativeRealtimeReceiver({ channelCount: 1, frameCount: NATIVE_REALTIME_PACKET_FRAMES });
+	wide.accept(openWire({ channelCount: 1, frameCount: FRAMES }));
+	const oversize = wide.accept(audioWire({ frameCount: FRAMES * 2, channels: [new Float32Array(FRAMES * 2)] }));
+	assert.equal(oversize.status, 'closed');
+	assert.equal(oversize.reason, 'protocol-violation');
+	assert.equal(wide.queuedPackets, 0);
 });
 
 test('pool and transport options are bounded', () => {

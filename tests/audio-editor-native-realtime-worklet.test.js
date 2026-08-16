@@ -64,7 +64,7 @@ test('attach transfers the helper port instead of copying it into the message', 
 
 test('packets land in the render quantum exactly and every consumed buffer goes back', async () => {
 	const handle = await setup();
-	const { helper } = attachChannel(handle);
+	const { helper, worklet } = attachChannel(handle);
 	open(helper, { generation: 1 });
 	for (let sequence = 0; sequence < 3; sequence += 1) send(helper, audio({ sequence, startFrame: sequence * 8 }));
 
@@ -86,6 +86,12 @@ test('packets land in the render quantum exactly and every consumed buffer goes 
 	const buffers = returned.flatMap((message) => message.channels);
 	assert.equal(buffers.length, processor.releasedBuffers);
 	assert.equal(new Set(buffers).size, 6);
+	// Credit is the memory itself, so a return that merely copied the samples
+	// would leave the sender's pool empty however many messages it received.
+	assert.deepEqual(
+		worklet.sent.filter((post) => post.message.kind === 'return').map((post) => [...post.transfer]),
+		returned.map((message) => message.channels.map((channel) => channel.buffer)),
+	);
 	assert.equal(controls(handle, NATIVE_REALTIME_CONTROL.underrun).length, 0);
 	assert.equal(controls(handle, NATIVE_REALTIME_CONTROL.closed).length, 0);
 });
@@ -202,11 +208,7 @@ test('peer loss closes the generation exactly once with peer-loss', async () => 
 
 	// Whichever signal lands second must be inert.
 	assert.equal(handle.notifyPeerLoss(), 0);
-	handle.node.port.postMessage({
-		type: NATIVE_REALTIME_CONTROL.peerLost,
-		protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION,
-		generation: 1,
-	});
+	postControl(handle, NATIVE_REALTIME_CONTROL.peerLost, 1);
 	assert.equal(controls(handle, NATIVE_REALTIME_CONTROL.closed).length, 1);
 	assert.deepEqual([...render(handle, 4)[0]], [0, 0, 0, 0]);
 });
@@ -263,11 +265,7 @@ test('attach rejects replayed generations, version drift and a missing port', as
 	const { helper } = attachChannel(handle);
 	open(helper, { generation: 1 });
 	const rejected = createPortPair()[1];
-	handle.node.port.postMessage({
-		type: NATIVE_REALTIME_CONTROL.attach,
-		protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION,
-		generation: 1,
-	}, [rejected]);
+	postControl(handle, NATIVE_REALTIME_CONTROL.attach, 1, [rejected]);
 	assert.equal(rejected.closed, true);
 	assert.equal(controls(handle, NATIVE_REALTIME_CONTROL.rejected).length, 1);
 	assert.equal(controls(handle, NATIVE_REALTIME_CONTROL.closed).length, 0, 'the live generation survives a rejected attach');
@@ -277,11 +275,7 @@ test('attach rejects replayed generations, version drift and a missing port', as
 		protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION + 1,
 		generation: 9,
 	}, [createPortPair()[1]]);
-	handle.node.port.postMessage({
-		type: NATIVE_REALTIME_CONTROL.attach,
-		protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION,
-		generation: 9,
-	}, []);
+	postControl(handle, NATIVE_REALTIME_CONTROL.attach, 9);
 	assert.equal(controls(handle, NATIVE_REALTIME_CONTROL.rejected).length, 3);
 	assert.throws(() => handle.attach(null), TypeError);
 });
@@ -365,7 +359,10 @@ test('the processor stays silent and blameless until the prebuffer is met', asyn
 	const [primed] = controls(handle, NATIVE_REALTIME_CONTROL.primed);
 	assert.equal(primed.queuedPackets, 2);
 	assert.equal(primed.startFrame, 64);
-	assert.deepEqual([...render(handle, 4)[0]], [65, 66, 67, 68]);
+	// One quantum spanning both packets: returning the first mid-quantum must
+	// not interrupt the run of samples that continues out of the second.
+	assert.deepEqual([...render(handle, 16)[0]], Array.from({ length: 16 }, (_sample, frame) => 65 + frame));
+	assert.equal(returns(helper).length, 2);
 	assert.equal(controls(handle, NATIVE_REALTIME_CONTROL.underrun).length, 0);
 });
 
@@ -393,16 +390,47 @@ test('a release that cannot reach the pool closes the generation as a leak', asy
 	const { helper, worklet } = attachChannel(handle);
 	open(helper, { generation: 1 });
 	send(helper, audio({ sequence: 0, startFrame: 0 }));
+	send(helper, audio({ sequence: 1, startFrame: 8 }));
 	// Buffers that leave the worklet but never reach the sender's pool are
 	// credit that no longer exists anywhere; the generation cannot continue.
 	worklet.postMessage = () => { throw new Error('the transfer never landed'); };
-	render(handle, 8);
+	const output = render(handle, 24);
 
 	const closed = controls(handle, NATIVE_REALTIME_CONTROL.closed);
 	assert.equal(closed.length, 1);
 	assert.equal(closed[0].reason, 'pool-leak');
 	assert.equal(returns(helper).length, 0);
+	// The generation died eight frames in, so the rest of the quantum belongs to
+	// nobody: the packet queued behind it is never drained into the device.
+	assert.deepEqual([...output[0]], [1, 2, 3, 4, 5, 6, 7, 8, ...new Array(16).fill(0)]);
+	assert.equal(handle.node.processor.consumedPackets, 1);
+	// A second cause reported after the first would send main hunting the wrong
+	// fault; starvation after a close is the close, not a missed deadline.
+	assert.equal(controls(handle, NATIVE_REALTIME_CONTROL.underrun).length, 0);
+	// Credit that never left is not credit, least of all in the report whose
+	// whole job is to say where the buffers went.
+	assert.equal(closed[0].releasedBuffers, 0);
 	assert.deepEqual([...render(handle, 4)[0]], [0, 0, 0, 0]);
+});
+
+test('the sample loop fills the quantum without allocating on the audio thread', async () => {
+	const handle = await setup();
+	const { helper } = attachChannel(handle);
+	open(helper, { generation: 1 });
+	send(helper, audio({ sequence: 0, startFrame: 0 }));
+	const { set, subarray } = Float32Array.prototype;
+	// Both of these mint a view or a copy per channel per quantum. The audio
+	// callback has no allocator to spare, so the copy stays a plain loop.
+	Float32Array.prototype.set = () => { throw new Error('set() allocates in process()'); };
+	Float32Array.prototype.subarray = () => { throw new Error('subarray() allocates in process()'); };
+	let rendered;
+	try {
+		rendered = [[...render(handle, 4)[0]], [...render(handle, 4)[0]]];
+	} finally {
+		Object.assign(Float32Array.prototype, { set, subarray });
+	}
+	assert.deepEqual(rendered, [[1, 2, 3, 4], [5, 6, 7, 8]]);
+	assert.equal(handle.node.processor.releasedBuffers, 2);
 });
 
 test('a port without addEventListener still reports peer loss through onclose', async () => {
@@ -435,11 +463,7 @@ test('the handle reports every control event it was given an observer for', asyn
 	send(helper, audio({ sequence: 0, startFrame: 0 }));
 	render(handle, 8);
 	render(handle, 4);
-	handle.node.port.postMessage({
-		type: NATIVE_REALTIME_CONTROL.attach,
-		protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION,
-		generation: 1,
-	}, [createPortPair()[1]]);
+	postControl(handle, NATIVE_REALTIME_CONTROL.attach, 1, [createPortPair()[1]]);
 
 	assert.deepEqual(seen, [
 		'attach:1',
@@ -469,11 +493,7 @@ test('a processor built without an injected port still answers on its own port',
 
 async function setup(options = {}) {
 	return createNativeRealtimeWorkletNode(fakeContext(), {
-		AudioWorkletNode: FakeAudioWorkletNode,
-		channelCount: 2,
-		packetFrames: 8,
-		prebufferPackets: 1,
-		...options,
+		AudioWorkletNode: FakeAudioWorkletNode, channelCount: 2, packetFrames: 8, prebufferPackets: 1, ...options,
 	});
 }
 
@@ -488,19 +508,15 @@ function attachChannel(handle, config = {}) {
 }
 
 function open(helper, { generation, startFrame = 0, channelCount = 2, frameCount = 8, queueCapacity = 12 }) {
-	const kind = 'open';
-	helper.postMessage({ protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind, generation, startFrame, channelCount, frameCount, queueCapacity });
+	helper.postMessage({ protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind: 'open', generation, startFrame, channelCount, frameCount, queueCapacity });
 }
 
 function audio({ generation = 1, sequence, startFrame, frameCount = 8, channelCount = 2, value = 1, packetId }) {
-	const channels = Array.from({ length: channelCount }, (_, channel) => {
-		const samples = new Float32Array(frameCount);
-		for (let frame = 0; frame < frameCount; frame += 1) samples[frame] = startFrame + frame + value + channel * 100;
-		return samples;
-	});
-	const kind = 'audio';
+	const channels = Array.from({ length: channelCount }, (_, channel) => Float32Array.from(
+		{ length: frameCount }, (_sample, frame) => startFrame + frame + value + channel * 100,
+	));
 	return {
-		protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind, generation,
+		protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind: 'audio', generation,
 		packetId: packetId ?? sequence % 12, sequence, startFrame, frameCount, channels,
 	};
 }
@@ -517,39 +533,32 @@ function render(handle, frames, channelCount = 2) {
 }
 
 function controls(handle, type) {
-	return handle.node.port.received
-		.map((event) => event.data)
-		.filter((data) => !type || data.type === type);
+	return handle.node.port.received.map((event) => event.data).filter((data) => !type || data.type === type);
 }
 
-function peerMessages(helper, kind) {
-	return helper.received.map((event) => event.data).filter((data) => data.kind === kind);
+/** Posts a raw control message, standing in for a main thread the handle does not police. */
+function postControl(handle, type, generation, ports = []) {
+	handle.node.port.postMessage({ type, protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, generation }, ports);
 }
 
+const peerMessages = (helper, kind) => helper.received.map((event) => event.data).filter((data) => data.kind === kind);
 const returns = (helper) => peerMessages(helper, 'return');
 const closures = (helper) => peerMessages(helper, 'close');
 
 class FakeAudioWorkletNode {
 	constructor(context, name, options) {
 		const [nodePort, processorPort] = createPortPair();
-		this.context = context;
-		this.name = name;
-		this.options = options;
-		this.port = nodePort;
-		this.disconnected = false;
+		Object.assign(this, { context, name, options, port: nodePort, disconnected: false });
 		this.processor = new NativeRealtimeTransportProcessor({
 			processorOptions: { ...options.processorOptions, messagePort: processorPort },
 		});
 	}
 
-	disconnect() {
-		this.disconnected = true;
-	}
+	disconnect() { this.disconnected = true; }
 }
 
 function createPortPair() {
-	const left = createFakePort();
-	const right = createFakePort();
+	const [left, right] = [createFakePort(), createFakePort()];
 	left.peer = right;
 	right.peer = left;
 	return [left, right];
@@ -557,20 +566,12 @@ function createPortPair() {
 
 function createFakePort() {
 	return {
-		peer: null,
-		onmessage: null,
-		onmessageerror: null,
-		onclose: null,
-		closed: false,
-		started: false,
-		listeners: new Map(),
-		received: [],
-		sent: [],
+		peer: null, onmessage: null, onmessageerror: null, onclose: null,
+		closed: false, started: false, listeners: new Map(), received: [], sent: [],
 		addEventListener(type, listener) {
 			if (!this.listeners.has(type)) this.listeners.set(type, new Set());
 			this.listeners.get(type).add(listener);
 		},
-		removeEventListener(type, listener) { this.listeners.get(type)?.delete(listener); },
 		start() { this.started = true; },
 		close() {
 			if (this.closed) return;
