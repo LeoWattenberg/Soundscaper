@@ -9,7 +9,11 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-16:** Prepared; product implementation remains gated.
+**Status on 2026-08-16:** The whole 5B software substrate is implemented and
+tested; every part that needs a compiled binary, a cleared licensing row, or
+provisioned hardware remains open. See the
+[implementation record](#implementation-record-2026-08-16) for exactly which is
+which.
 
 Milestone 5B does not begin product implementation until milestones 2 through
 4 and every milestone 5.0 acceptance check pass. Before that gate closes, 5B
@@ -65,6 +69,69 @@ The following preparation may proceed before the product gate:
 Research changes land on a clean branch as narrow docs, fixture, or test-only
 commits. They do not edit the 5.0 wire contract or claim qualification from an
 unprovisioned lab.
+
+## Implementation record (2026-08-16)
+
+This packet is split by what a change actually needs. Everything that is
+software — contracts, validators, state machines, ports, policy, capability
+reporting, and product surfaces — is implemented with its tests. Everything that
+needs a compiled native binary, a cleared licensing row, a provisioned lab
+machine, or a signing identity is untouched, because none of those can be
+produced by writing code.
+
+### Implemented
+
+| Area | Modules |
+| --- | --- |
+| Canonical plan admission | `native-media-plan-canonical-form.ts`, `native-media-plan-v6-admission.ts`, `native-media-plan-envelope.ts` |
+| Capability reporting | `native-media-capability-snapshot.ts` |
+| Backends and comparison | `native-media-backend-policy.ts`, `native-media-semantic-comparison.ts` |
+| Atomic publication | `native-media-atomic-publication.ts` |
+| Professional tier | `native-media-professional-characteristics.ts`, `native-media-professional-profiles.ts` |
+| Image sequences and proxies | `native-media-image-sequence.ts`, `native-media-proxy-recipe.ts` |
+| Persistent queue | `native-queue-record.ts`, `native-queue-state-machine.ts`, `native-queue-admission.ts`, `desktop/native-services-database.ts` |
+| Roots, watch, scratch | `native-durable-root-grant.ts`, `native-watch-rule.ts`, `native-watch-reconciliation.ts`, `native-scratch-policy.ts` |
+| Clean display | `native-external-display.ts`, `platform/external-display-port.ts` |
+| OpenFX | `native-ofx-descriptor.ts`, `native-ofx-consent.ts`, `native-ofx-binding.ts`, `native-ofx-packaging.ts` |
+| Product surfaces | `ui/framescaper-native-services-menu.ts`, `ui/framescaper-native-services-copy.ts` |
+
+The `PersistentRenderQueuePortV1` and `ExternalDisplayPortV1` contracts are
+registered in the platform port policy. The three missing professional
+licensing rows — HEVC/AV1, image-sequence still formats, and the MOV/MXF/
+Matroska containers — exist as fail-closed blocked entries with named blockers,
+and the five 5B evidence workloads are registered against the native OS lab
+matrix.
+
+### Not implemented, and why
+
+- **Native FFmpeg and OpenFX host binaries.** No native code is compiled,
+  digest-pinned, or packaged. The two blocked FFmpeg release gates and the
+  per-format rows above all forbid shipping the enlarged enabled set, so a
+  binary would have nothing it was allowed to decode.
+- **Licensing clearance.** Every row this tier needs is `blocked` with a named
+  blocker. Clearing one is a review, not an edit; the fail-closed gate is
+  working as designed and admission already refuses an uncleared row.
+- **The exact Framescaper project revision.** Source characteristics,
+  image-sequence sources, and proxy authoring persist through a new exact
+  revision that opens only *after* the milestone-4 revision is fixed. Until
+  then the professional characteristics record stands on its own and is not
+  wired into a persisted schema.
+- **Provisioned measurement.** Every registered threshold is `planned`. The
+  five native-lab fingerprints are still null, so no timing, throughput, RSS,
+  display, or GPU number has been measured. Registering a number is not
+  measuring it.
+- **Packaging and signing evidence.** No five-target packaged run, notarization
+  result, or signed execution result exists; the named signing-identity blocker
+  from WP-5.0.2 is unchanged.
+- **The helper tier itself.** No media, queue, watch, or OFX helper process is
+  spawned. The contracts here are what such a helper would speak; the
+  supervisor, grants, and packaged-process proof stay 5.0-owned work.
+
+Because of the last point the security matrix and threat model are deliberately
+unchanged: `native-helper-processes` and `native-plugin-hosting` describe
+enacted surfaces, and nothing here enacts one. The menu group is absent
+entirely in a build without a native-services controller, so this change adds
+no reachable surface to ship.
 
 ## 5B packet map
 

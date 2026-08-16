@@ -448,6 +448,15 @@ applicable 5A-0 proof closes.
 
 The owning pickup contract is
 [`milestone-5b-framescaper-native-tier.md`](milestone-5b-framescaper-native-tier.md).
+Its implementation record is authoritative for what has landed: the whole 5B
+software substrate — canonical plan admission, capability reporting, backend
+and comparison policy, atomic publication, the professional tier, image
+sequences and proxies, the persistent queue and its services database, durable
+roots, watch folders, managed scratch, clean display, the OpenFX contracts, and
+the product surfaces — is implemented and tested, while every part needing a
+compiled binary, a cleared licensing row, provisioned hardware, or a signing
+identity remains open. No helper process is spawned by this work, so the
+threat-model and security-matrix rows for enacted helper surfaces are unchanged.
 
 - **5B-1 — Native media engine helper.** Outcome: multithreaded FFmpeg
   decode/encode and hardware acceleration as per-feature opt-ins with
