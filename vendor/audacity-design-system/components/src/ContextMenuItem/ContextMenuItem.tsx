@@ -3,6 +3,116 @@ import { useTheme } from '../ThemeProvider';
 import { Icon } from '../Icon';
 import './ContextMenuItem.css';
 
+const SAFE_TRIANGLE_TIMEOUT = 300; // safety cap — if pointer stalls in triangle, close anyway.
+
+export interface SafeTriangleRect {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+export interface SafeTriangleTrackerOptions {
+  /** True when the event landed back on the parent item or its submenu. */
+  isReentry: (target: EventTarget | null) => boolean;
+  /** The pointer left the triangle (or stalled inside it) — close up. */
+  onLeave: () => void;
+}
+
+export interface SafeTriangleTracker {
+  arm: (origin: { x: number; y: number }, submenuRect: SafeTriangleRect) => void;
+  clear: () => void;
+}
+
+const isPointInTriangle = (
+  p: { x: number; y: number },
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  c: { x: number; y: number },
+) => {
+  // Barycentric coordinate check — cheap and stable at boundaries.
+  const denom = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+  if (denom === 0) return false;
+  const wa = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denom;
+  const wb = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denom;
+  const wc = 1 - wa - wb;
+  return wa >= 0 && wb >= 0 && wc >= 0;
+};
+
+/**
+ * Safe-triangle "angle of escape": when the pointer leaves the parent
+ * item, we build a triangle from the exit point to the two leading
+ * corners of the submenu rect. As long as the pointer stays inside
+ * that triangle we keep the submenu open — this is the path a user
+ * cuts diagonally from parent to child. Once the pointer leaves the
+ * triangle (or drifts too long without arriving) we close.
+ *
+ * The tracker owns the document listener so its identity is fixed for
+ * the life of the item: a handler re-created per render arms under one
+ * identity and is cleared under another, which leaks the listener and
+ * leaves it calling back into an unmounted component.
+ */
+export function createSafeTriangleTracker({ isReentry, onLeave }: SafeTriangleTrackerOptions): SafeTriangleTracker {
+  let triangle: {
+    origin: { x: number; y: number };
+    topCorner: { x: number; y: number };
+    bottomCorner: { x: number; y: number };
+  } | null = null;
+  let timeoutId: number | null = null;
+
+  function onMouseMove(e: MouseEvent) {
+    if (!triangle) return;
+    // If the pointer re-enters the parent item or the submenu, tear
+    // the tracker down — hover handlers on those elements take over.
+    if (isReentry(e.target)) {
+      clear();
+      return;
+    }
+    const p = { x: e.clientX, y: e.clientY };
+    if (!isPointInTriangle(p, triangle.origin, triangle.topCorner, triangle.bottomCorner)) {
+      clear();
+      onLeave();
+    }
+  }
+
+  function clear() {
+    triangle = null;
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    document.removeEventListener('mousemove', onMouseMove);
+  }
+
+  function arm(origin: { x: number; y: number }, submenuRect: SafeTriangleRect) {
+    // Pick the leading edge closest to the parent — usually the
+    // left edge (submenu opens right of parent), but if the exit
+    // point is to the right of the submenu we mirror to the right
+    // edge so left-opening submenus still work.
+    const submenuOnRight = submenuRect.left >= origin.x;
+    const edgeX = submenuOnRight ? submenuRect.left : submenuRect.right;
+    triangle = {
+      origin,
+      topCorner: { x: edgeX, y: submenuRect.top },
+      bottomCorner: { x: edgeX, y: submenuRect.bottom },
+    };
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+    }
+    timeoutId = window.setTimeout(() => {
+      timeoutId = null;
+      // Only auto-close if the pointer is still outside both the
+      // parent and the submenu. Otherwise the hover handlers own
+      // the state.
+      clear();
+      onLeave();
+    }, SAFE_TRIANGLE_TIMEOUT);
+    document.addEventListener('mousemove', onMouseMove);
+  }
+
+  return { arm, clear };
+}
+
 export interface ContextMenuItemProps {
   /**
    * Label text for the menu item
@@ -76,66 +186,22 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
   const itemRef = useRef<HTMLDivElement>(null);
   const submenuRef = useRef<HTMLDivElement>(null);
 
-  // Safe-triangle "angle of escape": when the pointer leaves the
-  // parent item, we build a triangle from the exit point to the two
-  // leading corners of the submenu rect. As long as the pointer stays
-  // inside that triangle we keep the submenu open — this is the
-  // path a user cuts diagonally from parent to child. Once the
-  // pointer leaves the triangle (or drifts too long without arriving)
-  // we close.
-  const safeTriangleRef = useRef<
-    | {
-        origin: { x: number; y: number };
-        topCorner: { x: number; y: number };
-        bottomCorner: { x: number; y: number };
-      }
-    | null
-  >(null);
-  const safeTriangleTimeoutRef = useRef<number | null>(null);
-  const SAFE_TRIANGLE_TIMEOUT = 300; // safety cap — if pointer stalls in triangle, close anyway.
+  // One tracker per item, created on first render and kept for the
+  // item's lifetime — every arm/clear pair, unmount included, then
+  // works against the same listener identity.
+  const safeTriangleRef = useRef<SafeTriangleTracker | null>(null);
+  if (!safeTriangleRef.current) {
+    safeTriangleRef.current = createSafeTriangleTracker({
+      isReentry: (target) => Boolean(
+        itemRef.current?.contains(target as Node)
+        || submenuRef.current?.contains(target as Node),
+      ),
+      onLeave: () => setSubmenuOpen(false),
+    });
+  }
+  const safeTriangle = safeTriangleRef.current;
 
-  const clearSafeTriangle = () => {
-    safeTriangleRef.current = null;
-    if (safeTriangleTimeoutRef.current !== null) {
-      window.clearTimeout(safeTriangleTimeoutRef.current);
-      safeTriangleTimeoutRef.current = null;
-    }
-    document.removeEventListener('mousemove', trackSafeTriangleMove);
-  };
-
-  const isPointInTriangle = (
-    p: { x: number; y: number },
-    a: { x: number; y: number },
-    b: { x: number; y: number },
-    c: { x: number; y: number },
-  ) => {
-    // Barycentric coordinate check — cheap and stable at boundaries.
-    const denom = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
-    if (denom === 0) return false;
-    const wa = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denom;
-    const wb = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denom;
-    const wc = 1 - wa - wb;
-    return wa >= 0 && wb >= 0 && wc >= 0;
-  };
-
-  const trackSafeTriangleMove = (e: MouseEvent) => {
-    const tri = safeTriangleRef.current;
-    if (!tri) return;
-    const p = { x: e.clientX, y: e.clientY };
-    // If the pointer re-enters the parent item or the submenu, tear
-    // the tracker down — hover handlers on those elements take over.
-    if (
-      itemRef.current?.contains(e.target as Node)
-      || submenuRef.current?.contains(e.target as Node)
-    ) {
-      clearSafeTriangle();
-      return;
-    }
-    if (!isPointInTriangle(p, tri.origin, tri.topCorner, tri.bottomCorner)) {
-      clearSafeTriangle();
-      setSubmenuOpen(false);
-    }
-  };
+  const clearSafeTriangle = () => safeTriangle.clear();
 
   const armSafeTriangle = (originClientX: number, originClientY: number) => {
     const submenu = submenuRef.current;
@@ -143,33 +209,10 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
       setSubmenuOpen(false);
       return;
     }
-    const r = submenu.getBoundingClientRect();
-    // Pick the leading edge closest to the parent — usually the
-    // left edge (submenu opens right of parent), but if the exit
-    // point is to the right of the submenu we mirror to the right
-    // edge so left-opening submenus still work.
-    const submenuOnRight = r.left >= originClientX;
-    const edgeX = submenuOnRight ? r.left : r.right;
-    safeTriangleRef.current = {
-      origin: { x: originClientX, y: originClientY },
-      topCorner: { x: edgeX, y: r.top },
-      bottomCorner: { x: edgeX, y: r.bottom },
-    };
-    if (safeTriangleTimeoutRef.current !== null) {
-      window.clearTimeout(safeTriangleTimeoutRef.current);
-    }
-    safeTriangleTimeoutRef.current = window.setTimeout(() => {
-      safeTriangleTimeoutRef.current = null;
-      // Only auto-close if the pointer is still outside both the
-      // parent and the submenu. Otherwise the hover handlers own
-      // the state.
-      clearSafeTriangle();
-      setSubmenuOpen(false);
-    }, SAFE_TRIANGLE_TIMEOUT);
-    document.addEventListener('mousemove', trackSafeTriangleMove);
+    safeTriangle.arm({ x: originClientX, y: originClientY }, submenu.getBoundingClientRect());
   };
 
-  useEffect(() => () => clearSafeTriangle(), []);
+  useEffect(() => () => safeTriangle.clear(), [safeTriangle]);
 
   const style = {
     '--context-menu-item-text': theme.foreground.text.primary,

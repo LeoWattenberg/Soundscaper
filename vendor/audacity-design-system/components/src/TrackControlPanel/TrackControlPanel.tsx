@@ -193,10 +193,13 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
     setIsRenaming(true);
   };
 
-  const commitRename = () => {
+  // `returnFocus` separates a keyboard commit — where the name span
+  // is exactly where the user expects to land — from a commit caused
+  // by clicking some other control, which already owns focus.
+  const commitRename = (returnFocus: boolean) => {
     const next = renameDraft.trim();
     if (next && next !== trackName) onRename?.(next);
-    focusReturnRef.current = true;
+    if (returnFocus) focusReturnRef.current = true;
     setIsRenaming(false);
   };
 
@@ -209,6 +212,10 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
   const dragReorderStartRef = React.useRef<{ y: number; active: boolean } | null>(null);
   const justDragReorderedRef = React.useRef(false);
   const [isDragReordering, setIsDragReordering] = React.useState(false);
+  // Armed from mousedown until mouseup. The document listeners only
+  // exist for that window, so pointer movement anywhere else in the
+  // editor doesn't walk one dead handler per track.
+  const [isDragReorderArmed, setIsDragReorderArmed] = React.useState(false);
 
   const isInteractiveTarget = (el: EventTarget | null): boolean => {
     if (!(el instanceof HTMLElement)) return false;
@@ -222,9 +229,12 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
     if (!onDragReorderDrop) return;
     if (isInteractiveTarget(e.target)) return;
     dragReorderStartRef.current = { y: e.clientY, active: false };
+    setIsDragReorderArmed(true);
   };
 
   React.useEffect(() => {
+    if (!isDragReorderArmed) return;
+
     const onMove = (e: MouseEvent) => {
       const start = dragReorderStartRef.current;
       if (!start) return;
@@ -236,6 +246,7 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
     const onUp = (e: MouseEvent) => {
       const start = dragReorderStartRef.current;
       dragReorderStartRef.current = null;
+      setIsDragReorderArmed(false);
       if (!start) return;
       if (start.active) {
         setIsDragReordering(false);
@@ -250,7 +261,7 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
-  }, [onDragReorderDrop]);
+  }, [isDragReorderArmed, onDragReorderDrop]);
 
   const cancelRename = () => {
     setRenameDraft(trackName);
@@ -811,13 +822,13 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
                   e.stopPropagation();
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    commitRename();
+                    commitRename(true);
                   } else if (e.key === 'Escape') {
                     e.preventDefault();
                     cancelRename();
                   }
                 }}
-                onBlur={commitRename}
+                onBlur={() => commitRename(false)}
                 aria-label="Track name"
               />
             ) : (

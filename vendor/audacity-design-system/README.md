@@ -64,6 +64,58 @@ Tracked so upstream syncs know what to preserve. Aside from this list, keep the 
    shortcut, so the branch is restored *ahead of* the new bracket branch and both work. Covered
    by `tests/browser/audio-editor-canonical-trim-keyboard.spec.js`.
 
+7. `Dialog.tsx` registers its Escape handler on `document` in the **bubble** phase (0.10.1 moved
+   it to capture + `stopImmediatePropagation`). In capture the dialog sees Escape before every
+   overlay nested inside it, so closing a `Dropdown` opened within a dialog closed the whole
+   dialog instead, and `Dropdown.tsx`'s `e.stopPropagation(); // Prevent Dialog from closing`
+   became dead code — a React-root listener never sees an event the document already swallowed.
+   With two capture-phase overlays open, registration order decided who won. Bubble phase is
+   both what v0.9.0 did and what the application's own `AudioEditorDialogShell` does;
+   `stopImmediatePropagation` is kept, so the app-level Escape handler still doesn't fire
+   alongside the close. `ContextMenu`'s capture registration is deliberately left alone (see
+   "Application-side adaptations" below). Covered by
+   `tests/vendored-design-system-dialog-escape.test.ts`. Upstream-PR candidate.
+8. `ContextMenuItem.tsx` owns the submenu safe-triangle through a `createSafeTriangleTracker`
+   instance held in a ref, rather than the per-render `trackSafeTriangleMove` /
+   `clearSafeTriangle` closures upstream attaches and detaches. Arming requires
+   `submenuOpen === true`, so the armed handler always came from a later render than the one
+   the unmount cleanup (`useEffect(..., [])`) captured: `removeEventListener` never matched, and
+   every hover-then-close cycle left a live document `mousemove` listener calling
+   `setSubmenuOpen` on an unmounted component. A single tracker fixes the identity for the
+   item's lifetime. Covered by
+   `tests/vendored-design-system-context-menu-safe-triangle.test.ts`. Upstream-PR candidate.
+9. `utils/announce.ts` rounds the time to tenths *before* splitting hours and minutes off.
+   Upstream splits first and rounds the seconds remainder afterwards, so the remainder can reach
+   60 with nothing to carry into — `formatTimeForA11y(59.97)` announced "60 seconds" and
+   `(119.98)` "1 minute 60 seconds". Every clip `aria-label` in `TrackNew` is built from this.
+   Covered by `tests/vendored-design-system-announce.test.ts`. Upstream-PR candidate.
+10. `TrackControlPanel.tsx` takes a `returnFocus` argument on `commitRename` and passes `false`
+    from the rename input's `onBlur`. Upstream sets the focus-return flag unconditionally, and
+    because `commitRename` is also the blur handler, ending a rename by clicking another control
+    pulled focus straight back to the track-name span, away from the control the user just
+    clicked. Keyboard commit and Escape-cancel still return focus. Covered by
+    `tests/vendored-design-system-track-control-panel.test.ts`. Upstream-PR candidate.
+11. `Clip.css` carries the clip wrapper's resting `z-index: 2` (and the mouse-focus rule resets
+    to that level rather than `auto`), and `TrackNew.tsx` no longer writes it inline. Upstream
+    added `[data-clip-id]:focus { z-index: 5 }` while the wrapper still got an inline
+    `zIndex: … : 2`, which no stylesheet declaration can outrank, so a keyboard-focused clip
+    stayed at 2 and a later overlapping sibling painted over its focus ring — exactly what the
+    rule exists to prevent. Dragged and raised clips keep their inline `10`. Covered by
+    `tests/vendored-design-system-track-new.test.ts`. Upstream-PR candidate.
+12. `TrackNew.tsx` scopes the time-selection band through `isTrackInTimeSelectionScope`, which
+    treats an **empty** `timeSelection.tracks` array as unscoped. Upstream tests the array for
+    truthiness alone, so `tracks: []` excluded every row — contradicting the contract documented
+    on the type itself (`core/src/types/index.ts`: "Empty / undefined = consumers fall back to
+    selectedTrackIndices, then to their own default scope"). Covered by
+    `tests/vendored-design-system-track-new.test.ts`. Upstream-PR candidate.
+13. `TrackControlPanel.tsx` arms the drag-to-reorder document listeners from `mousedown` and
+    drops them on `mouseup`, instead of keeping them attached for the panel's whole lifetime.
+    Upstream's always-on effect makes every pointer move anywhere in the editor run one
+    immediately-returning handler per track, and re-attaches whenever the host passes an inline
+    `onDragReorderDrop`. The armed-gate shape matches `Clip.tsx` and `ResizablePanel` in this
+    same tree. Covered by `tests/vendored-design-system-track-control-panel.test.ts`.
+    Upstream-PR candidate.
+
 ## Application-side adaptations
 
 Not deviations — application code that had to change because upstream did. Listed because they

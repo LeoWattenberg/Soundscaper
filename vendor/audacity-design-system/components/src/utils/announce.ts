@@ -65,10 +65,13 @@ export function announce(message: string): void {
 export function formatTimeForA11y(seconds: number): string {
   if (!isFinite(seconds) || seconds < 0) return '0 seconds';
 
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const rawSecs = seconds - hours * 3600 - minutes * 60;
-  const rounded = Math.round(rawSecs * 10) / 10;
+  // Round to tenths *first*, then split: rounding the seconds
+  // remainder after the split lets it reach 60 with nothing to carry
+  // into, which announces "1 minute 60 seconds".
+  const tenths = Math.round(seconds * 10);
+  const hours = Math.floor(tenths / 36000);
+  const minutes = Math.floor((tenths % 36000) / 600);
+  const rounded = (tenths % 600) / 10;
   const secs = rounded === Math.floor(rounded) ? `${Math.floor(rounded)}` : `${rounded}`;
 
   const parts: string[] = [];

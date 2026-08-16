@@ -15,6 +15,22 @@ import './Track.css';
 
 const EMPTY_NUMBER_ARRAY: number[] = [];
 
+/**
+ * Which rows a time selection covers. A selection only scopes itself
+ * when the creating gesture populated a non-empty track list; an
+ * empty or absent list means "unscoped", and consumers fall back to
+ * the broader track selection.
+ */
+export function isTrackInTimeSelectionScope(
+  timeSelection: { tracks?: number[] } | null | undefined,
+  trackIndex: number,
+  isSelected: boolean,
+): boolean {
+  const tracks = timeSelection?.tracks;
+  if (tracks && tracks.length > 0) return tracks.includes(trackIndex);
+  return isSelected;
+}
+
 export interface TrackClip {
   id: string | number;
   name: string;
@@ -400,9 +416,7 @@ const TrackNewComponent: React.FC<TrackProps> = ({
   // only those rows — independent of the broader track selection.
   // Falls back to the legacy isSelected-driven look for scopeless
   // selections.
-  const inTimeSelectionScope = timeSelection?.tracks
-    ? timeSelection.tracks.includes(trackIndex)
-    : isSelected;
+  const inTimeSelectionScope = isTrackInTimeSelectionScope(timeSelection, trackIndex, isSelected);
   const [clipHiddenPoints, setClipHiddenPoints] = React.useState<Map<string | number, number[]>>(new Map());
   const [clipHoveredPoints, setClipHoveredPoints] = React.useState<Map<string | number, number[]>>(new Map());
   const [clipCursorPositions, setClipCursorPositions] = React.useState<Map<string | number, { time: number; db: number } | null>>(new Map());
@@ -567,7 +581,9 @@ const TrackNewComponent: React.FC<TrackProps> = ({
             // Dragged and Cmd+Arrow-raised clips float above siblings
             // (mouse drag also dims to a 50% ghost; keyboard raise
             // stays solid so the moving clip reads as "still there").
-            zIndex: isDragging || isRaised ? 10 : 2,
+            // The resting and keyboard-focused levels are Clip.css's:
+            // an inline value here would outrank the focus lift.
+            zIndex: isDragging || isRaised ? 10 : undefined,
             opacity: isDragging ? 0.5 : undefined,
           }}
           tabIndex={isFlatNavigation ? 0 : (isFirstClip && tabIndex !== undefined ? tabIndex : -1)}

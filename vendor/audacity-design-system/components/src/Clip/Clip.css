@@ -41,6 +41,14 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
 }
 
+/* Resting stacking level for clip wrappers: above the track's header
+   recess (z-index 1) and below a dragged or raised clip, which the
+   track sets inline at 10. Kept here rather than inline so the focus
+   lift below can actually outrank it. */
+[data-clip-id] {
+  z-index: 2;
+}
+
 /* Keyboard focus outline for clips — clear without being shouty.
    2px focus-blue ring just outside the clip edge, with a thin black
    contrast ring so it reads against any background. z-index lifts
@@ -83,7 +91,7 @@
 [data-clip-id][data-focus-mouse]:focus {
   outline: none;
   box-shadow: none;
-  z-index: auto;
+  z-index: 2;
 }
 
 /* ===========================================================================

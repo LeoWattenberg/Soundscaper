@@ -164,9 +164,12 @@ export function Dialog({
     }
   };
 
-  // Handle escape key. Registered in CAPTURE phase + stopImmediate
-  // so the app-level Escape handler (which otherwise shuffles track
-  // focus) doesn't fire alongside the dialog close.
+  // Handle escape key. Registered on the document in the BUBBLE
+  // phase so an overlay inside the dialog — a Dropdown, a context
+  // menu — gets first refusal and can keep Escape for itself by
+  // stopping propagation. stopImmediatePropagation then keeps the
+  // app-level Escape handler (which otherwise shuffles track focus)
+  // from firing alongside the dialog close.
   useEffect(() => {
     if (!isOpen || !closeOnEscape) return;
 
@@ -178,8 +181,8 @@ export function Dialog({
       onClose();
     };
 
-    document.addEventListener('keydown', handleEscape, true);
-    return () => document.removeEventListener('keydown', handleEscape, true);
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, closeOnEscape, onClose]);
 
   // Prevent body scroll when dialog is open
