@@ -1,14 +1,8 @@
 # Soundscaper and Framescaper production roadmap
 
-> Grounded against the repository on 2026-08-13. Milestones are ordered by
-> dependency and close only when their exit gates pass. They are not release-date
-> promises.
+> Grounded against the repository on 2026-08-13. Milestones are ordered by dependency and close only when their exit gates pass. They are not release-date promises.
 
-Soundscaper and Framescaper are two focused products over one local-first,
-mixed-media editor and one canonical `.scape` project format. The destination is
-an end-to-end professional workflow for recording, editing, mixing, picture
-editorial, finishing, and delivery on the web and in Electron. It is not parity
-with every specialist creative suite.
+Soundscaper and Framescaper are two focused products over one local-first, mixed-media editor and one canonical `.scape` project format. The destination is an end-to-end professional workflow for recording, editing, mixing, picture editorial, finishing, and delivery on the web and in Electron. It is not parity with every specialist creative suite.
 
 ## How to use this roadmap
 
@@ -19,42 +13,22 @@ This file is a planning and sequencing document. It answers four questions:
 3. What must be true before the milestone closes?
 4. What is explicitly outside the current scope?
 
-It is not an implementation log or an evidence register. Do not append exact
-fixture dimensions, byte-by-byte protocol narratives, cancellation timelines,
-test counts, or completed implementation history here. Put those details in the
-owning source of truth:
+It is not an implementation log or an evidence register. Do not append exact fixture dimensions, byte-by-byte protocol narratives, cancellation timelines, test counts, or completed implementation history here. Put those details in the owning source of truth:
 
-- security boundaries, controls, actors, and residual risks:
-  [production threat model](docs/production-threat-model.md) and
-  [security matrix](config/production-security-matrix.json);
-- project preservation, fallback, and migration behavior:
-  [project compatibility policy](docs/project-compatibility.md) and
-  [compatibility matrix](config/project-compatibility.json);
-- milestone-2 scope, closure items, and exact qualification sets:
-  [milestone-2 closure inventory](config/milestone-2-closure.json);
-- milestone-3 sequencing, time-model decisions, and work packets:
-  [milestone-3 plan](docs/milestone-3-plan.md);
-- milestone-4 sequencing, automation/keyframe and mixer-graph decisions,
-  and work packets: [milestone-4 plan](docs/milestone-4-plan.md);
-- milestone-5 sequencing, helper-contract, and work packets:
-  [milestone-5 plan](docs/milestone-5-plan.md) and [5A plan](docs/milestone-5a-soundscaper-native.md);
-- milestone-6 sequencing, delivery-model and interchange decisions, and
-  work packets: [milestone-6 plan](docs/milestone-6-plan.md);
-- milestone-7 sequencing, runtime and model-catalog decisions, and work
-  packets: [milestone-7 plan](docs/milestone-7-plan.md);
-- milestone-9 sequencing, qualification-campaign decisions, and work
-  packets: [milestone-9 plan](docs/milestone-9-plan.md);
-- performance fixtures and numeric qualification:
-  [quality budgets](docs/quality-budgets.md) and
-  [machine-readable budgets](config/quality-budgets.json);
+- security boundaries, controls, actors, and residual risks: [production threat model](docs/production-threat-model.md) and [security matrix](config/production-security-matrix.json);
+- project preservation, fallback, and migration behavior: [project compatibility policy](docs/project-compatibility.md) and [compatibility matrix](config/project-compatibility.json);
+- milestone-2 scope, closure items, and exact qualification sets: [milestone-2 closure inventory](config/milestone-2-closure.json);
+- milestone-3 sequencing, time-model decisions, and work packets: [milestone-3 plan](docs/milestone-3-plan.md);
+- milestone-4 sequencing, automation/keyframe and mixer-graph decisions, and work packets: [milestone-4 plan](docs/milestone-4-plan.md);
+- milestone-5 sequencing, helper-contract, and work packets: [milestone-5 plan](docs/milestone-5-plan.md) and [5A plan](docs/milestone-5a-soundscaper-native.md);
+- milestone-6 sequencing, delivery-model and interchange decisions, and work packets: [milestone-6 plan](docs/milestone-6-plan.md);
+- milestone-7 sequencing, runtime and model-catalog decisions, and work packets: [milestone-7 plan](docs/milestone-7-plan.md);
+- milestone-9 sequencing, qualification-campaign decisions, and work packets: [milestone-9 plan](docs/milestone-9-plan.md);
+- performance fixtures and numeric qualification: [quality budgets](docs/quality-budgets.md) and [machine-readable budgets](config/quality-budgets.json);
 - release severity and waiver rules: [release policy](docs/release-policy.md);
-- licensing and provenance:
-  [production licensing policy](docs/production-licensing-policy.md) and its
-  machine-readable matrix;
-- platform and product claims:
-  [capability inventory](config/production-capabilities.json); and
-- implementation evidence: owning modules, focused tests, browser workflows,
-  and package smoke tests linked from those policies.
+- licensing and provenance: [production licensing policy](docs/production-licensing-policy.md) and its machine-readable matrix;
+- platform and product claims: [capability inventory](config/production-capabilities.json); and
+- implementation evidence: owning modules, focused tests, browser workflows, and package smoke tests linked from those policies.
 
 ### Agent operating rules
 
@@ -127,7 +101,9 @@ Through milestones 1–7:
   recording may be maintained.
 
 Framescaper capture starts only in milestone 8A. MIDI starts only after the
-milestone 8B Audacity design gate.
+milestone 8B Audacity design gate. The Framescaper Web VCR extension starts
+only after milestone 8 closes; it may reuse milestone-8 capture contracts but
+must not become an earlier hidden recording path.
 
 ## Status and platform notation
 
@@ -189,10 +165,12 @@ Known architectural constraints that drive later work:
 | 6. Delivery/interchange | **Planned** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
 | 8. Capture and MIDI | **Blocked/Planned** | Add Framescaper recording, then MIDI after upstream design review. |
-| 9. Final qualification | **Planned** | Requalify the complete product and release matrix. |
+| 8+. Framescaper Web VCR | **Planned** | Add authorized HTTPS media capture through an isolated, dockable Electron browser after milestone 8. |
+| 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extension, and release matrix. |
 
 Earlier milestones may ship independently. The complete roadmap does not close
-until milestones 8 and 9 close. Milestone 7 may be skipped.
+until milestone 8, the Web VCR extension, and milestone 9 close. Milestone 7
+may be skipped.
 
 ## 1. Baseline contracts and quality budgets
 
@@ -899,9 +877,29 @@ If the upstream design remains unavailable, milestone 8B remains **Blocked**.
 Earlier milestones may ship, but the roadmap may not claim the full DAW goal or
 invent an interim Soundscaper-only design.
 
+## 8+. Post-milestone-8 Framescaper Web VCR extension
+
+**Status:** **Planned.** **Depends on:** milestone 8 complete and the applicable milestone-5B native media gates. Sequencing, decisions, and work packets are owned by the [Web VCR plan](docs/post-milestone-8-web-vcr-plan.md).
+
+**Goal:** capture authorized HTTPS media through an isolated Framescaper desktop browser and the milestone-8A recoverable Project Bin/timeline workflow.
+
+- **Electron Only — Planned:** `Record`'s split-button menu is the sole entry; it summons a default-hidden dockable panel and remains the visible indicator during background capture.
+- **Electron Only — Planned:** use a dedicated persistent sandboxed HTTPS profile with no remote preload/editor authority, bounded authentication windows, denied unrelated permissions/downloads, and explicit data clearing.
+- **Electron Enhanced — Planned:** qualify 720p/1080p first and expose 4K only when runtime capture and encoder gates pass; viewport/DPI selection never promises a provider source resolution.
+- **Shared capture contract — Planned:** capture whole-page audio independently of local monitoring, freeze automatic or manual free/16:9/9:16/1:1 crop at Record, and retain only the verified cropped result.
+- **Shared capture contract — Planned:** reuse milestone 8A's clock, fragments, metrics, recovery, managed publication, and Recording Setup destination; panel closure/project switching may continue capture, while quit seals recovery.
+- **Explicit non-goals:** DRM/EME/HDCP capture, anti-bot evasion, user-agent spoofing, provider-specific completion adapters, HTTP browsing, arbitrary downloads, generic remote CDP, and raw-frame ffmpeg.wasm IPC.
+
+### Exit gate
+
+- The feature is reachable only from Framescaper desktop's Record dropdown; remote-content security, privacy, ownership, failure, background, quit, and cleanup paths pass maintained review and deterministic tests.
+- Every enabled tier meets milestone 8A's long-session sync, drop, teardown, and recovery budgets; unqualified 4K stays unavailable and no uncropped project asset remains.
+- Resulting media follows the same reopen, relink, proxy, edit, `.scape`, handoff, and delivery paths as other Framescaper recordings without persisting browser state.
+
 ## 9. Final convergence and qualification
 
-**Depends on:** milestones 1–6 and both milestone-8 sub-phases.
+**Depends on:** milestones 1–6, both milestone-8 sub-phases, and every accepted
+Web VCR platform tier above.
 
 **Goal:** qualify the complete products as coherent systems.
 
@@ -947,8 +945,7 @@ packets are owned by the [milestone-9 plan](docs/milestone-9-plan.md).
 - Project evolution covers rational video time, tempo maps, markers, takes,
   automation/keyframes, sequences, media links, native-effect state, feature
   requirements, and rendered fallbacks.
-- Capture contracts are designed only in milestone 8A. MIDI contracts are
-  designed only after milestone 8B's upstream review gate.
+- Capture contracts are designed only in milestone 8A; after milestone 8, Web VCR may register one capture-source adapter but no new clock, persistence model, generic remote IPC, or project schema. MIDI contracts are designed only after milestone 8B's upstream review gate.
 - Every schema addition defines validation, migration, future-version behavior,
   clone/serialization, commands/history, `.scape`, AUP4 disposition where
   relevant, and retention/deletion behavior.
@@ -964,6 +961,7 @@ packets are owned by the [milestone-9 plan](docs/milestone-9-plan.md).
 | Video correctness | Frame/timecode/VFR fixtures, preview/export parity, proxy equivalence, caption/color metadata, drift, and dropped-frame metrics. |
 | Native isolation | Malformed IPC/media/plug-ins, timeout, crash, quarantine, restart, permission revocation, and Web Core fallback. |
 | Framescaper capture | Permissions, supported source combinations, long-recording sync, device loss, recovery, and normal media handoff. |
+| Framescaper Web VCR | Record-dropdown-only availability, isolated persistent HTTPS browsing, target/manual crop, local-mute independence, background capture, quit recovery, capability-gated resolution, cropped-only retention, and normal recorded-media handoff. |
 | MIDI | Tests derived from pinned Audacity design: migration, timing, fallback, instruments, accessibility, `.scape`, and AUP4. |
 | Accessibility | Keyboard and assistive-technology completion at supported zoom, contrast, locale, and direction. |
 | Distribution | Browser and desktop matrices, licenses, notices, hashes, signatures, and package smoke. |
