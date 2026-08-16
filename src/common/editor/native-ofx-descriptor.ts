@@ -16,6 +16,9 @@
  * into the host.
  */
 
+import { OFX_TARGET_ARCHITECTURE_DIRECTORIES } from './native-ofx-packaging.ts';
+import { createNativeValidators } from './native-validation.ts';
+
 export const OFX_CONTEXTS = Object.freeze([
 	'generator', 'filter', 'transition', 'paint', 'retimer', 'general',
 ] as const);
@@ -88,7 +91,6 @@ export const OFX_MANDATORY_SUITES: readonly string[] = Object.freeze([
 ]);
 
 export const OFX_MAXIMUM_PARAMETERS = 4_096;
-export const OFX_MAXIMUM_INPUTS = 64;
 
 export interface OfxPluginVersionV1 {
 	readonly major: number;
@@ -125,13 +127,25 @@ export class OfxDescriptorError extends Error {
 
 const PLUGIN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._:-]{0,127}$/u;
 const NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/u;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 const IDENTITY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9:|._/\\-]{0,255}$/u;
+// The packaging module owns the OpenFX directory names, several of which are
+// hyphenated, so membership there is the test rather than a name shape here.
+const ARCHITECTURE_DIRECTORIES: ReadonlySet<string> = new Set(
+	Object.values(OFX_TARGET_ARCHITECTURE_DIRECTORIES),
+);
 const DESCRIPTOR_KEYS = Object.freeze([
 	'pluginId', 'vendor', 'version', 'bundleIdentity', 'binarySha256',
 	'architectureDirectory', 'supportedContexts', 'parameters', 'components',
 	'pixelDepths', 'threading', 'requestedSuites',
 ]);
+
+const { digest, exactKeys, pattern, plainRecord: record } = createNativeValidators({
+	subject: 'An OFX descriptor',
+	article: 'An',
+	raise: (message: string): never => {
+		throw new OfxDescriptorError(message);
+	},
+});
 
 /** Admit one descriptor produced by an isolated scan process. */
 export function assertOfxPluginDescriptorV1(
@@ -143,8 +157,8 @@ export function assertOfxPluginDescriptorV1(
 	pattern(descriptor.vendor, PLUGIN_ID_PATTERN, 'vendor');
 	version(descriptor.version);
 	pattern(descriptor.bundleIdentity, IDENTITY_PATTERN, 'bundleIdentity');
-	pattern(descriptor.binarySha256, SHA256_PATTERN, 'binarySha256');
-	pattern(descriptor.architectureDirectory, NAME_PATTERN, 'architectureDirectory');
+	digest(descriptor.binarySha256, 'binarySha256');
+	architectureDirectory(descriptor.architectureDirectory);
 	uniqueMembers(descriptor.supportedContexts, OFX_CONTEXTS, 'supportedContexts', true);
 	uniqueMembers(descriptor.components, OFX_COMPONENTS, 'components', true);
 	uniqueMembers(descriptor.pixelDepths, OFX_PIXEL_DEPTHS, 'pixelDepths', true);
@@ -177,6 +191,14 @@ export function ofxDescriptorsShareFingerprint(
 /** The standard parameter the host supplies for a context, if it has one. */
 export function ofxStandardParameterForContext(context: OfxContext): string | null {
 	return OFX_CONTEXT_STANDARD_PARAMETERS[context] ?? null;
+}
+
+function architectureDirectory(value: unknown): void {
+	if (typeof value !== 'string' || !ARCHITECTURE_DIRECTORIES.has(value)) {
+		throw new OfxDescriptorError(
+			'An OFX descriptor architectureDirectory is not one this host packages.',
+		);
+	}
 }
 
 function version(value: unknown): void {
@@ -255,29 +277,4 @@ function uniqueMembers(
 		}
 		seen.add(entry);
 	}
-}
-
-function record(value: unknown, label: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new OfxDescriptorError(`An ${label} must be a plain record.`);
-	}
-	return value as Record<string, unknown>;
-}
-
-function exactKeys(
-	value: Record<string, unknown>,
-	keys: readonly string[],
-	label: string,
-): void {
-	const present = Object.keys(value);
-	if (present.length !== keys.length || present.some((key) => !keys.includes(key))) {
-		throw new OfxDescriptorError(`An ${label} must carry exactly its schema keys.`);
-	}
-}
-
-function pattern(value: unknown, expression: RegExp, label: string): string {
-	if (typeof value !== 'string' || !expression.test(value)) {
-		throw new OfxDescriptorError(`An OFX descriptor ${label} is not in its canonical form.`);
-	}
-	return value;
 }

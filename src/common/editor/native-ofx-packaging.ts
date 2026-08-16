@@ -31,15 +31,6 @@ export const OFX_TARGET_ARCHITECTURE_DIRECTORIES: Readonly<Record<OfxTarget, str
 		'linux-arm64': 'Linux-aarch64',
 	});
 
-/** The host process ABI each target's isolated OFX host is built as. */
-export const OFX_TARGET_HOST_ABI: Readonly<Record<OfxTarget, string>> = Object.freeze({
-	'win32-x64': 'x86_64-pc-windows-msvc',
-	'win32-arm64': 'arm64ec-pc-windows-msvc',
-	'darwin-arm64': 'arm64-apple-darwin',
-	'linux-x64': 'x86_64-unknown-linux-gnu',
-	'linux-arm64': 'aarch64-unknown-linux-gnu',
-});
-
 /** Qualification that must pass on every target, with no hardware excuse. */
 export const OFX_UNIVERSAL_QUALIFICATIONS: readonly string[] = Object.freeze([
 	'cpu-render',
@@ -48,11 +39,6 @@ export const OFX_UNIVERSAL_QUALIFICATIONS: readonly string[] = Object.freeze([
 	'custom-parameter-interact',
 	'draw-suite-v1',
 	'packaging',
-]);
-
-/** GPU mechanisms, each qualified only where the hardware actually exists. */
-export const OFX_GPU_QUALIFICATIONS: readonly string[] = Object.freeze([
-	'opengl-render', 'opencl-render', 'cuda-render', 'metal-render',
 ]);
 
 /** Which GPU mechanisms are even applicable on a given target. */

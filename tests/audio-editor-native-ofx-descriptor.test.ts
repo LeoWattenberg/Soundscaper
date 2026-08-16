@@ -94,6 +94,26 @@ test('hostile descriptor input is rejected before it reaches the host', () => {
 	assert.throws(() => assertOfxPluginDescriptorV1(null), OfxDescriptorError);
 });
 
+test('every architecture directory this host packages is admitted, and nothing else', () => {
+	for (const target of OFX_TARGETS) {
+		const directory = OFX_TARGET_ARCHITECTURE_DIRECTORIES[target];
+		assert.doesNotThrow(
+			() => assertOfxPluginDescriptorV1(descriptor({ architectureDirectory: directory })),
+			`${target} reports ${directory}`,
+		);
+	}
+	for (const directory of [
+		'Linux_x86_64', 'Linux-x86_64', 'linux-x86-64', 'Win32', 'MacOS ',
+		'Contents/MacOS', '../Win64', 'Win64/../..', '', 64, null,
+	]) {
+		assert.throws(
+			() => assertOfxPluginDescriptorV1(descriptor({ architectureDirectory: directory })),
+			OfxDescriptorError,
+			JSON.stringify(directory),
+		);
+	}
+});
+
 test('identity is the plug-in id bound to its exact binary digest', () => {
 	const original = descriptor();
 	const rebuilt = descriptor({ binarySha256: OTHER_DIGEST });
@@ -189,7 +209,7 @@ function descriptor(overrides: Record<string, unknown> = {}): OfxPluginDescripto
 		version: { major: 1, minor: 0 },
 		bundleIdentity: 'dev:1|ino:77',
 		binarySha256: DIGEST,
-		architectureDirectory: 'Linux_x86_64',
+		architectureDirectory: 'Linux-x86-64',
 		supportedContexts: ['filter'],
 		parameters: [{ name: 'radius', type: 'double', animates: true }],
 		components: ['RGBA'],

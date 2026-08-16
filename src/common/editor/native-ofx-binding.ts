@@ -23,6 +23,7 @@ import {
 	type OfxContext,
 	type OfxParameterType,
 } from './native-ofx-descriptor.ts';
+import { createNativeValidators } from './native-validation.ts';
 
 export const OFX_BINDING_MAXIMUM_INPUTS = 16;
 export const OFX_BINDING_MAXIMUM_PARAMETERS = 4_096;
@@ -98,25 +99,32 @@ export class OfxBindingError extends Error {
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._:-]{0,127}$/u;
 const NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/u;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 const BINDING_KEYS = Object.freeze([
 	'bindingId', 'pluginId', 'binarySha256', 'context', 'inputs', 'parameters',
 	'customEncodings', 'enabled', 'frozenRender',
 ]);
+
+const { digest, exactKeys, pattern, plainRecord: record } = createNativeValidators({
+	subject: 'An OFX effect binding',
+	article: 'An',
+	raise: (message: string): never => {
+		throw new OfxBindingError(message);
+	},
+});
 
 export function assertOfxEffectBindingV1(value: unknown): asserts value is OfxEffectBindingV1 {
 	const binding = record(value, 'OFX effect binding');
 	exactKeys(binding, BINDING_KEYS, 'OFX effect binding');
 	pattern(binding.bindingId, ID_PATTERN, 'bindingId');
 	pattern(binding.pluginId, ID_PATTERN, 'pluginId');
-	pattern(binding.binarySha256, SHA256_PATTERN, 'binarySha256');
+	digest(binding.binarySha256, 'binarySha256');
 	if (typeof binding.context !== 'string'
 		|| !(OFX_CONTEXTS as readonly string[]).includes(binding.context)) {
 		throw new OfxBindingError('An OFX effect binding must name a known image-effect context.');
 	}
 	inputs(binding.inputs);
-	const names = parameters(binding.parameters);
-	customEncodings(binding.customEncodings, names);
+	const parameterTypes = parameters(binding.parameters);
+	customEncodings(binding.customEncodings, parameterTypes);
 	if (typeof binding.enabled !== 'boolean') {
 		throw new OfxBindingError('An OFX effect binding must state whether it is enabled.');
 	}
@@ -147,9 +155,7 @@ export function resolveOfxPlayback(
 	}
 	const frozen = binding.frozenRender;
 	const usable = frozen !== null
-		&& frozen.parameterStateSha256 === pattern(
-			currentParameterStateSha256, SHA256_PATTERN, 'parameter state digest',
-		);
+		&& frozen.parameterStateSha256 === digest(currentParameterStateSha256, 'parameter state digest');
 	return resolution(usable ? 'frozen' : 'bypass', availability, true);
 }
 
@@ -207,30 +213,30 @@ function inputs(value: unknown): void {
 	}
 }
 
-function parameters(value: unknown): ReadonlySet<string> {
+function parameters(value: unknown): ReadonlyMap<string, OfxParameterType> {
 	if (!Array.isArray(value)) {
 		throw new OfxBindingError('An OFX effect binding must list its parameter state.');
 	}
 	if (value.length > OFX_BINDING_MAXIMUM_PARAMETERS) {
 		throw new OfxBindingError('An OFX effect binding exceeds its parameter ceiling.');
 	}
-	const names = new Set<string>();
+	const types = new Map<string, OfxParameterType>();
 	for (const entry of value as readonly unknown[]) {
 		const parameter = record(entry, 'OFX parameter state');
 		exactKeys(parameter, ['name', 'type', 'value', 'keyframes'], 'OFX parameter state');
 		const name = pattern(parameter.name, NAME_PATTERN, 'parameter name');
-		if (names.has(name)) {
+		if (types.has(name)) {
 			throw new OfxBindingError('An OFX effect binding names the same parameter twice.');
 		}
-		names.add(name);
 		const type = parameter.type;
 		if (typeof type !== 'string' || !(OFX_PARAMETER_TYPES as readonly string[]).includes(type)) {
 			throw new OfxBindingError('An OFX parameter state must declare a known OpenFX type.');
 		}
+		types.set(name, type as OfxParameterType);
 		parameterValue(type as OfxParameterType, parameter.value);
 		keyframes(parameter.keyframes, type as OfxParameterType);
 	}
-	return names;
+	return types;
 }
 
 function parameterValue(type: OfxParameterType, value: unknown): void {
@@ -297,12 +303,21 @@ function keyframes(value: unknown, type: OfxParameterType): void {
 	}
 }
 
-function customEncodings(value: unknown, parameterNames: ReadonlySet<string>): void {
+function customEncodings(
+	value: unknown,
+	parameterTypes: ReadonlyMap<string, OfxParameterType>,
+): void {
 	const encodings = record(value, 'OFX custom encodings');
 	let total = 0;
 	for (const [name, encoded] of Object.entries(encodings)) {
-		if (!parameterNames.has(pattern(name, NAME_PATTERN, 'custom encoding name'))) {
+		const type = parameterTypes.get(pattern(name, NAME_PATTERN, 'custom encoding name'));
+		if (type === undefined) {
 			throw new OfxBindingError('An OFX custom encoding names a parameter the binding does not carry.');
+		}
+		// An encoding on a typed parameter is state no host can hand back, and
+		// it would still move the frozen-render digest.
+		if (type !== 'custom') {
+			throw new OfxBindingError('An OFX custom encoding names a parameter that is not a custom parameter.');
 		}
 		total += boundedText(encoded, OFX_BINDING_MAXIMUM_CUSTOM_BYTES).length;
 		if (total > OFX_BINDING_MAXIMUM_CUSTOM_BYTES) {
@@ -319,8 +334,8 @@ function frozenRender(value: unknown): void {
 		'OFX frozen render descriptor',
 	);
 	pattern(descriptor.storageKey, ID_PATTERN, 'frozenRender.storageKey');
-	pattern(descriptor.sha256, SHA256_PATTERN, 'frozenRender.sha256');
-	pattern(descriptor.parameterStateSha256, SHA256_PATTERN, 'frozenRender.parameterStateSha256');
+	digest(descriptor.sha256, 'frozenRender.sha256');
+	digest(descriptor.parameterStateSha256, 'frozenRender.parameterStateSha256');
 	if (!Number.isSafeInteger(descriptor.frameCount) || (descriptor.frameCount as number) <= 0) {
 		throw new OfxBindingError('An OFX frozen render must cover at least one frame.');
 	}
@@ -342,31 +357,6 @@ function integer(value: unknown): void {
 function boundedText(value: unknown, maximum: number): string {
 	if (typeof value !== 'string' || value.length > maximum) {
 		throw new OfxBindingError('An OFX text parameter must be bounded text.');
-	}
-	return value;
-}
-
-function record(value: unknown, label: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new OfxBindingError(`An ${label} must be a plain record.`);
-	}
-	return value as Record<string, unknown>;
-}
-
-function exactKeys(
-	value: Record<string, unknown>,
-	keys: readonly string[],
-	label: string,
-): void {
-	const present = Object.keys(value);
-	if (present.length !== keys.length || present.some((key) => !keys.includes(key))) {
-		throw new OfxBindingError(`An ${label} must carry exactly its schema keys.`);
-	}
-}
-
-function pattern(value: unknown, expression: RegExp, label: string): string {
-	if (typeof value !== 'string' || !expression.test(value)) {
-		throw new OfxBindingError(`An OFX effect binding ${label} is not in its canonical form.`);
 	}
 	return value;
 }

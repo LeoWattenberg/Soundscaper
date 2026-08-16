@@ -170,7 +170,7 @@ test('keyframes are ordered, bounded, and never attached to a valueless paramete
 	})), /cannot be keyframed/u);
 });
 
-test('a custom encoding must name a parameter the binding actually carries', () => {
+test('a custom encoding must name a custom parameter the binding actually carries', () => {
 	assert.doesNotThrow(() => assertOfxEffectBindingV1(binding({
 		parameters: [param('shape', 'custom', 'AAAA')],
 		customEncodings: { shape: 'AAAA' },
@@ -178,6 +178,16 @@ test('a custom encoding must name a parameter the binding actually carries', () 
 	assert.throws(() => assertOfxEffectBindingV1(binding({
 		customEncodings: { unknown_param: 'AAAA' },
 	})), /does not carry/u);
+	// A payload attached to a typed parameter would reach a host that has no
+	// custom suite to hand it to, and would move the frozen-render digest.
+	assert.throws(() => assertOfxEffectBindingV1(binding({
+		parameters: [param('radius', 'double', [2])],
+		customEncodings: { radius: 'AAAA' },
+	})), /not a custom parameter/u);
+	assert.throws(() => assertOfxEffectBindingV1(binding({
+		parameters: [param('divider', 'group', null)],
+		customEncodings: { divider: 'AAAA' },
+	})), /not a custom parameter/u);
 	assert.throws(() => assertOfxEffectBindingV1(binding({
 		parameters: [param('shape', 'custom', 'A')],
 		customEncodings: { shape: 'A'.repeat(65_537) },
@@ -242,7 +252,7 @@ function descriptor(overrides: Record<string, unknown> = {}): OfxPluginDescripto
 		version: { major: 1, minor: 0 },
 		bundleIdentity: 'dev:1|ino:77',
 		binarySha256: DIGEST,
-		architectureDirectory: 'Linux_x86_64',
+		architectureDirectory: 'Linux-x86-64',
 		supportedContexts: ['filter'],
 		parameters: [{ name: 'radius', type: 'double', animates: true }],
 		components: ['RGBA'],
