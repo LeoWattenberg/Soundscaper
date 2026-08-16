@@ -156,7 +156,9 @@ export function buildNativeHelperAddon({
 		`-DSOUNDSCAPER_ADDON_VERSION="${manifest.addonVersion}"`,
 		`-DSOUNDSCAPER_ADDON_BUILD_ID="${manifest.addonVersion}+${selected.id}"`,
 		`-DNAPI_VERSION=${manifest.napiVersion}`,
-		...(includeDirectories ?? manifest.toolchain.includeDirectories).map((directory) => `-I${directory}`),
+		/* Vendored header roots are repository-relative; system roots are absolute. */
+		...(includeDirectories ?? manifest.toolchain.includeDirectories)
+			.map((directory) => `-I${directory.startsWith('/') ? directory : resolve(repositoryRoot, directory)}`),
 		...manifest.toolchain.linkFlags,
 		'-o', outputPath,
 		...compiled,

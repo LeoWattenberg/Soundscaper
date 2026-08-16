@@ -213,6 +213,21 @@ The browser tools can distribute the following pinned browser-side packages as p
 - `scheduler` 0.27.0 — MIT; transitive React scheduler runtime; Copyright © Meta Platforms, Inc. and affiliates; source and license: <https://github.com/facebook/react/tree/v19.2.7/packages/scheduler>
 - `sql.js` 1.14.1 — MIT; source: <https://github.com/sql-js/sql.js> (retained for unrelated legacy tools; AUP4 uses the official SQLite WASM package)
 
+## PipeWire public headers
+
+The native helper addon reaches PipeWire through `dlopen` and never links or
+redistributes the library. Its public headers are vendored under
+`vendor/pipewire-headers/` because the SPA format builders the addon needs are
+static inline functions in the headers rather than exported symbols, so runtime
+symbol resolution alone cannot reach them.
+
+- `pipewire` 1.0.5 — MIT; source:
+  <https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/1.0.5/pipewire-1.0.5.tar.gz>
+  (`c5a5de26d684a1a84060ad7b6131654fb2835e03fccad85059be92f8e3ffe993`).
+  Vendored scope is the two public include trees, unmodified, plus the
+  meson-generated `pipewire/version.h` pinned to the same tag. The upstream
+  licence text is retained at `vendor/pipewire-headers/COPYING`.
+
 ## Optional local assistance runtime
 
 The optional on-device assistance features load their speech runtime from

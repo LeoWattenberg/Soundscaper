@@ -186,8 +186,16 @@ of them may be simulated, inferred, or filled in from a neighbouring target.
 ### Audio backends and device loss
 
 - macOS: CoreAudio. Windows: WASAPI shared and exclusive, plus separately
-  licensed and selected ASIO. Linux: JACK when available and ALSA as the direct
-  fallback. Backend and mode are explicit capability/status fields; fallback is
+  licensed and selected ASIO. Linux: **PipeWire is the primary backend**, with
+  ALSA retained for direct `hw:` access. This revises the original
+  JACK-plus-ALSA decision deliberately: PipeWire is the session manager on every
+  mainstream desktop, so reaching it through its ALSA or JACK compatibility
+  shims would make the editor a compat client rather than a graph node the user
+  can see and route, and would inherit whatever quantum the shim chose. Adding
+  the `pipewire` backend value is a serialized contract-v1 change; PipeWire's
+  public headers are vendored under their MIT licence because its SPA format
+  builders are static inlines, and the library itself is resolved by `dlopen`
+  and never linked or redistributed. Backend and mode are explicit capability/status fields; fallback is
   never mislabeled as the requested mode.
 - Native inventory adapts into the existing recording-routing service. Stable
   IDs, saved preferences, channel selections, and calibration offsets are not

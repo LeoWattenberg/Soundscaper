@@ -26,6 +26,13 @@ export const HELPER_PROBE_JOB_KINDS = Object.freeze([
 ] as const satisfies readonly HelperJobKind[]);
 
 /**
+ * `pipewire` is the preferred Linux backend: it is the session manager on every
+ * mainstream desktop, and reaching it through the ALSA or JACK compatibility
+ * shims would make us a compat client rather than a graph node the user can see
+ * and route. ALSA stays for direct `hw:` access when a user wants the card to
+ * themselves. Adding this value is a deliberate contract-v1 change, not an
+ * incidental one.
+ *
  * `synthetic` is the milestone-5A-0c loopback proof backend. It is a real
  * backend on the wire so the transport, supervision and fault suites exercise
  * exactly the admission path an operating-system backend will, but it never
@@ -33,7 +40,7 @@ export const HELPER_PROBE_JOB_KINDS = Object.freeze([
  * inventory refuses to publish it.
  */
 export const HELPER_AUDIO_BACKENDS = Object.freeze([
-	'coreaudio', 'wasapi', 'asio', 'jack', 'alsa', 'synthetic',
+	'coreaudio', 'wasapi', 'asio', 'jack', 'alsa', 'pipewire', 'synthetic',
 ] as const);
 export type HelperAudioBackend = (typeof HELPER_AUDIO_BACKENDS)[number];
 

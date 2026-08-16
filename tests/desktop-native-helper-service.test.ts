@@ -76,7 +76,7 @@ function createService({
 
 test('the synthetic loopback backend is never published or accepted', async () => {
 	assert.equal(PUBLISHABLE_NATIVE_AUDIO_BACKENDS.includes('synthetic' as never), false);
-	assert.deepEqual([...PUBLISHABLE_NATIVE_AUDIO_BACKENDS], ['coreaudio', 'wasapi', 'asio', 'jack', 'alsa']);
+	assert.deepEqual([...PUBLISHABLE_NATIVE_AUDIO_BACKENDS], ['coreaudio', 'wasapi', 'asio', 'jack', 'alsa', 'pipewire']);
 	const { service, requests } = createService();
 	assert.equal(failed(await service.describeBackend({ owner: {}, backend: 'synthetic' })).code, 'unknown-backend');
 	assert.equal(requests.length, 0, 'a refused backend must never reach the helper');

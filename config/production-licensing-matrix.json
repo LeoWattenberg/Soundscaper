@@ -366,6 +366,23 @@
 		],
 		"configurationEvidence": "THIRD_PARTY_LICENSES.md#ffmpeg-webassembly-export-and-import-core"
 	},
+	"vendoredHeaders": [
+		{
+			"id": "pipewire-public-headers",
+			"upstream": "PipeWire 1.0.5",
+			"license": "MIT",
+			"vendoredPath": "vendor/pipewire-headers",
+			"linked": false,
+			"redistributed": false,
+			"rationale": "The SPA format builders the native audio backend needs are static inline functions in the headers, so dlopen cannot reach them. Only headers are checked in; the library is resolved at runtime and never shipped.",
+			"evidence": [
+				"vendor/pipewire-headers/UPSTREAM",
+				"vendor/pipewire-headers/COPYING",
+				"THIRD_PARTY_LICENSES.md",
+				"native/soundscaper-helper-addon/src/pipewire_session.c"
+			]
+		}
+	],
 	"releaseGates": [
 		{
 			"id": "dependency-notice-version-audit",

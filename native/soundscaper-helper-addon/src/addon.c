@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "audio_backends.h"
+#include "pipewire_session.h"
 #include "plugin_host.h"
 #include "plugin_scan.h"
 #include "synthetic_engine.h"
@@ -388,6 +389,167 @@ static int read_utf8(napi_env env, napi_value value, char *buffer, size_t capaci
 	return written > 0 && written < capacity;
 }
 
+static void finalize_audio_session(napi_env env, void *data, void *hint)
+{
+	(void)env;
+	(void)hint;
+	soundscaper_pipewire_close((soundscaper_pipewire_session *)data);
+}
+
+static const char *open_status_name(soundscaper_audio_open_status status)
+{
+	switch (status) {
+	case SOUNDSCAPER_AUDIO_OPEN_OK: return "ok";
+	case SOUNDSCAPER_AUDIO_OPEN_BACKEND_UNAVAILABLE: return "backend-unavailable";
+	case SOUNDSCAPER_AUDIO_OPEN_DEVICE_UNAVAILABLE: return "device-unavailable";
+	case SOUNDSCAPER_AUDIO_OPEN_FORMAT_REFUSED: return "format-refused";
+	case SOUNDSCAPER_AUDIO_OPEN_MODE_REFUSED: return "mode-refused";
+	case SOUNDSCAPER_AUDIO_OPEN_INVALID_REQUEST: return "invalid-request";
+	default: return "not-implemented";
+	}
+}
+
+static const char *io_status_name(soundscaper_audio_io_status status)
+{
+	switch (status) {
+	case SOUNDSCAPER_AUDIO_IO_OK: return "ok";
+	case SOUNDSCAPER_AUDIO_IO_CLOSED: return "closed";
+	case SOUNDSCAPER_AUDIO_IO_INVALID_BLOCK: return "invalid-block";
+	case SOUNDSCAPER_AUDIO_IO_WRONG_DIRECTION: return "wrong-direction";
+	case SOUNDSCAPER_AUDIO_IO_RECOVERED: return "recovered";
+	default: return "device-lost";
+	}
+}
+
+/*
+ * Opens one device. The answer always carries both what was requested and what
+ * the graph granted, because a caller that cannot tell them apart will record
+ * the request as though it were the outcome.
+ */
+static napi_value open_audio_device(napi_env env, napi_callback_info info)
+{
+	size_t argc = 1;
+	napi_value argv[1];
+	SOUNDSCAPER_CHECK(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
+	napi_valuetype type;
+	if (argc < 1 || napi_typeof(env, argv[0], &type) != napi_ok || type != napi_object) {
+		return throw_type_error(env, "Opening an audio device requires its request record.");
+	}
+	char handle[SOUNDSCAPER_AUDIO_MAX_TEXT];
+	napi_value handle_value;
+	SOUNDSCAPER_CHECK(env, napi_get_named_property(env, argv[0], "deviceHandle", &handle_value));
+	if (!read_utf8(env, handle_value, handle, sizeof(handle))) {
+		return throw_type_error(env, "An audio device request requires its device handle.");
+	}
+	uint32_t direction = 0, exclusive = 0, rate = 0, frames = 0, channels = 0;
+	if (!read_uint32(env, argv[0], "direction", &direction)
+		|| !read_uint32(env, argv[0], "exclusive", &exclusive)
+		|| !read_uint32(env, argv[0], "sampleRate", &rate)
+		|| !read_uint32(env, argv[0], "periodFrames", &frames)
+		|| !read_uint32(env, argv[0], "channelCount", &channels)) {
+		return throw_type_error(env, "An audio device request must carry exactly its numeric fields.");
+	}
+
+	soundscaper_pipewire_session *session = NULL;
+	soundscaper_audio_granted granted;
+	const soundscaper_audio_open_status status = soundscaper_pipewire_open(
+		handle, (soundscaper_device_direction)direction, exclusive, rate, frames, channels, &session, &granted);
+
+	napi_value result;
+	SOUNDSCAPER_CHECK(env, napi_create_object(env, &result));
+	if (set_string(env, result, "status", open_status_name(status)) == NULL) return NULL;
+	if (set_string(env, result, "detail", granted.detail) == NULL) return NULL;
+	if (status != SOUNDSCAPER_AUDIO_OPEN_OK) return result;
+
+	if (set_string(env, result, "deviceName", granted.device_name) == NULL) return NULL;
+	napi_value number;
+	SOUNDSCAPER_CHECK(env, napi_create_uint32(env, granted.sample_rate, &number));
+	SOUNDSCAPER_CHECK(env, napi_set_named_property(env, result, "grantedSampleRate", number));
+	SOUNDSCAPER_CHECK(env, napi_create_uint32(env, granted.period_frames, &number));
+	SOUNDSCAPER_CHECK(env, napi_set_named_property(env, result, "grantedPeriodFrames", number));
+	SOUNDSCAPER_CHECK(env, napi_create_uint32(env, granted.channel_count, &number));
+	SOUNDSCAPER_CHECK(env, napi_set_named_property(env, result, "grantedChannelCount", number));
+	SOUNDSCAPER_CHECK(env, napi_get_boolean(env, granted.exclusive != 0u, &number));
+	SOUNDSCAPER_CHECK(env, napi_set_named_property(env, result, "grantedExclusive", number));
+	napi_value session_handle;
+	if (napi_create_external(env, session, finalize_audio_session, NULL, &session_handle) != napi_ok) {
+		soundscaper_pipewire_close(session);
+		napi_throw_error(env, "SOUNDSCAPER_ADDON_FAILED", "The audio session handle could not be created.");
+		return NULL;
+	}
+	SOUNDSCAPER_CHECK(env, napi_set_named_property(env, result, "session", session_handle));
+	return result;
+}
+
+static napi_value audio_device_transfer(napi_env env, napi_callback_info info, int writing)
+{
+	size_t argc = 3;
+	napi_value argv[3];
+	SOUNDSCAPER_CHECK(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
+	soundscaper_pipewire_session *session = NULL;
+	if (argc < 3 || napi_get_value_external(env, argv[0], (void **)&session) != napi_ok || session == NULL) {
+		return throw_type_error(env, "An audio transfer requires a live session handle.");
+	}
+	double number;
+	if (napi_get_value_double(env, argv[1], &number) != napi_ok
+		|| !(number >= 1.0 && number <= 8192.0) || number != (double)(uint32_t)number) {
+		return throw_range_error(env, "An audio transfer frame count is outside its admitted bounds.");
+	}
+	const uint32_t frame_count = (uint32_t)number;
+	uint32_t channel_count = 0;
+	bool is_array = false;
+	if (napi_is_array(env, argv[2], &is_array) != napi_ok || !is_array
+		|| napi_get_array_length(env, argv[2], &channel_count) != napi_ok
+		|| channel_count == 0u || channel_count > SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS) {
+		return throw_type_error(env, "An audio transfer requires its planar channel array.");
+	}
+	float *pointers[SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS];
+	if (!read_channel_pointers(env, argv[2], channel_count, frame_count, pointers)) {
+		return throw_type_error(env, "Every audio transfer channel must be a large enough Float32Array.");
+	}
+	uint64_t lost = 0u;
+	const soundscaper_audio_io_status status = writing
+		? soundscaper_pipewire_write(session, (const float *const *)pointers, frame_count, &lost)
+		: soundscaper_pipewire_read(session, pointers, frame_count, &lost);
+
+	napi_value result;
+	SOUNDSCAPER_CHECK(env, napi_create_object(env, &result));
+	if (set_string(env, result, "status", io_status_name(status)) == NULL) return NULL;
+	napi_value number_value;
+	SOUNDSCAPER_CHECK(env, napi_create_double(env, (double)lost, &number_value));
+	SOUNDSCAPER_CHECK(env, napi_set_named_property(env, result, "lostFrames", number_value));
+	SOUNDSCAPER_CHECK(env, napi_create_double(env, (double)soundscaper_pipewire_frames(session), &number_value));
+	SOUNDSCAPER_CHECK(env, napi_set_named_property(env, result, "framesTransferred", number_value));
+	SOUNDSCAPER_CHECK(env, napi_create_double(env, (double)soundscaper_pipewire_lost_frames(session), &number_value));
+	SOUNDSCAPER_CHECK(env, napi_set_named_property(env, result, "totalLostFrames", number_value));
+	return result;
+}
+
+static napi_value write_audio_device(napi_env env, napi_callback_info info)
+{
+	return audio_device_transfer(env, info, 1);
+}
+
+static napi_value read_audio_device(napi_env env, napi_callback_info info)
+{
+	return audio_device_transfer(env, info, 0);
+}
+
+static napi_value close_audio_device(napi_env env, napi_callback_info info)
+{
+	size_t argc = 1;
+	napi_value argv[1];
+	SOUNDSCAPER_CHECK(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
+	soundscaper_pipewire_session *session = NULL;
+	if (argc < 1 || napi_get_value_external(env, argv[0], (void **)&session) != napi_ok || session == NULL) {
+		return throw_type_error(env, "Closing an audio device requires its session handle.");
+	}
+	soundscaper_pipewire_close(session);
+	napi_value ok;
+	SOUNDSCAPER_CHECK(env, napi_get_boolean(env, true, &ok));
+	return ok;
+}
+
 static napi_value list_plugin_candidates(napi_env env, napi_callback_info info)
 {
 	size_t argc = 2;
@@ -668,6 +830,10 @@ NAPI_MODULE_INIT()
 		{ "renderSyntheticBlock", NULL, render_synthetic_block, NULL, NULL, NULL, napi_default, NULL },
 		{ "expectedSyntheticSample", NULL, expected_synthetic_sample, NULL, NULL, NULL, napi_default, NULL },
 		{ "enumerateAudioBackends", NULL, enumerate_audio_backends, NULL, NULL, NULL, napi_default, NULL },
+		{ "openAudioDevice", NULL, open_audio_device, NULL, NULL, NULL, napi_default, NULL },
+		{ "writeAudioDevice", NULL, write_audio_device, NULL, NULL, NULL, napi_default, NULL },
+		{ "readAudioDevice", NULL, read_audio_device, NULL, NULL, NULL, napi_default, NULL },
+		{ "closeAudioDevice", NULL, close_audio_device, NULL, NULL, NULL, napi_default, NULL },
 		{ "listPluginCandidates", NULL, list_plugin_candidates, NULL, NULL, NULL, napi_default, NULL },
 		{ "inspectPluginCandidate", NULL, inspect_plugin_candidate, NULL, NULL, NULL, napi_default, NULL },
 		{ "openPluginInstance", NULL, open_plugin_instance, NULL, NULL, NULL, napi_default, NULL },

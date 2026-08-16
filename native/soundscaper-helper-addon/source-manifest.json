@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"addonVersion": "1.0.0",
+	"addonVersion": "1.1.0",
 	"napiVersion": 8,
 	"payloadName": "soundscaper_helper.node",
 	"license": "AGPL-3.0-only",
@@ -9,7 +9,9 @@
 		"language": "c11",
 		"sourceDateEpoch": 1755302400,
 		"includeDirectories": [
-			"/usr/include/node"
+			"/usr/include/node",
+			"vendor/pipewire-headers/pipewire-0.3",
+			"vendor/pipewire-headers/spa-0.2"
 		],
 		"compileFlags": [
 			"-std=c11",
@@ -25,28 +27,54 @@
 			"-Wl,--build-id=none",
 			"-lm",
 			"-ldl"
-		]
+		],
+		"vendoredHeaders": {
+			"root": "vendor/pipewire-headers",
+			"upstream": "PipeWire 1.0.5",
+			"license": "MIT",
+			"reason": "The SPA format builders are static inline functions in the headers, so dlopen alone cannot reach them. Only headers are vendored; the library is never linked and never redistributed."
+		}
 	},
 	"sourceFiles": [
 		{
 			"path": "addon.c",
-			"byteLength": 29145,
-			"sha256": "51f9de144f77febbcfafe0350529cb50c47cf3da79eef0bd5b448f850310807e"
+			"byteLength": 37043,
+			"sha256": "d9e1266f89879837ff395075083e8b51c758ac439fdc060775e62fd380fc23f5"
 		},
 		{
 			"path": "audio_backends.c",
-			"byteLength": 7354,
-			"sha256": "8d2b639c5b547564bfeaceb1172f8d93619b7b7027b662a3975549126059e1ff"
+			"byteLength": 7546,
+			"sha256": "ba299e586e4402089d51cd02bfd29de53114b76e3079153a16584094b58dd0a7"
 		},
 		{
 			"path": "audio_backends.h",
-			"byteLength": 2468,
-			"sha256": "3f5d892d5473a33d13a7f8288d2a77773ca8662cafc85b2335927d772fe17e1f"
+			"byteLength": 2503,
+			"sha256": "5f0c73dc07cf6647f4c1658b53020ee1e05b3dab268ff0c91bf94a99d201def1"
+		},
+		{
+			"path": "audio_session.c",
+			"byteLength": 13344,
+			"sha256": "40616229216d83ed5e2c56dee32e3f2d8a548953267f22b9e57306527453b9b8"
+		},
+		{
+			"path": "audio_session.h",
+			"byteLength": 3472,
+			"sha256": "4d72b486bcea5b5a093c4902a3e6263a0a841958ae3baa3cb3ea49af620d2be6"
 		},
 		{
 			"path": "fixture_plugin_abi.h",
 			"byteLength": 3405,
 			"sha256": "48d6cc3c70c46f32183e0240ad24a25b0f3be8e9c6a301c86d94019ba24c5ca5"
+		},
+		{
+			"path": "pipewire_session.c",
+			"byteLength": 20543,
+			"sha256": "e49e8774c6f0cda058c2ac2cd429bec958a7ce953829ba4c8295e18368889e3a"
+		},
+		{
+			"path": "pipewire_session.h",
+			"byteLength": 2960,
+			"sha256": "6e31bac4fa86cfba11ed33687d5190945746772144a32b082c3051937c8782f4"
 		},
 		{
 			"path": "plugin_host.c",
@@ -86,8 +114,8 @@
 			"toolchainIdentity": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
 			"payload": {
 				"name": "soundscaper_helper.node",
-				"byteLength": 45464,
-				"sha256": "8868a72f88b936f468b811910a7455d5bb6099f17c2e322e7dea908896821514"
+				"byteLength": 79944,
+				"sha256": "c06c2fe9555210709afa7cc9d8f26bdbdb2bfdee08419e35e22be7923c110814"
 			}
 		},
 		"linux-arm64": {

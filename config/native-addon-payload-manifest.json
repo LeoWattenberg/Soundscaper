@@ -1,9 +1,9 @@
 {
 	"schemaVersion": 1,
-	"id": "soundscaper-helper-addon-1.0.0",
+	"id": "soundscaper-helper-addon-1.1.0",
 	"addon": {
 		"name": "soundscaper-helper-addon",
-		"version": "1.0.0",
+		"version": "1.1.0",
 		"napiVersion": 8,
 		"license": "AGPL-3.0-only",
 		"payloadName": "soundscaper_helper.node",
@@ -28,8 +28,8 @@
 			"toolchainIdentity": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
 			"payload": {
 				"path": "native/soundscaper-helper-addon/prebuilt/linux-x64/soundscaper_helper.node",
-				"byteLength": 45464,
-				"sha256": "8868a72f88b936f468b811910a7455d5bb6099f17c2e322e7dea908896821514"
+				"byteLength": 79944,
+				"sha256": "c06c2fe9555210709afa7cc9d8f26bdbdb2bfdee08419e35e22be7923c110814"
 			}
 		},
 		{

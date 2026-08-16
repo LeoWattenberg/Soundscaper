@@ -2,6 +2,8 @@
 
 #include "audio_backends.h"
 
+#include "pipewire_session.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -37,6 +39,7 @@ const char *soundscaper_audio_backend_name(soundscaper_audio_backend backend)
 	switch (backend) {
 	case SOUNDSCAPER_BACKEND_ALSA: return "alsa";
 	case SOUNDSCAPER_BACKEND_JACK: return "jack";
+	case SOUNDSCAPER_BACKEND_PIPEWIRE: return "pipewire";
 	default: return "unknown";
 	}
 }
@@ -187,6 +190,10 @@ void soundscaper_audio_backend_enumerate(
 	}
 	if (backend == SOUNDSCAPER_BACKEND_JACK) {
 		enumerate_jack(inventory);
+		return;
+	}
+	if (backend == SOUNDSCAPER_BACKEND_PIPEWIRE) {
+		soundscaper_pipewire_enumerate(inventory);
 		return;
 	}
 	set_detail(inventory, "The requested backend is not implemented by this payload.");

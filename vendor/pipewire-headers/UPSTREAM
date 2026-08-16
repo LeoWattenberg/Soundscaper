@@ -1,0 +1,23 @@
+name: PipeWire public headers (pipewire and SPA)
+project: https://gitlab.freedesktop.org/pipewire/pipewire
+tag: 1.0.5
+license: MIT
+archive: https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/1.0.5/pipewire-1.0.5.tar.gz
+archive-sha256: c5a5de26d684a1a84060ad7b6131654fb2835e03fccad85059be92f8e3ffe993
+
+Why these are vendored rather than taken from a system package: the addon has to
+build on a machine that has no PipeWire development package, and the SPA format
+builders it needs are static inline functions in the headers rather than
+exported symbols, so `dlopen` alone cannot reach them. The library itself is
+never linked and never redistributed — only these headers are checked in, and
+every PipeWire function is resolved at runtime by `dlopen` against whatever the
+host provides.
+
+Scope: the two public include trees, unmodified.
+  pipewire-0.3/pipewire/*.h   from src/pipewire/*.h
+  spa-0.2/spa/**/*.h          from spa/include/spa/**/*.h
+
+The tag is chosen to match the runtime library this project was developed
+against (libpipewire-0.3.so.0.1005.0). PipeWire keeps its 0.3 ABI stable, so a
+host with a different 1.x runtime is expected to work; a host with no PipeWire
+at all is reported as an unavailable backend rather than failing to load.
