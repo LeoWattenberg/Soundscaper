@@ -199,6 +199,9 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 		'codec-native-ffmpeg-current-set',
 		'codec-hardware-acceleration',
 		'codec-mezzanine-and-longform',
+		'codec-hevc-and-av1',
+		'codec-image-sequence-still-formats',
+		'container-mov-mxf-matroska',
 	]);
 	for (const row of matrix.nativeFormatPolicies) {
 		assert.match(row.kind, /^(?:plugin-format|codec-capability)$/u, row.id);

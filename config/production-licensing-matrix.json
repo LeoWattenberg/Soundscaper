@@ -509,6 +509,36 @@
 			"status": "blocked",
 			"blocker": "No per-format inventory exists; every milestone-5B decode/encode tier lands its own row against the native-codecs gate before it is buildable.",
 			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+		},
+		{
+			"id": "codec-hevc-and-av1",
+			"kind": "codec-capability",
+			"upstreamLicensing": "FFmpeg's HEVC and AV1 decoders under the pinned GPL build; HEVC is additionally encumbered by the MPEG LA, Access Advance, and Velos Media pools, while AV1 is covered by the Alliance for Open Media patent licence",
+			"agplCompatibilityDirection": "Decoder source combines into this AGPL-3.0-only work exactly as the rest of the pinned FFmpeg build does; the patent position is separate from and unaffected by the copyright licence.",
+			"redistribution": "Neither decoder ships until this row records the per-pool, per-jurisdiction patent review and the corresponding-source disposition for the enlarged enabled set.",
+			"status": "blocked",
+			"blocker": "No HEVC pool review and no AV1 patent-licence review are recorded, and enabling either decoder enlarges the FFmpeg enabled set that ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review already gate.",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+		},
+		{
+			"id": "codec-image-sequence-still-formats",
+			"kind": "codec-capability",
+			"upstreamLicensing": "PNG and TIFF through the pinned FFmpeg build's own decoders; OpenEXR through FFmpeg's EXR decoder, with any libopenexr linkage carrying the OpenEXR BSD-3-Clause licence",
+			"agplCompatibilityDirection": "Permissive still-image code combines into this AGPL-3.0-only work; the FFmpeg-internal decoders inherit the existing GPL build posture.",
+			"redistribution": "Image-sequence decode and encode do not ship until this row records which decoder implementation is enabled, its notices, and its corresponding-source disposition.",
+			"status": "blocked",
+			"blocker": "No decision is recorded on whether image-sequence support uses FFmpeg-internal decoders or external libraries, so neither the notices nor the corresponding-source inventory can be written.",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"id": "container-mov-mxf-matroska",
+			"kind": "codec-capability",
+			"upstreamLicensing": "QuickTime/MOV, SMPTE MXF, and Matroska muxers and demuxers from the pinned FFmpeg build; the Matroska specification is BSD-licensed and MXF is an open SMPTE standard",
+			"agplCompatibilityDirection": "Container code combines into this AGPL-3.0-only work under the existing FFmpeg runtime provenance row; no separate licence flows in.",
+			"redistribution": "These containers do not ship until the enlarged FFmpeg enabled set clears its corresponding-source gate, because enabling a muxer enlarges exactly that set.",
+			"status": "blocked",
+			"blocker": "Enabling the MOV, MXF, and Matroska muxers enlarges the FFmpeg enabled set that ffmpeg-enabled-library-corresponding-source gates, and no notices or corresponding-source inventory has been written for the enlarged set.",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "config/ffmpeg-runtime-manifest.json"]
 		}
 	],
 	"localModelEvidence": [

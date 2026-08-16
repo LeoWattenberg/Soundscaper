@@ -1,0 +1,298 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+import {
+	createUnreportedNativeMediaProfessionalCharacteristics,
+	nativeMediaProfessionalCharacteristicsAreReported,
+	NATIVE_MEDIA_BIT_DEPTHS,
+	NativeMediaCharacteristicsError,
+	normalizeNativeMediaProfessionalCharacteristics,
+	resolveNativeMediaHdrClaim,
+	type NativeMediaProfessionalCharacteristicsV1,
+} from '../src/common/editor/native-media-professional-characteristics.ts';
+import {
+	evaluateNativeMediaProfileAdmission,
+	nativeMediaProfile,
+	NATIVE_MEDIA_PROFESSIONAL_PROFILES,
+	NATIVE_MEDIA_PROFILE_POLICY_ROW_IDS,
+} from '../src/common/editor/native-media-professional-profiles.ts';
+
+const ALL_ROWS = NATIVE_MEDIA_PROFILE_POLICY_ROW_IDS;
+
+test('unreported professional characteristics report nothing at all', () => {
+	const unreported = createUnreportedNativeMediaProfessionalCharacteristics();
+
+	assert.equal(nativeMediaProfessionalCharacteristicsAreReported(unreported), false);
+	assert.deepEqual(unreported, normalizeNativeMediaProfessionalCharacteristics(null));
+	assert.equal(Object.values(unreported).every((value) => value === null), true);
+	assert.deepEqual(resolveNativeMediaHdrClaim(unreported), {
+		transfer: 'unreported', hdr10Metadata: false, wideGamut: false,
+	});
+});
+
+test('an unrecognized transfer stays unreported rather than falling back to SDR', () => {
+	assert.equal(claim({ colourTransfer: 'bt709' }).transfer, 'sdr');
+	assert.equal(claim({ colourTransfer: 'smpte2084' }).transfer, 'pq');
+	assert.equal(claim({ colourTransfer: 'arib-std-b67' }).transfer, 'hlg');
+	assert.equal(claim({ colourTransfer: 'some-future-tag' }).transfer, 'unreported');
+	assert.equal(claim({}).transfer, 'unreported');
+});
+
+test('a PQ transfer without ST 2086 and CTA-861.3 metadata is not HDR10', () => {
+	const pqOnly = claim({ colourTransfer: 'smpte2084', colourPrimaries: 'bt2020' });
+	assert.deepEqual(pqOnly, { transfer: 'pq', hdr10Metadata: false, wideGamut: true });
+
+	const full = claim({
+		colourTransfer: 'smpte2084',
+		colourPrimaries: 'bt2020',
+		masteringDisplay: masteringDisplay(),
+		contentLight: { maximumContentLightLevel: 1_000, maximumFrameAverageLightLevel: 400 },
+	});
+	assert.deepEqual(full, { transfer: 'pq', hdr10Metadata: true, wideGamut: true });
+
+	// PQ with Rec.709 primaries is PQ, but it is not a wide-gamut claim.
+	assert.equal(claim({ colourTransfer: 'smpte2084', colourPrimaries: 'bt709' }).wideGamut, false);
+});
+
+test('mastering-display metadata is reported whole or not at all', () => {
+	const partial = { ...masteringDisplay() } as Record<string, unknown>;
+	delete partial.whitePoint;
+
+	assert.throws(
+		() => normalizeNativeMediaProfessionalCharacteristics({ masteringDisplay: partial }),
+		/whole or not at all/u,
+	);
+	assert.throws(() => normalizeNativeMediaProfessionalCharacteristics({
+		masteringDisplay: { ...masteringDisplay(), minimumLuminance: { num: 20_000, den: 10_000 }, maximumLuminance: { num: 1, den: 10_000 } },
+	}), /minimum luminance exceeds its maximum/u);
+	assert.throws(() => normalizeNativeMediaProfessionalCharacteristics({
+		contentLight: { maximumContentLightLevel: 100, maximumFrameAverageLightLevel: 200 },
+	}), /cannot exceed the maximum content light level/u);
+});
+
+test('probed colour and alpha facts are validated rather than coerced', () => {
+	const characteristics = normalizeNativeMediaProfessionalCharacteristics({
+		bitDepth: 10,
+		pixelFormat: 'yuv422p10le',
+		chromaFormat: '4:2:2',
+		colourRange: 'limited',
+		hasAlpha: true,
+		alphaMode: 'premultiplied',
+		alphaInterpretation: 'transparency',
+	});
+
+	assert.equal(characteristics.bitDepth, 10);
+	assert.equal(characteristics.pixelFormat, 'yuv422p10le');
+	assert.equal(nativeMediaProfessionalCharacteristicsAreReported(characteristics), true);
+	assert.deepEqual([...NATIVE_MEDIA_BIT_DEPTHS], [8, 10, 12, 16, 32]);
+
+	for (const [value, pattern] of [
+		[{ bitDepth: 9 }, /bitDepth must be a reported member value/u],
+		[{ chromaFormat: '4:1:1' }, /chromaFormat must be a reported member value/u],
+		[{ colourRange: 'video' }, /colourRange must be a reported member value/u],
+		[{ alphaMode: 'associated' }, /alphaMode must be a reported member value/u],
+		[{ hasAlpha: 'yes' }, /hasAlpha must be a boolean or null/u],
+		[{ pixelFormat: 'yuv 422' }, /pixelFormat must be a bounded probe tag/u],
+		[{ unknownKey: 1 }, /unsupported key unknownKey/u],
+		[{ hasAlpha: false, alphaMode: 'straight' }, /cannot also report an alpha mode/u],
+	] as const) {
+		assert.throws(
+			() => normalizeNativeMediaProfessionalCharacteristics(value),
+			pattern,
+		);
+	}
+	assert.throws(
+		() => normalizeNativeMediaProfessionalCharacteristics({ masteringDisplay: 7 }),
+		NativeMediaCharacteristicsError,
+	);
+});
+
+test('the required professional baseline covers every named decode and encode row', () => {
+	const ids = NATIVE_MEDIA_PROFESSIONAL_PROFILES.map((profile) => profile.id);
+
+	assert.deepEqual(ids.filter((id) => id.startsWith('decode-')), [
+		'decode-h264', 'decode-hevc', 'decode-vp9', 'decode-av1',
+		'decode-prores', 'decode-dnxhr',
+		'decode-png-sequence', 'decode-tiff-sequence', 'decode-openexr-sequence',
+	]);
+	assert.deepEqual(ids.filter((id) => id.startsWith('encode-')), [
+		'encode-mp4-h264', 'encode-webm-vp9',
+		'encode-mov-prores-proxy', 'encode-mov-prores-422-hq', 'encode-mov-prores-4444',
+		'encode-mxf-dnxhr-hqx', 'encode-matroska-ffv1',
+		'encode-png-sequence', 'encode-tiff-sequence', 'encode-openexr-sequence',
+	]);
+	assert.equal(new Set(ids).size, ids.length);
+	assert.equal(NATIVE_MEDIA_PROFESSIONAL_PROFILES.every((profile) => profile.policyRowIds.length > 0), true);
+});
+
+test('every profile policy row exists in the licensing register and stays fail-closed', async () => {
+	const matrix = JSON.parse(await readFile(
+		new URL('../config/production-licensing-matrix.json', import.meta.url), 'utf8',
+	)) as { nativeFormatPolicies: { id: string; status: string; blocker: string }[] };
+	const rows = new Map(matrix.nativeFormatPolicies.map((row) => [row.id, row]));
+
+	for (const rowId of ALL_ROWS) {
+		const row = rows.get(rowId);
+		assert.ok(row, `the licensing register is missing ${rowId}`);
+		assert.equal(row.status, 'blocked', `${rowId} must stay fail-closed`);
+		assert.ok(row.blocker.length > 0, `${rowId} needs a named blocker`);
+	}
+});
+
+test('no profile is admitted while its licensing row is uncleared', () => {
+	const verdict = evaluateNativeMediaProfileAdmission({
+		profileId: 'encode-mov-prores-4444',
+		source: source({ bitDepth: 12, chromaFormat: '4:4:4', hasAlpha: true, colourTransfer: 'bt709' }),
+	});
+
+	assert.equal(verdict.admitted, false);
+	assert.deepEqual(verdict.refusals, ['policy-row-blocked']);
+	assert.deepEqual(verdict.blockedPolicyRowIds, ['codec-mezzanine-and-longform', 'container-mov-mxf-matroska']);
+});
+
+test('an unknown profile is refused rather than treated as permissive', () => {
+	const verdict = evaluateNativeMediaProfileAdmission({
+		profileId: 'encode-mov-prores-8888',
+		source: source({}),
+		clearedPolicyRowIds: ALL_ROWS,
+	});
+
+	assert.deepEqual(verdict.refusals, ['profile-unknown']);
+	assert.equal(nativeMediaProfile('encode-mov-prores-8888'), null);
+});
+
+test('a required bit depth, chroma, HDR, or alpha a profile cannot hold is refused up front', () => {
+	const hdrAlpha = source({
+		bitDepth: 12,
+		chromaFormat: '4:4:4',
+		hasAlpha: true,
+		colourTransfer: 'smpte2084',
+		colourPrimaries: 'bt2020',
+		masteringDisplay: masteringDisplay(),
+		contentLight: { maximumContentLightLevel: 1_000, maximumFrameAverageLightLevel: 400 },
+	});
+	const verdict = evaluateNativeMediaProfileAdmission({
+		profileId: 'encode-mp4-h264',
+		source: hdrAlpha,
+		clearedPolicyRowIds: ALL_ROWS,
+		requirements: {
+			preserveBitDepth: true, preserveChroma: true,
+			preserveHdrMetadata: true, preserveAlpha: true,
+		},
+	});
+
+	assert.equal(verdict.admitted, false);
+	assert.deepEqual(verdict.refusals, [
+		'bit-depth-not-preserved',
+		'chroma-not-preserved',
+		'hdr-metadata-not-preserved',
+		'alpha-not-preserved',
+	]);
+	assert.deepEqual(verdict.disclosures, []);
+});
+
+test('a profile that can hold every requirement is admitted', () => {
+	const verdict = evaluateNativeMediaProfileAdmission({
+		profileId: 'encode-mov-prores-4444',
+		source: source({
+			bitDepth: 12,
+			chromaFormat: '4:4:4',
+			hasAlpha: true,
+			colourTransfer: 'smpte2084',
+			colourPrimaries: 'bt2020',
+			masteringDisplay: masteringDisplay(),
+			contentLight: { maximumContentLightLevel: 1_000, maximumFrameAverageLightLevel: 400 },
+		}),
+		clearedPolicyRowIds: ALL_ROWS,
+		requirements: {
+			preserveBitDepth: true, preserveChroma: true,
+			preserveHdrMetadata: true, preserveAlpha: true,
+		},
+	});
+
+	assert.deepEqual(verdict, {
+		admitted: true,
+		profileId: 'encode-mov-prores-4444',
+		refusals: [],
+		disclosures: [],
+		blockedPolicyRowIds: [],
+	});
+});
+
+test('a loss the caller did not require is admitted but never silent', () => {
+	const verdict = evaluateNativeMediaProfileAdmission({
+		profileId: 'encode-mp4-h264',
+		source: source({
+			bitDepth: 12,
+			chromaFormat: '4:4:4',
+			hasAlpha: true,
+			colourTransfer: 'smpte2084',
+			colourPrimaries: 'bt2020',
+		}),
+		clearedPolicyRowIds: ALL_ROWS,
+	});
+
+	assert.equal(verdict.admitted, true);
+	assert.deepEqual(verdict.disclosures, [
+		'bit-depth-reduced', 'chroma-subsampled', 'hdr-metadata-dropped', 'alpha-dropped',
+	]);
+});
+
+test('an unreported fact is disclosed, so alpha is never lost without saying so', () => {
+	const verdict = evaluateNativeMediaProfileAdmission({
+		profileId: 'encode-mp4-h264',
+		source: createUnreportedNativeMediaProfessionalCharacteristics(),
+		clearedPolicyRowIds: ALL_ROWS,
+	});
+
+	assert.equal(verdict.admitted, true);
+	assert.deepEqual(verdict.disclosures, [
+		'bit-depth-unreported', 'chroma-unreported', 'transfer-unreported', 'alpha-presence-unreported',
+	]);
+});
+
+test('a requirement that probing cannot establish is refused, not assumed satisfied', () => {
+	const verdict = evaluateNativeMediaProfileAdmission({
+		profileId: 'encode-matroska-ffv1',
+		source: createUnreportedNativeMediaProfessionalCharacteristics(),
+		clearedPolicyRowIds: ALL_ROWS,
+		requirements: { preserveBitDepth: true, preserveAlpha: true },
+	});
+
+	assert.equal(verdict.admitted, false);
+	assert.deepEqual(verdict.refusals, ['bit-depth-not-preserved', 'alpha-not-preserved']);
+});
+
+test('an SDR source loses nothing to a profile that carries no HDR metadata', () => {
+	const verdict = evaluateNativeMediaProfileAdmission({
+		profileId: 'encode-webm-vp9',
+		source: source({ bitDepth: 8, chromaFormat: '4:2:0', hasAlpha: false, colourTransfer: 'bt709' }),
+		clearedPolicyRowIds: ALL_ROWS,
+		requirements: { preserveBitDepth: true, preserveChroma: true, preserveAlpha: true },
+	});
+
+	assert.deepEqual(verdict.refusals, []);
+	assert.deepEqual(verdict.disclosures, []);
+});
+
+function claim(overrides: Record<string, unknown>) {
+	return resolveNativeMediaHdrClaim(source(overrides));
+}
+
+function source(overrides: Record<string, unknown>): NativeMediaProfessionalCharacteristicsV1 {
+	return normalizeNativeMediaProfessionalCharacteristics(overrides);
+}
+
+function masteringDisplay() {
+	return {
+		redPrimary: { x: { num: 34_000, den: 50_000 }, y: { num: 16_000, den: 50_000 } },
+		greenPrimary: { x: { num: 13_250, den: 50_000 }, y: { num: 34_500, den: 50_000 } },
+		bluePrimary: { x: { num: 7_500, den: 50_000 }, y: { num: 3_000, den: 50_000 } },
+		whitePoint: { x: { num: 15_635, den: 50_000 }, y: { num: 16_450, den: 50_000 } },
+		minimumLuminance: { num: 50, den: 10_000 },
+		maximumLuminance: { num: 10_000_000, den: 10_000 },
+	};
+}
