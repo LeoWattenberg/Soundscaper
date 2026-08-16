@@ -2,6 +2,7 @@
 
 import { createFramescaperNestedSequenceMenuItems } from './framescaper-nested-sequence-menu.ts';
 import { createFramescaperMulticameraMenuItems } from './framescaper-multicamera-menu.ts';
+import { createFramescaperNativeServicesMenuItems } from './framescaper-native-services-menu.ts';
 import { createSoundscaperProductionApplicationMenuItems } from './soundscaper-production-application-menu.ts';
 
 export function createApplicationMenuProductTrackItems({ productId, project, editBlocked, copy, actions }) {
@@ -51,9 +52,28 @@ export function createApplicationMenuProductItems({
 		setAutomationMode: (mode) => productionRuntime?.setAutomationMode(mode),
 		freeze: (operation, trackId) => productionRuntime?.freeze(operation, trackId),
 	});
+	const nativeRuntime = actions.framescaperNativeServices || null;
+	const nativeServices = createFramescaperNativeServicesMenuItems({
+		productId,
+		snapshot: nativeRuntime?.capabilitySnapshot ?? null,
+		project,
+		editingBlocked: editBlocked,
+		readOnly: snapshot.readOnly === true,
+		externalDisplays: nativeRuntime?.externalDisplays ?? [],
+		activeExternalDisplayId: nativeRuntime?.activeExternalDisplayId ?? null,
+		copy,
+	}, {
+		open: (surface) => nativeRuntime?.open(surface),
+		openExternalDisplay: (displayId) => nativeRuntime?.openExternalDisplay(displayId),
+	});
 	return Object.freeze({
 		...production,
 		tracks: Object.freeze([nestedSequences, multicamera, ...production.tracks].filter(Boolean)),
+		effect: Object.freeze([...production.effect, ...nativeServices.effect]),
+		tools: Object.freeze([...production.tools, ...nativeServices.tools]),
+		fileImport: nativeServices.fileImport,
+		fileExport: nativeServices.fileExport,
+		view: nativeServices.view,
 	});
 }
 

@@ -486,7 +486,12 @@ The fixture specifications are deliberately concrete:
   session with 10,000 edits;
 - milestone 4: 48 kHz deterministic audio vectors plus calibrated 128x72 video
   golden frames;
-- milestone 5: 10,000 malformed helper cases and a 30-minute native loopback;
+- milestone 5: 10,000 malformed helper cases and a 30-minute native loopback,
+  plus the five Framescaper native-tier fixtures — canonical plan parity with a
+  procedurally generated UHD long-GOP decode workload, one licensed fixture per
+  required professional format row, a queue/root/watch/scratch fault workload,
+  matching-rate 1080p60 and UHD30 clean-display soak cohorts, and an OpenFX
+  1.5.1 conformance and hostile-plug-in suite across all five packaged targets;
 - milestone 6: a one-hour audio master and ten-minute 720p/30 video master;
 - milestone 7: selected and deliberately unselected local media assets;
 - milestone 8A: all six capture-source combinations over 30 minutes;

@@ -166,6 +166,7 @@ export default function createApplicationMenus({
 				{ id: 'switch-product', label: productId === 'framescaper' ? copy.editInSoundscaper : copy.editInFramescaper, disabled: handoffBlocked, onClick: actions.switchProduct },
 				divider(),
 				{ id: 'import-audio', label: copy.importFile, preserveLabel: true, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importFiles },
+				...productItems.fileImport,
 				{ id: 'export-audio', label: copy.exportAudio, shortcut: 'Ctrl+Shift+E', disabled: blocked, onClick: actions.exportAudio },
 				{
 					id: 'export-other',
@@ -178,6 +179,7 @@ export default function createApplicationMenus({
 							disabled: blocked || !labelTracks.length,
 							onClick: actions.exportLabels,
 						},
+						...productItems.fileExport,
 					],
 				},
 					divider(),
@@ -374,6 +376,7 @@ export default function createApplicationMenus({
 					],
 				},
 				clipSelectionNavigationMenus.skip,
+				...productItems.view,
 				divider(),
 				{ id: 'fullscreen', label: copy.fullscreen, shortcut: 'F11', onClick: actions.fullscreen },
 			],
