@@ -37,7 +37,7 @@ owning source of truth:
 - milestone-4 sequencing, automation/keyframe and mixer-graph decisions,
   and work packets: [milestone-4 plan](docs/milestone-4-plan.md);
 - milestone-5 sequencing, helper-contract, and work packets:
-  [milestone-5 plan](docs/milestone-5-plan.md) and [5A pickup](docs/milestone-5a-soundscaper-native.md);
+  [milestone-5 plan](docs/milestone-5-plan.md) and [5A plan](docs/milestone-5a-soundscaper-native.md);
 - milestone-6 sequencing, delivery-model and interchange decisions, and
   work packets: [milestone-6 plan](docs/milestone-6-plan.md);
 - milestone-7 sequencing, runtime and model-catalog decisions, and work
@@ -664,7 +664,7 @@ hookup, and native-lab qualification remain open.
 sandbox or creating a second editor engine.
 
 The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared
-contract; the [milestone-5A pickup](docs/milestone-5a-soundscaper-native.md)
+contract; the [milestone-5A plan](docs/milestone-5a-soundscaper-native.md)
 owns Soundscaper readiness, architecture, and acceptance.
 
 ### Native service architecture

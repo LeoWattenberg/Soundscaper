@@ -1,16 +1,17 @@
-# Milestone 5A pickup: Soundscaper native services
+# Milestone 5A plan: Soundscaper native services
 
-> Owning pickup contract for the Soundscaper half of milestone 5. The
+> Owning plan for the Soundscaper half of milestone 5. The
 > [milestone-5 plan](milestone-5-plan.md) owns the shared helper contract and
 > sequencing, and the
 > [roadmap](../roadmap.md#5-electron-native-services-and-extensibility) owns
 > product scope and status. This document owns 5A readiness, architecture
-> decisions, packet boundaries, acceptance, and stop conditions.
+> decisions, all unfinished work from 5A-0b through 5A-4, packet boundaries,
+> acceptance, and stop conditions.
 
-## Pickup status and readiness
+## Status and readiness
 
 **Status on 2026-08-14: 5A-0a is implemented provisionally in the local tree;
-5A-0b is next. Native audio and plug-in surfaces remain disabled.** The pickup
+5A-0b is next. Native audio and plug-in surfaces remain disabled.** The plan
 was grounded at commit `9d8427dd`; this implementation status includes the
 implemented 5A-0a slice and is not a formal qualification claim.
 

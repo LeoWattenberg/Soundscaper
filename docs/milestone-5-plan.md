@@ -10,8 +10,9 @@
 > helper and the Soundscaper V21 PDC/freeze prerequisites are present.
 > The 5.0 implementation record distinguishes landed code from the
 > still-open real-process, packaged, and native-lab acceptance. The
-> [5A pickup contract](milestone-5a-soundscaper-native.md) owns the
-> current Soundscaper readiness verdict and exact implementation slices.
+> [5A Soundscaper plan](milestone-5a-soundscaper-native.md) owns the
+> current Soundscaper readiness verdict and every remaining 5A implementation
+> slice.
 
 ## Goals and ordering principle
 
@@ -234,7 +235,7 @@ local 5A-0 implementation; milestone 9 requalifies the release-shaped chain.
 | 5B | Parallel track | Framescaper native tier: media engine helper, advanced decode/encode, persistent queues, watch folders, scratch volumes, isolated OFX |
 
 Feature breadth in 5A and 5B must not begin until the applicable 5.0 contract
-acceptance passes. The proof-helper implementation now exists, so the 5A pickup
+acceptance passes. The proof-helper implementation now exists, so the 5A plan
 opens with a deliberately bounded **5A-0 closure slice**: repair the green-gate
 regressions, harden and generalize contract v1, add the generic native-payload
 pipeline and real packaged-process smoke, then prove the real-time audio data
@@ -354,9 +355,9 @@ to this contract rather than create another helper protocol.
 
 ## Work packets
 
-5.0 packets are decomposed here. 5A is now decomposed in the
-[Soundscaper native pickup contract](milestone-5a-soundscaper-native.md); its
-summary below remains the parent sequencing map. 5B is decomposed at pickup.
+5.0 packets are decomposed here. All unfinished 5A work is owned by the
+[Soundscaper native plan](milestone-5a-soundscaper-native.md); this parent keeps
+only its status and ordering boundary. 5B is decomposed at pickup.
 
 ### WP-5.0.0 — Packaged staging fix and guard
 
@@ -431,53 +432,17 @@ summary below remains the parent sequencing map. 5B is decomposed at pickup.
 - **Stop condition:** stop if a licensing gate cannot be satisfied for
   a format — the format waits; the gate does not bend.
 
-### 5A packets (Soundscaper native tier; decomposed in the pickup contract)
+### 5A plan (Soundscaper native tier)
 
-- **5A-0 — Contract closure, native payload proof, and real-time transport.**
-  5A-0a is implemented provisionally/local: the baseline, exact control
-  admission, closed job/grant families, quiescent cancellation, fault
-  accounting, bounded progress callback, and recovery/corpus tests are present.
-  5A-0b next adds five-target native-addon provenance and a real packaged
-  utility-process smoke. 5A-0c then proves a direct transferred MessagePort and
-  fixed reusable ArrayBuffer pool between helper and AudioWorklet. Acceptance
-  and stop conditions are exact in the pickup contract. Non-goals: no OS
-  backend or third-party plug-in. Stop before 5A-1 or 5A-3 breadth if the proof
-  requires a renderer-main per-block relay, renderer native code, or an
-  unbounded control clone.
-
-- **5A-1 — Native audio backend helper.** Outcome: per-OS low-latency
-  backends behind one audio-device helper (exclusive/shared modes,
-  channel topology, recording destinations, monitoring metadata,
-  latency calibration, underrun reporting) with Web Core fallback;
-  device enumeration converges with the existing routing service
-  rather than forking it. Acceptance: the 30-minute loopback fixture
-  with `audioRoundTripLatencyP95Ms lte 20` and
-  `audioUnderrunFrames eq 0` (config/quality-budgets.json:1020-1021)
-  on the provisioned matrix; graceful degradation on device loss.
-  Non-goals: no MIDI devices, clock, or surfaces (8B fence). Stop:
-  stop if any backend requires renderer-side native code.
-- **5A-2 — Plug-in discovery and scanning.** Outcome: out-of-process
-  scanning with quarantine, descriptors, consent and allow/deny
-  policy, signing/compatibility metadata — discovery only, nothing
-  hosted; the licensing rows from WP-5.0.2 gate which formats scan.
-  Acceptance: the matrix's scanning/consent/revocation suite subset;
-  a crashing or malicious scan target is quarantined and reported.
-  Stop: stop before any instrument-class exposure (8B).
-- **5A-3 — Isolated plug-in hosting.** Outcome: VST3 and CLAP
-  cross-platform, AU on macOS, LV2 on Linux, hosted out-of-process
-  under the helper contract; vendor UI receives no direct renderer
-  authority; missing/crashed/quarantined plug-ins preserve state and
-  offer bypass or frozen playback — consuming the implemented-provisional
-  V21 freeze model. Acceptance: host-compromise, crash
-  recovery, denial, and per-platform packaging suites
-  (config/production-security-matrix.json:8566); PDC integration
-  proves plug-in latency reports flow into the milestone-4 per-path
-  compensation. Stop: stop if a format demands in-process hosting.
-- **5A-4 — Exit evidence.** The 5A surface against
-  `m5-native-helper-and-audio` recorded honestly on the
-  `native-os-lab-matrix` environment — unprovisioned today
-  (config/quality-budgets.json:198-212); unprovisioned rows stay
-  named, never simulated (docs/quality-budgets.md:139-142).
+5A-0a is implemented provisionally/local. All remaining work—5A-0b native
+payload provenance and packaged process proof, 5A-0c real-time transport,
+5A-1 native audio, 5A-2 discovery, 5A-3 isolated effects, and 5A-4 exit
+evidence—now lives only in the
+[Milestone 5A Soundscaper plan](milestone-5a-soundscaper-native.md). Its packet
+map, invariants, architecture decisions, acceptance criteria, non-goals, stop
+conditions, open dependencies, and handoff checklist are authoritative. This
+parent plan retains the ordering rule: no 5A product breadth opens before the
+applicable 5A-0 proof closes.
 
 ### 5B packets (Framescaper native tier; slice docs at pickup)
 
@@ -534,8 +499,9 @@ summary below remains the parent sequencing map. 5B is decomposed at pickup.
 
 ## Two-agent coordination rules
 
-- 5.0 is one work stream. 5A-0 is its bounded Soundscaper closure/proof slice;
-  5A/5B product breadth opens only after the applicable acceptance passes.
+- 5.0 is one work stream. The dedicated 5A plan owns its bounded Soundscaper
+  closure/proof slices; 5A/5B product breadth opens only after the applicable
+  acceptance passes.
 - Spine files: the helper wire schema and contract module, task-kind
   enum, licensing matrix and threat model/security matrix, packaging
   configs and staging scripts, capability register, application menus,
@@ -549,30 +515,13 @@ summary below remains the parent sequencing map. 5B is decomposed at pickup.
 
 ## Known constraints this plan absorbs
 
-- **5A-0a is implemented provisionally/local.** The bridge inventory,
-  packaging-test lint defect, stale V21 timing fixture, revision-zero desktop
-  creation, and coalesced autosave publication are repaired. One fresh local
-  Linux x64 package and no-retry timing-probe run passed. Contract admission,
-  cancellation quiescence, qualifying-fault accounting, negotiated job/grant
-  families, bounded progress, exact malformed rejection, and measured local
-  recovery now have implementation and focused tests.
-- **5A-0 remains incomplete.** Task-progress/UI consumption is follow-on;
-  generic native payload provenance and packaged real `utilityProcess` evidence
-  are 5A-0b; direct helper-to-worklet real-time transport is 5A-0c.
-- **`native-os-lab-matrix` is unprovisioned**; the audio-latency and
-  device thresholds cannot qualify until hardware exists. Development
-  evidence proceeds; qualification rows stay honest.
-- **Milestone-4 dependencies are physically present but provisional.** V21
-  per-path PDC and authored freeze/fallback are implemented locally. 5A-3 may
-  integrate with those seams, while their hosted, packaged, manual, and
-  reference qualification rows remain open.
+- **Soundscaper 5A constraints and remaining gates are delegated.** The
+  [Milestone 5A Soundscaper plan](milestone-5a-soundscaper-native.md) owns the
+  5A-0b/0c implementation boundary, unprovisioned native lab, provisional
+  milestone-4 dependencies, capture/MIDI fences, and every product packet.
 - **The milestone-2 lease matrix** (`m2-electron-lease-matrix`,
   roadmap.md:290-296) is the standing concurrency substrate under all
   desktop evidence; still open at grounding.
-- **Capture and MIDI fences hold throughout.** 5A-1 may receive explicit,
-  main-owned Soundscaper audio-input grants and must converge on the existing
-  recording model; it creates no Framescaper capture surface or generic capture
-  authority. Instrument-class plug-in exposure waits for 8B.
 
 ## Watch items (not gates yet)
 
