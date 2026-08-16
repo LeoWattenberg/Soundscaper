@@ -19,6 +19,29 @@ export const NATIVE_MEDIA_DESTINATION_MAXIMUM_LENGTH = 1_024;
 export const NATIVE_MEDIA_DESTINATION_SEGMENT_MAXIMUM_LENGTH = 255;
 export const NATIVE_MEDIA_PARTIAL_SUFFIX = '.partial';
 
+/** How many hexadecimal job-id digits the temporary name carries. */
+const TEMPORARY_JOB_ID_DIGITS = 16;
+
+/** `.<job id digits>.partial` — what the temporary sibling adds to a file name. */
+export const NATIVE_MEDIA_PARTIAL_NAME_OVERHEAD =
+	1 + TEMPORARY_JOB_ID_DIGITS + NATIVE_MEDIA_PARTIAL_SUFFIX.length;
+
+/**
+ * A destination file name has to leave room for the temporary sibling this
+ * module commits to writing beside it: a name that fits the component ceiling
+ * on its own but whose partial does not could never publish at all.
+ */
+export const NATIVE_MEDIA_DESTINATION_NAME_MAXIMUM_LENGTH =
+	NATIVE_MEDIA_DESTINATION_SEGMENT_MAXIMUM_LENGTH - NATIVE_MEDIA_PARTIAL_NAME_OVERHEAD;
+
+export const NATIVE_MEDIA_PUBLICATION_OUTCOMES = Object.freeze([
+	'completed',
+	'cancelled',
+	'failed',
+] as const);
+
+export type NativeMediaPublicationOutcome = (typeof NATIVE_MEDIA_PUBLICATION_OUTCOMES)[number];
+
 export const NATIVE_MEDIA_PUBLICATION_REFUSALS = Object.freeze([
 	'job-cancelled',
 	'job-failed',
@@ -40,7 +63,7 @@ export interface NativeMediaPublicationPlanV1 {
 
 export interface NativeMediaPublicationAttemptV1 {
 	readonly plan: NativeMediaPublicationPlanV1;
-	readonly outcome: 'completed' | 'cancelled' | 'failed';
+	readonly outcome: NativeMediaPublicationOutcome;
 	/** The fingerprint the project currently expects for this destination. */
 	readonly currentPlanFingerprint: string;
 	/** The muxer reported a complete container rather than a truncated stream. */
@@ -63,6 +86,7 @@ export class NativeMediaPublicationError extends Error {
 	}
 }
 
+const TEXT_ENCODER = new TextEncoder();
 const JOB_ID_PATTERN = /^[a-f0-9]{40}$/u;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 // Control characters plus the set Windows refuses in a file name.
@@ -80,6 +104,10 @@ const RESERVED_WINDOWS_NAMES = new Set([
  * only path text a job description carries. It must stay inside the root by
  * construction: no absolute prefix, no drive letter, no UNC prefix, no `..`,
  * and no separator that lets a platform reinterpret the string.
+ *
+ * Lengths are counted in UTF-8 bytes, because that is what a filesystem counts
+ * against its component limit; a name of accented characters is twice the size
+ * it looks.
  */
 export function assertNativeMediaRelativeDestination(value: unknown): string {
 	if (typeof value !== 'string' || value.length === 0) {
@@ -102,7 +130,7 @@ export function assertNativeMediaRelativeDestination(value: unknown): string {
 		if (segment === '.' || segment === '..') {
 			throw new NativeMediaPublicationError('A native media destination must not traverse its granted root.');
 		}
-		if (segment.length > NATIVE_MEDIA_DESTINATION_SEGMENT_MAXIMUM_LENGTH) {
+		if (utf8Length(segment) > NATIVE_MEDIA_DESTINATION_SEGMENT_MAXIMUM_LENGTH) {
 			throw new NativeMediaPublicationError('A native media destination segment exceeds its length ceiling.');
 		}
 		if (segment.endsWith('.') || segment.endsWith(' ') || segment.startsWith(' ')) {
@@ -116,8 +144,13 @@ export function assertNativeMediaRelativeDestination(value: unknown): string {
 			throw new NativeMediaPublicationError('A native media destination segment is a reserved device name.');
 		}
 	}
-	if (segments.at(-1)!.endsWith(NATIVE_MEDIA_PARTIAL_SUFFIX)) {
+	const name = segments.at(-1)!;
+	if (name.endsWith(NATIVE_MEDIA_PARTIAL_SUFFIX)) {
 		throw new NativeMediaPublicationError('A native media destination must not claim the partial-output suffix.');
+	}
+	if (utf8Length(name) > NATIVE_MEDIA_DESTINATION_NAME_MAXIMUM_LENGTH
+		|| utf8Length(value) + NATIVE_MEDIA_PARTIAL_NAME_OVERHEAD > NATIVE_MEDIA_DESTINATION_MAXIMUM_LENGTH) {
+		throw new NativeMediaPublicationError('A native media destination leaves no room for its temporary sibling.');
 	}
 	return value;
 }
@@ -141,7 +174,8 @@ export function createNativeMediaPublicationPlan(input: Readonly<{
 	return Object.freeze({
 		jobId,
 		relativeDestination,
-		temporaryRelativePath: `${directory}${name}.${jobId.slice(0, 16)}${NATIVE_MEDIA_PARTIAL_SUFFIX}`,
+		temporaryRelativePath:
+			`${directory}${name}.${jobId.slice(0, TEMPORARY_JOB_ID_DIGITS)}${NATIVE_MEDIA_PARTIAL_SUFFIX}`,
 		planFingerprint,
 	});
 }
@@ -158,9 +192,10 @@ export function evaluateNativeMediaPublication(
 	attempt: NativeMediaPublicationAttemptV1,
 ): NativeMediaPublicationVerdictV1 {
 	const refusals: NativeMediaPublicationRefusal[] = [];
-	if (attempt.outcome === 'cancelled') refusals.push('job-cancelled');
-	if (attempt.outcome === 'failed') refusals.push('job-failed');
-	if (attempt.outcome !== 'cancelled' && attempt.outcome !== 'failed' && !attempt.finalized) {
+	const outcome = assertOutcome(attempt.outcome);
+	if (outcome === 'cancelled') refusals.push('job-cancelled');
+	if (outcome === 'failed') refusals.push('job-failed');
+	if (outcome === 'completed' && !attempt.finalized) {
 		refusals.push('output-not-finalized');
 	}
 	if (assertFingerprint(attempt.plan.planFingerprint, 'plan fingerprint')
@@ -204,11 +239,22 @@ function assertJobId(value: unknown): string {
 	return value;
 }
 
+function assertOutcome(value: unknown): NativeMediaPublicationOutcome {
+	if (!NATIVE_MEDIA_PUBLICATION_OUTCOMES.includes(value as NativeMediaPublicationOutcome)) {
+		throw new NativeMediaPublicationError('A native media publication requires a completed, cancelled, or failed outcome.');
+	}
+	return value as NativeMediaPublicationOutcome;
+}
+
 function assertFingerprint(value: unknown, label: string): string {
 	if (typeof value !== 'string' || !SHA256_PATTERN.test(value)) {
 		throw new NativeMediaPublicationError(`A native media publication requires a lowercase SHA-256 ${label}.`);
 	}
 	return value;
+}
+
+function utf8Length(value: string): number {
+	return TEXT_ENCODER.encode(value).length;
 }
 
 function byteLength(value: unknown, label: string): number {

@@ -20,6 +20,7 @@ import {
 	type NativeMediaPlanV6,
 } from './native-media-plan-v6-admission.ts';
 import {
+	canonicalizeNativeMediaSummaryValue,
 	fingerprintNativeMediaPlan,
 	nativeMediaPlanViolation,
 } from './native-media-plan-canonical-form.ts';
@@ -172,6 +173,10 @@ export function assertNativeMediaPlanEnvelopeV1(
  * List the semantic fields on which two consumers disagree. An empty result is
  * the plan-parity claim milestone 5B's exit gate makes: the same envelope means
  * the same render on the Web and native paths.
+ *
+ * A field's meaning is compared, not its serialization. The summary is a
+ * projection, not a fingerprinted document, and the peer that declared it may
+ * emit the fields of a rate or an input in any order it likes.
  */
 export function divergentNativeMediaPlanSummaryFields(
 	left: unknown,
@@ -183,7 +188,7 @@ export function divergentNativeMediaPlanSummaryFields(
 	if (!candidate) return Object.freeze(['summary']);
 	const divergent: string[] = [];
 	for (const key of Object.keys(right) as (keyof NativeMediaPlanSummaryV1)[]) {
-		if (!sameJson(candidate[key], right[key])) divergent.push(key);
+		if (!sameSemantics(candidate[key], right[key])) divergent.push(key);
 	}
 	for (const key of Object.keys(candidate)) {
 		if (!Object.hasOwn(right, key)) divergent.push(key);
@@ -315,10 +320,20 @@ function summarizeV7(plan: VideoKeyframeExportPlanV7): NativeMediaPlanSummaryV1 
 	});
 }
 
-function sameJson(left: unknown, right: unknown): boolean {
+function sameSemantics(left: unknown, right: unknown): boolean {
 	if (left === right) return true;
 	if (typeof left !== 'object' || typeof right !== 'object' || !left || !right) return false;
-	return JSON.stringify(left) === JSON.stringify(right);
+	const declared = semanticForm(left);
+	return declared !== null && declared === semanticForm(right);
+}
+
+/** A value no canonical form can describe states nothing, so it agrees with nothing. */
+function semanticForm(value: unknown): string | null {
+	try {
+		return canonicalizeNativeMediaSummaryValue(value);
+	} catch {
+		return null;
+	}
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {

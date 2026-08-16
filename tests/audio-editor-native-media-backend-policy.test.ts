@@ -235,6 +235,34 @@ test('every semantic divergence is reported, not only the first', () => {
 	]);
 });
 
+test('a bit-identical lossy candidate reports the infinite PSNR the tools print', () => {
+	const identical = evaluateNativeMediaSemanticComparison({
+		mode: 'lossy',
+		referencePlanFingerprint: REFERENCE,
+		candidatePlanFingerprint: REFERENCE,
+		referenceFrameCount: 300,
+		candidateFrameCount: 300,
+		ssim: 1,
+		psnrDb: Number.POSITIVE_INFINITY,
+		endpointFrameDelta: 0,
+	});
+
+	assert.deepEqual(identical, { agreed: true, mode: 'lossy', failures: [] });
+
+	for (const psnrDb of [Number.NaN, Number.NEGATIVE_INFINITY, -1]) {
+		assert.throws(() => evaluateNativeMediaSemanticComparison({
+			mode: 'lossy',
+			referencePlanFingerprint: REFERENCE,
+			candidatePlanFingerprint: REFERENCE,
+			referenceFrameCount: 300,
+			candidateFrameCount: 300,
+			ssim: 1,
+			psnrDb,
+			endpointFrameDelta: 0,
+		}), /measured PSNR/u, String(psnrDb));
+	}
+});
+
 test('a lossless path admits no pixel mismatch at all', () => {
 	const verdict = evaluateNativeMediaSemanticComparison({
 		mode: 'lossless',

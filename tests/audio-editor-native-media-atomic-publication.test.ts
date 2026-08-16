@@ -8,6 +8,8 @@ import {
 	createNativeMediaPublicationPlan,
 	evaluateNativeMediaPublication,
 	nativeMediaPartialOutputIsDisposable,
+	NATIVE_MEDIA_DESTINATION_NAME_MAXIMUM_LENGTH,
+	NATIVE_MEDIA_DESTINATION_SEGMENT_MAXIMUM_LENGTH,
 	NATIVE_MEDIA_PARTIAL_SUFFIX,
 	NativeMediaPublicationError,
 	type NativeMediaPublicationAttemptV1,
@@ -67,6 +69,34 @@ test('the temporary output is a sibling of its destination so the rename is atom
 	);
 });
 
+test('a destination that leaves no room for its own temporary sibling is refused up front', () => {
+	const longest = `${'x'.repeat(NATIVE_MEDIA_DESTINATION_NAME_MAXIMUM_LENGTH - 4)}.mp4`;
+	const plan = createNativeMediaPublicationPlan({
+		jobId: JOB_ID, relativeDestination: `exports/${longest}`, planFingerprint: PLAN,
+	});
+	const temporaryName = plan.temporaryRelativePath.slice(plan.temporaryRelativePath.lastIndexOf('/') + 1);
+
+	assert.equal(
+		new TextEncoder().encode(temporaryName).length,
+		NATIVE_MEDIA_DESTINATION_SEGMENT_MAXIMUM_LENGTH,
+	);
+
+	for (const name of [
+		`${'x'.repeat(NATIVE_MEDIA_DESTINATION_NAME_MAXIMUM_LENGTH - 3)}.mp4`,
+		// Multi-byte names hit the component limit in bytes, not characters.
+		`${'é'.repeat(NATIVE_MEDIA_DESTINATION_NAME_MAXIMUM_LENGTH / 2)}.mp4`,
+	]) {
+		assert.throws(
+			() => assertNativeMediaRelativeDestination(`exports/${name}`),
+			/temporary sibling/u,
+			name.slice(0, 8),
+		);
+		assert.throws(() => createNativeMediaPublicationPlan({
+			jobId: JOB_ID, relativeDestination: `exports/${name}`, planFingerprint: PLAN,
+		}), /temporary sibling/u);
+	}
+});
+
 test('the temporary name is deterministic per job so a restart reuses its own partial', () => {
 	const first = createNativeMediaPublicationPlan({
 		jobId: JOB_ID, relativeDestination: 'exports/reel.mp4', planFingerprint: PLAN,
@@ -99,6 +129,16 @@ test('a cancelled, failed, unfinalized, or superseded job publishes nothing', ()
 		const verdict = evaluateNativeMediaPublication(attempt(overrides));
 		assert.equal(verdict.publish, false);
 		assert.deepEqual(verdict.refusals, expected);
+	}
+});
+
+test('an outcome outside the closed set never counts as a completed job', () => {
+	for (const outcome of ['helper-crashed', 'canceled', 'Completed', 'complete', '', null, undefined, 0]) {
+		assert.throws(
+			() => evaluateNativeMediaPublication(attempt({ outcome: outcome as never })),
+			/completed, cancelled, or failed outcome/u,
+			String(outcome),
+		);
 	}
 });
 

@@ -15,6 +15,7 @@ import {
 	NATIVE_MEDIA_PLAN_CANONICAL_MAXIMUM_DEPTH,
 	nativeMediaPlanViolation,
 } from './native-media-plan-canonical-form.ts';
+import { createNativeValidators } from './native-validation.ts';
 
 export const NATIVE_MEDIA_PLAN_V6_MAXIMUM_INPUTS = 4_096;
 export const NATIVE_MEDIA_PLAN_V6_MAXIMUM_INTERVALS = 100_000;
@@ -115,6 +116,14 @@ const FORMAT_MIME_TYPES = Object.freeze({
 	mp4: 'video/mp4',
 	webm: 'video/webm',
 } as const);
+
+// A plan arrives as re-parsed JSON, so an exotic prototype is never legitimate
+// here even though the other native contracts admit one.
+const { nonNegativeInteger, plainRecord: record } = createNativeValidators({
+	subject: 'Video export plan V6',
+	requirePlainPrototype: true,
+	raise: (message: string): never => nativeMediaPlanViolation('malformed', message),
+});
 
 /** Admit an independently parsed static composition plan. */
 export function assertNativeMediaPlanV6(value: unknown): asserts value is NativeMediaPlanV6 {
@@ -255,7 +264,7 @@ function assertIntervals(value: unknown, range: NativeMediaPlanV6Range): void {
 	if (intervals.length > NATIVE_MEDIA_PLAN_V6_MAXIMUM_INTERVALS) {
 		nativeMediaPlanViolation('oversized', 'Video export plan V6 declares more intervals than the engine admits.');
 	}
-	let covered = 0;
+	let covered = range.startFrame;
 	for (const [index, entry] of intervals.entries()) {
 		const interval = record(entry, 'video export plan V6 interval');
 		exactOptionalKeys(interval, INTERVAL_KEYS, INTERVAL_OPTIONAL_KEYS, 'video export plan V6 interval');
@@ -272,14 +281,20 @@ function assertIntervals(value: unknown, range: NativeMediaPlanV6Range): void {
 		if (startFrame < range.startFrame || endFrame > range.endFrame) {
 			nativeMediaPlanViolation('malformed', 'Video export plan V6 interval leaves its own export range.');
 		}
+		// The intervals are the export's own tiling, so each one begins exactly
+		// where the previous ended: a gap renders nothing and an overlap renders
+		// the same source frames into two output positions.
+		if (startFrame !== covered) {
+			nativeMediaPlanViolation('malformed', 'Video export plan V6 intervals do not tile their own export range.');
+		}
 		if (nonNegativeInteger(interval.outputStartFrame, 'interval.outputStartFrame') !== startFrame - range.startFrame) {
 			nativeMediaPlanViolation('malformed', 'Video export plan V6 interval output offset is not its range offset.');
 		}
 		positiveFinite(interval.durationSeconds, 'interval.durationSeconds');
 		assertLayers(interval.layers);
-		covered += durationFrames;
+		covered = endFrame;
 	}
-	if (intervals.length > 0 && covered !== range.durationFrames) {
+	if (covered !== range.endFrame) {
 		nativeMediaPlanViolation('malformed', 'Video export plan V6 intervals do not tile their own export range.');
 	}
 }
@@ -305,17 +320,6 @@ function planFormat(value: unknown): NativeMediaPlanV6Format {
 		nativeMediaPlanViolation('malformed', 'Video export plan V6 must name a supported container.');
 	}
 	return value;
-}
-
-function record(value: unknown, label: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		nativeMediaPlanViolation('malformed', `A ${label} must be a plain record.`);
-	}
-	const prototype = Object.getPrototypeOf(value) as unknown;
-	if (prototype !== Object.prototype && prototype !== null) {
-		nativeMediaPlanViolation('malformed', `A ${label} must be a plain record.`);
-	}
-	return value as Record<string, unknown>;
 }
 
 function arrayValue(value: unknown, label: string): readonly unknown[] {
@@ -371,13 +375,6 @@ function nonEmptyText(value: unknown, label: string): string {
 
 function optionalText(value: unknown, label: string): string | null {
 	return value === null ? null : nonEmptyText(value, label);
-}
-
-function nonNegativeInteger(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || (value as number) < 0) {
-		nativeMediaPlanViolation('malformed', `Video export plan V6 ${label} must be a non-negative safe integer.`);
-	}
-	return value as number;
 }
 
 function positiveInteger(value: unknown, label: string): number {

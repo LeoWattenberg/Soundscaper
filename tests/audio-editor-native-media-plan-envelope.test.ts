@@ -3,6 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
+
 import {
 	canonicalizeNativeMediaPlan,
 	fingerprintNativeMediaPlan,
@@ -122,6 +125,17 @@ test('the canonical form preserves field order and rejects non-canonical values'
 	assert.throws(() => canonicalizeNativeMediaPlan(sparse), /sparse arrays/u);
 });
 
+test('a plan fingerprint is the SHA-256 of exactly its canonical bytes', () => {
+	const plan = staticPlan();
+	const fingerprint = fingerprintNativeMediaPlan(plan);
+
+	assert.equal(fingerprint.canonical, canonicalizeNativeMediaPlan(plan));
+	assert.equal(
+		fingerprint.sha256,
+		bytesToHex(sha256(new TextEncoder().encode(fingerprint.canonical))),
+	);
+});
+
 test('the canonical form never invokes a hostile accessor and refuses symbol keys', () => {
 	let reads = 0;
 	const hostile = {};
@@ -172,6 +186,74 @@ test('a plan whose canonical shape is not the exact V6 contract is refused befor
 		mutate(plan);
 		assert.throws(() => createNativeMediaPlanEnvelopeV1(plan), pattern);
 	}
+});
+
+test('intervals that do not actually tile their export range are refused', () => {
+	for (const intervals of [
+		// Overlapping frames 400-500, paid for by a gap of the same length.
+		[interval(0, 500), interval(400, 900)],
+		[interval(0, 400), interval(400, 600), interval(500, 1_000)],
+		// A hole in the middle, again with a compensating overlap.
+		[interval(0, 600), interval(500, 700), interval(800, 1_000)],
+		// Later frames first: an out-of-order tiling maps the range backwards.
+		[interval(500, 1_000), interval(0, 500)],
+		// Nothing at all covers a range that must cover at least one frame.
+		[],
+	]) {
+		const plan = JSON.parse(JSON.stringify(staticPlan())) as Record<string, unknown>;
+		const template = (plan.intervals as Record<string, unknown>[])[0]!;
+		plan.intervals = intervals.map((entry, index) => ({
+			...template,
+			index,
+			timelineStartFrame: entry.startFrame,
+			timelineEndFrame: entry.endFrame,
+			outputStartFrame: entry.startFrame,
+			durationFrames: entry.endFrame - entry.startFrame,
+		}));
+		assert.throws(() => createNativeMediaPlanEnvelopeV1(plan), /do not tile their own export range/u);
+	}
+});
+
+test('intervals that tile their export range exactly are admitted', () => {
+	const plan = JSON.parse(JSON.stringify(staticPlan())) as Record<string, unknown>;
+	const template = (plan.intervals as Record<string, unknown>[])[0]!;
+	plan.intervals = [interval(0, 400), interval(400, 1_000)].map((entry, index) => ({
+		...template,
+		index,
+		timelineStartFrame: entry.startFrame,
+		timelineEndFrame: entry.endFrame,
+		outputStartFrame: entry.startFrame,
+		durationFrames: entry.endFrame - entry.startFrame,
+	}));
+
+	assert.equal(createNativeMediaPlanEnvelopeV1(plan).summary.compositionIntervalCount, 2);
+});
+
+test('a gapped timeline the renderer really produces still tiles its export range', () => {
+	const project = singleClipProject();
+	project.clips[0]!.durationFrames = 300;
+	project.clips[0]!.sourceDurationFrames = 300;
+	project.clips.push({ ...project.clips[0]!, id: 'clip-2', timelineStartFrame: 600 });
+	project.tracks[0]!.clipIds = ['clip-1', 'clip-2'];
+	const plan = createVideoExportPlan(project, {
+		includeAudio: false,
+		range: { startFrame: 0, endFrame: 1_000 },
+	}) as Record<string, unknown>;
+
+	assert.equal((plan.intervals as unknown[]).length, 4);
+	assert.equal(createNativeMediaPlanEnvelopeV1(plan).summary.compositionIntervalCount, 4);
+});
+
+test('a summary whose fields are serialized in another order still describes its plan', () => {
+	const envelope = createNativeMediaPlanEnvelopeV1(staticPlan());
+	const reordered = JSON.parse(JSON.stringify(envelope)) as Record<string, unknown>;
+	reordered.summary = reverseKeys(envelope.summary as unknown as Record<string, unknown>);
+
+	assert.deepEqual(
+		divergentNativeMediaPlanSummaryFields(reordered.summary, envelope.summary),
+		[],
+	);
+	assert.doesNotThrow(() => assertNativeMediaPlanEnvelopeV1(reordered));
 });
 
 test('an envelope that misdescribes its own plan is refused', () => {
@@ -226,6 +308,19 @@ test('summary divergence is reported field by field for the parity gate', () => 
 		['extra'],
 	);
 });
+
+function interval(startFrame: number, endFrame: number) {
+	return { startFrame, endFrame };
+}
+
+/** How a foreign producer that shares no field order would emit the same value. */
+function reverseKeys(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(reverseKeys);
+	if (value === null || typeof value !== 'object') return value;
+	return Object.fromEntries(Object.entries(value)
+		.reverse()
+		.map(([key, nested]) => [key, reverseKeys(nested)]));
+}
 
 function staticPlan(options: Readonly<{ includeAudio?: boolean }> = {}): Record<string, unknown> {
 	return createVideoExportPlan(singleClipProject(), {

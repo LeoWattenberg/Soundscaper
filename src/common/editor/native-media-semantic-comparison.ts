@@ -140,8 +140,13 @@ function ratio(value: unknown, label: string): number {
 	return value;
 }
 
+/**
+ * PSNR is +Infinity when the two frames carry no error at all, which is what a
+ * measuring tool prints for an identical pair and the best result a lossy path
+ * can reach; it clears every threshold rather than failing the comparison.
+ */
 function decibels(value: unknown): number {
-	if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+	if (typeof value !== 'number' || Number.isNaN(value) || value < 0) {
 		throw new NativeMediaComparisonError('A lossy native media comparison requires a measured PSNR in decibels.');
 	}
 	return value;
