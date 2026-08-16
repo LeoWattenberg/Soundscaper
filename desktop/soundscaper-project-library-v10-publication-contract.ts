@@ -2,6 +2,7 @@
 
 import { createHash } from 'node:crypto';
 
+import { isStrictlyHigherProjectRevision } from '../src/common/editor/project-revision-cas.ts';
 import {
 	validateSoundscaperDesktopCurrentProjectV21,
 } from './soundscaper-project-library-v10-current-project.ts';
@@ -28,6 +29,11 @@ export type SoundscaperDesktopProjectLibraryV10PublicationCheckpoint =
 	| 'materialized'
 	| 'committed'
 	| 'complete';
+
+export type SoundscaperDesktopProjectLibraryV10PublicationRefusalCode =
+	| 'compare-and-swap'
+	| 'destination-presence'
+	| 'revision-order';
 
 export interface SoundscaperDesktopProjectLibraryV10PublicationBodyInput {
 	readonly descriptor: Readonly<SoundscaperDesktopProjectLibraryV10TransferBody>;
@@ -74,6 +80,36 @@ const EXPECTED_FIELDS = ['projectRevision', 'projectSha256'] as const;
 const BODY_INPUT_FIELDS = ['descriptor', 'chunks'] as const;
 const MAXIMUM_BODIES = 4_094;
 const DIGEST = /^[a-f0-9]{64}$/u;
+const REFUSAL_CODES = ['compare-and-swap', 'destination-presence', 'revision-order'] as const;
+const REFUSAL_MARKER_PREFIX = '[soundscaper-v10-publication-refusal:';
+const REFUSAL_MARKER = /\[soundscaper-v10-publication-refusal:([a-z-]+)\]/u;
+
+/**
+ * An outcome main arbitrates between contending writers rather than a defect.
+ * The code is carried both as a typed property and as a marker inside the
+ * message, because a renderer receives only the message text of a refusal main
+ * raised across IPC.
+ */
+export class SoundscaperDesktopProjectLibraryV10PublicationRefusal extends Error {
+	readonly code: SoundscaperDesktopProjectLibraryV10PublicationRefusalCode;
+
+	constructor(code: SoundscaperDesktopProjectLibraryV10PublicationRefusalCode, message: string) {
+		super(`${message} ${REFUSAL_MARKER_PREFIX}${code}]`);
+		this.name = 'SoundscaperDesktopProjectLibraryV10PublicationRefusal';
+		this.code = code;
+	}
+}
+
+export function soundscaperDesktopProjectLibraryV10PublicationRefusalCode(
+	error: unknown,
+): SoundscaperDesktopProjectLibraryV10PublicationRefusalCode | null {
+	if (error instanceof SoundscaperDesktopProjectLibraryV10PublicationRefusal) return error.code;
+	const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+	const code = REFUSAL_MARKER.exec(message)?.[1];
+	return REFUSAL_CODES.some((candidate) => candidate === code)
+		? code as SoundscaperDesktopProjectLibraryV10PublicationRefusalCode
+		: null;
+}
 
 export function planSoundscaperDesktopProjectLibraryV10Publication(
 	value: unknown,
@@ -100,20 +136,34 @@ export function planSoundscaperDesktopProjectLibraryV10Publication(
 		.map(normalizeBodyInput);
 	const currentMetadata = validateSoundscaperDesktopLibraryV10Metadata(currentMetadataValue);
 	if (currentMetadata.revision !== expectedMetadataRevision) {
-		throw new Error('Soundscaper V10 metadata revision failed compare-and-swap');
+		throw new SoundscaperDesktopProjectLibraryV10PublicationRefusal(
+			'compare-and-swap',
+			'Soundscaper V10 metadata revision failed compare-and-swap',
+		);
 	}
 	const projectId = String(project.id);
 	const current = currentMetadata.projects.filter((candidate) => candidate.projectId === projectId);
 	if (current.length > 1) throw new Error('Soundscaper V10 metadata has duplicate project identity');
 	if (expectedProject === null) {
-		if (current.length !== 0) throw new Error('Soundscaper V10 expected an absent project');
+		if (current.length !== 0) {
+			throw new SoundscaperDesktopProjectLibraryV10PublicationRefusal(
+				'destination-presence',
+				'Soundscaper V10 expected an absent project',
+			);
+		}
 	} else {
 		if (current.length !== 1 || current[0]!.projectRevision !== expectedProject.projectRevision
 			|| current[0]!.sha256 !== expectedProject.projectSha256) {
-			throw new Error('Soundscaper V10 expected project failed compare-and-swap');
+			throw new SoundscaperDesktopProjectLibraryV10PublicationRefusal(
+				'compare-and-swap',
+				'Soundscaper V10 expected project failed compare-and-swap',
+			);
 		}
 		if (!isStrictlyHigherProjectRevision(project.revision, expectedProject.projectRevision)) {
-			throw new Error('Soundscaper V10 publication requires a strictly higher project revision');
+			throw new SoundscaperDesktopProjectLibraryV10PublicationRefusal(
+				'revision-order',
+				'Soundscaper V10 publication requires a strictly higher project revision',
+			);
 		}
 	}
 	const projectBytes = new TextEncoder().encode(document);
@@ -260,12 +310,6 @@ function nonNegativeInteger(value: unknown, label: string): number {
 		throw new RangeError(`Soundscaper V10 ${label} must be a non-negative safe integer`);
 	}
 	return value;
-}
-
-function isStrictlyHigherProjectRevision(nextValue: unknown, currentValue: unknown): boolean {
-	return typeof nextValue === 'number' && Number.isSafeInteger(nextValue)
-		&& typeof currentValue === 'number' && Number.isSafeInteger(currentValue)
-		&& nextValue > currentValue;
 }
 
 function increment(value: number, label: string): number {

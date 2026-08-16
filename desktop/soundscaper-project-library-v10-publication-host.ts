@@ -26,6 +26,7 @@ import {
 	readSoundscaperDesktopProjectLibraryV10File,
 	readSoundscaperDesktopProjectLibraryV10FileRange,
 	stageSoundscaperDesktopProjectLibraryV10Publication,
+	type SoundscaperDesktopProjectLibraryV10PublicationStage,
 } from './soundscaper-project-library-v10-publication-files.ts';
 import {
 	assertSoundscaperDesktopProjectLibraryV10PublicationLease,
@@ -167,39 +168,50 @@ export class SoundscaperDesktopProjectLibraryV10PublicationHost {
 			}
 			if (!prepared) throw new Error('Soundscaper V10 publication did not prepare');
 			this.#checkpoint('prepared');
-			await materializeSoundscaperDesktopProjectLibraryV10Publication(
-				this.paths.libraryRoot, stages,
-			);
-			markSoundscaperDesktopProjectLibraryV10PublicationMaterialized(
-				this.#database,
-				transactionId,
-				plan.lease,
-				now,
-			);
-			this.#checkpoint('materialized');
-			const publication = readSoundscaperDesktopProjectLibraryV10PublicationById(
-				this.#database,
-				transactionId,
-			);
-			commitSoundscaperDesktopProjectLibraryV10Publication(
-				this.#database,
-				publication,
-				plan.lease,
-				now,
-			);
-			this.#checkpoint('committed');
-			await materializeSoundscaperDesktopProjectLibraryV10Publication(
-				this.paths.libraryRoot,
-				publication.stages,
-			);
-			settleSoundscaperDesktopProjectLibraryV10Publication(
-				this.#database,
-				transactionId,
-				plan.lease,
-				now,
-			);
-			this.#checkpoint('complete');
-			return plan.bundle;
+			let committed = false;
+			try {
+				await materializeSoundscaperDesktopProjectLibraryV10Publication(
+					this.paths.libraryRoot, stages, signal,
+				);
+				throwIfAborted(signal);
+				markSoundscaperDesktopProjectLibraryV10PublicationMaterialized(
+					this.#database,
+					transactionId,
+					plan.lease,
+					now,
+				);
+				this.#checkpoint('materialized');
+				const publication = readSoundscaperDesktopProjectLibraryV10PublicationById(
+					this.#database,
+					transactionId,
+				);
+				throwIfAborted(signal);
+				commitSoundscaperDesktopProjectLibraryV10Publication(
+					this.#database,
+					publication,
+					plan.lease,
+					now,
+				);
+				committed = true;
+				this.#checkpoint('committed');
+				await materializeSoundscaperDesktopProjectLibraryV10Publication(
+					this.paths.libraryRoot,
+					publication.stages,
+				);
+				settleSoundscaperDesktopProjectLibraryV10Publication(
+					this.#database,
+					transactionId,
+					plan.lease,
+					now,
+				);
+				this.#checkpoint('complete');
+				return plan.bundle;
+			} catch (error) {
+				if (!committed && signal?.aborted === true) {
+					await this.#abandon(transactionId, plan.lease, stages);
+				}
+				throw error;
+			}
 		});
 	}
 
@@ -344,6 +356,37 @@ export class SoundscaperDesktopProjectLibraryV10PublicationHost {
 			positiveInteger(options.length, 'body read length'),
 			signal as AbortSignal | undefined,
 		);
+	}
+
+	/**
+	 * Recovery rolls a journalled publication forward, so an abandoned one has to
+	 * leave no journal row behind rather than a pending one the next recovery
+	 * pass would make canonical. Only a publication that has not committed is
+	 * rolled back: once its revision and metadata are in place the publication is
+	 * atomic, and abandoning it there would break that guarantee. Materialized
+	 * files are content-addressed and unreferenced without the journal row, so a
+	 * later publication reuses or ignores them.
+	 */
+	async #abandon(
+		transactionId: string,
+		lease: SoundscaperDesktopProjectLibraryV10Lease,
+		stages: readonly Readonly<SoundscaperDesktopProjectLibraryV10PublicationStage>[],
+	): Promise<void> {
+		if (this.#holdsLease(lease)) {
+			this.#database.prepare(`
+				DELETE FROM publication_journal
+				WHERE transaction_id = ? AND state IN ('prepared', 'materialized')
+			`).run(transactionId);
+		}
+		await cleanupSoundscaperDesktopProjectLibraryV10Stages(this.paths.libraryRoot, stages)
+			.catch(() => undefined);
+	}
+
+	#holdsLease(lease: SoundscaperDesktopProjectLibraryV10Lease): boolean {
+		try {
+			assertSoundscaperDesktopProjectLibraryV10PublicationLease(this.#database, lease, this.#timestamp());
+			return true;
+		} catch { return false; }
 	}
 
 	#assertOperational(): void {
