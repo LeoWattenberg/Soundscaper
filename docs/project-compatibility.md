@@ -1402,21 +1402,23 @@ activation gating and legacy Soundscaper library migration remain deliberately
 separate from this slice.
 
 <!-- policy-narrative:desktop-electron-lease-protections -->
-Soundscaper V9 starts as a lease-free observer even while another Soundscaper
-process owns its lease and obtains a short-lived writer session only around
-mutations. Its writer sessions recover pending journals and tracked stages
-before work, renew while admitted work drains, abort and fence immediately on
-renewal loss, release only their exact lease, and retain pathless last-writer
-fencing and recovery evidence. Its project commits compare the expected
-authoritative revision, and renderer ownership carries one abort signal through
-admitted operations and drains on renderer loss or disposal. The current closed
-Soundscaper V9 runner executes seven workflows:
+Soundscaper V10 starts one process-lifetime main-owned lease in its separate V10
+scope and database, carrying a monotonically increasing fencing token. Startup
+waits out an unexpired lease a crashed owner left behind rather than pre-empting
+it, because only expiry proves the holder is gone, then recovers any pending
+metadata or body journal before authenticated renderer sessions open, renews the
+exact lease while the process is live, fences on renewal loss, and releases only
+its exact lease before closing the database. Its project publications compare
+the expected metadata revision and the exact project revision and SHA-256, admit
+only a strictly higher revision so a coalesced autosave may skip revisions, and
+pass prepared, materialized, committed, and complete journal checkpoints. The
+current closed Soundscaper V10 runner executes seven workflows:
 `same-project-simultaneous-open`, `writer-lease-transfer`,
 `stale-lease-takeover`, `conflicting-canonical-commit`,
 `renderer-loss-during-operation`, `orderly-process-restart`, and
 `crash-restart-recovery`. The `cross-product-simultaneous-open` workflow and the
 complete historical eight-workflow V9/V17 set remain frozen evidence and are not
-run against current Framescaper packages. Framescaper V10 instead starts one
+run against current Framescaper packages. Framescaper V10 likewise starts one
 process-lifetime main-owned lease in its separate V10 scope and database,
 recovers pending metadata or body journals before opening authenticated
 sessions, renews the exact lease while the process is live, fences new session
@@ -1436,9 +1438,9 @@ deleted, and crash- or power-loss locator release remains unqualified. The
 maintained package artifact smoke proves only fresh source-free V18 creation,
 main persistence, preload activation, and UI activation; it does not qualify
 lease concurrency, restart recovery, delete, duplicate, proxy or timing bodies,
-or accepted packaged target results. The products' distinct V9 and V10 storage
-roots are cross-product physical isolation, not a shared mutable catalog.
-Soundscaper V9 Windows x64 is pending-external. Soundscaper V9 Linux x64 is
+or accepted packaged target results. The products' distinct V10 storage roots
+are cross-product physical isolation, not a shared mutable catalog. Soundscaper
+V10 Windows x64 is pending-external. Soundscaper V10 Linux x64 is
 pending-external. Framescaper V10 Windows x64 is pending-external. Framescaper
 V10 Linux x64 is pending-external. No accepted packaged result exists for any of
 the four rows, so this rule and m2-electron-lease-matrix remain Partial.

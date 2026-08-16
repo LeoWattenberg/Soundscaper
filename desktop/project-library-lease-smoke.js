@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { renameSync, writeFileSync } from 'node:fs';
 import { access, rename, writeFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -42,21 +43,24 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 	let rendererLossRecovered = false;
 	return Object.freeze({
 		attach(window) { attachedWindow = window; },
-		hostOptions: Object.freeze({
+		v10Qualification: Object.freeze({
 			leaseTtlMs: admitted.leaseTtlMs,
 			renewIntervalMs: Math.max(100, Math.floor(admitted.leaseTtlMs / 3)),
-			checkpoint: async (phase) => {
+			// V10's journal checkpoint is synchronous, so the phase is recorded with
+			// synchronous writes and the thread then parks until the matrix kills the
+			// process. Parking rather than exiting leaves the journal and the
+			// unexpired lease exactly as a crash would.
+			checkpoint: (phase) => {
 				const target = admitted.action === 'crash-prepared' || admitted.action === 'renderer-loss'
 					? 'prepared' : admitted.action === 'crash-committed' ? 'committed' : null;
 				if (checkpointUsed || phase !== target) return;
 				checkpointUsed = true;
-				await atomicJson(admitted.control.result, {
+				atomicJsonSync(admitted.control.result, {
 					phase, processId: process.pid, host: projectLibrarySnapshot(),
 				});
-				if (admitted.action !== 'renderer-loss') await new Promise(() => {});
+				if (admitted.action !== 'renderer-loss') parkUntilTerminated();
 				if (!attachedWindow || attachedWindow.isDestroyed()) throw new Error('Lease smoke renderer is unavailable');
 				attachedWindow.webContents.forcefullyCrashRenderer();
-				await delay(100);
 			},
 		}),
 		async rendererReady(webContents) {
@@ -87,15 +91,63 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 }
 
 export async function runDesktopProjectLibraryLeaseRendererSmoke(scope, plan) {
-	const api = scope?.scapeDesktop?.v1;
-	if (!api) throw new Error('Desktop lease smoke bridge is unavailable');
+	const api = scope?.soundscaperProjectLibraryDesktop?.v10;
+	if (!api) throw new Error('Soundscaper V10 lease smoke bridge is unavailable');
+	await api.connect();
+	const catalog = await api.listProjects();
+	const bundle = await api.readProjectBundle(plan.projectId);
+	const observed = {
+		metadataRevision: catalog.metadataRevision,
+		projectRevision: bundle === null ? null : bundle.project.projectRevision,
+		projectSha256: bundle === null ? null : bundle.project.sha256,
+	};
 	if (plan.action === 'observe-hold' || plan.action === 'verify') {
-		return {
-			document: await api.readSharedProject(plan.projectId),
-			projects: await api.listSharedProjects(),
-		};
+		return { status: 'observed', ...observed, document: bundle === null ? null : bundle.document };
 	}
-	return api.commitSharedProject(plan.request);
+	// Publish against exactly the base this case read. Main arbitrates the
+	// compare-and-swap, so contenders that read the same base race there rather
+	// than being pre-screened here.
+	const expectedProject = bundle === null
+		? null
+		: { projectRevision: bundle.project.projectRevision, projectSha256: bundle.project.sha256 };
+	if ((plan.request.expectedRevision === null) !== (expectedProject === null)) {
+		return { status: 'conflict', ...observed, reason: 'destination-presence' };
+	}
+	const publicationId = publicationIdFor(scope);
+	try {
+		await api.beginPublication({
+			publicationId,
+			expectedMetadataRevision: catalog.metadataRevision,
+			expectedProject,
+			project: JSON.parse(plan.request.document),
+			bodies: [],
+		});
+	} catch (error) {
+		return { status: 'conflict', ...observed, reason: leaseSmokeReason(error) };
+	}
+	try {
+		const result = await api.finishPublication({ publicationId });
+		return {
+			status: 'committed',
+			metadataRevision: result.metadataRevision,
+			projectRevision: result.project.projectRevision,
+			projectSha256: result.project.sha256,
+			document: result.document,
+		};
+	} catch (error) {
+		await api.abortPublication({ publicationId }).catch(() => false);
+		return { status: 'conflict', ...observed, reason: leaseSmokeReason(error) };
+	}
+
+	function publicationIdFor(globalScope) {
+		const bytes = new Uint8Array(24);
+		globalScope.crypto.getRandomValues(bytes);
+		return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+	}
+
+	function leaseSmokeReason(error) {
+		return String(error && error.message ? error.message : error).slice(0, 256);
+	}
 }
 
 function execute(webContents, plan) {
@@ -112,11 +164,12 @@ function execute(webContents, plan) {
 
 async function resultPayload(plan, renderer, host, projectLibraryEvidence) {
 	const evidence = await projectLibraryEvidence(plan.projectId);
-	if (evidence?.project?.id !== plan.projectId || typeof evidence.project.sha256 !== 'string') {
+	if (evidence?.project?.projectId !== plan.projectId || typeof evidence.project.sha256 !== 'string') {
 		throw new Error('Desktop lease smoke project evidence is inconsistent');
 	}
-	const managedMediaDescriptors = [...new Set((evidence.sources ?? []).map((source) => source?.bindingId))].sort();
-	if (managedMediaDescriptors.some((id) => typeof id !== 'string' || !id)) {
+	// A source-free matrix must not advertise managed media. V10 reports the
+	// bundle's body count rather than V9's source descriptors.
+	if (!Number.isSafeInteger(evidence.project.bodyCount) || evidence.project.bodyCount < 0) {
 		throw new Error('Desktop lease smoke managed-media evidence is invalid');
 	}
 	return Object.freeze({
@@ -127,9 +180,9 @@ async function resultPayload(plan, renderer, host, projectLibraryEvidence) {
 		renderer,
 		host,
 		catalog: Object.freeze({
-			revision: evidence.catalogRevision,
+			revision: evidence.project.projectRevision,
 			projectSha256: evidence.project.sha256,
-			managedMediaDescriptors: Object.freeze(managedMediaDescriptors),
+			managedMediaBodyCount: evidence.project.bodyCount,
 		}),
 	});
 }
@@ -143,7 +196,7 @@ function validatePlan(value) {
 	}
 	if (!ACTIONS.has(record.action)) throw new TypeError('Desktop lease smoke action is unsupported');
 	if (record.productId !== 'soundscaper') {
-		throw new TypeError('Desktop lease smoke is restricted to the Soundscaper V9 contract');
+		throw new TypeError('Desktop lease smoke is restricted to the Soundscaper V10 contract');
 	}
 	if (typeof record.projectId !== 'string' || !record.projectId) {
 		throw new TypeError('Desktop lease smoke project id is invalid');
@@ -163,6 +216,21 @@ function validatePlan(value) {
 		}
 	}
 	return deepFreeze(record);
+}
+
+function atomicJsonSync(path, value) {
+	const temporary = `${path}.${String(process.pid)}.tmp`;
+	writeFileSync(temporary, JSON.stringify(value), { flag: 'wx' });
+	renameSync(temporary, path);
+}
+
+/**
+ * Park the thread so the journal and the unexpired lease stay exactly as the
+ * checkpoint left them until the matrix terminates this process. Returning
+ * instead would let the publication settle and erase the crash being staged.
+ */
+function parkUntilTerminated() {
+	Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
 }
 
 async function atomicJson(path, value) {

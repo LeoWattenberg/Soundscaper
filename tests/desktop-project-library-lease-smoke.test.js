@@ -36,15 +36,24 @@ test('lease smoke keeps fault paths in main and records catalog descriptor evide
 		plan,
 		productId: 'soundscaper',
 		projectLibraryEvidence: async () => ({
-			catalogRevision: 4,
-			project: { id: plan.projectId, sha256: 'a'.repeat(64) },
-			sources: [],
+			host: { product: 'soundscaper', closed: false, fenced: false, activePublication: false },
+			project: {
+				projectId: plan.projectId,
+				title: 'Lease smoke',
+				projectSchemaVersion: 21,
+				projectRevision: 4,
+				byteLength: 2,
+				sha256: 'a'.repeat(64),
+				bodyCount: 0,
+			},
 		}),
 		projectLibrarySnapshot: () => ({
 			closed: false,
+			fenced: false,
 			owner: { product: 'soundscaper' },
-			activeWriter: null,
-			lastWriter: { fencingToken: 3, tookOverStaleLease: false },
+			activeSessions: 0,
+			activePublication: false,
+			writer: { fencingToken: 3, tookOverStaleLease: false, recovery: { outcome: 'clean' } },
 		}),
 	});
 	const pending = session.rendererReady({
@@ -60,8 +69,9 @@ test('lease smoke keeps fault paths in main and records catalog descriptor evide
 	assert.deepEqual(payload.catalog, {
 		revision: 4,
 		projectSha256: 'a'.repeat(64),
-		managedMediaDescriptors: [],
+		managedMediaBodyCount: 0,
 	});
+	assert.equal(payload.host.writer.fencingToken, 3);
 	assert.equal(JSON.parse(await readFile(control.result, 'utf8')).catalog.projectSha256, 'a'.repeat(64));
 	assert.equal(executed.length, 1);
 	assert.doesNotMatch(executed[0], new RegExp(root.replaceAll('\\', '\\\\'), 'u'));

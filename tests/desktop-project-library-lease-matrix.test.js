@@ -34,7 +34,7 @@ const HISTORICAL_WORKFLOWS = [
 	'crash-restart-recovery',
 ];
 
-test('current packaged V9 lease qualification is Soundscaper-only while preserving historical IDs', () => {
+test('current packaged V10 lease qualification is Soundscaper-only while preserving historical IDs', () => {
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS, EXPECTED_WORKFLOWS);
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS, HISTORICAL_WORKFLOWS);
 	const controlRoot = resolve('test-lease-control');
@@ -60,10 +60,10 @@ test('current packaged V9 lease qualification is Soundscaper-only while preservi
 	})).toString('base64url')), /closed object/iu);
 	assert.throws(() => decodeDesktopProjectLibraryLeaseSmokePlan(Buffer.from(JSON.stringify({
 		...plan, productId: 'framescaper',
-	})).toString('base64url')), /Soundscaper|V9|product/iu);
+	})).toString('base64url')), /Soundscaper|V10|product/iu);
 });
 
-test('desktop preview CI runs the legacy V9 matrix only for Soundscaper on qualified targets', async () => {
+test('desktop preview CI runs the V10 matrix only for Soundscaper on qualified targets', async () => {
 	const [workflow, runner] = await Promise.all([
 		readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8'),
 		readFile(new URL('../scripts/lib/desktop-project-library-lease-matrix.mjs', import.meta.url), 'utf8'),
@@ -81,10 +81,10 @@ test('desktop preview CI runs the legacy V9 matrix only for Soundscaper on quali
 	assert.doesNotMatch(leaseJob, /platform: (?:mac|win)[\s\S]{0,80}arch: arm64|platform: linux[\s\S]{0,80}arch: arm64/u);
 	assert.match(leaseJob, /SCAPE_PRODUCT=soundscaper/u);
 	assert.match(leaseJob, /desktop:smoke:project-library-lease-matrix/u);
-	assert.match(leaseJob, /soundscaper-v9-lease-matrix-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
+	assert.match(leaseJob, /soundscaper-v10-lease-matrix-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
 	assert.doesNotMatch(runner, /\[\s*'soundscaper',\s*'framescaper'\s*\]|\[\s*'framescaper',\s*'soundscaper'\s*\]/u);
 	assert.match(runner, /runRendererLoss[\s\S]*waitForFile\(child\.control\.result\)/u);
-	assert.match(runner, /managedDescriptors[\s\S]*catalog\?\.managedMediaDescriptors/u);
-	assert.doesNotMatch(runner, /losingManagedMediaDescriptors:\s*\[\]/u);
+	assert.match(runner, /bodyCounts[\s\S]*catalog\?\.managedMediaBodyCount/u);
+	assert.doesNotMatch(runner, /losingManagedMediaBodyCounts:\s*\[\]/u);
 	assert.ok(Buffer.byteLength(formatDesktopProjectLibraryLeaseMatrix({ cases: [] })) < 1024 * 1024);
 });

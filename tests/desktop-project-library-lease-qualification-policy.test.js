@@ -14,13 +14,13 @@ test('current desktop lease qualification is product-isolated and remains pendin
 	assert.ok(rule);
 	assert.equal(rule.status, 'partial');
 	const claim = `${rule.requiredOutcome} ${rule.currentBehavior}`;
-	assert.match(claim, /Soundscaper.*V9.*short-lived.*writer (?:session|lease)/isu);
+	assert.match(claim, /Soundscaper.*V10.*process-lifetime.*main-owned.*lease/isu);
 	assert.match(claim, /Framescaper.*V10.*process-lifetime.*main-owned.*lease/isu);
 	assert.match(claim, /Framescaper.*session.*recovery/isu);
 	assert.match(claim, /cross-product.*(?:physical|storage).*isolation.*not.*shared mutable catalog/isu);
 	assert.match(claim, /historical.*eight.*V9.*V17/isu);
 	assert.match(claim, /do(?:es)? not authorize.*Framescaper V17/isu);
-	for (const product of ['Soundscaper V9', 'Framescaper V10']) {
+	for (const product of ['Soundscaper V10', 'Framescaper V10']) {
 		for (const target of ['Windows x64', 'Linux x64']) {
 			assert.match(claim, new RegExp(`${product}.*${target}.*pending-external`, 'isu'));
 		}
@@ -31,16 +31,19 @@ test('current desktop lease qualification is product-isolated and remains pendin
 	const controls = new Map(security.risks.flatMap(({ currentControls }) => (
 		currentControls.map((control) => [control.id, control])
 	)));
-	const v9 = controls.get('packaged-cross-platform-electron-lease-matrix');
-	const v10 = controls.get('framescaper-v18-desktop-v10-isolation');
-	assert.ok(v9);
-	assert.ok(v10);
-	assert.match(v9.summary, /Soundscaper.*V9.*seven.*workflow/isu);
-	assert.match(v9.summary, /cross-product-simultaneous-open.*historical.*not run/isu);
-	assert.match(v9.summary, /Windows x64.*Linux x64.*pending-external/isu);
-	assert.match(v10.summary, /process-lifetime.*lease.*session.*recovery/isu);
-	assert.match(v10.summary, /Windows x64.*Linux x64.*pending-external/isu);
-	assert.match(`${v9.summary} ${v10.summary}`, /separate.*(?:scope|database|storage).*cross-product.*isolation/isu);
+	const leaseMatrix = controls.get('packaged-cross-platform-electron-lease-matrix');
+	const framescaper = controls.get('framescaper-v18-desktop-v10-isolation');
+	assert.ok(leaseMatrix);
+	assert.ok(framescaper);
+	assert.match(leaseMatrix.summary, /Soundscaper.*V10.*seven.*workflow/isu);
+	assert.match(leaseMatrix.summary, /cross-product-simultaneous-open.*historical.*not run/isu);
+	assert.match(leaseMatrix.summary, /Windows x64.*Linux x64.*pending-external/isu);
+	assert.match(framescaper.summary, /process-lifetime.*lease.*session.*recovery/isu);
+	assert.match(framescaper.summary, /Windows x64.*Linux x64.*pending-external/isu);
+	assert.match(
+		`${leaseMatrix.summary} ${framescaper.summary}`,
+		/separate.*(?:scope|database|storage).*cross-product.*isolation/isu,
+	);
 });
 
 test('roadmap preserves the frozen M2 inventory as history without re-admitting Framescaper V17', async () => {
@@ -60,7 +63,7 @@ test('roadmap preserves the frozen M2 inventory as history without re-admitting 
 
 	const roadmap = await text('roadmap.md');
 	assert.match(roadmap, /eight.*workflow.*frozen historical.*V9.*V17/isu);
-	assert.match(roadmap, /current executable\s+qualification.*Soundscaper V9.*Framescaper V10/isu);
+	assert.match(roadmap, /current executable\s+qualification.*Soundscaper V10.*Framescaper V10/isu);
 	assert.match(roadmap, /does not.*re-admit.*Framescaper V17/isu);
 	assert.match(roadmap, /Windows x64.*Linux x64.*accepted packaged results.*absent.*Partial/isu);
 });

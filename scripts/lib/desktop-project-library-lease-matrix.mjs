@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -11,7 +10,7 @@ import {
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX,
 } from '../../desktop/project-library-lease-smoke.js';
-import { createDesktopProjectLibraryHandoffStages } from './desktop-project-library-handoff-smoke.mjs';
+import { createSoundscaperProjectV21 } from '../../src/soundscaper/editor-project-v21.ts';
 import { packagedExecutableCandidates, resolveSmokeArchitecture } from './desktop-smoke.mjs';
 
 export const DESKTOP_PROJECT_LIBRARY_LEASE_MATRIX_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_LEASE_MATRIX ';
@@ -112,7 +111,7 @@ async function runCase(runtime, workflowId, order) {
 		const crashed = await crashAtCheckpoint(scope, primary, 'crash-prepared', projectId, request(initial, null));
 		const takeover = await run(scope, secondary, 'commit', projectId, request(initial, null));
 		results = [crashed, takeover];
-		if (takeover.host?.lastWriter?.tookOverStaleLease !== true) throw new Error('Stale takeover was not evidenced');
+		if (takeover.host?.writer?.tookOverStaleLease !== true) throw new Error('Stale takeover was not evidenced');
 	} else if (workflowId === 'conflicting-canonical-commit') {
 		const seed = await run(scope, primary, 'commit', projectId, request(initial, null));
 		const left = document(projectId, 8, `${workflowId} left`);
@@ -136,33 +135,32 @@ async function runCase(runtime, workflowId, order) {
 			await crashAtCheckpoint(scope, primary, 'crash-committed', projectId, request(initial, null)),
 			await run(scope, secondary, 'commit', projectId, request(initial, null)),
 		];
-		if (results[1].host?.lastWriter?.recovery?.outcome !== 'committed') {
+		if (results[1].host?.writer?.recovery?.outcome !== 'committed') {
 			throw new Error('Committed crash journal was not recovered');
 		}
 	}
 	const tokens = results.flatMap((result) => {
-		const token = result.host?.lastWriter?.fencingToken ?? result.host?.activeWriter?.fencingToken;
+		const token = result.host?.writer?.fencingToken;
 		return Number.isSafeInteger(token) ? [token] : [];
 	}).sort((left, right) => left - right);
 	if (new Set(tokens).size !== tokens.length) throw new Error('Lease matrix fencing tokens are not strictly increasing');
-	const winningDocument = finalDocument(results) ?? initial;
-	const winningDocumentSha256 = sha256(winningDocument);
+	const winningDocumentSha256 = winningDigest(results);
 	const finalCatalog = results.toReversed().find((result) => result.catalog)?.catalog;
-	if (finalCatalog?.projectSha256 !== winningDocumentSha256) {
+	if (!winningDocumentSha256 || finalCatalog?.projectSha256 !== winningDocumentSha256) {
 		throw new Error('Lease matrix catalog does not advertise the exact winning document');
 	}
-	const managedDescriptors = [...new Set(results.flatMap(
-		(result) => result.catalog?.managedMediaDescriptors ?? [],
-	))].sort();
-	if (managedDescriptors.length !== 0) {
-		throw new Error('Source-free lease matrix advertised a losing managed-media descriptor');
+	const bodyCounts = results.flatMap((result) => (
+		Number.isSafeInteger(result.catalog?.managedMediaBodyCount) ? [result.catalog.managedMediaBodyCount] : []
+	));
+	if (bodyCounts.some((count) => count !== 0)) {
+		throw new Error('Source-free lease matrix advertised a managed-media body');
 	}
 	return deepFreeze({
 		workflowId,
 		order: order.join('-then-'),
 		fencingTokens: tokens,
 		winningDocumentSha256,
-		losingManagedMediaDescriptors: managedDescriptors,
+		losingManagedMediaBodyCounts: bodyCounts,
 	});
 }
 
@@ -318,17 +316,19 @@ async function waitForFile(path) {
 
 function touch(path) { return writeFile(path, '', { flag: 'wx' }); }
 function request(document, expectedRevision) { return { document, expectedRevision }; }
-function sha256(value) { return createHash('sha256').update(value).digest('hex'); }
-function finalDocument(results) {
+/** The digest main published, so the assertion compares stored bytes rather than re-encoded text. */
+function winningDigest(results) {
 	for (const result of results.toReversed()) {
-		if (result.renderer?.status === 'committed') return result.renderer.document;
-		if (typeof result.renderer?.document === 'string') return result.renderer.document;
+		if (result.renderer?.status === 'committed') return result.renderer.projectSha256;
+	}
+	for (const result of results.toReversed()) {
+		if (typeof result.renderer?.projectSha256 === 'string') return result.renderer.projectSha256;
 	}
 	return null;
 }
 function document(id, revision, title) {
-	const base = JSON.parse(createDesktopProjectLibraryHandoffStages()[0].target.document);
-	return JSON.stringify({ ...base, id, title, revision, metadata: { ...base.metadata, title } });
+	const base = createSoundscaperProjectV21({ id, title });
+	return JSON.stringify({ ...base, revision, metadata: { ...base.metadata, title } });
 }
 function deepFreeze(value) {
 	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
