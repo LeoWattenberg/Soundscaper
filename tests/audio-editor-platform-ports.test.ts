@@ -139,7 +139,7 @@ test('bounded transfer factories reject oversized or malformed chunks and messag
 	}), /JSON-compatible/u);
 });
 
-test('runtime policy exposes only milestone 2 port families and keeps deferred contracts blocked', () => {
+test('runtime policy exposes only the enacted port families and keeps deferred contracts blocked', () => {
 	assert.equal(PLATFORM_PORT_CONTRACT.version, 1);
 	assert.equal(PLATFORM_PORT_CONTRACT.requiresAbortSignal, true);
 	assert.deepEqual(PLATFORM_PORT_CONTRACT.implementationBoundary, {
@@ -154,6 +154,7 @@ test('runtime policy exposes only milestone 2 port families and keeps deferred c
 		'media-probe',
 		'media-stream-read',
 		'media-stream-write',
+		'persistent-render-queue',
 		'render-job',
 	]);
 	assert.deepEqual(DEFERRED_PLATFORM_CONTRACTS.map(({ id, milestone, status }) => ({ id, milestone, status })), [
@@ -174,6 +175,7 @@ test('port contracts remain direct owner imports without a platform barrel', () 
 		'bounded-transfer': 'src/common/editor/platform/bounded-transfer.ts',
 		'media-codec': 'src/common/editor/platform/media-codec-port.ts',
 		'media-stream': 'src/common/editor/platform/media-stream-port.ts',
+		'persistent-render-queue': 'src/common/editor/platform/persistent-render-queue-port.ts',
 		'render-job': 'src/common/editor/platform/render-job-port.ts',
 	});
 	for (const path of Object.values(PLATFORM_PORT_CONTRACT.ownerModules)) {

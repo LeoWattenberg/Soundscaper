@@ -10,6 +10,7 @@ const activeFamilies = Object.freeze([
 	'media-probe',
 	'media-stream-read',
 	'media-stream-write',
+	'persistent-render-queue',
 	'render-job',
 ] as const);
 
@@ -19,6 +20,7 @@ const ownerModules = Object.freeze({
 	'bounded-transfer': 'src/common/editor/platform/bounded-transfer.ts',
 	'media-codec': 'src/common/editor/platform/media-codec-port.ts',
 	'media-stream': 'src/common/editor/platform/media-stream-port.ts',
+	'persistent-render-queue': 'src/common/editor/platform/persistent-render-queue-port.ts',
 	'render-job': 'src/common/editor/platform/render-job-port.ts',
 } as const);
 
