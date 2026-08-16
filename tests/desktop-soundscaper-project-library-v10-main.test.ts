@@ -135,11 +135,68 @@ test('Soundscaper main accepts a higher coalesced project revision under exact b
 	assert.deepEqual(JSON.parse(retained.document), coalesced);
 });
 
+test('main reports writer evidence and admits only lower-only qualification timings', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v10-writer-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+
+	const first = await start(root, 'soundscaper-writer-first');
+	const firstWriter = first.snapshot().writer;
+	assert.equal(firstWriter.tookOverStaleLease, false);
+	assert.equal(firstWriter.recovery.outcome, 'clean');
+	assert.ok(Number.isSafeInteger(firstWriter.fencingToken) && firstWriter.fencingToken > 0);
+	await first.close();
+
+	// A released lease lets the next owner acquire without waiting, and its
+	// fencing token must still advance past the previous holder's.
+	const second = await start(root, 'soundscaper-writer-second');
+	const secondWriter = second.snapshot().writer;
+	assert.ok(
+		secondWriter.fencingToken > firstWriter.fencingToken,
+		'fencing tokens advance across owners',
+	);
+	assert.equal(secondWriter.tookOverStaleLease, false);
+	await second.close();
+
+	const phases: string[] = [];
+	const qualified = await SoundscaperDesktopProjectLibraryV10Main.start({
+		appDataPath: root,
+		owner: { product: 'soundscaper', processId: 902, instanceId: 'soundscaper-writer-qualified' },
+		handshake: createSoundscaperDesktopProjectLibraryV10Handshake(),
+		qualification: {
+			leaseTtlMs: 1_000,
+			renewIntervalMs: 300,
+			checkpoint: (phase: string) => { phases.push(phase); },
+		},
+	});
+	const session = qualified.openSession(createSoundscaperDesktopProjectLibraryV10Handshake());
+	await publish(session, frozenProject('soundscaper-v21-qualified', 'Qualified'), 0, null, PCM, '0a'.repeat(24));
+	await session.close();
+	await qualified.close();
+	assert.deepEqual(phases, ['prepared', 'materialized', 'committed', 'complete']);
+
+	for (const qualification of [
+		{ leaseTtlMs: 30_001, renewIntervalMs: 300, checkpoint: null },
+		{ leaseTtlMs: 1_000, renewIntervalMs: 10_001, checkpoint: null },
+		{ leaseTtlMs: 0, renewIntervalMs: 300, checkpoint: null },
+	]) {
+		await assert.rejects(
+			() => SoundscaperDesktopProjectLibraryV10Main.start({
+				appDataPath: root,
+				owner: { product: 'soundscaper', processId: 903, instanceId: 'soundscaper-writer-refused' },
+				handshake: createSoundscaperDesktopProjectLibraryV10Handshake(),
+				qualification,
+			}),
+			/qualification .* must be an integer from 1 through/iu,
+		);
+	}
+});
+
 async function start(appDataPath: string, instanceId: string) {
 	return SoundscaperDesktopProjectLibraryV10Main.start({
 		appDataPath,
 		owner: { product: 'soundscaper', processId: 901, instanceId },
 		handshake: createSoundscaperDesktopProjectLibraryV10Handshake(),
+		qualification: null,
 	});
 }
 

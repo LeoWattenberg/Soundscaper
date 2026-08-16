@@ -103,6 +103,7 @@ test('staged product selector isolates V10 handlers, preload, sessions, and clos
 		instanceId: 'framescaper-maintained-runtime',
 		v9HostOptions: {},
 		onLeaseLost: () => {},
+		v10Qualification: null,
 	});
 	context.after(() => runtime.close());
 	const registration = runtime.registerRendererBridge({
@@ -187,6 +188,7 @@ test('staged product selector isolates V10 handlers, preload, sessions, and clos
 		instanceId: 'soundscaper-maintained-runtime',
 		v9HostOptions: {},
 		onLeaseLost: () => {},
+		v10Qualification: null,
 	});
 	context.after(() => soundscaper.close());
 	const soundscaperRegistration = soundscaper.registerRendererBridge({

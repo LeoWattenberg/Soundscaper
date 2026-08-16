@@ -34,6 +34,28 @@ test('a lease a crashed owner left behind is waited out rather than failing star
 	assert.equal(calls, 3);
 });
 
+test('waiting out a lease is reported once as takeover evidence', async () => {
+	let calls = 0;
+	let waits = 0;
+	const lease = await acquireProjectLibraryV10LeaseWithWait(() => {
+		calls += 1;
+		if (calls < 4) throw new Error('Soundscaper desktop V10 writer lease is busy');
+		return 'lease';
+	}, { waitMs: 5_000, pollIntervalMs: 10, onWait: () => { waits += 1; } });
+
+	assert.equal(lease, 'lease');
+	assert.equal(waits, 1, 'repeated retries stay one takeover, not one per attempt');
+});
+
+test('an uncontested acquisition reports no wait', async () => {
+	let waits = 0;
+	await acquireProjectLibraryV10LeaseWithWait(
+		() => 'lease',
+		{ waitMs: 5_000, onWait: () => { waits += 1; } },
+	);
+	assert.equal(waits, 0);
+});
+
 test('a lease still held past the wait reports the acquisition failure it saw', async () => {
 	let calls = 0;
 	await assert.rejects(

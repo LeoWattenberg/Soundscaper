@@ -5,6 +5,12 @@ const DEFAULT_POLL_INTERVAL_MS = 100;
 export interface ProjectLibraryV10LeaseWaitOptions {
 	readonly waitMs: number;
 	readonly pollIntervalMs?: number;
+	/**
+	 * Called once if acquisition had to wait out an unexpired lease. Waiting
+	 * proves the previous owner did not release it, which is the takeover
+	 * evidence the packaged lease matrix records.
+	 */
+	readonly onWait?: () => void;
 }
 
 /**
@@ -25,12 +31,17 @@ export async function acquireProjectLibraryV10LeaseWithWait<Lease>(
 		Math.min(boundedMilliseconds(options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, 'lease poll interval'), 1_000),
 	);
 	const deadline = Date.now() + waitMs;
+	let waited = false;
 	for (;;) {
 		try {
 			return acquire();
 		} catch (error) {
 			const remaining = deadline - Date.now();
 			if (remaining <= 0) throw error;
+			if (!waited) {
+				waited = true;
+				options.onWait?.();
+			}
 			await delay(Math.min(pollIntervalMs, remaining));
 		}
 	}

@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import {
 	SoundscaperDesktopProjectLibraryV10Catalog,
 	type SoundscaperDesktopProjectLibraryV10Lease,
+	type SoundscaperDesktopProjectLibraryV10Recovery,
 } from './soundscaper-project-library-v10-catalog.ts';
 import {
 	createSoundscaperDesktopProjectLibraryV10Paths,
@@ -29,13 +30,23 @@ import {
 	SoundscaperDesktopProjectLibraryV10PublicationHost,
 } from './soundscaper-project-library-v10-publication-host.ts';
 import {
+	type SoundscaperDesktopProjectLibraryV10PublicationCheckpoint,
+} from './soundscaper-project-library-v10-publication-contract.ts';
+import {
 	SoundscaperDesktopProjectLibraryV10TransferService,
 } from './soundscaper-project-library-v10-transfer-service.ts';
 import { acquireProjectLibraryV10LeaseWithWait } from './project-library-v10-lease-wait.ts';
 
-const START_FIELDS = ['appDataPath', 'owner', 'handshake'] as const;
+const START_FIELDS = ['appDataPath', 'owner', 'handshake', 'qualification'] as const;
+const QUALIFICATION_FIELDS = ['leaseTtlMs', 'renewIntervalMs', 'checkpoint'] as const;
 const LEASE_TTL_MS = 30_000;
 const RENEW_INTERVAL_MS = 10_000;
+
+export interface SoundscaperDesktopProjectLibraryV10MainWriter {
+	readonly fencingToken: number;
+	readonly tookOverStaleLease: boolean;
+	readonly recovery: Readonly<SoundscaperDesktopProjectLibraryV10Recovery>;
+}
 
 export interface SoundscaperDesktopProjectLibraryV10MainSnapshot {
 	readonly closed: boolean;
@@ -43,12 +54,26 @@ export interface SoundscaperDesktopProjectLibraryV10MainSnapshot {
 	readonly owner: Readonly<SoundscaperDesktopProjectLibraryV10Owner>;
 	readonly activeSessions: number;
 	readonly activePublication: boolean;
+	readonly writer: Readonly<SoundscaperDesktopProjectLibraryV10MainWriter>;
+}
+
+/**
+ * Lease timings and journal checkpoints the packaged lease matrix needs to
+ * observe concurrency within a bounded run. Both timings are lower-only, so a
+ * qualification run can only tighten the fence it is measuring, never relax it,
+ * and production passes null.
+ */
+export interface SoundscaperDesktopProjectLibraryV10Qualification {
+	readonly leaseTtlMs: number;
+	readonly renewIntervalMs: number;
+	readonly checkpoint: ((phase: SoundscaperDesktopProjectLibraryV10PublicationCheckpoint) => void) | null;
 }
 
 interface StartOptions {
 	readonly appDataPath: string;
 	readonly owner: SoundscaperDesktopProjectLibraryV10Owner;
 	readonly handshake: SoundscaperDesktopProjectLibraryV10Handshake;
+	readonly qualification: Readonly<SoundscaperDesktopProjectLibraryV10Qualification> | null;
 }
 
 /** Product-owned V10 main composition selected only by the packaged Soundscaper profile. */
@@ -67,6 +92,8 @@ export class SoundscaperDesktopProjectLibraryV10Main {
 	#fenced: unknown = null;
 	#lease: SoundscaperDesktopProjectLibraryV10Lease;
 	#renewTimer: ReturnType<typeof setInterval> | null = null;
+	readonly #writer: Readonly<SoundscaperDesktopProjectLibraryV10MainWriter>;
+	readonly #leaseTtlMs: number;
 
 	private constructor(
 		paths: Readonly<SoundscaperDesktopProjectLibraryV10Paths>,
@@ -76,7 +103,12 @@ export class SoundscaperDesktopProjectLibraryV10Main {
 		lifecycle: SoundscaperDesktopProjectLibraryV10LifecycleHost,
 		lease: SoundscaperDesktopProjectLibraryV10Lease,
 		owner: Readonly<SoundscaperDesktopProjectLibraryV10Owner>,
+		writer: Readonly<SoundscaperDesktopProjectLibraryV10MainWriter>,
+		renewIntervalMs: number,
+		leaseTtlMs: number,
 	) {
+		this.#writer = writer;
+		this.#leaseTtlMs = leaseTtlMs;
 		this.#paths = paths;
 		this.#database = database;
 		this.#catalog = catalog;
@@ -92,7 +124,7 @@ export class SoundscaperDesktopProjectLibraryV10Main {
 			transfer,
 		);
 		this.localHandshake = transfer.localHandshake;
-		this.#renewTimer = setInterval(() => { this.#renewLease(); }, RENEW_INTERVAL_MS);
+		this.#renewTimer = setInterval(() => { this.#renewLease(); }, renewIntervalMs);
 		this.#renewTimer.unref?.();
 		Object.freeze(this);
 	}
@@ -112,24 +144,31 @@ export class SoundscaperDesktopProjectLibraryV10Main {
 		try {
 			await chmod(paths.databasePath, 0o600);
 			initializeSoundscaperDesktopProjectLibraryV10Database(database);
+			const leaseTtlMs = options.qualification?.leaseTtlMs ?? LEASE_TTL_MS;
 			catalog = SoundscaperDesktopProjectLibraryV10Catalog.create({
 				database,
 				owner: options.owner,
+				...(options.qualification?.checkpoint ? { checkpoint: options.qualification.checkpoint } : {}),
 			});
 			catalog.acceptHandshake(options.handshake);
 			const host = SoundscaperDesktopProjectLibraryV10PublicationHost.create({
 				database,
 				appDataPath: options.appDataPath,
+				...(options.qualification?.checkpoint ? { checkpoint: options.qualification.checkpoint } : {}),
 			});
 			host.acceptHandshake(options.handshake);
 			// A crashed owner leaves its lease unexpired, so wait it out rather than
 			// failing startup before any window exists.
 			const readyCatalog = catalog;
+			let tookOverStaleLease = false;
 			lease = await acquireProjectLibraryV10LeaseWithWait(
-				() => readyCatalog.acquireLease({ ttlMs: LEASE_TTL_MS }),
-				{ waitMs: LEASE_TTL_MS + 1_000 },
+				() => readyCatalog.acquireLease({ ttlMs: leaseTtlMs }),
+				{
+					waitMs: leaseTtlMs + 1_000,
+					onWait: () => { tookOverStaleLease = true; },
+				},
 			);
-			await recoverPending(database, catalog, host, lease);
+			const recovery = await recoverPending(database, catalog, host, lease);
 			const lifecycle = SoundscaperDesktopProjectLibraryV10LifecycleHost.create({
 				catalog,
 				host,
@@ -143,6 +182,9 @@ export class SoundscaperDesktopProjectLibraryV10Main {
 				lifecycle,
 				lease,
 				options.owner,
+				Object.freeze({ fencingToken: lease.fencingToken, tookOverStaleLease, recovery }),
+				options.qualification?.renewIntervalMs ?? RENEW_INTERVAL_MS,
+				leaseTtlMs,
 			);
 		} catch (error) {
 			if (catalog && lease) {
@@ -160,6 +202,7 @@ export class SoundscaperDesktopProjectLibraryV10Main {
 			owner: this.#owner,
 			activeSessions: this.#sessions.activeSessions,
 			activePublication: this.#sessions.activePublication,
+			writer: this.#writer,
 		});
 	}
 
@@ -197,7 +240,7 @@ export class SoundscaperDesktopProjectLibraryV10Main {
 	#renewLease(): void {
 		if (this.#closed || this.#fenced !== null) return;
 		try {
-			this.#lease = this.#catalog.renewLease(this.#lease, { ttlMs: LEASE_TTL_MS });
+			this.#lease = this.#catalog.renewLease(this.#lease, { ttlMs: this.#leaseTtlMs });
 			this.#lifecycle.updateLease(this.#lease);
 			this.#sessions.updateLease(this.#lease);
 		} catch (error) {
@@ -212,7 +255,7 @@ async function recoverPending(
 	catalog: SoundscaperDesktopProjectLibraryV10Catalog,
 	host: SoundscaperDesktopProjectLibraryV10PublicationHost,
 	lease: SoundscaperDesktopProjectLibraryV10Lease,
-): Promise<void> {
+): Promise<Readonly<SoundscaperDesktopProjectLibraryV10Recovery>> {
 	const metadataPending = Boolean(database.prepare(`
 		SELECT 1 AS pending FROM metadata_journal
 		WHERE state IN ('prepared', 'committed') LIMIT 1
@@ -225,7 +268,8 @@ async function recoverPending(
 		throw new Error('Soundscaper V10 database has conflicting metadata and body recovery journals');
 	}
 	if (publicationPending) await host.recover({ lease });
-	if (metadataPending) catalog.recoverMetadata({ lease });
+	if (metadataPending) return catalog.recoverMetadata({ lease });
+	return Object.freeze({ outcome: 'clean' as const, previousRevision: null, publishedRevision: null });
 }
 
 function validateStartOptions(value: unknown): Readonly<StartOptions> {
@@ -237,7 +281,34 @@ function validateStartOptions(value: unknown): Readonly<StartOptions> {
 		appDataPath: record.appDataPath,
 		owner: validateSoundscaperDesktopProjectLibraryV10Owner(record.owner),
 		handshake: validateSoundscaperDesktopProjectLibraryV10Handshake(record.handshake),
+		qualification: validateQualification(record.qualification),
 	});
+}
+
+function validateQualification(
+	value: unknown,
+): Readonly<SoundscaperDesktopProjectLibraryV10Qualification> | null {
+	if (value === null) return null;
+	const record = snapshotClosedRecord(value, QUALIFICATION_FIELDS, 'Soundscaper V10 qualification');
+	if (record.checkpoint !== null && typeof record.checkpoint !== 'function') {
+		throw new TypeError('Soundscaper V10 qualification checkpoint must be a function or null');
+	}
+	return Object.freeze({
+		leaseTtlMs: lowerOnlyMilliseconds(record.leaseTtlMs, LEASE_TTL_MS, 'lease TTL'),
+		renewIntervalMs: lowerOnlyMilliseconds(record.renewIntervalMs, RENEW_INTERVAL_MS, 'lease renewal interval'),
+		checkpoint: record.checkpoint as SoundscaperDesktopProjectLibraryV10Qualification['checkpoint'],
+	});
+}
+
+/**
+ * A qualification run may only tighten a lease timing. Allowing a longer TTL
+ * would let the matrix report a fence the shipped product does not enforce.
+ */
+function lowerOnlyMilliseconds(value: unknown, ceiling: number, name: string): number {
+	if (!Number.isSafeInteger(value) || (value as number) < 1 || (value as number) > ceiling) {
+		throw new RangeError(`Soundscaper V10 qualification ${name} must be an integer from 1 through ${ceiling} milliseconds`);
+	}
+	return value as number;
 }
 
 async function createPrivateLibrary(

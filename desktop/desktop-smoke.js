@@ -353,6 +353,7 @@ export function createDesktopSmokeProbe(options) {
 		attach,
 		observeProjectDescriptor,
 		projectLibraryHostOptions: () => leaseSession?.hostOptions ?? Object.freeze({}),
+		projectLibraryV10Qualification: () => leaseSession?.v10Qualification ?? null,
 		rendererReady,
 		resolveSavePath,
 		resolveOpenPaths,

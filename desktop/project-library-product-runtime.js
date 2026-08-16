@@ -4,6 +4,7 @@ import { isAbsolute, resolve } from 'node:path';
 
 const START_FIELDS = Object.freeze([
 	'productId', 'appDataPath', 'processId', 'instanceId', 'v9HostOptions', 'onLeaseLost',
+	'v10Qualification',
 ]);
 const BRIDGE_FIELDS = Object.freeze([
 	'desktopRoot', 'handle', 'ownerFor', 'removeHandler', 'session',
@@ -64,6 +65,7 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 			appDataPath,
 			owner,
 			handshake: createSoundscaperDesktopProjectLibraryV10Handshake(),
+			qualification: options.v10Qualification ?? null,
 		});
 		return new DesktopProjectLibraryProductRuntime({
 			productId,
