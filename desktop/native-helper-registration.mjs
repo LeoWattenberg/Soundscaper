@@ -73,12 +73,13 @@ export function registerDesktopNativeAudioHelper({
 }
 
 /**
- * Keeps the surface menu-reached and off by default, like every other one.
- * These are Tools submenu *items*, not a second Tools menu: the native tier is
- * one place a user looks, not one place per helper.
+ * Keeps the surface menu-reached and off by default, like every other one, and
+ * folds it into the Tools menu the probe helper already contributes rather than
+ * adding a second one: the native tier is one place a user looks, not one place
+ * per helper.
  */
-export function desktopNativeAudioHelperMenuItems() {
-	return [
+export function withNativeAudioHelperMenuItems(sections) {
+	const items = [
 		{ type: 'separator' },
 		{
 			label: 'Use Native Audio Helper',
@@ -91,4 +92,7 @@ export function desktopNativeAudioHelperMenuItems() {
 			click: () => registered?.service.clearQuarantine(),
 		},
 	];
+	return sections.map((section) => (section.label === 'Tools'
+		? { ...section, submenu: [...section.submenu, ...items] }
+		: section));
 }

@@ -633,44 +633,40 @@ function positiveSafeInteger(value) {
 /**
  * The renderer is told what is available and why it is not, never how: no
  * payload path, no library name, no backend binary ever crosses this bridge.
+ * Main has already validated both answers; these bound and freeze them again so
+ * the renderer never holds a structure main could grow later.
  */
 function nativeAudioAvailability(value) {
+	const payload = value?.payload;
 	return Object.freeze({
 		enabled: value?.enabled === true,
 		quarantined: value?.quarantined === true,
 		payload: Object.freeze({
-			status: value?.payload?.status === 'available' ? 'available' : 'unavailable',
-			reason: value?.payload?.reason == null ? null : text(value.payload.reason, 64),
-			detail: text(value?.payload?.detail ?? '', 512),
+			status: payload?.status === 'available' ? 'available' : 'unavailable',
+			reason: payload?.reason == null ? null : text(payload.reason, 64),
+			detail: text(payload?.detail ?? '', 512),
 		}),
-		backends: Object.freeze((Array.isArray(value?.backends) ? value.backends : [])
-			.slice(0, 16)
-			.map((backend) => text(backend, 32))),
+		backends: Object.freeze(bounded(value?.backends, 16).map((backend) => text(backend, 32))),
 	});
 }
 
 function nativeAudioInventory(value) {
+	const inventory = value?.inventory;
 	if (value?.status !== 'described') {
-		return Object.freeze({
-			status: 'failed',
-			code: text(value?.code ?? 'helper-failed', 32),
-			message: text(value?.message ?? '', 512),
-		});
+		return Object.freeze({ status: 'failed', code: text(value?.code ?? 'helper-failed', 32), message: text(value?.message ?? '', 512) });
 	}
-	const devices = Array.isArray(value.inventory?.devices) ? value.inventory.devices : [];
-	return Object.freeze({
-		status: 'described',
-		inventory: Object.freeze({
-			backend: text(value.inventory?.backend, 32),
-			status: text(value.inventory?.status, 32),
-			detail: text(value.inventory?.detail ?? '', 512),
-			devices: Object.freeze(devices.slice(0, 128).map((device) => Object.freeze({
-				handle: text(device?.handle, 256),
-				label: text(device?.label, 256),
-				direction: text(device?.direction, 16),
-			}))),
-		}),
-	});
+	return Object.freeze({ status: 'described', inventory: Object.freeze({
+		backend: text(inventory?.backend, 32),
+		status: text(inventory?.status, 32),
+		detail: text(inventory?.detail ?? '', 512),
+		devices: Object.freeze(bounded(inventory?.devices, 128).map((device) => Object.freeze({
+			handle: text(device?.handle, 256), label: text(device?.label, 256), direction: text(device?.direction, 16),
+		}))),
+	}) });
+}
+
+function bounded(value, maximum) {
+	return Array.isArray(value) ? value.slice(0, maximum) : [];
 }
 
 function helperProbeCompletion(value) {

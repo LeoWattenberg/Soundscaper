@@ -190,6 +190,8 @@ test('planned native plug-in surfaces stay disabled and portable archive control
 		'helper-contract-v1-wire-validation',
 		'supervised-helper-lifecycle',
 		'verified-helper-engine-payload',
+		'verified-native-helper-payload-selection',
+		'native-helper-real-process-proof',
 	]);
 	for (const control of helperProcesses.currentControls) {
 		const kinds = new Set(control.evidence.map(({ kind }) => kind));

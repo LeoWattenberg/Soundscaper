@@ -49,8 +49,8 @@
 	"evidence": {
 		"lineEndings": {
 			"path": ".gitattributes",
-			"byteLength": 521,
-			"sha256": "7232f4c3e56f69f50a5757c8285576910c5926028d63ebb61d61210d0883a96c"
+			"byteLength": 800,
+			"sha256": "32b69d7c0c8daf1a5e31ea7ac00a3d9783c5190e2b19afbfe6d970a04aea1c96"
 		},
 		"correspondingSource": {
 			"path": "desktop/ffmpeg-corresponding-source.json",
@@ -79,13 +79,13 @@
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
-			"byteLength": 533532,
-			"sha256": "a1120045bec818f3bd4eec7e155b23b5ccebf86dd9168def9191ab2e97e79130"
+			"byteLength": 535859,
+			"sha256": "89d4cfdb86c5187b89b0940bfce8c88367db915a52e863cbf4f924d561c9ccd6"
 		},
 		"threatModel": {
 			"path": "docs/production-threat-model.md",
-			"byteLength": 277015,
-			"sha256": "03ace156eead0a08cec888682523164aa693ddb58f19f2e926cb3f71f646e434"
+			"byteLength": 278501,
+			"sha256": "674264e3ae3493a5f4850d13054277e9dbcaf0cee7ec259113f574c744400a25"
 		}
 	},
 	"security": {
@@ -123,6 +123,6 @@
 			"desktop-release-policy",
 			"runtime-publication-policy"
 		],
-		"payloadSha256": "5c3277e8bfe6bb7197c898a0d22ab53983aeb19841b18c1ded2e902af76a2344"
+		"payloadSha256": "75e73f6b590a453fd80eb01dca0992619d29e151736d7e539bd0f599475076f0"
 	}
 }

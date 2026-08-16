@@ -3227,12 +3227,35 @@
 						{ "kind": "implementation", "path": "desktop/helper-probe-engine.js" },
 						{ "kind": "test", "path": "tests/desktop-helper-probe-parity.test.ts" }
 					]
+				},
+				{
+					"id": "verified-native-helper-payload-selection",
+					"summary": "Native addon payloads are pinned per target in a manifest derived from the build source manifest, shipped inside the fuse-protected archive while the payload itself ships outside it as a verified resource, staged and re-verified at prepare, beforePack and afterPack, and re-hashed in main before every spawn and again inside the helper before the module loader sees it. A target with no built payload stages none, reports a typed unavailability, and leaves a working Web Core editor.",
+					"evidence": [
+						{ "kind": "implementation", "path": "config/native-addon-payload-manifest.json" },
+						{ "kind": "implementation", "path": "scripts/lib/native-addon-payload-manifest.mjs" },
+						{ "kind": "implementation", "path": "desktop/native-addon-payload.ts" },
+						{ "kind": "test", "path": "tests/native-addon-payload-manifest.test.js" },
+						{ "kind": "test", "path": "tests/desktop-packaged-native-addon.test.js" },
+						{ "kind": "test", "path": "tests/desktop-native-addon-payload.test.ts" }
+					]
+				},
+				{
+					"id": "native-helper-real-process-proof",
+					"summary": "The native helper is exercised across Electron's real utility-process boundary rather than through an injected channel: a test launches it with utilityProcess.fork from a staged application tree and drives the whole contract-v1 exchange, comparing the audio the helper rendered against the same pinned addon loaded in the test process. The renderer surface stays menu-reached and off by default, and refuses the synthetic loopback backend so a proof surface can never be offered as a device.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/native-helper-process.js" },
+						{ "kind": "implementation", "path": "desktop/native-helper-service.ts" },
+						{ "kind": "test", "path": "tests/desktop-native-helper-real-process.test.js" },
+						{ "kind": "test", "path": "tests/desktop-native-helper-process.test.js" },
+						{ "kind": "test", "path": "tests/desktop-native-helper-service.test.ts" }
+					]
 				}
 			],
 			"residualRisks": [
 				{
 					"id": "native-helper-supervision",
-					"exposure": "The probe helper is the only enacted surface; decode/encode, audio-device, render, and plug-in-host helpers remain undesigned, and the fault-and-loopback fixture is unqualified while the native OS lab matrix is unprovisioned.",
+					"exposure": "The probe helper and the native audio helper are the enacted surfaces; the audio helper discovers backends but opens no operating-system device, and decode/encode, render, plug-in-scan and plug-in-host helpers remain undesigned. Only linux-x64 has a built native payload — the other four claimed targets are pending-external with named blockers — and the fault-and-loopback fixture is unqualified while the native OS lab matrix is unprovisioned.",
 					"requiredControl": "Extend the enacted contract to each further helper tier with its own crash, hang, malformed-message, oversized-payload, binary-mismatch, and cancellation suites, and qualify the helper fault and loopback fixture on the provisioned matrix.",
 					"ownerMilestone": "5",
 					"acceptanceCriteria": ["Crash, hang, malformed message, oversized payload, binary mismatch, and cancellation tests pass for every enacted helper surface without exposing raw spawn authority to the renderer, and m5-helper-fault-and-loopback-v1 qualifies on native-os-lab-matrix."]
