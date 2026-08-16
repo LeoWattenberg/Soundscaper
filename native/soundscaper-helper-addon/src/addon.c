@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "audio_backends.h"
 #include "synthetic_engine.h"
 
 #ifndef SOUNDSCAPER_ADDON_VERSION
@@ -127,7 +128,66 @@ static napi_value describe(napi_env env, napi_callback_info info)
 	napi_value enabled;
 	SOUNDSCAPER_CHECK(env, napi_get_boolean(env, true, &enabled));
 	SOUNDSCAPER_CHECK(env, napi_set_named_property(env, capabilities, "syntheticRealtimeEngine", enabled));
+	SOUNDSCAPER_CHECK(env, napi_set_named_property(env, capabilities, "audioBackendDiscovery", enabled));
 	SOUNDSCAPER_CHECK(env, napi_set_named_property(env, result, "capabilities", capabilities));
+	return result;
+}
+
+static napi_value set_string(napi_env env, napi_value target, const char *key, const char *value)
+{
+	napi_value text;
+	SOUNDSCAPER_CHECK(env, napi_create_string_utf8(env, value, NAPI_AUTO_LENGTH, &text));
+	SOUNDSCAPER_CHECK(env, napi_set_named_property(env, target, key, text));
+	return target;
+}
+
+static const char *direction_name(soundscaper_device_direction direction)
+{
+	switch (direction) {
+	case SOUNDSCAPER_DEVICE_INPUT: return "input";
+	case SOUNDSCAPER_DEVICE_OUTPUT: return "output";
+	default: return "duplex";
+	}
+}
+
+/*
+ * Reports every backend this payload knows about, whether or not it is usable
+ * here. A backend the platform cannot provide is reported with its exact
+ * reason rather than omitted, because the surface has to be able to tell a
+ * user why a device they expect is missing.
+ */
+static napi_value enumerate_audio_backends(napi_env env, napi_callback_info info)
+{
+	(void)info;
+	napi_value result;
+	SOUNDSCAPER_CHECK(env, napi_create_array_with_length(env, (size_t)SOUNDSCAPER_BACKEND_COUNT, &result));
+	for (uint32_t index = 0; index < (uint32_t)SOUNDSCAPER_BACKEND_COUNT; index += 1u) {
+		soundscaper_backend_inventory inventory;
+		memset(&inventory, 0, sizeof(inventory));
+		soundscaper_audio_backend_enumerate((soundscaper_audio_backend)index, &inventory);
+
+		napi_value entry;
+		SOUNDSCAPER_CHECK(env, napi_create_object(env, &entry));
+		if (set_string(env, entry, "backend", soundscaper_audio_backend_name((soundscaper_audio_backend)index)) == NULL) {
+			return NULL;
+		}
+		if (set_string(env, entry, "status", soundscaper_backend_status_name(inventory.status)) == NULL) return NULL;
+		if (set_string(env, entry, "detail", inventory.detail) == NULL) return NULL;
+
+		napi_value devices;
+		SOUNDSCAPER_CHECK(env, napi_create_array_with_length(env, (size_t)inventory.device_count, &devices));
+		for (uint32_t device_index = 0; device_index < inventory.device_count; device_index += 1u) {
+			const soundscaper_audio_device *device = &inventory.devices[device_index];
+			napi_value described;
+			SOUNDSCAPER_CHECK(env, napi_create_object(env, &described));
+			if (set_string(env, described, "handle", device->handle) == NULL) return NULL;
+			if (set_string(env, described, "label", device->label) == NULL) return NULL;
+			if (set_string(env, described, "direction", direction_name(device->direction)) == NULL) return NULL;
+			SOUNDSCAPER_CHECK(env, napi_set_element(env, devices, device_index, described));
+		}
+		SOUNDSCAPER_CHECK(env, napi_set_named_property(env, entry, "devices", devices));
+		SOUNDSCAPER_CHECK(env, napi_set_element(env, result, index, entry));
+	}
 	return result;
 }
 
@@ -324,6 +384,7 @@ NAPI_MODULE_INIT()
 		{ "createSyntheticEngine", NULL, create_synthetic_engine, NULL, NULL, NULL, napi_default, NULL },
 		{ "renderSyntheticBlock", NULL, render_synthetic_block, NULL, NULL, NULL, napi_default, NULL },
 		{ "expectedSyntheticSample", NULL, expected_synthetic_sample, NULL, NULL, NULL, napi_default, NULL },
+		{ "enumerateAudioBackends", NULL, enumerate_audio_backends, NULL, NULL, NULL, napi_default, NULL },
 	};
 	if (napi_define_properties(env, exports, sizeof(properties) / sizeof(properties[0]), properties) != napi_ok) {
 		napi_throw_error(env, "SOUNDSCAPER_ADDON_FAILED", "The native helper addon could not be initialized.");

@@ -23,14 +23,25 @@
 		"linkFlags": [
 			"-shared",
 			"-Wl,--build-id=none",
-			"-lm"
+			"-lm",
+			"-ldl"
 		]
 	},
 	"sourceFiles": [
 		{
 			"path": "addon.c",
-			"byteLength": 13306,
-			"sha256": "12b791945b38f7c0daee4c74e23e534d37b2ee21fd086af2a54f3a8025096654"
+			"byteLength": 16154,
+			"sha256": "a8665fd5f6bf6e7e20179b700d1467b30df09f9ff0a4798cb6e2c4f85fa6ea1d"
+		},
+		{
+			"path": "audio_backends.c",
+			"byteLength": 7354,
+			"sha256": "8d2b639c5b547564bfeaceb1172f8d93619b7b7027b662a3975549126059e1ff"
+		},
+		{
+			"path": "audio_backends.h",
+			"byteLength": 2468,
+			"sha256": "3f5d892d5473a33d13a7f8288d2a77773ca8662cafc85b2335927d772fe17e1f"
 		},
 		{
 			"path": "synthetic_engine.c",
@@ -50,8 +61,8 @@
 			"toolchainIdentity": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
 			"payload": {
 				"name": "soundscaper_helper.node",
-				"byteLength": 21768,
-				"sha256": "10d9c102fcd06c86056c7881b5aab3e64474fcbe2fc59a82e16349425141597a"
+				"byteLength": 31120,
+				"sha256": "a04333770cfb69bf40b717ea0211fe03a68796bc0701609a8c182cc283b1c14e"
 			}
 		},
 		"linux-arm64": {

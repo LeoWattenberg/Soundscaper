@@ -27,6 +27,14 @@ export const NATIVE_HELPER_JOB_KINDS = Object.freeze(['audio-device']);
 /** The loopback device the synthetic backend exposes for the transport proof. */
 export const SYNTHETIC_LOOPBACK_DEVICE_HANDLE = 'synthetic:loopback';
 
+/**
+ * The reserved handle that asks a backend to describe itself rather than open a
+ * device. Discovery is a distinct operation with a distinct answer, but it
+ * travels as an ordinary audio-device grant so it passes exactly the admission
+ * an open does — a second grant family would be a second thing to get wrong.
+ */
+export const NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE = 'inventory';
+
 export const SYNTHETIC_ENGINE_MODES = Object.freeze({
 	passthrough: 0,
 	gain: 1,
@@ -210,6 +218,10 @@ export function createNativeDeviceJobRunner({
 	return ({ grant, onProgress }) => {
 		let cancelled = false;
 		const completion = (async () => {
+			if (grant.deviceHandle === NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE) {
+				addon ??= await loadAddon({ addonPath, addonSha256 });
+				return describeBackendInventory(addon, grant.backend);
+			}
 			if (grant.backend !== 'synthetic' || grant.deviceHandle !== SYNTHETIC_LOOPBACK_DEVICE_HANDLE) {
 				throw new RangeError(`This helper build implements only the ${SYNTHETIC_LOOPBACK_DEVICE_HANDLE} device.`);
 			}
@@ -268,6 +280,38 @@ export function createNativeDeviceJobRunner({
 				await completion.catch(() => undefined);
 			},
 		});
+	};
+}
+
+/**
+ * Asks the addon what one backend can actually do here. The synthetic backend
+ * is answered without consulting the platform and is deliberately reported with
+ * no devices: it exists for the transport proof and must never be published as
+ * something a user could select.
+ */
+function describeBackendInventory(addon, backend) {
+	if (backend === 'synthetic') {
+		return { backend, status: 'unsupported-platform', detail: 'The synthetic backend publishes no devices.', devices: [] };
+	}
+	const reported = addon.enumerateAudioBackends();
+	const entry = Array.isArray(reported) ? reported.find((value) => value?.backend === backend) : null;
+	if (!entry) {
+		return {
+			backend,
+			status: 'unsupported-platform',
+			detail: `This payload does not implement the ${backend} backend.`,
+			devices: [],
+		};
+	}
+	return {
+		backend,
+		status: entry.status,
+		detail: entry.detail ?? '',
+		devices: (entry.devices ?? []).map((device) => ({
+			handle: device.handle,
+			label: device.label,
+			direction: device.direction,
+		})),
 	};
 }
 

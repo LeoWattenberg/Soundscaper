@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
+	NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE,
 	NATIVE_HELPER_JOB_KINDS,
 	SYNTHETIC_ENGINE_MODES,
 	SYNTHETIC_LOOPBACK_DEVICE_HANDLE,
@@ -22,7 +23,11 @@ import {
 	createNativeHelperWorker,
 	loadVerifiedNativeAddon,
 } from '../desktop/native-helper-process.js';
-import { validateHelperAudioDeviceOpenResult } from '../desktop/native-helper-results.ts';
+import {
+	MAXIMUM_NATIVE_AUDIO_DEVICES,
+	validateHelperAudioDeviceInventoryResult,
+	validateHelperAudioDeviceOpenResult,
+} from '../desktop/native-helper-results.ts';
 
 const JOB_ID = 'a'.repeat(40);
 const OTHER_JOB_ID = 'b'.repeat(40);
@@ -240,6 +245,75 @@ test('a mono direction opens one channel and a native failure surfaces as a job 
 
 test('the engine mode vocabulary is the one the addon defines', () => {
 	assert.deepEqual(SYNTHETIC_ENGINE_MODES, { passthrough: 0, gain: 1, tone: 2, impulse: 3 });
+});
+
+test('a backend inventory job describes one backend and never publishes the synthetic one', async () => {
+	const runner = createNativeDeviceJobRunner({
+		addonPath: '/unused',
+		addonSha256: 'f'.repeat(64),
+		hash: () => createHash('sha256'),
+		loadAddon: async () => ({
+			...fakeAddon(),
+			enumerateAudioBackends: () => [
+				{
+					backend: 'alsa',
+					status: 'available',
+					detail: '',
+					devices: [{ handle: 'hw:0,0', label: 'Built-in', direction: 'duplex' }],
+				},
+				{ backend: 'jack', status: 'server-absent', detail: 'No JACK server is running.', devices: [] },
+			],
+		}),
+	});
+	const inventory = async (backend) => validateHelperAudioDeviceInventoryResult(await runner({
+		grant: { ...GRANT, backend, deviceHandle: NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE },
+		onProgress: () => {},
+	}).completion);
+
+	const alsa = await inventory('alsa');
+	assert.equal(alsa.status, 'available');
+	assert.deepEqual(alsa.devices.map(({ handle }) => handle), ['hw:0,0']);
+
+	const jack = await inventory('jack');
+	assert.equal(jack.status, 'server-absent');
+	assert.deepEqual(jack.devices, []);
+
+	const synthetic = await inventory('synthetic');
+	assert.equal(synthetic.status, 'unsupported-platform');
+	assert.deepEqual(synthetic.devices, [], 'the loopback proof backend must never be offered as a device');
+
+	const absent = await inventory('coreaudio');
+	assert.equal(absent.status, 'unsupported-platform');
+	assert.match(absent.detail, /does not implement the coreaudio backend/u);
+});
+
+test('an inventory result that contradicts itself or repeats a handle is refused', () => {
+	assert.throws(() => validateHelperAudioDeviceInventoryResult({
+		backend: 'alsa',
+		status: 'library-absent',
+		detail: '',
+		devices: [{ handle: 'hw:0,0', label: 'Built-in', direction: 'duplex' }],
+	}), /not available must publish no devices/u);
+	assert.throws(() => validateHelperAudioDeviceInventoryResult({
+		backend: 'alsa',
+		status: 'available',
+		detail: '',
+		devices: [
+			{ handle: 'hw:0,0', label: 'A', direction: 'input' },
+			{ handle: 'hw:0,0', label: 'B', direction: 'output' },
+		],
+	}), /same device handle twice/u);
+	assert.throws(() => validateHelperAudioDeviceInventoryResult({
+		backend: 'alsa', status: 'invented', detail: '', devices: [],
+	}), /known backend status/u);
+	assert.throws(() => validateHelperAudioDeviceInventoryResult({
+		backend: 'alsa',
+		status: 'available',
+		detail: '',
+		devices: Array.from({ length: MAXIMUM_NATIVE_AUDIO_DEVICES + 1 }, (_, index) => ({
+			handle: `hw:${String(index)}`, label: 'Device', direction: 'duplex',
+		})),
+	}), /at most 128 devices/u);
 });
 
 test('a payload whose digest does not match is never handed to the module loader', async (context) => {

@@ -84,6 +84,91 @@ export function validateHelperAudioDeviceOpenResult(value: unknown): HelperAudio
 	});
 }
 
+/**
+ * Backend availability is an explicit status, never an omission: a backend the
+ * platform cannot provide is reported with the exact reason so the surface can
+ * tell a user why a device they expect is missing.
+ */
+export const NATIVE_AUDIO_BACKEND_STATUSES = Object.freeze([
+	'available', 'library-absent', 'symbols-absent', 'unsupported-platform', 'server-absent',
+] as const);
+
+export type NativeAudioBackendStatus = (typeof NATIVE_AUDIO_BACKEND_STATUSES)[number];
+export type NativeAudioDeviceDirection = 'input' | 'output' | 'duplex';
+
+export interface HelperNativeAudioDevice {
+	readonly handle: string;
+	readonly label: string;
+	readonly direction: NativeAudioDeviceDirection;
+}
+
+export interface HelperAudioDeviceInventoryResult {
+	readonly backend: string;
+	readonly status: NativeAudioBackendStatus;
+	readonly detail: string;
+	readonly devices: readonly HelperNativeAudioDevice[];
+}
+
+/** A helper may not answer with an unbounded inventory; main clones the result. */
+export const MAXIMUM_NATIVE_AUDIO_DEVICES = 128;
+
+const INVENTORY_KEYS = Object.freeze(['backend', 'status', 'detail', 'devices']);
+const DEVICE_KEYS = Object.freeze(['handle', 'label', 'direction']);
+const DIRECTIONS = Object.freeze(['input', 'output', 'duplex'] as const);
+
+export function validateHelperAudioDeviceInventoryResult(value: unknown): HelperAudioDeviceInventoryResult {
+	const record = plainRecord(value, 'A native audio inventory result');
+	exactKeys(record, INVENTORY_KEYS, 'A native audio inventory result');
+	const status = record.status;
+	if (typeof status !== 'string' || !(NATIVE_AUDIO_BACKEND_STATUSES as readonly string[]).includes(status)) {
+		throw new HelperContractViolationError('malformed',
+			'A native audio inventory result must carry a known backend status.');
+	}
+	const devices = record.devices;
+	if (!Array.isArray(devices)) {
+		throw new HelperContractViolationError('malformed', 'A native audio inventory result must carry its device list.');
+	}
+	if (devices.length > MAXIMUM_NATIVE_AUDIO_DEVICES) {
+		throw new HelperContractViolationError('oversized',
+			`A native audio inventory result may name at most ${MAXIMUM_NATIVE_AUDIO_DEVICES} devices.`);
+	}
+	if (status !== 'available' && devices.length > 0) {
+		throw new HelperContractViolationError('malformed',
+			'A native audio backend that is not available must publish no devices.');
+	}
+	const handles = new Set<string>();
+	const admitted = devices.map((device) => {
+		const entry = plainRecord(device, 'A native audio device');
+		exactKeys(entry, DEVICE_KEYS, 'A native audio device');
+		const direction = entry.direction;
+		if (typeof direction !== 'string' || !(DIRECTIONS as readonly string[]).includes(direction)) {
+			throw new HelperContractViolationError('malformed', 'A native audio device must name a known direction.');
+		}
+		const handle = boundedText(entry.handle, 'audio device handle');
+		if (handles.has(handle)) {
+			throw new HelperContractViolationError('malformed',
+				'A native audio backend must not report the same device handle twice.');
+		}
+		handles.add(handle);
+		return Object.freeze({
+			handle,
+			label: boundedText(entry.label, 'audio device label'),
+			direction: direction as NativeAudioDeviceDirection,
+		});
+	});
+	return Object.freeze({
+		backend: boundedText(record.backend, 'audio backend name'),
+		status: status as NativeAudioBackendStatus,
+		detail: typeof record.detail === 'string' && record.detail.length <= 1_024
+			? record.detail
+			: (() => {
+				throw new HelperContractViolationError('malformed',
+					'A native audio inventory detail must be bounded text.');
+			})(),
+		devices: Object.freeze(admitted),
+	});
+}
+
 function plainRecord(value: unknown, label: string): Record<string, unknown> {
 	if (!value || typeof value !== 'object' || Array.isArray(value) || ArrayBuffer.isView(value)) {
 		throw new HelperContractViolationError('malformed', `${label} must be a plain record.`);
