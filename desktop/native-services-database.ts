@@ -55,6 +55,27 @@ const MIGRATIONS: readonly Migration[] = Object.freeze([
 ]);
 
 /**
+ * The closed domains version one froze into the queue table.
+ *
+ * They are declared here rather than imported from the record contract because
+ * a migration's text is frozen the moment it ships: `CREATE TABLE IF NOT
+ * EXISTS` never rewrites an existing table's constraints, so a schema built
+ * from whatever the registry happens to hold today would agree with the record
+ * contract on a fresh database and silently disagree on every migrated one. A
+ * later registry member therefore needs its own migration, and
+ * `tests/desktop-native-services-database.test.ts` fails until it has one.
+ */
+const VERSION_ONE_TASK_KINDS = Object.freeze([
+	'encoded-export', 'image-sequence-export', 'proxy-generation',
+]);
+const VERSION_ONE_CHECKPOINTABLE_TASK_KINDS = Object.freeze(['image-sequence-export']);
+const VERSION_ONE_RECOVERY_CLASSES = Object.freeze(['atomic-restart', 'verified-frame-checkpoint']);
+const VERSION_ONE_STATES = Object.freeze([
+	'queued', 'running', 'paused', 'blocked', 'needs-authorization',
+	'completed', 'failed', 'cancelled',
+]);
+
+/**
  * Open, verify, and migrate the services database, returning its version.
  *
  * The application id is checked before anything else so that pointing this
@@ -193,7 +214,7 @@ function applyVersionOne(database: DatabaseSync): void {
 	) STRICT;
 	CREATE TABLE IF NOT EXISTS render_queue_jobs (
 		job_id TEXT PRIMARY KEY CHECK (length(job_id) = 40),
-		task_kind TEXT NOT NULL CHECK (task_kind IN ('encoded-export', 'image-sequence-export', 'proxy-generation')),
+		task_kind TEXT NOT NULL CHECK (task_kind IN (${closedDomain(VERSION_ONE_TASK_KINDS)})),
 		plan_version INTEGER NOT NULL CHECK (plan_version IN (6, 7)),
 		plan_fingerprint TEXT NOT NULL CHECK (length(plan_fingerprint) = 64),
 		plan_payload TEXT NOT NULL CHECK (length(plan_payload) > 0),
@@ -204,15 +225,15 @@ function applyVersionOne(database: DatabaseSync): void {
 		relative_destination TEXT NOT NULL CHECK (
 			length(relative_destination) > 0
 			AND relative_destination NOT LIKE '/%'
-			AND relative_destination NOT LIKE '%..%'
-			AND relative_destination NOT LIKE '%' || char(92) || '%'
+			AND instr('/' || relative_destination || '/', '//') = 0
+			AND instr('/' || relative_destination || '/', '/./') = 0
+			AND instr('/' || relative_destination || '/', '/../') = 0
+			AND instr(relative_destination, ':') = 0
+			AND instr(relative_destination, char(92)) = 0
 		),
 		reservations TEXT NOT NULL,
-		recovery_class TEXT NOT NULL CHECK (recovery_class IN ('atomic-restart', 'verified-frame-checkpoint')),
-		state TEXT NOT NULL CHECK (state IN (
-			'queued', 'running', 'paused', 'blocked', 'needs-authorization',
-			'completed', 'failed', 'cancelled'
-		)),
+		recovery_class TEXT NOT NULL CHECK (recovery_class IN (${closedDomain(VERSION_ONE_RECOVERY_CLASSES)})),
+		state TEXT NOT NULL CHECK (state IN (${closedDomain(VERSION_ONE_STATES)})),
 		position INTEGER NOT NULL CHECK (position >= 0),
 		progress REAL CHECK (progress IS NULL OR (progress >= 0.0 AND progress <= 1.0)),
 		attempt INTEGER NOT NULL CHECK (attempt >= 0),
@@ -220,7 +241,7 @@ function applyVersionOne(database: DatabaseSync): void {
 		created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
 		updated_at_ms INTEGER NOT NULL,
 		CHECK (updated_at_ms >= created_at_ms),
-		CHECK (recovery_class = 'atomic-restart' OR task_kind = 'image-sequence-export'),
+		CHECK (recovery_class <> 'verified-frame-checkpoint' OR task_kind IN (${closedDomain(VERSION_ONE_CHECKPOINTABLE_TASK_KINDS)})),
 		CHECK (state <> 'failed' OR last_failure_code IS NOT NULL)
 	) STRICT;
 	CREATE INDEX IF NOT EXISTS render_queue_jobs_dispatch
@@ -260,6 +281,18 @@ function applyVersionOne(database: DatabaseSync): void {
 			(singleton, active, lease_id, fencing_token, owner_process_id, owner_instance_id, acquired_at_ms, expires_at_ms)
 		VALUES (1, 0, NULL, 0, NULL, NULL, NULL, NULL)
 	`).run();
+}
+
+/** Render a frozen domain as SQL literals, refusing anything a literal cannot hold. */
+function closedDomain(members: readonly string[]): string {
+	return members.map((member) => {
+		if (!/^[a-z][a-z0-9-]*$/u.test(member)) {
+			throw new FramescaperNativeServicesDatabaseError(
+				`The Framescaper native services schema cannot name the domain member ${member}.`,
+			);
+		}
+		return `'${member}'`;
+	}).join(', ');
 }
 
 function pragmaNumber(database: DatabaseSync, pragma: string): number {

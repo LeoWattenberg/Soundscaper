@@ -15,6 +15,15 @@ import {
 	initializeFramescaperNativeServicesDatabase,
 	releaseFramescaperNativeServicesWriterLease,
 } from '../desktop/native-services-database.ts';
+import {
+	assertNativeQueueRecordV1,
+	createNativeQueueRecordV1,
+	NATIVE_QUEUE_CHECKPOINTABLE_TASK_KINDS,
+	NATIVE_QUEUE_RECOVERY_CLASSES,
+	NATIVE_QUEUE_STATES,
+	NATIVE_QUEUE_TASK_KINDS,
+	type NativeQueueRecordV1,
+} from '../src/common/editor/native-queue-record.ts';
 
 const GRANT = 'f'.repeat(32);
 const JOB = '1a'.repeat(20);
@@ -77,7 +86,13 @@ test('the queue table refuses a row that violates the queue contract', () => {
 		[{ progress: 1.5 }, /CHECK/u],
 		[{ attempt: -1 }, /CHECK/u],
 		[{ relativeDestination: '/etc/passwd' }, /CHECK/u],
+		[{ relativeDestination: '..' }, /CHECK/u],
 		[{ relativeDestination: '../escape.mp4' }, /CHECK/u],
+		[{ relativeDestination: 'exports/../escape.mp4' }, /CHECK/u],
+		[{ relativeDestination: 'exports/..' }, /CHECK/u],
+		[{ relativeDestination: './reel.mp4' }, /CHECK/u],
+		[{ relativeDestination: 'exports//reel.mp4' }, /CHECK/u],
+		[{ relativeDestination: 'C:/reel.mp4' }, /CHECK/u],
 		[{ relativeDestination: 'exports\\reel.mp4' }, /CHECK/u],
 		[{ updatedAtMs: 0, createdAtMs: 10 }, /CHECK/u],
 		[{ state: 'failed', lastFailureCode: null }, /CHECK/u],
@@ -96,6 +111,38 @@ test('the queue table refuses a row that violates the queue contract', () => {
 		taskKind: 'image-sequence-export',
 		recoveryClass: 'verified-frame-checkpoint',
 	}));
+	database.close();
+});
+
+test('a destination the record contract admits survives the database round trip', () => {
+	const database = open();
+	grant(database);
+	const record = queueRecord({ relativeDestination: 'exports/final..v2.mp4' });
+
+	assert.doesNotThrow(() => insertRecord(database, record));
+	const stored = database.prepare(
+		'SELECT relative_destination FROM render_queue_jobs WHERE job_id = ?',
+	).get(record.jobId) as Record<string, unknown>;
+	assert.equal(stored.relative_destination, record.relativeDestination);
+	assert.doesNotThrow(() => assertNativeQueueRecordV1({
+		...record, relativeDestination: stored.relative_destination as string,
+	}));
+	database.close();
+});
+
+test('the queue schema names exactly the closed domains the record registry owns', () => {
+	const database = open();
+	const schema = String((database.prepare(
+		"SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'render_queue_jobs'",
+	).get() as Record<string, unknown>).sql);
+
+	assert.deepEqual(checkList(schema, 'task_kind IN'), [...NATIVE_QUEUE_TASK_KINDS]);
+	assert.deepEqual(checkList(schema, 'state IN'), [...NATIVE_QUEUE_STATES]);
+	assert.deepEqual(checkList(schema, 'recovery_class IN'), [...NATIVE_QUEUE_RECOVERY_CLASSES]);
+	assert.deepEqual(
+		checkList(schema, "recovery_class <> 'verified-frame-checkpoint' OR task_kind IN"),
+		[...NATIVE_QUEUE_CHECKPOINTABLE_TASK_KINDS],
+	);
 	database.close();
 });
 
@@ -203,6 +250,44 @@ function grant(database: DatabaseSync): void {
 		INSERT INTO durable_root_grants (grant_id, root_path, volume_identity, directory_identity, authorized_at_ms, revoked_at_ms)
 		VALUES (?, '/exports', 'volume-1', 'dev:1|ino:9', 0, NULL)
 	`).run(GRANT);
+}
+
+function checkList(schema: string, clause: string): readonly string[] {
+	const match = new RegExp(`${clause.replaceAll(/[.*+?^${}()|[\]\\]/gu, '\\$&')}\\s*\\(([^)]*)\\)`, 'u').exec(schema);
+	assert.ok(match, `the queue schema must express ${clause} as a list drawn from the record registry`);
+	return match[1]!.split(',').map((member) => member.trim().replaceAll("'", ''));
+}
+
+function queueRecord(overrides: Readonly<{ relativeDestination: string }>): NativeQueueRecordV1 {
+	return createNativeQueueRecordV1({
+		jobId: uniqueJobId(),
+		taskKind: 'encoded-export',
+		planVersion: 6,
+		planFingerprint: PLAN,
+		planPayload: '{"version":6}',
+		projectId: 'project-1',
+		projectRevision: 42,
+		inputFingerprints: [{ sourceId: 'source-a', sha256: 'b'.repeat(64) }],
+		rootGrantId: GRANT,
+		relativeDestination: overrides.relativeDestination,
+		reservations: {
+			cpuCores: 4,
+			processTreeRssBytes: 1024 ** 3,
+			scratchBytes: 8 * 1024 ** 3,
+			minimumFreeBytes: 10 * 1024 ** 3,
+			hardwareBackend: null,
+		},
+		position: 0,
+		createdAtMs: 0,
+	});
+}
+
+function insertRecord(database: DatabaseSync, record: NativeQueueRecordV1): void {
+	insertJob(database, {
+		...record,
+		inputFingerprints: JSON.stringify(record.inputFingerprints),
+		reservations: JSON.stringify(record.reservations),
+	});
 }
 
 function insertJob(database: DatabaseSync, overrides: Record<string, unknown>): void {
