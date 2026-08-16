@@ -1,16 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 const DEFAULT_POLL_INTERVAL_MS = 100;
+/** Both catalogs raise a held lease as `<product> desktop V10 writer lease is busy`. */
+const CONTENDED_LEASE_MESSAGE = / desktop V10 writer lease is busy$/u;
+/** SQLITE_BUSY and SQLITE_LOCKED, as node:sqlite reports them on `errcode`. */
+const CONTENDED_SQLITE_CODES: readonly number[] = [5, 6];
 
 export interface ProjectLibraryV10LeaseWaitOptions {
 	readonly waitMs: number;
 	readonly pollIntervalMs?: number;
-	/**
-	 * Called once if acquisition had to wait out an unexpired lease. Waiting
-	 * proves the previous owner did not release it, which is the takeover
-	 * evidence the packaged lease matrix records.
-	 */
-	readonly onWait?: () => void;
 }
 
 /**
@@ -20,6 +18,10 @@ export interface ProjectLibraryV10LeaseWaitOptions {
  * refuses any unexpired lease. Without a wait the application exits before it shows a
  * window, and relaunching keeps failing until the lease ages out. Waiting rather than
  * pre-empting keeps a genuinely live owner safe: only expiry proves the holder is gone.
+ *
+ * Only contention clears on its own. Every other failure — a corrupt lease row, a
+ * database the schema cannot open — repeats identically, so it is reported at once
+ * rather than after a wait long enough to look like a hung launch.
  */
 export async function acquireProjectLibraryV10LeaseWithWait<Lease>(
 	acquire: () => Lease,
@@ -31,20 +33,22 @@ export async function acquireProjectLibraryV10LeaseWithWait<Lease>(
 		Math.min(boundedMilliseconds(options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, 'lease poll interval'), 1_000),
 	);
 	const deadline = Date.now() + waitMs;
-	let waited = false;
 	for (;;) {
 		try {
 			return acquire();
 		} catch (error) {
 			const remaining = deadline - Date.now();
-			if (remaining <= 0) throw error;
-			if (!waited) {
-				waited = true;
-				options.onWait?.();
-			}
+			if (remaining <= 0 || !isLeaseContention(error)) throw error;
 			await delay(Math.min(pollIntervalMs, remaining));
 		}
 	}
+}
+
+function isLeaseContention(error: unknown): boolean {
+	if (!(error instanceof Error)) return false;
+	if (CONTENDED_LEASE_MESSAGE.test(error.message)) return true;
+	const { errcode } = error as { readonly errcode?: unknown };
+	return typeof errcode === 'number' && CONTENDED_SQLITE_CODES.includes(errcode);
 }
 
 function delay(durationMs: number): Promise<void> {

@@ -160,13 +160,9 @@ export class SoundscaperDesktopProjectLibraryV10Main {
 			// A crashed owner leaves its lease unexpired, so wait it out rather than
 			// failing startup before any window exists.
 			const readyCatalog = catalog;
-			let tookOverStaleLease = false;
 			lease = await acquireProjectLibraryV10LeaseWithWait(
 				() => readyCatalog.acquireLease({ ttlMs: leaseTtlMs }),
-				{
-					waitMs: leaseTtlMs + 1_000,
-					onWait: () => { tookOverStaleLease = true; },
-				},
+				{ waitMs: leaseTtlMs + 1_000 },
 			);
 			const recovery = await recoverPending(database, catalog, host, lease);
 			const lifecycle = SoundscaperDesktopProjectLibraryV10LifecycleHost.create({
@@ -182,7 +178,11 @@ export class SoundscaperDesktopProjectLibraryV10Main {
 				lifecycle,
 				lease,
 				options.owner,
-				Object.freeze({ fencingToken: lease.fencingToken, tookOverStaleLease, recovery }),
+				Object.freeze({
+					fencingToken: lease.fencingToken,
+					tookOverStaleLease: lease.tookOverStaleLease,
+					recovery,
+				}),
 				options.qualification?.renewIntervalMs ?? RENEW_INTERVAL_MS,
 				leaseTtlMs,
 			);

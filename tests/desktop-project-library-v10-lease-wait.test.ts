@@ -34,26 +34,32 @@ test('a lease a crashed owner left behind is waited out rather than failing star
 	assert.equal(calls, 3);
 });
 
-test('waiting out a lease is reported once as takeover evidence', async () => {
+test('a locked library database is waited out as transient contention', async () => {
 	let calls = 0;
-	let waits = 0;
 	const lease = await acquireProjectLibraryV10LeaseWithWait(() => {
 		calls += 1;
-		if (calls < 4) throw new Error('Soundscaper desktop V10 writer lease is busy');
+		if (calls < 3) throw sqliteBusy();
 		return 'lease';
-	}, { waitMs: 5_000, pollIntervalMs: 10, onWait: () => { waits += 1; } });
+	}, { waitMs: 5_000, pollIntervalMs: 10 });
 
 	assert.equal(lease, 'lease');
-	assert.equal(waits, 1, 'repeated retries stay one takeover, not one per attempt');
+	assert.equal(calls, 3);
 });
 
-test('an uncontested acquisition reports no wait', async () => {
-	let waits = 0;
-	await acquireProjectLibraryV10LeaseWithWait(
-		() => 'lease',
-		{ waitMs: 5_000, onWait: () => { waits += 1; } },
+test('a failure that is not contention surfaces without consuming the wait window', async () => {
+	// A corrupt lease row throws the same way on every attempt, so retrying it only
+	// delays startup by the whole wait before reporting what the first attempt saw.
+	let calls = 0;
+	const startedAt = Date.now();
+	await assert.rejects(
+		() => acquireProjectLibraryV10LeaseWithWait(() => {
+			calls += 1;
+			throw new TypeError('Persisted Soundscaper desktop V10 lease expiry is invalid');
+		}, { waitMs: 5_000, pollIntervalMs: 10 }),
+		/lease expiry is invalid/u,
 	);
-	assert.equal(waits, 0);
+	assert.equal(calls, 1);
+	assert.ok(Date.now() - startedAt < 1_000);
 });
 
 test('a lease still held past the wait reports the acquisition failure it saw', async () => {
@@ -73,7 +79,7 @@ test('a zero wait keeps the original single-attempt behaviour', async () => {
 	await assert.rejects(
 		() => acquireProjectLibraryV10LeaseWithWait(() => {
 			calls += 1;
-			throw new Error('busy');
+			throw new Error('Soundscaper desktop V10 writer lease is busy');
 		}, { waitMs: 0 }),
 		/busy/iu,
 	);
@@ -93,3 +99,9 @@ test('an unusable wait or poll interval is refused', async () => {
 		);
 	}
 });
+
+function sqliteBusy(): Error {
+	return Object.assign(new Error('database is locked'), {
+		code: 'ERR_SQLITE_ERROR', errcode: 5, errstr: 'database is locked',
+	});
+}

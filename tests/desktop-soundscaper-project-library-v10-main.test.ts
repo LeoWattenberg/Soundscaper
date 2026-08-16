@@ -5,10 +5,12 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
 import {
 	createSoundscaperDesktopProjectLibraryV10Handshake,
+	createSoundscaperDesktopProjectLibraryV10Paths,
 } from '../desktop/soundscaper-project-library-v10-contract.ts';
 import { SoundscaperDesktopProjectLibraryV10Main } from '../desktop/soundscaper-project-library-v10-main.ts';
 import {
@@ -190,6 +192,62 @@ test('main reports writer evidence and admits only lower-only qualification timi
 		);
 	}
 });
+
+test('a lease released while startup waits is an orderly handover, not a stale takeover', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v10-handover-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const first = await start(root, 'soundscaper-handover-first');
+	await first.close();
+
+	// The previous owner still holds an unexpired lease when startup begins and
+	// releases it cleanly while startup is still waiting.
+	const database = openLibrary(root);
+	holdLease(database, 60_000);
+	const pending = start(root, 'soundscaper-handover-second');
+	const second = (await Promise.all([
+		pending,
+		delay(250).then(() => {
+			database.prepare('UPDATE library_lease SET active = 0 WHERE singleton = 1').run();
+		}),
+	]))[0];
+	database.close();
+	assert.equal(second.snapshot().writer.tookOverStaleLease, false);
+	await second.close();
+});
+
+test('a lease a crashed owner never released is recorded as a stale takeover', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v10-stale-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const first = await start(root, 'soundscaper-stale-first');
+	await first.close();
+
+	const database = openLibrary(root);
+	holdLease(database, 300);
+	database.close();
+	const second = await start(root, 'soundscaper-stale-second');
+	assert.equal(second.snapshot().writer.tookOverStaleLease, true);
+	await second.close();
+});
+
+function openLibrary(appDataPath: string): DatabaseSync {
+	return new DatabaseSync(
+		createSoundscaperDesktopProjectLibraryV10Paths(appDataPath).databasePath,
+		{ timeout: 5_000 },
+	);
+}
+
+function holdLease(database: DatabaseSync, ttlMs: number): void {
+	const acquiredAtMs = Date.now();
+	database.prepare(`
+		UPDATE library_lease SET active = 1, lease_id = ?, fencing_token = fencing_token + 1,
+			owner_product = 'soundscaper', owner_process_id = ?, owner_instance_id = ?,
+			acquired_at_ms = ?, expires_at_ms = ?, took_over = 0 WHERE singleton = 1
+	`).run('c'.repeat(48), 904, 'soundscaper-previous-owner', acquiredAtMs, acquiredAtMs + ttlMs);
+}
+
+function delay(durationMs: number): Promise<void> {
+	return new Promise((resolve) => { setTimeout(resolve, durationMs); });
+}
 
 async function start(appDataPath: string, instanceId: string) {
 	return SoundscaperDesktopProjectLibraryV10Main.start({
