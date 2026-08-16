@@ -123,9 +123,15 @@ matrix.
 - **Packaging and signing evidence.** No five-target packaged run, notarization
   result, or signed execution result exists; the named signing-identity blocker
   from WP-5.0.2 is unchanged.
-- **The helper tier itself.** No media, queue, watch, or OFX helper process is
-  spawned. The contracts here are what such a helper would speak; the
-  supervisor, grants, and packaged-process proof stay 5.0-owned work.
+- **The helper tier itself, and therefore the controller and overlays.** No
+  media, queue, watch, or OFX helper process is spawned. Contract v1's job-kind
+  set is closed at `probe-video-source`, `audio-device`, `plugin-scan`, and
+  `plugin-host`; admitting a media, render, watch, or OFX kind is a change to
+  the 5.0 contract, which this packet consumes read-only. A controller cannot
+  be written against a wire that refuses its jobs, so the registration,
+  controller, preload, and overlay modules are not built either — and the menu
+  group is consequently absent rather than present-but-inert. Enlarging the
+  job-kind set is the first serialized 5.0 step this tier waits on.
 
 Because of the last point the security matrix and threat model are deliberately
 unchanged: `native-helper-processes` and `native-plugin-hosting` describe
