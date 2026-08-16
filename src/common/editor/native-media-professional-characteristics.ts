@@ -217,7 +217,7 @@ function normalizeMasteringDisplay(value: unknown): NativeMediaMasteringDisplayV
 	}
 	const minimumLuminance = rational(candidate.minimumLuminance, 'masteringDisplay.minimumLuminance');
 	const maximumLuminance = rational(candidate.maximumLuminance, 'masteringDisplay.maximumLuminance');
-	if (minimumLuminance.num * maximumLuminance.den > maximumLuminance.num * minimumLuminance.den) {
+	if (rationalExceeds(minimumLuminance, maximumLuminance)) {
 		throw new NativeMediaCharacteristicsError('Mastering-display minimum luminance exceeds its maximum.');
 	}
 	return Object.freeze({
@@ -267,6 +267,11 @@ function rational(value: unknown, label: string): NativeMediaRationalV1 {
 		throw new NativeMediaCharacteristicsError(`${label} must be a bounded non-negative rational.`);
 	}
 	return Object.freeze({ num: num as number, den: den as number });
+}
+
+/** Cross-multiplied in BigInt: bounded terms still square past the safe range. */
+function rationalExceeds(left: NativeMediaRationalV1, right: NativeMediaRationalV1): boolean {
+	return BigInt(left.num) * BigInt(right.den) > BigInt(right.num) * BigInt(left.den);
 }
 
 function lightLevel(value: unknown, label: string): number {

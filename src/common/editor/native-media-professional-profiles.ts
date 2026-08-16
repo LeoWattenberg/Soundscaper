@@ -233,15 +233,13 @@ function appraiseHdr(
 	disclosures: NativeMediaProfileDisclosure[],
 ): void {
 	const claim = resolveNativeMediaHdrClaim(source);
-	if (claim.transfer === 'unreported') {
-		if (requirements.preserveHdrMetadata === true) refusals.push('hdr-metadata-not-preserved');
-		disclosures.push('transfer-unreported');
-		return;
-	}
-	if (claim.transfer === 'sdr' && !claim.hdr10Metadata) return;
-	if (profile.preservesHdrMetadata) return;
+	const unreportedTransfer = claim.transfer === 'unreported';
+	if (unreportedTransfer) disclosures.push('transfer-unreported');
+	const carriesHdr = claim.hdr10Metadata || claim.transfer === 'pq' || claim.transfer === 'hlg';
+	const dropped = carriesHdr && !profile.preservesHdrMetadata;
+	if (!unreportedTransfer && !dropped) return;
 	if (requirements.preserveHdrMetadata === true) refusals.push('hdr-metadata-not-preserved');
-	else disclosures.push('hdr-metadata-dropped');
+	else if (dropped) disclosures.push('hdr-metadata-dropped');
 }
 
 function appraiseAlpha(

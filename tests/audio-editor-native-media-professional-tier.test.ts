@@ -73,6 +73,32 @@ test('mastering-display metadata is reported whole or not at all', () => {
 	}), /cannot exceed the maximum content light level/u);
 });
 
+test('luminance ordering is decided exactly, not on rounded cross-products', () => {
+	const minimumLuminance = { num: 999_999_997, den: 999_999_999 };
+	const maximumLuminance = { num: 999_999_995, den: 999_999_997 };
+
+	assert.equal(
+		minimumLuminance.num * maximumLuminance.den > maximumLuminance.num * minimumLuminance.den,
+		false,
+		'this pair only exercises the defect while its cross-products collide in double precision',
+	);
+	assert.equal(
+		BigInt(minimumLuminance.num) * BigInt(maximumLuminance.den)
+			> BigInt(maximumLuminance.num) * BigInt(minimumLuminance.den),
+		true,
+	);
+	assert.throws(() => normalizeNativeMediaProfessionalCharacteristics({
+		masteringDisplay: { ...masteringDisplay(), minimumLuminance, maximumLuminance },
+	}), /minimum luminance exceeds its maximum/u);
+
+	const equal = normalizeNativeMediaProfessionalCharacteristics({
+		masteringDisplay: {
+			...masteringDisplay(), minimumLuminance, maximumLuminance: { ...minimumLuminance },
+		},
+	});
+	assert.deepEqual(equal.masteringDisplay?.maximumLuminance, minimumLuminance);
+});
+
 test('probed colour and alpha facts are validated rather than coerced', () => {
 	const characteristics = normalizeNativeMediaProfessionalCharacteristics({
 		bitDepth: 10,
@@ -264,6 +290,48 @@ test('a requirement that probing cannot establish is refused, not assumed satisf
 
 	assert.equal(verdict.admitted, false);
 	assert.deepEqual(verdict.refusals, ['bit-depth-not-preserved', 'alpha-not-preserved']);
+});
+
+test('HDR10 metadata probing established is disclosed even when the transfer tag is not', () => {
+	const hdr10 = {
+		bitDepth: 8,
+		chromaFormat: '4:2:0',
+		hasAlpha: false,
+		colourPrimaries: 'bt2020',
+		masteringDisplay: masteringDisplay(),
+		contentLight: { maximumContentLightLevel: 1_000, maximumFrameAverageLightLevel: 400 },
+	};
+
+	for (const colourTransfer of ['vendor-log-3', null]) {
+		const carrier = source({ ...hdr10, colourTransfer });
+		assert.deepEqual(resolveNativeMediaHdrClaim(carrier), {
+			transfer: 'unreported', hdr10Metadata: true, wideGamut: false,
+		});
+
+		const dropped = evaluateNativeMediaProfileAdmission({
+			profileId: 'encode-mp4-h264',
+			source: carrier,
+			clearedPolicyRowIds: ALL_ROWS,
+		});
+		assert.equal(dropped.admitted, true);
+		assert.deepEqual(dropped.disclosures, ['transfer-unreported', 'hdr-metadata-dropped']);
+
+		const required = evaluateNativeMediaProfileAdmission({
+			profileId: 'encode-mp4-h264',
+			source: carrier,
+			clearedPolicyRowIds: ALL_ROWS,
+			requirements: { preserveHdrMetadata: true },
+		});
+		assert.equal(required.admitted, false);
+		assert.deepEqual(required.refusals, ['hdr-metadata-not-preserved']);
+
+		const held = evaluateNativeMediaProfileAdmission({
+			profileId: 'encode-mov-prores-422-hq',
+			source: carrier,
+			clearedPolicyRowIds: ALL_ROWS,
+		});
+		assert.deepEqual(held.disclosures, ['transfer-unreported']);
+	}
 });
 
 test('an SDR source loses nothing to a profile that carries no HDR metadata', () => {
