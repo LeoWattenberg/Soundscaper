@@ -24,6 +24,10 @@ import {
 import {
 	NATIVE_MEDIA_PLAN_CANONICAL_MAXIMUM_BYTES,
 } from './native-media-plan-canonical-form.ts';
+import {
+	createNativeValidators,
+	NATIVE_SHA256_HEX_PATTERN,
+} from './native-validation.ts';
 
 export const NATIVE_QUEUE_TASK_KINDS = Object.freeze([
 	'encoded-export',
@@ -118,11 +122,17 @@ const RESERVATION_KEYS = Object.freeze([
 const FINGERPRINT_KEYS = Object.freeze(['sourceId', 'sha256']);
 const JOB_ID_PATTERN = /^[a-f0-9]{40}$/u;
 const OPAQUE_ID_PATTERN = /^[a-f0-9]{16,64}$/u;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
 const FAILURE_CODE_PATTERN = /^[a-z][a-z0-9-]{0,63}$/u;
 const MAXIMUM_CPU_CORES = 1_024;
 const MAXIMUM_RESERVATION_BYTES = 2 ** 53 - 1;
+
+const { digest, exactKeys, nonNegativeInteger, pattern, plainRecord } = createNativeValidators({
+	subject: 'A native queue record',
+	raise: (message: string): never => {
+		throw new NativeQueueRecordError(message);
+	},
+});
 
 /** Admit one queue row, whether newly enqueued or read back from the database. */
 export function assertNativeQueueRecordV1(value: unknown): asserts value is NativeQueueRecordV1 {
@@ -224,7 +234,7 @@ function planPayload(value: unknown, fingerprint: string): string {
 	if (value.length > NATIVE_MEDIA_PLAN_CANONICAL_MAXIMUM_BYTES) {
 		throw new NativeQueueRecordError('A native queue plan payload exceeds the canonical transfer ceiling.');
 	}
-	if (!SHA256_PATTERN.test(fingerprint)) {
+	if (!NATIVE_SHA256_HEX_PATTERN.test(fingerprint)) {
 		throw new NativeQueueRecordError('A native queue plan payload requires its canonical fingerprint.');
 	}
 	return value;
@@ -311,36 +321,4 @@ function member<Value extends string>(
 		throw new NativeQueueRecordError(`A native queue record ${label} must be a known member value.`);
 	}
 	return value as Value;
-}
-
-function pattern(value: unknown, expression: RegExp, label: string): string {
-	if (typeof value !== 'string' || !expression.test(value)) {
-		throw new NativeQueueRecordError(`A native queue record ${label} is not in its canonical form.`);
-	}
-	return value;
-}
-
-function digest(value: unknown, label: string): string {
-	return pattern(value, SHA256_PATTERN, label);
-}
-
-function nonNegativeInteger(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || (value as number) < 0) {
-		throw new NativeQueueRecordError(`A native queue record ${label} must be a non-negative safe integer.`);
-	}
-	return value as number;
-}
-
-function plainRecord(value: unknown, label: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new NativeQueueRecordError(`A ${label} must be a plain record.`);
-	}
-	return value as Record<string, unknown>;
-}
-
-function exactKeys(record: Record<string, unknown>, keys: readonly string[], label: string): void {
-	const present = Object.keys(record);
-	if (present.length !== keys.length || present.some((key) => !keys.includes(key))) {
-		throw new NativeQueueRecordError(`A ${label} must carry exactly its schema keys.`);
-	}
 }

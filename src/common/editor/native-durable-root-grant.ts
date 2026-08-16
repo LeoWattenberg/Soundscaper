@@ -20,6 +20,7 @@
 import {
 	assertNativeMediaRelativeDestination,
 } from './native-media-atomic-publication.ts';
+import { createNativeValidators } from './native-validation.ts';
 
 export const DURABLE_ROOT_GRANT_VERDICTS = Object.freeze([
 	'valid',
@@ -67,6 +68,13 @@ export class DurableRootGrantError extends Error {
 const GRANT_ID_PATTERN = /^[a-f0-9]{16,64}$/u;
 const IDENTITY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9:|._-]{0,127}$/u;
 const MAXIMUM_PATH_LENGTH = 4_096;
+
+const { nonNegativeInteger, pattern } = createNativeValidators({
+	subject: 'A durable root grant',
+	raise: (message: string): never => {
+		throw new DurableRootGrantError(message);
+	},
+});
 
 /**
  * Refuse to persist an expiring one-use token as if it were a durable grant.
@@ -196,18 +204,4 @@ function absolutePath(value: unknown): string {
 		throw new DurableRootGrantError('A durable root grant requires one absolute, traversal-free path.');
 	}
 	return value;
-}
-
-function pattern(value: unknown, expression: RegExp, label: string): string {
-	if (typeof value !== 'string' || !expression.test(value)) {
-		throw new DurableRootGrantError(`A durable root grant ${label} is not in its canonical form.`);
-	}
-	return value;
-}
-
-function nonNegativeInteger(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || (value as number) < 0) {
-		throw new DurableRootGrantError(`A durable root grant ${label} must be a non-negative safe integer.`);
-	}
-	return value as number;
 }

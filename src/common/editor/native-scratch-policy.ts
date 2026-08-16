@@ -22,6 +22,8 @@
  * left alone, because scratch lives on a volume that also holds user content.
  */
 
+import { createNativeValidators } from './native-validation.ts';
+
 export const NATIVE_SCRATCH_ABSOLUTE_CAP_BYTES = 100 * 1024 ** 3;
 export const NATIVE_SCRATCH_VOLUME_CAP_FRACTION = 0.2;
 export const NATIVE_SCRATCH_ABSOLUTE_FREE_BYTES = 10 * 1024 ** 3;
@@ -70,6 +72,13 @@ export class NativeScratchPolicyError extends Error {
 		this.name = 'NativeScratchPolicyError';
 	}
 }
+
+const { nonNegativeInteger } = createNativeValidators({
+	subject: 'A scratch policy',
+	raise: (message: string): never => {
+		throw new NativeScratchPolicyError(message);
+	},
+});
 
 /** Recompute the scratch quota for one volume, as of right now. */
 export function computeNativeScratchQuota(volume: NativeScratchVolumeV1): NativeScratchQuotaV1 {
@@ -160,11 +169,4 @@ export function nativeScratchDirectoryIsDeletable(
 	return observed.jobId === expected.jobId
 		&& observed.manifestDigest === expected.manifestDigest
 		&& observed.rootIdentity === expected.rootIdentity;
-}
-
-function nonNegativeInteger(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || (value as number) < 0) {
-		throw new NativeScratchPolicyError(`A scratch policy ${label} must be a non-negative safe integer.`);
-	}
-	return value as number;
 }
