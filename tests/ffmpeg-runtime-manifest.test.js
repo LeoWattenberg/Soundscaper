@@ -13,6 +13,7 @@ import {
 	symlink,
 	writeFile,
 } from 'node:fs/promises';
+import { registerHooks } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
@@ -347,6 +348,44 @@ test('desktop entry points verify the policy runtime before assembly and recheck
 	assert.match(builderConfig, /beforePack: ['"]\.\/scripts\/desktop-before-pack\.mjs['"]/u);
 	assert.match(builderConfig, /from: ['"]\.desktop-build\/licenses\/THIRD_PARTY_LICENSES\.md['"]/u);
 	assert.match(packageMetadata.scripts['audit:ci'], /audit:ffmpeg-runtime/u);
+});
+
+test('manifest-relative paths stay safe under Windows path semantics', async (context) => {
+	// Windows packaging runners resolve with the win32 flavour from a
+	// drive-rooted working directory, where resolving a relative path against
+	// the root separator yields "D:\\config\\..." rather than "\\config\\...".
+	// Bind node:path to win32 for one module instance and report a drive-rooted
+	// working directory so a platform-coupled guard fails here rather than only
+	// on a Windows runner.
+	const marker = '?path-flavour=win32';
+	const hooks = registerHooks({
+		resolve(specifier, hookContext, nextResolve) {
+			if (specifier === 'node:path' && hookContext.parentURL?.endsWith(marker)) {
+				return nextResolve('node:path/win32', hookContext);
+			}
+			return nextResolve(specifier, hookContext);
+		},
+	});
+	context.after(() => hooks.deregister());
+	const { assertSafeRelativePath } = await import(`../scripts/lib/ffmpeg-runtime-manifest.mjs${marker}`);
+
+	const realCwd = process.cwd;
+	process.cwd = () => 'D:\\a\\Soundscaper\\Soundscaper';
+	context.after(() => { process.cwd = realCwd; });
+
+	for (const safePath of [
+		'config/ffmpeg-runtime-manifest.json',
+		'desktop/ffmpeg-corresponding-source.json',
+		'THIRD_PARTY_LICENSES.md',
+	]) {
+		assert.doesNotThrow(() => assertSafeRelativePath(safePath, 'FFmpeg runtime manifest path'));
+	}
+	for (const unsafePath of ['/config/manifest.json', 'config\\manifest.json', '../manifest.json', 'config//manifest.json', '']) {
+		assert.throws(
+			() => assertSafeRelativePath(unsafePath, 'FFmpeg runtime manifest path'),
+			/FFmpeg runtime manifest path is invalid/u,
+		);
+	}
 });
 
 async function assertNoSideEffects(fixture, expectedError) {

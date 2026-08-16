@@ -2,7 +2,7 @@
 
 import { createHash } from 'node:crypto';
 import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises';
-import { basename, dirname, resolve, sep } from 'node:path';
+import { basename, dirname, posix, resolve } from 'node:path';
 
 import { createFfmpegRuntimeEvidenceRepinner } from './ffmpeg-runtime-manifest-repin.mjs';
 
@@ -504,11 +504,16 @@ async function readRegularFile(root, relativePath, label) {
 	return readFile(current);
 }
 
-function assertSafeRelativePath(value, label) {
+// Manifest-relative paths are POSIX by construction: the checks below reject a
+// leading separator, backslashes, and traversal components. They must therefore
+// normalize with POSIX semantics on every host. Resolving them against the
+// platform flavour attaches the current drive on Windows ("D:\\config\\..."),
+// so the leading-separator check rejected every valid path there.
+export function assertSafeRelativePath(value, label) {
 	assert(typeof value === 'string' && value.length > 0 && !value.startsWith('/') && !value.includes('\\'), `${label} is invalid`);
 	assert(value.split('/').every((part) => part && part !== '.' && part !== '..'), `${label} is invalid`);
-	const normalized = resolve('/', value);
-	assert(normalized.startsWith(`${sep}`) && normalized !== sep, `${label} is invalid`);
+	const normalized = posix.resolve(posix.sep, value);
+	assert(normalized.startsWith(posix.sep) && normalized !== posix.sep, `${label} is invalid`);
 }
 
 function assertCleanHttpsUrl(value, label) {
