@@ -12,7 +12,14 @@
  * A directory symlink is never followed. Following one turns a bounded subtree
  * into an unbounded one, and lets a link placed inside the watched folder pull
  * in files from anywhere the user's account can read.
+ *
+ * A dot-prefixed entry is refused whether it is a file or a directory, and a
+ * refused directory is never descended into. Hidden directories on a camera
+ * card or a share — `.Trashes`, `.tmp`, an application's staging area — hold
+ * deleted or half-written media that happens to carry a watched extension.
  */
+
+import { createNativeValidators } from './native-validation.ts';
 
 export const NATIVE_WATCH_IMPORT_MODES = Object.freeze(['link', 'copy'] as const);
 
@@ -65,6 +72,13 @@ const ID_PATTERN = /^[a-f0-9]{16,64}$/u;
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
 const EXTENSION_PATTERN = /^[a-z0-9][a-z0-9]{0,15}$/u;
 
+const { nonNegativeInteger, pattern } = createNativeValidators({
+	subject: 'A watch rule',
+	raise: (message: string): never => {
+		throw new NativeWatchRuleError(message);
+	},
+});
+
 export function createWatchRuleV1(input: Readonly<{
 	ruleId: string;
 	grantId: string;
@@ -109,8 +123,8 @@ export function watchRuleEntryRefusal(
 	if (entry.isSymbolicLink && entry.isDirectory) return 'symlink-not-followed';
 	if (entry.depth > 0 && !rule.recursive) return 'recursion-disabled';
 	if (entry.depth > rule.maximumDepth) return 'depth-exceeded';
-	if (entry.isDirectory) return null;
 	if (entry.name.startsWith('.')) return 'hidden-entry';
+	if (entry.isDirectory) return null;
 	const extension = entry.name.includes('.')
 		? entry.name.slice(entry.name.lastIndexOf('.') + 1).toLowerCase()
 		: '';
@@ -121,10 +135,14 @@ export function watchRuleAdmitsEntry(rule: WatchRuleV1, entry: WatchDirectoryEnt
 	return watchRuleEntryRefusal(rule, entry) === null && !entry.isDirectory;
 }
 
-/** Whether the walk should descend into this directory entry. */
+/**
+ * Whether the walk should descend into this directory entry. A directory the
+ * rule refuses is not opened, so the refusals stay the single list of reasons a
+ * subtree is left alone.
+ */
 export function watchRuleDescendsInto(rule: WatchRuleV1, entry: WatchDirectoryEntryV1): boolean {
 	if (!entry.isDirectory) return false;
-	if (!rule.recursive || entry.isSymbolicLink) return false;
+	if (watchRuleEntryRefusal(rule, entry) !== null) return false;
 	return entry.depth < rule.maximumDepth;
 }
 
@@ -168,18 +186,4 @@ function importMode(value: unknown): NativeWatchImportMode {
 		throw new NativeWatchRuleError('A watch rule import mode is explicitly link or copy.');
 	}
 	return value;
-}
-
-function pattern(value: unknown, expression: RegExp, label: string): string {
-	if (typeof value !== 'string' || !expression.test(value)) {
-		throw new NativeWatchRuleError(`A watch rule ${label} is not in its canonical form.`);
-	}
-	return value;
-}
-
-function nonNegativeInteger(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || (value as number) < 0) {
-		throw new NativeWatchRuleError(`A watch rule ${label} must be a non-negative safe integer.`);
-	}
-	return value as number;
 }

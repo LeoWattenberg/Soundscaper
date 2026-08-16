@@ -84,13 +84,15 @@ test('removing the display closes the surface and reports the loss', () => {
 	assert.equal(store.snapshot(), null);
 });
 
-test('a display that becomes the primary one also ends the session', () => {
+test('a display that becomes the primary one ends the session without claiming a loss', () => {
 	const store = createExternalDisplaySessionStore('x11');
 	store.open(secondary('display-2'), 0);
 
 	const closure = store.observeDisplays([{ ...secondary('display-2'), primary: true }], 300);
-	assert.equal(closure?.reason, 'display-removed');
-	assert.equal(closure?.reportsLoss, true);
+	assert.deepEqual(closure, {
+		displayId: 'display-2', reason: 'display-became-primary', atMs: 300, reportsLoss: false,
+	});
+	assert.equal(store.snapshot(), null);
 });
 
 test('the selection is session-only and audio never moves', () => {

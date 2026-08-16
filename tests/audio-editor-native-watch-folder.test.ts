@@ -17,9 +17,11 @@ import {
 	decideWatchImport,
 	nextWatchReconcileAtMs,
 	observeWatchCandidate,
+	trackWatchCandidate,
 	watchCandidateHasSettled,
 	watchDecisionIsPending,
 	watchImportKey,
+	NATIVE_WATCH_MAXIMUM_TRACKED_CANDIDATES,
 	NATIVE_WATCH_RECONCILE_INTERVAL_MS,
 	NATIVE_WATCH_STABILITY_INTERVAL_MS,
 	NativeWatchReconciliationError,
@@ -81,6 +83,20 @@ test('a directory symlink is never followed', () => {
 	assert.equal(watchRuleDescendsInto(recursive, { ...link, isSymbolicLink: false }), true);
 });
 
+test('a hidden directory is refused exactly as a hidden file is', () => {
+	const recursive = rule({ recursive: true });
+	const hidden: WatchDirectoryEntryV1 = {
+		name: '.Trashes', depth: 0, isDirectory: true, isSymbolicLink: false,
+	};
+
+	assert.equal(watchRuleEntryRefusal(recursive, hidden), 'hidden-entry');
+	assert.equal(watchRuleAdmitsEntry(recursive, hidden), false);
+	// A staging directory is where half-written files live; the walk stays out.
+	assert.equal(watchRuleDescendsInto(recursive, hidden), false);
+	assert.equal(watchRuleDescendsInto(recursive, { ...hidden, name: '.tmp', depth: 1 }), false);
+	assert.equal(watchRuleDescendsInto(recursive, { ...hidden, name: 'Clips' }), true);
+});
+
 test('a non-recursive rule never descends and ignores nested entries', () => {
 	const shallow = rule();
 
@@ -140,6 +156,40 @@ test('a replaced file under the same identity starts over', () => {
 	);
 });
 
+test('tracked candidates stay under the ceiling and overflow is refused, not silent', () => {
+	const tracked = new Map<string, WatchCandidateStateV1>();
+	const first = trackWatchCandidate(tracked, IDENTITY, { atMs: 0, sizeBytes: 100, modifiedAtMs: 0 });
+
+	assert.equal(first.outcome, 'tracked');
+	assert.equal(first.candidate?.unchangedObservations, 1);
+	assert.deepEqual(tracked.get(IDENTITY), first.candidate);
+
+	const again = trackWatchCandidate(tracked, IDENTITY, { atMs: 3_000, sizeBytes: 100, modifiedAtMs: 0 });
+	assert.equal(again.candidate?.unchangedObservations, 2);
+	assert.equal(tracked.size, 1);
+
+	while (tracked.size < NATIVE_WATCH_MAXIMUM_TRACKED_CANDIDATES) {
+		tracked.set(`ino-${String(tracked.size)}`, settled(`ino-${String(tracked.size)}`));
+	}
+	const overflow = trackWatchCandidate(tracked, 'ino-new', { atMs: 4_000, sizeBytes: 100, modifiedAtMs: 0 });
+
+	assert.equal(overflow.outcome, 'refused-tracking-ceiling');
+	assert.equal(overflow.candidate, null);
+	assert.equal(tracked.has('ino-new'), false);
+	assert.equal(tracked.size, NATIVE_WATCH_MAXIMUM_TRACKED_CANDIDATES);
+	// A candidate already being tracked keeps settling even at the ceiling.
+	assert.equal(
+		trackWatchCandidate(tracked, IDENTITY, { atMs: 5_000, sizeBytes: 100, modifiedAtMs: 0 }).outcome,
+		'tracked',
+	);
+	// Forgetting an imported candidate makes room again.
+	tracked.delete(IDENTITY);
+	assert.equal(
+		trackWatchCandidate(tracked, 'ino-new', { atMs: 6_000, sizeBytes: 100, modifiedAtMs: 0 }).outcome,
+		'tracked',
+	);
+});
+
 test('an unsettled or unreadable candidate is deferred before the project is consulted', () => {
 	const growing = observeWatchCandidate(null, IDENTITY, { atMs: 0, sizeBytes: 100, modifiedAtMs: 0 });
 
@@ -190,11 +240,14 @@ test('a closed or read-only project leaves the ingest pending rather than mutati
 	assert.equal(closed.importKey, readOnly.importKey);
 });
 
-test('a disabled rule ingests nothing', () => {
+test('a disabled rule ingests nothing and is not walked', () => {
 	assert.equal(
 		decideWatchImport(request({ rule: rule({ enabled: false }) })).decision,
 		'skip-rule-disabled',
 	);
+	assert.equal(watchRuleDescendsInto(rule({ enabled: false, recursive: true }), {
+		name: 'Clips', depth: 0, isDirectory: true, isSymbolicLink: false,
+	}), false);
 });
 
 test('an event only pulls the next sweep earlier, never later', () => {

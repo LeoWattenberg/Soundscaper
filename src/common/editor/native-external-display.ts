@@ -24,6 +24,8 @@
  * mapping is a grading monitor that lies.
  */
 
+import { createNativeValidators } from './native-validation.ts';
+
 export const NATIVE_EXTERNAL_DISPLAY_WINDOWING_SYSTEMS = Object.freeze([
 	'windows', 'macos', 'x11', 'wayland',
 ] as const);
@@ -44,11 +46,26 @@ export const NATIVE_EXTERNAL_DISPLAY_CLOSE_REASONS = Object.freeze([
 	'menu-command',
 	'escape-key',
 	'display-removed',
+	'display-became-primary',
 	'shutdown',
 ] as const);
 
 export type NativeExternalDisplayCloseReason =
 	(typeof NATIVE_EXTERNAL_DISPLAY_CLOSE_REASONS)[number];
+
+/**
+ * Only a display that went away is a loss the user should be told about. A
+ * display the user re-designated as primary is still there and still working;
+ * telling them it was disconnected describes something that did not happen.
+ */
+const CLOSE_REASON_REPORTS_LOSS: Readonly<Record<NativeExternalDisplayCloseReason, boolean>> =
+	Object.freeze({
+		'menu-command': false,
+		'escape-key': false,
+		'display-removed': true,
+		'display-became-primary': false,
+		shutdown: false,
+	});
 
 export type NativeExternalDisplayColorMode = 'hdr' | 'sdr';
 
@@ -72,7 +89,7 @@ export interface ExternalDisplayClosureV1 {
 	readonly displayId: string;
 	readonly reason: NativeExternalDisplayCloseReason;
 	readonly atMs: number;
-	/** True when the surface went away without the user asking. */
+	/** True when the display itself went away, not merely stopped qualifying. */
 	readonly reportsLoss: boolean;
 }
 
@@ -82,7 +99,7 @@ export interface ExternalDisplaySessionStoreV1 {
 		atMs: number,
 	): ExternalDisplaySessionV1;
 	close(reason: NativeExternalDisplayCloseReason, atMs: number): ExternalDisplayClosureV1 | null;
-	/** Reconcile against the current display set; a vanished display closes. */
+	/** Reconcile against the current display set; a display that stops qualifying closes. */
 	observeDisplays(
 		displays: readonly ExternalDisplayDescriptorV1[],
 		atMs: number,
@@ -99,6 +116,15 @@ export class NativeExternalDisplayError extends Error {
 		this.refusal = refusal;
 	}
 }
+
+// A malformed timestamp is a caller bug rather than one of the refusals the
+// menu explains, so it stays a RangeError and never gains a refusal code.
+const { nonNegativeInteger } = createNativeValidators({
+	subject: 'A clean programme output',
+	raise: (message: string): never => {
+		throw new RangeError(message);
+	},
+});
 
 /**
  * The displays the menu may offer. The primary display is excluded because the
@@ -170,7 +196,7 @@ export function createExternalDisplaySessionStore(
 				displayId: session.displayId,
 				reason,
 				atMs: nonNegativeInteger(atMs, 'atMs'),
-				reportsLoss: reason === 'display-removed',
+				reportsLoss: CLOSE_REASON_REPORTS_LOSS[reason],
 			});
 			session = null;
 			return closure;
@@ -182,7 +208,7 @@ export function createExternalDisplaySessionStore(
 			if (session === null) return null;
 			const current = displays.find((display) => display.displayId === session?.displayId);
 			if (current && !current.primary) return null;
-			return this.close('display-removed', atMs);
+			return this.close(current ? 'display-became-primary' : 'display-removed', atMs);
 		},
 		snapshot(): ExternalDisplaySessionV1 | null {
 			return session;
@@ -211,11 +237,4 @@ function displayId(value: unknown): string {
 		throw new NativeExternalDisplayError('display-unknown', 'A display id must be bounded text.');
 	}
 	return value;
-}
-
-function nonNegativeInteger(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || (value as number) < 0) {
-		throw new RangeError(`A clean programme output ${label} must be a non-negative safe integer.`);
-	}
-	return value as number;
 }

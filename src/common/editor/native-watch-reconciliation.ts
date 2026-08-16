@@ -21,12 +21,23 @@
  * Both together survive repeated events, renames, watcher overflow, and
  * restarts.
  *
+ * Candidate tracking is bounded. A sweep over a folder holding a hundred
+ * thousand files must not grow a hundred thousand pieces of stability state, so
+ * a new candidate met at the ceiling is refused outright and met again on a
+ * later sweep, once the candidates ahead of it have been imported and dropped.
+ * Refusing the newcomer rather than evicting an incumbent keeps a file that is
+ * nearly settled from restarting its count forever.
+ *
  * Finally, main never mutates project state behind its controller. If the
  * target project is closed or read-only, the ingest waits as a pending record
  * instead of being written into a document nobody is holding.
  */
 
 import type { WatchRuleV1 } from './native-watch-rule.ts';
+import {
+	createNativeValidators,
+	NATIVE_SHA256_HEX_PATTERN,
+} from './native-validation.ts';
 
 /** The authoritative sweep interval; `fs.watch` only shortens the wait. */
 export const NATIVE_WATCH_RECONCILE_INTERVAL_MS = 30_000;
@@ -46,6 +57,13 @@ export const NATIVE_WATCH_DECISIONS = Object.freeze([
 
 export type NativeWatchDecision = (typeof NATIVE_WATCH_DECISIONS)[number];
 
+export const NATIVE_WATCH_TRACKING_OUTCOMES = Object.freeze([
+	'tracked',
+	'refused-tracking-ceiling',
+] as const);
+
+export type NativeWatchTrackingOutcome = (typeof NATIVE_WATCH_TRACKING_OUTCOMES)[number];
+
 export interface WatchCandidateObservationV1 {
 	readonly atMs: number;
 	readonly sizeBytes: number;
@@ -60,6 +78,13 @@ export interface WatchCandidateStateV1 {
 	readonly unchangedObservations: number;
 	readonly firstUnchangedAtMs: number;
 	readonly lastObservedAtMs: number;
+}
+
+export interface WatchCandidateTrackingV1 {
+	readonly outcome: NativeWatchTrackingOutcome;
+	/** The folded state, or null when the ceiling refused a new candidate. */
+	readonly candidate: WatchCandidateStateV1 | null;
+	readonly trackedCount: number;
 }
 
 export interface WatchImportDecisionRequestV1 {
@@ -85,6 +110,13 @@ export class NativeWatchReconciliationError extends Error {
 		this.name = 'NativeWatchReconciliationError';
 	}
 }
+
+const { nonNegativeInteger } = createNativeValidators({
+	subject: 'A watch observation',
+	raise: (message: string): never => {
+		throw new NativeWatchReconciliationError(message);
+	},
+});
 
 /**
  * Fold one observation into a candidate's stability state. An observation that
@@ -116,6 +148,30 @@ export function observeWatchCandidate(
 }
 
 /**
+ * Fold one observation into a sweep's tracked candidates, keeping the set
+ * bounded. A candidate already tracked keeps settling however full the set is;
+ * only an unfamiliar one is turned away at the ceiling. A caller drops a
+ * candidate from the set — imported, gone, or given up on — with `delete`.
+ */
+export function trackWatchCandidate(
+	tracked: Map<string, WatchCandidateStateV1>,
+	fileIdentity: string,
+	observation: WatchCandidateObservationV1,
+): WatchCandidateTrackingV1 {
+	const previous = tracked.get(identity(fileIdentity)) ?? null;
+	if (previous === null && tracked.size >= NATIVE_WATCH_MAXIMUM_TRACKED_CANDIDATES) {
+		return Object.freeze({
+			outcome: 'refused-tracking-ceiling' as const,
+			candidate: null,
+			trackedCount: tracked.size,
+		});
+	}
+	const candidate = observeWatchCandidate(previous, fileIdentity, observation);
+	tracked.set(fileIdentity, candidate);
+	return Object.freeze({ outcome: 'tracked' as const, candidate, trackedCount: tracked.size });
+}
+
+/**
  * A candidate has settled once it has agreed with itself twice, at least two
  * seconds apart. Both conditions are needed: two observations a millisecond
  * apart prove nothing about a slow copy.
@@ -131,7 +187,7 @@ export function watchImportKey(
 	fileIdentity: string,
 	contentSha256: string,
 ): string {
-	if (!/^[a-f0-9]{64}$/u.test(contentSha256)) {
+	if (!NATIVE_SHA256_HEX_PATTERN.test(contentSha256)) {
 		throw new NativeWatchReconciliationError('A watch import key needs the file content digest.');
 	}
 	return `${rule.ruleId}|${identity(fileIdentity)}|${contentSha256}`;
@@ -210,11 +266,4 @@ function identity(value: unknown): string {
 		throw new NativeWatchReconciliationError('A watch candidate needs a bounded canonical file identity.');
 	}
 	return value;
-}
-
-function nonNegativeInteger(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || (value as number) < 0) {
-		throw new NativeWatchReconciliationError(`A watch observation ${label} must be a non-negative safe integer.`);
-	}
-	return value as number;
 }
