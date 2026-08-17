@@ -251,7 +251,21 @@ before code.
   hiding it. That is the opposite of the 6C-1 rule and the two must not be
   conflated. **Still owed:** consolidate, the byte-rewriting half of trim-media,
   wiring the manifest to the `.scape` archive writer, and the kill/reload
-  recovery acceptance. When those
+  recovery acceptance.
+- **Consolidate: the map, before anyone starts it.** A source does not carry a
+  field saying whether it is linked or managed. That fact lives in the binding
+  repositories reached through `storage/linked-original-store-service.ts` —
+  `linkedOriginalBindings` and `linkedVideoOriginalBindings`, with their
+  `…ProjectAliases` and `…ProjectReachability` tables and the optional
+  `linkedOriginalStartupReconciliation`. So a consolidate plan cannot be
+  computed from `project.sources` the way the trim-media plan can; it needs the
+  binding lookup injected, and inventing a simpler `source.external` flag would
+  be inventing a second source of truth for something the m2 lifecycle already
+  owns. Whoever picks this up should take the binding resolver as a dependency
+  and keep the plan/apply split the trim-media slice uses: compute and report
+  first, move bytes second. The `m2-linked-media-lifecycle` acceptance
+  (config/milestone-2-closure.json:245) is binding and external media is never
+  deleted, so consolidate copies and rebinds — it never relocates by removal. When those
   land they must read the project through `projectTrackFolderMediaStateV12`
   rather than the raw document, for the reason recorded in the pickup status
   above.
