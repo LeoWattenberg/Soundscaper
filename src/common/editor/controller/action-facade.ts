@@ -10,8 +10,7 @@ import { createProjectOwnedFeatureActionFacades } from './project-owned-feature-
 import { createTimelineAnnotationActionFacade } from './timeline-annotation-action-facade.ts';
 import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
 import { snapshotProductActionExtensions } from './product-action-extensions.ts';
-import { saveCurrentDeliveryReport } from './delivery-report-action.ts';
-import { createDeliveryPresetService } from './delivery-preset-service.ts';
+import { createExportActionGroup } from './export-action-group.ts';
 
 export interface EditorActionRuntime {
 	// The runtime composition root is JavaScript while it is being decomposed.
@@ -590,11 +589,6 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			findClipping: restricted('audioAnalysis', analysisService.findClipping),
 			contrast: restricted('audioAnalysis', analysisService.captureContrast), repeatLast: restricted('audioAnalysis', analysisService.repeatLast),
 		}),
-		export: Object.freeze({
-			start: (settings: RuntimeValue) => handleExportAction('start', settings),
-			cancel: () => handleExportAction('cancel'),
-			saveReport: () => saveCurrentDeliveryReport({ state, productName: product.name, projectTitle: getProject()?.title ?? null, fileService }),
-			presets: createDeliveryPresetService({ state, persistSetting, publishDocumentSnapshot, createId: createStableId, fileService }),
-		}),
+		export: createExportActionGroup({ handleExportAction, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
 	});
 }
