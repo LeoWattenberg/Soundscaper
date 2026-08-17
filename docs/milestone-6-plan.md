@@ -258,6 +258,47 @@ existing portable exception (docs/project-compatibility.md:86-88).
 | Growing the codec set web-side for presets | Codec availability follows the milestone-5 licensing/patent gates; presets declare legal status, they do not create it. |
 | Editing ADM passthrough output "slightly" | Passthrough is byte-preservation or it is nothing; any authored change routes through the authored mode's validation. |
 
+## Implementation status
+
+**Status on 2026-08-17: the 6.0 domain core is implemented provisionally in
+the local tree; 6A, 6B, and 6C have not started.** What landed:
+
+- **WP-6.0.0 plan-pin repair — implemented.**
+  `src/common/editor/video-export-plan-version.ts` is the single source of
+  truth; the planner, the FFmpeg runner's accepted set, the direct-path
+  contract, the budget fixture, its security test, and the narrative all
+  derive from it, and `tests/audio-editor-video-export-plan-version.test.ts`
+  fails the moment any pin stops agreeing with the planner. The extraction
+  that paid for the new import also took `video-ffmpeg.js` under the
+  600-line ceiling, retiring its allowlist entry.
+- **WP-6.0.0 delivery-report model — implemented (domain).**
+  `delivery-report.ts` generalizes the AUP4 report vocabulary;
+  `delivery-conversion-inventory.ts` derives conversions from the plan and
+  supplies the `delivery.unreportedConversions` count. Building it surfaced
+  a previously invisible conversion: integer sample formats enable
+  triangular dither by default, so ordinary WAV delivery dithered without
+  saying so. It is now itemized.
+- **WP-6.0.1 queue semantics — implemented (domain).**
+  `delivery-queue.ts` is the bounded in-session queue, consuming the 5B-3
+  recovery-class and task-kind vocabulary rather than forking it. Enqueue
+  refuses a job that would claim a recovery it cannot prove.
+- **WP-6.0.2 preset core — implemented (domain).**
+  `delivery-preset.ts` validates preset records with closed field lists,
+  resolves them to ordinary plan options (parity-tested against the dialog
+  path), and declares legal availability from the licensing matrix.
+
+Still owed before 6A/6B/6C may open, since the packets' acceptance is not
+yet fully met:
+
+- The report model has no product surface and is not yet emitted by the
+  real export path; the `delivery.unreportedConversions` collector observes
+  the inventory, not a live delivery. The existing AUP4 report dialog has
+  not been migrated onto the generalized model.
+- The queue is a domain state machine with no runner, no task-coordinator
+  wiring, and no Electron binding through `render-job-port`.
+- Presets do not yet subsume the flat export dialog, and no preset
+  import/export surface exists.
+
 ## Phase structure
 
 | Phase | Mode | Content |
