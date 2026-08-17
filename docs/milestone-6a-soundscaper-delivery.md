@@ -110,90 +110,56 @@ unavailable. V19/V20/V21 are taken and V22 is reserved for 4B-3 transitions
 (docs/milestone-4-plan.md:381-383); the mastering-sequence revision takes the
 next free number at its own pickup and never assumes one here.
 
-## 6A-1a status: the schema-neutral half has landed
+## 6A-1a status: complete
 
-The discipline sequences schema-neutral work first
-(docs/milestone-3b-work-packets.md:25-28), and that is the boundary this work
-stopped at deliberately, because the revision itself must land atomically and a
-half-registered revision in the tree is worse than none.
+The mastering-sequence revision is **V23**, mounted as the Soundscaper web
+revision. 18 through 20 are Framescaper, 21 was the previous Soundscaper
+revision, and 22 stays reserved for 4B-3 transitions — numbering mattered
+because five tests use V21 + 1 as their future-schema sentinel.
 
-**Landed and tested:**
-
-- `src/common/editor/mastering-sequence.ts` — the document type. Entries point at
-  V11 regions by identity and store no time ranges; gaps belong to the entry that
+- **Schema-neutral half.** `mastering-sequence.ts` (the document type),
+  `mastering-sequence-edit.ts` (the edit primitives) and
+  `mastering-sequence-regions.ts` (the bridge to V11 annotations). Entries point
+  at regions by identity and store no time ranges; gaps belong to the entry that
   follows them; titles fall back to the region's own name; delivery metadata is
-  open key/value pairs. Structural validity is separate from relational validity
-  because only one of the two can be decided from the document alone. A deleted
-  region, a region moved into another timeline sequence, and fades longer than
-  their region are typed validation errors that refuse delivery with the reason;
-  a region merely moved earlier in time is reported at info level and never acted
-  on. Nothing ever shrinks or reorders a sequence.
-- `src/common/editor/mastering-sequence-edit.ts` — the edit primitives the
-  undoable commands are built from. Every result is rebuilt through the document
-  model, so no edit path can produce a sequence the model would reject. An edit
-  that changes nothing returns the same object, because undo history and document
-  revisions key on identity. Editing never consults the regions, so an entry
-  whose region was deleted stays removable.
-- `src/common/editor/mastering-sequence-regions.ts` — the bridge to V11
-  annotations. A sequence never resolves a region's position itself: it asks the
-  runtime annotation projection, the same resolution playback and navigation use,
-  because a musically anchored region's frame position is a question only the
-  project's tempo map can answer and a second answer would drift from the first.
-  Markers are dropped rather than reported as a wrong kind — an entry pointing at
-  one finds no region, which validation already reports with the entry intact.
+  open key/value pairs. A sequence never repairs itself — a deleted or moved
+  region is a typed validation state, never a silent reorder — and position is
+  always resolved through the runtime annotation projection so musically
+  anchored regions have exactly one timing authority.
+- **The revision.** Constant, all ten enumerating predicates, document,
+  validation, commands, history, and the full runtime chain. The production
+  validator and the undo stack are shared and parameterized rather than cloned,
+  so V21 and V23 cannot drift about what a valid document is while each still
+  validates only itself. Mastering-sequence commands get their own apply branch;
+  everything else is lent to V21's applier, which is why V23 has V21's exact
+  semantics for the hundred-odd inherited commands without a second copy.
+- **Registration.** The capability id in the global registry, both product
+  capability maps, the production inventory and all three Framescaper profiles —
+  unavailable everywhere. The owned requirement is derived from the state, so a
+  project holding a sequence demands the capability and reports a
+  known-but-unavailable feature rather than an unknown one.
+- **Fixtures.** Exact-current validation, typed rejection of older schemas,
+  future-schema read-only with opaque retention, clone, undo/redo, batching,
+  durable storage, duplication, `.scape` round trip, byte-idempotent load/save,
+  and semantic survival.
 
-**The revision number is V23**, Soundscaper-owned. 18, 19 and 20 are Framescaper,
-21 is the current Soundscaper revision, and 22 is reserved for 4B-3 transitions
-(docs/milestone-4-plan.md:381-383), so 23 is the next free number. It was
-allocated here, at the pickup, exactly as the sequencing note requires.
+**Deliberately not done here: the editing surface.** The capability is
+registered unavailable in both products, so the commands cannot be invoked yet
+and any UI would be dead. The surface lands with 6A-1b, which is what turns the
+capability on.
 
-**Landed since, toward the revision:**
+**Two shared-code fixes the revision forced, both of the same shape.** Twenty
+places gated behaviour on `schemaVersion === 21` exactly, six on the shared
+playback-and-export path, none of them throwing — now one named predicate with a
+source-level guard. And the desktop project library pinned the exact V21 runtime
+profile even though its schema, scope and database version are production-wide —
+now it accepts any authentic production profile, while store authority still
+dispatches per revision so the brand isolation stands.
 
-- A shared-code fix that had to come first: twenty places in shared code gated
-  behaviour on `schemaVersion === 21` exactly, six of them on the playback and
-  export path, none of them throwing. `isSoundscaperProductionProjectSchema` now
-  answers that question once, guarded by a source-level test that no module under
-  `src/common` may compare against one exact production revision.
-- The capability id, registered in the global registry, both product capability
-  maps, the production inventory and all three hand-written Framescaper profiles
-  — unavailable everywhere.
-- **V23 itself**: the constant, all ten enumerating predicates, the document
-  (validation, factory, clone, load) and its fixtures. The production validator
-  is shared and parameterized rather than cloned, so V21 and V23 cannot drift
-  about what a valid document is while each still validates only itself. Holding
-  a sequence demands the capability, as a foundation-owned requirement derived
-  from the state.
-- The nine-discriminant command domain, registered through the protocol, both
-  registries and the capability-policy gate, with handlers that preserve the
-  no-op identity short-circuit.
-
-**Still owed for 6A-1a**: the V23 command applier and history (V23 state must not
-reach the inherited path, which rebuilds `mixer` and `automationLanes` from the
-previous project and would discard the write), the runtime chain (repository,
-store, environment, controller, scape-native, runtime selection) and the
-bootstrap flip, plus the clipboard, `.scape`, desktop and archive fixtures. The
-bootstrap flip is deliberately last: everything before it is dormant and safe to
-land incrementally, and it is the only step that changes what users get.
-
-**What the revision still has to walk.** Verified against the tree, not assumed:
-
-- `project-schema-version.ts`: the constant, plus the seven `isXProjectSchema`
-  predicates that currently enumerate V21 by hand.
-- The Soundscaper document chain, which is cloned per revision rather than
-  parameterized — `editor-project-v21.ts` and its validation, profile, capability
-  profile, feature requirements, feature compatibility, repository, store,
-  controller, playback, environment, runtime profile and prerequisite, runtime
-  selection, and `editor-scape-native-v21.ts` all have V23 counterparts to make.
-  The document itself is small: V23 is V21's factory plus `masteringSequences`,
-  the same way V21 is V17's factory plus automation lanes and the mixer graph.
-- A `masteringSequences` capability id in `project-feature-capabilities.ts`, with
-  both product profiles initially unavailable; the owned-requirement predicate;
-  the compatibility register rule; and the capability-policy gate.
-- Command discriminants and the domain registry, and the single mutation path.
-- The fixture set the acceptance names: exact-current validation, typed rejection
-  of older schemas, future-schema read-only handling, clone, undo/redo, clipboard,
-  `.scape`, desktop, archive, byte-idempotent load/save, and semantic survival
-  after editing.
+Two inherited feature modules — the automation binding and the freeze actions —
+named V21's validator internally and would have thrown on every V23 document.
+They take the validator from the controller that binds them now, which is eight
+hundred lines of feature code not duplicated.
 
 ## 6A-1a — Mastering-sequence document type
 
