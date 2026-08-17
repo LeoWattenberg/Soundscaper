@@ -110,6 +110,7 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 
 	const reelNames = request?.reelNames ?? {};
 	const events: EdlEvent[] = [];
+	const subFrame: EdlOmission[] = [];
 	const clips = clipIdsOf(selected)
 		.map((clipId) => {
 			const clip = clipById.get(clipId);
@@ -132,7 +133,18 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 		const recordIn = sequenceFrameAtSample(timelineStart, sequence.rate, sampleRate);
 		const recordOut = sequenceFrameAtSample(timelineStart + duration, sequence.rate, sampleRate);
 		const recordFrames = recordOut - recordIn;
-		if (recordFrames <= 0) continue;
+		if (recordFrames <= 0) {
+			// Shorter than one sequence frame, so there is no cut to write. The
+			// list must say the clip is missing rather than quietly having one
+			// fewer event than the sequence has clips.
+			subFrame.push({
+				code: 'edl.sub-frame-clip-omitted',
+				scope: Object.freeze({ kind: 'clip', id: String(clip.id) }),
+				data: Object.freeze({ durationFrames: duration }),
+				message: 'The clip is shorter than one sequence frame, so it has no cut to emit.',
+			});
+			continue;
+		}
 		const sourceIn = sequenceFrameAtSample(sourceStart, sequence.rate, sampleRate);
 
 		const source = sourceById.get(String(clip.sourceId));
@@ -156,7 +168,7 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 		dropFrame: sequence.dropFrame,
 		events,
 		// Everything the one-track profile left behind is named, not silently lost.
-		omissions: describeOmissions(tracks, selected, isVisible),
+		omissions: [...subFrame, ...describeOmissions(tracks, selected, isVisible)],
 	});
 }
 

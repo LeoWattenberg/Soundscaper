@@ -3,7 +3,7 @@
 import { createDeliveryPresetService } from './delivery-preset-service.ts';
 import { createDeliveryQueueService } from './delivery-queue-service.ts';
 import { saveCurrentDeliveryReport } from './delivery-report-action.ts';
-import { exportProjectEdl } from './edl-export-action.ts';
+import { exportProjectEdl, exportProjectOtio } from './interchange-export-action.ts';
 
 /**
  * The export action group.
@@ -32,6 +32,9 @@ export function createExportActionGroup(runtime: ExportActionGroupRuntime) {
 		handleExportAction, state, productName, getProjectTitle,
 		fileService, persistSetting, publishDocumentSnapshot, createId, getProject,
 	} = runtime;
+	const interchange = () => ({
+		getProject: getProject ?? (() => null), state, fileService, publishDocumentSnapshot,
+	});
 	return Object.freeze({
 		start: (settings: unknown) => handleExportAction('start', settings),
 		cancel: () => handleExportAction('cancel'),
@@ -40,13 +43,8 @@ export function createExportActionGroup(runtime: ExportActionGroupRuntime) {
 		}),
 		exportEdl: (options?: {
 			sequenceId?: string; trackId?: string; reelNames?: Readonly<Record<string, string>>;
-		}) => exportProjectEdl({
-			getProject: getProject ?? (() => null),
-			state,
-			fileService,
-			publishDocumentSnapshot,
-			...options,
-		}),
+		}) => exportProjectEdl({ ...interchange(), ...options }),
+		exportOtio: (options?: { sequenceId?: string }) => exportProjectOtio({ ...interchange(), ...options }),
 		presets: createDeliveryPresetService({
 			state, persistSetting, publishDocumentSnapshot, createId, fileService,
 		}),

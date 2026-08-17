@@ -1,0 +1,73 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { type EdlExportResult } from '../edl-export.ts';
+import { createProjectEdlExport } from '../edl-project-adapter.ts';
+import { type OtioExportResult, createOtioExport } from '../otio-export.ts';
+import { resolveSequenceTimingView } from '../sequence-timing-model.ts';
+
+/**
+ * Export the current project through an interchange profile.
+ *
+ * Every profile in the 6C-1 family saves through the one `interchange` purpose
+ * and publishes its report into session state alongside the delivery reports
+ * the encode paths produce, so the single File menu entry that shows "what the
+ * delivery could not carry" shows these too. An interchange export drops more
+ * than an encode does — whole tracks, every transition, every time effect — so
+ * routing it anywhere else would mean the omissions that matter most are the
+ * ones with no surface.
+ */
+
+interface InterchangeRuntime {
+	readonly getProject: () => Readonly<Record<string, unknown>> | null | undefined;
+	readonly state: Record<string, unknown>;
+	readonly fileService?: { saveFile?: (request: Readonly<Record<string, unknown>>) => unknown } | null;
+	readonly publishDocumentSnapshot?: () => void;
+	readonly sequenceId?: string;
+}
+
+export async function exportProjectEdl(runtime: InterchangeRuntime & {
+	readonly trackId?: string;
+	readonly reelNames?: Readonly<Record<string, string>>;
+}): Promise<EdlExportResult | null> {
+	const project = runtime?.getProject?.();
+	if (!project) return null;
+	return deliver(runtime, createProjectEdlExport({
+		project,
+		sequenceId: runtime.sequenceId,
+		trackId: runtime.trackId,
+		reelNames: runtime.reelNames,
+	}));
+}
+
+export async function exportProjectOtio(
+	runtime: InterchangeRuntime,
+): Promise<OtioExportResult | null> {
+	const project = runtime?.getProject?.();
+	if (!project) return null;
+	// The sequence is the rate authority; OTIO must never infer one from media.
+	const sequence = resolveSequenceTimingView(project, runtime.sequenceId);
+	return deliver(runtime, createOtioExport({
+		project,
+		sequenceRate: sequence.rate,
+		startFrameCount: sequence.startFrameCount,
+	}));
+}
+
+async function deliver<T extends {
+	text: string; fileName: string; mimeType: string; report: unknown;
+}>(runtime: InterchangeRuntime, result: T): Promise<T> {
+	// Publish the report before the save dialog, so a cancelled save still
+	// leaves the user able to read what the export would have left behind.
+	runtime.state.deliveryReport = result.report;
+	runtime.publishDocumentSnapshot?.();
+
+	if (runtime.fileService?.saveFile) {
+		await runtime.fileService.saveFile({
+			purpose: 'interchange',
+			suggestedName: result.fileName,
+			mimeType: result.mimeType,
+			blob: new Blob([result.text], { type: result.mimeType }),
+		});
+	}
+	return result;
+}

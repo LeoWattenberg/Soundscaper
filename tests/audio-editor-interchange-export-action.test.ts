@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { exportProjectEdl } from '../src/common/editor/controller/edl-export-action.ts';
+import {
+	exportProjectEdl,
+	exportProjectOtio,
+} from '../src/common/editor/controller/interchange-export-action.ts';
 
 const SAMPLE_RATE = 48_000;
 
@@ -92,4 +95,36 @@ test('a host with no file service still returns the document rather than silentl
 	const { runtime } = harness({ fileService: null });
 	const result = await exportProjectEdl(runtime);
 	assert.ok(result?.text.includes('CAM_A'), 'the caller can still write the bytes itself');
+});
+
+test('the OTIO action shares the interchange purpose and the report surface', async () => {
+	const { saved, state, runtime } = harness();
+	const result = await exportProjectOtio(runtime);
+	assert.equal(saved[0].purpose, 'interchange', 'the profile family shares one purpose');
+	assert.equal(saved[0].suggestedName, 'Reel-one.otio');
+	assert.equal(saved[0].mimeType, 'application/json');
+	assert.equal((state.deliveryReport as { subject: { format: string } }).subject.format, 'otio');
+	assert.equal(
+		(result?.document.global_start_time as { rate: number }).rate,
+		25,
+		'the sequence is the rate authority, not the media',
+	);
+});
+
+test('the OTIO action takes its rate from the sequence rather than inferring one', async () => {
+	// A profile that guesses a rate from media is how a 25p project becomes a
+	// 29.97 timeline downstream.
+	const { runtime } = harness();
+	const result = await exportProjectOtio(runtime);
+	const metadata = (result?.document.metadata as Record<string, { sequenceRate: unknown }>)[
+		'media.kw.soundscaper'
+	];
+	assert.deepEqual(metadata.sequenceRate, { num: 25, den: 1 });
+});
+
+test('no project means no OTIO file and no invented report either', async () => {
+	const { saved, state, runtime } = harness({ getProject: () => null });
+	assert.equal(await exportProjectOtio(runtime), null);
+	assert.equal(saved.length, 0);
+	assert.equal(state.deliveryReport, undefined);
 });

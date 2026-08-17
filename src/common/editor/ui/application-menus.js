@@ -194,6 +194,12 @@ export default function createApplicationMenus({
 							disabled: blocked || !edlTracks.length,
 							onClick: actions.exportEdl,
 						},
+						{
+							id: 'export-otio',
+							label: copy.exportOtio,
+							disabled: blocked,
+							onClick: actions.exportOtio,
+						},
 						...productItems.fileExport,
 					],
 				},

@@ -157,6 +157,26 @@ test('a speed-changed clip is emitted as a unity cut and says so', () => {
 	);
 });
 
+test('a clip too short to span a frame is reported, not quietly dropped', () => {
+	// Without the report the list simply has one fewer event than the sequence
+	// has clips, and nothing says which one went.
+	const blink = project({
+		clips: [{
+			kind: 'video', id: 'blink', sourceId: 'src-a', title: 'Blink',
+			timelineStartFrame: 0, durationFrames: 7, sourceStartFrame: 0, speedRatio: 1,
+		}],
+		tracks: [{ type: 'video', id: 'v1', name: 'V1', clipIds: ['blink'], hidden: false }],
+	});
+	const result = createProjectEdlExport({ project: blink });
+	assert.equal(eventLines(result.text).length, 0);
+	const omission = result.report.items.find((item) => item.code === 'edl.sub-frame-clip-omitted');
+	assert.equal(omission?.scope.id, 'blink', 'the report names the clip that vanished');
+	assert.equal(
+		result.report.counts.omitted,
+		result.report.items.filter((item) => item.disposition === 'omitted').length,
+	);
+});
+
 test('an explicit reel mapping overrides the source name', () => {
 	const result = createProjectEdlExport({
 		project: project(),

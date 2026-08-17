@@ -14,6 +14,7 @@ const EXPORT_MENU_COPY_ENTRIES = Object.freeze([
 	['exportOther', 'Export other', 'Weitere Exporte'],
 	['exportLabels', 'Export labels', 'Beschriftungen exportieren'],
 	['exportEdl', 'Export edit list (EDL)', 'Schnittliste (EDL) exportieren'],
+	['exportOtio', 'Export OpenTimelineIO', 'OpenTimelineIO exportieren'],
 ]);
 
 export const EXPORT_MENU_COPY_BY_LOCALE = Object.freeze({
