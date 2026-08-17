@@ -28,6 +28,7 @@ import {
 	type ProductVideoExportPlan,
 } from './product-video-export-strategy.ts';
 import { acquireVideoExportTimingIndexes } from './video-export-timing.ts';
+import { createVideoDeliveryReportForPlan } from '../delivery-video-conversion-inventory.ts';
 
 export interface VideoExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -166,6 +167,11 @@ export function createEditorVideoExportAction(
 					timingIndexes.release();
 				}
 			}
+			// Same rule as the audio path: the report describes the plan that runs.
+			// It is session state, never project state.
+			state.deliveryReport = createVideoDeliveryReportForPlan(plan, {
+				hasNonMediaStreams: videoSourcesCarryNonMediaStreams(exportProject, plan),
+			});
 			const fileName = `${sanitizeVideoExportFileName(exportProject.title)}.${plan.extension}`;
 			const directPreparation = await prepareDirectVideoDestination(
 				fileService,
@@ -396,4 +402,27 @@ function productEncodeRequest(
 		assertCurrent,
 		maximumOutputBytes,
 	});
+}
+
+/**
+ * Whether any delivered source carries subtitle or data streams, which the
+ * encoder's unconditional `-sn`/`-dn` will drop. Probed characteristics are the
+ * only place this is known; an unprobed source reports nothing rather than
+ * guessing that it lost nothing.
+ */
+function videoSourcesCarryNonMediaStreams(
+	project: RuntimeValue,
+	plan: RuntimeValue,
+): boolean {
+	const inputs = Array.isArray(plan?.inputs) ? plan.inputs : [];
+	for (const input of inputs) {
+		if (input?.kind !== 'video-source') continue;
+		const source = (project?.sources ?? []).find(
+			(candidate: RuntimeValue) => candidate?.id === input.sourceId,
+		);
+		const characteristics = source?.characteristics;
+		if (Number(characteristics?.subtitleStreamCount) > 0
+			|| Number(characteristics?.dataStreamCount) > 0) return true;
+	}
+	return false;
 }
