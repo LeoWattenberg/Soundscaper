@@ -290,14 +290,17 @@ the local tree; 6A, 6B, and 6C have not started.** What landed:
   `controller/delivery-queue-runner.ts` drives it: one job at a time, a
   cancelled job stays cancelled even if its executor later resolves, and an
   abort settles as cancelled rather than failed.
-- **WP-6.0.2 preset core — implemented (domain, store, service).**
+- **WP-6.0.2 preset core — complete.**
   `delivery-preset.ts` validates preset records with closed field lists,
   resolves them to ordinary plan options (parity-tested against the dialog
   path), and declares legal availability from the licensing matrix.
   `delivery-preset-store.ts` and `controller/delivery-preset-service.ts`
   mirror `effect-presets.js` and its service exactly — same state shape,
   same verbs, same id-collision rule — because the export dialog reuses the
-  effect-preset controls, which is the owner's recorded decision.
+  effect-preset controls, which is the owner's recorded decision. The
+  dialog shows the picker, name field, and save/delete/import/export
+  controls; `ui/export-preset-model.ts` owns the string-to-value
+  translation and keeps dialog-only state out of saved presets.
 
 Still owed before 6A/6B/6C may open, since the packets' acceptance is not
 yet fully met:
@@ -310,10 +313,8 @@ yet fully met:
 - Nothing constructs the queue runner yet: no export path enqueues through
   it, there is no task-coordinator wiring, and the Electron binding through
   `render-job-port` remains gated on that port having a host.
-- The preset service is not composed into the app and
-  `ui/inspector/ExportDialog.jsx` does not yet show the effect-preset-style
-  picker, save/delete, or import/export controls. That JSX wiring plus its
-  i18n strings is the last piece of 6.0.
+- Nothing constructs the queue runner on an export path yet, so batches and
+  alternates (6A-3) have a queue to build on but no delivery uses it.
 
 ## Phase structure
 
