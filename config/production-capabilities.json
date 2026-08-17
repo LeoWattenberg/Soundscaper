@@ -222,7 +222,8 @@
 				"sequenceTiming": true,
 				"videoRetime": false,
 				"videoTimingAssets": true,
-				"sourceCharacteristics": true
+				"sourceCharacteristics": true,
+				"masteringSequences": false
 			}
 		},
 		"framescaper": {
@@ -347,7 +348,8 @@
 				"sequenceTiming": true,
 				"videoRetime": false,
 				"videoTimingAssets": true,
-				"sourceCharacteristics": true
+				"sourceCharacteristics": true,
+				"masteringSequences": false
 			}
 		}
 	}

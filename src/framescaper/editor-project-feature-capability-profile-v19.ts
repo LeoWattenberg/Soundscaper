@@ -24,6 +24,7 @@ export const FRAMESCAPER_V19_PROJECT_FEATURE_CAPABILITY_PROFILE =
 			{ key: 'audioTimelineEditing', featureId: 'org.soundscaper.capability.audio-timeline-editing', available: true },
 			{ key: 'audioTrackFreeze', featureId: 'org.soundscaper.capability.audio-track-freeze', available: false },
 			{ key: 'audioWarp', featureId: 'org.soundscaper.capability.audio-warp', available: false },
+			{ key: 'masteringSequences', featureId: 'org.soundscaper.capability.mastering-sequences', available: false },
 			{ key: 'multicamera', featureId: 'org.soundscaper.capability.multicamera', available: true },
 			{ key: 'musicalTimeline', featureId: 'org.soundscaper.capability.musical-timeline', available: false },
 			{ key: 'nestedSequences', featureId: 'org.soundscaper.capability.nested-sequences', available: true },

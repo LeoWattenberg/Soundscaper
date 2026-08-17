@@ -73,6 +73,7 @@ const EXPECTED = Object.freeze([
 	registration('audioTimelineEditing', 'org.soundscaper.capability.audio-timeline-editing', true),
 	registration('audioTrackFreeze', 'org.soundscaper.capability.audio-track-freeze', false),
 	registration('audioWarp', 'org.soundscaper.capability.audio-warp', false),
+	registration('masteringSequences', 'org.soundscaper.capability.mastering-sequences', false),
 	registration('multicamera', MULTICAMERA_ID, true),
 	registration('musicalTimeline', 'org.soundscaper.capability.musical-timeline', false),
 	registration('nestedSequences', NESTED_SEQUENCES_ID, true),
@@ -113,7 +114,7 @@ test('owns two type declarations, two runtime exports, and one exact product exp
 	assert.doesNotMatch(source, /export\s+(?:type\s+)?\{/u);
 });
 
-test('the exact Framescaper singleton owns 35 sorted registrations with 17 available', () => {
+test('the exact Framescaper singleton owns 36 sorted registrations with 17 available', () => {
 	const token: EditorProjectFeatureCapabilityProfile =
 		FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE;
 	assert.equal(Object.isFrozen(token), true);
@@ -122,7 +123,7 @@ test('the exact Framescaper singleton owns 35 sorted registrations with 17 avail
 	const snapshot = editorProjectFeatureCapabilityProfileDefinition(token);
 	assert.equal(snapshot.owner, 'framescaper');
 	assert.deepEqual(snapshot.registrations, EXPECTED);
-	assert.equal(snapshot.registrations.length, 35);
+	assert.equal(snapshot.registrations.length, 36);
 	assert.equal(snapshot.registrations.filter((item: Registration) => item.available).length, 17);
 	assert.deepEqual(snapshot.registrations.find((item: Registration) => item.key === 'videoProxy'),
 		registration('videoProxy', VIDEO_PROXY_ID, false));
@@ -135,7 +136,7 @@ test('the immutable V18 profile predates V19 geometry while registering unavaila
 	const parity = EXPECTED.filter(({ key }) => key !== 'videoProxy');
 	const ids = PROJECT_FEATURE_CAPABILITY_IDS as Readonly<Record<string, string>>;
 	const availability = FRAMESCAPER_PROFILE.capabilities as Readonly<Record<string, unknown>>;
-	assert.equal(parity.length, 34);
+	assert.equal(parity.length, 35);
 	assert.deepEqual(
 		parity.map(({ key }) => key).sort(),
 		Object.keys(ids).filter((key) => key !== 'videoGeometry').sort(),
@@ -376,12 +377,16 @@ test('keeps private capability ownership within the closed V18 domain set', asyn
 	}
 	assert.deepEqual(exportReferences, [
 		PRODUCT_MODULE, FINAL_PRODUCT_MODULE, TEST_MODULE, FINAL_TEST_MODULE,
+		// The mastering-sequence capability asserts its unavailability in this
+		// exact profile, which is the intended way to reference it from outside.
+		'tests/audio-editor-mastering-sequence-capability.test.ts',
 	]);
 	assert.deepEqual(pathReferences, [
 		'scripts/lib/desktop-project-library-runtime.mjs',
 		FINAL_PRODUCT_MODULE,
 		TEST_MODULE,
 		FINAL_TEST_MODULE,
+		'tests/audio-editor-mastering-sequence-capability.test.ts',
 		'tests/desktop-project-library-packaging.test.js',
 	]);
 	assert.deepEqual(genericPathReferences, [
@@ -401,6 +406,7 @@ test('keeps private capability ownership within the closed V18 domain set', asyn
 		TEST_MODULE,
 		FINAL_TEST_MODULE,
 		'tests/audio-editor-framescaper-project-v20-profile.test.ts',
+		'tests/audio-editor-mastering-sequence-capability.test.ts',
 		'tests/audio-editor-soundscaper-v21-feature-registration.test.ts',
 		'tests/desktop-project-library-packaging.test.js',
 	]);
