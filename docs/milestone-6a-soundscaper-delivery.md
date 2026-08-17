@@ -134,6 +134,13 @@ half-registered revision in the tree is worse than none.
   that changes nothing returns the same object, because undo history and document
   revisions key on identity. Editing never consults the regions, so an entry
   whose region was deleted stays removable.
+- `src/common/editor/mastering-sequence-regions.ts` — the bridge to V11
+  annotations. A sequence never resolves a region's position itself: it asks the
+  runtime annotation projection, the same resolution playback and navigation use,
+  because a musically anchored region's frame position is a question only the
+  project's tempo map can answer and a second answer would drift from the first.
+  Markers are dropped rather than reported as a wrong kind — an entry pointing at
+  one finds no region, which validation already reports with the entry intact.
 
 **The revision number is V23**, Soundscaper-owned. 18, 19 and 20 are Framescaper,
 21 is the current Soundscaper revision, and 22 is reserved for 4B-3 transitions
