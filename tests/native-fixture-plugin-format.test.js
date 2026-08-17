@@ -6,9 +6,10 @@
  *
  * The crash and hang fixtures are deliberately NOT exercised here: they really
  * abort and really hang, which is the whole point of them, and running them in
- * this process would take the test runner with them. They belong to the
- * supervised scan-service suites, where a dead helper is the observation being
- * made rather than an accident.
+ * this process would take the test runner with them. They are exercised by
+ * native-fixture-plugin-fault-supervision.test.js, which runs them in a
+ * supervised helper process where a dead helper is the observation being made
+ * rather than an accident.
  */
 
 import assert from 'node:assert/strict';
