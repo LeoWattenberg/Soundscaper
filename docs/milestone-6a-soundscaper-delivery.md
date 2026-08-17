@@ -110,6 +110,56 @@ unavailable. V19/V20/V21 are taken and V22 is reserved for 4B-3 transitions
 (docs/milestone-4-plan.md:381-383); the mastering-sequence revision takes the
 next free number at its own pickup and never assumes one here.
 
+## 6A-1a status: the schema-neutral half has landed
+
+The discipline sequences schema-neutral work first
+(docs/milestone-3b-work-packets.md:25-28), and that is the boundary this work
+stopped at deliberately, because the revision itself must land atomically and a
+half-registered revision in the tree is worse than none.
+
+**Landed and tested:**
+
+- `src/common/editor/mastering-sequence.ts` — the document type. Entries point at
+  V11 regions by identity and store no time ranges; gaps belong to the entry that
+  follows them; titles fall back to the region's own name; delivery metadata is
+  open key/value pairs. Structural validity is separate from relational validity
+  because only one of the two can be decided from the document alone. A deleted
+  region, a region moved into another timeline sequence, and fades longer than
+  their region are typed validation errors that refuse delivery with the reason;
+  a region merely moved earlier in time is reported at info level and never acted
+  on. Nothing ever shrinks or reorders a sequence.
+- `src/common/editor/mastering-sequence-edit.ts` — the edit primitives the
+  undoable commands are built from. Every result is rebuilt through the document
+  model, so no edit path can produce a sequence the model would reject. An edit
+  that changes nothing returns the same object, because undo history and document
+  revisions key on identity. Editing never consults the regions, so an entry
+  whose region was deleted stays removable.
+
+**The revision number is V23**, Soundscaper-owned. 18, 19 and 20 are Framescaper,
+21 is the current Soundscaper revision, and 22 is reserved for 4B-3 transitions
+(docs/milestone-4-plan.md:381-383), so 23 is the next free number. It was
+allocated here, at the pickup, exactly as the sequencing note requires.
+
+**What the revision still has to walk.** Verified against the tree, not assumed:
+
+- `project-schema-version.ts`: the constant, plus the seven `isXProjectSchema`
+  predicates that currently enumerate V21 by hand.
+- The Soundscaper document chain, which is cloned per revision rather than
+  parameterized — `editor-project-v21.ts` and its validation, profile, capability
+  profile, feature requirements, feature compatibility, repository, store,
+  controller, playback, environment, runtime profile and prerequisite, runtime
+  selection, and `editor-scape-native-v21.ts` all have V23 counterparts to make.
+  The document itself is small: V23 is V21's factory plus `masteringSequences`,
+  the same way V21 is V17's factory plus automation lanes and the mixer graph.
+- A `masteringSequences` capability id in `project-feature-capabilities.ts`, with
+  both product profiles initially unavailable; the owned-requirement predicate;
+  the compatibility register rule; and the capability-policy gate.
+- Command discriminants and the domain registry, and the single mutation path.
+- The fixture set the acceptance names: exact-current validation, typed rejection
+  of older schemas, future-schema read-only handling, clone, undo/redo, clipboard,
+  `.scape`, desktop, archive, byte-idempotent load/save, and semantic survival
+  after editing.
+
 ## 6A-1a — Mastering-sequence document type
 
 - **Outcome:** the mastering-sequence schema revision: an ordered set of named
