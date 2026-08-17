@@ -21,21 +21,21 @@ const assetLoader = `
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
 const {
-	createSoundscaperWebEditorRuntimeV21,
-	default: SoundscaperAudioEditorBootstrapV21,
-} = await import('../src/soundscaper/ui/SoundscaperAudioEditorBootstrapV21.tsx');
+	createSoundscaperWebEditorRuntimeV23,
+	default: SoundscaperAudioEditorBootstrapV23,
+} = await import('../src/soundscaper/ui/SoundscaperAudioEditorBootstrapV23.tsx');
 
 const ROOT = new URL('../', import.meta.url);
 
-test('Soundscaper web runtime reaches exact V21 and its isolated durable store', async (context) => {
+test('Soundscaper web runtime reaches exact V23 and its isolated durable store', async (context) => {
 	installIndexedDB(context);
-	const runtime = await createSoundscaperWebEditorRuntimeV21({ locale: 'en', copy: {} });
+	const runtime = await createSoundscaperWebEditorRuntimeV23({ locale: 'en', copy: {} });
 	assert.deepEqual(Object.keys(runtime), ['controller', 'fileService', 'dispose']);
 	assert.equal(Object.isFrozen(runtime), true);
 	assert.equal(runtime.fileService.kind, 'browser');
 	const ready = await runtime.controller.ready;
 	assert.equal(ready.phase, 'ready', JSON.stringify(ready.status));
-	assert.equal(ready.project.schemaVersion, 21);
+	assert.equal(ready.project.schemaVersion, 23);
 	assert.equal(ready.readOnly, false);
 	assert.equal(typeof runtime.controller.actions.audioAutomation.setMode, 'function');
 	assert.equal(typeof runtime.controller.actions.audioFreeze.freeze, 'function');
@@ -65,20 +65,20 @@ test('Soundscaper web runtime reaches exact V21 and its isolated durable store',
 	assert.equal(runtime.controller.getSnapshot().phase, 'disposed');
 });
 
-test('Soundscaper V21 bootstrap accepts presentation only and stays surface-free while loading', async () => {
+test('Soundscaper V23 bootstrap accepts presentation only and stays surface-free while loading', async () => {
 	let getterCalls = 0;
 	const hostile = Object.defineProperty({ locale: 'en', copy: {} }, 'store', {
 		enumerable: true,
 		get() { getterCalls += 1; throw new Error('store getter'); },
 	});
 	await assert.rejects(
-		createSoundscaperWebEditorRuntimeV21(
+		createSoundscaperWebEditorRuntimeV23(
 			hostile as unknown as { locale: string; copy: Record<string, unknown> },
 		),
 		/unsupported|presentation/iu,
 	);
 	assert.equal(getterCalls, 0);
-	const markup = renderToStaticMarkup(<SoundscaperAudioEditorBootstrapV21
+	const markup = renderToStaticMarkup(<SoundscaperAudioEditorBootstrapV23
 		locale="en"
 		fallbackCopy={{ loading: 'Loading Soundscaper', genericError: 'Error: {message}' }}
 	/>);
@@ -86,18 +86,18 @@ test('Soundscaper V21 bootstrap accepts presentation only and stays surface-free
 	assert.doesNotMatch(markup, /<(?:button|input|select|textarea)\b/iu);
 });
 
-test('the shared Soundscaper site route selects only the product-owned V21 bootstrap', async () => {
+test('the shared Soundscaper site route selects only the product-owned V23 bootstrap', async () => {
 	const [main, bootstrap, controller, environment] = await Promise.all([
 		readSource('src/common/site/App.jsx'),
-		readSource('src/soundscaper/ui/SoundscaperAudioEditorBootstrapV21.tsx'),
-		readSource('src/soundscaper/editor-controller-v21.ts'),
-		readSource('src/soundscaper/editor-project-environment-v21.ts'),
+		readSource('src/soundscaper/ui/SoundscaperAudioEditorBootstrapV23.tsx'),
+		readSource('src/soundscaper/editor-controller-v23.ts'),
+		readSource('src/soundscaper/editor-project-environment-v23.ts'),
 	]);
-	assert.match(main, /lazy\(\(\)\s*=>\s*import\('\.\.\/\.\.\/soundscaper\/ui\/SoundscaperAudioEditorBootstrapV21\.tsx'\)\)/u);
-	assert.match(main, /productId\s*!==\s*'framescaper'\s*\?\s*SoundscaperAudioEditorBootstrapV21/su);
-	assert.match(bootstrap, /createSoundscaperEditorProjectEnvironmentV21/u);
-	assert.match(bootstrap, /createSoundscaperAudioEditorControllerV21/u);
-	assert.match(environment, /createSoundscaperProjectRuntimeV21Selection/u);
+	assert.match(main, /lazy\(\(\)\s*=>\s*import\('\.\.\/\.\.\/soundscaper\/ui\/SoundscaperAudioEditorBootstrapV23\.tsx'\)\)/u);
+	assert.match(main, /productId\s*!==\s*'framescaper'\s*\?\s*SoundscaperAudioEditorBootstrapV23/su);
+	assert.match(bootstrap, /createSoundscaperEditorProjectEnvironmentV23/u);
+	assert.match(bootstrap, /createSoundscaperAudioEditorControllerV23/u);
+	assert.match(environment, /createSoundscaperProjectRuntimeV23Selection/u);
 	assert.match(controller, /projectRuntime:\s*environment\.runtime/u);
 	assert.doesNotMatch(bootstrap, /createAudioEditorController|AudioEditorBootstrap\.jsx/u);
 });

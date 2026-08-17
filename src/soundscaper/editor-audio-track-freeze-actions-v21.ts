@@ -75,6 +75,12 @@ export interface SoundscaperAudioFreezeRenderEngineV21 {
 }
 
 export interface SoundscaperAudioFreezeActionsOptionsV21 {
+	/**
+	 * The document validator for the revision these actions serve. Later
+	 * production revisions inherit this file unchanged, so the revision is a
+	 * parameter rather than something the file names.
+	 */
+	readonly validateProject?: (project: unknown) => unknown;
 	/** Lower-only deterministic test seam. */
 	readonly createId?: (kind: 'source' | 'clip') => string;
 	/** Lower-only renderer test seam. */
@@ -104,6 +110,7 @@ export function createSoundscaperAudioFreezeActionsV21(
 	options: SoundscaperAudioFreezeActionsOptionsV21 = {},
 ): Readonly<SoundscaperAudioFreezeActionBindingV21> {
 	assertDependencies(environment, controller, options);
+	const validateProject = options.validateProject ?? validateSoundscaperProjectV21;
 	const createId = options.createId ?? defaultId;
 	const createRenderEngine = options.createRenderEngine ?? createAudioEditorEngine;
 	const coordinator = createAudioTrackFreezeCoordinatorV21<
@@ -112,7 +119,7 @@ export function createSoundscaperAudioFreezeActionsV21(
 		controller: {
 			capture: ({ trackId, signal }) => {
 				throwIfAborted(signal);
-				const project = exactCurrentProject(controller);
+				const project = exactCurrentProject(controller, validateProject);
 				const track = exactRecordById(project.tracks, trackId, 'audio freeze track');
 				if (track.type !== 'audio') throw new RangeError(`Track ${trackId} is not audio.`);
 				if (track.locked === true) throw new Error(`Audio track ${trackId} is locked.`);
@@ -123,7 +130,7 @@ export function createSoundscaperAudioFreezeActionsV21(
 				throwIfAborted(signal);
 			assertCurrent(controller, ticket);
 			const result = controller.actions.edit.commit(command);
-			const current = exactCurrentProject(controller);
+			const current = exactCurrentProject(controller, validateProject);
 			if (result !== current) throw new Error('Audio freeze command did not publish the current project.');
 			return current;
 			},
@@ -194,7 +201,7 @@ export function createSoundscaperAudioFreezeActionsV21(
 		refresh: freeze,
 		unfreeze: (trackId: string) => run(trackId, (signal) => coordinator.unfreeze({ trackId, signal })),
 		commit: (trackId: string) => run(trackId, (signal) => {
-			const project = exactCurrentProject(controller);
+			const project = exactCurrentProject(controller, validateProject);
 			const track = exactRecordById(project.tracks, trackId, 'committed frozen track');
 			const freezeValue = dataRecord(track.audioFreeze, 'committed audio freeze');
 			return coordinator.commit({

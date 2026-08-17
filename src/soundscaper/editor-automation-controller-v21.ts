@@ -63,18 +63,30 @@ export interface SoundscaperAutomationControllerBindingV21 {
 	dispose(): void;
 }
 
+export interface SoundscaperAutomationControllerBindingOptionsV21 {
+	/**
+	 * The document validator for the revision this binding serves. Later
+	 * production revisions inherit this file unchanged, and validating a V23
+	 * document as V21 fails on the field V23 adds — so the revision is a
+	 * parameter rather than something this file names.
+	 */
+	readonly validateProject?: (project: unknown) => unknown;
+}
+
 /** Bind controller/engine lifecycle events without introducing persisted mode state. */
 export function createSoundscaperAutomationControllerBindingV21(
 	host: SoundscaperAutomationControllerHostV21,
+	options: SoundscaperAutomationControllerBindingOptionsV21 = {},
 ): Readonly<SoundscaperAutomationControllerBindingV21> {
 	assertHost(host);
+	const validateProject = options.validateProject ?? validateSoundscaperProjectV21;
 	let disposed = false;
 	const coordinator = createSoundscaperAutomationSessionV21({
 		captureAuthority: () => controllerAuthority(host),
-		resolveTarget: (laneId) => resolveSoundscaperAutomationTargetV21(host.project, laneId),
+		resolveTarget: (laneId) => resolveSoundscaperAutomationTargetV21(host.project, laneId, validateProject),
 		commit: (command) => host.actions.edit.commit(command),
 		preview: ({ laneId, value }) => {
-			const target = resolveSoundscaperAutomationTargetV21(host.project, laneId);
+			const target = resolveSoundscaperAutomationTargetV21(host.project, laneId, validateProject);
 			if (target) host.engine.previewScheduledParameter?.(target.descriptor.address, value);
 		},
 		restoreReadback: ({ id }) => { restoreAutomationReadbackV21(host, id); },

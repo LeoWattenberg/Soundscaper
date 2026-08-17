@@ -16,6 +16,7 @@ import {
 	assertSoundscaperEditorProjectEnvironmentV23,
 	type SoundscaperEditorProjectEnvironmentV23,
 } from './editor-project-environment-v23.ts';
+import { validateSoundscaperProjectV23 } from './editor-project-v23-validation.ts';
 import { createSoundscaperScapeNativeRuntimeV23 } from './editor-scape-native-v23.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
@@ -56,8 +57,12 @@ export function createSoundscaperAudioEditorControllerV23(
 		scapeProjectRuntime,
 		...presentation,
 	});
-	const automation = createSoundscaperAutomationControllerBindingV21(delegate);
-	const freeze = createSoundscaperAudioFreezeActionsV21(environment, delegate);
+	const automation = createSoundscaperAutomationControllerBindingV21(delegate, {
+		validateProject: validateSoundscaperProjectV23,
+	});
+	const freeze = createSoundscaperAudioFreezeActionsV21(environment, delegate, {
+		validateProject: validateSoundscaperProjectV23,
+	});
 	return createControllerFacade(delegate, automation, freeze);
 }
 
