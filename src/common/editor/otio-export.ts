@@ -7,6 +7,7 @@ import {
 	sealDeliveryReport,
 } from './delivery-report.ts';
 import { type SequenceRationalRate } from './sequence-timecode.ts';
+import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
 
 /**
  * OpenTimelineIO export.
@@ -317,15 +318,20 @@ function reportNesting(project: Readonly<Record<string, unknown>>, draft: Draft)
 }
 
 /**
- * Sample frames to the track's own timebase. Video divides by the exact
- * rational rather than the double, so the frame index is the one the sequence
- * grid resolves to rather than one a floating-point rate drifted into.
+ * Sample frames to the track's own timebase.
+ *
+ * Video goes through the shared sequence-frame navigation rather than flooring
+ * the exact quotient. The two are not the same: `point` rounding can move a
+ * boundary either way against the quotient, so a plain floor disagrees on
+ * roughly one boundary in five thousand. That is enough for the same project
+ * to describe two different edits depending on which profile wrote it, and for
+ * an OTIO file to disagree with the ruler the user was looking at.
  */
 function toTimebase(sampleFrame: number, walk: TrackWalk, context: {
 	sampleRate: number; sequenceRate: SequenceRationalRate;
 }): number {
 	if (walk.kind === 'Audio') return sampleFrame;
-	return Math.floor((sampleFrame * context.sequenceRate.num) / (context.sampleRate * context.sequenceRate.den));
+	return sequenceFrameAtSample(sampleFrame, context.sequenceRate, context.sampleRate);
 }
 
 function rationalTime(value: number, rate: number): Record<string, unknown> {

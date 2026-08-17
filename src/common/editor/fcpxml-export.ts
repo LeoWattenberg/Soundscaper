@@ -7,6 +7,7 @@ import {
 	sealDeliveryReport,
 } from './delivery-report.ts';
 import { type SequenceRationalRate } from './sequence-timecode.ts';
+import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
 
 /**
  * FCPXML export.
@@ -281,8 +282,15 @@ function formatName(rate: SequenceRationalRate): string {
 	return `SoundscaperFormat${rate.num}_${rate.den}`;
 }
 
+/**
+ * Sample frames to sequence frames through the shared navigation, not by
+ * flooring the exact quotient. `point` rounding can move a boundary either way
+ * against the quotient, so the two disagree on roughly one boundary in five
+ * thousand — enough for an FCPXML file to place a cut one frame from where the
+ * EDL of the same project places it.
+ */
 function toFrames(sampleFrame: number, rate: SequenceRationalRate, sampleRate: number): number {
-	return Math.floor((sampleFrame * rate.num) / (sampleRate * rate.den));
+	return sequenceFrameAtSample(sampleFrame, rate, sampleRate);
 }
 
 function gcd(left: number, right: number): number {
