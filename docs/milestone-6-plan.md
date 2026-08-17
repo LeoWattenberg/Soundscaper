@@ -258,8 +258,9 @@ existing portable exception (docs/project-compatibility.md:86-88).
 
 ## Implementation status
 
-**Status on 2026-08-17: the 6.0 domain core is implemented provisionally in
-the local tree; 6A, 6B, and 6C have not started.** What landed:
+**Status on 2026-08-17: phase 6.0 is complete for the web tier; 6A, 6B, and
+6C have not started.** Nothing here is qualified — both quality
+environments remain unprovisioned. What landed:
 
 - **WP-6.0.0 plan-pin repair — implemented.**
   `src/common/editor/video-export-plan-version.ts` is the single source of
@@ -283,13 +284,16 @@ the local tree; 6A, 6B, and 6C have not started.** What landed:
   source carried. Both are now itemized. Reports save through the reserved
   `'report'` purpose as deterministic JSON, so a delivery's evidence
   outlives its session and two runs compare byte for byte.
-- **WP-6.0.1 queue semantics — implemented (domain and runner).**
+- **WP-6.0.1 queue semantics — complete (web tier).**
   `delivery-queue.ts` is the bounded in-session queue, consuming the 5B-3
   recovery-class and task-kind vocabulary rather than forking it. Enqueue
   refuses a job that would claim a recovery it cannot prove.
   `controller/delivery-queue-runner.ts` drives it: one job at a time, a
   cancelled job stays cancelled even if its executor later resolves, and an
   abort settles as cancelled rather than failed.
+  `controller/delivery-queue-service.ts` binds it to the real export path:
+  every member is one ordinary `handleExportAction` call, so a batch is
+  never a second render path.
 - **WP-6.0.2 preset core — complete.**
   `delivery-preset.ts` validates preset records with closed field lists,
   resolves them to ordinary plan options (parity-tested against the dialog
@@ -302,19 +306,19 @@ the local tree; 6A, 6B, and 6C have not started.** What landed:
   controls; `ui/export-preset-model.ts` owns the string-to-value
   translation and keeps dialog-only state out of saved presets.
 
-Still owed before 6A/6B/6C may open, since the packets' acceptance is not
-yet fully met:
+**6.0 acceptance is met for the web tier, so 6A/6B/6C may open.** What
+remains inside 6.0 is gated on work this milestone does not own:
 
+- The Electron queue binding waits on `render-job-port` having a host
+  implementation and on helper contract v1 admitting a media job kind. The
+  plan's honest-degradation path — the in-session queue — is what runs
+  today, which is the recorded fallback rather than a gap.
 - The AUP4 report still renders through its own component rather than the
   shared one, though both now draw their copy from
   `src/common/i18n/report-copy.js` and share the disposition vocabulary.
-- No conformance, loudness, or restoration-provenance fields exist yet;
-  those arrive with 6A-2 and 6A-4.
-- Nothing constructs the queue runner yet: no export path enqueues through
-  it, there is no task-coordinator wiring, and the Electron binding through
-  `render-job-port` remains gated on that port having a host.
-- Nothing constructs the queue runner on an export path yet, so batches and
-  alternates (6A-3) have a queue to build on but no delivery uses it.
+- No conformance, loudness, or restoration-provenance report fields exist
+  yet; those arrive with 6A-2 and 6A-4 and extend the model rather than
+  changing it.
 
 ## Phase structure
 
