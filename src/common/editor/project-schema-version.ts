@@ -10,6 +10,10 @@ export const AUDIO_EDITOR_PROJECT_V16_SCHEMA_VERSION = 16 as const;
 export const AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION = 17 as const;
 export const FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION = 19 as const;
 export const SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION = 21 as const;
+// 22 is reserved for the planned 4B-3 transitions revision, so the
+// mastering-sequence revision takes 23. Several tests use V21 + 1 as their
+// "future schema" sentinel, which numbering this 22 would have invalidated.
+export const SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION = 23 as const;
 export const AUDIO_EDITOR_PROJECT_SCHEMA_VERSION = AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION;
 export const AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION = AUDIO_EDITOR_PROJECT_SCHEMA_VERSION;
 
@@ -25,7 +29,8 @@ export function isFoundationProjectSchema(value: unknown): boolean {
 	return value === AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
 /**
@@ -44,17 +49,19 @@ export function isFoundationProjectSchema(value: unknown): boolean {
  * Per-revision code inside a product directory is the exception and should keep
  * comparing exactly — a V21 validator must accept only V21.
  */
-export function isSoundscaperProductionProjectSchema(value: unknown): value is 21 {
-	return value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+export function isSoundscaperProductionProjectSchema(value: unknown): value is 21 | 23 {
+	return value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
 /** Active audio-authoring documents: shared V17 and Soundscaper-owned V21. */
-export function isActiveAudioEditorProjectSchema(value: unknown): value is 17 | 21 {
+export function isActiveAudioEditorProjectSchema(value: unknown): value is 17 | 21 | 23 {
 	return value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
-export function isTimelineAnnotationProjectSchema(value: unknown): value is 11 | 12 | 13 | 14 | 15 | 16 | 17 | 21 {
+export function isTimelineAnnotationProjectSchema(value: unknown): value is 11 | 12 | 13 | 14 | 15 | 16 | 17 | 21 | 23 {
 	return value === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V13_SCHEMA_VERSION
@@ -62,59 +69,67 @@ export function isTimelineAnnotationProjectSchema(value: unknown): value is 11 |
 		|| value === AUDIO_EDITOR_PROJECT_V15_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V16_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
-export function isTrackFolderProjectSchema(value: unknown): value is 12 | 13 | 14 | 15 | 16 | 17 | 21 {
+export function isTrackFolderProjectSchema(value: unknown): value is 12 | 13 | 14 | 15 | 16 | 17 | 21 | 23 {
 	return value === AUDIO_EDITOR_PROJECT_V12_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V13_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V14_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V15_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V16_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
-export function isSourceCharacteristicsProjectSchema(value: unknown): value is 14 | 15 | 16 | 17 | 21 {
+export function isSourceCharacteristicsProjectSchema(value: unknown): value is 14 | 15 | 16 | 17 | 21 | 23 {
 	return value === AUDIO_EDITOR_PROJECT_V14_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V15_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V16_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
-export function isTrackLockProjectSchema(value: unknown): value is 15 | 16 | 17 | 21 {
+export function isTrackLockProjectSchema(value: unknown): value is 15 | 16 | 17 | 21 | 23 {
 	return value === AUDIO_EDITOR_PROJECT_V15_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V16_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
-export function isVideoRetimeCurveProjectSchema(value: unknown): value is 16 | 17 | 21 {
+export function isVideoRetimeCurveProjectSchema(value: unknown): value is 16 | 17 | 21 | 23 {
 	return value === AUDIO_EDITOR_PROJECT_V16_SCHEMA_VERSION
 		|| value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
-export function isTakeCompProjectSchema(value: unknown): value is 17 | 21 {
+export function isTakeCompProjectSchema(value: unknown): value is 17 | 21 | 23 {
 	return value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
 /** Exact project generations that persist the V17 audio-warp authority. */
-export function isAudioWarpProjectSchema(value: unknown): value is 17 | 21 {
+export function isAudioWarpProjectSchema(value: unknown): value is 17 | 21 | 23 {
 	return value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
 /** Exact selected-product schemas that persist the maintained feature manifest. */
-export function isMaintainedProjectFeatureSchema(value: unknown): value is 17 | 19 | 21 {
+export function isMaintainedProjectFeatureSchema(value: unknown): value is 17 | 19 | 21 | 23 {
 	return value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION
 		|| value === FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
 /** Exact maintained product schemas whose closed rendered-fallback roles are understood. */
-export function isMaintainedRenderedFallbackProjectSchema(value: unknown): value is 17 | 19 | 21 {
+export function isMaintainedRenderedFallbackProjectSchema(value: unknown): value is 17 | 19 | 21 | 23 {
 	return isMaintainedProjectFeatureSchema(value);
 }

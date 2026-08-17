@@ -258,6 +258,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/i18n/canonical-extras.js',
 	'src/common/i18n/locale.js',
 	'src/soundscaper/editor-project-feature-requirements-v21.js',
+	'src/soundscaper/editor-project-production-validation.js',
 	'src/soundscaper/editor-project-v21-validation.js',
 ].sort());
 

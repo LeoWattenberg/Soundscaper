@@ -37,8 +37,9 @@ export function soundscaperAudioTrackFreezeRequirementIdV21(trackIdValue: unknow
 export function reconcileSoundscaperProjectFeatureRequirementsV21(
 	projectValue: DataRecord,
 	manifestValue: ProjectFeatureRequirementsManifest,
+	label = 'Soundscaper V21 project',
 ): ProjectFeatureRequirementsManifest {
-	const project = dataRecord(projectValue, 'Soundscaper V21 project');
+	const project = dataRecord(projectValue, label);
 	const manifest = dataRecord(manifestValue, 'project.featureRequirements');
 	if (manifest.schemaVersion !== 2 || !Array.isArray(manifest.requirements)) {
 		throw new TypeError('Soundscaper V21 feature requirements must be an exact schema-2 manifest.');
@@ -77,15 +78,16 @@ export function reconcileSoundscaperProjectFeatureRequirementsV21(
 /** Require persisted manifests to equal the product-owned reconciliation exactly. */
 export function validateSoundscaperProjectFeatureRequirementsV21(
 	projectValue: DataRecord,
+	label = 'Soundscaper V21 project',
 ): true {
-	const project = dataRecord(projectValue, 'Soundscaper V21 project');
+	const project = dataRecord(projectValue, label);
 	const manifest = normalizeProjectFeatureRequirements(
 		project.featureRequirements,
 		projectContext(project),
 	);
-	const reconciled = reconcileSoundscaperProjectFeatureRequirementsV21(project, manifest);
+	const reconciled = reconcileSoundscaperProjectFeatureRequirementsV21(project, manifest, label);
 	if (JSON.stringify(manifest) !== JSON.stringify(reconciled)) {
-		throw new RangeError('Soundscaper V21 audio-freeze requirements are not in exact reconciled form.');
+		throw new RangeError(`${label} audio-freeze requirements are not in exact reconciled form.`);
 	}
 	return true;
 }

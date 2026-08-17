@@ -28,6 +28,7 @@ export const PROJECT_OWNED_FEATURE_REQUIREMENT_IDS = Object.freeze({
 	audioWarp: 'soundscaper.audio-warp',
 	audioAutomation: 'soundscaper.audio-automation',
 	audioMixerGraph: 'soundscaper.audio-mixer-graph',
+	masteringSequences: 'soundscaper.mastering-sequences',
 	sequenceTiming: 'framescaper.sequence-timing',
 	videoRetime: 'framescaper.video-retime',
 	videoTimingAssets: 'framescaper.video-timing-assets',
@@ -67,6 +68,7 @@ const FOUNDATION_REQUIREMENTS = Object.freeze({
 	audioWarp: requirement('audioWarp', 'Audio warp maps'),
 	audioAutomation: requirement('audioAutomation', 'Audio automation'),
 	audioMixerGraph: requirement('audioMixerGraph', 'Audio mixer graph'),
+	masteringSequences: requirement('masteringSequences', 'Mastering sequences'),
 	sequenceTiming: requirement('sequenceTiming', 'Sequence timing'),
 	videoRetime: requirement('videoRetime', 'Video retime maps'),
 	videoTimingAssets: requirement('videoTimingAssets', 'Exact video timing assets'),
@@ -118,6 +120,7 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 		(project) => projectHasClipField(project, 'video', 'retimeMap'),
 		(project) => isVideoRetimeCurveProjectSchema(dataProperty(project, 'schemaVersion')),
 	),
+	foundationOwned(FOUNDATION_REQUIREMENTS.masteringSequences, projectHoldsMasteringSequence),
 	foundationOwned(FOUNDATION_REQUIREMENTS.videoTimingAssets, projectHasVideoTimingAsset),
 	foundationOwned(
 		FOUNDATION_REQUIREMENTS.sourceCharacteristics,
@@ -127,7 +130,7 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 
 function requirement(
 	key: 'musicalTimeline' | 'timelineAnnotations' | 'trackFolders' | 'takeComp' | 'audioWarp'
-		| 'audioAutomation' | 'audioMixerGraph' | 'sequenceTiming'
+		| 'audioAutomation' | 'audioMixerGraph' | 'masteringSequences' | 'sequenceTiming'
 		| 'videoRetime' | 'videoTimingAssets' | 'sourceCharacteristics',
 	displayName: string,
 ): ProjectFeatureRequirement {
@@ -299,6 +302,17 @@ function projectHasNonDefaultSequenceTiming(project: Readonly<Record<string, unk
 			|| (isRecord(timecode) && ['negative', 'hours', 'minutes', 'seconds', 'frames']
 				.some((key) => Boolean(dataProperty(timecode, key))));
 	});
+}
+
+/**
+ * A project holding a mastering sequence demands the capability, so opening it
+ * where the capability is unavailable reports the loss rather than dropping the
+ * sequence quietly. Holding one is the trigger — an empty collection is the same
+ * project as one that never had the field.
+ */
+function projectHoldsMasteringSequence(project: Readonly<Record<string, unknown>>): boolean {
+	const sequences = dataProperty(project, 'masteringSequences');
+	return Array.isArray(sequences) && sequences.length > 0;
 }
 
 function projectHasVideoTimingAsset(project: Readonly<Record<string, unknown>>): boolean {
