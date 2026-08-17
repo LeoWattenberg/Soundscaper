@@ -11,7 +11,18 @@
 
 ## Pickup status and sequencing
 
-**No 6A work has landed.** 6A opens only after every 6.0 acceptance check
+**Status on 2026-08-17: 6A-2's decision and reporting half has landed; nothing
+else in 6A has started.** `src/common/editor/loudness-normalization.ts` computes
+one gain from a measurement and a target and returns it as inspectable data,
+with the report items wired through `createDeliveryReportForPlan`. The slice's
+stop condition is implemented literally: when the true-peak ceiling binds before
+the integrated target, the gain stops at the ceiling and the delivery is
+reported short — there is no limiter, and the ceiling property is proven by
+sweep rather than by example. **Still owed in 6A-2:** applying the gain in the
+neutral render path, the menu-reached measurement surface for
+`measureBextLoudness`, and the BEXT capture recording post-normalization values.
+
+6A opens only after every 6.0 acceptance check
 passes (WP-6.0.0 delivery reports and plan-pin repair, WP-6.0.1 queue
 semantics, WP-6.0.2 preset core); every slice below consumes at least one of
 those surfaces, and none may reimplement one.
