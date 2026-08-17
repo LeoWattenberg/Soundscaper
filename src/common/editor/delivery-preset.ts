@@ -122,6 +122,16 @@ export function validateDeliveryPreset(value: unknown): DeliveryPreset {
 }
 
 /**
+ * Canvas geometry the video plan builder reads from a nested `canvas` option
+ * rather than the top level. A preset carrying these flat would validate,
+ * resolve, and then be silently ignored — which is exactly the hidden
+ * behaviour this milestone exists to prevent.
+ */
+const VIDEO_CANVAS_SETTINGS: readonly string[] = Object.freeze([
+	'maximumWidth', 'maximumHeight', 'maximumFrameRate',
+]);
+
+/**
  * The options this preset means. They go to the ordinary plan builder, which
  * validates them; nothing here decides whether they are legal.
  */
@@ -131,7 +141,19 @@ export function resolveDeliveryPresetPlanOptions(
 	if (!preset || preset.schemaVersion !== 1) {
 		throw new DeliveryPresetError('A validated delivery preset is required.');
 	}
-	return Object.freeze({ format: preset.format, ...preset.settings });
+	if (preset.kind !== 'video') {
+		return Object.freeze({ format: preset.format, ...preset.settings });
+	}
+	const options: Record<string, unknown> = { format: preset.format };
+	const canvas: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(preset.settings)) {
+		if (VIDEO_CANVAS_SETTINGS.includes(key)) canvas[key] = value;
+		else options[key] = value;
+	}
+	// Only attach the option when the preset actually asked for geometry, so a
+	// preset with no canvas settings leaves existing exports byte-stable.
+	if (Object.keys(canvas).length > 0) options.canvas = Object.freeze(canvas);
+	return Object.freeze(options);
 }
 
 /**

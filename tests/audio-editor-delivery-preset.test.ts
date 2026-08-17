@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { createExportPlan } from '../src/common/editor/export.js';
+import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import {
 	DeliveryPresetError,
 	resolveDeliveryPresetAvailability,
@@ -150,4 +151,52 @@ test('validated presets are frozen data and round-trip through JSON', () => {
 	const roundTripped = validateDeliveryPreset(JSON.parse(JSON.stringify(value)));
 	assert.deepEqual(roundTripped, value, 'presets import and export as plain data');
 	assert.throws(() => resolveDeliveryPresetPlanOptions({} as never), DeliveryPresetError);
+});
+
+test('a video preset canvas setting actually reaches the plan canvas', () => {
+	const project = {
+		sampleRate: 1_000,
+		selection: { startFrame: 0, endFrame: 0 },
+		loop: { enabled: false, startFrame: 0, endFrame: 0 },
+		sources: [{
+			kind: 'video', id: 's', name: 'S', mimeType: 'video/mp4', storageKey: 'm/s',
+			frameCount: 20_000, sampleRate: 1_000, width: 1_920, height: 1_080, frameRate: 30,
+			videoCodec: 'h264', audioCodec: 'aac', hasAudio: true,
+			posterStorageKey: null, thumbnailStorageKey: null,
+		}],
+		clips: [{
+			kind: 'video', id: 'c', sourceId: 's', title: 'V', timelineStartFrame: 0,
+			sourceStartFrame: 0, sourceDurationFrames: 10_000, durationFrames: 10_000,
+			trimStartFrames: 0, trimEndFrames: 0, speedRatio: 1,
+			groupId: null, avLinkId: null, binItemId: null, color: 'blue',
+		}],
+		tracks: [{
+			type: 'video', id: 't', name: 'V', clipIds: ['c'],
+			mute: false, hidden: false, collapsed: false, height: 120, laneGroupId: null,
+		}],
+	};
+	const hd = validateDeliveryPreset({
+		schemaVersion: 1, id: 'hd', label: '1080p', kind: 'video', format: 'mp4',
+		settings: { maximumWidth: 1_920, maximumHeight: 1_080 },
+	});
+	const plan = createVideoExportPlan(project, {
+		...resolveDeliveryPresetPlanOptions(hd),
+		range: { startFrame: 0, endFrame: 10_000 },
+	});
+	assert.deepEqual(
+		{ width: plan.canvas.width, height: plan.canvas.height },
+		{ width: 1_920, height: 1_080 },
+		'a preset that appears applied but silently delivers 720p is the hidden behaviour this milestone exists to prevent',
+	);
+});
+
+test('a video preset leaves the default ceiling alone when it asks for nothing', () => {
+	const bare = validateDeliveryPreset({
+		schemaVersion: 1, id: 'plain', label: 'Plain', kind: 'video', format: 'mp4',
+	});
+	assert.deepEqual(
+		resolveDeliveryPresetPlanOptions(bare),
+		{ format: 'mp4' },
+		'no canvas settings means no canvas option, so existing exports stay byte-stable',
+	);
 });
