@@ -11,8 +11,9 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-17: all three 6C-1 profiles are implemented and reachable;
-the archive slice has not started.** The EDL profile establishes the pattern
+**Status on 2026-08-17: all three 6C-1 profiles are implemented, reachable, and
+verified against third-party readers; 6C-2 has its manifest primitive and
+nothing else.** The EDL profile establishes the pattern
 the remaining profiles reuse: exact rational rates throughout, timecode from the
 shared `sequence-timecode` module, and every out-of-scope feature itemized in a
 delivery report rather than approximated. It is split deliberately —
@@ -232,6 +233,18 @@ before code.
 - **Stop condition:** stop if trim-media cannot prove which bytes are
   unreferenced, or if consolidation would need to weaken any
   `m2-linked-media-lifecycle` semantics.
+- **Partially landed.** `src/common/editor/archive-manifest.ts` is the manifest
+  primitive the other three operations report through: it digests member bytes
+  itself rather than accepting a caller's digest, verifies every member instead
+  of stopping at the first failure, names the failing member, distinguishes a
+  size mismatch from a digest mismatch (truncation moves both, substitution
+  usually only the digest), and treats a member present but unlisted as a
+  finding. Serialization is deterministic and saves through the `'report'`
+  purpose. **Still owed:** consolidate, trim-media, wiring the manifest to the
+  `.scape` archive writer, and the kill/reload recovery acceptance. When those
+  land they must read the project through `projectTrackFolderMediaStateV12`
+  rather than the raw document, for the reason recorded in the pickup status
+  above.
 
 ## 6C-3 — Exit evidence
 
