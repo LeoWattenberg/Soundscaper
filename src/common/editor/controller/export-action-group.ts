@@ -3,7 +3,7 @@
 import { createDeliveryPresetService } from './delivery-preset-service.ts';
 import { createDeliveryQueueService } from './delivery-queue-service.ts';
 import { saveCurrentDeliveryReport } from './delivery-report-action.ts';
-import { exportProjectEdl, exportProjectOtio } from './interchange-export-action.ts';
+import { exportProjectEdl, exportProjectFcpxml, exportProjectOtio } from './interchange-export-action.ts';
 
 /**
  * The export action group.
@@ -45,6 +45,7 @@ export function createExportActionGroup(runtime: ExportActionGroupRuntime) {
 			sequenceId?: string; trackId?: string; reelNames?: Readonly<Record<string, string>>;
 		}) => exportProjectEdl({ ...interchange(), ...options }),
 		exportOtio: (options?: { sequenceId?: string }) => exportProjectOtio({ ...interchange(), ...options }),
+		exportFcpxml: (options?: { sequenceId?: string }) => exportProjectFcpxml({ ...interchange(), ...options }),
 		presets: createDeliveryPresetService({
 			state, persistSetting, publishDocumentSnapshot, createId, fileService,
 		}),

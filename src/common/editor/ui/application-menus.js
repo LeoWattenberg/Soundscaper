@@ -200,6 +200,12 @@ export default function createApplicationMenus({
 							disabled: blocked,
 							onClick: actions.exportOtio,
 						},
+						{
+							id: 'export-fcpxml',
+							label: copy.exportFcpxml,
+							disabled: blocked,
+							onClick: actions.exportFcpxml,
+						},
 						...productItems.fileExport,
 					],
 				},

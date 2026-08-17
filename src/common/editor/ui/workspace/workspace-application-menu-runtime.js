@@ -147,6 +147,7 @@ export function createWorkspaceApplicationMenus({
 				exportLabels: () => openSurface('label-export'),
 				exportEdl: () => run(() => controller.actions.export.exportEdl()),
 				exportOtio: () => run(() => controller.actions.export.exportOtio()),
+				exportFcpxml: () => run(() => controller.actions.export.exportFcpxml()),
 				renameProject: () => { setDialogValue(project?.title || ''); setDialog('rename'); },
 				duplicateProject: () => run(() => controller.actions.project.duplicate()),
 				deleteProject: () => setDialog('delete'),

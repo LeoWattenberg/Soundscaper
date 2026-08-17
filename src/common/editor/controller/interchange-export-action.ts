@@ -3,6 +3,7 @@
 import { type EdlExportResult } from '../edl-export.ts';
 import { createProjectEdlExport } from '../edl-project-adapter.ts';
 import { type OtioExportResult, createOtioExport } from '../otio-export.ts';
+import { type FcpxmlExportResult, createFcpxmlExport } from '../fcpxml-export.ts';
 import { resolveSequenceTimingView } from '../sequence-timing-model.ts';
 
 /**
@@ -49,6 +50,20 @@ export async function exportProjectOtio(
 	return deliver(runtime, createOtioExport({
 		project,
 		sequenceRate: sequence.rate,
+		startFrameCount: sequence.startFrameCount,
+	}));
+}
+
+export async function exportProjectFcpxml(
+	runtime: InterchangeRuntime,
+): Promise<FcpxmlExportResult | null> {
+	const project = runtime?.getProject?.();
+	if (!project) return null;
+	const sequence = resolveSequenceTimingView(project, runtime.sequenceId);
+	return deliver(runtime, createFcpxmlExport({
+		project,
+		sequenceRate: sequence.rate,
+		dropFrame: sequence.dropFrame,
 		startFrameCount: sequence.startFrameCount,
 	}));
 }

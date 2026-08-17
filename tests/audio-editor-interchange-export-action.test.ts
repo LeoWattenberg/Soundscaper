@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	exportProjectEdl,
+	exportProjectFcpxml,
 	exportProjectOtio,
 } from '../src/common/editor/controller/interchange-export-action.ts';
 
@@ -127,4 +128,15 @@ test('no project means no OTIO file and no invented report either', async () => 
 	assert.equal(await exportProjectOtio(runtime), null);
 	assert.equal(saved.length, 0);
 	assert.equal(state.deliveryReport, undefined);
+});
+
+test('the FCPXML action shares the family purpose and takes drop frame from the sequence', async () => {
+	const { saved, state, runtime } = harness();
+	const result = await exportProjectFcpxml(runtime);
+	assert.equal(saved[0].purpose, 'interchange');
+	assert.equal(saved[0].suggestedName, 'Reel-one.fcpxml');
+	assert.equal(saved[0].mimeType, 'application/xml');
+	assert.equal((state.deliveryReport as { subject: { format: string } }).subject.format, 'fcpxml');
+	assert.match(result!.text, /tcFormat="NDF"/u, 'the sequence owns the flag, not the rate');
+	assert.match(result!.text, /frameDuration="1\/25s"/u);
 });
