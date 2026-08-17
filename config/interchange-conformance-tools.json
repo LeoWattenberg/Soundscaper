@@ -1,0 +1,45 @@
+{
+	"$comment": [
+		"Reference implementations used to prove the 6C-1 interchange profiles against something",
+		"other than themselves. These are conformance-time tools only: nothing here is bundled,",
+		"linked, or shipped with Soundscaper, so no obligation flows into the AGPL-3.0-only",
+		"distribution. They are recorded anyway because a dependency that decides whether a test",
+		"passes deserves the same provenance discipline as one that ships.",
+		"",
+		"Every package is Apache-2.0, which is one-way compatible with GPLv3-family licensing and",
+		"would remain acceptable even if any of this were ever linked rather than merely executed.",
+		"",
+		"Pure-Python wheels are pinned by sha256 here because they are identical on every platform.",
+		"The opentimelineio core is a native extension published as twenty platform wheels, so the",
+		"provisioner selects the one matching the running interpreter and verifies it against the",
+		"digest PyPI publishes for this exact version. That pins the version and proves the bytes",
+		"arrived intact; it does not, and does not claim to, establish trust in PyPI itself."
+	],
+	"pythonMinimumVersion": "3.9",
+	"packages": [
+		{
+			"name": "opentimelineio",
+			"version": "0.18.1",
+			"license": "Apache-2.0",
+			"purpose": "OTIO reference reader for the 6C-1b round trip, and the plugin host the adapters below register with.",
+			"wheel": "platform",
+			"sha256": null
+		},
+		{
+			"name": "otio-cmx3600-adapter",
+			"version": "1.0.0",
+			"license": "Apache-2.0",
+			"purpose": "Reference CMX3600 reader for the 6C-1a round trip.",
+			"wheel": "otio_cmx3600_adapter-1.0.0-py3-none-any.whl",
+			"sha256": "440ed9d862170d9d03d319a51bf77a19f917b162b73a578e3ebe9a79fa01625b"
+		},
+		{
+			"name": "otio-fcpx-xml-adapter",
+			"version": "1.0.0",
+			"license": "Apache-2.0",
+			"purpose": "Reference FCPXML (Final Cut Pro X) reader for the 6C-1c round trip.",
+			"wheel": "otio_fcpx_xml_adapter-1.0.0-py3-none-any.whl",
+			"sha256": "9891fcba190e1a2ebc339d2da42398ce98927dfb0055d57d8b37ea8769477f73"
+		}
+	]
+}

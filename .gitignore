@@ -24,3 +24,6 @@ private/
 # digest-pinned in config/local-model-catalog.json and served from the object
 # store, so committing them would bloat the history for no recoverable value.
 .model-mirror/
+
+# Provisioned by scripts/provision-interchange-conformance.mjs; reference readers, never shipped.
+/vendor/interchange-conformance/

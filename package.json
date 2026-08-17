@@ -34,6 +34,8 @@
 		"check:notices": "node scripts/check-third-party-notices.mjs",
 		"test": "node scripts/run-node-tests.mjs",
 		"test:coverage": "c8 --all --include=\"src/common/editor/**/*.js\" --include=\"src/common/editor/**/*.cjs\" --include=\"src/common/editor/**/*.mjs\" --include=\"src/common/editor/**/*.ts\" --include=\"src/common/editor/**/*.cts\" --include=\"src/common/editor/**/*.mts\" --exclude=\"src/common/editor/**/native/**\" --check-coverage --lines=80 --branches=70 --functions=80 node scripts/run-node-tests.mjs",
+		"provision:interchange-conformance": "node scripts/provision-interchange-conformance.mjs",
+		"test:reference:interchange": "node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/audio-editor-*-reference-conformance.test.ts",
 		"test:reference:wav-385mib": "node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/audio-editor-export-direct-wav-reference.test.ts",
 		"quality:collect:m2-direct-wav": "node scripts/collect-m2-direct-wav-quality.mjs",
 		"test:reference:scape-8gib": "node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/desktop-scape-sparse-full-import-integration.test.ts",
