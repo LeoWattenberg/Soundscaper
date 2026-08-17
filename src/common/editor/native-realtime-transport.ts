@@ -336,7 +336,16 @@ export type NativeRealtimeSender = ReturnType<typeof createNativeRealtimeSender>
 export type NativeRealtimeAcceptResult = Readonly<{
 	status: 'opened' | 'queued' | 'discarded' | 'ignored' | 'closed'; detail: string;
 	generation: number | null; reason: NativeRealtimeCloseReason | null; error: NativeRealtimeProtocolError | null;
+	/**
+	 * What an open superseded: the packets it dropped from the queue, already
+	 * shaped as the returns that carry their buffers home. The host owns the
+	 * port, so it decides where they go, but the buffers belong to the pool that
+	 * lent them and a generation that keeps them is one the pool is short.
+	 */
+	superseded: readonly NativeRealtimeTransfer<NativeRealtimeReturnMessage>[];
 }>;
+
+const NOTHING_SUPERSEDED: readonly NativeRealtimeTransfer<NativeRealtimeReturnMessage>[] = Object.freeze([]);
 
 export interface NativeRealtimeReceiverOptions {
 	readonly channelCount: number; readonly frameCount?: number; readonly queueCapacity?: number;
@@ -378,12 +387,27 @@ export function createNativeRealtimeReceiver(options: NativeRealtimeReceiverOpti
 		return result('closed', 'generation-closed', generation, lifecycle.reason, error);
 	};
 
+	const returnTransfer = (packet: NativeRealtimeAudioMessage): NativeRealtimeTransfer<NativeRealtimeReturnMessage> => {
+		returned.add(packet);
+		return Object.freeze({
+			message: Object.freeze({
+				protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind: 'return' as const, generation: packet.generation,
+				packetId: packet.packetId, sequence: packet.sequence, channels: packet.channels,
+			}),
+			transfer: transferListForNativeRealtimeChannels(packet.channels),
+		});
+	};
+
 	const openGeneration = (message: NativeRealtimeOpenMessage): NativeRealtimeAcceptResult => {
 		if (generation !== null && message.generation <= generation) return discard('stale-open');
 		// An open this end cannot honour never becomes a generation, so there is
 		// nothing to close once; any running generation is left untouched.
 		if (message.channelCount > maxChannels || message.frameCount > maxFrames || message.queueCapacity > maxQueue) return discard('rejected-open');
 		lifecycle?.close('cancelled');
+		// Accepted but never consumed is still borrowed, so the queue is handed
+		// back rather than dropped: buffers the supersede kept would leave the
+		// generation that replaced it permanently short of credit.
+		const superseded = queue.length === 0 ? NOTHING_SUPERSEDED : Object.freeze(queue.map(returnTransfer));
 		queue.length = 0;
 		lifecycle = createCloseLifecycle(message.generation, options.onClose);
 		generation = message.generation;
@@ -392,7 +416,7 @@ export function createNativeRealtimeReceiver(options: NativeRealtimeReceiverOpti
 		queueCapacity = message.queueCapacity;
 		expectedSequence = 0;
 		expectedFrame = message.startFrame;
-		return result('opened', 'generation-opened', generation, null, null);
+		return result('opened', 'generation-opened', generation, null, null, superseded);
 	};
 
 	const acceptAudio = (message: NativeRealtimeAudioMessage): NativeRealtimeAcceptResult => {
@@ -443,14 +467,7 @@ export function createNativeRealtimeReceiver(options: NativeRealtimeReceiverOpti
 			if (!issued.has(packet) || returned.has(packet)) {
 				throw fail('POOL_LEDGER', `Packet ${String(packet.packetId)} was not issued here or was already returned.`);
 			}
-			returned.add(packet);
-			return Object.freeze({
-				message: Object.freeze({
-					protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind: 'return' as const, generation: packet.generation,
-					packetId: packet.packetId, sequence: packet.sequence, channels: packet.channels,
-				}),
-				transfer: transferListForNativeRealtimeChannels(packet.channels),
-			});
+			return returnTransfer(packet);
 		},
 		reportUnderrun(): NativeRealtimeCloseMessage | null {
 			return lifecycle?.close('underrun') === true ? closeMessage(generation ?? 0, 'underrun') : null;
@@ -463,6 +480,10 @@ export function createNativeRealtimeReceiver(options: NativeRealtimeReceiverOpti
 
 export type NativeRealtimeReceiver = ReturnType<typeof createNativeRealtimeReceiver>;
 
-function result(status: NativeRealtimeAcceptResult['status'], detail: string, generation: number | null, reason: NativeRealtimeCloseReason | null, error: NativeRealtimeProtocolError | null): NativeRealtimeAcceptResult {
-	return Object.freeze({ status, detail, generation, reason, error });
+function result(
+	status: NativeRealtimeAcceptResult['status'], detail: string, generation: number | null,
+	reason: NativeRealtimeCloseReason | null, error: NativeRealtimeProtocolError | null,
+	superseded: readonly NativeRealtimeTransfer<NativeRealtimeReturnMessage>[] = NOTHING_SUPERSEDED,
+): NativeRealtimeAcceptResult {
+	return Object.freeze({ status, detail, generation, reason, error, superseded });
 }

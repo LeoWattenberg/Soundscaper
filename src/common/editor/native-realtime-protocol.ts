@@ -97,41 +97,47 @@ const NUMERIC_LIMITS: Readonly<Record<string, readonly [number, number]>> = Obje
  * peer can neither run a getter on this side nor make it walk unbounded data.
  */
 export function validateNativeRealtimeMessage(value: unknown): NativeRealtimeMessage {
-	const record = asPlainRecord(value);
-	assertControlPayloadSize(record);
-	const version = readField(record, 'protocolVersion');
+	const record = asPlainNativeRealtimeRecord(value, 'wire message');
+	assertBoundedNativeRealtimeEnvelope(record, 'control payload');
+	const version = readNativeRealtimeField(record, 'protocolVersion');
 	if (version !== NATIVE_REALTIME_PROTOCOL_VERSION) {
 		throw nativeRealtimeError('PROTOCOL_VERSION', `Unsupported native real-time protocol version ${describeNativeRealtimeValue(version)}.`, 'protocolVersion');
 	}
-	const kind = readField(record, 'kind');
+	const kind = readNativeRealtimeField(record, 'kind');
 	if (!isMessageKind(kind)) throw nativeRealtimeError('UNKNOWN_KIND', `Unknown message kind ${describeNativeRealtimeValue(kind)}.`, 'kind');
-	assertClosedKeySet(record, MESSAGE_KEY_SETS[kind]);
+	assertClosedNativeRealtimeKeySet(record, MESSAGE_KEY_SETS[kind], 'wire message');
 	const fields: Record<string, unknown> = { protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind };
 	// Every schema key is read below, so a missing one is named by its reader
 	// and this pass only has to prove that nothing extra rode along.
 	for (const key of MESSAGE_KEYS[kind] as readonly string[]) {
 		const limits = NUMERIC_LIMITS[key];
-		if (limits) fields[key] = boundedNativeRealtimeInteger(readField(record, key), key, limits[0], limits[1]);
+		if (limits) fields[key] = boundedNativeRealtimeInteger(readNativeRealtimeField(record, key), key, limits[0], limits[1]);
 	}
 	if (kind === 'close') {
-		const reason = readField(record, 'reason');
+		const reason = readNativeRealtimeField(record, 'reason');
 		if (!isNativeRealtimeCloseReason(reason)) throw nativeRealtimeError('INVALID_FIELD', `${describeNativeRealtimeValue(reason)} is not a close reason.`, 'reason');
 		fields.reason = reason;
 	} else if (kind !== 'open') {
 		const frames = kind === 'audio' ? (fields.frameCount as number) : null;
-		fields.channels = validateChannels(readField(record, 'channels'), frames);
+		fields.channels = validateChannels(readNativeRealtimeField(record, 'channels'), frames);
 	}
 	// Safe by construction: the key set is closed to this kind's schema and
 	// every one of its fields has just been bounded or narrowed above.
 	return Object.freeze(fields) as unknown as NativeRealtimeMessage;
 }
 
-function asPlainRecord(value: unknown): Readonly<Record<string, unknown>> {
+/**
+ * The four guards every closed schema on this plane stands on, shared so the
+ * handshake the broker and the renderer validate can never drift onto looser
+ * rules than the packet validator. `subject` names what is being refused, which
+ * is the only thing the handshake path needs to say differently.
+ */
+export function asPlainNativeRealtimeRecord(value: unknown, subject: string): Readonly<Record<string, unknown>> {
 	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-		throw nativeRealtimeError('INVALID_FIELD', `A wire message must be a plain object, received ${describeNativeRealtimeValue(value)}.`);
+		throw nativeRealtimeError('INVALID_FIELD', `A ${subject} must be a plain object, received ${describeNativeRealtimeValue(value)}.`);
 	}
 	const prototype: unknown = Object.getPrototypeOf(value);
-	if (prototype !== Object.prototype && prototype !== null) throw nativeRealtimeError('INVALID_FIELD', 'A wire message must not carry a class prototype.');
+	if (prototype !== Object.prototype && prototype !== null) throw nativeRealtimeError('INVALID_FIELD', `A ${subject} must not carry a class prototype.`);
 	return value as Readonly<Record<string, unknown>>;
 }
 
@@ -139,28 +145,29 @@ function asPlainRecord(value: unknown): Readonly<Record<string, unknown>> {
  * Bounds the control half of a message before the schema is applied. PCM rides
  * its own bounded channel, so string cost is what matters; every property is
  * charged its worst-case UTF-8 size, which keeps both a megabyte-long field and
- * a key explosion out of a limit that is stated in bytes.
+ * a key explosion out of a limit that is stated in bytes. An accessor is charged
+ * as absent rather than invoked, so nothing here runs a peer's code.
  */
-function assertControlPayloadSize(record: Readonly<Record<string, unknown>>): void {
+export function assertBoundedNativeRealtimeEnvelope(record: Readonly<Record<string, unknown>>, subject: string): void {
 	let bytes = 0;
 	for (const key of Object.getOwnPropertyNames(record)) {
 		const descriptor = Object.getOwnPropertyDescriptor(record, key);
 		const held = descriptor && 'value' in descriptor ? descriptor.value : undefined;
 		bytes += key.length * 3 + (typeof held === 'string' ? held.length * 3 : 8);
 		if (bytes > PLATFORM_TRANSFER_HARD_LIMITS.messageBytes) {
-			throw nativeRealtimeError('PAYLOAD_TOO_LARGE', `A control payload may not exceed ${PLATFORM_TRANSFER_HARD_LIMITS.messageBytes} bytes.`, key);
+			throw nativeRealtimeError('PAYLOAD_TOO_LARGE', `A ${subject} may not exceed ${PLATFORM_TRANSFER_HARD_LIMITS.messageBytes} bytes.`, key);
 		}
 	}
 }
 
-function assertClosedKeySet(record: Readonly<Record<string, unknown>>, allowed: ReadonlySet<string>): void {
-	if (Object.getOwnPropertySymbols(record).length > 0) throw nativeRealtimeError('UNKNOWN_KEY', 'A wire message must not carry symbol keys.');
+export function assertClosedNativeRealtimeKeySet(record: Readonly<Record<string, unknown>>, allowed: ReadonlySet<string>, subject: string): void {
+	if (Object.getOwnPropertySymbols(record).length > 0) throw nativeRealtimeError('UNKNOWN_KEY', `A ${subject} must not carry symbol keys.`);
 	for (const key of Object.getOwnPropertyNames(record)) {
-		if (!allowed.has(key)) throw nativeRealtimeError('UNKNOWN_KEY', `Unknown wire message key ${JSON.stringify(key)}.`, key);
+		if (!allowed.has(key)) throw nativeRealtimeError('UNKNOWN_KEY', `Unknown ${subject} key ${JSON.stringify(key)}.`, key);
 	}
 }
 
-function readField(record: Readonly<Record<string, unknown>>, key: string): unknown {
+export function readNativeRealtimeField(record: Readonly<Record<string, unknown>>, key: string): unknown {
 	const descriptor = Object.getOwnPropertyDescriptor(record, key);
 	if (!descriptor) throw nativeRealtimeError('INVALID_FIELD', `${key} is required.`, key);
 	if (!('value' in descriptor)) throw nativeRealtimeError('INVALID_FIELD', `${key} must be a data property, not an accessor.`, key);

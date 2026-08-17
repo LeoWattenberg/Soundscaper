@@ -133,13 +133,17 @@ export async function createNativeRealtimeWorkletNode(audioContext, options = {}
 			if (!Number.isSafeInteger(requested) || requested <= issued || requested > NATIVE_REALTIME_MAX_GENERATION) {
 				throw new RangeError('A native realtime generation must increase and stay inside the wire range.');
 			}
-			issued = requested;
-			authorized = requested;
 			node.port.postMessage({
 				type: NATIVE_REALTIME_CONTROL.attach,
 				protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION,
 				generation: requested,
 			}, [port]);
+			// A number is burned for good once it is issued, so it is spent only
+			// on an attach that left this thread: recording one the processor
+			// never received would revoke a generation it does not have and lock
+			// the retry out of the number it never used.
+			issued = requested;
+			authorized = requested;
 			return requested;
 		},
 

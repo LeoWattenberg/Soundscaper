@@ -5,9 +5,13 @@ import {
 	NATIVE_REALTIME_MAX_QUEUE_PACKETS,
 	NATIVE_REALTIME_PACKET_FRAMES,
 	NATIVE_REALTIME_PROTOCOL_VERSION,
+	asPlainNativeRealtimeRecord as plainRecord,
+	assertBoundedNativeRealtimeEnvelope as assertBoundedEnvelope,
+	assertClosedNativeRealtimeKeySet as assertClosedKeys,
 	boundedNativeRealtimeInteger as boundedInteger,
 	describeNativeRealtimeValue as describe,
 	nativeRealtimeError as fail,
+	readNativeRealtimeField as readField,
 } from './native-realtime-protocol.ts';
 import { PLATFORM_TRANSFER_HARD_LIMITS, type AudioTransferFormat } from './platform/bounded-transfer.ts';
 
@@ -108,9 +112,9 @@ export function normalizeNativeRealtimeFormat(request: NativeRealtimeFormatReque
  * copied verbatim into the refusal that both processes report for it.
  */
 export function validateNativeRealtimeHandshake(value: unknown): NativeRealtimeHandshake {
-	const record = plainRecord(value);
-	assertBoundedEnvelope(record);
-	assertClosedKeys(record);
+	const record = plainRecord(value, 'handshake');
+	assertBoundedEnvelope(record, 'handshake');
+	assertClosedKeys(record, HANDSHAKE_KEY_SET, 'handshake');
 	const version = readField(record, 'protocolVersion');
 	if (version !== NATIVE_REALTIME_PROTOCOL_VERSION) {
 		throw fail('PROTOCOL_VERSION', `Unsupported native real-time protocol version ${describeBounded(version)}.`, 'protocolVersion');
@@ -297,17 +301,6 @@ function refusedByClient(refusal: NativeRealtimeClientRefusal, message: string):
 	return Object.freeze({ status: 'refused' as const, refusal, message });
 }
 
-function plainRecord(value: unknown): Readonly<Record<string, unknown>> {
-	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-		throw fail('INVALID_FIELD', `A handshake must be a plain object, received ${describe(value)}.`);
-	}
-	const prototype: unknown = Object.getPrototypeOf(value);
-	if (prototype !== Object.prototype && prototype !== null) {
-		throw fail('INVALID_FIELD', 'A handshake must not carry a class prototype.');
-	}
-	return value as Readonly<Record<string, unknown>>;
-}
-
 /**
  * Names a rejected value without letting it become the size of the refusal. The
  * envelope bound already caps a handshake at 64 KiB, but the one string key it
@@ -319,36 +312,3 @@ function describeBounded(value: unknown): string {
 	return described.length <= 96 ? described : `${described.slice(0, 96)}…`;
 }
 
-/**
- * Charges the control envelope the way the wire validator does: every property
- * costs its worst-case UTF-8 size, which keeps a megabyte-long value and a key
- * explosion inside one limit stated in bytes. An accessor is charged as absent
- * rather than invoked, so nothing here runs a peer's code.
- */
-function assertBoundedEnvelope(record: Readonly<Record<string, unknown>>): void {
-	let bytes = 0;
-	for (const key of Object.getOwnPropertyNames(record)) {
-		const descriptor = Object.getOwnPropertyDescriptor(record, key);
-		const held = descriptor && 'value' in descriptor ? descriptor.value : undefined;
-		bytes += key.length * 3 + (typeof held === 'string' ? held.length * 3 : 8);
-		if (bytes > PLATFORM_TRANSFER_HARD_LIMITS.messageBytes) {
-			throw fail('PAYLOAD_TOO_LARGE', `A handshake may not exceed ${PLATFORM_TRANSFER_HARD_LIMITS.messageBytes} bytes.`, key);
-		}
-	}
-}
-
-function assertClosedKeys(record: Readonly<Record<string, unknown>>): void {
-	if (Object.getOwnPropertySymbols(record).length > 0) {
-		throw fail('UNKNOWN_KEY', 'A handshake must not carry symbol keys.');
-	}
-	for (const key of Object.getOwnPropertyNames(record)) {
-		if (!HANDSHAKE_KEY_SET.has(key)) throw fail('UNKNOWN_KEY', `Unknown handshake key ${JSON.stringify(key)}.`, key);
-	}
-}
-
-function readField(record: Readonly<Record<string, unknown>>, key: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(record, key);
-	if (!descriptor) throw fail('INVALID_FIELD', `${key} is required.`, key);
-	if (!('value' in descriptor)) throw fail('INVALID_FIELD', `${key} must be a data property, not an accessor.`, key);
-	return descriptor.value;
-}

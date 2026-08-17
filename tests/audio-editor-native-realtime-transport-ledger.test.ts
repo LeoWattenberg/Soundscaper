@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	NativeRealtimeProtocolError,
 	createNativeRealtimePacketPool,
+	createNativeRealtimeReceiver,
 	createNativeRealtimeSender,
 } from '../src/common/editor/native-realtime-transport.ts';
 import type {
@@ -99,6 +100,32 @@ test('a late return from a cancelled generation still restores pool credit', () 
 	const lease = second.acquire();
 	assert.ok(lease, 'a cancelled generation must not strand the pool it borrowed from');
 	assert.equal(lease.channels()[0].length, FRAMES);
+});
+
+test('superseding a generation hands the queue it dropped back to the pool', () => {
+	const pool = createPool(2);
+	const receiver = createNativeRealtimeReceiver({ channelCount: CHANNELS, frameCount: FRAMES, queueCapacity: 2 });
+	const first = createNativeRealtimeSender({ pool, generation: 1, queueCapacity: 2 });
+	assert.equal(receiver.accept(first.openMessage()).status, 'opened');
+	receiver.accept(first.send(first.acquire()!).message);
+	receiver.accept(first.send(first.acquire()!).message);
+	assert.equal(receiver.queuedPackets, 2);
+	assert.equal(pool.availableCount, 0);
+
+	const second = createNativeRealtimeSender({ pool, generation: 2, queueCapacity: 2 });
+	const opened = receiver.accept(second.openMessage());
+	assert.equal(opened.status, 'opened');
+	assert.equal(receiver.queuedPackets, 0);
+	// Dropping a queue without returning it strands those buffers for good: the
+	// generation that superseded it would be short that credit until the pool
+	// deadline closed it as a leak.
+	assert.equal(opened.superseded.length, 2);
+	for (const stranded of opened.superseded) second.acceptReturn(stranded.message);
+	assert.equal(second.closed, false);
+	assert.equal(second.credit, 2);
+	assert.equal(pool.inFlightCount, 0);
+	assert.equal(pool.allocationCount, 2 * CHANNELS, 'a supersede never costs the pool a fresh buffer');
+	assert.ok(second.acquire());
 });
 
 test('a duplicated return can never credit a packet that is in flight again', () => {
