@@ -31,7 +31,10 @@ scope rather than widening it:
    `src/common/editor/` and the 720p defaults stand
    (`video-export.js:24-26`). 6B-1 owns vertical delivery whole, including
    acceptance — nothing is absorbed.
-3. **Styled captions do not exist.** Milestone 4's caption schema is Planned
+3. **The muxer question is closed by measurement**, not deferred: see the
+   revised decision in the milestone-6 plan. Muxing is 0.1% of FFmpeg-side
+   cost, so 6B-3 reuses the shipped FFmpeg and takes on no new dependency.
+4. **Styled captions do not exist.** Milestone 4's caption schema is Planned
    with its revision deliberately unassigned
    (docs/milestone-4-plan.md:381-383); what exists is label tracks with
    sidecar I/O (`src/common/editor/label-io.js:1-2`,
@@ -39,7 +42,7 @@ scope rather than widening it:
    ("when milestone 4 owns a styled caption schema, the target changes
    here", `assistance/transcript-labels.ts:10-11`). 6B-2 therefore scopes
    burn-in to label tracks explicitly and names its upgrade seam.
-4. **Every codec-capability licensing row is blocked.** All six rows
+5. **Every codec-capability licensing row is blocked.** All six rows
    (config/production-licensing-matrix.json:516-576) and the `native-codecs`
    gate (config/production-licensing-matrix.json:437) are shut, and helper
    contract v1's job-kind set is closed with no media/render kind admitted.
@@ -129,13 +132,17 @@ last.
 
 ## 6B-3 — WebCodecs encode tier
 
-- **Outcome:** a WebCodecs encode path for qualified SDR outputs with a
-  reviewed muxer, falling back semantically to the FFmpeg path — same plan,
-  same goldens (roadmap.md:731-732). The muxer choice (existing mp4/webm
-  muxing library vs. first-party, informed by the in-tree EBML verifier
-  precedent) is this slice's named design decision, recorded before code.
-  The dependency lands with its licensing row, provenance manifest, and
-  notices in the same change.
+- **Outcome:** a WebCodecs encode path for qualified SDR outputs whose
+  containers are written by the FFmpeg that already ships, falling back
+  semantically to the full FFmpeg path — same plan, same goldens
+  (roadmap.md:731-732). **The muxer design decision this slice used to own is
+  closed:** measurement showed muxing is 0.1% of FFmpeg-side cost and the
+  pinned build already stream-copies into both containers, so there is no
+  muxer dependency to choose. `src/common/editor/video-remux-ffmpeg.ts` and
+  its test are the FFmpeg half, landed ahead of the WebCodecs producer.
+  What remains is the producer: a `VideoEncoder` fed from the existing
+  offline WebGL frame source, chunks wrapped as an elementary stream, and
+  capability detection with semantic fallback.
 - **Invariants:** WebCodecs availability never changes what a plan means;
   encoder selection is reported per delivery; the muxer is a reviewed
   dependency under the runtime asset discipline — no codec or muxer byte
@@ -147,8 +154,9 @@ last.
 - **Non-goals:** no HDR, no new codec families, no native encode (6B-4's
   fenced tier).
 - **Stop condition:** stop if the two paths' outputs diverge beyond the
-  golden thresholds, or if no muxer candidate passes review — the tier
-  waits rather than shipping an unreviewed dependency.
+  golden thresholds, or if the exact rational rate cannot survive the
+  elementary-stream boundary frame-for-frame — an approximate rate is the
+  one thing this tier may not trade for speed.
 
 ## 6B-4 — Electron format tier and platform presets (substrate only until rows clear)
 

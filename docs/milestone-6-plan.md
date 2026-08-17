@@ -203,16 +203,47 @@ the container supports it (removing `-sn` for those plans,
 caption styling; if only label tracks exist at pickup, burn-in scopes
 to them explicitly rather than inventing styling here.
 
-### The web encode tier is WebCodecs plus a reviewed muxer
+### The web encode tier is WebCodecs plus FFmpeg stream-copy muxing
 
-For qualified SDR outputs, a WebCodecs encode path with a reviewed
-muxer (Web Enhanced), falling back semantically to the FFmpeg path —
-same plan, same golden checks (roadmap.md:731-732). The muxer is a new
-reviewed dependency: licensing row, provenance manifest, and notices
-land with it, and the choice (mp4/webm muxing library vs. first-party)
-is the packet's named design decision. Encoder output is validated
-against the same golden suite as the wasm path; WebCodecs
-availability never changes what a plan *means*.
+For qualified SDR outputs, a WebCodecs encode path whose containers are
+written by the FFmpeg that already ships, falling back semantically to the
+full FFmpeg path (roadmap.md:731-732).
+
+**This revises the original decision, which called for a reviewed muxer
+dependency and named the muxer choice as the packet's design decision.**
+Measurement retired that question. On a 640×360 90-frame fixture through the
+pinned `@ffmpeg/core` 0.12.10, `encode + mux` took 3494 ms while `remux only`
+with `-c:v copy` took 4.9 ms — muxing is 0.1% of the FFmpeg-side cost, so
+reusing FFmpeg for it forfeits almost nothing. The shipped build has every
+piece required: the `h264_mp4toannexb` bitstream filter, the `h264`
+elementary-stream demuxer, and both the `mp4` and Matroska/WebM muxers
+accepting a copied stream. `tests/audio-editor-video-remux-ffmpeg.test.ts`
+re-measures this rather than trusting the number.
+
+Two consequences. **No new dependency:** no muxer licensing row, provenance
+manifest, or notices, and nothing is added to the FFmpeg enabled set that
+the two blocked release gates govern. **A second, larger saving:** that
+fixture pushed 82.9 MB of raw RGBA into wasm to produce a 232 kB MP4, because
+today's path transfers frames. WebCodecs accepts a `VideoFrame` straight from
+the canvas, so what crosses into FFmpeg becomes the compressed chunks
+instead — roughly a 360× reduction before any encoding speedup.
+
+The risks that remain are not about muxing. Elementary streams carry no
+container timing, so the rate is handed to FFmpeg as the exact rational
+quotient the plan owns (`30000/1001`, never `29.97`), which
+`video-remux-ffmpeg.ts` enforces and its test pins. Hardware encoders are not
+byte-reproducible across machines, so this path's goldens are tolerance-based
+while the FFmpeg path keeps its byte goldens. Audio stays on the ordinary
+FFmpeg encoder, since `AudioEncoder` coverage is thinner than `VideoEncoder`
+and the existing plans already take a separate staged audio input.
+
+Longer term this is also the lever on the blocked licensing gates: once
+encoding leaves FFmpeg, a narrower `@ffmpeg/core` rebuild could drop the
+x264, x265, and libvpx encoders and keep muxers and parsers, shrinking the
+enabled library set that `ffmpeg-enabled-library-corresponding-source` and
+`ffmpeg-enabled-codec-patent-review` both govern. That rebuild is not in
+milestone-6 scope; it is recorded here because this decision is what makes it
+possible.
 
 ### Mastering sequences are a bounded new document type
 
@@ -253,6 +284,7 @@ existing portable exception (docs/project-compatibility.md:86-88).
 | A new conversion-report vocabulary | The AUP4 report model is proven, versioned, and already retained; delivery generalizes it. |
 | Muxing captions by post-processing files | Caption mux rides the plan and its args; post-hoc file surgery breaks determinism and the digest discipline. |
 | Loudness normalization inside the encoder | Normalization is a reported plan step with measured evidence, not an encoder flag; encoders vary, the report cannot. |
+| A reviewed muxer library for the WebCodecs tier | Retired by measurement: muxing is 0.1% of FFmpeg-side cost, so the FFmpeg already shipping does it for free rather than adding a dependency with its own licensing row. |
 | Growing the codec set web-side for presets | Codec availability follows the milestone-5 licensing/patent gates; presets declare legal status, they do not create it. |
 | Editing ADM passthrough output "slightly" | Passthrough is byte-preservation or it is nothing; any authored change routes through the authored mode's validation. |
 
