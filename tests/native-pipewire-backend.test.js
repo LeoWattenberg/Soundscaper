@@ -85,6 +85,15 @@ test('an absent PipeWire server is reported rather than started', { skip: !built
 		assert.deepEqual(pipewire.devices.map(({ handle }) => handle), ['@DEFAULT_SINK@', '@DEFAULT_SOURCE@']);
 		return;
 	}
+	// Two different absences, and neither may stand in for the other. A build
+	// agent usually has no client library at all; a developer host commonly has
+	// the library and no session. Both must be named rather than repaired, so
+	// each is pinned to the reason it reports and to publishing no devices.
+	assert.deepEqual(pipewire.devices, []);
+	if (pipewire.status === 'library-absent') {
+		assert.match(pipewire.detail, /libpipewire could not be loaded/u);
+		return;
+	}
 	assert.equal(pipewire.status, 'server-absent');
 	assert.match(pipewire.detail, /does not start one/u);
 });
