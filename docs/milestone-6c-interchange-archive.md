@@ -64,6 +64,25 @@ What 6C builds on, verified:
   are the manifest primitives; manifests save through the `'report'` purpose
   (`src/common/editor/file-service.js:171`).
 
+**The rule that cost the most to learn: an interchange file describes the
+render.** Playback and export are the same render in this project, and an edit
+list is a statement about that render, so it answers to the same visibility
+rules. FCPXML and OTIO originally tested `hidden || mute` on every track, which
+dropped a muted video track that does compose — `mute` is deliberately
+independent of picture — and ignored solo entirely, so a soloed programme
+exported the tracks that do not compose. They also skipped
+`projectTrackFolderMediaStateV12`, which every render path applies, so
+folder-inherited state never reached them. All three profiles now resolve
+visibility through `interchange-track-visibility.ts`; 6C-2's archive and
+consolidate operations should read from the same projection rather than the raw
+document.
+
+A second, related lesson: **a lenient reader is evidence, not an oracle**. The
+reference OTIO/FCPX readers accepted an FCPXML document that Apple's own DTD
+rejects on three counts. Where a third-party reader disagrees with us, read its
+source before assigning blame — and where it agrees, that is not proof of
+validity.
+
 One pattern recurred across all three profiles and is worth stating for 6C-2: a
 clip shorter than one frame at the target timebase has no representable
 duration, and every profile's first draft skipped it with a bare `continue`.
@@ -169,7 +188,13 @@ before code.
   **Profile scope, as committed here:** export only; one spine of `asset-clip`
   elements over a single `format` resource; assets deduplicated by source
   identity; one default role per track kind; `tcFormat` from the sequence's own
-  drop-frame flag; no `timeMap`, no transitions, no Motion vocabulary.
+  drop-frame flag; connected lanes for simultaneous tracks (video above at
+  1, 2, …, audio below at -1, -2, …) since a spine is serial; no `timeMap`, no
+  transitions, no Motion vocabulary. The emitted document is **DTD-valid against
+  Apple's FCPXMLv1_10.dtd**, verified with `xmllint`; the DTD itself is not
+  committed, so the shipped suite asserts the shapes the DTD requires —
+  `asset` as `(media-rep+, metadata?)` with `src` on `media-rep`, and
+  `audioRole`/`videoRole` rather than a bare `role`.
   **Acceptance met by substitution, deliberately.** Apple's FCPXML DTD is not
   published under terms that permit redistribution, so validating against a
   pinned DTD would trade a licensing problem for a conformance claim we can get
