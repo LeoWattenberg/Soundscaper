@@ -663,8 +663,9 @@ owns Soundscaper readiness, architecture, and acceptance.
 
 - **Electron Enhanced — In progress:** appropriate low-latency OS audio backends,
   with exclusive/shared modes, channel topology, recording destinations, monitoring
-  metadata, latency calibration, underrun reporting, and Web Core fallback. Only
-  dlopen ALSA/JACK discovery exists; no device opens.
+  metadata, latency calibration, underrun reporting, and Web Core fallback. The
+  addon opens PipeWire and ALSA streams through an ordered candidate chain; JACK
+  stays discovery-only, and no helper job reaches the open path yet.
 - **Electron Only — Blocked on licensing:** VST3 and CLAP cross-platform, Audio
   Units on macOS, LV2 on Linux. The hosting machinery exists and is proven against
   a fixture format; each waits on its licensing row. Vendor UI gets no authority.

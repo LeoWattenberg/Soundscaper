@@ -99,15 +99,24 @@ remaining gaps are explicit:
    typed unavailability; filling one of those rows from another target's bytes
    is forbidden. JUCE and CLAP source pins are not yet required because the
    addon has no third-party source, and are owed by 5A-2/5A-3.
-4. **5A-0c real-time data plane.** The current chunk stream is renderer worker ->
-   renderer client -> AudioWorklet. No helper -> AudioWorklet path exists. The
-   existing promise/chunk ports are valid control and offline abstractions but
-   do not prove a zero-underrun real-time path. This is 5A-0c.
-5. **Product implementations and evidence.** There is no OS audio backend,
-   scanner, plug-in host, vendor UI host, native fixture set, M5 collector, or
-   provisioned native lab. Those are 5A-1 through 5A-4 outcomes. Signing
-   identity and hardware qualification may remain externally blocked while
-   implementation proceeds; no blocked row is promoted or simulated.
+4. **5A-0c real-time data plane — implemented provisionally, unproven.** The
+   direct helper-to-worklet `MessagePort` transport exists: a closed protocol
+   validator that a peer's first message reaches before any state exists to
+   corrupt, a fixed reusable packet pool, generation, sequence and buffer-
+   ownership ledgers, and a broker that creates the port inside the helper and
+   hands main only the far end. Both ends are required to speak that one
+   vocabulary — the helper opens a generation before it sends audio, and a
+   returned buffer is the only credit for another send — and a departure from
+   it closes the generation rather than replaying stale audio. What is not
+   proven: no product surface consumes the plane, and the packaged synthetic
+   loopback the 5A-0 acceptance names has never been run, so its M5 latency,
+   underrun, cancellation, recovery and RSS limits are unmet rather than met.
+5. **Product implementations and evidence — partly present.** The OS audio
+   backend, scanner, registry, plug-in host and M5 collector now exist; the
+   vendor UI host, a native fixture set built for any target other than
+   `linux-x64`, and the provisioned native lab do not. Signing identity and
+   hardware qualification may remain externally blocked while implementation
+   proceeds; no blocked row is promoted or simulated.
 
 The entry rule is therefore exact: **the remaining work is external, not
 architectural.** What is owed is a build host per claimed target, a licensing
@@ -322,6 +331,9 @@ accepted result before all product packets close.
   cannot create an unbounded main-process clone; five target identities select
   exactly one verified payload; the packaged synthetic audio loop meets the M5
   limits.
+- **Unmet:** the packaged synthetic audio loop has never been run against the
+  M5 limits, and no product surface consumes the real-time plane, so that
+  clause is outstanding rather than satisfied.
 - **Non-goals:** no real device API, third-party scan, or plug-in format.
 - **Stop:** stop on a required renderer sandbox relaxation, main-process native
   load, in-process host, unverified payload, or renderer-main real-time relay.
@@ -334,6 +346,19 @@ accepted result before all product packets close.
   crash/hang and stale events; route preference restoration; truthful Web Core
   fallback; synthetic loop math; and a separate 30-minute physical loopback on
   every claimed target with p95 round trip <= 20 ms and zero underrun frames.
+- **Contract, restated because the open path did not hold it:** a requested
+  sample rate, period size, channel count or mode is never silently substituted.
+  ALSA's `_near` setters may choose a rate or period other than the one asked
+  for, and PipeWire negotiates its quantum in the graph after the stream
+  starts; in both cases the granted record must carry what the device actually
+  gave, and an
+  open whose result differs from what the caller asked for must refuse and end
+  the chain rather than report the substitute as granted. Backend absence is the
+  only reason to try the next candidate.
+- **Unmet:** the 30-minute physical loopback has not been run on any claimed
+  target, and no helper job kind reaches the open path, so the device-loss,
+  route-restoration and fallback cases are exercised against the addon rather
+  than through the product.
 - **Non-goals:** MIDI, instruments, clock, MTC, control surfaces, or Framescaper
   capture.
 - **Stop:** stop if native inventory requires new renderer-owned device IDs, a
@@ -349,6 +374,17 @@ accepted result before all product packets close.
   retry/revoke; no scanner file/network/child escalation; menu-opened accessible
   progress/results dialog; actual packaged scan fixture on each applicable
   target.
+- **Results surface:** the acceptance clause was written when the tier had no
+  dialog at all and the only entry was an off-by-default toggle.
+  `SoundscaperNativeServicesDialog` is now that surface. It is opened from the
+  native menu family and nowhere else, so the tier adds no permanent editor
+  chrome, and it is the only place a format is granted, a folder admitted, a
+  scan watched, its findings read, or a quarantined digest cleared.
+- **Unmet:** no packaged scan fixture has been run on any target. The scan path
+  is also POSIX-only: `soundscaper_plugin_list_candidates` and
+  `soundscaper_plugin_inspect` compile to a refusal on `win32` while per-format
+  consent still offers VST3, CLAP and the fixture format there, so a Windows
+  user can grant a format and admit a root that can never be scanned.
 - **Non-goals:** DSP execution, project insertion, vendor UI, or instrument
   exposure.
 - **Stop:** stop if a format requires loading into main/renderer, exposes a raw

@@ -3255,7 +3255,7 @@
 			"residualRisks": [
 				{
 					"id": "native-helper-supervision",
-					"exposure": "The probe helper and the native audio helper are the enacted surfaces; the audio helper discovers backends but opens no operating-system device, and decode/encode, render, plug-in-scan and plug-in-host helpers remain undesigned. Only linux-x64 has a built native payload — the other four claimed targets are pending-external with named blockers — and the fault-and-loopback fixture is unqualified while the native OS lab matrix is unprovisioned.",
+					"exposure": "The probe helper and the native audio helper are the enacted surfaces. The plug-in scan and plug-in host job kinds are implemented in the native helper alongside them, and the addon opens PipeWire and ALSA streams through an ordered candidate chain, but no product surface reaches the device-open or hosting path: the audio-device job answers backend inventory or the synthetic loopback, and both paths are exercised only by tests. Decode/encode and render helpers remain undesigned. Only linux-x64 has a built native payload — the other four claimed targets are pending-external with named blockers — and the fault-and-loopback fixture is unqualified while the native OS lab matrix is unprovisioned.",
 					"requiredControl": "Extend the enacted contract to each further helper tier with its own crash, hang, malformed-message, oversized-payload, binary-mismatch, and cancellation suites, and qualify the helper fault and loopback fixture on the provisioned matrix.",
 					"ownerMilestone": "5",
 					"acceptanceCriteria": ["Crash, hang, malformed message, oversized payload, binary mismatch, and cancellation tests pass for every enacted helper surface without exposing raw spawn authority to the renderer, and m5-helper-fault-and-loopback-v1 qualifies on native-os-lab-matrix."]
@@ -3274,23 +3274,64 @@
 			"ownerMilestone": "5 and 8B",
 			"currentControls": [
 				{
-					"id": "no-native-plugin-host-surface",
-					"summary": "The current renderer bridge and editor registry expose no native plug-in discovery, loading, or execution surface.",
+					"id": "unreached-plugin-hosting-surface",
+					"summary": "Planned and surface-disabled here means the hosting surface is not offered to users, not that no hosting code exists. Every renderer plug-in channel the preload exposes is discovery-side — availability, per-format consent, scan, inventory and quarantine clearance — and none of them instantiates, hosts, or renders a plug-in; the preload strips path-bearing fields from every reply, and the menu-opened native services dialog is the only surface that reaches them. No production caller mints a plug-in-host grant: PluginHostIsolationRegistry has no construction site outside tests, and the registry's hostGrantFor() is likewise reached only from tests, so no renderer channel, menu item, or main-process module can start a host today. VST3, CLAP, Audio Units and LV2 remain fail-closed on their licensing rows; the only enabled format is the repository-owned fixture format, whose binaries are test evidence and are never offered to users as installable effects.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/preload.mjs" },
-						{ "kind": "implementation", "path": "src/common/editor/nyquist/plugin-registry.js" },
+						{ "kind": "implementation", "path": "desktop/plugin-registration.mjs" },
+						{ "kind": "implementation", "path": "desktop/plugin-registry.ts" },
+						{ "kind": "implementation", "path": "config/production-licensing-matrix.json" },
 						{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
-						{ "kind": "test", "path": "tests/nyquist-plugin-registry.test.js" }
+						{ "kind": "test", "path": "tests/desktop-plugin-registry.test.ts" },
+						{ "kind": "test", "path": "tests/production-licensing-matrix.test.js" }
+					]
+				},
+				{
+					"id": "out-of-process-plugin-host-execution",
+					"summary": "Helper contract v1 carries a plugin-host job kind whose grant is exactly one absolute traversal-free binary path, its byte length, its lowercase SHA-256, its format, and its captured device/inode identity, and grant admission rejects any other key. The native audio helper is the only implementer: it re-hashes the granted file, treats a changed digest or byte length as an unreviewed installation and fails the job closed, and dlopens the bytes with RTLD_NOW | RTLD_LOCAL inside its own utility process. No native plug-in code loads in main, the preload, the renderer, or an AudioWorklet, and the scan service does not import the hosting surface at all, so discovery is structurally unable to instantiate a plug-in. The addon-side open refuses a module with no fixture entry point, a descriptor whose ABI version is not the expected one, an instrument classification, a missing create/destroy/process member, and an output channel count outside 1 through 64; block processing refuses a frame count above the maximum the instance was opened for, and a save-state answer that changes between the sizing call and the write is rejected rather than honoured. The host job is offline only — a deterministic ramp block set, a rendered SHA-256 digest, and a reported-latency stability check — because a job that returns one result cannot carry a live stream.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/helper-job-grant.ts" },
+						{ "kind": "implementation", "path": "desktop/native-helper-host-job.js" },
+						{ "kind": "implementation", "path": "desktop/native-helper-process.js" },
+						{ "kind": "implementation", "path": "desktop/plugin-host-isolation.ts" },
+						{ "kind": "implementation", "path": "desktop/plugin-scan-service.ts" },
+						{ "kind": "implementation", "path": "native/soundscaper-helper-addon/src/plugin_host.c" },
+						{ "kind": "test", "path": "tests/desktop-helper-contract.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-native-helper-host-job.test.js" },
+						{ "kind": "test", "path": "tests/desktop-plugin-host-isolation.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-plugin-scan-service.test.ts" },
+						{ "kind": "test", "path": "tests/native-fixture-plugin-format.test.js" }
+					]
+				},
+				{
+					"id": "digest-keyed-plugin-consent-isolation-and-quarantine",
+					"summary": "Consent is per format and a fresh store grants none: nothing scans at startup, standard operating-system roots are offered but inert until admitted, and custom roots arrive only through a main-owned directory picker, never from anything the renderer says. Raw roots and binary paths stay main-private. Isolation is one host process per renderer owner and plug-in binary digest, so unrelated binaries and unrelated renderer owners never share a host, and a revoked digest has no restart path: revocation kills the matching host and prevents automatic restart until an explicit restore. Two qualifying host faults inside ten minutes quarantine that digest, and a scanner fault quarantines it immediately. Quarantine is digest-keyed rather than path-keyed so moving or renaming a binary cannot launder a crash, is written atomically through an injected filesystem seam before it is reported, survives restart, and is cleared only by an explicit rescan or re-enable of that exact digest. User cancellation, device loss and editor shutdown are not faults and are recorded nowhere. An oversize or rejected opaque state makes the instance ineligible without discarding the state already persisted, and the isolation registry renders nothing, so it cannot manufacture a freeze after a failure. A vendor UI is modelled only as a helper-owned top-level window with no renderer bridge, DOM, Node, filesystem, network, child-process, or embedded child window authority.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/plugin-consent.ts" },
+						{ "kind": "implementation", "path": "desktop/plugin-quarantine.ts" },
+						{ "kind": "implementation", "path": "desktop/plugin-instance-state.ts" },
+						{ "kind": "implementation", "path": "desktop/plugin-host-isolation.ts" },
+						{ "kind": "test", "path": "tests/desktop-plugin-consent.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-plugin-quarantine.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-plugin-instance-state.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-plugin-host-isolation.test.ts" }
 					]
 				}
 			],
 			"residualRisks": [
 				{
-					"id": "native-plugin-security-model",
-					"exposure": "No plug-in discovery allowlist, quarantine, permissions, compatibility process, consent UX, or signing policy exists.",
-					"requiredControl": "Treat native plug-ins as arbitrary code, isolate them in a supervised host, minimize filesystem and network authority, and disclose residual OS authority to the user.",
+					"id": "hosted-plugin-ambient-authority",
+					"exposure": "A hosted plug-in is arbitrary native code. dlopen gives the loaded binary the user account's full authority, no operating-system sandbox removes it on any target, and the utility-process boundary is crash containment, not a hostile-code boundary. There is no signature or publisher-verification channel, so an eligible digest is a claim about reviewed bytes and never about their author; the untrusted-code eligibility gate is a recorded review decision for one exact digest, not cryptographic provenance.",
+					"requiredControl": "Treat native plug-ins as arbitrary code, isolate them in a supervised host, minimize filesystem and network authority, record the operating-system restrictions that actually apply per target, and disclose the residual account authority to the user rather than describing the helper as a sandbox.",
 					"ownerMilestone": "5 and 8B",
-					"acceptanceCriteria": ["Host compromise, crash recovery, denial, scanning, consent, revocation, and per-platform packaging tests pass before discovery is enabled."]
+					"acceptanceCriteria": ["Host compromise, crash recovery, denial, scanning, consent, revocation, and per-platform packaging tests pass, and the per-target operating-system restriction row is recorded, before any third-party format is enabled."]
+				},
+				{
+					"id": "unexercised-plugin-hosting-gates",
+					"exposure": "The hosting gates above have no production caller: nothing in main mints a plug-in-host grant, so eligibility, isolation, revocation, quarantine accrual and continuity are exercised only by tests rather than by the product. The helper's host job is offline only, so real-time hosting, PDC handoff, vendor-UI lifecycle and crash recovery are unproven end to end, and no vendor-UI host process exists. Only linux-x64 has a built native payload and the fixture-format host tests skip entirely where it is not built, so no packaged hosting fixture has run on any target.",
+					"requiredControl": "Give the hosting path one main-owned caller with its own fault, revocation, and continuity suites, implement real-time hosting and the helper-owned vendor UI, and run a packaged hosting fixture on each claimed target before the surface is offered.",
+					"ownerMilestone": "5 and 8B",
+					"acceptanceCriteria": ["A main-owned hosting caller exercises the eligibility, isolation, revocation and quarantine gates end to end; real-time and offline goldens, exact V21 PDC, opaque-state round trips, and crash/hang/malformed faults pass; and a packaged hosting fixture passes on every claimed target with a built payload."]
 				}
 			]
 		},
