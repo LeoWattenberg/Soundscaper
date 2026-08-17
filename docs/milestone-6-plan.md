@@ -269,7 +269,7 @@ the local tree; 6A, 6B, and 6C have not started.** What landed:
   fails the moment any pin stops agreeing with the planner. The extraction
   that paid for the new import also took `video-ffmpeg.js` under the
   600-line ceiling, retiring its allowlist entry.
-- **WP-6.0.0 delivery-report model — implemented, emitted and rendered.**
+- **WP-6.0.0 delivery-report model — complete.**
   `delivery-report.ts` generalizes the AUP4 report vocabulary;
   `delivery-conversion-inventory.ts` and
   `delivery-video-conversion-inventory.ts` derive conversions from the plan
@@ -280,7 +280,9 @@ the local tree; 6A, 6B, and 6C have not started.** What landed:
   product had never disclosed: integer sample formats enable triangular
   dither by default, so ordinary WAV delivery dithered silently; and every
   video export passes `-sn`/`-dn`, dropping any subtitle or data stream a
-  source carried. Both are now itemized.
+  source carried. Both are now itemized. Reports save through the reserved
+  `'report'` purpose as deterministic JSON, so a delivery's evidence
+  outlives its session and two runs compare byte for byte.
 - **WP-6.0.1 queue semantics — implemented (domain).**
   `delivery-queue.ts` is the bounded in-session queue, consuming the 5B-3
   recovery-class and task-kind vocabulary rather than forking it. Enqueue
@@ -293,15 +295,14 @@ the local tree; 6A, 6B, and 6C have not started.** What landed:
 Still owed before 6A/6B/6C may open, since the packets' acceptance is not
 yet fully met:
 
-- Nothing saves a report through the reserved `'report'` purpose, so a
-  report survives only as long as the session. The existing AUP4 report
-  dialog still renders through its own component rather than the shared
-  one, though both now draw their copy from `src/common/i18n/report-copy.js`
-  and share the disposition vocabulary.
+- The AUP4 report still renders through its own component rather than the
+  shared one, though both now draw their copy from
+  `src/common/i18n/report-copy.js` and share the disposition vocabulary.
 - No conformance, loudness, or restoration-provenance fields exist yet;
   those arrive with 6A-2 and 6A-4.
-- The queue is a domain state machine with no runner, no task-coordinator
-  wiring, and no Electron binding through `render-job-port`.
+- The queue has no runner: nothing drives `delivery-queue.ts`, no
+  task-coordinator wiring exists, and the Electron binding through
+  `render-job-port` remains gated on that port having a host.
 - Presets do not yet subsume the flat export dialog, and no preset
   import/export surface exists.
 
