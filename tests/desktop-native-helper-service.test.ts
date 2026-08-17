@@ -42,6 +42,7 @@ interface Harness {
 	readonly service: DesktopNativeAudioService;
 	readonly requests: HelperJobRequest<'audio-device'>[];
 	readonly disposals: number[];
+	readonly descriptions: () => number;
 }
 
 function createService({
@@ -57,6 +58,7 @@ function createService({
 }> = {}): Harness {
 	const requests: HelperJobRequest<'audio-device'>[] = [];
 	const disposals: number[] = [];
+	let descriptions = 0;
 	const service = new DesktopNativeAudioService({
 		supervisor: {
 			runJob: async (request) => {
@@ -69,9 +71,12 @@ function createService({
 			dispose: () => disposals.push(1),
 		},
 		isEnabled: () => enabled,
-		describePayload: async () => payload,
+		describePayload: async () => {
+			descriptions += 1;
+			return payload;
+		},
 	});
-	return { service, requests, disposals };
+	return { service, requests, disposals, descriptions: () => descriptions };
 }
 
 test('the synthetic loopback backend is never published or accepted', async () => {
@@ -108,11 +113,40 @@ test('a disabled, quarantined or unbuilt surface degrades with a typed status', 
 
 	const unbuilt = createService({
 		payload: Object.freeze({ status: 'unavailable', reason: 'payload-pending-external', detail: 'No build host.' }),
+		run: () => Promise.reject(new HelperSupervisionError('binary-mismatch',
+			'The helper executable payload failed verification: no build host.')),
 	});
 	const outcome = failed(await unbuilt.service.describeBackend({ owner: {}, backend: 'alsa' }));
 	assert.equal(outcome.code, 'helper-unavailable');
-	assert.equal(outcome.message, 'No build host.');
-	assert.equal(unbuilt.requests.length, 0, 'an unverifiable payload must never be spawned');
+	assert.equal((await unbuilt.service.availability()).payload.reason, 'payload-pending-external');
+});
+
+test('an unavailable payload never carries its filesystem path to the renderer', async () => {
+	const detail = 'The native addon payload at /home/leo/.local/share/Soundscaper/runtime/native/linux-x64/'
+		+ 'soundscaper_helper.node does not match its pinned digest.';
+	const { service } = createService({
+		payload: Object.freeze({ status: 'unavailable', reason: 'payload-digest-mismatch', detail }),
+		run: () => Promise.reject(new HelperSupervisionError('binary-mismatch',
+			`The helper executable payload failed verification: ${detail}`)),
+	});
+	const availability = await service.availability();
+	assert.equal(availability.payload.status, 'unavailable');
+	assert.equal(availability.payload.reason, 'payload-digest-mismatch');
+	assert.equal(availability.payload.detail.includes('/'), false,
+		'main owns the payload path and the renderer is told the reason only');
+	const outcome = failed(await service.describeBackend({ owner: {}, backend: 'alsa' }));
+	assert.equal(outcome.code, 'helper-unavailable');
+	assert.equal(outcome.message.includes('/'), false, 'a supervision fault must not leak main-side paths either');
+});
+
+test('an inventory request reads the payload once, at the single pre-spawn gate', async () => {
+	const { service, requests, descriptions } = createService();
+	const outcome = await service.describeBackend({ owner: {}, backend: 'alsa' });
+	assert.equal(outcome.status, 'described');
+	assert.equal(requests.length, 1);
+	assert.equal(descriptions(), 0, 'the supervisor re-verifies the payload before every spawn already');
+	assert.equal((await service.availability()).payload.status, 'available');
+	assert.equal(descriptions(), 1, 'the capability report is the surface that reads the payload');
 });
 
 test('an admitted backend is asked for its inventory through the reserved handle', async () => {
@@ -181,33 +215,22 @@ test('a renderer that asks twice aborts its own older request', async () => {
 	assert.equal(signals[0].aborted, true);
 });
 
-test('an owner revoked while its payload is still being verified never reaches the helper', async () => {
+test('an owner revoked while its job waits for the helper is cancelled, never published', async () => {
 	const owner = {};
-	let releasePayload: (value: NativeAddonAvailability) => void = () => undefined;
 	const { service, requests } = createService({
-		payload: AVAILABLE_PAYLOAD,
-		run: settleOnAbort,
+		run: (request) => new Promise((_, reject) => {
+			request.signal?.addEventListener('abort', () => {
+				reject(new HelperSupervisionError('cancelled', 'The inventory owner went away.'));
+			}, { once: true });
+		}),
 	});
-	const slow = new DesktopNativeAudioService({
-		supervisor: {
-			runJob: async (request) => {
-				requests.push(request);
-				return settleOnAbort(request);
-			},
-			snapshot: () => Object.freeze({ state: 'ready', quarantined: false }),
-			clearQuarantine: () => undefined,
-			dispose: () => undefined,
-		},
-		isEnabled: () => true,
-		describePayload: () => new Promise((resolve) => { releasePayload = resolve; }),
-	});
-	void service;
-	const pending = slow.describeBackend({ owner, backend: 'alsa' });
+	const pending = service.describeBackend({ owner, backend: 'alsa' });
 	await nextTick();
-	slow.revokeOwner(owner);
-	releasePayload(AVAILABLE_PAYLOAD);
+	service.revokeOwner(owner);
 	assert.equal(failed(await pending).code, 'helper-cancelled');
-	assert.equal(requests.length, 0, 'a revoked owner must never spawn a helper job');
+	assert.equal(requests.length, 1);
+	assert.equal((requests[0].signal as AbortSignal).aborted, true,
+		'the revocation must reach the job the supervisor is holding');
 });
 
 test('disposal aborts every outstanding request and disposes the supervisor exactly once', async () => {

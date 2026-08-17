@@ -99,6 +99,24 @@ test('an unreadable manifest is reported rather than treated as an absent target
 	assert.equal(availability.reason, 'manifest-unreadable');
 });
 
+test('a parseable manifest that names no addon is reported, never thrown at the caller', async () => {
+	const manifestPath = join(applicationRoot, 'config/native-addon-payload-manifest.json');
+	const record = JSON.parse(String(await readFile(manifestPath))) as { addon: unknown; targets: unknown };
+	for (const manifest of [
+		{ targets: record.targets },
+		{ addon: null, targets: record.targets },
+		{ addon: { version: '1.0.0' }, targets: record.targets },
+		{ addon: record.addon },
+	]) {
+		const availability = await describeNativeAddonAvailability(
+			{ ...developmentLocation, packaged: true, resourcesPath: '/opt/soundscaper/resources' },
+			async () => Buffer.from(JSON.stringify(manifest)),
+		);
+		assert.equal(availability.status, 'unavailable');
+		assert.equal(availability.reason, 'manifest-unreadable');
+	}
+});
+
 test('the spawn-time verifier throws so a supervisor records a binary mismatch', async () => {
 	const verify = createNativeAddonVerifier(developmentLocation);
 	assert.equal((await verify()).target, 'linux-x64');

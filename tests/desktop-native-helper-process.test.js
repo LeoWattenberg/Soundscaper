@@ -14,7 +14,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
+import { validateHelperProcessMessage } from '../desktop/helper-contract.ts';
 import {
+	NATIVE_AUDIO_INVENTORY_BOUNDS,
 	NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE,
 	NATIVE_HELPER_JOB_KINDS,
 	SYNTHETIC_ENGINE_MODES,
@@ -25,9 +27,13 @@ import {
 } from '../desktop/native-helper-process.js';
 import {
 	MAXIMUM_NATIVE_AUDIO_DEVICES,
+	MAXIMUM_NATIVE_AUDIO_DEVICE_CHANNELS,
+	MAXIMUM_NATIVE_AUDIO_DEVICE_TEXT_BYTES,
+	MAXIMUM_NATIVE_AUDIO_INVENTORY_DETAIL_BYTES,
 	validateHelperAudioDeviceInventoryResult,
 	validateHelperAudioDeviceOpenResult,
 } from '../desktop/native-helper-results.ts';
+import { NATIVE_AUDIO_INVENTORY_HANDLE } from '../desktop/native-helper-service.ts';
 
 const JOB_ID = 'a'.repeat(40);
 const OTHER_JOB_ID = 'b'.repeat(40);
@@ -103,6 +109,18 @@ test('an unannounced kind is refused without taking the helper down', () => {
 	}, 'probe-video-source'));
 	assert.deepEqual(types(), ['hello', 'error']);
 	assert.match(posted[1].error.message, /does not implement probe-video-source jobs/u);
+	assert.deepEqual(exits, []);
+});
+
+test('an announced kind with no runner is refused rather than run as a device job', () => {
+	const { worker, posted, exits, types } = createWorker(() => {
+		throw new Error('a plug-in scan must never reach the device runner');
+	});
+	worker.handleMessage(jobMessage(JOB_ID, {
+		rootPath: '/plug-ins', format: 'fixture', identity: { dev: 1, ino: 2 },
+	}, 'plugin-scan'));
+	assert.deepEqual(types(), ['hello', 'error']);
+	assert.match(posted[1].error.message, /does not implement plugin-scan jobs/u);
 	assert.deepEqual(exits, []);
 });
 
@@ -285,6 +303,98 @@ test('a backend inventory job describes one backend and never publishes the synt
 	const absent = await inventory('coreaudio');
 	assert.equal(absent.status, 'unsupported-platform');
 	assert.match(absent.detail, /does not implement the coreaudio backend/u);
+});
+
+test('a device inventory carries the channel count the backend reported', async () => {
+	const runner = createNativeDeviceJobRunner({
+		addonPath: '/unused',
+		addonSha256: 'f'.repeat(64),
+		hash: () => createHash('sha256'),
+		loadAddon: async () => ({
+			...fakeAddon(),
+			enumerateAudioBackends: () => [{
+				backend: 'alsa',
+				status: 'available',
+				detail: '',
+				devices: [
+					{ handle: 'hw:0,0', label: 'Built-in', direction: 'duplex', channelCount: 8 },
+					{ handle: 'hw:1,0', label: 'Unmeasured', direction: 'output' },
+				],
+			}],
+		}),
+	});
+	const inventory = validateHelperAudioDeviceInventoryResult(await runner({
+		grant: { ...GRANT, backend: 'alsa', deviceHandle: NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE },
+		onProgress: () => {},
+	}).completion);
+	assert.equal(inventory.devices[0].channelCount, 8, 'stereo-pair routing needs the reported topology');
+	assert.equal(Object.hasOwn(inventory.devices[1], 'channelCount'), false,
+		'a backend that does not report a count must not have one invented for it');
+});
+
+test('the largest inventory the schema admits is one the helper wire can carry', () => {
+	const maximalText = (prefix) => prefix.padEnd(MAXIMUM_NATIVE_AUDIO_DEVICE_TEXT_BYTES - 2, 'x');
+	const admitted = validateHelperAudioDeviceInventoryResult({
+		backend: 'alsa'.padEnd(254, 'x'),
+		status: 'available',
+		detail: 'd'.repeat(MAXIMUM_NATIVE_AUDIO_INVENTORY_DETAIL_BYTES - 2),
+		devices: Array.from({ length: MAXIMUM_NATIVE_AUDIO_DEVICES }, (_, index) => ({
+			handle: maximalText(`hw:${String(index)},0`),
+			label: maximalText('ALSA PCM hint'),
+			direction: 'duplex',
+			channelCount: MAXIMUM_NATIVE_AUDIO_DEVICE_CHANNELS,
+		})),
+	});
+	assert.equal(admitted.devices.length, MAXIMUM_NATIVE_AUDIO_DEVICES);
+	validateHelperProcessMessage({ contractVersion: 1, type: 'result', jobId: JOB_ID, result: admitted });
+	assert.throws(() => validateHelperAudioDeviceInventoryResult({
+		backend: 'alsa',
+		status: 'available',
+		detail: '',
+		devices: [{ handle: 'hw:0,0'.padEnd(256, 'h'), label: 'Built-in', direction: 'duplex' }],
+	}), /audio device handle must be bounded/u);
+});
+
+test('an inventory larger than one answer is trimmed deliberately rather than fatally', async () => {
+	const runner = createNativeDeviceJobRunner({
+		addonPath: '/unused',
+		addonSha256: 'f'.repeat(64),
+		hash: () => createHash('sha256'),
+		loadAddon: async () => ({
+			...fakeAddon(),
+			enumerateAudioBackends: () => [{
+				backend: 'alsa',
+				status: 'available',
+				detail: '',
+				devices: [
+					{ handle: 'z'.repeat(300), label: 'Unnameable', direction: 'input' },
+					...Array.from({ length: 400 }, (_, index) => ({
+						handle: `hw:${String(index)},0`.padEnd(190, 'h'),
+						label: 'An ALSA PCM hint with a description far longer than one answer can carry'.repeat(8),
+						direction: 'input',
+					})),
+				],
+			}],
+		}),
+	});
+	const admitted = validateHelperAudioDeviceInventoryResult(await runner({
+		grant: { ...GRANT, backend: 'alsa', deviceHandle: NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE },
+		onProgress: () => {},
+	}).completion);
+	assert.equal(admitted.devices.length, MAXIMUM_NATIVE_AUDIO_DEVICES);
+	assert.equal(admitted.devices.some(({ handle }) => handle.startsWith('z')), false,
+		'a device whose handle cannot be carried must be omitted, not renamed');
+	assert.match(admitted.detail, /Only 128 of 401 devices fit/u);
+	validateHelperProcessMessage({ contractVersion: 1, type: 'result', jobId: JOB_ID, result: admitted });
+});
+
+test('the helper and the main-process schema agree on the inventory wire vocabulary', () => {
+	assert.equal(NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE, NATIVE_AUDIO_INVENTORY_HANDLE);
+	assert.deepEqual(NATIVE_AUDIO_INVENTORY_BOUNDS, {
+		devices: MAXIMUM_NATIVE_AUDIO_DEVICES,
+		textBytes: MAXIMUM_NATIVE_AUDIO_DEVICE_TEXT_BYTES,
+		detailBytes: MAXIMUM_NATIVE_AUDIO_INVENTORY_DETAIL_BYTES,
+	});
 });
 
 test('an inventory result that contradicts itself or repeats a handle is refused', () => {

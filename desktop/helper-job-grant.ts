@@ -45,6 +45,15 @@ export const HELPER_AUDIO_BACKENDS = Object.freeze([
 export type HelperAudioBackend = (typeof HELPER_AUDIO_BACKENDS)[number];
 
 /**
+ * The reserved handle that asks a backend to describe itself rather than open a
+ * device. Discovery is a distinct operation with a distinct answer, but it
+ * travels as an ordinary audio-device grant so it passes exactly the admission
+ * an open does — a second grant family would be a second thing to get wrong. It
+ * belongs to the grant vocabulary, so every main-side caller names it from here.
+ */
+export const NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE = 'inventory';
+
+/**
  * `fixture` is the benign proof format milestone 5A-3 asks for. It is a real
  * format on the wire so the scanner, registry, host and fault suites exercise
  * exactly the admission a licensed format will, but it names only our own

@@ -128,6 +128,8 @@ export class HelperSupervisor {
 	#watchdog: ReturnType<typeof setTimeout> | null = null;
 	#job: ActiveJob | null = null;
 	#jobAdmissionPending = false;
+	#gate: Promise<void> = Promise.resolve();
+	#gateHolders = 0;
 	#pendingHandshake: { resolve: () => void; reject: (error: Error) => void } | null = null;
 	#crashTimestamps: number[] = [];
 	#quarantined = false;
@@ -163,14 +165,17 @@ export class HelperSupervisor {
 		this.#quarantined = false;
 	}
 
+	/**
+	 * Contract v1 admits one concurrent job, so a second caller waits for the
+	 * first instead of being refused. Every native surface shares one supervisor
+	 * over one payload, and two independent user actions arriving together is
+	 * not a fault: refusing the later one would make an ordinary collision look
+	 * like the helper — or the thing it was scanning — had misbehaved.
+	 */
 	async runJob<Kind extends HelperJobKind>(request: HelperJobRequest<Kind>): Promise<unknown> {
 		this.#assertNotDisposed();
 		if (this.#quarantined) {
 			throw new HelperSupervisionError('quarantined', 'The helper is quarantined after repeated crashes.');
-		}
-		if (this.#job || this.#jobAdmissionPending) {
-			throw new HelperSupervisionError('helper-error',
-				`The helper admits at most ${HELPER_RESOURCE_HARD_LIMITS.maximumConcurrentJobs} concurrent job.`);
 		}
 		request.signal?.throwIfAborted();
 		let admittedGrant: HelperJobGrant<Kind>;
@@ -187,6 +192,38 @@ export class HelperSupervisor {
 		if (inputBytes > resourcePolicy.maximumInputBytes) {
 			throw new HelperSupervisionError('resource-violation',
 				'The helper job input exceeds its admitted byte limit.');
+		}
+		// A caller that arrives while nobody holds the gate takes it without a
+		// scheduling hop, so an uncontended job reaches the helper exactly as
+		// promptly as it did before the gate existed.
+		const contended = this.#gateHolders > 0;
+		this.#gateHolders += 1;
+		const turn = this.#gate;
+		let release: () => void = () => undefined;
+		this.#gate = new Promise<void>((resolve) => { release = resolve; });
+		try {
+			if (contended) await turn;
+			return await this.#admitJob(request, admittedGrant, resourcePolicy);
+		} finally {
+			this.#gateHolders -= 1;
+			release();
+		}
+	}
+
+	/** Runs one job on the free helper and settles when that job settles. */
+	async #admitJob<Kind extends HelperJobKind>(
+		request: HelperJobRequest<Kind>,
+		admittedGrant: HelperJobGrant<Kind>,
+		resourcePolicy: HelperJobResourcePolicy,
+	): Promise<unknown> {
+		this.#assertNotDisposed();
+		if (this.#quarantined) {
+			throw new HelperSupervisionError('quarantined', 'The helper is quarantined after repeated crashes.');
+		}
+		request.signal?.throwIfAborted();
+		if (this.#job || this.#jobAdmissionPending) {
+			throw new HelperSupervisionError('helper-error',
+				`The helper admits at most ${HELPER_RESOURCE_HARD_LIMITS.maximumConcurrentJobs} concurrent job.`);
 		}
 		this.#jobAdmissionPending = true;
 		try {

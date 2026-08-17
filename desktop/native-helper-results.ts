@@ -42,14 +42,14 @@ const OPEN_RESULT_KEYS = Object.freeze([
 	'blockFrames', 'blocksRendered', 'framesRendered', 'renderedSha256',
 ]);
 const SHA256 = /^[a-f\d]{64}$/u;
-const MAXIMUM_TEXT_LENGTH = 256;
+const MAXIMUM_TEXT_BYTES = 256;
 
 export function validateHelperNativeAddonReport(value: unknown): HelperNativeAddonReport {
 	const record = plainRecord(value, 'A native addon report');
 	exactKeys(record, ADDON_KEYS, 'A native addon report');
 	return Object.freeze({
-		addonVersion: boundedText(record.addonVersion, 'addon version'),
-		buildId: boundedText(record.buildId, 'addon build id'),
+		addonVersion: boundedText(record.addonVersion, MAXIMUM_TEXT_BYTES, 'addon version'),
+		buildId: boundedText(record.buildId, MAXIMUM_TEXT_BYTES, 'addon build id'),
 		napiVersion: boundedInteger(record.napiVersion, 8, 1_024, 'addon Node-API version'),
 		maximumChannelCount: boundedInteger(record.maximumChannelCount, 1, 4_096, 'addon channel ceiling'),
 		maximumFrameCount: boundedInteger(record.maximumFrameCount, 1, 1_048_576, 'addon frame ceiling'),
@@ -73,8 +73,8 @@ export function validateHelperAudioDeviceOpenResult(value: unknown): HelperAudio
 	}
 	return Object.freeze({
 		addon: validateHelperNativeAddonReport(record.addon),
-		backend: boundedText(record.backend, 'device backend'),
-		deviceHandle: boundedText(record.deviceHandle, 'device handle'),
+		backend: boundedText(record.backend, MAXIMUM_TEXT_BYTES, 'device backend'),
+		deviceHandle: boundedText(record.deviceHandle, MAXIMUM_TEXT_BYTES, 'device handle'),
 		sampleRate: boundedInteger(record.sampleRate, 8_000, 768_000, 'device sample rate'),
 		channelCount,
 		blockFrames,
@@ -100,6 +100,12 @@ export interface HelperNativeAudioDevice {
 	readonly handle: string;
 	readonly label: string;
 	readonly direction: NativeAudioDeviceDirection;
+	/**
+	 * How many channels the backend says this device carries. Absent when the
+	 * backend reports no topology at all: routing that would pair channels needs
+	 * a count it can trust, and a count we invented is worse than none.
+	 */
+	readonly channelCount?: number;
 }
 
 export interface HelperAudioDeviceInventoryResult {
@@ -112,8 +118,21 @@ export interface HelperAudioDeviceInventoryResult {
 /** A helper may not answer with an unbounded inventory; main clones the result. */
 export const MAXIMUM_NATIVE_AUDIO_DEVICES = 128;
 
+/**
+ * Inventory text is bounded in wire bytes — escaping and UTF-8 included —
+ * rather than in characters, and the maxima are chosen so a full inventory of
+ * maximal rows still fits `MAXIMUM_HELPER_WIRE_MESSAGE_BYTES`. A schema that
+ * admits more than the wire carries does not widen the answer: it kills the
+ * helper mid-job, and the surface sees a channel fault where it should have
+ * seen the devices a machine with many PCM hints actually has.
+ */
+export const MAXIMUM_NATIVE_AUDIO_DEVICE_TEXT_BYTES = 192;
+export const MAXIMUM_NATIVE_AUDIO_INVENTORY_DETAIL_BYTES = 1_024;
+export const MAXIMUM_NATIVE_AUDIO_DEVICE_CHANNELS = 4_096;
+
 const INVENTORY_KEYS = Object.freeze(['backend', 'status', 'detail', 'devices']);
 const DEVICE_KEYS = Object.freeze(['handle', 'label', 'direction']);
+const DEVICE_OPTIONAL_KEYS = Object.freeze(['channelCount']);
 const DIRECTIONS = Object.freeze(['input', 'output', 'duplex'] as const);
 
 export function validateHelperAudioDeviceInventoryResult(value: unknown): HelperAudioDeviceInventoryResult {
@@ -139,32 +158,36 @@ export function validateHelperAudioDeviceInventoryResult(value: unknown): Helper
 	const handles = new Set<string>();
 	const admitted = devices.map((device) => {
 		const entry = plainRecord(device, 'A native audio device');
-		exactKeys(entry, DEVICE_KEYS, 'A native audio device');
+		exactKeys(entry, DEVICE_KEYS, 'A native audio device', DEVICE_OPTIONAL_KEYS);
 		const direction = entry.direction;
 		if (typeof direction !== 'string' || !(DIRECTIONS as readonly string[]).includes(direction)) {
 			throw new HelperContractViolationError('malformed', 'A native audio device must name a known direction.');
 		}
-		const handle = boundedText(entry.handle, 'audio device handle');
+		const handle = boundedText(entry.handle, MAXIMUM_NATIVE_AUDIO_DEVICE_TEXT_BYTES, 'audio device handle');
 		if (handles.has(handle)) {
 			throw new HelperContractViolationError('malformed',
 				'A native audio backend must not report the same device handle twice.');
 		}
 		handles.add(handle);
-		return Object.freeze({
+		const described = {
 			handle,
-			label: boundedText(entry.label, 'audio device label'),
+			label: boundedText(entry.label, MAXIMUM_NATIVE_AUDIO_DEVICE_TEXT_BYTES, 'audio device label'),
 			direction: direction as NativeAudioDeviceDirection,
+		};
+		return Object.freeze(entry.channelCount === undefined ? described : {
+			...described,
+			channelCount: boundedInteger(entry.channelCount, 1, MAXIMUM_NATIVE_AUDIO_DEVICE_CHANNELS,
+				'audio device channel count'),
 		});
 	});
+	const detail = record.detail;
+	if (typeof detail !== 'string' || wireTextBytes(detail) > MAXIMUM_NATIVE_AUDIO_INVENTORY_DETAIL_BYTES) {
+		throw new HelperContractViolationError('malformed', 'A native audio inventory detail must be bounded text.');
+	}
 	return Object.freeze({
-		backend: boundedText(record.backend, 'audio backend name'),
+		backend: boundedText(record.backend, MAXIMUM_TEXT_BYTES, 'audio backend name'),
 		status: status as NativeAudioBackendStatus,
-		detail: typeof record.detail === 'string' && record.detail.length <= 1_024
-			? record.detail
-			: (() => {
-				throw new HelperContractViolationError('malformed',
-					'A native audio inventory detail must be bounded text.');
-			})(),
+		detail,
 		devices: Object.freeze(admitted),
 	});
 }
@@ -176,18 +199,29 @@ function plainRecord(value: unknown, label: string): Record<string, unknown> {
 	return value as Record<string, unknown>;
 }
 
-function exactKeys(record: Record<string, unknown>, keys: readonly string[], label: string): void {
+function exactKeys(
+	record: Record<string, unknown>,
+	keys: readonly string[],
+	label: string,
+	optional: readonly string[] = [],
+): void {
 	const present = Object.keys(record);
-	if (present.length !== keys.length || present.some((key) => !keys.includes(key))) {
+	if (keys.some((key) => !present.includes(key))
+		|| present.some((key) => !keys.includes(key) && !optional.includes(key))) {
 		throw new HelperContractViolationError('malformed', `${label} must carry exactly its schema keys.`);
 	}
 }
 
-function boundedText(value: unknown, label: string): string {
-	if (typeof value !== 'string' || value.length === 0 || value.length > MAXIMUM_TEXT_LENGTH) {
+function boundedText(value: unknown, maximumBytes: number, label: string): string {
+	if (typeof value !== 'string' || value.length === 0 || wireTextBytes(value) > maximumBytes) {
 		throw new HelperContractViolationError('malformed', `A helper ${label} must be bounded non-empty text.`);
 	}
 	return value;
+}
+
+/** What one string costs on the wire, JSON escaping and UTF-8 included. */
+function wireTextBytes(value: string): number {
+	return new TextEncoder().encode(JSON.stringify(value)).byteLength;
 }
 
 function boundedInteger(value: unknown, minimum: number, maximum: number, label: string): number {

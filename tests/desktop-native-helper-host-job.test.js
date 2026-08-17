@@ -67,6 +67,96 @@ async function grantFor(name) {
 	};
 }
 
+/** A stand-in for the addon that records the instance lifecycle it is given. */
+function recordingAddon({ failAtBlock = null } = {}) {
+	const events = [];
+	let live = 0;
+	let processed = 0;
+	return {
+		events,
+		live: () => live,
+		addon: {
+			openPluginInstance: () => {
+				live += 1;
+				events.push('open');
+				return { instance: live };
+			},
+			closePluginInstance: () => {
+				live -= 1;
+				events.push('close');
+			},
+			pluginLatencyFrames: () => 64,
+			processPluginBlock: () => {
+				if (failAtBlock !== null && processed >= failAtBlock) throw new Error('the plug-in aborted');
+				processed += 1;
+				events.push('process');
+			},
+			savePluginState: () => {
+				events.push('save');
+				return new Uint8Array(8);
+			},
+		},
+	};
+}
+
+const RECORDED_GRANT = Object.freeze({
+	binaryPath: '/plug-ins/example.scapefx',
+	binaryBytes: 16,
+	binarySha256: 'a'.repeat(64),
+	format: 'fixture',
+	identity: Object.freeze({ dev: 1, ino: 2 }),
+});
+
+function recordedRunner(recorder) {
+	return createNativePluginHostJobRunner({
+		addonPath: '/unused',
+		addonSha256: 'f'.repeat(64),
+		loadAddon: async () => recorder.addon,
+		hashFile: async () => ({ byteLength: RECORDED_GRANT.binaryBytes, sha256: RECORDED_GRANT.binarySha256 }),
+		hash: () => createHash('sha256'),
+	});
+}
+
+test('a hosted instance is released on the path that succeeds', async () => {
+	const recorder = recordingAddon();
+	await recordedRunner(recorder)({ grant: RECORDED_GRANT, onProgress: () => {} }).completion;
+	assert.equal(recorder.live(), 0, 'a probed plug-in must not stay resident in a long-lived helper');
+	assert.equal(recorder.events.at(-1), 'close', 'the instance is released after its state is read');
+});
+
+test('a hosted instance is released when the plug-in fails mid-probe', async () => {
+	const recorder = recordingAddon({ failAtBlock: 2 });
+	await assert.rejects(
+		recordedRunner(recorder)({ grant: RECORDED_GRANT, onProgress: () => {} }).completion,
+		/the plug-in aborted/u,
+	);
+	assert.equal(recorder.live(), 0);
+	assert.equal(recorder.events.filter((event) => event === 'close').length, 1);
+});
+
+test('a cancelled host job releases its instance and never saves state through it', async () => {
+	const recorder = recordingAddon();
+	const handle = recordedRunner(recorder)({ grant: RECORDED_GRANT, onProgress: () => {} });
+	await new Promise((resolve_) => { setTimeout(resolve_, 1); });
+	await handle.cancel();
+	await handle.completion.catch(() => undefined);
+	assert.equal(recorder.live(), 0);
+	assert.equal(recorder.events.includes('save'), false,
+		'a torn-down instance must not be asked for the state the caller believes is gone');
+});
+
+test('a binary that changed after it was granted never opens an instance at all', async () => {
+	const recorder = recordingAddon();
+	await assert.rejects(
+		recordedRunner(recorder)({
+			grant: { ...RECORDED_GRANT, binarySha256: 'b'.repeat(64) },
+			onProgress: () => {},
+		}).completion,
+		/changed after it was granted/u,
+	);
+	assert.deepEqual(recorder.events, []);
+});
+
 test('the helper announces hosting alongside discovery and devices', () => {
 	assert.deepEqual([...NATIVE_HELPER_JOB_KINDS], ['audio-device', 'plugin-scan', 'plugin-host']);
 });

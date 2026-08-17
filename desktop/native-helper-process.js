@@ -34,8 +34,22 @@ export const SYNTHETIC_LOOPBACK_DEVICE_HANDLE = 'synthetic:loopback';
  * device. Discovery is a distinct operation with a distinct answer, but it
  * travels as an ordinary audio-device grant so it passes exactly the admission
  * an open does — a second grant family would be a second thing to get wrong.
+ *
+ * Deliberately duplicated from the grant vocabulary rather than imported: this
+ * entry may only name modules the packaged runtime maps for it, and that one is
+ * not among them. A pinning test keeps the two equal.
  */
 export const NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE = 'inventory';
+
+/**
+ * The bounds one inventory answer must stay inside, duplicated from the result
+ * schema for the same reason and pinned by the same test.
+ */
+export const NATIVE_AUDIO_INVENTORY_BOUNDS = Object.freeze({
+	devices: 128,
+	textBytes: 192,
+	detailBytes: 1_024,
+});
 
 export const SYNTHETIC_ENGINE_MODES = Object.freeze({
 	passthrough: 0,
@@ -62,6 +76,11 @@ export function createNativeHelperWorker({
 }) {
 	if (typeof post !== 'function') throw new TypeError('A helper post seam is required.');
 	if (typeof runDeviceJob !== 'function') throw new TypeError('A native device job runner is required.');
+	const runners = Object.freeze({
+		'audio-device': runDeviceJob,
+		'plugin-scan': runScanJob,
+		'plugin-host': runHostJob,
+	});
 	let activeJob = null;
 	let disposed = false;
 
@@ -114,7 +133,10 @@ export function createNativeHelperWorker({
 			dispose(1);
 			return;
 		}
-		const runner = { 'plugin-scan': runScanJob, 'plugin-host': runHostJob }[message.kind] ?? runDeviceJob;
+		// Exhaustive by construction: a kind with no entry, or an entry this build
+		// was constructed without, is refused. Falling back to any runner would
+		// answer a scan with a device runner's diagnosis of a device it never had.
+		const runner = Object.hasOwn(runners, message.kind) ? runners[message.kind] : null;
 		if (!NATIVE_HELPER_JOB_KINDS.includes(message.kind) || typeof runner !== 'function') {
 			sendError(message.jobId, new RangeError(`This helper does not implement ${message.kind} jobs.`));
 			return;
@@ -293,6 +315,10 @@ export function createNativeDeviceJobRunner({
  * is answered without consulting the platform and is deliberately reported with
  * no devices: it exists for the transport proof and must never be published as
  * something a user could select.
+ *
+ * A machine with hundreds of PCM hints is answered with as many devices as one
+ * inventory can carry and told so, because an answer that overflows the wire is
+ * not a longer answer: it is a dead helper and no answer at all.
  */
 function describeBackendInventory(addon, backend) {
 	if (backend === 'synthetic') {
@@ -308,16 +334,44 @@ function describeBackendInventory(addon, backend) {
 			devices: [],
 		};
 	}
+	const offered = Array.isArray(entry.devices) ? entry.devices : [];
+	const devices = [];
+	for (const device of offered) {
+		if (devices.length >= NATIVE_AUDIO_INVENTORY_BOUNDS.devices) break;
+		const handle = typeof device?.handle === 'string' ? device.handle : '';
+		// A handle is an identity, not a display string: a device whose own is
+		// too long to carry is omitted rather than published under a trimmed
+		// name that would never reopen it.
+		if (handle === '' || wireTextBytes(handle) > NATIVE_AUDIO_INVENTORY_BOUNDS.textBytes) continue;
+		const label = typeof device.label === 'string' && device.label !== '' ? device.label : handle;
+		const described = {
+			handle,
+			label: clampWireText(label, NATIVE_AUDIO_INVENTORY_BOUNDS.textBytes),
+			direction: device.direction,
+		};
+		devices.push(Number.isSafeInteger(device.channelCount) && device.channelCount > 0
+			? { ...described, channelCount: device.channelCount }
+			: described);
+	}
 	return {
 		backend,
 		status: entry.status,
-		detail: entry.detail ?? '',
-		devices: (entry.devices ?? []).map((device) => ({
-			handle: device.handle,
-			label: device.label,
-			direction: device.direction,
-		})),
+		detail: devices.length === offered.length
+			? clampWireText(entry.detail ?? '', NATIVE_AUDIO_INVENTORY_BOUNDS.detailBytes)
+			: `Only ${String(devices.length)} of ${String(offered.length)} devices fit one inventory answer.`,
+		devices,
 	};
+}
+
+function wireTextBytes(value) {
+	return Buffer.byteLength(JSON.stringify(value));
+}
+
+function clampWireText(value, maximumBytes) {
+	if (wireTextBytes(value) <= maximumBytes) return value;
+	const points = Array.from(value);
+	while (points.length > 0 && wireTextBytes(points.join('')) > maximumBytes) points.pop();
+	return points.join('');
 }
 
 function defaultBlockYield() {

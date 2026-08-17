@@ -98,11 +98,20 @@ export async function describeNativeAddonAvailability(
 		manifest = JSON.parse(String(await readFileImpl(
 			join(location.applicationRoot, 'config/native-addon-payload-manifest.json'),
 		))) as typeof manifest;
+		// Read inside the guard, not after it: a manifest that parses but names
+		// no addon is exactly as unreadable as one that does not parse, and this
+		// function's whole contract is that it reports rather than throws.
+		if (typeof manifest?.addon?.payloadName !== 'string'
+			|| typeof manifest.addon.version !== 'string'
+			|| !Number.isSafeInteger(manifest.addon.napiVersion)
+			|| !Array.isArray(manifest.targets)) {
+			throw new TypeError('The manifest does not describe one native addon and its targets.');
+		}
 	} catch (error) {
 		return unavailable('manifest-unreadable',
 			`The native addon payload manifest could not be read: ${describeError(error)}`);
 	}
-	const record = manifest.targets?.find((entry) => entry.id === target);
+	const record = manifest.targets.find((entry) => entry.id === target);
 	if (!record) {
 		return unavailable('unsupported-platform', `The native addon payload manifest has no ${target} target.`);
 	}

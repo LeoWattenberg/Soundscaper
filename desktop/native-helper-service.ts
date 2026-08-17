@@ -15,17 +15,18 @@
 
 import {
 	HELPER_AUDIO_BACKENDS,
+	NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE,
 	type HelperAudioBackend,
 } from './helper-job-grant.ts';
 import { HelperSupervisionError, type HelperJobRequest } from './helper-supervisor.ts';
-import type { NativeAddonAvailability } from './native-addon-payload.ts';
+import type { NativeAddonAvailability, NativeAddonUnavailableReason } from './native-addon-payload.ts';
 import {
 	type HelperAudioDeviceInventoryResult,
 	validateHelperAudioDeviceInventoryResult,
 } from './native-helper-results.ts';
 
 /** The reserved handle that asks a backend to describe itself. */
-export const NATIVE_AUDIO_INVENTORY_HANDLE = 'inventory';
+export const NATIVE_AUDIO_INVENTORY_HANDLE = NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE;
 
 /**
  * The synthetic loopback backend is a proof surface, never a product one, so
@@ -88,7 +89,14 @@ export class DesktopNativeAudioService {
 			quarantined: this.#supervisor.snapshot().quarantined,
 			payload: payload.status === 'available'
 				? Object.freeze({ status: 'available' as const, reason: null, detail: '' })
-				: Object.freeze({ status: 'unavailable' as const, reason: payload.reason, detail: payload.detail }),
+				: Object.freeze({
+					status: 'unavailable' as const,
+					reason: payload.reason,
+					// The payload describes itself with the file it resolved, and
+					// that names an absolute path main owns. The renderer gets the
+					// closed reason and a sentence written for it, never the path.
+					detail: PAYLOAD_UNAVAILABLE_MESSAGES[payload.reason],
+				}),
 			backends: PUBLISHABLE_NATIVE_AUDIO_BACKENDS,
 		});
 	}
@@ -99,31 +107,26 @@ export class DesktopNativeAudioService {
 
 	async describeBackend({ owner, backend }: Readonly<{ owner: object; backend: string }>): Promise<NativeAudioInventoryOutcome> {
 		if (this.#disposed || !this.#isEnabled()) {
-			return failure('helper-disabled', 'The native audio helper is disabled.');
+			return failure('helper-disabled');
 		}
 		if (!(PUBLISHABLE_NATIVE_AUDIO_BACKENDS as readonly string[]).includes(backend)) {
 			// The synthetic proof backend lands here too, deliberately.
-			return failure('unknown-backend', 'That audio backend is not offered by this build.');
+			return failure('unknown-backend');
 		}
 		if (this.#supervisor.snapshot().quarantined) {
-			return failure('helper-quarantined', 'The native audio helper is quarantined after repeated faults.');
+			return failure('helper-quarantined');
 		}
-		// The request is registered before the first await, not after it. An
-		// owner that goes away while its payload is still being verified must
-		// still be revoked, or the helper is spawned for a renderer that is
-		// already gone.
+		// The request is registered before the first await, not after it: an owner
+		// that goes away while the helper is still verifying its payload or
+		// waiting its turn must still be revoked, or the helper works for a
+		// renderer that is already gone. The payload is not read here — the
+		// supervisor re-verifies those bytes before every spawn, and that one
+		// documented gate is what decides whether this request can run at all.
 		const controller = new AbortController();
 		const previous = this.#owners.get(owner);
 		previous?.abort(new HelperSupervisionError('cancelled', 'A newer inventory request replaced this one.'));
 		this.#owners.set(owner, controller);
 		try {
-			const payload = await this.#describePayload();
-			if (controller.signal.aborted) {
-				return failure('helper-cancelled', 'The inventory request was cancelled before it began.');
-			}
-			if (payload.status !== 'available') {
-				return failure('helper-unavailable', payload.detail);
-			}
 			const result = await this.#enqueue(() => this.#supervisor.runJob({
 				kind: 'audio-device',
 				grant: {
@@ -140,7 +143,10 @@ export class DesktopNativeAudioService {
 				inventory: result as HelperAudioDeviceInventoryResult,
 			});
 		} catch (error) {
-			return failure(failureCode(error), error instanceof Error ? error.message : String(error));
+			// The fault's own message is a main-side diagnostic: a binary mismatch
+			// quotes the payload path, and a contract violation quotes the helper's
+			// answer. The renderer is told which typed failure this was.
+			return failure(failureCode(error));
 		} finally {
 			if (this.#owners.get(owner) === controller) this.#owners.delete(owner);
 		}
@@ -171,8 +177,25 @@ export class DesktopNativeAudioService {
 	}
 }
 
-function failure(code: NativeAudioFailureCode, message: string): NativeAudioInventoryOutcome {
-	return Object.freeze({ status: 'failed' as const, code, message });
+const FAILURE_MESSAGES: Readonly<Record<NativeAudioFailureCode, string>> = Object.freeze({
+	'helper-disabled': 'The native audio helper is disabled.',
+	'helper-unavailable': 'No verified native audio helper is available in this build.',
+	'helper-quarantined': 'The native audio helper is quarantined after repeated faults.',
+	'unknown-backend': 'That audio backend is not offered by this build.',
+	'helper-cancelled': 'The inventory request was cancelled.',
+	'helper-failed': 'The audio device inventory did not complete.',
+});
+
+const PAYLOAD_UNAVAILABLE_MESSAGES: Readonly<Record<NativeAddonUnavailableReason, string>> = Object.freeze({
+	'unsupported-platform': 'No native audio helper is built for this kind of machine.',
+	'payload-pending-external': 'No native audio helper has been built for this target yet.',
+	'payload-missing': 'The native audio helper is not installed alongside this build.',
+	'payload-digest-mismatch': 'The installed native audio helper does not match this build.',
+	'manifest-unreadable': 'This build does not describe a native audio helper.',
+});
+
+function failure(code: NativeAudioFailureCode): NativeAudioInventoryOutcome {
+	return Object.freeze({ status: 'failed' as const, code, message: FAILURE_MESSAGES[code] });
 }
 
 function failureCode(error: unknown): NativeAudioFailureCode {

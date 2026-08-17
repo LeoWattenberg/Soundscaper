@@ -4,138 +4,27 @@ import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import test from 'node:test';
 
-import { HELPER_CONTRACT_VERSION, type HelperHostMessage } from '../desktop/helper-contract.ts';
+import { HELPER_CONTRACT_VERSION } from '../desktop/helper-contract.ts';
+import { HelperSupervisionError, HelperSupervisor } from '../desktop/helper-supervisor.ts';
 import {
-	HelperSupervisionError,
-	HelperSupervisor,
-	type HelperChannel,
-} from '../desktop/helper-supervisor.ts';
+	FakeChannel,
+	GRANT,
+	JOB_KIND,
+	createHarness,
+	settled,
+	supervisionCause,
+} from './helpers/helper-supervisor-double.ts';
 
-const JOB_KIND = 'probe-video-source' as const;
-const GRANT = Object.freeze({
-	mediaPath: '/media/example.mp4',
-	mediaBytes: 2_048,
-	identity: Object.freeze({ dev: 3, ino: 42 }),
-});
-
-class FakeTimers {
-	now = 0;
-	#timers = new Map<number, { at: number; handler: () => void }>();
-	#sequence = 0;
-
-	setTimeout = (handler: () => void, delayMs: number) => {
-		this.#sequence += 1;
-		this.#timers.set(this.#sequence, { at: this.now + delayMs, handler });
-		return this.#sequence as unknown as ReturnType<typeof setTimeout>;
-	};
-
-	clearTimeout = (timer: unknown) => {
-		this.#timers.delete(timer as number);
-	};
-
-	advance(byMs: number): void {
-		const target = this.now + byMs;
-		for (;;) {
-			const due = [...this.#timers.entries()]
-				.filter(([, entry]) => entry.at <= target)
-				.sort(([, left], [, right]) => left.at - right.at)[0];
-			if (!due) break;
-			this.now = due[1].at;
-			this.#timers.delete(due[0]);
-			due[1].handler();
-		}
-		this.now = target;
-	}
-}
-
-class FakeChannel implements HelperChannel {
-	readonly posted: HelperHostMessage[] = [];
-	killed = 0;
-	autoHello = true;
-	throwOnPost = false;
-	#messageListener: ((message: unknown) => void) | null = null;
-	#exitListener: ((code: number | null) => void) | null = null;
-
-	postMessage(message: HelperHostMessage): void {
-		if (this.throwOnPost) throw new Error('channel closed');
-		this.posted.push(message);
-	}
-
-	onMessage(listener: (message: unknown) => void): void {
-		this.#messageListener = listener;
-		// A real utility process cannot deliver messages before the listener
-		// exists; the double greets as soon as supervision starts listening.
-		if (this.autoHello) queueMicrotask(() => this.hello());
-	}
-
-	onExit(listener: (code: number | null) => void): void {
-		this.#exitListener = listener;
-	}
-
-	kill(): void {
-		this.killed += 1;
-	}
-
-	receive(message: unknown): void {
-		this.#messageListener?.(message);
-	}
-
-	hello(): void {
-		this.receive({ contractVersion: HELPER_CONTRACT_VERSION, type: 'hello', kinds: [JOB_KIND] });
-	}
-
-	exit(code: number | null): void {
-		this.#exitListener?.(code);
-	}
-}
-
-function createHarness(options: Readonly<{
-	verifyBinary?: () => Promise<void>;
-	sampleRss?: () => number | null;
-	quarantineCrashLimit?: number;
-	autoHello?: boolean;
-	completeSpawn?: (channel: FakeChannel) => HelperChannel | Promise<HelperChannel>;
-}> = {}) {
-	const timers = new FakeTimers();
-	const channels: FakeChannel[] = [];
-	let jobSequence = 0;
-	const supervisor = new HelperSupervisor({
-		spawn: () => {
-			const channel = new FakeChannel();
-			channel.autoHello = options.autoHello ?? true;
-			channels.push(channel);
-			return options.completeSpawn?.(channel) ?? channel;
-		},
-		verifyBinary: options.verifyBinary ?? (async () => {}),
-		mintJobId: () => (++jobSequence).toString(16).padStart(40, '0'),
-		sampleRss: options.sampleRss,
-		quarantineCrashLimit: options.quarantineCrashLimit,
-		now: () => timers.now,
-		setTimeoutImpl: timers.setTimeout as typeof setTimeout,
-		clearTimeoutImpl: timers.clearTimeout as typeof clearTimeout,
-	});
-	return { supervisor, timers, channels, latest: () => channels.at(-1)! };
-}
-
-function supervisionCause(error: unknown): string | null {
-	return error instanceof HelperSupervisionError ? error.cause_ : null;
-}
-
-function settled(): Promise<void> {
-	return new Promise((resolve) => setImmediate(resolve));
-}
-
-test('helper supervisor completes a verified round trip and enforces single-job admission', async () => {
+test('helper supervisor completes a verified round trip and admits one job at a time', async () => {
 	const { supervisor, channels, latest } = createHarness();
 	const job = supervisor.runJob({ kind: JOB_KIND, grant: GRANT });
-	let concurrentError: unknown;
-	void supervisor.runJob({ kind: JOB_KIND, grant: GRANT }).catch((error: unknown) => { concurrentError = error; });
+	const queued = supervisor.runJob({ kind: JOB_KIND, grant: GRANT });
 	await settled();
 	const channel = latest();
 	assert.equal(channels.length, 1);
 	const posted = channel.posted[0];
 	assert.equal(posted.type, 'job');
-	assert.equal(supervisionCause(concurrentError), 'helper-error', 'a pre-handshake concurrent job must be refused');
+	assert.equal(channel.posted.length, 1, 'a pre-handshake concurrent job must wait, not run');
 	channel.receive({
 		contractVersion: HELPER_CONTRACT_VERSION,
 		type: 'result',
@@ -143,7 +32,70 @@ test('helper supervisor completes a verified round trip and enforces single-job 
 		result: { probed: true },
 	});
 	assert.deepEqual(await job, { probed: true });
+	await settled();
+	const queuedPosted = channel.posted[1];
+	assert.equal(queuedPosted.type, 'job');
+	channel.receive({
+		contractVersion: HELPER_CONTRACT_VERSION,
+		type: 'result',
+		jobId: queuedPosted.type === 'job' ? queuedPosted.jobId : '',
+		result: { probed: 'again' },
+	});
+	assert.deepEqual(await queued, { probed: 'again' });
 	assert.equal(supervisor.snapshot().state, 'ready');
+});
+
+test('two surfaces sharing one supervisor queue behind each other instead of colliding', async () => {
+	const { supervisor, channels, latest } = createHarness({ kinds: [JOB_KIND, 'audio-device'] });
+	const probe = supervisor.runJob({ kind: JOB_KIND, grant: GRANT });
+	const inventory = supervisor.runJob({
+		kind: 'audio-device',
+		grant: { backend: 'alsa', deviceHandle: 'inventory', direction: 'duplex', mode: 'shared' },
+	});
+	await settled();
+	const channel = latest();
+	assert.equal(channels.length, 1, 'one payload admits one helper, not one per surface');
+	assert.equal(channel.posted.length, 1, 'a queued job must not be posted while another is in flight');
+	assert.equal(supervisor.snapshot().state, 'busy');
+	const probeJobId = (channel.posted[0] as { jobId: string }).jobId;
+	channel.receive({ contractVersion: HELPER_CONTRACT_VERSION, type: 'result', jobId: probeJobId, result: 'probed' });
+	assert.equal(await probe, 'probed');
+	await settled();
+	assert.equal(channel.posted.length, 2, 'the queued job must run once the helper is free');
+	const inventoryJobId = (channel.posted[1] as { jobId: string }).jobId;
+	assert.notEqual(inventoryJobId, probeJobId);
+	channel.receive({
+		contractVersion: HELPER_CONTRACT_VERSION, type: 'result', jobId: inventoryJobId, result: 'described',
+	});
+	assert.equal(await inventory, 'described');
+	assert.equal(supervisor.snapshot().recentCrashes, 0, 'a collision between surfaces is nobody\'s fault');
+});
+
+test('a queued job that is disposed or quarantined before its turn never reaches the helper', async () => {
+	const { supervisor, latest } = createHarness();
+	const active = supervisor.runJob({ kind: JOB_KIND, grant: GRANT });
+	const queued = supervisor.runJob({ kind: JOB_KIND, grant: GRANT });
+	await settled();
+	assert.equal(latest().posted.length, 1);
+	supervisor.dispose();
+	await assert.rejects(active, (error: unknown) => supervisionCause(error) === 'disposed');
+	await assert.rejects(queued, (error: unknown) => supervisionCause(error) === 'disposed');
+	assert.equal(latest().posted.length, 1, 'a disposed supervisor must not post a job it queued');
+});
+
+test('a queued job cancelled while it waits its turn is never posted', async () => {
+	const { supervisor, latest } = createHarness();
+	const controller = new AbortController();
+	const active = supervisor.runJob({ kind: JOB_KIND, grant: GRANT });
+	const queued = supervisor.runJob({ kind: JOB_KIND, grant: GRANT, signal: controller.signal });
+	await settled();
+	const channel = latest();
+	controller.abort(new HelperSupervisionError('cancelled', 'The inventory owner went away.'));
+	const jobId = (channel.posted[0] as { jobId: string }).jobId;
+	channel.receive({ contractVersion: HELPER_CONTRACT_VERSION, type: 'result', jobId, result: 'ok' });
+	assert.equal(await active, 'ok');
+	await assert.rejects(queued, (error: unknown) => supervisionCause(error) === 'cancelled');
+	assert.equal(channel.posted.length, 1, 'a cancelled queue entry must not be posted after its turn arrives');
 });
 
 test('helper supervisor cannot resume verification or spawn after disposal', { timeout: 1_000 }, async () => {
