@@ -11,6 +11,17 @@ import {
 	videoFfmpegV6ContainFilter,
 } from './video-ffmpeg-render-description.ts';
 import { SUPPORTED_VIDEO_EXPORT_PLAN_VERSIONS } from './video-export-plan-version.ts';
+import {
+	ffmpegColor,
+	ffmpegNumber,
+	mappedValue,
+	nonEmptyString,
+	nonNegativeFiniteNumber,
+	nonNegativeInteger,
+	positiveEvenInteger,
+	positiveFiniteNumber,
+	positiveSafeInteger,
+} from './video-ffmpeg-values.js';
 
 const DEFAULT_VIDEO_ENCODING_SETTINGS = Object.freeze({
 	mp4: Object.freeze({
@@ -566,68 +577,4 @@ function normalizeSequentialSegments(plan, inputs) {
 			durationSeconds: duration,
 		};
 	});
-}
-
-function mappedValue(mapping, key) {
-	if (mapping instanceof Map) return mapping.get(key);
-	if (mapping && typeof mapping === 'object' && Object.prototype.hasOwnProperty.call(mapping, key)) {
-		return mapping[key];
-	}
-	return undefined;
-}
-
-function ffmpegColor(value) {
-	const color = nonEmptyString(value, 'video color').trim();
-	if (/^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(color)) return `0x${color.slice(1)}`;
-	if (/^0x[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(color)) return color;
-	if (/^[a-z][a-z0-9_-]*(?:@(?:0(?:\.\d+)?|1(?:\.0+)?))?$/i.test(color)) return color;
-	throw new TypeError(`Unsupported FFmpeg video color: ${value}.`);
-}
-
-function ffmpegNumber(value, name) {
-	const number = Number(value);
-	if (!Number.isFinite(number)) throw new RangeError(`${name} must be finite.`);
-	return String(Object.is(number, -0) ? 0 : number);
-}
-
-function nonEmptyString(value, name) {
-	const text = String(value ?? '');
-	if (!text) throw new TypeError(`${name} must not be empty.`);
-	return text;
-}
-
-function nonNegativeInteger(value, name) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < 0) {
-		throw new RangeError(`${name} must be a non-negative safe integer.`);
-	}
-	return number;
-}
-
-function positiveSafeInteger(value, name) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < 1) {
-		throw new RangeError(`${name} must be a positive safe integer.`);
-	}
-	return number;
-}
-
-function positiveEvenInteger(value, name) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < 2 || number % 2 !== 0) {
-		throw new RangeError(`${name} must be a positive even integer.`);
-	}
-	return number;
-}
-
-function nonNegativeFiniteNumber(value, name) {
-	const number = Number(value);
-	if (!Number.isFinite(number) || number < 0) throw new RangeError(`${name} must be non-negative.`);
-	return number;
-}
-
-function positiveFiniteNumber(value, name) {
-	const number = Number(value);
-	if (!Number.isFinite(number) || number <= 0) throw new RangeError(`${name} must be positive.`);
-	return number;
 }
