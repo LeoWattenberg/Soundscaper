@@ -1,6 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { measureBextLoudness } from '../broadcast-loudness.ts';
+import {
+	type RenderedLoudnessMeasurement,
+	normalizeRenderedLoudness,
+} from '../loudness-normalization-render.ts';
+import type {
+	LoudnessNormalizationDecision,
+	LoudnessNormalizationTarget,
+} from '../loudness-normalization.ts';
 import type {
 	DirectCompressedDestination,
 	DirectCompressedEncodeOptions,
@@ -39,6 +46,8 @@ export interface RenderedAudioEncodingPlan {
 	readonly encoding: RenderedAudioFormatSettings;
 	readonly format: string;
 	readonly ixml?: unknown;
+	/** The delivery's loudness target, decided by the plan rather than by an encoder. */
+	readonly loudnessNormalization?: LoudnessNormalizationTarget | null;
 	readonly markers?: unknown;
 	readonly metadata: Readonly<Record<string, unknown>>;
 	readonly mimeType: string;
@@ -53,7 +62,11 @@ export interface RenderedAudioEncodedOutput extends Readonly<Record<string, unkn
 	readonly byteLength?: number;
 	readonly bytes?: Uint8Array | null;
 	readonly cleanup?: () => Awaitable<void>;
+	/** Loudness measured from the written samples, present only when the delivery captured it. */
+	readonly deliveredLoudness?: RenderedLoudnessMeasurement | null;
 	readonly directDestination?: DirectCompressedDestination | DirectPcmDestination;
+	/** What normalization decided for this delivery, so the report can carry it. */
+	readonly loudnessNormalization?: LoudnessNormalizationDecision | null;
 	readonly mimeType: string;
 }
 
@@ -136,12 +149,35 @@ export async function encodeRenderedAudio(
 	const bitDepth = plan.encoding.bitDepth
 		|| (settings.bitDepth === 32 ? 32 : settings.bitDepth)
 		|| 24;
-	const sourceChannels = audioBufferChannels(output);
-	if (isNativePcmFormat(plan.format)) {
-		const mapped = applyMediaChannelMapping(sourceChannels, plan.channelMapping);
-		const broadcast = plan.format === 'bwf' || plan.format === 'bw64';
-		const measuredBext = broadcast && settings.measureLoudness === true
-			? { ...plan.bext, ...measureBextLoudness(mapped, plan.sampleRate) }
+	const renderedChannels = audioBufferChannels(output);
+	const native = isNativePcmFormat(plan.format);
+	const broadcast = plan.format === 'bwf' || plan.format === 'bw64';
+	// The one neutral point every delivery passes through: channel mapping has
+	// been applied, no encoder has been chosen yet, and these are the samples
+	// that get written. Normalizing here is what makes the gain a plan step
+	// rather than a per-format encoder flag, so every format normalizes
+	// identically or not at all.
+	const normalized = normalizeRenderedLoudness({
+		channels: native ? applyMediaChannelMapping(renderedChannels, plan.channelMapping) : renderedChannels,
+		sampleRate: plan.sampleRate,
+		target: plan.loudnessNormalization,
+		captureLoudness: broadcast && settings.measureLoudness === true,
+	});
+	const sourceChannels = normalized.channels;
+	// Only when something was actually measured: metering an hour of audio takes
+	// long enough that a cancel during it deserves to be honoured before
+	// encoding starts. An ordinary export measures nothing and pays nothing.
+	if (normalized.decision) assertActive();
+	const withLoudness = (result: RenderedAudioEncodedOutput): RenderedAudioEncodedOutput => (
+		normalized.decision
+			? { ...result, loudnessNormalization: normalized.decision, deliveredLoudness: normalized.delivered }
+			: result
+	);
+	if (native) {
+		// The capture describes the bytes that were written, so it comes from
+		// measuring the normalized channels rather than from projecting them.
+		const measuredBext = normalized.delivered
+			? { ...plan.bext, ...normalized.delivered }
 			: plan.bext;
 		const nativeOptions = {
 			container: plan.container,
@@ -166,9 +202,9 @@ export async function encodeRenderedAudio(
 			if (typeof createStreamEncoder !== 'function') {
 				throw new TypeError(`The direct ${plan.format.toUpperCase()} stream encoder is unavailable.`);
 			}
-			return encodeDirectOfflinePcm({
+			return withLoudness(await encodeDirectOfflinePcm({
 				assertCurrent: options.assertCurrent ?? (() => undefined),
-				channels: mapped,
+				channels: sourceChannels,
 				createEncoder: createStreamEncoder,
 				destination: options.directDestination,
 				encoderOptions: {
@@ -178,16 +214,16 @@ export async function encodeRenderedAudio(
 				},
 				plan,
 				signal,
-			});
+			}));
 		}
 		const bytes = plan.format === 'aiff'
-			? encodeAiff(mapped, nativeOptions)
-			: encodeWav(mapped, nativeOptions);
-		return { bytes, mimeType: plan.mimeType };
+			? encodeAiff(sourceChannels, nativeOptions)
+			: encodeWav(sourceChannels, nativeOptions);
+		return withLoudness({ bytes, mimeType: plan.mimeType });
 	}
 	if (options.directCompressedDestination) {
 		assertActive();
-		return encodeDirectOfflineCompressed({
+		return withLoudness(await encodeDirectOfflineCompressed({
 			assertCurrent: options.assertCurrent ?? (() => undefined),
 			channels: sourceChannels,
 			destination: options.directCompressedDestination,
@@ -196,7 +232,7 @@ export async function encodeRenderedAudio(
 			onEncoding: () => { setStatus(copy.encoding); },
 			plan,
 			signal,
-		});
+		}));
 	}
 	const stagingFloat = plan.format !== 'flac';
 	const stagingBitDepth = stagingFloat
@@ -212,7 +248,7 @@ export async function encodeRenderedAudio(
 	});
 	assertActive();
 	setStatus(copy.encoding);
-	return ffmpeg.encode(wav, plan.format, {
+	return withLoudness(await ffmpeg.encode(wav, plan.format, {
 		...plan.encoding,
 		bitDepth,
 		sampleRate: plan.sampleRate,
@@ -220,7 +256,7 @@ export async function encodeRenderedAudio(
 			&& plan.ditherMode !== 'none'
 			&& plan.format !== 'flac',
 		signal,
-	});
+	}));
 }
 
 function isNativePcmFormat(format: string): boolean {

@@ -465,6 +465,11 @@ test('pristine BW64 sequence retains ADM, INFO, adtl, and opaque chunk order byt
 		() => createExportPlan(project, { ...options, measureLoudness: true }),
 		/preserved.*BEXT|BEXT.*passthrough/iu,
 	);
+	// Passthrough is byte preservation, so a gain is not a thing it can carry.
+	assert.throws(
+		() => createExportPlan(project, { ...options, loudnessNormalization: 'ebu-r128' }),
+		/passthrough preserves the source bytes/iu,
+	);
 	const output = encodeWav([new Float32Array(4)], {
 		container: 'bw64', sampleRate: 48_000, bitDepth: 24, dither: 'none',
 		bext: plan.bext, preDataChunks: plan.preDataChunks, trailingChunks: plan.trailingChunks,

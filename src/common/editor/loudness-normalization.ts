@@ -26,10 +26,15 @@
 
 export const LOUDNESS_NORMALIZATION_EPSILON_DB = 1e-9;
 
+/**
+ * What the meter reported. Shaped to accept a BEXT loudness block directly, so
+ * a measurement can be handed straight from `measureBextLoudness` to the
+ * decision without a translation step that could drop or rename a field.
+ */
 export interface LoudnessMeasurement {
-	/** Integrated loudness in LUFS. Null when the meter had nothing to measure. */
-	readonly loudnessValue: number | null;
-	readonly maxTruePeakLevel: number | null;
+	/** Integrated loudness in LUFS. Null or absent when the meter had nothing to measure. */
+	readonly loudnessValue?: number | null;
+	readonly maxTruePeakLevel?: number | null;
 	readonly loudnessRange?: number | null;
 }
 
@@ -136,6 +141,55 @@ export function computeLoudnessNormalization(
 			: `Gain of ${gainDb.toFixed(2)} dB reaches ${target.integratedLufs} LUFS `
 				+ `within the ${target.truePeakCeilingDb} dBTP ceiling.`,
 	});
+}
+
+/**
+ * The standard targets, as data.
+ *
+ * These are the published broadcast and streaming numbers, not house
+ * preferences, which is why they live beside the arithmetic rather than in a
+ * settings default: a preset that drifted from its standard would be worse than
+ * no preset at all.
+ */
+export const LOUDNESS_NORMALIZATION_TARGETS = Object.freeze({
+	/** EBU R 128, the European broadcast target. */
+	'ebu-r128': Object.freeze({ integratedLufs: -23, truePeakCeilingDb: -1 }),
+	/** ATSC A/85, the North American broadcast target. */
+	'atsc-a85': Object.freeze({ integratedLufs: -24, truePeakCeilingDb: -2 }),
+	/** The common streaming delivery target. */
+	'streaming-14': Object.freeze({ integratedLufs: -14, truePeakCeilingDb: -1 }),
+}) satisfies Readonly<Record<string, LoudnessNormalizationTarget>>;
+
+export type LoudnessNormalizationPreset = keyof typeof LOUDNESS_NORMALIZATION_TARGETS;
+
+/**
+ * Read a target out of settings: a preset name, an explicit pair, or nothing.
+ *
+ * **There is no default target.** An operator who did not ask for normalization
+ * must not receive it, and one who asked for a target we cannot read must not
+ * silently receive a different one — so a malformed target is a refusal rather
+ * than a fallback. In particular a missing ceiling is not treated as 0 dBTP,
+ * which would be a delivery that claims a ceiling it never had.
+ */
+export function normalizeLoudnessNormalizationTarget(
+	value: unknown,
+): LoudnessNormalizationTarget | null {
+	if (value == null || value === false) return null;
+	if (typeof value === 'string') {
+		const preset = LOUDNESS_NORMALIZATION_TARGETS[value as LoudnessNormalizationPreset];
+		if (!preset) throw new RangeError(`Unknown loudness normalization target "${value}".`);
+		return preset;
+	}
+	if (typeof value !== 'object') {
+		throw new TypeError('A loudness normalization target must be a preset name or an explicit target.');
+	}
+	const record = value as Readonly<Record<string, unknown>>;
+	const target = Object.freeze({
+		integratedLufs: Number(record.integratedLufs),
+		truePeakCeilingDb: Number(record.truePeakCeilingDb),
+	});
+	validateTarget(target);
+	return target;
 }
 
 /** True when the render has to do anything at all. */

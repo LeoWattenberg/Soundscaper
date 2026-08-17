@@ -4,9 +4,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	LOUDNESS_NORMALIZATION_TARGETS,
 	computeLoudnessNormalization,
 	loudnessNormalizationChangesAudio,
 	loudnessNormalizationGainFactor,
+	normalizeLoudnessNormalizationTarget,
 } from '../src/common/editor/loudness-normalization.ts';
 
 const R128 = { integratedLufs: -23, truePeakCeilingDb: -1 };
@@ -149,6 +151,37 @@ test('an impossible target is refused rather than approximated', () => {
 		}),
 		/finite true-peak ceiling/u,
 	);
+});
+
+test('a target is read from a preset name or an explicit pair, and never defaulted', () => {
+	assert.deepEqual(normalizeLoudnessNormalizationTarget('ebu-r128'), { integratedLufs: -23, truePeakCeilingDb: -1 });
+	assert.deepEqual(normalizeLoudnessNormalizationTarget('atsc-a85'), { integratedLufs: -24, truePeakCeilingDb: -2 });
+	assert.deepEqual(
+		normalizeLoudnessNormalizationTarget({ integratedLufs: -16, truePeakCeilingDb: -1.5 }),
+		{ integratedLufs: -16, truePeakCeilingDb: -1.5 },
+	);
+	// Not asking is the common case and must stay silent.
+	assert.equal(normalizeLoudnessNormalizationTarget(null), null);
+	assert.equal(normalizeLoudnessNormalizationTarget(undefined), null);
+	assert.equal(normalizeLoudnessNormalizationTarget(false), null);
+});
+
+test('an unreadable target is refused rather than replaced with a plausible one', () => {
+	// The trap this closes: a missing ceiling silently becoming 0 dBTP, which
+	// would be a delivery claiming a ceiling it never had.
+	assert.throws(
+		() => normalizeLoudnessNormalizationTarget({ integratedLufs: -23 }),
+		/finite true-peak ceiling/u,
+	);
+	assert.throws(() => normalizeLoudnessNormalizationTarget('r128'), /Unknown loudness normalization target/u);
+	assert.throws(() => normalizeLoudnessNormalizationTarget(-23), /preset name or an explicit target/u);
+});
+
+test('the published targets are the published numbers', () => {
+	assert.deepEqual(LOUDNESS_NORMALIZATION_TARGETS['ebu-r128'], { integratedLufs: -23, truePeakCeilingDb: -1 });
+	assert.deepEqual(LOUDNESS_NORMALIZATION_TARGETS['streaming-14'], { integratedLufs: -14, truePeakCeilingDb: -1 });
+	assert.ok(Object.isFrozen(LOUDNESS_NORMALIZATION_TARGETS));
+	for (const target of Object.values(LOUDNESS_NORMALIZATION_TARGETS)) assert.ok(Object.isFrozen(target));
 });
 
 test('the decision is frozen data a report can carry verbatim', () => {

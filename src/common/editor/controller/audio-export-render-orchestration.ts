@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isProjectAudioFallbackIntegrityError } from '../project-fallback-integrity-audio.ts';
+import type { LoudnessNormalizationDecision } from '../loudness-normalization.ts';
 import type { DirectCompressedDestination } from './direct-compressed-export.ts';
 import type { DirectPcmDestination } from './direct-pcm-export.ts';
 import {
@@ -55,7 +56,9 @@ export interface ExportEncodedOutput {
 	readonly byteLength?: number;
 	readonly bytes?: Uint8Array | null;
 	readonly cleanup?: () => Awaitable<void>;
+	readonly deliveredLoudness?: Readonly<Record<string, number | null>> | null;
 	readonly directDestination?: DirectCompressedDestination | DirectPcmDestination;
+	readonly loudnessNormalization?: LoudnessNormalizationDecision | null;
 	readonly mimeType: string;
 }
 
@@ -193,6 +196,11 @@ function allowsRealtimeFallback(
 	plan: ExportRenderPlan,
 	settings: ExportRenderSettings,
 ): boolean {
+	// A normalized delivery can never fall back: the realtime stream encodes as
+	// it renders, so it has no whole-delivery measurement to decide a gain from,
+	// and falling back would write an un-normalized file that still claimed a
+	// target. Failing the export is the honest outcome.
+	if (plan.loudnessNormalization) return false;
 	return settings.measureLoudness !== true || (plan.format !== 'bwf' && plan.format !== 'bw64');
 }
 

@@ -29,6 +29,7 @@ import {
 	createRiffChnaChunk,
 } from './adm-metadata.ts';
 import { decodeWavOpaqueRiffChunk } from './wav-opaque-chunks.ts';
+import { normalizeLoudnessNormalizationTarget } from './loudness-normalization.ts';
 import { findUnsafeAdmRenderEffects } from './adm-render-safety.ts';
 import { createRiffAnnotationExport } from './timeline-annotation-riff-interchange.ts';
 import { planExportOfflineRenderStrategyAdmission } from './export-render-admission.ts';
@@ -86,6 +87,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {Uint8Array|readonly Uint8Array[]} [trailingChunks]
  * @property {readonly import('./riff-markers.ts').RiffMarker[]} markers
  * @property {import('./timeline-annotation-interchange-report.ts').TimelineAnnotationInterchangeReport} markerInterchangeReport
+ * @property {import('./loudness-normalization.ts').LoudnessNormalizationTarget|null} loudnessNormalization
  */
 
 export function estimatePcmBytes(frameCount, channelCount = AUDIO_EDITOR_MASTER_CHANNELS, bytesPerSample = 4) {
@@ -275,6 +277,11 @@ export function createExportPlan(project, options = {}) {
 			}),
 		})
 		: legacyRender;
+	const loudnessNormalization = resolveExportLoudnessNormalization(options, {
+		mode,
+		admMetadata: bw64Adm?.metadata ?? null,
+		renderStrategy: render.strategy,
+	});
 	const fallbackTemporaryBytes = multiplySafeIntegers(outputBytes, outputs.length, 'Temporary export size');
 	const archive = mode === 'stems'
 		? createStemArchivePlan(
@@ -313,6 +320,7 @@ export function createExportPlan(project, options = {}) {
 			preDataChunks: adm.preDataChunks,
 			trailingChunks: adm.trailingChunks,
 		} : {}),
+		loudnessNormalization,
 		range,
 		tailFrames,
 		outputFrames,
@@ -324,6 +332,37 @@ export function createExportPlan(project, options = {}) {
 		archive,
 		aggregateStereoMinutes: aggregateStereoMinutes(runtimeProject),
 	};
+}
+
+/**
+ * Resolve the delivery's loudness target, refusing every case where a gain
+ * cannot be applied honestly.
+ *
+ * Normalization is a **plan step**: the target is decided here, from the plan,
+ * so no encoder ever receives a loudness flag and no format can normalize
+ * differently from another. The failure this guards against is not a crash but
+ * a file that looks normalized and is not, so each case below is a typed
+ * refusal rather than a quietly un-normalized delivery.
+ */
+function resolveExportLoudnessNormalization(options, { mode, admMetadata, renderStrategy }) {
+	const target = normalizeLoudnessNormalizationTarget(options.loudnessNormalization);
+	if (!target) return null;
+	if (mode !== 'mix') {
+		// Normalizing stems independently moves them relative to each other, so
+		// their sum stops being the normalized mix. Applying the mix's gain to
+		// every stem instead needs the mix rendered as well, which is the render
+		// topology change this slice stops at.
+		throw new Error('Loudness normalization is mix-only; normalized stems would no longer sum to the normalized mix.');
+	}
+	if (admMetadata?.mode === 'passthrough') {
+		throw new Error('ADM passthrough preserves the source bytes and cannot be loudness-normalized.');
+	}
+	if (renderStrategy === 'realtime-stream') {
+		// The gain is decided from a measurement of the whole delivery, which a
+		// stream that encodes as it renders has no opportunity to take.
+		throw new Error('Loudness normalization requires the offline render; a realtime stream cannot measure the delivery before writing it.');
+	}
+	return target;
 }
 
 function selectExportOfflineRenderAdmission({

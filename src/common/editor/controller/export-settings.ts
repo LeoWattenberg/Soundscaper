@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { BextMetadataInput } from '../broadcast-wave.ts';
+import {
+	type LoudnessNormalizationTarget,
+	normalizeLoudnessNormalizationTarget,
+} from '../loudness-normalization.ts';
 
 export const EDITOR_EXPORT_FORMATS = Object.freeze([
 	'wav',
@@ -39,6 +43,8 @@ export interface EditorExportSettings {
 	readonly customArguments: unknown;
 	readonly includeTail: boolean;
 	readonly measureLoudness: boolean;
+	/** A preset name or explicit target resolved to numbers, or null when not asked for. */
+	readonly loudnessNormalization: LoudnessNormalizationTarget | null;
 }
 
 export function normalizeEditorExportSettings(
@@ -78,6 +84,7 @@ export function normalizeEditorExportSettings(
 		customArguments: value.customArguments,
 		includeTail: value.includeTail !== false,
 		measureLoudness: value.measureLoudness === true,
+		loudnessNormalization: normalizeLoudnessNormalizationTarget(value.loudnessNormalization),
 	});
 }
 
