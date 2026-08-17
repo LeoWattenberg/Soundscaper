@@ -141,12 +141,13 @@ before code.
   rate double alone. **Profile scope, as committed here:** export only, no
   importer; one stack of video and audio tracks with gaps; no effects or
   transitions vocabulary; media addressed by managed storage key and reported
-  as a conversion. **Outstanding, and external:** the acceptance's round trip
-  through the reference OTIO implementation. The `opentimelineio` package is not
-  provisioned in this repository, and adding a Python toolchain dependency to
-  CI is a decision rather than a detail — the in-tree conformance suite proves
-  the emitted file is self-consistent and frame-exact at 29.97 and 59.94, but
-  cannot prove upstream agrees.
+  as a conversion. **Acceptance met, including the reference round trip:**
+  `tests/audio-editor-otio-reference-conformance.test.ts` reads our output back
+  with the OpenTimelineIO reference implementation itself, recovering every
+  frame boundary at 29.97 and 59.94 (both named in the acceptance) as well as 25
+  and 23.976, plus the sequence start and the per-item timebases. See
+  [`interchange-conformance.md`](interchange-conformance.md) for how the
+  reference implementation is provisioned.
 
 ## 6C-1c — FCPXML profile
 
@@ -169,12 +170,16 @@ before code.
   elements over a single `format` resource; assets deduplicated by source
   identity; one default role per track kind; `tcFormat` from the sequence's own
   drop-frame flag; no `timeMap`, no transitions, no Motion vocabulary.
-  **Outstanding, and external:** the acceptance's validation against a pinned
-  FCPXML DTD. No DTD is vendored in this repository and fetching one at test
-  time would make the suite network-dependent, so the in-tree tests assert the
-  document's own invariants — rational-only time attributes, whole-frame
-  durations, asset deduplication, escaping — rather than claiming DTD
-  conformance.
+  **Acceptance met by substitution, deliberately.** Apple's FCPXML DTD is not
+  published under terms that permit redistribution, so validating against a
+  pinned DTD would trade a licensing problem for a conformance claim we can get
+  honestly elsewhere. `tests/audio-editor-fcpxml-reference-conformance.test.ts`
+  instead parses our output with the `otio-fcpx-xml` reference reader, which
+  recovers our timeline exactly at 24/25/30/50/60. Two reader limitations are
+  pinned rather than worked around: it truncates the rate with
+  `int(fd_rate / fd_total)`, losing every NTSC rate, and it has no `tcStart`
+  code path at all. `1001/30000s` is what Final Cut Pro itself writes, so our
+  output is correct and must not be bent to suit an integer-only reader.
 
 ## 6C-2 — Archive, consolidate, trim-media, manifests
 

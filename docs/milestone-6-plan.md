@@ -294,12 +294,12 @@ existing portable exception (docs/project-compatibility.md:86-88).
 complete across all three profiles; 6B-3's FFmpeg half is in and its WebCodecs
 producer is not; 6A and the rest of 6B have not started.** Nothing here is
 qualified — both quality environments remain unprovisioned, so no RTF or
-throughput number in this milestone is claimed as met. Two acceptance items are
-blocked on artifacts that are not vendored and would make the suite
-network-dependent if fetched: OTIO's reference-implementation round trip needs
-the `opentimelineio` package provisioned, and FCPXML's DTD validation needs a
-pinned DTD. Both are recorded in [the 6C pickup](milestone-6c-interchange-archive.md)
-rather than quietly folded into the in-tree conformance claims. What landed:
+throughput number in this milestone is claimed as met. The two interchange
+acceptance items that were previously blocked are now closed: the OTIO
+reference-implementation round trip runs against the real `opentimelineio`,
+provisioned per [`interchange-conformance.md`](interchange-conformance.md), and
+FCPXML is validated against the reference FCPX reader instead of Apple's DTD,
+which is not redistributable. What landed:
 
 - **WP-6.0.0 plan-pin repair — implemented.**
   `src/common/editor/video-export-plan-version.ts` is the single source of
@@ -513,9 +513,11 @@ and
   **Implemented — all three profiles**, export-only, each reachable from
   File > Export other through the shared `interchange` save purpose and each
   publishing its report to the same File menu surface the encode paths use.
-  Every profile committed its scope in the pickup before landing. Two
-  acceptance items stay open on unvendored artifacts (OTIO reference
-  round trip, FCPXML DTD), recorded there.
+  Every profile committed its scope in the pickup before landing. All three are
+  additionally proven against third-party readers rather than only against our
+  own parsers — see [`interchange-conformance.md`](interchange-conformance.md),
+  which also records the one notices entry a maintainer still owes, since
+  `THIRD_PARTY_LICENSES.md` is digest-bound by an approved review record.
 - **6C-2 — Archive, consolidate, trim-media, manifests.** Outcome:
   project archive with checksum manifests; consolidate and trim-media
   as explicit, reported, undoable-where-possible operations over the
