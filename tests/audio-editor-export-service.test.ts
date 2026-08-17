@@ -319,3 +319,44 @@ test('a resampling export reports the rate change on the real path', async () =>
 	assert.ok(resample, 'a 48k project delivered at 44.1k reports the conversion');
 	assert.deepEqual(resample.data, { fromSampleRate: 48_000, toSampleRate: 44_100 });
 });
+
+test('a normalized delivery rebuilds its report once the render has been measured', async () => {
+	// The plan cannot describe normalization on its own: the gain is not known
+	// until the render exists. This is the wiring that puts the decision into the
+	// report the operator reads, rather than leaving it on the encoder's result.
+	const fixture = createFixture();
+	const normalized = defaultPlan();
+	normalized.loudnessNormalization = { integratedLufs: -23, truePeakCeilingDb: -1 };
+	fixture.setPlan(normalized);
+	await createEditorExportService(fixture.runtime).handleExportAction('export');
+
+	const report = fixture.state.deliveryReport as {
+		items: Array<{ code: string; data: Record<string, unknown>; severity: string; disposition: string }>;
+		counts: Record<string, number>;
+	};
+	const loudness = report.items.find(({ code }) => code.startsWith('delivery.loudness'));
+	assert.ok(loudness, 'the delivery report states what normalization did');
+	assert.equal(loudness.data.targetLufs, -23);
+	assert.equal(loudness.data.ceilingDb, -1);
+	// The fixture renders a handful of frames, so the meter never gates a block.
+	// Refusing to invent a gain is the correct outcome and must be said out loud.
+	assert.equal(loudness.code, 'delivery.loudness-unmeasurable');
+	assert.equal(loudness.data.gainDb, 0);
+	assert.equal(loudness.severity, 'warning');
+	// The rebuilt report is a whole report, not the old one with an item bolted on.
+	for (const disposition of ['preserved', 'converted', 'missing', 'omitted']) {
+		assert.equal(
+			report.counts[disposition],
+			report.items.filter((item) => item.disposition === disposition).length,
+			`${disposition} count must still agree with its items after the rebuild`,
+		);
+	}
+	assert.ok(report.items.some(({ code }) => code === 'delivery.quantize'), 'and it still holds the plan conversions');
+});
+
+test('a delivery with no target leaves the plan-derived report exactly as it was', async () => {
+	const fixture = createFixture();
+	await createEditorExportService(fixture.runtime).handleExportAction('export');
+	const report = fixture.state.deliveryReport as { items: Array<{ code: string }> };
+	assert.equal(report.items.some(({ code }) => code.startsWith('delivery.loudness')), false);
+});

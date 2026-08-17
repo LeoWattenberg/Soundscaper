@@ -23,6 +23,7 @@ import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryB
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
 import { createEditorVideoExportAction } from './video-export-service.ts';
 import { createDeliveryReportForPlan } from '../delivery-conversion-inventory.ts';
+import { withDeliveredLoudness } from '../loudness-normalization.ts';
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -194,6 +195,18 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					directCompressed ? pendingDirectDestination as DirectCompressedDestination : null,
 					assertExportCurrent,
 				);
+				if (encoded.loudnessNormalization) {
+					// Normalization is the one part of a delivery the plan cannot
+					// describe on its own: the gain is not known until the render
+					// has been measured. The report is rebuilt rather than appended
+					// to, because a sealed report's counts have to keep agreeing
+					// with its items.
+					state.deliveryReport = createDeliveryReportForPlan(
+						plan,
+						{ sampleRate: exportProject.sampleRate },
+						withDeliveredLoudness(encoded.loudnessNormalization, encoded.deliveredLoudness),
+					);
+				}
 				if (encoded.directDestination) directOutput = encoded;
 				else {
 					outputCleanup = encoded.cleanup || null;

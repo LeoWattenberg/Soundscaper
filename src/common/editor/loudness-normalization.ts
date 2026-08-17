@@ -60,6 +60,14 @@ export interface LoudnessNormalizationDecision {
 	/** What the delivery is expected to measure afterwards. */
 	readonly projectedLoudnessLufs: number | null;
 	readonly projectedTruePeakDb: number | null;
+	/**
+	 * What the delivered samples actually measured. Null until something has
+	 * measured them back, which only happens when a delivery captures loudness
+	 * metadata — a second meter pass over an hour of audio is not free enough to
+	 * run for a value nothing reads.
+	 */
+	readonly deliveredLoudnessLufs: number | null;
+	readonly deliveredTruePeakDb: number | null;
 	readonly target: LoudnessNormalizationTarget | null;
 	/** How far short of the integrated target the delivery lands, in LU. */
 	readonly targetShortfallLu: number;
@@ -192,6 +200,58 @@ export function normalizeLoudnessNormalizationTarget(
 	return target;
 }
 
+/**
+ * How far a delivered measurement may sit from the projection before the
+ * delivery is worth complaining about, matching the delivery budgets
+ * `delivery.integratedLoudnessErrorLu` and `delivery.truePeakErrorDb`
+ * (config/quality-budgets.json). A constant gain moves loudness and peak by
+ * exactly itself, so the two agree except where the meter's absolute gate
+ * admits or drops a block that sat right on the -70 LUFS threshold.
+ */
+export const LOUDNESS_DELIVERY_TOLERANCE_LU = 0.2;
+export const LOUDNESS_DELIVERY_TOLERANCE_DB = 0.2;
+
+/**
+ * Record what the delivered samples measured, once something has measured them.
+ *
+ * The delivered value is the true one where it exists: the projection says what
+ * the gain should achieve, this says what it did.
+ */
+export function withDeliveredLoudness(
+	decision: LoudnessNormalizationDecision,
+	measurement: LoudnessMeasurement | null | undefined,
+): LoudnessNormalizationDecision {
+	if (!measurement) return decision;
+	return Object.freeze({
+		...decision,
+		deliveredLoudnessLufs: finiteOrNull(measurement.loudnessValue),
+		deliveredTruePeakDb: finiteOrNull(measurement.maxTruePeakLevel),
+	});
+}
+
+/**
+ * How far the delivery landed from what the decision projected, in LU and dB.
+ * Null components mean the comparison could not be made rather than that it
+ * passed, which is the distinction a delivery gate has to be able to see.
+ */
+export function loudnessDeliveryError(decision: LoudnessNormalizationDecision): Readonly<{
+	loudnessErrorLu: number | null;
+	truePeakErrorDb: number | null;
+	withinTolerance: boolean | null;
+}> {
+	const loudnessErrorLu = difference(decision.deliveredLoudnessLufs, decision.projectedLoudnessLufs);
+	const truePeakErrorDb = difference(decision.deliveredTruePeakDb, decision.projectedTruePeakDb);
+	if (loudnessErrorLu === null && truePeakErrorDb === null) {
+		return Object.freeze({ loudnessErrorLu, truePeakErrorDb, withinTolerance: null });
+	}
+	return Object.freeze({
+		loudnessErrorLu,
+		truePeakErrorDb,
+		withinTolerance: (loudnessErrorLu === null || loudnessErrorLu <= LOUDNESS_DELIVERY_TOLERANCE_LU)
+			&& (truePeakErrorDb === null || truePeakErrorDb <= LOUDNESS_DELIVERY_TOLERANCE_DB),
+	});
+}
+
 /** True when the render has to do anything at all. */
 export function loudnessNormalizationChangesAudio(decision: LoudnessNormalizationDecision): boolean {
 	return Math.abs(decision.gainDb) > LOUDNESS_NORMALIZATION_EPSILON_DB;
@@ -232,6 +292,8 @@ function decision(fields: {
 		measuredTruePeakDb: fields.measuredTruePeak,
 		projectedLoudnessLufs: fields.projectedLoudness,
 		projectedTruePeakDb: fields.projectedTruePeak,
+		deliveredLoudnessLufs: null,
+		deliveredTruePeakDb: null,
 		target: fields.target ? Object.freeze({ ...fields.target }) : null,
 		targetShortfallLu: fields.targetShortfallLu,
 		reason: fields.reason,
@@ -240,4 +302,9 @@ function decision(fields: {
 
 function finiteOrNull(value: unknown): number | null {
 	return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** The unsigned gap between two values, or null when either is missing. */
+function difference(left: number | null, right: number | null): number | null {
+	return left === null || right === null ? null : Math.abs(left - right);
 }

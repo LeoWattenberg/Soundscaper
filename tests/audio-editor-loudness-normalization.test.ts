@@ -4,11 +4,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	LOUDNESS_DELIVERY_TOLERANCE_LU,
 	LOUDNESS_NORMALIZATION_TARGETS,
 	computeLoudnessNormalization,
 	loudnessNormalizationChangesAudio,
+	loudnessDeliveryError,
 	loudnessNormalizationGainFactor,
 	normalizeLoudnessNormalizationTarget,
+	withDeliveredLoudness,
 } from '../src/common/editor/loudness-normalization.ts';
 
 const R128 = { integratedLufs: -23, truePeakCeilingDb: -1 };
@@ -230,4 +233,69 @@ test('no loudness decision leaves the report exactly as it was', async () => {
 	const plan = { format: 'wav', sampleRate: 48_000, encoding: { channelCount: 2, bitDepth: 24 } };
 	const report = createDeliveryReportForPlan(plan as never, { sampleRate: 48_000 } as never);
 	assert.equal(report.items.some((entry) => entry.code.startsWith('delivery.loudness')), false);
+});
+
+test('the delivered measurement is recorded beside the projection it is checked against', () => {
+	const decision = computeLoudnessNormalization({ loudnessValue: -30, maxTruePeakLevel: -12 }, R128);
+	assert.equal(decision.deliveredLoudnessLufs, null, 'nothing has measured the file yet');
+	assert.equal(loudnessDeliveryError(decision).withinTolerance, null, 'and that is not a pass');
+
+	const delivered = withDeliveredLoudness(decision, { loudnessValue: -23.05, maxTruePeakLevel: -5.02 });
+	assert.equal(delivered.deliveredLoudnessLufs, -23.05);
+	assert.equal(delivered.deliveredTruePeakDb, -5.02);
+	assert.equal(delivered.projectedLoudnessLufs, -23, 'the projection is kept, not overwritten');
+	const error = loudnessDeliveryError(delivered);
+	close(error.loudnessErrorLu!, 0.05, '');
+	close(error.truePeakErrorDb!, 0.02, '');
+	assert.equal(error.withinTolerance, true);
+});
+
+test('a delivery that does not measure what it promised is outside tolerance', () => {
+	const decision = withDeliveredLoudness(
+		computeLoudnessNormalization({ loudnessValue: -30, maxTruePeakLevel: -12 }, R128),
+		{ loudnessValue: -19, maxTruePeakLevel: -5 },
+	);
+	const error = loudnessDeliveryError(decision);
+	close(error.loudnessErrorLu!, 4, '');
+	assert.equal(error.withinTolerance, false);
+	assert.equal(LOUDNESS_DELIVERY_TOLERANCE_LU, 0.2, 'the tolerance is the delivery budget');
+});
+
+test('the report states the delivered values, and says so when they disagree', async () => {
+	const { createDeliveryReportForPlan } = await import(
+		'../src/common/editor/delivery-conversion-inventory.ts'
+	);
+	const plan = { format: 'wav', sampleRate: 48_000, encoding: { channelCount: 2, bitDepth: 24 } };
+	const source = { sampleRate: 48_000 };
+	const decision = computeLoudnessNormalization({ loudnessValue: -30, maxTruePeakLevel: -12 }, R128);
+
+	const agreeing = createDeliveryReportForPlan(plan as never, source as never,
+		withDeliveredLoudness(decision, { loudnessValue: -23.1, maxTruePeakLevel: -5 }));
+	const item = agreeing.items.find((entry) => entry.code === 'delivery.loudness-normalized');
+	assert.equal(item?.data.deliveredLoudnessLufs, -23.1);
+	assert.equal(item?.severity, 'info');
+
+	const disagreeing = createDeliveryReportForPlan(plan as never, source as never,
+		withDeliveredLoudness(decision, { loudnessValue: -17, maxTruePeakLevel: -5 }));
+	const mismatch = disagreeing.items.find((entry) => entry.code === 'delivery.loudness-delivered-mismatch');
+	assert.equal(mismatch?.severity, 'warning');
+	assert.equal(
+		disagreeing.items.some((entry) => entry.code === 'delivery.loudness-normalized'),
+		false,
+		'a mismatched delivery must not also claim it was normalized cleanly',
+	);
+});
+
+test('a delivery nothing measured back reports projections only, with no delivered fields', async () => {
+	const { createDeliveryReportForPlan } = await import(
+		'../src/common/editor/delivery-conversion-inventory.ts'
+	);
+	const report = createDeliveryReportForPlan(
+		{ format: 'wav', sampleRate: 48_000, encoding: { channelCount: 2, bitDepth: 24 } } as never,
+		{ sampleRate: 48_000 } as never,
+		computeLoudnessNormalization({ loudnessValue: -30, maxTruePeakLevel: -12 }, R128),
+	);
+	const item = report.items.find((entry) => entry.code === 'delivery.loudness-normalized');
+	assert.equal('deliveredLoudnessLufs' in item!.data, false, 'an absent measurement is absent, not null');
+	assert.equal(item?.data.projectedLoudnessLufs, -23);
 });

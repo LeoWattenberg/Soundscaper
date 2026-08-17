@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { type LoudnessNormalizationDecision } from './loudness-normalization.ts';
+import {
+	type LoudnessNormalizationDecision,
+	loudnessDeliveryError,
+} from './loudness-normalization.ts';
 import {
 	type DeliveryDisposition,
 	type DeliveryReport,
@@ -199,6 +202,7 @@ export function createDeliveryReportForPlan(
  * same kind of thing either way.
  */
 function addLoudnessItem(draft: Parameters<typeof addDeliveryReportItem>[0], loudness: LoudnessNormalizationDecision): void {
+	const error = loudnessDeliveryError(loudness);
 	const data = {
 		outcome: loudness.outcome,
 		gainDb: loudness.gainDb,
@@ -206,9 +210,28 @@ function addLoudnessItem(draft: Parameters<typeof addDeliveryReportItem>[0], lou
 		measuredTruePeakDb: loudness.measuredTruePeakDb,
 		projectedLoudnessLufs: loudness.projectedLoudnessLufs,
 		projectedTruePeakDb: loudness.projectedTruePeakDb,
+		...(loudness.deliveredLoudnessLufs === null && loudness.deliveredTruePeakDb === null ? {} : {
+			deliveredLoudnessLufs: loudness.deliveredLoudnessLufs,
+			deliveredTruePeakDb: loudness.deliveredTruePeakDb,
+			loudnessErrorLu: error.loudnessErrorLu,
+			truePeakErrorDb: error.truePeakErrorDb,
+		}),
 		...(loudness.target ? { targetLufs: loudness.target.integratedLufs, ceilingDb: loudness.target.truePeakCeilingDb } : {}),
 		...(loudness.targetShortfallLu ? { shortfallLu: loudness.targetShortfallLu } : {}),
 	};
+	if (error.withinTolerance === false) {
+		// The delivered samples do not measure what the gain was supposed to
+		// achieve. Nothing downstream can tell which value to trust, so the
+		// disagreement itself is the finding.
+		addDeliveryReportItem(draft, {
+			code: 'delivery.loudness-delivered-mismatch',
+			disposition: 'converted',
+			severity: 'warning',
+			data,
+			message: 'The delivered file does not measure what normalization projected for it.',
+		});
+		return;
+	}
 	if (loudness.outcome === 'ceiling-limited') {
 		// A delivery that did not reach its target is a warning, not a footnote:
 		// the operator asked for a number and did not get it.
