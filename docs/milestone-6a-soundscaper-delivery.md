@@ -147,6 +147,34 @@ half-registered revision in the tree is worse than none.
 (docs/milestone-4-plan.md:381-383), so 23 is the next free number. It was
 allocated here, at the pickup, exactly as the sequencing note requires.
 
+**Landed since, toward the revision:**
+
+- A shared-code fix that had to come first: twenty places in shared code gated
+  behaviour on `schemaVersion === 21` exactly, six of them on the playback and
+  export path, none of them throwing. `isSoundscaperProductionProjectSchema` now
+  answers that question once, guarded by a source-level test that no module under
+  `src/common` may compare against one exact production revision.
+- The capability id, registered in the global registry, both product capability
+  maps, the production inventory and all three hand-written Framescaper profiles
+  — unavailable everywhere.
+- **V23 itself**: the constant, all ten enumerating predicates, the document
+  (validation, factory, clone, load) and its fixtures. The production validator
+  is shared and parameterized rather than cloned, so V21 and V23 cannot drift
+  about what a valid document is while each still validates only itself. Holding
+  a sequence demands the capability, as a foundation-owned requirement derived
+  from the state.
+- The nine-discriminant command domain, registered through the protocol, both
+  registries and the capability-policy gate, with handlers that preserve the
+  no-op identity short-circuit.
+
+**Still owed for 6A-1a**: the V23 command applier and history (V23 state must not
+reach the inherited path, which rebuilds `mixer` and `automationLanes` from the
+previous project and would discard the write), the runtime chain (repository,
+store, environment, controller, scape-native, runtime selection) and the
+bootstrap flip, plus the clipboard, `.scape`, desktop and archive fixtures. The
+bootstrap flip is deliberately last: everything before it is dormant and safe to
+land incrementally, and it is the only step that changes what users get.
+
 **What the revision still has to walk.** Verified against the tree, not assumed:
 
 - `project-schema-version.ts`: the constant, plus the seven `isXProjectSchema`
