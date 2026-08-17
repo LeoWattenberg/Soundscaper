@@ -11,14 +11,29 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-17: 6C-1a is implemented provisionally
-(`src/common/editor/edl-export.ts`); OTIO, FCPXML, and the archive slice have
-not started.** The EDL profile establishes the pattern the remaining profiles
-reuse: exact rational rates throughout, timecode from the shared
-`sequence-timecode` module, and every out-of-scope feature itemized in a
-delivery report rather than approximated. What it does not yet have is a
-project adapter — it takes an explicit event list, so nothing in the product
-calls it and no menu reaches it. 6C opens only after every 6.0 acceptance check passes;
+**Status on 2026-08-17: 6C-1a is implemented and reachable; OTIO, FCPXML, and
+the archive slice have not started.** The EDL profile establishes the pattern
+the remaining profiles reuse: exact rational rates throughout, timecode from the
+shared `sequence-timecode` module, and every out-of-scope feature itemized in a
+delivery report rather than approximated. It is split deliberately —
+`edl-export.ts` owns the CMX3600 grammar and knows nothing about documents,
+`edl-project-adapter.ts` owns every judgement about what a project means — and
+the later profiles are expected to reuse the second half's conversions rather
+than restate them. Three of those conversions are the load-bearing ones: sample
+frames to sequence frames through the shared navigation module, record timecode
+carrying the sequence's start timecode, and source duration derived from record
+duration so a cut cannot disagree with itself by a rounded frame.
+
+Two seams landed with it that the sibling profiles inherit: the `interchange`
+save purpose (`desktop/validation.js`, `file-service.js`), which already admits
+`.otio` and `.fcpxml`, and `src/common/i18n/export-menu-copy.js`, which holds
+the File > Export submenu's copy so the catalog's maintainability ceiling does
+not have to rise once per profile. An exporter's caller-supplied omissions ride
+`EdlExportRequest.omissions` into the report before it is sealed; appending to a
+sealed report leaves its counts lying, which is what
+`delivery.unreportedConversions` exists to catch.
+
+6C opens only after every 6.0 acceptance check passes;
 every exporter emits its conversion report through WP-6.0.0's model and every
 long-running archive operation runs under WP-6.0.1's queue semantics.
 
@@ -78,6 +93,14 @@ before code.
   content is omitted and reported, not approximated.
 - **Stop condition:** stop if any emitted value would round downstream or if
   profile scope cannot be stated as an exact feature list.
+- **Landed:** the writer, the project adapter, the File > Export other entry,
+  and the report path, with `tests/audio-editor-edl-export.test.ts`,
+  `tests/audio-editor-edl-project-adapter.test.ts`, and
+  `tests/audio-editor-edl-export-action.test.ts`. **Still owed against the
+  acceptance above:** goldens at 23.976/24/25/29.97DF/30 — the tests cover
+  25 and 29.97DF only — and the conformance re-parse that round-trips event
+  boundaries exactly. The reel mapping table is a request parameter with no UI,
+  so a caller can supply it but a user cannot yet edit one.
 
 ## 6C-1b — OTIO profile
 
