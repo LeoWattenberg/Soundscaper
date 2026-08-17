@@ -11,8 +11,8 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-17: 6C-1a is implemented and reachable; OTIO, FCPXML, and
-the archive slice have not started.** The EDL profile establishes the pattern
+**Status on 2026-08-17: 6C-1a and 6C-1b are implemented and reachable; FCPXML
+and the archive slice have not started.** The EDL profile establishes the pattern
 the remaining profiles reuse: exact rational rates throughout, timecode from the
 shared `sequence-timecode` module, and every out-of-scope feature itemized in a
 delivery report rather than approximated. It is split deliberately —
@@ -127,6 +127,18 @@ before code.
 - **Stop condition:** stop if upstream's rational-rate limitation (the
   recorded watch item) makes a committed importer feature unsound — narrow
   the profile rather than approximate.
+- **Landed:** `src/common/editor/otio-export.ts`, its menu entry, and the
+  conformance suite proving the tolerance-vs-exact split — strict equality for
+  structure, schema strings, and every frame or sample value; tolerance for the
+  rate double alone. **Profile scope, as committed here:** export only, no
+  importer; one stack of video and audio tracks with gaps; no effects or
+  transitions vocabulary; media addressed by managed storage key and reported
+  as a conversion. **Outstanding, and external:** the acceptance's round trip
+  through the reference OTIO implementation. The `opentimelineio` package is not
+  provisioned in this repository, and adding a Python toolchain dependency to
+  CI is a decision rather than a detail — the in-tree conformance suite proves
+  the emitted file is self-consistent and frame-exact at 29.97 and 59.94, but
+  cannot prove upstream agrees.
 
 ## 6C-1c — FCPXML profile
 
