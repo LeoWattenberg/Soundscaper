@@ -11,16 +11,45 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-17: 6A-2's decision and reporting half has landed; nothing
-else in 6A has started.** `src/common/editor/loudness-normalization.ts` computes
-one gain from a measurement and a target and returns it as inspectable data,
-with the report items wired through `createDeliveryReportForPlan`. The slice's
-stop condition is implemented literally: when the true-peak ceiling binds before
-the integrated target, the gain stops at the ceiling and the delivery is
-reported short — there is no limiter, and the ceiling property is proven by
-sweep rather than by example. **Still owed in 6A-2:** applying the gain in the
-neutral render path, the menu-reached measurement surface for
-`measureBextLoudness`, and the BEXT capture recording post-normalization values.
+**Status on 2026-08-17: 6A-2 is complete; nothing else in 6A has started.**
+
+- **The decision.** `src/common/editor/loudness-normalization.ts` computes one
+  gain from a measurement and a target and returns it as inspectable data. The
+  slice's stop condition is implemented literally: when the true-peak ceiling
+  binds before the integrated target, the gain stops at the ceiling and the
+  delivery is reported short — there is no limiter, and the ceiling property is
+  proven by sweep rather than by example.
+- **The application.** `loudness-normalization-render.ts` applies the gain at
+  the one point in `encodeRenderedAudio` where channel mapping is done and no
+  encoder has been chosen, so every format normalizes identically or not at all.
+  The target rides on the plan: `createExportPlan` resolves it from a preset name
+  or an explicit pair, and refuses stems (normalized stems stop summing to the
+  normalized mix), ADM passthrough (byte preservation), and anything the realtime
+  stream would render (it never holds the delivery long enough to measure it).
+  The realtime re-encode fallback is refused for the same reason. The gain is
+  applied in place, which the fallback refusal is what makes safe.
+- **The reporting.** Loudness is measured twice: the first pass decides the gain,
+  the second measures the written samples, and that second value is what the BEXT
+  capture stamps and what the report carries beside the projection. A gap wider
+  than `delivery.integratedLoudnessErrorLu` / `delivery.truePeakErrorDb` is its
+  own warning, because when the file does not measure what the gain promised
+  nothing downstream can tell which number to trust. An absent delivered
+  measurement stays absent rather than appearing as null. Because the gain is
+  only known after the render, `export-service` rebuilds the report rather than
+  appending to the sealed one.
+- **The surface.** Analyze > Measure loudness renders the selection, or the whole
+  mix when there is none, through the same offline path the other analyzers use,
+  and publishes a sealed report whose subject reads `loudness-measurement`. It
+  proposes no gain: what a delivery should do about the number is the delivery's
+  decision to report.
+
+Two things 6A-2 deliberately did not do, recorded so a later slice does not
+mistake them for oversights. The second meter pass runs only when a delivery
+captures loudness metadata, because metering an hour of audio for a value nothing
+reads is not free; a non-broadcast normalized delivery therefore reports
+projections only. And stems refuse normalization outright rather than inheriting
+the mix's gain, which would need the mix rendered as well — 6A-3 owns stems and
+may revisit it, but only by paying for that render explicitly.
 
 6A opens only after every 6.0 acceptance check
 passes (WP-6.0.0 delivery reports and plan-pin repair, WP-6.0.1 queue
