@@ -1,0 +1,200 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+	computeLoudnessNormalization,
+	loudnessNormalizationChangesAudio,
+	loudnessNormalizationGainFactor,
+} from '../src/common/editor/loudness-normalization.ts';
+
+const R128 = { integratedLufs: -23, truePeakCeilingDb: -1 };
+
+const close = (actual: number, expected: number, message: string) => {
+	assert.ok(Math.abs(actual - expected) < 1e-9, `${message} (got ${actual}, expected ${expected})`);
+};
+
+test('a quiet mix is raised to the target', () => {
+	const decision = computeLoudnessNormalization(
+		{ loudnessValue: -30, maxTruePeakLevel: -12 }, R128,
+	);
+	assert.equal(decision.outcome, 'target-met');
+	close(decision.gainDb, 7, 'gain closes the 7 LU gap');
+	close(decision.projectedLoudnessLufs!, -23, 'the delivery lands on the target');
+	close(decision.projectedTruePeakDb!, -5, 'the peak moves by the same amount');
+	assert.equal(decision.targetShortfallLu, 0);
+});
+
+test('a loud mix is turned down to the target', () => {
+	const decision = computeLoudnessNormalization(
+		{ loudnessValue: -14, maxTruePeakLevel: -3 }, R128,
+	);
+	assert.equal(decision.outcome, 'target-met');
+	close(decision.gainDb, -9, 'gain is negative');
+	close(decision.projectedLoudnessLufs!, -23, '');
+	close(decision.projectedTruePeakDb!, -12, '');
+});
+
+test('the ceiling binds before the target, and that is a refusal rather than a limiter', () => {
+	// The slice's stop condition. Reaching -23 LUFS would need +8 dB, which would
+	// put a -2 dBTP peak at +6 dBTP. The gain is cut to respect the ceiling and
+	// the delivery is reported short. Nothing is limited.
+	const decision = computeLoudnessNormalization(
+		{ loudnessValue: -31, maxTruePeakLevel: -2 }, R128,
+	);
+	assert.equal(decision.outcome, 'ceiling-limited');
+	close(decision.gainDb, 1, 'gain stops exactly at the ceiling');
+	close(decision.projectedTruePeakDb!, -1, 'the ceiling is met exactly, never exceeded');
+	close(decision.projectedLoudnessLufs!, -30, 'so the delivery lands 7 LU short');
+	close(decision.targetShortfallLu, 7, 'and the shortfall is stated');
+	assert.match(decision.reason, /No limiter was applied/u);
+});
+
+test('the ceiling is never exceeded, across a sweep of measurements', () => {
+	// The one property that must hold for every input: whatever gain is chosen,
+	// the projected peak is at or under the ceiling.
+	for (let loudness = -40; loudness <= -5; loudness += 0.5) {
+		for (let peak = -20; peak <= 0; peak += 0.5) {
+			const decision = computeLoudnessNormalization(
+				{ loudnessValue: loudness, maxTruePeakLevel: peak }, R128,
+			);
+			assert.ok(
+				decision.projectedTruePeakDb! <= R128.truePeakCeilingDb + 1e-9,
+				`peak ${decision.projectedTruePeakDb} exceeds the ceiling for ${loudness}/${peak}`,
+			);
+			// And it never overshoots the loudness target either.
+			assert.ok(
+				decision.projectedLoudnessLufs! <= R128.integratedLufs + 1e-9,
+				`loudness ${decision.projectedLoudnessLufs} overshoots for ${loudness}/${peak}`,
+			);
+		}
+	}
+});
+
+test('already-hot material is turned down rather than left over the ceiling', () => {
+	const decision = computeLoudnessNormalization(
+		{ loudnessValue: -23, maxTruePeakLevel: 0.5 }, R128,
+	);
+	// The integrated target is already met at 0 dB, but the peak is over. The
+	// ceiling wins, which means going below the target rather than above the ceiling.
+	assert.equal(decision.outcome, 'ceiling-limited');
+	close(decision.gainDb, -1.5, '');
+	close(decision.projectedTruePeakDb!, -1, '');
+	close(decision.projectedLoudnessLufs!, -24.5, '');
+});
+
+test('no target still reports the measurement, unchanged', () => {
+	// A delivery without normalization reports measured loudness unchanged, so
+	// the report says the same kind of thing either way.
+	const decision = computeLoudnessNormalization({ loudnessValue: -18.3, maxTruePeakLevel: -0.4 }, null);
+	assert.equal(decision.outcome, 'not-requested');
+	assert.equal(decision.gainDb, 0);
+	assert.equal(decision.measuredLoudnessLufs, -18.3);
+	assert.equal(decision.projectedLoudnessLufs, -18.3);
+	assert.equal(decision.projectedTruePeakDb, -0.4);
+	assert.equal(decision.target, null);
+	assert.equal(loudnessNormalizationChangesAudio(decision), false);
+});
+
+test('an unmeasurable mix gets no invented gain', () => {
+	// Silence, or a meter that never saw a gate-passing block.
+	const decision = computeLoudnessNormalization({ loudnessValue: null, maxTruePeakLevel: null }, R128);
+	assert.equal(decision.outcome, 'unmeasurable');
+	assert.equal(decision.gainDb, 0);
+	assert.equal(decision.projectedLoudnessLufs, null);
+	assert.equal(loudnessNormalizationChangesAudio(decision), false);
+});
+
+test('a missing true peak is not permission to ignore the ceiling', () => {
+	// The integrated target can still be reached, but nothing may claim the
+	// ceiling was respected, so the projected peak stays null.
+	const decision = computeLoudnessNormalization({ loudnessValue: -30, maxTruePeakLevel: null }, R128);
+	assert.equal(decision.outcome, 'target-met');
+	close(decision.gainDb, 7, '');
+	assert.equal(decision.projectedTruePeakDb, null, 'no peak measured means no peak claimed');
+});
+
+test('a delivery already on target does nothing at all', () => {
+	const decision = computeLoudnessNormalization({ loudnessValue: -23, maxTruePeakLevel: -6 }, R128);
+	assert.equal(decision.outcome, 'target-met');
+	assert.equal(decision.gainDb, 0);
+	assert.equal(loudnessNormalizationChangesAudio(decision), false);
+	assert.equal(loudnessNormalizationGainFactor(decision), 1);
+});
+
+test('the gain factor is the linear form of the decibel decision', () => {
+	const decision = computeLoudnessNormalization({ loudnessValue: -29, maxTruePeakLevel: -20 }, R128);
+	close(decision.gainDb, 6, '');
+	close(loudnessNormalizationGainFactor(decision), 10 ** (6 / 20), 'the factor is 10^(dB/20)');
+	assert.equal(loudnessNormalizationChangesAudio(decision), true);
+});
+
+test('an impossible target is refused rather than approximated', () => {
+	assert.throws(
+		() => computeLoudnessNormalization({ loudnessValue: -20, maxTruePeakLevel: -3 }, {
+			integratedLufs: 6, truePeakCeilingDb: -1,
+		}),
+		/above 0 LUFS is not achievable/u,
+	);
+	assert.throws(
+		() => computeLoudnessNormalization({ loudnessValue: -20, maxTruePeakLevel: -3 }, {
+			integratedLufs: Number.NaN, truePeakCeilingDb: -1,
+		}),
+		/finite integrated value/u,
+	);
+	assert.throws(
+		() => computeLoudnessNormalization({ loudnessValue: -20, maxTruePeakLevel: -3 }, {
+			integratedLufs: -23, truePeakCeilingDb: Number.POSITIVE_INFINITY,
+		}),
+		/finite true-peak ceiling/u,
+	);
+});
+
+test('the decision is frozen data a report can carry verbatim', () => {
+	const decision = computeLoudnessNormalization({ loudnessValue: -30, maxTruePeakLevel: -12 }, R128);
+	assert.ok(Object.isFrozen(decision) && Object.isFrozen(decision.target));
+	assert.deepEqual(JSON.parse(JSON.stringify(decision)), { ...decision });
+});
+
+test('the delivery report carries both value pairs, normalized or not', async () => {
+	// The acceptance asks that a normalized delivery's report carry measured AND
+	// post-normalization values. A delivery that ran no normalization reports its
+	// measurement anyway, so the report says the same kind of thing either way.
+	const { createDeliveryReportForPlan } = await import(
+		'../src/common/editor/delivery-conversion-inventory.ts'
+	);
+	const plan = { format: 'wav', sampleRate: 48_000, encoding: { channelCount: 2, bitDepth: 24 } };
+	const source = { sampleRate: 48_000 };
+
+	const normalized = createDeliveryReportForPlan(plan as never, source as never,
+		computeLoudnessNormalization({ loudnessValue: -30, maxTruePeakLevel: -12 }, R128));
+	const item = normalized.items.find((entry) => entry.code === 'delivery.loudness-normalized');
+	assert.equal(item?.data.measuredLoudnessLufs, -30);
+	assert.equal(item?.data.projectedLoudnessLufs, -23);
+	assert.equal(item?.data.measuredTruePeakDb, -12);
+	assert.equal(item?.data.projectedTruePeakDb, -5);
+	assert.equal(item?.data.targetLufs, -23);
+
+	const measuredOnly = createDeliveryReportForPlan(plan as never, source as never,
+		computeLoudnessNormalization({ loudnessValue: -18, maxTruePeakLevel: -2 }, null));
+	const measured = measuredOnly.items.find((entry) => entry.code === 'delivery.loudness-measured');
+	assert.equal(measured?.disposition, 'preserved');
+	assert.equal(measured?.data.measuredLoudnessLufs, -18);
+});
+
+test('a missed target is a warning in the report, not a footnote', () => {
+	// The operator asked for a number and did not get it.
+	const decision = computeLoudnessNormalization({ loudnessValue: -31, maxTruePeakLevel: -2 }, R128);
+	assert.equal(decision.outcome, 'ceiling-limited');
+	assert.ok(decision.targetShortfallLu > 0);
+});
+
+test('no loudness decision leaves the report exactly as it was', async () => {
+	const { createDeliveryReportForPlan } = await import(
+		'../src/common/editor/delivery-conversion-inventory.ts'
+	);
+	const plan = { format: 'wav', sampleRate: 48_000, encoding: { channelCount: 2, bitDepth: 24 } };
+	const report = createDeliveryReportForPlan(plan as never, { sampleRate: 48_000 } as never);
+	assert.equal(report.items.some((entry) => entry.code.startsWith('delivery.loudness')), false);
+});

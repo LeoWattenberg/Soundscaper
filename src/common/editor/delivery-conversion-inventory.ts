@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { type LoudnessNormalizationDecision } from './loudness-normalization.ts';
 import {
 	type DeliveryDisposition,
 	type DeliveryReport,
@@ -165,6 +166,7 @@ export function inventoryDeliveryConversions(
 export function createDeliveryReportForPlan(
 	plan: AudioDeliveryPlan,
 	source: DeliverySourceCharacteristics,
+	loudness?: LoudnessNormalizationDecision | null,
 ): DeliveryReport {
 	const descriptor = formatDescriptor(plan?.format);
 	const encoding = isRecord(plan?.encoding) ? plan.encoding : {};
@@ -184,7 +186,58 @@ export function createDeliveryReportForPlan(
 			data: conversion.data,
 		});
 	}
+	if (loudness) addLoudnessItem(draft, loudness);
 	return sealDeliveryReport(draft);
+}
+
+/**
+ * Record what normalization did, including when it did nothing.
+ *
+ * Measured and post-normalization values are both carried so a reader never has
+ * to work out which one they are looking at, and a delivery that ran no
+ * normalization still reports its measured loudness — the report should say the
+ * same kind of thing either way.
+ */
+function addLoudnessItem(draft: Parameters<typeof addDeliveryReportItem>[0], loudness: LoudnessNormalizationDecision): void {
+	const data = {
+		outcome: loudness.outcome,
+		gainDb: loudness.gainDb,
+		measuredLoudnessLufs: loudness.measuredLoudnessLufs,
+		measuredTruePeakDb: loudness.measuredTruePeakDb,
+		projectedLoudnessLufs: loudness.projectedLoudnessLufs,
+		projectedTruePeakDb: loudness.projectedTruePeakDb,
+		...(loudness.target ? { targetLufs: loudness.target.integratedLufs, ceilingDb: loudness.target.truePeakCeilingDb } : {}),
+		...(loudness.targetShortfallLu ? { shortfallLu: loudness.targetShortfallLu } : {}),
+	};
+	if (loudness.outcome === 'ceiling-limited') {
+		// A delivery that did not reach its target is a warning, not a footnote:
+		// the operator asked for a number and did not get it.
+		addDeliveryReportItem(draft, {
+			code: 'delivery.loudness-target-missed',
+			disposition: 'converted',
+			severity: 'warning',
+			data,
+			message: loudness.reason,
+		});
+		return;
+	}
+	if (loudness.outcome === 'unmeasurable') {
+		addDeliveryReportItem(draft, {
+			code: 'delivery.loudness-unmeasurable',
+			disposition: 'missing',
+			severity: 'warning',
+			data,
+			message: loudness.reason,
+		});
+		return;
+	}
+	addDeliveryReportItem(draft, {
+		code: loudness.outcome === 'not-requested' ? 'delivery.loudness-measured' : 'delivery.loudness-normalized',
+		disposition: loudness.outcome === 'not-requested' ? 'preserved' : 'converted',
+		severity: 'info',
+		data,
+		message: loudness.reason,
+	});
 }
 
 /**
