@@ -2,11 +2,13 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
+	awaitLeaseMatrixControlFile,
 	createDesktopProjectLibraryLeaseMatrixPlan,
 	DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS,
 	DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS,
@@ -86,7 +88,7 @@ test('desktop preview CI runs the V10 matrix only for Soundscaper on qualified t
 	assert.match(leaseJob, /desktop:smoke:project-library-lease-matrix/u);
 	assert.match(leaseJob, /soundscaper-v10-lease-matrix-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
 	assert.doesNotMatch(runner, /\[\s*'soundscaper',\s*'framescaper'\s*\]|\[\s*'framescaper',\s*'soundscaper'\s*\]/u);
-	assert.match(runner, /runRendererLoss[\s\S]*waitForFile\(child\.control\.result\)/u);
+	assert.match(runner, /runRendererLoss[\s\S]*awaitLeaseMatrixControlFile\(child\.control\.result, child\)/u);
 	assert.ok(Buffer.byteLength(formatDesktopProjectLibraryLeaseMatrix({ cases: [] })) < 1024 * 1024);
 });
 
@@ -174,6 +176,37 @@ test('the desktop smoke probe carries the V10 qualification seam and nothing old
 	});
 	assert.equal(probe.projectLibraryV10Qualification(), null);
 	assert.equal(probe.projectLibraryHostOptions, undefined);
+});
+
+test('a control file that never arrives reports the child rather than only its path', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'scape-lease-matrix-control-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const present = join(root, 'ready.json');
+	await writeFile(present, '{"action":"commit"}');
+
+	assert.equal(
+		await awaitLeaseMatrixControlFile(present, { child: { exitCode: null, signalCode: null }, output: '' }),
+		'{"action":"commit"}',
+	);
+
+	// A child that has gone will never write the file, so the wait must end at its
+	// exit and carry what it printed. Polling out the remaining 90-second budget
+	// and then naming only the path is what made the deadlock in the crash
+	// checkpoint unreadable in CI.
+	const started = performance.now();
+	await assert.rejects(
+		awaitLeaseMatrixControlFile(join(root, 'result.json'), {
+			child: { exitCode: 2, signalCode: null },
+			output: 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_LEASE failed: the reason',
+		}),
+		(error) => {
+			assert.match(error.message, /exited before writing/u);
+			assert.match(error.message, /child exit 2\/null/u);
+			assert.match(error.message, /LEASE failed: the reason/u);
+			return true;
+		},
+	);
+	assert.ok(performance.now() - started < 5_000, 'the wait must end at the child, not at its timeout');
 });
 
 /**

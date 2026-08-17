@@ -252,12 +252,15 @@ async function expectRefusal(scope, productId, action, projectId, commitRequest)
 
 async function startHold(scope, productId, action, projectId, commitRequest) {
 	const child = await launch(scope, productId, action, projectId, commitRequest);
-	await waitForFile(child.control.ready);
+	await awaitLeaseMatrixControlFile(child.control.ready, child);
 	let result;
 	return {
 		get result() { return result; },
 		start: () => touch(child.control.start),
-		async waitResult() { result ??= JSON.parse(await waitForFile(child.control.result)); return result; },
+		async waitResult() {
+			result ??= JSON.parse(await awaitLeaseMatrixControlFile(child.control.result, child));
+			return result;
+		},
 		async release() {
 			if (!result) await this.waitResult();
 			await touch(child.control.release);
@@ -268,7 +271,7 @@ async function startHold(scope, productId, action, projectId, commitRequest) {
 
 async function run(scope, productId, action, projectId, commitRequest) {
 	const child = await launch(scope, productId, action, projectId, commitRequest);
-	await waitForFile(child.control.ready);
+	await awaitLeaseMatrixControlFile(child.control.ready, child);
 	await touch(child.control.start);
 	const exit = await expectCleanExit(child);
 	return parseChildOutput(exit.output);
@@ -276,18 +279,18 @@ async function run(scope, productId, action, projectId, commitRequest) {
 
 async function runRendererLoss(scope, productId, projectId, commitRequest) {
 	const child = await launch(scope, productId, 'renderer-loss', projectId, commitRequest);
-	await waitForFile(child.control.ready);
+	await awaitLeaseMatrixControlFile(child.control.ready, child);
 	await touch(child.control.start);
-	const checkpoint = JSON.parse(await waitForFile(child.control.result));
+	const checkpoint = JSON.parse(await awaitLeaseMatrixControlFile(child.control.result, child));
 	const exit = await expectCleanExit(child);
 	return [checkpoint, parseChildOutput(exit.output)];
 }
 
 async function crashAtCheckpoint(scope, productId, action, projectId, commitRequest) {
 	const child = await launch(scope, productId, action, projectId, commitRequest);
-	await waitForFile(child.control.ready);
+	await awaitLeaseMatrixControlFile(child.control.ready, child);
 	await touch(child.control.start);
-	const checkpoint = JSON.parse(await waitForFile(child.control.result));
+	const checkpoint = JSON.parse(await awaitLeaseMatrixControlFile(child.control.result, child));
 	await terminateTree(child.child, scope.platform);
 	await child.exit;
 	return checkpoint;
@@ -335,7 +338,7 @@ async function launch(scope, productId, action, projectId, commitRequest) {
 		child.once('error', reject);
 		child.once('exit', (code, signal) => resolveExit({ code, signal, get output() { return output; } }));
 	});
-	return { child, control, exit };
+	return { child, control, exit, get output() { return output; } };
 }
 
 async function expectCleanExit(process) {
@@ -384,14 +387,32 @@ async function terminateTree(child, platform) {
 	}
 }
 
-async function waitForFile(path) {
+/**
+ * Every control file is written by the packaged child, so the child is the only
+ * thing that can explain a file that never arrives. Racing its exit and
+ * reporting what it printed keeps a stalled workflow from reaching CI as a bare
+ * path and a spent timeout, which is how the startup-publication deadlock in the
+ * crash checkpoint first presented.
+ */
+export async function awaitLeaseMatrixControlFile(path, process) {
 	for (let attempt = 0; attempt < 9_000; attempt += 1) {
 		try { return await readFile(path, 'utf8'); } catch (error) {
 			if (error.code !== 'ENOENT') throw error;
+			if (process.child.exitCode !== null || process.child.signalCode !== null) {
+				throw new Error(
+					`Lease matrix child exited before writing ${path}: ${childDiagnostics(process)}`,
+					{ cause: error },
+				);
+			}
 			await delay(10);
 		}
 	}
-	throw new Error(`Lease matrix control timed out: ${path}`);
+	throw new Error(`Lease matrix control timed out: ${path}: ${childDiagnostics(process)}`);
+}
+
+function childDiagnostics(process) {
+	const { exitCode, signalCode } = process.child;
+	return `child exit ${String(exitCode)}/${String(signalCode)}; output ${process.output || '(none)'}`;
 }
 
 function touch(path) { return writeFile(path, '', { flag: 'wx' }); }
