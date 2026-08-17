@@ -541,7 +541,7 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 		[
 			'abortSharedSourceWrite', 'abortWrite', 'awaitVideoSourceProbe', 'beginSharedSourceWrite', 'beginVideoSourceProbe', 'beginWrite',
 			'cancelVideoSourceProbe',
-			'checkForUpdates', 'chooseFiles', 'chooseLinkedAudioOriginal', 'chooseLinkedVideoOriginal', 'chooseSaveTarget', 'commitSharedProject',
+			'checkForUpdates', 'chooseFiles', 'chooseLinkedAudioOriginal', 'chooseLinkedVideoOriginal', 'chooseSaveTarget', 'clearNativePluginQuarantine', 'commitSharedProject',
 			'deleteSharedProject', 'describeNativeAudioBackend', 'editText', 'finishSharedSourceWrite', 'finishWrite',
 			'getEnvironment', 'installAssistanceModel', 'listAssistanceModels', 'listNativePlugins', 'listSharedProjects', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'nativeAudioHelperAvailability', 'nativePluginAvailability', 'onAssistanceInstallProgress', 'onCloseRequested', 'onFullscreenChanged',
 			'onMenuCommand', 'onOpenProject', 'openExternal', 'patchFinalPrefix', 'probeHelperAvailability', 'readSharedProject',

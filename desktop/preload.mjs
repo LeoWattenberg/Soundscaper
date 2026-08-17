@@ -45,6 +45,7 @@ const CHANNELS = Object.freeze({
 	nativePluginConsent: 'soundscaper:v1:helper:native-plugin-consent',
 	nativePluginScan: 'soundscaper:v1:helper:native-plugin-scan',
 	nativePluginInventory: 'soundscaper:v1:helper:native-plugin-inventory',
+	nativePluginClearQuarantine: 'soundscaper:v1:helper:native-plugin-clear-quarantine',
 	listAssistanceModels: 'soundscaper:v1:assistance:list',
 	installAssistanceModel: 'soundscaper:v1:assistance:install',
 	removeAssistanceModel: 'soundscaper:v1:assistance:remove',
@@ -167,9 +168,7 @@ const api = Object.freeze({
 		probeId: opaqueId(request?.probeId, 40),
 	}).then((value) => Object.freeze({ cancelled: value?.cancelled === true })),
 	nativeAudioHelperAvailability: () => ipcRenderer.invoke(CHANNELS.nativeAudioAvailability).then(nativeAudioAvailability),
-	describeNativeAudioBackend: (request) => ipcRenderer.invoke(CHANNELS.nativeAudioInventory, {
-		backend: text(request?.backend, 32),
-	}).then(nativeAudioInventory),
+	describeNativeAudioBackend: (request) => ipcRenderer.invoke(CHANNELS.nativeAudioInventory, { backend: text(request?.backend, 32) }).then(nativeAudioInventory),
 	nativePluginAvailability: () => ipcRenderer.invoke(CHANNELS.nativePluginAvailability).then(nativePluginStatus),
 	setNativePluginConsent: (request) => ipcRenderer.invoke(CHANNELS.nativePluginConsent, {
 		format: text(request?.format, 32),
@@ -181,6 +180,7 @@ const api = Object.freeze({
 		rootId: text(request?.rootId, 256),
 	}).then(nativePluginStatus),
 	listNativePlugins: () => ipcRenderer.invoke(CHANNELS.nativePluginInventory).then(nativePluginStatus),
+	clearNativePluginQuarantine: (request) => ipcRenderer.invoke(CHANNELS.nativePluginClearQuarantine, { digest: opaqueId(request?.digest, 64), clearance: text(request?.clearance, 16) }).then(nativePluginStatus),
 	listAssistanceModels: () => ipcRenderer.invoke(CHANNELS.listAssistanceModels).then(assistanceStatus),
 	installAssistanceModel: (modelId) => ipcRenderer.invoke(CHANNELS.installAssistanceModel, assistanceModelId(modelId)).then(assistanceModel),
 	removeAssistanceModel: (modelId) => ipcRenderer.invoke(CHANNELS.removeAssistanceModel, assistanceModelId(modelId)).then(safeInteger),

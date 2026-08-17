@@ -198,7 +198,7 @@ async function startApplication() {
 	}));
 	if (applicationShutdown.requested) return;
 	configureSessionSecurity(desktopSession);
-	registerIpcHandlers(desktopSession);
+	await registerIpcHandlers(desktopSession);
 	installMenu();
 	await createWindow();
 	void checkForUpdates(false);
@@ -303,7 +303,7 @@ function isRendererSaveOwnerCurrent(owner) {
 	} catch { return false; }
 }
 
-function registerIpcHandlers(desktopSession) {
+async function registerIpcHandlers(desktopSession) {
 	projectLibraryIpc = projectLibraryRuntime.registerRendererBridge({
 		desktopRoot: __dirname,
 		handle,
@@ -312,7 +312,8 @@ function registerIpcHandlers(desktopSession) {
 		session: desktopSession,
 	});
 	linkedVideoLocators.registerIpc({ dialog, handle, ownerFor: rendererSaveOwnerFor, windowFor: () => mainWindow });
-	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath });
+	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath, userDataPath: app.getPath('userData'), parentWindow: () => mainWindow });
+	await nativeTier.ready();
 	handle(IPC.environment, () => ({
 		platform: process.platform,
 		arch: process.arch,
@@ -519,7 +520,7 @@ function installMenu() {
 			],
 		},
 		{ label: 'View', submenu: [{ role: 'reload', visible: !app.isPackaged }, { role: 'toggleDevTools', visible: !app.isPackaged }, { type: 'separator', visible: !app.isPackaged }, { role: 'togglefullscreen' }] },
-		...desktopNativeTierMenu(settings),
+		...desktopNativeTierMenu(settings, nativeTier),
 		{ label: 'Window', role: 'windowMenu' },
 		{
 			label: 'Help',

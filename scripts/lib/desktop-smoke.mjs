@@ -17,6 +17,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'chooseLinkedAudioOriginal',
 	'chooseLinkedVideoOriginal',
 	'chooseSaveTarget',
+	'clearNativePluginQuarantine',
 	'commitSharedProject',
 	'deleteSharedProject',
 	'describeNativeAudioBackend',

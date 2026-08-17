@@ -447,12 +447,27 @@ test('desktop main initializes, exposes, and disposes the shared library through
 	assert.match(mainSource, /name: 'project library', run: closeProjectLibraryHost/u);
 	assert.match(mainSource, /nativeTier = registerDesktopNativeTier\(\{ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings/u,
 		'the native tier must register through the trusted IPC wrapper with main-owned seams');
+	assert.match(mainSource, /userDataPath: app\.getPath\('userData'\), parentWindow: \(\) => mainWindow/u,
+		'the native tier must be handed the durable-store path and the window its pickers open over');
+	assert.match(mainSource, /await nativeTier\.ready\(\)/u,
+		'the durable stores behind the native surfaces must be loaded before a renderer can consult them');
 	assert.match(mainSource, /name: 'native tier', run: \(\) => disposeDesktopNativeTier\(nativeTier\)/u,
 		'every native helper must join the ordered shutdown barrier together');
 	assert.match(mainSource, /revokeNativeTier: \(owner\) => revokeDesktopNativeTierOwner\(nativeTier, owner\)/u,
 		'renderer ownership cleanup must drain every native surface together when a renderer goes away');
-	assert.match(mainSource, /\.\.\.desktopNativeTierMenu\(settings\)/u,
-		'the native surfaces must stay menu-reached');
+	// Reachability, not one particular surface: an application menu entry, a
+	// toolbar control, a View > Panels panel and a keyboard shortcut each satisfy
+	// the discoverability rule on their own, so pinning the menubar would forbid
+	// moving these commands to any of the other three.
+	assert.ok(
+		[
+			/desktopNativeTierMenu\(settings/u,
+			/desktopNativeTierToolbar\(/u,
+			/desktopNativeTierPanel\(/u,
+			/desktopNativeTierShortcuts\(/u,
+		].some((surface) => surface.test(mainSource)),
+		'the native surfaces must stay reachable from a qualifying discoverability surface',
+	);
 	assert.match(mainSource, /name: 'read capabilities'.*readCapabilities\.dispose\(\)/su);
 	assert.match(mainSource, /name: 'save sessions'.*saves\.dispose\(\)/su);
 	const startIndex = mainSource.indexOf('void startApplication()');

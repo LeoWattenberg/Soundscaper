@@ -14,8 +14,6 @@ import {
 } from './project-library-runtime/desktop/native-addon-payload.js';
 import { DesktopNativeAudioService } from './project-library-runtime/desktop/native-helper-service.js';
 
-let registered = null;
-
 /**
  * Spawn authority lives here and nowhere else. The renderer cannot name the
  * payload, so main resolves it from the asar-protected pins, re-verifies the
@@ -68,7 +66,6 @@ export function registerDesktopNativeAudioHelper({
 	handle(channels.nativeAudioAvailability, () => service.availability());
 	handle(channels.nativeAudioInventory, (event, value) =>
 		service.describeBackend({ owner: ownerFor(event), backend: String(value?.backend || '') }));
-	registered = { service, settings };
 	// The supervisor and the payload description are shared with plug-in
 	// discovery: one payload, one supervisor, one concurrent job, exactly as
 	// contract v1 admits.
@@ -88,19 +85,23 @@ export function registerDesktopNativeAudioHelper({
  * folds it into the Tools menu the probe helper already contributes rather than
  * adding a second one: the native tier is one place a user looks, not one place
  * per helper.
+ *
+ * The registration it acts on is a parameter, not module state: a menu that
+ * reads whichever registration was made last acts on a service the tier it
+ * belongs to may already have disposed.
  */
-export function withNativeAudioHelperMenuItems(sections) {
+export function withNativeAudioHelperMenuItems(sections, settings, audio) {
 	const items = [
 		{ type: 'separator' },
 		{
 			label: 'Use Native Audio Helper',
 			type: 'checkbox',
-			checked: registered?.settings.snapshot().nativeAudioHelperEnabled === true,
-			click: (item) => void registered?.settings.setNativeAudioHelperEnabled(item.checked),
+			checked: settings.snapshot().nativeAudioHelperEnabled === true,
+			click: (item) => void settings.setNativeAudioHelperEnabled(item.checked),
 		},
 		{
 			label: 'Clear Audio Helper Quarantine',
-			click: () => registered?.service.clearQuarantine(),
+			click: () => audio?.clearQuarantine(),
 		},
 	];
 	return sections.map((section) => (section.label === 'Tools'

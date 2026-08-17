@@ -20,19 +20,42 @@ import {
 	registerDesktopPluginDiscovery,
 } from './plugin-registration.mjs';
 
+/**
+ * What every registrar behind this seam is entitled to receive. Spreading an
+ * unchecked bag into each of them is what let a missing seam reach a path join
+ * inside a helper, where the failure named an argument type rather than the
+ * caller that forgot it, and took the whole start-up down with it.
+ */
+const REQUIRED_SEAMS = Object.freeze({
+	channels: 'object',
+	handle: 'function',
+	ownerFor: 'function',
+	readCapabilities: 'object',
+	settings: 'object',
+	desktopRoot: 'string',
+	packaged: 'boolean',
+	resourcesPath: 'string',
+	userDataPath: 'string',
+	parentWindow: 'function',
+});
+
 export function registerDesktopNativeTier(options) {
-	const audio = registerDesktopNativeAudioHelper(options);
-	return Object.freeze({
-		probe: registerDesktopHelperProbe(options),
-		audio,
+	const seams = requireNativeTierSeams(options);
+	const audio = registerDesktopNativeAudioHelper(seams);
+	const plugins = registerDesktopPluginDiscovery({
+		...seams,
 		// Discovery reuses the audio helper's supervisor because contract v1
 		// admits one concurrent job: two supervisors over one payload would let a
 		// scan and a device session run at once, which the contract forbids.
-		plugins: registerDesktopPluginDiscovery({
-			...options,
-			supervisor: audio.supervisorPort,
-			describePayload: audio.describePayload,
-		}),
+		supervisor: audio.supervisorPort,
+		describePayload: audio.describePayload,
+	});
+	return Object.freeze({
+		probe: registerDesktopHelperProbe(seams),
+		audio,
+		plugins,
+		/** The durable stores the surfaces consult, loaded before a window exists. */
+		ready: () => plugins.ready(),
 	});
 }
 
@@ -50,8 +73,21 @@ export function revokeDesktopNativeTierOwner(tier, owner) {
 }
 
 /** Every native surface lives under the one Tools menu, off by default. */
-export function desktopNativeTierMenu(settings) {
-	return withNativeAudioHelperMenuItems(desktopHelperProbeMenu()).map((section) => (section.label === 'Tools'
-		? { ...section, submenu: [...section.submenu, ...desktopPluginDiscoveryMenuItems(settings)] }
-		: section));
+export function desktopNativeTierMenu(settings, tier) {
+	return withNativeAudioHelperMenuItems(desktopHelperProbeMenu(), settings, tier?.audio)
+		.map((section) => (section.label === 'Tools'
+			? { ...section, submenu: [...section.submenu, ...desktopPluginDiscoveryMenuItems(settings)] }
+			: section));
+}
+
+function requireNativeTierSeams(options) {
+	if (!options || typeof options !== 'object') {
+		throw new TypeError('The native tier is registered from one options record naming every seam it forwards.');
+	}
+	for (const [seam, kind] of Object.entries(REQUIRED_SEAMS)) {
+		if (options[seam] === null || typeof options[seam] !== kind) {
+			throw new TypeError(`The native tier requires a ${kind} ${seam} seam from main.`);
+		}
+	}
+	return options;
 }
