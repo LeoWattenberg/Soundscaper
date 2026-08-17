@@ -27,6 +27,13 @@ const REPORT_COPY_ENTRIES = Object.freeze([
 	['deliveryReportSummary', '{format}: {converted} converted, {omitted} omitted.', '{format}: {converted} konvertiert, {omitted} ausgelassen.'],
 	['deliveryReportSubject', '{format}, {sampleRate} Hz, {channels} ch', '{format}, {sampleRate} Hz, {channels} Kan.'],
 	['deliveryReportSave', 'Save report', 'Bericht speichern'],
+	['deliveryPreset', 'Preset', 'Vorgabe'],
+	['deliveryPresetNone', 'Custom', 'Benutzerdefiniert'],
+	['deliveryPresetName', 'Preset name', 'Vorgabenname'],
+	['deliveryPresetSave', 'Save preset', 'Vorgabe speichern'],
+	['deliveryPresetDelete', 'Delete preset', 'Vorgabe löschen'],
+	['deliveryPresetImport', 'Import presets', 'Vorgaben importieren'],
+	['deliveryPresetExport', 'Export preset', 'Vorgabe exportieren'],
 	['deliveryReportNoConversions', 'This delivery converted nothing.', 'Diese Lieferung hat nichts konvertiert.'],
 ]);
 

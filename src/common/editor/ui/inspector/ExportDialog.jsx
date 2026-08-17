@@ -21,6 +21,8 @@ import {
 	projectHasTimelineVideo,
 } from '../export-dialog-model.js';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
+import ExportPresetSection from './ExportPresetSection.jsx';
+import { dialogSettingsFromPreset, presetSettingsFromDialog } from '../export-preset-model.ts';
 import {
 	bitrateOption,
 	compactFields,
@@ -61,6 +63,38 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		includeTail: true,
 	});
 	const [error, setError] = useState('');
+	const [presetId, setPresetId] = useState('');
+	const [presetName, setPresetName] = useState('');
+	const presetKind = isVideoExportDialogFormat(settings.format) ? 'video' : 'audio';
+	const presets = controller.actions.export.presets.list(presetKind);
+	const presetActions = {
+		onApply: (id) => {
+			setPresetId(id);
+			if (!id) return;
+			const preset = controller.actions.export.presets.apply(id);
+			setPresetName(preset.label);
+			setSettings((current) => ({ ...current, ...dialogSettingsFromPreset(preset) }));
+		},
+		onNameChange: setPresetName,
+		onSave: async () => {
+			const preset = await controller.actions.export.presets.save({
+				...(presetId ? { id: presetId } : {}),
+				label: presetName.trim(),
+				kind: presetKind,
+				format: settings.format,
+				settings: presetSettingsFromDialog(settings, presetKind),
+			});
+			setPresetId(preset.id);
+			setPresetName(preset.label);
+		},
+		onDelete: async () => {
+			await controller.actions.export.presets.delete(presetId);
+			setPresetId('');
+			setPresetName('');
+		},
+		onImport: async (file) => { await controller.actions.export.presets.import(await file.text()); },
+		onExport: () => controller.actions.export.presets.saveToFile(presetId),
+	};
 	const hasSelection = Boolean(snapshot.selection);
 	const hasLoop = Boolean(snapshot.project?.loop?.enabled);
 	const exporting = Boolean(snapshot.exporting);
@@ -288,6 +322,15 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 			)}
 		>
 			<div className="audio-editor-export-dialog__body">
+				<ExportPresetSection
+					copy={copy}
+					presets={presets}
+					selectedId={presetId}
+					presetName={presetName}
+					disabled={exporting || blocked}
+					{...presetActions}
+				/>
+				<Separator />
 				<section className="audio-editor-export-section">
 					<h3>{copy.exportSection}</h3>
 					<LabeledDropdown label={copy.exportMode} hook="mode" value={videoFormat ? 'mix' : settings.mode} onChange={(value) => set('mode', value)} disabled={exporting || videoFormat || settings.format === 'bw64'} options={[{ value: 'mix', label: copy.mix }, { value: 'stems', label: copy.stems }]} />

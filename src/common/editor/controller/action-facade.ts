@@ -11,6 +11,7 @@ import { createTimelineAnnotationActionFacade } from './timeline-annotation-acti
 import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
 import { snapshotProductActionExtensions } from './product-action-extensions.ts';
 import { saveCurrentDeliveryReport } from './delivery-report-action.ts';
+import { createDeliveryPresetService } from './delivery-preset-service.ts';
 
 export interface EditorActionRuntime {
 	// The runtime composition root is JavaScript while it is being decomposed.
@@ -37,7 +38,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	createStableId, createWorkspacePreference, currentAudacityEffectParams, deleteEffectPreset,
 	deleteProject, deleteWorkspacePreference, disjoinSelectedClip, dismissAup4CompatibilitySummary,
 	duplicateProject, duplicateTrack, engine, exportEffectPreset,
-	exportLabels, exportVideo, fileService, findTrack,
+	exportLabels, exportVideo, fileService, findTrack, persistSetting, publishDocumentSnapshot,
 	flushProject, generateSelectionSilence, generateSignal, repeatLastGenerator, getClipVisualData,
 	getProjectBinClipVisualData, getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
 	handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
@@ -592,9 +593,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 		export: Object.freeze({
 			start: (settings: RuntimeValue) => handleExportAction('start', settings),
 			cancel: () => handleExportAction('cancel'),
-			saveReport: () => saveCurrentDeliveryReport({
-				state, productName: product.name, projectTitle: getProject()?.title ?? null, fileService,
-			}),
+			saveReport: () => saveCurrentDeliveryReport({ state, productName: product.name, projectTitle: getProject()?.title ?? null, fileService }),
+			presets: createDeliveryPresetService({ state, persistSetting, publishDocumentSnapshot, createId: createStableId, fileService }),
 		}),
 	});
 }

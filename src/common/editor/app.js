@@ -1823,7 +1823,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
 		snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording, startTakeCycleRecording: () => recordingSessionService.startTakeCycleRecording(),
 		startRecordingOnNewTrack, state, stopProjectBinPreview, stopRecording, cleanupDisposableStorage: storageCapacityService.cleanupDisposableStorage, cleanupDerivativeCache: storageCapacityService.cleanupDerivativeCache,
-		store, stretchClip, swapTrackChannels, switchProject,
+		store, stretchClip, swapTrackChannels, switchProject, persistSetting, publishDocumentSnapshot,
 		toggleLeadInRecording, toggleMetronome, togglePanelPreference, togglePinnedPlayhead,
 		toggleRecordingPause, toggleRmsWaveform, toggleRulerPlayback, toggleSelectionFollowsLoop,
 		recoverTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'recover'), discardTakeCycleRecording: (pending) => takeCycleOpenRecovery.resolve(pending, 'discard'),

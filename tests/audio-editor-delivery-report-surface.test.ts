@@ -36,6 +36,8 @@ test('both locales carry every delivery report string the renderer reads', () =>
 		for (const key of [
 			'deliveryReport', 'deliveryReportDescription', 'deliveryReportSummary',
 			'deliveryReportSubject', 'deliveryReportNoConversions', 'deliveryReportSave',
+			'deliveryPreset', 'deliveryPresetNone', 'deliveryPresetName', 'deliveryPresetSave',
+			'deliveryPresetDelete', 'deliveryPresetImport', 'deliveryPresetExport',
 		]) {
 			assert.equal(typeof copy[key], 'string', `${key} is missing`);
 			assert.ok(copy[key].length > 0, `${key} is empty`);

@@ -35,6 +35,9 @@ export interface DeliveryPresetServiceRuntime {
 	) => Promise<unknown> | unknown;
 	readonly publishDocumentSnapshot?: () => void;
 	readonly createId?: (prefix: string) => string;
+	readonly fileService?: {
+		saveFile?: (request: Readonly<Record<string, unknown>>) => unknown;
+	} | null;
 }
 
 export function createDeliveryPresetService(runtime: DeliveryPresetServiceRuntime) {
@@ -78,5 +81,17 @@ export function createDeliveryPresetService(runtime: DeliveryPresetServiceRuntim
 		},
 		export: (presetId: string): string =>
 			exportDeliveryPreset(runtime.state.deliveryPresets, presetId),
+		/** Write one preset out through the reserved 'preset' purpose. */
+		async saveToFile(presetId: string): Promise<string> {
+			const preset = applyDeliveryPreset(runtime.state.deliveryPresets, presetId);
+			const text = exportDeliveryPreset(runtime.state.deliveryPresets, presetId);
+			await runtime.fileService?.saveFile?.({
+				purpose: 'preset',
+				suggestedName: `${preset.label.replaceAll(/[^a-z0-9_-]+/giu, '-') || 'delivery-preset'}.json`,
+				mimeType: 'application/json',
+				text,
+			});
+			return text;
+		},
 	});
 }
