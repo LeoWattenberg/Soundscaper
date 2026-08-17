@@ -4,8 +4,9 @@ import { normalizeProjectFeatureRequirements } from './project-feature-requireme
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION,
 	AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	isFoundationProjectSchema,
 	isSourceCharacteristicsProjectSchema,
 } from './project-schema-version.ts';
 import {
@@ -13,10 +14,7 @@ import {
 	reconcileProjectV10CommandResult,
 } from './project-v10-command-projection.ts';
 import { reconcileVideoKeyframeCarriersAfterCommand } from './commands/video-keyframe-command-reconcile.ts';
-import {
-	AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION,
-	validateAudioEditorProjectV10,
-} from './project-v10-validation.ts';
+import { validateAudioEditorProjectV10 } from './project-v10-validation.ts';
 import { validateAudioEditorProjectV11 } from './project-v11-validation.ts';
 import { validateAudioEditorProjectV17 } from './project-v17-validation.ts';
 import { reconcileVideoSourceCharacteristicsV14 } from './source-characteristics-v14.ts';
@@ -28,13 +26,8 @@ import {
 
 type DataRecord = Record<string, unknown>;
 
-/** V10 introduced the authoritative foundation retained through product-owned V21. */
-export function isFoundationProjectSchema(schemaVersion: unknown): boolean {
-	return schemaVersion === AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION
-		|| schemaVersion === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION
-		|| schemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
-		|| schemaVersion === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
-}
+/** V10 introduced the authoritative foundation retained through every product revision. */
+export { isFoundationProjectSchema } from './project-schema-version.ts';
 
 /** Resolve authoritative project timing into the transient coordinates shared consumers expect. */
 export function projectForRuntimeConsumers(project: RuntimeClipProject): RuntimeClipProject {

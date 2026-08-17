@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isSoundscaperProductionProjectSchema } from '../project-schema-version.ts';
 import {
 	effectParameterInventory,
 	stripParameterDescriptor,
@@ -309,7 +310,7 @@ function resolveBlockReason(value: Readonly<{
 }>): SoundscaperProductionDialogBlockReason {
 	if (value.surface === null || value.project === null) return 'unsupported';
 	if ((value.surface === 'automation' || value.surface === 'routing')
-		&& own(value.project, 'schemaVersion') !== 21) return 'wrong-schema';
+		&& !isSoundscaperProductionProjectSchema(own(value.project, 'schemaVersion'))) return 'wrong-schema';
 	if (value.input.readOnly === true) return 'read-only';
 	if (value.input.editingBlocked === true) return 'busy';
 	const automationTarget = normalizeAutomationTarget(

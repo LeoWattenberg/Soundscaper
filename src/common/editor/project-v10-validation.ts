@@ -16,7 +16,9 @@ import {
 } from './project-v9-validation-budget.ts';
 import type { HoldTempoMap } from './timeline-time.ts';
 
-export const AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION = 10 as const;
+import { AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION } from './project-schema-version.ts';
+
+export { AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION } from './project-schema-version.ts';
 
 export interface AudioEditorProjectV10ValidationOptions {
 	readonly limits?: Partial<AudioEditorProjectV9ValidationLimits>;

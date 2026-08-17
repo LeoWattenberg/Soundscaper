@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isSoundscaperProductionProjectSchema } from '../project-schema-version.ts';
 import type {
 	EditorControllerLifetime,
 	EditorProjectGeneration,
@@ -186,7 +187,7 @@ export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
 			let snapshot = runtime.cloneProject(project) as MutableMacroProject;
 			const snapshotTrack = snapshot.tracks.find((track) => track.id === target.track.id);
 			if (!snapshotTrack) throw new Error(runtime.copy.audioTrackNotFound);
-			if (snapshot.schemaVersion === 21) {
+			if (isSoundscaperProductionProjectSchema(snapshot.schemaVersion)) {
 				snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
 					trackId: target.track.id,
 					effects,

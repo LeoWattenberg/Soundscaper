@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isSoundscaperProductionProjectSchema } from '../project-schema-version.ts';
 import {
 	resolveSoundscaperProductionCopy,
 	type SoundscaperProductionCopy,
@@ -85,7 +86,7 @@ export function createSoundscaperProductionApplicationMenuItems(
 	if (input.productId !== 'soundscaper') return EMPTY_ITEMS;
 	const copy = resolveSoundscaperProductionCopy(input.copy);
 	const project = dataRecord(input.project);
-	const exactProject = own(project, 'schemaVersion') === 21;
+	const exactProject = isSoundscaperProductionProjectSchema(own(project, 'schemaVersion'));
 	const selectedTrack = records(own(project, 'tracks')).find((track) => (
 		own(track, 'id') === input.selectedTrackId
 	)) ?? null;

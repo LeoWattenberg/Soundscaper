@@ -3,7 +3,7 @@
 import { PROJECT_FEATURE_CAPABILITY_IDS } from './project-feature-capabilities.ts';
 import {
 	isMaintainedRenderedFallbackProjectSchema,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	isSoundscaperProductionProjectSchema,
 } from './project-schema-version.ts';
 import {
 	projectFeatureAudioTrackRenderV1Playback,
@@ -78,7 +78,7 @@ export function projectFeatureAudioRenderedFallbackPlayback<Project extends obje
 	if (isQualifiedTrackFallback(qualified)) {
 		return projectFeatureAudioTrackRenderV1Playback(project, qualified);
 	}
-	if (schemaVersion === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION) return unchanged(project);
+	if (isSoundscaperProductionProjectSchema(schemaVersion)) return unchanged(project);
 	assertManifestBinding(projectRecord, qualified);
 	const sources = arrayValue(dataProperty(projectRecord, 'sources', 'project'), 'project.sources');
 	const source = fallbackSource(sources, qualified.fallback.sourceId);

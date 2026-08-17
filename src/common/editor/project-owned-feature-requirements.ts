@@ -10,7 +10,10 @@ import type {
 } from './project-feature-requirements.ts';
 import { PROJECT_FEATURE_REQUIREMENTS_LIMITS } from './project-feature-requirements.ts';
 import { projectHasReportedSourceCharacteristics } from './source-characteristics-v14.ts';
-import { isVideoRetimeCurveProjectSchema } from './project-schema-version.ts';
+import {
+	isSoundscaperProductionProjectSchema,
+	isVideoRetimeCurveProjectSchema,
+} from './project-schema-version.ts';
 import { createDefaultMixerGraphV21, normalizeMixerGraphV21 } from './mixer-graph-v21.ts';
 import { resolveTerminalChannelWidths } from './terminal-channel-widths.ts';
 import { VIDEO_EFFECT_TYPES } from './video-effects.js';
@@ -305,7 +308,7 @@ function projectHasVideoTimingAsset(project: Readonly<Record<string, unknown>>):
 }
 
 function projectHasAuthoredMixerGraphV21(project: Readonly<Record<string, unknown>>): boolean {
-	if (dataProperty(project, 'schemaVersion') !== 21) return false;
+	if (!isSoundscaperProductionProjectSchema(dataProperty(project, 'schemaVersion'))) return false;
 	const masterChannels = Number(dataProperty(project, 'masterChannels'));
 	const trackWidths = resolveTerminalChannelWidths(project as never, masterChannels).tracks;
 	const audioTracks = dataArray(project, 'tracks')

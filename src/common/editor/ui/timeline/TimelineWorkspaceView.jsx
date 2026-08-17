@@ -2,6 +2,7 @@ import { Button, Icon, TimelineRuler } from '@dilsonspickles/components';
 import { useCallback, useRef } from 'react';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
+import { isSoundscaperProductionProjectSchema } from '../../project-schema-version.ts';
 import AudioEditorSampleTools from '../AudioEditorSampleTools.jsx';
 import { DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT } from './geometry.ts';
 import { TrackListView } from './TrackListView.jsx';
@@ -481,7 +482,7 @@ export function TimelineWorkspaceView({
 				selection={timeSelection}
 				height={outputDockHeight}
 				automationToolEnabled={automationToolEnabled}
-				stripEnvelopeAvailable={project.schemaVersion !== 21}
+				stripEnvelopeAvailable={!isSoundscaperProductionProjectSchema(project.schemaVersion)}
 				blocked={mutationsBlocked}
 				mobile={mobile}
 				copy={copy}

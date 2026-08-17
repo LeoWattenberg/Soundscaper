@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createDefaultMixerGraphV21, type MixerGraphV21 } from '../mixer-graph-v21.ts';
-import { SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION } from '../project-schema-version.ts';
+import {
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	isSoundscaperProductionProjectSchema,
+} from '../project-schema-version.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 
 interface IsolatedTrackRenderTrackV21 extends Readonly<Record<string, unknown>> {
@@ -33,7 +36,7 @@ export function createIsolatedTrackRenderProjectV21(
 	project: IsolatedTrackRenderProjectV21,
 	request: IsolatedTrackRenderRequestV21,
 ): IsolatedTrackRenderProjectV21 {
-	if (project.schemaVersion !== SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION) {
+	if (!isSoundscaperProductionProjectSchema(project.schemaVersion)) {
 		throw new TypeError('An exact Soundscaper V21 project is required.');
 	}
 	const selected = project.tracks.find((track) => track.id === request.trackId && track.type === 'audio');

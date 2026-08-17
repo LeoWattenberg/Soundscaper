@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { deriveFolderBusOwnershipV13, reconcileFolderBusesV13 } from './folder-bus-v13.ts';
-import { SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION } from './project-schema-version.ts';
+import { isSoundscaperProductionProjectSchema } from './project-schema-version.ts';
 import { orderByHierarchyPreorderV12 } from './track-hierarchy-mutation-v12.ts';
 import { deriveTrackHierarchyOrderV12 } from './track-hierarchy-v12.ts';
 
@@ -34,7 +34,7 @@ export function reconcileFolderAwareTrackHierarchy(
 		order.trackIds,
 	);
 	// V21 replaces the single-layer legacy bus with its nested graph reconciler.
-	if (draft.schemaVersion !== SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION) {
+	if (!isSoundscaperProductionProjectSchema(draft.schemaVersion)) {
 		reconcileFolderBusesV13(draft);
 	}
 	assertAuthoredAdmOwnershipUnchanged(draft, persistedBase);

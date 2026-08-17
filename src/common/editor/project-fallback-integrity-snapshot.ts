@@ -12,7 +12,7 @@ import {
 import type { ProjectAudioFallbackSource } from './project-fallback-integrity-audio.ts';
 import {
 	isMaintainedRenderedFallbackProjectSchema,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	isSoundscaperProductionProjectSchema,
 } from './project-schema-version.ts';
 import { snapshotInertJsonValue } from './inert-json-snapshot.ts';
 
@@ -57,7 +57,7 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 			automationLanes: Object.freeze([]),
 		});
 	}
-	const freezeAuthority = schemaVersion === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+	const freezeAuthority = isSoundscaperProductionProjectSchema(schemaVersion);
 	const sources = snapshotArray(
 		ownDataValue(candidate, 'sources', 'project'),
 		'project.sources',

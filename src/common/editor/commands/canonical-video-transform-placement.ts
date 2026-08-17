@@ -1,11 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
-} from '../project-schema-version.ts';
-import { AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION } from '../project-v10-validation.ts';
+import { isFoundationProjectSchema } from '../project-schema-version.ts';
 import { videoFrameToSampleFrame, type RationalRate } from '../timeline-time.ts';
 import { CONFORMED_SEQUENCE_PLACEMENT } from './command-projection-transients.ts';
 import type { CanonicalVideoPlacementCommandValue } from './protocol.ts';
@@ -29,7 +24,7 @@ export function applyCanonicalVideoTransformPlacement(
 	const clip = record(clipValue, 'clip');
 	const track = record(trackValue, 'track');
 	const updated = record(updatedValue, 'updated clip');
-	if (!isFoundationSchema(project.schemaVersion) || clip.kind !== 'video') {
+	if (!isFoundationProjectSchema(project.schemaVersion) || clip.kind !== 'video') {
 		throw new RangeError('Canonical sequence placement requires a foundation video clip.');
 	}
 	const sequencePlacement = canonicalPlacement(placementValue);
@@ -129,13 +124,6 @@ function rationalRate(value: unknown, name: string): RationalRate {
 		num: positiveSafeInteger(rate.num, `${name}.num`),
 		den: positiveSafeInteger(rate.den, `${name}.den`),
 	};
-}
-
-function isFoundationSchema(value: unknown): boolean {
-	return value === AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION
-		|| value === AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION
-		|| value === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
 }
 
 function nonNegativeSafeInteger(value: unknown, name: string): number {
