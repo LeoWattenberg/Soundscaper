@@ -3,28 +3,39 @@
 /**
  * The renderer-side native audio session: which device is open, which mode is
  * actually running, and what happens when the hardware disappears underneath
- * it. The device inventory it adapts lives in native-audio-inventory.ts, which
- * this module re-exports so callers have one native audio surface.
+ * it. The device inventory it adapts lives in native-audio-inventory.ts and the
+ * bounds every request and grant is admitted against live in
+ * native-audio-open-contract.ts, both of which this module re-exports so
+ * callers have one native audio surface.
  *
  * The session owns no device and no path. Main publishes an opaque handle per
  * device and a grant describing what the backend actually gave; the rules kept
  * here are the ones this milestone requires. Requested and granted mode are
- * separate fields, and a denial is answered by a recorded policy or by a user
- * choice rather than by a quiet substitution. Close settles exactly once even
+ * separate fields, and a substitution in either direction — a denied exclusive
+ * mode, or a device handed over exclusively when sharing was asked for — is
+ * answered by a user choice, or by a recorded policy that only ever speaks for
+ * the denial it was recorded about. Close settles exactly once even
  * when it races an open, and an abort settles its operation once with a typed
  * reason. Input loss while recording commits what was actually read, because a
  * device that vanished did not record silence. A fall back to Web Core is a
  * status change that carries the reason it happened.
  */
 
-import {
-	PLATFORM_TRANSFER_HARD_LIMITS, type AbortablePortOperation,
-	type AudioTransferFormat, type BoundedAudioChunk, type BoundedPortMessage,
+import type {
+	AbortablePortOperation, AudioTransferFormat, BoundedAudioChunk, BoundedPortMessage,
 } from '../platform/bounded-transfer.ts';
 import type { AudioDeviceOpenRequest, AudioInputStreamPort, AudioOutputStreamPort } from '../platform/audio-device-port.ts';
-import { NATIVE_AUDIO_CALIBRATION_LIMITS as LIMITS, NATIVE_AUDIO_MODES, type NativeAudioCalibrationIdentity, type NativeAudioMode } from './native-audio-calibration.ts';
-import { adaptNativeAudioInventory, isOpaqueNativeAudioHandle, type NativeAudioDirection, type NativeAudioInventory, type NativeAudioInventoryReport } from './native-audio-inventory.ts';
+import type { NativeAudioCalibrationIdentity, NativeAudioMode } from './native-audio-calibration.ts';
+import {
+	NativeAudioSessionError, admitGrant, asSessionError, codeOf, messageOf, parseOpenRequest,
+	type NativeAudioFailureCode, type NativeAudioOpenRequest, type NativeAudioStreamGrant,
+} from './native-audio-open-contract.ts';
+import { adaptNativeAudioInventory, type NativeAudioDirection, type NativeAudioInventory, type NativeAudioInventoryReport } from './native-audio-inventory.ts';
 
+export {
+	NATIVE_AUDIO_MAXIMUM_DEVICE_LATENCY_SECONDS, NativeAudioSessionError,
+	type NativeAudioFailureCode, type NativeAudioOpenRequest, type NativeAudioStreamGrant,
+} from './native-audio-open-contract.ts';
 export {
 	NATIVE_AUDIO_DEVICE_ID_PREFIX, NATIVE_AUDIO_MAXIMUM_DEVICES, NATIVE_AUDIO_MAXIMUM_LABEL_LENGTH, adaptNativeAudioInventory,
 	isOpaqueNativeAudioHandle, nativeAudioChannelMap, nativeAudioDeviceGroupId, nativeAudioDeviceId,
@@ -37,25 +48,13 @@ export const NATIVE_AUDIO_FALLBACK_REASONS = Object.freeze(['output-lost', 'help
 
 export type NativeAudioActivity = (typeof NATIVE_AUDIO_ACTIVITIES)[number];
 export type NativeAudioFallbackReason = (typeof NATIVE_AUDIO_FALLBACK_REASONS)[number];
-export type NativeAudioFailureCode = 'aborted' | 'already-open' | 'closed' | 'contract-violation' | 'device-lost' | 'host-failed' | 'invalid-request' | 'mode-denied' | 'not-open';
 export type NativeAudioSessionState = 'closed' | 'opening' | 'open' | 'closing';
 export type NativeAudioTransport = 'native' | 'web-core';
-export type NativeAudioNegotiation = 'granted' | 'downgraded' | 'awaiting-choice';
+export type NativeAudioNegotiation = 'granted' | 'downgraded' | 'escalated' | 'awaiting-choice';
 export type NativeAudioExclusivePolicy = 'ask' | 'accept-shared' | 'refuse';
 export type NativeAudioOutputLossPolicy = 'stop' | 'web-core';
 export type NativeAudioLossDisposition = 'ignored' | 'stream-closed' | 'prefix-committed' | 'monitoring-stopped' | 'playback-stopped';
 
-export class NativeAudioSessionError extends Error {
-	readonly code: NativeAudioFailureCode;
-	constructor(code: NativeAudioFailureCode, message: string) {
-		super(message);
-		this.name = 'NativeAudioSessionError';
-		this.code = code;
-	}
-}
-
-/** What the backend actually gave, as opposed to what was asked for. */
-export type NativeAudioStreamGrant = Readonly<{ backend: string; requestedMode: NativeAudioMode; grantedMode: NativeAudioMode; sampleRate: number; bufferFrames: number; channelCount: number; latencyFrames: number }>;
 export type NativeAudioCapturedPrefix = Readonly<{ deviceId: string; frames: number; channelCount: number; sampleRate: number; reason: 'device-lost' }>;
 export type NativeAudioEndpointStatus = Readonly<{ deviceId: string; channelCount: number; live: boolean; lost: boolean }>;
 export type NativeAudioFallback = Readonly<{ from: 'native'; to: 'web-core'; reason: NativeAudioFallbackReason; backend: string; requestedMode: NativeAudioMode | null; grantedMode: NativeAudioMode | null }>;
@@ -73,10 +72,6 @@ export type NativeAudioSessionOptions = Readonly<{
 	host: NativeAudioSessionHostPort; exclusivePolicy?: NativeAudioExclusivePolicy; outputLossPolicy?: NativeAudioOutputLossPolicy;
 	onStatus?: (status: NativeAudioSessionStatus) => void; onExclusivePolicy?: (policy: NativeAudioExclusivePolicy) => void;
 	commitCapturedPrefix?: (commit: NativeAudioCapturedPrefix) => void;
-}>;
-export type NativeAudioOpenRequest = Readonly<{
-	backend: string; mode: NativeAudioMode; sampleRate: number; bufferFrames: number; channelCount: number;
-	inputDeviceId?: string; outputDeviceId?: string; signal?: AbortSignal;
 }>;
 
 export interface NativeAudioOpenPortRequest extends AudioDeviceOpenRequest {
@@ -224,9 +219,12 @@ export function createNativeAudioSession(options: NativeAudioSessionOptions): Na
 	}
 
 	/**
-	 * The mode the session reports is the one every open stream actually got. A
-	 * backend that granted exclusive on one endpoint and shared on the other is
-	 * a shared session, because shared is what the user would hear.
+	 * The mode the session reports is the one the caller did not ask for as soon
+	 * as any endpoint missed the request: a backend that granted exclusive on one
+	 * endpoint and shared on the other is a shared session, because shared is
+	 * what the user would hear, and a shared request answered with exclusive
+	 * anywhere is an exclusive session, because that is what locks every other
+	 * application out of the device.
 	 */
 	function settleNegotiation(parsed: NativeAudioOpenRequest): NativeAudioOpenOutcome {
 		const admitted = [grants.input, grants.output].filter(Boolean) as readonly NativeAudioStreamGrant[];
@@ -238,14 +236,20 @@ export function createNativeAudioSession(options: NativeAudioSessionOptions): Na
 		live.sampleRate = first.sampleRate;
 		live.bufferFrames = first.bufferFrames;
 		live.latencyFrames = admitted.reduce((total, grant) => total + grant.latencyFrames, 0);
-		live.grantedMode = admitted.every((grant) => grant.grantedMode === 'exclusive') ? 'exclusive' : 'shared';
-		if (live.grantedMode === parsed.mode) return finishOpen('granted');
-		if (exclusivePolicy === 'refuse') {
+		const substituted = admitted.some((grant) => grant.grantedMode !== parsed.mode);
+		live.grantedMode = substituted ? (parsed.mode === 'shared' ? 'exclusive' : 'shared') : parsed.mode;
+		if (!substituted) return finishOpen('granted');
+		// A recorded policy answers a denial and nothing else. A backend that gave
+		// more than was asked for has taken the device away from every other
+		// application, and no policy the user recorded about sharing says they
+		// agreed to that, so a wider grant is always theirs to answer.
+		const policy = parsed.mode === 'exclusive' ? exclusivePolicy : 'ask';
+		if (policy === 'refuse') {
 			return abandon(failure('mode-denied', 'The requested exclusive mode was denied and the recorded policy refuses sharing.'));
 		}
-		if (exclusivePolicy === 'accept-shared') return finishOpen('downgraded');
-		// No recorded policy: the streams stay open but the session does not,
-		// so nothing records or plays in a mode the user has not agreed to.
+		if (policy === 'accept-shared') return finishOpen('downgraded');
+		// No answer yet: the streams stay open but the session does not, so
+		// nothing records or plays in a mode the user has not agreed to.
 		live.negotiation = 'awaiting-choice';
 		awaitingChoice = Object.freeze({ backend: live.backend, requestedMode: parsed.mode, grantedMode: live.grantedMode });
 		emit();
@@ -268,13 +272,20 @@ export function createNativeAudioSession(options: NativeAudioSessionOptions): Na
 			return abandon(failure('device-lost', 'The native audio device was lost before the mode choice was answered.'));
 		}
 		const accepted = decision?.accept === true;
-		if (decision?.remember === true) {
+		// Only a denial has a policy to record: remembering an answer given about
+		// a wider grant would apply it to the substitution going the other way.
+		const wider = awaitingChoice.requestedMode === 'shared';
+		if (decision?.remember === true && !wider) {
 			exclusivePolicy = accepted ? 'accept-shared' : 'refuse';
 			options.onExclusivePolicy?.(exclusivePolicy);
 		}
 		awaitingChoice = null;
-		if (!accepted) return abandon(failure('mode-denied', 'The requested exclusive mode was denied and sharing was declined.'));
-		return finishOpen('downgraded');
+		if (!accepted) {
+			return abandon(failure('mode-denied', wider
+				? 'The backend offered exclusive use where shared was requested and that use was declined.'
+				: 'The requested exclusive mode was denied and sharing was declined.'));
+		}
+		return finishOpen(wider ? 'escalated' : 'downgraded');
 	}
 
 	function beginActivity(next: NativeAudioActivity): NativeAudioActivityOutcome {
@@ -509,87 +520,6 @@ function settlementFailure(settlement: FailedSettlement): Failure {
 	return failure(codeOf(settlement.error, 'host-failed'), messageOf(settlement.error));
 }
 
-function refuse(message: string): never {
-	throw new NativeAudioSessionError('invalid-request', message);
-}
-
-function parseOpenRequest(request: NativeAudioOpenRequest): NativeAudioOpenRequest {
-	if (!request || typeof request !== 'object' || Array.isArray(request)) refuse('A native audio open request must be a plain record.');
-	const record = request as Readonly<Record<string, unknown>>;
-	const backend = typeof record.backend === 'string' ? record.backend : '';
-	if (!backend || backend.length > LIMITS.maximumBackendLength) refuse('A native audio open request must name a bounded backend.');
-	if (typeof record.mode !== 'string' || !(NATIVE_AUDIO_MODES as readonly string[]).includes(record.mode)) {
-		refuse('A native audio open request must name a shared or exclusive mode.');
-	}
-	const inputDeviceId = deviceIdOf(record.inputDeviceId);
-	const outputDeviceId = deviceIdOf(record.outputDeviceId);
-	if (!inputDeviceId && !outputDeviceId) refuse('A native audio open request must name at least one device.');
-	return Object.freeze({
-		backend, mode: record.mode as NativeAudioMode, inputDeviceId, outputDeviceId, signal: request.signal,
-		sampleRate: bounded(record.sampleRate, LIMITS.minimumSampleRate, LIMITS.maximumSampleRate, 'sample rate'),
-		bufferFrames: bounded(record.bufferFrames, 1, PLATFORM_TRANSFER_HARD_LIMITS.audioChunkFrames, 'buffer frames'),
-		channelCount: bounded(record.channelCount, 1, PLATFORM_TRANSFER_HARD_LIMITS.audioChunkChannels, 'channel count'),
-	});
-}
-
-/**
- * The port must restate what it was asked for and name what it gave. A port
- * that rewrites the request has substituted a mode on its own, which is exactly
- * the substitution this session exists to prevent.
- */
-function admitGrant(value: unknown, parsed: NativeAudioOpenRequest, direction: NativeAudioDirection): NativeAudioStreamGrant {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new NativeAudioSessionError('contract-violation', `A native audio ${direction} grant must be a plain record.`);
-	}
-	const grant = value as Readonly<Record<string, unknown>>;
-	if (grant.backend !== parsed.backend || grant.requestedMode !== parsed.mode) {
-		throw new NativeAudioSessionError('contract-violation', `A native audio ${direction} grant must restate the request it answers.`);
-	}
-	if (typeof grant.grantedMode !== 'string' || !(NATIVE_AUDIO_MODES as readonly string[]).includes(grant.grantedMode)) {
-		throw new NativeAudioSessionError('contract-violation', `A native audio ${direction} grant must name the mode it granted.`);
-	}
-	return Object.freeze({
-		backend: parsed.backend, requestedMode: parsed.mode, grantedMode: grant.grantedMode as NativeAudioMode,
-		sampleRate: bounded(grant.sampleRate, LIMITS.minimumSampleRate, LIMITS.maximumSampleRate, 'granted sample rate'),
-		bufferFrames: bounded(grant.bufferFrames, 1, PLATFORM_TRANSFER_HARD_LIMITS.audioChunkFrames, 'granted buffer frames'),
-		channelCount: bounded(grant.channelCount, 1, PLATFORM_TRANSFER_HARD_LIMITS.audioChunkChannels, 'granted channel count'),
-		latencyFrames: bounded(grant.latencyFrames, 0, PLATFORM_TRANSFER_HARD_LIMITS.audioChunkFrames, 'granted latency'),
-	});
-}
-
 function failure(code: NativeAudioFailureCode, message: string): Failure {
 	return Object.freeze({ status: 'failed' as const, code, message });
-}
-
-/**
- * The identifier is republished in the status, in the calibration tuple and in
- * the prefix a lost recording commits, so it is held to the same opacity the
- * inventory holds a handle to. Refusing it here is what keeps a path out of
- * renderer state when the caller did not get its id from the inventory.
- */
-function deviceIdOf(value: unknown): string {
-	if (value == null || value === '') return '';
-	if (typeof value !== 'string' || value.length > LIMITS.maximumDeviceIdLength) refuse('A native audio device identifier must be bounded text.');
-	if (!isOpaqueNativeAudioHandle(value)) refuse('A native audio device identifier must be opaque, never a path.');
-	return value;
-}
-
-function bounded(value: unknown, minimum: number, maximum: number, label: string): number {
-	if (!Number.isSafeInteger(value) || (value as number) < minimum || (value as number) > maximum) {
-		refuse(`A native audio ${label} is outside its admitted bounds.`);
-	}
-	return value as number;
-}
-
-function asSessionError(reason: unknown): NativeAudioSessionError {
-	if (reason instanceof NativeAudioSessionError) return reason;
-	return new NativeAudioSessionError('aborted', messageOf(reason) || 'The native audio operation was aborted.');
-}
-
-function codeOf(error: unknown, fallbackCode: NativeAudioFailureCode): NativeAudioFailureCode {
-	return error instanceof NativeAudioSessionError ? error.code : fallbackCode;
-}
-
-function messageOf(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
 }

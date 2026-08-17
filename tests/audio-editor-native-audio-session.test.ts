@@ -3,143 +3,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { PLATFORM_TRANSFER_HARD_LIMITS, type BoundedAudioChunk } from '../src/common/editor/platform/bounded-transfer.ts';
 import {
-	PLATFORM_TRANSFER_HARD_LIMITS, createBoundedAudioChunk, createBoundedPortMessage,
-	type AbortablePortOperation, type BoundedAudioChunk, type BoundedPortMessage,
-} from '../src/common/editor/platform/bounded-transfer.ts';
-import {
-	createNativeAudioSession,
-	type NativeAudioActivity, type NativeAudioCapturedPrefix, type NativeAudioDirection,
-	type NativeAudioExclusivePolicy, type NativeAudioInputStreamPort, type NativeAudioInventoryReport,
-	type NativeAudioLossDisposition, type NativeAudioOpenPortRequest, type NativeAudioOpenRequest,
-	type NativeAudioOutputLossPolicy, type NativeAudioOutputStreamPort, type NativeAudioSession,
-	type NativeAudioSessionStatus, type NativeAudioStreamGrant,
+	NATIVE_AUDIO_MAXIMUM_DEVICE_LATENCY_SECONDS, createNativeAudioSession,
+	type NativeAudioActivity, type NativeAudioDirection, type NativeAudioLossDisposition,
+	type NativeAudioOpenRequest,
 } from '../src/common/editor/controller/native-audio-session.ts';
 import { createNativeAudioCalibrationStore } from '../src/common/editor/controller/native-audio-calibration.ts';
+import {
+	INPUT_ID, OPEN, OUTPUT_ID, chunk, createHarness, failure, openHarness, tick,
+	type GrantOverrides,
+} from './helpers/native-audio-session-harness.ts';
 
-type FakePort = NativeAudioInputStreamPort & NativeAudioOutputStreamPort;
-type GrantOverrides = Readonly<Partial<Record<NativeAudioDirection, Partial<NativeAudioStreamGrant>>>>;
-
-const INPUT_ID = 'native:alsa:in:hw:0,0';
-const OUTPUT_ID = 'native:alsa:out:hw:0,0';
-const INVENTORY: NativeAudioInventoryReport = Object.freeze({
-	backend: 'alsa',
-	status: 'available',
-	detail: '',
-	devices: Object.freeze([
-		Object.freeze({ handle: 'hw:0,0', label: 'Built-in', direction: 'duplex' as const, channelCount: 4, isDefault: true }),
-		Object.freeze({ handle: 'usb:2', label: 'Interface', direction: 'input' as const, channelCount: 3 }),
-	]),
-});
-const OPEN: NativeAudioOpenRequest = Object.freeze({
-	backend: 'alsa', mode: 'shared', sampleRate: 48_000, bufferFrames: 512, channelCount: 2,
-	inputDeviceId: INPUT_ID, outputDeviceId: OUTPUT_ID,
-});
-
-interface HarnessOptions {
-	readonly inventory?: unknown;
-	readonly enumerateHook?: (request: AbortablePortOperation) => Promise<BoundedPortMessage<NativeAudioInventoryReport>>;
-	readonly openHook?: (direction: NativeAudioDirection, port: FakePort) => Promise<FakePort>;
-	readonly readHook?: (request: AbortablePortOperation) => Promise<BoundedAudioChunk | null>;
-	readonly writeHook?: () => Promise<void>;
-	readonly grants?: GrantOverrides;
-	readonly exclusivePolicy?: NativeAudioExclusivePolicy;
-	readonly outputLossPolicy?: NativeAudioOutputLossPolicy;
-	/** A device that has already vanished throws rather than closing politely. */
-	readonly closeThrows?: boolean;
-	/** A grant that answers truthfully while it is admitted and lies afterwards. */
-	readonly poisonGrantAfterAdmission?: boolean;
-}
-
-interface Harness {
-	readonly session: NativeAudioSession;
-	readonly opens: Record<NativeAudioDirection, number>;
-	readonly closes: Record<NativeAudioDirection, number>;
-	readonly statuses: NativeAudioSessionStatus[];
-	readonly commits: NativeAudioCapturedPrefix[];
-	readonly policies: NativeAudioExclusivePolicy[];
-}
-
-function chunk(frames = 128): BoundedAudioChunk {
-	return createBoundedAudioChunk([new Float32Array(frames), new Float32Array(frames)],
-		{ sequence: 0, maximumFrameCount: PLATFORM_TRANSFER_HARD_LIMITS.audioChunkFrames });
-}
-
-function tick(): Promise<void> {
-	return new Promise((resolve) => { setTimeout(resolve, 0); });
-}
-
-function grantOf(options: HarnessOptions, direction: NativeAudioDirection, request: NativeAudioOpenPortRequest): NativeAudioStreamGrant {
-	const base = {
-		backend: request.backend, requestedMode: request.mode, grantedMode: request.mode,
-		sampleRate: request.format.sampleRate, bufferFrames: request.bufferFrames,
-		channelCount: request.format.channelCount, latencyFrames: 64, ...options.grants?.[direction],
-	};
-	if (!options.poisonGrantAfterAdmission) return Object.freeze(base);
-	let reads = 0;
-	return Object.freeze({
-		...base,
-		get channelCount(): number {
-			reads += 1;
-			return reads > 1 ? 999_999 : base.channelCount;
-		},
-	});
-}
-
-function createHarness(options: HarnessOptions = {}): Harness {
-	const opens: Record<NativeAudioDirection, number> = { input: 0, output: 0 };
-	const closes: Record<NativeAudioDirection, number> = { input: 0, output: 0 };
-	const statuses: NativeAudioSessionStatus[] = [];
-	const commits: NativeAudioCapturedPrefix[] = [];
-	const policies: NativeAudioExclusivePolicy[] = [];
-	const openPort = (direction: NativeAudioDirection, request: NativeAudioOpenPortRequest): Promise<FakePort> => {
-		opens[direction] += 1;
-		const port: FakePort = Object.freeze({
-			device: Object.freeze({
-				id: request.deviceId, kind: direction === 'input' ? 'audio-input' as const : 'audio-output' as const,
-				label: 'Built-in', isDefault: true,
-			}),
-			format: request.format,
-			maximumChunkFrames: request.maximumChunkFrames,
-			grant: grantOf(options, direction, request),
-			read: options.readHook ?? ((): Promise<BoundedAudioChunk | null> => Promise.resolve(chunk())),
-			write: options.writeHook ?? ((): Promise<void> => Promise.resolve()),
-			close: (): Promise<void> => {
-				closes[direction] += 1;
-				if (options.closeThrows) throw new Error('the device is gone');
-				return Promise.resolve();
-			},
-		});
-		return options.openHook ? options.openHook(direction, port) : Promise.resolve(port);
-	};
-	const session = createNativeAudioSession({
-		host: {
-			enumerate: options.enumerateHook ?? ((): Promise<BoundedPortMessage<NativeAudioInventoryReport>> => Promise.resolve(
-				createBoundedPortMessage('native-audio-inventory', (options.inventory ?? INVENTORY) as NativeAudioInventoryReport,
-					{ sequence: 0, maximumEncodedBytes: PLATFORM_TRANSFER_HARD_LIMITS.messageBytes }),
-			)),
-			openInput: (request) => openPort('input', request),
-			openOutput: (request) => openPort('output', request),
-		},
-		exclusivePolicy: options.exclusivePolicy,
-		outputLossPolicy: options.outputLossPolicy,
-		onStatus: (status) => statuses.push(status),
-		onExclusivePolicy: (policy) => policies.push(policy),
-		commitCapturedPrefix: (commit) => commits.push(commit),
-	});
-	return { session, opens, closes, statuses, commits, policies };
-}
-
-function failure(outcome: Readonly<{ status: string }>): Readonly<{ code: string; message: string }> {
-	assert.equal(outcome.status, 'failed', `expected a failure, received ${outcome.status}`);
-	return outcome as unknown as Readonly<{ code: string; message: string }>;
-}
-
-async function openHarness(options: HarnessOptions = {}, request: NativeAudioOpenRequest = OPEN): Promise<Harness> {
-	const harness = createHarness(options);
-	assert.equal((await harness.session.open(request)).status, 'opened');
-	return harness;
-}
 
 test('enumerate answers with adapted rows and reports a backend that has none', async () => {
 	const described = await createHarness().session.enumerate();
@@ -570,4 +445,64 @@ test('a session refuses to run without a host port, and a throwing listener cann
 	assert.equal(failure(await session.open(OPEN)).code, 'host-failed');
 	await session.close();
 	assert.equal(session.status().state, 'closed');
+});
+
+const HOGGED: GrantOverrides = { input: { grantedMode: 'exclusive' }, output: { grantedMode: 'exclusive' } };
+
+test('a grant wider than the request is answered by the user, whatever policy is recorded', async () => {
+	for (const policy of ['ask', 'accept-shared', 'refuse'] as const) {
+		const harness = createHarness({ grants: HOGGED, exclusivePolicy: policy });
+		const outcome = await harness.session.open(OPEN);
+		assert.equal(outcome.status, 'choice-required', `a recorded ${policy} policy answers a denial, never an escalation`);
+		if (outcome.status !== 'choice-required') throw new Error('unreachable');
+		assert.deepEqual(outcome.choice, { backend: 'alsa', requestedMode: 'shared', grantedMode: 'exclusive' });
+		const parked = harness.session.status();
+		assert.deepEqual([parked.state, parked.negotiation, parked.requestedMode, parked.grantedMode],
+			['opening', 'awaiting-choice', 'shared', 'exclusive']);
+		assert.equal(harness.session.beginActivity('playing').status, 'failed', 'nothing plays through a device the user has not agreed to hog');
+		assert.equal(harness.statuses.some((status) => status.negotiation === 'downgraded'), false);
+	}
+});
+
+test('an accepted escalation is published in the direction it went, and a declined one says so truthfully', async () => {
+	const accepting = createHarness({ grants: HOGGED });
+	assert.equal((await accepting.session.open(OPEN)).status, 'choice-required');
+	assert.equal(accepting.session.resolveModeChoice({ accept: true, remember: true }).status, 'opened');
+	const open = accepting.session.status();
+	assert.deepEqual([open.state, open.negotiation, open.requestedMode, open.grantedMode],
+		['open', 'escalated', 'shared', 'exclusive']);
+	assert.deepEqual(accepting.policies, [], 'no recorded sharing policy speaks for a wider grant');
+	assert.equal(open.exclusivePolicy, 'ask');
+	const declining = createHarness({ grants: HOGGED });
+	assert.equal((await declining.session.open(OPEN)).status, 'choice-required');
+	const refused = failure(declining.session.resolveModeChoice({ accept: false, remember: true }));
+	assert.equal(refused.code, 'mode-denied');
+	assert.match(refused.message, /exclusive use where shared was requested/u);
+	assert.doesNotMatch(refused.message, /exclusive mode was denied/u);
+	assert.deepEqual(declining.closes, { input: 1, output: 1 }, 'a device the user declined to hog is released');
+	assert.deepEqual([declining.session.status().state, declining.session.status().grantedMode], ['closed', null]);
+	assert.deepEqual(declining.policies, []);
+});
+
+test('one hogged endpoint is enough to make a shared request an escalation', async () => {
+	const harness = createHarness({ grants: { input: { grantedMode: 'exclusive' } }, exclusivePolicy: 'accept-shared' });
+	const outcome = await harness.session.open(OPEN);
+	assert.equal(outcome.status, 'choice-required');
+	if (outcome.status !== 'choice-required') throw new Error('unreachable');
+	assert.equal(outcome.choice.grantedMode, 'exclusive', 'the endpoint that locks other applications out governs');
+	assert.equal(harness.statuses.some((status) => status.negotiation === 'granted'), false);
+});
+
+test('a reported device latency is bounded by real time, not by the transfer chunk size', async () => {
+	const fast = { ...OPEN, sampleRate: 768_000 };
+	const reported = await openHarness({ grants: { input: { latencyFrames: 153_600 }, output: { latencyFrames: 153_600 } } }, fast);
+	assert.equal(reported.session.status().latencyFrames, 307_200, 'a 200 ms device at 768 kHz is healthy hardware');
+	const slow = await openHarness({ grants: { input: { latencyFrames: 48_000 * NATIVE_AUDIO_MAXIMUM_DEVICE_LATENCY_SECONDS } } },
+		{ ...OPEN, outputDeviceId: '' });
+	assert.equal(slow.session.status().latencyFrames, 96_000, 'the bound follows the clock the device was granted');
+	for (const latencyFrames of [768_000 * NATIVE_AUDIO_MAXIMUM_DEVICE_LATENCY_SECONDS + 1, -1]) {
+		const harness = createHarness({ grants: { input: { latencyFrames } } });
+		assert.equal(failure(await harness.session.open(fast)).code, 'invalid-request');
+		assert.deepEqual(harness.closes, harness.opens, 'an unbounded latency claim leaves no device open');
+	}
 });
