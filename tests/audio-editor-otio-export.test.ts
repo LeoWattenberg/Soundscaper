@@ -214,3 +214,38 @@ test('the export refuses rather than guessing a rate or a sample rate', () => {
 		/sample rate/u,
 	);
 });
+
+test('the sequence drop-frame flag reaches the file, since OTIO has no slot for it', () => {
+	// Drop frame is a labelling rule, so OTIO's time model carries no trace of
+	// it. Omitting it entirely leaves every consumer labelling an NTSC drop-frame
+	// timeline as non-drop: correct frames, visibly wrong timecode.
+	const drop = createOtioExport({ project: project(), sequenceRate: NTSC, dropFrame: true });
+	const metadata = (drop.document.metadata as Record<string, Record<string, unknown>>)[
+		OTIO_METADATA_NAMESPACE
+	];
+	assert.equal(metadata.dropFrame, true);
+	const nonDrop = createOtioExport({ project: project(), sequenceRate: NTSC, dropFrame: false });
+	assert.equal(
+		((nonDrop.document.metadata as Record<string, Record<string, unknown>>)[OTIO_METADATA_NAMESPACE]).dropFrame,
+		false,
+		'the flag is stated either way rather than being absent when false',
+	);
+});
+
+test('a transition is reported here exactly as the EDL profile reports it', () => {
+	const dissolve = createOtioExport({
+		project: project({
+			clips: [{
+				kind: 'video', id: 'v-clip', sourceId: 'src-v', title: 'Dissolve',
+				timelineStartFrame: 0, durationFrames: SAMPLE_RATE, sourceStartFrame: 0,
+				speedRatio: 1, transition: 'dissolve',
+			}],
+			tracks: [{ type: 'video', id: 'v1', name: 'V1', clipIds: ['v-clip'], hidden: false }],
+		}),
+		sequenceRate: NTSC,
+	});
+	assert.ok(
+		dissolve.report.items.some((item) => item.code === 'otio.transition-omitted'),
+		'a project must not learn about its lost dissolves by watching the result',
+	);
+});

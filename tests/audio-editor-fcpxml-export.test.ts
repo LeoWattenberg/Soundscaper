@@ -117,8 +117,8 @@ test('the sequence start timecode is carried as an exact rational', () => {
 
 test('roles are one default per track kind, with no vocabulary invented', () => {
 	const { text } = createFcpxmlExport({ project: project(), sequenceRate: NTSC });
-	assert.ok(text.includes('role="video"'));
-	assert.ok(text.includes('role="dialogue"'));
+	assert.ok(text.includes('videoRole="video"'));
+	assert.ok(text.includes('audioRole="dialogue"'));
 });
 
 test('XML-significant characters in names are escaped', () => {
@@ -183,4 +183,73 @@ test('serialization is deterministic and the export refuses a guessed rate', () 
 		() => createFcpxmlExport({ project: project({ sampleRate: -1 }), sequenceRate: NTSC }),
 		/sample rate/u,
 	);
+});
+
+test('simultaneous tracks go to connected lanes, not on top of each other in the spine', () => {
+	// A spine is a single sequential lane. Two clips sharing offset="0s" in it
+	// is not a second track, it is a malformed first one — so the first video
+	// track is the spine and everything simultaneous with it is connected:
+	// further video above at 1, 2, ..., audio below at -1, -2, ...
+	const result = createFcpxmlExport({
+		project: project({
+			clips: [
+				{
+					kind: 'video', id: 'a', sourceId: 'src-v', title: 'A',
+					timelineStartFrame: 0, durationFrames: SAMPLE_RATE, sourceStartFrame: 0, speedRatio: 1,
+				},
+				{
+					kind: 'video', id: 'b', sourceId: 'src-v', title: 'B',
+					timelineStartFrame: 0, durationFrames: SAMPLE_RATE, sourceStartFrame: 0, speedRatio: 1,
+				},
+				{
+					kind: 'audio', id: 'c', sourceId: 'src-a', title: 'C',
+					timelineStartFrame: 0, durationFrames: SAMPLE_RATE, sourceStartFrame: 0, speedRatio: 1,
+				},
+			],
+			tracks: [
+				{ type: 'video', id: 'v1', name: 'V1', clipIds: ['a'], hidden: false },
+				{ type: 'video', id: 'v2', name: 'V2', clipIds: ['b'], hidden: false },
+				{ type: 'audio', id: 'a1', name: 'A1', clipIds: ['c'], mute: false },
+			],
+		}),
+		sequenceRate: NTSC,
+	});
+	const clips = [...result.text.matchAll(/<asset-clip[^>]*name="([^"]+)"(?:[^>]*lane="(-?\d+)")?/gu)]
+		.map((match) => ({ name: match[1], lane: match[2] ?? '0' }));
+	assert.deepEqual(
+		clips,
+		[{ name: 'A', lane: '0' }, { name: 'B', lane: '1' }, { name: 'C', lane: '-1' }],
+		'the primary video track is the spine; video stacks above and audio below',
+	);
+});
+
+test('the document satisfies the FCPXML DTD in the ways a lenient reader hides', () => {
+	// Checked against Apple's FCPXMLv1_10.dtd with xmllint. All three of these
+	// were accepted by the reference reader and rejected by the DTD, which is
+	// what Final Cut itself applies.
+	const { text } = createFcpxmlExport({ project: project(), sequenceRate: NTSC });
+	assert.doesNotMatch(text, /<asset[^>]*\bsrc=/u, 'asset carries no src; the location lives on media-rep');
+	assert.match(text, /<asset\b[^>]*>\n\s*<media-rep kind="original-media" src="[^"]+"\/>/u,
+		'asset is declared (media-rep+, metadata?), so it cannot be an empty element');
+	assert.doesNotMatch(text, /<asset-clip[^>]*\srole=/u, 'asset-clip declares audioRole and videoRole, not role');
+	assert.match(text, /<asset-clip[^>]*videoRole="video"/u);
+	assert.match(text, /<asset-clip[^>]*audioRole="dialogue"/u);
+});
+
+test('the spine is emitted in timeline order, whatever order the track stores', () => {
+	// A spine is serial. clipIds carries authoring order, so a track authored
+	// out of order would otherwise emit descending offsets in a container that
+	// means "one after another".
+	const reversed = createFcpxmlExport({
+		project: project({
+			tracks: [
+				{ type: 'video', id: 'v1', name: 'V1', clipIds: ['v2c', 'v1c'], hidden: false },
+				{ type: 'audio', id: 'a1', name: 'A1', clipIds: ['a1c'], mute: false },
+			],
+		}),
+		sequenceRate: NTSC,
+	});
+	const spineNames = [...reversed.text.matchAll(/<asset-clip(?![^>]*lane=)[^>]*name="([^"]+)"/gu)]
+		.map((match) => match[1]);
+	assert.deepEqual(spineNames, ['Wide', 'Tight'], 'ascending offsets, not array order');
 });

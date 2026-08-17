@@ -5,6 +5,7 @@ import { createProjectEdlExport } from '../edl-project-adapter.ts';
 import { type OtioExportResult, createOtioExport } from '../otio-export.ts';
 import { type FcpxmlExportResult, createFcpxmlExport } from '../fcpxml-export.ts';
 import { resolveSequenceTimingView } from '../sequence-timing-model.ts';
+import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 
 /**
  * Export the current project through an interchange profile.
@@ -30,7 +31,7 @@ export async function exportProjectEdl(runtime: InterchangeRuntime & {
 	readonly trackId?: string;
 	readonly reelNames?: Readonly<Record<string, string>>;
 }): Promise<EdlExportResult | null> {
-	const project = runtime?.getProject?.();
+	const project = resolveDeliveredProject(runtime);
 	if (!project) return null;
 	return deliver(runtime, createProjectEdlExport({
 		project,
@@ -43,13 +44,14 @@ export async function exportProjectEdl(runtime: InterchangeRuntime & {
 export async function exportProjectOtio(
 	runtime: InterchangeRuntime,
 ): Promise<OtioExportResult | null> {
-	const project = runtime?.getProject?.();
+	const project = resolveDeliveredProject(runtime);
 	if (!project) return null;
 	// The sequence is the rate authority; OTIO must never infer one from media.
 	const sequence = resolveSequenceTimingView(project, runtime.sequenceId);
 	return deliver(runtime, createOtioExport({
 		project,
 		sequenceRate: sequence.rate,
+		dropFrame: sequence.dropFrame,
 		startFrameCount: sequence.startFrameCount,
 	}));
 }
@@ -57,7 +59,7 @@ export async function exportProjectOtio(
 export async function exportProjectFcpxml(
 	runtime: InterchangeRuntime,
 ): Promise<FcpxmlExportResult | null> {
-	const project = runtime?.getProject?.();
+	const project = resolveDeliveredProject(runtime);
 	if (!project) return null;
 	const sequence = resolveSequenceTimingView(project, runtime.sequenceId);
 	return deliver(runtime, createFcpxmlExport({
@@ -66,6 +68,23 @@ export async function exportProjectFcpxml(
 		dropFrame: sequence.dropFrame,
 		startFrameCount: sequence.startFrameCount,
 	}));
+}
+
+/**
+ * The project as the render sees it.
+ *
+ * Every render path — playback, audio export, video export — puts the document
+ * through this projection so folder-inherited hidden and mute reach the tracks
+ * that inherit them. An interchange file describes that same render, so it has
+ * to be built from the same projection; skipping it means a track inside a
+ * hidden folder is absent from the picture and present in the edit list.
+ */
+function resolveDeliveredProject(
+	runtime: InterchangeRuntime,
+): Readonly<Record<string, unknown>> | null {
+	const project = runtime?.getProject?.();
+	if (!project) return null;
+	return projectTrackFolderMediaStateV12(project);
 }
 
 async function deliver<T extends {

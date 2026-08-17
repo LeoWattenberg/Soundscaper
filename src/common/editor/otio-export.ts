@@ -8,6 +8,7 @@ import {
 } from './delivery-report.ts';
 import { type SequenceRationalRate } from './sequence-timecode.ts';
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
+import { createInterchangeVisibility } from './interchange-track-visibility.ts';
 
 /**
  * OpenTimelineIO export.
@@ -41,6 +42,14 @@ export const OTIO_METADATA_NAMESPACE = 'media.kw.soundscaper';
 export interface OtioExportRequest {
 	readonly project: Readonly<Record<string, unknown>>;
 	readonly sequenceRate: SequenceRationalRate;
+	/**
+	 * The sequence's drop-frame flag. OTIO's time model has no drop-frame
+	 * concept — drop frame is a labelling rule, not a timing one — so this rides
+	 * the metadata namespace. Omitting it entirely would leave every consumer
+	 * labelling an NTSC drop-frame timeline as non-drop, which is a visibly
+	 * wrong timecode on a correct set of frames.
+	 */
+	readonly dropFrame?: boolean;
 	/** Sequence frames the timeline starts at, from the sequence's start timecode. */
 	readonly startFrameCount?: number;
 	readonly title?: string;
@@ -94,6 +103,7 @@ export function createOtioExport(request: OtioExportRequest): OtioExportResult {
 	);
 	const tracks = asRecords(project.tracks);
 
+	const visibility = createInterchangeVisibility(tracks as never);
 	const walks: TrackWalk[] = [];
 	for (const track of tracks) {
 		const type = String(track.type ?? '');
@@ -110,13 +120,13 @@ export function createOtioExport(request: OtioExportRequest): OtioExportResult {
 			}
 			continue;
 		}
-		if (track.hidden === true || track.mute === true) {
+		if (!visibility.contributes(track as never)) {
 			addDeliveryReportItem(draft, {
 				code: 'otio.track-silent-omitted',
 				disposition: 'omitted',
 				severity: 'info',
 				scope: { kind: 'track', id: String(track.id) },
-				data: { type, hidden: track.hidden === true, mute: track.mute === true },
+				data: { type, reason: visibility.reason(track as never) },
 				message: 'A track that does not contribute to the render is not in the timeline either.',
 			});
 			continue;
@@ -156,6 +166,7 @@ export function createOtioExport(request: OtioExportRequest): OtioExportResult {
 			[OTIO_METADATA_NAMESPACE]: {
 				// OTIO has no rational-rate slot; a reader that wants exactness looks here.
 				sequenceRate: { num: rate.num, den: rate.den },
+				dropFrame: Boolean(request?.dropFrame),
 				sampleRate,
 				schema: 1,
 			},
@@ -175,6 +186,7 @@ export function createOtioExport(request: OtioExportRequest): OtioExportResult {
 		data: {
 			tracks: children.length,
 			sequenceRate: `${rate.num}/${rate.den}`,
+			dropFrame: Boolean(request?.dropFrame),
 			sampleRate,
 		},
 	});
@@ -253,6 +265,19 @@ function buildClip(
 		walk,
 		context,
 	);
+
+	if (clip.transition != null && String(clip.transition)) {
+		// The EDL profile reports this; a project exported to OTIO instead must
+		// not learn about its lost dissolves only by watching the result.
+		addDeliveryReportItem(context.draft, {
+			code: 'otio.transition-omitted',
+			disposition: 'omitted',
+			severity: 'warning',
+			scope: { kind: 'clip', id: String(clip.id) },
+			data: { transition: String(clip.transition) },
+			message: 'The profile emits no transition vocabulary; the edit becomes a cut.',
+		});
+	}
 
 	const speed = clip.speedRatio == null ? 1 : Number(clip.speedRatio);
 	if (speed !== 1) {

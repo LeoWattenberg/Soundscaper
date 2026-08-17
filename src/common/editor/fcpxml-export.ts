@@ -8,6 +8,7 @@ import {
 } from './delivery-report.ts';
 import { type SequenceRationalRate } from './sequence-timecode.ts';
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
+import { createInterchangeVisibility } from './interchange-track-visibility.ts';
 
 /**
  * FCPXML export.
@@ -103,25 +104,48 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 
 	const spine: string[] = [];
 	let sequenceEndFrames = 0;
+	let spineTrackId: string | null = null;
+	let videoLane = 0;
+	let audioLane = 0;
+	const visibility = createInterchangeVisibility(asRecords(project.tracks) as never);
 	for (const track of asRecords(project.tracks)) {
 		const type = String(track.type ?? '');
 		if (type !== 'video' && type !== 'audio') continue;
-		if (track.hidden === true || track.mute === true) {
+		if (!visibility.contributes(track as never)) {
 			addDeliveryReportItem(draft, {
 				code: 'fcpxml.track-silent-omitted',
 				disposition: 'omitted',
 				severity: 'info',
 				scope: { kind: 'track', id: String(track.id) },
-				data: { type },
+				data: { type, reason: visibility.reason(track as never) },
 				message: 'A track that does not contribute to the render is not in the sequence either.',
 			});
 			continue;
 		}
-		for (const clipId of asStrings(track.clipIds)) {
-			const clip = clipById.get(clipId);
-			if (!clip) continue;
+		if (asStrings(track.clipIds).length === 0) continue;
+		// Lane 0 is the spine itself and holds the first contributing video
+		// track. Everything simultaneous with it is a connected clip: further
+		// video above at 1, 2, …, audio below at -1, -2, …. Without lanes they
+		// would all share offset="0s" in a sequential spine, which is not a
+		// second track but a malformed first one.
+		let lane = 0;
+		if (type === 'video' && spineTrackId === null) spineTrackId = String(track.id);
+		else if (type === 'video') lane = (videoLane += 1);
+		else lane = -(audioLane += 1);
+
+		// clipIds carries authoring order, not time order, and a spine is serial.
+		// The other two exporters sort; this one must too, or a track authored
+		// out of order emits descending offsets in a sequential container.
+		const ordered = asStrings(track.clipIds)
+			.map((clipId) => clipById.get(clipId))
+			.filter((clip): clip is Readonly<Record<string, unknown>> => Boolean(clip))
+			.sort((left, right) => (
+				Number(left.timelineStartFrame ?? 0) - Number(right.timelineStartFrame ?? 0)
+				|| String(left.id).localeCompare(String(right.id))
+			));
+		for (const clip of ordered) {
 			const emitted = buildClip(clip, {
-				rate, sampleRate, type, assetIdFor, draft,
+				rate, sampleRate, type, assetIdFor, draft, lane,
 			});
 			if (!emitted) continue;
 			spine.push(emitted.xml);
@@ -133,11 +157,17 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 	const resources = [
 		`\t\t<format id="r1" name="${escapeXml(formatName(rate))}"`
 			+ ` frameDuration="${frameDurationAttribute(rate)}"/>`,
-		...[...assets.values()].map((asset) => (
-			`\t\t<asset id="${asset.id}" name="${escapeXml(asset.name)}" src="${escapeXml(asset.src)}"`
+		// `asset` is declared `(media-rep+, metadata?)` and carries no `src` of its
+		// own — the location lives on `media-rep`. Emitting src on the asset
+		// produces a document Final Cut rejects outright, which a lenient reader
+		// will happily accept and thereby hide.
+		...[...assets.values()].flatMap((asset) => [
+			`\t\t<asset id="${asset.id}" name="${escapeXml(asset.name)}"`
 			+ ` hasVideo="${asset.hasVideo ? 1 : 0}" hasAudio="${asset.hasAudio ? 1 : 0}"`
-			+ `${asset.hasVideo ? ' format="r1"' : ''}/>`
-		)),
+			+ `${asset.hasVideo ? ' format="r1"' : ''}>`,
+			`\t\t\t<media-rep kind="original-media" src="${escapeXml(asset.src)}"/>`,
+			'\t\t</asset>',
+		]),
 	];
 
 	addDeliveryReportItem(draft, {
@@ -197,6 +227,7 @@ function buildClip(clip: Readonly<Record<string, unknown>>, context: {
 	type: string;
 	assetIdFor: (sourceId: string) => string | null;
 	draft: Draft;
+	lane: number;
 }): { xml: string; endFrames: number } | null {
 	const timelineStart = nonNegativeInteger(clip.timelineStartFrame ?? 0, 'clip.timelineStartFrame');
 	const duration = positiveInteger(clip.durationFrames, 'clip.durationFrames');
@@ -242,13 +273,15 @@ function buildClip(clip: Readonly<Record<string, unknown>>, context: {
 		context.rate,
 		context.sampleRate,
 	);
-	// One default role per track kind. The profile invents no role vocabulary.
-	const role = context.type === 'video' ? 'video' : 'dialogue';
+	// `asset-clip` declares audioRole and videoRole; a bare `role` attribute is
+	// not in the DTD at all. One default per track kind; no vocabulary invented.
+	const role = context.type === 'video' ? 'videoRole="video"' : 'audioRole="dialogue"';
 	const xml = `\t\t\t\t\t\t<asset-clip ref="${ref}" name="${escapeXml(String(clip.title ?? clip.id ?? ''))}"`
+		+ (context.lane === 0 ? '' : ` lane="${context.lane}"`)
 		+ ` offset="${frameTime(offsetFrames, context.rate)}"`
 		+ ` start="${frameTime(startFrames, context.rate)}"`
 		+ ` duration="${frameTime(endFrames - offsetFrames, context.rate)}"`
-		+ ` role="${role}"/>`;
+		+ ` ${role}/>`;
 	return { xml, endFrames };
 }
 
