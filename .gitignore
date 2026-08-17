@@ -8,8 +8,13 @@ playwright-report/
 coverage/
 .nyc_output/
 .desktop-build/
+# Packaged Electron output: unpacked Chromium and Electron binaries, one entry
+# per build target. A target added without its line here is gigabytes of
+# binaries one `git add -A` away from the history, which is how
+# desktop-lease-matrix came to be missing.
 release/desktop/
 release/desktop-handoff/
+release/desktop-lease-matrix/
 release/desktop-nightly-tests/
 .env
 .env.*
