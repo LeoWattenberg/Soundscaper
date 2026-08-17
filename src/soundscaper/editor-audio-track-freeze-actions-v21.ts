@@ -446,9 +446,14 @@ async function cleanupRenderResources(
 	throw new AggregateError(failures, 'Freeze render cleanup failed.');
 }
 
-function exactCurrentProject(controller: SoundscaperAudioFreezeControllerV21): SoundscaperProjectV21 {
-	if (!validateSoundscaperProjectV21(controller.project)) throw new TypeError('An exact Soundscaper V21 project must be open.');
-	return controller.project;
+function exactCurrentProject(
+	controller: SoundscaperAudioFreezeControllerV21,
+	validateProject: (project: unknown) => unknown = validateSoundscaperProjectV21,
+): SoundscaperProjectV21 {
+	// Injected for the same reason as the automation target resolver: later
+	// production revisions inherit this file, and only the validator differs.
+	if (!validateProject(controller.project)) throw new TypeError('An exact Soundscaper production project must be open.');
+	return controller.project as SoundscaperProjectV21;
 }
 
 function assertCurrent(controller: SoundscaperAudioFreezeControllerV21, ticket: ProjectTicket): void {

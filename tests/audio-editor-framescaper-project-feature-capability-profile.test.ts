@@ -401,13 +401,17 @@ test('keeps private capability ownership within the closed V18 domain set', asyn
 		FINAL_PRODUCT_MODULE,
 		'src/framescaper/editor-project-runtime-profile-v19.ts',
 		'src/soundscaper/editor-project-feature-capability-profile-v21.ts',
+		'src/soundscaper/editor-project-feature-capability-profile-v23.ts',
 		'src/soundscaper/editor-project-feature-compatibility-v21.ts',
+		'src/soundscaper/editor-project-feature-compatibility-v23.ts',
 		'src/soundscaper/editor-project-runtime-profile-v21.ts',
+		'src/soundscaper/editor-project-runtime-profile-v23.ts',
 		TEST_MODULE,
 		FINAL_TEST_MODULE,
 		'tests/audio-editor-framescaper-project-v20-profile.test.ts',
 		'tests/audio-editor-mastering-sequence-capability.test.ts',
 		'tests/audio-editor-soundscaper-v21-feature-registration.test.ts',
+		'tests/audio-editor-soundscaper-v23-runtime-selection.test.ts',
 		'tests/desktop-project-library-packaging.test.js',
 	]);
 	assert.deepEqual(privateIdReferences, [

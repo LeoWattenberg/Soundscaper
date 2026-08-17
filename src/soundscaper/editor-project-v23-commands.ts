@@ -7,6 +7,7 @@ import {
 	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
 	SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION,
 } from '../common/editor/project-schema-version.ts';
+import { projectForCommandConsumers } from '../common/editor/project-current-runtime.ts';
 import { reconcileProjectOwnedFeatureRequirements } from '../common/editor/project-owned-feature-requirements.ts';
 import {
 	applySoundscaperProjectCommandV21,
@@ -60,6 +61,16 @@ export function applySoundscaperProjectCommandV23(
 }
 
 /** True for a mastering-sequence command, including one nested inside a batch. */
+/** The V10 projection command consumers read, gated on exact V23 authority. */
+export function soundscaperProjectForCommandConsumersV23(
+	projectValue: SoundscaperProjectV23 | unknown,
+): Record<string, unknown> {
+	validateSoundscaperProjectV23(projectValue);
+	return projectForCommandConsumers(
+		projectValue as SoundscaperProjectV23 & Record<string, unknown>,
+	) as Record<string, unknown>;
+}
+
 function commandTouchesMasteringSequences(command: AudioEditorCommand): boolean {
 	if (command.type.startsWith('mastering-sequence/')) return true;
 	if (command.type !== 'batch') return false;

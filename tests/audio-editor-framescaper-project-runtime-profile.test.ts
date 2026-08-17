@@ -469,9 +469,12 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'src/soundscaper/desktop-project-library-v10-renderer.ts',
 		'src/soundscaper/desktop-project-library-v10-store-adapter.ts',
 		'src/soundscaper/editor-project-runtime-profile-v21.ts',
+		'src/soundscaper/editor-project-runtime-profile-v23.ts',
 		'src/soundscaper/editor-project-v21-profile.ts',
+		'src/soundscaper/editor-project-v23-profile.ts',
 		'tests/audio-editor-framescaper-project-feature-capability-profile.test.ts',
 		TEST_MODULE,
+		'tests/audio-editor-soundscaper-v23-runtime-selection.test.ts',
 		'tests/helpers/framescaper-v18-archive-fixture.ts',
 	]);
 	assert.deepEqual([...new Set(importSpecifiers(await readSource(GENERIC_MODULE)))].sort(), [

@@ -143,9 +143,15 @@ function restoreAutomationReadbackV21(
 export function resolveSoundscaperAutomationTargetV21(
 	projectValue: unknown,
 	laneId: string,
+	/**
+	 * Injected because later production revisions inherit this file unchanged: a
+	 * hardcoded V21 validator would throw on every document of the next
+	 * revision, in a file that has nothing else revision-specific in it.
+	 */
+	validateProject: (project: unknown) => unknown = validateSoundscaperProjectV21,
 ): SoundscaperAutomationTargetV21 | null {
 	if (!projectValue) return null;
-	validateSoundscaperProjectV21(projectValue);
+	validateProject(projectValue);
 	const project = projectValue as SoundscaperProjectV21;
 	const laneValue = project.automationLanes.find(({ id }) => id === laneId);
 	if (!laneValue) return null;

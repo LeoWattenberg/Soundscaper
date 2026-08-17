@@ -4,6 +4,8 @@ import type {
 	ProjectFeatureRequirementsManifest,
 } from '../common/editor/project-feature-requirements.ts';
 import {
+	rebindSoundscaperProjectFreezeSourceIdentitiesV21,
+	soundscaperAudioTrackFreezeRequirementIdV21,
 	reconcileSoundscaperProjectFeatureRequirementsV21,
 	validateSoundscaperProjectFeatureRequirementsV21,
 } from './editor-project-feature-requirements-v21.ts';
@@ -36,3 +38,11 @@ export function reconcileSoundscaperProjectFeatureRequirementsV23(
 export function validateSoundscaperProjectFeatureRequirementsV23(project: DataRecord): true {
 	return validateSoundscaperProjectFeatureRequirementsV21(project, LABEL);
 }
+
+/** Freeze requirement identity and rebinding are unchanged by the revision. */
+export const soundscaperAudioTrackFreezeRequirementIdV23 =
+	soundscaperAudioTrackFreezeRequirementIdV21;
+
+
+export const rebindSoundscaperProjectFreezeSourceIdentitiesV23 =
+	rebindSoundscaperProjectFreezeSourceIdentitiesV21;
