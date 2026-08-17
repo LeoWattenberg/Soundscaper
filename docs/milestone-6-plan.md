@@ -283,14 +283,21 @@ the local tree; 6A, 6B, and 6C have not started.** What landed:
   source carried. Both are now itemized. Reports save through the reserved
   `'report'` purpose as deterministic JSON, so a delivery's evidence
   outlives its session and two runs compare byte for byte.
-- **WP-6.0.1 queue semantics — implemented (domain).**
+- **WP-6.0.1 queue semantics — implemented (domain and runner).**
   `delivery-queue.ts` is the bounded in-session queue, consuming the 5B-3
   recovery-class and task-kind vocabulary rather than forking it. Enqueue
   refuses a job that would claim a recovery it cannot prove.
-- **WP-6.0.2 preset core — implemented (domain).**
+  `controller/delivery-queue-runner.ts` drives it: one job at a time, a
+  cancelled job stays cancelled even if its executor later resolves, and an
+  abort settles as cancelled rather than failed.
+- **WP-6.0.2 preset core — implemented (domain, store, service).**
   `delivery-preset.ts` validates preset records with closed field lists,
   resolves them to ordinary plan options (parity-tested against the dialog
   path), and declares legal availability from the licensing matrix.
+  `delivery-preset-store.ts` and `controller/delivery-preset-service.ts`
+  mirror `effect-presets.js` and its service exactly — same state shape,
+  same verbs, same id-collision rule — because the export dialog reuses the
+  effect-preset controls, which is the owner's recorded decision.
 
 Still owed before 6A/6B/6C may open, since the packets' acceptance is not
 yet fully met:
@@ -300,11 +307,13 @@ yet fully met:
   `src/common/i18n/report-copy.js` and share the disposition vocabulary.
 - No conformance, loudness, or restoration-provenance fields exist yet;
   those arrive with 6A-2 and 6A-4.
-- The queue has no runner: nothing drives `delivery-queue.ts`, no
-  task-coordinator wiring exists, and the Electron binding through
+- Nothing constructs the queue runner yet: no export path enqueues through
+  it, there is no task-coordinator wiring, and the Electron binding through
   `render-job-port` remains gated on that port having a host.
-- Presets do not yet subsume the flat export dialog, and no preset
-  import/export surface exists.
+- The preset service is not composed into the app and
+  `ui/inspector/ExportDialog.jsx` does not yet show the effect-preset-style
+  picker, save/delete, or import/export controls. That JSX wiring plus its
+  i18n strings is the last piece of 6.0.
 
 ## Phase structure
 
