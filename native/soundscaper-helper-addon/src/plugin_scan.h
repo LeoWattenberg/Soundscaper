@@ -31,7 +31,11 @@ typedef enum {
 	SOUNDSCAPER_PLUGIN_INSPECT_NOT_A_MODULE = 2,
 	SOUNDSCAPER_PLUGIN_INSPECT_NO_ENTRY = 3,
 	SOUNDSCAPER_PLUGIN_INSPECT_ABI_MISMATCH = 4,
-	SOUNDSCAPER_PLUGIN_INSPECT_MALFORMED = 5
+	SOUNDSCAPER_PLUGIN_INSPECT_MALFORMED = 5,
+	/* This target has no scanning implementation at all, which is a different
+	 * answer from a folder that could not be read and sends a user somewhere
+	 * else entirely. */
+	SOUNDSCAPER_PLUGIN_INSPECT_UNIMPLEMENTED = 6
 } soundscaper_plugin_inspect_status;
 
 typedef struct {
@@ -55,10 +59,17 @@ typedef struct {
 	char paths[SOUNDSCAPER_PLUGIN_MAX_CANDIDATES][SOUNDSCAPER_PLUGIN_MAX_PATH];
 } soundscaper_plugin_candidates;
 
+#define SOUNDSCAPER_PLUGIN_LIST_UNREADABLE (-1)
+#define SOUNDSCAPER_PLUGIN_LIST_UNIMPLEMENTED (-2)
+
 /*
  * Lists regular files directly under `root` whose name ends with `suffix`.
  * Symbolic links are skipped rather than followed: a root the user granted must
  * not become a way to reach a binary outside it.
+ *
+ * Answers 0 when the root was walked, UNREADABLE when it could not be read, and
+ * UNIMPLEMENTED on a target that implements no scanning: the caller has to be
+ * able to tell a permission problem from a capability this build does not have.
  */
 int soundscaper_plugin_list_candidates(
 	const char *root,

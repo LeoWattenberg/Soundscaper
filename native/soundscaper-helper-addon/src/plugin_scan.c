@@ -6,10 +6,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* The gate is nameable from the build so a target this host is not can still
+ * be compiled and exercised here rather than only where it ships. */
+#ifndef SOUNDSCAPER_PLUGIN_HAS_POSIX
 #if defined(_WIN32)
 #define SOUNDSCAPER_PLUGIN_HAS_POSIX 0
 #else
 #define SOUNDSCAPER_PLUGIN_HAS_POSIX 1
+#endif
+#endif
+
+#if SOUNDSCAPER_PLUGIN_HAS_POSIX
 #include <dirent.h>
 #include <dlfcn.h>
 #include <sys/stat.h>
@@ -40,12 +47,12 @@ int soundscaper_plugin_list_candidates(
 	const char *suffix,
 	soundscaper_plugin_candidates *candidates)
 {
-	if (candidates == NULL) return -1;
+	if (candidates == NULL) return SOUNDSCAPER_PLUGIN_LIST_UNREADABLE;
 	candidates->count = 0u;
-	if (root == NULL || suffix == NULL || suffix[0] == '\0') return -1;
+	if (root == NULL || suffix == NULL || suffix[0] == '\0') return SOUNDSCAPER_PLUGIN_LIST_UNREADABLE;
 #if SOUNDSCAPER_PLUGIN_HAS_POSIX
 	DIR *directory = opendir(root);
-	if (directory == NULL) return -1;
+	if (directory == NULL) return SOUNDSCAPER_PLUGIN_LIST_UNREADABLE;
 	const size_t suffix_length = strlen(suffix);
 	const size_t root_length = strlen(root);
 	struct dirent *entry;
@@ -68,7 +75,7 @@ int soundscaper_plugin_list_candidates(
 	return 0;
 #else
 	(void)root;
-	return -1;
+	return SOUNDSCAPER_PLUGIN_LIST_UNIMPLEMENTED;
 #endif
 }
 
@@ -137,6 +144,7 @@ void soundscaper_plugin_inspect(const char *path, soundscaper_plugin_inspection 
 	 * plug-in binary is allowed to stay resident. */
 	dlclose(library);
 #else
-	reject(inspection, SOUNDSCAPER_PLUGIN_INSPECT_UNREADABLE, "This target does not implement plug-in inspection.");
+	(void)path;
+	reject(inspection, SOUNDSCAPER_PLUGIN_INSPECT_UNIMPLEMENTED, "This target does not implement plug-in inspection.");
 #endif
 }

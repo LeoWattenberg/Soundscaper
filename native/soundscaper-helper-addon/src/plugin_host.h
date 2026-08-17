@@ -65,4 +65,11 @@ int32_t soundscaper_plugin_host_latency_frames(soundscaper_plugin_host *host);
 
 uint32_t soundscaper_plugin_host_channel_count(const soundscaper_plugin_host *host);
 
+/*
+ * The width `process` reads its input at, which a plug-in may declare wider or
+ * narrower than its output. Sizing the input array by the output count is how
+ * an asymmetric plug-in reads channels the caller never supplied.
+ */
+uint32_t soundscaper_plugin_host_input_channel_count(const soundscaper_plugin_host *host);
+
 #endif /* SOUNDSCAPER_PLUGIN_HOST_H */

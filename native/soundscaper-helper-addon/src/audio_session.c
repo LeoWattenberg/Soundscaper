@@ -2,6 +2,7 @@
 
 #include "audio_session.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -134,7 +135,7 @@ soundscaper_audio_open_status soundscaper_audio_session_open(
 	*out_session = NULL;
 	memset(granted, 0, sizeof(*granted));
 	if (device_handle == NULL || device_handle[0] == '\0'
-		|| channel_count == 0u || channel_count > SOUNDSCAPER_AUDIO_MAX_DEVICES
+		|| channel_count == 0u || channel_count > SOUNDSCAPER_AUDIO_MAX_CHANNELS
 		|| period_frames == 0u || period_frames > SOUNDSCAPER_AUDIO_MAX_PERIOD_FRAMES
 		|| sample_rate < 8000u || sample_rate > 768000u
 		|| direction == SOUNDSCAPER_DEVICE_DUPLEX) {
@@ -203,6 +204,21 @@ soundscaper_audio_open_status soundscaper_audio_session_open(
 		dlclose(session->alsa.library);
 		free(session);
 		set_text(granted->detail, "The device refused float32 interleaved at the requested topology.");
+		return SOUNDSCAPER_AUDIO_OPEN_FORMAT_REFUSED;
+	}
+	/* `_near` is a negotiation, and a negotiation the caller did not authorise
+	 * is a substitution: a session opened at 44.1 kHz for a project running at
+	 * 48 records at a rate nobody asked for and nothing downstream can undo.
+	 * The refusal names both numbers so the caller can ask for the other one. */
+	if (rate != sample_rate || (uint32_t)period != period_frames) {
+		char detail[SOUNDSCAPER_AUDIO_MAX_TEXT];
+		snprintf(detail, sizeof(detail),
+			"The device would grant %u Hz at %lu frames, not the requested %u Hz at %u frames.",
+			rate, period, sample_rate, period_frames);
+		session->alsa.close(session->pcm);
+		dlclose(session->alsa.library);
+		free(session);
+		set_text(granted->detail, detail);
 		return SOUNDSCAPER_AUDIO_OPEN_FORMAT_REFUSED;
 	}
 	session->interleaved = calloc((size_t)period * channel_count, sizeof(float));
@@ -330,6 +346,11 @@ soundscaper_audio_io_status soundscaper_audio_session_read(
 #else
 	return SOUNDSCAPER_AUDIO_IO_CLOSED;
 #endif
+}
+
+uint32_t soundscaper_audio_session_channel_count(const soundscaper_audio_session *session)
+{
+	return session == NULL ? 0u : session->channel_count;
 }
 
 uint64_t soundscaper_audio_session_frames(const soundscaper_audio_session *session)

@@ -89,6 +89,13 @@ soundscaper_audio_io_status soundscaper_audio_stream_read(
 	uint32_t frame_count,
 	uint64_t *out_lost_frames);
 
+/*
+ * The width every transfer on this stream must supply, whatever the caller
+ * happens to hand over: the backends iterate this count, so a shorter array is
+ * a read past its end rather than a smaller block.
+ */
+uint32_t soundscaper_audio_stream_channel_count(const soundscaper_audio_stream *device);
+
 soundscaper_audio_backend soundscaper_audio_stream_backend(const soundscaper_audio_stream *device);
 
 uint64_t soundscaper_audio_stream_frames(const soundscaper_audio_stream *device);

@@ -87,6 +87,8 @@ soundscaper_audio_io_status soundscaper_audio_session_read(
 	uint32_t frame_count,
 	uint64_t *out_lost_frames);
 
+uint32_t soundscaper_audio_session_channel_count(const soundscaper_audio_session *session);
+
 uint64_t soundscaper_audio_session_frames(const soundscaper_audio_session *session);
 
 uint64_t soundscaper_audio_session_lost_frames(const soundscaper_audio_session *session);

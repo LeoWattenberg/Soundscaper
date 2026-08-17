@@ -299,27 +299,27 @@ static napi_value render_synthetic_block(napi_env env, napi_callback_info info)
 		frame_count = (uint32_t)number;
 	}
 
-	uint32_t channel_count = 0;
-	{
-		bool is_array = false;
-		if (napi_is_array(env, argv[4], &is_array) != napi_ok || !is_array
-			|| napi_get_array_length(env, argv[4], &channel_count) != napi_ok
-			|| channel_count == 0u || channel_count > SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS) {
-			return throw_type_error(env, "A synthetic block requires its planar output channel array.");
-		}
+	/* The engine renders its configured width whatever arrives here, so that is
+	 * the count the arrays are read at: a shorter array is a wild pointer, not a
+	 * narrower block. */
+	const uint32_t channel_count = soundscaper_synthetic_channel_count(engine);
+	if (channel_count == 0u || channel_count > SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS) {
+		return throw_range_error(env, "The synthetic engine reports an unusable channel count.");
 	}
 
 	float *outputs[SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS];
 	float *inputs[SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS];
 	if (!read_channel_pointers(env, argv[4], channel_count, frame_count, outputs)) {
-		return throw_type_error(env, "Every synthetic block output channel must be a large enough Float32Array.");
+		return throw_type_error(env,
+			"A synthetic block requires one large enough Float32Array per engine channel.");
 	}
 	int has_input = 0;
 	napi_valuetype input_type;
 	SOUNDSCAPER_CHECK(env, napi_typeof(env, argv[3], &input_type));
 	if (input_type != napi_null && input_type != napi_undefined) {
 		if (!read_channel_pointers(env, argv[3], channel_count, frame_count, inputs)) {
-			return throw_type_error(env, "Every synthetic block input channel must be a large enough Float32Array.");
+			return throw_type_error(env,
+				"A synthetic block input requires one large enough Float32Array per engine channel.");
 		}
 		has_input = 1;
 	}
@@ -384,10 +384,16 @@ static napi_value expected_synthetic_sample(napi_env env, napi_callback_info inf
 static int read_utf8(napi_env env, napi_value value, char *buffer, size_t capacity)
 {
 	size_t written = 0;
+	size_t length = 0;
 	napi_valuetype type;
 	if (napi_typeof(env, value, &type) != napi_ok || type != napi_string) return 0;
+	/* The length is asked for first because the copy truncates silently and
+	 * reports the truncated length as a success: a cut-down path names a
+	 * different file, and a cut-down handle a different device. */
+	if (napi_get_value_string_utf8(env, value, NULL, 0, &length) != napi_ok) return 0;
+	if (length == 0 || length + 1u > capacity) return 0;
 	if (napi_get_value_string_utf8(env, value, buffer, capacity, &written) != napi_ok) return 0;
-	return written > 0 && written < capacity;
+	return written == length;
 }
 
 static void finalize_audio_session(napi_env env, void *data, void *hint)
@@ -574,16 +580,16 @@ static napi_value audio_device_transfer(napi_env env, napi_callback_info info, i
 		return throw_range_error(env, "An audio transfer frame count is outside its admitted bounds.");
 	}
 	const uint32_t frame_count = (uint32_t)number;
-	uint32_t channel_count = 0;
-	bool is_array = false;
-	if (napi_is_array(env, argv[2], &is_array) != napi_ok || !is_array
-		|| napi_get_array_length(env, argv[2], &channel_count) != napi_ok
-		|| channel_count == 0u || channel_count > SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS) {
-		return throw_type_error(env, "An audio transfer requires its planar channel array.");
+	/* The backends iterate the width the session was opened at, so anything
+	 * narrower would be served by reading pointers the caller never wrote. */
+	const uint32_t channel_count = soundscaper_audio_stream_channel_count(session);
+	if (channel_count == 0u || channel_count > SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS) {
+		return throw_range_error(env, "The session reports an unusable channel count.");
 	}
 	float *pointers[SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS];
 	if (!read_channel_pointers(env, argv[2], channel_count, frame_count, pointers)) {
-		return throw_type_error(env, "Every audio transfer channel must be a large enough Float32Array.");
+		return throw_type_error(env,
+			"An audio transfer requires one large enough Float32Array per session channel.");
 	}
 	uint64_t lost = 0u;
 	const soundscaper_audio_io_status status = writing
@@ -645,6 +651,12 @@ static napi_value list_plugin_candidates(napi_env env, napi_callback_info info)
 	}
 	const int listed = soundscaper_plugin_list_candidates(root, suffix, candidates);
 	napi_value result = NULL;
+	if (listed == SOUNDSCAPER_PLUGIN_LIST_UNIMPLEMENTED) {
+		free(candidates);
+		napi_throw_error(env, "SOUNDSCAPER_PLUGIN_SCAN_UNIMPLEMENTED",
+			"This target does not implement plug-in scanning.");
+		return NULL;
+	}
 	if (listed != 0) {
 		free(candidates);
 		napi_throw_error(env, "SOUNDSCAPER_PLUGIN_ROOT_UNREADABLE", "The plug-in root could not be read.");
@@ -676,6 +688,7 @@ static const char *inspect_status_name(soundscaper_plugin_inspect_status status)
 	case SOUNDSCAPER_PLUGIN_INSPECT_NOT_A_MODULE: return "not-a-module";
 	case SOUNDSCAPER_PLUGIN_INSPECT_NO_ENTRY: return "no-entry";
 	case SOUNDSCAPER_PLUGIN_INSPECT_ABI_MISMATCH: return "abi-mismatch";
+	case SOUNDSCAPER_PLUGIN_INSPECT_UNIMPLEMENTED: return "unimplemented";
 	default: return "malformed";
 	}
 }
@@ -799,17 +812,26 @@ static napi_value process_plugin_block(napi_env env, napi_callback_info info)
 	if (channel_count == 0u || channel_count > SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS) {
 		return throw_range_error(env, "The plug-in reports an unusable channel count.");
 	}
+	/* A plug-in may read more channels than it writes, and `process` reads the
+	 * count it declared: sizing the input by the output count hands it pointers
+	 * nobody supplied. */
+	const uint32_t input_channel_count = soundscaper_plugin_host_input_channel_count(host);
+	if (input_channel_count > SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS) {
+		return throw_range_error(env, "The plug-in reports an unusable input channel count.");
+	}
 	float *outputs[SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS];
 	float *inputs[SOUNDSCAPER_SYNTHETIC_MAX_CHANNELS];
 	if (!read_channel_pointers(env, argv[3], channel_count, frame_count, outputs)) {
-		return throw_type_error(env, "Every plug-in output channel must be a large enough Float32Array.");
+		return throw_type_error(env,
+			"A plug-in block requires one large enough Float32Array per output channel.");
 	}
 	int has_input = 0;
 	napi_valuetype input_type;
 	SOUNDSCAPER_CHECK(env, napi_typeof(env, argv[2], &input_type));
 	if (input_type != napi_null && input_type != napi_undefined) {
-		if (!read_channel_pointers(env, argv[2], channel_count, frame_count, inputs)) {
-			return throw_type_error(env, "Every plug-in input channel must be a large enough Float32Array.");
+		if (!read_channel_pointers(env, argv[2], input_channel_count, frame_count, inputs)) {
+			return throw_type_error(env,
+				"A plug-in block requires one large enough Float32Array per declared input channel.");
 		}
 		has_input = 1;
 	}

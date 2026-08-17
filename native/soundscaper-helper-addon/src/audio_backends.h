@@ -22,6 +22,10 @@
 
 #define SOUNDSCAPER_AUDIO_MAX_DEVICES 128
 #define SOUNDSCAPER_AUDIO_MAX_TEXT 256
+/* The widest session any backend may open, because it is the width the planar
+ * transfer path can carry: a session admitted above it could only be served by
+ * reading past the arrays the caller supplies. */
+#define SOUNDSCAPER_AUDIO_MAX_CHANNELS 32
 
 typedef enum {
 	SOUNDSCAPER_BACKEND_ALSA = 0,

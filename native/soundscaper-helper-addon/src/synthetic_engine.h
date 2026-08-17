@@ -75,6 +75,13 @@ soundscaper_synthetic_status soundscaper_synthetic_render(
 
 uint64_t soundscaper_synthetic_rendered_frames(const soundscaper_synthetic_engine *engine);
 
+/*
+ * The width a block must be rendered into. `render` writes this many planar
+ * buffers whatever the caller supplies, so it is the count to validate against
+ * rather than the length of the array that happens to arrive.
+ */
+uint32_t soundscaper_synthetic_channel_count(const soundscaper_synthetic_engine *engine);
+
 uint32_t soundscaper_synthetic_generation(const soundscaper_synthetic_engine *engine);
 
 /*

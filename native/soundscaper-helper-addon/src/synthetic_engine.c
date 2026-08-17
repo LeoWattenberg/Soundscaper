@@ -192,6 +192,11 @@ uint64_t soundscaper_synthetic_rendered_frames(const soundscaper_synthetic_engin
 	return engine == NULL ? 0u : engine->rendered_frames;
 }
 
+uint32_t soundscaper_synthetic_channel_count(const soundscaper_synthetic_engine *engine)
+{
+	return engine == NULL ? 0u : engine->config.channel_count;
+}
+
 uint32_t soundscaper_synthetic_generation(const soundscaper_synthetic_engine *engine)
 {
 	return engine == NULL ? 0u : engine->config.generation;

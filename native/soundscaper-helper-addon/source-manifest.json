@@ -38,8 +38,8 @@
 	"sourceFiles": [
 		{
 			"path": "addon.c",
-			"byteLength": 40556,
-			"sha256": "a1931f30b0c3314be06b1208c7de4827acafc39246edb77ddec0730cbd7f0e81"
+			"byteLength": 41785,
+			"sha256": "28449caaa210586218c3f8a49a3afe82244285406960d38da6eaa676a2429436"
 		},
 		{
 			"path": "audio_backends.c",
@@ -48,28 +48,38 @@
 		},
 		{
 			"path": "audio_backends.h",
-			"byteLength": 2503,
-			"sha256": "5f0c73dc07cf6647f4c1658b53020ee1e05b3dab268ff0c91bf94a99d201def1"
+			"byteLength": 2755,
+			"sha256": "bb75e7b799f25035bd3470972fe39a60fccfe0cb6cde5ffae8161636be27e3e3"
 		},
 		{
 			"path": "audio_device.c",
-			"byteLength": 6124,
-			"sha256": "d7983fca737f5cb3cc14043c5d28c374ee4d925e12d8b07687b14345c0b866ff"
+			"byteLength": 6478,
+			"sha256": "de572bc112304a3ce080070a0794a93351b2971c4a003ee5c5d1f5462e72cd6f"
 		},
 		{
 			"path": "audio_device.h",
-			"byteLength": 3614,
-			"sha256": "8448b3c70edb9778fe3c404651af45e432f60f5ea9f97025a78b260481fcdb48"
+			"byteLength": 3919,
+			"sha256": "9d435cb8fdef7410fcd7465c077eeb2c166940db86a04851839c20b613983b87"
+		},
+		{
+			"path": "audio_ring.c",
+			"byteLength": 2741,
+			"sha256": "39b1382131d9825301d5c393acf40484e3d7b3585340c3eb3b264e781d63ae89"
+		},
+		{
+			"path": "audio_ring.h",
+			"byteLength": 2383,
+			"sha256": "c47b783ed80689667b058cf3a9ee3a7a8a7f5d0e85f10f8dfc467269244f6809"
 		},
 		{
 			"path": "audio_session.c",
-			"byteLength": 13344,
-			"sha256": "40616229216d83ed5e2c56dee32e3f2d8a548953267f22b9e57306527453b9b8"
+			"byteLength": 14276,
+			"sha256": "49ae57541c5ce6d40eb52c987c47d85594994e131590b099cea87ffcfff2913d"
 		},
 		{
 			"path": "audio_session.h",
-			"byteLength": 3472,
-			"sha256": "4d72b486bcea5b5a093c4902a3e6263a0a841958ae3baa3cb3ea49af620d2be6"
+			"byteLength": 3565,
+			"sha256": "b84c71a27043eadc6aa4d6893c3eef16dfa303bc74fd05d69f4cbbb5be65e538"
 		},
 		{
 			"path": "fixture_plugin_abi.h",
@@ -78,8 +88,8 @@
 		},
 		{
 			"path": "pipewire_session.c",
-			"byteLength": 20543,
-			"sha256": "e49e8774c6f0cda058c2ac2cd429bec958a7ce953829ba4c8295e18368889e3a"
+			"byteLength": 22841,
+			"sha256": "7ab554c4d95410905ebea18bc608368967a5a3150b516e826cc95bad9a14c116"
 		},
 		{
 			"path": "pipewire_session.h",
@@ -88,33 +98,33 @@
 		},
 		{
 			"path": "plugin_host.c",
-			"byteLength": 5351,
-			"sha256": "b75a2b848fbac954e1a8132bd646ae74fe6b0f22f98619009ba0383c644b6953"
+			"byteLength": 5735,
+			"sha256": "c237187398ca7a3b37643fbe56d3a5a299becb22d7ae6f441194b990114e7245"
 		},
 		{
 			"path": "plugin_host.h",
-			"byteLength": 2305,
-			"sha256": "b97658b24c0cad9e9e010f750c40396a09d520eb7eee6bde53f1bcb9ee54644a"
+			"byteLength": 2630,
+			"sha256": "2e63d9a3e8fe912fe84c72ab9459c33634c637cc7b39d190be435dd2321a0784"
 		},
 		{
 			"path": "plugin_scan.c",
-			"byteLength": 5409,
-			"sha256": "e8b60d380844d9385535ced482754e489de9c157daca1274be8d422ce3658189"
+			"byteLength": 5789,
+			"sha256": "576c80c2653faa9b2ab512b52c61f8a266c9e786d4fdee5477a0186ee0902935"
 		},
 		{
 			"path": "plugin_scan.h",
-			"byteLength": 2594,
-			"sha256": "07d49fa8cafcdb7e0a9aa2321c931012eef76926ef35d7c53cce6c15422bbf15"
+			"byteLength": 3158,
+			"sha256": "ebbd83079aa6a73319c70c4408e27f0f4329bf0a9383c869a413a162bb7d11fb"
 		},
 		{
 			"path": "synthetic_engine.c",
-			"byteLength": 6594,
-			"sha256": "7817b9ad8d212486d9a10e2fe9f6c18dd9889135d097397c34fba7b5a8dc75f1"
+			"byteLength": 6748,
+			"sha256": "f0c490671d94a27e33d5da04a1ce5a13c85cb09751b7b39a0aef6d3cb79dd924"
 		},
 		{
 			"path": "synthetic_engine.h",
-			"byteLength": 3052,
-			"sha256": "05a49913a384c52c80a36f2196ed923c53e5afb8ea0eb4224818c4405ab50e1f"
+			"byteLength": 3370,
+			"sha256": "2841342f70d4b4c945bb06a5363c1b33f86f4eeb56710eda7c546b2fc534fefc"
 		}
 	],
 	"targets": {
@@ -124,8 +134,8 @@
 			"toolchainIdentity": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
 			"payload": {
 				"name": "soundscaper_helper.node",
-				"byteLength": 80432,
-				"sha256": "9331e214d4da7c3be8209f2b5a08848c90c1b3600ec8560f2f249fcacf656d8d"
+				"byteLength": 89488,
+				"sha256": "826c2ac16e7aceb3fcd5997cc111c02a4a02e77b64cf4821f845c1bd38a9e5a9"
 			}
 		},
 		"linux-arm64": {

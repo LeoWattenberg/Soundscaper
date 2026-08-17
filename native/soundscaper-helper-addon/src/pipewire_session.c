@@ -2,10 +2,13 @@
 
 #include "pipewire_session.h"
 
+#include "audio_ring.h"
+
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #if defined(__linux__)
 #define SOUNDSCAPER_HAS_PIPEWIRE 1
@@ -16,8 +19,11 @@
 #define SOUNDSCAPER_HAS_PIPEWIRE 0
 #endif
 
-#define SOUNDSCAPER_PIPEWIRE_RING_BLOCKS 32u
 #define SOUNDSCAPER_PIPEWIRE_MAX_QUANTUM 8192u
+/* How long an open waits for the graph to answer the connect it queued. Past
+ * this the answer is that there was none, which is a refusal and not a session. */
+#define SOUNDSCAPER_PIPEWIRE_NEGOTIATION_MS 2000u
+#define SOUNDSCAPER_PIPEWIRE_POLL_MS 2u
 
 #if SOUNDSCAPER_HAS_PIPEWIRE
 
@@ -82,70 +88,6 @@ static int load_pipewire(pipewire_api *api)
 
 #endif /* SOUNDSCAPER_HAS_PIPEWIRE */
 
-/*
- * One producer, one consumer, no locks. `read` and `write` are only ever
- * touched by their own side; each side publishes its cursor with a release
- * store and observes the other's with an acquire load, which is the whole
- * synchronisation. Capacity is a power of two so the wrap is a mask.
- */
-typedef struct {
-	float *samples;
-	uint32_t capacity;
-	uint32_t mask;
-	atomic_uint_least32_t read;
-	atomic_uint_least32_t write;
-} sample_ring;
-
-static int ring_init(sample_ring *ring, uint32_t frames, uint32_t channels)
-{
-	uint32_t capacity = 1u;
-	const uint32_t wanted = frames * channels * SOUNDSCAPER_PIPEWIRE_RING_BLOCKS;
-	while (capacity < wanted) capacity <<= 1u;
-	ring->samples = calloc(capacity, sizeof(float));
-	if (ring->samples == NULL) return 0;
-	ring->capacity = capacity;
-	ring->mask = capacity - 1u;
-	atomic_init(&ring->read, 0u);
-	atomic_init(&ring->write, 0u);
-	return 1;
-}
-
-static uint32_t ring_available(const sample_ring *ring)
-{
-	const uint32_t write = atomic_load_explicit(&ring->write, memory_order_acquire);
-	const uint32_t read = atomic_load_explicit(&ring->read, memory_order_relaxed);
-	return write - read;
-}
-
-static uint32_t ring_space(const sample_ring *ring)
-{
-	return ring->capacity - ring_available(ring);
-}
-
-static uint32_t ring_push(sample_ring *ring, const float *source, uint32_t count)
-{
-	const uint32_t space = ring_space(ring);
-	const uint32_t moved = count < space ? count : space;
-	uint32_t write = atomic_load_explicit(&ring->write, memory_order_relaxed);
-	for (uint32_t index = 0u; index < moved; index += 1u) {
-		ring->samples[(write + index) & ring->mask] = source[index];
-	}
-	atomic_store_explicit(&ring->write, write + moved, memory_order_release);
-	return moved;
-}
-
-static uint32_t ring_pop(sample_ring *ring, float *destination, uint32_t count)
-{
-	const uint32_t available = ring_available(ring);
-	const uint32_t moved = count < available ? count : available;
-	uint32_t read = atomic_load_explicit(&ring->read, memory_order_relaxed);
-	for (uint32_t index = 0u; index < moved; index += 1u) {
-		destination[index] = ring->samples[(read + index) & ring->mask];
-	}
-	atomic_store_explicit(&ring->read, read + moved, memory_order_release);
-	return moved;
-}
-
 struct soundscaper_pipewire_session {
 #if SOUNDSCAPER_HAS_PIPEWIRE
 	pipewire_api api;
@@ -153,13 +95,19 @@ struct soundscaper_pipewire_session {
 	struct pw_stream *stream;
 	struct spa_hook listener;
 #endif
-	sample_ring ring;
+	soundscaper_sample_ring ring;
 	soundscaper_device_direction direction;
 	uint32_t channel_count;
 	uint32_t quantum;
 	atomic_uint_least64_t frames;
 	atomic_uint_least64_t lost_frames;
 	atomic_int lost_device;
+	/* What the graph actually accepted, published by the loop thread. Until
+	 * these are set the connect is a request and nothing more. */
+	atomic_uint_least32_t negotiated_rate;
+	atomic_uint_least32_t negotiated_channels;
+	atomic_int negotiated;
+	atomic_int connected;
 	int closed;
 };
 
@@ -197,7 +145,7 @@ static void on_process(void *data)
 		uint32_t frames = datas[0].maxsize / stride;
 		if (buffer->requested != 0u && buffer->requested < frames) frames = (uint32_t)buffer->requested;
 		const uint32_t wanted = frames * session->channel_count;
-		const uint32_t moved = ring_pop(&session->ring, samples, wanted);
+		const uint32_t moved = soundscaper_ring_pop(&session->ring, samples, wanted);
 		if (moved < wanted) {
 			memset(samples + moved, 0, (wanted - moved) * sizeof(float));
 			atomic_fetch_add_explicit(&session->lost_frames,
@@ -208,8 +156,15 @@ static void on_process(void *data)
 		datas[0].chunk->size = wanted * sizeof(float);
 		atomic_fetch_add_explicit(&session->frames, frames, memory_order_relaxed);
 	} else {
-		const uint32_t produced = datas[0].chunk->size / sizeof(float);
-		const uint32_t moved = ring_push(&session->ring, samples, produced);
+		/* The chunk's offset and size are the server's claims about memory this
+		 * process merely mapped, so the readable region is computed from the
+		 * mapping rather than taken on trust. */
+		uint32_t byte_offset = 0u;
+		const uint32_t frames = soundscaper_graph_buffer_frames(datas[0].maxsize,
+			datas[0].chunk->offset, (uint32_t)datas[0].chunk->size, stride, &byte_offset);
+		const float *region = (const float *)(const void *)((const uint8_t *)datas[0].data + byte_offset);
+		const uint32_t produced = frames * session->channel_count;
+		const uint32_t moved = soundscaper_ring_push(&session->ring, region, produced);
 		if (moved < produced) {
 			atomic_fetch_add_explicit(&session->lost_frames,
 				(produced - moved) / session->channel_count, memory_order_relaxed);
@@ -229,12 +184,34 @@ static void on_state_changed(void *data, enum pw_stream_state old, enum pw_strea
 	 * lost device is the caller's decision about recorded audio. */
 	if (state == PW_STREAM_STATE_ERROR || state == PW_STREAM_STATE_UNCONNECTED) {
 		atomic_store_explicit(&session->lost_device, 1, memory_order_release);
+		return;
 	}
+	if (state == PW_STREAM_STATE_PAUSED || state == PW_STREAM_STATE_STREAMING) {
+		atomic_store_explicit(&session->connected, 1, memory_order_release);
+	}
+}
+
+/*
+ * The graph's answer to the format that was asked for. It arrives on the loop
+ * thread some time after the connect returned, and it is the only thing that
+ * can be reported as granted.
+ */
+static void on_param_changed(void *data, uint32_t id, const struct spa_pod *param)
+{
+	soundscaper_pipewire_session *session = data;
+	if (param == NULL || id != SPA_PARAM_Format) return;
+	struct spa_audio_info_raw info;
+	memset(&info, 0, sizeof(info));
+	if (spa_format_audio_raw_parse(param, &info) < 0) return;
+	atomic_store_explicit(&session->negotiated_rate, info.rate, memory_order_relaxed);
+	atomic_store_explicit(&session->negotiated_channels, info.channels, memory_order_relaxed);
+	atomic_store_explicit(&session->negotiated, 1, memory_order_release);
 }
 
 static const struct pw_stream_events STREAM_EVENTS = {
 	.version = PW_VERSION_STREAM_EVENTS,
 	.state_changed = on_state_changed,
+	.param_changed = on_param_changed,
 	.process = on_process,
 };
 
@@ -316,7 +293,7 @@ soundscaper_audio_open_status soundscaper_pipewire_open(
 	*out_session = NULL;
 	memset(granted, 0, sizeof(*granted));
 	if (device_handle == NULL || device_handle[0] == '\0'
-		|| channel_count == 0u || channel_count > 64u
+		|| channel_count == 0u || channel_count > SOUNDSCAPER_AUDIO_MAX_CHANNELS
 		|| period_frames == 0u || period_frames > SOUNDSCAPER_PIPEWIRE_MAX_QUANTUM
 		|| sample_rate < 8000u || sample_rate > 768000u
 		|| direction == SOUNDSCAPER_DEVICE_DUPLEX) {
@@ -337,7 +314,11 @@ soundscaper_audio_open_status soundscaper_pipewire_open(
 	atomic_init(&session->frames, 0u);
 	atomic_init(&session->lost_frames, 0u);
 	atomic_init(&session->lost_device, 0);
-	if (!ring_init(&session->ring, period_frames, channel_count)) {
+	atomic_init(&session->negotiated_rate, 0u);
+	atomic_init(&session->negotiated_channels, 0u);
+	atomic_init(&session->negotiated, 0);
+	atomic_init(&session->connected, 0);
+	if (!soundscaper_ring_init(&session->ring, period_frames, channel_count)) {
 		dlclose(session->api.library);
 		free(session);
 		return SOUNDSCAPER_AUDIO_OPEN_INVALID_REQUEST;
@@ -401,9 +382,48 @@ soundscaper_audio_open_status soundscaper_pipewire_open(
 		set_text(granted->detail, "The PipeWire loop could not be started.");
 		return SOUNDSCAPER_AUDIO_OPEN_DEVICE_UNAVAILABLE;
 	}
-	granted->sample_rate = sample_rate;
+	/* `pw_stream_connect` only queues the request: whether a node exists, and
+	 * what format it took, arrives later on the loop thread. Reporting the
+	 * request as the outcome here is what turns a refusal into a session that
+	 * fails much later as device loss, with the backup candidate never tried. */
+	for (uint32_t waited = 0u; waited < SOUNDSCAPER_PIPEWIRE_NEGOTIATION_MS;
+		waited += SOUNDSCAPER_PIPEWIRE_POLL_MS) {
+		if (atomic_load_explicit(&session->lost_device, memory_order_acquire)) break;
+		if (atomic_load_explicit(&session->negotiated, memory_order_acquire)
+			&& atomic_load_explicit(&session->connected, memory_order_acquire)) {
+			break;
+		}
+		struct timespec request = { .tv_sec = 0, .tv_nsec = SOUNDSCAPER_PIPEWIRE_POLL_MS * 1000000L };
+		nanosleep(&request, NULL);
+	}
+	if (atomic_load_explicit(&session->lost_device, memory_order_acquire)) {
+		soundscaper_pipewire_close(session);
+		set_text(granted->detail, "The PipeWire node failed while the stream was being negotiated.");
+		return SOUNDSCAPER_AUDIO_OPEN_DEVICE_UNAVAILABLE;
+	}
+	if (!atomic_load_explicit(&session->negotiated, memory_order_acquire)
+		|| !atomic_load_explicit(&session->connected, memory_order_acquire)) {
+		soundscaper_pipewire_close(session);
+		set_text(granted->detail, "The PipeWire graph did not finish negotiating this stream.");
+		return SOUNDSCAPER_AUDIO_OPEN_DEVICE_UNAVAILABLE;
+	}
+	const uint32_t negotiated_rate = (uint32_t)atomic_load_explicit(&session->negotiated_rate, memory_order_relaxed);
+	const uint32_t negotiated_channels =
+		(uint32_t)atomic_load_explicit(&session->negotiated_channels, memory_order_relaxed);
+	if (negotiated_rate != sample_rate || negotiated_channels != channel_count) {
+		char detail[SOUNDSCAPER_AUDIO_MAX_TEXT];
+		snprintf(detail, sizeof(detail),
+			"The graph negotiated %u Hz across %u channel(s), not the requested %u Hz across %u.",
+			negotiated_rate, negotiated_channels, sample_rate, channel_count);
+		soundscaper_pipewire_close(session);
+		set_text(granted->detail, detail);
+		return SOUNDSCAPER_AUDIO_OPEN_FORMAT_REFUSED;
+	}
+	granted->sample_rate = negotiated_rate;
 	granted->period_frames = period_frames;
-	granted->channel_count = channel_count;
+	granted->channel_count = negotiated_channels;
+	/* NO_CONVERT accompanies an exclusive request, so a format that came back
+	 * unchanged is the graph saying it put nothing in the path. */
 	granted->exclusive = exclusive_requested ? 1u : 0u;
 	set_text(granted->device_name, device_handle);
 	/* The quantum is a request until the graph runs. Callers that need the
@@ -433,7 +453,7 @@ void soundscaper_pipewire_close(soundscaper_pipewire_session *session)
 		dlclose(session->api.library);
 	}
 #endif
-	free(session->ring.samples);
+	soundscaper_ring_release(&session->ring);
 	free(session);
 }
 
@@ -469,12 +489,12 @@ soundscaper_audio_io_status soundscaper_pipewire_write(
 	const uint32_t wanted = frame_count * session->channel_count;
 	uint32_t moved = 0u;
 	for (uint32_t frame = 0u; frame < frame_count; frame += 1u) {
-		float interleaved[64];
+		float interleaved[SOUNDSCAPER_AUDIO_MAX_CHANNELS];
 		for (uint32_t channel = 0u; channel < session->channel_count; channel += 1u) {
 			if (channels[channel] == NULL) return SOUNDSCAPER_AUDIO_IO_INVALID_BLOCK;
 			interleaved[channel] = channels[channel][frame];
 		}
-		const uint32_t pushed = ring_push(&session->ring, interleaved, session->channel_count);
+		const uint32_t pushed = soundscaper_ring_push(&session->ring, interleaved, session->channel_count);
 		moved += pushed;
 		if (pushed < session->channel_count) break;
 	}
@@ -496,8 +516,8 @@ soundscaper_audio_io_status soundscaper_pipewire_read(
 	const uint32_t wanted = frame_count * session->channel_count;
 	uint32_t moved = 0u;
 	for (uint32_t frame = 0u; frame < frame_count; frame += 1u) {
-		float interleaved[64];
-		const uint32_t popped = ring_pop(&session->ring, interleaved, session->channel_count);
+		float interleaved[SOUNDSCAPER_AUDIO_MAX_CHANNELS];
+		const uint32_t popped = soundscaper_ring_pop(&session->ring, interleaved, session->channel_count);
 		if (popped < session->channel_count) break;
 		for (uint32_t channel = 0u; channel < session->channel_count; channel += 1u) {
 			if (channels[channel] == NULL) return SOUNDSCAPER_AUDIO_IO_INVALID_BLOCK;

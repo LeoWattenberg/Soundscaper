@@ -49,7 +49,8 @@ soundscaper_plugin_host_status soundscaper_plugin_host_open(
 	 * that a registry mistake still cannot start one. */
 	if (descriptor->classification != SOUNDSCAPER_FIXTURE_EFFECT
 		|| descriptor->create == NULL || descriptor->destroy == NULL || descriptor->process == NULL
-		|| descriptor->output_channels == 0u || descriptor->output_channels > 64u) {
+		|| descriptor->output_channels == 0u || descriptor->output_channels > 64u
+		|| descriptor->input_channels > 64u) {
 		dlclose(library);
 		return SOUNDSCAPER_PLUGIN_HOST_REFUSED;
 	}
@@ -109,7 +110,12 @@ soundscaper_plugin_host_status soundscaper_plugin_host_save_state(
 	*out_byte_length = 0u;
 	if (host->descriptor->save_state == NULL) return SOUNDSCAPER_PLUGIN_HOST_OK;
 	const uint32_t required = host->descriptor->save_state(host->instance, NULL, 0u);
-	if (required > SOUNDSCAPER_FIXTURE_MAX_STATE_BYTES) return SOUNDSCAPER_PLUGIN_HOST_STATE_TOO_LARGE;
+	if (required > SOUNDSCAPER_FIXTURE_MAX_STATE_BYTES) {
+		/* The declared length travels with the refusal: a caller that cannot see
+		 * how much was asked for cannot tell "over the cap" from "rejected". */
+		*out_byte_length = required;
+		return SOUNDSCAPER_PLUGIN_HOST_STATE_TOO_LARGE;
+	}
 	if (buffer == NULL || capacity < required) {
 		*out_byte_length = required;
 		return SOUNDSCAPER_PLUGIN_HOST_STATE_TOO_LARGE;
@@ -145,4 +151,9 @@ int32_t soundscaper_plugin_host_latency_frames(soundscaper_plugin_host *host)
 uint32_t soundscaper_plugin_host_channel_count(const soundscaper_plugin_host *host)
 {
 	return host == NULL ? 0u : host->descriptor->output_channels;
+}
+
+uint32_t soundscaper_plugin_host_input_channel_count(const soundscaper_plugin_host *host)
+{
+	return host == NULL ? 0u : host->descriptor->input_channels;
 }

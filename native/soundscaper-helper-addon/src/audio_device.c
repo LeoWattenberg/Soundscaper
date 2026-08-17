@@ -11,6 +11,9 @@ struct soundscaper_audio_stream {
 	soundscaper_audio_backend backend;
 	soundscaper_pipewire_session *pipewire;
 	soundscaper_audio_session *alsa;
+	/* Kept on the stream rather than asked of the backend, so a closed session
+	 * still answers the width its caller opened it at. */
+	uint32_t channel_count;
 	int closed;
 };
 
@@ -96,6 +99,7 @@ soundscaper_audio_open_status soundscaper_audio_stream_open(
 			device->backend = candidate->backend;
 			device->pipewire = pipewire;
 			device->alsa = alsa;
+			device->channel_count = granted.channel_count;
 			report->granted_backend = candidate->backend;
 			report->granted = granted;
 			*out_device = device;
@@ -144,6 +148,11 @@ soundscaper_audio_io_status soundscaper_audio_stream_read(
 	return device->backend == SOUNDSCAPER_BACKEND_PIPEWIRE
 		? soundscaper_pipewire_read(device->pipewire, channels, frame_count, out_lost_frames)
 		: soundscaper_audio_session_read(device->alsa, channels, frame_count, out_lost_frames);
+}
+
+uint32_t soundscaper_audio_stream_channel_count(const soundscaper_audio_stream *device)
+{
+	return device == NULL ? 0u : device->channel_count;
 }
 
 soundscaper_audio_backend soundscaper_audio_stream_backend(const soundscaper_audio_stream *device)
