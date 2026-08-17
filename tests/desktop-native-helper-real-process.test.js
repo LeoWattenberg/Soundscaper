@@ -173,7 +173,14 @@ function runElectron(argv) {
 		// A packaged build cannot run as plain Node — the RunAsNode fuse is off —
 		// so the proof must not either, whatever the developer's shell exports.
 		delete environment.ELECTRON_RUN_AS_NODE;
-		const child = spawn(ELECTRON, argv, {
+		// The subject here is the helper lifecycle, not the sandbox. Where the
+		// kernel forbids unprivileged user namespaces — Ubuntu 24.04 with the
+		// AppArmor restriction on, which is every GitHub runner — Chromium falls
+		// back to the SUID helper and aborts on sight of a checkout's non-setuid
+		// chrome-sandbox, before the helper is ever forked. The packaged sandbox
+		// posture is proven where it belongs, in the packaging smokes that chown
+		// and chmod the shipped binary and then assert it.
+		const child = spawn(ELECTRON, ['--no-sandbox', ...argv], {
 			cwd: ROOT,
 			env: environment,
 			stdio: ['ignore', 'pipe', 'pipe'],
