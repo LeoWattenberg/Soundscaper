@@ -57,6 +57,7 @@ export interface ExportState {
 	outputCleanup: null | (() => Promise<void>);
 	exportOutput: unknown;
 	disposed: boolean;
+	deliveryReport?: unknown;
 }
 
 export function defaultProject(): TestProject {
@@ -106,7 +107,6 @@ export function createFixture() {
 	const streamEncoderOptions: Array<Record<string, unknown>> = [];
 	const preflightBytes: number[] = [];
 	const resampleFrameRequests: number[] = [];
-	const deliveryReports: Array<Record<string, unknown>> = [];
 	const encodedFrameCounts: number[] = [];
 	const audio = {
 		sampleRate: 48_000,
@@ -279,7 +279,6 @@ export function createFixture() {
 		},
 		projectSampleRate: () => 48_000,
 		publishDocumentSnapshot: () => { calls.push('publish'); },
-		recordDeliveryReport: (report: Record<string, unknown>) => { deliveryReports.push(report); },
 		resampleBuffer: async (
 			_input: unknown,
 			_sampleRate: number,
@@ -314,7 +313,6 @@ export function createFixture() {
 	};
 	return {
 		calls,
-		deliveryReports,
 		downloads,
 		errors,
 		progress,

@@ -10,6 +10,11 @@ import {
 	formatAup4CompatibilityItem,
 	formatAup4CompatibilityScope,
 	formatAup4CompatibilitySummary,
+	formatDeliveryReportItem,
+	formatDeliveryReportItemDetail,
+	formatDeliveryReportSubject,
+	formatDeliveryReportSummary,
+	deliveryReportItems,
 	recordingOffsetSources,
 } from './editor-dialog-model.js';
 
@@ -29,6 +34,7 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 		'track-rate': copy.sampleRate,
 		resample: copy.resample,
 		'aup4-compatibility': copy.aup4CompatibilityReport,
+		'delivery-report': copy.deliveryReport,
 		about: aboutLabel,
 		'revert-factory': copy.revertFactorySettings,
 		clear: copy.clearData,
@@ -229,6 +235,9 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 							onClose={onClose}
 						/>
 					)}
+					{type === 'delivery-report' && (
+						<DeliveryReport report={snapshot.deliveryReport} copy={copy} onClose={onClose} />
+					)}
 					{type === 'revert-factory' && (
 						<>
 							<p>{copy.revertFactorySettingsDescription}</p>
@@ -285,6 +294,45 @@ function Aup4CompatibilityReport({ report, copy, onClose }) {
 					))}
 				</ul>
 			) : <p>{copy.aup4CompatibilityNoIssues}</p>}
+			<div className="kw-audio-editor-dialog__actions">
+				<Button onClick={onClose}>{copy.close}</Button>
+			</div>
+		</div>
+	);
+}
+
+function DeliveryReport({ report, copy, onClose }) {
+	const items = deliveryReportItems(report);
+	const counts = report?.counts || {};
+	const displayCount = (disposition) => compatibilityCount(counts[disposition], items, disposition);
+	const converting = items.filter(
+		(item) => item?.disposition === 'converted' || item?.disposition === 'omitted',
+	);
+	return (
+		<div data-delivery-report>
+			<p>{copy.deliveryReportDescription}</p>
+			<p>{formatDeliveryReportSubject(report, copy)}</p>
+			<p>{formatDeliveryReportSummary(report, copy)}</p>
+			<dl className="kw-audio-editor-compatibility-counts">
+				<div><dt>{copy.aup4CompatibilityPreserved}</dt><dd>{displayCount('preserved')}</dd></div>
+				<div><dt>{copy.aup4CompatibilityConverted}</dt><dd>{displayCount('converted')}</dd></div>
+				<div><dt>{copy.aup4CompatibilityMissing}</dt><dd>{displayCount('missing')}</dd></div>
+				<div><dt>{copy.aup4CompatibilityOmitted}</dt><dd>{displayCount('omitted')}</dd></div>
+			</dl>
+			<h3>{copy.aup4CompatibilityDetails}</h3>
+			{items.length ? (
+				<ul className="kw-audio-editor-compatibility-items">
+					{items.map((item, index) => (
+						<li key={`${item?.code || 'delivery'}-${index}`} data-severity={item?.severity || 'info'}>
+							<strong>{formatDeliveryReportItem(item)}</strong>
+							{formatDeliveryReportItemDetail(item) && (
+								<small>{formatDeliveryReportItemDetail(item)}</small>
+							)}
+						</li>
+					))}
+				</ul>
+			) : <p>{copy.deliveryReportNoConversions}</p>}
+			{items.length > 0 && converting.length === 0 && <p>{copy.deliveryReportNoConversions}</p>}
 			<div className="kw-audio-editor-dialog__actions">
 				<Button onClick={onClose}>{copy.close}</Button>
 			</div>

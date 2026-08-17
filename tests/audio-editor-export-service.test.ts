@@ -273,16 +273,15 @@ test('video export validates the timeline and cleans late publications', async (
 
 test('every export emits a delivery report derived from the plan it executes', async () => {
 	const fixture = createFixture();
-	const reports = fixture.deliveryReports;
 	const service = createEditorExportService(fixture.runtime);
 	await service.handleExportAction('export', {});
 
-	assert.equal(reports.length, 1, 'a delivery emits exactly one report');
-	const report = reports[0] as {
+	const report = fixture.state.deliveryReport as {
 		format: string;
 		subject: { format: string; sampleRate: number; lossless: boolean | null };
 		items: Array<{ code: string; disposition: string }>;
 	};
+	assert.ok(report, 'a delivery records its report on session state');
 	assert.equal(report.format, 'delivery');
 	assert.equal(report.subject.format, 'wav');
 	assert.equal(report.subject.sampleRate, 48_000);
@@ -307,16 +306,16 @@ test('every export emits a delivery report derived from the plan it executes', a
 
 test('a resampling export reports the rate change on the real path', async () => {
 	const fixture = createFixture();
-	const reports = fixture.deliveryReports as unknown as Array<{
-		items: Array<{ code: string; data: Record<string, unknown> }>;
-	}>;
 	const converted = defaultPlan();
 	converted.sampleRate = 44_100;
 	fixture.setPlan(converted);
 	const service = createEditorExportService(fixture.runtime);
 	await service.handleExportAction('export', {});
 
-	const resample = reports[0]?.items.find(({ code }) => code === 'delivery.resample');
+	const recorded = fixture.state.deliveryReport as {
+		items: Array<{ code: string; data: Record<string, unknown> }>;
+	};
+	const resample = recorded?.items.find(({ code }) => code === 'delivery.resample');
 	assert.ok(resample, 'a 48k project delivered at 44.1k reports the conversion');
 	assert.deepEqual(resample.data, { fromSampleRate: 48_000, toSampleRate: 44_100 });
 });

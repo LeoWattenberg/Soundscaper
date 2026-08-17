@@ -107,6 +107,7 @@ export interface EditorDocumentSnapshotState {
 	readonly history: SnapshotHistory | null;
 	readonly clipboard: unknown;
 	readonly status: Readonly<{ message: string; state: string }>;
+	readonly deliveryReport?: unknown;
 	readonly saveState: string;
 	readonly storageEstimate: Readonly<StorageCapacitySnapshot>;
 	readonly analysisResult: unknown;
@@ -277,6 +278,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 				dismissed: Boolean(currentTabMetadata.aup4CompatibilityReportDismissed),
 			})
 			: null,
+		deliveryReport: state.deliveryReport ?? null,
 		featureRequirementsCompatibility: currentTabMetadata.featureRequirementsReport ?? null,
 		featureRequirementsReadOnly: Boolean(currentTabMetadata.featureRequirementsReadOnly),
 		// Derived from the live project rather than activation-time metadata, so the

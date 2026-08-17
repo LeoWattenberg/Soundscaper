@@ -138,6 +138,12 @@ export default function createApplicationMenus({
 							disabled: !snapshot.aup4Compatibility?.report,
 							onClick: actions.openAup4CompatibilityReport,
 						},
+						{
+							id: 'delivery-report',
+							label: copy.deliveryReport,
+							disabled: !snapshot.deliveryReport,
+							onClick: actions.openDeliveryReport,
+						},
 					],
 				},
 				{

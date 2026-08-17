@@ -139,6 +139,7 @@ export function createWorkspaceApplicationMenus({
 				saveScape: () => run(() => controller.actions.project.saveScape({ saveCopy: snapshot.readOnly })),
 				saveAup4: () => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly })),
 				openAup4CompatibilityReport: () => setDialog('aup4-compatibility'),
+				openDeliveryReport: () => setDialog('delivery-report'),
 				importFiles: () => fileService.isDesktop
 					? run(() => openDesktopFiles('media', true))
 					: importInputRef.current?.click(),
