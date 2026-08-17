@@ -119,18 +119,41 @@ async function pypiRelease(name, version) {
 }
 
 /**
- * Choose the platform wheel matching the running interpreter, by asking pip
- * rather than reimplementing PEP 425 tag matching here — pip already knows which
- * tags this interpreter accepts, and a hand-rolled matcher is a subtle way to
- * install a wheel that imports on one machine and not another.
+ * The wheel tags this interpreter accepts.
+ *
+ * Asked of the tooling rather than reimplemented here, because a hand-rolled
+ * PEP 425 matcher is a subtle way to install a wheel that imports on the build
+ * host and nowhere else. `packaging` is the supported home for this; pip's copy
+ * is a private module that has moved before, so it is only the fallback, and a
+ * clear failure is better than either one guessing.
+ */
+function supportedTags() {
+	const sources = [
+		'import json, packaging.tags; print(json.dumps([str(t) for t in packaging.tags.sys_tags()]))',
+		'import json; from pip._vendor.packaging.tags import sys_tags; print(json.dumps([str(t) for t in sys_tags()]))',
+		'import json; from pip._internal.utils.compatibility_tags import get_supported;'
+		+ ' print(json.dumps([str(t) for t in get_supported()]))',
+	];
+	for (const source of sources) {
+		try {
+			return JSON.parse(runPython(['-c', source]));
+		} catch {
+			continue;
+		}
+	}
+	throw new Error(
+		'Could not determine this interpreter\'s wheel tags. Install `packaging` '
+		+ '(pip install packaging) so the correct opentimelineio wheel can be selected.',
+	);
+}
+
+/**
+ * Choose the platform wheel matching the running interpreter. A wheel filename
+ * carries compressed tag sets (`cp312.cp313-abi3-manylinux…`), so each component
+ * is expanded before matching rather than compared whole.
  */
 function compatibleWheel(files) {
-	const supported = new Set(JSON.parse(runPython([
-		'-c',
-		'import json;'
-		+ 'from pip._internal.utils.compatibility_tags import get_supported;'
-		+ 'print(json.dumps([str(t) for t in get_supported()]))',
-	])));
+	const supported = new Set(supportedTags());
 	for (const file of files) {
 		if (!file.filename.endsWith('.whl')) continue;
 		const parts = file.filename.slice(0, -4).split('-');
