@@ -733,8 +733,9 @@ invariants, and the bounded work packets are owned by the
   outputs, with FFmpeg/proxy semantic fallback.
 - **Electron Enhanced — Planned:** 4K/HDR, 10-bit, hardware, image sequence,
   alpha, mezzanine, and platform delivery presets with explicit legal status.
-- **Shared — Planned:** EDL, OTIO, and FCPXML profiles plus archive,
-  consolidate, trim-media, relink, and checksum manifests.
+- **Shared — In progress:** EDL, OTIO, and FCPXML export profiles are
+  implemented, each reporting its conversions; archive, consolidate,
+  trim-media, relink, and checksum manifests remain Planned.
 
 ### Shared exit gate
 
