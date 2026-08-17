@@ -118,25 +118,23 @@ every later packet emits reports, pins plans, and enqueues jobs.
   dither none, exact one full-source clip, chunk-sequence preservation,
   `src/common/editor/export.js:408-478`). No objects, no binaural.
 
-## Known defect this plan absorbs first
+## Known defect this plan absorbed first (repaired)
 
-The export-plan version pin has drifted three ways, and the gap has
-widened since this plan was first written: the planner emits
-`version: 6` (`src/common/editor/video-export.js:237`), the direct-path
-contract accepts 6 or 7
-(`src/common/editor/controller/direct-video-plan-contract.ts:46-59`),
-the FFmpeg runner accepts 1–6
-(`src/common/editor/video-ffmpeg.js:433-434`), a strategy layer carries
-its own version surface
-(`src/common/editor/controller/product-video-export-strategy.ts:7`) —
-while the quality-budget fixture still pins `"planVersion": 4`
-(config/quality-budgets.json:685), a security test asserts the stale 4
-(tests/production-direct-video-security.test.js:325), and the budgets
-narrative still says "canonical version-4"
-(docs/quality-budgets.md:365). This is a live instance of the recorded
-"3B-2b trap" — the version is pinned in more places than the planner.
-WP-6.0.0 repairs the pins and adds a single-source-of-truth check
-before any packet bumps the plan version again.
+The export-plan version pin had drifted across five sites and was widening:
+the planner emitted `version: 6`, the direct-path contract accepted 6 or 7,
+the FFmpeg runner accepted 1–6, while the quality-budget fixture, its
+security test, and the budgets narrative all still said 4 — describing
+evidence tests that provably bind version-6 plans and reject 5 as legacy.
+This was a live instance of the recorded "3B-2b trap": the version was
+pinned in more places than the planner.
+
+WP-6.0.0 repaired it. `src/common/editor/video-export-plan-version.ts` is
+now the single source of truth, the supported set is derived from the
+canonical version minus any number another plan kind claims (so the graph
+runner can never be handed a keyframe plan), and
+`tests/audio-editor-video-export-plan-version.test.ts` derives its
+expectations from the constant rather than repeating a literal — which is
+what stops the stale pin recurring the next time the version moves.
 
 ## Decisions
 
