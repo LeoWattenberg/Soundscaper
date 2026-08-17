@@ -12,8 +12,9 @@
 ## Pickup status and sequencing
 
 **Status on 2026-08-17: all three 6C-1 profiles are implemented, reachable, and
-verified against third-party readers; 6C-2 has its manifest primitive and
-nothing else.** The EDL profile establishes the pattern
+verified against third-party readers; 6C-2 has its two planning primitives —
+the checksum manifest and the trim-media proof — and none of the operations that
+move bytes.** The EDL profile establishes the pattern
 the remaining profiles reuse: exact rational rates throughout, timecode from the
 shared `sequence-timecode` module, and every out-of-scope feature itemized in a
 delivery report rather than approximated. It is split deliberately —
@@ -240,8 +241,17 @@ before code.
   size mismatch from a digest mismatch (truncation moves both, substitution
   usually only the digest), and treats a member present but unlisted as a
   finding. Serialization is deterministic and saves through the `'report'`
-  purpose. **Still owed:** consolidate, trim-media, wiring the manifest to the
-  `.scape` archive writer, and the kill/reload recovery acceptance. When those
+  purpose. `src/common/editor/trim-media-plan.ts` is the proof side of
+  trim-media: it computes the referenced ranges per source, widens them by
+  declared handles, merges overlapping *and* abutting runs, and reports an
+  unreferenced source rather than acting on it. Its retention property is tested
+  exhaustively, not by example. **Note the deliberate asymmetry:** trim-media
+  ignores visibility entirely, because it decides which bytes survive rather
+  than describing the render — a hidden track's media must not be destroyed by
+  hiding it. That is the opposite of the 6C-1 rule and the two must not be
+  conflated. **Still owed:** consolidate, the byte-rewriting half of trim-media,
+  wiring the manifest to the `.scape` archive writer, and the kill/reload
+  recovery acceptance. When those
   land they must read the project through `projectTrackFolderMediaStateV12`
   rather than the raw document, for the reason recorded in the pickup status
   above.
