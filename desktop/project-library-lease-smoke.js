@@ -40,10 +40,23 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 	if (typeof projectLibraryEvidence !== 'function') throw new TypeError('Desktop lease smoke evidence is unavailable');
 	let attachedWindow = null;
 	let checkpointUsed = false;
+	let planStarted = false;
 	let rendererLossStarted = false;
 	let rendererLossRecovered = false;
 	return Object.freeze({
-		attach(window) { attachedWindow = window; },
+		attach(window) {
+			attachedWindow = window;
+			// Only renderer-loss stages a crash, and its recovery is the reloaded
+			// renderer committing again. Electron leaves a crashed WebContents blank
+			// and the product has no reason to reload one, so the workflow supplies
+			// the reload itself; without it there is nothing alive left to signal
+			// ready and the packaged watchdog is the only thing that ever fires.
+			if (admitted.action !== 'renderer-loss') return;
+			window.webContents.on('render-process-gone', () => {
+				if (!rendererLossStarted || rendererLossRecovered || window.isDestroyed()) return;
+				window.webContents.reload();
+			});
+		},
 		v10Qualification: Object.freeze({
 			leaseTtlMs: admitted.leaseTtlMs,
 			renewIntervalMs: Math.max(100, Math.floor(admitted.leaseTtlMs / 3)),
@@ -51,10 +64,17 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 			// synchronous writes and the thread then parks until the matrix kills the
 			// process. Parking rather than exiting leaves the journal and the
 			// unexpired lease exactly as a crash would.
+			//
+			// Only the plan's own publication may be crashed. The packaged editor
+			// publishes while it boots — it autosaves the project it opens — so the
+			// first 'prepared' phase this process reaches belongs to startup, not to
+			// the workflow. Crashing there wrote the checkpoint and parked main
+			// before the renderer had signalled ready, so the matrix waited out its
+			// full control timeout on a ready file main could no longer send.
 			checkpoint: (phase) => {
 				const target = admitted.action === 'crash-prepared' || admitted.action === 'renderer-loss'
 					? 'prepared' : admitted.action === 'crash-committed' ? 'committed' : null;
-				if (checkpointUsed || phase !== target) return;
+				if (!planStarted || checkpointUsed || phase !== target) return;
 				checkpointUsed = true;
 				atomicJsonSync(admitted.control.result, {
 					phase, processId: process.pid, host: projectLibrarySnapshot(),
@@ -78,9 +98,11 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 			}
 			if (admitted.action === 'renderer-loss') {
 				rendererLossStarted = true;
+				planStarted = true;
 				await execute(webContents, admitted).catch(() => undefined);
 				return null;
 			}
+			planStarted = true;
 			const renderer = await execute(webContents, admitted);
 			const payload = await resultPayload(
 				admitted, renderer, projectLibrarySnapshot(), projectLibraryEvidence,
