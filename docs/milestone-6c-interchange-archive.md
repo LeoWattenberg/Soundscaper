@@ -12,9 +12,9 @@
 ## Pickup status and sequencing
 
 **Status on 2026-08-17: all three 6C-1 profiles are implemented, reachable, and
-verified against third-party readers; 6C-2 has its two planning primitives —
-the checksum manifest and the trim-media proof — and none of the operations that
-move bytes.** The EDL profile establishes the pattern
+verified against third-party readers; 6C-2 has its planning half complete —
+the checksum manifest, the trim-media proof, and the consolidate plan — and none
+of the operations that move bytes.** The EDL profile establishes the pattern
 the remaining profiles reuse: exact rational rates throughout, timecode from the
 shared `sequence-timecode` module, and every out-of-scope feature itemized in a
 delivery report rather than approximated. It is split deliberately —
@@ -252,20 +252,30 @@ before code.
   conflated. **Still owed:** consolidate, the byte-rewriting half of trim-media,
   wiring the manifest to the `.scape` archive writer, and the kill/reload
   recovery acceptance.
-- **Consolidate: the map, before anyone starts it.** A source does not carry a
-  field saying whether it is linked or managed. That fact lives in the binding
-  repositories reached through `storage/linked-original-store-service.ts` —
-  `linkedOriginalBindings` and `linkedVideoOriginalBindings`, with their
-  `…ProjectAliases` and `…ProjectReachability` tables and the optional
-  `linkedOriginalStartupReconciliation`. So a consolidate plan cannot be
-  computed from `project.sources` the way the trim-media plan can; it needs the
-  binding lookup injected, and inventing a simpler `source.external` flag would
-  be inventing a second source of truth for something the m2 lifecycle already
-  owns. Whoever picks this up should take the binding resolver as a dependency
-  and keep the plan/apply split the trim-media slice uses: compute and report
-  first, move bytes second. The `m2-linked-media-lifecycle` acceptance
+- **Consolidate planning has landed** in `src/common/editor/consolidate-plan.ts`.
+  It takes the linked-original bindings as an argument, because a source carries
+  no linked-or-managed flag — that lives in the repositories behind
+  `storage/linked-original-store-service.ts` (`linkedOriginalBindings`,
+  `linkedVideoOriginalBindings`, and their alias/reachability tables). The
+  binding record (`storage/linked-original-binding.ts`) supplies the two things
+  a verified copy needs: the recorded `sha256` and the `bindingToken`
+  compare-and-swap fence the rebind must present. Reachability is injected,
+  because it is a platform question and a plan that assumed everything was
+  reachable would be wrong exactly when it matters.
+
+  **Owner's decision, recorded:** an unreachable original does not abort the
+  run. Consolidate copies what it can reach and itemises what it could not,
+  because a drive is unplugged far more often than a project is abandoned. The
+  hazard that comes with it — someone reading "consolidated" and shipping an
+  archive with holes — is handled structurally: `complete` and `unreachable`
+  live on the plan itself rather than only in the report, so a caller cannot
+  report success without stepping over them.
+
+  Consolidate copies and never relocates by removal; the
+  `m2-linked-media-lifecycle` acceptance
   (config/milestone-2-closure.json:245) is binding and external media is never
-  deleted, so consolidate copies and rebinds — it never relocates by removal. When those
+  deleted. An unreferenced source is still consolidated — deciding a source is
+  expendable is trim-media's job, and only when asked for. When those
   land they must read the project through `projectTrackFolderMediaStateV12`
   rather than the raw document, for the reason recorded in the pickup status
   above.
