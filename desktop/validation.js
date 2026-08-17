@@ -62,6 +62,12 @@ const SAVE_PURPOSES = Object.freeze({
 	preset: Object.freeze({ defaultExtension: 'json', filters: [{ name: 'Soundscaper preset', extensions: ['json'] }] }),
 	macro: Object.freeze({ defaultExtension: 'txt', filters: [{ name: 'Audacity macro', extensions: ['txt'] }] }),
 	report: Object.freeze({ defaultExtension: 'json', filters: [{ name: 'Analysis report', extensions: ['json'] }] }),
+	// One purpose for the whole 6C-1 profile family, so OTIO and FCPXML land
+	// here rather than each adding a purpose of its own.
+	interchange: Object.freeze({
+		defaultExtension: 'edl',
+		filters: [{ name: 'Edit interchange', extensions: ['edl', 'otio', 'fcpxml', 'xml'] }],
+	}),
 });
 
 const MIME_TYPES = Object.freeze({
@@ -73,6 +79,8 @@ const MIME_TYPES = Object.freeze({
 	'.aup4': 'application/vnd.audacity.aup4',
 	'.bw64': 'audio/bw64',
 	'.csv': 'text/csv',
+	'.edl': 'text/plain',
+	'.fcpxml': 'application/xml',
 	'.flac': 'audio/flac',
 	'.m4a': 'audio/mp4',
 	'.m4v': 'video/mp4',
@@ -82,6 +90,7 @@ const MIME_TYPES = Object.freeze({
 	'.oga': 'audio/ogg',
 	'.ogg': 'audio/ogg',
 	'.opus': 'audio/ogg; codecs=opus',
+	'.otio': 'application/json',
 	'.rf64': 'audio/rf64',
 	'.srt': 'application/x-subrip',
 	'.scape': 'application/vnd.soundscaper.scape+zip',

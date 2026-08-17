@@ -145,6 +145,7 @@ export function createWorkspaceApplicationMenus({
 					: importInputRef.current?.click(),
 				exportAudio: () => openSurface('export'),
 				exportLabels: () => openSurface('label-export'),
+				exportEdl: () => run(() => controller.actions.export.exportEdl()),
 				renameProject: () => { setDialogValue(project?.title || ''); setDialog('rename'); },
 				duplicateProject: () => run(() => controller.actions.project.duplicate()),
 				deleteProject: () => setDialog('delete'),

@@ -3,6 +3,7 @@
 import { createDeliveryPresetService } from './delivery-preset-service.ts';
 import { createDeliveryQueueService } from './delivery-queue-service.ts';
 import { saveCurrentDeliveryReport } from './delivery-report-action.ts';
+import { exportProjectEdl } from './edl-export-action.ts';
 
 /**
  * The export action group.
@@ -23,18 +24,28 @@ export interface ExportActionGroupRuntime {
 	) => Promise<unknown> | unknown;
 	readonly publishDocumentSnapshot?: () => void;
 	readonly createId?: (prefix: string) => string;
+	readonly getProject?: () => Readonly<Record<string, unknown>> | null | undefined;
 }
 
 export function createExportActionGroup(runtime: ExportActionGroupRuntime) {
 	const {
 		handleExportAction, state, productName, getProjectTitle,
-		fileService, persistSetting, publishDocumentSnapshot, createId,
+		fileService, persistSetting, publishDocumentSnapshot, createId, getProject,
 	} = runtime;
 	return Object.freeze({
 		start: (settings: unknown) => handleExportAction('start', settings),
 		cancel: () => handleExportAction('cancel'),
 		saveReport: () => saveCurrentDeliveryReport({
 			state, productName: productName ?? null, projectTitle: getProjectTitle?.() ?? null, fileService,
+		}),
+		exportEdl: (options?: {
+			sequenceId?: string; trackId?: string; reelNames?: Readonly<Record<string, string>>;
+		}) => exportProjectEdl({
+			getProject: getProject ?? (() => null),
+			state,
+			fileService,
+			publishDocumentSnapshot,
+			...options,
 		}),
 		presets: createDeliveryPresetService({
 			state, persistSetting, publishDocumentSnapshot, createId, fileService,

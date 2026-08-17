@@ -1,6 +1,7 @@
 import { localeLanguage } from './locale.js';
 import { CANONICAL_EXTRA_COPY_BY_LOCALE } from './canonical-extras.js';
 import { REPORT_COPY_BY_LOCALE } from './report-copy.js';
+import { EXPORT_MENU_COPY_BY_LOCALE } from './export-menu-copy.js';
 import { LABEL_EXPORT_COPY_BY_LOCALE } from './label-export-copy.js';
 import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from './sequence-timing-copy.js';
@@ -96,10 +97,8 @@ export const COPY_BY_LOCALE = deepFreeze({
 		importAudio: 'Audio importieren',
 		importLabels: 'Beschriftungen importieren',
 		importFile: 'Importieren',
-		exportAudio: 'Audio exportieren',
-		exportOther: 'Weitere Exporte',
-		exportLabels: 'Beschriftungen exportieren',
 		...REPORT_COPY_BY_LOCALE.de,
+		...EXPORT_MENU_COPY_BY_LOCALE.de,
 		...LABEL_EXPORT_COPY_BY_LOCALE.de,
 		exportSelectedAudio: 'Ausgewähltes Audio exportieren',
 		quitEditor: 'Beenden',
@@ -1121,10 +1120,8 @@ export const COPY_BY_LOCALE = deepFreeze({
 		importAudio: 'Import audio',
 		importLabels: 'Import labels',
 		importFile: 'Import',
-		exportAudio: 'Export audio',
-		exportOther: 'Export other',
-		exportLabels: 'Export labels',
 		...REPORT_COPY_BY_LOCALE.en,
+		...EXPORT_MENU_COPY_BY_LOCALE.en,
 		...LABEL_EXPORT_COPY_BY_LOCALE.en,
 		exportSelectedAudio: 'Export selected audio',
 		quitEditor: 'Quit',

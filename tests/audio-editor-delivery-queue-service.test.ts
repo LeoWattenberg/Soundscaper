@@ -109,13 +109,17 @@ test('queue entries stay small status rows and never carry delivery settings', a
 	assert.ok(serialized.length < 512);
 });
 
-test('the export action group exposes start, cancel, report, presets, and queue', () => {
+test('the export action group exposes every delivery surface the menus bind to', () => {
 	const group = createExportActionGroup({
 		handleExportAction: () => undefined,
 		state: {},
 		persistSetting: () => undefined,
 	});
-	assert.deepEqual(Object.keys(group).sort(), ['cancel', 'presets', 'queue', 'saveReport', 'start']);
+	assert.deepEqual(
+		Object.keys(group).sort(),
+		['cancel', 'exportEdl', 'presets', 'queue', 'saveReport', 'start'],
+		'a surface missing here is a menu entry bound to undefined',
+	);
 });
 
 test('the queue service refuses to exist without the export action', () => {

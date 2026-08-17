@@ -589,6 +589,6 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			findClipping: restricted('audioAnalysis', analysisService.findClipping),
 			contrast: restricted('audioAnalysis', analysisService.captureContrast), repeatLast: restricted('audioAnalysis', analysisService.repeatLast),
 		}),
-		export: createExportActionGroup({ handleExportAction, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
+		export: createExportActionGroup({ handleExportAction, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, getProject, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
 	});
 }

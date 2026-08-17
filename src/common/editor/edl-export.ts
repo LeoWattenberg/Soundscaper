@@ -61,6 +61,20 @@ export interface EdlExportRequest {
 	 */
 	readonly dropFrame?: boolean;
 	readonly events: readonly EdlEvent[];
+	/**
+	 * Things the caller knows the list left behind — whole tracks, typically,
+	 * which only a document-aware caller can see. They are recorded through the
+	 * ordinary item path before sealing, so the counts stay true; a caller that
+	 * appended to a sealed report would produce counts that lie.
+	 */
+	readonly omissions?: readonly EdlOmission[];
+}
+
+export interface EdlOmission {
+	readonly code: string;
+	readonly scope?: Readonly<Record<string, unknown>>;
+	readonly data?: Readonly<Record<string, unknown>>;
+	readonly message?: string;
 }
 
 export interface EdlExportResult {
@@ -134,6 +148,17 @@ export function createEdlExport(request: EdlExportRequest): EdlExportResult {
 			});
 		}
 		emitted += 1;
+	}
+
+	for (const omission of request?.omissions ?? []) {
+		addDeliveryReportItem(draft, {
+			code: String(omission?.code ?? 'edl.omitted'),
+			disposition: 'omitted',
+			severity: 'warning',
+			scope: omission?.scope ?? null,
+			data: omission?.data ?? null,
+			message: omission?.message,
+		});
 	}
 
 	addDeliveryReportItem(draft, {

@@ -67,6 +67,9 @@ export default function createApplicationMenus({
 		|| snapshot.timeline?.view === 'spectrogram'
 	));
 	const labelTracks = project?.tracks.filter((track) => track.type === 'label') || [];
+	// An EDL describes picture, so the entry only offers itself when there is a
+	// video track that composes — a list of nothing is not a useful export.
+	const edlTracks = project?.tracks.filter((track) => track.type === 'video' && track.hidden !== true) || [];
 	const preferences = snapshot.preferences;
 	const framescaperEditControls = createFramescaperEditControlMenuItems({
 		productId, project, selectedClipId: selectedClip?.id ?? null,
@@ -184,6 +187,12 @@ export default function createApplicationMenus({
 							label: copy.exportLabels,
 							disabled: blocked || !labelTracks.length,
 							onClick: actions.exportLabels,
+						},
+						{
+							id: 'export-edl',
+							label: copy.exportEdl,
+							disabled: blocked || !edlTracks.length,
+							onClick: actions.exportEdl,
 						},
 						...productItems.fileExport,
 					],
