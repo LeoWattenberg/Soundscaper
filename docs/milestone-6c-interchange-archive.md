@@ -11,8 +11,14 @@
 
 ## Pickup status and sequencing
 
-**No 6C work has landed, and no EDL, OTIO, FCPXML, or DAWproject code exists
-anywhere in `src/`.** 6C opens only after every 6.0 acceptance check passes;
+**Status on 2026-08-17: 6C-1a is implemented provisionally
+(`src/common/editor/edl-export.ts`); OTIO, FCPXML, and the archive slice have
+not started.** The EDL profile establishes the pattern the remaining profiles
+reuse: exact rational rates throughout, timecode from the shared
+`sequence-timecode` module, and every out-of-scope feature itemized in a
+delivery report rather than approximated. What it does not yet have is a
+project adapter — it takes an explicit event list, so nothing in the product
+calls it and no menu reaches it. 6C opens only after every 6.0 acceptance check passes;
 every exporter emits its conversion report through WP-6.0.0's model and every
 long-running archive operation runs under WP-6.0.1's queue semantics.
 
