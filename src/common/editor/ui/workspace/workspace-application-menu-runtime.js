@@ -3,6 +3,7 @@ import { otherProductId, productLocalePath } from '../../../products.js';
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
 import createApplicationMenus from '../application-menus.js';
 import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
+import { resolveSoundscaperNativeServicesWorkspaceRuntime } from './SoundscaperNativeServicesSurface.tsx';
 import { ANALYSIS_MODE_PANEL_IDS } from './workspace-panel-model.ts';
 
 export function createWorkspaceApplicationMenus({
@@ -53,6 +54,7 @@ export function createWorkspaceApplicationMenus({
 		uiFlags,
 		zoomProject,
 }) {
+	const soundscaperNativeServices = resolveSoundscaperNativeServicesWorkspaceRuntime({ productId, copy });
 	return createApplicationMenus({
 			productId,
 			aboutLabel,
@@ -75,6 +77,7 @@ export function createWorkspaceApplicationMenus({
 			actionRuntime: parityRuntime.actions,
 			actions: {
 				soundscaperProduction,
+				soundscaperNativeServices,
 				executeMulticameraCommand: (command) => run(() => {
 					switch (command?.type) {
 						case 'multicamera/create':
