@@ -20,6 +20,7 @@
 import { createHash } from 'node:crypto';
 
 import { HELPER_PLUGIN_FORMATS, type HelperPluginFormat } from './helper-job-grant.ts';
+import { isAdmissiblePluginPath } from './plugin-scan-results.ts';
 
 export { HELPER_PLUGIN_FORMATS as PLUGIN_FORMATS } from './helper-job-grant.ts';
 
@@ -197,7 +198,7 @@ export class DesktopPluginConsent {
 		this.#pickDirectory = options.pickDirectory;
 		this.#platform = options.platform ?? process.platform;
 		const home = options.homeDirectory ?? null;
-		this.#home = typeof home === 'string' && isAbsolutePath(home) ? home : null;
+		this.#home = isAdmissiblePluginPath(home) ? home : null;
 		if (options.state) this.#restore(options.state);
 	}
 
@@ -414,7 +415,7 @@ export class DesktopPluginConsent {
 				if (!plainRecord(root) || (root.origin !== 'standard' && root.origin !== 'custom')) {
 					throw new PluginConsentError('malformed-state', 'A persisted plug-in root is malformed.');
 				}
-				const path = assertRootPath(root.path);
+				const path = assertPluginRootPath(root.path);
 				const rootId = rootIdFor(format, path);
 				admitted.set(rootId, Object.freeze({
 					rootId,
@@ -454,7 +455,7 @@ function projectRoot(root: PluginRoot, admitted: boolean): PluginRootView {
 }
 
 function customRoot(format: PluginFormat, picked: string): PluginRoot {
-	const path = assertRootPath(picked);
+	const path = assertPluginRootPath(picked);
 	return Object.freeze({
 		rootId: rootIdFor(format, path),
 		format,
@@ -476,20 +477,11 @@ function assertFormat(value: unknown): PluginFormat {
 	return value as PluginFormat;
 }
 
-function assertRootPath(value: unknown): string {
-	if (typeof value !== 'string'
-		|| value.length === 0
-		|| new TextEncoder().encode(value).byteLength > 4_096
-		|| value.includes('\u0000')
-		|| !isAbsolutePath(value)
-		|| value.split(/[\\/]/u).includes('..')) {
+export function assertPluginRootPath(value: unknown): string {
+	if (!isAdmissiblePluginPath(value)) {
 		throw new PluginConsentError('unsafe-root', 'A plug-in root must be one absolute, traversal-free path.');
 	}
 	return value;
-}
-
-function isAbsolutePath(value: string): boolean {
-	return value.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(value) || value.startsWith('\\\\');
 }
 
 /**

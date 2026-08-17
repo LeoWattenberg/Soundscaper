@@ -1,12 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
 	PLUGIN_HOST_BENIGN_STOP_REASONS,
-	PLUGIN_HOST_QUARANTINE_FAULT_LIMIT,
-	PLUGIN_HOST_QUARANTINE_WINDOW_MS,
 	PLUGIN_VENDOR_UI_DENIED_CAPABILITIES,
 	PLUGIN_VENDOR_UI_SURFACES,
 	PluginHostIsolationRegistry,
@@ -23,6 +22,7 @@ import {
 	PLUGIN_OPAQUE_STATE_MAXIMUM_BYTES,
 	PluginInstanceStateStore,
 } from '../desktop/plugin-instance-state.ts';
+import { PLUGIN_HOST_FAULT_LIMIT, PLUGIN_HOST_FAULT_WINDOW_MS } from '../desktop/plugin-quarantine.ts';
 
 const LIMITER = 'a'.repeat(64);
 const REVERB = 'b'.repeat(64);
@@ -49,7 +49,12 @@ interface Harness {
 	settleStarts(): void;
 }
 
-function createHarness(options: Partial<{ enabled: boolean; manual: boolean; useStore: boolean }> = {}): Harness {
+function createHarness(options: Partial<{
+	enabled: boolean;
+	manual: boolean;
+	useStore: boolean;
+	isDigestQuarantined: (binarySha256: string) => boolean;
+}> = {}): Harness {
 	const launches: PluginHostLaunch[] = [];
 	const killed: string[] = [];
 	const openedWindows: string[] = [];
@@ -89,6 +94,7 @@ function createHarness(options: Partial<{ enabled: boolean; manual: boolean; use
 		},
 		isEnabled: options.enabled === false ? undefined : () => true,
 		isStateEligible: options.useStore ? (instanceId) => store.isEligible(instanceId) : undefined,
+		isDigestQuarantined: options.isDigestQuarantined,
 		now: () => clock,
 	});
 	return {
@@ -238,7 +244,7 @@ test('two qualifying faults in the window quarantine the digest; benign stops do
 	const third = hosted(await acquire(harness, editor, LIMITER, first.instanceId));
 	const quarantining = harness.registry.reportHostStopped({ hostId: third.hostId ?? '', reason: 'hang' });
 	assert.equal(quarantining.quarantined, true);
-	assert.equal(harness.registry.describeDigest(LIMITER).recentFaults, PLUGIN_HOST_QUARANTINE_FAULT_LIMIT);
+	assert.equal(harness.registry.describeDigest(LIMITER).recentFaults, PLUGIN_HOST_FAULT_LIMIT);
 	assert.equal(refusal(await acquire(harness, editor, LIMITER)).code, 'digest-quarantined');
 
 	// An unknown host cannot charge a fault to anything.
@@ -271,7 +277,7 @@ test('faults outside the window do not accumulate into a quarantine', async () =
 	const editor = {};
 	const first = hosted(await acquire(harness, editor, LIMITER));
 	harness.registry.reportHostStopped({ hostId: first.hostId ?? '', reason: 'crash' });
-	harness.advance(PLUGIN_HOST_QUARANTINE_WINDOW_MS + 1);
+	harness.advance(PLUGIN_HOST_FAULT_WINDOW_MS + 1);
 	const second = hosted(await acquire(harness, editor, LIMITER, first.instanceId));
 	const later = harness.registry.reportHostStopped({ hostId: second.hostId ?? '', reason: 'crash' });
 	assert.equal(later.quarantined, false);
@@ -339,6 +345,57 @@ test('losing the renderer owner closes its hosts and advances its generation', a
 	const reopened = hosted(await acquire(harness, editor, LIMITER));
 	assert.equal(reopened.ownerGeneration, 2);
 	assert.notEqual(reopened.hostId, instance.hostId);
+});
+
+test('a departing owner takes its detached instances with it, not only its hosted ones', async () => {
+	// A host that faulted leaves its instances attached to nothing. If they
+	// outlive their owner, the next session restoring that project's instance id
+	// is refused for the rest of the process lifetime and the map grows across
+	// every reload — a leak that presents as a plug-in that will not come back.
+	const harness = createHarness();
+	const editor = {};
+	const instance = hosted(await acquire(harness, editor, LIMITER));
+	harness.registry.reportHostStopped({ hostId: instance.hostId ?? '', reason: 'crash' });
+	assert.equal(harness.registry.describeInstance(instance.instanceId)?.hostId, null,
+		'the crashed host leaves the instance attached to nothing');
+
+	const affected = harness.registry.revokeOwner(editor);
+	assert.deepEqual([...affected], [instance.instanceId], 'revocation names everything the owner owned');
+	assert.equal(harness.registry.describeInstance(instance.instanceId), null);
+	assert.equal(harness.registry.snapshot().instanceCount, 0);
+
+	// The restored project asks for its own instance id back and gets it.
+	const next = {};
+	const restored = hosted(await acquire(harness, next, LIMITER, instance.instanceId));
+	assert.equal(restored.instanceId, instance.instanceId);
+	assert.equal(restored.state, 'hosted');
+});
+
+test('the host fault window is the durable store\'s window, not a second one beside it', async () => {
+	// A second copy of the limit is a second answer to "is this quarantined?".
+	const source = readFileSync(new URL('../desktop/plugin-host-isolation.ts', import.meta.url), 'utf8');
+	assert.equal(/= 10 \* 60_000|FAULT_LIMIT = \d/u.test(source), false,
+		'the isolation registry must take the fault window and limit from the durable store');
+
+	const harness = createHarness();
+	const instance = hosted(await acquire(harness, {}, LIMITER));
+	harness.registry.reportHostStopped({ hostId: instance.hostId ?? '', reason: 'crash' });
+	harness.advance(PLUGIN_HOST_FAULT_WINDOW_MS + 1);
+	assert.equal(harness.registry.describeDigest(LIMITER).recentFaults, 0, 'the store\'s window is the one applied');
+});
+
+test('a digest the durable quarantine already holds is refused without a second ledger', async () => {
+	const quarantined = new Set<string>([REVERB]);
+	const harness = createHarness({ isDigestQuarantined: (digest) => quarantined.has(digest) });
+	assert.equal(refusal(await acquire(harness, {}, REVERB)).code, 'digest-quarantined');
+	assert.equal(harness.launches.length, 0, 'a durably quarantined binary must never be spawned');
+	assert.equal(harness.registry.describeDigest(REVERB).quarantined, true);
+
+	// A digest the durable store does not hold is hosted as usual, and the
+	// registry's own answer follows the store rather than shadowing it.
+	assert.equal(hosted(await acquire(harness, {}, LIMITER)).binarySha256, LIMITER);
+	quarantined.add(LIMITER);
+	assert.equal(harness.registry.describeDigest(LIMITER).quarantined, true);
 });
 
 test('vendor UI is an opaque helper-owned window whose loss is not the effect being closed', async () => {

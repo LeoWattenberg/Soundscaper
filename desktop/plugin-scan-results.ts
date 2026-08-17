@@ -16,17 +16,23 @@
  */
 
 import { HELPER_PLUGIN_FORMATS, type HelperPluginFormat } from './helper-job-grant.ts';
-import { HelperContractViolationError } from './helper-wire-admission.ts';
+import { HelperContractViolationError, MAXIMUM_HELPER_WIRE_MESSAGE_BYTES } from './helper-wire-admission.ts';
 
 /**
- * A scan either completed or it did not. There is no partial status: a root
- * the helper could not read reports the reason and no entries at all, so a
- * caller can never mistake an aborted walk for an empty directory.
+ * What a scan of one root can have come to. A root the helper could not read
+ * reports the reason and no entries at all, so a caller can never mistake an
+ * aborted walk for an empty directory; a root holding more plug-ins than one
+ * answer carries reports `root-oversized` with the prefix that fits, so a
+ * legitimate large folder is a bounded fact rather than an over-envelope answer
+ * the supervisor tears the channel down for.
  */
 export const PLUGIN_SCAN_STATUSES = Object.freeze([
-	'scanned', 'unsupported-format', 'root-unreadable',
+	'scanned', 'root-oversized', 'unsupported-format', 'root-unreadable',
 ] as const);
 export type PluginScanStatus = (typeof PLUGIN_SCAN_STATUSES)[number];
+
+/** The statuses that read a directory far enough to name what is in it. */
+const REPORTING_STATUSES: readonly PluginScanStatus[] = Object.freeze(['scanned', 'root-oversized']);
 
 export const PLUGIN_CLASSIFICATIONS = Object.freeze(['effect', 'instrument', 'unknown'] as const);
 export type PluginClassification = (typeof PLUGIN_CLASSIFICATIONS)[number];
@@ -41,24 +47,43 @@ export const PLUGIN_COMPATIBILITY_RESULTS = Object.freeze([
 ] as const);
 export type PluginCompatibilityResult = (typeof PLUGIN_COMPATIBILITY_RESULTS)[number];
 
-/**
- * One scan answers for one root, so its size is bounded like any envelope.
- *
- * This is the outer ceiling and it is not the one a populated root reaches
- * first: the 64 KiB control envelope admits about 185 entries even when every
- * field is one character, so a root holding a few hundred plug-ins fails whole
- * rather than reporting a bounded prefix. Answering such a root needs paging in
- * the wire contract, which is not this module's to add.
- */
-export const MAXIMUM_PLUGIN_SCAN_ENTRIES = 512;
 export const MAXIMUM_PLUGIN_CHANNEL_LAYOUTS = 32;
 export const MAXIMUM_PLUGIN_CHANNEL_COUNT = 64;
 export const MAXIMUM_PLUGIN_SCAN_DETAIL_LENGTH = 1_024;
 export const MAXIMUM_PLUGIN_TEXT_LENGTH = 256;
-export const MAXIMUM_PLUGIN_BINARY_PATH_LENGTH = 4_096;
 export const MAXIMUM_PLUGIN_BINARY_BYTES = 8 * 1024 ** 3;
 export const MAXIMUM_PLUGIN_LATENCY_FRAMES = 1_048_576;
 export const MAXIMUM_PLUGIN_DESCRIPTOR_VERSION = 65_535;
+
+/**
+ * A scan answer rides the shared control envelope, so that envelope is the
+ * bound — not a number declared beside it that can promise more plug-ins than
+ * the wire will carry. Admitting a result the envelope cannot hold is how a
+ * populated folder became an over-envelope answer, a killed channel, and a
+ * healthy root treated as a fault.
+ */
+export const MAXIMUM_PLUGIN_SCAN_RESULT_BYTES: number = MAXIMUM_HELPER_WIRE_MESSAGE_BYTES;
+
+/** One entry stripped to its shortest admissible form, plus its separator. */
+const SMALLEST_SCAN_ENTRY_BYTES = JSON.stringify({
+	stableId: 'a', name: 'a', vendor: 'a', version: 'a', binaryPath: '/a', binaryBytes: 1,
+	binarySha256: '0'.repeat(64), classification: 'unknown', channelSupport: [], realtime: false,
+	offline: false, reportedLatencyFrames: null, signature: 'unverifiable', compatibility: 'compatible',
+	descriptorVersion: 0,
+}).length + 1;
+
+/** Everything a result carries around its entries, at its longest. */
+const SCAN_RESULT_OVERHEAD_BYTES = JSON.stringify({
+	format: 'vst3', status: 'root-oversized', detail: 'x'.repeat(MAXIMUM_PLUGIN_SCAN_DETAIL_LENGTH), entries: [],
+}).length;
+
+/**
+ * Derived rather than declared: how many shortest-possible entries the envelope
+ * carries. Entries of ordinary length reach the byte bound first, and a root
+ * with more plug-ins than either bound admits answers `root-oversized`.
+ */
+export const MAXIMUM_PLUGIN_SCAN_ENTRIES = Math.floor(
+	(MAXIMUM_PLUGIN_SCAN_RESULT_BYTES - SCAN_RESULT_OVERHEAD_BYTES) / SMALLEST_SCAN_ENTRY_BYTES);
 
 export interface PluginChannelSupport {
 	readonly inputs: number;
@@ -119,20 +144,29 @@ export function validateHelperPluginScanResult(value: unknown): HelperPluginScan
 		throw new HelperContractViolationError('oversized',
 			`A plug-in scan result may name at most ${MAXIMUM_PLUGIN_SCAN_ENTRIES} plug-ins.`);
 	}
-	if (status !== 'scanned' && entries.length > 0) {
+	if (!REPORTING_STATUSES.includes(status) && entries.length > 0) {
 		malformed('A plug-in scan that did not complete must publish no entries.');
+	}
+	if (status === 'root-oversized' && entries.length === 0) {
+		malformed('A plug-in scan of an oversized root must publish the entries it did read.');
 	}
 	// Identity is format plus format-native stable id, so a root that answers
 	// with the same id twice has already lost the ability to say which
 	// installation it means. That is a helper fault, not a user choice.
 	const stableIds = new Set<string>();
 	const admitted = entries.map((entry) => validatePluginScanEntry(entry, stableIds));
-	return Object.freeze({
+	const result = Object.freeze({
 		format,
 		status,
 		detail: boundedDetail(record.detail),
 		entries: Object.freeze(admitted),
 	});
+	if (utf8ByteLength(JSON.stringify(result)) > MAXIMUM_PLUGIN_SCAN_RESULT_BYTES) {
+		throw new HelperContractViolationError('oversized',
+			`A plug-in scan result must fit the ${String(MAXIMUM_PLUGIN_SCAN_RESULT_BYTES)}-byte control envelope; `
+			+ 'a root with more plug-ins than one answer carries is reported as root-oversized.');
+	}
+	return result;
 }
 
 /**
@@ -223,16 +257,31 @@ function validateChannelSupport(value: unknown): readonly PluginChannelSupport[]
 }
 
 /**
+ * The one path admission every plug-in surface uses, so a path one gate admits
+ * cannot be rejected by the next. The bound is counted in UTF-8 bytes because
+ * that is what a filesystem counts: a bound in UTF-16 code units both admits
+ * paths the operating system will refuse and refuses paths it would accept, and
+ * the two answers diverge exactly on the non-ASCII names users actually have.
+ */
+export const MAXIMUM_PLUGIN_PATH_BYTES = 4_096;
+
+const PATH_ENCODER = new TextEncoder();
+
+export function isAdmissiblePluginPath(value: unknown): value is string {
+	return typeof value === 'string'
+		&& value.length > 0
+		&& PATH_ENCODER.encode(value).byteLength <= MAXIMUM_PLUGIN_PATH_BYTES
+		&& !value.includes('\0')
+		&& (value.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(value) || value.startsWith('\\\\'))
+		&& !value.split(/[\\/]/u).includes('..');
+}
+
+/**
  * The path a scan reports is re-checked exactly as a grant path is, because it
  * is the value main would have to trust if it ever acted on this entry.
  */
 function absolutePath(value: unknown): string {
-	if (typeof value !== 'string'
-		|| value.length === 0
-		|| value.length > MAXIMUM_PLUGIN_BINARY_PATH_LENGTH
-		|| value.includes('\0')
-		|| !(value.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(value) || value.startsWith('\\\\'))
-		|| value.split(/[\\/]/u).includes('..')) {
+	if (!isAdmissiblePluginPath(value)) {
 		malformed('A plug-in scan entry must name one absolute, traversal-free binary path.');
 	}
 	return value;
@@ -299,4 +348,8 @@ function enumValue<const Values extends readonly string[]>(
 
 function malformed(message: string): never {
 	throw new HelperContractViolationError('malformed', message);
+}
+
+function utf8ByteLength(value: string): number {
+	return PATH_ENCODER.encode(value).byteLength;
 }

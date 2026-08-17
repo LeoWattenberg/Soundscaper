@@ -278,6 +278,58 @@ test('retention is bounded, and at the ceiling the store refuses rather than evi
 	persisted(store.persist({ instanceId: 'instance-overflow', generation: 1, bytes: statePattern(8, 1) }));
 });
 
+test('an oversize verdict is never lost to capacity pressure', () => {
+	// The store being full is a fact about the store. The event it is refusing
+	// to record is the one event the spec says must cost hosting eligibility, so
+	// dropping it would leave a plug-in eligible precisely because main is busy.
+	for (const declare of [
+		(store: PluginInstanceStateStore, instanceId: string) => store.declareOversizeState({
+			instanceId, generation: 1, declaredByteLength: PLUGIN_OPAQUE_STATE_MAXIMUM_BYTES + 1,
+		}),
+		(store: PluginInstanceStateStore, instanceId: string) => store.persist({
+			instanceId, generation: 1, bytes: new Uint8Array(PLUGIN_OPAQUE_STATE_MAXIMUM_BYTES + 1),
+		}),
+	]) {
+		const store = new PluginInstanceStateStore();
+		for (let index = 0; index < PLUGIN_OPAQUE_STATE_MAXIMUM_RETAINED_INSTANCES; index += 1) {
+			persisted(store.persist({ instanceId: `instance-${String(index)}`, generation: 1, bytes: statePattern(8, index) }));
+		}
+		const verdict = rejected(declare(store, 'instance-overflow'));
+		assert.equal(verdict.code, 'oversize', 'a full store must not relabel an oversize state as capacity');
+		assert.equal(verdict.eligible, false);
+		assert.equal(store.isEligible('instance-overflow'), false,
+			'the instance stays ineligible, not merely reported as such once');
+		assert.equal(store.describe('instance-overflow').ineligibleReason, 'oversize-state');
+		assert.ok(store.read('instance-0'), 'room for a verdict never comes out of a retained state');
+	}
+});
+
+test('the verdict map is bounded, so no churn of fresh instance ids can grow it', () => {
+	// Instance ids arrive from a helper. A stream of them carrying oversize
+	// states must not walk either map past the ceiling the module documents.
+	const store = new PluginInstanceStateStore();
+	const churn = PLUGIN_OPAQUE_STATE_MAXIMUM_RETAINED_INSTANCES * 2 + 50;
+	for (let index = 0; index < churn; index += 1) {
+		const outcome = rejected(store.persist({
+			instanceId: `churn-${String(index)}`,
+			generation: 1,
+			bytes: new Uint8Array(PLUGIN_OPAQUE_STATE_MAXIMUM_BYTES + 1),
+		}));
+		assert.equal(outcome.code, 'oversize');
+	}
+	let tracked = 0;
+	for (let index = 0; index < churn; index += 1) {
+		if (!store.isEligible(`churn-${String(index)}`)) tracked += 1;
+	}
+	assert.equal(tracked, PLUGIN_OPAQUE_STATE_MAXIMUM_RETAINED_INSTANCES,
+		'the verdict map holds its ceiling and no more');
+	assert.equal(store.isEligible(`churn-${String(churn - 1)}`), false, 'the newest verdict is the one kept');
+	assert.deepEqual(rejected(store.persist({
+		instanceId: 'churn-0', generation: 1, bytes: new Uint8Array(PLUGIN_OPAQUE_STATE_MAXIMUM_BYTES + 1),
+	})).released, `churn-${String(PLUGIN_OPAQUE_STATE_MAXIMUM_RETAINED_INSTANCES + 50)}`,
+		'the verdict the ceiling released is named rather than dropped in silence');
+});
+
 test('a stale or malformed transfer is a retry, not a verdict about the instance', () => {
 	const store = new PluginInstanceStateStore();
 	const bytes = statePattern(256, 3);

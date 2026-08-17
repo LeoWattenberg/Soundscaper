@@ -5,45 +5,37 @@
  *
  * Isolation is one host process per (renderer owner, plug-in binary digest).
  * Instances of that exact digest, opened by that exact owner, share one host —
- * loading the same limiter twelve times must not cost twelve processes — but
- * two different binaries never share, and two different renderer owners never
- * share, because a crash or a hostile binary must not reach past the pair that
- * asked for it.
+ * loading the same limiter twelve times must not cost twelve processes — but two
+ * different binaries never share, and two different renderer owners never share,
+ * because a crash or a hostile binary must not reach past the pair that asked.
  *
  * Nothing here publishes authority: main owns process creation, the binary path
  * and revocation, and this registry hands out opaque ids and bounded status —
  * never a path, and never a main-side error message that contains one. It has no
  * restart path of its own, so a revoked digest stays dead until an explicit
- * restore rather than being revived by the next instance request.
+ * restore rather than being revived by the next request.
  *
  * A lost host degrades, never corrupts. Canonical parameters and opaque state
- * live outside this module and no fault here touches them, and the continuity
- * answer is either bypass or a freeze the project already authored. This module
- * cannot manufacture a freeze: it renders nothing.
+ * live outside this module, the durable quarantine is consulted rather than
+ * mirrored, and the continuity answer is either bypass or a freeze the project
+ * already authored. This module cannot manufacture a freeze: it renders nothing.
  */
 
 import { HELPER_PLUGIN_FORMATS, type HelperPluginFormat } from './helper-job-grant.ts';
 import { HelperContractViolationError } from './helper-wire-admission.ts';
 import {
+	PLUGIN_HOST_BENIGN_STOP_REASONS,
 	assertPluginInstanceId,
 	choosePluginInstanceContinuity,
 	type PluginContinuityDecision,
 	type PluginContinuityRequest,
+	type PluginHostStopReason,
 	type PluginInstanceState,
 } from './plugin-instance-state.ts';
 
-/** Two qualifying host faults inside the window quarantine that digest. */
-export const PLUGIN_HOST_QUARANTINE_FAULT_LIMIT = 2;
-export const PLUGIN_HOST_QUARANTINE_WINDOW_MS = 10 * 60_000;
-
-export const PLUGIN_HOST_FAULT_REASONS = Object.freeze([
-	'crash', 'hang', 'malformed-answer', 'resource-violation', 'oversize-state', 'identity-changed',
-] as const);
-
-/** Stops the user or the application asked for. These are never faults. */
-export const PLUGIN_HOST_BENIGN_STOP_REASONS = Object.freeze([
-	'user-cancelled', 'device-loss', 'editor-shutdown',
-] as const);
+export { PLUGIN_HOST_BENIGN_STOP_REASONS, PLUGIN_HOST_FAULT_REASONS, type PluginHostBenignStopReason,
+	type PluginHostFaultReason, type PluginHostStopReason } from './plugin-instance-state.ts';
+import { PLUGIN_HOST_FAULT_LIMIT, PLUGIN_HOST_FAULT_WINDOW_MS } from './plugin-quarantine.ts';
 
 /**
  * The only vendor-UI surface 5A models. An embedded native child window is not
@@ -56,9 +48,6 @@ export const PLUGIN_VENDOR_UI_DENIED_CAPABILITIES = Object.freeze([
 	'renderer-bridge', 'dom', 'node', 'file-system', 'network', 'child-process', 'embedded-child-window',
 ] as const);
 
-export type PluginHostFaultReason = (typeof PLUGIN_HOST_FAULT_REASONS)[number];
-export type PluginHostBenignStopReason = (typeof PLUGIN_HOST_BENIGN_STOP_REASONS)[number];
-export type PluginHostStopReason = PluginHostFaultReason | PluginHostBenignStopReason;
 export type PluginVendorUiSurface = (typeof PLUGIN_VENDOR_UI_SURFACES)[number];
 
 export type PluginHostRefusalCode =
@@ -85,13 +74,13 @@ export interface PluginHostIsolationOptions {
 	readonly startHost: (launch: PluginHostLaunch) => Promise<PluginHostProcess>;
 	/** Mints the opaque ids a renderer is allowed to see. Main-owned. */
 	readonly mintId: () => string;
+	readonly now?: () => number;
 	/** Off by default: hosting runs only once a user turned the surface on. */
 	readonly isEnabled?: () => boolean;
 	/** An instance whose last opaque state was oversize may not be hosted. */
 	readonly isStateEligible?: (instanceId: string) => boolean;
-	readonly now?: () => number;
-	readonly quarantineFaultLimit?: number;
-	readonly quarantineWindowMs?: number;
+	/** The durable quarantine, consulted rather than mirrored by this registry. */
+	readonly isDigestQuarantined?: (binarySha256: string) => boolean;
 }
 
 export interface PluginInstanceRequest {
@@ -164,6 +153,11 @@ interface InstanceEntry {
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 
+const WITHHOLD_MESSAGES = Object.freeze({
+	'digest-revoked': 'That plug-in binary was revoked and will not be hosted again.',
+	'digest-quarantined': 'That plug-in binary is quarantined after repeated host faults.',
+});
+
 /** The isolation unit, spelled once so no caller can invent a looser one. */
 export function pluginHostIsolationKey(ownerId: string, binarySha256: string): string {
 	return `${ownerId}:${binarySha256}`;
@@ -174,9 +168,8 @@ export class PluginHostIsolationRegistry {
 	readonly #mintId: () => string;
 	readonly #isEnabled: () => boolean;
 	readonly #isStateEligible: (instanceId: string) => boolean;
+	readonly #isDigestQuarantined: (binarySha256: string) => boolean;
 	readonly #now: () => number;
-	readonly #quarantineFaultLimit: number;
-	readonly #quarantineWindowMs: number;
 	readonly #owners = new WeakMap<object, OwnerEntry>();
 	readonly #hosts = new Map<string, HostEntry>();
 	readonly #hostsById = new Map<string, HostEntry>();
@@ -195,9 +188,8 @@ export class PluginHostIsolationRegistry {
 		// disabled surface rather than an enabled one.
 		this.#isEnabled = options.isEnabled ?? (() => false);
 		this.#isStateEligible = options.isStateEligible ?? (() => true);
+		this.#isDigestQuarantined = options.isDigestQuarantined ?? (() => false);
 		this.#now = options.now ?? (() => Date.now());
-		this.#quarantineFaultLimit = options.quarantineFaultLimit ?? PLUGIN_HOST_QUARANTINE_FAULT_LIMIT;
-		this.#quarantineWindowMs = options.quarantineWindowMs ?? PLUGIN_HOST_QUARANTINE_WINDOW_MS;
 	}
 
 	snapshot(): PluginHostIsolationSnapshot {
@@ -221,7 +213,7 @@ export class PluginHostIsolationRegistry {
 			return refused('invalid-identity', describeError(error));
 		}
 		const withheld = this.#withholdCode(digest);
-		if (withheld) return refused(withheld, this.#withholdMessage(withheld));
+		if (withheld) return refused(withheld, WITHHOLD_MESSAGES[withheld]);
 		if (requestedId !== null && !this.#isStateEligible(requestedId)) {
 			return refused('state-ineligible',
 				'That plug-in instance is ineligible until its opaque state fits the per-instance ceiling.');
@@ -262,14 +254,14 @@ export class PluginHostIsolationRegistry {
 		for (const host of this.#hosts.values()) if (host.binarySha256 === binarySha256) hostCount += 1;
 		return Object.freeze({
 			binarySha256, revoked: this.#revoked.has(binarySha256), hostCount,
-			quarantined: this.#quarantined.has(binarySha256), recentFaults: this.#recentFaults(binarySha256).length,
+			quarantined: this.#isQuarantined(binarySha256), recentFaults: this.#recentFaults(binarySha256).length,
 		});
 	}
 
 	/**
 	 * Kills every host for this digest and keeps it dead. There is no restart path
-	 * here and `acquireInstance` refuses the digest from now on, so no later
-	 * instance request can undo the revocation by accident.
+	 * here and `acquireInstance` refuses the digest from now on, so no later request
+	 * can undo the revocation by accident.
 	 */
 	revokeDigest(binarySha256: string): readonly string[] {
 		const digest = assertBinaryDigest(binarySha256);
@@ -280,9 +272,9 @@ export class PluginHostIsolationRegistry {
 	}
 
 	/**
-	 * The one way back: an explicit user re-enable of that exact digest. Both
-	 * holds are released, because a digest that was quarantined and then revoked
-	 * would otherwise report a successful restore and stay dead.
+	 * The one way back: an explicit user re-enable of that exact digest. Both holds
+	 * are released, because a digest that was quarantined and then revoked would
+	 * otherwise report a successful restore and stay dead.
 	 */
 	restoreDigest(binarySha256: string): boolean {
 		const digest = assertBinaryDigest(binarySha256);
@@ -295,21 +287,28 @@ export class PluginHostIsolationRegistry {
 	/**
 	 * The renderer that owned these instances is gone. Its hosts — including any
 	 * still starting — and its vendor windows close immediately and its owner
-	 * generation advances, so nothing in flight attaches to the next generation.
+	 * generation advances, so nothing in flight joins the next generation.
 	 */
 	revokeOwner(owner: object): readonly string[] {
 		const entry = this.#owners.get(owner);
 		if (!entry) return Object.freeze([]);
 		entry.generation += 1;
 		const affected = this.#stopHostsWhere((host) => host.ownerId === entry.ownerId, null);
-		for (const instanceId of affected) this.#instances.delete(instanceId);
+		// Everything the owner owned, not only what a live host still held: an
+		// instance whose host already faulted is attached to nothing, and one that
+		// outlives its owner refuses its own id to every later session.
+		for (const [instanceId, instance] of [...this.#instances]) {
+			if (instance.ownerId !== entry.ownerId) continue;
+			this.#instances.delete(instanceId);
+			if (!affected.includes(instanceId)) affected.push(instanceId);
+		}
 		return Object.freeze(affected);
 	}
 
 	/**
 	 * One host process stopped. A qualifying fault is charged to its digest and
 	 * quarantines it on the second within the window; only a benign stop — user
-	 * cancellation, device loss, editor shutdown — is charged to nothing.
+	 * cancellation, device loss, shutdown — is charged to nothing.
 	 */
 	reportHostStopped(report: Readonly<{ hostId: string; reason: PluginHostStopReason }>): PluginHostStopOutcome {
 		const host = this.#hostsById.get(report.hostId);
@@ -323,7 +322,7 @@ export class PluginHostIsolationRegistry {
 		if (!qualifying) return stopOutcome(host.hostId, report.reason, false, false, instanceIds);
 		const faults = [...this.#recentFaults(digest), this.#now()];
 		this.#faults.set(digest, faults);
-		const quarantined = faults.length >= this.#quarantineFaultLimit;
+		const quarantined = faults.length >= PLUGIN_HOST_FAULT_LIMIT;
 		if (quarantined) {
 			this.#quarantined.add(digest);
 			// A quarantined digest is quarantined everywhere, not only for the
@@ -390,7 +389,7 @@ export class PluginHostIsolationRegistry {
 	/**
 	 * The project closed this instance. Its window goes, its host loses it, and a
 	 * host with nothing left to serve is a process nobody owns, so it stops. The
-	 * retained opaque state belongs to the state store, not to this registry.
+	 * retained opaque state belongs to the state store, not here.
 	 */
 	releaseInstance(instanceId: string): boolean {
 		const entry = this.#instances.get(instanceId);
@@ -412,14 +411,14 @@ export class PluginHostIsolationRegistry {
 		this.#starting.clear();
 	}
 
-	#withholdCode(digest: string): PluginHostRefusalCode | null {
+	#withholdCode(digest: string): keyof typeof WITHHOLD_MESSAGES | null {
 		if (this.#revoked.has(digest)) return 'digest-revoked';
-		return this.#quarantined.has(digest) ? 'digest-quarantined' : null;
+		return this.#isQuarantined(digest) ? 'digest-quarantined' : null;
 	}
 
-	#withholdMessage(code: PluginHostRefusalCode): string {
-		return code === 'digest-revoked' ? 'That plug-in binary was revoked and will not be hosted again.'
-			: 'That plug-in binary is quarantined after repeated host faults.';
+	/** Either ledger holding the digest withholds it, so they cannot disagree. */
+	#isQuarantined(digest: string): boolean {
+		return this.#quarantined.has(digest) || this.#isDigestQuarantined(digest);
 	}
 
 	#ownerEntry(owner: object): OwnerEntry {
@@ -544,8 +543,9 @@ export class PluginHostIsolationRegistry {
 		return null;
 	}
 
+	/** The durable store's window, applied here so the two never disagree. */
 	#recentFaults(digest: string): number[] {
-		const cutoff = this.#now() - this.#quarantineWindowMs;
+		const cutoff = this.#now() - PLUGIN_HOST_FAULT_WINDOW_MS;
 		return (this.#faults.get(digest) ?? []).filter((timestamp) => timestamp > cutoff);
 	}
 }

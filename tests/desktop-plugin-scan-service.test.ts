@@ -58,7 +58,7 @@ const ENTRY = Object.freeze({
 
 const SCAN = Object.freeze({ format: 'vst3', status: 'scanned', detail: '', entries: [ENTRY] });
 
-function failed(outcome: PluginScanOutcome): Readonly<{ code: string; message: string }> {
+function failed(outcome: PluginScanOutcome): Extract<PluginScanOutcome, { status: 'failed' }> {
 	assert.equal(outcome.status, 'failed');
 	if (outcome.status !== 'failed') throw new Error('unreachable');
 	return outcome;
@@ -323,15 +323,17 @@ test('the described scan a renderer receives carries no raw path anywhere', asyn
 	assert.equal(outcome.scan.entries[0].binarySha256, 'b'.repeat(64));
 });
 
-test('a helper answer that fails admission is a failure and quarantines the location', async () => {
+test('a helper answer that fails admission is a fault the folder does not pay for', async () => {
 	const { service, quarantined } = createService({
 		run: async () => ({ ...SCAN, entries: [{ ...ENTRY, binaryPath: '../../etc/shadow' }] }),
 	});
-	assert.equal(failed(await scan(service)).code, 'helper-failed');
-	assert.deepEqual(quarantined, [[ROOT.scanDigest, 'malformed-answer']]);
+	const outcome = failed(await scan(service));
+	assert.equal(outcome.code, 'helper-failed');
+	assert.deepEqual(outcome.fault, { reason: 'malformed-answer', quarantined: false });
+	assert.deepEqual(quarantined, []);
 });
 
-test('an oversized answer quarantines the location it came from', async () => {
+test('an oversized answer names its fault without quarantining the location', async () => {
 	// The realistic shape: the helper really does answer with too many entries,
 	// the supervisor rejects the result and reports its own typed fault.
 	const overlong = createService({
@@ -341,25 +343,37 @@ test('an oversized answer quarantines the location it came from', async () => {
 		}),
 	});
 	assert.equal(failed(await scan(overlong.service)).code, 'helper-failed');
-	assert.deepEqual(overlong.quarantined, [[ROOT.scanDigest, 'malformed-answer']]);
+	assert.deepEqual(failed(await scan(overlong.service)).fault, { reason: 'malformed-answer', quarantined: false });
+	assert.deepEqual(overlong.quarantined, []);
 
 	// The defensive shape, in case a supervisor ever surfaces the contract error
-	// itself: an oversize answer is still that location's fault, named as such.
+	// itself: an oversize answer is still a fault, named as one.
 	const direct = createService({
 		run: () => Promise.reject(new HelperContractViolationError('oversized', 'too many entries')),
 	});
-	assert.equal(failed(await scan(direct.service)).code, 'helper-failed');
-	assert.deepEqual(direct.quarantined, [[ROOT.scanDigest, 'oversize-answer']]);
+	const outcome = failed(await scan(direct.service));
+	assert.equal(outcome.code, 'helper-failed');
+	assert.deepEqual(outcome.fault, { reason: 'oversize-answer', quarantined: false });
+	assert.deepEqual(direct.quarantined, []);
 });
 
-test('a scanner crash or hang quarantines, while cancellation and shutdown do not', async () => {
+test('a scanner fault is named, and every other failure is named as no fault at all', async () => {
 	for (const [cause, code, reason] of [
 		['helper-exit', 'helper-failed', 'scanner-crash'],
-		['helper-error', 'helper-failed', 'scanner-crash'],
 		['malformed-message', 'helper-failed', 'malformed-answer'],
+		['job-mismatch', 'helper-failed', 'malformed-answer'],
 		['heartbeat', 'helper-failed', 'scanner-hang'],
 		['resource-violation', 'helper-failed', 'scanner-hang'],
 		['cancellation-timeout', 'helper-cancelled', 'scanner-hang'],
+		// Main's own problems, not the installation's: the shared supervisor
+		// refusing a second concurrent job while an audio job is in flight, a
+		// helper that has not finished its handshake, a request or kind main
+		// built wrong, a payload that failed verification, and every ordinary
+		// stop. None of these is evidence about the bytes in the folder.
+		['helper-error', 'helper-failed', null],
+		['handshake', 'helper-failed', null],
+		['invalid-request', 'helper-failed', null],
+		['unsupported-kind', 'helper-failed', null],
 		['cancelled', 'helper-cancelled', null],
 		['disposed', 'helper-disabled', null],
 		['binary-mismatch', 'helper-unavailable', null],
@@ -370,10 +384,42 @@ test('a scanner crash or hang quarantines, while cancellation and shutdown do no
 		});
 		const outcome = failed(await scan(service));
 		assert.equal(outcome.code, code, `${cause} must surface as ${code}`);
-		assert.deepEqual(quarantined, reason === null ? [] : [[ROOT.scanDigest, reason]],
-			`${cause} must ${reason === null ? 'not quarantine' : `quarantine as ${reason}`}`);
+		assert.deepEqual(outcome.fault, reason === null ? null : { reason, quarantined: false },
+			`${cause} must ${reason === null ? 'not be a scanner fault' : `be a ${reason} fault`}`);
+		assert.deepEqual(quarantined, [], 'no scan-level fault may quarantine anything by root');
 		assert.equal(outcome.message.includes('simulated'), false, 'helper text must not be relayed verbatim');
 	}
+});
+
+test('an error main did not type at all is never charged to the scanned location', async () => {
+	// The catch-all is the dangerous one: a bug in main's own code reaching this
+	// handler must not durably cost a user's folder its eligibility.
+	for (const error of [new TypeError('main built the request wrong'), 'a string', null]) {
+		const { service, quarantined } = createService({ run: () => Promise.reject(error) });
+		const outcome = failed(await scan(service));
+		assert.equal(outcome.code, 'helper-failed');
+		assert.equal(outcome.fault, null, 'an untyped failure is not evidence about the scanned bytes');
+		assert.deepEqual(quarantined, []);
+	}
+});
+
+test('a scanner fault costs the binary that misbehaved, never the whole folder', async () => {
+	// One crash-on-scan binary in a folder of thirty healthy ones must not block
+	// rescans of all thirty-one, and the only exit — an explicit rescan — would
+	// re-run the same root and crash again, a loop with no per-binary escape.
+	const { service, quarantined } = createService({
+		run: () => Promise.reject(new HelperSupervisionError('helper-exit', 'the scanner died')),
+	});
+	const outcome = failed(await scan(service));
+	assert.deepEqual(quarantined, [], 'a root is a folder; the bytes are what misbehave');
+	assert.deepEqual(outcome.fault, { reason: 'scanner-crash', quarantined: false },
+		'a fault no binary can be attributed to is said out loud and left non-permanent');
+
+	// The location stays scannable, which is the whole point of not quarantining
+	// it: the next attempt is allowed to reach the helper at all.
+	const healthy = createService();
+	assert.equal((await scan(healthy.service)).status, 'described');
+	assert.deepEqual(healthy.quarantined, []);
 });
 
 test('an installation the scanner calls malformed or oversize loses its own digest', async () => {

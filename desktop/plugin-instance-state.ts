@@ -48,17 +48,34 @@ export const PLUGIN_INSTANCE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
 export const PLUGIN_OPAQUE_STATE_MAXIMUM_GENERATION = 0xffff_ffff;
 
 /**
- * How many instances one store retains for. Instance ids arrive from a helper
- * and each retained state may be 16 MiB, so an unbounded map is an unbounded
- * memory grant. At the ceiling a newcomer is refused rather than an older
+ * How many instances one store retains for, and — separately — how many
+ * ineligibility verdicts it holds. Instance ids arrive from a helper and each
+ * retained state may be 16 MiB, so an unbounded map is an unbounded memory
+ * grant. At the retention ceiling a newcomer is refused rather than an older
  * instance evicted: evicting is the silent discard this module exists to
  * prevent, and an instance already retained can always update its own state.
+ * The verdict ceiling behaves the other way round, because a verdict weighs
+ * nothing and losing one costs hosting eligibility; see `#recordIneligibility`.
  */
 export const PLUGIN_OPAQUE_STATE_MAXIMUM_RETAINED_INSTANCES = 256;
 
 /** An instance's lifecycle relative to a host process, never to its content. */
 export const PLUGIN_INSTANCE_STATES = Object.freeze(['hosted', 'stopped', 'faulted', 'revoked'] as const);
 export type PluginInstanceState = (typeof PLUGIN_INSTANCE_STATES)[number];
+
+/** Why a host process stopped: the causes those instance states have. */
+export const PLUGIN_HOST_FAULT_REASONS = Object.freeze([
+	'crash', 'hang', 'malformed-answer', 'resource-violation', 'oversize-state', 'identity-changed',
+] as const);
+
+/** Stops the user or the application asked for. These are never faults. */
+export const PLUGIN_HOST_BENIGN_STOP_REASONS = Object.freeze([
+	'user-cancelled', 'device-loss', 'editor-shutdown',
+] as const);
+
+export type PluginHostFaultReason = (typeof PLUGIN_HOST_FAULT_REASONS)[number];
+export type PluginHostBenignStopReason = (typeof PLUGIN_HOST_BENIGN_STOP_REASONS)[number];
+export type PluginHostStopReason = PluginHostFaultReason | PluginHostBenignStopReason;
 
 export interface PluginOpaqueStateDescriptor {
 	readonly instanceId: string;
@@ -116,6 +133,8 @@ export type PluginOpaqueStatePersistOutcome =
 		eligible: boolean;
 		/** The state that survived the refusal, exactly as it was before it. */
 		retained: PluginOpaqueStateSummary | null;
+		/** The verdict the ceiling released to hold this one, named not dropped. */
+		released: string | null;
 	}>;
 
 export interface PluginOpaqueStatePersistRequest {
@@ -303,7 +322,7 @@ export class PluginInstanceStateStore {
 			return this.#reject(instanceId, 'stale-generation',
 				'A plug-in opaque state older than the retained one was refused.');
 		}
-		if (this.#atCapacity(instanceId)) {
+		if (this.#retentionAtCapacity(instanceId)) {
 			return this.#reject(instanceId, 'capacity',
 				'This store already retains opaque state for its maximum number of instances.');
 		}
@@ -340,10 +359,6 @@ export class PluginInstanceStateStore {
 			const reported = typeof report.instanceId === 'string' ? report.instanceId : '';
 			return this.#reject(reported, 'malformed', describeError(error));
 		}
-		if (this.#atCapacity(instanceId)) {
-			return this.#reject(instanceId, 'capacity',
-				'This store already tracks its maximum number of instances.');
-		}
 		return this.#reject(instanceId, 'oversize',
 			`A plug-in opaque state of ${String(declared)} bytes exceeds the `
 			+ `${String(PLUGIN_OPAQUE_STATE_MAXIMUM_BYTES)}-byte ceiling.`);
@@ -378,10 +393,32 @@ export class PluginInstanceStateStore {
 		this.#ineligible.delete(instanceId);
 	}
 
-	/** Both maps are bounded together, so no id churn can grow either one. */
-	#atCapacity(instanceId: string): boolean {
-		return !this.#retained.has(instanceId) && !this.#ineligible.has(instanceId)
-			&& this.#retained.size + this.#ineligible.size >= PLUGIN_OPAQUE_STATE_MAXIMUM_RETAINED_INSTANCES;
+	/** Retention is bounded on its own, because a retained state is the 16 MiB. */
+	#retentionAtCapacity(instanceId: string): boolean {
+		return !this.#retained.has(instanceId)
+			&& this.#retained.size >= PLUGIN_OPAQUE_STATE_MAXIMUM_RETAINED_INSTANCES;
+	}
+
+	/**
+	 * A verdict is bounded like everything else here, but it is never refused
+	 * for capacity: the store being full is a fact about the store, and the
+	 * event it would be dropping is the one event that costs an instance its
+	 * eligibility to host. Room comes from the oldest verdict — never from a
+	 * retained state, which would be the silent discard this module exists to
+	 * prevent — and the released instance earns its verdict back from its next
+	 * oversize answer, so nothing is lost that cannot be re-observed.
+	 */
+	#recordIneligibility(instanceId: string): string | null {
+		if (this.#ineligible.has(instanceId)) return null;
+		let released: string | null = null;
+		while (this.#ineligible.size >= PLUGIN_OPAQUE_STATE_MAXIMUM_RETAINED_INSTANCES) {
+			const [oldest] = this.#ineligible.keys();
+			if (oldest === undefined) break;
+			this.#ineligible.delete(oldest);
+			released = oldest;
+		}
+		this.#ineligible.set(instanceId, 'oversize-state');
+		return released;
 	}
 
 	#reject(
@@ -392,7 +429,7 @@ export class PluginInstanceStateStore {
 		// Only an oversize state costs eligibility. A malformed or stale
 		// transfer is a retry, not a verdict about the instance, and an
 		// unattributable failure names no instance to hold a verdict against.
-		if (code === 'oversize' && instanceId) this.#ineligible.set(instanceId, 'oversize-state');
+		const released = code === 'oversize' && instanceId ? this.#recordIneligibility(instanceId) : null;
 		const retained = instanceId ? this.#retained.get(instanceId) : undefined;
 		return Object.freeze({
 			status: 'rejected' as const,
@@ -400,6 +437,7 @@ export class PluginInstanceStateStore {
 			message,
 			eligible: instanceId ? !this.#ineligible.has(instanceId) : false,
 			retained: retained ? summaryOf(retained) : null,
+			released,
 		});
 	}
 }

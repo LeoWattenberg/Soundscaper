@@ -3,9 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { assertHelperWireEnvelope } from '../desktop/helper-wire-admission.ts';
 import {
 	MAXIMUM_PLUGIN_CHANNEL_LAYOUTS,
 	MAXIMUM_PLUGIN_SCAN_ENTRIES,
+	MAXIMUM_PLUGIN_SCAN_RESULT_BYTES,
 	projectPluginScanForRenderer,
 	validateHelperPluginScanResult,
 } from '../desktop/plugin-scan-results.ts';
@@ -98,12 +100,70 @@ test('one scan may not report the same stable id twice', () => {
 	assert.deepEqual(distinct.entries.map(({ stableId }) => stableId), ['com.example.reverb', 'com.example.delay']);
 });
 
+function smallestEntry(index: number): Record<string, unknown> {
+	return {
+		stableId: index.toString(36),
+		name: 'a',
+		vendor: 'a',
+		version: 'a',
+		binaryPath: '/a',
+		binaryBytes: 1,
+		binarySha256: String(index).padStart(64, '0'),
+		classification: 'unknown',
+		channelSupport: [],
+		realtime: false,
+		offline: false,
+		reportedLatencyFrames: null,
+		signature: 'unverifiable',
+		compatibility: 'compatible',
+		descriptorVersion: 0,
+	};
+}
+
+test('every admitted scan fits the control envelope that has to carry it', () => {
+	// The entry ceiling and the wire bound must not be able to disagree: a cap
+	// that admits more plug-ins than 64 KiB can carry turns a populated folder
+	// into an over-envelope answer the supervisor kills the channel for, and a
+	// legitimate large folder must never read as a fault.
+	const full = validateHelperPluginScanResult(scanWith({
+		entries: Array.from({ length: MAXIMUM_PLUGIN_SCAN_ENTRIES }, (_unused, index) => smallestEntry(index)),
+	}));
+	assert.equal(full.entries.length, MAXIMUM_PLUGIN_SCAN_ENTRIES);
+	assertHelperWireEnvelope(full);
+
+	// The byte bound is the real one, so entries of ordinary length hit it
+	// before the count ceiling does, and they hit it here rather than on a wire
+	// that has already been torn down.
+	assert.throws(() => validateHelperPluginScanResult(scanWith({
+		entries: Array.from({ length: MAXIMUM_PLUGIN_SCAN_ENTRIES }, (_unused, index) => entryWith({
+			stableId: `com.example.plug${String(index)}`,
+			binarySha256: String(index).padStart(64, '0'),
+			binaryPath: `/opt/plug-ins/${'directory/'.repeat(20)}Example ${String(index)}.vst3`,
+		})),
+	})), /root-oversized/u);
+});
+
+test('a root holding more plug-ins than one answer carries is a fact, not a fault', () => {
+	const truncated = validateHelperPluginScanResult(scanWith({
+		status: 'root-oversized',
+		detail: 'This folder holds more plug-ins than one scan can report.',
+		entries: [ENTRY],
+	}));
+	assert.equal(truncated.status, 'root-oversized');
+	assert.equal(truncated.entries.length, 1);
+	assert.equal(projectPluginScanForRenderer(truncated).status, 'root-oversized');
+
+	// A truncated answer that reports nothing is a scan that failed, and calling
+	// it truncated would hide that from the user.
+	assert.throws(() => validateHelperPluginScanResult(scanWith({ status: 'root-oversized', entries: [] })),
+		/must publish the entries it did read/u);
+});
+
 test('a scan is bounded in entries, channel layouts and detail length', () => {
 	assert.throws(() => validateHelperPluginScanResult(scanWith({
-		entries: Array.from({ length: MAXIMUM_PLUGIN_SCAN_ENTRIES + 1 }, (_unused, index) => entryWith({
-			stableId: `com.example.plug${String(index)}`,
-		})),
-	})), /at most 512 plug-ins/u);
+		entries: Array.from({ length: MAXIMUM_PLUGIN_SCAN_ENTRIES + 1 }, (_unused, index) => smallestEntry(index)),
+	})), new RegExp(`at most ${String(MAXIMUM_PLUGIN_SCAN_ENTRIES)} plug-ins`, 'u'));
+	assert.ok(MAXIMUM_PLUGIN_SCAN_RESULT_BYTES <= 64 * 1024);
 	assert.throws(() => validateHelperPluginScanResult(scanWith({
 		entries: [entryWith({
 			channelSupport: Array.from({ length: MAXIMUM_PLUGIN_CHANNEL_LAYOUTS + 1 }, () => ({ inputs: 2, outputs: 2 })),

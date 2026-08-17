@@ -12,9 +12,11 @@
  *
  * The renderer names an opaque root id and a format. It never names a
  * directory, never receives a raw path back, and cannot cause a scan of a
- * format it has not consented to. A scanner that crashes, hangs, or answers
- * with something the contract rejects quarantines the digest it was scanning,
- * so a bad installation stops costing the user a fault per attempt.
+ * format it has not consented to. Quarantine is keyed by binary digest, because
+ * the bytes are what misbehave: an installation the scanner calls malformed or
+ * oversize loses its own digest, while a fault that names no binary is reported
+ * as a fault and left non-permanent rather than costing a whole folder its
+ * eligibility until the user rescans it into the same crash again.
  *
  * Like every other native surface this one is off by default and degrades
  * rather than fails: disabled, unconsented, quarantined, unbuilt, or crashed,
@@ -57,9 +59,26 @@ export type PluginScanFailureCode =
 	| 'helper-cancelled'
 	| 'helper-failed';
 
+/**
+ * What a failure says about the scanned folder. `null` is the ordinary answer:
+ * disabled surfaces, withdrawn consent, cancellation, shutdown, an unverified
+ * payload and a supervisor that refuses a second concurrent job are all main's
+ * own business, and none of them is evidence about anything on disk.
+ */
+export interface PluginScanRootFault {
+	readonly reason: PluginScanFaultReason;
+	/** False, always: the scan named no binary, so nothing durable is written. */
+	readonly quarantined: false;
+}
+
 export type PluginScanOutcome =
 	| Readonly<{ status: 'described'; scan: RendererPluginScanResult }>
-	| Readonly<{ status: 'failed'; code: PluginScanFailureCode; message: string }>;
+	| Readonly<{
+		status: 'failed';
+		code: PluginScanFailureCode;
+		message: string;
+		fault: PluginScanRootFault | null;
+	}>;
 
 export interface PluginScanFormatAvailability {
 	readonly format: HelperPluginFormat;
@@ -94,18 +113,22 @@ export interface PluginScanConsentPort {
 	isGranted(format: HelperPluginFormat): boolean;
 }
 
-export type PluginScanQuarantineReason =
+/** A fault the scan as a whole suffered. No binary is named by any of them. */
+export type PluginScanFaultReason =
 	| 'scanner-crash'
 	| 'scanner-hang'
 	| 'malformed-answer'
-	| 'oversize-answer'
-	| 'malformed-plugin'
-	| 'oversize-plugin';
+	| 'oversize-answer';
+
+/** A verdict about one binary, which is the only thing this service quarantines. */
+export type PluginBinaryQuarantineReason = 'malformed-plugin' | 'oversize-plugin';
+
+export type PluginScanQuarantineReason = PluginScanFaultReason | PluginBinaryQuarantineReason;
 
 /** Durability belongs to the port; the service only decides what is a fault. */
 export interface PluginScanQuarantinePort {
 	isQuarantined(digest: string): boolean;
-	quarantine(digest: string, reason: PluginScanQuarantineReason): void;
+	quarantine(digest: string, reason: PluginBinaryQuarantineReason): void;
 }
 
 export interface PluginScanRootLocation {
@@ -269,10 +292,8 @@ export class DesktopPluginScanService {
 				scan: projectPluginScanForRenderer(result),
 			});
 		} catch (error) {
-			const reason = quarantineReason(error);
-			if (reason) this.#quarantine.quarantine(root.scanDigest, reason);
 			const code = failureCode(error);
-			return failure(code, FAILURE_MESSAGES[code]);
+			return failure(code, FAILURE_MESSAGES[code], scanFault(error));
 		} finally {
 			if (this.#owners.get(admitted.owner) === controller) this.#owners.delete(admitted.owner);
 		}
@@ -346,8 +367,12 @@ function admitRequest(request: PluginScanRequest): Readonly<{ owner: object; roo
 	return Object.freeze({ owner, rootId: record.rootId, format: record.format });
 }
 
-function failure(code: PluginScanFailureCode, message: string): PluginScanOutcome {
-	return Object.freeze({ status: 'failed' as const, code, message });
+function failure(
+	code: PluginScanFailureCode,
+	message: string,
+	fault: PluginScanRootFault | null = null,
+): PluginScanOutcome {
+	return Object.freeze({ status: 'failed' as const, code, message, fault });
 }
 
 function failureCode(error: unknown): PluginScanFailureCode {
@@ -362,26 +387,38 @@ function failureCode(error: unknown): PluginScanFailureCode {
 }
 
 /**
- * What counts as a scanner fault, and what does not. Cancellation, disposal
- * and our own payload or admission problems are not the scanned installation's
- * doing, so they must never cost it its eligibility.
+ * What counts as a scanner fault, and what does not. The list is closed and the
+ * default is "not a fault", because everything main gets wrong arrives here
+ * too: the shared supervisor refusing a second concurrent job while an audio
+ * job is in flight, a helper still mid-handshake, a request or job kind main
+ * built wrong, a payload that failed verification, cancellation and shutdown.
+ * None of those is the scanned installation's doing, and an unrecognised error
+ * is by definition not evidence about it either.
  */
-function quarantineReason(error: unknown): PluginScanQuarantineReason | null {
+function scanFaultReason(error: unknown): PluginScanFaultReason | null {
 	if (error instanceof ScanPreconditionError) return null;
 	if (error instanceof HelperContractViolationError) {
 		return error.code === 'oversized' ? 'oversize-answer' : 'malformed-answer';
 	}
 	if (error instanceof HelperSupervisionError) {
-		if (error.cause_ === 'cancelled' || error.cause_ === 'disposed'
-			|| error.cause_ === 'quarantined' || error.cause_ === 'binary-mismatch'
-			|| error.cause_ === 'invalid-request' || error.cause_ === 'unsupported-kind') {
-			return null;
-		}
-		if (error.cause_ === 'malformed-message') return 'malformed-answer';
+		if (error.cause_ === 'malformed-message' || error.cause_ === 'job-mismatch') return 'malformed-answer';
 		if (error.cause_ === 'heartbeat' || error.cause_ === 'cancellation-timeout'
 			|| error.cause_ === 'resource-violation') {
 			return 'scanner-hang';
 		}
+		if (error.cause_ === 'helper-exit') return 'scanner-crash';
 	}
-	return 'scanner-crash';
+	return null;
+}
+
+/**
+ * A scan-level fault names no binary — the answer that would have named one is
+ * the answer that never arrived — so it is reported and left non-permanent. The
+ * durable quarantine is keyed by the bytes that misbehaved, and a folder is not
+ * bytes: quarantining the root would block rescans of every healthy plug-in
+ * beside the hostile one, and the only exit would re-run the same root.
+ */
+function scanFault(error: unknown): PluginScanRootFault | null {
+	const reason = scanFaultReason(error);
+	return reason === null ? null : Object.freeze({ reason, quarantined: false as const });
 }

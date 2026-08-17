@@ -4,23 +4,22 @@
  * The main-owned plug-in registry: stable identity, installations, and the
  * trust and compatibility decisions that make one of them usable.
  *
- * Identity is format plus the format-native stable id — never a path, because
- * a path is where a plug-in happens to live rather than what it is. An
- * installation adds the platform, architecture, version and binary digest that
- * distinguish two copies of the same identity. Two installations of one
- * identity make the entry ineligible until the user picks one: scan order is
- * an accident of the filesystem and must never decide silently. A changed
- * digest is therefore a *new* installation rather than an update, which is
- * also what revokes an earlier warning-and-allow decision — that decision
- * authorizes exactly one digest and nothing else.
+ * Identity is format plus the format-native stable id — never a path, because a
+ * path is where a plug-in happens to live rather than what it is. An installation
+ * adds the platform, architecture, version and binary digest that distinguish two
+ * copies of the same identity. Two installations of one identity make the entry
+ * ineligible until the user picks one: scan order is an accident of the
+ * filesystem and must never decide silently. A changed digest is therefore a
+ * *new* installation rather than an update, which is also what revokes an earlier
+ * warning-and-allow decision — that decision authorizes one digest and no other.
  *
- * Instrument entries are recorded and never offered. There is no method here
- * that turns one into a host grant, which is the only reason the scanner is
- * allowed to classify them at all.
+ * Instrument entries are recorded and never offered. There is no method here that
+ * turns one into a host grant, which is the only reason the scanner is allowed to
+ * classify them at all.
  *
- * `describe()` is the whole renderer-facing projection: opaque ids, bounded
- * facts, and display text with path separators removed. Binary paths and
- * digests stay behind `hostGrantFor()` and `digestFor()`.
+ * `describe()` is the whole renderer-facing projection: opaque ids, bounded facts,
+ * and display text with path separators removed. Binary paths and digests stay
+ * behind `hostGrantFor()` and `digestFor()`.
  */
 
 import { createHash } from 'node:crypto';
@@ -32,21 +31,37 @@ import {
 	HELPER_PLUGIN_FORMATS,
 	validateHelperJobGrant,
 } from './helper-job-grant.ts';
+import {
+	PLUGIN_CLASSIFICATIONS,
+	type PluginClassification,
+	type PluginCompatibilityResult,
+	type PluginScanEntry,
+	type PluginSignatureResult,
+	isAdmissiblePluginPath,
+} from './plugin-scan-results.ts';
 
 export type PluginFormat = HelperPluginFormat;
 
-export const PLUGIN_CLASSIFICATIONS = Object.freeze(['effect', 'instrument', 'unknown'] as const);
-export type PluginClassification = (typeof PLUGIN_CLASSIFICATIONS)[number];
+/**
+ * Classification is the one vocabulary the scanner and the registry genuinely
+ * share, so it has one definition and is re-exported rather than restated.
+ *
+ * Trust and compatibility are *not* shared. The scanner reports what it found on
+ * disk — a signature that verified, an architecture that does not match — while
+ * the registry holds the decision that follows from it. They are named apart so
+ * that importing the wrong sibling is a type error rather than a vocabulary
+ * silently swapped for one with different members.
+ */
+export { PLUGIN_CLASSIFICATIONS, type PluginClassification } from './plugin-scan-results.ts';
 
-export const PLUGIN_SIGNATURE_RESULTS = Object.freeze([
-	'trusted', 'untrusted', 'unsigned', 'unverifiable',
-] as const);
-export type PluginSignatureResult = (typeof PLUGIN_SIGNATURE_RESULTS)[number];
+export const PLUGIN_TRUST_VERDICTS = Object.freeze(['trusted', 'untrusted', 'unsigned', 'unverifiable'] as const);
+export type PluginTrustVerdict = (typeof PLUGIN_TRUST_VERDICTS)[number];
 
-export const PLUGIN_COMPATIBILITY_RESULTS = Object.freeze([
-	'compatible', 'incompatible-platform', 'incompatible-architecture', 'incompatible-descriptor', 'unknown',
+export const PLUGIN_COMPATIBILITY_VERDICTS = Object.freeze([
+	'compatible', 'incompatible-platform', 'incompatible-architecture', 'incompatible-format',
+	'incompatible-descriptor', 'unusable-binary', 'unknown',
 ] as const);
-export type PluginCompatibilityResult = (typeof PLUGIN_COMPATIBILITY_RESULTS)[number];
+export type PluginCompatibilityVerdict = (typeof PLUGIN_COMPATIBILITY_VERDICTS)[number];
 
 const PLATFORMS = Object.freeze(['darwin', 'linux', 'win32'] as const);
 const ARCHITECTURES = Object.freeze(['arm64', 'ia32', 'x64'] as const);
@@ -56,7 +71,7 @@ export const MAXIMUM_PLUGIN_ENTRIES = 4_096;
 export const MAXIMUM_PLUGIN_INSTALLATIONS = 16;
 export const MAXIMUM_PLUGIN_TOPOLOGIES = 32;
 export const MAXIMUM_PLUGIN_CHANNELS = 4_096;
-export const MAXIMUM_PLUGIN_LATENCY_FRAMES = 10_000_000;
+export const MAXIMUM_PLUGIN_OBSERVED_LATENCY_FRAMES = 10_000_000;
 
 const SHA256 = /^[a-f\d]{64}$/u;
 const MAXIMUM_TEXT_LENGTH = 256;
@@ -68,24 +83,16 @@ export interface PluginChannelTopology {
 
 /** One scanner answer about one binary, already admitted off the helper wire. */
 export interface PluginScanObservation {
-	readonly format: PluginFormat;
-	readonly stableId: string;
-	readonly name: string;
-	readonly vendor: string;
-	readonly version: string;
-	readonly platform: string;
-	readonly architecture: string;
-	readonly binaryPath: string;
-	readonly binaryBytes: number;
-	readonly binarySha256: string;
+	readonly format: PluginFormat; readonly stableId: string;
+	readonly name: string; readonly vendor: string; readonly version: string;
+	readonly platform: string; readonly architecture: string;
+	readonly binaryPath: string; readonly binaryBytes: number; readonly binarySha256: string;
 	readonly identity: Readonly<HelperFileIdentity>;
 	readonly classification: PluginClassification;
 	readonly topologies: readonly PluginChannelTopology[];
-	readonly realtimeSupported: boolean;
-	readonly offlineSupported: boolean;
+	readonly realtimeSupported: boolean; readonly offlineSupported: boolean;
 	readonly reportedLatencyFrames: number | null;
-	readonly signature: PluginSignatureResult;
-	readonly compatibility: PluginCompatibilityResult;
+	readonly signature: PluginTrustVerdict; readonly compatibility: PluginCompatibilityVerdict;
 	readonly descriptorVersion: number;
 }
 
@@ -93,29 +100,18 @@ export type PluginAdmissionRejection = 'malformed' | 'identity-change' | 'quaran
 
 export type PluginRegistryAdmission =
 	| Readonly<{
-		status: 'recorded';
-		entryId: string;
-		installationId: string;
-		unreviewed: boolean;
-		selectionRequired: boolean;
+		status: 'recorded'; entryId: string; installationId: string;
+		unreviewed: boolean; selectionRequired: boolean;
 	}>
 	| Readonly<{ status: 'rejected'; reason: PluginAdmissionRejection; detail: string }>;
 
 export type PluginIneligibleReason =
-	| 'unknown-entry'
-	| 'instrument-not-offered'
-	| 'identity-collision'
-	| 'quarantined'
-	| 'classification-unknown'
-	| 'incompatible'
-	| 'untrusted-code'
-	| 'no-supported-mode';
+	| 'unknown-entry' | 'instrument-not-offered' | 'identity-collision' | 'quarantined'
+	| 'classification-unknown' | 'incompatible' | 'untrusted-code' | 'no-supported-mode';
 
 export type PluginRegistryErrorCode =
-	| PluginIneligibleReason
-	| 'unknown-installation'
-	| 'not-active-installation'
-	| 'missing-quarantine';
+	| PluginIneligibleReason | 'unknown-installation' | 'not-active-installation'
+	| 'untranslatable-scan-entry' | 'missing-quarantine';
 
 export class PluginRegistryError extends Error {
 	readonly code: PluginRegistryErrorCode;
@@ -128,31 +124,22 @@ export class PluginRegistryError extends Error {
 }
 
 export interface PluginInstallationView {
-	readonly installationId: string;
-	readonly version: string;
-	readonly platform: string;
-	readonly architecture: string;
+	readonly installationId: string; readonly version: string;
+	readonly platform: string; readonly architecture: string;
 	readonly classification: PluginClassification;
 	readonly topologies: readonly PluginChannelTopology[];
-	readonly realtimeSupported: boolean;
-	readonly offlineSupported: boolean;
+	readonly realtimeSupported: boolean; readonly offlineSupported: boolean;
 	readonly reportedLatencyFrames: number | null;
-	readonly signature: PluginSignatureResult;
-	readonly compatibility: PluginCompatibilityResult;
+	readonly signature: PluginTrustVerdict; readonly compatibility: PluginCompatibilityVerdict;
 	readonly descriptorVersion: number;
-	readonly reviewed: boolean;
-	readonly selected: boolean;
-	readonly quarantined: boolean;
+	readonly reviewed: boolean; readonly selected: boolean; readonly quarantined: boolean;
 }
 
 export interface PluginEntryView {
-	readonly entryId: string;
-	readonly format: PluginFormat;
-	readonly name: string;
-	readonly vendor: string;
+	readonly entryId: string; readonly format: PluginFormat;
+	readonly name: string; readonly vendor: string;
 	readonly classification: PluginClassification;
-	readonly eligible: boolean;
-	readonly ineligibleReason: PluginIneligibleReason | null;
+	readonly eligible: boolean; readonly ineligibleReason: PluginIneligibleReason | null;
 	readonly installations: readonly PluginInstallationView[];
 }
 
@@ -176,11 +163,10 @@ interface Entry {
 
 export interface DesktopPluginRegistryOptions {
 	/**
-	 * The durable quarantine, injected so the registry owns no persistence. It
-	 * is required rather than defaulted: a registry that answers "nothing is
-	 * quarantined" because nobody wired the store is indistinguishable from a
-	 * clean machine, and it would record and host the very binaries the durable
-	 * store exists to refuse.
+	 * The durable quarantine, injected so the registry owns no persistence. It is
+	 * required rather than defaulted: a registry that answers "nothing is
+	 * quarantined" because nobody wired the store is indistinguishable from a clean
+	 * machine, and it would record and host the binaries the store exists to refuse.
 	 */
 	readonly isQuarantined: (digest: string) => boolean;
 }
@@ -204,7 +190,7 @@ export class DesktopPluginRegistry {
 		try {
 			admitted = admitObservation(observation);
 		} catch (error) {
-			return rejected('malformed', error instanceof Error ? error.message : String(error));
+			return rejected('malformed', describeError(error));
 		}
 		const entryId = entryIdFor(admitted.format, admitted.stableId);
 		const claimed = this.#identities.get(admitted.binarySha256);
@@ -223,12 +209,9 @@ export class DesktopPluginRegistry {
 			return rejected('capacity',
 				`A plug-in identity holds at most ${String(MAXIMUM_PLUGIN_INSTALLATIONS)} installations.`);
 		}
-		if (!existing && entry.installations.size > 0) {
-			// A digest the user has never seen re-opens the choice: an earlier
-			// selection was made about a set of installations that no longer
-			// describes what is on this machine.
-			entry.selected = null;
-		}
+		// A digest the user has never seen re-opens the choice: an earlier selection
+		// was made about a set of installations that no longer describes this machine.
+		if (!existing && entry.installations.size > 0) entry.selected = null;
 		entry.installations.set(installationId, {
 			installationId,
 			observation: admitted,
@@ -256,11 +239,10 @@ export class DesktopPluginRegistry {
 			const installation = entry.installations.get(installationId);
 			if (!installation) continue;
 			entry.installations.delete(installationId);
-			// The binding is a projection of the live installations, not a
-			// history: keeping it would leave the one collection here that has no
-			// ceiling growing across every record-and-forget cycle. The durable
-			// quarantine is what remembers a binary that lied about its identity,
-			// and it survives forgetting precisely because this does not.
+			// The binding is a projection of the live installations, not a history:
+			// keeping it would leave the one collection here that has no ceiling
+			// growing across every record-and-forget cycle. The durable quarantine
+			// remembers a binary that lied, and survives because this does not.
 			this.#identities.delete(installation.observation.binarySha256);
 			if (entry.selected === installationId) entry.selected = null;
 			if (entry.installations.size === 0) this.#entries.delete(entry.entryId);
@@ -315,9 +297,8 @@ export class DesktopPluginRegistry {
 
 	/**
 	 * The only path from the registry to something that can run. It refuses an
-	 * instrument, an installation that is not the active one, and every
-	 * ineligible entry, so there is no arrangement of public calls that turns a
-	 * scanned instrument into a hosted one.
+	 * instrument, an installation that is not the active one, and every ineligible
+	 * entry, so no arrangement of public calls hosts a scanned instrument.
 	 */
 	hostGrantFor(installationId: string): HelperPluginHostJobGrant {
 		const [entry, installation] = this.#locate(installationId);
@@ -385,9 +366,9 @@ export class DesktopPluginRegistry {
 
 	/**
 	 * The text an identity is shown under comes from the installation in use, or
-	 * from the incumbent while a collision is unresolved. A binary that turns up
-	 * claiming an identity the machine already holds must not be able to rename
-	 * it in the very prompt that asks the user which of the two to keep.
+	 * from the incumbent while a collision is unresolved. A binary claiming an
+	 * identity the machine already holds must not rename it in the very prompt
+	 * that asks which of the two to keep.
 	 */
 	#label(entry: Entry): PluginScanObservation {
 		const [incumbent] = entry.installations.values();
@@ -410,22 +391,19 @@ export class DesktopPluginRegistry {
 				: ('unknown' as PluginClassification),
 			eligible: reason === null,
 			ineligibleReason: reason,
-			installations: Object.freeze([...entry.installations.values()].map((installation) => Object.freeze({
-				installationId: installation.installationId,
-				version: displayText(installation.observation.version),
-				platform: installation.observation.platform,
-				architecture: installation.observation.architecture,
-				classification: installation.observation.classification,
-				topologies: installation.observation.topologies,
-				realtimeSupported: installation.observation.realtimeSupported,
-				offlineSupported: installation.observation.offlineSupported,
-				reportedLatencyFrames: installation.observation.reportedLatencyFrames,
-				signature: installation.observation.signature,
-				compatibility: installation.observation.compatibility,
-				descriptorVersion: installation.observation.descriptorVersion,
-				reviewed: installation.reviewed,
-				selected: active?.installationId === installation.installationId,
-				quarantined: this.#isQuarantined(installation.observation.binarySha256),
+			installations: Object.freeze([...entry.installations.values()].map(({ installationId, observation, reviewed }) => Object.freeze({
+				installationId,
+				version: displayText(observation.version),
+				platform: observation.platform, architecture: observation.architecture,
+				classification: observation.classification, topologies: observation.topologies,
+				realtimeSupported: observation.realtimeSupported,
+				offlineSupported: observation.offlineSupported,
+				reportedLatencyFrames: observation.reportedLatencyFrames,
+				signature: observation.signature, compatibility: observation.compatibility,
+				descriptorVersion: observation.descriptorVersion,
+				reviewed,
+				selected: active?.installationId === installationId,
+				quarantined: this.#isQuarantined(observation.binarySha256),
 			}))),
 		});
 	}
@@ -445,6 +423,74 @@ export function installationIdFor(binarySha256: string): string {
 
 function rejected(reason: PluginAdmissionRejection, detail: string): PluginRegistryAdmission {
 	return Object.freeze({ status: 'rejected' as const, reason, detail });
+}
+
+/** What a scan entry cannot know about itself, supplied by main. */
+export interface PluginScanEntryContext {
+	readonly format: PluginFormat;
+	readonly platform: string;
+	readonly architecture: string;
+	readonly identity: Readonly<HelperFileIdentity>;
+}
+
+const TRUST_FROM_SIGNATURE: Readonly<Record<PluginSignatureResult, PluginTrustVerdict>> = Object.freeze({
+	'signed-valid': 'trusted', 'signed-invalid': 'untrusted',
+	unsigned: 'unsigned', unverifiable: 'unverifiable',
+});
+
+const COMPATIBILITY_FROM_SCAN: Readonly<Record<PluginCompatibilityResult, PluginCompatibilityVerdict>> = Object.freeze({
+	compatible: 'compatible',
+	'wrong-architecture': 'incompatible-architecture',
+	'unsupported-format': 'incompatible-format',
+	malformed: 'unusable-binary',
+	oversize: 'unusable-binary',
+});
+
+/**
+ * The one crossing from what a scanner found to what the registry decides.
+ *
+ * The two vocabularies are disjoint on purpose, so the crossing is written out
+ * verdict by verdict rather than passed through: `signed-valid` is what the
+ * scanner saw, `trusted` is what this side concluded, and a member either module
+ * gains later has no default to fall into. Anything the mapping cannot carry — a
+ * verdict outside the scanner's own set, a platform or architecture this build
+ * does not name, an entry claiming no channel layout at all — is a typed refusal,
+ * because the alternative is recording a plug-in under a fact nobody established.
+ */
+export function pluginObservationFromScanEntry(
+	entry: PluginScanEntry,
+	context: PluginScanEntryContext,
+): PluginScanObservation {
+	const signature = TRUST_FROM_SIGNATURE[entry.signature];
+	const compatibility = COMPATIBILITY_FROM_SCAN[entry.compatibility];
+	if (signature === undefined || compatibility === undefined) {
+		throw new PluginRegistryError('untranslatable-scan-entry',
+			'A plug-in scan entry named a signature or compatibility result this registry has no verdict for.');
+	}
+	if (entry.channelSupport.length === 0) {
+		throw new PluginRegistryError('untranslatable-scan-entry',
+			'A plug-in scan entry that claims no channel layout cannot be recorded as an installation.');
+	}
+	try {
+		return admitObservation({
+			format: context.format, platform: context.platform, architecture: context.architecture,
+			identity: context.identity, signature, compatibility,
+			stableId: entry.stableId, name: entry.name, vendor: entry.vendor, version: entry.version,
+			binaryPath: entry.binaryPath, binaryBytes: entry.binaryBytes, binarySha256: entry.binarySha256,
+			classification: entry.classification, realtimeSupported: entry.realtime,
+			offlineSupported: entry.offline, reportedLatencyFrames: entry.reportedLatencyFrames,
+			descriptorVersion: entry.descriptorVersion,
+			topologies: entry.channelSupport.map(({ inputs, outputs }) => ({
+				inputChannels: inputs, outputChannels: outputs,
+			})),
+		});
+	} catch (error) {
+		throw new PluginRegistryError('untranslatable-scan-entry', describeError(error));
+	}
+}
+
+function describeError(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }
 
 function admitObservation(value: unknown): PluginScanObservation {
@@ -473,11 +519,10 @@ function admitObservation(value: unknown): PluginScanObservation {
 		topologies: admitTopologies(record.topologies),
 		realtimeSupported: booleanValue(record.realtimeSupported, 'real-time support'),
 		offlineSupported: booleanValue(record.offlineSupported, 'offline support'),
-		reportedLatencyFrames: record.reportedLatencyFrames === null
-			? null
-			: boundedInteger(record.reportedLatencyFrames, 0, MAXIMUM_PLUGIN_LATENCY_FRAMES, 'reported latency'),
-		signature: enumValue(record.signature, PLUGIN_SIGNATURE_RESULTS, 'signature result'),
-		compatibility: enumValue(record.compatibility, PLUGIN_COMPATIBILITY_RESULTS, 'compatibility result'),
+		reportedLatencyFrames: record.reportedLatencyFrames === null ? null
+			: boundedInteger(record.reportedLatencyFrames, 0, MAXIMUM_PLUGIN_OBSERVED_LATENCY_FRAMES, 'reported latency'),
+		signature: enumValue(record.signature, PLUGIN_TRUST_VERDICTS, 'trust verdict'),
+		compatibility: enumValue(record.compatibility, PLUGIN_COMPATIBILITY_VERDICTS, 'compatibility verdict'),
 		descriptorVersion: boundedInteger(record.descriptorVersion, 0, 1_000_000, 'descriptor version'),
 	};
 	return Object.freeze(admitted);
@@ -497,22 +542,16 @@ function admitTopologies(value: unknown): readonly PluginChannelTopology[] {
 }
 
 /**
- * Scanner-reported text is authored by the plug-in, so it is bounded at
- * admission and stripped of path separators here, at the renderer boundary. A
- * vendor that names itself after a filesystem path still cannot put one into
- * renderer-facing state.
+ * Scanner-reported text is authored by the plug-in, so it is bounded at admission
+ * and stripped of path separators here, at the renderer boundary. A vendor that
+ * names itself after a path still cannot put one into renderer-facing state.
  */
 function displayText(value: string): string {
 	return value.split(/[\\/]/u).join(' ').replace(/\s+/gu, ' ').trim() || '(unnamed)';
 }
 
 function absolutePath(value: unknown): string {
-	if (typeof value !== 'string'
-		|| value.length === 0
-		|| new TextEncoder().encode(value).byteLength > 4_096
-		|| value.includes('\u0000')
-		|| !(value.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(value) || value.startsWith('\\\\'))
-		|| value.split(/[\\/]/u).includes('..')) {
+	if (!isAdmissiblePluginPath(value)) {
 		throw new TypeError('A plug-in binary path must be one absolute, traversal-free path.');
 	}
 	return value;
