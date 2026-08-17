@@ -22,6 +22,7 @@ import { commitDirectPcmDestination, createDirectPcmEncoder, directPcmRenderQueu
 import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryBytes, prepareDirectStemArchiveDestination, streamDirectStemArchive } from './direct-stem-archive-export.ts';
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
 import { createEditorVideoExportAction } from './video-export-service.ts';
+import { createDeliveryReportForPlan } from '../delivery-conversion-inventory.ts';
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -43,7 +44,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		ffmpeg, fileService,
 		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings, playbackProjects,
 		normalizeProjectSampleRate, options, preflightStorage, prepareCommittedTimePitchCaches, productName,
-		getProject, projectGeneration, publishDocumentSnapshot,
+		getProject, projectGeneration, publishDocumentSnapshot, recordDeliveryReport,
 		resampleBuffer, setStatus, sourceBuffers, sourceChunkProviders, state,
 		stemProject, store, throwIfAborted, toggleExport,
 		updateExportProgress, taskProgress, verifyProjectFallbackIntegrity,
@@ -126,6 +127,12 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				livePcmBytes: undefined,
 				productName,
 			});
+			// Derived from the plan this delivery is about to execute, so the report
+			// describes the render that actually happens rather than the settings
+			// that were asked for.
+			recordDeliveryReport?.(createDeliveryReportForPlan(plan, {
+				sampleRate: exportProject.sampleRate,
+			}));
 			if (plan.format === 'bw64' && plan.adm) {
 				exportProject = inheritTrackFolderMediaStateProjectionV12(exportProject, {
 					...exportProject,
