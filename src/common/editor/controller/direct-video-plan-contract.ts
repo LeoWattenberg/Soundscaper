@@ -2,6 +2,10 @@
 
 import { isVideoKeyframeExportPlanV7 } from '../video-keyframe-export-plan-v7.ts';
 import { getVideoExportFormat } from '../video-export.js';
+import {
+	CANONICAL_VIDEO_EXPORT_PLAN_VERSION,
+	VIDEO_KEYFRAME_EXPORT_PLAN_VERSION,
+} from '../video-export-plan-version.ts';
 
 export interface VideoFormatDescriptor {
 	readonly audioCodec: string;
@@ -46,9 +50,10 @@ export function captureDirectVideoContract(
 		const versionProperty = Object.getOwnPropertyDescriptor(plan, 'version');
 		if (!versionProperty?.enumerable || !Object.hasOwn(versionProperty, 'value')) return null;
 		const version = versionProperty.value;
-		if (version === 7) {
+		if (version === VIDEO_KEYFRAME_EXPORT_PLAN_VERSION) {
 			if (!isVideoKeyframeExportPlanV7(plan)) return null;
-		} else if (version !== 6 || !Array.isArray(plan.inputs)) return null;
+		} else if (version !== CANONICAL_VIDEO_EXPORT_PLAN_VERSION
+			|| !Array.isArray(plan.inputs)) return null;
 		const descriptor = getVideoExportFormat(String(plan.format || '')) as VideoFormatDescriptor;
 		if ((descriptor.id !== 'mp4' && descriptor.id !== 'webm')
 			|| plan.format !== descriptor.id
@@ -56,7 +61,7 @@ export function captureDirectVideoContract(
 			|| plan.extension !== descriptor.extension
 			|| plan.mimeType !== descriptor.mimeType
 			|| !canonicalFileName(fileName, descriptor.extension)) return null;
-		if (version === 6) {
+		if (version === CANONICAL_VIDEO_EXPORT_PLAN_VERSION) {
 			if (!canonicalVideoGeometryV6(plan, descriptor)
 				|| !canonicalVideoInputsV6(plan, descriptor)) return null;
 		}

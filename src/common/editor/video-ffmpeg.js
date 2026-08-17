@@ -10,6 +10,7 @@ import {
 	videoFfmpegV6ContainedSize,
 	videoFfmpegV6ContainFilter,
 } from './video-ffmpeg-render-description.ts';
+import { SUPPORTED_VIDEO_EXPORT_PLAN_VERSIONS } from './video-export-plan-version.ts';
 
 const DEFAULT_VIDEO_ENCODING_SETTINGS = Object.freeze({
 	mp4: Object.freeze({
@@ -430,7 +431,7 @@ function normalizeVideoExportPlan(plan) {
 	if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
 		throw new TypeError('Expected a video export plan.');
 	}
-	if (![1, 2, 3, 4, 5, 6].includes(plan.version)) {
+	if (!SUPPORTED_VIDEO_EXPORT_PLAN_VERSIONS.includes(plan.version)) {
 		throw new RangeError(`Unsupported video export plan version: ${plan.version}.`);
 	}
 	const descriptor = getVideoExportFormat(plan.format);

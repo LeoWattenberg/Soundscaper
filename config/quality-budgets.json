@@ -682,7 +682,7 @@
 			"specification": {
 				"generatorRevision": 1,
 				"admittedMode": "canonical-mp4-webm-final-video",
-				"planVersion": 4,
+				"planVersion": 6,
 				"admittedFormatContracts": [
 					{ "id": "mp4", "extension": ".mp4", "mimeType": "video/mp4", "purpose": "video", "videoEncoder": "libx264", "audioEncoder": "aac", "pixelFormat": "yuv420p", "faststart": true },
 					{ "id": "webm", "extension": ".webm", "mimeType": "video/webm", "purpose": "video", "videoEncoder": "libvpx-vp9", "audioEncoder": "libopus", "pixelFormat": "yuv420p", "faststart": false }

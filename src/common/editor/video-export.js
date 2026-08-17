@@ -20,6 +20,7 @@ import {
 	resolveVideoSourcePresentation,
 } from './video-source-presentation.ts';
 import { compareRationals, normalizeRational } from './timeline-time.ts';
+import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from './video-export-plan-version.ts';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
@@ -234,7 +235,7 @@ export function createVideoExportPlan(project, options = {}) {
 	const durationSeconds = range.durationFrames / projectSampleRate;
 
 	return deepFreeze({
-		version: 6,
+		version: CANONICAL_VIDEO_EXPORT_PLAN_VERSION,
 		format: format.id,
 		container: format.container,
 		extension: format.extension,

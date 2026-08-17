@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
+
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const budgetsUrl = new URL('../config/quality-budgets.json', import.meta.url);
 
@@ -322,7 +324,7 @@ test('the direct video fixture records exact MP4 and WebM transport without code
 	assert.deepEqual(fixture.milestones, ['2']);
 	assert.equal(fixture.specification.generatorRevision, 1);
 	assert.equal(fixture.specification.admittedMode, 'canonical-mp4-webm-final-video');
-	assert.equal(fixture.specification.planVersion, 4);
+	assert.equal(fixture.specification.planVersion, CANONICAL_VIDEO_EXPORT_PLAN_VERSION);
 	assert.deepEqual(fixture.specification.admittedFormatContracts, FORMAT_CONTRACTS);
 	assert.equal(fixture.specification.preparedDestinationMode, 'exact-size-stream');
 	assert.equal(fixture.specification.sourceVideoInputMode, 'WORKERFS-mounted-video-Blobs');

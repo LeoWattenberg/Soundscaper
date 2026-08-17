@@ -362,7 +362,7 @@ delivery are excluded. It stays outside the milestone 2 bounded-memory
 workload, which stays planned.
 
 A fifth provisional milestone 2 fixture records direct MP4 and WebM final-video
-transport as focused Node evidence. The service cases bind canonical version-4
+transport as focused Node evidence. The service cases bind canonical version-6
 plans and safe picker contracts, verify rendered-fallback admission before
 planning and selection, prepare browser targets before preflight and input work,
 and defer desktop target selection until sink open after FFmpeg stat. Both
