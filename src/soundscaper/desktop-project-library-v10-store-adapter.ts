@@ -11,8 +11,8 @@ import {
 } from '../common/editor/storage/project-store-defaults.ts';
 import type { LinkedOriginalStoreService } from '../common/editor/storage/linked-original-store-service.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
-import { assertSoundscaperProjectV21Profile } from './editor-project-v21-profile.ts';
-import { soundscaperProjectStoreAuthorityV21 } from './editor-project-store-v21.ts';
+import { assertSoundscaperProductionProfile } from './editor-project-production-profile.ts';
+import { soundscaperProductionStoreAuthority } from './editor-project-production-profile.ts';
 import { cloneSoundscaperProjectV21, type SoundscaperProjectV21 } from './editor-project-v21.ts';
 import type {
 	SoundscaperDesktopProjectLibraryV10Renderer,
@@ -69,13 +69,13 @@ export function createSoundscaperDesktopProjectStoreV10Adapter<Store extends Sou
 		readonly desktopProjectLibrary: SoundscaperDesktopProjectLibraryV10Renderer | null;
 	}>,
 ): Store | SoundscaperDesktopProjectStoreV10Adapter<Store> {
-	assertSoundscaperProjectV21Profile(profileValue);
+	assertSoundscaperProductionProfile(profileValue);
 	const composition = exactRecord(
 		compositionValue, COMPOSITION_FIELDS, 'Soundscaper desktop V10 store composition',
 	);
 	const localStore = composition.localStore as Store;
 	assertLocalStore(localStore);
-	soundscaperProjectStoreAuthorityV21(profileValue, localStore);
+	soundscaperProductionStoreAuthority(profileValue, localStore);
 	const renderer = composition.desktopProjectLibrary;
 	if (renderer === null) return localStore;
 	assertSoundscaperDesktopProjectLibraryV10RendererComposition(profileValue, localStore, renderer);

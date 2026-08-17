@@ -468,6 +468,7 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'src/soundscaper/desktop-project-library-v10-renderer-lifecycle.ts',
 		'src/soundscaper/desktop-project-library-v10-renderer.ts',
 		'src/soundscaper/desktop-project-library-v10-store-adapter.ts',
+		'src/soundscaper/editor-project-production-profile.ts',
 		'src/soundscaper/editor-project-runtime-profile-v21.ts',
 		'src/soundscaper/editor-project-runtime-profile-v23.ts',
 		'src/soundscaper/editor-project-v21-profile.ts',

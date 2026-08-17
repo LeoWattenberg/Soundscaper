@@ -7,7 +7,7 @@ import type { EditorProjectRuntimeProfile } from '../common/editor/project-runti
 import { scapeAudioSourceLayout, type ScapeAudioSource } from '../common/editor/scape-archive-media.ts';
 import { parseScapeProjectDocument } from '../common/editor/scape-project-document.ts';
 import { normalizeAudioTrackFreezeV1 } from '../common/editor/audio-track-freeze-v21.ts';
-import { assertSoundscaperProjectV21Profile } from './editor-project-v21-profile.ts';
+import { assertSoundscaperProductionProfile } from './editor-project-production-profile.ts';
 import { cloneSoundscaperProjectV21, type SoundscaperProjectV21 } from './editor-project-v21.ts';
 
 export const SOUNDSCAPER_DESKTOP_V10_MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
@@ -197,7 +197,7 @@ export function validateSoundscaperDesktopV10Bundle(
 	value: unknown,
 	expectedProjectId: string,
 ): Readonly<SoundscaperDesktopV10BundleSnapshot> {
-	assertSoundscaperProjectV21Profile(profile);
+	assertSoundscaperProductionProfile(profile);
 	const bundle = exactRecord(value, BUNDLE_FIELDS, 'Soundscaper desktop V10 bundle');
 	const row = projectRow(bundle.project, expectedProjectId);
 	if (typeof bundle.document !== 'string' || bundle.document.length === 0
@@ -232,7 +232,7 @@ export function snapshotSoundscaperDesktopV10Project(
 	profile: EditorProjectRuntimeProfile,
 	projectValue: unknown,
 ): Readonly<{ project: SoundscaperProjectV21; document: string; byteLength: number; sha256: string }> {
-	assertSoundscaperProjectV21Profile(profile);
+	assertSoundscaperProductionProfile(profile);
 	const project = cloneSoundscaperProjectV21(projectValue);
 	const document = JSON.stringify(project);
 	const bytes = new TextEncoder().encode(document);

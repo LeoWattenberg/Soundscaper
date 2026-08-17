@@ -3,8 +3,10 @@
 import { throwIfScapeAborted } from '../common/editor/scape-abort.ts'
 import { isStrictlyHigherProjectRevision } from '../common/editor/project-revision-cas.ts'
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts'
-import { assertSoundscaperProjectV21Profile } from './editor-project-v21-profile.ts'
-import { soundscaperProjectStoreAuthorityV21 } from './editor-project-store-v21.ts'
+import {
+	assertSoundscaperProductionProfile,
+	soundscaperProductionStoreAuthority,
+} from './editor-project-production-profile.ts'
 import { cloneSoundscaperProjectV21, type SoundscaperProjectV21 } from './editor-project-v21.ts'
 import {
 	soundscaperDesktopV10BodiesForProject,
@@ -100,13 +102,13 @@ export async function connectSoundscaperDesktopProjectLibraryV10Renderer(
 	profileValue: EditorProjectRuntimeProfile | unknown,
 	compositionValue: SoundscaperDesktopProjectLibraryV10RendererComposition | unknown,
 ): Promise<SoundscaperDesktopProjectLibraryV10Renderer | null> {
-	assertSoundscaperProjectV21Profile(profileValue)
+	assertSoundscaperProductionProfile(profileValue)
 	const profile = profileValue
 	const composition = allowedRecord(
 		compositionValue, ['store'], [], 'Soundscaper desktop V10 renderer composition',
 	)
 	const store = composition.store as SoundscaperDesktopProjectLibraryV10ShadowStore
-	soundscaperProjectStoreAuthorityV21(profile, store)
+	soundscaperProductionStoreAuthority(profile, store)
 	assertShadowStore(store)
 	const bridge = resolveSoundscaperDesktopV10RendererBridge()
 	if (!bridge) return null
@@ -132,7 +134,7 @@ export function assertSoundscaperDesktopProjectLibraryV10RendererComposition(
 	store: unknown,
 	renderer: unknown,
 ): asserts renderer is SoundscaperDesktopProjectLibraryV10Renderer {
-	assertSoundscaperProjectV21Profile(profileValue)
+	assertSoundscaperProductionProfile(profileValue)
 	const composition = RENDERER_COMPOSITIONS.get(renderer as object)
 	if (!composition || composition.profile !== profileValue || composition.store !== store) {
 		throw new TypeError('The exact admitted Soundscaper desktop V10 renderer composition is required.')
