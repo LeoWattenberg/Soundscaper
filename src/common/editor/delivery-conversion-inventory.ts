@@ -189,7 +189,7 @@ export function createDeliveryReportForPlan(
 			data: conversion.data,
 		});
 	}
-	if (loudness) addLoudnessItem(draft, loudness);
+	if (loudness) addDeliveryLoudnessItem(draft, loudness);
 	return sealDeliveryReport(draft);
 }
 
@@ -200,8 +200,13 @@ export function createDeliveryReportForPlan(
  * to work out which one they are looking at, and a delivery that ran no
  * normalization still reports its measured loudness — the report should say the
  * same kind of thing either way.
+ *
+ * Exported because the menu-reached loudness measurement produces the same
+ * items without delivering anything: one place decides how a loudness decision
+ * reads, so a measurement and a delivery never describe the same numbers
+ * differently.
  */
-function addLoudnessItem(draft: Parameters<typeof addDeliveryReportItem>[0], loudness: LoudnessNormalizationDecision): void {
+export function addDeliveryLoudnessItem(draft: Parameters<typeof addDeliveryReportItem>[0], loudness: LoudnessNormalizationDecision): void {
 	const error = loudnessDeliveryError(loudness);
 	const data = {
 		outcome: loudness.outcome,
@@ -244,7 +249,10 @@ function addLoudnessItem(draft: Parameters<typeof addDeliveryReportItem>[0], lou
 		});
 		return;
 	}
-	if (loudness.outcome === 'unmeasurable') {
+	// Keyed on the measurement rather than the outcome: a delivery that measured
+	// nothing has nothing to report either way, and a loudness item holding null
+	// where a number belongs reads as a value rather than as its absence.
+	if (loudness.measuredLoudnessLufs === null) {
 		addDeliveryReportItem(draft, {
 			code: 'delivery.loudness-unmeasurable',
 			disposition: 'missing',

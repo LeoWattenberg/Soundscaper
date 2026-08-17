@@ -2,6 +2,12 @@ import {
 	calculateAudioSpectrum,
 	findAudioClippingRegions,
 } from '../analysis.js';
+import { measureBextLoudness } from '../broadcast-loudness.ts';
+import type { DeliveryReport } from '../delivery-report.ts';
+import {
+	createLoudnessMeasurementReport,
+	loudnessMeasurementScope,
+} from '../loudness-measurement-report.ts';
 import type {
 	EditorControllerLifetime,
 	EditorProjectToken,
@@ -32,6 +38,8 @@ interface AnalysisCopy {
 	readonly timeSelectionRequired: string;
 	readonly contrastRoleInvalid: string;
 	readonly unsupportedAnalysisReport: string;
+	readonly measuringLoudness: string;
+	readonly loudnessMeasured: string;
 }
 
 interface AnalysisProjectIdentity {
@@ -55,6 +63,8 @@ export type AnalysisRepeatRequest = Readonly<
 
 export interface AnalysisState {
 	lastAnalysisRequest: AnalysisRepeatRequest | null;
+	/** Where a loudness measurement publishes its report, alongside delivery's. */
+	deliveryReport?: unknown;
 }
 
 interface AnalysisDependencies {
@@ -100,6 +110,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		plotSpectrum: (scope = 'master') => runSpecialized('spectrum', scope),
 		findClipping: (scope = 'master', options: Record<string, unknown> = {}) => runSpecialized('clipping', scope, options),
 		captureContrast,
+		measureLoudness,
 		repeatLast,
 		cancel: () => lifetime.cancelTask('analysis'),
 	});
@@ -218,6 +229,53 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			remember({ type: 'contrast', role, scope, options: Object.freeze({ ...options }) });
 			const roleLabel = role === 'foreground' ? copy.contrastForegroundRole : copy.contrastBackgroundRole;
 			dependencies.setStatus(copy.contrastStored.replace('{role}', roleLabel), 'success');
+			return report;
+		} catch (error) {
+			handleTaskError(error);
+			return null;
+		} finally {
+			finish(task);
+		}
+	}
+
+	/**
+	 * Measure the loudness of the mix, or of the selection when there is one.
+	 *
+	 * It lives beside the other analyzers because it is one: it renders through
+	 * the same offline path they do, so the numbers describe the mix as a
+	 * delivery would render it rather than as a second render path imagines it.
+	 * Nothing here writes a file and nothing here applies a gain — this command
+	 * exists to tell the truth about what is already there, and what a delivery
+	 * should do about the number is the delivery's decision to report.
+	 *
+	 * The answer is published as a sealed report on the surface an operator
+	 * already reads for delivery facts, with `loudness-measurement` as its
+	 * subject so nothing mistakes it for a delivery that happened.
+	 */
+	async function measureLoudness(): Promise<DeliveryReport | null> {
+		const project = dependencies.getProject();
+		if (!project.clips.length) return null;
+		const projectToken = dependencies.captureProject();
+		const task = begin(copy.measuringLoudness);
+		const range = dependencies.getRange();
+		try {
+			if (!(range.endFrame > range.startFrame)) throw new RangeError(copy.timeSelectionRequired);
+			const rendered = await dependencies.renderAudio('master', range, task.signal);
+			assertCurrent(task, projectToken);
+			const channels = Array.from(
+				{ length: rendered.numberOfChannels },
+				(_, channel) => rendered.getChannelData(channel),
+			);
+			const report = createLoudnessMeasurementReport({
+				measurement: measureBextLoudness(channels, rendered.sampleRate),
+				sampleRate: rendered.sampleRate,
+				channelCount: channels.length,
+				range,
+				scope: loudnessMeasurementScope(dependencies.getActiveSelection()),
+			});
+			assertCurrent(task, projectToken);
+			dependencies.state.deliveryReport = report;
+			dependencies.setStatus(copy.loudnessMeasured, 'success');
 			return report;
 		} catch (error) {
 			handleTaskError(error);

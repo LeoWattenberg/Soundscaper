@@ -35,6 +35,9 @@ const REPORT_COPY_ENTRIES = Object.freeze([
 	['deliveryPresetImport', 'Import presets', 'Vorgaben importieren'],
 	['deliveryPresetExport', 'Export preset', 'Vorgabe exportieren'],
 	['deliveryReportNoConversions', 'This delivery converted nothing.', 'Diese Lieferung hat nichts konvertiert.'],
+	['measureLoudness', 'Measure loudness', 'Lautheit messen'],
+	['measuringLoudness', 'Measuring loudness', 'Lautheit wird gemessen'],
+	['loudnessMeasured', 'Loudness measured', 'Lautheit gemessen'],
 ]);
 
 export const REPORT_COPY_BY_LOCALE = Object.freeze({

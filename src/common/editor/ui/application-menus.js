@@ -494,6 +494,7 @@ export default function createApplicationMenus({
 				{ id: 'find-clipping', label: copy.findClipping, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('clipping') },
 				{ id: 'contrast', label: copy.contrast, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('contrast') },
 				{ id: 'ebu-r128-metrics', label: copy.meterTypeEbuR128, disabled: !project, onClick: actions.openEbuR128 },
+				{ id: 'measure-loudness', label: copy.measureLoudness, disabled: analyzerBlocked, onClick: actions.measureLoudness },
 				{ id: 'nyquist-analyzers', label: copy.nyquist, items: nyquistItems('analyze') },
 			],
 		},

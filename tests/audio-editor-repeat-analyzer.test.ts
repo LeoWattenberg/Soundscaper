@@ -21,6 +21,7 @@ test('repeat analyzer replays the last successful analysis request', async () =>
 			analysisRendering: 'Analyzing', analysisCached: 'Cached', contrastAnalyzing: 'Contrast',
 			contrastForegroundRole: 'foreground', contrastBackgroundRole: 'background', contrastStored: '{role}',
 			done: 'Done', timeSelectionRequired: 'Select time', contrastRoleInvalid: 'Invalid role', unsupportedAnalysisReport: 'Unsupported',
+			measuringLoudness: 'Measuring loudness', loudnessMeasured: 'Loudness measured',
 		},
 		captureProject: () => projectGeneration.capture('analysis-project'),
 		assertProject: (token) => projectGeneration.assertCurrent(token),

@@ -756,7 +756,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		run: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.run(...args)),
 		plotSpectrum: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.plotSpectrum(...args)),
 		findClipping: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.findClipping(...args)),
-		captureContrast: (...args) => taskProgress.run('analysis', copy.contrastAnalyzing, () => analysisService.captureContrast(...args)), repeatLast: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.repeatLast(...args)),
+		captureContrast: (...args) => taskProgress.run('analysis', copy.contrastAnalyzing, () => analysisService.captureContrast(...args)), repeatLast: (...args) => taskProgress.run('analysis', copy.analysisRendering, () => analysisService.repeatLast(...args)), measureLoudness: (...args) => taskProgress.run('analysis', copy.measuringLoudness, () => analysisService.measureLoudness(...args)),
 	});
 	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function'
 		? engine.subscribeParametricEqErrors((error) => handleError(error))
