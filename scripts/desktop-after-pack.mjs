@@ -11,6 +11,9 @@ import {
 	verifyStagedFfmpegRuntime,
 } from './lib/ffmpeg-runtime-manifest.mjs';
 import {
+	NATIVE_ADDON_RUNTIME_PREFIX,
+	nativeAddonPayloadOutputRoot,
+	nativeAddonPayloadTargetForPackagingContext,
 	verifyNativeAddonPayloadManifest,
 	verifyStagedNativeAddonPayload,
 } from './lib/native-addon-payload-manifest.mjs';
@@ -22,8 +25,12 @@ const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * production signing, so no signature reset is needed here.
  */
 export default async function hardenPackagedElectron(context, dependencies = {}) {
-	await verifyPackagedFfmpegResources(context, dependencies);
-	await verifyPackagedNativeAddonResources(context, dependencies);
+	// The two runtimes occupy disjoint resource subtrees, and each verification
+	// is a full multi-file read-and-hash pass, so they run together.
+	await Promise.all([
+		verifyPackagedFfmpegResources(context, dependencies),
+		verifyPackagedNativeAddonResources(context, dependencies),
+	]);
 	const extension = {
 		darwin: '.app',
 		mas: '.app',
@@ -75,8 +82,9 @@ export async function verifyPackagedFfmpegResources(context, dependencies = {}) 
 
 /**
  * The packed native payload is verified before any fuse is flipped, against the
- * target the staging run recorded rather than against the host, so a resource
- * tree that lost or gained a byte can never reach a signed package.
+ * target the packaged tree names and against the target electron-builder says
+ * it is producing, so neither a resource tree that lost or gained a byte nor a
+ * consistent tree assembled for another architecture can reach a signed package.
  */
 export async function verifyPackagedNativeAddonResources(context, dependencies = {}) {
 	const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
@@ -84,21 +92,23 @@ export async function verifyPackagedNativeAddonResources(context, dependencies =
 	if (typeof resourcesRoot !== 'string' || resourcesRoot.length === 0) {
 		throw new TypeError('Electron packaged resources directory is unavailable.');
 	}
-	// The packaged tree names its own target, so this check needs nothing from
-	// the build directory and cannot be satisfied by a stale stage manifest.
+	const packagedTarget = nativeAddonPayloadTargetForPackagingContext(context);
 	// Exactly one target may be packaged: zero means the payload never shipped,
 	// and more than one means the package carries another architecture's bytes.
-	const nativeRoot = resolve(resourcesRoot, 'runtime/native');
-	const entries = await readdir(nativeRoot, { withFileTypes: true }).catch(() => []);
+	const runtimeRoot = resolve(resourcesRoot, 'runtime');
+	const entries = await readdir(resolve(runtimeRoot, NATIVE_ADDON_RUNTIME_PREFIX), { withFileTypes: true }).catch(() => []);
 	const targets = entries.filter((entry) => entry.isDirectory()).map(({ name }) => name);
 	if (targets.length !== 1) {
 		throw new Error(`Packaged native addon payload must carry exactly one target; found ${targets.join(', ') || '<none>'}.`);
+	}
+	if (targets[0] !== packagedTarget) {
+		throw new Error(`Packaged native addon payload carries ${targets[0]} but electron-builder is packing ${packagedTarget}.`);
 	}
 	const release = await verifyNativeAddonPayloadManifest({ repositoryRoot, target: targets[0] });
 	try {
 		return await verifyStagedNativeAddonPayload({
 			release,
-			outputRoot: resolve(nativeRoot, release.target.id),
+			outputRoot: nativeAddonPayloadOutputRoot(runtimeRoot, release),
 		});
 	} catch (error) {
 		throw packagedResourceError(error);

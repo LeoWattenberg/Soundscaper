@@ -37,9 +37,16 @@ async function packagedResources(context, target = BUILT_TARGET) {
 	return { root, resources, nativeRoot, release };
 }
 
-function packagingContext(appOutDir, resourcesDir) {
+// electron-builder names the packed platform with Node's vocabulary and the
+// packed architecture with an ordinal of its own Arch enum.
+const PACKED_PLATFORMS = { linux: 'linux', mac: 'darwin', win: 'win32' };
+const PACKED_ARCHITECTURES = { x64: 1, arm64: 3 };
+
+function packagingContext(appOutDir, resourcesDir, target = BUILT_TARGET) {
+	const [platform, architecture] = target.split('-');
 	return {
-		electronPlatformName: 'linux',
+		electronPlatformName: PACKED_PLATFORMS[platform],
+		arch: PACKED_ARCHITECTURES[architecture],
 		appOutDir,
 		packager: {
 			executableName: 'soundscaper',
@@ -96,7 +103,7 @@ test('a package that carries no native target, or more than one, is rejected', a
 
 test('a target whose payload is pending-external packages its manifest and nothing else', async (context) => {
 	const { root, resources } = await packagedResources(context, PENDING_TARGET);
-	const summary = await verifyPackagedNativeAddonResources(packagingContext(root, resources), {
+	const summary = await verifyPackagedNativeAddonResources(packagingContext(root, resources, PENDING_TARGET), {
 		repositoryRoot: process.cwd(),
 	});
 	assert.equal(summary.target, PENDING_TARGET);

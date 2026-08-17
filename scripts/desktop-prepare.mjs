@@ -26,6 +26,7 @@ import {
 	verifyFfmpegRuntimeManifest,
 } from './lib/ffmpeg-runtime-manifest.mjs';
 import {
+	nativeAddonPayloadOutputRoot,
 	resolveNativeAddonPayloadTarget,
 	stageVerifiedNativeAddonPayload,
 	verifyNativeAddonPayloadManifest,
@@ -134,7 +135,7 @@ async function stageFfmpeg(release) {
 async function stageNativeAddons(release) {
 	return stageVerifiedNativeAddonPayload({
 		release,
-		outputRoot: resolve(RUNTIME_ROOT, `native/${release.target.id}`),
+		outputRoot: nativeAddonPayloadOutputRoot(RUNTIME_ROOT, release),
 	});
 }
 

@@ -68,6 +68,8 @@ test('afterPack verifies copied FFmpeg resources before fuse work', async (conte
 function packagingContext(appOutDir, resourcesDir) {
 	return {
 		electronPlatformName: 'linux',
+		// electron-builder passes its own Arch enum ordinal; 1 is x64.
+		arch: 1,
 		appOutDir,
 		packager: {
 			executableName: 'soundscaper',

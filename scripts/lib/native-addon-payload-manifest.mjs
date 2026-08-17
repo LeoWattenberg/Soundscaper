@@ -19,9 +19,11 @@
  */
 
 import { createHash } from 'node:crypto';
-import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
-import { basename, dirname, resolve } from 'node:path';
+import { lstat, readFile, readdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
+import { renameIntoPlaceExclusively } from './exclusive-rename.mjs';
+import { assertSafeRelativePath, canonicalJson } from './ffmpeg-runtime-manifest.mjs';
 import {
 	NATIVE_HELPER_ADDON_ROOT,
 	NATIVE_HELPER_ADDON_TARGETS,
@@ -38,6 +40,45 @@ const SHA256_PATTERN = /^[a-f\d]{64}$/u;
 const MAXIMUM_PAYLOAD_BYTES = 64 * 1024 * 1024;
 
 export { NATIVE_HELPER_ADDON_TARGETS, nativeHelperAddonTargetForRuntime };
+export { canonicalJson };
+
+/**
+ * The platform and architecture vocabularies electron-builder hands its pack
+ * hooks. `electronPlatformName` is Node's platform name, while `arch` is an
+ * ordinal of electron-builder's own `Arch` enum, so both are translated into the
+ * target vocabulary the payload manifest speaks.
+ */
+const PACKAGING_PLATFORM_IDS = Object.freeze({ darwin: 'mac', linux: 'linux', mas: 'mac', win32: 'win' });
+const PACKAGING_ARCH_IDS = Object.freeze(['ia32', 'x64', 'armv7l', 'arm64', 'universal']);
+
+/**
+ * Names the target electron-builder is actually packing. A staged or packaged
+ * tree that is internally consistent still ships the wrong bytes when it was
+ * assembled for another architecture, so both hooks compare what they find
+ * against what the packer says it is producing.
+ */
+export function nativeAddonPayloadTargetForPackagingContext({ electronPlatformName, arch } = {}) {
+	const platform = PACKAGING_PLATFORM_IDS[electronPlatformName];
+	assert(platform, `Unsupported Electron packaging platform: ${String(electronPlatformName)}`);
+	const architecture = Number.isSafeInteger(arch) ? PACKAGING_ARCH_IDS[arch] : arch;
+	assert(typeof architecture === 'string' && architecture,
+		`The Electron packaging architecture is unavailable: ${String(arch)}`);
+	const id = `${platform}-${architecture}`;
+	assert(NATIVE_HELPER_ADDON_TARGETS.some((target) => target.id === id),
+		`electron-builder is packing ${id}, which is not a claimed milestone-5A target.`);
+	return id;
+}
+
+/**
+ * Where a verified payload lives under a runtime root. The staged prefix is the
+ * manifest's own `staging.runtimePrefix`, so staging, verification and the
+ * runtime resolver cannot drift apart when the layout changes.
+ */
+export function nativeAddonPayloadOutputRoot(runtimeRoot, release) {
+	assertVerifiedRelease(release);
+	assert(typeof runtimeRoot === 'string' && runtimeRoot, 'runtimeRoot is required');
+	return resolve(runtimeRoot, release.manifest.staging.runtimePrefix, release.target.id);
+}
 
 /**
  * Derives the shipped manifest from the source manifest. Keeping the packaged
@@ -210,21 +251,13 @@ export function snapshotVerifiedNativeAddonPayload(release) {
 export async function stageVerifiedNativeAddonPayload({ release, outputRoot }) {
 	const snapshot = snapshotVerifiedNativeAddonPayload(release);
 	assert(typeof outputRoot === 'string' && outputRoot, 'outputRoot is required');
-	const destination = resolve(outputRoot);
-	const parent = dirname(destination);
-	await mkdir(parent, { recursive: true });
-	await assertPathMissing(destination, 'native addon payload output');
-	const temporary = await mkdtemp(resolve(parent, `.${basename(destination)}-`));
-	try {
+	await renameIntoPlaceExclusively(resolve(outputRoot), 'native addon payload output', async (temporary) => {
 		await writeFile(resolve(temporary, release.manifest.staging.manifestName), snapshot.manifestBytes, { flag: 'wx' });
 		if (snapshot.payload) {
 			await writeFile(resolve(temporary, snapshot.payload.name), snapshot.payload.bytes, { flag: 'wx', mode: 0o755 });
 		}
-		await assertPathMissing(destination, 'native addon payload output');
-		await rename(temporary, destination);
-	} finally {
-		await rm(temporary, { recursive: true, force: true });
-	}
+		return temporary;
+	});
 	return nativeAddonPayloadStageSummary(release);
 }
 
@@ -332,21 +365,6 @@ async function readStagedRegularFile(path, label) {
 	return readFile(path);
 }
 
-async function assertPathMissing(path, label) {
-	try {
-		await lstat(path);
-	} catch (error) {
-		if (error?.code === 'ENOENT') return;
-		throw error;
-	}
-	throw new Error(`${label} already exists: ${path}`);
-}
-
-function assertSafeRelativePath(value, label) {
-	assert(typeof value === 'string' && value.length > 0 && !value.startsWith('/') && !value.includes('\\'), `${label} is invalid`);
-	assert(value.split('/').every((part) => part && part !== '.' && part !== '..'), `${label} is invalid`);
-}
-
 function assertVerifiedRelease(release) {
 	assert(VERIFIED_RELEASES.has(release), 'A verified native addon payload release is required');
 }
@@ -374,14 +392,6 @@ function parseJson(bytes, label) {
 	} catch (error) {
 		throw new Error(`${label} is invalid JSON: ${error.message}`, { cause: error });
 	}
-}
-
-export function canonicalJson(value) {
-	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-	if (value && typeof value === 'object') {
-		return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
-	}
-	return JSON.stringify(value);
 }
 
 function sha256(bytes) {

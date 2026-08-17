@@ -33,6 +33,12 @@ import { validateDesktopRuntimeManifests } from '../scripts/desktop-release-asse
 
 const ROOT = resolve(import.meta.dirname, '..');
 
+// The beforePack hook is handed electron-builder's platform name and its Arch
+// enum ordinal, and cross-checks the staged payload against them.
+function packingLinuxX64(projectDir) {
+	return { electronPlatformName: 'linux', arch: 1, packager: { projectDir } };
+}
+
 test('a policy manifest stages and publishes only its verified buffered bytes', async (context) => {
 	const fixture = await createFixture(context);
 	const release = await verifyFfmpegRuntimeManifest({
@@ -118,20 +124,20 @@ test('desktop packaging revalidates staged bytes and the retained policy summary
 	});
 	const stageManifestPath = join(fixture.root, '.desktop-build/stage-manifest.json');
 	await writeJson(stageManifestPath, { schemaVersion: 1, ffmpeg: summary, nativeAddons });
-	await assert.doesNotReject(verifyDesktopRuntimeBeforePack({ packager: { projectDir: fixture.root } }));
+	await assert.doesNotReject(verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)));
 
 	const nativePayloadPath = join(fixture.root, '.desktop-build/runtime/native/linux-x64/soundscaper_helper.node');
 	const nativePayload = await readFile(nativePayloadPath);
 	await writeFile(nativePayloadPath, Buffer.from('post-prepare native tamper'));
 	await assert.rejects(
-		verifyDesktopRuntimeBeforePack({ packager: { projectDir: fixture.root } }),
+		verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
 		/staged native addon payload linux-x64.*(?:byte length|digest)/iu,
 	);
 	await writeFile(nativePayloadPath, nativePayload);
 
 	await writeFile(join(outputRoot, 'ffmpeg-core.wasm'), Buffer.from('post-prepare tamper'));
 	await assert.rejects(
-		verifyDesktopRuntimeBeforePack({ packager: { projectDir: fixture.root } }),
+		verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
 		/staged runtime file ffmpeg-core\.wasm.*(?:byte length|digest)/iu,
 	);
 	await writeFile(join(outputRoot, 'ffmpeg-core.wasm'), fixture.wasm);
@@ -139,24 +145,24 @@ test('desktop packaging revalidates staged bytes and the retained policy summary
 	stage.ffmpeg.runtimeManifest.sha256 = '0'.repeat(64);
 	await writeJson(stageManifestPath, stage);
 	await assert.rejects(
-		verifyDesktopRuntimeBeforePack({ packager: { projectDir: fixture.root } }),
+		verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
 		/stage manifest.*verified FFmpeg runtime summary/iu,
 	);
 	await writeJson(stageManifestPath, { schemaVersion: 1, ffmpeg: summary, nativeAddons });
 	await writeFile(join(outputRoot, 'manifest.json'), Buffer.from('post-prepare manifest tamper'));
 	await assert.rejects(
-		verifyDesktopRuntimeBeforePack({ packager: { projectDir: fixture.root } }),
+		verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
 		/staged FFmpeg runtime manifest.*verified policy manifest/iu,
 	);
 	await writeFile(join(outputRoot, 'manifest.json'), release.manifestBytes);
 	await writeFile(noticePath, Buffer.from('post-prepare notice tamper'));
 	await assert.rejects(
-		verifyDesktopRuntimeBeforePack({ packager: { projectDir: fixture.root } }),
+		verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
 		/staged FFmpeg notice.*(?:byte length|digest)/iu,
 	);
 	await rm(noticePath);
 	await symlink(join(fixture.root, 'THIRD_PARTY_LICENSES.md'), noticePath);
-	await assert.rejects(verifyDesktopRuntimeBeforePack({ packager: { projectDir: fixture.root } }),
+	await assert.rejects(verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
 		/staged FFmpeg notice is not a regular file/iu);
 });
 
