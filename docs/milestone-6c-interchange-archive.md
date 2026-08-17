@@ -11,8 +11,8 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-17: 6C-1a and 6C-1b are implemented and reachable; FCPXML
-and the archive slice have not started.** The EDL profile establishes the pattern
+**Status on 2026-08-17: all three 6C-1 profiles are implemented and reachable;
+the archive slice has not started.** The EDL profile establishes the pattern
 the remaining profiles reuse: exact rational rates throughout, timecode from the
 shared `sequence-timecode` module, and every out-of-scope feature itemized in a
 delivery report rather than approximated. It is split deliberately —
@@ -63,6 +63,14 @@ What 6C builds on, verified:
   verification helpers (`src/common/editor/scape-archive-media.ts:314-322`)
   are the manifest primitives; manifests save through the `'report'` purpose
   (`src/common/editor/file-service.js:171`).
+
+One pattern recurred across all three profiles and is worth stating for 6C-2: a
+clip shorter than one frame at the target timebase has no representable
+duration, and every profile's first draft skipped it with a bare `continue`.
+That leaves the output with fewer clips than the project and nothing to point
+at. All three now report it (`*.sub-frame-clip-omitted`), and the EDL adapter
+was fixed retroactively when the OTIO conformance fixture exposed it. Any new
+walk over clips should assume this case exists.
 
 Implementation order: **6C-1a** EDL first (smallest profile, proves the
 report/conformance harness), then **6C-1b** OTIO and **6C-1c** FCPXML in
@@ -156,6 +164,17 @@ before code.
   Motion-template vocabulary.
 - **Stop condition:** stop if a committed feature requires emitting
   approximate rationals or duplicating the plan walk.
+- **Landed:** `src/common/editor/fcpxml-export.ts` and its menu entry.
+  **Profile scope, as committed here:** export only; one spine of `asset-clip`
+  elements over a single `format` resource; assets deduplicated by source
+  identity; one default role per track kind; `tcFormat` from the sequence's own
+  drop-frame flag; no `timeMap`, no transitions, no Motion vocabulary.
+  **Outstanding, and external:** the acceptance's validation against a pinned
+  FCPXML DTD. No DTD is vendored in this repository and fetching one at test
+  time would make the suite network-dependent, so the in-tree tests assert the
+  document's own invariants — rational-only time attributes, whole-frame
+  durations, asset deduplication, escaping — rather than claiming DTD
+  conformance.
 
 ## 6C-2 — Archive, consolidate, trim-media, manifests
 
