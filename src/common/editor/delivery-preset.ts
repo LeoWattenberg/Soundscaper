@@ -39,7 +39,7 @@ const ALLOWED_SETTINGS: Readonly<Record<DeliveryPresetKind, readonly string[]>> 
 
 const ALLOWED_PRESET_FIELDS: readonly string[] = Object.freeze([
 	'schemaVersion', 'id', 'label', 'kind', 'format', 'settings',
-	'licensingRowId', 'fallbackPresetId',
+	'licensingRowId', 'fallbackPresetId', 'createdAt', 'updatedAt',
 ]);
 
 export interface DeliveryPreset {
@@ -53,6 +53,9 @@ export interface DeliveryPreset {
 	readonly licensingRowId: string | null;
 	/** Where delivery goes when this preset is unavailable. */
 	readonly fallbackPresetId: string | null;
+	/** Record metadata for saved presets; absent on built-in ones. */
+	readonly createdAt?: string;
+	readonly updatedAt?: string;
 }
 
 export interface DeliveryPresetAvailability {
@@ -113,6 +116,8 @@ export function validateDeliveryPreset(value: unknown): DeliveryPreset {
 		fallbackPresetId: value.fallbackPresetId == null
 			? null
 			: requireNonEmptyString(value.fallbackPresetId, 'fallbackPresetId'),
+		...(value.createdAt == null ? {} : { createdAt: String(value.createdAt) }),
+		...(value.updatedAt == null ? {} : { updatedAt: String(value.updatedAt) }),
 	});
 }
 
