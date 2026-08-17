@@ -236,7 +236,13 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 						/>
 					)}
 					{type === 'delivery-report' && (
-						<DeliveryReport report={snapshot.deliveryReport} copy={copy} onClose={onClose} />
+						<DeliveryReport
+							report={snapshot.deliveryReport}
+							copy={copy}
+							controller={controller}
+							run={run}
+							onClose={onClose}
+						/>
 					)}
 					{type === 'revert-factory' && (
 						<>
@@ -301,7 +307,7 @@ function Aup4CompatibilityReport({ report, copy, onClose }) {
 	);
 }
 
-function DeliveryReport({ report, copy, onClose }) {
+function DeliveryReport({ report, copy, controller, run, onClose }) {
 	const items = deliveryReportItems(report);
 	const counts = report?.counts || {};
 	const displayCount = (disposition) => compatibilityCount(counts[disposition], items, disposition);
@@ -334,6 +340,12 @@ function DeliveryReport({ report, copy, onClose }) {
 			) : <p>{copy.deliveryReportNoConversions}</p>}
 			{items.length > 0 && converting.length === 0 && <p>{copy.deliveryReportNoConversions}</p>}
 			<div className="kw-audio-editor-dialog__actions">
+				<Button
+					variant="secondary"
+					onClick={() => run(() => controller.actions.export.saveReport())}
+				>
+					{copy.deliveryReportSave}
+				</Button>
 				<Button onClick={onClose}>{copy.close}</Button>
 			</div>
 		</div>

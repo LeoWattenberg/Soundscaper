@@ -10,6 +10,7 @@ import { createProjectOwnedFeatureActionFacades } from './project-owned-feature-
 import { createTimelineAnnotationActionFacade } from './timeline-annotation-action-facade.ts';
 import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
 import { snapshotProductActionExtensions } from './product-action-extensions.ts';
+import { saveCurrentDeliveryReport } from './delivery-report-action.ts';
 
 export interface EditorActionRuntime {
 	// The runtime composition root is JavaScript while it is being decomposed.
@@ -36,7 +37,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	createStableId, createWorkspacePreference, currentAudacityEffectParams, deleteEffectPreset,
 	deleteProject, deleteWorkspacePreference, disjoinSelectedClip, dismissAup4CompatibilitySummary,
 	duplicateProject, duplicateTrack, engine, exportEffectPreset,
-	exportLabels, exportVideo, findTrack,
+	exportLabels, exportVideo, fileService, findTrack,
 	flushProject, generateSelectionSilence, generateSignal, repeatLastGenerator, getClipVisualData,
 	getProjectBinClipVisualData, getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
 	handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
@@ -591,6 +592,9 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 		export: Object.freeze({
 			start: (settings: RuntimeValue) => handleExportAction('start', settings),
 			cancel: () => handleExportAction('cancel'),
+			saveReport: () => saveCurrentDeliveryReport({
+				state, productName: product.name, projectTitle: getProject()?.title ?? null, fileService,
+			}),
 		}),
 	});
 }
