@@ -93,14 +93,17 @@ before code.
   content is omitted and reported, not approximated.
 - **Stop condition:** stop if any emitted value would round downstream or if
   profile scope cannot be stated as an exact feature list.
-- **Landed:** the writer, the project adapter, the File > Export other entry,
-  and the report path, with `tests/audio-editor-edl-export.test.ts`,
-  `tests/audio-editor-edl-project-adapter.test.ts`, and
-  `tests/audio-editor-edl-export-action.test.ts`. **Still owed against the
-  acceptance above:** goldens at 23.976/24/25/29.97DF/30 — the tests cover
-  25 and 29.97DF only — and the conformance re-parse that round-trips event
-  boundaries exactly. The reel mapping table is a request parameter with no UI,
-  so a caller can supply it but a user cannot yet edit one.
+- **Landed, acceptance met:** the writer, the project adapter, the
+  File > Export other entry, and the report path, with
+  `tests/audio-editor-edl-export.test.ts`,
+  `tests/audio-editor-edl-project-adapter.test.ts`,
+  `tests/audio-editor-edl-export-action.test.ts`, and
+  `tests/audio-editor-edl-conformance.test.ts`. The conformance suite runs the
+  full rate matrix plus 29.97 non-drop and re-parses with its own line grammar
+  rather than the writer's helpers; it is verified non-vacuous by mutation.
+  **Remaining, and not part of the stated acceptance:** the reel mapping table
+  is a request parameter with no editing surface, so a caller can supply one but
+  a user cannot yet author one.
 
 ## 6C-1b — OTIO profile
 
