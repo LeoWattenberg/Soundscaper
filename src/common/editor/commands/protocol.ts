@@ -4,6 +4,7 @@ import type { TimelineAnnotationColor, TimelineAnnotationV11 } from '../timeline
 import type { Rational } from '../timeline-time.ts';
 import type { VideoClipComposition } from '../video-clip-composition.ts';
 import { AUDIO_PRODUCTION_COMMAND_TYPES, type AudioProductionCommandPayloads } from './audio-production.ts';
+import { MASTERING_SEQUENCE_COMMAND_TYPES, type MasteringSequenceCommandPayloads } from './mastering-sequence.ts';
 import type { TrackAddCommandPayload } from './track-add-command-payload.d.ts';
 import type { VideoKeyframesSetCommandPayload } from './video-keyframes-command-payload.d.ts';
 /**
@@ -104,6 +105,7 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'video-composition/set',
 	'video-keyframes/set',
 	...AUDIO_PRODUCTION_COMMAND_TYPES,
+	...MASTERING_SEQUENCE_COMMAND_TYPES,
 ] as const;
 
 export type AudioEditorCommandType = typeof AUDIO_EDITOR_COMMAND_TYPES[number];
@@ -548,7 +550,9 @@ type LegacyNonBatchAudioEditorCommandPayloads = {
 	readonly 'video-keyframes/set': VideoKeyframesSetCommandPayload;
 };
 
-type NonBatchAudioEditorCommandPayloads = LegacyNonBatchAudioEditorCommandPayloads & AudioProductionCommandPayloads;
+type NonBatchAudioEditorCommandPayloads = LegacyNonBatchAudioEditorCommandPayloads
+	& AudioProductionCommandPayloads
+	& MasteringSequenceCommandPayloads;
 
 export interface BatchAudioEditorCommand {
 	readonly type: 'batch';

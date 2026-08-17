@@ -108,6 +108,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/broadcast-wave.js',
 		'src/common/editor/cart-metadata.js',
 		'src/common/editor/closed-domain-value.js',
+		'src/common/editor/commands/mastering-sequence.js',
 		'src/common/editor/commands/protocol.js',
 		'src/common/editor/ffmpeg-video-source-characteristics.js',
 		'src/common/editor/ffmpeg-video-timing-probe.js',

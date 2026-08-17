@@ -6,6 +6,7 @@ import { applyEditorCommand } from '../src/common/editor/commands.js';
 import {
 	AUDIO_WARP_COMMAND_TYPES,
 	AUDIO_PRODUCTION_COMMAND_TYPES,
+	MASTERING_SEQUENCE_COMMAND_TYPES,
 	CLIP_RANGE_CLIPBOARD_COMMAND_TYPES,
 	EFFECTS_VIDEO_COMMAND_TYPES,
 	PROJECT_SOURCE_BIN_COMMAND_TYPES,
@@ -46,8 +47,9 @@ test('command domains partition the authoritative protocol exactly once', () => 
 		...VIDEO_COMPOSITION_COMMAND_TYPES,
 		...VIDEO_KEYFRAMES_COMMAND_TYPES,
 		...AUDIO_PRODUCTION_COMMAND_TYPES,
+		...MASTERING_SEQUENCE_COMMAND_TYPES,
 	];
-	assert.equal(AUDIO_EDITOR_COMMAND_TYPES.length, 97);
+	assert.equal(AUDIO_EDITOR_COMMAND_TYPES.length, 106);
 	assert.equal(new Set(domainTypes).size, domainTypes.length, 'a command type belongs to only one domain');
 	assert.deepEqual([...domainTypes].sort(), [...AUDIO_EDITOR_COMMAND_TYPES].sort());
 });
@@ -203,6 +205,7 @@ function domainHandlers(handlers: Record<string, unknown>): EditorCommandHandler
 		videoComposition: pick(handlers, VIDEO_COMPOSITION_COMMAND_TYPES),
 		videoKeyframes: pick(handlers, VIDEO_KEYFRAMES_COMMAND_TYPES),
 		audioProduction: pick(handlers, AUDIO_PRODUCTION_COMMAND_TYPES),
+		masteringSequence: pick(handlers, MASTERING_SEQUENCE_COMMAND_TYPES),
 	} as unknown as EditorCommandHandlerDomains;
 }
 

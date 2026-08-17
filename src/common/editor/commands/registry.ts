@@ -52,6 +52,12 @@ import {
 	type TrackMixerLabelCommandType,
 } from './track-mixer-label.ts';
 import {
+	defineMasteringSequenceCommandHandlers,
+	MASTERING_SEQUENCE_COMMAND_TYPES,
+	type MasteringSequenceCommandHandlers,
+	type MasteringSequenceCommandType,
+} from './mastering-sequence.ts';
+import {
 	defineSequenceTimingCommandHandlers,
 	SEQUENCE_TIMING_COMMAND_TYPES,
 	type SequenceTimingCommandHandlers,
@@ -115,6 +121,8 @@ export {
 	TRACK_MIXER_LABEL_COMMAND_TYPES,
 	AUDIO_PRODUCTION_COMMAND_TYPES,
 	defineAudioProductionCommandHandlers,
+	MASTERING_SEQUENCE_COMMAND_TYPES,
+	defineMasteringSequenceCommandHandlers,
 };
 
 export interface EditorCommandHandlerDomains {
@@ -131,6 +139,7 @@ export interface EditorCommandHandlerDomains {
 	readonly videoComposition: VideoCompositionCommandHandlers;
 	readonly videoKeyframes: VideoKeyframesCommandHandlers;
 	readonly audioProduction: AudioProductionCommandHandlers;
+	readonly masteringSequence: MasteringSequenceCommandHandlers;
 }
 
 type RegisteredDomainCommandType =
@@ -146,7 +155,8 @@ type RegisteredDomainCommandType =
 	| TimelineAnnotationCommandType
 	| VideoCompositionCommandType
 	| VideoKeyframesCommandType
-	| AudioProductionCommandType;
+	| AudioProductionCommandType
+	| MasteringSequenceCommandType;
 
 type DomainsAreExhaustive = [
 	Exclude<AudioEditorCommandType, RegisteredDomainCommandType>,
@@ -177,6 +187,7 @@ export function defineEditorCommandHandlerRegistry(
 		defineVideoCompositionCommandHandlers(domains.videoComposition),
 		defineVideoKeyframesCommandHandlers(domains.videoKeyframes),
 		defineAudioProductionCommandHandlers(domains.audioProduction),
+		defineMasteringSequenceCommandHandlers(domains.masteringSequence),
 	] as const;
 	const combined: Partial<Record<AudioEditorCommandType, EditorCommandHandler>> = {};
 	for (const domain of domainRegistries) {

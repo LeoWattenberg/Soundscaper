@@ -12,6 +12,7 @@ export interface EditorCommandCapabilities {
 	readonly audioAutomation?: boolean;
 	readonly audioMixerGraph?: boolean;
 	readonly audioTrackFreeze?: boolean;
+	readonly masteringSequences?: boolean;
 	readonly audioRecording: boolean;
 	readonly audioSpectralEditing: boolean;
 	readonly audioWarp: boolean;
@@ -111,6 +112,9 @@ function assertCommandCapabilities(
 	}
 	if (!capabilities.audioTrackFreeze && command.type.startsWith('audio-freeze/')) {
 		unsupported(productName, 'audioTrackFreeze');
+	}
+	if (!capabilities.masteringSequences && command.type.startsWith('mastering-sequence/')) {
+		unsupported(productName, 'masteringSequences');
 	}
 	if (!capabilities.videoEffects && command.type === 'clip/update'
 		&& hasOwn(command.changes, 'videoEffects')) {
