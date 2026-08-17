@@ -15,6 +15,7 @@ import {
 	M5_NATIVE_HELPER_WORKLOAD_ID as WORKLOAD_ID,
 	computeM5NativeHelperMetrics,
 } from './lib/m5-native-helper-metrics.mjs';
+import { boundedString, exactRecord, isRecord, requireRecord } from './lib/measurement-admission.mjs';
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
 
 /*
@@ -255,21 +256,6 @@ function exactDescriptor(collection, id, label) {
 	return matches[0];
 }
 
-function exactRecord(value, fields, path) {
-	const record = requireRecord(value, path);
-	const actual = Object.keys(record).sort();
-	const expected = [...fields].sort();
-	if (!sameStrings(actual, expected)) throw new Error(`${path} must contain the exact fields.`);
-	return record;
-}
-
-function boundedString(value, minimum, maximum, path) {
-	if (typeof value !== 'string' || value.length < minimum || value.length > maximum) {
-		throw new Error(`${path} must be a bounded string.`);
-	}
-	return value;
-}
-
 function ownEnvironmentString(environment, key) {
 	if (environment === null || (typeof environment !== 'object' && typeof environment !== 'function')) {
 		throw new Error('Collector environment must expose own data properties.');
@@ -288,18 +274,6 @@ function sameStrings(left, right) {
 		&& Array.isArray(right)
 		&& left.length === right.length
 		&& left.every((value, index) => value === right[index]);
-}
-
-function requireRecord(value, path) {
-	if (!isRecord(value)) throw new Error(`${path} must be a plain record.`);
-	return value;
-}
-
-function isRecord(value) {
-	return value !== null
-		&& typeof value === 'object'
-		&& !Array.isArray(value)
-		&& (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 }
 
 function errorMessage(error) {

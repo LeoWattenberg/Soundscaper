@@ -1,5 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	boundedString,
+	deepFreeze,
+	exactRecord,
+	nonNegativeInteger,
+	positiveInteger,
+	requireRecord,
+} from './measurement-admission.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 /*
@@ -36,21 +44,27 @@ export const M5_NATIVE_HELPER_METRIC_IDS = Object.freeze([
  * Each lab row may only speak for a backend its own operating system ships.
  * Without this binding a Windows loopback could be filed against the macOS row,
  * which is the same relabelling the environment rule forbids one level up.
+ *
+ * The rows are the helper contract's publishable backends split by platform:
+ * PipeWire is the primary Linux backend, ALSA the direct `hw:` backup, JACK the
+ * backend a user who runs a JACK graph gets. Shared and exclusive are modes of
+ * `wasapi`, not backends of their own, and the synthetic proof backend is never
+ * device evidence.
  */
-const PLATFORM_AUDIO_BACKENDS = Object.freeze({
-	windowsX64: Object.freeze(['wasapi-shared', 'wasapi-exclusive', 'asio']),
-	windowsArm64: Object.freeze(['wasapi-shared', 'wasapi-exclusive', 'asio']),
+export const M5_NATIVE_HELPER_PLATFORM_AUDIO_BACKENDS = Object.freeze({
+	windowsX64: Object.freeze(['wasapi', 'asio']),
+	windowsArm64: Object.freeze(['wasapi', 'asio']),
 	macosArm64: Object.freeze(['coreaudio']),
-	linuxX64: Object.freeze(['jack', 'alsa']),
-	linuxArm64: Object.freeze(['jack', 'alsa']),
+	linuxX64: Object.freeze(['pipewire', 'alsa', 'jack']),
+	linuxArm64: Object.freeze(['pipewire', 'alsa', 'jack']),
 });
 
 /** The five lab-matrix rows; a record names exactly one and never speaks for the others. */
-export const M5_NATIVE_HELPER_PLATFORM_IDS = Object.freeze(Object.keys(PLATFORM_AUDIO_BACKENDS));
+export const M5_NATIVE_HELPER_PLATFORM_IDS = Object.freeze(Object.keys(M5_NATIVE_HELPER_PLATFORM_AUDIO_BACKENDS));
 
 /** A requested backend is evidence only when it is the backend that actually ran. */
 export const M5_NATIVE_HELPER_AUDIO_BACKENDS = Object.freeze([
-	...new Set(Object.values(PLATFORM_AUDIO_BACKENDS).flat()),
+	...new Set(Object.values(M5_NATIVE_HELPER_PLATFORM_AUDIO_BACKENDS).flat()),
 ]);
 
 /** OS, CPU, memory, interface, driver, backend, buffer, rate, Electron, digests, package. */
@@ -322,7 +336,7 @@ function validateFingerprint(value, platformId) {
 	if (!M5_NATIVE_HELPER_AUDIO_BACKENDS.includes(fingerprint.audioBackend)) {
 		throw new Error(`M5 fingerprint audioBackend must be one of ${M5_NATIVE_HELPER_AUDIO_BACKENDS.join(', ')}.`);
 	}
-	if (!PLATFORM_AUDIO_BACKENDS[platformId].includes(fingerprint.audioBackend)) {
+	if (!M5_NATIVE_HELPER_PLATFORM_AUDIO_BACKENDS[platformId].includes(fingerprint.audioBackend)) {
 		throw new Error(`M5 fingerprint audioBackend ${fingerprint.audioBackend} is not a backend ${platformId} runs.`);
 	}
 	return Object.freeze(fingerprint);
@@ -382,53 +396,4 @@ function boundedArray(value, minimum, maximum, path) {
 function exactArray(value, length, message) {
 	if (!Array.isArray(value) || value.length !== length) throw new Error(`${message}.`);
 	return value;
-}
-
-function exactRecord(value, fields, path) {
-	const record = requireRecord(value, path);
-	const actual = Object.keys(record).sort();
-	const expected = [...fields].sort();
-	if (actual.length !== expected.length || actual.some((field, index) => field !== expected[index])) {
-		throw new Error(`${path} must contain the exact fields.`);
-	}
-	return record;
-}
-
-function boundedString(value, minimum, maximum, path) {
-	if (typeof value !== 'string' || value.length < minimum || value.length > maximum) {
-		throw new Error(`${path} must be a bounded string.`);
-	}
-	return value;
-}
-
-function positiveInteger(value, path) {
-	if (!Number.isSafeInteger(value) || value < 1) {
-		throw new Error(`${path} must be a positive safe integer.`);
-	}
-	return value;
-}
-
-function nonNegativeInteger(value, path) {
-	if (!Number.isSafeInteger(value) || value < 0) {
-		throw new Error(`${path} must be a non-negative safe integer.`);
-	}
-	return value;
-}
-
-function requireRecord(value, path) {
-	if (!isRecord(value)) throw new Error(`${path} must be a plain record.`);
-	return value;
-}
-
-function isRecord(value) {
-	return value !== null
-		&& typeof value === 'object'
-		&& !Array.isArray(value)
-		&& (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
-}
-
-function deepFreeze(value) {
-	if (value === null || typeof value !== 'object') return value;
-	for (const key of Object.keys(value)) deepFreeze(value[key]);
-	return Object.freeze(value);
 }

@@ -4,9 +4,13 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { PUBLISHABLE_NATIVE_AUDIO_BACKENDS } from '../desktop/native-helper-service.ts';
 import {
+	M5_NATIVE_HELPER_AUDIO_BACKENDS,
 	M5_NATIVE_HELPER_FINGERPRINT_FIELDS,
 	M5_NATIVE_HELPER_METRIC_IDS,
+	M5_NATIVE_HELPER_PLATFORM_AUDIO_BACKENDS,
+	M5_NATIVE_HELPER_PLATFORM_IDS,
 	computeM5NativeHelperMetrics,
 	validateM5NativeHelperMeasurement,
 } from '../scripts/lib/m5-native-helper-metrics.mjs';
@@ -388,6 +392,52 @@ test('an incomplete fingerprint is a rejection, never a default', () => {
 	);
 	relabelled.fingerprint.audioBackend = 'coreaudio';
 	assert.doesNotThrow(() => validateM5NativeHelperMeasurement(relabelled, expectation));
+});
+
+test('every lab row admits exactly the backends the product publishes', () => {
+	assert.deepEqual(
+		Object.keys(M5_NATIVE_HELPER_PLATFORM_AUDIO_BACKENDS),
+		[...M5_NATIVE_HELPER_PLATFORM_IDS],
+	);
+	const publishable = PUBLISHABLE_NATIVE_AUDIO_BACKENDS as readonly string[];
+	for (const [platformId, backends] of Object.entries(M5_NATIVE_HELPER_PLATFORM_AUDIO_BACKENDS)) {
+		assert.ok((backends as readonly string[]).length > 0, `${platformId} must name a backend`);
+		for (const backend of backends as readonly string[]) {
+			assert.ok(
+				publishable.includes(backend),
+				`${platformId} admits ${backend}, which the helper contract does not publish`,
+			);
+		}
+	}
+	// The union is the contract's publishable vocabulary exactly: a backend the
+	// product ships that no row admits could never be measured, and the synthetic
+	// proof backend is never device evidence.
+	assert.deepEqual([...M5_NATIVE_HELPER_AUDIO_BACKENDS].sort(), [...publishable].sort());
+});
+
+test('a Linux row files evidence against PipeWire, the backend the product streams through', () => {
+	const linux = makeMeasurement() as { platformId: string; fingerprint: Record<string, unknown> };
+	linux.platformId = 'linuxX64';
+	for (const backend of ['pipewire', 'alsa', 'jack']) {
+		linux.fingerprint.audioBackend = backend;
+		assert.doesNotThrow(
+			() => validateM5NativeHelperMeasurement(linux, expectation),
+			`linuxX64 must admit ${backend}`,
+		);
+	}
+	const arm = makeMeasurement() as { platformId: string; fingerprint: Record<string, unknown> };
+	arm.platformId = 'linuxArm64';
+	arm.fingerprint.audioBackend = 'pipewire';
+	assert.doesNotThrow(() => validateM5NativeHelperMeasurement(arm, expectation));
+
+	const windows = makeMeasurement() as { fingerprint: Record<string, unknown> };
+	windows.fingerprint.audioBackend = 'wasapi';
+	assert.doesNotThrow(() => validateM5NativeHelperMeasurement(windows, expectation));
+	windows.fingerprint.audioBackend = 'coreaudio';
+	assert.throws(
+		() => validateM5NativeHelperMeasurement(windows, expectation),
+		/audioBackend coreaudio is not a backend windowsX64 runs/u,
+	);
 });
 
 test('the fixture halves and record identity are bound to the checked-in descriptors', () => {
