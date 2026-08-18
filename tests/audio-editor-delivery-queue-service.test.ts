@@ -239,3 +239,41 @@ test('a member report is captured per member rather than shared with the batch',
 	assert.deepEqual(reports, [{ format: 'wav' }, { format: 'mp3' }],
 		'each member carries the report of its own delivery');
 });
+
+test('a batch killed mid-flight publishes nothing partial and returns the member whole', () => {
+	// The web tier's queue is in-session, so its whole recovery story is atomic
+	// restart: the member that was rendering when the session died published
+	// nothing, and the report says it was not delivered rather than that it was.
+	let inFlight: (() => void) | null = null;
+	const { service } = harness((settings) => {
+		if ((settings as { format?: string })?.format !== 'mp3') return { fileName: 'member.out' };
+		return new Promise<void>((resolve) => { inFlight = resolve; });
+	});
+	const member = (index: number, format: string) => ({
+		memberId: `batch-1-${index}`, label: `Member ${index}`, presetId: format,
+		target: { kind: 'project' as const }, mode: 'mix' as const, settings: { format },
+	});
+	service.enqueueBatch({
+		batchId: 'batch-1', members: [member(1, 'wav'), member(2, 'mp3'), member(3, 'flac')],
+	});
+
+	return Promise.resolve().then(() => Promise.resolve()).then(() => Promise.resolve()).then(() => {
+		assert.equal(service.list().entries[1].state, 'running', 'the second member is mid-flight');
+		assert.deepEqual(service.batchReport('batch-1').items.map(({ data }) => data.state), [
+			'delivered', 'not-started', 'not-started',
+		], 'a running member has delivered nothing yet');
+		assert.equal(service.batchReport('batch-1').items[1].data.fileName, null);
+
+		service.recover();
+		assert.deepEqual(service.list().entries.map(({ state }) => state), [
+			'completed', 'queued', 'queued',
+		], 'the interrupted member returns whole, never half-done');
+		assert.equal(
+			service.list().entries[1].lastFailureCode, null,
+			'and is not labelled with a failure it did not have',
+		);
+		assert.deepEqual(service.retryBatchFailures('batch-1'), ['batch-1-2', 'batch-1-3'],
+			'a re-run covers exactly what did not deliver');
+		inFlight?.();
+	});
+});
