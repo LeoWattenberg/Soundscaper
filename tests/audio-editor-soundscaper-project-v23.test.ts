@@ -9,6 +9,7 @@ import {
 	SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION,
 	isSoundscaperProductionProjectSchema,
 } from '../src/common/editor/project-schema-version.ts';
+import { createSoundscaperTrackDuplicateClipboardV7 } from '../src/soundscaper/editor-session-clipboard-v7.ts';
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
 import {
 	SoundscaperProjectV23ReimportRequiredError,
@@ -94,6 +95,17 @@ test('a V21 document upgrades into V23 rather than being refused', () => {
 	assert.equal(upgraded.schemaVersion, SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION);
 	assert.deepEqual(upgraded.masteringSequences, []);
 	assert.equal(validateSoundscaperProjectV23(upgraded), true);
+});
+
+test('the shared track-duplicate clipboard accepts a V23 project, masteringSequences and all', () => {
+	// This carrier is shared by both the V21 and V23 runtime selections. It used
+	// to validate every project against the exact-V21 closed field domain, which
+	// refused any real V23 document as soon as it started existing — V23 carries
+	// `masteringSequences`, a field V21's validator has never heard of.
+	const v23 = project();
+	const carrier = createSoundscaperTrackDuplicateClipboardV7(v23, 'a1');
+	assert.equal(carrier.sourceTrackId, 'a1');
+	assert.equal(carrier.originProjectId, v23.id);
 });
 
 test('a genuinely pre-release schema is a typed reimport refusal, not a migration', () => {

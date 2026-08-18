@@ -4,8 +4,10 @@ import type {
 	ControllerTrackDuplicateCarrier,
 	ControllerTrackDuplicateRequest,
 } from '../common/editor/controller/project-runtime.ts'
+import { SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION } from '../common/editor/project-schema-version.ts'
 import type { SoundscaperProjectV21 } from './editor-project-v21.ts'
 import { validateSoundscaperProjectV21 } from './editor-project-v21-validation.ts'
+import { validateSoundscaperProjectV23 } from './editor-project-v23.ts'
 
 export const SOUNDSCAPER_SESSION_CLIPBOARD_SCHEMA_VERSION_V7 = 7 as const
 
@@ -29,7 +31,7 @@ export function createSoundscaperTrackDuplicateClipboardV7(
 	projectValue: SoundscaperProjectV21 | unknown,
 	sourceTrackIdValue: unknown,
 ): Readonly<SoundscaperTrackDuplicateClipboardV7> {
-	validateSoundscaperProjectV21(projectValue)
+	validateSoundscaperProductionAuthorityV7(projectValue)
 	const project = projectValue as SoundscaperProjectV21
 	const sourceTrackId = canonicalId(sourceTrackIdValue, 'clipboard source track ID')
 	const sourceTrack = project.tracks.find(({ id }) => id === sourceTrackId)
@@ -77,7 +79,7 @@ export function prepareSoundscaperTrackDuplicateCarrierV7(
 	clipboardValue: SoundscaperTrackDuplicateClipboardV7 | unknown,
 	requestValue: ControllerTrackDuplicateRequest | unknown,
 ): Readonly<ControllerTrackDuplicateCarrier> {
-	validateSoundscaperProjectV21(projectValue)
+	validateSoundscaperProductionAuthorityV7(projectValue)
 	const project = projectValue as SoundscaperProjectV21
 	const clipboard = normalizeSoundscaperTrackDuplicateClipboardV7(clipboardValue)
 	if (clipboard.originProjectId !== project.id || clipboard.originRevision !== project.revision) {
@@ -147,6 +149,24 @@ function normalizeRequest(value: unknown): Readonly<ControllerTrackDuplicateRequ
 		targetTrackId: canonicalId(candidate.targetTrackId, 'track duplicate target track ID'),
 		effectIds: Object.freeze(mappings),
 	})
+}
+
+/**
+ * Validate the production authority regardless of which live revision it is.
+ *
+ * This carrier is shared by both the V21 and the V23 project runtime
+ * selections — asking `validateSoundscaperProjectV21` alone would refuse
+ * every V23 document (it carries `masteringSequences`, a field V21's closed
+ * domain does not know), which is exactly what silently broke track
+ * duplication once the app started booting the V23 selection by default.
+ */
+function validateSoundscaperProductionAuthorityV7(project: unknown): void {
+	const schemaVersion = (project as { schemaVersion?: unknown } | null)?.schemaVersion
+	if (schemaVersion === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION) {
+		validateSoundscaperProjectV23(project)
+		return
+	}
+	validateSoundscaperProjectV21(project)
 }
 
 function plainExactRecord<const Field extends string>(
