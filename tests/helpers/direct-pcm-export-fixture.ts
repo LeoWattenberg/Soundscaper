@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ExportServiceRuntime } from '../../src/common/editor/controller/export-service.ts';
+import { encodeAiff } from '../../src/common/editor/aiff.js';
+import { encodeWav } from '../../src/common/editor/wav.js';
 
 export interface TestPlan extends Record<string, unknown> {
 	mode: string;
@@ -217,7 +219,13 @@ export function createDirectPcmExportFixture(
 	const runtime: ExportServiceRuntime = {
 		abortError: () => Object.assign(new Error('aborted'), { name: 'AbortError' }),
 		applyMediaChannelMapping: (channels: readonly Float32Array[]) => channels,
-		audioBufferChannels: () => Array.from({ length: inputChannelCount }, () => Float32Array.of(0)),
+		// As many frames as the plan promises: a render that disagrees with its
+		// plan is the defect conformance reopens the file to catch, so a fixture
+		// that ships the disagreement cannot stand for an ordinary delivery.
+		audioBufferChannels: () => Array.from(
+			{ length: inputChannelCount },
+			() => new Float32Array(plan.outputFrames),
+		),
 		cloneProject: () => structuredClone(project),
 		copy: {
 			localSourcesMissing: 'Missing sources', rendering: 'Rendering', encoding: 'Encoding', done: 'Done',
@@ -278,8 +286,14 @@ export function createDirectPcmExportFixture(
 			encoderKinds.push('wav');
 			return emitContainer(encoderOptions);
 		},
-		encodeAiff: () => Uint8Array.of(),
-		encodeWav: () => Uint8Array.of(),
+		// Real containers on the Blob fallback path, because that delivery is
+		// conformed by reopening the file it wrote.
+		encodeAiff: (channels: readonly Float32Array[], encodeOptions: Record<string, unknown>) => (
+			encodeAiff(channels as Float32Array[], encodeOptions as never)
+		),
+		encodeWav: (channels: readonly Float32Array[], encodeOptions: Record<string, unknown>) => (
+			encodeWav(channels as Float32Array[], encodeOptions as never)
+		),
 		ffmpeg: { dispose() {} },
 		fileService: {
 			async prepareSave(request: Record<string, unknown>) { prepareRequests.push(request); return prepared; },

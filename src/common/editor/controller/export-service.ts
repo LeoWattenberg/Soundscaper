@@ -22,7 +22,10 @@ import { commitDirectPcmDestination, createDirectPcmEncoder, directPcmRenderQueu
 import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryBytes, prepareDirectStemArchiveDestination, streamDirectStemArchive } from './direct-stem-archive-export.ts';
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
 import { createEditorVideoExportAction } from './video-export-service.ts';
+import { createExportSnapshotRenderer } from './export-snapshot-renderer.ts';
 import { createDeliveryReportForPlan } from '../delivery-conversion-inventory.ts';
+import { assertDeliveryConformance } from '../delivery-conformance.ts';
+import { conformDeliveredExport } from './delivery-conformance-action.ts';
 import { withDeliveredLoudness } from '../loudness-normalization.ts';
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -50,6 +53,11 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		stemProject, store, throwIfAborted, toggleExport,
 		updateExportProgress, taskProgress, verifyProjectFallbackIntegrity,
 	} = runtime;
+	const { renderSnapshot, withRenderProgress } = createExportSnapshotRenderer({
+		options, sourceBuffers, taskProgress,
+		createCacheAwareRenderEngine, prepareCommittedTimePitchCaches,
+		throwIfAborted, updateExportProgress,
+	});
 	const exportVideo = createEditorVideoExportAction(runtime, renderSnapshot);
 	async function handleExportAction(action: RuntimeValue, requestedSettings: RuntimeValue = null) {
 		if (action === 'cancel') {
@@ -195,18 +203,29 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					directCompressed ? pendingDirectDestination as DirectCompressedDestination : null,
 					assertExportCurrent,
 				);
-				if (encoded.loudnessNormalization) {
-					// Normalization is the one part of a delivery the plan cannot
-					// describe on its own: the gain is not known until the render
-					// has been measured. The report is rebuilt rather than appended
-					// to, because a sealed report's counts have to keep agreeing
-					// with its items.
+				// Conformance runs on every delivery, from the bytes that delivery
+				// produced, before anything is published — it is not a verification
+				// mode somebody has to remember to run.
+				const conformance = await conformDeliveredExport(plan, encoded);
+				assertExportCurrent();
+				if (encoded.loudnessNormalization || conformance.length > 0) {
+					// Neither normalization nor conformance can be described by the plan
+					// alone: the gain is not known until the render has been measured,
+					// and whether the bytes agree with the plan is not derivable from
+					// the plan. The report is rebuilt rather than appended to, because
+					// a sealed report's counts have to keep agreeing with its items.
 					state.deliveryReport = createDeliveryReportForPlan(
 						plan,
 						{ sampleRate: exportProject.sampleRate },
-						withDeliveredLoudness(encoded.loudnessNormalization, encoded.deliveredLoudness),
+						encoded.loudnessNormalization
+							? withDeliveredLoudness(encoded.loudnessNormalization, encoded.deliveredLoudness)
+							: null,
+						conformance,
 					);
 				}
+				// The report is published first, so a delivery that failed its own
+				// conformance can still say why.
+				assertDeliveryConformance(conformance);
 				if (encoded.directDestination) directOutput = encoded;
 				else {
 					outputCleanup = encoded.cleanup || null;
@@ -387,45 +406,6 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		});
 	}
 
-	async function renderSnapshot(
-		snapshot: RuntimeValue,
-		range: RuntimeValue,
-		sourceMap: RuntimeValue = sourceBuffers,
-		signal: RuntimeValue = null,
-		chunkSources: RuntimeValue = null,
-		prepareTimePitchCaches = true,
-	) {
-		throwIfAborted(signal);
-		if (typeof options.renderSnapshot === 'function') {
-			const rendered = chunkSources === null
-				? await options.renderSnapshot(snapshot, range, sourceMap, signal)
-				: await options.renderSnapshot(snapshot, range, sourceMap, signal, chunkSources);
-			throwIfAborted(signal);
-			return rendered;
-		}
-		if (prepareTimePitchCaches) await prepareCommittedTimePitchCaches(snapshot, signal);
-		const renderEngine = createCacheAwareRenderEngine();
-		try {
-			if (chunkSources === null) renderEngine.loadProject(snapshot, sourceMap);
-			else renderEngine.loadProject(snapshot, sourceMap, { chunkSources });
-			const rendered = await renderEngine.renderMix({ ...withRenderProgress(range), signal });
-			throwIfAborted(signal);
-			return rendered;
-		} finally { await renderEngine.dispose(); }
-	}
-
-	function withRenderProgress(range: RuntimeValue) {
-		const activeKind = taskProgress?.getSnapshot?.()?.kind;
-		if (!activeKind) return range;
-		return {
-			...range,
-			onProgress: (progress: RuntimeValue) => {
-				const value = typeof progress === 'number' ? progress : progress?.progress;
-				if (activeKind === 'export') updateExportProgress(value);
-				else taskProgress.updateActive(value);
-			},
-		};
-	}
 
 	async function renderRealtimeEncoded(
 		snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue,

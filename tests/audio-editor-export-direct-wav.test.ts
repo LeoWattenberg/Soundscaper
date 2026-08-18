@@ -12,7 +12,7 @@ import {
 import { DIRECT_WAV_MAXIMUM_FILE_BYTES, prepareDirectWavDestination } from '../src/common/editor/controller/direct-wav-export.ts';
 import type { IxmlMetadataInput } from '../src/common/editor/ixml.ts';
 import type { RiffMarkerInput } from '../src/common/editor/riff-markers.ts';
-import { inspectWavLayout } from '../src/common/editor/wav.js';
+import { encodeWav, inspectWavLayout } from '../src/common/editor/wav.js';
 import {
 	createDirectPcmExportFixture, createPreparedStream, deferred, directPlan,
 	type DirectExportFixtureOptions, type TestPlan,
@@ -50,6 +50,14 @@ function directWavPlan(overrides: Readonly<Record<string, unknown>> = {}): WavPl
 function exactDirectWavPlan(overrides: Readonly<Record<string, unknown>> = {}): WavPlan {
 	const plan = directWavPlan(overrides);
 	return { ...plan, outputFileBytesPerRender: wavLayout(plan).byteLength };
+}
+
+/** The container the encoder would really have staged, so reopening it can succeed. */
+function stagedWavBytes(plan: WavPlan): Uint8Array {
+	return encodeWav(Array.from({ length: plan.channelCount }, () => new Float32Array(plan.outputFrames)), {
+		sampleRate: plan.sampleRate, bitDepth: plan.encoding.bitDepth as 24, dither: 'none',
+		float: plan.encoding.floatingPoint, metadata: plan.metadata, markers: plan.markers as RiffMarkerInput[],
+	});
 }
 
 function wavLayout(plan: WavPlan): ReturnType<typeof inspectWavLayout> {
@@ -448,7 +456,13 @@ test('direct WAV admission accepts exact canonical, metadata-rich, RIFF, RF64, a
 });
 
 test('classic WAV keeps the existing Blob fallback when no exact stream destination opens', async () => {
-	const fallback = createFixture();
+	// The staged bytes are a real container: this delivery is published as a Blob
+	// and conformed by reopening it.
+	const plan = directWavPlan();
+	const fallback = createFixture(plan, {
+		encoderInitialChunks: [stagedWavBytes(plan)],
+		encoderWriteChunks: () => [],
+	});
 	const result = await createEditorExportService(fallback.runtime).handleExportAction('export');
 	assert.equal(fallback.prepareRequests.length, 1);
 	assert.equal(fallback.calls.includes('temporary:create'), true);

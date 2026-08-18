@@ -13,6 +13,7 @@ import {
 	sealDeliveryReport,
 } from './delivery-report.ts';
 import { MEDIA_EXPORT_FORMATS, mediaExportFormatCarriesCues } from './media-export.js';
+import type { DeliveryConformanceFinding } from './delivery-conformance.ts';
 import { masteringSequenceDeliveryConversions } from './mastering-sequence-delivery.ts';
 
 /**
@@ -195,6 +196,7 @@ export function createDeliveryReportForPlan(
 	plan: AudioDeliveryPlan,
 	source: DeliverySourceCharacteristics,
 	loudness?: LoudnessNormalizationDecision | null,
+	conformance?: readonly DeliveryConformanceFinding[] | null,
 ): DeliveryReport {
 	const descriptor = formatDescriptor(plan?.format);
 	const encoding = isRecord(plan?.encoding) ? plan.encoding : {};
@@ -217,6 +219,18 @@ export function createDeliveryReportForPlan(
 		});
 	}
 	if (loudness) addDeliveryLoudnessItem(draft, loudness);
+	// Conformance describes the file that was written rather than the plan that
+	// wrote it, so it is passed in rather than inventoried: nothing derivable
+	// from a plan could tell you whether the bytes agree with it.
+	for (const finding of conformance ?? []) {
+		addDeliveryReportItem(draft, {
+			code: finding.code,
+			disposition: finding.disposition,
+			severity: finding.severity,
+			data: finding.data,
+			message: finding.message,
+		});
+	}
 	return sealDeliveryReport(draft);
 }
 

@@ -8,6 +8,8 @@
  */
 
 import { type ExportServiceRuntime } from '../../src/common/editor/controller/export-service.ts';
+import { encodeAiff } from '../../src/common/editor/aiff.js';
+import { encodeWav } from '../../src/common/editor/wav.js';
 
 export interface TestProject {
 	readonly id: string;
@@ -108,14 +110,33 @@ export function createFixture() {
 	const preflightBytes: number[] = [];
 	const resampleFrameRequests: number[] = [];
 	const encodedFrameCounts: number[] = [];
+	// Exactly the plan's `outputFrames`. A render that disagrees with its plan is
+	// the defect conformance reopens the file to catch, so a fixture that ships
+	// the disagreement cannot also stand for an ordinary delivery.
 	const audio = {
 		sampleRate: 48_000,
-		length: 4,
+		length: 6,
 		numberOfChannels: 2,
-		channels: [Float32Array.of(0.1, 0.2), Float32Array.of(0.2, 0.1)],
+		channels: [
+			Float32Array.of(0.1, 0.2, 0.3, 0.2, 0.1, 0),
+			Float32Array.of(0.2, 0.1, 0, 0.1, 0.2, 0.3),
+		],
 	};
 	let project = defaultProject();
 	let plan = defaultPlan();
+	function stagedContainerBytes(): Uint8Array<ArrayBuffer> {
+		if (plan.format !== 'wav' && plan.format !== 'bwf' && plan.format !== 'bw64') return Uint8Array.of(7);
+		return encodeWav(
+			Array.from({ length: plan.channelCount }, () => new Float32Array(plan.outputFrames)),
+			{
+				sampleRate: plan.sampleRate,
+				bitDepth: (plan.encoding.bitDepth ?? 24) as 24,
+				float: plan.encoding.floatingPoint === true,
+				dither: 'none',
+				...(plan.bext ? { bext: plan.bext } : {}),
+			},
+		) as Uint8Array<ArrayBuffer>;
+	}
 	let missingSources = false;
 	let archiveAddFails = false;
 	let preflightFails = false;
@@ -207,7 +228,10 @@ export function createFixture() {
 		createTemporaryFileSink: async () => ({
 			persistent: sinkPersistent,
 			write: async () => { calls.push('sink-write'); },
-			close: async (mimeType: string) => new Blob([Uint8Array.of(7)], { type: mimeType }),
+			// A realtime delivery is conformed by reopening the file the sink
+			// produced, so the sink produces the container the plan describes
+			// rather than a placeholder byte.
+			close: async (mimeType: string) => new Blob([stagedContainerBytes()], { type: mimeType }),
 			remove: async () => { calls.push('sink-remove'); },
 			abort: async () => { calls.push('sink-abort'); },
 		}),
@@ -217,11 +241,16 @@ export function createFixture() {
 			extension: settings.format === 'webm' ? 'webm' : 'mp4',
 		}),
 		createWavStreamEncoder: streamEncoder,
-		encodeAiff: () => Uint8Array.of(4, 5),
+		// The real encoders, because a delivery is conformed by reopening what it
+		// wrote: a fixture that claims to write WAV and returns three bytes is
+		// exactly the writer fault conformance exists to catch.
+		encodeAiff: (channels: Float32Array[], options: Record<string, unknown>) => (
+			encodeAiff(channels, options as never)
+		),
 		encodeWav: (channels: Float32Array[], options: Record<string, unknown>) => {
 			encodedFrameCounts.push(channels[0]?.length ?? 0);
 			wavOptions.push(options);
-			return Uint8Array.of(1, 2, 3);
+			return encodeWav(channels, options as never);
 		},
 		ffmpeg: {
 			dispose: () => { calls.push('ffmpeg-dispose'); },

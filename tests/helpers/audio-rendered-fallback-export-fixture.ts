@@ -10,7 +10,9 @@ import assert from 'node:assert/strict';
 import type { ExportServiceRuntime } from '../../src/common/editor/controller/export-service.ts';
 import { createPlaybackProjectService } from '../../src/common/editor/controller/playback-project-service.ts';
 import type { EngineChunkSource } from '../../src/common/editor/engine/types.ts';
+import { encodeAiff } from '../../src/common/editor/aiff.js';
 import { createExportPlan } from '../../src/common/editor/export.js';
+import { encodeWav } from '../../src/common/editor/wav.js';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS } from '../../src/common/editor/project-feature-audio-track-render-v1.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../../src/common/editor/project-feature-capabilities.ts';
@@ -194,8 +196,15 @@ export function createFixture(options: FixtureOptions = {}) {
 				};
 			}
 			: createStreamEncoder,
-		encodeAiff: () => Uint8Array.of(1),
-		encodeWav: () => Uint8Array.of(1, 2, 3),
+		// Real containers, because a delivery is conformed by reopening what it
+		// wrote: a writer stub that returns three bytes is the writer fault
+		// conformance exists to catch, not an ordinary delivery.
+		encodeAiff: (channels: readonly Float32Array[], encodeOptions: Record<string, unknown>) => (
+			encodeAiff(channels as Float32Array[], encodeOptions as never)
+		),
+		encodeWav: (channels: readonly Float32Array[], encodeOptions: Record<string, unknown>) => (
+			encodeWav(channels as Float32Array[], encodeOptions as never)
+		),
 		ffmpeg: {
 			dispose() {},
 			async encode() { throw new Error('FFmpeg encode reached'); },

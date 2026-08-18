@@ -7,6 +7,7 @@ import {
 	createEditorExportService,
 	type ExportServiceRuntime,
 } from '../src/common/editor/controller/export-service.ts';
+import { encodeWav } from '../src/common/editor/wav.js';
 
 const PRE_DATA = Uint8Array.of(0x63, 0x68, 0x6e, 0x61, 0, 0, 0, 0);
 const TRAILING = Uint8Array.of(0x61, 0x78, 0x6d, 0x6c, 0, 0, 0, 0);
@@ -52,6 +53,13 @@ function harness(strategy: 'offline' | 'realtime-stream') {
 		requiredTemporaryBytes: 256, outputs: [{ fileName: 'adm.wav', trackId: null }],
 		channelMapping: { mode: 'preserve' }, archive: null,
 	};
+	const stagedBw64Bytes = () => encodeWav(
+		Array.from({ length: plan.channelCount }, () => new Float32Array(plan.outputFrames)),
+		{
+			container: 'bw64', sampleRate: plan.sampleRate, bitDepth: 24, float: false, dither: 'none',
+			bext: BEXT, preDataChunks: PRE_DATA, trailingChunks: TRAILING,
+		},
+	) as Uint8Array<ArrayBuffer>;
 	const planOptions: Array<Record<string, unknown>> = [];
 	const wavOptions: Array<Record<string, unknown>> = [];
 	const wavChannelCounts: number[] = [];
@@ -92,17 +100,19 @@ function harness(strategy: 'offline' | 'realtime-stream') {
 		},
 		createTemporaryFileSink: async () => ({
 			persistent: true, write: async () => undefined,
-			close: async () => new Blob([Uint8Array.of(1)], { type: 'audio/wav' }),
+			close: async () => new Blob([stagedBw64Bytes()], { type: 'audio/wav' }),
 			remove: async () => undefined, abort: async () => undefined,
 		}),
 		createWavStreamEncoder: (options: Record<string, unknown>) => {
 			streamOptions.push(options);
 			return { write: () => undefined, finalize: () => undefined, settled: async () => undefined };
 		},
+		// The real encoder: a BW64 delivery is conformed by reopening the file it
+		// wrote, and a stub byte is the writer fault conformance exists to catch.
 		encodeWav: (value: Float32Array[], options: Record<string, unknown>) => {
 			wavChannelCounts.push(value.length);
 			wavOptions.push(options);
-			return Uint8Array.of(1);
+			return encodeWav(value, options as never);
 		},
 		fileService: {
 			createDownload: async ({ suggestedName }: { suggestedName: string }) => ({
