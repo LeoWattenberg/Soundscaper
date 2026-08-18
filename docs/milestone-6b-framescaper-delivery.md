@@ -156,6 +156,30 @@ keeps the muxed track independent of the sidecar decision. Only `-sn` is dropped
 for a caption-carrying delivery; `-dn` stays, because a source's data streams
 have nothing to do with captions.
 
+**6B-2b landed the same day, and two of its decisions were settled by measuring
+the shipped runtime rather than by preference.** The pinned core's libass has no
+font provider, so the `subtitles` filter exits zero and draws nothing at all —
+which is why burn-in goes through `drawtext` with a font staged explicitly. And
+that build's FreeType reads WOFF but refuses WOFF2, so the staged font is the
+WOFF the design system already ships: Inter semibold, already a declared OFL
+dependency, so burning captions in adds a use rather than a licensing row.
+
+Cue text is read from a staged file per cue rather than written into the filter
+graph. That is not caution: the escaped form was compared byte-for-byte against
+the file form across ten awkward strings, and it got a plain `16:9` wrong —
+FFmpeg refused the command outright — along with quotes, backslashes and
+percent signs. One `drawtext` per cue, because a filter's text is fixed for the
+whole graph and only its `enable` window varies, which is also why the slice
+bounds a burned delivery at 2000 cues rather than emitting a graph no runtime
+will parse.
+
+The presentation is one constant, not a schema: Inter semibold at 4.5% of canvas
+height with a floor, white on a 55% black box, centred in the bottom 10%
+title-safe band. Milestone 4 owns styled captions; the seam is the whole of
+`video-caption-burn-in.ts`, so when that schema lands the module consumes it and
+these constants retire. Timing was verified against the runtime at 10 fps: each
+cue's appearance and disappearance falls inside one frame of its label time.
+
 ## 6B-2a — Caption selection and muxed captions
 
 - **Outcome:** caption-track selection as a 6B-1 plan option; muxed captions

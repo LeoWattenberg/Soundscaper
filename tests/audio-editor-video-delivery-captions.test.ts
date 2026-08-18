@@ -67,7 +67,7 @@ test('an unusable caption request is a typed refusal at plan build', () => {
 	assert.throws(() => exportPlan({ captions: {} }), /must name a label track/u);
 	assert.throws(
 		() => exportPlan({ captions: { trackId: 'labels-1', mux: false } }),
-		/muxed, delivered as a sidecar, or both/u,
+		/burned in, muxed, delivered as a sidecar, or some combination/u,
 	);
 	assert.throws(
 		() => exportPlan({ captions: { trackId: 'labels-1', sidecar: 'ass' } }),
@@ -151,14 +151,20 @@ test('the dialog asks one question and the request carries both plan decisions',
 
 	assert.equal(Object.hasOwn(request({}), 'captions'), false, 'no track named means no captions');
 	assert.deepEqual(request({ captionTrackId: 'labels-1' }).captions, {
-		trackId: 'labels-1', mux: true, sidecar: null,
+		trackId: 'labels-1', mux: true, sidecar: null, burnIn: false,
 	});
 	assert.deepEqual(request({ captionTrackId: 'labels-1', captionDelivery: 'vtt' }).captions, {
-		trackId: 'labels-1', mux: false, sidecar: 'vtt',
+		trackId: 'labels-1', mux: false, sidecar: 'vtt', burnIn: false,
 	});
 	assert.deepEqual(request({ captionTrackId: 'labels-1', captionDelivery: 'mux+srt' }).captions, {
-		trackId: 'labels-1', mux: true, sidecar: 'srt',
+		trackId: 'labels-1', mux: true, sidecar: 'srt', burnIn: false,
 	});
+	// Burn-in is orthogonal to where the cue document goes, so it is its own
+	// control rather than five more entries in the delivery list.
+	assert.deepEqual(
+		request({ captionTrackId: 'labels-1', captionDelivery: 'vtt', captionBurnIn: true }).captions,
+		{ trackId: 'labels-1', mux: false, sidecar: 'vtt', burnIn: true },
+	);
 });
 
 function exportPlan(options: Readonly<Record<string, unknown>> = {}) {

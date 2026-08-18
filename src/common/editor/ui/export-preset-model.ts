@@ -114,7 +114,12 @@ export function statedVideoCaptions(
 	const delivery = String(settings?.captionDelivery ?? 'mux');
 	const mux = delivery === 'mux' || delivery.startsWith('mux+');
 	const sidecar = delivery.startsWith('mux+') ? delivery.slice(4) : (mux ? null : delivery);
-	return Object.freeze({ trackId, mux, sidecar: sidecar || null });
+	return Object.freeze({
+		trackId,
+		mux,
+		sidecar: sidecar || null,
+		burnIn: settings?.captionBurnIn === true,
+	});
 }
 
 /**

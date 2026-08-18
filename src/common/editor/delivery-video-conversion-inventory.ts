@@ -28,6 +28,7 @@ interface VideoDeliveryPlan {
 	readonly canvas?: unknown;
 	readonly codecs?: unknown;
 	readonly captions?: unknown;
+	readonly filterPlan?: unknown;
 	readonly inputs?: unknown;
 }
 
@@ -89,7 +90,8 @@ export function inventoryVideoDeliveryConversions(
 		});
 	}
 
-	const captions = isRecord(plan.captions) ? plan.captions : null;
+	const plan_ = plan as Readonly<Record<string, unknown>>;
+	const captions = isRecord(plan_.captions) ? plan_.captions : null;
 	if (captions) {
 		if (captions.mux === true) {
 			conversions.push({
@@ -102,6 +104,31 @@ export function inventoryVideoDeliveryConversions(
 					cueCount: numberOrNull(captions.cueCount) ?? 0,
 				},
 			});
+		}
+		if (captions.burnIn === true) {
+			const stage = isRecord(plan.filterPlan) && isRecord(plan.filterPlan.burnIn)
+				? plan.filterPlan.burnIn
+				: null;
+			conversions.push({
+				code: 'delivery.captions-burned',
+				disposition: 'converted',
+				// Burning in is irreversible in the delivered picture, which is a
+				// stronger claim than muxing and reads as one.
+				severity: 'warning',
+				data: {
+					trackId: String(captions.trackId ?? ''),
+					cueCount: Array.isArray(stage?.cues) ? stage.cues.length : 0,
+					fontSizePx: numberOrNull(stage?.fontSizePx) ?? 0,
+				},
+			});
+			if (burnedCuesOverlap(stage)) {
+				conversions.push({
+					code: 'delivery.captions-overlapping',
+					disposition: 'converted',
+					severity: 'warning',
+					data: { trackId: String(captions.trackId ?? '') },
+				});
+			}
 		}
 		if (captions.sidecarFormat != null) {
 			conversions.push({
@@ -164,6 +191,17 @@ export function createVideoDeliveryReportForPlan(
 		});
 	}
 	return sealDeliveryReport(draft);
+}
+
+/**
+ * Whether two burned cues are on screen together, which draws one over the
+ * other. Label tracks may legitimately overlap; a burned delivery cannot show
+ * both, so the report says so rather than the picture quietly saying it.
+ */
+function burnedCuesOverlap(stage: Readonly<Record<string, unknown>> | null): boolean {
+	const cues = Array.isArray(stage?.cues) ? [...(stage.cues as Record<string, unknown>[])] : [];
+	cues.sort((left, right) => Number(left.startSeconds) - Number(right.startSeconds));
+	return cues.some((cue, index) => index > 0 && Number(cue.startSeconds) < Number(cues[index - 1]!.endSeconds));
 }
 
 function subtitleCodec(format: string): string | null {

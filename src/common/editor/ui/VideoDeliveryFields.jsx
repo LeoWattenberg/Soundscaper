@@ -3,7 +3,7 @@
 import { VIDEO_CANVAS_FIT_MODES } from '../video-canvas-fit.ts';
 import { VIDEO_DELIVERY_QUALITY_TIERS } from '../video-delivery-quality.ts';
 import { VIDEO_DELIVERY_AUDIO_LAYOUTS } from '../video-delivery-audio-layout.ts';
-import { LabeledDropdown } from './inspector/inspector-controls.jsx';
+import { DesignCheckbox, LabeledDropdown } from './inspector/inspector-controls.jsx';
 
 /** The rates a delivery usually asks for; the field accepts any of them or another. */
 const DELIVERY_FRAME_RATES = Object.freeze([
@@ -160,14 +160,27 @@ export default function VideoDeliveryFields({ copy, disabled, labelTracks = [], 
 				]}
 			/>
 			{settings.captionTrackId && (
-				<LabeledDropdown
-					label={copy.videoCaptionDelivery}
-					hook="captionDelivery"
-					value={settings.captionDelivery}
-					onChange={(value) => onChange('captionDelivery', value)}
-					disabled={disabled}
-					options={CAPTION_DELIVERIES.map(({ value, labelKey }) => ({ value, label: copy[labelKey] }))}
-				/>
+				<>
+					<LabeledDropdown
+						label={copy.videoCaptionDelivery}
+						hook="captionDelivery"
+						value={settings.captionDelivery}
+						onChange={(value) => onChange('captionDelivery', value)}
+						disabled={disabled}
+						options={CAPTION_DELIVERIES.map(({ value, labelKey }) => ({ value, label: copy[labelKey] }))}
+					/>
+					<label className="audio-editor-field" data-export-field="captionBurnIn">
+						<span>{copy.videoCaptionBurnIn}</span>
+						<span>
+							<DesignCheckbox
+								label={copy.videoCaptionBurnInHint}
+								checked={settings.captionBurnIn}
+								disabled={disabled}
+								onChange={(checked) => onChange('captionBurnIn', checked)}
+							/>
+						</span>
+					</label>
+				</>
 			)}
 			<p className="audio-editor-panel-hint">{copy.videoCanvasHint}</p>
 		</>

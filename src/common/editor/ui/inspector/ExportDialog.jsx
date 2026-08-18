@@ -73,6 +73,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		videoAudioLayout: 'preserve',
 		captionTrackId: '',
 		captionDelivery: 'mux',
+		captionBurnIn: false,
 	});
 	const [error, setError] = useState('');
 	const [presetId, setPresetId] = useState('');

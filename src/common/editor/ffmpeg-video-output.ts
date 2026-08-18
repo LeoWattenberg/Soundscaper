@@ -38,13 +38,38 @@ interface StagedVideoInput extends VideoExportInput {
 	readonly sourceId?: string;
 }
 
+/**
+ * A file the filter graph reads by path rather than opens as an input.
+ *
+ * The burned-in font and each cue's text live here: FFmpeg never demuxes them,
+ * so they are not inputs, but they still have to exist in the mount before the
+ * graph is parsed.
+ */
+interface StagedVideoAsset {
+	readonly kind: 'burn-in-font' | 'burn-in-cue';
+	readonly fileName: string;
+	readonly cueIndex?: number;
+}
+
 interface PreparedVideoBlobs {
 	readonly blobs: readonly Readonly<{ name: string; data: Blob }>[];
 	readonly descriptor: VideoExportDescriptor;
 	readonly inputs: readonly StagedVideoInput[];
+	readonly assets: readonly StagedVideoAsset[];
 }
 
-interface FfmpegVideoSettings extends FfmpegOutputStreamOptions, Readonly<Record<string, unknown>> {}
+/**
+ * Caller settings for one video job.
+ *
+ * The caption document and the burn-in font ride here rather than as job fields
+ * of their own because they are the caller's staged bytes for this run, exactly
+ * like the abort signal and the output ceilings, and every layer between the
+ * caller and this one already passes settings through untouched.
+ */
+interface FfmpegVideoSettings extends FfmpegOutputStreamOptions, Readonly<Record<string, unknown>> {
+	readonly captions?: Blob | null;
+	readonly burnInFont?: Blob | null;
+}
 
 export interface FfmpegVideoJobInstance extends FfmpegOutputFileSource {
 	createDir(path: string): Awaitable<unknown>;
@@ -79,8 +104,6 @@ interface FfmpegVideoJobRuntime {
 interface FfmpegVideoJobInput extends FfmpegVideoJobRuntime {
 	readonly videoBlobsBySourceId: ReadonlyMap<string, Blob> | Readonly<Record<string, Blob>>;
 	readonly audioMix: Blob | null;
-	/** The serialized cue document, when this plan stages one to mux. */
-	readonly captions?: Blob | null;
 	readonly plan: VideoExportPlan;
 	readonly settings: FfmpegVideoSettings;
 }
@@ -111,16 +134,14 @@ export async function encodeFfmpegVideoBytes(
 		options.videoBlobsBySourceId,
 		options.audioMix,
 		options.plan,
-		options.captions ?? null,
+		options.settings.captions ?? null,
+		options.settings.burnInFont ?? null,
 	);
 	const signal = options.settings.signal;
 	if (signal?.aborted) throw abortError();
 	return options.run(async (instance) => {
 		if (signal?.aborted) throw abortError();
 		const job = createJob(staged);
-		let videoInputPaths = new Map<string, string>();
-		let audioInputPath: string | null = null;
-		let captionInputPath: string | null = null;
 		let mounted = false;
 		const onAbort = () => options.terminateRuntime();
 		signal?.addEventListener('abort', onAbort, { once: true });
@@ -134,13 +155,8 @@ export async function encodeFfmpegVideoBytes(
 				);
 				mounted = true;
 			}
-			({ videoInputPaths, audioInputPath, captionInputPath } = stagedInputPaths(
-				staged.inputs, job.mountPoint,
-			));
 			const args = buildVideoFfmpegArgs(
-				options.plan,
-				{ videoInputPaths, audioInputPath, captionInputPath },
-				job.output,
+				options.plan, stagedInputPaths(staged, job.mountPoint), job.output,
 			);
 			const code = await instance.exec(args, -1, signalOptions(signal));
 			if (code !== 0) throw options.createEncodingError(staged.descriptor.id, code);
@@ -175,7 +191,8 @@ export async function encodeFfmpegVideoToSink<Output>(
 			options.videoBlobsBySourceId,
 			options.audioMix,
 			options.plan,
-			options.captions ?? null,
+			options.settings.captions ?? null,
+			options.settings.burnInFont ?? null,
 		);
 		assertFfmpegOutputReady(options.settings);
 		const result = await options.run(async (instance) => {
@@ -197,15 +214,9 @@ export async function encodeFfmpegVideoToSink<Output>(
 					cleanupSteps.unshift(() => Promise.resolve(instance.unmount(job.mountPoint)));
 				}
 				assertFfmpegOutputReady(options.settings);
-				const {
-					videoInputPaths, audioInputPath, captionInputPath,
-				} = stagedInputPaths(staged.inputs, job.mountPoint);
+				const paths = stagedInputPaths(staged, job.mountPoint);
 				cleanupSteps.unshift(() => Promise.resolve(instance.deleteFile(job.output)));
-				const args = buildVideoFfmpegArgs(
-					options.plan,
-					{ videoInputPaths, audioInputPath, captionInputPath },
-					job.output,
-				);
+				const args = buildVideoFfmpegArgs(options.plan, paths, job.output);
 				const code = await instance.exec(args, -1, signalOptions(signal));
 				assertFfmpegOutputReady(options.settings);
 				if (code !== 0) throw options.createEncodingError(staged.descriptor.id, code);
@@ -249,6 +260,7 @@ function prepareVideoBlobs(
 	audioMix: Blob | null,
 	plan: VideoExportPlan,
 	captions: Blob | null = null,
+	burnInFont: Blob | null = null,
 ): PreparedVideoBlobs {
 	if (!plan || typeof plan !== 'object' || !Array.isArray(plan.inputs)) {
 		throw new TypeError('Expected a video export plan.');
@@ -286,11 +298,40 @@ function prepareVideoBlobs(
 		}
 		blobs.push({ name: fileName, data: blob });
 	}
+	const assets: StagedVideoAsset[] = [];
+	const burnIn = burnInStage(plan);
+	if (burnIn) {
+		if (!(burnInFont instanceof Blob)) {
+			throw new TypeError('A burned-in delivery needs its font staged with it.');
+		}
+		blobs.push({ name: BURN_IN_FONT_FILE_NAME, data: burnInFont });
+		assets.push({ kind: 'burn-in-font', fileName: BURN_IN_FONT_FILE_NAME });
+		for (const cue of burnIn.cues) {
+			const fileName = `burn-in-${String(cue.index).padStart(4, '0')}.txt`;
+			blobs.push({ name: fileName, data: new Blob([cue.text], { type: 'text/plain' }) });
+			assets.push({ kind: 'burn-in-cue', fileName, cueIndex: cue.index });
+		}
+	}
 	return Object.freeze({
 		descriptor,
 		blobs: Object.freeze(blobs),
 		inputs: Object.freeze(stagedInputs),
+		assets: Object.freeze(assets),
 	});
+}
+
+const BURN_IN_FONT_FILE_NAME = 'burn-in-font.woff';
+
+function burnInStage(
+	plan: VideoExportPlan,
+): Readonly<{ cues: readonly Readonly<{ index: number; text: string }>[] }> | null {
+	const filterPlan = plan.filterPlan;
+	if (!filterPlan || typeof filterPlan !== 'object') return null;
+	const stage = (filterPlan as Record<string, unknown>).burnIn;
+	if (!stage || typeof stage !== 'object') return null;
+	const cues = (stage as Record<string, unknown>).cues;
+	if (!Array.isArray(cues)) throw new TypeError('A burn-in stage must carry an array of cues.');
+	return { cues: cues as readonly Readonly<{ index: number; text: string }>[] };
 }
 
 function createJob(staged: PreparedVideoBlobs): Readonly<{ mountPoint: string; output: string }> {
@@ -302,23 +343,34 @@ function createJob(staged: PreparedVideoBlobs): Readonly<{ mountPoint: string; o
 }
 
 function stagedInputPaths(
-	inputs: readonly StagedVideoInput[],
+	staged: PreparedVideoBlobs,
 	mountPoint: string,
 ): Readonly<{
 	videoInputPaths: Map<string, string>;
 	audioInputPath: string | null;
 	captionInputPath: string | null;
+	burnInFontPath: string | null;
+	burnInCueTextPaths: Map<number, string>;
 }> {
 	const videoInputPaths = new Map<string, string>();
 	let audioInputPath: string | null = null;
 	let captionInputPath: string | null = null;
-	for (const input of inputs) {
+	for (const input of staged.inputs) {
 		const path = `${mountPoint}/${input.fileName}`;
 		if (input.kind === 'video-source') videoInputPaths.set(input.sourceId!, path);
 		else if (input.kind === 'staged-captions') captionInputPath = path;
 		else audioInputPath = path;
 	}
-	return Object.freeze({ videoInputPaths, audioInputPath, captionInputPath });
+	let burnInFontPath: string | null = null;
+	const burnInCueTextPaths = new Map<number, string>();
+	for (const asset of staged.assets) {
+		const path = `${mountPoint}/${asset.fileName}`;
+		if (asset.kind === 'burn-in-font') burnInFontPath = path;
+		else burnInCueTextPaths.set(asset.cueIndex!, path);
+	}
+	return Object.freeze({
+		videoInputPaths, audioInputPath, captionInputPath, burnInFontPath, burnInCueTextPaths,
+	});
 }
 
 function mappedBlob(

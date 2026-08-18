@@ -135,6 +135,36 @@ export const VIDEO_DELIVERY_KEYED_ARGUMENTS: Readonly<Record<string, readonly st
 });
 
 /**
+ * The burned-in caption stage at each delivered aspect.
+ *
+ * The presentation is one constant, so what changes between a 16:9 and a 9:16
+ * delivery is only what the canvas height implies: the type gets bigger and the
+ * title-safe band gets deeper, both by the same fractions. Pinning the numbers
+ * is what stops a later change to the constants passing unnoticed.
+ *
+ * Frame-level appearance was checked against the shipped FFmpeg rather than
+ * asserted here: at 10 fps a two-cue delivery showed the first cue through
+ * t=0.95, the second from t=1.05, and the second still present on the final
+ * frame at t=1.9 — each boundary inside one frame of its label time.
+ */
+export const VIDEO_DELIVERY_BURN_IN_GOLDENS = Object.freeze({
+	landscape: Object.freeze({
+		canvas: Object.freeze({ width: 1_280, height: 720 }),
+		fontSizePx: 32,
+		bottomMarginPx: 72,
+		boxBorderPx: 8,
+		lineSpacingPx: 8,
+	}),
+	vertical: Object.freeze({
+		canvas: Object.freeze({ width: 1_080, height: 1_920 }),
+		fontSizePx: 86,
+		bottomMarginPx: 192,
+		boxBorderPx: 22,
+		lineSpacingPx: 22,
+	}),
+});
+
+/**
  * Where a 1920x1080 source lands in a 1080x1920 canvas, per fit.
  *
  * This is the arithmetic both paths share, so it is pinned once rather than

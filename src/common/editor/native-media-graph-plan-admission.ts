@@ -21,6 +21,10 @@ import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
 import { isVideoDeliveryQuality, type VideoDeliveryQuality } from './video-delivery-quality.ts';
 import { isVideoDeliveryAudioLayout } from './video-delivery-audio-layout.ts';
 import { isVideoCaptionSidecarFormat } from './video-caption-cues.ts';
+import {
+	VIDEO_BURN_IN_MAXIMUM_CUES,
+	VIDEO_BURN_IN_MAXIMUM_TEXT_LENGTH,
+} from './video-caption-burn-in.ts';
 
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INPUTS = 4_096;
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INTERVALS = 100_000;
@@ -98,8 +102,12 @@ const PLAN_KEYS = Object.freeze([
 	'durationSeconds', 'outputFrameCount', 'canvas', 'inputs', 'intervals', 'filterPlan',
 ]);
 const CAPTIONS_KEYS = Object.freeze([
-	'trackId', 'cueCount', 'mux', 'subtitleCodec', 'sidecarFormat',
+	'trackId', 'cueCount', 'mux', 'burnIn', 'subtitleCodec', 'sidecarFormat',
 ]);
+const BURN_IN_KEYS = Object.freeze([
+	'fontSizePx', 'bottomMarginPx', 'boxBorderPx', 'lineSpacingPx', 'cues',
+]);
+const BURN_IN_CUE_KEYS = Object.freeze(['index', 'startSeconds', 'endSeconds', 'text']);
 const CAPTION_INPUT_KEYS = Object.freeze(['kind', 'inputIndex', 'fileName', 'format']);
 const CODEC_KEYS = Object.freeze(['video', 'videoEncoder', 'audio', 'audioEncoder', 'pixelFormat']);
 const RANGE_KEYS = Object.freeze(['startFrame', 'endFrame', 'durationFrames']);
@@ -114,7 +122,7 @@ const AUDIO_INPUT_KEYS = Object.freeze([
 	'kind', 'inputIndex', 'fileName', 'sampleRate', 'startFrame', 'durationFrames', 'channelLayout',
 ]);
 const FILTER_PLAN_KEYS = Object.freeze([
-	'strategy', 'backgroundColor', 'intervals', 'concat', 'audio', 'output',
+	'strategy', 'backgroundColor', 'intervals', 'concat', 'audio', 'burnIn', 'output',
 ]);
 const INTERVAL_KEYS = Object.freeze([
 	'index', 'kind', 'timelineStartFrame', 'timelineEndFrame', 'outputStartFrame',
@@ -171,6 +179,53 @@ export function assertNativeMediaGraphPlan(value: unknown): asserts value is Nat
 	if (filterPlan.strategy !== 'layered-composition') {
 		nativeMediaPlanViolation('malformed', 'Video export graph plan must declare the layered-composition filter strategy.');
 	}
+	assertBurnIn(filterPlan.burnIn, plan.captions);
+}
+
+/**
+ * The burn-in stage, which is present exactly when the captions say it is.
+ *
+ * The engine reads user text out of this stage and writes it to disk to draw
+ * from, so every cue is bounded here rather than trusted: a stage disagreeing
+ * with its own caption decision, or carrying text past what a caption line is,
+ * describes a delivery this build did not plan.
+ */
+function assertBurnIn(value: unknown, captionsValue: unknown): void {
+	const wanted = Boolean(captionsValue) && typeof captionsValue === 'object'
+		&& (captionsValue as Record<string, unknown>).burnIn === true;
+	if (value === null) {
+		// A burn-in that resolved to nothing to draw is legitimate: every cue in
+		// range may have been blank. The decision stands; the stage is empty.
+		return;
+	}
+	if (!wanted) {
+		nativeMediaPlanViolation('malformed', 'Video export graph plan burns in captions it never asked for.');
+	}
+	const burnIn = record(value, 'video export graph plan burnIn');
+	exactKeys(burnIn, BURN_IN_KEYS, 'video export graph plan burnIn');
+	positiveInteger(burnIn.fontSizePx, 'burnIn.fontSizePx');
+	positiveInteger(burnIn.boxBorderPx, 'burnIn.boxBorderPx');
+	nonNegativeInteger(burnIn.bottomMarginPx, 'burnIn.bottomMarginPx');
+	nonNegativeInteger(burnIn.lineSpacingPx, 'burnIn.lineSpacingPx');
+	const cues = arrayValue(burnIn.cues, 'video export graph plan burnIn cues');
+	if (cues.length > VIDEO_BURN_IN_MAXIMUM_CUES) {
+		nativeMediaPlanViolation('oversized', 'Video export graph plan burns in more cues than the engine admits.');
+	}
+	for (const [index, entry] of cues.entries()) {
+		const cue = record(entry, 'video export graph plan burnIn cue');
+		exactKeys(cue, BURN_IN_CUE_KEYS, 'video export graph plan burnIn cue');
+		if (nonNegativeInteger(cue.index, 'burnIn cue index') !== index) {
+			nativeMediaPlanViolation('malformed', 'Video export graph plan burn-in cue indices are not their own positions.');
+		}
+		const start = nonNegativeFinite(cue.startSeconds, 'burnIn cue startSeconds');
+		if (nonNegativeFinite(cue.endSeconds, 'burnIn cue endSeconds') < start) {
+			nativeMediaPlanViolation('malformed', 'Video export graph plan burn-in cue ends before it starts.');
+		}
+		if (typeof cue.text !== 'string' || cue.text.length < 1
+			|| cue.text.length > VIDEO_BURN_IN_MAXIMUM_TEXT_LENGTH || cue.text.includes('\0')) {
+			nativeMediaPlanViolation('malformed', 'Video export graph plan burn-in cue text is not a bounded caption line.');
+		}
+	}
 }
 
 /** Count the enabled clip effects the static plan asks the engine to apply. */
@@ -218,8 +273,8 @@ function assertCaptions(value: unknown): void {
 	exactKeys(captions, CAPTIONS_KEYS, 'video export graph plan captions');
 	nonEmptyText(captions.trackId, 'captions.trackId');
 	nonNegativeInteger(captions.cueCount, 'captions.cueCount');
-	if (typeof captions.mux !== 'boolean') {
-		nativeMediaPlanViolation('malformed', 'Video export graph plan captions.mux must be boolean.');
+	if (typeof captions.mux !== 'boolean' || typeof captions.burnIn !== 'boolean') {
+		nativeMediaPlanViolation('malformed', 'Video export graph plan caption delivery flags must be boolean.');
 	}
 	if (captions.mux) nonEmptyText(captions.subtitleCodec, 'captions.subtitleCodec');
 	else if (captions.subtitleCodec !== null) {
@@ -228,7 +283,7 @@ function assertCaptions(value: unknown): void {
 	if (captions.sidecarFormat !== null && !isVideoCaptionSidecarFormat(captions.sidecarFormat)) {
 		nativeMediaPlanViolation('malformed', 'Video export graph plan states an unsupported caption sidecar format.');
 	}
-	if (!captions.mux && captions.sidecarFormat === null) {
+	if (!captions.mux && !captions.burnIn && captions.sidecarFormat === null) {
 		nativeMediaPlanViolation('malformed', 'Video export graph plan states captions it delivers nowhere.');
 	}
 }
@@ -453,6 +508,13 @@ function positiveInteger(value: unknown, label: string): number {
 function positiveFinite(value: unknown, label: string): number {
 	if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
 		nativeMediaPlanViolation('malformed', `Video export graph plan ${label} must be a positive finite number.`);
+	}
+	return value;
+}
+
+function nonNegativeFinite(value: unknown, label: string): number {
+	if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+		nativeMediaPlanViolation('malformed', `Video export graph plan ${label} must be a non-negative finite number.`);
 	}
 	return value;
 }

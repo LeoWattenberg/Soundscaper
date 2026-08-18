@@ -30,6 +30,13 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 	const audioInputPath = stagedInputs?.audioInputPath;
 
 	const captionInputPath = stagedInputs?.captionInputPath;
+	const burnIn = normalized.burnInStage
+		? Object.freeze({
+			stage: normalized.burnInStage,
+			fontPath: stagedInputs?.burnInFontPath,
+			cueTextPaths: burnInCueTextPaths(stagedInputs?.burnInCueTextPaths),
+		})
+		: null;
 	for (const input of normalized.inputs) {
 		let path;
 		if (input.kind === 'video-source') {
@@ -52,7 +59,7 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 
 	const filterGraph = normalized.version === 1
 		? buildSequentialVideoFilterGraph(normalized)
-		: buildLayeredVideoFilterGraph(normalized);
+		: buildLayeredVideoFilterGraph({ ...normalized, burnIn });
 	const descriptor = normalized.descriptor;
 	// The plan states a tier; this is where it becomes encoder settings, and the
 	// only place it does for this path.
@@ -110,6 +117,13 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 		'-y', outputPath,
 	);
 	return args;
+}
+
+function burnInCueTextPaths(value) {
+	if (value instanceof Map) return value;
+	const paths = new Map();
+	for (const [index, path] of Object.entries(value ?? {})) paths.set(Number(index), path);
+	return paths;
 }
 
 function buildSequentialVideoFilterGraph(plan) {
@@ -326,10 +340,12 @@ function buildLayeredVideoFilterGraph(plan) {
 			`[${stackLabel}]format=pix_fmts=${plan.pixelFormat},setsar=1[${intervalLabel}]`,
 		);
 	}
+	const concatLabel = plan.burnIn ? 'video_composited' : 'video_out';
 	filters.push(
 		intervalLabels.map((label) => `[${label}]`).join('')
-		+ `concat=n=${intervalLabels.length}:v=1:a=0[video_out]`,
+		+ `concat=n=${intervalLabels.length}:v=1:a=0[${concatLabel}]`,
 	);
+	if (plan.burnIn) filters.push(burnInFilterChain(plan.burnIn, concatLabel));
 	if (plan.audioInput) {
 		filters.push(
 			`[${plan.audioInput.inputIndex}:a:0]`
@@ -338,6 +354,55 @@ function buildLayeredVideoFilterGraph(plan) {
 		);
 	}
 	return filters.join(';');
+}
+
+/**
+ * The burned-in caption chain, applied to the composited picture.
+ *
+ * One `drawtext` per cue, because a filter's text is fixed for the whole graph
+ * and only its `enable` window varies. Each cue's text is read from a staged
+ * file rather than written into the graph: the escaping a caption would need to
+ * survive three layers of FFmpeg parsing is a defect waiting to happen, and a
+ * measured comparison against the file form is what showed the escaped form
+ * getting a plain `16:9` wrong.
+ */
+// A comma inside an option value would end the filter at the graph level, so
+// the ones inside `between()` are escaped for that parser rather than this one.
+const ESCAPED_COMMA = String.raw`\,`;
+
+function burnInFilterChain(burnIn, inputLabel) {
+	const stage = burnIn.stage;
+	const steps = stage.cues.map((cue) => {
+		const path = burnIn.cueTextPaths.get(cue.index);
+		if (path == null) throw new ReferenceError(`Missing staged burn-in text for cue ${cue.index}.`);
+		return [
+			'drawtext=',
+			`fontfile=${nonEmptyString(burnIn.fontPath, 'burn-in font')}`,
+			`:textfile=${nonEmptyString(path, `burn-in cue ${cue.index}`)}`,
+			`:fontsize=${positiveEvenSafe(stage.fontSizePx, 'burnIn.fontSizePx')}`,
+			':fontcolor=white:box=1:boxcolor=black@0.55',
+			`:boxborderw=${positiveEvenSafe(stage.boxBorderPx, 'burnIn.boxBorderPx')}`,
+			`:line_spacing=${nonNegativeSafe(stage.lineSpacingPx, 'burnIn.lineSpacingPx')}`,
+			':x=(w-text_w)/2',
+			`:y=h-text_h-${nonNegativeSafe(stage.bottomMarginPx, 'burnIn.bottomMarginPx')}`,
+			// No `%{...}` expansion: a caption saying "100%" is a caption, not a
+			// directive, and expansion is the only thing that would read it as one.
+			':expansion=none',
+			`:enable='between(t${ESCAPED_COMMA}${ffmpegNumber(cue.startSeconds, 'burnIn cue start')}`,
+			`${ESCAPED_COMMA}${ffmpegNumber(cue.endSeconds, 'burnIn cue end')})'`,
+		].join('');
+	});
+	return `[${inputLabel}]${steps.join(',')}[video_out]`;
+}
+
+function positiveEvenSafe(value, name) {
+	if (!Number.isSafeInteger(value) || value < 1) throw new RangeError(`${name} must be a positive safe integer.`);
+	return value;
+}
+
+function nonNegativeSafe(value, name) {
+	if (!Number.isSafeInteger(value) || value < 0) throw new RangeError(`${name} must be a non-negative safe integer.`);
+	return value;
 }
 
 function createVideoInputBranchAllocator(plan, filters, inputIndexes) {

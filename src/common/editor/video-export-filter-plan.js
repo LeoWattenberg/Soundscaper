@@ -95,6 +95,10 @@ export function createFilterPlan(intervals, canvas, projectSampleRate, options) 
 				codec: options.format.audioCodec,
 			}
 			: { strategy: 'none' },
+		// The stage is described here and rendered by the adapter, so a consumer
+		// that only reads the plan still knows the delivery has text burned into
+		// it and exactly when each line is on screen.
+		burnIn: options.burnIn ?? null,
 		output: {
 			videoLabel: 'video_out',
 			videoCodec: options.format.videoEncoder,

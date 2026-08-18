@@ -33,6 +33,7 @@ import { applyMediaChannelMapping } from '../media-export.js';
 import { serializeAudioEditorLabels } from '../label-io.js';
 import { saveLabelExport } from './app-helpers.ts';
 import { resolveVideoCaptionCues } from '../video-caption-cues.ts';
+import { loadVideoBurnInFont } from '../video-burn-in-font.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
 
 export interface VideoExportServiceRuntime {
@@ -137,6 +138,10 @@ export function createEditorVideoExportAction(
 		sourceBuffers, sourceChunkProviders, state, store, throwIfAborted, toggleExport, taskProgress,
 		verifyProjectFallbackIntegrity,
 	} = runtime;
+	// The service owns its own default so no product entry has to remember to
+	// pass a font; an app that wants another one still overrides it.
+	const loadBurnInFont = (runtime.loadBurnInFont as (() => Promise<Blob>) | undefined)
+		?? (() => loadVideoBurnInFont());
 	const productStrategy = resolveProductVideoExportStrategy(runtime.options);
 
 	return async function exportVideo(requestedSettings: RuntimeValue = {}) {
@@ -328,6 +333,12 @@ export function createEditorVideoExportAction(
 			// staged like any other input, so the muxer reads it in the same run
 			// that encodes the picture rather than reopening a finished file.
 			const captionDocument = stagedCaptionDocument(plan, exportProject, projectSampleRate());
+			// The app owns which font a burn-in draws with, so the bytes arrive as a
+			// runtime dependency rather than as a bundler import in shared code.
+			const burnInFont = plan.filterPlan?.burnIn ? await loadBurnInFont() : null;
+			if (plan.filterPlan?.burnIn && !(burnInFont instanceof Blob)) {
+				throw new Error(copy.burnInFontUnavailable || 'The caption font could not be loaded.');
+			}
 			assertVideoExportCurrent();
 			setStatus(copy.encoding);
 			progressTask.setPhase(copy.encoding, { start: 0.4, end: 1, value: 0 });
@@ -353,6 +364,7 @@ export function createEditorVideoExportAction(
 								signal: abort.signal, assertCurrent: assertVideoExportCurrent,
 								maximumOutputBytes: browserMaximumOutputBytes,
 								...(captionDocument ? { captions: captionDocument } : {}),
+								...(burnInFont ? { burnInFont } : {}),
 							},
 						);
 				} catch (error) {
@@ -373,6 +385,7 @@ export function createEditorVideoExportAction(
 					: await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
 						signal: abort.signal, maximumOutputBytes: browserMaximumOutputBytes,
 						...(captionDocument ? { captions: captionDocument } : {}),
+						...(burnInFont ? { burnInFont } : {}),
 					});
 			}
 			assertVideoExportCurrent();

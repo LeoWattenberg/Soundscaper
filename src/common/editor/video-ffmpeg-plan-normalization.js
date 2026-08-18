@@ -127,6 +127,7 @@ export function normalizeVideoExportPlan(plan) {
 		durationSeconds,
 		pixelFormat,
 		quality,
+		burnInStage: plan.filterPlan?.burnIn ?? null,
 		backgroundColor: plan.canvas?.backgroundColor || '#000000',
 	};
 }

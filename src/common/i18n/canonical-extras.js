@@ -358,6 +358,8 @@ const COPY_ENTRIES = Object.freeze([
 	["videoCaptionDeliveryVtt","As a WebVTT sidecar","Als WebVTT-Begleitdatei"],
 	["videoCaptionDeliveryMuxSrt","In the file and a SubRip sidecar","In der Datei und als SubRip-Begleitdatei"],
 	["videoCaptionDeliveryMuxVtt","In the file and a WebVTT sidecar","In der Datei und als WebVTT-Begleitdatei"],
+	["videoCaptionBurnIn","Burn in","Einbrennen"],
+	["videoCaptionBurnInHint","Draw the captions into the picture","Untertitel ins Bild zeichnen"],
 	["videoCanvasHint","Leave the size empty to derive it from the first visible video, capped at 1280x720. State both extents to deliver them exactly, at any aspect.","Größe leer lassen, um sie aus dem ersten sichtbaren Video abzuleiten, begrenzt auf 1280x720. Beide Werte angeben, um genau diese Größe in jedem Seitenverhältnis zu liefern."],
 	["admObjects","Objects","Objekte"],
 	["admNoObjects","This programme delivers its bed only.","Dieses Programm liefert nur sein Bett."],

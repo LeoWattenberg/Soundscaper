@@ -36,6 +36,7 @@ import {
 	resolveVideoCaptionCues,
 	VIDEO_CAPTION_SIDECAR_FORMATS,
 } from './video-caption-cues.ts';
+import { resolveVideoBurnInStage } from './video-caption-burn-in.ts';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
@@ -348,6 +349,17 @@ export function createVideoExportPlan(project, options = {}) {
 	const filterPlan = createFilterPlan(intervals, canvas, projectSampleRate, {
 		audioInput,
 		format,
+		burnIn: captions?.burnIn
+			? resolveVideoBurnInStage(
+				resolveVideoCaptionCues(runtimeProject, {
+					trackId: captions.trackId,
+					startFrame: range.startFrame,
+					endFrame: range.endFrame,
+				}),
+				canvas,
+				projectSampleRate,
+			)
+			: null,
 	});
 	const durationSeconds = range.durationFrames / projectSampleRate;
 
@@ -400,18 +412,20 @@ function resolveCaptionDelivery(runtimeProject, format, range, requested) {
 		throw new TypeError('captions must be an object stating a track and a delivery.');
 	}
 	for (const key of Object.keys(requested)) {
-		if (!['trackId', 'mux', 'sidecar'].includes(key)) {
+		if (!['trackId', 'mux', 'sidecar', 'burnIn'].includes(key)) {
 			throw new RangeError(`Unsupported captions option: ${key}.`);
 		}
 	}
 	const mux = requested.mux ?? true;
 	if (typeof mux !== 'boolean') throw new TypeError('captions.mux must be boolean.');
+	const burnIn = requested.burnIn ?? false;
+	if (typeof burnIn !== 'boolean') throw new TypeError('captions.burnIn must be boolean.');
 	const sidecar = requested.sidecar ?? null;
 	if (sidecar !== null && !isVideoCaptionSidecarFormat(sidecar)) {
 		throw new RangeError(`captions.sidecar must be null or one of ${VIDEO_CAPTION_SIDECAR_FORMATS.join(', ')}.`);
 	}
-	if (!mux && sidecar === null) {
-		throw new RangeError('captions must be muxed, delivered as a sidecar, or both.');
+	if (!mux && !burnIn && sidecar === null) {
+		throw new RangeError('captions must be burned in, muxed, delivered as a sidecar, or some combination.');
 	}
 	if (mux && !format.subtitleCodec) {
 		throw new RangeError(`The ${format.id} container cannot carry a caption track; deliver a sidecar instead.`);
@@ -425,6 +439,7 @@ function resolveCaptionDelivery(runtimeProject, format, range, requested) {
 		trackId: requested.trackId,
 		cueCount: cues.length,
 		mux,
+		burnIn,
 		subtitleCodec: mux ? format.subtitleCodec : null,
 		sidecarFormat: sidecar,
 	});
