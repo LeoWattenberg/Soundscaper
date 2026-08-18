@@ -7,6 +7,7 @@ import { createMasteringSequenceV23 } from '../src/common/editor/mastering-seque
 import { createMasteringSequenceDeliveryPlan } from '../src/common/editor/mastering-sequence-delivery.ts';
 import { renderMasteringSequenceExport } from '../src/common/editor/controller/mastering-sequence-export-render.ts';
 import { renderAndEncodeAudioExport } from '../src/common/editor/controller/audio-export-render-orchestration.ts';
+import { audioBufferChannels } from '../src/common/editor/controller/source-audio.ts';
 
 const REGIONS = [
 	{ id: 'a', sequenceId: 'main', name: 'One', startFrame: 0, endFrame: 8 },
@@ -68,6 +69,23 @@ const request = (plan: ReturnType<typeof deliveryPlan>, overrides: Record<string
 	snapshot: { sampleRate: 48_000 },
 	sourceMap: new Map(),
 	...overrides,
+});
+
+test('the delivered sequence is readable by the channel reader the encoder uses', async () => {
+	// The encode path takes the delivered audio through the real
+	// `audioBufferChannels`, which asks the buffer for its channels rather than
+	// reaching into a field. A planar record satisfied the type and not the call,
+	// so every sequence delivery rendered in full and then threw at the encoder —
+	// invisible here for as long as the runtime stub read `.channels` directly.
+	const delivered = await renderMasteringSequenceExport(renderRuntime([]), request(deliveryPlan([
+		{ id: 'e1', annotationId: 'a' },
+		{ id: 'e2', annotationId: 'b', gapBeforeFrames: 3 },
+	])));
+
+	const channels = audioBufferChannels(delivered);
+	assert.equal(channels.length, delivered.numberOfChannels);
+	assert.deepEqual([...channels[0]], [...delivered.channels[0]]);
+	assert.throws(() => delivered.getChannelData(9), /no channel 9/u);
 });
 
 test('each entry is rendered over its own region and lands at its delivered position', async () => {

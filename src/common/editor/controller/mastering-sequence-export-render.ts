@@ -130,10 +130,19 @@ export async function renderMasteringSequenceExport(
 
 	const channelCount = segments[0]?.channels.length ?? Math.max(1, options.channelCount);
 	const channels = renderMasteringSequenceDelivery({ plan: deliveryPlan, segments, channelCount });
+	// Read like any other rendered buffer. The encode path takes the delivered
+	// audio through `audioBufferChannels`, which asks a buffer for its channels
+	// the way an AudioBuffer answers; a bare planar record satisfies the type but
+	// not the call, so the delivery rendered in full and then threw at the encoder.
 	return Object.freeze({
 		channels,
 		length: deliveryPlan.totalFrames,
 		numberOfChannels: channelCount,
 		sampleRate: outputSampleRate,
+		getChannelData(channel: number): Float32Array {
+			const data = channels[channel];
+			if (!data) throw new RangeError(`The delivered sequence has no channel ${channel}.`);
+			return data;
+		},
 	});
 }
