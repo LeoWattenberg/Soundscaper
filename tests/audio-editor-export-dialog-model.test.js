@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
+import { VIDEO_CANVAS_FIT_MODES } from '../src/common/editor/video-canvas-fit.ts';
+import { CANONICAL_EXTRA_COPY_BY_LOCALE } from '../src/common/i18n/canonical-extras.js';
 import {
 	VIDEO_EXPORT_DIALOG_FORMATS,
 	createExportDialogRequest,
@@ -144,4 +147,33 @@ test('Broadcast WAV requests carry structured BEXT metadata without changing ord
 	assert.deepEqual(bw64.bext, bext);
 	assert.deepEqual(bw64.adm, { mode: 'authored' });
 	assert.equal(createExportDialogRequest({ ...settings, format: 'wav' }, { bext, metadata: {}, channelMapping: 'stereo' }).bext, undefined);
+});
+
+test('the export dialog reaches the delivery canvas for a video format and only for one', async () => {
+	const dialog = await readFile(new URL('../src/common/editor/ui/inspector/ExportDialog.jsx', import.meta.url), 'utf8');
+	const fields = await readFile(new URL('../src/common/editor/ui/VideoCanvasFields.jsx', import.meta.url), 'utf8');
+
+	// The canvas is a video decision, so the dialog must gate it on the format
+	// rather than parking two more permanent controls on an audio export.
+	assert.match(dialog, /\{videoFormat && \(\s*<VideoCanvasFields/u);
+	assert.match(fields, /data-export-field="canvasSize"/u);
+	assert.match(fields, /hook="canvasFit"/u);
+	for (const fit of VIDEO_CANVAS_FIT_MODES) {
+		assert.match(fields, new RegExp(`${fit}: 'videoCanvasFit`, 'u'), `${fit} needs a label of its own`);
+	}
+});
+
+test('every delivery-canvas control has copy in both catalogs', () => {
+	const keys = [
+		'videoCanvasSize', 'videoCanvasWidth', 'videoCanvasHeight', 'videoCanvasFit',
+		'videoCanvasFitContain', 'videoCanvasFitCover', 'videoCanvasFitStretch',
+		'videoCanvasAutomatic', 'videoCanvasHint',
+	];
+	for (const locale of ['en', 'de']) {
+		const catalog = CANONICAL_EXTRA_COPY_BY_LOCALE[locale];
+		for (const key of keys) {
+			assert.equal(typeof catalog[key], 'string', `${locale} is missing ${key}`);
+			assert.ok(catalog[key].length > 0, `${locale} ${key} must not be empty`);
+		}
+	}
 });

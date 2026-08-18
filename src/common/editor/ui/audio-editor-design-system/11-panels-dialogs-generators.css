@@ -159,6 +159,24 @@
 	width: 100%;
 }
 
+/* The delivery canvas states two extents, so they share one field row. */
+#kw-audio-editor-design-system .audio-editor-export-canvas-size {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 8px;
+}
+
+#kw-audio-editor-design-system .audio-editor-export-canvas-size > input {
+	min-width: 0;
+	min-height: 32px;
+	padding: 5px 8px;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-control);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 4px;
+	font: inherit;
+}
+
 #kw-audio-editor-design-system .audio-editor-export-section .audio-editor-field > input {
 	min-height: 32px;
 	padding: 5px 8px;

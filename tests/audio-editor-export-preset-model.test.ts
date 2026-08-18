@@ -13,6 +13,7 @@ import {
 	validateDeliveryPreset,
 } from '../src/common/editor/delivery-preset.ts';
 import { createDeliveryPresetService } from '../src/common/editor/controller/delivery-preset-service.ts';
+import { createExportDialogRequest } from '../src/common/editor/ui/export-dialog-model.js';
 
 const DIALOG = {
 	mode: 'mix',
@@ -83,6 +84,62 @@ test('a dialog round trip through a preset produces the same export plan', () =>
 		JSON.parse(JSON.stringify(direct)),
 		'saving settings as a preset and applying it must not change the delivery',
 	);
+});
+
+const VIDEO_DIALOG = {
+	...DIALOG,
+	format: 'video-mp4',
+	canvasWidth: '1080',
+	canvasHeight: '1920',
+	canvasFit: 'cover',
+};
+
+test('a video preset carries the canvas the dialog states and nothing the dialog cannot deliver', () => {
+	const settings = presetSettingsFromDialog(VIDEO_DIALOG, 'video');
+
+	assert.deepEqual(settings, { size: { width: 1_080, height: 1_920 }, fit: 'cover' });
+	// A video preset used to leave with includeTail, which the preset schema does
+	// not admit, so saving one from the dialog threw before it could be stored.
+	assert.doesNotThrow(() => validateDeliveryPreset({
+		schemaVersion: 1, id: 'v', label: 'Vertical', kind: 'video', format: 'mp4', settings,
+	}));
+});
+
+test('an unstated video canvas keeps a preset and a request empty of geometry', () => {
+	const settings = presetSettingsFromDialog(
+		{ ...VIDEO_DIALOG, canvasWidth: '', canvasHeight: '', canvasFit: 'contain' },
+		'video',
+	);
+
+	assert.deepEqual(settings, {}, 'no canvas asked for means no canvas stated');
+	assert.deepEqual(
+		createExportDialogRequest({ ...VIDEO_DIALOG, canvasWidth: '', canvasHeight: '', canvasFit: 'contain' }),
+		{ mode: 'mix', range: 'project', format: 'video-mp4', metadata: {} },
+		'an unexercised option leaves the request exactly as it was',
+	);
+});
+
+test('a stated video canvas reaches the export request as a canvas option', () => {
+	assert.deepEqual(createExportDialogRequest(VIDEO_DIALOG), {
+		mode: 'mix',
+		range: 'project',
+		format: 'video-mp4',
+		metadata: {},
+		canvas: { size: { width: 1_080, height: 1_920 }, fit: 'cover' },
+	});
+});
+
+test('applying a video preset patches the dialog canvas fields back to strings', () => {
+	const preset = validateDeliveryPreset({
+		schemaVersion: 1, id: 'v', label: 'Vertical', kind: 'video', format: 'mp4',
+		settings: { size: { width: 1_080, height: 1_920 }, fit: 'cover' },
+	});
+	const patch = dialogSettingsFromPreset(preset);
+
+	assert.equal(patch.canvasWidth, '1080');
+	assert.equal(patch.canvasHeight, '1920');
+	assert.equal(patch.canvasFit, 'cover');
+	assert.ok(!('size' in patch), 'the dialog holds flat strings, never the nested preset shape');
 });
 
 test('exporting a preset writes through the preset purpose with a safe name', async () => {

@@ -27,7 +27,7 @@ export type DeliveryPresetKind = (typeof DELIVERY_PRESET_KINDS)[number];
  * something this one does not, and guessing at it is how a delivery quietly
  * stops matching what the user asked for.
  */
-const ALLOWED_SETTINGS: Readonly<Record<DeliveryPresetKind, readonly string[]>> = Object.freeze({
+export const DELIVERY_PRESET_SETTINGS: Readonly<Record<DeliveryPresetKind, readonly string[]>> = Object.freeze({
 	audio: Object.freeze([
 		'sampleRate', 'channelMapping', 'sampleFormat', 'dither',
 		'bitRate', 'quality', 'compressionLevel', 'mode', 'includeTail',
@@ -99,7 +99,7 @@ export function validateDeliveryPreset(value: unknown): DeliveryPreset {
 		throw new DeliveryPresetError(`Delivery preset ${id} settings must be a record.`);
 	}
 	for (const field of Object.keys(rawSettings)) {
-		if (!ALLOWED_SETTINGS[kind].includes(field)) {
+		if (!DELIVERY_PRESET_SETTINGS[kind].includes(field)) {
 			throw new DeliveryPresetError(`Unknown ${kind} delivery setting: ${field}.`);
 		}
 	}

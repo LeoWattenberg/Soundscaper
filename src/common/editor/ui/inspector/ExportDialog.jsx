@@ -12,6 +12,7 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import BextMetadataFields from '../BextMetadataFields.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import MetadataEditorTabs from '../MetadataEditorTabs.tsx';
+import VideoCanvasFields from '../VideoCanvasFields.jsx';
 import { createProjectAdmEditorValue } from '../adm-metadata-editor-model.ts';
 import { createBextMetadataEditorValue } from '../bext-metadata-editor-model.ts';
 import {
@@ -63,6 +64,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		includeTail: true,
 		binaural: false,
 		masteringSequenceId: '',
+		canvasWidth: '',
+		canvasHeight: '',
+		canvasFit: 'contain',
 	});
 	const [error, setError] = useState('');
 	const [presetId, setPresetId] = useState('');
@@ -416,6 +420,14 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 					{!videoFormat && <LabeledDropdown label={copy.channelMapping} hook="channelMapping" value={settings.channelMapping} onChange={(value) => set('channelMapping', value)} disabled={exporting || settings.format === 'bw64'} options={[{ value: 'preserve', label: copy.preserveChannels }, { value: 'mono', label: copy.mono }, { value: 'stereo', label: copy.stereo }, { value: 'custom', label: copy.customChannelMapping }]} />}
 					{!videoFormat && pcmFormat && settings.sampleFormat !== 'float32' && <LabeledDropdown label={copy.dither} hook="dither" value={settings.dither} onChange={(value) => set('dither', value)} disabled={exporting || admPassthrough} options={[{ value: 'none', label: copy.none }, { value: 'triangular', label: copy.triangularDither }, { value: 'triangular-highpass', label: copy.highpassDither }]} />}
 					{!videoFormat && settings.channelMapping === 'custom' && <label className="audio-editor-field"><span>{copy.customChannelMapping}</span><span><TextInput multiline value={settings.channelMatrix} disabled={exporting} onChange={(value) => set('channelMatrix', value)} width="100%" /><small>{copy.customChannelMappingHint}</small></span></label>}
+					{videoFormat && (
+						<VideoCanvasFields
+							copy={copy}
+							disabled={exporting}
+							settings={settings}
+							onChange={set}
+						/>
+					)}
 				</section>
 				{!videoFormat && (
 					<>
