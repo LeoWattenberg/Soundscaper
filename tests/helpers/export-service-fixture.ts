@@ -124,6 +124,7 @@ export function createFixture() {
 	};
 	let project = defaultProject();
 	let plan = defaultPlan();
+	let corruptOutput = false;
 	function stagedContainerBytes(): Uint8Array<ArrayBuffer> {
 		if (plan.format !== 'wav' && plan.format !== 'bwf' && plan.format !== 'bw64') return Uint8Array.of(7);
 		return encodeWav(
@@ -250,7 +251,10 @@ export function createFixture() {
 		encodeWav: (channels: Float32Array[], options: Record<string, unknown>) => {
 			encodedFrameCounts.push(channels[0]?.length ?? 0);
 			wavOptions.push(options);
-			return encodeWav(channels, options as never);
+			const bytes = encodeWav(channels, options as never);
+			// The corruption a delivery has to survive being told about: bytes that
+			// left the encoder and are not the file the plan described.
+			return corruptOutput ? bytes.subarray(0, Math.max(0, bytes.byteLength - 6)) : bytes;
 		},
 		ffmpeg: {
 			dispose: () => { calls.push('ffmpeg-dispose'); },
@@ -355,6 +359,7 @@ export function createFixture() {
 		streamEncoderOptions,
 		wavOptions,
 		setArchiveAddFails: (value: boolean) => { archiveAddFails = value; },
+		setCorruptOutput: (value: boolean) => { corruptOutput = value; },
 		setDisposeDuringPublish: (value: boolean) => { disposeDuringPublish = value; },
 		setMediaAvailable: (value: boolean) => { mediaAvailable = value; },
 		setMissingSources: (value: boolean) => { missingSources = value; },
