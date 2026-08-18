@@ -115,12 +115,42 @@ export class MasteringSequenceValidationError extends Error {
 	}
 }
 
+const MASTERING_SEQUENCE_FIELDS = Object.freeze([
+	'id', 'sequenceId', 'name', 'entries', 'opaqueExtensions',
+]);
+
+const MASTERING_SEQUENCE_ENTRY_FIELDS = Object.freeze([
+	'id', 'annotationId', 'title', 'metadata',
+	'gapBeforeFrames', 'fadeInFrames', 'fadeOutFrames',
+]);
+
 const EXTENSION_VALIDATION_LIMITS = resolveAudioEditorProjectV9ValidationLimits();
 const INVALID_CANONICAL_TEXT = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+
+/**
+ * Refuse a field this build does not know.
+ *
+ * Every neighbouring domain is closed — the V23 root and the track records both
+ * throw on an unrecognized field — and `opaqueExtensions` is the sanctioned
+ * place for anything a future build wants to carry. Picking the known fields and
+ * ignoring the rest meant a stored sequence carrying, say, a `renderSettings`
+ * object — the second export plan the model exists to forbid — loaded without a
+ * word and was written back with the field silently deleted.
+ */
+function assertNoUnknownFields(
+	record: Readonly<Record<string, unknown>>,
+	known: readonly string[],
+	name: string,
+): void {
+	for (const key of Object.keys(record)) {
+		if (!known.includes(key)) throw new TypeError(`${name} has an unsupported field: ${key}.`);
+	}
+}
 
 /** Create one canonical persisted mastering sequence, or refuse the input. */
 export function createMasteringSequenceV23(value: unknown): MasteringSequenceV23 {
 	const record = plainRecord(value, 'A mastering sequence');
+	assertNoUnknownFields(record, MASTERING_SEQUENCE_FIELDS, 'A mastering sequence');
 	const entries = Array.isArray(record.entries) ? record.entries : null;
 	if (!entries) throw new TypeError('A mastering sequence requires an entries array.');
 	if (entries.length > MASTERING_SEQUENCE_LIMITS.maximumEntries) {
@@ -226,6 +256,7 @@ export function masteringSequenceEntryTitle(
 
 function createEntry(value: unknown, name: string): MasteringSequenceEntryV23 {
 	const record = plainRecord(value, name);
+	assertNoUnknownFields(record, MASTERING_SEQUENCE_ENTRY_FIELDS, name);
 	return Object.freeze({
 		id: canonicalString(record.id, `${name} id`, MASTERING_SEQUENCE_LIMITS.maximumIdCodeUnits, false),
 		annotationId: canonicalString(record.annotationId, `${name} annotationId`, MASTERING_SEQUENCE_LIMITS.maximumIdCodeUnits, false),

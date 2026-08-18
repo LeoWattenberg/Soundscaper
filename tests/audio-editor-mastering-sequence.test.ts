@@ -151,6 +151,34 @@ test('the sequence owns ordering and metadata only', () => {
 	);
 });
 
+test('a field this build does not know is refused, not quietly dropped', () => {
+	// Every neighbouring domain is closed and opaqueExtensions is the sanctioned
+	// place to carry anything else, but sequences picked the fields they knew and
+	// ignored the rest. A stored sequence carrying renderSettings — the second
+	// export plan this model exists to forbid — loaded without a word and was
+	// written back with the field silently deleted.
+	assert.throws(
+		() => createMasteringSequenceV23({
+			id: 'album', sequenceId: 'main', name: 'Album', entries: [],
+			renderSettings: { format: 'wav', bitDepth: 16 },
+		}),
+		/unsupported field: renderSettings/u,
+	);
+	assert.throws(
+		() => createMasteringSequenceV23({
+			id: 'album', sequenceId: 'main', name: 'Album',
+			entries: [{ id: 'e1', annotationId: 'a', loudnessTarget: -14 }],
+		}),
+		/unsupported field: loudnessTarget/u,
+	);
+	// What a future build should use instead still round-trips untouched.
+	const carried = createMasteringSequenceV23({
+		id: 'album', sequenceId: 'main', name: 'Album', entries: [],
+		opaqueExtensions: { 'vendor.tool': { note: 'kept' } },
+	});
+	assert.deepEqual(carried.opaqueExtensions, { 'vendor.tool': { note: 'kept' } });
+});
+
 test('malformed input is refused rather than repaired', () => {
 	assert.throws(() => createMasteringSequenceV23(null), /must be an object/u);
 	assert.throws(() => createMasteringSequenceV23({ id: 'a', sequenceId: 's', name: '' }), /entries array/u);
