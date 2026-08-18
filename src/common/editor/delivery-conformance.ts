@@ -154,6 +154,19 @@ function channelMapFinding(descriptor: Readonly<Record<string, unknown>>): Deliv
 	const mask = Number(descriptor.channelMask ?? 0);
 	const channelCount = Number(descriptor.channelCount ?? 0);
 	const named = popcount(mask);
+	// A file with no mask names no layout, and for more than two channels the
+	// order is exactly what a mask would have said — so there is nothing to check
+	// it against. Reporting that as a passed check with zero errors is the case
+	// this guard exists to prevent: the writer omits the mask for every BW64 and
+	// every plain multichannel WAV, which is precisely where channel order
+	// matters most, and the exit gate consumed the zero as a verified number.
+	// Mono and stereo are unambiguous from the count alone, so they still pass.
+	if (mask === 0 && channelCount > 2) {
+		return unverified(
+			'channel map',
+			`the ${channelCount}-channel file carries no channel mask to check the delivered order against`,
+		);
+	}
 	const conformed = mask === 0 || named === channelCount;
 	return Object.freeze({
 		code: 'delivery.conformance-channel-map',

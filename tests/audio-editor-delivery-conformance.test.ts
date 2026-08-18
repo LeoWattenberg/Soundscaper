@@ -75,6 +75,42 @@ test('a conforming master reports every check it passed', async () => {
 	assert.doesNotThrow(() => assertDeliveryConformance(findings));
 });
 
+test('a multichannel file with no mask says it was not checked, never that it passed', async () => {
+	// The writer emits an extensible mask only for broadcast multichannel WAV, so
+	// every BW64 and every plain multichannel WAV arrives with mask 0 — exactly
+	// where channel order matters most. Passing that as preserved with zero
+	// errors handed the exit gate a verified-looking number for a property
+	// nothing had inspected. Mono and stereo stay conformed: their layout is
+	// unambiguous from the channel count alone.
+	const wide = { ...PROJECT, masterChannels: 6 };
+	const plan = createExportPlan(wide, {
+		format: 'wav', sampleFormat: 'int24', bitDepth: 24, channelCount: 6,
+		range: { startFrame: 0, endFrame: 480 }, includeTail: false,
+	});
+	const bytes = encodeWav(
+		Array.from({ length: plan.channelCount }, () => new Float32Array(plan.outputFrames)),
+		{
+			sampleRate: plan.sampleRate,
+			bitDepth: (plan.encoding.bitDepth ?? 24) as 24,
+			float: plan.encoding.floatingPoint,
+			dither: 'none',
+		},
+	);
+	const findings = await conformDeliveredAudio(plan as never, bytesSource(bytes), { inspect: inspect as never });
+
+	const map = findings.find(({ code }) => code === 'delivery.conformance-channel-map');
+	const unverified = findings.find(({ code }) => code === 'delivery.conformance-unverified');
+	assert.equal(map, undefined, 'nothing may claim the channel map was checked');
+	assert.equal(unverified?.disposition, 'omitted');
+	assert.equal(unverified?.severity, 'warning');
+	assert.match(String(unverified?.data.reason), /no channel mask/u);
+	assert.equal(
+		findings.some((finding) => 'channelMapErrors' in (finding.data as Record<string, unknown>)),
+		false,
+		'and no zero-error count may reach the exit gate for a map nobody read',
+	);
+});
+
 test('a corrupted master fails its reopen check and the report says why', async () => {
 	const { plan, bytes } = deliver();
 	// Truncate the audio without touching the header: the file still parses, and
