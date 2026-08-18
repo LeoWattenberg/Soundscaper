@@ -11,6 +11,11 @@ import {
 	createProjectBootstrapService,
 	type ProjectBootstrapServiceRuntime,
 } from '../src/common/editor/controller/project-bootstrap-service.ts';
+import { DELIVERY_PRESETS_SETTING_KEY } from '../src/common/editor/controller/delivery-preset-service.ts';
+import {
+	createDeliveryPresetState,
+	saveDeliveryPresetToState,
+} from '../src/common/editor/delivery-preset-store.ts';
 
 function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
@@ -123,6 +128,7 @@ function createFixture(options: Readonly<{ genericReconciliation?: boolean }> = 
 			events.push('load-preferences');
 		},
 		createEffectPresets: (value = 'default') => ({ source: value }),
+		createDeliveryPresets: createDeliveryPresetState,
 		normalizeRecordingInputGain: (value) => Number(value),
 		normalizeLatencyOffset: (value) => Number(value),
 		normalizeAudioDevicePreferences: (value) => {
@@ -198,6 +204,37 @@ function createFixture(options: Readonly<{ genericReconciliation?: boolean }> = 
 		return false;
 	}
 }
+
+test('bootstrap hydrates the delivery presets the last session saved', async () => {
+	// Persisting alone is not durability: without this load the preset service is
+	// write-only, and the first save of every session overwrites the collection.
+	const fixture = createFixture();
+	// Written by the real store, so the fixture cannot drift from what a session
+	// actually persists — a hand-authored record that fails validation would land
+	// on the empty fallback and look like a passing hydration.
+	fixture.settings.set(DELIVERY_PRESETS_SETTING_KEY, saveDeliveryPresetToState(
+		createDeliveryPresetState(),
+		{ label: 'CD master', kind: 'audio', format: 'wav', settings: { sampleRate: 44_100 } },
+	).state);
+
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+
+	assert.deepEqual(
+		(fixture.state.deliveryPresets as { presets: ReadonlyArray<{ label: string }> }).presets
+			.map(({ label }) => label),
+		['CD master'],
+	);
+});
+
+test('a delivery preset collection this build cannot read leaves a usable session', async () => {
+	const fixture = createFixture();
+	fixture.settings.set(DELIVERY_PRESETS_SETTING_KEY, { schemaVersion: 99, presets: [] });
+
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+
+	assert.deepEqual(fixture.state.deliveryPresets, createDeliveryPresetState(),
+		'an unreadable collection starts empty rather than failing the bootstrap');
+});
 
 test('bootstrap applies settings before opening the saved project', async () => {
 	const fixture = createFixture();

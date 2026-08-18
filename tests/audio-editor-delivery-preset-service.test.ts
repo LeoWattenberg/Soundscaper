@@ -7,6 +7,7 @@ import {
 	DELIVERY_PRESETS_SETTING_KEY,
 	createDeliveryPresetService,
 } from '../src/common/editor/controller/delivery-preset-service.ts';
+import { createDeliveryPresetState } from '../src/common/editor/delivery-preset-store.ts';
 
 function harness() {
 	const persisted: Array<[string, unknown]> = [];
@@ -33,6 +34,37 @@ test('saving persists under its own key and publishes once', async () => {
 	assert.equal(persisted[0][0], DELIVERY_PRESETS_SETTING_KEY);
 	assert.equal(published(), 1);
 	assert.deepEqual(service.list().map(({ label }) => label), ['CD master']);
+});
+
+test('presets saved in one session are still there in the next, and survive its first save', async () => {
+	// The service persists but the collection has to be read back, or every
+	// session starts empty and its first save writes that empty collection with
+	// the new preset alone — destroying every preset saved before it.
+	const settings = new Map<string, unknown>();
+	let ids = 0;
+	const session = (stored: unknown) => {
+		const state: { deliveryPresets?: unknown } = {
+			deliveryPresets: createDeliveryPresetState((stored ?? {}) as Record<string, unknown>),
+		};
+		return createDeliveryPresetService({
+			state,
+			persistSetting: (key, value) => { settings.set(key, value); },
+			createId: (prefix) => `${prefix}-${++ids}`,
+		});
+	};
+
+	const first = session(null);
+	await first.save({ label: 'CD master', kind: 'audio', format: 'wav', settings: { sampleRate: 44_100 } });
+	await first.save({ label: 'Podcast', kind: 'audio', format: 'mp3', settings: { bitRate: 128 } });
+
+	const second = session(settings.get(DELIVERY_PRESETS_SETTING_KEY));
+	assert.deepEqual(second.list().map(({ label }) => label), ['CD master', 'Podcast'],
+		'a new session opens with the presets the last one saved');
+
+	await second.save({ label: 'Radio edit', kind: 'audio', format: 'flac', settings: {} });
+	const third = session(settings.get(DELIVERY_PRESETS_SETTING_KEY));
+	assert.deepEqual(third.list().map(({ label }) => label), ['CD master', 'Podcast', 'Radio edit'],
+		'and saving in it adds to them rather than replacing them');
 });
 
 test('the service reads an empty state without being seeded first', () => {

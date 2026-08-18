@@ -2,10 +2,12 @@
 
 import type { EditorLifetimeToken } from './lifecycle.ts';
 import type { ProjectLifecycleProject } from './project-lifecycle-types.ts';
+import { DELIVERY_PRESETS_SETTING_KEY } from './delivery-preset-service.ts';
 
-export interface ProjectBootstrapState<Preferences, EffectPresets> {
+export interface ProjectBootstrapState<Preferences, EffectPresets, DeliveryPresets> {
 	preferences: Preferences;
 	effectPresets: EffectPresets;
+	deliveryPresets: DeliveryPresets;
 	monitoring: boolean;
 	microphoneMetering: boolean;
 	recordingInputGain: number;
@@ -48,8 +50,9 @@ export interface ProjectBootstrapServiceRuntime<
 	Project extends ProjectLifecycleProject,
 	Preferences,
 	EffectPresets,
+	DeliveryPresets,
 > {
-	readonly state: ProjectBootstrapState<Preferences, EffectPresets>;
+	readonly state: ProjectBootstrapState<Preferences, EffectPresets, DeliveryPresets>;
 	readonly lifetimeSignal: AbortSignal;
 	readonly store: ProjectBootstrapStore<Project>;
 	readonly engine: Readonly<{
@@ -62,6 +65,7 @@ export interface ProjectBootstrapServiceRuntime<
 	readonly recordingInputGainDefault: number;
 	readonly loadPreferences: (token: EditorLifetimeToken) => Promise<unknown>;
 	readonly createEffectPresets: (value?: unknown) => EffectPresets;
+	readonly createDeliveryPresets: (value?: unknown) => DeliveryPresets;
 	readonly normalizeRecordingInputGain: (value: unknown) => number;
 	readonly normalizeLatencyOffset: (value: unknown) => number;
 	readonly normalizeAudioDevicePreferences: (value: unknown) => Readonly<{
@@ -110,7 +114,8 @@ export function createProjectBootstrapService<
 	Project extends ProjectLifecycleProject,
 	Preferences,
 	EffectPresets,
->(runtime: ProjectBootstrapServiceRuntime<Project, Preferences, EffectPresets>) {
+	DeliveryPresets,
+>(runtime: ProjectBootstrapServiceRuntime<Project, Preferences, EffectPresets, DeliveryPresets>) {
 	const deferInitialSave = runtime.openRecovery?.deferInitialSave
 		?? runProjectBootstrapOperation;
 	const deferMaintenance = runtime.openRecovery?.deferMaintenance
@@ -138,6 +143,19 @@ export function createProjectBootstrapService<
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
 			runtime.state.effectPresets = runtime.createEffectPresets();
+		}
+		// Delivery presets hydrate the same way effect presets do. Without this the
+		// preset service is write-only: every session starts with an empty
+		// collection, and its first save persists that empty collection with the
+		// new preset alone, taking every preset saved before it with it.
+		try {
+			const storedDeliveryPresets = await guard(
+				runtime.store.loadSetting(DELIVERY_PRESETS_SETTING_KEY, null),
+			);
+			runtime.state.deliveryPresets = runtime.createDeliveryPresets(storedDeliveryPresets || {});
+		} catch (error) {
+			if (runtime.isDisposedError(error)) throw error;
+			runtime.state.deliveryPresets = runtime.createDeliveryPresets();
 		}
 		runtime.state.monitoring = Boolean(await guard(runtime.store.loadSetting('input-monitor', false)));
 		runtime.state.microphoneMetering = Boolean(await guard(runtime.store.loadSetting('microphone-metering', false)));
