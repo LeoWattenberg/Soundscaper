@@ -22,6 +22,7 @@ export const PRESET_SETTING_KEYS: Readonly<Record<DeliveryPresetKind, readonly s
 	audio: Object.freeze([
 		'sampleRate', 'channelMapping', 'sampleFormat', 'dither',
 		'bitRate', 'quality', 'compressionLevel', 'mode', 'includeTail',
+		'loudnessNormalization',
 	]),
 	// The video canvas is nested rather than flat, so it is translated below
 	// rather than copied across; nothing else in the dialog is a video setting.

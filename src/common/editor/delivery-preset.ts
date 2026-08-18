@@ -31,6 +31,7 @@ export const DELIVERY_PRESET_SETTINGS: Readonly<Record<DeliveryPresetKind, reado
 	audio: Object.freeze([
 		'sampleRate', 'channelMapping', 'sampleFormat', 'dither',
 		'bitRate', 'quality', 'compressionLevel', 'mode', 'includeTail',
+		'loudnessNormalization',
 	]),
 	video: Object.freeze([
 		'size', 'fit', 'frameRate', 'backgroundColor',

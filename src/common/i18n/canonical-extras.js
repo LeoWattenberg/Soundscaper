@@ -2,6 +2,11 @@ import { localeLanguage } from './locale.js';
 
 // Canonical effect/layout and Audacity parity copy. The exported catalogs are flat.
 const COPY_ENTRIES = Object.freeze([
+	["loudnessNormalization","Loudness normalization","Lautheitsnormalisierung"],
+	["loudnessNormalizationNone","None","Keine"],
+	["loudnessNormalizationR128","EBU R 128 (-23 LUFS)","EBU R 128 (−23 LUFS)"],
+	["loudnessNormalizationA85","ATSC A/85 (-24 LUFS)","ATSC A/85 (−24 LUFS)"],
+	["loudnessNormalizationStreaming","Streaming (-14 LUFS)","Streaming (−14 LUFS)"],
 	["effectNameHighpass","High-pass filter","Hochpass"],
 	["effectNameLowpass","Low-pass filter","Tiefpass"],
 	["effectNameEq","Four-band parametric EQ","Parametrischer 4-Band-EQ"],

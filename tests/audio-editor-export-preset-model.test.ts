@@ -252,6 +252,45 @@ test('a preset control that succeeds leaves no error behind', async () => {
 	assert.deepEqual(reported, [null], 'only the clear, never a message');
 });
 
+test('a loudness target chosen in the dialog reaches the plan, and a preset can carry it', () => {
+	// 6A-2 put the target on the plan and nothing an operator could touch ever
+	// set it: the dialog had no control, and the closed preset field list refused
+	// `loudnessNormalization` outright, so batches and imported presets could not
+	// reach it either. The feature was reachable only from code.
+	const dialog = { ...DIALOG, customArguments: '', loudnessNormalization: 'ebu-r128' };
+	const request = createExportDialogRequest(dialog, {});
+	assert.equal(request.loudnessNormalization, 'ebu-r128');
+
+	const plan = createExportPlan({
+		id: 'p', title: 'P', sampleRate: 48_000, masterChannels: 2,
+		selection: { startFrame: 0, endFrame: 0 }, loop: { enabled: false, startFrame: 0, endFrame: 0 },
+		sources: [], clips: [],
+		tracks: [{
+			type: 'audio', id: 't', name: 'A', clipIds: [], mute: false, solo: false,
+			hidden: false, collapsed: false, height: 120, laneGroupId: null,
+		}],
+	} as never, { ...request, range: { startFrame: 0, endFrame: 48_000 } } as never);
+	assert.deepEqual(plan.loudnessNormalization, { integratedLufs: -23, truePeakCeilingDb: -1 });
+
+	// And it survives the preset round trip, so a batch delivers the same target.
+	const preset = validateDeliveryPreset({
+		schemaVersion: 1, id: 'p', label: 'R128', kind: 'audio', format: 'wav',
+		settings: presetSettingsFromDialog(dialog, 'audio'),
+	});
+	assert.equal(preset.settings.loudnessNormalization, 'ebu-r128');
+	assert.equal(
+		resolveDeliveryPresetPlanOptions(preset).loudnessNormalization,
+		'ebu-r128',
+		'a preset resolves the target into the ordinary plan options',
+	);
+
+	// An untouched dialog still states nothing, so existing deliveries are unchanged.
+	assert.equal(
+		'loudnessNormalization' in createExportDialogRequest({ ...DIALOG, customArguments: '' }, {}),
+		false,
+	);
+});
+
 test('exporting a preset writes through the preset purpose with a safe name', async () => {
 	const requests: Array<Record<string, unknown>> = [];
 	const service = createDeliveryPresetService({
