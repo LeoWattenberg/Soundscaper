@@ -50,6 +50,12 @@ jobs:
 
       - name: Run canonical quality checks
         run: xvfb-run --auto-servernum npm run check
+        env:
+          # The coverage run now instruments and holds results for 8,500+ tests in one
+          # process; the default old-space limit is no longer enough headroom for that
+          # and the run aborts with an OOM well before any test itself fails. The
+          # ubuntu-24.04 runner has 16 GiB, so this leaves plenty for Electron and xvfb.
+          NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Upload the verified website build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
