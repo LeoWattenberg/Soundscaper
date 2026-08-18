@@ -22,7 +22,7 @@ const AVAILABLE = new Set<ProjectFeatureCapabilityKey>([
 	'audioAnalysis', 'audioMacros', 'audioSampleEditing', 'musicalTimeline',
 	'timelineAnnotations', 'trackFolders', 'takeComp', 'audioWarp', 'sequenceTiming',
 	'videoTimingAssets', 'sourceCharacteristics', 'audioAutomation', 'audioMixerGraph',
-	'audioTrackFreeze', 'masteringSequences',
+	'audioTrackFreeze', 'immersiveAdm', 'masteringSequences',
 ]);
 
 /** Selected exact-V23 Soundscaper capabilities. */

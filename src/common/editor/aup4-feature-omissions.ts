@@ -64,6 +64,11 @@ export const AUP4_OWNED_FEATURE_CARRIAGE: Readonly<Record<OwnedFeatureKey, Aup4F
 		code: 'MASTERING_SEQUENCES_OMITTED',
 		message: 'Audacity has no mastering sequences. The regions were exported as labels and the delivery order was omitted.',
 	}),
+	immersiveAdm: Object.freeze({
+		carriage: 'omitted',
+		code: 'IMMERSIVE_ADM_OMITTED',
+		message: 'Audacity has no ADM programme. The bed and object routing, their positions, and the immersive layout were omitted.',
+	}),
 	sequenceTiming: Object.freeze({
 		carriage: 'omitted',
 		code: 'SEQUENCE_TIMING_OMITTED',

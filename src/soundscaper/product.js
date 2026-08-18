@@ -39,6 +39,7 @@ export const SOUNDSCAPER_PROFILE = {
 		videoTimingAssets: true,
 		sourceCharacteristics: true,
 		masteringSequences: true,
+		immersiveAdm: true,
 	},
 	desktop: {
 		appId: 'org.soundscaper.desktop',

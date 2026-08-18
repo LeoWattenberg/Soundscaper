@@ -29,6 +29,7 @@ export const PROJECT_OWNED_FEATURE_REQUIREMENT_IDS = Object.freeze({
 	audioAutomation: 'soundscaper.audio-automation',
 	audioMixerGraph: 'soundscaper.audio-mixer-graph',
 	masteringSequences: 'soundscaper.mastering-sequences',
+	immersiveAdm: 'soundscaper.immersive-adm',
 	sequenceTiming: 'framescaper.sequence-timing',
 	videoRetime: 'framescaper.video-retime',
 	videoTimingAssets: 'framescaper.video-timing-assets',
@@ -45,6 +46,7 @@ interface OwnedFeatureRequirement {
 }
 
 const AUDIO_EFFECT_TYPE_SET: ReadonlySet<string> = new Set(PROJECT_FEATURE_AUDIO_EFFECT_TYPES);
+const SHIPPED_ADM_BED_LAYOUTS: ReadonlySet<string> = new Set(['mono', 'stereo', '5.1']);
 const VIDEO_EFFECT_TYPE_SET: ReadonlySet<string> = new Set(VIDEO_EFFECT_TYPES as readonly string[]);
 const OWNED_AUDIO_EFFECT_REQUIREMENT: ProjectFeatureRequirement = Object.freeze({
 	id: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.audioEffects,
@@ -69,6 +71,7 @@ const FOUNDATION_REQUIREMENTS = Object.freeze({
 	audioAutomation: requirement('audioAutomation', 'Audio automation'),
 	audioMixerGraph: requirement('audioMixerGraph', 'Audio mixer graph'),
 	masteringSequences: requirement('masteringSequences', 'Mastering sequences'),
+	immersiveAdm: requirement('immersiveAdm', 'Immersive ADM delivery'),
 	sequenceTiming: requirement('sequenceTiming', 'Sequence timing'),
 	videoRetime: requirement('videoRetime', 'Video retime maps'),
 	videoTimingAssets: requirement('videoTimingAssets', 'Exact video timing assets'),
@@ -121,6 +124,7 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 		(project) => isVideoRetimeCurveProjectSchema(dataProperty(project, 'schemaVersion')),
 	),
 	foundationOwned(FOUNDATION_REQUIREMENTS.masteringSequences, projectHoldsMasteringSequence),
+	foundationOwned(FOUNDATION_REQUIREMENTS.immersiveAdm, projectHoldsImmersiveAdm, () => true),
 	foundationOwned(FOUNDATION_REQUIREMENTS.videoTimingAssets, projectHasVideoTimingAsset),
 	foundationOwned(
 		FOUNDATION_REQUIREMENTS.sourceCharacteristics,
@@ -130,7 +134,7 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 
 function requirement(
 	key: 'musicalTimeline' | 'timelineAnnotations' | 'trackFolders' | 'takeComp' | 'audioWarp'
-		| 'audioAutomation' | 'audioMixerGraph' | 'masteringSequences' | 'sequenceTiming'
+		| 'audioAutomation' | 'audioMixerGraph' | 'masteringSequences' | 'immersiveAdm' | 'sequenceTiming'
 		| 'videoRetime' | 'videoTimingAssets' | 'sourceCharacteristics',
 	displayName: string,
 ): ProjectFeatureRequirement {
@@ -313,6 +317,29 @@ function projectHasNonDefaultSequenceTiming(project: Readonly<Record<string, unk
 function projectHoldsMasteringSequence(project: Readonly<Record<string, unknown>>): boolean {
 	const sequences = dataProperty(project, 'masteringSequences');
 	return Array.isArray(sequences) && sequences.length > 0;
+}
+
+/**
+ * A project whose authored ADM goes beyond what shipped before immersive
+ * delivery: positioned objects, or a bed layout above 5.1.
+ *
+ * The three original layouts are deliberately not a trigger. A stereo bed is the
+ * feature that has always been there, and demanding a new capability for it
+ * would report a loss on every project that ever enabled ADM.
+ *
+ * Publisher substitution is refused because there is nothing to substitute: an
+ * environment without the capability cannot deliver these channels at all, and
+ * silently rendering the bed without its objects is a different programme.
+ */
+function projectHoldsImmersiveAdm(project: Readonly<Record<string, unknown>>): boolean {
+	const metadata = dataProperty(project, 'metadata');
+	if (!isRecord(metadata)) return false;
+	const adm = dataProperty(metadata, 'adm');
+	if (!isRecord(adm) || dataProperty(adm, 'mode') !== 'authored') return false;
+	if (dataArray(adm, 'objects').length > 0) return true;
+	const bed = dataProperty(adm, 'bed');
+	const layout = isRecord(bed) ? dataProperty(bed, 'layout') : null;
+	return typeof layout === 'string' && !SHIPPED_ADM_BED_LAYOUTS.has(layout);
 }
 
 function projectHasVideoTimingAsset(project: Readonly<Record<string, unknown>>): boolean {

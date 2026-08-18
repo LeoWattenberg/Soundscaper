@@ -223,6 +223,7 @@
 				"videoRetime": false,
 				"videoTimingAssets": true,
 				"sourceCharacteristics": true,
+				"immersiveAdm": true,
 				"masteringSequences": true
 			}
 		},
@@ -349,6 +350,7 @@
 				"videoRetime": false,
 				"videoTimingAssets": true,
 				"sourceCharacteristics": true,
+				"immersiveAdm": false,
 				"masteringSequences": false
 			}
 		}

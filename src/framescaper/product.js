@@ -39,6 +39,7 @@ export const FRAMESCAPER_PROFILE = {
 		videoTimingAssets: true,
 		sourceCharacteristics: true,
 		masteringSequences: false,
+		immersiveAdm: false,
 	},
 	desktop: {
 		appId: 'org.framescaper.desktop',

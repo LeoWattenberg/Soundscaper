@@ -15,7 +15,7 @@ const AVAILABLE = new Set<ProjectFeatureCapabilityKey>([
 	'audioAnalysis', 'audioMacros', 'audioSampleEditing', 'musicalTimeline',
 	'timelineAnnotations', 'trackFolders', 'takeComp', 'audioWarp', 'sequenceTiming',
 	'videoTimingAssets', 'sourceCharacteristics', 'audioAutomation', 'audioMixerGraph',
-	'audioTrackFreeze',
+	'audioTrackFreeze', 'immersiveAdm',
 ]);
 
 /** Selected exact-V21 Soundscaper capabilities after 4A native workflow activation. */

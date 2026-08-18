@@ -14,6 +14,7 @@ import {
 	parseAdmAxml,
 	validateAdmChnaConsistency,
 } from '../src/common/editor/adm-metadata.ts';
+import { inventoryDeliveryConversions } from '../src/common/editor/delivery-conversion-inventory.ts';
 import { resolveBw64Adm } from '../src/common/editor/export-bw64-adm.js';
 import {
 	authoredAdmChannelCount,
@@ -214,5 +215,32 @@ test('an authored delivery is as wide as its bed plus its objects', () => {
 	assert.throws(
 		() => resolveBw64Adm({ ...project, masterChannels: 2 }, {}),
 		/4-channel ADM bed does not match the 2-channel project master/u,
+	);
+});
+
+test('an immersive delivery says in its report what it carried', () => {
+	const source = { sampleRate: 48_000 };
+	const plan = (adm: unknown) => inventoryDeliveryConversions({
+		format: 'bw64', sampleRate: 48_000, adm: { metadata: adm },
+	}, source);
+
+	assert.deepEqual(plan(authored()).filter(({ code }) => code.startsWith('delivery.adm')), [],
+		'a stereo bed is the delivery that has always been available');
+
+	const immersive = plan(authored({ bed: { name: 'Bed', layout: '7.1.4', assignments: [] } }));
+	const bedItem = immersive.find(({ code }) => code === 'delivery.adm-immersive-bed');
+	assert.equal(bedItem?.disposition, 'preserved');
+	assert.deepEqual(bedItem?.data, { layout: '7.1.4' });
+	assert.match(String(bedItem?.message), /defined in the file itself/u);
+
+	const objectItem = plan(authored({ objects: [OBJECT] }))
+		.find(({ code }) => code === 'delivery.adm-objects');
+	assert.deepEqual(objectItem?.data, { objects: 1, layout: 'stereo' });
+
+	// Passthrough still reports byte preservation and nothing else, because
+	// nothing about it was authored here.
+	assert.deepEqual(
+		plan({ mode: 'passthrough' }).map(({ code }) => code),
+		['delivery.adm-passthrough'],
 	);
 });

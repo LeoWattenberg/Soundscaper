@@ -73,6 +73,7 @@ const EXPECTED = Object.freeze([
 	registration('audioTimelineEditing', 'org.soundscaper.capability.audio-timeline-editing', true),
 	registration('audioTrackFreeze', 'org.soundscaper.capability.audio-track-freeze', false),
 	registration('audioWarp', 'org.soundscaper.capability.audio-warp', false),
+	registration('immersiveAdm', 'org.soundscaper.capability.immersive-adm', false),
 	registration('masteringSequences', 'org.soundscaper.capability.mastering-sequences', false),
 	registration('multicamera', MULTICAMERA_ID, true),
 	registration('musicalTimeline', 'org.soundscaper.capability.musical-timeline', false),
@@ -114,7 +115,7 @@ test('owns two type declarations, two runtime exports, and one exact product exp
 	assert.doesNotMatch(source, /export\s+(?:type\s+)?\{/u);
 });
 
-test('the exact Framescaper singleton owns 36 sorted registrations with 17 available', () => {
+test('the exact Framescaper singleton owns 37 sorted registrations with 17 available', () => {
 	const token: EditorProjectFeatureCapabilityProfile =
 		FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE;
 	assert.equal(Object.isFrozen(token), true);
@@ -123,7 +124,7 @@ test('the exact Framescaper singleton owns 36 sorted registrations with 17 avail
 	const snapshot = editorProjectFeatureCapabilityProfileDefinition(token);
 	assert.equal(snapshot.owner, 'framescaper');
 	assert.deepEqual(snapshot.registrations, EXPECTED);
-	assert.equal(snapshot.registrations.length, 36);
+	assert.equal(snapshot.registrations.length, 37);
 	assert.equal(snapshot.registrations.filter((item: Registration) => item.available).length, 17);
 	assert.deepEqual(snapshot.registrations.find((item: Registration) => item.key === 'videoProxy'),
 		registration('videoProxy', VIDEO_PROXY_ID, false));
@@ -136,7 +137,7 @@ test('the immutable V18 profile predates V19 geometry while registering unavaila
 	const parity = EXPECTED.filter(({ key }) => key !== 'videoProxy');
 	const ids = PROJECT_FEATURE_CAPABILITY_IDS as Readonly<Record<string, string>>;
 	const availability = FRAMESCAPER_PROFILE.capabilities as Readonly<Record<string, unknown>>;
-	assert.equal(parity.length, 35);
+	assert.equal(parity.length, 36);
 	assert.deepEqual(
 		parity.map(({ key }) => key).sort(),
 		Object.keys(ids).filter((key) => key !== 'videoGeometry').sort(),

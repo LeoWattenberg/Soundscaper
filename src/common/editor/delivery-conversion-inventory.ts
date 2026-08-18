@@ -82,6 +82,8 @@ export function inventoryDeliveryConversions(
 		return Object.freeze(conversions);
 	}
 
+	for (const conversion of authoredAdmConversions(plan.adm)) conversions.push(conversion);
+
 	const outputRate = Number(plan.sampleRate);
 	if (Number.isFinite(outputRate) && outputRate !== Number(source.sampleRate)) {
 		conversions.push({
@@ -350,11 +352,53 @@ function formatDescriptor(format: unknown): {
 	};
 }
 
+/**
+ * What an authored ADM programme carried, said in the delivery's own vocabulary.
+ *
+ * A bed alone is the delivery that has always been available and reports
+ * nothing extra. An immersive layout or a positioned object is new semantics, so
+ * it is itemized: a reader that cannot resolve the file's own pack and channel
+ * definitions, or that ignores objects, gets a different programme than the one
+ * that was authored, and the report is where that is stated.
+ */
+function authoredAdmConversions(adm: unknown): readonly DeliveryConversion[] {
+	if (!isRecord(adm)) return [];
+	const metadata = isRecord(adm.metadata) ? adm.metadata : adm;
+	if (metadata.mode !== 'authored') return [];
+	const bed = isRecord(metadata.bed) ? metadata.bed : null;
+	const layout = typeof bed?.layout === 'string' ? bed.layout : null;
+	const objects = Array.isArray(metadata.objects) ? metadata.objects.length : 0;
+	const conversions: DeliveryConversion[] = [];
+	if (layout && !SHIPPED_ADM_BED_LAYOUTS.has(layout)) {
+		conversions.push({
+			code: 'delivery.adm-immersive-bed',
+			disposition: 'preserved',
+			severity: 'info',
+			data: { layout },
+			message: 'This bed layout is defined in the file itself rather than referenced from the common definitions, '
+				+ 'so a reader that resolves only common-definition identifiers will not recognise it.',
+		});
+	}
+	if (objects > 0) {
+		conversions.push({
+			code: 'delivery.adm-objects',
+			disposition: 'preserved',
+			severity: 'info',
+			data: { objects, layout },
+			message: 'Each object was delivered on its own channel with its authored position. '
+				+ 'A reader that renders only the bed will play the programme without them.',
+		});
+	}
+	return Object.freeze(conversions);
+}
+
 function admPassthroughMode(adm: unknown): string | null {
 	if (!isRecord(adm)) return null;
 	const metadata = isRecord(adm.metadata) ? adm.metadata : adm;
 	return metadata.mode === 'passthrough' ? 'passthrough' : null;
 }
+
+const SHIPPED_ADM_BED_LAYOUTS: ReadonlySet<string> = new Set(['mono', 'stereo', '5.1']);
 
 function cueCapableFormat(format: string): boolean {
 	try {
