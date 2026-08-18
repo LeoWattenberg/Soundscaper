@@ -165,6 +165,34 @@ export function statedVideoCanvas(
 }
 
 /**
+ * Runs one preset control's work, reporting what it refused.
+ *
+ * A preset refuses deliberately and says why — an unrecognized setting means a
+ * preset written against a build that understood something this one does not.
+ * The controls used to drop those rejections on the floor, which turned every
+ * designed refusal into a control that silently did nothing while the message
+ * the validator composed was never shown. Owning the policy here rather than
+ * inside the component is what lets it be tested without a browser.
+ */
+export async function runDeliveryPresetAction(
+	work: () => unknown,
+	handlers: Readonly<{
+		onError?: (cause: unknown) => void;
+		onBusy?: (busy: boolean) => void;
+	}> = {},
+): Promise<void> {
+	handlers.onBusy?.(true);
+	handlers.onError?.(null);
+	try {
+		await work();
+	} catch (cause) {
+		handlers.onError?.(cause);
+	} finally {
+		handlers.onBusy?.(false);
+	}
+}
+
+/**
  * Translating between the format a dialog names and the format a preset names.
  *
  * The dialog distinguishes its video formats from its audio ones by prefix, so

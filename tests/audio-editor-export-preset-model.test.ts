@@ -7,6 +7,7 @@ import {
 	dialogSettingsFromPreset,
 	presetFormatFromDialog,
 	presetSettingsFromDialog,
+	runDeliveryPresetAction,
 } from '../src/common/editor/ui/export-preset-model.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import {
@@ -225,6 +226,30 @@ test('a video preset saved from the dialog and applied back stays a video delive
 		['1920', '1080'],
 		'with the canvas it was saved with',
 	);
+});
+
+test('a preset control reports what it refused instead of doing nothing', async () => {
+	// The controls wrapped every action in a promise chain with no catch, so a
+	// refusal — an unknown setting, a duplicate name, an unreadable import —
+	// reached the operator as a control that did nothing, plus an unhandled
+	// rejection. The message the validator composed was never shown.
+	const reported: unknown[] = [];
+	const busy: boolean[] = [];
+	await runDeliveryPresetAction(
+		() => { throw new Error('Unknown audio delivery setting: loudnessNormalization'); },
+		{ onError: (cause) => reported.push(cause), onBusy: (value) => busy.push(value) },
+	);
+
+	assert.deepEqual(busy, [true, false], 'the control stops being busy either way');
+	assert.equal(reported.length, 2, 'the surface is cleared, then told what happened');
+	assert.equal(reported[0], null);
+	assert.match(String((reported[1] as Error).message), /Unknown audio delivery setting/u);
+});
+
+test('a preset control that succeeds leaves no error behind', async () => {
+	const reported: unknown[] = [];
+	await runDeliveryPresetAction(async () => 'saved', { onError: (cause) => reported.push(cause) });
+	assert.deepEqual(reported, [null], 'only the clear, never a message');
 });
 
 test('exporting a preset writes through the preset purpose with a safe name', async () => {

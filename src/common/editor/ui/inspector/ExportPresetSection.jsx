@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Button } from '@dilsonspickles/components';
 import { LabeledDropdown } from './inspector-controls.jsx';
+import { runDeliveryPresetAction } from '../export-preset-model.ts';
 
 /**
  * Delivery preset controls for the export dialog.
@@ -12,14 +13,13 @@ import { LabeledDropdown } from './inspector-controls.jsx';
  */
 export default function ExportPresetSection({
 	copy, presets, selectedId, presetName, disabled,
-	onApply, onNameChange, onSave, onDelete, onImport, onExport,
+	onApply, onNameChange, onSave, onDelete, onImport, onExport, onError,
 }) {
 	const fileRef = useRef(null);
 	const [busy, setBusy] = useState(false);
 	const guard = (work) => {
 		if (disabled || busy) return;
-		setBusy(true);
-		Promise.resolve().then(work).finally(() => setBusy(false));
+		void runDeliveryPresetAction(work, { onError, onBusy: setBusy });
 	};
 	const options = [
 		{ value: '', label: copy.deliveryPresetNone },

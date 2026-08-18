@@ -383,6 +383,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 					selectedId={presetId}
 					presetName={presetName}
 					disabled={exporting || blocked}
+					onError={(cause) => setError(
+						cause == null ? '' : (cause instanceof Error ? cause.message : String(cause)),
+					)}
 					{...presetActions}
 				/>
 				<Separator />
