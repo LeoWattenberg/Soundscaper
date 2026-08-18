@@ -102,13 +102,14 @@ export function admObjectFormatIds(index: number): Readonly<{
 	block: string;
 }> {
 	// Type 0003 is the Objects type definition; values from 0x1001 are the custom
-	// range, which is where a file's own definitions belong.
+	// range, which is where a file's own definitions belong. audioObject
+	// identifiers carry no type, and the bed already holds AO_1001, so objects
+	// start one past it.
 	const suffix = (0x1001 + index).toString(16).toUpperCase().padStart(4, '0');
-	const channel = `AC_0003${suffix}`;
 	return Object.freeze({
-		object: `AO_${suffix}`,
+		object: `AO_${(0x1002 + index).toString(16).toUpperCase().padStart(4, '0')}`,
 		pack: `AP_0003${suffix}`,
-		channel,
+		channel: `AC_0003${suffix}`,
 		block: `AB_0003${suffix}_00000001`,
 	});
 }

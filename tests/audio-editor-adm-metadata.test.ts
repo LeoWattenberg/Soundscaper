@@ -33,6 +33,7 @@ test('authored ADM beds normalize names, language, layout, and immutable default
 		contentLanguage: '',
 		bedName: 'Main Bed',
 		layout: 'stereo',
+		objects: [],
 		rawXml: '',
 	});
 	const normalized = normalizeAdmBedMetadata({

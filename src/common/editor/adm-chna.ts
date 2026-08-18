@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { admObjectFormatIds } from './adm-authored-objects.ts';
 import {
 	ADM_BED_LAYOUTS,
 	admBedChannelRefs,
@@ -49,18 +50,44 @@ export interface ChnaMetadataInput {
 	readonly entries: readonly ChnaEntry[];
 }
 
-export function createAdmChna(input: { readonly layout?: AdmBedLayout } = {}): ChnaMetadata {
+/**
+ * The CHNA for an authored delivery: the bed's channels, then one per object.
+ *
+ * `objectCount` defaults to zero, so a bed-only delivery writes the bytes it
+ * always wrote. The object identifiers come from the same allocator the AXML
+ * writer uses, because a CHNA naming a channel format the AXML does not define
+ * is a file no reader can resolve.
+ */
+export function createAdmChna(
+	input: { readonly layout?: AdmBedLayout; readonly objectCount?: number } = {},
+): ChnaMetadata {
 	const layout = input.layout ?? 'stereo';
 	if (!isAdmBedLayout(layout)) throw new RangeError(`Unsupported ADM bed layout: ${String(layout)}.`);
 	const definition = ADM_BED_DEFINITIONS[layout];
+	const objectCount = input.objectCount ?? 0;
+	if (!Number.isSafeInteger(objectCount) || objectCount < 0) {
+		throw new RangeError('An ADM object count must be a non-negative safe integer.');
+	}
+	const bedChannels = definition.channelRefs.length;
 	return normalizeChnaMetadata({
-		numTracks: definition.channelRefs.length,
-		entries: definition.channelRefs.map((trackRef, index) => ({
-			trackIndex: index + 1,
-			uid: admTrackUid(index),
-			trackRef,
-			packRef: definition.packRef,
-		})),
+		numTracks: bedChannels + objectCount,
+		entries: [
+			...definition.channelRefs.map((trackRef, index) => ({
+				trackIndex: index + 1,
+				uid: admTrackUid(index),
+				trackRef,
+				packRef: definition.packRef,
+			})),
+			...Array.from({ length: objectCount }, (_value, index) => {
+				const ids = admObjectFormatIds(index);
+				return {
+					trackIndex: bedChannels + index + 1,
+					uid: admTrackUid(bedChannels + index),
+					trackRef: ids.channel,
+					packRef: ids.pack,
+				};
+			}),
+		],
 	});
 }
 

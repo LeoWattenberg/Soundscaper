@@ -9,6 +9,13 @@ import {
 	normalizeAdmAuthoredObjects,
 } from '../src/common/editor/adm-authored-objects.ts';
 import {
+	createAdmChna,
+	generateAdmAxml,
+	parseAdmAxml,
+	validateAdmChnaConsistency,
+} from '../src/common/editor/adm-metadata.ts';
+import { resolveBw64Adm } from '../src/common/editor/export-bw64-adm.js';
+import {
 	authoredAdmChannelCount,
 	authoredAdmDeliveryChannels,
 	normalizeAdmProjectMetadata,
@@ -138,11 +145,74 @@ test('an object naming a strip that is not there is reported as the object it is
 
 test('object format identifiers stay inside the custom Objects namespace', () => {
 	assert.deepEqual(admObjectFormatIds(0), {
-		object: 'AO_1001', pack: 'AP_00031001', channel: 'AC_00031001', block: 'AB_00031001_00000001',
+		object: 'AO_1002', pack: 'AP_00031001', channel: 'AC_00031001', block: 'AB_00031001_00000001',
 	});
+	assert.notEqual(admObjectFormatIds(0).object, 'AO_1001', 'the bed already holds that identifier');
 	// Past the fifteenth object the counter has to carry, and a decimal spelling
 	// would collide with an identifier the sixteenth object already holds.
 	assert.equal(admObjectFormatIds(15).channel, 'AC_00031010');
 	const channels = new Set(Array.from({ length: 26 }, (_value, index) => admObjectFormatIds(index).channel));
 	assert.equal(channels.size, 26);
+});
+
+test('an object programme writes a file that resolves every reference it makes', () => {
+	const objects = [
+		{ ...OBJECT, position: { azimuth: 30, elevation: 15, distance: 0.8 } },
+		{ ...OBJECT, id: 'fx', name: 'Helicopter', position: { azimuth: -90, elevation: 30, distance: 1 } },
+	];
+	const xml = generateAdmAxml({ layout: 'stereo', bedName: 'Bed', objects });
+	const chna = createAdmChna({ layout: 'stereo', objectCount: objects.length });
+
+	// The cross-check refuses a custom reference the AXML does not define and a
+	// CHNA UID the AXML does not carry, so passing means the two agree.
+	validateAdmChnaConsistency(xml, chna, 4);
+	assert.equal(chna.numTracks, 4);
+	assert.deepEqual(chna.entries.map(({ trackRef }) => trackRef), [
+		'AC_00010001', 'AC_00010002', 'AC_00031001', 'AC_00031002',
+	]);
+
+	const document = parseAdmAxml(xml);
+	assert.deepEqual(document.objects.map(({ id, name }) => ({ id, name })), [
+		{ id: 'AO_1001', name: 'Bed' },
+		{ id: 'AO_1002', name: 'Narrator' },
+		{ id: 'AO_1003', name: 'Helicopter' },
+	]);
+	assert.deepEqual(document.contents[0]?.objectRefs, ['AO_1001', 'AO_1002', 'AO_1003']);
+	assert.equal(document.trackUids.length, 4);
+
+	assert.ok(xml.includes('<position coordinate="azimuth">30.0</position>'));
+	assert.ok(xml.includes('<position coordinate="distance">0.800</position>'));
+	assert.ok(!xml.includes('<gain>'), 'the render applies the authored gain, so the file must not repeat it');
+});
+
+test('a bed-only programme still writes exactly the bytes it always wrote', () => {
+	for (const layout of ['mono', 'stereo', '5.1'] as const) {
+		assert.equal(generateAdmAxml({ layout, objects: [] }), generateAdmAxml({ layout }));
+		assert.deepEqual(
+			createAdmChna({ layout, objectCount: 0 }).entries,
+			createAdmChna({ layout }).entries,
+		);
+	}
+});
+
+test('an authored delivery is as wide as its bed plus its objects', () => {
+	const project = {
+		masterChannels: 4,
+		sources: [{ id: 'stereo', channelCount: 2 }, { id: 'mono', channelCount: 1 }],
+		clips: [{ id: 'music-clip', sourceId: 'stereo' }, { id: 'voice-clip', sourceId: 'mono' }],
+		tracks: [
+			{ type: 'audio', id: 'music', clipIds: ['music-clip'] },
+			{ type: 'audio', id: 'narration', clipIds: ['voice-clip'] },
+		],
+		mixer: {},
+		metadata: { adm: authored({ objects: [OBJECT, { ...OBJECT, id: 'fx', name: 'FX' }] }) },
+	};
+	const resolved = resolveBw64Adm(project, {});
+	assert.equal(resolved.channelCount, 4);
+	assert.deepEqual(resolved.channelOrder, ['L', 'R', 'voice', 'fx']);
+
+	assert.throws(
+		() => resolveBw64Adm({ ...project, masterChannels: 2 }, {}),
+		/4-channel ADM bed does not match the 2-channel project master/u,
+	);
 });

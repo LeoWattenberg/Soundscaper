@@ -20,7 +20,13 @@ import {
 	type AdmAxmlDocument,
 } from './adm-axml-document.ts';
 import {
+	admObjectFormatIds,
+	normalizeAdmAuthoredObjects,
+	type AdmAuthoredObject,
+} from './adm-authored-objects.ts';
+import {
 	ADM_BED_LAYOUTS,
+	admBedChannelCount,
 	admBedDefinedSpeakers,
 	admTrackUid as uid,
 	admBedLayoutDefinition,
@@ -54,6 +60,8 @@ export interface AdmBedMetadata {
 	readonly contentLanguage: string;
 	readonly bedName: string;
 	readonly layout: AdmBedLayout;
+	/** Positioned objects delivered after the bed, one channel each. */
+	readonly objects: readonly AdmAuthoredObject[];
 	readonly rawXml: string;
 }
 
@@ -78,6 +86,7 @@ export function normalizeAdmBedMetadata(input: AdmBedMetadataInput = {}): AdmBed
 		contentLanguage,
 		bedName: normalizedName(input.bedName, 'Main Bed', 'ADM bed name'),
 		layout,
+		objects: normalizeAdmAuthoredObjects(input.objects, admBedChannelCount(layout)),
 		rawXml,
 	});
 }
@@ -98,6 +107,11 @@ export function generateAdmAxml(input: AdmBedMetadataInput = {}): string {
 		`          <audioPackFormatIDRef>${definition.packRef}</audioPackFormatIDRef>`,
 		'        </audioTrackUID>',
 	]);
+	const objects = metadata.objects.map((object, index) => ({
+		object,
+		ids: admObjectFormatIds(index),
+		uid: uid(definition.channelRefs.length + index),
+	}));
 	return [
 		'<?xml version="1.0" encoding="UTF-8"?>',
 		`<ebuCoreMain xmlns="${EBU_CORE_NAMESPACE}" xmlns:dc="http://purl.org/dc/elements/1.1/">`,
@@ -109,18 +123,59 @@ export function generateAdmAxml(input: AdmBedMetadataInput = {}): string {
 		'        </audioProgramme>',
 		`        <audioContent audioContentID="ACO_1001" audioContentName="${escapeAttribute(metadata.contentName)}"${contentLanguageAttribute}>`,
 		'          <audioObjectIDRef>AO_1001</audioObjectIDRef>',
+		...objects.map(({ ids }) => `          <audioObjectIDRef>${ids.object}</audioObjectIDRef>`),
 		'        </audioContent>',
 		`        <audioObject audioObjectID="AO_1001" audioObjectName="${escapeAttribute(metadata.bedName)}">`,
 		`          <audioPackFormatIDRef>${definition.packRef}</audioPackFormatIDRef>`,
 		...trackUidRefs,
 		'        </audioObject>',
+		...objects.flatMap(({ object, ids, uid: trackUid }) => [
+			`        <audioObject audioObjectID="${ids.object}" audioObjectName="${escapeAttribute(object.name)}">`,
+			`          <audioPackFormatIDRef>${ids.pack}</audioPackFormatIDRef>`,
+			`          <audioTrackUIDRef>${trackUid}</audioTrackUIDRef>`,
+			'        </audioObject>',
+		]),
 		...bedFormatDefinitions(metadata.layout),
+		...objects.flatMap(({ object, ids }) => objectFormatDefinition(object, ids)),
 		...trackUids,
+		...objects.flatMap(({ ids, uid: trackUid }) => [
+			`        <audioTrackUID UID="${trackUid}">`,
+			`          <audioChannelFormatIDRef>${ids.channel}</audioChannelFormatIDRef>`,
+			`          <audioPackFormatIDRef>${ids.pack}</audioPackFormatIDRef>`,
+			'        </audioTrackUID>',
+		]),
 		'      </audioFormatExtended>',
 		'    </format>',
 		'  </coreMetadata>',
 		'</ebuCoreMain>',
 	].join('\n');
+}
+
+/**
+ * One object's pack and channel definitions, and the position it is delivered at.
+ *
+ * The authored gain is absent on purpose. The render applies it to the samples,
+ * and a renderer that also found a gain here would apply it a second time.
+ */
+function objectFormatDefinition(
+	object: AdmAuthoredObject,
+	ids: ReturnType<typeof admObjectFormatIds>,
+): readonly string[] {
+	const name = escapeAttribute(object.name);
+	return [
+		`        <audioPackFormat audioPackFormatID="${ids.pack}" audioPackFormatName="${name}"`
+			+ ' typeDefinition="Objects" typeLabel="0003">',
+		`          <audioChannelFormatIDRef>${ids.channel}</audioChannelFormatIDRef>`,
+		'        </audioPackFormat>',
+		`        <audioChannelFormat audioChannelFormatID="${ids.channel}" audioChannelFormatName="${name}"`
+			+ ' typeDefinition="Objects" typeLabel="0003">',
+		`          <audioBlockFormat audioBlockFormatID="${ids.block}">`,
+		`            <position coordinate="azimuth">${object.position.azimuth.toFixed(1)}</position>`,
+		`            <position coordinate="elevation">${object.position.elevation.toFixed(1)}</position>`,
+		`            <position coordinate="distance">${object.position.distance.toFixed(3)}</position>`,
+		'          </audioBlockFormat>',
+		'        </audioChannelFormat>',
+	];
 }
 
 /**

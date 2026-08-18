@@ -18,8 +18,8 @@ import {
 	resolveExactAdmPassthroughTimelineSource,
 } from './adm-passthrough-project.ts';
 import {
-	admBedChannelCount,
 	admBedChannelOrder,
+	authoredAdmDeliveryChannelCount,
 	evaluateAdmPassthroughEligibility,
 	normalizeAdmProjectMetadata,
 	validateAdmAuthoredRouting,
@@ -43,7 +43,7 @@ export function resolveBw64Adm(project, options) {
 		throw new Error('BW64 / ADM export requires the preserve channel mapping and ADM channel order.');
 	}
 	const channelCount = metadata.mode === 'authored'
-		? admBedChannelCount(metadata.bed.layout)
+		? authoredAdmDeliveryChannelCount(metadata)
 		: metadata.geometry.channelCount;
 	const masterChannels = Number(options.inputChannelCount ?? project.masterChannels ?? AUDIO_EDITOR_MASTER_CHANNELS);
 	if ((metadata.mode === 'passthrough' || !transient) && masterChannels !== channelCount) {
@@ -64,7 +64,7 @@ export function resolveBw64Adm(project, options) {
 		return Object.freeze({
 			metadata,
 			channelCount,
-			channelOrder: admBedChannelOrder(metadata.bed.layout),
+			channelOrder: authoredAdmChannelOrder(metadata),
 		});
 	}
 	const channelOrder = validateAdmPassthroughPayload(metadata);
@@ -84,7 +84,10 @@ export function createBw64AdmExport(project, resolved, { range, outputFrames, en
 	let preDataChunks;
 	let trailingChunks;
 	if (metadata.mode === 'authored') {
-		preDataChunks = createRiffChnaChunk(createAdmChna({ layout: metadata.bed.layout }));
+		preDataChunks = createRiffChnaChunk(createAdmChna({
+			layout: metadata.bed.layout,
+			objectCount: metadata.objects?.length ?? 0,
+		}));
 		trailingChunks = createRiffAxmlChunk({
 			programmeName: metadata.programme.name,
 			contentName: metadata.content.name,
@@ -92,6 +95,7 @@ export function createBw64AdmExport(project, resolved, { range, outputFrames, en
 			contentLanguage: metadata.content.language,
 			bedName: metadata.bed.name,
 			layout: metadata.bed.layout,
+			objects: metadata.objects ?? [],
 		});
 	} else {
 		if (encoding.dither !== 'none') throw new Error('ADM passthrough export requires dither to be disabled.');
@@ -173,6 +177,18 @@ export function createBw64AdmExport(project, resolved, { range, outputFrames, en
 		preDataChunks,
 		trailingChunks,
 	});
+}
+
+/**
+ * The delivered channel names of an authored programme: bed channels, then one
+ * per object. Object channels are named by object ID, which is what the CHNA and
+ * the render both key on.
+ */
+function authoredAdmChannelOrder(metadata) {
+	return Object.freeze([
+		...admBedChannelOrder(metadata.bed.layout),
+		...(metadata.objects ?? []).map((object) => object.id),
+	]);
 }
 
 function compactRiffChunks(chunks) {
