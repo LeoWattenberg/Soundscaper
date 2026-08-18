@@ -11,7 +11,7 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-18: 6A-1a, 6A-1b and 6A-2 are complete. 6A-3 is next.**
+**Status on 2026-08-18: 6A-1a, 6A-1b, 6A-2 and 6A-3 are complete. 6A-4 is next.**
 
 - **The decision.** `src/common/editor/loudness-normalization.ts` computes one
   gain from a measurement and a target and returns it as inspectable data. The
@@ -290,6 +290,38 @@ kept as a second list. And `export.js` gave up its BW64/ADM construction to
 - **Stop condition:** stop if true-peak limiting would require lookahead
   processing that changes the render topology — a ceiling violation after
   gain reduction is a reported refusal, not a limiter.
+
+## 6A-3 status: complete
+
+`createDeliveryBatch` resolves every preset against every target — mixes,
+selections, loops, regions and mastering sequences — into exactly the export
+settings a single delivery of that member would have used, so a batch member and
+the same delivery run alone produce the same bytes by construction. Alternates
+are that cross product rather than a member type of their own.
+
+- **The queue.** `enqueueBatch` queues each member as an ordinary delivery, so
+  there is no batch job that could fail as a unit and leave half an artifact.
+  What each member produced is recorded the way settings already are — a file
+  name and its own sealed report, never bytes.
+- **The manifest.** One report itemizes every member including the ones that
+  never ran; a batch that published four of six and said nothing about the rest
+  would read as a delivery that succeeded. Member reports are carried by
+  reference so each conversion stays attributed to its own artifact, and
+  `retryBatchFailures` reads its list off that report.
+- **Recovery.** The web tier's queue is in-session, so its whole recovery story
+  is atomic restart: a member interrupted mid-flight published nothing, its
+  report entry says not-delivered, and recovery returns it whole rather than
+  labelling it with a failure it did not have.
+- **The surface.** File > Delivery queue: things to deliver crossed with formats
+  to deliver them in, plus the queue with pause, cancel, per-job retry and
+  retry-from-failure. This is also the queue's first surface — WP-6.0.1 landed
+  its semantics with none.
+
+**Two defects the batch path surfaced, each fixed with its test.** Cancelling a
+queued member aborted the export action unconditionally, killing whichever member
+happened to be rendering. And a drain that stopped because the queue was paused
+could still be settling when new work arrived, so pause → enqueue → resume left
+the queue sitting still with runnable jobs in it.
 
 ## 6A-3 — Batches, stems, alternates
 
