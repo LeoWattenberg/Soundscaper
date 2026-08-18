@@ -30,6 +30,9 @@ import {
 import { acquireVideoExportTimingIndexes } from './video-export-timing.ts';
 import { createVideoDeliveryReportForPlan } from '../delivery-video-conversion-inventory.ts';
 import { applyMediaChannelMapping } from '../media-export.js';
+import { serializeAudioEditorLabels } from '../label-io.js';
+import { saveLabelExport } from './app-helpers.ts';
+import { resolveVideoCaptionCues } from '../video-caption-cues.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
 
 export interface VideoExportServiceRuntime {
@@ -65,6 +68,61 @@ function stagedAudioChannelLayout(plan: RuntimeValue): string {
 		(input: RuntimeValue) => input.kind === 'staged-audio-mix',
 	);
 	return (audioInput?.channelLayout as string | undefined) ?? DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT;
+}
+
+/**
+ * Write the caption sidecar a plan asks for, after its video has been published.
+ *
+ * The order matters: a delivery that failed to publish its video must not leave
+ * a caption file next to nothing. This reuses the label exporter's own writer,
+ * so a caption sidecar and a label export land through the same path and the
+ * same browser fallback.
+ */
+async function deliverCaptionSidecar(
+	plan: RuntimeValue,
+	exportProject: RuntimeValue,
+	sampleRate: number,
+	videoFileName: string,
+	fileService: RuntimeValue,
+): Promise<void> {
+	const format = plan.captions?.sidecarFormat;
+	if (!format) return;
+	const cues = resolveVideoCaptionCues(exportProject, {
+		trackId: plan.captions.trackId,
+		startFrame: plan.range.startFrame,
+		endFrame: plan.range.endFrame,
+	});
+	const text = String(serializeAudioEditorLabels(cues, { format, sampleRate }));
+	await saveLabelExport({
+		format,
+		fileName: `${videoFileName.replace(/\.[^.]+$/u, '')}.${format}`,
+		mimeType: format === 'vtt' ? 'text/vtt' : 'application/x-subrip',
+		text,
+		labelCount: cues.length,
+		trackIds: Object.freeze([String(plan.captions.trackId)]),
+	} as never, null, fileService as never);
+}
+
+/**
+ * The cue document a plan asks to mux, or null for the deliveries that mux none.
+ *
+ * SubRip is what the plan stages regardless of any sidecar the caller chose,
+ * because both subtitle encoders read it losslessly for plain cues and one
+ * staged form keeps the muxed track independent of the sidecar decision.
+ */
+function stagedCaptionDocument(
+	plan: RuntimeValue,
+	exportProject: RuntimeValue,
+	sampleRate: number,
+): Blob | null {
+	if (!plan.captions?.mux) return null;
+	const cues = resolveVideoCaptionCues(exportProject, {
+		trackId: plan.captions.trackId,
+		startFrame: plan.range.startFrame,
+		endFrame: plan.range.endFrame,
+	});
+	const text = serializeAudioEditorLabels(cues, { format: 'srt', sampleRate });
+	return new Blob([text], { type: 'application/x-subrip' });
 }
 
 export function createEditorVideoExportAction(
@@ -148,6 +206,7 @@ export function createEditorVideoExportAction(
 				canvas: requestedSettings.canvas,
 				quality: requestedSettings.quality,
 				audioLayout: requestedSettings.audioLayout,
+				captions: requestedSettings.captions,
 			}) ?? null;
 			const productActiveSourceIds = productPlan
 				? captureProductVideoExportActiveSourceIds(productPlan)
@@ -181,6 +240,7 @@ export function createEditorVideoExportAction(
 						canvas: requestedSettings.canvas,
 						quality: requestedSettings.quality,
 						audioLayout: requestedSettings.audioLayout,
+						captions: requestedSettings.captions,
 					});
 				} finally {
 					timingIndexes.release();
@@ -264,6 +324,11 @@ export function createEditorVideoExportAction(
 				assertVideoExportCurrent();
 				audioMixBlob = new Blob([wav], { type: 'audio/wav' });
 			}
+			// The cue document is serialized from the label model the plan named and
+			// staged like any other input, so the muxer reads it in the same run
+			// that encodes the picture rather than reopening a finished file.
+			const captionDocument = stagedCaptionDocument(plan, exportProject, projectSampleRate());
+			assertVideoExportCurrent();
 			setStatus(copy.encoding);
 			progressTask.setPhase(copy.encoding, { start: 0.4, end: 1, value: 0 });
 			assertVideoExportCurrent();
@@ -287,6 +352,7 @@ export function createEditorVideoExportAction(
 							{
 								signal: abort.signal, assertCurrent: assertVideoExportCurrent,
 								maximumOutputBytes: browserMaximumOutputBytes,
+								...(captionDocument ? { captions: captionDocument } : {}),
 							},
 						);
 				} catch (error) {
@@ -306,6 +372,7 @@ export function createEditorVideoExportAction(
 					))
 					: await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
 						signal: abort.signal, maximumOutputBytes: browserMaximumOutputBytes,
+						...(captionDocument ? { captions: captionDocument } : {}),
 					});
 			}
 			assertVideoExportCurrent();
@@ -338,6 +405,7 @@ export function createEditorVideoExportAction(
 					method: published.method,
 				});
 				try { assertVideoExportCurrent(); } catch { return result; }
+				await deliverCaptionSidecar(plan, exportProject, projectSampleRate(), fileName, fileService);
 				state.exportOutput = result;
 				setStatus(copy.done, 'success');
 				publishDocumentSnapshot();
@@ -364,6 +432,7 @@ export function createEditorVideoExportAction(
 			state.outputCleanup = published.cleanup || null;
 			pendingCleanup = state.outputCleanup;
 			state.outputUrl = published.url || null;
+			await deliverCaptionSidecar(plan, exportProject, projectSampleRate(), fileName, fileService);
 			state.exportOutput = Object.freeze({
 				url: state.outputUrl,
 				fileName: published.fileName || fileName,

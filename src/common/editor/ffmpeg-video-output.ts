@@ -79,6 +79,8 @@ interface FfmpegVideoJobRuntime {
 interface FfmpegVideoJobInput extends FfmpegVideoJobRuntime {
 	readonly videoBlobsBySourceId: ReadonlyMap<string, Blob> | Readonly<Record<string, Blob>>;
 	readonly audioMix: Blob | null;
+	/** The serialized cue document, when this plan stages one to mux. */
+	readonly captions?: Blob | null;
 	readonly plan: VideoExportPlan;
 	readonly settings: FfmpegVideoSettings;
 }
@@ -109,6 +111,7 @@ export async function encodeFfmpegVideoBytes(
 		options.videoBlobsBySourceId,
 		options.audioMix,
 		options.plan,
+		options.captions ?? null,
 	);
 	const signal = options.settings.signal;
 	if (signal?.aborted) throw abortError();
@@ -117,6 +120,7 @@ export async function encodeFfmpegVideoBytes(
 		const job = createJob(staged);
 		let videoInputPaths = new Map<string, string>();
 		let audioInputPath: string | null = null;
+		let captionInputPath: string | null = null;
 		let mounted = false;
 		const onAbort = () => options.terminateRuntime();
 		signal?.addEventListener('abort', onAbort, { once: true });
@@ -130,10 +134,12 @@ export async function encodeFfmpegVideoBytes(
 				);
 				mounted = true;
 			}
-			({ videoInputPaths, audioInputPath } = stagedInputPaths(staged.inputs, job.mountPoint));
+			({ videoInputPaths, audioInputPath, captionInputPath } = stagedInputPaths(
+				staged.inputs, job.mountPoint,
+			));
 			const args = buildVideoFfmpegArgs(
 				options.plan,
-				{ videoInputPaths, audioInputPath },
+				{ videoInputPaths, audioInputPath, captionInputPath },
 				job.output,
 			);
 			const code = await instance.exec(args, -1, signalOptions(signal));
@@ -169,6 +175,7 @@ export async function encodeFfmpegVideoToSink<Output>(
 			options.videoBlobsBySourceId,
 			options.audioMix,
 			options.plan,
+			options.captions ?? null,
 		);
 		assertFfmpegOutputReady(options.settings);
 		const result = await options.run(async (instance) => {
@@ -190,11 +197,13 @@ export async function encodeFfmpegVideoToSink<Output>(
 					cleanupSteps.unshift(() => Promise.resolve(instance.unmount(job.mountPoint)));
 				}
 				assertFfmpegOutputReady(options.settings);
-				const { videoInputPaths, audioInputPath } = stagedInputPaths(staged.inputs, job.mountPoint);
+				const {
+					videoInputPaths, audioInputPath, captionInputPath,
+				} = stagedInputPaths(staged.inputs, job.mountPoint);
 				cleanupSteps.unshift(() => Promise.resolve(instance.deleteFile(job.output)));
 				const args = buildVideoFfmpegArgs(
 					options.plan,
-					{ videoInputPaths, audioInputPath },
+					{ videoInputPaths, audioInputPath, captionInputPath },
 					job.output,
 				);
 				const code = await instance.exec(args, -1, signalOptions(signal));
@@ -239,6 +248,7 @@ function prepareVideoBlobs(
 	videoBlobsBySourceId: ReadonlyMap<string, Blob> | Readonly<Record<string, Blob>>,
 	audioMix: Blob | null,
 	plan: VideoExportPlan,
+	captions: Blob | null = null,
 ): PreparedVideoBlobs {
 	if (!plan || typeof plan !== 'object' || !Array.isArray(plan.inputs)) {
 		throw new TypeError('Expected a video export plan.');
@@ -266,6 +276,11 @@ function prepareVideoBlobs(
 			blob = audioMix;
 			fileName = `audio-${String(input.inputIndex).padStart(3, '0')}.wav`;
 			stagedInputs.push({ inputIndex: input.inputIndex, kind: input.kind, fileName });
+		} else if (input?.kind === 'staged-captions') {
+			if (!(captions instanceof Blob)) throw new TypeError('Expected a staged caption document Blob.');
+			blob = captions;
+			fileName = `captions-${String(input.inputIndex).padStart(3, '0')}.srt`;
+			stagedInputs.push({ inputIndex: input.inputIndex, kind: input.kind, fileName });
 		} else {
 			throw new TypeError(`Unsupported video export input kind: ${input?.kind}.`);
 		}
@@ -289,15 +304,21 @@ function createJob(staged: PreparedVideoBlobs): Readonly<{ mountPoint: string; o
 function stagedInputPaths(
 	inputs: readonly StagedVideoInput[],
 	mountPoint: string,
-): Readonly<{ videoInputPaths: Map<string, string>; audioInputPath: string | null }> {
+): Readonly<{
+	videoInputPaths: Map<string, string>;
+	audioInputPath: string | null;
+	captionInputPath: string | null;
+}> {
 	const videoInputPaths = new Map<string, string>();
 	let audioInputPath: string | null = null;
+	let captionInputPath: string | null = null;
 	for (const input of inputs) {
 		const path = `${mountPoint}/${input.fileName}`;
 		if (input.kind === 'video-source') videoInputPaths.set(input.sourceId!, path);
+		else if (input.kind === 'staged-captions') captionInputPath = path;
 		else audioInputPath = path;
 	}
-	return Object.freeze({ videoInputPaths, audioInputPath });
+	return Object.freeze({ videoInputPaths, audioInputPath, captionInputPath });
 }
 
 function mappedBlob(

@@ -134,6 +134,28 @@ last.
   plan is the semantic authority — or if the canvas lift would require
   weakening the milestone-2 direct-transport invariants.
 
+**6B-2a landed on 2026-08-18, and the container matrix it asked for is short
+because both shipped containers carry captions.** Measured against the pinned
+`@ffmpeg/core` 0.12.10 rather than inferred: MP4 muxes as `mov_text` (3GPP timed
+text) and WebM as `webvtt`, both encoders are present in the build, and a
+caption-carrying command produced by this code round-trips through the demuxer
+with its cue text and timing intact. The reporting path for a container that
+cannot carry captions exists and is exercised by a plan-build refusal, but no
+shipped container reaches it.
+
+One measured characteristic is worth recording. A WebM delivery that also
+carries audio shifts its whole timeline by about 14 ms — the Opus encoder's
+priming, applied by the muxer — and the cues shift with it. Without audio the
+cues land exactly. At 30 fps that is 0.42 frames, inside the slice's
+`delivery.captionCueErrorFrames lte 1` budget, and it is a container property
+rather than anything the caption path does.
+
+The muxed document is always SubRip whatever sidecar the caller picked, because
+both subtitle encoders read it losslessly for plain cues and one staged form
+keeps the muxed track independent of the sidecar decision. Only `-sn` is dropped
+for a caption-carrying delivery; `-dn` stays, because a source's data streams
+have nothing to do with captions.
+
 ## 6B-2a — Caption selection and muxed captions
 
 - **Outcome:** caption-track selection as a 6B-1 plan option; muxed captions

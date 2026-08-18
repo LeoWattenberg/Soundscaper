@@ -16,16 +16,18 @@ import { VIDEO_EXPORT_FORMATS } from './video-export.js';
  * plan describes a canvas and a codec pair rather than a sample format, but it
  * speaks the same report vocabulary so one renderer shows either.
  *
- * The stream-stripping item matters most here. Every video export passes `-sn`
- * and `-dn`, so any subtitle or data stream a source carried is dropped. That
- * has always happened and has never been said out loud, which is precisely
- * what the delivery gate treats as a hidden omission.
+ * The stream-stripping item matters most here. Every video export passes `-dn`,
+ * and every export that carries no caption track of its own also passes `-sn`,
+ * so any subtitle or data stream a source carried is dropped. That has always
+ * happened and had never been said out loud, which is precisely what the
+ * delivery gate treats as a hidden omission.
  */
 
 interface VideoDeliveryPlan {
 	readonly format?: unknown;
 	readonly canvas?: unknown;
 	readonly codecs?: unknown;
+	readonly captions?: unknown;
 	readonly inputs?: unknown;
 }
 
@@ -87,13 +89,53 @@ export function inventoryVideoDeliveryConversions(
 		});
 	}
 
-	// `-sn`/`-dn` are unconditional in the encoder, so this is a standing omission
-	// rather than a conditional one; the flag only says whether anything was lost.
+	const captions = isRecord(plan.captions) ? plan.captions : null;
+	if (captions) {
+		if (captions.mux === true) {
+			conversions.push({
+				code: 'delivery.captions-muxed',
+				disposition: 'converted',
+				severity: 'info',
+				data: {
+					codec: String(captions.subtitleCodec ?? ''),
+					trackId: String(captions.trackId ?? ''),
+					cueCount: numberOrNull(captions.cueCount) ?? 0,
+				},
+			});
+		}
+		if (captions.sidecarFormat != null) {
+			conversions.push({
+				code: 'delivery.captions-sidecar',
+				disposition: 'converted',
+				severity: 'info',
+				data: {
+					format: String(captions.sidecarFormat),
+					trackId: String(captions.trackId ?? ''),
+					cueCount: numberOrNull(captions.cueCount) ?? 0,
+				},
+			});
+		}
+	} else if (descriptor) {
+		// A delivery that carries no captions is the norm rather than a fault, but
+		// the container could have carried them, so the report says so rather than
+		// leaving the reader to infer it from silence.
+		conversions.push({
+			code: 'delivery.captions-omitted',
+			disposition: 'omitted',
+			severity: 'info',
+			data: { containerCanCarry: Boolean(subtitleCodec(descriptor.id)) },
+		});
+	}
+
+	// The encoder always passes `-dn`, and passes `-sn` for every delivery that
+	// carries no caption track of its own, so the stripped set depends on that
+	// one decision and nothing else.
+	const strippedStreams = captions?.mux === true ? 'data' : 'subtitle, data';
 	conversions.push({
 		code: 'delivery.streams-stripped',
 		disposition: 'omitted',
 		severity: source.hasNonMediaStreams ? 'warning' : 'info',
-		data: { streams: 'subtitle, data', carriedBySource: Boolean(source.hasNonMediaStreams) },
+		data: { streams: strippedStreams, carriedBySource: Boolean(source.hasNonMediaStreams) },
 	});
 
 	return Object.freeze(conversions);
@@ -122,6 +164,12 @@ export function createVideoDeliveryReportForPlan(
 		});
 	}
 	return sealDeliveryReport(draft);
+}
+
+function subtitleCodec(format: string): string | null {
+	const descriptor = (VIDEO_EXPORT_FORMATS as Record<string, unknown>)[format];
+	if (!isRecord(descriptor)) return null;
+	return typeof descriptor.subtitleCodec === 'string' ? descriptor.subtitleCodec : null;
 }
 
 function formatDescriptor(format: unknown): {

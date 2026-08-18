@@ -68,6 +68,7 @@ export function normalizeVideoExportPlan(plan) {
 			: input));
 	const sourceInputIndexes = new Map();
 	let audioInput = null;
+	let captionInput = null;
 	for (const [expectedIndex, input] of inputs.entries()) {
 		if (input?.inputIndex !== expectedIndex) {
 			throw new RangeError('Video export plan input indexes must be contiguous and zero-based.');
@@ -81,6 +82,9 @@ export function normalizeVideoExportPlan(plan) {
 		} else if (input.kind === 'staged-audio-mix') {
 			if (audioInput) throw new RangeError('Video export plan may contain only one staged audio mix.');
 			audioInput = input;
+		} else if (input.kind === 'staged-captions') {
+			if (captionInput) throw new RangeError('Video export plan may contain only one staged caption document.');
+			captionInput = input;
 		} else {
 			throw new TypeError(`Unsupported video export input kind: ${input?.kind}.`);
 		}
@@ -107,11 +111,15 @@ export function normalizeVideoExportPlan(plan) {
 				),
 		};
 
+	const captions = normalizedPlanCaptions(plan, descriptor, captionInput);
+
 	return {
 		version: plan.version,
 		descriptor,
 		inputs,
 		audioInput,
+		captionInput,
+		captions,
 		...content,
 		width,
 		height,
@@ -121,6 +129,34 @@ export function normalizeVideoExportPlan(plan) {
 		quality,
 		backgroundColor: plan.canvas?.backgroundColor || '#000000',
 	};
+}
+
+/**
+ * What this plan asks the muxer to do about captions.
+ *
+ * A caption input and a caption decision have to agree — an input with no
+ * decision would be staged and never mapped, and a decision with no input would
+ * map a stream that is not there. Both are refused rather than reconciled,
+ * because either one means the plan was assembled by something that did not
+ * understand it.
+ */
+function normalizedPlanCaptions(plan, descriptor, captionInput) {
+	const captions = plan.captions ?? null;
+	if (captions === null) {
+		if (captionInput) throw new TypeError('Video export plan stages captions it never asks to carry.');
+		return null;
+	}
+	if (typeof captions !== 'object' || Array.isArray(captions)) {
+		throw new TypeError('plan.captions must be an object or null.');
+	}
+	const mux = captions.mux === true;
+	if (mux !== Boolean(captionInput)) {
+		throw new TypeError('Video export plan caption input and mux decision do not agree.');
+	}
+	if (mux && captions.subtitleCodec !== descriptor.subtitleCodec) {
+		throw new TypeError(`Video export plan caption codec must be ${String(descriptor.subtitleCodec)}.`);
+	}
+	return { mux, subtitleCodec: mux ? descriptor.subtitleCodec : null };
 }
 
 /**

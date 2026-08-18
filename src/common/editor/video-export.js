@@ -31,6 +31,11 @@ import { createFilterPlan } from './video-export-filter-plan.js';
 import { normalizeVideoDeliveryColor } from './video-delivery-color.ts';
 import { normalizeVideoDeliveryQuality } from './video-delivery-quality.ts';
 import { normalizeVideoDeliveryAudioLayout } from './video-delivery-audio-layout.ts';
+import {
+	isVideoCaptionSidecarFormat,
+	resolveVideoCaptionCues,
+	VIDEO_CAPTION_SIDECAR_FORMATS,
+} from './video-caption-cues.ts';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
@@ -48,6 +53,9 @@ export const VIDEO_EXPORT_FORMATS = deepFreeze({
 		videoEncoder: 'libx264',
 		audioCodec: 'aac',
 		audioEncoder: 'aac',
+		// 3GPP timed text is what an MP4 carries captions as; a container with no
+		// caption codec states null here and delivers a sidecar instead.
+		subtitleCodec: 'mov_text',
 		pixelFormat: 'yuv420p',
 		requiredEncoders: ['libx264', 'aac'],
 		requiredMuxers: ['mp4'],
@@ -62,6 +70,7 @@ export const VIDEO_EXPORT_FORMATS = deepFreeze({
 		videoEncoder: 'libvpx-vp9',
 		audioCodec: 'opus',
 		audioEncoder: 'libopus',
+		subtitleCodec: 'webvtt',
 		pixelFormat: 'yuv420p',
 		requiredEncoders: ['libvpx-vp9', 'libopus'],
 		requiredMuxers: ['webm'],
@@ -274,6 +283,18 @@ export function createVideoExportPlan(project, options = {}) {
 		}
 	}
 
+	// Captions are staged before the audio mix so the mix stays the final input,
+	// which is the ordering every reader of this plan already relies on.
+	const captions = resolveCaptionDelivery(runtimeProject, format, range, options.captions);
+	if (captions?.mux) {
+		inputs.push(Object.freeze({
+			kind: 'staged-captions',
+			inputIndex: inputs.length,
+			fileName: String(options.captionFileName || 'captions.srt'),
+			format: 'srt',
+		}));
+	}
+
 	const includeAudio = options.includeAudio !== false;
 	const audioInputIndex = includeAudio ? inputs.length : null;
 	const audioInput = includeAudio
@@ -347,6 +368,7 @@ export function createVideoExportPlan(project, options = {}) {
 		// tier, so the same plan can be replayed by an encoder that spells its
 		// effort differently.
 		quality: normalizeVideoDeliveryQuality(options.quality, 'quality'),
+		captions,
 		range,
 		durationSeconds,
 		outputFrameCount: Math.max(1, Math.ceil(durationSeconds * canvas.frameRate)),
@@ -357,6 +379,56 @@ export function createVideoExportPlan(project, options = {}) {
 	});
 }
 
+
+/**
+ * What this delivery does about captions, or null for the deliveries that do
+ * nothing — which is every delivery that shipped before this option existed.
+ *
+ * A container states whether it can carry a caption track. Where it cannot,
+ * asking to mux is refused rather than silently downgraded to a sidecar: the
+ * caller chose a container and a delivery, and quietly changing one of them is
+ * the hidden behaviour this milestone exists to remove. The report says so for
+ * the caller who did not choose.
+ *
+ * The muxed document is always SubRip. It is the interchange both subtitle
+ * encoders read losslessly for plain cues, so the muxed track does not vary
+ * with the sidecar the caller happened to pick.
+ */
+function resolveCaptionDelivery(runtimeProject, format, range, requested) {
+	if (requested == null) return null;
+	if (typeof requested !== 'object' || Array.isArray(requested)) {
+		throw new TypeError('captions must be an object stating a track and a delivery.');
+	}
+	for (const key of Object.keys(requested)) {
+		if (!['trackId', 'mux', 'sidecar'].includes(key)) {
+			throw new RangeError(`Unsupported captions option: ${key}.`);
+		}
+	}
+	const mux = requested.mux ?? true;
+	if (typeof mux !== 'boolean') throw new TypeError('captions.mux must be boolean.');
+	const sidecar = requested.sidecar ?? null;
+	if (sidecar !== null && !isVideoCaptionSidecarFormat(sidecar)) {
+		throw new RangeError(`captions.sidecar must be null or one of ${VIDEO_CAPTION_SIDECAR_FORMATS.join(', ')}.`);
+	}
+	if (!mux && sidecar === null) {
+		throw new RangeError('captions must be muxed, delivered as a sidecar, or both.');
+	}
+	if (mux && !format.subtitleCodec) {
+		throw new RangeError(`The ${format.id} container cannot carry a caption track; deliver a sidecar instead.`);
+	}
+	const cues = resolveVideoCaptionCues(runtimeProject, {
+		trackId: requested.trackId,
+		startFrame: range.startFrame,
+		endFrame: range.endFrame,
+	});
+	return Object.freeze({
+		trackId: requested.trackId,
+		cueCount: cues.length,
+		mux,
+		subtitleCodec: mux ? format.subtitleCodec : null,
+		sidecarFormat: sidecar,
+	});
+}
 
 /** Resolve the canonical sample-frame range shared by legacy and exact video export. */
 export function resolveVideoExportRange(project, requested = 'project') {

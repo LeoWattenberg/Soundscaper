@@ -96,6 +96,28 @@ export function statedVideoQuality(
 }
 
 /**
+ * The caption delivery a video dialog is asking for, or nothing at all.
+ *
+ * A delivery needs a track to caption from, so an unnamed track means no
+ * captions rather than an empty caption track. The single control spells the
+ * mux and sidecar decision together because they are one choice to a reader —
+ * where do the captions go — even though the plan states them separately.
+ *
+ * Deliberately not preset-worthy: a track ID names one project's track, and a
+ * preset that carried one would silently caption from nothing in the next.
+ */
+export function statedVideoCaptions(
+	settings: Readonly<Record<string, unknown>> | undefined,
+): Readonly<Record<string, unknown>> | null {
+	const trackId = settings?.captionTrackId;
+	if (typeof trackId !== 'string' || !trackId) return null;
+	const delivery = String(settings?.captionDelivery ?? 'mux');
+	const mux = delivery === 'mux' || delivery.startsWith('mux+');
+	const sidecar = delivery.startsWith('mux+') ? delivery.slice(4) : (mux ? null : delivery);
+	return Object.freeze({ trackId, mux, sidecar: sidecar || null });
+}
+
+/**
  * The audio layout a video dialog is asking for, or nothing.
  *
  * `preserve` delivers the project's own channels, which is what every video

@@ -107,11 +107,13 @@ function canonicalVideoInputs(
 	const inputs = plan.inputs as readonly unknown[];
 	const codecs = plan.codecs as Readonly<Record<string, unknown>>;
 	let audioInputs = 0;
+	let captionInputs = 0;
 	let videoInputs = 0;
 	const videoSourceIds = new Set<string>();
 	for (const [index, input] of inputs.entries()) {
 		if (!isRecord(input) || input.inputIndex !== index) return false;
-		if (input.kind === 'staged-audio-mix') audioInputs += 1;
+		if (input.kind === 'staged-captions') captionInputs += 1;
+		else if (input.kind === 'staged-audio-mix') audioInputs += 1;
 		else if (input.kind === 'video-source') {
 			if (typeof input.sourceId !== 'string' || !input.sourceId
 				|| input.sourceId.includes('\0') || videoSourceIds.has(input.sourceId)) return false;
@@ -120,7 +122,7 @@ function canonicalVideoInputs(
 		} else return false;
 	}
 	const finalInput = inputs.at(-1);
-	if (videoInputs === 0 || audioInputs > 1
+	if (videoInputs === 0 || audioInputs > 1 || captionInputs > 1
 		|| (audioInputs === 1 && (!isRecord(finalInput) || finalInput.kind !== 'staged-audio-mix'))) return false;
 	const filterPlan = isRecord(plan.filterPlan) ? plan.filterPlan : null;
 	const filterAudio = filterPlan && isRecord(filterPlan.audio) ? filterPlan.audio : null;

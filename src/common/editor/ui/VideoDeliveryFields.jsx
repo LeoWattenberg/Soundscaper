@@ -30,6 +30,16 @@ const AUDIO_LAYOUT_LABEL_KEYS = Object.freeze({
 	stereo: 'stereo',
 });
 
+// Muxing and a sidecar are two plan fields but one question to a reader, so the
+// dialog asks it once: where do the captions go.
+const CAPTION_DELIVERIES = Object.freeze([
+	{ value: 'mux', labelKey: 'videoCaptionDeliveryMux' },
+	{ value: 'srt', labelKey: 'videoCaptionDeliverySrt' },
+	{ value: 'vtt', labelKey: 'videoCaptionDeliveryVtt' },
+	{ value: 'mux+srt', labelKey: 'videoCaptionDeliveryMuxSrt' },
+	{ value: 'mux+vtt', labelKey: 'videoCaptionDeliveryMuxVtt' },
+]);
+
 /**
  * The delivery itself, as the export dialog asks for it: canvas and quality.
  *
@@ -47,7 +57,7 @@ const AUDIO_LAYOUT_LABEL_KEYS = Object.freeze({
  * delivery cannot state a custom matrix, because the per-channel editor that
  * makes one legible belongs to the audio dialog.
  */
-export default function VideoDeliveryFields({ copy, disabled, settings, onChange }) {
+export default function VideoDeliveryFields({ copy, disabled, labelTracks = [], settings, onChange }) {
 	return (
 		<>
 			<label className="audio-editor-field" data-export-field="canvasSize">
@@ -138,6 +148,27 @@ export default function VideoDeliveryFields({ copy, disabled, settings, onChange
 					label: copy[AUDIO_LAYOUT_LABEL_KEYS[layout]],
 				}))}
 			/>
+			<LabeledDropdown
+				label={copy.videoCaptionTrack}
+				hook="captionTrack"
+				value={settings.captionTrackId}
+				onChange={(value) => onChange('captionTrackId', value)}
+				disabled={disabled || labelTracks.length === 0}
+				options={[
+					{ value: '', label: copy.videoCaptionNone },
+					...labelTracks.map((track) => ({ value: track.id, label: track.name || track.id })),
+				]}
+			/>
+			{settings.captionTrackId && (
+				<LabeledDropdown
+					label={copy.videoCaptionDelivery}
+					hook="captionDelivery"
+					value={settings.captionDelivery}
+					onChange={(value) => onChange('captionDelivery', value)}
+					disabled={disabled}
+					options={CAPTION_DELIVERIES.map(({ value, labelKey }) => ({ value, label: copy[labelKey] }))}
+				/>
+			)}
 			<p className="audio-editor-panel-hint">{copy.videoCanvasHint}</p>
 		</>
 	);

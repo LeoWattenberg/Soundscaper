@@ -42,6 +42,8 @@ export interface ProductVideoExportStrategyPlanRequest {
 	readonly quality?: unknown;
 	/** Optional: a request that states no layout delivers the project's channels. */
 	readonly audioLayout?: unknown;
+	/** Optional: a request that states no captions delivers none, as every export did. */
+	readonly captions?: unknown;
 }
 
 export interface ProductVideoExportStrategyEncodeRequest {

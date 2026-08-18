@@ -20,6 +20,7 @@ import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from './video-export-plan-version
 import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
 import { isVideoDeliveryQuality, type VideoDeliveryQuality } from './video-delivery-quality.ts';
 import { isVideoDeliveryAudioLayout } from './video-delivery-audio-layout.ts';
+import { isVideoCaptionSidecarFormat } from './video-caption-cues.ts';
 
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INPUTS = 4_096;
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INTERVALS = 100_000;
@@ -82,6 +83,7 @@ export interface NativeMediaGraphPlan extends Readonly<Record<string, unknown>> 
 	readonly mimeType: 'video/mp4' | 'video/webm';
 	readonly codecs: NativeMediaGraphPlanCodecs;
 	readonly quality: VideoDeliveryQuality;
+	readonly captions: Readonly<Record<string, unknown>> | null;
 	readonly range: NativeMediaGraphPlanRange;
 	readonly durationSeconds: number;
 	readonly outputFrameCount: number;
@@ -92,9 +94,13 @@ export interface NativeMediaGraphPlan extends Readonly<Record<string, unknown>> 
 }
 
 const PLAN_KEYS = Object.freeze([
-	'version', 'format', 'container', 'extension', 'mimeType', 'codecs', 'quality', 'range',
+	'version', 'format', 'container', 'extension', 'mimeType', 'codecs', 'quality', 'captions', 'range',
 	'durationSeconds', 'outputFrameCount', 'canvas', 'inputs', 'intervals', 'filterPlan',
 ]);
+const CAPTIONS_KEYS = Object.freeze([
+	'trackId', 'cueCount', 'mux', 'subtitleCodec', 'sidecarFormat',
+]);
+const CAPTION_INPUT_KEYS = Object.freeze(['kind', 'inputIndex', 'fileName', 'format']);
 const CODEC_KEYS = Object.freeze(['video', 'videoEncoder', 'audio', 'audioEncoder', 'pixelFormat']);
 const RANGE_KEYS = Object.freeze(['startFrame', 'endFrame', 'durationFrames']);
 const CANVAS_KEYS = Object.freeze([
@@ -150,6 +156,7 @@ export function assertNativeMediaGraphPlan(value: unknown): asserts value is Nat
 	if (!isVideoDeliveryQuality(plan.quality)) {
 		nativeMediaPlanViolation('malformed', 'Video export graph plan states an unsupported delivery quality.');
 	}
+	assertCaptions(plan.captions);
 	const range = assertRange(plan.range);
 	if (range.durationFrames <= 0) {
 		nativeMediaPlanViolation('malformed', 'Video export graph plan must cover at least one sample frame.');
@@ -197,6 +204,35 @@ function assertCodecs(value: unknown): void {
 	}
 }
 
+/**
+ * The caption decision, which most plans do not make at all.
+ *
+ * Null is not merely allowed here, it is the shape every plan carried before
+ * captions existed, so it is admitted without further reading. A stated
+ * decision has to be complete: a mux with no codec, or a delivery that is
+ * neither muxed nor a sidecar, describes a caption track nothing would produce.
+ */
+function assertCaptions(value: unknown): void {
+	if (value === null) return;
+	const captions = record(value, 'video export graph plan captions');
+	exactKeys(captions, CAPTIONS_KEYS, 'video export graph plan captions');
+	nonEmptyText(captions.trackId, 'captions.trackId');
+	nonNegativeInteger(captions.cueCount, 'captions.cueCount');
+	if (typeof captions.mux !== 'boolean') {
+		nativeMediaPlanViolation('malformed', 'Video export graph plan captions.mux must be boolean.');
+	}
+	if (captions.mux) nonEmptyText(captions.subtitleCodec, 'captions.subtitleCodec');
+	else if (captions.subtitleCodec !== null) {
+		nativeMediaPlanViolation('malformed', 'Video export graph plan states a caption codec it does not mux.');
+	}
+	if (captions.sidecarFormat !== null && !isVideoCaptionSidecarFormat(captions.sidecarFormat)) {
+		nativeMediaPlanViolation('malformed', 'Video export graph plan states an unsupported caption sidecar format.');
+	}
+	if (!captions.mux && captions.sidecarFormat === null) {
+		nativeMediaPlanViolation('malformed', 'Video export graph plan states captions it delivers nowhere.');
+	}
+}
+
 function assertRange(value: unknown): NativeMediaGraphPlanRange {
 	const range = record(value, 'video export graph plan range');
 	exactKeys(range, RANGE_KEYS, 'video export graph plan range');
@@ -240,6 +276,7 @@ function assertInputs(value: unknown, range: NativeMediaGraphPlanRange): void {
 	}
 	const sourceIds = new Set<string>();
 	let audioInputs = 0;
+	let captionInputs = 0;
 	for (const [index, entry] of inputs.entries()) {
 		const input = record(entry, 'video export graph plan input');
 		const kind = input.kind;
@@ -265,6 +302,13 @@ function assertInputs(value: unknown, range: NativeMediaGraphPlanRange): void {
 				nativeMediaPlanViolation('malformed', 'Video export graph plan staged audio states an unsupported channel layout.');
 			}
 			audioInputs += 1;
+		} else if (kind === 'staged-captions') {
+			exactKeys(input, CAPTION_INPUT_KEYS, 'video export graph plan caption input');
+			nonEmptyText(input.fileName, 'input.fileName');
+			if (input.format !== 'srt') {
+				nativeMediaPlanViolation('malformed', 'Video export graph plan stages captions in an unsupported document format.');
+			}
+			captionInputs += 1;
 		} else {
 			nativeMediaPlanViolation('malformed', 'Video export graph plan carries an unknown input kind.');
 		}
@@ -274,6 +318,9 @@ function assertInputs(value: unknown, range: NativeMediaGraphPlanRange): void {
 	}
 	if (audioInputs > 1) {
 		nativeMediaPlanViolation('malformed', 'Video export graph plan declares more than one staged audio mix.');
+	}
+	if (captionInputs > 1) {
+		nativeMediaPlanViolation('malformed', 'Video export graph plan declares more than one staged caption document.');
 	}
 }
 

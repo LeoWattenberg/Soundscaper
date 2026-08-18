@@ -71,6 +71,8 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		canvasBackgroundColor: '',
 		videoQuality: 'balanced',
 		videoAudioLayout: 'preserve',
+		captionTrackId: '',
+		captionDelivery: 'mux',
 	});
 	const [error, setError] = useState('');
 	const [presetId, setPresetId] = useState('');
@@ -113,6 +115,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	const blocked = !snapshot.ready || snapshot.importing || snapshot.recording || snapshot.processingEffect || snapshot.missingSourceIds?.length > 0 || !snapshot.project?.clips?.length;
 	const hasTimelineVideo = projectHasTimelineVideo(snapshot.project);
 	const videoFormat = isVideoExportDialogFormat(settings.format);
+	// Only label tracks can caption a delivery: milestone 4's styled caption
+	// schema does not exist yet, so labels are what there is to caption from.
+	const labelTracks = (snapshot.project?.tracks || []).filter((track) => track?.type === 'label');
 	const admRequired = settings.format === 'bw64' && settings.adm == null;
 	const admPassthrough = settings.format === 'bw64' && settings.adm?.mode === 'passthrough';
 	// Only an authored programme carries the positions a binaural render places
@@ -428,6 +433,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 						<VideoDeliveryFields
 							copy={copy}
 							disabled={exporting}
+							labelTracks={labelTracks}
 							settings={settings}
 							onChange={set}
 						/>

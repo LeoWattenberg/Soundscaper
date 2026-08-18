@@ -29,6 +29,7 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 	const videoInputPaths = stagedInputs?.videoInputPaths;
 	const audioInputPath = stagedInputs?.audioInputPath;
 
+	const captionInputPath = stagedInputs?.captionInputPath;
 	for (const input of normalized.inputs) {
 		let path;
 		if (input.kind === 'video-source') {
@@ -39,6 +40,9 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 			// a build default: every presentation is the residual left after FFmpeg
 			// has applied the container display matrix itself.
 			if (normalized.version >= 5) inputArgs.push('-autorotate', '1');
+		} else if (input.kind === 'staged-captions') {
+			if (captionInputPath == null) throw new ReferenceError('Missing staged caption document input.');
+			path = nonEmptyString(captionInputPath, 'caption input');
 		} else {
 			if (audioInputPath == null) throw new ReferenceError('Missing staged audio mix input.');
 			path = nonEmptyString(audioInputPath, 'audio input');
@@ -59,10 +63,17 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 		'-map', '[video_out]',
 	];
 	if (normalized.audioInput) args.push('-map', '[audio_out]');
+	// A caption-carrying delivery maps the staged document's only subtitle
+	// stream. `-dn` stays either way: it drops the sources' data streams, which
+	// captions have nothing to do with.
+	if (normalized.captionInput) args.push('-map', `${normalized.captionInput.inputIndex}:s:0`);
 	args.push(
 		'-map_metadata', '-1',
 		'-map_chapters', '-1',
-		'-sn',
+		// `-sn` would discard the very stream a caption delivery just mapped, so
+		// it is emitted for every plan that carries none — which is every plan
+		// that shipped before captions were an option.
+		...(normalized.captionInput ? [] : ['-sn']),
 		'-dn',
 		'-c:v', descriptor.videoEncoder,
 	);
@@ -91,6 +102,7 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 	} else {
 		args.push('-an');
 	}
+	if (normalized.captions?.mux) args.push('-c:s', normalized.captions.subtitleCodec);
 	if (descriptor.id === 'mp4') args.push('-movflags', '+faststart');
 	args.push(
 		'-t', ffmpegNumber(normalized.durationSeconds, 'plan.durationSeconds'),

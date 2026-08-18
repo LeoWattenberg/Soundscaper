@@ -492,7 +492,7 @@ export function createEditorFfmpeg(options = {}) {
 
 	async function encodeVideo(videoBlobsBySourceId, audioMix, plan, settings = {}) {
 		return encodeFfmpegVideoBytes({
-			videoBlobsBySourceId, audioMix, plan, settings,
+			videoBlobsBySourceId, audioMix, captions: settings.captions ?? null, plan, settings,
 			run,
 			workerFsType: () => module.FFFSType.WORKERFS,
 			terminateRuntime,
@@ -503,7 +503,7 @@ export function createEditorFfmpeg(options = {}) {
 
 	async function encodeVideoToSink(videoBlobsBySourceId, audioMix, plan, sink, settings = {}) {
 		return encodeFfmpegVideoToSink({
-			videoBlobsBySourceId, audioMix, plan, sink, settings,
+			videoBlobsBySourceId, audioMix, captions: settings.captions ?? null, plan, sink, settings,
 			run,
 			workerFsType: () => module.FFFSType.WORKERFS,
 			terminateRuntime,

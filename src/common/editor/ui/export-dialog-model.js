@@ -1,6 +1,7 @@
 import {
 	statedVideoAudioLayout,
 	statedVideoCanvas,
+	statedVideoCaptions,
 	statedVideoQuality,
 } from './export-preset-model.ts';
 
@@ -40,6 +41,7 @@ export function createExportDialogRequest(settings, options = {}) {
 		const canvas = statedVideoCanvas(settings);
 		const quality = statedVideoQuality(settings);
 		const audioLayout = statedVideoAudioLayout(settings);
+		const captions = statedVideoCaptions(settings);
 		return {
 			mode: 'mix',
 			range: settings.range,
@@ -50,6 +52,7 @@ export function createExportDialogRequest(settings, options = {}) {
 			...(Object.keys(canvas).length > 0 ? { canvas } : {}),
 			...(quality ? { quality } : {}),
 			...(audioLayout ? { audioLayout } : {}),
+			...(captions ? { captions } : {}),
 		};
 	}
 	return {
