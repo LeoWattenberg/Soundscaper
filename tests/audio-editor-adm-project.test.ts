@@ -10,6 +10,7 @@ import {
 	validateAdmProjectMetadata,
 } from '../src/common/editor/adm-project-metadata.ts';
 import { applyEditorCommand } from '../src/common/editor/commands.js';
+import { resolveTerminalChannelWidths } from '../src/common/editor/terminal-channel-widths.ts';
 import { validateAudioEditorProject } from '../src/common/editor/project.js';
 import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
 import {
@@ -135,6 +136,62 @@ test('authored ADM routing reports missing, non-terminal, and out-of-range assig
 		},
 	});
 	assert.ok(validateAdmAuthoredRouting(outOfRange, project).some((issue) => issue.code === 'source-channel-out-of-range'));
+});
+
+test('a production mixer graph decides its own ADM terminals and bus widths', () => {
+	// The terminal rule used to read `mixer.routes`, a map the production mixer
+	// graph does not have. Every audio track therefore counted as terminal even
+	// when an edge routed it into a bus, and every bus width fell back to two —
+	// so authoring an ADM bed on the schema the product mounts demanded
+	// assignments for strips that never reach the master and rejected legitimate
+	// source channels on a six-wide group.
+	const project = {
+		schemaVersion: 21,
+		masterChannels: 6,
+		sources: [{ id: 'source', channelCount: 6 }],
+		clips: [{ id: 'clip', sourceId: 'source' }],
+		tracks: [{ type: 'audio', id: 'dialogue', name: 'Dialogue', clipIds: ['clip'] }],
+		mixer: {
+			schemaVersion: 1,
+			groups: [{ id: 'music', name: 'Music', channelCount: 6 }],
+			sends: [], cues: [], vcas: [],
+			outputs: [{ id: 'main', name: 'Main', role: 'main', channelCount: 6 }],
+			edges: [
+				{
+					id: 'assignment:track:dialogue:music', kind: 'assignment',
+					source: { kind: 'track', id: 'dialogue' },
+					destination: { kind: 'mixer-node', id: 'music' },
+					position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1, 2, 3, 4, 5],
+				},
+				{
+					id: 'assignment:mixer-node:music:master', kind: 'assignment',
+					source: { kind: 'mixer-node', id: 'music' }, destination: { kind: 'master' },
+					position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1, 2, 3, 4, 5],
+				},
+			],
+		},
+	};
+	const metadata = normalizeAdmProjectMetadata({
+		mode: 'authored',
+		programme: { name: 'Main programme', language: 'eng' },
+		content: { name: 'Main content', language: 'eng' },
+		bed: {
+			name: '5.1 bed',
+			layout: '5.1',
+			assignments: ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'].map((bedChannel, sourceChannel) => ({
+				stripKind: 'group', stripId: 'music', sourceChannel, bedChannel,
+			})),
+		},
+	});
+
+	assert.deepEqual(
+		validateAdmAuthoredRouting(metadata, project as never),
+		[],
+		'the bus that feeds the master is the only terminal, and it is six wide',
+	);
+
+	const widths = resolveTerminalChannelWidths(project as never);
+	assert.equal(widths.groups.get('music'), 6, 'a declared bus width beats an inferred one');
 });
 
 test('authored ADM routing validates terminal bus channels against routed source width', () => {

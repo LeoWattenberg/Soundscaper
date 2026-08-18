@@ -18,6 +18,7 @@ interface TerminalWidthTrack {
 
 interface TerminalWidthBus {
 	readonly id?: unknown;
+	readonly channelCount?: unknown;
 }
 
 interface TerminalWidthRoute {
@@ -92,11 +93,19 @@ export function resolveTerminalChannelWidths(
 	return Object.freeze({ tracks, groups, sends });
 }
 
+/**
+ * Bus widths, starting from whatever the bus declares about itself.
+ *
+ * A production mixer bus states its own channel count; the older graph inferred
+ * one from the tracks routed into it. A declared width is the better answer and
+ * the only one available on a graph whose routing lives in edges rather than in
+ * a route map, so it wins and the inference fills the rest.
+ */
 function initializeBusWidths(buses: readonly TerminalWidthBus[] | undefined): Map<string, number> {
 	const widths = new Map<string, number>();
 	for (const bus of buses ?? []) {
 		const id = normalizedId(bus.id);
-		if (id !== null) widths.set(id, 0);
+		if (id !== null) widths.set(id, supportedChannelCount(bus.channelCount));
 	}
 	return widths;
 }

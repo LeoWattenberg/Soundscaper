@@ -138,6 +138,7 @@ interface RoutingProject {
 		groups?: readonly Readonly<Record<string, unknown>>[];
 		sends?: readonly Readonly<Record<string, unknown>>[];
 		routes?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+		edges?: readonly unknown[];
 	}>;
 }
 
@@ -411,20 +412,46 @@ function normalizeNamedElement(value: Record<string, unknown>, name: string): Re
 function collectTerminalStrips(project: RoutingProject): Map<string, { kind: AdmTerminalStripKind; id: string; channelCount: number }> {
 	const terminals = new Map<string, { kind: AdmTerminalStripKind; id: string; channelCount: number }>();
 	const widths = resolveTerminalChannelWidths(project as TerminalWidthProject);
+	const masterFed = masterFedStrips(project);
 	for (const track of project.tracks ?? []) {
 		if (track.type !== 'audio' || typeof track.id !== 'string') continue;
-		const route = project.mixer?.routes?.[track.id];
-		if (route?.groupId != null) continue;
+		if (masterFed ? !masterFed.has(track.id) : project.mixer?.routes?.[track.id]?.groupId != null) continue;
 		const channelCount = widths.tracks.get(track.id) ?? 2;
 		terminals.set(stripKey('track', track.id), { kind: 'track', id: track.id, channelCount });
 	}
 	for (const [kind, buses] of [['group', project.mixer?.groups], ['send', project.mixer?.sends]] as const) {
 		for (const bus of buses ?? []) if (typeof bus.id === 'string') {
+			if (masterFed && !masterFed.has(bus.id)) continue;
 			const channelCount = (kind === 'group' ? widths.groups : widths.sends).get(bus.id) ?? 2;
 			terminals.set(stripKey(kind, bus.id), { kind, id: bus.id, channelCount });
 		}
 	}
 	return terminals;
+}
+
+/**
+ * The strip identifiers that reach the master, on a graph that says so in edges.
+ *
+ * Returns null for the older shape, whose terminality is read from its route map
+ * instead. On a production graph a track routed into a bus is not a terminal and
+ * must not be asked for a bed assignment, and a bus that feeds another bus is not
+ * one either — which is exactly the set the renderer routes through the bed, so
+ * the validator and the render agree by construction rather than by coincidence.
+ */
+function masterFedStrips(project: RoutingProject): ReadonlySet<string> | null {
+	const edges = project.mixer?.edges;
+	if (!Array.isArray(edges)) return null;
+	const fed = new Set<string>();
+	for (const edge of edges) {
+		if (!edge || typeof edge !== 'object') continue;
+		const candidate = edge as Readonly<Record<string, unknown>>;
+		if (candidate.enabled === false) continue;
+		const destination = candidate.destination as Readonly<Record<string, unknown>> | undefined;
+		const source = candidate.source as Readonly<Record<string, unknown>> | undefined;
+		if (destination?.kind !== 'master' || typeof source?.id !== 'string') continue;
+		fed.add(source.id);
+	}
+	return fed;
 }
 
 function stripExists(project: RoutingProject, kind: AdmTerminalStripKind, id: string): boolean {

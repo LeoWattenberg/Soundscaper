@@ -198,6 +198,75 @@ test('project graph routes terminal tracks, groups, and sends after latency comp
 	assert.equal(context.destination.channelInterpretation, 'discrete');
 });
 
+test('the production mixer graph routes its authored ADM bed too', () => {
+	// The V21 graph builder returns before the legacy ADM stage, so on the schema
+	// the product actually mounts the authored assignments reached no sample: the
+	// master-destined edges summed through their own channel maps instead, and the
+	// bed-channel and gain controls the operator authored did nothing at all.
+	const channels = [0, 1, 2, 3, 4, 5];
+	const context = new MockContext();
+	context.destination.maxChannelCount = 8;
+	const project = {
+		schemaVersion: 21,
+		sampleRate: 48_000,
+		masterChannels: 6,
+		metadata: { adm: authored('5.1', [
+			{ stripKind: 'track', stripId: 'dialogue', sourceChannel: 0, bedChannel: 'C', gain: 0.5 },
+			{ stripKind: 'track', stripId: 'music', sourceChannel: 0, bedChannel: 'L', gain: 1 },
+			{ stripKind: 'track', stripId: 'music', sourceChannel: 1, bedChannel: 'R', gain: 1 },
+		]) },
+		tracks: ['dialogue', 'music'].map((id) => ({
+			type: 'audio', id, clipIds: [], gain: 1, pan: 0,
+			mute: false, solo: false, effectsActive: true, effects: [],
+		})),
+		master: { gain: 1, pan: 0, mute: false, solo: false, effectsActive: true, effects: [] },
+		mixer: {
+			schemaVersion: 1,
+			groups: [], sends: [], cues: [], vcas: [],
+			outputs: [{ id: 'main', name: 'Main', role: 'main', channelCount: 6 }],
+			edges: [
+				...['dialogue', 'music'].map((id) => ({
+					id: `assignment:track:${id}:master`, kind: 'assignment',
+					source: { kind: 'track', id }, destination: { kind: 'master' },
+					position: 'post-fader', level: 1, enabled: true, channelMap: channels,
+				})),
+				{
+					id: 'assignment:master:output:main', kind: 'assignment',
+					source: { kind: 'master' }, destination: { kind: 'output', id: 'main' },
+					position: 'post-fader', level: 1, enabled: true, channelMap: channels,
+				},
+			],
+		},
+		automationLanes: [],
+	};
+	buildProjectGraph(
+		context as unknown as BaseAudioContext,
+		context.destination as unknown as AudioNode,
+		project as never,
+		{ metering: false, monitoring: true },
+	);
+
+	const merger = context.created.find((node) => node.kind === 'channel-merger');
+	assert.ok(merger, 'the bed merger is built');
+	assert.equal(merger.channelCount, 6);
+	assert.deepEqual(
+		merger.incoming.map(({ input }) => input).sort(),
+		[0, 1, 2],
+		'every authored bed channel is fed, and only those',
+	);
+	assert.deepEqual(
+		merger.incoming.map(({ source }) => (source as unknown as { gain: MockParam }).gain.value).sort(),
+		[0.5, 1, 1],
+		'the authored per-assignment gains reach the graph',
+	);
+	assert.equal(context.created.filter((node) => node.kind === 'channel-splitter').length, 2);
+	assert.equal(
+		context.created.some((node) => node.kind === 'stereo-panner'),
+		false,
+		'a stereo panner would fold the bed back down to two channels',
+	);
+});
+
 test('ordinary projects retain the direct master mix path', () => {
 	const context = new MockContext();
 	buildProjectGraph(

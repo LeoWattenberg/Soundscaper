@@ -2,6 +2,8 @@
 
 import { connectSurroundMonitoring } from '../surround-monitoring.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
+import { createAdmBedRouter } from './adm-bed-routing.ts';
+import type { AdmTerminalStripKind } from '../adm-project-metadata.ts';
 import { stripParameterDescriptor } from '../effect-parameter-descriptors.ts';
 import {
 	normalizeMixerGraphV21,
@@ -128,6 +130,17 @@ export function buildProjectGraphV21(
 		mixerInputs.set(strip.id, addNode(nodes, context.createGain()));
 	}
 	const masterInput = addNode(nodes, context.createGain());
+	// An authored ADM programme claims the stage between the terminal strips and
+	// the master, exactly as it does on the foundation graph. Without this the
+	// production schema built no router at all, so the bed-channel and gain
+	// controls the operator authored reached no sample — the master-destined edges
+	// summed through their own channel maps and the assignments were decoration.
+	const admMetadata = project.metadata?.adm;
+	const admMode = admMetadata && typeof admMetadata === 'object' && 'mode' in admMetadata
+		? admMetadata.mode
+		: null;
+	const admBedRouter = createAdmBedRouter(context, nodes, admMetadata, masterInput);
+	const preservesAdmChannels = admMode === 'authored' || admMode === 'passthrough';
 	const outputInputs = new Map(graph.outputs.map((output) => [output.id, addNode(nodes, context.createGain())]));
 	const sidechainInputs = createSidechainInputs(context, nodes, graph);
 	const soloActive = createSoloResolver(graph, tracks, respectMuteSolo);
@@ -172,7 +185,8 @@ export function buildProjectGraphV21(
 			if (graph.groups.some(({ id }) => id === strip.id)) groupGainParams.set(strip.id, scheduledGain);
 			else sendGainParams.set(strip.id, scheduledGain);
 		}
-		if (includeTrackPan && strip.width <= 2 && typeof context.createStereoPanner === 'function') {
+		if (includeTrackPan && !preservesAdmChannels && strip.width <= 2
+			&& typeof context.createStereoPanner === 'function') {
 			const panner = addNode(nodes, context.createStereoPanner());
 			setParam(panner.pan, clamp(strip.pan, -1, 1), context.currentTime);
 			registerStripParam(parameterRegistry, strip.ref, 'pan', panner.pan, latencyFrames);
@@ -227,8 +241,17 @@ export function buildProjectGraphV21(
 		connect(edge.position === 'pre-fader' ? source.pre : source.post, level);
 		let output: AudioNode = level;
 		const destinationWidth = edgeDestinationWidth(edge, graph, tracks, trackWidths, project.masterChannels);
-		output = applyChannelMap(context, nodes, output, source.width, destinationWidth, edge);
+		// The ADM router maps source channels onto bed channels itself, so a
+		// master-destined edge skips its own channel map rather than mapping twice.
+		const admTerminal = admBedRouter && edge.destination.kind === 'master'
+			? admTerminalStrip(graph, edge.source)
+			: null;
+		if (!admTerminal) output = applyChannelMap(context, nodes, output, source.width, destinationWidth, edge);
 		output = applyEdgeCompensation(context, nodes, output, plan.edgeCompensationFrames.get(edge.id) ?? 0);
+		if (admTerminal && admBedRouter) {
+			admBedRouter.routeTerminal(admTerminal.kind, admTerminal.id, output, source.width);
+			continue;
+		}
 		connect(output, edgeDestinationInput(edge, mixerInputs, masterInput, outputInputs, sidechainInputs));
 	}
 	const mainOutput = graph.outputs.find(({ role }) => role === 'main');
@@ -476,6 +499,25 @@ function applyEdgeCompensation(
 	setParam(delay.delayTime, seconds, context.currentTime);
 	connect(input, delay);
 	return delay;
+}
+
+/**
+ * The ADM terminal an edge's source names, or null when it has none.
+ *
+ * The V21 graph calls every bus a `mixer-node`; ADM assignments still say
+ * `group` or `send`, because that is the vocabulary the operator authored in.
+ * The graph's own group list is what tells the two apart.
+ */
+function admTerminalStrip(
+	graph: MixerGraphV21,
+	source: MixerGraphV21['edges'][number]['source'],
+): Readonly<{ kind: AdmTerminalStripKind; id: string }> | null {
+	if (source.kind === 'track') return Object.freeze({ kind: 'track' as const, id: source.id });
+	if (source.kind !== 'mixer-node') return null;
+	return Object.freeze({
+		kind: graph.groups.some(({ id }) => id === source.id) ? 'group' as const : 'send' as const,
+		id: source.id,
+	});
 }
 
 function edgeDestinationInput(
