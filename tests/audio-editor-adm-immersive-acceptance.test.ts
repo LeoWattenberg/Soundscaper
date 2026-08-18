@@ -15,6 +15,7 @@ import {
 } from '../src/common/editor/adm-metadata.ts';
 import { createImportedAdmPassthroughMetadata } from '../src/common/editor/controller/wav-import-metadata.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
+import { renderAndEncodeAudioExport } from '../src/common/editor/controller/audio-export-render-orchestration.ts';
 import {
 	createDeliveryReportForPlan,
 	countUnreportedDeliveryConversions,
@@ -160,6 +161,43 @@ test('a binaural delivery reports the renderer that placed it', () => {
 		() => createExportPlan(project, { format: 'wav', binaural: true, mode: 'stems' }),
 		/stems/u,
 	);
+});
+
+test('a binaural delivery never falls back to the stream that cannot render it', async () => {
+	// The plan refuses a binaural delivery unless the render is offline, but the
+	// runtime fallback taken when an offline render fails was unguarded — and the
+	// realtime stream has no binaural stage: it renders the programme and maps it
+	// to the plan's two channels by index. The fallback therefore delivered the
+	// bed's first two channels, every other bed channel and every object absent,
+	// under a report claiming a parametric-spherical-head render.
+	const project = immersiveProject([NARRATOR]);
+	const plan = createExportPlan(project, { format: 'wav', binaural: true, dither: 'none' });
+	let realtimeAttempts = 0;
+
+	await assert.rejects(
+		() => renderAndEncodeAudioExport({
+			encodingRuntime: {
+				copy: { rendering: 'Rendering', realtimeExportFallback: 'Falling back' },
+				setStatus: () => undefined,
+				throwIfAborted: (signal: AbortSignal) => { if (signal.aborted) throw new Error('aborted'); },
+			} as never,
+			normalizeProjectSampleRate: (rate: number) => rate,
+			renderRealtimeEncoded: () => {
+				realtimeAttempts += 1;
+				return { mimeType: 'audio/wav' };
+			},
+			renderSnapshot: () => { throw new Error('the offline render ran out of memory'); },
+		}, {
+			plan: plan as never,
+			renderSources: { chunkSources: null, prepareTimePitchCaches: false, sourceMap: new Map() },
+			settings: {},
+			signal: new AbortController().signal,
+			snapshot: { sampleRate: project.sampleRate },
+		}),
+		/ran out of memory/u,
+		'the offline failure is the delivery failure, not a quieter delivery',
+	);
+	assert.equal(realtimeAttempts, 0, 'a binaural delivery never reaches the stream');
 });
 
 test('an ADM passthrough delivery still reproduces its pristine bytes exactly', async () => {

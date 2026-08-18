@@ -234,6 +234,12 @@ function allowsRealtimeFallback(
 	// Nor a sequence: a stream renders one contiguous range, so falling back would
 	// write the project's own timeline under a name that promised the sequence's.
 	if (plan.masteringSequence) return false;
+	// Nor a binaural delivery. The plan refuses one at build time unless the
+	// render is offline, and the realtime stream has no binaural stage at all: it
+	// renders the programme and maps it to the plan's two channels by index, so a
+	// fallback would deliver the bed's first two channels — the rest of the bed
+	// and every object silently absent — under a report claiming a binaural render.
+	if (plan.binaural) return false;
 	return settings.measureLoudness !== true || (plan.format !== 'bwf' && plan.format !== 'bw64');
 }
 
