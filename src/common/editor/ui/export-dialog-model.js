@@ -58,5 +58,6 @@ export function createExportDialogRequest(settings, options = {}) {
 		mimeType: settings.customMimeType,
 		customArguments: settings.customArguments.split(/\r?\n/).map((argument) => argument.trim()).filter(Boolean),
 		includeTail: settings.includeTail,
+		...(settings.masteringSequenceId ? { masteringSequenceId: settings.masteringSequenceId } : {}),
 	};
 }

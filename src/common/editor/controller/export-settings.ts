@@ -45,6 +45,11 @@ export interface EditorExportSettings {
 	readonly measureLoudness: boolean;
 	/** A preset name or explicit target resolved to numbers, or null when not asked for. */
 	readonly loudnessNormalization: LoudnessNormalizationTarget | null;
+	/**
+	 * The mastering sequence this delivery realizes, or null for the ordinary
+	 * range delivery. Off by default: a sequence delivery is something asked for.
+	 */
+	readonly masteringSequenceId: string | null;
 }
 
 export function normalizeEditorExportSettings(
@@ -85,6 +90,9 @@ export function normalizeEditorExportSettings(
 		includeTail: value.includeTail !== false,
 		measureLoudness: value.measureLoudness === true,
 		loudnessNormalization: normalizeLoudnessNormalizationTarget(value.loudnessNormalization),
+		masteringSequenceId: typeof value.masteringSequenceId === 'string' && value.masteringSequenceId !== ''
+			? value.masteringSequenceId
+			: null,
 	});
 }
 

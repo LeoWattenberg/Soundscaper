@@ -44,11 +44,11 @@ test('the runtime prerequisite pins renderer and desktop schema together at 23',
 	assert.equal(prerequisite.futureSchemaPolicy, 'opaque-read-only');
 });
 
-test('the V23 capability profile registers mastering sequences as unavailable', () => {
+test('the V23 capability profile offers mastering sequences', () => {
 	const registration = editorProjectFeatureCapabilityProfileDefinition(
 		SOUNDSCAPER_V23_PROJECT_FEATURE_CAPABILITY_PROFILE,
 	).registrations.find((entry) => entry.key === 'masteringSequences');
-	assert.equal(registration?.available, false);
+	assert.equal(registration?.available, true);
 });
 
 test('the compatibility service evaluates exact V23 and ignores every other revision', () => {
@@ -64,9 +64,9 @@ test('the compatibility service evaluates exact V23 and ignores every other revi
 	assert.equal(service.evaluate({ schemaVersion: 24 }), null);
 });
 
-test('a project holding a sequence reports the capability as unavailable, not unknown', () => {
-	// The whole point of registering it switched off: the report must name a
-	// known-but-unavailable feature so the loss is legible.
+test('a project holding a sequence reports a known capability, never an unknown one', () => {
+	// The point of registering it at all: the report names the feature, so a
+	// document that demands it is legible whether or not the profile offers it.
 	const base = project();
 	const held = createSoundscaperProjectV23({
 		id: 'v23', title: 'Mastering', now: NOW, revision: 0,

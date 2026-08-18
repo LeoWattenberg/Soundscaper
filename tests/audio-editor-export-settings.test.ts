@@ -23,6 +23,7 @@ test('export settings normalize formats, codec controls, and project defaults de
 		includeTail: true,
 		measureLoudness: false,
 		loudnessNormalization: null,
+		masteringSequenceId: null,
 	});
 
 	const opus = normalizeEditorExportSettings({

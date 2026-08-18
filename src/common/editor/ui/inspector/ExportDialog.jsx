@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
 	Button,
 	DialogFooter,
@@ -61,6 +61,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		customMimeType: 'application/octet-stream',
 		customArguments: '',
 		includeTail: true,
+		masteringSequenceId: '',
 	});
 	const [error, setError] = useState('');
 	const [presetId, setPresetId] = useState('');
@@ -105,10 +106,35 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	const videoFormat = isVideoExportDialogFormat(settings.format);
 	const admRequired = settings.format === 'bw64' && settings.adm == null;
 	const admPassthrough = settings.format === 'bw64' && settings.adm?.mode === 'passthrough';
+	// A sequence delivers one spliced artifact, so it cannot also be a stem set,
+	// an ADM programme, or a sub-range of the project.
+	const projectMasteringSequences = snapshot.masteringSequences?.sequences;
+	const masteringSequences = useMemo(() => (
+		settings.mode === 'stems' || settings.format === 'bw64'
+			? []
+			: projectMasteringSequences ?? []
+	), [projectMasteringSequences, settings.format, settings.mode]);
+	const rangeValue = settings.masteringSequenceId
+		? `mastering-sequence:${settings.masteringSequenceId}`
+		: settings.range;
+	const chooseRange = (value) => setSettings((current) => (
+		value.startsWith('mastering-sequence:')
+			? { ...current, range: 'project', masteringSequenceId: value.slice('mastering-sequence:'.length) }
+			: { ...current, range: value, masteringSequenceId: '' }
+	));
 
 	useEffect(() => {
 		if (!hasSelection && settings.range === 'selection') setSettings((current) => ({ ...current, range: 'project' }));
 	}, [hasSelection, settings.range]);
+
+	useEffect(() => {
+		// A sequence chosen and then made undeliverable — a stem mode, an ADM
+		// format, a deleted region — falls back to the ordinary range rather than
+		// starting a delivery that would refuse.
+		if (!settings.masteringSequenceId) return;
+		const chosen = masteringSequences.find(({ id }) => id === settings.masteringSequenceId);
+		if (!chosen?.deliverable) setSettings((current) => ({ ...current, masteringSequenceId: '' }));
+	}, [masteringSequences, settings.masteringSequenceId]);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -334,7 +360,16 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 				<section className="audio-editor-export-section">
 					<h3>{copy.exportSection}</h3>
 					<LabeledDropdown label={copy.exportMode} hook="mode" value={videoFormat ? 'mix' : settings.mode} onChange={(value) => set('mode', value)} disabled={exporting || videoFormat || settings.format === 'bw64'} options={[{ value: 'mix', label: copy.mix }, { value: 'stems', label: copy.stems }]} />
-					<LabeledDropdown label={copy.exportRange} hook="range" value={settings.range} onChange={(value) => set('range', value)} disabled={exporting || admPassthrough} options={[{ value: 'project', label: copy.entireProject }, { value: 'selection', label: copy.currentSelection, disabled: !hasSelection }, { value: 'loop', label: copy.loopRegion, disabled: !hasLoop }]} />
+					<LabeledDropdown label={copy.exportRange} hook="range" value={rangeValue} onChange={chooseRange} disabled={exporting || admPassthrough} options={[
+						{ value: 'project', label: copy.entireProject },
+						{ value: 'selection', label: copy.currentSelection, disabled: !hasSelection },
+						{ value: 'loop', label: copy.loopRegion, disabled: !hasLoop },
+						...masteringSequences.map((sequence) => ({
+							value: `mastering-sequence:${sequence.id}`,
+							label: sequence.name,
+							disabled: !sequence.deliverable,
+						})),
+					]} />
 				</section>
 				<Separator />
 				<section className="audio-editor-export-section">

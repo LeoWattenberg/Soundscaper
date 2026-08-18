@@ -38,7 +38,7 @@ export const SOUNDSCAPER_PROFILE = {
 		videoRetime: false,
 		videoTimingAssets: true,
 		sourceCharacteristics: true,
-		masteringSequences: false,
+		masteringSequences: true,
 	},
 	desktop: {
 		appId: 'org.soundscaper.desktop',

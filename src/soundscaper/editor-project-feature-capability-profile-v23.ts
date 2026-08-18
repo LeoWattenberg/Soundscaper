@@ -9,9 +9,11 @@ import {
 } from '../common/editor/project-feature-capabilities.ts';
 
 /**
- * V23's available set is V21's. Mastering sequences are deliberately absent, so
- * the capability registers as unavailable: the revision may exist and validate
- * long before the product offers the feature.
+ * V23's available set is V21's plus the feature the revision exists for.
+ *
+ * Mastering sequences turn on here and nowhere else: V21 documents cannot hold
+ * one, so its profile still reports the capability unavailable rather than
+ * absent, and a V21 project that somehow demanded it is still refused.
  */
 const AVAILABLE = new Set<ProjectFeatureCapabilityKey>([
 	'project', 'projectBin', 'audioImport', 'audioPlayback', 'audioTimelineEditing',
@@ -20,7 +22,7 @@ const AVAILABLE = new Set<ProjectFeatureCapabilityKey>([
 	'audioAnalysis', 'audioMacros', 'audioSampleEditing', 'musicalTimeline',
 	'timelineAnnotations', 'trackFolders', 'takeComp', 'audioWarp', 'sequenceTiming',
 	'videoTimingAssets', 'sourceCharacteristics', 'audioAutomation', 'audioMixerGraph',
-	'audioTrackFreeze',
+	'audioTrackFreeze', 'masteringSequences',
 ]);
 
 /** Selected exact-V23 Soundscaper capabilities. */

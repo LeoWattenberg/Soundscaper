@@ -4,6 +4,7 @@ import { projectFeatureAffectedObjects } from '../project-feature-affected-objec
 import type { ProjectFeatureRequirementsReport } from '../project-feature-requirements.ts';
 import type { EditorStoreStatus } from '../storage/status.ts';
 import type { StorageCapacitySnapshot } from './storage-capacity-service.ts';
+import { createDocumentMasteringSequenceSnapshot } from './document-mastering-sequence-snapshot.ts';
 import { createDocumentTimelineAnnotationSnapshot } from './document-timeline-annotation-snapshot.ts';
 import { createDocumentTrackFolderSnapshot } from './document-track-folder-snapshot.ts';
 import { createDocumentRecordingInputSnapshot } from './document-recording-input-snapshot.ts';
@@ -208,6 +209,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		selectedClipId: state.selectedClipId,
 		selectedAnnotationId: state.selectedAnnotationId,
 		timelineAnnotations: createDocumentTimelineAnnotationSnapshot(currentProject),
+		masteringSequences: createDocumentMasteringSequenceSnapshot(currentProject),
 		trackFolders: createDocumentTrackFolderSnapshot(currentProject),
 		selection,
 		transportState: state.transportState,
