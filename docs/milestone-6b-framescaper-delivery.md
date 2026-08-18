@@ -220,6 +220,24 @@ cue's appearance and disappearance falls inside one frame of its label time.
   styling state — then this slice waits for milestone 4 rather than
   front-running it.
 
+**6B-3 is under way: capability detection and the elementary-stream boundary
+have landed, and the producer that drives a `VideoEncoder` has not.** Two
+measured facts shaped what exists. The pinned core's IVF *demuxer* reads a
+hand-built header correctly — `Input #0, ivf ... Video: vp9 (Profile 0) (VP90),
+25 tbr` — so the VP9 remux direction this tier needs is sound. Its IVF *muxer*
+crashes the wasm outright with a memory access fault, which is a hazard worth
+knowing but not one this tier walks into, because nothing here ever muxes to
+IVF. The H.264 half was checked end to end: a real elementary stream remuxed
+into MP4 through `buildVideoRemuxArgs` at 30000/1001 and came back `29.97 tbr`,
+so the exact rational survives the boundary the slice's stop condition names.
+
+Levels are computed from the specifications' own tables rather than guessed:
+720p30 resolves to H.264 3.1 and VP9 3.1, 1080p30 to 4.0 and 4.0, 1080p120 to
+5.1, and a canvas past every level is refused with the reason instead of at an
+encoder that would only say "unsupported". Every fallback carries why, because a
+delivery that quietly took the slower path is the reporting failure this
+milestone's gate exists to catch.
+
 ## 6B-3 — WebCodecs encode tier
 
 - **Outcome:** a WebCodecs encode path for qualified SDR outputs whose
