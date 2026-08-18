@@ -11,7 +11,7 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-17: 6A-2 is complete; nothing else in 6A has started.**
+**Status on 2026-08-18: 6A-1a, 6A-1b and 6A-2 are complete. 6A-3 is next.**
 
 - **The decision.** `src/common/editor/loudness-normalization.ts` computes one
   gain from a measurement and a target and returns it as inspectable data. The
@@ -143,10 +143,11 @@ because five tests use V21 + 1 as their future-schema sentinel.
   durable storage, duplication, `.scape` round trip, byte-idempotent load/save,
   and semantic survival.
 
-**Deliberately not done here: the editing surface.** The capability is
-registered unavailable in both products, so the commands cannot be invoked yet
-and any UI would be dead. The surface lands with 6A-1b, which is what turns the
-capability on.
+**The editing surface landed with 6A-1b**, which is what turned the capability
+on. Tools > Mastering sequences opens the production dialog on its own surface,
+gated on the revision that owns the collection rather than on the production
+authority — a V21 document carries that authority and still has nowhere to put a
+sequence, so the entry is visible and disabled there.
 
 **Two shared-code fixes the revision forced, both of the same shape.** Twenty
 places gated behaviour on `schemaVersion === 21` exactly, six on the shared
@@ -191,6 +192,57 @@ hundred lines of feature code not duplicated.
 - **Stop condition:** stop if the sequence needs its own time model or a
   second region type, or if any consumer needs the annotation model changed
   incompatibly.
+
+## 6A-1b status: complete
+
+A mastering sequence delivers through `createExportPlan` as one ordinary plan:
+the delivered length is the sequence, the cues are its entries at their
+delivered positions, and there is no tail, because audio past the last region is
+audio the sequence did not ask for.
+
+- **The plan.** `mastering-sequence-delivery.ts` resolves a sequence into exact
+  output positions by accumulating integer region extents and integer gaps.
+  `scaleMasteringSequenceDeliveryPlan` converts each gap and each extent on its
+  own before accumulating, so the delivered length is the exact sum of its scaled
+  parts; scaling accumulated positions instead would let rounding drift a
+  boundary away from the audio it belongs to. Source frames keep the project
+  rate: they say what to render, not what was written.
+- **The render.** `controller/mastering-sequence-export-render.ts` calls the same
+  offline render every other export calls, once per entry over its own region's
+  range, and `mastering-sequence-render.ts` arranges the results — gaps as real
+  silence, fades applied on the way out, the source untouched, which is what
+  makes a reprise with a different treatment expressible. A region named twice is
+  rendered once. A sequence never falls back to the realtime stream: that renders
+  one contiguous range, so the fallback would write the project's own timeline
+  under a name that promised the sequence's.
+- **The report.** Per-entry items and the cue outcome join the plan-derived
+  inventory rather than being appended by the export path, which is what makes
+  `delivery.unreportedConversions eq 0` observe a cue omission.
+- **The surfaces.** The delivery is chosen in the export dialog's range control,
+  beside the project, selection and loop, and off by default. The editing surface
+  is Tools > Mastering sequences.
+
+**Refusals, all typed and all before any bytes are written:** stems and ADM
+cannot deliver a sequence; an unvalidatable sequence throws
+`MasteringSequenceValidationError` before a plan exists; a delivery too large for
+the offline render is refused rather than streamed. The offline-render admission
+is sized from the longest single entry, since entries render one at a time — the
+whole span a sequence draws from would refuse two short regions at opposite ends
+of a long project.
+
+**A known limitation, recorded rather than hidden.** Because the delivered
+timeline is assembled in memory, a sequence whose total exceeds the offline
+render's admission is refused outright. That is honest but it bites exactly the
+album-length case 6A-6's reference fixture describes. 6A-3 owns batching and is
+the place to revisit it — most album delivery wants one artifact per entry
+anyway, which is a batch of ordinary plans rather than one large one.
+
+**Two shared-code fixes this slice forced.** Markers that survive selection and
+clipping are dropped by any writer with no cue chunk, and the marker interchange
+report is written before that happens — so a compressed delivery reported markers
+it never wrote; cue capability is now read off the writer backend rather than
+kept as a second list. And `export.js` gave up its BW64/ADM construction to
+`export-bw64-adm.js` to stay under the maintainability ceiling.
 
 ## 6A-1b — Region-aware delivery and cue interchange
 
