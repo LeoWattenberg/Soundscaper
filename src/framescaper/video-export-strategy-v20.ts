@@ -105,6 +105,7 @@ export function createFramescaperVideoExportStrategyV20(
 						canvas: request.canvas as Readonly<Record<string, unknown>>,
 					}),
 					...(request.quality === undefined ? {} : { quality: request.quality }),
+					...(request.audioLayout === undefined ? {} : { audioLayout: request.audioLayout }),
 				},
 			);
 			authorities.set(plan, Object.freeze({

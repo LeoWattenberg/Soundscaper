@@ -1,4 +1,8 @@
-import { statedVideoCanvas, statedVideoQuality } from './export-preset-model.ts';
+import {
+	statedVideoAudioLayout,
+	statedVideoCanvas,
+	statedVideoQuality,
+} from './export-preset-model.ts';
 
 export const VIDEO_EXPORT_DIALOG_FORMATS = Object.freeze([
 	Object.freeze({
@@ -35,6 +39,7 @@ export function createExportDialogRequest(settings, options = {}) {
 	if (isVideoExportDialogFormat(settings.format)) {
 		const canvas = statedVideoCanvas(settings);
 		const quality = statedVideoQuality(settings);
+		const audioLayout = statedVideoAudioLayout(settings);
 		return {
 			mode: 'mix',
 			range: settings.range,
@@ -44,6 +49,7 @@ export function createExportDialogRequest(settings, options = {}) {
 			// an untouched dialog produces the request it always produced.
 			...(Object.keys(canvas).length > 0 ? { canvas } : {}),
 			...(quality ? { quality } : {}),
+			...(audioLayout ? { audioLayout } : {}),
 		};
 	}
 	return {

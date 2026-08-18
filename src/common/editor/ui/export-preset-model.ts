@@ -6,6 +6,7 @@ import {
 	type DeliveryPresetKind,
 } from '../delivery-preset.ts';
 import { DEFAULT_VIDEO_DELIVERY_QUALITY } from '../video-delivery-quality.ts';
+import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
 
 /**
  * Translation between the export dialog's flat string settings and the typed
@@ -47,6 +48,7 @@ const NUMERIC_KEYS: readonly string[] = Object.freeze([
 
 const CANVAS_FIT_DEFAULT = 'contain';
 const VIDEO_QUALITY_DEFAULT = DEFAULT_VIDEO_DELIVERY_QUALITY;
+const AUDIO_LAYOUT_DEFAULT = DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT;
 
 /** The preset-worthy subset of the dialog's settings, with numbers as numbers. */
 export function presetSettingsFromDialog(
@@ -68,6 +70,8 @@ export function presetSettingsFromDialog(
 		Object.assign(result, statedVideoCanvas(settings));
 		const quality = statedVideoQuality(settings);
 		if (quality) result.quality = quality;
+		const audioLayout = statedVideoAudioLayout(settings);
+		if (audioLayout) result.audioLayout = audioLayout;
 	}
 	return Object.freeze(result);
 }
@@ -89,6 +93,20 @@ export function statedVideoQuality(
 	const quality = settings?.videoQuality;
 	if (typeof quality !== 'string' || !quality || quality === VIDEO_QUALITY_DEFAULT) return null;
 	return quality;
+}
+
+/**
+ * The audio layout a video dialog is asking for, or nothing.
+ *
+ * `preserve` delivers the project's own channels, which is what every video
+ * export did before a layout could be chosen, so it stays unstated.
+ */
+export function statedVideoAudioLayout(
+	settings: Readonly<Record<string, unknown>> | undefined,
+): string | null {
+	const layout = settings?.videoAudioLayout;
+	if (typeof layout !== 'string' || !layout || layout === AUDIO_LAYOUT_DEFAULT) return null;
+	return layout;
 }
 
 /**
@@ -150,6 +168,10 @@ export function dialogSettingsFromPreset(
 		}
 		if (key === 'quality' && preset.kind === 'video') {
 			patch.videoQuality = String(value);
+			continue;
+		}
+		if (key === 'audioLayout') {
+			patch.videoAudioLayout = String(value);
 			continue;
 		}
 		patch[key] = NUMERIC_KEYS.includes(key) ? String(value) : value;

@@ -31,6 +31,15 @@ encoder it was written against, which would strand 6B-3's WebCodecs tier and
 produced, so an untouched export stays byte-stable, and both FFmpeg-backed paths
 now read one shared mapping instead of the two hard-coded copies they had.
 
+Audio layout follows the same rule from the other side. A delivery states
+`preserve`, `mono`, or `stereo`, and the layout is applied to the rendered mix
+before it is staged as WAV rather than to an encoder argument — both video paths
+consume that staged file, so a downmix left to the encoder would have reached
+only the composed graph. It reuses the audio exporter's own mapping, so a mono
+video delivery and a mono audio delivery are the same downmix. A custom matrix
+stays with the audio dialog, which has the per-channel editor that makes one
+legible.
+
 Two bounds and one gap are worth naming. A keyed canvas is capped at about 2.09
 megapixels, which is one RGBA frame fitting the keyframe encoder's 8 MiB stream
 limit: 1080×1920 is admitted, 1080×1944 is refused, and the refusal happens at

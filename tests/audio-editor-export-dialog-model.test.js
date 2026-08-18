@@ -162,6 +162,7 @@ test('the export dialog reaches the delivery canvas for a video format and only 
 	assert.match(fields, /data-export-field="canvasBackground"/u);
 	assert.match(fields, /hook="canvasFit"/u);
 	assert.match(fields, /hook="videoQuality"/u);
+	assert.match(fields, /hook="videoAudioLayout"/u);
 	for (const fit of VIDEO_CANVAS_FIT_MODES) {
 		assert.match(fields, new RegExp(`${fit}: 'videoCanvasFit`, 'u'), `${fit} needs a label of its own`);
 	}

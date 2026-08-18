@@ -30,6 +30,7 @@ import {
 import { createFilterPlan } from './video-export-filter-plan.js';
 import { normalizeVideoDeliveryColor } from './video-delivery-color.ts';
 import { normalizeVideoDeliveryQuality } from './video-delivery-quality.ts';
+import { normalizeVideoDeliveryAudioLayout } from './video-delivery-audio-layout.ts';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
@@ -283,6 +284,9 @@ export function createVideoExportPlan(project, options = {}) {
 			sampleRate: projectSampleRate,
 			startFrame: range.startFrame,
 			durationFrames: range.durationFrames,
+			// What the staged mix must already be, rather than what an encoder
+			// should do to it: both delivery paths read the same staged file.
+			channelLayout: normalizeVideoDeliveryAudioLayout(options.audioLayout, 'audioLayout'),
 		})
 		: null;
 	if (audioInput) inputs.push(audioInput);

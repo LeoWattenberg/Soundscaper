@@ -19,6 +19,7 @@ import { createNativeValidators } from './native-validation.ts';
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from './video-export-plan-version.ts';
 import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
 import { isVideoDeliveryQuality, type VideoDeliveryQuality } from './video-delivery-quality.ts';
+import { isVideoDeliveryAudioLayout } from './video-delivery-audio-layout.ts';
 
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INPUTS = 4_096;
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INTERVALS = 100_000;
@@ -104,7 +105,7 @@ const VIDEO_INPUT_KEYS = Object.freeze([
 	'kind', 'inputIndex', 'sourceId', 'storageKey', 'mimeType', 'presentation',
 ]);
 const AUDIO_INPUT_KEYS = Object.freeze([
-	'kind', 'inputIndex', 'fileName', 'sampleRate', 'startFrame', 'durationFrames',
+	'kind', 'inputIndex', 'fileName', 'sampleRate', 'startFrame', 'durationFrames', 'channelLayout',
 ]);
 const FILTER_PLAN_KEYS = Object.freeze([
 	'strategy', 'backgroundColor', 'intervals', 'concat', 'audio', 'output',
@@ -259,6 +260,9 @@ function assertInputs(value: unknown, range: NativeMediaGraphPlanRange): void {
 			if (nonNegativeInteger(input.startFrame, 'input.startFrame') !== range.startFrame
 				|| nonNegativeInteger(input.durationFrames, 'input.durationFrames') !== range.durationFrames) {
 				nativeMediaPlanViolation('malformed', 'Video export graph plan staged audio does not cover its own export range.');
+			}
+			if (!isVideoDeliveryAudioLayout(input.channelLayout)) {
+				nativeMediaPlanViolation('malformed', 'Video export graph plan staged audio states an unsupported channel layout.');
 			}
 			audioInputs += 1;
 		} else {

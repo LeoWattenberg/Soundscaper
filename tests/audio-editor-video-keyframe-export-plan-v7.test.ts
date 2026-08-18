@@ -31,6 +31,7 @@ test('creates a recursively frozen exact MP4 plan that survives detached JSON ad
 	assert.deepEqual(plan.inputs.at(-1), {
 		kind: 'staged-audio-mix', inputIndex: 2, fileName: 'audio-mix.wav',
 		sampleRate: 48_000, startFrame: 96_000, durationFrames: 48_048,
+		channelLayout: 'preserve',
 	});
 	assertRecursivelyFrozen(plan);
 

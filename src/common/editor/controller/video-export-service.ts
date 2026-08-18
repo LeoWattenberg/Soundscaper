@@ -29,6 +29,8 @@ import {
 } from './product-video-export-strategy.ts';
 import { acquireVideoExportTimingIndexes } from './video-export-timing.ts';
 import { createVideoDeliveryReportForPlan } from '../delivery-video-conversion-inventory.ts';
+import { applyMediaChannelMapping } from '../media-export.js';
+import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
 
 export interface VideoExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -52,6 +54,19 @@ const NO_TASK_PROGRESS = Object.freeze({
 });
 
 /** Create the video delivery action without coupling audio export orchestration to video runtime details. */
+/**
+ * The layout the plan's staged audio input asks for.
+ *
+ * Read from the plan rather than the request because the plan is what the
+ * encoders were admitted against, and a product strategy may have built it.
+ */
+function stagedAudioChannelLayout(plan: RuntimeValue): string {
+	const audioInput = (plan.inputs as RuntimeValue[]).find(
+		(input: RuntimeValue) => input.kind === 'staged-audio-mix',
+	);
+	return (audioInput?.channelLayout as string | undefined) ?? DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT;
+}
+
 export function createEditorVideoExportAction(
 	runtime: VideoExportServiceRuntime,
 	renderSnapshot: RenderSnapshot,
@@ -132,6 +147,7 @@ export function createEditorVideoExportAction(
 				includeAudio,
 				canvas: requestedSettings.canvas,
 				quality: requestedSettings.quality,
+				audioLayout: requestedSettings.audioLayout,
 			}) ?? null;
 			const productActiveSourceIds = productPlan
 				? captureProductVideoExportActiveSourceIds(productPlan)
@@ -164,6 +180,7 @@ export function createEditorVideoExportAction(
 						includeAudio,
 						canvas: requestedSettings.canvas,
 						quality: requestedSettings.quality,
+						audioLayout: requestedSettings.audioLayout,
 					});
 				} finally {
 					timingIndexes.release();
@@ -230,7 +247,13 @@ export function createEditorVideoExportAction(
 					)
 					: await renderSnapshot(exportProject, range, sourceBuffers, abort.signal);
 				assertVideoExportCurrent();
-				const renderedChannels = audioBufferChannels(rendered);
+				// The delivered layout is applied to the mix, not to an encoder
+				// argument: both video paths consume this staged file, so a downmix
+				// left to the encoder would reach only one of them.
+				const renderedChannels = applyMediaChannelMapping(
+					audioBufferChannels(rendered),
+					stagedAudioChannelLayout(plan),
+				);
 				assertVideoExportCurrent();
 				const wav = encodeWav(renderedChannels, {
 					sampleRate: rendered.sampleRate,

@@ -70,6 +70,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		canvasFrameRate: '',
 		canvasBackgroundColor: '',
 		videoQuality: 'balanced',
+		videoAudioLayout: 'preserve',
 	});
 	const [error, setError] = useState('');
 	const [presetId, setPresetId] = useState('');

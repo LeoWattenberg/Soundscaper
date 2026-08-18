@@ -37,6 +37,11 @@ import {
 	normalizeVideoDeliveryQuality,
 	type VideoDeliveryQuality,
 } from './video-delivery-quality.ts';
+import {
+	isVideoDeliveryAudioLayout,
+	normalizeVideoDeliveryAudioLayout,
+	type VideoDeliveryAudioLayout,
+} from './video-delivery-audio-layout.ts';
 
 const RGBA_BYTES_PER_PIXEL = 4;
 
@@ -86,6 +91,7 @@ export type VideoKeyframeExportPlanInputV7 =
 	| Readonly<{
 		readonly kind: 'staged-audio-mix'; readonly inputIndex: number; readonly fileName: string;
 		readonly sampleRate: number; readonly startFrame: number; readonly durationFrames: number;
+		readonly channelLayout: VideoDeliveryAudioLayout;
 	}>;
 
 export interface VideoKeyframeExportPlanV7Request {
@@ -109,6 +115,7 @@ export interface VideoKeyframeExportPlanV7Request {
 	readonly sources: readonly Readonly<Record<string, unknown>>[];
 	readonly includeAudio: boolean;
 	readonly quality?: VideoDeliveryQuality;
+	readonly audioLayout?: VideoDeliveryAudioLayout;
 	readonly audioFileName?: string;
 }
 
@@ -128,7 +135,7 @@ const PLAN_FIELDS = [
 ] as const;
 const REQUEST_FIELDS = [
 	'format', 'sampleRate', 'range', 'canvas', 'activeClipIds', 'activeSourceIds',
-	'sources', 'includeAudio', 'quality', 'audioFileName',
+	'sources', 'includeAudio', 'quality', 'audioLayout', 'audioFileName',
 ] as const;
 const RANGE_FIELDS = ['startFrame', 'endFrame', 'durationFrames'] as const;
 const RATIONAL_FIELDS = ['num', 'den'] as const;
@@ -141,14 +148,14 @@ const VIDEO_INPUT_FIELDS = [
 	'kind', 'inputIndex', 'sourceId', 'storageKey', 'mimeType', 'contentSha256',
 ] as const;
 const AUDIO_INPUT_FIELDS = [
-	'kind', 'inputIndex', 'fileName', 'sampleRate', 'startFrame', 'durationFrames',
+	'kind', 'inputIndex', 'fileName', 'sampleRate', 'startFrame', 'durationFrames', 'channelLayout',
 ] as const;
 /**
  * Request fields a caller may leave unsaid. `audioFileName` has no meaning
  * without audio, and an unstated quality is the tier every keyed export already
  * encoded at — the plan still states it outright once built.
  */
-const OPTIONAL_REQUEST_FIELDS: ReadonlySet<string> = new Set(['quality', 'audioFileName']);
+const OPTIONAL_REQUEST_FIELDS: ReadonlySet<string> = new Set(['quality', 'audioLayout', 'audioFileName']);
 const SOURCE_MAXIMUM = 4_096;
 const CLIP_MAXIMUM = 100_000;
 const FORMATS: Readonly<Record<VideoKeyframeExportPlanFormatV7, FormatDescriptor>> = Object.freeze({
@@ -189,6 +196,13 @@ export function createVideoKeyframeExportPlanV7(
 		data(request, 'sources', 'video keyframe export plan request'), activeSourceIds,
 	);
 	const includeAudio = boolean(data(request, 'includeAudio', 'video keyframe export plan request'), 'includeAudio');
+	const audioLayout = normalizeVideoDeliveryAudioLayout(
+		optionalData(request, 'audioLayout', undefined, 'video keyframe export plan request'),
+		'video keyframe export plan audioLayout',
+	);
+	if (!includeAudio && Object.hasOwn(request, 'audioLayout')) {
+		throw new TypeError('audioLayout requires includeAudio to be true.');
+	}
 	const quality = normalizeVideoDeliveryQuality(
 		optionalData(request, 'quality', DEFAULT_VIDEO_DELIVERY_QUALITY, 'video keyframe export plan request'),
 		'video keyframe export plan quality',
@@ -208,6 +222,7 @@ export function createVideoKeyframeExportPlanV7(
 		inputs.push(Object.freeze({
 			kind: 'staged-audio-mix', inputIndex: inputs.length, fileName, sampleRate,
 			startFrame: range.startFrame, durationFrames: range.durationFrames,
+			channelLayout: audioLayout,
 		}));
 	}
 	const outputFrameCount = resolveVideoKeyframeExportFrameCount(
@@ -324,6 +339,9 @@ function captureInputs(
 		throw new TypeError('Video keyframe export plan V7 audio input is not range-exact.');
 	}
 	audioFileName(data(audio, 'fileName', 'audio input'));
+	if (!isVideoDeliveryAudioLayout(data(audio, 'channelLayout', 'audio input'))) {
+		throw new RangeError('Video keyframe export plan V7 staged audio states an unsupported channel layout.');
+	}
 	return true;
 }
 

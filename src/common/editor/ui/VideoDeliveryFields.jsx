@@ -2,6 +2,7 @@
 
 import { VIDEO_CANVAS_FIT_MODES } from '../video-canvas-fit.ts';
 import { VIDEO_DELIVERY_QUALITY_TIERS } from '../video-delivery-quality.ts';
+import { VIDEO_DELIVERY_AUDIO_LAYOUTS } from '../video-delivery-audio-layout.ts';
 import { LabeledDropdown } from './inspector/inspector-controls.jsx';
 
 /** The rates a delivery usually asks for; the field accepts any of them or another. */
@@ -21,6 +22,14 @@ const QUALITY_LABEL_KEYS = Object.freeze({
 	high: 'videoQualityHigh',
 });
 
+// The audio exporter's own words for the same three layouts, so a delivery
+// reads the same whichever exporter the user reached it through.
+const AUDIO_LAYOUT_LABEL_KEYS = Object.freeze({
+	preserve: 'preserveChannels',
+	mono: 'mono',
+	stereo: 'stereo',
+});
+
 /**
  * The delivery itself, as the export dialog asks for it: canvas and quality.
  *
@@ -33,6 +42,10 @@ const QUALITY_LABEL_KEYS = Object.freeze({
  *
  * Quality is a tier rather than an encoder number for the same reason the plan
  * states one: the dialog cannot know which encoder will serve this delivery.
+ *
+ * The audio layout borrows the audio exporter's control and its words. A video
+ * delivery cannot state a custom matrix, because the per-channel editor that
+ * makes one legible belongs to the audio dialog.
  */
 export default function VideoDeliveryFields({ copy, disabled, settings, onChange }) {
 	return (
@@ -112,6 +125,17 @@ export default function VideoDeliveryFields({ copy, disabled, settings, onChange
 				options={VIDEO_DELIVERY_QUALITY_TIERS.map((tier) => ({
 					value: tier,
 					label: copy[QUALITY_LABEL_KEYS[tier]],
+				}))}
+			/>
+			<LabeledDropdown
+				label={copy.channelMapping}
+				hook="videoAudioLayout"
+				value={settings.videoAudioLayout}
+				onChange={(value) => onChange('videoAudioLayout', value)}
+				disabled={disabled}
+				options={VIDEO_DELIVERY_AUDIO_LAYOUTS.map((layout) => ({
+					value: layout,
+					label: copy[AUDIO_LAYOUT_LABEL_KEYS[layout]],
 				}))}
 			/>
 			<p className="audio-editor-panel-hint">{copy.videoCanvasHint}</p>

@@ -56,6 +56,7 @@ test('uses explicit audio request semantics and refuses static V20 dispatch', ()
 	assert.deepEqual(plan.inputs.at(-1), {
 		kind: 'staged-audio-mix', inputIndex: 1, fileName: 'framescaper-mix.wav',
 		sampleRate: 48_000, startFrame: 48_000, durationFrames: 48_000,
+		channelLayout: 'preserve',
 	});
 
 	assert.throws(

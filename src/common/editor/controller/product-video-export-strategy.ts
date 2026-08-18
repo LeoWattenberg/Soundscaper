@@ -40,6 +40,8 @@ export interface ProductVideoExportStrategyPlanRequest {
 	readonly canvas: unknown;
 	/** Optional: a request that states no tier delivers the one every export used. */
 	readonly quality?: unknown;
+	/** Optional: a request that states no layout delivers the project's channels. */
+	readonly audioLayout?: unknown;
 }
 
 export interface ProductVideoExportStrategyEncodeRequest {

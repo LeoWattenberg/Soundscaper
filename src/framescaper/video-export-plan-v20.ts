@@ -15,6 +15,10 @@ import {
 	type VideoDeliveryQuality,
 } from '../common/editor/video-delivery-quality.ts';
 import {
+	normalizeVideoDeliveryAudioLayout,
+	type VideoDeliveryAudioLayout,
+} from '../common/editor/video-delivery-audio-layout.ts';
+import {
 	assertFramescaperProjectV20Profile,
 	type FramescaperProjectV20Profile,
 } from './editor-project-v20-profile.ts';
@@ -45,6 +49,7 @@ export interface FramescaperVideoKeyframeExportPlanRequestV20 {
 		readonly maximumFrameRate?: number | Readonly<{ readonly num: number; readonly den: number }>;
 	}>;
 	readonly quality?: VideoDeliveryQuality;
+	readonly audioLayout?: VideoDeliveryAudioLayout;
 }
 
 interface ExactCanvas {
@@ -58,7 +63,9 @@ interface ExactCanvas {
 	readonly referenceSourceId: string | null;
 }
 
-const REQUEST_FIELDS = ['format', 'range', 'includeAudio', 'audioFileName', 'canvas', 'quality'] as const;
+const REQUEST_FIELDS = [
+	'format', 'range', 'includeAudio', 'audioFileName', 'canvas', 'quality', 'audioLayout',
+] as const;
 const CANVAS_FIELDS = [
 	'size', 'fit', 'width', 'height', 'frameRate', 'backgroundColor',
 	'maximumWidth', 'maximumHeight', 'maximumFrameRate',
@@ -119,6 +126,7 @@ export function createFramescaperVideoKeyframeExportPlanV20(
 		sources: inventory.project.sources,
 		includeAudio,
 		...(request.quality === undefined ? {} : { quality: request.quality }),
+		...(request.audioLayout === undefined ? {} : { audioLayout: request.audioLayout }),
 		...(request.audioFileName === undefined ? {} : { audioFileName: request.audioFileName }),
 	});
 }
@@ -147,6 +155,12 @@ function snapshotRequest(value: unknown): FramescaperVideoKeyframeExportPlanRequ
 		result.quality = normalizeVideoDeliveryQuality(
 			data(request, 'quality', 'Framescaper keyed export request'),
 			'Framescaper keyed export quality',
+		);
+	}
+	if (Object.hasOwn(request, 'audioLayout')) {
+		result.audioLayout = normalizeVideoDeliveryAudioLayout(
+			data(request, 'audioLayout', 'Framescaper keyed export request'),
+			'Framescaper keyed export audioLayout',
 		);
 	}
 	return Object.freeze(result) as FramescaperVideoKeyframeExportPlanRequestV20;
