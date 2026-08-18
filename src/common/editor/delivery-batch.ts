@@ -159,6 +159,34 @@ function resolveTarget(
 			settings: Object.freeze({ masteringSequenceId: id, range: 'project' }),
 		};
 	}
+	// Selection and loop are resolved here, to the frames they name right now,
+	// for the same reason a region target is: a batch decides what it delivers
+	// when it is built. Passing the bare word through left the frames to be
+	// resolved when each member reached the front of the queue, so continuing to
+	// edit while a batch ran delivered a different range to every member under
+	// one label — and a loop switched off after queueing failed member by member
+	// halfway through instead of being refused at the door.
+	if (target.kind === 'selection' || target.kind === 'loop') {
+		const loop = project.loop as Readonly<{
+			enabled?: unknown; startFrame?: unknown; endFrame?: unknown;
+		}> | undefined;
+		const range = target.kind === 'selection'
+			? project.selection as Readonly<{ startFrame?: unknown; endFrame?: unknown }> | undefined
+			: loop;
+		if (target.kind === 'loop' && loop?.enabled !== true) {
+			throw new DeliveryBatchError('The project loop is not enabled, so a batch cannot deliver it.');
+		}
+		const startFrame = Number(range?.startFrame ?? 0);
+		const endFrame = Number(range?.endFrame ?? 0);
+		if (!(endFrame > startFrame)) {
+			throw new DeliveryBatchError(`The project ${target.kind} is empty, so a batch cannot deliver it.`);
+		}
+		return {
+			target: Object.freeze({ kind: target.kind }),
+			label: target.kind,
+			settings: Object.freeze({ range: Object.freeze({ startFrame, endFrame }) }),
+		};
+	}
 	return {
 		target: Object.freeze({ kind: target.kind }),
 		label: target.kind,

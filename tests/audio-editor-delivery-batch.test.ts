@@ -157,6 +157,58 @@ test('a batch that names something the project does not have is refused when it 
 	}), /is not an audio preset/u);
 });
 
+test('a selection target is frozen to the frames it named when the batch was built', () => {
+	// The bare word `selection` used to ride through to each member's plan, which
+	// resolved it against the live project when that member reached the front of
+	// the queue. Editing while a batch ran therefore delivered a different range
+	// to every member under one label, and two alternates of the same material
+	// contained different audio.
+	const project = { ...albumProject(), selection: { startFrame: 1_000, endFrame: 5_000 } };
+	const batch = createDeliveryBatch(project as never, {
+		batchId: 'batch-1', presets: [preset('wav', 'wav')], targets: [{ kind: 'selection' }],
+	});
+
+	assert.deepEqual(batch.members[0].settings.range, { startFrame: 1_000, endFrame: 5_000 },
+		'the batch names frames, not a word resolved later');
+
+	// Moving the selection afterwards cannot reach a batch already built.
+	const moved = { ...albumProject(), selection: { startFrame: 90_000, endFrame: 96_000 } };
+	assert.deepEqual(batch.members[0].settings.range, { startFrame: 1_000, endFrame: 5_000 });
+	assert.deepEqual(
+		createDeliveryBatch(moved as never, {
+			batchId: 'batch-2', presets: [preset('wav', 'wav')], targets: [{ kind: 'selection' }],
+		}).members[0].settings.range,
+		{ startFrame: 90_000, endFrame: 96_000 },
+		'a batch built later names the frames it was built with',
+	);
+});
+
+test('a batch naming an empty selection or a disabled loop is refused at the door', () => {
+	const presets = [preset('wav', 'wav')];
+	assert.throws(
+		() => createDeliveryBatch(albumProject() as never, {
+			batchId: 'b', presets, targets: [{ kind: 'selection' }],
+		}),
+		/selection is empty/u,
+		'rather than failing member by member halfway through a queue',
+	);
+	assert.throws(
+		() => createDeliveryBatch(albumProject() as never, {
+			batchId: 'b', presets, targets: [{ kind: 'loop' }],
+		}),
+		/loop is not enabled/u,
+	);
+	const looping = {
+		...albumProject(), loop: { enabled: true, startFrame: 100, endFrame: 700 },
+	};
+	assert.deepEqual(
+		createDeliveryBatch(looping as never, {
+			batchId: 'b', presets, targets: [{ kind: 'loop' }],
+		}).members[0].settings.range,
+		{ startFrame: 100, endFrame: 700 },
+	);
+});
+
 test('the batch report itemizes every member, including the ones that never ran', () => {
 	// A batch that published four of six and said nothing about the rest would
 	// read as a delivery that succeeded.
