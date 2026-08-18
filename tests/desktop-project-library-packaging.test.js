@@ -161,6 +161,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/track-folder-state-projection.js',
 		'src/common/editor/track-folder-v12.js',
 		'src/common/editor/track-hierarchy-v12.js',
+		'src/common/editor/video-canvas-fit.js',
 		'src/common/editor/video-clip-composition.js',
 		'src/common/editor/video-display-geometry.js',
 		'src/common/editor/video-effects.js',

@@ -2,10 +2,30 @@
 
 import {
 	readClosedDomainArray,
-	readClosedDomainField,
 	readClosedDomainRecord,
-	type ClosedDomainRecord,
 } from './closed-domain-value.ts';
+import {
+	assertNearly,
+	boundedSafeInteger,
+	canonicalFinite,
+	dataRecord,
+	field,
+	nearPositiveSafeInteger,
+	nonEmptyString,
+	nonNegativeNumber,
+	nonNegativeSafeInteger,
+	numberToken,
+	planNumber,
+	positiveNumber,
+	positiveSafeInteger,
+	unitNumber,
+	type DataRecord,
+} from './video-ffmpeg-plan-guards.ts';
+import {
+	isVideoCanvasFit,
+	resolveVideoCanvasPlacement,
+	type VideoCanvasFit,
+} from './video-canvas-fit.ts';
 import { VIDEO_CLIP_COMPOSITION_BLEND_MODES, type VideoClipCompositionBlendMode } from './video-clip-composition.ts';
 import type { VideoRenderDescription } from './video-render-description.ts';
 import { normalizeVideoEffects, VIDEO_EFFECT_V5_TYPES } from './video-effects.js';
@@ -27,6 +47,8 @@ const MAXIMUM_COMPOSITING_ORDER = 32_767;
 export interface VideoFfmpegCanvas {
 	readonly width: number;
 	readonly height: number;
+	/** Absent means `contain`, the placement every canvas meant before delivery fit. */
+	readonly fit?: VideoCanvasFit;
 }
 
 interface RenderInternals {
@@ -46,7 +68,6 @@ interface RenderInternals {
 
 const TRUSTED_DESCRIPTIONS = new WeakMap<object, RenderInternals>();
 
-type DataRecord = Record<string, unknown>;
 
 /** Normalize V2-V6 composition intervals, with V6 descriptor/order authority. */
 export function normalizeVideoFfmpegCompositionIntervals(
@@ -214,6 +235,8 @@ export function normalizeVideoFfmpegRenderDescription(
 ): VideoRenderDescription {
 	const width = positiveSafeInteger(canvas?.width, 'FFmpeg render canvas width');
 	const height = positiveSafeInteger(canvas?.height, 'FFmpeg render canvas height');
+	const fit = canvas?.fit ?? 'contain';
+	if (!isVideoCanvasFit(fit)) throw new RangeError(`FFmpeg render canvas fit is unsupported: ${String(fit)}.`);
 	const description = readClosedDomainRecord(value, name, DESCRIPTION_FIELDS);
 	const crop = normalizeCrop(field(description, 'crop', name), `${name}.crop`);
 	const affine = readClosedDomainArray(
@@ -242,7 +265,7 @@ export function normalizeVideoFfmpegRenderDescription(
 		blendMode: blendMode as VideoClipCompositionBlendMode,
 		compositingOrder,
 	});
-	TRUSTED_DESCRIPTIONS.set(normalized, renderInternals(normalized, width, height, name));
+	TRUSTED_DESCRIPTIONS.set(normalized, renderInternals(normalized, width, height, fit, name));
 	return normalized;
 }
 
@@ -414,6 +437,7 @@ function renderInternals(
 	description: VideoRenderDescription,
 	canvasWidth: number,
 	canvasHeight: number,
+	fit: VideoCanvasFit,
 	name: string,
 ): RenderInternals {
 	const crop = description.crop;
@@ -423,11 +447,12 @@ function renderInternals(
 	const canonicalHeight = nearPositiveSafeInteger(sourceHeight, `${name}.crop source height`);
 	assertNearly(crop.sourcePixels.x, crop.normalized.left * canonicalWidth, `${name}.crop.sourcePixels.x`);
 	assertNearly(crop.sourcePixels.y, crop.normalized.top * canonicalHeight, `${name}.crop.sourcePixels.y`);
-	const fit = Math.min(canvasWidth / canonicalWidth, canvasHeight / canonicalHeight);
-	const fittedWidth = Math.max(1, Math.round(canonicalWidth * fit));
-	const fittedHeight = Math.max(1, Math.round(canonicalHeight * fit));
-	const fittedX = Math.round((canvasWidth - fittedWidth) / 2);
-	const fittedY = Math.round((canvasHeight - fittedHeight) / 2);
+	// The same placement the description computed, from the same function. The
+	// authored transform below is recovered by dividing this back out, so a
+	// second opinion here would read the delivery's own fit as clip scaling.
+	const { fittedWidth, fittedHeight, fittedX, fittedY } = resolveVideoCanvasPlacement(
+		fit, canvasWidth, canvasHeight, canonicalWidth, canonicalHeight,
+	);
 	const [a, b, c, d, e, f] = description.sourceDisplayToCanvas;
 	const baseScaleX = fittedWidth / canonicalWidth;
 	const baseScaleY = fittedHeight / canonicalHeight;
@@ -510,88 +535,3 @@ function trusted(description: VideoRenderDescription): RenderInternals {
 	return internals;
 }
 
-function field(record: ClosedDomainRecord, key: string, name: string): unknown {
-	return readClosedDomainField(record, key, name);
-}
-
-function canonicalFinite(value: unknown, name: string): number {
-	if (typeof value !== 'number' || !Number.isFinite(value)) throw new TypeError(`${name} must be finite.`);
-	if (Object.is(value, -0)) throw new RangeError(`${name} must not be negative zero.`);
-	return value;
-}
-
-function unitNumber(value: unknown, name: string): number {
-	const number = canonicalFinite(value, name);
-	if (number < 0 || number > 1) throw new RangeError(`${name} must be from zero through one.`);
-	return number;
-}
-
-function nonNegativeNumber(value: unknown, name: string): number {
-	const number = canonicalFinite(value, name);
-	if (number < 0) throw new RangeError(`${name} must be non-negative.`);
-	return number;
-}
-
-function positiveNumber(value: unknown, name: string): number {
-	const number = canonicalFinite(value, name);
-	if (number <= 0) throw new RangeError(`${name} must be positive.`);
-	return number;
-}
-
-function positiveSafeInteger(value: unknown, name: string): number {
-	const number = canonicalFinite(value, name);
-	if (!Number.isSafeInteger(number) || number < 1) throw new RangeError(`${name} must be a positive safe integer.`);
-	return number;
-}
-
-function nonNegativeSafeInteger(value: unknown, name: string): number {
-	const number = canonicalFinite(value, name);
-	if (!Number.isSafeInteger(number) || number < 0) {
-		throw new RangeError(`${name} must be a non-negative safe integer.`);
-	}
-	return number;
-}
-
-function nearPositiveSafeInteger(value: number, name: string): number {
-	const rounded = Math.round(value);
-	if (!Number.isSafeInteger(rounded) || rounded < 1 || !nearlyEqualVideoFfmpegScalar(value, rounded)) {
-		throw new RangeError(`${name} must resolve to a positive safe integer.`);
-	}
-	return rounded;
-}
-
-function boundedSafeInteger(value: unknown, name: string, minimum: number, maximum: number): number {
-	const number = canonicalFinite(value, name);
-	if (!Number.isSafeInteger(number)) throw new TypeError(`${name} must be a safe integer.`);
-	if (number < minimum || number > maximum) throw new RangeError(`${name} is outside its range.`);
-	return number;
-}
-
-function assertNearly(actual: number, expected: number, name: string): void {
-	if (!nearlyEqualVideoFfmpegScalar(actual, expected)) throw new RangeError(`${name} disagrees with the normalized aperture.`);
-}
-
-
-function numberToken(value: number): string {
-	if (!Number.isFinite(value)) throw new RangeError('An FFmpeg render scalar must be finite.');
-	return String(Object.is(value, -0) ? 0 : value);
-}
-
-function planNumber(value: unknown, version: number): unknown {
-	if (version >= 6) return value;
-	const number = Number(value);
-	return Object.is(number, -0) ? 0 : number;
-}
-
-function nonEmptyString(value: unknown, name: string): string {
-	const text = String(value ?? '');
-	if (!text) throw new TypeError(`${name} must not be empty.`);
-	return text;
-}
-
-function dataRecord(value: unknown, name: string): DataRecord {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError(`${name} must be an object.`);
-	}
-	return value as DataRecord;
-}

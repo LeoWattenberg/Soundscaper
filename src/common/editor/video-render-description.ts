@@ -1,6 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	isVideoCanvasFit,
+	resolveVideoCanvasPlacement,
+	type VideoCanvasFit,
+} from './video-canvas-fit.ts';
+
+import {
 	normalizeVideoClipComposition,
 	type VideoClipComposition,
 } from './video-clip-composition.ts';
@@ -15,6 +21,13 @@ export interface VideoRenderDisplaySize {
 export interface VideoRenderCanvas {
 	readonly width: number;
 	readonly height: number;
+	/**
+	 * How a source that does not share the canvas's aspect is placed in it.
+	 *
+	 * Absent means `contain`, which is what every canvas meant before delivery
+	 * fit existed, so an unexercised canvas produces the placement it always did.
+	 */
+	readonly fit?: VideoCanvasFit;
 }
 
 export interface VideoRenderDescriptionRequest {
@@ -96,11 +109,11 @@ export function resolveVideoRenderDescription(
 	const transitionStart = unitInterval(input.opacityStart ?? 1, 'Video render opacityStart');
 	const transitionEnd = unitInterval(input.opacityEnd ?? transitionStart, 'Video render opacityEnd');
 
-	const containScale = Math.min(canvasWidth / sourceWidth, canvasHeight / sourceHeight);
-	const fittedWidth = Math.max(1, Math.round(sourceWidth * containScale));
-	const fittedHeight = Math.max(1, Math.round(sourceHeight * containScale));
-	const fittedX = Math.round((canvasWidth - fittedWidth) / 2);
-	const fittedY = Math.round((canvasHeight - fittedHeight) / 2);
+	const fit = input.canvas?.fit ?? 'contain';
+	if (!isVideoCanvasFit(fit)) throw new RangeError(`Video render canvas fit is unsupported: ${String(fit)}.`);
+	const { fittedWidth, fittedHeight, fittedX, fittedY } = resolveVideoCanvasPlacement(
+		fit, canvasWidth, canvasHeight, sourceWidth, sourceHeight,
+	);
 	const sourceToFitX = fittedWidth / sourceWidth;
 	const sourceToFitY = fittedHeight / sourceHeight;
 	const transform = composition.transform;
