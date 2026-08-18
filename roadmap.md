@@ -726,9 +726,9 @@ invariants, and the bounded work packets are owned by the
 
 ### Framescaper delivery
 
-- **Web Core — In progress:** canvas size and fit are validated plan, dialog,
-  and preset options on both export paths; rational frame rate, background,
-  quality, audio layout, captions, and range remain Planned.
+- **Web Core — In progress:** canvas size, fit, rational frame rate, background,
+  quality tier, audio layout, and range are validated plan, dialog, and preset
+  options on both export paths; captions remain Planned.
 - **Web Core — Planned:** sidecar, burned, and muxed captions where supported.
 - **Web Enhanced — Planned:** WebCodecs plus a reviewed muxer for qualified SDR
   outputs, with FFmpeg/proxy semantic fallback.
