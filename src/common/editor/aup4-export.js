@@ -2,6 +2,13 @@ import { createStreamingWindowedSincResampler } from './resample.js';
 import { AUP4_REALTIME_EFFECT_PROFILES, canEncodeAup4NativeRealtimeEffect } from './aup4-effects.js';
 import { audioEffectLabel } from './effects.js';
 import { addAup4CompatibilityItem, createAup4CompatibilityReport } from './aup4-profile.js';
+import { reportAup4OwnedFeatureOmissions } from './aup4-feature-omissions.ts';
+import {
+	isAup4AudioTrack,
+	isAup4VideoClip,
+	isAup4VideoTrack,
+	reportOmittedProjectFeatures,
+} from './aup4-omitted-features.js';
 import { flattenAup4MusicalMaps, isCurrentAup4MusicalSnapshot } from './aup4-musical-export.ts';
 import { projectForRuntimeConsumers } from './project-current-runtime.ts';
 import { flattenAup4TimelineAnnotations } from './aup4-annotation-interchange.ts';
@@ -55,6 +62,9 @@ export function createAup4ExportPlan(project) {
 		networkAccessAttempted: false,
 	});
 	reportOmittedProjectFeatures(project, normalizedProject, compatibilityReport);
+	// The backstop: anything the document declares that AUP4 cannot carry and
+	// nothing above has already reported.
+	reportAup4OwnedFeatureOmissions(project, compatibilityReport, addAup4CompatibilityItem);
 	reportAup4EffectCompatibility(project, compatibilityReport);
 	flattenAup4MusicalMaps(project, normalizedProject, compatibilityReport);
 	flattenAup4TimelineAnnotations(project, normalizedProject, compatibilityReport);
@@ -349,179 +359,6 @@ export function normalizeAup4ExportSource(plan, sourceAudio) {
 	});
 }
 
-function reportOmittedProjectFeatures(project, normalizedProject, report) {
-	const sourceById = new Map((project.sources || []).map((source) => [source.id, source]));
-	const videoTrackIds = new Set((project.tracks || [])
-		.filter(isAup4VideoTrack)
-		.map((track) => String(track.id)));
-	const videoTrackClipIds = new Set((project.tracks || [])
-		.filter(isAup4VideoTrack)
-		.flatMap((track) => track.clipIds || [])
-		.map(String));
-	const timelineVideoClips = (project.clips || []).filter((clip) => (
-		isAup4VideoClip(clip, sourceById) || videoTrackClipIds.has(String(clip.id))
-	));
-	const projectBinVideoClips = (project.projectBin?.clips || []).filter((clip) => (
-		isAup4VideoClip(clip, sourceById)
-	));
-	const videoSources = (project.sources || []).filter(isAup4VideoSource);
-	if (videoTrackIds.size || timelineVideoClips.length || projectBinVideoClips.length || videoSources.length) {
-		addAup4CompatibilityItem(report, {
-			code: 'VIDEO_OMITTED',
-			severity: 'warning',
-			disposition: 'omitted',
-			message: 'AUP4 is audio-only. Video tracks, clips, and media were omitted from this exported copy.',
-			scope: { kind: 'project' },
-			data: {
-				reason: 'aup4-audio-only',
-				trackCount: videoTrackIds.size,
-				timelineClipCount: timelineVideoClips.length,
-				projectBinClipCount: projectBinVideoClips.length,
-				sourceCount: videoSources.length,
-			},
-		});
-	}
-
-	const projectBinClips = Array.isArray(project.projectBin?.clips) ? project.projectBin.clips : [];
-	if (projectBinClips.length) {
-		addAup4CompatibilityItem(report, {
-			code: 'PROJECT_BIN_OMITTED',
-			severity: 'warning',
-			disposition: 'omitted',
-			scope: { kind: 'project' },
-			data: {
-				clipCount: projectBinClips.length,
-				sourceCount: new Set(projectBinClips.map((clip) => clip.sourceId)).size,
-			},
-		});
-	}
-	if (Object.hasOwn(normalizedProject, 'projectBin')) normalizedProject.projectBin = { clips: [] };
-
-	const mixer = project.mixer || {};
-	for (const [buses, code] of [
-		[mixer.groups, 'MIXER_GROUPS_OMITTED'],
-		[mixer.sends, 'MIXER_SENDS_OMITTED'],
-	]) {
-		if (!Array.isArray(buses) || !buses.length) continue;
-		const envelopes = buses.map((bus) => Array.isArray(bus?.envelope) ? bus.envelope : []);
-		addAup4CompatibilityItem(report, {
-			code,
-			severity: 'warning',
-			disposition: 'omitted',
-			scope: { kind: 'mixer' },
-			data: {
-				count: buses.length,
-				envelopeBusCount: envelopes.filter((envelope) => envelope.length > 0).length,
-				envelopePointCount: envelopes.reduce((count, envelope) => count + envelope.length, 0),
-			},
-		});
-	}
-	for (const [busType, buses] of [['group', mixer.groups], ['send', mixer.sends]]) {
-		for (const bus of buses || []) {
-			if (!Array.isArray(bus.effects) || !bus.effects.length) continue;
-			addAup4CompatibilityItem(report, {
-				code: 'BUS_EFFECTS_OMITTED',
-				severity: 'warning',
-				disposition: 'omitted',
-				scope: { kind: 'mixer-bus', busType, busId: bus.id },
-				data: { count: bus.effects.length },
-			});
-		}
-	}
-	const routeCount = Object.keys(mixer.routes || {}).length;
-	if (routeCount) addAup4CompatibilityItem(report, {
-		code: 'MIXER_ROUTES_OMITTED',
-		severity: 'warning',
-		disposition: 'omitted',
-		scope: { kind: 'mixer' },
-		data: { count: routeCount },
-	});
-	normalizedProject.mixer = { groups: [], sends: [], routes: {} };
-
-	const masterFields = [
-		['gain', 1],
-		['pan', 0],
-		['mute', false],
-		['solo', false],
-	];
-	for (const [field, nativeDefault] of masterFields) {
-		const value = project.master?.[field] ?? nativeDefault;
-		if (value === nativeDefault) continue;
-		addAup4CompatibilityItem(report, {
-			code: `MASTER_${field.toUpperCase()}_OMITTED`,
-			severity: 'warning',
-			disposition: 'omitted',
-			scope: { kind: 'master' },
-			data: { value },
-		});
-		normalizedProject.master[field] = nativeDefault;
-	}
-	if (Array.isArray(project.master?.envelope) && project.master.envelope.length) {
-		addAup4CompatibilityItem(report, {
-			code: 'MASTER_ENVELOPE_OMITTED',
-			severity: 'warning',
-			disposition: 'omitted',
-			scope: { kind: 'master' },
-			data: { pointCount: project.master.envelope.length },
-		});
-		normalizedProject.master.envelope = [];
-	}
-	if (Number(project.masterChannels ?? 2) !== 2) {
-		addAup4CompatibilityItem(report, {
-			code: 'MASTER_CHANNEL_LAYOUT_OMITTED',
-			severity: 'warning',
-			disposition: 'omitted',
-			scope: { kind: 'master' },
-			data: { channelCount: Number(project.masterChannels) },
-		});
-		normalizedProject.masterChannels = 2;
-	}
-	if (project.loop?.enabled || Number(project.loop?.startFrame || 0) !== 0 || Number(project.loop?.endFrame || 0) !== 0) {
-		addAup4CompatibilityItem(report, {
-			code: 'LOOP_REGION_OMITTED',
-			severity: 'info',
-			disposition: 'omitted',
-			scope: { kind: 'project' },
-			data: {
-				startFrame: project.loop.startFrame,
-				endFrame: project.loop.endFrame,
-			},
-		});
-		normalizedProject.loop = { enabled: false, startFrame: 0, endFrame: 0 };
-	}
-	if (project.view?.panelState && Object.keys(project.view.panelState).length) {
-		addAup4CompatibilityItem(report, {
-			code: 'EDITOR_PANEL_STATE_OMITTED',
-			severity: 'info',
-			disposition: 'omitted',
-			scope: { kind: 'project' },
-			data: {},
-		});
-		normalizedProject.view.panelState = {};
-	}
-	for (let index = 0; index < project.tracks.length; index += 1) {
-		const track = project.tracks[index];
-		if (!isAup4AudioTrack(track)) continue;
-		if (track.armed) {
-			addAup4CompatibilityItem(report, {
-				code: 'TRACK_ARMED_STATE_OMITTED',
-				severity: 'info',
-				disposition: 'omitted',
-				scope: { kind: 'track', trackId: track.id },
-				data: {},
-			});
-			normalizedProject.tracks[index].armed = false;
-		}
-		if (track.displayMode === 'half-wave') addAup4CompatibilityItem(report, {
-			code: 'HALF_WAVE_DISPLAY_CONVERTED',
-			severity: 'info',
-			disposition: 'converted',
-			scope: { kind: 'track', trackId: track.id },
-			data: { displayMode: 'waveform' },
-		});
-	}
-}
-
 function reportAup4EffectCompatibility(project, report) {
 	for (const track of project.tracks || []) {
 		if (!isAup4AudioTrack(track)) continue;
@@ -603,22 +440,6 @@ function omitVideoContent(normalizedProject, originalProject) {
 
 function filterRetainedIds(ids, retainedIds) {
 	return ids.filter((id) => retainedIds.has(String(id)));
-}
-
-function isAup4AudioTrack(track) {
-	return !isAup4VideoTrack(track) && (track?.type || track?.kind || 'audio') !== 'label';
-}
-
-function isAup4VideoTrack(track) {
-	return (track?.type || track?.kind) === 'video';
-}
-
-function isAup4VideoClip(clip, sourceById) {
-	return clip?.kind === 'video' || isAup4VideoSource(sourceById.get(clip?.sourceId));
-}
-
-function isAup4VideoSource(source) {
-	return source?.kind === 'video';
 }
 
 function reportRackEffects(effects, scope, report, rackActive) {
