@@ -153,6 +153,7 @@ test('V20 product strategy maps the detached plan exactly into Blob and sink enc
 			width: keyedPlan.canvas.width,
 			height: keyedPlan.canvas.height,
 			frameRate: keyedPlan.canvas.frameRate,
+			fit: keyedPlan.canvas.fit,
 		});
 		assert.deepEqual(encoded.sources, [{ sourceId: 'late-source', blob: videoBlob }]);
 		assert.strictEqual(encoded.audioMix, audioMix);

@@ -45,7 +45,8 @@ test('refuses an oversized detached V7 plan before opening a direct chooser', as
 	const fixture = harness(false);
 	const plan = detachedPlan() as unknown as Record<string, unknown>;
 	const canvas = plan.canvas as Record<string, unknown>;
-	canvas.width = 1_282;
+	// 5828x360 RGBA is 8,392,320 bytes, past the encoder's 8 MiB frame limit.
+	canvas.width = 5_828;
 	const prepared = await prepareDirectVideoDestination(
 		fixture.fileService, plan, 'Keyed.mp4', {}, new AbortController().signal,
 	);
@@ -59,7 +60,7 @@ function detachedPlan() {
 		range: { startFrame: 0, endFrame: 48_000, durationFrames: 48_000 },
 		canvas: {
 			width: 640, height: 360, frameRate: { num: 30_000, den: 1_001 },
-			pixelFormat: 'yuv420p', backgroundColor: '#000000',
+			fit: 'contain', pixelFormat: 'yuv420p', backgroundColor: '#000000',
 			referenceClipId: 'clip', referenceSourceId: 'source',
 		},
 		activeClipIds: ['clip'], activeSourceIds: ['source'],

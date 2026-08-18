@@ -10,6 +10,7 @@ import {
 } from './video-keyframe-render-state-provider.ts';
 import type { VideoKeyframePreviewStateRequest } from './video-keyframe-preview-state.ts';
 import type { VideoRetimeFrameDescriptor } from './video-retime-frame-dispatch.ts';
+import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
 import {
 	normalizeRational,
 	type Rational,
@@ -29,11 +30,18 @@ export interface VideoKeyframeExportCanvas {
 	readonly width: number;
 	readonly height: number;
 	readonly frameRate: Rational;
+	/** How a source of another aspect is placed; absent from a request means `contain`. */
+	readonly fit: VideoCanvasFit;
 }
 
 export interface VideoKeyframeExportFrameRequest {
 	readonly project: ExportProject;
-	readonly canvas: Readonly<{ width: number; height: number; frameRate: RationalInput }>;
+	readonly canvas: Readonly<{
+		width: number;
+		height: number;
+		frameRate: RationalInput;
+		fit?: VideoCanvasFit;
+	}>;
 	readonly startFrame?: number;
 	readonly endFrame?: number;
 	readonly provider?: VideoKeyframeRenderStateProvider;
@@ -219,7 +227,7 @@ function resolveVideoKeyframeExportState(
 		clip,
 		localSequencePosition,
 		sourceDisplaySize: request.sourceDisplaySize,
-		canvas: { width: request.canvas.width, height: request.canvas.height },
+		canvas: { width: request.canvas.width, height: request.canvas.height, fit: request.canvas.fit },
 		transitionWeightStart: transitionWeight,
 		transitionWeightEnd: transitionWeight,
 	});
@@ -251,16 +259,21 @@ function mapLocalSequencePosition(
 
 function normalizeCanvas(value: unknown): VideoKeyframeExportCanvas {
 	const canvas = plainRecord(value, 'video keyframe export canvas');
-	const allowed = new Set(['width', 'height', 'frameRate']);
+	const allowed = new Set(['width', 'height', 'frameRate', 'fit']);
 	for (const key of Reflect.ownKeys(canvas)) {
 		if (typeof key !== 'string' || !allowed.has(key)) {
 			throw new TypeError('Video keyframe export canvas has an unsupported field.');
 		}
 	}
+	// Absent means `contain`, which is the placement every keyed frame had before
+	// a delivery could ask for another one.
+	const fit = Object.hasOwn(canvas, 'fit') ? dataProperty(canvas, 'fit', 'canvas') : 'contain';
+	if (!isVideoCanvasFit(fit)) throw new RangeError('Video keyframe export canvas fit is unsupported.');
 	return Object.freeze({
 		width: positiveSafeInteger(dataProperty(canvas, 'width', 'canvas'), 'canvas.width'),
 		height: positiveSafeInteger(dataProperty(canvas, 'height', 'canvas'), 'canvas.height'),
 		frameRate: positiveRational(dataProperty(canvas, 'frameRate', 'canvas'), 'canvas.frameRate'),
+		fit,
 	});
 }
 

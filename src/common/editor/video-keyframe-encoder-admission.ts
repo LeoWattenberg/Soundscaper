@@ -8,16 +8,29 @@ import {
 	AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE,
 	AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE,
 } from './project-v10-foundation-validation.ts';
+import { VIDEO_CANVAS_MAXIMUM_EXTENT } from './video-canvas-fit.ts';
 
 const RGBA_BYTES_PER_PIXEL = 4;
 const DEFAULT_RING_CAPACITY_BYTES = 1024 * 1024;
 const MINIMUM_RING_CAPACITY_BYTES = 4_096;
-const MAXIMUM_RING_CAPACITY_BYTES = 8 * 1024 * 1024;
+/** One RGBA frame must fit this, which is the real ceiling on a keyed canvas. */
+export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_BYTES = 8 * 1024 * 1024;
+const MAXIMUM_RING_CAPACITY_BYTES = VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_BYTES;
 const MAXIMUM_PATH_CHARACTERS = 1_024;
 const MAXIMUM_PATH_BYTES = 1_024;
 
-export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_WIDTH = 1_280;
-export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_HEIGHT = 720;
+/**
+ * The extent ceiling, which is not what actually bounds a keyed encode.
+ *
+ * These were 1280x720 — the automatic canvas ceiling of the era, copied here —
+ * and they refused a 720x1280 portrait frame that costs exactly the same memory
+ * as the landscape one they admitted. The real bound is `MAXIMUM_RING_CAPACITY_BYTES`
+ * below: one RGBA frame must fit 8 MiB, which caps a canvas at about 2.09
+ * megapixels however its extents are arranged. These now state only what an
+ * extent may be, and the frame-byte limit decides.
+ */
+export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_WIDTH = VIDEO_CANVAS_MAXIMUM_EXTENT;
+export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_HEIGHT = VIDEO_CANVAS_MAXIMUM_EXTENT;
 export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_AUDIO_FRAME_RATE = 30;
 export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_COUNT = 2_000_000;
 export const VIDEO_KEYFRAME_ENCODER_MAXIMUM_TOTAL_RGBA_BYTES = 1024 ** 4;
@@ -296,7 +309,7 @@ function validateFrameSource(value: unknown): VideoKeyframeExportFrameSource {
 	requireFunction(source, 'frame', 'video keyframe export frame source');
 	const canvas = closedRecord(
 		dataProperty(source, 'canvas', 'video keyframe export frame source'),
-		new Set(['width', 'height', 'frameRate']),
+		new Set(['width', 'height', 'frameRate', 'fit']),
 		'video keyframe export canvas',
 	);
 	positiveSafeInteger(

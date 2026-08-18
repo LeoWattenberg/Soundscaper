@@ -119,6 +119,7 @@ test('rejects hostile creator input and non-canonical detached plans without inv
 interface RequestOverrides {
 	readonly activeSourceIds?: string[];
 	readonly durationFrames?: number;
+	readonly fit?: 'contain' | 'cover' | 'stretch';
 	readonly format?: 'mp4' | 'webm';
 	readonly frameRate?: Readonly<{ num: number; den: number }>;
 	readonly includeAudio?: boolean;
@@ -139,6 +140,7 @@ function request(overrides: RequestOverrides = {}) {
 		canvas: {
 			width: 1_280, height: 720,
 			frameRate: overrides.frameRate ?? { num: 30, den: 1 },
+			fit: overrides.fit ?? 'contain',
 			pixelFormat: 'yuv420p', backgroundColor: '#000000',
 			referenceClipId: overrides.referenceClipId === undefined ? 'clip-a' : overrides.referenceClipId,
 			referenceSourceId: overrides.referenceSourceId === undefined

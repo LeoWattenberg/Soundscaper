@@ -21,21 +21,17 @@ import {
 } from './video-source-presentation.ts';
 import { compareRationals, normalizeRational } from './timeline-time.ts';
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from './video-export-plan-version.ts';
-import { isVideoCanvasFit, VIDEO_CANVAS_FIT_MODES } from './video-canvas-fit.ts';
+import {
+	isVideoCanvasFit,
+	VIDEO_CANVAS_FIT_MODES,
+	VIDEO_CANVAS_MAXIMUM_EXTENT,
+} from './video-canvas-fit.ts';
 import { createFilterPlan } from './video-export-filter-plan.js';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
 const DEFAULT_MAXIMUM_FRAME_RATE = 30;
 const DEFAULT_BACKGROUND_COLOR = '#000000';
-/**
- * The largest extent a stated delivery canvas may claim.
- *
- * A stated canvas is not capped by the automatic ceiling — that is the point of
- * stating one — but it is still an allocation, so it answers to a bound that no
- * encoder this product ships exceeds rather than to no bound at all.
- */
-const MAXIMUM_CANVAS_EXTENT = 16_384;
 
 export const VIDEO_EXPORT_FORMATS = deepFreeze({
 	mp4: {
@@ -202,8 +198,8 @@ function canvasExtent(value, name) {
 	if (extent % 2 !== 0) {
 		throw new RangeError(`${name} must be even, because the delivered pixel format subsamples chroma.`);
 	}
-	if (extent > MAXIMUM_CANVAS_EXTENT) {
-		throw new RangeError(`${name} must be at most ${MAXIMUM_CANVAS_EXTENT}.`);
+	if (extent > VIDEO_CANVAS_MAXIMUM_EXTENT) {
+		throw new RangeError(`${name} must be at most ${VIDEO_CANVAS_MAXIMUM_EXTENT}.`);
 	}
 	return extent;
 }

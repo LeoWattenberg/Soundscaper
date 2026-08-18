@@ -100,11 +100,53 @@ test('authenticates the project before reading a closed hostile request', () => 
 	);
 });
 
+test('a keyed export delivers a stated vertical canvas and the fit it asked for', () => {
+	const plan = createFramescaperVideoKeyframeExportPlanV20(PROFILE, keyedProject(), {
+		range: { startFrame: 48_000, endFrame: 96_000 },
+		includeAudio: false,
+		canvas: { size: { width: 1_080, height: 1_920 }, fit: 'cover' },
+	});
+
+	assert.equal(plan.canvas.width, 1_080);
+	assert.equal(plan.canvas.height, 1_920);
+	assert.equal(plan.canvas.fit, 'cover');
+});
+
+test('an unstated keyed canvas still states the fit every keyed frame already had', () => {
+	const plan = createFramescaperVideoKeyframeExportPlanV20(PROFILE, keyedProject(), {
+		range: { startFrame: 48_000, endFrame: 96_000 },
+		includeAudio: false,
+	});
+
+	assert.equal(plan.canvas.fit, 'contain');
+});
+
+test('a keyed canvas the encoder cannot stream is refused at plan build', () => {
+	// 1080x1944 RGBA is 8,398,080 bytes, past the encoder's 8 MiB frame limit.
+	assert.throws(
+		() => createFramescaperVideoKeyframeExportPlanV20(PROFILE, keyedProject(), {
+			range: { startFrame: 48_000, endFrame: 96_000 },
+			includeAudio: false,
+			canvas: { size: { width: 1_080, height: 1_944 } },
+		}),
+		/8 MiB RGBA frame limit/u,
+	);
+	assert.throws(
+		() => createFramescaperVideoKeyframeExportPlanV20(PROFILE, keyedProject(), {
+			range: { startFrame: 48_000, endFrame: 96_000 },
+			includeAudio: false,
+			canvas: { size: { width: 1_080, height: 1_920 }, fit: 'fill' },
+		}),
+		/canvas\.fit is unsupported/u,
+	);
+});
+
 test('refuses independently active but mismatched canvas reference clip/source IDs', () => {
 	assert.throws(() => assertFramescaperVideoKeyframeExportCanvasAuthorityV20({
 		width: 640,
 		height: 360,
 		frameRate: { num: 30, den: 1 },
+		fit: 'contain',
 		pixelFormat: 'yuv420p',
 		backgroundColor: '#000000',
 		referenceClipId: 'clip-a',

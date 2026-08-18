@@ -89,7 +89,8 @@ test('rejects missing, duplicate, or digest-mismatched Blobs before resolver and
 test('preflights encoder geometry, logical work, and output bounds before resolver or GL allocation', async () => {
 	const fixture = await exportFixture();
 	for (const override of [
-		{ canvas: { width: 1_282, height: 2, frameRate: RATE } },
+		// An extent no longer decides; one RGBA frame fitting 8 MiB does.
+		{ canvas: { width: 5_828, height: 360, frameRate: RATE } },
 		{ canvas: { width: 3, height: 2, frameRate: RATE } },
 		{ maximumTotalRgbaBytes: 64 * 32 * 4 * 10 - 1 },
 		{ maximumOutputBytes: 0 },
@@ -106,7 +107,7 @@ test('preflights encoder geometry, logical work, and output bounds before resolv
 			signal: new AbortController().signal,
 			assertCurrent: () => undefined,
 			...override,
-		}, harnessDependencies(events)), /width|dimensions|logical RGBA work|maximumOutput/u);
+		}, harnessDependencies(events)), /frame bytes|dimensions|logical RGBA work|maximumOutput/u);
 		assert.deepEqual(events, []);
 	}
 });

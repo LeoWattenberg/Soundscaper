@@ -266,6 +266,7 @@ function offlineRequest(
 			width: plan.canvas.width,
 			height: plan.canvas.height,
 			frameRate: plan.canvas.frameRate,
+			fit: plan.canvas.fit,
 		}),
 		startFrame: plan.range.startFrame,
 		endFrame: plan.range.endFrame,

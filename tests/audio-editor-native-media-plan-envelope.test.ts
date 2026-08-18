@@ -357,6 +357,7 @@ function keyedPlan(): Record<string, unknown> {
 			width: 1_280,
 			height: 720,
 			frameRate: { num: 30_000, den: 1_001 },
+			fit: 'contain',
 			pixelFormat: 'yuv420p',
 			backgroundColor: '#000000',
 			referenceClipId: 'clip-a',

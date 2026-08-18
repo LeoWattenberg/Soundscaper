@@ -9,6 +9,7 @@ import {
 	type VideoKeyframeExportPlanV7,
 } from '../common/editor/video-keyframe-export-plan-v7.ts';
 import { resolveExactVideoExportCanvas } from '../common/editor/video-export.js';
+import { isVideoCanvasFit, type VideoCanvasFit } from '../common/editor/video-canvas-fit.ts';
 import {
 	assertFramescaperProjectV20Profile,
 	type FramescaperProjectV20Profile,
@@ -29,6 +30,8 @@ export interface FramescaperVideoKeyframeExportPlanRequestV20 {
 	readonly includeAudio?: boolean;
 	readonly audioFileName?: string;
 	readonly canvas?: Readonly<{
+		readonly size?: Readonly<{ readonly width: number; readonly height: number }>;
+		readonly fit?: VideoCanvasFit;
 		readonly width?: number;
 		readonly height?: number;
 		readonly frameRate?: number | Readonly<{ readonly num: number; readonly den: number }>;
@@ -43,6 +46,7 @@ interface ExactCanvas {
 	readonly width: number;
 	readonly height: number;
 	readonly frameRate: Readonly<{ readonly num: number; readonly den: number }>;
+	readonly fit: VideoCanvasFit;
 	readonly pixelFormat: 'yuv420p';
 	readonly backgroundColor: string;
 	readonly referenceClipId: string | null;
@@ -51,7 +55,7 @@ interface ExactCanvas {
 
 const REQUEST_FIELDS = ['format', 'range', 'includeAudio', 'audioFileName', 'canvas'] as const;
 const CANVAS_FIELDS = [
-	'width', 'height', 'frameRate', 'backgroundColor',
+	'size', 'fit', 'width', 'height', 'frameRate', 'backgroundColor',
 	'maximumWidth', 'maximumHeight', 'maximumFrameRate',
 ] as const;
 
@@ -99,6 +103,7 @@ export function createFramescaperVideoKeyframeExportPlanV20(
 			width: canvas.width,
 			height: canvas.height,
 			frameRate: canvas.frameRate,
+			fit: canvas.fit,
 			pixelFormat: 'yuv420p',
 			backgroundColor: canvas.backgroundColor,
 			referenceClipId: canvas.referenceClipId,
@@ -155,9 +160,27 @@ function snapshotCanvas(value: unknown): Readonly<Record<string, unknown>> {
 		else if (key === 'backgroundColor') {
 			if (typeof candidate !== 'string') throw new TypeError('canvas.backgroundColor must be a string.');
 			result[key] = candidate;
+		} else if (key === 'size') result[key] = snapshotSize(candidate);
+		else if (key === 'fit') {
+			if (!isVideoCanvasFit(candidate)) throw new RangeError('canvas.fit is unsupported.');
+			result[key] = candidate;
 		} else result[key] = positiveInteger(candidate, `canvas.${key}`);
 	}
 	return Object.freeze(result);
+}
+
+/**
+ * A stated delivery canvas, passed through untouched for the shared resolver to
+ * validate. Nothing is capped or rounded here: a keyed export answers to the
+ * same canvas rules as every other one, and the encoder's own frame-byte limit
+ * refuses what it cannot stream when the plan is built.
+ */
+function snapshotSize(value: unknown): Readonly<{ width: number; height: number }> {
+	const size = closedRecord(value, ['width', 'height'], 'Framescaper keyed export canvas size');
+	return Object.freeze({
+		width: positiveInteger(data(size, 'width', 'canvas.size'), 'canvas.size.width'),
+		height: positiveInteger(data(size, 'height', 'canvas.size'), 'canvas.size.height'),
+	});
 }
 
 function snapshotRate(value: unknown, name: string): number | Readonly<{ num: number; den: number }> {

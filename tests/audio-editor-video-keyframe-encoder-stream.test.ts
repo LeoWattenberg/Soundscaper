@@ -62,20 +62,31 @@ test('encoder workload admission is exact, immutable, and owns one unambiguous R
 	assert.equal(Object.isFrozen(admission), true);
 	assert.equal(Object.isFrozen(admission.frameRate), true);
 	assert.equal(Object.isFrozen(admission.ffmpegArguments), true);
-	assert.equal(VIDEO_KEYFRAME_ENCODER_MAXIMUM_WIDTH, 1_280);
-	assert.equal(VIDEO_KEYFRAME_ENCODER_MAXIMUM_HEIGHT, 720);
+	// An extent is bounded only by what an encoder can express; the real ceiling
+	// is one RGBA frame fitting 8 MiB, which is about 2.09 megapixels however the
+	// extents are arranged, so a portrait canvas costs exactly what its landscape
+	// counterpart does.
+	assert.equal(VIDEO_KEYFRAME_ENCODER_MAXIMUM_WIDTH, 16_384);
+	assert.equal(VIDEO_KEYFRAME_ENCODER_MAXIMUM_HEIGHT, 16_384);
 	assert.equal(VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_COUNT, 2_000_000);
 	assert.equal(VIDEO_KEYFRAME_ENCODER_MAXIMUM_TOTAL_RGBA_BYTES, 1024 ** 4);
 });
 
 test('admission enforces non-raiseable geometry, frame, and logical-work ceilings', () => {
 	assert.throws(
-		() => admission(source({ width: 1_281, height: 2, frameRate: 1 })),
-		/width.*1 through 1280/u,
+		() => admission(source({ width: 16_386, height: 2, frameRate: 1 })),
+		/width.*1 through 16384/u,
 	);
 	assert.throws(
-		() => admission(source({ width: 2, height: 721, frameRate: 1 })),
-		/height.*1 through 720/u,
+		() => admission(source({ width: 2, height: 16_386, frameRate: 1 })),
+		/height.*1 through 16384/u,
+	);
+	// A 1080x1920 vertical frame is 8,294,400 bytes and admitted; 1080x1944 is
+	// 8,398,080 and refused. The frame-byte limit decides, not the orientation.
+	assert.doesNotThrow(() => admission(source({ width: 1_080, height: 1_920, frameRate: 1 })));
+	assert.throws(
+		() => admission(source({ width: 1_080, height: 1_944, frameRate: 1 })),
+		/frame bytes exceed the 8 MiB/u,
 	);
 	assert.throws(
 		() => admission(source({ width: 3, height: 2, frameRate: 1 })),
@@ -91,8 +102,8 @@ test('admission enforces non-raiseable geometry, frame, and logical-work ceiling
 	);
 	const ordinary = source({ width: 40, height: 40, frameRate: 3 });
 	assert.throws(
-		() => admission(ordinary, { maximumWidth: 1_281 }),
-		/maximumWidth.*cannot exceed 1280/u,
+		() => admission(ordinary, { maximumWidth: 16_385 }),
+		/maximumWidth.*cannot exceed 16384/u,
 	);
 	assert.throws(
 		() => admission(ordinary, { maximumFrameCount: 2 }),

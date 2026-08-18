@@ -206,6 +206,7 @@ function createFixture(options: FixtureOptions) {
 			width: 640,
 			height: 360,
 			frameRate: { num: 3, den: 1 },
+			fit: 'contain',
 			pixelFormat: 'yuv420p',
 			backgroundColor: '#000000',
 			referenceClipId: activeClip.id,

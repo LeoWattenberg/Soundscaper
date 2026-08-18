@@ -8,12 +8,16 @@ import {
 	AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE,
 } from './project-v10-foundation-validation.ts';
 import {
+	VIDEO_KEYFRAME_ENCODER_MAXIMUM_AUDIO_FRAME_RATE,
+	VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_BYTES,
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_COUNT,
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_HEIGHT,
-	VIDEO_KEYFRAME_ENCODER_MAXIMUM_AUDIO_FRAME_RATE,
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_TOTAL_RGBA_BYTES,
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_WIDTH,
 } from './video-keyframe-encoder-admission.ts';
+import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
+
+const RGBA_BYTES_PER_PIXEL = 4;
 
 export type VideoKeyframeExportPlanFormatV7 = 'mp4' | 'webm';
 
@@ -34,6 +38,7 @@ export interface VideoKeyframeExportPlanV7 extends Readonly<Record<string, unkno
 		readonly width: number;
 		readonly height: number;
 		readonly frameRate: Readonly<{ readonly num: number; readonly den: number }>;
+		readonly fit: VideoCanvasFit;
 		readonly pixelFormat: 'yuv420p';
 		readonly backgroundColor: string;
 		readonly referenceClipId: string | null;
@@ -71,6 +76,7 @@ export interface VideoKeyframeExportPlanV7Request {
 		readonly width: number;
 		readonly height: number;
 		readonly frameRate: Readonly<{ readonly num: number; readonly den: number }>;
+		readonly fit: VideoCanvasFit;
 		readonly pixelFormat: 'yuv420p';
 		readonly backgroundColor: string;
 		readonly referenceClipId: string | null;
@@ -104,7 +110,7 @@ const REQUEST_FIELDS = [
 const RANGE_FIELDS = ['startFrame', 'endFrame', 'durationFrames'] as const;
 const RATIONAL_FIELDS = ['num', 'den'] as const;
 const CANVAS_FIELDS = [
-	'width', 'height', 'frameRate', 'pixelFormat', 'backgroundColor',
+	'width', 'height', 'frameRate', 'fit', 'pixelFormat', 'backgroundColor',
 	'referenceClipId', 'referenceSourceId',
 ] as const;
 const CODEC_FIELDS = ['video', 'videoEncoder', 'audio', 'audioEncoder', 'pixelFormat'] as const;
@@ -315,6 +321,16 @@ function captureCanvas(
 		|| height > VIDEO_KEYFRAME_ENCODER_MAXIMUM_HEIGHT) {
 		throw new RangeError('Video keyframe export canvas exceeds the encoder geometry ceiling.');
 	}
+	// The encoder refuses a frame it cannot stream, and the plan is where an
+	// option is validated, so a canvas that cannot be encoded never becomes a plan.
+	if (width * height * RGBA_BYTES_PER_PIXEL > VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_BYTES) {
+		throw new RangeError(
+			'Video keyframe export canvas exceeds the encoder\'s 8 MiB RGBA frame limit; '
+			+ 'a keyed delivery is bounded at about 2.09 megapixels.',
+		);
+	}
+	const fit = data(canvas, 'fit', 'canvas');
+	if (!isVideoCanvasFit(fit)) throw new RangeError('Video keyframe export canvas fit is unsupported.');
 	if (data(canvas, 'pixelFormat', 'canvas') !== 'yuv420p') {
 		throw new TypeError('Video keyframe export plan canvas pixel format must be yuv420p.');
 	}
@@ -328,6 +344,7 @@ function captureCanvas(
 		width,
 		height,
 		frameRate,
+		fit,
 		pixelFormat: 'yuv420p' as const,
 		backgroundColor: canonicalColor(data(canvas, 'backgroundColor', 'canvas')),
 		referenceClipId,

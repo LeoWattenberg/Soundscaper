@@ -16,6 +16,17 @@
  * It stays the default, and its numbers are unchanged.
  */
 
+/**
+ * The largest extent a stated delivery canvas may claim.
+ *
+ * A stated canvas is not capped by the automatic ceiling — that is the point of
+ * stating one — but it is still an allocation, so it answers to a bound no
+ * encoder this product ships exceeds rather than to no bound at all. Paths with
+ * a tighter real bound state that separately: the keyframe encoder's 8 MiB
+ * per-frame limit decides long before an extent here does.
+ */
+export const VIDEO_CANVAS_MAXIMUM_EXTENT = 16_384;
+
 export const VIDEO_CANVAS_FIT_MODES = Object.freeze(['contain', 'cover', 'stretch'] as const);
 export type VideoCanvasFit = typeof VIDEO_CANVAS_FIT_MODES[number];
 
