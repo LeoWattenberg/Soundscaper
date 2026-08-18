@@ -11,7 +11,8 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-18: 6A-1a, 6A-1b, 6A-2 and 6A-3 are complete. 6A-4 is next.**
+**Status on 2026-08-18: 6A-1a, 6A-1b, 6A-2, 6A-3 and 6A-4 are complete. 6A-5 is
+next, and 6A-6 develops alongside it.**
 
 - **The decision.** `src/common/editor/loudness-normalization.ts` computes one
   gain from a measurement and a target and returns it as inspectable data. The
@@ -343,6 +344,43 @@ the queue sitting still with runnable jobs in it.
   reordering; no cross-project batches.
 - **Stop condition:** stop if any batch member type cannot express itself as
   one plan, or if stems require duplicating the archive path.
+
+## 6A-4 status: complete
+
+Conformance runs in the export path itself, on the bytes that delivery produced,
+before anything is published — not as a verification mode somebody has to
+remember to run.
+
+- **It reads produced bytes back.** Every value comes from the ordinary WAV
+  reader, the same one that imports a file somebody else wrote, so a writer that
+  got its own header wrong cannot agree with itself into a pass. Duration,
+  channel count, sample rate, sample format, channel map, broadcast metadata,
+  cues, ADM presence and stamped loudness are each compared with the plan, and
+  each is reported whether it passed or failed.
+- **A failure is a failed delivery.** The report is sealed with the findings
+  first and the error thrown after, so a delivery that failed its own conformance
+  still says why, and nothing is published.
+- **What it cannot reopen it says it did not reopen.** A delivery streamed
+  straight to its destination, or in a format with no reader, reports
+  `delivery.conformance-unverified` rather than being assumed good — "we did not
+  check" and "we checked and it passed" stay different answers.
+- **AUP4 reporting is complete**, and complete by construction: the report is
+  read off the document's own feature manifest, so every owned feature needs an
+  AUP4 decision and a feature added later cannot ship without one. Seven losses
+  were going unreported — track folder structure, take lanes, audio warp maps,
+  automation lanes, mastering sequences, sequence timing and probed source
+  characteristics.
+
+**The exit-gate numbers this produces:** `delivery.audioDurationErrorSamples`
+from `delivery.conformance-duration`, `delivery.channelMapErrors` from
+`delivery.conformance-channel-map`. `delivery.avDriftMaximumMs` is a video
+measurement and belongs to 6B-5's master evidence, not to audio conformance.
+
+**Test fixtures had to become honest.** The export fixtures now write real
+containers and render as many frames as their plans promise. Both stub shapes —
+a writer returning three bytes, and a render disagreeing with its plan — are
+exactly the faults conformance reopens the file to catch, so a fixture shipping
+them could not also stand for an ordinary delivery.
 
 ## 6A-4 — Conformance and delivery reports
 
