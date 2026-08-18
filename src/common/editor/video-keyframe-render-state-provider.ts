@@ -22,6 +22,7 @@ import {
 	type VideoRenderDescription,
 	type VideoRenderDisplaySize,
 } from './video-render-description.ts';
+import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
 
 export interface VideoKeyframeRenderStateRequest {
 	/** One video occurrence from the provider's immutable project snapshot. */
@@ -63,6 +64,7 @@ interface QuerySnapshot {
 	readonly sourceHeight: number;
 	readonly canvasWidth: number;
 	readonly canvasHeight: number;
+	readonly canvasFit: VideoCanvasFit;
 	readonly transitionStart: number;
 	readonly transitionEnd: number;
 }
@@ -119,6 +121,7 @@ export function createVideoKeyframeRenderStateProvider(): VideoKeyframeRenderSta
 				canvas: {
 					width: query.canvasWidth,
 					height: query.canvasHeight,
+					fit: query.canvasFit,
 				},
 				opacityStart: query.transitionStart,
 				opacityEnd: query.transitionEnd,
@@ -159,7 +162,7 @@ function normalizeQuery(value: VideoKeyframeRenderStateRequest): QuerySnapshot {
 		field(request, 'sourceDisplaySize', 'video keyframe render-state request'),
 		'video keyframe source display size',
 	);
-	const canvas = dimensions(
+	const canvas = renderCanvas(
 		field(request, 'canvas', 'video keyframe render-state request'),
 		'video keyframe render canvas',
 	);
@@ -178,8 +181,33 @@ function normalizeQuery(value: VideoKeyframeRenderStateRequest): QuerySnapshot {
 		sourceHeight: source.height,
 		canvasWidth: canvas.width,
 		canvasHeight: canvas.height,
+		canvasFit: canvas.fit,
 		transitionStart,
 		transitionEnd,
+	});
+}
+
+/**
+ * The delivery canvas a render-state query names, fit included.
+ *
+ * The video preview resolves its reference canvas with the export resolver, so
+ * the canvas reaching a keyframed clip states a fit; a reader that only admitted
+ * extents refused it outright and no keyframed clip rendered. An absent fit
+ * still means `contain`, which is what every canvas meant before delivery fit,
+ * and the fit joins the current-frame key so changing it re-resolves the frame
+ * rather than returning the previous framing.
+ */
+function renderCanvas(
+	value: unknown,
+	name: string,
+): Readonly<{ width: number; height: number; fit: VideoCanvasFit }> {
+	const record = readClosedDomainRecord(value, name, ['width', 'height', 'fit'], ['width', 'height']);
+	const fit = optionalField(record, 'fit') ?? 'contain';
+	if (!isVideoCanvasFit(fit)) throw new RangeError(`${name}.fit is unsupported: ${String(fit)}.`);
+	return Object.freeze({
+		width: positiveSafeInteger(field(record, 'width', name), `${name}.width`),
+		height: positiveSafeInteger(field(record, 'height', name), `${name}.height`),
+		fit,
 	});
 }
 
@@ -266,6 +294,7 @@ function sameQuery(left: QuerySnapshot, right: QuerySnapshot): boolean {
 		&& left.sourceHeight === right.sourceHeight
 		&& left.canvasWidth === right.canvasWidth
 		&& left.canvasHeight === right.canvasHeight
+		&& left.canvasFit === right.canvasFit
 		&& left.transitionStart === right.transitionStart
 		&& left.transitionEnd === right.transitionEnd;
 }

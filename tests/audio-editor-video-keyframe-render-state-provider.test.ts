@@ -245,3 +245,52 @@ function assertDeepFrozen(value: unknown): void {
 	assert.equal(Object.isFrozen(value), true);
 	for (const child of Object.values(value)) assertDeepFrozen(child);
 }
+
+test('the render-state canvas carries the delivery fit the preview and the export share', () => {
+	const provider = createVideoKeyframeRenderStateProvider();
+	const clipValue = clip();
+	// The video preview resolves its reference canvas with the export resolver, so
+	// the canvas it hands a keyframed clip carries a fit. Refusing it here stopped
+	// keyframed clips rendering at all.
+	const contained = provider.resolve(request(clipValue, 0, {
+		sourceDisplaySize: { width: 1_920, height: 1_080 },
+		canvas: { width: 1_080, height: 1_920, fit: 'contain' },
+	}));
+	const covered = provider.resolve(request(clipValue, 0, {
+		sourceDisplaySize: { width: 1_920, height: 1_080 },
+		canvas: { width: 1_080, height: 1_920, fit: 'cover' },
+	}));
+
+	// Contain shrinks a 16:9 source to 1080x608 and centres it 656 rows down;
+	// cover fills 1920 rows and overhangs 1166 columns to the left.
+	assert.deepEqual(contained.renderDescription.sourceDisplayToCanvas.slice(4), [0, 656]);
+	assert.deepEqual(covered.renderDescription.sourceDisplayToCanvas.slice(4), [-1_166, 0]);
+	assert.notDeepEqual(
+		covered.renderDescription.sourceDisplayToCanvas,
+		contained.renderDescription.sourceDisplayToCanvas,
+		'a fit that changes the framing must not be cached away as the same frame',
+	);
+});
+
+test('an absent fit still means the placement every canvas meant before delivery fit', () => {
+	const provider = createVideoKeyframeRenderStateProvider();
+	const clipValue = clip();
+	const withoutFit = provider.resolve(request(clipValue, 0, {
+		sourceDisplaySize: { width: 1_920, height: 1_080 },
+		canvas: { width: 1_080, height: 1_920 },
+	}));
+	const withContain = provider.resolve(request(clipValue, 0, {
+		sourceDisplaySize: { width: 1_920, height: 1_080 },
+		canvas: { width: 1_080, height: 1_920, fit: 'contain' },
+	}));
+
+	assert.deepEqual(withoutFit.renderDescription, withContain.renderDescription);
+});
+
+test('an unsupported render-state canvas fit is refused rather than treated as contain', () => {
+	const provider = createVideoKeyframeRenderStateProvider();
+	assert.throws(
+		() => provider.resolve(request(clip(), 0, { canvas: { width: 640, height: 360, fit: 'fill' } })),
+		/fit/u,
+	);
+});
