@@ -711,14 +711,14 @@ invariants, and the bounded work packets are owned by the
 
 - **Blocked until milestone 8:** MIDI import/export remains outside this
   milestone.
-- **Shared / Web Core — Planned:** mastering sequences, named regions,
+- **Shared / Web Core — Implemented:** mastering sequences, named regions,
   per-region metadata, order, gaps, fades, and validation.
-- **Web Core — Planned:** queued mixes, selections, loops, regions, stems,
+- **Web Core — Implemented:** queued mixes, selections, loops, regions, stems,
   alternates, loudness normalization, and format matrices with
   pause/cancel/retry.
-- **Web Core — Planned:** delivery reports, dither/channel mapping, restoration
-  provenance, BWF/RF64/BW64/ADM conformance, and AUP4 omission/conversion
-  reporting.
+- **Web Core — Implemented:** delivery reports, dither/channel mapping,
+  BWF/RF64/BW64/ADM conformance, and AUP4 omission/conversion reporting;
+  restoration provenance alone does not exist, as nothing produces one yet.
 - **Electron Enhanced — Planned:** restartable background queues, direct
   streaming, reference-scale archives, and reviewed professional deliverables.
 - **Shared — Implemented:** reviewed object/binaural immersive delivery — beds to

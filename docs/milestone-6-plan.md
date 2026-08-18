@@ -51,13 +51,14 @@ every later packet emits reports, pins plans, and enqueues jobs.
   stems export per-track with streaming ZIP32/7z archives
   (`src/common/editor/export.js:279-288`;
   `src/common/editor/controller/stem-archive.ts:36-76`).
-- **Loudness is measured, never applied.** EBU R128 measurement is
-  mature (`src/common/editor/ebu-r128.js`), BWF/BW64 exports can
-  capture loudness into BEXT
-  (`src/common/editor/controller/rendered-audio-encoding.ts:143-145`)
-  — but `measureBextLoudness`
-  (`src/common/editor/broadcast-loudness.ts:6`) has no UI, and no
-  export-time normalization exists anywhere.
+- **Loudness was measured, never applied — 6A-2 closed both halves.** EBU R128
+  measurement is mature (`src/common/editor/ebu-r128.js`) and BWF/BW64 exports
+  capture loudness into BEXT. At the original grounding `measureBextLoudness`
+  (`src/common/editor/broadcast-loudness.ts:6`) had no UI and no export-time
+  normalization existed. Both landed in 6A-2:
+  `src/common/editor/loudness-normalization.ts` decides the gain,
+  `loudness-normalization-render.ts` applies it, Analyze > Measure loudness
+  surfaces the meter, and the export dialog states the target.
 - **Video delivery is two formats at 720p30.** MP4/h264+aac and
   WebM/vp9+opus only (`src/common/editor/video-export.js:29-57`),
   encoded by single-threaded ffmpeg.wasm, default canvas ceiling
@@ -118,7 +119,8 @@ every later packet emits reports, pins plans, and enqueues jobs.
   `binaural-render.ts`, all landed by 6A-5); passthrough is a strict
   byte-preservation contract (neutral path, dither none, exact one
   full-source clip, chunk-sequence preservation,
-  `src/common/editor/export.js:408-478`) and 6A-5 did not touch it.
+  `src/common/editor/export-bw64-adm.js:95-115`, extracted from `export.js` by
+  6A-1b) and 6A-5 did not touch it.
 
 ## Known defect this plan absorbed first (repaired)
 
@@ -293,9 +295,10 @@ existing portable exception (docs/project-compatibility.md:86-88).
 
 ## Implementation status
 
-**Status on 2026-08-17: phase 6.0 is complete for the web tier; 6C-1 is
-complete across all three profiles; 6B-3's FFmpeg half is in and its WebCodecs
-producer is not; 6A and the rest of 6B have not started.** Nothing here is
+**Status on 2026-08-18: phase 6.0 and the whole 6A track are complete for the
+web tier; 6C-1 is complete across all three profiles; 6B is in progress.** The
+6A track was reviewed after it closed, and the repairs that review produced are
+recorded with their slices below rather than reopening the packets. Nothing here is
 qualified — both quality environments remain unprovisioned, so no RTF or
 throughput number in this milestone is claimed as met. The two interchange
 acceptance items that were previously blocked are now closed: the OTIO
@@ -358,9 +361,9 @@ remains inside 6.0 is gated on work this milestone does not own:
 - The AUP4 report still renders through its own component rather than the
   shared one, though both now draw their copy from
   `src/common/i18n/report-copy.js` and share the disposition vocabulary.
-- No conformance, loudness, or restoration-provenance report fields exist
-  yet; those arrive with 6A-2 and 6A-4 and extend the model rather than
-  changing it.
+- Conformance and loudness report fields landed with 6A-4 and 6A-2 and extended
+  the model rather than changing it, as planned. Restoration-provenance fields
+  still do not exist; nothing in milestone 6 produces one yet.
 
 ## Phase structure
 
@@ -582,8 +585,6 @@ and
   (docs/milestone-4-plan.md:381-383), so 6B-2 burn-in scopes to label
   tracks explicitly; the mastering-sequence revision consumes the 3A
   marker/region model (`src/common/editor/timeline-annotation.ts`).
-- **Loudness UI debt:** `measureBextLoudness` exists wire-side with no
-  surface; 6A-2 closes it.
 - **The AUP4 report dialog landed** after first grounding
   (`src/common/editor/ui/application-menus.js:137-139`); WP-6.0.0
   migrates it onto the generalized report model instead of creating it.

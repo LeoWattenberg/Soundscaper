@@ -14,6 +14,24 @@
 **Status on 2026-08-18: every 6A slice is complete. 6A-6's collector has landed
 and cannot publish acceptance until the reference environments exist.**
 
+**A review after the track closed found defects in every slice, and they are
+repaired.** Recorded here because the pattern matters more than the list: each
+slice built a well-tested module and attached it to the product through a seam
+no test crossed, so the suite stayed green over features that could not work.
+Three were inert or broken end to end — delivery presets were never read back,
+a mastering-sequence delivery threw at the encoder, and loudness normalization
+had no surface that could set a target. Two delivered the wrong audio or the
+wrong number: a binaural delivery fell back to a stream that renders bed L/R,
+and a downmixed compressed delivery was normalized before its downmix. Two made
+the reports dishonest: a stems delivery reported no conformance at all, and the
+exit collector matched a loudness item code the exporter never writes, so two
+gate metrics computed as zero from an empty set.
+
+The rule the repairs follow: a test double that stands in for the far side of a
+seam has to have the contract the real thing has. Several of these survived
+because a stub resolved where the product resolves differently, threw where the
+product returns, or spelled an item code the product never emits.
+
 - **The decision.** `src/common/editor/loudness-normalization.ts` computes one
   gain from a measurement and a target and returns it as inspectable data. The
   slice's stop condition is implemented literally: when the true-peak ceiling
@@ -89,7 +107,7 @@ The substrate 6A consumes is present and verified:
 - **ADM is two modes.** Authored programmes carry a bed from mono through 7.1.4
   plus positioned objects (`src/common/editor/adm-bed-layout.ts`,
   `adm-authored-objects.ts`); passthrough is the byte-preservation contract
-  (`export.js:408-478`). 6A-5 grew the first and did not touch the second.
+  (`export-bw64-adm.js:95-115`). 6A-5 grew the first and did not touch the second.
 
 Implementation order, dependency-driven:
 
@@ -478,7 +496,7 @@ imports as an ordinary multichannel WAV rather than being misidentified.
   binaural render lands as a delivery option — every new semantic registered
   (serialized schema revision where state is added) and itemized in the
   delivery report.
-- **Invariants:** the passthrough contract (`export.js:408-478`) is
+- **Invariants:** the passthrough contract (`export-bw64-adm.js:95-115`) is
   byte-preservation or nothing — its refusal rules stay refusals; authored
   changes route through authored-mode validation only; the compatibility
   fence stands: new BW64 ADM preservation-or-editing semantics are never
