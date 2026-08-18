@@ -32,6 +32,34 @@ export interface DeliveryQueueServiceRuntime {
 	readonly state?: { deliveryQueue?: DeliveryQueue; deliveryReport?: unknown };
 }
 
+/** Raised when an export resolved without publishing anything. */
+class DeliveryNotPublishedError extends Error {
+	override readonly name = 'DeliveryNotPublished';
+}
+
+/**
+ * Reads what an export published, or refuses to call it a delivery.
+ *
+ * `handleExportAction` does not reject when a render fails: it catches, reports
+ * through the status surface, and resolves — and it resolves just the same when
+ * settings are refused, when the project is empty, or when the operator dismisses
+ * the save dialog. So a resolved call is not evidence that anything was written,
+ * and taking it for one is what let a member that delivered nothing be sealed
+ * into the manifest as delivered. A publication is the record the export path
+ * returns for what it wrote; a dismissed dialog reports itself as cancelled and
+ * settles the member that way rather than as a failure.
+ */
+function publishedDelivery(outcome: unknown): string | null {
+	if (outcome && typeof outcome === 'object') {
+		const record = outcome as Readonly<{ cancelled?: unknown; fileName?: unknown }>;
+		if (record.cancelled) {
+			throw new DOMException('The delivery was cancelled before it published.', 'AbortError');
+		}
+		if (typeof record.fileName === 'string') return record.fileName;
+	}
+	throw new DeliveryNotPublishedError('The delivery published no output.');
+}
+
 /** Queue states, read as what the batch report says about a member. */
 const MEMBER_STATES: Readonly<Record<DeliveryQueueState, DeliveryBatchMemberState>> = Object.freeze({
 	completed: 'delivered',
@@ -54,12 +82,13 @@ export function createDeliveryQueueService(runtime: DeliveryQueueServiceRuntime)
 		runJob: async (entry) => {
 			const settings = settingsByJob.get(entry.jobId);
 			const output = await runtime.handleExportAction('start', settings ?? {});
+			const fileName = publishedDelivery(output);
 			// Recorded per member so the batch report can say which artifact each
 			// conversion belongs to. Both are small: a name and a sealed report.
+			// Reached only once the delivery published, so a member never carries
+			// the report of a render that did not produce it.
 			results.set(entry.jobId, {
-				fileName: typeof (output as { fileName?: unknown })?.fileName === 'string'
-					? (output as { fileName: string }).fileName
-					: null,
+				fileName,
 				report: (runtime.state?.deliveryReport as DeliveryReport | undefined) ?? null,
 			});
 		},

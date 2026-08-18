@@ -6,6 +6,17 @@ import test from 'node:test';
 import { createDeliveryQueueService } from '../src/common/editor/controller/delivery-queue-service.ts';
 import { createExportActionGroup } from '../src/common/editor/controller/export-action-group.ts';
 
+/**
+ * What the export path returns when it published something. The stand-in has to
+ * carry it: the real `handleExportAction` reports a delivery by returning the
+ * record of what it wrote, and resolves with nothing at all when the delivery
+ * failed. A stub that resolves undefined for success describes a contract the
+ * export path does not have, and hides every failure the queue must catch.
+ */
+function delivered(fileName = 'master.wav') {
+	return Object.freeze({ url: null, fileName, mimeType: 'audio/wav', size: 2048, method: 'download' });
+}
+
 function harness(runExport?: (settings: unknown) => Promise<unknown> | unknown) {
 	const calls: Array<[string, unknown]> = [];
 	let ids = 0;
@@ -14,7 +25,7 @@ function harness(runExport?: (settings: unknown) => Promise<unknown> | unknown) 
 	const service = createDeliveryQueueService({
 		handleExportAction: async (action, settings) => {
 			calls.push([action, settings]);
-			if (action === 'start' && runExport) return runExport(settings);
+			if (action === 'start') return runExport ? runExport(settings) : delivered();
 			return undefined;
 		},
 		publishDocumentSnapshot: () => { published += 1; },
@@ -51,7 +62,7 @@ test('every web-tier job declares atomic restart rather than a resume it cannot 
 test('a failing member does not strand the rest of the batch', async () => {
 	const { service } = harness((settings) => {
 		if ((settings as { format?: string })?.format === 'mp3') throw new Error('encoder fault');
-		return undefined;
+		return delivered();
 	});
 	service.enqueue({ label: 'A', settings: { format: 'wav' } });
 	service.enqueue({ label: 'B', settings: { format: 'mp3' } });
@@ -130,7 +141,9 @@ test('cancelling a queued member leaves the running one alone', async () => {
 	// The cancel reached whichever member happened to be rendering, which is a
 	// different job than the one the operator pointed at.
 	let releaseFirst: () => void = () => undefined;
-	const { service, calls } = harness(() => new Promise<void>((resolve) => { releaseFirst = resolve; }));
+	const { service, calls } = harness(() => new Promise<unknown>((resolve) => {
+		releaseFirst = () => resolve(delivered());
+	}));
 	const first = service.enqueue({ label: 'A', settings: { format: 'wav' } });
 	const second = service.enqueue({ label: 'B', settings: { format: 'mp3' } });
 	await Promise.resolve();
@@ -190,6 +203,44 @@ test('a partial batch publishes what delivered and reports the rest, then retrie
 		2,
 		'the retried member ran a second time; the delivered ones did not',
 	);
+});
+
+test('an export that resolves without publishing is a failure, not a delivery', async () => {
+	// The real export action catches its own faults, reports them through the
+	// status surface and resolves. Reading that as success sealed members into
+	// the manifest as delivered when nothing had been written, and left them out
+	// of the retry list, so the missing artifact could never be re-run.
+	const { service } = harness((settings) => (
+		(settings as { format?: string })?.format === 'mp3' ? undefined : delivered()
+	));
+	const member = (index: number, format: string) => ({
+		memberId: `batch-1-${index}`, label: `Member ${index}`, presetId: format,
+		target: { kind: 'project' as const }, mode: 'mix' as const, settings: { format },
+	});
+	service.enqueueBatch({ batchId: 'batch-1', members: [member(1, 'wav'), member(2, 'mp3')] });
+	await service.settled();
+
+	assert.deepEqual(service.list().entries.map(({ state }) => state), ['completed', 'failed']);
+	const report = service.batchReport('batch-1');
+	assert.deepEqual(report.items.map(({ data }) => data.state), ['delivered', 'failed'],
+		'a member that published nothing must not be attested as delivered');
+	assert.equal(report.items[1].data.fileName, null);
+	assert.ok(!('report' in report.items[1].data),
+		'and must not carry the report of a delivery it did not make');
+	assert.deepEqual(service.retryBatchFailures('batch-1'), ['batch-1-2'],
+		'the member that did not deliver stays re-runnable');
+});
+
+test('a dismissed save dialog cancels the member rather than failing it', async () => {
+	// The export path reports a dismissed picker by returning the cancellation,
+	// which is a decision the operator made — not an encoder fault to report.
+	const { service } = harness(() => ({ cancelled: true, fileName: 'master.wav', size: 0 }));
+	service.enqueue({ label: 'A', settings: { format: 'wav' } });
+	await service.settled();
+
+	const [entry] = service.list().entries;
+	assert.equal(entry.state, 'cancelled');
+	assert.equal(entry.lastFailureCode, null, 'a dismissal is not a failure code');
 });
 
 test('a batch report names every member, including ones the queue never reached', async () => {
