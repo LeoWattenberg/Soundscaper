@@ -87,6 +87,16 @@ export function computeM6ReferenceMasterMetrics(measurementValue, context) {
 	const video = measurement.videoArtifacts;
 	const artifacts = [...audio, ...video];
 	const loudness = audio.flatMap((artifact) => loudnessErrors(artifact));
+	if (loudness.length === 0) {
+		// Same policy the conformance metrics follow: a metric nothing measured
+		// fails rather than reporting the zero an empty set would average to. A
+		// run whose deliveries filed no delivered loudness cannot answer the
+		// loudness gates at all, and must not appear to have passed them.
+		throw new Error(
+			'M6 run filed no delivered loudness measurement; '
+			+ 'delivery.integratedLoudnessErrorLu and delivery.truePeakErrorDb cannot be derived.',
+		);
+	}
 
 	return deepFreeze({
 		environmentId: measurement.environmentId,
@@ -148,6 +158,22 @@ export function unreportedConversions(artifact) {
 }
 
 /**
+ * Every item code the exporter files a loudness result under.
+ *
+ * The exporter has never written a bare `delivery.loudness`; it keys the item on
+ * what the delivery found. Matching that name meant no run ever produced a
+ * loudness row, both loudness metrics computed as zero from an empty set, and
+ * the exit gate passed without a single measurement being read.
+ */
+export const M6_LOUDNESS_ITEM_CODES = new Set([
+	'delivery.loudness-measured',
+	'delivery.loudness-normalized',
+	'delivery.loudness-delivered-mismatch',
+	'delivery.loudness-target-missed',
+	'delivery.loudness-unmeasurable',
+]);
+
+/**
  * The gap between what a delivery's gain promised and what its bytes measure.
  *
  * Deliberately not target-versus-delivered: when a true-peak ceiling binds
@@ -159,8 +185,8 @@ export function unreportedConversions(artifact) {
 export function loudnessErrors(artifact) {
 	const rows = [];
 	for (const item of artifact.report.items) {
-		if (item.code !== 'delivery.loudness') continue;
-		const data = requireRecord(item.data, `${artifact.artifactId} delivery.loudness data`);
+		if (!M6_LOUDNESS_ITEM_CODES.has(item.code)) continue;
+		const data = requireRecord(item.data, `${artifact.artifactId} ${item.code} data`);
 		if (data.deliveredLoudnessLufs === undefined && data.deliveredTruePeakDb === undefined) continue;
 		rows.push({
 			loudnessLu: finiteNumber(data.deliveredLoudnessLufs, `${artifact.artifactId} deliveredLoudnessLufs`)

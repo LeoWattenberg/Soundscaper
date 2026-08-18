@@ -8,6 +8,7 @@ import test from 'node:test';
 
 import { createDeliveryReportForPlan } from '../src/common/editor/delivery-conversion-inventory.ts';
 import {
+	M6_LOUDNESS_ITEM_CODES,
 	M6_REFERENCE_MASTER_METRIC_IDS,
 	M6_REFERENCE_MASTER_WORKLOAD_ID,
 	computeM6ReferenceMasterMetrics,
@@ -34,10 +35,34 @@ const CONFIG = JSON.parse(
  * the exporter ever renames `errorSamples` or moves the channel-map count,
  * which is exactly the coupling the exit gate depends on.
  */
+/**
+ * A delivered loudness result, shaped the way the normalization decision is.
+ * The report builder keys the item code on what the delivery found, so letting
+ * it choose the code is what stops the collector and this test from agreeing on
+ * a name the exporter never writes.
+ */
+function deliveredLoudness(overrides: Record<string, unknown> = {}) {
+	return {
+		outcome: 'normalized',
+		gainDb: 2.5,
+		measuredLoudnessLufs: -25.5,
+		measuredTruePeakDb: -3.5,
+		projectedLoudnessLufs: -23,
+		projectedTruePeakDb: -1,
+		deliveredLoudnessLufs: -23.15,
+		deliveredTruePeakDb: -0.95,
+		target: { integratedLufs: -23, truePeakCeilingDb: -1 },
+		targetShortfallLu: 0,
+		reason: 'normalized to the requested target',
+		...overrides,
+	};
+}
+
 function audioReport(options: {
 	readonly durationErrorSamples?: number;
 	readonly channelMapErrors?: number;
 	readonly extraConversion?: boolean;
+	readonly loudness?: Record<string, unknown> | null;
 } = {}) {
 	const plan = {
 		format: 'wav' as const,
@@ -45,7 +70,7 @@ function audioReport(options: {
 		encoding: { channelCount: 2, sampleFormat: 'int24', bitDepth: 24 },
 		ditherMode: 'none',
 	};
-	return createDeliveryReportForPlan(plan, { sampleRate: 48_000 }, null, [
+	return createDeliveryReportForPlan(plan, { sampleRate: 48_000 }, ('loudness' in options ? options.loudness : deliveredLoudness()) as never, [
 		{
 			code: 'delivery.conformance-duration',
 			disposition: (options.durationErrorSamples ?? 0) === 0 ? 'preserved' : 'missing',
@@ -177,27 +202,46 @@ test('loudness error is the gap between what the gain promised and what the file
 	// Not target-versus-delivered: a true-peak ceiling that binds before the
 	// integrated target is the documented outcome, and a gate written the other
 	// way would fail every correctly delivered ceiling-limited master.
-	const artifact = audioArtifact();
+	//
+	// The report is built by the exporter's own builder, which chooses the item
+	// code from what the delivery found. This test used to append an item coded
+	// `delivery.loudness` — a code the exporter has never written — and the
+	// collector matched the same invented name, so both loudness metrics computed
+	// as zero from an empty set and the gate passed without reading a measurement.
 	const withLoudness = metrics(measurement({
-		audioArtifacts: [{
-			...artifact,
-			report: {
-				...artifact.report,
-				items: [...artifact.report.items, {
-					code: 'delivery.loudness',
-					disposition: 'converted',
-					severity: 'info',
-					data: {
-						projectedLoudnessLufs: -23, deliveredLoudnessLufs: -23.15,
-						projectedTruePeakDb: -1, deliveredTruePeakDb: -0.95,
-						targetLufs: -23, shortfallLu: 2,
-					},
-				}],
-			},
-		}],
+		audioArtifacts: [audioArtifact({
+			loudness: deliveredLoudness({ deliveredLoudnessLufs: -23.15, deliveredTruePeakDb: -0.95 }),
+		})],
 	}));
 	assert.ok(Math.abs(withLoudness['delivery.integratedLoudnessErrorLu'] - 0.15) < 1e-9);
 	assert.ok(Math.abs(withLoudness['delivery.truePeakErrorDb'] - 0.05) < 1e-9);
+});
+
+test('every loudness code the collector accepts is one the exporter actually writes', () => {
+	// The collector reads a family of codes; the exporter picks one per outcome.
+	// Deriving the expectation from a real report is what keeps the two from
+	// drifting apart again without anything going red.
+	for (const [loudness, expected] of [
+		[deliveredLoudness(), 'delivery.loudness-normalized'],
+		[deliveredLoudness({ outcome: 'not-requested' }), 'delivery.loudness-measured'],
+		[deliveredLoudness({ outcome: 'ceiling-limited', targetShortfallLu: 2 }), 'delivery.loudness-target-missed'],
+		[deliveredLoudness({ measuredLoudnessLufs: null }), 'delivery.loudness-unmeasurable'],
+	] as const) {
+		const report = audioReport({ loudness: loudness as Record<string, unknown> });
+		const item = report.items.find(({ code }) => code.startsWith('delivery.loudness'));
+		assert.equal(item?.code, expected);
+		assert.ok(
+			M6_LOUDNESS_ITEM_CODES.has(String(item?.code)),
+			`the collector ignores ${String(item?.code)}, so a run carrying it measures nothing`,
+		);
+	}
+});
+
+test('a run whose deliveries measured no loudness fails rather than reporting zero error', () => {
+	assert.throws(
+		() => metrics(measurement({ audioArtifacts: [audioArtifact({ loudness: null })] })),
+		/filed no delivered loudness measurement/u,
+	);
 });
 
 test('bytes published for an artifact that never completed are partial output', () => {
