@@ -60,6 +60,7 @@ export function createDeliveryQueueRunner(runtime: DeliveryQueueRunnerRuntime) {
 	const isAbortError = runtime.isAbortError ?? defaultIsAbortError;
 	let queue = createDeliveryQueue();
 	let draining: Promise<void> | null = null;
+	let rerun = false;
 	let activeJobId: string | null = null;
 	let activeAbort: AbortController | null = null;
 
@@ -100,15 +101,35 @@ export function createDeliveryQueueRunner(runtime: DeliveryQueueRunnerRuntime) {
 		return queue.entries.find((entry) => entry.jobId === jobId) ?? null;
 	}
 
-	/** Start draining if nothing is already draining. Resolves when the queue stalls or empties. */
+	/**
+	 * Start draining if nothing is already draining. Resolves when the queue
+	 * stalls or empties.
+	 *
+	 * A drain that stopped because the queue was paused or empty may still be
+	 * settling when new work arrives — enqueueing while paused and then resuming
+	 * lands exactly there. Returning the in-flight promise on its own would let
+	 * that resume watch a drain that has already left its loop, so the queue would
+	 * sit still with runnable jobs in it. The request is recorded instead and the
+	 * outer loop drains again.
+	 */
 	function run(): Promise<void> {
-		if (draining) return draining;
-		draining = drain().finally(() => { draining = null; });
+		if (draining) {
+			rerun = true;
+			return draining;
+		}
+		draining = (async () => {
+			do {
+				rerun = false;
+				await drain();
+			} while (rerun);
+		})().finally(() => { draining = null; });
 		return draining;
 	}
 
 	return Object.freeze({
 		getQueue: (): DeliveryQueue => queue,
+		/** The job currently being run, so a caller can tell whose cancel is whose. */
+		activeJobId: (): string | null => activeJobId,
 		/**
 		 * Admit a job and start draining. This deliberately does not return the
 		 * drain promise: awaiting it would mean awaiting the whole queue, so a
