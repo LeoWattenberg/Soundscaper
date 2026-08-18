@@ -11,8 +11,8 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-18: 6A-1a, 6A-1b, 6A-2, 6A-3, 6A-4 and 6A-5 are complete.
-6A-6 is what remains of 6A.**
+**Status on 2026-08-18: every 6A slice is complete. 6A-6's collector has landed
+and cannot publish acceptance until the reference environments exist.**
 
 - **The decision.** `src/common/editor/loudness-normalization.ts` computes one
   gain from a measurement and a target and returns it as inspectable data. The
@@ -491,6 +491,47 @@ imports as an ordinary multichannel WAV rather than being misidentified.
   authoring beyond the grown bed set.
 - **Stop condition:** stop if any change would relax a passthrough refusal or
   make passthrough output editable "slightly".
+
+## 6A-6 status: complete, and deliberately unable to sign anything off
+
+The collector for `m6-reference-master-delivery` reads one reference-run record
+and re-derives all eleven registered metrics
+(`scripts/lib/m6-reference-master-metrics.mjs`,
+`scripts/collect-m6-reference-master-quality.mjs`, run as
+`npm run quality:collect:m6-reference-master`).
+
+- **The record carries sealed delivery reports, not summary numbers.** The
+  duration error and the channel-map count are read out of the conformance items
+  6A-4 made the exporter write, so the gate reads what the delivery produced
+  rather than measuring the same artifact a second time with different code —
+  two measurements of one file are two chances to be wrong about it. The test
+  builds its report through the exporter's own report builder, so renaming
+  `errorSamples` breaks the gate instead of silently zeroing it.
+- **`delivery.unreportedConversions` is recomputed, not trusted.** The record
+  carries the plan's conversion inventory beside the sealed report and the
+  collector counts the difference, which is `countUnreportedDeliveryConversions`
+  applied to the run's own artifacts.
+- **Loudness error is projected against delivered, not target against
+  delivered.** When a true-peak ceiling binds before the integrated target the
+  shortfall is 6A-2's documented outcome; a gate written the other way would fail
+  every correctly delivered ceiling-limited master. The gate asks whether the
+  file measures what the delivery said it would.
+- **It cannot publish acceptance.** Both environments are unprovisioned — every
+  fingerprint row is null and neither is qualification-eligible — so there is no
+  accepted-evidence writer at all. The collector emits `pending-external` naming
+  each missing fact one line at a time, refuses `--accept`, `--qualify` and
+  `--publish`, refuses to run on a hosted runner whose timing is shared with
+  whatever else it is doing, and **stops outright** once an environment becomes
+  provisioned, because a pending record naming nothing missing would read as
+  sign-off. The run's observed fingerprint stays beside the result and is never
+  merged into the descriptor's null rows.
+
+**What 6A-6 does not do.** It does not run the workload. Producing the record is
+the reference environment's job, and the video half of that record — frame-count
+error, A/V drift, caption cue error, and the web video RTF — is 6B-5's to
+produce. The arithmetic for all eleven metrics lives here because a collector
+that could only evaluate seven of a workload's eleven thresholds could not
+evaluate the workload at all.
 
 ## 6A-6 — Exit evidence
 

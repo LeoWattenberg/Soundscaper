@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import { createDeliveryReportForPlan } from '../src/common/editor/delivery-conversion-inventory.ts';
@@ -308,6 +310,35 @@ test('the collector re-checks that the workload still owns its fixture, environm
 			},
 		),
 		/nope/u,
+	);
+});
+
+test('the collected result lands as a pending file and never overwrites one', async (context) => {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m6-quality-'));
+	context.after(() => rm(directory, { recursive: true, force: true }));
+	const collected = await collectM6ReferenceMasterQuality(
+		{ measurementPath: 'record.json', outputDirectory: directory },
+		{ processEnvironment: {}, config: CONFIG, readMeasurement: () => measurement() },
+	);
+	assert.equal(
+		collected.resultPath,
+		join(directory, 'm6-reference-master-delivery.pending-external.json'),
+		'the status is in the file name, so an accepted one could not be mistaken for this',
+	);
+	const written = JSON.parse(await readFile(collected.resultPath, 'utf8'));
+	assert.equal(written.status, 'pending-external');
+	assert.equal(written.qualificationEvidencePublished, false);
+	// The run's own observation stays beside the result rather than filling in
+	// the descriptor's null fingerprint rows.
+	assert.deepEqual(written.observedFingerprint, { osImage: 'observed', cpuModel: 'observed' });
+
+	await assert.rejects(
+		() => collectM6ReferenceMasterQuality(
+			{ measurementPath: 'record.json', outputDirectory: directory },
+			{ processEnvironment: {}, config: CONFIG, readMeasurement: () => measurement() },
+		),
+		/EEXIST/u,
+		'a second run cannot quietly replace the first run\'s evidence',
 	);
 });
 
