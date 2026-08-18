@@ -12,17 +12,26 @@ import {
 	type AdmProjectMetadata,
 } from '../adm-project-metadata.ts';
 import {
+	addAdmEditorObject,
+	admEditorChannelCount,
 	createDefaultAdmMetadata,
 	listAdmEditorSourceChannels,
+	removeAdmEditorObject,
 	setAdmEditorAssignment,
 	setAdmEditorLayout,
+	setAdmEditorObject,
+	type AdmEditorSourceChannel,
 } from './adm-metadata-editor-model.ts';
+import { ADM_AUTHORED_MAXIMUM_CHANNELS } from '../adm-authored-objects.ts';
+import { createStableId } from '../stable-id.js';
 
 interface AdmMetadataFieldsProps {
 	readonly value: AdmProjectMetadata | null;
 	readonly project: unknown;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly disabled?: boolean;
+	/** Injected so a rendered object identity is reproducible in a test. */
+	readonly createId?: () => string;
 	readonly onCommit: (value: AdmProjectMetadata | null) => void;
 }
 
@@ -74,6 +83,7 @@ export function AdmMetadataFields({
 	project,
 	copy,
 	disabled = false,
+	createId,
 	onCommit,
 }: AdmMetadataFieldsProps) {
 	if (value == null) return (
@@ -185,9 +195,125 @@ export function AdmMetadataFields({
 				);
 			})}
 		</fieldset>
+		<AdmObjectFields
+			authored={authored}
+			copy={copy}
+			disabled={disabled}
+			sourceChannels={sourceChannels}
+			createId={createId ?? (() => createStableId('adm-object'))}
+			onCommit={onCommit}
+		/>
 		<Button variant="secondary" disabled={disabled} onClick={() => onCommit(null)}>{copy.admRemove}</Button>
 		</div>
 	);
 }
 
 export default AdmMetadataFields;
+
+interface AdmObjectFieldsProps {
+	readonly authored: AdmAuthoredMetadata;
+	readonly copy: Readonly<Record<string, string>>;
+	readonly disabled: boolean;
+	readonly sourceChannels: readonly AdmEditorSourceChannel[];
+	readonly createId: () => string;
+	readonly onCommit: (value: AdmProjectMetadata | null) => void;
+}
+
+/**
+ * Authoring the positioned objects a programme delivers after its bed.
+ *
+ * Adding one is a two-step choice — pick a source channel, then place it —
+ * rather than a free-standing "new object", because an object with no signal
+ * behind it is a channel of silence the delivery still has to carry.
+ */
+function AdmObjectFields({ authored, copy, disabled, sourceChannels, createId, onCommit }: AdmObjectFieldsProps) {
+	const objects = authored.objects ?? [];
+	const full = admEditorChannelCount(authored) >= ADM_AUTHORED_MAXIMUM_CHANNELS;
+	const [pending, setPending] = useState('');
+	const chosen = sourceChannels.find((source) => sourceKey(source) === pending) ?? sourceChannels[0];
+	return (
+		<fieldset className="audio-editor-adm-objects">
+			<legend>{copy.admObjects}</legend>
+			{objects.length === 0 && <p className="audio-editor-panel-hint">{copy.admNoObjects}</p>}
+			{objects.map((object) => (
+				<div className="audio-editor-adm-object" key={object.id}>
+					<DraftField
+						name={`adm-object-name-${object.id}`}
+						label={copy.admObjectName}
+						value={object.name}
+						disabled={disabled}
+						onCommit={(name) => onCommit(setAdmEditorObject(authored, object.id, { name }))}
+					/>
+					{([
+						['azimuth', copy.admAzimuth, -180, 180],
+						['elevation', copy.admElevation, -90, 90],
+						['distance', copy.admDistance, 0, 1],
+					] as const).map(([coordinate, label, minimum, maximum]) => (
+						<label key={coordinate}>
+							<span>{label}</span>
+							<input
+								type="number"
+								min={minimum}
+								max={maximum}
+								step={coordinate === 'distance' ? 0.01 : 1}
+								value={object.position[coordinate]}
+								disabled={disabled}
+								onChange={(event) => onCommit(setAdmEditorObject(authored, object.id, {
+									position: { ...object.position, [coordinate]: Number(event.currentTarget.value) },
+								}))}
+							/>
+						</label>
+					))}
+					<label>
+						<span>{copy.gain}</span>
+						<input
+							type="number" min="0" max="4" step="0.01"
+							value={object.gain}
+							disabled={disabled}
+							onChange={(event) => onCommit(setAdmEditorObject(authored, object.id, {
+								gain: Number(event.currentTarget.value),
+							}))}
+						/>
+					</label>
+					<Button
+						variant="secondary"
+						disabled={disabled}
+						onClick={() => onCommit(removeAdmEditorObject(authored, object.id))}
+					>
+						{copy.admRemoveObject}
+					</Button>
+				</div>
+			))}
+			{full
+				? <p className="audio-editor-panel-hint">{copy.admObjectsFull}</p>
+				: (
+					<div className="audio-editor-adm-object-add">
+						<label>
+							<span>{copy.admObjectSource}</span>
+							<select
+								name="adm-object-source"
+								value={chosen ? sourceKey(chosen) : ''}
+								disabled={disabled || sourceChannels.length === 0}
+								onChange={(event) => setPending(event.currentTarget.value)}
+							>
+								{sourceChannels.map((source) => (
+									<option key={sourceKey(source)} value={sourceKey(source)}>{source.label}</option>
+								))}
+							</select>
+						</label>
+						<Button
+							variant="secondary"
+							disabled={disabled || !chosen}
+							onClick={() => chosen && onCommit(addAdmEditorObject(authored, chosen, createId))}
+						>
+							{copy.admAddObject}
+						</Button>
+					</div>
+				)}
+		</fieldset>
+	);
+}
+
+function sourceKey(source: AdmEditorSourceChannel): string {
+	return `${source.stripKind}:${source.stripId}:${source.sourceChannel}`;
+}

@@ -8,7 +8,11 @@ import {
 } from '../src/common/editor/adm-metadata.ts';
 
 import {
+	addAdmEditorObject,
+	admEditorChannelCount,
 	createDefaultAdmMetadata,
+	removeAdmEditorObject,
+	setAdmEditorObject,
 	createProjectAdmEditorValue,
 	listAdmEditorSourceChannels,
 	setAdmEditorAssignment,
@@ -146,4 +150,63 @@ test('ADM editor preserves imported passthrough metadata until explicit conversi
 		...PROJECT,
 		metadata: { adm: passthrough },
 	}), passthrough);
+});
+
+test('the editor turns a source channel into an object, and takes it back', () => {
+	const project = {
+		masterChannels: 2,
+		sources: [{ id: 'stereo', channelCount: 2 }, { id: 'mono', channelCount: 1 }],
+		clips: [{ id: 'music-clip', sourceId: 'stereo' }, { id: 'voice-clip', sourceId: 'mono' }],
+		tracks: [
+			{ type: 'audio', id: 'music', name: 'Music', clipIds: ['music-clip'] },
+			{ type: 'audio', id: 'narration', name: 'Narration', clipIds: ['voice-clip'] },
+		],
+		mixer: {},
+	};
+	const base = createDefaultAdmMetadata(project, 'stereo');
+	const narration = listAdmEditorSourceChannels(project)
+		.find(({ stripId }) => stripId === 'narration');
+	assert.ok(narration);
+
+	let ids = 0;
+	const withObject = addAdmEditorObject(base, narration, () => `object-${++ids}`);
+	assert.deepEqual(withObject.objects?.map(({ id, stripId, position }) => ({ id, stripId, position })), [{
+		id: 'object-1',
+		stripId: 'narration',
+		// In front of the listener: an object has to start somewhere, and this is
+		// the position an operator can hear as wrong.
+		position: { azimuth: 0, elevation: 0, distance: 1 },
+	}]);
+	assert.equal(admEditorChannelCount(withObject), 3, 'the stereo bed plus one object');
+
+	const placed = setAdmEditorObject(withObject, 'object-1', {
+		name: 'Narrator', gain: 0.5, position: { azimuth: -45, elevation: 20, distance: 0.5 },
+	});
+	assert.equal(placed.objects?.[0]?.name, 'Narrator');
+	assert.deepEqual(placed.objects?.[0]?.position, { azimuth: -45, elevation: 20, distance: 0.5 });
+
+	// A partial move keeps the coordinates it did not name.
+	const raised = setAdmEditorObject(placed, 'object-1', { position: { elevation: 30 } as never });
+	assert.deepEqual(raised.objects?.[0]?.position, { azimuth: -45, elevation: 30, distance: 0.5 });
+
+	const removed = removeAdmEditorObject(raised, 'object-1');
+	assert.equal(Object.hasOwn(removed, 'objects'), false, 'the last object leaves no empty collection behind');
+	assert.deepEqual(removed, base);
+});
+
+test('adding an object leaves the bed assignment its channel already had', () => {
+	// One signal in the bed and as an object is a choice ADM allows; the editor
+	// does not quietly undo it.
+	const project = {
+		masterChannels: 2,
+		sources: [{ id: 'stereo', channelCount: 2 }],
+		clips: [{ id: 'clip', sourceId: 'stereo' }],
+		tracks: [{ type: 'audio', id: 'music', name: 'Music', clipIds: ['clip'] }],
+		mixer: {},
+	};
+	const base = createDefaultAdmMetadata(project, 'stereo');
+	const [left] = listAdmEditorSourceChannels(project);
+	assert.ok(left);
+	const withObject = addAdmEditorObject(base, left, () => 'object-1');
+	assert.deepEqual(withObject.bed.assignments, base.bed.assignments);
 });

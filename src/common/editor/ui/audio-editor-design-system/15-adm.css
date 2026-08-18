@@ -49,6 +49,43 @@
 	white-space: nowrap;
 }
 
+#kw-audio-editor-design-system .audio-editor-adm-objects {
+	display: grid;
+	gap: 5px;
+	min-width: 0;
+	margin: 3px 0;
+	padding: 9px;
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 5px;
+}
+
+#kw-audio-editor-design-system .audio-editor-adm-object {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+	align-items: end;
+	gap: 6px;
+	padding: 6px 0;
+	border-top: 1px solid var(--kw-editor-line);
+}
+
+#kw-audio-editor-design-system .audio-editor-adm-object:first-of-type {
+	border-top: 0;
+}
+
+#kw-audio-editor-design-system .audio-editor-adm-object-add {
+	display: grid;
+	grid-template-columns: minmax(120px, 1fr) auto;
+	align-items: end;
+	gap: 6px;
+}
+
+@media (width <= 640px) {
+	#kw-audio-editor-design-system .audio-editor-adm-object,
+	#kw-audio-editor-design-system .audio-editor-adm-object-add {
+		grid-template-columns: 1fr;
+	}
+}
+
 #kw-audio-editor-design-system .audio-editor-adm-summary {
 	display: grid;
 	gap: 4px;

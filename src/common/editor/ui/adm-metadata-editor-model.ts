@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { AdmAuthoredObject } from '../adm-authored-objects.ts';
 import {
 	ADM_BED_CHANNEL_ORDER,
 	admBedChannelCount,
@@ -179,7 +180,57 @@ export function setAdmEditorAssignment(
 }
 
 export function admEditorChannelCount(value: AdmAuthoredMetadata): number {
-	return admBedChannelCount(value.bed.layout);
+	return admBedChannelCount(value.bed.layout) + (value.objects?.length ?? 0);
+}
+
+/**
+ * Turn a source channel into a positioned object.
+ *
+ * The object is created in front of the listener, because an object has to start
+ * somewhere and "straight ahead" is the position an operator can hear as wrong.
+ * The same channel keeps whatever bed assignment it had: sending one signal to
+ * both the bed and an object is a choice ADM allows, and it is not this
+ * function's place to undo it.
+ */
+export function addAdmEditorObject(
+	value: AdmAuthoredMetadata,
+	source: AdmEditorSourceChannel,
+	createId: () => string,
+): AdmAuthoredMetadata {
+	return normalizeAdmProjectMetadata({
+		...value,
+		objects: [...value.objects ?? [], {
+			id: createId(),
+			name: source.label,
+			stripKind: source.stripKind,
+			stripId: source.stripId,
+			sourceChannel: source.sourceChannel,
+			gain: 1,
+			position: { azimuth: 0, elevation: 0, distance: 1 },
+		}],
+	}) as AdmAuthoredMetadata;
+}
+
+export function removeAdmEditorObject(value: AdmAuthoredMetadata, objectId: string): AdmAuthoredMetadata {
+	return normalizeAdmProjectMetadata({
+		...value,
+		objects: (value.objects ?? []).filter((object) => object.id !== objectId),
+	}) as AdmAuthoredMetadata;
+}
+
+export function setAdmEditorObject(
+	value: AdmAuthoredMetadata,
+	objectId: string,
+	changes: Partial<Omit<AdmAuthoredObject, 'id'>>,
+): AdmAuthoredMetadata {
+	return normalizeAdmProjectMetadata({
+		...value,
+		objects: (value.objects ?? []).map((object) => (object.id === objectId ? {
+			...object,
+			...changes,
+			position: { ...object.position, ...changes.position },
+		} : object)),
+	}) as AdmAuthoredMetadata;
 }
 
 function defaultBedChannel(
