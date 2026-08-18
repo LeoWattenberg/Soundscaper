@@ -23,7 +23,11 @@ import {
 } from '../export-dialog-model.js';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import ExportPresetSection from './ExportPresetSection.jsx';
-import { dialogSettingsFromPreset, presetSettingsFromDialog } from '../export-preset-model.ts';
+import {
+	dialogSettingsFromPreset,
+	presetFormatFromDialog,
+	presetSettingsFromDialog,
+} from '../export-preset-model.ts';
 import {
 	bitrateOption,
 	compactFields,
@@ -94,7 +98,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 				...(presetId ? { id: presetId } : {}),
 				label: presetName.trim(),
 				kind: presetKind,
-				format: settings.format,
+				format: presetFormatFromDialog(settings.format, presetKind),
 				settings: presetSettingsFromDialog(settings, presetKind),
 			});
 			setPresetId(preset.id);

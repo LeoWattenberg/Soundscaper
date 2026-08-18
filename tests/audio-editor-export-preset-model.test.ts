@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	dialogSettingsFromPreset,
+	presetFormatFromDialog,
 	presetSettingsFromDialog,
 } from '../src/common/editor/ui/export-preset-model.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
@@ -13,7 +14,10 @@ import {
 	validateDeliveryPreset,
 } from '../src/common/editor/delivery-preset.ts';
 import { createDeliveryPresetService } from '../src/common/editor/controller/delivery-preset-service.ts';
-import { createExportDialogRequest } from '../src/common/editor/ui/export-dialog-model.js';
+import {
+	createExportDialogRequest,
+	isVideoExportDialogFormat,
+} from '../src/common/editor/ui/export-dialog-model.js';
 
 const DIALOG = {
 	mode: 'mix',
@@ -185,6 +189,42 @@ test('applying a video preset patches the dialog canvas fields back to strings',
 	assert.equal(patch.canvasHeight, '1920');
 	assert.equal(patch.canvasFit, 'cover');
 	assert.ok(!('size' in patch), 'the dialog holds flat strings, never the nested preset shape');
+});
+
+test('a video preset saved from the dialog and applied back stays a video delivery', async () => {
+	// The dialog names its video formats with a prefix so one list can hold both
+	// kinds; a preset carries the bare codec name the plan uses. Without the
+	// translation the validator refused every video preset the dialog tried to
+	// save ("unknown video format: video-mp4"), and applying a hand-authored one
+	// patched the dialog's format to `mp4`, which the dialog does not recognise
+	// as video — so the fields vanished and Export built an audio request.
+	const persisted: Array<[string, unknown]> = [];
+	let ids = 0;
+	const service = createDeliveryPresetService({
+		state: {},
+		persistSetting: (key, value) => { persisted.push([key, value]); },
+		createId: (prefix) => `${prefix}-${++ids}`,
+	});
+	const dialog = { ...DIALOG, format: 'video-mp4', canvasWidth: '1920', canvasHeight: '1080' };
+	const kind = isVideoExportDialogFormat(dialog.format) ? 'video' : 'audio';
+	assert.equal(kind, 'video');
+
+	const preset = await service.save({
+		label: 'Master 1080p',
+		kind,
+		format: presetFormatFromDialog(dialog.format, kind),
+		settings: presetSettingsFromDialog(dialog, kind),
+	});
+	assert.equal(preset.format, 'mp4', 'a preset carries the format the plan understands');
+
+	const patch = dialogSettingsFromPreset(preset);
+	assert.equal(patch.format, 'video-mp4', 'and applying it keeps the dialog in video mode');
+	assert.ok(isVideoExportDialogFormat(patch.format));
+	assert.deepEqual(
+		[patch.canvasWidth, patch.canvasHeight],
+		['1920', '1080'],
+		'with the canvas it was saved with',
+	);
 });
 
 test('exporting a preset writes through the preset purpose with a safe name', async () => {

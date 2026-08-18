@@ -164,11 +164,32 @@ export function statedVideoCanvas(
 	return Object.freeze(stated);
 }
 
+/**
+ * Translating between the format a dialog names and the format a preset names.
+ *
+ * The dialog distinguishes its video formats from its audio ones by prefix, so
+ * a single list can hold both; a preset already says which kind it is, so it
+ * carries the bare codec name the export plan uses. Neither side can consume the
+ * other's spelling: the validator refuses `video-mp4` as an unknown video
+ * format, and the dialog does not recognise `mp4` as a video format at all, so
+ * a preset applied without this translation quietly switched the dialog to
+ * audio. The export start path performs the same strip, which is why the plan
+ * only ever sees the bare name.
+ */
+export function presetFormatFromDialog(format: unknown, kind: DeliveryPresetKind): string {
+	const value = String(format ?? '');
+	return kind === 'video' ? value.replace(/^video-/u, '') : value;
+}
+
+export function dialogFormatFromPreset(preset: DeliveryPreset): string {
+	return preset.kind === 'video' ? `video-${preset.format}` : preset.format;
+}
+
 /** The dialog patch a preset implies. Numbers become strings again for the inputs. */
 export function dialogSettingsFromPreset(
 	preset: DeliveryPreset,
 ): Readonly<Record<string, unknown>> {
-	const patch: Record<string, unknown> = { format: preset.format };
+	const patch: Record<string, unknown> = { format: dialogFormatFromPreset(preset) };
 	for (const [key, value] of Object.entries(preset.settings ?? {})) {
 		if (key === 'size') {
 			const size = value as Readonly<{ width?: unknown; height?: unknown }> | null;
