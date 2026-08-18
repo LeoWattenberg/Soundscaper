@@ -93,6 +93,25 @@ test('a loss another item already reported is one loss, not two', () => {
 	assert.equal(report.items.length, 1);
 });
 
+test('a loss nobody actually reported is reported here, not assumed away', () => {
+	// A `reported` decision names the item that is supposed to carry the loss, and
+	// naming it was taken as proof it fired. MIXER_ROUTES_OMITTED cannot fire for
+	// any project that can declare a mixer graph — it is emitted from a `routes`
+	// map, and the V21 graph has no such field — so an authored graph left the
+	// exported copy with no report item at all.
+	const report = createAup4CompatibilityReport('save');
+	const reported = reportAup4OwnedFeatureOmissions(
+		project([PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.audioMixerGraph]),
+		report,
+		addAup4CompatibilityItem,
+	);
+
+	assert.deepEqual([...reported], ['MIXER_ROUTES_OMITTED']);
+	assert.equal(report.items.length, 1);
+	assert.equal(report.items[0].disposition, 'omitted');
+	assert.match(String(report.items[0].message), /mixer graph/u);
+});
+
 test('a document that holds nothing reports nothing', () => {
 	const report = createAup4CompatibilityReport('save');
 	assert.deepEqual([...reportAup4OwnedFeatureOmissions(project([]), report, addAup4CompatibilityItem)], []);

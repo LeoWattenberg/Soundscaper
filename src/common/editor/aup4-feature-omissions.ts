@@ -33,7 +33,11 @@ interface Aup4FeatureDecision {
 
 export const AUP4_OWNED_FEATURE_CARRIAGE: Readonly<Record<OwnedFeatureKey, Aup4FeatureDecision>> = Object.freeze({
 	audioEffects: Object.freeze({ carriage: 'carried', code: 'MISSING_REALTIME_EFFECT' }),
-	videoEffects: Object.freeze({ carriage: 'reported', code: 'VIDEO_OMITTED' }),
+	videoEffects: Object.freeze({
+		carriage: 'reported',
+		code: 'VIDEO_OMITTED',
+		message: 'Audacity has no video. The video tracks and their effects were omitted.',
+	}),
 	musicalTimeline: Object.freeze({ carriage: 'carried', code: 'TEMPO_MAP_FLATTENED' }),
 	timelineAnnotations: Object.freeze({
 		carriage: 'carried', code: 'TIMELINE_ANNOTATIONS_FLATTENED_TO_AUDACITY_LABEL_TRACK',
@@ -58,7 +62,11 @@ export const AUP4_OWNED_FEATURE_CARRIAGE: Readonly<Record<OwnedFeatureKey, Aup4F
 		code: 'AUTOMATION_LANES_OMITTED',
 		message: 'Audacity has no automation lanes. Only the clip and track envelopes AUP4 understands were exported.',
 	}),
-	audioMixerGraph: Object.freeze({ carriage: 'reported', code: 'MIXER_ROUTES_OMITTED' }),
+	audioMixerGraph: Object.freeze({
+		carriage: 'reported',
+		code: 'MIXER_ROUTES_OMITTED',
+		message: 'Audacity has no mixer graph. The tracks were exported with their own levels and the buses, sends, VCAs and routing were omitted.',
+	}),
 	masteringSequences: Object.freeze({
 		carriage: 'omitted',
 		code: 'MASTERING_SEQUENCES_OMITTED',
@@ -107,8 +115,16 @@ export function reportAup4OwnedFeatureOmissions(
 	for (const [key, id] of Object.entries(PROJECT_OWNED_FEATURE_REQUIREMENT_IDS)) {
 		if (!declared.has(id)) continue;
 		const decision = AUP4_OWNED_FEATURE_CARRIAGE[key as OwnedFeatureKey];
-		// A loss somebody else already reported is one loss, not two.
-		if (decision.carriage !== 'omitted' || already.has(decision.code)) continue;
+		// Carried means the feature survives the conversion, so there is no loss.
+		if (decision.carriage === 'carried') continue;
+		// A loss somebody else already reported is one loss, not two — but only if
+		// they actually reported it. A `reported` decision names the item that is
+		// supposed to carry the loss, and naming it was taken as proof it fired.
+		// MIXER_ROUTES_OMITTED cannot fire for any project that can declare a mixer
+		// graph: it is emitted from a `routes` map, and the V21 graph has no such
+		// field, so an authored graph was dropped from the exported copy with no
+		// item at all. Checking the item is present is what makes the hand-off real.
+		if (already.has(decision.code)) continue;
 		addItem(report, {
 			code: decision.code,
 			severity: 'warning',
