@@ -93,8 +93,8 @@ test('the export dialog carries the chosen sequence into the request, and nothin
 		customArguments: '', includeTail: true,
 	};
 	assert.equal(
-		createExportDialogRequest({ ...dialogSettings, masteringSequenceId: 'album-order' }, {})
-			.masteringSequenceId,
+		(createExportDialogRequest({ ...dialogSettings, masteringSequenceId: 'album-order' }, {}) as
+			Record<string, unknown>).masteringSequenceId,
 		'album-order',
 	);
 	assert.equal(

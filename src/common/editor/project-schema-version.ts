@@ -54,6 +54,17 @@ export function isSoundscaperProductionProjectSchema(value: unknown): value is 2
 		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
+/**
+ * Documents whose revision owns a mastering-sequence collection.
+ *
+ * Narrower than the production authority on purpose: a V21 document carries that
+ * authority but has nowhere to put a sequence, so a surface gated on the wider
+ * predicate would open on a document where every edit it offers must fail.
+ */
+export function isMasteringSequenceProjectSchema(value: unknown): value is 23 {
+	return value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
+}
+
 /** Active audio-authoring documents: shared V17 and Soundscaper-owned V21. */
 export function isActiveAudioEditorProjectSchema(value: unknown): value is 17 | 21 | 23 {
 	return value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION

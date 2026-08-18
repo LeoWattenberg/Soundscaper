@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isSoundscaperProductionProjectSchema } from '../project-schema-version.ts';
+import {
+	isMasteringSequenceProjectSchema,
+	isSoundscaperProductionProjectSchema,
+} from '../project-schema-version.ts';
 import {
 	resolveSoundscaperProductionCopy,
 	type SoundscaperProductionCopy,
@@ -17,6 +20,7 @@ export type SoundscaperProductionSurface =
 	| 'routing'
 	| 'restoration'
 	| 'metering'
+	| 'mastering-sequences'
 	| 'reviewed-effects';
 export type SoundscaperProductionMenuAction = SoundscaperProductionSurface;
 
@@ -28,6 +32,7 @@ export interface SoundscaperProductionMenuCapabilities {
 	readonly audioAnalysis?: unknown;
 	readonly reviewedWebEffectPackages?: unknown;
 	readonly reviewedEffectPackages?: unknown;
+	readonly masteringSequences?: unknown;
 }
 
 export interface SoundscaperProductionMenuInput {
@@ -152,13 +157,24 @@ export function createSoundscaperProductionApplicationMenuItems(
 		: [];
 	const reviewedPackages = enabled(input.capabilities.reviewedWebEffectPackages)
 		|| enabled(input.capabilities.reviewedEffectPackages);
-	const tools = reviewedPackages && enabled(input.capabilities.audioEffects)
-		? [leaf({
-			id: 'soundscaper-reviewed-effects', label: copy.reviewedEffects,
-			enabled: project !== null,
-			invoke: () => actions.open('reviewed-effects'),
-		})]
-		: [];
+	const tools = [
+		...(enabled(input.capabilities.masteringSequences)
+			? [leaf({
+				id: 'soundscaper-mastering-sequences', label: copy.masteringSequences,
+				// Only a revision that owns the collection can hold one, so the entry
+				// stays visible and disabled elsewhere rather than vanishing.
+				enabled: isMasteringSequenceProjectSchema(own(project, 'schemaVersion')),
+				invoke: () => actions.open('mastering-sequences'),
+			})]
+			: []),
+		...(reviewedPackages && enabled(input.capabilities.audioEffects)
+			? [leaf({
+				id: 'soundscaper-reviewed-effects', label: copy.reviewedEffects,
+				enabled: project !== null,
+				invoke: () => actions.open('reviewed-effects'),
+			})]
+			: []),
+	];
 
 	return Object.freeze({
 		tracks: Object.freeze(tracks),

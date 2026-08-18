@@ -1,6 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isSoundscaperProductionProjectSchema } from '../project-schema-version.ts';
+import {
+	isMasteringSequenceProjectSchema,
+	isSoundscaperProductionProjectSchema,
+} from '../project-schema-version.ts';
+import {
+	createDocumentMasteringSequenceSnapshot,
+	type DocumentMasteringSequenceRegionSnapshot,
+	type DocumentMasteringSequenceSnapshot,
+} from '../controller/document-mastering-sequence-snapshot.ts';
 import {
 	effectParameterInventory,
 	stripParameterDescriptor,
@@ -84,6 +92,9 @@ export interface SoundscaperProductionDialogModel {
 	readonly laneTimebase: Readonly<{ sampleRate: unknown; tempoMap: unknown }>;
 	readonly mixerGraphText: string;
 	readonly mixerCounts: SoundscaperProductionMixerCounts;
+	readonly masteringSequences: readonly DocumentMasteringSequenceSnapshot[];
+	/** The regions an entry may point at, in timeline order. */
+	readonly masteringRegions: readonly DocumentMasteringSequenceRegionSnapshot[];
 	readonly operationsBlocked: boolean;
 	readonly blockReason: SoundscaperProductionDialogBlockReason;
 }
@@ -128,6 +139,7 @@ export function createSoundscaperProductionDialogModel(
 	const selectedLane = lanes.find(({ id }) => id === input.selectedLaneId) ?? lanes[0] ?? null;
 	const mixer = record(own(project, 'mixer'));
 	const mixerCounts = mixerCollectionCounts(mixer);
+	const masteringSequenceSnapshot = createDocumentMasteringSequenceSnapshot(input.project);
 	const blockReason = resolveBlockReason({
 		input, surface, project, selectedTrack,
 	});
@@ -152,6 +164,8 @@ export function createSoundscaperProductionDialogModel(
 		}),
 		mixerGraphText: safeDocumentText(mixer),
 		mixerCounts,
+		masteringSequences: masteringSequenceSnapshot.sequences,
+		masteringRegions: masteringSequenceSnapshot.regions,
 		operationsBlocked: blockReason !== null,
 		blockReason,
 	});
@@ -167,6 +181,7 @@ function supportedSurfaces(
 	if (capabilities.audioMixerGraph === true) surfaces.push('routing');
 	if (capabilities.audioEffects === true) surfaces.push('restoration');
 	if (capabilities.audioAnalysis === true) surfaces.push('metering');
+	if (capabilities.masteringSequences === true) surfaces.push('mastering-sequences');
 	if (capabilities.audioEffects === true && (
 		capabilities.reviewedWebEffectPackages === true
 		|| capabilities.reviewedEffectPackages === true
@@ -311,6 +326,10 @@ function resolveBlockReason(value: Readonly<{
 	if (value.surface === null || value.project === null) return 'unsupported';
 	if ((value.surface === 'automation' || value.surface === 'routing')
 		&& !isSoundscaperProductionProjectSchema(own(value.project, 'schemaVersion'))) return 'wrong-schema';
+	// Narrower than the production authority: a V21 document carries that but has
+	// nowhere to put a sequence, so every edit this surface offers would fail.
+	if (value.surface === 'mastering-sequences'
+		&& !isMasteringSequenceProjectSchema(own(value.project, 'schemaVersion'))) return 'wrong-schema';
 	if (value.input.readOnly === true) return 'read-only';
 	if (value.input.editingBlocked === true) return 'busy';
 	const automationTarget = normalizeAutomationTarget(

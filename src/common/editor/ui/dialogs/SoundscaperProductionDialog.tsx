@@ -18,10 +18,27 @@ import {
 	resolveSoundscaperProductionCopy,
 	type SoundscaperProductionCopy,
 } from '../soundscaper-production-copy.ts';
+import type {
+	MasteringSequenceCommandPayloads,
+	MasteringSequenceCommandType,
+} from '../../commands/mastering-sequence.ts';
+import { createStableId } from '../../stable-id.js';
 import SoundscaperAutomationEditor from './SoundscaperAutomationEditor.tsx';
+import SoundscaperMasteringSequenceEditor from './SoundscaperMasteringSequenceEditor.tsx';
 import SoundscaperRoutingEditor from './SoundscaperRoutingEditor.tsx';
 
 const MAXIMUM_RENDERED_LOUDNESS_HISTORY_ENTRIES = 6_000;
+
+/**
+ * Mastering-sequence edits are the commands themselves rather than a dialog
+ * vocabulary that has to be translated: the editor names the edit, and the
+ * ordinary command path decides whether it is allowed and how it undoes.
+ */
+export type MasteringSequenceDialogOperation = {
+	readonly [Type in MasteringSequenceCommandType]: Readonly<
+		{ readonly type: Type } & MasteringSequenceCommandPayloads[Type]
+	>;
+}[MasteringSequenceCommandType];
 
 export type SoundscaperProductionDialogOperation =
 	| Readonly<{
@@ -60,6 +77,7 @@ export type SoundscaperProductionDialogOperation =
 	}>
 	| Readonly<{ readonly type: 'restoration/capture-noise-profile' }>
 	| Readonly<{ readonly type: 'production-meter/reset' }>
+	| MasteringSequenceDialogOperation
 	| Readonly<{
 		readonly type: 'reviewed-effect/apply';
 		readonly package: Readonly<{ readonly id: 'org.soundscaper.utility-gain'; readonly version: '1.0.0' }>;
@@ -285,6 +303,14 @@ export default function SoundscaperProductionDialog({
 					meters={snapshot.productionMeters ?? Object.freeze([])}
 					loudness={snapshot.loudnessHistory ?? null}
 					onReset={() => perform('meter-reset', () => ({ type: 'production-meter/reset' }))}
+				/>}
+				{model.surface === 'mastering-sequences' && <SoundscaperMasteringSequenceEditor
+					copy={copy}
+					disabled={disabled}
+					sequences={model.masteringSequences}
+					regions={model.masteringRegions}
+					createId={() => createStableId('mastering-sequence')}
+					onOperation={(operation) => perform('mastering-sequence', () => operation)}
 				/>}
 				{model.surface === 'reviewed-effects' && <ReviewedEffectsEditor
 					copy={copy}
@@ -551,6 +577,7 @@ function surfaceLabel(
 	if (surface === 'routing') return copy.routing;
 	if (surface === 'restoration') return copy.restorationTab;
 	if (surface === 'metering') return copy.metersTab;
+	if (surface === 'mastering-sequences') return copy.masteringSequencesTab;
 	if (surface === 'reviewed-effects') return copy.reviewedEffectsTab;
 	return copy.productionAudio;
 }

@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import type { SoundscaperProductionDialogOperation } from '../dialogs/SoundscaperProductionDialog.tsx';
+import type {
+	MasteringSequenceDialogOperation,
+	SoundscaperProductionDialogOperation,
+} from '../dialogs/SoundscaperProductionDialog.tsx';
 import {
 	SOUNDSCAPER_AUTOMATION_MODES,
 	type SoundscaperAutomationMode,
@@ -163,7 +166,7 @@ export function soundscaperProductionSurface(
 ): SoundscaperProductionSurface | null {
 	if (typeof activeSurface !== 'string' || !activeSurface.startsWith(SURFACE_PREFIX)) return null;
 	const surface = activeSurface.slice(SURFACE_PREFIX.length);
-	return ['automation', 'routing', 'restoration', 'metering', 'reviewed-effects'].includes(surface)
+	return ['automation', 'routing', 'restoration', 'metering', 'mastering-sequences', 'reviewed-effects'].includes(surface)
 		? surface as SoundscaperProductionSurface
 		: null;
 }
@@ -178,7 +181,9 @@ export function executeSoundscaperProductionOperation(
 	if (isAutomationGestureOperation(operation)) {
 		return executeAutomationGesture(controller, operation, automationGesture);
 	}
-	if (operation.type === 'automation-lane/set' || operation.type === 'mixer-graph/set') {
+	if (operation.type === 'automation-lane/set'
+		|| operation.type === 'mixer-graph/set'
+		|| isMasteringSequenceOperation(operation)) {
 		return controller.actions.edit.commit(operation);
 	}
 	if (operation.type === 'automation-mode/set') {
@@ -242,6 +247,18 @@ function executeAutomationGesture(
 	}
 	if (!actions.cancelGesture) throw new Error('Automation gesture cancellation is unavailable in this runtime.');
 	return actions.cancelGesture(token);
+}
+
+/**
+ * Mastering-sequence operations are already the commands, so they go to the
+ * ordinary command path unchanged: the editor names the edit, and the command
+ * layer decides whether it is allowed and how it undoes, exactly as it does for
+ * every other document edit.
+ */
+function isMasteringSequenceOperation(
+	operation: SoundscaperProductionDialogOperation,
+): operation is MasteringSequenceDialogOperation {
+	return operation.type.startsWith('mastering-sequence/');
 }
 
 function isAutomationGestureOperation(
