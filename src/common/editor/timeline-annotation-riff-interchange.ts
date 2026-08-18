@@ -34,6 +34,8 @@ export interface RiffAnnotationExportOptions {
 	readonly markerSource?: RiffMarkerExportSource;
 	readonly markerTrackId?: string;
 	readonly preservedRiffMarkers?: boolean;
+	/** The delivery writes a mastering sequence's region cues instead of these. */
+	readonly masteringSequenceCues?: boolean;
 }
 
 export interface RiffAnnotationExportResult {
@@ -74,15 +76,28 @@ export function createRiffAnnotationExport(
 	const report = createTimelineAnnotationInterchangeReport('export', source);
 	if (source === 'none') return frozenExport([], report);
 	if (options.preservedRiffMarkers === true) {
-		const itemCount = source === 'timeline-annotations'
-			? recordArray(project.timelineAnnotations).length
-			: selectedLabelCount(project, options.markerTrackId);
+		const itemCount = sourceItemCount(project, source, options);
 		if (itemCount) addItem(
 			report,
 			'RIFF_MARKER_SOURCE_OMITTED_FOR_PASSTHROUGH',
 			'omitted',
 			null,
 			'Authored marker metadata was omitted because the BW64 passthrough preserves its original RIFF marker chunks byte-for-byte.',
+			{ itemCount, source },
+		);
+		return frozenExport([], report);
+	}
+	if (options.masteringSequenceCues === true) {
+		// The delivered timeline is a splice of regions in an authored order, so a
+		// project-timeline position has no delivered counterpart to be written at.
+		// The cues that are written describe the sequence instead.
+		const itemCount = sourceItemCount(project, source, options);
+		if (itemCount) addItem(
+			report,
+			'RIFF_MARKER_SOURCE_REPLACED_BY_MASTERING_SEQUENCE',
+			'omitted',
+			null,
+			'Authored markers were omitted because this delivery writes the mastering sequence\'s region cues.',
 			{ itemCount, source },
 		);
 		return frozenExport([], report);
@@ -114,6 +129,16 @@ export function createRiffAnnotationExport(
 		if (marker) markers.push(marker);
 	}
 	return frozenExport(markers, report);
+}
+
+function sourceItemCount(
+	project: RuntimeClipProject & DataRecord,
+	source: RiffMarkerExportSource,
+	options: RiffAnnotationExportOptions,
+): number {
+	return source === 'timeline-annotations'
+		? recordArray(project.timelineAnnotations).length
+		: selectedLabelCount(project, options.markerTrackId);
 }
 
 /** Convert parsed RIFF cues into fresh sample-authoritative primary-sequence annotations. */

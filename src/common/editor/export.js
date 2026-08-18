@@ -1,12 +1,7 @@
 import { projectEffectTailFrames } from './effects.js';
 import { createBwfExportMetadata, projectBextMetadata } from './broadcast-wave-project.ts';
-import {
-	inspectPreservedAdmRiffChunks,
-	sameBextMetadata,
-	splitAdmRiffChunkSequence,
-	validateAdmPassthroughPayload,
-	validateAdmRiffChunkSequence,
-} from './adm-riff-passthrough.ts';
+import { inspectPreservedAdmRiffChunks, sameBextMetadata } from './adm-riff-passthrough.ts';
+import { createBw64AdmExport, resolveBw64Adm } from './export-bw64-adm.js';
 import {
 	AUDIO_EDITOR_MASTER_CHANNELS,
 	AUDIO_EDITOR_SAMPLE_RATE,
@@ -23,27 +18,10 @@ import {
 import { inspectAiffLayout } from './aiff.js';
 import { inspectWavLayout } from './wav.js';
 import { createStemArchivePlan } from './controller/stem-archive.ts';
-import {
-	createAdmChna,
-	createRiffAxmlChunk,
-	createRiffChnaChunk,
-} from './adm-metadata.ts';
-import { decodeWavOpaqueRiffChunk } from './wav-opaque-chunks.ts';
 import { normalizeLoudnessNormalizationTarget } from './loudness-normalization.ts';
-import { findUnsafeAdmRenderEffects } from './adm-render-safety.ts';
 import { createRiffAnnotationExport } from './timeline-annotation-riff-interchange.ts';
+import { resolveMasteringSequenceExport } from './mastering-sequence-export.ts';
 import { planExportOfflineRenderStrategyAdmission } from './export-render-admission.ts';
-import {
-	isNeutralAdmSignalPath,
-	resolveExactAdmPassthroughTimelineSource,
-} from './adm-passthrough-project.ts';
-import {
-	admBedChannelCount,
-	admBedChannelOrder,
-	evaluateAdmPassthroughEligibility,
-	normalizeAdmProjectMetadata,
-	validateAdmAuthoredRouting,
-} from './adm-project-metadata.ts';
 
 export const EXPORT_FORMAT_DEFAULTS = Object.freeze({
 	wav: { bitDepth: 24 },
@@ -88,6 +66,9 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {readonly import('./riff-markers.ts').RiffMarker[]} markers
  * @property {import('./timeline-annotation-interchange-report.ts').TimelineAnnotationInterchangeReport} markerInterchangeReport
  * @property {import('./loudness-normalization.ts').LoudnessNormalizationTarget|null} loudnessNormalization
+ * @property {import('./mastering-sequence-delivery.ts').MasteringSequenceDeliveryPlan} [masteringSequence]
+ * @property {{startFrame: number, endFrame: number, durationFrames: number}} range
+ * @property {number} tailFrames
  */
 
 export function estimatePcmBytes(frameCount, channelCount = AUDIO_EDITOR_MASTER_CHANNELS, bytesPerSample = 4) {
@@ -176,14 +157,21 @@ export function createExportPlan(project, options = {}) {
 	}
 	const sampleRate = encoding.sampleRate;
 	const range = resolveExportRange(runtimeProject, options.range || 'project');
+	const masteringSequence = resolveMasteringSequenceExport(runtimeProject, {
+		masteringSequenceId: options.masteringSequenceId ?? null,
+		mode,
+		outputSampleRate: sampleRate,
+		admMetadata: bw64Adm?.metadata ?? null,
+	});
 	const markerExport = createRiffAnnotationExport(runtimeProject, {
 		range,
 		outputSampleRate: sampleRate,
 		...(options.markerSource == null ? {} : { markerSource: options.markerSource }),
 		...(options.markerTrackId == null ? {} : { markerTrackId: options.markerTrackId }),
 		preservedRiffMarkers: preservedRiffChunks?.markers === true,
+		masteringSequenceCues: masteringSequence !== null,
 	});
-	let markers = markerExport.markers;
+	let markers = masteringSequence ? masteringSequence.cues : markerExport.markers;
 	let ixml = runtimeProject.metadata?.ixml ?? null;
 	let cart = format === 'bwf' || format === 'bw64' ? runtimeProject.metadata?.cart ?? null : null;
 	let bext = format === 'bwf' || format === 'bw64'
@@ -211,10 +199,16 @@ export function createExportPlan(project, options = {}) {
 	if (preservedRiffChunks?.ixml) ixml = null;
 	if (preservedRiffChunks?.cart) cart = null;
 	if (bext) encoding = Object.freeze({ ...encoding, bext });
-	const tailFrames = determineTailFrames(runtimeProject, mode, options.includeTail !== false);
+	// A sequence delivers exactly the regions it names: audio past the last one is
+	// audio the sequence did not ask for, so there is no tail to add.
+	const tailFrames = masteringSequence
+		? 0
+		: determineTailFrames(runtimeProject, mode, options.includeTail !== false);
 	const rangeOutputFrames = Math.ceil(range.durationFrames * sampleRate / runtimeProject.sampleRate);
 	const tailOutputFrames = Math.ceil(tailFrames * sampleRate / runtimeProject.sampleRate);
-	const outputFrames = rangeOutputFrames + tailOutputFrames;
+	const outputFrames = masteringSequence
+		? masteringSequence.outputFrames
+		: rangeOutputFrames + tailOutputFrames;
 	const adm = bw64Adm ? createBw64AdmExport(runtimeProject, bw64Adm, {
 		range,
 		outputFrames,
@@ -271,12 +265,21 @@ export function createExportPlan(project, options = {}) {
 				project: runtimeProject,
 				mode,
 				outputs,
-				range,
+				range: masteringSequence
+					? { startFrame: masteringSequence.sourceRange.startFrame, durationFrames: masteringSequence.longestRenderFrames }
+					: range,
 				tailFrames,
 				channelCount: adm?.channelCount,
 			}),
 		})
 		: legacyRender;
+	if (masteringSequence && render.strategy !== 'offline') {
+		// The delivered timeline is assembled from several renders, which a stream
+		// that encodes one contiguous range as it renders cannot produce. Refusing
+		// is the honest outcome: the alternative writes the project's own timeline
+		// under a name that promised the sequence's.
+		throw new Error('Mastering sequence delivery requires the offline render; this delivery is too large for it.');
+	}
 	const loudnessNormalization = resolveExportLoudnessNormalization(options, {
 		mode,
 		admMetadata: bw64Adm?.metadata ?? null,
@@ -321,7 +324,8 @@ export function createExportPlan(project, options = {}) {
 			trailingChunks: adm.trailingChunks,
 		} : {}),
 		loudnessNormalization,
-		range,
+		...(masteringSequence ? { masteringSequence: masteringSequence.plan } : {}),
+		range: masteringSequence ? masteringSequence.sourceRange : range,
 		tailFrames,
 		outputFrames,
 		outputBytesPerRender: outputBytes,
@@ -383,166 +387,6 @@ function selectExportOfflineRenderAdmission({
 			? candidate
 			: selected;
 	}, null);
-}
-
-function resolveBw64Adm(project, options) {
-	const transient = options.adm !== undefined;
-	const requestedMetadata = transient ? options.adm : project.metadata?.adm;
-	const metadata = requestedMetadata == null ? null : normalizeAdmProjectMetadata(requestedMetadata);
-	if (!metadata) throw new Error('BW64 export requires ADM metadata.');
-	if (options.channelMapping != null && options.channelMapping !== 'preserve') {
-		throw new Error('BW64 / ADM export requires the preserve channel mapping and ADM channel order.');
-	}
-	const channelCount = metadata.mode === 'authored'
-		? admBedChannelCount(metadata.bed.layout)
-		: metadata.geometry.channelCount;
-	const masterChannels = Number(options.inputChannelCount ?? project.masterChannels ?? AUDIO_EDITOR_MASTER_CHANNELS);
-	if ((metadata.mode === 'passthrough' || !transient) && masterChannels !== channelCount) {
-		throw new Error(`The ${channelCount}-channel ADM bed does not match the ${masterChannels}-channel project master.`);
-	}
-	if (metadata.mode === 'authored') {
-		const issues = validateAdmAuthoredRouting(metadata, {
-			...project,
-			masterChannels: transient ? channelCount : masterChannels,
-		});
-		if (issues.length) throw new Error(`ADM routing is incomplete: ${issues.map(({ message }) => message).join(' ')}`);
-		const unsafeEffects = findUnsafeAdmRenderEffects(project, channelCount);
-		if (unsafeEffects.length) {
-			throw new Error(`ADM export cannot use effects that change terminal channel width: ${unsafeEffects
-				.map(({ effectType, scope, targetId }) => `${effectType} on ${scope}${targetId ? ` ${targetId}` : ''}`)
-				.join(', ')}.`);
-		}
-		return Object.freeze({
-			metadata,
-			channelCount,
-			channelOrder: admBedChannelOrder(metadata.bed.layout),
-		});
-	}
-	const channelOrder = validateAdmPassthroughPayload(metadata);
-	validateAdmRiffChunkSequence(metadata);
-	return Object.freeze({
-		metadata,
-		channelCount,
-		channelOrder,
-	});
-}
-
-function createBw64AdmExport(project, resolved, { range, outputFrames, encoding }) {
-	const { metadata, channelCount, channelOrder } = resolved;
-	if (encoding.channelCount !== channelCount) {
-		throw new Error('BW64 output channel count does not match its ADM bed.');
-	}
-	let preDataChunks;
-	let trailingChunks;
-	if (metadata.mode === 'authored') {
-		preDataChunks = createRiffChnaChunk(createAdmChna({ layout: metadata.bed.layout }));
-		trailingChunks = createRiffAxmlChunk({
-			programmeName: metadata.programme.name,
-			contentName: metadata.content.name,
-			programmeLanguage: metadata.programme.language,
-			contentLanguage: metadata.content.language,
-			bedName: metadata.bed.name,
-			layout: metadata.bed.layout,
-		});
-	} else {
-		if (encoding.dither !== 'none') throw new Error('ADM passthrough export requires dither to be disabled.');
-		if (!isNeutralAdmSignalPath(project)) {
-			throw new Error('ADM passthrough requires a neutral project signal path.');
-		}
-		const source = resolveExactAdmPassthroughTimelineSource(
-			project,
-			metadata.geometry.frameCount,
-		);
-		if (!source) {
-			throw new Error('ADM passthrough requires one exact full-source timeline clip and track path.');
-		}
-		if (source.storageKey !== metadata.source.storageKey || source.mimeType !== metadata.source.mimeType) {
-			throw new Error('ADM passthrough is not eligible: source-changed.');
-		}
-		const outputEligibility = evaluateAdmPassthroughEligibility(metadata, {
-			projectRevision: project.revision,
-			sourceId: source?.id ?? '',
-			sampleRate: encoding.sampleRate,
-			channelCount: encoding.channelCount,
-			frameCount: outputFrames,
-			bitDepth: encoding.bitDepth,
-			float: encoding.floatingPoint,
-			startFrame: range.startFrame,
-			endFrame: range.endFrame,
-		});
-		if (!outputEligibility.eligible) {
-			throw new Error(`ADM passthrough is not eligible: ${outputEligibility.reason}.`);
-		}
-		const sourceEligibility = evaluateAdmPassthroughEligibility(metadata, {
-			projectRevision: project.revision,
-			sourceId: source?.id ?? '',
-			sampleRate: source?.sampleRate ?? 0,
-			channelCount: source?.channelCount ?? 0,
-			frameCount: source?.frameCount ?? 0,
-			bitDepth: metadata.geometry.bitDepth,
-			float: metadata.geometry.float,
-			startFrame: range.startFrame,
-			endFrame: range.endFrame,
-		});
-		if (!sourceEligibility.eligible) {
-			throw new Error(`ADM passthrough is not eligible: ${sourceEligibility.reason}.`);
-		}
-		if (metadata.riffChunkSequence?.length) {
-			const sequence = splitAdmRiffChunkSequence(metadata);
-			preDataChunks = compactRiffChunks(sequence.preDataChunks);
-			trailingChunks = compactRiffChunks(sequence.trailingChunks);
-		} else {
-			const opaqueBefore = (metadata.opaqueRiffChunks ?? [])
-				.filter(({ placement }) => placement === 'before-data')
-				.map(decodeWavOpaqueRiffChunk);
-			const chnaChunk = metadata.chna.rawBase64
-				? createRiffChunk('chna', decodeBase64(metadata.chna.rawBase64))
-				: undefined;
-			preDataChunks = compactRiffChunks([...opaqueBefore, ...(chnaChunk ? [chnaChunk] : [])]);
-			const payloads = [
-				metadata.payload,
-				...(metadata.auxiliaryPayloads ?? []),
-				...(metadata.serialPayload ? [metadata.serialPayload] : []),
-			];
-			const chunks = payloads.map((payload) => createRiffChunk(
-				payload.kind,
-				payload.kind === 'axml'
-					? decodeBase64(payload.rawBase64)
-					: decodeBase64(payload.base64),
-			));
-			const opaqueAfter = (metadata.opaqueRiffChunks ?? [])
-				.filter(({ placement }) => placement === 'after-data')
-				.map(decodeWavOpaqueRiffChunk);
-			trailingChunks = compactRiffChunks([...chunks, ...opaqueAfter]);
-		}
-	}
-	return Object.freeze({
-		mode: metadata.mode,
-		metadata,
-		channelCount,
-		channelOrder,
-		preDataChunks,
-		trailingChunks,
-	});
-}
-
-function compactRiffChunks(chunks) {
-	if (chunks.length === 0) return undefined;
-	return chunks.length === 1 ? chunks[0] : Object.freeze(chunks);
-}
-
-function decodeBase64(value) {
-	const binary = atob(value);
-	return Uint8Array.from(binary, (character) => character.charCodeAt(0));
-}
-
-function createRiffChunk(id, payload) {
-	if (!/^[\x20-\x7e]{4}$/u.test(id)) throw new RangeError('ADM RIFF chunk ID must contain four ASCII characters.');
-	const chunk = new Uint8Array(8 + payload.byteLength + (payload.byteLength & 1));
-	chunk.set(Uint8Array.from(id, (character) => character.charCodeAt(0)));
-	new DataView(chunk.buffer).setUint32(4, payload.byteLength, true);
-	chunk.set(payload, 8);
-	return chunk;
 }
 
 function multiplySafeIntegers(left, right, name) {
