@@ -74,8 +74,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install virtual display for the native-helper Electron proof
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes xvfb
+
+      - name: Provision interchange conformance reference tools
+        run: npm run provision:interchange-conformance
+
       - name: Run canonical quality checks
-        run: npm run check
+        run: xvfb-run --auto-servernum npm run check
 
       - name: Upload the verified website build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
