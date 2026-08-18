@@ -9,6 +9,8 @@ import {
 	type RenderedAudioEncodingPlan,
 	type RenderedAudioEncodingRuntime,
 } from './rendered-audio-encoding.ts';
+import { renderMasteringSequenceExport } from './mastering-sequence-export-render.ts';
+import type { MasteringSequenceDeliveryPlan } from '../mastering-sequence-delivery.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
@@ -17,6 +19,8 @@ interface ExportRenderSnapshot {
 }
 
 interface ExportRenderPlan extends RenderedAudioEncodingPlan {
+	/** Present when this delivery is a mastering sequence rather than one range. */
+	readonly masteringSequence?: MasteringSequenceDeliveryPlan;
 	readonly range: Readonly<{
 		readonly durationFrames: number;
 		readonly endFrame: number;
@@ -138,13 +142,39 @@ export async function renderAndEncodeAudioExport(
 	}
 	let rendered: ExportRenderSnapshot;
 	try {
-		rendered = await renderSnapshot(snapshot, {
-			startFrame: plan.range.startFrame,
-			endFrame: plan.range.endFrame,
-			includeTail: settings.includeTail ? plan.tailFrames / renderSampleRate : false,
-			outputFrames: plan.range.durationFrames + plan.tailFrames,
-			preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
-		}, renderSources.sourceMap, signal, renderSources.chunkSources, renderSources.prepareTimePitchCaches);
+		rendered = plan.masteringSequence
+			// The same offline render, called once per entry: a sequence changes
+			// which ranges are rendered and where they land, never how a frame is
+			// produced.
+			? await renderMasteringSequenceExport({
+				audioBufferChannels: encodingRuntime.audioBufferChannels,
+				copy: encodingRuntime.copy,
+				renderSnapshot,
+				resampleBuffer: encodingRuntime.resampleBuffer,
+				taskProgress,
+				throwIfAborted,
+			}, {
+				channelCount: plan.channelCount ?? 2,
+				chunkSources: renderSources.chunkSources,
+				deliveryPlan: plan.masteringSequence,
+				outputSampleRate: plan.sampleRate,
+				prepareTimePitchCaches: renderSources.prepareTimePitchCaches,
+				progressRange: {
+					start: progressRange.start,
+					end: progressRange.start + progressSpan * 0.7,
+				},
+				renderSampleRate,
+				signal,
+				snapshot,
+				sourceMap: renderSources.sourceMap,
+			})
+			: await renderSnapshot(snapshot, {
+				startFrame: plan.range.startFrame,
+				endFrame: plan.range.endFrame,
+				includeTail: settings.includeTail ? plan.tailFrames / renderSampleRate : false,
+				outputFrames: plan.range.durationFrames + plan.tailFrames,
+				preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
+			}, renderSources.sourceMap, signal, renderSources.chunkSources, renderSources.prepareTimePitchCaches);
 		throwIfAborted(signal);
 	} catch (error) {
 		if (signal.aborted
@@ -201,6 +231,9 @@ function allowsRealtimeFallback(
 	// and falling back would write an un-normalized file that still claimed a
 	// target. Failing the export is the honest outcome.
 	if (plan.loudnessNormalization) return false;
+	// Nor a sequence: a stream renders one contiguous range, so falling back would
+	// write the project's own timeline under a name that promised the sequence's.
+	if (plan.masteringSequence) return false;
 	return settings.measureLoudness !== true || (plan.format !== 'bwf' && plan.format !== 'bw64');
 }
 
