@@ -9,6 +9,12 @@ import {
 	AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE,
 } from './project-v10-foundation-validation.ts';
 import { VIDEO_CANVAS_MAXIMUM_EXTENT } from './video-canvas-fit.ts';
+import {
+	normalizeVideoDeliveryQuality,
+	resolveVideoDeliveryFfmpegQuality,
+	type VideoDeliveryFfmpegQuality,
+	type VideoDeliveryQuality,
+} from './video-delivery-quality.ts';
 
 const RGBA_BYTES_PER_PIXEL = 4;
 const DEFAULT_RING_CAPACITY_BYTES = 1024 * 1024;
@@ -41,6 +47,8 @@ export type VideoKeyframeEncoderFormat = 'mp4' | 'webm';
 export interface VideoKeyframeEncoderWorkloadRequest {
 	readonly frameSource: VideoKeyframeExportFrameSource;
 	readonly format: VideoKeyframeEncoderFormat;
+	/** The delivery tier; absent means the one every keyed export encoded at. */
+	readonly quality?: VideoDeliveryQuality;
 	readonly inputPath: string;
 	readonly audioInputPath?: string;
 	readonly outputPath: string;
@@ -76,7 +84,11 @@ interface VideoEncodingDescriptor {
 	readonly extension: '.mp4' | '.webm';
 	readonly mimeType: 'video/mp4' | 'video/webm';
 	readonly audioFrameSamples: 960 | 1_024;
-	arguments(frameRate: string, audioPadSamples: number | null): readonly string[];
+	arguments(
+		frameRate: string,
+		audioPadSamples: number | null,
+		quality: VideoDeliveryFfmpegQuality,
+	): readonly string[];
 }
 
 const VIDEO_ENCODING_DESCRIPTORS: Readonly<Record<VideoKeyframeEncoderFormat, VideoEncodingDescriptor>> =
@@ -85,13 +97,17 @@ const VIDEO_ENCODING_DESCRIPTORS: Readonly<Record<VideoKeyframeEncoderFormat, Vi
 			extension: '.mp4' as const,
 			mimeType: 'video/mp4' as const,
 			audioFrameSamples: 1_024 as const,
-			arguments: (frameRate: string, audioPadSamples: number | null) => Object.freeze([
+			arguments: (
+				frameRate: string, audioPadSamples: number | null, quality: VideoDeliveryFfmpegQuality,
+			) => Object.freeze([
 				...(audioPadSamples === null ? [] : ['-filter:a', `apad=whole_len=${String(audioPadSamples)}`]),
 				'-map', '0:v:0', ...(audioPadSamples === null ? [] : ['-map', '1:a:0']),
 				'-map_metadata', '-1', '-map_chapters', '-1', '-sn', '-dn',
-				'-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
+				'-c:v', 'libx264', '-preset', String(quality.preset), '-crf', String(quality.crf),
 				'-pix_fmt', 'yuv420p', '-r', frameRate,
-				...(audioPadSamples === null ? ['-an'] : ['-c:a', 'aac', '-b:a', '192k']),
+				...(audioPadSamples === null
+					? ['-an']
+					: ['-c:a', 'aac', '-b:a', `${String(quality.audioBitRateKbps)}k`]),
 				'-movflags', '+faststart', '-f', 'mp4',
 			]),
 		}),
@@ -99,21 +115,25 @@ const VIDEO_ENCODING_DESCRIPTORS: Readonly<Record<VideoKeyframeEncoderFormat, Vi
 			extension: '.webm' as const,
 			mimeType: 'video/webm' as const,
 			audioFrameSamples: 960 as const,
-			arguments: (frameRate: string, audioPadSamples: number | null) => Object.freeze([
+			arguments: (
+				frameRate: string, audioPadSamples: number | null, quality: VideoDeliveryFfmpegQuality,
+			) => Object.freeze([
 				...(audioPadSamples === null ? [] : ['-filter:a', `apad=whole_len=${String(audioPadSamples)}`]),
 				'-map', '0:v:0', ...(audioPadSamples === null ? [] : ['-map', '1:a:0']),
 				'-map_metadata', '-1', '-map_chapters', '-1', '-sn', '-dn',
-				'-c:v', 'libvpx-vp9', '-crf', '31', '-b:v', '0',
-				'-deadline', 'good', '-cpu-used', '4',
+				'-c:v', 'libvpx-vp9', '-crf', String(quality.crf), '-b:v', '0',
+				'-deadline', String(quality.deadline), '-cpu-used', String(quality.cpuUsed),
 				'-pix_fmt', 'yuv420p', '-r', frameRate,
-				...(audioPadSamples === null ? ['-an'] : ['-c:a', 'libopus', '-b:a', '160k']),
+				...(audioPadSamples === null
+					? ['-an']
+					: ['-c:a', 'libopus', '-b:a', `${String(quality.audioBitRateKbps)}k`]),
 				'-f', 'webm',
 			]),
 		}),
 	});
 
 const WORKLOAD_FIELDS = new Set([
-	'frameSource', 'format', 'inputPath', 'audioInputPath', 'outputPath', 'ringCapacityBytes',
+	'frameSource', 'format', 'quality', 'inputPath', 'audioInputPath', 'outputPath', 'ringCapacityBytes',
 	'audioRingCapacityBytes',
 	'maximumWidth', 'maximumHeight', 'maximumFrameCount', 'maximumTotalRgbaBytes',
 ]);
@@ -165,6 +185,12 @@ export function admitVideoKeyframeEncoderWorkload(
 	}
 	const format = videoFormat(dataProperty(request, 'format', 'video keyframe encoder workload'));
 	const descriptor = VIDEO_ENCODING_DESCRIPTORS[format];
+	// The tier the plan stated, read here rather than baked into the descriptor,
+	// so this path and the composed-graph path spell the same tier the same way.
+	const quality = resolveVideoDeliveryFfmpegQuality(format, normalizeVideoDeliveryQuality(
+		optionalDataProperty(request, 'quality', undefined, 'video keyframe encoder workload'),
+		'Video keyframe encoder quality',
+	));
 	const inputPath = canonicalPath(
 		dataProperty(request, 'inputPath', 'video keyframe encoder workload'), 'input path',
 	);
@@ -258,7 +284,9 @@ export function admitVideoKeyframeEncoderWorkload(
 		'-i', inputPath,
 		...(audioInputPath ? ['-i', audioInputPath] : []),
 		...(hasAudio ? [] : ['-frames:v', String(frameCount)]),
-		...descriptor.arguments(frameRateToken, audioPadSamples === null ? null : Number(audioPadSamples)),
+		...descriptor.arguments(
+			frameRateToken, audioPadSamples === null ? null : Number(audioPadSamples), quality,
+		),
 		...(hasAudio ? ['-t', durationToken] : []),
 		outputPath,
 	]);

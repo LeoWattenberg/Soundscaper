@@ -18,6 +18,7 @@ import {
 import { createNativeValidators } from './native-validation.ts';
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from './video-export-plan-version.ts';
 import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
+import { isVideoDeliveryQuality, type VideoDeliveryQuality } from './video-delivery-quality.ts';
 
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INPUTS = 4_096;
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INTERVALS = 100_000;
@@ -79,6 +80,7 @@ export interface NativeMediaGraphPlan extends Readonly<Record<string, unknown>> 
 	readonly extension: NativeMediaGraphPlanFormat;
 	readonly mimeType: 'video/mp4' | 'video/webm';
 	readonly codecs: NativeMediaGraphPlanCodecs;
+	readonly quality: VideoDeliveryQuality;
 	readonly range: NativeMediaGraphPlanRange;
 	readonly durationSeconds: number;
 	readonly outputFrameCount: number;
@@ -89,7 +91,7 @@ export interface NativeMediaGraphPlan extends Readonly<Record<string, unknown>> 
 }
 
 const PLAN_KEYS = Object.freeze([
-	'version', 'format', 'container', 'extension', 'mimeType', 'codecs', 'range',
+	'version', 'format', 'container', 'extension', 'mimeType', 'codecs', 'quality', 'range',
 	'durationSeconds', 'outputFrameCount', 'canvas', 'inputs', 'intervals', 'filterPlan',
 ]);
 const CODEC_KEYS = Object.freeze(['video', 'videoEncoder', 'audio', 'audioEncoder', 'pixelFormat']);
@@ -144,6 +146,9 @@ export function assertNativeMediaGraphPlan(value: unknown): asserts value is Nat
 		nativeMediaPlanViolation('malformed', 'Video export graph plan format metadata is not canonical.');
 	}
 	assertCodecs(plan.codecs);
+	if (!isVideoDeliveryQuality(plan.quality)) {
+		nativeMediaPlanViolation('malformed', 'Video export graph plan states an unsupported delivery quality.');
+	}
 	const range = assertRange(plan.range);
 	if (range.durationFrames <= 0) {
 		nativeMediaPlanViolation('malformed', 'Video export graph plan must cover at least one sample frame.');

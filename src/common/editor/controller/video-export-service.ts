@@ -131,6 +131,7 @@ export function createEditorVideoExportAction(
 				range: requestedRange,
 				includeAudio,
 				canvas: requestedSettings.canvas,
+				quality: requestedSettings.quality,
 			}) ?? null;
 			const productActiveSourceIds = productPlan
 				? captureProductVideoExportActiveSourceIds(productPlan)
@@ -162,6 +163,7 @@ export function createEditorVideoExportAction(
 						range: requestedRange,
 						includeAudio,
 						canvas: requestedSettings.canvas,
+						quality: requestedSettings.quality,
 					});
 				} finally {
 					timingIndexes.release();

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { VIDEO_CANVAS_FIT_MODES } from '../video-canvas-fit.ts';
+import { VIDEO_DELIVERY_QUALITY_TIERS } from '../video-delivery-quality.ts';
 import { LabeledDropdown } from './inspector/inspector-controls.jsx';
 
 /** The rates a delivery usually asks for; the field accepts any of them or another. */
@@ -14,8 +15,14 @@ const FIT_LABEL_KEYS = Object.freeze({
 	stretch: 'videoCanvasFitStretch',
 });
 
+const QUALITY_LABEL_KEYS = Object.freeze({
+	draft: 'videoQualityDraft',
+	balanced: 'videoQualityBalanced',
+	high: 'videoQualityHigh',
+});
+
 /**
- * The delivery canvas, as the export dialog asks for it.
+ * The delivery itself, as the export dialog asks for it: canvas and quality.
  *
  * Both extents empty means the automatic canvas: derived from the first visible
  * video and capped at 1280x720, which is what every export did before a size
@@ -23,8 +30,11 @@ const FIT_LABEL_KEYS = Object.freeze({
  * fit decides what happens to a source that does not share that aspect. The
  * plan builder validates the numbers — an odd extent is refused there, not
  * silently rounded here — so this surface only has to carry the request.
+ *
+ * Quality is a tier rather than an encoder number for the same reason the plan
+ * states one: the dialog cannot know which encoder will serve this delivery.
  */
-export default function VideoCanvasFields({ copy, disabled, settings, onChange }) {
+export default function VideoDeliveryFields({ copy, disabled, settings, onChange }) {
 	return (
 		<>
 			<label className="audio-editor-field" data-export-field="canvasSize">
@@ -93,6 +103,17 @@ export default function VideoCanvasFields({ copy, disabled, settings, onChange }
 					onChange={(event) => onChange('canvasBackgroundColor', event.currentTarget.value)}
 				/>
 			</label>
+			<LabeledDropdown
+				label={copy.videoQuality}
+				hook="videoQuality"
+				value={settings.videoQuality}
+				onChange={(value) => onChange('videoQuality', value)}
+				disabled={disabled}
+				options={VIDEO_DELIVERY_QUALITY_TIERS.map((tier) => ({
+					value: tier,
+					label: copy[QUALITY_LABEL_KEYS[tier]],
+				}))}
+			/>
 			<p className="audio-editor-panel-hint">{copy.videoCanvasHint}</p>
 		</>
 	);

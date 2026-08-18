@@ -22,6 +22,15 @@ canvas fields loosely and would have ignored a new one) and the keyed V7 plan
 without one, because its canvas is read as a closed record in canonical field
 order and an older build therefore refuses a fit-carrying plan outright.
 
+Quality is the second option to land, and it is a tier rather than a number:
+a plan states `draft`, `balanced`, or `high`, and each delivery path reads that
+tier into its own encoder settings. That is the slice's stop condition honoured
+rather than skirted — a plan carrying a CRF would only mean something to the
+encoder it was written against, which would strand 6B-3's WebCodecs tier and
+6B-4's platform encoders. `balanced` reproduces the arguments delivery already
+produced, so an untouched export stays byte-stable, and both FFmpeg-backed paths
+now read one shared mapping instead of the two hard-coded copies they had.
+
 Two bounds and one gap are worth naming. A keyed canvas is capped at about 2.09
 megapixels, which is one RGBA frame fitting the keyframe encoder's 8 MiB stream
 limit: 1080×1920 is admitted, 1080×1944 is refused, and the refusal happens at

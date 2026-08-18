@@ -29,6 +29,7 @@ import {
 } from './video-canvas-fit.ts';
 import { createFilterPlan } from './video-export-filter-plan.js';
 import { normalizeVideoDeliveryColor } from './video-delivery-color.ts';
+import { normalizeVideoDeliveryQuality } from './video-delivery-quality.ts';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
@@ -338,6 +339,10 @@ export function createVideoExportPlan(project, options = {}) {
 			audioEncoder: includeAudio ? format.audioEncoder : null,
 			pixelFormat: format.pixelFormat,
 		},
+		// The intent, not the encoder settings it becomes: an adapter reads the
+		// tier, so the same plan can be replayed by an encoder that spells its
+		// effort differently.
+		quality: normalizeVideoDeliveryQuality(options.quality, 'quality'),
 		range,
 		durationSeconds,
 		outputFrameCount: Math.max(1, Math.ceil(durationSeconds * canvas.frameRate)),

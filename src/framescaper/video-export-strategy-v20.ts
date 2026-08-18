@@ -104,6 +104,7 @@ export function createFramescaperVideoExportStrategyV20(
 					...(request.canvas === undefined ? {} : {
 						canvas: request.canvas as Readonly<Record<string, unknown>>,
 					}),
+					...(request.quality === undefined ? {} : { quality: request.quality }),
 				},
 			);
 			authorities.set(plan, Object.freeze({
@@ -271,6 +272,7 @@ function offlineRequest(
 		startFrame: plan.range.startFrame,
 		endFrame: plan.range.endFrame,
 		format: plan.format,
+		quality: plan.quality,
 		editorFfmpeg: request.editorFfmpeg as VideoKeyframeOfflineVideoExportRequest['editorFfmpeg'],
 		...(request.audioMix instanceof Blob ? { audioMix: request.audioMix } : {}),
 		...(request.maximumOutputBytes === undefined ? {} : {

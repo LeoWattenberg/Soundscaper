@@ -94,6 +94,7 @@ const VIDEO_DIALOG = {
 	canvasFit: 'cover',
 	canvasFrameRate: '',
 	canvasBackgroundColor: '',
+	videoQuality: 'balanced',
 };
 
 test('a video preset carries the canvas the dialog states and nothing the dialog cannot deliver', () => {
@@ -105,6 +106,22 @@ test('a video preset carries the canvas the dialog states and nothing the dialog
 	assert.doesNotThrow(() => validateDeliveryPreset({
 		schemaVersion: 1, id: 'v', label: 'Vertical', kind: 'video', format: 'mp4', settings,
 	}));
+});
+
+test('a video preset carries the delivery tier only once the dialog leaves balanced', () => {
+	assert.deepEqual(
+		presetSettingsFromDialog({ ...VIDEO_DIALOG, videoQuality: 'high' }, 'video'),
+		{ size: { width: 1_080, height: 1_920 }, fit: 'cover', quality: 'high' },
+	);
+	const preset = validateDeliveryPreset({
+		schemaVersion: 1, id: 'v', label: 'Vertical', kind: 'video', format: 'mp4',
+		settings: { quality: 'high' },
+	});
+	// The tier is a plan option rather than canvas geometry, so it must resolve
+	// at the top level; nested under `canvas` the plan builder would refuse it.
+	assert.deepEqual(resolveDeliveryPresetPlanOptions(preset), { format: 'mp4', quality: 'high' });
+	// The dialog spells it `videoQuality` because `quality` is already Vorbis's.
+	assert.equal(dialogSettingsFromPreset(preset).videoQuality, 'high');
 });
 
 test('an unstated video canvas keeps a preset and a request empty of geometry', () => {

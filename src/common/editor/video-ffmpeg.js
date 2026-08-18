@@ -9,26 +9,13 @@ import {
 	videoFfmpegV6FittedSize,
 } from './video-ffmpeg-render-description.ts';
 import { normalizeVideoExportPlan } from './video-ffmpeg-plan-normalization.js';
+import { resolveVideoDeliveryFfmpegQuality } from './video-delivery-quality.ts';
 import {
 	ffmpegColor,
 	ffmpegNumber,
 	mappedValue,
 	nonEmptyString,
 } from './video-ffmpeg-values.js';
-
-const DEFAULT_VIDEO_ENCODING_SETTINGS = Object.freeze({
-	mp4: Object.freeze({
-		crf: 23,
-		preset: 'medium',
-		audioBitRateKbps: 192,
-	}),
-	webm: Object.freeze({
-		crf: 31,
-		deadline: 'good',
-		cpuUsed: 4,
-		audioBitRateKbps: 160,
-	}),
-});
 
 /**
  * Build a deterministic FFmpeg command for a video export plan. Input paths
@@ -63,7 +50,9 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 		? buildSequentialVideoFilterGraph(normalized)
 		: buildLayeredVideoFilterGraph(normalized);
 	const descriptor = normalized.descriptor;
-	const defaults = DEFAULT_VIDEO_ENCODING_SETTINGS[descriptor.id];
+	// The plan states a tier; this is where it becomes encoder settings, and the
+	// only place it does for this path.
+	const encoding = resolveVideoDeliveryFfmpegQuality(descriptor.id, normalized.quality);
 	const args = [
 		...inputArgs,
 		'-filter_complex', filterGraph,
@@ -79,15 +68,15 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 	);
 	if (descriptor.id === 'mp4') {
 		args.push(
-			'-preset', defaults.preset,
-			'-crf', String(defaults.crf),
+			'-preset', encoding.preset,
+			'-crf', String(encoding.crf),
 		);
 	} else {
 		args.push(
-			'-crf', String(defaults.crf),
+			'-crf', String(encoding.crf),
 			'-b:v', '0',
-			'-deadline', defaults.deadline,
-			'-cpu-used', String(defaults.cpuUsed),
+			'-deadline', encoding.deadline,
+			'-cpu-used', String(encoding.cpuUsed),
 		);
 	}
 	args.push(
@@ -97,7 +86,7 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 	if (normalized.audioInput) {
 		args.push(
 			'-c:a', descriptor.audioEncoder,
-			'-b:a', `${defaults.audioBitRateKbps}k`,
+			'-b:a', `${encoding.audioBitRateKbps}k`,
 		);
 	} else {
 		args.push('-an');

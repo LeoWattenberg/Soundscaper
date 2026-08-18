@@ -34,7 +34,7 @@ export const DELIVERY_PRESET_SETTINGS: Readonly<Record<DeliveryPresetKind, reado
 	]),
 	video: Object.freeze([
 		'size', 'fit', 'frameRate', 'backgroundColor',
-		'maximumWidth', 'maximumHeight', 'maximumFrameRate', 'includeAudio',
+		'maximumWidth', 'maximumHeight', 'maximumFrameRate', 'quality', 'includeAudio',
 	]),
 });
 

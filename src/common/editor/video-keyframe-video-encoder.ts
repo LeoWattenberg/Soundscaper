@@ -12,6 +12,10 @@ import {
 	type VideoKeyframeRgbaFrameProducer,
 } from './video-keyframe-encoder-stream.ts';
 import {
+	normalizeVideoDeliveryQuality,
+	type VideoDeliveryQuality,
+} from './video-delivery-quality.ts';
+import {
 	assertVideoKeyframeExportFrameSource,
 	type VideoKeyframeExportFrame,
 	type VideoKeyframeExportFrameSource,
@@ -58,6 +62,7 @@ export interface VideoKeyframeVideoEncoderRequest {
 	readonly frameSource: VideoKeyframeExportFrameSource;
 	readonly producer: VideoKeyframeVideoRgbaProducer;
 	readonly format: VideoKeyframeEncoderFormat;
+	readonly quality?: VideoDeliveryQuality;
 	readonly audioMix?: Blob;
 	readonly ringCapacityBytes?: number;
 	readonly audioRingCapacityBytes?: number;
@@ -103,7 +108,7 @@ export interface VideoKeyframeVideoEncoderDependencies {
 }
 
 const REQUEST_FIELDS = new Set([
-	'frameSource', 'producer', 'format', 'audioMix', 'ringCapacityBytes',
+	'frameSource', 'producer', 'format', 'quality', 'audioMix', 'ringCapacityBytes',
 	'audioRingCapacityBytes', 'maximumAudioBytes',
 	'maximumWidth', 'maximumHeight', 'maximumFrameCount', 'maximumTotalRgbaBytes',
 	'maximumOutputBytes', 'maximumOutputChunkBytes', 'signal', 'assertCurrent',
@@ -353,6 +358,10 @@ function normalizeRequest(value: VideoKeyframeVideoEncoderRequest): NormalizedRe
 		frameSource,
 		producer,
 		format,
+		quality: normalizeVideoDeliveryQuality(
+			optional(record, 'quality', undefined),
+			'video keyframe video encoder request.quality',
+		),
 		...(audioMix ? { audioMix } : {}),
 		maximumAudioBytes,
 		maximumOutputBytes,
@@ -373,6 +382,7 @@ function encoderWorkloadRequest(
 	const result: Record<string, unknown> = {
 		frameSource: request.frameSource,
 		format: request.format,
+		quality: request.quality,
 		inputPath: paths.input,
 		...(paths.audio ? { audioInputPath: paths.audio } : {}),
 		outputPath: paths.output,

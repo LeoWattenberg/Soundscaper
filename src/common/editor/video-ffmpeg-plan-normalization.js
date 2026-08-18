@@ -16,6 +16,10 @@ import {
 } from './video-export-plan-version.ts';
 import { isVideoCanvasFit } from './video-canvas-fit.ts';
 import {
+	DEFAULT_VIDEO_DELIVERY_QUALITY,
+	isVideoDeliveryQuality,
+} from './video-delivery-quality.ts';
+import {
 	nonEmptyString,
 	nonNegativeFiniteNumber,
 	nonNegativeInteger,
@@ -41,6 +45,7 @@ export function normalizeVideoExportPlan(plan) {
 	const width = positiveEvenInteger(plan.canvas?.width, 'plan.canvas.width');
 	const height = positiveEvenInteger(plan.canvas?.height, 'plan.canvas.height');
 	const fit = normalizedPlanCanvasFit(plan);
+	const quality = normalizedPlanQuality(plan);
 	const frameRate = positiveFiniteNumber(plan.canvas?.frameRate, 'plan.canvas.frameRate');
 	const durationSeconds = positiveFiniteNumber(plan.durationSeconds, 'plan.durationSeconds');
 	const pixelFormat = nonEmptyString(plan.codecs?.pixelFormat, 'plan.codecs.pixelFormat');
@@ -113,8 +118,35 @@ export function normalizeVideoExportPlan(plan) {
 		frameRate,
 		durationSeconds,
 		pixelFormat,
+		quality,
 		backgroundColor: plan.canvas?.backgroundColor || '#000000',
 	};
+}
+
+/**
+ * The delivery quality this plan states, refusing a version that cannot state one.
+ *
+ * The same rule the canvas fit answers to, for the same reason: a version that
+ * predates the option has no tier to read, and a tier found on one is a document
+ * assembled from two builds. Reading it as `balanced` would deliver a draft or a
+ * high-effort encode as neither, silently.
+ */
+function normalizedPlanQuality(plan) {
+	const quality = plan.quality;
+	if (quality === undefined) {
+		if (plan.version >= CANONICAL_VIDEO_EXPORT_PLAN_VERSION) {
+			throw new TypeError('plan.quality is required from version '
+				+ `${CANONICAL_VIDEO_EXPORT_PLAN_VERSION} onwards.`);
+		}
+		return DEFAULT_VIDEO_DELIVERY_QUALITY;
+	}
+	if (plan.version < CANONICAL_VIDEO_EXPORT_PLAN_VERSION) {
+		throw new TypeError(`Video export plan version ${plan.version} cannot state a delivery quality.`);
+	}
+	if (!isVideoDeliveryQuality(quality)) {
+		throw new RangeError(`Unsupported plan.quality: ${String(quality)}.`);
+	}
+	return quality;
 }
 
 /**

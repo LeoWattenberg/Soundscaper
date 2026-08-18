@@ -88,6 +88,7 @@ function canonicalPlan(fit: VideoCanvasFit): Record<string, unknown> {
 		container: 'mp4',
 		extension: 'mp4',
 		mimeType: 'video/mp4',
+		quality: 'balanced',
 		durationSeconds: 1,
 		canvas: { ...CANVAS, frameRate: 30, fit, pixelFormat: 'yuv420p', backgroundColor: '#000000' },
 		codecs: {

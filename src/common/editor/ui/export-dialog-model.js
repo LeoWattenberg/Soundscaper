@@ -1,4 +1,4 @@
-import { statedVideoCanvas } from './export-preset-model.ts';
+import { statedVideoCanvas, statedVideoQuality } from './export-preset-model.ts';
 
 export const VIDEO_EXPORT_DIALOG_FORMATS = Object.freeze([
 	Object.freeze({
@@ -34,14 +34,16 @@ export function createExportDialogRequest(settings, options = {}) {
 	const metadata = options.metadata || {};
 	if (isVideoExportDialogFormat(settings.format)) {
 		const canvas = statedVideoCanvas(settings);
+		const quality = statedVideoQuality(settings);
 		return {
 			mode: 'mix',
 			range: settings.range,
 			format: settings.format,
 			metadata,
-			// Attached only when the dialog actually states geometry, so an
-			// untouched dialog produces the request it always produced.
+			// Attached only when the dialog actually states geometry or a tier, so
+			// an untouched dialog produces the request it always produced.
 			...(Object.keys(canvas).length > 0 ? { canvas } : {}),
+			...(quality ? { quality } : {}),
 		};
 	}
 	return {

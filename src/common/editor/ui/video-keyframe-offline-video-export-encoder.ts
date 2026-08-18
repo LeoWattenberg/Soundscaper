@@ -12,10 +12,12 @@ import {
 	VIDEO_KEYFRAME_VIDEO_MAXIMUM_OUTPUT_BYTES,
 	type VideoKeyframeVideoEncoderRequest,
 } from '../video-keyframe-video-encoder.ts';
+import type { VideoDeliveryQuality } from '../video-delivery-quality.ts';
 import type { VideoKeyframeOfflineRgbaRenderer } from './video-keyframe-offline-rgba-renderer.ts';
 
 export interface VideoKeyframeOfflineEncoderOptions {
 	readonly format: VideoKeyframeEncoderFormat;
+	readonly quality: VideoDeliveryQuality;
 	readonly audioMix?: Blob;
 	readonly encoderOptions: Readonly<Record<string, number>>;
 	readonly signal: AbortSignal;
@@ -31,6 +33,7 @@ export function createVideoKeyframeOfflineEncoderRequest(
 		frameSource,
 		producer: renderer,
 		format: request.format,
+		quality: request.quality,
 		...(request.audioMix ? { audioMix: request.audioMix } : {}),
 		...request.encoderOptions,
 		signal: request.signal,
@@ -46,6 +49,7 @@ export async function preflightVideoKeyframeOfflineEncoder(
 	const workload: Record<string, unknown> = {
 		frameSource,
 		format: request.format,
+		quality: request.quality,
 		inputPath: '/framescaper-keyframes-preflight.rgba',
 		...(request.audioMix ? { audioInputPath: '/framescaper-keyframes-preflight.wav' } : {}),
 		outputPath: `/framescaper-keyframes-preflight.${request.format}`,

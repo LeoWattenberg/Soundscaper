@@ -17,6 +17,10 @@ import {
 import type { FfmpegOutputSink } from '../ffmpeg-output-stream.ts';
 import type { VideoKeyframeEncoderFormat } from '../video-keyframe-encoder-stream.ts';
 import {
+	normalizeVideoDeliveryQuality,
+	type VideoDeliveryQuality,
+} from '../video-delivery-quality.ts';
+import {
 	encodeVideoKeyframeVideo,
 	encodeVideoKeyframeVideoToSink,
 	type VideoKeyframeVideoEditorFfmpeg,
@@ -67,6 +71,7 @@ export interface VideoKeyframeOfflineVideoExportRequest {
 	readonly startFrame?: number;
 	readonly endFrame?: number;
 	readonly format: VideoKeyframeEncoderFormat;
+	readonly quality?: VideoDeliveryQuality;
 	readonly editorFfmpeg: VideoKeyframeVideoEditorFfmpeg;
 	readonly audioMix?: Blob;
 	readonly ringCapacityBytes?: number;
@@ -105,6 +110,7 @@ interface NormalizedRequest {
 	readonly startFrame?: number;
 	readonly endFrame?: number;
 	readonly format: VideoKeyframeEncoderFormat;
+	readonly quality: VideoDeliveryQuality;
 	readonly editorFfmpeg: VideoKeyframeVideoEditorFfmpeg;
 	readonly audioMix?: Blob;
 	readonly encoderOptions: Readonly<Record<string, number>>;
@@ -115,7 +121,7 @@ interface NormalizedRequest {
 
 const REQUEST_FIELDS = [
 	'project', 'timingBySourceId', 'sources', 'canvas', 'startFrame', 'endFrame',
-	'format', 'editorFfmpeg', 'audioMix', 'ringCapacityBytes', 'audioRingCapacityBytes',
+	'format', 'quality', 'editorFfmpeg', 'audioMix', 'ringCapacityBytes', 'audioRingCapacityBytes',
 	'maximumAudioBytes', 'maximumWidth', 'maximumHeight',
 	'maximumFrameCount', 'maximumTotalRgbaBytes', 'maximumOutputBytes',
 	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'signal', 'assertCurrent',
@@ -286,6 +292,7 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 		...(startFrame === undefined ? {} : { startFrame }),
 		...(endFrame === undefined ? {} : { endFrame }),
 		format: request.format,
+		quality: normalizeVideoDeliveryQuality(request.quality, 'offline video export quality'),
 		editorFfmpeg: snapshotEditorFfmpeg(request.editorFfmpeg),
 		...(request.audioMix === undefined ? {} : {
 			audioMix: canonicalMediaContentBlob(request.audioMix),

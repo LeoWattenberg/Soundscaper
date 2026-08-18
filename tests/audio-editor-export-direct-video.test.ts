@@ -393,6 +393,7 @@ function videoPlan(format: Format, sourceId = 'original-video') {
 		container: format,
 		extension: format,
 		mimeType: `video/${format}`,
+		quality: 'balanced',
 		durationSeconds: 1,
 		outputFrameCount: 30,
 		canvas: { width: 640, height: 360, frameRate: 30, fit: 'contain', pixelFormat: 'yuv420p' },

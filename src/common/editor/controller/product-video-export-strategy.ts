@@ -38,6 +38,8 @@ export interface ProductVideoExportStrategyPlanRequest {
 	readonly range: unknown;
 	readonly includeAudio: boolean;
 	readonly canvas: unknown;
+	/** Optional: a request that states no tier delivers the one every export used. */
+	readonly quality?: unknown;
 }
 
 export interface ProductVideoExportStrategyEncodeRequest {

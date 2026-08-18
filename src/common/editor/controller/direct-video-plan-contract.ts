@@ -3,6 +3,7 @@
 import { isVideoKeyframeExportPlanV7 } from '../video-keyframe-export-plan-v7.ts';
 import { getVideoExportFormat } from '../video-export.js';
 import { isVideoCanvasFit } from '../video-canvas-fit.ts';
+import { isVideoDeliveryQuality } from '../video-delivery-quality.ts';
 import {
 	CANONICAL_VIDEO_EXPORT_PLAN_VERSION,
 	VIDEO_KEYFRAME_EXPORT_PLAN_VERSION,
@@ -85,6 +86,7 @@ function canonicalVideoGeometry(
 		|| !positiveEvenInteger(canvas.width) || !positiveEvenInteger(canvas.height)
 		|| !positiveNumber(canvas.frameRate)
 		|| !isVideoCanvasFit(canvas.fit)
+		|| !isVideoDeliveryQuality(plan.quality)
 		|| canvas.pixelFormat !== descriptor.pixelFormat
 		|| codecs.pixelFormat !== descriptor.pixelFormat
 		|| codecs.video !== descriptor.videoCodec

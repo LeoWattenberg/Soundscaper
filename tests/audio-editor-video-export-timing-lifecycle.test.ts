@@ -174,6 +174,7 @@ function videoPlan() {
 		container: 'mp4',
 		extension: 'mp4',
 		mimeType: 'video/mp4',
+		quality: 'balanced',
 		durationSeconds: 1,
 		outputFrameCount: 30,
 		canvas: { width: 640, height: 360, frameRate: 30, fit: 'contain', pixelFormat: 'yuv420p' },

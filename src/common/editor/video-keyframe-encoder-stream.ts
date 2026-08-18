@@ -243,14 +243,14 @@ export async function encodeVideoKeyframeFrames(
 }
 
 const ENCODER_FIELDS = new Set([
-	'frameSource', 'format', 'inputPath', 'audioInputPath', 'outputPath', 'ringCapacityBytes',
+	'frameSource', 'format', 'quality', 'inputPath', 'audioInputPath', 'outputPath', 'ringCapacityBytes',
 	'audioRingCapacityBytes', 'audioSource',
 	'maximumWidth', 'maximumHeight', 'maximumFrameCount', 'maximumTotalRgbaBytes',
 	'producer', 'ffmpeg', 'signal', 'assertCurrent',
 ]);
 const WORKLOAD_OPTION_FIELDS = [
-	'ringCapacityBytes', 'audioInputPath', 'audioRingCapacityBytes', 'maximumWidth', 'maximumHeight',
-	'maximumFrameCount', 'maximumTotalRgbaBytes',
+	'quality', 'ringCapacityBytes', 'audioInputPath', 'audioRingCapacityBytes',
+	'maximumWidth', 'maximumHeight', 'maximumFrameCount', 'maximumTotalRgbaBytes',
 ] as const;
 
 function workloadRequest(

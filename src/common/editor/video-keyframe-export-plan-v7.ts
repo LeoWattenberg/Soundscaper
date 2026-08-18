@@ -4,10 +4,6 @@ import {
 	resolveVideoKeyframeExportFrameCount,
 } from './video-keyframe-export-frame-source.ts';
 import {
-	AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE,
-	AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE,
-} from './project-v10-foundation-validation.ts';
-import {
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_AUDIO_FRAME_RATE,
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_BYTES,
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_COUNT,
@@ -16,6 +12,31 @@ import {
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_WIDTH,
 } from './video-keyframe-encoder-admission.ts';
 import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
+import {
+	audioFileName,
+	boolean,
+	boundedString,
+	canonicalColor,
+	closedRecord,
+	data,
+	deepFreeze,
+	denseArray,
+	digest,
+	id,
+	nonNegativeInteger,
+	nullableId,
+	optionalData,
+	positiveInteger,
+	projectSampleRate,
+	record,
+	videoMime,
+} from './video-keyframe-export-plan-v7-values.ts';
+import {
+	DEFAULT_VIDEO_DELIVERY_QUALITY,
+	isVideoDeliveryQuality,
+	normalizeVideoDeliveryQuality,
+	type VideoDeliveryQuality,
+} from './video-delivery-quality.ts';
 
 const RGBA_BYTES_PER_PIXEL = 4;
 
@@ -51,6 +72,7 @@ export interface VideoKeyframeExportPlanV7 extends Readonly<Record<string, unkno
 		readonly audioEncoder: 'aac' | 'libopus' | null;
 		readonly pixelFormat: 'yuv420p';
 	}>;
+	readonly quality: VideoDeliveryQuality;
 	readonly activeClipIds: readonly string[];
 	readonly activeSourceIds: readonly string[];
 	readonly inputs: readonly VideoKeyframeExportPlanInputV7[];
@@ -86,6 +108,7 @@ export interface VideoKeyframeExportPlanV7Request {
 	readonly activeSourceIds: readonly string[];
 	readonly sources: readonly Readonly<Record<string, unknown>>[];
 	readonly includeAudio: boolean;
+	readonly quality?: VideoDeliveryQuality;
 	readonly audioFileName?: string;
 }
 
@@ -100,12 +123,12 @@ interface FormatDescriptor {
 
 const PLAN_FIELDS = [
 	'version', 'strategy', 'format', 'container', 'extension', 'mimeType', 'sampleRate',
-	'duration', 'range', 'outputFrameCount', 'canvas', 'codecs', 'activeClipIds',
+	'duration', 'range', 'outputFrameCount', 'canvas', 'codecs', 'quality', 'activeClipIds',
 	'activeSourceIds', 'inputs',
 ] as const;
 const REQUEST_FIELDS = [
 	'format', 'sampleRate', 'range', 'canvas', 'activeClipIds', 'activeSourceIds',
-	'sources', 'includeAudio', 'audioFileName',
+	'sources', 'includeAudio', 'quality', 'audioFileName',
 ] as const;
 const RANGE_FIELDS = ['startFrame', 'endFrame', 'durationFrames'] as const;
 const RATIONAL_FIELDS = ['num', 'den'] as const;
@@ -120,10 +143,14 @@ const VIDEO_INPUT_FIELDS = [
 const AUDIO_INPUT_FIELDS = [
 	'kind', 'inputIndex', 'fileName', 'sampleRate', 'startFrame', 'durationFrames',
 ] as const;
+/**
+ * Request fields a caller may leave unsaid. `audioFileName` has no meaning
+ * without audio, and an unstated quality is the tier every keyed export already
+ * encoded at — the plan still states it outright once built.
+ */
+const OPTIONAL_REQUEST_FIELDS: ReadonlySet<string> = new Set(['quality', 'audioFileName']);
 const SOURCE_MAXIMUM = 4_096;
 const CLIP_MAXIMUM = 100_000;
-const SHA256 = /^[a-f0-9]{64}$/u;
-const VIDEO_MIME = /^video\/[a-z0-9][a-z0-9.+-]{0,126}$/u;
 const FORMATS: Readonly<Record<VideoKeyframeExportPlanFormatV7, FormatDescriptor>> = Object.freeze({
 	mp4: Object.freeze({
 		format: 'mp4', mimeType: 'video/mp4', video: 'h264', videoEncoder: 'libx264',
@@ -139,7 +166,9 @@ const FORMATS: Readonly<Record<VideoKeyframeExportPlanFormatV7, FormatDescriptor
 export function createVideoKeyframeExportPlanV7(
 	requestValue: VideoKeyframeExportPlanV7Request | unknown,
 ): VideoKeyframeExportPlanV7 {
-	const request = closedRecord(requestValue, REQUEST_FIELDS, 'video keyframe export plan request', false);
+	const request = closedRecord(
+		requestValue, REQUEST_FIELDS, 'video keyframe export plan request', false, OPTIONAL_REQUEST_FIELDS,
+	);
 	const format = exactFormat(data(request, 'format', 'video keyframe export plan request'));
 	const descriptor = FORMATS[format];
 	const sampleRate = projectSampleRate(
@@ -160,6 +189,10 @@ export function createVideoKeyframeExportPlanV7(
 		data(request, 'sources', 'video keyframe export plan request'), activeSourceIds,
 	);
 	const includeAudio = boolean(data(request, 'includeAudio', 'video keyframe export plan request'), 'includeAudio');
+	const quality = normalizeVideoDeliveryQuality(
+		optionalData(request, 'quality', DEFAULT_VIDEO_DELIVERY_QUALITY, 'video keyframe export plan request'),
+		'video keyframe export plan quality',
+	);
 	if (!includeAudio && Object.hasOwn(request, 'audioFileName')) {
 		throw new TypeError('audioFileName requires includeAudio to be true.');
 	}
@@ -200,6 +233,7 @@ export function createVideoKeyframeExportPlanV7(
 			audioEncoder: includeAudio ? descriptor.audioEncoder : null,
 			pixelFormat: 'yuv420p' as const,
 		},
+		quality,
 		activeClipIds,
 		activeSourceIds,
 		inputs,
@@ -247,6 +281,9 @@ export function assertVideoKeyframeExportPlanV7(
 		range.durationFrames, sampleRate, canvas.frameRate,
 	)) throw new RangeError('Video keyframe export plan V7 frame count is not exact.');
 	assertEncoderDomain(canvas.width, canvas.height, outputFrameCount);
+	if (!isVideoDeliveryQuality(data(plan, 'quality', 'video keyframe export plan V7'))) {
+		throw new RangeError('Video keyframe export plan V7 states an unsupported delivery quality.');
+	}
 	const inputs = denseArray(data(plan, 'inputs', 'video keyframe export plan V7'), 'inputs', SOURCE_MAXIMUM + 1);
 	const hasAudio = captureInputs(inputs, activeSourceIds, sampleRate, range);
 	validateCodecs(data(plan, 'codecs', 'video keyframe export plan V7'), descriptor, hasAudio);
@@ -429,151 +466,3 @@ function exactFormat(value: unknown): VideoKeyframeExportPlanFormatV7 {
 	return value;
 }
 
-function videoMime(value: unknown): string {
-	const result = boundedString(value, 'video MIME type', 128);
-	if (!VIDEO_MIME.test(result)) throw new TypeError('Video MIME type must be canonical.');
-	return result;
-}
-
-function canonicalColor(value: unknown): string {
-	if (value !== '#000000') {
-		throw new TypeError('Video keyframe export backgroundColor must match the opaque-black compositor.');
-	}
-	return '#000000';
-}
-
-function digest(value: unknown): string {
-	if (typeof value !== 'string' || !SHA256.test(value)) {
-		throw new TypeError('Video source contentSha256 must be a lowercase SHA-256 digest.');
-	}
-	return value;
-}
-
-function audioFileName(value: unknown): string {
-	const result = boundedString(value, 'audioFileName', 255);
-	if (!result.toLowerCase().endsWith('.wav') || result.includes('/') || result.includes('\\')) {
-		throw new TypeError('audioFileName must be a local WAV file name.');
-	}
-	return result;
-}
-
-function nullableId(value: unknown, name: string): string | null {
-	return value === null ? null : id(value, name);
-}
-
-function id(value: unknown, name: string): string {
-	return boundedString(value, name, 1_024);
-}
-
-function boundedString(value: unknown, name: string, maximum = 1_024): string {
-	if (typeof value !== 'string' || value.length < 1 || value.length > maximum || value.includes('\0')) {
-		throw new TypeError(`${name} must be a bounded non-empty string.`);
-	}
-	return value;
-}
-
-function boolean(value: unknown, name: string): boolean {
-	if (typeof value !== 'boolean') throw new TypeError(`${name} must be boolean.`);
-	return value;
-}
-
-function nonNegativeInteger(value: unknown, name: string): number {
-	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || Object.is(value, -0)) {
-		throw new RangeError(`${name} must be a non-negative safe integer.`);
-	}
-	return value;
-}
-
-function positiveInteger(value: unknown, name: string): number {
-	const result = nonNegativeInteger(value, name);
-	if (result === 0) throw new RangeError(`${name} must be positive.`);
-	return result;
-}
-
-function projectSampleRate(value: unknown): number {
-	const result = positiveInteger(value, 'sampleRate');
-	if (result < AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE
-		|| result > AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE) {
-		throw new RangeError(
-			`Video keyframe export sample rate must be ${String(AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE)} through ${String(AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE)}.`,
-		);
-	}
-	return result;
-}
-
-function record(value: unknown, name: string): Readonly<Record<string, unknown>> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a plain record.`);
-	const prototype = Object.getPrototypeOf(value) as unknown;
-	if (prototype !== Object.prototype && prototype !== null) throw new TypeError(`${name} must be a plain record.`);
-	return value as Readonly<Record<string, unknown>>;
-}
-
-function closedRecord(
-	value: unknown,
-	fields: readonly string[],
-	name: string,
-	exactOrder: boolean,
-): Readonly<Record<string, unknown>> {
-	const result = record(value, name);
-	const keys = Reflect.ownKeys(result);
-	if (exactOrder) {
-		if (keys.length !== fields.length || keys.some((key, index) => key !== fields[index])) {
-			throw new TypeError(`${name} is not in canonical field order.`);
-		}
-	} else {
-		for (const key of keys) {
-			if (typeof key !== 'string' || !fields.includes(key)) throw new TypeError(`${name} has an unsupported field.`);
-		}
-		for (const field of fields) {
-			if (field !== 'audioFileName' && !Object.hasOwn(result, field)) {
-				throw new TypeError(`${name}.${field} is required.`);
-			}
-		}
-	}
-	for (const key of keys) {
-		if (typeof key !== 'string') throw new TypeError(`${name} has a non-string field.`);
-		const descriptor = Object.getOwnPropertyDescriptor(result, key);
-		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-			throw new TypeError(`${name}.${key} must be an own enumerable data property.`);
-		}
-	}
-	return result;
-}
-
-function denseArray(value: unknown, name: string, maximum: number): readonly unknown[] {
-	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype || value.length > maximum) {
-		throw new RangeError(`${name} must be a bounded ordinary array.`);
-	}
-	const keys = Reflect.ownKeys(value);
-	if (keys.length !== value.length + 1 || keys.at(-1) !== 'length') {
-		throw new TypeError(`${name} must be a canonical dense array.`);
-	}
-	const result: unknown[] = [];
-	for (let index = 0; index < value.length; index += 1) {
-		if (keys[index] !== String(index)) throw new TypeError(`${name} must be a canonical dense array.`);
-		const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-			throw new TypeError(`${name} must contain own data entries.`);
-		}
-		result.push(descriptor.value);
-	}
-	return result;
-}
-
-function data(value: object, key: string, name: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(value, key);
-	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-		throw new TypeError(`${name}.${key} must be an own enumerable data property.`);
-	}
-	return descriptor.value;
-}
-
-function optionalData(value: object, key: string, fallback: unknown, name: string): unknown {
-	return Object.hasOwn(value, key) ? data(value, key, name) : fallback;
-}
-
-function deepFreeze<Value>(value: Value): Value {
-	if (!value || typeof value !== 'object') return value;
-	for (const nested of Object.values(value)) deepFreeze(nested);
-	return Object.freeze(value);
-}

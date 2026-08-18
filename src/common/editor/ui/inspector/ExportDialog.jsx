@@ -12,7 +12,7 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import BextMetadataFields from '../BextMetadataFields.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import MetadataEditorTabs from '../MetadataEditorTabs.tsx';
-import VideoCanvasFields from '../VideoCanvasFields.jsx';
+import VideoDeliveryFields from '../VideoDeliveryFields.jsx';
 import { createProjectAdmEditorValue } from '../adm-metadata-editor-model.ts';
 import { createBextMetadataEditorValue } from '../bext-metadata-editor-model.ts';
 import {
@@ -69,6 +69,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		canvasFit: 'contain',
 		canvasFrameRate: '',
 		canvasBackgroundColor: '',
+		videoQuality: 'balanced',
 	});
 	const [error, setError] = useState('');
 	const [presetId, setPresetId] = useState('');
@@ -423,7 +424,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 					{!videoFormat && pcmFormat && settings.sampleFormat !== 'float32' && <LabeledDropdown label={copy.dither} hook="dither" value={settings.dither} onChange={(value) => set('dither', value)} disabled={exporting || admPassthrough} options={[{ value: 'none', label: copy.none }, { value: 'triangular', label: copy.triangularDither }, { value: 'triangular-highpass', label: copy.highpassDither }]} />}
 					{!videoFormat && settings.channelMapping === 'custom' && <label className="audio-editor-field"><span>{copy.customChannelMapping}</span><span><TextInput multiline value={settings.channelMatrix} disabled={exporting} onChange={(value) => set('channelMatrix', value)} width="100%" /><small>{copy.customChannelMappingHint}</small></span></label>}
 					{videoFormat && (
-						<VideoCanvasFields
+						<VideoDeliveryFields
 							copy={copy}
 							disabled={exporting}
 							settings={settings}

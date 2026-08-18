@@ -5,6 +5,7 @@ import {
 	type DeliveryPreset,
 	type DeliveryPresetKind,
 } from '../delivery-preset.ts';
+import { DEFAULT_VIDEO_DELIVERY_QUALITY } from '../video-delivery-quality.ts';
 
 /**
  * Translation between the export dialog's flat string settings and the typed
@@ -45,6 +46,7 @@ const NUMERIC_KEYS: readonly string[] = Object.freeze([
 ]);
 
 const CANVAS_FIT_DEFAULT = 'contain';
+const VIDEO_QUALITY_DEFAULT = DEFAULT_VIDEO_DELIVERY_QUALITY;
 
 /** The preset-worthy subset of the dialog's settings, with numbers as numbers. */
 export function presetSettingsFromDialog(
@@ -62,8 +64,31 @@ export function presetSettingsFromDialog(
 		}
 		result[key] = value;
 	}
-	if (kind === 'video') Object.assign(result, statedVideoCanvas(settings));
+	if (kind === 'video') {
+		Object.assign(result, statedVideoCanvas(settings));
+		const quality = statedVideoQuality(settings);
+		if (quality) result.quality = quality;
+	}
 	return Object.freeze(result);
+}
+
+/**
+ * The delivery quality tier a video dialog is asking for, or nothing.
+ *
+ * `balanced` is the tier every delivery used before quality could be chosen, so
+ * it is left unstated for the same reason `contain` is: a preset saved from an
+ * untouched dialog must not start pinning a value it never asked for.
+ *
+ * The dialog holds this as `videoQuality` because `quality` is already the
+ * Vorbis quality control; the preset spells it `quality` because a video preset
+ * has only the one.
+ */
+export function statedVideoQuality(
+	settings: Readonly<Record<string, unknown>> | undefined,
+): string | null {
+	const quality = settings?.videoQuality;
+	if (typeof quality !== 'string' || !quality || quality === VIDEO_QUALITY_DEFAULT) return null;
+	return quality;
 }
 
 /**
@@ -121,6 +146,10 @@ export function dialogSettingsFromPreset(
 		}
 		if (key === 'backgroundColor') {
 			patch.canvasBackgroundColor = String(value);
+			continue;
+		}
+		if (key === 'quality' && preset.kind === 'video') {
+			patch.videoQuality = String(value);
 			continue;
 		}
 		patch[key] = NUMERIC_KEYS.includes(key) ? String(value) : value;
