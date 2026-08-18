@@ -15,7 +15,7 @@ import {
 	FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
 } from '../../src/framescaper/editor-project-runtime-profile-v19.ts';
 import { validateFramescaperProjectV19 } from '../../src/framescaper/editor-project-v19-validation.ts';
-import { validateSoundscaperProjectV21 } from '../../src/soundscaper/editor-project-v21-validation.ts';
+import { validateSoundscaperProjectV23 } from '../../src/soundscaper/editor-project-v23-validation.ts';
 
 import {
 	asymmetricStereoTone,
@@ -34,7 +34,7 @@ import {
 } from './audio-editor-test-helpers.js';
 import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
-import { promoteFramescaperArchiveToSoundscaperV21 } from './helpers/scape-exact-project-fixtures.js';
+import { promoteFramescaperArchiveToSoundscaperV23 } from './helpers/scape-exact-project-fixtures.js';
 
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 const PRODUCT_PATHS = {
@@ -78,14 +78,14 @@ const WORKFLOWS = [{
 	recipient: 'soundscaper',
 	kind: 'video',
 	role: 'project-video-render-v1',
-	schemaVersion: 21,
+	schemaVersion: 23,
 }, {
 	id: 'video-clip-render-web-roundtrip',
 	origin: 'soundscaper',
 	recipient: 'soundscaper',
 	kind: 'video',
 	role: 'video-clip-render-v1',
-	schemaVersion: 21,
+	schemaVersion: 23,
 }];
 
 test.describe('exact-product rendered-fallback Scape return roundtrips', () => {
@@ -174,7 +174,7 @@ async function createVideoBaseArchive(page, editor, id) {
 		timeout: 10_000,
 	});
 	const v19Archive = await exportScapeArchive(page, editor);
-	const archive = await promoteFramescaperArchiveToSoundscaperV21(v19Archive, {
+	const archive = await promoteFramescaperArchiveToSoundscaperV23(v19Archive, {
 		id: `${id}-base`,
 		title: `${id} base`,
 	}, rewriteArchive);
@@ -325,7 +325,7 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 		if (workflow.schemaVersion === 19) {
 			validateFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, project);
 		} else {
-			validateSoundscaperProjectV21(project);
+			validateSoundscaperProjectV23(project);
 		}
 	});
 }

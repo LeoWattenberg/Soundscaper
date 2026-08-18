@@ -1,18 +1,18 @@
 import { Buffer } from 'node:buffer';
 
-import { createSoundscaperProjectV21 } from '../../../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProjectV23 } from '../../../src/soundscaper/editor-project-v23.ts';
 
-export async function promoteFramescaperArchiveToSoundscaperV21(
+export async function promoteFramescaperArchiveToSoundscaperV23(
 	input,
 	{ id, title, mutate = () => {} },
 	rewriteArchive,
 ) {
 	return rewriteArchive(input, ({ project }) => {
-		const foundation = framescaperV19FoundationForSoundscaperV21(project);
+		const foundation = framescaperV19FoundationForSoundscaperV23(project);
 		foundation.id = id;
 		foundation.title = title;
 		mutate(foundation);
-		const promoted = structuredClone(createSoundscaperProjectV21(foundation));
+		const promoted = structuredClone(createSoundscaperProjectV23(foundation));
 		for (const key of Object.keys(project)) delete project[key];
 		Object.assign(project, promoted);
 	});
@@ -55,7 +55,7 @@ export function createScapePcmPayload(source) {
 	return output;
 }
 
-function framescaperV19FoundationForSoundscaperV21(value) {
+function framescaperV19FoundationForSoundscaperV23(value) {
 	const project = structuredClone(value);
 	delete project.schemaVersion;
 	delete project.subsequences;

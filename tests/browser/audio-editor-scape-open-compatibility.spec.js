@@ -30,7 +30,7 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import {
 	createScapePcmPayload,
-	promoteFramescaperArchiveToSoundscaperV21,
+	promoteFramescaperArchiveToSoundscaperV23,
 	publisherRequirementManifest,
 } from './helpers/scape-exact-project-fixtures.js';
 
@@ -346,7 +346,7 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens exact V21 video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }, testInfo) => {
+	test('opens exact V23 video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(90_000);
 		await installPinnedFfmpegRuntimeRoutes(page);
@@ -378,9 +378,9 @@ test.describe('Scape open feature decisions', () => {
 		const exported = await captureScapeArchive(page, framescaper);
 		const originalFramescaperId = await framescaper.getAttribute('data-project-id');
 		const incomingId = `${originalFramescaperId}-soundscaper-video-effect`;
-		const archive = await promoteFramescaperArchiveToSoundscaperV21(exported, {
+		const archive = await promoteFramescaperArchiveToSoundscaperV23(exported, {
 			id: incomingId,
-			title: 'Exact V21 video effect',
+			title: 'Exact V23 video effect',
 		}, rewriteArchive);
 		const soundscaper = await bootEditor(page, '/embed/en/');
 		await expect(soundscaper).toHaveAttribute('data-product', 'soundscaper');
@@ -404,7 +404,7 @@ test.describe('Scape open feature decisions', () => {
 		await page.keyboard.press('Enter');
 		await expect(soundscaper).toHaveAttribute('data-project-id', originalSoundscaperId);
 		await expect(soundscaper.locator('[data-project-feature-video-effect-placeholders]')).toHaveCount(0);
-		const incomingTab = soundscaper.getByRole('tab', { name: 'Exact V21 video effect', exact: true });
+		const incomingTab = soundscaper.getByRole('tab', { name: 'Exact V23 video effect', exact: true });
 		await expect(incomingTab).toBeEnabled();
 		await incomingTab.focus();
 		await page.keyboard.press('Enter');
@@ -413,7 +413,7 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('preserves exact V21 retime curves only after explicit read-only consent', async ({ page }, testInfo) => {
+	test('preserves exact V23 retime curves only after explicit read-only consent', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(120_000);
 		await installPinnedFfmpegRuntimeRoutes(page);
@@ -422,12 +422,12 @@ test.describe('Scape open feature decisions', () => {
 		await importFiles(framescaper, [createDeterministicAvFixture('retime-preservation.webm')]);
 		const exported = await captureScapeArchive(page, framescaper);
 		let expectedCurve;
-		const archive = await promoteFramescaperArchiveToSoundscaperV21(exported, {
+		const archive = await promoteFramescaperArchiveToSoundscaperV23(exported, {
 			id: `${await framescaper.getAttribute('data-project-id')}-retime`,
-			title: 'Exact V21 retime preservation',
+			title: 'Exact V23 retime preservation',
 			mutate(foundation) {
 				const clip = foundation.clips.find((candidate) => candidate.kind === 'video');
-				if (!clip) throw new Error('V21 retime fixture requires a video clip.');
+				if (!clip) throw new Error('V23 retime fixture requires a video clip.');
 				expectedCurve = {
 					feature: 'video-retime', version: 2,
 					points: [
