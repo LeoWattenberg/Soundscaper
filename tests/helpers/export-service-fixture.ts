@@ -127,6 +127,15 @@ export function createFixture() {
 	let corruptOutput = false;
 	function stagedContainerBytes(): Uint8Array<ArrayBuffer> {
 		if (plan.format !== 'wav' && plan.format !== 'bwf' && plan.format !== 'bw64') return Uint8Array.of(7);
+		const staged = stagedWavBytes();
+		// The same corruption the offline path can be told to produce, so a
+		// realtime delivery can also be conformed against bytes that are not the
+		// file the plan described.
+		return corruptOutput
+			? staged.subarray(0, Math.max(0, staged.byteLength - 6)) as Uint8Array<ArrayBuffer>
+			: staged;
+	}
+	function stagedWavBytes(): Uint8Array<ArrayBuffer> {
 		return encodeWav(
 			Array.from({ length: plan.channelCount }, () => new Float32Array(plan.outputFrames)),
 			{

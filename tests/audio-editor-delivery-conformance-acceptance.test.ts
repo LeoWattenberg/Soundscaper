@@ -58,6 +58,23 @@ test('a deliberately corrupted output fails its reopen check and the report says
 	assert.match(String(failure.message), /reopened|planned/u);
 });
 
+test('a delivery that fails conformance does not strand the file it staged', async () => {
+	// The staged output's cleanup used to be registered after the conformance
+	// assert, so a failed delivery threw straight past it and left the staging
+	// file — up to the whole size of the export — in origin storage with no owner.
+	const fixture = createFixture();
+	const staged = defaultPlan();
+	staged.render = { strategy: 'realtime-stream' };
+	fixture.setPlan(staged);
+	fixture.setCorruptOutput(true);
+
+	const output = await createEditorExportService(fixture.runtime).handleExportAction('export');
+
+	assert.equal(output, undefined, 'a conformance failure is a failed delivery');
+	assert.equal(fixture.downloads.length, 0, 'and nothing was published');
+	assert.ok(fixture.calls.includes('sink-remove'), 'the staged file is removed rather than orphaned');
+});
+
 test('conformance items join the report the delivery gate already counts', async () => {
 	const fixture = createFixture();
 	await createEditorExportService(fixture.runtime).handleExportAction('export');

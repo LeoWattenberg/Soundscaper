@@ -203,6 +203,15 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					directCompressed ? pendingDirectDestination as DirectCompressedDestination : null,
 					assertExportCurrent,
 				);
+				// Registered the moment the render has staged something, because
+				// everything between here and publication can throw: conformance can
+				// fail the delivery, and a cancel can land during the reopen. Anything
+				// registered after those would leave the staging file — up to the full
+				// size of the export — stranded in origin storage with no owner.
+				if (!encoded.directDestination) {
+					outputCleanup = encoded.cleanup || null;
+					pendingCleanup = outputCleanup;
+				}
 				// Conformance runs on every delivery, from the bytes that delivery
 				// produced, before anything is published — it is not a verification
 				// mode somebody has to remember to run.
@@ -227,11 +236,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				// conformance can still say why.
 				assertDeliveryConformance(conformance);
 				if (encoded.directDestination) directOutput = encoded;
-				else {
-					outputCleanup = encoded.cleanup || null;
-					pendingCleanup = outputCleanup;
-					blob = prepareBrowserExportBlob(encoded, 'Audio export', browserMaximumOutputBytes);
-				}
+				else blob = prepareBrowserExportBlob(encoded, 'Audio export', browserMaximumOutputBytes);
 				fileName = plan.outputs[0].fileName;
 			} else if (directStemArchive) {
 				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
