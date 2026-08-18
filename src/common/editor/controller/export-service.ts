@@ -143,7 +143,11 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			// describes the render that actually happens rather than the settings
 			// that were asked for. It is session state, never project state: a
 			// report describes a delivery and must not join the document it describes.
-			state.deliveryReport = createDeliveryReportForPlan(plan, {
+			// Not published yet: everything between here and the render can still end
+			// the delivery without producing anything — a dismissed save dialog most of
+			// all — and publishing then would open the report surface on a delivery that
+			// never ran, over the report of the last one that did.
+			const plannedReport = createDeliveryReportForPlan(plan, {
 				sampleRate: exportProject.sampleRate,
 			});
 			if (plan.format === 'bw64' && plan.adm) {
@@ -193,6 +197,9 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					'export',
 				);
 			}
+			// The delivery is committed to rendering: from here a failure has
+			// something to describe, so the report becomes the session's.
+			state.deliveryReport = plannedReport;
 			setStatus(copy.rendering);
 			let blob: Blob | null = null;
 			let fileName;

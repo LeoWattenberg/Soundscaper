@@ -147,6 +147,30 @@ test('a broadcast delivery that measures its own loudness still conforms', async
 	assert.equal(bext?.severity, 'info', 'the written BEXT is the BEXT the delivery meant to write');
 });
 
+test('a delivery that ends before it renders leaves the last report standing', async () => {
+	// The report was published the moment the plan existed, before the save
+	// dialog, the storage preflight, or a single rendered sample. So a delivery
+	// the operator cancelled, or one refused before it started, opened the
+	// Delivery Report surface on a delivery that never happened — and destroyed
+	// the report of the last delivery that did, which is the evidence a sealed
+	// report exists to be.
+	const fixture = createFixture();
+	const service = createEditorExportService(fixture.runtime);
+	const delivered = await service.handleExportAction('export');
+	assert.equal(delivered.fileName, 'mix.wav');
+	const first = fixture.state.deliveryReport;
+	assert.ok(first, 'the delivery that happened filed a report');
+
+	fixture.setPreflightFails(true);
+	const second = await service.handleExportAction('export', { format: 'flac' });
+
+	assert.equal(second, undefined, 'the second delivery produced nothing');
+	assert.equal(
+		fixture.state.deliveryReport, first,
+		'so the report still describes the delivery that actually happened',
+	);
+});
+
 test('conformance items join the report the delivery gate already counts', async () => {
 	const fixture = createFixture();
 	await createEditorExportService(fixture.runtime).handleExportAction('export');
