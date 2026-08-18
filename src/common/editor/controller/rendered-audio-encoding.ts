@@ -167,16 +167,31 @@ export async function encodeRenderedAudio(
 	const renderedChannels = binaural ? binaural.channels : programmeChannels;
 	const native = isNativePcmFormat(plan.format);
 	const broadcast = plan.format === 'bwf' || plan.format === 'bw64';
-	// The one neutral point every delivery passes through: channel mapping has
-	// been applied, no encoder has been chosen yet, and these are the samples
-	// that get written. Normalizing here is what makes the gain a plan step
-	// rather than a per-format encoder flag, so every format normalizes
-	// identically or not at all.
+	// The one neutral point every delivery passes through: no encoder has been
+	// chosen yet, and these are the samples that get written. Normalizing here is
+	// what makes the gain a plan step rather than a per-format encoder flag, so
+	// every format normalizes identically or not at all.
+	const encodeChannels = native
+		? applyMediaChannelMapping(renderedChannels, plan.channelMapping)
+		: renderedChannels;
+	const captureLoudness = broadcast && settings.measureLoudness === true;
+	// A native format is mapped here; every other format stages these channels and
+	// lets the encoder apply the mapping afterwards. A downmix moves both
+	// integrated loudness and true peak, so deciding the gain from the staged
+	// channels put the delivered file off its target while the report still said
+	// target-met — and no delivered measurement runs for those formats to catch
+	// it. The decision is measured from what the delivery will contain; applying
+	// the gain to the staged channels is still exact, because a scalar gain
+	// commutes with the linear mix the encoder performs.
+	const measurementChannels = native || !plan.loudnessNormalization
+		? encodeChannels
+		: applyMediaChannelMapping(renderedChannels, plan.channelMapping);
 	const normalized = normalizeRenderedLoudness({
-		channels: native ? applyMediaChannelMapping(renderedChannels, plan.channelMapping) : renderedChannels,
+		channels: encodeChannels,
+		measurementChannels,
 		sampleRate: plan.sampleRate,
 		target: plan.loudnessNormalization,
-		captureLoudness: broadcast && settings.measureLoudness === true,
+		captureLoudness,
 	});
 	const sourceChannels = normalized.channels;
 	// Only when something was actually measured: metering an hour of audio takes

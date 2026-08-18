@@ -10,6 +10,7 @@ import {
 } from '../src/common/editor/controller/rendered-audio-encoding.ts';
 import { normalizeRenderedLoudness } from '../src/common/editor/loudness-normalization-render.ts';
 import { measureBextLoudness } from '../src/common/editor/broadcast-loudness.ts';
+import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';
 
 const SAMPLE_RATE = 48_000;
 const R128 = { integratedLufs: -23, truePeakCeilingDb: -1 };
@@ -214,6 +215,40 @@ test('the encoder is handed normalized samples, whichever format it encodes', as
 			`${format} encoded an un-normalized sample`,
 		);
 	}
+});
+
+test('a downmixed compressed delivery lands on the target the report claims', async () => {
+	// A native format is mapped before the gain is decided; every other format
+	// stages these channels and lets the encoder map them afterwards. Deciding the
+	// gain from the staged channels left a mono MP3 several LU off its target
+	// while the report said target-met — and no delivered measurement runs for a
+	// compressed format to contradict it. The fixture uses the real channel mapper
+	// rather than the identity stub, which is what hid this.
+	const channels = stereo(0.02, 2);
+	// Distinct channels, so a mono downmix is not the same signal as either.
+	for (let index = 0; index < channels[1].length; index += 1) channels[1][index] *= 0.25;
+	const fixture = encodingFixture('mp3', channels);
+	fixture.runtime.applyMediaChannelMapping = applyMediaChannelMapping as never;
+
+	const result = await encodeRenderedAudio(fixture.runtime, {
+		plan: { ...fixture.plan, channelMapping: 'mono', channelCount: 1, loudnessNormalization: R128 },
+		rendered: { sampleRate: SAMPLE_RATE },
+		settings: {},
+		signal: new AbortController().signal,
+	});
+
+	const decision = result.loudnessNormalization;
+	assert.ok(decision, 'the delivery must report its decision');
+	// What the encoder will actually write: the staged channels, mapped down.
+	const deliveredLoudness = measureBextLoudness(
+		applyMediaChannelMapping(channels as never, 'mono') as never,
+		SAMPLE_RATE,
+	);
+	assert.ok(
+		Math.abs((deliveredLoudness.loudnessValue ?? 0) - (decision.projectedLoudnessLufs ?? 0)) <= 0.2,
+		`the delivered mono file measured ${deliveredLoudness.loudnessValue} against a projected `
+			+ `${decision.projectedLoudnessLufs}, past the 0.2 LU budget`,
+	);
 });
 
 test('an export without a target reaches the encoder untouched and reports nothing', async () => {

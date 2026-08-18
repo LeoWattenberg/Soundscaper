@@ -38,6 +38,15 @@ export type RenderedLoudnessMeasurement = ReturnType<typeof measureBextLoudness>
 export interface NormalizeRenderedLoudnessRequest {
 	readonly channels: readonly Float32Array[];
 	readonly sampleRate: number;
+	/**
+	 * What the decision is measured from, when that is not the channels the gain
+	 * is applied to. A format whose channel mapping is applied by the encoder
+	 * stages more channels than it delivers, and a downmix moves both loudness and
+	 * true peak — so the gain has to be decided from what the delivery will
+	 * contain. Applying it to the staged channels is still exact, because a scalar
+	 * gain commutes with the linear mix that produces the delivered ones.
+	 */
+	readonly measurementChannels?: readonly Float32Array[];
 	/** The plan's target. Null means measure only, or do nothing at all. */
 	readonly target?: LoudnessNormalizationTarget | null;
 	/** Whether anything downstream stamps loudness into the delivery, such as a BEXT chunk. */
@@ -59,14 +68,22 @@ export function normalizeRenderedLoudness(
 	const { channels, sampleRate } = request;
 	const target = request.target ?? null;
 	const captureLoudness = request.captureLoudness === true;
+	const measurementChannels = request.measurementChannels ?? channels;
 
 	// Measuring an hour of audio is not free, so it happens only when a target
 	// needs deciding or a capture needs filling.
 	if (!target && !captureLoudness) {
 		return result(channels, null, null);
 	}
+	// A delivered capture describes the bytes that were written, and those are
+	// measured after the gain lands. That is only possible when the channels
+	// measured are the channels written; refusing is better than stamping a
+	// number taken from something else into the file.
+	if (captureLoudness && measurementChannels !== channels) {
+		throw new TypeError('A delivered loudness capture must measure the channels it writes.');
+	}
 
-	const measured = measureBextLoudness(channels, sampleRate);
+	const measured = measureBextLoudness(measurementChannels, sampleRate);
 	if (!target) {
 		// A delivery without normalization still reports its measured loudness,
 		// so the report says the same kind of thing either way.
