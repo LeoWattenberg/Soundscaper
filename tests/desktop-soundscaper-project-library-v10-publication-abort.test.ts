@@ -142,6 +142,58 @@ test('a publication abandoned after its commit checkpoint still settles rather t
 	assert.equal((await survivor.listProjects()).metadataRevision, 1);
 });
 
+// A writer killed between its publication's commit and its settle leaves a
+// committed publication journal behind. The next owner does finish it — that is
+// what the abandon test above proves — but it used to report the restart as
+// `clean`, because only a pending *metadata* journal was ever turned into an
+// outcome. The packaged lease matrix asks for exactly this evidence, so losing it
+// made a recovery that genuinely happened indistinguishable from one that never
+// needed to.
+test('a committed publication journal is reported as recovered by the owner that finishes it', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v10-journal-recovery-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	// A short lease the owner will not renew stands in for a killed process: the
+	// journal stays exactly as the interrupted commit left it.
+	const abandoned = await SoundscaperDesktopProjectLibraryV10Main.start({
+		appDataPath: root,
+		owner: { product: 'soundscaper', processId: 911, instanceId: 'soundscaper-journal-killed' },
+		handshake: createSoundscaperDesktopProjectLibraryV10Handshake(),
+		qualification: {
+			leaseTtlMs: 1_000,
+			renewIntervalMs: 10_000,
+			checkpoint: (phase) => {
+				if (phase === 'committed') throw new Error('Soundscaper V10 writer was killed after commit');
+			},
+		},
+	});
+	context.after(() => abandoned.close().catch(() => undefined));
+	const lost = abandoned.openSession(createSoundscaperDesktopProjectLibraryV10Handshake());
+	await assert.rejects(
+		publish(lost, projectAt(1, 'Interrupted'), 0, null, '01'.repeat(24)),
+		/killed after commit/u,
+	);
+	await new Promise((resolve) => { setTimeout(resolve, 1_400); });
+
+	const restarted = await SoundscaperDesktopProjectLibraryV10Main.start({
+		appDataPath: root,
+		owner: { product: 'soundscaper', processId: 912, instanceId: 'soundscaper-journal-restarted' },
+		handshake: createSoundscaperDesktopProjectLibraryV10Handshake(),
+		qualification: null,
+	});
+	context.after(() => restarted.close());
+	const writer = restarted.snapshot().writer;
+	assert.equal(writer.tookOverStaleLease, true);
+	assert.equal(writer.recovery.outcome, 'committed');
+	assert.equal(writer.recovery.publishedRevision, 1);
+
+	const survivor = restarted.openSession(createSoundscaperDesktopProjectLibraryV10Handshake());
+	context.after(() => survivor.close());
+	const bundle = await survivor.readProjectBundle(PROJECT_ID);
+	assert.ok(bundle);
+	assert.equal(bundle.project.projectRevision, 1);
+	assert.equal((await survivor.listProjects()).metadataRevision, 1);
+});
+
 async function refusal(pending: Promise<unknown>): Promise<Readonly<{ code: unknown; message: string }>> {
 	try { await pending; } catch (error) {
 		assert.ok(error instanceof Error);

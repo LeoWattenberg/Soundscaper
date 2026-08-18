@@ -268,7 +268,19 @@ async function recoverPending(
 	if (metadataPending && publicationPending) {
 		throw new Error('Soundscaper V10 database has conflicting metadata and body recovery journals');
 	}
-	if (publicationPending) await host.recover({ lease });
+	if (publicationPending) {
+		// The publication journal is finished here, so this is the only place that
+		// can say it happened. Discarding the outcome reported the restart as clean
+		// and made a recovery the packaged lease matrix asks for unprovable. The
+		// journal does not record the metadata revision it superseded, so only the
+		// revision it published is known.
+		const publication = await host.recover({ lease });
+		return Object.freeze({
+			outcome: publication.outcome,
+			previousRevision: null,
+			publishedRevision: publication.metadataRevision,
+		});
+	}
 	if (metadataPending) return catalog.recoverMetadata({ lease });
 	return Object.freeze({ outcome: 'clean' as const, previousRevision: null, publishedRevision: null });
 }
