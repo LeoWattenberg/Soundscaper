@@ -144,6 +144,7 @@ export function createWorkspaceApplicationMenus({
 					? run(() => openDesktopFiles('media', true))
 					: importInputRef.current?.click(),
 				exportAudio: () => openSurface('export'),
+				openDeliveryQueue: () => openSurface('delivery-queue'),
 				exportLabels: () => openSurface('label-export'),
 				exportEdl: () => run(() => controller.actions.export.exportEdl()),
 				exportOtio: () => run(() => controller.actions.export.exportOtio()),

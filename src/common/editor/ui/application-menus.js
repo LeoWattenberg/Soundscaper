@@ -177,6 +177,7 @@ export default function createApplicationMenus({
 				{ id: 'import-audio', label: copy.importFile, preserveLabel: true, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importFiles },
 				...productItems.fileImport,
 				{ id: 'export-audio', label: copy.exportAudio, shortcut: 'Ctrl+Shift+E', disabled: blocked, onClick: actions.exportAudio },
+				{ id: 'delivery-queue', label: copy.deliveryQueue, disabled: blocked, onClick: actions.openDeliveryQueue },
 				{
 					id: 'export-other',
 					label: copy.exportOther,

@@ -3,6 +3,7 @@ import { CANONICAL_EXTRA_COPY_BY_LOCALE } from './canonical-extras.js';
 import { REPORT_COPY_BY_LOCALE } from './report-copy.js';
 import { EXPORT_MENU_COPY_BY_LOCALE } from './export-menu-copy.js';
 import { LABEL_EXPORT_COPY_BY_LOCALE } from './label-export-copy.js';
+import { DELIVERY_QUEUE_COPY_BY_LOCALE } from './delivery-queue-copy.js';
 import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from './sequence-timing-copy.js';
 import { TIMELINE_ANNOTATION_COPY_BY_LOCALE } from './timeline-annotation-copy.js';
@@ -100,6 +101,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		...REPORT_COPY_BY_LOCALE.de,
 		...EXPORT_MENU_COPY_BY_LOCALE.de,
 		...LABEL_EXPORT_COPY_BY_LOCALE.de,
+		...DELIVERY_QUEUE_COPY_BY_LOCALE.de,
 		exportSelectedAudio: 'Ausgewähltes Audio exportieren',
 		quitEditor: 'Beenden',
 		importHint: 'AUP/AUP3/AUP4, WAV, MP3, FLAC, Opus, OGG, M4A, AIFF oder WebM',
@@ -800,13 +802,6 @@ export const COPY_BY_LOCALE = deepFreeze({
 		analyzeTrack: 'Spur analysieren',
 		analyzeMaster: 'Master analysieren',
 		analyzeHint: 'Die Analyse verwendet die aktuelle Auswahl oder das gesamte Projekt und berücksichtigt alle aktiven Effekte. True Peak ist bis zum Abschluss der Referenzvektor-Prüfung als Schätzung gekennzeichnet.',
-		exportMode: 'Ausgabe',
-		mix: 'Stereomix',
-		stems: 'Einzelspuren (Archiv)',
-		exportRange: 'Bereich',
-		entireProject: 'Gesamtes Projekt',
-		currentSelection: 'Aktuelle Auswahl',
-		loopRegion: 'Loop-Bereich',
 		format: 'Format',
 		customFfmpeg: 'Benutzerdefiniertes FFmpeg',
 		bitDepth: 'Bittiefe',
@@ -1123,6 +1118,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		...REPORT_COPY_BY_LOCALE.en,
 		...EXPORT_MENU_COPY_BY_LOCALE.en,
 		...LABEL_EXPORT_COPY_BY_LOCALE.en,
+		...DELIVERY_QUEUE_COPY_BY_LOCALE.en,
 		exportSelectedAudio: 'Export selected audio',
 		quitEditor: 'Quit',
 		importHint: 'AUP/AUP3/AUP4, WAV, MP3, FLAC, Opus, OGG, M4A, AIFF, or WebM',
@@ -1823,13 +1819,6 @@ export const COPY_BY_LOCALE = deepFreeze({
 		analyzeTrack: 'Analyze track',
 		analyzeMaster: 'Analyze master',
 		analyzeHint: 'Analysis uses the current selection or entire project and includes all active effects. True peak remains labeled as an estimate until reference-vector validation is complete.',
-		exportMode: 'Output',
-		mix: 'Stereo mix',
-		stems: 'Individual stems (archive)',
-		exportRange: 'Range',
-		entireProject: 'Entire project',
-		currentSelection: 'Current selection',
-		loopRegion: 'Loop region',
 		format: 'Format',
 		customFfmpeg: 'Custom FFmpeg',
 		bitDepth: 'Bit depth',

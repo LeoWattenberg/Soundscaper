@@ -8,6 +8,7 @@ const ClipPropertiesDialog = React.lazy(() => import('../inspector/ClipPropertie
 const VideoCompositionDialog = React.lazy(() => import('../inspector/VideoCompositionDialog.tsx'));
 const VideoKeyframeDialog = React.lazy(() => import('../inspector/VideoKeyframeDialog.tsx'));
 const ExportDialog = React.lazy(() => import('../inspector/ExportDialog.jsx'));
+const DeliveryQueueDialog = React.lazy(() => import('../inspector/DeliveryQueueDialog.jsx'));
 const LabelExportDialog = React.lazy(() => import('../inspector/LabelExportDialog.jsx'));
 const SelectionEffectsDialog = React.lazy(() => import('../inspector/SelectionEffectsDialog.jsx'));
 const EditorDialog = React.lazy(() => import('../dialogs/EditorDialog.jsx'));
@@ -248,6 +249,19 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							snapshot={snapshot}
 							copy={copy}
 							locale={locale}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{activeSurface === 'delivery-queue' && (
+				<div data-editor-surface="delivery-queue">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<DeliveryQueueDialog
+							isOpen
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
 							onClose={() => setActiveSurface(null)}
 						/>
 					</React.Suspense>
