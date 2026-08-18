@@ -126,6 +126,32 @@ test('the editor renders the sequence, its entries, and the regions it can add',
 	assert.doesNotMatch(markup, /cannot be delivered/u);
 });
 
+test('the title field holds the override, not the region name it falls back to', () => {
+	// The snapshot's title is the effective one, so filling the input with it and
+	// submitting on every Apply pinned the region's current name as an override —
+	// an entry whose gap the operator nudged silently stopped following its
+	// region's name, and the delivery, its cues and its report kept delivering the
+	// old one with no visible reason.
+	const snapshot = createDocumentMasteringSequenceSnapshot(albumProject());
+	const [entry] = snapshot.sequences[0].entries;
+	assert.equal(entry.titleOverride, null, 'the fixture entry states no title of its own');
+	assert.equal(entry.title, 'One', 'but its effective title is the region name');
+
+	const markup = renderToStaticMarkup(<SoundscaperMasteringSequenceEditor
+		copy={SOUNDSCAPER_PRODUCTION_COPY}
+		disabled={false}
+		sequences={snapshot.sequences}
+		regions={snapshot.regions}
+		createId={() => 'generated'}
+		onOperation={() => undefined}
+	/>);
+
+	const titleInput = markup.match(/<input[^>]*name="title"[^>]*>/u)?.[0] ?? '';
+	assert.match(titleInput, /placeholder="One"/u, 'the region name is shown as the placeholder it is');
+	assert.match(titleInput, /value=""/u,
+		'and the field itself is empty, so Apply stores no override the operator never asked for');
+});
+
 test('an undeliverable sequence shows its reason instead of hiding', () => {
 	const snapshot = createDocumentMasteringSequenceSnapshot(
 		albumProject([{ id: 'e1', annotationId: 'gone' }]),

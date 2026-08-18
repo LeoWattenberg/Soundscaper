@@ -169,7 +169,7 @@ function EntryEditor({ copy, entry, index, lastIndex, sequenceId, onOperation }:
 		{entry.durationFrames === null && <p role="alert">{copy.masteringMissingRegion}</p>}
 		<label className="kw-audio-editor-dialog__field">
 			<span>{copy.masteringEntryTitle}</span>
-			<input name="title" type="text" defaultValue={entry.title} />
+			<input name="title" type="text" defaultValue={entry.titleOverride ?? ''} placeholder={entry.title} />
 		</label>
 		<p className="audio-editor-panel-hint">{copy.masteringEntryTitleFromRegion}</p>
 		<NumberField name="gapBeforeFrames" label={copy.masteringGapBefore} value={entry.gapBeforeFrames} />

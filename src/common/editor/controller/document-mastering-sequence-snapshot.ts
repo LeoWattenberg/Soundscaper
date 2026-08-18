@@ -27,6 +27,14 @@ export interface DocumentMasteringSequenceEntrySnapshot {
 	readonly id: string;
 	readonly annotationId: string;
 	readonly title: string;
+	/**
+	 * The title the entry itself stores, or null when it has none and takes the
+	 * region's name. The editing surface needs the two apart: showing the
+	 * effective title in an input that always submits pins the region's current
+	 * name as an override the operator never asked for, and renaming the region
+	 * then stops reaching the delivery.
+	 */
+	readonly titleOverride: string | null;
 	/** Null when the entry's region is missing, which is also why it has an issue. */
 	readonly durationFrames: number | null;
 	readonly gapBeforeFrames: number;
@@ -103,6 +111,7 @@ function snapshotSequence(
 			id: entry.id,
 			annotationId: entry.annotationId,
 			title: region ? masteringSequenceEntryTitle(entry, region) : entry.title ?? entry.annotationId,
+			titleOverride: entry.title ?? null,
 			durationFrames,
 			gapBeforeFrames: entry.gapBeforeFrames,
 			fadeInFrames: entry.fadeInFrames,
