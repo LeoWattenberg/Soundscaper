@@ -12,6 +12,10 @@ import {
 	createDeliveryReport,
 	sealDeliveryReport,
 } from './delivery-report.ts';
+import {
+	BINAURAL_RENDERER_ID,
+	BINAURAL_RENDERER_LIMITATIONS,
+} from './binaural-render.ts';
 import { MEDIA_EXPORT_FORMATS, mediaExportFormatCarriesCues } from './media-export.js';
 import type { DeliveryConformanceFinding } from './delivery-conformance.ts';
 import { masteringSequenceDeliveryConversions } from './mastering-sequence-delivery.ts';
@@ -55,6 +59,7 @@ interface AudioDeliveryPlan {
 	readonly markers?: unknown;
 	readonly markerInterchangeReport?: unknown;
 	readonly masteringSequence?: unknown;
+	readonly binaural?: unknown;
 }
 
 /** Every conversion and preservation the plan implies, in a stable order. */
@@ -83,6 +88,7 @@ export function inventoryDeliveryConversions(
 	}
 
 	for (const conversion of authoredAdmConversions(plan.adm)) conversions.push(conversion);
+	for (const conversion of binauralConversions(plan.binaural)) conversions.push(conversion);
 
 	const outputRate = Number(plan.sampleRate);
 	if (Number.isFinite(outputRate) && outputRate !== Number(source.sampleRate)) {
@@ -390,6 +396,35 @@ function authoredAdmConversions(adm: unknown): readonly DeliveryConversion[] {
 		});
 	}
 	return Object.freeze(conversions);
+}
+
+/**
+ * The renderer decision a binaural delivery has to state.
+ *
+ * A programme rendered to two channels is no longer the programme: its bed and
+ * its objects were placed by a model, and which model that was decides what the
+ * listener hears. The item names the renderer and carries its own limitations,
+ * so nothing downstream has to know this module to find out what was assumed.
+ */
+function binauralConversions(binaural: unknown): readonly DeliveryConversion[] {
+	if (!isRecord(binaural)) return [];
+	const metadata = isRecord(binaural.metadata) ? binaural.metadata : null;
+	const bed = metadata && isRecord(metadata.bed) ? metadata.bed : null;
+	return Object.freeze([{
+		code: 'delivery.binaural-render',
+		disposition: 'converted',
+		severity: 'warning',
+		data: {
+			renderer: BINAURAL_RENDERER_ID,
+			sourceChannels: Number(binaural.sourceChannelCount) || null,
+			bedLayout: typeof bed?.layout === 'string' ? bed.layout : null,
+			objects: Array.isArray(metadata?.objects) ? metadata.objects.length : 0,
+			limitations: BINAURAL_RENDERER_LIMITATIONS,
+		},
+		message: 'The programme was rendered to two channels for headphones by a parametric spherical-head model. '
+			+ 'It carries no measured head-related transfer function, so elevation is conveyed by arrival time and '
+			+ 'shadow rather than by spectral cues.',
+	}]);
 }
 
 function admPassthroughMode(adm: unknown): string | null {

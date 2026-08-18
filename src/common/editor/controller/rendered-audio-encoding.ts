@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { BinauralDeliveryPlan } from '../binaural-delivery.ts';
+import { binauralSourcesForAuthoredAdm } from '../binaural-delivery.ts';
+import { renderBinaural } from '../binaural-render.ts';
 import {
 	type RenderedLoudnessMeasurement,
 	normalizeRenderedLoudness,
@@ -38,6 +41,7 @@ interface RenderedAudioFormatSettings extends Readonly<Record<string, unknown>> 
 
 export interface RenderedAudioEncodingPlan {
 	readonly bext?: Readonly<Record<string, unknown>>;
+	readonly binaural?: BinauralDeliveryPlan | null;
 	readonly cart?: unknown;
 	readonly channelCount?: number;
 	readonly channelMapping: unknown;
@@ -149,7 +153,18 @@ export async function encodeRenderedAudio(
 	const bitDepth = plan.encoding.bitDepth
 		|| (settings.bitDepth === 32 ? 32 : settings.bitDepth)
 		|| 24;
-	const renderedChannels = audioBufferChannels(output);
+	const programmeChannels = audioBufferChannels(output);
+	// The programme is placed before anything else touches the samples: the
+	// renderer needs the delivered channel order the ADM metadata describes, and
+	// after this point the delivery is two channels like any other stereo one.
+	const binaural = plan.binaural
+		? renderBinaural(
+			binauralSourcesForAuthoredAdm(plan.binaural.metadata, programmeChannels),
+			plan.sampleRate,
+		)
+		: null;
+	if (binaural) assertActive();
+	const renderedChannels = binaural ? binaural.channels : programmeChannels;
 	const native = isNativePcmFormat(plan.format);
 	const broadcast = plan.format === 'bwf' || plan.format === 'bw64';
 	// The one neutral point every delivery passes through: channel mapping has

@@ -20,6 +20,7 @@ import { inspectWavLayout } from './wav.js';
 import { createStemArchivePlan } from './controller/stem-archive.ts';
 import { normalizeLoudnessNormalizationTarget } from './loudness-normalization.ts';
 import { createRiffAnnotationExport } from './timeline-annotation-riff-interchange.ts';
+import { resolveBinauralDelivery } from './binaural-delivery.ts';
 import { resolveMasteringSequenceExport } from './mastering-sequence-export.ts';
 import { planExportOfflineRenderStrategyAdmission } from './export-render-admission.ts';
 
@@ -110,6 +111,23 @@ export function chooseRenderStrategy(options = {}) {
 	};
 }
 
+/**
+ * The binaural delivery this plan carries, or none.
+ *
+ * The refusals are stated as refusals rather than quietly downgraded: a request
+ * this cannot honour is an error at plan time, where the operator can still
+ * change it, and never a delivery that silently came out as something else.
+ */
+function resolveBinauralBw64Delivery(project, options, format, mode) {
+	const { plan, refusal } = resolveBinauralDelivery(
+		options.adm !== undefined ? options.adm : project.metadata?.adm,
+		{ binaural: options.binaural, mode, format },
+	);
+	if (plan) return plan;
+	if (refusal === null || refusal === 'not-requested') return null;
+	throw new Error(`A binaural delivery is not available: ${refusal}.`);
+}
+
 export function sanitizeExportName(value, fallback = 'audio-project') {
 	const normalized = String(value || '')
 		.normalize('NFKD')
@@ -139,12 +157,16 @@ export function createExportPlan(project, options = {}) {
 	const format = canonicalMediaExportFormat(options.format || 'wav');
 	if (format === 'bw64' && mode !== 'mix') throw new RangeError('BW64 / ADM export is mix-only.');
 	const bw64Adm = format === 'bw64' ? resolveBw64Adm(runtimeProject, options) : null;
+	const binaural = resolveBinauralBw64Delivery(runtimeProject, options, format, mode);
 	let encoding = normalizeMediaExportSettings(format, {
 		...options,
 		sampleRate: options.sampleRate ?? runtimeProject.sampleRate ?? AUDIO_EDITOR_SAMPLE_RATE,
 		inputChannelCount: bw64Adm?.channelCount
 			?? options.inputChannelCount ?? runtimeProject.masterChannels ?? AUDIO_EDITOR_MASTER_CHANNELS,
 		...(bw64Adm ? { channelMapping: 'preserve' } : {}),
+		// A binaural delivery is two channels whatever the programme was, and the
+		// renderer places the sources itself, so no mapping precedes it.
+		...(binaural ? { channelCount: 2, channelMapping: 'preserve', inputChannelCount: 2 } : {}),
 	});
 	const preservedRiffChunks = bw64Adm?.metadata.mode === 'passthrough'
 		? inspectPreservedAdmRiffChunks(bw64Adm.metadata)
@@ -280,6 +302,11 @@ export function createExportPlan(project, options = {}) {
 		// under a name that promised the sequence's.
 		throw new Error('Mastering sequence delivery requires the offline render; this delivery is too large for it.');
 	}
+	if (binaural && render.strategy !== 'offline') {
+		// The renderer holds a delay line per source per ear; a stream that hands
+		// out one chunk at a time and re-encodes on fallback would restart it.
+		throw new Error('A binaural delivery requires the offline render.');
+	}
 	const loudnessNormalization = resolveExportLoudnessNormalization(options, {
 		mode,
 		admMetadata: bw64Adm?.metadata ?? null,
@@ -324,6 +351,7 @@ export function createExportPlan(project, options = {}) {
 			trailingChunks: adm.trailingChunks,
 		} : {}),
 		loudnessNormalization,
+		...(binaural ? { binaural } : {}),
 		...(masteringSequence ? { masteringSequence: masteringSequence.plan } : {}),
 		range: masteringSequence ? masteringSequence.sourceRange : range,
 		tailFrames,

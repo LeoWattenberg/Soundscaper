@@ -14,7 +14,9 @@ for (const workflowName of workflowNames) {
 		);
 		const job = extractJob(workflow, 'quality');
 
-		assert.match(job, /^\s+run: npm run check$/mu);
+		// A wrapper is allowed — the job runs under a virtual display — but the
+		// full check has to be what it wraps, and nothing may follow it on the line.
+		assert.match(job, /^\s+run: (?:\S+(?: --?\S+)* )?npm run check$/mu);
 		assert.deepEqual(
 			[...job.matchAll(/^\s+fetch-depth:\s*(\d+)\s*$/gmu)].map((match) => match[1]),
 			['0'],
