@@ -721,8 +721,8 @@ invariants, and the bounded work packets are owned by the
   reporting.
 - **Electron Enhanced — Planned:** restartable background queues, direct
   streaming, reference-scale archives, and reviewed professional deliverables.
-- **Shared — Planned:** reviewed object/binaural immersive delivery without
-  weakening current ADM passthrough.
+- **Shared — Implemented:** reviewed object/binaural immersive delivery — beds to
+  7.1.4, objects, a named binaural model — without weakening ADM passthrough.
 
 ### Framescaper delivery
 

@@ -11,8 +11,8 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-18: 6A-1a, 6A-1b, 6A-2, 6A-3 and 6A-4 are complete. 6A-5 is
-next, and 6A-6 develops alongside it.**
+**Status on 2026-08-18: 6A-1a, 6A-1b, 6A-2, 6A-3, 6A-4 and 6A-5 are complete.
+6A-6 is what remains of 6A.**
 
 - **The decision.** `src/common/editor/loudness-normalization.ts` computes one
   gain from a measurement and a target and returns it as inspectable data. The
@@ -86,10 +86,10 @@ The substrate 6A consumes is present and verified:
   (`export.js:279-288`) and its ZIP32/7z selector
   (`controller/stem-archive.ts:36-76`) are extended by 6A-3, never
   duplicated.
-- **ADM is two modes with hard caps.** Authored beds are mono/stereo/5.1
-  (`src/common/editor/adm-project-metadata.ts:14-22`); passthrough is the
-  byte-preservation contract (`export.js:408-478`). 6A-5 grows the first and
-  must not touch the second.
+- **ADM is two modes.** Authored programmes carry a bed from mono through 7.1.4
+  plus positioned objects (`src/common/editor/adm-bed-layout.ts`,
+  `adm-authored-objects.ts`); passthrough is the byte-preservation contract
+  (`export.js:408-478`). 6A-5 grew the first and did not touch the second.
 
 Implementation order, dependency-driven:
 
@@ -405,6 +405,70 @@ them could not also stand for an ordinary delivery.
 - **Stop condition:** stop if any conformance check would need format
   knowledge the writers don't already own — that is a missing writer contract,
   not a checker feature.
+
+## 6A-5 status: complete
+
+Immersive delivery landed as three additions with one rule between them: every
+new semantic is stated in the file, in the capability manifest, and in the
+delivery report, and none of them touches passthrough.
+
+- **The bed set grew, and says where its speakers are.** `5.1.2`, `5.1.4`, `7.1`
+  and `7.1.4` join mono, stereo and 5.1. The three that shipped keep citing the
+  BS.2094 common definitions and their bytes are pinned by digest; the new ones
+  cite the common definitions only for the 5.1 base and **define their own** pack
+  and channel formats, with speaker labels and coordinates, for every speaker
+  beside or above it. A file that defines its speakers says where it thinks they
+  are; a file that cites an identifier is trusting a table it cannot show, and
+  only the first can be checked by the reader holding it. The existing namespace
+  validator enforces this for free — a custom reference the AXML does not define
+  is a parse error.
+- **Objects are authorable, and are the same routing statement as a bed
+  assignment.** Take channel *c* of strip *s* at gain *g* onto delivered channel
+  *n*; the router flattens both into one table so it cannot honour one kind and
+  drop the other. Objects sit on top of a bed rather than instead of one — a
+  stated limit, because master width, channel order, CHNA and the router all ask
+  the bed how wide it is. The authored gain reaches the samples and is
+  deliberately absent from the file, since a renderer finding one in the block
+  format would apply it twice.
+- **Binaural delivery renders to two channels and names its model.** A
+  parametric spherical head: Woodworth arrival time and the Brown–Duda head
+  shadow, computed from each source's own angle to each ear, placed from the
+  positions the file already declares. It carries no measured HRTF and no pinna
+  model, so elevation moves timing and shadow but not tone — which the report
+  states as a warning rather than a note. Picking a measured dataset would mean
+  choosing whose ears the delivery is rendered for and shipping their
+  measurements; that decision has a licence attached and was not made here.
+
+**No schema revision was cut.** `metadata.adm` is an optional metadata block
+that has been widened four times before without one (`c5e705d9`, `78b648b7`),
+and a document carrying objects is *rejected* by an older build rather than
+misread — loud, not silent. The registration the slice asked for happens through
+the feature manifest instead: `soundscaper.immersive-adm` is a project-owned
+requirement, declared by any project holding objects or a bed above 5.1 and
+refusing publisher substitution, which is what makes opening one without the
+capability report the loss. It is deliberately not triggered by the three
+original layouts.
+
+**Two defects the work uncovered, both fixed with their own tests.**
+
+- The production graph builder returned before the ADM stage, so on the schema
+  the product actually mounts an authored bed built no router at all: the
+  bed-channel and gain controls reached no sample. Playback and export agreed
+  with each other, which is why nothing caught it — they agreed on ignoring the
+  same thing. Terminality and bus widths were also read from `mixer.routes`, a
+  map the production mixer does not have, so every track counted as terminal and
+  every bus fell back to two channels.
+- The direct BW64 route derived its admission from the layout table, so every
+  new layout would have enrolled itself into the packaged streaming path the
+  moment the table grew — a path whose evidence names mono, stereo and 5.1 and
+  states that it does not qualify other ADM layouts. It now holds its own list.
+
+**What 6A-5 deliberately did not do.** There is no pure-object programme: an
+object delivery carries a bed, costing one channel in the rare case where the
+bed is unwanted. There is no measured-HRTF renderer, for the licensing reason
+above. And an object AXML does not read back as an authored programme on import
+— `readAdmBedMetadata` recognises beds only, so one of our own object files
+imports as an ordinary multichannel WAV rather than being misidentified.
 
 ## 6A-5 — Immersive delivery (reviewed)
 

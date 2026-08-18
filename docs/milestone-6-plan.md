@@ -112,11 +112,13 @@ every later packet emits reports, pins plans, and enqueues jobs.
   (`src/common/editor/file-service.js:171`); the flat export dialog
   a preset system must subsume is
   `src/common/editor/ui/inspector/ExportDialog.jsx:31-375`.
-- **ADM is two modes with hard caps.** Authored beds are mono, stereo,
-  and 5.1 only (`src/common/editor/adm-project-metadata.ts:14-22`);
-  passthrough is a strict byte-preservation contract (neutral path,
-  dither none, exact one full-source clip, chunk-sequence preservation,
-  `src/common/editor/export.js:408-478`). No objects, no binaural.
+- **ADM is two modes.** Authored programmes carry a bed from mono through
+  7.1.4 plus positioned objects, and may be rendered binaurally
+  (`src/common/editor/adm-bed-layout.ts`, `adm-authored-objects.ts`,
+  `binaural-render.ts`, all landed by 6A-5); passthrough is a strict
+  byte-preservation contract (neutral path, dither none, exact one
+  full-source clip, chunk-sequence preservation,
+  `src/common/editor/export.js:408-478`) and 6A-5 did not touch it.
 
 ## Known defect this plan absorbed first (repaired)
 
@@ -268,10 +270,11 @@ config/milestone-2-closure.json:245).
 ### Immersive extends without weakening passthrough
 
 Object and binaural delivery are a reviewed addition (roadmap.md:
-723-724): the authored bed cap (mono/stereo/5.1) may grow and object
-metadata may be authored, but the passthrough contract — byte
-preservation with a neutral path — stays intact and its refusal rules
-stay refusals. The compatibility fence stands: new BW64 ADM
+723-724), landed by 6A-5: the authored bed set grew through 7.1.4 and
+object metadata became authorable, while the passthrough contract — byte
+preservation with a neutral path — stayed intact and its refusal rules
+stayed refusals, proved by a digest of the chunks a passthrough plan
+reproduces. The compatibility fence stands: new BW64 ADM
 preservation-or-editing semantics are not silently qualified by the
 existing portable exception (docs/project-compatibility.md:86-88).
 
