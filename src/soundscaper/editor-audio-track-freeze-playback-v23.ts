@@ -14,6 +14,7 @@ import {
 	type TransientAnalysisPcmStore,
 } from '../common/editor/controller/transient-analysis-pcm-access.ts';
 import { normalizeMixerGraphV21 } from '../common/editor/mixer-graph-v21.ts';
+import { SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION } from '../common/editor/project-schema-version.ts';
 import { soundscaperAudioTrackFreezeRequirementIdV23 } from './editor-project-feature-requirements-v23.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
@@ -86,7 +87,7 @@ export function createSoundscaperAudioTrackFreezePlaybackServiceV23(
 	): Promise<void> {
 		await base.prepareProjectForActivation?.(project, options);
 		const candidate = dataRecord(project, 'Soundscaper freeze activation project');
-		if (candidate.schemaVersion !== 21) return;
+		if (candidate.schemaVersion !== SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION) return;
 		const projectId = stableId(candidate.id, 'Soundscaper freeze activation project');
 		const prepared: VerifiedSoundscaperAudioTrackFreezeV23[] = [];
 		for (const track of dataArray(candidate.tracks, 'project.tracks')) {
@@ -179,7 +180,7 @@ export function createSoundscaperAudioTrackFreezePlaybackServiceV23(
 
 	function selectFreshAdmissions(projectValue: object): readonly FreezeAdmission[] {
 		const project = dataRecord(projectValue, 'freeze playback project');
-		if (project.schemaVersion !== 21) return Object.freeze([]);
+		if (project.schemaVersion !== SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION) return Object.freeze([]);
 		const projectId = stableId(project.id, 'freeze playback project');
 		const clips = dataArray(project.clips, 'project.clips');
 		const sources = dataArray(project.sources, 'project.sources');
@@ -204,7 +205,7 @@ export function createSoundscaperAudioTrackFreezePlaybackServiceV23(
 	): SoundscaperAudioTrackFreezeStatusV23 {
 		try {
 			const project = dataRecord(projectValue, 'freeze status project');
-			if (project.schemaVersion !== 21) return 'unknown';
+			if (project.schemaVersion !== SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION) return 'unknown';
 			const trackId = stableId(trackIdValue, 'freeze status track');
 			const matches = dataArray(project.tracks, 'project.tracks').filter(({ id }) => id === trackId);
 			if (matches.length !== 1 || matches[0]!.type !== 'audio') return 'unknown';
