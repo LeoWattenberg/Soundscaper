@@ -9,7 +9,7 @@ import {
 
 import {
 	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION,
 } from '../../src/common/editor/project-schema-version.ts';
 import {
 	expect,
@@ -35,7 +35,7 @@ const PRODUCT_PATHS = {
 test.describe('exact selected-schema cross-product Scape handoffs', () => {
 	registerAudioEditorHooks();
 
-	test('Framescaper V19 refuses V21 activation without damaging the Soundscaper archive', async ({ browser, page }) => {
+	test('Framescaper V19 refuses V23 activation without damaging the Soundscaper archive', async ({ browser, page }) => {
 		await disableDirectScapeSave(page);
 		const originErrors = collectClientErrors(page);
 		const origin = await bootEditor(page, PRODUCT_PATHS.soundscaper);
@@ -46,7 +46,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 		const outboundArchive = await exportScapeArchive(page, origin);
 		const outbound = await inspectScapeArchive(outboundArchive);
 		expect(outbound.project.id).toBe(projectId);
-		expect(outbound.project.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION);
+		expect(outbound.project.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION);
 
 		const baseURL = new URL(page.url()).origin;
 		const openedRuntimes = [];
@@ -55,19 +55,19 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 			openedRuntimes.push(recipient);
 			const recipientErrors = collectClientErrors(recipient.page);
 			const recipientProjectId = await recipient.editor.getAttribute('data-project-id');
-			await openScapeArchive(recipient.editor, outboundArchive, 'soundscaper-v21-outbound.scape');
+			await openScapeArchive(recipient.editor, outboundArchive, 'soundscaper-v23-outbound.scape');
 			await expect(recipient.editor.locator('[data-status]')).toHaveAttribute('data-state', 'error', {
 				timeout: 20_000,
 			});
 			await expect(recipient.editor.locator('[data-status]')).toContainText(
-				/Unsupported Framescaper project schema version: 21/iu,
+				/Unsupported Framescaper project schema version: 23/iu,
 			);
 			await expect(recipient.editor).toHaveAttribute('data-project-id', recipientProjectId);
 
 			const home = await openProductRuntime(browser, baseURL, 'soundscaper');
 			openedRuntimes.push(home);
 			const homeErrors = collectClientErrors(home.page);
-			await openScapeArchive(home.editor, outboundArchive, 'soundscaper-v21-return.scape');
+			await openScapeArchive(home.editor, outboundArchive, 'soundscaper-v23-return.scape');
 			await expect(home.editor).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
 			await expect(home.editor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 			await expect(clipByName(home.editor, toneA.name)).toBeVisible();
@@ -83,7 +83,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 		}
 	});
 
-	test('Soundscaper V21 refuses a Framescaper V19 document that remains valid at home', async ({ browser, page }) => {
+	test('Soundscaper V23 refuses a Framescaper V19 document that remains valid at home', async ({ browser, page }) => {
 		await disableDirectScapeSave(page);
 		const originErrors = collectClientErrors(page);
 		const origin = await bootEditor(page, PRODUCT_PATHS.framescaper);
@@ -107,7 +107,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 				timeout: 20_000,
 			});
 			await expect(recipient.editor.locator('[data-status]')).toContainText(
-				/requires re-import into exact V21 authority/iu,
+				/requires re-import into exact V23 authority/iu,
 			);
 			await expect(recipient.editor).toHaveAttribute('data-project-id', recipientProjectId);
 			await expect(recipient.page.getByRole('dialog', { name: 'Project features unavailable' }))
