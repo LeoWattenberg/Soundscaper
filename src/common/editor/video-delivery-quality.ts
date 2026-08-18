@@ -75,6 +75,49 @@ export function resolveVideoDeliveryFfmpegQuality(
 	return tiers[quality];
 }
 
+/**
+ * Bits per pixel per frame, per tier and codec.
+ *
+ * A WebCodecs encoder takes a bitrate rather than a constant-quality target, so
+ * the same tier has to be read a second way. These are the conventional
+ * SDR 4:2:0 working points, with VP9 given less for the same tier because it
+ * reaches the same picture at roughly two thirds of H.264's rate.
+ *
+ * A bitrate is not a CRF and will not match it frame for frame; the tier is
+ * what both encoders answer to, and that is the whole reason the plan states a
+ * tier rather than either number.
+ */
+const WEBCODECS_BITS_PER_PIXEL: Readonly<Record<string, Readonly<Record<VideoDeliveryQuality, number>>>> =
+	Object.freeze({
+		h264: Object.freeze({ draft: 0.06, balanced: 0.10, high: 0.18 }),
+		vp9: Object.freeze({ draft: 0.04, balanced: 0.07, high: 0.12 }),
+	});
+
+/** The encoder bitrate one tier means for a given picture and rate. */
+export function resolveVideoDeliveryWebCodecsBitrate(
+	videoCodec: string,
+	quality: unknown,
+	canvas: Readonly<{ width: number; height: number; frameRate: { num: number; den: number } }>,
+): number {
+	const tiers = Object.hasOwn(WEBCODECS_BITS_PER_PIXEL, videoCodec)
+		? WEBCODECS_BITS_PER_PIXEL[videoCodec]
+		: undefined;
+	if (!tiers) throw new RangeError(`No delivery bitrate mapping for codec: ${String(videoCodec)}.`);
+	if (!isVideoDeliveryQuality(quality)) {
+		throw new RangeError(`Unsupported video delivery quality: ${String(quality)}.`);
+	}
+	for (const [value, name] of [
+		[canvas?.width, 'width'], [canvas?.height, 'height'],
+		[canvas?.frameRate?.num, 'frame rate numerator'], [canvas?.frameRate?.den, 'frame rate denominator'],
+	] as const) {
+		if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+			throw new RangeError(`A delivery bitrate needs a positive ${name}.`);
+		}
+	}
+	const perSecond = canvas.frameRate.num / canvas.frameRate.den;
+	return Math.max(1, Math.round(canvas.width * canvas.height * perSecond * tiers[quality]));
+}
+
 /** Admit a stated quality, defaulting to the tier every prior delivery used. */
 export function normalizeVideoDeliveryQuality(value: unknown, name: string): VideoDeliveryQuality {
 	const quality = value ?? DEFAULT_VIDEO_DELIVERY_QUALITY;

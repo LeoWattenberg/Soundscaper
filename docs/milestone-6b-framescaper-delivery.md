@@ -220,8 +220,8 @@ cue's appearance and disappearance falls inside one frame of its label time.
   styling state — then this slice waits for milestone 4 rather than
   front-running it.
 
-**6B-3 is under way: capability detection and the elementary-stream boundary
-have landed, and the producer that drives a `VideoEncoder` has not.** Two
+**6B-3 is under way: capability detection, the elementary-stream boundary, and
+the producer have landed; the service wiring and browser evidence have not.** Two
 measured facts shaped what exists. The pinned core's IVF *demuxer* reads a
 hand-built header correctly — `Input #0, ivf ... Video: vp9 (Profile 0) (VP90),
 25 tbr` — so the VP9 remux direction this tier needs is sound. Its IVF *muxer*
@@ -230,6 +230,21 @@ knowing but not one this tier walks into, because nothing here ever muxes to
 IVF. The H.264 half was checked end to end: a real elementary stream remuxed
 into MP4 through `buildVideoRemuxArgs` at 30000/1001 and came back `29.97 tbr`,
 so the exact rational survives the boundary the slice's stop condition names.
+
+The producer has since landed too: it renders the same frames the FFmpeg path
+renders, hands each to a `VideoEncoder`, and writes the elementary stream as it
+goes. Timestamps come from the rational rate in microseconds rather than from a
+decimal frames-per-second, which is the slice's stop condition met rather than
+approximated. The encoder queue is bounded, because one RGBA frame is megabytes
+and an unbounded queue is the tab falling over, and a failed or aborted encode
+closes the encoder and throws instead of returning the chunks it happened to
+collect. The quality tier is read a second way here — as a bitrate rather than a
+CRF — which is exactly why the plan states a tier and neither number.
+
+What 6B-3 still owes is the wiring and its evidence: choosing the tier inside
+the export service, reporting the chosen encoder per delivery, and the
+same-plan goldens on the qualified browser matrix, which needs a Playwright
+spec.
 
 Levels are computed from the specifications' own tables rather than guessed:
 720p30 resolves to H.264 3.1 and VP9 3.1, 1080p30 to 4.0 and 4.0, 1080p120 to
