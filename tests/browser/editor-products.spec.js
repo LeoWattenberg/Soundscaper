@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { chooseFileAction, getMenuItem } from './audio-editor-test-helpers.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
-const SOUNDSCAPER_DATABASE = 'kw-media-soundscaper-editor-v21';
+const SOUNDSCAPER_DATABASE = 'kw-media-soundscaper-editor-v23';
 const FRAMESCAPER_V19_DATABASE = 'kw-media-framescaper-editor-v19';
 
 test.describe('Soundscaper and Framescaper product surfaces', () => {
@@ -71,7 +71,7 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Framescaper', exact: true })).toBeVisible();
 	});
 
-	test('the File menu keeps exact V21 and V19 product libraries isolated', async ({ page }) => {
+	test('the File menu keeps exact V23 and V19 product libraries isolated', async ({ page }) => {
 		await page.goto('/en/');
 		const soundscaper = await readyEditor(page, 'soundscaper');
 		const soundscaperProjectId = await soundscaper.getAttribute('data-project-id');
@@ -94,7 +94,7 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await saveProject(page, framescaper);
 
 		await expect.poll(() => storedProject(page, SOUNDSCAPER_DATABASE, soundscaperProjectId))
-			.toEqual({ id: soundscaperProjectId, schemaVersion: 21 });
+			.toEqual({ id: soundscaperProjectId, schemaVersion: 23 });
 		await expect.poll(() => storedProject(page, FRAMESCAPER_V19_DATABASE, framescaperProjectId))
 			.toEqual({ id: framescaperProjectId, schemaVersion: 19 });
 		expect(await storedProject(page, SOUNDSCAPER_DATABASE, framescaperProjectId)).toBeNull();
