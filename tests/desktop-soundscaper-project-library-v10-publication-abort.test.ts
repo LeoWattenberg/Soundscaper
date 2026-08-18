@@ -161,7 +161,7 @@ test('a committed publication journal is reported as recovered by the owner that
 		qualification: {
 			leaseTtlMs: 1_000,
 			renewIntervalMs: 10_000,
-			checkpoint: (phase) => {
+			checkpoint: (phase: SoundscaperDesktopProjectLibraryV10PublicationCheckpoint) => {
 				if (phase === 'committed') throw new Error('Soundscaper V10 writer was killed after commit');
 			},
 		},
