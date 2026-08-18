@@ -31,6 +31,7 @@ const {
 const { resolveRuntimeProjectProjection } = await import('../src/common/editor/runtime-clip-projection.ts');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
 const { createPersistedVideoProject } = await import('./helpers/persisted-video-project-fixture.ts');
+const { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } = await import('../src/common/editor/video-export-plan-version.ts');
 
 const COPY = Object.freeze({
 	ready: 'Ready',
@@ -898,15 +899,13 @@ test('video export API and generic export dispatch stage raw media and audio for
 	assert.equal(ffmpeg.videoCalls[0].videoBlobs.get(fixture.videoSource.id), rawVideo);
 	assert.equal(ffmpeg.videoCalls[0].audioMixBlob.type, 'audio/wav');
 	assert.ok(ffmpeg.videoCalls[0].audioMixBlob.size > 44);
-	assert.equal(ffmpeg.videoCalls[0].plan.format, 'mp4');
-	assert.equal(ffmpeg.videoCalls[0].plan.mimeType, 'video/mp4');
-	assert.equal(ffmpeg.videoCalls[0].plan.canvas.width, 640);
-	assert.equal(ffmpeg.videoCalls[0].plan.canvas.height, 360);
-	assert.equal(ffmpeg.videoCalls[0].plan.version, 6);
-	assert.equal(
-		ffmpeg.videoCalls[0].plan.intervals[0].layers[0].clips[0].clipId,
-		'persisted-timeline-video',
+	const mp4Plan = ffmpeg.videoCalls[0].plan;
+	assert.deepEqual([mp4Plan.format, mp4Plan.mimeType], ['mp4', 'video/mp4']);
+	assert.deepEqual(
+		[mp4Plan.version, mp4Plan.canvas.width, mp4Plan.canvas.height, mp4Plan.canvas.fit],
+		[CANONICAL_VIDEO_EXPORT_PLAN_VERSION, 640, 360, 'contain'],
 	);
+	assert.equal(mp4Plan.intervals[0].layers[0].clips[0].clipId, 'persisted-timeline-video');
 	assert.equal(renderCalls[0].range.startFrame, 0);
 	assert.equal(renderCalls[0].range.endFrame, fixture.videoSource.sampleFrameCount);
 	assert.equal(renderCalls[0].range.outputFrames, fixture.videoSource.sampleFrameCount);

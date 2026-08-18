@@ -14,6 +14,7 @@ import { createVideoSourceV10 } from '../src/common/editor/project-v10.ts';
 import { createVideoKeyframeExportPlanV7 } from '../src/common/editor/video-keyframe-export-plan-v7.ts';
 import { registeredVideoTimingIndex } from '../src/common/editor/video-source-time.ts';
 import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
+import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
 
 const SAMPLE_RATE = 48_000;
 const ACTIVE_SOURCE_ID = 'active-video';
@@ -407,14 +408,14 @@ function assertKeyedEncodeRequest(
 
 function legacyPlan() {
 	return {
-		version: 6,
+		version: CANONICAL_VIDEO_EXPORT_PLAN_VERSION,
 		format: 'mp4',
 		container: 'mp4',
 		extension: 'mp4',
 		mimeType: 'video/mp4',
 		durationSeconds: 1,
 		outputFrameCount: 3,
-		canvas: { width: 640, height: 360, frameRate: 3, pixelFormat: 'yuv420p' },
+		canvas: { width: 640, height: 360, frameRate: 3, fit: 'contain', pixelFormat: 'yuv420p' },
 		codecs: {
 			video: 'h264', videoEncoder: 'libx264', audio: 'aac', audioEncoder: 'aac', pixelFormat: 'yuv420p',
 		},

@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
+import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
 
 test('video export V6 carries the timeline render description unchanged into its filter plan', () => {
 	const project = singleClipProject();
@@ -22,7 +23,7 @@ test('video export V6 carries the timeline render description unchanged into its
 	const clip = plan.intervals[0].layers[0].clips[0];
 	const filterClip = plan.filterPlan.intervals[0].layers[0].clips[0];
 
-	assert.equal(plan.version, 6);
+	assert.equal(plan.version, CANONICAL_VIDEO_EXPORT_PLAN_VERSION);
 	assert.deepEqual(
 		clip.renderDescription.crop.normalized,
 		{ left: 0.1, top: 0.2, right: 0.3, bottom: 0.4 },

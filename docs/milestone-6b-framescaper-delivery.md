@@ -11,26 +11,36 @@
 
 ## Pickup status and sequencing
 
-**No 6B work has landed.** 6B opens only after every 6.0 acceptance check
-passes. Four grounding facts bound every slice below, and each one narrows
-scope rather than widening it:
+**Status on 2026-08-18: 6B-1 is under way.** The delivery canvas is now an
+explicit decision rather than a cap: `canvas.size` states the delivered extents
+outright and `canvas.fit` (`contain`, `cover`, `stretch`) decides how a source of
+another aspect lands in them, so a 9:16 delivery of a 16:9 master is a supported
+request. Both are validated at plan build, both ride delivery presets, and the
+canonical plan version moved 6 → 8 through WP-6.0.0's constant so a build that
+only reads 6 refuses a fit-carrying plan instead of rendering it as `contain`.
+Two seams are open and named: the keyed V7 keyframe plan cannot carry a fit yet,
+so `createFramescaperVideoKeyframeExportPlanV20` refuses `size` and `fit` rather
+than dropping them, and the video preview still shows the project's derived
+canvas rather than a per-delivery reframe.
 
-1. **The plan-version surface is a three-way drift until WP-6.0.0 lands.**
-   The planner emits `version: 6` (`src/common/editor/video-export.js:237`),
-   the direct contract accepts 6 or 7
-   (`src/common/editor/controller/direct-video-plan-contract.ts:46-59`), the
-   FFmpeg runner accepts 1–6 (`src/common/editor/video-ffmpeg.js:433-434`),
-   and the quality-budget fixture, its security test, and the budgets
-   narrative still pin 4 (config/quality-budgets.json:685,
-   tests/production-direct-video-security.test.js:325,
-   docs/quality-budgets.md:365). A strategy layer carries its own version
-   surface (`controller/product-video-export-strategy.ts:7`). No 6B slice
-   touches a plan version except through WP-6.0.0's single constant.
-2. **7B-5 never landed.** Milestone 7 delivered 7A-1/7A-2 only; there is no
-   vertical canvas or delivery crop stage anywhere in
-   `src/common/editor/` and the 720p defaults stand
-   (`video-export.js:24-26`). 6B-1 owns vertical delivery whole, including
-   acceptance — nothing is absorbed.
+6B opened only after every 6.0 acceptance check passed. Four grounding facts
+bound every slice below, and each one narrows scope rather than widening it:
+
+1. **The plan-version surface was a three-way drift until WP-6.0.0 landed.**
+   At grounding the planner, the direct contract, the FFmpeg runner, and the
+   quality-budget fixture with its security test and narrative each pinned a
+   version independently, and three of them had drifted apart. WP-6.0.0 made
+   `video-export-plan-version.ts` the only place a version is written down, so
+   6B-1's 6 → 8 bump moved one number and its pins followed. A strategy layer
+   carries its own version surface
+   (`controller/product-video-export-strategy.ts:7`). No 6B slice touches a
+   plan version except through that constant.
+2. **7B-5 never landed.** Milestone 7 delivered 7A-1/7A-2 only, so at
+   grounding there was no vertical canvas or delivery crop stage anywhere in
+   `src/common/editor/` and the 720p defaults were the only canvas there was.
+   6B-1 owns vertical delivery whole, including acceptance — nothing is
+   absorbed. The 720p numbers remain the *automatic* ceiling; they no longer
+   bound a delivery that states its own canvas.
 3. **The muxer question is closed by measurement**, not deferred: see the
    revised decision in the milestone-6 plan. Muxing is 0.1% of FFmpeg-side
    cost, so 6B-3 reuses the shipped FFmpeg and takes on no new dependency.

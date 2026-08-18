@@ -269,13 +269,13 @@ export function normalizeVideoFfmpegRenderDescription(
 	return normalized;
 }
 
-/** Return the exact contain fit consumed before effects for one trusted V6 operation. */
-export function videoFfmpegV6ContainFilter(description: VideoRenderDescription): string {
+/** Return the exact delivery fit consumed before effects for one trusted V6 operation. */
+export function videoFfmpegV6FitFilter(description: VideoRenderDescription): string {
 	const internals = trusted(description);
 	return `scale=w=${String(internals.fittedWidth)}:h=${String(internals.fittedHeight)}:flags=bicubic`;
 }
 
-export function videoFfmpegV6ContainedSize(
+export function videoFfmpegV6FittedSize(
 	description: VideoRenderDescription,
 ): Readonly<{ width: number; height: number }> {
 	const internals = trusted(description);
@@ -491,7 +491,15 @@ function renderInternals(
 	if (mapped.some(({ x, y }) => !Number.isFinite(x) || !Number.isFinite(y))) {
 		throw new RangeError(`${name}.sourceDisplayToCanvas produces non-finite output.`);
 	}
-	const identityGeometry = crop.normalized.left === 0
+	// The identity shortcut is a single `pad`, which cannot take a negative
+	// offset or shrink its input, so a `cover` placement that overhangs the
+	// canvas takes the general overlay path instead. `contain` and `stretch`
+	// always land inside it and keep the filter they have always emitted.
+	const padsWithinCanvas = fittedX >= 0 && fittedY >= 0
+		&& fittedX + fittedWidth <= canvasWidth
+		&& fittedY + fittedHeight <= canvasHeight;
+	const identityGeometry = padsWithinCanvas
+		&& crop.normalized.left === 0
 		&& crop.normalized.top === 0
 		&& crop.normalized.right === 0
 		&& crop.normalized.bottom === 0

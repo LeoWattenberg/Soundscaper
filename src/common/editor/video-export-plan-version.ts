@@ -10,8 +10,15 @@
  * moves exactly one number.
  */
 
-/** What `createVideoExportPlan` stamps on every graph plan it builds. */
-export const CANONICAL_VIDEO_EXPORT_PLAN_VERSION = 6;
+/**
+ * What `createVideoExportPlan` stamps on every graph plan it builds.
+ *
+ * Version 8 states the delivery canvas's `fit`. Seven belongs to the keyframe
+ * plan, and six is the same graph with no fit to state, so a build that only
+ * reads six refuses an eight rather than rendering its cover delivery as the
+ * contain it would have assumed.
+ */
+export const CANONICAL_VIDEO_EXPORT_PLAN_VERSION = 8;
 
 /**
  * The detached keyframe plan. It shares the version numbering space with the

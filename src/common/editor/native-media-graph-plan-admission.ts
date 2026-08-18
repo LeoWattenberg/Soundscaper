@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * Independent admission for the static V6 composition export plan.
+ * Independent admission for the static composition graph export plan.
  *
  * `createVideoExportPlan` builds this document in the renderer, but a native
  * media consumer must never trust a plan merely because something in-process
@@ -16,22 +16,25 @@ import {
 	nativeMediaPlanViolation,
 } from './native-media-plan-canonical-form.ts';
 import { createNativeValidators } from './native-validation.ts';
+import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from './video-export-plan-version.ts';
+import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
 
-export const NATIVE_MEDIA_PLAN_V6_MAXIMUM_INPUTS = 4_096;
-export const NATIVE_MEDIA_PLAN_V6_MAXIMUM_INTERVALS = 100_000;
+export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INPUTS = 4_096;
+export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INTERVALS = 100_000;
 
-export type NativeMediaPlanV6Format = 'mp4' | 'webm';
+export type NativeMediaGraphPlanFormat = 'mp4' | 'webm';
 
-export interface NativeMediaPlanV6Range {
+export interface NativeMediaGraphPlanRange {
 	readonly startFrame: number;
 	readonly endFrame: number;
 	readonly durationFrames: number;
 }
 
-export interface NativeMediaPlanV6Canvas {
+export interface NativeMediaGraphPlanCanvas {
 	readonly width: number;
 	readonly height: number;
 	readonly frameRate: number;
+	readonly fit: VideoCanvasFit;
 	readonly pixelFormat: string;
 	readonly backgroundColor: string;
 	readonly maximumWidth: number;
@@ -41,7 +44,7 @@ export interface NativeMediaPlanV6Canvas {
 	readonly referenceSourceId: string | null;
 }
 
-export interface NativeMediaPlanV6Codecs {
+export interface NativeMediaGraphPlanCodecs {
 	readonly video: string;
 	readonly videoEncoder: string;
 	readonly audio: string | null;
@@ -49,7 +52,7 @@ export interface NativeMediaPlanV6Codecs {
 	readonly pixelFormat: string;
 }
 
-export interface NativeMediaPlanV6VideoInput {
+export interface NativeMediaGraphPlanVideoInput {
 	readonly kind: 'video-source';
 	readonly inputIndex: number;
 	readonly sourceId: string;
@@ -58,7 +61,7 @@ export interface NativeMediaPlanV6VideoInput {
 	readonly presentation: Readonly<Record<string, unknown>> | null;
 }
 
-export interface NativeMediaPlanV6AudioInput {
+export interface NativeMediaGraphPlanAudioInput {
 	readonly kind: 'staged-audio-mix';
 	readonly inputIndex: number;
 	readonly fileName: string;
@@ -67,20 +70,20 @@ export interface NativeMediaPlanV6AudioInput {
 	readonly durationFrames: number;
 }
 
-export type NativeMediaPlanV6Input = NativeMediaPlanV6VideoInput | NativeMediaPlanV6AudioInput;
+export type NativeMediaGraphPlanInput = NativeMediaGraphPlanVideoInput | NativeMediaGraphPlanAudioInput;
 
-export interface NativeMediaPlanV6 extends Readonly<Record<string, unknown>> {
-	readonly version: 6;
-	readonly format: NativeMediaPlanV6Format;
-	readonly container: NativeMediaPlanV6Format;
-	readonly extension: NativeMediaPlanV6Format;
+export interface NativeMediaGraphPlan extends Readonly<Record<string, unknown>> {
+	readonly version: typeof CANONICAL_VIDEO_EXPORT_PLAN_VERSION;
+	readonly format: NativeMediaGraphPlanFormat;
+	readonly container: NativeMediaGraphPlanFormat;
+	readonly extension: NativeMediaGraphPlanFormat;
 	readonly mimeType: 'video/mp4' | 'video/webm';
-	readonly codecs: NativeMediaPlanV6Codecs;
-	readonly range: NativeMediaPlanV6Range;
+	readonly codecs: NativeMediaGraphPlanCodecs;
+	readonly range: NativeMediaGraphPlanRange;
 	readonly durationSeconds: number;
 	readonly outputFrameCount: number;
-	readonly canvas: NativeMediaPlanV6Canvas;
-	readonly inputs: readonly NativeMediaPlanV6Input[];
+	readonly canvas: NativeMediaGraphPlanCanvas;
+	readonly inputs: readonly NativeMediaGraphPlanInput[];
 	readonly intervals: readonly Readonly<Record<string, unknown>>[];
 	readonly filterPlan: Readonly<Record<string, unknown>>;
 }
@@ -92,7 +95,7 @@ const PLAN_KEYS = Object.freeze([
 const CODEC_KEYS = Object.freeze(['video', 'videoEncoder', 'audio', 'audioEncoder', 'pixelFormat']);
 const RANGE_KEYS = Object.freeze(['startFrame', 'endFrame', 'durationFrames']);
 const CANVAS_KEYS = Object.freeze([
-	'width', 'height', 'frameRate', 'pixelFormat', 'backgroundColor',
+	'width', 'height', 'frameRate', 'fit', 'pixelFormat', 'backgroundColor',
 	'maximumWidth', 'maximumHeight', 'maximumFrameRate', 'referenceClipId', 'referenceSourceId',
 ]);
 const VIDEO_INPUT_KEYS = Object.freeze([
@@ -120,42 +123,45 @@ const FORMAT_MIME_TYPES = Object.freeze({
 // A plan arrives as re-parsed JSON, so an exotic prototype is never legitimate
 // here even though the other native contracts admit one.
 const { nonNegativeInteger, plainRecord: record } = createNativeValidators({
-	subject: 'Video export plan V6',
+	subject: 'Video export graph plan',
 	requirePlainPrototype: true,
 	raise: (message: string): never => nativeMediaPlanViolation('malformed', message),
 });
 
 /** Admit an independently parsed static composition plan. */
-export function assertNativeMediaPlanV6(value: unknown): asserts value is NativeMediaPlanV6 {
-	const plan = record(value, 'video export plan V6');
-	exactKeys(plan, PLAN_KEYS, 'video export plan V6');
-	if (plan.version !== 6) {
-		nativeMediaPlanViolation('unsupported-version', 'A static composition plan must declare version 6.');
+export function assertNativeMediaGraphPlan(value: unknown): asserts value is NativeMediaGraphPlan {
+	const plan = record(value, 'video export graph plan');
+	exactKeys(plan, PLAN_KEYS, 'video export graph plan');
+	if (plan.version !== CANONICAL_VIDEO_EXPORT_PLAN_VERSION) {
+		nativeMediaPlanViolation(
+			'unsupported-version',
+			`A static composition plan must declare version ${String(CANONICAL_VIDEO_EXPORT_PLAN_VERSION)}.`,
+		);
 	}
 	const format = planFormat(plan.format);
 	if (plan.container !== format || plan.extension !== format
 		|| plan.mimeType !== FORMAT_MIME_TYPES[format]) {
-		nativeMediaPlanViolation('malformed', 'Video export plan V6 format metadata is not canonical.');
+		nativeMediaPlanViolation('malformed', 'Video export graph plan format metadata is not canonical.');
 	}
 	assertCodecs(plan.codecs);
 	const range = assertRange(plan.range);
 	if (range.durationFrames <= 0) {
-		nativeMediaPlanViolation('malformed', 'Video export plan V6 must cover at least one sample frame.');
+		nativeMediaPlanViolation('malformed', 'Video export graph plan must cover at least one sample frame.');
 	}
 	positiveFinite(plan.durationSeconds, 'durationSeconds');
 	positiveInteger(plan.outputFrameCount, 'outputFrameCount');
 	assertCanvas(plan.canvas);
 	assertInputs(plan.inputs, range);
 	assertIntervals(plan.intervals, range);
-	const filterPlan = record(plan.filterPlan, 'video export plan V6 filterPlan');
-	exactKeys(filterPlan, FILTER_PLAN_KEYS, 'video export plan V6 filterPlan');
+	const filterPlan = record(plan.filterPlan, 'video export graph plan filterPlan');
+	exactKeys(filterPlan, FILTER_PLAN_KEYS, 'video export graph plan filterPlan');
 	if (filterPlan.strategy !== 'layered-composition') {
-		nativeMediaPlanViolation('malformed', 'Video export plan V6 must declare the layered-composition filter strategy.');
+		nativeMediaPlanViolation('malformed', 'Video export graph plan must declare the layered-composition filter strategy.');
 	}
 }
 
 /** Count the enabled clip effects the static plan asks the engine to apply. */
-export function nativeMediaPlanV6VideoEffectCount(plan: NativeMediaPlanV6): number {
+export function nativeMediaGraphPlanVideoEffectCount(plan: NativeMediaGraphPlan): number {
 	let total = 0;
 	for (const interval of plan.intervals) {
 		for (const layer of arrayValue(dataValue(interval, 'layers'), 'interval.layers')) {
@@ -169,15 +175,15 @@ export function nativeMediaPlanV6VideoEffectCount(plan: NativeMediaPlanV6): numb
 }
 
 function assertCodecs(value: unknown): void {
-	const codecs = record(value, 'video export plan V6 codecs');
-	exactKeys(codecs, CODEC_KEYS, 'video export plan V6 codecs');
+	const codecs = record(value, 'video export graph plan codecs');
+	exactKeys(codecs, CODEC_KEYS, 'video export graph plan codecs');
 	nonEmptyText(codecs.video, 'codecs.video');
 	nonEmptyText(codecs.videoEncoder, 'codecs.videoEncoder');
 	nonEmptyText(codecs.pixelFormat, 'codecs.pixelFormat');
 	const audio = codecs.audio;
 	const audioEncoder = codecs.audioEncoder;
 	if ((audio === null) !== (audioEncoder === null)) {
-		nativeMediaPlanViolation('malformed', 'Video export plan V6 must state audio codec and encoder together.');
+		nativeMediaPlanViolation('malformed', 'Video export graph plan must state audio codec and encoder together.');
 	}
 	if (audio !== null) {
 		nonEmptyText(audio, 'codecs.audio');
@@ -185,32 +191,35 @@ function assertCodecs(value: unknown): void {
 	}
 }
 
-function assertRange(value: unknown): NativeMediaPlanV6Range {
-	const range = record(value, 'video export plan V6 range');
-	exactKeys(range, RANGE_KEYS, 'video export plan V6 range');
+function assertRange(value: unknown): NativeMediaGraphPlanRange {
+	const range = record(value, 'video export graph plan range');
+	exactKeys(range, RANGE_KEYS, 'video export graph plan range');
 	const startFrame = nonNegativeInteger(range.startFrame, 'range.startFrame');
 	const endFrame = nonNegativeInteger(range.endFrame, 'range.endFrame');
 	const durationFrames = nonNegativeInteger(range.durationFrames, 'range.durationFrames');
 	if (endFrame - startFrame !== durationFrames) {
-		nativeMediaPlanViolation('malformed', 'Video export plan V6 range duration is not its exact frame span.');
+		nativeMediaPlanViolation('malformed', 'Video export graph plan range duration is not its exact frame span.');
 	}
 	return Object.freeze({ startFrame, endFrame, durationFrames });
 }
 
 function assertCanvas(value: unknown): void {
-	const canvas = record(value, 'video export plan V6 canvas');
-	exactKeys(canvas, CANVAS_KEYS, 'video export plan V6 canvas');
+	const canvas = record(value, 'video export graph plan canvas');
+	exactKeys(canvas, CANVAS_KEYS, 'video export graph plan canvas');
 	const width = positiveInteger(canvas.width, 'canvas.width');
 	const height = positiveInteger(canvas.height, 'canvas.height');
 	const maximumWidth = positiveInteger(canvas.maximumWidth, 'canvas.maximumWidth');
 	const maximumHeight = positiveInteger(canvas.maximumHeight, 'canvas.maximumHeight');
 	if (width > maximumWidth || height > maximumHeight) {
-		nativeMediaPlanViolation('malformed', 'Video export plan V6 canvas exceeds its own declared maximum.');
+		nativeMediaPlanViolation('malformed', 'Video export graph plan canvas exceeds its own declared maximum.');
 	}
 	const frameRate = positiveFinite(canvas.frameRate, 'canvas.frameRate');
 	const maximumFrameRate = positiveFinite(canvas.maximumFrameRate, 'canvas.maximumFrameRate');
 	if (frameRate > maximumFrameRate) {
-		nativeMediaPlanViolation('malformed', 'Video export plan V6 frame rate exceeds its own declared maximum.');
+		nativeMediaPlanViolation('malformed', 'Video export graph plan frame rate exceeds its own declared maximum.');
+	}
+	if (!isVideoCanvasFit(canvas.fit)) {
+		nativeMediaPlanViolation('malformed', 'Video export graph plan canvas states an unsupported fit.');
 	}
 	nonEmptyText(canvas.pixelFormat, 'canvas.pixelFormat');
 	nonEmptyText(canvas.backgroundColor, 'canvas.backgroundColor');
@@ -218,95 +227,95 @@ function assertCanvas(value: unknown): void {
 	optionalText(canvas.referenceSourceId, 'canvas.referenceSourceId');
 }
 
-function assertInputs(value: unknown, range: NativeMediaPlanV6Range): void {
-	const inputs = arrayValue(value, 'video export plan V6 inputs');
-	if (inputs.length > NATIVE_MEDIA_PLAN_V6_MAXIMUM_INPUTS) {
-		nativeMediaPlanViolation('oversized', 'Video export plan V6 declares more inputs than the engine admits.');
+function assertInputs(value: unknown, range: NativeMediaGraphPlanRange): void {
+	const inputs = arrayValue(value, 'video export graph plan inputs');
+	if (inputs.length > NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INPUTS) {
+		nativeMediaPlanViolation('oversized', 'Video export graph plan declares more inputs than the engine admits.');
 	}
 	const sourceIds = new Set<string>();
 	let audioInputs = 0;
 	for (const [index, entry] of inputs.entries()) {
-		const input = record(entry, 'video export plan V6 input');
+		const input = record(entry, 'video export graph plan input');
 		const kind = input.kind;
 		if (kind === 'video-source') {
-			exactKeys(input, VIDEO_INPUT_KEYS, 'video export plan V6 video input');
+			exactKeys(input, VIDEO_INPUT_KEYS, 'video export graph plan video input');
 			const sourceId = nonEmptyText(input.sourceId, 'input.sourceId');
 			if (sourceIds.has(sourceId)) {
-				nativeMediaPlanViolation('malformed', 'Video export plan V6 repeats a source input.');
+				nativeMediaPlanViolation('malformed', 'Video export graph plan repeats a source input.');
 			}
 			sourceIds.add(sourceId);
 			nonEmptyText(input.storageKey, 'input.storageKey');
 			nonEmptyText(input.mimeType, 'input.mimeType');
 			if (input.presentation !== null) record(input.presentation, 'input.presentation');
 		} else if (kind === 'staged-audio-mix') {
-			exactKeys(input, AUDIO_INPUT_KEYS, 'video export plan V6 audio input');
+			exactKeys(input, AUDIO_INPUT_KEYS, 'video export graph plan audio input');
 			nonEmptyText(input.fileName, 'input.fileName');
 			positiveInteger(input.sampleRate, 'input.sampleRate');
 			if (nonNegativeInteger(input.startFrame, 'input.startFrame') !== range.startFrame
 				|| nonNegativeInteger(input.durationFrames, 'input.durationFrames') !== range.durationFrames) {
-				nativeMediaPlanViolation('malformed', 'Video export plan V6 staged audio does not cover its own export range.');
+				nativeMediaPlanViolation('malformed', 'Video export graph plan staged audio does not cover its own export range.');
 			}
 			audioInputs += 1;
 		} else {
-			nativeMediaPlanViolation('malformed', 'Video export plan V6 carries an unknown input kind.');
+			nativeMediaPlanViolation('malformed', 'Video export graph plan carries an unknown input kind.');
 		}
 		if (nonNegativeInteger(input.inputIndex, 'input.inputIndex') !== index) {
-			nativeMediaPlanViolation('malformed', 'Video export plan V6 input indices are not their own positions.');
+			nativeMediaPlanViolation('malformed', 'Video export graph plan input indices are not their own positions.');
 		}
 	}
 	if (audioInputs > 1) {
-		nativeMediaPlanViolation('malformed', 'Video export plan V6 declares more than one staged audio mix.');
+		nativeMediaPlanViolation('malformed', 'Video export graph plan declares more than one staged audio mix.');
 	}
 }
 
-function assertIntervals(value: unknown, range: NativeMediaPlanV6Range): void {
-	const intervals = arrayValue(value, 'video export plan V6 intervals');
-	if (intervals.length > NATIVE_MEDIA_PLAN_V6_MAXIMUM_INTERVALS) {
-		nativeMediaPlanViolation('oversized', 'Video export plan V6 declares more intervals than the engine admits.');
+function assertIntervals(value: unknown, range: NativeMediaGraphPlanRange): void {
+	const intervals = arrayValue(value, 'video export graph plan intervals');
+	if (intervals.length > NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INTERVALS) {
+		nativeMediaPlanViolation('oversized', 'Video export graph plan declares more intervals than the engine admits.');
 	}
 	let covered = range.startFrame;
 	for (const [index, entry] of intervals.entries()) {
-		const interval = record(entry, 'video export plan V6 interval');
-		exactOptionalKeys(interval, INTERVAL_KEYS, INTERVAL_OPTIONAL_KEYS, 'video export plan V6 interval');
+		const interval = record(entry, 'video export graph plan interval');
+		exactOptionalKeys(interval, INTERVAL_KEYS, INTERVAL_OPTIONAL_KEYS, 'video export graph plan interval');
 		if (nonNegativeInteger(interval.index, 'interval.index') !== index) {
-			nativeMediaPlanViolation('malformed', 'Video export plan V6 interval indices are not their own positions.');
+			nativeMediaPlanViolation('malformed', 'Video export graph plan interval indices are not their own positions.');
 		}
 		nonEmptyText(interval.kind, 'interval.kind');
 		const startFrame = nonNegativeInteger(interval.timelineStartFrame, 'interval.timelineStartFrame');
 		const endFrame = nonNegativeInteger(interval.timelineEndFrame, 'interval.timelineEndFrame');
 		const durationFrames = nonNegativeInteger(interval.durationFrames, 'interval.durationFrames');
 		if (endFrame - startFrame !== durationFrames || durationFrames <= 0) {
-			nativeMediaPlanViolation('malformed', 'Video export plan V6 interval duration is not its exact frame span.');
+			nativeMediaPlanViolation('malformed', 'Video export graph plan interval duration is not its exact frame span.');
 		}
 		if (startFrame < range.startFrame || endFrame > range.endFrame) {
-			nativeMediaPlanViolation('malformed', 'Video export plan V6 interval leaves its own export range.');
+			nativeMediaPlanViolation('malformed', 'Video export graph plan interval leaves its own export range.');
 		}
 		// The intervals are the export's own tiling, so each one begins exactly
 		// where the previous ended: a gap renders nothing and an overlap renders
 		// the same source frames into two output positions.
 		if (startFrame !== covered) {
-			nativeMediaPlanViolation('malformed', 'Video export plan V6 intervals do not tile their own export range.');
+			nativeMediaPlanViolation('malformed', 'Video export graph plan intervals do not tile their own export range.');
 		}
 		if (nonNegativeInteger(interval.outputStartFrame, 'interval.outputStartFrame') !== startFrame - range.startFrame) {
-			nativeMediaPlanViolation('malformed', 'Video export plan V6 interval output offset is not its range offset.');
+			nativeMediaPlanViolation('malformed', 'Video export graph plan interval output offset is not its range offset.');
 		}
 		positiveFinite(interval.durationSeconds, 'interval.durationSeconds');
 		assertLayers(interval.layers);
 		covered = endFrame;
 	}
 	if (covered !== range.endFrame) {
-		nativeMediaPlanViolation('malformed', 'Video export plan V6 intervals do not tile their own export range.');
+		nativeMediaPlanViolation('malformed', 'Video export graph plan intervals do not tile their own export range.');
 	}
 }
 
 function assertLayers(value: unknown): void {
-	for (const entry of arrayValue(value, 'video export plan V6 interval layers')) {
-		const layer = record(entry, 'video export plan V6 interval layer');
-		exactKeys(layer, LAYER_KEYS, 'video export plan V6 interval layer');
+	for (const entry of arrayValue(value, 'video export graph plan interval layers')) {
+		const layer = record(entry, 'video export graph plan interval layer');
+		exactKeys(layer, LAYER_KEYS, 'video export graph plan interval layer');
 		nonEmptyText(layer.trackId, 'layer.trackId');
 		nonNegativeInteger(layer.trackIndex, 'layer.trackIndex');
-		for (const clipEntry of arrayValue(layer.clips, 'video export plan V6 layer clips')) {
-			const clip = record(clipEntry, 'video export plan V6 layer clip');
+		for (const clipEntry of arrayValue(layer.clips, 'video export graph plan layer clips')) {
+			const clip = record(clipEntry, 'video export graph plan layer clip');
 			nonEmptyText(clip.clipId, 'clip.clipId');
 			nonEmptyText(clip.sourceId, 'clip.sourceId');
 			nonNegativeInteger(clip.inputIndex, 'clip.inputIndex');
@@ -315,9 +324,9 @@ function assertLayers(value: unknown): void {
 	}
 }
 
-function planFormat(value: unknown): NativeMediaPlanV6Format {
+function planFormat(value: unknown): NativeMediaGraphPlanFormat {
 	if (value !== 'mp4' && value !== 'webm') {
-		nativeMediaPlanViolation('malformed', 'Video export plan V6 must name a supported container.');
+		nativeMediaPlanViolation('malformed', 'Video export graph plan must name a supported container.');
 	}
 	return value;
 }
@@ -330,9 +339,9 @@ function arrayValue(value: unknown, label: string): readonly unknown[] {
 }
 
 function dataValue(container: unknown, key: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(record(container, 'video export plan V6 record'), key);
+	const descriptor = Object.getOwnPropertyDescriptor(record(container, 'video export graph plan record'), key);
 	if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
-		nativeMediaPlanViolation('malformed', `Video export plan V6 is missing the data property ${key}.`);
+		nativeMediaPlanViolation('malformed', `Video export graph plan is missing the data property ${key}.`);
 	}
 	return descriptor.value;
 }
@@ -368,7 +377,7 @@ function exactOptionalKeys(
 
 function nonEmptyText(value: unknown, label: string): string {
 	if (typeof value !== 'string' || value.length === 0 || value.length > NATIVE_MEDIA_PLAN_CANONICAL_MAXIMUM_DEPTH * 1_024) {
-		nativeMediaPlanViolation('malformed', `Video export plan V6 ${label} must be bounded non-empty text.`);
+		nativeMediaPlanViolation('malformed', `Video export graph plan ${label} must be bounded non-empty text.`);
 	}
 	return value;
 }
@@ -380,14 +389,14 @@ function optionalText(value: unknown, label: string): string | null {
 function positiveInteger(value: unknown, label: string): number {
 	const number = nonNegativeInteger(value, label);
 	if (number === 0) {
-		nativeMediaPlanViolation('malformed', `Video export plan V6 ${label} must be greater than zero.`);
+		nativeMediaPlanViolation('malformed', `Video export graph plan ${label} must be greater than zero.`);
 	}
 	return number;
 }
 
 function positiveFinite(value: unknown, label: string): number {
 	if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
-		nativeMediaPlanViolation('malformed', `Video export plan V6 ${label} must be a positive finite number.`);
+		nativeMediaPlanViolation('malformed', `Video export graph plan ${label} must be a positive finite number.`);
 	}
 	return value;
 }

@@ -33,7 +33,7 @@ const ALLOWED_SETTINGS: Readonly<Record<DeliveryPresetKind, readonly string[]>> 
 		'bitRate', 'quality', 'compressionLevel', 'mode', 'includeTail',
 	]),
 	video: Object.freeze([
-		'maximumWidth', 'maximumHeight', 'maximumFrameRate', 'includeAudio',
+		'size', 'fit', 'maximumWidth', 'maximumHeight', 'maximumFrameRate', 'includeAudio',
 	]),
 });
 
@@ -128,7 +128,7 @@ export function validateDeliveryPreset(value: unknown): DeliveryPreset {
  * behaviour this milestone exists to prevent.
  */
 const VIDEO_CANVAS_SETTINGS: readonly string[] = Object.freeze([
-	'maximumWidth', 'maximumHeight', 'maximumFrameRate',
+	'size', 'fit', 'maximumWidth', 'maximumHeight', 'maximumFrameRate',
 ]);
 
 /**

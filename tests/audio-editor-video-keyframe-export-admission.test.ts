@@ -18,6 +18,7 @@ import {
 	framescaperV20Options,
 	opacityKeyframes,
 } from './helpers/framescaper-v20-model-fixture.ts';
+import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
 
 const PROFILE = FRAMESCAPER_V20_PROJECT_MODEL_PROFILE;
 
@@ -27,7 +28,7 @@ test('V6 video export admits contextual empty V20 fields without changing static
 		includeAudio: false,
 		range: { startFrame: 0, endFrame: 48_000 },
 	});
-	assert.equal(plan.version, 6);
+	assert.equal(plan.version, CANONICAL_VIDEO_EXPORT_PLAN_VERSION);
 	assert.equal(plan.intervals[0]?.layers[0]?.clips[0]?.clipId, 'video-clip');
 });
 

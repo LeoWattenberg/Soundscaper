@@ -154,7 +154,57 @@ test('validated presets are frozen data and round-trip through JSON', () => {
 });
 
 test('a video preset canvas setting actually reaches the plan canvas', () => {
-	const project = {
+	const project = landscapeVideoProject();
+	const hd = validateDeliveryPreset({
+		schemaVersion: 1, id: 'hd', label: '1080p', kind: 'video', format: 'mp4',
+		settings: { maximumWidth: 1_920, maximumHeight: 1_080 },
+	});
+	const plan = createVideoExportPlan(project, {
+		...resolveDeliveryPresetPlanOptions(hd),
+		range: { startFrame: 0, endFrame: 10_000 },
+	});
+	assert.deepEqual(
+		{ width: plan.canvas.width, height: plan.canvas.height },
+		{ width: 1_920, height: 1_080 },
+		'a preset that appears applied but silently delivers 720p is the hidden behaviour this milestone exists to prevent',
+	);
+});
+
+test('a vertical preset delivers its stated canvas and fit rather than a capped derivation', () => {
+	const vertical = validateDeliveryPreset({
+		schemaVersion: 1, id: 'social-9x16', label: 'Vertical 1080x1920', kind: 'video', format: 'mp4',
+		settings: { size: { width: 1_080, height: 1_920 }, fit: 'cover' },
+	});
+	assert.deepEqual(resolveDeliveryPresetPlanOptions(vertical), {
+		format: 'mp4',
+		canvas: { size: { width: 1_080, height: 1_920 }, fit: 'cover' },
+	}, 'geometry settings nest under the canvas option the plan builder actually reads');
+
+	const plan = createVideoExportPlan(landscapeVideoProject(), {
+		...resolveDeliveryPresetPlanOptions(vertical),
+		range: { startFrame: 0, endFrame: 10_000 },
+	});
+	assert.deepEqual(
+		{ width: plan.canvas.width, height: plan.canvas.height, fit: plan.canvas.fit },
+		{ width: 1_080, height: 1_920, fit: 'cover' },
+		'a preset that asks for a vertical master must not come back as capped 720p landscape',
+	);
+});
+
+test('a video preset leaves the default ceiling alone when it asks for nothing', () => {
+	const bare = validateDeliveryPreset({
+		schemaVersion: 1, id: 'plain', label: 'Plain', kind: 'video', format: 'mp4',
+	});
+	assert.deepEqual(
+		resolveDeliveryPresetPlanOptions(bare),
+		{ format: 'mp4' },
+		'no canvas settings means no canvas option, so existing exports stay byte-stable',
+	);
+});
+
+/** One 1920x1080 clip: the landscape master a vertical delivery has to reframe. */
+function landscapeVideoProject() {
+	return {
 		sampleRate: 1_000,
 		selection: { startFrame: 0, endFrame: 0 },
 		loop: { enabled: false, startFrame: 0, endFrame: 0 },
@@ -175,28 +225,4 @@ test('a video preset canvas setting actually reaches the plan canvas', () => {
 			mute: false, hidden: false, collapsed: false, height: 120, laneGroupId: null,
 		}],
 	};
-	const hd = validateDeliveryPreset({
-		schemaVersion: 1, id: 'hd', label: '1080p', kind: 'video', format: 'mp4',
-		settings: { maximumWidth: 1_920, maximumHeight: 1_080 },
-	});
-	const plan = createVideoExportPlan(project, {
-		...resolveDeliveryPresetPlanOptions(hd),
-		range: { startFrame: 0, endFrame: 10_000 },
-	});
-	assert.deepEqual(
-		{ width: plan.canvas.width, height: plan.canvas.height },
-		{ width: 1_920, height: 1_080 },
-		'a preset that appears applied but silently delivers 720p is the hidden behaviour this milestone exists to prevent',
-	);
-});
-
-test('a video preset leaves the default ceiling alone when it asks for nothing', () => {
-	const bare = validateDeliveryPreset({
-		schemaVersion: 1, id: 'plain', label: 'Plain', kind: 'video', format: 'mp4',
-	});
-	assert.deepEqual(
-		resolveDeliveryPresetPlanOptions(bare),
-		{ format: 'mp4' },
-		'no canvas settings means no canvas option, so existing exports stay byte-stable',
-	);
-});
+}

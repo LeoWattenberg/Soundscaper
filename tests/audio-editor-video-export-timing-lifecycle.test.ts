@@ -10,6 +10,7 @@ import {
 	unregisterVideoTimingIndex,
 } from '../src/common/editor/video-source-time.ts';
 import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
+import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
 
 const SOURCE_SHA256 = '91'.repeat(32);
 const VIDEO_SOURCE_ID = 'exact-vfr-video';
@@ -168,14 +169,14 @@ function blobFromBytes(bytes: Uint8Array): Blob {
 
 function videoPlan() {
 	return {
-		version: 6,
+		version: CANONICAL_VIDEO_EXPORT_PLAN_VERSION,
 		format: 'mp4',
 		container: 'mp4',
 		extension: 'mp4',
 		mimeType: 'video/mp4',
 		durationSeconds: 1,
 		outputFrameCount: 30,
-		canvas: { width: 640, height: 360, frameRate: 30, pixelFormat: 'yuv420p' },
+		canvas: { width: 640, height: 360, frameRate: 30, fit: 'contain', pixelFormat: 'yuv420p' },
 		codecs: {
 			video: 'h264', videoEncoder: 'libx264', audio: null, audioEncoder: null, pixelFormat: 'yuv420p',
 		},

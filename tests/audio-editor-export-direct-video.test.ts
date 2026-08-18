@@ -6,6 +6,7 @@ import test from 'node:test';
 import { createEditorVideoExportAction } from '../src/common/editor/controller/video-export-service.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
+import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
 
 type Format = 'mp4' | 'webm';
 
@@ -387,14 +388,14 @@ function preparedStream(events: string[], options: FixtureOptions) {
 function videoPlan(format: Format, sourceId = 'original-video') {
 	const mp4 = format === 'mp4';
 	return {
-		version: 6,
+		version: CANONICAL_VIDEO_EXPORT_PLAN_VERSION,
 		format,
 		container: format,
 		extension: format,
 		mimeType: `video/${format}`,
 		durationSeconds: 1,
 		outputFrameCount: 30,
-		canvas: { width: 640, height: 360, frameRate: 30, pixelFormat: 'yuv420p' },
+		canvas: { width: 640, height: 360, frameRate: 30, fit: 'contain', pixelFormat: 'yuv420p' },
 		codecs: {
 			video: mp4 ? 'h264' : 'vp9',
 			videoEncoder: mp4 ? 'libx264' : 'libvpx-vp9',

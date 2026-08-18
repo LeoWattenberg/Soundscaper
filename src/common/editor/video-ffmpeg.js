@@ -1,4 +1,3 @@
-import { getVideoExportFormat } from './video-export.js';
 import {
 	serializeVideoEffectsToFfmpegOperations,
 } from './video-effects.js';
@@ -6,21 +5,15 @@ import { appendVideoEffectOperation } from './video-effect-ffmpeg.ts';
 import {
 	appendVideoFfmpegV6ClipFilters,
 	appendVideoFfmpegV6LayerBlend,
-	normalizeVideoFfmpegCompositionIntervals,
-	videoFfmpegV6ContainedSize,
-	videoFfmpegV6ContainFilter,
+	videoFfmpegV6FitFilter,
+	videoFfmpegV6FittedSize,
 } from './video-ffmpeg-render-description.ts';
-import { SUPPORTED_VIDEO_EXPORT_PLAN_VERSIONS } from './video-export-plan-version.ts';
+import { normalizeVideoExportPlan } from './video-ffmpeg-plan-normalization.js';
 import {
 	ffmpegColor,
 	ffmpegNumber,
 	mappedValue,
 	nonEmptyString,
-	nonNegativeFiniteNumber,
-	nonNegativeInteger,
-	positiveEvenInteger,
-	positiveFiniteNumber,
-	positiveSafeInteger,
 } from './video-ffmpeg-values.js';
 
 const DEFAULT_VIDEO_ENCODING_SETTINGS = Object.freeze({
@@ -42,7 +35,7 @@ const DEFAULT_VIDEO_ENCODING_SETTINGS = Object.freeze({
  * are supplied separately from the plan because the browser adapter assigns
  * fresh WORKERFS mount points for every queued job.
  */
-export function buildVideoFfmpegArgs(plan, stagedInputs, output, options = {}) {
+export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 	const normalized = normalizeVideoExportPlan(plan);
 	const outputPath = nonEmptyString(output, 'output');
 	const inputArgs = [];
@@ -219,7 +212,7 @@ function buildLayeredVideoFilterGraph(plan) {
 					`trim=start=${start}:end=${end}`,
 					`setpts=(PTS-STARTPTS)/${playbackRate}`,
 					plan.version >= 6
-						? videoFfmpegV6ContainFilter(clip.renderDescription)
+						? videoFfmpegV6FitFilter(clip.renderDescription)
 						: `scale=w=${plan.width}:h=${plan.height}:force_original_aspect_ratio=decrease`,
 					'format=pix_fmts=rgba',
 					...(plan.version >= 3
@@ -241,7 +234,7 @@ function buildLayeredVideoFilterGraph(plan) {
 					filters.push(
 						`[${inputLabelForClip(clip.inputIndex)}]${inputFilters.join(',')}[${geometryInputLabel}]`,
 					);
-					const effectSize = videoFfmpegV6ContainedSize(clip.renderDescription);
+					const effectSize = videoFfmpegV6FittedSize(clip.renderDescription);
 					for (const [effectIndex, operation] of effectOperations.entries()) {
 						const effectOutputLabel = `${clipLabel}_effect_${effectIndex}`;
 						appendVideoEffectOperation({
@@ -401,32 +394,6 @@ function videoPresentationFilters(presentation) {
 	return [`scale=w=${presentation.scaledWidth}:h=${presentation.scaledHeight}`, 'setsar=1'];
 }
 
-function normalizeVideoInputPresentation(value, name) {
-	if (value == null) return null;
-	if (typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be an object.`);
-	if (value.autorotate !== true) {
-		throw new TypeError(`${name}.autorotate must be true: the decode applies the display matrix.`);
-	}
-	const decodedWidth = positiveSafeInteger(value.decodedWidth, `${name}.decodedWidth`);
-	const decodedHeight = positiveSafeInteger(value.decodedHeight, `${name}.decodedHeight`);
-	const scaledWidth = positiveSafeInteger(value.scaledWidth, `${name}.scaledWidth`);
-	const scaledHeight = positiveSafeInteger(value.scaledHeight, `${name}.scaledHeight`);
-	if (scaledWidth === decodedWidth && scaledHeight === decodedHeight) {
-		throw new RangeError(`${name} must state a stretch the decode did not already apply.`);
-	}
-	return Object.freeze({
-		autorotate: true,
-		decodedWidth,
-		decodedHeight,
-		sampleAspect: Object.freeze({
-			num: positiveSafeInteger(value.sampleAspect?.num, `${name}.sampleAspect.num`),
-			den: positiveSafeInteger(value.sampleAspect?.den, `${name}.sampleAspect.den`),
-		}),
-		scaledWidth,
-		scaledHeight,
-	});
-}
-
 function opacityExpression(start, end, durationSeconds) {
 	const initial = ffmpegNumber(start, 'clip opacityStart');
 	const delta = Number(end) - Number(start);
@@ -436,145 +403,4 @@ function opacityExpression(start, end, durationSeconds) {
 	return delta > 0
 		? `${initial}+${magnitude}*T/${duration}`
 		: `${initial}-${magnitude}*T/${duration}`;
-}
-
-function normalizeVideoExportPlan(plan) {
-	if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
-		throw new TypeError('Expected a video export plan.');
-	}
-	if (!SUPPORTED_VIDEO_EXPORT_PLAN_VERSIONS.includes(plan.version)) {
-		throw new RangeError(`Unsupported video export plan version: ${plan.version}.`);
-	}
-	const descriptor = getVideoExportFormat(plan.format);
-	if (plan.container !== descriptor.container) {
-		throw new TypeError(`Video export plan container must be ${descriptor.container}.`);
-	}
-	if (plan.codecs?.videoEncoder !== descriptor.videoEncoder) {
-		throw new TypeError(`Video export plan encoder must be ${descriptor.videoEncoder}.`);
-	}
-	const width = positiveEvenInteger(plan.canvas?.width, 'plan.canvas.width');
-	const height = positiveEvenInteger(plan.canvas?.height, 'plan.canvas.height');
-	const frameRate = positiveFiniteNumber(plan.canvas?.frameRate, 'plan.canvas.frameRate');
-	const durationSeconds = positiveFiniteNumber(plan.durationSeconds, 'plan.durationSeconds');
-	const pixelFormat = nonEmptyString(plan.codecs?.pixelFormat, 'plan.codecs.pixelFormat');
-	if (pixelFormat !== descriptor.pixelFormat) {
-		throw new TypeError(`Video export plan pixel format must be ${descriptor.pixelFormat}.`);
-	}
-
-	if (!Array.isArray(plan.inputs)) throw new TypeError('Video export plan inputs must be an array.');
-	const inputs = [...plan.inputs]
-		.sort((left, right) => left.inputIndex - right.inputIndex)
-		.map((input, index) => (input?.kind === 'video-source'
-			? {
-				...input,
-				// Version 5 and later state a presentation; an older plan is presented
-				// exactly as its decoder decodes it.
-				presentation: plan.version >= 5
-					? normalizeVideoInputPresentation(input.presentation, `plan.inputs[${index}].presentation`)
-					: null,
-			}
-			: input));
-	const sourceInputIndexes = new Map();
-	let audioInput = null;
-	for (const [expectedIndex, input] of inputs.entries()) {
-		if (input?.inputIndex !== expectedIndex) {
-			throw new RangeError('Video export plan input indexes must be contiguous and zero-based.');
-		}
-		if (input.kind === 'video-source') {
-			const sourceId = nonEmptyString(input.sourceId, `plan.inputs[${expectedIndex}].sourceId`);
-			if (sourceInputIndexes.has(sourceId)) {
-				throw new RangeError(`Video export plan contains duplicate source ${sourceId}.`);
-			}
-			sourceInputIndexes.set(sourceId, expectedIndex);
-		} else if (input.kind === 'staged-audio-mix') {
-			if (audioInput) throw new RangeError('Video export plan may contain only one staged audio mix.');
-			audioInput = input;
-		} else {
-			throw new TypeError(`Unsupported video export input kind: ${input?.kind}.`);
-		}
-	}
-	if (audioInput && audioInput !== inputs.at(-1)) {
-		throw new RangeError('The staged audio mix must be the final video export input.');
-	}
-	const expectsAudio = plan.filterPlan?.audio?.strategy === 'staged-mix';
-	if (expectsAudio !== Boolean(audioInput)) {
-		throw new TypeError('Video export plan audio input and filter strategy do not agree.');
-	}
-	if (Boolean(audioInput) !== Boolean(plan.codecs?.audioEncoder)) {
-		throw new TypeError('Video export plan audio input and encoder do not agree.');
-	}
-	if (audioInput && plan.codecs.audioEncoder !== descriptor.audioEncoder) {
-		throw new TypeError(`Video export plan audio encoder must be ${descriptor.audioEncoder}.`);
-	}
-
-	const content = plan.version === 1
-		? { segments: normalizeSequentialSegments(plan, inputs) }
-		: {
-				intervals: normalizeVideoFfmpegCompositionIntervals(
-					plan, inputs, durationSeconds, { width, height },
-				),
-		};
-
-	return {
-		version: plan.version,
-		descriptor,
-		inputs,
-		audioInput,
-		...content,
-		width,
-		height,
-		frameRate,
-		durationSeconds,
-		pixelFormat,
-		backgroundColor: plan.canvas?.backgroundColor || '#000000',
-	};
-}
-
-function normalizeSequentialSegments(plan, inputs) {
-	if (!Array.isArray(plan.segments) || plan.segments.length === 0) {
-		throw new RangeError('Video export plan must contain at least one segment.');
-	}
-	return plan.segments.map((segment, index) => {
-		const duration = positiveFiniteNumber(
-			segment?.durationSeconds,
-			`plan.segments[${index}].durationSeconds`,
-		);
-		if (segment.kind === 'black') {
-			return {
-				kind: 'black',
-				color: segment.color,
-				durationSeconds: duration,
-			};
-		}
-		if (segment.kind !== 'video') {
-			throw new TypeError(`Unsupported video export segment kind: ${segment?.kind}.`);
-		}
-		const inputIndex = nonNegativeInteger(segment.inputIndex, `plan.segments[${index}].inputIndex`);
-		const input = inputs[inputIndex];
-		if (input?.kind !== 'video-source' || input.sourceId !== segment.sourceId) {
-			throw new ReferenceError(`Video export segment ${index} references an incompatible input.`);
-		}
-		const sourceStartTimeSeconds = nonNegativeFiniteNumber(
-			segment.sourceStartTimeSeconds,
-			`plan.segments[${index}].sourceStartTimeSeconds`,
-		);
-		const sourceEndTimeSeconds = positiveFiniteNumber(
-			segment.sourceEndTimeSeconds,
-			`plan.segments[${index}].sourceEndTimeSeconds`,
-		);
-		if (sourceEndTimeSeconds <= sourceStartTimeSeconds) {
-			throw new RangeError(`Video export segment ${index} source range must have positive duration.`);
-		}
-		return {
-			kind: 'video',
-			inputIndex,
-			sourceStartTimeSeconds,
-			sourceEndTimeSeconds,
-			playbackRate: positiveFiniteNumber(
-				segment.playbackRate,
-				`plan.segments[${index}].playbackRate`,
-			),
-			durationSeconds: duration,
-		};
-	});
 }

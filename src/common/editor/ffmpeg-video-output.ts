@@ -135,7 +135,6 @@ export async function encodeFfmpegVideoBytes(
 				options.plan,
 				{ videoInputPaths, audioInputPath },
 				job.output,
-				options.settings,
 			);
 			const code = await instance.exec(args, -1, signalOptions(signal));
 			if (code !== 0) throw options.createEncodingError(staged.descriptor.id, code);
@@ -197,7 +196,6 @@ export async function encodeFfmpegVideoToSink<Output>(
 					options.plan,
 					{ videoInputPaths, audioInputPath },
 					job.output,
-					options.settings,
 				);
 				const code = await instance.exec(args, -1, signalOptions(signal));
 				assertFfmpegOutputReady(options.settings);

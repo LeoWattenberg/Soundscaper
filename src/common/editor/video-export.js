@@ -21,11 +21,21 @@ import {
 } from './video-source-presentation.ts';
 import { compareRationals, normalizeRational } from './timeline-time.ts';
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from './video-export-plan-version.ts';
+import { isVideoCanvasFit, VIDEO_CANVAS_FIT_MODES } from './video-canvas-fit.ts';
+import { createFilterPlan } from './video-export-filter-plan.js';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
 const DEFAULT_MAXIMUM_FRAME_RATE = 30;
 const DEFAULT_BACKGROUND_COLOR = '#000000';
+/**
+ * The largest extent a stated delivery canvas may claim.
+ *
+ * A stated canvas is not capped by the automatic ceiling — that is the point of
+ * stating one — but it is still an allocation, so it answers to a bound that no
+ * encoder this product ships exceeds rather than to no bound at all.
+ */
+const MAXIMUM_CANVAS_EXTENT = 16_384;
 
 export const VIDEO_EXPORT_FORMATS = deepFreeze({
 	mp4: {
@@ -73,13 +83,18 @@ export function getVideoExportFormat(format = 'mp4') {
 }
 
 /**
- * Derive safe automatic canvas settings from the earliest visible timeline
- * video. Dimensions retain aspect ratio, never upscale, remain encoder-safe
- * even numbers, and fit within 1280x720 unless the caller narrows the limits.
+ * Resolve the delivery canvas, either automatically or as the caller stated it.
  *
- * The reference is the source's display geometry rather than the size a
- * particular decoder presented, so the same project renders the same canvas on
- * every engine even where one of them ignores a pixel aspect ratio.
+ * Without `size`, dimensions derive from the earliest visible timeline video:
+ * they retain aspect ratio, never upscale, remain encoder-safe even numbers,
+ * and fit within 1280x720 unless the caller narrows the limits. The reference
+ * is the source's display geometry rather than the size a particular decoder
+ * presented, so the same project renders the same canvas on every engine even
+ * where one of them ignores a pixel aspect ratio.
+ *
+ * With `size`, the canvas is a delivery decision rather than a derivation: it
+ * is used exactly, the automatic ceiling does not apply, and `fit` decides how
+ * a source of another aspect lands in it.
  */
 export function resolveVideoExportCanvas(project, options = {}) {
 	const runtimeProject = ensureRuntimeProject(project);
@@ -98,8 +113,17 @@ export function resolveExactVideoExportCanvas(project, options = {}) {
 }
 
 function exactVideoExportCanvas(runtimeProject, options) {
-	const maximumWidth = positiveEvenLimit(options.maximumWidth ?? DEFAULT_MAXIMUM_WIDTH, 'maximumWidth');
-	const maximumHeight = positiveEvenLimit(options.maximumHeight ?? DEFAULT_MAXIMUM_HEIGHT, 'maximumHeight');
+	const stated = statedCanvasSize(options);
+	const fit = canvasFit(options);
+	// A stated canvas answers to itself: reporting its own extents as the
+	// maximums keeps the plan's "within its declared maximum" claim true and
+	// honest, because nothing capped this delivery below the size it asked for.
+	const maximumWidth = stated
+		? stated.width
+		: positiveEvenLimit(options.maximumWidth ?? DEFAULT_MAXIMUM_WIDTH, 'maximumWidth');
+	const maximumHeight = stated
+		? stated.height
+		: positiveEvenLimit(options.maximumHeight ?? DEFAULT_MAXIMUM_HEIGHT, 'maximumHeight');
 	const maximumFrameRate = positiveExactRate(
 		options.maximumFrameRate ?? DEFAULT_MAXIMUM_FRAME_RATE,
 		'maximumFrameRate',
@@ -113,8 +137,8 @@ function exactVideoExportCanvas(runtimeProject, options) {
 		?? optionalPositiveInteger(display?.height, 'source.height')
 		?? maximumHeight;
 	const scale = Math.min(1, maximumWidth / sourceWidth, maximumHeight / sourceHeight);
-	const width = evenFloor(sourceWidth * scale);
-	const height = evenFloor(sourceHeight * scale);
+	const width = stated ? stated.width : evenFloor(sourceWidth * scale);
+	const height = stated ? stated.height : evenFloor(sourceHeight * scale);
 	const requestedFrameRate = optionalPositiveExactRate(options.frameRate, 'frameRate')
 		?? optionalPositiveExactRate(reference?.source.frameRate, 'source.frameRate')
 		?? maximumFrameRate;
@@ -126,6 +150,7 @@ function exactVideoExportCanvas(runtimeProject, options) {
 		width,
 		height,
 		frameRate,
+		fit,
 		pixelFormat: 'yuv420p',
 		backgroundColor: normalizeColor(options.backgroundColor),
 		maximumWidth,
@@ -134,6 +159,53 @@ function exactVideoExportCanvas(runtimeProject, options) {
 		referenceClipId: reference?.clip.id || null,
 		referenceSourceId: reference?.source.id || null,
 	});
+}
+
+/**
+ * The delivery canvas the caller stated outright, or null for the derived one.
+ *
+ * Stating a size and also stating a ceiling for it is a contradiction rather
+ * than a precedence question, so it is refused instead of resolved: silently
+ * capping a stated 1080x1920 back to 405x720 is exactly the kind of hidden
+ * delivery decision this milestone exists to remove.
+ */
+function statedCanvasSize(options) {
+	if (options.size == null) return null;
+	const size = options.size;
+	if (typeof size !== 'object' || Array.isArray(size)) {
+		throw new TypeError('canvas.size must be an object stating width and height.');
+	}
+	for (const key of Object.keys(size)) {
+		if (key !== 'width' && key !== 'height') throw new RangeError(`Unsupported canvas.size option: ${key}.`);
+	}
+	for (const conflicting of ['width', 'height', 'maximumWidth', 'maximumHeight']) {
+		if (options[conflicting] != null) {
+			throw new RangeError(`canvas.size states the delivery canvas, so canvas.${conflicting} cannot also apply.`);
+		}
+	}
+	return Object.freeze({
+		width: canvasExtent(size.width, 'canvas.size.width'),
+		height: canvasExtent(size.height, 'canvas.size.height'),
+	});
+}
+
+function canvasFit(options) {
+	const fit = options.fit ?? 'contain';
+	if (!isVideoCanvasFit(fit)) {
+		throw new RangeError(`canvas.fit must be one of ${VIDEO_CANVAS_FIT_MODES.join(', ')}.`);
+	}
+	return fit;
+}
+
+function canvasExtent(value, name) {
+	const extent = positiveSafeInteger(value, name);
+	if (extent % 2 !== 0) {
+		throw new RangeError(`${name} must be even, because the delivered pixel format subsamples chroma.`);
+	}
+	if (extent > MAXIMUM_CANVAS_EXTENT) {
+		throw new RangeError(`${name} must be at most ${MAXIMUM_CANVAS_EXTENT}.`);
+	}
+	return extent;
 }
 
 /**
@@ -257,111 +329,6 @@ export function createVideoExportPlan(project, options = {}) {
 	});
 }
 
-function createFilterPlan(intervals, canvas, projectSampleRate, options) {
-	const filters = intervals.map((interval) => ({
-		kind: interval.kind,
-		intervalIndex: interval.index,
-		outputLabel: `video_interval_${interval.index}`,
-		durationSeconds: interval.durationSeconds,
-		base: {
-			name: 'color',
-			color: interval.color || canvas.backgroundColor,
-			width: canvas.width,
-			height: canvas.height,
-			frameRate: canvas.frameRate,
-			pixelFormat: 'rgba',
-		},
-		layers: interval.layers.map((layer, layerIndex) => ({
-			trackId: layer.trackId,
-			trackIndex: layer.trackIndex,
-			outputLabel: `video_interval_${interval.index}_track_${layerIndex}`,
-			clips: layer.clips.map((clip, clipIndex) => ({
-				clipId: clip.clipId,
-				sourceId: clip.sourceId,
-				inputIndex: clip.inputIndex,
-				role: clip.role,
-				opacityStart: clip.opacityStart,
-				opacityEnd: clip.opacityEnd,
-				renderDescription: clip.renderDescription,
-				outputLabel: `video_interval_${interval.index}_track_${layerIndex}_clip_${clipIndex}`,
-				operations: [
-					{
-						name: 'trim',
-						startSeconds: clip.sourceStartTimeSeconds,
-						endSeconds: clip.sourceEndTimeSeconds,
-					},
-					{
-						name: 'setpts',
-						origin: 'PTS-STARTPTS',
-						playbackRate: clip.playbackRate,
-						multiplier: 1 / clip.playbackRate,
-					},
-					{
-						name: 'scale',
-						width: canvas.width,
-						height: canvas.height,
-						forceOriginalAspectRatio: 'decrease',
-					},
-					{ name: 'format', pixelFormat: 'rgba' },
-					{ name: 'fps', frameRate: canvas.frameRate },
-					...clip.videoEffects
-						.filter((effect) => effect.enabled)
-						.map((effect) => ({ name: 'video-effect', effect })),
-					{
-						name: 'pad',
-						width: canvas.width,
-						height: canvas.height,
-						x: '(ow-iw)/2',
-						y: '(oh-ih)/2',
-						color: 'black@0',
-					},
-					{ name: 'premultiply', inplace: true },
-					{ name: 'setsar', value: 1 },
-				],
-			})),
-			blend: layer.clips.length === 2
-				? {
-					name: 'blend',
-					opacityStart: layer.clips.map((clip) => clip.opacityStart),
-					opacityEnd: layer.clips.map((clip) => clip.opacityEnd),
-				}
-				: null,
-		})),
-		overlays: interval.layers.map((layer) => ({
-			name: 'overlay',
-			trackId: layer.trackId,
-			alpha: 'premultiplied',
-		})),
-	}));
-	return {
-		strategy: 'layered-composition',
-		backgroundColor: canvas.backgroundColor,
-		intervals: filters,
-		concat: {
-			name: 'concat',
-			inputLabels: filters.map((filter) => filter.outputLabel),
-			videoStreams: 1,
-			audioStreams: 0,
-			outputLabel: 'video_out',
-		},
-		audio: options.audioInput
-			? {
-				strategy: 'staged-mix',
-				inputIndex: options.audioInput.inputIndex,
-				startFrame: options.audioInput.startFrame,
-				durationFrames: options.audioInput.durationFrames,
-				sampleRate: projectSampleRate,
-				codec: options.format.audioCodec,
-			}
-			: { strategy: 'none' },
-		output: {
-			videoLabel: 'video_out',
-			videoCodec: options.format.videoEncoder,
-			audioCodec: options.audioInput ? options.format.audioEncoder : null,
-			pixelFormat: options.format.pixelFormat,
-		},
-	};
-}
 
 /** Resolve the canonical sample-frame range shared by legacy and exact video export. */
 export function resolveVideoExportRange(project, requested = 'project') {

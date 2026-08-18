@@ -21,21 +21,30 @@ import {
 } from '../src/common/editor/native-media-plan-envelope.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import {
+	CANONICAL_VIDEO_EXPORT_PLAN_VERSION,
+	VIDEO_KEYFRAME_EXPORT_PLAN_VERSION,
+} from '../src/common/editor/video-export-plan-version.ts';
+import {
 	createVideoKeyframeExportPlanV7,
 } from '../src/common/editor/video-keyframe-export-plan-v7.ts';
 
-test('the accepted plan union is exactly the static V6 and keyed V7 canonical plans', () => {
-	assert.deepEqual([...NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS], [6, 7]);
+test('the accepted plan union is exactly the canonical graph and keyed V7 plans', () => {
+	assert.deepEqual(
+		[...NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS].sort((left, right) => left - right),
+		[VIDEO_KEYFRAME_EXPORT_PLAN_VERSION, CANONICAL_VIDEO_EXPORT_PLAN_VERSION]
+			.sort((left, right) => left - right),
+		'the native tier admits what the product builds, not the versions it once built',
+	);
 	assert.equal(NATIVE_MEDIA_PLAN_ENVELOPE_VERSION, 1);
 });
 
-test('a static V6 plan seals into an envelope whose summary is its own semantics', () => {
+test('a static graph plan seals into an envelope whose summary is its own semantics', () => {
 	const plan = staticPlan();
 	const envelope = createNativeMediaPlanEnvelopeV1(plan);
 
 	assert.equal(envelope.envelopeVersion, 1);
-	assert.equal(envelope.planVersion, 6);
-	assert.equal(envelope.strategy, 'framescaper-static-composition-v6');
+	assert.equal(envelope.planVersion, CANONICAL_VIDEO_EXPORT_PLAN_VERSION);
+	assert.equal(envelope.strategy, 'framescaper-static-composition');
 	assert.match(envelope.fingerprint, /^[a-f0-9]{64}$/u);
 	assert.equal(envelope.canonicalByteLength, fingerprintNativeMediaPlan(plan).byteLength);
 	assert.deepEqual(envelope.summary.frameRate, { kind: 'decimal', value: 30 });
@@ -56,7 +65,7 @@ test('a static V6 plan seals into an envelope whose summary is its own semantics
 	}]);
 });
 
-test('a static V6 plan that includes audio reports its exact staged project sample rate', () => {
+test('a static graph plan that includes audio reports its exact staged project sample rate', () => {
 	const envelope = createNativeMediaPlanEnvelopeV1(staticPlan({ includeAudio: true }));
 
 	assert.equal(envelope.summary.includesAudio, true);
@@ -68,7 +77,7 @@ test('a static V6 plan that includes audio reports its exact staged project samp
 test('a keyed V7 plan reports its exact rational rate and duration rather than a decimal', () => {
 	const envelope = createNativeMediaPlanEnvelopeV1(keyedPlan());
 
-	assert.equal(envelope.planVersion, 7);
+	assert.equal(envelope.planVersion, VIDEO_KEYFRAME_EXPORT_PLAN_VERSION);
 	assert.equal(envelope.strategy, 'framescaper-keyframed-rgba-v1');
 	assert.deepEqual(envelope.summary.frameRate, { kind: 'rational', num: 30_000, den: 1_001 });
 	assert.deepEqual(envelope.summary.duration, { kind: 'rational-seconds', num: 1_001, den: 1_000 });
@@ -139,19 +148,22 @@ test('a plan fingerprint is the SHA-256 of exactly its canonical bytes', () => {
 test('the canonical form never invokes a hostile accessor and refuses symbol keys', () => {
 	let reads = 0;
 	const hostile = {};
-	Object.defineProperty(hostile, 'version', { enumerable: true, get: () => { reads += 1; return 6; } });
+	Object.defineProperty(hostile, 'version', {
+		enumerable: true,
+		get: () => { reads += 1; return CANONICAL_VIDEO_EXPORT_PLAN_VERSION; },
+	});
 
 	assert.throws(() => canonicalizeNativeMediaPlan(hostile), /own data properties/u);
 	assert.throws(() => createNativeMediaPlanEnvelopeV1(hostile), /canonical plan versions/u);
 	assert.equal(reads, 0);
 
-	const symbolled: Record<string, unknown> = { version: 6 };
+	const symbolled: Record<string, unknown> = { version: CANONICAL_VIDEO_EXPORT_PLAN_VERSION };
 	(symbolled as Record<symbol, unknown>)[Symbol('trap')] = 1;
 	assert.throws(() => canonicalizeNativeMediaPlan(symbolled), /symbol-keyed/u);
 });
 
 test('an unknown plan version is refused rather than generically accepted', () => {
-	for (const version of [null, undefined, 0, 5, 8, 20, '7', 6.5]) {
+	for (const version of [null, undefined, 0, 5, 6, 9, 20, '7', 6.5]) {
 		const plan = { ...staticPlan(), version } as Record<string, unknown>;
 		assert.throws(() => createNativeMediaPlanEnvelopeV1(plan), (error: unknown) => {
 			assert.ok(error instanceof NativeMediaPlanViolationError);
@@ -161,7 +173,7 @@ test('an unknown plan version is refused rather than generically accepted', () =
 	}
 });
 
-test('a plan whose canonical shape is not the exact V6 contract is refused before I/O', () => {
+test('a plan whose canonical shape is not the exact graph contract is refused before I/O', () => {
 	for (const [mutate, pattern] of [
 		[(plan: Record<string, unknown>) => { plan.container = 'webm'; }, /format metadata/u],
 		[(plan: Record<string, unknown>) => { plan.mimeType = 'video/webm'; }, /format metadata/u],
@@ -175,6 +187,12 @@ test('a plan whose canonical shape is not the exact V6 contract is refused befor
 		[(plan: Record<string, unknown>) => {
 			(plan.canvas as Record<string, unknown>).width = 4_000;
 		}, /declared maximum/u],
+		[(plan: Record<string, unknown>) => {
+			(plan.canvas as Record<string, unknown>).fit = 'fill';
+		}, /unsupported fit/u],
+		[(plan: Record<string, unknown>) => {
+			delete (plan.canvas as Record<string, unknown>).fit;
+		}, /exactly its schema keys/u],
 		[(plan: Record<string, unknown>) => {
 			(plan.filterPlan as Record<string, unknown>).strategy = 'node-graph';
 		}, /layered-composition/u],
@@ -263,7 +281,7 @@ test('an envelope that misdescribes its own plan is refused', () => {
 
 	for (const mutate of [
 		(value: Record<string, unknown>) => { value.fingerprint = '0'.repeat(64); },
-		(value: Record<string, unknown>) => { value.planVersion = 7; },
+		(value: Record<string, unknown>) => { value.planVersion = VIDEO_KEYFRAME_EXPORT_PLAN_VERSION; },
 		(value: Record<string, unknown>) => { value.strategy = 'framescaper-keyframed-rgba-v1'; },
 		(value: Record<string, unknown>) => { value.canonicalByteLength = Number(value.canonicalByteLength) + 1; },
 		(value: Record<string, unknown>) => {

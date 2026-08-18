@@ -7,18 +7,18 @@
  * The native tier accelerates the canonical plan; it never reinterprets it. So
  * an envelope carries the plan in its canonical form, the fingerprint both
  * consumers derive independently, and a version-normalized semantic summary
- * that makes Web/native parity checkable field by field. At grounding time the
- * union contains exactly the static V6 composition plan and the keyed V7 RGBA
- * plan. Admitting a further version is a deliberate change here — a new
- * adapter, validator, fingerprint rule, and parity golden — never a generic
- * "unknown but plausible" acceptance.
+ * that makes Web/native parity checkable field by field. The union contains
+ * exactly the canonical static composition graph plan and the keyed V7 RGBA
+ * plan — the two the product builds, never their history. Admitting a further
+ * version is a deliberate change here — a new adapter, validator, fingerprint
+ * rule, and parity golden — never a generic "unknown but plausible" acceptance.
  */
 
 import {
-	assertNativeMediaPlanV6,
-	nativeMediaPlanV6VideoEffectCount,
-	type NativeMediaPlanV6,
-} from './native-media-plan-v6-admission.ts';
+	assertNativeMediaGraphPlan,
+	nativeMediaGraphPlanVideoEffectCount,
+	type NativeMediaGraphPlan,
+} from './native-media-graph-plan-admission.ts';
 import {
 	canonicalizeNativeMediaSummaryValue,
 	fingerprintNativeMediaPlan,
@@ -28,6 +28,10 @@ import {
 	assertVideoKeyframeExportPlanV7,
 	type VideoKeyframeExportPlanV7,
 } from './video-keyframe-export-plan-v7.ts';
+import {
+	CANONICAL_VIDEO_EXPORT_PLAN_VERSION,
+	VIDEO_KEYFRAME_EXPORT_PLAN_VERSION,
+} from './video-export-plan-version.ts';
 
 export {
 	NativeMediaPlanViolationError,
@@ -37,22 +41,38 @@ export type { NativeMediaPlanViolationCode } from './native-media-plan-canonical
 
 export const NATIVE_MEDIA_PLAN_ENVELOPE_VERSION = 1;
 
-/** The exact canonical plan versions this envelope admits. Closed by design. */
-export const NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS = Object.freeze([6, 7] as const);
+/**
+ * The exact canonical plan versions this envelope admits. Closed by design.
+ *
+ * These are literals because the strategy table is keyed on them, so the module
+ * checks at load that they are still the versions the product actually builds:
+ * a canonical bump that forgot this list would otherwise leave the native tier
+ * refusing every plan the renderer produces, at delivery time rather than here.
+ */
+export const NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS = Object.freeze([7, 8] as const);
 
 export type NativeMediaPlanVersion = (typeof NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS)[number];
 
 export const NATIVE_MEDIA_PLAN_STRATEGIES = Object.freeze({
-	6: 'framescaper-static-composition-v6',
 	7: 'framescaper-keyframed-rgba-v1',
+	8: 'framescaper-static-composition',
 } as const);
+
+for (const [version, name] of [
+	[VIDEO_KEYFRAME_EXPORT_PLAN_VERSION, 'keyframe'],
+	[CANONICAL_VIDEO_EXPORT_PLAN_VERSION, 'canonical graph'],
+] as const) {
+	if (!(NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS as readonly number[]).includes(version)) {
+		throw new RangeError(`The native media envelope does not admit the ${name} plan version ${String(version)}.`);
+	}
+}
 
 export type NativeMediaPlanStrategy =
 	(typeof NATIVE_MEDIA_PLAN_STRATEGIES)[NativeMediaPlanVersion];
 
 /**
  * A rate is reported the way its plan states it. V7 states an exact rational;
- * V6 states a decimal it already reduced. Neither is re-derived into the other,
+ * The graph plan states a decimal it already reduced. Neither is re-derived into the other,
  * because guessing a rational back out of a decimal is exactly the inference
  * the canonical-plan discipline forbids.
  */
@@ -127,8 +147,8 @@ export function createNativeMediaPlanEnvelopeV1(value: unknown): NativeMediaPlan
 	const planVersion = acceptedPlanVersion(value);
 	const fingerprint = fingerprintNativeMediaPlan(value);
 	const plan = deepFreeze(JSON.parse(fingerprint.canonical) as Record<string, unknown>);
-	const summary = planVersion === 6
-		? summarizeV6(admitV6(plan))
+	const summary = planVersion === CANONICAL_VIDEO_EXPORT_PLAN_VERSION
+		? summarizeGraphPlan(admitGraphPlan(plan))
 		: summarizeV7(admitV7(plan));
 	return Object.freeze({
 		envelopeVersion: NATIVE_MEDIA_PLAN_ENVELOPE_VERSION,
@@ -216,17 +236,18 @@ function acceptedPlanVersion(value: unknown): NativeMediaPlanVersion {
 	const plan = record(value, 'native media plan');
 	const descriptor = Object.getOwnPropertyDescriptor(plan, 'version');
 	const version = descriptor && Object.hasOwn(descriptor, 'value') ? descriptor.value : undefined;
-	if (version !== 6 && version !== 7) {
+	if (!(NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS as readonly unknown[]).includes(version)) {
 		nativeMediaPlanViolation(
 			'unsupported-version',
-			'A native media plan envelope admits only the exact canonical plan versions 6 and 7.',
+			'A native media plan envelope admits only the exact canonical plan versions '
+			+ `${NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS.join(' and ')}.`,
 		);
 	}
 	return version;
 }
 
-function admitV6(plan: Readonly<Record<string, unknown>>): NativeMediaPlanV6 {
-	assertNativeMediaPlanV6(plan);
+function admitGraphPlan(plan: Readonly<Record<string, unknown>>): NativeMediaGraphPlan {
+	assertNativeMediaGraphPlan(plan);
 	return plan;
 }
 
@@ -235,11 +256,11 @@ function admitV7(plan: Readonly<Record<string, unknown>>): VideoKeyframeExportPl
 	return plan;
 }
 
-function summarizeV6(plan: NativeMediaPlanV6): NativeMediaPlanSummaryV1 {
+function summarizeGraphPlan(plan: NativeMediaGraphPlan): NativeMediaPlanSummaryV1 {
 	const audioInput = plan.inputs.find((input) => input.kind === 'staged-audio-mix') ?? null;
 	return Object.freeze({
-		planVersion: 6,
-		strategy: NATIVE_MEDIA_PLAN_STRATEGIES[6],
+		planVersion: CANONICAL_VIDEO_EXPORT_PLAN_VERSION,
+		strategy: NATIVE_MEDIA_PLAN_STRATEGIES[CANONICAL_VIDEO_EXPORT_PLAN_VERSION],
 		container: plan.container,
 		extension: plan.extension,
 		mimeType: plan.mimeType,
@@ -268,15 +289,15 @@ function summarizeV6(plan: NativeMediaPlanV6): NativeMediaPlanSummaryV1 {
 				contentSha256: null,
 			}))),
 		compositionIntervalCount: plan.intervals.length,
-		videoEffectCount: nativeMediaPlanV6VideoEffectCount(plan),
+		videoEffectCount: nativeMediaGraphPlanVideoEffectCount(plan),
 		activeClipCount: null,
 	});
 }
 
 function summarizeV7(plan: VideoKeyframeExportPlanV7): NativeMediaPlanSummaryV1 {
 	return Object.freeze({
-		planVersion: 7,
-		strategy: NATIVE_MEDIA_PLAN_STRATEGIES[7],
+		planVersion: VIDEO_KEYFRAME_EXPORT_PLAN_VERSION,
+		strategy: NATIVE_MEDIA_PLAN_STRATEGIES[VIDEO_KEYFRAME_EXPORT_PLAN_VERSION],
 		container: plan.container,
 		extension: plan.extension,
 		mimeType: plan.mimeType,

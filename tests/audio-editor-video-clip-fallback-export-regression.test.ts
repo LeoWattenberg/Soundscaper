@@ -26,6 +26,7 @@ import {
 	createVideoTrackV9,
 } from '../src/common/editor/project-v9.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
+import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
 
 const SAMPLE_RATE = 48_000;
 const TARGET_START = 24_000;
@@ -363,7 +364,7 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 		FALLBACK_AUDIO_SOURCE_ID,
 	);
 
-	assert.equal(plan.version, 6);
+	assert.equal(plan.version, CANONICAL_VIDEO_EXPORT_PLAN_VERSION);
 	assert.deepEqual(plan.range, {
 		startFrame: 0,
 		endFrame: PROJECT_END,

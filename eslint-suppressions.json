@@ -94,11 +94,6 @@
       "count": 1
     }
   },
-  "src/common/editor/video-ffmpeg.js": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "src/common/products.js": {
     "no-constant-binary-expression": {
       "count": 1

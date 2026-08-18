@@ -2,6 +2,7 @@
 
 import { isVideoKeyframeExportPlanV7 } from '../video-keyframe-export-plan-v7.ts';
 import { getVideoExportFormat } from '../video-export.js';
+import { isVideoCanvasFit } from '../video-canvas-fit.ts';
 import {
 	CANONICAL_VIDEO_EXPORT_PLAN_VERSION,
 	VIDEO_KEYFRAME_EXPORT_PLAN_VERSION,
@@ -40,7 +41,7 @@ export interface DirectVideoContract {
 	readonly fingerprint: string;
 }
 
-/** Capture either the unchanged V6 FFmpeg graph or one exact detached V7 RGBA plan. */
+/** Capture either the unchanged canonical FFmpeg graph or one exact detached V7 RGBA plan. */
 export function captureDirectVideoContract(
 	plan: DirectVideoPlan,
 	fileName: string,
@@ -62,8 +63,8 @@ export function captureDirectVideoContract(
 			|| plan.mimeType !== descriptor.mimeType
 			|| !canonicalFileName(fileName, descriptor.extension)) return null;
 		if (version === CANONICAL_VIDEO_EXPORT_PLAN_VERSION) {
-			if (!canonicalVideoGeometryV6(plan, descriptor)
-				|| !canonicalVideoInputsV6(plan, descriptor)) return null;
+			if (!canonicalVideoGeometry(plan, descriptor)
+				|| !canonicalVideoInputs(plan, descriptor)) return null;
 		}
 		const fingerprint = JSON.stringify(plan);
 		if (typeof fingerprint !== 'string' || !fingerprint) return null;
@@ -73,7 +74,7 @@ export function captureDirectVideoContract(
 	}
 }
 
-function canonicalVideoGeometryV6(
+function canonicalVideoGeometry(
 	plan: DirectVideoPlan,
 	descriptor: VideoFormatDescriptor,
 ): boolean {
@@ -83,6 +84,7 @@ function canonicalVideoGeometryV6(
 	if (!canvas || !codecs || !range
 		|| !positiveEvenInteger(canvas.width) || !positiveEvenInteger(canvas.height)
 		|| !positiveNumber(canvas.frameRate)
+		|| !isVideoCanvasFit(canvas.fit)
 		|| canvas.pixelFormat !== descriptor.pixelFormat
 		|| codecs.pixelFormat !== descriptor.pixelFormat
 		|| codecs.video !== descriptor.videoCodec
@@ -96,7 +98,7 @@ function canonicalVideoGeometryV6(
 	return true;
 }
 
-function canonicalVideoInputsV6(
+function canonicalVideoInputs(
 	plan: DirectVideoPlan,
 	descriptor: VideoFormatDescriptor,
 ): boolean {
