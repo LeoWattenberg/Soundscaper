@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { snapshotInertJsonValue } from '../common/editor/inert-json-snapshot.ts'
-import { SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION } from '../common/editor/project-schema-version.ts'
+import {
+	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION,
+} from '../common/editor/project-schema-version.ts'
 import { reconcileProjectOwnedFeatureRequirements } from '../common/editor/project-owned-feature-requirements.ts'
 import {
 	createSoundscaperProjectV21,
@@ -87,9 +90,27 @@ export function cloneSoundscaperProjectV23(project: SoundscaperProjectV23 | unkn
 	return reconcile(production)
 }
 
-/** Load exact V23, retain future data opaquely, and refuse pre-release re-imports. */
+/**
+ * Load exact V23, retain future data opaquely, and refuse pre-release re-imports.
+ *
+ * V21 is not pre-release — it is the other schema `isSoundscaperProductionProjectSchema`
+ * still recognizes as carrying the production authority, and it is what every
+ * project saved before the V23 bootstrap flip actually has on disk. Refusing it
+ * the same way genuinely stale, pre-V21 documents are refused would make every
+ * such project unopenable, so a V21 document is upgraded in place instead: the
+ * same V21-plus-one-field relationship `createSoundscaperProjectV23` already
+ * relies on.
+ */
 export function loadSoundscaperProjectV23(value: unknown): LoadedSoundscaperProjectV23 {
 	const version = schemaVersion(value)
+	if (version === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION) {
+		return Object.freeze({
+			project: upgradeSoundscaperProjectV21ToV23(value),
+			readOnly: false,
+			intrinsicReadOnly: false,
+			reason: null,
+		})
+	}
 	if (version < SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION) {
 		throw new SoundscaperProjectV23ReimportRequiredError(version)
 	}
@@ -111,6 +132,14 @@ export function loadSoundscaperProjectV23(value: unknown): LoadedSoundscaperProj
 		intrinsicReadOnly: false,
 		reason: null,
 	})
+}
+
+/** Upgrade a validated V21 document into V23 by adding the empty mastering-sequence field. */
+function upgradeSoundscaperProjectV21ToV23(value: unknown): SoundscaperProjectV23 {
+	const draft = cloneSoundscaperProjectV21(value) as unknown as Record<string, unknown>
+	draft.schemaVersion = SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION
+	draft.masteringSequences = normalizeMasteringSequencesV23([])
+	return reconcile(draft)
 }
 
 function reconcile(draft: Record<string, unknown>): SoundscaperProjectV23 {

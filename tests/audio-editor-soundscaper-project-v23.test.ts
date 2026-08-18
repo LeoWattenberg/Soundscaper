@@ -78,11 +78,29 @@ test('exact-current validation accepts V23 and refuses every other revision', ()
 	}
 });
 
-test('an older schema is a typed reimport refusal, not a migration', () => {
-	const older = { ...createSoundscaperProjectV21({ id: 'p', title: 'P', now: NOW } as never) };
+test('a V21 document upgrades into V23 rather than being refused', () => {
+	// V21 is not pre-release: isSoundscaperProductionProjectSchema still accepts
+	// it, and it is what every project saved before the V23 bootstrap flip has on
+	// disk. Refusing it here would make every such project unopenable.
+	const v21 = createSoundscaperProjectV21({
+		id: 'p', title: 'P', now: NOW,
+		tracks: [{ type: 'audio', id: 'a1', name: 'A1' }],
+	} as never);
+	const loaded = loadSoundscaperProjectV23({ ...v21 });
+	assert.equal(loaded.readOnly, false);
+	assert.equal(loaded.intrinsicReadOnly, false);
+	assert.equal(loaded.reason, null);
+	const upgraded = loaded.project as Record<string, unknown>;
+	assert.equal(upgraded.schemaVersion, SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION);
+	assert.deepEqual(upgraded.masteringSequences, []);
+	assert.equal(validateSoundscaperProjectV23(upgraded), true);
+});
+
+test('a genuinely pre-release schema is a typed reimport refusal, not a migration', () => {
+	const older = { ...createSoundscaperProjectV21({ id: 'p', title: 'P', now: NOW } as never), schemaVersion: 17 };
 	assert.throws(() => loadSoundscaperProjectV23(older), (error: unknown) => {
 		assert.ok(error instanceof SoundscaperProjectV23ReimportRequiredError);
-		assert.equal(error.sourceSchemaVersion, 21);
+		assert.equal(error.sourceSchemaVersion, 17);
 		assert.equal(error.currentSchemaVersion, 23);
 		return true;
 	});
