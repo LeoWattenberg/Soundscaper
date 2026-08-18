@@ -12,7 +12,8 @@ import {
 	createDeliveryReport,
 	sealDeliveryReport,
 } from './delivery-report.ts';
-import { MEDIA_EXPORT_FORMATS } from './media-export.js';
+import { MEDIA_EXPORT_FORMATS, mediaExportFormatCarriesCues } from './media-export.js';
+import { masteringSequenceDeliveryConversions } from './mastering-sequence-delivery.ts';
 
 /**
  * What a delivery plan does to the material, derived from the plan itself.
@@ -39,6 +40,9 @@ export interface DeliveryConversion {
 	readonly disposition: DeliveryDisposition;
 	readonly severity: DeliverySeverity;
 	readonly data: Readonly<Record<string, unknown>>;
+	/** What the conversion applies to, when it is narrower than the delivery. */
+	readonly scope?: Readonly<Record<string, unknown>>;
+	readonly message?: string;
 }
 
 interface AudioDeliveryPlan {
@@ -47,7 +51,9 @@ interface AudioDeliveryPlan {
 	readonly ditherMode?: unknown;
 	readonly encoding?: unknown;
 	readonly adm?: unknown;
+	readonly markers?: unknown;
 	readonly markerInterchangeReport?: unknown;
+	readonly masteringSequence?: unknown;
 }
 
 /** Every conversion and preservation the plan implies, in a stable order. */
@@ -158,6 +164,25 @@ export function inventoryDeliveryConversions(
 		});
 	}
 
+	// Markers survive selection and clipping only to be dropped by a writer that
+	// has no chunk for them. That loss happens after the interchange report is
+	// written, so without this the delivery reports markers it did not write.
+	const plannedMarkers = Array.isArray(plan.markers) ? plan.markers.length : 0;
+	const carriesCues = descriptor ? cueCapableFormat(descriptor.id) : false;
+	if (plannedMarkers > 0 && !carriesCues) {
+		conversions.push({
+			code: 'delivery.markers-omitted',
+			disposition: 'omitted',
+			severity: 'warning',
+			data: { markers: plannedMarkers, format: descriptor?.id ?? null },
+			message: 'This format has no cue chunk, so the markers were not written into the delivery.',
+		});
+	}
+
+	for (const conversion of masteringSequenceDeliveryConversions(plan.masteringSequence, carriesCues)) {
+		conversions.push(conversion);
+	}
+
 	return Object.freeze(conversions);
 }
 
@@ -187,6 +212,8 @@ export function createDeliveryReportForPlan(
 			disposition: conversion.disposition,
 			severity: conversion.severity,
 			data: conversion.data,
+			...(conversion.scope ? { scope: conversion.scope } : {}),
+			...(conversion.message ? { message: conversion.message } : {}),
 		});
 	}
 	if (loudness) addDeliveryLoudnessItem(draft, loudness);
@@ -313,6 +340,14 @@ function admPassthroughMode(adm: unknown): string | null {
 	if (!isRecord(adm)) return null;
 	const metadata = isRecord(adm.metadata) ? adm.metadata : adm;
 	return metadata.mode === 'passthrough' ? 'passthrough' : null;
+}
+
+function cueCapableFormat(format: string): boolean {
+	try {
+		return mediaExportFormatCarriesCues(format);
+	} catch {
+		return false;
+	}
 }
 
 function interchangeCounts(

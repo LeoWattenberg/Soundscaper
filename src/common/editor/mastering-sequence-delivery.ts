@@ -7,7 +7,7 @@ import {
 	type MasteringSequenceRegionView,
 	type MasteringSequenceV23,
 } from './mastering-sequence.ts';
-import { addDeliveryReportItem } from './delivery-report.ts';
+import type { DeliveryDisposition, DeliverySeverity } from './delivery-report.ts';
 import type { RiffMarkerInput } from './riff-markers.ts';
 
 /**
@@ -116,57 +116,114 @@ export function masteringSequenceDeliveryCues(
 }
 
 /**
- * Record what the sequence contributed to the delivery.
+ * Express one delivery plan in the sample rate the file is written at.
  *
- * Every entry becomes an item carrying its delivered position and its metadata,
- * because per-region metadata that reached the audio but not the report would be
- * a delivery decision nobody can see. Cue support is a property of the container,
- * so a format that cannot carry cues reports the omission rather than dropping
- * them silently — that is the difference between a lossy delivery and a hidden
- * one.
+ * Delivery positions are resolved in project frames, but the cues and the
+ * assembled audio live in the delivered file's rate, and the two only agree if
+ * the conversion happens once. Each gap and each region extent is scaled and
+ * rounded on its own and then accumulated, so the delivered length stays the
+ * exact sum of its parts — scaling the accumulated positions instead would let
+ * rounding move a boundary away from the audio it belongs to.
+ *
+ * Source frames are left in the project's rate: they say what to render, not
+ * what was written.
  */
-export function addMasteringSequenceDeliveryItems(
-	draft: Parameters<typeof addDeliveryReportItem>[0],
+export function scaleMasteringSequenceDeliveryPlan(
 	plan: MasteringSequenceDeliveryPlan,
-	options: Readonly<{ cuesSupported: boolean }>,
-): void {
-	for (const segment of plan.segments) {
-		addDeliveryReportItem(draft, {
-			code: 'delivery.mastering-sequence-entry',
-			disposition: 'preserved',
-			severity: 'info',
-			scope: { kind: 'mastering-sequence-entry', id: segment.entryId },
-			data: {
-				title: segment.title,
-				outputStartFrame: segment.outputStartFrame,
-				durationFrames: segment.outputEndFrame - segment.outputStartFrame,
-				gapBeforeFrames: segment.gapBeforeFrames,
-				fadeInFrames: segment.fadeInFrames,
-				fadeOutFrames: segment.fadeOutFrames,
-				metadata: segment.metadata,
-			},
-			message: 'The entry was delivered at this position with its authored metadata.',
-		});
+	rates: Readonly<{ sourceSampleRate: number; outputSampleRate: number }>,
+): MasteringSequenceDeliveryPlan {
+	const { sourceSampleRate, outputSampleRate } = rates;
+	for (const rate of [sourceSampleRate, outputSampleRate]) {
+		if (!Number.isFinite(rate) || rate <= 0) {
+			throw new RangeError('A mastering sequence delivery requires positive sample rates.');
+		}
 	}
-	if (plan.segments.length === 0) return;
-	addDeliveryReportItem(draft, options.cuesSupported ? {
-		code: 'delivery.mastering-sequence-cues',
-		disposition: 'preserved',
-		severity: 'info',
-		data: { cues: plan.segments.length },
-		message: 'A region cue was written for every entry.',
-	} : {
-		code: 'delivery.mastering-sequence-cues-omitted',
-		disposition: 'omitted',
-		severity: 'warning',
-		data: { cues: plan.segments.length },
-		message: 'This format cannot carry cues, so the region boundaries were not written into the delivery.',
+	if (sourceSampleRate === outputSampleRate) return plan;
+	const scale = (frames: number): number => Math.round(frames * outputSampleRate / sourceSampleRate);
+
+	const segments: MasteringSequenceDeliverySegment[] = [];
+	let outputFrame = 0;
+	for (const segment of plan.segments) {
+		const gapBeforeFrames = scale(segment.gapBeforeFrames);
+		outputFrame += gapBeforeFrames;
+		const durationFrames = scale(segment.outputEndFrame - segment.outputStartFrame);
+		segments.push(Object.freeze({
+			...segment,
+			gapBeforeFrames,
+			outputStartFrame: outputFrame,
+			outputEndFrame: outputFrame + durationFrames,
+			fadeInFrames: scale(segment.fadeInFrames),
+			fadeOutFrames: scale(segment.fadeOutFrames),
+		}));
+		outputFrame += durationFrames;
+	}
+	return Object.freeze({
+		sequenceId: plan.sequenceId,
+		segments: Object.freeze(segments),
+		totalFrames: outputFrame,
 	});
 }
 
-/** True when the delivered timeline is exactly the regions plus their gaps. */
-export function masteringSequenceDeliveryFrameCount(
-	plan: MasteringSequenceDeliveryPlan,
-): number {
-	return plan.totalFrames;
+interface MasteringSequenceDeliveryConversion {
+	readonly code: string;
+	readonly disposition: DeliveryDisposition;
+	readonly severity: DeliverySeverity;
+	readonly data: Readonly<Record<string, unknown>>;
+	readonly scope?: Readonly<Record<string, unknown>>;
+	readonly message?: string;
+}
+
+/**
+ * What the sequence contributed to the delivery, derived from the plan.
+ *
+ * This joins the plan-derived inventory rather than being appended by whoever
+ * wrote the export path, which is what stops a sequence delivery from quietly
+ * losing something: every entry becomes an item carrying its delivered position
+ * and its metadata, because per-region metadata that reached the audio but not
+ * the report would be a delivery decision nobody can see. Cue support is a
+ * property of the container, so a format that cannot carry cues reports the
+ * omission — that is the difference between a lossy delivery and a hidden one,
+ * and `delivery.unreportedConversions` counts the difference.
+ */
+export function masteringSequenceDeliveryConversions(
+	plan: unknown,
+	cuesSupported: boolean,
+): readonly MasteringSequenceDeliveryConversion[] {
+	if (!isDeliveryPlan(plan) || plan.segments.length === 0) return Object.freeze([]);
+	const conversions: MasteringSequenceDeliveryConversion[] = plan.segments.map((segment) => Object.freeze({
+		code: 'delivery.mastering-sequence-entry',
+		disposition: 'preserved' as DeliveryDisposition,
+		severity: 'info' as DeliverySeverity,
+		scope: Object.freeze({ kind: 'mastering-sequence-entry', id: segment.entryId }),
+		data: Object.freeze({
+			title: segment.title,
+			outputStartFrame: segment.outputStartFrame,
+			durationFrames: segment.outputEndFrame - segment.outputStartFrame,
+			gapBeforeFrames: segment.gapBeforeFrames,
+			fadeInFrames: segment.fadeInFrames,
+			fadeOutFrames: segment.fadeOutFrames,
+			metadata: segment.metadata,
+		}),
+		message: 'The entry was delivered at this position with its authored metadata.',
+	}));
+	conversions.push(Object.freeze(cuesSupported ? {
+		code: 'delivery.mastering-sequence-cues',
+		disposition: 'preserved' as DeliveryDisposition,
+		severity: 'info' as DeliverySeverity,
+		data: Object.freeze({ cues: plan.segments.length }),
+		message: 'A region cue was written for every entry.',
+	} : {
+		code: 'delivery.mastering-sequence-cues-omitted',
+		disposition: 'omitted' as DeliveryDisposition,
+		severity: 'warning' as DeliverySeverity,
+		data: Object.freeze({ cues: plan.segments.length }),
+		message: 'This format cannot carry cues, so the region boundaries were not written into the delivery.',
+	}));
+	return Object.freeze(conversions);
+}
+
+function isDeliveryPlan(value: unknown): value is MasteringSequenceDeliveryPlan {
+	return Boolean(value)
+		&& typeof value === 'object'
+		&& Array.isArray((value as MasteringSequenceDeliveryPlan).segments);
 }

@@ -178,3 +178,42 @@ test('ADM passthrough reports byte preservation and never a conversion', () => {
 		'passthrough converts nothing, so nothing can go unreported',
 	);
 });
+
+test('markers a format cannot carry are reported as omitted, not silently dropped', () => {
+	// The interchange report describes marker selection and clipping, which happens
+	// long before the writer is chosen. A format with no cue chunk drops what
+	// survived that, so without this the delivery reports markers it never wrote.
+	const markedPlan = (format: string) => ({
+		format,
+		sampleRate: 48_000,
+		ditherMode: 'none',
+		encoding: { channelCount: 2, inputChannelCount: 2, sampleFormat: 'float32', floatingPoint: true },
+		markers: [{ id: 1, sampleOffset: 0, sampleLength: 0, label: 'Intro', note: '' }],
+	});
+
+	const omitted = inventoryDeliveryConversions(markedPlan('mp3'), source)
+		.find(({ code }) => code === 'delivery.markers-omitted');
+	assert.equal(omitted?.disposition, 'omitted');
+	assert.equal(omitted?.severity, 'warning');
+	assert.deepEqual(omitted?.data, { markers: 1, format: 'mp3' });
+	assert.equal(
+		countUnreportedDeliveryConversions(markedPlan('mp3'), source, { items: [] }) > 0,
+		true,
+		'and a report that never mentioned it would not pass the gate',
+	);
+
+	for (const format of ['wav', 'bwf', 'bw64']) {
+		assert.equal(
+			inventoryDeliveryConversions(markedPlan(format), source)
+				.some(({ code }) => code === 'delivery.markers-omitted'),
+			false,
+			`${format} writes a cue chunk, so nothing is omitted`,
+		);
+	}
+	assert.equal(
+		inventoryDeliveryConversions({ ...markedPlan('mp3'), markers: [] }, source)
+			.some(({ code }) => code === 'delivery.markers-omitted'),
+		false,
+		'a delivery with no markers omits nothing',
+	);
+});

@@ -137,6 +137,22 @@ export function getMediaExportFormat(format) {
 	return descriptor;
 }
 
+/**
+ * Whether a delivery in this format can carry cues at all.
+ *
+ * Cues are a RIFF feature, so the answer is read off the writer that would emit
+ * them rather than kept as a second list that could drift: only the `native-wav`
+ * backend writes a `cue ` chunk. AIFF's writer ignores markers and every FFmpeg
+ * format is handed a staging WAV with none, so a delivery in any of those loses
+ * its cues — which is a thing to report, not a thing to assume nobody wanted.
+ *
+ * @param {string} format
+ * @returns {boolean}
+ */
+export function mediaExportFormatCarriesCues(format) {
+	return getMediaExportFormat(format).backend === 'native-wav';
+}
+
 /** @returns {MediaExportFormatId} */
 export function canonicalMediaExportFormat(format) {
 	const value = String(format || 'wav').trim().toLowerCase();

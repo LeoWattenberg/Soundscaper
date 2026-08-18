@@ -10,7 +10,12 @@ import {
 import {
 	createMasteringSequenceDeliveryPlan,
 	masteringSequenceDeliveryCues,
+	scaleMasteringSequenceDeliveryPlan,
 } from '../src/common/editor/mastering-sequence-delivery.ts';
+import {
+	countUnreportedDeliveryConversions,
+	createDeliveryReportForPlan,
+} from '../src/common/editor/delivery-conversion-inventory.ts';
 import { createRiffMarkerChunks, parseRiffMarkers } from '../src/common/editor/riff-markers.ts';
 
 const REGIONS = [
@@ -153,23 +158,24 @@ test('the plan is frozen data a delivery can carry without defensive copying', (
 	assert.ok(Object.isFrozen(plan) && Object.isFrozen(plan.segments) && Object.isFrozen(plan.segments[0]));
 });
 
-test('every entry reaches the delivery report with its position and metadata', async () => {
+const deliveryPlan = (format: string, masteringSequence: unknown) => ({
+	format,
+	sampleRate: 48_000,
+	ditherMode: 'none',
+	encoding: { channelCount: 2, sampleFormat: 'float32', floatingPoint: true, inputChannelCount: 2 },
+	masteringSequence,
+});
+
+test('every entry reaches the delivery report with its position and metadata', () => {
 	// Per-region metadata that reached the audio but not the report would be a
-	// delivery decision nobody can see.
-	const { createDeliveryReport, sealDeliveryReport } = await import(
-		'../src/common/editor/delivery-report.ts'
-	);
-	const { addMasteringSequenceDeliveryItems } = await import(
-		'../src/common/editor/mastering-sequence-delivery.ts'
-	);
+	// delivery decision nobody can see, so the items are derived from the plan
+	// rather than appended by whoever wrote the export path.
 	const plan = createMasteringSequenceDeliveryPlan(sequence([
 		{ id: 'e1', annotationId: 'a', title: 'Overture', metadata: { isrc: 'GBAYE0000123' } },
 		{ id: 'e2', annotationId: 'b', gapBeforeFrames: 96_000 },
 	]), REGIONS);
 
-	const draft = createDeliveryReport({ format: 'wav' });
-	addMasteringSequenceDeliveryItems(draft, plan, { cuesSupported: true });
-	const report = sealDeliveryReport(draft);
+	const report = createDeliveryReportForPlan(deliveryPlan('wav', plan), { sampleRate: 48_000 });
 
 	const entries = report.items.filter(({ code }) => code === 'delivery.mastering-sequence-entry');
 	assert.equal(entries.length, 2);
@@ -181,19 +187,11 @@ test('every entry reaches the delivery report with its position and metadata', a
 	assert.ok(report.items.some(({ code }) => code === 'delivery.mastering-sequence-cues'));
 });
 
-test('a format that cannot carry cues reports the omission rather than dropping them', async () => {
-	const { createDeliveryReport, sealDeliveryReport } = await import(
-		'../src/common/editor/delivery-report.ts'
-	);
-	const { addMasteringSequenceDeliveryItems } = await import(
-		'../src/common/editor/mastering-sequence-delivery.ts'
-	);
+test('a format that cannot carry cues reports the omission, and the gate observes it', () => {
 	const plan = createMasteringSequenceDeliveryPlan(sequence([{ id: 'e1', annotationId: 'a' }]), REGIONS);
+	const exportPlan = deliveryPlan('mp3', plan);
 
-	const draft = createDeliveryReport({ format: 'mp3' });
-	addMasteringSequenceDeliveryItems(draft, plan, { cuesSupported: false });
-	const report = sealDeliveryReport(draft);
-
+	const report = createDeliveryReportForPlan(exportPlan, { sampleRate: 48_000 });
 	const omission = report.items.find(({ code }) => code === 'delivery.mastering-sequence-cues-omitted');
 	assert.equal(omission?.disposition, 'omitted');
 	assert.equal(omission?.severity, 'warning');
@@ -202,19 +200,61 @@ test('a format that cannot carry cues reports the omission rather than dropping 
 		false,
 		'a delivery must not claim cues it did not write',
 	);
-	assert.equal(report.counts.omitted, 1, 'and the omission is counted');
+
+	// The acceptance: the omission is inventoried from the plan, so a report that
+	// left it out would be counted rather than believed.
+	assert.equal(countUnreportedDeliveryConversions(exportPlan, { sampleRate: 48_000 }, report), 0);
+	assert.equal(
+		countUnreportedDeliveryConversions(exportPlan, { sampleRate: 48_000 }, {
+			items: report.items.filter(({ code }) => code !== 'delivery.mastering-sequence-cues-omitted'),
+		}),
+		1,
+		'and a report that dropped just this item would not pass',
+	);
 });
 
-test('an empty sequence says nothing about cues either way', async () => {
-	const { createDeliveryReport, sealDeliveryReport } = await import(
-		'../src/common/editor/delivery-report.ts'
+test('an empty sequence says nothing about cues either way', () => {
+	const report = createDeliveryReportForPlan(
+		deliveryPlan('mp3', createMasteringSequenceDeliveryPlan(sequence([]), REGIONS)),
+		{ sampleRate: 48_000 },
 	);
-	const { addMasteringSequenceDeliveryItems } = await import(
-		'../src/common/editor/mastering-sequence-delivery.ts'
+	assert.equal(
+		report.items.some(({ code }) => String(code).startsWith('delivery.mastering-sequence')),
+		false,
 	);
-	const draft = createDeliveryReport({ format: 'mp3' });
-	addMasteringSequenceDeliveryItems(draft, createMasteringSequenceDeliveryPlan(sequence([]), REGIONS), {
-		cuesSupported: false,
+});
+
+test('a delivery is expressed in the rate it is written at, part by part', () => {
+	// Scaling each gap and extent on its own and accumulating keeps the delivered
+	// length the exact sum of its parts; scaling the accumulated positions would
+	// let rounding drift a boundary away from the audio it belongs to.
+	const plan = createMasteringSequenceDeliveryPlan(sequence([
+		{ id: 'e1', annotationId: 'a' },
+		{ id: 'e2', annotationId: 'b', gapBeforeFrames: 96_000, fadeInFrames: 4_800 },
+	]), REGIONS);
+	const scaled = scaleMasteringSequenceDeliveryPlan(plan, {
+		sourceSampleRate: 48_000, outputSampleRate: 96_000,
 	});
-	assert.deepEqual(sealDeliveryReport(draft).items, []);
+
+	assert.deepEqual(scaled.segments.map((segment) => [
+		segment.outputStartFrame, segment.outputEndFrame,
+	]), [[0, 960_000], [1_152_000, 2_112_000]]);
+	assert.equal(scaled.totalFrames, 2_112_000);
+	assert.equal(scaled.segments[1].fadeInFrames, 9_600);
+	assert.deepEqual(
+		scaled.segments.map((segment) => [segment.sourceStartFrame, segment.sourceEndFrame]),
+		plan.segments.map((segment) => [segment.sourceStartFrame, segment.sourceEndFrame]),
+		'source frames say what to render, not what was written, so they keep the project rate',
+	);
+	assert.equal(
+		scaled.totalFrames,
+		scaled.segments.reduce((sum, segment) => sum
+			+ segment.gapBeforeFrames + (segment.outputEndFrame - segment.outputStartFrame), 0),
+		'the delivered length is the sum of its scaled parts',
+	);
+	assert.equal(
+		scaleMasteringSequenceDeliveryPlan(plan, { sourceSampleRate: 48_000, outputSampleRate: 48_000 }),
+		plan,
+		'and an unchanged rate is the same plan, not a copy of it',
+	);
 });
