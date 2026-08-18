@@ -39,14 +39,14 @@ test('the layout the plan states is the downmix the staged mix actually receives
 	const right = Float32Array.from([-1, 0, 1]);
 
 	assert.deepEqual(
-		applyMediaChannelMapping([left, right], stagedAudio(exportPlan({ audioLayout: 'mono' })).channelLayout)
+		applyMediaChannelMapping([left, right], String(stagedAudio(exportPlan({ audioLayout: 'mono' })).channelLayout))
 			.map((channel: Float32Array) => [...channel]),
 		[[0, 0.5, 1]],
 	);
 	// Preserve must hand back the very channels it was given, so an untouched
 	// delivery stages the bytes it always staged.
 	assert.deepEqual(
-		applyMediaChannelMapping([left, right], stagedAudio(exportPlan()).channelLayout)
+		applyMediaChannelMapping([left, right], String(stagedAudio(exportPlan()).channelLayout))
 			.map((channel: Float32Array) => [...channel]),
 		[[1, 1, 1], [-1, 0, 1]],
 	);
@@ -68,7 +68,7 @@ test('a tampered layout is refused by native admission rather than downmixed on 
 test('a video delivery without audio has no layout to state', () => {
 	const plan = exportPlan({ includeAudio: false });
 
-	assert.equal(plan.inputs.some((input: { kind: string }) => input.kind === 'staged-audio-mix'), false);
+	assert.equal(plan.inputs.some((input) => input.kind === 'staged-audio-mix'), false);
 });
 
 test('the layout rides a preset and the dialog request only once it leaves preserve', () => {
@@ -85,7 +85,9 @@ test('the layout rides a preset and the dialog request only once it leaves prese
 		audioLayout: 'mono',
 	});
 	assert.equal(
-		createExportDialogRequest({ ...dialog, videoAudioLayout: 'mono' }, { metadata: {} }).audioLayout,
+		(createExportDialogRequest(
+			{ ...dialog, videoAudioLayout: 'mono' }, { metadata: {} },
+		) as Record<string, unknown>).audioLayout,
 		'mono',
 	);
 });

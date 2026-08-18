@@ -40,6 +40,14 @@ video delivery and a mono audio delivery are the same downmix. A custom matrix
 stays with the audio dialog, which has the per-channel editor that makes one
 legible.
 
+The slice's acceptance evidence is in `tests/fixtures/video-delivery-goldens.ts`.
+Byte-stability is measured rather than asserted: the default-option argument
+vectors were regenerated at 1f2502ee, the commit before 6B-1's first change, and
+came back identical on both the composed-graph and keyed paths. The crop goldens
+pin the readable geometry each 9:16 fit produces — letterboxed at 1080x608 with
+656 above and below, cropped by overlaying a 3413-wide frame that overhangs by
+1166 each side, or stretched to the canvas outright.
+
 Two bounds and one gap are worth naming. A keyed canvas is capped at about 2.09
 megapixels, which is one RGBA frame fitting the keyframe encoder's 8 MiB stream
 limit: 1080×1920 is admitted, 1080×1944 is refused, and the refusal happens at
