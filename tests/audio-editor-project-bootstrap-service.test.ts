@@ -128,7 +128,6 @@ function createFixture(options: Readonly<{ genericReconciliation?: boolean }> = 
 			events.push('load-preferences');
 		},
 		createEffectPresets: (value = 'default') => ({ source: value }),
-		createDeliveryPresets: createDeliveryPresetState,
 		normalizeRecordingInputGain: (value) => Number(value),
 		normalizeLatencyOffset: (value) => Number(value),
 		normalizeAudioDevicePreferences: (value) => {

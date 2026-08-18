@@ -25,7 +25,6 @@ import {
 	loadStoredSourceChannels,
 } from './clip-time-pitch-cache.js';
 import { createAudioEditorEffectPresets, listAudioEditorEffectPresets } from './effect-presets.js';
-import { createDeliveryPresetState } from './delivery-preset-store.ts';
 import {
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
 	audioEffectLabel,
@@ -841,7 +840,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingInputGainDefault: RECORDING_INPUT_GAIN_DEFAULT,
 		loadPreferences,
 		createEffectPresets: createAudioEditorEffectPresets,
-		createDeliveryPresets: createDeliveryPresetState,
 		normalizeRecordingInputGain,
 		normalizeLatencyOffset,
 		normalizeAudioDevicePreferences,

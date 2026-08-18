@@ -3,11 +3,15 @@
 import type { EditorLifetimeToken } from './lifecycle.ts';
 import type { ProjectLifecycleProject } from './project-lifecycle-types.ts';
 import { DELIVERY_PRESETS_SETTING_KEY } from './delivery-preset-service.ts';
+import {
+	createDeliveryPresetState,
+	type DeliveryPresetState,
+} from '../delivery-preset-store.ts';
 
-export interface ProjectBootstrapState<Preferences, EffectPresets, DeliveryPresets> {
+export interface ProjectBootstrapState<Preferences, EffectPresets> {
 	preferences: Preferences;
 	effectPresets: EffectPresets;
-	deliveryPresets: DeliveryPresets;
+	deliveryPresets: DeliveryPresetState;
 	monitoring: boolean;
 	microphoneMetering: boolean;
 	recordingInputGain: number;
@@ -50,9 +54,8 @@ export interface ProjectBootstrapServiceRuntime<
 	Project extends ProjectLifecycleProject,
 	Preferences,
 	EffectPresets,
-	DeliveryPresets,
 > {
-	readonly state: ProjectBootstrapState<Preferences, EffectPresets, DeliveryPresets>;
+	readonly state: ProjectBootstrapState<Preferences, EffectPresets>;
 	readonly lifetimeSignal: AbortSignal;
 	readonly store: ProjectBootstrapStore<Project>;
 	readonly engine: Readonly<{
@@ -65,7 +68,6 @@ export interface ProjectBootstrapServiceRuntime<
 	readonly recordingInputGainDefault: number;
 	readonly loadPreferences: (token: EditorLifetimeToken) => Promise<unknown>;
 	readonly createEffectPresets: (value?: unknown) => EffectPresets;
-	readonly createDeliveryPresets: (value?: unknown) => DeliveryPresets;
 	readonly normalizeRecordingInputGain: (value: unknown) => number;
 	readonly normalizeLatencyOffset: (value: unknown) => number;
 	readonly normalizeAudioDevicePreferences: (value: unknown) => Readonly<{
@@ -114,8 +116,7 @@ export function createProjectBootstrapService<
 	Project extends ProjectLifecycleProject,
 	Preferences,
 	EffectPresets,
-	DeliveryPresets,
->(runtime: ProjectBootstrapServiceRuntime<Project, Preferences, EffectPresets, DeliveryPresets>) {
+>(runtime: ProjectBootstrapServiceRuntime<Project, Preferences, EffectPresets>) {
 	const deferInitialSave = runtime.openRecovery?.deferInitialSave
 		?? runProjectBootstrapOperation;
 	const deferMaintenance = runtime.openRecovery?.deferMaintenance
@@ -152,10 +153,10 @@ export function createProjectBootstrapService<
 			const storedDeliveryPresets = await guard(
 				runtime.store.loadSetting(DELIVERY_PRESETS_SETTING_KEY, null),
 			);
-			runtime.state.deliveryPresets = runtime.createDeliveryPresets(storedDeliveryPresets || {});
+			runtime.state.deliveryPresets = createDeliveryPresetState(storedDeliveryPresets || {});
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
-			runtime.state.deliveryPresets = runtime.createDeliveryPresets();
+			runtime.state.deliveryPresets = createDeliveryPresetState();
 		}
 		runtime.state.monitoring = Boolean(await guard(runtime.store.loadSetting('input-monitor', false)));
 		runtime.state.microphoneMetering = Boolean(await guard(runtime.store.loadSetting('microphone-metering', false)));
