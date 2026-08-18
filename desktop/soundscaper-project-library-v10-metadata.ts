@@ -30,7 +30,7 @@ export interface SoundscaperDesktopLibraryV10Project {
 	readonly metadataFile: string;
 	readonly preferredProduct: 'soundscaper';
 	readonly updatedAtMs: number;
-	readonly projectSchemaVersion: 21;
+	readonly projectSchemaVersion: 23;
 	readonly projectRevision: number;
 	readonly byteLength: number;
 	readonly sha256: string;

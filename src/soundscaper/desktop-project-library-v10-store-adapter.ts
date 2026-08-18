@@ -11,9 +11,14 @@ import {
 } from '../common/editor/storage/project-store-defaults.ts';
 import type { LinkedOriginalStoreService } from '../common/editor/storage/linked-original-store-service.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
-import { assertSoundscaperProductionProfile } from './editor-project-production-profile.ts';
+import {
+	assertSoundscaperProductionProfile,
+	soundscaperProductionProjectClone,
+} from './editor-project-production-profile.ts';
+import type {
+	SoundscaperProductionProject,
+} from './editor-project-production-validation.ts';
 import { soundscaperProductionStoreAuthority } from './editor-project-production-profile.ts';
-import { cloneSoundscaperProjectV21, type SoundscaperProjectV21 } from './editor-project-v21.ts';
 import type {
 	SoundscaperDesktopProjectLibraryV10Renderer,
 } from './desktop-project-library-v10-renderer.ts';
@@ -40,7 +45,7 @@ export interface SoundscaperDesktopProjectStoreV10Local {
 }
 
 export type SoundscaperDesktopProjectStoreV10Adapter<Store> = Store & Readonly<{
-	createProjectIfAbsent(project: unknown): Promise<SoundscaperProjectV21 | null>;
+	createProjectIfAbsent(project: unknown): Promise<SoundscaperProductionProject | null>;
 }>;
 
 const COMPOSITION_FIELDS = ['localStore', 'desktopProjectLibrary'] as const;
@@ -79,11 +84,11 @@ export function createSoundscaperDesktopProjectStoreV10Adapter<Store extends Sou
 	const renderer = composition.desktopProjectLibrary;
 	if (renderer === null) return localStore;
 	assertSoundscaperDesktopProjectLibraryV10RendererComposition(profileValue, localStore, renderer);
-	const lifecycle = ownData(localStore, 'linkedOriginalStoreService', 'Soundscaper V21 local store');
+	const lifecycle = ownData(localStore, 'linkedOriginalStoreService', 'Soundscaper production local store');
 	if (!lifecycle || typeof lifecycle !== 'object'
 		|| typeof inheritedData(lifecycle, 'deleteProject') !== 'function'
 		|| typeof inheritedData(lifecycle, 'duplicateProject') !== 'function') {
-		throw new TypeError('The exact Soundscaper V21 linked-original lifecycle is required.');
+		throw new TypeError('The exact Soundscaper production linked-original lifecycle is required.');
 	}
 	return new Proxy(localStore, proxyHandler(
 		profileValue, localStore, renderer,
@@ -120,12 +125,12 @@ function proxyHandler<Store extends SoundscaperDesktopProjectStoreV10Local>(
 		},
 		saveProject: async (projectValue: unknown, optionsValue: unknown = {}) => {
 			const options = saveOptions(optionsValue);
-			const project = cloneSoundscaperProjectV21(projectValue);
+			const project = soundscaperProductionProjectClone(profile, projectValue);
 			await admitProjectPublication(localStore, project, options);
 			return renderer.publishProject({ project });
 		},
 		createProjectIfAbsent: async (projectValue: unknown) => {
-			const project = cloneSoundscaperProjectV21(projectValue);
+			const project = soundscaperProductionProjectClone(profile, projectValue);
 			if (Number(project.revision) !== 0) {
 				throw new Error('Soundscaper desktop V10 create requires fresh revision zero.');
 			}
@@ -211,11 +216,11 @@ async function assertLocalDuplicateDestinationAbsent(
 
 function assertLocalStore(value: unknown): asserts value is SoundscaperDesktopProjectStoreV10Local {
 	if (!value || typeof value !== 'object') {
-		throw new TypeError('An exact Soundscaper V21 local store is required.');
+		throw new TypeError('An exact Soundscaper production local store is required.');
 	}
 	for (const method of ['ready', 'estimateStorage', 'loadProject', 'listProjects'] as const) {
 		if (typeof inheritedData(value, method) !== 'function') {
-			throw new TypeError(`The Soundscaper V21 local store requires ${method}.`);
+			throw new TypeError(`The Soundscaper production local store requires ${method}.`);
 		}
 	}
 }

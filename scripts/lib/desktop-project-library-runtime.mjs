@@ -233,6 +233,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/inert-json-snapshot.js',
 	'src/common/editor/interpolation-curve-math.js',
 	'src/common/editor/interpolation-curve.js',
+	'src/common/editor/mastering-sequence.js',
 	'src/common/editor/mixer-graph-v21.js',
 	'src/common/editor/parameter-address.js',
 	'src/common/editor/pffft.js',
@@ -263,8 +264,9 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/i18n/canonical-extras.js',
 	'src/common/i18n/locale.js',
 	'src/soundscaper/editor-project-feature-requirements-v21.js',
+	'src/soundscaper/editor-project-feature-requirements-v23.js',
 	'src/soundscaper/editor-project-production-validation.js',
-	'src/soundscaper/editor-project-v21-validation.js',
+	'src/soundscaper/editor-project-v23-validation.js',
 ].sort());
 
 export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outputRoot }) {

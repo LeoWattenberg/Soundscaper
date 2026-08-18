@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
-import type { SoundscaperProjectV21 } from './editor-project-v21.ts';
+import type { SoundscaperProductionProject } from './editor-project-production-validation.ts';
 import {
 	SoundscaperDesktopV10DeleteIntents,
 	type SoundscaperDesktopV10DeleteIntent,
@@ -27,7 +27,7 @@ import {
 export interface SoundscaperDesktopV10RawShadowProjectStore {
 	loadProject(projectId: string): PromiseLike<unknown> | unknown;
 	readonly projectRepository: Readonly<{
-		deleteExact(project: SoundscaperProjectV21): PromiseLike<boolean> | boolean;
+		deleteExact(project: SoundscaperProductionProject): PromiseLike<boolean> | boolean;
 	}>;
 }
 
@@ -68,7 +68,7 @@ export class SoundscaperDesktopProjectLibraryV10IndeterminateError extends Error
 	}
 }
 
-/** Exact main-catalog lifecycle over private renderer witnesses and a raw V21 shadow repository. */
+/** Exact main-catalog lifecycle over private renderer witnesses and a raw production shadow repository. */
 export class SoundscaperDesktopV10RendererCatalog {
 	readonly #profile: EditorProjectRuntimeProfile;
 	readonly #store: SoundscaperDesktopV10RawShadowProjectStore;
@@ -78,7 +78,7 @@ export class SoundscaperDesktopV10RendererCatalog {
 	readonly #tombstones = new Map<string, SoundscaperDesktopV10DeleteIntent>();
 	readonly #reconcile: (
 		snapshot: Readonly<SoundscaperDesktopV10BundleSnapshot>,
-	) => Promise<SoundscaperProjectV21>;
+	) => Promise<SoundscaperProductionProject>;
 
 	constructor(options: Readonly<{
 		profile: EditorProjectRuntimeProfile;
@@ -86,7 +86,7 @@ export class SoundscaperDesktopV10RendererCatalog {
 		bridge: SoundscaperDesktopV10RendererBridge;
 		ledger: SoundscaperDesktopV10WitnessLedger;
 		intents: SoundscaperDesktopV10DeleteIntents;
-		reconcile(snapshot: Readonly<SoundscaperDesktopV10BundleSnapshot>): Promise<SoundscaperProjectV21>;
+		reconcile(snapshot: Readonly<SoundscaperDesktopV10BundleSnapshot>): Promise<SoundscaperProductionProject>;
 	}>) {
 		this.#profile = options.profile;
 		this.#store = options.store;
@@ -108,7 +108,7 @@ export class SoundscaperDesktopV10RendererCatalog {
 
 	async recoverPublication(
 		request: Readonly<{
-			project: SoundscaperProjectV21;
+			project: SoundscaperProductionProject;
 			expectedMetadataRevision: number;
 			expectedProject: Readonly<{
 				projectRevision: number;
@@ -132,7 +132,7 @@ export class SoundscaperDesktopV10RendererCatalog {
 					&& snapshot.bundle.project.sha256 === request.expectedProject.projectSha256) {
 					return null;
 				}
-				throw new Error('Publication recovery found a divergent V21 project outcome.');
+				throw new Error('Publication recovery found a divergent project outcome.');
 			}
 			const catalog = validateSoundscaperDesktopV10CatalogSnapshot(await this.#bridge.listProjects());
 			if (catalog.projects.some(({ id }) => id === projectId)) {
@@ -199,7 +199,7 @@ export class SoundscaperDesktopV10RendererCatalog {
 		const intent = this.#tombstones.get(projectId);
 		if (!intent) return false;
 		if (await this.#store.loadProject(projectId) !== null) {
-			throw new Error('The exact V21 shadow remained after desktop delete reconciliation.');
+			throw new Error('The exact shadow remained after desktop delete reconciliation.');
 		}
 		await this.#intents.remove(intent);
 		this.#tombstones.delete(projectId);
@@ -209,7 +209,7 @@ export class SoundscaperDesktopV10RendererCatalog {
 	async duplicateProject(
 		sourceProjectIdValue: string,
 		optionsValue: Readonly<SoundscaperDesktopV10DuplicateOptions>,
-	): Promise<SoundscaperProjectV21> {
+	): Promise<SoundscaperProductionProject> {
 		const sourceProjectId = validateSoundscaperDesktopV10ProjectId(sourceProjectIdValue);
 		const options = validateSoundscaperDesktopV10DuplicateOptions(optionsValue);
 		await this.observeCatalog();
@@ -279,7 +279,7 @@ export class SoundscaperDesktopV10RendererCatalog {
 
 	async #recoverDuplicate(
 		projectId: string,
-		intended: SoundscaperProjectV21,
+		intended: SoundscaperProductionProject,
 		expectedMetadataRevision: number,
 		primary: unknown,
 	): Promise<Readonly<SoundscaperDesktopV10BundleSnapshot> | null> {

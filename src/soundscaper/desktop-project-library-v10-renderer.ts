@@ -5,9 +5,10 @@ import { isStrictlyHigherProjectRevision } from '../common/editor/project-revisi
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts'
 import {
 	assertSoundscaperProductionProfile,
+	soundscaperProductionProjectClone,
 	soundscaperProductionStoreAuthority,
 } from './editor-project-production-profile.ts'
-import { cloneSoundscaperProjectV21, type SoundscaperProjectV21 } from './editor-project-v21.ts'
+import type { SoundscaperProductionProject } from './editor-project-production-validation.ts'
 import {
 	soundscaperDesktopV10BodiesForProject,
 	resolveSoundscaperDesktopV10RendererBridge,
@@ -57,10 +58,10 @@ export interface SoundscaperDesktopProjectLibraryV10ShadowStore extends
 	loadProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown> | unknown
 	getStatus(): unknown
 	readonly projectRepository: SoundscaperDesktopV10RawShadowProjectStore['projectRepository'] & Readonly<{
-		createForScapeImportIfAbsent(project: SoundscaperProjectV21): PromiseLike<unknown> | unknown
+		createForScapeImportIfAbsent(project: SoundscaperProductionProject): PromiseLike<unknown> | unknown
 		saveIfCurrent(
-			expected: SoundscaperProjectV21,
-			project: SoundscaperProjectV21,
+			expected: SoundscaperProductionProject,
+			project: SoundscaperProductionProject,
 		): PromiseLike<unknown> | unknown
 	}>
 	readonly settingsRepository: SoundscaperDesktopV10DeleteIntentStore
@@ -71,16 +72,16 @@ export interface SoundscaperDesktopProjectLibraryV10ShadowStore extends
 
 export interface SoundscaperDesktopProjectLibraryV10Renderer {
 	listProjects(): Promise<readonly Readonly<SoundscaperDesktopV10ProjectSummary>[]>
-	readProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<SoundscaperProjectV21 | null>
+	readProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<SoundscaperProductionProject | null>
 	publishProject(request: Readonly<{ readonly project: unknown; readonly signal?: AbortSignal }> | unknown):
-		Promise<SoundscaperProjectV21>
+		Promise<SoundscaperProductionProject>
 	deleteProject(projectId: string): Promise<void>
 	cleanupDeletedProject(projectId: string): Promise<boolean>
 	settleDeletedProject(projectId: string): Promise<boolean>
 	duplicateProject(
 		sourceProjectId: string,
 		options: Readonly<SoundscaperDesktopV10DuplicateOptions>,
-	): Promise<SoundscaperProjectV21>
+	): Promise<SoundscaperProductionProject>
 }
 
 const RENDERER_COMPOSITIONS = new WeakMap<object, Readonly<{
@@ -117,7 +118,7 @@ export async function connectSoundscaperDesktopProjectLibraryV10Renderer(
 		throw new Error('The desktop V10 lifecycle requires a durable IndexedDB V21 shadow.')
 	}
 	const handshake = await bridge.connect()
-	validateSoundscaperDesktopV10RendererHandshake(handshake, store.databaseName)
+	validateSoundscaperDesktopV10RendererHandshake(handshake, profile)
 	if (bridge.handshakeState() !== 'admitted') {
 		throw new TypeError('The Soundscaper desktop V10 bridge did not retain its admitted handshake.')
 	}
@@ -217,7 +218,7 @@ class Renderer implements SoundscaperDesktopProjectLibraryV10Renderer {
 		return this.#exclusive(() => this.#catalog.duplicateProject(sourceProjectId, options))
 	}
 
-	async #publishFromWitness(request: RendererPublication): Promise<SoundscaperProjectV21> {
+	async #publishFromWitness(request: RendererPublication): Promise<SoundscaperProductionProject> {
 		const projectId = validateSoundscaperDesktopV10ProjectId(String(request.project.id))
 		await this.#catalog.observeCatalog()
 		const witness = this.#ledger.take(projectId)
@@ -243,15 +244,17 @@ class Renderer implements SoundscaperDesktopProjectLibraryV10Renderer {
 		}
 	}
 
-	async #publish(request: NormalizedPublication): Promise<SoundscaperProjectV21> {
+	async #publish(request: NormalizedPublication): Promise<SoundscaperProductionProject> {
 		throwIfScapeAborted(request.signal)
 		const projectId = validateSoundscaperDesktopV10ProjectId(String(request.project.id))
 		const currentValue = await this.#store.loadProject(
 			projectId, request.signal ? { signal: request.signal } : {},
 		)
-		const current = currentValue == null ? null : cloneSoundscaperProjectV21(currentValue)
+		const current = currentValue == null ? null : soundscaperProductionProjectClone(this.#profile, currentValue)
 		assertLocalCas(this.#profile, current, request)
-		const planned = soundscaperDesktopV10BodiesForProject(request.project, request.documentSha256)
+		const planned = soundscaperDesktopV10BodiesForProject(
+			this.#profile, request.project, request.documentSha256,
+		)
 		const publicationId = createSoundscaperDesktopV10PublicationId()
 		let committed = false
 		try {
@@ -311,7 +314,7 @@ class Renderer implements SoundscaperDesktopProjectLibraryV10Renderer {
 		publicationId: string,
 		bodyIndex: number,
 		descriptor: Readonly<SoundscaperDesktopV10Body>,
-		project: SoundscaperProjectV21,
+		project: SoundscaperProductionProject,
 		signal?: AbortSignal,
 	): Promise<void> {
 		await streamSoundscaperDesktopV10FreezeBody(
@@ -333,12 +336,12 @@ class Renderer implements SoundscaperDesktopProjectLibraryV10Renderer {
 	async #reconcile(
 		snapshot: Readonly<SoundscaperDesktopV10BundleSnapshot>,
 		signal?: AbortSignal,
-	): Promise<SoundscaperProjectV21> {
+	): Promise<SoundscaperProductionProject> {
 		throwIfScapeAborted(signal)
 		const currentValue = await this.#store.loadProject(
 			snapshot.bundle.project.projectId, signal ? { signal } : {},
 		)
-		const current = currentValue == null ? null : cloneSoundscaperProjectV21(currentValue)
+		const current = currentValue == null ? null : soundscaperProductionProjectClone(this.#profile, currentValue)
 		const mode = shadowMode(current, snapshot.project)
 		const acquisition = await acquireSoundscaperDesktopV10FreezeBodies(
 			snapshot, this.#bridge, this.#store, signal,
@@ -354,10 +357,10 @@ class Renderer implements SoundscaperDesktopProjectLibraryV10Renderer {
 			} else {
 				result = await this.#store.projectRepository.saveIfCurrent(current!, snapshot.project)
 			}
-			if (result == null) throw new Error('The V21 renderer shadow changed before desktop reconciliation.')
-			const project = cloneSoundscaperProjectV21(result)
+			if (result == null) throw new Error('The renderer shadow changed before desktop reconciliation.')
+			const project = soundscaperProductionProjectClone(this.#profile, result)
 			if (!sameSoundscaperDesktopV10Project(project, snapshot.project)) {
-				throw new Error('The V21 renderer shadow changed its desktop project document.')
+				throw new Error('The renderer shadow changed its desktop project document.')
 			}
 			acquisition.commit()
 			return project
@@ -381,7 +384,7 @@ class Renderer implements SoundscaperDesktopProjectLibraryV10Renderer {
 }
 
 interface RendererPublication {
-	readonly project: SoundscaperProjectV21
+	readonly project: SoundscaperProductionProject
 	readonly document: string
 	readonly documentSha256: string
 	readonly signal?: AbortSignal
@@ -408,7 +411,7 @@ function rendererPublicationRequest(profile: EditorProjectRuntimeProfile, value:
 
 function assertLocalCas(
 	profile: EditorProjectRuntimeProfile,
-	current: SoundscaperProjectV21 | null,
+	current: SoundscaperProductionProject | null,
 	request: NormalizedPublication,
 ): void {
 	if (request.expectedProject === null) {
@@ -440,8 +443,8 @@ function assertPublicationResult(
 }
 
 function shadowMode(
-	current: SoundscaperProjectV21 | null,
-	project: SoundscaperProjectV21,
+	current: SoundscaperProductionProject | null,
+	project: SoundscaperProductionProject,
 ): 'create' | 'same' | 'update' {
 	if (current === null) {
 		if (Number(project.revision) !== 0) throw new Error('Desktop reconciliation create requires revision zero.')

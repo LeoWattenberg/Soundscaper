@@ -10,7 +10,7 @@ import {
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX,
 } from '../../desktop/project-library-lease-smoke.js';
-import { createSoundscaperProjectV21 } from '../../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProjectV23 } from '../../src/soundscaper/editor-project-v23.ts';
 import { packagedExecutableCandidates, resolveSmokeArchitecture } from './desktop-smoke.mjs';
 
 export const DESKTOP_PROJECT_LIBRARY_LEASE_MATRIX_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_LEASE_MATRIX ';
@@ -428,7 +428,7 @@ function winningDigest(results) {
 	return null;
 }
 export function createDesktopProjectLibraryLeaseMatrixDocument(id, revision, title) {
-	const base = createSoundscaperProjectV21({ id, title });
+	const base = createSoundscaperProjectV23({ id, title });
 	return JSON.stringify({ ...base, revision, metadata: { ...base.metadata, title } });
 }
 function deepFreeze(value) {

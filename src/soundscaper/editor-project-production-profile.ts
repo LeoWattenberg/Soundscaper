@@ -4,6 +4,9 @@ import {
 	editorProjectRuntimeProfileDefinition,
 	type EditorProjectRuntimeProfile,
 } from '../common/editor/project-runtime-profile.ts';
+import { cloneSoundscaperProjectV21 } from './editor-project-v21.ts';
+import { cloneSoundscaperProjectV23 } from './editor-project-v23.ts';
+import type { SoundscaperProductionProject } from './editor-project-production-validation.ts';
 import { SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v21.ts';
 import { SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v23.ts';
 import { soundscaperProjectStoreAuthorityV21 } from './editor-project-store-v21.ts';
@@ -42,4 +45,25 @@ export function soundscaperProductionStoreAuthority(profile: unknown, store: unk
 	return profile === SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE
 		? soundscaperProjectStoreAuthorityV23(profile, store)
 		: soundscaperProjectStoreAuthorityV21(profile, store);
+}
+
+/**
+ * Clone a production document with the exact revision that owns it.
+ *
+ * The desktop library carries whichever production document the mounted
+ * revision writes, so a shared surface that reaches for one revision's cloner
+ * refuses the other outright — `cloneSoundscaperProjectV21` validates as V21 on
+ * the way in, and a V23 document fails there on its schema number before
+ * anything else is looked at. Dispatching on the profile keeps each revision's
+ * own normalization in force instead.
+ */
+export function soundscaperProductionProjectClone(
+	profile: unknown,
+	project: unknown,
+): SoundscaperProductionProject {
+	assertSoundscaperProductionProfile(profile);
+	const clone = profile === SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE
+		? cloneSoundscaperProjectV23(project)
+		: cloneSoundscaperProjectV21(project);
+	return clone as unknown as SoundscaperProductionProject;
 }

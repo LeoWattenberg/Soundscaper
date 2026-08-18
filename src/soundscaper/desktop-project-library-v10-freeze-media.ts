@@ -18,7 +18,7 @@ import {
 } from '../common/editor/scape-expanded-byte-budget.ts'
 import type { StorageRecord } from '../common/editor/storage/media-records.ts'
 import type { AudioSourceWriter } from '../common/editor/storage/source-write-repository.ts'
-import type { SoundscaperProjectV21 } from './editor-project-v21.ts'
+import type { SoundscaperProductionProject } from './editor-project-production-validation.ts'
 import {
 	SOUNDSCAPER_DESKTOP_V10_MAXIMUM_CHUNK_BYTES,
 	validateSoundscaperDesktopV10BodyChunk,
@@ -50,7 +50,7 @@ export interface SoundscaperDesktopV10FreezeAcquisition {
 	rollback(): Promise<void>
 }
 
-/** Acquire every declared freeze body before publishing its exact V21 shadow. */
+/** Acquire every declared freeze body before publishing its exact shadow. */
 export async function acquireSoundscaperDesktopV10FreezeBodies(
 	snapshot: Readonly<SoundscaperDesktopV10BundleSnapshot>,
 	bridge: Pick<SoundscaperDesktopV10RendererBridge, 'readBodyChunk'>,
@@ -104,7 +104,7 @@ export async function acquireSoundscaperDesktopV10FreezeBodies(
 
 /** Stream one canonical local freeze body, refusing geometry, length, or digest drift. */
 export async function streamSoundscaperDesktopV10FreezeBody(
-	project: SoundscaperProjectV21,
+	project: SoundscaperProductionProject,
 	body: Readonly<SoundscaperDesktopV10Body>,
 	store: Pick<SoundscaperDesktopV10FreezeStore, 'readSourceChunks'>,
 	onChunk: (offset: number, bytes: Uint8Array, final: boolean) => PromiseLike<void> | void,
@@ -280,7 +280,7 @@ function bodyEntry(
 }
 
 function freezeSource(
-	project: SoundscaperProjectV21,
+	project: SoundscaperProductionProject,
 	body: Readonly<SoundscaperDesktopV10Body>,
 ): FreezeSource {
 	const sources = project.sources as readonly Readonly<Record<string, unknown>>[]

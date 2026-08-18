@@ -17,7 +17,10 @@ import {
 	createSoundscaperDesktopProjectLibraryV10TransferBodies,
 } from '../desktop/soundscaper-project-library-v10-transfer-contract.ts';
 import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+import {
+	SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
+} from '../desktop/soundscaper-project-library-v10-contract.ts';
 
 const NOW = '2026-08-14T12:00:00.000Z';
 const PCM = canonicalPcm([0.25, -0.5]);
@@ -26,11 +29,14 @@ const PCM_SHA256 = digest(PCM);
 test('Soundscaper main publishes, reopens, duplicates, reads freeze PCM, and deletes by exact CAS', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v10-main-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
-	const project = frozenProject('soundscaper-v21-main', 'Soundscaper V21 main');
+	const project = frozenProject('soundscaper-v23-main', 'Soundscaper V23 main');
 	let main = await start(root, 'soundscaper-main-first');
 	let session = main.openSession(createSoundscaperDesktopProjectLibraryV10Handshake());
 	const published = await publish(session, project, 0, null, PCM, '01'.repeat(24));
-	assert.equal(published.project.projectSchemaVersion, 21);
+	assert.equal(
+		published.project.projectSchemaVersion,
+		SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
+	);
 	assert.deepEqual(JSON.parse(published.document), project);
 	assert.equal(published.bodies.length, 1);
 	await session.close();
@@ -51,8 +57,8 @@ test('Soundscaper main publishes, reopens, duplicates, reads freeze PCM, and del
 
 	const copy = await session.duplicateProject({
 		sourceProjectId: project.id,
-		copyProjectId: 'soundscaper-v21-main-copy',
-		title: 'Soundscaper V21 main copy',
+		copyProjectId: 'soundscaper-v23-main-copy',
+		title: 'Soundscaper V23 main copy',
 		timestamp: '2026-08-14T12:01:00.000Z',
 		expectedMetadataRevision: reopened.metadataRevision,
 		expectedSource: {
@@ -60,8 +66,11 @@ test('Soundscaper main publishes, reopens, duplicates, reads freeze PCM, and del
 			projectSha256: reopened.project.sha256,
 		},
 	});
-	assert.equal(copy.project.projectSchemaVersion, 21);
-	assert.equal(JSON.parse(copy.document).id, 'soundscaper-v21-main-copy');
+	assert.equal(
+		copy.project.projectSchemaVersion,
+		SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
+	);
+	assert.equal(JSON.parse(copy.document).id, 'soundscaper-v23-main-copy');
 	assert.equal(copy.bodies.length, 1);
 	assert.deepEqual(await session.readBodyChunk({
 		projectId: copy.project.projectId,
@@ -92,7 +101,7 @@ test('Soundscaper main publishes, reopens, duplicates, reads freeze PCM, and del
 test('Soundscaper main accepts a higher coalesced project revision under exact base CAS', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v10-main-jump-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
-	const current = frozenProject('soundscaper-v21-main-jump', 'Soundscaper V21 current');
+	const current = frozenProject('soundscaper-v23-main-jump', 'Soundscaper V23 current');
 	const main = await start(root, 'soundscaper-main-jump');
 	context.after(() => main.close());
 	const session = main.openSession(createSoundscaperDesktopProjectLibraryV10Handshake());
@@ -102,7 +111,7 @@ test('Soundscaper main accepts a higher coalesced project revision under exact b
 		projectRevision: first.project.projectRevision,
 		projectSha256: first.project.sha256,
 	};
-	const coalesced = revise(current, 2, 'Soundscaper V21 coalesced');
+	const coalesced = revise(current, 2, 'Soundscaper V23 coalesced');
 	const jumped = await publish(
 		session, coalesced, first.metadataRevision, expected, PCM, '12'.repeat(24),
 	);
@@ -171,7 +180,7 @@ test('main reports writer evidence and admits only lower-only qualification timi
 		},
 	});
 	const session = qualified.openSession(createSoundscaperDesktopProjectLibraryV10Handshake());
-	await publish(session, frozenProject('soundscaper-v21-qualified', 'Qualified'), 0, null, PCM, '0a'.repeat(24));
+	await publish(session, frozenProject('soundscaper-v23-qualified', 'Qualified'), 0, null, PCM, '0a'.repeat(24));
 	await session.close();
 	await qualified.close();
 	assert.deepEqual(phases, ['prepared', 'materialized', 'committed', 'complete']);
@@ -300,7 +309,7 @@ function frozenProject(id: string, title: string) {
 			renderStartFrame: 0, renderFrameCount: 2, capturePosition: 'post-insert-pre-strip',
 		},
 	});
-	return createSoundscaperProjectV21({
+	return createSoundscaperProjectV23({
 		id, title, now: NOW, sources: [source, derived], clips: [clip], tracks: [track],
 		sequences: [{ id: 'main-sequence', trackIds: [track.id] }], primarySequenceId: 'main-sequence',
 	});

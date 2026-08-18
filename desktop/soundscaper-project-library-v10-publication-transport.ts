@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	validateSoundscaperDesktopCurrentProjectV21,
+	validateSoundscaperDesktopCurrentProject,
 } from './soundscaper-project-library-v10-current-project.ts';
 import {
 	MAXIMUM_SOUNDSCAPER_V10_TRANSFER_CHUNK_BYTES,
@@ -66,7 +66,7 @@ export function validateSoundscaperDesktopProjectLibraryV10PublicationBeginReque
 		throw new TypeError('Soundscaper V10 publication project is not JSON serializable');
 	}
 	const project = JSON.parse(document) as unknown;
-	validateSoundscaperDesktopCurrentProjectV21(project);
+	validateSoundscaperDesktopCurrentProject(project);
 	const expectedProject = validateExpectedProject(record.expectedProject);
 	const bodies = denseArray(
 		record.bodies,

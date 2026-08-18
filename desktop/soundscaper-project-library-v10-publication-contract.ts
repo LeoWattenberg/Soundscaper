@@ -4,7 +4,10 @@ import { createHash } from 'node:crypto';
 
 import { isStrictlyHigherProjectRevision } from '../src/common/editor/project-revision-cas.ts';
 import {
-	validateSoundscaperDesktopCurrentProjectV21,
+	SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
+} from './soundscaper-project-library-v10-contract.ts';
+import {
+	validateSoundscaperDesktopCurrentProject,
 } from './soundscaper-project-library-v10-current-project.ts';
 import {
 	freezeRelativeFileForSoundscaperDesktopLibraryBinding,
@@ -126,12 +129,12 @@ export function planSoundscaperDesktopProjectLibraryV10Publication(
 		'expected metadata revision',
 	);
 	const expectedProject = normalizeExpectedProject(request.expectedProject);
-	validateSoundscaperDesktopCurrentProjectV21(request.project);
+	validateSoundscaperDesktopCurrentProject(request.project);
 	const document = JSON.stringify(request.project);
 	if (typeof document !== 'string' || document.length === 0) {
 		throw new TypeError('Soundscaper V10 publication project is not JSON serializable');
 	}
-	const project = validateSoundscaperDesktopCurrentProjectV21(JSON.parse(document) as unknown);
+	const project = validateSoundscaperDesktopCurrentProject(JSON.parse(document) as unknown);
 	const bodyInputs = denseArray(request.bodies, 'Soundscaper V10 publication bodies', MAXIMUM_BODIES)
 		.map(normalizeBodyInput);
 	const currentMetadata = validateSoundscaperDesktopLibraryV10Metadata(currentMetadataValue);
@@ -177,7 +180,7 @@ export function planSoundscaperDesktopProjectLibraryV10Publication(
 		metadataFile: projectRelativeFile,
 		preferredProduct: 'soundscaper' as const,
 		updatedAtMs: nonNegativeInteger(now, 'publication time'),
-		projectSchemaVersion: 21 as const,
+		projectSchemaVersion: SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
 		projectRevision: Number(project.revision),
 		byteLength: projectBytes.byteLength,
 		sha256: projectSha256,

@@ -26,28 +26,47 @@ import {
 	validateSoundscaperDesktopProjectLibraryV10TransferBundle,
 } from '../desktop/soundscaper-project-library-v10-transfer-contract.ts';
 import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
 import {
 	snapshotSoundscaperDesktopV10Project,
 	soundscaperDesktopV10BodiesForProject,
 } from '../src/soundscaper/desktop-project-library-v10-renderer-contract.ts';
-import { SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE } from '../src/soundscaper/editor-project-runtime-profile-v21.ts';
+import { SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE } from '../src/soundscaper/editor-project-runtime-profile-v23.ts';
+import {
+	editorProjectRuntimeProfileDefinition,
+} from '../src/common/editor/project-runtime-profile.ts';
+import {
+	editorProjectRuntimeProfilePrerequisiteDefinition,
+} from '../src/common/editor/project-runtime-profile-prerequisite.ts';
+import {
+	editorProjectStorageProfileNames,
+} from '../src/common/editor/storage/project-storage-profile.ts';
 
 const DIGEST = 'a7'.repeat(32);
 
-test('Soundscaper V10 has an exact V21 handshake and a fresh physical identity', () => {
+// Main declares this identity and the renderer refuses any handshake that does
+// not match its own runtime profile, so the two drifting apart is not a
+// mismatched field somewhere — it is a packaged product that never mounts an
+// editor at all. Deriving the expectation from the mounted profile's
+// prerequisite is what makes the next revision flip fail here rather than in the
+// nightly packaged lease matrix.
+test('Soundscaper V10 hands the renderer the identity its mounted revision declares', () => {
+	const prerequisite = editorProjectRuntimeProfilePrerequisiteDefinition(
+		editorProjectRuntimeProfileDefinition(SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE).prerequisite,
+	);
+	const storage = editorProjectStorageProfileNames(prerequisite.storageProfile);
 	const handshake = createSoundscaperDesktopProjectLibraryV10Handshake();
 	assert.deepEqual(handshake, {
 		kind: 'soundscaper-project-library-handshake',
 		version: 1,
-		owner: 'soundscaper',
-		projectSchemaVersion: 21,
-		scapeFormatVersions: [1, 2],
-		attachedScapeFormatVersion: 2,
-		storageDatabaseName: 'kw-media-soundscaper-editor-v21',
-		desktopLibrarySchemaVersion: 10,
-		desktopDatabaseUserVersion: 12,
-		desktopLibraryScope: ['kw.media', 'soundscaper-project-library', 'v10'],
+		owner: prerequisite.owner,
+		projectSchemaVersion: prerequisite.desktopProjectSchemaVersion,
+		scapeFormatVersions: [...prerequisite.scapeFormatVersions],
+		attachedScapeFormatVersion: prerequisite.attachedScapeFormatVersion,
+		storageDatabaseName: storage.databaseName,
+		desktopLibrarySchemaVersion: prerequisite.desktopLibrarySchemaVersion,
+		desktopDatabaseUserVersion: prerequisite.desktopDatabaseUserVersion,
+		desktopLibraryScope: [...prerequisite.desktopLibraryScope],
 	});
 	assert.deepEqual(validateSoundscaperDesktopProjectLibraryV10Handshake(handshake), handshake);
 	assert.throws(
@@ -78,18 +97,20 @@ test('Soundscaper V10 SQLite identity is user_version 12 and refuses foreign app
 	foreign.close();
 });
 
-test('Soundscaper V10 derives one exact body for every track-owned freeze and validates the full V21 bundle', () => {
+test('Soundscaper V10 derives one exact body for every track-owned freeze and validates the full bundle', () => {
 	const project = frozenProject();
 	const document = JSON.stringify(project);
 	const projectSha256 = sha256(document);
 	const bodies = createSoundscaperDesktopProjectLibraryV10TransferBodies(project, projectSha256);
 	const rendererSnapshot = snapshotSoundscaperDesktopV10Project(
-		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
 		project,
 	);
 	assert.equal(rendererSnapshot.sha256, projectSha256);
 	assert.deepEqual(
-		soundscaperDesktopV10BodiesForProject(project, rendererSnapshot.sha256).bodies,
+		soundscaperDesktopV10BodiesForProject(
+			SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE, project, rendererSnapshot.sha256,
+		).bodies,
 		bodies,
 	);
 	assert.deepEqual(bodies, [{
@@ -109,7 +130,7 @@ test('Soundscaper V10 derives one exact body for every track-owned freeze and va
 			id: 'soundscaper_entry_01', projectId: project.id, name: project.title,
 			metadataFile: `soundscaper_entry_01/0-${projectSha256}.json`,
 			preferredProduct: 'soundscaper', updatedAtMs: Date.parse(String(project.updatedAt)),
-			projectSchemaVersion: 21, projectRevision: 0,
+			projectSchemaVersion: 23, projectRevision: 0,
 			byteLength: new TextEncoder().encode(document).byteLength, sha256: projectSha256,
 		},
 		document,
@@ -118,7 +139,7 @@ test('Soundscaper V10 derives one exact body for every track-owned freeze and va
 	assert.deepEqual(bundle.bodies, bodies);
 	assert.throws(() => validateSoundscaperDesktopProjectLibraryV10TransferBundle({
 		...bundle, bodies: [],
-	}, project.id), /freeze body|incomplete|V21/iu);
+	}, project.id), /freeze body|incomplete|document/iu);
 });
 
 function frozenProject() {
@@ -143,8 +164,8 @@ function frozenProject() {
 			renderStartFrame: 0, renderFrameCount: 2, capturePosition: 'post-insert-pre-strip',
 		},
 	});
-	return createSoundscaperProjectV21({
-		id: 'soundscaper-v21-desktop', title: 'Soundscaper V21 desktop',
+	return createSoundscaperProjectV23({
+		id: 'soundscaper-v23-desktop', title: 'Soundscaper V23 desktop',
 		now: '2026-08-14T12:00:00.000Z', sources: [source, derived], clips: [clip], tracks: [track],
 		sequences: [{ id: 'main-sequence', trackIds: [track.id] }], primarySequenceId: 'main-sequence',
 	});

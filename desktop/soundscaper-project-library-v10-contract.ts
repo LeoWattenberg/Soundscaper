@@ -3,7 +3,8 @@
 import { isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 
 export const SOUNDSCAPER_DESKTOP_LIBRARY_SCHEMA_VERSION = 10 as const;
-export const SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION = 21 as const;
+export const SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION = 23 as const;
+export const SOUNDSCAPER_DESKTOP_LIBRARY_STORAGE_DATABASE_NAME = 'kw-media-soundscaper-editor-v23';
 export const SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_V10_APPLICATION_ID = 0x53534350;
 export const DESKTOP_PROJECT_LIBRARY_V10_APPLICATION_ID =
 	SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_V10_APPLICATION_ID;
@@ -45,10 +46,10 @@ export interface SoundscaperDesktopProjectLibraryV10Handshake {
 	readonly kind: 'soundscaper-project-library-handshake';
 	readonly version: 1;
 	readonly owner: 'soundscaper';
-	readonly projectSchemaVersion: 21;
+	readonly projectSchemaVersion: 23;
 	readonly scapeFormatVersions: readonly [1, 2];
 	readonly attachedScapeFormatVersion: 2;
-	readonly storageDatabaseName: 'kw-media-soundscaper-editor-v21';
+	readonly storageDatabaseName: typeof SOUNDSCAPER_DESKTOP_LIBRARY_STORAGE_DATABASE_NAME;
 	readonly desktopLibrarySchemaVersion: 10;
 	readonly desktopDatabaseUserVersion: 12;
 	readonly desktopLibraryScope: readonly ['kw.media', 'soundscaper-project-library', 'v10'];
@@ -117,7 +118,7 @@ export function createSoundscaperDesktopProjectLibraryV10Handshake():
 		projectSchemaVersion: SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
 		scapeFormatVersions: [1, 2],
 		attachedScapeFormatVersion: 2,
-		storageDatabaseName: 'kw-media-soundscaper-editor-v21',
+		storageDatabaseName: SOUNDSCAPER_DESKTOP_LIBRARY_STORAGE_DATABASE_NAME,
 		desktopLibrarySchemaVersion: SOUNDSCAPER_DESKTOP_LIBRARY_SCHEMA_VERSION,
 		desktopDatabaseUserVersion: DESKTOP_PROJECT_LIBRARY_V10_DATABASE_VERSION,
 		desktopLibraryScope: [...LIBRARY_SCOPE],
@@ -137,7 +138,7 @@ export function validateSoundscaperDesktopProjectLibraryV10Handshake(
 		|| record.owner !== 'soundscaper'
 		|| record.projectSchemaVersion !== SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION
 		|| record.attachedScapeFormatVersion !== 2
-		|| record.storageDatabaseName !== 'kw-media-soundscaper-editor-v21'
+		|| record.storageDatabaseName !== SOUNDSCAPER_DESKTOP_LIBRARY_STORAGE_DATABASE_NAME
 		|| record.desktopLibrarySchemaVersion !== SOUNDSCAPER_DESKTOP_LIBRARY_SCHEMA_VERSION
 		|| record.desktopDatabaseUserVersion !== DESKTOP_PROJECT_LIBRARY_V10_DATABASE_VERSION) {
 		throw new TypeError('Soundscaper desktop V10 handshake identity is unsupported');

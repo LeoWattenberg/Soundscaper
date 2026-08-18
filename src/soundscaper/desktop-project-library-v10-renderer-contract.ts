@@ -3,12 +3,26 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
-import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import {
+	editorProjectRuntimeProfileDefinition,
+	type EditorProjectRuntimeProfile,
+} from '../common/editor/project-runtime-profile.ts';
+import {
+	editorProjectRuntimeProfilePrerequisiteDefinition,
+} from '../common/editor/project-runtime-profile-prerequisite.ts';
+import {
+	editorProjectStorageProfileNames,
+} from '../common/editor/storage/project-storage-profile.ts';
 import { scapeAudioSourceLayout, type ScapeAudioSource } from '../common/editor/scape-archive-media.ts';
 import { parseScapeProjectDocument } from '../common/editor/scape-project-document.ts';
 import { normalizeAudioTrackFreezeV1 } from '../common/editor/audio-track-freeze-v21.ts';
-import { assertSoundscaperProductionProfile } from './editor-project-production-profile.ts';
-import { cloneSoundscaperProjectV21, type SoundscaperProjectV21 } from './editor-project-v21.ts';
+import {
+	assertSoundscaperProductionProfile,
+	soundscaperProductionProjectClone,
+} from './editor-project-production-profile.ts';
+import type {
+	SoundscaperProductionProject,
+} from './editor-project-production-validation.ts';
 
 export const SOUNDSCAPER_DESKTOP_V10_MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
 export const SOUNDSCAPER_DESKTOP_V10_FREEZE_ENCODING = 'audio-f32le-chunks-v1' as const;
@@ -35,7 +49,7 @@ export interface SoundscaperDesktopV10ProjectRow {
 	readonly metadataFile: string;
 	readonly preferredProduct: 'soundscaper';
 	readonly updatedAtMs: number;
-	readonly projectSchemaVersion: 21;
+	readonly projectSchemaVersion: number;
 	readonly projectRevision: number;
 	readonly byteLength: number;
 	readonly sha256: string;
@@ -50,7 +64,7 @@ export interface SoundscaperDesktopV10Bundle {
 
 export interface SoundscaperDesktopV10BundleSnapshot {
 	readonly bundle: Readonly<SoundscaperDesktopV10Bundle>;
-	readonly project: SoundscaperProjectV21;
+	readonly project: SoundscaperProductionProject;
 }
 
 export interface SoundscaperDesktopV10ProjectSummary {
@@ -155,17 +169,38 @@ export function resolveSoundscaperDesktopV10RendererBridge(): SoundscaperDesktop
 	});
 }
 
-export function validateSoundscaperDesktopV10RendererHandshake(value: unknown, databaseName: string): void {
+/**
+ * Admit main's library only if it names the revision this renderer actually runs.
+ *
+ * Every value compared here already exists on the connecting profile's
+ * prerequisite, which is where a revision declares its own document number,
+ * database name and desktop-library identity. Writing the numbers out again as
+ * literals is how the V23 flip broke the packaged product: the renderer moved to
+ * V23's database and schema while this comparison still demanded V21's, so the
+ * handshake was refused, the editor never mounted, and the only visible symptom
+ * was a packaged smoke that waited out its deadline.
+ */
+export function validateSoundscaperDesktopV10RendererHandshake(
+	value: unknown,
+	profile: EditorProjectRuntimeProfile | unknown,
+): void {
+	assertSoundscaperProductionProfile(profile);
+	const prerequisite = editorProjectRuntimeProfilePrerequisiteDefinition(
+		editorProjectRuntimeProfileDefinition(profile).prerequisite,
+	);
+	const storage = editorProjectStorageProfileNames(prerequisite.storageProfile);
 	const handshake = exactRecord(value, HANDSHAKE_FIELDS, 'Soundscaper desktop V10 handshake');
 	if (handshake.kind !== 'soundscaper-project-library-handshake' || handshake.version !== 1
-		|| handshake.owner !== 'soundscaper' || handshake.projectSchemaVersion !== 21
-		|| handshake.attachedScapeFormatVersion !== 2 || handshake.storageDatabaseName !== databaseName
-		|| handshake.desktopLibrarySchemaVersion !== 10 || handshake.desktopDatabaseUserVersion !== 12) {
+		|| handshake.owner !== prerequisite.owner
+		|| handshake.projectSchemaVersion !== prerequisite.desktopProjectSchemaVersion
+		|| handshake.attachedScapeFormatVersion !== prerequisite.attachedScapeFormatVersion
+		|| handshake.storageDatabaseName !== storage.databaseName
+		|| handshake.desktopLibrarySchemaVersion !== prerequisite.desktopLibrarySchemaVersion
+		|| handshake.desktopDatabaseUserVersion !== prerequisite.desktopDatabaseUserVersion) {
 		throw new TypeError('The Soundscaper desktop V10 handshake identity is unsupported.');
 	}
-	exactTuple(handshake.scapeFormatVersions, [1, 2], 'Scape format versions');
-	exactTuple(handshake.desktopLibraryScope,
-		['kw.media', 'soundscaper-project-library', 'v10'], 'library scope');
+	exactTuple(handshake.scapeFormatVersions, prerequisite.scapeFormatVersions, 'Scape format versions');
+	exactTuple(handshake.desktopLibraryScope, prerequisite.desktopLibraryScope, 'library scope');
 }
 
 export function validateSoundscaperDesktopV10CatalogSnapshot(
@@ -199,7 +234,7 @@ export function validateSoundscaperDesktopV10Bundle(
 ): Readonly<SoundscaperDesktopV10BundleSnapshot> {
 	assertSoundscaperProductionProfile(profile);
 	const bundle = exactRecord(value, BUNDLE_FIELDS, 'Soundscaper desktop V10 bundle');
-	const row = projectRow(bundle.project, expectedProjectId);
+	const row = projectRow(bundle.project, expectedProjectId, desktopProjectSchemaVersion(profile));
 	if (typeof bundle.document !== 'string' || bundle.document.length === 0
 		|| bundle.document.length > MAXIMUM_PROJECT_BYTES) {
 		throw new TypeError('The Soundscaper desktop V10 project document is invalid.');
@@ -208,12 +243,13 @@ export function validateSoundscaperDesktopV10Bundle(
 	if (documentBytes.byteLength !== row.byteLength || digestBytes(documentBytes) !== row.sha256) {
 		throw new Error('The Soundscaper desktop V10 project document changed bytes or digest.');
 	}
-	const project = cloneSoundscaperProjectV21(parseScapeProjectDocument(bundle.document));
+	const project = soundscaperProductionProjectClone(profile, parseScapeProjectDocument(bundle.document));
 	if (String(project.id) !== row.projectId || String(project.title) !== row.name
-		|| Number(project.revision) !== row.projectRevision || project.schemaVersion !== 21) {
-		throw new Error('The Soundscaper desktop V10 V21 project disagrees with its metadata.');
+		|| Number(project.revision) !== row.projectRevision
+		|| project.schemaVersion !== row.projectSchemaVersion) {
+		throw new Error('The Soundscaper desktop V10 project disagrees with its metadata.');
 	}
-	const expectedBodies = soundscaperDesktopV10BodiesForProject(project, row.sha256).bodies;
+	const expectedBodies = soundscaperDesktopV10BodiesForProject(profile, project, row.sha256).bodies;
 	const bodies = denseArray(bundle.bodies, 'Soundscaper desktop V10 freeze bodies', MAXIMUM_BODIES)
 		.map(bodyDescriptor);
 	if (JSON.stringify(bodies) !== JSON.stringify(expectedBodies)) {
@@ -231,27 +267,29 @@ export function validateSoundscaperDesktopV10Bundle(
 export function snapshotSoundscaperDesktopV10Project(
 	profile: EditorProjectRuntimeProfile,
 	projectValue: unknown,
-): Readonly<{ project: SoundscaperProjectV21; document: string; byteLength: number; sha256: string }> {
-	assertSoundscaperProductionProfile(profile);
-	const project = cloneSoundscaperProjectV21(projectValue);
+): Readonly<{
+	project: SoundscaperProductionProject; document: string; byteLength: number; sha256: string;
+}> {
+	const project = soundscaperProductionProjectClone(profile, projectValue);
 	const document = JSON.stringify(project);
 	const bytes = new TextEncoder().encode(document);
-	if (bytes.byteLength > MAXIMUM_PROJECT_BYTES) throw new RangeError('The V21 project exceeds the desktop limit.');
+	if (bytes.byteLength > MAXIMUM_PROJECT_BYTES) throw new RangeError('The project exceeds the desktop limit.');
 	return Object.freeze({ project, document, byteLength: bytes.byteLength, sha256: digestBytes(bytes) });
 }
 
 export function soundscaperDesktopV10BodiesForProject(
-	projectValue: SoundscaperProjectV21,
+	profile: EditorProjectRuntimeProfile,
+	projectValue: SoundscaperProductionProject,
 	projectSha256: string,
 ): Readonly<{ readonly bodies: readonly Readonly<SoundscaperDesktopV10Body>[] }> {
-	const project = cloneSoundscaperProjectV21(projectValue);
+	const project = soundscaperProductionProjectClone(profile, projectValue);
 	const sources = project.sources as readonly Readonly<Record<string, unknown>>[];
 	const bodies = project.tracks.flatMap((trackValue) => {
 		const track = trackValue as Readonly<Record<string, unknown>>;
 		if (!Object.hasOwn(track, 'audioFreeze')) return [];
 		const freeze = normalizeAudioTrackFreezeV1(track.audioFreeze);
 		const matches = sources.filter(({ id }) => id === freeze.derivedSourceId);
-		if (matches.length !== 1) throw new Error('A V21 freeze source is missing or ambiguous.');
+		if (matches.length !== 1) throw new Error('A freeze source is missing or ambiguous.');
 		const source = matches[0]!;
 		return [Object.freeze({
 			kind: 'audio-freeze' as const,
@@ -305,12 +343,24 @@ export function validateSoundscaperDesktopV10ProjectId(value: unknown): string {
 	return value;
 }
 
-function projectRow(value: unknown, expectedProjectId: string): Readonly<SoundscaperDesktopV10ProjectRow> {
+/** The document number the connecting revision's prerequisite declares. */
+function desktopProjectSchemaVersion(profile: EditorProjectRuntimeProfile): number {
+	return editorProjectRuntimeProfilePrerequisiteDefinition(
+		editorProjectRuntimeProfileDefinition(profile).prerequisite,
+	).desktopProjectSchemaVersion;
+}
+
+function projectRow(
+	value: unknown,
+	expectedProjectId: string,
+	projectSchemaVersion: number,
+): Readonly<SoundscaperDesktopV10ProjectRow> {
 	const row = exactRecord(value, PROJECT_FIELDS, 'Soundscaper desktop V10 project row');
 	const id = typeof row.id === 'string' && ENTRY_ID.test(row.id) ? row.id : invalid('project entry id');
 	const projectId = validateSoundscaperDesktopV10ProjectId(row.projectId);
 	if (projectId !== validateSoundscaperDesktopV10ProjectId(expectedProjectId)
-		|| row.preferredProduct !== 'soundscaper' || row.projectSchemaVersion !== 21) {
+		|| row.preferredProduct !== 'soundscaper'
+		|| row.projectSchemaVersion !== projectSchemaVersion) {
 		throw new Error('The Soundscaper desktop V10 project row has another owner or identity.');
 	}
 	const projectRevision = nonNegative(row.projectRevision, 'project revision');
@@ -324,7 +374,7 @@ function projectRow(value: unknown, expectedProjectId: string): Readonly<Soundsc
 	return Object.freeze({
 		id, projectId, name: row.name, metadataFile: row.metadataFile,
 		preferredProduct: 'soundscaper', updatedAtMs: nonNegative(row.updatedAtMs, 'update time'),
-		projectSchemaVersion: 21, projectRevision, byteLength, sha256: sha256Value,
+		projectSchemaVersion, projectRevision, byteLength, sha256: sha256Value,
 	});
 }
 

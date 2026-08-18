@@ -21,7 +21,10 @@ import {
 } from '../desktop/soundscaper-project-library-v10-contract.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import { createFramescaperProjectV18 } from '../src/framescaper/editor-project-v18.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+import {
+	SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
+} from '../desktop/soundscaper-project-library-v10-contract.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const COMPOSITION = 'desktop/project-library-product-runtime.js';
@@ -209,9 +212,9 @@ test('staged product selector isolates V10 handlers, preload, sessions, and clos
 		await soundscaperHandlers.get(SOUNDSCAPER_CHANNELS[0])!({ owner: soundscaperOwner }, exactSoundscaperHandshake()),
 		exactSoundscaperHandshake(),
 	);
-	const soundscaperProject = createSoundscaperProjectV21({
-		id: 'soundscaper-v21-package-witness',
-		title: 'Soundscaper V21 package witness',
+	const soundscaperProject = createSoundscaperProjectV23({
+		id: 'soundscaper-v23-package-witness',
+		title: 'Soundscaper V23 package witness',
 		revision: 0,
 		now: '2026-08-14T12:00:00.000Z',
 	});
@@ -232,7 +235,7 @@ test('staged product selector isolates V10 handlers, preload, sessions, and clos
 		project: {
 			projectId: soundscaperProject.id,
 			title: soundscaperProject.title,
-			projectSchemaVersion: 21,
+			projectSchemaVersion: SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
 			projectRevision: 0,
 			metadataRevision: 1,
 			byteLength: new TextEncoder().encode(JSON.stringify(soundscaperProject)).byteLength,

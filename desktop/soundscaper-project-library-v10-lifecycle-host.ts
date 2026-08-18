@@ -6,7 +6,7 @@ import {
 	SoundscaperDesktopProjectLibraryV10Catalog,
 } from './soundscaper-project-library-v10-catalog.ts';
 import {
-	validateSoundscaperDesktopCurrentProjectV21,
+	validateSoundscaperDesktopCurrentProject,
 } from './soundscaper-project-library-v10-current-project.ts';
 import {
 	validateSoundscaperDesktopProjectLibraryV10CatalogSnapshot,
@@ -182,14 +182,14 @@ function duplicateProjectDocument(
 	document: string,
 	request: Readonly<SoundscaperDesktopProjectLibraryV10DuplicateRequest>,
 ) {
-	const source = validateSoundscaperDesktopCurrentProjectV21(JSON.parse(document) as unknown);
+	const source = validateSoundscaperDesktopCurrentProject(JSON.parse(document) as unknown);
 	const project = structuredClone(source) as unknown as Record<string, unknown>;
 	project.id = request.copyProjectId;
 	project.title = request.title;
 	project.revision = 0;
 	project.createdAt = request.timestamp;
 	project.updatedAt = request.timestamp;
-	return validateSoundscaperDesktopCurrentProjectV21(project);
+	return validateSoundscaperDesktopCurrentProject(project);
 }
 
 function matchSourceBodies(

@@ -14,7 +14,7 @@ import {
 	soundscaperDesktopProjectLibraryV10PublicationRefusalCode,
 	type SoundscaperDesktopProjectLibraryV10PublicationCheckpoint,
 } from '../desktop/soundscaper-project-library-v10-publication-contract.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
 
 const PROJECT_ID = 'soundscaper-v10-publication-abort';
 
@@ -177,6 +177,6 @@ async function publish(
 }
 
 function projectAt(revision: number, title: string) {
-	const base = createSoundscaperProjectV21({ id: PROJECT_ID, title });
+	const base = createSoundscaperProjectV23({ id: PROJECT_ID, title });
 	return { ...base, revision, metadata: { ...base.metadata, title } };
 }

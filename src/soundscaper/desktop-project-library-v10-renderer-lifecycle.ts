@@ -2,7 +2,8 @@
 
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { serializeScapeProjectDocument } from '../common/editor/scape-project-document.ts';
-import { cloneSoundscaperProjectV21, type SoundscaperProjectV21 } from './editor-project-v21.ts';
+import { soundscaperProductionProjectClone } from './editor-project-production-profile.ts';
+import type { SoundscaperProductionProject } from './editor-project-production-validation.ts';
 import {
 	validateSoundscaperDesktopV10ProjectId,
 	type SoundscaperDesktopV10BundleSnapshot,
@@ -14,7 +15,7 @@ const MAXIMUM_TITLE_BYTES = 1_024;
 
 export function createSoundscaperDesktopV10RendererOperationId(): string {
 	if (typeof globalThis.crypto?.randomUUID !== 'function') {
-		throw new Error('A cryptographic renderer operation identity is required for V21 reconciliation.');
+		throw new Error('A cryptographic renderer operation identity is required for document reconciliation.');
 	}
 	return `desktop-v10:${globalThis.crypto.randomUUID()}`;
 }
@@ -42,7 +43,7 @@ export type SoundscaperDesktopV10CurrentWitness = Readonly<{
 	readonly kind: 'current';
 	readonly expectedMetadataRevision: number;
 	readonly expectedProject: Readonly<{ readonly projectRevision: number; readonly projectSha256: string }>;
-	readonly project: SoundscaperProjectV21;
+	readonly project: SoundscaperProductionProject;
 }>;
 
 /** Private one-use project witnesses rebased only by a validated local catalog mutation. */
@@ -150,22 +151,21 @@ export function validateSoundscaperDesktopV10DuplicateOptions(
 
 export function createSoundscaperDesktopV10DuplicateProject(
 	profile: EditorProjectRuntimeProfile,
-	source: SoundscaperProjectV21,
+	source: SoundscaperProductionProject,
 	options: Readonly<SoundscaperDesktopV10DuplicateOptions>,
-): SoundscaperProjectV21 {
-	void profile;
+): SoundscaperProductionProject {
 	const value = structuredClone(source) as unknown as Record<string, unknown>;
 	value.id = options.id;
 	value.title = options.title;
 	value.revision = 0;
 	value.createdAt = options.timestamp;
 	value.updatedAt = options.timestamp;
-	return cloneSoundscaperProjectV21(value);
+	return soundscaperProductionProjectClone(profile, value);
 }
 
 export function sameSoundscaperDesktopV10Project(
-	left: SoundscaperProjectV21,
-	right: SoundscaperProjectV21,
+	left: SoundscaperProductionProject,
+	right: SoundscaperProductionProject,
 ): boolean {
 	return serializeScapeProjectDocument(left) === serializeScapeProjectDocument(right);
 }
@@ -174,7 +174,6 @@ function currentWitness(
 	profile: EditorProjectRuntimeProfile,
 	snapshot: Readonly<SoundscaperDesktopV10BundleSnapshot>,
 ): SoundscaperDesktopV10CurrentWitness {
-	void profile;
 	return Object.freeze({
 		kind: 'current',
 		expectedMetadataRevision: snapshot.bundle.metadataRevision,
@@ -182,7 +181,7 @@ function currentWitness(
 			projectRevision: snapshot.bundle.project.projectRevision,
 			projectSha256: snapshot.bundle.project.sha256,
 		}),
-		project: cloneSoundscaperProjectV21(snapshot.project),
+		project: soundscaperProductionProjectClone(profile, snapshot.project),
 	});
 }
 

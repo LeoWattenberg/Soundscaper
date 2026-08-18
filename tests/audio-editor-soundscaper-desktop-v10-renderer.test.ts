@@ -23,14 +23,14 @@ import {
 	createSoundscaperDesktopProjectStoreV10Adapter,
 } from '../src/soundscaper/desktop-project-library-v10-store-adapter.ts'
 import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts'
-import { SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE } from '../src/soundscaper/editor-project-runtime-profile-v21.ts'
-import { createSoundscaperEditorProjectEnvironmentV21 } from '../src/soundscaper/editor-project-environment-v21.ts'
-import { createSoundscaperProjectStoreV21 } from '../src/soundscaper/editor-project-store-v21.ts'
+import { SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE } from '../src/soundscaper/editor-project-runtime-profile-v23.ts'
+import { createSoundscaperEditorProjectEnvironmentV23 } from '../src/soundscaper/editor-project-environment-v23.ts'
+import { createSoundscaperProjectStoreV23 } from '../src/soundscaper/editor-project-store-v23.ts'
 import {
-	cloneSoundscaperProjectV21,
-	createSoundscaperProjectV21,
-	type SoundscaperProjectV21,
-} from '../src/soundscaper/editor-project-v21.ts'
+	cloneSoundscaperProjectV23,
+	createSoundscaperProjectV23,
+	type SoundscaperProjectV23,
+} from '../src/soundscaper/editor-project-v23.ts'
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js'
 
 const assetLoader = `
@@ -47,50 +47,50 @@ const NOW = '2026-08-14T12:00:00.000Z'
 const PCM = canonicalPcm([0.25, -0.5])
 const PCM_SHA256 = digest(PCM)
 
-test('renderer and store adapter preserve exact V21 production state and canonical freeze PCM', async (context) => {
+test('renderer and store adapter preserve exact V23 production state and canonical freeze PCM', async (context) => {
 	const store = await durableStore(context)
-	const project = productionProject('soundscaper-renderer-v21')
+	const project = productionProject('soundscaper-renderer-v23')
 	const bridge = new BridgeFixture(project, PCM)
 	installBridge(context, bridge.api)
 	const renderer = await connectSoundscaperDesktopProjectLibraryV10Renderer(
-		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
 		{ store: store as unknown as SoundscaperDesktopProjectLibraryV10ShadowStore },
 	)
 	assert.ok(renderer)
 	const desktopStore = createSoundscaperDesktopProjectStoreV10Adapter(
-		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
 		{ localStore: store, desktopProjectLibrary: renderer },
 	)
 
-	const loaded = await desktopStore.loadProject(String(project.id)) as SoundscaperProjectV21
+	const loaded = await desktopStore.loadProject(String(project.id)) as SoundscaperProjectV23
 	assert.deepEqual(productionState(loaded), productionState(project))
 	assert.deepEqual(await storedSamples(store, 'derived:freeze-source'), [0.25, -0.5])
 
-	const next = structuredClone(project) as SoundscaperProjectV21 & { revision: number; title: string; updatedAt: string }
+	const next = structuredClone(project) as SoundscaperProjectV23 & { revision: number; title: string; updatedAt: string }
 	next.revision = 1
-	next.title = 'Published exact V21'
+	next.title = 'Published exact V23'
 	next.updatedAt = '2026-08-14T12:01:00.000Z'
 	const saved = await desktopStore.saveProject(next)
 	assert.deepEqual(saved, next)
-	assert.deepEqual(productionState(saved as SoundscaperProjectV21), productionState(project))
+	assert.deepEqual(productionState(saved as SoundscaperProjectV23), productionState(project))
 	assert.deepEqual(bridge.uploaded, PCM)
 	assert.deepEqual(await store.loadProject(String(project.id)), next)
 	assert.equal(desktopStore.preservesProjectsOnClear(), true)
 	assert.equal(desktopStore.prepareProjectHandoff, undefined)
 })
 
-test('coalesced V21 autosave publishes only the latest higher revision through desktop V10', async (context) => {
+test('coalesced V23 autosave publishes only the latest higher revision through desktop V10', async (context) => {
 	const store = await durableStore(context)
 	const current = productionProject('soundscaper-coalesced-autosave')
 	const bridge = new BridgeFixture(current, PCM)
 	installBridge(context, bridge.api)
 	const renderer = await connectSoundscaperDesktopProjectLibraryV10Renderer(
-		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
 		{ store: store as unknown as SoundscaperDesktopProjectLibraryV10ShadowStore },
 	)
 	assert.ok(renderer)
 	const desktopStore = createSoundscaperDesktopProjectStoreV10Adapter(
-		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
 		{ localStore: store, desktopProjectLibrary: renderer },
 	)
 	await desktopStore.loadProject(String(current.id))
@@ -103,7 +103,7 @@ test('coalesced V21 autosave publishes only the latest higher revision through d
 	const state = {
 		autosaveTimer: 0,
 		saveGeneration: 0,
-		pendingSaveSnapshots: new Set<SoundscaperProjectV21>(),
+		pendingSaveSnapshots: new Set<SoundscaperProjectV23>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
 		saveState: 'saved',
 	}
@@ -158,12 +158,12 @@ test('desktop V10 reconciles an authoritative revision jump but refuses a local-
 	const bridge = new BridgeFixture(current, PCM)
 	installBridge(context, bridge.api)
 	const renderer = await connectSoundscaperDesktopProjectLibraryV10Renderer(
-		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
 		{ store: store as unknown as SoundscaperDesktopProjectLibraryV10ShadowStore },
 	)
 	assert.ok(renderer)
 	const desktopStore = createSoundscaperDesktopProjectStoreV10Adapter(
-		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
 		{ localStore: store, desktopProjectLibrary: renderer },
 	)
 	await desktopStore.loadProject(String(current.id))
@@ -197,15 +197,15 @@ test('desktop V10 revision jumps retain the exact local base digest compare-and-
 	const bridge = new BridgeFixture(current, PCM)
 	installBridge(context, bridge.api)
 	const renderer = await connectSoundscaperDesktopProjectLibraryV10Renderer(
-		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
 		{ store: store as unknown as SoundscaperDesktopProjectLibraryV10ShadowStore },
 	)
 	assert.ok(renderer)
 	const desktopStore = createSoundscaperDesktopProjectStoreV10Adapter(
-		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
 		{ localStore: store, desktopProjectLibrary: renderer },
 	)
-	const loaded = cloneSoundscaperProjectV21(await desktopStore.loadProject(String(current.id)))
+	const loaded = cloneSoundscaperProjectV23(await desktopStore.loadProject(String(current.id)))
 	const divergent = revisedProject(
 		loaded, 0, 'Divergent local base', '2026-08-14T12:00:00.000Z',
 	)
@@ -223,13 +223,13 @@ test('desktop V10 revision jumps retain the exact local base digest compare-and-
 	assert.deepEqual(await store.loadProject(String(current.id)), divergent)
 })
 
-test('renderer refuses corrupt freeze PCM before publishing any V21 shadow or source', async (context) => {
+test('renderer refuses corrupt freeze PCM before publishing any V23 shadow or source', async (context) => {
 	const store = await durableStore(context)
 	const project = productionProject('soundscaper-renderer-corrupt')
 	const bridge = new BridgeFixture(project, PCM.slice(0, PCM.byteLength - 1))
 	installBridge(context, bridge.api)
 	const renderer = await connectSoundscaperDesktopProjectLibraryV10Renderer(
-		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
 		{ store: store as unknown as SoundscaperDesktopProjectLibraryV10ShadowStore },
 	)
 	assert.ok(renderer)
@@ -239,11 +239,11 @@ test('renderer refuses corrupt freeze PCM before publishing any V21 shadow or so
 	assert.equal(await store.getSourceMetadata('derived:freeze-source'), null)
 })
 
-test('V21 environment selects the admitted desktop renderer and main-first store overlay', async (context) => {
+test('V23 environment selects the admitted desktop renderer and main-first store overlay', async (context) => {
 	const project = productionProject('soundscaper-environment-desktop')
 	const bridge = new BridgeFixture(project, PCM)
 	installBridge(context, bridge.api)
-	const environment = await createSoundscaperEditorProjectEnvironmentV21({
+	const environment = await createSoundscaperEditorProjectEnvironmentV23({
 		storeOptions: {
 			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
 			preferOpfs: false,
@@ -252,24 +252,24 @@ test('V21 environment selects the admitted desktop renderer and main-first store
 	context.after(() => environment.close())
 	assert.ok(environment.desktopProjectLibrary)
 	assert.notEqual(environment.controllerStore, environment.store)
-	const loaded = await environment.controllerStore.loadProject(String(project.id)) as SoundscaperProjectV21
+	const loaded = await environment.controllerStore.loadProject(String(project.id)) as SoundscaperProjectV23
 	assert.deepEqual(productionState(loaded), productionState(project))
 	assert.deepEqual(await storedSamples(environment.store, 'derived:freeze-source'), [0.25, -0.5])
 })
 
-test('desktop V21 bootstrap publishes one canonical revision-zero project before readiness', async (context) => {
+test('desktop V23 bootstrap publishes one canonical revision-zero project before readiness', async (context) => {
 	const bridge = new BridgeFixture(null, new Uint8Array())
 	installBridge(context, bridge.api)
-	const environment = await createSoundscaperEditorProjectEnvironmentV21({
+	const environment = await createSoundscaperEditorProjectEnvironmentV23({
 		storeOptions: {
 			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
 			preferOpfs: false,
 		},
 	})
-	const { createSoundscaperAudioEditorControllerV21 } = await import(
-		'../src/soundscaper/editor-controller-v21.ts'
+	const { createSoundscaperAudioEditorControllerV23 } = await import(
+		'../src/soundscaper/editor-controller-v23.ts'
 	)
-	const controller = createSoundscaperAudioEditorControllerV21(environment)
+	const controller = createSoundscaperAudioEditorControllerV23(environment)
 	context.after(async () => {
 		await controller.dispose()
 		await environment.close()
@@ -284,24 +284,24 @@ test('desktop V21 bootstrap publishes one canonical revision-zero project before
 	assert.equal(bridge.projectRevision(String(ready.project?.id)), 0)
 })
 
-test('desktop adapter duplicates and deletes exact V21 projects while retaining shared freeze PCM', async (context) => {
+test('desktop adapter duplicates and deletes exact V23 projects while retaining shared freeze PCM', async (context) => {
 	const store = await durableStore(context)
 	const project = productionProject('soundscaper-desktop-lifecycle')
 	const bridge = new BridgeFixture(project, PCM)
 	installBridge(context, bridge.api)
 	const renderer = await connectSoundscaperDesktopProjectLibraryV10Renderer(
-		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
 		{ store: store as unknown as SoundscaperDesktopProjectLibraryV10ShadowStore },
 	)
 	assert.ok(renderer)
 	const desktopStore = createSoundscaperDesktopProjectStoreV10Adapter(
-		SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE,
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
 		{ localStore: store, desktopProjectLibrary: renderer },
 	)
 	await desktopStore.loadProject(String(project.id))
 	const copy = await desktopStore.duplicateProject(String(project.id), {
 		id: 'soundscaper-desktop-lifecycle-copy', title: 'Soundscaper lifecycle copy',
-	}) as SoundscaperProjectV21
+	}) as SoundscaperProjectV23
 	assert.equal(copy.id, 'soundscaper-desktop-lifecycle-copy')
 	assert.equal(copy.revision, 0)
 	assert.deepEqual(productionState(copy), productionState(project))
@@ -318,14 +318,14 @@ class BridgeFixture {
 	#connected = false
 	#metadataRevision: number
 	#publicationCount = 0
-	readonly #projects = new Map<string, SoundscaperProjectV21>()
+	readonly #projects = new Map<string, SoundscaperProjectV23>()
 	readonly #bodies = new Map<string, Uint8Array>()
-	#active: Readonly<{ project: SoundscaperProjectV21; bodies: readonly Readonly<SoundscaperDesktopV10Body>[] }> | null = null
+	#active: Readonly<{ project: SoundscaperProjectV23; bodies: readonly Readonly<SoundscaperDesktopV10Body>[] }> | null = null
 	#chunks: Uint8Array[] = []
 	#offset = 0
 	#uploaded: Uint8Array<ArrayBufferLike> = new Uint8Array()
 
-	constructor(project: SoundscaperProjectV21 | null, body: Uint8Array) {
+	constructor(project: SoundscaperProjectV23 | null, body: Uint8Array) {
 		this.#metadataRevision = project === null ? 0 : 1
 		if (project !== null) {
 			this.#projects.set(String(project.id), structuredClone(project))
@@ -354,7 +354,7 @@ class BridgeFixture {
 			beginPublication: async (request: Record<string, unknown>) => {
 				this.#publicationCount += 1
 				assert.equal(request.expectedMetadataRevision, this.#metadataRevision)
-				const project = structuredClone(request.project) as SoundscaperProjectV21
+				const project = structuredClone(request.project) as SoundscaperProjectV23
 				const bodies = request.bodies as readonly Readonly<SoundscaperDesktopV10Body>[]
 				assert.deepEqual(bodies, bundle(project, this.#metadataRevision + 1).bodies)
 				this.#active = Object.freeze({ project, bodies })
@@ -415,7 +415,7 @@ class BridgeFixture {
 				assert.equal(this.#projects.has(copyId), false)
 				assert.equal(request.expectedMetadataRevision, this.#metadataRevision)
 				assertExpectedProject(request.expectedSource, source)
-				const copy = structuredClone(source) as SoundscaperProjectV21 & {
+				const copy = structuredClone(source) as SoundscaperProjectV23 & {
 					id: string; title: string; revision: number; createdAt: string; updatedAt: string;
 				}
 				copy.id = copyId
@@ -434,7 +434,7 @@ class BridgeFixture {
 	get uploaded(): Uint8Array { return this.#uploaded.slice() }
 	get metadataRevision(): number { return this.#metadataRevision }
 	get publicationCount(): number { return this.#publicationCount }
-	replaceAuthoritative(project: SoundscaperProjectV21): void {
+	replaceAuthoritative(project: SoundscaperProjectV23): void {
 		this.#projects.set(String(project.id), structuredClone(project))
 		this.#metadataRevision += 1
 	}
@@ -445,8 +445,8 @@ class BridgeFixture {
 	}
 }
 
-function bundle(project: SoundscaperProjectV21, metadataRevision: number) {
-	const snapshot = snapshotSoundscaperDesktopV10Project(SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE, project)
+function bundle(project: SoundscaperProjectV23, metadataRevision: number) {
+	const snapshot = snapshotSoundscaperDesktopV10Project(SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE, project)
 	const id = 'soundscaper_desktop_entry_01'
 	return Object.freeze({
 		metadataRevision,
@@ -457,31 +457,33 @@ function bundle(project: SoundscaperProjectV21, metadataRevision: number) {
 			metadataFile: `${id}/${String(project.revision)}-${snapshot.sha256}.json`,
 			preferredProduct: 'soundscaper' as const,
 			updatedAtMs: Date.parse(String(project.updatedAt)),
-			projectSchemaVersion: 21 as const,
+			projectSchemaVersion: 23 as const,
 			projectRevision: Number(project.revision),
 			byteLength: snapshot.byteLength,
 			sha256: snapshot.sha256,
 		}),
 		document: snapshot.document,
-		bodies: soundscaperDesktopV10BodiesForProject(project, snapshot.sha256).bodies,
+		bodies: soundscaperDesktopV10BodiesForProject(
+			SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE, project, snapshot.sha256,
+		).bodies,
 	})
 }
 
-function summary(project: SoundscaperProjectV21) {
+function summary(project: SoundscaperProjectV23) {
 	return Object.freeze({
 		id: String(project.id), title: String(project.title), revision: Number(project.revision),
 		updatedAt: String(project.updatedAt),
 	})
 }
 
-function assertExpectedProject(value: unknown, project: SoundscaperProjectV21): void {
+function assertExpectedProject(value: unknown, project: SoundscaperProjectV23): void {
 	const expected = value as Readonly<{ projectRevision: number; projectSha256: string }>
-	const snapshot = snapshotSoundscaperDesktopV10Project(SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE, project)
+	const snapshot = snapshotSoundscaperDesktopV10Project(SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE, project)
 	assert.equal(expected.projectRevision, project.revision)
 	assert.equal(expected.projectSha256, snapshot.sha256)
 }
 
-function productionProject(id: string): SoundscaperProjectV21 {
+function productionProject(id: string): SoundscaperProjectV23 {
 	const mixer = structuredClone(createDefaultMixerGraphV21([{ id: 'voice' }], 2))
 	;(mixer.vcas as unknown as Array<Record<string, unknown>>).push({
 		id: 'voice-vca', name: 'Voice VCA', gain: 0.9, mute: false,
@@ -508,8 +510,8 @@ function productionProject(id: string): SoundscaperProjectV21 {
 			renderStartFrame: 0, renderFrameCount: 2, capturePosition: 'post-insert-pre-strip',
 		},
 	})
-	return createSoundscaperProjectV21({
-		id, title: 'Soundscaper V21 renderer', now: NOW,
+	return createSoundscaperProjectV23({
+		id, title: 'Soundscaper V23 renderer', now: NOW,
 		sources: [source, derived], clips: [clip], tracks: [track],
 		sequences: [{ id: 'main-sequence', trackIds: [track.id] }], primarySequenceId: 'main-sequence',
 		mixer,
@@ -526,7 +528,7 @@ function productionProject(id: string): SoundscaperProjectV21 {
 	})
 }
 
-function productionState(project: SoundscaperProjectV21) {
+function productionState(project: SoundscaperProjectV23) {
 	return {
 		automationLanes: project.automationLanes,
 		mixer: project.mixer,
@@ -535,12 +537,12 @@ function productionState(project: SoundscaperProjectV21) {
 }
 
 function revisedProject(
-	project: SoundscaperProjectV21,
+	project: SoundscaperProjectV23,
 	revision: number,
 	title: string,
 	updatedAt: string,
-): SoundscaperProjectV21 {
-	const next = structuredClone(project) as SoundscaperProjectV21 & {
+): SoundscaperProjectV23 {
+	const next = structuredClone(project) as SoundscaperProjectV23 & {
 		revision: number; title: string; updatedAt: string;
 	}
 	next.revision = revision
@@ -550,7 +552,7 @@ function revisedProject(
 }
 
 async function durableStore(context: TestContext) {
-	const store = createSoundscaperProjectStoreV21({
+	const store = createSoundscaperProjectStoreV23({
 		indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
 		preferOpfs: false,
 	})
@@ -573,7 +575,7 @@ function installBridge(context: TestContext, api: unknown): void {
 }
 
 async function storedSamples(
-	store: ReturnType<typeof createSoundscaperProjectStoreV21>,
+	store: ReturnType<typeof createSoundscaperProjectStoreV23>,
 	sourceId: string,
 ): Promise<number[]> {
 	const samples: number[] = []
