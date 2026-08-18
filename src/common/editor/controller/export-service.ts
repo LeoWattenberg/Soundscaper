@@ -28,8 +28,10 @@ import {
 	assertDeliveryConformance,
 	type DeliveryConformanceFinding,
 } from '../delivery-conformance.ts';
-import { conformDeliveredExport } from './delivery-conformance-action.ts';
-import { withDeliveredLoudness } from '../loudness-normalization.ts';
+import {
+	conformDeliveredExport,
+	conformedDeliveryReport,
+} from './delivery-conformance-action.ts';
 export interface ExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -228,21 +230,11 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				// mode somebody has to remember to run.
 				const conformance = await conformDeliveredExport(plan, encoded);
 				assertExportCurrent();
-				if (encoded.loudnessNormalization || conformance.length > 0) {
-					// Neither normalization nor conformance can be described by the plan
-					// alone: the gain is not known until the render has been measured,
-					// and whether the bytes agree with the plan is not derivable from
-					// the plan. The report is rebuilt rather than appended to, because
-					// a sealed report's counts have to keep agreeing with its items.
-					state.deliveryReport = createDeliveryReportForPlan(
-						plan,
-						{ sampleRate: exportProject.sampleRate },
-						encoded.loudnessNormalization
-							? withDeliveredLoudness(encoded.loudnessNormalization, encoded.deliveredLoudness)
-							: null,
-						conformance,
-					);
-				}
+				state.deliveryReport = conformedDeliveryReport({
+					plan, sampleRate: exportProject.sampleRate, conformance,
+					loudness: encoded.loudnessNormalization,
+					deliveredLoudness: encoded.deliveredLoudness,
+				}) ?? state.deliveryReport;
 				// The report is published first, so a delivery that failed its own
 				// conformance can still say why.
 				assertDeliveryConformance(conformance);
@@ -306,12 +298,11 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				}
 			}
 			if (stemConformance.length > 0) {
-				// Same rule the mix branch follows: whether the bytes agree with the
-				// plan is not derivable from the plan, so the report is rebuilt with
-				// what the delivery found, and published before the failure is thrown.
-				state.deliveryReport = createDeliveryReportForPlan(
-					plan, { sampleRate: exportProject.sampleRate }, null, stemConformance,
-				);
+				// Same rule the mix branch follows: the report is rebuilt with what the
+				// delivery found, and published before the failure is thrown.
+				state.deliveryReport = conformedDeliveryReport({
+					plan, sampleRate: exportProject.sampleRate, conformance: stemConformance,
+				}) ?? state.deliveryReport;
 				assertDeliveryConformance(stemConformance);
 			}
 			assertExportCurrent();

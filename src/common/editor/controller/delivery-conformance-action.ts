@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { inspectWavBlobPcm } from '../wav-import.js';
+import { createDeliveryReportForPlan } from '../delivery-conversion-inventory.ts';
+import { withDeliveredLoudness } from '../loudness-normalization.ts';
+import type { DeliveryReport } from '../delivery-report.ts';
 import {
 	CONFORMANCE_READABLE_FORMATS,
 	conformDeliveredAudio,
@@ -72,4 +75,31 @@ function emptySource(): DeliveredByteSource {
 
 function inspectDelivered(source: DeliveredByteSource): Promise<Readonly<Record<string, unknown>>> {
 	return inspectWavBlobPcm(source) as Promise<Readonly<Record<string, unknown>>>;
+}
+
+/**
+ * The report a conformed delivery should now carry, or nothing to change.
+ *
+ * Neither the applied gain nor whether the bytes agree with the plan is
+ * derivable from the plan alone, so a delivery that measured or checked itself
+ * needs its report rebuilt rather than appended to — a sealed report's counts
+ * have to keep agreeing with its items. Returning null when there is nothing to
+ * add is what lets an ordinary delivery keep the report it was planned with.
+ */
+export function conformedDeliveryReport(options: Readonly<{
+	plan: DeliveryConformancePlan;
+	sampleRate: number;
+	conformance: readonly DeliveryConformanceFinding[];
+	loudness?: unknown;
+	deliveredLoudness?: unknown;
+}>): DeliveryReport | null {
+	if (!options.loudness && options.conformance.length === 0) return null;
+	return createDeliveryReportForPlan(
+		options.plan as never,
+		{ sampleRate: options.sampleRate },
+		options.loudness
+			? withDeliveredLoudness(options.loudness as never, options.deliveredLoudness as never)
+			: null,
+		options.conformance,
+	);
 }
