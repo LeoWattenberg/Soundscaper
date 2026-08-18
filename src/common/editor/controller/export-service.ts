@@ -24,7 +24,10 @@ import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } fro
 import { createEditorVideoExportAction } from './video-export-service.ts';
 import { createExportSnapshotRenderer } from './export-snapshot-renderer.ts';
 import { createDeliveryReportForPlan } from '../delivery-conversion-inventory.ts';
-import { assertDeliveryConformance } from '../delivery-conformance.ts';
+import {
+	assertDeliveryConformance,
+	type DeliveryConformanceFinding,
+} from '../delivery-conformance.ts';
 import { conformDeliveredExport } from './delivery-conformance-action.ts';
 import { withDeliveredLoudness } from '../loudness-normalization.ts';
 export interface ExportServiceRuntime {
@@ -195,6 +198,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			let fileName;
 			let outputCleanup = null;
 			let directOutput = null;
+			let stemConformance: readonly DeliveryConformanceFinding[] = [];
 			if (plan.mode === 'mix') {
 				const encoded = await renderAndEncode(
 					exportProject, plan, settings, abort.signal, exportRenderSources,
@@ -252,11 +256,17 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					},
 					onStemComplete(progress) { updateExportProgress(progress); },
 				});
+				// Streamed straight to its destination, so no stem was ever held as
+				// readable bytes. Saying so is the point: a stems delivery reported
+				// nothing at all about conformance, and a silent report reads as a
+				// clean one rather than as an unchecked one.
+				stemConformance = await conformDeliveredExport(plan, { directDestination: true });
 				fileName = plan.archive.fileName;
 			} else {
 				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
 				const archive = await createStreamingStemArchive(plan.archive, copy);
 				try {
+					const findings: DeliveryConformanceFinding[] = [];
 					for (let index = 0; index < plan.outputs.length; index += 1) {
 						throwIfAborted(abort.signal);
 						const output = plan.outputs[index];
@@ -266,12 +276,16 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 							end: (index + 1) / plan.outputs.length,
 						});
 						try {
+							// Every stem is a file the reader can reopen, so each one is
+							// conformed from its own bytes before it joins the archive.
+							findings.push(...await conformDeliveredExport(plan, encoded));
 							await archive.add(output.fileName, encoded.blob || encoded.bytes, abort.signal);
 						} finally {
 							await encoded.cleanup?.();
 						}
 						updateExportProgress((index + 1) / plan.outputs.length);
 					}
+					stemConformance = Object.freeze(findings);
 					const result = await archive.finish();
 					outputCleanup = result.cleanup;
 					pendingCleanup = outputCleanup;
@@ -283,6 +297,15 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					await archive.abort();
 					throw error;
 				}
+			}
+			if (stemConformance.length > 0) {
+				// Same rule the mix branch follows: whether the bytes agree with the
+				// plan is not derivable from the plan, so the report is rebuilt with
+				// what the delivery found, and published before the failure is thrown.
+				state.deliveryReport = createDeliveryReportForPlan(
+					plan, { sampleRate: exportProject.sampleRate }, null, stemConformance,
+				);
+				assertDeliveryConformance(stemConformance);
 			}
 			assertExportCurrent();
 			if (directOutput) {

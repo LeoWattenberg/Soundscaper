@@ -75,6 +75,52 @@ test('a delivery that fails conformance does not strand the file it staged', asy
 	assert.ok(fixture.calls.includes('sink-remove'), 'the staged file is removed rather than orphaned');
 });
 
+test('a stems delivery conforms every stem instead of reporting nothing', async () => {
+	// Conformance ran only in the mix branch, so a stems delivery's report carried
+	// no conformance items at all — neither findings nor the unverified marker —
+	// and a silent report reads as a clean one. A corrupt stem published inside
+	// the archive under a report that never claimed to have looked.
+	const fixture = createFixture();
+	const stems = defaultPlan();
+	stems.mode = 'stems';
+	stems.outputs = [
+		{ kind: 'stem', fileName: '01-drums.wav', trackId: 'track-1' },
+		{ kind: 'stem', fileName: '02-bass.wav', trackId: 'track-2' },
+	];
+	stems.archive = {
+		format: 'zip', fileName: 'session-stems.zip', mimeType: 'application/zip', entries: [],
+	};
+	fixture.setPlan(stems);
+
+	await createEditorExportService(fixture.runtime).handleExportAction('export');
+
+	const report = fixture.state.deliveryReport as { items: readonly { code: string }[] };
+	const conformance = report.items.filter(({ code }) => code.startsWith('delivery.conformance-'));
+	assert.ok(conformance.length > 0, 'a stems delivery must say what it checked');
+	assert.equal(
+		conformance.some(({ code }) => code === 'delivery.conformance-duration'),
+		true,
+		'each stem is reopened, because each one is a file the reader can read',
+	);
+});
+
+test('a stems delivery whose stem does not reopen fails rather than publishing', async () => {
+	const fixture = createFixture();
+	const stems = defaultPlan();
+	stems.mode = 'stems';
+	stems.outputs = [{ kind: 'stem', fileName: '01-drums.wav', trackId: 'track-1' }];
+	stems.archive = {
+		format: 'zip', fileName: 'session-stems.zip', mimeType: 'application/zip', entries: [],
+	};
+	fixture.setPlan(stems);
+	fixture.setCorruptOutput(true);
+
+	const output = await createEditorExportService(fixture.runtime).handleExportAction('export');
+
+	assert.equal(output, undefined, 'a corrupt stem is a failed delivery, not a published archive');
+	assert.equal(fixture.downloads.length, 0);
+});
+
 test('conformance items join the report the delivery gate already counts', async () => {
 	const fixture = createFixture();
 	await createEditorExportService(fixture.runtime).handleExportAction('export');

@@ -15,6 +15,7 @@ import {
 	type ExportServiceRuntime,
 } from '../src/common/editor/controller/export-service.ts';
 import { inspectZip32Layout } from '../src/common/editor/controller/zip32.ts';
+import { encodeWav } from '../src/common/editor/wav.js';
 
 test('streams a reconstructible two-stem ZIP, closes it, and only then commits it', async () => {
 	const plan = eligiblePlan();
@@ -227,7 +228,7 @@ test('export service opens the direct ZIP before render without an archive Blob 
 	assert.equal(blobConstructions, 0);
 	assert.equal(result?.mimeType, 'application/zip');
 	assert.equal(result?.size, fixture.plan.archive.expectedByteLength);
-	assert.deepEqual(fixture.preflightBytes, [4]);
+	assert.deepEqual(fixture.preflightBytes, [fixture.plan.outputFileBytesPerRender]);
 	assert.ok(fixture.events.indexOf('open') < fixture.events.indexOf('render:track-0'));
 	assert.ok(fixture.events.indexOf('close') < fixture.events.indexOf('commit'));
 	assert.equal(fixture.events.some((event) => event.startsWith('legacy-archive:')), false);
@@ -283,9 +284,12 @@ test('export service keeps nested destination abort idempotent after a ZIP write
 });
 
 function eligiblePlan() {
+	// Derived from the stem the fixture actually writes, so the plan keeps
+	// describing the file rather than a byte count that happens to match.
+	const stemByteLength = stemBytes(0).byteLength;
 	const entries = [
-		{ fileName: '01-dialogue.wav', expectedByteLength: 4 },
-		{ fileName: '02-music.wav', expectedByteLength: 4 },
+		{ fileName: '01-dialogue.wav', expectedByteLength: stemByteLength },
+		{ fileName: '02-music.wav', expectedByteLength: stemByteLength },
 	];
 	const zip32 = inspectZip32Layout(entries.map(({ fileName, expectedByteLength }) => ({
 		fileName, byteLength: expectedByteLength,
@@ -294,15 +298,15 @@ function eligiblePlan() {
 		mode: 'stems',
 		format: 'wav',
 		mimeType: 'audio/wav',
-		outputFileBytesPerRender: 4,
+		outputFileBytesPerRender: stemByteLength,
 		outputs: entries.map(({ fileName }, index) => ({ fileName, trackId: `track-${index}` })),
 		archive: {
 			format: 'zip',
 			fileName: 'session-stems.zip',
 			mimeType: 'application/zip',
 			expectedByteLength: zip32.archiveByteLength,
-			requiredTemporaryBytes: zip32.archiveByteLength + 4,
-			fallbackRequiredTemporaryBytes: 8,
+			requiredTemporaryBytes: zip32.archiveByteLength + stemByteLength,
+			fallbackRequiredTemporaryBytes: stemByteLength * 2,
 			entries,
 			zip32,
 		},
@@ -425,8 +429,8 @@ function servicePlan() {
 	const plan = eligiblePlan();
 	return {
 		...plan,
-		outputBytesPerRender: 4,
-		requiredTemporaryBytes: plan.archive.expectedByteLength + 4,
+		outputBytesPerRender: plan.outputFileBytesPerRender,
+		requiredTemporaryBytes: plan.archive.expectedByteLength + plan.outputFileBytesPerRender,
 		sampleRate: 48_000,
 		channelCount: 1,
 		encoding: { bitDepth: 16, floatingPoint: false, sampleFormat: 'int16' },
@@ -440,8 +444,16 @@ function servicePlan() {
 	};
 }
 
+/**
+ * A real one-frame WAV, because every stem is now conformed by reopening it.
+ * Four placeholder bytes claiming to be a WAV is precisely the writer fault
+ * conformance exists to catch, so the fixture has to write the file the plan
+ * describes; the sample value keeps the two stems distinguishable.
+ */
 function stemBytes(index: number): Uint8Array {
-	return index === 0 ? Uint8Array.of(1, 2, 3, 4) : Uint8Array.of(5, 6, 7, 8);
+	return encodeWav([Float32Array.of(index === 0 ? 0 : 0.5)], {
+		sampleRate: 48_000, bitDepth: 16, float: false, dither: 'none',
+	});
 }
 
 function preparedStream(options: Readonly<{
