@@ -52,6 +52,19 @@ const built = hostTarget !== null
  * cold child loading the addon is not mistaken for one. */
 const HEARTBEAT_INTERVAL_MS = 200;
 const CRASH_DETECTION_MS = 8_000;
+/**
+ * The window a test uses when the watchdog is not the thing under test.
+ *
+ * A fixture that aborts blocks its own thread on the way there, so it misses
+ * heartbeats until it dies. With one window shared by every case, whether an
+ * abort was called a crash or a hang came down to whether a cold child — node,
+ * tsx and the addon — reached the abort inside eight seconds, which on a loaded
+ * machine it does not. That is a race between two of this file's own fixtures,
+ * not a property of the supervisor, so the cases that are about what the exit
+ * meant give the exit room to arrive and only the hang case keeps the short
+ * window that makes the watchdog fire.
+ */
+const EXIT_CLASSIFICATION_CRASH_DETECTION_MS = 60_000;
 const TEST_TIMEOUT_MS = 60_000;
 
 const TSX_IMPORT = pathToFileURL(createRequire(import.meta.url).resolve('tsx')).href;
@@ -110,7 +123,8 @@ async function stagedRoot(context, names) {
  * consent decision and the quarantine store are stand-ins, because both are
  * main-side records rather than anything the fault chain produces.
  */
-async function supervisedScanRig(context, { rootPath, availability }) {
+async function supervisedScanRig(context, options) {
+	const { rootPath, availability } = options;
 	const harnessRoot = await mkdtemp(join(tmpdir(), 'soundscaper-fixture-helper-'));
 	context.after(() => rm(harnessRoot, { recursive: true, force: true }));
 	const harnessPath = join(harnessRoot, 'scan-helper.mjs');
@@ -148,7 +162,7 @@ async function supervisedScanRig(context, { rootPath, availability }) {
 		spawn: spawnHelper,
 		verifyBinary: async () => undefined,
 		mintJobId: () => randomBytes(20).toString('hex'),
-		crashDetectionMs: CRASH_DETECTION_MS,
+		crashDetectionMs: options.crashDetectionMs ?? CRASH_DETECTION_MS,
 	});
 	context.after(() => supervisor.dispose());
 
@@ -198,7 +212,9 @@ test('a fixture that really aborts mid-scan is contained and classified a scanne
 	const availability = await hostAvailability(context);
 	if (!availability) return;
 	const rootPath = await stagedRoot(context, ['crash-on-scan']);
-	const rig = await supervisedScanRig(context, { rootPath, availability });
+	const rig = await supervisedScanRig(context, {
+		rootPath, availability, crashDetectionMs: EXIT_CLASSIFICATION_CRASH_DETECTION_MS,
+	});
 
 	const outcome = await rig.service.scanRoot({ owner: {}, rootId: 'fixtures', format: 'fixture' });
 
@@ -250,7 +266,9 @@ test('one aborting candidate costs its healthy neighbours nothing at all', {
 	const availability = await hostAvailability(context);
 	if (!availability) return;
 	const rootPath = await stagedRoot(context, ['clean-effect', 'crash-on-scan']);
-	const rig = await supervisedScanRig(context, { rootPath, availability });
+	const rig = await supervisedScanRig(context, {
+		rootPath, availability, crashDetectionMs: EXIT_CLASSIFICATION_CRASH_DETECTION_MS,
+	});
 
 	const outcome = await rig.service.scanRoot({ owner: {}, rootId: 'fixtures', format: 'fixture' });
 

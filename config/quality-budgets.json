@@ -1339,7 +1339,17 @@
 				{ "metricId": "delivery.webVideoRenderP95Rtf", "comparison": "lte", "value": 12, "unit": "RTF" },
 				{ "metricId": "delivery.audioRenderP95Rtf", "comparison": "lte", "value": 1, "unit": "RTF" }
 			],
-			"evidence": ["roadmap.md#6-professional-delivery-and-interchange"]
+			"evidence": [
+				"roadmap.md#6-professional-delivery-and-interchange",
+				"docs/milestone-6a-soundscaper-delivery.md",
+				"docs/milestone-6b-framescaper-delivery.md",
+				"tests/audio-editor-delivery-conformance.test.ts",
+				"tests/audio-editor-delivery-conformance-acceptance.test.ts",
+				"tests/audio-editor-adm-immersive-acceptance.test.ts",
+				"scripts/lib/m6-reference-master-metrics.mjs",
+				"scripts/collect-m6-reference-master-quality.mjs",
+				"tests/quality-budget-m6-reference-master-collector.test.ts"
+			]
 		},
 		{
 			"id": "m7-local-assistance-privacy",
