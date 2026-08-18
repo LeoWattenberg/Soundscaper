@@ -92,6 +92,8 @@ const VIDEO_DIALOG = {
 	canvasWidth: '1080',
 	canvasHeight: '1920',
 	canvasFit: 'cover',
+	canvasFrameRate: '',
+	canvasBackgroundColor: '',
 };
 
 test('a video preset carries the canvas the dialog states and nothing the dialog cannot deliver', () => {
@@ -106,14 +108,12 @@ test('a video preset carries the canvas the dialog states and nothing the dialog
 });
 
 test('an unstated video canvas keeps a preset and a request empty of geometry', () => {
-	const settings = presetSettingsFromDialog(
-		{ ...VIDEO_DIALOG, canvasWidth: '', canvasHeight: '', canvasFit: 'contain' },
-		'video',
-	);
+	const bare = { ...VIDEO_DIALOG, canvasWidth: '', canvasHeight: '', canvasFit: 'contain' };
+	const settings = presetSettingsFromDialog(bare, 'video');
 
 	assert.deepEqual(settings, {}, 'no canvas asked for means no canvas stated');
 	assert.deepEqual(
-		createExportDialogRequest({ ...VIDEO_DIALOG, canvasWidth: '', canvasHeight: '', canvasFit: 'contain' }),
+		createExportDialogRequest(bare),
 		{ mode: 'mix', range: 'project', format: 'video-mp4', metadata: {} },
 		'an unexercised option leaves the request exactly as it was',
 	);
@@ -127,6 +127,34 @@ test('a stated video canvas reaches the export request as a canvas option', () =
 		metadata: {},
 		canvas: { size: { width: 1_080, height: 1_920 }, fit: 'cover' },
 	});
+});
+
+test('a stated rate and background join the canvas the dialog asks for', () => {
+	const dialog = { ...VIDEO_DIALOG, canvasFrameRate: '29.97', canvasBackgroundColor: '#101820' };
+
+	assert.deepEqual(presetSettingsFromDialog(dialog, 'video'), {
+		size: { width: 1_080, height: 1_920 },
+		fit: 'cover',
+		frameRate: 29.97,
+		backgroundColor: '#101820',
+	});
+	assert.deepEqual((createExportDialogRequest(dialog) as Record<string, unknown>).canvas, {
+		size: { width: 1_080, height: 1_920 },
+		fit: 'cover',
+		frameRate: 29.97,
+		backgroundColor: '#101820',
+	});
+});
+
+test('a preset stating an exact rational rate comes back as the decimal the dialog holds', () => {
+	const preset = validateDeliveryPreset({
+		schemaVersion: 1, id: 'ntsc', label: 'NTSC', kind: 'video', format: 'mp4',
+		settings: { frameRate: { num: 30_000, den: 1_001 }, backgroundColor: 'black' },
+	});
+	const patch = dialogSettingsFromPreset(preset);
+
+	assert.equal(patch.canvasFrameRate, String(30_000 / 1_001));
+	assert.equal(patch.canvasBackgroundColor, 'black');
 });
 
 test('applying a video preset patches the dialog canvas fields back to strings', () => {

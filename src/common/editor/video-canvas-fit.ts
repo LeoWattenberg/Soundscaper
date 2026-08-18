@@ -27,6 +27,9 @@
  */
 export const VIDEO_CANVAS_MAXIMUM_EXTENT = 16_384;
 
+/** The same reasoning for a stated frame rate: bounded, but not by the automatic 30. */
+export const VIDEO_CANVAS_MAXIMUM_FRAME_RATE = 1_000;
+
 export const VIDEO_CANVAS_FIT_MODES = Object.freeze(['contain', 'cover', 'stretch'] as const);
 export type VideoCanvasFit = typeof VIDEO_CANVAS_FIT_MODES[number];
 

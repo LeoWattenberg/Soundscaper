@@ -80,11 +80,17 @@ export function statedVideoCanvas(
 	const width = Number(settings?.canvasWidth);
 	const height = Number(settings?.canvasHeight);
 	const fit = settings?.canvasFit;
+	const frameRate = Number(settings?.canvasFrameRate);
+	const backgroundColor = settings?.canvasBackgroundColor;
 	const stated: Record<string, unknown> = {};
 	if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
 		stated.size = Object.freeze({ width, height });
 	}
 	if (typeof fit === 'string' && fit && fit !== CANVAS_FIT_DEFAULT) stated.fit = fit;
+	if (settings?.canvasFrameRate !== '' && Number.isFinite(frameRate) && frameRate > 0) {
+		stated.frameRate = frameRate;
+	}
+	if (typeof backgroundColor === 'string' && backgroundColor) stated.backgroundColor = backgroundColor;
 	return Object.freeze(stated);
 }
 
@@ -102,6 +108,19 @@ export function dialogSettingsFromPreset(
 		}
 		if (key === 'fit') {
 			patch.canvasFit = String(value);
+			continue;
+		}
+		if (key === 'frameRate') {
+			// A preset may state an exact rational; the dialog holds the decimal it
+			// round-trips through, which is how every other rate reaches the plan.
+			const rational = value as Readonly<{ num?: unknown; den?: unknown }> | null;
+			patch.canvasFrameRate = rational && typeof rational === 'object'
+				? String(Number(rational.num) / Number(rational.den))
+				: String(value);
+			continue;
+		}
+		if (key === 'backgroundColor') {
+			patch.canvasBackgroundColor = String(value);
 			continue;
 		}
 		patch[key] = NUMERIC_KEYS.includes(key) ? String(value) : value;

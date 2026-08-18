@@ -3,6 +3,11 @@
 import { VIDEO_CANVAS_FIT_MODES } from '../video-canvas-fit.ts';
 import { LabeledDropdown } from './inspector/inspector-controls.jsx';
 
+/** The rates a delivery usually asks for; the field accepts any of them or another. */
+const DELIVERY_FRAME_RATES = Object.freeze([
+	'23.976', '24', '25', '29.97', '30', '48', '50', '59.94', '60',
+]);
+
 const FIT_LABEL_KEYS = Object.freeze({
 	contain: 'videoCanvasFitContain',
 	cover: 'videoCanvasFitCover',
@@ -60,6 +65,34 @@ export default function VideoCanvasFields({ copy, disabled, settings, onChange }
 					label: copy[FIT_LABEL_KEYS[fit]],
 				}))}
 			/>
+			<label className="audio-editor-field" data-export-field="canvasFrameRate">
+				<span>{copy.videoCanvasFrameRate}</span>
+				<input
+					type="number"
+					min="0"
+					max="1000"
+					step="0.001"
+					list="audio-editor-export-frame-rates"
+					placeholder={copy.videoCanvasAutomatic}
+					value={settings.canvasFrameRate}
+					disabled={disabled}
+					onChange={(event) => onChange('canvasFrameRate', event.currentTarget.value)}
+				/>
+				<datalist id="audio-editor-export-frame-rates">
+					{DELIVERY_FRAME_RATES.map((rate) => <option key={rate} value={rate} />)}
+				</datalist>
+			</label>
+			<label className="audio-editor-field" data-export-field="canvasBackground">
+				<span>{copy.videoCanvasBackground}</span>
+				<input
+					type="text"
+					spellCheck={false}
+					placeholder="#000000"
+					value={settings.canvasBackgroundColor}
+					disabled={disabled}
+					onChange={(event) => onChange('canvasBackgroundColor', event.currentTarget.value)}
+				/>
+			</label>
 			<p className="audio-editor-panel-hint">{copy.videoCanvasHint}</p>
 		</>
 	);

@@ -157,6 +157,8 @@ test('the export dialog reaches the delivery canvas for a video format and only 
 	// rather than parking two more permanent controls on an audio export.
 	assert.match(dialog, /\{videoFormat && \(\s*<VideoCanvasFields/u);
 	assert.match(fields, /data-export-field="canvasSize"/u);
+	assert.match(fields, /data-export-field="canvasFrameRate"/u);
+	assert.match(fields, /data-export-field="canvasBackground"/u);
 	assert.match(fields, /hook="canvasFit"/u);
 	for (const fit of VIDEO_CANVAS_FIT_MODES) {
 		assert.match(fields, new RegExp(`${fit}: 'videoCanvasFit`, 'u'), `${fit} needs a label of its own`);
@@ -167,7 +169,8 @@ test('every delivery-canvas control has copy in both catalogs', () => {
 	const keys = [
 		'videoCanvasSize', 'videoCanvasWidth', 'videoCanvasHeight', 'videoCanvasFit',
 		'videoCanvasFitContain', 'videoCanvasFitCover', 'videoCanvasFitStretch',
-		'videoCanvasAutomatic', 'videoCanvasHint',
+		'videoCanvasAutomatic', 'videoCanvasFrameRate', 'videoCanvasBackground',
+		'videoCanvasHint',
 	];
 	for (const locale of ['en', 'de']) {
 		const catalog = CANONICAL_EXTRA_COPY_BY_LOCALE[locale];

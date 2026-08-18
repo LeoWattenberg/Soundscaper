@@ -67,6 +67,8 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		canvasWidth: '',
 		canvasHeight: '',
 		canvasFit: 'contain',
+		canvasFrameRate: '',
+		canvasBackgroundColor: '',
 	});
 	const [error, setError] = useState('');
 	const [presetId, setPresetId] = useState('');

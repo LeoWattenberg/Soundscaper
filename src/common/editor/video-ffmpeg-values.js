@@ -9,6 +9,8 @@
  * never said.
  */
 
+import { normalizeVideoDeliveryColor } from './video-delivery-color.ts';
+
 export function mappedValue(mapping, key) {
 	if (mapping instanceof Map) return mapping.get(key);
 	if (mapping && typeof mapping === 'object' && Object.prototype.hasOwnProperty.call(mapping, key)) {
@@ -17,12 +19,15 @@ export function mappedValue(mapping, key) {
 	return undefined;
 }
 
+/**
+ * Spell a delivery colour the way FFmpeg wants it.
+ *
+ * The grammar is the plan's, so a colour that reaches here has already been
+ * admitted; this only rewrites `#rrggbb` into the `0x` form and leaves the rest.
+ */
 export function ffmpegColor(value) {
-	const color = nonEmptyString(value, 'video color').trim();
-	if (/^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(color)) return `0x${color.slice(1)}`;
-	if (/^0x[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(color)) return color;
-	if (/^[a-z][a-z0-9_-]*(?:@(?:0(?:\.\d+)?|1(?:\.0+)?))?$/i.test(color)) return color;
-	throw new TypeError(`Unsupported FFmpeg video color: ${value}.`);
+	const color = normalizeVideoDeliveryColor(value, 'video color');
+	return color.startsWith('#') ? `0x${color.slice(1)}` : color;
 }
 
 export function ffmpegNumber(value, name) {

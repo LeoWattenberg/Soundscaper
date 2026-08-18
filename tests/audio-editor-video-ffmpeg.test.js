@@ -315,12 +315,12 @@ test('video plan validation rejects missing media and unsafe filter colors', () 
 		}, 'output.webm'),
 		/Missing staged video input for source source-b/,
 	);
+	// A tampered plan cannot smuggle filter syntax through a colour, which the
+	// adapter checks even though the plan now admits the same grammar.
 	const unsafe = structuredClone(silentMp4Plan());
 	unsafe.segments[0].color = 'black;movie=secret';
-	assert.throws(
-		() => buildVideoFfmpegArgs(unsafe, { videoInputPaths: {} }, 'output.mp4'),
-		/Unsupported FFmpeg video color/,
-	);
+	const unsafeArgs = () => buildVideoFfmpegArgs(unsafe, { videoInputPaths: {} }, 'output.mp4');
+	assert.throws(unsafeArgs, /video color must be #rrggbb/);
 
 	const invalidCrossfade = layeredWebmPlan();
 	invalidCrossfade.intervals[0].layers[1].clips[1].opacityStart = 0.5;

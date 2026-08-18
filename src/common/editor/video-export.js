@@ -25,8 +25,10 @@ import {
 	isVideoCanvasFit,
 	VIDEO_CANVAS_FIT_MODES,
 	VIDEO_CANVAS_MAXIMUM_EXTENT,
+	VIDEO_CANVAS_MAXIMUM_FRAME_RATE,
 } from './video-canvas-fit.ts';
 import { createFilterPlan } from './video-export-filter-plan.js';
+import { normalizeVideoDeliveryColor } from './video-delivery-color.ts';
 
 const DEFAULT_MAXIMUM_WIDTH = 1_280;
 const DEFAULT_MAXIMUM_HEIGHT = 720;
@@ -120,7 +122,8 @@ function exactVideoExportCanvas(runtimeProject, options) {
 	const maximumHeight = stated
 		? stated.height
 		: positiveEvenLimit(options.maximumHeight ?? DEFAULT_MAXIMUM_HEIGHT, 'maximumHeight');
-	const maximumFrameRate = positiveExactRate(
+	const statedRate = statedFrameRate(options);
+	const maximumFrameRate = statedRate ?? positiveExactRate(
 		options.maximumFrameRate ?? DEFAULT_MAXIMUM_FRAME_RATE,
 		'maximumFrameRate',
 	);
@@ -135,12 +138,13 @@ function exactVideoExportCanvas(runtimeProject, options) {
 	const scale = Math.min(1, maximumWidth / sourceWidth, maximumHeight / sourceHeight);
 	const width = stated ? stated.width : evenFloor(sourceWidth * scale);
 	const height = stated ? stated.height : evenFloor(sourceHeight * scale);
-	const requestedFrameRate = optionalPositiveExactRate(options.frameRate, 'frameRate')
-		?? optionalPositiveExactRate(reference?.source.frameRate, 'source.frameRate')
+	// A derived rate answers to the ceiling; a stated one is the delivery decision
+	// and is its own ceiling, exactly as a stated size is.
+	const derivedFrameRate = optionalPositiveExactRate(reference?.source.frameRate, 'source.frameRate')
 		?? maximumFrameRate;
-	const frameRate = compareRationals(requestedFrameRate, maximumFrameRate) > 0
+	const frameRate = statedRate ?? (compareRationals(derivedFrameRate, maximumFrameRate) > 0
 		? maximumFrameRate
-		: requestedFrameRate;
+		: derivedFrameRate);
 
 	return Object.freeze({
 		width,
@@ -183,6 +187,25 @@ function statedCanvasSize(options) {
 		width: canvasExtent(size.width, 'canvas.size.width'),
 		height: canvasExtent(size.height, 'canvas.size.height'),
 	});
+}
+
+/**
+ * The frame rate the caller stated outright, or null for the derived one.
+ *
+ * Same rule as the canvas: a stated rate is delivered exactly and the automatic
+ * ceiling does not apply to it, and stating a rate alongside a ceiling for it is
+ * a contradiction rather than a precedence question.
+ */
+function statedFrameRate(options) {
+	if (options.frameRate == null) return null;
+	if (options.maximumFrameRate != null) {
+		throw new RangeError('canvas.frameRate states the delivery rate, so canvas.maximumFrameRate cannot also apply.');
+	}
+	const rate = positiveExactRate(options.frameRate, 'canvas.frameRate');
+	if (rate.num > VIDEO_CANVAS_MAXIMUM_FRAME_RATE * rate.den) {
+		throw new RangeError(`canvas.frameRate must be at most ${VIDEO_CANVAS_MAXIMUM_FRAME_RATE}.`);
+	}
+	return rate;
 }
 
 function canvasFit(options) {
@@ -402,9 +425,7 @@ function firstVisibleTimelineVideo(project, options) {
 }
 
 function normalizeColor(value) {
-	const color = String(value || DEFAULT_BACKGROUND_COLOR).trim();
-	if (!color) throw new TypeError('backgroundColor must not be empty.');
-	return color;
+	return normalizeVideoDeliveryColor(value ?? DEFAULT_BACKGROUND_COLOR, 'canvas.backgroundColor');
 }
 
 function evenFloor(value) {

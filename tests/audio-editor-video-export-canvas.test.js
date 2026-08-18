@@ -3,7 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoExportPlan, resolveVideoExportCanvas } from '../src/common/editor/video-export.js';
+import {
+	createVideoExportPlan,
+	resolveExactVideoExportCanvas,
+	resolveVideoExportCanvas,
+} from '../src/common/editor/video-export.js';
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
 
 test('the derived canvas is unchanged, and now says which fit it was derived under', () => {
@@ -76,6 +80,59 @@ test('an unrecognized fit is refused rather than treated as the default', () => 
 		() => resolveVideoExportCanvas(project(), { fit: 'fill' }),
 		/canvas\.fit must be one of contain, cover, stretch/u,
 	);
+});
+
+test('a stated frame rate is delivered, not capped to the automatic 30', () => {
+	// The automatic ceiling exists to keep a derived canvas modest. A delivery
+	// that names 60 asked for 60; capping it to 30 and saying nothing is the same
+	// hidden decision the size ceiling used to make.
+	assert.deepEqual(
+		resolveExactVideoExportCanvas(project(), { frameRate: 60 }).frameRate,
+		{ num: 60, den: 1 },
+	);
+	assert.deepEqual(
+		resolveExactVideoExportCanvas(project(), { frameRate: { num: 60_000, den: 1_001 } }).frameRate,
+		{ num: 60_000, den: 1_001 },
+	);
+	// A rate the source states is still derived, and still capped.
+	assert.deepEqual(
+		resolveExactVideoExportCanvas(project()).frameRate,
+		{ num: 30, den: 1 },
+	);
+});
+
+test('stating a frame rate and also capping it is refused rather than silently resolved', () => {
+	assert.throws(
+		() => resolveExactVideoExportCanvas(project(), { frameRate: 60, maximumFrameRate: 30 }),
+		/canvas\.maximumFrameRate cannot also apply/u,
+	);
+	assert.throws(
+		() => resolveExactVideoExportCanvas(project(), { frameRate: 1_001 }),
+		/at most 1000/u,
+	);
+});
+
+test('an unusable background colour is refused at plan build, not after the render', () => {
+	// The encoder validated the colour when it assembled its arguments, which is
+	// after the audio mix has been rendered and staged: the delivery failed at the
+	// most expensive possible moment for a typo in a colour field.
+	for (const backgroundColor of ['not a colour; --evil', '#12345', 'rgb(1,2,3)', '#zzzzzz', '  ']) {
+		assert.throws(
+			() => resolveVideoExportCanvas(project(), { backgroundColor }),
+			/canvas\.backgroundColor/u,
+			`${backgroundColor} must not reach a plan`,
+		);
+	}
+});
+
+test('the background colours a delivery can actually state are accepted verbatim', () => {
+	for (const backgroundColor of ['#000000', '#ffffffff', '0xAABBCC', 'black', 'white@0.5']) {
+		assert.equal(
+			resolveVideoExportCanvas(project(), { backgroundColor }).backgroundColor,
+			backgroundColor,
+			'the plan states the colour it was given, and the adapter renders it',
+		);
+	}
 });
 
 test('the plan carries its canvas fit under the canonical version that can state one', () => {
