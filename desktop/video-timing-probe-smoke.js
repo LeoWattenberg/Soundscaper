@@ -36,8 +36,8 @@ const EXPECTED_FIXTURES = Object.freeze([
 const STORAGE_PROFILES = Object.freeze({
 	soundscaper: Object.freeze({
 		productId: 'soundscaper',
-		databaseName: 'kw-media-soundscaper-editor-v21',
-		opfsDirectoryName: 'soundscaper-editor-v21-sources',
+		databaseName: 'kw-media-soundscaper-editor-v23',
+		opfsDirectoryName: 'soundscaper-editor-v23-sources',
 	}),
 	framescaper: Object.freeze({
 		productId: 'framescaper',
@@ -317,9 +317,9 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 		const framescaper = productId === 'framescaper';
 		if ((!framescaper && productId !== 'soundscaper') || profile.productId !== productId
 			|| profile.databaseName !== (framescaper
-				? 'kw-media-framescaper-editor-v18' : 'kw-media-soundscaper-editor-v21')
+				? 'kw-media-framescaper-editor-v18' : 'kw-media-soundscaper-editor-v23')
 			|| profile.opfsDirectoryName !== (framescaper
-				? 'framescaper-editor-v18-sources' : 'soundscaper-editor-v21-sources')) {
+				? 'framescaper-editor-v18-sources' : 'soundscaper-editor-v23-sources')) {
 			throw new TypeError('Desktop video timing-probe storage profile does not match its product');
 		}
 		return Object.freeze(profile);

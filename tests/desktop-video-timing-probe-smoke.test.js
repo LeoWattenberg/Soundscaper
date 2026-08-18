@@ -16,6 +16,15 @@ import {
 	validateDesktopVideoTimingProbeResult,
 } from '../desktop/video-timing-probe-smoke.js';
 import { videoTimingProbeMedia } from './browser/fixtures/video-timing-probe-media.js';
+import {
+	FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE,
+} from '../src/framescaper/editor-project-storage-profile-v18.ts';
+import {
+	SOUNDSCAPER_V23_PROJECT_STORAGE_PROFILE,
+} from '../src/soundscaper/editor-project-storage-profile-v23.ts';
+import {
+	editorProjectStorageProfileNames,
+} from '../src/common/editor/storage/project-storage-profile.ts';
 
 const PRODUCT_ID = 'soundscaper';
 const TOKEN = '0123456789abcdef0123456789abcdef';
@@ -24,21 +33,37 @@ test('packaged timing probe keeps startup margin outside its renderer deadlines'
 	assert.equal(DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS, 120_000);
 });
 
-test('packaged timing-probe storage profiles preserve product-local isolation', () => {
+// The probe reads persisted timing straight out of the product's IndexedDB
+// database by name. Naming a revision the product has moved off does not fail as
+// a wrong name — indexedDB.open() without a version silently creates an empty
+// database — so the probe would wait out its full deadline on a store that is
+// never written. Deriving the expectation from the profile each product mounts
+// makes the next revision flip fail here, in seconds, instead of in the nightly
+// packaged run.
+test('packaged timing-probe storage profiles are the ones each product mounts', () => {
+	const soundscaper = editorProjectStorageProfileNames(SOUNDSCAPER_V23_PROJECT_STORAGE_PROFILE);
+	const framescaper = editorProjectStorageProfileNames(FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE);
 	assert.deepEqual(createDesktopVideoTimingProbeStorageProfile('soundscaper'), {
 		productId: 'soundscaper',
-		databaseName: 'kw-media-soundscaper-editor-v21',
-		opfsDirectoryName: 'soundscaper-editor-v21-sources',
+		databaseName: soundscaper.databaseName,
+		opfsDirectoryName: soundscaper.opfsDirectoryName,
 	});
 	assert.deepEqual(createDesktopVideoTimingProbeStorageProfile('framescaper'), {
 		productId: 'framescaper',
-		databaseName: 'kw-media-framescaper-editor-v18',
-		opfsDirectoryName: 'framescaper-editor-v18-sources',
+		databaseName: framescaper.databaseName,
+		opfsDirectoryName: framescaper.opfsDirectoryName,
 	});
 	assert.throws(
 		() => createDesktopVideoTimingProbeStorageProfile('Framescaper'),
 		/product.*invalid/iu,
 	);
+});
+
+test('packaged timing-probe storage profiles preserve product-local isolation', () => {
+	const soundscaper = createDesktopVideoTimingProbeStorageProfile('soundscaper');
+	const framescaper = createDesktopVideoTimingProbeStorageProfile('framescaper');
+	assert.notEqual(soundscaper.databaseName, framescaper.databaseName);
+	assert.notEqual(soundscaper.opfsDirectoryName, framescaper.opfsDirectoryName);
 });
 
 test('packaged timing-probe plan is canonical, closed, and pins the browser fixtures', () => {
