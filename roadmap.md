@@ -726,16 +726,16 @@ invariants, and the bounded work packets are owned by the
 
 ### Framescaper delivery
 
-- **Web Core — Planned:** canvas, rational frame rate, aspect, fit, background,
-  quality, audio layout, captions, range, and validated presets.
-- **Web Core — Planned:** sidecar, burned, and supported muxed captions.
+- **Web Core — In progress:** canvas size and fit are validated plan, dialog,
+  and preset options on both export paths; rational frame rate, background,
+  quality, audio layout, captions, and range remain Planned.
+- **Web Core — Planned:** sidecar, burned, and muxed captions where supported.
 - **Web Enhanced — Planned:** WebCodecs plus a reviewed muxer for qualified SDR
   outputs, with FFmpeg/proxy semantic fallback.
 - **Electron Enhanced — Planned:** 4K/HDR, 10-bit, hardware, image sequence,
   alpha, mezzanine, and platform delivery presets with explicit legal status.
-- **Shared — In progress:** EDL, OTIO, and FCPXML export profiles are
-  implemented, each reporting its conversions; archive, consolidate,
-  trim-media, relink, and checksum manifests remain Planned.
+- **Shared — In progress:** EDL, OTIO, and FCPXML profiles itemize conversions;
+  archive, consolidate, trim-media, relink, checksum manifests remain Planned.
 
 ### Shared exit gate
 

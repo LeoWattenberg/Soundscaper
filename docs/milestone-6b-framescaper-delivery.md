@@ -15,13 +15,20 @@
 explicit decision rather than a cap: `canvas.size` states the delivered extents
 outright and `canvas.fit` (`contain`, `cover`, `stretch`) decides how a source of
 another aspect lands in them, so a 9:16 delivery of a 16:9 master is a supported
-request. Both are validated at plan build, both ride delivery presets, and the
-canonical plan version moved 6 → 8 through WP-6.0.0's constant so a build that
-only reads 6 refuses a fit-carrying plan instead of rendering it as `contain`.
-Two seams are open and named: the keyed V7 keyframe plan cannot carry a fit yet,
-so `createFramescaperVideoKeyframeExportPlanV20` refuses `size` and `fit` rather
-than dropping them, and the video preview still shows the project's derived
-canvas rather than a per-delivery reframe.
+request. Both are validated at plan build, both ride delivery presets and the
+export dialog, and both paths carry them — the graph plan through a canonical
+version bump (6 → 8, through WP-6.0.0's constant, because its wasm runner read
+canvas fields loosely and would have ignored a new one) and the keyed V7 plan
+without one, because its canvas is read as a closed record in canonical field
+order and an older build therefore refuses a fit-carrying plan outright.
+
+Two bounds and one gap are worth naming. A keyed canvas is capped at about 2.09
+megapixels, which is one RGBA frame fitting the keyframe encoder's 8 MiB stream
+limit: 1080×1920 is admitted, 1080×1944 is refused, and the refusal happens at
+plan build. The keyed frame rate is still capped at 30 fps by that encoder's own
+ceiling. And the video preview still resolves the project's derived canvas, so a
+delivery that reframes to 9:16 is not previewed at 9:16 — the preview honours a
+fit it is given, but nothing yet gives it the delivery's.
 
 6B opened only after every 6.0 acceptance check passed. Four grounding facts
 bound every slice below, and each one narrows scope rather than widening it:
