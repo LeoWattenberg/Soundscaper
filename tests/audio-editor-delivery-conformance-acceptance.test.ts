@@ -121,6 +121,32 @@ test('a stems delivery whose stem does not reopen fails rather than publishing',
 	assert.equal(fixture.downloads.length, 0);
 });
 
+test('a broadcast delivery that measures its own loudness still conforms', async () => {
+	// Two false mismatches failed every offline BWF/BW64 delivery that captured
+	// loudness. The encoder merges the measured values into the BEXT it writes,
+	// so comparing the file against the plan's BEXT reported a difference the
+	// delivery deliberately made; and BEXT stores loudness in hundredths as an
+	// integer, so comparing the meter's double against the value read back could
+	// never agree. Both were reported as errors, which failed the delivery.
+	const fixture = createFixture();
+	const broadcast = defaultPlan();
+	broadcast.format = 'bwf';
+	broadcast.bext = { description: 'Reference master', originator: 'Soundscaper' };
+	fixture.setPlan(broadcast);
+
+	const output = await createEditorExportService(fixture.runtime)
+		.handleExportAction('export', { measureLoudness: true });
+
+	assert.equal(output?.fileName, 'mix.wav', 'the delivery published');
+	const report = fixture.state.deliveryReport as {
+		items: readonly { code: string; severity: string }[];
+	};
+	const loudness = report.items.find(({ code }) => code === 'delivery.conformance-loudness');
+	const bext = report.items.find(({ code }) => code === 'delivery.conformance-bext');
+	assert.equal(loudness?.severity, 'info', 'the stamped loudness is the measured loudness');
+	assert.equal(bext?.severity, 'info', 'the written BEXT is the BEXT the delivery meant to write');
+});
+
 test('conformance items join the report the delivery gate already counts', async () => {
 	const fixture = createFixture();
 	await createEditorExportService(fixture.runtime).handleExportAction('export');

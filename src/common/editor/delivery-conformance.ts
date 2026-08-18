@@ -101,7 +101,17 @@ export async function conformDeliveredAudio(
 		findings.push(compare('delivery.conformance-sample-format', 'sampleFormat', sampleFormat, descriptor.sampleFormat));
 	}
 	findings.push(channelMapFinding(descriptor));
-	if (plan.bext) findings.push(bextFinding(plan.bext, descriptor.bext));
+	// The plan's BEXT is not what the writer wrote when a delivery captured its
+	// loudness: the encoder merges the measured values in before writing. The
+	// comparison has to be against the metadata that was actually written, or
+	// every broadcast delivery that measures its own loudness fails its own
+	// conformance check for a difference the delivery deliberately made.
+	if (plan.bext) {
+		findings.push(bextFinding(
+			options.deliveredLoudness ? { ...plan.bext, ...options.deliveredLoudness } : plan.bext,
+			descriptor.bext,
+		));
+	}
 	const plannedMarkers = plan.markers ?? [];
 	if (plannedMarkers.length > 0) findings.push(markerFinding(plannedMarkers, descriptor.markers));
 	if (plan.format === 'bw64') findings.push(admFinding(descriptor.adm));
@@ -243,9 +253,17 @@ function loudnessFinding(
 ): DeliveryConformanceFinding {
 	const stamped = (actual ?? {}) as Readonly<Record<string, unknown>>;
 	const fields = ['loudnessValue', 'loudnessRange', 'maxTruePeakLevel', 'maxMomentaryLoudness', 'maxShortTermLoudness'];
-	const mismatched = fields.filter((field) => (
-		delivered[field] !== undefined && delivered[field] !== null && stamped[field] !== delivered[field]
-	));
+	// Compared at the precision BEXT stores, which is hundredths of a unit held
+	// as a signed 16-bit integer. The meter measures a double, so an exact
+	// comparison against the value read back could never agree — it reported
+	// every correctly stamped broadcast delivery as a mismatch and failed it.
+	// What the check is for is a file stamped with a different measurement, and
+	// that survives the rounding.
+	const mismatched = fields.filter((field) => {
+		const measured = delivered[field];
+		if (measured === undefined || measured === null) return false;
+		return quantizeBextLoudness(measured) !== quantizeBextLoudness(stamped[field]);
+	});
 	const conformed = Boolean(actual) && mismatched.length === 0;
 	return Object.freeze({
 		code: 'delivery.conformance-loudness',
@@ -256,6 +274,16 @@ function loudnessFinding(
 			? 'The loudness stamped in the delivered file is the loudness that was measured.'
 			: 'The loudness stamped in the delivered file is not the loudness that was measured.',
 	});
+}
+
+/**
+ * A loudness value at the precision a BEXT chunk can hold it: hundredths of a
+ * unit, as the writer rounds them. Null for anything that is not a number, so a
+ * missing stamp never compares equal to a measured one.
+ */
+function quantizeBextLoudness(value: unknown): number | null {
+	if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+	return Math.round(value * 100);
 }
 
 function unverified(format: string, reason: string): DeliveryConformanceFinding {
