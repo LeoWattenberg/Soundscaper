@@ -11,6 +11,23 @@ import {
 	type TerminalWidthProject,
 } from './terminal-channel-widths.ts';
 import {
+	admObjectFormatIds,
+	normalizeAdmAuthoredObjects,
+	type AdmAuthoredObject,
+} from './adm-authored-objects.ts';
+import {
+	MAX_ADM_NAME_BYTES,
+	MAX_ADM_PAYLOAD_BYTES,
+	base64,
+	booleanValue,
+	enumValue,
+	finiteNumber,
+	nonEmptyText,
+	objectValue,
+	safeInteger,
+	text,
+} from './adm-normalization-guards.ts';
+import {
 	ADM_BED_CHANNEL_ORDER,
 	ADM_BED_CHANNELS,
 	ADM_BED_LAYOUTS,
@@ -50,6 +67,13 @@ export interface AdmAuthoredMetadata {
 		layout: AdmBedLayout;
 		assignments: readonly AdmTerminalStripAssignment[];
 	}>;
+	/**
+	 * Positioned objects delivered after the bed, one channel each.
+	 *
+	 * Absent rather than empty when a programme has none, so a bed-only document
+	 * normalizes to exactly the bytes it did before objects existed.
+	 */
+	readonly objects?: readonly AdmAuthoredObject[];
 }
 
 export type AdmPayloadKind = 'axml' | 'bxml' | 'sxml';
@@ -142,18 +166,40 @@ interface RoutingProject {
 	}>;
 }
 
-const MAX_ADM_PAYLOAD_BYTES = 16 * 1024 * 1024;
-const MAX_ADM_NAME_BYTES = 512;
 const MAX_ADM_WARNINGS = 100;
-const BASE64_PATTERN = /^(?:[A-Za-z\d+/]{4})*(?:[A-Za-z\d+/]{2}==|[A-Za-z\d+/]{3}=)?$/u;
 
 export function authoredAdmChannelCount(metadata: unknown): number | null {
 	if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
 	const candidate = metadata as Record<string, unknown>;
 	if (candidate.mode !== 'authored') return null;
 	const normalized = normalizeAdmProjectMetadata(candidate as AdmProjectMetadataInput);
-	return normalized.mode === 'authored' ? admBedChannelCount(normalized.bed.layout) : null;
+	return normalized.mode === 'authored' ? authoredAdmDeliveryChannelCount(normalized) : null;
 }
+
+/** The delivered width of an authored programme: its bed, then one channel per object. */
+export function authoredAdmDeliveryChannelCount(metadata: AdmAuthoredMetadata): number {
+	return admBedChannelCount(metadata.bed.layout) + (metadata.objects?.length ?? 0);
+}
+
+/**
+ * The delivered channel order, naming each channel by what feeds it.
+ *
+ * Bed channels keep their layout names; object channels are named by object ID,
+ * so a caller that needs to know which delivered channel an object landed on can
+ * ask this rather than recomputing the offset.
+ */
+export function authoredAdmDeliveryChannels(
+	metadata: AdmAuthoredMetadata,
+): readonly Readonly<{ kind: 'bed'; bedChannel: AdmBedChannel } | { kind: 'object'; objectId: string }>[] {
+	return Object.freeze([
+		...admBedChannelOrder(metadata.bed.layout).map((bedChannel) => (
+			Object.freeze({ kind: 'bed' as const, bedChannel })
+		)),
+		...(metadata.objects ?? []).map((object) => Object.freeze({ kind: 'object' as const, objectId: object.id })),
+	]);
+}
+
+export { admObjectFormatIds };
 
 export function validateAdmProjectChannelCount(project: unknown): true {
 	const candidate = objectValue(project, 'project');
@@ -220,29 +266,17 @@ export function validateAdmAuthoredRouting(
 	const assignedStrips = new Set<string>();
 	const assignedBedChannels = new Set<AdmBedChannel>();
 	for (const assignment of metadata.bed.assignments) {
-		const key = stripKey(assignment.stripKind, assignment.stripId);
-		const terminal = terminals.get(key);
-		if (!terminal) {
-			const known = stripExists(project, assignment.stripKind, assignment.stripId);
-			issues.push(Object.freeze({
-				code: known ? 'non-terminal-strip' : 'unknown-strip',
-				stripKind: assignment.stripKind,
-				stripId: assignment.stripId,
-				message: known
-					? `ADM assignment references non-terminal ${assignment.stripKind} ${assignment.stripId}.`
-					: `ADM assignment references unknown ${assignment.stripKind} ${assignment.stripId}.`,
-			}));
-			continue;
-		}
+		const key = resolveStripReference(project, terminals, issues, assignment, 'assignment');
+		if (key === null) continue;
 		assignedStrips.add(key);
 		assignedBedChannels.add(assignment.bedChannel);
-		if (assignment.sourceChannel >= terminal.channelCount) issues.push(Object.freeze({
-			code: 'source-channel-out-of-range',
-			stripKind: assignment.stripKind,
-			stripId: assignment.stripId,
-			sourceChannel: assignment.sourceChannel,
-			message: `ADM source channel ${assignment.sourceChannel} is outside ${assignment.stripId}.`,
-		}));
+	}
+	// An object claims its source channel as surely as a bed assignment does, so a
+	// strip that only feeds objects is routed rather than unassigned. Reporting it
+	// as missing would ask the operator to route it twice.
+	for (const object of metadata.objects ?? []) {
+		const key = resolveStripReference(project, terminals, issues, object, `object ${object.id}`);
+		if (key !== null) assignedStrips.add(key);
 	}
 	for (const [key, terminal] of terminals) if (!assignedStrips.has(key)) issues.push(Object.freeze({
 		code: 'missing-terminal-strip', stripKind: terminal.kind, stripId: terminal.id,
@@ -255,6 +289,37 @@ export function validateAdmAuthoredRouting(
 		}));
 	}
 	return Object.freeze(issues);
+}
+
+/** Check one strip reference, reporting what is wrong and returning its key when it is not. */
+function resolveStripReference(
+	project: RoutingProject,
+	terminals: ReadonlyMap<string, { kind: AdmTerminalStripKind; id: string; channelCount: number }>,
+	issues: AdmRoutingIssue[],
+	reference: Readonly<{ stripKind: AdmTerminalStripKind; stripId: string; sourceChannel: number }>,
+	subject: string,
+): string | null {
+	const { stripKind, stripId, sourceChannel } = reference;
+	const key = stripKey(stripKind, stripId);
+	const terminal = terminals.get(key);
+	if (!terminal) {
+		const known = stripExists(project, stripKind, stripId);
+		issues.push(Object.freeze({
+			code: known ? 'non-terminal-strip' : 'unknown-strip',
+			stripKind,
+			stripId,
+			message: `ADM ${subject} references ${known ? 'non-terminal' : 'unknown'} ${stripKind} ${stripId}.`,
+		}));
+		return null;
+	}
+	if (sourceChannel >= terminal.channelCount) issues.push(Object.freeze({
+		code: 'source-channel-out-of-range',
+		stripKind,
+		stripId,
+		sourceChannel,
+		message: `ADM source channel ${sourceChannel} is outside ${stripId}.`,
+	}));
+	return key;
 }
 
 function normalizeAuthored(input: Record<string, unknown>): AdmAuthoredMetadata {
@@ -279,6 +344,7 @@ function normalizeAuthored(input: Record<string, unknown>): AdmAuthoredMetadata 
 		seen.add(key);
 		return Object.freeze({ stripKind, stripId, sourceChannel, bedChannel, gain });
 	});
+	const objects = normalizeAdmAuthoredObjects(input.objects, admBedChannelCount(layout));
 	return Object.freeze({
 		mode: 'authored',
 		programme: normalizeNamedElement(programme, 'programme'),
@@ -288,6 +354,7 @@ function normalizeAuthored(input: Record<string, unknown>): AdmAuthoredMetadata 
 			layout,
 			assignments: Object.freeze(assignments),
 		}),
+		...(objects.length ? { objects } : {}),
 	});
 }
 
@@ -479,61 +546,6 @@ function ineligible(reason: AdmPassthroughIneligibilityReason): Readonly<{ eligi
 	return Object.freeze({ eligible: false, reason });
 }
 
-function objectValue(value: unknown, name: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be an object.`);
-	return value as Record<string, unknown>;
-}
-
-function text(value: unknown, name: string, maximumBytes: number, allowXmlWhitespace = false): string {
-	if (typeof value !== 'string') throw new TypeError(`${name} must be a string.`);
-	const controls = allowXmlWhitespace
-		? /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u
-		: /[\u0000-\u001f\u007f]/u;
-	if (controls.test(value)) throw new RangeError(`${name} cannot contain control characters.`);
-	if (new TextEncoder().encode(value).byteLength > maximumBytes) throw new RangeError(`${name} is too large.`);
-	return value;
-}
-
-function nonEmptyText(value: unknown, name: string, maximumBytes: number): string {
-	const normalized = text(value, name, maximumBytes).trim();
-	if (!normalized) throw new TypeError(`${name} must be a non-empty string.`);
-	return normalized;
-}
-
-function safeInteger(value: unknown, minimum: number, maximum: number, name: string): number {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < minimum || number > maximum) {
-		throw new RangeError(`${name} must be a safe integer between ${minimum} and ${maximum}.`);
-	}
-	return number;
-}
-
-function finiteNumber(value: unknown, minimum: number, maximum: number, name: string): number {
-	const number = Number(value);
-	if (!Number.isFinite(number) || number < minimum || number > maximum) {
-		throw new RangeError(`${name} must be between ${minimum} and ${maximum}.`);
-	}
-	return number;
-}
-
-function enumValue<const Value extends string | number>(value: unknown, allowed: readonly Value[], name: string): Value {
-	if (!allowed.includes(value as Value)) throw new RangeError(`${name} is unsupported: ${String(value)}.`);
-	return value as Value;
-}
-
-function booleanValue(value: unknown, name: string): boolean {
-	if (typeof value !== 'boolean') throw new TypeError(`${name} must be a boolean.`);
-	return value;
-}
-
-function base64(value: unknown, name: string): string {
-	if (typeof value !== 'string') throw new TypeError(`${name} must be a string.`);
-	if (!BASE64_PATTERN.test(value)) throw new RangeError(`${name} must use canonical base64.`);
-	const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0;
-	const byteLength = value.length / 4 * 3 - padding;
-	if (byteLength > MAX_ADM_PAYLOAD_BYTES) throw new RangeError(`${name} exceeds 16 MiB.`);
-	return value;
-}
 
 function admId(value: unknown, pattern: RegExp, name: string): string {
 	const normalized = nonEmptyText(value, name, 64).toUpperCase();

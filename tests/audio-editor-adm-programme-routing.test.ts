@@ -4,9 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
-import {
-	createAdmBedRouter,
-} from '../src/common/editor/engine/adm-bed-routing.ts';
+import { createAdmProgrammeRouter } from '../src/common/editor/engine/adm-programme-routing.ts';
 import { buildProjectGraph } from '../src/common/editor/engine/project-graph.ts';
 import { createAudioEditorProjectV7 } from '../src/common/editor/project-v7.ts';
 
@@ -108,7 +106,7 @@ test('the ADM bed router maps terminal source channels into canonical bed order'
 	const context = new MockContext();
 	const masterInput = context.createGain();
 	const nodes: MockNode[] = [];
-	const router = createAdmBedRouter(
+	const router = createAdmProgrammeRouter(
 		context as unknown as BaseAudioContext,
 		nodes as unknown as AudioNode[],
 		authored('5.1', [
@@ -196,6 +194,55 @@ test('project graph routes terminal tracks, groups, and sends after latency comp
 	assert.equal(context.destination.channelCount, 6);
 	assert.equal(context.destination.channelCountMode, 'explicit');
 	assert.equal(context.destination.channelInterpretation, 'discrete');
+});
+
+test('objects take the delivered channels after the bed, at their own gains', () => {
+	const context = new MockContext();
+	const nodes: MockNode[] = [];
+	const destination = new MockNode('destination');
+	const router = createAdmProgrammeRouter(
+		context as unknown as BaseAudioContext,
+		nodes as unknown as AudioNode[],
+		{
+			...authored('stereo', [
+				{ stripKind: 'track', stripId: 'music', sourceChannel: 0, bedChannel: 'L', gain: 1 },
+				{ stripKind: 'track', stripId: 'music', sourceChannel: 1, bedChannel: 'R', gain: 1 },
+			]),
+			objects: [
+				{
+					id: 'voice', name: 'Narrator', stripKind: 'track', stripId: 'narration',
+					sourceChannel: 0, gain: 0.25, position: { azimuth: 30, elevation: 0, distance: 1 },
+				},
+				{
+					id: 'fx', name: 'Helicopter', stripKind: 'track', stripId: 'narration',
+					sourceChannel: 1, gain: 0.5, position: { azimuth: -90, elevation: 30, distance: 1 },
+				},
+			],
+		},
+		destination as unknown as AudioNode,
+	);
+	assert.ok(router);
+	assert.equal(router.channelCount, 4, 'a stereo bed and two objects');
+	assert.equal(router.merger.channelCount, 4);
+
+	const music = new MockNode('music');
+	const narration = new MockNode('narration');
+	assert.equal(router.routeTerminal('track', 'music', music as unknown as AudioNode, 2), true);
+	assert.equal(router.routeTerminal('track', 'narration', narration as unknown as AudioNode, 2), true);
+
+	const merger = router.merger as unknown as MockNode;
+	assert.deepEqual(
+		merger.incoming.map(({ input }) => input).sort(),
+		[0, 1, 2, 3],
+		'the objects land after the bed rather than on top of it',
+	);
+	const objectGains = merger.incoming
+		.filter(({ input }) => input >= 2)
+		.map(({ source }) => (source as unknown as { gain: MockParam }).gain.value)
+		.sort();
+	assert.deepEqual(objectGains, [0.25, 0.5], 'each object carries its own authored gain');
+	// One strip feeding two objects splits once, not once per object.
+	assert.equal(narration.connections.filter(({ target }) => target.kind === 'channel-splitter').length, 1);
 });
 
 test('the production mixer graph routes its authored ADM bed too', () => {

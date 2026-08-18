@@ -6,7 +6,7 @@ import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import { stripParameterDescriptor } from '../effect-parameter-descriptors.ts';
 import { legacySendEdgeId, type StripRef } from '../parameter-address.ts';
-import { createAdmBedRouter } from './adm-bed-routing.ts';
+import { createAdmProgrammeRouter } from './adm-programme-routing.ts';
 import {
 	addNode,
 	connect,
@@ -180,7 +180,7 @@ export function buildProjectGraph(
 	const admMode = admMetadata && typeof admMetadata === 'object' && 'mode' in admMetadata
 		? admMetadata.mode
 		: null;
-	const admBedRouter = createAdmBedRouter(context, nodes, admMetadata, masterInput);
+	const admProgrammeRouter = createAdmProgrammeRouter(context, nodes, admMetadata, masterInput);
 	const preservesAdmChannels = admMode === 'authored' || admMode === 'passthrough';
 	const groupInputs = new Map(groups.map((bus) => [String(bus.id), addNode(nodes, context.createGain())]));
 	const sendInputs = new Map(sends.map((bus) => [String(bus.id), addNode(nodes, context.createGain())]));
@@ -188,7 +188,7 @@ export function buildProjectGraph(
 	const maximumBusLatency = pdcPlan.maximumBusLatencyFrames;
 	const anySolo = respectMuteSolo && [...tracks, ...groups, ...sends].some((channel) => channel.solo);
 	const connectTerminal = (output: AudioNode, scope: 'track' | 'group' | 'send', id: string, channelCount: number): void => {
-		if (admBedRouter) admBedRouter.routeTerminal(scope, id, output, channelCount);
+		if (admProgrammeRouter) admProgrammeRouter.routeTerminal(scope, id, output, channelCount);
 		else connect(output, masterInput);
 	};
 	const connectCompensated = (
