@@ -67,6 +67,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {readonly import('./riff-markers.ts').RiffMarker[]} markers
  * @property {import('./timeline-annotation-interchange-report.ts').TimelineAnnotationInterchangeReport} markerInterchangeReport
  * @property {import('./loudness-normalization.ts').LoudnessNormalizationTarget|null} loudnessNormalization
+ * @property {import('./binaural-delivery.ts').BinauralDeliveryPlan} [binaural]
  * @property {import('./mastering-sequence-delivery.ts').MasteringSequenceDeliveryPlan} [masteringSequence]
  * @property {{startFrame: number, endFrame: number, durationFrames: number}} range
  * @property {number} tailFrames

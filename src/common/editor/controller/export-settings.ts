@@ -43,6 +43,8 @@ export interface EditorExportSettings {
 	readonly customArguments: unknown;
 	readonly includeTail: boolean;
 	readonly measureLoudness: boolean;
+	/** Render an authored ADM programme to two channels for headphones. */
+	readonly binaural: boolean;
 	/** A preset name or explicit target resolved to numbers, or null when not asked for. */
 	readonly loudnessNormalization: LoudnessNormalizationTarget | null;
 	/**
@@ -89,6 +91,7 @@ export function normalizeEditorExportSettings(
 		customArguments: value.customArguments,
 		includeTail: value.includeTail !== false,
 		measureLoudness: value.measureLoudness === true,
+		binaural: value.binaural === true,
 		loudnessNormalization: normalizeLoudnessNormalizationTarget(value.loudnessNormalization),
 		masteringSequenceId: typeof value.masteringSequenceId === 'string' && value.masteringSequenceId !== ''
 			? value.masteringSequenceId

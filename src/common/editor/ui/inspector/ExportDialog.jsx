@@ -61,6 +61,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		customMimeType: 'application/octet-stream',
 		customArguments: '',
 		includeTail: true,
+		binaural: false,
 		masteringSequenceId: '',
 	});
 	const [error, setError] = useState('');
@@ -106,6 +107,13 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	const videoFormat = isVideoExportDialogFormat(settings.format);
 	const admRequired = settings.format === 'bw64' && settings.adm == null;
 	const admPassthrough = settings.format === 'bw64' && settings.adm?.mode === 'passthrough';
+	// Only an authored programme carries the positions a binaural render places
+	// from, and only outside BW64, whose metadata would describe channels the
+	// delivery no longer has.
+	const binauralAvailable = settings.format !== 'bw64'
+		&& !videoFormat
+		&& settings.mode === 'mix'
+		&& settings.adm?.mode === 'authored';
 	// A sequence delivers one spliced artifact, so it cannot also be a stem set,
 	// an ADM programme, or a sub-range of the project.
 	const projectMasteringSequences = snapshot.masteringSequences?.sequences;
@@ -180,6 +188,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 				: format === 'bwf' ? 'stereo' : current.channelMapping,
 			dither: passthrough ? 'none' : current.dither,
 			includeTail: passthrough ? false : current.includeTail,
+			// A binaural delivery is two channels, so a BW64 container would keep
+			// describing a programme the file no longer carries.
+			binaural: format === 'bw64' ? false : current.binaural,
 		};
 	});
 	const start = () => {
@@ -415,6 +426,13 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 								<span aria-hidden="true" />
 								<DesignCheckbox label={copy.includeTails} checked={settings.includeTail} disabled={exporting || admPassthrough} onChange={(checked) => set('includeTail', checked)} />
 							</div>
+							{binauralAvailable && (
+								<div className="audio-editor-export-check" data-export-field="binaural">
+									<span aria-hidden="true" />
+									<DesignCheckbox label={copy.binauralRender} checked={settings.binaural} disabled={exporting} onChange={(checked) => set('binaural', checked)} />
+								</div>
+							)}
+							{binauralAvailable && settings.binaural && <p className="audio-editor-panel-hint">{copy.binauralRenderHint}</p>}
 						</section>
 					</>
 				)}

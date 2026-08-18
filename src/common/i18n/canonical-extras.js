@@ -334,6 +334,8 @@ const COPY_ENTRIES = Object.freeze([
 	["bw64AdmRequired","BW64 export requires ADM. Open Metadata, select ADM, and enable it.","Für den BW64-Export ist ADM erforderlich. Öffne Metadaten, wähle ADM aus und aktiviere es."],
 	["admDisabledHint","Enable ADM to author a DirectSpeakers bed, from mono through 7.1.4.","ADM aktivieren, um ein DirectSpeakers-Bett von Mono bis 7.1.4 zu erstellen."],
 	["admEnable","Enable ADM","ADM aktivieren"],
+	["binauralRender","Render for headphones","Für Kopfhörer rendern"],
+	["binauralRenderHint","The bed and objects are placed by a parametric head model. It carries no measured head-related transfer function, so height is conveyed by timing and shadow rather than by tone.","Bett und Objekte werden von einem parametrischen Kopfmodell platziert. Es enthält keine gemessene kopfbezogene Übertragungsfunktion, daher wird Höhe durch Laufzeit und Abschattung statt durch Klangfarbe vermittelt."],
 	["admObjects","Objects","Objekte"],
 	["admNoObjects","This programme delivers its bed only.","Dieses Programm liefert nur sein Bett."],
 	["admAddObject","Add object","Objekt hinzufügen"],

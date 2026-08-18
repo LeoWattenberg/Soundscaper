@@ -8,6 +8,7 @@ test('export settings normalize formats, codec controls, and project defaults de
 		mode: 'mix',
 		range: 'project',
 		format: 'wav',
+		binaural: false,
 		bitDepth: 24,
 		sampleFormat: 'int24',
 		dither: 'triangular',
