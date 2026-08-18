@@ -5,6 +5,7 @@ import { Button } from '@dilsonspickles/components';
 
 import {
 	ADM_BED_CHANNEL_ORDER,
+	ADM_BED_LAYOUTS,
 	normalizeAdmProjectMetadata,
 	type AdmAuthoredMetadata,
 	type AdmBedLayout,
@@ -134,9 +135,11 @@ export function AdmMetadataFields({
 				disabled={disabled}
 				onChange={(event) => onCommit(setAdmEditorLayout(authored, project, event.currentTarget.value as AdmBedLayout))}
 			>
-				<option value="mono">{copy.mono}</option>
-				<option value="stereo">{copy.stereo}</option>
-				<option value="5.1">5.1</option>
+				{ADM_BED_LAYOUTS.map((layout) => (
+					<option key={layout} value={layout}>
+						{layout === 'mono' ? copy.mono : layout === 'stereo' ? copy.stereo : layout}
+					</option>
+				))}
 			</select>
 		</label>
 		<fieldset className="audio-editor-adm-routing">

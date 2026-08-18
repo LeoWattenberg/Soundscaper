@@ -1,28 +1,36 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	ADM_BED_LAYOUTS,
+	admBedChannelRefs,
+	admBedLayoutDefinition,
+	admTrackUid,
+	isAdmBedLayout,
+	type AdmBedLayout,
+} from './adm-bed-layout.ts';
+
 export const CHNA_ENTRY_BYTES = 40;
 export const CHNA_HEADER_BYTES = 4;
 export const CHNA_MAX_ENTRIES = 0xffff;
 export const CHNA_MAX_PAYLOAD_BYTES = CHNA_HEADER_BYTES + (CHNA_ENTRY_BYTES * CHNA_MAX_ENTRIES);
 
-export type AdmBedLayout = 'mono' | 'stereo' | '5.1';
+export type { AdmBedLayout };
 
 export interface AdmBedDefinition {
 	readonly packRef: string;
 	readonly channelRefs: readonly string[];
 }
 
-export const ADM_BED_DEFINITIONS: Readonly<Record<AdmBedLayout, AdmBedDefinition>> = Object.freeze({
-	mono: Object.freeze({ packRef: 'AP_00010001', channelRefs: Object.freeze(['AC_00010003']) }),
-	stereo: Object.freeze({ packRef: 'AP_00010002', channelRefs: Object.freeze(['AC_00010001', 'AC_00010002']) }),
-	'5.1': Object.freeze({
-		packRef: 'AP_00010003',
-		channelRefs: Object.freeze([
-			'AC_00010001', 'AC_00010002', 'AC_00010003',
-			'AC_00010004', 'AC_00010005', 'AC_00010006',
-		]),
-	}),
-});
+/**
+ * The pack and channel references each layout writes, derived from the one bed
+ * table so the CHNA cannot name a channel the AXML does not define.
+ */
+export const ADM_BED_DEFINITIONS: Readonly<Record<AdmBedLayout, AdmBedDefinition>> = Object.freeze(
+	Object.fromEntries(ADM_BED_LAYOUTS.map((layout) => [layout, Object.freeze({
+		packRef: admBedLayoutDefinition(layout).packRef,
+		channelRefs: Object.freeze(admBedChannelRefs(layout)),
+	})])) as Record<AdmBedLayout, AdmBedDefinition>,
+);
 
 export interface ChnaEntry {
 	readonly trackIndex: number;
@@ -42,13 +50,14 @@ export interface ChnaMetadataInput {
 }
 
 export function createAdmChna(input: { readonly layout?: AdmBedLayout } = {}): ChnaMetadata {
-	const definition = ADM_BED_DEFINITIONS[input.layout ?? 'stereo'];
-	if (!definition) throw new RangeError('ADM bed layout must be mono, stereo, or 5.1.');
+	const layout = input.layout ?? 'stereo';
+	if (!isAdmBedLayout(layout)) throw new RangeError(`Unsupported ADM bed layout: ${String(layout)}.`);
+	const definition = ADM_BED_DEFINITIONS[layout];
 	return normalizeChnaMetadata({
 		numTracks: definition.channelRefs.length,
 		entries: definition.channelRefs.map((trackRef, index) => ({
 			trackIndex: index + 1,
-			uid: `ATU_${String(index + 1).padStart(8, '0')}`,
+			uid: admTrackUid(index),
 			trackRef,
 			packRef: definition.packRef,
 		})),

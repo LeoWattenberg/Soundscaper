@@ -47,7 +47,7 @@ test('authored ADM beds normalize names, language, layout, and immutable default
 	assert.equal(normalized.language, 'eng');
 	assert.equal(normalized.programmeLanguage, 'eng');
 	assert.equal(normalized.contentLanguage, 'eng');
-	assert.throws(() => normalizeAdmBedMetadata({ layout: '7.1' as AdmBedLayout }), /layout/u);
+	assert.throws(() => normalizeAdmBedMetadata({ layout: '9.1.6' as AdmBedLayout }), /layout/u);
 	for (const language of ['e', 'en-GB', 'engl', '1n', ' en ']) {
 		assert.throws(() => normalizeAdmBedMetadata({ language }), /ISO 639|language/u);
 	}

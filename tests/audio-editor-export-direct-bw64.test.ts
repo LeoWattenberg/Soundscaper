@@ -127,6 +127,22 @@ test('direct BW64 admission is closed over exact authored integer ADM plans', as
 		assert.deepEqual(preparation, { cancelled: null, destination: null });
 	}
 
+	// The immersive layouts render through the ordinary offline export. This route
+	// is the packaged direct stream, whose evidence names mono, stereo and 5.1 and
+	// says in as many words that it does not qualify other ADM layouts. Growing the
+	// authored bed set must not enrol a layout here that nothing has ever measured.
+	for (const layout of ['5.1.2', '5.1.4', '7.1', '7.1.4'] as const) {
+		let prepareCalls = 0;
+		const preparation = await prepareDirectBw64Destination({
+			prepareSave() {
+				prepareCalls += 1;
+				return Object.freeze({ mode: 'blob' });
+			},
+		}, directBw64Plan({ layout }), {}, new AbortController().signal);
+		assert.equal(prepareCalls, 0, layout);
+		assert.deepEqual(preparation, { cancelled: null, destination: null });
+	}
+
 	assert.equal(DIRECT_BW64_MAXIMUM_FILE_BYTES, 69_793_218_560);
 	for (const layout of ['mono', 'stereo', '5.1'] as const) {
 		for (const bitDepth of [16, 20, 24] as const) {

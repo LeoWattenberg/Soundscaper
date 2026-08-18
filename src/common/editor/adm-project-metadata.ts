@@ -10,16 +10,26 @@ import {
 	resolveTerminalChannelWidths,
 	type TerminalWidthProject,
 } from './terminal-channel-widths.ts';
+import {
+	ADM_BED_CHANNEL_ORDER,
+	ADM_BED_CHANNELS,
+	ADM_BED_LAYOUTS,
+	admBedChannelCount,
+	admBedChannelOrder,
+	isAdmBedLayout,
+	type AdmBedChannel,
+	type AdmBedLayout,
+} from './adm-bed-layout.ts';
 
-export const ADM_BED_LAYOUTS = Object.freeze(['mono', 'stereo', '5.1'] as const);
-export type AdmBedLayout = typeof ADM_BED_LAYOUTS[number];
-
-export const ADM_BED_CHANNEL_ORDER = Object.freeze({
-	mono: Object.freeze(['M'] as const),
-	stereo: Object.freeze(['L', 'R'] as const),
-	'5.1': Object.freeze(['L', 'R', 'C', 'LFE', 'Ls', 'Rs'] as const),
-});
-export type AdmBedChannel = typeof ADM_BED_CHANNEL_ORDER[AdmBedLayout][number];
+export {
+	ADM_BED_CHANNEL_ORDER,
+	ADM_BED_CHANNELS,
+	ADM_BED_LAYOUTS,
+	admBedChannelCount,
+	admBedChannelOrder,
+	type AdmBedChannel,
+	type AdmBedLayout,
+};
 export type AdmTerminalStripKind = 'track' | 'group' | 'send';
 
 export interface AdmTerminalStripAssignment {
@@ -136,15 +146,6 @@ const MAX_ADM_NAME_BYTES = 512;
 const MAX_ADM_WARNINGS = 100;
 const BASE64_PATTERN = /^(?:[A-Za-z\d+/]{4})*(?:[A-Za-z\d+/]{2}==|[A-Za-z\d+/]{3}=)?$/u;
 
-export function admBedChannelOrder(layout: AdmBedLayout): readonly AdmBedChannel[] {
-	if (!ADM_BED_LAYOUTS.includes(layout)) throw new RangeError(`Unsupported ADM bed layout: ${String(layout)}.`);
-	return ADM_BED_CHANNEL_ORDER[layout];
-}
-
-export function admBedChannelCount(layout: AdmBedLayout): number {
-	return admBedChannelOrder(layout).length;
-}
-
 export function authoredAdmChannelCount(metadata: unknown): number | null {
 	if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
 	const candidate = metadata as Record<string, unknown>;
@@ -259,7 +260,8 @@ function normalizeAuthored(input: Record<string, unknown>): AdmAuthoredMetadata 
 	const programme = objectValue(input.programme, 'project.metadata.adm.programme');
 	const content = objectValue(input.content, 'project.metadata.adm.content');
 	const bed = objectValue(input.bed, 'project.metadata.adm.bed');
-	const layout = bed.layout as AdmBedLayout;
+	const layout = bed.layout;
+	if (!isAdmBedLayout(layout)) throw new RangeError(`Unsupported ADM bed layout: ${String(layout)}.`);
 	const bedChannels = new Set(admBedChannelOrder(layout));
 	if (!Array.isArray(bed.assignments)) throw new TypeError('project.metadata.adm.bed.assignments must be an array.');
 	const seen = new Set<string>();
@@ -268,7 +270,7 @@ function normalizeAuthored(input: Record<string, unknown>): AdmAuthoredMetadata 
 		const stripKind = enumValue(item.stripKind, ['track', 'group', 'send'], `ADM assignment ${index} strip kind`);
 		const stripId = nonEmptyText(item.stripId, `ADM assignment ${index} strip ID`, MAX_ADM_NAME_BYTES);
 		const sourceChannel = safeInteger(item.sourceChannel, 0, 65_535, `ADM assignment ${index} source channel`);
-		const bedChannel = enumValue(item.bedChannel, ['M', 'L', 'R', 'C', 'LFE', 'Ls', 'Rs'], `ADM assignment ${index} bed channel`);
+		const bedChannel = enumValue(item.bedChannel, ADM_BED_CHANNELS, `ADM assignment ${index} bed channel`);
 		if (!bedChannels.has(bedChannel)) throw new RangeError(`ADM bed channel ${bedChannel} is not part of the ${layout} layout.`);
 		const gain = finiteNumber(item.gain ?? 1, 0, 4, `ADM assignment ${index} gain`);
 		const key = `${stripKind}\0${stripId}\0${sourceChannel}\0${bedChannel}`;

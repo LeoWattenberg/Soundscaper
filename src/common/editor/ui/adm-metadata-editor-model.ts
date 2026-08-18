@@ -40,8 +40,19 @@ function records(value: unknown): readonly UnknownRecord[] {
 	return Array.isArray(value) ? value.map(record) : [];
 }
 
+/**
+ * The layout a project's master width suggests when ADM is first enabled.
+ *
+ * Eight channels are 7.1 rather than 5.1.2 because a bare eight-channel master
+ * is far more often a surround bed than a height one, and either way this only
+ * picks the starting point — the operator changes it in one control.
+ */
+const LAYOUT_BY_MASTER_CHANNELS: Readonly<Record<number, AdmBedLayout>> = Object.freeze({
+	1: 'mono', 2: 'stereo', 6: '5.1', 8: '7.1', 10: '5.1.4', 12: '7.1.4',
+});
+
 function projectLayout(project: UnknownRecord): AdmBedLayout {
-	return Number(project.masterChannels) === 1 ? 'mono' : Number(project.masterChannels) === 6 ? '5.1' : 'stereo';
+	return LAYOUT_BY_MASTER_CHANNELS[Number(project.masterChannels)] ?? 'stereo';
 }
 
 export function listAdmEditorSourceChannels(

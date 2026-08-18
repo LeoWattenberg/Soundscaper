@@ -332,7 +332,7 @@ const COPY_ENTRIES = Object.freeze([
 	["metadataBextTab","BEXT","BEXT"],
 	["metadataAdmTab","ADM","ADM"],
 	["bw64AdmRequired","BW64 export requires ADM. Open Metadata, select ADM, and enable it.","Für den BW64-Export ist ADM erforderlich. Öffne Metadaten, wähle ADM aus und aktiviere es."],
-	["admDisabledHint","Enable ADM to author a mono, stereo, or 5.1 DirectSpeakers bed.","ADM aktivieren, um ein DirectSpeakers-Bett in Mono, Stereo oder 5.1 zu erstellen."],
+	["admDisabledHint","Enable ADM to author a DirectSpeakers bed, from mono through 7.1.4.","ADM aktivieren, um ein DirectSpeakers-Bett von Mono bis 7.1.4 zu erstellen."],
 	["admEnable","Enable ADM","ADM aktivieren"],
 	["admDirectSpeakersHint","This delivery uses one ADM programme, one content object, and one DirectSpeakers bed.","Diese Auslieferung verwendet ein ADM-Programm, ein Inhaltsobjekt und ein DirectSpeakers-Bett."],
 	["admProgrammeName","Programme name","Programmname"],

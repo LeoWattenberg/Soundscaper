@@ -4,6 +4,7 @@ import {
 	admBedChannelOrder,
 	validateAdmProjectMetadata,
 	type AdmAuthoredMetadata,
+	type AdmBedLayout,
 	type AdmPassthroughMetadata,
 } from '../adm-project-metadata.ts';
 import {
@@ -185,6 +186,20 @@ function directBw64Plan(value: Readonly<Record<string, unknown>>): value is Read
 	return passthrough !== null && directPassthroughBw64Plan(plan, encoding, bitDepth, passthrough);
 }
 
+/**
+ * The authored bed layouts this route will stream.
+ *
+ * Deliberately narrower than the layouts an authored bed can carry. This is the
+ * direct packaged path, and its acceptance evidence names mono, stereo and 5.1
+ * and states that it does not qualify other ADM layouts; an immersive bed
+ * renders through the ordinary offline export instead. Deriving the admission
+ * from the layout table would have enrolled every new layout here silently, the
+ * moment the table grew, with nothing measured behind it.
+ */
+const DIRECT_BW64_ADMITTED_BED_LAYOUTS: ReadonlySet<AdmBedLayout> = new Set([
+	'mono', 'stereo', '5.1',
+]);
+
 function directAuthoredBw64Plan(
 	plan: DirectBw64Plan,
 	encoding: DirectBw64Encoding,
@@ -194,6 +209,7 @@ function directAuthoredBw64Plan(
 	if (!isCanonicalBextV2(plan.bext)
 		|| !isCanonicalBextV2(encoding.bext)
 		|| !sameCanonicalBext(plan.bext, encoding.bext)) return false;
+	if (!DIRECT_BW64_ADMITTED_BED_LAYOUTS.has(adm.metadata.bed.layout)) return false;
 	const channelOrder = admBedChannelOrder(adm.metadata.bed.layout);
 	if (plan.channelCount !== channelOrder.length
 		|| adm.channelCount !== channelOrder.length
