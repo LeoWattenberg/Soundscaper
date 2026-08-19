@@ -241,6 +241,33 @@ export function computeAudioTrackFreezeDigestsV1(value: AudioTrackFreezeDigestIn
 	});
 }
 
+/**
+ * A fingerprint of everything a freeze render reads from the document.
+ *
+ * A freeze runs for as long as the audio takes, and it has to notice a document
+ * that changed underneath it. Comparing the project object — or its revision —
+ * answers a different question: every command publishes a new document, so
+ * clicking the timeline to move the selection aborted an in-flight freeze and
+ * rolled back the work, though nothing the render reads had moved.
+ *
+ * This states exactly what the render reads: the track's rack and clip
+ * ownership, the clips themselves, the identity of the media under them, the
+ * rack automation, and the tempo map that resolves a musical lane. Live strip
+ * controls are outside the freeze boundary and stay outside this, so a fader
+ * move during a freeze is not a reason to discard it.
+ */
+export function audioTrackFreezeRenderFingerprintV1(
+	value: Omit<AudioTrackFreezeDigestInputV1, 'renderStartFrame' | 'renderFrameCount'>,
+): string {
+	return computeAudioTrackFreezeDigestsV1({
+		...value,
+		// The range is a decision the planner makes later; the fingerprint asks
+		// only whether the material behind it moved, so both sides use the same one.
+		renderStartFrame: 0,
+		renderFrameCount: 1,
+	}).freshnessDigestSha256;
+}
+
 export function classifyAudioTrackFreezeFreshnessV1(
 	freezeValue: unknown,
 	currentValue: unknown,

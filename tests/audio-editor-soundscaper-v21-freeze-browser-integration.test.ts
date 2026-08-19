@@ -150,6 +150,98 @@ test('browser freeze actions render, persist, activate, refresh, unfreeze, and c
 	playback.dispose();
 });
 
+test('an unrelated edit during a freeze does not discard the render', async () => {
+	// A freeze asks after every awaited step whether the document still says what
+	// it started against. Answering that by object identity discarded a freeze
+	// whenever any command published a new document — clicking the timeline to
+	// move the selection was enough to lose a long render.
+	const store = new MemoryFreezeStore();
+	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
+	const playback = createSoundscaperAudioTrackFreezePlaybackServiceV21(
+		createSoundscaperPlaybackProjectServiceV21(),
+		store,
+	);
+	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSourceV10({
+		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
+		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+	}));
+	let current = projectFixture(liveSourceSha256);
+	const controller = {
+		get project() { return current; },
+		actions: {
+			edit: {
+				commit(command: AudioTrackFreezeCoordinatorCommandV21) {
+					current = applySoundscaperProjectCommandV21(current, command, { now: NOW });
+					return current;
+				},
+			},
+		},
+	};
+	const renderCalls: Array<Readonly<{ project: Record<string, unknown>; options: EngineRenderMixOptions }>> = [];
+	const binding = createSoundscaperAudioFreezeActionsV21(
+		{ store, playback },
+		controller,
+		{
+			createId: (kind) => kind === 'source' ? 'voice-freeze-1' : 'voice-freeze-clip-1',
+			createRenderEngine: () => fakeRenderEngine(renderCalls, () => {
+				current = applySoundscaperProjectCommandV21(current, {
+					type: 'selection/set', startFrame: 0, endFrame: 4, trackIds: ['voice'],
+				} as never, { now: NOW });
+			}),
+		},
+	);
+
+	await binding.actions.freeze('voice');
+	assert.equal(binding.actions.getStatus('voice'), 'fresh');
+	assert.equal(freezeTrack(current).audioFreeze?.derivedSourceId, 'voice-freeze-1');
+	await binding.dispose();
+	playback.dispose();
+});
+
+test('an edit to the frozen material during a freeze still discards the render', async () => {
+	const store = new MemoryFreezeStore();
+	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
+	const playback = createSoundscaperAudioTrackFreezePlaybackServiceV21(
+		createSoundscaperPlaybackProjectServiceV21(),
+		store,
+	);
+	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSourceV10({
+		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
+		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+	}));
+	let current = projectFixture(liveSourceSha256);
+	const controller = {
+		get project() { return current; },
+		actions: {
+			edit: {
+				commit(command: AudioTrackFreezeCoordinatorCommandV21) {
+					current = applySoundscaperProjectCommandV21(current, command, { now: NOW });
+					return current;
+				},
+			},
+		},
+	};
+	const renderCalls: Array<Readonly<{ project: Record<string, unknown>; options: EngineRenderMixOptions }>> = [];
+	const binding = createSoundscaperAudioFreezeActionsV21(
+		{ store, playback },
+		controller,
+		{
+			createId: (kind) => kind === 'source' ? 'voice-freeze-1' : 'voice-freeze-clip-1',
+			createRenderEngine: () => fakeRenderEngine(renderCalls, () => {
+				current = applySoundscaperProjectCommandV21(current, {
+					type: 'effect/add', scope: 'track', trackId: 'voice',
+					effect: { id: 'mid-render-highpass', type: 'highpass', enabled: true, params: {} },
+				} as never, { now: NOW });
+			}),
+		},
+	);
+
+	await assert.rejects(() => binding.actions.freeze('voice'), /freeze project changed/iu);
+	assert.equal(Object.hasOwn(freezeTrack(current), 'audioFreeze'), false);
+	await binding.dispose();
+	playback.dispose();
+});
+
 function projectFixture(contentSha256: string): SoundscaperProjectV21 {
 	const source = createAudioSourceV10({
 		id: 'voice-source', storageKey: 'pcm:voice', contentSha256,
@@ -174,6 +266,7 @@ function projectFixture(contentSha256: string): SoundscaperProjectV21 {
 
 function fakeRenderEngine(
 	calls: Array<Readonly<{ project: Record<string, unknown>; options: EngineRenderMixOptions }>>,
+	onRender?: () => void,
 ): SoundscaperAudioFreezeRenderEngineV21 {
 	let project: Record<string, unknown> | null = null;
 	return {
@@ -183,6 +276,7 @@ function fakeRenderEngine(
 		async renderTrack(_trackId: unknown, options: EngineRenderMixOptions = {}) {
 			assert.ok(project);
 			calls.push({ project, options });
+			onRender?.();
 			const frames = Number(options.outputFrames);
 			return { channels: [Float32Array.from({ length: frames }, (_, index) => (index + 1) / frames)] };
 		},

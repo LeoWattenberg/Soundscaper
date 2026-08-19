@@ -6,6 +6,10 @@ import {
 	createAudioTrackFreezeCoordinatorV21,
 	type AudioTrackFreezeCoordinatorCommandV21,
 } from '../common/editor/audio-track-freeze-coordinator-v21.ts';
+import {
+	assertCurrentSoundscaperFreezeProjectV21,
+	soundscaperFreezeRenderFingerprintV21,
+} from './editor-audio-track-freeze-currency-v21.ts';
 import { normalizeAutomationLaneV21 } from '../common/editor/automation-lane-v21.ts';
 import { createStoredChunkProvider, SOURCE_CHUNK_FRAMES } from '../common/editor/controller/source-audio.ts';
 import { rackTailFrames } from '../common/editor/effects.js';
@@ -101,7 +105,12 @@ interface FreezeStage {
 	authority: StorageRecord | null;
 }
 
-interface ProjectTicket { readonly project: SoundscaperProjectV21 }
+interface ProjectTicket {
+	readonly project: SoundscaperProjectV21;
+	readonly trackId: string;
+	/** What the render reads, so an unrelated edit does not discard the freeze. */
+	readonly fingerprint: string;
+}
 
 /** Bind the generic freeze transaction to browser rendering, PCM storage, and controller CAS. */
 export function createSoundscaperAudioFreezeActionsV21(
@@ -123,7 +132,12 @@ export function createSoundscaperAudioFreezeActionsV21(
 				const track = exactRecordById(project.tracks, trackId, 'audio freeze track');
 				if (track.type !== 'audio') throw new RangeError(`Track ${trackId} is not audio.`);
 				if (track.locked === true) throw new Error(`Audio track ${trackId} is locked.`);
-				return Object.freeze({ project, ticket: Object.freeze({ project }) });
+				return Object.freeze({
+					project,
+					ticket: Object.freeze({
+						project, trackId, fingerprint: soundscaperFreezeRenderFingerprintV21(project, trackId),
+					}),
+				});
 			},
 			assertCurrent: (ticket) => assertCurrent(controller, ticket),
 			executeIfCurrent: (ticket, command, { signal }) => {
@@ -263,6 +277,11 @@ async function renderFreezeBody(
 		readonly signal?: AbortSignal;
 	}>,
 ): Promise<Readonly<{ readonly body: FreezeBody; readonly frameCount: number; readonly sampleRate: number; readonly channelCount: number }>> {
+	const ticket: ProjectTicket = Object.freeze({
+		project: request.project,
+		trackId: request.trackId,
+		fingerprint: soundscaperFreezeRenderFingerprintV21(request.project, request.trackId),
+	});
 	const runtime = resolveRuntimeProjectProjection(request.project);
 	const track = exactRecordById(runtime.tracks, request.trackId, 'audio freeze render track');
 	const ownedIds = new Set(arrayValue(track.clipIds, 'audio freeze render track.clipIds').map(String));
@@ -279,7 +298,7 @@ async function renderFreezeBody(
 			throwIfAborted(request.signal);
 			const storageKey = String(source.storageKey ?? source.id);
 			const metadata = await store.getSourceMetadata(storageKey);
-			assertCurrentProject(controller, request.project);
+			assertCurrentSoundscaperFreezeProjectV21(controller, ticket);
 			if (!metadata) throw new Error(`Stored PCM for ${String(source.id)} is unavailable.`);
 			providers.set(String(source.id), createStoredChunkProvider(store, source as never, metadata));
 		}
@@ -300,7 +319,7 @@ async function renderFreezeBody(
 			preRollFrames: latency,
 			signal: request.signal,
 		});
-		assertCurrentProject(controller, request.project);
+		assertCurrentSoundscaperFreezeProjectV21(controller, ticket);
 		const channels = Object.freeze(audioBufferChannels(rendered as AudioBuffer | PlanarPcm)
 			.map((channel) => channel.slice()));
 		if (channels.length === 0 || channels.some((channel) => channel.length !== request.renderFrameCount)) {
@@ -464,11 +483,7 @@ function exactCurrentProject(
 }
 
 function assertCurrent(controller: SoundscaperAudioFreezeControllerV21, ticket: ProjectTicket): void {
-	assertCurrentProject(controller, ticket.project);
-}
-
-function assertCurrentProject(controller: SoundscaperAudioFreezeControllerV21, project: object): void {
-	if (controller.project !== project) throw new DOMException('The audio freeze project changed.', 'AbortError');
+	assertCurrentSoundscaperFreezeProjectV21(controller, ticket);
 }
 
 function assertDependencies(
