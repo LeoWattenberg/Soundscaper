@@ -170,6 +170,44 @@ test('each fit states the operation that reaches the canvas, and contain states 
 	]);
 });
 
+test('the derived canvas comes from the clips the delivered range contains', () => {
+	// The canvas was derived from the whole project while the intervals beside it
+	// were resolved against the range, so exporting a selection could be framed
+	// and timed by a clip the delivery never shows.
+	const twoClips = () => {
+		const value = project();
+		value.sources.push({
+			...value.sources[0], id: 'source-2', storageKey: 'media/source-2',
+			width: 640, height: 480, frameRate: 25,
+		});
+		value.clips.push({
+			kind: 'video', id: 'clip-2', sourceId: 'source-2', title: 'Late',
+			timelineStartFrame: 10_000, sourceStartFrame: 0,
+			sourceDurationFrames: 10_000, durationFrames: 10_000,
+		});
+		value.tracks[0].clipIds.push('clip-2');
+		return value;
+	};
+
+	const late = createVideoExportPlan(twoClips(), { range: { startFrame: 10_000, endFrame: 20_000 } });
+	assert.equal(late.canvas.referenceClipId, 'clip-2');
+	assert.deepEqual([late.canvas.width, late.canvas.height], [640, 480]);
+	assert.equal(late.canvas.frameRate, 25);
+
+	// The whole project still resolves against its earliest visible clip.
+	const whole = createVideoExportPlan(twoClips(), { range: 'project' });
+	assert.equal(whole.canvas.referenceClipId, 'clip-1');
+	assert.deepEqual([whole.canvas.width, whole.canvas.height], [1_280, 720]);
+
+	// A caller's own visibility predicate reaches the canvas as well as the
+	// intervals, so a canvas cannot be sized from a track the delivery excludes.
+	const hidden = createVideoExportPlan(twoClips(), {
+		range: 'project',
+		isTrackVisible: (track) => track.id === 'track-1' && false,
+	});
+	assert.equal(hidden.canvas.referenceClipId, null);
+});
+
 function project() {
 	return {
 		sampleRate: 1_000,

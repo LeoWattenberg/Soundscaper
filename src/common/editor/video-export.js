@@ -247,7 +247,15 @@ export function createVideoExportPlan(project, options = {}) {
 	const format = getVideoExportFormat(options.format || 'mp4');
 	const range = resolveVideoExportRange(runtimeProject, options.range || 'project');
 	if (range.durationFrames <= 0) throw new RangeError('Video export range must contain at least one frame.');
-	const canvas = resolveVideoExportCanvas(runtimeProject, options.canvas || {});
+	// The canvas answers to the same range and the same visible tracks the
+	// intervals below do. Deriving it from the whole project meant a selection
+	// export could be framed and timed by a clip it never shows, and could name a
+	// reference clip the plan's own inputs do not contain.
+	const canvas = resolveVideoExportCanvas(runtimeProject, {
+		...(options.canvas || {}),
+		range,
+		...(options.isTrackVisible === undefined ? {} : { isTrackVisible: options.isTrackVisible }),
+	});
 	const compositionIntervals = resolveVideoCompositionIntervals(runtimeProject, {
 		startFrame: range.startFrame,
 		endFrame: range.endFrame,
