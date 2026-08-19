@@ -247,7 +247,14 @@ before code.
   trim-media: it computes the referenced ranges per source, widens them by
   declared handles, merges overlapping *and* abutting runs, and reports an
   unreferenced source rather than acting on it. Its retention property is tested
-  exhaustively, not by example. **Note the deliberate asymmetry:** trim-media
+  exhaustively, not by example. Two kinds of video source are retained whole and
+  reported instead of planned: one bound to a timing asset, because that asset is
+  bound to the file's exact content digest and nothing here re-probes the trimmed
+  copy, so a planned cut would end with the bytes written and the document
+  refusing them; and one a multicamera member reads, because a member's read
+  position is the output clip's in-point plus its own sync offset, so moving that
+  in-point into a trimmed copy shifts every other angle by as much. Re-issuing a
+  timing asset for a trimmed copy is the work that would lift the first. **Note the deliberate asymmetry:** trim-media
   ignores visibility entirely, because it decides which bytes survive rather
   than describing the render — a hidden track's media must not be destroyed by
   hiding it. That is the opposite of the 6C-1 rule and the two must not be

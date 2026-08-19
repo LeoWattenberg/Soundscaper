@@ -75,7 +75,16 @@ export function createTrimMediaPlan(request: TrimMediaPlanRequest): TrimMediaPla
 	// works in pictures — keyframes are numbered in them and the seek a cut uses
 	// is computed from them at the source frame rate. A video source planned in
 	// sample frames would cut at frame 480,000 of a three-hundred-frame file.
-	const sources = new Map<string, { video: boolean; frameCount: number; ranges: TrimMediaRange[] }>();
+	const sources = new Map<string, {
+		video: boolean;
+		frameCount: number;
+		ranges: TrimMediaRange[];
+		untrimmable: 'timing-bound' | 'multicamera-bound' | null;
+	}>();
+	// A source another camera in a group reads is untrimmable: a member's read
+	// position is the output clip's in-point plus its own sync offset, so moving
+	// that in-point into a trimmed copy shifts every other angle by as much.
+	const multicameraSourceIds = multicameraBoundSourceIds(project);
 	for (const source of asRecords(project.sources)) {
 		const id = String(source.id ?? '');
 		if (!id) continue;
@@ -83,7 +92,17 @@ export function createTrimMediaPlan(request: TrimMediaPlanRequest): TrimMediaPla
 		const frameCount = video
 			? nonNegativeInteger(source.sourceFrameCount ?? source.frameCount ?? 0, 'source.sourceFrameCount')
 			: nonNegativeInteger(source.frameCount ?? 0, 'source.frameCount');
-		sources.set(id, { video, frameCount, ranges: [] });
+		// A video source states its timing twice, and the second statement — the
+		// timing asset — is bound to the exact content digest of the file it was
+		// probed from. A trim changes the digest and the picture count, and nothing
+		// here re-probes the copy, so planning such a cut ends in FFmpeg writing a
+		// body the document then refuses. It is retained whole instead.
+		const untrimmable = !video
+			? null
+			: multicameraSourceIds.has(id)
+				? 'multicamera-bound'
+				: source.timingAsset == null ? null : 'timing-bound';
+		sources.set(id, { video, frameCount, ranges: [], untrimmable });
 	}
 
 	// Every clip, from every track, visible or not, and every clip in the Project
@@ -121,6 +140,34 @@ export function createTrimMediaPlan(request: TrimMediaPlanRequest): TrimMediaPla
 	let discardedTotal = 0;
 	for (const [sourceId, entry] of sources) {
 		const referenceCount = entry.ranges.length;
+		// A multicamera member's source is retained even with no clip of its own:
+		// the group reads it through the output clip, which is exactly the
+		// reference this walk cannot see.
+		if (entry.untrimmable === 'multicamera-bound'
+			|| (entry.untrimmable === 'timing-bound' && referenceCount > 0)) {
+			addDeliveryReportItem(draft, {
+				code: entry.untrimmable === 'timing-bound'
+					? 'trim.source-timing-bound'
+					: 'trim.source-multicamera-bound',
+				disposition: 'omitted',
+				severity: 'warning',
+				scope: { kind: 'source', id: sourceId },
+				data: { frameCount: entry.frameCount },
+				message: entry.untrimmable === 'timing-bound'
+					? 'This video states exact timing bound to its current content, which a trim would invalidate; every frame is kept.'
+					: 'Another camera in a multicamera group reads this source, so every frame is kept.',
+			});
+			plans.push(Object.freeze({
+				sourceId,
+				frameCount: entry.frameCount,
+				retained: Object.freeze([Object.freeze({ startFrame: 0, endFrame: entry.frameCount })]),
+				retainedFrames: entry.frameCount,
+				discardedFrames: 0,
+				wholeSourceRetained: true,
+				referenceCount,
+			}));
+			continue;
+		}
 		const retained = mergeRanges(entry.ranges);
 		const retainedFrames = retained.reduce((sum, range) => sum + (range.endFrame - range.startFrame), 0);
 		const discardedFrames = Math.max(0, entry.frameCount - retainedFrames);
@@ -353,4 +400,17 @@ function nonNegativeInteger(value: unknown, label: string): number {
 		throw new RangeError(`${label} must be a non-negative safe integer.`);
 	}
 	return number;
+}
+
+/** Sources a multicamera member reads, which no plan may cut under the group. */
+function multicameraBoundSourceIds(project: Readonly<Record<string, unknown>>): ReadonlySet<string> {
+	const groups = asRecords(project.multicameraGroups);
+	const sourceIds = new Set<string>();
+	for (const group of groups) {
+		for (const member of asRecords(group.members)) {
+			const sourceId = String(member.sourceId ?? '');
+			if (sourceId) sourceIds.add(sourceId);
+		}
+	}
+	return sourceIds;
 }
