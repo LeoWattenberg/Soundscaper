@@ -122,3 +122,64 @@ function tempoMap(bpm: number) {
 		events: [{ beat: { num: 0, den: 1 }, bpm: { num: bpm, den: 1 } }],
 	};
 }
+
+test('a rack another strip keys cannot be frozen into a self-keyed render', async () => {
+	// The freeze renders the track alone through a graph built for it, so an
+	// authored sidechain into its rack is not there: the dynamics worklet keys
+	// itself from its own input and a self-keyed limiter is what gets baked.
+	const { createSoundscaperAudioFreezeActionsV21 } = await import(
+		'../src/soundscaper/editor-audio-track-freeze-actions-v21.ts'
+	);
+	const { applySoundscaperProjectCommandV21 } = await import(
+		'../src/soundscaper/editor-project-v21-commands.ts'
+	);
+	const { createAudioTrackV10 } = await import('../src/common/editor/project-v10.ts');
+	const { createSoundscaperProjectV21 } = await import('../src/soundscaper/editor-project-v21.ts');
+
+	const base = createSoundscaperProjectV21({
+		id: 'freeze-sidechain', title: 'Freeze sidechain', now: '2026-08-19T12:00:00.000Z',
+		tracks: [
+			createAudioTrackV10({
+				id: 'voice', name: 'Voice', clipIds: [],
+				effects: [{ id: 'voice-fx', type: 'limiter', enabled: true, params: {} }],
+			}),
+			createAudioTrackV10({ id: 'music', name: 'Music', clipIds: [] }),
+		],
+		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],
+		primarySequenceId: 'main-sequence',
+	});
+	const keyed = applySoundscaperProjectCommandV21(base, {
+		type: 'mixer-graph/set',
+		expected: base.mixer,
+		mixer: {
+			...base.mixer,
+			edges: [...base.mixer.edges, {
+				id: 'sidechain:duck:voice:voice-fx', kind: 'sidechain',
+				source: { kind: 'track', id: 'music' },
+				destination: {
+					kind: 'effect-sidechain', strip: { kind: 'track', id: 'voice' }, effectId: 'voice-fx',
+				},
+				position: 'post-fader', level: 1, enabled: true, channelMap: [],
+			}],
+		},
+	} as never, { now: '2026-08-19T12:00:01.000Z' });
+
+	const binding = createSoundscaperAudioFreezeActionsV21(
+		{
+			store: {
+				beginSourceWrite: () => { throw new Error('no render should start'); },
+				discardSourceIfCurrent: async () => undefined,
+			} as never,
+			playback: {
+				hashSourceContent: async () => SHA_A,
+				admitVerifiedFreeze: () => undefined,
+			} as never,
+		},
+		{ project: keyed, actions: { edit: { commit: () => keyed } } } as never,
+	);
+
+	await assert.rejects(() => binding.actions.freeze('voice'), /sidechain/iu);
+	// The track that is not keyed is unaffected.
+	await assert.rejects(() => binding.actions.freeze('music'), /empty|clip|range/iu);
+	await binding.dispose();
+});

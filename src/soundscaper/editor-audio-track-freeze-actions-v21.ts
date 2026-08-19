@@ -132,6 +132,7 @@ export function createSoundscaperAudioFreezeActionsV21(
 				const track = exactRecordById(project.tracks, trackId, 'audio freeze track');
 				if (track.type !== 'audio') throw new RangeError(`Track ${trackId} is not audio.`);
 				if (track.locked === true) throw new Error(`Audio track ${trackId} is locked.`);
+				assertNoSidechainIntoRack(project, track, trackId);
 				return Object.freeze({
 					project,
 					ticket: Object.freeze({
@@ -332,6 +333,41 @@ async function renderFreezeBody(
 		throw error;
 	} finally {
 		await cleanupRenderResources(engine, providers, failure);
+	}
+}
+
+/**
+ * Refuse to bake a rack another strip is keying.
+ *
+ * The freeze renders the track alone, through a graph built for it, so an
+ * authored sidechain edge feeding an effect in its rack does not exist during
+ * that render. The dynamics worklet then keys itself from its own input, and
+ * what gets baked is a self-keyed limiter or gate — audibly not what plays.
+ * Rendering the key track alongside would mean pulling its media, its identity,
+ * and its own staleness into the freeze, so until that exists this refuses
+ * rather than committing a render that disagrees with playback.
+ */
+function assertNoSidechainIntoRack(
+	project: SoundscaperProjectV21,
+	track: DataRecord,
+	trackId: string,
+): void {
+	const effectIds = new Set(dataArray(track.effects, 'audio freeze track.effects').map(({ id }) => String(id)));
+	if (effectIds.size === 0) return;
+	const edges = dataArray(
+		dataRecord((project as unknown as DataRecord).mixer, 'project.mixer').edges,
+		'project.mixer.edges',
+	);
+	for (const edge of edges) {
+		if (edge.enabled === false) continue;
+		const destination = edge.destination as DataRecord | undefined;
+		if (destination?.kind !== 'effect-sidechain') continue;
+		const strip = destination.strip as DataRecord | undefined;
+		if (strip?.kind !== 'track' || String(strip.id) !== trackId) continue;
+		if (!effectIds.has(String(destination.effectId))) continue;
+		throw new Error(
+			`Audio track ${trackId} has an effect keyed by a sidechain, which a freeze cannot render.`,
+		);
 	}
 }
 
