@@ -492,6 +492,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'roundRational', policies: ['point'] }],
 	},
 	{
+		id: 'trim-media-rewritten-source-length',
+		file: 'src/common/editor/trim-media-project-edit.ts',
+		behavior: 'A trimmed video source states its length in pictures, and the sample-frame length the document also holds is derived from that count with the enclosing-end policy, so the audio side is never shorter than the pictures it accompanies.',
+		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['enclosingEnd'] }],
+	},
+	{
 		id: 'tempo-map-sample-inverse',
 		file: 'src/common/editor/timeline-tempo-inverse.ts',
 		behavior: 'Tempo inversion accumulates exact event spans, point-rounds each event boundary, and returns the edited sample position as an exact rational beat.',
