@@ -11,10 +11,11 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-17: all three 6C-1 profiles are implemented, reachable, and
-verified against third-party readers; 6C-2 has its planning half complete —
-the checksum manifest, the trim-media proof, and the consolidate plan — and none
-of the operations that move bytes.** The EDL profile establishes the pattern
+**Status on 2026-08-19: all three 6C-1 profiles are implemented, reachable, and
+verified against third-party readers; 6C-2's planning and byte-moving halves are
+both complete — the checksum manifest and its `.scape` wiring, consolidate,
+trim-media, and the kill/reload recovery acceptance — and what remains is the
+controller and UI wiring that gives those operations their real ports.** The EDL profile establishes the pattern
 the remaining profiles reuse: exact rational rates throughout, timecode from the
 shared `sequence-timecode` module, and every out-of-scope feature itemized in a
 delivery report rather than approximated. It is split deliberately —
@@ -249,9 +250,40 @@ before code.
   ignores visibility entirely, because it decides which bytes survive rather
   than describing the render — a hidden track's media must not be destroyed by
   hiding it. That is the opposite of the 6C-1 rule and the two must not be
-  conflated. **Still owed:** consolidate, the byte-rewriting half of trim-media,
-  wiring the manifest to the `.scape` archive writer, and the kill/reload
-  recovery acceptance.
+  conflated. **The operations have since landed.** `consolidate-operation.ts` runs a
+  consolidate plan in the one order that survives an interruption — copy, verify,
+  then rebind — because a process that dies between the copy and the rebind
+  leaves a project still pointing at its original with an unreferenced managed
+  copy behind it, which is garbage to collect rather than a project that lost its
+  media. Verification is doubled on purpose: the original is digested as it
+  streams, catching a file that changed since it was bound, and the managed copy
+  is read back and digested again, catching storage that accepted bytes and
+  returned different ones. `trim-media-operation.ts` does the same for trimmed
+  copies, checking what the writer produced against the frames the plan retained
+  and refusing anything short. The plan now also states where each retained run
+  lands in the trimmed source, so clips can be moved without recomputing it, and
+  a discarded frame maps to nothing rather than to its nearest survivor.
+
+  Two refusals in each are structural rather than documentary: neither operation
+  has a port that could delete, move, or rewrite a linked original, and
+  trim-media refuses an external source outright, pointing at consolidate first —
+  which is also the slice's "refuse where undo cannot be honest", since there is
+  no honest undo for somebody else's bytes.
+
+  `scape-archive-manifest.ts` is the manifest wiring, and deliberately does not
+  reuse the export manifest's digests: a checksum document copied from the
+  writer's own account of itself agrees with the writer by construction and
+  catches nothing the writer got wrong. It reads the finished archive back,
+  digesting members as they stream, and verification compares the recorded
+  manifest against that observed one rather than reading every member twice.
+
+  The kill/reload acceptance is in
+  `tests/audio-editor-archive-recovery-acceptance.test.ts`, and kills every port
+  call in turn rather than one representative step. Held against an operation
+  deliberately weakened to rebind before verifying, it fails.
+
+  **Still owed:** the controller and UI wiring that gives these operations their
+  real ports and a surface to run from.
 - **Consolidate planning has landed** in `src/common/editor/consolidate-plan.ts`.
   It takes the linked-original bindings as an argument, because a source carries
   no linked-or-managed flag — that lives in the repositories behind
