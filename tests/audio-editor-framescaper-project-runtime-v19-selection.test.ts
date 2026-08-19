@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createClipboardDescriptor } from '../src/common/editor/commands/clipboard-runtime.js';
 import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
 import { editorProjectStorageProfileNames } from '../src/common/editor/storage/project-storage-profile.ts';
 import {
@@ -136,14 +137,59 @@ test('selected V19 runtime owns exact store and lock profiles without overrides'
 	);
 });
 
+test('a copy that carries a graph the descriptor cannot own is refused where it is made', () => {
+	// The session descriptor owns neither a nested-sequence nor a multicamera
+	// graph, so the V18 selection fails closed on both. V19 and V20 inherited the
+	// projection and not the guard, and the shipped web build boots V19: a copy
+	// was accepted and the paste of it failed instead.
+	const runtime = createEditorProjectRuntimeV19Selection(PROFILE);
+	const project = projectFixture('graph-lossy-v19');
+	const descriptor = createClipboardDescriptor(
+		runtime.projectForCommandConsumers(project) as never,
+		{ startFrame: 0, endFrame: 48_000, trackIds: ['video-track'] },
+	);
+	assert.doesNotThrow(() => runtime.prepareEditClipboardDescriptor(project, descriptor as never));
+
+	const multicamera = createFramescaperProjectV19(PROFILE, {
+		id: 'graph-lossy-v19-multicamera', title: 'Selected V19', now: '2026-08-13T12:00:00.000Z',
+		sources: [videoSource('video-source'), videoSource('video-source-b')],
+		clips: [{
+			kind: 'video', id: 'video-clip', sourceId: 'video-source', title: 'Video',
+			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
+			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
+		}],
+		tracks: [createVideoTrackV10({
+			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,
+		})],
+		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],
+		primarySequenceId: 'main-sequence',
+		multicameraGroups: [{
+			id: 'group-a', projectId: 'graph-lossy-v19-multicamera', sequenceId: 'main-sequence',
+			outputClipId: 'video-clip', activeMemberId: 'camera-a',
+			members: [
+				{ id: 'camera-a', groupId: 'group-a', sourceId: 'video-source', syncOffsetSamples: 0 },
+				{ id: 'camera-b', groupId: 'group-a', sourceId: 'video-source-b', syncOffsetSamples: 0 },
+			],
+		}],
+	});
+	assert.throws(
+		() => runtime.prepareEditClipboardDescriptor(multicamera, descriptor as never),
+		/multicamera graph/iu,
+	);
+});
+
+function videoSource(id: string) {
+	return createVideoSourceV10({
+		id, name: id, storageKey: id, mimeType: 'video/mp4',
+		contentSha256: '12'.repeat(32), frameCount: 48_000, sampleFrameCount: 48_000,
+		sourceFrameCount: 10, frameRate: { num: 10, den: 1 }, width: 1_920, height: 1_080,
+	});
+}
+
 function projectFixture(id: string): ReturnType<typeof createFramescaperProjectV19> {
 	return createFramescaperProjectV19(PROFILE, {
 		id, title: 'Selected V19', now: '2026-08-13T12:00:00.000Z',
-		sources: [createVideoSourceV10({
-			id: 'video-source', name: 'Video', storageKey: 'video-source', mimeType: 'video/mp4',
-			contentSha256: '12'.repeat(32), frameCount: 48_000, sampleFrameCount: 48_000,
-			sourceFrameCount: 10, frameRate: { num: 10, den: 1 }, width: 1_920, height: 1_080,
-		})],
+		sources: [videoSource('video-source')],
 		clips: [{
 			kind: 'video', id: 'video-clip', sourceId: 'video-source', title: 'Video',
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,

@@ -6,12 +6,10 @@ import type { EditorProjectRuntimeProfile } from '../common/editor/project-runti
 import { createAudioEditorSessionController } from '../common/editor/session.js';
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import {
-	createAudioEditorSessionClipboard,
-} from '../common/editor/session-clipboard-codec.ts';
-import {
 	createFramescaperProjectFeatureCompatibilityServiceV19,
 } from './editor-project-feature-requirements-v19.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v18.ts';
+import { createFramescaperSessionClipboardV18 } from './editor-project-v18-interchange.ts';
 import {
 	framescaperProjectForCommandConsumersV18,
 } from './editor-project-v18-runtime.ts';
@@ -116,7 +114,13 @@ export function createEditorProjectRuntimeV19Selection(
 			framescaperProjectV18FoundationV19(profile, project, { retainComposition: true }),
 		),
 		projectForRuntimeConsumers: (project) => framescaperProjectForRuntimeConsumersV19(profile, project),
-		prepareEditClipboardDescriptor: (project, descriptor) => createAudioEditorSessionClipboard(
+		// Through the V18 clipboard, not the shared one directly: the session
+		// descriptor has no ownership of a nested-sequence or multicamera graph, so
+		// a copy that contains one has to fail where it is made rather than where it
+		// is pasted. Inheriting the projection without the guard let the shipped web
+		// build accept such a copy and refuse it later.
+		prepareEditClipboardDescriptor: (project, descriptor) => createFramescaperSessionClipboardV18(
+			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 			framescaperProjectV18FoundationV19(profile, project, { retainComposition: true }),
 			{ descriptor },
 		).descriptor,

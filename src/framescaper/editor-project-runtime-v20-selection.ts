@@ -3,14 +3,13 @@
 import type { AudioEditorClipboard } from '../common/editor/commands/protocol.ts';
 import { acquireProjectLock } from '../common/editor/project-lock.js';
 import { createAudioEditorSessionController } from '../common/editor/session.js';
-import {
-	createAudioEditorSessionClipboard,
-} from '../common/editor/session-clipboard-codec.ts';
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import {
 	createFramescaperProjectFeatureCompatibilityServiceV20,
 } from './editor-project-feature-requirements-v20.ts';
+import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v18.ts';
 import { FRAMESCAPER_V20_PROJECT_STORAGE_PROFILE } from './editor-project-storage-profile-v20.ts';
+import { createFramescaperSessionClipboardV18 } from './editor-project-v18-interchange.ts';
 import { createFramescaperProjectStoreV20 } from './editor-project-store-v20.ts';
 import {
 	applyFramescaperProjectCommandV20,
@@ -114,7 +113,11 @@ export function createEditorProjectRuntimeV20Selection(
 		migrateProject: (project) => migrateFramescaperProjectV20(profile, project),
 		projectForCommandConsumers: (project) => framescaperProjectForCommandConsumersV20(profile, project),
 		projectForRuntimeConsumers: (project) => framescaperProjectForRuntimeConsumersV20(profile, project),
-		prepareEditClipboardDescriptor: (project, descriptor) => createAudioEditorSessionClipboard(
+		// Through the V18 clipboard, for the reason stated on the V19 selection: the
+		// session descriptor owns neither a nested-sequence nor a multicamera graph,
+		// so a copy containing one fails where it is made.
+		prepareEditClipboardDescriptor: (project, descriptor) => createFramescaperSessionClipboardV18(
+			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 			framescaperProjectForCommandConsumersV20(profile, project),
 			{ descriptor },
 		).descriptor,
