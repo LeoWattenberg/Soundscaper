@@ -109,6 +109,8 @@ export interface EditorDocumentSnapshotState {
 	readonly clipboard: unknown;
 	readonly status: Readonly<{ message: string; state: string }>;
 	readonly deliveryReport?: unknown;
+	/** The checksum manifest of the .scape this session last wrote, if it held one. */
+	readonly archiveManifest?: unknown;
 	readonly videoDeliveryPreviewCanvas?: unknown;
 	readonly saveState: string;
 	readonly storageEstimate: Readonly<StorageCapacitySnapshot>;
@@ -282,6 +284,11 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			})
 			: null,
 		deliveryReport: state.deliveryReport ?? null,
+		// Beside the delivery report, and for the same reason: the save path spends a
+		// full re-read of the archive to produce these checksums, and the menu entry
+		// that saves them is enabled from the snapshot. Leaving it out of the
+		// snapshot left the entry disabled for the whole session.
+		archiveManifest: state.archiveManifest ?? null,
 		videoDeliveryPreviewCanvas: state.videoDeliveryPreviewCanvas ?? null,
 		featureRequirementsCompatibility: currentTabMetadata.featureRequirementsReport ?? null,
 		featureRequirementsReadOnly: Boolean(currentTabMetadata.featureRequirementsReadOnly),

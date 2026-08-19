@@ -32,6 +32,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		history: { undoStack: ['old', 'new'], redoStack: ['redo'] },
 		clipboard: { sourceIds: [] },
 		recordingKind: 'take-cycle',
+		archiveManifest: { manifest: { members: [{ id: 'project.json' }] }, unavailable: null },
 		takeCycleRecovery: Object.freeze({
 			kind: 'take-cycle-pending-open-recovery', projectId: 'project',
 			publicationGeneration: 4, recoveryToken: 'recover-4', draftCount: 2,
@@ -119,6 +120,12 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	assert.deepEqual(snapshot.recordingPreviews, [{ frames: 4 }]);
 	assert.deepEqual(snapshot.history.undoEntries, ['summary:new', 'summary:old']);
 	assert.equal(snapshot.storage.ephemeral, true);
+	// The File entry that saves the archive's checksums is enabled from this, so a
+	// manifest that never reached the snapshot left that entry disabled for the
+	// whole session with no reason shown.
+	assert.deepEqual(snapshot.archiveManifest, {
+		manifest: { members: [{ id: 'project.json' }] }, unavailable: null,
+	});
 	assert.deepEqual(snapshot.aup4Compatibility, {
 		report: { direction: 'import' }, dismissed: true,
 	});
