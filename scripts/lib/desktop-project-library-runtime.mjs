@@ -117,6 +117,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/closed-domain-value.js',
 	'src/common/editor/commands/mastering-sequence.js',
 	'src/common/editor/commands/protocol.js',
+	'src/common/editor/commands/protocol-values.js',
 	'src/common/editor/ffmpeg-video-source-characteristics.js',
 	'src/common/editor/ffmpeg-video-timing-probe.js',
 	'src/common/editor/folder-bus-v13.js',
