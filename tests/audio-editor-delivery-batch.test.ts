@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { normalizeEditorExportSettings } from '../src/common/editor/controller/export-settings.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
 import {
@@ -115,6 +116,26 @@ test('every member resolves to the settings a single delivery would have used', 
 		'the region member delivers exactly its region',
 	);
 	assert.ok(createExportPlan(project, sequenceMember.settings).masteringSequence);
+});
+
+test('a queued member keeps the frames it names when the export normalizes its settings', () => {
+	// The queue does not hand a member's settings to the plan directly: it goes
+	// through the export action, which normalizes them first. That normalizer used
+	// to know only the words 'selection' and 'loop', so every resolved range
+	// collapsed to 'project' and the member delivered the whole record while the
+	// manifest still labelled it with the region it named.
+	const project = albumProject();
+	const batch = createDeliveryBatch(project, {
+		batchId: 'batch-1', presets: [preset('wav24', 'wav')], targets: TARGETS,
+	});
+	const [wholeProject, regionMember] = batch.members;
+
+	const regionSettings = normalizeEditorExportSettings(regionMember.settings, project.sampleRate);
+	assert.deepEqual(regionSettings.range, { startFrame: 0, endFrame: 96_000 });
+	assert.equal(createExportPlan(project, regionSettings).outputFrames, 96_000);
+
+	const projectSettings = normalizeEditorExportSettings(wholeProject.settings, project.sampleRate);
+	assert.equal(projectSettings.range, 'project');
 });
 
 test('a stems batch delivers stems, and refuses the target that cannot be stems', () => {

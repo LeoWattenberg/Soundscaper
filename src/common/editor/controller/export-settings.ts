@@ -23,9 +23,15 @@ export const EDITOR_EXPORT_FORMATS = Object.freeze([
 
 export type EditorExportFormat = typeof EDITOR_EXPORT_FORMATS[number];
 
+/** An explicit delivered range, resolved before the settings were queued. */
+export interface EditorExportFrameRange {
+	readonly startFrame: number;
+	readonly endFrame: number;
+}
+
 export interface EditorExportSettings {
 	readonly mode: 'mix' | 'stems';
-	readonly range: 'project' | 'selection' | 'loop';
+	readonly range: 'project' | 'selection' | 'loop' | EditorExportFrameRange;
 	readonly format: EditorExportFormat;
 	readonly bitDepth: 16 | 20 | 24 | 32;
 	readonly sampleFormat: unknown;
@@ -69,7 +75,7 @@ export function normalizeEditorExportSettings(
 	const compressionLevel = numberOrDefault(value.compressionLevel, format === 'flac' ? 5 : 2);
 	return Object.freeze({
 		mode: format === 'bw64' ? 'mix' : value.mode === 'stems' ? 'stems' : 'mix',
-		range: value.range === 'selection' || value.range === 'loop' ? value.range : 'project',
+		range: normalizeExportRange(value.range),
 		format,
 		bitDepth,
 		sampleFormat: value.sampleFormat || (bitDepth === 32 ? 'float32' : `int${bitDepth}`),
@@ -110,4 +116,24 @@ function isBitRateFormat(format: EditorExportFormat): boolean {
 function numberOrDefault(value: unknown, fallback: number): number {
 	const number = Number(value);
 	return Number.isFinite(number) ? number : fallback;
+}
+
+/**
+ * Keep an already-resolved range, rather than collapsing it to the whole project.
+ *
+ * A batch member names its material once, when the batch is built, and freezes
+ * the frames it resolved to; the queue then replays those settings through this
+ * normalizer on its way to the export. Accepting only the words left every such
+ * member delivering the entire project under the label of the region, selection,
+ * or loop it was queued for.
+ */
+function normalizeExportRange(value: unknown): EditorExportSettings['range'] {
+	if (value === 'selection' || value === 'loop') return value;
+	if (!value || typeof value !== 'object') return 'project';
+	const record = value as Readonly<Record<string, unknown>>;
+	const startFrame = Number(record.startFrame);
+	const endFrame = Number(record.endFrame);
+	if (!Number.isSafeInteger(startFrame) || startFrame < 0) return 'project';
+	if (!Number.isSafeInteger(endFrame) || endFrame <= startFrame) return 'project';
+	return Object.freeze({ startFrame, endFrame });
 }
