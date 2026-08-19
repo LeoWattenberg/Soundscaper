@@ -68,6 +68,44 @@ test('a source rebound elsewhere mid-copy keeps its new binding and drops this c
 	assert.equal(reportItem(result, 'consolidate.rebind-superseded')?.severity, 'warning');
 });
 
+test('one source failing is itemised rather than ending the run', async () => {
+	const harness = createHarness({ failWriteFor: 'first' });
+	const plan = createConsolidatePlan({
+		project: {
+			sources: [{ id: 'first' }, { id: 'second' }],
+			clips: [{ sourceId: 'first' }, { sourceId: 'second' }],
+		},
+		bindings: [binding('first'), binding('second')],
+	});
+	const result = await runConsolidate(plan, harness.ports);
+
+	// A single unreadable file must not undo everything already copied.
+	assert.deepEqual(result.sources.map(({ outcome }) => outcome), ['copy-failed', 'copied']);
+	assert.equal(result.complete, false);
+	assert.equal(result.copiedByteLength, ORIGINAL.byteLength);
+	assert.match(String(reportItem(result, 'consolidate.copy-failed')?.data.reason), /storage refused/u);
+	assert.ok(reportItem(result, 'consolidate.copied'));
+});
+
+test('a cancelled run stops rather than itemising the cancellation as a source failure', async () => {
+	const controller = new AbortController();
+	const harness = createHarness({
+		onChunk: () => { controller.abort(new Error('cancelled by the user')); },
+	});
+	const plan = createConsolidatePlan({
+		project: {
+			sources: [{ id: 'first' }, { id: 'second' }],
+			clips: [{ sourceId: 'first' }, { sourceId: 'second' }],
+		},
+		bindings: [binding('first'), binding('second')],
+	});
+
+	await assert.rejects(
+		runConsolidate(plan, harness.ports, { signal: controller.signal }),
+		/cancelled by the user/u,
+	);
+});
+
 test('an unreachable original is reported by the run, not just by the plan', async () => {
 	const harness = createHarness();
 	const unreachablePlan = createConsolidatePlan({
@@ -129,10 +167,10 @@ function project() {
 	return { sources: [{ id: 'linked-source' }], clips: [{ sourceId: 'linked-source' }] };
 }
 
-function binding() {
+function binding(sourceId = 'linked-source') {
 	return {
-		sourceId: 'linked-source',
-		storageKey: 'linked/original.wav',
+		sourceId,
+		storageKey: `linked/${sourceId}.wav`,
 		byteLength: ORIGINAL.byteLength,
 		sha256: DIGEST,
 		bindingToken: 'token-1',
@@ -150,6 +188,7 @@ function createHarness(options: {
 	original?: Uint8Array;
 	corruptOnRead?: boolean;
 	rebindSucceeds?: boolean;
+	failWriteFor?: string;
 	onChunk?: () => void;
 } = {}) {
 	const bytes = options.original ?? ORIGINAL;
@@ -166,6 +205,9 @@ function createHarness(options: {
 		},
 		async writeManaged(source, chunks) {
 			events.push('write-managed');
+			if (options.failWriteFor === source.sourceId) {
+				throw new Error('storage refused the body it was handed');
+			}
 			const collected: Uint8Array[] = [];
 			let byteLength = 0;
 			for await (const chunk of chunks) {

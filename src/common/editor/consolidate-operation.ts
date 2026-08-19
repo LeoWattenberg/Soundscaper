@@ -36,6 +36,7 @@ export type ConsolidateOutcome =
 	| 'original-changed'
 	| 'copy-corrupt'
 	| 'rebind-superseded'
+	| 'copy-failed'
 	| 'unreachable';
 
 export interface ConsolidateSourceResult {
@@ -141,7 +142,26 @@ export async function runConsolidate(
 
 	for (const source of plan.copy) {
 		assertReady(options);
-		const result = await consolidateOne(source, ports, options, draft);
+		// One source failing is a finding about that source, not the end of the
+		// run. The plan already consolidates what it can reach and itemises the
+		// rest; a storage error partway through must be itemised the same way,
+		// or a single unreadable file would undo everything already copied.
+		let result: ConsolidateSourceResult;
+		try {
+			result = await consolidateOne(source, ports, options, draft);
+		} catch (error) {
+			// Cancellation is not a per-source failure: the user stopped the run.
+			assertReady(options);
+			result = frozen(source.sourceId, 'copy-failed', null, 0, null);
+			addDeliveryReportItem(draft, {
+				code: 'consolidate.copy-failed',
+				disposition: 'missing',
+				severity: 'error',
+				scope: { kind: 'source', id: source.sourceId },
+				data: { reason: errorText(error) },
+				message: 'This source could not be copied into managed storage.',
+			});
+		}
 		results.push(result);
 		if (result.outcome === 'copied') copiedByteLength += result.byteLength;
 		completed += 1;
@@ -290,6 +310,10 @@ function frozen(
 function assertReady(options: ConsolidateOperationOptions): void {
 	if (options.signal?.aborted) throw options.signal.reason ?? abortError();
 	options.assertCurrent?.();
+}
+
+function errorText(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }
 
 function abortError(): Error {

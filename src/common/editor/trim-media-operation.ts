@@ -44,7 +44,8 @@ export type TrimMediaOutcome =
 	| 'unreferenced'
 	| 'linked-original-refused'
 	| 'frame-count-mismatch'
-	| 'rebind-superseded';
+	| 'rebind-superseded'
+	| 'write-failed';
 
 export interface TrimMediaSourceResult {
 	readonly sourceId: string;
@@ -177,9 +178,27 @@ export async function runTrimMedia(
 			continue;
 		}
 
-		const written = await trimOne(source, ports, options, draft);
-		results.push(written.result);
-		if (written.result.outcome === 'trimmed') {
+		// One source failing is a finding about that source, not the end of the
+		// run: a storage error partway through must not undo the sources already
+		// trimmed and rebound.
+		let outcome: TrimMediaSourceResult;
+		try {
+			outcome = (await trimOne(source, ports, options, draft)).result;
+		} catch (error) {
+			// Cancellation is not a per-source failure: the user stopped the run.
+			assertReady(options);
+			outcome = result(source, 'write-failed', null, trimMediaRetainedRuns(source));
+			addDeliveryReportItem(draft, {
+				code: 'trim.write-failed',
+				disposition: 'missing',
+				severity: 'error',
+				scope: { kind: 'source', id: source.sourceId },
+				data: { reason: errorText(error) },
+				message: 'This source could not be trimmed, so it is unchanged.',
+			});
+		}
+		results.push(outcome);
+		if (outcome.outcome === 'trimmed') {
 			trimmedSources += 1;
 			discardedFrames += source.discardedFrames;
 		}
@@ -274,6 +293,10 @@ function result(
 		discardedFrames: source.discardedFrames,
 		runs,
 	});
+}
+
+function errorText(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }
 
 function assertReady(options: TrimMediaOperationOptions): void {
