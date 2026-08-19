@@ -37,6 +37,7 @@ import {
 	addSource,
 	removeSource,
 	reprobeSource,
+	rewriteSourceMedia,
 	updateSource,
 } from './project-source-record-runtime.js';
 import { cloneVideoCompositionCarrierFields } from './video-composition-carrier.ts';
@@ -506,6 +507,7 @@ export function createProjectSourceBinRuntimeHandlers(dispatchChild) {
 		'source/remove': (project, command) => removeSource(project, command.sourceId),
 		'source/update': (project, command) => updateSource(project, command.sourceId, command.changes),
 		'source/reprobe': reprobeSource,
+		'source/rewrite-media': rewriteSourceMedia,
 		'project-bin/add': (project, command) => addProjectBinClip(project, command.clip),
 		'project-bin/move-from-timeline': (project, command) => moveTimelineClipsToProjectBin(project, command.clipIds),
 		'project-bin/place': placeProjectBinClip,

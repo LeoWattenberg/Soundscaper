@@ -39,6 +39,7 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'source/remove',
 	'source/update',
 	'source/reprobe',
+	'source/rewrite-media',
 	'project-bin/add',
 	'project-bin/move-from-timeline',
 	'project-bin/place',
@@ -353,6 +354,15 @@ type LegacyNonBatchAudioEditorCommandPayloads = {
 			readonly clipId: string;
 			readonly sourceInFrame: number;
 			readonly sourceFrameCount: number;
+		}>[];
+	};
+	readonly 'source/rewrite-media': {
+		readonly sourceId: string;
+		readonly changes: CommandObject;
+		readonly clips: readonly Readonly<{
+			readonly clipId: string;
+			readonly sourceStartFrame: number;
+			readonly sourceInFrame?: number;
 		}>[];
 	};
 	readonly 'project-bin/add': { readonly clip: CommandObject };

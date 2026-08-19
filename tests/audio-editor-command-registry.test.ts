@@ -49,7 +49,7 @@ test('command domains partition the authoritative protocol exactly once', () => 
 		...AUDIO_PRODUCTION_COMMAND_TYPES,
 		...MASTERING_SEQUENCE_COMMAND_TYPES,
 	];
-	assert.equal(AUDIO_EDITOR_COMMAND_TYPES.length, 106);
+	assert.equal(AUDIO_EDITOR_COMMAND_TYPES.length, 107);
 	assert.equal(new Set(domainTypes).size, domainTypes.length, 'a command type belongs to only one domain');
 	assert.deepEqual([...domainTypes].sort(), [...AUDIO_EDITOR_COMMAND_TYPES].sort());
 });

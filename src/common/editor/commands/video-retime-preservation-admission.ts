@@ -287,6 +287,7 @@ function protectedCommandSubject(
 		case 'source/remove':
 		case 'source/update':
 		case 'source/reprobe':
+		case 'source/rewrite-media':
 			return sources.has(command.sourceId) ? command.sourceId : null;
 		case 'project-bin/move-from-timeline':
 		case 'clip/remove-many':
