@@ -9,6 +9,10 @@ import {
 	videoExportPlanFormat,
 	videoExportRequestFormat,
 } from '../video-export-request-format.ts';
+import {
+	resolveVideoDeliveryFrameRate,
+	videoDeliveryFrameRateLabel,
+} from '../video-delivery-frame-rate.ts';
 import { DEFAULT_VIDEO_DELIVERY_QUALITY } from '../video-delivery-quality.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
 import {
@@ -227,16 +231,16 @@ export function statedVideoCanvas(
 	const width = Number(settings?.canvasWidth);
 	const height = Number(settings?.canvasHeight);
 	const fit = settings?.canvasFit;
-	const frameRate = Number(settings?.canvasFrameRate);
 	const backgroundColor = settings?.canvasBackgroundColor;
 	const stated: Record<string, unknown> = {};
 	if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
 		stated.size = Object.freeze({ width, height });
 	}
 	if (typeof fit === 'string' && fit && fit !== CANVAS_FIT_DEFAULT) stated.fit = fit;
-	if (settings?.canvasFrameRate !== '' && Number.isFinite(frameRate) && frameRate > 0) {
-		stated.frameRate = frameRate;
-	}
+	// A rate the product offers by name is delivered as the rational that name
+	// means; `29.97` is 30000/1001, not 2997/100.
+	const statedRate = resolveVideoDeliveryFrameRate(settings?.canvasFrameRate);
+	if (statedRate !== null) stated.frameRate = statedRate;
 	if (typeof backgroundColor === 'string' && backgroundColor) stated.backgroundColor = backgroundColor;
 	return Object.freeze(stated);
 }
@@ -307,12 +311,10 @@ export function dialogSettingsFromPreset(
 			continue;
 		}
 		if (key === 'frameRate') {
-			// A preset may state an exact rational; the dialog holds the decimal it
-			// round-trips through, which is how every other rate reaches the plan.
-			const rational = value as Readonly<{ num?: unknown; den?: unknown }> | null;
-			patch.canvasFrameRate = rational && typeof rational === 'object'
-				? String(Number(rational.num) / Number(rational.den))
-				: String(value);
+			// A preset may state an exact rational; the dialog holds the spelling
+			// that names it, so 30000/1001 comes back as `29.97` and states the
+			// same rational again when the delivery is built.
+			patch.canvasFrameRate = videoDeliveryFrameRateLabel(value);
 			continue;
 		}
 		if (key === 'backgroundColor') {

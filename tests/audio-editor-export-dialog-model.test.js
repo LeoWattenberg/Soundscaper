@@ -263,3 +263,26 @@ test('a stated canvas field refines the delivery target rather than replacing it
 		size: { width: 720, height: 1_280 }, fit: 'cover',
 	});
 });
+
+test('the broadcast frame rates the dialog offers are delivered exactly', () => {
+	const settings = {
+		mode: 'mix', range: 'project', format: 'video-mp4',
+		canvasWidth: '', canvasHeight: '', canvasFit: 'contain',
+		canvasBackgroundColor: '', videoQuality: 'balanced', deliveryTarget: '',
+	};
+	const rate = (canvasFrameRate) => createExportDialogRequest(
+		{ ...settings, canvasFrameRate }, { metadata: {} },
+	).canvas.frameRate;
+
+	// 29.97 names 30000/1001. Passing the truncated decimal through gave 2997/100
+	// instead — a rate no broadcast delivery uses, in the milestone whose encode
+	// tier exists to keep the exact rational.
+	assert.deepEqual(rate('29.97'), { num: 30_000, den: 1_001 });
+	assert.deepEqual(rate('23.976'), { num: 24_000, den: 1_001 });
+	assert.deepEqual(rate('59.94'), { num: 60_000, den: 1_001 });
+	// A whole rate is still the whole number it says, and an unlisted one is
+	// still whatever the operator typed.
+	assert.equal(rate('25'), 25);
+	assert.equal(rate('48'), 48);
+	assert.equal(rate('12.5'), 12.5);
+});

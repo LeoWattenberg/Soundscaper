@@ -154,30 +154,46 @@ test('a stated video canvas reaches the export request as a canvas option', () =
 
 test('a stated rate and background join the canvas the dialog asks for', () => {
 	const dialog = { ...VIDEO_DIALOG, canvasFrameRate: '29.97', canvasBackgroundColor: '#101820' };
+	// 29.97 is the name of 30000/1001, so that is what both the preset and the
+	// request state; the decimal is a rate no delivery is graded against.
+	const canvas = {
+		size: { width: 1_080, height: 1_920 },
+		fit: 'cover',
+		frameRate: { num: 30_000, den: 1_001 },
+		backgroundColor: '#101820',
+	};
 
-	assert.deepEqual(presetSettingsFromDialog(dialog, 'video'), {
-		size: { width: 1_080, height: 1_920 },
-		fit: 'cover',
-		frameRate: 29.97,
-		backgroundColor: '#101820',
-	});
-	assert.deepEqual((createExportDialogRequest(dialog) as Record<string, unknown>).canvas, {
-		size: { width: 1_080, height: 1_920 },
-		fit: 'cover',
-		frameRate: 29.97,
-		backgroundColor: '#101820',
-	});
+	assert.deepEqual(presetSettingsFromDialog(dialog, 'video'), canvas);
+	assert.deepEqual((createExportDialogRequest(dialog) as Record<string, unknown>).canvas, canvas);
+	assert.deepEqual(
+		presetSettingsFromDialog({ ...VIDEO_DIALOG, canvasFrameRate: '12.5' }, 'video').frameRate,
+		12.5,
+		'a rate the product does not name by spelling is the number it says',
+	);
 });
 
-test('a preset stating an exact rational rate comes back as the decimal the dialog holds', () => {
+test('a preset stating an exact rational rate comes back as the name that rate has', () => {
 	const preset = validateDeliveryPreset({
 		schemaVersion: 1, id: 'ntsc', label: 'NTSC', kind: 'video', format: 'mp4',
 		settings: { frameRate: { num: 30_000, den: 1_001 }, backgroundColor: 'black' },
 	});
 	const patch = dialogSettingsFromPreset(preset);
 
-	assert.equal(patch.canvasFrameRate, String(30_000 / 1_001));
+	// The dialog shows the spelling an operator recognizes, and that spelling
+	// states the same rational again when the delivery is built.
+	assert.equal(patch.canvasFrameRate, '29.97');
+	assert.deepEqual(
+		presetSettingsFromDialog({ ...VIDEO_DIALOG, canvasFrameRate: patch.canvasFrameRate }, 'video').frameRate,
+		{ num: 30_000, den: 1_001 },
+	);
 	assert.equal(patch.canvasBackgroundColor, 'black');
+
+	// A rational the product has no name for still round-trips as its decimal.
+	const odd = validateDeliveryPreset({
+		schemaVersion: 1, id: 'odd', label: 'Odd', kind: 'video', format: 'mp4',
+		settings: { frameRate: { num: 25_000, den: 1_001 } },
+	});
+	assert.equal(dialogSettingsFromPreset(odd).canvasFrameRate, String(25_000 / 1_001));
 });
 
 test('applying a video preset patches the dialog canvas fields back to strings', () => {

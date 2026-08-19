@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { VIDEO_CANVAS_FIT_MODES } from '../video-canvas-fit.ts';
+import { VIDEO_DELIVERY_FRAME_RATE_CHOICES } from '../video-delivery-frame-rate.ts';
 import { VIDEO_DELIVERY_QUALITY_TIERS } from '../video-delivery-quality.ts';
 import { VIDEO_DELIVERY_AUDIO_LAYOUTS } from '../video-delivery-audio-layout.ts';
 import {
@@ -11,10 +12,15 @@ import {
 import { statedVideoDeliveryTarget } from './export-preset-model.ts';
 import { DesignCheckbox, LabeledDropdown } from './inspector/inspector-controls.jsx';
 
-/** The rates a delivery usually asks for; the field accepts any of them or another. */
-const DELIVERY_FRAME_RATES = Object.freeze([
-	'23.976', '24', '25', '29.97', '30', '48', '50', '59.94', '60',
-]);
+/**
+ * The rates a delivery usually asks for; the field accepts any of them or another.
+ *
+ * Read from the same table that resolves them, so a spelling this list offers is
+ * one the request knows the exact rational for.
+ */
+const DELIVERY_FRAME_RATES = Object.freeze(
+	VIDEO_DELIVERY_FRAME_RATE_CHOICES.map(({ label }) => label),
+);
 
 const FIT_LABEL_KEYS = Object.freeze({
 	contain: 'videoCanvasFitContain',
