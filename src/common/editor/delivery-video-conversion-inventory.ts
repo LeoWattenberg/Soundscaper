@@ -94,7 +94,7 @@ export function inventoryVideoDeliveryConversions(
 
 	const width = numberOrNull(canvas.width);
 	const height = numberOrNull(canvas.height);
-	const frameRate = numberOrNull(canvas.frameRate);
+	const frameRate = frameRateOrNull(canvas.frameRate);
 	if (width !== null && height !== null) {
 		conversions.push({
 			code: 'delivery.canvas',
@@ -247,7 +247,7 @@ export function createVideoDeliveryReportForPlan(
 		format: typeof plan?.format === 'string' ? plan.format : 'unknown',
 		container: descriptor?.container ?? null,
 		codec: descriptor?.videoCodec ?? null,
-		sampleRate: numberOrNull(canvas.frameRate),
+		sampleRate: frameRateOrNull(canvas.frameRate),
 		channelCount: null,
 		lossless: false,
 	});
@@ -310,6 +310,23 @@ function formatDescriptor(format: unknown): {
 
 function numberOrNull(value: unknown): number | null {
 	return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * A stated frame rate as a number, whichever way the plan spells it.
+ *
+ * The graph plan states a decimal and the keyed plan a reduced rational, so
+ * reading only the decimal left the report saying a keyed delivery had no frame
+ * rate at all — on exactly the deliveries whose stop condition is that the exact
+ * rational survives.
+ */
+function frameRateOrNull(value: unknown): number | null {
+	const direct = numberOrNull(value);
+	if (direct !== null) return direct;
+	if (!isRecord(value)) return null;
+	const num = numberOrNull(value.num);
+	const den = numberOrNull(value.den);
+	return num !== null && den !== null && den !== 0 ? num / den : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

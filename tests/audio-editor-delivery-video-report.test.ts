@@ -109,3 +109,20 @@ test('the video report speaks the same vocabulary the audio collector counts', (
 		report,
 	), 0);
 });
+
+test('a keyed delivery reports the frame rate its rational states', () => {
+	// The graph plan states a decimal and the keyed plan a reduced rational, so
+	// reading only the decimal left every keyed delivery — the ones whose whole
+	// stop condition is that the exact rational survives — reporting no rate.
+	const report = createVideoDeliveryReportForPlan({
+		format: 'mp4',
+		canvas: { width: 1_280, height: 720, frameRate: { num: 30_000, den: 1_001 } },
+		codecs: { video: 'h264', videoEncoder: 'libx264' },
+		captions: null,
+		inputs: [],
+	});
+	const canvas = report.items.find(({ code }) => code === 'delivery.canvas');
+
+	assert.equal(canvas?.data.frameRate, 30_000 / 1_001);
+	assert.equal(report.subject.sampleRate, 30_000 / 1_001);
+});
