@@ -219,3 +219,50 @@ test('a Project Bin clip protects its media as firmly as a timeline clip does', 
 	]);
 	assert.equal(wider.sources[0].referenceCount, 2);
 });
+
+test('a video source is planned in video frames, which is the domain that cuts it', () => {
+	// A video source states two lengths: how many samples of audio sit beside it
+	// and how many pictures it holds. Everything that acts on a plan works in
+	// pictures — keyframes are numbered in them, and the seek the cut uses is
+	// computed from them at the source frame rate — so a plan measured in
+	// samples would cut at frame 480,000 of a three-hundred-frame file.
+	const plan = createTrimMediaPlan({
+		project: {
+			sources: [{
+				kind: 'video', id: 'vid', frameCount: 480_000, sourceFrameCount: 300,
+			}],
+			clips: [{
+				kind: 'video', id: 'c1', sourceId: 'vid',
+				sourceStartFrame: 192_000, sourceDurationFrames: 96_000,
+				sourceInFrame: 120, sourceFrameCount: 60,
+			}],
+		},
+	});
+	const [source] = plan.sources;
+	assert.equal(source.frameCount, 300, 'the plan measures the source in pictures');
+	assert.deepEqual(source.retained, [{ startFrame: 120, endFrame: 180 }]);
+	assert.equal(source.retainedFrames, 60);
+	assert.equal(source.discardedFrames, 240);
+
+	// An audio source alongside it is still planned in sample frames, because
+	// that is the domain its own clips are cut in.
+	const mixed = createTrimMediaPlan({
+		project: {
+			sources: [
+				{ kind: 'video', id: 'vid', frameCount: 480_000, sourceFrameCount: 300 },
+				{ kind: 'audio', id: 'aud', frameCount: 1_000 },
+			],
+			clips: [
+				{
+					kind: 'video', id: 'c1', sourceId: 'vid', sourceStartFrame: 192_000,
+					sourceDurationFrames: 96_000, sourceInFrame: 120, sourceFrameCount: 60,
+				},
+				{ kind: 'audio', id: 'c2', sourceId: 'aud', sourceStartFrame: 400, sourceDurationFrames: 100 },
+			],
+		},
+	});
+	assert.deepEqual(mixed.sources.map((entry) => [entry.sourceId, entry.frameCount, entry.retained]), [
+		['aud', 1_000, [{ startFrame: 400, endFrame: 500 }]],
+		['vid', 300, [{ startFrame: 120, endFrame: 180 }]],
+	]);
+});

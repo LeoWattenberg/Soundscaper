@@ -70,11 +70,20 @@ export function createTrimMediaPlan(request: TrimMediaPlanRequest): TrimMediaPla
 		sampleRate: null, channelCount: null, lossless: null,
 	});
 
-	const sources = new Map<string, { frameCount: number; ranges: TrimMediaRange[] }>();
+	// Every source is planned in its own frame domain. For audio that is sample
+	// frames; for video it is pictures, because everything that acts on a plan
+	// works in pictures — keyframes are numbered in them and the seek a cut uses
+	// is computed from them at the source frame rate. A video source planned in
+	// sample frames would cut at frame 480,000 of a three-hundred-frame file.
+	const sources = new Map<string, { video: boolean; frameCount: number; ranges: TrimMediaRange[] }>();
 	for (const source of asRecords(project.sources)) {
 		const id = String(source.id ?? '');
 		if (!id) continue;
-		sources.set(id, { frameCount: nonNegativeInteger(source.frameCount ?? 0, 'source.frameCount'), ranges: [] });
+		const video = source.kind === 'video';
+		const frameCount = video
+			? nonNegativeInteger(source.sourceFrameCount ?? source.frameCount ?? 0, 'source.sourceFrameCount')
+			: nonNegativeInteger(source.frameCount ?? 0, 'source.frameCount');
+		sources.set(id, { video, frameCount, ranges: [] });
 	}
 
 	// Every clip, from every track, visible or not, and every clip in the Project
@@ -97,8 +106,10 @@ export function createTrimMediaPlan(request: TrimMediaPlanRequest): TrimMediaPla
 			});
 			continue;
 		}
-		const start = nonNegativeInteger(clip.sourceStartFrame ?? 0, 'clip.sourceStartFrame');
-		const duration = referencedDuration(clip);
+		const start = entry.video
+			? nonNegativeInteger(clip.sourceInFrame ?? clip.sourceStartFrame ?? 0, 'clip.sourceInFrame')
+			: nonNegativeInteger(clip.sourceStartFrame ?? 0, 'clip.sourceStartFrame');
+		const duration = entry.video ? videoReferencedDuration(clip) : referencedDuration(clip);
 		if (duration <= 0) continue;
 		entry.ranges.push(Object.freeze({
 			startFrame: Math.max(0, start - handleFrames),
@@ -275,6 +286,13 @@ function mergeRanges(ranges: readonly TrimMediaRange[]): readonly TrimMediaRange
  * back to the timeline duration for a sped-up clip would under-retain, which is
  * the one error this module must not make.
  */
+/** How many pictures a video clip reads, stated in the source's own domain. */
+function videoReferencedDuration(clip: Readonly<Record<string, unknown>>): number {
+	const explicit = Number(clip.sourceFrameCount);
+	if (Number.isSafeInteger(explicit) && explicit > 0) return explicit;
+	return referencedDuration(clip);
+}
+
 function referencedDuration(clip: Readonly<Record<string, unknown>>): number {
 	const explicit = Number(clip.sourceDurationFrames);
 	if (Number.isSafeInteger(explicit) && explicit > 0) return explicit;
