@@ -4,8 +4,12 @@ import { type EdlExportResult } from '../edl-export.ts';
 import { createProjectEdlExport } from '../edl-project-adapter.ts';
 import { type OtioExportResult, createOtioExport } from '../otio-export.ts';
 import { type FcpxmlExportResult, createFcpxmlExport } from '../fcpxml-export.ts';
+import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
 import { resolveSequenceTimingView } from '../sequence-timing-model.ts';
-import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
+import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from '../track-folder-media-runtime.ts';
 
 /**
  * Export the current project through an interchange profile.
@@ -74,17 +78,25 @@ export async function exportProjectFcpxml(
  * The project as the render sees it.
  *
  * Every render path — playback, audio export, video export — puts the document
- * through this projection so folder-inherited hidden and mute reach the tracks
- * that inherit them. An interchange file describes that same render, so it has
- * to be built from the same projection; skipping it means a track inside a
- * hidden folder is absent from the picture and present in the edit list.
+ * through two projections. The folder one carries inherited hidden and mute down
+ * to the tracks that inherit them; the runtime one resolves authoritative timing
+ * into the transient coordinates a consumer reads. An interchange file describes
+ * that same render, so it is built from the same pair: skipping the first puts a
+ * track inside a hidden folder in the edit list and not in the picture, and
+ * skipping the second reads timing fields a current document does not carry at
+ * all — a persisted video clip states sequence frames, and a musical audio clip
+ * states beats, so all three profiles refused every real document outright.
  */
 function resolveDeliveredProject(
 	runtime: InterchangeRuntime,
 ): Readonly<Record<string, unknown>> | null {
-	const project = runtime?.getProject?.();
-	if (!project) return null;
-	return projectTrackFolderMediaStateV12(project);
+	const persistedProject = runtime?.getProject?.();
+	if (!persistedProject) return null;
+	const mediaProject = projectTrackFolderMediaStateV12(persistedProject);
+	const project = projectForRuntimeConsumers(mediaProject as never);
+	return project === mediaProject
+		? project
+		: inheritTrackFolderMediaStateProjectionV12(mediaProject, project);
 }
 
 async function deliver<T extends {
