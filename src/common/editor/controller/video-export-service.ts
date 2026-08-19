@@ -34,7 +34,8 @@ import { serializeAudioEditorLabels } from '../label-io.js';
 import { saveLabelExport } from './app-helpers.ts';
 import { resolveVideoCaptionCues } from '../video-caption-cues.ts';
 import { videoExportPlanFormat } from '../video-export-request-format.ts';
-import { loadVideoBurnInFont } from '../video-burn-in-font.ts';
+import { loadVideoBurnInFonts } from '../video-burn-in-font.ts';
+import { videoBurnInFontSubsetIds } from '../video-caption-burn-in.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
 import { resolveVideoDeliveryEncoderTier } from '../video-delivery-encoder-tier.ts';
 
@@ -142,8 +143,9 @@ export function createEditorVideoExportAction(
 	} = runtime;
 	// The service owns its own default so no product entry has to remember to
 	// pass a font; an app that wants another one still overrides it.
-	const loadBurnInFont = (runtime.loadBurnInFont as (() => Promise<Blob>) | undefined)
-		?? (() => loadVideoBurnInFont());
+	const loadBurnInFonts = (runtime.loadBurnInFonts as
+		((subsetIds: readonly string[]) => Promise<ReadonlyMap<string, Blob>>) | undefined)
+		?? ((subsetIds: readonly string[]) => loadVideoBurnInFonts(subsetIds));
 	const productStrategy = resolveProductVideoExportStrategy(runtime.options);
 
 	return async function exportVideo(requestedSettings: RuntimeValue = {}) {
@@ -357,8 +359,9 @@ export function createEditorVideoExportAction(
 			const captionDocument = stagedCaptionDocument(plan, exportProject, projectSampleRate());
 			// The app owns which font a burn-in draws with, so the bytes arrive as a
 			// runtime dependency rather than as a bundler import in shared code.
-			const burnInFont = plan.filterPlan?.burnIn ? await loadBurnInFont() : null;
-			if (plan.filterPlan?.burnIn && !(burnInFont instanceof Blob)) {
+			const burnInSubsets = videoBurnInFontSubsetIds(plan.filterPlan?.burnIn ?? null);
+			const burnInFonts = burnInSubsets.length > 0 ? await loadBurnInFonts(burnInSubsets) : null;
+			if (burnInSubsets.some((subsetId) => !(burnInFonts?.get(subsetId) instanceof Blob))) {
 				throw new Error(copy.burnInFontUnavailable || 'The caption font could not be loaded.');
 			}
 			assertVideoExportCurrent();
@@ -389,7 +392,7 @@ export function createEditorVideoExportAction(
 								signal: abort.signal, assertCurrent: assertVideoExportCurrent,
 								maximumOutputBytes: browserMaximumOutputBytes,
 								...(captionDocument ? { captions: captionDocument } : {}),
-								...(burnInFont ? { burnInFont } : {}),
+								...(burnInFonts ? { burnInFonts } : {}),
 							},
 						);
 				} catch (error) {
@@ -413,7 +416,7 @@ export function createEditorVideoExportAction(
 					: await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
 						signal: abort.signal, maximumOutputBytes: browserMaximumOutputBytes,
 						...(captionDocument ? { captions: captionDocument } : {}),
-						...(burnInFont ? { burnInFont } : {}),
+						...(burnInFonts ? { burnInFonts } : {}),
 					});
 			}
 			assertVideoExportCurrent();

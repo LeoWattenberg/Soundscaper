@@ -25,6 +25,7 @@ import {
 	VIDEO_BURN_IN_MAXIMUM_CUES,
 	VIDEO_BURN_IN_MAXIMUM_TEXT_LENGTH,
 } from './video-caption-burn-in.ts';
+import { videoBurnInFontSubset } from './video-burn-in-font.ts';
 
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INPUTS = 4_096;
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INTERVALS = 100_000;
@@ -107,7 +108,7 @@ const CAPTIONS_KEYS = Object.freeze([
 const BURN_IN_KEYS = Object.freeze([
 	'fontSizePx', 'bottomMarginPx', 'boxBorderPx', 'lineSpacingPx', 'cues',
 ]);
-const BURN_IN_CUE_KEYS = Object.freeze(['index', 'startSeconds', 'endSeconds', 'text']);
+const BURN_IN_CUE_KEYS = Object.freeze(['index', 'startSeconds', 'endSeconds', 'text', 'fontSubset', 'undrawable']);
 const CAPTION_INPUT_KEYS = Object.freeze(['kind', 'inputIndex', 'fileName', 'format']);
 const CODEC_KEYS = Object.freeze(['video', 'videoEncoder', 'audio', 'audioEncoder', 'pixelFormat']);
 const RANGE_KEYS = Object.freeze(['startFrame', 'endFrame', 'durationFrames']);
@@ -231,6 +232,17 @@ function assertBurnIn(value: unknown, captionsValue: unknown): void {
 		if (typeof cue.text !== 'string' || cue.text.length < 1
 			|| cue.text.length > VIDEO_BURN_IN_MAXIMUM_TEXT_LENGTH || cue.text.includes('\0')) {
 			nativeMediaPlanViolation('malformed', 'Video export graph plan burn-in cue text is not a bounded caption line.');
+		}
+		// One file is handed to `drawtext` per cue, so the subset has to be a
+		// subset this build ships rather than a name the runtime would only
+		// discover it cannot stage.
+		if (!videoBurnInFontSubset(cue.fontSubset)) {
+			nativeMediaPlanViolation('malformed', 'Video export graph plan burn-in cue names an unknown font subset.');
+		}
+		for (const character of arrayValue(cue.undrawable, 'burnIn cue undrawable')) {
+			if (typeof character !== 'string' || [...character].length !== 1) {
+				nativeMediaPlanViolation('malformed', 'Video export graph plan burn-in undrawable entries are not characters.');
+			}
 		}
 	}
 }

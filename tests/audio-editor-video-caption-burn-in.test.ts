@@ -57,7 +57,7 @@ test('a burn-in with no staged text for a cue is a refusal, not a blank frame', 
 		() => buildVideoFfmpegArgs(plan, {
 			videoInputPaths: new Map([['source-1', '/in.mp4']]),
 			audioInputPath: '/mix.wav',
-			burnInFontPath: '/font.woff',
+			burnInFontPaths: new Map([['latin', '/font.woff']]),
 			burnInCueTextPaths: new Map([[0, '/cue-0.txt']]),
 		}, '/out.mp4'),
 		/Missing staged burn-in text for cue 1/u,
@@ -104,7 +104,10 @@ test('the fixed presentation scales with the canvas and keeps a floor', () => {
 			bottomMarginPx: 108,
 			boxBorderPx: 12,
 			lineSpacingPx: 12,
-			cues: [{ index: 0, startSeconds: 0, endSeconds: 1, text: 'cue' }],
+			cues: [{
+				index: 0, startSeconds: 0, endSeconds: 1, text: 'cue',
+				fontSubset: 'latin', undrawable: [],
+			}],
 		},
 	);
 	// A tall, narrow delivery answers to its width, because that is the edge its
@@ -177,7 +180,7 @@ test('native admission ties the stage to the decision that asked for it', () => 
 			...plan,
 			filterPlan: {
 				...filterPlan,
-				burnIn: { ...stage, cues: [{ index: 0, startSeconds: 1, endSeconds: 0, text: 'x' }] },
+				burnIn: { ...stage, cues: [{ index: 0, startSeconds: 1, endSeconds: 0, text: 'x', fontSubset: 'latin', undrawable: [] }] },
 			},
 		}),
 		/burn-in cue ends before it starts/u,
@@ -187,7 +190,7 @@ test('native admission ties the stage to the decision that asked for it', () => 
 			...plan,
 			filterPlan: {
 				...filterPlan,
-				burnIn: { ...stage, cues: [{ index: 0, startSeconds: 0, endSeconds: 1, text: '' }] },
+				burnIn: { ...stage, cues: [{ index: 0, startSeconds: 0, endSeconds: 1, text: '', fontSubset: 'latin', undrawable: [] }] },
 			},
 		}),
 		/not a bounded caption line/u,
@@ -225,7 +228,7 @@ function args(plan: unknown) {
 	return buildVideoFfmpegArgs(plan, {
 		videoInputPaths: new Map([['source-1', '/in.mp4']]),
 		audioInputPath: '/mix.wav',
-		burnInFontPath: '/font.woff',
+		burnInFontPaths: new Map([['latin', '/font.woff']]),
 		burnInCueTextPaths: new Map([[0, '/cue-0.txt'], [1, '/cue-1.txt']]),
 	}, '/out.mp4') as string[];
 }

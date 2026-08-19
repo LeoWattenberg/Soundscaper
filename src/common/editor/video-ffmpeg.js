@@ -33,7 +33,7 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 	const burnIn = normalized.burnInStage
 		? Object.freeze({
 			stage: normalized.burnInStage,
-			fontPath: stagedInputs?.burnInFontPath,
+			fontPaths: burnInFontPaths(stagedInputs?.burnInFontPaths),
 			cueTextPaths: burnInCueTextPaths(stagedInputs?.burnInCueTextPaths),
 		})
 		: null;
@@ -117,6 +117,13 @@ export function buildVideoFfmpegArgs(plan, stagedInputs, output) {
 		'-y', outputPath,
 	);
 	return args;
+}
+
+function burnInFontPaths(value) {
+	if (value instanceof Map) return value;
+	const paths = new Map();
+	for (const [subsetId, path] of Object.entries(value ?? {})) paths.set(subsetId, path);
+	return paths;
 }
 
 function burnInCueTextPaths(value) {
@@ -375,9 +382,14 @@ function burnInFilterChain(burnIn, inputLabel) {
 	const steps = stage.cues.map((cue) => {
 		const path = burnIn.cueTextPaths.get(cue.index);
 		if (path == null) throw new ReferenceError(`Missing staged burn-in text for cue ${cue.index}.`);
+		// One font file per cue, chosen from the characters that cue contains:
+		// this build has no fontconfig, so a subset that cannot draw a character
+		// draws a blank rather than falling back to one that can.
+		const fontPath = burnIn.fontPaths.get(cue.fontSubset);
+		if (fontPath == null) throw new ReferenceError(`Missing staged burn-in font for cue ${cue.index}.`);
 		return [
 			'drawtext=',
-			`fontfile=${nonEmptyString(burnIn.fontPath, 'burn-in font')}`,
+			`fontfile=${nonEmptyString(fontPath, 'burn-in font')}`,
 			`:textfile=${nonEmptyString(path, `burn-in cue ${cue.index}`)}`,
 			`:fontsize=${positiveEvenSafe(stage.fontSizePx, 'burnIn.fontSizePx')}`,
 			':fontcolor=white:box=1:boxcolor=black@0.55',

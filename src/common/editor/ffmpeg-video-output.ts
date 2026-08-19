@@ -12,6 +12,7 @@ import {
 import { readBoundedFfmpegOutputFile } from './browser-export-output.ts';
 import { getVideoExportFormat } from './video-export.js';
 import { buildVideoFfmpegArgs } from './video-ffmpeg.js';
+import { videoBurnInFontSubsetIds, type VideoBurnInStage } from './video-caption-burn-in.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
@@ -49,6 +50,7 @@ interface StagedVideoAsset {
 	readonly kind: 'burn-in-font' | 'burn-in-cue';
 	readonly fileName: string;
 	readonly cueIndex?: number;
+	readonly fontSubset?: string;
 }
 
 interface PreparedVideoBlobs {
@@ -68,7 +70,8 @@ interface PreparedVideoBlobs {
  */
 interface FfmpegVideoSettings extends FfmpegOutputStreamOptions, Readonly<Record<string, unknown>> {
 	readonly captions?: Blob | null;
-	readonly burnInFont?: Blob | null;
+	/** One WOFF per font subset the burned cues draw from, keyed by subset id. */
+	readonly burnInFonts?: ReadonlyMap<string, Blob> | null;
 }
 
 export interface FfmpegVideoJobInstance extends FfmpegOutputFileSource {
@@ -135,7 +138,7 @@ export async function encodeFfmpegVideoBytes(
 		options.audioMix,
 		options.plan,
 		options.settings.captions ?? null,
-		options.settings.burnInFont ?? null,
+		options.settings.burnInFonts ?? null,
 	);
 	const signal = options.settings.signal;
 	if (signal?.aborted) throw abortError();
@@ -192,7 +195,7 @@ export async function encodeFfmpegVideoToSink<Output>(
 			options.audioMix,
 			options.plan,
 			options.settings.captions ?? null,
-			options.settings.burnInFont ?? null,
+			options.settings.burnInFonts ?? null,
 		);
 		assertFfmpegOutputReady(options.settings);
 		const result = await options.run(async (instance) => {
@@ -260,7 +263,7 @@ function prepareVideoBlobs(
 	audioMix: Blob | null,
 	plan: VideoExportPlan,
 	captions: Blob | null = null,
-	burnInFont: Blob | null = null,
+	burnInFonts: ReadonlyMap<string, Blob> | null = null,
 ): PreparedVideoBlobs {
 	if (!plan || typeof plan !== 'object' || !Array.isArray(plan.inputs)) {
 		throw new TypeError('Expected a video export plan.');
@@ -301,11 +304,15 @@ function prepareVideoBlobs(
 	const assets: StagedVideoAsset[] = [];
 	const burnIn = burnInStage(plan);
 	if (burnIn) {
-		if (!(burnInFont instanceof Blob)) {
-			throw new TypeError('A burned-in delivery needs its font staged with it.');
+		for (const subsetId of videoBurnInFontSubsetIds(burnIn)) {
+			const font = burnInFonts?.get(subsetId);
+			if (!(font instanceof Blob)) {
+				throw new TypeError(`A burned-in delivery needs its ${subsetId} font staged with it.`);
+			}
+			const fileName = `burn-in-font-${subsetId}.woff`;
+			blobs.push({ name: fileName, data: font });
+			assets.push({ kind: 'burn-in-font', fileName, fontSubset: subsetId });
 		}
-		blobs.push({ name: BURN_IN_FONT_FILE_NAME, data: burnInFont });
-		assets.push({ kind: 'burn-in-font', fileName: BURN_IN_FONT_FILE_NAME });
 		for (const cue of burnIn.cues) {
 			const fileName = `burn-in-${String(cue.index).padStart(4, '0')}.txt`;
 			blobs.push({ name: fileName, data: new Blob([cue.text], { type: 'text/plain' }) });
@@ -320,18 +327,15 @@ function prepareVideoBlobs(
 	});
 }
 
-const BURN_IN_FONT_FILE_NAME = 'burn-in-font.woff';
 
-function burnInStage(
-	plan: VideoExportPlan,
-): Readonly<{ cues: readonly Readonly<{ index: number; text: string }>[] }> | null {
+function burnInStage(plan: VideoExportPlan): VideoBurnInStage | null {
 	const filterPlan = plan.filterPlan;
 	if (!filterPlan || typeof filterPlan !== 'object') return null;
 	const stage = (filterPlan as Record<string, unknown>).burnIn;
 	if (!stage || typeof stage !== 'object') return null;
 	const cues = (stage as Record<string, unknown>).cues;
 	if (!Array.isArray(cues)) throw new TypeError('A burn-in stage must carry an array of cues.');
-	return { cues: cues as readonly Readonly<{ index: number; text: string }>[] };
+	return stage as VideoBurnInStage;
 }
 
 function createJob(staged: PreparedVideoBlobs): Readonly<{ mountPoint: string; output: string }> {
@@ -349,7 +353,7 @@ function stagedInputPaths(
 	videoInputPaths: Map<string, string>;
 	audioInputPath: string | null;
 	captionInputPath: string | null;
-	burnInFontPath: string | null;
+	burnInFontPaths: Map<string, string>;
 	burnInCueTextPaths: Map<number, string>;
 }> {
 	const videoInputPaths = new Map<string, string>();
@@ -361,15 +365,15 @@ function stagedInputPaths(
 		else if (input.kind === 'staged-captions') captionInputPath = path;
 		else audioInputPath = path;
 	}
-	let burnInFontPath: string | null = null;
+	const burnInFontPaths = new Map<string, string>();
 	const burnInCueTextPaths = new Map<number, string>();
 	for (const asset of staged.assets) {
 		const path = `${mountPoint}/${asset.fileName}`;
-		if (asset.kind === 'burn-in-font') burnInFontPath = path;
+		if (asset.kind === 'burn-in-font') burnInFontPaths.set(asset.fontSubset!, path);
 		else burnInCueTextPaths.set(asset.cueIndex!, path);
 	}
 	return Object.freeze({
-		videoInputPaths, audioInputPath, captionInputPath, burnInFontPath, burnInCueTextPaths,
+		videoInputPaths, audioInputPath, captionInputPath, burnInFontPaths, burnInCueTextPaths,
 	});
 }
 

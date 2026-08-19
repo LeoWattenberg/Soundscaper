@@ -167,6 +167,23 @@ export function inventoryVideoDeliveryConversions(
 					data: { trackId: String(captions.trackId ?? '') },
 				});
 			}
+			// One font file is handed to the renderer per cue and this build has no
+			// fontconfig to fall back through, so a cue mixing scripts leaves
+			// characters no staged subset can draw. They are blanks in the picture;
+			// naming them is the difference between a stated omission and a
+			// delivery quietly missing words.
+			const undrawable = burnedUndrawableCharacters(stage);
+			if (undrawable.length > 0) {
+				conversions.push({
+					code: 'delivery.captions-undrawable',
+					disposition: 'omitted',
+					severity: 'warning',
+					data: {
+						trackId: String(captions.trackId ?? ''),
+						characters: undrawable.join(''),
+					},
+				});
+			}
 		}
 		if (captions.sidecarFormat != null) {
 			conversions.push({
@@ -243,6 +260,20 @@ function burnedCuesOverlap(stage: Readonly<Record<string, unknown>> | null): boo
 	const cues = Array.isArray(stage?.cues) ? [...(stage.cues as Record<string, unknown>[])] : [];
 	cues.sort((left, right) => Number(left.startSeconds) - Number(right.startSeconds));
 	return cues.some((cue, index) => index > 0 && Number(cue.startSeconds) < Number(cues[index - 1]!.endSeconds));
+}
+
+/** Characters no staged font subset could draw, deduplicated across the cues. */
+function burnedUndrawableCharacters(stage: Readonly<Record<string, unknown>> | null): readonly string[] {
+	const cues = Array.isArray(stage?.cues) ? (stage.cues as Record<string, unknown>[]) : [];
+	const characters: string[] = [];
+	for (const cue of cues) {
+		if (!Array.isArray(cue.undrawable)) continue;
+		for (const character of cue.undrawable as unknown[]) {
+			const value = String(character);
+			if (value && !characters.includes(value)) characters.push(value);
+		}
+	}
+	return characters;
 }
 
 function subtitleCodec(format: string): string | null {

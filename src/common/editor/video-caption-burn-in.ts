@@ -18,6 +18,8 @@
  * staged font is the WOFF the design system already ships.
  */
 
+import { resolveVideoBurnInFontChoice } from './video-burn-in-font.ts';
+
 /**
  * The bottom band captions stay out of, as a fraction of canvas height.
  *
@@ -83,6 +85,10 @@ export interface VideoBurnInCue {
 	readonly startSeconds: number;
 	readonly endSeconds: number;
 	readonly text: string;
+	/** The font subset this cue's characters are drawn from. */
+	readonly fontSubset: string;
+	/** Characters that subset cannot draw, which the delivery report states. */
+	readonly undrawable: readonly string[];
 }
 
 export interface VideoBurnInStage {
@@ -161,12 +167,18 @@ export function resolveVideoBurnInStage(
 		bottomMarginPx: Math.round(height * VIDEO_BURN_IN_TITLE_SAFE_FRACTION),
 		boxBorderPx: Math.max(2, Math.round(fontSizePx * 0.25)),
 		lineSpacingPx: Math.round(fontSizePx * 0.25),
-		cues: Object.freeze(drawn.map((cue, index) => Object.freeze({
-			index,
-			startSeconds: cue.startFrame / sampleRate,
-			endSeconds: cue.endFrame / sampleRate,
-			text: wrapBurnInText(burnInText(cue.title), charactersPerLine),
-		}))),
+		cues: Object.freeze(drawn.map((cue, index) => {
+			const text = wrapBurnInText(burnInText(cue.title), charactersPerLine);
+			const font = resolveVideoBurnInFontChoice(text);
+			return Object.freeze({
+				index,
+				startSeconds: cue.startFrame / sampleRate,
+				endSeconds: cue.endFrame / sampleRate,
+				text,
+				fontSubset: font.subsetId,
+				undrawable: font.undrawable,
+			});
+		})),
 	});
 }
 
@@ -222,4 +234,24 @@ function burnInText(value: unknown): string {
 	}
 	if (text.includes('\0')) throw new RangeError('A burned-in cue cannot contain a NUL character.');
 	return text;
+}
+
+/** The font subsets a stage needs staged, in the order they are first drawn. */
+export function videoBurnInFontSubsetIds(stage: VideoBurnInStage | null): readonly string[] {
+	const ids: string[] = [];
+	for (const cue of stage?.cues ?? []) {
+		if (!ids.includes(cue.fontSubset)) ids.push(cue.fontSubset);
+	}
+	return Object.freeze(ids);
+}
+
+/** Every character a burned delivery could not draw, deduplicated across its cues. */
+export function videoBurnInUndrawableCharacters(stage: VideoBurnInStage | null): readonly string[] {
+	const characters: string[] = [];
+	for (const cue of stage?.cues ?? []) {
+		for (const character of cue.undrawable) {
+			if (!characters.includes(character)) characters.push(character);
+		}
+	}
+	return Object.freeze(characters);
 }
