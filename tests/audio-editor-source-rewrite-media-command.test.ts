@@ -248,7 +248,7 @@ test('a video rewrite states both of the lengths a video source has', () => {
 			type: 'source/rewrite-media',
 			sourceId: 'vid',
 			changes,
-			clips: [{ clipId: 'video-clip', sourceStartFrame: 0, sourceInFrame: 0 }],
+			clips: [{ clipId: 'video-clip', sourceStartFrame: 0 }],
 		} as AudioEditorCommand, { now: NOW }),
 		pattern,
 	);
@@ -265,7 +265,7 @@ test('a video rewrite states both of the lengths a video source has', () => {
 		type: 'source/rewrite-media',
 		sourceId: 'vid',
 		changes: { storageKey: 'vid-trimmed', sampleFrameCount: SAMPLE_RATE * 2, sourceFrameCount: 60 },
-		clips: [{ clipId: 'video-clip', sourceStartFrame: 0, sourceInFrame: 0 }],
+		clips: [{ clipId: 'video-clip', sourceStartFrame: 0 }],
 	} as AudioEditorCommand, { now: NOW }) as ProjectRecord;
 	const source = after.sources[0] as Record<string, unknown>;
 	assert.equal(source.storageKey, 'vid-trimmed');
@@ -275,9 +275,10 @@ test('a video rewrite states both of the lengths a video source has', () => {
 	assert.equal(source.width, 640);
 	// The clip reads from the start of the trimmed file and still plays the
 	// same two seconds it always did.
-	// A stored video clip carries its in-point in video frames; the sample-frame
-	// figure the command also states belongs to the runtime projection, which is
-	// where the remap arithmetic happens.
+	// A video clip's in-point is stated once, in pictures. That is the domain a
+	// command sees it in — the runtime projection resolves a video clip's
+	// `sourceStartFrame` straight from `sourceInFrame` — and the domain the plan
+	// measures the source in, so the remap needs no conversion at all.
 	const [clip] = after.clips;
 	assert.equal(clip.sourceInFrame, 0);
 	assert.equal(Object.hasOwn(clip, 'sourceStartFrame'), false);
@@ -291,6 +292,6 @@ test('a video rewrite states both of the lengths a video source has', () => {
 		type: 'source/rewrite-media',
 		sourceId: 'vid',
 		changes: { storageKey: 'vid-trimmed', sampleFrameCount: SAMPLE_RATE * 2, sourceFrameCount: 60 },
-		clips: [{ clipId: 'video-clip', sourceStartFrame: SAMPLE_RATE, sourceInFrame: 30 }],
+		clips: [{ clipId: 'video-clip', sourceStartFrame: 400 }],
 	} as AudioEditorCommand, { now: NOW }), /source bounds/);
 });

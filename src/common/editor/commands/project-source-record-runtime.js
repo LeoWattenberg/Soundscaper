@@ -171,12 +171,10 @@ export function rewriteSourceMedia(project, command) {
 	const projectBin = requireProjectBin(project);
 	const moves = new Map((Array.isArray(command.clips) ? command.clips : []).map((entry) => [
 		requireStableCommandId(entry?.clipId, 'clip'),
-		{
-			sourceStartFrame: assertFrame(entry.sourceStartFrame, 'clip.sourceStartFrame'),
-			...(entry.sourceInFrame === undefined
-				? {}
-				: { sourceInFrame: assertFrame(entry.sourceInFrame, 'clip.sourceInFrame') }),
-		},
+		// One number, in the domain the source is measured in: sample frames for
+		// audio, pictures for video, which is what the runtime projection
+		// resolves a video clip's `sourceStartFrame` from in the first place.
+		{ sourceStartFrame: assertFrame(entry.sourceStartFrame, 'clip.sourceStartFrame') },
 	]));
 	const referencing = [...project.clips, ...projectBin.clips].filter((clip) => clip.sourceId === source.id);
 	for (const clip of referencing) {

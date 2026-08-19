@@ -362,7 +362,6 @@ type LegacyNonBatchAudioEditorCommandPayloads = {
 		readonly clips: readonly Readonly<{
 			readonly clipId: string;
 			readonly sourceStartFrame: number;
-			readonly sourceInFrame?: number;
 		}>[];
 	};
 	readonly 'project-bin/add': { readonly clip: CommandObject };
