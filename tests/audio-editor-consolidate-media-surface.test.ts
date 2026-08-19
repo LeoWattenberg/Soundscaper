@@ -43,11 +43,48 @@ test('consolidate is reachable from the File menu and blocked on a read-only pro
 	assert.equal(fileItem(blocked, 'consolidate-media')?.disabled, true);
 });
 
+test('the archive checksum entry is present and follows what the session actually wrote', () => {
+	let invoked = 0;
+	const withManifest = createApplicationMenus({
+		...menuInput({
+			editBlocked: false,
+			actions: actionPorts({ saveArchiveManifest: () => { invoked += 1; } }),
+		}),
+		snapshot: {
+			...menuInput({ editBlocked: false, actions: actionPorts({}) }).snapshot,
+			archiveManifest: { manifest: { members: [] }, unavailable: null, fileName: 'p.scape' },
+		},
+	}) as readonly MenuItem[];
+	const item = fileItem(withManifest, 'save-archive-manifest');
+	assert.equal(item?.disabled, false);
+	item?.onClick?.();
+	assert.equal(invoked, 1);
+
+	// A streamed save leaves no bytes to have measured, so there is nothing to
+	// save and the entry says so by being unavailable rather than by failing.
+	const streamed = createApplicationMenus({
+		...menuInput({ editBlocked: false, actions: actionPorts({}) }),
+		snapshot: {
+			...menuInput({ editBlocked: false, actions: actionPorts({}) }).snapshot,
+			archiveManifest: { manifest: null, unavailable: 'streamed', fileName: 'p.scape' },
+		},
+	}) as readonly MenuItem[];
+	assert.equal(fileItem(streamed, 'save-archive-manifest')?.disabled, true);
+	// And nothing written at all is the same unavailability.
+	assert.equal(
+		fileItem(createApplicationMenus(menuInput({
+			editBlocked: false, actions: actionPorts({}),
+		})) as readonly MenuItem[], 'save-archive-manifest')?.disabled,
+		true,
+	);
+});
+
 test('both locales name the command and its outcomes', () => {
 	for (const locale of ['en', 'de'] as const) {
 		const copy = EXPORT_MENU_COPY_BY_LOCALE[locale];
 		for (const key of [
 			'consolidateMedia', 'consolidatingMedia', 'consolidatedMedia', 'consolidatedMediaIncomplete',
+			'saveArchiveManifest', 'archiveManifestSaved',
 		]) {
 			assert.equal(typeof copy[key], 'string', `${locale}.${key}`);
 			assert.ok(copy[key].length > 0, `${locale}.${key}`);

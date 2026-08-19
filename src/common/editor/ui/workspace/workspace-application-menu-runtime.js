@@ -150,6 +150,7 @@ export function createWorkspaceApplicationMenus({
 				exportOtio: () => run(() => controller.actions.export.exportOtio()),
 				exportFcpxml: () => run(() => controller.actions.export.exportFcpxml()),
 				consolidateMedia: () => run(() => controller.actions.media.consolidate()),
+				saveArchiveManifest: () => run(() => controller.actions.media.saveArchiveManifest()),
 				renameProject: () => { setDialogValue(project?.title || ''); setDialog('rename'); },
 				duplicateProject: () => run(() => controller.actions.project.duplicate()),
 				deleteProject: () => setDialog('delete'),

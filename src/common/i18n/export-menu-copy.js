@@ -24,6 +24,8 @@ const EXPORT_MENU_COPY_ENTRIES = Object.freeze([
 		'Some media could not be consolidated',
 		'Einige Medien konnten nicht zusammengeführt werden',
 	],
+	['saveArchiveManifest', 'Save archive checksums', 'Archiv-Prüfsummen speichern'],
+	['archiveManifestSaved', 'Archive checksums saved', 'Archiv-Prüfsummen gespeichert'],
 ]);
 
 export const EXPORT_MENU_COPY_BY_LOCALE = Object.freeze({

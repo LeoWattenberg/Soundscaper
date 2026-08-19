@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { recordScapeArchiveManifest } from './scape-archive-manifest-action.ts';
 import type {
 	NativePreparedSave,
 	NativeProjectDocument,
@@ -38,7 +39,10 @@ export async function prepareNativeScapeSave(
 }
 
 export async function publishNativeScape(
-	runtime: Pick<NativeProjectServiceRuntime, 'exportScapeProject' | 'fileService' | 'scapeMimeType' | 'store'>,
+	runtime: Pick<
+		NativeProjectServiceRuntime,
+		'exportScapeProject' | 'fileService' | 'publishDocumentSnapshot' | 'scapeMimeType' | 'state' | 'store'
+	>,
 	request: Readonly<{
 		assertReadyToCommit(): void;
 		fileName: string;
@@ -60,6 +64,15 @@ export async function publishNativeScape(
 	if (!(exported.blob instanceof Blob)) {
 		throw new TypeError('The fallback Scape export did not produce a Blob.');
 	}
+	// Read the archive that was just built back and record what is in it, so this
+	// file can be verified later against something measured rather than copied
+	// from the writer's own account of itself.
+	await recordScapeArchiveManifest(runtime, {
+		archive: exported.blob,
+		fileName: request.fileName,
+		projectTitle: String(request.project?.title ?? '') || null,
+		signal: request.signal,
+	});
 	request.assertReadyToCommit();
 	const saved = await runtime.fileService.saveFile({
 		purpose: 'project',

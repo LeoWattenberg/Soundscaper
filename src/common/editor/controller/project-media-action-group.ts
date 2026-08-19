@@ -25,6 +25,7 @@ import {
 	type ConsolidatePlan,
 	type ConsolidateRunResult,
 } from './consolidate-media-service.ts';
+import { saveCurrentScapeArchiveManifest } from './scape-archive-manifest-action.ts';
 
 export interface ProjectMediaActionRuntime {
 	readonly state: Record<string, unknown>;
@@ -33,6 +34,7 @@ export interface ProjectMediaActionRuntime {
 	readonly publishDocumentSnapshot?: () => void;
 	readonly setStatus?: (message: string, tone?: string) => void;
 	readonly copy?: Readonly<Record<string, string>>;
+	readonly fileService?: { saveFile?: (request: never) => unknown } | null;
 }
 
 export interface ConsolidateActionResult {
@@ -66,6 +68,31 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 				result.run.complete ? 'success' : 'warning',
 			);
 			return Object.freeze(result);
+		},
+		/**
+		 * Save the checksum manifest of the archive this session last wrote.
+		 *
+		 * It answers with a reason rather than nothing when there is none, because
+		 * a streamed save leaves no bytes to have measured and that is a different
+		 * answer from an archive that checked out.
+		 */
+		saveArchiveManifest: async (): Promise<Readonly<{ saved: boolean; reason: string | null }>> => {
+			const result = await saveCurrentScapeArchiveManifest({
+				state: runtime.state,
+				...(runtime.fileService ? { fileService: runtime.fileService } : {}),
+				...(runtime.publishDocumentSnapshot
+					? { publishDocumentSnapshot: runtime.publishDocumentSnapshot }
+					: {}),
+			});
+			if (result.saved) {
+				runtime.setStatus?.(
+					runtime.copy?.archiveManifestSaved ?? 'Archive checksums saved',
+					'success',
+				);
+			} else if (result.reason) {
+				runtime.setStatus?.(result.reason, 'warning');
+			}
+			return result;
 		},
 	});
 }

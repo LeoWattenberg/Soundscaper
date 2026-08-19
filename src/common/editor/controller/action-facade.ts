@@ -592,6 +592,6 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			measureLoudness: restricted('audioAnalysis', analysisService.measureLoudness),
 		}),
 		export: createExportActionGroup({ handleExportAction, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, getProject, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
-		media: createProjectMediaActionGroup({ state, getProject, store, publishDocumentSnapshot, setStatus, copy }),
+		media: createProjectMediaActionGroup({ state, getProject, store, publishDocumentSnapshot, setStatus, copy, fileService }),
 	});
 }

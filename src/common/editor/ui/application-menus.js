@@ -216,6 +216,12 @@ export default function createApplicationMenus({
 					disabled: editBlocked,
 					onClick: actions.consolidateMedia,
 				},
+				{
+					id: 'save-archive-manifest',
+					label: copy.saveArchiveManifest,
+					disabled: !snapshot.archiveManifest?.manifest,
+					onClick: actions.saveArchiveManifest,
+				},
 					divider(),
 				{ id: 'project-properties', label: copy.metadata, disabled: blocked, onClick: actions.openMetadata },
 				{ id: 'rename-project', label: copy.renameProject, disabled: editBlocked, onClick: actions.renameProject },
