@@ -9,7 +9,6 @@ import {
 import {
 	reconcileFramescaperProjectFeatureRequirementsV20,
 } from './editor-project-feature-requirements-v20.ts';
-import { framescaperProjectV19HasProxyAttachment } from './editor-project-v19.ts';
 import {
 	applyFramescaperProjectCommandV20,
 	snapshotFramescaperProjectCommandV20,

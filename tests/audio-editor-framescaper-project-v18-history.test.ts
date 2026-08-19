@@ -53,7 +53,7 @@ test('V18 commands execute through the V17 projection and restore exact all-null
 	assert.equal(edited.revision, Number(project.revision) + 1);
 });
 
-test('generic V18 commands cannot introduce, remove, or change proxy attachment authority', () => {
+test('generic V18 commands cannot introduce a proxy, and carry or drop the one there is', () => {
 	const project = createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
 		id: 'v18-command-authority', title: 'Authority', now: CREATED,
 	});
@@ -95,11 +95,39 @@ test('generic V18 commands cannot introduce, remove, or change proxy attachment 
 		schemaVersion: 2,
 		requirements: [...requirements, FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18],
 	};
-	assert.throws(() => applyFramescaperProjectCommandV18(
+	// An ordinary edit that leaves the source alone carries the attachment across
+	// unchanged. This used to be refused outright — an attached document could
+	// not be edited at all — which is what made a generated proxy unusable.
+	const renamed = applyFramescaperProjectCommandV18(
 		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 		attached,
-		{ type: 'project/rename', title: 'Forbidden' },
-	), /intrinsically read-only|proxy attachment/iu);
+		{ type: 'project/rename', title: 'Renamed' },
+	);
+	assert.equal(renamed.title, 'Renamed');
+	const carried = renamed.sources.find(({ id }) => id === 'new-video');
+	assert.deepEqual(carried?.kind === 'video' ? carried.proxyAttachment : null, attachment());
+	assert.ok(renamed.featureRequirements.requirements.some(
+		({ id }) => id === FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18.id,
+	));
+
+	// And an edit that removes the last occurrence of the source drops it in the
+	// same transaction, so no document ever holds a proxy for material nothing
+	// places. The owned requirement goes with it.
+	const emptied = applyFramescaperProjectCommandV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		attached,
+		{ type: 'track/update', trackId: 'video-track', changes: { locked: false } },
+	);
+	const cleared = applyFramescaperProjectCommandV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		emptied,
+		{ type: 'clip/remove', clipId: 'video-clip' },
+	);
+	const dropped = cleared.sources.find(({ id }) => id === 'new-video');
+	assert.equal(dropped?.kind === 'video' ? dropped.proxyAttachment : 'missing', null);
+	assert.ok(!cleared.featureRequirements.requirements.some(
+		({ id }) => id === FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18.id,
+	));
 });
 
 test('V18 history validates every snapshot and retains undo/redo attachment authority', () => {

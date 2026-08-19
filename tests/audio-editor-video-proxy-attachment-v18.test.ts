@@ -228,6 +228,9 @@ test('remains a closed scalar owner with only the reviewed V18 consumers', () =>
 		'src/framescaper/editor-project-v18-validation.ts',
 		'src/framescaper/editor-project-v18.ts',
 		'src/framescaper/editor-video-proxy-attachment-coordinator-v18.ts',
+		// Decides which attachments an edit leaves true, so it reads the wire it
+		// carries forward.
+		'src/framescaper/editor-video-proxy-attachment-retention-v18.ts',
 		'src/framescaper/editor-video-proxy-reattestation-contract-v18.ts',
 		'src/framescaper/editor-video-proxy-reattestation-v18.ts',
 		'src/framescaper/scape-project-envelope-v18.ts',

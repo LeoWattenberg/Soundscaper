@@ -147,7 +147,7 @@ test('commands are closed snapshots and fail stale or invalid replacement values
 	);
 });
 
-test('proxy-attached V19 projects are intrinsically read-only before command publication', () => {
+test('a proxy-attached V19 project is edited, and keeps the proxy the edit left true', () => {
 	const attached = structuredClone(projectFixture()) as unknown as Record<string, unknown>;
 	(attached.sources as Record<string, unknown>[])[0]!.proxyAttachment = attachment();
 	attached.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV19(
@@ -155,14 +155,29 @@ test('proxy-attached V19 projects are intrinsically read-only before command pub
 		attached,
 	);
 	assert.equal(validateFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, attached), true);
-	assert.throws(
-		() => applyFramescaperProjectCommandV19(
-			FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
-			attached,
-			setCommand('video-clip', DEFAULT_VIDEO_CLIP_COMPOSITION, authoredComposition()),
-		),
-		/proxy-attached.*read-only|intrinsically read-only/iu,
+
+	// A composition edit is authored on the clip, not the source, so it leaves
+	// everything the attachment claims true. This was refused outright until the
+	// retention rule existed, which is what made an attached document unusable.
+	const composed = applyFramescaperProjectCommandV19(
+		FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+		attached,
+		setCommand('video-clip', DEFAULT_VIDEO_CLIP_COMPOSITION, authoredComposition()),
 	);
+	assert.deepEqual(composed.clips[0]?.videoComposition, authoredComposition());
+	const source = composed.sources[0];
+	assert.deepEqual(source?.kind === 'video' ? source.proxyAttachment : null, attachment());
+
+	// And an inherited command reaches the same rule through the V18 foundation
+	// it is applied on.
+	const renamed = applyFramescaperProjectCommandV19(
+		FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+		composed,
+		{ type: 'project/rename', title: 'Renamed while attached' },
+	);
+	const carried = renamed.sources[0];
+	assert.deepEqual(carried?.kind === 'video' ? carried.proxyAttachment : null, attachment());
+	assert.equal(validateFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, renamed), true);
 });
 
 test('inherited editor commands preserve exact V19 composition and remain history-owned', () => {

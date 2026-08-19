@@ -16,10 +16,7 @@ import {
 	type FramescaperProjectCommandOptionsV19,
 	type FramescaperProjectCommandV19,
 } from './editor-project-v19-commands.ts';
-import {
-	cloneFramescaperProjectV19,
-	framescaperProjectV19HasProxyAttachment,
-} from './editor-project-v19.ts';
+import { cloneFramescaperProjectV19 } from './editor-project-v19.ts';
 import { assertFramescaperProjectV19Profile } from './editor-project-v19-profile.ts';
 import {
 	validateFramescaperProjectV19,

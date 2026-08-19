@@ -27,7 +27,6 @@ import {
 } from './editor-project-feature-requirements-v19.ts';
 import {
 	cloneFramescaperProjectV19,
-	framescaperProjectV19HasProxyAttachment,
 	normalizeFramescaperProjectClipCompositionsV19,
 } from './editor-project-v19.ts';
 import { assertFramescaperProjectV19Profile } from './editor-project-v19-profile.ts';

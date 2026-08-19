@@ -36,10 +36,7 @@ import {
 	type FramescaperProjectCommandOptionsV19,
 	type FramescaperProjectCommandV19,
 } from './editor-project-v19-commands.ts';
-import {
-	framescaperProjectV19HasProxyAttachment,
-	normalizeFramescaperProjectClipCompositionsV19,
-} from './editor-project-v19.ts';
+import { normalizeFramescaperProjectClipCompositionsV19 } from './editor-project-v19.ts';
 import {
 	applyFramescaperProjectCommandV18,
 } from './editor-project-v18-commands.ts';
