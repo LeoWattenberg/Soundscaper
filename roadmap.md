@@ -728,12 +728,21 @@ invariants, and the bounded work packets are owned by the
 
 - **Web Core — Implemented:** canvas, fit, rational rate, background, quality
   tier, audio layout, captions, and range are validated plan, dialog, and preset
-  options on both paths; captions are label tracks until milestone 4 styles them.
-- **Web Enhanced — Implemented:** a WebCodecs encode tier for qualified SDR
-  outputs, containers written by the shipped FFmpeg, fallback reported per run.
+  options, and the export dialog's canvas is what the preview shows. The keyed
+  path states two bounds of its own: it renders a hex background rather than
+  FFmpeg's colour names, and it refuses a caption request instead of delivering
+  one, because it stages no files and stream-copies its picture. Captions are
+  label tracks until milestone 4 styles them.
+- **Web Enhanced — Implemented; reachable through the keyed path:** a WebCodecs
+  encode tier for qualified SDR outputs, containers written by the shipped
+  FFmpeg, fallback reported per run. Only a delivery that renders its own frames
+  can be handed encoded chunks, so a build mounting the V19 controller reports
+  the composed-graph fallback for every delivery.
 - **Electron Enhanced — Planned; substrate implemented:** nine delivery targets
-  declare container, codec, canvas, and legal status; the six needing an
-  uncleared row resolve to no plan, fall back, and report both.
+  declare legal status and fallback behaviour; the three that ship declare their
+  container, codec and canvas through the format they resolve to, and the six
+  needing an uncleared row resolve to no plan, fall back, and report the blocker
+  with the substitution.
 - **Shared — In progress:** EDL, OTIO, and FCPXML profiles itemize conversions;
   consolidate, checksums, and lossless trim-media are done; relink is Planned.
 

@@ -9,6 +9,64 @@
 > siblings are [`milestone-6a-soundscaper-delivery.md`](milestone-6a-soundscaper-delivery.md)
 > and [`milestone-6c-interchange-archive.md`](milestone-6c-interchange-archive.md).
 
+## What reviewing the finished track changed
+
+**The track was reviewed on 2026-08-19, after every slice was marked complete,
+and the review found defects the gates could not.** Every local gate was green
+at the time: typecheck, lint, dependency-cruiser, the file-size ceiling, the
+coverage thresholds, 8803 node tests, and the encoder-tier browser spec on
+Chromium and Firefox. What follows is what that did not cover, recorded here
+because a milestone's own document is where the next reader looks.
+
+Three defects were reachable from the export dialog. Choosing any delivery
+target exported a WAV: the target carried the plan's bare `mp4` into a request
+whose `video-` prefix is what the router reads, so every targeted delivery went
+down the audio path, where an unrecognized format normalizes to WAV. Stating any
+canvas field while a target was selected replaced that target's whole canvas, so
+a background colour dropped a 1080x1920 cover delivery to the automatic canvas
+while the report still named the target. And a caption track with nothing in the
+delivered range staged a zero-byte SubRip document, which the shipped FFmpeg
+refuses to open — a delivery that died in the encoder with a message that never
+mentioned captions, in the slice whose invariant says an option is validated at
+plan build.
+
+The burned picture had two of its own. The stage was sized from canvas height
+alone and `drawtext` neither wraps nor clips, so on the catalog's own 1080x1920
+target a caption past 28 characters drew off both edges; the type is now the
+smaller of the height rule and a width rule, and the text wraps. And the `enable`
+window was closed at both ends, so a cue ending exactly where the next begins —
+which is what a transcript label track produces — drew both captions on the frame
+they share. Both were measured through the pinned core, before and after.
+
+Burn-in also staged one font file, the Latin subset, and this build has no
+fontconfig to fall back through: every Cyrillic and Greek caption burned in as
+blanks. The subset is chosen per cue now, out of the seven the interface already
+loads. A script whose letters and accents live in different subsets still cannot
+be drawn whole from one file; those characters are named in the delivery report
+rather than left blank in the picture.
+
+The keyed path carried four latent defects, none of them reachable while the app
+mounts V18 or V19. Its renderer refused any canvas past 1280x720, so the vertical
+delivery its plan admits could never have rendered a frame. It refused any
+background but `#000000`. Its deliveries reported no frame rate at all, because
+the inventory read only the decimal spelling. And a cancelled keyed export
+surfaced as a failed one, because cleanup after the runtime had been terminated
+produced refusals the caller aggregated. All four are fixed. The keyed path still
+cannot deliver captions — it stages no files and stream-copies its picture — but
+it now refuses the request instead of dropping it silently.
+
+Five pieces of the acceptance evidence did not hold, each established by mutating
+the product and watching the suite stay green: the keyed delivery fit, the
+burn-in placement, the audio-layout wiring, the two tiers' audio parity, and a
+remux module the packet named as 6B-3's FFmpeg half that nothing imported. Each
+now has a test that goes red against that mutation, and the orphan is gone.
+
+The exit gate had one of its own. 6B-5 registered the vertical companion so the
+gate would cover the reframing, and made a run deliver at both canvases — but
+`delivery.webVideoRenderP95Rtf` read a flat list of five timings with nothing
+saying which delivery they measured. Timings are keyed by canvas now, and the
+row reads the slowest one.
+
 ## Pickup status and sequencing
 
 **Status on 2026-08-19: every 6B slice is complete.** 6B-1 lifted the canvas,
@@ -49,19 +107,26 @@ legible.
 
 The slice's acceptance evidence is in `tests/fixtures/video-delivery-goldens.ts`.
 Byte-stability is measured rather than asserted: the default-option argument
-vectors were regenerated at 1f2502ee, the commit before 6B-1's first change, and
-came back identical on both the composed-graph and keyed paths. The crop goldens
-pin the readable geometry each 9:16 fit produces — letterboxed at 1080x608 with
-656 above and below, cropped by overlaying a 3413-wide frame that overhangs by
-1166 each side, or stretched to the canvas outright.
+vectors were regenerated at 1f2502ee — five commits before 6B-1's first change,
+which is the last commit whose delivery arguments this milestone had not touched
+— and came back identical on both the composed-graph and keyed paths. The crop
+goldens pin the readable geometry each 9:16 fit produces — letterboxed at
+1080x608 with 656 above and below, cropped by overlaying a 3413-wide frame that
+overhangs by 1166 on the left and 1167 on the right, or stretched to the canvas
+outright.
 
-Two bounds and one gap are worth naming. A keyed canvas is capped at about 2.09
-megapixels, which is one RGBA frame fitting the keyframe encoder's 8 MiB stream
-limit: 1080×1920 is admitted, 1080×1944 is refused, and the refusal happens at
-plan build. The keyed frame rate is still capped at 30 fps by that encoder's own
-ceiling. And the video preview still resolves the project's derived canvas, so a
-delivery that reframes to 9:16 is not previewed at 9:16 — the preview honours a
-fit it is given, but nothing yet gives it the delivery's.
+Three bounds are worth naming, all on the keyed path. A keyed canvas is capped at
+about 2.09 megapixels, which is one RGBA frame fitting the keyframe encoder's
+8 MiB stream limit: 1080×1920 is admitted, 1080×1944 is refused, and the refusal
+happens at plan build. The keyed frame rate is still capped at 30 fps by that
+encoder's own ceiling. And a keyed background is a hex colour, because that path
+clears a WebGL target itself and has no FFmpeg colour palette to resolve a name
+against; the composed graph still takes either.
+
+The preview gap this section used to name is closed. While the export dialog is
+open and stating a video delivery it publishes the canvas it means, and the
+preview resolves against that rather than the project's own derived canvas, so a
+9:16 reframing is judged before the render rather than after it.
 
 One defect of this slice's own making was found later and is fixed. The offline
 export closed its canvas record against `width`, `height` and `frameRate` only,
@@ -198,8 +263,9 @@ cue's appearance and disappearance falls inside one frame of its label time.
 ## 6B-2a — Caption selection and muxed captions
 
 - **Outcome:** caption-track selection as a 6B-1 plan option; muxed captions
-  where the container supports them, removing `-sn`/`-dn` exactly for
-  caption-carrying plans (`video-ffmpeg.js:71-72`); sidecar delivery
+  where the container supports them, removing `-sn` exactly for caption-carrying
+  plans while `-dn` stays, since a source's data streams have nothing to do with
+  captions; sidecar delivery
   (existing `label-io.js` formats) selectable per delivery and itemized in
   the report; a container without caption support reports the omission.
 - **Invariants:** mux rides the plan and its args — no post-hoc file

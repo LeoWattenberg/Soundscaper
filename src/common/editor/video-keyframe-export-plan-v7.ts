@@ -11,6 +11,7 @@ import {
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_TOTAL_RGBA_BYTES,
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_WIDTH,
 } from './video-keyframe-encoder-admission.ts';
+import { VIDEO_KEYFRAME_EXPORT_PLAN_VERSION } from './video-export-plan-version.ts';
 import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
 import {
 	audioFileName,
@@ -230,7 +231,7 @@ export function createVideoKeyframeExportPlanV7(
 	);
 	assertEncoderDomain(canvas.width, canvas.height, outputFrameCount);
 	const plan = deepFreeze({
-		version: 7 as const,
+		version: VIDEO_KEYFRAME_EXPORT_PLAN_VERSION as 7,
 		strategy: 'framescaper-keyframed-rgba-v1' as const,
 		format,
 		container: format,
@@ -262,7 +263,7 @@ export function assertVideoKeyframeExportPlanV7(
 	value: unknown,
 ): asserts value is VideoKeyframeExportPlanV7 {
 	const plan = closedRecord(value, PLAN_FIELDS, 'video keyframe export plan V7', true);
-	if (data(plan, 'version', 'video keyframe export plan V7') !== 7
+	if (data(plan, 'version', 'video keyframe export plan V7') !== VIDEO_KEYFRAME_EXPORT_PLAN_VERSION
 		|| data(plan, 'strategy', 'video keyframe export plan V7') !== 'framescaper-keyframed-rgba-v1') {
 		throw new TypeError('Video keyframe export plan V7 has a non-canonical authority marker.');
 	}
