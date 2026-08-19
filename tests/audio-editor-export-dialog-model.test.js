@@ -286,3 +286,15 @@ test('the broadcast frame rates the dialog offers are delivered exactly', () => 
 	assert.equal(rate('48'), 48);
 	assert.equal(rate('12.5'), 12.5);
 });
+
+test('the export dialog offers the preview the delivery canvas it states', async () => {
+	const dialog = await readFile('src/common/editor/ui/inspector/ExportDialog.jsx', 'utf8');
+	const panel = await readFile('src/common/editor/ui/workspace/VideoPreviewPanel.jsx', 'utf8');
+
+	// A delivery that reframes to 9:16 was never previewed at 9:16, so the one
+	// control whose purpose is reframing could only be judged after the render.
+	assert.match(dialog, /previewDeliveryCanvas\(/u);
+	assert.match(dialog, /previewDeliveryCanvas\(null\)/u, 'and it is cleared when the dialog is not delivering video');
+	assert.match(panel, /snapshot\.videoDeliveryPreviewCanvas/u);
+	assert.match(panel, /resolveVideoExportCanvas\(project, deliveryCanvas \?\? \{\}\)/u);
+});

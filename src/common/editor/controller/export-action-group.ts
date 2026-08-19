@@ -38,6 +38,20 @@ export function createExportActionGroup(runtime: ExportActionGroupRuntime) {
 	return Object.freeze({
 		start: (settings: unknown) => handleExportAction('start', settings),
 		cancel: () => handleExportAction('cancel'),
+		/**
+		 * Show the delivery canvas an open export dialog is asking for.
+		 *
+		 * A delivery that reframes to 9:16 was never previewed at 9:16: the panel
+		 * resolves the project's derived canvas and nothing told it otherwise, so
+		 * the one control whose whole purpose is reframing could not be judged
+		 * before the render. This is session state, cleared when the dialog closes.
+		 */
+		previewDeliveryCanvas: (canvas: unknown) => {
+			const next = canvas && typeof canvas === 'object' ? canvas : null;
+			if (state.videoDeliveryPreviewCanvas === next) return;
+			state.videoDeliveryPreviewCanvas = next;
+			publishDocumentSnapshot?.();
+		},
 		saveReport: () => saveCurrentDeliveryReport({
 			state, productName: productName ?? null, projectTitle: getProjectTitle?.() ?? null, fileService,
 		}),

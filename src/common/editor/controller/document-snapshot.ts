@@ -109,6 +109,7 @@ export interface EditorDocumentSnapshotState {
 	readonly clipboard: unknown;
 	readonly status: Readonly<{ message: string; state: string }>;
 	readonly deliveryReport?: unknown;
+	readonly videoDeliveryPreviewCanvas?: unknown;
 	readonly saveState: string;
 	readonly storageEstimate: Readonly<StorageCapacitySnapshot>;
 	readonly analysisResult: unknown;
@@ -281,6 +282,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			})
 			: null,
 		deliveryReport: state.deliveryReport ?? null,
+		videoDeliveryPreviewCanvas: state.videoDeliveryPreviewCanvas ?? null,
 		featureRequirementsCompatibility: currentTabMetadata.featureRequirementsReport ?? null,
 		featureRequirementsReadOnly: Boolean(currentTabMetadata.featureRequirementsReadOnly),
 		// Derived from the live project rather than activation-time metadata, so the

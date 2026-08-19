@@ -146,14 +146,23 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		() => createVideoPreviewEffectBypass(snapshot.videoEffectPlaybackBypass),
 		[snapshot.videoEffectPlaybackBypass],
 	);
+	// The delivery an open export dialog is stating wins over the project's own
+	// derived canvas, so a reframed delivery is previewed as it will be
+	// delivered. Without it the one control whose purpose is reframing could not
+	// be judged until the file existed.
+	const deliveryCanvas = snapshot.videoDeliveryPreviewCanvas;
 	const referenceCanvas = useMemo(() => {
 		if (!project) return { width: 1_280, height: 720 };
 		try {
-			return resolveVideoExportCanvas(project);
+			return resolveVideoExportCanvas(project, deliveryCanvas ?? {});
 		} catch {
-			return { width: 1_280, height: 720 };
+			try {
+				return resolveVideoExportCanvas(project);
+			} catch {
+				return { width: 1_280, height: 720 };
+			}
 		}
-	}, [project]);
+	}, [deliveryCanvas, project]);
 	const layerResolution = useMemo(() => {
 		if (!project) return { layers: [], keyframeFailed: false };
 		try {

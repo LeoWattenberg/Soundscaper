@@ -14,7 +14,11 @@ import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import MetadataEditorTabs from '../MetadataEditorTabs.tsx';
 import VideoDeliveryFields from '../VideoDeliveryFields.jsx';
 import { createProjectAdmEditorValue } from '../adm-metadata-editor-model.ts';
-import { dialogSettingsFromDeliveryTarget } from '../export-preset-model.ts';
+import {
+	dialogSettingsFromDeliveryTarget,
+	statedVideoCanvas,
+	statedVideoDeliveryTarget,
+} from '../export-preset-model.ts';
 import { createBextMetadataEditorValue } from '../bext-metadata-editor-model.ts';
 import {
 	VIDEO_EXPORT_DIALOG_FORMATS,
@@ -194,6 +198,23 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	// A delivery target states the container it delivers, so the format control
 	// has to follow it: the request already does, and a dropdown still reading
 	// MP4 while a WebM lands is the dialog telling the operator something untrue.
+	// The preview follows the delivery while this dialog is open, so a 9:16
+	// reframing can be judged before the render rather than after it.
+	useEffect(() => {
+		if (!videoFormat) {
+			controller.actions.export.previewDeliveryCanvas(null);
+			return undefined;
+		}
+		const canvas = statedVideoCanvas(settings);
+		const target = statedVideoDeliveryTarget(settings);
+		const targetCanvas = target?.options.canvas;
+		const merged = targetCanvas && typeof targetCanvas === 'object'
+			? { ...targetCanvas, ...canvas }
+			: canvas;
+		controller.actions.export.previewDeliveryCanvas(Object.keys(merged).length > 0 ? merged : null);
+		return () => controller.actions.export.previewDeliveryCanvas(null);
+	}, [controller, settings, videoFormat]);
+
 	const setVideoDeliverySetting = (name, value) => {
 		if (name !== 'deliveryTarget') return set(name, value);
 		const patch = dialogSettingsFromDeliveryTarget(value);

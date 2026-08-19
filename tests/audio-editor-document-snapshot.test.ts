@@ -280,3 +280,46 @@ function stateFixture(
 		...overrides,
 	};
 }
+
+test('the delivery canvas an open export dialog states rides the snapshot to the preview', () => {
+	const project: SnapshotProject = { id: 'project', selection: { startFrame: 0, endFrame: 0 } };
+	const canvas = { size: { width: 1_080, height: 1_920 }, fit: 'cover' };
+
+	// A delivery that reframes to 9:16 was never previewed at 9:16, because the
+	// panel resolves the project's derived canvas and nothing told it otherwise.
+	const snapshot = (state: EditorDocumentSnapshotState) => createEditorDocumentSnapshot({
+		state,
+		product: null,
+		productId: 'soundscaper',
+		capabilities: null,
+		locale: 'en',
+		getCurrentProject: () => project,
+		projectForPlayback: (candidate) => candidate,
+		getProjectTabs: () => [],
+		getCurrentTabMetadata: () => ({}),
+		recordingPreviewSnapshot: () => null,
+		getAudioDevicesSnapshot: () => ({}),
+		getSoundActivationSnapshot: () => SOUND_ACTIVATION_SNAPSHOT,
+		sampleEditingAvailable: () => false,
+		canUndo: () => false,
+		canRedo: () => false,
+		historyEntrySummary: (entry) => entry,
+		getStorageStatus: () => ({
+			state: 'indexeddb', backend: 'indexeddb', persistent: true,
+			ephemeral: false, degradedReason: null,
+		}),
+		getRackEffectTypes: () => [],
+		getVideoEffectTypes: () => [],
+		getSelectionEffectTypes: () => [],
+		getSelectionEffectParams: () => ({}),
+		getSelectionEffectDefinition: () => null,
+		getEffectPresets: () => [],
+	});
+
+	assert.equal(snapshot(stateFixture()).videoDeliveryPreviewCanvas, null);
+	assert.deepEqual(
+		snapshot(stateFixture({ videoDeliveryPreviewCanvas: canvas } as Partial<EditorDocumentSnapshotState>))
+			.videoDeliveryPreviewCanvas,
+		canvas,
+	);
+});
