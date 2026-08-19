@@ -203,12 +203,43 @@ export interface TrimMediaRetainedRun extends TrimMediaRange {
  * is simply the total length of the runs before it.
  */
 export function trimMediaRetainedRuns(plan: TrimMediaSourcePlan): readonly TrimMediaRetainedRun[] {
+	return trimMediaRunsFromRanges(plan.retained);
+}
+
+/**
+ * The same arithmetic over ranges a caller holds directly.
+ *
+ * What a writer actually produced is not always what the plan asked for — a
+ * lossless cut may only begin at a keyframe, so a run can come back wider — and
+ * the document has to be remapped against what was written. That means the runs
+ * have to be computable from any disjoint ascending set of ranges, not only
+ * from a plan.
+ */
+export function trimMediaRunsFromRanges(
+	ranges: readonly TrimMediaRange[],
+): readonly TrimMediaRetainedRun[] {
 	let trimmedStartFrame = 0;
-	return Object.freeze(plan.retained.map((range) => {
-		const run = Object.freeze({ ...range, trimmedStartFrame });
-		trimmedStartFrame += range.endFrame - range.startFrame;
-		return run;
-	}));
+	return Object.freeze([...ranges]
+		.sort((left, right) => left.startFrame - right.startFrame)
+		.map((range) => {
+			const run = Object.freeze({
+				startFrame: range.startFrame,
+				endFrame: range.endFrame,
+				trimmedStartFrame,
+			});
+			trimmedStartFrame += range.endFrame - range.startFrame;
+			return run;
+		}));
+}
+
+/** Whether every frame in `required` is somewhere in `available`. */
+export function trimMediaRangesCover(
+	available: readonly TrimMediaRange[],
+	required: readonly TrimMediaRange[],
+): boolean {
+	return required.every((range) => available.some(
+		(candidate) => candidate.startFrame <= range.startFrame && candidate.endFrame >= range.endFrame,
+	));
 }
 
 /**
@@ -244,7 +275,15 @@ export function alignTrimMediaRunsToKeyframes(
  * saying so, and the whole point of the plan is that nothing referenced is lost.
  */
 export function trimMediaMapFrame(plan: TrimMediaSourcePlan, frame: number): number | null {
-	for (const run of trimMediaRetainedRuns(plan)) {
+	return trimMediaMapFrameInRuns(trimMediaRetainedRuns(plan), frame);
+}
+
+/** The same question against the runs a copy actually holds. */
+export function trimMediaMapFrameInRuns(
+	runs: readonly TrimMediaRetainedRun[],
+	frame: number,
+): number | null {
+	for (const run of runs) {
 		if (frame >= run.startFrame && frame < run.endFrame) {
 			return run.trimmedStartFrame + (frame - run.startFrame);
 		}

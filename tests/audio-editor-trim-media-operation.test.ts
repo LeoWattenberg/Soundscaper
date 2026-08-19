@@ -71,6 +71,49 @@ test('a writer that produced fewer frames than the plan retained is refused', as
 	assert.equal(reportItem(result, 'trim.frame-count-mismatch')?.severity, 'error');
 });
 
+test('a copy widened back to a keyframe is accepted, and the document follows what was written', async () => {
+	// A lossless cut may only begin at a keyframe, so the writer is allowed to
+	// keep more than the plan asked for — and then every reference has to be
+	// remapped against what was written, not against what was requested. A run
+	// that starts 5 frames earlier moves every later frame by 5.
+	const harness = createHarness({ widenTo: 25 });
+	const plan = createTrimMediaPlan({ project: gappedProject(), handleFrames: 0 });
+	const result = await runTrimMedia({ plan }, harness.ports);
+
+	const trimmed = result.sources.find(({ sourceId }) => sourceId === 'a');
+	assert.equal(trimmed?.outcome, 'trimmed', 'keeping more than was asked for is not a shortfall');
+	assert.deepEqual(harness.rebinds[0]?.runs, [
+		{ startFrame: 0, endFrame: 20, trimmedStartFrame: 0 },
+		{ startFrame: 50, endFrame: 70, trimmedStartFrame: 20 },
+	]);
+	assert.deepEqual(trimmed?.runs, harness.rebinds[0]?.runs);
+	assert.equal(harness.rebinds[0]?.frameCount, 40);
+	// And the length the document must be told is what the copy holds, not what
+	// the plan asked for.
+	assert.equal(trimmed?.writtenFrames, 40);
+	assert.equal(trimmed?.retainedFrames, 20);
+});
+
+test('a copy that lost a referenced frame is refused however many frames it holds', async () => {
+	// Widening one run while dropping another keeps the total plausible, so the
+	// count alone would let it through. What matters is that every frame the
+	// plan proved was referenced is somewhere in the copy.
+	const harness = createHarness();
+	harness.ports.writeTrimmedCopy = async (source) => ({
+		storageKey: `managed/${source.sourceId}.trimmed`,
+		frameCount: 20,
+		byteLength: 80,
+		runs: [{ startFrame: 0, endFrame: 20 }],
+	});
+	const result = await runTrimMedia(
+		{ plan: createTrimMediaPlan({ project: gappedProject(), handleFrames: 0 }) },
+		harness.ports,
+	);
+
+	assert.equal(result.sources.find(({ sourceId }) => sourceId === 'a')?.outcome, 'frame-count-mismatch');
+	assert.equal(harness.rebinds.length, 0, 'a copy missing referenced frames must never be bound to');
+});
+
 test('an external file is refused rather than rewritten in place', async () => {
 	const harness = createHarness();
 	const result = await runTrimMedia({
@@ -166,6 +209,8 @@ function createHarness(options: {
 	frameCountDelta?: number;
 	rebindSucceeds?: boolean;
 	onWrite?: () => void;
+	/** Stand in for a writer that may only begin a run at a keyframe. */
+	widenTo?: number;
 } = {}) {
 	const events: string[] = [];
 	const written = new Map<string, number>();
@@ -174,12 +219,19 @@ function createHarness(options: {
 		async writeTrimmedCopy(source, runs) {
 			events.push(`write:${source.sourceId}`);
 			options.onWrite?.();
-			const frameCount = runs.reduce(
+			const grid = options.widenTo ?? 0;
+			const written_ = grid > 0
+				? runs.map((run) => ({
+					startFrame: Math.floor(run.startFrame / grid) * grid,
+					endFrame: run.endFrame,
+				}))
+				: runs.map((run) => ({ startFrame: run.startFrame, endFrame: run.endFrame }));
+			const frameCount = written_.reduce(
 				(sum, run) => sum + (run.endFrame - run.startFrame), 0,
 			) + (options.frameCountDelta ?? 0);
 			const storageKey = `managed/${source.sourceId}.trimmed`;
 			written.set(storageKey, frameCount);
-			return { storageKey, frameCount, byteLength: frameCount * 4 };
+			return { storageKey, frameCount, byteLength: frameCount * 4, runs: written_ };
 		},
 		async rebind(request) {
 			events.push(`rebind:${request.sourceId}`);

@@ -32,8 +32,11 @@ import {
 	sealDeliveryReport,
 } from './delivery-report.ts';
 import {
+	trimMediaRangesCover,
 	trimMediaRetainedRuns,
+	trimMediaRunsFromRanges,
 	type TrimMediaPlan,
+	type TrimMediaRange,
 	type TrimMediaRetainedRun,
 	type TrimMediaSourcePlan,
 } from './trim-media-plan.ts';
@@ -55,6 +58,13 @@ export interface TrimMediaSourceResult {
 	readonly discardedFrames: number;
 	/** The runs the trimmed copy contains, and where each begins in it. */
 	readonly runs: readonly TrimMediaRetainedRun[];
+	/**
+	 * How long the copy actually is, which is what the document must be told.
+	 * Never less than `retainedFrames`, and more wherever a run had to widen.
+	 * Null when nothing was written.
+	 */
+	readonly writtenFrames: number | null;
+	readonly byteLength: number | null;
 }
 
 export interface TrimMediaRunResult {
@@ -74,6 +84,17 @@ export interface TrimMediaWrittenCopy {
 	/** What the writer actually produced, checked against what the plan retained. */
 	readonly frameCount: number;
 	readonly byteLength: number;
+	/**
+	 * The runs the copy actually holds.
+	 *
+	 * A lossless cut may only begin at a keyframe, so a writer is allowed to
+	 * come back with wider runs than it was asked for — and then the document
+	 * has to be remapped against what was written rather than what was
+	 * requested, or every reference after the first widened run lands in the
+	 * wrong place. A writer with nothing to widen may leave this out, and is
+	 * then held to the runs it was given.
+	 */
+	readonly runs?: readonly TrimMediaRange[];
 }
 
 export interface TrimMediaOperationOptions {
@@ -224,23 +245,32 @@ async function trimOne(
 	draft: ReturnType<typeof createDeliveryReport>,
 ): Promise<Readonly<{ result: TrimMediaSourceResult }>> {
 	const signalOptions = Object.freeze(options.signal ? { signal: options.signal } : {});
-	const runs = trimMediaRetainedRuns(source);
-	const copy = await ports.writeTrimmedCopy(source, runs, signalOptions);
+	const requested = trimMediaRetainedRuns(source);
+	const copy = await ports.writeTrimmedCopy(source, requested, signalOptions);
 	assertReady(options);
 
-	// The one thing that must never happen quietly: fewer frames out than the
-	// plan proved were referenced.
-	if (copy.frameCount !== source.retainedFrames) {
+	// What the copy holds, which may legitimately be more than was asked for.
+	const written = copy.runs && copy.runs.length > 0 ? copy.runs : requested;
+	const runs = trimMediaRunsFromRanges(written);
+	const writtenFrames = runs.reduce((sum, run) => sum + (run.endFrame - run.startFrame), 0);
+
+	// The one thing that must never happen quietly: a frame the plan proved was
+	// referenced is not in the copy. Keeping more than was asked for is fine and
+	// is what a keyframe-aligned cut does; keeping less is the failure. The
+	// frame count is checked against what the copy says it holds, because a
+	// writer that widened one run and dropped another would otherwise present a
+	// plausible total.
+	if (copy.frameCount !== writtenFrames || !trimMediaRangesCover(written, source.retained)) {
 		await ports.discardTrimmedCopy(copy.storageKey, signalOptions);
 		addDeliveryReportItem(draft, {
 			code: 'trim.frame-count-mismatch',
 			disposition: 'missing',
 			severity: 'error',
 			scope: { kind: 'source', id: source.sourceId },
-			data: { expectedFrames: source.retainedFrames, actualFrames: copy.frameCount },
+			data: { expectedFrames: writtenFrames, actualFrames: copy.frameCount, retainedFrames: source.retainedFrames },
 			message: 'The trimmed copy does not contain the frames the plan retained, so it was discarded.',
 		});
-		return Object.freeze({ result: result(source, 'frame-count-mismatch', null, runs) });
+		return Object.freeze({ result: result(source, 'frame-count-mismatch', null, requested) });
 	}
 
 	const rebound = await ports.rebind(Object.freeze({
@@ -276,7 +306,9 @@ async function trimOne(
 		},
 		message: 'Only the referenced ranges, plus handles, were written; the pre-trim copy is left in place.',
 	});
-	return Object.freeze({ result: result(source, 'trimmed', copy.storageKey, runs) });
+	return Object.freeze({
+		result: result(source, 'trimmed', copy.storageKey, runs, copy),
+	});
 }
 
 function result(
@@ -284,6 +316,7 @@ function result(
 	outcome: TrimMediaOutcome,
 	storageKey: string | null,
 	runs: readonly TrimMediaRetainedRun[],
+	copy: Readonly<{ frameCount: number; byteLength: number }> | null = null,
 ): TrimMediaSourceResult {
 	return Object.freeze({
 		sourceId: source.sourceId,
@@ -292,6 +325,8 @@ function result(
 		retainedFrames: source.retainedFrames,
 		discardedFrames: source.discardedFrames,
 		runs,
+		writtenFrames: copy?.frameCount ?? null,
+		byteLength: copy?.byteLength ?? null,
 	});
 }
 
