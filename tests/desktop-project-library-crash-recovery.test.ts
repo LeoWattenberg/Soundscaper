@@ -30,6 +30,11 @@ for (const phase of ['prepared', 'committed'] as const) {
 		child.stderr.on('data', (chunk: string) => { stderr += chunk; });
 		context.after(() => { if (child.exitCode === null) child.kill('SIGKILL'); });
 		const ready = await readCheckpoint(readyPath, child, () => stderr);
+		// Give the child long enough to end on its own if it can. It must not be
+		// able to: a fixture that exits while waiting would leave this test
+		// asserting a crash that never happened, and under load it did.
+		await delay(250);
+		assert.equal(child.exitCode, null, 'the crash fixture must survive until it is killed');
 		const childExit = once(child, 'exit');
 		assert.equal(child.kill('SIGKILL'), true);
 		const [code, signal] = await childExit;

@@ -21,7 +21,12 @@ const library = await SharedDesktopProjectLibrary.open(createDesktopProjectLibra
 		const temporary = `${readyPath}.${String(process.pid)}.tmp`;
 		await writeFile(temporary, JSON.stringify({ phase, fencingToken: leaseToken }), { flag: 'wx' });
 		await rename(temporary, readyPath);
-		await new Promise<never>(() => {});
+		// Hold the event loop open. A bare never-settling promise lets Node drain,
+		// notice the pending top-level await and exit 13 on its own — which under
+		// load happens before the parent's SIGKILL lands, so the test that meant
+		// to witness a crash witnessed an ordinary exit instead. This process must
+		// only ever end by being killed.
+		await new Promise<never>(() => { setInterval(() => {}, 1_000); });
 	},
 });
 const lease = await library.acquireLease({
