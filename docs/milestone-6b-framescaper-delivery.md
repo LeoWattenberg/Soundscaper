@@ -11,8 +11,14 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-18: 6B-1 is complete except for caption selection, which
-6B-2a owns.** The delivery canvas is now an
+**Status on 2026-08-19: every 6B slice is complete.** 6B-1 lifted the canvas,
+6B-2a and 6B-2b delivered captions as sidecars, muxed tracks and burn-in,
+6B-3 added the WebCodecs encode tier with its browser evidence, 6B-4 declared
+the platform delivery targets without clearing a licensing row, and 6B-5 made
+the exit gate cover the vertical canvas the milestone added. What each slice
+settled, and what it left for another milestone, is recorded below.
+
+The delivery canvas is now an
 explicit decision rather than a cap: `canvas.size` states the delivered extents
 outright and `canvas.fit` (`contain`, `cover`, `stretch`) decides how a source of
 another aspect lands in them, so a 9:16 delivery of a 16:9 master is a supported
