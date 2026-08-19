@@ -13,6 +13,18 @@ import { flattenAup4MusicalMaps, isCurrentAup4MusicalSnapshot } from './aup4-mus
 import { projectForRuntimeConsumers } from './project-current-runtime.ts';
 import { projectTrackFolderMediaStateV12 } from './track-folder-media-runtime.ts';
 import { flattenAup4TimelineAnnotations } from './aup4-annotation-interchange.ts';
+import {
+	scaleBoundary,
+	scaledRangeLength,
+	positiveRate,
+	positiveChannelCount,
+	finiteNonNegative,
+	boundedFrame,
+	nonNegativeFrame,
+	positiveFrame,
+	clone,
+	exportError,
+} from './aup4-export-values.js';
 const AUP4_CLIP_ENVELOPE_MAX = 4;
 
 /**
@@ -862,58 +874,4 @@ function uniqueVariantId(sourceId, sampleRate, channelCount, usedIds) {
 	while (usedIds.has(id)) id = `${base}-${++suffix}`;
 	usedIds.add(id);
 	return id;
-}
-
-function scaleBoundary(frame, ratio) {
-	return Math.max(0, Math.round(frame * ratio));
-}
-
-function scaledRangeLength(startFrame, endFrame, ratio) {
-	return Math.max(0, scaleBoundary(endFrame, ratio) - scaleBoundary(startFrame, ratio));
-}
-
-function positiveRate(value, name) {
-	const number = Number(value);
-	if (!Number.isFinite(number) || number <= 0 || number > 768_000) throw exportError(`${name} is invalid.`, 'INVALID_SAMPLE_RATE');
-	return Math.round(number);
-}
-
-function positiveChannelCount(value) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number <= 0 || number > 64) throw exportError('AUP4 source channelCount is invalid.', 'INVALID_SOURCE_AUDIO');
-	return number;
-}
-
-function finiteNonNegative(value, fallback) {
-	const number = Number(value);
-	return Number.isFinite(number) && number >= 0 ? number : fallback;
-}
-
-function boundedFrame(value, maximum) {
-	const number = Number(value);
-	return Number.isSafeInteger(number) ? Math.max(0, Math.min(maximum, number)) : 0;
-}
-
-function nonNegativeFrame(value, name) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < 0) throw exportError(`${name} is invalid.`, 'INVALID_SNAPSHOT');
-	return number;
-}
-
-function positiveFrame(value, name) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number <= 0) throw exportError(`${name} is invalid.`, 'INVALID_SNAPSHOT');
-	return number;
-}
-
-function clone(value) {
-	if (typeof structuredClone === 'function') return structuredClone(value);
-	return JSON.parse(JSON.stringify(value));
-}
-
-function exportError(message, code) {
-	const error = new Error(message);
-	error.name = 'Aup4ExportError';
-	error.code = code;
-	return error;
 }
