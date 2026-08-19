@@ -274,6 +274,7 @@ function offlineRequest(
 		endFrame: plan.range.endFrame,
 		format: plan.format,
 		quality: plan.quality,
+		...(request.webCodecs ? { webCodecs: request.webCodecs } : {}),
 		editorFfmpeg: request.editorFfmpeg as VideoKeyframeOfflineVideoExportRequest['editorFfmpeg'],
 		...(request.audioMix instanceof Blob ? { audioMix: request.audioMix } : {}),
 		...(request.maximumOutputBytes === undefined ? {} : {
@@ -311,6 +312,8 @@ function browserResult(
 	return Object.freeze({
 		bytes: encoded.bytes,
 		byteLength: encoded.byteLength,
+		videoEncoder: encoded.videoEncoder,
+		...(encoded.codec === undefined ? {} : { codec: encoded.codec }),
 		extension: encoded.extension,
 		mimeType: encoded.mimeType,
 	});
@@ -328,6 +331,8 @@ function sinkResult(
 		output: encoded.output,
 		byteLength: encoded.byteLength,
 		chunkCount: encoded.outputChunkCount,
+		videoEncoder: encoded.videoEncoder,
+		...(encoded.codec === undefined ? {} : { codec: encoded.codec }),
 		extension: encoded.extension,
 		mimeType: encoded.mimeType,
 	});

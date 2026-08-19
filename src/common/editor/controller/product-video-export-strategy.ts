@@ -54,6 +54,11 @@ export interface ProductVideoExportStrategyEncodeRequest {
 	readonly videoBlobs: ReadonlyMap<string, Blob>;
 	readonly audioMix: Blob | null;
 	readonly editorFfmpeg: unknown;
+	/**
+	 * The delivery's encoder decision, made once where the delivery is decided
+	 * and reported. Null means the shipped FFmpeg encodes the picture.
+	 */
+	readonly webCodecs: Readonly<{ codec: string; bitrate: number }> | null;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 	readonly maximumOutputBytes: unknown;
@@ -62,6 +67,9 @@ export interface ProductVideoExportStrategyEncodeRequest {
 export interface ProductVideoExportEncodedOutput {
 	readonly bytes: Uint8Array<ArrayBuffer>;
 	readonly byteLength: number;
+	/** Which encoder produced these bytes, so the report states a fact. */
+	readonly videoEncoder?: 'ffmpeg' | 'webcodecs';
+	readonly codec?: string;
 	readonly extension: '.mp4' | '.webm';
 	readonly mimeType: 'video/mp4' | 'video/webm';
 }
@@ -70,6 +78,8 @@ export interface ProductVideoExportSinkOutput<Output> {
 	readonly output: Output;
 	readonly byteLength: number;
 	readonly chunkCount: number;
+	readonly videoEncoder?: 'ffmpeg' | 'webcodecs';
+	readonly codec?: string;
 	readonly extension: '.mp4' | '.webm';
 	readonly mimeType: 'video/mp4' | 'video/webm';
 }

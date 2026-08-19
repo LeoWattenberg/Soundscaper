@@ -15,9 +15,22 @@ import {
 import type { VideoDeliveryQuality } from '../video-delivery-quality.ts';
 import type { VideoKeyframeOfflineRgbaRenderer } from './video-keyframe-offline-rgba-renderer.ts';
 
+/**
+ * What the delivery's capability probe decided, without the browser globals.
+ *
+ * The decision is made once, where the delivery is decided and reported, and
+ * this layer supplies the encoder classes — so the report and the encoder that
+ * runs cannot describe different things.
+ */
+export interface VideoKeyframeOfflineWebCodecsDecision {
+	readonly codec: string;
+	readonly bitrate: number;
+}
+
 export interface VideoKeyframeOfflineEncoderOptions {
 	readonly format: VideoKeyframeEncoderFormat;
 	readonly quality: VideoDeliveryQuality;
+	readonly webCodecs?: VideoKeyframeOfflineWebCodecsDecision;
 	readonly audioMix?: Blob;
 	readonly encoderOptions: Readonly<Record<string, number>>;
 	readonly signal: AbortSignal;
@@ -34,6 +47,7 @@ export function createVideoKeyframeOfflineEncoderRequest(
 		producer: renderer,
 		format: request.format,
 		quality: request.quality,
+		...(request.webCodecs ? { webCodecs: webCodecsEncode(request.webCodecs) } : {}),
 		...(request.audioMix ? { audioMix: request.audioMix } : {}),
 		...request.encoderOptions,
 		signal: request.signal,
@@ -50,6 +64,7 @@ export async function preflightVideoKeyframeOfflineEncoder(
 		frameSource,
 		format: request.format,
 		quality: request.quality,
+		...(request.webCodecs ? { videoEncoder: 'webcodecs' as const } : {}),
 		inputPath: '/framescaper-keyframes-preflight.rgba',
 		...(request.audioMix ? { audioInputPath: '/framescaper-keyframes-preflight.wav' } : {}),
 		outputPath: `/framescaper-keyframes-preflight.${request.format}`,
@@ -88,6 +103,28 @@ export async function preflightVideoKeyframeOfflineEncoder(
 			'Offline video float32 WAV frame count must match the exact export range.',
 		);
 	}
+}
+
+/**
+ * The browser globals, resolved where the encode happens.
+ *
+ * A decision reached this far only because the probe found these, so their
+ * absence is a broken environment rather than an unqualified browser — and a
+ * clear failure is better than silently encoding on the other tier while the
+ * delivery report says this one ran.
+ */
+function webCodecsEncode(decision: VideoKeyframeOfflineWebCodecsDecision) {
+	const encoderClass = (globalThis as Record<string, unknown>).VideoEncoder;
+	const videoFrameClass = (globalThis as Record<string, unknown>).VideoFrame;
+	if (typeof encoderClass !== 'function' || typeof videoFrameClass !== 'function') {
+		throw new Error('This browser no longer exposes the WebCodecs encoder this delivery was planned for.');
+	}
+	return Object.freeze({
+		codec: decision.codec,
+		bitrate: decision.bitrate,
+		encoderClass,
+		videoFrameClass,
+	});
 }
 
 function preflightOutputMaximum(value: number | undefined, maximum: number, name: string): void {

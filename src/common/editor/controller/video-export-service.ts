@@ -35,6 +35,7 @@ import { saveLabelExport } from './app-helpers.ts';
 import { resolveVideoCaptionCues } from '../video-caption-cues.ts';
 import { loadVideoBurnInFont } from '../video-burn-in-font.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
+import { resolveVideoDeliveryEncoderTier } from '../video-delivery-encoder-tier.ts';
 
 export interface VideoExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -251,10 +252,24 @@ export function createEditorVideoExportAction(
 					timingIndexes.release();
 				}
 			}
+			// Decided before anything is encoded, because the report below is
+			// written from the plan and a decision taken later could not appear
+			// in it. Only the keyed path can be handed encoded chunks: the
+			// composed graph asks FFmpeg to build the picture itself.
+			const encoderDecision = await resolveVideoDeliveryEncoderTier({
+				format,
+				canvas: plan.canvas,
+				quality: plan.quality,
+				eligible: Boolean(productPlan),
+			});
+			assertVideoExportCurrent();
 			// Same rule as the audio path: the report describes the plan that runs.
 			// It is session state, never project state.
 			state.deliveryReport = createVideoDeliveryReportForPlan(plan, {
 				hasNonMediaStreams: videoSourcesCarryNonMediaStreams(exportProject, plan),
+				videoEncoder: encoderDecision.tier,
+				...(encoderDecision.codec ? { videoEncoderCodec: encoderDecision.codec } : {}),
+				...(encoderDecision.reason ? { videoEncoderReason: encoderDecision.reason } : {}),
 				...(requestedSettings.deliveryTarget
 					? { deliveryTargetId: String(requestedSettings.deliveryTarget) }
 					: {}),
@@ -358,6 +373,9 @@ export function createEditorVideoExportAction(
 								canonicalProject, exportProject, productPlan, keyedTimingIndexes,
 								videoBlobs, audioMixBlob, ffmpeg, abort.signal,
 								assertVideoExportCurrent, browserMaximumOutputBytes,
+								encoderDecision.tier === 'webcodecs'
+									? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate! }
+									: null,
 							),
 							pendingDirectDestination,
 						)
@@ -387,6 +405,9 @@ export function createEditorVideoExportAction(
 						canonicalProject, exportProject, productPlan, keyedTimingIndexes,
 						videoBlobs, audioMixBlob, ffmpeg, abort.signal,
 						assertVideoExportCurrent, browserMaximumOutputBytes,
+						encoderDecision.tier === 'webcodecs'
+							? { codec: encoderDecision.codec!, bitrate: encoderDecision.bitrate! }
+							: null,
 					))
 					: await ffmpeg.encodeVideo(videoBlobs, audioMixBlob, plan, {
 						signal: abort.signal, maximumOutputBytes: browserMaximumOutputBytes,
@@ -501,6 +522,7 @@ function productEncodeRequest(
 	signal: AbortSignal,
 	assertCurrent: () => void,
 	maximumOutputBytes: unknown,
+	webCodecs: Readonly<{ codec: string; bitrate: number }> | null,
 ) {
 	if (!timingIndexes) throw new Error('Keyed video export lost its exact timing lease.');
 	return Object.freeze({
@@ -511,6 +533,7 @@ function productEncodeRequest(
 		videoBlobs,
 		audioMix,
 		editorFfmpeg,
+		webCodecs,
 		signal,
 		assertCurrent,
 		maximumOutputBytes,

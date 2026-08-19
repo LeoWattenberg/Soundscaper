@@ -9,6 +9,7 @@ import {
 	type VideoKeyframeRgbaFrameProducer,
 } from './video-keyframe-encoder-stream.ts';
 import type { VideoKeyframeEncoderOperationLease } from './video-keyframe-ffmpeg-operation.ts';
+import type { VideoKeyframeWebCodecsEncode } from './video-keyframe-webcodecs-execution.ts';
 
 export interface VideoKeyframeDeliveredOutput<Output> {
 	readonly output: Output;
@@ -20,6 +21,8 @@ export interface VideoKeyframeVideoOperationRequest<Output> {
 	readonly lease: VideoKeyframeEncoderOperationLease;
 	readonly workload: VideoKeyframeEncoderWorkloadRequest;
 	readonly producer: VideoKeyframeRgbaFrameProducer;
+	/** Present when the browser's encoder, not FFmpeg, compresses the picture. */
+	readonly webCodecs?: VideoKeyframeWebCodecsEncode;
 	readonly audioSource?: VideoKeyframeAudioInputSource;
 	readonly outputPath: string;
 	readonly format: VideoKeyframeEncoderFormat;
@@ -56,6 +59,7 @@ export async function runVideoKeyframeVideoOperation<Output>(
 		encoded = await encodeVideoKeyframeFrames({
 			...request.workload,
 			producer: request.producer,
+			...(request.webCodecs ? { webCodecs: request.webCodecs } : {}),
 			...(request.audioSource ? { audioSource: request.audioSource } : {}),
 			ffmpeg: lease,
 			...(request.signal ? { signal: request.signal } : {}),

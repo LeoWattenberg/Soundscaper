@@ -76,6 +76,7 @@ test('V20 product strategy maps the detached plan exactly into Blob and sink enc
 			return Object.freeze({
 				bytes: encodedBytes,
 				byteLength: encodedBytes.byteLength,
+				videoEncoder: 'ffmpeg' as const,
 				format: 'mp4' as const,
 				extension: '.mp4' as const,
 				mimeType: 'video/mp4' as const,
@@ -94,6 +95,7 @@ test('V20 product strategy maps the detached plan exactly into Blob and sink enc
 			return Object.freeze({
 				output: sink,
 				byteLength: encodedBytes.byteLength,
+				videoEncoder: 'ffmpeg' as const,
 				format: 'mp4' as const,
 				extension: '.mp4' as const,
 				mimeType: 'video/mp4' as const,
@@ -131,6 +133,7 @@ test('V20 product strategy maps the detached plan exactly into Blob and sink enc
 		videoBlobs: new Map([['late-source', videoBlob]]),
 		audioMix,
 		editorFfmpeg,
+		webCodecs: null,
 		signal,
 		assertCurrent() {},
 		maximumOutputBytes: 1_024,
@@ -159,7 +162,62 @@ test('V20 product strategy maps the detached plan exactly into Blob and sink enc
 		assert.strictEqual(encoded.audioMix, audioMix);
 		assert.strictEqual(encoded.editorFfmpeg, editorFfmpeg);
 		assert.strictEqual(encoded.signal, signal);
+		// No decision was made against this delivery, so none is claimed.
+		assert.equal(Object.hasOwn(encoded, 'webCodecs'), false);
 	}
+});
+
+test('V20 product strategy hands the encoder decision to the offline encode', async () => {
+	const project = keyedProject();
+	const captured: unknown[] = [];
+	const strategy = createFramescaperVideoExportStrategyV20(PROFILE, {
+		async encodeOffline(request: VideoKeyframeOfflineVideoExportRequest) {
+			captured.push(request);
+			return Object.freeze({
+				bytes: Uint8Array.of(1),
+				byteLength: 1,
+				videoEncoder: 'webcodecs' as const,
+				codec: 'avc1.4d0028',
+				format: 'mp4' as const,
+				extension: '.mp4' as const,
+				mimeType: 'video/mp4' as const,
+				frameCount: 30,
+				rgbaChunkCount: 1,
+				outputChunkCount: 1,
+			});
+		},
+		async encodeOfflineToSink() { throw new Error('must not stream'); },
+	});
+	const exportProject = strategy.createExportProject({
+		canonicalProject: project,
+		delivery: fallbackFreeDelivery(project),
+	});
+	const plan = strategy.createPlan({
+		canonicalProject: project,
+		exportProject,
+		format: 'mp4',
+		range: { startFrame: 48_000, endFrame: 96_000 },
+		includeAudio: false,
+		canvas: { maximumWidth: 640, maximumHeight: 360 },
+	})!;
+	const encoded = await strategy.encode({
+		canonicalProject: project,
+		exportProject,
+		plan,
+		timingBySourceId: new Map(),
+		videoBlobs: new Map([['late-source', new Blob([Uint8Array.of(1)])]]),
+		audioMix: null,
+		editorFfmpeg: Object.freeze({ runVideoKeyframeEncoderOperation() { throw new Error('unused'); } }),
+		webCodecs: { codec: 'avc1.4d0028', bitrate: 6_214_585 },
+		signal: new AbortController().signal,
+		assertCurrent() {},
+		maximumOutputBytes: undefined,
+	});
+	const request = captured[0] as Readonly<Record<string, unknown>>;
+	assert.deepEqual(request.webCodecs, { codec: 'avc1.4d0028', bitrate: 6_214_585 });
+	// What actually ran is reported back out, not what was asked for.
+	assert.equal(encoded.videoEncoder, 'webcodecs');
+	assert.equal(encoded.codec, 'avc1.4d0028');
 });
 
 test('V20 product strategy refuses a missing, extra, or mis-keyed active source Blob', async () => {
@@ -188,6 +246,7 @@ test('V20 product strategy refuses a missing, extra, or mis-keyed active source 
 		timingBySourceId: new Map(),
 		audioMix: null,
 		editorFfmpeg: Object.freeze({ runVideoKeyframeEncoderOperation() { throw new Error('unused'); } }),
+		webCodecs: null,
 		signal: new AbortController().signal,
 		assertCurrent() {},
 		maximumOutputBytes: undefined,

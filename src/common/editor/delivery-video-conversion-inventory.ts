@@ -39,6 +39,12 @@ export interface VideoDeliverySourceCharacteristics {
 	readonly deliveryTargetId?: string | null;
 	/** The target it stood in for, when that one could not be delivered. */
 	readonly degradedFrom?: string | null;
+	/** Which encoder produced the picture. */
+	readonly videoEncoder?: 'ffmpeg' | 'webcodecs';
+	/** The codec string the browser's encoder was configured with. */
+	readonly videoEncoderCodec?: string | null;
+	/** Why the browser's encoder was not used, when it was not. */
+	readonly videoEncoderReason?: string | null;
 }
 
 export function inventoryVideoDeliveryConversions(
@@ -105,6 +111,21 @@ export function inventoryVideoDeliveryConversions(
 			data: {
 				target: source.deliveryTargetId,
 				...(source.degradedFrom ? { requested: source.degradedFrom } : {}),
+			},
+		});
+	}
+	if (source.videoEncoder) {
+		// Stated on every delivery, not only the accelerated ones: "which encoder
+		// ran" is unanswerable after the fact from the file alone, and a
+		// fallback with no reason is the reporting gap this milestone closes.
+		conversions.push({
+			code: 'delivery.encoder',
+			disposition: 'preserved',
+			severity: 'info',
+			data: {
+				encoder: source.videoEncoder,
+				codec: source.videoEncoderCodec ?? null,
+				reason: source.videoEncoderReason ?? null,
 			},
 		});
 	}

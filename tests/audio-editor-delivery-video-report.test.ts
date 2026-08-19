@@ -54,6 +54,30 @@ test('a muted video delivery reports the omitted audio rather than staying silen
 	assert.ok(!codes.includes('delivery.audio-transcode'));
 });
 
+test('every video delivery says which encoder produced it, and why when it fell back', () => {
+	const accelerated = inventoryVideoDeliveryConversions(videoPlan(), {
+		videoEncoder: 'webcodecs', videoEncoderCodec: 'avc1.4d0028',
+	}).find(({ code }) => code === 'delivery.encoder');
+	assert.ok(accelerated, 'a delivery that used the browser encoder must say so');
+	assert.deepEqual(accelerated.data, {
+		encoder: 'webcodecs', codec: 'avc1.4d0028', reason: null,
+	});
+
+	const fellBack = inventoryVideoDeliveryConversions(videoPlan(), {
+		videoEncoder: 'ffmpeg', videoEncoderReason: 'This browser does not encode avc1.4d0028.',
+	}).find(({ code }) => code === 'delivery.encoder');
+	// A fallback with no reason is the reporting gap this item exists to close.
+	assert.equal(fellBack?.data.reason, 'This browser does not encode avc1.4d0028.');
+	assert.equal(fellBack?.data.codec, null);
+
+	// Nothing is claimed when nothing was decided.
+	assert.equal(
+		inventoryVideoDeliveryConversions(videoPlan())
+			.some(({ code }) => code === 'delivery.encoder'),
+		false,
+	);
+});
+
 test('a plan-derived video report leaves nothing unreported', () => {
 	for (const plan of [videoPlan(), videoPlan({ format: 'webm' })]) {
 		const report = createVideoDeliveryReportForPlan(plan);

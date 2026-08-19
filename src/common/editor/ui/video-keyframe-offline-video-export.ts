@@ -50,6 +50,7 @@ import {
 import {
 	createVideoKeyframeOfflineEncoderRequest,
 	preflightVideoKeyframeOfflineEncoder,
+	type VideoKeyframeOfflineWebCodecsDecision,
 } from './video-keyframe-offline-video-export-encoder.ts';
 import { runVideoKeyframeOfflineVideoResources } from './video-keyframe-offline-video-export-runner.ts';
 
@@ -72,6 +73,8 @@ export interface VideoKeyframeOfflineVideoExportRequest {
 	readonly endFrame?: number;
 	readonly format: VideoKeyframeEncoderFormat;
 	readonly quality?: VideoDeliveryQuality;
+	/** Present when the delivery's capability probe chose the browser's encoder. */
+	readonly webCodecs?: VideoKeyframeOfflineWebCodecsDecision;
 	readonly editorFfmpeg: VideoKeyframeVideoEditorFfmpeg;
 	readonly audioMix?: Blob;
 	readonly ringCapacityBytes?: number;
@@ -111,6 +114,7 @@ interface NormalizedRequest {
 	readonly endFrame?: number;
 	readonly format: VideoKeyframeEncoderFormat;
 	readonly quality: VideoDeliveryQuality;
+	readonly webCodecs?: VideoKeyframeOfflineWebCodecsDecision;
 	readonly editorFfmpeg: VideoKeyframeVideoEditorFfmpeg;
 	readonly audioMix?: Blob;
 	readonly encoderOptions: Readonly<Record<string, number>>;
@@ -121,7 +125,7 @@ interface NormalizedRequest {
 
 const REQUEST_FIELDS = [
 	'project', 'timingBySourceId', 'sources', 'canvas', 'startFrame', 'endFrame',
-	'format', 'quality', 'editorFfmpeg', 'audioMix', 'ringCapacityBytes', 'audioRingCapacityBytes',
+	'format', 'quality', 'webCodecs', 'editorFfmpeg', 'audioMix', 'ringCapacityBytes', 'audioRingCapacityBytes',
 	'maximumAudioBytes', 'maximumWidth', 'maximumHeight',
 	'maximumFrameCount', 'maximumTotalRgbaBytes', 'maximumOutputBytes',
 	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'signal', 'assertCurrent',
@@ -293,6 +297,9 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 		...(endFrame === undefined ? {} : { endFrame }),
 		format: request.format,
 		quality: normalizeVideoDeliveryQuality(request.quality, 'offline video export quality'),
+		...(request.webCodecs === undefined ? {} : {
+			webCodecs: snapshotWebCodecs(request.webCodecs),
+		}),
 		editorFfmpeg: snapshotEditorFfmpeg(request.editorFfmpeg),
 		...(request.audioMix === undefined ? {} : {
 			audioMix: canonicalMediaContentBlob(request.audioMix),
@@ -385,6 +392,19 @@ function snapshotCanvas(value: unknown): VideoKeyframeExportFrameRequest['canvas
 			fit: canvas.fit as NonNullable<VideoKeyframeExportFrameRequest['canvas']['fit']>,
 		}),
 	});
+}
+
+function snapshotWebCodecs(value: unknown): VideoKeyframeOfflineWebCodecsDecision {
+	const decision = closedRecord(value, 'offline video export webCodecs', ['codec', 'bitrate']);
+	const codec = decision.codec;
+	const bitrate = decision.bitrate;
+	if (typeof codec !== 'string' || codec.length === 0) {
+		throw new TypeError('offline video export webCodecs.codec must be a codec string.');
+	}
+	if (typeof bitrate !== 'number' || !Number.isSafeInteger(bitrate) || bitrate < 1) {
+		throw new RangeError('offline video export webCodecs.bitrate must be a positive safe integer.');
+	}
+	return Object.freeze({ codec, bitrate });
 }
 
 function snapshotEditorFfmpeg(value: unknown): VideoKeyframeVideoEditorFfmpeg {
