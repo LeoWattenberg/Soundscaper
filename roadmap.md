@@ -735,7 +735,7 @@ invariants, and the bounded work packets are owned by the
   declare container, codec, canvas, and legal status; the six needing an
   uncleared row resolve to no plan, fall back, and report both.
 - **Shared — In progress:** EDL, OTIO, and FCPXML profiles itemize conversions;
-  archive, consolidate, trim-media, relink, checksum manifests remain Planned.
+  consolidate, checksums, and lossless trim-media are done; relink is Planned.
 
 ### Shared exit gate
 

@@ -332,15 +332,72 @@ before code.
   frame's checksum equalled the source frame's — the same picture, not merely the
   same count.
 
-  **Still owed:** the project edit and the surface. A trimmed source is a new
-  managed body with new frame indexing, so the clips that referenced it have to
-  be repointed and their source-in frames remapped through
-  `trimMediaMapFrame`. That is expressible as a batch of commands the protocol
-  already has — `source/update`, `clip/replace-source`, `clip/update` — so it
-  needs no new command type, and going through them is what makes the trim
-  undoable. Until that batch exists there is no surface, because a command that
-  rewrote media without moving the edits that referenced it would silently
-  change what the project plays.
+  **The project edit and the surface have landed, and the earlier note that no
+  new command type was needed was wrong.** `source/update` has a narrow
+  allowlist that admits nothing measured — not the frame count, not the storage
+  key, not the digest — and `source/reprobe` refuses those three by name, on the
+  stated grounds that the bytes are a source's identity. A trim changes the
+  bytes, so it needed its own command, and `source/rewrite-media` is modelled on
+  the reprobe: the source facts and every range measured against them land in
+  one mutation, because a document must never hold new source facts with ranges
+  cut against the old ones.
+
+  What that command refuses is the point of it. Every clip referencing the
+  source must be named in the payload; one left behind is refused by id rather
+  than reinterpreted, since a half-moved reference would still be a valid
+  document and nothing downstream would notice. The payload carries no duration,
+  so a rewrite cannot change what a clip plays, only where it reads from. The
+  grid the ranges are measured on — rate, channel count, frame rate, geometry —
+  may not move, because a cut that re-timed or re-scaled the media would make
+  remapping indices by arithmetic a lie. And a video source must state both of
+  its lengths: it normalizes from `sampleFrameCount` in preference to
+  `frameCount`, so accepting the audio name would have left the source at its
+  old length with the trimmed bytes behind it.
+
+  `trim-media-project-edit.ts` builds the batch, remapping against the runs the
+  writer produced rather than the runs the plan asked for — a keyframe-aligned
+  cut comes back wider, and remapping against the request would move every
+  reference after the first widened run. A reference that is not in the copy, or
+  that straddles a gap between runs and would come out shorter than it went in,
+  takes its whole source out of the batch with a finding: a source with half its
+  references moved is worse than one that was not trimmed.
+
+  `controller/trim-media-service.ts` binds it to real storage. The trimmed body
+  is written under a **new**, content-addressed key rather than the source's own,
+  which is where this parts company with consolidate: consolidate writes a
+  source's own bytes back and may reuse its key, while overwriting the key a
+  document still points at would destroy the only thing an undo could restore.
+  Rebinding is not a storage operation at all — the document is what points a
+  source at its media, so the move is the command batch, committed through the
+  project's own history.
+
+  File > Trim media to what is used runs it, disabled on a read-only project for
+  the same reason consolidate is. Cutting and binding are two halves of one
+  command and each can fail in a way the other cannot see — a source may be
+  impossible to cut, or cut perfectly and then impossible to bind to — so their
+  reports are merged and a failure in either half makes the operation
+  incomplete.
+
+  **Only video is cut.** A keyframe-aligned stream copy is a video idea; an
+  audio source has no keyframes and its trim would need a different proof. Such
+  a source is reported under its own reason rather than folded in with external
+  files, because a user told to "consolidate it first" would try and it would
+  not help. A container the copy cannot name is refused for the same kind of
+  reason: re-wrapping an unknown source would silently change the file this path
+  promises not to touch.
+
+  **Three defects surfaced while building it, each fixed with its test.** The
+  plan walked the timeline only, so a source parked in the Project Bin looked
+  entirely unreferenced and would have had every frame behind it discarded. The
+  plan also read `frameCount` for every source, which on a video source is its
+  sample-frame length, while everything acting on a plan works in pictures — it
+  would have asked FFmpeg to cut at frame 480,000 of a three-hundred-frame file.
+  And the operation compared the frames a writer produced against the frames the
+  plan asked for and called the difference a shortfall, so every real
+  keyframe-aligned trim would have been discarded as a mismatch. The check that
+  replaced it is the cover, not the count: every frame the plan proved was
+  referenced has to be somewhere in the copy, and a writer that widened one run
+  while dropping another would otherwise have presented a plausible total.
 - **Consolidate planning has landed** in `src/common/editor/consolidate-plan.ts`.
   It takes the linked-original bindings as an argument, because a source carries
   no linked-or-managed flag — that lives in the repositories behind
