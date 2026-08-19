@@ -19,6 +19,7 @@ import {
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_WIDTH,
 	type VideoKeyframeRgbaFrameProducer,
 } from '../src/common/editor/video-keyframe-encoder-stream.ts';
+import { VideoKeyframeEncoderExitError } from '../src/common/editor/video-keyframe-execution-engine.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
 import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
@@ -287,6 +288,16 @@ test('producer, currentness, and early-exec failures abort both sides and aggreg
 		/FFmpeg execution completed before every admitted RGBA frame was written/u,
 	);
 	assert.ok(early.events.includes('abort'));
+
+	// A subprocess that refused the job ends while the ring is still being
+	// filled, so checking completeness first reported every real encoder failure
+	// as a truncated input and discarded the code that identifies it — and
+	// `VideoKeyframeEncoderExitError` is the only thing that carries the number.
+	const refused = fakeFfmpeg({ earlyExitCode: 69 });
+	await assert.rejects(
+		encode(frameSource, producerFor(frameSource), refused),
+		(error: unknown) => error instanceof VideoKeyframeEncoderExitError && error.exitCode === 69,
+	);
 
 	const neverSettles = fakeFfmpeg({ neverSettle: true });
 	await assert.rejects(

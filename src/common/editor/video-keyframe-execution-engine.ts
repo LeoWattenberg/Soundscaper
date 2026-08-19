@@ -151,17 +151,22 @@ export async function runVideoKeyframeExecution(
 	);
 	const observedExecution: Promise<OperationOutcome> = execution.then((codeValue) => {
 		const code = exactExitCode(codeValue);
+		// The exit code first, because a subprocess that refused the job ends
+		// while the ring is still being filled: checking completeness first
+		// reported every real encoder failure as a truncated input and threw the
+		// number that identifies it away. A short stream under a clean exit is
+		// still the producer's fault and still says so.
+		if (code !== 0) {
+			const error = new VideoKeyframeEncoderExitError(code);
+			fail(error);
+			throw error;
+		}
 		if (videoIncomplete() || (audioSource && audioByteLength !== audioSource.byteLength)) {
 			const error = new Error(
 				audioSource
 					? request.incompleteMessages.videoAndAudio
 					: request.incompleteMessages.video,
 			);
-			fail(error);
-			throw error;
-		}
-		if (code !== 0) {
-			const error = new VideoKeyframeEncoderExitError(code);
 			fail(error);
 			throw error;
 		}

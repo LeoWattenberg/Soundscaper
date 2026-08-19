@@ -114,7 +114,8 @@ export function runVideoKeyframeEncoderOperation<Output>(
 			createInputStream(path, capacityBytes, streamOptions) {
 				return track(async () => normalizeInputStream(
 					await runtime.createInputStream(path, capacityBytes, streamOptions),
-					assertUsable,
+					assertLease,
+					() => admittedHost.isRuntimeTerminated(runtimeValue),
 					track,
 					openStreams,
 				));
@@ -234,7 +235,8 @@ function normalizeRuntime(value: RawVideoKeyframeFfmpegRuntime): RawVideoKeyfram
 
 function normalizeInputStream(
 	value: VideoKeyframeFfmpegInputStream,
-	assertUsable: () => void,
+	assertLease: () => void,
+	isRuntimeGone: () => boolean,
 	track: <Value>(call: () => Awaitable<Value>) => Promise<Value>,
 	openStreams: Set<VideoKeyframeFfmpegInputStream>,
 ): VideoKeyframeFfmpegInputStream {
@@ -258,11 +260,22 @@ function normalizeInputStream(
 			return track<void>(() => Reflect.apply(write, value, [data, options]) as Awaitable<void>);
 		},
 		close() { return track<void>(() => Reflect.apply(close, value, []) as Awaitable<void>); },
+		// Aborting and disposing are the two calls that stay legal after the
+		// runtime is gone. Writing to a terminated runtime is a defect worth a
+		// refusal; tearing down what it already tore down is not, and refusing
+		// that turned every failure the engine had already unwound — a user's own
+		// cancel included — into an AggregateError the caller could no longer
+		// recognize as an abort.
 		abort(reason) {
-			assertUsable();
+			assertLease();
+			if (isRuntimeGone()) return;
 			Reflect.apply(abort, value, [reason]);
 		},
 		dispose() {
+			if (isRuntimeGone()) {
+				openStreams.delete(admitted);
+				return Promise.resolve();
+			}
 			return track<void>(() => Reflect.apply(dispose, value, []) as Awaitable<void>).then(() => {
 				openStreams.delete(admitted);
 			});

@@ -352,3 +352,53 @@ async function waitFor(predicate) {
 	}
 	throw new Error('Condition was not reached.');
 }
+
+test('tearing down a stream after the runtime is gone is a no-op, not a refusal', async () => {
+	// The engine aborts the rings and terminates the runtime on any failure, and
+	// the layer above it then aborts and disposes the same streams. Refusing
+	// those turned every failure the engine had already unwound — a user's own
+	// cancel included — into cleanup failures the caller aggregated, so the
+	// AbortError it started from was no longer recognizable as one and a
+	// cancellation was reported to the operator as a failed export.
+	let terminated = false;
+	const events = [];
+	const rawStream = Object.freeze({
+		path: '/late.rgba',
+		capacityBytes: 1_024,
+		async write() { events.push('write'); },
+		async close() { events.push('close'); },
+		abort() { events.push('abort'); },
+		async dispose() { events.push('dispose'); },
+	});
+	const runtime = Object.freeze({
+		async createInputStream() { return rawStream; },
+		async exec() { return 0; },
+		async statFile() { return { size: 1 }; },
+		async readFileRange() { return Uint8Array.of(1); },
+		async deleteFile() {},
+	});
+	const host = Object.freeze({
+		run: async (operation, beforeLoad) => { beforeLoad?.(); return operation(runtime); },
+		terminateRuntime() { terminated = true; },
+		isRuntimeTerminated() { return terminated; },
+	});
+	const cancelled = Object.assign(new Error('The video export was cancelled.'), { name: 'AbortError' });
+
+	await assert.rejects(
+		runVideoKeyframeEncoderOperation(host, async (lease) => {
+			const stream = await lease.createInputStream('/late.rgba', 1_024);
+			// What the engine does on failure.
+			stream.abort(cancelled);
+			lease.terminateExecution(cancelled);
+			// What the layer above it then does with the same stream.
+			stream.abort(cancelled);
+			await stream.dispose();
+			assert.throws(() => stream.write(Uint8Array.of(1)), /runtime was terminated/u);
+			throw cancelled;
+		}),
+		(error) => error === cancelled && error.name === 'AbortError',
+	);
+
+	assert.deepEqual(events, ['abort'], 'the ring is aborted once and never torn down twice');
+	assert.equal(terminated, true);
+});
