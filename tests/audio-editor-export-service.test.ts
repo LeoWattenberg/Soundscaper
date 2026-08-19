@@ -39,10 +39,13 @@ test('an export never re-validates the delivery projection through the product c
 	// it through the product's validating clone refused exactly the projects that
 	// play. Nothing in the export may reach for that clone.
 	const fixture = createFixture();
-	fixture.runtime.cloneProject = () => {
-		throw new TypeError('Soundscaper project contains an unsupported field.');
+	const runtime = {
+		...fixture.runtime,
+		cloneProject: () => {
+			throw new TypeError('Soundscaper project contains an unsupported field.');
+		},
 	};
-	const output = await createEditorExportService(fixture.runtime).handleExportAction('export');
+	const output = await createEditorExportService(runtime).handleExportAction('export');
 	assert.equal(output.fileName, 'mix.wav');
 	assert.equal(fixture.state.exportAbort, null, 'a failed clone used to wedge the export flag');
 });

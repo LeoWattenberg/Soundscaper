@@ -83,7 +83,7 @@ test('a V21 mix snapshot of a foldered project is one the engine will load', asy
 
 	const engine = createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null });
 	try {
-		assert.doesNotThrow(() => { engine.loadProject(snapshot, new Map()); });
+		assert.doesNotThrow(() => { engine.loadProject(snapshot as never, new Map()); });
 	} finally {
 		await engine.dispose();
 	}

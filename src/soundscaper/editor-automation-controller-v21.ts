@@ -89,7 +89,7 @@ export function createSoundscaperAutomationControllerBindingV21(
 			const target = resolveSoundscaperAutomationTargetV21(host.project, laneId, validateProject);
 			if (target) host.engine.previewScheduledParameter?.(target.descriptor.address, value);
 		},
-		restoreReadback: ({ id }) => { restoreAutomationReadbackV21(host, id); },
+		restoreReadback: ({ id }) => { restoreAutomationReadbackV21(host, id, validateProject); },
 	});
 	const synchronize = (): void => {
 		if (disposed) return;
@@ -137,9 +137,13 @@ export function createSoundscaperAutomationControllerBindingV21(
 function restoreAutomationReadbackV21(
 	host: SoundscaperAutomationControllerHostV21,
 	laneId: string,
+	// The same injected revision authority the resolve and preview ports take:
+	// this runs in the gesture's finally, so a validator that refuses the mounted
+	// document turns every completed gesture into a reported failure.
+	validateProject: (project: unknown) => unknown,
 ): void {
 	if (!host.engine.previewScheduledParameter) return;
-	const target = resolveSoundscaperAutomationTargetV21(host.project, laneId);
+	const target = resolveSoundscaperAutomationTargetV21(host.project, laneId, validateProject);
 	if (!target) return;
 	const current = controllerAuthority(host);
 	const value = evaluateAutomationLaneAtFrameV21(target.lane, current.positionFrame, {
