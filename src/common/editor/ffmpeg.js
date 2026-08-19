@@ -21,13 +21,10 @@ import {
 import { readBoundedFfmpegOutputFile } from './browser-export-output.ts';
 import { getVideoExportFormat } from './video-export.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
-import {
-	buildFfmpegVideoTimingProbeArgs,
-	parseFfmpegVideoTimingLogs,
-} from './ffmpeg-video-timing-probe.ts';
-import { isFfmpegSourceCharacteristicsLog, parseFfmpegVideoSourceCharacteristics } from './ffmpeg-video-source-characteristics.ts';
 import { conformFfmpegVideoToCfr } from './ffmpeg-cfr-ingest.ts';
 import { createVideoKeyframeEncoderOperationRunner } from './video-keyframe-ffmpeg-operation.ts';
+import { probeFfmpegVideoTiming } from './ffmpeg-video-timing-operation.ts';
+import { runFfmpegMediaFileOperation } from './ffmpeg-media-file-operation.ts';
 
 const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
 
@@ -433,53 +430,19 @@ export function createEditorFfmpeg(options = {}) {
 		});
 	}
 
-	async function probeVideoTiming(file, settings = {}) {
-		if (!(file instanceof Blob)) throw new TypeError('Expected a video Blob for timing probe.');
-		const signal = settings.signal;
-		if (signal?.aborted) throw signal.reason ?? abortError();
-		return run(async (instance) => {
-			const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-			const mountPoint = `/editor-probe-${stamp}`;
-			let input = `editor-probe-${stamp}`;
-			let mounted = false;
-			const logs = [];
-			// The banner states the characteristics no filter reports, and it arrives in
-			// the run the timing probe already pays for.
-			const handleLog = ({ message = '' }) => {
-				if (typeof message === 'string' && (message.includes('showinfo')
-					|| message.includes('config in time_base:') || isFfmpegSourceCharacteristicsLog(message))) {
-					logs.push(message);
-				}
-			};
-			const onAbort = () => terminateRuntime();
-			instance.on('log', handleLog);
-			signal?.addEventListener('abort', onAbort, { once: true });
-			try {
-				if (typeof File !== 'undefined' && file instanceof File && module?.FFFSType) {
-					const inputName = safeFfmpegFileName(file.name, `video-${stamp}`);
-					await instance.createDir(mountPoint);
-					await instance.mount(module.FFFSType.WORKERFS, {
-						blobs: [{ name: inputName, data: file }],
-					}, mountPoint);
-					input = `${mountPoint}/${inputName}`;
-					mounted = true;
-				} else {
-					await instance.writeFile(input, new Uint8Array(await file.arrayBuffer()), { signal });
-				}
-				const code = await instance.exec(buildFfmpegVideoTimingProbeArgs(input), -1, { signal });
-				if (code !== 0) throw new Error(`FFmpeg timing probe exited with code ${code}.`);
-				const timing = parseFfmpegVideoTimingLogs(logs);
-				const rate = timing.nominalRate;
-				return { ...timing, characteristics: parseFfmpegVideoSourceCharacteristics(logs, { rate }) };
-			} finally {
-				signal?.removeEventListener('abort', onAbort);
-				try { instance.off('log', handleLog); } catch {}
-				if (mounted) {
-					await instance.unmount(mountPoint).catch(() => undefined);
-					await instance.deleteDir(mountPoint).catch(() => undefined);
-				} else await instance.deleteFile(input).catch(() => undefined);
-			}
+	function probeVideoTiming(file, settings = {}) {
+		return probeFfmpegVideoTiming({
+			file, signal: settings.signal, run, terminateRuntime,
+			workerFsType: () => module?.FFFSType?.WORKERFS,
 		});
+	}
+
+	function runTrimMediaOperation(operation, settings = {}) {
+		return runFfmpegMediaFileOperation(
+			{ run, terminateRuntime },
+			operation,
+			{ ...(settings.signal ? { signal: settings.signal } : {}), prefix: 'editor-trim' },
+		);
 	}
 
 	function conformVideoToCfr(file, settings = {}) {
@@ -538,6 +501,7 @@ export function createEditorFfmpeg(options = {}) {
 	return {
 		load, encode, encodeFile, encodeFileToSink, encodeVideo, encodeVideoToSink,
 		decode, probeVideoTiming, conformVideoToCfr, runVideoKeyframeEncoderOperation,
+		runTrimMediaOperation,
 		dispose, capabilities: () => capabilities,
 	};
 }
