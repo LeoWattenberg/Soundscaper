@@ -12,10 +12,12 @@
 ## Pickup status and sequencing
 
 **Status on 2026-08-19: all three 6C-1 profiles are implemented, reachable, and
-verified against third-party readers; 6C-2's planning and byte-moving halves are
-both complete — the checksum manifest and its `.scape` wiring, consolidate,
-trim-media, and the kill/reload recovery acceptance — and what remains is the
-controller and UI wiring that gives those operations their real ports.** The EDL profile establishes the pattern
+verified against third-party readers; consolidate and the archive checksum
+manifest are complete end to end, from plan through storage to a File menu
+entry; the kill/reload recovery acceptance is in place; and 6C-3's evidence
+names a witness for each sentence of the gate. What remains in 6C is the
+trim-media rewriter, which is blocked on a recorded decision rather than on
+missing code.** The EDL profile establishes the pattern
 the remaining profiles reuse: exact rational rates throughout, timecode from the
 shared `sequence-timecode` module, and every out-of-scope feature itemized in a
 delivery report rather than approximated. It is split deliberately —
@@ -282,8 +284,39 @@ before code.
   call in turn rather than one representative step. Held against an operation
   deliberately weakened to rebind before verifying, it fails.
 
-  **Still owed:** the controller and UI wiring that gives these operations their
-  real ports and a surface to run from.
+  **The wiring landed with them.** `controller/consolidate-media-service.ts`
+  says what the operation's ports mean against the project's real storage, and
+  the meaning worth stating is that rebinding a consolidated source is
+  *unlinking* it: a source with no linked-original binding is one whose bytes
+  live in managed storage, so the copy is written under the source's own key
+  while the link still stands and the link is then dropped under its
+  compare-and-swap fence. Nothing reads the managed body until that fence
+  releases, which makes the copy-then-flip ordering true of this storage rather
+  than only of the port shape. Reachability is answered before the plan is built,
+  because a plan is a pure value and a drive that is not plugged in answers by
+  failing. File > Consolidate media runs it, and its report is published as the
+  current delivery report — the same surface File > Delivery report reads, since
+  a consolidate that left a source behind is exactly the kind of omission that
+  surface exists for.
+
+  A `.scape` save now also records the checksum manifest of the archive it wrote,
+  read back from the finished file rather than copied from the writer's own
+  digests, and File > Save archive checksums writes it out as a report document.
+  A streamed save, or an archive that will not read back, records the absence
+  with its reason instead: evidence that could not be gathered never turns into
+  a failed save of a file already on disk.
+
+  **Still owed:** the trim-media rewriter. The operation, its refusals and its
+  frame mapping are all in place, but nothing produces trimmed media yet, and
+  the reason is a decision rather than a missing function. A lossless
+  stream-copy cannot honour the retention guarantee unless every retained run
+  begins on a keyframe, so a real rewriter must either widen each run back to
+  the preceding keyframe — which needs a keyframe index the timing probe does
+  not currently record, though the pinned FFmpeg's `showinfo` does emit it — or
+  re-encode, which is a quality decision this milestone has not taken. Trimming
+  a compressed audio source has the same shape. Until one of those is chosen and
+  measured, trim-media has no surface, because a command that cannot keep its
+  own retention promise should not be reachable.
 - **Consolidate planning has landed** in `src/common/editor/consolidate-plan.ts`.
   It takes the linked-original bindings as an argument, because a source carries
   no linked-or-managed flag — that lives in the repositories behind
