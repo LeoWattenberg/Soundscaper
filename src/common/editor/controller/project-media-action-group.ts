@@ -53,7 +53,7 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 			const request = consolidateRequest(runtime, options.signal);
 			if (!request) return null;
 			const copy = runtime.copy ?? {};
-			runtime.setStatus?.(copy.consolidatingMedia ?? 'Consolidating media…');
+			runtime.setStatus?.(copy.consolidatingMedia ?? 'Consolidating media');
 			const result = await consolidateProjectMedia(request);
 			// Published before the status settles, so a run that left something
 			// behind is readable the moment the message says it finished.

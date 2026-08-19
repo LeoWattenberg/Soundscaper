@@ -17,7 +17,7 @@ const EXPORT_MENU_COPY_ENTRIES = Object.freeze([
 	['exportOtio', 'Export OpenTimelineIO', 'OpenTimelineIO exportieren'],
 	['exportFcpxml', 'Export FCPXML', 'FCPXML exportieren'],
 	['consolidateMedia', 'Consolidate media', 'Medien zusammenführen'],
-	['consolidatingMedia', 'Consolidating media…', 'Medien werden zusammengeführt …'],
+	['consolidatingMedia', 'Consolidating media', 'Medien werden zusammengeführt'],
 	['consolidatedMedia', 'Media consolidated', 'Medien zusammengeführt'],
 	[
 		'consolidatedMediaIncomplete',
