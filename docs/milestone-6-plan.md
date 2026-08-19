@@ -295,8 +295,10 @@ existing portable exception (docs/project-compatibility.md:86-88).
 
 ## Implementation status
 
-**Status on 2026-08-18: phase 6.0 and the whole 6A track are complete for the
-web tier; 6C-1 is complete across all three profiles; 6B is in progress.** The
+**Status on 2026-08-19: phase 6.0, the whole 6A track and the whole 6B track are
+complete for the web tier; 6C-1 is complete across all three profiles, and 6C-2
+has both its planning and its byte-moving halves with the controller and UI
+wiring still owed.** The
 6A track was reviewed after it closed, and the repairs that review produced are
 recorded with their slices below rather than reopening the packets. Nothing here is
 qualified — both quality environments remain unprovisioned, so no RTF or
