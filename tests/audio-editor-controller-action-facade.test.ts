@@ -19,6 +19,7 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'generators',
 	'labels',
 	'macros',
+	'media',
 	'metadata',
 	'metering',
 	'mixer',

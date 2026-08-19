@@ -11,6 +11,7 @@ import { createTimelineAnnotationActionFacade } from './timeline-annotation-acti
 import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
 import { snapshotProductActionExtensions } from './product-action-extensions.ts';
 import { createExportActionGroup } from './export-action-group.ts';
+import { createProjectMediaActionGroup } from './project-media-action-group.ts';
 
 export interface EditorActionRuntime {
 	// The runtime composition root is JavaScript while it is being decomposed.
@@ -591,5 +592,6 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			measureLoudness: restricted('audioAnalysis', analysisService.measureLoudness),
 		}),
 		export: createExportActionGroup({ handleExportAction, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, getProject, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
+		media: createProjectMediaActionGroup({ state, getProject, store, publishDocumentSnapshot, setStatus, copy }),
 	});
 }

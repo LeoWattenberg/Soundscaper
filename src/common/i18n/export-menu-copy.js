@@ -16,6 +16,14 @@ const EXPORT_MENU_COPY_ENTRIES = Object.freeze([
 	['exportEdl', 'Export edit list (EDL)', 'Schnittliste (EDL) exportieren'],
 	['exportOtio', 'Export OpenTimelineIO', 'OpenTimelineIO exportieren'],
 	['exportFcpxml', 'Export FCPXML', 'FCPXML exportieren'],
+	['consolidateMedia', 'Consolidate media', 'Medien zusammenführen'],
+	['consolidatingMedia', 'Consolidating media…', 'Medien werden zusammengeführt …'],
+	['consolidatedMedia', 'Media consolidated', 'Medien zusammengeführt'],
+	[
+		'consolidatedMediaIncomplete',
+		'Some media could not be consolidated',
+		'Einige Medien konnten nicht zusammengeführt werden',
+	],
 ]);
 
 export const EXPORT_MENU_COPY_BY_LOCALE = Object.freeze({

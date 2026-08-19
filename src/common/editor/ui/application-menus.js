@@ -210,6 +210,12 @@ export default function createApplicationMenus({
 						...productItems.fileExport,
 					],
 				},
+				{
+					id: 'consolidate-media',
+					label: copy.consolidateMedia,
+					disabled: editBlocked,
+					onClick: actions.consolidateMedia,
+				},
 					divider(),
 				{ id: 'project-properties', label: copy.metadata, disabled: blocked, onClick: actions.openMetadata },
 				{ id: 'rename-project', label: copy.renameProject, disabled: editBlocked, onClick: actions.renameProject },
