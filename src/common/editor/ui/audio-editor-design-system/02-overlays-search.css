@@ -245,6 +245,18 @@
 	color: var(--kw-editor-muted);
 }
 
+/*
+ * The dark palette's secondary text clears 4.5:1 against the menu's own
+ * background and lands at 4.49:1 against a highlighted row, so the shortcut of
+ * whichever item the pointer is over failed contrast by a hundredth — a real
+ * accessibility miss, and an axe result that flipped with where the pointer
+ * happened to land. Raised here rather than in the vendored palette, which many
+ * more surfaces read; the high-contrast themes still win through the token.
+ */
+html[data-theme='dark'] #kw-audio-editor-design-system:not([data-editor-theme^='high-contrast']) .kw-audio-editor__application-menu .context-menu-item-shortcut {
+	color: #a1a8b4;
+}
+
 #kw-audio-editor-design-system .button--primary:not(.button--disabled) {
 	/* ADS Button uses the regular foreground token against its dark-theme blue fill. */
 	color: var(--kw-editor-primary-button-text);
