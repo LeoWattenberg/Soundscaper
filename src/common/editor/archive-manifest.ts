@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { digestScapeBytes } from './scape-archive-media.ts';
+import { createScapeDigest, digestScapeBytes, scapeHex } from './scape-archive-media.ts';
 
 /**
  * Checksum manifests for project archives.
@@ -66,9 +66,7 @@ export function createArchiveManifest(
 	const seen = new Set<string>();
 	const entries: ArchiveManifestMember[] = [];
 	for (const member of members ?? []) {
-		const id = nonEmpty(member?.id, 'member id');
-		if (seen.has(id)) throw new RangeError(`Archive member ${id} is listed twice.`);
-		seen.add(id);
+		const id = admitMemberId(member?.id, seen);
 		if (!(member.bytes instanceof Uint8Array)) {
 			throw new TypeError(`Archive member ${id} must supply its bytes to be digested.`);
 		}
@@ -82,6 +80,64 @@ export function createArchiveManifest(
 			sourceId: member.sourceId ?? null,
 		}));
 	}
+	return assembleArchiveManifest(entries, context);
+}
+
+export interface ArchiveMemberStreamInput {
+	readonly id: string;
+	readonly path?: string;
+	readonly sourceId?: string | null;
+	/** The member's bytes, in order. Digested as they arrive and never retained. */
+	readonly chunks: AsyncIterable<Uint8Array>;
+}
+
+/**
+ * The same manifest, for members too large to hold.
+ *
+ * A reference-scale archive member does not fit in memory, and a manifest
+ * builder that demanded one would be unusable at exactly the scale the archive
+ * exists for. The rule that matters is unchanged: the digest is computed here,
+ * from the bytes as they go past, and never accepted from a caller.
+ */
+export async function createArchiveManifestFromStreams(
+	members: AsyncIterable<ArchiveMemberStreamInput> | Iterable<ArchiveMemberStreamInput>,
+	context: ArchiveManifestContext = {},
+): Promise<ArchiveManifest> {
+	const seen = new Set<string>();
+	const entries: ArchiveManifestMember[] = [];
+	for await (const member of members) {
+		const id = admitMemberId(member?.id, seen);
+		const digest = createScapeDigest();
+		let byteLength = 0;
+		for await (const chunk of member.chunks) {
+			if (!(chunk instanceof Uint8Array)) {
+				throw new TypeError(`Archive member ${id} emitted a non-byte chunk.`);
+			}
+			digest.update(chunk);
+			byteLength += chunk.byteLength;
+		}
+		entries.push(Object.freeze({
+			id,
+			path: String(member.path ?? id),
+			byteLength,
+			sha256: scapeHex(digest.digest()),
+			sourceId: member.sourceId ?? null,
+		}));
+	}
+	return assembleArchiveManifest(entries, context);
+}
+
+function admitMemberId(value: unknown, seen: Set<string>): string {
+	const id = nonEmpty(value, 'member id');
+	if (seen.has(id)) throw new RangeError(`Archive member ${id} is listed twice.`);
+	seen.add(id);
+	return id;
+}
+
+function assembleArchiveManifest(
+	entries: ArchiveManifestMember[],
+	context: ArchiveManifestContext,
+): ArchiveManifest {
 	entries.sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
 	return Object.freeze({
 		manifestVersion: ARCHIVE_MANIFEST_VERSION,
@@ -158,6 +214,57 @@ export function verifyArchiveManifest(
 	return Object.freeze({
 		ok: mismatches.length === 0,
 		checked: manifest.members.length,
+		mismatches: Object.freeze(mismatches),
+	});
+}
+
+/**
+ * Verify one manifest against another that was built from real bytes.
+ *
+ * A reference-scale archive cannot be handed to the byte-reading verifier
+ * above, and reading every member twice — once to build the observed manifest,
+ * once to check it — would double the cost of a check to prove the same thing.
+ * The `observed` manifest must therefore have been produced by digesting the
+ * archive; comparing two manifests that were both merely copied from somewhere
+ * proves nothing about any bytes.
+ */
+export function compareArchiveManifests(
+	expected: ArchiveManifest,
+	observed: ArchiveManifest,
+): ArchiveVerification {
+	for (const manifest of [expected, observed]) {
+		if (!manifest || manifest.kind !== 'archive-manifest'
+			|| manifest.manifestVersion !== ARCHIVE_MANIFEST_VERSION) {
+			throw new TypeError('An archive manifest of a supported version is required.');
+		}
+	}
+	const found = new Map(observed.members.map((member) => [member.id, member]));
+	const mismatches: ArchiveMismatch[] = [];
+	for (const member of expected.members) {
+		const actual = found.get(member.id);
+		if (!actual) {
+			mismatches.push(mismatch(member.id, 'missing', member.sha256, null,
+				`Archive member ${member.id} is missing.`));
+			continue;
+		}
+		if (actual.byteLength !== member.byteLength) {
+			mismatches.push(mismatch(member.id, 'size', member.byteLength, actual.byteLength,
+				`Archive member ${member.id} is ${actual.byteLength} bytes; the manifest recorded ${member.byteLength}.`));
+		}
+		if (actual.sha256 !== member.sha256) {
+			mismatches.push(mismatch(member.id, 'digest', member.sha256, actual.sha256,
+				`Archive member ${member.id} failed SHA-256 verification.`));
+		}
+	}
+	const listed = new Set(expected.members.map((member) => member.id));
+	for (const member of observed.members) {
+		if (listed.has(member.id)) continue;
+		mismatches.push(mismatch(member.id, 'unlisted', null, member.id,
+			`Archive member ${member.id} is present but the manifest does not list it.`));
+	}
+	return Object.freeze({
+		ok: mismatches.length === 0,
+		checked: expected.members.length,
 		mismatches: Object.freeze(mismatches),
 	});
 }
