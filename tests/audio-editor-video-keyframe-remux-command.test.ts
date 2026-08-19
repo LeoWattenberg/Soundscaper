@@ -6,10 +6,12 @@ import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import {
-	buildVideoRemuxArgs,
-	videoRemuxElementaryFormat,
-} from '../src/common/editor/video-remux-ffmpeg.ts';
+import { admitVideoKeyframeEncoderWorkload } from '../src/common/editor/video-keyframe-encoder-admission.ts';
+import { createVideoKeyframeExportFrameSource } from '../src/common/editor/video-keyframe-export-frame-source.ts';
+import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
+import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
+import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
+import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const CORE_JS = join(ROOT, 'node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.js');
@@ -35,6 +37,22 @@ const WIDTH = 320;
 const HEIGHT = 180;
 const FRAMES = 30;
 
+/** A frame source shaped only for the admission that builds the command. */
+function remuxFrameSource(frameRate: Readonly<{ num: number; den: number }>) {
+	const project = createFramescaperProjectV20(
+		FRAMESCAPER_V20_PROJECT_MODEL_PROFILE,
+		framescaperV20Options(),
+	);
+	const compatible = structuredClone(project) as Record<string, unknown>;
+	compatible.schemaVersion = 17;
+	return createVideoKeyframeExportFrameSource({
+		project: resolveRuntimeProjectProjection(compatible),
+		canvas: { width: WIDTH, height: HEIGHT, frameRate },
+		startFrame: 0,
+		endFrame: 48_000,
+	});
+}
+
 function syntheticRgba(): Uint8Array {
 	const frameBytes = WIDTH * HEIGHT * 4;
 	const all = new Uint8Array(frameBytes * FRAMES);
@@ -52,54 +70,56 @@ function syntheticRgba(): Uint8Array {
 	return all;
 }
 
+/**
+ * The command the shipped WebCodecs tier actually runs.
+ *
+ * It is built by the encoder admission, beside the raw-frame tier's command, so
+ * the two can only differ in how the picture arrived. This file used to assert
+ * against a second builder that nothing imported — it disagreed with the shipped
+ * one about the audio bit rate, and any regression in the real command was
+ * invisible to it.
+ */
+function remuxArguments(format: 'mp4' | 'webm', frameRate: Readonly<{ num: number; den: number }>) {
+	return admitVideoKeyframeEncoderWorkload({
+		frameSource: remuxFrameSource(frameRate),
+		format,
+		videoEncoder: 'webcodecs',
+		inputPath: format === 'mp4' ? '/chunks.h264' : '/chunks.ivf',
+		outputPath: `/remuxed.${format}`,
+	}).ffmpegArguments;
+}
+
 test('the exact rational rate reaches FFmpeg as a quotient, never a decimal', () => {
-	const args = buildVideoRemuxArgs({
-		format: 'mp4',
-		frameRate: { num: 30_000, den: 1_001 },
-		videoInputPath: 'in.h264',
-		outputPath: 'out.mp4',
-	});
-	assert.ok(args.includes('30000/1001'), 'the rate must survive as a quotient');
-	assert.ok(!args.some((value) => /\d\.\d/u.test(value)), 'no argument may carry a decimal rate');
+	const args = remuxArguments('mp4', { num: 30_000, den: 1_001 });
+
+	assert.deepEqual(args.slice(args.indexOf('-r'), args.indexOf('-r') + 2), ['-r', '30000/1001']);
+	assert.equal(args.includes('29.97'), false, 'the decimal is what this tier may not trade for speed');
 });
 
 test('a remux copies the video stream and never re-encodes it', () => {
-	const args = buildVideoRemuxArgs({
-		format: 'mp4', frameRate: { num: 24, den: 1 },
-		videoInputPath: 'in.h264', outputPath: 'out.mp4',
-	});
-	const codecIndex = args.indexOf('-c:v');
-	assert.equal(args[codecIndex + 1], 'copy');
-	assert.ok(!args.includes('libx264'), 'a remux that re-encodes is not a remux');
-	assert.ok(args.includes('-an'), 'no audio input means no audio stream');
-	assert.ok(args.includes('+faststart'), 'mp4 keeps the faststart parity of the encode path');
+	const args = remuxArguments('mp4', { num: 30, den: 1 });
+
+	assert.deepEqual(args.slice(args.indexOf('-c:v'), args.indexOf('-c:v') + 2), ['-c:v', 'copy']);
+	assert.deepEqual(args.slice(0, 6), ['-nostdin', '-y', '-f', 'h264', '-r', '30/1']);
 });
 
 test('parity with the encode path: metadata, subtitle, and data streams stay stripped', () => {
-	const args = buildVideoRemuxArgs({
-		format: 'webm', frameRate: { num: 25, den: 1 },
-		videoInputPath: 'in.ivf', audioInputPath: 'mix.wav', outputPath: 'out.webm',
-	});
-	for (const flag of ['-map_metadata', '-map_chapters', '-sn', '-dn']) {
-		assert.ok(args.includes(flag), `${flag} must match the encode path`);
+	const remux = remuxArguments('mp4', { num: 30, den: 1 });
+	const encode = admitVideoKeyframeEncoderWorkload({
+		frameSource: remuxFrameSource({ num: 30, den: 1 }),
+		format: 'mp4',
+		inputPath: '/frames.rgba',
+		outputPath: '/encoded.mp4',
+	}).ffmpegArguments;
+
+	for (const shared of ['-map_metadata', '-map_chapters', '-sn', '-dn', '-movflags', '+faststart']) {
+		assert.ok(remux.includes(shared) && encode.includes(shared), shared);
 	}
-	assert.ok(args.includes('libopus'), 'audio stays on the ordinary encoder');
-	assert.ok(!args.includes('+faststart'), 'faststart is an mp4 concern only');
 });
 
 test('each format declares the elementary container its chunks need', () => {
-	assert.equal(videoRemuxElementaryFormat('mp4'), 'h264');
-	assert.equal(videoRemuxElementaryFormat('webm'), 'ivf');
-});
-
-test('malformed rates and paths are refused', () => {
-	const base = { format: 'mp4', videoInputPath: 'in.h264', outputPath: 'out.mp4' } as const;
-	assert.throws(() => buildVideoRemuxArgs({ ...base, frameRate: { num: 30, den: 0 } }), /exact rational frame rate/u);
-	assert.throws(() => buildVideoRemuxArgs({ ...base, frameRate: { num: 29.97, den: 1 } }), /exact rational frame rate/u);
-	assert.throws(
-		() => buildVideoRemuxArgs({ ...base, frameRate: { num: 30, den: 1 }, videoInputPath: '' }),
-		/video input path is required/u,
-	);
+	assert.equal(remuxArguments('mp4', { num: 30, den: 1 })[3], 'h264');
+	assert.equal(remuxArguments('webm', { num: 30, den: 1 })[3], 'ivf');
 });
 
 /**
@@ -128,12 +148,9 @@ test('the pinned FFmpeg core remuxes a pre-encoded stream, and muxing is a round
 	assert.ok(elementary.byteLength > 0);
 
 	const remuxStarted = process.hrtime.bigint();
-	assert.equal(core.exec(...buildVideoRemuxArgs({
-		format: 'mp4',
-		frameRate: { num: 30, den: 1 },
-		videoInputPath: 'chunks.h264',
-		outputPath: 'remuxed.mp4',
-	})), 0, 'the shipped core must remux a pre-encoded stream with -c copy');
+	assert.equal(core.exec(...remuxArguments('mp4', { num: 30, den: 1 })
+		.map((argument) => argument.replace(/^\//u, ''))), 0,
+	'the shipped core must remux a pre-encoded stream with -c copy');
 	const remuxMs = Number(process.hrtime.bigint() - remuxStarted) / 1e6;
 
 	const remuxed = core.FS.readFile('remuxed.mp4');

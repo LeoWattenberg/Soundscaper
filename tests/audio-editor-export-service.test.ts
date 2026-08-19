@@ -379,3 +379,28 @@ test('a request naming a delivery target is routed to the video path, not the au
 	const output = await createEditorExportService(fixture.runtime).handleExportAction('export', request);
 	assert.match(output.fileName, /\.webm$/u, `a WebM target must deliver WebM, not ${output.fileName}`);
 });
+
+test('a video delivery stating mono stages the mix as one channel', async () => {
+	// The plan carrying `channelLayout` and the mapping downmixing when it is
+	// handed one were each tested; the line that joins them was not, so replacing
+	// it with the literal 'preserve' left 1343 tests green while every delivery
+	// staged the full-width mix and both the plan and the report kept claiming
+	// mono. This drives the export action and reads what reached the WAV encoder.
+	const fixture = createFixture();
+	const request = createExportDialogRequest({
+		mode: 'mix', range: 'project', format: 'video-mp4',
+		canvasWidth: '', canvasHeight: '', canvasFit: 'contain',
+		canvasFrameRate: '', canvasBackgroundColor: '', videoQuality: 'balanced',
+		videoAudioLayout: 'mono', deliveryTarget: '',
+	}, { metadata: {} });
+	assert.equal(request.audioLayout, 'mono');
+
+	await createEditorExportService(fixture.runtime).handleExportAction('export', request);
+	assert.deepEqual(fixture.encodedChannelCounts, [1]);
+
+	const preserved = createFixture();
+	await createEditorExportService(preserved.runtime).handleExportAction('export', {
+		...request, audioLayout: undefined,
+	});
+	assert.deepEqual(preserved.encodedChannelCounts, [2], 'an unstated layout still delivers the project channels');
+});

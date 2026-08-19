@@ -264,3 +264,42 @@ function runtimeProject(project: unknown) {
 	compatible.schemaVersion = 17;
 	return resolveRuntimeProjectProjection(compatible);
 }
+
+test('a keyed frame is placed by the fit its delivery canvas states', () => {
+	// Nothing tied the keyed path's fit to the picture it renders: replacing this
+	// seam with the constant `contain` kept every video and Framescaper test
+	// green, and a 9:16 cover delivery would have letterboxed while the plan and
+	// the report both still said cover — the quieter of the two bugs commit
+	// b2b909bd was written about.
+	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const clip = project.clips[0] as unknown as Record<string, unknown>;
+	clip.videoKeyframes = opacityKeyframes();
+	const runtime = runtimeProject(project);
+	const placement = (fit: 'contain' | 'cover' | 'stretch') => {
+		const source = createVideoKeyframeExportFrameSource({
+			project: runtime,
+			canvas: { width: 1_080, height: 1_920, frameRate: 3, fit },
+			startFrame: 0,
+			endFrame: 48_000,
+		});
+		const layer = source.frame(1).layers[0] as {
+			clips: readonly [{ renderDescription: { sourceDisplayToCanvas: readonly number[] } }];
+		};
+		return layer.clips[0].renderDescription.sourceDisplayToCanvas;
+	};
+
+	const contain = placement('contain');
+	const cover = placement('cover');
+	const stretch = placement('stretch');
+
+	// `contain` fits inside and leaves bars; `cover` fills the height and
+	// overhangs; `stretch` abandons the aspect. Each scale is the fit's own.
+	assert.ok(cover[0]! > contain[0]!, 'cover scales past the contain fit rather than matching it');
+	assert.ok(cover[4]! < 0, 'and hangs off the left edge, which is the crop');
+	assert.equal(contain[4], 0);
+	assert.ok(contain[5]! > 0, 'contain centres the picture between its bars');
+	// Rounding the fitted extents to whole pixels leaves the two axes a fraction
+	// apart; the fit is what makes them near-equal at all.
+	assert.ok(Math.abs(contain[0]! - contain[3]!) < 0.001, 'contain keeps the aspect');
+	assert.ok(Math.abs(stretch[0]! - stretch[3]!) > 0.5, 'stretch does not');
+});

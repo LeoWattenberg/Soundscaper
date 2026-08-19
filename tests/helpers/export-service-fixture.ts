@@ -111,6 +111,7 @@ export function createFixture() {
 	const preflightBytes: number[] = [];
 	const resampleFrameRequests: number[] = [];
 	const encodedFrameCounts: number[] = [];
+	const encodedChannelCounts: number[] = [];
 	// Exactly the plan's `outputFrames`. A render that disagrees with its plan is
 	// the defect conformance reopens the file to catch, so a fixture that ships
 	// the disagreement cannot also stand for an ordinary delivery.
@@ -246,8 +247,17 @@ export function createFixture() {
 			remove: async () => { calls.push('sink-remove'); },
 			abort: async () => { calls.push('sink-abort'); },
 		}),
-		createVideoExportPlan: (_value: TestProject, settings: { format: string }) => ({
-			inputs: [{ kind: 'video-source', sourceId: 'video-source', storageKey: '' }, { kind: 'other' }],
+		// The staged audio input carries the layout the delivery asked for, exactly
+		// as a real plan does: it is what the service reads the downmix off, and a
+		// plan that dropped it would make that wiring untestable here.
+		createVideoExportPlan: (
+			_value: TestProject,
+			settings: { format: string; audioLayout?: string },
+		) => ({
+			inputs: [
+				{ kind: 'video-source', sourceId: 'video-source', storageKey: '' },
+				{ kind: 'staged-audio-mix', channelLayout: settings.audioLayout ?? 'preserve' },
+			],
 			range: { startFrame: 2, endFrame: 6, durationFrames: 4 },
 			extension: settings.format === 'webm' ? 'webm' : 'mp4',
 		}),
@@ -260,6 +270,7 @@ export function createFixture() {
 		),
 		encodeWav: (channels: Float32Array[], options: Record<string, unknown>) => {
 			encodedFrameCounts.push(channels[0]?.length ?? 0);
+			encodedChannelCounts.push(channels.length);
 			wavOptions.push(options);
 			const bytes = encodeWav(channels, options as never);
 			// The corruption a delivery has to survive being told about: bytes that
@@ -362,6 +373,7 @@ export function createFixture() {
 		preflightBytes,
 		resampleFrameRequests,
 		encodedFrameCounts,
+		encodedChannelCounts,
 		renderOptions,
 		runtime,
 		state,

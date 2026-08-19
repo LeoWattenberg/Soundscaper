@@ -38,6 +38,23 @@ test('a burned delivery draws each cue over the composited picture, in its own w
 	assert.ok(chain.includes(String.raw`enable='gte(t\,0.5)*lt(t\,0.9)'`));
 });
 
+test('the burned line sits centred in the bottom title-safe band', () => {
+	const chain = graph(exportPlan({ captions: { trackId: 'labels-1', mux: false, burnIn: true } }))
+		.split(';').find((segment) => segment.includes('drawtext='))!;
+	const stage = exportPlan({ captions: { trackId: 'labels-1', mux: false, burnIn: true } })
+		.filterPlan.burnIn as { bottomMarginPx: number; fontSizePx: number; boxBorderPx: number };
+
+	// The placement lives only in the emitted arguments, so it is asserted only
+	// here: the stage constants a golden pins are computed by the same function
+	// the golden compares against, and would not notice a caption moved to the
+	// top-left corner.
+	assert.ok(chain.includes(':x=(w-text_w)/2'), 'centred horizontally');
+	assert.ok(chain.includes(`:y=h-text_h-${stage.bottomMarginPx}`), 'lifted out of the bottom safe band');
+	assert.ok(chain.includes(`:fontsize=${stage.fontSizePx}`));
+	assert.ok(chain.includes(':fontcolor=white:box=1:boxcolor=black@0.55'));
+	assert.ok(chain.includes(`:boxborderw=${stage.boxBorderPx}`));
+});
+
 test('cue text is read from a staged file rather than written into the graph', () => {
 	const plan = exportPlan({ captions: { trackId: 'labels-1', mux: false, burnIn: true } });
 	const chain = graph(plan);

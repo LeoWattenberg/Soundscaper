@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { admitVideoKeyframeEncoderWorkload } from '../src/common/editor/video-keyframe-encoder-admission.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import {
 	createVideoKeyframeExportFrameSource,
@@ -79,32 +80,40 @@ test('a WebM WebCodecs delivery frames its chunks as IVF and copies them', async
 	assert.equal(ffmpeg.arguments.includes('libvpx-vp9'), false);
 });
 
-test('a WebCodecs delivery encodes the same audio at the same tier as the FFmpeg one', async () => {
-	const frameSource = source({ width: 4, height: 4, frameRate: 3 });
-	const tiers = await Promise.all(['ffmpeg', 'webcodecs'].map(async (tier) => {
-		const ffmpeg = fakeFfmpeg();
-		await encodeVideoKeyframeFrames({
-			frameSource,
-			producer: producerFor(frameSource),
-			ffmpeg: ffmpeg as never,
-			format: 'mp4',
-			quality: 'high',
-			inputPath: tier === 'webcodecs' ? '/frames.h264' : '/frames.rgba',
-			outputPath: '/encoded.mp4',
-			ringCapacityBytes: 4_096,
-			...(tier === 'webcodecs' ? { webCodecs: decision(recordingEncoder()) } : {}),
-		});
-		return ffmpeg.arguments;
-	}));
-	const [ffmpegTier, webCodecsTier] = tiers;
-	for (const shared of ['-map_metadata', '-1', '-map_chapters', '-sn', '-dn', '-movflags', '+faststart']) {
-		assert.ok(ffmpegTier!.includes(shared) && webCodecsTier!.includes(shared), shared);
+test('a WebCodecs delivery encodes the same audio at the same tier as the FFmpeg one', () => {
+	// With no audio input both commands end `-an`, so filtering the vectors for
+	// `-c:a` used to compare two empty arrays: the assertion could not fail, and a
+	// per-tier audio codec passed the whole suite. Both deliveries carry audio
+	// here, and the comparison keeps the codec and the bit rate the tier implies.
+	for (const [format, quality, extension] of [
+		['mp4', 'high', 'h264'],
+		['webm', 'draft', 'ivf'],
+	] as const) {
+		const frameSource = source({ width: 4, height: 4, frameRate: 3 });
+		const vectors = (['ffmpeg', 'webcodecs'] as const).map((videoEncoder) => (
+			admitVideoKeyframeEncoderWorkload({
+				frameSource,
+				format,
+				quality,
+				videoEncoder,
+				inputPath: videoEncoder === 'webcodecs' ? `/frames.${extension}` : '/frames.rgba',
+				audioInputPath: '/mix.wav',
+				outputPath: `/encoded.${format}`,
+				ringCapacityBytes: 4_096,
+				audioRingCapacityBytes: 4_096,
+			}).ffmpegArguments
+		));
+		const audioArguments = (args: readonly string[]) => {
+			const start = args.indexOf('-c:a');
+			assert.notEqual(start, -1, `${format} must encode audio for this comparison to mean anything`);
+			return args.slice(start, start + 4);
+		};
+
+		assert.deepEqual(audioArguments(vectors[0]!), audioArguments(vectors[1]!), format);
+		for (const shared of ['-map_metadata', '-map_chapters', '-sn', '-dn']) {
+			assert.ok(vectors[0]!.includes(shared) && vectors[1]!.includes(shared), shared);
+		}
 	}
-	// The picture differs; nothing else may.
-	assert.deepEqual(
-		ffmpegTier!.slice(ffmpegTier!.indexOf('-c:v')).filter((value) => value.startsWith('-c:a')),
-		webCodecsTier!.slice(webCodecsTier!.indexOf('-c:v')).filter((value) => value.startsWith('-c:a')),
-	);
 });
 
 test('a refused encoder configuration fails the delivery instead of truncating it', async () => {
