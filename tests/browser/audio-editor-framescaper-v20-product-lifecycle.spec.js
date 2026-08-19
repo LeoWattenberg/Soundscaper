@@ -198,6 +198,10 @@ async function bundleQualificationHarness() {
 		format: 'esm',
 		platform: 'browser',
 		target: 'es2022',
+		// The delivery code in this graph imports its burn-in font subsets as URLs,
+		// which Vite resolves natively and esbuild has no loader for. Inline them so
+		// the URLs stay usable and the harness still bundles to a single module.
+		loader: { '.woff': 'dataurl', '.woff2': 'dataurl' },
 		plugins: [{
 			name: 'm4b2-v20-product-strategy-injection',
 			setup(buildApi) {
