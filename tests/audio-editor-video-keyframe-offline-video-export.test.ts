@@ -64,6 +64,36 @@ test('authenticates source bytes before resolver/GL and cleans renderer then res
 	assert.equal(Object.isFrozen(capturedAssets(dependencies)[0]), true);
 });
 
+test('carries the delivery fit into the frame source rather than refusing the canvas', async () => {
+	const fixture = await exportFixture();
+	const events: string[] = [];
+	const base = harnessDependencies(events);
+	let renderRequest: Readonly<Record<string, unknown>> | null = null;
+	const dependencies = Object.freeze({
+		...base,
+		createRenderer(request: Parameters<typeof base.createRenderer>[0]) {
+			renderRequest = request as unknown as Readonly<Record<string, unknown>>;
+			return base.createRenderer(request);
+		},
+	}) as VideoKeyframeOfflineVideoExportDependencies;
+	// Every keyed plan states a fit, so a canvas that refused one refused every
+	// keyed export; a cover delivery crops where a contain delivery letterboxes.
+	await encodeVideoKeyframeOfflineVideo({
+		project: fixture.project,
+		timingBySourceId: fixture.timing,
+		sources: [{ sourceId: SOURCE_ID, blob: fixture.blob }],
+		canvas: { width: 64, height: 32, frameRate: RATE, fit: 'cover' },
+		format: 'mp4',
+		editorFfmpeg: editorPort(),
+		signal: new AbortController().signal,
+		assertCurrent: () => undefined,
+	}, dependencies);
+	const frameSource = renderRequest?.frameSource as Readonly<{
+		canvas: Readonly<{ fit: string }>;
+	}> | undefined;
+	assert.equal(frameSource?.canvas.fit, 'cover');
+});
+
 test('rejects missing, duplicate, or digest-mismatched Blobs before resolver and GL allocation', async () => {
 	const fixture = await exportFixture();
 	for (const [sources, match] of [

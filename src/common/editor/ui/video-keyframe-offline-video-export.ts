@@ -367,7 +367,13 @@ function snapshotTiming(value: unknown): ReadonlyMap<string, BoundVideoSourceTim
 }
 
 function snapshotCanvas(value: unknown): VideoKeyframeExportFrameRequest['canvas'] {
-	const canvas = closedRecord(value, 'offline video export canvas', ['width', 'height', 'frameRate']);
+	// `fit` decides how a source of another aspect lands in the delivered
+	// extents, so it travels with them. Dropping it here would letterbox a
+	// delivery the plan asked to crop, and refusing it refuses every keyed
+	// export, because a plan canvas always states one.
+	const canvas = closedRecord(
+		value, 'offline video export canvas', ['width', 'height', 'frameRate', 'fit'],
+	);
 	const frameRate = typeof canvas.frameRate === 'object' && canvas.frameRate !== null
 		? closedRecord(canvas.frameRate, 'offline video export frame rate', ['num', 'den'])
 		: canvas.frameRate;
@@ -375,6 +381,9 @@ function snapshotCanvas(value: unknown): VideoKeyframeExportFrameRequest['canvas
 		width: canvas.width as number,
 		height: canvas.height as number,
 		frameRate: frameRate as VideoKeyframeExportFrameRequest['canvas']['frameRate'],
+		...(canvas.fit === undefined ? {} : {
+			fit: canvas.fit as NonNullable<VideoKeyframeExportFrameRequest['canvas']['fit']>,
+		}),
 	});
 }
 
