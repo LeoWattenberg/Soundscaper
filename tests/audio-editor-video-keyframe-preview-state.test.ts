@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
 import { createVideoKeyframeRenderStateProvider } from '../src/common/editor/video-keyframe-render-state-provider.ts';
+import { resolveVideoExportCanvas } from '../src/common/editor/video-export.js';
 import {
 	isVideoKeyframePreviewFailureCurrent,
 	isVideoKeyframePreviewStateError,
@@ -154,3 +155,49 @@ test('preview failures are snapshot-scoped and the visible warning has both bund
 	assert.match(ENGLISH_COPY.videoPreviewKeyframesUnavailable, /invalid.*program preview.*hidden/iu);
 	assert.match(GERMAN_COPY.videoPreviewKeyframesUnavailable, /ungültig.*Programmvorschau.*ausgeblendet/iu);
 });
+
+test('the preview resolves against the whole canvas record the export resolver returns', () => {
+	// The panel hands down `resolveVideoExportCanvas(project)`, which states
+	// eleven fields, and the provider reads a canvas as a closed record of three.
+	// Every keyframed clip therefore failed closed and the preview drew nothing,
+	// while the export — which narrows the canvas itself — delivered the picture.
+	const canvas = resolveVideoExportCanvas(previewProject());
+	assert.ok(Object.keys(canvas).length > 3, 'the export resolver states more than a render canvas needs');
+
+	const state = resolveVideoKeyframePreviewState(createVideoKeyframeRenderStateProvider(), {
+		clip: clip(),
+		timelineSample: 350,
+		sourceDisplaySize: { width: 320, height: 180 },
+		canvas,
+	});
+
+	assert.ok(state, 'a keyframed clip previews against the canvas the panel actually resolves');
+	// And the fit still reaches the placement: a cover delivery is not letterboxed.
+	const covered = resolveVideoKeyframePreviewState(createVideoKeyframeRenderStateProvider(), {
+		clip: clip(),
+		timelineSample: 350,
+		sourceDisplaySize: { width: 1_920, height: 1_080 },
+		canvas: { ...canvas, width: 1_080, height: 1_920, fit: 'cover' },
+	});
+	assert.equal(covered!.renderDescription.sourceDisplayToCanvas[0] > 1, true, 'cover fills, not letterboxes');
+});
+
+function previewProject() {
+	return {
+		sampleRate: 1_000,
+		selection: { startFrame: 0, endFrame: 0 },
+		loop: { enabled: false, startFrame: 0, endFrame: 0 },
+		sources: [{
+			kind: 'video', id: 'source-1', name: 'Source', mimeType: 'video/mp4',
+			storageKey: 'media/source-1', frameCount: 10_000, sampleRate: 1_000,
+			width: 1_920, height: 1_080, frameRate: 30, videoCodec: 'h264', audioCodec: 'aac',
+			hasAudio: false, posterStorageKey: null, thumbnailStorageKey: null,
+		}],
+		clips: [{
+			kind: 'video', id: 'clip-1', sourceId: 'source-1', title: 'Clip',
+			timelineStartFrame: 0, sourceStartFrame: 0,
+			sourceDurationFrames: 10_000, durationFrames: 10_000,
+		}],
+		tracks: [{ id: 'track-1', type: 'video', clipIds: ['clip-1'] }],
+	};
+}

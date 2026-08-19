@@ -62,7 +62,12 @@ export function resolveVideoKeyframePreviewState(
 				request.timelineSample,
 			),
 			sourceDisplaySize: request.sourceDisplaySize,
-			canvas: request.canvas,
+			// The panel resolves its reference canvas with the export resolver,
+			// which states eleven fields, and the provider reads a canvas as a
+			// closed record of the three a placement needs. Narrowing here is what
+			// lets both stay strict: the provider keeps refusing a canvas it does
+			// not understand, and a keyframed clip still previews.
+			canvas: renderCanvas(request.canvas),
 			transitionWeightStart: transitionWeight,
 			transitionWeightEnd: transitionWeight,
 		});
@@ -155,4 +160,15 @@ function safeSum(left: number, right: number): number {
 		throw new RangeError('The video keyframe preview clip range exceeds the safe integer domain.');
 	}
 	return result;
+}
+
+/** The three fields a placement is resolved from, whatever else the caller carries. */
+function renderCanvas(canvas: VideoRenderCanvas): VideoRenderCanvas {
+	const record = canvas as unknown as Readonly<Record<string, unknown>>;
+	const fit = record?.fit;
+	return Object.freeze({
+		width: record?.width,
+		height: record?.height,
+		...(fit === undefined ? {} : { fit }),
+	}) as VideoRenderCanvas;
 }
