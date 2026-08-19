@@ -37,6 +37,7 @@ import {
 	createTimelineAnnotationRippleOperations,
 	stageTimelineAnnotationRippleMutation,
 } from './timeline-annotation-ripple.ts';
+import { planTakeGraphRangeDelete } from './take-graph-range-edit.ts';
 
 // foundation-edit-matrix: ripple
 // foundation-edit-matrix: range-delete
@@ -60,6 +61,11 @@ export function deleteRange(project, command, rippleMode) {
 			),
 		)
 		: () => undefined;
+	const commitTakeGraph = planTakeGraphRangeDelete(
+		project,
+		takeGraphTrackRanges(project, trackIds, geometry, range),
+		rippleMode === 'track',
+	);
 	for (const trackId of trackIds) {
 		const track = requireTrack(project, trackId);
 		if (!Array.isArray(track.clipIds)) continue;
@@ -77,6 +83,19 @@ export function deleteRange(project, command, rippleMode) {
 		);
 	}
 	commitAnnotationRipple();
+	commitTakeGraph?.();
+}
+
+/** The range each edited track is losing, which is what its take graph answers to. */
+function takeGraphTrackRanges(project, trackIds, geometry, range) {
+	const ranges = new Map();
+	for (const trackId of trackIds) {
+		const track = requireTrack(project, trackId);
+		if (!Array.isArray(track.clipIds)) continue;
+		const operationRange = geometry.trackRanges.has(trackId) ? geometry.trackRanges.get(trackId) : range;
+		if (operationRange) ranges.set(String(trackId), operationRange);
+	}
+	return ranges;
 }
 
 function clipIdsForTracks(project, trackIds) {

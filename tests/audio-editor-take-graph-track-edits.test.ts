@@ -41,6 +41,65 @@ test('removing a different track leaves the take graph alone', () => {
 	);
 });
 
+test('a ripple delete before the take graph moves it with the material', () => {
+	const project = takeProject();
+	const rippled = applyEditorCommand(project, {
+		type: 'range/ripple-delete', startFrame: 0, endFrame: 32, trackIds: ['vocals'],
+		annotationRippleOperations: [],
+	});
+
+	const [group] = rippled.takeGroups;
+	assert.deepEqual(
+		{ startSample: group?.startSample, endSample: group?.endSample },
+		{ startSample: 64, endSample: 72 },
+	);
+	assert.deepEqual(
+		group?.takes.map(({ startSample, endSample, sourceStartSample }) => (
+			{ startSample, endSample, sourceStartSample }
+		)),
+		[
+			{ startSample: 64, endSample: 72, sourceStartSample: 0 },
+			{ startSample: 64, endSample: 72, sourceStartSample: 0 },
+		],
+		'a take moves on the timeline without moving inside its source',
+	);
+	assert.deepEqual(
+		group?.compRegions.map(({ startSample, endSample }) => ({ startSample, endSample })),
+		[{ startSample: 64, endSample: 72 }],
+	);
+});
+
+test('a ripple delete on another track leaves the take graph where it is', () => {
+	const project = takeProject();
+	const rippled = applyEditorCommand(project, {
+		type: 'range/ripple-delete', startFrame: 0, endFrame: 32, trackIds: ['guitar'],
+		annotationRippleOperations: [],
+	});
+	assert.equal(rippled.takeGroups[0]?.startSample, 96);
+});
+
+test('a lift delete leaves the take graph alone, because nothing moved', () => {
+	const project = takeProject();
+	const lifted = applyEditorCommand(project, {
+		type: 'range/lift-delete', startFrame: 0, endFrame: 32, trackIds: ['vocals'],
+	});
+	assert.equal(lifted.takeGroups[0]?.startSample, 96);
+});
+
+test('a delete that runs through the take graph is refused, not silently trimmed', () => {
+	const project = takeProject();
+	// Trimming a group means splitting its takes and comp regions and minting the
+	// identities for the halves, which the clipboard already refuses to do on the
+	// way in. Leaving it in place instead desynchronized the comp from its audio.
+	assert.throws(() => applyEditorCommand(project, {
+		type: 'range/ripple-delete', startFrame: 64, endFrame: 100, trackIds: ['vocals'],
+		annotationRippleOperations: [],
+	}), /take graph|split identities/iu);
+	assert.throws(() => applyEditorCommand(project, {
+		type: 'range/lift-delete', startFrame: 100, endFrame: 200, trackIds: ['vocals'],
+	}), /take graph|split identities/iu);
+});
+
 function takeProject() {
 	return createAudioEditorProjectV17({
 		id: 'take-graph-edits', title: 'Take graph edits', now: NOW, sampleRate: 48_000,
