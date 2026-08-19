@@ -33,6 +33,20 @@ test('export action cancellation and preconditions preserve idle state', async (
 	);
 });
 
+test('an export never re-validates the delivery projection through the product clone', async () => {
+	// The delivery projection is not a canonical document — it carries the folder
+	// projection marker and any frozen substitution playback renders — so putting
+	// it through the product's validating clone refused exactly the projects that
+	// play. Nothing in the export may reach for that clone.
+	const fixture = createFixture();
+	fixture.runtime.cloneProject = () => {
+		throw new TypeError('Soundscaper project contains an unsupported field.');
+	};
+	const output = await createEditorExportService(fixture.runtime).handleExportAction('export');
+	assert.equal(output.fileName, 'mix.wav');
+	assert.equal(fixture.state.exportAbort, null, 'a failed clone used to wedge the export flag');
+});
+
 test('offline WAV and AIFF exports replace prior output and chain cleanup', async () => {
 	const fixture = createFixture();
 	fixture.state.outputUrl = 'blob:old';

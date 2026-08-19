@@ -4,10 +4,8 @@ import { createVisibleVideoTrackPredicate } from '../video-timeline.js';
 
 import { prepareBrowserExportBlob } from '../browser-export-output.ts';
 import { getVideoExportFormat } from '../video-export.js';
-import {
-	inheritTrackFolderMediaStateProjectionV12,
-	projectTrackFolderMediaStateV12,
-} from '../track-folder-media-runtime.ts';
+import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
+import { createExportRenderProject } from './export-render-project.ts';
 import { audioRenderedFallbackRenderSources } from './audio-rendered-fallback-export.ts';
 import {
 	admitVideoRenderedFallbackExport,
@@ -134,7 +132,7 @@ export function createEditorVideoExportAction(
 	renderSnapshot: RenderSnapshot,
 ) {
 	const {
-		abortError, audioBufferChannels, cloneProject, copy, createVideoExportPlan,
+		abortError, audioBufferChannels, copy, createVideoExportPlan,
 		encodeWav, ffmpeg, fileService, findClip, findSource, getProject, handleError,
 		hasMissingTimelineSources, lifetime, playbackProjects, preflightStorage,
 		projectGeneration, projectSampleRate, publishDocumentSnapshot, setStatus,
@@ -159,10 +157,7 @@ export function createEditorVideoExportAction(
 		}) ?? null;
 		const exportProject = productExportProject
 			? productExportProject
-			: inheritTrackFolderMediaStateProjectionV12(
-				deliveredProject,
-				cloneProject(deliveredProject),
-			);
+			: createExportRenderProject(deliveredProject);
 		const visibleVideoTrack = createVisibleVideoTrackPredicate(exportProject.tracks);
 		const hasTimelineVideo = exportProject.tracks.some((track: RuntimeValue) => (
 			visibleVideoTrack(track)

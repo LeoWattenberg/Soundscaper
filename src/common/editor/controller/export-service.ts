@@ -6,6 +6,7 @@ import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
 } from '../track-folder-media-runtime.ts';
+import { createExportRenderProject } from './export-render-project.ts';
 import {
 	admitAudioRenderedFallbackExport,
 	assertAudioRenderedFallbackExportSettings,
@@ -47,7 +48,7 @@ const NO_TASK_PROGRESS = Object.freeze({
 
 export function createEditorExportService(runtime: ExportServiceRuntime) {
 	const {
-		abortError, applyMediaChannelMapping, audioBufferChannels, cloneProject,
+		abortError, applyMediaChannelMapping, audioBufferChannels,
 		copy, createAiffStreamEncoder, createCacheAwareRenderEngine, createExportPlan,
 		createStableId, createStreamingStemArchive, createStreamingWindowedSincResampler, createTemporaryFileSink,
 		createWavStreamEncoder, encodeAiff, encodeWav,
@@ -109,10 +110,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		state.exportAbort = abort;
 		toggleExport(true);
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0) || NO_TASK_PROGRESS;
-		let exportProject = inheritTrackFolderMediaStateProjectionV12(
-			deliveredProject,
-			cloneProject(deliveredProject),
-		);
+		let exportProject = createExportRenderProject(deliveredProject);
 		let exportRenderSources: ExportRenderSources;
 		let pendingCleanup = null;
 		let pendingDirectDestination: DirectPcmDestination | DirectCompressedDestination | null = null;
