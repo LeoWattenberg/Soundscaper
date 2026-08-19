@@ -18,7 +18,7 @@
  * staged font is the WOFF the design system already ships.
  */
 
-import { resolveVideoBurnInFontChoice } from './video-burn-in-font.ts';
+import { resolveVideoBurnInFontChoice } from './video-burn-in-font-subsets.ts';
 
 /**
  * The bottom band captions stay out of, as a fraction of canvas height.

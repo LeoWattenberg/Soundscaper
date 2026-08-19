@@ -6,10 +6,13 @@ import { readFile } from 'node:fs/promises';
 
 import {
 	loadVideoBurnInFonts,
+	VIDEO_BURN_IN_FONT_URLS,
+} from '../src/common/editor/video-burn-in-font.ts';
+import {
 	resolveVideoBurnInFontChoice,
 	VIDEO_BURN_IN_FONT_SUBSETS,
 	videoBurnInFontSubset,
-} from '../src/common/editor/video-burn-in-font.ts';
+} from '../src/common/editor/video-burn-in-font-subsets.ts';
 import {
 	resolveVideoBurnInStage,
 	videoBurnInFontSubsetIds,
@@ -54,6 +57,7 @@ test('characters no subset can draw are named rather than silently blanked', () 
 
 	// A script this build ships no subset for is the same case, not a crash.
 	const han = resolveVideoBurnInFontChoice('世界');
+	assert.ok(videoBurnInFontSubset(han.subsetId), 'a script no subset covers still names a real subset');
 	assert.equal(han.subsetId, 'latin');
 	assert.deepEqual([...han.undrawable], ['世', '界']);
 });
@@ -85,8 +89,8 @@ test('every subset the catalog names is fetched exactly once, by its own URL', a
 
 	assert.deepEqual([...fonts.keys()], ['cyrillic', 'latin']);
 	assert.equal(asked.length, 2);
-	assert.equal(asked[0], videoBurnInFontSubset('cyrillic')!.url);
-	assert.equal(asked[1], videoBurnInFontSubset('latin')!.url);
+	assert.equal(asked[0], VIDEO_BURN_IN_FONT_URLS.cyrillic);
+	assert.equal(asked[1], VIDEO_BURN_IN_FONT_URLS.latin);
 	await assert.rejects(
 		() => loadVideoBurnInFonts(['klingon'], async () => ({ ok: true, status: 200, blob: async () => new Blob() })),
 		/No caption font subset named klingon/u,
@@ -109,6 +113,11 @@ test('the staged subsets are the ranges the font itself declares', async () => {
 	}
 
 	assert.equal(declared.size, VIDEO_BURN_IN_FONT_SUBSETS.length, 'every shipped subset is staged');
+	assert.deepEqual(
+		Object.keys(VIDEO_BURN_IN_FONT_URLS).sort(),
+		VIDEO_BURN_IN_FONT_SUBSETS.map(({ id }) => id).sort(),
+		'every subset the rule can choose has a file to draw from',
+	);
 	for (const subset of VIDEO_BURN_IN_FONT_SUBSETS) {
 		const ranges = declared.get(subset.id);
 		assert.ok(ranges, `${subset.id} is a subset this font ships`);

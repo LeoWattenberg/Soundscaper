@@ -25,7 +25,7 @@ import {
 	VIDEO_BURN_IN_MAXIMUM_CUES,
 	VIDEO_BURN_IN_MAXIMUM_TEXT_LENGTH,
 } from './video-caption-burn-in.ts';
-import { videoBurnInFontSubset } from './video-burn-in-font.ts';
+import { videoBurnInFontSubset } from './video-burn-in-font-subsets.ts';
 
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INPUTS = 4_096;
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INTERVALS = 100_000;
