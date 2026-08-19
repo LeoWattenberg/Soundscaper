@@ -111,7 +111,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 	let spineTrackId: string | null = null;
 	let videoLane = 0;
 	let audioLane = 0;
-	const visibility = createInterchangeVisibility(asRecords(project.tracks) as never);
+	const visibility = createInterchangeVisibility(asRecords(project.tracks) as never, project);
 	reportInterchangeAnnotationOmission(draft, project, 'fcpxml');
 	for (const track of asRecords(project.tracks)) {
 		const type = String(track.type ?? '');

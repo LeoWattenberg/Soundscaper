@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createMixerGraphAudibilityV21 } from './mixer-graph-audibility-v21.ts';
 import { createVisibleVideoTrackPredicate } from './video-track-visibility.js';
 
 /**
@@ -40,14 +41,23 @@ export interface InterchangeVisibility {
 	readonly reason: (track: TrackLike) => string;
 }
 
-export function createInterchangeVisibility(tracks: readonly TrackLike[]): InterchangeVisibility {
+export function createInterchangeVisibility(
+	tracks: readonly TrackLike[],
+	project?: unknown,
+): InterchangeVisibility {
 	const all = Array.isArray(tracks) ? tracks : [];
 	const videoComposes = createVisibleVideoTrackPredicate(all);
 	const audioSoloed = all.some((track) => track?.type === 'audio' && track.solo === true);
+	// Once a routing graph exists, a track's own flags are not the whole answer:
+	// solo is resolved over the routing, a group or send carries its own mute, and
+	// a muted VCA zeroes every strip in it. The render honours all of that, so a
+	// file that describes the render has to as well.
+	const graph = project === undefined ? null : createMixerGraphAudibilityV21(project);
 
 	const contributes = (track: TrackLike): boolean => {
 		if (track?.type === 'video') return videoComposes(track);
 		if (track?.type !== 'audio') return false;
+		if (graph) return graph.audibleTrack(String(track.id));
 		if (track.mute === true) return false;
 		return audioSoloed ? track.solo === true : true;
 	};
@@ -58,6 +68,13 @@ export function createInterchangeVisibility(tracks: readonly TrackLike[]): Inter
 			if (track?.type === 'video') {
 				if (track.hidden === true) return 'hidden';
 				return 'not soloed while another video track is';
+			}
+			if (graph) {
+				const reason = graph.reason(String(track.id));
+				if (reason === 'muted') return 'muted';
+				return reason === 'not-soloed'
+					? 'not soloed while another strip is'
+					: 'routed only through strips that silence it';
 			}
 			if (track?.mute === true) return 'muted';
 			return 'not soloed while another audio track is';

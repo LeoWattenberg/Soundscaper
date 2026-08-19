@@ -107,7 +107,7 @@ export function createOtioExport(request: OtioExportRequest): OtioExportResult {
 	);
 	const tracks = asRecords(project.tracks);
 
-	const visibility = createInterchangeVisibility(tracks as never);
+	const visibility = createInterchangeVisibility(tracks as never, project);
 	reportInterchangeAnnotationOmission(draft, project, 'otio');
 	const walks: TrackWalk[] = [];
 	for (const track of tracks) {
