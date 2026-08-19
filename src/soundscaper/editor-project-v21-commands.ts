@@ -230,6 +230,20 @@ function elevateInheritedCommandResult(
 	return finalizeIntermediate(commanded, validateResult);
 }
 
+/** Folder-owned group ids whose folder the command removed. */
+function retiredFolderIds(
+	previousProject: SoundscaperProjectV21,
+	project: Record<string, unknown>,
+): ReadonlySet<string> {
+	const previousFolderIds = recordArray(
+		(previousProject as unknown as Record<string, unknown>).trackFolders,
+		'previous project.trackFolders',
+	).map((folder) => String(folder.id));
+	const folderIds = new Set(recordArray(project.trackFolders, 'project.trackFolders')
+		.map((folder) => String(folder.id)));
+	return new Set(previousFolderIds.filter((id) => !folderIds.has(id)));
+}
+
 function reconcileGraphAfterInheritedCommand(
 	previousProject: SoundscaperProjectV21,
 	commandMixer: Record<string, unknown>,
@@ -274,7 +288,15 @@ function reconcileGraphAfterInheritedCommand(
 		dataRecord(project.master, 'project.master').effects,
 		'project.master.effects',
 	).map((effect) => String(effect.id)));
-	const groups = previous.groups.map(updateStrip);
+	// A group the removed folder owned goes with it. The graph is rebuilt from the
+	// previous mixer because the inherited command projects a V17-shaped one that
+	// cannot state V21 authority — but that also restored a bus the command had
+	// just retired, and the folder reconciler then read it as an ordinary
+	// user-authored group and kept the assignments pointing into it.
+	const retiredFolderGroupIds = retiredFolderIds(previousProject, project);
+	const groups = previous.groups
+		.filter((strip) => !retiredFolderGroupIds.has(strip.id))
+		.map(updateStrip);
 	const sends = previous.sends.map(updateStrip);
 	const cues = previous.cues.map(updateStrip);
 	const nodeEffects = new Map([...groups, ...sends, ...cues].map((strip) => [
@@ -288,6 +310,8 @@ function reconcileGraphAfterInheritedCommand(
 	].map((strip) => [strip.id, strip.channelCount]));
 	const edgeIsLive = (edge: MixerEdgeV21): boolean => {
 		if (edge.source.kind === 'track' && !audioTrackIds.has(edge.source.id)) return false;
+		if (edge.source.kind === 'mixer-node' && retiredFolderGroupIds.has(edge.source.id)) return false;
+		if (edge.destination.kind === 'mixer-node' && retiredFolderGroupIds.has(edge.destination.id)) return false;
 		if (edge.destination.kind !== 'effect-sidechain') return true;
 		const { strip, effectId } = edge.destination;
 		if (strip.kind === 'track') return effectsByTrack.get(strip.id)?.has(effectId) ?? false;
