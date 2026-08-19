@@ -306,17 +306,41 @@ before code.
   with its reason instead: evidence that could not be gathered never turns into
   a failed save of a file already on disk.
 
-  **Still owed:** the trim-media rewriter. The operation, its refusals and its
-  frame mapping are all in place, but nothing produces trimmed media yet, and
-  the reason is a decision rather than a missing function. A lossless
-  stream-copy cannot honour the retention guarantee unless every retained run
-  begins on a keyframe, so a real rewriter must either widen each run back to
-  the preceding keyframe — which needs a keyframe index the timing probe does
-  not currently record, though the pinned FFmpeg's `showinfo` does emit it — or
-  re-encode, which is a quality decision this milestone has not taken. Trimming
-  a compressed audio source has the same shape. Until one of those is chosen and
-  measured, trim-media has no surface, because a command that cannot keep its
-  own retention promise should not be reachable.
+  **The rewriter's decision was settled by measurement and it now writes
+  bytes.** The question was whether a lossless stream-copy can honour the
+  retention guarantee; it can, provided every retained run begins on a keyframe,
+  and the pinned build reports where those are — `showinfo` prints `iskey` per
+  frame in the same pass the timing probe already runs, verified on a 30-frame
+  clip at `-g 10` that reported keyframes at 0, 10 and 20 exactly. So no
+  re-encode, and no quality decision to take.
+
+  `ffmpeg-video-keyframe-index.ts` reads that index, deliberately not as part of
+  the timing asset: that asset is persisted and its schema is a contract, while a
+  keyframe index is a fact needed at the moment of trimming, and storing it would
+  be migrating a schema to hold a cache. `alignTrimMediaRunsToKeyframes` widens
+  each run back to the keyframe at or before its start, which can only ever
+  retain more, and merges runs that meet as a result. `trim-media-ffmpeg.ts`
+  builds the copy commands, seeking by the **midpoint** of the first frame
+  because a rational rate like 30000/1001 has no exact decimal and half a frame
+  of tolerance makes both a too-early and a too-late landing impossible.
+  `controller/trim-media-execution.ts` runs the sequence and deletes every MEMFS
+  path it wrote, newest first, since the parts a large trim writes are as big as
+  the source.
+
+  Measured end to end before any of it was written: a 90-frame 30000/1001 clip
+  cut from frame 80 for seven frames produced exactly seven frames whose first
+  frame's checksum equalled the source frame's — the same picture, not merely the
+  same count.
+
+  **Still owed:** the project edit and the surface. A trimmed source is a new
+  managed body with new frame indexing, so the clips that referenced it have to
+  be repointed and their source-in frames remapped through
+  `trimMediaMapFrame`. That is expressible as a batch of commands the protocol
+  already has — `source/update`, `clip/replace-source`, `clip/update` — so it
+  needs no new command type, and going through them is what makes the trim
+  undoable. Until that batch exists there is no surface, because a command that
+  rewrote media without moving the edits that referenced it would silently
+  change what the project plays.
 - **Consolidate planning has landed** in `src/common/editor/consolidate-plan.ts`.
   It takes the linked-original bindings as an argument, because a source carries
   no linked-or-managed flag — that lives in the repositories behind
