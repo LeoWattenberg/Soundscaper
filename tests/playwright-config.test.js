@@ -81,7 +81,7 @@ function assertBrowserQualification(workflow, label) {
 	assert.match(firefoxJob, /runs-on: ubuntu-24\.04/u);
 	assert.doesNotMatch(firefoxJob, /^\s+container:/mu);
 	assert.match(firefoxJob, /playwright install --with-deps firefox/u);
-	assert.match(firefoxJob, /apt-get install --yes pulseaudio pulseaudio-utils/u);
+	assert.match(firefoxJob, /ci-apt-install\.sh pulseaudio pulseaudio-utils/u);
 	assert.match(firefoxJob, /scripts\/ci-firefox-pulseaudio\.sh/u);
 	assert.match(firefoxJob, /node scripts\/ci-firefox-audio-clock\.mjs/u);
 	assert.match(firefoxJob, /name: verified-site-build/u);

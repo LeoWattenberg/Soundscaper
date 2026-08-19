@@ -41,9 +41,8 @@ jobs:
         run: npm ci
 
       - name: Install virtual display for the native-helper Electron proof
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes xvfb
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh xvfb
 
       - name: Provision interchange conformance reference tools
         run: npm run provision:interchange-conformance
@@ -144,9 +143,8 @@ jobs:
         run: npx playwright install --with-deps firefox
 
       - name: Install PulseAudio
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes pulseaudio pulseaudio-utils
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh pulseaudio pulseaudio-utils
 
       - name: Configure the Firefox PulseAudio null sink and source
         run: bash scripts/ci-firefox-pulseaudio.sh
