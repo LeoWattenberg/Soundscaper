@@ -187,9 +187,12 @@ export class FramescaperVideoProxyAttachmentControllerGateV18 {
 		const state = ticketState(this, ticketValue, 'captured');
 		this.assertCurrent(ticketValue);
 		const loaded = loadFramescaperProjectV18(this.#environment.runtime.profile, projectValue);
-		if (!loaded.intrinsicReadOnly || loaded.reason !== 'proxy-attached'
-			|| loaded.project.id !== state.projectId) {
-			throw new Error('Only an intrinsically read-only committed V18 proxy project can be installed.');
+		// What makes a committed project installable is that it is this project,
+		// carrying the attachment this ticket was captured to install. It used to
+		// be recognised by opening read-only, which stopped being true of an
+		// attached document once the capability became one Framescaper provides.
+		if (loaded.project.id !== state.projectId || !attachedSource(loaded.project, state.sourceId)) {
+			throw new Error('Only a committed V18 project carrying this source\'s proxy can be installed.');
 		}
 		const project = cloneFramescaperProjectV18(this.#environment.runtime.profile, loaded.project);
 		if (project.revision !== Number(state.base.revision) + 1) {
@@ -204,22 +207,25 @@ export class FramescaperVideoProxyAttachmentControllerGateV18 {
 			}].slice(-state.history.limit),
 			redoStack: [],
 		};
-		const installed = this.#session.installCommittedReadOnlyProjectHistory(
+		const installed = this.#session.installCommittedProjectHistory(
 			state.projectId,
 			history,
 			{
 				activationToken: state.reservation.token,
 				expectedHistoryToken: state.historyToken,
-				reason: 'proxy-attached',
+				// The tab stays editable: attaching a proxy adds preservable state
+				// the product provides, and the edit that follows an attachment is
+				// the point of having made one.
+				readOnly: false,
 				dirty: false,
 			},
-		) as unknown as Readonly<{ readonly project: unknown; readonly readOnly: true }>;
+		) as unknown as Readonly<{ readonly project: unknown; readonly readOnly: false }>;
 		state.status = 'committed';
 		const result = cloneFramescaperProjectV18(this.#environment.runtime.profile, installed.project);
 		const snapshot = this.#session.getSnapshot();
 		const tab = snapshot.tabs.find((candidate: { readonly projectId: string }) => candidate.projectId === state.projectId);
-		if (!tab?.readOnly || tab.readOnlyReason !== 'proxy-attached' || !sameProject(tab.history.present, result)) {
-			throw new Error('The committed V18 proxy history did not install atomically as read-only.');
+		if (!tab || tab.readOnly || !sameProject(tab.history.present, result)) {
+			throw new Error('The committed V18 proxy history did not install atomically.');
 		}
 		return result;
 	}
@@ -248,12 +254,18 @@ export function assertFramescaperVideoProxyAttachmentControllerGateV18(
 	}
 }
 
+function attachedSource(project: unknown, sourceId: string): boolean {
+	const sources = (project as Readonly<{ sources?: readonly Readonly<Record<string, unknown>>[] }>)?.sources;
+	const source = sources?.find((candidate) => candidate?.id === sourceId);
+	return Boolean(source && source.kind === 'video' && source.proxyAttachment);
+}
+
 function assertSession(value: unknown): SessionControllerV18 {
 	if (!value || typeof value !== 'object') throw new TypeError('A selected V18 session controller is required.');
 	const session = value as Record<string, unknown>;
 	for (const method of [
 		'getSnapshot', 'captureProjectHistory', 'assertProjectHistoryToken',
-		'beginProjectActivation', 'installCommittedReadOnlyProjectHistory',
+		'beginProjectActivation', 'installCommittedProjectHistory',
 	] as const) {
 		if (typeof session[method] !== 'function') {
 			throw new TypeError(`The selected V18 session controller requires ${method}.`);

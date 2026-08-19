@@ -51,7 +51,7 @@ test('selected runtime creates, migrates, projects, commands, and histories exac
 	assert.equal(runtime.undo(commanded, { now: '2026-08-13T12:02:00.000Z' }).present.title, 'Selected V18');
 });
 
-test('selected session derives writable, proxy-read-only, reimport, and future states from V18', () => {
+test('selected session derives writable, attached, reimport, and future states from V18', () => {
 	const runtime = createEditorProjectRuntimeV18Selection(PROFILE);
 	const session = runtime.createSessionController();
 	const project = runtime.createProject({ title: 'Session V18', now: '2026-08-13T12:00:00.000Z' });
@@ -64,12 +64,15 @@ test('selected session derives writable, proxy-read-only, reimport, and future s
 	assert.equal(session.getSnapshot().tabs[0]?.readOnly, false);
 	assert.equal(session.getProject().schemaVersion, 18);
 
+	// A proxy attachment is state the product provides, so an attached document
+	// evaluates compatible and opens writable; only a newer schema still opens
+	// read-only.
 	const attached = attachedProject();
-	assert.equal(runtime.compatibility.evaluate(attached)?.compatible, false);
+	assert.equal(runtime.compatibility.evaluate(attached)?.compatible, true);
 	session.openProject(attached);
 	assert.equal(session.getSnapshot().tabs.find((tab: { projectId: string }) => (
 		tab.projectId === attached.id
-	))?.readOnly, true);
+	))?.readOnly, false);
 
 	let nestedReads = 0;
 	assert.throws(() => runtime.migrateProject({

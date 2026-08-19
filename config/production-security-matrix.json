@@ -1462,14 +1462,18 @@
 			"currentControls": [
 				{
 					"id": "framescaper-v18-proxy-reattestation",
-					"summary": "Framescaper's isolated existing-attachment re-attestation authority acquires current original, proxy, and timing leases, checks closed identity and generation descriptors, performs bounded digest verification of proxy and timing bodies, validates the timing reference bytes and summary, binds an ephemeral timing view, and reruns exact proxy/original timing conformance under before-and-after project and task fences. Only a successful run mints opaque process-local preview-only trust bound to those exact generations. Missing, corrupt, changed, cancelled, stale, inexact, or unavailable evidence yields refusal; the pure selector uses a proxy only for preview with current matching trust and chooses the original for export and delivery, or unavailable when no current original exists. No maintained playback path consumes that trust, so this control qualifies the primitive rather than proxy presentation, generation, or lifecycle UI.",
+					"summary": "Framescaper's isolated existing-attachment re-attestation authority acquires current original, proxy, and timing leases, checks closed identity and generation descriptors, performs bounded digest verification of proxy and timing bodies, validates the timing reference bytes and summary, binds an ephemeral timing view, and reruns exact proxy/original timing conformance under before-and-after project and task fences. Only a successful run mints opaque process-local preview-only trust bound to those exact generations. Missing, corrupt, changed, cancelled, stale, inexact, or unavailable evidence yields refusal; the pure selector uses a proxy only for preview with current matching trust and chooses the original for export and delivery, or unavailable when no current original exists. The maintained preview resolver is the one consumer: it runs that authority per source before any picture is shown, treats every refusal as original-or-unavailable rather than an error, and never reaches export or delivery, which continue to select originals.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/framescaper/editor-video-proxy-reattestation-contract-v18.ts" },
 						{ "kind": "implementation", "path": "src/framescaper/editor-video-proxy-reattestation-v18.ts" },
 						{ "kind": "implementation", "path": "src/framescaper/editor-video-proxy-selection-v18.ts" },
+						{ "kind": "implementation", "path": "src/framescaper/editor-video-proxy-preview-v18.ts" },
+						{ "kind": "implementation", "path": "src/framescaper/editor-video-proxy-body-source-v18.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/video-proxy-timing-conformance.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/video-timing-asset.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-framescaper-video-proxy-reattestation-v18.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-framescaper-video-proxy-preview-v18.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-framescaper-video-proxy-body-source-v18.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-video-proxy-timing-conformance.test.ts" }
 					]
 				},

@@ -31,7 +31,7 @@ import {
 const PROFILE = FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE;
 const OPERATION_ID = 'attach-proxy-operation';
 
-test('coordinator consumes preparation and atomically installs one committed read-only attachment', async (context) => {
+test('coordinator consumes preparation and atomically installs one committed attachment', async (context) => {
 	const environment = await createEnvironment(context, persistentStorage());
 	const relationship = createVideoProxyFixture();
 	const base = v18Base(environment, relationship.project());
@@ -74,17 +74,24 @@ test('coordinator consumes preparation and atomically installs one committed rea
 
 	const snapshot = session.getSnapshot();
 	const tab = snapshot.tabs.find((candidate: { projectId: string }) => candidate.projectId === base.id)!;
-	assert.equal(tab.readOnly, true);
-	assert.equal(tab.readOnlyReason, 'proxy-attached');
+	// The tab stays editable. An attachment used to install read-only, which made
+	// generating a proxy cost the session every edit that came after it.
+	assert.equal(tab.readOnly, false);
+	assert.equal(tab.readOnlyReason, null);
 	assert.deepEqual(tab.history.present, result.project);
+	// One undoable step, so the attachment can be taken back the way it arrived.
 	assert.deepEqual(tab.history.undoStack.at(-1)?.project, base);
+	// And every published snapshot is either the base or the committed result —
+	// no half-installed state reaches a subscriber.
 	for (const value of observed) {
 		const candidate = value as ReturnType<typeof session.getSnapshot>;
 		const current = candidate.tabs.find((entry: { projectId: string }) => entry.projectId === base.id);
-		const attached = current?.history.present.sources.some((entry: Record<string, unknown>) => (
-			entry.kind === 'video' && entry.proxyAttachment !== null
-		));
-		assert.equal(Boolean(attached && !current?.readOnly), false, 'no attached writable snapshot may publish');
+		if (!current) continue;
+		const present = current.history.present as Record<string, unknown>;
+		assert.ok(
+			present.revision === base.revision || present.revision === result.project.revision,
+			`published revision ${String(present.revision)}`,
+		);
 	}
 
 	const authority = framescaperProjectStoreAuthorityV18(PROFILE, environment.store);

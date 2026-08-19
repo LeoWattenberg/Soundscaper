@@ -12,7 +12,6 @@ import { FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE } from './editor-project-runtim
 import {
 	cloneFramescaperProjectV19,
 	createFramescaperProjectV19,
-	framescaperProjectV19HasProxyAttachment,
 	type FramescaperProjectV19Options,
 } from './editor-project-v19.ts';
 import {
@@ -104,13 +103,9 @@ export function loadFramescaperProjectV20(
 	}
 	validateFramescaperProjectV20(profile, value);
 	const project = cloneFramescaperProjectV20(profile, value);
-	const attached = framescaperProjectV19HasProxyAttachment(project as never);
-	return {
-		project,
-		readOnly: attached,
-		intrinsicReadOnly: attached,
-		reason: attached ? 'proxy-attached' : null,
-	};
+	// See the V18 loader: a proxy attachment is provided state now, not a feature
+	// the product has to open read-only around.
+	return { project, readOnly: false, intrinsicReadOnly: false, reason: null };
 }
 
 /** Add contextual empty fields only while upgrading a fresh exact-V19 factory result. */

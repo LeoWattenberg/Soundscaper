@@ -72,7 +72,7 @@ test('selected V19 runtime creates, projects, commands, and histories exact comp
 	);
 });
 
-test('selected V19 session derives writable, proxy read-only, reimport, and future states', () => {
+test('selected V19 session derives writable, attached, reimport, and future states', () => {
 	const runtime = createEditorProjectRuntimeV19Selection(PROFILE);
 	const session = runtime.createSessionController();
 	const project = projectFixture('session-v19');
@@ -85,11 +85,13 @@ test('selected V19 session derives writable, proxy read-only, reimport, and futu
 	assert.equal(session.getSnapshot().tabs[0]?.readOnly, false);
 	assert.equal(session.getProject().schemaVersion, 19);
 
+	// See the V18 selection: an attachment is provided state, so the tab opens
+	// writable and only a newer schema still opens read-only.
 	const attached = attachedProject(projectFixture('attached-v19'));
 	session.openProject(attached);
 	assert.equal(session.getSnapshot().tabs.find((tab: { projectId: string }) => (
 		tab.projectId === attached.id
-	))?.readOnly, true);
+	))?.readOnly, false);
 	let nestedReads = 0;
 	assert.throws(() => runtime.migrateProject({
 		schemaVersion: 18,

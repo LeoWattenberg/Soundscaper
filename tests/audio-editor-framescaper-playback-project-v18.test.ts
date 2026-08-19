@@ -40,16 +40,19 @@ test('all-null V18 playback stays writable-compatible through a V17 engine found
 	assert.deepEqual(projection.requiredVideoSourceIds, []);
 });
 
-test('attached V18 reports the unavailable bypass and strips proxy authority from playback input', () => {
+test('attached V18 reports a provided feature and still strips proxy authority from playback input', () => {
 	const service = createFramescaperPlaybackProjectServiceV18(PROFILE);
 	const project = archiveProject();
 	const projection = service.projectForPlayback(project);
 	const proxyItem = projection.featureRequirementsReport?.items.find(
 		(item) => item.displayName === 'Video proxy attachments',
 	);
-	assert.equal(projection.featureRequirementsReport?.compatible, false);
-	assert.equal(proxyItem?.availability, 'unavailable');
-	assert.equal(proxyItem?.disposition, 'bypassed');
+	// The feature is one Framescaper provides, so an attached project is
+	// compatible. What playback does with the attachment is unchanged: the
+	// projection it runs on is V17 and has no concept of one, and which picture a
+	// preview shows is decided by re-attestation rather than by this report.
+	assert.equal(projection.featureRequirementsReport?.compatible, true);
+	assert.equal(proxyItem?.availability ?? 'available', 'available');
 	assert.deepEqual(projection.requiredVideoSourceIds, []);
 	assert.equal(projection.project.schemaVersion, 17);
 	assert.equal(Object.hasOwn(projection.project.sources[0] ?? {}, 'proxyAttachment'), false);

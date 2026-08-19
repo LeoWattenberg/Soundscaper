@@ -209,7 +209,7 @@ test('product controller consumes the environment-owned lifecycle store', async 
 	assert.equal(controller.project.schemaVersion, 18);
 });
 
-test('product controller reaches exact V18 Scape inspection and read-only format-2 import', async (context) => {
+test('product controller reaches exact V18 Scape inspection and writable format-2 import', async (context) => {
 	const exported = await createFormat2Archive(context);
 	const environment = await createFramescaperEditorProjectEnvironmentV18({
 		storeOptions: {
@@ -229,7 +229,9 @@ test('product controller reaches exact V18 Scape inspection and read-only format
 		manifest: Readonly<{ formatVersion: number }>;
 	}>;
 	assert.equal(inspected.schemaVersion, 18);
-	assert.equal(inspected.readOnly, true);
+	// Format 2 carries proxy bodies, and it now opens writable: the capability it
+	// declares is one Framescaper provides, so the archive is ordinary work.
+	assert.equal(inspected.readOnly, false);
 	assert.equal(inspected.manifest.formatVersion, 2);
 	const opened = await controller.actions.project.openScapeFile(
 		exported,
@@ -237,8 +239,8 @@ test('product controller reaches exact V18 Scape inspection and read-only format
 	) as Readonly<{ project: Readonly<{ schemaVersion: number }> }>;
 	assert.equal(opened.project.schemaVersion, 18);
 	assert.equal(controller.project.schemaVersion, 18);
-	assert.equal(controller.getSnapshot().readOnly, true);
-	assert.equal(environment.runtime.migrateProject(controller.project).intrinsicReadOnly, true);
+	assert.equal(controller.getSnapshot().readOnly, false);
+	assert.equal(environment.runtime.migrateProject(controller.project).intrinsicReadOnly, false);
 	assert.deepEqual(await environment.store.loadProject(String(controller.project.id)), controller.project);
 });
 

@@ -28,8 +28,8 @@ test('Framescaper V18 editorial compatibility claims match maintained scope', as
 		]],
 		['framescaper-v18-video-proxy-preservation', [
 			/format 2.*desktop V10/isu,
-			/preservation-only/isu,
-			/no maintained.*generator.*menu.*proxy-consuming/isu,
+			/Generation, retention-by-invalidation, and preview consumption are maintained/isu,
+			/attach and detach are not yet menu-reached/isu,
 		]],
 	]);
 	for (const [id, claims] of expected) {
@@ -56,10 +56,14 @@ test('Framescaper V18 editorial compatibility claims match maintained scope', as
 		/package.*source-free.*does not qualify.*delete.*duplicate/isu);
 
 	const proxyUse = rules.get('video-proxy-fallback');
-	assert.equal(proxyUse.status, 'planned');
-	assert.match(proxyUse.currentBehavior, /V18.*preserv/isu);
-	assert.match(proxyUse.currentBehavior, /re-attestation.*preview-only/isu);
-	assert.match(proxyUse.currentBehavior, /generation.*menu.*playback.*unavailable/isu);
+	assert.equal(proxyUse.status, 'implemented');
+	// The proxy is generated, invalidated with the source it stands in for, and
+	// re-proved before every preview, while the original stays authoritative for
+	// export and delivery. What is still missing is a surface to reach it from.
+	assert.match(proxyUse.currentBehavior, /originals remain authoritative/isu);
+	assert.match(proxyUse.currentBehavior, /re-attests every session/isu);
+	assert.match(proxyUse.currentBehavior, /drop it in the same transaction/isu);
+	assert.match(proxyUse.currentBehavior, /attach and detach are not yet menu-reached/isu);
 });
 
 test('production capability and security registers describe only the qualified V18 surfaces', async () => {

@@ -14,7 +14,6 @@ import type { FramescaperMulticameraGroupV18 } from './editor-project-v18-multic
 import type { FramescaperSubsequenceV18 } from './editor-project-v18-subsequence.ts';
 import {
 	FRAMESCAPER_PROJECT_V18_SCHEMA_VERSION,
-	framescaperProjectV18HasProxyAttachment,
 	validateFramescaperProjectV18,
 	type FramescaperProjectV18,
 } from './editor-project-v18-validation.ts';
@@ -113,13 +112,11 @@ export function loadFramescaperProjectV18(
 	}
 	validateFramescaperProjectV18(profile, value);
 	const project = cloneFramescaperProjectV18(profile, value);
-	const attached = framescaperProjectV18HasProxyAttachment(project);
-	return {
-		project,
-		readOnly: attached,
-		intrinsicReadOnly: attached,
-		reason: attached ? 'proxy-attached' : null,
-	};
+	// An attachment used to make a document intrinsically read-only, because the
+	// capability it declares was registered as one Framescaper could not provide.
+	// Framescaper now generates, retains, invalidates and previews through one, so
+	// an attached project opens writable like any other.
+	return { project, readOnly: false, intrinsicReadOnly: false, reason: null };
 }
 
 export function readFramescaperProjectSchemaVersion(value: unknown): number {

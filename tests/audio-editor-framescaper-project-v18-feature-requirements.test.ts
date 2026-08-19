@@ -197,25 +197,17 @@ test('the V18 compatibility service reports the private capability known and una
 	const project = attachedProject();
 	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(PROFILE, project);
 	const report = service.evaluate(project);
-	assert.equal(report?.compatible, false);
-	assert.equal(report?.counts.unavailable, 1);
-	assert.deepEqual(report?.items.find(
-		(item) => item.featureId === FRAMESCAPER_VIDEO_PROXY_FEATURE_ID,
-	), {
-		requirementId: 'framescaper.video-proxy',
-		featureId: FRAMESCAPER_VIDEO_PROXY_FEATURE_ID,
-		displayName: 'Video proxy attachments',
-		availability: 'unavailable',
-		declaredDisposition: 'bypass',
-		disposition: 'bypassed',
-		fallback: null,
-		message: 'Video proxy attachments is known but unavailable and will be bypassed.',
-	});
+	// Framescaper generates the attachment, keeps it across edits, drops it when
+	// the source it names changes, and previews through it, so the feature it
+	// declares is one it provides. It used to be known-but-unavailable, which is
+	// what made every attached document read-only.
+	assert.equal(report?.compatible, true);
+	assert.equal(report?.counts.unavailable, 0);
 	assert.deepEqual(loadFramescaperProjectV18(PROFILE, project), {
 		project,
-		readOnly: true,
-		intrinsicReadOnly: true,
-		reason: 'proxy-attached',
+		readOnly: false,
+		intrinsicReadOnly: false,
+		reason: null,
 	});
 });
 

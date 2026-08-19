@@ -91,7 +91,7 @@ const EXPECTED = Object.freeze([
 	registration('videoImport', 'org.soundscaper.capability.video-import', true),
 	registration('videoKeyframes', VIDEO_KEYFRAMES_ID, false),
 	registration('videoPlayback', 'org.soundscaper.capability.video-playback', true),
-	registration('videoProxy', VIDEO_PROXY_ID, false),
+	registration('videoProxy', VIDEO_PROXY_ID, true),
 	registration('videoRetime', 'org.soundscaper.capability.video-retime', false),
 	registration('videoTimelineEditing', 'org.soundscaper.capability.video-timeline-editing', true),
 	registration('videoTimingAssets', 'org.soundscaper.capability.video-timing-assets', true),
@@ -115,7 +115,7 @@ test('owns two type declarations, two runtime exports, and one exact product exp
 	assert.doesNotMatch(source, /export\s+(?:type\s+)?\{/u);
 });
 
-test('the exact Framescaper singleton owns 37 sorted registrations with 17 available', () => {
+test('the exact Framescaper singleton owns 37 sorted registrations with 18 available', () => {
 	const token: EditorProjectFeatureCapabilityProfile =
 		FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE;
 	assert.equal(Object.isFrozen(token), true);
@@ -125,9 +125,12 @@ test('the exact Framescaper singleton owns 37 sorted registrations with 17 avail
 	assert.equal(snapshot.owner, 'framescaper');
 	assert.deepEqual(snapshot.registrations, EXPECTED);
 	assert.equal(snapshot.registrations.length, 37);
-	assert.equal(snapshot.registrations.filter((item: Registration) => item.available).length, 17);
+	assert.equal(snapshot.registrations.filter((item: Registration) => item.available).length, 18);
+	// Framescaper generates, preserves, edits around, and previews through a proxy
+	// attachment, so it reports the feature as one it can provide. Soundscaper
+	// still owns no such key at all.
 	assert.deepEqual(snapshot.registrations.find((item: Registration) => item.key === 'videoProxy'),
-		registration('videoProxy', VIDEO_PROXY_ID, false));
+		registration('videoProxy', VIDEO_PROXY_ID, true));
 	assert.equal(Object.isFrozen(snapshot), true);
 	assert.equal(Object.isFrozen(snapshot.registrations), true);
 	assert.ok(snapshot.registrations.every((item: Registration) => Object.isFrozen(item)));

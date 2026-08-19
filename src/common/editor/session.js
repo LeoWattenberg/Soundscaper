@@ -248,7 +248,17 @@ export function createAudioEditorSessionController(options = {}) {
 	}
 
 	/** Atomically install an already committed history and its intrinsic read-only tab state. */
-	function installCommittedReadOnlyProjectHistory(projectId, history, installOptions = {}) {
+	/**
+	 * Install a history a reserved controller committed outside the session.
+	 *
+	 * `readOnly` states what the installed tab becomes. It exists because the one
+	 * caller — the proxy attachment gate — used to have only one answer: an
+	 * attached document was intrinsically read-only, so installing one and
+	 * marking the tab read-only were the same act. They are not any more, and a
+	 * tab left read-only after an attachment would be the whole feature's cost
+	 * with none of its benefit.
+	 */
+	function installCommittedProjectHistory(projectId, history, installOptions = {}) {
 		activationReservations.assertInstall(projectId, installOptions);
 		const tab = requireTab(projectId);
 		const beforeCounts = countsFor(tabs, clipboard);
@@ -256,17 +266,18 @@ export function createAudioEditorSessionController(options = {}) {
 		if (nextHistory.present.schemaVersion !== tab.history.present.schemaVersion) {
 			throw new RangeError('Committed project history cannot change schema version.');
 		}
+		const readOnly = Boolean(installOptions.readOnly);
 		tab.history = nextHistory;
 		tab.historyToken = Object.freeze({});
 		tab.sourceIds = collectHistorySourceIds(nextHistory);
-		tab.readOnly = true;
-		tab.readOnlyReason = String(installOptions.reason || 'intrinsic-read-only');
+		tab.readOnly = readOnly;
+		tab.readOnlyReason = readOnly ? String(installOptions.reason || 'intrinsic-read-only') : null;
 		tab.dirty = Boolean(installOptions.dirty);
 		if (Object.hasOwn(installOptions, 'metadata')) {
 			tab.metadata = freezeProjectFeatureReportMetadata(clone(installOptions.metadata || {}));
 		}
-		return finishMutation(beforeCounts, 'committed-read-only-history-install', {
-			history: clone(tab.history), project: clone(tab.history.present), readOnly: true,
+		return finishMutation(beforeCounts, 'committed-history-install', {
+			history: clone(tab.history), project: clone(tab.history.present), readOnly,
 		});
 	}
 
@@ -488,7 +499,7 @@ export function createAudioEditorSessionController(options = {}) {
 		switchProject,
 		updateProject,
 		updateProjectHistory,
-		installCommittedReadOnlyProjectHistory,
+		installCommittedProjectHistory,
 		renameProject,
 		setProjectReadOnly,
 		updateProjectMetadata,

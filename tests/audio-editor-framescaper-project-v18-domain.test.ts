@@ -146,14 +146,18 @@ test('attached V18 validates source, occurrence, timing, retime, collision, and 
 	);
 });
 
-test('V18 load and migration distinguish all-null, attached, prior, and opaque future schemas', () => {
+test('V18 load and migration distinguish attached, prior, and opaque future schemas', () => {
 	const project = createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, options());
 	assert.deepEqual(loadFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, project), {
 		project, readOnly: false, intrinsicReadOnly: false, reason: null,
 	});
+	// An attached document opens exactly like an all-null one. It used to open
+	// intrinsically read-only, because the capability it declares was registered
+	// as one Framescaper could not provide; the product now generates, retains,
+	// invalidates, and previews through an attachment.
 	const attached = withAttachment(project, attachment());
 	assert.deepEqual(loadFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, attached), {
-		project: attached, readOnly: true, intrinsicReadOnly: true, reason: 'proxy-attached',
+		project: attached, readOnly: false, intrinsicReadOnly: false, reason: null,
 	});
 	const future = { schemaVersion: 19, future: { retained: true } };
 	assert.deepEqual(migrateFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, future), {

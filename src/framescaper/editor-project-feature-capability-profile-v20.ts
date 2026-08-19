@@ -43,7 +43,7 @@ export const FRAMESCAPER_V20_PROJECT_FEATURE_CAPABILITY_PROFILE =
 			{ key: 'videoImport', featureId: 'org.soundscaper.capability.video-import', available: true },
 			{ key: 'videoKeyframes', featureId: 'org.soundscaper.capability.video-keyframes', available: false },
 			{ key: 'videoPlayback', featureId: 'org.soundscaper.capability.video-playback', available: true },
-			{ key: 'videoProxy', featureId: 'org.soundscaper.capability.video-proxy', available: false },
+			{ key: 'videoProxy', featureId: 'org.soundscaper.capability.video-proxy', available: true },
 			{ key: 'videoRetime', featureId: 'org.soundscaper.capability.video-retime', available: false },
 			{ key: 'videoTimelineEditing', featureId: 'org.soundscaper.capability.video-timeline-editing', available: true },
 			{ key: 'videoTimingAssets', featureId: 'org.soundscaper.capability.video-timing-assets', available: true },

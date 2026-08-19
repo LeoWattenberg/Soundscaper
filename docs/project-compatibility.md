@@ -158,36 +158,38 @@ detection and proxy-source selection are not implemented.
 ## Framescaper V18 video-proxy preservation
 
 <!-- policy-narrative:framescaper-v18-video-proxy-preservation -->
-Exact V18 validates one nullable proxyAttachment on every video source,
-reconciles nonnull state to the private unavailable framescaper.video-proxy
-requirement, and makes an attached document intrinsically read-only. Claim-bound
-repository publication, retention, startup maintenance, cleanup tombstones,
-archive format 2, and desktop V10 preserve each exact proxy/timing pair while
-ordinary save cannot introduce or change a pointer. New body publication writes
-the media row, durable unverified claim root, and completed write lease in one
-IndexedDB transaction before bounded verification, preventing an unrooted-body
-gap. Scape format 2 validates and stages canonical originals plus proxy and
-timing bodies, while format 1 remains available only for attachment-free V18.
-Desktop V10 transfers exact bounded chunks through its Framescaper/schema-18
-handshake and reconciles the exact V18 shadow. A private re-attestation
-primitive can rehash the bounded proxy and timing bodies, validate timing
-reference and summary, bind an ephemeral timing view, rerun exact conformance
-against the current original, and mint process-local preview-only trust; its
-pure selector always chooses the original for export and delivery. This is
-preservation-only policy evidence: there is no maintained proxy generator,
-attachment menu, or proxy-consuming playback route, no attach/detach or relink
-workflow, and no proxy capability availability. Desktop V10 delete and duplicate
-are implemented as main-first exact catalog compare-and-swap operations with
-alias-aware local-shadow reconciliation. Duplicate retains the exact proxy and
-timing bodies through the V18 shadow. Delete tombstones only catalog ownership
-and retains immutable revisions and bodies; there is no physical reclamation,
-and it never reuses a project ID. Durable delete intents resume exact local
-shadow and binding-row reconciliation after restart. They do not durably capture
-pre-delete locator references: abrupt process death before the outer
-linked-original drain can leave main-private locator metadata for later cleanup,
-external files are never deleted, and crash- or power-loss locator release
-remains unqualified. The maintained package artifact smoke remains source-free
-and does not qualify packaged delete or duplicate.
+Exact V18 validates one nullable proxyAttachment on every video source and
+reconciles nonnull state to the owned framescaper.video-proxy requirement, which
+Framescaper now provides, so an attached document opens writable and its edits
+carry or drop the attachment by whether what it claims about its source is still
+true. Claim-bound repository publication, retention, startup maintenance,
+cleanup tombstones, archive format 2, and desktop V10 preserve each exact
+proxy/timing pair while ordinary save cannot introduce or change a pointer. New
+body publication writes the media row, durable unverified claim root, and
+completed write lease in one IndexedDB transaction before bounded verification,
+preventing an unrooted-body gap. Scape format 2 validates and stages canonical
+originals plus proxy and timing bodies, while format 1 remains available only
+for attachment-free V18. Desktop V10 transfers exact bounded chunks through its
+Framescaper/schema-18 handshake and reconciles the exact V18 shadow. A private
+re-attestation primitive can rehash the bounded proxy and timing bodies,
+validate timing reference and summary, bind an ephemeral timing view, rerun
+exact conformance against the current original, and mint process-local
+preview-only trust; its pure selector always chooses the original for export and
+delivery. Generation, retention-by-invalidation, and preview consumption are
+maintained; attach and detach are not yet menu-reached, and relink remains the
+shared linked-original workflow rather than a proxy-specific one. Desktop V10
+delete and duplicate are implemented as main-first exact catalog
+compare-and-swap operations with alias-aware local-shadow reconciliation.
+Duplicate retains the exact proxy and timing bodies through the V18 shadow.
+Delete tombstones only catalog ownership and retains immutable revisions and
+bodies; there is no physical reclamation, and it never reuses a project ID.
+Durable delete intents resume exact local shadow and binding-row reconciliation
+after restart. They do not durably capture pre-delete locator references: abrupt
+process death before the outer linked-original drain can leave main-private
+locator metadata for later cleanup, external files are never deleted, and crash-
+or power-loss locator release remains unqualified. The maintained package
+artifact smoke remains source-free and does not qualify packaged delete or
+duplicate.
 <!-- /policy-narrative:framescaper-v18-video-proxy-preservation -->
 
 ## Timeline annotation compatibility

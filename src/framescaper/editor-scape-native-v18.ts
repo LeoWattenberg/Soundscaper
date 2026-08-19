@@ -102,8 +102,14 @@ export function createFramescaperScapeNativeRuntimeV18(
 				{ signal },
 				{ retain() {} },
 			);
-			if (!inspection.readOnly || inspection.schemaVersion !== 18) {
-				throw new Error('Only an intrinsically read-only V18 Scape archive can be copied unchanged.');
+			// Format 2 is the archive that carries proxy and timing bodies, and
+			// copying its bytes is how those survive a save-copy unchanged. This
+			// used to be recognised by the archive opening read-only, which was
+			// true of exactly the attached ones until an attachment became state
+			// the product provides rather than one it opens read-only around.
+			const formatVersion = (inspection.manifest as Readonly<{ formatVersion?: unknown }>)?.formatVersion;
+			if (inspection.schemaVersion !== 18 || formatVersion !== 2) {
+				throw new Error('Only a format-2 V18 Scape archive can be copied unchanged.');
 			}
 			throwIfScapeAborted(signal);
 			const source = createBlobScapeArchiveByteSource(input);

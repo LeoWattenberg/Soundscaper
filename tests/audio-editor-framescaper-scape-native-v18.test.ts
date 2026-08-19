@@ -31,7 +31,7 @@ test('native V18 save-copy validates and streams format-2 bytes unchanged', asyn
 	assert.deepEqual(join(chunks), new Uint8Array(await exported.blob.arrayBuffer()));
 });
 
-test('native V18 save-copy refuses a writable format-1 project', async (context) => {
+test('native V18 save-copy refuses a format-1 project', async (context) => {
 	const { file } = await setup(context, false);
 	const exported = await file.exportProject(archiveProject({ attached: false }));
 	assert.ok(exported.blob);
@@ -43,7 +43,7 @@ test('native V18 save-copy refuses a writable format-1 project', async (context)
 			() => { writes += 1; },
 			{ signal: new AbortController().signal },
 		),
-		/intrinsically read-only/iu,
+		/format-2/iu,
 	);
 	assert.equal(writes, 0);
 });

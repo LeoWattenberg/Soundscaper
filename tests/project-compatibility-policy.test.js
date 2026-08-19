@@ -49,7 +49,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'json-opaque-extensions': 'implemented',
 		'binary-opaque-native-state': 'implemented',
 		'unavailable-native-feature': 'planned',
-		'video-proxy-fallback': 'planned',
+		'video-proxy-fallback': 'implemented',
 		'audio-freeze-fallback': 'implemented',
 		'future-archive-format-rejection': 'implemented',
 	};
@@ -462,7 +462,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const videoProxyFallback = rules.get('video-proxy-fallback');
 	assert.match(
 		videoProxyFallback.currentBehavior,
-		/originals remain authoritative.*Framescaper V18.*closed proxy attachment.*proxy and exact timing bodies.*claim-bound storage.*format-2 Scape.*desktop V10.*videoProxy capability stays unavailable.*re-attestation.*bounded body hashing.*exact timing.*preview-only trust.*selector.*original for export and delivery.*No maintained route consumes.*generation.*attach\/detach menu.*proxy-consuming preview or playback.*offline.*relink.*watch.*freshness.*remain unavailable.*rendered-fallback relationships remain separate.*not original-to-proxy/iu,
+		/originals remain authoritative.*shipped FFmpeg.*every frame at the presentation time.*display geometry.*conformance refuses a body whose boundaries drifted.*atomically as one undoable step.*leaves the tab editable.*carry an attachment forward only while.*relink.*replace.*reprobe.*reimport.*trim-media.*consolidate.*drop it in the same transaction.*re-attests every session.*original-or-unavailable.*videoProxy capability is available in Framescaper.*Soundscaper owns no such key.*attach and detach are not yet menu-reached.*rendered-fallback relationships remain separate.*not original-to-proxy/iu,
 	);
 });
 

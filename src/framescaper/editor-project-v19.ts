@@ -95,13 +95,9 @@ export function loadFramescaperProjectV19(
 	}
 	validateFramescaperProjectV19(profile, value);
 	const project = cloneFramescaperProjectV19(profile, value);
-	const attached = framescaperProjectV19HasProxyAttachment(project);
-	return {
-		project,
-		readOnly: attached,
-		intrinsicReadOnly: attached,
-		reason: attached ? 'proxy-attached' : null,
-	};
+	// See the V18 loader: a proxy attachment is provided state now, not a feature
+	// the product has to open read-only around.
+	return { project, readOnly: false, intrinsicReadOnly: false, reason: null };
 }
 
 export function framescaperProjectV19HasProxyAttachment(project: FramescaperProjectV19): boolean {

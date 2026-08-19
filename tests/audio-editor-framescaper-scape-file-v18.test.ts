@@ -84,10 +84,12 @@ test('V18 export writes complete format-1 and format-2 ZIPs that its inspector a
 	}, {
 		id: ARCHIVE_PROJECT_ID,
 		schemaVersion: 18,
-		readOnly: true,
+		// A format-2 archive carries proxy bodies and opens as ordinary work: the
+		// feature it declares is one this product provides.
+		readOnly: false,
 		exists: false,
 		formatVersion: 2,
-		compatible: false,
+		compatible: true,
 	});
 
 	const allNull = await fixture.file.exportProject(archiveProject({ attached: false }));
@@ -190,7 +192,9 @@ test('V18 inspector plugs into the shared file service without surrendering prod
 		},
 	});
 	assert.equal(inspected.schemaVersion, 18);
-	assert.equal(inspected.featureRequirementsCompatibility?.compatible, false);
+	// The archive requires the proxy-attachment feature, which this product
+	// provides, so inspection reports it compatible rather than bypassed.
+	assert.equal(inspected.featureRequirementsCompatibility?.compatible, true);
 });
 
 test('format-1 import uses the same product-owned canonical stage and archive publication', async (context) => {
