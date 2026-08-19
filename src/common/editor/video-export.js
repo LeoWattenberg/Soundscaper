@@ -435,6 +435,17 @@ function resolveCaptionDelivery(runtimeProject, format, range, requested) {
 		startFrame: range.startFrame,
 		endFrame: range.endFrame,
 	});
+	// Nothing to deliver is a refusal here rather than a delivery that quietly
+	// carries none. A muxed document with no cues is a zero-byte file the shipped
+	// FFmpeg refuses to open, so the delivery used to die in the encoder with a
+	// message that never mentioned captions; a sidecar would be an empty file and
+	// a burn-in a silent no-op. Which track is empty, and for which range, is
+	// what the operator needs to hear.
+	if (cues.length === 0) {
+		throw new RangeError(
+			`Track ${String(requested.trackId)} contributes no captions to the delivered range.`,
+		);
+	}
 	return Object.freeze({
 		trackId: requested.trackId,
 		cueCount: cues.length,

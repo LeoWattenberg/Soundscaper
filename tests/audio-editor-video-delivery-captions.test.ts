@@ -167,6 +167,49 @@ test('the dialog asks one question and the request carries both plan decisions',
 	);
 });
 
+test('a caption track with nothing in the delivered range is refused at plan build', () => {
+	// The plan used to admit this and stage a zero-byte SubRip document, which the
+	// shipped FFmpeg refuses to open at all: the delivery died in the encoder with
+	// a message that never mentioned captions, and the operator was told their
+	// export failed rather than that the track they picked was empty here.
+	const empty = { id: 'labels-empty', type: 'label' as const, name: 'Empty', labels: [] };
+	const withEmptyTrack = () => {
+		const value = project();
+		value.tracks.push(empty as never);
+		return value;
+	};
+
+	assert.throws(
+		() => createVideoExportPlan(withEmptyTrack(), {
+			range: { startFrame: 0, endFrame: 1_000 },
+			captions: { trackId: 'labels-empty' },
+		}),
+		/labels-empty.*no captions|no captions.*labels-empty/iu,
+	);
+	// Every delivery mode refuses, because none of them can deliver a cue that
+	// does not exist — a sidecar would be an empty file and a burn-in a no-op.
+	for (const captions of [
+		{ trackId: 'labels-empty', mux: false, sidecar: 'srt' },
+		{ trackId: 'labels-empty', mux: false, burnIn: true },
+	]) {
+		assert.throws(
+			() => createVideoExportPlan(withEmptyTrack(), { range: { startFrame: 0, endFrame: 1_000 }, captions }),
+			/no captions/iu,
+			`${JSON.stringify(captions)} must be refused too`,
+		);
+	}
+	// A populated track whose labels all fall outside this range is the same case.
+	assert.throws(
+		() => createVideoExportPlan(project(), {
+			range: { startFrame: 1_200, endFrame: 4_000 },
+			captions: { trackId: 'labels-1' },
+		}),
+		/no captions/iu,
+	);
+	// And the range that does contain cues still builds.
+	assert.equal(exportPlan({ captions: { trackId: 'labels-1' } }).captions.cueCount, 2);
+});
+
 function exportPlan(options: Readonly<Record<string, unknown>> = {}) {
 	return createVideoExportPlan(project(), {
 		range: { startFrame: 0, endFrame: 1_000 },
