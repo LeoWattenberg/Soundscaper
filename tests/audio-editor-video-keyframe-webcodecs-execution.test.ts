@@ -171,7 +171,7 @@ class FakeVideoFrame {
 	close() { this.closed = true; }
 }
 
-function recordingEncoder(options: Readonly<{ failOnFrame?: number }> = {}) {
+function recordingEncoder(options: Readonly<{ failOnFrame?: number; chunkBytes?: number }> = {}) {
 	const timestamps: number[] = [];
 	const keyFrames: boolean[] = [];
 	const record = {
@@ -207,7 +207,7 @@ function recordingEncoder(options: Readonly<{ failOnFrame?: number }> = {}) {
 				this.#error(new Error('the encoder gave up'));
 				return;
 			}
-			const bytes = new Uint8Array(8).fill(timestamps.length);
+			const bytes = new Uint8Array(options.chunkBytes ?? 8).fill(timestamps.length);
 			this.#output({
 				byteLength: bytes.byteLength,
 				copyTo(target: Uint8Array) { target.set(bytes); },
@@ -273,6 +273,11 @@ function fakeFfmpeg() {
 				capacityBytes,
 				async write(chunk: Uint8Array) {
 					events.push('write');
+					// The shipped ring refuses a write past its capacity outright, so
+					// the fake has to as well or it cannot see the tier that does it.
+					if (chunk.byteLength > capacityBytes) {
+						throw new RangeError('FFmpeg input stream chunks cannot exceed the bounded stream capacity.');
+					}
 					await Promise.resolve();
 					writes.push(chunk.slice());
 				},
@@ -290,3 +295,32 @@ function fakeFfmpeg() {
 	};
 	return record;
 }
+
+test('an encoded frame larger than the ring is handed over in pieces, not refused', async () => {
+	// The RGBA tier splits every frame at the ring capacity; this one handed the
+	// ring whatever the encoder emitted. A keyframe at the high tier on the
+	// largest admissible canvas can exceed a 1 MiB ring, and the ring refuses a
+	// write past its capacity outright — failing the delivery minutes into a
+	// render rather than falling back to anything.
+	const frameSource = source({ width: 4, height: 4, frameRate: 3 });
+	const ffmpeg = fakeFfmpeg();
+	const encoder = recordingEncoder({ chunkBytes: 10_000 });
+	const result = await encodeVideoKeyframeFrames({
+		frameSource,
+		producer: producerFor(frameSource),
+		ffmpeg: ffmpeg as never,
+		format: 'mp4',
+		inputPath: '/frames.h264',
+		outputPath: '/encoded.mp4',
+		ringCapacityBytes: 4_096,
+		webCodecs: decision(encoder),
+	});
+
+	assert.equal(result.videoByteLength, 3 * 10_000);
+	assert.equal(ffmpeg.writes.every((chunk) => chunk.byteLength <= 4_096), true);
+	assert.equal(
+		ffmpeg.writes.reduce((total, chunk) => total + chunk.byteLength, 0),
+		3 * 10_000,
+		'every byte the encoder produced still reaches the ring, in order',
+	);
+});

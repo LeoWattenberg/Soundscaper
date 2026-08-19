@@ -119,11 +119,35 @@ async function writeEncodedStream(
 		bitrate: webCodecs.bitrate,
 		encoderClass: webCodecs.encoderClass as never,
 		videoFrameClass: webCodecs.videoFrameClass as never,
-		write: (bytes) => context.stream.write(bytes, { signal: context.signal }),
+		// Split against the ring exactly as the RGBA tier splits a frame. An
+		// encoded frame is normally far smaller than the ring, but a keyframe at
+		// the high tier on the largest admissible canvas is not guaranteed to be:
+		// the ring refuses a write past its capacity outright, which would fail a
+		// delivery minutes into rendering rather than fall back to anything.
+		write: (bytes) => writeThroughRing(context, workload, bytes),
 		signal: context.signal,
 		...(context.assertCurrent ? { assertCurrent: context.assertCurrent } : {}),
 	});
 	await context.stream.close();
+}
+
+/** Hand the ring at most its capacity at a time, in order. */
+async function writeThroughRing(
+	context: VideoKeyframeExecutionProductionContext,
+	workload: VideoKeyframeEncoderWorkload,
+	bytes: Uint8Array,
+): Promise<void> {
+	const capacity = workload.ringCapacityBytes;
+	if (bytes.byteLength <= capacity) {
+		await context.stream.write(bytes, { signal: context.signal });
+		return;
+	}
+	for (let offset = 0; offset < bytes.byteLength; offset += capacity) {
+		await context.stream.write(
+			bytes.subarray(offset, Math.min(bytes.byteLength, offset + capacity)),
+			{ signal: context.signal },
+		);
+	}
 }
 
 /** Frames are authenticated against their own source, exactly as the RGBA tier does. */
