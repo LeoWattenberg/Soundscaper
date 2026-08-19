@@ -14,7 +14,7 @@ import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import MetadataEditorTabs from '../MetadataEditorTabs.tsx';
 import VideoDeliveryFields from '../VideoDeliveryFields.jsx';
 import { createProjectAdmEditorValue } from '../adm-metadata-editor-model.ts';
-import { deliveryTargetDialogFormat } from '../export-preset-model.ts';
+import { dialogSettingsFromDeliveryTarget } from '../export-preset-model.ts';
 import { createBextMetadataEditorValue } from '../bext-metadata-editor-model.ts';
 import {
 	VIDEO_EXPORT_DIALOG_FORMATS,
@@ -196,12 +196,8 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	// MP4 while a WebM lands is the dialog telling the operator something untrue.
 	const setVideoDeliverySetting = (name, value) => {
 		if (name !== 'deliveryTarget') return set(name, value);
-		const targetFormat = deliveryTargetDialogFormat(value);
-		return setSettings((current) => ({
-			...current,
-			deliveryTarget: value,
-			...(targetFormat ? { format: targetFormat } : {}),
-		}));
+		const patch = dialogSettingsFromDeliveryTarget(value);
+		return setSettings((current) => ({ ...current, ...patch, deliveryTarget: value }));
 	};
 	const setFormat = (format) => setSettings((current) => {
 		const passthrough = format === 'bw64' && current.adm?.mode === 'passthrough';

@@ -141,16 +141,35 @@ export function statedVideoDeliveryTarget(
 }
 
 /**
- * The dialog format a delivery target delivers in, or null when it delivers none.
+ * The dialog controls a delivery target implies, or nothing when it implies none.
  *
- * A blocked target is followed to its fallback here exactly as the request
- * builder follows it, so the control the operator sees and the file they get
- * name the same container.
+ * A target states a container and a canvas; the controls that show those to the
+ * operator have to follow it, or the dialog reads MP4 at 1280x720 while a
+ * cropped 1080x1920 WebM lands. A blocked target is followed to its fallback
+ * here exactly as the request builder follows it, so what is shown and what is
+ * delivered are the same delivery.
  */
-export function deliveryTargetDialogFormat(deliveryTarget: unknown): string | null {
+export function dialogSettingsFromDeliveryTarget(
+	deliveryTarget: unknown,
+): Readonly<Record<string, unknown>> | null {
 	const target = statedVideoDeliveryTarget({ deliveryTarget });
-	const format = target?.options.format;
-	return typeof format === 'string' && format ? videoExportRequestFormat(format) : null;
+	if (!target) return null;
+	const options = target.options;
+	const patch: Record<string, unknown> = {};
+	if (typeof options.format === 'string' && options.format) {
+		patch.format = videoExportRequestFormat(options.format);
+	}
+	if (typeof options.quality === 'string' && options.quality) patch.videoQuality = options.quality;
+	const canvas = options.canvas as Readonly<Record<string, unknown>> | undefined;
+	if (canvas && typeof canvas === 'object') {
+		const size = canvas.size as Readonly<{ width?: unknown; height?: unknown }> | undefined;
+		if (size && typeof size === 'object') {
+			patch.canvasWidth = size.width == null ? '' : String(size.width);
+			patch.canvasHeight = size.height == null ? '' : String(size.height);
+		}
+		patch.canvasFit = typeof canvas.fit === 'string' && canvas.fit ? canvas.fit : CANVAS_FIT_DEFAULT;
+	}
+	return Object.freeze(patch);
 }
 
 /**

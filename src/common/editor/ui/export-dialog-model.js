@@ -64,6 +64,15 @@ export function createExportDialogRequest(settings, options = {}) {
 		if (targetOptions && targetOptions.format !== undefined) {
 			targetOptions.format = videoExportRequestFormat(targetOptions.format);
 		}
+		// The target's canvas is the starting point and the dialog refines it field
+		// by field. Replacing it wholesale meant that stating any one field — a
+		// background colour, a rate — dropped the target's geometry entirely, and
+		// the delivery went out at the automatic canvas while the request still
+		// named the target it was no longer delivering.
+		const targetCanvas = targetOptions?.canvas;
+		const mergedCanvas = targetCanvas && typeof targetCanvas === 'object'
+			? { ...targetCanvas, ...canvas }
+			: canvas;
 		return {
 			mode: 'mix',
 			range: settings.range,
@@ -76,7 +85,7 @@ export function createExportDialogRequest(settings, options = {}) {
 			...(target?.degradedFrom ? { degradedFrom: target.degradedFrom } : {}),
 			// Attached only when the dialog actually states geometry or a tier, so
 			// an untouched dialog produces the request it always produced.
-			...(Object.keys(canvas).length > 0 ? { canvas } : {}),
+			...(Object.keys(mergedCanvas).length > 0 ? { canvas: mergedCanvas } : {}),
 			...(quality ? { quality } : {}),
 			...(audioLayout ? { audioLayout } : {}),
 			...(captions ? { captions } : {}),

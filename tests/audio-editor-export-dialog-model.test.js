@@ -238,3 +238,28 @@ test('a delivery target keeps the request in the dialog format namespace', () =>
 		assert.equal(isVideoExportDialogFormat(request.format), true, `${preset.id} names a dialog video format`);
 	}
 });
+
+test('a stated canvas field refines the delivery target rather than replacing it', () => {
+	const settings = {
+		mode: 'mix', range: 'project', format: 'video-mp4',
+		canvasWidth: '', canvasHeight: '', canvasFit: 'contain',
+		canvasFrameRate: '', canvasBackgroundColor: '', videoQuality: 'balanced',
+		deliveryTarget: 'web-vertical-1080',
+	};
+	const request = (patch) => createExportDialogRequest({ ...settings, ...patch }, { metadata: {} });
+
+	// The dialog's canvas record used to replace the target's whole canvas, so
+	// stating any one field dropped the target's geometry and the delivery went
+	// out at the automatic canvas while the report still named the target.
+	assert.deepEqual(request({}).canvas, { size: { width: 1_080, height: 1_920 }, fit: 'cover' });
+	assert.deepEqual(request({ canvasBackgroundColor: '#112233' }).canvas, {
+		size: { width: 1_080, height: 1_920 }, fit: 'cover', backgroundColor: '#112233',
+	});
+	assert.deepEqual(request({ canvasFrameRate: '25' }).canvas, {
+		size: { width: 1_080, height: 1_920 }, fit: 'cover', frameRate: 25,
+	});
+	// A field the dialog does state still wins over the target's.
+	assert.deepEqual(request({ canvasWidth: '720', canvasHeight: '1280' }).canvas, {
+		size: { width: 720, height: 1_280 }, fit: 'cover',
+	});
+});

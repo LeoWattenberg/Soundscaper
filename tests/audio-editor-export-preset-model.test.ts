@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	deliveryTargetDialogFormat,
+	dialogSettingsFromDeliveryTarget,
 	dialogSettingsFromPreset,
 	presetFormatFromDialog,
 	presetSettingsFromDialog,
@@ -308,12 +308,19 @@ test('exporting a preset writes through the preset purpose with a safe name', as
 	assert.match(String(requests[0].text), /"presets"/u);
 });
 
-test('the dialog format follows the delivery target it is given', () => {
-	assert.equal(deliveryTargetDialogFormat('web-1080p'), 'video-mp4');
-	assert.equal(deliveryTargetDialogFormat('web-vp9-1080p'), 'video-webm');
-	// A blocked target resolves through its fallback, so the control names the
-	// container that will actually be delivered rather than the one asked for.
-	assert.equal(deliveryTargetDialogFormat('native-uhd-hdr10'), 'video-mp4');
-	assert.equal(deliveryTargetDialogFormat(''), null);
-	assert.equal(deliveryTargetDialogFormat('not-a-target'), null);
+test('the dialog controls follow the delivery target they are given', () => {
+	assert.deepEqual(dialogSettingsFromDeliveryTarget('web-1080p'), {
+		format: 'video-mp4', videoQuality: 'balanced',
+		canvasWidth: '1920', canvasHeight: '1080', canvasFit: 'contain',
+	});
+	assert.deepEqual(dialogSettingsFromDeliveryTarget('web-vertical-1080'), {
+		format: 'video-mp4', videoQuality: 'balanced',
+		canvasWidth: '1080', canvasHeight: '1920', canvasFit: 'cover',
+	});
+	assert.equal(dialogSettingsFromDeliveryTarget('web-vp9-1080p')?.format, 'video-webm');
+	// A blocked target resolves through its fallback, so the controls name the
+	// delivery that will actually happen rather than the one asked for.
+	assert.equal(dialogSettingsFromDeliveryTarget('native-uhd-hdr10')?.format, 'video-mp4');
+	assert.equal(dialogSettingsFromDeliveryTarget(''), null);
+	assert.equal(dialogSettingsFromDeliveryTarget('not-a-target'), null);
 });
