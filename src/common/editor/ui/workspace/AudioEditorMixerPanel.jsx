@@ -8,6 +8,11 @@ import {
 	isMixerGraphV21Surface,
 	mixerTrackSurfaceRouteV21,
 } from '../../mixer-graph-surface-v21.ts';
+import {
+	folderOwnedMixerBusIds,
+	mixerAudibilityAuthority,
+	removableMixerBuses,
+} from './mixer-panel-model.ts';
 
 export default function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControls, displayAudioSupported, onOpenEffects }) {
 	const meters = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters);
@@ -18,10 +23,17 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 	const routes = isMixerGraphV21Surface(project?.mixer)
 		? Object.fromEntries(tracks.map((track) => [track.id, mixerTrackSurfaceRouteV21(project.mixer, track.id)]))
 		: project?.mixer?.routes || {};
+	// A folder that contains audio owns its group: the folder holds that bus's
+	// name, mute, solo, and existence, and the graph refuses to edit them on the
+	// bus itself. The strip is still shown — it is where the folder's audio is
+	// mixed — but its mute and solo speak to the folder, and it is not offered for
+	// removal, because removing it means removing the folder.
+	const folderBusIds = folderOwnedMixerBusIds(project);
 	const mixerBuses = [
 		...groups.map((bus) => ({ type: 'group', bus })),
 		...sends.map((bus) => ({ type: 'send', bus })),
 	];
+	const removableBuses = removableMixerBuses(mixerBuses, folderBusIds);
 	const effectLabels = new Map((snapshot.effects?.rackTypes || []).map(({ type, label }) => [type, label]));
 	const effectProps = (effects, scope, targetId) => (effects || []).map((effect) => ({
 		name: rackEffectLabel(effect, effectLabels, copy),
@@ -38,7 +50,16 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 		const targetId = channel.id || 'master';
 		const scope = isTrack ? 'track' : type;
 		const meter = isMaster ? meters?.master : meters?.[`${type}s`]?.[targetId];
+		const folderOwned = mixerAudibilityAuthority(type, targetId, folderBusIds) === 'folder';
 		const update = (changes) => {
+			if (isTrack) return controller.actions.track.update(targetId, changes);
+			if (isMaster) return controller.actions.mixer.updateMaster(changes);
+			// The folder is the authority for its own group's audibility, so the
+			// strip's toggles speak to it rather than to a bus that refuses them.
+			if (folderOwned) return controller.actions.trackFolders.update(targetId, changes);
+			return controller.actions.mixer.updateBus(type, targetId, changes);
+		};
+		const busUpdate = (changes) => {
 			if (isTrack) return controller.actions.track.update(targetId, changes);
 			if (isMaster) return controller.actions.mixer.updateMaster(changes);
 			return controller.actions.mixer.updateBus(type, targetId, changes);
@@ -55,8 +76,8 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 			meterLeft: mixerMeterPercent(meter),
 			meterRight: mixerMeterPercent(meter),
 			effects: effectProps(channel.effects, scope, targetId),
-			onVolumeChange: (value) => run(() => update({ gain: mixerDbToLinearGain(value) })),
-			onPanChange: (value) => run(() => update({ pan: Math.max(-1, Math.min(1, Number(value) / 100)) })),
+			onVolumeChange: (value) => run(() => busUpdate({ gain: mixerDbToLinearGain(value) })),
+			onPanChange: (value) => run(() => busUpdate({ pan: Math.max(-1, Math.min(1, Number(value) / 100)) })),
 			onMuteToggle: () => run(() => update({ mute: !channel.mute })),
 			onSoloToggle: () => run(() => update({ solo: !channel.solo })),
 			...(isTrack ? {
@@ -103,12 +124,12 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 				<strong>{copy.mixerRouting}</strong>
 				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('group')}>{copy.addGroupBus}</Button>
 				<Button variant="secondary" disabled={snapshot.readOnly} onClick={() => addBus('send')}>{copy.addSendBus}</Button>
-				{mixerBuses.length > 0 && <select aria-label={copy.removeBus} disabled={snapshot.readOnly} value="" onChange={(event) => {
-					const selected = mixerBuses.find(({ type, bus }) => `${type}:${bus.id}` === event.currentTarget.value);
+				{removableBuses.length > 0 && <select aria-label={copy.removeBus} disabled={snapshot.readOnly} value="" onChange={(event) => {
+					const selected = removableBuses.find(({ type, bus }) => `${type}:${bus.id}` === event.currentTarget.value);
 					if (selected) run(() => controller.actions.mixer.removeBus(selected.type, selected.bus.id));
 				}}>
 					<option value="">{copy.removeBus}</option>
-					{mixerBuses.map(({ type, bus }) => <option key={bus.id} value={`${type}:${bus.id}`}>{type === 'group' ? copy.groupBus : copy.sendBus}: {bus.name}</option>)}
+					{removableBuses.map(({ type, bus }) => <option key={bus.id} value={`${type}:${bus.id}`}>{type === 'group' ? copy.groupBus : copy.sendBus}: {bus.name}</option>)}
 				</select>}
 			</div>
 			{groups.length > 0 && <div className="kw-audio-editor__mixer-routing" role="region" aria-label={copy.mixerRouting}>
