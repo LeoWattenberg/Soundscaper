@@ -131,7 +131,7 @@ function fixture(revision: 'V21' | 'V23') {
 	});
 	const freeze: AudioTrackFreezeV1 = {
 		schemaVersion: 1,
-		derivedSourceId: derivedSource.id,
+		derivedSourceId: String(derivedSource.id),
 		...digests,
 		renderStartFrame: 0,
 		renderFrameCount: 8,

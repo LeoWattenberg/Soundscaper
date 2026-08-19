@@ -5,6 +5,10 @@ import {
 	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
 	isSoundscaperProductionProjectSchema,
 } from '../project-schema-version.ts';
+import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from '../track-folder-media-runtime.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 
 interface IsolatedTrackRenderTrackV21 extends Readonly<Record<string, unknown>> {
@@ -33,12 +37,18 @@ export interface IsolatedTrackRenderRequestV21 {
  * closed V21 route and no automation capable of changing that neutral path.
  */
 export function createIsolatedTrackRenderProjectV21(
-	project: IsolatedTrackRenderProjectV21,
+	authored: IsolatedTrackRenderProjectV21,
 	request: IsolatedTrackRenderRequestV21,
 ): IsolatedTrackRenderProjectV21 {
-	if (!isSoundscaperProductionProjectSchema(project.schemaVersion)) {
+	if (!isSoundscaperProductionProjectSchema(authored.schemaVersion)) {
 		throw new TypeError('An exact Soundscaper V21 project is required.');
 	}
+	// Flatten folder state onto the leaves before narrowing to one track. The
+	// projection is engine-only and keeps the authored folders and sequence
+	// nodes, so a hierarchy that still names the tracks this projection drops is
+	// one the engine refuses to load; deriving it once here and inheriting that
+	// derivation is what the mix render already does for the same reason.
+	const project = projectTrackFolderMediaStateV12(authored) as IsolatedTrackRenderProjectV21;
 	const selected = project.tracks.find((track) => track.id === request.trackId && track.type === 'audio');
 	if (!selected) throw new ReferenceError(`The V21 render track ${request.trackId} does not exist.`);
 	const widths = resolveTerminalChannelWidths(project, project.masterChannels).tracks;
@@ -56,7 +66,7 @@ export function createIsolatedTrackRenderProjectV21(
 		effects: request.effects.map((effect) => ({ ...effect })),
 	};
 	delete track.envelope;
-	return {
+	const isolated = {
 		...project,
 		tracks: [track as IsolatedTrackRenderTrackV21],
 		// Every authored lane either targets removed authority or could reactivate
@@ -67,4 +77,5 @@ export function createIsolatedTrackRenderProjectV21(
 			channelCount: widths.get(request.trackId) ?? project.masterChannels,
 		}], project.masterChannels),
 	};
+	return inheritTrackFolderMediaStateProjectionV12(project, isolated);
 }

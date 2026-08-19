@@ -18,7 +18,9 @@ import {
 	createEffect,
 	normalizeAudioSelectionEffectParams,
 } from '../src/common/editor/effects.js';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
+import { projectTrackFolderMediaStateV12 } from '../src/common/editor/track-folder-media-runtime.ts';
 import {
 	estimateAudioSelectionEffectOutputFrames,
 	estimateAudioSelectionEffectPeakBytes,
@@ -516,6 +518,52 @@ test('blocked and invalid spectral requests return before persistence while dele
 	const options = (harness.persisted.at(-1) as unknown[])[2] as { effectName: string };
 	assert.equal(options.effectName, 'Spectral delete');
 });
+
+test('dry rendering a foldered legacy project keeps a hierarchy the engine will load', async () => {
+	// The snapshot narrows tracks to the render target while keeping the authored
+	// folders and sequence nodes, so it has to carry the folder projection or the
+	// engine rejects a hierarchy that names tracks the snapshot no longer has.
+	const validated: unknown[] = [];
+	const harness = createHarness({
+		project: folderedLegacyProject() as unknown as EffectAudioProject,
+		validateRenderSnapshot: (snapshot) => {
+			assert.doesNotThrow(() => projectTrackFolderMediaStateV12(snapshot));
+			validated.push(snapshot);
+		},
+	});
+	await harness.service.renderDryTrackRange('voice', 0, 8, 1, null);
+	assert.equal(validated.length, 1);
+	const snapshot = harness.snapshots[0]!;
+	assert.deepEqual(snapshot.tracks.map((track) => track.id), ['voice']);
+});
+
+function folderedLegacyProject() {
+	return createAudioEditorProjectV17({
+		id: 'project-folders', title: 'Foldered legacy', now: '2026-08-19T12:00:00.000Z',
+		sources: [createAudioSourceV10({
+			id: 'source-a', storageKey: 'pcm:a', frameCount: 8, channelCount: 1,
+			sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+		})],
+		clips: [createAudioClipV10({
+			id: 'voice-clip', sourceId: 'source-a', title: 'Voice', timelineStartFrame: 0,
+			durationFrames: 8, sourceStartFrame: 0, sourceDurationFrames: 8,
+		})],
+		tracks: [
+			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'], effects: [] }),
+			createAudioTrackV10({ id: 'music', name: 'Music', clipIds: [], effects: [] }),
+		],
+		trackFolders: [{ id: 'stems', name: 'Stems', mute: true }],
+		sequences: [{
+			id: 'main',
+			trackNodes: [
+				{ kind: 'folder', id: 'stems', parentFolderId: null },
+				{ kind: 'track', id: 'voice', parentFolderId: 'stems' },
+				{ kind: 'track', id: 'music', parentFolderId: null },
+			],
+		}],
+		primarySequenceId: 'main',
+	});
+}
 
 function v21RenderProject() {
 	return createSoundscaperProjectV21({

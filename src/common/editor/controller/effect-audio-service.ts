@@ -10,6 +10,10 @@ import type {
 import type { PersistEffectResultOptions, SelectionEffectResult } from './effect-result-service.ts';
 import { createIsolatedTrackRenderProjectV21 } from './isolated-track-render-project-v21.ts';
 import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from '../track-folder-media-runtime.ts';
+import {
 	inspectSpectralEditChannels,
 	MAXIMUM_SPECTRAL_EDIT_USEFUL_BINARY_BYTES,
 	planSpectralEditWorkflowAdmission,
@@ -220,7 +224,14 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		if (!track) throw new Error(runtime.copy.audioTrackNotFound);
 		const channelCount = requestedChannelCount
 			?? (runtime.audacitySelectionChannelCount(project, trackId, startFrame, endFrame) || 1);
-		let snapshot = runtime.cloneProject(project) as unknown as MutableEffectAudioProject;
+		// Flatten folder state before narrowing to one track: the snapshot keeps the
+		// authored folders and sequence nodes, so a hierarchy that still names the
+		// tracks this render drops is one the engine refuses to load.
+		const mediaProject = projectTrackFolderMediaStateV12(project);
+		let snapshot = inheritTrackFolderMediaStateProjectionV12(
+			mediaProject,
+			runtime.cloneProject(mediaProject),
+		) as unknown as MutableEffectAudioProject;
 		const clipIdSet = requestedClipIds?.length ? new Set(requestedClipIds) : null;
 		if (isSoundscaperProductionProjectSchema(snapshot.schemaVersion)) {
 			snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
