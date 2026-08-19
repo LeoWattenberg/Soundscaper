@@ -4,6 +4,7 @@ import {
 	admitVideoKeyframeEncoderWorkload,
 	type VideoKeyframeEncoderWorkload,
 	type VideoKeyframeEncoderWorkloadRequest,
+	type VideoKeyframeVideoEncoderTier,
 } from './video-keyframe-encoder-admission.ts';
 import {
 	assertVideoKeyframeAudioInputSource,
@@ -15,6 +16,10 @@ import {
 	type VideoKeyframeExportFrameSource,
 } from './video-keyframe-export-frame-source.ts';
 import { executeVideoKeyframeEncoder } from './video-keyframe-encoder-execution.ts';
+import {
+	executeVideoKeyframeWebCodecsEncoder,
+	type VideoKeyframeWebCodecsEncode,
+} from './video-keyframe-webcodecs-execution.ts';
 
 export { VideoKeyframeEncoderExitError } from './video-keyframe-encoder-execution.ts';
 
@@ -31,6 +36,7 @@ export type {
 	VideoKeyframeEncoderFormat,
 	VideoKeyframeEncoderWorkload,
 	VideoKeyframeEncoderWorkloadRequest,
+	VideoKeyframeVideoEncoderTier,
 } from './video-keyframe-encoder-admission.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
@@ -81,15 +87,25 @@ export interface VideoKeyframeEncoderRequest extends VideoKeyframeEncoderWorkloa
 	readonly producer: VideoKeyframeRgbaFrameProducer;
 	readonly audioSource?: VideoKeyframeAudioInputSource;
 	readonly ffmpeg: VideoKeyframeEncoderFfmpegPort;
+	/**
+	 * Present when the capability probe chose the browser's encoder. Its
+	 * presence is what makes the workload a stream-copy one, so the command and
+	 * the encoder that fills its input cannot disagree.
+	 */
+	readonly webCodecs?: VideoKeyframeWebCodecsEncode;
 	readonly signal?: AbortSignal;
 	readonly assertCurrent?: () => void;
 }
 
 export interface VideoKeyframeEncoderResult {
 	readonly exitCode: 0;
+	/** Which encoder actually compressed the picture, not which one was asked for. */
+	readonly videoEncoder: VideoKeyframeVideoEncoderTier;
 	readonly frameCount: number;
 	readonly frameBytes: number;
 	readonly totalRgbaBytes: number;
+	/** Bytes handed to FFmpeg: raw frames on one tier, an encoded stream on the other. */
+	readonly videoByteLength: number;
 	readonly chunkCount: number;
 	readonly audioByteLength?: number;
 	readonly audioChunkCount?: number;
@@ -100,6 +116,8 @@ export interface VideoKeyframeEncoderResult {
 	readonly audioInputPath?: string;
 	readonly outputPath: string;
 	readonly ffmpegArguments: readonly string[];
+	/** The WebCodecs codec string, when that tier produced the stream. */
+	readonly codec?: string;
 }
 
 /**
@@ -126,6 +144,7 @@ export async function encodeVideoKeyframeFrames(
 	let signal: AbortSignal | undefined;
 	let assertCurrent: (() => void) | undefined;
 	let target: Uint8Array<ArrayBuffer> | null = null;
+	let webCodecs: VideoKeyframeWebCodecsEncode | null = null;
 	let returnedVideoStream: unknown = null;
 	let videoStream: VideoKeyframeFfmpegInputStream | null = null;
 	let returnedAudioStream: unknown = null;
@@ -163,6 +182,7 @@ export async function encodeVideoKeyframeFrames(
 		}
 		assertReady(signal, assertCurrent);
 		target = new Uint8Array(workload.frameBytes);
+		webCodecs = validateWebCodecs(request);
 		returnedVideoStream = await ffmpeg.createInputStream(
 			workload.inputPath,
 			workload.ringCapacityBytes,
@@ -185,18 +205,31 @@ export async function encodeVideoKeyframeFrames(
 			);
 		}
 		assertReady(signal, assertCurrent);
-		result = await executeVideoKeyframeEncoder({
-			ffmpeg,
-			videoStream,
-			...(audioStream ? { audioStream } : {}),
-			...(audioSource ? { audioSource } : {}),
-			frameSource,
-			producer,
-			target,
-			workload,
-			...(signal ? { signal } : {}),
-			...(assertCurrent ? { assertCurrent } : {}),
-		});
+		result = webCodecs
+			? await executeVideoKeyframeWebCodecsEncoder({
+				ffmpeg,
+				videoStream,
+				...(audioStream ? { audioStream } : {}),
+				...(audioSource ? { audioSource } : {}),
+				frameSource,
+				producer,
+				workload,
+				webCodecs,
+				...(signal ? { signal } : {}),
+				...(assertCurrent ? { assertCurrent } : {}),
+			})
+			: await executeVideoKeyframeEncoder({
+				ffmpeg,
+				videoStream,
+				...(audioStream ? { audioStream } : {}),
+				...(audioSource ? { audioSource } : {}),
+				frameSource,
+				producer,
+				target,
+				workload,
+				...(signal ? { signal } : {}),
+				...(assertCurrent ? { assertCurrent } : {}),
+			});
 	} catch (error) {
 		primary = error;
 		hasPrimary = true;
@@ -246,7 +279,7 @@ const ENCODER_FIELDS = new Set([
 	'frameSource', 'format', 'quality', 'inputPath', 'audioInputPath', 'outputPath', 'ringCapacityBytes',
 	'audioRingCapacityBytes', 'audioSource',
 	'maximumWidth', 'maximumHeight', 'maximumFrameCount', 'maximumTotalRgbaBytes',
-	'producer', 'ffmpeg', 'signal', 'assertCurrent',
+	'producer', 'ffmpeg', 'webCodecs', 'signal', 'assertCurrent',
 ]);
 const WORKLOAD_OPTION_FIELDS = [
 	'quality', 'ringCapacityBytes', 'audioInputPath', 'audioRingCapacityBytes',
@@ -261,6 +294,11 @@ function workloadRequest(
 		format: dataProperty(request, 'format', 'video keyframe encoder request'),
 		inputPath: dataProperty(request, 'inputPath', 'video keyframe encoder request'),
 		outputPath: dataProperty(request, 'outputPath', 'video keyframe encoder request'),
+		// Derived rather than stated: a command that stream-copies and a producer
+		// that writes raw frames would each be internally consistent and wrong.
+		videoEncoder: (Object.hasOwn(request, 'webCodecs')
+			? 'webcodecs'
+			: 'ffmpeg') satisfies VideoKeyframeVideoEncoderTier,
 	};
 	for (const key of WORKLOAD_OPTION_FIELDS) {
 		if (Object.hasOwn(request, key)) {
@@ -268,6 +306,32 @@ function workloadRequest(
 		}
 	}
 	return result as unknown as VideoKeyframeEncoderWorkloadRequest;
+}
+
+/** The probe's decision, admitted as a closed record like every other request field. */
+function validateWebCodecs(
+	request: Readonly<Record<string, unknown>>,
+): VideoKeyframeWebCodecsEncode | null {
+	if (!Object.hasOwn(request, 'webCodecs')) return null;
+	const value = closedRecord(
+		dataProperty(request, 'webCodecs', 'video keyframe encoder request'),
+		new Set(['codec', 'bitrate', 'encoderClass', 'videoFrameClass']),
+		'video keyframe WebCodecs decision',
+	);
+	const codec = dataProperty(value, 'codec', 'video keyframe WebCodecs decision');
+	if (typeof codec !== 'string' || codec.length === 0 || codec.length > 128) {
+		throw new TypeError('video keyframe WebCodecs decision.codec must be a codec string.');
+	}
+	const bitrate = dataProperty(value, 'bitrate', 'video keyframe WebCodecs decision');
+	if (typeof bitrate !== 'number' || !Number.isSafeInteger(bitrate) || bitrate <= 0) {
+		throw new RangeError('video keyframe WebCodecs decision.bitrate must be a positive integer.');
+	}
+	for (const key of ['encoderClass', 'videoFrameClass']) {
+		if (typeof dataProperty(value, key, 'video keyframe WebCodecs decision') !== 'function') {
+			throw new TypeError(`video keyframe WebCodecs decision.${key} must be a constructor.`);
+		}
+	}
+	return value as unknown as VideoKeyframeWebCodecsEncode;
 }
 
 function validateProducer(

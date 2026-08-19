@@ -36,6 +36,8 @@ test('encoder workload admission is exact, immutable, and owns one unambiguous R
 		ringCapacityBytes: 4_096,
 	});
 	assert.deepEqual(admission, {
+		videoEncoder: 'ffmpeg',
+		elementaryFormat: 'ivf',
 		width: 40,
 		height: 40,
 		frameRate: { num: 3, den: 1 },
@@ -210,9 +212,11 @@ test('encoder produces serial frames into one reusable allocation and capacity-b
 	assert.deepEqual(ffmpeg.events, ['create', 'exec', 'write', 'write', 'write', 'write', 'write', 'write', 'close', 'stream-dispose']);
 	assert.deepEqual(result, {
 		exitCode: 0,
+		videoEncoder: 'ffmpeg',
 		frameCount: 3,
 		frameBytes: 6_400,
 		totalRgbaBytes: 19_200,
+		videoByteLength: 19_200,
 		chunkCount: 6,
 		format: 'webm',
 		extension: '.webm',

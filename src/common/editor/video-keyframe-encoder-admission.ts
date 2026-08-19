@@ -49,6 +49,12 @@ export interface VideoKeyframeEncoderWorkloadRequest {
 	readonly format: VideoKeyframeEncoderFormat;
 	/** The delivery tier; absent means the one every keyed export encoded at. */
 	readonly quality?: VideoDeliveryQuality;
+	/**
+	 * Which encoder produced the video input. `ffmpeg` means raw RGBA frames
+	 * for FFmpeg to compress; `webcodecs` means an already-encoded elementary
+	 * stream that only needs a container. Absent means `ffmpeg`.
+	 */
+	readonly videoEncoder?: VideoKeyframeVideoEncoderTier;
 	readonly inputPath: string;
 	readonly audioInputPath?: string;
 	readonly outputPath: string;
@@ -60,7 +66,12 @@ export interface VideoKeyframeEncoderWorkloadRequest {
 	readonly maximumTotalRgbaBytes?: number;
 }
 
+export type VideoKeyframeVideoEncoderTier = 'ffmpeg' | 'webcodecs';
+
 export interface VideoKeyframeEncoderWorkload {
+	readonly videoEncoder: VideoKeyframeVideoEncoderTier;
+	/** The elementary-stream container a WebCodecs input must be framed as. */
+	readonly elementaryFormat: 'h264' | 'ivf';
 	readonly width: number;
 	readonly height: number;
 	readonly frameRate: Readonly<{ num: number; den: number }>;
@@ -84,11 +95,35 @@ interface VideoEncodingDescriptor {
 	readonly extension: '.mp4' | '.webm';
 	readonly mimeType: 'video/mp4' | 'video/webm';
 	readonly audioFrameSamples: 960 | 1_024;
+	/** How a pre-encoded stream for this container has to be framed. */
+	readonly elementaryFormat: 'h264' | 'ivf';
 	arguments(
 		frameRate: string,
 		audioPadSamples: number | null,
 		quality: VideoDeliveryFfmpegQuality,
+		videoEncoder: VideoKeyframeVideoEncoderTier,
 	): readonly string[];
+}
+
+/**
+ * The video half of the command, which is the only part a tier decides.
+ *
+ * Everything else — mapping, metadata stripping, the audio encoder, the
+ * container — is written once per format below and shared, so a WebCodecs
+ * delivery and an FFmpeg delivery of the same plan differ in how the picture
+ * was compressed and in nothing else. Audio in particular must not diverge:
+ * it is the same staged mix at the same tier-derived bit rate either way.
+ */
+function videoArguments(
+	videoEncoder: VideoKeyframeVideoEncoderTier,
+	frameRate: string,
+	encoded: readonly string[],
+): readonly string[] {
+	// The chunks arrive already compressed, and the input rate was declared
+	// where the elementary stream was opened; a copy may state neither again.
+	return videoEncoder === 'webcodecs'
+		? ['-c:v', 'copy']
+		: [...encoded, '-pix_fmt', 'yuv420p', '-r', frameRate];
 }
 
 const VIDEO_ENCODING_DESCRIPTORS: Readonly<Record<VideoKeyframeEncoderFormat, VideoEncodingDescriptor>> =
@@ -97,14 +132,17 @@ const VIDEO_ENCODING_DESCRIPTORS: Readonly<Record<VideoKeyframeEncoderFormat, Vi
 			extension: '.mp4' as const,
 			mimeType: 'video/mp4' as const,
 			audioFrameSamples: 1_024 as const,
+			elementaryFormat: 'h264' as const,
 			arguments: (
 				frameRate: string, audioPadSamples: number | null, quality: VideoDeliveryFfmpegQuality,
+				videoEncoder: VideoKeyframeVideoEncoderTier,
 			) => Object.freeze([
 				...(audioPadSamples === null ? [] : ['-filter:a', `apad=whole_len=${String(audioPadSamples)}`]),
 				'-map', '0:v:0', ...(audioPadSamples === null ? [] : ['-map', '1:a:0']),
 				'-map_metadata', '-1', '-map_chapters', '-1', '-sn', '-dn',
-				'-c:v', 'libx264', '-preset', String(quality.preset), '-crf', String(quality.crf),
-				'-pix_fmt', 'yuv420p', '-r', frameRate,
+				...videoArguments(videoEncoder, frameRate, [
+					'-c:v', 'libx264', '-preset', String(quality.preset), '-crf', String(quality.crf),
+				]),
 				...(audioPadSamples === null
 					? ['-an']
 					: ['-c:a', 'aac', '-b:a', `${String(quality.audioBitRateKbps)}k`]),
@@ -115,15 +153,18 @@ const VIDEO_ENCODING_DESCRIPTORS: Readonly<Record<VideoKeyframeEncoderFormat, Vi
 			extension: '.webm' as const,
 			mimeType: 'video/webm' as const,
 			audioFrameSamples: 960 as const,
+			elementaryFormat: 'ivf' as const,
 			arguments: (
 				frameRate: string, audioPadSamples: number | null, quality: VideoDeliveryFfmpegQuality,
+				videoEncoder: VideoKeyframeVideoEncoderTier,
 			) => Object.freeze([
 				...(audioPadSamples === null ? [] : ['-filter:a', `apad=whole_len=${String(audioPadSamples)}`]),
 				'-map', '0:v:0', ...(audioPadSamples === null ? [] : ['-map', '1:a:0']),
 				'-map_metadata', '-1', '-map_chapters', '-1', '-sn', '-dn',
-				'-c:v', 'libvpx-vp9', '-crf', String(quality.crf), '-b:v', '0',
-				'-deadline', String(quality.deadline), '-cpu-used', String(quality.cpuUsed),
-				'-pix_fmt', 'yuv420p', '-r', frameRate,
+				...videoArguments(videoEncoder, frameRate, [
+					'-c:v', 'libvpx-vp9', '-crf', String(quality.crf), '-b:v', '0',
+					'-deadline', String(quality.deadline), '-cpu-used', String(quality.cpuUsed),
+				]),
 				...(audioPadSamples === null
 					? ['-an']
 					: ['-c:a', 'libopus', '-b:a', `${String(quality.audioBitRateKbps)}k`]),
@@ -133,8 +174,8 @@ const VIDEO_ENCODING_DESCRIPTORS: Readonly<Record<VideoKeyframeEncoderFormat, Vi
 	});
 
 const WORKLOAD_FIELDS = new Set([
-	'frameSource', 'format', 'quality', 'inputPath', 'audioInputPath', 'outputPath', 'ringCapacityBytes',
-	'audioRingCapacityBytes',
+	'frameSource', 'format', 'quality', 'videoEncoder', 'inputPath', 'audioInputPath', 'outputPath',
+	'ringCapacityBytes', 'audioRingCapacityBytes',
 	'maximumWidth', 'maximumHeight', 'maximumFrameCount', 'maximumTotalRgbaBytes',
 ]);
 
@@ -185,6 +226,9 @@ export function admitVideoKeyframeEncoderWorkload(
 	}
 	const format = videoFormat(dataProperty(request, 'format', 'video keyframe encoder workload'));
 	const descriptor = VIDEO_ENCODING_DESCRIPTORS[format];
+	const videoEncoder = videoEncoderTier(optionalDataProperty(
+		request, 'videoEncoder', 'ffmpeg', 'video keyframe encoder workload',
+	));
 	// The tier the plan stated, read here rather than baked into the descriptor,
 	// so this path and the composed-graph path spell the same tier the same way.
 	const quality = resolveVideoDeliveryFfmpegQuality(format, normalizeVideoDeliveryQuality(
@@ -278,19 +322,30 @@ export function admitVideoKeyframeEncoderWorkload(
 		throw new RangeError('Video keyframe encoder padded audio exceeds its bounded CFR and codec tail.');
 	}
 	const ffmpegArguments = Object.freeze([
-		'-nostdin', '-y', '-f', 'rawvideo', '-pixel_format', 'rgba',
-		'-video_size', `${String(width)}x${String(height)}`,
-		'-framerate', frameRateToken,
+		'-nostdin', '-y',
+		// An elementary stream carries no geometry and, for H.264, no timing
+		// either, so the rate is declared on the input as the exact rational
+		// rather than left for the demuxer to infer.
+		...(videoEncoder === 'webcodecs'
+			? ['-f', descriptor.elementaryFormat, '-r', frameRateToken]
+			: [
+				'-f', 'rawvideo', '-pixel_format', 'rgba',
+				'-video_size', `${String(width)}x${String(height)}`,
+				'-framerate', frameRateToken,
+			]),
 		'-i', inputPath,
 		...(audioInputPath ? ['-i', audioInputPath] : []),
 		...(hasAudio ? [] : ['-frames:v', String(frameCount)]),
 		...descriptor.arguments(
 			frameRateToken, audioPadSamples === null ? null : Number(audioPadSamples), quality,
+			videoEncoder,
 		),
 		...(hasAudio ? ['-t', durationToken] : []),
 		outputPath,
 	]);
 	return Object.freeze({
+		videoEncoder,
+		elementaryFormat: descriptor.elementaryFormat,
 		width,
 		height,
 		frameRate,
@@ -368,6 +423,13 @@ function validateFrameSource(value: unknown): VideoKeyframeExportFrameSource {
 function videoFormat(value: unknown): VideoKeyframeEncoderFormat {
 	if (value !== 'mp4' && value !== 'webm') {
 		throw new RangeError('Video keyframe encoder format must be mp4 or webm.');
+	}
+	return value;
+}
+
+function videoEncoderTier(value: unknown): VideoKeyframeVideoEncoderTier {
+	if (value !== 'ffmpeg' && value !== 'webcodecs') {
+		throw new RangeError('Video keyframe encoder videoEncoder must be ffmpeg or webcodecs.');
 	}
 	return value;
 }
