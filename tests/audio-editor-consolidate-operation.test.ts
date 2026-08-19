@@ -140,10 +140,10 @@ function binding() {
 	};
 }
 
-function reportItem(result: { report: { items: readonly Record<string, never>[] } }, code: string) {
-	return (result.report.items as unknown as readonly {
+function reportItem(result: { report: unknown }, code: string) {
+	return (result.report as { items: readonly {
 		code: string; severity: string; data: Record<string, unknown>;
-	}[]).find((item) => item.code === code);
+	}[] }).items.find((item) => item.code === code);
 }
 
 function createHarness(options: {
