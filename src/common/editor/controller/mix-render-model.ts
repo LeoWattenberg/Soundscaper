@@ -316,10 +316,18 @@ interface MutableMixRenderProjectV21 extends MutableControllerProject {
 }
 
 function createMixRenderSnapshotV21(
-	project: ControllerProject,
+	authored: ControllerProject,
 	targetTracks: readonly ControllerTrack[],
 ): MutableControllerProject {
-	const snapshot = cloneProject(project) as MutableMixRenderProjectV21;
+	// Flatten folder state and inherit that projection before narrowing, exactly
+	// as the pre-production branch above does. The snapshot keeps the authored
+	// folders and sequence nodes, so an unprojected one describes a hierarchy the
+	// engine cannot reconcile with the tracks the mix actually renders.
+	const project = projectTrackFolderMediaStateV12(authored);
+	const snapshot = inheritTrackFolderMediaStateProjectionV12(
+		project,
+		cloneProject(project),
+	) as MutableMixRenderProjectV21;
 	const targetIds = new Set(targetTracks.map(({ id }) => id));
 	snapshot.tracks = snapshot.tracks
 		.filter((track) => track.type === 'audio' && targetIds.has(track.id))

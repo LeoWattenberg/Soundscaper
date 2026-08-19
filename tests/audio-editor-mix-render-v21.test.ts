@@ -18,6 +18,7 @@ import {
 	createAudioSourceV10,
 	createAudioTrackV10,
 } from '../src/common/editor/project-v10.ts';
+import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
 
 const NOW = '2026-08-14T12:00:00.000Z';
@@ -66,6 +67,49 @@ test('single-track V21 mix uses a closed direct graph and removes baked strip au
 	if (trackUpdate?.type !== 'track/update') assert.fail('Expected the mixed track reset command.');
 	assert.equal(Object.hasOwn(trackUpdate.changes, 'envelope'), false);
 });
+
+test('a V21 mix snapshot of a foldered project is one the engine will load', async () => {
+	// The snapshot narrows tracks to the mix targets while keeping the authored
+	// folders and sequence nodes, so it has to carry the folder projection: the
+	// pre-production sibling has always done this, and without it the engine
+	// rejects a hierarchy that names tracks the snapshot dropped.
+	const project = folderedFixture();
+	const voice = project.tracks.find(({ id }) => id === 'voice') as unknown as ControllerTrack;
+	const snapshot = createMixRenderSnapshot(project as unknown as ControllerProject, [voice]);
+	assert.deepEqual(snapshot.tracks.map(({ id }) => id), ['voice']);
+	// The folder muted its children; the mix of that track is still rendered,
+	// exactly as an unfoldered muted track's mix is.
+	assert.equal((snapshot.tracks[0] as unknown as Record<string, unknown>).mute, false);
+
+	const engine = createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null });
+	try {
+		assert.doesNotThrow(() => { engine.loadProject(snapshot, new Map()); });
+	} finally {
+		await engine.dispose();
+	}
+});
+
+function folderedFixture() {
+	return createSoundscaperProjectV21({
+		id: 'mix-v21-folders', title: 'Mix V21 folders', now: NOW,
+		sources: [source('voice-source'), source('music-source')],
+		clips: [clip('voice-clip', 'voice-source'), clip('music-clip', 'music-source')],
+		tracks: [
+			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] }),
+			createAudioTrackV10({ id: 'music', name: 'Music', clipIds: ['music-clip'] }),
+		],
+		trackFolders: [{ id: 'stems', name: 'Stems', mute: true }],
+		sequences: [{
+			id: 'main-sequence',
+			trackNodes: [
+				{ kind: 'folder', id: 'stems', parentFolderId: null },
+				{ kind: 'track', id: 'voice', parentFolderId: 'stems' },
+				{ kind: 'track', id: 'music', parentFolderId: null },
+			],
+		}],
+		primarySequenceId: 'main-sequence',
+	});
+}
 
 function fixture() {
 	const voiceSource = source('voice-source');
