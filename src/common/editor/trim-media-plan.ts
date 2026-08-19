@@ -171,6 +171,45 @@ export function trimMediaRetainsFrame(plan: TrimMediaSourcePlan, frame: number):
 	return plan.retained.some((range) => frame >= range.startFrame && frame < range.endFrame);
 }
 
+export interface TrimMediaRetainedRun extends TrimMediaRange {
+	/** Where this run begins in the trimmed source. */
+	readonly trimmedStartFrame: number;
+}
+
+/**
+ * Where each retained run lands once the discarded frames are gone.
+ *
+ * Proving which frames survive is only half of what a caller needs: every clip
+ * that referenced them has to be told where they moved to, and a caller left to
+ * work that out from the ranges would recompute this — differently — at each
+ * call site. The runs are already disjoint and ascending, so a run's new start
+ * is simply the total length of the runs before it.
+ */
+export function trimMediaRetainedRuns(plan: TrimMediaSourcePlan): readonly TrimMediaRetainedRun[] {
+	let trimmedStartFrame = 0;
+	return Object.freeze(plan.retained.map((range) => {
+		const run = Object.freeze({ ...range, trimmedStartFrame });
+		trimmedStartFrame += range.endFrame - range.startFrame;
+		return run;
+	}));
+}
+
+/**
+ * One source frame's position in the trimmed source, or null when it is gone.
+ *
+ * A discarded frame answers null rather than a nearby frame: a caller that
+ * silently slid a reference to the closest survivor would move an edit without
+ * saying so, and the whole point of the plan is that nothing referenced is lost.
+ */
+export function trimMediaMapFrame(plan: TrimMediaSourcePlan, frame: number): number | null {
+	for (const run of trimMediaRetainedRuns(plan)) {
+		if (frame >= run.startFrame && frame < run.endFrame) {
+			return run.trimmedStartFrame + (frame - run.startFrame);
+		}
+	}
+	return null;
+}
+
 /**
  * Merge into disjoint ascending ranges.
  *
