@@ -220,6 +220,14 @@ test('a container that cannot be copied is refused rather than re-wrapped', asyn
 	const video = result.run.sources.find(({ sourceId }) => sourceId === 'vid');
 	assert.equal(video?.outcome, 'write-failed');
 	assert.equal(result.edit.command, null);
+	// One report covers both halves, and a failure in either makes the whole
+	// operation incomplete rather than only the half it happened in.
+	assert.equal(result.complete, false);
+	assert.equal(
+		result.report.items.filter((item) => item.code === 'trim.write-failed').length,
+		1,
+		'a finding appears once, not once per half',
+	);
 	assert.match(
 		String(result.run.report.items.find((item) => item.code === 'trim.write-failed')?.data.reason),
 		/cannot be trimmed by copying/u,

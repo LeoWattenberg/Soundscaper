@@ -26,6 +26,14 @@ import {
 	type ConsolidateRunResult,
 } from './consolidate-media-service.ts';
 import { saveCurrentScapeArchiveManifest } from './scape-archive-manifest-action.ts';
+import {
+	planProjectTrim,
+	trimProjectMedia,
+	type TrimMediaFfmpegHost,
+	type TrimMediaPlan,
+	type TrimMediaProjectResult,
+	type TrimMediaStore,
+} from './trim-media-service.ts';
 
 export interface ProjectMediaActionRuntime {
 	readonly state: Record<string, unknown>;
@@ -35,6 +43,9 @@ export interface ProjectMediaActionRuntime {
 	readonly setStatus?: (message: string, tone?: string) => void;
 	readonly copy?: Readonly<Record<string, string>>;
 	readonly fileService?: { saveFile?: (request: never) => unknown } | null;
+	readonly ffmpeg?: TrimMediaFfmpegHost | null;
+	/** Applies a command batch through the project's own history. */
+	readonly commit?: (command: unknown) => unknown;
 }
 
 export interface ConsolidateActionResult {
@@ -69,6 +80,43 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 			);
 			return Object.freeze(result);
 		},
+		/** What trimming would discard, without cutting anything. */
+		planTrim: (): TrimMediaPlan | null => {
+			const request = trimRequest(runtime);
+			return request ? planProjectTrim(request) : null;
+		},
+		/**
+		 * Cut every trimmable source down to what the project still references,
+		 * and move the project onto the result in one undoable batch.
+		 *
+		 * The batch is committed rather than applied directly, because a trim
+		 * that rewrote the media and left the document alone would silently
+		 * change what the project plays — and one that could not be undone would
+		 * leave a user with no way back to the edit they had.
+		 */
+		trim: async (
+			options: Readonly<{ signal?: AbortSignal }> = {},
+		): Promise<TrimMediaProjectResult | null> => {
+			const request = trimRequest(runtime, options.signal);
+			if (!request) return null;
+			const copy = runtime.copy ?? {};
+			runtime.setStatus?.(copy.trimmingMedia ?? 'Trimming media');
+			const result = await trimProjectMedia(request);
+			if (result.edit.command) runtime.commit?.(result.edit.command);
+			// One report covering both halves: a source can be impossible to cut,
+			// or cut perfectly and then impossible to bind to, and a surface shown
+			// only one of those would call a half-finished trim complete.
+			runtime.state.deliveryReport = result.report;
+			runtime.publishDocumentSnapshot?.();
+			const complete = result.complete;
+			runtime.setStatus?.(
+				complete
+					? copy.trimmedMedia ?? 'Media trimmed.'
+					: copy.trimmedMediaIncomplete ?? 'Some media could not be trimmed.',
+				complete ? 'success' : 'warning',
+			);
+			return result;
+		},
 		/**
 		 * Save the checksum manifest of the archive this session last wrote.
 		 *
@@ -95,6 +143,17 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 			return result;
 		},
 	});
+}
+
+function trimRequest(runtime: ProjectMediaActionRuntime, signal?: AbortSignal) {
+	const project = runtime.getProject?.();
+	if (!project || !runtime.store || !runtime.ffmpeg) return null;
+	return {
+		project,
+		store: runtime.store as unknown as TrimMediaStore,
+		ffmpeg: runtime.ffmpeg,
+		...(signal ? { signal } : {}),
+	};
 }
 
 function consolidateRequest(runtime: ProjectMediaActionRuntime, signal?: AbortSignal) {

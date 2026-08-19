@@ -1790,7 +1790,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		createStableId, createWorkspacePreference, currentAudacityEffectParams, deleteEffectPreset,
 		deleteProject, deleteWorkspacePreference, disjoinSelectedClip, dismissAup4CompatibilitySummary,
 		duplicateProject, duplicateTrack, engine, exportEffectPreset,
-		exportLabels, exportVideo, findClip, findTrack,
+		exportLabels, exportVideo, ffmpeg, findClip, findTrack,
 		flushProject, generateSelectionSilence, generateSignal, repeatLastGenerator, getClipVisualData,
 		getProjectBinClipVisualData, getVideoSourceVisualData: projectVisualService.getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
 		handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,

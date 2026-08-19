@@ -38,7 +38,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	createStableId, createWorkspacePreference, currentAudacityEffectParams, deleteEffectPreset,
 	deleteProject, deleteWorkspacePreference, disjoinSelectedClip, dismissAup4CompatibilitySummary,
 	duplicateProject, duplicateTrack, engine, exportEffectPreset,
-	exportLabels, exportVideo, fileService, findTrack, persistSetting, publishDocumentSnapshot,
+	exportLabels, exportVideo, ffmpeg, fileService, findTrack, persistSetting, publishDocumentSnapshot,
 	flushProject, generateSelectionSilence, generateSignal, repeatLastGenerator, getClipVisualData,
 	getProjectBinClipVisualData, getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
 	handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
@@ -592,6 +592,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			measureLoudness: restricted('audioAnalysis', analysisService.measureLoudness),
 		}),
 		export: createExportActionGroup({ handleExportAction, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, getProject, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
-		media: createProjectMediaActionGroup({ state, getProject, store, publishDocumentSnapshot, setStatus, copy, fileService }),
+		media: createProjectMediaActionGroup({
+			state, getProject, store, publishDocumentSnapshot, setStatus, copy, fileService, ffmpeg, commit,
+		}),
 	});
 }

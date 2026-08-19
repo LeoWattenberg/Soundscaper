@@ -217,6 +217,12 @@ export default function createApplicationMenus({
 					onClick: actions.consolidateMedia,
 				},
 				{
+					id: 'trim-media',
+					label: copy.trimMedia,
+					disabled: editBlocked,
+					onClick: actions.trimMedia,
+				},
+				{
 					id: 'save-archive-manifest',
 					label: copy.saveArchiveManifest,
 					disabled: !snapshot.archiveManifest?.manifest,

@@ -38,6 +38,12 @@ import {
 	createTrimMediaProjectEdit,
 	type TrimMediaProjectEdit,
 } from '../trim-media-project-edit.ts';
+import {
+	addDeliveryReportItem,
+	createDeliveryReport,
+	sealDeliveryReport,
+	type DeliveryReport,
+} from '../delivery-report.ts';
 import { executeTrimMediaCopy, type TrimMediaFfmpegRuntime } from './trim-media-execution.ts';
 import { trimMediaContainerForMimeType } from '../trim-media-ffmpeg.ts';
 
@@ -89,6 +95,17 @@ export interface TrimMediaProjectResult {
 	readonly plan: TrimMediaPlan;
 	readonly run: TrimMediaRunResult;
 	readonly edit: TrimMediaProjectEdit;
+	/**
+	 * One report for one operation.
+	 *
+	 * Cutting and moving the document onto the result are two halves of the same
+	 * command, and each can fail in a way the other cannot see: a source may be
+	 * impossible to cut, or cut perfectly and then impossible to bind to. A
+	 * caller shown only one half would call a half-finished trim complete.
+	 */
+	readonly report: DeliveryReport;
+	/** True when nothing in either half was reported as an error. */
+	readonly complete: boolean;
 }
 
 /** What trimming would discard, without writing anything. */
@@ -119,7 +136,24 @@ export async function trimProjectMedia(
 		results: run.sources,
 		contentSha256: Object.fromEntries(digests),
 	});
-	return Object.freeze({ plan, run, edit });
+	const report = mergeTrimReports(run.report, edit.report);
+	return Object.freeze({
+		plan,
+		run,
+		edit,
+		report,
+		complete: report.items.every((item) => item.severity !== 'error'),
+	});
+}
+
+/** Both halves' findings, in the order they were produced. */
+function mergeTrimReports(cut: DeliveryReport, moved: DeliveryReport): DeliveryReport {
+	const draft = createDeliveryReport({
+		format: 'trim-media', container: null, codec: null,
+		sampleRate: null, channelCount: null, lossless: null,
+	});
+	for (const item of [...cut.items, ...moved.items]) addDeliveryReportItem(draft, item);
+	return sealDeliveryReport(draft);
 }
 
 export function createTrimMediaPorts(

@@ -24,6 +24,14 @@ const EXPORT_MENU_COPY_ENTRIES = Object.freeze([
 		'Some media could not be consolidated',
 		'Einige Medien konnten nicht zusammengeführt werden',
 	],
+	['trimMedia', 'Trim media to what is used', 'Medien auf Verwendetes kürzen'],
+	['trimmingMedia', 'Trimming media', 'Medien werden gekürzt'],
+	['trimmedMedia', 'Media trimmed', 'Medien gekürzt'],
+	[
+		'trimmedMediaIncomplete',
+		'Some media could not be trimmed',
+		'Einige Medien konnten nicht gekürzt werden',
+	],
 	['saveArchiveManifest', 'Save archive checksums', 'Archiv-Prüfsummen speichern'],
 	['archiveManifestSaved', 'Archive checksums saved', 'Archiv-Prüfsummen gespeichert'],
 ]);
