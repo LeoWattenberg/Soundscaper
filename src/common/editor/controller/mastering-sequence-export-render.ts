@@ -64,6 +64,15 @@ export interface MasteringSequenceRenderedDelivery {
 	readonly length: number;
 	readonly numberOfChannels: number;
 	readonly sampleRate: number;
+	/**
+	 * Answers channels the way an AudioBuffer does.
+	 *
+	 * The encode path reads the delivered audio through `audioBufferChannels`,
+	 * which calls this rather than reaching into `channels`. Leaving it off the
+	 * type is what let a bare planar record satisfy the compiler and then throw
+	 * at the encoder after a full render.
+	 */
+	getChannelData(channel: number): Float32Array;
 }
 
 /**

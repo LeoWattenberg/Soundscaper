@@ -88,7 +88,8 @@ test('a stems delivery conforms every stem instead of reporting nothing', async 
 		{ kind: 'stem', fileName: '02-bass.wav', trackId: 'track-2' },
 	];
 	stems.archive = {
-		format: 'zip', fileName: 'session-stems.zip', mimeType: 'application/zip', entries: [],
+		format: 'zip', fileName: 'session-stems.zip', mimeType: 'application/zip',
+		expectedByteLength: null, entries: [],
 	};
 	fixture.setPlan(stems);
 
@@ -110,7 +111,8 @@ test('a stems delivery whose stem does not reopen fails rather than publishing',
 	stems.mode = 'stems';
 	stems.outputs = [{ kind: 'stem', fileName: '01-drums.wav', trackId: 'track-1' }];
 	stems.archive = {
-		format: 'zip', fileName: 'session-stems.zip', mimeType: 'application/zip', entries: [],
+		format: 'zip', fileName: 'session-stems.zip', mimeType: 'application/zip',
+		expectedByteLength: null, entries: [],
 	};
 	fixture.setPlan(stems);
 	fixture.setCorruptOutput(true);

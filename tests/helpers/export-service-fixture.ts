@@ -23,7 +23,8 @@ export interface TestProject {
 
 export interface TestPlan extends Record<string, unknown> {
 	mode: string;
-	outputs: Array<{ fileName: string; trackId: string }>;
+	/** `kind` is what a stems delivery states on each member, as the plan does. */
+	outputs: Array<{ fileName: string; trackId: string; kind?: string }>;
 	outputBytesPerRender: number;
 	requiredTemporaryBytes: number;
 	archive: null | {

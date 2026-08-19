@@ -60,6 +60,9 @@ function createFixture(options: Readonly<{ genericReconciliation?: boolean }> = 
 	const state = {
 		preferences: { loaded: false },
 		effectPresets: { source: 'initial' },
+		// Bootstrap hydrates this from the stored collection, so the fixture has
+		// to start with the empty state rather than without the field.
+		deliveryPresets: createDeliveryPresetState(),
 		monitoring: false,
 		microphoneMetering: false,
 		recordingInputGain: 0,
