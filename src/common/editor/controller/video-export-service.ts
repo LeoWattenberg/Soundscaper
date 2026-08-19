@@ -255,6 +255,12 @@ export function createEditorVideoExportAction(
 			// It is session state, never project state.
 			state.deliveryReport = createVideoDeliveryReportForPlan(plan, {
 				hasNonMediaStreams: videoSourcesCarryNonMediaStreams(exportProject, plan),
+				...(requestedSettings.deliveryTarget
+					? { deliveryTargetId: String(requestedSettings.deliveryTarget) }
+					: {}),
+				...(requestedSettings.degradedFrom
+					? { degradedFrom: String(requestedSettings.degradedFrom) }
+					: {}),
 			});
 			const fileName = `${sanitizeVideoExportFileName(exportProject.title)}.${plan.extension}`;
 			const directPreparation = await prepareDirectVideoDestination(

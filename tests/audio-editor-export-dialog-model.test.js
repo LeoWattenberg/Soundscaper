@@ -166,6 +166,8 @@ test('the export dialog reaches the delivery canvas for a video format and only 
 	assert.match(fields, /hook="captionTrack"/u);
 	assert.match(fields, /hook="captionDelivery"/u);
 	assert.match(fields, /data-export-field="captionBurnIn"/u);
+	assert.match(fields, /hook="deliveryTarget"/u);
+	assert.match(fields, /data-export-field="deliveryTargetBlocked"/u);
 	for (const fit of VIDEO_CANVAS_FIT_MODES) {
 		assert.match(fields, new RegExp(`${fit}: 'videoCanvasFit`, 'u'), `${fit} needs a label of its own`);
 	}
@@ -198,6 +200,8 @@ test('every delivery-canvas control has copy in both catalogs', () => {
 		'videoCaptionDeliveryMux', 'videoCaptionDeliverySrt', 'videoCaptionDeliveryVtt',
 		'videoCaptionDeliveryMuxSrt', 'videoCaptionDeliveryMuxVtt',
 		'videoCaptionBurnIn', 'videoCaptionBurnInHint',
+		'videoDeliveryTarget', 'videoDeliveryTargetCustom', 'videoDeliveryUnavailable',
+		'videoDeliveryBlockedHint',
 	];
 	for (const locale of ['en', 'de']) {
 		const catalog = CANONICAL_EXTRA_COPY_BY_LOCALE[locale];

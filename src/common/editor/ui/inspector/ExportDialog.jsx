@@ -79,6 +79,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 		captionTrackId: '',
 		captionDelivery: 'mux',
 		captionBurnIn: false,
+		deliveryTarget: '',
 	});
 	const [error, setError] = useState('');
 	const [presetId, setPresetId] = useState('');

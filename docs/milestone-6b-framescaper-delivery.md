@@ -281,6 +281,22 @@ milestone's gate exists to catch.
   elementary-stream boundary frame-for-frame — an approximate rate is the
   one thing this tier may not trade for speed.
 
+**6B-4's substrate landed on 2026-08-18, and every gated row is still shut.**
+The catalog names nine delivery targets: three deliver today with what ships,
+and six — 4K HDR10, 10-bit SDR, hardware H.264, ProRes mezzanine, alpha
+mezzanine, and PNG image sequences — declare the licensing rows they wait on and
+resolve to no plan at all. A blocked target is followed to its fallback rather
+than refused, so a user who asks for 4K HDR gets 1080p and is told both the
+blocker and the substitution, in the dialog and in the delivery report.
+
+Nothing here clears a row or simulates one being cleared. The app carries a
+snapshot of only the rows the catalog names, because the matrix is a large
+config document the running product has no other reason to hold, and a test
+reads `config/production-licensing-matrix.json` and fails the moment the two
+disagree — the snapshot follows the recorded decision and cannot lead it. A row
+the matrix does not contain blocks exactly as a blocked row does: a gate nothing
+can find is not a gate that passed.
+
 ## 6B-4 — Electron format tier and platform presets (substrate only until rows clear)
 
 - **Outcome:** the preset and plan substrate for 4K/HDR, 10-bit, hardware

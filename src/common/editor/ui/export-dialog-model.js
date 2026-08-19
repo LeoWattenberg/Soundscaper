@@ -2,6 +2,7 @@ import {
 	statedVideoAudioLayout,
 	statedVideoCanvas,
 	statedVideoCaptions,
+	statedVideoDeliveryTarget,
 	statedVideoQuality,
 } from './export-preset-model.ts';
 
@@ -35,6 +36,16 @@ export function projectHasTimelineVideo(project) {
 	));
 }
 
+/**
+ * The export request the dialog's settings mean.
+ *
+ * Declared as a plain record rather than a union of the audio and video shapes:
+ * the two branches share almost nothing, so a union makes every caller narrow
+ * before reading a field that is obviously there, and the request is validated
+ * by the plan builder rather than by this type.
+ *
+ * @returns {Record<string, unknown>}
+ */
 export function createExportDialogRequest(settings, options = {}) {
 	const metadata = options.metadata || {};
 	if (isVideoExportDialogFormat(settings.format)) {
@@ -42,11 +53,17 @@ export function createExportDialogRequest(settings, options = {}) {
 		const quality = statedVideoQuality(settings);
 		const audioLayout = statedVideoAudioLayout(settings);
 		const captions = statedVideoCaptions(settings);
+		const target = statedVideoDeliveryTarget(settings);
 		return {
 			mode: 'mix',
 			range: settings.range,
 			format: settings.format,
 			metadata,
+			// A delivery target supplies the geometry and codec it stands for;
+			// anything the dialog states explicitly still wins over it, which is
+			// what makes the target a starting point rather than a lock.
+			...(target ? { ...target.options, deliveryTarget: target.presetId } : {}),
+			...(target?.degradedFrom ? { degradedFrom: target.degradedFrom } : {}),
 			// Attached only when the dialog actually states geometry or a tier, so
 			// an untouched dialog produces the request it always produced.
 			...(Object.keys(canvas).length > 0 ? { canvas } : {}),

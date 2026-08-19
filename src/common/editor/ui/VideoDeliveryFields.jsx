@@ -3,6 +3,11 @@
 import { VIDEO_CANVAS_FIT_MODES } from '../video-canvas-fit.ts';
 import { VIDEO_DELIVERY_QUALITY_TIERS } from '../video-delivery-quality.ts';
 import { VIDEO_DELIVERY_AUDIO_LAYOUTS } from '../video-delivery-audio-layout.ts';
+import {
+	findPlatformDeliveryPreset,
+	PLATFORM_DELIVERY_PRESETS,
+	resolvePlatformDeliveryAvailability,
+} from '../platform-delivery-presets.ts';
 import { DesignCheckbox, LabeledDropdown } from './inspector/inspector-controls.jsx';
 
 /** The rates a delivery usually asks for; the field accepts any of them or another. */
@@ -58,8 +63,40 @@ const CAPTION_DELIVERIES = Object.freeze([
  * makes one legible belongs to the audio dialog.
  */
 export default function VideoDeliveryFields({ copy, disabled, labelTracks = [], settings, onChange }) {
+	const target = findPlatformDeliveryPreset(settings.deliveryTarget);
+	const availability = target ? resolvePlatformDeliveryAvailability(target) : null;
+	const blockedTarget = availability && !availability.available
+		? {
+			availability,
+			fallbackLabel: findPlatformDeliveryPreset(availability.fallbackPresetId)?.label
+				?? copy.videoDeliveryTargetCustom,
+		}
+		: null;
 	return (
 		<>
+			<LabeledDropdown
+				label={copy.videoDeliveryTarget}
+				hook="deliveryTarget"
+				value={settings.deliveryTarget}
+				onChange={(value) => onChange('deliveryTarget', value)}
+				disabled={disabled}
+				options={[
+					{ value: '', label: copy.videoDeliveryTargetCustom },
+					...PLATFORM_DELIVERY_PRESETS.map((preset) => ({
+						value: preset.id,
+						label: resolvePlatformDeliveryAvailability(preset).available
+							? preset.label
+							: `${preset.label} — ${copy.videoDeliveryUnavailable}`,
+					})),
+				]}
+			/>
+			{blockedTarget && (
+				<p className="audio-editor-panel-hint" data-export-field="deliveryTargetBlocked">
+					{copy.videoDeliveryBlockedHint
+						.replace('{blocker}', blockedTarget.availability.blocker)
+						.replace('{fallback}', blockedTarget.fallbackLabel)}
+				</p>
+			)}
 			<label className="audio-editor-field" data-export-field="canvasSize">
 				<span>{copy.videoCanvasSize}</span>
 				<span className="audio-editor-export-canvas-size">

@@ -7,6 +7,7 @@ import {
 	frameTimestamp,
 	produceVideoWebCodecsStream,
 	VIDEO_WEBCODECS_MAXIMUM_QUEUE_DEPTH,
+	type VideoWebCodecsProduceRequest,
 } from '../src/common/editor/video-webcodecs-producer.ts';
 import { resolveVideoDeliveryWebCodecsBitrate } from '../src/common/editor/video-delivery-quality.ts';
 
@@ -121,7 +122,7 @@ function createHarness(options: {
 		keyFrameFlags,
 		closed: false,
 		maximumObservedQueue: 0,
-		request: null as never,
+		request: null as unknown as VideoWebCodecsProduceRequest,
 	};
 	let output: ((chunk: { byteLength: number; copyTo(target: Uint8Array): void }) => void) | null = null;
 	let onError: ((error: unknown) => void) | null = null;
@@ -188,6 +189,6 @@ function createHarness(options: {
 		encoderClass: FakeEncoder,
 		videoFrameClass: FakeVideoFrame,
 		write: (bytes: Uint8Array) => { written.push(bytes); },
-	} as never;
+	} as unknown as VideoWebCodecsProduceRequest;
 	return harness;
 }

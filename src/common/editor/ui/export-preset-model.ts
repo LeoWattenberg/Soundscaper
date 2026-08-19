@@ -7,6 +7,11 @@ import {
 } from '../delivery-preset.ts';
 import { DEFAULT_VIDEO_DELIVERY_QUALITY } from '../video-delivery-quality.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
+import {
+	findPlatformDeliveryPreset,
+	resolvePlatformDeliveryAvailability,
+	resolvePlatformDeliveryPlanOptions,
+} from '../platform-delivery-presets.ts';
 
 /**
  * Translation between the export dialog's flat string settings and the typed
@@ -94,6 +99,41 @@ export function statedVideoQuality(
 	const quality = settings?.videoQuality;
 	if (typeof quality !== 'string' || !quality || quality === VIDEO_QUALITY_DEFAULT) return null;
 	return quality;
+}
+
+/**
+ * The delivery target the dialog picked, resolved through its own gates.
+ *
+ * A target that cannot be delivered is followed to its fallback rather than
+ * refused, and says which target it stood in for, because a user who asked for
+ * 4K HDR should get the delivery that works and be told what happened — not an
+ * error, and not a file that quietly is not what they asked for.
+ */
+export function statedVideoDeliveryTarget(
+	settings: Readonly<Record<string, unknown>> | undefined,
+): Readonly<{
+	presetId: string;
+	options: Readonly<Record<string, unknown>>;
+	degradedFrom: string | null;
+}> | null {
+	const requested = findPlatformDeliveryPreset(settings?.deliveryTarget);
+	if (!requested) return null;
+	let preset = requested;
+	const seen = new Set<string>();
+	while (!resolvePlatformDeliveryAvailability(preset).available) {
+		if (seen.has(preset.id)) return null;
+		seen.add(preset.id);
+		const fallback = findPlatformDeliveryPreset(preset.fallbackPresetId);
+		if (!fallback) return null;
+		preset = fallback;
+	}
+	const options = resolvePlatformDeliveryPlanOptions(preset);
+	if (!options) return null;
+	return Object.freeze({
+		presetId: preset.id,
+		options,
+		degradedFrom: preset.id === requested.id ? null : requested.id,
+	});
 }
 
 /**

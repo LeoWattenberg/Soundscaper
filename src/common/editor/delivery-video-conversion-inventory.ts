@@ -35,6 +35,10 @@ interface VideoDeliveryPlan {
 export interface VideoDeliverySourceCharacteristics {
 	/** Whether any delivered source carried subtitle or data streams. */
 	readonly hasNonMediaStreams?: boolean;
+	/** The delivery target this export resolved to, when one was chosen. */
+	readonly deliveryTargetId?: string | null;
+	/** The target it stood in for, when that one could not be delivered. */
+	readonly degradedFrom?: string | null;
 }
 
 export function inventoryVideoDeliveryConversions(
@@ -91,6 +95,19 @@ export function inventoryVideoDeliveryConversions(
 	}
 
 	const plan_ = plan as Readonly<Record<string, unknown>>;
+	if (source.deliveryTargetId) {
+		conversions.push({
+			code: 'delivery.target',
+			disposition: source.degradedFrom ? 'converted' : 'preserved',
+			// A delivery that is not the one asked for is a warning even when the
+			// substitute is good, because the asking is what went unanswered.
+			severity: source.degradedFrom ? 'warning' : 'info',
+			data: {
+				target: source.deliveryTargetId,
+				...(source.degradedFrom ? { requested: source.degradedFrom } : {}),
+			},
+		});
+	}
 	const captions = isRecord(plan_.captions) ? plan_.captions : null;
 	if (captions) {
 		if (captions.mux === true) {
