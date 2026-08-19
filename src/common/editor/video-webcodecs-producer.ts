@@ -26,6 +26,9 @@ const MICROSECONDS_PER_SECOND = 1_000_000;
 /** How many frames may sit in the encoder queue before the producer waits. */
 export const VIDEO_WEBCODECS_MAXIMUM_QUEUE_DEPTH = 4;
 
+/** How long one wait for encoder progress may last before it is re-checked. */
+const ENCODER_TICK_MS = 4;
+
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
 interface EncodedChunkLike {
@@ -40,6 +43,9 @@ interface EncoderLike {
 	encode(frame: unknown, options?: Readonly<{ keyFrame?: boolean }>): void;
 	flush(): Promise<void>;
 	close(): void;
+	/** Fired as the encoder works through its queue, where implemented. */
+	addEventListener?(type: string, listener: () => void, options?: unknown): void;
+	removeEventListener?(type: string, listener: () => void, options?: unknown): void;
 }
 
 interface EncoderConstructor {
@@ -170,7 +176,7 @@ export async function produceVideoWebCodecsStream(
 			await drain();
 			while (encoder.encodeQueueSize > VIDEO_WEBCODECS_MAXIMUM_QUEUE_DEPTH) {
 				assertReady(request, failure);
-				await encoderTick();
+				await encoderTick(encoder);
 				await drain();
 			}
 		}
@@ -201,8 +207,33 @@ function signalOptions(signal: AbortSignal | undefined) {
 	return signal ? Object.freeze({ signal }) : Object.freeze({});
 }
 
-function encoderTick(): Promise<void> {
-	return new Promise((resolve) => { queueMicrotask(() => { resolve(); }); });
+/**
+ * Wait for the encoder to make progress, yielding the thread while we do.
+ *
+ * This must not be a microtask. An encoder does its work in tasks, and its
+ * output callbacks arrive as tasks; a loop that only ever awaits microtasks
+ * never lets the queue drain, so waiting for it to shrink freezes the page
+ * outright rather than merely spinning. That is exactly what happened before
+ * the browser evidence ran, and no unit test could see it, because a
+ * synchronous fake encoder never fills its queue in the first place.
+ *
+ * The `dequeue` event is the precise signal where a browser implements it; the
+ * timer is both the fallback for those that do not and the bound that keeps a
+ * queue which never drains from waiting forever on an event.
+ */
+function encoderTick(encoder: EncoderLike): Promise<void> {
+	return new Promise((resolve) => {
+		let settled = false;
+		const finish = (): void => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			encoder.removeEventListener?.('dequeue', finish);
+			resolve();
+		};
+		const timer = setTimeout(finish, ENCODER_TICK_MS);
+		encoder.addEventListener?.('dequeue', finish);
+	});
 }
 
 function abortError(): Error {

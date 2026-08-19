@@ -69,6 +69,21 @@ test('frames do not pile up in the encoder queue', async () => {
 	);
 });
 
+test('waiting for the queue yields the thread to the encoder that has to drain it', {
+	// Left to hang, this would take the page down with it rather than fail.
+	timeout: 20_000,
+}, async () => {
+	const harness = createHarness({ frameCount: 12, holdQueue: true, drainOnTask: true });
+	await produceVideoWebCodecsStream(harness.request);
+
+	assert.equal(harness.renderedFrames.length, 12);
+	assert.equal(harness.written.length, 12);
+	assert.ok(
+		harness.maximumObservedQueue <= VIDEO_WEBCODECS_MAXIMUM_QUEUE_DEPTH + 1,
+		`queue reached ${harness.maximumObservedQueue}; one RGBA frame is megabytes`,
+	);
+});
+
 test('an encoder error surfaces rather than a short stream being called a success', async () => {
 	const harness = createHarness({ frameCount: 4, failAtFrame: 2 });
 
@@ -108,6 +123,7 @@ function createHarness(options: {
 	frameCount: number;
 	videoCodec?: string;
 	holdQueue?: boolean;
+	drainOnTask?: boolean;
 	failAtFrame?: number;
 	onFrame?: (index: number) => void;
 }) {
@@ -151,6 +167,9 @@ function createHarness(options: {
 			// Without the hold, chunks come straight back as most software
 			// encoders deliver them; with it, the queue is left to grow.
 			if (!options.holdQueue) this.#emit();
+			// A real encoder works and calls back in tasks, never in microtasks,
+			// so a producer that waits on microtasks alone never sees it drain.
+			else if (options.drainOnTask) setTimeout(() => { this.#emit(); }, 0);
 			else queueMicrotask(() => { this.#emit(); });
 		}
 
