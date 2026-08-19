@@ -8,6 +8,7 @@ import {
 	PLATFORM_DELIVERY_PRESETS,
 	resolvePlatformDeliveryAvailability,
 } from '../platform-delivery-presets.ts';
+import { statedVideoDeliveryTarget } from './export-preset-model.ts';
 import { DesignCheckbox, LabeledDropdown } from './inspector/inspector-controls.jsx';
 
 /** The rates a delivery usually asks for; the field accepts any of them or another. */
@@ -65,10 +66,17 @@ const CAPTION_DELIVERIES = Object.freeze([
 export default function VideoDeliveryFields({ copy, disabled, labelTracks = [], settings, onChange }) {
 	const target = findPlatformDeliveryPreset(settings.deliveryTarget);
 	const availability = target ? resolvePlatformDeliveryAvailability(target) : null;
+	// The fallback named here has to be the one the delivery actually reaches,
+	// not the next link in the chain: a blocked target whose fallback is itself
+	// blocked is followed further, and naming the middle link promised a
+	// mezzanine while 1080p was what landed.
+	const delivered = availability && !availability.available
+		? statedVideoDeliveryTarget({ deliveryTarget: settings.deliveryTarget })
+		: null;
 	const blockedTarget = availability && !availability.available
 		? {
 			availability,
-			fallbackLabel: findPlatformDeliveryPreset(availability.fallbackPresetId)?.label
+			fallbackLabel: findPlatformDeliveryPreset(delivered?.presetId)?.label
 				?? copy.videoDeliveryTargetCustom,
 		}
 		: null;

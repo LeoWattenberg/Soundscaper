@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -13,6 +14,7 @@ import {
 import { PLATFORM_DELIVERY_LICENSING_ROWS } from '../src/common/editor/platform-delivery-licensing.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import { createExportDialogRequest } from '../src/common/editor/ui/export-dialog-model.js';
+import { statedVideoDeliveryTarget } from '../src/common/editor/ui/export-preset-model.ts';
 import { inventoryVideoDeliveryConversions } from '../src/common/editor/delivery-video-conversion-inventory.ts';
 
 const MATRIX = JSON.parse(
@@ -195,7 +197,15 @@ test('the report states the target, and says when it is not the one asked for', 
 		deliveryTargetId: 'web-1080p', degradedFrom: 'native-uhd-hdr10',
 	}).find(({ code }) => code === 'delivery.target');
 	assert.equal(degraded?.severity, 'warning', 'the asking is what went unanswered');
-	assert.deepEqual(degraded?.data, { target: 'web-1080p', requested: 'native-uhd-hdr10' });
+	// The substitution alone does not tell an operator why it happened, and the
+	// blocker is the half they can act on — it names the licensing row that has
+	// to clear before the target they asked for can ever deliver.
+	assert.deepEqual(degraded?.data, {
+		target: 'web-1080p',
+		requested: 'native-uhd-hdr10',
+		blocker: resolvePlatformDeliveryAvailability(findPlatformDeliveryPreset('native-uhd-hdr10')!).blocker,
+	});
+	assert.match(String((degraded?.data as { blocker: string }).blocker), /HEVC/u);
 
 	assert.equal(
 		inventoryVideoDeliveryConversions(plan, {}).some(({ code }) => code === 'delivery.target'),
@@ -239,3 +249,18 @@ function project() {
 		tracks: [{ id: 'track-1', type: 'video', clipIds: ['clip-1'] }],
 	};
 }
+
+test('the dialog names the target a blocked one actually falls back to', () => {
+	const fields = readFileSync('src/common/editor/ui/VideoDeliveryFields.jsx', 'utf8');
+
+	// Alpha mezzanine falls back to the ProRes mezzanine, which is blocked too, so
+	// the delivery walks on to web-1080p. Reading `fallbackPresetId` once told the
+	// operator they would get a ProRes mezzanine they were never going to get.
+	assert.match(fields, /statedVideoDeliveryTarget\(/u);
+	assert.equal(fields.includes('availability.fallbackPresetId'), false);
+	assert.equal(
+		statedVideoDeliveryTarget({ deliveryTarget: 'native-alpha-mezzanine' })?.presetId,
+		'web-1080p',
+	);
+	assert.equal(findPlatformDeliveryPreset('native-alpha-mezzanine')!.fallbackPresetId, 'native-mezzanine-prores');
+});
