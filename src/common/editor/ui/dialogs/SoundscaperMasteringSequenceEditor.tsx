@@ -20,17 +20,38 @@ import type { MasteringSequenceDialogOperation } from './SoundscaperProductionDi
  * whose region was deleted appears with its problem rather than disappearing.
  */
 
+/**
+ * The add a new sequence is created by.
+ *
+ * A mastering sequence states the timeline sequence it orders, and this panel is
+ * the only place in the product that creates one; a payload without it is
+ * refused before the document is touched, which is how the button came to fail
+ * on every press.
+ */
+export function masteringSequenceAddOperation(
+	primarySequenceId: string,
+	id: string,
+	name: string,
+): MasteringSequenceDialogOperation {
+	return {
+		type: 'mastering-sequence/add',
+		sequence: { id, sequenceId: primarySequenceId, name, entries: [] },
+	};
+}
+
 interface SoundscaperMasteringSequenceEditorProps {
 	readonly copy: SoundscaperProductionCopy;
 	readonly disabled: boolean;
 	readonly sequences: readonly DocumentMasteringSequenceSnapshot[];
 	readonly regions: readonly DocumentMasteringSequenceRegionSnapshot[];
+	/** A mastering sequence states the sequence it orders; without one it cannot be created. */
+	readonly primarySequenceId: string;
 	readonly createId: () => string;
 	readonly onOperation: (operation: MasteringSequenceDialogOperation) => void;
 }
 
 export default function SoundscaperMasteringSequenceEditor({
-	copy, disabled, sequences, regions, createId, onOperation,
+	copy, disabled, sequences, regions, primarySequenceId, createId, onOperation,
 }: SoundscaperMasteringSequenceEditorProps) {
 	const [selectedId, setSelectedId] = useState('');
 	const [regionId, setRegionId] = useState('');
@@ -51,10 +72,9 @@ export default function SoundscaperMasteringSequenceEditor({
 					</option>)}
 				</select>
 			</label>
-			<button type="button" onClick={() => onOperation({
-				type: 'mastering-sequence/add',
-				sequence: { id: createId(), name: copy.newMasteringSequence, entries: [] },
-			})}>{copy.newMasteringSequence}</button>
+			<button type="button" disabled={!primarySequenceId} onClick={() => onOperation(
+				masteringSequenceAddOperation(primarySequenceId, createId(), copy.newMasteringSequence),
+			)}>{copy.newMasteringSequence}</button>
 			{sequence && <button type="button" onClick={() => {
 				onOperation({ type: 'mastering-sequence/remove', sequenceId: sequence.id });
 				setSelectedId('');

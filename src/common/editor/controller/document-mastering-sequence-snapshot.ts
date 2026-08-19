@@ -66,11 +66,18 @@ export interface DocumentMasteringSequenceDocumentSnapshot {
 	readonly sequences: readonly DocumentMasteringSequenceSnapshot[];
 	/** The regions an entry may point at, in timeline order. */
 	readonly regions: readonly DocumentMasteringSequenceRegionSnapshot[];
+	/**
+	 * The sequence a new mastering sequence belongs to, or empty when the document
+	 * owns none. A mastering sequence states this, and the panel that creates one
+	 * has no other way to know it.
+	 */
+	readonly primarySequenceId: string;
 }
 
 const EMPTY: DocumentMasteringSequenceDocumentSnapshot = Object.freeze({
 	sequences: Object.freeze([]),
 	regions: Object.freeze([]),
+	primarySequenceId: '',
 });
 
 /** Project mastering sequences only from documents that own the collection. */
@@ -85,6 +92,7 @@ export function createDocumentMasteringSequenceSnapshot(
 		.map((sequence) => snapshotSequence(document, sequence, byId));
 	return Object.freeze({
 		sequences: Object.freeze(sequences),
+		primarySequenceId: String(document.primarySequenceId ?? ''),
 		regions: Object.freeze(regions
 			.filter((region) => region.sequenceId === document.primarySequenceId)
 			.map((region) => Object.freeze({

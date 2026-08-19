@@ -309,6 +309,7 @@ export default function SoundscaperProductionDialog({
 					disabled={disabled}
 					sequences={model.masteringSequences}
 					regions={model.masteringRegions}
+					primarySequenceId={model.masteringPrimarySequenceId}
 					createId={() => createStableId('mastering-sequence')}
 					onOperation={(operation) => perform('mastering-sequence', () => operation)}
 				/>}

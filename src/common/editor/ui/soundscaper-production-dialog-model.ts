@@ -95,6 +95,8 @@ export interface SoundscaperProductionDialogModel {
 	readonly masteringSequences: readonly DocumentMasteringSequenceSnapshot[];
 	/** The regions an entry may point at, in timeline order. */
 	readonly masteringRegions: readonly DocumentMasteringSequenceRegionSnapshot[];
+	/** The sequence a newly created mastering sequence states, empty when none. */
+	readonly masteringPrimarySequenceId: string;
 	readonly operationsBlocked: boolean;
 	readonly blockReason: SoundscaperProductionDialogBlockReason;
 }
@@ -166,6 +168,7 @@ export function createSoundscaperProductionDialogModel(
 		mixerCounts,
 		masteringSequences: masteringSequenceSnapshot.sequences,
 		masteringRegions: masteringSequenceSnapshot.regions,
+		masteringPrimarySequenceId: masteringSequenceSnapshot.primarySequenceId,
 		operationsBlocked: blockReason !== null,
 		blockReason,
 	});

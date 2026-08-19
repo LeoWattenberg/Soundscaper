@@ -5,6 +5,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import { applySoundscaperProjectCommandV23 } from '../src/soundscaper/editor-project-v23-commands.ts';
 import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
 import {
 	createSoundscaperProductionApplicationMenuItems,
@@ -13,7 +14,9 @@ import {
 import {
 	createSoundscaperProductionDialogModel,
 } from '../src/common/editor/ui/soundscaper-production-dialog-model.ts';
-import SoundscaperMasteringSequenceEditor from '../src/common/editor/ui/dialogs/SoundscaperMasteringSequenceEditor.tsx';
+import SoundscaperMasteringSequenceEditor, {
+	masteringSequenceAddOperation,
+} from '../src/common/editor/ui/dialogs/SoundscaperMasteringSequenceEditor.tsx';
 import {
 	createDocumentMasteringSequenceSnapshot,
 } from '../src/common/editor/controller/document-mastering-sequence-snapshot.ts';
@@ -116,6 +119,7 @@ test('the editor renders the sequence, its entries, and the regions it can add',
 		disabled={false}
 		sequences={snapshot.sequences}
 		regions={snapshot.regions}
+		primarySequenceId={snapshot.primarySequenceId}
 		createId={() => 'generated'}
 		onOperation={() => undefined}
 	/>);
@@ -142,6 +146,7 @@ test('the title field holds the override, not the region name it falls back to',
 		disabled={false}
 		sequences={snapshot.sequences}
 		regions={snapshot.regions}
+		primarySequenceId={snapshot.primarySequenceId}
 		createId={() => 'generated'}
 		onOperation={() => undefined}
 	/>);
@@ -150,6 +155,38 @@ test('the title field holds the override, not the region name it falls back to',
 	assert.match(titleInput, /placeholder="One"/u, 'the region name is shown as the placeholder it is');
 	assert.match(titleInput, /value=""/u,
 		'and the field itself is empty, so Apply stores no override the operator never asked for');
+});
+
+test('the New sequence button states the sequence the new one orders', () => {
+	// A mastering sequence names the timeline sequence it orders, and the panel is
+	// the only place that creates one. Emitting the add without it made the button
+	// fail on every press: the command refused before the document was touched, so
+	// no sequence could be created from the product at all.
+	const project = albumProject();
+	const snapshot = createDocumentMasteringSequenceSnapshot(project);
+	assert.equal(snapshot.primarySequenceId, project.primarySequenceId);
+
+	const operation = masteringSequenceAddOperation(
+		snapshot.primarySequenceId, 'generated', SOUNDSCAPER_PRODUCTION_COPY.newMasteringSequence,
+	);
+	const created = applySoundscaperProjectCommandV23(project, operation as never, { now: NOW });
+	assert.equal(created.masteringSequences.length, 2);
+	assert.equal(
+		created.masteringSequences.find(({ id }) => id === 'generated')?.sequenceId,
+		project.primarySequenceId,
+	);
+
+	// A document with no sequence to order cannot create one, and the button says so.
+	const markup = renderToStaticMarkup(<SoundscaperMasteringSequenceEditor
+		copy={SOUNDSCAPER_PRODUCTION_COPY}
+		disabled={false}
+		sequences={snapshot.sequences}
+		regions={snapshot.regions}
+		primarySequenceId=""
+		createId={() => 'generated'}
+		onOperation={() => undefined}
+	/>);
+	assert.match(markup, /<button type="button" disabled=""[^>]*>New sequence<\/button>/u);
 });
 
 test('an undeliverable sequence shows its reason instead of hiding', () => {
@@ -161,6 +198,7 @@ test('an undeliverable sequence shows its reason instead of hiding', () => {
 		disabled={false}
 		sequences={snapshot.sequences}
 		regions={snapshot.regions}
+		primarySequenceId={snapshot.primarySequenceId}
 		createId={() => 'generated'}
 		onOperation={() => undefined}
 	/>);
@@ -176,6 +214,7 @@ test('an empty project says what to do rather than showing an empty editor', () 
 		disabled={false}
 		sequences={[]}
 		regions={[]}
+		primarySequenceId="main-sequence"
 		createId={() => 'generated'}
 		onOperation={() => undefined}
 	/>);
