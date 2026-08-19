@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { keyframeAtOrBefore } from './ffmpeg-video-keyframe-index.ts';
 import {
 	type DeliveryReport,
 	addDeliveryReportItem,
@@ -192,6 +193,31 @@ export function trimMediaRetainedRuns(plan: TrimMediaSourcePlan): readonly TrimM
 		trimmedStartFrame += range.endFrame - range.startFrame;
 		return run;
 	}));
+}
+
+/**
+ * The same runs, each beginning where a lossless cut can begin.
+ *
+ * A stream-copied run that starts on a predicted frame decodes to garbage until
+ * the next keyframe, so the referenced frames would be present and unwatchable.
+ * Widening each run back to the keyframe at or before its start fixes that, and
+ * it can only ever retain more: this never moves a start forward, so every frame
+ * the plan proved was referenced is still retained afterwards.
+ *
+ * Widening can make two runs meet or overlap, so they are merged again — leaving
+ * them separate would write a cut between frames the file treats as one run.
+ */
+export function alignTrimMediaRunsToKeyframes(
+	plan: TrimMediaSourcePlan,
+	keyframes: readonly number[],
+): readonly TrimMediaRange[] {
+	if (!Array.isArray(keyframes) || keyframes.length === 0) {
+		throw new TypeError('Aligning trim runs requires the source keyframe index.');
+	}
+	return mergeRanges(plan.retained.map((range) => Object.freeze({
+		startFrame: keyframeAtOrBefore(keyframes, range.startFrame),
+		endFrame: range.endFrame,
+	})));
 }
 
 /**
