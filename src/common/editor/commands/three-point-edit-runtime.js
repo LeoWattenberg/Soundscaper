@@ -9,6 +9,7 @@ import {
 import { addClip } from './clip-basic-runtime.js';
 import { processTrackRange } from './range-runtime.js';
 import { resolveRangeSequenceGeometry } from './range-sequence-geometry.ts';
+import { stageTimelineAnnotationInsertMutation } from './timeline-annotation-clipboard.ts';
 import {
 	assertUnusedClipId,
 	normalizeClipForProject,
@@ -130,6 +131,14 @@ export function overwriteThreePointEdit(project, command) {
 export function insertThreePointEdit(project, command) {
 	const range = normalizeFrameRange(command.startFrame, command.endFrame, 'edit range');
 	const geometry = editGeometry(project, command, range);
+	// Markers and regions ride the same insertion the media does, on any sequence
+	// whose media lanes are all opened; leaving them behind made them annotate
+	// whatever moved under them. Staged before the edit and committed after it,
+	// like the paste that already does this.
+	const commitAnnotations = stageTimelineAnnotationInsertMutation(
+		project,
+		insertionSpansBySequenceId(geometry),
+	);
 	for (const trackId of trackIdsOf(command)) {
 		const track = requireTrack(project, trackId);
 		const operationRange = geometry.trackRanges.get(trackId) ?? range;
@@ -144,6 +153,21 @@ export function insertThreePointEdit(project, command) {
 		);
 	}
 	placeEditedClips(project, command, range);
+	commitAnnotations();
+}
+
+/** The span each fully opened sequence gains, which its annotations answer to. */
+function insertionSpansBySequenceId(geometry) {
+	const spans = new Map();
+	for (const sequence of geometry.sequences) {
+		if (!sequence.sampleRange || !sequence.mediaTrackIds.length) continue;
+		if (sequence.targetedMediaTrackIds.length !== sequence.mediaTrackIds.length) continue;
+		spans.set(sequence.sequenceId, {
+			startFrame: sequence.sampleRange.startFrame,
+			endFrame: sequence.sampleRange.endFrame,
+		});
+	}
+	return spans;
 }
 
 /** Split at the insert point and move everything from there on to the right. */

@@ -187,6 +187,57 @@ test('an insert opens every media lane in the sequence so nothing loses sync', (
 	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
+test('an insert carries the markers and regions that sat after it', () => {
+	// Insert-mode paste and ripple delete both move annotations with the media.
+	// The three-point insert opened every media lane and left them behind, so a
+	// marker ended up annotating whatever moved under it.
+	const project = annotatedProject();
+	const command = editCommand(project, {
+		mode: 'insert',
+		startFrame: SECOND,
+		endFrame: SECOND * 2,
+		placements: [placement()],
+	});
+	const edited = applyEditorCommand(project, command, { now: NOW }) as ProjectRecord;
+	const annotations = edited.timelineAnnotations as unknown as readonly Record<string, unknown>[];
+
+	assert.deepEqual(
+		annotations.map(({ id, positionFrame, startFrame, endFrame }) => (
+			{ id, positionFrame, startFrame, endFrame }
+		)),
+		[
+			// Before the insert point: untouched.
+			{ id: 'before', positionFrame: 0, startFrame: undefined, endFrame: undefined },
+			// After it: moved by exactly the span the media opened.
+			{ id: 'after', positionFrame: SECOND * 3, startFrame: undefined, endFrame: undefined },
+			{ id: 'region-after', positionFrame: undefined, startFrame: SECOND * 3, endFrame: SECOND * 4 },
+		],
+	);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
+});
+
+function annotatedProject(): ProjectRecord {
+	const project = editableProject() as unknown as Record<string, unknown>;
+	return createCurrentAudioEditorProject({
+		...project,
+		timelineAnnotations: [
+			{
+				id: 'before', sequenceId: SEQUENCE.id, kind: 'marker', anchor: 'sample',
+				name: 'Before', positionFrame: 0, color: 'auto', batchId: null, opaqueExtensions: {},
+			},
+			{
+				id: 'after', sequenceId: SEQUENCE.id, kind: 'marker', anchor: 'sample',
+				name: 'After', positionFrame: SECOND * 2, color: 'auto', batchId: null, opaqueExtensions: {},
+			},
+			{
+				id: 'region-after', sequenceId: SEQUENCE.id, kind: 'region', anchor: 'sample',
+				name: 'Region', startFrame: SECOND * 2, endFrame: SECOND * 3,
+				color: 'auto', batchId: null, opaqueExtensions: {},
+			},
+		],
+	} as never) as unknown as ProjectRecord;
+}
+
 test('a linked pair lands under one A/V link', () => {
 	const project = editableProject();
 	const command = editCommand(project, {

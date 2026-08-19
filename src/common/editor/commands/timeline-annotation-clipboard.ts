@@ -94,6 +94,41 @@ export function createTimelineAnnotationClipboardDescriptors(
 	}));
 }
 
+/**
+ * Open the same span in the annotations that an edit opens in the media.
+ *
+ * A three-point insert ripples every media lane of the sequences it names, and a
+ * marker or region that sat after the insert point annotates material that has
+ * moved. Insert-mode paste has always expanded them; the three-point insert was
+ * the odd one out and left them behind, describing whatever ended up under them.
+ */
+export function stageTimelineAnnotationInsertMutation(
+	projectValue: unknown,
+	spanBySequenceId: ReadonlyMap<string, Readonly<{ startFrame: number; endFrame: number }>>,
+): () => void {
+	const project = dataRecord(projectValue, 'project') as MutableClipboardAnnotationProject;
+	if (spanBySequenceId.size === 0) return () => undefined;
+	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) return () => undefined;
+	if (project.timelineAnnotations.length === 0) return () => undefined;
+	if (!isRuntimeProjectProjection(project)) {
+		throw new TypeError('Timeline annotation insertion requires a trusted runtime projection.');
+	}
+	const authoritative = restoreTimelineAnnotationsFromRuntimeProjection(
+		project as unknown as RuntimeTimelineAnnotationProject,
+	);
+	const canonical = createTimelineAnnotationsV11(
+		expandAnnotations(project, authoritative, spanBySequenceId),
+		collectionContext(project),
+	);
+	const projected = resolveRuntimeTimelineAnnotationsInDocumentOrder({
+		...project,
+		timelineAnnotations: canonical,
+	});
+	return () => {
+		project.timelineAnnotations.splice(0, project.timelineAnnotations.length, ...projected);
+	};
+}
+
 /** Validate ID/sequence maps and stage expansion plus additions as one projected replacement. */
 export function stageTimelineAnnotationClipboardPaste(
 	projectValue: unknown,
