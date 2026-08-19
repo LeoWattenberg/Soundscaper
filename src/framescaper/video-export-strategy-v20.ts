@@ -106,6 +106,9 @@ export function createFramescaperVideoExportStrategyV20(
 					}),
 					...(request.quality === undefined ? {} : { quality: request.quality }),
 					...(request.audioLayout === undefined ? {} : { audioLayout: request.audioLayout }),
+					// Forwarded so the plan builder can answer for it. Leaving it out
+					// here is what made a caption request vanish without a word.
+					...(request.captions === undefined ? {} : { captions: request.captions }),
 				},
 			);
 			authorities.set(plan, Object.freeze({

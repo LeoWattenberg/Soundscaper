@@ -519,3 +519,35 @@ function sinkFixture(): FfmpegOutputSink<FfmpegOutputSink<unknown>> {
 	});
 	return sink;
 }
+
+test('a keyed delivery answers for a caption request instead of dropping it', () => {
+	const keyed = keyedProject();
+	const strategy = createFramescaperVideoExportStrategyV20(PROFILE);
+	const exportProject = strategy.createExportProject({
+		canonicalProject: keyed,
+		delivery: fallbackFreeDelivery(keyed),
+	});
+	const planRequest = {
+		canonicalProject: keyed,
+		exportProject,
+		format: 'mp4' as const,
+		range: { startFrame: 48_000, endFrame: 96_000 },
+		includeAudio: true,
+		canvas: { maximumWidth: 640, maximumHeight: 360 },
+	};
+
+	// The strategy used to forward canvas, quality and audio layout and drop
+	// captions, so a delivery that asked for a muxed track, a sidecar and burn-in
+	// produced none of the three and reported the omission as though nothing had
+	// been asked for. The keyed path stages no files of its own and stream-copies
+	// its picture, so it cannot deliver them — and now says so.
+	assert.throws(
+		() => strategy.createPlan({
+			...planRequest,
+			captions: { trackId: 'labels-1', mux: true, sidecar: 'srt', burnIn: true },
+		}),
+		/keyed export path cannot deliver captions/u,
+	);
+	assert.ok(strategy.createPlan({ ...planRequest, captions: undefined }));
+	assert.ok(strategy.createPlan(planRequest));
+});

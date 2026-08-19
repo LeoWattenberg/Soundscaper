@@ -65,6 +65,7 @@ interface ExactCanvas {
 
 const REQUEST_FIELDS = [
 	'format', 'range', 'includeAudio', 'audioFileName', 'canvas', 'quality', 'audioLayout',
+	'captions',
 ] as const;
 const CANVAS_FIELDS = [
 	'size', 'fit', 'width', 'height', 'frameRate', 'backgroundColor',
@@ -161,6 +162,19 @@ function snapshotRequest(value: unknown): FramescaperVideoKeyframeExportPlanRequ
 		result.audioLayout = normalizeVideoDeliveryAudioLayout(
 			data(request, 'audioLayout', 'Framescaper keyed export request'),
 			'Framescaper keyed export audioLayout',
+		);
+	}
+	// The keyed path encodes finished frames and stream-copies them into a
+	// container: it stages no files of its own, so there is nowhere to put a
+	// caption document or the font a burn-in draws with, and a stream-copied
+	// picture cannot be filtered at all. Dropping the request silently is what
+	// this used to do — the delivery carried no track, no sidecar and no burned
+	// cues, and the report stated the omission as though none had been asked for.
+	if (Object.hasOwn(request, 'captions')
+		&& data(request, 'captions', 'Framescaper keyed export request') != null) {
+		throw new RangeError(
+			'The keyed export path cannot deliver captions; export a range without authored keyframes, '
+			+ 'or deliver this range without a caption track.',
 		);
 	}
 	return Object.freeze(result) as FramescaperVideoKeyframeExportPlanRequestV20;
