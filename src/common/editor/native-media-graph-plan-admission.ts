@@ -208,6 +208,13 @@ function assertBurnIn(value: unknown, captionsValue: unknown): void {
 	nonNegativeInteger(burnIn.bottomMarginPx, 'burnIn.bottomMarginPx');
 	nonNegativeInteger(burnIn.lineSpacingPx, 'burnIn.lineSpacingPx');
 	const cues = arrayValue(burnIn.cues, 'video export graph plan burnIn cues');
+	// `null` is the one shape a stage with nothing to draw takes, which is what
+	// the branch above admits. A stage carrying an empty cue list is a second
+	// spelling of the same decision that no producer emits, and it would build a
+	// filter chain with no filter between its labels.
+	if (cues.length < 1) {
+		nativeMediaPlanViolation('malformed', 'Video export graph plan burn-in stage draws no cues.');
+	}
 	if (cues.length > VIDEO_BURN_IN_MAXIMUM_CUES) {
 		nativeMediaPlanViolation('oversized', 'Video export graph plan burns in more cues than the engine admits.');
 	}

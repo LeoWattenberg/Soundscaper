@@ -157,10 +157,13 @@ export const VIDEO_DELIVERY_BURN_IN_GOLDENS = Object.freeze({
 	}),
 	vertical: Object.freeze({
 		canvas: Object.freeze({ width: 1_080, height: 1_920 }),
-		fontSizePx: 86,
+		// Sized from width, not height: 4.5% of 1920 is 86 px, at which a caption
+		// past 28 characters draws off both edges of a 1080-wide frame. The
+		// reference line is what binds here instead.
+		fontSizePx: 55,
 		bottomMarginPx: 192,
-		boxBorderPx: 22,
-		lineSpacingPx: 22,
+		boxBorderPx: 14,
+		lineSpacingPx: 14,
 	}),
 });
 

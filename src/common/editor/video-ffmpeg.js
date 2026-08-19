@@ -388,8 +388,12 @@ function burnInFilterChain(burnIn, inputLabel) {
 			// No `%{...}` expansion: a caption saying "100%" is a caption, not a
 			// directive, and expansion is the only thing that would read it as one.
 			':expansion=none',
-			`:enable='between(t${ESCAPED_COMMA}${ffmpegNumber(cue.startSeconds, 'burnIn cue start')}`,
-			`${ESCAPED_COMMA}${ffmpegNumber(cue.endSeconds, 'burnIn cue end')})'`,
+			// Half-open, not `between`: that is closed at both ends, so a cue ending
+			// exactly where the next begins drew both captions on the frame they
+			// share, one over the other. Contiguous cues are what a transcript
+			// label track produces, so that boundary is the common case.
+			`:enable='gte(t${ESCAPED_COMMA}${ffmpegNumber(cue.startSeconds, 'burnIn cue start')})`,
+			`*lt(t${ESCAPED_COMMA}${ffmpegNumber(cue.endSeconds, 'burnIn cue end')})'`,
 		].join('');
 	});
 	return `[${inputLabel}]${steps.join(',')}[video_out]`;
