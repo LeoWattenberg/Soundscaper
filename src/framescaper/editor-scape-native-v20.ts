@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	rebindFramescaperMulticameraSourceIdentitiesV18,
+} from './editor-multicamera-source-rebind-v18.ts';
 import { copyFutureScapeArchive } from '../common/editor/scape-archive-copy.ts';
 import type { ScapeProjectInput } from '../common/editor/scape-project-input.ts';
 import {
@@ -52,6 +55,10 @@ export function createFramescaperScapeNativeRuntimeV20(
 				...options,
 				migrateProject,
 				currentProjectSchemaVersion: 20,
+				// A colliding source id is reassigned on import, and the generic
+				// remapper only follows the references the shared schema owns. A
+				// multicamera member's source is Framescaper's own.
+				rebindProjectSourceIdentities: rebindFramescaperMulticameraSourceIdentitiesV18,
 			});
 			if (result.readOnly) return result;
 			return Object.freeze({
