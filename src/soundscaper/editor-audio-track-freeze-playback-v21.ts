@@ -14,6 +14,9 @@ import {
 	type TransientAnalysisPcmStore,
 } from '../common/editor/controller/transient-analysis-pcm-access.ts';
 import { normalizeMixerGraphV21 } from '../common/editor/mixer-graph-v21.ts';
+import {
+	inheritTrackFolderMediaStateProjectionV12,
+} from '../common/editor/track-folder-media-runtime.ts';
 import { soundscaperAudioTrackFreezeRequirementIdV21 } from './editor-project-feature-requirements-v21.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
@@ -305,8 +308,16 @@ function projectVerifiedFreezes(
 			|| edge.destination.strip.kind !== 'track'
 			|| !trackIds.has(edge.destination.strip.id)),
 	});
+	// The input is the folder-media projection the playback service built, and its
+	// trust is private: a spread carries the enumerable marker across and leaves
+	// the trust behind, which makes the rebuilt document one the engine refuses on
+	// load. Inheriting it is what says this derivation is the same projection with
+	// the frozen renders swapped in.
+	const rebuilt = Object.freeze({
+		...project, tracks: Object.freeze(projectedTracks), clips, automationLanes: lanes, mixer,
+	});
 	return Object.freeze({
-		project: Object.freeze({ ...project, tracks: Object.freeze(projectedTracks), clips, automationLanes: lanes, mixer }),
+		project: inheritTrackFolderMediaStateProjectionV12(project, rebuilt),
 		sourceIds: Object.freeze(admissions.map(({ freeze }) => freeze.derivedSourceId)),
 	});
 }
