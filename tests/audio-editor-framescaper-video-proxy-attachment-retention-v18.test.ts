@@ -84,7 +84,7 @@ test('removing the last occurrence of a source drops it', () => {
 	// A Project Bin occurrence is still an occurrence.
 	const inBin = structuredClone(project());
 	inBin.clips = [];
-	inBin.projectBin = { clips: [{ id: 'bin-1', sourceId: 'video-1', retimeMap: null }] };
+	(inBin.projectBin as { clips: unknown[] }).clips = [{ id: 'bin-1', sourceId: 'video-1', retimeMap: null }];
 	assert.deepEqual(carry(project(), inBin), attachment());
 });
 
@@ -121,7 +121,8 @@ test('a source that was never attached, or has gone, ends explicitly null', () =
 
 	// And a source the edit deleted takes its attachment with it.
 	const removed = structuredClone(project());
-	removed.sources = (removed.sources as Record<string, unknown>[]).filter(({ id }) => id !== 'video-1');
+	removed.sources = (removed.sources as Record<string, unknown>[])
+		.filter(({ id }) => id !== 'video-1') as typeof removed.sources;
 	removed.clips = [];
 	retainFramescaperVideoProxyAttachmentsV18(removed, framescaperVideoProxyAttachmentsV18(before));
 	assert.deepEqual(framescaperVideoProxyAttachmentsV18(removed), new Map());
