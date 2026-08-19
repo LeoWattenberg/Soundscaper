@@ -314,10 +314,34 @@ before code.
 
 ## 6C-3 — Exit evidence
 
-Cross-format round-trip fixtures over the 6C-1 profiles, the archive
-verification fixtures of 6C-2, and the `.scape` handoff preservation sentence
-of the exit gate (roadmap.md:747) witnessed alongside the report-completeness
-sentence (roadmap.md:748, observed by
-`delivery.unreportedConversions eq 0`, config/quality-budgets.json:1337).
+**Each sentence of the gate now has a witness, and they are named here rather
+than assumed.**
+
+The cross-format fixture is
+`tests/audio-editor-m6-interchange-exit-evidence.test.ts`. Every profile already
+had its own conformance test against a third-party reader, and
+`audio-editor-interchange-frame-agreement.test.ts` pins the single hardest
+sample; what neither did was take one project through all three at once and ask
+whether they describe the same edit. A project whose EDL and OTIO disagree about
+where a cut falls cannot be handed to a finishing suite however each file
+validates on its own. The fixture is lossy on purpose — a speed change, a
+transition, three cuts — so the gate's other sentence, that exchange reports
+itemize every conversion or omission, is witnessed on a project that has
+omissions rather than on one that has none.
+
+The archive verification fixtures are
+`tests/audio-editor-scape-archive-manifest.test.ts`, which builds a manifest
+from the bytes a finished archive holds and then reports substitution,
+truncation, a missing member and an unlisted one as four distinct findings.
+
+The `.scape` handoff preservation sentence is witnessed by the browser specs
+that already own it: `tests/browser/audio-editor-scape-product-roundtrip.spec.js`
+for editable state across a product handoff, and
+`tests/browser/audio-editor-scape-fallback-return-roundtrip.spec.js` for
+fallbacks returning intact. Duplicating them here would add a second claim about
+the same bytes rather than a second check of them.
+
 Interchange correctness runs entirely in ordinary CI; 6C claims no
-environment-gated numbers.
+environment-gated numbers, and `delivery.unreportedConversions eq 0`
+(config/quality-budgets.json) remains the exit gate's own observation of the
+report-completeness sentence.
