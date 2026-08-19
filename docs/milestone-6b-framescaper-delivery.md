@@ -369,15 +369,35 @@ can find is not a gate that passed.
 
 ## 6B-5 — Exit evidence
 
-The 6B surface recorded against the ten-minute video master of
-`m6-reference-master-suite-v1` (config/quality-budgets.json:976-987) under
-workload `m6-reference-master-delivery` (config/quality-budgets.json:1324-1343):
+**6B-5 is complete, in the only sense a gate with no lab can be.** The 6B
+surface is recorded against the ten-minute video master of
+`m6-reference-master-suite-v1` under workload `m6-reference-master-delivery`:
 `delivery.videoFrameCountError eq 0`, `delivery.avDriftMaximumMs lte 20`,
-`delivery.captionCueErrorFrames lte 1`, `delivery.webVideoRenderP95Rtf lte 12`
-(config/quality-budgets.json:1331-1339). The fixture's 720p spec predates the
-6B-1 canvas lift; the companion fixture entry including 9:16 is a reviewed
-budget change under the threshold-change rules
-(docs/quality-budgets.md:607), never a silent edit. Correctness runs in
-ordinary CI; RTF rows qualify only on the named environments, no-retry, and
-both are unprovisioned today — the collector refuses to publish acceptance,
-exactly as the M5 collector does.
+`delivery.captionCueErrorFrames lte 1`, `delivery.webVideoRenderP95Rtf lte 12`.
+Not one threshold moved for this slice.
+
+What did change is what the gate covers. The suite's 720p canvas predates the
+6B-1 canvas lift, so on its own it could no longer exercise the thing this
+milestone added: a run could deliver the landscape master twice, satisfy every
+threshold, and never reframe anything. `m6-reference-master-vertical-v1` is now
+registered beside it — a companion entry rather than an edit, because a fixture
+change is a new fixture revision and never a silent edit to a baseline
+(docs/quality-budgets.md, "Milestone 6 reference master, and its vertical
+companion"). It is the same master at 1080×1920, identical in audio and video
+duration and in frame rate, which is what keeps one real-time denominator
+correct for both.
+
+Registering it would have been decorative without three refusals, so the
+collector has them. A video artifact must now state the canvas it delivered, and
+a run that files no delivery at a registered canvas is rejected rather than
+scored. A companion that drifts on duration or rate is refused, because the
+shared denominator would otherwise be measuring the wrong length of media with
+nothing to say so; so is one whose canvas duplicates the suite's, which would
+erase the distinction it exists to draw. And every registered fixture must reach
+`qualified` before acceptance, each named individually in the blocker list, so a
+companion left behind cannot quietly stop covering 9:16.
+
+Correctness runs in ordinary CI; the RTF rows qualify only on the named
+environments, no-retry, and both are unprovisioned today. Both fixtures remain
+`planned`. The collector therefore still refuses to publish acceptance and names
+every fact the lab owes, exactly as the M5 collector does.

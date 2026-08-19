@@ -987,6 +987,24 @@
 			"evidence": ["roadmap.md#6-professional-delivery-and-interchange"]
 		},
 		{
+			"id": "m6-reference-master-vertical-v1",
+			"milestones": ["6"],
+			"status": "planned",
+			"kind": "planned-reference-media-suite",
+			"specification": {
+				"audioDurationSeconds": 3600,
+				"videoDurationSeconds": 600,
+				"videoWidth": 1080,
+				"videoHeight": 1920,
+				"videoFrameRate": 30
+			},
+			"evidence": [
+				"roadmap.md#6-professional-delivery-and-interchange",
+				"docs/quality-budgets.md#fixtures-and-project-sizes",
+				"docs/milestone-6b-framescaper-delivery.md"
+			]
+		},
+		{
 			"id": "m7-local-assistance-privacy-v1",
 			"milestones": ["7"],
 			"status": "optional",
@@ -1324,7 +1342,7 @@
 			"id": "m6-reference-master-delivery",
 			"milestone": "6",
 			"status": "planned",
-			"fixtureIds": ["m6-reference-master-suite-v1"],
+			"fixtureIds": ["m6-reference-master-suite-v1", "m6-reference-master-vertical-v1"],
 			"environmentIds": ["reference-linux-gpu-01", "native-os-lab-matrix"],
 			"thresholds": [
 				{ "metricId": "delivery.audioDurationErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },

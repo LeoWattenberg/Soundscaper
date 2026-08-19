@@ -8,6 +8,7 @@ import { evaluateQualityBudget } from './quality-budget-evaluator.mjs';
 import {
 	M6_REFERENCE_MASTER_ENVIRONMENT_IDS as ENVIRONMENT_IDS,
 	M6_REFERENCE_MASTER_FIXTURE_ID as FIXTURE_ID,
+	M6_REFERENCE_MASTER_FIXTURE_IDS as FIXTURE_IDS,
 	M6_REFERENCE_MASTER_METRIC_IDS as METRIC_IDS,
 	M6_REFERENCE_MASTER_OBSERVATION_CLASS as OBSERVATION_CLASS,
 	M6_REFERENCE_MASTER_PROFILE as PROFILE,
@@ -66,11 +67,17 @@ export async function collectM6ReferenceMasterQuality(optionsValue, dependencies
 export function createM6ReferenceMasterResult(measurementValue, configValue) {
 	const config = snapshotStrictJsonData(configValue, 'config');
 	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
-	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
+	const fixtures = FIXTURE_IDS.map((id) => exactDescriptor(config.fixtures, id, 'fixture'));
+	const fixture = fixtures[0];
 	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
 	assertWorkloadRegistration(workload);
+	assertCompanionFixture(fixtures);
 	const computed = computeM6ReferenceMasterMetrics(measurementValue, {
 		fixtureSpecification: fixture.specification,
+		fixtureCanvases: fixtures.map(({ specification }) => Object.freeze({
+			width: specification.videoWidth,
+			height: specification.videoHeight,
+		})),
 		measurementPolicy: policy,
 	});
 	const environmentId = computed.environmentId;
@@ -100,6 +107,7 @@ export function createM6ReferenceMasterResult(measurementValue, configValue) {
 		status: metricGatePassed ? 'pending-external' : 'failed',
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
+		fixtureIds: FIXTURE_IDS,
 		environmentId,
 		qualificationEnvironmentId: environmentId,
 		platformId: computed.platformId,
@@ -112,6 +120,12 @@ export function createM6ReferenceMasterResult(measurementValue, configValue) {
 		// into the descriptor's null fingerprint rows by this collector.
 		observedFingerprint: computed.fingerprint,
 		fixture: Object.freeze(snapshotStrictJsonData(fixture.specification, 'fixture.specification')),
+		// Both canvases the run had to cover, recorded beside the numbers so a
+		// result says which deliveries produced them.
+		fixtures: Object.freeze(fixtures.map(({ id, specification }) => Object.freeze({
+			id,
+			specification: Object.freeze(snapshotStrictJsonData(specification, 'fixture.specification')),
+		}))),
 		metrics: computed.metrics,
 		rawSampleCounts: computed.rawSampleCounts,
 		metricGatePassed,
@@ -155,8 +169,12 @@ export function assessM6ReferenceMasterQualification(configValue, environmentId)
 			blockers.push(`Environment ${environmentId} has no recorded fingerprint for ${row}.`);
 		}
 	}
-	if (fixtureStatus(config) !== 'qualified') {
-		blockers.push(`Fixture ${FIXTURE_ID} status is ${String(fixtureStatus(config))}; accepted evidence requires a built reference suite.`);
+	// Every registered fixture, not only the suite: a companion left behind is a
+	// delivery canvas the gate stopped covering, and the blocker has to name it.
+	for (const { id, status } of fixtureStatuses(config)) {
+		if (status !== 'qualified') {
+			blockers.push(`Fixture ${id} status is ${String(status)}; accepted evidence requires a built reference suite.`);
+		}
 	}
 	if (workload.status !== 'qualified') {
 		blockers.push(`Workload ${WORKLOAD_ID} status is ${String(workload.status)}; accepted evidence requires status qualified.`);
@@ -240,18 +258,46 @@ async function readMeasurementFile(path) {
 	}
 }
 
-function fixtureStatus(config) {
-	return exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture').status;
+function fixtureStatuses(config) {
+	return FIXTURE_IDS.map((id) => Object.freeze({
+		id,
+		status: exactDescriptor(config.fixtures, id, 'fixture').status,
+	}));
+}
+
+/**
+ * The companion is the same master delivered vertically, and must stay so.
+ *
+ * Its whole reason for existing is that the canvas differs and nothing else
+ * does: that is what lets one real-time denominator cover both deliveries. If
+ * a later edit gave it another duration or rate, the RTF metrics would silently
+ * be measured against the wrong length of media, so the divergence is refused
+ * here rather than absorbed.
+ */
+function assertCompanionFixture(fixtures) {
+	const [suite, ...companions] = fixtures.map(({ specification }) => requireRecord(
+		specification, 'fixture.specification',
+	));
+	for (const companion of companions) {
+		for (const key of ['audioDurationSeconds', 'videoDurationSeconds', 'videoFrameRate']) {
+			if (companion[key] !== suite[key]) {
+				throw new Error(`M6 companion fixture ${key} must match the reference suite exactly.`);
+			}
+		}
+		if (companion.videoWidth === suite.videoWidth && companion.videoHeight === suite.videoHeight) {
+			throw new Error('M6 companion fixture must deliver a canvas the reference suite does not.');
+		}
+	}
 }
 
 function assertWorkloadRegistration(workload) {
 	const thresholdIds = Array.isArray(workload.thresholds)
 		? workload.thresholds.map((threshold) => threshold?.metricId)
 		: [];
-	if (!sameStrings(workload.fixtureIds, [FIXTURE_ID])
+	if (!sameStrings(workload.fixtureIds, [...FIXTURE_IDS])
 		|| !sameStrings(workload.environmentIds, [...ENVIRONMENT_IDS])
 		|| !sameStrings(thresholdIds, METRIC_IDS)) {
-		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixture, two environments, and eleven metrics.`);
+		throw new Error(`Workload ${WORKLOAD_ID} does not own both frozen fixtures, two environments, and eleven metrics.`);
 	}
 }
 

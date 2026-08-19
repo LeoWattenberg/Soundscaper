@@ -604,6 +604,34 @@ CI artifacts. An accepted summary can be reviewed and versioned separately, but
 raw generated `test-results`, `playwright-report`, or coverage content must not
 be committed.
 
+### Milestone 6 reference master, and its vertical companion
+
+`m6-reference-master-suite-v1` specifies a ten-minute 1280x720 video master
+beside its hour of audio. That canvas predates milestone 6B's canvas lift, which
+made the delivered extents an explicit decision rather than a cap, so the suite
+alone could no longer exercise what the milestone added: a run could deliver the
+landscape master twice, satisfy every threshold, and never reframe anything.
+
+`m6-reference-master-vertical-v1` is therefore registered beside it rather than
+edited into it — a fixture change is a new fixture revision, never a silent edit
+to an existing baseline. It is the **same** ten-minute master delivered at
+1080x1920: identical audio and video durations and identical frame rate, so one
+real-time denominator remains correct for both, with only the canvas differing.
+The collector refuses a companion that drifts on duration or rate, and refuses
+one whose canvas duplicates the suite's, because either would make the
+distinction it exists to draw disappear.
+
+No threshold moved. `m6-reference-master-delivery` keeps its eleven metrics and
+their values unchanged; what changed is that the workload now names two fixtures,
+a run must file a video delivery at each registered canvas or be rejected, and
+both fixtures must reach `qualified` before any accepted evidence could be
+published. Both remain `planned` and both named environments remain
+unprovisioned, so the collector still refuses to publish acceptance and names
+every fact the lab owes — including, now, each unbuilt fixture by name.
+
+Reviewing commit: the milestone 6B-5 exit-evidence change that introduced
+`m6-reference-master-vertical-v1`.
+
 ## Changing a threshold
 
 A threshold change must record the old and new values, the affected fixture and

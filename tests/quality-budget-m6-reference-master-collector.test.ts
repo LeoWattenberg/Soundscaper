@@ -112,11 +112,21 @@ function videoArtifact(overrides: Record<string, unknown> = {}) {
 		plannedConversions: [],
 		publishedByteLength: 7_654_321,
 		publishedComplete: true,
+		canvas: { width: 1_280, height: 720 },
 		frameCountError: 0,
 		avDriftMs: 0,
 		captionCueErrorFrames: 0,
 		...overrides,
 	};
+}
+
+/** The 9:16 delivery of the same master, which the gate also has to cover. */
+function verticalVideoArtifact(overrides: Record<string, unknown> = {}) {
+	return videoArtifact({
+		artifactId: 'video-master-vertical',
+		canvas: { width: 1_080, height: 1_920 },
+		...overrides,
+	});
 }
 
 function measurement(overrides: Record<string, unknown> = {}) {
@@ -128,7 +138,7 @@ function measurement(overrides: Record<string, unknown> = {}) {
 		platformId: 'linuxX64',
 		fingerprint: { osImage: 'observed', cpuModel: 'observed' },
 		audioArtifacts: [audioArtifact()],
-		videoArtifacts: [videoArtifact()],
+		videoArtifacts: [videoArtifact(), verticalVideoArtifact()],
 		audioRenderSeconds: [1_800, 1_810, 1_820, 1_830, 1_840],
 		videoRenderSeconds: [600, 620, 640, 660, 680],
 		warmupRenderSeconds: [2_000],
@@ -137,10 +147,20 @@ function measurement(overrides: Record<string, unknown> = {}) {
 }
 
 const FIXTURE = CONFIG.fixtures.find(({ id }: { id: string }) => id === 'm6-reference-master-suite-v1');
+const VERTICAL_FIXTURE = CONFIG.fixtures.find(
+	({ id }: { id: string }) => id === 'm6-reference-master-vertical-v1',
+);
+const FIXTURE_CANVASES = [FIXTURE, VERTICAL_FIXTURE].map(
+	({ specification }: { specification: { videoWidth: number; videoHeight: number } }) => ({
+		width: specification.videoWidth,
+		height: specification.videoHeight,
+	}),
+);
 
 function metrics(record: Record<string, unknown> = measurement()) {
 	return computeM6ReferenceMasterMetrics(record, {
 		fixtureSpecification: FIXTURE.specification,
+		fixtureCanvases: FIXTURE_CANVASES,
 		measurementPolicy: CONFIG.measurementPolicy,
 	}).metrics;
 }
@@ -246,9 +266,75 @@ test('a run whose deliveries measured no loudness fails rather than reporting ze
 
 test('bytes published for an artifact that never completed are partial output', () => {
 	const partial = metrics(measurement({
-		videoArtifacts: [videoArtifact({ publishedComplete: false, publishedByteLength: 4_096 })],
+		videoArtifacts: [
+			videoArtifact({ publishedComplete: false, publishedByteLength: 4_096 }),
+			verticalVideoArtifact(),
+		],
 	}));
 	assert.equal(partial['delivery.partialPublishedOutputBytes'], 4_096);
+});
+
+test('a run that never delivered the vertical canvas has not covered the gate', () => {
+	// Two landscape deliveries satisfy every metric while leaving the reframing
+	// the canvas lift added entirely unexercised.
+	assert.throws(
+		() => metrics(measurement({
+			videoArtifacts: [videoArtifact(), videoArtifact({ artifactId: 'video-master-second' })],
+		})),
+		/filed no video delivery at 1080x1920/u,
+	);
+	// And a run must say what canvas each delivery used at all.
+	assert.throws(
+		() => metrics(measurement({
+			videoArtifacts: [videoArtifact({ canvas: undefined }), verticalVideoArtifact()],
+		})),
+		/canvas/u,
+	);
+});
+
+test('the companion fixture must stay the same master at another canvas', () => {
+	for (const [mutate, pattern] of [
+		[(specification: Record<string, unknown>) => { specification.videoDurationSeconds = 300; },
+			/videoDurationSeconds must match the reference suite/u],
+		[(specification: Record<string, unknown>) => { specification.videoFrameRate = 25; },
+			/videoFrameRate must match the reference suite/u],
+		[(specification: Record<string, unknown>) => {
+			specification.videoWidth = 1_280;
+			specification.videoHeight = 720;
+		}, /must deliver a canvas the reference suite does not/u],
+	] as const) {
+		const drifted = JSON.parse(JSON.stringify(CONFIG));
+		mutate(drifted.fixtures.find(
+			({ id }: { id: string }) => id === 'm6-reference-master-vertical-v1',
+		).specification);
+		// One denominator covers both deliveries only because they are the same
+		// length of media; a companion that drifted would be measured against
+		// the wrong one without anything saying so.
+		assert.throws(() => createM6ReferenceMasterResult(measurement(), drifted), pattern);
+	}
+});
+
+test('a companion fixture that is not built yet blocks acceptance for the whole gate', () => {
+	const partiallyBuilt = JSON.parse(JSON.stringify(CONFIG));
+	for (const id of ['m6-reference-master-suite-v1', 'm6-reference-master-vertical-v1']) {
+		partiallyBuilt.fixtures.find(({ id: candidate }: { id: string }) => candidate === id).status = 'qualified';
+	}
+	const bothBuilt = createM6ReferenceMasterResult(measurement(), partiallyBuilt);
+	assert.equal(
+		bothBuilt.qualificationBlockers.some((blocker: string) => blocker.startsWith('Fixture ')),
+		false,
+	);
+
+	partiallyBuilt.fixtures.find(
+		({ id }: { id: string }) => id === 'm6-reference-master-vertical-v1',
+	).status = 'planned';
+	const companionPlanned = createM6ReferenceMasterResult(measurement(), partiallyBuilt);
+	assert.ok(
+		companionPlanned.qualificationBlockers.some(
+			(blocker: string) => blocker.includes('m6-reference-master-vertical-v1 status is planned'),
+		),
+		'a planned companion must block just as a planned suite does, and be named',
+	);
 });
 
 test('a run that hides a trial, an artifact, or a field is rejected rather than defaulted', () => {
@@ -339,7 +425,7 @@ test('the collector re-checks that the workload still owns its fixture, environm
 	workload.thresholds.pop();
 	assert.throws(
 		() => createM6ReferenceMasterResult(measurement(), drifted),
-		/does not own the frozen fixture, two environments, and eleven metrics/u,
+		/does not own both frozen fixtures, two environments, and eleven metrics/u,
 	);
 
 	// And the collector never reaches a writer when the measurement cannot be read.
@@ -393,7 +479,9 @@ function provisionedConfig() {
 	environment.qualificationEligible = true;
 	environment.eligibleWorkloadIds = [M6_REFERENCE_MASTER_WORKLOAD_ID];
 	for (const row of Object.keys(environment.fingerprint)) environment.fingerprint[row] = 'recorded';
-	config.fixtures.find(({ id }: { id: string }) => id === 'm6-reference-master-suite-v1').status = 'qualified';
+	for (const id of ['m6-reference-master-suite-v1', 'm6-reference-master-vertical-v1']) {
+		config.fixtures.find(({ id: candidate }: { id: string }) => candidate === id).status = 'qualified';
+	}
 	config.workloads.find(({ id }: { id: string }) => id === M6_REFERENCE_MASTER_WORKLOAD_ID).status = 'qualified';
 	config.qualification.qualifiedWorkloadIds = [
 		...config.qualification.qualifiedWorkloadIds, M6_REFERENCE_MASTER_WORKLOAD_ID,

@@ -31,6 +31,21 @@ import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 export const M6_REFERENCE_MASTER_WORKLOAD_ID = 'm6-reference-master-delivery';
 export const M6_REFERENCE_MASTER_FIXTURE_ID = 'm6-reference-master-suite-v1';
+/**
+ * Both delivery canvases the exit gate covers.
+ *
+ * The suite fixture's 1280x720 predates the canvas lift, and a run that filed
+ * two landscape deliveries would satisfy every metric while never once
+ * exercising the reframing the milestone added. The vertical companion is the
+ * same ten-minute master delivered at 9:16, so it shares the suite's durations
+ * and rate and differs only in the canvas — which is what makes one real-time
+ * denominator correct for both, and what the collector checks rather than
+ * assumes.
+ */
+export const M6_REFERENCE_MASTER_FIXTURE_IDS = Object.freeze([
+	'm6-reference-master-suite-v1',
+	'm6-reference-master-vertical-v1',
+]);
 export const M6_REFERENCE_MASTER_ENVIRONMENT_IDS = Object.freeze([
 	'reference-linux-gpu-01',
 	'native-os-lab-matrix',
@@ -73,15 +88,16 @@ const AUDIO_ARTIFACT_FIELDS = Object.freeze([
 	'artifactId', 'plannedConversions', 'publishedByteLength', 'publishedComplete', 'report',
 ]);
 const VIDEO_ARTIFACT_FIELDS = Object.freeze([
-	'artifactId', 'avDriftMs', 'captionCueErrorFrames', 'frameCountError',
+	'artifactId', 'avDriftMs', 'canvas', 'captionCueErrorFrames', 'frameCountError',
 	'plannedConversions', 'publishedByteLength', 'publishedComplete', 'report',
 ]);
 
 export function computeM6ReferenceMasterMetrics(measurementValue, context) {
-	const { fixtureSpecification, measurementPolicy } = requireRecord(context, 'context');
+	const { fixtureSpecification, fixtureCanvases, measurementPolicy } = requireRecord(context, 'context');
 	const policy = assertMeasurementPolicy(measurementPolicy);
 	const fixture = requireRecord(fixtureSpecification, 'fixture.specification');
 	const measurement = validateMeasurement(measurementValue, policy);
+	assertCanvasCoverage(measurement.videoArtifacts, fixtureCanvases);
 
 	const audio = measurement.audioArtifacts;
 	const video = measurement.videoArtifacts;
@@ -294,6 +310,7 @@ function artifactList(value, fields, label) {
 				artifact.publishedByteLength, `${label}[${index}].publishedByteLength`,
 			),
 			...(fields === VIDEO_ARTIFACT_FIELDS ? {
+				canvas: artifactCanvas(artifact.canvas, `${label}[${index}]`),
 				frameCountError: finiteNumber(artifact.frameCountError, `${label}[${index}].frameCountError`),
 				avDriftMs: finiteNumber(artifact.avDriftMs, `${label}[${index}].avDriftMs`),
 				captionCueErrorFrames: finiteNumber(
@@ -302,6 +319,43 @@ function artifactList(value, fields, label) {
 			} : {}),
 		});
 	}));
+}
+
+function artifactCanvas(value, label) {
+	const canvas = exactRecord(value, ['width', 'height'], `${label}.canvas`);
+	return Object.freeze({
+		width: nonNegativeInteger(canvas.width, `${label}.canvas.width`),
+		height: nonNegativeInteger(canvas.height, `${label}.canvas.height`),
+	});
+}
+
+/**
+ * Every registered delivery canvas must appear in the run.
+ *
+ * A metric set says how wrong a delivery was, never which delivery it was. With
+ * two canvases registered and no check here, a run could file the landscape
+ * master twice and pass a gate that was meant to cover the vertical one too —
+ * and the vertical delivery is precisely the path the canvas lift added, so
+ * leaving it unexercised is leaving the new work ungated.
+ */
+function assertCanvasCoverage(videoArtifacts, fixtureCanvases) {
+	if (!Array.isArray(fixtureCanvases) || fixtureCanvases.length === 0) {
+		throw new Error('M6 context.fixtureCanvases must name every registered delivery canvas.');
+	}
+	const filed = new Set(videoArtifacts.map(({ canvas }) => canvasKey(canvas)));
+	const missing = fixtureCanvases
+		.map((canvas) => canvasKey(requireRecord(canvas, 'M6 context.fixtureCanvases[]')))
+		.filter((key) => !filed.has(key));
+	if (missing.length > 0) {
+		throw new Error(
+			`M6 run filed no video delivery at ${missing.join(', ')}; `
+			+ 'every registered delivery canvas must be exercised.',
+		);
+	}
+}
+
+function canvasKey(canvas) {
+	return `${String(canvas.width)}x${String(canvas.height)}`;
 }
 
 function conversionList(value, label) {
