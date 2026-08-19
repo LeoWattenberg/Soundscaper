@@ -31,6 +31,7 @@ import type {
 } from './video-proxy-candidate-observation.ts';
 import {
 	buildVideoProxyGenerationArgs,
+	VIDEO_PROXY_GENERATION_OUTPUT,
 	VIDEO_PROXY_GENERATION_RECIPE,
 } from './video-proxy-generation.ts';
 
@@ -88,7 +89,7 @@ export function createFfmpegVideoProxyGenerator(
 			throwIfAborted(options?.signal);
 			return runOperation(async (lease) => {
 				const input = await lease.writeInput(bytes, signalOptions(options?.signal));
-				const output = `${input}-proxy.${String(VIDEO_PROXY_GENERATION_RECIPE.extension)}`;
+				const output = `${input}-proxy.${VIDEO_PROXY_GENERATION_OUTPUT.extension}`;
 				try {
 					const run = await lease.exec(
 						buildVideoProxyGenerationArgs({ inputPath: input, outputPath: output }),
@@ -104,7 +105,7 @@ export function createFfmpegVideoProxyGenerator(
 					options.assertCurrent();
 					// Copied, because the bytes the lease answered live in the shared
 					// runtime's memory and the next operation may reuse them.
-					return new Blob([produced.slice()], { type: String(VIDEO_PROXY_GENERATION_RECIPE.mimeType) });
+					return new Blob([produced.slice()], { type: VIDEO_PROXY_GENERATION_OUTPUT.mimeType });
 				} finally {
 					// Whatever happened, both paths were this operation's to write and are
 					// therefore its own to remove: the runtime is shared, and an

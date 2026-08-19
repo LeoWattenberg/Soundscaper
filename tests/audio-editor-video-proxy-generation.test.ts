@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	buildVideoProxyGenerationArgs,
+	VIDEO_PROXY_GENERATION_OUTPUT,
 	VIDEO_PROXY_GENERATION_RECIPE,
 	videoProxyGenerationFilter,
 } from '../src/common/editor/video-proxy-generation.ts';
@@ -71,9 +72,13 @@ test('the recipe names itself, so an attachment records which rule produced it',
 	// a newer recipe must not silently pass as one an older recipe wrote.
 	assert.equal(VIDEO_PROXY_GENERATION_RECIPE.id, 'framescaper-video-proxy-h264-540-v1');
 	assert.equal(VIDEO_PROXY_GENERATION_RECIPE.version, 1);
-	assert.equal(VIDEO_PROXY_GENERATION_RECIPE.mimeType, 'video/mp4');
-	assert.equal(VIDEO_PROXY_GENERATION_RECIPE.maximumHeight, 540);
 	assert.ok(Object.isFrozen(VIDEO_PROXY_GENERATION_RECIPE));
+	// A recipe is an identity and nothing else: the candidate observer captures
+	// exactly these two fields and refuses a record that carries more, so what
+	// the recipe produces is stated separately from what it is called.
+	assert.deepEqual(Object.keys(VIDEO_PROXY_GENERATION_RECIPE), ['id', 'version']);
+	assert.equal(VIDEO_PROXY_GENERATION_OUTPUT.mimeType, 'video/mp4');
+	assert.equal(VIDEO_PROXY_GENERATION_OUTPUT.maximumHeight, 540);
 
 	// The encoder is one the shipped build already carries for delivery. A proxy
 	// is not the place to introduce a codec whose licensing row is not cleared.

@@ -445,6 +445,16 @@ export function createEditorFfmpeg(options = {}) {
 		);
 	}
 
+	// The proxy generator wants the same file-shaped lease, under its own path
+	// prefix so one operation's leftovers can never be read as another's.
+	function runProxyMediaOperation(operation, settings = {}) {
+		return runFfmpegMediaFileOperation(
+			{ run, terminateRuntime },
+			operation,
+			{ ...(settings.signal ? { signal: settings.signal } : {}), prefix: 'editor-proxy' },
+		);
+	}
+
 	function conformVideoToCfr(file, settings = {}) {
 		return conformFfmpegVideoToCfr({
 			file, rate: settings.rate, signal: settings.signal, run,
@@ -501,7 +511,7 @@ export function createEditorFfmpeg(options = {}) {
 	return {
 		load, encode, encodeFile, encodeFileToSink, encodeVideo, encodeVideoToSink,
 		decode, probeVideoTiming, conformVideoToCfr, runVideoKeyframeEncoderOperation,
-		runTrimMediaOperation,
+		runTrimMediaOperation, runProxyMediaOperation,
 		dispose, capabilities: () => capabilities,
 	};
 }

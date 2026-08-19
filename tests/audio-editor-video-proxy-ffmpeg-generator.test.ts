@@ -10,6 +10,7 @@ import type {
 } from '../src/common/editor/video-proxy-candidate-observation.ts';
 import {
 	buildVideoProxyGenerationArgs,
+	VIDEO_PROXY_GENERATION_OUTPUT,
 	VIDEO_PROXY_GENERATION_RECIPE,
 } from '../src/common/editor/video-proxy-generation.ts';
 import {
@@ -99,7 +100,7 @@ test('the generator runs the shipped recipe over the leased original', async () 
 	// The body it answers is the recipe's container, because the attachment
 	// stores that MIME beside the digest and a consumer compares both.
 	assert.ok(candidate instanceof Blob);
-	assert.equal(candidate.type, VIDEO_PROXY_GENERATION_RECIPE.mimeType);
+	assert.equal(candidate.type, VIDEO_PROXY_GENERATION_OUTPUT.mimeType);
 	assert.equal(candidate.size, 8);
 
 	// And the command is the shipped one, aimed at the paths the lease handed

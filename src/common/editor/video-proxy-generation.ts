@@ -41,22 +41,30 @@
 export interface VideoProxyGenerationRecipe extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly version: number;
-	readonly maximumHeight: number;
-	readonly mimeType: string;
-	readonly extension: string;
 }
 
 /**
- * The one maintained proxy recipe.
+ * The one maintained proxy recipe, as the candidate observer reads it.
  *
- * Its id and version are persisted with the attachment, so a body produced by a
- * later recipe can never pass as one this recipe wrote. H.264 in MP4 is what the
- * shipped delivery tier already encodes, which keeps a preview-only derivative
- * from being the thing that introduces an uncleared codec.
+ * A recipe is an identity and nothing else — the observer captures exactly `id`
+ * and `version` and refuses a record carrying anything more, because those two
+ * are what the attachment persists and what a later consumer compares before
+ * trusting a body. What the recipe *means* is the output below, which the
+ * command is built from.
  */
 export const VIDEO_PROXY_GENERATION_RECIPE: VideoProxyGenerationRecipe = Object.freeze({
 	id: 'framescaper-video-proxy-h264-540-v1',
 	version: 1,
+});
+
+/**
+ * What that recipe produces.
+ *
+ * H.264 in MP4 is what the shipped delivery tier already encodes, which keeps a
+ * preview-only derivative from being the thing that introduces an uncleared
+ * codec, and 540 is the height a proxy is clamped down to.
+ */
+export const VIDEO_PROXY_GENERATION_OUTPUT = Object.freeze({
 	maximumHeight: 540,
 	mimeType: 'video/mp4',
 	extension: 'mp4',
@@ -80,7 +88,7 @@ export function videoProxyGenerationFilter(): string {
 	// filter named `ih)`, so the argument separator is escaped where the height
 	// expression needs a real one. `trunc(.../2)*2` keeps the height even and
 	// `-2` derives an even width from it, both of which yuv420p requires.
-	const height = `trunc(min(${String(VIDEO_PROXY_GENERATION_RECIPE.maximumHeight)}\\,ih)/2)*2`;
+	const height = `trunc(min(${String(VIDEO_PROXY_GENERATION_OUTPUT.maximumHeight)}\\,ih)/2)*2`;
 	return `scale=-2:${height},setsar=1`;
 }
 
