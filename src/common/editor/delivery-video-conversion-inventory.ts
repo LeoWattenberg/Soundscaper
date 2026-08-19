@@ -192,15 +192,18 @@ export function inventoryVideoDeliveryConversions(
 		});
 	}
 
-	// The encoder always passes `-dn`, and passes `-sn` for every delivery that
-	// carries no caption track of its own, so the stripped set depends on that
-	// one decision and nothing else.
-	const strippedStreams = captions?.mux === true ? 'data' : 'subtitle, data';
+	// Every command this product emits names its output streams with an explicit
+	// `-map`, which turns automatic stream selection off: nothing from a source
+	// input reaches the output except what the filter graph produced. A source's
+	// own subtitle and data streams are therefore dropped by every delivery,
+	// whether or not `-sn` is passed. Reading the stripped set off `-sn` told a
+	// caption-carrying delivery it had kept the source's subtitles, which is the
+	// hidden omission this report exists to prevent.
 	conversions.push({
 		code: 'delivery.streams-stripped',
 		disposition: 'omitted',
 		severity: source.hasNonMediaStreams ? 'warning' : 'info',
-		data: { streams: strippedStreams, carriedBySource: Boolean(source.hasNonMediaStreams) },
+		data: { streams: 'subtitle, data', carriedBySource: Boolean(source.hasNonMediaStreams) },
 	});
 
 	return Object.freeze(conversions);

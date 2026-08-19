@@ -124,8 +124,11 @@ test('the report says what happened to the captions, including when there are no
 	const none = inventoryVideoDeliveryConversions(exportPlan());
 	const omission = none.find(({ code }) => code === 'delivery.captions-omitted');
 	assert.equal(omission?.data.containerCanCarry, true, 'this container could have carried them');
-	// A caption-carrying delivery no longer strips subtitles, and the standing
-	// omission must stop claiming that it does.
+	// Every command this builder emits maps its streams explicitly, which turns
+	// automatic stream selection off, so a source's own subtitle and data streams
+	// are dropped whether or not `-sn` is passed. The omission says so for both
+	// deliveries; it used to claim a caption-carrying delivery kept the source's
+	// subtitles, which no delivery does.
 	assert.equal(
 		none.find(({ code }) => code === 'delivery.streams-stripped')?.data.streams,
 		'subtitle, data',
@@ -133,8 +136,12 @@ test('the report says what happened to the captions, including when there are no
 	assert.equal(
 		inventoryVideoDeliveryConversions(exportPlan({ captions: { trackId: 'labels-1' } }))
 			.find(({ code }) => code === 'delivery.streams-stripped')?.data.streams,
-		'data',
+		'subtitle, data',
 	);
+	// The command backs that up: nothing from the source input is mapped, so the
+	// only subtitle stream in the output is the staged caption document.
+	const command = args(exportPlan({ captions: { trackId: 'labels-1' } }));
+	assert.equal(command.filter((value, index) => value === '-map' && command[index + 1] === '0:s:0').length, 0);
 });
 
 test('the dialog asks one question and the request carries both plan decisions', () => {
