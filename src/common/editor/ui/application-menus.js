@@ -13,6 +13,25 @@ import { createClipSelectionNavigationMenuModel } from './clip-selection-navigat
 import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
 import { createImportAnalysisToolMenuItems, createRepeatAnalyzerMenuItem, createRepeatGeneratorMenuItem } from './import-analysis-application-menu.ts';
 import { createPitchAndTempoApplicationMenuItems } from './pitch-tempo-application-menu.ts';
+import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
+import { createVisibleVideoTrackPredicate } from '../video-track-visibility.js';
+
+/**
+ * The video tracks an edit list would describe.
+ *
+ * The export runs the adapter on the folder-projected document through the
+ * shared predicate, so the entry has to ask the same question: a bare `hidden`
+ * filter offered the export for a track inside a hidden folder — which then
+ * refused for having no visible picture — and withheld it from a hidden track
+ * that is soloed, which does compose.
+ */
+export function edlExportableVideoTracks(project) {
+	if (!project?.tracks) return [];
+	const projected = projectTrackFolderMediaStateV12(project);
+	const tracks = projected.tracks ?? [];
+	const composes = createVisibleVideoTrackPredicate(tracks);
+	return tracks.filter((track) => track.type === 'video' && composes(track));
+}
 export default function createApplicationMenus({
 	productId,
 	aboutLabel,
@@ -69,7 +88,7 @@ export default function createApplicationMenus({
 	const labelTracks = project?.tracks.filter((track) => track.type === 'label') || [];
 	// An EDL describes picture, so the entry only offers itself when there is a
 	// video track that composes — a list of nothing is not a useful export.
-	const edlTracks = project?.tracks.filter((track) => track.type === 'video' && track.hidden !== true) || [];
+	const edlTracks = edlExportableVideoTracks(project);
 	const preferences = snapshot.preferences;
 	const framescaperEditControls = createFramescaperEditControlMenuItems({
 		productId, project, selectedClipId: selectedClip?.id ?? null,

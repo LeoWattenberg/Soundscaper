@@ -11,6 +11,7 @@ import {
 } from './aup4-omitted-features.js';
 import { flattenAup4MusicalMaps, isCurrentAup4MusicalSnapshot } from './aup4-musical-export.ts';
 import { projectForRuntimeConsumers } from './project-current-runtime.ts';
+import { projectTrackFolderMediaStateV12 } from './track-folder-media-runtime.ts';
 import { flattenAup4TimelineAnnotations } from './aup4-annotation-interchange.ts';
 const AUP4_CLIP_ENVELOPE_MAX = 4;
 
@@ -45,6 +46,11 @@ export function createAup4ExportPlan(project) {
 	if (!project || !Array.isArray(project.tracks) || !Array.isArray(project.clips) || !Array.isArray(project.sources)) {
 		throw exportError('An audio editor project is required.', 'INVALID_SNAPSHOT');
 	}
+	// Folder media state first: an AUP4 file states what each track does, and a
+	// track inside a muted folder is silent in playback and in every delivery, so
+	// an export that wrote its persisted flags would hand Audacity a project that
+	// plays something else. The runtime projection then resolves clip coordinates.
+	project = projectTrackFolderMediaStateV12(project);
 	if (isCurrentAup4MusicalSnapshot(project)) project = projectForRuntimeConsumers(project);
 	const projectRate = positiveRate(project.sampleRate, 'project.sampleRate');
 	const sourceById = new Map(project.sources.map((source) => [source.id, source]));
