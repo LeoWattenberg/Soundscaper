@@ -137,7 +137,13 @@ test('one serializable paste restores a canonical, independently identified take
 	assert.deepEqual(source.takeGroups.map(({ id }) => id), ['group-a']);
 });
 
-test('downscaled cross-rate paste keeps every take boundary positive and ordered', () => {
+test('a take comp is not pasted into a project at another sample rate', () => {
+	// A take states no source length of its own: what it reads is defined by its
+	// timeline extent. Scaling that extent for another project rate therefore
+	// rewrites which audio the comp covers — silently when the scaled span still
+	// fits the source, and as an internal "exceeds source bounds" failure of the
+	// whole paste when it does not. Conforming the take's media is a larger
+	// contract than a paste, so the paste refuses and says what to do instead.
 	const target = structuredClone(project()) as unknown as Record<string, unknown>;
 	const clipboard = {
 		schemaVersion: 4,
@@ -158,22 +164,31 @@ test('downscaled cross-rate paste keeps every take boundary positive and ordered
 	} as unknown as AudioEditorClipboard;
 	const command: Record<string, unknown> = {};
 	prepareTakeCompClipboardPasteIds(clipboard, command, idFactory());
-	const commit = stageTakeCompClipboardPaste(target, clipboard, command, 'reject', 1 / 12, {
+	const before = structuredClone(target.takeGroups);
+
+	assert.throws(() => stageTakeCompClipboardPaste(target, clipboard, command, 'reject', 1 / 12, {
 		placementFrameBySequenceId: new Map([['main-sequence', 600]]),
-	});
-	commit();
+	}), /another sample rate/iu);
+	assert.deepEqual(target.takeGroups, before, 'the refusal happens before any mutation');
+
+	// At the project's own rate the same paste lands, unscaled.
+	const pasted: Record<string, unknown> = {};
+	prepareTakeCompClipboardPasteIds(clipboard, pasted, idFactory());
+	stageTakeCompClipboardPaste(target, clipboard, pasted, 'reject', 1, {
+		placementFrameBySequenceId: new Map([['main-sequence', 600]]),
+	})();
 	assert.deepEqual((target.takeGroups as readonly Record<string, unknown>[])[1], {
 		id: 'take-group-copy-1', sequenceId: 'main-sequence', trackId: 'track-a',
-		startSample: 600, endSample: 602,
+		startSample: 600, endSample: 605,
 		laneOrder: ['take-lane-copy-1'],
 		lanes: [{ id: 'take-lane-copy-1' }],
 		takes: [{
 			id: 'take-copy-1', laneId: 'take-lane-copy-1', sourceId: 'take-source-a',
-			startSample: 600, endSample: 602, sourceStartSample: 0,
+			startSample: 600, endSample: 605, sourceStartSample: 0,
 		}],
 		compRegions: [
-			{ id: 'comp-region-copy-1', takeId: 'take-copy-1', startSample: 600, endSample: 601 },
-			{ id: 'comp-region-copy-2', takeId: 'take-copy-1', startSample: 601, endSample: 602 },
+			{ id: 'comp-region-copy-1', takeId: 'take-copy-1', startSample: 600, endSample: 603 },
+			{ id: 'comp-region-copy-2', takeId: 'take-copy-1', startSample: 603, endSample: 605 },
 		],
 	});
 });

@@ -232,6 +232,18 @@ export function stageTakeCompClipboardPaste(
 	const groups = normalizeTakeCompClipboardGroups(clipboard.takeGroups);
 	const maps = validatePasteMaps(project, groups, command);
 	if (groups.length === 0) return () => undefined;
+	// A take states no source length of its own: what it reads is defined by its
+	// timeline extent. Scaling that extent for a project at another sample rate
+	// therefore rewrites which audio the comp covers — silently when the scaled
+	// span still fits the source, and as an internal "exceeds source bounds"
+	// failure of the whole paste when it does not. Conforming the take's media is
+	// a larger contract than a paste, so this refuses and says so.
+	if (scale !== 1) {
+		throw new RangeError(
+			'A take comp cannot be pasted into a project at another sample rate; '
+			+ 'flatten the comp first, or paste into a project at its own rate.',
+		);
+	}
 	if ((mode === 'insert-track' || mode === 'insert-all')
 		&& existingTargetGroups(project, groups, command).length > 0) {
 		throw new RangeError('Insert paste cannot move an existing take graph without explicit split identities.');
