@@ -111,6 +111,31 @@ test('a reference that could not be moved is reported, and nothing is committed 
 	assert.equal(statuses.at(-1)?.[1], 'warning');
 });
 
+test('an edit made while the media is being cut refuses the commit', async () => {
+	// A cut runs for as long as the media takes, and the editor stays writable
+	// throughout. The batch is computed against the document the cut began with,
+	// so committing it to a document that has moved on repoints clips whose
+	// in-points changed at material they never referenced — and the rewrite
+	// itself only checks that the same clip ids are still there.
+	const state: Record<string, unknown> = {};
+	const committed: unknown[] = [];
+	let current = project();
+	const group = createProjectMediaActionGroup({
+		state,
+		getProject: () => current,
+		store: createStore() as never,
+		ffmpeg: createFfmpeg({
+			onCut: () => { current = { ...project(), revision: 7 } as never; },
+		}),
+		commit: (command) => { committed.push(command); },
+		setStatus: () => undefined,
+		copy: EXPORT_MENU_COPY_BY_LOCALE.en,
+	});
+
+	await assert.rejects(() => group.trim(), /changed while its media was being trimmed/u);
+	assert.equal(committed.length, 0, 'nothing is bound to a document the cut never saw');
+});
+
 test('a project with no FFmpeg answers null rather than pretending', async () => {
 	const group = createProjectMediaActionGroup({
 		state: {}, getProject: () => project(), store: createStore() as never, ffmpeg: null,
@@ -144,7 +169,7 @@ function project() {
 	}) as unknown as Readonly<Record<string, unknown>>;
 }
 
-function createFfmpeg(options: { dropFrames?: number } = {}) {
+function createFfmpeg(options: { dropFrames?: number; onCut?: () => void } = {}) {
 	const files = new Map<string, Uint8Array | string>();
 	const lease = {
 		async writeInput(bytes: Uint8Array) { files.set('in', bytes); return 'in'; },
@@ -171,6 +196,7 @@ function createFfmpeg(options: { dropFrames?: number } = {}) {
 	return {
 		async runTrimMediaOperation<Output>(operation: (value: never) => Promise<Output>) {
 			const result = await operation(lease as never) as Record<string, unknown>;
+			options.onCut?.();
 			if (!options.dropFrames) return result as Output;
 			// Hand back a copy that stops short of what the clip reads, which is
 			// the case the project edit must refuse rather than approximate.

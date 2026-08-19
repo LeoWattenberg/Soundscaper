@@ -102,6 +102,12 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 			const copy = runtime.copy ?? {};
 			runtime.setStatus?.(copy.trimmingMedia ?? 'Trimming media');
 			const result = await trimProjectMedia(request);
+			// The batch was computed against the document as it was when the cut
+			// began, and a cut runs for as long as the media takes. Committing it to
+			// whatever the document has become since would repoint clips whose
+			// in-points moved at material they never referenced, and the rewrite
+			// itself only checks that the same clip ids are still there.
+			request.assertCurrent();
 			if (result.edit.command) runtime.commit?.(result.edit.command);
 			// One report covering both halves: a source can be impossible to cut,
 			// or cut perfectly and then impossible to bind to, and a surface shown
@@ -152,7 +158,30 @@ function trimRequest(runtime: ProjectMediaActionRuntime, signal?: AbortSignal) {
 		project,
 		store: runtime.store as unknown as TrimMediaStore,
 		ffmpeg: runtime.ffmpeg,
+		assertCurrent: projectFence(runtime, project),
 		...(signal ? { signal } : {}),
+	};
+}
+
+/**
+ * Refuse to keep working against a document that has moved on.
+ *
+ * A media operation is planned, cut, and remapped against one snapshot, and the
+ * editor stays writable throughout — there is no edit block for it. The document
+ * states its own identity and revision, so this is the whole test: the operation
+ * asks it at every awaited boundary, and the action asks it once more before it
+ * commits what the cut proved.
+ */
+function projectFence(
+	runtime: ProjectMediaActionRuntime,
+	project: Readonly<Record<string, unknown>>,
+): () => void {
+	const id = String(project.id ?? '');
+	const revision = Number(project.revision ?? 0);
+	return () => {
+		const current = runtime.getProject?.();
+		if (String(current?.id ?? '') === id && Number(current?.revision ?? 0) === revision) return;
+		throw new Error('The project changed while its media was being trimmed.');
 	};
 }
 
