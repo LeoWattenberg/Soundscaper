@@ -8,6 +8,10 @@ import {
 } from './delivery-report.ts';
 import { type SequenceRationalRate } from './sequence-timecode.ts';
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
+import {
+	interchangeClipTimeEffect,
+	reportInterchangeAnnotationOmission,
+} from './interchange-omission-inventory.ts';
 import { createInterchangeVisibility } from './interchange-track-visibility.ts';
 
 /**
@@ -104,6 +108,7 @@ export function createOtioExport(request: OtioExportRequest): OtioExportResult {
 	const tracks = asRecords(project.tracks);
 
 	const visibility = createInterchangeVisibility(tracks as never);
+	reportInterchangeAnnotationOmission(draft, project, 'otio');
 	const walks: TrackWalk[] = [];
 	for (const track of tracks) {
 		const type = String(track.type ?? '');
@@ -279,16 +284,17 @@ function buildClip(
 		});
 	}
 
-	const speed = clip.speedRatio == null ? 1 : Number(clip.speedRatio);
-	if (speed !== 1) {
+	const timeEffect = interchangeClipTimeEffect(clip);
+	if (timeEffect) {
 		// The profile scope commits to no OTIO effects vocabulary, so a retimed
-		// clip is emitted at its rendered duration and the change is named.
+		// clip is emitted at its rendered duration and the change is named —
+		// whichever authority states it, not only the legacy scalar.
 		addDeliveryReportItem(context.draft, {
 			code: 'otio.speed-change-omitted',
 			disposition: 'omitted',
 			severity: 'warning',
 			scope: { kind: 'clip', id: String(clip.id) },
-			data: { speedRatio: speed },
+			data: { kind: timeEffect.kind, ...timeEffect.data },
 			message: 'The profile emits no time-effect vocabulary; the clip carries its rendered duration.',
 		});
 	}
@@ -325,7 +331,12 @@ function buildClip(
 				metadata: { [OTIO_METADATA_NAMESPACE]: { sourceId, addressing: 'managed-storage-key' } },
 			}
 			: { OTIO_SCHEMA: 'MissingReference.1', name: sourceId, metadata: {} },
-		metadata: { [OTIO_METADATA_NAMESPACE]: { clipId: String(clip.id), speedRatio: speed } },
+		metadata: {
+			[OTIO_METADATA_NAMESPACE]: {
+				clipId: String(clip.id),
+				speedRatio: clip.speedRatio == null ? 1 : Number(clip.speedRatio),
+			},
+		},
 	};
 }
 

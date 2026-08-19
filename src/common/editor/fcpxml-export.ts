@@ -8,6 +8,10 @@ import {
 } from './delivery-report.ts';
 import { type SequenceRationalRate } from './sequence-timecode.ts';
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
+import {
+	interchangeClipTimeEffect,
+	reportInterchangeAnnotationOmission,
+} from './interchange-omission-inventory.ts';
 import { createInterchangeVisibility } from './interchange-track-visibility.ts';
 
 /**
@@ -108,6 +112,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 	let videoLane = 0;
 	let audioLane = 0;
 	const visibility = createInterchangeVisibility(asRecords(project.tracks) as never);
+	reportInterchangeAnnotationOmission(draft, project, 'fcpxml');
 	for (const track of asRecords(project.tracks)) {
 		const type = String(track.type ?? '');
 		if (type !== 'video' && type !== 'audio') continue;
@@ -257,14 +262,17 @@ function buildClip(clip: Readonly<Record<string, unknown>>, context: {
 		});
 		return null;
 	}
-	const speed = clip.speedRatio == null ? 1 : Number(clip.speedRatio);
-	if (speed !== 1) {
+	// Whichever authority states the retime: the legacy scalar, an audio warp map,
+	// or a video retime curve. Reading only the scalar wrote a source range that
+	// claimed media a warped clip never uses, and reported nothing.
+	const timeEffect = interchangeClipTimeEffect(clip);
+	if (timeEffect) {
 		addDeliveryReportItem(context.draft, {
 			code: 'fcpxml.speed-change-omitted',
 			disposition: 'omitted',
 			severity: 'warning',
 			scope: { kind: 'clip', id: String(clip.id) },
-			data: { speedRatio: speed },
+			data: { kind: timeEffect.kind, ...timeEffect.data },
 			message: 'The profile emits no timeMap; the clip carries its rendered duration.',
 		});
 	}

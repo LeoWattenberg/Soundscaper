@@ -8,6 +8,7 @@ import {
 } from './edl-export.ts';
 import { resolveSequenceTimingView } from './sequence-timing-model.ts';
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
+import { interchangeAnnotationOmission } from './interchange-omission-inventory.ts';
 import { createVisibleVideoTrackPredicate } from './video-track-visibility.js';
 
 /**
@@ -168,8 +169,36 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 		dropFrame: sequence.dropFrame,
 		events,
 		// Everything the one-track profile left behind is named, not silently lost.
-		omissions: [...subFrame, ...describeOmissions(tracks, selected, isVisible)],
+		omissions: [
+			...subFrame,
+			...describeOmissions(tracks, selected, isVisible),
+			...describeAnnotationOmission(project),
+		],
 	});
+}
+
+/**
+ * The markers, regions, and label tracks an edit list cannot carry.
+ *
+ * They stay in the project, and the report is where an operator is told so;
+ * without an item, a project full of markers exported as though nothing had
+ * been left behind.
+ */
+function describeAnnotationOmission(
+	project: Readonly<Record<string, unknown>>,
+): readonly EdlOmission[] {
+	const omission = interchangeAnnotationOmission(project);
+	if (!omission) return [];
+	return [{
+		code: 'edl.annotations-omitted',
+		scope: { kind: 'project', id: String(project.id ?? '') },
+		data: {
+			annotations: omission.annotations,
+			labelTracks: omission.labelTracks.length,
+			labels: omission.labels,
+		},
+		message: 'The profile carries no markers, regions, or label tracks; they stay in the project.',
+	}];
 }
 
 /**
