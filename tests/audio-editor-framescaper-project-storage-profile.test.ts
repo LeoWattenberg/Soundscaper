@@ -441,6 +441,7 @@ test('the exact Framescaper selector remains isolated across maintained product 
 		'tests/audio-editor-framescaper-project-environment-v18.test.ts',
 		PREREQUISITE_TEST_MODULE,
 		TEST_MODULE,
+		'tests/desktop-video-timing-probe-smoke.test.js',
 	]);
 	assert.deepEqual([...literalOwners], [
 		'desktop/framescaper-v18-artifact-smoke.js', 'desktop/project-library-v10-contract.ts',
@@ -448,7 +449,9 @@ test('the exact Framescaper selector remains isolated across maintained product 
 		'tests/audio-editor-framescaper-project-store-v18.test.ts',
 		'tests/browser/framescaper-v18-exit-observation.spec.js', 'tests/desktop-framescaper-v18-artifact-smoke.test.js',
 		'tests/desktop-project-library-v10-contract.test.ts', 'tests/desktop-project-library-v10-proxy-media-inventory.test.ts',
-		'tests/desktop-smoke.test.js', 'tests/desktop-video-timing-probe-smoke.test.js',
+		// The timing-probe smoke test derives these names from the profile now,
+		// so it consumes the export above rather than repeating the literals.
+		'tests/desktop-smoke.test.js',
 		'tests/helpers/framescaper-v18-archive-fixture.ts',
 	]);
 	const genericSource = await readFile(resolve(ROOT, 'src/common/editor/storage/project-storage-profile.ts'), 'utf8');
