@@ -98,6 +98,7 @@ export function computeM6ReferenceMasterMetrics(measurementValue, context) {
 	const fixture = requireRecord(fixtureSpecification, 'fixture.specification');
 	const measurement = validateMeasurement(measurementValue, policy);
 	assertCanvasCoverage(measurement.videoArtifacts, fixtureCanvases);
+	assertTimedCanvasCoverage(measurement.videoRenderSeconds, fixtureCanvases);
 
 	const audio = measurement.audioArtifacts;
 	const video = measurement.videoArtifacts;
@@ -138,7 +139,10 @@ export function computeM6ReferenceMasterMetrics(measurementValue, context) {
 			'delivery.partialPublishedOutputBytes': artifacts.reduce(
 				(total, artifact) => total + (artifact.publishedComplete ? 0 : artifact.publishedByteLength), 0,
 			),
-			'delivery.webVideoRenderP95Rtf': realTimeFactorP95(
+			// The worst canvas, not the pool: with two registered canvases and one
+			// undifferentiated set of timings, a run could time only the landscape
+			// master and pass a row registered to cover the vertical one too.
+			'delivery.webVideoRenderP95Rtf': widestRealTimeFactorP95(
 				measurement.videoRenderSeconds, fixture.videoDurationSeconds, 'video',
 			),
 			'delivery.audioRenderP95Rtf': realTimeFactorP95(
@@ -149,7 +153,8 @@ export function computeM6ReferenceMasterMetrics(measurementValue, context) {
 			audioArtifacts: audio.length,
 			videoArtifacts: video.length,
 			audioRenderRuns: measurement.audioRenderSeconds.length,
-			videoRenderRuns: measurement.videoRenderSeconds.length,
+			videoRenderRuns: Object.values(measurement.videoRenderSeconds)
+				.reduce((total, runs) => total + runs.length, 0),
 			warmupRuns: measurement.warmupRenderSeconds.length,
 			loudnessDeliveries: loudness.length,
 		},
@@ -243,6 +248,22 @@ function realTimeFactorP95(renderSeconds, mediaDurationSeconds, label) {
 	return nearestRank(renderSeconds.map((seconds) => seconds / duration), 0.95);
 }
 
+/**
+ * The slowest canvas's P95, over timings that name the canvas they measured.
+ *
+ * The companion fixture exists so the gate covers the reframing this milestone
+ * added, and a render-speed row that pooled its runs with the landscape ones —
+ * or accepted five runs for two canvases without saying which — could not tell
+ * you whether 9:16 was slow. Every registered canvas files its own runs and the
+ * widest answer is the one the gate reads.
+ */
+function widestRealTimeFactorP95(renderSecondsByCanvas, mediaDurationSeconds, label) {
+	const factors = Object.values(renderSecondsByCanvas)
+		.map((runs) => realTimeFactorP95(runs, mediaDurationSeconds, label));
+	if (factors.length === 0) throw new Error(`M6 measurement.${label}RenderSeconds names no canvas.`);
+	return factors.reduce((widest, factor) => Math.max(widest, factor), 0);
+}
+
 function validateMeasurement(measurementValue, policy) {
 	const measurement = exactRecord(
 		snapshotStrictJsonData(measurementValue, 'M6 measurement'),
@@ -274,7 +295,9 @@ function validateMeasurement(measurementValue, policy) {
 		audioArtifacts,
 		videoArtifacts,
 		audioRenderSeconds: renderSeconds(measurement.audioRenderSeconds, policy.timingTrials, 'audioRenderSeconds'),
-		videoRenderSeconds: renderSeconds(measurement.videoRenderSeconds, policy.timingTrials, 'videoRenderSeconds'),
+		videoRenderSeconds: renderSecondsByCanvas(
+			measurement.videoRenderSeconds, policy.timingTrials, 'videoRenderSeconds',
+		),
 		warmupRenderSeconds: renderSeconds(
 			measurement.warmupRenderSeconds, policy.timingWarmupTrials, 'warmupRenderSeconds',
 		),
@@ -354,6 +377,30 @@ function assertCanvasCoverage(videoArtifacts, fixtureCanvases) {
 	}
 }
 
+/**
+ * Every registered canvas must have been timed, and nothing else may be.
+ *
+ * The delivery coverage check above makes a run deliver at both canvases; this
+ * one makes it time both, which is what the render-speed row is registered
+ * against. A key the registry does not name is refused rather than averaged in.
+ */
+function assertTimedCanvasCoverage(renderSecondsByCanvas, fixtureCanvases) {
+	const registered = fixtureCanvases
+		.map((canvas) => canvasKey(requireRecord(canvas, 'M6 context.fixtureCanvases[]')));
+	const timed = Object.keys(renderSecondsByCanvas);
+	const missing = registered.filter((key) => !timed.includes(key));
+	if (missing.length > 0) {
+		throw new Error(
+			`M6 run timed no video render at ${missing.join(', ')}; `
+			+ 'every registered delivery canvas must be timed.',
+		);
+	}
+	const unregistered = timed.filter((key) => !registered.includes(key));
+	if (unregistered.length > 0) {
+		throw new Error(`M6 run timed a video render at unregistered canvas ${unregistered.join(', ')}.`);
+	}
+}
+
 function canvasKey(canvas) {
 	return `${String(canvas.width)}x${String(canvas.height)}`;
 }
@@ -369,6 +416,26 @@ function conversionList(value, label) {
 			),
 		});
 	}));
+}
+
+/**
+ * Timed runs keyed by the canvas they rendered, one full set per canvas.
+ *
+ * A flat list could not say which delivery it measured, so a run that timed the
+ * 720p master five times satisfied a row registered to cover 1080x1920 as well.
+ */
+function renderSecondsByCanvas(value, expected, label) {
+	if (!isRecord(value)) {
+		throw new Error(`M6 measurement.${label} must map each delivered canvas to its timed runs.`);
+	}
+	const entries = Object.entries(value);
+	if (entries.length === 0) throw new Error(`M6 measurement.${label} must name at least one canvas.`);
+	return deepFreeze(Object.fromEntries(entries.map(([canvas, runs]) => {
+		if (!/^[1-9][0-9]*x[1-9][0-9]*$/u.test(canvas)) {
+			throw new Error(`M6 measurement.${label} key ${canvas} must name a canvas as WIDTHxHEIGHT.`);
+		}
+		return [canvas, renderSeconds(runs, expected, `${label}.${canvas}`)];
+	})));
 }
 
 function renderSeconds(value, expected, label) {

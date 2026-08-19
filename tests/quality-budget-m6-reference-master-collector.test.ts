@@ -140,7 +140,10 @@ function measurement(overrides: Record<string, unknown> = {}) {
 		audioArtifacts: [audioArtifact()],
 		videoArtifacts: [videoArtifact(), verticalVideoArtifact()],
 		audioRenderSeconds: [1_800, 1_810, 1_820, 1_830, 1_840],
-		videoRenderSeconds: [600, 620, 640, 660, 680],
+		videoRenderSeconds: {
+			'1280x720': [600, 620, 640, 660, 680],
+			'1080x1920': [700, 720, 740, 760, 780],
+		},
 		warmupRenderSeconds: [2_000],
 		...overrides,
 	};
@@ -173,9 +176,19 @@ test('the eleven metrics are recomputed from the delivery reports the run filed'
 	assert.equal(computed['delivery.unreportedConversions'], 0);
 	assert.equal(computed['delivery.partialPublishedOutputBytes'], 0);
 	// Nearest-rank p95 of five samples is the fifth: 1840s of render for one hour
-	// of audio, and 680s for ten minutes of video.
+	// of audio. The video row reads the slowest canvas, not the pool, because the
+	// vertical companion exists to be covered rather than averaged away.
 	assert.equal(computed['delivery.audioRenderP95Rtf'], 1_840 / 3_600);
-	assert.equal(computed['delivery.webVideoRenderP95Rtf'], 680 / 600);
+	assert.equal(computed['delivery.webVideoRenderP95Rtf'], 780 / 600);
+	assert.equal(
+		computeM6ReferenceMasterMetrics(measurement(), {
+			fixtureSpecification: FIXTURE.specification,
+			fixtureCanvases: FIXTURE_CANVASES,
+			measurementPolicy: CONFIG.measurementPolicy,
+		}).rawSampleCounts.videoRenderRuns,
+		10,
+		'five timed runs per registered canvas',
+	);
 });
 
 test('a conformance error reaches the gate through the report, not around it', () => {
@@ -488,3 +501,33 @@ function provisionedConfig() {
 	];
 	return config;
 }
+
+test('a run that timed only one canvas has not covered the render-speed row', () => {
+	// The row is registered against both canvases, and a flat list of five timings
+	// could not say which delivery it measured — so timing the 720p master five
+	// times satisfied a gate that exists to cover the reframing too.
+	assert.throws(
+		() => metrics(measurement({ videoRenderSeconds: { '1280x720': [600, 620, 640, 660, 680] } })),
+		/timed no video render at 1080x1920/u,
+	);
+	assert.throws(
+		() => metrics(measurement({
+			videoRenderSeconds: {
+				'1280x720': [600, 620, 640, 660, 680],
+				'1080x1920': [700, 720, 740, 760, 780],
+				'640x360': [10, 20, 30, 40, 50],
+			},
+		})),
+		/unregistered canvas 640x360/u,
+	);
+	assert.throws(
+		() => metrics(measurement({
+			videoRenderSeconds: { '1280x720': [600, 620, 640, 660], '1080x1920': [700, 720, 740, 760, 780] },
+		})),
+		/videoRenderSeconds\.1280x720 must contain exactly 5 timed runs/u,
+	);
+	assert.throws(
+		() => metrics(measurement({ videoRenderSeconds: [600, 620, 640, 660, 680] })),
+		/must map each delivered canvas to its timed runs/u,
+	);
+});
