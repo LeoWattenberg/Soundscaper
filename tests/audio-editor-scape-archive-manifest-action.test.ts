@@ -50,6 +50,19 @@ test('a streamed save says the archive was never held rather than inventing one'
 	assert.equal(runtime.saved.length, 0);
 });
 
+test('an archive that cannot be read back is a missing manifest, not a failed save', async () => {
+	const runtime = createRuntime();
+	// The file is already written and saved by the time this runs. Evidence that
+	// could not be gathered must never turn into a failure of the save itself.
+	const record = await recordScapeArchiveManifest(runtime, {
+		archive: new Blob([Uint8Array.of(1, 2, 3)]), fileName: 'Cafe Film.scape',
+	});
+
+	assert.equal(record.manifest, null);
+	assert.match(String(record.unavailable), /could not be read back/u);
+	assert.equal(runtime.state.archiveManifest, record);
+});
+
 test('the recorded manifest saves as a report document', async () => {
 	const runtime = createRuntime();
 	await recordScapeArchiveManifest(runtime, {

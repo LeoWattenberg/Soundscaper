@@ -51,8 +51,30 @@ export async function recordScapeArchiveManifest(
 		signal?: AbortSignal;
 	}>,
 ): Promise<ArchiveManifestSessionRecord> {
-	const record = request.archive instanceof Blob
-		? Object.freeze({
+	const record = await manifestRecord(request);
+	(runtime.state as Record<string, unknown>).archiveManifest = record;
+	runtime.publishDocumentSnapshot?.();
+	return record;
+}
+
+async function manifestRecord(
+	request: Readonly<{
+		archive: Blob | null | undefined;
+		fileName: string;
+		projectTitle?: string | null;
+		generatedAt?: string | null;
+		signal?: AbortSignal;
+	}>,
+): Promise<ArchiveManifestSessionRecord> {
+	if (!(request.archive instanceof Blob)) {
+		return Object.freeze({
+			manifest: null,
+			unavailable: 'The archive was streamed straight to its destination and never held as readable bytes.',
+			fileName: request.fileName,
+		});
+	}
+	try {
+		return Object.freeze({
 			manifest: await createScapeArchiveManifest(request.archive, {
 				...(request.projectTitle ? { projectTitle: request.projectTitle } : {}),
 				...(request.generatedAt ? { generatedAt: request.generatedAt } : {}),
@@ -60,15 +82,21 @@ export async function recordScapeArchiveManifest(
 			}),
 			unavailable: null,
 			fileName: request.fileName,
-		})
-		: Object.freeze({
+		});
+	} catch (error) {
+		// The archive is written and saved by the time this runs. Evidence about
+		// it that could not be gathered is a missing manifest with its reason
+		// recorded, never a failed save of a file that is already on disk.
+		return Object.freeze({
 			manifest: null,
-			unavailable: 'The archive was streamed straight to its destination and never held as readable bytes.',
+			unavailable: `The written archive could not be read back: ${errorText(error)}`,
 			fileName: request.fileName,
 		});
-	(runtime.state as Record<string, unknown>).archiveManifest = record;
-	runtime.publishDocumentSnapshot?.();
-	return record;
+	}
+}
+
+function errorText(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }
 
 /** Save the recorded manifest as a report document. */

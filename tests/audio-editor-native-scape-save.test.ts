@@ -134,7 +134,9 @@ test('direct Scape publication rejects independent staged-byte disagreement befo
 test('Blob fallback publishes the admitted archive to its already-selected target', async () => {
 	const target = { browserDownload: true };
 	const requests: unknown[] = [];
+	const state: Record<string, unknown> = {};
 	const runtime = {
+		state,
 		store: {},
 		scapeMimeType: 'application/vnd.soundscaper.scape+zip',
 		fileService: {
@@ -152,6 +154,14 @@ test('Blob fallback publishes the admitted archive to its already-selected targe
 	assert.equal(requests.length, 1);
 	assert.equal((requests[0] as { target: unknown }).target, target);
 	assert.deepEqual(result.saved, { method: 'download', size: 3 });
+	// The archive's checksums are recorded from the file that was written. This
+	// stub's three bytes are not a readable archive, so the record says why it
+	// has no manifest rather than the save failing over missing evidence.
+	assert.equal((state.archiveManifest as { manifest: unknown }).manifest, null);
+	assert.match(
+		String((state.archiveManifest as { unavailable: string }).unavailable),
+		/could not be read back/u,
+	);
 });
 
 test('native Scape save selects its direct target before flush and never assembles a Blob', async () => {
