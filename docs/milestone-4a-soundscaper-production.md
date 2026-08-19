@@ -583,10 +583,14 @@ The three component digests bind canonical array-form snapshots:
 track's exact ordered clips and source-content identities, and clip scheduling;
 `rackDigestSha256` covers the exact active/preserved insert rack;
 `automationDigestSha256` covers only lanes whose addresses target effects in
-that rack. `freshnessDigestSha256` binds the versioned tuple of those three
+that rack, together with the project tempo map when any of those lanes is on
+the musical timebase — such a lane is authored in beats and rendered through
+that map, so the map is part of what produced the frozen audio. A freeze whose
+covered lanes are all sample-timebased does not bind the map and survives a
+tempo edit. `freshnessDigestSha256` binds the versioned tuple of those three
 digests, range, sample rate, and `capturePosition`. It therefore changes for
-any retained clip/source content, sample-rate/range, insert-rack, or addressed
-rack-automation change. It excludes wall-clock time, project revision,
+any retained clip/source content, sample-rate/range, insert-rack, addressed
+rack-automation, or read-tempo change. It excludes wall-clock time, project revision,
 selection/view state, strip gain/pan/mute/solo, VCA state, meters, graph edges,
 routing, and downstream state. Media digests are computed under the owned task
 signal before render; the complete canonical state and project generation are

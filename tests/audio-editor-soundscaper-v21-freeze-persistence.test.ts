@@ -195,6 +195,7 @@ function frozenProject() {
 		clips: [clip],
 		sourceContentIdentities: [{ sourceId: liveSource.id, contentSha256: LIVE_DIGEST }],
 		automationLanes,
+		tempoMap: null,
 	});
 	const track = createAudioTrackV10({
 		id: 'voice', name: 'Voice', clipIds: ['voice-clip'], effects: [effect, automationEffect],

@@ -62,6 +62,7 @@ function digestInput(effectsActive = true) {
 		}],
 		sourceContentIdentities: [{ sourceId: 'source-a', contentSha256: SOURCE_SHA }],
 		automationLanes: [],
+		tempoMap: null,
 	};
 }
 

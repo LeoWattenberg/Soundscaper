@@ -103,6 +103,7 @@ export function createSoundscaperAudioTrackFreezePlaybackServiceV23(
 				clips: dataArray(candidate.clips, 'project.clips'),
 				sourceContentIdentities: identities,
 				automationLanes: dataArray(candidate.automationLanes, 'project.automationLanes'),
+				tempoMap: candidate.tempoMap ?? null,
 			});
 			const derivedSource = exactRecordById(
 				dataArray(candidate.sources, 'project.sources'), freeze.derivedSourceId, 'derived source',
@@ -371,6 +372,7 @@ function verifiedAdmissionStatus(
 			clips,
 			sourceContentIdentities: admission.sourceContentIdentities,
 			automationLanes: lanes,
+			tempoMap: project.tempoMap ?? null,
 		});
 		return classifyAudioTrackFreezeFreshnessV1(freeze, digests).status === 'fresh'
 			? 'fresh' : 'stale';

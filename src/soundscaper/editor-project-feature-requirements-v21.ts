@@ -200,6 +200,7 @@ function documentFreezeDigests(
 		clips,
 		sourceContentIdentities,
 		automationLanes: dataArray(project.automationLanes, 'project.automationLanes'),
+		tempoMap: project.tempoMap ?? null,
 	});
 }
 

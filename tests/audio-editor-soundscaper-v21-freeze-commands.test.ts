@@ -274,6 +274,7 @@ function wideFixture() {
 		sampleRate: project.sampleRate, renderStartFrame: 0, renderFrameCount: 512,
 		track: project.tracks[0], clips: project.clips,
 		sourceContentIdentities: identities, automationLanes: project.automationLanes,
+		tempoMap: project.tempoMap ?? null,
 	});
 	const freeze: AudioTrackFreezeV1 = {
 		schemaVersion: 1, derivedSourceId: 'stem-freeze', ...digests,
@@ -339,6 +340,7 @@ function fixture() {
 		clips: project.clips,
 		sourceContentIdentities,
 		automationLanes: project.automationLanes,
+		tempoMap: project.tempoMap ?? null,
 	});
 	const freeze: AudioTrackFreezeV1 = {
 		schemaVersion: 1, derivedSourceId: 'voice-freeze', ...digests,

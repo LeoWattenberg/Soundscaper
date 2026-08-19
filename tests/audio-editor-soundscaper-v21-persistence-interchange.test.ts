@@ -414,6 +414,7 @@ function productionProject(id: string): SoundscaperProjectV21 {
 		clips: [clip],
 		sourceContentIdentities: [{ sourceId: 'voice-live', contentSha256: LIVE_SHA256 }],
 		automationLanes: [automationLane],
+		tempoMap: null,
 	})
 	const track = createAudioTrackV10({
 		id: 'voice', name: 'Voice', clipIds: ['voice-clip'],

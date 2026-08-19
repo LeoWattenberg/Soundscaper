@@ -441,6 +441,7 @@ function digestInput() {
 			{ sourceId: 'source-a', contentSha256: SHA_A },
 			{ sourceId: 'source-b', contentSha256: SHA_B },
 		],
+		tempoMap: null,
 		automationLanes: [
 			lane('lane-effect', {
 				kind: 'effect', strip: { kind: 'track', id: 'track-a' },

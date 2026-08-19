@@ -209,6 +209,7 @@ async function freeze<Project extends object, Ticket, Body, Stage extends object
 		clips: dataArray(project.clips, 'project.clips'),
 		sourceContentIdentities: identities,
 		automationLanes: dataArray(project.automationLanes, 'project.automationLanes'),
+		tempoMap: project.tempoMap ?? null,
 	});
 	const derivedSourceId = stableId(ports.allocateDerivedSourceId({
 		project: capture.project, trackId, expectedFreeze,
@@ -317,6 +318,7 @@ async function commit<Project extends object, Ticket, Body, Stage extends object
 		clips: dataArray(project.clips, 'project.clips'),
 		sourceContentIdentities: identities,
 		automationLanes: dataArray(project.automationLanes, 'project.automationLanes'),
+		tempoMap: project.tempoMap ?? null,
 	});
 	const derivedSource = exactSource(project, expectedFreeze.derivedSourceId);
 	const derivedSourceContentSha256 = digest(await ports.hashSourceContent({

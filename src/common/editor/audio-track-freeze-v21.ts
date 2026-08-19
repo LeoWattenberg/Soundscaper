@@ -41,6 +41,16 @@ export interface AudioTrackFreezeDigestInputV1 {
 	readonly clips: readonly unknown[];
 	readonly sourceContentIdentities: readonly unknown[];
 	readonly automationLanes: readonly unknown[];
+	/**
+	 * The project's authoritative tempo map, or null when the caller has none.
+	 *
+	 * Rack automation on the musical timebase is authored in beats and rendered
+	 * in samples through this map, so it is part of what produced the frozen
+	 * audio. It is required exactly when a covered lane reads it, and is left out
+	 * of the digest otherwise so an ordinary tempo edit does not discard frozen
+	 * renders that are still correct.
+	 */
+	readonly tempoMap: unknown;
 }
 
 export type AudioTrackFreezeFreshnessComponentV1 = 'input' | 'rack' | 'automation' | 'freshness';
@@ -60,7 +70,7 @@ const DIGEST_FIELDS = Object.freeze([
 ]);
 const DIGEST_INPUT_FIELDS = Object.freeze([
 	'sampleRate', 'renderStartFrame', 'renderFrameCount', 'track', 'clips',
-	'sourceContentIdentities', 'automationLanes',
+	'sourceContentIdentities', 'automationLanes', 'tempoMap',
 ]);
 const SOURCE_IDENTITY_FIELDS = Object.freeze(['sourceId', 'contentSha256']);
 const SHA256 = /^[a-f0-9]{64}$/u;
@@ -201,6 +211,11 @@ export function computeAudioTrackFreezeDigestsV1(value: AudioTrackFreezeDigestIn
 		'audio track freeze automation lanes', 0, 4_096,
 	).map((lane) => normalizeAutomationLaneV21(lane));
 	const effectAutomation = canonicalRackAutomation(lanes, trackId, effectIds);
+	const tempoAuthority = coveredTempoAuthority(
+		effectAutomation,
+		field(input, 'tempoMap', 'audio track freeze digest input'),
+		snapshotNodeBudget,
+	);
 	const inputDigestSha256 = hashCanonical(Object.freeze([
 		'soundscaper.audio-freeze.input/v1', sampleRate,
 		Object.freeze([renderStartFrame, renderFrameCount]), trackId, Object.freeze(orderedInputs),
@@ -208,9 +223,14 @@ export function computeAudioTrackFreezeDigestsV1(value: AudioTrackFreezeDigestIn
 	const rackDigestSha256 = hashCanonical(Object.freeze([
 		'soundscaper.audio-freeze.rack/v1', trackId, track.effectsActive, Object.freeze(effectSnapshots),
 	]));
-	const automationDigestSha256 = hashCanonical(Object.freeze([
-		'soundscaper.audio-freeze.automation/v1', trackId, Object.freeze(effectAutomation),
-	]));
+	const automationDigestSha256 = hashCanonical(tempoAuthority === null
+		? Object.freeze([
+			'soundscaper.audio-freeze.automation/v1', trackId, Object.freeze(effectAutomation),
+		])
+		: Object.freeze([
+			'soundscaper.audio-freeze.automation/v1', trackId, Object.freeze(effectAutomation),
+			'soundscaper.audio-freeze.automation-tempo/v1', tempoAuthority,
+		]));
 	const freshnessDigestSha256 = hashCanonical(Object.freeze([
 		'soundscaper.audio-freeze.freshness/v1', inputDigestSha256, rackDigestSha256,
 		automationDigestSha256, renderStartFrame, renderFrameCount, sampleRate,
@@ -283,6 +303,28 @@ function canonicalRackAutomation(
 		left < right ? -1 : left > right ? 1 : 0
 	));
 	return Object.freeze(ordered.map((key) => byAddress.get(key)!));
+}
+
+/**
+ * The tempo authority a frozen rack actually reads, or null when it reads none.
+ *
+ * A musical lane resolves through the whole map: the scheduler projects every
+ * point and breaks each segment at the tempo events inside it, so no prefix of
+ * the map is safely ignorable without repeating that projection here. Deciding
+ * that a given tempo event could not have moved the render is exactly the
+ * reasoning that produced stale frozen audio, so this hashes the map whole and
+ * re-renders more often rather than serving a render the tempo has left behind.
+ */
+function coveredTempoAuthority(
+	lanes: readonly AutomationLaneV21[],
+	tempoMap: unknown,
+	budget: { remaining: number },
+): unknown {
+	if (!lanes.some((lane) => lane.timebase === 'musical-beats')) return null;
+	if (tempoMap === null || tempoMap === undefined) {
+		throw new TypeError('Musical rack automation requires the project tempo map to digest a freeze.');
+	}
+	return snapshotJson(tempoMap, 'audio track freeze tempo map', budget, new Set<object>());
 }
 
 function snapshotJson(value: unknown, name: string, budget: { remaining: number }, seen: Set<object>): unknown {
