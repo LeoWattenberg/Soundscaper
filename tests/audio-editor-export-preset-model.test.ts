@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	deliveryTargetDialogFormat,
 	dialogSettingsFromPreset,
 	presetFormatFromDialog,
 	presetSettingsFromDialog,
@@ -305,4 +306,14 @@ test('exporting a preset writes through the preset purpose with a safe name', as
 	assert.equal(requests[0].purpose, 'preset');
 	assert.equal(requests[0].suggestedName, 'CD-master-44-1.json');
 	assert.match(String(requests[0].text), /"presets"/u);
+});
+
+test('the dialog format follows the delivery target it is given', () => {
+	assert.equal(deliveryTargetDialogFormat('web-1080p'), 'video-mp4');
+	assert.equal(deliveryTargetDialogFormat('web-vp9-1080p'), 'video-webm');
+	// A blocked target resolves through its fallback, so the control names the
+	// container that will actually be delivered rather than the one asked for.
+	assert.equal(deliveryTargetDialogFormat('native-uhd-hdr10'), 'video-mp4');
+	assert.equal(deliveryTargetDialogFormat(''), null);
+	assert.equal(deliveryTargetDialogFormat('not-a-target'), null);
 });

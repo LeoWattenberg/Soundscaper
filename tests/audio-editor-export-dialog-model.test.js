@@ -11,6 +11,11 @@ import {
 	isVideoExportDialogFormat,
 	projectHasTimelineVideo,
 } from '../src/common/editor/ui/export-dialog-model.js';
+import {
+	PLATFORM_DELIVERY_PRESETS,
+	resolvePlatformDeliveryAvailability,
+} from '../src/common/editor/platform-delivery-presets.ts';
+import { isVideoExportRequestFormat } from '../src/common/editor/video-export-request-format.ts';
 
 test('video export formats only apply when a video clip is assigned to a timeline video track', () => {
 	const project = {
@@ -209,5 +214,27 @@ test('every delivery-canvas control has copy in both catalogs', () => {
 			assert.equal(typeof catalog[key], 'string', `${locale} is missing ${key}`);
 			assert.ok(catalog[key].length > 0, `${locale} ${key} must not be empty`);
 		}
+	}
+});
+
+test('a delivery target keeps the request in the dialog format namespace', () => {
+	const settings = {
+		mode: 'mix', range: 'project', format: 'video-mp4',
+		canvasWidth: '', canvasHeight: '', canvasFit: 'contain',
+		canvasFrameRate: '', canvasBackgroundColor: '', videoQuality: 'balanced',
+	};
+
+	// The export router decides audio versus video from the `video-` prefix, and a
+	// target that carried its bare plan format through stripped it — every target
+	// then exported an audio file instead of the delivery it named.
+	for (const preset of PLATFORM_DELIVERY_PRESETS) {
+		if (!resolvePlatformDeliveryAvailability(preset).available) continue;
+		const request = createExportDialogRequest({ ...settings, deliveryTarget: preset.id }, { metadata: {} });
+		assert.equal(
+			isVideoExportRequestFormat(request.format),
+			true,
+			`${preset.id} must stay a video request, not ${String(request.format)}`,
+		);
+		assert.equal(isVideoExportDialogFormat(request.format), true, `${preset.id} names a dialog video format`);
 	}
 });

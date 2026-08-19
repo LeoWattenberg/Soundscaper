@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { admitBrowserExportBlob, prepareBrowserExportBlob } from '../browser-export-output.ts';
+import { isVideoExportRequestFormat } from '../video-export-request-format.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
@@ -74,7 +75,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			publishDocumentSnapshot();
 			return;
 		}
-		if (String(requestedSettings?.format || '').startsWith('video-')) {
+		if (isVideoExportRequestFormat(requestedSettings?.format)) {
 			return exportVideo(requestedSettings);
 		}
 		if (state.exportAbort) return;

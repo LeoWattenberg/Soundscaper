@@ -33,6 +33,7 @@ import { applyMediaChannelMapping } from '../media-export.js';
 import { serializeAudioEditorLabels } from '../label-io.js';
 import { saveLabelExport } from './app-helpers.ts';
 import { resolveVideoCaptionCues } from '../video-caption-cues.ts';
+import { videoExportPlanFormat } from '../video-export-request-format.ts';
 import { loadVideoBurnInFont } from '../video-burn-in-font.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
 import { resolveVideoDeliveryEncoderTier } from '../video-delivery-encoder-tier.ts';
@@ -197,7 +198,7 @@ export function createEditorVideoExportAction(
 			const admittedFallbacks = await admitVideoRenderedFallbackExport(canonicalProject, delivery, {
 				store, verifyProjectFallbackIntegrity,
 			}, { signal: abort.signal, assertCurrent: assertVideoExportCurrent });
-			const formatValue = String(requestedSettings.format || 'video-mp4').replace(/^video-/, '');
+			const formatValue = videoExportPlanFormat(requestedSettings.format || 'video-mp4');
 			const descriptor = getVideoExportFormat(formatValue) as Readonly<{ id: 'mp4' | 'webm' }>;
 			const format = descriptor.id;
 			const includeAudio = exportProject.clips.some((clip: RuntimeValue) => clip.kind !== 'video');

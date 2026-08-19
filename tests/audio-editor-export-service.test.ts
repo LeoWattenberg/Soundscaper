@@ -6,6 +6,7 @@ import test from 'node:test';
 import { createEditorExportService } from '../src/common/editor/controller/export-service.ts';
 import { countUnreportedDeliveryConversions } from '../src/common/editor/delivery-conversion-inventory.ts';
 import { createFixture, defaultPlan, defaultProject } from './helpers/export-service-fixture.ts';
+import { createExportDialogRequest } from '../src/common/editor/ui/export-dialog-model.js';
 
 test('export action cancellation and preconditions preserve idle state', async () => {
 	const fixture = createFixture();
@@ -359,4 +360,22 @@ test('a delivery with no target leaves the plan-derived report exactly as it was
 	await createEditorExportService(fixture.runtime).handleExportAction('export');
 	const report = fixture.state.deliveryReport as { items: Array<{ code: string }> };
 	assert.equal(report.items.some(({ code }) => code.startsWith('delivery.loudness')), false);
+});
+
+test('a request naming a delivery target is routed to the video path, not the audio one', async () => {
+	// The router decides audio versus video from the request's format alone. A
+	// delivery target used to overwrite that format with its bare plan spelling,
+	// so every targeted delivery fell through to the audio branch and came back
+	// as a WAV — the format the audio normalizer falls back to for anything it
+	// does not recognize. Reaching the video action at all is the assertion; the
+	// audio-only fixture then refuses for its own reason.
+	const request = createExportDialogRequest({
+		mode: 'mix', range: 'project', format: 'video-mp4',
+		canvasWidth: '', canvasHeight: '', canvasFit: 'contain',
+		canvasFrameRate: '', canvasBackgroundColor: '', videoQuality: 'balanced',
+		deliveryTarget: 'web-vp9-1080p',
+	}, { metadata: {} });
+	const fixture = createFixture();
+	const output = await createEditorExportService(fixture.runtime).handleExportAction('export', request);
+	assert.match(output.fileName, /\.webm$/u, `a WebM target must deliver WebM, not ${output.fileName}`);
 });

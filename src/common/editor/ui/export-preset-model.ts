@@ -5,6 +5,10 @@ import {
 	type DeliveryPreset,
 	type DeliveryPresetKind,
 } from '../delivery-preset.ts';
+import {
+	videoExportPlanFormat,
+	videoExportRequestFormat,
+} from '../video-export-request-format.ts';
 import { DEFAULT_VIDEO_DELIVERY_QUALITY } from '../video-delivery-quality.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
 import {
@@ -137,6 +141,19 @@ export function statedVideoDeliveryTarget(
 }
 
 /**
+ * The dialog format a delivery target delivers in, or null when it delivers none.
+ *
+ * A blocked target is followed to its fallback here exactly as the request
+ * builder follows it, so the control the operator sees and the file they get
+ * name the same container.
+ */
+export function deliveryTargetDialogFormat(deliveryTarget: unknown): string | null {
+	const target = statedVideoDeliveryTarget({ deliveryTarget });
+	const format = target?.options.format;
+	return typeof format === 'string' && format ? videoExportRequestFormat(format) : null;
+}
+
+/**
  * The caption delivery a video dialog is asking for, or nothing at all.
  *
  * A delivery needs a track to caption from, so an unnamed track means no
@@ -247,11 +264,11 @@ export async function runDeliveryPresetAction(
  */
 export function presetFormatFromDialog(format: unknown, kind: DeliveryPresetKind): string {
 	const value = String(format ?? '');
-	return kind === 'video' ? value.replace(/^video-/u, '') : value;
+	return kind === 'video' ? videoExportPlanFormat(value) : value;
 }
 
 export function dialogFormatFromPreset(preset: DeliveryPreset): string {
-	return preset.kind === 'video' ? `video-${preset.format}` : preset.format;
+	return preset.kind === 'video' ? videoExportRequestFormat(preset.format) : preset.format;
 }
 
 /** The dialog patch a preset implies. Numbers become strings again for the inputs. */

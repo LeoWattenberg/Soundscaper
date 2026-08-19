@@ -1,3 +1,4 @@
+import { videoExportRequestFormat } from '../video-export-request-format.ts';
 import {
 	statedVideoAudioLayout,
 	statedVideoCanvas,
@@ -54,6 +55,15 @@ export function createExportDialogRequest(settings, options = {}) {
 		const audioLayout = statedVideoAudioLayout(settings);
 		const captions = statedVideoCaptions(settings);
 		const target = statedVideoDeliveryTarget(settings);
+		const targetOptions = target ? { ...target.options } : null;
+		// A target states its format the way a plan does; the request states it the
+		// way the dialog does, because that prefix is what the export router reads
+		// to send a delivery down the video path at all. Passing the plan spelling
+		// through sent every targeted delivery to the audio path, where an
+		// unrecognized format quietly becomes WAV.
+		if (targetOptions && targetOptions.format !== undefined) {
+			targetOptions.format = videoExportRequestFormat(targetOptions.format);
+		}
 		return {
 			mode: 'mix',
 			range: settings.range,
@@ -62,7 +72,7 @@ export function createExportDialogRequest(settings, options = {}) {
 			// A delivery target supplies the geometry and codec it stands for;
 			// anything the dialog states explicitly still wins over it, which is
 			// what makes the target a starting point rather than a lock.
-			...(target ? { ...target.options, deliveryTarget: target.presetId } : {}),
+			...(targetOptions ? { ...targetOptions, deliveryTarget: target.presetId } : {}),
 			...(target?.degradedFrom ? { degradedFrom: target.degradedFrom } : {}),
 			// Attached only when the dialog actually states geometry or a tier, so
 			// an untouched dialog produces the request it always produced.
