@@ -106,6 +106,14 @@ export function removeTracksAndDependents(project, trackIds) {
 	const clipIds = new Set(removedTracks.flatMap((track) => track.clipIds || []));
 	project.clips = project.clips.filter((clip) => !clipIds.has(clip.id));
 	project.tracks = project.tracks.filter((track) => !removedTrackIds.has(String(track.id)));
+	// A take graph is owned by one track, and the document refuses a group whose
+	// track is gone. Leaving them behind made a cycle-recorded track impossible to
+	// delete at all: the commit failed on the validator rather than on anything the
+	// operator could see.
+	if (Array.isArray(project.takeGroups)) {
+		project.takeGroups = project.takeGroups
+			.filter((group) => !removedTrackIds.has(String(group?.trackId)));
+	}
 	for (const removedTrackId of removedTrackIds) {
 		if (project.mixer?.routes) delete project.mixer.routes[removedTrackId];
 		disableAutoDuckForRemovedControlTrack(project, removedTrackId);
