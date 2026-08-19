@@ -36,6 +36,42 @@ export function convertAutomationLanePositionV21(
 	return nonNegativeSafeInteger(frame, 'converted automation position');
 }
 
+/**
+ * Convert one Bézier control position, which is a rational in either timebase.
+ *
+ * A lane's points are bare sample frames on the sample timebase and rationals on
+ * the beat timebase; its curve controls are rationals in both. Converting a
+ * control through the point rule wrote a bare number where the document requires
+ * a rational, and the lane was only refused later, on Apply, naming a field the
+ * operator never edited.
+ */
+export function convertAutomationLaneControlPositionV21(
+	position: unknown,
+	from: AutomationLaneTimebaseV21,
+	to: AutomationLaneTimebaseV21,
+	options: AutomationLaneTimebaseOptionsV21,
+): Rational {
+	const source = from === 'absolute-samples' ? controlFrame(position) : position;
+	const converted = convertAutomationLanePositionV21(source, from, to, options);
+	return typeof converted === 'number'
+		? Object.freeze({ num: converted, den: 1 })
+		: converted;
+}
+
+/**
+ * The whole sample a control sits on.
+ *
+ * A control between two samples has no exact beat, and this conversion refuses
+ * what it cannot state exactly rather than rounding it into the document.
+ */
+function controlFrame(position: unknown): number {
+	const rational = canonicalRational(position);
+	if (rational.den !== 1) {
+		throw new RangeError('A Bézier control between samples cannot be stated in beats.');
+	}
+	return rational.num;
+}
+
 /** Reject a conversion that collapsed or reordered authored positions. */
 export function assertConvertedPositionsOrderedV21(
 	positions: readonly (number | Rational)[],

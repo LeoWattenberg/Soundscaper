@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 
 import {
 	assertConvertedPositionsOrderedV21,
+	convertAutomationLaneControlPositionV21,
 	convertAutomationLanePositionV21,
 } from '../../automation-lane-timebase-v21.ts';
 
@@ -254,7 +255,18 @@ function changeTimebase(
 			if (!control || typeof control !== 'object' || Array.isArray(control)) {
 				throw new RangeError('A Bézier segment requires canonical controls.');
 			}
-			(control as { position: unknown }).position = position((control as { position: unknown }).position);
+			// A curve control is a rational in either timebase, unlike a point, so it
+			// converts through its own rule; the point rule wrote a bare number the
+			// document only refused later, at Apply.
+			(control as { position: unknown }).position = convertAutomationLaneControlPositionV21(
+				(control as { position: unknown }).position,
+				from,
+				value,
+				{
+					sampleRate: Number(context.sampleRate),
+					...(context.tempoMap === undefined ? {} : { tempoMap: context.tempoMap as never }),
+				},
+			);
 		}
 	}
 	lane.timebase = value;
