@@ -12,10 +12,13 @@ import {
 	type FramescaperMulticameraCommandV18,
 } from './editor-project-v18-multicam.ts';
 import {
-	framescaperProjectV18HasProxyAttachment,
 	validateFramescaperProjectV18,
 	type FramescaperProjectV18,
 } from './editor-project-v18-validation.ts';
+import {
+	framescaperVideoProxyAttachmentsV18,
+	retainFramescaperVideoProxyAttachmentsV18,
+} from './editor-video-proxy-attachment-retention-v18.ts';
 import {
 	assertFramescaperSequenceDeletionV18,
 	framescaperSequenceIdV18,
@@ -43,9 +46,6 @@ export function applyFramescaperProjectCommandV18(
 	assertFramescaperProjectV18Profile(profile);
 	validateFramescaperProjectV18(profile, project);
 	const persisted = project as FramescaperProjectV18;
-	if (framescaperProjectV18HasProxyAttachment(persisted)) {
-		throw new RangeError('A proxy-attached Framescaper V18 project is intrinsically read-only.');
-	}
 	if (isFramescaperSequenceCommandV18(command)) {
 		return applySequenceCommand(profile, persisted, command, options);
 	}
@@ -55,16 +55,18 @@ export function applyFramescaperProjectCommandV18(
 	if (isFramescaperMulticameraCommandV18(command)) {
 		return applyMulticameraCommand(profile, persisted, command, options);
 	}
+	// The command runs against a V17 projection that has never heard of proxy
+	// attachments, so they are lifted out first and carried back afterwards —
+	// each one only if the edit left what it claims about its source true.
+	const attachments = framescaperVideoProxyAttachmentsV18(persisted);
 	const v17Project = structuredClone(persisted) as unknown as Record<string, unknown>;
 	v17Project.schemaVersion = 17;
 	for (const source of v17Project.sources as Record<string, unknown>[]) delete source.proxyAttachment;
 	const commanded = applyEditorCommand(v17Project, command, options) as unknown as Record<string, unknown>;
 	commanded.schemaVersion = 18;
-	for (const source of commanded.sources as Record<string, unknown>[]) {
-		if (source.kind === 'video') source.proxyAttachment = null;
-		else delete source.proxyAttachment;
-	}
+	retainFramescaperVideoProxyAttachmentsV18(commanded, attachments);
 	commanded.multicameraGroups = structuredClone(persisted.multicameraGroups);
+	commanded.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(profile, commanded);
 	validateFramescaperProjectV18(profile, commanded);
 	return commanded as FramescaperProjectV18;
 }
@@ -143,6 +145,11 @@ function finalizeDraft(
 	if (!Number.isSafeInteger(revision)) throw new RangeError('Framescaper V18 project revision overflowed.');
 	draft.revision = revision;
 	draft.updatedAt = timestamp(options.now);
+	// A sequence, subsequence, or multicamera edit clones the V18 document whole,
+	// so its attachments arrive intact; they still pass the same test, because a
+	// path that ever does reach a source must not be the one that keeps a stale
+	// proxy alive.
+	retainFramescaperVideoProxyAttachmentsV18(draft, framescaperVideoProxyAttachmentsV18(project));
 	draft.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV18(profile, draft);
 	validateFramescaperProjectV18(profile, draft);
 	return draft as FramescaperProjectV18;

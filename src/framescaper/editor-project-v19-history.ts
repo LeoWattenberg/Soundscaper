@@ -163,10 +163,6 @@ function restore(
 	redoStack: readonly FramescaperProjectHistoryEntryV19[],
 	options: FramescaperProjectCommandOptionsV19,
 ): FramescaperProjectHistoryV19 {
-	if (framescaperProjectV19HasProxyAttachment(history.present)
-		|| framescaperProjectV19HasProxyAttachment(entry.project)) {
-		throw new RangeError('A proxy-attached Framescaper V19 project is intrinsically read-only.');
-	}
 	const present = cloneFramescaperProjectV19(profile, entry.project) as unknown as Record<string, unknown>;
 	const revision = history.present.revision + 1;
 	if (!Number.isSafeInteger(revision)) throw new RangeError('Framescaper V19 project revision overflowed.');

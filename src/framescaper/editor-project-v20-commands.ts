@@ -124,7 +124,6 @@ export function applyFramescaperProjectCommandV20(
 	assertFramescaperProjectV20Profile(profile);
 	validateFramescaperProjectV20(profile, project);
 	const persisted = project as FramescaperProjectV20;
-	assertWritable(persisted);
 	const normalized = snapshotFramescaperProjectCommandV20(command);
 	return applySingle(profile, persisted, normalized, options);
 }
@@ -479,11 +478,6 @@ function keyframeContext(clip: DataRecord, name: string): Readonly<Record<string
 	});
 }
 
-function assertWritable(project: FramescaperProjectV20): void {
-	if (framescaperProjectV19HasProxyAttachment(project as never)) {
-		throw new RangeError('A proxy-attached Framescaper V20 project is intrinsically read-only.');
-	}
-}
 
 function assertClipTrackUnlocked(project: FramescaperProjectV20, clipId: string): void {
 	for (const trackValue of project.tracks) {

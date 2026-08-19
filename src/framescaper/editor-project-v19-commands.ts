@@ -113,9 +113,6 @@ export function applyFramescaperProjectCommandV19(
 	assertFramescaperProjectV19Profile(profile);
 	validateFramescaperProjectV19(profile, project);
 	const persisted = project as FramescaperProjectV19;
-	if (framescaperProjectV19HasProxyAttachment(persisted)) {
-		throw new RangeError('A proxy-attached Framescaper V19 project is intrinsically read-only.');
-	}
 	const normalizedCommand = snapshotFramescaperProjectCommandV19(command);
 	if (!isFramescaperVideoCompositionCommandV19(normalizedCommand)) {
 		assertCurrentVideoClipboardV19(normalizedCommand);

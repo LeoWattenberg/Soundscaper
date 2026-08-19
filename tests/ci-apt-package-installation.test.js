@@ -89,6 +89,22 @@ test('the helper retries an apt-get call that a mirror failure aborted', () => {
 	}
 });
 
+test('the helper repairs a half-applied dpkg state before retrying an install', () => {
+	const harness = createHarness({ installed: [], failuresBeforeSuccess: 1 });
+	try {
+		const result = harness.run(['pulseaudio']);
+		assert.equal(result.status, 0, result.stderr);
+		// The wall clock can kill apt-get between unpack and configure. Without a
+		// repair the retry inherits the broken database and can never succeed.
+		assert.ok(
+			harness.dpkgRepairs() >= 1,
+			'a retried install must reconfigure the interrupted dpkg transaction first',
+		);
+	} finally {
+		harness.cleanup();
+	}
+});
+
 test('the helper fails once its attempts are spent instead of hanging', () => {
 	const harness = createHarness({ installed: [], failuresBeforeSuccess: Number.MAX_SAFE_INTEGER });
 	try {
@@ -129,6 +145,7 @@ function createHarness({ installed, failuresBeforeSuccess = 0 }) {
 	const binary = join(root, 'bin');
 	mkdirSync(binary);
 	const aptLog = join(root, 'apt.log');
+	const dpkgLog = join(root, 'dpkg.log');
 	const timeoutLog = join(root, 'timeout.log');
 	const attemptCounter = join(root, 'attempts');
 
@@ -142,6 +159,7 @@ function createHarness({ installed, failuresBeforeSuccess = 0 }) {
 			'exit 1\n',
 	);
 	writeStub(join(binary, 'sudo'), 'exec "$@"\n');
+	writeStub(join(binary, 'dpkg'), `printf '%s\\n' "$*" >> '${dpkgLog}'\n`);
 	writeStub(
 		join(binary, 'timeout'),
 		`printf '%s\\n' "$*" >> '${timeoutLog}'\n` +
@@ -150,12 +168,19 @@ function createHarness({ installed, failuresBeforeSuccess = 0 }) {
 			'done\n' +
 			'exec "$@"\n',
 	);
+	// Failures are counted per subcommand, so an `update` that recovers does not
+	// spend the `install` budget the way a single shared counter would.
 	writeStub(
 		join(binary, 'apt-get'),
 		`printf '%s\\n' "$*" >> '${aptLog}'\n` +
-			`attempts=$(cat '${attemptCounter}' 2>/dev/null || printf 0)\n` +
-			`attempts=$((attempts + 1))\n` +
-			`printf '%s' "$attempts" > '${attemptCounter}'\n` +
+			'subcommand=other\n' +
+			'for argument in "$@"; do\n' +
+			'\tcase "$argument" in update|install) subcommand="$argument"; break ;; esac\n' +
+			'done\n' +
+			`counter='${attemptCounter}'."$subcommand"\n` +
+			'attempts=$(cat "$counter" 2>/dev/null || printf 0)\n' +
+			'attempts=$((attempts + 1))\n' +
+			'printf %s "$attempts" > "$counter"\n' +
 			`if [ "$attempts" -le ${failuresBeforeSuccess === Number.MAX_SAFE_INTEGER ? 999999 : failuresBeforeSuccess} ]; then exit 100; fi\n` +
 			'exit 0\n',
 	);
@@ -179,6 +204,9 @@ function createHarness({ installed, failuresBeforeSuccess = 0 }) {
 		},
 		timeoutInvocations() {
 			return readLog(timeoutLog).length;
+		},
+		dpkgRepairs() {
+			return readLog(dpkgLog).filter((call) => call.includes('--configure')).length;
 		},
 		cleanup() {
 			rmSync(root, { recursive: true, force: true });

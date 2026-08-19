@@ -49,13 +49,22 @@ apt_options=(
 	-o 'DPkg::Lock::Timeout=60'
 )
 
+# `repairs_dpkg` asks for a `dpkg --configure -a` between attempts. Only the
+# install needs it: the wall clock can land between unpack and configure, and a
+# retry that inherits a half-applied database fails no matter how healthy the
+# mirror has become by then.
 run_apt() {
 	local description="$1"
-	shift
+	local repairs_dpkg="$2"
+	shift 2
 	local attempt
 	for ((attempt = 1; attempt <= attempt_limit; attempt++)); do
-		# SIGTERM first so apt can unwind its dpkg transaction; SIGKILL only for a
-		# process that ignored it, which apt-get update does not do.
+		if ((attempt > 1)) && [[ "$repairs_dpkg" == 'repair' ]]; then
+			# A no-op when the database is already consistent.
+			sudo dpkg --configure -a || true
+		fi
+		# SIGTERM first so apt can unwind its own transaction; SIGKILL only for a
+		# process that ignored it.
 		if sudo timeout --kill-after=30s "$timeout_seconds" apt-get "${apt_options[@]}" "$@"; then
 			return 0
 		fi
@@ -68,5 +77,5 @@ run_apt() {
 	return 1
 }
 
-run_apt 'apt-get update' update
-run_apt 'apt-get install' install --yes "${missing[@]}"
+run_apt 'apt-get update' no-repair update
+run_apt 'apt-get install' repair install --yes "${missing[@]}"
