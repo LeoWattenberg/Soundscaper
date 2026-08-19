@@ -20,7 +20,8 @@ import {
  * so it honours hidden, mute, and solo. Trim-media does not describe the render;
  * it decides which bytes survive. A hidden track's clips still reference their
  * media, and hiding a track must never be a way to destroy the material behind
- * it. Every clip counts, whatever its track is doing.
+ * it. Every clip counts, whatever its track is doing — including the clips in
+ * the Project Bin, which reference source ranges just as timeline clips do.
  *
  * Handles are added on both sides so a trimmed source can still be re-edited a
  * little. They are declared per plan rather than assumed, and they never shrink
@@ -76,9 +77,13 @@ export function createTrimMediaPlan(request: TrimMediaPlanRequest): TrimMediaPla
 		sources.set(id, { frameCount: nonNegativeInteger(source.frameCount ?? 0, 'source.frameCount'), ranges: [] });
 	}
 
-	// Every clip, from every track, visible or not. A hidden track's media is
-	// still the project's media.
-	for (const clip of asRecords(project.clips)) {
+	// Every clip, from every track, visible or not, and every clip in the Project
+	// Bin. A hidden track's media is still the project's media, and so is a take
+	// that has been imported but not yet placed: a bin clip names a source and a
+	// range in it, so discarding those frames would leave the bin pointing at
+	// material the file no longer contains.
+	const binClips = asRecords((project.projectBin as Record<string, unknown> | undefined)?.clips);
+	for (const clip of [...asRecords(project.clips), ...binClips]) {
 		const sourceId = String(clip.sourceId ?? '');
 		const entry = sources.get(sourceId);
 		if (!entry) {

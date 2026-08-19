@@ -179,3 +179,43 @@ test('every referenced frame survives, checked exhaustively rather than by examp
 		}
 	}
 });
+
+test('a Project Bin clip protects its media as firmly as a timeline clip does', () => {
+	// The bin holds real references: a bin clip names a source and a range in it,
+	// and discarding those frames would leave the bin pointing at material the
+	// file no longer contains. Walking only the timeline would do exactly that
+	// to any source parked in the bin and not yet placed.
+	const binOnly = planFor({
+		clips: [],
+		tracks: [{ type: 'audio', id: 'a1', name: 'A1', clipIds: [] }],
+		projectBin: {
+			clips: [{
+				kind: 'audio', id: 'b1', sourceId: 'src', title: 'Take',
+				timelineStartFrame: 0, durationFrames: 100, sourceStartFrame: 400,
+				sourceDurationFrames: 100, speedRatio: 1,
+			}],
+		},
+	});
+	const [source] = binOnly.sources;
+	assert.equal(source.referenceCount, 1, 'the bin clip is a reference');
+	assert.deepEqual(source.retained, [{ startFrame: 400, endFrame: 500 }]);
+	for (let frame = 400; frame < 500; frame += 1) {
+		assert.ok(trimMediaRetainsFrame(source, frame), `bin-referenced frame ${frame} must survive`);
+	}
+
+	// And a bin clip that reaches further than the timeline widens what is kept
+	// rather than being overridden by it.
+	const wider = planFor({
+		projectBin: {
+			clips: [{
+				kind: 'audio', id: 'b1', sourceId: 'src', timelineStartFrame: 0,
+				durationFrames: 300, sourceStartFrame: 600, sourceDurationFrames: 300, speedRatio: 1,
+			}],
+		},
+	});
+	assert.deepEqual(wider.sources[0].retained, [
+		{ startFrame: 400, endFrame: 500 },
+		{ startFrame: 600, endFrame: 900 },
+	]);
+	assert.equal(wider.sources[0].referenceCount, 2);
+});
