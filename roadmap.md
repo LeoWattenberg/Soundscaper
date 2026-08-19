@@ -161,7 +161,7 @@ Known architectural constraints that drive later work:
 | 2. Shared platform/storage/media | **In progress — current priority** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
 | 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
 | 4. Production surfaces | **In progress — provisional candidates** | Complete automation, routing, compositing, captions, and finishing. |
-| 5. Electron-native services | **In progress — 5A-0a local** | Add isolated native media, audio, render, and plug-in services. |
+| 5. Electron-native services | **In progress — 5A provisional, 5B substrate inert** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **In progress — web tier implemented, none qualified** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
 | 8. Capture and MIDI | **Blocked/Planned** | Add Framescaper recording, then MIDI after upstream design review. |
@@ -393,9 +393,7 @@ Packet boundaries, dependencies, and acceptance are owned by
   repeated recordings to the same exact group, isolates failed routed lanes,
   and settles project, media, raw-spool, and recovery-envelope ownership through
   generation-fenced publication. Explicit recover or discard is required after
-  interruption; mutation stays blocked while that decision is pending. Focused
-  domain, command, storage-fault, `.scape`, desktop-handoff, cross-product, and
-  browser take-comp workflows cover the maintained surface.
+  interruption; mutation stays blocked while that decision is pending.
 - **Shared / Web Enhanced — Implemented:** digest- and algorithm-bound transient
   analysis uses bounded disposable cache storage, while strictly increasing
   audio warp maps share one exact evaluator across waveform projection,
@@ -404,8 +402,7 @@ Packet boundaries, dependencies, and acceptance are owned by
   menus; deterministic commands preserve trims, splits, tempo edits, undo/redo,
   clipboard, and save/reopen meaning. Missing realtime acceleration selects the
   bounded exact-offline path instead of scalar stretch, including direct WAV
-  output. `.scape`, desktop handoff, and browser workflows prove native
-  Soundscaper editing and read-only Framescaper preservation.
+  output. Framescaper preserves the result read-only.
 - **Web Core — Implemented:** tempo-map-aware compound-meter count-in and exact
   one-transaction punch run through both default and routed capture, alongside
   sound-activated recording. Every approved milestone-3 Audacity action is
@@ -413,8 +410,7 @@ Packet boundaries, dependencies, and acceptance are owned by
   navigation, spectral selection and brush, boundary skips, structural
   alignment and sorting, bounded raw import, bulk selection and mute actions,
   repeat generator/analyzer, and regular-interval annotations. The audited
-  milestone-3 manifest count is zero planned actions; Node and browser evidence
-  covers recording, undo, menu reachability, and keyboard navigation.
+  milestone-3 manifest count is zero planned actions.
 - **Shared qualification — Implemented (provisional):** the local 3A-7 evidence
   harness deterministically builds the two-hour, 24-audio-track,
   two-proxy-video-track, 10,000-edit workload, measures decoded-media A/V clocks,
@@ -613,16 +609,21 @@ clearance does not close either track or milestone exit gate.
 **Depends on:** milestones 2–4. Research may begin after milestone 2, but product
 integration waits for the owning shared contract.
 
-**Status:** **In progress — every 5A packet implemented provisionally/local, none
-qualified.** Only `linux-x64` has a native payload, every third-party plug-in
-format stays fail-closed, and the native lab is unprovisioned.
+**Status:** **In progress — every 5A packet and the whole 5B software substrate
+implemented provisionally/local, none qualified.** Only `linux-x64` has a native
+payload, every third-party plug-in format stays fail-closed, and the native lab
+is unprovisioned. The 5B substrate is additionally inert: contract v1 admits no
+media, render, watch, or OFX job kind, so no helper spawns for it, no native
+capability is activated, and its menu group is absent rather than
+present-but-inert.
 
 **Goal:** make Electron materially more capable without weakening the renderer
 sandbox or creating a second editor engine.
 
 The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared
-contract; the [milestone-5A plan](docs/milestone-5a-soundscaper-native.md)
-owns Soundscaper readiness, architecture, and acceptance.
+contract; the [milestone-5A plan](docs/milestone-5a-soundscaper-native.md) and
+[milestone-5B plan](docs/milestone-5b-framescaper-native-tier.md) own each
+product's readiness, architecture, and acceptance.
 
 ### Native service architecture
 
@@ -653,13 +654,17 @@ owns Soundscaper readiness, architecture, and acceptance.
 
 ### Framescaper native tier
 
-- **Electron Enhanced — Planned:** native ffprobe and multithreaded FFmpeg,
-  hardware decode/encode, bounded intermediates, and shared render-plan parity.
-- **Electron Enhanced — Planned:** long-GOP/high-resolution decode, background
-  proxies, 10-bit/HDR, color metadata, image sequences, alpha masters, and
-  distributable mezzanine formats.
-- **Electron Only — Planned:** persistent parallel queues, external reference
-  output, watch folders, managed scratch/cache volumes, and isolated OFX.
+- **Electron Enhanced — Substrate implemented, not activated:** native ffprobe
+  and multithreaded FFmpeg, hardware decode/encode, bounded intermediates, and
+  shared render-plan parity.
+- **Electron Enhanced — Substrate implemented, not activated:** long-GOP and
+  high-resolution decode, background proxies, 10-bit/HDR, color metadata, image
+  sequences, alpha masters, and distributable mezzanine formats. Their licensing
+  rows stay blocked and their exact project revision opens only after
+  milestone 4's.
+- **Electron Only — Substrate implemented, not activated:** persistent parallel
+  queues, external reference output, watch folders, managed scratch/cache
+  volumes, and isolated OFX.
 - **Blocked until milestone 8:** no new Framescaper capture IPC, permissions,
   entitlements, or UI.
 
