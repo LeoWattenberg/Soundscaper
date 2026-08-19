@@ -11,13 +11,12 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-19: all three 6C-1 profiles are implemented, reachable, and
-verified against third-party readers; consolidate and the archive checksum
-manifest are complete end to end, from plan through storage to a File menu
-entry; the kill/reload recovery acceptance is in place; and 6C-3's evidence
-names a witness for each sentence of the gate. What remains in 6C is the
-trim-media rewriter, which is blocked on a recorded decision rather than on
-missing code.** The EDL profile establishes the pattern
+**Status on 2026-08-19: 6C is complete.** All three 6C-1 profiles are
+implemented, reachable, and verified against third-party readers; consolidate,
+the archive checksum manifest, and trim-media are complete end to end, from plan
+through storage to a File menu entry; the kill/reload recovery acceptance is in
+place; and 6C-3's evidence names a witness for each sentence of the gate. The
+EDL profile establishes the pattern
 the remaining profiles reuse: exact rational rates throughout, timecode from the
 shared `sequence-timecode` module, and every out-of-scope feature itemized in a
 delivery report rather than approximated. It is split deliberately —

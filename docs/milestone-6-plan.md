@@ -297,8 +297,8 @@ existing portable exception (docs/project-compatibility.md:86-88).
 
 **Status on 2026-08-19: phase 6.0, the whole 6A track and the whole 6B track are
 complete for the web tier; 6C-1 is complete across all three profiles, and 6C-2
-has both its planning and its byte-moving halves with the controller and UI
-wiring still owed.** The
+is complete — archive manifests, consolidate, and a lossless trim-media that
+rebinds the document through its own undoable command.** The
 6A track was reviewed after it closed, and the repairs that review produced are
 recorded with their slices below rather than reopening the packets. Nothing here is
 qualified — both quality environments remain unprovisioned, so no RTF or
@@ -533,6 +533,16 @@ and
   Invariants: external media is never deleted; digest verification
   end-to-end. Stop: stop if trim-media cannot prove which bytes are
   unreferenced.
+  **Implemented.** A `.scape` save records the checksum manifest of the archive
+  it wrote, measured by reading the finished file back rather than copied from
+  the writer's own digests; File > Save archive checksums writes it out and the
+  verifier reads it back. Consolidate copies linked originals into managed
+  storage and rebinds by unlinking under the compare-and-swap fence, never
+  deleting the external file. Trim-media proves which frames are referenced —
+  from the timeline and the Project Bin alike, ignoring visibility — cuts video
+  losslessly on keyframes, and moves the document onto the result through
+  `source/rewrite-media` in one undoable batch. Nothing on either path removes
+  the bytes an undo would need.
 - **6C-3 — Exit evidence.** Cross-format round-trip fixtures and the
   `.scape` handoff preservation sentence of the exit gate
   (roadmap.md:747) witnessed.
