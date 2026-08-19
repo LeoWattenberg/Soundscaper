@@ -114,6 +114,23 @@ test('a copy that lost a referenced frame is refused however many frames it hold
 	assert.equal(harness.rebinds.length, 0, 'a copy missing referenced frames must never be bound to');
 });
 
+test('media this writer cannot cut is refused under its own reason', async () => {
+	// Folding it in with external files would tell the user to consolidate it
+	// first, which they would try, and which would not help.
+	const harness = createHarness();
+	const result = await runTrimMedia({
+		plan: createTrimMediaPlan({ project: gappedProject(), handleFrames: 0 }),
+		unsupportedSourceIds: ['a'],
+	}, harness.ports);
+
+	assert.equal(result.sources.find(({ sourceId }) => sourceId === 'a')?.outcome, 'unsupported-media');
+	assert.deepEqual(harness.events, [], 'nothing is written for media that cannot be cut');
+	assert.match(
+		String(reportItem(result, 'trim.unsupported-media')?.message),
+		/no lossless cut here/u,
+	);
+});
+
 test('an external file is refused rather than rewritten in place', async () => {
 	const harness = createHarness();
 	const result = await runTrimMedia({

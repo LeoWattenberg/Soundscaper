@@ -46,6 +46,7 @@ export type TrimMediaOutcome =
 	| 'whole-source-retained'
 	| 'unreferenced'
 	| 'linked-original-refused'
+	| 'unsupported-media'
 	| 'frame-count-mismatch'
 	| 'rebind-superseded'
 	| 'write-failed';
@@ -136,6 +137,13 @@ export interface TrimMediaRunRequest {
 	 * the caller has to say which they are rather than this guessing.
 	 */
 	readonly linkedSourceIds?: Iterable<string>;
+	/**
+	 * Sources this caller's writer cannot cut — a kind of media it has no
+	 * lossless cut for, or a container it will not re-wrap. Reported under their
+	 * own reason rather than folded in with external files, because a user told
+	 * to "consolidate it first" would try, and it would not help.
+	 */
+	readonly unsupportedSourceIds?: Iterable<string>;
 }
 
 export async function runTrimMedia(
@@ -146,6 +154,7 @@ export async function runTrimMedia(
 	const plan = request?.plan;
 	if (!plan || typeof plan !== 'object') throw new TypeError('A trim-media run requires a plan.');
 	const linked = new Set(request.linkedSourceIds ?? []);
+	const unsupported = new Set(request.unsupportedSourceIds ?? []);
 	const draft = createDeliveryReport({
 		format: 'trim-media', container: null, codec: null,
 		sampleRate: null, channelCount: null, lossless: null,
@@ -182,6 +191,20 @@ export async function runTrimMedia(
 				data: { frameCount: source.frameCount },
 				message: 'Every frame is referenced, so rewriting this source would only copy it.',
 			});
+			continue;
+		}
+		if (unsupported.has(source.sourceId)) {
+			results.push(result(source, 'unsupported-media', null, trimMediaRetainedRuns(source)));
+			addDeliveryReportItem(draft, {
+				code: 'trim.unsupported-media',
+				disposition: 'omitted',
+				severity: 'warning',
+				scope: { kind: 'source', id: source.sourceId },
+				data: { discardedFrames: source.discardedFrames },
+				message: 'This kind of media has no lossless cut here, so it was left exactly as it was.',
+			});
+			completed += 1;
+			options.onProgress?.(Object.freeze({ completed, total: candidates.length }));
 			continue;
 		}
 		if (linked.has(source.sourceId)) {

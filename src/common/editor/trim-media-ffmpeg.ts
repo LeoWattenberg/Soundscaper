@@ -41,6 +41,32 @@ export interface TrimMediaCutRequest {
 	readonly outputPath: string;
 }
 
+/**
+ * The muxer and file extension a source's own container is copied back into.
+ *
+ * A stream copy changes nothing about the media, so it must not change the
+ * container either — the trimmed file has to be the same kind of file it was.
+ * A container this cannot name is refused rather than guessed at: writing an
+ * unknown source into a default container would silently re-wrap it, and the
+ * whole promise of this path is that nothing was changed.
+ */
+export function trimMediaContainerForMimeType(
+	mimeType: string,
+): Readonly<{ container: string; extension: string }> {
+	const normalized = String(mimeType || '').split(';')[0]!.trim().toLowerCase();
+	const known = TRIM_MEDIA_CONTAINERS[normalized];
+	if (!known) throw new RangeError(`A ${normalized || 'nameless'} source cannot be trimmed by copying.`);
+	return known;
+}
+
+const TRIM_MEDIA_CONTAINERS: Readonly<Record<string, Readonly<{ container: string; extension: string }>>> =
+	Object.freeze({
+		'video/mp4': Object.freeze({ container: 'mp4', extension: 'mp4' }),
+		'video/quicktime': Object.freeze({ container: 'mov', extension: 'mov' }),
+		'video/webm': Object.freeze({ container: 'webm', extension: 'webm' }),
+		'video/x-matroska': Object.freeze({ container: 'matroska', extension: 'mkv' }),
+	});
+
 /** Seek time for the midpoint of a frame, as FFmpeg spells one. */
 export function trimMediaSeekSeconds(startFrame: number, frameRate: TrimMediaRational): string {
 	const start = nonNegativeInteger(startFrame, 'start frame');
