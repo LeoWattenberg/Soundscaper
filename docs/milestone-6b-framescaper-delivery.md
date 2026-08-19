@@ -57,6 +57,15 @@ ceiling. And the video preview still resolves the project's derived canvas, so a
 delivery that reframes to 9:16 is not previewed at 9:16 — the preview honours a
 fit it is given, but nothing yet gives it the delivery's.
 
+One defect of this slice's own making was found later and is fixed. The offline
+export closed its canvas record against `width`, `height` and `frameRate` only,
+while the V20 strategy passed the `fit` every keyed plan states — so the keyed
+path refused its own plan and no keyed export reached a frame. The seam went
+untested because the strategy test asserts the fit is passed while faking the
+encoder, and the export test built its own canvas without one. Dropping the fit
+would have been the quieter bug of the two: a delivery that asked to crop would
+have been letterboxed with nothing to say so.
+
 6B opened only after every 6.0 acceptance check passed. Four grounding facts
 bound every slice below, and each one narrows scope rather than widening it:
 
@@ -220,9 +229,9 @@ cue's appearance and disappearance falls inside one frame of its label time.
   styling state — then this slice waits for milestone 4 rather than
   front-running it.
 
-**6B-3 is under way: capability detection, the elementary-stream boundary, and
-the producer have landed; the service wiring and browser evidence have not.** Two
-measured facts shaped what exists. The pinned core's IVF *demuxer* reads a
+**6B-3 is complete.** Capability detection, the elementary-stream boundary, the
+producer, the execution path, the service wiring and the browser evidence have
+all landed. Two measured facts shaped what exists. The pinned core's IVF *demuxer* reads a
 hand-built header correctly — `Input #0, ivf ... Video: vp9 (Profile 0) (VP90),
 25 tbr` — so the VP9 remux direction this tier needs is sound. Its IVF *muxer*
 crashes the wasm outright with a memory access fault, which is a hazard worth
@@ -241,10 +250,45 @@ closes the encoder and throws instead of returning the chunks it happened to
 collect. The quality tier is read a second way here — as a bitrate rather than a
 CRF — which is exactly why the plan states a tier and neither number.
 
-What 6B-3 still owes is the wiring and its evidence: choosing the tier inside
-the export service, reporting the chosen encoder per delivery, and the
-same-plan goldens on the qualified browser matrix, which needs a Playwright
-spec.
+The wiring is in the export service, before anything is encoded, because the
+delivery report is written from the plan and a decision taken deeper could never
+have appeared in it. It travels down through the product strategy to the encoder
+that runs, and every delivery — accelerated or not — carries a `delivery.encoder`
+item, because which encoder ran cannot be recovered from the finished file. Each
+fallback states its own reason: a browser without the API, a browser that
+refuses the codec, a canvas past every level, or a composed-graph delivery that
+has nowhere to put encoded chunks. Asking the question may never fail a
+delivery, so a plan the probe cannot describe falls back to the encoder that was
+going to run anyway and says so.
+
+What the two tiers share is deliberate and structural. The container, the
+mapping, the metadata stripping and the audio encoder are written once per
+format and used by both, so the two differ in how the picture was compressed and
+in nothing else; a test holds the two argument vectors against each other. The
+concurrency is shared for the same reason — a producer and a subprocess running
+at once, either able to fail first, with rings, lease and abort signal to unwind
+exactly once — since cleanup that differs between two delivery paths is the
+defect no golden-output comparison can see. The tiers disagree about one thing
+only: raw frames have an exact expected byte total, while an encoded stream's
+completion means the producer closed its ring.
+
+The evidence is `tests/browser/audio-editor-video-delivery-encoder-tiers.spec.js`.
+Byte equality is not the claim and cannot be, so the same plan is encoded by both
+tiers in Chromium and the deliveries are compared as pictures: same length in
+frames, both read back by FFmpeg at `29.97 tbr` — the exact rational surviving
+the elementary-stream boundary, which is this slice's stop condition — and
+decoded pictures differing by 1.4 of 255, against a bound of 4. Firefox and
+WebKit run the fallback half, where the decision must report a reason rather
+than fail.
+
+That spec earned its keep on its first run. The producer waited for the encoder
+queue to drain on a microtask, and an encoder does its work and delivers its
+chunks in tasks: the queue could not shrink while the loop held the thread, so
+the page froze outright. No unit test could have seen it, because a synchronous
+fake encoder returns its chunk before the queue is ever measured. The wait now
+yields to the task queue, preferring the encoder's `dequeue` event where a
+browser implements it, and the regression test drains on a timer the way a real
+encoder does.
 
 Levels are computed from the specifications' own tables rather than guessed:
 720p30 resolves to H.264 3.1 and VP9 3.1, 1080p30 to 4.0 and 4.0, 1080p120 to
