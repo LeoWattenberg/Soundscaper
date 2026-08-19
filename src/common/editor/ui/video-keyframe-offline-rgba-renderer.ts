@@ -115,6 +115,9 @@ export function createVideoKeyframeOfflineRgbaRenderer(
 					outputWidth: plan.width,
 					outputHeight: plan.height,
 					outputColorModel: 'rgba',
+					// The delivery's own background, which the canvas states and the
+					// composed-graph path paints into its letterbox bars.
+					backgroundColor: frameSource.canvas.backgroundColor,
 				});
 				if (report.status !== 'rendered'
 					|| report.rendererStatus !== 'available'

@@ -8,6 +8,12 @@ import {
 	programLocations,
 	videoEffectPasses,
 } from './video-preview-effects.js';
+import { videoDeliveryColorChannels } from '../video-delivery-color.ts';
+import {
+	pruneVideoTextures,
+	releaseVideoTexture,
+	uploadVideoTexture,
+} from './video-preview-video-textures.js';
 import {
 	beginVideoPreviewRenderLedger,
 	completeVideoPreviewRenderLedger,
@@ -184,47 +190,15 @@ export class VideoPreviewCompositor {
 	}
 
 	uploadVideo(video) {
-		const gl = this.gl;
-		const drawable = video.drawable || video;
-		let record = this.videoTextures.get(video);
-		if (!record) {
-			const texture = gl.createTexture();
-			if (!texture) throw new Error('Unable to allocate a video frame texture.');
-			record = { texture, width: 0, height: 0, generation: this.renderGeneration };
-			this.videoTextures.set(video, record);
-			gl.bindTexture(gl.TEXTURE_2D, texture);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-		} else {
-			record.generation = this.renderGeneration;
-			gl.bindTexture(gl.TEXTURE_2D, record.texture);
-		}
-		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-		gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-		if (record.width !== video.videoWidth || record.height !== video.videoHeight) {
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, drawable);
-			record.width = video.videoWidth;
-			record.height = video.videoHeight;
-		} else gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, drawable);
-		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-		return record.texture;
+		return uploadVideoTexture(this.gl, this.videoTextures, video, this.renderGeneration);
 	}
 
 	releaseVideo(video) {
-		const record = this.videoTextures.get(video);
-		if (!record) return;
-		this.videoTextures.delete(video);
-		this.gl.deleteTexture(record.texture);
+		releaseVideoTexture(this.gl, this.videoTextures, video);
 	}
 
 	pruneUnusedVideoTextures() {
-		for (const [video, record] of this.videoTextures) {
-			if (record.generation === this.renderGeneration) continue;
-			this.gl.deleteTexture(record.texture);
-			this.videoTextures.delete(video);
-		}
+		pruneVideoTextures(this.gl, this.videoTextures, this.renderGeneration);
 	}
 
 	clearTarget(target, red = 0, green = 0, blue = 0, alpha = 0) {
@@ -340,7 +314,13 @@ export class VideoPreviewCompositor {
 		this.renderGeneration += 1;
 		const gl = this.gl;
 		gl.disable(gl.BLEND);
-		this.clearTarget(this.targets.composition, 0, 0, 0, 1);
+		// Opaque black unless the delivery states a background of its own, which is
+		// what shows through a `contain` fit's bars.
+		const background = videoDeliveryColorChannels(options.backgroundColor)
+			?? { red: 0, green: 0, blue: 0, alpha: 1 };
+		this.clearTarget(
+			this.targets.composition, background.red, background.green, background.blue, background.alpha,
+		);
 		let compositionTarget = this.targets.composition;
 		let compositionSwapTarget = this.targets.compositionSwap;
 		let renderedEntries = 0;

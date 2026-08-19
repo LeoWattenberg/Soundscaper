@@ -12,6 +12,10 @@ import type { VideoKeyframePreviewStateRequest } from './video-keyframe-preview-
 import type { VideoRetimeFrameDescriptor } from './video-retime-frame-dispatch.ts';
 import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
 import {
+	normalizeVideoDeliveryColor,
+	videoDeliveryColorChannels,
+} from './video-delivery-color.ts';
+import {
 	normalizeRational,
 	type Rational,
 	type RationalInput,
@@ -32,6 +36,8 @@ export interface VideoKeyframeExportCanvas {
 	readonly frameRate: Rational;
 	/** How a source of another aspect is placed; absent from a request means `contain`. */
 	readonly fit: VideoCanvasFit;
+	/** What the canvas is cleared to; absent from a request means opaque black. */
+	readonly backgroundColor: string;
 }
 
 export interface VideoKeyframeExportFrameRequest {
@@ -41,6 +47,7 @@ export interface VideoKeyframeExportFrameRequest {
 		height: number;
 		frameRate: RationalInput;
 		fit?: VideoCanvasFit;
+		backgroundColor?: string;
 	}>;
 	readonly startFrame?: number;
 	readonly endFrame?: number;
@@ -259,7 +266,7 @@ function mapLocalSequencePosition(
 
 function normalizeCanvas(value: unknown): VideoKeyframeExportCanvas {
 	const canvas = plainRecord(value, 'video keyframe export canvas');
-	const allowed = new Set(['width', 'height', 'frameRate', 'fit']);
+	const allowed = new Set(['width', 'height', 'frameRate', 'fit', 'backgroundColor']);
 	for (const key of Reflect.ownKeys(canvas)) {
 		if (typeof key !== 'string' || !allowed.has(key)) {
 			throw new TypeError('Video keyframe export canvas has an unsupported field.');
@@ -269,11 +276,20 @@ function normalizeCanvas(value: unknown): VideoKeyframeExportCanvas {
 	// a delivery could ask for another one.
 	const fit = Object.hasOwn(canvas, 'fit') ? dataProperty(canvas, 'fit', 'canvas') : 'contain';
 	if (!isVideoCanvasFit(fit)) throw new RangeError('Video keyframe export canvas fit is unsupported.');
+	// Absent means the opaque black every keyed frame cleared to before a
+	// delivery could state a background of its own.
+	const backgroundColor = Object.hasOwn(canvas, 'backgroundColor')
+		? normalizeVideoDeliveryColor(dataProperty(canvas, 'backgroundColor', 'canvas'), 'canvas.backgroundColor')
+		: '#000000';
+	if (!videoDeliveryColorChannels(backgroundColor)) {
+		throw new RangeError('Video keyframe export canvas backgroundColor must be a hex colour.');
+	}
 	return Object.freeze({
 		width: positiveSafeInteger(dataProperty(canvas, 'width', 'canvas'), 'canvas.width'),
 		height: positiveSafeInteger(dataProperty(canvas, 'height', 'canvas'), 'canvas.height'),
 		frameRate: positiveRational(dataProperty(canvas, 'frameRate', 'canvas'), 'canvas.frameRate'),
 		fit,
+		backgroundColor,
 	});
 }
 

@@ -204,10 +204,13 @@ function createRecordingContext() {
 		uniforms: new Map(),
 	};
 	const draws = [];
+	const clears = [];
 	const recording = {
 		draws,
+		clears,
 		reset() {
 			draws.length = 0;
+			clears.length = 0;
 			state.uniforms.clear();
 			state.textures.clear();
 		},
@@ -230,6 +233,9 @@ function createRecordingContext() {
 		createVertexArray: () => ({ id: nextId += 1 }),
 		checkFramebufferStatus: () => constant('FRAMEBUFFER_COMPLETE'),
 		useProgram: (program) => { state.program = program; },
+		clearColor: (red, green, blue, alpha) => {
+			clears.push({ framebuffer: state.framebuffer, color: [red, green, blue, alpha] });
+		},
 		bindFramebuffer: (_target, framebuffer) => { state.framebuffer = framebuffer; },
 		activeTexture: (textureUnit) => { state.activeTexture = textureUnit; },
 		bindTexture: (_target, texture) => { state.textures.set(state.activeTexture, texture); },
@@ -271,3 +277,27 @@ function createRecordingContext() {
 function setUniform(state, location, value) {
 	state.uniforms.set(location, value);
 }
+
+test('the composition is cleared to the background the delivery states', () => {
+	const fixture = createRecordingFixture();
+	const compositor = createVideoPreviewCompositor(fixture.canvas);
+
+	// A `contain` delivery shows this colour in its bars, and the composed-graph
+	// path has always painted them with it. The keyed renderer clears the canvas
+	// itself, so it had to be told; before that a stated background failed the
+	// whole keyed export rather than being delivered.
+	fixture.recording.reset();
+	compositor.render([], { outputWidth: 640, outputHeight: 360 });
+	assert.deepEqual(fixture.recording.clears[0].color, [0, 0, 0, 1], 'black unless a delivery says otherwise');
+
+	fixture.recording.reset();
+	compositor.render([], { outputWidth: 640, outputHeight: 360, backgroundColor: '#ff8000' });
+	assert.deepEqual(
+		fixture.recording.clears[0].color.map((channel) => Math.round(channel * 255)),
+		[255, 128, 0, 255],
+	);
+
+	fixture.recording.reset();
+	compositor.render([], { outputWidth: 640, outputHeight: 360, backgroundColor: '#00000080' });
+	assert.equal(Math.round(fixture.recording.clears[0].color[3] * 255), 128, 'an alpha suffix is carried too');
+});

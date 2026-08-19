@@ -392,7 +392,7 @@ function validateFrameSource(value: unknown): VideoKeyframeExportFrameSource {
 	requireFunction(source, 'frame', 'video keyframe export frame source');
 	const canvas = closedRecord(
 		dataProperty(source, 'canvas', 'video keyframe export frame source'),
-		new Set(['width', 'height', 'frameRate', 'fit']),
+		new Set(['width', 'height', 'frameRate', 'fit', 'backgroundColor']),
 		'video keyframe export canvas',
 	);
 	positiveSafeInteger(

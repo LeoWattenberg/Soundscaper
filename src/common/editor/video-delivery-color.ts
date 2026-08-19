@@ -36,3 +36,34 @@ export function normalizeVideoDeliveryColor(value: unknown, name: string): strin
 	}
 	return value;
 }
+
+export interface VideoDeliveryColorChannels {
+	readonly red: number;
+	readonly green: number;
+	readonly blue: number;
+	readonly alpha: number;
+}
+
+/**
+ * The colour as channels a renderer can clear to, or null for a name only
+ * FFmpeg knows.
+ *
+ * The composed graph hands its background to FFmpeg, which resolves names from
+ * its own palette. The keyed path clears a WebGL target itself and has no such
+ * palette, so it resolves the hex spellings — which is what the dialog's colour
+ * control produces — and states plainly that it cannot resolve the rest.
+ */
+export function videoDeliveryColorChannels(value: unknown): VideoDeliveryColorChannels | null {
+	if (typeof value !== 'string') return null;
+	const hex = value.startsWith('0x') || value.startsWith('0X')
+		? value.slice(2)
+		: value.startsWith('#') ? value.slice(1) : null;
+	if (hex === null || (hex.length !== 6 && hex.length !== 8) || !/^[0-9a-f]+$/iu.test(hex)) return null;
+	const channel = (index: number): number => Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16) / 255;
+	return Object.freeze({
+		red: channel(0),
+		green: channel(1),
+		blue: channel(2),
+		alpha: hex.length === 8 ? channel(3) : 1,
+	});
+}

@@ -379,7 +379,7 @@ function snapshotCanvas(value: unknown): VideoKeyframeExportFrameRequest['canvas
 	// delivery the plan asked to crop, and refusing it refuses every keyed
 	// export, because a plan canvas always states one.
 	const canvas = closedRecord(
-		value, 'offline video export canvas', ['width', 'height', 'frameRate', 'fit'],
+		value, 'offline video export canvas', ['width', 'height', 'frameRate', 'fit', 'backgroundColor'],
 	);
 	const frameRate = typeof canvas.frameRate === 'object' && canvas.frameRate !== null
 		? closedRecord(canvas.frameRate, 'offline video export frame rate', ['num', 'den'])
@@ -388,6 +388,9 @@ function snapshotCanvas(value: unknown): VideoKeyframeExportFrameRequest['canvas
 		width: canvas.width as number,
 		height: canvas.height as number,
 		frameRate: frameRate as VideoKeyframeExportFrameRequest['canvas']['frameRate'],
+		...(canvas.backgroundColor === undefined ? {} : {
+			backgroundColor: canvas.backgroundColor as string,
+		}),
 		...(canvas.fit === undefined ? {} : {
 			fit: canvas.fit as NonNullable<VideoKeyframeExportFrameRequest['canvas']['fit']>,
 		}),

@@ -14,6 +14,11 @@ import {
 	AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE,
 } from './project-v10-foundation-validation.ts';
 
+import {
+	normalizeVideoDeliveryColor,
+	videoDeliveryColorChannels,
+} from './video-delivery-color.ts';
+
 const SHA256 = /^[a-f0-9]{64}$/u;
 const VIDEO_MIME = /^video\/[a-z0-9][a-z0-9.+-]{0,126}$/u;
 const NO_OPTIONAL_FIELDS: ReadonlySet<string> = new Set();
@@ -24,11 +29,24 @@ export function videoMime(value: unknown): string {
 	return result;
 }
 
+/**
+ * The background a keyed delivery clears its canvas to.
+ *
+ * The composed graph hands its colour to FFmpeg, which resolves names from its
+ * own palette; this path clears a WebGL target and has none, so it takes the
+ * spellings it can resolve to channels — every hex form, which is what the
+ * dialog's colour control produces — and refuses a name rather than rendering
+ * black and saying nothing. It used to accept only `#000000`, which made a
+ * background the plan builder had already validated fail the whole export.
+ */
 export function canonicalColor(value: unknown): string {
-	if (value !== '#000000') {
-		throw new TypeError('Video keyframe export backgroundColor must match the opaque-black compositor.');
+	const color = normalizeVideoDeliveryColor(value, 'Video keyframe export backgroundColor');
+	if (!videoDeliveryColorChannels(color)) {
+		throw new TypeError(
+			'Video keyframe export backgroundColor must be a hex colour the compositor can clear to.',
+		);
 	}
-	return '#000000';
+	return color;
 }
 
 export function digest(value: unknown): string {

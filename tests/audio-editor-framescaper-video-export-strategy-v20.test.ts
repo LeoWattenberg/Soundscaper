@@ -157,6 +157,9 @@ test('V20 product strategy maps the detached plan exactly into Blob and sink enc
 			height: keyedPlan.canvas.height,
 			frameRate: keyedPlan.canvas.frameRate,
 			fit: keyedPlan.canvas.fit,
+			// The background travels with the extents: it is what a `contain` fit's
+			// bars are painted in, and the renderer clears the canvas to it.
+			backgroundColor: keyedPlan.canvas.backgroundColor,
 		});
 		assert.deepEqual(encoded.sources, [{ sourceId: 'late-source', blob: videoBlob }]);
 		assert.strictEqual(encoded.audioMix, audioMix);

@@ -93,11 +93,20 @@ test('authenticates the project before reading a closed hostile request', () => 
 		() => createFramescaperVideoKeyframeExportPlanV20(PROFILE, project, { surprise: true }),
 		/unsupported field/iu,
 	);
+	// A hex background is a delivery decision the compositor can clear to, so it
+	// rides the keyed plan exactly as it rides the composed graph. A colour name
+	// is FFmpeg's own palette, which this path has no way to resolve.
+	assert.equal(
+		createFramescaperVideoKeyframeExportPlanV20(PROFILE, project, {
+			canvas: { backgroundColor: '#ffffff' },
+		}).canvas.backgroundColor,
+		'#ffffff',
+	);
 	assert.throws(
 		() => createFramescaperVideoKeyframeExportPlanV20(PROFILE, project, {
-			canvas: { backgroundColor: '#ffffff' },
+			canvas: { backgroundColor: 'papayawhip' },
 		}),
-		/opaque-black compositor/iu,
+		/hex colour the compositor can clear to/iu,
 	);
 });
 

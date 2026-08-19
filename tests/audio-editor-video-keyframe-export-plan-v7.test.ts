@@ -95,9 +95,18 @@ test('rejects hostile creator input and non-canonical detached plans without inv
 	const unsafeColor = request();
 	(unsafeColor.canvas as { backgroundColor: string }).backgroundColor = 'color(display-p3 0 0 0)';
 	assert.throws(() => createVideoKeyframeExportPlanV7(unsafeColor), /backgroundColor/iu);
+	// A hex background is what the compositor can clear to, so it is delivered
+	// rather than refused; a colour name is FFmpeg's palette, which this path has
+	// no way to resolve, and it says so instead of quietly rendering black.
 	const nonblack = request();
 	(nonblack.canvas as { backgroundColor: string }).backgroundColor = '#ffffff';
-	assert.throws(() => createVideoKeyframeExportPlanV7(nonblack), /opaque-black compositor/iu);
+	assert.equal(createVideoKeyframeExportPlanV7(nonblack).canvas.backgroundColor, '#ffffff');
+	const named = request();
+	(named.canvas as { backgroundColor: string }).backgroundColor = 'papayawhip';
+	assert.throws(
+		() => createVideoKeyframeExportPlanV7(named),
+		/hex colour the compositor can clear to/iu,
+	);
 
 	assert.throws(() => createVideoKeyframeExportPlanV7(request({
 		frameRate: { num: 31, den: 1 },
