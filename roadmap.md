@@ -162,7 +162,7 @@ Known architectural constraints that drive later work:
 | 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
 | 4. Production surfaces | **In progress — provisional candidates** | Complete automation, routing, compositing, captions, and finishing. |
 | 5. Electron-native services | **In progress — 5A-0a local** | Add isolated native media, audio, render, and plug-in services. |
-| 6. Delivery/interchange | **Planned** | Add professional masters, queues, exchange, and archives. |
+| 6. Delivery/interchange | **In progress — web tier implemented, none qualified** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
 | 8. Capture and MIDI | **Blocked/Planned** | Add Framescaper recording, then MIDI after upstream design review. |
 | 8+. Framescaper Web VCR | **Planned** | Add authorized HTTPS media capture through an isolated, dockable Electron browser after milestone 8. |
@@ -461,43 +461,22 @@ Packet boundaries, dependencies, and acceptance are owned by
   its length. Four points that disagree are refused rather than fitted, because
   fitting one to the other is a speed change and retiming is not in this packet.
 - **Web Core — Implemented:** session-only J/K/L shuttle and strict
-  previous/next video edit-point navigation are implemented on the program
-  playhead. Both are reachable through the existing Transport menu and the
-  Framescaper workspace keys, shuttle positions stay on exact sequence-frame
-  boundaries, and reverse uses descending scrub feedback without persisting
-  reversed media. Framescaper now also exposes the existing exact timeline A/V
+  previous/next video edit-point navigation on the program playhead, reachable
+  through the Transport menu and the Framescaper workspace keys, with shuttle
+  positions on exact sequence-frame boundaries and reverse scrub that persists
+  no reversed media. Framescaper also exposes the exact timeline A/V
   Link/Unlink and video Show/Hide commands through its application menus, with
-  undo/redo and reload persistence. The frame-canonical edge-trim planner
-  (`024ad9b`) and its controller, existing-pointer, and application-menu
-  integration (`8de72ca`) are implemented: video-bearing left/right trims share
-  one absolute-boundary authority, keep linked audio aligned, and remain
-  one-step undoable. Exact-current V15 track locks now persist across both
-  products and desktop storage, centrally refuse direct or nested changes to
-  protected editorial state, drive shared Tracks-menu Lock/Unlock, and make
-  trim/navigation consume live lock facts. Frame-canonical roll and lane-ripple
-  trim is implemented through `47a0be9`: one planner owns linked integer/NTSC
-  geometry, lock-aware clamping, complete previews, and the atomic command used
-  by the lazy menu and modified existing handles. Frame-canonical slip and slide
-  are implemented through `c490af3b`: one verified-timing authority keeps linked
-  A/V exact through lazy menu actions and modified whole-clip gestures, with
-  persisted locks and one-step undo/redo. Uniform constant rate-stretch is
-  implemented through `2bbfa06b`: one verified timing and rational duration
-  authority keeps source ranges fixed while lazy menu actions and the existing
-  video handles update linked A/V canonically and report the derived rate.
-  Existing focused-clip trim and stretch keys now route exact linked A/V through
-  those canonical authorities one adjacent sequence frame at a time, while
-  Soundscaper retains its legacy behavior. Packet 3B-4 is complete and packet
-  **3B-5 — Retiming, ramps, and nested sequences** is in progress. See
-  [`docs/milestone-3b-shuttle-navigation.md`](docs/milestone-3b-shuttle-navigation.md),
-  [`docs/milestone-3b-linked-audio-visibility.md`](docs/milestone-3b-linked-audio-visibility.md),
-  [`docs/milestone-3b-frame-canonical-edge-trim-planner.md`](docs/milestone-3b-frame-canonical-edge-trim-planner.md),
-  [`docs/milestone-3b-frame-canonical-edge-trim-integration.md`](docs/milestone-3b-frame-canonical-edge-trim-integration.md),
-  [`docs/milestone-3b-track-locking.md`](docs/milestone-3b-track-locking.md),
-  [`docs/milestone-3b-roll-ripple-trim.md`](docs/milestone-3b-roll-ripple-trim.md),
-  [`docs/milestone-3b-slip-slide.md`](docs/milestone-3b-slip-slide.md),
-  [`docs/milestone-3b-uniform-rate-stretch.md`](docs/milestone-3b-uniform-rate-stretch.md),
-  and
-  [`docs/milestone-3b-canonical-trim-keyboard.md`](docs/milestone-3b-canonical-trim-keyboard.md).
+  undo/redo and reload persistence. Frame-canonical edge, roll, lane-ripple,
+  slip, slide, and uniform constant rate-stretch trims each route through one
+  absolute-boundary or verified-timing authority that keeps linked A/V exact,
+  clamps against exact-current V15 track locks — persisted across both products
+  and desktop storage, refused centrally for direct and nested changes alike,
+  and driven by a shared Tracks-menu Lock/Unlock — previews completely, and
+  stays one-step undoable, whether reached from the lazy Tracks menu, the
+  existing pointer handles, or the focused-clip keys; Soundscaper retains its
+  legacy behavior. Packet 3B-4 is complete and packet **3B-5 — Retiming, ramps,
+  and nested sequences** is in progress; the slice documents are linked from
+  [the 3B work packets](docs/milestone-3b-work-packets.md).
 - **Shared / Web Core — Split status:** Nested sequences are **Implemented** in
   Framescaper V18. Their registered owned requirement, strict cycle/depth/rate
   model, lazy Tracks-menu commands, history, deterministic playback and
