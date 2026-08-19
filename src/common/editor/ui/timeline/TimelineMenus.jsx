@@ -19,6 +19,7 @@ import {
 	TimelineOverlayPortal,
 } from './TimelineOverlayComponents.jsx';
 import { TrackColorPicker } from './TimelineFlyouts.jsx';
+import { audioClipEditUnavailable } from './timeline-menu-model.js';
 import { viewportMenuPlacement } from './interaction-helpers.js';
 
 export function TimelineMenus({
@@ -32,6 +33,14 @@ export function TimelineMenus({
 	overlayTarget,
 }) {
 	const { project, sampleRate } = geometry;
+	// Reverse, normalize, and pitch/speed are audio-effect work. Their handlers
+	// refuse outright on a product without that capability, so a menu that offered
+	// them there produced an error instead of an edit; the clip properties dialog,
+	// the other surface for the same commands, has always gated them.
+	const audioClipEditBlocked = (clip) => audioClipEditUnavailable(clip, {
+		mutationsBlocked,
+		audioEffects: snapshot.capabilities?.audioEffects !== false,
+	});
 	const {
 		trackMenu,
 		outputMenu,
@@ -290,7 +299,7 @@ export function TimelineMenus({
 				<ManifestContextMenuItem
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.reverse}
 					label={copy.reverse}
-					disabled={mutationsBlocked || !menuClip || menuClip.kind !== 'audio'}
+					disabled={audioClipEditBlocked(menuClip)}
 					disabledReason={unavailableReason}
 					locale={contextLocale}
 					onClick={() => menuClip && run(() => controller.actions.clip.reverse(menuClip.id))}
@@ -299,7 +308,7 @@ export function TimelineMenus({
 				<ManifestContextMenuItem
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.normalizePeak}
 					label={copy.normalizePeak}
-					disabled={mutationsBlocked || !menuClip || menuClip.kind !== 'audio'}
+					disabled={audioClipEditBlocked(menuClip)}
 					disabledReason={unavailableReason}
 					locale={contextLocale}
 					onClick={() => menuClip && run(() => controller.actions.clip.normalizePeak(menuClip.id))}
@@ -308,7 +317,8 @@ export function TimelineMenus({
 				<ManifestContextMenuItem
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.renderPitchSpeed}
 					label={copy.renderPitchSpeed}
-					disabled={mutationsBlocked || !menuClip || menuClip.kind !== 'audio' || (menuClip.pitchCents === 0 && menuClip.speedRatio === 1)}
+					disabled={audioClipEditBlocked(menuClip)
+						|| (menuClip.pitchCents === 0 && menuClip.speedRatio === 1)}
 					disabledReason={unavailableReason}
 					locale={contextLocale}
 					onClick={() => menuClip && run(() => controller.actions.clip.renderPitchSpeed(menuClip.id))}
@@ -317,7 +327,8 @@ export function TimelineMenus({
 				<ManifestContextMenuItem
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.resetPitchSpeed}
 					label={copy.resetPitchSpeed}
-					disabled={mutationsBlocked || !menuClip || menuClip.kind !== 'audio' || (menuClip.pitchCents === 0 && menuClip.speedRatio === 1)}
+					disabled={audioClipEditBlocked(menuClip)
+						|| (menuClip.pitchCents === 0 && menuClip.speedRatio === 1)}
 					disabledReason={unavailableReason}
 					locale={contextLocale}
 					onClick={() => menuClip && run(() => controller.actions.clip.resetPitchSpeed(menuClip.id))}
@@ -327,7 +338,7 @@ export function TimelineMenus({
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.stretchToTempo}
 					label={copy.stretchToTempo}
 					checked={Boolean(menuClip?.stretchToTempo)}
-					disabled={mutationsBlocked || !menuClip || menuClip.kind !== 'audio'}
+					disabled={audioClipEditBlocked(menuClip)}
 					disabledReason={unavailableReason}
 					locale={contextLocale}
 					onClick={() => menuClip && run(() => controller.actions.clip.toggleStretchToTempo(menuClip.id))}

@@ -11,6 +11,21 @@ import {
 import { manifestMenuItem } from './TimelineOverlayComponents.jsx';
 import { moveMediaTrackBlock } from './timeline-navigation.js';
 
+/**
+ * Whether an audio-only clip command is available on this clip, in this product.
+ *
+ * Reverse, normalize, and pitch/speed are audio-effect work: their handlers
+ * refuse outright where that capability is absent, so a surface that offers them
+ * there produces an error instead of an edit. The clip properties dialog has
+ * always asked this question; the clip context menu asks it here so both answer
+ * the same way.
+ */
+export function audioClipEditUnavailable(clip, options) {
+	if (options?.mutationsBlocked) return true;
+	if (options?.audioEffects === false) return true;
+	return !clip || clip.kind !== 'audio';
+}
+
 export function createTimelineMenuModel({
 	controller,
 	snapshot,
@@ -288,6 +303,11 @@ function createTrackOverflowItems({
 		audio: audioTrack ? [
 			...production.tracks,
 			...takeComp,
+			// Sample rate, sample format, and channel layout are audio-effect work:
+			// their handlers refuse outright on a product without that capability,
+			// so a surface that offered them there only produced an error after the
+			// operator had chosen a value. The application menu already hides them.
+			...(capabilities?.audioEffects === false ? [] : [
 			{
 				id: 'track-rate', label: copy.sampleRate, disabled: mutationsBlocked,
 				items: [44_100, 48_000, 88_200, 96_000, 192_000].map((sampleRate) => ({
@@ -321,6 +341,7 @@ function createTrackOverflowItems({
 					{ id: 'track-split-stereo-to-center', label: copy.splitStereoCenter, disabled: channelCount !== 2, onClick: () => run(() => controller.actions.track.splitStereoCenter(track.id)) },
 				],
 			},
+			]),
 		] : [],
 	};
 }
