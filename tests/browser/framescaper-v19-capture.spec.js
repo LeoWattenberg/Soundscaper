@@ -6,12 +6,15 @@ import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
 	bootEditor,
+	chooseNestedCommandAction,
 	getMenuItem,
 	openNestedCommandMenu,
 	registerAudioEditorHooks,
 	trackNameText,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
+import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
+import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const SOURCE_LABELS = Object.freeze({
 	camera: 'Camera',
@@ -52,6 +55,9 @@ test.describe('Framescaper V19 recoverable capture', () => {
 		await expectCaptureCalls(page, []);
 		await assertAccessibleBasics(panel);
 		await assertNoSeriousAxeViolations(page, '[data-workspace-panel="recording-setup"]');
+		await page.emulateMedia({ forcedColors: 'active' });
+		await expect(panel.getByRole('status')).toHaveCSS('forced-color-adjust', 'none');
+		await page.emulateMedia({ forcedColors: 'none' });
 
 		const toolbarRecord = editor.getByRole('button', { name: 'Recording setup', exact: true });
 		await expect(toolbarRecord).toBeVisible();
@@ -71,6 +77,26 @@ test.describe('Framescaper V19 recoverable capture', () => {
 		await expect(panel.getByRole('status')).toContainText('Capture is unavailable in this runtime');
 		await expect(panel.getByRole('button', { name: 'Preview sources', exact: true })).toHaveCount(0);
 		await expectCaptureCalls(page, []);
+		await assertAccessibleBasics(panel);
+	});
+
+	test('reports an unsupported standalone runtime without capture APIs', async ({ page }) => {
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'mediaDevices', {
+				configurable: true,
+				value: Object.freeze({
+					enumerateDevices: async () => [],
+				}),
+			});
+			for (const name of ['MediaRecorder', 'MediaStreamTrackProcessor', 'AudioWorkletNode']) {
+				Object.defineProperty(globalThis, name, { configurable: true, value: undefined });
+			}
+		});
+		const editor = await bootEditor(page, '/framescaper/en/');
+		const panel = await openRecordingSetup(page, editor);
+
+		await expect(panel.getByRole('status')).toContainText('Capture is unavailable in this runtime');
+		await expect(panel.getByRole('button', { name: 'Preview sources', exact: true })).toHaveCount(0);
 		await assertAccessibleBasics(panel);
 	});
 
@@ -178,6 +204,82 @@ test.describe('Framescaper V19 recoverable capture', () => {
 		expect(callsBeforeReopen).toBe(1);
 	});
 
+	test('publishes mixed camera, display, microphone, and system audio as ordinary media', async ({ page }) => {
+		test.setTimeout(120_000);
+		await installPinnedFfmpegRuntimeRoutes(page);
+		await installCaptureHarness(page);
+		let editor = await bootEditor(page, '/framescaper/en/');
+		const projectId = await editor.getAttribute('data-project-id');
+		expect(projectId).toBeTruthy();
+		let panel = await openRecordingSetup(page, editor);
+
+		await selectSourceRoles(panel, ['camera', 'display', 'microphone']);
+		await panel.getByRole('button', { name: 'Preview sources', exact: true }).press('Enter');
+		await expectCapturePhase(panel, 'previewing');
+		await panel.getByRole('combobox', { name: 'Countdown', exact: true }).selectOption('0');
+		await panel.getByRole('button', { name: 'Arm capture', exact: true }).press('Enter');
+		await panel.getByRole('button', { name: 'Start capture', exact: true }).press('Enter');
+		await expectCapturePhase(panel, 'recording');
+		await expect.poll(async () => (
+			await captureHarnessState(page)
+		).audioProcessorConstructions).toBe(2);
+		await expect.poll(async () => (await captureHarnessState(page)).audioDataClosed).toBeGreaterThanOrEqual(2);
+		await panel.getByRole('button', { name: 'Stop and import', exact: true }).press('Enter');
+		await expectCapturePhase(panel, 'inactive', 30_000);
+
+		for (const name of ['Camera', 'Screen', 'Microphone', 'System Audio']) {
+			await expect(trackNameText(editor).filter({ hasText: new RegExp(`^${name}$`, 'u') })).toHaveCount(1);
+			await expect(projectBinCaptureCard(editor, `${name} Capture`)).toBeVisible();
+		}
+		expect((await captureHarnessState(page)).videoDataEvents).toBe(2);
+
+		await page.goto(`/framescaper/en/?project=${encodeURIComponent(projectId)}`);
+		editor = await waitForEditor(page);
+		panel = await openRecordingSetup(page, editor);
+		await expectCapturePhase(panel, 'inactive');
+		for (const name of ['Camera', 'Screen', 'Microphone', 'System Audio']) {
+			await expect(projectBinCaptureCard(editor, `${name} Capture`)).toBeVisible();
+		}
+		expect((await captureHarnessState(page)).requests).toEqual([]);
+	});
+
+	test('keeps capture bound to its origin while another project is edited', async ({ page }) => {
+		test.setTimeout(120_000);
+		await installCaptureHarness(page);
+		const editor = await bootEditor(page, '/framescaper/en/');
+		const originProjectId = await editor.getAttribute('data-project-id');
+		expect(originProjectId).toBeTruthy();
+		let panel = await openRecordingSetup(page, editor);
+
+		await selectSourceRoles(panel, ['microphone']);
+		await panel.getByRole('button', { name: 'Preview sources', exact: true }).press('Enter');
+		await panel.getByRole('combobox', { name: 'Countdown', exact: true }).selectOption('0');
+		await panel.getByRole('radio', { name: 'Timeline', exact: true }).check();
+		await panel.getByRole('button', { name: 'Arm capture', exact: true }).press('Enter');
+		await panel.getByRole('button', { name: 'Start capture', exact: true }).press('Enter');
+		await expectCapturePhase(panel, 'recording');
+		await expect.poll(async () => (
+			await captureHarnessState(page)
+		).audioProcessorConstructions).toBe(1);
+
+		await editor.getByRole('button', { name: 'New project', exact: true }).click();
+		await expect(editor).not.toHaveAttribute('data-project-id', originProjectId);
+		const editedProjectTrackCount = await trackNameText(editor).count();
+		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
+		await expect(trackNameText(editor)).toHaveCount(editedProjectTrackCount + 1);
+		panel = await waitForRecordingSetup(editor);
+		await panel.getByRole('button', { name: 'Stop and import', exact: true }).press('Enter');
+		await expectCapturePhase(panel, 'inactive', 30_000);
+		await expect(projectBinCaptureCard(editor, 'Microphone Capture')).toHaveCount(0);
+
+		const tabs = editor.getByRole('tablist', { name: 'Project tabs' }).getByRole('tab');
+		await expect(tabs).toHaveCount(2);
+		await tabs.first().click();
+		await expect(editor).toHaveAttribute('data-project-id', originProjectId);
+		await expect(projectBinCaptureCard(editor, 'Microphone Capture')).toHaveCount(0);
+		await expect(trackNameText(editor).filter({ hasText: /^Microphone$/u })).toHaveCount(1);
+	});
+
 	test('releases display media on later permission denial and recovers a source-ended prefix after reload', async ({ page }) => {
 		test.setTimeout(120_000);
 		await installCaptureHarness(page);
@@ -283,12 +385,17 @@ async function captureHarnessState(page) {
 			audioDataClosed: harness.audioDataClosed,
 			readerCancels: harness.readerCancels,
 			readerReleases: harness.readerReleases,
+			videoDataEvents: harness.videoDataEvents,
+			audioProcessorConstructions: harness.audioProcessorConstructions,
 		};
 	});
 }
 
 async function installCaptureHarness(page) {
-	await page.addInitScript(() => {
+	const videoBase64 = videoTimingProbeMedia.find(({ kind }) => kind === 'vfr').file.buffer.toString('base64');
+	await page.addInitScript(({ videoBase64: encodedVideo }) => {
+		const binaryVideo = atob(encodedVideo);
+		const videoBytes = Uint8Array.from(binaryVideo, (value) => value.charCodeAt(0));
 		const harness = {
 			requests: [],
 			displayCalls: 0,
@@ -298,6 +405,8 @@ async function installCaptureHarness(page) {
 			audioDataClosed: 0,
 			readerCancels: 0,
 			readerReleases: 0,
+			videoDataEvents: 0,
+			audioProcessorConstructions: 0,
 			includeSystemAudio: true,
 			denyNextUser: false,
 			denyNextDisplay: false,
@@ -439,7 +548,14 @@ async function installCaptureHarness(page) {
 			stop() {
 				if (this.state === 'inactive') return;
 				this.state = 'inactive';
-				queueMicrotask(() => this.onstop?.());
+				queueMicrotask(() => {
+					harness.videoDataEvents += 1;
+					this.ondataavailable?.({
+						data: new Blob([videoBytes], { type: this.mimeType }),
+						timecode: 1_000,
+					});
+					this.onstop?.();
+				});
 			}
 		}
 		Object.defineProperty(globalThis, 'MediaRecorder', {
@@ -450,6 +566,7 @@ async function installCaptureHarness(page) {
 
 		class FixtureMediaStreamTrackProcessor {
 			constructor({ track }) {
+				harness.audioProcessorConstructions += 1;
 				const settings = track.getSettings();
 				const sampleRate = settings.sampleRate || 48_000;
 				const channelCount = settings.channelCount || 2;
@@ -511,5 +628,5 @@ async function installCaptureHarness(page) {
 			writable: true,
 			value: FixtureMediaStreamTrackProcessor,
 		});
-	});
+	}, { videoBase64 });
 }
