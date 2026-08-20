@@ -228,7 +228,12 @@
 				"displayCapture": null,
 				"systemAudio": null
 			},
-			"evidence": ["roadmap.md#8a-framescaper-recording-setup"]
+			"evidence": [
+				"roadmap.md#8a-framescaper-recording-setup",
+				"docs/quality-budgets.md#fixtures-and-project-sizes",
+				"scripts/collect-m8a-capture-quality.mjs",
+				"tests/quality-budget-m8a-capture-collector.test.ts"
+			]
 		},
 		{
 			"id": "release-qualification-matrix",
@@ -1024,7 +1029,13 @@
 				"durationSeconds": 1800,
 				"sourceCombinationCount": 6
 			},
-			"evidence": ["roadmap.md#8a-framescaper-recording-setup"]
+			"evidence": [
+				"roadmap.md#8a-framescaper-recording-setup",
+				"docs/quality-budgets.md#fixtures-and-project-sizes",
+				"scripts/lib/m8a-capture-quality-metrics.mjs",
+				"scripts/collect-m8a-capture-quality.mjs",
+				"tests/quality-budget-m8a-capture-collector.test.ts"
+			]
 		},
 		{
 			"id": "m8b-reviewed-design-interop-v1",
@@ -1400,7 +1411,13 @@
 				{ "metricId": "capture.unrecoverableDurableFragments", "comparison": "eq", "value": 0, "unit": "count" },
 				{ "metricId": "capture.unauthorizedDeviceOpens", "comparison": "eq", "value": 0, "unit": "count" }
 			],
-			"evidence": ["roadmap.md#8a-framescaper-recording-setup"]
+			"evidence": [
+				"roadmap.md#8a-framescaper-recording-setup",
+				"docs/quality-budgets.md#fixtures-and-project-sizes",
+				"scripts/lib/m8a-capture-quality-metrics.mjs",
+				"scripts/collect-m8a-capture-quality.mjs",
+				"tests/quality-budget-m8a-capture-collector.test.ts"
+			]
 		},
 		{
 			"id": "m8b-reviewed-design-timing",

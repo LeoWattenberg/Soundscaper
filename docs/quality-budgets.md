@@ -513,9 +513,14 @@ The fixture specifications are deliberately concrete:
 - milestone 9: an eight-hour complete-system soak.
 
 Except for the explicitly provisional milestone 2 witness, these are
-specifications rather than generated evidence. A future fixture becomes active
-only when its implementation and provenance are checked in and its contract
-test is tightened accordingly.
+specifications rather than accepted qualification evidence. Milestone 8A now
+has an opt-in collector (`npm run quality:collect:m8a-capture`) that validates
+the exact six 30-minute combinations, recomputes all eight registered metrics
+from raw ledgers, and binds their observed environment fingerprint. It can emit
+only pending-external or failed evidence while the capture device matrix is
+unprovisioned; it deliberately refuses accepted or qualified publication.
+Another future fixture becomes active only when its implementation and
+provenance are checked in and its contract test is tightened accordingly.
 
 ## Result evaluation
 
