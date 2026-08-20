@@ -505,21 +505,21 @@ async function completeRuntimeProbe(input: Readonly<{
 		desktopStatus = await input.desktop.status();
 		if (!desktopStatus.available) return unavailable('unsupported-platform');
 	}
+	let context: Awaited<ReturnType<FramescaperCaptureAppCompositionOptions['getAudioContext']>>;
 	try {
-		const context = await input.options.getAudioContext();
-		if (!context || !Number.isFinite(context.sampleRate) || context.sampleRate <= 0) {
-			return unavailable('audio-packet-source-unavailable');
-		}
+		context = await input.options.getAudioContext();
+		if (!context || !Number.isFinite(context.sampleRate) || context.sampleRate <= 0) return unavailable('audio-packet-source-unavailable');
 	} catch { return unavailable('audio-packet-source-unavailable'); }
-	const worklet = typeof input.options.recordingControllerFactory === 'function'
-		|| typeof (input.options.AudioWorkletNode ?? globalThis.AudioWorkletNode) === 'function';
+	const worklet = typeof input.options.recordingControllerFactory === 'function' || (
+		typeof (input.options.AudioWorkletNode ?? globalThis.AudioWorkletNode) === 'function'
+		&& typeof context.audioWorklet?.addModule === 'function'
+		&& typeof context.createMediaStreamSource === 'function'
+	);
 	if (typeof input.TrackProcessor !== 'function' && !worklet) return unavailable('audio-packet-source-unavailable');
 	if (!input.durable) return unavailable('durable-storage-unavailable');
 	if (!input.videoProbe) return unavailable('media-probe-unavailable');
 	if (!input.canonical) return unavailable('durable-storage-unavailable');
-	const sourceRoles = desktopStatus?.systemAudio === false
-		? input.availability.sourceRoles.filter((role) => role !== 'system-audio')
-		: input.availability.sourceRoles;
+	const sourceRoles = desktopStatus?.systemAudio === false ? input.availability.sourceRoles.filter((role) => role !== 'system-audio') : input.availability.sourceRoles;
 	return createCaptureRuntimeAvailability({ status: 'available', sourceRoles });
 }
 

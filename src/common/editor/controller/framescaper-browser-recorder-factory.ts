@@ -32,8 +32,15 @@ export interface FramescaperBrowserRecorderFactoryOptions<
 	readonly MediaRecorder?: MediaRecorderConstructor<Recorder> | null;
 	readonly MediaStreamTrackProcessor?: FramescaperAudioTrackProcessorConstructor | null;
 	readonly recordingControllerFactory?: FramescaperWorkletRecordingControllerFactory;
-	getAudioContext(): PromiseLike<Readonly<{ readonly sampleRate: number }>>
-		| Readonly<{ readonly sampleRate: number }>;
+	getAudioContext(): PromiseLike<Readonly<{
+		readonly sampleRate: number;
+		readonly audioWorklet?: Readonly<{ readonly addModule?: unknown }>;
+		readonly createMediaStreamSource?: unknown;
+	}>> | Readonly<{
+		readonly sampleRate: number;
+		readonly audioWorklet?: Readonly<{ readonly addModule?: unknown }>;
+		readonly createMediaStreamSource?: unknown;
+	}>;
 	readonly receiptTime?: () => number;
 }
 

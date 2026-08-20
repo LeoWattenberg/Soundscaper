@@ -26,6 +26,9 @@ test('product, embedding, encoder, durability, and probe gaps fail closed', asyn
 		['Soundscaper', { productId: 'soundscaper' }, 'unsupported-platform'],
 		['embedded web', { embedded: true }, 'embedded-route'],
 		['video encoder', { MediaRecorder: null }, 'video-encoder-unavailable'],
+		['audio packet source', {
+			MediaStreamTrackProcessor: null, AudioWorkletNode: null,
+		}, 'audio-packet-source-unavailable'],
 		['durability', { store: null }, 'durable-storage-unavailable'],
 		['video probe', { videoProbe: null }, 'media-probe-unavailable'],
 		['wrong web route', { routeSchemaVersion: 18 }, 'unsupported-platform'],
