@@ -6,15 +6,11 @@ import type { FramescaperCaptureOriginAuthority } from './framescaper-capture-or
 import { createFramescaperCaptureActiveTimeClock } from './framescaper-capture-active-time-clock.ts';
 import { createFramescaperCaptureMetrics } from './framescaper-capture-metrics.ts';
 import { findFramescaperCaptureRecovery } from './framescaper-capture-recovery-admission.ts';
-import {
-	applyCaptureSourceSettings, capturePreviewSourceSnapshots, createFramescaperCapturePreviewResources,
+import { applyCaptureSourceSettings, capturePreviewSourceSnapshots, createFramescaperCapturePreviewResources,
 	disposeCapturePreviewOwnership, normalizeCaptureDisplaySources, selectedCaptureDevices,
-	type FramescaperCapturePreviewResources,
-} from './framescaper-capture-preview-resources.ts';
-import {
-	captureSessionFailure, captureSessionInputGain, installCaptureSourceEndWatchers,
-	safelyStopCaptureClock, waitForCaptureCountdown,
-} from './framescaper-capture-session-runtime.ts';
+	type FramescaperCapturePreviewResources } from './framescaper-capture-preview-resources.ts';
+import { captureSessionFailure, captureSessionInputGain, installCaptureSourceEndWatchers,
+	safelyStopCaptureClock, waitForCaptureCountdown } from './framescaper-capture-session-runtime.ts';
 import { createFramescaperCaptureStateMachine, type FramescaperCaptureArmOptions } from './framescaper-capture-state-machine.ts';
 import type {
 	FramescaperCaptureDurableSession, FramescaperCaptureRecorder, FramescaperCaptureSessionActions,
@@ -28,8 +24,7 @@ interface ActiveRecorder<Stream, Track> {
 
 /** Owns one whole-session capture graph; sources and recorders settle together. */
 export function createFramescaperCaptureSessionService<Stream = unknown, Track = unknown>(
-	options: FramescaperCaptureSessionServiceOptions<Stream, Track>,
-): FramescaperCaptureSessionService {
+	options: FramescaperCaptureSessionServiceOptions<Stream, Track>): FramescaperCaptureSessionService {
 	const machine = createFramescaperCaptureStateMachine();
 	const now = options.now ?? (() => globalThis.performance?.now?.() ?? Date.now());
 	const createId = options.createId ?? ((prefix) => `${prefix}-${globalThis.crypto.randomUUID()}`);
@@ -42,19 +37,17 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	let metrics: ReturnType<typeof createFramescaperCaptureMetrics> | null = null;
 	let originAuthority: Readonly<FramescaperCaptureOriginAuthority> | null = null;
 	let countdownAbort: AbortController | null = null;
-	let startPromise: Promise<void> | null = null;
-	let stopPromise: Promise<void> | null = null;
-	let recoveryPromise: Promise<void> | null = null;
-	let initializePromise: Promise<void> | null = null;
+	let startPromise: Promise<void> | null = null; let stopPromise: Promise<void> | null = null;
+	let recoveryPromise: Promise<void> | null = null; let recoveryFinalizationPromise: Promise<void> | null = null;
+	let initializePromise: Promise<void> | null = null; let disposePromise: Promise<void> | null = null;
+	const pendingOperations = new Set<Promise<unknown>>();
 	let monitoring = false; let inputGain = 1;
-	let captureGeneration = 0;
-	let disposed = false;
+	let captureGeneration = 0; let disposed = false;
 	let sourceEndCleanups: readonly (() => void)[] = Object.freeze([]);
 	let devices: FramescaperCaptureSessionSnapshot['devices'] = Object.freeze([]);
 	let selectedDeviceIds: FramescaperCaptureSessionSnapshot['selectedDeviceIds'] = Object.freeze({});
 	let displaySources: FramescaperCaptureSessionSnapshot['displaySources'] = Object.freeze([]);
 	let selectedDisplaySourceToken: string | null = null;
-
 	function snapshot(): Readonly<FramescaperCaptureSessionSnapshot> {
 		const state = machine.snapshot;
 		const elapsedTimeMs = clock && state.phase !== 'inactive' ? clock.snapshot(now()).activeTimeMs : 0;
@@ -67,14 +60,23 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			metrics: state.phase === 'inactive' ? Object.freeze([]) : metrics?.snapshot ?? Object.freeze([]),
 		});
 	}
-
 	function notify(): void {
 		try { options.onChange?.(); } catch { /* UI observers cannot own capture. */ }
 	}
-
+	function trackOperation<T>(operation: Promise<T>): Promise<T> {
+		pendingOperations.add(operation);
+		void operation.finally(() => { pendingOperations.delete(operation); }).catch(() => undefined);
+		return operation;
+	}
+	function trackAction<T>(action: () => Promise<T>): Promise<T> { assertActive(); return trackOperation(Promise.resolve().then(action)); }
+	async function joinOperations(): Promise<void> {
+		await Promise.resolve();
+		while (pendingOperations.size) await Promise.allSettled([...pendingOperations]);
+	}
 	function initialize(): Promise<void> {
 		if (initializePromise) return initializePromise;
-		initializePromise = (async () => {
+		assertActive();
+		initializePromise = trackOperation((async () => {
 			const controller = new AbortController();
 			let availability = options.enabled
 				? await options.sourcePort.probe({ signal: controller.signal, embedded: options.embedded })
@@ -91,10 +93,9 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			);
 			if (recovery) restoreRecovery(recovery);
 			notify();
-		})();
+		})());
 		return initializePromise;
 	}
-
 	async function requestPreview(roles: readonly CaptureSourceRole[]): Promise<void> {
 		assertActive();
 		const sourceToken = displaySourceToken(roles);
@@ -140,7 +141,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			notify();
 			await refreshDeviceInventory(openedLease);
 		} catch (error) {
-			if (!openedLease) void opening.then((lease) => lease.dispose(), () => undefined);
+			if (!openedLease) await opening.then((lease) => Promise.resolve(lease.dispose()).catch(() => undefined), () => undefined);
 			else await disposeCapturePreviewOwnership(openedLease, openedResources).catch(() => undefined);
 			if (previewLease === openedLease) previewLease = null;
 			if (previewResources === openedResources) previewResources = null;
@@ -150,7 +151,6 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			throw error;
 		}
 	}
-
 	async function listDisplaySources(): Promise<void> {
 		assertActive();
 		if (!['inactive', 'previewing'].includes(machine.snapshot.phase)
@@ -161,7 +161,6 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		selectedDisplaySourceToken = null;
 		notify();
 	}
-
 	function selectDisplaySource(sourceToken: string): void {
 		assertActive();
 		if (!['inactive', 'previewing'].includes(machine.snapshot.phase)
@@ -171,7 +170,6 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		selectedDisplaySourceToken = sourceToken;
 		notify();
 	}
-
 	async function selectDevice(role: 'camera' | 'microphone', deviceId: string): Promise<void> {
 		assertActive();
 		if (machine.snapshot.phase !== 'previewing') throw new Error('Capture devices can change only while previewing.');
@@ -181,7 +179,6 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		selectedDeviceIds = Object.freeze({ ...selectedDeviceIds, [role]: deviceId });
 		await requestPreview(machine.snapshot.requestedRoles);
 	}
-
 	async function refreshDeviceInventory(owner: CapturePreviewLease<Stream, Track>): Promise<void> {
 		try {
 			const inventory = await options.sourcePort.enumerate({
@@ -198,14 +195,12 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			notify();
 		}
 	}
-
 	function clearDeviceInventory(): void {
 		devices = Object.freeze([]);
 		selectedDeviceIds = Object.freeze({});
 		displaySources = Object.freeze([]);
 		selectedDisplaySourceToken = null;
 	}
-
 	function displaySourceToken(roles: readonly CaptureSourceRole[]): string | null {
 		if (!roles.includes('display') || !options.displaySelection
 			|| options.displaySelection.mode === 'system-picker') return null;
@@ -215,7 +210,6 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		}
 		return selectedDisplaySourceToken;
 	}
-
 	async function configureSource(
 		sourceId: string,
 		settings: Readonly<FramescaperCaptureSourceSettings>,
@@ -229,7 +223,6 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		await applyCaptureSourceSettings(source.track, settings);
 		notify();
 	}
-
 	async function release(): Promise<void> {
 		assertActive();
 		if (machine.snapshot.phase === 'armed') machine.disarm();
@@ -242,7 +235,6 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		notify();
 		await disposeCapturePreviewOwnership(lease, resources);
 	}
-
 	function configure(changes: Readonly<Record<string, unknown>>): void {
 		assertActive();
 		if (machine.snapshot.phase !== 'previewing') {
@@ -256,13 +248,11 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		if (Object.hasOwn(changes, 'inputGain')) inputGain = captureSessionInputGain(changes.inputGain);
 		notify();
 	}
-
 	function arm(armOptions: Readonly<FramescaperCaptureArmOptions>): void {
 		assertActive();
 		machine.arm(armOptions);
 		notify();
 	}
-
 	function start(): Promise<void> {
 		assertActive();
 		const state = machine.snapshot;
@@ -275,11 +265,10 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		});
 		machine.beginCountdown();
 		countdownAbort = new AbortController();
+		startPromise = trackOperation(beginRecording(captured, countdownAbort.signal));
 		notify();
-		startPromise = beginRecording(captured, countdownAbort.signal);
 		return startPromise;
 	}
-
 	async function beginRecording(
 		captured: ReturnType<typeof requiredCaptureOrigin>,
 		signal: AbortSignal,
@@ -337,7 +326,6 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			throw error;
 		}
 	}
-
 	async function onPacket(packet: Readonly<CapturePacket>): Promise<void> {
 		if (!durableSession || !clock || !metrics) throw new Error('Capture packet arrived before durable admission.');
 		const phase = machine.snapshot.phase;
@@ -350,7 +338,6 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		metrics.observe(packet, observedActiveTimeUs);
 		notify();
 	}
-
 	async function pause(): Promise<void> {
 		assertActive();
 		machine.pause();
@@ -359,7 +346,6 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		await Promise.all(recorders.map(({ recorder }) => recorder.pause()));
 		notify();
 	}
-
 	async function resume(): Promise<void> {
 		assertActive();
 		machine.resume();
@@ -373,17 +359,15 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		await Promise.all(recorders.map(({ recorder }) => recorder.resume()));
 		notify();
 	}
-
 	function stop(): Promise<void> {
 		assertActive();
 		if (stopPromise) return stopPromise;
 		machine.stop();
 		countdownAbort?.abort(new DOMException('Capture countdown stopped.', 'AbortError'));
+		stopPromise = trackOperation(stopAndFinalize());
 		notify();
-		stopPromise = stopAndFinalize();
 		return stopPromise;
 	}
-
 	async function stopAndFinalize(): Promise<void> {
 		try {
 			await Promise.resolve(startPromise).catch(() => undefined);
@@ -392,6 +376,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 				await releaseCaptureResources();
 				machine.completeFinalization();
 				releaseOrigin('stopped');
+				clearSettledSession();
 				notify();
 				return;
 			}
@@ -413,19 +398,22 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			throw error;
 		}
 	}
-
 	function reportActiveFailure(error: unknown): void {
-		if (disposed || recoveryPromise) return;
+		if (disposed || recoveryPromise || stopPromise) return;
 		recoveryPromise = recoverActive(error, 'encoder-failed');
 		void recoveryPromise.catch(() => undefined);
 	}
-
-	async function recoverActive(error: unknown, code: CaptureFailure['code']): Promise<void> {
+	function recoverActive(error: unknown, code: CaptureFailure['code']): Promise<void> {
+		if (recoveryPromise) return recoveryPromise;
 		const phase = machine.snapshot.phase;
-		if (!['countdown', 'recording', 'paused', 'finalizing'].includes(phase)) return;
+		if (!['countdown', 'recording', 'paused', 'finalizing'].includes(phase)) return Promise.resolve();
 		machine.enterRecovery(captureSessionFailure(error, code));
 		countdownAbort?.abort(error);
+		recoveryPromise = trackOperation(Promise.resolve().then(completeActiveRecovery));
 		notify();
+		return recoveryPromise;
+	}
+	async function completeActiveRecovery(): Promise<void> {
 		if (clock) safelyStopCaptureClock(clock, now());
 		await releaseCaptureResources();
 		if (durableSession) {
@@ -434,7 +422,6 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		}
 		notify();
 	}
-
 	async function failBeforeDurability(error: unknown): Promise<void> {
 		if (machine.snapshot.phase === 'countdown') machine.stop();
 		await releaseCaptureResources();
@@ -444,12 +431,20 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		notify();
 	}
 
-	async function finalizeRecovery(provenance: 'recovered' | 'import-as-is'): Promise<void> {
+	function finalizeRecovery(provenance: 'recovered' | 'import-as-is'): Promise<void> {
 		assertActive();
+		if (recoveryFinalizationPromise) return recoveryFinalizationPromise;
 		if (!durableSession) throw new Error('No recoverable Framescaper capture is selected.');
 		machine.beginRecoveryFinalization();
+		recoveryFinalizationPromise = trackOperation(
+			Promise.resolve().then(() => completeRecoveryFinalization(provenance)));
 		notify();
+		return recoveryFinalizationPromise;
+	}
+
+	async function completeRecoveryFinalization(provenance: 'recovered' | 'import-as-is'): Promise<void> {
 		try {
+			if (!durableSession) throw new Error('No recoverable Framescaper capture is selected.');
 			await options.finalize({
 				session: durableSession,
 				metrics: metrics?.snapshot ?? Object.freeze([]),
@@ -461,6 +456,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			notify();
 		} catch (error) {
 			machine.enterRecovery(captureSessionFailure(error, 'finalization-failed'));
+			recoveryFinalizationPromise = null;
 			notify();
 			throw error;
 		}
@@ -520,6 +516,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		startPromise = null;
 		stopPromise = null;
 		recoveryPromise = null;
+		recoveryFinalizationPromise = null;
 	}
 
 	function releaseOrigin(outcome: 'stopped' | 'discarded'): void {
@@ -534,17 +531,19 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	}
 
 	async function settled(): Promise<void> {
-		await Promise.all([
-			Promise.resolve(startPromise).catch(() => undefined),
-			Promise.resolve(stopPromise).catch(() => undefined),
-			Promise.resolve(recoveryPromise).catch(() => undefined),
-		]);
+		await joinOperations();
 	}
 
-	async function dispose(): Promise<void> {
-		if (disposed) return;
+	function dispose(): Promise<void> {
+		if (disposePromise) return disposePromise;
 		disposed = true;
 		countdownAbort?.abort(new DOMException('Capture controller disposed.', 'AbortError'));
+		disposePromise = disposeSession();
+		return disposePromise;
+	}
+
+	async function disposeSession(): Promise<void> {
+		await joinOperations();
 		if (['countdown', 'recording', 'paused', 'finalizing'].includes(machine.snapshot.phase)) {
 			await recoverActive(new Error('Capture runtime closed.'), 'runtime-lost');
 		} else if (previewLease) {
@@ -553,6 +552,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			previewResources = null;
 			clearDeviceInventory();
 		}
+		await joinOperations();
 	}
 
 	function assertActive(): void {
@@ -572,21 +572,21 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 
 	const actions: Readonly<FramescaperCaptureSessionActions> = Object.freeze({
 		openSetup: () => undefined,
-		requestPreview,
-		listDisplaySources,
+		requestPreview: (roles: readonly CaptureSourceRole[]) => trackAction(() => requestPreview(roles)),
+		listDisplaySources: () => trackAction(listDisplaySources),
 		selectDisplaySource,
-		selectDevice,
-		configureSource,
-		release,
+		selectDevice: (role: 'camera' | 'microphone', deviceId: string) => trackAction(() => selectDevice(role, deviceId)),
+		configureSource: (sourceId: string, settings: Readonly<FramescaperCaptureSourceSettings>) => trackAction(() => configureSource(sourceId, settings)),
+		release: () => trackAction(release),
 		configure,
 		arm,
 		start,
-		pause,
-		resume,
+		pause: () => trackAction(pause),
+		resume: () => trackAction(resume),
 		stop,
 		recover: () => finalizeRecovery('recovered'),
 		importAsIs: () => finalizeRecovery('import-as-is'),
-		discard,
+		discard: () => trackAction(discard),
 		resetFailure,
 	});
 

@@ -227,6 +227,56 @@ test('live capture preregisters durability, measures before storage delay, and p
 	assert.equal(harness.service.snapshot.metrics?.length, 0, 'settled metrics leave the inactive snapshot');
 });
 
+test('dispose joins a start already admitted to durable preparation before recovering it', async () => {
+	const prepared = deferred<void>();
+	const harness = serviceHarness({ prepareGate: prepared.promise });
+	await harness.service.initialize();
+	await harness.service.actions.requestPreview(['camera']);
+	harness.service.actions.arm({ destination: 'timeline', countdownMs: 0 });
+	const starting = harness.service.actions.start();
+	await waitForEvent(harness.events, 'durable:prepare');
+	const disposal = harness.service.dispose();
+	assert.equal(await remainsPending(disposal), true);
+	prepared.resolve();
+	await Promise.all([starting, disposal]);
+	assert.equal(harness.service.snapshot.phase, 'recovery');
+	assert.equal(harness.events.filter((event) => event === 'durable:seal').length, 1);
+});
+
+test('dispose joins permission opening and releases its late preview lease', async () => {
+	const opened = deferred<void>();
+	const harness = serviceHarness({ previewGate: opened.promise });
+	await harness.service.initialize();
+	const previewing = harness.service.actions.requestPreview(['camera']);
+	await waitForEvent(harness.events, 'preview:1');
+	const settling = harness.service.settled();
+	const disposal = harness.service.dispose();
+	assert.equal(await remainsPending(settling), true);
+	assert.equal(await remainsPending(disposal), true);
+	opened.resolve();
+	await Promise.all([previewing, settling, disposal]);
+	assert.equal(harness.events.filter((event) => event === 'lease:dispose').length, 1);
+});
+
+test('dispose joins a live finalization without starting concurrent active recovery', async () => {
+	const finalized = deferred<void>();
+	const harness = serviceHarness({ finalizeGates: { live: finalized.promise } });
+	await harness.service.initialize();
+	await harness.service.actions.requestPreview(['camera']);
+	harness.service.actions.arm({ destination: 'timeline', countdownMs: 0 });
+	await harness.service.actions.start();
+	const stopping = harness.service.actions.stop();
+	await waitForEvent(harness.events, 'finalize:live');
+	const disposal = harness.service.dispose();
+	assert.equal(harness.service.dispose(), disposal, 'concurrent disposal shares one join');
+	assert.equal(await remainsPending(disposal), true);
+	assert.equal(harness.events.filter((event) => event === 'durable:seal').length, 1);
+	finalized.resolve();
+	await Promise.all([stopping, disposal]);
+	assert.equal(harness.service.snapshot.phase, 'inactive');
+	assert.equal(harness.events.filter((event) => event === 'durable:seal').length, 1);
+});
+
 test('an active encoder failure seals recovery and exact discard releases its origin', async () => {
 	const harness = serviceHarness();
 	await harness.service.initialize();
@@ -247,6 +297,40 @@ test('an active encoder failure seals recovery and exact discard releases its or
 	await harness.service.dispose();
 });
 
+test('dispose and settled join active recovery while its durable seal is pending', async () => {
+	const sealed = deferred<void>();
+	const harness = serviceHarness({ sealGate: sealed.promise });
+	await harness.service.initialize();
+	await harness.service.actions.requestPreview(['camera']);
+	harness.service.actions.arm({ destination: 'timeline', countdownMs: 0 });
+	await harness.service.actions.start();
+	harness.failRecorder('camera', new Error('encoder crashed'));
+	await waitForEvent(harness.events, 'durable:seal');
+	const settling = harness.service.settled();
+	const disposal = harness.service.dispose();
+	assert.equal(await remainsPending(settling), true);
+	assert.equal(await remainsPending(disposal), true);
+	sealed.resolve();
+	await Promise.all([settling, disposal]);
+	assert.equal(harness.service.snapshot.phase, 'recovery');
+});
+
+test('dispose and settled join durable recovery discard', async () => {
+	const discarded = deferred<void>();
+	const harness = serviceHarness({ recovery: recoverySession(), discardGate: discarded.promise });
+	await harness.service.initialize();
+	const discarding = harness.service.actions.discard();
+	await waitForEvent(harness.events, 'durable:discard');
+	const settling = harness.service.settled();
+	const disposal = harness.service.dispose();
+	assert.equal(await remainsPending(settling), true);
+	assert.equal(await remainsPending(disposal), true);
+	discarded.resolve();
+	await Promise.all([discarding, settling, disposal]);
+	assert.equal(harness.service.snapshot.phase, 'inactive');
+	assert.equal(harness.origin.snapshot('project-a').active, false);
+});
+
 test('startup recovery remains actionable when source capture is unavailable', async () => {
 	const harness = serviceHarness({
 		availability: {
@@ -261,6 +345,44 @@ test('startup recovery remains actionable when source capture is unavailable', a
 	assert.equal(harness.service.snapshot.phase, 'inactive');
 	assert.ok(harness.events.includes('finalize:import-as-is'));
 	assert.equal(harness.origin.snapshot('project-a').active, false);
+});
+
+for (const provenance of ['recovered', 'import-as-is'] as const) {
+	test(`dispose and settled join deferred ${provenance} recovery finalization`, async () => {
+		const finalized = deferred<void>();
+		const harness = serviceHarness({
+			recovery: recoverySession(), finalizeGates: { [provenance]: finalized.promise },
+		});
+		await harness.service.initialize();
+		const finalizing = provenance === 'recovered'
+			? harness.service.actions.recover()
+			: harness.service.actions.importAsIs();
+		await waitForEvent(harness.events, `finalize:${provenance}`);
+		const settling = harness.service.settled();
+		const disposal = harness.service.dispose();
+		assert.equal(await remainsPending(settling), true);
+		assert.equal(await remainsPending(disposal), true);
+		finalized.resolve();
+		await Promise.all([finalizing, settling, disposal]);
+		assert.equal(harness.service.snapshot.phase, 'inactive');
+		assert.equal(harness.events.includes(`finalize:settled:${provenance}`), true);
+	});
+}
+
+test('concurrent disposal joins initialization before resolving once', async () => {
+	const probed = deferred<void>();
+	const harness = serviceHarness({ probeGate: probed.promise });
+	const initialization = harness.service.initialize();
+	await waitForEvent(harness.events, 'probe');
+	const first = harness.service.dispose();
+	const second = harness.service.dispose();
+	assert.equal(second, first);
+	assert.equal(await remainsPending(first), true);
+	probed.resolve();
+	await Promise.all([initialization, first, second]);
+	assert.deepEqual(harness.events.slice(0, 4), [
+		'probe', 'runtime-prerequisites', 'recovery-inventory', 'change',
+	]);
 });
 
 test('startup scans inactive projects and restores exactly one foreign-origin recovery', async () => {
@@ -299,6 +421,12 @@ function serviceHarness(options: Readonly<{
 	currentProjectId?: string;
 	displaySelection?: FramescaperCaptureDisplaySelectionPort;
 	appendDelayMs?: number;
+	prepareGate?: Promise<void>;
+	previewGate?: Promise<void>;
+	sealGate?: Promise<void>;
+	discardGate?: Promise<void>;
+	probeGate?: Promise<void>;
+	finalizeGates?: Readonly<Partial<Record<'live' | 'recovered' | 'import-as-is', Promise<void>>>>;
 }> = {}) {
 	const events: string[] = [];
 	const origin = createFramescaperCaptureOriginGuard();
@@ -308,12 +436,13 @@ function serviceHarness(options: Readonly<{
 	const durable: FramescaperCaptureDurablePort = {
 		async prepare(request) {
 			events.push('durable:prepare');
+			await options.prepareGate;
 			return { ...request, marker: 'durable-session' };
 		},
 		async append(session) { events.push('durable:append'); time += options.appendDelayMs ?? 0; return session; },
 		async recordPauseSpan(session) { events.push('durable:pause'); return session; },
-		async seal(session) { events.push('durable:seal'); return session; },
-		async discard() { events.push('durable:discard'); },
+		async seal(session) { events.push('durable:seal'); await options.sealGate; return session; },
+		async discard() { events.push('durable:discard'); await options.discardGate; },
 		async findRecovery(projectId) {
 			events.push('recovery-inventory');
 			return options.recoveries?.[projectId] ?? options.recovery ?? null;
@@ -325,6 +454,7 @@ function serviceHarness(options: Readonly<{
 		sourcePort: {
 			async probe() {
 				events.push('probe');
+				await options.probeGate;
 				return (options.availability ?? {
 					status: 'available', sourceRoles: ['camera', 'microphone', 'display', 'system-audio'],
 				}) as never;
@@ -332,6 +462,7 @@ function serviceHarness(options: Readonly<{
 			async enumerate() { return { devices: [] }; },
 			async openPreview(request) {
 				events.push(`preview:${String(request.userActionGeneration)}`);
+				await options.previewGate;
 				return {
 					sources: request.roles.map((role) => ({
 						sourceId: `${role}-device`, role,
@@ -375,7 +506,11 @@ function serviceHarness(options: Readonly<{
 				setInputGain() {},
 			};
 		},
-		async finalize({ provenance }) { events.push(`finalize:${provenance}`); },
+		async finalize({ provenance }) {
+			events.push(`finalize:${provenance}`);
+			await options.finalizeGates?.[provenance];
+			events.push(`finalize:settled:${provenance}`);
+		},
 		createId: (prefix) => `${prefix}-id`,
 		now: () => { time += 10; return time; },
 		async waitCountdown(_duration, signal) {
@@ -400,6 +535,28 @@ function serviceHarness(options: Readonly<{
 		},
 		settled: () => service.settled(),
 	};
+}
+
+async function waitForEvent(events: readonly string[], expected: string): Promise<void> {
+	for (let attempt = 0; attempt < 20 && !events.includes(expected); attempt += 1) {
+		await new Promise<void>((resolve) => { setImmediate(resolve); });
+	}
+	assert.equal(events.includes(expected), true, `Expected event ${expected}.`);
+}
+
+function deferred<Value>() {
+	let resolve!: (value: Value | PromiseLike<Value>) => void;
+	let reject!: (reason?: unknown) => void;
+	const promise = new Promise<Value>((accept, decline) => { resolve = accept; reject = decline; });
+	return { promise, resolve, reject };
+}
+
+async function remainsPending(operation: Promise<unknown>): Promise<boolean> {
+	const marker = Symbol('pending');
+	return await Promise.race([
+		operation.then(() => false, () => false),
+		new Promise<typeof marker>((resolve) => { setImmediate(() => { resolve(marker); }); }),
+	]) === marker;
 }
 
 function recoverySession(projectId = 'project-a') {
