@@ -95,6 +95,9 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		getRackEffectTypes: () => [{ type: 'gain' }],
 		getVideoEffectTypes: () => [{ type: 'fade' }],
 		getVideoNavigationSnapshot: () => Object.freeze({ rate: 2, positionFrame: 960 }),
+		getFramescaperCaptureSnapshot: () => Object.freeze({
+			phase: 'recording', elapsedTimeMs: 1_250,
+		}),
 		getSelectionEffectTypes: () => [{ type: 'normalize' }],
 		getSelectionEffectParams: () => ({ amount: 1 }),
 		getSelectionEffectDefinition: () => ({ type: 'normalize' }),
@@ -160,6 +163,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	});
 	assert.strictEqual(snapshot.videoPreviewProject, videoPreviewProject);
 	assert.deepEqual(snapshot.videoNavigation, { rate: 2, positionFrame: 960 });
+	assert.deepEqual(snapshot.capture, { phase: 'recording', elapsedTimeMs: 1_250 });
 	assert.equal(Object.isFrozen(snapshot), true);
 	assert.equal(Object.isFrozen(snapshot.effects), true);
 });
@@ -205,6 +209,7 @@ test('document snapshots hide collapsed selections and prepared recorders', () =
 	assert.equal(snapshot.audioRenderedFallback, null);
 	assert.equal(snapshot.videoRenderedFallback, null);
 	assert.equal(snapshot.videoNavigation, null);
+	assert.equal(snapshot.capture, null);
 	assert.strictEqual(snapshot.videoPreviewProject, snapshot.project);
 	assert.equal(snapshot.recording, false);
 	assert.equal(snapshot.locale, 'de');

@@ -10,6 +10,7 @@ import { createDocumentTrackFolderSnapshot } from './document-track-folder-snaps
 import { createDocumentRecordingInputSnapshot } from './document-recording-input-snapshot.ts';
 import type { SoundActivationPolicySnapshot } from './sound-activation-policy-service.ts';
 import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestrator.ts';
+import type { FramescaperCaptureSessionSnapshot } from './framescaper-capture-session-types.ts';
 
 const VIDEO_PREVIEW_PROJECTS = new WeakMap<object, object>();
 
@@ -164,6 +165,7 @@ export interface EditorDocumentSnapshotRuntime<Project extends SnapshotProject> 
 	getRackEffectTypes(): readonly unknown[];
 	getVideoEffectTypes(): readonly unknown[];
 	getVideoNavigationSnapshot?(): unknown;
+	getFramescaperCaptureSnapshot?(): Readonly<FramescaperCaptureSessionSnapshot> | null;
 	getSelectionEffectTypes(): readonly unknown[];
 	getSelectionEffectParams(): unknown;
 	getSelectionEffectDefinition(): unknown;
@@ -196,6 +198,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		project: currentProject,
 		videoPreviewProject,
 		videoNavigation: runtime.getVideoNavigationSnapshot?.() ?? null,
+		capture: runtime.getFramescaperCaptureSnapshot?.() ?? null,
 		projects: state.projects,
 		recentProjects: Object.freeze(state.recentProjectIds
 			.map((projectId) => state.projects.find((candidate) => candidate.id === projectId))
