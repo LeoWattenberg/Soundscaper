@@ -108,6 +108,25 @@ test('publication offsets come from each retained shared-origin presentation ran
 	]);
 });
 
+test('publication does not retain numeric drift when aggregate metric confidence is unavailable', () => {
+	const captured = normalizeFramescaperCaptureSessionManifest({
+		...manifest(),
+		state: 'sealed',
+		streams: [stream('camera', 'camera-stream', 250_000, 1_250_000)],
+	});
+	const [asset] = createFramescaperCaptureAssetStreams(
+		captured,
+		[metric('camera-stream', 'camera')],
+		48_000,
+	);
+	assert.deepEqual(asset?.metrics, {
+		confidence: 'unavailable',
+		droppedUnits: null,
+		maximumAbsoluteDriftMicroseconds: null,
+		finalDriftMicroseconds: null,
+	});
+});
+
 function manifest(): FramescaperCaptureSessionManifestV1 {
 	return {
 		version: 1,

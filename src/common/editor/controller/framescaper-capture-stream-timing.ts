@@ -53,6 +53,14 @@ function publicationMetrics(
 		: observations.some((value) => value.confidence === 'estimated')
 			? 'estimated' as const
 			: 'exact' as const;
+	if (confidence === 'unavailable') {
+		return Object.freeze({
+			confidence,
+			droppedUnits: null,
+			maximumAbsoluteDriftMicroseconds: null,
+			finalDriftMicroseconds: null,
+		});
+	}
 	return Object.freeze({
 		confidence,
 		droppedUnits: metric?.droppedUnits.value ?? null,
