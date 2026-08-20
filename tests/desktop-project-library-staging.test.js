@@ -40,6 +40,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-product-runtime.js'));
 	await access(join(applicationDesktopRoot, 'project-library-v10-sandbox-preload.cjs'));
 	await access(join(applicationDesktopRoot, 'soundscaper-project-library-v10-sandbox-preload.cjs'));
+	await access(join(applicationDesktopRoot, 'framescaper-capture-sandbox-preload.cjs'));
 	await access(join(applicationDesktopRoot, 'read-selection-service.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-service.js'));

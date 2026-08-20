@@ -27,6 +27,7 @@ import {
 } from './constants.js';
 import { DesktopApplicationShutdown, resolveDesktopProjectLibraryAppData } from './project-library-runtime/desktop/application-lifecycle.js';
 import { registerAssistance } from './assistance-registration.mjs';
+import { disposeDesktopCaptureSecurity, registerDesktopCaptureSecurity, revokeDesktopCaptureOwner } from './framescaper-capture-registration.mjs';
 import { desktopNativeTierMenu, disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
@@ -35,7 +36,6 @@ import {
 	redispatchPendingProjectsAfterReadRelease,
 } from './file-associations.js';
 import { registerSelectedReadCapability } from './read-selection-service.js';
-import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { createDesktopLinkedVideoLocatorRuntime } from './linked-video-locator-runtime.js';
@@ -49,7 +49,6 @@ import { ReleaseChecker } from './update-check.js';
 import {
 	acceptsFile,
 	assertEditorDocumentUrl,
-	isAppUrl,
 	isEditorDocumentUrl,
 	validateFileChoice,
 	validateLocale,
@@ -72,10 +71,12 @@ let projectLibraryStartup = null;
 let projectLibraryIpc = null;
 let linkedVideoLocators = null;
 let nativeTier = null;
+let captureSecurity = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 
 const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
+	revokeCapture: (owner) => revokeDesktopCaptureOwner(captureSecurity, owner),
 	revokeNativeTier: (owner) => revokeDesktopNativeTierOwner(nativeTier, owner),
 	linkedVideoLocators: () => linkedVideoLocators,
 	ownership: rendererSaveOwnership,
@@ -100,6 +101,7 @@ const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery
 
 const applicationShutdown = new DesktopApplicationShutdown({
 	tasks: [
+		{ name: 'capture security', run: () => disposeDesktopCaptureSecurity(captureSecurity) },
 		{ name: 'project library', run: closeProjectLibraryHost },
 		{ name: 'linked-video locators', run: () => linkedVideoLocators?.dispose() },
 		{ name: 'native tier', run: () => disposeDesktopNativeTier(nativeTier) },
@@ -197,7 +199,6 @@ async function startApplication() {
 		readCapabilities,
 	}));
 	if (applicationShutdown.requested) return;
-	configureSessionSecurity(desktopSession);
 	await registerIpcHandlers(desktopSession);
 	installMenu();
 	await createWindow();
@@ -304,6 +305,14 @@ function isRendererSaveOwnerCurrent(owner) {
 }
 
 async function registerIpcHandlers(desktopSession) {
+	captureSecurity = registerDesktopCaptureSecurity({
+		appOrigin: APP_ORIGIN, desktopCapturer, desktopRoot: __dirname, desktopSession,
+		handle, removeHandler: (channel) => ipcMain.removeHandler(channel),
+		ownerFor: rendererSaveOwnerFor,
+		currentOwnerFor: (webContents) => rendererSaveOwnership.currentOwnerFor(webContents),
+		platform: process.platform, productId: PRODUCT_ID,
+		systemVersion: process.getSystemVersion?.() ?? '', windowFor: () => mainWindow,
+	});
 	projectLibraryIpc = projectLibraryRuntime.registerRendererBridge({
 		desktopRoot: __dirname,
 		handle,
@@ -449,36 +458,6 @@ function enqueueProjectPath(filePath) {
 	const absolutePath = isAbsolute(filePath) ? filePath : resolve(filePath);
 	pendingOpenProjects.enqueue(absolutePath);
 	if (rendererReady) void pendingOpenProjects.dispatch();
-}
-
-function configureSessionSecurity(desktopSession) {
-	desktopSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-		if (!isAppUrl(requestingOrigin || webContents?.getURL())) return false;
-		if (permission === 'fullscreen') return true;
-		if (permission === 'display-capture') return process.platform === 'win32';
-		if (permission !== 'media') return false;
-		const mediaTypes = details?.mediaTypes || [];
-		return mediaTypes.length > 0 && mediaTypes.every((type) => type === 'audio');
-	});
-	desktopSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
-		if (!isAppUrl(details?.requestingUrl || webContents?.getURL())) return callback(false);
-		if (permission === 'fullscreen') return callback(true);
-		if (permission === 'display-capture') return callback(process.platform === 'win32');
-		if (permission !== 'media') return callback(false);
-		const mediaTypes = details?.mediaTypes || [];
-		callback(mediaTypes.length > 0 && mediaTypes.every((type) => type === 'audio'));
-	});
-	if (process.platform === 'win32') {
-		desktopSession.setDisplayMediaRequestHandler((request, callback) => {
-			if (!acceptsSystemAudioRequest(request)) return callback({});
-			void desktopCapturer.getSources({
-				types: ['screen'],
-				thumbnailSize: { width: 0, height: 0 },
-			}).then((sources) => callback(selectSystemAudioStreams(request, sources)))
-				.catch(() => callback({}));
-		});
-	}
-	desktopSession.on('will-download', (_event, item) => item.cancel());
 }
 
 function lockNavigation(window) {

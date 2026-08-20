@@ -7,6 +7,7 @@ import { extname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 
 const FRAMESCAPER_V10_PRELOAD_BUNDLE = 'project-library-v10-sandbox-preload.cjs';
+const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
 const SOUNDSCAPER_V10_PRELOAD_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
 
 // Staged desktop sources may not import TypeScript specifiers: the packaged
@@ -33,6 +34,9 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-service.js',
 	'desktop/assistance-sherpa-recognizer.js',
 	'desktop/assistance-speech-runtime.js',
+	'desktop/framescaper-capture-desktop-port.js',
+	'desktop/framescaper-capture-main-channels.js',
+	'desktop/framescaper-capture-session-security.js',
 	'desktop/helper-contract.js',
 	'desktop/helper-job-grant.js',
 	'desktop/helper-probe-service.js',
@@ -344,6 +348,12 @@ export async function stageDesktopApplicationSources({
 		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
 		outputPath: join(applicationRoot, SOUNDSCAPER_V10_PRELOAD_BUNDLE),
 		productName: 'Soundscaper',
+	});
+	await bundleV10SandboxPreload({
+		entryPoint: join(sourceRoot, 'framescaper-capture-sandbox-preload.ts'),
+		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
+		outputPath: join(applicationRoot, FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE),
+		productName: 'Framescaper Capture',
 	});
 }
 

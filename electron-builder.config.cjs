@@ -8,6 +8,9 @@ const productName = framescaper ? 'Framescaper' : 'Soundscaper';
 // the real chain on without any further configuration change.
 const macSigningIdentity = process.env.SOUNDSCAPER_MAC_SIGNING_IDENTITY || '-';
 const macSigned = macSigningIdentity !== '-';
+const macEntitlements = framescaper
+	? 'desktop/framescaper-entitlements.mac.plist'
+	: 'desktop/soundscaper-entitlements.mac.plist';
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
@@ -71,13 +74,19 @@ module.exports = {
 		icon: '.desktop-build/icons/icon.png',
 		identity: macSigningIdentity,
 		hardenedRuntime: macSigned,
+		entitlements: macEntitlements,
+		entitlementsInherit: macEntitlements,
 		notarize: macSigned && process.env.SOUNDSCAPER_MAC_NOTARIZE === 'true',
 		gatekeeperAssess: false,
 		category: framescaper ? 'public.app-category.video' : 'public.app-category.music',
 		target: ['dmg'],
-		...(!framescaper ? { extendInfo: {
+		extendInfo: framescaper ? {
+			NSCameraUsageDescription: 'Framescaper accesses the camera only when you choose a camera capture source.',
+			NSMicrophoneUsageDescription: 'Framescaper records microphone audio only when you choose a microphone capture source.',
+			NSAudioCaptureUsageDescription: 'Framescaper records system audio only when you explicitly include it with a screen capture.',
+		} : {
 			NSMicrophoneUsageDescription: 'Soundscaper records audio only when you start recording.',
-		} } : {}),
+		},
 	},
 	dmg: {
 		artifactName: '${productName}-${version}-mac-${arch}.${ext}',

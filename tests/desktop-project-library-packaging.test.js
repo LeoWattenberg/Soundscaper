@@ -28,6 +28,9 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/assistance-service.js',
 		'desktop/assistance-sherpa-recognizer.js',
 		'desktop/assistance-speech-runtime.js',
+		'desktop/framescaper-capture-desktop-port.js',
+		'desktop/framescaper-capture-main-channels.js',
+		'desktop/framescaper-capture-session-security.js',
 		'desktop/helper-contract.js',
 		'desktop/helper-job-grant.js',
 		'desktop/helper-probe-service.js',
@@ -357,4 +360,3 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	assert.equal(commitCalls, 1, 'compiled structural admission must run before the host commit');
 	await Promise.all([service.dispose(), boundedService.dispose()]);
 });
-

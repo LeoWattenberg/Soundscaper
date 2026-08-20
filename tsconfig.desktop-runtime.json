@@ -16,6 +16,9 @@
 	},
 	"include": [
 		"desktop/application-lifecycle.ts",
+		"desktop/framescaper-capture-desktop-port.ts",
+		"desktop/framescaper-capture-main-channels.js",
+		"desktop/framescaper-capture-session-security.ts",
 		"desktop/helper-contract.ts",
 		"desktop/helper-job-grant.ts",
 		"desktop/helper-probe-service.ts",
