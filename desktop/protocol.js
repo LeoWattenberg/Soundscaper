@@ -15,9 +15,15 @@ import {
 	READ_PROFILE_SCAPE_RANGE_V1,
 	RUNTIME_PREFIX,
 } from './constants.js';
-import { assertAppUrl } from './validation.js';
+import { assertAppUrl, isEditorDocumentUrl } from './validation.js';
 
 const MAX_SCAPE_RANGE_RESPONSE_BYTES = 16 * 1024 ** 2;
+const DENIED_CAPTURE_POLICY =
+	'microphone=(), speaker-selection=(), display-capture=(), camera=(), geolocation=()';
+const SOUNDSCAPER_CAPTURE_POLICY =
+	'microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()';
+const FRAMESCAPER_CAPTURE_POLICY =
+	'microphone=(self), speaker-selection=(self), display-capture=(self), camera=(self), geolocation=()';
 
 const MIME_TYPES = Object.freeze({
 	'.avif': 'image/avif',
@@ -71,7 +77,12 @@ export function registerAppScheme(protocolApi) {
 	}]);
 }
 
-export function createProtocolHandler({ rendererRoot, runtimeRoot, readCapabilities }) {
+export function createProtocolHandler({
+	productId = 'soundscaper', rendererRoot, runtimeRoot, readCapabilities,
+}) {
+	if (productId !== 'soundscaper' && productId !== 'framescaper') {
+		throw new TypeError('Desktop protocol product is invalid');
+	}
 	return async (request) => {
 		try {
 			const url = assertAppUrl(request.url);
@@ -82,7 +93,10 @@ export function createProtocolHandler({ rendererRoot, runtimeRoot, readCapabilit
 			const mount = url.pathname.startsWith(RUNTIME_PREFIX)
 				? { root: runtimeRoot, pathname: url.pathname.slice(RUNTIME_PREFIX.length) }
 				: { root: rendererRoot, pathname: url.pathname.slice(1) };
-			return await serveStaticFile(request, mount.root, mount.pathname);
+			return await serveStaticFile(request, mount.root, mount.pathname, {
+				productId,
+				editorDocument: isEditorDocumentUrl(url.href),
+			});
 		} catch (error) {
 			const status = error instanceof ProtocolError ? error.status : 500;
 			return errorResponse(status);
@@ -116,7 +130,9 @@ export function decodeRequestPath(requestPath) {
 	return segments.filter(Boolean).join('/') + (decoded.endsWith('/') ? '/' : '');
 }
 
-export function securityHeaders({ html = null, immutable = false } = {}) {
+export function securityHeaders({
+	html = null, immutable = false, productId = null, editorDocument = false,
+} = {}) {
 	const hashes = html === null ? [] : inlineScriptHashes(html);
 	const scriptSources = ["'self'", "'wasm-unsafe-eval'", ...hashes.map((hash) => `'sha256-${hash}'`)];
 	return {
@@ -138,10 +154,17 @@ export function securityHeaders({ html = null, immutable = false } = {}) {
 		'Cross-Origin-Opener-Policy': 'same-origin',
 		'Cross-Origin-Embedder-Policy': 'credentialless',
 		'Referrer-Policy': 'no-referrer',
-		'Permissions-Policy': 'microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()',
+		'Permissions-Policy': capturePermissionsPolicy(productId, editorDocument),
 		'X-Content-Type-Options': 'nosniff',
 		'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache',
 	};
+}
+
+function capturePermissionsPolicy(productId, editorDocument) {
+	if (!editorDocument) return DENIED_CAPTURE_POLICY;
+	if (productId === 'framescaper') return FRAMESCAPER_CAPTURE_POLICY;
+	if (productId === 'soundscaper') return SOUNDSCAPER_CAPTURE_POLICY;
+	return DENIED_CAPTURE_POLICY;
 }
 
 export function inlineScriptHashes(html) {
@@ -176,14 +199,17 @@ export function parseSingleRange(header, size) {
 	return { start, end, length: end - start + 1 };
 }
 
-async function serveStaticFile(request, root, pathname) {
+async function serveStaticFile(request, root, pathname, policy) {
 	const file = await resolveStaticFile(root, pathname);
 	const extension = extname(file.path).toLowerCase();
 	const isHtml = extension === '.html';
 	let html = null;
 	if (isHtml) html = await import('node:fs/promises').then(({ readFile }) => readFile(file.path, 'utf8'));
 	const headers = {
-		...securityHeaders({ html, immutable: pathname.startsWith('assets/') }),
+		...securityHeaders({
+			html, immutable: pathname.startsWith('assets/'),
+			productId: policy.productId, editorDocument: policy.editorDocument && isHtml,
+		}),
 		'Content-Type': MIME_TYPES[extension] || 'application/octet-stream',
 		'Content-Length': String(file.size),
 	};

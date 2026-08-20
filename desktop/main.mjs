@@ -194,6 +194,7 @@ async function startApplication() {
 
 	const desktopSession = session.fromPartition(SESSION_PARTITION);
 	await desktopSession.protocol.handle(APP_SCHEME, createProtocolHandler({
+		productId: PRODUCT_ID,
 		rendererRoot: resources.renderer,
 		runtimeRoot: resources.runtime,
 		readCapabilities,
