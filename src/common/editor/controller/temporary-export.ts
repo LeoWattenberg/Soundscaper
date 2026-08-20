@@ -1,4 +1,8 @@
 import { cloneProject } from '../project.js';
+import { normalizeAutomationLaneV21 } from '../automation-lane-v21.ts';
+import { normalizeMixerGraphV21, type MixerGraphV21 } from '../mixer-graph-v21.ts';
+import { reconcileProjectOwnedFeatureRequirements } from '../project-owned-feature-requirements.ts';
+import { isSoundscaperProductionProjectSchema } from '../project-schema-version.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
@@ -174,11 +178,49 @@ export function stemProject(
 		mediaProject,
 		cloneProject(mediaProject),
 	);
+	const production = isSoundscaperProductionProjectSchema(snapshot.schemaVersion);
 	snapshot.tracks = snapshot.tracks.map((track) => track.id === trackId
 		? { ...track, mute: false, solo: false }
-		: { ...track, mute: true, solo: false, effects: [] });
-	snapshot.master = { gain: 1, effects: [] };
+		: { ...track, mute: true, solo: false, ...(production ? {} : { effects: [] }) });
+	if (production) projectProductionStemSnapshot(snapshot);
+	else snapshot.master = { gain: 1, effects: [] };
 	return snapshot;
+}
+
+interface MutableProductionStemProject {
+	featureRequirements: unknown;
+	master: Record<string, unknown>;
+	mixer: MixerGraphV21;
+	automationLanes: unknown[];
+}
+
+function projectProductionStemSnapshot(value: unknown): void {
+	const project = value as MutableProductionStemProject;
+	const graph = normalizeMixerGraphV21(project.mixer);
+	const edges = graph.edges.filter((edge) => !(
+		edge.destination.kind === 'effect-sidechain'
+		&& edge.destination.strip.kind === 'master'
+	));
+	const edgeIds = new Set(edges.map(({ id }) => id));
+	project.mixer = normalizeMixerGraphV21({ ...graph, edges });
+	project.automationLanes = project.automationLanes.filter((value) => {
+		const { address } = normalizeAutomationLaneV21(value);
+		if (address.kind === 'edge') return edgeIds.has(address.edgeId);
+		return address.strip.kind !== 'master';
+	});
+	project.master = {
+		...project.master,
+		gain: 1,
+		pan: 0,
+		mute: false,
+		solo: false,
+		effectsActive: false,
+		effects: [],
+	};
+	project.featureRequirements = reconcileProjectOwnedFeatureRequirements(
+		project as unknown as Readonly<Record<string, unknown>>,
+		project.featureRequirements as never,
+	);
 }
 
 function toUint8Array(input: Uint8Array | ArrayBuffer | ArrayBufferView): Uint8Array {

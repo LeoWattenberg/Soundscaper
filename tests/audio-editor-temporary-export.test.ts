@@ -8,6 +8,15 @@ import {
 	createTemporaryFileSink,
 	stemProject,
 } from '../src/common/editor/controller/temporary-export.ts';
+import {
+	createAudioClipV10,
+	createAudioSourceV10,
+	createAudioTrackV10,
+} from '../src/common/editor/project-v10.ts';
+import {
+	createSoundscaperProjectV21,
+	validateSoundscaperProjectV21,
+} from '../src/soundscaper/editor-project-v21.ts';
 
 const copy = {
 	temporaryExportClosed: 'temporary export closed',
@@ -200,3 +209,123 @@ test('stem snapshots isolate one track and reset master processing', () => {
 	assert.equal(snapshot.tracks[1]?.solo, false);
 	assert.deepEqual(snapshot.master, { gain: 1, effects: [] });
 });
+
+test('V21 stem snapshots retain active control racks without retaining inactive master automation', () => {
+	const project = productionStemProject();
+	const snapshot = stemProject(project as never, 'voice') as unknown as typeof project;
+	assert.deepEqual(snapshot.automationLanes.map(({ id }) => id), ['voice-gain', 'control-frequency']);
+	assert.equal(snapshot.mixer.edges.some(({ id }) => id === 'control-master-sidechain'), false);
+	const control = snapshot.tracks.find(({ id }) => id === 'control') as { readonly effects: readonly unknown[] };
+	assert.equal(control.effects.length, 1);
+	assert.deepEqual(snapshot.master, {
+		...(project.master as Readonly<Record<string, unknown>>),
+		gain: 1,
+		pan: 0,
+		mute: false,
+		solo: false,
+		effectsActive: false,
+		effects: [],
+	});
+	assert.doesNotThrow(() => validateSoundscaperProjectV21(snapshot));
+});
+
+test('a master-only V21 stem projection reconciles the features it removes', () => {
+	const source = createAudioSourceV10({
+		id: 'source', storageKey: 'pcm:source', contentSha256: 'c'.repeat(64),
+		frameCount: 100, sampleRate: 48_000, channelCount: 1,
+	});
+	const project = createSoundscaperProjectV21({
+		id: 'master-only-stem', title: 'Master-only stem', now: '2026-08-20T00:00:00.000Z',
+		sources: [source],
+		clips: [createAudioClipV10({
+			id: 'clip', sourceId: source.id, timelineStartFrame: 0, sourceStartFrame: 0,
+			durationFrames: 100, sourceDurationFrames: 100,
+		})],
+		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['clip'] })],
+		sequences: [{ id: 'sequence', trackIds: ['voice'] }],
+		primarySequenceId: 'sequence',
+		master: {
+			effectsActive: true,
+			effects: [{ id: 'master-filter', type: 'highpass', enabled: true, params: { frequency: 200 } }],
+		},
+		automationLanes: [stemLane('master-frequency', {
+			kind: 'effect', strip: { kind: 'master' },
+			effectId: 'master-filter', parameterId: 'frequency',
+		}, 200)],
+	});
+	const snapshot = stemProject(project as never, 'voice') as unknown as typeof project;
+	assert.deepEqual(snapshot.automationLanes, []);
+	assert.doesNotThrow(() => validateSoundscaperProjectV21(snapshot));
+});
+
+function productionStemProject() {
+	const source = (id: string) => createAudioSourceV10({
+		id, storageKey: `pcm:${id}`, contentSha256: id === 'voice-source' ? 'a'.repeat(64) : 'b'.repeat(64),
+		frameCount: 100, sampleRate: 48_000, channelCount: 1,
+	});
+	const clip = (id: string, sourceId: string) => createAudioClipV10({
+		id, sourceId, timelineStartFrame: 0, sourceStartFrame: 0,
+		durationFrames: 100, sourceDurationFrames: 100,
+	});
+	return createSoundscaperProjectV21({
+		id: 'stem-v21', title: 'Stem V21', now: '2026-08-20T00:00:00.000Z',
+		sources: [source('voice-source'), source('control-source')],
+		clips: [clip('voice-clip', 'voice-source'), clip('control-clip', 'control-source')],
+		tracks: [
+			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] }),
+			createAudioTrackV10({
+				id: 'control', name: 'Control', clipIds: ['control-clip'],
+				effects: [{
+					id: 'control-filter', type: 'highpass', enabled: true, params: { frequency: 100 },
+				}],
+			}),
+		],
+		sequences: [{ id: 'sequence', trackIds: ['voice', 'control'] }],
+		primarySequenceId: 'sequence',
+		master: {
+			effectsActive: true,
+			effects: [{ id: 'master-filter', type: 'highpass', enabled: true, params: { frequency: 200 } }],
+		},
+		mixer: {
+			schemaVersion: 1, groups: [], sends: [], cues: [], vcas: [],
+			outputs: [{ id: 'main', name: 'Main', role: 'main', channelCount: 2 }],
+			edges: [
+				stemEdge('voice-master', 'assignment', { kind: 'track', id: 'voice' }, { kind: 'master' }),
+				stemEdge('control-master', 'assignment', { kind: 'track', id: 'control' }, { kind: 'master' }),
+				stemEdge('control-master-sidechain', 'sidechain', { kind: 'track', id: 'control' }, {
+					kind: 'effect-sidechain', strip: { kind: 'master' }, effectId: 'master-filter',
+				}),
+				stemEdge('master-main', 'assignment', { kind: 'master' }, { kind: 'output', id: 'main' }),
+			],
+		},
+		automationLanes: [
+			stemLane('voice-gain', {
+				kind: 'strip', strip: { kind: 'track', id: 'voice' }, parameterId: 'gain',
+			}, 1),
+			stemLane('control-frequency', {
+				kind: 'effect', strip: { kind: 'track', id: 'control' },
+				effectId: 'control-filter', parameterId: 'frequency',
+			}, 100),
+			stemLane('master-frequency', {
+				kind: 'effect', strip: { kind: 'master' },
+				effectId: 'master-filter', parameterId: 'frequency',
+			}, 200),
+			stemLane('master-sidechain-level', {
+				kind: 'edge', edgeId: 'control-master-sidechain', parameterId: 'level',
+			}, 1),
+		],
+	});
+}
+
+function stemEdge(id: string, kind: string, source: unknown, destination: unknown) {
+	return {
+		id, kind, source, destination, position: 'post-fader', level: 1, enabled: true, channelMap: [],
+	};
+}
+
+function stemLane(id: string, address: unknown, value: number) {
+	return {
+		id, address, timebase: 'absolute-samples',
+		points: [{ id: `${id}-start`, position: 0, value }], segments: [],
+	};
+}
