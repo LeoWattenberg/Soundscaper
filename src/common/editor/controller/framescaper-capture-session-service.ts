@@ -68,7 +68,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		void operation.finally(() => { pendingOperations.delete(operation); }).catch(() => undefined);
 		return operation;
 	}
-	function trackAction<T>(action: () => Promise<T>): Promise<T> { assertActive(); return trackOperation(Promise.resolve().then(action)); }
+	function trackAction<T>(action: () => Promise<T>): Promise<T> { return trackOperation(Promise.resolve().then(action)); }
 	async function joinOperations(): Promise<void> {
 		await Promise.resolve();
 		while (pendingOperations.size) await Promise.allSettled([...pendingOperations]);
