@@ -441,6 +441,11 @@ export function AudioTrackRow({
 								toggle: Boolean(metaKey),
 							}));
 						}}
+						onClipRename={blocked ? undefined : (clipId, title) => {
+							const nextTitle = String(title).trim();
+							if (!nextTitle) return;
+							run(() => controller.actions.clip.update(String(clipId), { title: nextTitle }));
+						}}
 						onClipMenuClick={onOpenClipMenu}
 						onClipTrimEdge={() => {
 							// Pointer geometry is committed by the frame-canonical adapter on pointer-up.

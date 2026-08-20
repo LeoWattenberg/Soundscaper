@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@dilsonspickles/components';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
@@ -20,6 +20,9 @@ export function VideoFilmstripClip({
 	blocked,
 	copy,
 	onOpenMenu,
+	onRename,
+	renameRequestId,
+	onRenameFinished,
 }) {
 	const clipEndFrame = clip.timelineStartFrame + clip.durationFrames;
 	const visibleStartFrame = Math.max(clip.timelineStartFrame, overscanStartFrame);
@@ -58,6 +61,38 @@ export function VideoFilmstripClip({
 		visibleStartFrame,
 	]);
 	const fallbackPosterUrl = videoPosterUrl(visualData, source);
+	const [isRenaming, setIsRenaming] = useState(false);
+	const [renameDraft, setRenameDraft] = useState(clip.title);
+	const renameInputRef = useRef(null);
+	const consumedRenameRequestRef = useRef(undefined);
+
+	useEffect(() => {
+		if (!isRenaming) setRenameDraft(clip.title);
+	}, [clip.title, isRenaming]);
+	useEffect(() => {
+		if (!isRenaming) return undefined;
+		const frame = requestAnimationFrame(() => {
+			renameInputRef.current?.focus();
+			renameInputRef.current?.select();
+		});
+		return () => cancelAnimationFrame(frame);
+	}, [isRenaming]);
+	useEffect(() => {
+		if (renameRequestId === undefined || renameRequestId === consumedRenameRequestRef.current) return;
+		consumedRenameRequestRef.current = renameRequestId;
+		if (blocked || !onRename) {
+			onRenameFinished?.();
+			return;
+		}
+		setRenameDraft(clip.title);
+		setIsRenaming(true);
+	}, [blocked, clip.title, onRename, onRenameFinished, renameRequestId]);
+	const finishRename = (commit) => {
+		const title = renameDraft.trim();
+		if (commit && title && title !== clip.title) onRename(title);
+		setIsRenaming(false);
+		onRenameFinished?.();
+	};
 	return (
 		<div
 			className="audio-editor-video-clip"
@@ -110,7 +145,46 @@ export function VideoFilmstripClip({
 					/>
 				</>}
 				<div className="clip-header audio-editor-video-clip__header">
-					<span className="audio-editor-video-clip__title" title={clip.title}>{clip.title}</span>
+					{isRenaming ? (
+						<input
+							ref={renameInputRef}
+							className="audio-editor-video-clip__title-input"
+							value={renameDraft}
+							onChange={(event) => setRenameDraft(event.target.value)}
+							onKeyDown={(event) => {
+								event.stopPropagation();
+								if (event.key === 'Enter') {
+									event.preventDefault();
+									finishRename(true);
+								} else if (event.key === 'Escape') {
+									event.preventDefault();
+									finishRename(false);
+								}
+							}}
+							onBlur={() => finishRename(true)}
+							onClick={(event) => event.stopPropagation()}
+							onMouseDown={(event) => event.stopPropagation()}
+							aria-label={copy.clipName}
+						/>
+					) : (
+						<span
+							className="audio-editor-video-clip__title"
+							title={clip.title}
+							onMouseDown={(event) => {
+								if (event.detail !== 2 || blocked || !onRename) return;
+								event.preventDefault();
+								event.stopPropagation();
+								setRenameDraft(clip.title);
+								setIsRenaming(true);
+							}}
+							onDoubleClick={(event) => {
+								event.stopPropagation();
+								if (blocked || !onRename) return;
+								setRenameDraft(clip.title);
+								setIsRenaming(true);
+							}}
+						>{clip.title}</span>
+					)}
 					{rateBadge && (
 						<span
 							className="audio-editor-video-clip__speed"

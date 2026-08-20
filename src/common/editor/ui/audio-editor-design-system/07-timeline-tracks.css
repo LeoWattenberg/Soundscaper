@@ -422,6 +422,18 @@
 	white-space: nowrap;
 }
 
+#kw-audio-editor-design-system .audio-editor-video-clip__title-input {
+	min-width: 0;
+	flex: 1 1 auto;
+	padding: 1px 3px;
+	border: 1px solid currentColor;
+	border-radius: 2px;
+	color: inherit;
+	background: rgb(255 255 255 / 90%);
+	font: inherit;
+	outline: none;
+}
+
 #kw-audio-editor-design-system .audio-editor-video-clip__speed {
 	flex: 0 0 auto;
 	padding: 1px 4px;

@@ -43,6 +43,8 @@ export function VideoTrackRow({
 	onFocusSelectionToolbar,
 }) {
 	const trackWindowRef = useRef(null);
+	const [renameRequest, setRenameRequest] = useState(null);
+	const renameRequestIdRef = useRef(0);
 	const trackHeight = visualHeight;
 	const clips = useMemo(() => {
 		const projected = [...trackClips];
@@ -187,6 +189,24 @@ export function VideoTrackRow({
 					}}
 					onKeyDownCapture={(event) => {
 						if (!event.target.matches?.('[data-clip-id][role="group"]')) return;
+						if (
+							event.key === 'F2'
+							&& !event.altKey
+							&& !event.ctrlKey
+							&& !event.metaKey
+							&& !event.shiftKey
+							&& !event.repeat
+							&& !blocked
+							&& selectedClipIdSet.has(String(event.target.dataset.clipId))
+						) {
+							event.preventDefault();
+							event.stopPropagation();
+							setRenameRequest({
+								clipId: String(event.target.dataset.clipId),
+								id: ++renameRequestIdRef.current,
+							});
+							return;
+						}
 						if (event.key === 'Enter') {
 							event.preventDefault();
 							event.stopPropagation();
@@ -265,6 +285,15 @@ export function VideoTrackRow({
 								blocked={blocked}
 								copy={copy}
 								onOpenMenu={onOpenClipMenu}
+								onRename={(title) => {
+									const nextTitle = String(title).trim();
+									if (blocked || !nextTitle) return;
+									run(() => controller.actions.clip.update(clip.id, { title: nextTitle }));
+								}}
+								renameRequestId={renameRequest?.clipId === String(clip.id) ? renameRequest.id : undefined}
+								onRenameFinished={() => setRenameRequest((current) => (
+									current?.clipId === String(clip.id) ? null : current
+								))}
 							/>
 						))}
 					</div>
