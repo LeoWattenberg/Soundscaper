@@ -77,6 +77,9 @@ export interface FramescaperCaptureDerivativeSchedulerOptions {
 		metadata: unknown,
 		options: Readonly<{ readonly requireChunkStream: true }>,
 	) => MaybePromise<unknown>;
+	readonly activateVideoSource?: (
+		source: FramescaperCaptureDerivativeSource,
+	) => MaybePromise<unknown>;
 	readonly createVideoFrameExtractor: (
 		media: Blob,
 	) => MaybePromise<FramescaperCaptureVideoFrameExtractor>;
@@ -190,6 +193,13 @@ async function generateVideoDerivatives(
 		}
 	} finally {
 		await disposeExtractor(source, extractor, failures);
+	}
+	if (options.activateVideoSource) {
+		try {
+			await options.activateVideoSource(source);
+		} catch (error) {
+			failures.push(derivativeError(`${source.id} video activation`, error));
+		}
 	}
 }
 
@@ -380,6 +390,7 @@ function assertOptions(options: FramescaperCaptureDerivativeSchedulerOptions): v
 	if (!options || typeof options !== 'object'
 		|| typeof options.getOriginProject !== 'function'
 		|| typeof options.activateStoredSource !== 'function'
+		|| (options.activateVideoSource !== undefined && typeof options.activateVideoSource !== 'function')
 		|| typeof options.createVideoFrameExtractor !== 'function'
 		|| typeof options.videoThumbnailTimes !== 'function'
 		|| !options.store || typeof options.store !== 'object'

@@ -24,6 +24,7 @@ interface FixtureOptions {
 	readonly disposeFailure?: boolean;
 	readonly proxy?: 'absent' | 'success' | 'failure';
 	readonly saveFailures?: readonly number[];
+	readonly videoActivationFailure?: boolean;
 }
 
 function createFixture(options: FixtureOptions = {}) {
@@ -83,6 +84,10 @@ function createFixture(options: FixtureOptions = {}) {
 			assert.deepEqual(activationOptions, { requireChunkStream: true });
 			calls.push(`activate:${source.id}:${String((metadata as { sourceId?: unknown }).sourceId)}`);
 			if (options.audioActivationFailure) throw new Error('audio activation failed');
+		},
+		activateVideoSource(source) {
+			calls.push(`activate-video:${source.id}`);
+			if (options.videoActivationFailure) throw new Error('video activation failed');
 		},
 		createVideoFrameExtractor(blob) {
 			assert.equal(blob, media, 'the retained Blob is passed through without rebuilding it');
@@ -152,6 +157,7 @@ test('capture derivatives activate audio peaks and create retained-video poster 
 		'capture:11',
 		'save:thumbnail:11',
 		'extractor:dispose',
+		'activate-video:camera-source',
 		'proxy:capture-session',
 	]);
 	assert.equal(fixture.saved.length, 4);
@@ -210,6 +216,18 @@ test('the optional proxy seam is not required', async () => {
 	await fixture.schedule(fixture.request);
 
 	assert.equal(fixture.calls.some((call) => call.startsWith('proxy:')), false);
+});
+
+test('active video refresh failure is aggregated after derivative persistence', async () => {
+	const fixture = createFixture({ proxy: 'absent', videoActivationFailure: true });
+
+	await assert.rejects(fixture.schedule(fixture.request), (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.equal(error.errors.length, 1);
+		assert.match(String(error.errors[0]), /camera-source video activation/iu);
+		return true;
+	});
+	assert.equal(fixture.saved.length, 4);
 });
 
 test('a failing poster and failing cleanup each report once while filmstrip work continues', async () => {
