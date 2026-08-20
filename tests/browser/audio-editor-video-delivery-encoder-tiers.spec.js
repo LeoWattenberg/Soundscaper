@@ -42,6 +42,10 @@ test('both encode tiers deliver the same plan, and each says which one ran', asy
 	page,
 }) => {
 	test.skip(browserName !== 'chromium', 'Only Chromium ships a WebCodecs H.264 encoder with shared memory.');
+	test.skip(
+		process.platform === 'win32',
+		'Windows headless Chromium crashes its GPU process during the production WebGL readback witness.',
+	);
 	test.setTimeout(120_000);
 	await installRoutes(page);
 	await page.goto(`${ROOT}/index.html`);

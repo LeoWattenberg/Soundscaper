@@ -32,7 +32,7 @@ import {
 	importFiles,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
-import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
+import { createDeterministicSilentVideoFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { promoteFramescaperArchiveToSoundscaperV23 } from './helpers/scape-exact-project-fixtures.js';
 
@@ -93,7 +93,6 @@ test.describe('exact-product rendered-fallback Scape return roundtrips', () => {
 
 	for (const workflow of WORKFLOWS) {
 		test(workflow.id, async ({ browser, page }) => {
-			if (workflow.kind === 'video') test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 			test.setTimeout(120_000);
 			await installPinnedFfmpegRuntimeRoutes(page);
 			const fixtureProduct = workflow.kind === 'video' ? 'framescaper' : workflow.origin;
@@ -161,13 +160,9 @@ async function createAudioBaseArchive(page, editor) {
 }
 
 async function createVideoBaseArchive(page, editor, id) {
-	const canonical = await createGeneratedVideoFixture(page, `${id}-canonical.webm`, {
-		variant: 'canonical',
-		withAudio: false,
-	});
-	const fallback = await createGeneratedVideoFixture(page, `${id}-fallback.webm`, {
+	const canonical = createDeterministicSilentVideoFixture(`${id}-canonical.webm`);
+	const fallback = createDeterministicSilentVideoFixture(`${id}-fallback.webm`, {
 		variant: 'fallback',
-		withAudio: false,
 	});
 	await importFiles(editor, [canonical]);
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
@@ -498,72 +493,4 @@ async function installAudioScheduleProbe(page) {
 			return start.apply(this, args);
 		};
 	});
-}
-
-async function createGeneratedVideoFixture(page, name, {
-	variant = 'canonical',
-	withAudio = true,
-} = {}) {
-	const base64 = await page.evaluate(async ({ includeAudio, fixtureVariant }) => {
-		const canvas = document.createElement('canvas');
-		canvas.width = 96;
-		canvas.height = 54;
-		const drawing = canvas.getContext('2d');
-		const videoStream = canvas.captureStream(15);
-		let audioContext = null;
-		let oscillator = null;
-		let stream = videoStream;
-		if (includeAudio) {
-			audioContext = new AudioContext({ sampleRate: 48_000 });
-			oscillator = audioContext.createOscillator();
-			const gain = audioContext.createGain();
-			const audioDestination = audioContext.createMediaStreamDestination();
-			oscillator.frequency.value = 330;
-			gain.gain.value = 0.06;
-			oscillator.connect(gain).connect(audioDestination);
-			oscillator.start();
-			await audioContext.resume();
-			stream = new MediaStream([
-				...videoStream.getVideoTracks(),
-				...audioDestination.stream.getAudioTracks(),
-			]);
-		}
-		if (stream.getVideoTracks().length !== 1
-			|| stream.getAudioTracks().length !== (includeAudio ? 1 : 0)) {
-			throw new Error('Generated video fixture has an unexpected media-track inventory.');
-		}
-		const mimeType = includeAudio && MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-			? 'video/webm;codecs=vp8,opus'
-			: MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-				? 'video/webm;codecs=vp8'
-				: 'video/webm';
-		const recorder = new MediaRecorder(stream, {
-			mimeType,
-			videoBitsPerSecond: 120_000,
-			...(includeAudio ? { audioBitsPerSecond: 32_000 } : {}),
-		});
-		const chunks = [];
-		recorder.addEventListener('dataavailable', (event) => {
-			if (event.data.size) chunks.push(event.data);
-		});
-		const stopped = new Promise((resolve) => recorder.addEventListener('stop', resolve, { once: true }));
-		recorder.start();
-		for (let frame = 0; frame < 8; frame += 1) {
-			drawing.fillStyle = fixtureVariant === 'fallback' ? '#7c2d12' : '#1d4ed8';
-			drawing.fillRect(0, 0, canvas.width, canvas.height);
-			drawing.fillStyle = fixtureVariant === 'fallback' ? '#67e8f9' : '#fbbf24';
-			drawing.fillRect(frame * 10, 20, 18, 14);
-			await new Promise((resolve) => setTimeout(resolve, 65));
-		}
-		recorder.stop();
-		await stopped;
-		stream.getTracks().forEach((track) => track.stop());
-		oscillator?.stop();
-		if (audioContext) await audioContext.close();
-		const bytes = new Uint8Array(await new Blob(chunks, { type: 'video/webm' }).arrayBuffer());
-		let binary = '';
-		for (const byte of bytes) binary += String.fromCharCode(byte);
-		return btoa(binary);
-	}, { includeAudio: withAudio, fixtureVariant: variant });
-	return { name, mimeType: 'video/webm', buffer: Buffer.from(base64, 'base64') };
 }

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { builtinModules } from 'node:module';
 import { isAbsolute, join, matchesGlob, relative, resolve, sep } from 'node:path';
 import test from 'node:test';
@@ -84,6 +84,27 @@ test('the nightly test payload satisfies every import its browser specs reach', 
 		failures,
 		[],
 		`The packaged runner would abort before running a single test:\n  ${failures.join('\n  ')}`,
+	);
+});
+
+test('the nightly payload stages browser harnesses loaded as dynamic esbuild entry points', async () => {
+	const lifecycleSpec = await readFile(
+		join(BROWSER_TESTS, 'audio-editor-framescaper-v20-product-lifecycle.spec.js'),
+		'utf8',
+	);
+	const harnessPath = lifecycleSpec.match(
+		/const HARNESS_PATH = resolve\(REPOSITORY_ROOT, '([^']+)'\);/u,
+	)?.[1];
+	assert.ok(harnessPath, 'the V20 lifecycle spec must declare its dynamic harness path');
+	assert.ok(
+		isStagedInput(harnessPath),
+		`NIGHTLY_TEST_PAYLOAD_INPUTS is missing dynamic browser harness ${harnessPath}`,
+	);
+	const packagedPath = packagedPathOf(harnessPath);
+	const packagedFilter = await readPackagedPayloadFilter();
+	assert.ok(
+		packagedPath !== null && packagedFilter.some((pattern) => matchesGlob(packagedPath, pattern)),
+		`the nightly-tests extraResources filter drops dynamic browser harness ${harnessPath}`,
 	);
 });
 

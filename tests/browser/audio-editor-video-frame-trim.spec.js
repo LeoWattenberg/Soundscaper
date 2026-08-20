@@ -5,7 +5,7 @@ import {
 	importFiles,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
-import { hasMediaRecorderCapability } from './helpers/media-recorder-capability.js';
+import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
@@ -25,11 +25,10 @@ test.describe('Framescaper frame-canonical edge trim integration', () => {
 	});
 
 	test('menus and a pointer handle trim one linked A/V pair on the sequence frame grid', async ({ page }) => {
-		test.skip(!await page.evaluate(hasMediaRecorderCapability), 'Generated WebM fixtures require MediaRecorder.');
 		test.setTimeout(180_000);
 		await page.setViewportSize({ width: 1_440, height: 1_100 });
 		const errors = collectClientErrors(page);
-		const fixture = await createGeneratedAvFixture(page);
+		const fixture = createDeterministicAvFixture('framescaper-frame-trim.webm');
 		const editor = await bootFramescaper(page);
 		await importFiles(editor, [fixture]);
 		await expect(editor).toHaveAttribute('data-clip-count', '2', { timeout: 30_000 });
@@ -249,64 +248,6 @@ function sequenceTimecode(frame, framesPerSecond) {
 	const minutes = wholeMinutes % 60;
 	const hours = Math.floor(wholeMinutes / 60);
 	return [hours, minutes, seconds, frames].map((value) => String(value).padStart(2, '0')).join(':');
-}
-
-async function createGeneratedAvFixture(page) {
-	const base64 = await page.evaluate(async () => {
-		const canvas = document.createElement('canvas');
-		canvas.width = 96;
-		canvas.height = 54;
-		const context = canvas.getContext('2d');
-		const videoStream = canvas.captureStream(15);
-		const audioContext = new AudioContext({ sampleRate: 48_000 });
-		const oscillator = audioContext.createOscillator();
-		const gain = audioContext.createGain();
-		const audioDestination = audioContext.createMediaStreamDestination();
-		oscillator.frequency.value = 330;
-		gain.gain.value = 0.06;
-		oscillator.connect(gain).connect(audioDestination);
-		oscillator.start();
-		await audioContext.resume();
-		const stream = new MediaStream([
-			...videoStream.getVideoTracks(),
-			...audioDestination.stream.getAudioTracks(),
-		]);
-		const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-			? 'video/webm;codecs=vp8,opus'
-			: 'video/webm';
-		const recorder = new MediaRecorder(stream, {
-			mimeType,
-			videoBitsPerSecond: 120_000,
-			audioBitsPerSecond: 32_000,
-		});
-		const chunks = [];
-		recorder.addEventListener('dataavailable', (event) => {
-			if (event.data.size) chunks.push(event.data);
-		});
-		const stopped = new Promise((resolve) => recorder.addEventListener('stop', resolve, { once: true }));
-		recorder.start();
-		for (let frame = 0; frame < 14; frame += 1) {
-			context.fillStyle = frame % 2 ? '#245fce' : '#d92f45';
-			context.fillRect(0, 0, canvas.width, canvas.height);
-			context.fillStyle = '#ffffff';
-			context.fillRect(frame * 5, 20, 12, 12);
-			await new Promise((resolve) => setTimeout(resolve, 65));
-		}
-		recorder.stop();
-		await stopped;
-		stream.getTracks().forEach((track) => track.stop());
-		oscillator.stop();
-		await audioContext.close();
-		const bytes = new Uint8Array(await new Blob(chunks, { type: mimeType }).arrayBuffer());
-		let binary = '';
-		for (const byte of bytes) binary += String.fromCharCode(byte);
-		return btoa(binary);
-	});
-	return {
-		name: 'framescaper-frame-trim.webm',
-		mimeType: 'video/webm',
-		buffer: Buffer.from(base64, 'base64'),
-	};
 }
 
 function collectClientErrors(page) {

@@ -34,7 +34,20 @@ test('bundled Playwright config uses only absolute launcher-provided paths', asy
 		assert.equal(config.retries, 1);
 		assert.equal(config.failOnFlakyTests, false);
 		assert.equal(config.updateSnapshots, 'none');
-		assert.deepEqual(config.projects.map(({ name }) => name), ['chromium', 'firefox', 'webkit']);
+		assert.deepEqual(
+			createNightlyTestsConfig(process.env, 'win32').projects.map(({ name }) => name),
+			['chromium', 'firefox'],
+		);
+		for (const platform of ['linux', 'darwin']) {
+			assert.deepEqual(
+				createNightlyTestsConfig(process.env, platform).projects.map(({ name }) => name),
+				['chromium', 'firefox', 'webkit'],
+			);
+		}
+		assert.deepEqual(
+			config.projects.map(({ name }) => name),
+			process.platform === 'win32' ? ['chromium', 'firefox'] : ['chromium', 'firefox', 'webkit'],
+		);
 		const firefox = config.projects.find(({ name }) => name === 'firefox');
 		assert.equal(firefox.use.launchOptions?.firefoxUserPrefs, undefined);
 		for (const project of config.projects) {
@@ -96,4 +109,16 @@ test('diagnostic runs keep the canonical visual baseline on Linux Chromium', asy
 	);
 	assert.ok(snapshots.length > 0);
 	assert.ok(snapshots.every((snapshot) => snapshot.endsWith('-chromium-linux.png')));
+});
+
+test('the GPU readback encoder witness is host-qualified away from Windows headless Chromium', async () => {
+	const browserSpec = await readFile(
+		new URL('./browser/audio-editor-video-delivery-encoder-tiers.spec.js', import.meta.url),
+		'utf8',
+	);
+
+	assert.match(
+		browserSpec,
+		/test\.skip\(\s*process\.platform === 'win32',\s*'[^']*Windows headless Chromium[^']*'\s*,?\s*\)/u,
+	);
 });

@@ -6,7 +6,9 @@ import test from 'node:test';
 
 import {
 	createDeterministicAvFixture,
+	createDeterministicSilentVideoFixture,
 	deterministicAvMedia,
+	deterministicSilentVideoMedia,
 } from './browser/fixtures/deterministic-av-media.js';
 
 test('deterministic A/V browser fixtures are digest-pinned WebM with video and audio tracks', () => {
@@ -45,5 +47,38 @@ test('deterministic A/V fixture factory returns isolated upload buffers and pres
 	assert.throws(
 		() => createDeterministicAvFixture('unknown.webm', { variant: 'square' }),
 		/Unknown deterministic A\/V fixture variant/u,
+	);
+});
+
+test('deterministic silent-video fixtures are distinct digest-pinned VP8 media without audio tracks', () => {
+	assert.deepEqual(deterministicSilentVideoMedia.map(({ id }) => id), [
+		'video-canonical-webm-v1',
+		'video-fallback-webm-v1',
+	]);
+	for (const fixture of deterministicSilentVideoMedia) {
+		assert.equal(fixture.file.mimeType, 'video/webm');
+		assert.equal(createHash('sha256').update(fixture.file.buffer).digest('hex'), fixture.sourceSha256);
+		assert.ok(fixture.file.buffer.includes(Buffer.from('V_VP8')), `${fixture.id} must contain VP8 video`);
+		assert.equal(fixture.file.buffer.includes(Buffer.from('A_OPUS')), false, `${fixture.id} must be silent`);
+		assert.deepEqual(fixture.display, { width: 96, height: 54 });
+	}
+	assert.notEqual(deterministicSilentVideoMedia[0].sourceSha256, deterministicSilentVideoMedia[1].sourceSha256);
+});
+
+test('deterministic silent-video fixture factory returns isolated named variants', () => {
+	const canonical = createDeterministicSilentVideoFixture('canonical.webm');
+	const canonicalCopy = createDeterministicSilentVideoFixture('canonical-copy.webm');
+	const fallback = createDeterministicSilentVideoFixture('fallback.webm', { variant: 'fallback' });
+
+	assert.equal(canonical.name, 'canonical.webm');
+	assert.equal(fallback.name, 'fallback.webm');
+	assert.notStrictEqual(canonical.buffer, canonicalCopy.buffer);
+	assert.deepEqual(canonical.buffer, canonicalCopy.buffer);
+	assert.notDeepEqual(canonical.buffer, fallback.buffer);
+	canonical.buffer[0] = 0;
+	assert.equal(canonicalCopy.buffer[0], 0x1a);
+	assert.throws(
+		() => createDeterministicSilentVideoFixture('unknown.webm', { variant: 'portrait' }),
+		/Unknown deterministic silent-video fixture variant/u,
 	);
 });

@@ -33,10 +33,15 @@ function requireLoopbackURL(environment) {
 	return url.href.replace(/\/$/u, '');
 }
 
-export function createNightlyTestsConfig(environment = process.env) {
+export function createNightlyTestsConfig(environment = process.env, platform = process.platform) {
 	const payloadRoot = requireAbsolutePath(environment, 'SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT');
 	const runRoot = requireAbsolutePath(environment, 'SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT');
 	const baseURL = requireLoopbackURL(environment);
+	const projects = [
+		{ name: 'chromium', use: { ...devices['Desktop Chrome'], browserName: 'chromium' } },
+		{ name: 'firefox', use: { ...devices['Desktop Firefox'], browserName: 'firefox' } },
+		{ name: 'webkit', use: { ...devices['Desktop Safari'], browserName: 'webkit' } },
+	];
 
 	return defineConfig({
 		testDir: resolve(payloadRoot, 'tests/browser'),
@@ -61,11 +66,9 @@ export function createNightlyTestsConfig(environment = process.env) {
 			trace: 'on-first-retry',
 			screenshot: 'only-on-failure',
 		},
-		projects: [
-			{ name: 'chromium', use: { ...devices['Desktop Chrome'], browserName: 'chromium' } },
-			{ name: 'firefox', use: { ...devices['Desktop Firefox'], browserName: 'firefox' } },
-			{ name: 'webkit', use: { ...devices['Desktop Safari'], browserName: 'webkit' } },
-		],
+		// Playwright's Windows WebKit build disables Web Audio at compile time,
+		// while Soundscaper requires it to boot and decode its fixture projects.
+		projects: platform === 'win32' ? projects.slice(0, 2) : projects,
 	});
 }
 

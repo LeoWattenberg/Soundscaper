@@ -129,25 +129,58 @@ test.describe('3B-2b source display geometry qualification', () => {
 				});
 				// Decoding is not presentation. In particular, Firefox may resolve
 				// play() while drawImage still sees the pre-frame black surface, so
-				// synchronize canvas reads with the compositor's frame callback.
+				// synchronize canvas reads with a presented frame when the engine
+				// delivers that callback. Some Firefox builds expose the API without
+				// delivering callbacks for blob-backed MP4s, so media-clock progress
+				// provides a bounded fallback before the pixels are validated below.
 				video.loop = true;
 				const nextPresentedFrame = () => new Promise((resolve, reject) => {
-					let cancel = () => {};
-					const timeout = setTimeout(() => {
-						cancel();
-						reject(new Error('the exported video did not present a frame'));
-					}, 5_000);
+					let frameCallback = null;
+					let progressFrame = null;
+					let paintFrame = null;
+					let settled = false;
+					const startingTime = video.currentTime;
+					const cleanup = () => {
+						video.removeEventListener('timeupdate', onTimeUpdate);
+						if (frameCallback !== null && typeof video.cancelVideoFrameCallback === 'function') {
+							video.cancelVideoFrameCallback(frameCallback);
+						}
+						if (progressFrame !== null) cancelAnimationFrame(progressFrame);
+						if (paintFrame !== null) cancelAnimationFrame(paintFrame);
+					};
 					const finish = () => {
+						if (settled) return;
+						settled = true;
 						clearTimeout(timeout);
+						cleanup();
 						resolve();
 					};
+					const finishAfterPaintOpportunity = () => {
+						if (settled || paintFrame !== null) return;
+						paintFrame = requestAnimationFrame(finish);
+					};
+					const onTimeUpdate = () => finishAfterPaintOpportunity();
+					const pollMediaClock = () => {
+						progressFrame = null;
+						if (video.currentTime !== startingTime) {
+							finishAfterPaintOpportunity();
+							return;
+						}
+						progressFrame = requestAnimationFrame(pollMediaClock);
+					};
+					const timeout = setTimeout(() => {
+						if (settled) return;
+						settled = true;
+						cleanup();
+						reject(new Error('the exported video did not present a frame'));
+					}, 5_000);
+					video.addEventListener('timeupdate', onTimeUpdate, { once: true });
+					progressFrame = requestAnimationFrame(pollMediaClock);
 					if (typeof video.requestVideoFrameCallback === 'function') {
-						const callback = video.requestVideoFrameCallback(finish);
-						cancel = () => video.cancelVideoFrameCallback(callback);
-					} else {
-						const onTimeUpdate = () => requestAnimationFrame(finish);
-						video.addEventListener('timeupdate', onTimeUpdate, { once: true });
-						cancel = () => video.removeEventListener('timeupdate', onTimeUpdate);
+						frameCallback = video.requestVideoFrameCallback(() => {
+							frameCallback = null;
+							finish();
+						});
 					}
 				});
 				const firstFrame = nextPresentedFrame();
