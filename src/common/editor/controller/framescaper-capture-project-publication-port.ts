@@ -9,8 +9,10 @@ import type {
 	FramescaperCaptureFenceAssertion,
 	FramescaperCaptureFenceAssertionContext,
 } from './framescaper-capture-publication-service.ts';
+import type { FramescaperCaptureProjectWriteLease } from './framescaper-capture-project-write-authority.ts';
 
 const TEXT_ENCODER = new TextEncoder();
+const NO_PUBLICATION_FAILURE = Symbol('no Framescaper capture publication failure');
 
 interface CapturePublicationProject extends Record<string, unknown> {
 	readonly id: string;
@@ -80,6 +82,10 @@ export interface FramescaperCaptureProjectPublicationOptions<
 	readonly projects: CapturePublicationProjectRepository<Project>;
 	readonly session: CapturePublicationSession<Project, History>;
 	readonly projectRuntime: CapturePublicationProjectRuntime<Project, History>;
+	assertProjectWritable(projectId: string): void;
+	acquireProjectWriteAuthority(
+		projectId: string,
+	): PromiseLike<FramescaperCaptureProjectWriteLease> | FramescaperCaptureProjectWriteLease;
 	isActiveProject(projectId: string): boolean;
 	setActiveProject(project: Project): void;
 	setActiveHistory(history: History): void;
@@ -113,6 +119,7 @@ export function createFramescaperCaptureProjectPublicationPort<
 		fence: FramescaperCaptureProjectFenceV1,
 		context: FramescaperCaptureFenceAssertionContext,
 	): Promise<FramescaperCaptureFenceAssertion> {
+		options.assertProjectWritable(fence.projectId);
 		const base = await loadExactBase(options.projects, fence);
 		const captured = options.session.captureProjectHistory(fence.projectId);
 		if (captured.history.present.id !== base.id) {
@@ -144,12 +151,19 @@ export function createFramescaperCaptureProjectPublicationPort<
 		command: AudioEditorCommand,
 		fence: FramescaperCaptureProjectFenceV1,
 	): Promise<FramescaperCaptureAtomicCommitResult> {
-		const captured = options.session.captureProjectHistory(fence.projectId);
-		const reservation = options.session.beginProjectActivation(fence.projectId, {
-			expectedHistoryToken: captured.token,
-		});
+		options.assertProjectWritable(fence.projectId);
+		const authority = await options.acquireProjectWriteAuthority(fence.projectId);
+		let reservation: CapturePublicationReservation | null = null;
+		let publicationFailure: unknown | typeof NO_PUBLICATION_FAILURE = NO_PUBLICATION_FAILURE;
 		try {
+			authority.assertCurrent();
+			options.assertProjectWritable(fence.projectId);
+			const captured = options.session.captureProjectHistory(fence.projectId);
+			reservation = options.session.beginProjectActivation(fence.projectId, {
+				expectedHistoryToken: captured.token,
+			});
 			const base = await loadExactBase(options.projects, fence);
+			authority.assertCurrent();
 			const targetHistory = sameProject(captured.history.present, base)
 				? deriveTargetHistory(options.projectRuntime, base, command, captured.history)
 				: deriveTargetHistory(options.projectRuntime, base, command);
@@ -158,6 +172,7 @@ export function createFramescaperCaptureProjectPublicationPort<
 				&& !sameProject(captured.history.present, target)) return Object.freeze({ status: 'cas-mismatch' });
 
 			const durable = await options.projects.load(fence.projectId);
+			authority.assertCurrent();
 			if (!durable) return Object.freeze({ status: 'cas-mismatch' });
 			if (sameProject(durable, base)) {
 				const committed = await options.projects.saveIfCurrent(base, target);
@@ -168,6 +183,7 @@ export function createFramescaperCaptureProjectPublicationPort<
 					throw new Error('Framescaper capture project CAS returned a different target.');
 				}
 			} else if (!sameProject(durable, target)) return Object.freeze({ status: 'cas-mismatch' });
+			authority.assertCurrent();
 
 			if (!sameProject(captured.history.present, target)) {
 				options.session.installCommittedProjectHistory(fence.projectId, targetHistory, {
@@ -191,12 +207,39 @@ export function createFramescaperCaptureProjectPublicationPort<
 				status: 'committed' as const,
 				value: Object.freeze({ project: installed.present, history: installed }),
 			});
+		} catch (error) {
+			publicationFailure = error;
+			throw error;
 		} finally {
-			reservation.release();
+			const cleanupFailures: unknown[] = [];
+			try { reservation?.release(); } catch (error) { cleanupFailures.push(error); }
+			try { await authority.release(); } catch (error) { cleanupFailures.push(error); }
+			if (cleanupFailures.length) {
+				throw publicationCleanupError(publicationFailure, cleanupFailures);
+			}
 		}
 	}
 
 	return Object.freeze({ assertProjectFence, commitAtomic });
+}
+
+function publicationCleanupError(
+	publicationFailure: unknown | typeof NO_PUBLICATION_FAILURE,
+	cleanupFailures: readonly unknown[],
+): unknown {
+	if (publicationFailure !== NO_PUBLICATION_FAILURE) {
+		return new AggregateError(
+			[publicationFailure, ...cleanupFailures],
+			'Framescaper capture publication and authority cleanup both failed.',
+			{ cause: publicationFailure },
+		);
+	}
+	if (cleanupFailures.length === 1) return cleanupFailures[0];
+	return new AggregateError(
+		cleanupFailures,
+		'Framescaper capture authority cleanup failed.',
+		{ cause: cleanupFailures[0] },
+	);
 }
 
 function deriveTargetHistory<
@@ -281,6 +324,8 @@ function assertOptions<
 	if (!options || typeof options !== 'object'
 		|| typeof options.projects?.load !== 'function'
 		|| typeof options.projects?.saveIfCurrent !== 'function'
+		|| typeof options.assertProjectWritable !== 'function'
+		|| typeof options.acquireProjectWriteAuthority !== 'function'
 		|| typeof options.session?.captureProjectHistory !== 'function'
 		|| typeof options.session?.beginProjectActivation !== 'function'
 		|| typeof options.session?.installCommittedProjectHistory !== 'function'

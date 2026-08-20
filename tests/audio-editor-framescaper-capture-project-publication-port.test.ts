@@ -43,8 +43,10 @@ test('publication reserves and atomically installs an inactive origin project', 
 	assert.deepEqual(fixture.current, fixture.target);
 	assert.deepEqual(fixture.history.present, fixture.target);
 	assert.deepEqual(fixture.events, [
-		'capture', 'reserve', 'load:revision:4', 'execute', 'load:current',
-		'cas', 'install', 'saved', 'release',
+		'writable', 'authority:acquire', 'authority:assert', 'writable',
+		'capture', 'reserve', 'load:revision:4', 'authority:assert', 'execute',
+		'load:current', 'authority:assert', 'cas', 'authority:assert',
+		'install', 'saved', 'release', 'authority:release',
 	]);
 	assert.equal(fixture.activeMirrors, 0, 'an inactive origin is not mirrored into active editor state');
 });
@@ -109,7 +111,47 @@ test('a foreign durable current returns a CAS mismatch and releases its reservat
 
 	assert.equal(result.status, 'cas-mismatch');
 	assert.equal(fixture.events.includes('install'), false);
-	assert.equal(fixture.events.at(-1), 'release');
+	assert.deepEqual(fixture.events.slice(-2), ['release', 'authority:release']);
+});
+
+test('publication refuses missing write authority before storage or session mutation', async () => {
+	const fixture = publicationFixture({ authorityDenied: true });
+	const fence = framescaperCaptureProjectFence(fixture.base);
+
+	await assert.rejects(fixture.port.commitAtomic(COMMAND, fence), /write authority/iu);
+	assert.equal(fixture.events.includes('cas'), false);
+	assert.equal(fixture.events.includes('install'), false);
+});
+
+test('lock loss after project CAS remains indeterminate and never clears session read-only state', async () => {
+	const fixture = publicationFixture({ loseAuthorityAfterCas: true });
+	const fence = framescaperCaptureProjectFence(fixture.base);
+
+	await assert.rejects(fixture.port.commitAtomic(COMMAND, fence), /write authority changed/iu);
+	assert.deepEqual(fixture.current, fixture.target, 'the durable acknowledgement is reconciled on retry');
+	assert.deepEqual(fixture.history.present, fixture.base, 'session install waits for live authority');
+	assert.equal(fixture.events.includes('install'), false);
+	assert.ok(fixture.events.includes('authority:release'));
+});
+
+test('publication joins both cleanup owners and preserves its primary failure', async () => {
+	const primary = new Error('command derivation failed');
+	const reservationFailure = new Error('reservation release failed');
+	const authorityFailure = new Error('authority release failed');
+	const fixture = publicationFixture({
+		executeError: primary,
+		reservationReleaseError: reservationFailure,
+		authorityReleaseError: authorityFailure,
+	});
+	const fence = framescaperCaptureProjectFence(fixture.base);
+
+	await assert.rejects(fixture.port.commitAtomic(COMMAND, fence), (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.equal(error.cause, primary);
+		assert.deepEqual(error.errors, [primary, reservationFailure, authorityFailure]);
+		return true;
+	});
+	assert.deepEqual(fixture.events.slice(-2), ['release', 'authority:release']);
 });
 
 function publicationFixture(options: Readonly<{
@@ -117,6 +159,11 @@ function publicationFixture(options: Readonly<{
 	sessionTarget?: boolean;
 	foreignCurrent?: boolean;
 	active?: boolean;
+	authorityDenied?: boolean;
+	loseAuthorityAfterCas?: boolean;
+	executeError?: Error;
+	reservationReleaseError?: Error;
+	authorityReleaseError?: Error;
 }> = {}) {
 	const events: string[] = [];
 	const base = project(4, []);
@@ -126,6 +173,7 @@ function publicationFixture(options: Readonly<{
 	let history = createHistory(options.sessionTarget ? target : base);
 	let token: object = Object.freeze({});
 	let activeMirrors = 0;
+	let authorityCurrent = true;
 	const port = createFramescaperCaptureProjectPublicationPort<Project, History>({
 		projects: {
 			async load(_projectId, loadOptions) {
@@ -137,8 +185,27 @@ function publicationFixture(options: Readonly<{
 				events.push('cas');
 				if (JSON.stringify(current) !== JSON.stringify(expected)) return null;
 				current = next;
+				if (options.loseAuthorityAfterCas) authorityCurrent = false;
 				return next;
 			},
+		},
+		assertProjectWritable() {
+			events.push('writable');
+			if (options.authorityDenied) throw new Error('Capture project write authority is unavailable.');
+		},
+		async acquireProjectWriteAuthority() {
+			events.push('authority:acquire');
+			if (options.authorityDenied) throw new Error('Capture project write authority is unavailable.');
+			return {
+				assertCurrent() {
+					events.push('authority:assert');
+					if (!authorityCurrent) throw new Error('Capture project write authority changed.');
+				},
+				async release() {
+					events.push('authority:release');
+					if (options.authorityReleaseError) throw options.authorityReleaseError;
+				},
+			};
 		},
 		session: {
 			captureProjectHistory() { events.push('capture'); return { history, token }; },
@@ -146,7 +213,11 @@ function publicationFixture(options: Readonly<{
 				assert.equal(reservation.expectedHistoryToken, token);
 				events.push('reserve');
 				const activationToken = Object.freeze({});
-				return { token: activationToken, release: () => { events.push('release'); return true; } };
+				return { token: activationToken, release: () => {
+					events.push('release');
+					if (options.reservationReleaseError) throw options.reservationReleaseError;
+					return true;
+				} };
 			},
 			installCommittedProjectHistory(_projectId, next, installOptions) {
 				assert.equal(installOptions.expectedHistoryToken, token);
@@ -161,6 +232,7 @@ function publicationFixture(options: Readonly<{
 			createHistory,
 			executeCommand(startingHistory) {
 				events.push('execute');
+				if (options.executeError) throw options.executeError;
 				assert.deepEqual(startingHistory.present, base);
 				return { ...startingHistory, present: target };
 			},
