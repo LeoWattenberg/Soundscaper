@@ -17,6 +17,9 @@ import { openDatabase } from '../src/common/editor/storage/indexeddb-backend.ts'
 import { KeyValueRepository } from '../src/common/editor/storage/key-value-repository.ts';
 import { MediaAssetChunkRecords } from '../src/common/editor/storage/media-asset-chunk-records.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
+import { OpfsPreferredEncodedCaptureChunkPort } from '../src/common/editor/storage/opfs-preferred-encoded-capture-chunk-port.ts';
+import { OpfsRepository } from '../src/common/editor/storage/opfs-repository.ts';
+import { createProjectStore } from '../src/common/editor/storage.js';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 test('encoded capture append acknowledges a bounded durable prefix and adopts without copying', async () => {
@@ -134,6 +137,76 @@ test('encoded prefixes and session manifests reload from existing IndexedDB stor
 	assert.deepEqual(await collect(reopened.spools.read(loaded)), expectedChunks);
 	assert.deepEqual(await reopened.manifests.load('project-reload', 'session-reload'), session);
 	await reopened.close();
+});
+
+test('encoded capture prefers durable OPFS chunks and reopens their exact ownership map', async () => {
+	const memory = getMemoryDatabase(uniqueName());
+	const files = new Map<string, Blob>();
+	const port = { memory, database: async () => null };
+	const values = new KeyValueRepository(port, 'analysis');
+	const opfs = new OpfsRepository({
+		preferOpfs: true,
+		opfsRoot: createOpfsDirectory(files),
+	});
+	const chunks = new OpfsPreferredEncodedCaptureChunkPort({
+		values,
+		opfs,
+		fallback: new MediaAssetChunkRecords(port),
+	});
+	let spool = await new EncodedCaptureSpoolRepository(values, chunks, {
+		createId: () => 'opfs-token',
+	}).create({
+		projectId: 'project-opfs', sessionId: 'session-opfs', streamId: 'camera-stream',
+		spoolId: 'camera-spool', sourceId: 'camera-source', mimeType: 'video/webm',
+	});
+	const repository = new EncodedCaptureSpoolRepository(values, chunks);
+	spool = (await repository.append(spool, {
+		sequence: 0, ptsMicroseconds: 0, durationMicroseconds: 1_000,
+		payload: new Blob([Uint8Array.of(3, 4, 5)]),
+	})).spool;
+
+	assert.equal(await chunks.backend(spool.spoolToken), 'opfs');
+	assert.equal(memory.mediaAssetChunks.size, 0);
+	assert.equal(files.size, 1);
+	assert.equal((await chunks.retainedPaths(new Set([spool.spoolToken]))).size, 1);
+
+	const reopenedChunks = new OpfsPreferredEncodedCaptureChunkPort({
+		values,
+		opfs: new OpfsRepository({ preferOpfs: true, opfsRoot: createOpfsDirectory(files) }),
+		fallback: new MediaAssetChunkRecords(port),
+	});
+	const reopened = new EncodedCaptureSpoolRepository(values, reopenedChunks);
+	const loaded = await reopened.load('project-opfs', 'camera-spool');
+	assert.ok(loaded);
+	const [chunk] = await collect(reopened.read(loaded));
+	assert.deepEqual(new Uint8Array(await chunk!.payload.arrayBuffer()), Uint8Array.of(3, 4, 5));
+	await reopened.delete(loaded);
+	assert.equal(files.size, 0);
+	assert.equal(await reopenedChunks.backend(spool.spoolToken), null);
+});
+
+test('project-store composition exposes capture recovery storage and retention protects its fallback', async () => {
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: uniqueName(),
+	});
+	assert.ok(store.encodedCaptureSpoolRepository);
+	assert.ok(store.framescaperCaptureManifestRepository);
+	assert.ok(store.encodedCaptureChunkRepository);
+	let spool = await store.encodedCaptureSpoolRepository.create({
+		projectId: 'project-retention', sessionId: 'session-retention', streamId: 'display-stream',
+		spoolId: 'display-spool', sourceId: 'display-source', mimeType: 'video/webm',
+	});
+	spool = (await store.encodedCaptureSpoolRepository.append(spool, {
+		sequence: 0, ptsMicroseconds: 0, durationMicroseconds: 1_000,
+		payload: new Blob([Uint8Array.of(8, 9)]),
+	})).spool;
+
+	await store.cleanupTemporaryAssets({ maximumAgeMs: -1 });
+	assert.equal((await collect(store.encodedCaptureSpoolRepository.read(spool))).length, 1);
+	await store.encodedCaptureSpoolRepository.delete(spool);
+	await store.close();
 });
 
 test('encoded capture storage rejects stale ownership, invalid packet order, and foreign chunks', async () => {
@@ -309,4 +382,29 @@ async function collect<Value>(values: AsyncIterable<Value>): Promise<Value[]> {
 
 function uniqueName(): string {
 	return `framescaper-capture-storage-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function createOpfsDirectory(files: Map<string, Blob>): FileSystemDirectoryHandle {
+	const directory = {
+		async getDirectoryHandle() { return directory; },
+		async getFileHandle(path: string, options: Readonly<{ create?: boolean }> = {}) {
+			if (!files.has(path) && !options.create) throw new DOMException('missing', 'NotFoundError');
+			if (!files.has(path)) files.set(path, new Blob());
+			return {
+				async createWritable() {
+					const parts: BlobPart[] = [];
+					return {
+						async write(part: BlobPart) { parts.push(part); },
+						async close() { files.set(path, new Blob(parts)); },
+						async abort() { parts.length = 0; },
+					};
+				},
+				async getFile() { return files.get(path) as Blob; },
+			};
+		},
+		async removeEntry(path: string) {
+			if (!files.delete(path)) throw new DOMException('missing', 'NotFoundError');
+		},
+	};
+	return directory as unknown as FileSystemDirectoryHandle;
 }

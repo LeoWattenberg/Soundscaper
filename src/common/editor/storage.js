@@ -18,9 +18,7 @@ const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
  * memory implementation keeps the editor usable in private or restricted
  * contexts where IndexedDB cannot be opened.
  */
-export function createProjectStore(options = {}) {
-	return new AudioEditorProjectStore(options);
-}
+export function createProjectStore(options = {}) { return new AudioEditorProjectStore(options); }
 
 export class AudioEditorProjectStore {
 	constructor(/** @type {import('./storage/project-store-options.ts').AudioEditorProjectStoreOptions} */ options = {}) {
@@ -111,6 +109,9 @@ export class AudioEditorProjectStore {
 		this.analysisCacheRepository = repositories.analysisCache || repositories.analysis;
 		this.sourceRepository = repositories.sources;
 		this.rawPcmSpoolRepository = repositories.rawPcmSpools;
+		this.encodedCaptureChunkRepository = repositories.encodedCaptureChunks;
+		this.encodedCaptureSpoolRepository = repositories.encodedCaptureSpools;
+		this.framescaperCaptureManifestRepository = repositories.framescaperCaptureManifests;
 		this.takeCycleRecoveryEnvelopeRepository = repositories.takeCycleRecoveryEnvelopes;
 		this.mediaRepository = repositories.media;
 		this.linkedOriginalBindingRepository = repositories.linkedOriginalBindings || null;

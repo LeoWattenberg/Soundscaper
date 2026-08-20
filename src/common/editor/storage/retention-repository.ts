@@ -29,6 +29,8 @@ import {
 import type { MediaRepository } from './media-repository.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { RawPcmSpoolRepository } from './raw-pcm-spool-repository.ts';
+import type { EncodedCaptureSpoolRepository } from './encoded-capture-spool-repository.ts';
+import type { OpfsPreferredEncodedCaptureChunkPort } from './opfs-preferred-encoded-capture-chunk-port.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
 import type { SourceRepository } from './source-repository.ts';
@@ -57,6 +59,8 @@ export interface RetentionRepositoryOptions {
 	readonly media: MediaRepository;
 	readonly opfs: OpfsRepository;
 	readonly rawPcmSpools: Pick<RawPcmSpoolRepository, 'listAll'>;
+	readonly encodedCaptureSpools: Pick<EncodedCaptureSpoolRepository, 'retainedMediaChunkTokens'>;
+	readonly encodedCaptureChunks: Pick<OpfsPreferredEncodedCaptureChunkPort, 'retainedPaths'>;
 	readonly transientAnalysisCache: Pick<TransientAnalysisCacheRepository, 'purge'>;
 }
 
@@ -81,6 +85,8 @@ export class RetentionRepository {
 		const sources = await this.#options.sources.list();
 		const tokens = new Set(sources.map((source) => source.sourceToken).filter(isString));
 		for (const spool of await this.#options.rawPcmSpools.listAll()) tokens.add(spool.spoolToken);
+		const encodedCaptureTokens = await this.#options.encodedCaptureSpools.retainedMediaChunkTokens();
+		for (const token of encodedCaptureTokens) tokens.add(token);
 		const mediaAssets = await this.#options.media.assetRecords();
 		const binaryRecords = [
 			...mediaAssets,
@@ -91,11 +97,14 @@ export class RetentionRepository {
 			...binaryRecords.map((record) => record.path),
 		].filter(isString));
 		for (const path of activeStaging.paths) paths.add(path);
+		for (const path of await this.#options.encodedCaptureChunks.retainedPaths(encodedCaptureTokens)) {
+			paths.add(path);
+		}
 		await this.#options.sourceRecords.cleanupStaleChunks(tokens, cutoff);
 		await this.#options.media.cleanupStaleAssetChunks(
 			mediaAssets,
 			cutoff,
-			activeStaging.mediaChunkTokens,
+			new Set([...activeStaging.mediaChunkTokens, ...encodedCaptureTokens]),
 		);
 		await this.#options.opfs.cleanupOrphans(paths, cutoff);
 	}
