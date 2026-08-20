@@ -9,6 +9,7 @@ import {
 } from '@dilsonspickles/components';
 
 import { ROUTE_LOCALES } from '../../../i18n/locales.js';
+import { productProfile } from '../../../products.js';
 import { collectAudacityShortcutCommands } from '../../audacity-action-parity.js';
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { findAudioEditorShortcutConflicts, normalizeAudioEditorShortcut } from '../../preferences.js';
@@ -47,7 +48,11 @@ export default function WorkspacePreferencesDialog({
 	const [shortcutSearch, setShortcutSearch] = useState('');
 	const [workspaceName, setWorkspaceName] = useState('');
 	const preferences = snapshot.preferences;
-	const commands = useMemo(() => collectAudacityShortcutCommands(menus, { locale, copy }).filter((command) => (
+	const commands = useMemo(() => collectAudacityShortcutCommands(menus, {
+		locale,
+		copy,
+		disabledCommandIds: productProfile(productId).shortcuts.disabledCommandIds,
+	}).filter((command) => (
 		productId === 'soundscaper' || !SOUNDSCAPER_ONLY_SHORTCUT_IDS.has(command.id)
 	)), [copy, locale, menus, productId]);
 	const visibleCommands = commands.filter((command) => `${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase()));

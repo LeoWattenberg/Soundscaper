@@ -17,6 +17,7 @@ import {
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { createAudacityActionDefinition as actionDefinition } from './audacity-action-roadmap.ts';
 import { audacitySpectrogramTrackSelected } from './audacity-action-enablement.ts';
+import { createAudacityShortcutCommandInventory } from './audacity-shortcut-command-inventory.ts';
 import { audioTrackChannelCountV2 } from './project-v2.js';
 import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
 
@@ -972,66 +973,19 @@ export function materializeAudacityDisabledMenuActions(menus, { locale = 'en', c
 
 /**
  * Build the searchable shortcut/command inventory from the pinned manifest,
- * then overlay localized labels and legacy preference IDs from rendered menus.
- * Excluded actions never enter the inventory; disabled-upstream actions remain
- * visible and carry the reason the UI needs to keep their controls inert.
+ * while keeping product capability filters out of this allowlisted policy file.
  */
-export function collectAudacityShortcutCommands(menus, { locale = 'en', copy = null } = {}) {
-	if (!Array.isArray(menus)) throw new TypeError('menus must be an array.');
-	const normalizedLocale = normalizeBcp47Locale(locale);
-	const localization = copy || normalizedLocale;
-	const commands = new Map();
-
-	for (const definition of Object.values(AUDACITY_ACTION_MANIFEST)) {
-		if (definition.status === AUDACITY_ACTION_STATUS.EXCLUDED || definition.menuVisible === false) continue;
-		const disabled = definition.status === AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM;
-		commands.set(definition.id, {
-			id: definition.id,
-			preferenceId: definition.id,
-			label: localizedParityLabel(definition.label, localization),
-			shortcut: definition.shortcut || '',
-			parityStatus: definition.status,
-			disabled,
-			disabledReason: disabled ? localizedAudacityReason(definition.reason, localization) : null,
-		});
-	}
-
-	const visit = (items = []) => {
-		for (const item of items) {
-			if (!item || item.divider) continue;
-			if (item.items?.length) {
-				visit(item.items);
-				continue;
-			}
-			if (!item.id) continue;
-			const definition = audacityActionDefinition(item.id);
-			if (definition?.status === AUDACITY_ACTION_STATUS.EXCLUDED) continue;
-			const id = definition?.id || item.id;
-			const current = commands.get(id);
-			const disabled = definition
-				? definition.status === AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM
-				: Boolean(item.disabled);
-			commands.set(id, {
-				...(current || {}),
-				id,
-				preferenceId: item.id,
-				label: item.label || current?.label || id,
-				shortcut: item.shortcut || current?.shortcut || '',
-				parityStatus: definition?.status || null,
-				disabled,
-				disabledReason: disabled
-					? (item.disabledReason || (definition?.reason ? localizedAudacityReason(definition.reason, localization) : null))
-					: null,
-			});
-		}
-	};
-	visit(menus);
-
-	return [...commands.values()].sort((left, right) => (
-		left.label.localeCompare(right.label, normalizedLocale)
-		|| left.id.localeCompare(right.id)
-	));
-}
+export const {
+	collectAudacityShortcutCommands,
+	isAudacityShortcutCommandDisabled,
+} = createAudacityShortcutCommandInventory({
+	manifest: AUDACITY_ACTION_MANIFEST,
+	status: AUDACITY_ACTION_STATUS,
+	normalizeLocale: normalizeBcp47Locale,
+	localizedLabel: localizedParityLabel,
+	localizedReason: localizedAudacityReason,
+	resolveDefinition: audacityActionDefinition,
+});
 
 function menuItemMatchesManifestLabel(item, label) {
 	return item?.label === label || item?.parityLabel === label || audacityActionDefinition(item?.id)?.label === label;

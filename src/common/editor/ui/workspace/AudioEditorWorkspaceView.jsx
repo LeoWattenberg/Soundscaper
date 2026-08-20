@@ -1,5 +1,6 @@
 import { Button } from '@dilsonspickles/components';
 
+import { productProfile } from '../../../products.js';
 import AudioEditorButtonTooltips from '../AudioEditorButtonTooltips.jsx';
 import EditorOverlayHost from '../EditorOverlayHost.tsx';
 import AudioEditorMenuBar from '../AudioEditorMenuBar.jsx';
@@ -112,6 +113,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			data-edit-block-reason={editBlock.reason || undefined}
 			onKeyDown={(event) => handleWorkspaceKeyboard(event, snapshot, run, {
 				actionRuntime: parityRuntime.actions,
+				disabledActionIds: productProfile(productId).shortcuts.disabledCommandIds,
 				menus: applicationMenus,
 				videoNavigation: productId === 'framescaper' ? controller.actions.video.navigation : undefined,
 			})}

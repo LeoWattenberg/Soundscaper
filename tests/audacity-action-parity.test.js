@@ -577,3 +577,17 @@ test('shortcut command inventory consumes manifest actions while keeping disable
 	assert.equal(remote.get('insert').disabledReason, null);
 	assert.throws(() => collectAudacityShortcutCommands(null), /menus must be an array/);
 });
+
+test('shortcut command inventory omits product-disabled capability groups and submenu containers', () => {
+	const disabledCommandIds = [
+		'record', 'generate', 'selection-effect', 'spectral-edit', 'analyze', 'manage-macros', 'nyquist-prompt',
+	];
+	const commands = new Set(collectAudacityShortcutCommands([], { disabledCommandIds }).map(({ id }) => id));
+	const omitted = [
+		'record-on-new-track', 'generator://tone', 'effect://builtin/processors', 'spectral-brush',
+		'contrast-analyzer', 'manage-macros', 'nyquist-prompt', 'nyquist:lowpass', 'menu-align', 'menu-sort',
+	];
+	assert.deepEqual(omitted.filter((id) => commands.has(id)), []);
+	assert.equal(commands.has('file-new'), true);
+	assert.equal(commands.has('sort-by-name'), true);
+});

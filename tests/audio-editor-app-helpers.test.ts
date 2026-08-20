@@ -16,6 +16,7 @@ import {
 	handleWorkspaceKeyboard,
 	matchAudioEditorShortcut,
 	projectZoomShortcut,
+	resolveAudioEditorShortcutHandler,
 	videoNavigationShortcut,
 } from '../src/common/editor/ui/workspace-shortcuts.ts';
 import {
@@ -78,6 +79,20 @@ test('workspace shortcut helpers preserve canonical keyboard behavior', () => {
 		id: 'parent',
 		items: [{ id: 'split', onClick: handler }],
 	}], 'split'), { matched: true, handler });
+});
+
+test('workspace shortcut resolution rejects product-disabled actions and submenu containers', () => {
+	const disabledActionIds: readonly string[] = Object.freeze(['record']);
+	const runtime = {
+		recording: { startNewTrack: () => 'recorded' },
+		track: { openAlignMenu: () => 'aligned', openSortMenu: () => 'sorted' },
+	};
+	assert.equal(resolveAudioEditorShortcutHandler('record-on-new-track', {
+		actionRuntime: runtime,
+		disabledActionIds,
+	}), null);
+	assert.equal(resolveAudioEditorShortcutHandler('menu-align', { actionRuntime: runtime }), null);
+	assert.equal(resolveAudioEditorShortcutHandler('menu-sort', { actionRuntime: runtime }), null);
 });
 
 test('Framescaper video navigation reserves deliberate unmodified J K L and arrow presses', () => {

@@ -1,4 +1,8 @@
-import { resolveAudacityActionHandler, resolveAudacityActionId } from '../audacity-action-parity.js';
+import {
+	isAudacityShortcutCommandDisabled,
+	resolveAudacityActionHandler,
+	resolveAudacityActionId,
+} from '../audacity-action-parity.js';
 import { normalizeAudioEditorShortcut } from '../preferences.js';
 import type { FocusEvent as ReactFocusEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 
@@ -29,6 +33,7 @@ interface ShortcutMenuItem {
 
 interface ShortcutRegistry {
 	actionRuntime?: unknown;
+	disabledActionIds?: readonly string[];
 	menus?: readonly ShortcutMenuItem[];
 	videoNavigation?: Partial<Record<VideoNavigationShortcut, ShortcutHandler>>;
 }
@@ -134,9 +139,10 @@ export function matchAudioEditorShortcut(
 
 export function resolveAudioEditorShortcutHandler(
 	actionId: string,
-	{ actionRuntime, menus = [] }: ShortcutRegistry = {},
+	{ actionRuntime, disabledActionIds = [], menus = [] }: ShortcutRegistry = {},
 ): ShortcutHandler | null {
 	const canonicalActionId = resolveAudacityActionId(actionId);
+	if (isAudacityShortcutCommandDisabled(canonicalActionId, disabledActionIds)) return null;
 	const menuMatch = findShortcutMenuHandler(menus, canonicalActionId);
 	if (menuMatch.matched) return menuMatch.handler;
 	const runtimeHandler: unknown = resolveAudacityActionHandler(canonicalActionId, actionRuntime);
