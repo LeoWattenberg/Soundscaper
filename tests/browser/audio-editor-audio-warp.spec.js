@@ -208,7 +208,7 @@ async function openAudioWarpDialog(page, editor) {
 }
 
 async function selectAudioWarpClip(page, editor) {
-	const clip = clipByName(editor, 'Warp drum source');
+	const clip = clipByName(editor, 'Warp drums');
 	await clip.focus();
 	await page.keyboard.press('Enter');
 	await expect(clip.locator('[data-selected="true"]').first()).toBeVisible();

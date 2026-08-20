@@ -37,7 +37,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await secondClip.locator('.clip-header').click({ modifiers: ['Shift'] });
 
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Mix', 'Mix-down to']);
-		const mixedClip = clipByName(editor, 'Mix — Mix and render.wav');
+		const mixedClip = clipByName(editor, 'Mix');
 		await expect(mixedClip).toBeVisible({ timeout: 20_000 });
 		await expect(firstClip).toHaveCount(0);
 		await expect(secondClip).toHaveCount(0);

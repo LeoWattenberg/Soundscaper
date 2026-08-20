@@ -388,7 +388,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('[data-status]')).toHaveText('Applied the Nyquist result.', { timeout: 20_000 });
 		await expect(dialog.locator('.kw-audio-editor__nyquist-output')).toContainText('1 channel(s)');
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
-		await expect(editor.locator('[data-clip-id]')).toContainText('Tremolo');
+		await expect(clipByName(editor, 'Audio clip')).toBeVisible();
 		await expect.poll(async () => (
 			(await effectSourceMetadata(page)).find((storedSource) => storedSource.name.includes('Tremolo'))?.channelCount
 		)).toBe(1);

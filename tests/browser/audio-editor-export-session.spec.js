@@ -72,7 +72,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(effectDialog).toBeVisible();
 		await effectDialog.getByRole('button', { name: 'Auf Auswahl anwenden', exact: true }).click();
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
-		await expect(editor.locator('[data-clip-id]')).toContainText('Invertieren');
+		await expect(clipByName(editor, 'browser-mono-tone')).toBeVisible();
+		await expect.poll(async () => (
+			(await effectSourceMetadata(page)).some((source) => source.name.includes('Invertieren'))
+		)).toBe(true);
 		await editor.getByRole('button', { name: 'Rückgängig', exact: true }).click();
 		await expect(clipByName(editor, monoTone.name)).toHaveCount(1);
 		expect(errors).toEqual([]);

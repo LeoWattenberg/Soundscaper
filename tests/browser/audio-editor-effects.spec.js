@@ -460,25 +460,23 @@ import {
 		await manager.getByRole('group', { name: 'Echo', exact: true })
 			.getByRole('button', { name: 'Select effect', exact: true }).click();
 		const echoSettings = page.getByRole('dialog', { name: 'Echo', exact: true });
-		await commitInput(echoSettings.locator('[data-effect-param="delaySeconds"] input'), '0.75');
+		const delayInput = echoSettings.locator('[data-effect-param="delaySeconds"] input');
+		await delayInput.fill('0.75');
+		await page.evaluate(() => new Promise((resolve) => {
+			requestAnimationFrame(() => requestAnimationFrame(resolve));
+		}));
+		await delayInput.press('Tab');
+		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
 		await closeDialog(echoSettings);
 
-		// The blur commit reaches the stored macro asynchronously and Export
-		// serialises that stored macro, so read the delay back out of the slot
-		// before downloading. Polling the finished file cannot recover from an
-		// export that raced the commit. The settings dialog latches its value when
-		// it opens, so the read has to reopen the slot on every attempt: polling a
-		// dialog that opened too early pins the stale delay and never recovers.
-		await expect.poll(async () => {
-			const macros = page.getByRole('dialog', { name: 'Manage macros', exact: true });
-			await macros.getByRole('group', { name: 'Echo', exact: true })
-				.getByRole('button', { name: 'Select effect', exact: true }).click();
-			const echoCommitted = page.getByRole('dialog', { name: 'Echo', exact: true });
-			const committedDelay = await echoCommitted
-				.locator('[data-effect-param="delaySeconds"] input').inputValue();
-			await closeDialog(echoCommitted);
-			return committedDelay;
-		}).toBe('0.75');
+		// Reopen once and wait on the controlled value. Repeated reopen/close cycles
+		// can race the pending React publication and hide whether the commit settled.
+		const macros = page.getByRole('dialog', { name: 'Manage macros', exact: true });
+		await macros.getByRole('group', { name: 'Echo', exact: true })
+			.getByRole('button', { name: 'Select effect', exact: true }).click();
+		const echoCommitted = page.getByRole('dialog', { name: 'Echo', exact: true });
+		await expect(echoCommitted.locator('[data-effect-param="delaySeconds"] input')).toHaveValue('0.75');
+		await closeDialog(echoCommitted);
 
 		manager = page.getByRole('dialog', { name: 'Manage macros', exact: true });
 		// Export serialises the stored macro name, and the rename only reaches the
@@ -499,7 +497,10 @@ import {
 		await runButton.click();
 		await expect(runButton).toBeDisabled();
 		await expect(manager.getByRole('status')).toHaveText('Macro applied.', { timeout: 20_000 });
-		await expect(editor.locator('[data-clip-id]')).toContainText('Browser chain');
+		await expect(clipByName(editor, 'browser-tone-a')).toBeVisible();
+		await expect.poll(async () => (
+			(await effectSourceMetadata(page)).some((source) => source.name.includes('Browser chain'))
+		)).toBe(true);
 		await closeDialog(manager);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(clipByName(editor, toneA.name)).toHaveCount(1);
@@ -547,12 +548,12 @@ import {
 
 		await expect(editor.locator('[data-status]')).toHaveText('Applied the Audacity effect.', { timeout: 20_000 });
 		await expect(effectDialog).toBeHidden();
-		await expect(editor.locator('[data-clip-id]')).toContainText('Invert');
+		await expect(clipByName(editor, 'browser-tone-a')).toBeVisible();
 		await expect.poll(async () => (await effectSourceMetadata(page)).find((source) => source.name.includes('Invert'))?.channelCount).toBe(2);
 		await editor.getByRole('button', { name: 'Undo' }).click();
 		await expect(clipByName(editor, toneA.name)).toHaveCount(1);
 		await editor.getByRole('button', { name: 'Redo' }).click();
-		await expect(editor.locator('[data-clip-id]')).toContainText('Invert');
+		await expect(clipByName(editor, 'browser-tone-a')).toBeVisible();
 		expect(errors).toEqual([]);
 	});
 
@@ -577,7 +578,7 @@ import {
 
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 		await expect(effectDialog).toBeHidden();
-		await expect(editor.locator('[data-clip-id]')).toContainText(/parametric EQ/i);
+		await expect(clipByName(editor, 'Audio clip')).toBeVisible();
 		await expect.poll(async () => (
 			(await effectSourceMetadata(page)).some((source) => /parametric EQ/i.test(source.name || ''))
 		)).toBe(true);

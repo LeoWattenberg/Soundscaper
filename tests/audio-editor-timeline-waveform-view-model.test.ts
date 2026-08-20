@@ -42,6 +42,13 @@ const base = {
 	},
 } as const;
 
+test('timeline labels keep stable clip titles after rendered sources receive derived names', () => {
+	assert.equal(timelineName('Recording', 'Recording.wav'), 'Recording.wav');
+	assert.equal(timelineName('Recording', 'Recording — Invert.wav'), 'Recording');
+	assert.equal(timelineName('Audio clip', 'Audio clip — Tremolo.wav'), 'Audio clip');
+	assert.equal(timelineName('Mix', 'Mix — Mix and render.wav'), 'Mix');
+});
+
 test('timeline waveform plans survive equivalent snapshots and drag previews, then refresh after commit', () => {
 	const cache = new Map();
 	const initial = createTimelineClipViewModel({ ...base, cache });
@@ -67,3 +74,16 @@ test('timeline waveform plans survive equivalent snapshots and drag previews, th
 	});
 	assert.notEqual(committed.audacityWaveform, initial.audacityWaveform);
 });
+
+function timelineName(title: string, sourceName: string): string {
+	const namedSource = { ...source, name: sourceName };
+	return createTimelineClipViewModel({
+		...base,
+		clip: { ...clip, title },
+		sourceLookup: new Map([[namedSource.id, namedSource]]),
+		controller: {
+			...controller,
+			getClipVisualData: () => ({ source: namedSource, buffer, pcmWindow: null, peaks: null }),
+		},
+	}).name;
+}

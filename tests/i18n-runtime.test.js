@@ -3,6 +3,7 @@ import { createHash, webcrypto } from 'node:crypto';
 import test from 'node:test';
 
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
+import { SITE_SIDEBAR_COPY_BY_LOCALE } from '../src/common/i18n/site-sidebar-copy.js';
 import { AUDACITY_ACTION_MANIFEST } from '../src/common/editor/audacity-action-parity.js';
 import {
 	loadTranslationManifest,
@@ -25,6 +26,20 @@ test('bundled catalogs are complete and user-visible values contain no ellipses'
 	for (const definition of Object.values(AUDACITY_ACTION_MANIFEST)) {
 		assert.doesNotMatch(definition.label, /…|\.\.\./u, definition.id);
 		for (const reason of Object.values(definition.reason || {})) assert.doesNotMatch(reason, /…|\.\.\./u, definition.id);
+	}
+});
+
+test('site sidebar copy stays localized and merged into the bundled catalogs', () => {
+	assert.equal(SITE_SIDEBAR_COPY_BY_LOCALE.en.reportIssueLink, 'Report an issue');
+	assert.equal(SITE_SIDEBAR_COPY_BY_LOCALE.de.reportIssueLink, 'Ein Problem melden');
+	assert.deepEqual(Object.keys(SITE_SIDEBAR_COPY_BY_LOCALE.de), Object.keys(SITE_SIDEBAR_COPY_BY_LOCALE.en));
+	assert.ok(Object.isFrozen(SITE_SIDEBAR_COPY_BY_LOCALE));
+	assert.ok(Object.isFrozen(SITE_SIDEBAR_COPY_BY_LOCALE.en));
+	for (const locale of ['en', 'de']) {
+		const catalog = locale === 'en' ? ENGLISH_COPY : GERMAN_COPY;
+		for (const [key, value] of Object.entries(SITE_SIDEBAR_COPY_BY_LOCALE[locale])) {
+			assert.equal(catalog[key], value, `${locale}.${key}`);
+		}
 	}
 });
 
