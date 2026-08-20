@@ -6,9 +6,16 @@
 		<meta name="color-scheme" content="light dark" />
 		<!-- route-head -->
 		<title>Soundscaper</title>
+		<style>
+			[data-initial-load-progress] { position: fixed; inset: 0 0 auto; z-index: 2147483647; height: 2px; overflow: hidden; pointer-events: none; }
+			[data-initial-load-progress]::after { display: block; width: 40%; height: 100%; background: #ff6900; content: ""; animation: initial-load-progress 1.1s ease-in-out infinite; }
+			@keyframes initial-load-progress { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+			@media (prefers-reduced-motion: reduce) { [data-initial-load-progress]::after { width: 100%; opacity: .65; transform: none; animation: none; } }
+		</style>
 	</head>
 	<body>
-		<div id="app"><div role="status" aria-live="polite">Loading project</div></div>
+		<div data-initial-load-progress role="progressbar" aria-label="Loading project"></div>
+		<div id="app"></div>
 		<script type="module" src="/src/main.jsx"></script>
 	</body>
 </html>

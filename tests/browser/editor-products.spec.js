@@ -14,7 +14,15 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		}));
 	});
 
-	test('renders the product shell while the editor chunk is still loading', async ({ page }) => {
+	test('keeps the first-paint progress bar until the editor is ready', async ({ page }) => {
+		let releaseEntryChunk;
+		let entryChunkIntercepted = false;
+		const entryChunkGate = new Promise((resolve) => { releaseEntryChunk = resolve; });
+		await page.route(/\/assets\/index-[^/]+\.js$/u, async (route) => {
+			entryChunkIntercepted = true;
+			await entryChunkGate;
+			await route.continue();
+		});
 		let releaseEditorChunk;
 		let editorChunkIntercepted = false;
 		const editorChunkGate = new Promise((resolve) => { releaseEditorChunk = resolve; });
@@ -24,15 +32,35 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 			await route.continue();
 		});
 
-		await page.goto('/en/', { waitUntil: 'domcontentloaded' });
+		await page.goto('/en/', { waitUntil: 'commit' });
+		await expect.poll(() => entryChunkIntercepted).toBe(true);
+		const initialProgress = page.getByRole('progressbar', { name: 'Loading project', exact: true });
+		await expect(initialProgress).toBeVisible();
+		await expect(page.locator('body > :first-child')).toHaveAttribute('data-initial-load-progress', '');
+		await expect(initialProgress).not.toHaveAttribute('aria-valuenow');
+		await expect(initialProgress).toHaveCSS('position', 'fixed');
+		expect((await initialProgress.boundingBox())?.height).toBe(2);
+		expect(await initialProgress.evaluate((element) => (
+			getComputedStyle(element, '::after').animationName
+		))).toBe('initial-load-progress');
+
+		await page.emulateMedia({ reducedMotion: 'reduce' });
+		await expect.poll(() => initialProgress.evaluate((element) => {
+			const style = getComputedStyle(element, '::after');
+			return { animationName: style.animationName, opacity: style.opacity };
+		})).toEqual({ animationName: 'none', opacity: '0.65' });
+
+		releaseEntryChunk();
 		await expect.poll(() => editorChunkIntercepted).toBe(true);
 		await expect(page.locator('[data-sidebar] .brand strong')).toHaveText('Soundscaper');
 		await expect(page.locator('.tool-intro h1')).toBeVisible();
 		await expect(page.locator('.audio-editor-section').getByRole('status')).toHaveText('Loading project');
 		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
+		await expect(initialProgress).toBeVisible();
 
 		releaseEditorChunk();
 		await readyEditor(page, 'soundscaper');
+		await expect(initialProgress).toHaveCount(0);
 	});
 
 	test('profiles select distinct branding, workspaces, and authoring controls', async ({ page }) => {
