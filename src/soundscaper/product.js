@@ -11,6 +11,7 @@ export const SOUNDSCAPER_PROFILE = {
 	importChoices: ['scape', 'audacity-project', 'audio', 'video', 'labels'],
 	exportChoices: ['scape', 'aup4-audio-only', 'audio', 'video', 'labels', 'stems'],
 	shortcuts: { disabledCommandIds: ['workspace-video-editor', 'video-effect-add'] },
+	applicationFeatures: {},
 	capabilities: {
 		...SHARED_CAPABILITIES,
 		audioRecording: true,

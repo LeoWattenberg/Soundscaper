@@ -18,10 +18,12 @@ test('product profiles are immutable and resolve distinct routes and capability 
 	assert.equal(otherProductId('soundscaper'), 'framescaper');
 	assert.equal(otherProductId('framescaper'), 'soundscaper');
 	assert.equal(PRODUCT_PROFILES.soundscaper.capabilities.audioRecording, true);
+	assert.equal(Object.hasOwn(PRODUCT_PROFILES.soundscaper.applicationFeatures, 'framescaperCapture'), false);
 	assert.equal(PRODUCT_PROFILES.soundscaper.capabilities.videoEffects, false);
 	assert.equal(PRODUCT_PROFILES.soundscaper.capabilities.timelineAnnotations, true);
 	assert.equal(PRODUCT_PROFILES.soundscaper.capabilities.audioWarp, true);
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.audioRecording, false);
+	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperCapture, true);
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.videoEffects, true);
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.timelineAnnotations, false);
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.audioWarp, false);

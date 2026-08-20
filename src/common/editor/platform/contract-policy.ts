@@ -5,6 +5,7 @@ import { PLATFORM_TRANSFER_HARD_LIMITS } from './bounded-transfer.ts';
 const activeFamilies = Object.freeze([
 	'audio-device',
 	'audio-effect-host',
+	'capture-source',
 	'external-display',
 	'media-decode',
 	'media-encode',
@@ -19,6 +20,7 @@ const ownerModules = Object.freeze({
 	'audio-device': 'src/common/editor/platform/audio-device-port.ts',
 	'audio-effect-host': 'src/common/editor/platform/audio-effect-host-port.ts',
 	'bounded-transfer': 'src/common/editor/platform/bounded-transfer.ts',
+	'capture-source': 'src/common/editor/platform/capture-source-port.ts',
 	'external-display': 'src/common/editor/platform/external-display-port.ts',
 	'media-codec': 'src/common/editor/platform/media-codec-port.ts',
 	'media-stream': 'src/common/editor/platform/media-stream-port.ts',
@@ -26,13 +28,16 @@ const ownerModules = Object.freeze({
 	'render-job': 'src/common/editor/platform/render-job-port.ts',
 } as const);
 
-export const DEFERRED_PLATFORM_CONTRACTS = Object.freeze([
+export const ACTIVE_PLATFORM_CONTRACTS = Object.freeze([
 	Object.freeze({
 		id: 'framescaper-capture',
+		family: 'capture-source',
 		milestone: '8A',
-		status: 'blocked',
-		reason: 'Capture permissions, source combinations, sync, and recovery require the milestone 8A model.',
+		status: 'active',
 	}),
+] as const);
+
+export const DEFERRED_PLATFORM_CONTRACTS = Object.freeze([
 	Object.freeze({
 		id: 'midi-device',
 		milestone: '8B',

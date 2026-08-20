@@ -70,10 +70,11 @@ test('every foundation document type has one owned capability predicate', () => 
 	);
 });
 
-test('foundation registry and both profiles stay equal', () => {
+test('foundation registry and both project-capability profiles stay equal', () => {
 	const registry = Object.keys(PROJECT_FEATURE_CAPABILITY_IDS).sort();
 	assert.deepEqual(Object.keys(PRODUCT_PROFILES.soundscaper.capabilities).sort(), registry);
 	assert.deepEqual(Object.keys(PRODUCT_PROFILES.framescaper.capabilities).sort(), registry);
+	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperCapture, true);
 });
 
 test('V17 audio warp state is native when enabled and otherwise bypass-only', () => {

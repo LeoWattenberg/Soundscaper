@@ -26,12 +26,14 @@ type Requirement = Readonly<{
 	fallback: null;
 }>;
 
-test('the feature registry explicitly covers every maintained product capability', () => {
+test('the project registry covers project capabilities without absorbing application capabilities', () => {
 	const registryKeys = Object.keys(PROJECT_FEATURE_CAPABILITY_IDS).sort();
 	for (const productId of ['soundscaper', 'framescaper'] as const) {
 		const profile = PRODUCT_PROFILES[productId];
 		assert.deepEqual(registryKeys, Object.keys(profile.capabilities).sort(), profile.id);
 	}
+	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperCapture, true);
+	assert.equal(Object.hasOwn(PRODUCT_PROFILES.soundscaper.applicationFeatures, 'framescaperCapture'), false);
 	const featureIds = Object.values(PROJECT_FEATURE_CAPABILITY_IDS);
 	assert.equal(new Set(featureIds).size, featureIds.length);
 	for (const featureId of featureIds) {

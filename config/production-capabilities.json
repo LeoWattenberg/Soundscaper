@@ -78,6 +78,7 @@
 	"products": {
 		"soundscaper": {
 			"profileEvidence": "src/soundscaper/product.js",
+			"applicationFeatures": {},
 			"platforms": {
 				"web-core": {
 					"status": "available",
@@ -229,6 +230,9 @@
 		},
 		"framescaper": {
 			"profileEvidence": "src/framescaper/product.js",
+			"applicationFeatures": {
+				"framescaperCapture": true
+			},
 			"platforms": {
 				"web-core": {
 					"status": "available",

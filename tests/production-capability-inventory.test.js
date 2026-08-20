@@ -31,6 +31,7 @@ test('production capability inventory covers every product profile and platform 
 		assert.deepEqual(actual.importFamilies, expected.importChoices);
 		assert.deepEqual(actual.exportFamilies, expected.exportChoices);
 		assert.deepEqual(actual.projectFeatures, expected.capabilities);
+		assert.deepEqual(actual.applicationFeatures, expected.applicationFeatures);
 		assert.deepEqual(Object.keys(actual.platforms), PLATFORM_TIERS);
 		for (const tier of PLATFORM_TIERS) {
 			assert.match(actual.platforms[tier].status, /^(available|partial|planned|not-applicable)$/u);
@@ -62,7 +63,7 @@ test('production capability inventory pins browser and desktop qualification tar
 	}
 });
 
-test('deferred MIDI and Framescaper capture capabilities are absent from maintained profiles', async () => {
+test('MIDI stays absent while Framescaper capture is a separate application capability', async () => {
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 	const serializedProfiles = JSON.stringify(inventory.products).toLowerCase();
 	const dependencyMetadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
@@ -72,6 +73,8 @@ test('deferred MIDI and Framescaper capture capabilities are absent from maintai
 	});
 
 	assert.doesNotMatch(serializedProfiles, /midi/u);
+	assert.deepEqual(inventory.products.soundscaper.applicationFeatures, {});
+	assert.deepEqual(inventory.products.framescaper.applicationFeatures, { framescaperCapture: true });
 	assert.equal(inventory.products.framescaper.projectFeatures.audioRecording, false);
 	assert.equal(inventory.products.soundscaper.projectFeatures.timelineAnnotations, true);
 	assert.equal(inventory.products.framescaper.projectFeatures.timelineAnnotations, false);
