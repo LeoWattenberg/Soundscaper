@@ -48,6 +48,7 @@
 		"quality:collect:m4-production-parity": "node scripts/collect-m4-production-parity-quality.mjs",
 		"quality:collect:m5-native-helper": "node scripts/collect-m5-native-helper-quality.mjs",
 		"quality:collect:m6-reference-master": "node scripts/collect-m6-reference-master-quality.mjs",
+		"quality:collect:m8a-capture": "node scripts/collect-m8a-capture-quality.mjs",
 		"pretest:browser": "npm run build",
 		"test:browser": "playwright test",
 		"test:browser:built": "playwright test",
