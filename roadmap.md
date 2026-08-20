@@ -164,7 +164,7 @@ Known architectural constraints that drive later work:
 | 5. Electron-native services | **In progress — 5A provisional, 5B substrate inert** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **In progress — web tier implemented, none qualified** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
-| 8. Capture and MIDI | **Blocked/Planned** | Add Framescaper recording, then MIDI after upstream design review. |
+| 8. Capture and MIDI | **8A Implemented (provisional); 8B Blocked** | Framescaper recording implementation is complete with external qualification pending; MIDI waits for upstream design review. |
 | 8+. Framescaper Web VCR | **Planned** | Add authorized HTTPS media capture through an isolated, dockable Electron browser after milestone 8. |
 | 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extension, and release matrix. |
 
@@ -491,10 +491,13 @@ Packet boundaries, dependencies, and acceptance are owned by
   time. Proxy V18 preservation is implemented across claim-bound storage,
   retention, format-2 `.scape`, and desktop V10. Existing attachments have a
   bounded re-attestation primitive and preview-only trust selector, but no
-  maintained playback route consumes it. Proxy generation remains unavailable,
-  as do attach/detach menu lifecycle, adaptive proxy preview, offline handling,
-  and relink; export and delivery remain original-authoritative. Soundscaper
-  stays exact V17 and receives V18 only through copy-only preservation.
+  maintained playback route consumes it. Milestone 8A now adds capture-only,
+  post-commit asynchronous generation and ordinary preview selection for its
+  captured videos; a general user-invoked editorial generator, attach/detach
+  menu lifecycle, adaptive proxy preview, offline handling, and relink remain
+  unavailable, and export and delivery remain original-authoritative.
+  Soundscaper stays exact V17 and receives V18 only through copy-only
+  preservation.
 
 ### Shared exit gate
 
@@ -776,42 +779,46 @@ product sub-phase 8B.
 
 ### 8A. Framescaper recording setup
 
+**Status:** **Implemented (provisional).** Implementation is complete; external qualification remains pending. The owning [implementation plan](docs/milestone-8a-plan.md) and [capture privacy contract](docs/framescaper-capture-privacy.md) record the completed surface and still-unprovisioned real-device matrix.
+
 **Goal:** record cameras, microphones, and displays into the same recoverable
 media/project model used by imported sources.
 
 #### Recording surface
 
-- **Web Core — Planned:** a Recording Setup panel with explicit permission,
+- **Web Core — Implemented (provisional):** a Recording Setup panel with explicit permission,
   preview, armed, recording, pause, finalization, recovery, and failure states.
-- **Web Core — Planned:** permission-aware camera/microphone enumeration,
-  previews, formats, meters, monitoring, countdown, controls, dropped-frame and
-  drift status, and Project Bin/timeline destinations.
-- **Web Enhanced — Planned:** fresh user-selected display/window/tab capture and
+- **Web Core — Implemented (provisional):** permission-aware camera/microphone enumeration,
+  previews, formats, meters, monitoring, countdown, drop/drift status, and destinations.
+- **Web Enhanced — Implemented (provisional):** fresh user-selected display/window/tab capture and
   system/tab audio only when capabilities prove it.
-- **Shared — Planned:** camera, microphone, display, and system-audio
-  combinations as distinct streams under one capture session and monotonic
-  clock.
-- **Shared — Planned:** per-packet timestamps and alignment/drift metadata
+- **Shared — Implemented (provisional):** camera, microphone, display, and system-audio
+  combinations as distinct streams under one monotonic-clock capture session.
+- **Shared — Implemented (provisional):** per-packet timestamps and alignment/drift metadata
   without destructively resampling originals during capture.
 
 #### Capture and persistence
 
-- **Web Core — Planned:** runtime-selected supported recording formats and
+- **Web Core — Implemented (provisional):** runtime-selected supported recording formats and
   permission-gated `getUserMedia()`.
-- **Web Enhanced — Planned:** capability-detected `getDisplayMedia()` with an
+- **Web Enhanced — Implemented (provisional):** capability-detected `getDisplayMedia()` with an
   honest camera/microphone fallback.
-- **Web Core — Planned:** bounded incremental fragments, atomic publication,
-  asynchronous derivatives, and reload/crash recovery of finalized or incomplete
-  takes.
-- **Electron Enhanced — Planned:** validated OS pickers and native capture where
-  needed, with entitlement/privacy declarations and explicit limitations.
-- **Shared — Planned:** enable Framescaper recording commands only when the
-  complete setup is ready; there is no partially active record button.
-- **Web Core / Electron Enhanced — Planned:** change camera-denying policies and
+- **Web Core — Implemented (provisional):** bounded fragments, atomic publication, closed
+  creation inventory, durable append intents, ordered session-to-spool Web Locks,
+  resumable tail/terminal cleanup, post-commit derivatives, and crash recovery.
+  Each captured video schedules one proxy; audio schedules none; failures warn.
+- **Electron Enhanced — Implemented (provisional):** a validated, pathless OS-picker consent
+  control plane and renderer-local path with explicit qualification limits.
+- **Shared — Implemented (provisional):** enable recording only on exact schema-19 web or
+  schema-18 desktop when source, encoder/audio, Web Locks, durable repositories,
+  probe, and canonical publication are ready; no partial Record control exists.
+- **Web Core / Electron Enhanced — Implemented (provisional):** change camera-denying policies and
   packaging permissions only with consent, indicators, teardown, embedded-route
   policy, and privacy tests.
 
-#### Capture exit gate
+#### Capture qualification exit gate (open)
+
+The implementation exit is complete. Real-device/external-runtime qualification remains open and cannot be inferred from synthetic browser tests or packaged no-device smoke:
 
 - Every denial, revocation, device loss, source end, throttling, disk/encoder
   failure, reload, helper crash, and quit reaches a defined recoverable state and

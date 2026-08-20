@@ -32,6 +32,7 @@ type Descriptor = {
 	readonly specification?: Record<string, number>;
 	readonly thresholds?: readonly Threshold[];
 	readonly fingerprint?: Record<string, unknown>;
+	readonly qualificationEligible?: boolean;
 };
 type Config = {
 	readonly qualification: { readonly qualifiedWorkloadIds: readonly string[] };
@@ -137,6 +138,8 @@ function makeMeasurement(): Record<string, unknown> {
 }
 
 test('the collector owns the exact six combinations and eight registered metrics', () => {
+	assert.equal(fixture.status, 'provisional');
+	assert.equal(workload.status, 'provisional');
 	assert.deepEqual(M8A_CAPTURE_COMBINATIONS, [
 		{ id: 'camera-only', requestedRoles: ['camera'] },
 		{ id: 'microphone-only', requestedRoles: ['microphone'] },
@@ -321,6 +324,8 @@ test('fingerprints are exact observations and never provision an ineligible desc
 		assert.ok(qualification.blockers.some((value: string) => value.includes(`fingerprint ${field}`)));
 	}
 	const environment = config.environments.find(({ id }) => id === 'capture-os-browser-lab-matrix')!;
+	assert.equal(environment.status, 'unprovisioned');
+	assert.equal(environment.qualificationEligible, false);
 	assert.ok(Object.values(environment.fingerprint!).every((value) => value === null));
 });
 

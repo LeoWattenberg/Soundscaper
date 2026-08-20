@@ -7,13 +7,15 @@
 
 ## Summary
 
-Implement Framescaper camera, microphone, screen, and optional system-audio
-capture. MIDI remains fenced and unchanged.
+Framescaper camera, microphone, screen, and optional system-audio capture is
+implemented. MIDI remains fenced and unchanged.
 
-Capture is runtime-gated and usable only where the complete capture,
-persistence, and probing stack is supported. Milestone status remains
-provisional until the required real-device lab qualifies all six source
-combinations.
+**Status:** **Implemented (provisional).** Capture is runtime-gated and usable
+only on the exact schema-19 web or schema-18 desktop route where the source,
+supported video encoder, audio packet path, cross-context Web Locks, complete
+encoded/raw/manifest repositories, video probe, and canonical publication store
+are present. Implementation is complete; external qualification remains pending
+until the required real-device lab qualifies all six source combinations.
 
 ## Work packets
 
@@ -55,14 +57,55 @@ combinations.
 - Add bounded encoded-fragment spooling using OPFS when available and the
   existing chunked-storage fallback otherwise. Keep physical records within
   the existing 4 MiB chunk limit.
-- Persist a CAS-forward capture manifest before accepting media. Only its
-  acknowledged packet prefix is recoverable.
+- Persist a closed, leased creation inventory before creating spools, then a
+  CAS-forward capture manifest before accepting media. Only the manifest's
+  acknowledged packet prefix is recoverable; startup retries exact partial
+  creation cleanup even when the origin project is absent.
+- Fence every encoded and raw body with a durable exact previous-to-next append
+  intent. Hold one outer project/session Web Lock through manifest reread and
+  CAS, acquiring nested exact spool locks only in that direction. Retire an
+  intent at the next manifest prefix, restore metadata and tail at the previous
+  prefix, and fail closed on any other prefix or changed ownership.
+- Persist physical-tail cleanup and terminal deleting state, including raw
+  global-reservation ownership, so interruption cannot orphan admitted capacity
+  and startup can resume the exact retirement operation.
 - Seal recoverable data on source loss, quota or encoder failure, reload,
   helper loss, or quit, and release devices promptly.
 - On restart offer exactly: recover, import playable acknowledged data as-is,
   or delete all session-owned storage.
 - Extend retention and garbage collection to protect active and recoverable
   encoded capture roots.
+
+#### Committed crash-safe durability evidence
+
+The crash-safe creation and append protocol landed in commit `917add78`.
+Runtime admission and orchestration are owned by
+`src/common/editor/controller/framescaper-capture-app-composition.ts`,
+`src/common/editor/controller/framescaper-capture-durable-creation.ts`, and
+`src/common/editor/controller/framescaper-capture-durable-session.ts`. Closed
+creation inventory and fencing are owned by
+`src/common/editor/storage/framescaper-capture-creation-admission.ts`,
+`src/common/editor/storage/framescaper-capture-session-creation-repository.ts`,
+and `src/common/editor/storage/capture-spool-creation-fence.ts`.
+
+Exact append intent, lock ordering, prefix repair, tail cleanup, and terminal
+retirement are owned by
+`src/common/editor/storage/capture-spool-append-intent-repository.ts`,
+`src/common/editor/storage/capture-spool-operation-lock.ts`,
+`src/common/editor/storage/encoded-capture-spool-append.ts`,
+`src/common/editor/storage/raw-pcm-spool-append.ts`,
+`src/common/editor/storage/capture-spool-tail-cleanup-repository.ts`, and the
+encoded/raw spool repositories and tail-cleanup modules. The focused proofs are
+`tests/audio-editor-framescaper-capture-creation-recovery.test.ts`,
+`tests/audio-editor-framescaper-capture-prewrite-intent.test.ts`,
+`tests/audio-editor-framescaper-capture-rollback-lock.test.ts`,
+`tests/audio-editor-framescaper-capture-tail-cleanup.test.ts`,
+`tests/audio-editor-framescaper-capture-opfs-cleanup.test.ts`, and
+`tests/audio-editor-framescaper-capture-terminal-retirement.test.ts`. They cover
+partial creation with an absent origin, a crash after body/metadata but before
+manifest CAS, two stale contexts across different streams, manifest-CAS
+commit-then-throw reconciliation, stale recovery inventory reread, resumable
+physical-tail cleanup, and terminal reservation retirement.
 
 ### 8A-4: Project publication and lifecycle
 
@@ -80,15 +123,45 @@ combinations.
 - Add bounded provenance and metrics under
   `opaqueExtensions.framescaperCaptureV1`; keep the project schema version
   unchanged.
-- Generate thumbnails, posters, waveforms, and proxies asynchronously after
-  canonical commit; derivative failures become warnings rather than capture
-  loss.
+- After canonical capture and manifest commit, queue thumbnails, posters,
+  waveforms, and captured-video proxies without awaiting them. Schedule exactly
+  one proxy after the poster/filmstrip attempt for every valid owned captured
+  video and zero proxies for audio; aggregate derivative failures as warnings
+  rather than capture loss.
 - Bind capture to its origin project revision and playhead while permitting the
   user to switch to and edit other projects.
-- Freeze the origin against edits and block its close, deletion, or handoff
-  until stop or discard.
+- Freeze the globally admitted exact origin against edits and block its close,
+  deletion, or handoff through successful live or recovery publication, or
+  explicit discard. A failed Stop remains protected recovery state.
 - Publish through a background origin-project controller. A revision mismatch
   leaves a sealed recovery session rather than partially mutating the project.
+
+#### Committed captured-video proxy evidence
+
+The capture-only proxy route landed in commit `4f4d9d5a`. Canonical fire-and-forget
+scheduling is owned by
+`src/common/editor/controller/framescaper-capture-canonical-publication.ts` and
+`src/common/editor/controller/framescaper-capture-derivative-scheduler.ts`.
+Product composition and exact V19-web/V18-desktop attachment are owned by
+`src/common/editor/app.js`,
+`src/framescaper/editor-captured-video-proxy-scheduler-composition.ts`, and
+`src/framescaper/editor-captured-video-proxy-scheduler.ts`; the focused body,
+claim, CAS-fence, preservation, landed/indeterminate reconciliation, request,
+lineage-state, and session-install owners are the sibling
+`src/framescaper/editor-captured-video-proxy-*.ts` modules.
+
+The exact focused proofs are
+`tests/audio-editor-framescaper-capture-derivative-scheduler.test.ts`,
+`tests/audio-editor-framescaper-captured-video-proxy-scheduler.test.ts`,
+`tests/audio-editor-framescaper-captured-video-proxy-reconciliation.test.ts`, and
+`tests/audio-editor-framescaper-captured-video-proxy-final-fence.test.ts`.
+They cover one proxy job per captured video and none for audio, V19 web and V18
+desktop inactive-origin publication, active-origin synchronization, source/CAS
+races, multiple captured videos, determinate cleanup, landed automatic
+reconciliation, save/history fencing, disposal, and capture-derived `.scape`
+round-trip/reopen through ordinary proxy selection. This does not add a
+user-invoked general editorial proxy command, adaptive selection, offline
+generation, or relink workflow.
 
 ### 8A-5: UI and accessibility
 
@@ -128,11 +201,29 @@ combinations.
 
 - Add the 30-minute, six-combination quality collector and bind its evidence to
   the registered workload and environment fingerprint.
-- Keep the quality workload provisional and the milestone in progress until the
-  real-device matrix is provisioned and passes.
+- Keep the quality fixture, workload, and external qualification provisional
+  until the real-device matrix is provisioned and passes; implementation
+  completion does not qualify that matrix.
 - Update security, privacy, platform-capability, and quality evidence through
   their owning registers and required narrative-sync and digest-repin workflows.
 - Preserve all MIDI fences and leave milestone 8B blocked.
+
+#### Committed timing and configured-browser evidence
+
+Commit `15a50dcb` normalizes an aggregate `unavailable` timing verdict in
+`src/common/editor/controller/framescaper-capture-stream-timing.ts`: numeric
+drop and drift fields remain `null` rather than retaining a misleading value.
+`tests/audio-editor-framescaper-capture-shared-timing.test.ts` owns the focused
+regression.
+
+Commit `70d1192e` expands
+`tests/browser/framescaper-v19-capture.spec.js` to eight configured-Chromium
+cases covering default-hidden consent, embedded and incomplete-runtime denial,
+all six preview combinations, pause/resume and ordinary-media reopen, mixed
+four-stream publication/reopen, capture publication to an inactive origin while
+another project is edited, later-request cleanup, and source-ended recovery.
+This synthetic-media evidence does not provision or qualify the external
+camera, microphone, display, system-audio, operating-system, or browser matrix.
 
 ## Public interfaces
 
@@ -166,21 +257,35 @@ combinations.
 - Stop releases capture devices before potentially long finalization work.
 - Project state is changed exactly once, after all canonical assets are durable.
   Commit failure leaves recoverable owned assets and never partial clips.
+- Startup scans stored project IDs current-first, admits at most one global
+  recovery, and opens a closed exact-origin project as an inactive tab before
+  exposing its explicit recovery decisions.
 - Capture remains bound to its origin project while the user works elsewhere;
   the protected origin cannot be mutated, closed, deleted, or handed off.
-- Recorded assets follow ordinary relink, proxy, edit, `.scape`, handoff, and
-  delivery paths. Capture provenance does not require a project-schema bump.
+- Each stream becomes one ordinary durable source. Project Bin adds one bin
+  item/clip reference per source; timeline adds one dedicated track/lane and
+  clip per stream; **both** reuses those same sources. Recorded assets follow
+  ordinary relink, proxy, edit, `.scape`, handoff, and delivery paths. Capture
+  provenance does not require a project-schema bump.
+- Canonical capture success does not await disposable derivatives. A captured
+  video's proxy attachment, when generated, is a later exact project revision;
+  failure is a warning and never rolls back the committed capture.
 
 ## Verification
 
 - Unit-test lifecycle transitions, direct-gesture generations, leases, shared
   clock and pause math, metrics, MIME negotiation, and cleanup.
 - Fault-test manifest CAS, acknowledged-prefix recovery, bounded queues,
-  backpressure, storage failure, crash boundaries, retention, duplicate
-  finalization, and exact-token deletion.
+  prewrite append intents, session-to-spool cross-context lock ordering,
+  backpressure, storage failure, crash boundaries, durable tail cleanup,
+  terminal retirement, retention, duplicate finalization, and exact-token
+  deletion.
 - Test atomic publication, rollback, origin-project locking, inactive-origin
   commit, `.scape` round trips, relink, proxy, edit paths, and unchanged MIDI
   fences.
+- Prove post-commit scheduling queues every valid captured video exactly once,
+  queues no audio proxy, and reports a proxy failure only through the derivative
+  warning path.
 - Browser-test the default-hidden opt-in, absence of implicit device access, all
   six required combinations, optional system audio, permission and source loss,
   pause and resume, destinations, project switching, recovery, accessibility,
@@ -200,10 +305,15 @@ combinations.
 - Browser and Electron media APIs are the initial encoder path. Add a native
   encoder behind the same port only if qualification proves it necessary.
 - Embedded Framescaper capture remains unsupported.
-- Runtime support requires the complete source, encoder, durable-storage, and
-  probe path; partial support does not enable Record.
-- The capture quality workload remains provisional. Do not claim qualification
-  while `capture-os-browser-lab-matrix` is unprovisioned or ineligible.
+- Runtime support requires the exact Framescaper route plus the complete source,
+  supported video encoder, audio packet, cross-context Web Lock,
+  encoded/raw/manifest repository, video-probe, and canonical-publication path;
+  partial support does not enable Record.
+- The capture quality fixture and workload remain provisional. Do not claim
+  qualification while `capture-os-browser-lab-matrix` is unprovisioned or
+  ineligible. The packaged no-device control-plane smoke is not actual packaged
+  camera, microphone, operating-system picker, loopback, encoder, or timing
+  qualification.
 - Stop a packet if it would require weakening storage atomicity, device-consent
   rules, origin-project protection, capture metrics, security policy, or
   existing A/V invariants; revise the owning contract before continuing.
