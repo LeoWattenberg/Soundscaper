@@ -55,6 +55,30 @@ test('real controller exposes linked-audio relink classification to the Project 
 	}
 });
 
+test('real Framescaper capture open action reveals Recording Setup without opening media', async () => {
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		productId: 'framescaper',
+		framescaperCaptureRouteSchemaVersion: 19,
+		copy: COPY,
+		store: createProjectStore({ indexedDB: null, preferOpfs: false }),
+		engine: createMemoryEngine(),
+		ffmpeg: { dispose() {} },
+		clipTimePitchCache: createMemoryTimePitchCache(),
+		fileService: { isDesktop: false },
+	});
+	try {
+		await controller.ready;
+		assert.equal(recordingSetupVisible(controller.getSnapshot()), false);
+		const openSetup = controller.actions.capture.openSetup;
+		if (typeof openSetup !== 'function') throw new TypeError('Capture openSetup action is unavailable.');
+		await openSetup();
+		assert.equal(recordingSetupVisible(controller.getSnapshot()), true);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 function createController(saves: Array<Readonly<Record<string, unknown>>>) {
 	return createAudioEditorController(null, {
 		headless: true,
@@ -94,4 +118,17 @@ function createMemoryTimePitchCache() {
 		getProtectedSourceIds() { return new Set<string>(); },
 		dispose() {},
 	};
+}
+
+function recordingSetupVisible(snapshot: unknown): boolean {
+	if (!snapshot || typeof snapshot !== 'object') return false;
+	const preferences = (snapshot as Readonly<{ preferences?: unknown }>).preferences;
+	if (!preferences || typeof preferences !== 'object') return false;
+	const workspace = (preferences as Readonly<{ workspace?: unknown }>).workspace;
+	if (!workspace || typeof workspace !== 'object') return false;
+	const panels = (workspace as Readonly<{ panels?: unknown }>).panels;
+	if (!panels || typeof panels !== 'object') return false;
+	const setup = (panels as Readonly<Record<string, unknown>>)['recording-setup'];
+	return Boolean(setup && typeof setup === 'object'
+		&& (setup as Readonly<{ visible?: unknown }>).visible === true);
 }
