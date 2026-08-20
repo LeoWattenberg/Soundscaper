@@ -194,8 +194,8 @@ test('desktop source-list authority never chooses a display and grants non-displ
 	await harness.service.actions.release();
 });
 
-test('live capture preregisters durability, pauses every stream, and publishes after release', async () => {
-	const harness = serviceHarness();
+test('live capture preregisters durability, measures before storage delay, and publishes after release', async () => {
+	const harness = serviceHarness({ appendDelayMs: 5_000 });
 	await harness.service.initialize();
 	await harness.service.actions.requestPreview(['camera', 'microphone']);
 	assert.equal(harness.service.snapshot.phase, 'previewing');
@@ -208,6 +208,9 @@ test('live capture preregisters durability, pauses every stream, and publishes a
 	assert.equal(harness.origin.snapshot('project-a').editBlocked, true);
 
 	await harness.emit('microphone', pcmPacket());
+	const microphoneMetrics = harness.service.snapshot.metrics.find(({ role }) => role === 'microphone');
+	assert.ok(Math.abs(microphoneMetrics?.currentDriftUs.value ?? Infinity) < 100_000,
+		'storage latency is not reported as capture drift');
 	await harness.service.actions.pause();
 	assert.equal(harness.service.snapshot.phase, 'paused');
 	await harness.service.actions.resume();
@@ -264,6 +267,7 @@ function serviceHarness(options: Readonly<{
 	availability?: Readonly<Record<string, unknown>>;
 	recovery?: ReturnType<typeof recoverySession> | null;
 	displaySelection?: FramescaperCaptureDisplaySelectionPort;
+	appendDelayMs?: number;
 }> = {}) {
 	const events: string[] = [];
 	const origin = createFramescaperCaptureOriginGuard();
@@ -275,7 +279,7 @@ function serviceHarness(options: Readonly<{
 			events.push('durable:prepare');
 			return { ...request, marker: 'durable-session' };
 		},
-		async append(session) { events.push('durable:append'); return session; },
+		async append(session) { events.push('durable:append'); time += options.appendDelayMs ?? 0; return session; },
 		async recordPauseSpan(session) { events.push('durable:pause'); return session; },
 		async seal(session) { events.push('durable:seal'); return session; },
 		async discard() { events.push('durable:discard'); },

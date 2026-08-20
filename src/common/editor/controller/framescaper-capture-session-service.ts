@@ -344,9 +344,10 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		if (!['recording', 'paused', 'finalizing'].includes(phase)) {
 			throw new Error(`Capture packet arrived while ${phase}.`);
 		}
+		const observedActiveTimeUs = clock.snapshot(now()).activeTimeUs;
 		const next = await options.durable.append(durableSession, packet);
 		durableSession = next;
-		metrics.observe(packet, clock.snapshot(now()).activeTimeUs);
+		metrics.observe(packet, observedActiveTimeUs);
 		notify();
 	}
 
