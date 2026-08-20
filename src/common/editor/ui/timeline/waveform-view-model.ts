@@ -166,9 +166,14 @@ export function createTimelineClipViewModel({
 	const selected = selectedClipIds instanceof Set
 		? selectedClipIds.has(clip.id)
 		: selectedClipIds === clip.id;
+	const sourceName = typeof source?.name === 'string' ? source.name : '';
+	const title = typeof clip.title === 'string' ? clip.title.trim() : '';
+	const generatedTitle = sourceName.replace(/\.[^./\\]+$/, '');
 	const output: TimelineClipViewModel = {
 		id: clip.id,
-		name: source?.name || clip.title || copy.clip,
+		// Imported clips begin with a title derived from the source filename. Keep
+		// showing the original source label until that generated title is renamed.
+		name: title && title !== generatedTitle ? title : sourceName || title || copy.clip,
 		start: framesToSeconds(
 			Math.max(0, Math.max(clip.timelineStartFrame, overscanStartFrame) - overscanStartFrame),
 			{ sampleRate },

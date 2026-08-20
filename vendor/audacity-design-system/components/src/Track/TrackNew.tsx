@@ -420,6 +420,8 @@ const TrackNewComponent: React.FC<TrackProps> = ({
   const [clipHiddenPoints, setClipHiddenPoints] = React.useState<Map<string | number, number[]>>(new Map());
   const [clipHoveredPoints, setClipHoveredPoints] = React.useState<Map<string | number, number[]>>(new Map());
   const [clipCursorPositions, setClipCursorPositions] = React.useState<Map<string | number, { time: number; db: number } | null>>(new Map());
+  const [renameRequest, setRenameRequest] = React.useState<{ clipId: string | number; id: number } | null>(null);
+  const renameRequestIdRef = React.useRef(0);
   const [hasKeyboardFocus, setHasKeyboardFocus] = React.useState(false);
   const [isContainerFocused, setIsContainerFocused] = React.useState(false);
   const [isDraggingDivider, setIsDraggingDivider] = React.useState(false);
@@ -646,6 +648,25 @@ const TrackNewComponent: React.FC<TrackProps> = ({
             }
 
             // Handle selection with Enter key
+            if (
+              e.key === 'F2'
+              && !e.altKey
+              && !e.ctrlKey
+              && !e.metaKey
+              && !e.shiftKey
+              && !e.repeat
+              && clipSelected
+              && onClipRename
+            ) {
+              e.preventDefault();
+              e.stopPropagation();
+              setRenameRequest({
+                clipId: clip.id,
+                id: ++renameRequestIdRef.current,
+              });
+              return;
+            }
+
             if (e.key === 'Enter') {
               e.preventDefault();
               e.stopPropagation();
@@ -945,6 +966,10 @@ const TrackNewComponent: React.FC<TrackProps> = ({
             forceHeaderHover={isClipHovered}
             onHeaderClick={(shiftKey, metaKey) => onClipClick?.(clip.id, shiftKey, metaKey)}
             onRename={onClipRename ? (newName) => onClipRename(clip.id, newName) : undefined}
+            renameRequestId={renameRequest?.clipId === clip.id ? renameRequest.id : undefined}
+            onRenameFinished={() => setRenameRequest((current) => (
+              current?.clipId === clip.id ? null : current
+            ))}
             onMenuClick={(x, y) => onClipMenuClick?.(clip.id, x, y)}
             onTrimEdge={
               onClipTrimEdge

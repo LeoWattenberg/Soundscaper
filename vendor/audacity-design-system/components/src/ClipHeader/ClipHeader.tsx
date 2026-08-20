@@ -52,6 +52,10 @@ export interface ClipHeaderProps {
   /** Called when the user commits a new name via inline rename
    * (Enter / F2 / double-click on the name → input → Enter). */
   onRename?: (newName: string) => void;
+  /** One-shot request to start inline rename from the focused clip. */
+  renameRequestId?: number;
+  /** Called after an inline rename request finishes or is cancelled. */
+  onRenameFinished?: () => void;
 }
 
 /**
@@ -83,10 +87,13 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
   timeSelectionRange = null,
   pixelsPerSecond = 100,
   onRename,
+  renameRequestId,
+  onRenameFinished,
 }) => {
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [renameDraft, setRenameDraft] = React.useState(name);
   const renameInputRef = React.useRef<HTMLInputElement>(null);
+  const consumedRenameRequestRef = React.useRef<number | undefined>(undefined);
 
   React.useEffect(() => {
     if (isRenaming) {
@@ -102,6 +109,17 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
     if (!isRenaming) setRenameDraft(name);
   }, [name, isRenaming]);
 
+  React.useEffect(() => {
+    if (renameRequestId === undefined || renameRequestId === consumedRenameRequestRef.current) return;
+    consumedRenameRequestRef.current = renameRequestId;
+    if (!onRename) {
+      onRenameFinished?.();
+      return;
+    }
+    setRenameDraft(name);
+    setIsRenaming(true);
+  }, [name, onRename, onRenameFinished, renameRequestId]);
+
   const startRename = () => {
     if (!onRename) return;
     setRenameDraft(name);
@@ -111,10 +129,12 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
     const next = renameDraft.trim();
     if (next && next !== name) onRename?.(next);
     setIsRenaming(false);
+    onRenameFinished?.();
   };
   const cancelRename = () => {
     setRenameDraft(name);
     setIsRenaming(false);
+    onRenameFinished?.();
   };
   const style = {
     // Clip background tiles use the same brand palette in both themes, so
@@ -137,7 +157,6 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
     e.stopPropagation();
     onMenuClick?.(e);
   };
-
   // Calculate time selection overlay position and width
   // Don't show time selection overlay when clip is selected (selected state takes priority)
   let timeSelectionOverlay: { left: number; width: number } | null = null;
@@ -205,6 +224,12 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
         ) : (
           <span
             className="clip-header__name"
+            onMouseDown={(e) => {
+              if (e.detail !== 2) return;
+              e.preventDefault();
+              e.stopPropagation();
+              startRename();
+            }}
             onDoubleClick={(e) => {
               e.stopPropagation();
               startRename();

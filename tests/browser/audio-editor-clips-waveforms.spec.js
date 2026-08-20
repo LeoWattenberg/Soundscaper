@@ -35,6 +35,47 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('renames an audio clip from its header, F2, and Clip Properties', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const initialClip = clipByName(editor, toneA.name);
+		const clipId = await initialClip.getAttribute('data-clip-id');
+		expect(clipId).not.toBeNull();
+		const clip = editor.locator(`[data-clip-id="${clipId}"]`);
+
+		await clip.locator('.clip-header__name').dblclick();
+		const headerInput = clip.getByRole('textbox', { name: 'Clip name', exact: true });
+		await expect(headerInput).toBeFocused();
+		await headerInput.fill('Header rename');
+		await headerInput.press('Enter');
+		await expect(clip).toContainText('Header rename');
+
+		await clip.locator('.clip-header').click();
+		await page.keyboard.press('F2');
+		await expect(headerInput).toBeFocused();
+		await headerInput.fill('Discarded rename');
+		await headerInput.press('Escape');
+		await expect(clip).toContainText('Header rename');
+
+		await clip.locator('.clip-header').click();
+		await page.keyboard.press('F2');
+		await headerInput.fill('F2 rename');
+		await headerInput.press('Enter');
+		await expect(clip).toContainText('F2 rename');
+
+		const dialog = await openClipProperties(page, editor, clip);
+		const nameField = clipField(dialog, 'name');
+		await expect(nameField).toHaveValue('F2 rename');
+		await nameField.fill('Properties rename');
+		await nameField.press('Tab');
+		await expect(clip).toContainText('Properties rename');
+		await closeDialog(dialog);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(clip).toContainText('F2 rename');
+		expect(errors).toEqual([]);
+	});
+
 	test('moves and trims clips with frame-canonical pointer edits', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

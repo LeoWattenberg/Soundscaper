@@ -165,6 +165,37 @@ test.describe('audio editor video composition workflow', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('renames a video clip from its header and F2', async ({ page }, testInfo) => {
+		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
+		const fixture = createDeterministicAvFixture('rename-video.webm');
+		const editor = await bootVideoEditor(page);
+		await importTimelineFiles(editor, [fixture]);
+		const clip = editor.locator('[data-clip-kind="video"]').first();
+
+		await clip.locator('.audio-editor-video-clip__title').dblclick();
+		const input = clip.getByRole('textbox', { name: 'Clip name', exact: true });
+		await expect(input).toBeFocused();
+		await input.fill('Header video rename');
+		await input.press('Enter');
+		await expect(clip).toContainText('Header video rename');
+
+		await clip.locator('.audio-editor-video-clip__header').click();
+		await page.keyboard.press('F2');
+		await expect(input).toBeFocused();
+		await input.fill('Discarded video rename');
+		await input.press('Escape');
+		await expect(clip).toContainText('Header video rename');
+
+		await clip.locator('.audio-editor-video-clip__header').click();
+		await page.keyboard.press('F2');
+		await expect(input).toBeFocused();
+		await input.fill('F2 video rename');
+		await input.press('Enter');
+		await expect(clip).toContainText('F2 video rename');
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(clip).toContainText('Header video rename');
+	});
+
 	test('edits the selected video effect rack and falls back cleanly if WebGL is interrupted', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(90_000);
