@@ -3,13 +3,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { bundledCopyForLocale } from '../i18n/catalogs.js';
 import { localeLanguage } from '../i18n/locale.js';
 import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n/locales.js';
-import { productLocalePath, productProfile } from '../products.js';
+import { productLocalePath, otherProductId, productProfile } from '../products.js';
 
 const TRANSLATIONS_BASE_URL = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 	|| 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 
 export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const profile = productProfile(productId);
+	const otherProduct = productProfile(otherProductId(productId));
 	const localeDescriptor = getLocaleDescriptor(locale);
 	if (!localeDescriptor) throw new Error(`Unknown editor locale: ${locale}`);
 	const chromeLocale = localeLanguage(localeDescriptor.locale) === 'de' ? 'de' : 'en';
@@ -107,11 +108,13 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 			</button>
 			<div className="sidebar-content" data-sidebar-content>
 				<nav className="sidebar-nav" aria-label={copy.label}>
-					<a className="sidebar-link is-active" href={productLocalePath(productId, locale)} aria-current="page">{productId === 'framescaper' ? profile.name : copy.editor}</a>
-					<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/tools/`}>{copy.tools}</a>
-					<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/audacity/`}>{copy.guides}</a>
-					<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/legal/`}>{copy.legal}</a>
-					<a className="sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer">{copy.github}</a>
+						<a className="sidebar-link is-active" href={productLocalePath(productId, locale)} aria-current="page">{productId === 'framescaper' ? profile.name : copy.editor}</a>
+						<a className="sidebar-link" href={productLocalePath(otherProduct.id, locale)}>{otherProduct.name}</a>
+						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/tools/`}>{copy.tools}</a>
+						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/audacity/`}>{copy.guides}</a>
+						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/legal/`}>{copy.legal}</a>
+						<a className="sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer">{copy.reportIssue}</a>
+						<a className="sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer">{copy.github}</a>
 				</nav>
 				<section className="sidebar-settings" aria-labelledby="sidebar-settings-title">
 					<h2 id="sidebar-settings-title">{copy.settings}</h2>
@@ -176,6 +179,7 @@ function sidebarCopy(catalog) {
 		workspaceMusic: catalog.workspaceMusic,
 		workspaceClassic: catalog.workspaceClassic,
 		workspaceVideo: catalog.workspaceVideo,
+		reportIssue: catalog.reportIssueLink,
 		settings: catalog.sidebarSettings,
 	};
 }
