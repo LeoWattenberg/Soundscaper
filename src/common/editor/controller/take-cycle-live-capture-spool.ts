@@ -23,6 +23,7 @@ import type { TakeCycleLaneTarget, TakeCycleSourceDescription } from './take-cyc
 
 const INTENT_KIND = 'take-cycle-live-capture-intent-v1';
 const DRAFT_KIND = 'take-cycle-live-capture-draft-v1';
+const DISCARD_KIND = 'take-cycle-live-capture-discard-v1';
 const TEXT_ENCODER = new TextEncoder();
 export interface TakeCycleLiveCaptureInventory {
 	readonly drafts: readonly TakeCycleCaptureDraft[];
@@ -195,12 +196,14 @@ export function createTakeCycleLiveCaptureSpool(
 		const drafts: TakeCycleCaptureDraft[] = [];
 		const capturing: TakeCycleCapturingSpoolEvidence[] = [];
 		for (const record of await repository.list(projectId)) {
-			if (record.state === 'discarded' || record.state === 'deleting') {
-				await repository.remove(record);
-				continue;
+			const kind = takeCycleSpoolKind(record.data);
+			if (!kind) continue;
+			if (kind === DISCARD_KIND) {
+				if (record.state !== 'discarded' && record.state !== 'deleting') throw new Error('Take cycle live capture discard state is invalid.');
+				await reclaim(record); continue;
 			}
-			const data = dataRecord(record.data, 'take cycle live capture data');
-			if (data.kind === DRAFT_KIND) drafts.push(draftFromRecord(record));
+			if (record.state === 'discarded' || record.state === 'deleting') throw new Error('Take cycle live capture active ownership is terminal.');
+			if (kind === DRAFT_KIND) drafts.push(draftFromRecord(record));
 			else {
 				const intent = normalizeIntent(record.data, record);
 				capturing.push(Object.freeze({
@@ -217,8 +220,7 @@ export function createTakeCycleLiveCaptureSpool(
 			}
 		}
 		return Object.freeze({
-			drafts: Object.freeze(drafts),
-			capturing: Object.freeze(capturing),
+			drafts: Object.freeze(drafts), capturing: Object.freeze(capturing),
 			capturingCount: capturing.length,
 		});
 	}
@@ -231,19 +233,21 @@ export function createTakeCycleLiveCaptureSpool(
 		const projectId = stableId(projectIdValue, 'take cycle projectId');
 		const drafts: TakeCycleCaptureDraft[] = [];
 		for (let record of await repository.list(projectId)) {
-			if (decision === 'discard' || record.state === 'discarded'
-				|| record.state === 'deleting' || record.frameCount === 0) {
-				if (!await repository.remove(record)) throw new Error(`Live capture spool ${record.spoolId} changed before removal.`);
-				continue;
+			const kind = takeCycleSpoolKind(record.data);
+			if (!kind) continue;
+			if (kind === DISCARD_KIND) {
+				if (record.state !== 'discarded' && record.state !== 'deleting') throw new Error('Take cycle live capture discard state is invalid.');
+				await reclaim(record); continue;
 			}
-			const data = dataRecord(record.data, 'take cycle live capture data');
-			if (data.kind === DRAFT_KIND) {
-				drafts.push(draftFromRecord(record));
-				continue;
+			if (record.state === 'discarded' || record.state === 'deleting') throw new Error('Take cycle live capture active ownership is terminal.');
+			const draft = kind === DRAFT_KIND ? draftFromRecord(record) : null;
+			const intent = kind === INTENT_KIND ? normalizeIntent(record.data, record) : null;
+			if (decision === 'discard' || record.frameCount === 0) {
+				await reclaim(record); continue;
 			}
-			const intent = normalizeIntent(record.data, record);
+			if (draft) { drafts.push(draft); continue; }
 			if (record.state === 'capturing') record = await repository.seal(record, intent);
-			drafts.push(await materialize(record, intent, createPassIdentities));
+			drafts.push(await materialize(record, intent!, createPassIdentities));
 		}
 		return Object.freeze(drafts);
 	}
@@ -544,6 +548,12 @@ function normalizeSource(value: unknown): Omit<TakeCycleSourceDescription, 'fram
 function dataRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a data record.`);
 	return value as Readonly<Record<string, unknown>>;
+}
+
+function takeCycleSpoolKind(value: unknown): typeof INTENT_KIND | typeof DRAFT_KIND | typeof DISCARD_KIND | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const kind = (value as Readonly<Record<string, unknown>>).kind;
+	return kind === INTENT_KIND || kind === DRAFT_KIND || kind === DISCARD_KIND ? kind : null;
 }
 
 function denseArray(value: unknown, maximum: number): readonly unknown[] {

@@ -17,6 +17,59 @@ import { SourceRecordRepository } from '../src/common/editor/storage/source-reco
 
 const PCM = Float32Array.of(0.25, -0.25, 0.5, -0.5);
 
+test('take-cycle recovery ignores every foreign raw PCM spool without parsing or removal', async () => {
+	const { repository } = rawFixture('cycle-foreign-spools');
+	const framescaperOwner = Object.freeze({
+		version: 1, kind: 'framescaper-capture-raw-pcm',
+		sessionId: 'session-capture', streamId: 'microphone-stream',
+		sourceId: 'microphone-source', role: 'microphone',
+	});
+	const empty = await repository.create({
+		...rawRequest('framescaper-empty'), data: framescaperOwner,
+	});
+	let sealed = await repository.create({
+		...rawRequest('framescaper-sealed'), data: framescaperOwner,
+	});
+	sealed = await repository.append(sealed, [PCM], framescaperOwner);
+	sealed = await repository.seal(sealed, framescaperOwner);
+	const unknown = await repository.create({
+		...rawRequest('unknown-owner'), data: { kind: 'another-raw-pcm-owner' },
+	});
+	const spool = createTakeCycleLiveCaptureSpool(repository);
+
+	assert.deepEqual(await spool.inspect('project-cycle'), {
+		drafts: [], capturing: [], capturingCount: 0,
+	});
+	assert.deepEqual(await spool.resolve('project-cycle', 'recover', passIdentities), []);
+	assert.deepEqual(await spool.resolve('project-cycle', 'discard', passIdentities), []);
+	assert.deepEqual(await repository.load('project-cycle', empty.spoolId), empty);
+	assert.deepEqual(await repository.load('project-cycle', sealed.spoolId), sealed);
+	assert.deepEqual(await repository.load('project-cycle', unknown.spoolId), unknown);
+});
+
+test('malformed take-cycle-owned intent and draft spools fail closed before discard', async () => {
+	for (const kind of ['take-cycle-live-capture-intent-v1', 'take-cycle-live-capture-draft-v1']) {
+		const { repository } = rawFixture(`cycle-malformed-${kind}`);
+		const owned = await repository.create({
+			...rawRequest(`malformed-${kind}`), data: { kind },
+		});
+		const spool = createTakeCycleLiveCaptureSpool(repository);
+
+		await assert.rejects(spool.inspect('project-cycle'), /take cycle|live capture/iu, kind);
+		await assert.rejects(
+			spool.resolve('project-cycle', 'recover', passIdentities),
+			/take cycle|live capture/iu,
+			kind,
+		);
+		await assert.rejects(
+			spool.resolve('project-cycle', 'discard', passIdentities),
+			/take cycle|live capture/iu,
+			kind,
+		);
+		assert.deepEqual(await repository.load('project-cycle', owned.spoolId), owned, kind);
+	}
+});
+
 test('raw spool discard durably settles exact ownership before PCM reclamation and is idempotent', async () => {
 	const memory = getMemoryDatabase(uniqueName('cycle-discard-order'));
 	const port = { memory, database: async () => null };
@@ -196,6 +249,15 @@ function lane(groupId: string, trackId: string) {
 	return {
 		groupId, trackId, sequenceId: 'main-sequence', name: `Take ${trackId}`,
 		sampleRate: 48_000, channelCount: 1, chunkFrames: 4,
+	};
+}
+
+function passIdentities(passIndex: number, firstLaneId: string) {
+	return {
+		laneId: passIndex ? `lane-${String(passIndex)}` : firstLaneId,
+		takeId: `take-${String(passIndex)}`,
+		mediaId: `media-${String(passIndex)}`,
+		journalId: `journal-${String(passIndex)}`,
 	};
 }
 
