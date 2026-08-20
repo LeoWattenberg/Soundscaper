@@ -78,6 +78,33 @@ test('startup recovery seals an exact crash prefix and rejects ambiguous or chan
 	await assert.rejects(binding.port.findRecovery('project-a'), /storage is changed/iu);
 });
 
+test('a finalizer refresh rebinds discard to the current finalizing manifest session', async () => {
+	const harness = coordinatorHarness();
+	const binding = createFramescaperCaptureDurablePortBinding({
+		coordinator: harness.coordinator, createId: () => 'spool-id',
+	});
+	const wrapped = await binding.port.prepare(prepareRequest());
+	const finalizing = sessionStub(harness.events, manifest('finalizing'));
+	harness.loadedSession = finalizing;
+
+	assert.equal(await binding.refresh(wrapped), finalizing);
+	assert.equal(binding.coordinatorSession(wrapped), finalizing);
+	await binding.port.discard(wrapped);
+	assert.deepEqual(harness.events, ['load', 'delete']);
+});
+
+test('a durable refresh rejects changed manifest ownership', async () => {
+	const harness = coordinatorHarness();
+	const binding = createFramescaperCaptureDurablePortBinding({
+		coordinator: harness.coordinator, createId: () => 'spool-id',
+	});
+	const wrapped = await binding.port.prepare(prepareRequest());
+	harness.loadedSession = sessionStub(harness.events, manifest('finalizing', 'session-b'));
+
+	await assert.rejects(binding.refresh(wrapped), /changed ownership/iu);
+	assert.equal(binding.coordinatorSession(wrapped), harness.session);
+});
+
 function coordinatorHarness(options: Readonly<{
 	recovery?: readonly FramescaperCaptureRecoveryInventoryEntry[];
 }> = {}) {
@@ -85,20 +112,38 @@ function coordinatorHarness(options: Readonly<{
 	let created: CreateFramescaperCaptureDurableSessionRequest | null = null;
 	let recovery = options.recovery ?? [];
 	const session = sessionStub(events, manifest('capturing'));
+	let loadedSession = session;
 	return {
 		events,
 		get created() { return created; },
 		get session() { return session; },
 		get recovery() { return recovery; },
 		set recovery(value) { recovery = value; },
+		get loadedSession() { return loadedSession; },
+		set loadedSession(value) { loadedSession = value; },
 		coordinator: {
 			async create(request: CreateFramescaperCaptureDurableSessionRequest) {
 				created = request;
 				return session;
 			},
-			async load() { events.push('load'); return session; },
+			async load() { events.push('load'); return loadedSession; },
 			async recoveryInventory() { return recovery; },
 		},
+	};
+}
+
+function prepareRequest() {
+	return {
+		sessionId: 'session-a', generation: 2,
+		projectFence: { projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
+		origin: { sequenceId: 'sequence-a', playheadMicroseconds: 100, destination: 'both' as const },
+		destination: 'both' as const,
+		sources: [{ streamId: 'video-a', sourceId: 'source-a', role: 'camera' as const }],
+		monotonicOriginMicroseconds: 1_000,
+		streams: [{
+			streamId: 'video-a', sourceId: 'source-a', role: 'camera' as const, required: true as const,
+			format: { kind: 'encoded-media' as const, mimeType: 'video/webm' },
+		}],
 	};
 }
 

@@ -13,6 +13,7 @@ import type {
 export interface FramescaperCaptureDurablePortBinding {
 	readonly port: FramescaperCaptureDurablePort;
 	coordinatorSession(session: FramescaperCaptureDurableSession): CoordinatorSession;
+	refresh(session: FramescaperCaptureDurableSession): Promise<CoordinatorSession>;
 }
 
 interface FramescaperCaptureDurablePortOptions {
@@ -49,6 +50,15 @@ export function createFramescaperCaptureDurablePortBinding(
 		const value = owned.get(session);
 		if (!value) throw new Error('Framescaper capture durable-session ownership is invalid.');
 		return value;
+	}
+
+	async function refresh(session: FramescaperCaptureDurableSession): Promise<CoordinatorSession> {
+		coordinatorSession(session);
+		const loaded = await options.coordinator.load(session.projectFence.projectId, session.sessionId);
+		if (!loaded) throw new Error('Framescaper capture durable session disappeared during refresh.');
+		assertWrappedIdentity(session, loaded);
+		owned.set(session, loaded);
+		return loaded;
 	}
 
 	const port: FramescaperCaptureDurablePort = {
@@ -120,7 +130,24 @@ export function createFramescaperCaptureDurablePortBinding(
 	};
 	Object.freeze(port);
 
-	return Object.freeze({ port, coordinatorSession });
+	return Object.freeze({ port, coordinatorSession, refresh });
+}
+
+function assertWrappedIdentity(
+	session: FramescaperCaptureDurableSession,
+	coordinator: CoordinatorSession,
+): void {
+	const manifest = coordinator.manifest;
+	const sources = manifest.streams.map(({ streamId, role, storage }) => ({
+		streamId, role, sourceId: storage.sourceId,
+	}));
+	if (manifest.sessionId !== session.sessionId
+		|| manifest.origin.destination !== session.destination
+		|| JSON.stringify(manifest.projectFence) !== JSON.stringify(session.projectFence)
+		|| JSON.stringify(manifest.origin) !== JSON.stringify(session.origin)
+		|| JSON.stringify(sources) !== JSON.stringify(session.sources)) {
+		throw new Error('Framescaper capture durable session changed ownership during refresh.');
+	}
 }
 
 function recoverableInventoryEntry(entry: FramescaperCaptureRecoveryInventoryEntry): boolean {
