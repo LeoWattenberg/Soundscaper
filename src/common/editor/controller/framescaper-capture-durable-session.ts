@@ -8,23 +8,34 @@ import {
 	type FramescaperCapturePlayability,
 	type FramescaperCaptureProjectFenceV1,
 	type FramescaperCaptureSessionManifestV1,
-	type FramescaperCaptureStreamManifestV1,
 } from '../framescaper-capture-session-manifest.ts';
 import type { FramescaperCaptureSessionManifestRepository } from '../storage/framescaper-capture-session-manifest-repository.ts';
+import { withCaptureSessionOperationLock } from '../storage/capture-spool-operation-lock.ts';
+import { packetTiming, sameManifest, sameManifestEvidence, timestamp } from './framescaper-capture-durable-manifest.ts';
 import {
+	acknowledgeCaptureAppend,
 	assertEncodedCapturePacket,
 	assertPcmCapturePacket,
 	assertCaptureStreamRegistrations,
-	cleanupCreatedCaptureSpools,
-	createCaptureSpool,
 	createCaptureStreamManifest,
 	deinterleaveCapturePcm,
 	inspectCaptureStorage,
+	releaseMissingCaptureSpoolReservation,
 	requiredCaptureSpool,
 	type DurableCaptureStoragePorts,
 	type FramescaperCaptureStreamRegistration,
 	type OwnedCaptureSpool,
 } from './framescaper-capture-durable-storage.ts';
+import {
+	assertCaptureCreationStorageExact,
+	captureCreationInventory,
+	createCaptureCreationMaintenance,
+	createInventoriedCaptureSpools,
+	defaultCaptureCreationId,
+	requiredCaptureCreationManifests,
+	settleFailedCaptureCreation,
+	type CaptureCreationManifestPort,
+} from './framescaper-capture-durable-creation.ts';
 
 export type {
 	FramescaperCaptureStreamRegistration,
@@ -34,7 +45,7 @@ export type {
 
 type ManifestPort = Pick<FramescaperCaptureSessionManifestRepository,
 	'create' | 'load' | 'listProject' | 'replace' | 'remove'
->;
+> & Partial<CaptureCreationManifestPort>;
 
 export interface CreateFramescaperCaptureDurableSessionRequest {
 	readonly sessionId: string;
@@ -73,27 +84,38 @@ export interface FramescaperCaptureDurableSessionCoordinator {
 interface CoordinatorOptions extends DurableCaptureStoragePorts {
 	readonly manifests: ManifestPort;
 	readonly now?: () => number;
+	readonly createId?: () => string;
 }
 
 export function createFramescaperCaptureDurableSessionCoordinator(
 	options: CoordinatorOptions,
 ): FramescaperCaptureDurableSessionCoordinator {
 	const now = options.now ?? Date.now;
+	const createId = options.createId ?? defaultCaptureCreationId;
+	const creationManifests = requiredCaptureCreationManifests(options.manifests);
+	const creationPorts = Object.freeze({
+		encodedSpools: options.encodedSpools,
+		rawPcmSpools: options.rawPcmSpools,
+		manifests: creationManifests,
+	});
+	const maintainCreations = createCaptureCreationMaintenance(creationPorts, now);
 
 	async function create(
 		request: CreateFramescaperCaptureDurableSessionRequest,
 	): Promise<FramescaperCaptureDurableSession> {
-		const created = new Map<string, OwnedCaptureSpool>();
+		let creation = null as Awaited<ReturnType<typeof creationManifests.createCreation>> | null;
+		let published = false;
 		try {
 			assertCaptureStreamRegistrations(request.streams);
+			await maintainCreations();
 			await retireSettledSessions(request.projectFence.projectId);
-			for (const registration of request.streams) {
-				created.set(registration.streamId, await createCaptureSpool(options, {
-					sessionId: request.sessionId,
-					projectId: request.projectFence.projectId,
-				}, registration));
-			}
 			const createdAt = timestamp(now(), 'Framescaper capture creation time');
+			creation = await creationManifests.createCreation(captureCreationInventory(
+				request,
+				createdAt,
+				createId,
+			));
+			const created = await createInventoriedCaptureSpools(options, creation);
 			const manifest = normalizeFramescaperCaptureSessionManifest({
 				version: 1,
 				sessionId: request.sessionId,
@@ -113,24 +135,53 @@ export function createFramescaperCaptureDurableSessionCoordinator(
 				createdAt,
 				updatedAt: createdAt,
 			});
-			const persisted = await options.manifests.create(manifest);
+			await assertCaptureCreationStorageExact(creationPorts, creation);
+			const persisted = await creationManifests.publishCreation(creation, manifest);
+			published = true;
+			try { await creationManifests.removeCreation(creation); }
+			catch { /* The authoritative manifest lets global maintenance retire this journal safely. */ }
 			return new DurableSession(options, now, persisted, created);
 		} catch (error) {
-			await cleanupCreatedCaptureSpools(options, created);
+			if (creation && !published) await settleFailedCaptureCreation(creationPorts, creation);
 			throw error;
 		}
 	}
 
 	async function load(projectId: string, sessionId: string): Promise<FramescaperCaptureDurableSession | null> {
-		const manifest = await options.manifests.load(projectId, sessionId);
-		if (!manifest) return null;
-		const inspection = await inspectCaptureStorage(options, manifest);
+		await maintainCreations();
+		return loadInternal(projectId, sessionId);
+	}
+
+	async function loadInternal(projectId: string, sessionId: string): Promise<FramescaperCaptureDurableSession | null> {
+		const snapshot = await inspectAuthoritativeSession(projectId, sessionId);
+		if (!snapshot) return null;
+		const { manifest, inspection } = snapshot;
 		if (inspection.storageStatus === 'changed'
 			|| (inspection.storageStatus === 'missing'
 				&& manifest.state !== 'discarded' && manifest.state !== 'committed')) {
 			throw new Error(`Framescaper capture storage ownership changed for ${inspection.affectedStreamIds.join(', ')}.`);
 		}
 		return new DurableSession(options, now, manifest, inspection.spools);
+	}
+
+	async function inspectAuthoritativeSession(projectId: string, sessionId: string) {
+		return withCaptureSessionOperationLock({ projectId, sessionId }, async () => {
+			for (let attempt = 0; attempt < 4; attempt += 1) {
+				const manifest = await options.manifests.load(projectId, sessionId);
+				if (!manifest) return null;
+				let inspection;
+				try { inspection = await inspectCaptureStorage(options, manifest); }
+				catch (error) {
+					const latest = await options.manifests.load(projectId, sessionId);
+					if (latest && !sameManifest(latest, manifest)) continue;
+					throw error;
+				}
+				const latest = await options.manifests.load(projectId, sessionId);
+				if (latest && sameManifest(latest, manifest)) return Object.freeze({ manifest, inspection });
+				if (!latest) return null;
+			}
+			throw new Error('Framescaper capture manifest changed throughout bounded storage inspection.');
+		});
 	}
 
 	async function retireSettledSessions(projectId: string): Promise<void> {
@@ -142,26 +193,28 @@ export function createFramescaperCaptureDurableSessionCoordinator(
 	}
 
 	async function retireSettledManifest(manifest: FramescaperCaptureSessionManifestV1): Promise<void> {
-		const session = await load(manifest.projectFence.projectId, manifest.sessionId);
-		if (!session) return;
-		if (manifest.state === 'committed') await session.retireCommitted();
-		else await session.delete();
+		const session = await loadInternal(manifest.projectFence.projectId, manifest.sessionId);
+		if (!session || !sameManifest(session.manifest, manifest)) return;
+		if (session.manifest.state === 'committed') await session.retireCommitted();
+		else if (session.manifest.state === 'discarded') await session.delete();
 	}
 
 	async function recoveryInventory(
 		projectId: string,
 	): Promise<readonly FramescaperCaptureRecoveryInventoryEntry[]> {
+		await maintainCreations();
 		const entries: FramescaperCaptureRecoveryInventoryEntry[] = [];
-		for (const manifest of await options.manifests.listProject(projectId)) {
-			if (manifest.state === 'committed' || manifest.state === 'discarded') {
-				await retireSettledManifest(manifest);
+		for (const listed of await options.manifests.listProject(projectId)) {
+			const snapshot = await inspectAuthoritativeSession(projectId, listed.sessionId);
+			if (!snapshot) continue;
+			if (snapshot.manifest.state === 'committed' || snapshot.manifest.state === 'discarded') {
+				await retireSettledManifest(snapshot.manifest);
 				continue;
 			}
-			const inspection = await inspectCaptureStorage(options, manifest);
 			entries.push(Object.freeze({
-				manifest,
-				storageStatus: inspection.storageStatus,
-				affectedStreamIds: inspection.affectedStreamIds,
+				manifest: snapshot.manifest,
+				storageStatus: snapshot.inspection.storageStatus,
+				affectedStreamIds: snapshot.inspection.affectedStreamIds,
 			}));
 		}
 		return Object.freeze(entries);
@@ -276,7 +329,7 @@ class DurableSession implements FramescaperCaptureDurableSession {
 			for (const [streamId, spool] of inspection.spools) this.#spools.set(streamId, spool);
 			for (const stream of current.streams) {
 				const spool = this.#spools.get(stream.streamId);
-				if (!spool) continue;
+				if (!spool) { await releaseMissingCaptureSpoolReservation(this.#repositories, current, stream); continue; }
 				if (spool.kind === 'encoded-media') {
 					if (spool.record.state === 'adopted') {
 						await this.#repositories.encodedSpools.releaseAdopted(spool.record);
@@ -291,7 +344,7 @@ class DurableSession implements FramescaperCaptureDurableSession {
 				if (await this.#repositories.manifests.load(current.projectFence.projectId, current.sessionId)) throw error;
 			}
 			this.#deleted = true;
-		});
+		}, false);
 	}
 
 	delete(): Promise<void> {
@@ -315,7 +368,7 @@ class DurableSession implements FramescaperCaptureDurableSession {
 			await this.#refreshStorage(true);
 			for (const stream of this.#manifest.streams) {
 				const spool = this.#spools.get(stream.streamId);
-				if (!spool) continue;
+				if (!spool) { await releaseMissingCaptureSpoolReservation(this.#repositories, this.#manifest, stream); continue; }
 				if (spool.kind === 'encoded-media') {
 					if (spool.record.state === 'adopted') {
 						throw new Error('Framescaper capture cannot delete adopted immutable media.');
@@ -460,6 +513,9 @@ class DurableSession implements FramescaperCaptureDurableSession {
 	): Promise<FramescaperCaptureSessionManifestV1> {
 		try {
 			this.#manifest = await this.#repositories.manifests.replace(this.#manifest, next);
+			this.#spools.set(streamId, await acknowledgeCaptureAppend(
+				this.#repositories, this.#manifest, streamId, advanced,
+			));
 			return this.#manifest;
 		} catch (error) {
 			try {
@@ -469,6 +525,9 @@ class DurableSession implements FramescaperCaptureDurableSession {
 				);
 				if (observed && sameManifest(observed, next)) {
 					this.#manifest = observed;
+					this.#spools.set(streamId, await acknowledgeCaptureAppend(
+						this.#repositories, observed, streamId, advanced,
+					));
 					return observed;
 				}
 				if (!observed || !sameManifest(observed, this.#manifest)) {
@@ -514,56 +573,23 @@ class DurableSession implements FramescaperCaptureDurableSession {
 		return Math.max(this.#manifest.updatedAt, timestamp(this.#now(), 'Framescaper capture update time'));
 	}
 
-	#enqueue<Result>(operation: () => Promise<Result>): Promise<Result> {
-		const result = this.#queue.then(operation);
+	#enqueue<Result>(operation: () => Promise<Result>, verifyManifest = true): Promise<Result> {
+		const result = this.#queue.then(() => withCaptureSessionOperationLock({
+			projectId: this.#manifest.projectFence.projectId,
+			sessionId: this.#manifest.sessionId,
+		}, async () => {
+			if (verifyManifest && !this.#deleted) {
+				const authoritative = await this.#repositories.manifests.load(
+					this.#manifest.projectFence.projectId, this.#manifest.sessionId,
+				);
+				if (!authoritative || !sameManifest(authoritative, this.#manifest)) {
+					this.#synchronized = false;
+					throw new Error('Framescaper capture manifest changed before its next durable operation.');
+				}
+			}
+			return operation();
+		}));
 		this.#queue = result.then(() => undefined, () => undefined);
 		return result;
 	}
-}
-
-function timestamp(value: number, name: string): number {
-	if (!Number.isSafeInteger(value) || value < 0) throw new RangeError(`${name} must be non-negative.`);
-	return value;
-}
-
-function sameManifest(left: FramescaperCaptureSessionManifestV1, right: FramescaperCaptureSessionManifestV1): boolean {
-	return JSON.stringify(left) === JSON.stringify(right);
-}
-
-function sameManifestEvidence(
-	left: FramescaperCaptureSessionManifestV1,
-	right: FramescaperCaptureSessionManifestV1,
-): boolean {
-	const evidence = (manifest: FramescaperCaptureSessionManifestV1) => ({
-		version: manifest.version,
-		sessionId: manifest.sessionId,
-		generation: manifest.generation,
-		projectFence: manifest.projectFence,
-		origin: manifest.origin,
-		clock: manifest.clock,
-		streams: manifest.streams.map(({ playability: _playability, ...stream }) => stream),
-		createdAt: manifest.createdAt,
-	});
-	return JSON.stringify(evidence(left)) === JSON.stringify(evidence(right));
-}
-
-function packetTiming(
-	stream: FramescaperCaptureStreamManifestV1,
-	presentationTimeUs: number,
-	durationUs: number,
-): FramescaperCaptureStreamManifestV1['timing'] {
-	return Object.freeze({
-		firstPresentationMicroseconds: stream.timing.firstPresentationMicroseconds ?? presentationTimeUs,
-		lastPresentationEndMicroseconds: exactSum(
-			presentationTimeUs,
-			durationUs,
-			'Framescaper capture packet presentation end',
-		),
-	});
-}
-
-function exactSum(left: number, right: number, name: string): number {
-	const result = left + right;
-	if (!Number.isSafeInteger(result)) throw new RangeError(`${name} exceeds the safe integer range.`);
-	return result;
 }

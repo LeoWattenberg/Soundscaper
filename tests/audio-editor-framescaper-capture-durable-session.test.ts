@@ -33,18 +33,18 @@ test('durable capture preregisters every spool before publishing its capturing m
 		},
 		rawPcmSpools: {
 			...rawPcmPort(fixture.rawPcmSpools),
-			async create(request) {
+			async createFramescaper(request) {
 				operations.push(`spool:${request.spoolId}`);
-				return fixture.rawPcmSpools.create(request);
+				return fixture.rawPcmSpools.createFramescaper(request);
 			},
 		},
 		manifests: {
 			...manifestPort(fixture.manifests),
-			async create(value) {
+			async publishCreation(expected, value) {
 				operations.push('manifest');
 				assert.ok(await fixture.encodedSpools.load('project-capture', 'camera-spool'));
 				assert.ok(await fixture.rawPcmSpools.load('project-capture', 'microphone-spool'));
-				return fixture.manifests.create(value);
+				return fixture.manifests.publishCreation(expected, value);
 			},
 		},
 		now: () => 100,
@@ -72,7 +72,7 @@ test('a rejected manifest publication rolls back every preregistered spool', asy
 		rawPcmSpools: fixture.rawPcmSpools,
 		manifests: {
 			...manifestPort(fixture.manifests),
-			async create() { throw new Error('manifest unavailable'); },
+			async publishCreation() { throw new Error('manifest unavailable'); },
 		},
 		now: () => 100,
 	});
@@ -155,6 +155,12 @@ test('failed spool acknowledgement leaves its physical tail outside manifest tru
 	const encodedSpools = new EncodedCaptureSpoolRepository({
 		get: fixture.values.get.bind(fixture.values),
 		putIfAbsent: fixture.values.putIfAbsent.bind(fixture.values),
+		putIfAbsentWhenCurrent: fixture.values.putIfAbsentWhenCurrent.bind(fixture.values),
+		async replaceIfCurrentWhenCurrent(fenceKey, expectedFence, key, expected, replacement) {
+			return rejectEncodedAcknowledgement ? false : fixture.values.replaceIfCurrentWhenCurrent(
+				fenceKey, expectedFence, key, expected, replacement,
+			);
+		},
 		deleteIfCurrent: fixture.values.deleteIfCurrent.bind(fixture.values),
 		listByPrefix: fixture.values.listByPrefix.bind(fixture.values),
 		async replaceIfCurrent(key, expected, replacement) {
@@ -175,7 +181,7 @@ test('failed spool acknowledgement leaves its physical tail outside manifest tru
 	const before = session.manifest;
 	rejectEncodedAcknowledgement = true;
 
-	await assert.rejects(session.append(videoPacket()), /outside the authoritative acknowledged prefix/u);
+	await assert.rejects(session.append(videoPacket()), /inventoried removable tail/u);
 
 	assert.deepEqual(session.manifest, before);
 	assert.deepEqual(await fixture.manifests.load('project-capture', 'session-capture'), before);
@@ -192,6 +198,12 @@ test('failed PCM acknowledgement leaves its deinterleaved tail outside manifest 
 	const rawPcmSpools = new RawPcmSpoolRepository({
 		get: fixture.values.get.bind(fixture.values),
 		putIfAbsent: fixture.values.putIfAbsent.bind(fixture.values),
+		putIfAbsentWhenCurrent: fixture.values.putIfAbsentWhenCurrent.bind(fixture.values),
+		async replaceIfCurrentWhenCurrent(fenceKey, expectedFence, key, expected, replacement) {
+			return rejectRawPcmAcknowledgement && key.startsWith('raw-pcm-spool-registry-v1:')
+				? false
+				: fixture.values.replaceIfCurrentWhenCurrent(fenceKey, expectedFence, key, expected, replacement);
+		},
 		deleteIfCurrent: fixture.values.deleteIfCurrent.bind(fixture.values),
 		listByPrefix: fixture.values.listByPrefix.bind(fixture.values),
 		async replaceIfCurrent(key, expected, replacement) {
@@ -212,7 +224,7 @@ test('failed PCM acknowledgement leaves its deinterleaved tail outside manifest 
 	const before = session.manifest;
 	rejectRawPcmAcknowledgement = true;
 
-	await assert.rejects(session.append(pcmPacket()), /replacement exceeded/u);
+	await assert.rejects(session.append(pcmPacket()), /inventoried removable tail/u);
 
 	assert.deepEqual(session.manifest, before);
 	assert.equal(fixture.memory.sourceChunks.size, 1);
@@ -401,9 +413,9 @@ test('a failed manifest CAS restores the encoded spool to its acknowledged prefi
 		sequence: 1,
 		presentationTimeUs: 1_000,
 	})), /manifest CAS refused/u);
-	assert.equal((await fixture.encodedSpools.load('project-capture', 'camera-spool'))?.packetCount, 1);
-	assert.equal((await coordinator.recoveryInventory('project-capture'))[0]?.storageStatus, 'exact');
 	await session.append(videoPacket({ sequence: 1, presentationTimeUs: 1_000 }));
+	assert.equal((await fixture.encodedSpools.load('project-capture', 'camera-spool'))?.packetCount, 2);
+	assert.equal((await coordinator.recoveryInventory('project-capture'))[0]?.storageStatus, 'exact');
 	assert.equal(session.manifest.streams[0]?.storage.kind === 'encoded-media'
 		? session.manifest.streams[0].storage.packetCount : null, 2);
 });
@@ -431,9 +443,9 @@ test('a failed manifest CAS restores the raw PCM spool to its acknowledged prefi
 		sequence: 1,
 		presentationTimeUs: 42,
 	})), /manifest CAS refused/u);
-	assert.equal((await fixture.rawPcmSpools.load('project-capture', 'microphone-spool'))?.chunkCount, 1);
-	assert.equal((await coordinator.recoveryInventory('project-capture'))[0]?.storageStatus, 'exact');
 	await session.append(pcmPacket({ sequence: 1, presentationTimeUs: 42 }));
+	assert.equal((await fixture.rawPcmSpools.load('project-capture', 'microphone-spool'))?.chunkCount, 2);
+	assert.equal((await coordinator.recoveryInventory('project-capture'))[0]?.storageStatus, 'exact');
 	assert.equal(session.manifest.streams[0]?.storage.kind === 'raw-pcm'
 		? session.manifest.streams[0].storage.chunkCount : null, 2);
 });
@@ -519,17 +531,21 @@ function encodedPort(repository: EncodedCaptureSpoolRepository) {
 		delete: repository.delete.bind(repository),
 		releaseAdopted: repository.releaseAdopted.bind(repository),
 		restoreAcknowledgedPrefix: repository.restoreAcknowledgedPrefix.bind(repository),
+		reconcileAppend: repository.reconcileAppend.bind(repository),
 	};
 }
 
 function rawPcmPort(repository: RawPcmSpoolRepository) {
 	return {
 		create: repository.create.bind(repository),
+		createFramescaper: repository.createFramescaper.bind(repository),
 		load: repository.load.bind(repository),
 		append: repository.append.bind(repository),
 		seal: repository.seal.bind(repository),
 		remove: repository.remove.bind(repository),
+		releaseReservation: repository.releaseReservation.bind(repository),
 		restoreAcknowledgedPrefix: repository.restoreAcknowledgedPrefix.bind(repository),
+		reconcileAppend: repository.reconcileAppend.bind(repository),
 	};
 }
 
@@ -540,6 +556,12 @@ function manifestPort(repository: FramescaperCaptureSessionManifestRepository) {
 		listProject: repository.listProject.bind(repository),
 		replace: repository.replace.bind(repository),
 		remove: repository.remove.bind(repository),
+		createCreation: repository.createCreation.bind(repository),
+		listCreations: repository.listCreations.bind(repository),
+		loadCreation: repository.loadCreation.bind(repository),
+		publishCreation: repository.publishCreation.bind(repository),
+		removeCreation: repository.removeCreation.bind(repository),
+		replaceCreation: repository.replaceCreation.bind(repository),
 	};
 }
 

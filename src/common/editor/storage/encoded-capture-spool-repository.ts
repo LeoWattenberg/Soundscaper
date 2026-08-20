@@ -7,13 +7,31 @@ import {
 	type MediaAssetChunkRecord,
 } from './media-asset-chunk-records.ts';
 import { restoreEncodedCaptureAcknowledgedPrefix } from './framescaper-capture-spool-prefix-repair.ts';
+import {
+	normalizeEncodedCaptureSpoolCreateRequest,
+	putEncodedCaptureSpoolWhenCurrent,
+	type CreateEncodedCaptureSpoolRequest,
+} from './encoded-capture-spool-create.ts';
+import { prepareEncodedCaptureSpoolTail, recoverEncodedCaptureSpoolTail } from './encoded-capture-spool-tail-cleanup.ts';
+import {
+	appendEncodedCaptureSpool,
+	assertNoPendingEncodedCaptureAppend,
+	ENCODED_CAPTURE_APPEND_MAXIMUM_CHUNK_BYTES,
+	ENCODED_CAPTURE_APPEND_MAXIMUM_PACKET_BYTES,
+	reconcileEncodedCaptureAppend,
+	recoverEncodedCaptureAppendBeforeLoad,
+	recoverEncodedCaptureAppendWhileLocked,
+	type EncodedCaptureAcknowledgedPrefix,
+} from './encoded-capture-spool-append.ts';
+import { withCaptureSpoolOperationLock } from './capture-spool-operation-lock.ts';
 
+export type { CreateEncodedCaptureSpoolRequest } from './encoded-capture-spool-create.ts';
 const KEY_PREFIX = 'framescaper-encoded-capture-spool-v1:';
 const MAXIMUM_PACKET_CHUNKS = 16;
 const MAXIMUM_PACKETS = 1_000_000;
 
-export const ENCODED_CAPTURE_MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
-export const ENCODED_CAPTURE_MAXIMUM_PACKET_BYTES = ENCODED_CAPTURE_MAXIMUM_CHUNK_BYTES * MAXIMUM_PACKET_CHUNKS;
+export const ENCODED_CAPTURE_MAXIMUM_CHUNK_BYTES = ENCODED_CAPTURE_APPEND_MAXIMUM_CHUNK_BYTES;
+export const ENCODED_CAPTURE_MAXIMUM_PACKET_BYTES = ENCODED_CAPTURE_APPEND_MAXIMUM_PACKET_BYTES;
 
 export type EncodedCaptureSpoolState = 'capturing' | 'sealed' | 'adopted' | 'deleting';
 
@@ -35,16 +53,6 @@ export interface EncodedCaptureSpoolRecord {
 	readonly adoptedMediaId: string | null;
 	readonly createdAt: number;
 	readonly updatedAt: number;
-}
-
-export interface CreateEncodedCaptureSpoolRequest {
-	readonly projectId: string;
-	readonly sessionId: string;
-	readonly streamId: string;
-	readonly spoolId: string;
-	/** The immutable media source which may later adopt this exact chunk token. */
-	readonly sourceId: string;
-	readonly mimeType: string;
 }
 
 export interface EncodedCapturePacket {
@@ -89,6 +97,16 @@ export interface EncodedCaptureAdoption {
 export interface EncodedCaptureSpoolKeyValuePort {
 	get(key: string): PromiseLike<unknown> | unknown;
 	putIfAbsent(key: string, value: unknown): PromiseLike<boolean> | boolean;
+	putIfAbsentWhenCurrent?(
+		fenceKey: string, expectedFence: unknown, key: string, value: unknown,
+	): PromiseLike<boolean> | boolean;
+	replaceIfCurrentWhenCurrent?(
+		fenceKey: string, expectedFence: unknown,
+		key: string, expected: unknown, replacement: unknown,
+	): PromiseLike<boolean> | boolean;
+	replaceIfCurrentAndPutIfAbsent?(
+		key: string, expected: unknown, replacement: unknown, intentKey: string, intent: unknown,
+	): PromiseLike<boolean> | boolean;
 	replaceIfCurrent(
 		key: string,
 		expected: unknown,
@@ -111,18 +129,6 @@ interface EncodedCaptureSpoolOptions {
 	readonly createId?: () => string;
 	readonly digest?: (payload: Blob) => Promise<string>;
 }
-
-interface StoredCaptureChunk extends MediaAssetChunkRecord {
-	readonly captureSpoolVersion: 1;
-	readonly captureSpoolId: string;
-	readonly packetSequence: number;
-	readonly packetChunkIndex: number;
-	readonly packetChunkCount: number;
-	readonly packetPtsMicroseconds: number;
-	readonly packetDurationMicroseconds: number;
-	readonly payloadSha256: string;
-}
-
 /** CAS-fenced prefixes; failed-acknowledgement tails remain unreadable and exactly owned. */
 export class EncodedCaptureSpoolRepository {
 	readonly #values: EncodedCaptureSpoolKeyValuePort;
@@ -144,7 +150,7 @@ export class EncodedCaptureSpoolRepository {
 	}
 
 	async create(requestValue: CreateEncodedCaptureSpoolRequest): Promise<EncodedCaptureSpoolRecord> {
-		const request = normalizeCreateRequest(requestValue);
+		const request = normalizeEncodedCaptureSpoolCreateRequest(requestValue);
 		const now = timestamp(this.#now(), 'encoded capture creation time');
 		const record = freezeRecord({
 			version: 1,
@@ -153,7 +159,7 @@ export class EncodedCaptureSpoolRepository {
 			streamId: request.streamId,
 			spoolId: request.spoolId,
 			spoolToken: stableText(
-				`framescaper-capture:${this.#createId()}`,
+				request.spoolToken ?? `framescaper-capture:${this.#createId()}`,
 				'encoded capture spool token',
 				512,
 			),
@@ -169,7 +175,11 @@ export class EncodedCaptureSpoolRepository {
 			createdAt: now,
 			updatedAt: now,
 		});
-		if (!await this.#values.putIfAbsent(spoolKey(record.projectId, record.spoolId), record)) {
+		const key = spoolKey(record.projectId, record.spoolId);
+		const inserted = request.creationFence
+			? await putEncodedCaptureSpoolWhenCurrent(this.#values, request.creationFence, key, record)
+			: await this.#values.putIfAbsent(key, record);
+		if (!inserted) {
 			throw new Error(`Encoded capture spool ${record.spoolId} already exists.`);
 		}
 		return record;
@@ -180,15 +190,30 @@ export class EncodedCaptureSpoolRepository {
 		const spoolId = stableId(spoolIdValue, 'encoded capture spoolId');
 		const value = await this.#values.get(spoolKey(projectId, spoolId));
 		if (value === undefined || value === null) return null;
-		const record = normalizeRecord(value);
+		let record: EncodedCaptureSpoolRecord | null = normalizeRecord(value);
 		if (record.projectId !== projectId || record.spoolId !== spoolId) {
 			throw new Error('Encoded capture spool key ownership changed.');
 		}
+		record = await recoverEncodedCaptureAppendBeforeLoad(
+			this.#values, this.#chunks, record, spoolKey(projectId, spoolId), normalizeRecord,
+			(current) => recoverEncodedCaptureSpoolTail(this.#values, this.#chunks, current),
+		);
+		if (!record) return null;
 		return record;
 	}
 
 	async listAll(): Promise<readonly EncodedCaptureSpoolRecord[]> {
-		const records = (await this.#values.listByPrefix(KEY_PREFIX)).map(({ value }) => normalizeRecord(value));
+		const records: EncodedCaptureSpoolRecord[] = [];
+		for (const { value } of await this.#values.listByPrefix(KEY_PREFIX)) {
+			const observed = normalizeRecord(value);
+			const record = await recoverEncodedCaptureAppendBeforeLoad(
+				this.#values, this.#chunks, observed,
+				spoolKey(observed.projectId, observed.spoolId), normalizeRecord,
+				(current) => recoverEncodedCaptureSpoolTail(this.#values, this.#chunks, current),
+			);
+			if (!record) continue;
+			records.push(record);
+		}
 		return Object.freeze(records.sort((left, right) => (
 			left.projectId.localeCompare(right.projectId) || left.spoolId.localeCompare(right.spoolId)
 		)));
@@ -204,58 +229,21 @@ export class EncodedCaptureSpoolRepository {
 	): Promise<EncodedCaptureAppendAcknowledgement> {
 		const expected = normalizeRecord(expectedValue);
 		if (expected.state !== 'capturing') throw new Error('Only a capturing encoded spool can append packets.');
-		const packet = normalizePacket(packetValue, expected);
-		await this.#assertCurrent(expected);
-		const firstChunkIndex = expected.chunkCount;
-		const packetChunkCount = Math.ceil(packet.payload.size / ENCODED_CAPTURE_MAXIMUM_CHUNK_BYTES);
-		for (let packetChunkIndex = 0; packetChunkIndex < packetChunkCount; packetChunkIndex += 1) {
-			const start = packetChunkIndex * ENCODED_CAPTURE_MAXIMUM_CHUNK_BYTES;
-			const payload = packet.payload.slice(start, start + ENCODED_CAPTURE_MAXIMUM_CHUNK_BYTES);
-			const index = exactSum(firstChunkIndex, packetChunkIndex, 'encoded capture chunk index');
-			const chunk: StoredCaptureChunk = {
-				key: mediaAssetChunkKey(expected.spoolToken, index),
-				sourceId: expected.sourceId,
-				mediaChunkToken: expected.spoolToken,
-				index,
-				payload,
-				byteLength: payload.size,
-				createdAt: timestamp(this.#now(), 'encoded capture chunk creation time'),
-				captureSpoolVersion: 1,
-				captureSpoolId: expected.spoolId,
-				packetSequence: packet.sequence,
-				packetChunkIndex,
-				packetChunkCount,
-				packetPtsMicroseconds: packet.ptsMicroseconds,
-				packetDurationMicroseconds: packet.durationMicroseconds,
-				payloadSha256: await this.#digest(payload),
-			};
-			await this.#chunks.write(chunk);
-		}
-		const next = freezeRecord({
-			...expected,
-			packetCount: exactSum(expected.packetCount, 1, 'encoded capture packetCount'),
-			chunkCount: exactSum(expected.chunkCount, packetChunkCount, 'encoded capture chunkCount'),
-			byteLength: exactSum(expected.byteLength, packet.payload.size, 'encoded capture byteLength'),
-			firstPtsMicroseconds: expected.firstPtsMicroseconds ?? packet.ptsMicroseconds,
-			lastPtsEndMicroseconds: exactSum(
-				packet.ptsMicroseconds,
-				packet.durationMicroseconds,
-				'encoded capture packet end',
-			),
-			updatedAt: timestamp(this.#now(), 'encoded capture update time'),
-		});
-		if (!await this.#replace(expected, next)) {
-			throw new Error(
-				'Encoded capture ownership changed after its packet became a removable tail outside the authoritative acknowledged prefix.',
-			);
-		}
-		return Object.freeze({
-			spool: next,
-			sequence: packet.sequence,
-			firstChunkIndex,
-			chunkCount: packetChunkCount,
-			byteLength: packet.payload.size,
-		});
+		return appendEncodedCaptureSpool(
+			this.#values, this.#chunks, expected, packetValue,
+			spoolKey(expected.projectId, expected.spoolId), normalizeRecord, this.#now, this.#digest,
+		);
+	}
+
+	async reconcileAppend(
+		currentValue: EncodedCaptureSpoolRecord,
+		prefix: EncodedCaptureAcknowledgedPrefix,
+	): Promise<EncodedCaptureSpoolRecord> {
+		const current = normalizeRecord(currentValue);
+		return reconcileEncodedCaptureAppend(
+			this.#values, current, prefix, spoolKey(current.projectId, current.spoolId), normalizeRecord,
+			(advanced, previous) => this.restoreAcknowledgedPrefix(advanced, previous),
+		);
 	}
 
 	/** Restore the exact manifest-acknowledged prefix after its following manifest CAS is refused. */
@@ -266,12 +254,25 @@ export class EncodedCaptureSpoolRepository {
 		const current = normalizeRecord(currentValue);
 		const acknowledged = normalizeRecord(acknowledgedValue);
 		assertSameOwnership(current, acknowledged);
-		return restoreEncodedCaptureAcknowledgedPrefix(current, acknowledged, {
-			replace: () => this.#replace(current, acknowledged),
-			load: () => this.load(current.projectId, current.spoolId),
-			deleteTail: () => Promise.resolve(this.#chunks.deleteTailOwned(
-				acknowledged.spoolToken, acknowledged.sourceId, acknowledged.chunkCount,
-			)),
+		const key = spoolKey(current.projectId, current.spoolId);
+		return withCaptureSpoolOperationLock(operationIdentity(current), async () => {
+			const restored = await restoreEncodedCaptureAcknowledgedPrefix(current, acknowledged, {
+				replace: () => prepareEncodedCaptureSpoolTail(this.#values, key, current, acknowledged),
+				load: async () => {
+					const value = await this.#values.get(key);
+					return value == null ? null : normalizeRecord(value);
+				},
+				deleteTail: () => recoverEncodedCaptureSpoolTail(
+					this.#values, this.#chunks, acknowledged,
+				).then(() => true),
+			});
+			const reconciled = await recoverEncodedCaptureAppendWhileLocked(
+				this.#values, this.#chunks, restored, key, normalizeRecord,
+			);
+			if (!reconciled || !sameRecord(reconciled, restored)) {
+				throw new Error('Encoded capture append intent changed after acknowledged-prefix repair.');
+			}
+			return reconciled;
 		});
 	}
 
@@ -397,35 +398,23 @@ export class EncodedCaptureSpoolRepository {
 		expected: EncodedCaptureSpoolRecord,
 		next: EncodedCaptureSpoolRecord,
 	): Promise<boolean> {
-		assertSameOwnership(expected, next);
-		return this.#values.replaceIfCurrent(spoolKey(expected.projectId, expected.spoolId), expected, next);
+		return withCaptureSpoolOperationLock(operationIdentity(expected), async () => {
+			const key = spoolKey(expected.projectId, expected.spoolId);
+			const observed = await this.#values.get(key);
+			if (observed == null || !sameRecord(normalizeRecord(observed), expected)) return false;
+			await recoverEncodedCaptureSpoolTail(this.#values, this.#chunks, expected);
+			await assertNoPendingEncodedCaptureAppend(this.#values, expected, normalizeRecord);
+			assertSameOwnership(expected, next);
+			return this.#values.replaceIfCurrent(key, expected, next);
+		});
 	}
 }
 
-function normalizeCreateRequest(value: CreateEncodedCaptureSpoolRequest): CreateEncodedCaptureSpoolRequest {
+function operationIdentity(record: EncodedCaptureSpoolRecord) {
 	return Object.freeze({
-		projectId: stableId(value?.projectId, 'encoded capture projectId'),
-		sessionId: stableId(value?.sessionId, 'encoded capture sessionId'),
-		streamId: stableId(value?.streamId, 'encoded capture streamId'),
-		spoolId: stableId(value?.spoolId, 'encoded capture spoolId'),
-		sourceId: stableId(value?.sourceId, 'encoded capture sourceId'),
-		mimeType: mimeType(value?.mimeType),
+		storageKind: 'encoded-media' as const, projectId: record.projectId,
+		spoolId: record.spoolId, spoolToken: record.spoolToken,
 	});
-}
-
-function normalizePacket(value: EncodedCapturePacket, expected: EncodedCaptureSpoolRecord): EncodedCapturePacket {
-	const sequence = boundedNonNegativeInteger(value?.sequence, MAXIMUM_PACKETS - 1, 'encoded capture packet sequence');
-	if (sequence !== expected.packetCount) throw new Error('Encoded capture append requires the next contiguous packet sequence.');
-	const ptsMicroseconds = nonNegativeInteger(value?.ptsMicroseconds, 'encoded capture packet PTS');
-	const durationMicroseconds = positiveInteger(value?.durationMicroseconds, 'encoded capture packet duration');
-	if (!(value?.payload instanceof Blob) || value.payload.size < 1
-		|| value.payload.size > ENCODED_CAPTURE_MAXIMUM_PACKET_BYTES) {
-		throw new RangeError('Encoded capture packet payload exceeds its strict byte bound.');
-	}
-	if (expected.lastPtsEndMicroseconds !== null && ptsMicroseconds < expected.lastPtsEndMicroseconds) {
-		throw new Error('Encoded capture packet timestamps must be contiguous and monotonic.');
-	}
-	return Object.freeze({ sequence, ptsMicroseconds, durationMicroseconds, payload: value.payload.slice() });
 }
 
 function normalizeRecord(value: unknown): EncodedCaptureSpoolRecord {

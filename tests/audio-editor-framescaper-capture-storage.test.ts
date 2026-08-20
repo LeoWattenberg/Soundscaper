@@ -42,6 +42,7 @@ test('encoded capture append acknowledges a bounded durable prefix and adopts wi
 		payload: new Blob([bytes]),
 	});
 	spool = acknowledgement.spool;
+	spool = await acknowledgeEncoded(fixture.spools, spool);
 
 	assert.equal(acknowledgement.firstChunkIndex, 0);
 	assert.equal(acknowledgement.chunkCount, 2);
@@ -76,6 +77,12 @@ test('a failed append CAS leaves a removable tail outside the acknowledged prefi
 	const spools = new EncodedCaptureSpoolRepository({
 		get: fixture.values.get.bind(fixture.values),
 		putIfAbsent: fixture.values.putIfAbsent.bind(fixture.values),
+		putIfAbsentWhenCurrent: fixture.values.putIfAbsentWhenCurrent.bind(fixture.values),
+		replaceIfCurrentWhenCurrent: async (fenceKey, expectedFence, key, expected, replacement) => (
+			rejectReplacement ? false : fixture.values.replaceIfCurrentWhenCurrent(
+				fenceKey, expectedFence, key, expected, replacement,
+			)
+		),
 		deleteIfCurrent: fixture.values.deleteIfCurrent.bind(fixture.values),
 		listByPrefix: fixture.values.listByPrefix.bind(fixture.values),
 		async replaceIfCurrent(key, expected, replacement) {
@@ -90,13 +97,14 @@ test('a failed append CAS leaves a removable tail outside the acknowledged prefi
 	await assert.rejects(spools.append(created, {
 		sequence: 0, ptsMicroseconds: 0, durationMicroseconds: 1_000,
 		payload: new Blob([Uint8Array.of(1, 2, 3)]),
-	}), /outside the authoritative acknowledged prefix/u);
+	}), /inventoried removable tail/u);
+	assert.equal(fixture.memory.mediaAssetChunks.size, 1, 'the pre-write intent retains the physical crash tail');
 
 	const current = await spools.load('project-tail', 'display-spool');
 	assert.ok(current);
 	assert.equal(current.packetCount, 0);
 	assert.deepEqual(await collect(spools.read(current)), []);
-	assert.equal(fixture.memory.mediaAssetChunks.size, 1, 'the physical crash tail remains reclaimable');
+	assert.equal(fixture.memory.mediaAssetChunks.size, 0, 'fresh load reclaims the inventoried crash tail');
 	rejectReplacement = false;
 	await spools.delete(current);
 	assert.equal(fixture.memory.mediaAssetChunks.size, 0);
@@ -133,11 +141,51 @@ test('encoded prefixes and session manifests reload from existing IndexedDB stor
 	await first.close();
 
 	const reopened = indexedStorageFixture(indexedDB, databaseName);
-	const loaded = await reopened.spools.load('project-reload', 'display-spool');
+	let loaded = await reopened.spools.load('project-reload', 'display-spool');
 	assert.ok(loaded);
+	loaded = await acknowledgeEncoded(reopened.spools, loaded);
 	assert.deepEqual(await collect(reopened.spools.read(loaded)), expectedChunks);
 	assert.deepEqual(await reopened.manifests.load('project-reload', 'session-reload'), session);
 	await reopened.close();
+});
+
+test('IndexedDB commits inventoried and fenced analysis rows in their owning transactions', async () => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = uniqueName();
+	const database = openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	const values = new KeyValueRepository({
+		memory: getMemoryDatabase(databaseName),
+		database: async () => database,
+	}, 'analysis');
+	const creating = { version: 1, state: 'creating' };
+	await values.put('creation-fence', creating);
+	assert.equal(await values.putIfAbsentWhenCurrent(
+		'creation-fence', creating, 'spool-metadata', { version: 1 },
+	), true);
+	assert.equal(await values.putIfAbsentWhenCurrent(
+		'creation-fence', { ...creating, state: 'cleanup-pending' }, 'late-spool', { version: 1 },
+	), false);
+	const inventory = { version: 1, entries: [{ projectId: 'project-one', sessionId: 'session-one' }] };
+	assert.equal(await values.putIfAbsentAndUpdate(
+		'creation-journal', creating, 'creation-admission', undefined, inventory,
+	), true);
+	await values.put('tail-owner', { chunkCount: 2 });
+	assert.equal(await values.replaceIfCurrentAndPutIfAbsent(
+		'tail-owner', { chunkCount: 2 }, { chunkCount: 1 },
+		'tail-intent', { version: 1, firstIndex: 1 },
+	), true);
+	assert.equal(await values.replaceIfCurrentAndPutIfAbsent(
+		'tail-owner', { chunkCount: 1 }, { chunkCount: 0 },
+		'tail-intent', { version: 1, firstIndex: 0 },
+	), false);
+
+	assert.deepEqual(await values.get('spool-metadata'), { version: 1 });
+	assert.equal(await values.get('late-spool'), undefined);
+	assert.deepEqual(await values.get('creation-journal'), creating);
+	assert.deepEqual(await values.get('creation-admission'), inventory);
+	assert.deepEqual(await values.get('tail-owner'), { chunkCount: 1 });
+	assert.deepEqual(await values.get('tail-intent'), { version: 1, firstIndex: 1 });
+	(await database).close();
 });
 
 test('encoded capture prefers durable OPFS chunks and reopens their exact ownership map', async () => {
@@ -165,6 +213,7 @@ test('encoded capture prefers durable OPFS chunks and reopens their exact owners
 		sequence: 0, ptsMicroseconds: 0, durationMicroseconds: 1_000,
 		payload: new Blob([Uint8Array.of(3, 4, 5)]),
 	})).spool;
+	spool = await acknowledgeEncoded(repository, spool);
 
 	assert.equal(await chunks.backend(spool.spoolToken), 'opfs');
 	assert.equal(memory.mediaAssetChunks.size, 0);
@@ -201,10 +250,11 @@ test('OPFS acknowledged-prefix repair removes its exact tail before retry or del
 		projectId: 'project-repair', sessionId: 'session-repair', streamId: 'camera-stream',
 		spoolId: 'camera-spool', sourceId: 'camera-source', mimeType: 'video/webm',
 	});
-	const acknowledged = (await repository.append(created, {
+	let acknowledged = (await repository.append(created, {
 		sequence: 0, ptsMicroseconds: 0, durationMicroseconds: 1_000,
 		payload: new Blob([Uint8Array.of(1, 2, 3)]),
 	})).spool;
+	acknowledged = await acknowledgeEncoded(repository, acknowledged);
 	const advanced = (await repository.append(acknowledged, {
 		sequence: 1, ptsMicroseconds: 1_000, durationMicroseconds: 1_000,
 		payload: new Blob([Uint8Array.of(4, 5, 6)]),
@@ -219,7 +269,7 @@ test('OPFS acknowledged-prefix repair removes its exact tail before retry or del
 		sequence: 1, ptsMicroseconds: 1_000, durationMicroseconds: 1_000,
 		payload: new Blob([Uint8Array.of(7, 8, 9)]),
 	})).spool;
-	await repository.delete(retried);
+	await repository.delete(await acknowledgeEncoded(repository, retried));
 	assert.equal(files.size, 0);
 	assert.equal(await chunks.backend(retried.spoolToken), null);
 });
@@ -241,6 +291,7 @@ test('project-store composition exposes capture recovery storage and retention p
 		sequence: 0, ptsMicroseconds: 0, durationMicroseconds: 1_000,
 		payload: new Blob([Uint8Array.of(8, 9)]),
 	})).spool;
+	spool = await acknowledgeEncoded(store.encodedCaptureSpoolRepository, spool);
 
 	await store.cleanupTemporaryAssets({ maximumAgeMs: -1 });
 	assert.equal((await collect(store.encodedCaptureSpoolRepository.read(spool))).length, 1);
@@ -263,10 +314,11 @@ test('encoded capture storage rejects stale ownership, invalid packet order, and
 		sequence: 0, ptsMicroseconds: 0, durationMicroseconds: 1_000,
 		payload: new Blob([Uint8Array.of(1)]),
 	})).spool;
+	spool = await acknowledgeEncoded(fixture.spools, spool);
 	await assert.rejects(fixture.spools.append(stale, {
 		sequence: 0, ptsMicroseconds: 0, durationMicroseconds: 1_000,
 		payload: new Blob([Uint8Array.of(2)]),
-	}), /ownership changed/u);
+	}), /changed/u);
 	const [storedKey, storedValue] = fixture.memory.mediaAssetChunks.entries().next().value!;
 	fixture.memory.mediaAssetChunks.set(storedKey, {
 		...storedValue as Record<string, unknown>, sourceId: 'foreign-source',
@@ -417,6 +469,19 @@ function indexedStorageFixture(indexedDB: ReturnType<typeof createInstrumentedIn
 		manifests: new FramescaperCaptureSessionManifestRepository(values),
 		async close() { (await database).close(); },
 	};
+}
+
+function acknowledgeEncoded(
+	repository: EncodedCaptureSpoolRepository,
+	record: Awaited<ReturnType<EncodedCaptureSpoolRepository['create']>>,
+) {
+	return repository.reconcileAppend(record, {
+		packetCount: record.packetCount,
+		chunkCount: record.chunkCount,
+		byteLength: record.byteLength,
+		firstPtsMicroseconds: record.firstPtsMicroseconds,
+		lastPtsEndMicroseconds: record.lastPtsEndMicroseconds,
+	});
 }
 
 async function collect<Value>(values: AsyncIterable<Value>): Promise<Value[]> {

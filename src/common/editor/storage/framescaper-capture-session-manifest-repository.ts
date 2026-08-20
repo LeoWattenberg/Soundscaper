@@ -5,28 +5,32 @@ import {
 	type FramescaperCaptureSessionManifestV1,
 	type FramescaperCaptureStreamManifestV1,
 } from '../framescaper-capture-session-manifest.ts';
+import {
+	FramescaperCaptureSessionCreationRepository,
+	framescaperCaptureManifestKey as manifestKey,
+	framescaperCaptureManifestProjectPrefix as projectPrefix,
+	hasFramescaperCaptureCreationKind,
+	normalizeFramescaperCaptureSessionCreation,
+	type FramescaperCaptureManifestKeyValuePort,
+	type FramescaperCaptureSessionCreationV1,
+} from './framescaper-capture-session-creation-repository.ts';
 
-const KEY_PREFIX = 'framescaper-capture-session-manifest-v1:';
-
-export interface FramescaperCaptureManifestKeyValuePort {
-	get(key: string): PromiseLike<unknown> | unknown;
-	putIfAbsent(key: string, value: unknown): PromiseLike<boolean> | boolean;
-	replaceIfCurrent(
-		key: string,
-		expected: unknown,
-		replacement: unknown,
-	): PromiseLike<boolean> | boolean;
-	deleteIfCurrent(key: string, expected: unknown): PromiseLike<boolean> | boolean;
-	listByPrefix(prefix: string): PromiseLike<readonly Readonly<{ readonly value: unknown }>[]> |
-		readonly Readonly<{ readonly value: unknown }>[];
-}
+export type {
+	FramescaperCaptureCreationStreamV1,
+	FramescaperCaptureManifestKeyValuePort,
+	FramescaperCaptureSessionCreationV1,
+	FramescaperEncodedCaptureCreationStreamV1,
+	FramescaperRawPcmCaptureCreationStreamV1,
+} from './framescaper-capture-session-creation-repository.ts';
 
 /** Durable, CAS-forward capture sessions stored in the existing analysis domain. */
 export class FramescaperCaptureSessionManifestRepository {
 	readonly #values: FramescaperCaptureManifestKeyValuePort;
+	readonly #creations: FramescaperCaptureSessionCreationRepository;
 
 	constructor(values: FramescaperCaptureManifestKeyValuePort) {
 		this.#values = values;
+		this.#creations = new FramescaperCaptureSessionCreationRepository(values);
 	}
 
 	async load(projectIdValue: string, sessionIdValue: string): Promise<FramescaperCaptureSessionManifestV1 | null> {
@@ -34,6 +38,10 @@ export class FramescaperCaptureSessionManifestRepository {
 		const sessionId = stableId(sessionIdValue, 'Framescaper capture sessionId');
 		const value = await this.#values.get(manifestKey(projectId, sessionId));
 		if (value === undefined || value === null) return null;
+		if (hasFramescaperCaptureCreationKind(value)) {
+			normalizeFramescaperCaptureSessionCreation(value);
+			return null;
+		}
 		const manifest = normalizeFramescaperCaptureSessionManifest(value);
 		if (manifest.projectFence.projectId !== projectId || manifest.sessionId !== sessionId) {
 			throw new Error('Framescaper capture manifest key ownership changed.');
@@ -44,12 +52,17 @@ export class FramescaperCaptureSessionManifestRepository {
 	async listProject(projectIdValue: string): Promise<readonly FramescaperCaptureSessionManifestV1[]> {
 		const projectId = stableId(projectIdValue, 'Framescaper capture projectId');
 		const prefix = projectPrefix(projectId);
-		const manifests = (await this.#values.listByPrefix(prefix)).map(({ value }) => {
+		const manifests = (await this.#values.listByPrefix(prefix)).flatMap(({ key, value }) => {
+			if (hasFramescaperCaptureCreationKind(value)) {
+				normalizeFramescaperCaptureSessionCreation(value);
+				return [];
+			}
 			const manifest = normalizeFramescaperCaptureSessionManifest(value);
-			if (manifest.projectFence.projectId !== projectId) {
+			if (manifest.projectFence.projectId !== projectId
+				|| key !== manifestKey(projectId, manifest.sessionId)) {
 				throw new Error('Framescaper capture inventory contains foreign project ownership.');
 			}
-			return manifest;
+			return [manifest];
 		});
 		return Object.freeze(manifests.sort((left, right) => left.sessionId.localeCompare(right.sessionId)));
 	}
@@ -63,6 +76,13 @@ export class FramescaperCaptureSessionManifestRepository {
 			throw new Error(`Framescaper capture session ${manifest.sessionId} already exists.`);
 		}
 		return manifest;
+	}
+
+	async publishCreation(
+		expectedValue: unknown,
+		value: unknown,
+	): Promise<FramescaperCaptureSessionManifestV1> {
+		return this.#creations.publishCreation(expectedValue, value);
 	}
 
 	async replace(
@@ -90,6 +110,38 @@ export class FramescaperCaptureSessionManifestRepository {
 		)) {
 			throw new Error('The Framescaper capture session changed before removal.');
 		}
+	}
+
+	async loadCreation(
+		projectIdValue: string,
+		sessionIdValue: string,
+	): Promise<FramescaperCaptureSessionCreationV1 | null> {
+		return this.#creations.loadCreation(projectIdValue, sessionIdValue);
+	}
+
+	async listProjectCreations(
+		projectIdValue: string,
+	): Promise<readonly FramescaperCaptureSessionCreationV1[]> {
+		return this.#creations.listProjectCreations(projectIdValue);
+	}
+
+	async listCreations(): Promise<readonly FramescaperCaptureSessionCreationV1[]> {
+		return this.#creations.listCreations();
+	}
+
+	async createCreation(value: unknown): Promise<FramescaperCaptureSessionCreationV1> {
+		return this.#creations.createCreation(value);
+	}
+
+	async replaceCreation(
+		expectedValue: unknown,
+		nextValue: unknown,
+	): Promise<FramescaperCaptureSessionCreationV1> {
+		return this.#creations.replaceCreation(expectedValue, nextValue);
+	}
+
+	async removeCreation(expectedValue: unknown): Promise<void> {
+		await this.#creations.removeCreation(expectedValue);
 	}
 }
 
@@ -238,14 +290,6 @@ function playabilityCanTransition(
 	to: FramescaperCaptureStreamManifestV1['playability'],
 ): boolean {
 	return from === to || from === 'unknown';
-}
-
-function manifestKey(projectId: string, sessionId: string): string {
-	return `${projectPrefix(projectId)}${encodeURIComponent(sessionId)}`;
-}
-
-function projectPrefix(projectId: string): string {
-	return `${KEY_PREFIX}${encodeURIComponent(projectId)}:`;
 }
 
 function stableId(value: unknown, name: string): string {

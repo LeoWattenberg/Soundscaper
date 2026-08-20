@@ -232,6 +232,34 @@ export class OpfsRepository {
 		} catch { /* Missing and orphaned files are harmless. */ }
 	}
 
+	/** Delete a durably referenced path, reconciling acknowledgement loss and surfacing retained bodies. */
+	async deletePathExact(pathValue: string): Promise<void> {
+		if (!pathValue || pathValue !== pathValue.trim() || pathValue.length > 512
+			|| /[\u0000-\u001f\u007f]/u.test(pathValue)) {
+			throw new TypeError('An exact OPFS deletion requires a valid path.');
+		}
+		this.#indexCache.delete(pathValue);
+		const directory = await this.directory();
+		if (!directory?.getFileHandle || !directory.removeEntry) {
+			throw new Error('The exact OPFS deletion backend is unavailable.');
+		}
+		let removalFailure: unknown = null;
+		try {
+			if (!await this.#sync.remove(directory, pathValue)) await directory.removeEntry(pathValue);
+		} catch (error) { removalFailure = error; }
+		try {
+			await directory.getFileHandle(pathValue);
+		} catch (error) {
+			if (isNotFoundError(error)) return;
+			if (removalFailure !== null) {
+				throw new AggregateError([removalFailure, error], 'Exact OPFS deletion could not verify its result.');
+			}
+			throw error;
+		}
+		if (removalFailure !== null) throw removalFailure;
+		throw new Error('Exact OPFS deletion left its referenced path present.');
+	}
+
 	invalidate(path: string | null | undefined): void {
 		if (path) this.#indexCache.delete(path);
 	}

@@ -43,7 +43,9 @@ interface OpfsCaptureChunkReference {
 
 export interface OpfsPreferredEncodedCaptureChunkPortOptions {
 	readonly values: CaptureChunkKeyValuePort;
-	readonly opfs: Pick<OpfsRepository, 'directory' | 'writeBlob' | 'loadBinaryRecord' | 'deletePath'>;
+	readonly opfs: Pick<OpfsRepository,
+		'directory' | 'writeBlob' | 'loadBinaryRecord' | 'deletePath' | 'deletePathExact'
+	>;
 	readonly fallback: CaptureChunkFallbackPort;
 }
 
@@ -130,12 +132,9 @@ export class OpfsPreferredEncodedCaptureChunkPort {
 			if (reference.sourceId !== sourceId) return false;
 			references.push(reference);
 		}
-		for (const reference of references) {
-			if (!await this.#values.deleteIfCurrent(
-				referenceKey(token, reference.index),
-				reference,
-			)) return false;
-			await this.#opfs.deletePath(reference.path);
+		for (const reference of references) await this.#opfs.deletePathExact(reference.path);
+		for (const reference of [...references].reverse()) {
+			if (!await this.#deleteReference(reference)) return false;
 		}
 		return this.#values.deleteIfCurrent(selectionKey(token), selection);
 	}
@@ -156,9 +155,9 @@ export class OpfsPreferredEncodedCaptureChunkPort {
 			if (reference.sourceId !== sourceId) return false;
 			references.push(reference);
 		}
-		for (const reference of references) {
-			if (!await this.#values.deleteIfCurrent(referenceKey(token, reference.index), reference)) return false;
-			await this.#opfs.deletePath(reference.path);
+		for (const reference of references) await this.#opfs.deletePathExact(reference.path);
+		for (const reference of [...references].reverse()) {
+			if (!await this.#deleteReference(reference)) return false;
 		}
 		return true;
 	}
@@ -229,6 +228,17 @@ export class OpfsPreferredEncodedCaptureChunkPort {
 		const value = await this.#values.get(referenceKey(token, index));
 		if (value === undefined || value === null) return null;
 		return normalizeReference(value, token, index);
+	}
+
+	async #deleteReference(reference: OpfsCaptureChunkReference): Promise<boolean> {
+		const key = referenceKey(reference.token, reference.index);
+		try {
+			if (await this.#values.deleteIfCurrent(key, reference)) return true;
+		} catch (error) {
+			if (await this.#reference(reference.token, reference.index)) throw error;
+			return true;
+		}
+		return await this.#reference(reference.token, reference.index) === null;
 	}
 }
 

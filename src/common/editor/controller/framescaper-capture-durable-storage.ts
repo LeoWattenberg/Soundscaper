@@ -14,6 +14,7 @@ import type {
 	RawPcmSpoolRepository,
 } from '../storage/raw-pcm-spool-repository.ts';
 import { FRAMESCAPER_CAPTURE_PCM_MAXIMUM_GAP_FRAMES } from '../storage/raw-pcm-spool-chunk-timing.ts';
+import type { CaptureSpoolCreationFence } from '../storage/capture-spool-creation-fence.ts';
 
 interface CaptureStreamRegistrationBase {
 	readonly streamId: string;
@@ -41,14 +42,15 @@ export type FramescaperCaptureStreamRegistration =
 
 export type EncodedSpoolPort = Pick<EncodedCaptureSpoolRepository,
 	'create' | 'load' | 'append' | 'seal' | 'delete' | 'releaseAdopted' | 'restoreAcknowledgedPrefix'
->;
+> & Partial<Pick<EncodedCaptureSpoolRepository, 'reconcileAppend'>>;
 export type RawPcmSpoolPort = Pick<RawPcmSpoolRepository,
 	'create' | 'load' | 'append' | 'seal' | 'remove' | 'restoreAcknowledgedPrefix'
->;
+> & Partial<Pick<RawPcmSpoolRepository, 'releaseReservation' | 'reconcileAppend'>>;
+type FramescaperRawPcmSpoolPort = RawPcmSpoolPort & Partial<Pick<RawPcmSpoolRepository, 'createFramescaper'>>;
 
 export interface DurableCaptureStoragePorts {
 	readonly encodedSpools: EncodedSpoolPort;
-	readonly rawPcmSpools: RawPcmSpoolPort;
+	readonly rawPcmSpools: FramescaperRawPcmSpoolPort;
 }
 
 interface RawPcmOwnerV1 {
@@ -115,6 +117,8 @@ export async function createCaptureSpool(
 	repositories: DurableCaptureStoragePorts,
 	identity: Readonly<{ readonly sessionId: string; readonly projectId: string }>,
 	registration: FramescaperCaptureStreamRegistration,
+	spoolToken?: string,
+	creationFence?: CaptureSpoolCreationFence,
 ): Promise<OwnedCaptureSpool> {
 	if (registration.kind === 'encoded-media') {
 		const record = await repositories.encodedSpools.create({
@@ -122,15 +126,23 @@ export async function createCaptureSpool(
 			sessionId: identity.sessionId,
 			streamId: registration.streamId,
 			spoolId: registration.spoolId,
+			...(spoolToken === undefined ? {} : { spoolToken }),
+			...(creationFence === undefined ? {} : { creationFence }),
 			sourceId: registration.sourceId,
 			mimeType: registration.mimeType,
 		});
 		return Object.freeze({ kind: 'encoded-media', record });
 	}
 	const owner = rawPcmOwner(identity.sessionId, registration);
-	const record = await repositories.rawPcmSpools.create({
+	const createFramescaper = repositories.rawPcmSpools.createFramescaper;
+	if (typeof createFramescaper !== 'function') {
+		throw new Error('Framescaper raw PCM manifest append fencing is unavailable.');
+	}
+	const record = await createFramescaper.call(repositories.rawPcmSpools, {
 		projectId: identity.projectId,
 		spoolId: registration.spoolId,
+		...(spoolToken === undefined ? {} : { spoolToken }),
+		...(creationFence === undefined ? {} : { creationFence }),
 		sampleRate: registration.sampleRate,
 		channelCount: registration.channelCount,
 		chunkFrames: registration.chunkFrames,
@@ -194,19 +206,30 @@ export async function inspectCaptureStorage(
 	for (const stream of manifest.streams) {
 		if (stream.storage.kind === 'encoded-media') {
 			const storage = stream.storage;
-			const record = await repositories.encodedSpools.load(
+			const loaded = await repositories.encodedSpools.load(
 				manifest.projectFence.projectId,
 				storage.spoolId,
 			);
+			const record = loaded && await requiredEncodedAppendReconciliation(repositories)(loaded, {
+				packetCount: storage.packetCount,
+				chunkCount: storage.chunkCount,
+				byteLength: storage.byteLength,
+				firstPtsMicroseconds: stream.timing.firstPresentationMicroseconds,
+				lastPtsEndMicroseconds: stream.timing.lastPresentationEndMicroseconds,
+			});
 			if (!record) missing.push(stream.streamId);
 			else if (!encodedStorageMatches(manifest, stream, storage, record)) changed.push(stream.streamId);
 			else spools.set(stream.streamId, Object.freeze({ kind: 'encoded-media', record }));
 		} else {
 			const storage = stream.storage;
-			const record = await repositories.rawPcmSpools.load(
+			const loaded = await repositories.rawPcmSpools.load(
 				manifest.projectFence.projectId,
 				storage.spoolId,
 			);
+			const record = loaded && await requiredRawPcmAppendReconciliation(repositories)(loaded, {
+				frameCount: storage.frameCount,
+				chunkCount: storage.chunkCount,
+			});
 			const owner = rawPcmOwnerFromManifest(manifest, stream, storage);
 			if (!record) missing.push(stream.streamId);
 			else if (!rawPcmStorageMatches(manifest, storage, record, owner)) changed.push(stream.streamId);
@@ -298,6 +321,21 @@ export async function cleanupCreatedCaptureSpools(
 	}
 }
 
+/** Reconcile a raw global reservation after its exact terminal registry row is already absent. */
+export async function releaseMissingCaptureSpoolReservation(
+	repositories: DurableCaptureStoragePorts,
+	manifest: FramescaperCaptureSessionManifestV1,
+	stream: FramescaperCaptureStreamManifestV1,
+): Promise<void> {
+	if (stream.storage.kind !== 'raw-pcm') return;
+	const release = repositories.rawPcmSpools.releaseReservation;
+	if (typeof release !== 'function' || !await release.call(repositories.rawPcmSpools, {
+		projectId: manifest.projectFence.projectId,
+		spoolId: stream.storage.spoolId,
+		spoolToken: stream.storage.spoolToken,
+	})) throw new Error(`Framescaper capture storage ownership changed for ${stream.streamId}.`);
+}
+
 export function requiredCaptureSpool(
 	spools: Map<string, OwnedCaptureSpool>,
 	streamId: string,
@@ -305,6 +343,47 @@ export function requiredCaptureSpool(
 	const spool = spools.get(streamId);
 	if (!spool) throw new Error(`Framescaper capture spool ${streamId} is missing.`);
 	return spool;
+}
+
+/** Retire only the append intent proven by the newly durable manifest prefix. */
+export async function acknowledgeCaptureAppend(
+	repositories: DurableCaptureStoragePorts,
+	manifest: FramescaperCaptureSessionManifestV1,
+	streamId: string,
+	spool: OwnedCaptureSpool,
+): Promise<OwnedCaptureSpool> {
+	const stream = manifest.streams.find((candidate) => candidate.streamId === streamId);
+	if (!stream) throw new Error(`Framescaper capture stream ${streamId} is missing after append acknowledgement.`);
+	if (spool.kind === 'encoded-media' && stream.storage.kind === 'encoded-media') {
+		const record = await requiredEncodedAppendReconciliation(repositories)(spool.record, {
+			packetCount: stream.storage.packetCount,
+			chunkCount: stream.storage.chunkCount,
+			byteLength: stream.storage.byteLength,
+			firstPtsMicroseconds: stream.timing.firstPresentationMicroseconds,
+			lastPtsEndMicroseconds: stream.timing.lastPresentationEndMicroseconds,
+		});
+		return Object.freeze({ kind: 'encoded-media', record });
+	}
+	if (spool.kind === 'raw-pcm' && stream.storage.kind === 'raw-pcm') {
+		const record = await requiredRawPcmAppendReconciliation(repositories)(spool.record, {
+			frameCount: stream.storage.frameCount,
+			chunkCount: stream.storage.chunkCount,
+		});
+		return Object.freeze({ ...spool, record });
+	}
+	throw new Error('Framescaper capture spool kind changed during append acknowledgement.');
+}
+
+function requiredEncodedAppendReconciliation(repositories: DurableCaptureStoragePorts) {
+	const reconcile = repositories.encodedSpools.reconcileAppend;
+	if (typeof reconcile !== 'function') throw new Error('Encoded capture append reconciliation is unavailable.');
+	return reconcile.bind(repositories.encodedSpools);
+}
+
+function requiredRawPcmAppendReconciliation(repositories: DurableCaptureStoragePorts) {
+	const reconcile = repositories.rawPcmSpools.reconcileAppend;
+	if (typeof reconcile !== 'function') throw new Error('Raw PCM append reconciliation is unavailable.');
+	return reconcile.bind(repositories.rawPcmSpools);
 }
 
 function rawPcmOwner(
@@ -366,6 +445,7 @@ function rawPcmStorageMatches(
 		&& record.spoolToken === storage.spoolToken
 		&& record.sampleRate === storage.sampleRate
 		&& record.channelCount === storage.channelCount
+		&& record.appendProtocol === 'framescaper-manifest-v1'
 		&& record.frameCount === storage.frameCount
 		&& record.chunkCount === storage.chunkCount
 		&& JSON.stringify(record.data) === JSON.stringify(owner)
@@ -379,6 +459,7 @@ function storageStateMatches(
 ): boolean {
 	if (manifestState === 'capturing') return spoolState === 'capturing' || spoolState === 'sealed';
 	if (manifestState === 'discarded') return spoolState !== 'adopted';
+	if (manifestState === 'committed' && spoolState === 'deleting') return true;
 	if (!hasData) return spoolState === 'capturing';
 	return spoolState === 'sealed' || spoolState === 'adopted';
 }

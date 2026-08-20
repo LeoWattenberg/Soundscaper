@@ -18,6 +18,7 @@ import type {
 import type { EncodedCaptureSpoolRepository } from '../storage/encoded-capture-spool-repository.ts';
 import type { FramescaperCaptureSessionManifestRepository } from '../storage/framescaper-capture-session-manifest-repository.ts';
 import type { RawPcmSpoolRepository } from '../storage/raw-pcm-spool-repository.ts';
+import { captureSpoolCrossContextLockAvailable } from '../storage/capture-spool-operation-lock.ts';
 import {
 	createFramescaperBrowserRecorderFactory,
 	type FramescaperBrowserRecorderFactoryOptions,
@@ -67,11 +68,15 @@ import {
 } from '../video-timing-probe.ts';
 
 type EncodedCaptureRepositories = Pick<EncodedCaptureSpoolRepository,
-	'create' | 'load' | 'append' | 'seal' | 'delete' | 'read' | 'releaseAdopted' | 'restoreAcknowledgedPrefix'>;
+	'create' | 'load' | 'append' | 'reconcileAppend' | 'seal' | 'delete' | 'read'
+	| 'releaseAdopted' | 'restoreAcknowledgedPrefix'>;
 type RawPcmCaptureRepositories = Pick<RawPcmSpoolRepository,
-	'create' | 'load' | 'append' | 'seal' | 'remove' | 'chunks' | 'restoreAcknowledgedPrefix'>;
+	'create' | 'createFramescaper' | 'load' | 'append' | 'reconcileAppend' | 'seal'
+	| 'remove' | 'releaseReservation' | 'chunks' | 'restoreAcknowledgedPrefix'>;
 type CaptureManifestRepositories = Pick<FramescaperCaptureSessionManifestRepository,
-	'create' | 'load' | 'listProject' | 'replace' | 'remove'>;
+	'create' | 'load' | 'listProject' | 'replace' | 'remove' | 'createCreation'
+	| 'loadCreation' | 'listProjectCreations' | 'listCreations' | 'publishCreation'
+	| 'replaceCreation' | 'removeCreation'>;
 export interface FramescaperCaptureAppStore extends FramescaperCaptureCanonicalStore {
 	readonly encodedCaptureSpoolRepository?: EncodedCaptureRepositories;
 	readonly rawPcmSpoolRepository?: RawPcmCaptureRepositories;
@@ -124,6 +129,7 @@ export interface FramescaperCaptureAppCompositionOptions {
 	readonly desktopBridge?: FramescaperCaptureDesktopBridgeV1 | null;
 	readonly projectPublication?: FramescaperCaptureProjectPublicationPort | null;
 	readonly recoveryProjectIds?: () => PromiseLike<readonly string[]> | readonly string[];
+	readonly captureSpoolLockAvailable?: () => boolean;
 	readonly prepareRecoveryOrigin?: (projectId: string) => PromiseLike<void> | void;
 	captureOrigin(): ReturnType<Parameters<typeof createFramescaperCaptureSessionService>[0]['captureOrigin']>;
 	capturePublicationContext(
@@ -493,6 +499,9 @@ async function completeRuntimeProbe(input: Readonly<{
 		&& typeof context.createMediaStreamSource === 'function'
 	);
 	if (typeof input.TrackProcessor !== 'function' && !worklet) return unavailable('audio-packet-source-unavailable');
+	if (!(input.options.captureSpoolLockAvailable ?? captureSpoolCrossContextLockAvailable)()) {
+		return unavailable('durable-storage-unavailable');
+	}
 	if (!input.durable) return unavailable('durable-storage-unavailable');
 	if (!input.videoProbe) return unavailable('media-probe-unavailable');
 	if (!input.canonical) return unavailable('durable-storage-unavailable');
@@ -514,10 +523,15 @@ function hasCaptureRepositories(
 >> {
 	return Boolean(store
 		&& methods(store.encodedCaptureSpoolRepository,
-			['create', 'load', 'append', 'seal', 'delete', 'read', 'releaseAdopted', 'restoreAcknowledgedPrefix'])
+			['create', 'load', 'append', 'reconcileAppend', 'seal', 'delete', 'read',
+				'releaseAdopted', 'restoreAcknowledgedPrefix'])
 		&& methods(store.rawPcmSpoolRepository,
-			['create', 'load', 'append', 'seal', 'remove', 'chunks', 'restoreAcknowledgedPrefix'])
-		&& methods(store.framescaperCaptureManifestRepository, ['create', 'load', 'listProject', 'replace', 'remove']));
+			['create', 'createFramescaper', 'load', 'append', 'reconcileAppend', 'seal',
+				'remove', 'releaseReservation', 'chunks', 'restoreAcknowledgedPrefix'])
+		&& methods(store.framescaperCaptureManifestRepository,
+			['create', 'load', 'listProject', 'replace', 'remove', 'createCreation',
+				'loadCreation', 'listProjectCreations', 'listCreations', 'publishCreation',
+				'replaceCreation', 'removeCreation']));
 }
 function hasCanonicalStore(store: FramescaperCaptureAppStore): boolean {
 	return methods(store, [

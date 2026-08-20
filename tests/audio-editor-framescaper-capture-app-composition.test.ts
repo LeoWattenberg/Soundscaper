@@ -30,6 +30,12 @@ test('product, embedding, encoder, durability, and probe gaps fail closed', asyn
 			MediaStreamTrackProcessor: null, AudioWorkletNode: null,
 		}, 'audio-packet-source-unavailable'],
 		['durability', { store: null }, 'durable-storage-unavailable'],
+		['incomplete append-intent repositories', {
+			store: incompleteCaptureStore(),
+		}, 'durable-storage-unavailable'],
+		['cross-context spool locking', {
+			captureSpoolLockAvailable: () => false,
+		}, 'durable-storage-unavailable'],
 		['video probe', { videoProbe: null }, 'media-probe-unavailable'],
 		['wrong web route', { routeSchemaVersion: 18 }, 'unsupported-platform'],
 	] as const) {
@@ -223,23 +229,38 @@ function captureStore(onManifestList: () => void) {
 			async listProject() { onManifestList(); return []; },
 			async replace(_expected: unknown, next: unknown) { return next; },
 			async remove() {},
+			async createCreation(value: unknown) { return value; },
+			async listProjectCreations() { return []; }, async listCreations() { return []; },
+			async loadCreation() { return null; },
+			async publishCreation(_expected: unknown, value: unknown) { return value; },
+			async replaceCreation(_expected: unknown, next: unknown) { return next; },
+			async removeCreation() {},
 		},
 		encodedCaptureSpoolRepository: {
 			async create() { throw new Error('not reached'); }, async load() { return null; },
 			async append() { throw new Error('not reached'); }, async seal() { throw new Error('not reached'); },
 			async delete() {}, async releaseAdopted() {},
+			async reconcileAppend(current: unknown) { return current; },
 			async restoreAcknowledgedPrefix() { throw new Error('not reached'); }, async *read() {},
 		},
 		rawPcmSpoolRepository: {
-			async create() { throw new Error('not reached'); }, async load() { return null; },
+			async create() { throw new Error('not reached'); },
+			async createFramescaper() { throw new Error('not reached'); }, async load() { return null; },
 			async append() { throw new Error('not reached'); }, async seal() { throw new Error('not reached'); },
 			async remove() { return true; },
+			async releaseReservation() { return true; }, async reconcileAppend(current: unknown) { return current; },
 			async restoreAcknowledgedPrefix() { throw new Error('not reached'); }, async *chunks() {},
 		},
 		async getSourceMetadata() { return null; }, async beginSourceWrite() { throw new Error('not reached'); },
 		async discardSourceIfCurrent() { return true; }, async getMediaAssetMetadata() { return null; },
 		async beginMediaAssetWrite() { throw new Error('not reached'); }, async loadMediaAsset() { return null; },
 	};
+}
+
+function incompleteCaptureStore() {
+	const store = captureStore(() => {});
+	delete (store.rawPcmSpoolRepository as unknown as Record<string, unknown>).reconcileAppend;
+	return store;
 }
 
 function desktopBridge(events: string[], systemAudio: 'windows-loopback' | 'none' = 'windows-loopback') {
