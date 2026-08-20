@@ -216,6 +216,21 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
 	},
 	{
+		id: 'framescaper-capture-canonical-duration',
+		file: 'src/common/editor/controller/framescaper-capture-canonical-assets.ts',
+		behavior: 'Canonical capture publication point-resolves an exact sealed PCM or probed video duration once onto the project sample grid before planning its source and clip extent.',
+		conversions: [{ helper: 'roundRational', policies: ['point'] }],
+	},
+	{
+		id: 'framescaper-capture-sequence-conformance',
+		file: 'src/common/editor/controller/framescaper-capture-publication-plan.ts',
+		behavior: 'Captured video placement point-conforms both resolved sample endpoints to the destination sequence grid, then owns the enclosing sample range represented by those sequence frames.',
+		conversions: [
+			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
+			{ helper: 'videoFrameRangeToSampleRange', policies: ['point'] },
+		],
+	},
+	{
 		id: 'legacy-recording-count-in',
 		file: 'src/common/editor/controller/legacy-recording-capture-service.ts',
 		behavior: 'Legacy capture delegates current projects to the authoritative map schedule and retains one point-rounded default-map fallback for map-absent callers.',

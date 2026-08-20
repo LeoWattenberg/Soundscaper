@@ -9,10 +9,38 @@ import {
 	type FramescaperFinalizedCaptureStream,
 } from './framescaper-capture-publication-plan.ts';
 
+export interface FramescaperCaptureAssetStream extends Omit<
+	FramescaperFinalizedCaptureStream,
+	'timelineDurationFrames'
+> {
+	/** Omitted when canonical media inspection owns the exact final duration. */
+	readonly timelineDurationFrames?: number;
+}
+
 export interface FramescaperOwnedCaptureAssetPublication {
 	readonly source: Readonly<Record<string, unknown>>;
+	/** Canonical duration resolved while finalizing this asset. */
+	readonly timelineDurationFrames?: number;
 	discardIfCurrent(): PromiseLike<boolean> | boolean;
 }
+
+export type FramescaperCaptureAssetPublicationMode = 'publish' | 'reconcile-only';
+
+export type FramescaperCaptureFenceAssertion = void | Readonly<{
+	readonly status: 'base-current' | 'reconcile-only';
+}>;
+
+export type FramescaperCaptureFenceAssertionContext =
+	| Readonly<{
+		readonly phase: 'before-assets';
+		readonly sessionId: string;
+	}>
+	| Readonly<{
+		readonly phase: 'before-commit';
+		readonly sessionId: string;
+		readonly command: FramescaperCapturePublicationBatchCommand;
+		readonly publicationMode: FramescaperCaptureAssetPublicationMode;
+	}>;
 
 export interface FramescaperCaptureAtomicCommitSuccess {
 	readonly status: 'committed';
@@ -38,13 +66,15 @@ export interface FramescaperCaptureRetryableRecoveryRecord {
 export interface FramescaperCapturePublicationServiceDependencies {
 	assertProjectFence(
 		fence: FramescaperCaptureProjectFenceV1,
-	): PromiseLike<void> | void;
+		context: FramescaperCaptureFenceAssertionContext,
+	): PromiseLike<FramescaperCaptureFenceAssertion> | FramescaperCaptureFenceAssertion;
 	publishAsset(
-		stream: FramescaperFinalizedCaptureStream,
+		stream: FramescaperCaptureAssetStream,
 		context: Readonly<{
 			readonly sessionId: string;
 			readonly projectFence: FramescaperCaptureProjectFenceV1;
 			readonly signal: AbortSignal | null;
+			readonly publicationMode: FramescaperCaptureAssetPublicationMode;
 		}>,
 	): PromiseLike<FramescaperOwnedCaptureAssetPublication> | FramescaperOwnedCaptureAssetPublication;
 	commitAtomic(
@@ -61,7 +91,7 @@ export interface FramescaperCapturePublicationRequest extends Omit<
 	'streams'
 > {
 	readonly projectFence: FramescaperCaptureProjectFenceV1;
-	readonly streams: readonly FramescaperFinalizedCaptureStream[];
+	readonly streams: readonly FramescaperCaptureAssetStream[];
 	readonly signal?: AbortSignal | null;
 }
 
@@ -109,24 +139,37 @@ export function createFramescaperCapturePublicationService(
 		let plan: FramescaperCapturePublicationPlan | null = null;
 		try {
 			throwIfAborted(signal);
-			await dependencies.assertProjectFence(fence);
+			const assertion = normalizeFenceAssertion(await dependencies.assertProjectFence(fence, {
+				phase: 'before-assets',
+				sessionId: request.sessionId,
+			}));
+			const publicationMode: FramescaperCaptureAssetPublicationMode = assertion.status === 'reconcile-only'
+				? 'reconcile-only'
+				: 'publish';
 			for (const stream of streams) {
 				throwIfAborted(signal);
 				const publication = normalizePublication(await dependencies.publishAsset(stream, {
 					sessionId: request.sessionId,
 					projectFence: fence,
 					signal,
+					publicationMode,
 				}));
 				owned.push(publication);
 			}
 			throwIfAborted(signal);
-			await dependencies.assertProjectFence(fence);
 			plan = planFramescaperCapturePublication({
 				...request,
 				streams: streams.map((stream, index) => ({
 					...stream,
+					timelineDurationFrames: resolvedTimelineDuration(stream, owned[index]!),
 					source: owned[index]!.source,
 				})),
+			});
+			await dependencies.assertProjectFence(fence, {
+				phase: 'before-commit',
+				sessionId: request.sessionId,
+				command: plan.command,
+				publicationMode,
 			});
 		} catch (error) {
 			await rollbackOwned(owned, error);
@@ -147,6 +190,17 @@ export function createFramescaperCapturePublicationService(
 		}
 		return Object.freeze({ plan, commitValue: committed.value });
 	}
+}
+
+function normalizeFenceAssertion(value: FramescaperCaptureFenceAssertion): Readonly<{
+	readonly status: 'base-current' | 'reconcile-only';
+}> {
+	if (value === undefined) return Object.freeze({ status: 'base-current' });
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| (value.status !== 'base-current' && value.status !== 'reconcile-only')) {
+		throw new TypeError('Capture project fence assertion returned an invalid status.');
+	}
+	return Object.freeze({ status: value.status });
 }
 
 async function retainRetryable(
@@ -219,12 +273,28 @@ function normalizeFence(value: FramescaperCaptureProjectFenceV1): FramescaperCap
 }
 
 function boundedStreams(
-	value: readonly FramescaperFinalizedCaptureStream[],
-): readonly FramescaperFinalizedCaptureStream[] {
+	value: readonly FramescaperCaptureAssetStream[],
+): readonly FramescaperCaptureAssetStream[] {
 	if (!Array.isArray(value) || value.length < 1 || value.length > 4) {
 		throw new RangeError('Capture publication requires one through four finalized streams.');
 	}
 	return Object.freeze([...value]);
+}
+
+function resolvedTimelineDuration(
+	stream: FramescaperCaptureAssetStream,
+	publication: FramescaperOwnedCaptureAssetPublication,
+): number {
+	const requested = stream.timelineDurationFrames;
+	const resolved = publication.timelineDurationFrames;
+	if (requested !== undefined && resolved !== undefined && requested !== resolved) {
+		throw new Error(`Capture ${stream.role} final duration disagrees with its canonical asset.`);
+	}
+	const value = resolved ?? requested;
+	if (!Number.isSafeInteger(value) || Number(value) < 1) {
+		throw new RangeError(`Capture ${stream.role} requires a positive canonical final duration.`);
+	}
+	return Number(value);
 }
 
 function normalizePublication(value: FramescaperOwnedCaptureAssetPublication): FramescaperOwnedCaptureAssetPublication {

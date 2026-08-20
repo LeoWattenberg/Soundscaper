@@ -13,6 +13,12 @@ import {
 	type FramescaperCaptureDurableStream,
 	type FramescaperFinalizedCaptureStream,
 } from '../src/common/editor/controller/framescaper-capture-publication-plan.ts';
+import { applyFramescaperProjectCommandV18 } from '../src/framescaper/editor-project-v18-commands.ts';
+import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
+import { createFramescaperProjectV18 } from '../src/framescaper/editor-project-v18.ts';
+import { applyFramescaperProjectCommandV19 } from '../src/framescaper/editor-project-v19-commands.ts';
+import { FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v19.ts';
+import { createFramescaperProjectV19 } from '../src/framescaper/editor-project-v19.ts';
 import { applyFramescaperProjectCommandV20 } from '../src/framescaper/editor-project-v20-commands.ts';
 import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
 import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
@@ -128,6 +134,44 @@ test('the planned batch lands as one valid current Framescaper document revision
 	assert.equal(updated.schemaVersion, 20, 'capture does not bump the project schema');
 });
 
+test('the same atomic capture batch lands on the live web V19 project without a schema bump', () => {
+	const project = createFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, projectOptions());
+	const plan = planFramescaperCapturePublication({
+		...planRequest([
+			videoStream('camera', 0, 48_000),
+			audioStream('microphone', 0, 48_000),
+		]),
+		trackInsertionIndex: 0,
+	});
+	const updated = applyFramescaperProjectCommandV19(
+		FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+		project,
+		plan.command,
+		{ now: '2026-08-20T10:01:00.000Z' },
+	);
+
+	assertAtomicCaptureProject(updated, project.revision, 19);
+});
+
+test('the same atomic capture batch lands on the desktop V18 project without a schema bump', () => {
+	const project = createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, projectOptions());
+	const plan = planFramescaperCapturePublication({
+		...planRequest([
+			videoStream('camera', 0, 48_000),
+			audioStream('microphone', 0, 48_000),
+		]),
+		trackInsertionIndex: 0,
+	});
+	const updated = applyFramescaperProjectCommandV18(
+		FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+		project,
+		plan.command,
+		{ now: '2026-08-20T10:01:00.000Z' },
+	);
+
+	assertAtomicCaptureProject(updated, project.revision, 18);
+});
+
 test('planner rejects duplicated roles and dishonest source kinds before commit', () => {
 	assert.throws(() => planFramescaperCapturePublication(planRequest([
 		videoStream('camera', 0, 48_000),
@@ -206,6 +250,35 @@ function planRequest(
 		streams,
 		createId: (prefix: string) => `${prefix}-${++id}`,
 	};
+}
+
+function projectOptions() {
+	return {
+		id: 'project-a', title: 'Capture', now: '2026-08-20T10:00:00.000Z', sampleRate: 48_000,
+		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],
+		primarySequenceId: 'main-sequence',
+	};
+}
+
+function assertAtomicCaptureProject(
+	projectValue: unknown,
+	baseRevision: number,
+	schemaVersion: number,
+): void {
+	const project = projectValue as Readonly<{
+		readonly schemaVersion: number;
+		readonly revision: number;
+		readonly sources: readonly unknown[];
+		readonly tracks: readonly unknown[];
+		readonly clips: readonly unknown[];
+		readonly projectBin: Readonly<{ readonly clips: readonly unknown[] }>;
+	}>;
+	assert.equal(project.revision, baseRevision + 1);
+	assert.equal(project.sources.length, 2);
+	assert.equal(project.tracks.length, 2);
+	assert.equal(project.clips.length, 2);
+	assert.equal(project.projectBin.clips.length, 2);
+	assert.equal(project.schemaVersion, schemaVersion);
 }
 
 function request(streams: readonly FramescaperFinalizedCaptureStream[]) {
