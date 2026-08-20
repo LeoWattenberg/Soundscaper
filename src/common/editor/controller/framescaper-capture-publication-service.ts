@@ -77,6 +77,15 @@ export interface FramescaperCapturePublicationServiceDependencies {
 			readonly publicationMode: FramescaperCaptureAssetPublicationMode;
 		}>,
 	): PromiseLike<FramescaperOwnedCaptureAssetPublication> | FramescaperOwnedCaptureAssetPublication;
+	prepareCommit?(
+		plan: FramescaperCapturePublicationPlan,
+		context: Readonly<{
+			readonly sessionId: string;
+			readonly projectFence: FramescaperCaptureProjectFenceV1;
+			readonly signal: AbortSignal | null;
+			readonly publicationMode: FramescaperCaptureAssetPublicationMode;
+		}>,
+	): PromiseLike<void> | void;
 	commitAtomic(
 		command: FramescaperCapturePublicationBatchCommand,
 		fence: FramescaperCaptureProjectFenceV1,
@@ -164,6 +173,12 @@ export function createFramescaperCapturePublicationService(
 					timelineDurationFrames: resolvedTimelineDuration(stream, owned[index]!),
 					source: owned[index]!.source,
 				})),
+			});
+			await dependencies.prepareCommit?.(plan, {
+				sessionId: request.sessionId,
+				projectFence: fence,
+				signal,
+				publicationMode,
 			});
 			await dependencies.assertProjectFence(fence, {
 				phase: 'before-commit',

@@ -19,6 +19,9 @@ export interface FramescaperCapturePublicationLifecycle {
 		manifest: FramescaperCaptureSessionManifestV1,
 		provenance: FramescaperCaptureRecoveryProvenance,
 	): Promise<FramescaperCaptureSessionManifestV1>;
+	beginValidatedImport(
+		manifest: FramescaperCaptureSessionManifestV1,
+	): Promise<FramescaperCaptureSessionManifestV1>;
 	commit(manifest: FramescaperCaptureSessionManifestV1): Promise<FramescaperCaptureSessionManifestV1>;
 }
 
@@ -31,7 +34,7 @@ export function createFramescaperCapturePublicationLifecycle(
 		throw new TypeError('Capture publication lifecycle requires a manifest repository.');
 	}
 	const now = options.now ?? Date.now;
-	return Object.freeze({ begin, commit });
+	return Object.freeze({ begin, beginValidatedImport, commit });
 
 	async function begin(
 		manifestValue: FramescaperCaptureSessionManifestV1,
@@ -89,6 +92,28 @@ export function createFramescaperCapturePublicationLifecycle(
 			updatedAt: forwardTimestamp(current, now()),
 		});
 		return manifests.replace(current, committed);
+	}
+
+	async function beginValidatedImport(
+		manifestValue: FramescaperCaptureSessionManifestV1,
+	): Promise<FramescaperCaptureSessionManifestV1> {
+		const requested = normalizeFramescaperCaptureSessionManifest(manifestValue);
+		const current = await currentManifest(manifests, requested);
+		assertEvidenceIdentity(requested, current);
+		if (current.state !== 'sealed' || current.recoveryDecision !== null) {
+			throw new Error('Validated import requires an undecided sealed capture manifest.');
+		}
+		assertNoInvalidStreams(current);
+		const playable = normalizeFramescaperCaptureSessionManifest({
+			...current,
+			streams: current.streams.map((stream) => ({ ...stream, playability: 'playable' })),
+		});
+		const next = decideFramescaperCaptureRecovery(
+			playable,
+			'import-as-is',
+			forwardTimestamp(current, now()),
+		);
+		return manifests.replace(current, next);
 	}
 }
 

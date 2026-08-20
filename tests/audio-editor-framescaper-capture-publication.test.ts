@@ -69,6 +69,23 @@ test('capture publication defaults to separate bin items plus one ordered lane p
 	}
 });
 
+test('validated assets can persist recovery admission before the atomic commit', async () => {
+	const harness = serviceHarness({ prepareCommit: true });
+	await harness.service.publish(request([
+		finalized('camera', 0, 48_000), finalized('microphone', 0, 48_000),
+	]));
+	assert.deepEqual(harness.calls.slice(0, 6), [
+		'assert:7', 'publish:camera', 'publish:microphone', 'prepare:9', 'assert:7', 'commit:9',
+	]);
+
+	const failed = serviceHarness({ failPrepareCommit: true });
+	await assert.rejects(failed.service.publish(request([
+		finalized('camera', 0, 48_000), finalized('microphone', 0, 48_000),
+	])), /recovery admission failed/iu);
+	assert.deepEqual(failed.rollbacks, ['microphone', 'camera']);
+	assert.equal(failed.commits.length, 0);
+});
+
 test('camera plus display plus microphone links only the exact camera pair', () => {
 	const plan = planFramescaperCapturePublication(planRequest([
 		videoStream('camera', 0, 48_000),
@@ -372,6 +389,8 @@ function serviceHarness(options: Readonly<{
 	failFenceCall?: number;
 	commitStatus?: 'committed' | 'cas-mismatch';
 	throwCommit?: boolean;
+	prepareCommit?: boolean;
+	failPrepareCommit?: boolean;
 }> = {}) {
 	const calls: string[] = [];
 	const commits: unknown[] = [];
@@ -394,6 +413,12 @@ function serviceHarness(options: Readonly<{
 				discardIfCurrent: async () => { rollbacks.push(stream.role); return true; },
 			};
 		},
+		...(options.prepareCommit || options.failPrepareCommit ? {
+			prepareCommit: async (plan) => {
+				calls.push(`prepare:${String(plan.command.commands.length)}`);
+				if (options.failPrepareCommit) throw new Error('recovery admission failed');
+			},
+		} : {}),
 		commitAtomic: async (command) => {
 			calls.push(`commit:${String(command.commands.length)}`);
 			commits.push(command);

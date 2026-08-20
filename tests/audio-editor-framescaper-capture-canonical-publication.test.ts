@@ -284,11 +284,19 @@ test('foreign immutable ownership and unsealed manifests are refused before proj
 	assert.equal(await activeFixture.store.getMediaAssetMetadata('camera-source'), null);
 });
 
-test('recovery intent is durable before assets and successful publication closes the manifest lifecycle', async () => {
-	const fixture = await captureFixture({ roles: ['microphone'], playable: true });
+test('import-as-is validates an unknown acknowledged prefix before persisting intent and commit', async () => {
+	const fixture = await captureFixture({ roles: ['microphone'] });
 	const events: string[] = [];
 	const repository = fixture.store.framescaperCaptureManifestRepository;
+	const storePort = captureStorePort(fixture.store);
 	const service = fixture.service({
+		store: {
+			...storePort,
+			beginSourceWrite(...arguments_: Parameters<typeof storePort.beginSourceWrite>) {
+				events.push('asset');
+				return storePort.beginSourceWrite(...arguments_);
+			},
+		},
 		manifests: {
 			load: repository.load.bind(repository),
 			async replace(expected, next) {
@@ -308,8 +316,8 @@ test('recovery intent is durable before assets and successful publication closes
 	});
 
 	assert.deepEqual(events, [
-		'sealed->finalizing:import-as-is',
-		'fence', 'fence', 'commit',
+		'fence', 'asset',
+		'sealed->finalizing:import-as-is', 'fence', 'commit',
 		'finalizing->published:import-as-is',
 		'published->committed:import-as-is',
 	]);

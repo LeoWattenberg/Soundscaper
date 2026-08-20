@@ -83,7 +83,11 @@ export function createFramescaperCaptureCanonicalPublicationService(
 	): Promise<Readonly<FramescaperCaptureCanonicalPublicationResult>> {
 		const requestedManifest = normalizeFramescaperCaptureSessionManifest(request.manifest);
 		assertPublishableManifest(requestedManifest);
-		const manifest = await lifecycle.begin(requestedManifest, request.recoveryProvenance);
+		const validateImport = requiresValidatedImport(requestedManifest, request.recoveryProvenance);
+		const manifest = validateImport
+			? requestedManifest
+			: await lifecycle.begin(requestedManifest, request.recoveryProvenance);
+		let publicationManifest = manifest;
 		const streams = bindFinalizedStreams(manifest, request.streams);
 		const streamManifests = new Map(manifest.streams.map((stream) => [stream.streamId, stream]));
 		const service = createFramescaperCapturePublicationService({
@@ -99,6 +103,11 @@ export function createFramescaperCaptureCanonicalPublicationService(
 				context.signal,
 				context.publicationMode,
 			),
+			...(validateImport ? {
+				prepareCommit: async () => {
+					publicationManifest = await lifecycle.beginValidatedImport(manifest);
+				},
+			} : {}),
 		});
 		const { manifest: _manifest, ...publication } = request;
 		const result = await service.publish({
@@ -110,13 +119,24 @@ export function createFramescaperCaptureCanonicalPublicationService(
 		});
 		let committedManifest: FramescaperCaptureSessionManifestV1;
 		try {
-			committedManifest = await lifecycle.commit(manifest);
+			committedManifest = await lifecycle.commit(publicationManifest);
 		} catch (error) {
 			throw await retainLifecycleFailure(options, manifest, result, error);
 		}
 		scheduleDerivatives(options, committedManifest, result);
 		return Object.freeze({ ...result, manifest: committedManifest });
 	}
+}
+
+function requiresValidatedImport(
+	manifest: FramescaperCaptureSessionManifestV1,
+	provenance: FramescaperCaptureCanonicalPublicationRequest['recoveryProvenance'],
+): boolean {
+	if (provenance !== 'import-as-is' || manifest.state !== 'sealed') return false;
+	if (manifest.streams.some(({ playability }) => playability === 'invalid')) {
+		throw new Error('An invalid capture stream cannot enter canonical publication.');
+	}
+	return manifest.streams.some(({ playability }) => playability === 'unknown');
 }
 
 function assertPublishableManifest(manifest: FramescaperCaptureSessionManifestV1): void {
