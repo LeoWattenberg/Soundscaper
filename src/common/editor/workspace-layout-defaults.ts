@@ -73,6 +73,7 @@ export const DEFAULT_PANELS = Object.freeze({
 	clipping: Object.freeze({ visible: false, dock: 'right', order: 8, size: 380 }),
 	contrast: Object.freeze({ visible: false, dock: 'right', order: 9, size: 380 }),
 	'ebu-r128': Object.freeze({ visible: false, dock: 'right', order: 10, size: 380 }),
+	'recording-setup': Object.freeze({ visible: false, dock: 'bottom', order: 11, size: 420 }),
 });
 
 export const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
@@ -90,6 +91,7 @@ export const DEFAULT_FLOATING_PANEL_GEOMETRY = Object.freeze({
 	clipping: Object.freeze({ x: 192, y: 136, width: 520, height: 600 }),
 	contrast: Object.freeze({ x: 216, y: 160, width: 520, height: 600 }),
 	'ebu-r128': Object.freeze({ x: 240, y: 184, width: 440, height: 460 }),
+	'recording-setup': Object.freeze({ x: 88, y: 88, width: 620, height: 520 }),
 });
 
 export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({

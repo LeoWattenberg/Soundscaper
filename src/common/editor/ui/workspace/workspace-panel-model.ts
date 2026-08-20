@@ -25,6 +25,7 @@ export const WORKSPACE_PANEL_IDS = Object.freeze([
 	'clipping',
 	'contrast',
 	'ebu-r128',
+	'recording-setup',
 ]);
 export const WORKSPACE_TOOLBAR_IDS = Object.freeze(['transport', 'tools', 'edit', 'meter']);
 export const WORKSPACE_DOCK_IDS = Object.freeze(['left', 'right', 'bottom', 'floating']);
@@ -84,6 +85,7 @@ export function workspacePanelLabel(copy: EditorCopy, panelId: string): string {
 		'project-bin': copy.panelProjectBin,
 		'video-preview': copy.panelVideoPreview,
 		'source-monitor': copy.panelSourceMonitor,
+		'recording-setup': copy.panelRecordingSetup,
 		analysis: copy.analysisCommand,
 		spectrum: copy.plotSpectrum,
 		clipping: copy.findClipping,

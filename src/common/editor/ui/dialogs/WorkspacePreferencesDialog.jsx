@@ -16,6 +16,7 @@ import { findAudioEditorShortcutConflicts, normalizeAudioEditorShortcut } from '
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import SoundActivationPreferences from '../SoundActivationPreferences.tsx';
+import { workspacePanelAvailable } from '../framescaper-capture-ui-model.ts';
 import OfflineRuntimePreferencePanel from './OfflineRuntimePreferencePanel.tsx';
 import {
 	WORKSPACE_DOCK_IDS,
@@ -347,7 +348,7 @@ export default function WorkspacePreferencesDialog({
 						{selectedPage === 'panels' && (
 							<PreferencePanel title={copy.panels}>
 								<div className="kw-audio-editor-preferences__panel-list">
-									{WORKSPACE_PANEL_IDS.map((panelId) => {
+									{WORKSPACE_PANEL_IDS.filter((panelId) => workspacePanelAvailable(productId, panelId)).map((panelId) => {
 										const panel = preferences.workspace.panels[panelId];
 										const label = workspacePanelLabel(copy, panelId);
 										return (

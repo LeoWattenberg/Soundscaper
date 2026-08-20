@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { workspacePanelAvailable } from './framescaper-capture-ui-model.ts';
+
 export function filterProductMenus(menus, capabilities, productId) {
 	const hiddenTopLevel = new Set();
 	if (!capabilities.audioGenerators) hiddenTopLevel.add('generate');
@@ -19,6 +21,13 @@ export function filterProductMenus(menus, capabilities, productId) {
 			return {
 				...menu,
 				items: menu.items.map((item) => {
+					if (item.id === 'panels') {
+						return {
+							...item,
+							items: item.items.filter((panel) => !panel.id?.startsWith('panel-')
+								|| workspacePanelAvailable(productId, panel.id.slice('panel-'.length))),
+						};
+					}
 					if (item.id !== 'workspace-preset') return item;
 					return {
 						...item,

@@ -33,6 +33,9 @@ import {
 } from './AudioEditorTransportControls.jsx';
 import { MusicalTimelineControls } from './MusicalTimelineControls.jsx';
 import { SequenceTimingControls } from './SequenceTimingControls.jsx';
+import FramescaperCaptureRecordControl, {
+	useFramescaperCaptureRecordVisibility,
+} from './FramescaperCaptureRecordControl.tsx';
 import { WORKSPACE_TOOLBAR_IDS } from '../workspace/workspace-panel-model.ts';
 import {
 	handleEditorToolbarBlur,
@@ -103,7 +106,8 @@ export default function EditorToolToolbar({
 	const showSequenceTiming = Boolean(capabilities.sequenceTiming)
 		&& snapshot.preferences?.workspace?.activeId === 'video-editor'
 		&& Boolean(project?.sequences?.length);
-	const transportButtonsVisible = ['play', 'stop', ...(capabilities.audioRecording ? ['record'] : []), 'jump-start', 'jump-end', 'loop', 'metronome']
+	const framescaperCaptureRecordVisible = useFramescaperCaptureRecordVisibility(snapshot);
+	const transportButtonsVisible = ['play', 'stop', ...((capabilities.audioRecording || framescaperCaptureRecordVisible) ? ['record'] : []), 'jump-start', 'jump-end', 'loop', 'metronome']
 		.some(isToolbarButtonVisible);
 	const viewButtonsVisible = ['split-tool', 'volume-automation', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
 		.some(isToolbarButtonVisible);
@@ -111,7 +115,7 @@ export default function EditorToolToolbar({
 	const toolbarButtonOptions = [
 		{ id: 'play', label: copy.play, icon: 'play' },
 		{ id: 'stop', label: copy.stop, icon: 'stop' },
-		...(capabilities.audioRecording ? [{ id: 'record', label: recordLabel, icon: 'record' }] : []),
+		...(capabilities.audioRecording || framescaperCaptureRecordVisible ? [{ id: 'record', label: capabilities.audioRecording ? recordLabel : copy.panelRecordingSetup, icon: 'record' }] : []),
 		{ id: 'jump-start', label: copy.jumpStart, icon: 'skip-back' },
 		{ id: 'jump-end', label: copy.jumpEnd, icon: 'skip-forward' },
 		{ id: 'loop', label: copy.loop, icon: 'loop' },
@@ -205,6 +209,13 @@ export default function EditorToolToolbar({
 						</AudioEditorSplitButton>
 					</span>
 					}
+					{framescaperCaptureRecordVisible && isToolbarButtonVisible('record') && <FramescaperCaptureRecordControl
+						controller={controller}
+						snapshot={snapshot}
+						copy={copy}
+						blocked={blocked}
+						run={run}
+					/>}
 					{isToolbarButtonVisible('jump-start') && <TransportButton icon="skip-back" ariaLabel={copy.jumpStart} disabled={blocked} onClick={onJumpToStart} />}
 					{isToolbarButtonVisible('jump-end') && <TransportButton icon="skip-forward" ariaLabel={copy.jumpEnd} disabled={blocked} onClick={onJumpToEnd} />}
 					{isToolbarButtonVisible('loop') && <AccessibleTransportButton

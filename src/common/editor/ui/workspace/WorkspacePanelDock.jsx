@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { formatResizeLabel } from '../localization-template.ts';
 import { timelineAnnotationsAvailable } from '../timeline/timeline-annotation-ui-model.ts';
+import { workspacePanelAvailable } from '../framescaper-capture-ui-model.ts';
 import WorkspacePanelContent from './WorkspacePanelContent.jsx';
 import {
 	ANALYZER_PANEL_ID_SET,
@@ -45,6 +46,7 @@ export default function WorkspacePanelDock({
 		.map((id) => [id, snapshot.preferences?.workspace?.panels?.[id]])
 		.filter(([id, panel]) => (
 			panel?.visible
+			&& workspacePanelAvailable(snapshot.productId, id)
 			&& (snapshot.capabilities?.audioEffects || id !== 'effects')
 			&& (snapshot.capabilities?.audioAnalysis || (!ANALYZER_PANEL_ID_SET.has(id) && id !== 'ebu-r128'))
 			&& (id !== 'markers' || timelineAnnotationsAvailable(snapshot))

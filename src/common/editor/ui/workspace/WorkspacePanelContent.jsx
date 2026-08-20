@@ -13,6 +13,7 @@ import { ANALYSIS_MODE_PANEL_IDS, historyCommandLabel } from './workspace-panel-
 
 const AnalysisPanel = React.lazy(() => import('../inspector/AnalysisPanel.jsx'));
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
+const RecordingSetupPanel = React.lazy(() => import('./RecordingSetupPanel.tsx'));
 
 function LazyInspectorFallback({ copy }) {
 	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;
@@ -60,6 +61,19 @@ export default function WorkspacePanelContent({
 				run={run}
 				blocked={blocked}
 			/>
+		);
+	}
+	if (panelId === 'recording-setup') {
+		return (
+			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+				<RecordingSetupPanel
+					controller={controller}
+					snapshot={snapshot}
+					copy={copy}
+					locale={locale}
+					run={run}
+				/>
+			</React.Suspense>
 		);
 	}
 	const analysisMode = Object.entries(ANALYSIS_MODE_PANEL_IDS)

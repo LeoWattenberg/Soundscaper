@@ -1,0 +1,201 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { filterProductMenus } from '../src/common/editor/ui/application-menu-product-filter.js';
+import type { CapturePhase } from '../src/common/editor/framescaper-capture-domain.ts';
+import FramescaperCaptureRecordControl from '../src/common/editor/ui/toolbar/FramescaperCaptureRecordControl.tsx';
+import RecordingSetupPanel from '../src/common/editor/ui/workspace/RecordingSetupPanel.tsx';
+import {
+	FRAMESCAPER_CAPTURE_PANEL_ID,
+	capturePrimaryAction,
+	framescaperCaptureRecordVisible,
+	workspacePanelAvailable,
+	type FramescaperCaptureUiSnapshot,
+} from '../src/common/editor/ui/framescaper-capture-ui-model.ts';
+import {
+	WORKSPACE_PANEL_IDS,
+	workspacePanelLabel,
+} from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
+import { DEFAULT_PANELS } from '../src/common/editor/workspace-layout-defaults.ts';
+
+test('recording setup is a default-hidden Framescaper-only workspace panel', () => {
+	assert.equal(FRAMESCAPER_CAPTURE_PANEL_ID, 'recording-setup');
+	assert.ok(WORKSPACE_PANEL_IDS.includes(FRAMESCAPER_CAPTURE_PANEL_ID));
+	assert.deepEqual(DEFAULT_PANELS[FRAMESCAPER_CAPTURE_PANEL_ID], {
+		visible: false, dock: 'bottom', order: 11, size: 420,
+	});
+	assert.equal(workspacePanelLabel(ENGLISH_COPY, FRAMESCAPER_CAPTURE_PANEL_ID), 'Recording setup');
+	assert.equal(workspacePanelAvailable('framescaper', FRAMESCAPER_CAPTURE_PANEL_ID), true);
+	assert.equal(workspacePanelAvailable('soundscaper', FRAMESCAPER_CAPTURE_PANEL_ID), false);
+});
+
+test('View > Panels retains recording setup only for the application capability owner', () => {
+	const menus = [{
+		id: 'view', items: [{
+			id: 'panels', items: [
+				{ id: 'panel-history', label: 'History' },
+				{ id: 'panel-recording-setup', label: 'Recording setup' },
+			],
+		}],
+	}];
+	const capabilities = { audioGenerators: true, audioEffects: true, audioAnalysis: true, audioMacros: true, audioRecording: true };
+	const soundscaper = filterProductMenus(menus, capabilities, 'soundscaper');
+	const framescaper = filterProductMenus(menus, capabilities, 'framescaper');
+	assert.equal(findMenuItem(soundscaper, 'panel-recording-setup'), null);
+	assert.ok(findMenuItem(framescaper, 'panel-recording-setup'));
+});
+
+test('record control stays absent before opt-in but survives an active or recovery phase', () => {
+	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('inactive'), false), false);
+	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('inactive'), true), true);
+	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('recording'), false), true);
+	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('recovery'), false), true);
+	assert.equal(framescaperCaptureRecordVisible('soundscaper', capture('recording'), true), false);
+});
+
+test('record primary action focuses setup until armed and never implicitly requests media', () => {
+	assert.deepEqual(capturePrimaryAction(capture('inactive')), { kind: 'open-setup', disabled: false });
+	assert.deepEqual(capturePrimaryAction(capture('previewing')), { kind: 'open-setup', disabled: false });
+	assert.deepEqual(capturePrimaryAction(capture('armed')), { kind: 'start', disabled: false });
+	assert.deepEqual(capturePrimaryAction(capture('recording')), { kind: 'stop', disabled: false });
+	assert.deepEqual(capturePrimaryAction(capture('paused')), { kind: 'stop', disabled: false });
+	assert.deepEqual(capturePrimaryAction(capture('finalizing')), { kind: 'finalizing', disabled: true });
+	assert.deepEqual(capturePrimaryAction(capture('recovery')), { kind: 'open-setup', disabled: false });
+	assert.deepEqual(capturePrimaryAction(capture('inactive', 'unavailable')), { kind: 'open-setup', disabled: false });
+});
+
+test('recording setup explains unsupported runtime without opening any source', () => {
+	const calls: string[] = [];
+	const markup = render(<RecordingSetupPanel
+		controller={controller(calls)}
+		snapshot={{ productId: 'framescaper', capture: capture('inactive', 'unavailable') }}
+		copy={ENGLISH_COPY}
+		locale="en"
+		run={(operation) => operation()}
+	/>);
+
+	assert.deepEqual(calls, []);
+	assert.match(markup, /data-framescaper-recording-setup="true"/u);
+	assert.match(markup, /role="status"/u);
+	assert.match(markup, /Capture is unavailable in this runtime/u);
+	assert.match(markup, /Embedded capture is disabled/u);
+	assert.doesNotMatch(markup, />Preview sources</u);
+});
+
+test('recording setup presents explicit sources, destinations, capture controls and live status', () => {
+	const previewing = render(<RecordingSetupPanel
+		controller={controller([])}
+		snapshot={{ productId: 'framescaper', capture: {
+			...capture('previewing'),
+			requestedRoles: ['camera', 'microphone'],
+			sources: [
+				{ sourceId: 'camera-1', role: 'camera', label: 'Camera 1', settings: { width: 1920, height: 1080 } },
+				{ sourceId: 'mic-1', role: 'microphone', label: 'Microphone 1', level: 0.5 },
+			],
+		} }}
+		copy={ENGLISH_COPY}
+		locale="en"
+		run={(operation) => operation()}
+	/>);
+	assert.match(previewing, /<fieldset[^>]*><legend>Sources<\/legend>/u);
+	assert.match(previewing, /Camera 1/u);
+	assert.match(previewing, /1920 × 1080/u);
+	assert.match(previewing, /role="meter"/u);
+	assert.match(previewing, /<legend>Destination<\/legend>/u);
+	assert.match(previewing, />Arm capture</u);
+	assert.match(previewing, />Release sources</u);
+
+	const recording = render(<RecordingSetupPanel
+		controller={controller([])}
+		snapshot={{ productId: 'framescaper', capture: {
+			...capture('recording'),
+			elapsedTimeMs: 65_000,
+			metrics: [{ streamId: 'camera-1', role: 'camera', droppedRatio: { value: 0.001, confidence: 'estimated' }, currentDriftUs: { value: 12_000, confidence: 'exact' } }],
+		} }}
+		copy={ENGLISH_COPY}
+		locale="en"
+		run={(operation) => operation()}
+	/>);
+	assert.match(recording, /aria-live="polite"/u);
+	assert.match(recording, /01:05/u);
+	assert.match(recording, />Pause capture</u);
+	assert.match(recording, />Stop and import</u);
+	assert.match(recording, /Estimated/u);
+
+	const recovery = render(<RecordingSetupPanel
+		controller={controller([])}
+		snapshot={{ productId: 'framescaper', capture: capture('recovery', 'unavailable') }}
+		copy={ENGLISH_COPY}
+		locale="en"
+		run={(operation) => operation()}
+	/>);
+	for (const label of ['Recover capture', 'Import playable data as-is', 'Delete capture']) {
+		assert.match(recovery, new RegExp(`>${label}<`, 'u'));
+	}
+});
+
+test('Framescaper record split control exposes phase-correct accessible actions', () => {
+	const armed = render(<FramescaperCaptureRecordControl
+		controller={controller([])} snapshot={{ capture: capture('armed') }} copy={ENGLISH_COPY}
+		run={(operation) => operation()} blocked={false}
+	/>);
+	assert.match(armed, /data-transport="framescaper-record"/u);
+	assert.match(armed, /aria-label="Start capture"/u);
+	assert.match(armed, /aria-label="Capture options"/u);
+
+	const active = render(<FramescaperCaptureRecordControl
+		controller={controller([])} snapshot={{ capture: capture('recording') }} copy={ENGLISH_COPY}
+		run={(operation) => operation()} blocked={false}
+	/>);
+	assert.match(active, /aria-label="Stop and import"/u);
+	assert.match(active, /data-capture-active="true"/u);
+});
+
+function capture(
+	phase: CapturePhase,
+	availabilityStatus: 'available' | 'unavailable' = 'available',
+): FramescaperCaptureUiSnapshot {
+	return {
+		phase,
+		availability: availabilityStatus === 'available'
+			? { status: 'available', sourceRoles: ['camera', 'microphone', 'display', 'system-audio'] as const }
+			: { status: 'unavailable', reason: 'embedded-route', detail: 'Embedded capture is disabled.' },
+		requestedRoles: [], sources: [], sourcesFrozen: phase !== 'inactive', destination: null,
+		countdownMs: null, permissionRequestGeneration: null, failure: null,
+	};
+}
+
+function controller(calls: string[]) {
+	const captureActions = new Proxy({}, {
+		get: (_target, property) => (..._args: unknown[]) => calls.push(String(property)),
+	});
+	return {
+		actions: {
+			capture: captureActions,
+			preferences: { setPanel: () => calls.push('setPanel') },
+		},
+	};
+}
+
+interface MenuItem {
+	readonly id?: string;
+	readonly items?: readonly MenuItem[];
+}
+
+function findMenuItem(values: unknown, id: string): MenuItem | null {
+	for (const item of values as readonly MenuItem[]) {
+		if (item.id === id) return item;
+		const nested = item.items ? findMenuItem(item.items, id) : null;
+		if (nested) return nested;
+	}
+	return null;
+}
+
+function render(node: React.ReactNode): string {
+	return renderToStaticMarkup(<div id="kw-audio-editor-design-system">{node}</div>);
+}
