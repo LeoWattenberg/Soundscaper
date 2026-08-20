@@ -263,9 +263,40 @@ test('startup recovery remains actionable when source capture is unavailable', a
 	assert.equal(harness.origin.snapshot('project-a').active, false);
 });
 
+test('startup scans inactive projects and restores exactly one foreign-origin recovery', async () => {
+	const harness = serviceHarness({
+		currentProjectId: 'project-b',
+		recoveryProjectIds: ['project-a', 'project-b'],
+		recoveries: { 'project-a': recoverySession('project-a') },
+	});
+	await harness.service.initialize();
+
+	assert.equal(harness.service.snapshot.phase, 'recovery');
+	assert.equal(harness.origin.snapshot('project-a').editBlocked, true);
+	assert.equal(harness.origin.snapshot('project-b').editBlocked, false);
+	assert.equal(harness.events.filter((event) => event === 'recovery-inventory').length, 2);
+});
+
+test('startup refuses more than one global capture recovery before binding either origin', async () => {
+	const harness = serviceHarness({
+		currentProjectId: 'project-b', recoveryProjectIds: ['project-a'],
+		recoveries: {
+			'project-a': recoverySession('project-a'),
+			'project-b': recoverySession('project-b'),
+		},
+	});
+
+	await assert.rejects(harness.service.initialize(), /more than one.*maintenance/iu);
+	assert.equal(harness.origin.snapshot('project-a').active, false);
+	assert.equal(harness.origin.snapshot('project-b').active, false);
+});
+
 function serviceHarness(options: Readonly<{
 	availability?: Readonly<Record<string, unknown>>;
 	recovery?: ReturnType<typeof recoverySession> | null;
+	recoveries?: Readonly<Record<string, ReturnType<typeof recoverySession>>>;
+	recoveryProjectIds?: readonly string[];
+	currentProjectId?: string;
 	displaySelection?: FramescaperCaptureDisplaySelectionPort;
 	appendDelayMs?: number;
 }> = {}) {
@@ -283,7 +314,10 @@ function serviceHarness(options: Readonly<{
 		async recordPauseSpan(session) { events.push('durable:pause'); return session; },
 		async seal(session) { events.push('durable:seal'); return session; },
 		async discard() { events.push('durable:discard'); },
-		async findRecovery() { events.push('recovery-inventory'); return options.recovery ?? null; },
+		async findRecovery(projectId) {
+			events.push('recovery-inventory');
+			return options.recoveries?.[projectId] ?? options.recovery ?? null;
+		},
 	};
 	const service = createFramescaperCaptureSessionService({
 		enabled: true,
@@ -312,13 +346,14 @@ function serviceHarness(options: Readonly<{
 			},
 		},
 		displaySelection: options.displaySelection,
+		recoveryProjectIds: options.recoveryProjectIds ? () => options.recoveryProjectIds! : undefined,
 		async completeRuntimeProbe(availability) {
 			events.push('runtime-prerequisites');
 			return availability;
 		},
 		authorizeUserAction: (generation) => { events.push(`authorize:${String(generation)}`); },
 		captureOrigin: () => ({
-			projectFence: { projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
+			projectFence: { projectId: options.currentProjectId ?? 'project-a', baseRevision: 4, baseSha256: SHA },
 			origin: { sequenceId: 'sequence-a', playheadMicroseconds: 2_000_000, destination: 'both' },
 		}),
 		originGuard: origin,
@@ -367,12 +402,12 @@ function serviceHarness(options: Readonly<{
 	};
 }
 
-function recoverySession() {
+function recoverySession(projectId = 'project-a') {
 	return {
 		sessionId: 'recovery-session',
 		sources: [{ streamId: 'display-stream', sourceId: 'display-source', role: 'display' as const }],
 		destination: 'timeline' as const,
-		projectFence: { projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
+		projectFence: { projectId, baseRevision: 4, baseSha256: SHA },
 		origin: { sequenceId: 'sequence-a', playheadMicroseconds: 2_000_000, destination: 'timeline' as const },
 	};
 }

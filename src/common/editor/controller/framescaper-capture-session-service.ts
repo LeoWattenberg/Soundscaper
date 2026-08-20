@@ -5,6 +5,7 @@ import type { CapturePreviewLease, CapturePreviewSource } from '../platform/capt
 import type { FramescaperCaptureOriginAuthority } from './framescaper-capture-origin-guard.ts';
 import { createFramescaperCaptureActiveTimeClock } from './framescaper-capture-active-time-clock.ts';
 import { createFramescaperCaptureMetrics } from './framescaper-capture-metrics.ts';
+import { findFramescaperCaptureRecovery } from './framescaper-capture-recovery-admission.ts';
 import {
 	applyCaptureSourceSettings, capturePreviewSourceSnapshots, createFramescaperCapturePreviewResources,
 	disposeCapturePreviewOwnership, normalizeCaptureDisplaySources, selectedCaptureDevices,
@@ -20,7 +21,6 @@ import type {
 	FramescaperCaptureSessionService, FramescaperCaptureSessionServiceOptions,
 	FramescaperCaptureSessionSnapshot, FramescaperCaptureSourceSettings, FramescaperCaptureStreamIdentity,
 } from './framescaper-capture-session-types.ts';
-
 interface ActiveRecorder<Stream, Track> {
 	readonly source: Readonly<CapturePreviewSource<Stream, Track>>; readonly identity: Readonly<FramescaperCaptureStreamIdentity>;
 	readonly recorder: FramescaperCaptureRecorder;
@@ -86,9 +86,9 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			);
 			machine.setRuntimeAvailability(availability);
 			const origin = safeCaptureOrigin();
-			const recovery = origin
-				? await options.durable.findRecovery(origin.projectFence.projectId)
-				: null;
+			const recovery = await findFramescaperCaptureRecovery(
+				options.durable, origin?.projectFence.projectId ?? null, options.recoveryProjectIds,
+			);
 			if (recovery) restoreRecovery(recovery);
 			notify();
 		})();

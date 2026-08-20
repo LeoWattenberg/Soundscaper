@@ -127,6 +127,7 @@ export interface FramescaperCaptureAppCompositionOptions {
 	readonly ffmpeg?: Readonly<{ probeVideoTiming?: VideoTimingProbePort['probe'] }> | null;
 	readonly desktopBridge?: FramescaperCaptureDesktopBridgeV1 | null;
 	readonly projectPublication?: FramescaperCaptureProjectPublicationPort | null;
+	readonly recoveryProjectIds?: () => PromiseLike<readonly string[]> | readonly string[];
 	captureOrigin(): ReturnType<Parameters<typeof createFramescaperCaptureSessionService>[0]['captureOrigin']>;
 	capturePublicationContext(
 		manifest: FramescaperCaptureSessionManifestV1,
@@ -206,6 +207,7 @@ export function createFramescaperCaptureAppComposition(
 			availability, options, desktop, MediaRecorder, TrackProcessor,
 			durable: Boolean(durable), canonical: Boolean(canonical), videoProbe: Boolean(videoProbe),
 		}),
+		...(options.recoveryProjectIds ? { recoveryProjectIds: options.recoveryProjectIds } : {}),
 		authorizeUserAction: (generation) => { gestures.add(generation); },
 		captureOrigin: options.captureOrigin,
 		createRecorder: recorderFactory,
@@ -561,7 +563,6 @@ function resolveMediaRecorder(
 			: null)
 		: value;
 }
-
 function resolveTrackProcessor(
 	value: FramescaperCaptureAppCompositionOptions['MediaStreamTrackProcessor'],
 ): FramescaperBrowserRecorderFactoryOptions['MediaStreamTrackProcessor'] {
@@ -571,7 +572,6 @@ function resolveTrackProcessor(
 		? runtime.MediaStreamTrackProcessor as NonNullable<typeof value>
 		: null;
 }
-
 function unavailableDurablePort(): FramescaperCaptureDurablePort {
 	const reject = async (): Promise<never> => { throw new Error('Durable Framescaper capture is unavailable.'); };
 	return Object.freeze({
