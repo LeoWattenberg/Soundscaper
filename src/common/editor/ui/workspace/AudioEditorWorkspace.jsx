@@ -9,7 +9,6 @@ import {
 	selectAudioEditorProjectHandoffBlock,
 } from '../edit-blocking.ts';
 
-import { trackSourceRate } from '../application-menu-model.js';
 import { loadPlaybackMeterSettings, loadRecordingMeterSettings } from '../meter-settings.ts';
 import EditorToolToolbar from '../toolbar/EditorToolToolbar.jsx';
 import AudioEditorWorkspaceView from './AudioEditorWorkspaceView.jsx';
@@ -22,12 +21,12 @@ import { useScapeOpenDecisionContinuation } from './useScapeOpenDecisionContinua
 import { useWorkspaceParityRequests } from './useWorkspaceParityRequests.js';
 import { useWorkspaceSearchRuntime } from './useWorkspaceSearchRuntime.js';
 import { useSoundscaperProductionWorkspace } from './useSoundscaperProductionWorkspace.ts';
+import { useTrackRateDialog } from './useTrackRateDialog.js';
 import { useWorkspaceThemePreference } from './useWorkspaceThemePreference.js';
-import { createWorkspaceApplicationMenus } from './workspace-application-menu-runtime.js';
+import { createWorkspaceApplicationMenus, useSoundscaperNativeServicesMenuRefresh } from './workspace-application-menu-runtime.js';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
 import { partitionWorkspaceFiles } from './workspace-file-routing.js';
 import { desktopExternalDestination, formatDateTimeLocalInput, useMediaQuery } from '../workspace-runtime.js';
-
 export default function AudioEditorWorkspace({
 	locale,
 	copy,
@@ -35,8 +34,10 @@ export default function AudioEditorWorkspace({
 	controller,
 	fileService,
 	projectForRuntimeConsumers,
+	crossProductHandoffAvailable = false,
 }) {
 	const product = useMemo(() => productProfile(productId), [productId]);
+	useSoundscaperNativeServicesMenuRefresh({ productId });
 	const capabilities = product.capabilities;
 	const aboutLabel = productId === 'framescaper' ? copy.aboutFramescaper : copy.aboutEditor;
 	const editorThemeVariables = useAudioEditorThemeVariables();
@@ -132,7 +133,7 @@ export default function AudioEditorWorkspace({
 	const editSelectionActive = selectionActive || clipSelectionActive;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
 	const selectedAudioTrack = selectedTrack?.type === 'audio' ? selectedTrack : null;
-	const selectedAudioTrackRate = trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000);
+	const { dialogTrackId, openTrackRate } = useTrackRateDialog(project, setDialog, setDialogValue);
 	const splitAvailable = Boolean(
 		selectedClip
 		|| selectedAudioTrack?.clipIds?.length
@@ -141,7 +142,6 @@ export default function AudioEditorWorkspace({
 			project.tracks.some((track) => track.id === trackId && track.type === 'audio' && track.clipIds.length)
 		)),
 	);
-
 	const { jumpToEnd, jumpToStart, zoomProject } = useTimelineNavigation({
 		controller,
 		editorRef,
@@ -184,7 +184,6 @@ export default function AudioEditorWorkspace({
 		if (uiFlags.splitTool) parityRuntime.actions.tools.toggleSplitTool();
 		setAutomationToolEnabled(false);
 	}, [parityRuntime, snapshot.sampleEdit?.mode, uiFlags.splitTool]);
-
 	const toggleRecording = useCallback(() => {
 		if (snapshot.recording) return run(() => controller.actions.recording.stop());
 		if (snapshot.scheduledRecording || snapshot.recordingScheduling) return undefined;
@@ -380,11 +379,11 @@ export default function AudioEditorWorkspace({
 		openRecordingOffset,
 		openSurface,
 		openTimedRecording,
+		openTrackRate,
 		openWorkspacePanel,
 		parityUi,
 		project,
 		run,
-		selectedAudioTrackRate,
 		selectedTrack,
 		setDialog,
 		setDialogValue,
@@ -401,6 +400,7 @@ export default function AudioEditorWorkspace({
 		capabilities,
 		controller,
 		copy,
+		crossProductHandoffAvailable,
 		durationFrames,
 		editBlocked,
 		handoffBlocked,
@@ -419,6 +419,7 @@ export default function AudioEditorWorkspace({
 		openSpectralSelection,
 		openSurface,
 		openTimedRecording,
+		openTrackRate,
 		openWorkspacePanel,
 		parityRuntime,
 		productId,
@@ -517,6 +518,7 @@ export default function AudioEditorWorkspace({
 		copy,
 		dialog,
 		dialogSourceKey,
+		dialogTrackId,
 		dialogValue,
 		displayAudioSupported,
 		draggedWorkspacePanelId,
@@ -547,10 +549,7 @@ export default function AudioEditorWorkspace({
 		nyquistTarget,
 		onError,
 		openEffects,
-		openTrackRate: (track) => {
-			setDialogValue(String(trackSourceRate(project, track, project?.sampleRate || 48_000)));
-			setDialog('track-rate');
-		},
+		openTrackRate,
 		openProjectFile,
 		openSurface,
 		parityRuntime,

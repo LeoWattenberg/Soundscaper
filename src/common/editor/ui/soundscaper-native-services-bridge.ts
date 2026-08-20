@@ -125,6 +125,7 @@ export type NativePluginQuarantineClearance = 'rescan' | 're-enable';
 
 export interface SoundscaperNativeServicesBridge {
 	nativeAudioHelperAvailability(): Promise<NativeAudioAvailability>;
+	setNativeAudioHelperEnabled(enabled: boolean): Promise<boolean>;
 	describeNativeAudioBackend(request: Readonly<{ backend: string }>): Promise<NativeAudioInventoryOutcome>;
 	nativePluginAvailability(): Promise<NativePluginAvailability>;
 	setNativePluginConsent(request: Readonly<{
@@ -139,6 +140,7 @@ export interface SoundscaperNativeServicesBridge {
 
 const REQUIRED_BRIDGE_METHODS: readonly (keyof SoundscaperNativeServicesBridge)[] = Object.freeze([
 	'nativeAudioHelperAvailability',
+	'setNativeAudioHelperEnabled',
 	'describeNativeAudioBackend',
 	'nativePluginAvailability',
 	'setNativePluginConsent',
@@ -193,6 +195,7 @@ export const SOUNDSCAPER_NATIVE_SERVICES_REFRESH_INTERVAL_MS = 5_000;
 
 export interface SoundscaperNativeServicesStore {
 	getSnapshot(): SoundscaperNativeServicesSnapshot | null;
+	subscribe(listener: () => void): () => void;
 	refresh(): Promise<SoundscaperNativeServicesSnapshot | null>;
 	/** Re-probes when the last answer is older than the refresh interval. */
 	refreshIfStale(now?: number): void;
@@ -205,7 +208,11 @@ export function createSoundscaperNativeServicesStore(
 	let snapshot: SoundscaperNativeServicesSnapshot | null = null;
 	let probedAt = Number.NEGATIVE_INFINITY;
 	let inFlight: Promise<SoundscaperNativeServicesSnapshot | null> | null = null;
+	let requestedGeneration = 0;
+	let publishedGeneration = 0;
+	const listeners = new Set<() => void>();
 	const refresh = async (): Promise<SoundscaperNativeServicesSnapshot | null> => {
+		const generation = ++requestedGeneration;
 		const [audio, plugins] = await Promise.all([
 			bridge.nativeAudioHelperAvailability(),
 			// A plug-in answer that fails leaves the audio tier legible rather
@@ -213,14 +220,23 @@ export function createSoundscaperNativeServicesStore(
 			bridge.nativePluginAvailability().catch(() => null),
 		]);
 		const next = resolveSoundscaperNativeServicesSnapshot(audio, plugins);
+		if (generation < publishedGeneration) return snapshot;
+		publishedGeneration = generation;
 		probedAt = clock();
 		// Identity is kept while nothing changed, so a menu rebuilt every render
 		// keeps comparing equal instead of churning on an unchanging tier.
-		if (snapshot === null || !sameSnapshot(snapshot, next)) snapshot = next;
+		if (snapshot === null || !sameSnapshot(snapshot, next)) {
+			snapshot = next;
+			for (const listener of listeners) listener();
+		}
 		return snapshot;
 	};
 	return Object.freeze({
 		getSnapshot: () => snapshot,
+		subscribe: (listener: () => void) => {
+			listeners.add(listener);
+			return () => { listeners.delete(listener); };
+		},
 		refresh,
 		refreshIfStale: (now: number = clock()) => {
 			if (inFlight !== null || now - probedAt < SOUNDSCAPER_NATIVE_SERVICES_REFRESH_INTERVAL_MS) return;

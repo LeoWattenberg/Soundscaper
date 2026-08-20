@@ -6,7 +6,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 /* Keys main may hold but the renderer may never see, whatever the shape. */
 const PLUGIN_PATH_KEYS = new Set(['binaryPath', 'rootPath', 'path', 'absolutePath', 'filePath']);
-
 const CHANNELS = Object.freeze({
 	environment: 'soundscaper:v1:environment',
 	chooseFiles: 'soundscaper:v1:files:choose',
@@ -41,6 +40,7 @@ const CHANNELS = Object.freeze({
 	helperProbeCancel: 'soundscaper:v1:helper:probe-cancel',
 	nativeAudioAvailability: 'soundscaper:v1:helper:native-audio-availability',
 	nativeAudioInventory: 'soundscaper:v1:helper:native-audio-inventory',
+	nativeAudioSetEnabled: 'soundscaper:v1:helper:native-audio-set-enabled',
 	nativePluginAvailability: 'soundscaper:v1:helper:native-plugin-availability',
 	nativePluginConsent: 'soundscaper:v1:helper:native-plugin-consent',
 	nativePluginScan: 'soundscaper:v1:helper:native-plugin-scan',
@@ -168,6 +168,7 @@ const api = Object.freeze({
 		probeId: opaqueId(request?.probeId, 40),
 	}).then((value) => Object.freeze({ cancelled: value?.cancelled === true })),
 	nativeAudioHelperAvailability: () => ipcRenderer.invoke(CHANNELS.nativeAudioAvailability).then(nativeAudioAvailability),
+	setNativeAudioHelperEnabled: (enabled) => ipcRenderer.invoke(CHANNELS.nativeAudioSetEnabled, enabled === true).then(nativeAudioEnabled),
 	describeNativeAudioBackend: (request) => ipcRenderer.invoke(CHANNELS.nativeAudioInventory, { backend: text(request?.backend, 32) }).then(nativeAudioInventory),
 	nativePluginAvailability: () => ipcRenderer.invoke(CHANNELS.nativePluginAvailability).then(nativePluginStatus),
 	setNativePluginConsent: (request) => ipcRenderer.invoke(CHANNELS.nativePluginConsent, {
@@ -227,7 +228,6 @@ function assistanceProgress(value) {
 		completedBytes: safeInteger(value?.completedBytes), totalBytes: safeInteger(value?.totalBytes),
 	});
 }
-
 function subscribe(channel, listener, sanitize) {
 	if (typeof listener !== 'function') throw new TypeError('Event listener must be a function');
 	const handler = (_event, value) => listener(sanitize(value));
@@ -706,7 +706,6 @@ function nativePluginStatus(value, depth = 0) {
 	}
 	return Object.freeze(output);
 }
-
 function helperProbeCompletion(value) {
 	if (value?.status === 'probed') {
 		const timingAsset = binary(value.timingAsset);
@@ -732,8 +731,9 @@ function helperProbeCompletion(value) {
 	}
 	throw new TypeError('Desktop returned an unsupported helper probe completion');
 }
-function strictBoolean(value) {
-	if (typeof value !== 'boolean') throw new TypeError('Desktop shared-project delete result must be a boolean');
+function nativeAudioEnabled(value) { return strictBoolean(value, 'Desktop native-audio setting result must be a boolean'); }
+function strictBoolean(value, message = 'Desktop shared-project delete result must be a boolean') {
+	if (typeof value !== 'boolean') throw new TypeError(message);
 	return value;
 }
 function finalPrefixAcknowledgement(value) {

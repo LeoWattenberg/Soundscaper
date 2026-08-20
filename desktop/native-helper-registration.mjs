@@ -21,7 +21,7 @@ import { DesktopNativeAudioService } from './project-library-runtime/desktop/nat
  * and the digest it must re-check for itself.
  */
 export function registerDesktopNativeAudioHelper({
-	channels, handle, ownerFor, settings, desktopRoot, packaged, resourcesPath,
+	channels, handle, ownerFor, settings, desktopRoot, packaged, resourcesPath, refreshMenu,
 }) {
 	const applicationRoot = dirname(desktopRoot);
 	const location = Object.freeze({ applicationRoot, packaged, resourcesPath });
@@ -63,9 +63,27 @@ export function registerDesktopNativeAudioHelper({
 		isEnabled: () => settings.snapshot().nativeAudioHelperEnabled === true,
 		describePayload: () => describeNativeAddonAvailability(location),
 	});
+	const setEnabled = async (enabled) => {
+		try {
+			const result = await settings.setNativeAudioHelperEnabled(enabled === true);
+			if (!result) service.disable();
+			return result;
+		} finally {
+			try {
+				refreshMenu();
+			} catch {
+				// Menu state is a projection of the durable setting. A projection
+				// fault cannot rewrite the authority change or mask its IPC result.
+			}
+		}
+	};
 	handle(channels.nativeAudioAvailability, () => service.availability());
 	handle(channels.nativeAudioInventory, (event, value) =>
 		service.describeBackend({ owner: ownerFor(event), backend: String(value?.backend || '') }));
+	handle(channels.nativeAudioSetEnabled, (event, value) => {
+		ownerFor(event);
+		return setEnabled(value === true);
+	});
 	// The supervisor and the payload description are shared with plug-in
 	// discovery: one payload, one supervisor, one concurrent job, exactly as
 	// contract v1 admits.
@@ -73,6 +91,7 @@ export function registerDesktopNativeAudioHelper({
 		availability: () => service.availability(),
 		clearQuarantine: () => service.clearQuarantine(),
 		describeBackend: (request) => service.describeBackend(request),
+		setEnabled,
 		revokeOwner: (owner) => service.revokeOwner(owner),
 		dispose: () => service.dispose(),
 		supervisorPort: supervisor,
@@ -97,7 +116,11 @@ export function withNativeAudioHelperMenuItems(sections, settings, audio) {
 			label: 'Use Native Audio Helper',
 			type: 'checkbox',
 			checked: settings.snapshot().nativeAudioHelperEnabled === true,
-			click: (item) => void settings.setNativeAudioHelperEnabled(item.checked),
+			click: (item) => {
+				void audio.setEnabled(item.checked).catch((error) => {
+					console.error('Could not update native audio helper preference:', error);
+				});
+			},
 		},
 		{
 			label: 'Clear Audio Helper Quarantine',

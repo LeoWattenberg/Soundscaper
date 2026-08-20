@@ -64,6 +64,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'respondToClose',
 		'scanNativePlugins', 'setFullscreen',
 		'setLocale',
+		'setNativeAudioHelperEnabled',
 		'setNativePluginConsent', 'signalReady',
 		'writeChunk',
 		'writeSharedSourceChunk',

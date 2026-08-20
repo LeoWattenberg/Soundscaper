@@ -12,6 +12,12 @@ export function formatAup4CompatibilitySummary(report, copy) {
 		.replace('{omitted}', String(count('omitted')));
 }
 
+export function applyTrackRateDialog({ trackId, value, run, setRate }) {
+	if (!trackId) return false;
+	run(() => setRate(trackId, Number(value)));
+	return true;
+}
+
 export function aup4CompatibilityItems(report) {
 	const items = [...(Array.isArray(report?.items) ? report.items : [])];
 	const legacyItems = [

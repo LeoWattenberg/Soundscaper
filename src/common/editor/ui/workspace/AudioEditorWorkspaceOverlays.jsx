@@ -30,12 +30,14 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 	const {
 		activeSurface,
 		applicationMenus,
+		aboutLabel,
 		capabilities,
 		closeNyquist,
 		controller,
 		copy,
 		dialog,
 		dialogSourceKey,
+		dialogTrackId,
 		dialogValue,
 		effectWindow,
 		fileService,
@@ -306,11 +308,13 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 
 			{dialog && (
 				<EditorDialog
+					aboutLabel={aboutLabel}
 					type={dialog}
 					value={dialogValue}
 					onValueChange={setDialogValue}
 					sourceKey={dialogSourceKey}
 					onSourceKeyChange={setDialogSourceKey}
+					trackId={dialogTrackId}
 					controller={controller}
 					snapshot={snapshot}
 					copy={copy}

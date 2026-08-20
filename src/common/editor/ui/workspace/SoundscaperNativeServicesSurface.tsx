@@ -16,11 +16,12 @@
  * all, and the editor surface itself gains no chrome from the tier existing.
  */
 
-import React from 'react';
+import React, { useEffect, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import {
 	resolveSoundscaperNativeServicesBridge,
+	SOUNDSCAPER_NATIVE_SERVICES_REFRESH_INTERVAL_MS,
 	soundscaperNativeServicesStoreFor,
 	type SoundscaperNativeServicesBridge,
 } from '../soundscaper-native-services-bridge.ts';
@@ -110,6 +111,31 @@ export function createSoundscaperNativeServicesSurfaceHost(
 }
 
 const HOSTS = new WeakMap<SoundscaperNativeServicesBridge, SoundscaperNativeServicesSurfaceHost>();
+const EMPTY_SUBSCRIBE = (): (() => void) => () => {};
+const EMPTY_SNAPSHOT = (): null => null;
+
+/** Rebuild the application menu when an asynchronous desktop probe changes. */
+export function useSoundscaperNativeServicesMenuRefresh(input: Readonly<{
+	productId: string;
+	bridge?: SoundscaperNativeServicesBridge | null;
+}>): void {
+	const bridge = resolveBridge(input);
+	const store = bridge === null ? null : soundscaperNativeServicesStoreFor(bridge);
+	useSyncExternalStore(
+		store?.subscribe ?? EMPTY_SUBSCRIBE,
+		store?.getSnapshot ?? EMPTY_SNAPSHOT,
+		store?.getSnapshot ?? EMPTY_SNAPSHOT,
+	);
+	useEffect(() => {
+		if (store === null) return undefined;
+		store.refreshIfStale();
+		const interval = globalThis.setInterval(
+			() => store.refreshIfStale(),
+			SOUNDSCAPER_NATIVE_SERVICES_REFRESH_INTERVAL_MS,
+		);
+		return () => globalThis.clearInterval(interval);
+	}, [store]);
+}
 
 /**
  * Only Soundscaper, and only where the desktop bridge answers for the whole
@@ -121,9 +147,7 @@ export function resolveSoundscaperNativeServicesWorkspaceRuntime(input: Readonly
 	bridge?: SoundscaperNativeServicesBridge | null;
 	copy?: Readonly<Record<string, string | undefined>>;
 }>): Readonly<SoundscaperNativeServicesWorkspaceRuntime> | null {
-	const bridge = input.productId === 'soundscaper'
-		? input.bridge ?? resolveSoundscaperNativeServicesBridge()
-		: null;
+	const bridge = resolveBridge(input);
 	if (bridge === null) return null;
 	const store = soundscaperNativeServicesStoreFor(bridge);
 	store.refreshIfStale();
@@ -138,4 +162,13 @@ export function resolveSoundscaperNativeServicesWorkspaceRuntime(input: Readonly
 			host.open(surface);
 		},
 	});
+}
+
+function resolveBridge(input: Readonly<{
+	productId: string;
+	bridge?: SoundscaperNativeServicesBridge | null;
+}>): SoundscaperNativeServicesBridge | null {
+	return input.productId === 'soundscaper'
+		? input.bridge ?? resolveSoundscaperNativeServicesBridge()
+		: null;
 }

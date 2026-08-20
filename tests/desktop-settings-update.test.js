@@ -29,6 +29,21 @@ test('invalid settings fall back without trusting unknown locale values', async 
 	assert.equal((await settings.load(['ja-JP'])).locale, 'ja');
 });
 
+test('failed native-audio persistence rolls in-memory authority back', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-settings-rollback-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const filePath = join(root, 'state', 'settings.json');
+	const settings = new DesktopSettingsStore(filePath);
+	await settings.load(['en-US']);
+	assert.equal(settings.snapshot().nativeAudioHelperEnabled, false);
+
+	await rm(join(root, 'state'), { recursive: true });
+	await writeFile(join(root, 'state'), 'blocks the settings directory');
+	await assert.rejects(() => settings.setNativeAudioHelperEnabled(true));
+	assert.equal(settings.snapshot().nativeAudioHelperEnabled, false,
+		'a failed atomic write must not leave helper authority enabled only in memory');
+});
+
 test('semantic release selection respects preview and stable channels', () => {
 	assert.equal(compareVersions('1.0.0-beta.2', '1.0.0-beta.1'), 1);
 	assert.equal(compareVersions('1.0.0', '1.0.0-beta.9'), 1);

@@ -37,6 +37,7 @@ const REQUIRED_SEAMS = Object.freeze({
 	resourcesPath: 'string',
 	userDataPath: 'string',
 	parentWindow: 'function',
+	refreshMenu: 'function',
 });
 
 export function registerDesktopNativeTier(options) {

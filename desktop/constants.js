@@ -95,6 +95,7 @@ export const IPC = Object.freeze({
 	helperProbeCancel: 'soundscaper:v1:helper:probe-cancel',
 	nativeAudioAvailability: 'soundscaper:v1:helper:native-audio-availability',
 	nativeAudioInventory: 'soundscaper:v1:helper:native-audio-inventory',
+	nativeAudioSetEnabled: 'soundscaper:v1:helper:native-audio-set-enabled',
 	nativePluginAvailability: 'soundscaper:v1:helper:native-plugin-availability',
 	nativePluginConsent: 'soundscaper:v1:helper:native-plugin-consent',
 	nativePluginScan: 'soundscaper:v1:helper:native-plugin-scan',

@@ -13,7 +13,10 @@
 import React, { useEffect, useMemo, useReducer, type KeyboardEvent } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
-import type { SoundscaperNativeServicesBridge } from '../soundscaper-native-services-bridge.ts';
+import {
+	soundscaperNativeServicesStoreFor,
+	type SoundscaperNativeServicesBridge,
+} from '../soundscaper-native-services-bridge.ts';
 import {
 	resolveSoundscaperNativeServicesCopy,
 	type SoundscaperNativeServicesCopy,
@@ -55,7 +58,12 @@ export default function SoundscaperNativeServicesDialog({
 
 	const perform = useMemo(() => (action: SoundscaperNativeServicesDialogAction): void => {
 		dispatch({ type: 'begin', action });
-		void runSoundscaperNativeServicesAction(bridge, action).then(dispatch);
+		void runSoundscaperNativeServicesAction(bridge, action).then((event) => {
+			dispatch(event);
+			if (event.type === 'settled' && action.type !== 'refresh' && action.type !== 'describe-devices') {
+				void soundscaperNativeServicesStoreFor(bridge).refresh().catch(() => null);
+			}
+		});
 	}, [bridge]);
 	useEffect(() => { perform({ type: 'refresh' }); }, [perform]);
 
@@ -112,7 +120,12 @@ export default function SoundscaperNativeServicesDialog({
 					disabled={state.pending !== null}
 					perform={perform}
 				/>}
-				{surface === 'native-audio-preferences' && <NativeAudioPanel copy={copy} state={state} />}
+				{surface === 'native-audio-preferences' && <NativeAudioPanel
+					copy={copy}
+					state={state}
+					disabled={state.pending !== null}
+					perform={perform}
+				/>}
 				{surface === 'native-effect-scan' && <SoundscaperNativeEffectScanPanel
 					copy={copy}
 					state={state}
@@ -147,7 +160,7 @@ function AudioDevicePanel({ copy, state, disabled, perform }: Readonly<{
 					<span>{backend}</span>
 					<button
 						type="button"
-						disabled={disabled}
+						disabled={disabled || state.audio?.enabled !== true}
 						data-native-audio-describe={backend}
 						onClick={() => perform({ type: 'describe-devices', backend })}
 					>{copy.listDevices}</button>
@@ -164,13 +177,22 @@ function AudioDevicePanel({ copy, state, disabled, perform }: Readonly<{
 	</div>;
 }
 
-function NativeAudioPanel({ copy, state }: Readonly<{
+function NativeAudioPanel({ copy, state, disabled, perform }: Readonly<{
 	copy: SoundscaperNativeServicesCopy;
 	state: SoundscaperNativeServicesDialogState;
+	disabled: boolean;
+	perform: (action: SoundscaperNativeServicesDialogAction) => void;
 }>) {
 	const audio = state.audio;
+	const enabled = audio?.enabled === true;
 	return <div className="audio-editor-soundscaper-native-audio">
-		<p>{audio?.enabled === true ? copy.tierEnabled : copy.tierDisabled}</p>
+		<p>{enabled ? copy.tierEnabled : copy.tierDisabled}</p>
+		<button
+			type="button"
+			disabled={disabled || audio === null}
+			data-native-audio-set-enabled={String(!enabled)}
+			onClick={() => perform({ type: 'set-audio-enabled', enabled: !enabled })}
+		>{enabled ? copy.disableNativeAudio : copy.enableNativeAudio}</button>
 		{audio?.quarantined === true && <p>{copy.audioHelperQuarantined}</p>}
 		{audio !== null && audio.payload.status !== 'available'
 			&& <p>{audio.payload.detail || copy.audioBackendUnavailable}</p>}

@@ -48,9 +48,14 @@ export async function createFramescaperWebEditorRuntimeV18(
 	presentationValue: FramescaperWebEditorRuntimePresentationV18 | unknown,
 ): Promise<Readonly<FramescaperWebEditorRuntimeV18>> {
 	const presentation = snapshotPresentation(presentationValue);
-	const environment = await createFramescaperEditorProjectEnvironmentV18();
+	const fileService = createAudioEditorFileService();
+	const environment = await createFramescaperEditorProjectEnvironmentV18({
+		storeOptions: {
+			linkedOriginalPort: fileService.linkedOriginalPort,
+			linkedVideoOriginalPort: fileService.linkedVideoOriginalPort,
+		},
+	});
 	try {
-		const fileService = createAudioEditorFileService();
 		const controller = createFramescaperAudioEditorControllerV18(environment, {
 			locale: presentation.locale,
 			copy: presentation.copy,
@@ -149,6 +154,7 @@ export default function FramescaperAudioEditorBootstrapV18({
 			controller={runtime.controller}
 			fileService={runtime.fileService}
 			projectForRuntimeConsumers={runtimeProjector(runtime)}
+			crossProductHandoffAvailable={false}
 		/>
 	</Suspense>;
 }

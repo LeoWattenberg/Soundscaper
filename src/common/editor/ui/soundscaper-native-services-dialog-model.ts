@@ -45,6 +45,7 @@ export interface SoundscaperNativeServicesDialogState {
 
 export type SoundscaperNativeServicesDialogAction =
 	| Readonly<{ type: 'refresh' }>
+	| Readonly<{ type: 'set-audio-enabled'; enabled: boolean }>
 	| Readonly<{ type: 'describe-devices'; backend: string }>
 	| Readonly<{
 		type: 'consent';
@@ -95,6 +96,7 @@ export function soundscaperNativeServicesActionKey(
 	if (action.type === 'scan') return `scan:${action.format}:${action.rootId}`;
 	if (action.type === 'consent') return `consent:${action.format}:${action.consent}:${action.rootId ?? ''}`;
 	if (action.type === 'describe-devices') return `describe-devices:${action.backend}`;
+	if (action.type === 'set-audio-enabled') return `set-audio-enabled:${String(action.enabled)}`;
 	if (action.type === 'clear-quarantine') return `clear-quarantine:${action.digest}:${action.clearance}`;
 	return 'refresh';
 }
@@ -146,7 +148,9 @@ export function reduceSoundscaperNativeServicesDialog(
 		audio: result.audio ?? state.audio,
 		plugins: result.plugins ?? state.plugins,
 		registry: result.registry ?? state.registry,
-		devices: result.devices ?? state.devices,
+		devices: event.action.type === 'set-audio-enabled' && !event.action.enabled
+			? null
+			: result.devices ?? state.devices,
 		scans: result.scan ? withScan(state.scans, key, result.scan) : state.scans,
 		pending: null,
 		completed: key,
@@ -183,6 +187,10 @@ async function perform(
 	}
 	if (action.type === 'describe-devices') {
 		return Object.freeze({ devices: await bridge.describeNativeAudioBackend({ backend: action.backend }) });
+	}
+	if (action.type === 'set-audio-enabled') {
+		await bridge.setNativeAudioHelperEnabled(action.enabled);
+		return Object.freeze({ audio: await bridge.nativeAudioHelperAvailability() });
 	}
 	if (action.type === 'consent') {
 		await bridge.setNativePluginConsent({

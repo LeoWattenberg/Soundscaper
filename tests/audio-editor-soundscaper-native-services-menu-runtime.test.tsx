@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	createSoundscaperNativeServicesStore,
 	SOUNDSCAPER_NATIVE_SERVICES_REFRESH_INTERVAL_MS,
 	soundscaperNativeServicesStoreFor,
+	type NativeAudioAvailability,
 	type SoundscaperNativeServicesBridge,
 } from '../src/common/editor/ui/soundscaper-native-services-bridge.ts';
 import { createWorkspaceApplicationMenus } from '../src/common/editor/ui/workspace/workspace-application-menu-runtime.js';
@@ -16,6 +18,12 @@ interface MenuItem {
 	readonly disabled?: boolean;
 	readonly items?: readonly MenuItem[];
 	onClick?(): unknown;
+}
+
+function deferred<Value>() {
+	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
+	const promise = new Promise<Value>((complete) => { resolve = complete; });
+	return { promise, resolve };
 }
 
 function fakeBridge(overrides: Readonly<Record<string, unknown>> = {}) {
@@ -30,6 +38,7 @@ function fakeBridge(overrides: Readonly<Record<string, unknown>> = {}) {
 				backends: ['alsa'],
 			});
 		},
+		setNativeAudioHelperEnabled: () => Promise.resolve(true),
 		nativePluginAvailability: () => {
 			calls.push('nativePluginAvailability');
 			return Promise.resolve({
@@ -148,6 +157,62 @@ test('the tier is re-read after the desktop discovery toggle changes behind the 
 	assert.deepEqual(store.getSnapshot()?.enabledPluginFormats, ['fixture'],
 		'a toggle made outside the renderer must reach the menu without a reload');
 	assert.ok(SOUNDSCAPER_NATIVE_SERVICES_REFRESH_INTERVAL_MS > 0);
+});
+
+test('native service stores publish changed async snapshots to React subscribers', async () => {
+	let enabled = false;
+	const { bridge } = fakeBridge({
+		nativeAudioHelperAvailability: () => Promise.resolve({
+			enabled,
+			quarantined: false,
+			payload: { status: 'available', reason: null, detail: '' },
+			backends: enabled ? ['alsa'] : [],
+		}),
+	});
+	const store = soundscaperNativeServicesStoreFor(bridge as unknown as SoundscaperNativeServicesBridge);
+	let publications = 0;
+	const unsubscribe = store.subscribe(() => { publications += 1; });
+	await store.refresh();
+	const afterInitial = publications;
+	await store.refresh();
+	assert.equal(publications, afterInitial, 'an unchanged probe must not churn the application menu');
+	enabled = true;
+	await store.refresh();
+	assert.equal(publications, afterInitial + 1);
+	assert.equal(store.getSnapshot()?.enabled, true);
+	unsubscribe();
+});
+
+test('an older native-service probe cannot overwrite a newer published answer', async () => {
+	const older = deferred<NativeAudioAvailability>();
+	const newer = deferred<NativeAudioAvailability>();
+	const answers = [older.promise, newer.promise];
+	const { bridge } = fakeBridge({
+		nativeAudioHelperAvailability: () => answers.shift(),
+	});
+	const store = createSoundscaperNativeServicesStore(
+		bridge as unknown as SoundscaperNativeServicesBridge,
+	);
+	const olderRefresh = store.refresh();
+	const newerRefresh = store.refresh();
+
+	newer.resolve({
+		enabled: true,
+		quarantined: false,
+		payload: { status: 'available', reason: null, detail: '' },
+		backends: ['alsa'],
+	});
+	await newerRefresh;
+	older.resolve({
+		enabled: false,
+		quarantined: false,
+		payload: { status: 'available', reason: null, detail: '' },
+		backends: [],
+	});
+	await olderRefresh;
+
+	assert.equal(store.getSnapshot()?.enabled, true,
+		'a late response from an earlier request must not roll the menu back');
 });
 
 test('Framescaper gains no Soundscaper native services runtime', async (t) => {

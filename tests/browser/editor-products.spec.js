@@ -16,16 +16,20 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 
 	test('renders the product shell while the editor chunk is still loading', async ({ page }) => {
 		let releaseEditorChunk;
+		let editorChunkIntercepted = false;
 		const editorChunkGate = new Promise((resolve) => { releaseEditorChunk = resolve; });
-		await page.route(/\/assets\/SoundscaperAudioEditorBootstrapV21-[^/]+\.js$/u, async (route) => {
+		await page.route(/\/assets\/SoundscaperAudioEditorBootstrapV23-[^/]+\.js$/u, async (route) => {
+			editorChunkIntercepted = true;
 			await editorChunkGate;
 			await route.continue();
 		});
 
 		await page.goto('/en/', { waitUntil: 'domcontentloaded' });
+		await expect.poll(() => editorChunkIntercepted).toBe(true);
 		await expect(page.locator('[data-sidebar] .brand strong')).toHaveText('Soundscaper');
 		await expect(page.locator('.tool-intro h1')).toBeVisible();
 		await expect(page.locator('.audio-editor-section').getByRole('status')).toHaveText('Loading project');
+		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
 
 		releaseEditorChunk();
 		await readyEditor(page, 'soundscaper');
@@ -71,7 +75,7 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Framescaper', exact: true })).toBeVisible();
 	});
 
-	test('the File menu keeps exact V23 and V19 product libraries isolated', async ({ page }) => {
+	test('the File menu explains the exact V23 and V19 cross-product editing fence', async ({ page }) => {
 		await page.goto('/en/');
 		const soundscaper = await readyEditor(page, 'soundscaper');
 		const soundscaperProjectId = await soundscaper.getAttribute('data-project-id');
@@ -81,17 +85,27 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 
 		await soundscaper.getByRole('menuitem', { name: 'File', exact: true }).click();
 		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
-		const editInFramescaper = fileMenu.getByRole('menuitem', { name: 'Edit in Framescaper', exact: true });
+		const editInFramescaper = fileMenu.getByRole('menuitem', { name: /^Edit in Framescaper/u });
 		await expect(editInFramescaper).toBeVisible();
-		await editInFramescaper.click();
-		await page.waitForURL((url) => url.pathname === '/framescaper/en/'
-			&& url.searchParams.get('project') === soundscaperProjectId);
-		const framescaper = await readyEditor(page, 'framescaper', 'error');
-		await expect(framescaper.locator('[data-status]')).toContainText('The project was not found.');
+		await expect(editInFramescaper).toHaveAttribute('aria-disabled', 'true');
+		await expect(editInFramescaper.locator('[data-disabled-reason]'))
+			.toHaveAttribute('data-disabled-reason', /Cross-product editing is unavailable/u);
+		await page.keyboard.press('Escape');
+		await expect(page).toHaveURL((url) => url.pathname === '/en/' && !url.searchParams.has('project'));
+
+		await page.goto('/framescaper/en/');
+		const framescaper = await readyEditor(page, 'framescaper');
 		const framescaperProjectId = await framescaper.getAttribute('data-project-id');
 		expect(framescaperProjectId).toBeTruthy();
 		expect(framescaperProjectId).not.toBe(soundscaperProjectId);
 		await saveProject(page, framescaper);
+		await framescaper.getByRole('menuitem', { name: 'File', exact: true }).click();
+		const editInSoundscaper = page.getByRole('menu', { name: 'File', exact: true })
+			.getByRole('menuitem', { name: /^Edit in Soundscaper/u });
+		await expect(editInSoundscaper).toHaveAttribute('aria-disabled', 'true');
+		await expect(editInSoundscaper.locator('[data-disabled-reason]'))
+			.toHaveAttribute('data-disabled-reason', /Cross-product editing is unavailable/u);
+		await page.keyboard.press('Escape');
 
 		await expect.poll(() => storedProject(page, SOUNDSCAPER_DATABASE, soundscaperProjectId))
 			.toEqual({ id: soundscaperProjectId, schemaVersion: 23 });

@@ -54,6 +54,30 @@ test('shared track-lock copy is localized for both shipped locales', () => {
 	}, { lockTrack: 'Spur sperren', unlockTrack: 'Spur entsperren' });
 });
 
+test('exact product menus disable cross-product editing until an admitted carrier exists', () => {
+	for (const productId of ['soundscaper', 'framescaper'] as const) {
+		const unavailable = findMenuItem(createApplicationMenus({
+			...menuInput({
+				productId, type: productId === 'framescaper' ? 'video' : 'audio',
+				locked: false, editBlocked: false, actions: actionPorts({}),
+			}),
+			crossProductHandoffAvailable: false,
+		}) as readonly MenuItem[], 'switch-product');
+		assert.equal(unavailable.disabled, true);
+		assert.equal(unavailable.disabledReason, 'Cross-product editing is unavailable for this project format. Export a .scape file to preserve a copy.');
+
+		const available = findMenuItem(createApplicationMenus({
+			...menuInput({
+				productId, type: productId === 'framescaper' ? 'video' : 'audio',
+				locked: false, editBlocked: false, actions: actionPorts({}),
+			}),
+			crossProductHandoffAvailable: true,
+		}) as readonly MenuItem[], 'switch-product');
+		assert.equal(available.disabled, false);
+		assert.equal(available.disabledReason, undefined);
+	}
+});
+
 test('Tracks menu exposes every implemented structural operation without new default chrome', () => {
 	const called: string[] = [];
 	const handlers = Object.fromEntries([
@@ -90,6 +114,7 @@ interface MenuItem {
 	readonly id?: unknown;
 	readonly label?: unknown;
 	readonly disabled?: unknown;
+	readonly disabledReason?: unknown;
 	readonly items?: readonly MenuItem[];
 	readonly onClick?: () => unknown;
 	readonly parityStatus?: unknown;
@@ -189,7 +214,11 @@ function actionPorts(overrides: Readonly<Record<string, unknown>>): object {
 }
 
 function copyValues(): object {
-	return new Proxy({ lockTrack: 'Lock track', unlockTrack: 'Unlock track' }, {
+	return new Proxy({
+		lockTrack: 'Lock track',
+		unlockTrack: 'Unlock track',
+		crossProductHandoffUnavailable: 'Cross-product editing is unavailable for this project format. Export a .scape file to preserve a copy.',
+	}, {
 		get(target, property, receiver) {
 			return Reflect.has(target, property)
 				? Reflect.get(target, property, receiver)

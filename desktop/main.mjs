@@ -312,7 +312,7 @@ async function registerIpcHandlers(desktopSession) {
 		session: desktopSession,
 	});
 	linkedVideoLocators.registerIpc({ dialog, handle, ownerFor: rendererSaveOwnerFor, windowFor: () => mainWindow });
-	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath, userDataPath: app.getPath('userData'), parentWindow: () => mainWindow });
+	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath, userDataPath: app.getPath('userData'), parentWindow: () => mainWindow, refreshMenu: installMenu });
 	await nativeTier.ready();
 	handle(IPC.environment, () => ({
 		platform: process.platform,

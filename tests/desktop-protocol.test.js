@@ -546,7 +546,7 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 			'getEnvironment', 'installAssistanceModel', 'listAssistanceModels', 'listNativePlugins', 'listSharedProjects', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'nativeAudioHelperAvailability', 'nativePluginAvailability', 'onAssistanceInstallProgress', 'onCloseRequested', 'onFullscreenChanged',
 			'onMenuCommand', 'onOpenProject', 'openExternal', 'patchFinalPrefix', 'probeHelperAvailability', 'readSharedProject',
 			'readSharedProjectBundle', 'readSharedSourceChunk', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'removeAssistanceModel', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'respondToClose', 'scanNativePlugins',
-			'setFullscreen', 'setLocale', 'setNativePluginConsent', 'signalReady', 'writeChunk', 'writeSharedSourceChunk',
+			'setFullscreen', 'setLocale', 'setNativeAudioHelperEnabled', 'setNativePluginConsent', 'signalReady', 'writeChunk', 'writeSharedSourceChunk',
 		].sort(),
 	);
 	assert.equal(Object.isFrozen(bridge.v1), true);

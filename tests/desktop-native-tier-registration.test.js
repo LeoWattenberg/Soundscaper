@@ -65,6 +65,7 @@ const NATIVE_CHANNELS = Object.freeze([
 	IPC.helperProbeCancel,
 	IPC.nativeAudioAvailability,
 	IPC.nativeAudioInventory,
+	IPC.nativeAudioSetEnabled,
 	IPC.nativePluginAvailability,
 	IPC.nativePluginConsent,
 	IPC.nativePluginScan,
@@ -98,7 +99,7 @@ test('registering the native tier claims every declared channel exactly once', a
 test('the native tier refuses an options bag missing a seam it forwards', async (context) => {
 	const userDataPath = await temporaryUserData(context);
 	const complete = registrationOptions(userDataPath);
-	for (const missing of ['channels', 'handle', 'ownerFor', 'settings', 'desktopRoot', 'userDataPath', 'parentWindow']) {
+	for (const missing of ['channels', 'handle', 'ownerFor', 'settings', 'desktopRoot', 'userDataPath', 'parentWindow', 'refreshMenu']) {
 		const options = { ...complete };
 		delete options[missing];
 		assert.throws(() => registerDesktopNativeTier(options), new RegExp(missing, 'u'),
@@ -115,6 +116,58 @@ test('the native tier menu reads the registration it is handed, not the last one
 	const item = tools.submenu.find((entry) => entry.label === 'Use Native Audio Helper');
 	assert.equal(item.checked, false,
 		'a menu built from module state shows whichever registration happened to be made last');
+});
+
+test('the renderer can change native-audio preference through the bounded main channel', async (context) => {
+	let ownerReads = 0;
+	let rebuiltChecked = null;
+	let registration;
+	registration = createRegistration(await temporaryUserData(context), { nativeAudioHelperEnabled: false }, {
+		ownerFor: () => { ownerReads += 1; return {}; },
+		refreshMenu: () => {
+			const tools = desktopNativeTierMenu(registration.settings, registration.tier)
+				.find((section) => section.label === 'Tools');
+			rebuiltChecked = tools.submenu.find((entry) => entry.label === 'Use Native Audio Helper').checked;
+		},
+	});
+	context.after(() => disposeDesktopNativeTier(registration.tier));
+
+	assert.equal((await registration.invoke(IPC.nativeAudioAvailability)).enabled, false);
+	assert.equal(await registration.invoke(IPC.nativeAudioSetEnabled, true), true);
+	assert.equal((await registration.invoke(IPC.nativeAudioAvailability)).enabled, true);
+	assert.equal(ownerReads, 1, 'the setter must validate the active renderer owner before changing authority');
+	assert.equal(rebuiltChecked, true, 'a renderer toggle must rebuild the OS menu from the durable setting');
+	assert.equal(await registration.invoke(IPC.nativeAudioSetEnabled, 'true'), false,
+		'the main boundary must not coerce renderer input');
+	assert.equal(ownerReads, 2);
+	assert.equal(rebuiltChecked, false);
+});
+
+test('a renderer with no active owner cannot change native-audio authority', async (context) => {
+	let refreshes = 0;
+	const registration = createRegistration(await temporaryUserData(context), { nativeAudioHelperEnabled: false }, {
+		ownerFor: () => { throw new Error('The renderer is no longer the active owner.'); },
+		refreshMenu: () => { refreshes += 1; },
+	});
+	context.after(() => disposeDesktopNativeTier(registration.tier));
+
+	await assert.rejects(
+		() => registration.invoke(IPC.nativeAudioSetEnabled, true),
+		/active owner/u,
+	);
+	assert.equal((await registration.invoke(IPC.nativeAudioAvailability)).enabled, false);
+	assert.equal(refreshes, 0, 'a rejected renderer cannot cause a misleading menu refresh');
+});
+
+test('a menu refresh fault cannot turn a persisted renderer toggle into an IPC failure', async (context) => {
+	const registration = createRegistration(await temporaryUserData(context), { nativeAudioHelperEnabled: false }, {
+		refreshMenu: () => { throw new Error('simulated menu rebuild fault'); },
+	});
+	context.after(() => disposeDesktopNativeTier(registration.tier));
+
+	assert.equal(await registration.invoke(IPC.nativeAudioSetEnabled, true), true);
+	assert.equal((await registration.invoke(IPC.nativeAudioAvailability)).enabled, true,
+		'the durable authority result must survive failure in its OS-menu projection');
 });
 
 test('the native tier ready seam restores the durable plug-in quarantine', async (context) => {
@@ -300,11 +353,12 @@ function registrationOptions(userDataPath, overrides = {}) {
 		resourcesPath: join(ROOT, 'resources'),
 		userDataPath,
 		parentWindow: () => null,
+		refreshMenu: () => {},
 		...overrides,
 	};
 }
 
-function createRegistration(userDataPath, settingsState = {}) {
+function createRegistration(userDataPath, settingsState = {}, overrides = {}) {
 	const channels = [];
 	const handlers = new Map();
 	const settings = createSettings(settingsState);
@@ -314,6 +368,7 @@ function createRegistration(userDataPath, settingsState = {}) {
 			handlers.set(channel, listener);
 		},
 		settings,
+		...overrides,
 	}));
 	return {
 		channels,
@@ -336,7 +391,7 @@ function createSettings(overrides = {}) {
 	};
 	return {
 		snapshot: () => ({ ...state }),
-		setNativeAudioHelperEnabled: (value) => { state.nativeAudioHelperEnabled = value; },
+		setNativeAudioHelperEnabled: (value) => (state.nativeAudioHelperEnabled = value),
 		setNativePluginDiscoveryEnabled: (value) => { state.nativePluginDiscoveryEnabled = value; },
 		setNativeProbeHelperEnabled: (value) => { state.nativeProbeHelperEnabled = value; },
 	};

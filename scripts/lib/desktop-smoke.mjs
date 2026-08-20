@@ -54,6 +54,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'scanNativePlugins',
 	'setFullscreen',
 	'setLocale',
+	'setNativeAudioHelperEnabled',
 	'setNativePluginConsent',
 	'signalReady',
 	'writeChunk',

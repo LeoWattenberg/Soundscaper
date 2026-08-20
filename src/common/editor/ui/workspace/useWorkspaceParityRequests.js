@@ -7,11 +7,11 @@ export function useWorkspaceParityRequests({
 	openRecordingOffset,
 	openSurface,
 	openTimedRecording,
+	openTrackRate,
 	openWorkspacePanel,
 	parityUi,
 	project,
 	run,
-	selectedAudioTrackRate,
 	selectedTrack,
 	setDialog,
 	setDialogValue,
@@ -43,8 +43,7 @@ export function useWorkspaceParityRequests({
 		else if (request.type === 'open-timed-recording') openTimedRecording();
 		else if (request.type === 'close-project') run(() => controller.actions.project.close(payload.projectId, payload));
 		else if (request.type === 'set-custom-track-rate') {
-			setDialogValue(String(selectedAudioTrackRate));
-			setDialog('track-rate');
+			openTrackRate(selectedTrack);
 		} else if (request.type === 'rename-track') {
 			setDialogValue(selectedTrack?.name || '');
 			setDialog('track-rename');
@@ -91,12 +90,13 @@ export function useWorkspaceParityRequests({
 		openSurface,
 		openRecordingOffset,
 		openTimedRecording,
+		openTrackRate,
 		openWorkspacePanel,
 		parityUi.request,
 		parityUi.request?.revision,
 		project?.sampleRate,
 		run,
-		selectedAudioTrackRate,
+		selectedTrack?.id,
 		selectedTrack?.name,
 		snapshot.timeline?.pixelsPerSecond,
 		toggleFullscreen,

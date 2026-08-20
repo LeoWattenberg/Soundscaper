@@ -62,6 +62,10 @@ function fakeBridge(overrides: Partial<SoundscaperNativeServicesBridge> = {}) {
 				backends: ['alsa'],
 			});
 		},
+		setNativeAudioHelperEnabled: (enabled: boolean) => {
+			calls.push(['setNativeAudioHelperEnabled', enabled]);
+			return Promise.resolve(enabled);
+		},
 		describeNativeAudioBackend: (request: Readonly<{ backend: string }>) => {
 			calls.push(['describeNativeAudioBackend', request.backend]);
 			return Promise.resolve({
@@ -143,6 +147,55 @@ test('a quarantined digest is cleared from the product surface by rescan and by 
 	assert.equal(reEnabled.error, '');
 	assert.equal(rescanned.pending, null);
 	assert.deepEqual(rescanned.plugins?.quarantine.records, [], 'clearing must re-read the quarantine it emptied');
+});
+
+test('native audio preferences can enable the desktop tier and re-read its state', async () => {
+	let enabled = false;
+	const { bridge, calls } = fakeBridge({
+		setNativeAudioHelperEnabled: (next: boolean) => {
+			calls.push(['setNativeAudioHelperEnabled', next]);
+			enabled = next;
+			return Promise.resolve(next);
+		},
+		nativeAudioHelperAvailability: () => Promise.resolve({
+			enabled,
+			quarantined: false,
+			payload: { status: 'available', reason: null, detail: '' },
+			backends: enabled ? ['alsa'] : [],
+		}),
+	});
+
+	const state = await settle(EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE, bridge, {
+		type: 'set-audio-enabled', enabled: true,
+	});
+
+	assert.deepEqual(calls.filter(([name]) => name === 'setNativeAudioHelperEnabled'), [
+		['setNativeAudioHelperEnabled', true],
+	]);
+	assert.equal(state.audio?.enabled, true);
+});
+
+test('turning native audio off clears its device inventory', async () => {
+	const { bridge } = fakeBridge({
+		nativeAudioHelperAvailability: () => Promise.resolve({
+			enabled: false,
+			quarantined: false,
+			payload: { status: 'available', reason: null, detail: '' },
+			backends: ['alsa'],
+		}),
+	});
+	const state = await settle({
+		...EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE,
+		devices: {
+			status: 'described',
+			inventory: {
+				backend: 'alsa', status: 'ready', detail: '',
+				devices: [{ handle: 'h1', label: 'Built-in', direction: 'output' }],
+			},
+		},
+	}, bridge, { type: 'set-audio-enabled', enabled: false });
+
+	assert.equal(state.devices, null, 'devices described before disable are no longer authoritative');
 });
 
 test('a desktop shell without the clearance call refuses instead of pretending the quarantine went', async () => {
@@ -260,6 +313,24 @@ test('the dialog is an accessible modal that shows progress, results, consent an
 	assert.match(manage, /data-native-quarantine-clear="rescan"/u);
 	assert.match(manage, /data-native-quarantine-clear="re-enable"/u);
 	assert.match(manage, /Proof Gain/u);
+
+	const preferences = renderToStaticMarkup(<SoundscaperNativeServicesDialog
+		bridge={fakeBridge().bridge}
+		initialSurface="native-audio-preferences"
+		initialState={{ ...seeded, audio: { ...seeded.audio!, enabled: false } }}
+		onClose={() => {}}
+	/>);
+	assert.match(preferences, /data-native-audio-set-enabled="true"/u);
+	assert.match(preferences, /Turn on native audio/u);
+
+	const devices = renderToStaticMarkup(<SoundscaperNativeServicesDialog
+		bridge={fakeBridge().bridge}
+		initialSurface="native-audio-device"
+		initialState={{ ...seeded, audio: { ...seeded.audio!, enabled: false } }}
+		onClose={() => {}}
+	/>);
+	assert.match(devices, /disabled="" data-native-audio-describe="alsa"/u,
+		'device discovery must remain unavailable while native audio is off');
 });
 
 test('the menu-opened surface mounts and unmounts one host, and nothing before it is opened', () => {

@@ -542,6 +542,7 @@ const COPY_ENTRIES = Object.freeze([
 	["takeCycleRecovering","Recovering takes","Takes werden wiederhergestellt"],
 	["takeCycleDiscarding","Discarding takes","Takes werden verworfen"],
 	["takeCycleRecoveryWorking","Verifying exact recovery ownership","Exakte Wiederherstellungszuordnung wird geprüft"],
+	["crossProductHandoffUnavailable","Cross-product editing is unavailable for this project format. Export a .scape file to preserve a copy.","Produktübergreifendes Bearbeiten ist für dieses Projektformat nicht verfügbar. Exportiere eine .scape-Datei, um eine Kopie zu bewahren."],
 ]);
 
 export const CANONICAL_EXTRA_COPY_BY_LOCALE = Object.freeze({

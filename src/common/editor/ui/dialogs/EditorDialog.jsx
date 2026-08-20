@@ -16,9 +16,10 @@ import {
 	formatDeliveryReportSummary,
 	deliveryReportItems,
 	recordingOffsetSources,
+	applyTrackRateDialog,
 } from './editor-dialog-model.js';
 
-export default function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSourceKeyChange, controller, snapshot, copy, aboutLabel, locale, run, showArmControls = false, onClose }) {
+export default function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSourceKeyChange, trackId, controller, snapshot, copy, aboutLabel, locale, run, showArmControls = false, onClose }) {
 	const cancelTimedRecordingOnClose = useRef(false);
 	cancelTimedRecordingOnClose.current = type === 'timed-recording' && snapshot.recordingScheduling;
 	const closeDialog = () => {
@@ -207,9 +208,8 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 					{type === 'track-rate' && (
 						<form onSubmit={(event) => {
 							event.preventDefault();
-							const trackId = snapshot.selectedTrackId;
-							if (!trackId) return;
-							run(() => controller.actions.track.setRate(trackId, Number(value)));
+							if (!applyTrackRateDialog({ trackId, value, run,
+								setRate: controller.actions.track.setRate })) return;
 							onClose();
 						}}>
 							<label className="kw-audio-editor-dialog__field">

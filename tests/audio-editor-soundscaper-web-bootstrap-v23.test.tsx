@@ -97,6 +97,12 @@ test('the shared Soundscaper site route selects only the product-owned V23 boots
 	assert.match(main, /productId\s*!==\s*'framescaper'\s*\?\s*SoundscaperAudioEditorBootstrapV23/su);
 	assert.match(bootstrap, /createSoundscaperEditorProjectEnvironmentV23/u);
 	assert.match(bootstrap, /createSoundscaperAudioEditorControllerV23/u);
+	assert.ok(
+		bootstrap.indexOf('const fileService = createAudioEditorFileService()')
+			< bootstrap.indexOf('const environment = await createSoundscaperEditorProjectEnvironmentV23'),
+		'the desktop file ports must exist before the exact store is constructed',
+	);
+	assert.match(bootstrap, /createSoundscaperEditorProjectEnvironmentV23\(\{\s*storeOptions:\s*\{\s*linkedOriginalPort:\s*fileService\.linkedOriginalPort,\s*linkedVideoOriginalPort:\s*fileService\.linkedVideoOriginalPort,?\s*\},?\s*\}\)/su);
 	assert.match(environment, /createSoundscaperProjectRuntimeV23Selection/u);
 	assert.match(controller, /projectRuntime:\s*environment\.runtime/u);
 	assert.doesNotMatch(bootstrap, /createAudioEditorController|AudioEditorBootstrap\.jsx/u);

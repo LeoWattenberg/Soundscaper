@@ -15,6 +15,7 @@ export interface ProjectSessionSelectionTrack {
 
 export interface ProjectSessionSelectionProject {
 	readonly schemaVersion?: unknown;
+	readonly selection?: unknown;
 	readonly timelineAnnotations?: unknown;
 	readonly tracks: readonly ProjectSessionSelectionTrack[];
 }
@@ -66,8 +67,23 @@ export function createProjectSessionSelectionService<
 			?? project.tracks.find((track) => track.type !== 'label')?.id
 			?? project.tracks[0]?.id
 			?? null;
-		dependencies.state.selectedClipId = dependencies.findClip(project, metadata.selectedClipId)?.id ?? null;
+		dependencies.state.selectedClipId = Object.hasOwn(metadata, 'selectedClipId')
+			? dependencies.findClip(project, metadata.selectedClipId)?.id ?? null
+			: firstDurableSelectedClipId(project);
 		dependencies.state.selectedAnnotationId = existingActiveAnnotationId(project, metadata.selectedAnnotationId);
+	}
+
+	function firstDurableSelectedClipId(project: Project): string | null {
+		const selection = project.selection;
+		if (selection === null || typeof selection !== 'object' || Array.isArray(selection)) return null;
+		const clipIds = (selection as Readonly<{ clipIds?: unknown }>).clipIds;
+		if (!Array.isArray(clipIds)) return null;
+		for (const clipId of clipIds) {
+			if (typeof clipId !== 'string' || !clipId) continue;
+			const clip = dependencies.findClip(project, clipId);
+			if (clip) return clip.id;
+		}
+		return null;
 	}
 }
 

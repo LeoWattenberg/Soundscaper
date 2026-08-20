@@ -85,8 +85,9 @@ export class DesktopSettingsStore {
 
 	/** The native audio helper stays off until the user turns it on. */
 	async setNativeAudioHelperEnabled(enabled) {
-		this.#settings.nativeAudioHelperEnabled = enabled === true;
-		await this.#write();
+		const next = { ...this.#settings, nativeAudioHelperEnabled: enabled === true };
+		await this.#write(next);
+		this.#settings.nativeAudioHelperEnabled = next.nativeAudioHelperEnabled;
 		return this.#settings.nativeAudioHelperEnabled;
 	}
 
@@ -102,13 +103,13 @@ export class DesktopSettingsStore {
 		await this.#write();
 	}
 
-	async #write() {
+	async #write(settings = this.#settings) {
 		const directory = dirname(this.#filePath);
 		await mkdir(directory, { recursive: true });
 		const temporaryPath = `${this.#filePath}.${randomBytes(8).toString('hex')}.tmp`;
 		const handle = await open(temporaryPath, 'wx', 0o600);
 		try {
-			await handle.writeFile(`${JSON.stringify(this.#settings, null, 2)}\n`, 'utf8');
+			await handle.writeFile(`${JSON.stringify(settings, null, 2)}\n`, 'utf8');
 			await handle.sync();
 			await handle.close();
 			await rename(temporaryPath, this.#filePath);

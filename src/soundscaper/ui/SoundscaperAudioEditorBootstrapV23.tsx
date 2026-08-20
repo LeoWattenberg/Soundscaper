@@ -44,9 +44,14 @@ export async function createSoundscaperWebEditorRuntimeV23(
 	presentationValue: SoundscaperWebEditorRuntimePresentationV23 | unknown,
 ): Promise<Readonly<SoundscaperWebEditorRuntimeV23>> {
 	const presentation = snapshotPresentation(presentationValue);
-	const environment = await createSoundscaperEditorProjectEnvironmentV23();
+	const fileService = createAudioEditorFileService();
+	const environment = await createSoundscaperEditorProjectEnvironmentV23({
+		storeOptions: {
+			linkedOriginalPort: fileService.linkedOriginalPort,
+			linkedVideoOriginalPort: fileService.linkedVideoOriginalPort,
+		},
+	});
 	try {
-		const fileService = createAudioEditorFileService();
 		const controller = createSoundscaperAudioEditorControllerV23(environment, {
 			locale: presentation.locale,
 			copy: presentation.copy,
@@ -146,6 +151,7 @@ export default function SoundscaperAudioEditorBootstrapV23({
 			controller={runtime.controller}
 			fileService={runtime.fileService}
 			projectForRuntimeConsumers={runtimeProjector(runtime)}
+			crossProductHandoffAvailable={false}
 		/>
 	</Suspense>;
 }

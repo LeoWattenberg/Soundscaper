@@ -151,6 +151,7 @@ export default function FramescaperAudioEditorBootstrapV19({
 			controller={runtime.controller}
 			fileService={runtime.fileService}
 			projectForRuntimeConsumers={runtimeProjector(runtime)}
+			crossProductHandoffAvailable={false}
 		/>
 	</Suspense>;
 }

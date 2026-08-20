@@ -52,6 +52,7 @@ export default function createApplicationMenus({
 	uiFlags,
 	actionRuntime,
 	actions,
+	crossProductHandoffAvailable = false,
 }) {
 	const divider = () => ({ divider: true });
 	const clipSelectionActive = Boolean(selectedClip || project?.selection?.clipIds?.some((clipId) => (
@@ -191,7 +192,13 @@ export default function createApplicationMenus({
 					resolve: () => ({ disabled: blocked && !snapshot.readOnly }),
 					onClick: actions.saveScape,
 				},
-				{ id: 'switch-product', label: productId === 'framescaper' ? copy.editInSoundscaper : copy.editInFramescaper, disabled: handoffBlocked, onClick: actions.switchProduct },
+				{
+					id: 'switch-product',
+					label: productId === 'framescaper' ? copy.editInSoundscaper : copy.editInFramescaper,
+					disabled: handoffBlocked || !crossProductHandoffAvailable,
+					disabledReason: crossProductHandoffAvailable ? undefined : copy.crossProductHandoffUnavailable,
+					onClick: actions.switchProduct,
+				},
 				divider(),
 				{ id: 'import-audio', label: copy.importFile, preserveLabel: true, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importFiles },
 				...productItems.fileImport,

@@ -127,17 +127,22 @@ export class DesktopNativeAudioService {
 		previous?.abort(new HelperSupervisionError('cancelled', 'A newer inventory request replaced this one.'));
 		this.#owners.set(owner, controller);
 		try {
-			const result = await this.#enqueue(() => this.#supervisor.runJob({
-				kind: 'audio-device',
-				grant: {
-					backend: backend as HelperAudioBackend,
-					deviceHandle: NATIVE_AUDIO_INVENTORY_HANDLE,
-					direction: 'duplex',
-					mode: 'shared',
-				},
-				signal: controller.signal,
-				validateResult: (value) => validateHelperAudioDeviceInventoryResult(value),
-			}));
+			const result = await this.#enqueue(async () => {
+				this.#assertAuthorized(controller);
+				const answer = await this.#supervisor.runJob({
+					kind: 'audio-device',
+					grant: {
+						backend: backend as HelperAudioBackend,
+						deviceHandle: NATIVE_AUDIO_INVENTORY_HANDLE,
+						direction: 'duplex',
+						mode: 'shared',
+					},
+					signal: controller.signal,
+					validateResult: (value) => validateHelperAudioDeviceInventoryResult(value),
+				});
+				this.#assertAuthorized(controller);
+				return answer;
+			});
 			return Object.freeze({
 				status: 'described' as const,
 				inventory: result as HelperAudioDeviceInventoryResult,
@@ -159,13 +164,15 @@ export class DesktopNativeAudioService {
 		controller.abort(new HelperSupervisionError('cancelled', 'The inventory owner went away.'));
 	}
 
+	/** Revokes every audio job without disposing the supervisor shared with plug-in discovery. */
+	disable(): void {
+		this.#abortOwners(new HelperSupervisionError('disposed', 'The native audio helper was disabled.'));
+	}
+
 	dispose(): void {
 		if (this.#disposed) return;
 		this.#disposed = true;
-		for (const [owner, controller] of this.#owners) {
-			this.#owners.delete(owner);
-			controller.abort(new HelperSupervisionError('disposed', 'The native audio service is shutting down.'));
-		}
+		this.#abortOwners(new HelperSupervisionError('disposed', 'The native audio service is shutting down.'));
 		this.#supervisor.dispose();
 	}
 
@@ -174,6 +181,24 @@ export class DesktopNativeAudioService {
 		const next = this.#queue.then(operation, operation);
 		this.#queue = next.catch(() => undefined);
 		return next;
+	}
+
+	#abortOwners(reason: HelperSupervisionError): void {
+		for (const [owner, controller] of this.#owners) {
+			this.#owners.delete(owner);
+			controller.abort(reason);
+		}
+	}
+
+	#assertAuthorized(controller: AbortController): void {
+		if (controller.signal.aborted) {
+			const { reason } = controller.signal;
+			if (reason instanceof Error) throw reason;
+			throw new HelperSupervisionError('cancelled', 'The inventory request was cancelled.');
+		}
+		if (this.#disposed || !this.#isEnabled()) {
+			throw new HelperSupervisionError('disposed', 'The native audio helper is disabled.');
+		}
 	}
 }
 

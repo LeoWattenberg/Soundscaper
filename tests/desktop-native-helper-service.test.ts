@@ -43,6 +43,7 @@ interface Harness {
 	readonly requests: HelperJobRequest<'audio-device'>[];
 	readonly disposals: number[];
 	readonly descriptions: () => number;
+	readonly setEnabled: (enabled: boolean) => void;
 }
 
 function createService({
@@ -59,6 +60,7 @@ function createService({
 	const requests: HelperJobRequest<'audio-device'>[] = [];
 	const disposals: number[] = [];
 	let descriptions = 0;
+	let enabledState = enabled;
 	const service = new DesktopNativeAudioService({
 		supervisor: {
 			runJob: async (request) => {
@@ -70,13 +72,19 @@ function createService({
 			clearQuarantine: () => disposals.push(-1),
 			dispose: () => disposals.push(1),
 		},
-		isEnabled: () => enabled,
+		isEnabled: () => enabledState,
 		describePayload: async () => {
 			descriptions += 1;
 			return payload;
 		},
 	});
-	return { service, requests, disposals, descriptions: () => descriptions };
+	return {
+		service,
+		requests,
+		disposals,
+		descriptions: () => descriptions,
+		setEnabled: (next) => { enabledState = next; },
+	};
 }
 
 test('the synthetic loopback backend is never published or accepted', async () => {
@@ -231,6 +239,24 @@ test('an owner revoked while its job waits for the helper is cancelled, never pu
 	assert.equal(requests.length, 1);
 	assert.equal((requests[0].signal as AbortSignal).aborted, true,
 		'the revocation must reach the job the supervisor is holding');
+});
+
+test('disabling cancels active and queued inventory work without publishing a late answer', async () => {
+	const { service, requests, setEnabled } = createService({ run: settleOnAbort });
+	const active = service.describeBackend({ owner: {}, backend: 'alsa' });
+	await nextTick();
+	const queued = service.describeBackend({ owner: {}, backend: 'pipewire' });
+	await nextTick();
+	assert.equal(requests.length, 1, 'the second inventory waits behind the active helper job');
+
+	setEnabled(false);
+	service.disable();
+	assert.equal(failed(await active).code, 'helper-disabled',
+		'a result delivered during cancellation must not be published after authority is disabled');
+	assert.equal(failed(await queued).code, 'helper-disabled');
+	assert.equal(requests.length, 1, 'an already-cancelled queued request must never reach the supervisor');
+	assert.equal((requests[0].signal as AbortSignal).aborted, true);
+	assert.equal(failed(await service.describeBackend({ owner: {}, backend: 'alsa' })).code, 'helper-disabled');
 });
 
 test('disposal aborts every outstanding request and disposes the supervisor exactly once', async () => {

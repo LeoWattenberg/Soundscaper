@@ -69,14 +69,21 @@ test('Framescaper bootstrap accepts presentation only and has no always-visible 
 });
 
 test('the shared Main route selects the current product bootstrap while Soundscaper stays exact V17', async () => {
-	const [main, soundscaperBootstrap, framescaperBootstrap] = await Promise.all([
+	const [main, soundscaperBootstrap, framescaperBootstrap, desktopBootstrap] = await Promise.all([
 		readSource('src/common/site/App.jsx'),
 		readSource('src/common/editor/ui/AudioEditorBootstrap.jsx'),
 		readSource('src/framescaper/ui/FramescaperAudioEditorBootstrapV19.tsx'),
+		readSource('src/framescaper/ui/FramescaperAudioEditorBootstrapV18.tsx'),
 	]);
 	assert.match(main, /lazy\(\(\)\s*=>\s*import\('\.\.\/\.\.\/framescaper\/ui\/FramescaperAudioEditorBootstrapV19\.tsx'\)\)/u);
 	assert.match(main, /FramescaperAudioEditorBootstrapV18\.tsx/u);
 	assert.match(main, /hasFramescaperDesktopBridge\(\)[^?]*\?\s*FramescaperAudioEditorBootstrapV18\s*:\s*FramescaperAudioEditorBootstrapV19/su);
+	assert.ok(
+		desktopBootstrap.indexOf('const fileService = createAudioEditorFileService()')
+			< desktopBootstrap.indexOf('const environment = await createFramescaperEditorProjectEnvironmentV18'),
+		'the desktop file ports must exist before the exact store is constructed',
+	);
+	assert.match(desktopBootstrap, /createFramescaperEditorProjectEnvironmentV18\(\{\s*storeOptions:\s*\{\s*linkedOriginalPort:\s*fileService\.linkedOriginalPort,\s*linkedVideoOriginalPort:\s*fileService\.linkedVideoOriginalPort,?\s*\},?\s*\}\)/su);
 	assert.doesNotMatch(soundscaperBootstrap,
 		/FRAMESCAPER_V19|createFramescaper|editor-project-runtime-profile-v19|framescaper\/ui/iu);
 	assert.match(framescaperBootstrap, /createFramescaperEditorProjectEnvironmentV19/u);

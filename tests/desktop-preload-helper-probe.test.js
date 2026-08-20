@@ -86,6 +86,22 @@ test('the helper probe availability report is reduced to two booleans', async ()
 	assert.equal('secret' in availability, false);
 });
 
+test('the native-audio setter validates its acknowledgement with its own contract error', async () => {
+	const accepted = await loadPreload([true]);
+	assert.equal(await accepted.bridge.setNativeAudioHelperEnabled(true), true);
+	assert.deepEqual(accepted.invocations, [['soundscaper:v1:helper:native-audio-set-enabled', true]]);
+
+	const malformed = await loadPreload([{ enabled: true }]);
+	await assert.rejects(
+		malformed.bridge.setNativeAudioHelperEnabled(true),
+		(error) => {
+			assert.match(error.message, /native-audio setting result must be a boolean/u);
+			assert.doesNotMatch(error.message, /shared-project delete/u);
+			return true;
+		},
+	);
+});
+
 async function loadPreload(invocationResults) {
 	let bridge;
 	const invocations = [];

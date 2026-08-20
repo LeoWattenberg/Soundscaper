@@ -230,7 +230,8 @@ export function VideoTrackRow({
 						role="group"
 						aria-label={track.name}
 						tabIndex={tabIndexFor(0)}
-						onFocus={() => {
+						onFocus={(event) => {
+							if (event.target !== event.currentTarget) return;
 							if (selectedTrackId !== track.id) run(() => controller.actions.timeline.selectTrack(track.id));
 						}}
 						onKeyDown={(event) => {

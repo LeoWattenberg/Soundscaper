@@ -16,6 +16,7 @@ import {
 interface TestProject {
 	readonly schemaVersion?: unknown;
 	readonly timelineAnnotations?: unknown;
+	readonly selection?: Readonly<{ clipIds: readonly unknown[] }>;
 	readonly tracks: readonly Readonly<{ id: string; type: string }>[];
 	readonly clips: readonly Readonly<{ id: string }>[];
 }
@@ -93,6 +94,30 @@ test('project session selection falls back to the first non-label track and clea
 		selectedClipId: null,
 		selectedAnnotationId: null,
 	});
+});
+
+test('project session selection restores the first valid durable clip when session metadata omits clip focus', () => {
+	const fixture = createFixture({
+		selection: { clipIds: ['missing', 42, 'durable-second', 'durable-first'] },
+		tracks: [],
+		clips: [{ id: 'durable-first' }, { id: 'durable-second' }],
+	});
+
+	fixture.service.restore(fixture.project, {});
+
+	assert.equal(fixture.state.selectedClipId, 'durable-second');
+});
+
+test('project session selection preserves explicit null clip focus over durable selection', () => {
+	const fixture = createFixture({
+		selection: { clipIds: ['durable'] },
+		tracks: [],
+		clips: [{ id: 'durable' }],
+	}, null, 'previous');
+
+	fixture.service.restore(fixture.project, { selectedClipId: null });
+
+	assert.equal(fixture.state.selectedClipId, null);
 });
 
 test('project session selection falls back to the first label and then null when no track remains', () => {

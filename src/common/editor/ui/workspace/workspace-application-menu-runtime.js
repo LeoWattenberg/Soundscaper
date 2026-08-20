@@ -3,8 +3,13 @@ import { otherProductId, productLocalePath } from '../../../products.js';
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
 import createApplicationMenus from '../application-menus.js';
 import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
-import { resolveSoundscaperNativeServicesWorkspaceRuntime } from './SoundscaperNativeServicesSurface.tsx';
+import {
+	resolveSoundscaperNativeServicesWorkspaceRuntime,
+	useSoundscaperNativeServicesMenuRefresh,
+} from './SoundscaperNativeServicesSurface.tsx';
 import { ANALYSIS_MODE_PANEL_IDS } from './workspace-panel-model.ts';
+
+export { useSoundscaperNativeServicesMenuRefresh };
 
 export function createWorkspaceApplicationMenus({
 		aboutLabel,
@@ -13,6 +18,7 @@ export function createWorkspaceApplicationMenus({
 		capabilities,
 		controller,
 		copy,
+		crossProductHandoffAvailable = false,
 		durationFrames,
 		editBlocked,
 		handoffBlocked,
@@ -31,6 +37,7 @@ export function createWorkspaceApplicationMenus({
 		openSpectralSelection,
 		openSurface,
 		openTimedRecording,
+		openTrackRate = () => undefined,
 		openWorkspacePanel,
 		parityRuntime,
 		productId,
@@ -59,6 +66,7 @@ export function createWorkspaceApplicationMenus({
 			productId,
 			aboutLabel,
 			capabilities,
+			crossProductHandoffAvailable,
 			locale,
 			copy,
 			project,
@@ -272,10 +280,7 @@ export function createWorkspaceApplicationMenus({
 				setTrackRate: (sampleRate) => snapshot.selectedTrackId && run(() => controller.actions.track.setRate(snapshot.selectedTrackId, sampleRate)),
 				setTrackSampleFormat: (sampleFormat) => snapshot.selectedTrackId && run(() => controller.actions.track.setSampleFormat(snapshot.selectedTrackId, sampleFormat)),
 				mixAndRender: () => run(() => controller.actions.track.mixAndRender()),
-				openTrackRate: () => {
-					setDialogValue(String(trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000)));
-					setDialog('track-rate');
-				},
+				openTrackRate: () => openTrackRate(selectedAudioTrack),
 				openResample: () => {
 					setDialogValue(String(trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000)));
 					setDialog('resample');
