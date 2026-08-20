@@ -12,7 +12,6 @@ import {
 	type MixerGraphV21,
 } from '../mixer-graph-v21.ts';
 import type { ProjectFeatureRequirementsManifest } from '../project-feature-requirements.ts';
-import { reconcileProjectOwnedFeatureRequirements } from '../project-owned-feature-requirements.ts';
 import { isSoundscaperProductionProjectSchema } from '../project-schema-version.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import {
@@ -20,6 +19,7 @@ import {
 	projectTrackFolderMediaStateV12,
 } from '../track-folder-media-runtime.ts';
 import type { AudioBufferLike } from './source-audio.ts';
+import { projectTransientRenderFeatures } from './transient-render-feature-projection.ts';
 import {
 	findControllerClip,
 	findControllerClipTrack,
@@ -390,10 +390,7 @@ function createMixRenderSnapshotV21(
 function reconcileMixRenderRequirementsV21(
 	snapshot: MutableMixRenderProjectV21,
 ): MutableMixRenderProjectV21 {
-	snapshot.featureRequirements = reconcileProjectOwnedFeatureRequirements(
-		snapshot,
-		snapshot.featureRequirements,
-	);
+	projectTransientRenderFeatures(snapshot);
 	return snapshot;
 }
 

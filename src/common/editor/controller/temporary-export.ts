@@ -1,7 +1,7 @@
 import { cloneProject } from '../project.js';
 import { normalizeAutomationLaneV21 } from '../automation-lane-v21.ts';
 import { normalizeMixerGraphV21, type MixerGraphV21 } from '../mixer-graph-v21.ts';
-import { reconcileProjectOwnedFeatureRequirements } from '../project-owned-feature-requirements.ts';
+import type { ProjectFeatureRequirementsManifest } from '../project-feature-requirements.ts';
 import { isSoundscaperProductionProjectSchema } from '../project-schema-version.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
@@ -11,6 +11,7 @@ import {
 	createSequentialZip32Archive,
 	type Zip32StreamInput,
 } from './sequential-zip32-stream.ts';
+import { projectTransientRenderFeatures } from './transient-render-feature-projection.ts';
 
 export interface TemporaryExportCopy {
 	readonly temporaryExportClosed: string;
@@ -188,10 +189,11 @@ export function stemProject(
 }
 
 interface MutableProductionStemProject {
-	featureRequirements: unknown;
+	featureRequirements: ProjectFeatureRequirementsManifest;
 	master: Record<string, unknown>;
 	mixer: MixerGraphV21;
 	automationLanes: unknown[];
+	tracks: Readonly<Record<string, unknown>>[];
 }
 
 function projectProductionStemSnapshot(value: unknown): void {
@@ -217,10 +219,7 @@ function projectProductionStemSnapshot(value: unknown): void {
 		effectsActive: false,
 		effects: [],
 	};
-	project.featureRequirements = reconcileProjectOwnedFeatureRequirements(
-		project as unknown as Readonly<Record<string, unknown>>,
-		project.featureRequirements as never,
-	);
+	projectTransientRenderFeatures(project);
 }
 
 function toUint8Array(input: Uint8Array | ArrayBuffer | ArrayBufferView): Uint8Array {

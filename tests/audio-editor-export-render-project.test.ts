@@ -8,6 +8,9 @@ import {
 	type AudioTrackFreezeV1,
 } from '../src/common/editor/audio-track-freeze-v21.ts';
 import { createExportRenderProject } from '../src/common/editor/controller/export-render-project.ts';
+import { stemProject } from '../src/common/editor/controller/temporary-export.ts';
+import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import { normalizeProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
 import { projectTrackFolderMediaStateV12 } from '../src/common/editor/track-folder-media-runtime.ts';
 import {
@@ -69,6 +72,41 @@ test('the export document keeps a frozen track the canonical clone refuses', () 
 		clips.some((clip) => clip.sourceId === derivedSource.id),
 		'the export must render the frozen substitution playback renders',
 	);
+});
+
+test('a frozen native delivery stem consumes its already-realized freeze requirement', () => {
+	const { project, freeze, derivedSource } = frozenFixture();
+	const playback = createSoundscaperAudioTrackFreezePlaybackServiceV23(
+		createSoundscaperPlaybackProjectServiceV23(), pcmStore(),
+	);
+	playback.admitVerifiedFreeze({
+		project, trackId: 'voice', freeze, derivedSource,
+		sourceContentIdentities: [{ sourceId: 'voice-source', contentSha256: CONTENT_SHA256 }],
+	});
+	const delivered = playback.projectForAudioRenderedFallbackDelivery(project).project;
+	const exportProject = createExportRenderProject(delivered);
+	assert.equal(exportProject.featureRequirements.requirements.some(({ featureId }) => (
+		featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze
+	)), true, 'the delivery projection still carries the declaration whose fallback it realized');
+
+	const stem = stemProject(exportProject as never, 'voice') as unknown as typeof project;
+	const track = stem.tracks.find(({ id }) => id === 'voice');
+	assert.ok(track);
+	assert.equal(Object.hasOwn(track, 'audioFreeze'), false);
+	assert.ok(stem.clips.some(({ sourceId }) => sourceId === derivedSource.id));
+	assert.equal(stem.featureRequirements.requirements.some(({ featureId }) => (
+		featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze
+	)), false, 'the stem must not redeclare a native freeze relationship already projected into PCM');
+	assert.deepEqual(stem.featureRequirements, { schemaVersion: 2, requirements: [] });
+	assert.deepEqual(normalizeProjectFeatureRequirements(stem.featureRequirements, {
+		sources: stem.sources,
+		clips: stem.clips,
+		tracks: stem.tracks,
+		schemaVersion: stem.schemaVersion,
+		sampleRate: stem.sampleRate,
+		sequences: stem.sequences,
+		primarySequenceId: stem.primarySequenceId,
+	}), stem.featureRequirements);
 });
 
 function pcmStore() {

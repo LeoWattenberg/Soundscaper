@@ -5,11 +5,13 @@ import {
 	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
 	isSoundscaperProductionProjectSchema,
 } from '../project-schema-version.ts';
+import type { ProjectFeatureRequirementsManifest } from '../project-feature-requirements.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
 } from '../track-folder-media-runtime.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
+import { projectTransientRenderFeatures } from './transient-render-feature-projection.ts';
 
 interface IsolatedTrackRenderTrackV21 extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -19,6 +21,7 @@ interface IsolatedTrackRenderTrackV21 extends Readonly<Record<string, unknown>> 
 
 export interface IsolatedTrackRenderProjectV21 extends Readonly<Record<string, unknown>> {
 	readonly schemaVersion: typeof SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+	readonly featureRequirements: ProjectFeatureRequirementsManifest;
 	readonly masterChannels: number;
 	readonly tracks: readonly IsolatedTrackRenderTrackV21[];
 	readonly mixer: MixerGraphV21;
@@ -77,5 +80,6 @@ export function createIsolatedTrackRenderProjectV21(
 			channelCount: widths.get(request.trackId) ?? project.masterChannels,
 		}], project.masterChannels),
 	};
+	projectTransientRenderFeatures(isolated);
 	return inheritTrackFolderMediaStateProjectionV12(project, isolated);
 }
