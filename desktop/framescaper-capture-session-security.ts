@@ -53,6 +53,7 @@ export interface FramescaperCaptureSessionSecuritySession {
 interface CaptureAuthority {
 	status(): Readonly<{ readonly selectionMode: string }>;
 	allowsMedia(owner: object, mediaTypes: readonly string[]): boolean;
+	consumeMediaGrant(owner: object, mediaTypes: readonly string[]): boolean;
 	allowsDisplayPermission(owner: object): boolean;
 	consumeSystemPickerGrant(owner: object): boolean;
 	consumeDisplayGrant(owner: object, request: Readonly<{
@@ -133,6 +134,11 @@ export function configureFramescaperCaptureSessionSecurityV1(
 			&& seams.capture.status().selectionMode === 'system-picker') {
 			const owner = trustedCaptureOwner(seams, webContents, requestingUrl, requestingOrigin);
 			callback(Boolean(owner && seams.capture.consumeSystemPickerGrant(owner)));
+			return;
+		}
+		if (permission === 'media' && !disposed) {
+			const owner = trustedCaptureOwner(seams, webContents, requestingUrl, requestingOrigin);
+			callback(Boolean(owner && seams.capture.consumeMediaGrant(owner, details.mediaTypes ?? [])));
 			return;
 		}
 		callback(permissionCheck(webContents, permission, requestingOrigin, details));

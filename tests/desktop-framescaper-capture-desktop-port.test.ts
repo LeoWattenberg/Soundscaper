@@ -34,8 +34,13 @@ test('lists a bounded pathless source inventory and consumes its opaque selectio
 	});
 	assert.equal(granted.generation, 1);
 	assert.deepEqual(granted.roles, ['camera', 'microphone', 'display', 'system-audio']);
-	assert.equal(harness.value.allowsMedia(OWNER, ['video', 'audio']), true);
+	assert.equal(harness.value.allowsMedia(OWNER, ['video', 'audio']), true,
+		'permission checks observe without consuming camera or microphone authority');
 	assert.equal(harness.value.allowsDisplayPermission(OWNER), true);
+	assert.equal(harness.value.consumeMediaGrant(OWNER, ['video', 'audio']), true);
+	assert.equal(harness.value.allowsMedia(OWNER, ['video']), false);
+	assert.equal(harness.value.allowsMedia(OWNER, ['audio']), false);
+	assert.equal(harness.value.consumeMediaGrant(OWNER, ['video', 'audio']), false);
 
 	const first = harness.value.consumeDisplayGrant(OWNER, {
 		userGesture: true,
@@ -53,6 +58,24 @@ test('lists a bounded pathless source inventory and consumes its opaque selectio
 	assert.throws(() => harness.value.grant(OWNER, {
 		generation: 1, roles: ['display'], sourceToken: listed.sources[0]?.token,
 	}), /stale|consumed/iu);
+});
+
+test('camera and microphone authority are independently single-use and consume atomically', () => {
+	const harness = port();
+	harness.value.grant(OWNER, {
+		generation: 1,
+		roles: ['camera', 'microphone'],
+		sourceToken: null,
+	});
+
+	assert.equal(harness.value.consumeMediaGrant(OWNER, ['video']), true);
+	assert.equal(harness.value.allowsMedia(OWNER, ['video']), false);
+	assert.equal(harness.value.allowsMedia(OWNER, ['audio']), true);
+	assert.equal(harness.value.consumeMediaGrant(OWNER, ['video', 'audio']), false,
+		'a partially unavailable combined request must consume no remaining role');
+	assert.equal(harness.value.allowsMedia(OWNER, ['audio']), true);
+	assert.equal(harness.value.consumeMediaGrant(OWNER, ['audio']), true);
+	assert.equal(harness.value.consumeMediaGrant(OWNER, ['audio']), false);
 });
 
 test('generation, owner, expiry, gesture, and requested media stay fail-closed', async () => {

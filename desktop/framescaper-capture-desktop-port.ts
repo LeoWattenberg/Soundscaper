@@ -77,6 +77,7 @@ export interface FramescaperCaptureDesktopPortV1 {
 	listSources(owner: object, generation: number): Promise<Readonly<FramescaperCaptureDesktopSourceListV1>>;
 	grant(owner: object, request: unknown): Readonly<FramescaperCaptureDesktopGrantV1>;
 	allowsMedia(owner: object, mediaTypes: readonly string[]): boolean;
+	consumeMediaGrant(owner: object, mediaTypes: readonly string[]): boolean;
 	allowsDisplayPermission(owner: object): boolean;
 	consumeSystemPickerGrant(owner: object): boolean;
 	consumeDisplayGrant(
@@ -106,6 +107,7 @@ interface CaptureGrant {
 	readonly expiresAtMs: number;
 	readonly roles: readonly FramescaperCaptureDesktopRole[];
 	readonly nativeSource: Readonly<{ readonly id: string; readonly name: string }> | null;
+	readonly consumedMedia: Set<'audio' | 'video'>;
 	displayConsumed: boolean;
 }
 
@@ -205,6 +207,7 @@ export function createFramescaperCaptureDesktopPortV1(
 			expiresAtMs,
 			roles: request.roles,
 			nativeSource,
+			consumedMedia: new Set(),
 			displayConsumed: false,
 		};
 		state.generation = request.generation;
@@ -220,14 +223,22 @@ export function createFramescaperCaptureDesktopPortV1(
 	function allowsMedia(ownerValue: object, mediaTypesValue: readonly string[]): boolean {
 		if (disposed || !platformStatus.available) return false;
 		const owner = optionalReference(ownerValue);
-		if (!owner || !Array.isArray(mediaTypesValue) || mediaTypesValue.length === 0) return false;
-		const mediaTypes = new Set(mediaTypesValue);
-		if (mediaTypes.size !== mediaTypesValue.length
-			|| [...mediaTypes].some((type) => type !== 'audio' && type !== 'video')) return false;
+		const mediaTypes = captureMediaTypes(mediaTypesValue);
+		if (!owner || !mediaTypes) return false;
 		const captureGrant = currentGrant(owner, dependencies.now());
 		if (!captureGrant) return false;
-		return (!mediaTypes.has('video') || captureGrant.roles.includes('camera'))
-			&& (!mediaTypes.has('audio') || captureGrant.roles.includes('microphone'));
+		return mediaGrantAllows(captureGrant, mediaTypes);
+	}
+
+	function consumeMediaGrant(ownerValue: object, mediaTypesValue: readonly string[]): boolean {
+		if (disposed || !platformStatus.available) return false;
+		const owner = optionalReference(ownerValue);
+		const mediaTypes = captureMediaTypes(mediaTypesValue);
+		if (!owner || !mediaTypes) return false;
+		const captureGrant = currentGrant(owner, dependencies.now());
+		if (!captureGrant || !mediaGrantAllows(captureGrant, mediaTypes)) return false;
+		for (const mediaType of mediaTypes) captureGrant.consumedMedia.add(mediaType);
+		return true;
 	}
 
 	function allowsDisplayPermission(ownerValue: object): boolean {
@@ -314,6 +325,7 @@ export function createFramescaperCaptureDesktopPortV1(
 		listSources,
 		grant,
 		allowsMedia,
+		consumeMediaGrant,
 		allowsDisplayPermission,
 		consumeSystemPickerGrant,
 		consumeDisplayGrant,
@@ -352,6 +364,24 @@ function validateDependencies(
 		throw new TypeError('Framescaper desktop capture port dependencies are invalid.');
 	}
 	return value;
+}
+
+function captureMediaTypes(value: readonly string[]): ReadonlySet<'audio' | 'video'> | null {
+	if (!Array.isArray(value) || value.length === 0) return null;
+	const mediaTypes = new Set(value);
+	if (mediaTypes.size !== value.length
+		|| [...mediaTypes].some((type) => type !== 'audio' && type !== 'video')) return null;
+	return mediaTypes as ReadonlySet<'audio' | 'video'>;
+}
+
+function mediaGrantAllows(
+	grant: CaptureGrant,
+	mediaTypes: ReadonlySet<'audio' | 'video'>,
+): boolean {
+	return [...mediaTypes].every((mediaType) => !grant.consumedMedia.has(mediaType)
+		&& (mediaType === 'video'
+			? grant.roles.includes('camera')
+			: grant.roles.includes('microphone')));
 }
 
 function createStatus(

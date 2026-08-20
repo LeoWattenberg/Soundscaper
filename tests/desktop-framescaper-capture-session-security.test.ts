@@ -32,22 +32,26 @@ test('session security requires the exact focused Framescaper main document and 
 	assert.equal(harness.permissionCheck(harness.webContents, 'media', ORIGIN, details), false);
 });
 
-test('permission requests invoke their callback once and remain grant-scoped', () => {
+test('media permission checks observe and the matching request consumes authority once', () => {
 	const harness = sessionHarness();
 	harness.configure();
+	const details = { requestingUrl: `${ORIGIN}/?project=capture-origin`, mediaTypes: ['audio'] };
+	assert.equal(harness.permissionCheck(harness.webContents, 'media', ORIGIN, details), true);
+	assert.equal(harness.permissionCheck(harness.webContents, 'media', ORIGIN, details), true);
+	assert.deepEqual(harness.mediaConsumeCalls, []);
+
 	const results: boolean[] = [];
 	harness.permissionRequest(
 		harness.webContents,
 		'media',
 		(value: boolean) => results.push(value),
-		{ requestingUrl: `${ORIGIN}/?project=capture-origin`, mediaTypes: ['audio'] },
+		details,
 	);
-	harness.mediaAllowed = false;
 	harness.permissionRequest(
 		harness.webContents,
 		'media',
 		(value: boolean) => results.push(value),
-		{ requestingUrl: `${ORIGIN}/`, mediaTypes: ['audio'] },
+		details,
 	);
 	harness.permissionRequest(
 		harness.webContents,
@@ -56,6 +60,28 @@ test('permission requests invoke their callback once and remain grant-scoped', (
 		{ requestingUrl: `${ORIGIN}/`, mediaTypes: ['video'] },
 	);
 	assert.deepEqual(results, [true, false, false]);
+	assert.deepEqual(harness.mediaConsumeCalls, [['audio'], ['audio']]);
+	assert.equal(harness.permissionCheck(harness.webContents, 'media', ORIGIN, details), false);
+});
+
+test('a direct media permission request consumes its exact role without a prior check', () => {
+	const harness = sessionHarness();
+	harness.configure();
+	const results: boolean[] = [];
+	harness.permissionRequest(
+		harness.webContents,
+		'media',
+		(value: boolean) => results.push(value),
+		{ requestingUrl: `${ORIGIN}/`, mediaTypes: ['video'] },
+	);
+	assert.deepEqual(results, [true]);
+	assert.deepEqual(harness.mediaConsumeCalls, [['video']]);
+	assert.equal(harness.permissionCheck(
+		harness.webContents,
+		'media',
+		ORIGIN,
+		{ requestingUrl: `${ORIGIN}/`, mediaTypes: ['video'] },
+	), false);
 });
 
 test('display delivery is one-shot, gesture-bound, and never falls back to a source', () => {
@@ -151,6 +177,8 @@ function sessionHarness(options: { readonly selectionMode?: 'source-list' | 'sys
 		focused: true,
 		current: true,
 		mediaAllowed: true,
+		consumedMedia: new Set<string>(),
+		mediaConsumeCalls: [] as string[][],
 		displayAllowed: true,
 		consumeCalls: 0,
 		systemPickerConsumeCalls: 0,
@@ -168,7 +196,15 @@ function sessionHarness(options: { readonly selectionMode?: 'source-list' | 'sys
 				trustedOrigin: ORIGIN,
 				capture: {
 					status: () => ({ selectionMode: options.selectionMode ?? 'source-list' }),
-					allowsMedia: () => harness.mediaAllowed,
+					allowsMedia: (_owner, mediaTypes) => harness.mediaAllowed
+						&& mediaTypes.every((type) => !harness.consumedMedia.has(type)),
+					consumeMediaGrant: (_owner, mediaTypes) => {
+						harness.mediaConsumeCalls.push([...mediaTypes]);
+						if (!harness.mediaAllowed || mediaTypes.length === 0
+							|| mediaTypes.some((type) => harness.consumedMedia.has(type))) return false;
+						for (const type of mediaTypes) harness.consumedMedia.add(type);
+						return true;
+					},
 					allowsDisplayPermission: () => harness.displayAllowed,
 					consumeSystemPickerGrant: () => {
 						harness.systemPickerConsumeCalls += 1;
