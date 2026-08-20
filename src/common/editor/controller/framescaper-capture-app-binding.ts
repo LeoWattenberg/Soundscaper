@@ -17,6 +17,13 @@ import {
 	framescaperCaptureProjectFence,
 	type FramescaperCaptureProjectPublicationOptions,
 } from './framescaper-capture-project-publication-port.ts';
+import {
+	FramescaperCaptureOriginProtectedError,
+	type FramescaperCaptureOriginBinding,
+	type FramescaperCaptureOriginGuardSnapshot,
+} from './framescaper-capture-origin-guard.ts';
+import type { FramescaperCaptureAdminInterlock } from './framescaper-capture-admin-interlock.ts';
+import type { FramescaperCaptureProjectWriteLease } from './framescaper-capture-project-write-authority.ts';
 import type {
 	FramescaperCaptureSessionActions,
 	FramescaperCaptureSessionService,
@@ -74,6 +81,7 @@ export interface FramescaperCaptureAppBindingStore extends FramescaperCaptureApp
 }
 
 export interface FramescaperCaptureAppBindingOptions extends PassThroughOptions {
+	readonly adminInterlock: Pick<FramescaperCaptureAdminInterlock, 'beginCaptureAdmission'>;
 	readonly productId: string;
 	readonly routeSchemaVersion: number;
 	readonly isDesktop: boolean;
@@ -93,6 +101,10 @@ export interface FramescaperCaptureAppBindingOptions extends PassThroughOptions 
 	setActiveProject(project: FramescaperCaptureAppProject): void;
 	setActiveHistory(history: FramescaperCaptureAppHistory): void;
 	synchronizeProject(project: FramescaperCaptureAppProject): PromiseLike<void> | void;
+	assertProjectWritable(projectId: string): void;
+	acquireProjectWriteAuthority(
+		projectId: string,
+	): PromiseLike<FramescaperCaptureProjectWriteLease> | FramescaperCaptureProjectWriteLease;
 	prepareCaptureStart(): PromiseLike<void> | void;
 }
 
@@ -111,6 +123,8 @@ export function createFramescaperCaptureAppBinding(
 		projects,
 		session: options.sessionController,
 		projectRuntime: options.projectRuntime,
+		assertProjectWritable: options.assertProjectWritable,
+		acquireProjectWriteAuthority: options.acquireProjectWriteAuthority,
 		isActiveProject: (projectId) => options.getActiveProject()?.id === projectId,
 		setActiveProject: options.setActiveProject,
 		setActiveHistory: options.setActiveHistory,
@@ -131,7 +145,7 @@ export function createFramescaperCaptureAppBinding(
 		getAudioContext: options.getAudioContext,
 		...(options.isDesktop ? { desktopBridge: options.desktopBridge } : { desktopBridge: null }),
 	});
-	return wrapPreparedStart(composition, options.prepareCaptureStart);
+	return wrapPreparedStart(composition, options);
 }
 
 /** Select local web CAS or the authoritative desktop witness/CAS surface. */
@@ -214,6 +228,7 @@ export async function deriveFramescaperCaptureAppPublicationContext(
 
 function captureOrigin(options: FramescaperCaptureAppBindingOptions) {
 	const activeProject = routeProject(options.getActiveProject(), options.routeSchemaVersion);
+	options.assertProjectWritable(activeProject.id);
 	const activeHistory = options.getActiveHistory();
 	if (!activeHistory) throw new Error('Framescaper capture requires an active project history.');
 	const historyProject = routeProject(activeHistory.present, options.routeSchemaVersion);
@@ -265,30 +280,145 @@ function projectSequence(project: FramescaperCaptureAppProject, sequenceId: stri
 
 function wrapPreparedStart(
 	composition: Readonly<FramescaperCaptureAppComposition>,
-	prepare: () => PromiseLike<void> | void,
+	options: FramescaperCaptureAppBindingOptions,
 ): Readonly<FramescaperCaptureAppComposition> {
+	let admissionGeneration = 0;
+	let admission: Readonly<{
+		readonly generation: number;
+		readonly origin: FramescaperCaptureOriginBinding;
+	}> | null = null;
+	let startPromise: Promise<void> | null = null;
+	let disposePromise: Promise<void> | null = null;
+	let disposed = false;
 	const actions: Readonly<FramescaperCaptureSessionActions> = Object.freeze({
 		...composition.actions,
-		async start() { await prepare(); await composition.actions.start(); },
+		start,
 	});
 	const service: Readonly<FramescaperCaptureSessionService> = Object.freeze({
 		get snapshot() { return composition.snapshot; }, actions,
 		initialize: () => composition.initialize(),
-		settled: () => composition.service.settled(),
-		dispose: () => composition.dispose(),
+		settled,
+		dispose,
 	});
 	return Object.freeze({
 		service,
 		get snapshot() { return composition.snapshot; },
 		actions,
 		initialize: () => composition.initialize(),
-		dispose: () => composition.dispose(),
-		originSnapshot: (projectId = null) => composition.originSnapshot(projectId),
-		assertOriginEditAllowed: composition.assertOriginEditAllowed,
-		assertOriginCloseAllowed: composition.assertOriginCloseAllowed,
-		assertOriginDeleteAllowed: composition.assertOriginDeleteAllowed,
-		assertOriginHandoffAllowed: composition.assertOriginHandoffAllowed,
+		dispose,
+		originSnapshot,
+		assertOriginEditAllowed: (projectId: string) => assertAllowed('edit', projectId),
+		assertOriginCloseAllowed: (projectId: string) => assertAllowed('close', projectId),
+		assertOriginDeleteAllowed: (projectId: string) => assertAllowed('delete', projectId),
+		assertOriginHandoffAllowed: (projectId: string) => assertAllowed('handoff', projectId),
 	});
+
+	function start(): Promise<void> {
+		if (disposed) return Promise.reject(new Error('Framescaper capture is disposed.'));
+		if (startPromise) return startPromise;
+		let resolve!: () => void;
+		let reject!: (error: unknown) => void;
+		const operation = new Promise<void>((accept, decline) => { resolve = accept; reject = decline; });
+		startPromise = operation;
+		void startReserved().then(resolve, reject);
+		void operation.then(clearStart, clearStart);
+		return operation;
+		function clearStart() { if (startPromise === operation) startPromise = null; }
+	}
+
+	async function startReserved(): Promise<void> {
+		const captured = captureOrigin(options);
+		const interlock = options.adminInterlock.beginCaptureAdmission(captured.projectFence.projectId);
+		try {
+			admissionGeneration += 1;
+			admission = Object.freeze({
+				generation: admissionGeneration,
+				origin: Object.freeze({
+					...captured.projectFence,
+					sequenceId: captured.origin.sequenceId,
+					playheadMicroseconds: captured.origin.playheadMicroseconds,
+				}),
+			});
+			notify();
+			await options.prepareCaptureStart();
+			if (disposed) throw new Error('Framescaper capture was disposed during start admission.');
+			interlock.assertCurrent();
+			const current = captureOrigin(options);
+			if (!sameCaptureOrigin(captured, current)) {
+				throw new Error('Framescaper capture origin changed during start admission.');
+			}
+			await composition.actions.start();
+		} finally {
+			admission = null;
+			interlock.release();
+			notify();
+		}
+	}
+
+	function originSnapshot(projectId: string | null = null): Readonly<FramescaperCaptureOriginGuardSnapshot> {
+		const snapshot = composition.originSnapshot(projectId);
+		if (snapshot.active || !admission) return snapshot;
+		const activeProjectIsOrigin = snapshot.activeProjectId === admission.origin.projectId;
+		return Object.freeze({
+			...snapshot, active: true, generation: admission.generation, origin: admission.origin,
+			activeProjectIsOrigin,
+			editBlocked: activeProjectIsOrigin, closeBlocked: activeProjectIsOrigin,
+			deleteBlocked: activeProjectIsOrigin, handoffBlocked: activeProjectIsOrigin,
+		});
+	}
+
+	function assertAllowed(
+		action: 'edit' | 'close' | 'delete' | 'handoff',
+		projectId: string,
+	): void {
+		const assertions = {
+			edit: composition.assertOriginEditAllowed,
+			close: composition.assertOriginCloseAllowed,
+			delete: composition.assertOriginDeleteAllowed,
+			handoff: composition.assertOriginHandoffAllowed,
+		};
+		if (composition.originSnapshot(projectId).active) {
+			assertions[action](projectId);
+			return;
+		}
+		if (admission?.origin.projectId === projectId) {
+			throw new FramescaperCaptureOriginProtectedError(action, projectId, admission.generation);
+		}
+		assertions[action](projectId);
+	}
+
+	async function settled(): Promise<void> {
+		await Promise.all([
+			Promise.resolve(startPromise).catch(() => undefined),
+			composition.service.settled(),
+		]);
+	}
+
+	function dispose(): Promise<void> {
+		if (disposePromise) return disposePromise;
+		disposed = true;
+		disposePromise = Promise.resolve().then(async () => {
+			const [compositionResult] = await Promise.allSettled([
+				composition.dispose(), Promise.resolve(startPromise).catch(() => undefined),
+			]);
+			if (compositionResult.status === 'rejected') throw compositionResult.reason;
+		});
+		return disposePromise;
+	}
+
+	function notify(): void {
+		try { options.onChange?.(); } catch { /* Admission observers cannot own capture. */ }
+	}
+}
+
+function sameCaptureOrigin(
+	left: ReturnType<typeof captureOrigin>,
+	right: ReturnType<typeof captureOrigin>,
+): boolean {
+	return sameFence(left.projectFence, right.projectFence)
+		&& left.origin.sequenceId === right.origin.sequenceId
+		&& left.origin.playheadMicroseconds === right.origin.playheadMicroseconds
+		&& left.origin.destination === right.origin.destination;
 }
 
 function passThroughOptions(options: FramescaperCaptureAppBindingOptions): Partial<
@@ -360,10 +490,10 @@ function assertBindingOptions(options: FramescaperCaptureAppBindingOptions): voi
 		|| typeof options.setActiveProject !== 'function'
 		|| typeof options.setActiveHistory !== 'function'
 		|| typeof options.synchronizeProject !== 'function'
+		|| typeof options.adminInterlock?.beginCaptureAdmission !== 'function'
+		|| typeof options.assertProjectWritable !== 'function'
+		|| typeof options.acquireProjectWriteAuthority !== 'function'
 		|| typeof options.prepareCaptureStart !== 'function') {
 		throw new TypeError('Framescaper capture app binding dependencies are incomplete.');
-	}
-	if (options.isDesktop && (!options.desktopBridge || typeof options.desktopBridge !== 'object')) {
-		throw new TypeError('Framescaper desktop capture requires its exact control plane.');
 	}
 }

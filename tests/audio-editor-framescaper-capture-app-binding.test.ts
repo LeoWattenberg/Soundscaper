@@ -10,6 +10,8 @@ import {
 	type FramescaperCaptureAppHistory,
 	type FramescaperCaptureAppProject,
 } from '../src/common/editor/controller/framescaper-capture-app-binding.ts';
+import { createFramescaperCaptureAdminInterlock } from '../src/common/editor/controller/framescaper-capture-admin-interlock.ts';
+import { FramescaperCaptureOriginProtectedError } from '../src/common/editor/controller/framescaper-capture-origin-guard.ts';
 import { framescaperCaptureProjectFence } from '../src/common/editor/controller/framescaper-capture-project-publication-port.ts';
 import type { FramescaperCaptureSessionManifestV1 } from '../src/common/editor/framescaper-capture-session-manifest.ts';
 
@@ -26,6 +28,43 @@ test('the app binding exists only on exact maintained Framescaper routes', () =>
 	assert.throws(() => createFramescaperCaptureAppBinding({
 		productId: 'framescaper', routeSchemaVersion: 19, isDesktop: false,
 	} as never), /dependencies are incomplete/iu);
+});
+
+test('desktop binding without its capture bridge remains available as a truthful unavailable runtime', async () => {
+	let activeProject = project(18, 4);
+	let activeHistory = history(activeProject);
+	const binding = createFramescaperCaptureAppBinding({
+		adminInterlock: createFramescaperCaptureAdminInterlock(),
+		productId: 'framescaper', routeSchemaVersion: 18, isDesktop: true, embedded: false,
+		store: {
+			async loadProject() { return activeProject; },
+			async saveProject(value: FramescaperCaptureAppProject) { return value; },
+			async listProjects() { return [activeProject]; },
+		},
+		sessionController: sessionController(() => activeHistory),
+		projectRuntime: {
+			createHistory: history,
+			executeCommand() { throw new Error('publication is not reached'); },
+		},
+		getActiveProject: () => activeProject,
+		getActiveHistory: () => activeHistory,
+		getActivePlayheadFrame: () => 0,
+		setActiveProject(value: FramescaperCaptureAppProject) { activeProject = value; },
+		setActiveHistory(value: FramescaperCaptureAppHistory) { activeHistory = value; },
+		synchronizeProject() {}, assertProjectWritable() {},
+		async acquireProjectWriteAuthority() {
+			return { assertCurrent() {}, async release() {} };
+		},
+		prepareCaptureStart() {}, getAudioContext: () => ({ sampleRate: 48_000 }),
+		desktopBridge: null,
+	} as never);
+
+	assert.ok(binding);
+	await binding.initialize();
+	assert.deepEqual(binding.snapshot.availability, {
+		status: 'unavailable', reason: 'unsupported-platform', detail: null,
+	});
+	await binding.dispose();
 });
 
 test('desktop project CAS uses the authoritative public store and propagates indeterminate saves', async () => {
@@ -101,16 +140,25 @@ test('publication context reloads the exact inactive origin base and freezes its
 	assert.equal(Object.isFrozen(context), true);
 });
 
-test('binding initialization is media-cold and capture start flushes before reading its origin', async () => {
+test('binding initialization is media-cold and start reserves one writable origin across flush', async () => {
 	const events: string[] = [];
 	let mediaOpens = 0;
 	let preparationFails = true;
+	let mutateDuringPreparation: 'edit' | 'switch' | null = null;
+	let writable = true;
+	let releasePreparation: () => void = () => undefined;
+	let reenterStart = false;
+	let reenteredStart: Promise<void> | null = null;
+	let reenteredDispose: Promise<void> | null = null;
 	let activeProject = project(19, 4);
 	let activeHistory = history(activeProject);
 	let countdownEntered!: () => void;
 	const enteredCountdown = new Promise<void>((resolve) => { countdownEntered = resolve; });
 	const store = captureStore(activeProject);
-	const binding = createFramescaperCaptureAppBinding({
+	const adminInterlock = createFramescaperCaptureAdminInterlock();
+	let binding: ReturnType<typeof createFramescaperCaptureAppBinding> = null;
+	binding = createFramescaperCaptureAppBinding({
+		adminInterlock,
 		productId: 'framescaper', routeSchemaVersion: 19, isDesktop: false, embedded: false,
 		store,
 		sessionController: sessionController(() => activeHistory),
@@ -124,12 +172,21 @@ test('binding initialization is media-cold and capture start flushes before read
 		setActiveProject(value: FramescaperCaptureAppProject) { activeProject = value; },
 		setActiveHistory(value: FramescaperCaptureAppHistory) { activeHistory = value; },
 		synchronizeProject() {},
+		assertProjectWritable() {
+			if (!writable) throw new Error('Capture origin is read-only.');
+		},
+		async acquireProjectWriteAuthority() {
+			return { assertCurrent() {}, async release() {} };
+		},
 		async prepareCaptureStart() {
 			events.push('prepare:begin');
-			await Promise.resolve();
+			await new Promise<void>((resolve) => { releasePreparation = resolve; });
 			if (preparationFails) throw new Error('project flush failed');
-			activeProject = project(19, 5);
-			activeHistory = history(activeProject);
+			if (mutateDuringPreparation) {
+				activeProject = project(19, mutateDuringPreparation === 'edit' ? 5 : 4,
+					mutateDuringPreparation === 'edit' ? 'project-a' : 'project-b');
+				activeHistory = history(activeProject);
+			}
 			events.push('prepare:end');
 		},
 		mediaDevices: {
@@ -153,6 +210,12 @@ test('binding initialization is media-cold and capture start flushes before read
 			signal.addEventListener('abort', () => { resolve(); }, { once: true });
 		}),
 		createId: (prefix: string) => `${prefix}-test`,
+		onChange: () => {
+			if (!reenterStart || !binding) return;
+			reenterStart = false;
+			reenteredStart = binding.actions.start();
+			reenteredDispose = binding.dispose();
+		},
 	} as never);
 	assert.ok(binding);
 	assert.equal(mediaOpens, 0, 'construction does not request capture permission');
@@ -164,24 +227,75 @@ test('binding initialization is media-cold and capture start flushes before read
 	await binding.actions.requestPreview(['camera']);
 	assert.equal(mediaOpens, 1);
 	binding.actions.arm({ destination: 'both', countdownMs: 3_000 });
+	const deletion = adminInterlock.beginAdminOperation({ kind: 'delete', projectId: 'project-a' });
+	await assert.rejects(binding.actions.start(), /active delete authority/iu);
+	assert.equal(events.includes('prepare:begin'), false);
+	deletion.release();
+	writable = false;
+	await assert.rejects(binding.actions.start(), /read-only/iu);
+	assert.equal(events.includes('prepare:begin'), false);
+	writable = true;
 	events.length = 0;
-	await assert.rejects(binding.actions.start(), /project flush failed/iu);
-	assert.deepEqual(events, ['prepare:begin']);
+	const failedStart = binding.actions.start();
+	assert.throws(() => binding.assertOriginEditAllowed('project-a'), /protects project-a from edit/iu);
+	assert.throws(
+		() => adminInterlock.beginAdminOperation({ kind: 'handoff', projectId: 'project-a' }),
+		/active capture authority/iu,
+	);
+	assert.equal(binding.originSnapshot('project-a').editBlocked, true);
+	releasePreparation();
+	await assert.rejects(failedStart, /project flush failed/iu);
+	assert.ok(events.indexOf('origin:project') < events.indexOf('prepare:begin'));
 	assert.equal(mediaOpens, 1);
 	assert.equal(binding.originSnapshot('project-a').active, false);
+	adminInterlock.beginAdminOperation({ kind: 'close', projectId: 'project-a' }).release();
 
 	preparationFails = false;
+	mutateDuringPreparation = 'edit';
+	events.length = 0;
+	const changedStart = binding.actions.start();
+	releasePreparation();
+	await assert.rejects(changedStart, /origin changed during start admission/iu);
+	assert.equal(binding.originSnapshot('project-a').active, false);
+	activeProject = project(19, 4);
+	activeHistory = history(activeProject);
+	mutateDuringPreparation = 'switch';
+	const switchedStart = binding.actions.start();
+	releasePreparation();
+	await assert.rejects(switchedStart, /origin changed during start admission/iu);
+	activeProject = project(19, 4);
+	activeHistory = history(activeProject);
+	mutateDuringPreparation = null;
 	events.length = 0;
 	const starting = binding.actions.start();
-	await enteredCountdown;
-	assert.ok(events.indexOf('prepare:end') < events.indexOf('origin:project'));
 	assert.deepEqual(
 		binding.originSnapshot('project-a').origin,
 		{ ...framescaperCaptureProjectFence(activeProject), sequenceId: 'sequence-a', playheadMicroseconds: 500_000 },
 	);
+	releasePreparation();
+	await enteredCountdown;
+	assert.deepEqual(
+		binding.originSnapshot('project-a').origin,
+		{ ...framescaperCaptureProjectFence(activeProject), sequenceId: 'sequence-a', playheadMicroseconds: 500_000 },
+	);
+	const boundSnapshot = binding.originSnapshot('project-a');
+	assert.throws(
+		() => binding.assertOriginEditAllowed('project-a'),
+		(error: unknown) => error instanceof FramescaperCaptureOriginProtectedError
+			&& error.generation === boundSnapshot.generation,
+		'bound protection errors use the generation exposed by the origin snapshot',
+	);
 	await binding.actions.stop();
 	await starting;
-	await binding.dispose();
+	await binding.actions.requestPreview(['camera']);
+	binding.actions.arm({ destination: 'both', countdownMs: 3_000 });
+	reenterStart = true;
+	const admitted = binding.actions.start();
+	assert.equal(reenteredStart, admitted, 'observer reentry shares the synchronously registered start');
+	assert.ok(reenteredDispose);
+	releasePreparation();
+	await assert.rejects(admitted, /disposed during start admission/iu);
+	await reenteredDispose;
 });
 
 function project(
