@@ -279,6 +279,7 @@ export interface EditorActions extends EditorActionTree {
 	readonly edit: EditorActionTree;
 	readonly transport: EditorActionTree;
 	readonly recording: EditorRecordingActions;
+	readonly capture: EditorActionTree;
 	readonly metering: EditorActionTree;
 	readonly audioDevices: EditorActionTree;
 	readonly audioWarp: EditorActionTree;

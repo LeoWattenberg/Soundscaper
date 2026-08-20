@@ -37,7 +37,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	configureDisplayInput, continueLoudnessMeasurement, copy, copyEffectStack,
 	createStableId, createWorkspacePreference, currentAudacityEffectParams, deleteEffectPreset,
 	deleteProject, deleteWorkspacePreference, disjoinSelectedClip, dismissAup4CompatibilitySummary,
-	duplicateProject, duplicateTrack, engine, exportEffectPreset,
+	duplicateProject, duplicateTrack, engine, exportEffectPreset, framescaperCaptureActions,
 	exportLabels, exportVideo, ffmpeg, fileService, findTrack, persistSetting, publishDocumentSnapshot,
 	flushProject, generateSelectionSilence, generateSignal, repeatLastGenerator, getClipVisualData,
 	getProjectBinClipVisualData, getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
@@ -344,6 +344,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			toggleMetronome,
 		}),
 		recording: createRecordingActionFacade(scope as RecordingActionScope, restricted),
+		capture: Object.freeze({ ...framescaperCaptureActions }),
 		metering: Object.freeze({
 			pause: pauseLoudnessMeasurement,
 			continue: continueLoudnessMeasurement,
@@ -582,9 +583,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 				export: restricted('audioEffects', exportEffectPreset),
 			}),
 		}),
-		macros: Object.freeze({
-			run: restricted('audioMacros', runEffectMacro),
-		}),
+		macros: Object.freeze({ run: restricted('audioMacros', runEffectMacro) }),
 		analysis: Object.freeze({
 			run: restricted('audioAnalysis', analysisService.run),
 			plotSpectrum: restricted('audioAnalysis', analysisService.plotSpectrum),

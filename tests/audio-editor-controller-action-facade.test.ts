@@ -12,6 +12,7 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'analysis',
 	'audioDevices',
 	'audioWarp',
+	'capture',
 	'clip',
 	'edit',
 	'effects',
