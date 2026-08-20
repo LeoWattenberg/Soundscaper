@@ -91,7 +91,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			const recovery = await findFramescaperCaptureRecovery(
 				options.durable, origin?.projectFence.projectId ?? null, options.recoveryProjectIds,
 			);
-			if (recovery) restoreRecovery(recovery);
+			if (recovery) { await options.prepareRecoveryOrigin?.(recovery.projectFence.projectId); restoreRecovery(recovery); }
 			notify();
 		})());
 		return initializePromise;

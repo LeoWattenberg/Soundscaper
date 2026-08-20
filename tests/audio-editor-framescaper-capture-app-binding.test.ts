@@ -7,6 +7,7 @@ import {
 	createFramescaperCaptureAppBinding,
 	createFramescaperCaptureAppProjectRepository,
 	deriveFramescaperCaptureAppPublicationContext,
+	ensureFramescaperCaptureRecoveryOrigin,
 	type FramescaperCaptureAppHistory,
 	type FramescaperCaptureAppProject,
 } from '../src/common/editor/controller/framescaper-capture-app-binding.ts';
@@ -138,6 +139,25 @@ test('publication context reloads the exact inactive origin base and freezes its
 		trackInsertionIndex: 2,
 	});
 	assert.equal(Object.isFrozen(context), true);
+});
+
+test('closed recovery origins open as inactive history owners before recovery is exposed', async () => {
+	const active = project(19, 4, 'project-active');
+	const recovered = project(19, 7, 'project-recovered');
+	const tabs = [{ projectId: active.id }];
+	const openings: Readonly<Record<string, unknown>>[] = [];
+	await ensureFramescaperCaptureRecoveryOrigin({ routeSchemaVersion: 19,
+		sessionController: {
+			getSnapshot: () => ({ tabs }),
+			openProject(value: FramescaperCaptureAppProject, options: Readonly<Record<string, unknown>>) {
+				tabs.push({ projectId: value.id }); openings.push(options);
+			},
+		}, projectRuntime: { createHistory: history },
+	} as never, { load: async () => recovered, saveIfCurrent: async () => null }, recovered.id);
+	assert.equal(tabs[0]?.projectId, active.id);
+	assert.deepEqual(tabs.map(({ projectId }) => projectId), [active.id, recovered.id]);
+	assert.equal(openings[0]?.activate, false);
+	assert.equal(openings[0]?.readOnly, false);
 });
 
 test('binding initialization is media-cold and start reserves one writable origin across flush', async () => {
@@ -340,7 +360,10 @@ function manifest(value: FramescaperCaptureAppProject): FramescaperCaptureSessio
 }
 
 function sessionController(getHistory: () => FramescaperCaptureAppHistory) {
+	const tabs = [{ projectId: getHistory().present.id }];
 	return {
+		getSnapshot() { return { tabs }; },
+		openProject(value: FramescaperCaptureAppProject) { tabs.push({ projectId: value.id }); },
 		captureProjectHistory() { return { history: getHistory(), token: 1 }; },
 		beginProjectActivation() { return { token: 1, release: () => true }; },
 		installCommittedProjectHistory() {},

@@ -124,6 +124,7 @@ export interface FramescaperCaptureAppCompositionOptions {
 	readonly desktopBridge?: FramescaperCaptureDesktopBridgeV1 | null;
 	readonly projectPublication?: FramescaperCaptureProjectPublicationPort | null;
 	readonly recoveryProjectIds?: () => PromiseLike<readonly string[]> | readonly string[];
+	readonly prepareRecoveryOrigin?: (projectId: string) => PromiseLike<void> | void;
 	captureOrigin(): ReturnType<Parameters<typeof createFramescaperCaptureSessionService>[0]['captureOrigin']>;
 	capturePublicationContext(
 		manifest: FramescaperCaptureSessionManifestV1,
@@ -204,6 +205,7 @@ export function createFramescaperCaptureAppComposition(
 			durable: Boolean(durable), canonical: Boolean(canonical), videoProbe: Boolean(videoProbe),
 		}),
 		...(options.recoveryProjectIds ? { recoveryProjectIds: options.recoveryProjectIds } : {}),
+		...(options.prepareRecoveryOrigin ? { prepareRecoveryOrigin: options.prepareRecoveryOrigin } : {}),
 		authorizeUserAction: (generation) => { gestures.add(generation); },
 		captureOrigin: options.captureOrigin,
 		createRecorder: recorderFactory,

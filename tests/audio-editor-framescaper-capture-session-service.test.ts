@@ -394,6 +394,7 @@ test('startup scans inactive projects and restores exactly one foreign-origin re
 	await harness.service.initialize();
 
 	assert.equal(harness.service.snapshot.phase, 'recovery');
+	assert.ok(harness.events.indexOf('prepare-recovery:project-a') < harness.events.lastIndexOf('change'));
 	assert.equal(harness.origin.snapshot('project-a').editBlocked, true);
 	assert.equal(harness.origin.snapshot('project-b').editBlocked, false);
 	assert.equal(harness.events.filter((event) => event === 'recovery-inventory').length, 2);
@@ -478,6 +479,7 @@ function serviceHarness(options: Readonly<{
 		},
 		displaySelection: options.displaySelection,
 		recoveryProjectIds: options.recoveryProjectIds ? () => options.recoveryProjectIds! : undefined,
+		prepareRecoveryOrigin: async (projectId) => { events.push(`prepare-recovery:${projectId}`); },
 		async completeRuntimeProbe(availability) {
 			events.push('runtime-prerequisites');
 			return availability;

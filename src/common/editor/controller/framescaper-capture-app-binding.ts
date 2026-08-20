@@ -90,7 +90,10 @@ export interface FramescaperCaptureAppBindingOptions extends PassThroughOptions 
 	readonly sessionController: FramescaperCaptureProjectPublicationOptions<
 		FramescaperCaptureAppProject,
 		FramescaperCaptureAppHistory
-	>['session'];
+	>['session'] & Readonly<{
+		getSnapshot(): Readonly<{ readonly tabs: readonly Readonly<{ readonly projectId: string }>[] }>;
+		openProject(project: FramescaperCaptureAppProject, options: Readonly<Record<string, unknown>>): unknown;
+	}>;
 	readonly projectRuntime: FramescaperCaptureProjectPublicationOptions<
 		FramescaperCaptureAppProject,
 		FramescaperCaptureAppHistory
@@ -141,11 +144,38 @@ export function createFramescaperCaptureAppBinding(
 			options, projects, manifest,
 		),
 		recoveryProjectIds: async () => projectIds(await options.store.listProjects()),
+		prepareRecoveryOrigin: (projectId) => ensureFramescaperCaptureRecoveryOrigin(options, projects, projectId),
 		...passThroughOptions(options),
 		getAudioContext: options.getAudioContext,
 		...(options.isDesktop ? { desktopBridge: options.desktopBridge } : { desktopBridge: null }),
 	});
 	return wrapPreparedStart(composition, options);
+}
+
+/** Ensure a recovered background origin has an inactive session-history owner. */
+export async function ensureFramescaperCaptureRecoveryOrigin(
+	options: Pick<FramescaperCaptureAppBindingOptions,
+		'routeSchemaVersion' | 'sessionController' | 'projectRuntime'
+	>,
+	projects: FramescaperCaptureAppProjectRepository,
+	projectIdValue: string,
+): Promise<void> {
+	const projectId = stableId(projectIdValue, 'Framescaper capture recovery project ID');
+	if (options.sessionController.getSnapshot().tabs.some((tab) => tab.projectId === projectId)) return;
+	const stored = await projects.load(projectId);
+	if (!stored) throw new Error('Framescaper capture recovery origin project is unavailable.');
+	const project = routeProject(stored, options.routeSchemaVersion);
+	if (project.id !== projectId) throw new Error('Framescaper capture recovery origin identity changed.');
+	options.sessionController.openProject(project, {
+		activate: false,
+		history: options.projectRuntime.createHistory(project),
+		readOnly: false, readOnlyReason: null, dirty: false,
+		lockMethod: 'capture-recovery-pending',
+		metadata: Object.freeze({
+			declaredReadOnly: false, intrinsicReadOnly: false,
+			featureRequirementsReadOnly: false, captureRecoveryOrigin: true,
+		}),
+	});
 }
 
 /** Select local web CAS or the authoritative desktop witness/CAS surface. */
@@ -483,6 +513,8 @@ function assertBindingOptions(options: FramescaperCaptureAppBindingOptions): voi
 	if (typeof options.isDesktop !== 'boolean' || typeof options.embedded !== 'boolean'
 		|| !options.store || typeof options.store !== 'object'
 		|| typeof options.store.listProjects !== 'function'
+		|| typeof options.sessionController?.getSnapshot !== 'function'
+		|| typeof options.sessionController?.openProject !== 'function'
 		|| typeof options.getAudioContext !== 'function'
 		|| typeof options.getActiveProject !== 'function'
 		|| typeof options.getActiveHistory !== 'function'
