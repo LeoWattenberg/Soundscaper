@@ -2,6 +2,11 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Explicit legacy ports keep the project-administration composition seam typo-safe. */
 
+import type {
+	FramescaperCaptureAdminInterlockLease,
+	FramescaperCaptureAdminOperationRequest,
+} from './framescaper-capture-admin-interlock.ts';
+
 type LegacyPort = (...args: any[]) => any;
 
 interface SourceChunkProviderMap extends Map<string, any> {
@@ -9,6 +14,9 @@ interface SourceChunkProviderMap extends Map<string, any> {
 }
 
 export interface ProjectAdminServiceRuntime {
+	readonly beginCaptureInterlockedAdminOperation?: (
+		request: Readonly<FramescaperCaptureAdminOperationRequest>,
+	) => Readonly<FramescaperCaptureAdminInterlockLease>;
 	readonly cancelPlaybackCachePreparation: LegacyPort;
 	readonly clearScheduledTimer: LegacyPort;
 	readonly clearWaveformPcmWindows: LegacyPort;
@@ -59,6 +67,7 @@ export interface ProjectAdminServiceRuntime {
 
 export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	const {
+		beginCaptureInterlockedAdminOperation,
 		cancelPlaybackCachePreparation, clearScheduledTimer, clearWaveformPcmWindows,
 		clipTimePitchCache, commit, copy, currentTimeMs, disposeRenderEngines, editorHistoryProjects, engine,
 		evictUnreferencedSourceCaches, flushProject, getProject, handleError,
@@ -96,12 +105,18 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		if (state.projectLock?.readOnly || (state.readOnly && !featureRequirementReadOnly)) {
 			throw new Error(copy.projectReadOnly);
 		}
-		if (!featureRequirementReadOnly) await flushProject();
-		if (getProject() !== project) throw new Error(copy.projectNotFound);
-		await store.prepareProjectHandoff?.(project);
-		if (getProject() !== project) throw new Error(copy.projectNotFound);
-		await releaseProjectLock();
-		return Object.freeze({ projectId: project.id, revision: project.revision });
+		const interlock = beginCaptureInterlockedAdminOperation?.({ kind: 'handoff', projectId: project.id });
+		try {
+			if (!featureRequirementReadOnly) await flushProject();
+			if (getProject() !== project) throw new Error(copy.projectNotFound);
+			await store.prepareProjectHandoff?.(project);
+			if (getProject() !== project) throw new Error(copy.projectNotFound);
+			interlock?.assertCurrent();
+			await releaseProjectLock();
+			return Object.freeze({ projectId: project.id, revision: project.revision });
+		} finally {
+			interlock?.release();
+		}
 	}
 
 	async function clearRecentProjects() {
@@ -112,6 +127,15 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		const project = getProject();
 		const tab = sessionTab(projectId);
 		if (!tab) throw new Error(copy.projectNotFound);
+		const interlock = beginCaptureInterlockedAdminOperation?.({ kind: 'close', projectId });
+		try { return await closeProjectTabReserved(project, tab, projectId, closeOptions, interlock); }
+		finally { interlock?.release(); }
+	}
+
+	async function closeProjectTabReserved(
+		project: any, tab: any, projectId: any, closeOptions: any,
+		interlock: Readonly<FramescaperCaptureAdminInterlockLease> | undefined,
+	) {
 		const active = project?.id === projectId;
 		if (tab.dirty && closeOptions.discard !== true) {
 			if (active) {
@@ -125,6 +149,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 				sessionController.markProjectSaved(projectId);
 			}
 		}
+		interlock?.assertCurrent();
 		const result = sessionController.closeProject(projectId, { force: true });
 		if (!result.closed) return result;
 		if (!active) {
@@ -178,8 +203,18 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	async function deleteProject() {
 		const project = getProject();
 		if (!project || state.readOnly || recoveryBlocked()) return;
+		const interlock = beginCaptureInterlockedAdminOperation?.({ kind: 'delete', projectId: project.id });
+		try { return await deleteProjectReserved(project, interlock); }
+		finally { interlock?.release(); }
+	}
+
+	async function deleteProjectReserved(
+		project: any,
+		interlock: Readonly<FramescaperCaptureAdminInterlockLease> | undefined,
+	) {
 		await stopRecording();
 		if (getProject() !== project) return null;
+		interlock?.assertCurrent();
 		const id = project.id;
 		const historyCapture = sessionController.captureProjectHistory(id);
 		const activation = sessionController.beginProjectActivation(id, {
@@ -210,6 +245,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 				await disposeRenderEngines();
 				sourceChunkProviders.clear();
 				await sourceChunkProviders.drain?.();
+				interlock?.assertCurrent();
 				deleteAttempted = true;
 				await store.deleteProject(id);
 				deleteResolved = true;
@@ -311,7 +347,16 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 
 	async function clearLocalData() {
 		if (recoveryBlocked()) return;
+		const interlock = beginCaptureInterlockedAdminOperation?.({ kind: 'clear', projectId: null });
+		try { await clearLocalDataReserved(interlock); }
+		finally { interlock?.release(); }
+	}
+
+	async function clearLocalDataReserved(
+		interlock: Readonly<FramescaperCaptureAdminInterlockLease> | undefined,
+	) {
 		await stopRecording();
+		interlock?.assertCurrent();
 		cancelPlaybackCachePreparation();
 		await releaseProjectLock();
 		engine.stop();
@@ -324,6 +369,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		sourcePeaks.clear();
 		clearWaveformPcmWindows();
 		await revokeVideoVisuals();
+		interlock?.assertCurrent();
 		await store.clear();
 		sessionController.clearClipboard();
 		for (const tab of [...sessionController.getSnapshot().tabs]) {
