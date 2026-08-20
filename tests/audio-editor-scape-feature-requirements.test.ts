@@ -20,8 +20,8 @@ import { createScapeProjectFileService } from '../src/common/editor/controller/s
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { evaluateProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import {
-	createAudioSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioSource,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	exportScapeProject,
 	importScapeProject,
@@ -261,7 +261,7 @@ function featureProject(
 	featureIds = { native: NATIVE_FEATURE_ID, fallback: FALLBACK_FEATURE_ID },
 	fallbackDigest = FALLBACK_DIGEST,
 ): AudioEditorProjectCurrent {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: FALLBACK_SOURCE_ID,
 		storageKey,
 		name: 'Rendered fallback.wav',

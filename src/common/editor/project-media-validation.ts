@@ -14,29 +14,29 @@ import {
 	projectUniqueStrings,
 	type ProjectDataRecord,
 	validateProjectEnvelope,
-} from './project-v9-validation-primitives.ts';
+} from './project-validation-primitives.ts';
 import { normalizeVideoEffects } from './video-effects.js';
 import { validateVideoTrackComposition } from './video-timeline.js';
 
 const SAMPLE_FORMATS = new Set(['int16', 'int24', 'int32', 'float32', 'float64', 'unknown']);
 const DISPLAY_MODES = new Set(['waveform', 'spectrogram', 'multiview', 'half-wave']);
 
-export interface ProjectV9MediaCollections {
+export interface ProjectMediaCollections {
 	readonly sources: readonly ProjectDataRecord[];
 	readonly clips: readonly ProjectDataRecord[];
 	readonly tracks: readonly ProjectDataRecord[];
 	readonly binClips: readonly ProjectDataRecord[];
 }
 
-export interface ProjectV9MediaValidationOptions {
+export interface ProjectMediaValidationOptions {
 	readonly stripEnvelopeAuthority?: 'required' | 'forbidden';
 }
 
-export function validateProjectV9Media(
+export function validateProjectMedia(
 	project: ProjectDataRecord,
 	sampleRate: number,
-	options: ProjectV9MediaValidationOptions = {},
-): ProjectV9MediaCollections {
+	options: ProjectMediaValidationOptions = {},
+): ProjectMediaCollections {
 	const foundation = Number(project.schemaVersion) >= 10;
 	const sources = recordArray(project.sources, 'project.sources');
 	const clips = recordArray(project.clips, 'project.clips');
@@ -224,7 +224,7 @@ function validateSpectrogram(value: unknown, sampleRate: number, name: string): 
 }
 
 function validateMediaGraph(
-	collections: ProjectV9MediaCollections & { readonly project: ProjectDataRecord },
+	collections: ProjectMediaCollections & { readonly project: ProjectDataRecord },
 	foundation: boolean,
 ): void {
 	const { project, sources, clips, tracks, binClips } = collections;

@@ -12,35 +12,28 @@ import {
 	type AudioEditorProjectCurrent,
 } from '../src/common/editor/project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioEditorProjectV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createLabelTrackV10,
-	createLabelV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createLabel,
+	createLabelTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 
 const NOW = '2026-08-11T12:00:00.000Z';
 const RATE = { num: 24, den: 1 } as const;
 
-test('legacy locked-shaped extensions do not acquire V15 lock semantics', () => {
-	const source = createAudioSourceV10({ id: 'legacy-source', frameCount: 48_000, channelCount: 1 });
-	const clip = createAudioClipV10({
-		id: 'legacy-clip', sourceId: source.id, timelineStartFrame: 100,
-		durationFrames: 100, sourceDurationFrames: 100,
-	});
-	const project = createAudioEditorProjectV10({
-		id: 'legacy-lock-extension', now: NOW, sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'legacy-track', locked: true, clipIds: [clip.id] })],
-	});
-	const edited = applyEditorCommand(project, {
+test('retired locked-shaped wire is rejected before it can acquire current lock semantics', () => {
+	assert.throws(() => applyEditorCommand({
+		schemaVersion: 10,
+		tracks: [{ type: 'audio', id: 'legacy-track', locked: true, clipIds: ['legacy-clip'] }],
+		clips: [{ id: 'legacy-clip', sourceId: 'legacy-source', timelineStartFrame: 100 }],
+	} as never, {
 		type: 'clip/move', clipId: 'legacy-clip', timelineStartFrame: 200,
-	}, { now: NOW });
-	assert.equal(edited.clips[0]?.timelineStartFrame, 200);
+	}, { now: NOW }), /current audio editor project/iu);
 });
 
 test('protected opaque binary values remain byte-exact through an allowed locked-track control', () => {
@@ -190,17 +183,17 @@ function audioProject(options: {
 	readonly locked: boolean;
 	readonly binaryOpaque?: boolean;
 }): AudioEditorProjectCurrent {
-	const lockedSource = createAudioSourceV10({
+	const lockedSource = createAudioSource({
 		id: 'locked-source', name: 'Locked source', frameCount: 48_000, channelCount: 1, sampleRate: 48_000,
 		...(options.binaryOpaque === true ? { opaqueExtensions: {
 			bytes: Uint8Array.of(0, 1, 254, 255),
 			buffer: Uint8Array.of(4, 3, 2, 1).buffer,
 		} } : {}),
 	});
-	const otherSource = createAudioSourceV10({
+	const otherSource = createAudioSource({
 		id: 'other-source', name: 'Other source', frameCount: 48_000, channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'locked-clip', sourceId: lockedSource.id, title: 'Locked clip',
 		timelineStartFrame: 1_000, durationFrames: 1_000,
 		sourceStartFrame: 0, sourceDurationFrames: 1_000,
@@ -209,11 +202,11 @@ function audioProject(options: {
 		id: 'audio-lock-project', now: NOW,
 		sources: [lockedSource, otherSource], clips: [clip],
 		tracks: [
-			createAudioTrackV10({ id: 'before-track', name: 'Before', locked: false }),
-			createAudioTrackV10({
+			createAudioTrack({ id: 'before-track', name: 'Before', locked: false }),
+			createAudioTrack({
 				id: 'locked-track', name: 'Locked', locked: options.locked, clipIds: [clip.id],
 			}),
-			createAudioTrackV10({ id: 'after-track', name: 'After', locked: false }),
+			createAudioTrack({ id: 'after-track', name: 'After', locked: false }),
 		],
 	});
 }
@@ -221,29 +214,29 @@ function audioProject(options: {
 function labelProject(): AudioEditorProjectCurrent {
 	return createCurrentAudioEditorProject({
 		id: 'label-lock-project', now: NOW,
-		tracks: [createLabelTrackV10({
+		tracks: [createLabelTrack({
 			id: 'labels', name: 'Labels', locked: true,
-			labels: [createLabelV10({ id: 'label', title: 'Label', startFrame: 0, endFrame: 10 })],
+			labels: [createLabel({ id: 'label', title: 'Label', startFrame: 0, endFrame: 10 })],
 		})],
 	});
 }
 
 function groupedProject(): AudioEditorProjectCurrent {
-	const first = createAudioSourceV10({ id: 'locked-source', frameCount: 48_000, channelCount: 1 });
-	const second = createAudioSourceV10({ id: 'peer-source', frameCount: 48_000, channelCount: 1 });
-	const locked = createAudioClipV10({
+	const first = createAudioSource({ id: 'locked-source', frameCount: 48_000, channelCount: 1 });
+	const second = createAudioSource({ id: 'peer-source', frameCount: 48_000, channelCount: 1 });
+	const locked = createAudioClip({
 		id: 'locked-clip', sourceId: first.id, timelineStartFrame: 0,
 		durationFrames: 100, sourceDurationFrames: 100, groupId: 'group',
 	});
-	const peer = createAudioClipV10({
+	const peer = createAudioClip({
 		id: 'peer-clip', sourceId: second.id, timelineStartFrame: 200,
 		durationFrames: 100, sourceDurationFrames: 100, groupId: 'group',
 	});
 	return createCurrentAudioEditorProject({
 		id: 'group-lock-project', now: NOW, sources: [first, second], clips: [locked, peer],
 		tracks: [
-			createAudioTrackV10({ id: 'locked-track', locked: true, clipIds: [locked.id] }),
-			createAudioTrackV10({ id: 'peer-track', locked: false, clipIds: [peer.id] }),
+			createAudioTrack({ id: 'locked-track', locked: true, clipIds: [locked.id] }),
+			createAudioTrack({ id: 'peer-track', locked: false, clipIds: [peer.id] }),
 		],
 	});
 }
@@ -252,8 +245,8 @@ function laneProject(): AudioEditorProjectCurrent {
 	return createCurrentAudioEditorProject({
 		id: 'lane-lock-project', now: NOW,
 		tracks: [
-			createVideoTrackV10({ id: 'video-lane', locked: true, laneGroupId: 'lane' }),
-			createAudioTrackV10({ id: 'audio-lane', locked: false, laneGroupId: 'lane' }),
+			createVideoTrack({ id: 'video-lane', locked: true, laneGroupId: 'lane' }),
+			createAudioTrack({ id: 'audio-lane', locked: false, laneGroupId: 'lane' }),
 		],
 	});
 }
@@ -262,8 +255,8 @@ function folderProject(): AudioEditorProjectCurrent {
 	return createCurrentAudioEditorProject({
 		id: 'folder-lock-project', now: NOW, primarySequenceId: 'main',
 		tracks: [
-			createAudioTrackV10({ id: 'locked-track', locked: true }),
-			createAudioTrackV10({ id: 'other-track', locked: false }),
+			createAudioTrack({ id: 'locked-track', locked: true }),
+			createAudioTrack({ id: 'other-track', locked: false }),
 		],
 		trackFolders: [{ id: 'parent', name: 'Parent' }],
 		sequences: [{ id: 'main', trackNodes: [
@@ -275,35 +268,35 @@ function folderProject(): AudioEditorProjectCurrent {
 }
 
 function videoProject(): AudioEditorProjectCurrent {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', frameCount: 48_000, sampleRate: 48_000,
 		width: 16, height: 16, frameRate: RATE, sourceFrameCount: 120,
 	}, 48_000);
-	const clip = createVideoClipV10({
+	const clip = createVideoClip({
 		id: 'video-clip', sourceId: source.id, sequenceId: 'main',
 		sequenceStartFrame: 1, sequenceFrameCount: 2, sourceInFrame: 0, sourceFrameCount: 2,
 	}, { projectSampleRate: 48_000, sequence: { id: 'main', rate: RATE }, source });
 	return createCurrentAudioEditorProject({
 		id: 'video-lock-project', now: NOW, primarySequenceId: 'main',
 		sequences: [{ id: 'main', rate: RATE }], sources: [source], clips: [clip],
-		tracks: [createVideoTrackV10({ id: 'video-track', locked: true, clipIds: [clip.id] })],
+		tracks: [createVideoTrack({ id: 'video-track', locked: true, clipIds: [clip.id] })],
 	});
 }
 
 function musicalProject(locked = true): AudioEditorProjectCurrent {
-	const source = createAudioSourceV10({ id: 'musical-source', frameCount: 192_000, channelCount: 1 });
+	const source = createAudioSource({ id: 'musical-source', frameCount: 192_000, channelCount: 1 });
 	const tempoMap = {
 		mode: 'musical' as const,
 		events: [{ id: 'tempo-root', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
 	};
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'musical-clip', sourceId: source.id, anchor: 'musical',
 		musicalStartBeat: { num: 1, den: 1 }, musicalExtent: 'beat',
 		musicalDurationBeats: { num: 1, den: 1 }, sourceDurationFrames: 24_000,
 	}, { projectSampleRate: 48_000, tempoMap });
 	return createCurrentAudioEditorProject({
 		id: 'musical-lock-project', now: NOW, tempoMap, sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'musical-track', locked, clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'musical-track', locked, clipIds: [clip.id] })],
 	});
 }
 

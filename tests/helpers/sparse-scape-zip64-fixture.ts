@@ -3,7 +3,9 @@
 import { createHash } from 'node:crypto';
 import { open, rm, type FileHandle } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createAudioEditorProjectV9 } from '../../src/common/editor/project-v9.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../../src/common/editor/project-current.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 const LOGICAL_ARCHIVE_BYTES = 8 * 1024 ** 3;
@@ -26,9 +28,9 @@ const VIDEO_SOURCE_ID = 'video-source';
 const VIDEO_ENTRY = 'media/video-source/original';
 // The sparse hole reads as this exact number of zero bytes. These pinned values
 // are the SHA-256 and ZIP CRC-32 of that logical body, not fixture placeholders.
-const ZERO_ASSET_BYTES = 8_589_932_094;
-const ZERO_ASSET_SHA256 = '7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be';
-const ZERO_ASSET_CRC32 = 2_909_126_900;
+const ZERO_ASSET_BYTES = 8_589_931_116;
+const ZERO_ASSET_SHA256 = '44aa612ac90240a47309d2c27dd8b7f2226179d059041389fb6873ca4b4236e4';
+const ZERO_ASSET_CRC32 = 1_372_644_915;
 
 interface ArchiveEntryPlan {
 	readonly name: string;
@@ -127,28 +129,31 @@ export async function probeSparseFileSupport(directory: string): Promise<SparseF
 export async function createSparseEightGiBScapeFixture(
 	path: string,
 ): Promise<SparseEightGiBScapeFixture> {
-	const project = createAudioEditorProjectV9({
-		id: PROJECT_ID,
-		title: 'Sparse 8 GiB range witness',
-		now: '2026-01-01T00:00:00.000Z',
-		sources: [{
-			kind: 'video',
-			id: VIDEO_SOURCE_ID,
-			storageKey: VIDEO_SOURCE_ID,
-			name: 'sparse-video.mp4',
-			mimeType: 'video/mp4',
-			frameCount: 1,
-			sampleRate: 48_000,
-			width: 1,
-			height: 1,
-			frameRate: 30,
-			videoCodec: 'h264',
-			audioCodec: null,
-			hasAudio: false,
-		}],
-		clips: [],
-		tracks: [],
-	});
+	const project = {
+		...createCurrentAudioEditorProject({
+			id: PROJECT_ID,
+			title: 'Sparse 8 GiB range witness',
+			now: '2026-01-01T00:00:00.000Z',
+			sources: [{
+				kind: 'video',
+				id: VIDEO_SOURCE_ID,
+				storageKey: VIDEO_SOURCE_ID,
+				name: 'sparse-video.mp4',
+				mimeType: 'video/mp4',
+				frameCount: 1,
+				sampleRate: 48_000,
+				width: 1,
+				height: 1,
+				frameRate: 30,
+				videoCodec: 'h264',
+				audioCodec: null,
+				hasAudio: false,
+			}],
+			clips: [],
+			tracks: [],
+		}),
+		schemaVersion: 9,
+	};
 	const projectBytes = TEXT_ENCODER.encode(JSON.stringify(project));
 	const projectSha256 = createHash('sha256').update(projectBytes).digest('hex');
 	let hugePayloadBytes = LOGICAL_ARCHIVE_BYTES;

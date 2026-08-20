@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV6 } from '../project-v6.ts';
 import type {
 	EngineChunkSourceInput,
 	EngineLoadProjectOptions,
 	EngineSourceBufferInput,
 } from '../engine/public-api.ts';
+import { createAudioPreviewProject } from '../engine/audio-preview-project.ts';
 import type { EngineProject, EngineSourceResolver } from '../engine/types.ts';
 import type {
 	EditorControllerLifetime,
@@ -124,7 +124,7 @@ export function createProjectBinPreviewService(
 				avLinkId: null,
 				binItemId: null,
 			};
-			const previewProject = createAudioEditorProjectV6({
+			const previewProject = createAudioPreviewProject({
 				title: 'Project Bin preview',
 				sampleRate: project.sampleRate,
 				sources: [source],
@@ -136,8 +136,7 @@ export function createProjectBinPreviewService(
 					clipIds: [previewClip.id],
 					armed: false,
 				}],
-				projectBin: { clips: [] },
-			}) as EngineProject;
+			});
 			previewEngine.loadProject(previewProject, dependencies.sourceBuffers, {
 				chunkSources: dependencies.sourceChunkProviders,
 			});

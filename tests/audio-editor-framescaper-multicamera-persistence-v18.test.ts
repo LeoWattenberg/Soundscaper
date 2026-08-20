@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { parseScapeProjectDocument, serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import {
 	FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
@@ -172,12 +175,12 @@ function projectOptions(): Record<string, unknown> {
 		id: 'multicamera-persistence-v18', title: 'Multicamera persistence V18', now: CREATED,
 		sampleRate: 48_000,
 		sources: [
-			createVideoSourceV10({
+			createVideoSource({
 				id: 'source-a', name: 'Camera A', storageKey: 'source-a', mimeType: 'video/mp4',
 				contentSha256: '12'.repeat(32), sampleFrameCount: 480_000,
 				sourceFrameCount: 300, frameRate: rate, width: 1920, height: 1080,
 			}),
-			createVideoSourceV10({
+			createVideoSource({
 				id: 'source-b', name: 'Camera B', storageKey: 'source-b', mimeType: 'video/mp4',
 				contentSha256: '34'.repeat(32), sampleFrameCount: 480_000,
 				sourceFrameCount: 300, frameRate: rate, width: 1920, height: 1080,
@@ -188,7 +191,7 @@ function projectOptions(): Record<string, unknown> {
 			sequenceId: 'main-sequence', sequenceStartFrame: 1, sequenceFrameCount: 10,
 			sourceInFrame: 1, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['output-clip'], locked: false,
 		})],
 		sequences: [{ id: 'main-sequence', rate, trackIds: ['video-track'] }],

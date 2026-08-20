@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createExportPlan, estimatePcmBytes } from '../src/common/editor/export.js';
-import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { encodeWav, inspectWavLayout } from '../src/common/editor/wav.js';
 
 const UINT32_SENTINEL = 0xffff_ffff;
@@ -19,7 +21,7 @@ test('export byte estimates reject unsafe derived sizes', () => {
 });
 
 function stemProject() {
-	return createAudioEditorProjectV2({
+	return createCurrentAudioEditorProject({
 		id: 'large-stem-project',
 		title: 'Large stems',
 		now: '2026-07-28T00:00:00.000Z',

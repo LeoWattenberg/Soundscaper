@@ -74,26 +74,7 @@ export {
  * @typedef {import('./commands/protocol.ts').AudioEditorCommand} AudioEditorCommand
  */
 
-/**
- * @typedef {
- *   import('./project-v2.js').AudioEditorProjectV2
- *   | import('./project-v3.js').AudioEditorProjectV3
- *   | import('./project-v4.js').AudioEditorProjectV4
- *   | import('./project-v5.js').AudioEditorProjectV5
- *   | import('./project-v6.ts').AudioEditorProjectV6
- *   | import('./project-v7.ts').AudioEditorProjectV7
- *   | import('./project-v8.ts').AudioEditorProjectV8
- *   | import('./project-v9.ts').AudioEditorProjectV9
- *   | import('./project-v10.ts').AudioEditorProjectV10
- *   | import('./project-v11.ts').AudioEditorProjectV11
- *   | import('./project-v12.ts').AudioEditorProjectV12
- *   | import('./project-v13.ts').AudioEditorProjectV13
- *   | import('./project-v14.ts').AudioEditorProjectV14
- *   | import('./project-v15.ts').AudioEditorProjectV15
- *   | import('./project-v16.ts').AudioEditorProjectV16
- *   | import('./project-v17.ts').AudioEditorProjectV17
- * } CurrentAudioEditorProject
- */
+/** @typedef {import('./project-v17.ts').AudioEditorProjectV17} CurrentAudioEditorProject */
 
 /**
  * Apply one serializable command through the exhaustive runtime registry.
@@ -105,9 +86,7 @@ export {
  * @returns {Project}
  */
 export function applyEditorCommand(project, command, options = {}) {
-	if (!Number.isSafeInteger(project?.schemaVersion)
-		|| project.schemaVersion < 2
-		|| project.schemaVersion > AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+	if (project?.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
 		throw new RangeError('Editor commands require a current audio editor project.');
 	}
 	if (!command || typeof command.type !== 'string') {

@@ -2,12 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createExportPlan } from '../src/common/editor/export.js';
-import { createAudioEditorProjectV7 } from '../src/common/editor/project-v7.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 const CHANNELS = ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'] as const;
 
 test('authored BW64 rejects effects that collapse a multichannel terminal to stereo', () => {
-	const project = createAudioEditorProjectV7({
+	const project = createCurrentAudioEditorProject({
 		now: '2026-07-28T12:00:00.000Z',
 		masterChannels: 6,
 		sources: [{

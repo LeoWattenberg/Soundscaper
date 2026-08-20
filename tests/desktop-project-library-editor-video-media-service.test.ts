@@ -26,9 +26,9 @@ import {
 import type { DesktopLibraryLoadedProjectBundle } from '../desktop/project-library-projects.ts';
 import { managedSourceBinding } from '../src/common/editor/storage/desktop-shared-project-media-sources.ts';
 import {
-	createVideoClipV9,
-	createVideoSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createVideoClip,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createCurrentAudioEditorProject,
 	type AudioEditorProjectCurrent,
@@ -244,13 +244,14 @@ interface TestVideoSource extends Readonly<Record<string, unknown>> {
 	readonly kind: 'video';
 	readonly storageKey: string;
 	readonly mimeType: string;
-	readonly frameCount: number;
+	readonly sampleFrameCount: number;
+	readonly sourceFrameCount: number;
 	readonly sampleRate: number;
 	readonly width: number;
 	readonly height: number;
-	readonly frameRate: number;
+	readonly frameRate: Readonly<{ readonly num: number; readonly den: number }>;
 	readonly videoCodec: string;
-	readonly audioCodec: string;
+	readonly audioCodec: string | null;
 	readonly hasAudio: boolean;
 }
 
@@ -293,12 +294,12 @@ class FakeManagedMediaHost {
 }
 
 function videoFixture(): VideoFixture {
-	const source = createVideoSourceV9({
+	const source = createVideoSource({
 		id: 'managed-video',
 		name: 'Managed video',
 		mimeType: 'video/mp4',
 		storageKey: 'managed-video-storage',
-		frameCount: 120,
+		sampleFrameCount: 120,
 		sampleRate: 48_000,
 		width: 1_920,
 		height: 1_080,
@@ -306,11 +307,11 @@ function videoFixture(): VideoFixture {
 		videoCodec: 'h264',
 		audioCodec: 'aac',
 		hasAudio: true,
-	}) as TestVideoSource;
-	const clip = createVideoClipV9({
+	});
+	const clip = createVideoClip({
 		id: 'managed-video-bin-clip',
 		sourceId: source.id,
-		durationFrames: source.frameCount,
+		durationFrames: source.sampleFrameCount,
 		binItemId: 'managed-video-bin-item',
 	});
 	const project = createCurrentAudioEditorProject({

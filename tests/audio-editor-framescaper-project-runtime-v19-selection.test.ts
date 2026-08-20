@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createClipboardDescriptor } from '../src/common/editor/commands/clipboard-runtime.js';
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { editorProjectStorageProfileNames } from '../src/common/editor/storage/project-storage-profile.ts';
 import {
 	DEFAULT_VIDEO_CLIP_COMPOSITION,
@@ -158,7 +161,7 @@ test('a copy that carries a graph the descriptor cannot own is refused where it 
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],
@@ -179,7 +182,7 @@ test('a copy that carries a graph the descriptor cannot own is refused where it 
 });
 
 function videoSource(id: string) {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id, name: id, storageKey: id, mimeType: 'video/mp4',
 		contentSha256: '12'.repeat(32), frameCount: 48_000, sampleFrameCount: 48_000,
 		sourceFrameCount: 10, frameRate: { num: 10, den: 1 }, width: 1_920, height: 1_080,
@@ -195,7 +198,7 @@ function projectFixture(id: string): ReturnType<typeof createFramescaperProjectV
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],

@@ -7,12 +7,12 @@ import test, { type TestContext } from 'node:test';
 import { createClipboardDescriptor } from '../src/common/editor/commands/clipboard-runtime.js';
 import { resolveControllerProjectRuntime } from '../src/common/editor/controller/project-runtime.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const assetLoader = `
 	export async function resolve(specifier, context, nextResolve) {
@@ -110,7 +110,7 @@ function graphProject(
 ): ReturnType<EnvironmentV18['runtime']['createProject']> {
 	const id = `edit-clipboard-${suffix}`;
 	const rate = { num: 10, den: 1 };
-	const source = (sourceSuffix: string, digest: string) => createVideoSourceV10({
+	const source = (sourceSuffix: string, digest: string) => createVideoSource({
 		id: `${id}-source-${sourceSuffix}`,
 		name: `Camera ${sourceSuffix.toUpperCase()}`,
 		storageKey: `${id}-source-${sourceSuffix}`,
@@ -138,7 +138,7 @@ function graphProject(
 			sequenceId: mainSequenceId, sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: `${id}-track`, name: 'Video', clipIds: [outputClipId], locked: false,
 		})],
 		sequences: [{ id: mainSequenceId, rate, trackIds: [`${id}-track`] }, ...(graph === 'nested'
@@ -186,15 +186,15 @@ function flatProject(
 		id,
 		title: `Edit clipboard ${suffix}`,
 		now: '2026-08-13T12:00:00.000Z',
-		sources: [createAudioSourceV10({
+		sources: [createAudioSource({
 			id: sourceId, name: 'Audio', storageKey: sourceId,
 			frameCount: 48_000, channelCount: 1, sampleRate: 48_000,
 		})],
-		clips: [createAudioClipV10({
+		clips: [createAudioClip({
 			id: `${id}-clip`, sourceId, title: 'Audio',
 			timelineStartFrame: 0, sourceStartFrame: 0, durationFrames: 48_000,
 		})],
-		tracks: [createAudioTrackV10({
+		tracks: [createAudioTrack({
 			id: trackId, name: 'Audio', clipIds: [`${id}-clip`], locked: false,
 		})],
 	});

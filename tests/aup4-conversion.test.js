@@ -13,32 +13,32 @@ import { decodeAudacityProjectTree, decodeAup4ProjectTree } from '../src/common/
 import { aup4NativeEffectId } from '../src/common/editor/aup4-effects.js';
 import { createAup4ProjectTree, createAup4SampleBlock } from '../src/common/editor/aup4-profile.js';
 import {
-	createAudioClipV2,
-	createAudioEditorProjectV2,
-	createAudioSourceV2,
-	createAudioTrackV2,
-	createLabelTrackV2,
-} from '../src/common/editor/project-v2.js';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createLabelTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and selection', async () => {
-	const source = createAudioSourceV2({
+	const source = createAudioSource({
 		id: 'source-1', storageKey: 'source-1', name: 'Source', frameCount: 4,
 		channelCount: 2, sampleRate: 44_100, originalSampleRate: 44_100,
 	});
-	const clip = createAudioClipV2({
+	const clip = createAudioClip({
 		id: 'clip-1', sourceId: source.id, title: 'Clip', timelineStartFrame: 4410,
 		sourceStartFrame: 0, sourceDurationFrames: 4, durationFrames: 4,
 		pitchCents: 200, speedRatio: 1, groupId: 'group-a',
 	});
-	const audioTrack = createAudioTrackV2({
+	const audioTrack = createAudioTrack({
 		id: 'track-1', name: 'Stereo',
 		clipIds: [clip.id], displayMode: 'multiview',
 	});
-	const labelTrack = createLabelTrackV2({
+	const labelTrack = createLabelTrack({
 		id: 'labels-1', name: 'Labels', labels: [{ id: 'label-1', title: 'Verse', startFrame: 4410, endFrame: 8820 }],
 	});
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'project-1', title: 'Fixture', sampleRate: 44_100,
 		tempo: { bpm: 145, timeSignature: { numerator: 7, denominator: 8 } },
 		metadata: { title: 'Native title', artist: 'kw.media' },
@@ -103,7 +103,7 @@ test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and
 });
 
 test('AUP4 conversion reconciles mixed-rate and structurally mismatched linked-channel timelines', async () => {
-	const source = createAudioSourceV2({
+	const source = createAudioSource({
 		id: 'linked-source',
 		storageKey: 'linked-source',
 		name: 'Linked source',
@@ -112,7 +112,7 @@ test('AUP4 conversion reconciles mixed-rate and structurally mismatched linked-c
 		sampleRate: 48_000,
 		originalSampleRate: 48_000,
 	});
-	const clip = createAudioClipV2({
+	const clip = createAudioClip({
 		id: 'linked-clip',
 		sourceId: source.id,
 		title: 'Linked clip',
@@ -120,12 +120,12 @@ test('AUP4 conversion reconciles mixed-rate and structurally mismatched linked-c
 		sourceDurationFrames: 480,
 		durationFrames: 480,
 	});
-	const track = createAudioTrackV2({
+	const track = createAudioTrack({
 		id: 'linked-track',
 		name: 'Linked track',
 		clipIds: [clip.id],
 	});
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'linked-project',
 		title: 'Linked fixture',
 		sampleRate: 48_000,
@@ -220,7 +220,7 @@ test('AUP4 conversion imports exact musical, time, and video snap grids and pres
 });
 
 test('AUP4 conversion preserves native track color and spectrogram settings', async () => {
-	const source = createAudioSourceV2({
+	const source = createAudioSource({
 		id: 'view-source',
 		storageKey: 'view-source',
 		name: 'View source',
@@ -229,20 +229,20 @@ test('AUP4 conversion preserves native track color and spectrogram settings', as
 		sampleRate: 48_000,
 		originalSampleRate: 48_000,
 	});
-	const clip = createAudioClipV2({
+	const clip = createAudioClip({
 		id: 'view-clip',
 		sourceId: source.id,
 		title: 'View clip',
 		sourceDurationFrames: 4,
 		durationFrames: 4,
 	});
-	const track = createAudioTrackV2({
+	const track = createAudioTrack({
 		id: 'view-track',
 		name: 'View track',
 		clipIds: [clip.id],
 		displayMode: 'spectrogram',
 	});
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'view-project',
 		title: 'View fixture',
 		sampleRate: 48_000,
@@ -311,7 +311,7 @@ test('AUP4 conversion decodes int16, int24, float32, and silent sample blocks', 
 		{ id: 'float32', sampleFormat: 0x0004000f, blockId: 3 },
 		{ id: 'silent', sampleFormat: 0x0004000f, blockId: -3 },
 	];
-	const sources = formats.map(({ id }) => createAudioSourceV2({
+	const sources = formats.map(({ id }) => createAudioSource({
 		id: `${id}-source`,
 		storageKey: `${id}-source`,
 		name: id,
@@ -320,19 +320,19 @@ test('AUP4 conversion decodes int16, int24, float32, and silent sample blocks', 
 		sampleRate: 48_000,
 		originalSampleRate: 48_000,
 	}));
-	const clips = sources.map((source) => createAudioClipV2({
+	const clips = sources.map((source) => createAudioClip({
 		id: `${source.id}-clip`,
 		sourceId: source.id,
 		title: source.name,
 		sourceDurationFrames: 3,
 		durationFrames: 3,
 	}));
-	const tracks = clips.map((clip) => createAudioTrackV2({
+	const tracks = clips.map((clip) => createAudioTrack({
 		id: `${clip.id}-track`,
 		name: clip.title,
 		clipIds: [clip.id],
 	}));
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'sample-formats',
 		title: 'Sample formats',
 		sampleRate: 48_000,
@@ -436,21 +436,21 @@ test('AUP4 conversion decodes int16, int24, float32, and silent sample blocks', 
 });
 
 test('AUP4 conversion preserves empty stereo track rate, collapsed state, and boundary tempo settings', async () => {
-	const audioTrack = createAudioTrackV2({
+	const audioTrack = createAudioTrack({
 		id: 'empty-stereo',
 		name: 'Empty stereo',
 		clipIds: [],
 		collapsed: true,
 		height: 160,
 	});
-	const labelTrack = createLabelTrackV2({
+	const labelTrack = createLabelTrack({
 		id: 'collapsed-labels',
 		name: 'Collapsed labels',
 		labels: [],
 		collapsed: true,
 		height: 96,
 	});
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'empty-stereo-project',
 		title: 'Empty stereo project',
 		sampleRate: 48_000,
@@ -493,7 +493,7 @@ test('AUP4 conversion preserves empty stereo track rate, collapsed state, and bo
 });
 
 test('AUP4 conversion preserves interleaved track and opaque-root child order', async () => {
-	const sources = ['first-source', 'second-source'].map((id) => createAudioSourceV2({
+	const sources = ['first-source', 'second-source'].map((id) => createAudioSource({
 		id,
 		storageKey: id,
 		name: id,
@@ -502,29 +502,29 @@ test('AUP4 conversion preserves interleaved track and opaque-root child order', 
 		sampleRate: 48_000,
 		originalSampleRate: 48_000,
 	}));
-	const clips = sources.map((source, index) => createAudioClipV2({
+	const clips = sources.map((source, index) => createAudioClip({
 		id: `ordered-clip-${index + 1}`,
 		sourceId: source.id,
 		title: source.name,
 		sourceDurationFrames: 2,
 		durationFrames: 2,
 	}));
-	const firstTrack = createAudioTrackV2({
+	const firstTrack = createAudioTrack({
 		id: 'first-track',
 		name: 'First audio',
 		clipIds: [clips[0].id],
 	});
-	const labelTrack = createLabelTrackV2({
+	const labelTrack = createLabelTrack({
 		id: 'middle-labels',
 		name: 'Middle labels',
 		labels: [],
 	});
-	const secondTrack = createAudioTrackV2({
+	const secondTrack = createAudioTrack({
 		id: 'second-track',
 		name: 'Second audio',
 		clipIds: [clips[1].id],
 	});
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'ordered-project',
 		title: 'Ordered',
 		sampleRate: 48_000,
@@ -567,7 +567,7 @@ test('AUP4 conversion preserves interleaved track and opaque-root child order', 
 	);
 	assert.equal(audacityXmlAttribute(audacityXmlChildren(rewritten, 'opaque-track-divider')[0], 'revision'), 7);
 
-	decoded.project.tracks.push(createAudioTrackV2({
+	decoded.project.tracks.push(createAudioTrack({
 		id: 'new-empty-track',
 		name: 'New empty track',
 		clipIds: [],
@@ -582,7 +582,7 @@ test('AUP4 conversion preserves interleaved track and opaque-root child order', 
 });
 
 test('AUP4 conversion preserves overlapping native clips as layers on their original track', async () => {
-	const sources = ['layer-source-a', 'layer-source-b'].map((id) => createAudioSourceV2({
+	const sources = ['layer-source-a', 'layer-source-b'].map((id) => createAudioSource({
 		id,
 		storageKey: id,
 		name: id,
@@ -591,7 +591,7 @@ test('AUP4 conversion preserves overlapping native clips as layers on their orig
 		sampleRate: 48_000,
 		originalSampleRate: 48_000,
 	}));
-	const clips = sources.map((source, index) => createAudioClipV2({
+	const clips = sources.map((source, index) => createAudioClip({
 		id: `layer-clip-${index + 1}`,
 		sourceId: source.id,
 		title: `Layer ${index + 1}`,
@@ -600,12 +600,12 @@ test('AUP4 conversion preserves overlapping native clips as layers on their orig
 		sourceDurationFrames: 4,
 		durationFrames: 4,
 	}));
-	const track = createAudioTrackV2({
+	const track = createAudioTrack({
 		id: 'layer-track',
 		name: 'Layered track',
 		clipIds: clips.map((clip) => clip.id),
 	});
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'layer-project',
 		title: 'Layer project',
 		sampleRate: 48_000,
@@ -640,12 +640,12 @@ test('AUP4 conversion preserves overlapping native clips as layers on their orig
 });
 
 test('AUP4 export preserves imported group numbers and deterministically avoids collisions for new groups', () => {
-	const source = createAudioSourceV2({
+	const source = createAudioSource({
 		id: 'group-source', storageKey: 'group-source', name: 'Groups', frameCount: 16,
 		channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 	});
 	const groupIds = ['aup4-group-1', 'new-z', 'new-a', 'aup4-group-5'];
-	const clips = groupIds.map((groupId, index) => createAudioClipV2({
+	const clips = groupIds.map((groupId, index) => createAudioClip({
 		id: `group-clip-${index + 1}`,
 		sourceId: source.id,
 		title: groupId,
@@ -655,10 +655,10 @@ test('AUP4 export preserves imported group numbers and deterministically avoids 
 		durationFrames: 4,
 		groupId,
 	}));
-	const track = createAudioTrackV2({
+	const track = createAudioTrack({
 		id: 'group-track', name: 'Groups', clipIds: clips.map((clip) => clip.id),
 	});
-	const createProject = (projectClips) => createAudioEditorProjectV2({
+	const createProject = (projectClips) => createCurrentAudioEditorProject({
 		id: 'group-project', title: 'Groups', sampleRate: 48_000,
 		sources: [source], clips: projectClips, tracks: [track],
 	});
@@ -832,11 +832,11 @@ test('AUP4 conversion keeps interleaved opaque attribute order, numeric widths, 
 });
 
 test('AUP4 conversion preserves source offsets and stretched timing with Audacity 4 linear envelopes', async () => {
-	const source = createAudioSourceV2({
+	const source = createAudioSource({
 		id: 'source-rate', storageKey: 'source-rate', name: 'Rate source', frameCount: 1_000,
 		channelCount: 1, sampleRate: 24_000, originalSampleRate: 24_000,
 	});
-	const clip = createAudioClipV2({
+	const clip = createAudioClip({
 		id: 'clip-rate', sourceId: source.id, title: 'Stretched', timelineStartFrame: 4_800,
 		sourceStartFrame: 100, sourceDurationFrames: 400, durationFrames: 960,
 		trimStartFrames: 100, trimEndFrames: 500, speedRatio: 1 / 1.2,
@@ -846,11 +846,11 @@ test('AUP4 conversion preserves source offsets and stretched timing with Audacit
 			{ kind: 'attribute', name: 'rawAudioTempo', type: 'double', value: 120, digits: 8 },
 		]) } },
 	});
-	const track = createAudioTrackV2({
+	const track = createAudioTrack({
 		id: 'track-rate', name: 'Different rate',
 		clipIds: [clip.id],
 	});
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'project-rate', title: 'Rate fixture', sampleRate: 48_000,
 		sources: [source], clips: [clip], tracks: [track],
 	});
@@ -902,19 +902,19 @@ test('AUP4 conversion preserves source offsets and stretched timing with Audacit
 });
 
 test('AUP4 conversion maps formant preservation through pitchAndSpeedPreset', async () => {
-	const source = createAudioSourceV2({
+	const source = createAudioSource({
 		id: 'formant-source', storageKey: 'formant-source', name: 'Formant source', frameCount: 4,
 		channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 	});
-	const clip = createAudioClipV2({
+	const clip = createAudioClip({
 		id: 'formant-clip', sourceId: source.id, title: 'Formant clip',
 		sourceStartFrame: 0, sourceDurationFrames: 4, durationFrames: 4,
 		preserveFormants: true,
 	});
-	const track = createAudioTrackV2({
+	const track = createAudioTrack({
 		id: 'formant-track', name: 'Formant track', clipIds: [clip.id],
 	});
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'formant-project', title: 'Formant fixture', sampleRate: 48_000,
 		sources: [source], clips: [clip], tracks: [track],
 	});
@@ -945,18 +945,18 @@ test('AUP4 conversion maps formant preservation through pitchAndSpeedPreset', as
 });
 
 test('AUP4 conversion reports and strips unsupported nested wave clips', async () => {
-	const source = createAudioSourceV2({
+	const source = createAudioSource({
 		id: 'nested-source', storageKey: 'nested-source', name: 'Nested source', frameCount: 4,
 		channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 	});
-	const clip = createAudioClipV2({
+	const clip = createAudioClip({
 		id: 'nested-clip', sourceId: source.id, title: 'Outer clip',
 		sourceStartFrame: 0, sourceDurationFrames: 4, durationFrames: 4,
 	});
-	const track = createAudioTrackV2({
+	const track = createAudioTrack({
 		id: 'nested-track', name: 'Nested track', clipIds: [clip.id],
 	});
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'nested-project', title: 'Nested fixture', sampleRate: 48_000,
 		sources: [source], clips: [clip], tracks: [track],
 	});

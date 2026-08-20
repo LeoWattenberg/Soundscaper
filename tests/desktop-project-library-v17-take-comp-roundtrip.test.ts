@@ -14,9 +14,9 @@ import { DesktopSharedProjectLibraryService } from '../desktop/project-library-e
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
@@ -27,7 +27,7 @@ const NOW = '2026-08-12T10:30:00.000Z';
 test('fresh desktop V9 preserves exact V17 take lanes and comp regions across products', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-v17-take-comp-desktop-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'take-source', name: 'Take source', frameCount: 960, channelCount: 1, sampleRate: 48_000,
 	});
 	const project = createCurrentAudioEditorProject({
@@ -36,7 +36,7 @@ test('fresh desktop V9 preserves exact V17 take lanes and comp regions across pr
 		revision: 1,
 		now: NOW,
 		sources: [source],
-		tracks: [createAudioTrackV10({ id: 'vocal-track', name: 'Vocal', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'vocal-track', name: 'Vocal', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['vocal-track'] }],
 		primarySequenceId: 'main-sequence',
 		takeGroups: [{

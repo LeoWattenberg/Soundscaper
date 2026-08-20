@@ -1,5 +1,5 @@
 import { createStableId } from './project.js';
-import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-v2.js';
+import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-audio-factory.js';
 import {
 	createImmutablePcmChunks,
 	editImmutablePcmSamples,

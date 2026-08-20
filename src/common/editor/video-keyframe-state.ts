@@ -5,9 +5,9 @@ import {
 	readClosedDomainRecord,
 } from './closed-domain-value.ts';
 import {
-	AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
-	admitAudioEditorProjectV9ValidationStructure,
-} from './project-v9-validation-budget.ts';
+	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+	admitAudioEditorProjectValidationStructure,
+} from './project-validation-budget.ts';
 import {
 	evaluateVideoKeyframeCurves,
 	normalizeVideoKeyframeCurves,
@@ -54,8 +54,8 @@ export function compileVideoKeyframedClipState(
 	const candidate = readClosedDomainRecord(request, 'video keyframe state request', [
 		'videoKeyframes', 'sequenceFrameCount', 'composition', 'videoEffects',
 	]);
-	admitAudioEditorProjectV9ValidationStructure(
-		candidate, AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+	admitAudioEditorProjectValidationStructure(
+		candidate, AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 	);
 	const composition = normalizeVideoClipComposition(
 		readClosedDomainField(candidate, 'composition', 'video keyframe state request'),

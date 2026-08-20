@@ -6,10 +6,10 @@ import test from 'node:test';
 import { compileProjectPathPdcPlanV21 } from '../src/common/editor/engine/project-path-pdc-plan-v21.ts';
 import { buildProjectGraph, projectGraphLatencyFrames } from '../src/common/editor/engine/project-graph.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
 
 class FakeParam {
@@ -82,15 +82,15 @@ test('the connected main output reaches the aggregate latency reported to render
 function projectWithSlowerAuxiliaryOutput() {
 	return createSoundscaperProjectV21({
 		id: 'output-latency', title: 'Output latency', now: '2026-08-20T00:00:00.000Z',
-		sources: [createAudioSourceV10({
+		sources: [createAudioSource({
 			id: 'source', storageKey: 'pcm:source', contentSha256: 'a'.repeat(64),
 			frameCount: 100, sampleRate: 48_000, channelCount: 2,
 		})],
-		clips: [createAudioClipV10({
+		clips: [createAudioClip({
 			id: 'clip', sourceId: 'source', timelineStartFrame: 0, sourceStartFrame: 0,
 			durationFrames: 100, sourceDurationFrames: 100,
 		})],
-		tracks: [createAudioTrackV10({ id: 'track', name: 'Track', clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', name: 'Track', clipIds: ['clip'] })],
 		sequences: [{ id: 'sequence', trackIds: ['track'] }],
 		primarySequenceId: 'sequence',
 		mixer: {

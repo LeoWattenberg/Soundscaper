@@ -10,9 +10,9 @@ import { EditorControllerLifetime } from '../src/common/editor/controller/lifecy
 import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
 import type { DerivedSourceRecord } from '../src/common/editor/controller/track-domain-types.ts';
 import {
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17, type AudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 
 const NOW = '2026-08-12T12:00:00.000Z';
@@ -226,16 +226,16 @@ function project(locked: boolean): AudioEditorProjectV17 {
 	return createAudioEditorProjectV17({
 		id: 'take-ui-project', title: 'Take UI project', now: NOW,
 		sources: [
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'source-a', storageKey: 'source-a', name: 'Take A',
 				frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'source-b', storageKey: 'source-b', name: 'Take B',
 				frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
 		],
-		tracks: [createAudioTrackV10({
+		tracks: [createAudioTrack({
 			id: 'track-a', name: 'Vocal', clipIds: [], locked,
 		})],
 		sequences: [{ id: 'main-sequence', trackIds: ['track-a'] }],

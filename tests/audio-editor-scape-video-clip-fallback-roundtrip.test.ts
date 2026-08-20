@@ -8,10 +8,10 @@ import test, { type TestContext } from 'node:test';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureVideoClipRenderFallback } from '../src/common/editor/project-feature-requirements.ts';
 import {
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
@@ -94,7 +94,7 @@ test('Scape collision-copy remaps only the fallback source identity, not its tar
 });
 
 function clipFallbackProject(): AudioEditorProjectCurrent {
-	const canonicalSource = createVideoSourceV9({
+	const canonicalSource = createVideoSource({
 		id: CANONICAL_SOURCE_ID,
 		storageKey: CANONICAL_SOURCE_ID,
 		name: 'Canonical target.mp4',
@@ -108,7 +108,7 @@ function clipFallbackProject(): AudioEditorProjectCurrent {
 		audioCodec: null,
 		hasAudio: false,
 	});
-	const fallbackSource = createVideoSourceV9({
+	const fallbackSource = createVideoSource({
 		id: FALLBACK_SOURCE_ID,
 		storageKey: FALLBACK_SOURCE_ID,
 		name: 'Rendered target.mp4',
@@ -122,7 +122,7 @@ function clipFallbackProject(): AudioEditorProjectCurrent {
 		audioCodec: null,
 		hasAudio: false,
 	});
-	const target = createVideoClipV9({
+	const target = createVideoClip({
 		id: TARGET_CLIP_ID,
 		sourceId: CANONICAL_SOURCE_ID,
 		title: 'Canonical target clip',
@@ -145,7 +145,7 @@ function clipFallbackProject(): AudioEditorProjectCurrent {
 		sampleRate: 48_000,
 		sources: [canonicalSource, fallbackSource],
 		clips: [target],
-		tracks: [createVideoTrackV9({
+		tracks: [createVideoTrack({
 			id: 'canonical-video-track',
 			name: 'Canonical video',
 			clipIds: [TARGET_CLIP_ID],

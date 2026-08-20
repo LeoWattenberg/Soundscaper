@@ -8,7 +8,10 @@ import type { TestContext } from 'node:test';
 import {
 	createFramescaperDesktopProjectLibraryV10Handshake,
 } from '../../desktop/project-library-v10-contract.ts';
-import { createVideoSourceV10, createVideoTrackV10 } from '../../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../../src/common/editor/project-media-factory.ts';
 import type { AudioEditorProjectStoreOptions } from '../../src/common/editor/storage/project-store-options.ts';
 import {
 	connectFramescaperDesktopProjectLibraryV10Renderer,
@@ -221,12 +224,12 @@ export function projectFixture(options: Readonly<{
 		id: options.id, title: options.title ?? options.id, now: '2026-08-13T12:00:00.000Z',
 		...(multicamera ? {
 			sources: [
-				createVideoSourceV10({
+				createVideoSource({
 					id: 'desktop-camera-source-a', name: 'Camera A', storageKey: 'camera-a',
 					mimeType: 'video/mp4', contentSha256: '12'.repeat(32), sampleFrameCount: 480_000,
 					sourceFrameCount: 300, frameRate: rate, width: 1920, height: 1080,
 				}),
-				createVideoSourceV10({
+				createVideoSource({
 					id: 'desktop-camera-source-b', name: 'Camera B', storageKey: 'camera-b',
 					mimeType: 'video/mp4', contentSha256: '34'.repeat(32), sampleFrameCount: 480_000,
 					sourceFrameCount: 300, frameRate: rate, width: 1920, height: 1080,
@@ -237,7 +240,7 @@ export function projectFixture(options: Readonly<{
 				title: 'Multicamera output', sequenceId: 'main-sequence', sequenceStartFrame: 0,
 				sequenceFrameCount: 30, sourceInFrame: 0, sourceFrameCount: 30, retimeMap: null,
 			}],
-			tracks: [createVideoTrackV10({
+			tracks: [createVideoTrack({
 				id: 'desktop-video-track', name: 'Video',
 				clipIds: ['desktop-multicamera-output'], locked: false,
 			})],

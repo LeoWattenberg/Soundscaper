@@ -9,7 +9,9 @@ import {
 } from '../src/common/editor/controller/take-cycle-app-composition.ts';
 import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
 import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording-transaction-types.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 
@@ -35,7 +37,7 @@ async function appFixture() {
 	await store.ready();
 	const project = createAudioEditorProjectV17({
 		id: PROJECT_ID, title: 'Live input', now: NOW,
-		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: [], armed: true })],
+		tracks: [createAudioTrack({ id: 'track-a', name: 'Vocal', clipIds: [], armed: true })],
 		sequences: [{ id: 'main-sequence', trackIds: ['track-a'] }],
 		primarySequenceId: 'main-sequence',
 		loop: { enabled: true, startFrame: 0, endFrame: 4 },

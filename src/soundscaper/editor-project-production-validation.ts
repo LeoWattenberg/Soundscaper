@@ -26,10 +26,12 @@ import {
 	type MixerGraphV21,
 } from '../common/editor/mixer-graph-v21.ts'
 import { canonicalParameterAddressKey, type ParameterDescriptor } from '../common/editor/parameter-address.ts'
-import type { AudioEditorFolderHierarchyDocument } from '../common/editor/project-v12-validation.ts'
-import { validateAudioEditorFolderHierarchyDocument } from '../common/editor/project-v12-validation.ts'
-import { validateTrackLocksV15 } from '../common/editor/project-v15-validation.ts'
-import { validateAudioWarpRuntimeAuthorityV17 } from '../common/editor/project-v17-validation.ts'
+import { validateProjectAudioWarpRuntimeAuthority } from '../common/editor/project-audio-warp-validation.ts'
+import {
+	validateProjectHierarchyDocument,
+	type ProjectHierarchyDocument,
+} from '../common/editor/project-hierarchy-document-validation.ts'
+import { validateProjectTrackLocks } from '../common/editor/project-track-lock-validation.ts'
 import { validateVideoSourceCharacteristicsV14 } from '../common/editor/source-characteristics-v14.ts'
 import {
 	validateTakeCompDocumentGroupsV17,
@@ -47,7 +49,7 @@ import {
  * are parameters, and everything else is shared.
  */
 
-export interface SoundscaperProductionProject extends AudioEditorFolderHierarchyDocument {
+export interface SoundscaperProductionProject extends ProjectHierarchyDocument {
 	readonly automationLanes: readonly AutomationLaneV21[]
 	readonly mixer: MixerGraphV21
 	readonly takeGroups: readonly TakeCompDocumentGroup[]
@@ -102,7 +104,7 @@ export function validateSoundscaperProductionProject(
 		revision.projectFields,
 	) as Record<string, unknown>
 	const graph = normalizeMixerGraphV21(readClosedDomainField(candidate, 'mixer', revision.label))
-	validateAudioEditorFolderHierarchyDocument(
+	validateProjectHierarchyDocument(
 		candidate,
 		revision.schemaVersion,
 		{},
@@ -126,8 +128,8 @@ export function validateSoundscaperProductionProject(
 	)
 	validateFolderMixerGraphV21(candidate as unknown as SoundscaperProductionProject, graph)
 	validateVideoSourceCharacteristicsV14(candidate)
-	validateTrackLocksV15(candidate as AudioEditorFolderHierarchyDocument)
-	validateAudioWarpRuntimeAuthorityV17(candidate)
+	validateProjectTrackLocks(candidate)
+	validateProjectAudioWarpRuntimeAuthority(candidate)
 	validateTakeCompDocumentGroupsV17(
 		readClosedDomainField(candidate, 'takeGroups', revision.label),
 		candidate,

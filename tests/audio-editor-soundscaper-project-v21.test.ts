@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts'
+import { createAudioTrack } from '../src/common/editor/project-media-factory.ts'
 import {
 	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
 	cloneSoundscaperProjectV21,
@@ -19,7 +19,7 @@ test('V21 factory replaces legacy strip envelopes and flat routing with exact pr
 		id: 'production-project',
 		title: 'Production project',
 		now: NOW,
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 	})
@@ -42,7 +42,7 @@ test('automation lanes and graph state detach, freeze, clone, and load without s
 		id: 'automation-project',
 		title: 'Automation project',
 		now: NOW,
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 		automationLanes: [{
@@ -76,7 +76,7 @@ test('automation lanes and graph state detach, freeze, clone, and load without s
 test('V21 contextual validation rejects dangling lane and graph identities without repair', () => {
 	const project = createSoundscaperProjectV21({
 		id: 'validation-project', title: 'Validation project', now: NOW,
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 		automationLanes: [{
@@ -107,7 +107,7 @@ test('V21 contextual validation rejects dangling lane and graph identities witho
 })
 
 test('V21 contextual validation admits only canonical automatable parameter descriptors', () => {
-	const track = createAudioTrackV10({
+	const track = createAudioTrack({
 		id: 'voice', name: 'Voice', clipIds: [],
 		effects: [
 			{

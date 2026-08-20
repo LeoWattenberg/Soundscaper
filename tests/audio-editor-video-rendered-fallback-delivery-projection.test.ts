@@ -13,13 +13,13 @@ import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/edito
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const DIGEST = 'de'.repeat(32);
 
@@ -119,21 +119,21 @@ test('video delivery projects an unknown whole-project role and rejects known no
 
 test('video delivery replaces only the clip-render target and keeps the unaffected video', () => {
 	const geometry = { frameCount: 1_600, sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30 } as const;
-	const canonical = createVideoSourceV9({ id: 'clip-target-video', storageKey: 'clip-target-video', ...geometry });
-	const unaffected = createVideoSourceV9({ id: 'unaffected-video', storageKey: 'unaffected-video', ...geometry });
-	const fallback = createVideoSourceV9({ id: 'clip-fallback-video', storageKey: 'clip-fallback-video', ...geometry });
-	const target = createVideoClipV9({
+	const canonical = createVideoSource({ id: 'clip-target-video', storageKey: 'clip-target-video', ...geometry });
+	const unaffected = createVideoSource({ id: 'unaffected-video', storageKey: 'unaffected-video', ...geometry });
+	const fallback = createVideoSource({ id: 'clip-fallback-video', storageKey: 'clip-fallback-video', ...geometry });
+	const target = createVideoClip({
 		id: 'clip-render-target', sourceId: canonical.id, durationFrames: 8,
 		videoEffects: [{ id: 'clip-fx', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
 	});
-	const other = createVideoClipV9({
+	const other = createVideoClip({
 		id: 'unaffected-clip', sourceId: unaffected.id, timelineStartFrame: 1_600, durationFrames: 8,
 	});
 	const project = createCurrentAudioEditorProject({
 		id: 'clip-render-delivery', now: '2026-08-02T12:00:00.000Z',
 		sources: [canonical, unaffected, fallback],
 		clips: [target, other],
-		tracks: [createVideoTrackV9({ id: 'clip-video-track', clipIds: [target.id, other.id] })],
+		tracks: [createVideoTrack({ id: 'clip-video-track', clipIds: [target.id, other.id] })],
 		featureRequirements: { schemaVersion: 2, requirements: [{
 			id: 'publisher-clip-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
 			displayName: 'Publisher clip render', disposition: 'rendered-fallback',
@@ -215,26 +215,26 @@ test('video delivery does not traverse future project feature or media state', (
 });
 
 function combinedFallbackProject() {
-	const canonicalAudio = createAudioSourceV9({
+	const canonicalAudio = createAudioSource({
 		id: 'canonical-audio', storageKey: 'canonical-audio', frameCount: 8,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const fallbackAudio = createAudioSourceV9({
+	const fallbackAudio = createAudioSource({
 		id: 'fallback-audio', storageKey: 'fallback-audio', frameCount: 8,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const canonicalVideo = createVideoSourceV9({
+	const canonicalVideo = createVideoSource({
 		id: 'canonical-video', storageKey: 'canonical-video', frameCount: 8,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 	});
-	const fallbackVideo = createVideoSourceV9({
+	const fallbackVideo = createVideoSource({
 		id: 'fallback-video', storageKey: 'fallback-video', frameCount: 10,
 		sampleRate: 48_000, width: 1_280, height: 720, frameRate: 24,
 	});
-	const audioClip = createAudioClipV9({
+	const audioClip = createAudioClip({
 		id: 'canonical-audio-clip', sourceId: canonicalAudio.id, durationFrames: 8,
 	});
-	const videoClip = createVideoClipV9({
+	const videoClip = createVideoClip({
 		id: 'canonical-video-clip', sourceId: canonicalVideo.id, durationFrames: 8,
 		videoEffects: [{ id: 'video-effect', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
 	});
@@ -243,8 +243,8 @@ function combinedFallbackProject() {
 		sources: [canonicalAudio, fallbackAudio, canonicalVideo, fallbackVideo],
 		clips: [audioClip, videoClip],
 		tracks: [
-			createAudioTrackV9({ id: 'canonical-audio-track', clipIds: [audioClip.id] }),
-			createVideoTrackV9({ id: 'canonical-video-track', clipIds: [videoClip.id] }),
+			createAudioTrack({ id: 'canonical-audio-track', clipIds: [audioClip.id] }),
+			createVideoTrack({ id: 'canonical-video-track', clipIds: [videoClip.id] }),
 		],
 		featureRequirements: { schemaVersion: 1, requirements: [
 			{
@@ -266,21 +266,21 @@ function videoRequirementProject(requirement: Readonly<{
 	disposition: 'bypass' | 'rendered-fallback';
 	fallback: null | Readonly<{ kind: 'video'; sourceId: string; sha256: string }>;
 }>) {
-	const canonical = createVideoSourceV9({
+	const canonical = createVideoSource({
 		id: 'canonical-video', storageKey: 'canonical-video', frameCount: 8,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 	});
-	const fallback = createVideoSourceV9({
+	const fallback = createVideoSource({
 		id: 'fallback-video', storageKey: 'fallback-video', frameCount: 8,
 		sampleRate: 48_000, width: 1_280, height: 720, frameRate: 24,
 	});
-	const clip = createVideoClipV9({
+	const clip = createVideoClip({
 		id: 'canonical-video-clip', sourceId: canonical.id, durationFrames: 8,
 	});
 	return createCurrentAudioEditorProject({
 		id: `video-requirement-${requirement.disposition}`,
 		now: '2026-08-02T12:00:00.000Z', sources: [canonical, fallback], clips: [clip],
-		tracks: [createVideoTrackV9({ id: 'canonical-video-track', clipIds: [clip.id] })],
+		tracks: [createVideoTrack({ id: 'canonical-video-track', clipIds: [clip.id] })],
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'publisher-video-requirement', featureId: requirement.featureId,
 			displayName: 'Publisher video requirement',

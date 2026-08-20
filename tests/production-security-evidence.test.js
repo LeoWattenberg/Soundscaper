@@ -266,12 +266,12 @@ test('project feature requirements are bounded and fail closed at activation and
 	for (const path of [
 		'src/common/editor/migration.js',
 		'src/common/editor/project-feature-requirements.ts', 'src/common/editor/project-feature-video-clip-render-v1.ts',
-		'src/common/editor/project-v9.ts',
+		'src/common/editor/project-document-validation.ts', 'src/common/editor/project-media-validation.ts',
 		'src/common/editor/retention.js',
 		'src/common/editor/scape-project-assets.ts',
 		'src/common/editor/scape-export-plan.ts',
 		'src/common/editor/scape-project.js',
-		'src/common/editor/project-feature-capabilities.ts', 'src/common/editor/project-owned-feature-requirements.ts', 'src/common/editor/project-v12-validation.ts', 'src/common/editor/project-v17.ts', 'src/common/editor/project-v17-validation.ts', 'src/common/editor/take-comp-domain.ts', 'src/common/editor/take-comp-document-v17.ts', 'src/common/editor/track-folder-v12.ts', 'src/common/editor/track-hierarchy-v12.ts', 'src/common/editor/track-folder-state-projection.ts', 'src/common/editor/track-folder-media-runtime.ts', 'src/common/editor/controller/playback-project-service.ts', 'src/common/editor/controller/video-export-service.ts', 'src/common/editor/controller/video-export-timing.ts', 'src/common/editor/video-export.js', 'src/common/editor/video-timeline.js',
+		'src/common/editor/project-feature-capabilities.ts', 'src/common/editor/project-owned-feature-requirements.ts', 'src/common/editor/project-foundation-validation.ts', 'src/common/editor/project-hierarchy-document-validation.ts', 'src/common/editor/project-track-lock-validation.ts', 'src/common/editor/project-v17.ts', 'src/common/editor/project-v17-validation.ts', 'src/common/editor/take-comp-domain.ts', 'src/common/editor/take-comp-document-v17.ts', 'src/common/editor/track-folder-v12.ts', 'src/common/editor/track-hierarchy-v12.ts', 'src/common/editor/track-folder-state-projection.ts', 'src/common/editor/track-folder-media-runtime.ts', 'src/common/editor/controller/playback-project-service.ts', 'src/common/editor/controller/video-export-service.ts', 'src/common/editor/controller/video-export-timing.ts', 'src/common/editor/video-export.js', 'src/common/editor/video-timeline.js',
 		'src/common/editor/project-feature-audio-effect-bypass.ts',
 		'src/common/editor/project-feature-video-effect-bypass.ts',
 		'src/common/editor/video-effects.js',
@@ -318,7 +318,7 @@ test('project feature requirements are bounded and fail closed at activation and
 	for (const path of [
 		'src/common/editor/migration.js',
 		'src/common/editor/project-feature-requirements.ts',
-		'src/common/editor/project-v9.ts',
+		'src/common/editor/project-v17.ts',
 	]) assert.ok(boundary.entryPoints.includes(path), path);
 
 	assert.match(control.summary, /bounded declarative.*deep-frozen/iu);

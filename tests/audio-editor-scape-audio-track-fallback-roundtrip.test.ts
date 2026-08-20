@@ -9,10 +9,10 @@ import test, { type TestContext } from 'node:test';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureAudioTrackRenderFallback } from '../src/common/editor/project-feature-requirements.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 
@@ -91,7 +91,7 @@ test('Scape collision-copy remaps only the fallback source identity, not its tar
 });
 
 function trackFallbackProject(): AudioEditorProjectCurrent {
-	const laneSource = createAudioSourceV9({
+	const laneSource = createAudioSource({
 		id: LANE_SOURCE_ID,
 		storageKey: LANE_SOURCE_ID,
 		name: 'Canonical lane.wav',
@@ -99,7 +99,7 @@ function trackFallbackProject(): AudioEditorProjectCurrent {
 		frameCount: LANE_SAMPLES.length,
 		channelCount: 1,
 	});
-	const fallbackSource = createAudioSourceV9({
+	const fallbackSource = createAudioSource({
 		id: FALLBACK_SOURCE_ID,
 		storageKey: FALLBACK_SOURCE_ID,
 		name: 'Rendered lane.wav',
@@ -107,7 +107,7 @@ function trackFallbackProject(): AudioEditorProjectCurrent {
 		frameCount: FALLBACK_SAMPLES.length,
 		channelCount: 1,
 	});
-	const laneClip = createAudioClipV9({
+	const laneClip = createAudioClip({
 		id: 'canonical-lane-clip',
 		sourceId: LANE_SOURCE_ID,
 		timelineStartFrame: 0,
@@ -120,7 +120,7 @@ function trackFallbackProject(): AudioEditorProjectCurrent {
 		sampleRate: 48_000,
 		sources: [laneSource, fallbackSource],
 		clips: [laneClip],
-		tracks: [createAudioTrackV9({
+		tracks: [createAudioTrack({
 			id: TARGET_TRACK_ID,
 			name: 'Saturated lane',
 			clipIds: [laneClip.id],

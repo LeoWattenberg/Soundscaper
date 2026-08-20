@@ -8,13 +8,15 @@ import {
 	buildFrameCanonicalSlipSlidePointerRequest,
 	captureFrameCanonicalSlipSlidePointerAuthority,
 } from '../src/common/editor/frame-canonical-slip-slide-pointer-request.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	createVideoTimingAssetPublication,
 	validateVideoTimingAssetBytes,
@@ -219,7 +221,7 @@ test('opposite safe-integer pointer extremes never overflow intermediate Number 
 function pointerProject(options: Readonly<{ vfr?: boolean }> = {}) {
 	const vfr = options.vfr === true;
 	const sourceFrameCount = vfr ? VFR_INDEX.frameCount : 1_000;
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', sampleFrameCount: 2_000_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: RATE, sourceFrameCount,
 		...(vfr ? {
@@ -239,22 +241,22 @@ function pointerProject(options: Readonly<{ vfr?: boolean }> = {}) {
 		{ id: 'center-video', sequenceStartFrame: 10, sequenceFrameCount: 24, sourceInFrame: 100, sourceFrameCount: 24 },
 		{ id: 'right-video', sequenceStartFrame: 34, sequenceFrameCount: 10, sourceInFrame: 200, sourceFrameCount: 10 },
 	];
-	const clips = specifications.map((specification) => createVideoClipV10({
+	const clips = specifications.map((specification) => createVideoClip({
 		...specification, sourceId: 'video-source', sequenceId: 'main',
 	}, {
 		projectSampleRate: SAMPLE_RATE,
 		sequence: { id: 'main', rate: RATE },
 		source,
 	}));
-	const track = createVideoTrackV10({
+	const track = createVideoTrack({
 		id: 'video-track', clipIds: specifications.map(({ id }) => id), locked: false,
 	});
-	const persisted = createAudioEditorProjectV15({
+	const persisted = createCurrentAudioEditorProject({
 		id: `pointer-${vfr ? 'vfr' : 'cfr'}`, now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track'] }],
 		primarySequenceId: 'main', sources: [source], clips, tracks: [track],
 	});
-	const project = projectV10ForCommand(persisted as unknown as Record<string, unknown>);
+	const project = projectForCommand(persisted as unknown as Record<string, unknown>);
 	const view: VideoSourceTimingView = vfr ? Object.freeze({
 		kind: 'vfr', reference: VFR_PUBLICATION.reference, index: VFR_INDEX,
 	}) : Object.freeze({ kind: 'cfr', rate: RATE, frameCount: sourceFrameCount });

@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
-import { createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 
 /**
@@ -108,8 +111,8 @@ function takeProject() {
 			source('take-source-b'),
 		],
 		tracks: [
-			createAudioTrackV10({ id: 'vocals', name: 'Vocals', clipIds: [] }),
-			createAudioTrackV10({ id: 'guitar', name: 'Guitar', clipIds: [] }),
+			createAudioTrack({ id: 'vocals', name: 'Vocals', clipIds: [] }),
+			createAudioTrack({ id: 'guitar', name: 'Guitar', clipIds: [] }),
 		],
 		sequences: [{ id: 'main-sequence', trackIds: ['vocals', 'guitar'] }],
 		primarySequenceId: 'main-sequence',
@@ -131,7 +134,7 @@ function takeProject() {
 }
 
 function source(id: string) {
-	return createAudioSourceV10({
+	return createAudioSource({
 		id, name: id, storageKey: id, mimeType: 'audio/wav',
 		frameCount: 8, channelCount: 2, sampleRate: 48_000, chunkFrames: 65_536,
 	});

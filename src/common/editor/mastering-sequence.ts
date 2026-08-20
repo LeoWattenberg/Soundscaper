@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	admitAudioEditorProjectV9ValidationStructure,
-	resolveAudioEditorProjectV9ValidationLimits,
-} from './project-v9-validation-budget.ts';
+	admitAudioEditorProjectValidationStructure,
+	resolveAudioEditorProjectValidationLimits,
+} from './project-validation-budget.ts';
 
 /**
  * Mastering sequences: the order an album's regions are delivered in.
@@ -124,7 +124,7 @@ const MASTERING_SEQUENCE_ENTRY_FIELDS = Object.freeze([
 	'gapBeforeFrames', 'fadeInFrames', 'fadeOutFrames',
 ]);
 
-const EXTENSION_VALIDATION_LIMITS = resolveAudioEditorProjectV9ValidationLimits();
+const EXTENSION_VALIDATION_LIMITS = resolveAudioEditorProjectValidationLimits();
 const INVALID_CANONICAL_TEXT = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 
 /**
@@ -315,7 +315,7 @@ function plainRecord(value: unknown, name: string): Record<string, unknown> {
 }
 
 function cloneExtensions(value: unknown, name: string): Readonly<Record<string, unknown>> {
-	admitAudioEditorProjectV9ValidationStructure(value, EXTENSION_VALIDATION_LIMITS);
+	admitAudioEditorProjectValidationStructure(value, EXTENSION_VALIDATION_LIMITS);
 	const record = plainRecord(value, name);
 	try {
 		return Object.freeze(structuredClone(record)) as Readonly<Record<string, unknown>>;

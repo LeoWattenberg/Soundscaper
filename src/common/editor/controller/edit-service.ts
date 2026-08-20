@@ -171,7 +171,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				commit({
 					type: 'batch',
 					commands: [
-						createAddTrackCommand({ ...sourceTrack, schemaVersion: getProject().schemaVersion, id: trackId, name: `${sourceTrack.name} 2`, clipIds: [], effects: [] }),
+						createAddTrackCommand({ ...sourceTrack, id: trackId, name: `${sourceTrack.name} 2`, clipIds: [], effects: [] }),
 						split,
 						{ type: 'clip/move', clipId: split.rightClipId, trackId, timelineStartFrame: split.atFrame },
 					],

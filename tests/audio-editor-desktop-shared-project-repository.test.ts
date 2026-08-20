@@ -18,10 +18,10 @@ import {
 	type ProjectRepositoryPort,
 } from '../src/common/editor/storage/project-repository.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
@@ -40,19 +40,19 @@ interface CurrentProject extends ProjectDocument {
 test('desktop shared saves publish the local compacted snapshot before canonical remote commit', async () => {
 	const memory = getMemoryDatabase(uniqueName('shared-save'));
 	const local = new ProjectRepository({ memory, database: async () => null }, 5);
-	const reachableSource = createAudioSourceV9({
+	const reachableSource = createAudioSource({
 		id: 'source-reachable',
 		name: 'Reachable source',
 		frameCount: 48,
 		channelCount: 1,
 	});
-	const unreachableSource = createAudioSourceV9({
+	const unreachableSource = createAudioSource({
 		id: 'source-unreachable',
 		name: 'Unreachable source',
 		frameCount: 48,
 		channelCount: 1,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'clip-reachable',
 		sourceId: reachableSource.id,
 		durationFrames: 48,
@@ -64,7 +64,7 @@ test('desktop shared saves publish the local compacted snapshot before canonical
 		now: NOW,
 		sources: [reachableSource, unreachableSource],
 		clips: [clip],
-		tracks: [createAudioTrackV9({ id: 'track-1', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'track-1', clipIds: [clip.id] })],
 		opaqueExtensions: { transport: new Uint8Array([0, 127, 255]) },
 	}) as unknown as CurrentProject;
 	memory.sources.set(reachableSource.id, {
@@ -242,7 +242,7 @@ test('desktop shared latest load rejects noncanonical, invalid, mismatched, and 
 
 test('desktop shared latest load leaves prior local history untouched when recipient PCM is missing', async () => {
 	const local = memoryRepository('shared-missing-pcm');
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'remote-audio',
 		storageKey: 'recipient-pcm-key',
 		name: 'Remote audio',
@@ -250,12 +250,12 @@ test('desktop shared latest load leaves prior local history untouched when recip
 		channelCount: 1,
 		chunkFrames: 48,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'remote-clip',
 		sourceId: source.id,
 		durationFrames: 48,
 	});
-	const track = createAudioTrackV9({ id: 'remote-track', clipIds: [clip.id] });
+	const track = createAudioTrack({ id: 'remote-track', clipIds: [clip.id] });
 	const stale = createCurrentAudioEditorProject({
 		id: 'missing-pcm-project',
 		title: 'Prior local revision',
@@ -318,11 +318,11 @@ test('desktop shared latest load leaves prior local history untouched when recip
 
 test('concurrent shared latest loads cannot let a slow older admission replace a newer revision', async () => {
 	const local = memoryRepository('shared-concurrent-load');
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'ordered-audio', storageKey: 'ordered-pcm', frameCount: 1, channelCount: 1, chunkFrames: 1,
 	});
-	const clip = createAudioClipV9({ id: 'ordered-clip', sourceId: source.id, durationFrames: 1 });
-	const track = createAudioTrackV9({ id: 'ordered-track', clipIds: [clip.id] });
+	const clip = createAudioClip({ id: 'ordered-clip', sourceId: source.id, durationFrames: 1 });
+	const track = createAudioTrack({ id: 'ordered-track', clipIds: [clip.id] });
 	const revision = (value: number): CurrentProject => createCurrentAudioEditorProject({
 		id: 'ordered-project', title: `Revision ${value}`, revision: value, now: NOW,
 		sources: [source], clips: [clip], tracks: [track],

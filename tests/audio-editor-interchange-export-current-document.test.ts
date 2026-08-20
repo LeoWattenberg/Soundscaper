@@ -9,11 +9,11 @@ import {
 	exportProjectOtio,
 } from '../src/common/editor/controller/interchange-export-action.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoSourceV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
 
 /**
@@ -93,7 +93,7 @@ function harness(project: Readonly<Record<string, unknown>>) {
 function videoProject() {
 	return createSoundscaperProjectV23({
 		id: 'interchange-video', title: 'Interchange video', now: NOW,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'cam', name: 'CAM A', storageKey: 'media/cam.mp4', mimeType: 'video/mp4',
 			frameCount: SAMPLE_RATE * 10, sampleRate: SAMPLE_RATE, channelCount: 2,
 			frameRate: PAL, width: 1920, height: 1080,
@@ -109,7 +109,7 @@ function videoProject() {
 }
 
 function musicalProject() {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'bed', name: 'MIX', storageKey: 'media/mix.wav',
 		frameCount: SAMPLE_RATE * 10, channelCount: 2, sampleRate: SAMPLE_RATE,
 		originalSampleRate: SAMPLE_RATE, sampleFormat: 'float32', chunkFrames: 65_536,
@@ -117,12 +117,12 @@ function musicalProject() {
 	return createSoundscaperProjectV23({
 		id: 'interchange-musical', title: 'Interchange musical', now: NOW,
 		sources: [source],
-		clips: [createAudioClipV10({
+		clips: [createAudioClip({
 			id: 'a-clip', sourceId: 'bed', title: 'Bed',
 			anchor: 'musical', musicalStartBeat: { num: 4, den: 1 },
 			durationFrames: SAMPLE_RATE, sourceStartFrame: 0, sourceDurationFrames: SAMPLE_RATE,
 		})],
-		tracks: [createAudioTrackV10({ id: 'a1', name: 'A1', clipIds: ['a-clip'] })],
+		tracks: [createAudioTrack({ id: 'a1', name: 'A1', clipIds: ['a-clip'] })],
 		sequences: [{ id: 'seq', name: 'Sequence', rate: PAL, trackIds: ['a1'] }],
 		primarySequenceId: 'seq',
 	});

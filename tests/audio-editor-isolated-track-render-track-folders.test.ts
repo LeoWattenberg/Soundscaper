@@ -5,7 +5,11 @@ import test from 'node:test';
 
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import { createIsolatedTrackRenderProjectV21 } from '../src/common/editor/controller/isolated-track-render-project-v21.ts';
-import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
 
 /**
@@ -64,11 +68,11 @@ function mutedFolderProject() {
 }
 
 function projectOptions({ folderMuted }: { folderMuted: boolean }) {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'voice-clip', sourceId: source.id, title: 'Voice', timelineStartFrame: 0,
 		durationFrames: 8, sourceStartFrame: 0, sourceDurationFrames: 8,
 	});
@@ -76,8 +80,8 @@ function projectOptions({ folderMuted }: { folderMuted: boolean }) {
 		id: 'isolated-render-project', title: 'Isolated render', now: NOW,
 		sources: [source], clips: [clip],
 		tracks: [
-			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [clip.id], effects: [] }),
-			createAudioTrackV10({ id: 'music', name: 'Music', clipIds: [], effects: [] }),
+			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [clip.id], effects: [] }),
+			createAudioTrack({ id: 'music', name: 'Music', clipIds: [], effects: [] }),
 		],
 		trackFolders: [{ id: 'stems', name: 'Stems', mute: folderMuted }],
 		sequences: [{

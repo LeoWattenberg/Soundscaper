@@ -107,7 +107,6 @@ export function createLegacyRecordingFinalization(runtime: RecordingFinalization
 			sourceCommitted = true;
 			projectScope.assertCurrent();
 			const source: RecordedAudioSource = Object.freeze({
-				schemaVersion: 2,
 				sampleRate,
 				originalSampleRate: sampleRate,
 				sampleFormat: 'float32',

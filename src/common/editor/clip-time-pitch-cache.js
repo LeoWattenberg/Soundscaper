@@ -13,7 +13,7 @@ import {
 	pitchCentsToRatio,
 	staffPadTransformOutputFrames,
 } from './staffpad/index.js';
-import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-v2.js';
+import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-audio-factory.js';
 import { checkedPublicationByteSum, estimatePcmRenderPublication } from './publication-byte-estimates.ts';
 import { estimateClipTimePitchRenderAdmission, normalizeClipTimePitchRenderMaximumBytes } from './clip-time-pitch-render-admission.ts';
 export const CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION = 1;

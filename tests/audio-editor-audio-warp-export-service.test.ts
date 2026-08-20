@@ -8,7 +8,11 @@ import { createEditorExportService, type ExportServiceRuntime } from '../src/com
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import { createExportPlan } from '../src/common/editor/export.js';
 import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';
-import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import { createStreamingWindowedSincResampler } from '../src/common/editor/resample.js';
 import { createAiffStreamEncoder } from '../src/common/editor/aiff.js';
@@ -126,11 +130,11 @@ test('direct WAV export emits nonidentity exact-offline warp PCM at breakpoints 
 });
 
 function warpProject() {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', frameCount: SOURCE_PCM.length,
 		channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'clip', kind: 'audio', sourceId: source.id, anchor: 'sample',
 		timelineStartFrame: 0, durationFrames: 8, sourceStartFrame: 0, sourceDurationFrames: 8,
 		warpMap: { feature: 'audio-warp', points: [
@@ -142,7 +146,7 @@ function warpProject() {
 	return createAudioEditorProjectV17({
 		id: 'warp-export-project', title: 'Warp export', now: '2026-08-12T12:00:00.000Z',
 		sampleRate: 48_000, masterChannels: 1, sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', name: 'Warp', clipIds: [clip.id] }, 48_000)],
+		tracks: [createAudioTrack({ id: 'track', name: 'Warp', clipIds: [clip.id] }, 48_000)],
 	});
 }
 

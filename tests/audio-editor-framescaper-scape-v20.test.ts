@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import {
@@ -87,7 +90,7 @@ test('V20 migration rejects prior authority and keeps future authority opaque', 
 function authoredProject() {
 	const project = createFramescaperProjectV20(PROFILE, {
 		id: 'framescaper-v20-scape', title: 'Framescaper V20 Scape', now: NOW,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'video-source', name: 'V20.mp4', storageKey: 'video-source',
 			mimeType: 'video/mp4', contentSha256: VIDEO_SHA256,
 			frameCount: 48_000, sampleFrameCount: 48_000, sourceFrameCount: 10,
@@ -98,7 +101,7 @@ function authoredProject() {
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,
 		})],
 		sequences: [{

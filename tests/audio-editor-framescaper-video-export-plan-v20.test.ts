@@ -3,7 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoSourceV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	reconcileFramescaperProjectFeatureRequirementsV20,
 } from '../src/framescaper/editor-project-feature-requirements-v20.ts';
@@ -170,7 +172,7 @@ test('refuses independently active but mismatched canvas reference clip/source I
 function keyedProject() {
 	const options = framescaperV20Options();
 	const sources = options.sources as Record<string, unknown>[];
-	sources.push(createVideoSourceV10({
+	sources.push(createVideoSource({
 		id: 'late-source', name: 'Late', storageKey: 'late-source', mimeType: 'video/mp4',
 		contentSha256: '34'.repeat(32), sampleFrameCount: 48_000, sourceFrameCount: 30,
 		frameRate: { num: 30_000, den: 1_001 }, width: 1_920, height: 1_080,

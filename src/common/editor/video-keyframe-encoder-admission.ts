@@ -7,7 +7,7 @@ import {
 import {
 	AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE,
 	AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE,
-} from './project-v10-foundation-validation.ts';
+} from './project-foundation-validation.ts';
 import { VIDEO_CANVAS_MAXIMUM_EXTENT } from './video-canvas-fit.ts';
 import {
 	normalizeVideoDeliveryQuality,

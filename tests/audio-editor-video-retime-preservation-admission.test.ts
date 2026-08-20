@@ -22,7 +22,7 @@ const RETIME = Object.freeze({
 	segments: Object.freeze([Object.freeze({ mode: 'constant-forward' })]),
 });
 
-function persistedProject(schemaVersion = 16): DataRecord {
+function persistedProject(schemaVersion = 17): DataRecord {
 	return {
 		schemaVersion,
 		sampleRate: 48_000,
@@ -38,6 +38,7 @@ function persistedProject(schemaVersion = 16): DataRecord {
 		],
 		tracks: [{ id: 'video-track', type: 'video', name: 'Video', laneGroupId: null, clipIds: ['retimed', 'peer'] }],
 		timelineAnnotations: [],
+		takeGroups: [],
 		clips: [
 			videoClip('retimed', 'video-source', RETIME, { groupId: 'group' }),
 			videoClip('peer', 'peer-source', null, { sequenceStartFrame: 20, groupId: 'group' }),
@@ -107,7 +108,7 @@ function resolveClip(clip: DataRecord): DataRecord {
 	};
 }
 
-test('V16 preservation accepts byte-identical raw and reconciled projects and ignores older maps', () => {
+test('current preservation accepts byte-identical raw and reconciled projects and ignores retired maps', () => {
 	const base = persistedProject();
 	const raw = commandProjection(base);
 	const admission = createVideoRetimePreservationAdmission(base, raw);
@@ -122,7 +123,7 @@ test('V16 preservation accepts byte-identical raw and reconciled projects and ig
 	assert.doesNotThrow(() => legacyAdmission.afterCommand(legacyRaw));
 });
 
-test('V16 preservation freezes curve clips, sources, ownership, rates, and relation membership', () => {
+test('current preservation freezes curve clips, sources, ownership, rates, and relation membership', () => {
 	const cases: ReadonlyArray<{
 		name: string;
 		mutate(project: DataRecord): void;
@@ -154,7 +155,7 @@ test('V16 preservation freezes curve clips, sources, ownership, rates, and relat
 	}
 });
 
-test('V16 preservation compares protected opaque source bytes without expanding them', () => {
+test('current preservation compares protected opaque source bytes without expanding them', () => {
 	const base = persistedProject();
 	const source = (base.sources as DataRecord[])[0]!;
 	source.opaqueExtensions = {
@@ -171,7 +172,7 @@ test('V16 preservation compares protected opaque source bytes without expanding 
 	assert.throws(() => admission.afterCommand(raw), /retime.*protected/iu);
 });
 
-test('V16 preservation rejects introduced, removed, and change-restored curve identities', () => {
+test('current preservation rejects introduced, removed, and change-restored curve identities', () => {
 	const empty = persistedProject();
 	(empty.clips as DataRecord[])[0]!.retimeMap = null;
 	const rawEmpty = commandProjection(empty);
@@ -193,7 +194,7 @@ test('V16 preservation rejects introduced, removed, and change-restored curve id
 	assert.doesNotThrow(() => nestedAdmission.assertPersistedResult(structuredClone(base)));
 });
 
-test('V16 preservation preflights protected clip and source drivers but allows selection', () => {
+test('current preservation preflights protected clip and source drivers but allows selection', () => {
 	const base = persistedProject();
 	const raw = commandProjection(base);
 	const admission = createVideoRetimePreservationAdmission(base, raw);
@@ -213,7 +214,7 @@ test('V16 preservation preflights protected clip and source drivers but allows s
 	}));
 });
 
-test('V16 clipboard copy and codec preserve the exact V2 wire without legacy point aliases', () => {
+test('current clipboard copy and codec preserve the exact V2 wire without legacy point aliases', () => {
 	const project = commandProjection(persistedProject());
 	const clipboard = createClipboardDescriptor(project, {
 		startFrame: 0,

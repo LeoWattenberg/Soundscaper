@@ -18,10 +18,10 @@ import {
 	type ProjectFeatureRequirementsReport,
 } from '../src/common/editor/project-feature-requirements.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const AUDIO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
 const DIGEST = 'ab'.repeat(32);
@@ -46,22 +46,22 @@ function manifest(overrides: Record<string, unknown> = {}, fallbackOverrides: Re
 }
 
 function fixture(requirements: unknown = manifest()) {
-	const laneSource = createAudioSourceV9({
+	const laneSource = createAudioSource({
 		id: 'lane-source', storageKey: 'lane-source', frameCount: 500, channelCount: 2,
 	});
-	const drySource = createAudioSourceV9({
+	const drySource = createAudioSource({
 		id: 'dry-source', storageKey: 'dry-source', frameCount: 300, channelCount: 2,
 	});
-	const fallbackSource = createAudioSourceV9({
+	const fallbackSource = createAudioSource({
 		id: 'fallback-track-render', storageKey: 'fallback-track-render', frameCount: 500, channelCount: 2,
 	});
-	const laneClipA = createAudioClipV9({
+	const laneClipA = createAudioClip({
 		id: 'lane-clip-a', sourceId: laneSource.id, timelineStartFrame: 0, durationFrames: 200,
 	});
-	const laneClipB = createAudioClipV9({
+	const laneClipB = createAudioClip({
 		id: 'lane-clip-b', sourceId: laneSource.id, timelineStartFrame: 300, durationFrames: 200,
 	});
-	const dryClip = createAudioClipV9({
+	const dryClip = createAudioClip({
 		id: 'dry-clip', sourceId: drySource.id, timelineStartFrame: 0, durationFrames: 300,
 	});
 	const project = createCurrentAudioEditorProject({
@@ -69,12 +69,12 @@ function fixture(requirements: unknown = manifest()) {
 		sources: [laneSource, drySource, fallbackSource],
 		clips: [laneClipA, dryClip, laneClipB],
 		tracks: [
-			createAudioTrackV9({
+			createAudioTrack({
 				id: 'fx-track', name: 'Saturated lane', clipIds: [laneClipA.id, laneClipB.id],
 				gain: 0.5, pan: -0.5,
 				effects: [{ id: 'foreign-fx', type: 'com.example.saturator', enabled: true, params: {} }],
 			}),
-			createAudioTrackV9({ id: 'dry-track', name: 'Dry lane', clipIds: [dryClip.id] }),
+			createAudioTrack({ id: 'dry-track', name: 'Dry lane', clipIds: [dryClip.id] }),
 		],
 		featureRequirements: requirements,
 	});

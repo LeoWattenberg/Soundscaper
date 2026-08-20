@@ -11,7 +11,10 @@ import {
 import {
 	createInitialStorageCapacitySnapshot,
 } from '../src/common/editor/controller/storage-capacity-service.ts';
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { DEFAULT_SOUND_ACTIVATION_PREFERENCES } from '../src/common/editor/sound-activation-preferences.ts';
 import {
 	createFramescaperPlaybackProjectServiceV18,
@@ -153,8 +156,8 @@ function nestedProject(): FramescaperProjectV18 {
 			},
 		],
 		tracks: [
-			createVideoTrackV10({ id: 'primary-track', name: 'Primary', clipIds: ['primary-clip'], locked: false }),
-			createVideoTrackV10({ id: 'child-track', name: 'Child', clipIds: ['child-clip'], locked: false }),
+			createVideoTrack({ id: 'primary-track', name: 'Primary', clipIds: ['primary-clip'], locked: false }),
+			createVideoTrack({ id: 'child-track', name: 'Child', clipIds: ['child-clip'], locked: false }),
 		],
 		sequences: [
 			{ id: 'root', rate, trackIds: ['primary-track'] },
@@ -185,7 +188,7 @@ function switchedMulticameraProject(): FramescaperProjectV18 {
 			sequenceId: 'main-sequence', sequenceStartFrame: 10, sequenceFrameCount: 3,
 			sourceInFrame: 2, sourceFrameCount: 3, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['output-clip'], locked: false,
 		})],
 		sequences: [{ id: 'main-sequence', rate, trackIds: ['video-track'] }],
@@ -215,7 +218,7 @@ function videoSource(
 	rate: Readonly<{ readonly num: number; readonly den: number }>,
 	sourceFrameCount: number,
 ): Record<string, unknown> {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id, name: id, storageKey: id, mimeType: 'video/mp4', contentSha256,
 		sampleFrameCount: Math.ceil(sourceFrameCount * 48_000 * rate.den / rate.num),
 		sourceFrameCount, frameRate: rate, width: 1920, height: 1080,

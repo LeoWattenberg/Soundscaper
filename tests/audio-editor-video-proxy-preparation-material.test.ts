@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { createAudioEditorProjectV16 } from '../src/common/editor/project-v16.ts';
 import {
 	consumePreparedVideoProxyRelationship,
 	proveVideoProxyRelationship,
@@ -197,18 +196,8 @@ test('source owns one publication transfer and keeps the dormant Framescaper sea
 
 function v16Project(): Record<string, unknown> {
 	const current = videoProxyProject();
-	return createAudioEditorProjectV16({
-		id: String(current.id),
-		title: String(current.title),
-		now: String(current.updatedAt),
-		sampleRate: Number(current.sampleRate),
-		sources: structuredClone(current.sources) as Record<string, unknown>[],
-		clips: structuredClone(current.clips) as Record<string, unknown>[],
-		tracks: structuredClone(current.tracks) as Record<string, unknown>[],
-		sequences: structuredClone(current.sequences) as Record<string, unknown>[],
-		primarySequenceId: String(current.primarySequenceId),
-		projectBin: structuredClone(current.projectBin) as never,
-	}) as unknown as Record<string, unknown>;
+	const { takeGroups: _currentTakeGroups, ...retired } = structuredClone(current);
+	return { ...retired, schemaVersion: 16 } as Record<string, unknown>;
 }
 
 function projectWithReservedAttachment(): Record<string, unknown> {

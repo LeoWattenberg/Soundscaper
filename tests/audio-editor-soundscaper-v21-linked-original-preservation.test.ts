@@ -4,10 +4,10 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
 	type LinkedOriginalBindingInput,
@@ -113,10 +113,10 @@ function createStore(context: TestContext, indexedDB: IDBFactory | null): AudioE
 }
 
 function rootedProject(id: string, source: TestAudioSource): SoundscaperProjectV21 {
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: `${id}-clip`, sourceId: source.id, durationFrames: 4, sourceDurationFrames: 4,
 	});
-	const track = createAudioTrackV10({ id: `${id}-track`, clipIds: [clip.id] });
+	const track = createAudioTrack({ id: `${id}-track`, clipIds: [clip.id] });
 	return createSoundscaperProjectV21({
 		id,
 		title: 'V21 linked-original preservation',
@@ -130,7 +130,7 @@ function rootedProject(id: string, source: TestAudioSource): SoundscaperProjectV
 }
 
 function audioSource(id: string): TestAudioSource {
-	return createAudioSourceV10({
+	return createAudioSource({
 		id,
 		storageKey: `${id}-storage`,
 		mimeType: 'audio/wav',

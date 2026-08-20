@@ -46,3 +46,34 @@ test('typed command factories reject unstable IDs and invalid destinations at pr
 	assert.throws(() => createReorderVideoEffectCommand('video', 'effect', -1), /non-negative/);
 	assert.throws(() => createBypassVideoEffectCommand('video', 'effect', 'yes' as unknown as boolean), /boolean/);
 });
+
+test('typed clip commands retain exact-current timing authority for project-context normalization', () => {
+	const clip = {
+		kind: 'audio',
+		id: 'musical-clip',
+		sourceId: 'source',
+		anchor: 'musical',
+		musicalStartBeat: { num: 4, den: 1 },
+		musicalExtent: 'beat',
+		musicalDurationBeats: { num: 2, den: 1 },
+		sourceStartFrame: 0,
+		sourceDurationFrames: 48_000,
+	};
+	const command = createAddClipCommand('track', clip);
+	assert.deepEqual(command.clip, clip);
+	assert.notEqual(command.clip, clip);
+});
+
+test('track/add descriptors do not duplicate production-owned freeze authority', () => {
+	const command = createAddTrackCommand({
+		type: 'audio',
+		id: 'duplicate-track',
+		name: 'Duplicate',
+		laneGroupId: 'lane-group',
+		audioFreeze: {
+			derivedSourceId: 'frozen-source',
+		},
+	});
+	assert.equal(Object.hasOwn(command.track, 'audioFreeze'), false);
+	assert.equal(command.track.laneGroupId, 'lane-group');
+});

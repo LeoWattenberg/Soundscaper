@@ -271,7 +271,6 @@ export function createClipboardEditService(
 			const placement = resolveFolderPlacement(clipboardTrack);
 			commands.push({
 				...createAddTrackCommand({
-					schemaVersion: project.schemaVersion,
 					type,
 					id: trackId,
 					name: clipboardTrack.sourceTrackName

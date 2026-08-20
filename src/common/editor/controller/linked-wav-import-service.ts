@@ -105,7 +105,6 @@ export function createLinkedPcmImporter(runtime: LinkedPcmImportRuntime) {
 				pcmMetadata,
 			});
 			const prepared = prepareImportedMediaCommand(source, {
-				schemaVersion: 2,
 				title: trackName,
 				sourceDurationFrames: descriptor.frameCount,
 				id: clipId,
@@ -227,7 +226,6 @@ function linkedAudioSource({
 		...(pcmMetadata.sourceAdm ? { adm: pcmMetadata.sourceAdm } : {}),
 	};
 	return Object.freeze({
-		schemaVersion: 2,
 		kind: 'audio',
 		sampleFormat: 'float32',
 		chunkFrames,

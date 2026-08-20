@@ -14,10 +14,10 @@ import type {
 } from '../src/common/editor/controller/track-domain-types.ts';
 import { validateMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
 import { validateSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21-validation.ts';
@@ -110,8 +110,8 @@ function folderedFixture() {
 		sources: [source('voice-source'), source('music-source')],
 		clips: [clip('voice-clip', 'voice-source'), clip('music-clip', 'music-source')],
 		tracks: [
-			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] }),
-			createAudioTrackV10({ id: 'music', name: 'Music', clipIds: ['music-clip'] }),
+			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] }),
+			createAudioTrack({ id: 'music', name: 'Music', clipIds: ['music-clip'] }),
 		],
 		trackFolders: [{ id: 'stems', name: 'Stems', mute: true }],
 		sequences: [{
@@ -136,8 +136,8 @@ function fixture(includeTrackAutomation = true) {
 		sources: [voiceSource, musicSource],
 		clips: [voiceClip, musicClip],
 		tracks: [
-			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] }),
-			createAudioTrackV10({ id: 'music', name: 'Music', clipIds: ['music-clip'] }),
+			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] }),
+			createAudioTrack({ id: 'music', name: 'Music', clipIds: ['music-clip'] }),
 		],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],
 		primarySequenceId: 'main-sequence',
@@ -185,7 +185,7 @@ function singleTrackMasterAutomationFixture() {
 		id: 'mix-v21-single', title: 'Single V21 mix', now: NOW,
 		sources: [source('voice-source')],
 		clips: [clip('voice-clip', 'voice-source')],
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 		master: {
@@ -212,14 +212,14 @@ function routingEdge(id: string, kind: string, source: unknown, destination: unk
 }
 
 function source(id: string) {
-	return createAudioSourceV10({
+	return createAudioSource({
 		id, name: id, storageKey: id, mimeType: 'audio/wav',
 		frameCount: 100, sampleRate: 48_000, channelCount: 1,
 	});
 }
 
 function clip(id: string, sourceId: string) {
-	return createAudioClipV10({
+	return createAudioClip({
 		id, sourceId, timelineStartFrame: 0, sourceStartFrame: 0,
 		durationFrames: 100, sourceDurationFrames: 100,
 	});

@@ -17,12 +17,12 @@ import {
 	redoEditorCommand,
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
@@ -134,7 +134,7 @@ test('tampered canonical slide placement refuses before a command can be prepare
 });
 
 function createProject() {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', sampleFrameCount: 2_000_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: SOURCE_RATE, sourceFrameCount: 1_000,
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate: SOURCE_RATE },
@@ -144,14 +144,14 @@ function createProject() {
 		{ id: 'center-video', sequenceStartFrame: 1, sequenceFrameCount: 1, sourceInFrame: 200, sourceFrameCount: 10 },
 		{ id: 'right-video', sequenceStartFrame: 2, sequenceFrameCount: 2, sourceInFrame: 300, sourceFrameCount: 20 },
 	] as const;
-	const clips = specifications.map((specification) => createVideoClipV10({
+	const clips = specifications.map((specification) => createVideoClip({
 		...specification, sourceId: 'video-source', sequenceId: 'main',
 	}, {
 		projectSampleRate: SAMPLE_RATE,
 		sequence: { id: 'main', rate: SEQUENCE_RATE },
 		source,
 	}));
-	const track = createVideoTrackV10({
+	const track = createVideoTrack({
 		id: 'video-track', clipIds: specifications.map(({ id }) => id), locked: false,
 	});
 	return createCurrentAudioEditorProject({
@@ -162,7 +162,7 @@ function createProject() {
 }
 
 function commandProjection(project: PersistedProject) {
-	return projectV10ForCommand(project as unknown as Record<string, unknown>);
+	return projectForCommand(project as unknown as Record<string, unknown>);
 }
 
 function timingViews(): ReadonlyMap<string, VideoSourceTimingView> {

@@ -15,11 +15,10 @@ test('V17 policy preserves the historical V16 video-retime wire without a timing
 	assert.deepEqual(rule.evidence, [
 		'src/common/editor/project-v17.ts',
 		'src/common/editor/project-v17-validation.ts',
-		'src/common/editor/project-v16.ts',
-		'src/common/editor/project-v16-validation.ts',
+		'src/common/editor/project-retime-factory.ts',
 		'src/common/editor/video-retime-v16.ts',
 		'src/common/editor/video-retime-curve.ts',
-		'src/common/editor/project-v10-foundation-validation.ts',
+		'src/common/editor/project-foundation-validation.ts',
 		'src/common/editor/project-owned-feature-requirements.ts',
 		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/commands/video-retime-preservation-admission.ts',

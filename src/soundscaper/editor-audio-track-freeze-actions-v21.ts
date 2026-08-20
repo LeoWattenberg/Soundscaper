@@ -18,7 +18,7 @@ import { compileProjectPathPdcPlanV21 } from '../common/editor/engine/project-pa
 import type { EnginePublicApi } from '../common/editor/engine/public-api.ts';
 import { createAudioEditorEngine } from '../common/editor/engine/runtime-class.ts';
 import { createDefaultMixerGraphV21 } from '../common/editor/mixer-graph-v21.ts';
-import { createAudioClipV10, createAudioSourceV10 } from '../common/editor/project-v10.ts';
+import { createAudioClip, createAudioSource } from '../common/editor/project-media-factory.ts';
 import { resolveRuntimeProjectProjection } from '../common/editor/runtime-clip-projection.ts';
 import { resolveTerminalChannelWidths } from '../common/editor/terminal-channel-widths.ts';
 import type { StorageRecord } from '../common/editor/storage/media-records.ts';
@@ -423,7 +423,7 @@ async function stageFreezeSource(
 		readonly signal?: AbortSignal;
 	}>,
 ): Promise<FreezeStage> {
-	const descriptor = Object.freeze(createAudioSourceV10({
+	const descriptor = Object.freeze(createAudioSource({
 		id: request.sourceId,
 		name: 'Frozen track render',
 		mimeType: 'audio/x-soundscaper-pcm',
@@ -482,7 +482,7 @@ function committedFreezeClip(id: string, freeze: DataRecord): DataRecord {
 	const sourceId = stableId(freeze.derivedSourceId, 'committed freeze source');
 	const start = nonNegativeInteger(freeze.renderStartFrame, 'committed freeze start');
 	const frames = positiveInteger(freeze.renderFrameCount, 'committed freeze frame count');
-	return Object.freeze(createAudioClipV10({
+	return Object.freeze(createAudioClip({
 		id, sourceId, title: 'Committed frozen track', anchor: 'sample',
 		timelineStartFrame: start, durationFrames: frames,
 		sourceStartFrame: 0, sourceDurationFrames: frames,

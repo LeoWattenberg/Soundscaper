@@ -19,14 +19,14 @@ import {
 	projectFeatureVideoRenderedFallbackPlayback,
 } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createLabelTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createLabelTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const VIDEO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.videoEffects;
 const DIGEST = 'bc'.repeat(32);
@@ -57,28 +57,28 @@ function report(overrides: Record<string, unknown> = {}): ProjectFeatureRequirem
 }
 
 function project(featureId: string = VIDEO_EFFECTS) {
-	const audioSource = createAudioSourceV9({
+	const audioSource = createAudioSource({
 		id: 'audio-source', storageKey: 'audio-source', frameCount: 12,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const originalVideo = createVideoSourceV9({
+	const originalVideo = createVideoSource({
 		id: 'original-video', storageKey: 'original-video', frameCount: 18,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 	});
-	const fallbackVideo = createVideoSourceV9({
+	const fallbackVideo = createVideoSource({
 		id: 'fallback-video', storageKey: 'fallback-video', frameCount: 24,
 		sampleRate: 48_000, width: 1_280, height: 720, frameRate: 24,
 	});
-	const audioClip = createAudioClipV9({
+	const audioClip = createAudioClip({
 		id: 'audio-clip', sourceId: audioSource.id, durationFrames: 12,
 	});
-	const videoClip = createVideoClipV9({
+	const videoClip = createVideoClip({
 		id: 'video-clip', sourceId: originalVideo.id, durationFrames: 18,
 		videoEffects: [{ id: 'pixelate-a', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
 	});
-	const audioTrack = createAudioTrackV9({ id: 'audio-track', clipIds: [audioClip.id] });
-	const videoTrack = createVideoTrackV9({ id: 'video-track', clipIds: [videoClip.id], mute: true });
-	const labelTrack = createLabelTrackV9({ id: 'label-track', labels: [] });
+	const audioTrack = createAudioTrack({ id: 'audio-track', clipIds: [audioClip.id] });
+	const videoTrack = createVideoTrack({ id: 'video-track', clipIds: [videoClip.id], mute: true });
+	const labelTrack = createLabelTrack({ id: 'label-track', labels: [] });
 	return createCurrentAudioEditorProject({
 		id: 'project-a', now: '2026-08-01T12:00:00.000Z', sampleRate: 48_000,
 		sources: [audioSource, originalVideo, fallbackVideo],

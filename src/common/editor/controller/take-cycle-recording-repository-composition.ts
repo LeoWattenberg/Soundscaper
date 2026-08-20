@@ -2,7 +2,7 @@
 
 import { applyEditorCommand } from '../commands.js';
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
-import { createAudioSourceV10 } from '../project-v10.ts';
+import { createAudioSource } from '../project-media-factory.ts';
 import { validateAudioEditorProjectV17, type AudioEditorProjectV17 } from '../project-v17-validation.ts';
 import { createScapeDigest, digestScapeBytes, scapeHex } from '../scape-archive-media.ts';
 import { parseScapeProjectDocument, serializeScapeProjectDocument } from '../scape-project-document.ts';
@@ -398,7 +398,7 @@ function projectCommand(
 	}
 	const sourceCommands = sources.map(({ publication, description }) => ({
 		type: 'source/add' as const,
-		source: commandObject(createAudioSourceV10({
+		source: commandObject(createAudioSource({
 			id: publication.mediaId,
 			storageKey: publication.mediaId,
 			name: description.name,

@@ -7,10 +7,10 @@ import { createHash } from 'node:crypto';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import {
 	acquireDesktopSharedProjectAudio,
@@ -80,18 +80,18 @@ test('managed acquisition loses an absent-publication race without replacing the
 });
 
 function audioFixture() {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'ownership-source', storageKey: 'ownership-storage', name: 'ownership.wav',
 		mimeType: 'audio/wav', frameCount: 1, channelCount: 1, sampleRate: 48_000,
 		originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 1,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'ownership-clip', sourceId: source.id, durationFrames: 1, sourceDurationFrames: 1,
 	});
 	const project = createCurrentAudioEditorProject({
 		id: 'ownership-project', title: 'Managed ownership', revision: 1,
 		now: '2026-08-01T12:00:00.000Z', sources: [source], clips: [clip],
-		tracks: [createAudioTrackV9({ id: 'ownership-track', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'ownership-track', clipIds: [clip.id] })],
 	});
 	const bytes = new Uint8Array(8);
 	const view = new DataView(bytes.buffer);

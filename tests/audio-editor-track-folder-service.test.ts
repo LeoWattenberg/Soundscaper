@@ -8,7 +8,9 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import { createDocumentTrackFolderSnapshot } from '../src/common/editor/controller/document-track-folder-snapshot.ts';
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
 import { createTrackFolderService } from '../src/common/editor/controller/track-folder-service.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
@@ -26,9 +28,9 @@ function folderedProject(): AudioEditorProjectCurrent {
 		id: 'folder-service', title: 'Folder service', now: NOW, primarySequenceId: 'main',
 		trackFolders: [{ id: 'band', name: 'Band', solo: true, collapsed: true }],
 		tracks: [
-			createAudioTrackV10({ id: 'kick', name: 'Kick' }),
-			createAudioTrackV10({ id: 'vocals', name: 'Vocals' }),
-			createAudioTrackV10({ id: 'bass', name: 'Bass' }),
+			createAudioTrack({ id: 'kick', name: 'Kick' }),
+			createAudioTrack({ id: 'vocals', name: 'Vocals' }),
+			createAudioTrack({ id: 'bass', name: 'Bass' }),
 		],
 		sequences: [{
 			id: 'main',
@@ -164,7 +166,7 @@ test('the snapshot never traverses obsolete, Framescaper, future, folder-free, o
 	}).sequences, []);
 	const folderFree = createCurrentAudioEditorProject({
 		id: 'folder-free', title: 'Folder free', now: NOW, primarySequenceId: 'main',
-		tracks: [createAudioTrackV10({ id: 'solo-track', name: 'Solo' })],
+		tracks: [createAudioTrack({ id: 'solo-track', name: 'Solo' })],
 		sequences: [{ id: 'main', trackNodes: [{ kind: 'track', id: 'solo-track', parentFolderId: null }] }],
 	});
 	assert.deepEqual(createDocumentTrackFolderSnapshot(folderFree).sequences, []);

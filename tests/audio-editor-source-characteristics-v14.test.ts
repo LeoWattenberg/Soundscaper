@@ -16,17 +16,13 @@ import {
 	PROJECT_FEATURE_VIDEO_CAPABILITY_IDS,
 } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../src/common/editor/project-owned-feature-requirements.ts';
-import { createVideoSourceV10 } from '../src/common/editor/project-v10.ts';
 import {
-	cloneAudioEditorProjectV14,
-	createAudioEditorProjectV14,
-	validateAudioEditorProjectV14,
-	type AudioEditorProjectV14,
-} from '../src/common/editor/project-v14.ts';
-import {
+	cloneCurrentAudioEditorProject,
 	createCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
+import { createVideoSource } from '../src/common/editor/project-media-factory.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
 import { AudioEditorProjectStore } from '../src/common/editor/storage.js';
@@ -51,7 +47,7 @@ const REPORTED = Object.freeze({
 });
 
 function videoSource(characteristics: unknown = REPORTED): Record<string, unknown> {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id: 'video-source',
 		name: 'Take 1',
 		storageKey: 'video-source',
@@ -70,8 +66,8 @@ function videoSource(characteristics: unknown = REPORTED): Record<string, unknow
 	}, 48_000);
 }
 
-function sourceProject(characteristics: unknown = REPORTED): AudioEditorProjectV14 {
-	return createAudioEditorProjectV14({
+function sourceProject(characteristics: unknown = REPORTED): AudioEditorProjectCurrent {
+	return createCurrentAudioEditorProject({
 		id: 'characteristics-project',
 		title: 'Characteristics project',
 		now: NOW,
@@ -81,7 +77,7 @@ function sourceProject(characteristics: unknown = REPORTED): AudioEditorProjectV
 }
 
 function currentSourceProject(characteristics: unknown = REPORTED) {
-	return createCurrentAudioEditorProject(sourceProject(characteristics));
+	return sourceProject(characteristics);
 }
 
 function persistedCharacteristics(project: Record<string, unknown>): Record<string, unknown> {
@@ -92,7 +88,7 @@ function persistedCharacteristics(project: Record<string, unknown>): Record<stri
 test('every video source carries a stated record even when nothing was probed', () => {
 	const project = sourceProject(null);
 	assert.deepEqual(persistedCharacteristics(project), createUnreportedVideoSourceCharacteristics());
-	assert.equal(validateAudioEditorProjectV14(project), true);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
 	assert.equal(
 		project.featureRequirements.requirements.some(({ id }) => (
 			id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.sourceCharacteristics
@@ -105,7 +101,7 @@ test('every video source carries a stated record even when nothing was probed', 
 test('probed characteristics survive create, clone, and JSON byte-identically', () => {
 	const project = sourceProject();
 	assert.deepEqual(persistedCharacteristics(project), REPORTED);
-	const cloned = cloneAudioEditorProjectV14(project);
+	const cloned = cloneCurrentAudioEditorProject(project);
 	assert.deepEqual(persistedCharacteristics(cloned), REPORTED);
 	assert.equal(
 		JSON.stringify(JSON.parse(JSON.stringify(project))),
@@ -151,7 +147,7 @@ test('a non-canonical persisted record is rejected rather than repaired', () => 
 	});
 	const unreported = sourceProject(null);
 	assert.throws(
-		() => validateAudioEditorProjectV14({
+		() => validateCurrentAudioEditorProject({
 			...unreported,
 			sources: (unreported.sources as readonly Record<string, unknown>[]).map(({
 				characteristics: unused,
@@ -161,11 +157,11 @@ test('a non-canonical persisted record is rejected rather than repaired', () => 
 		/characteristics is required/,
 	);
 	assert.throws(
-		() => validateAudioEditorProjectV14(withSources({ backend: 'ffmpeg' })),
+		() => validateCurrentAudioEditorProject(withSources({ backend: 'ffmpeg' })),
 		/not in its canonical reported form/,
 	);
 	assert.throws(
-		() => validateAudioEditorProjectV14(withSources({ ...REPORTED, rotationDegrees: 45 })),
+		() => validateCurrentAudioEditorProject(withSources({ ...REPORTED, rotationDegrees: 45 })),
 		/rotationDegrees is unsupported/,
 	);
 });
@@ -174,14 +170,14 @@ test('a reported codec must agree with the legacy codec field it duplicates', ()
 	const project = sourceProject();
 	const sources = project.sources as readonly Record<string, unknown>[];
 	assert.throws(
-		() => validateAudioEditorProjectV14({
+		() => validateCurrentAudioEditorProject({
 			...project,
 			sources: sources.map((source) => ({ ...source, videoCodec: 'prores' })),
 		}),
 		/videoCodec disagrees with its reported source codec/,
 	);
 	assert.throws(
-		() => validateAudioEditorProjectV14({
+		() => validateCurrentAudioEditorProject({
 			...project,
 			sources: sources.map((source) => ({ ...source, audioCodec: 'opus' })),
 		}),
@@ -191,7 +187,7 @@ test('a reported codec must agree with the legacy codec field it duplicates', ()
 
 test('an unreported codec leaves the legacy field to the importer that knew it', () => {
 	const project = sourceProject({ backend: 'ffmpeg', codedWidth: 1_920, codedHeight: 1_080 });
-	assert.equal(validateAudioEditorProjectV14(project), true);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
 	assert.equal((project.sources as readonly Record<string, unknown>[])[0].videoCodec, 'h264');
 });
 

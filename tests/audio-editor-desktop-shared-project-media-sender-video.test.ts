@@ -5,12 +5,12 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createCurrentAudioEditorProject,
 	type AudioEditorProjectCurrent,
@@ -344,10 +344,10 @@ test('mixed sender refuses aggregate video and PCM bytes before body or bridge I
 });
 
 interface MixedFixture {
-	readonly audio: ReturnType<typeof createAudioSourceV9> | null;
+	readonly audio: ReturnType<typeof createAudioSource> | null;
 	readonly audioBytes: Uint8Array;
 	readonly project: AudioEditorProjectCurrent;
-	readonly video: ReturnType<typeof createVideoSourceV9>;
+	readonly video: ReturnType<typeof createVideoSource>;
 	readonly videoBytes: Uint8Array;
 	readonly videoSha256: string;
 }
@@ -355,21 +355,21 @@ interface MixedFixture {
 function mixedFixture(options: Readonly<{ audio?: boolean; audioFallbackOnly?: boolean }> = {}): MixedFixture {
 	const includeAudio = options.audio !== false;
 	const audioFallbackOnly = includeAudio && options.audioFallbackOnly === true;
-	const audio = includeAudio ? createAudioSourceV9({
+	const audio = includeAudio ? createAudioSource({
 		id: 'mixed-audio', storageKey: 'mixed-audio-storage', name: 'mixed.wav', mimeType: 'audio/wav',
 		frameCount: 2, channelCount: 1, sampleRate: SAMPLE_RATE, originalSampleRate: SAMPLE_RATE,
 		sampleFormat: 'float32', chunkFrames: 2,
 	}) : null;
-	const video = createVideoSourceV9({
+	const video = createVideoSource({
 		id: 'mixed-video', storageKey: 'mixed-video-storage', name: 'mixed.mp4', mimeType: 'video/mp4',
 		frameCount: 30, sampleRate: SAMPLE_RATE, width: 1_920, height: 1_080,
 		frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	});
 	const audioBytes = canonicalPcmBytes([0.25, -0.5]);
-	const audioClip = audio && !audioFallbackOnly ? createAudioClipV9({
+	const audioClip = audio && !audioFallbackOnly ? createAudioClip({
 		id: 'mixed-audio-clip', sourceId: audio.id, durationFrames: 2, sourceDurationFrames: 2,
 	}) : null;
-	const videoClip = createVideoClipV9({
+	const videoClip = createVideoClip({
 		id: 'mixed-video-clip', sourceId: video.id, durationFrames: 30, binItemId: 'mixed-video-item',
 	});
 	const project = createCurrentAudioEditorProject({
@@ -377,7 +377,7 @@ function mixedFixture(options: Readonly<{ audio?: boolean; audioFallbackOnly?: b
 		now: '2026-08-01T12:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sources: audio ? [audio, video] : [video],
 		clips: audioClip ? [audioClip] : [],
-		tracks: audioClip ? [createAudioTrackV9({ id: 'mixed-track', clipIds: [audioClip.id] })] : [],
+		tracks: audioClip ? [createAudioTrack({ id: 'mixed-track', clipIds: [audioClip.id] })] : [],
 		projectBin: { clips: [videoClip] },
 		featureRequirements: audioFallbackOnly && audio ? {
 			schemaVersion: 1,

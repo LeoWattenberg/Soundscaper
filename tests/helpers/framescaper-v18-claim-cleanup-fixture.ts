@@ -2,7 +2,10 @@
 
 import type { TestContext } from 'node:test';
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../../src/common/editor/project-media-factory.ts';
 import { openDatabase, request, transact } from '../../src/common/editor/storage/indexeddb-backend.ts';
 import {
 	MEDIA_ASSET_CHUNK_STORAGE_TYPE,
@@ -105,7 +108,7 @@ export function attachedProject(): FramescaperProjectV18 {
 		id: PROJECT_ID,
 		title: 'Cleanup fixture',
 		now: '2026-08-13T10:00:00.000Z',
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: SOURCE_ID,
 			name: 'Video',
 			storageKey: 'owned/video-source',
@@ -123,7 +126,7 @@ export function attachedProject(): FramescaperProjectV18 {
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true,
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],

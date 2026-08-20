@@ -6,10 +6,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelope.ts';
 import {
 	scapeAudioSourceLayout,
@@ -126,7 +126,7 @@ function metadataAudioProject(
 		chunkFrames?: number;
 	}>[],
 ): AudioEditorProjectCurrent {
-	const sources = specifications.map((value) => createAudioSourceV10({
+	const sources = specifications.map((value) => createAudioSource({
 		...value,
 		name: `${value.id}.wav`,
 		mimeType: 'audio/wav',
@@ -136,7 +136,7 @@ function metadataAudioProject(
 		channelCount: value.channelCount ?? 1,
 		chunkFrames: value.chunkFrames ?? 65_536,
 	}));
-	const clips = sources.map((source) => createAudioClipV10({
+	const clips = sources.map((source) => createAudioClip({
 		id: `${source.id}-clip`, sourceId: source.id,
 		durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
 	}));
@@ -145,7 +145,7 @@ function metadataAudioProject(
 		now: '2026-08-01T12:00:00.000Z',
 	});
 	const trackId = `${id}-track`;
-	const track = createAudioTrackV10({
+	const track = createAudioTrack({
 		id: trackId,
 		clipIds: clips.map(({ id: clipId }) => clipId),
 		locked: false,

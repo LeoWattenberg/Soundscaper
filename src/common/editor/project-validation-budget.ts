@@ -2,13 +2,13 @@
 
 import { SCAPE_PROJECT_BINARY_HARD_LIMITS } from './scape-project-document.ts';
 
-export interface AudioEditorProjectV9ValidationLimits {
+export interface AudioEditorProjectValidationLimits {
 	readonly maximumTraversalNodes: number;
 	readonly maximumTraversalDepth: number;
 }
 
-export const AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS: Readonly<
-	AudioEditorProjectV9ValidationLimits
+export const AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS: Readonly<
+	AudioEditorProjectValidationLimits
 > = Object.freeze({
 	maximumTraversalNodes: SCAPE_PROJECT_BINARY_HARD_LIMITS.maximumTraversalNodes,
 	maximumTraversalDepth: SCAPE_PROJECT_BINARY_HARD_LIMITS.maximumTraversalDepth,
@@ -16,7 +16,7 @@ export const AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS: Readonly<
 
 interface ValidationStructureBudget {
 	readonly active: Set<object>;
-	readonly limits: Readonly<AudioEditorProjectV9ValidationLimits>;
+	readonly limits: Readonly<AudioEditorProjectValidationLimits>;
 	nodes: number;
 }
 
@@ -33,39 +33,39 @@ interface LeaveWork {
 
 type StructureWork = VisitWork | LeaveWork;
 
-export function resolveAudioEditorProjectV9ValidationLimits(
+export function resolveAudioEditorProjectValidationLimits(
 	overrides: unknown = {},
-): Readonly<AudioEditorProjectV9ValidationLimits> {
+): Readonly<AudioEditorProjectValidationLimits> {
 	if (!isPlainObject(overrides)) {
-		throw new TypeError('Audio editor project V9 validation limits must be an object.');
+		throw new TypeError('Audio editor project validation limits must be an object.');
 	}
 	for (const name of Object.keys(overrides)) {
-		if (!Object.hasOwn(AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS, name)) {
-			throw new TypeError(`Unsupported audio editor project V9 validation limit: ${name}.`);
+		if (!Object.hasOwn(AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS, name)) {
+			throw new TypeError(`Unsupported audio editor project validation limit: ${name}.`);
 		}
 	}
 	const limits = {
-		...AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+		...AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 		...overrides,
 	};
 	for (const name of Object.keys(
-		AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
-	) as (keyof AudioEditorProjectV9ValidationLimits)[]) {
+		AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+	) as (keyof AudioEditorProjectValidationLimits)[]) {
 		const value = limits[name];
 		if (!Number.isSafeInteger(value) || value < 1) {
-			throw new RangeError(`Audio editor project V9 validation ${name} must be a positive safe integer.`);
+			throw new RangeError(`Audio editor project validation ${name} must be a positive safe integer.`);
 		}
-		if (value > AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS[name]) {
-			throw new RangeError(`Audio editor project V9 validation ${name} cannot exceed its hard limit.`);
+		if (value > AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS[name]) {
+			throw new RangeError(`Audio editor project validation ${name} cannot exceed its hard limit.`);
 		}
 	}
 	return Object.freeze(limits);
 }
 
 /** Admit a JSON-compatible project shape before any semantic validator walks it. */
-export function admitAudioEditorProjectV9ValidationStructure(
+export function admitAudioEditorProjectValidationStructure(
 	value: unknown,
-	limits: Readonly<AudioEditorProjectV9ValidationLimits>,
+	limits: Readonly<AudioEditorProjectValidationLimits>,
 ): void {
 	const budget: ValidationStructureBudget = { active: new Set(), limits, nodes: 0 };
 	const stack: StructureWork[] = [];

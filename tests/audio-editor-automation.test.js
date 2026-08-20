@@ -11,11 +11,13 @@ import {
 } from '../src/common/editor/automation.js';
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import {
-	createAudioClipV2,
-	createAudioEditorProjectV2,
-	createAudioSourceV2,
-	createAudioTrackV2,
-} from '../src/common/editor/project-v2.js';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 test('volume automation converts between frame-linear gain and design-system dB points', () => {
 	assert.equal(envelopeValueToDb(0), -Infinity);
@@ -58,11 +60,11 @@ test('projected automation edits preserve offscreen points and canonical orderin
 });
 
 test('clip automation moves with clips and is trimmed in timeline coordinates', () => {
-	const source = createAudioSourceV2({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', name: 'Source', frameCount: 96_000,
 		channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV2({
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, timelineStartFrame: 10_000,
 		durationFrames: 40_000, envelope: [
 			{ frame: 5_000, value: 0.5 },
@@ -70,10 +72,10 @@ test('clip automation moves with clips and is trimmed in timeline coordinates', 
 			{ frame: 35_000, value: 1 },
 		],
 	});
-	const track = createAudioTrackV2({
+	const track = createAudioTrack({
 		id: 'track', clipIds: [clip.id],
 	});
-	let project = createAudioEditorProjectV2({
+	let project = createCurrentAudioEditorProject({
 		id: 'project', title: 'Automation', sources: [source], clips: [clip], tracks: [track],
 	});
 	project = applyEditorCommand(project, {

@@ -14,7 +14,11 @@ import { SourceChunkProviderRegistry } from '../src/common/editor/controller/sou
 import { createEffect } from '../src/common/editor/effects.js';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
-import { createAudioClipV9, createAudioSourceV9, createAudioTrackV9 } from '../src/common/editor/project-v9.ts';
+import {
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 interface TestProject extends ProjectLifecycleProject {
 	readonly marker: string;
@@ -285,16 +289,16 @@ function project(id: string, marker: string): TestProject {
 }
 
 function renderedFallbackProject(id: string, marker: string): TestProject {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'original-source', storageKey: 'original-source', frameCount: 4,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const fallback = createAudioSourceV9({
+	const fallback = createAudioSource({
 		id: 'fallback-source', storageKey: 'fallback-source', frameCount: 6,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV9({ id: 'original-clip', sourceId: source.id, durationFrames: 4 });
-	const track = createAudioTrackV9({
+	const clip = createAudioClip({ id: 'original-clip', sourceId: source.id, durationFrames: 4 });
+	const track = createAudioTrack({
 		id: 'original-track', clipIds: [clip.id],
 		effects: [createEffect('compressor', { id: 'effect-a' })],
 	});

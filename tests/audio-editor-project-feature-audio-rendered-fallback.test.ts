@@ -21,10 +21,10 @@ import {
 } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const AUDIO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
 const DIGEST = 'ab'.repeat(32);
@@ -62,27 +62,27 @@ function report(overrides: Record<string, unknown> = {}): ProjectFeatureRequirem
 }
 
 function project(featureId: string = AUDIO_EFFECTS) {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'source-a',
 		storageKey: 'source-a',
 		frameCount: 8,
 		channelCount: 2,
 		sampleRate: 48_000,
 	});
-	const fallback = createAudioSourceV9({
+	const fallback = createAudioSource({
 		id: 'fallback-source',
 		storageKey: 'fallback-source',
 		frameCount: 12,
 		channelCount: 2,
 		sampleRate: 48_000,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'clip-a',
 		sourceId: source.id,
 		durationFrames: 8,
 		sourceDurationFrames: 8,
 	});
-	const track = createAudioTrackV9({
+	const track = createAudioTrack({
 		id: 'track-a',
 		clipIds: [clip.id],
 		gain: 0.5,

@@ -13,7 +13,9 @@ import {
 } from '../src/common/editor/adm-metadata.ts';
 import { createImportedAdmPassthroughMetadata } from '../src/common/editor/controller/wav-import-metadata.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
-import { createAudioEditorProjectV7 } from '../src/common/editor/project-v7.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from '../src/common/editor/wav-import.js';
 
@@ -21,7 +23,7 @@ const CHANNEL_ORDER = ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'] as const;
 const UINT32_SENTINEL = 0xffff_ffff;
 
 test('authored 5.1 plan encodes an inspectable BW64 with consistent CHNA and AXML', async () => {
-	const project = createAudioEditorProjectV7({
+	const project = createCurrentAudioEditorProject({
 		id: 'bw64-export-e2e',
 		title: 'International drama',
 		now: '2026-07-28T12:00:00.000Z',
@@ -125,7 +127,7 @@ test('extensible 20-valid-bit ADM survives decode, project provenance, and 20-bi
 	});
 	assert.ok(importedAdm?.mode === 'passthrough');
 	assert.equal(importedAdm.geometry.bitDepth, 20);
-	const project = createAudioEditorProjectV7({
+	const project = createCurrentAudioEditorProject({
 		id: 'imported-20-bit-adm', now: '2026-07-28T12:00:00.000Z', revision: 1,
 		masterChannels: 2,
 		sources: [source],

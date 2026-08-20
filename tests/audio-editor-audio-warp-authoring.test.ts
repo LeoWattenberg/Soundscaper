@@ -25,10 +25,10 @@ import {
 	type AudioEditorProjectCurrent,
 } from '../src/common/editor/project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
 import {
 	createSoundscaperProjectV21,
@@ -289,11 +289,11 @@ function sampleProject(
 	warpMap: unknown = SAMPLE_WARP,
 	locked = false,
 ): AudioEditorProjectCurrent {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', name: 'Source',
 		frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, title: 'Clip', anchor: 'sample',
 		timelineStartFrame: 1_000, durationFrames: 100,
 		sourceStartFrame: 100, sourceDurationFrames: 200,
@@ -302,15 +302,15 @@ function sampleProject(
 	return createCurrentAudioEditorProject({
 		id: 'warp-project', now: NOW, tempoMap: TEMPO_MAP,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', name: 'Track', locked, clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', name: 'Track', locked, clipIds: ['clip'] })],
 	});
 }
 
 function identityProject(): AudioEditorProjectCurrent {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', frameCount: 100, channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, anchor: 'sample', timelineStartFrame: 0,
 		durationFrames: 10, sourceStartFrame: 0, sourceDurationFrames: 10,
 		warpMap: IDENTITY_WARP,
@@ -318,16 +318,16 @@ function identityProject(): AudioEditorProjectCurrent {
 	return createCurrentAudioEditorProject({
 		id: 'identity-warp-project', now: NOW, tempoMap: TEMPO_MAP,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
 	});
 }
 
 function soundscaperProject(): SoundscaperProjectV21 {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', name: 'Source',
 		frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, title: 'Clip', anchor: 'sample',
 		timelineStartFrame: 1_000, durationFrames: 100,
 		sourceStartFrame: 100, sourceDurationFrames: 200, warpMap: null,
@@ -335,15 +335,15 @@ function soundscaperProject(): SoundscaperProjectV21 {
 	return createSoundscaperProjectV21({
 		id: 'soundscaper-warp-project', now: NOW, tempoMap: TEMPO_MAP,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', name: 'Track', clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', name: 'Track', clipIds: ['clip'] })],
 	});
 }
 
 function musicalProject(): AudioEditorProjectCurrent {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', frameCount: 100, channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, anchor: 'musical',
 		musicalStartBeat: 0, musicalExtent: 'beat', musicalDurationBeats: 2,
 		sourceStartFrame: 0, sourceDurationFrames: 100,
@@ -358,7 +358,7 @@ function musicalProject(): AudioEditorProjectCurrent {
 	return createCurrentAudioEditorProject({
 		id: 'musical-warp-project', now: NOW, tempoMap: TEMPO_MAP,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
 	});
 }
 

@@ -5,12 +5,12 @@ import { createHash } from 'node:crypto';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createCurrentAudioEditorProject,
 	type AudioEditorProjectCurrent,
@@ -246,7 +246,7 @@ test('bare and stale linked-video source identities cannot bypass fresh-recipien
 		{ linkedVideoOriginals: forgedSession },
 	), /session is not authentic/iu);
 
-	const staleVideo = createVideoSourceV9({ ...fixture.video, width: 1_280 });
+	const staleVideo = createVideoSource({ ...fixture.video, width: 1_280 });
 	await assert.rejects(acquireDesktopSharedProjectMedia(
 		linkedVideoProject(staleVideo),
 		null,
@@ -283,18 +283,18 @@ test('an authorized linked-video group still must match any managed descriptor d
 });
 
 test('prior-local video bytes join the aggregate budget before a missing body is acquired', async () => {
-	const first = createVideoSourceV9({
+	const first = createVideoSource({
 		id: 'prior-budget-video', storageKey: 'prior-budget-video-storage', name: 'prior.mp4',
 		mimeType: 'video/mp4', frameCount: 30, sampleRate: SAMPLE_RATE, width: 1_920,
 		height: 1_080, frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	});
-	const second = createVideoSourceV9({
+	const second = createVideoSource({
 		id: 'missing-budget-video', storageKey: 'missing-budget-video-storage', name: 'missing.mp4',
 		mimeType: 'video/mp4', frameCount: 30, sampleRate: SAMPLE_RATE, width: 1_920,
 		height: 1_080, frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	});
-	const clips = [first, second].map((source) => createVideoClipV9({
-		id: `${source.id}-clip`, sourceId: source.id, durationFrames: source.frameCount,
+	const clips = [first, second].map((source) => createVideoClip({
+		id: `${source.id}-clip`, sourceId: source.id, durationFrames: source.sampleFrameCount,
 		binItemId: `${source.id}-item`,
 	}));
 	const project = createCurrentAudioEditorProject({
@@ -340,13 +340,13 @@ test('prior-local video bytes join the aggregate budget before a missing body is
 });
 
 interface MixedFixture {
-	readonly audio: ReturnType<typeof createAudioSourceV9>;
+	readonly audio: ReturnType<typeof createAudioSource>;
 	readonly audioBytes: Uint8Array;
 	readonly audioDescriptor: DesktopSharedManagedSourceDescriptor;
 	readonly bodyByBinding: ReadonlyMap<string, Uint8Array>;
 	readonly descriptors: readonly DesktopSharedManagedSourceDescriptor[];
 	readonly project: AudioEditorProjectCurrent;
-	readonly video: ReturnType<typeof createVideoSourceV9>;
+	readonly video: ReturnType<typeof createVideoSource>;
 	readonly videoBytes: Uint8Array;
 	readonly videoDescriptor: DesktopSharedManagedSourceDescriptor;
 	readonly videoSha256: string;
@@ -365,24 +365,24 @@ interface LinkedAcquisitionFixture {
 	readonly project: AudioEditorProjectCurrent;
 	readonly session: DesktopSharedLinkedVideoOriginalSession;
 	readonly store: DesktopSharedSourceTransferStore;
-	readonly video: ReturnType<typeof createVideoSourceV9>;
+	readonly video: ReturnType<typeof createVideoSource>;
 }
 
 function mixedFixture(): MixedFixture {
-	const audio = createAudioSourceV9({
+	const audio = createAudioSource({
 		id: 'recipient-audio', storageKey: 'recipient-audio-storage', name: 'recipient.wav',
 		mimeType: 'audio/wav', frameCount: 2, channelCount: 1, sampleRate: SAMPLE_RATE,
 		originalSampleRate: SAMPLE_RATE, sampleFormat: 'float32', chunkFrames: 2,
 	});
-	const video = createVideoSourceV9({
+	const video = createVideoSource({
 		id: 'recipient-video', storageKey: 'recipient-video-storage', name: 'recipient.mp4',
 		mimeType: 'video/mp4', frameCount: 30, sampleRate: SAMPLE_RATE, width: 1_920,
 		height: 1_080, frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	});
-	const audioClip = createAudioClipV9({
+	const audioClip = createAudioClip({
 		id: 'recipient-audio-clip', sourceId: audio.id, durationFrames: 2, sourceDurationFrames: 2,
 	});
-	const videoClip = createVideoClipV9({
+	const videoClip = createVideoClip({
 		id: 'recipient-video-clip', sourceId: video.id, durationFrames: 30,
 		binItemId: 'recipient-video-item',
 	});
@@ -390,7 +390,7 @@ function mixedFixture(): MixedFixture {
 		id: 'recipient-mixed-project', title: 'Recipient mixed project', revision: 4,
 		now: '2026-08-01T12:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sources: [audio, video], clips: [audioClip],
-		tracks: [createAudioTrackV9({ id: 'recipient-track', clipIds: [audioClip.id] })],
+		tracks: [createAudioTrack({ id: 'recipient-track', clipIds: [audioClip.id] })],
 		projectBin: { clips: [videoClip] },
 	});
 	const audioBytes = canonicalPcmBytes([0.25, -0.5]);
@@ -421,7 +421,7 @@ function mixedFixture(): MixedFixture {
 }
 
 async function linkedAcquisitionFixture(): Promise<LinkedAcquisitionFixture> {
-	const video = createVideoSourceV9({
+	const video = createVideoSource({
 		id: 'linked-acquisition-video', storageKey: 'linked-acquisition-video-storage',
 		name: 'linked-acquisition.mp4', mimeType: 'video/mp4', frameCount: 30,
 		sampleRate: SAMPLE_RATE, width: 1_920, height: 1_080, frameRate: 30,
@@ -494,10 +494,10 @@ async function linkedAcquisitionFixture(): Promise<LinkedAcquisitionFixture> {
 	};
 }
 
-function linkedVideoProject(video: ReturnType<typeof createVideoSourceV9>): AudioEditorProjectCurrent {
-	const clip = createVideoClipV9({
+function linkedVideoProject(video: ReturnType<typeof createVideoSource>): AudioEditorProjectCurrent {
+	const clip = createVideoClip({
 		id: 'linked-acquisition-video-clip', sourceId: video.id,
-		durationFrames: video.frameCount, binItemId: 'linked-acquisition-video-bin-item',
+		durationFrames: video.sampleFrameCount, binItemId: 'linked-acquisition-video-bin-item',
 	});
 	return createCurrentAudioEditorProject({
 		id: 'linked-acquisition-project', title: 'Linked acquisition project', revision: 1,

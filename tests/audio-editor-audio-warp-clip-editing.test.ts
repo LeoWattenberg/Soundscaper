@@ -24,10 +24,10 @@ import {
 	type AudioEditorProjectCurrent,
 } from '../src/common/editor/project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const NOW = '2026-08-12T15:00:00.000Z';
 const TEMPO_MAP = {
@@ -189,6 +189,11 @@ test('splitting a warped clip onto a new track snaps like the ordinary split', (
 	fixture.handleEdit('split-new-track');
 
 	assert.deepEqual(fixture.errors, []);
+	const command = fixture.commands[0];
+	assert.equal(command?.type, 'batch');
+	const addTrack = command?.type === 'batch' ? command.commands[0] : null;
+	assert.equal(addTrack?.type, 'track/add');
+	if (addTrack?.type === 'track/add') assert.equal(Object.hasOwn(addTrack.track, 'schemaVersion'), false);
 	const [left, right] = orderedClips(fixture.present());
 	assert.deepEqual(bounds(left), { timelineStartFrame: 1_000, durationFrames: 25, sourceStartFrame: 100, sourceDurationFrames: 40 });
 	assert.deepEqual(bounds(right), { timelineStartFrame: 1_025, durationFrames: 75, sourceStartFrame: 140, sourceDurationFrames: 160 });
@@ -344,13 +349,16 @@ function transformFixture(initial: AudioEditorProjectCurrent): {
 function editFixture(initial: AudioEditorProjectCurrent, positionFrames: number): {
 	handleEdit(action: string): unknown;
 	readonly errors: unknown[];
+	readonly commands: AudioEditorCommand[];
 	present(): AudioEditorProjectCurrent;
 } {
 	let present = initial;
 	const errors: unknown[] = [];
+	const commands: AudioEditorCommand[] = [];
 	const handleEdit = createEditorEditService({
 		activeSelection: () => null,
 		commit(command: AudioEditorCommand) {
+			commands.push(command);
 			present = applyEditorCommand(present, command, { now: NOW });
 			return present;
 		},
@@ -368,15 +376,15 @@ function editFixture(initial: AudioEditorProjectCurrent, positionFrames: number)
 		resolveEditingSelection,
 		state: { history: {}, selectedClipId: 'clip', selectedTrackId: 'track' },
 	});
-	return { handleEdit, errors, present: () => present };
+	return { handleEdit, errors, commands, present: () => present };
 }
 
 function sampleProject(warpMap: unknown = SAMPLE_WARP): AudioEditorProjectCurrent {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', name: 'Source',
 		frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, title: 'Clip', anchor: 'sample',
 		timelineStartFrame: 1_000, durationFrames: 100,
 		sourceStartFrame: 100, sourceDurationFrames: 200,
@@ -385,23 +393,23 @@ function sampleProject(warpMap: unknown = SAMPLE_WARP): AudioEditorProjectCurren
 	return createCurrentAudioEditorProject({
 		id: 'warp-project', now: NOW, tempoMap: TEMPO_MAP,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', name: 'Track', clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', name: 'Track', clipIds: ['clip'] })],
 	});
 }
 
 /** A warped clip grouped with a plain clip on another track, so a trim routes through transform-many. */
 function groupedProject(): AudioEditorProjectCurrent {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', name: 'Source',
 		frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 	});
-	const warped = createAudioClipV10({
+	const warped = createAudioClip({
 		id: 'clip', sourceId: source.id, anchor: 'sample', groupId: 'group',
 		timelineStartFrame: 1_000, durationFrames: 100,
 		sourceStartFrame: 100, sourceDurationFrames: 200,
 		warpMap: SAMPLE_WARP,
 	});
-	const plain = createAudioClipV10({
+	const plain = createAudioClip({
 		id: 'plain', sourceId: source.id, anchor: 'sample', groupId: 'group',
 		timelineStartFrame: 1_000, durationFrames: 100,
 		sourceStartFrame: 400, sourceDurationFrames: 100,
@@ -410,18 +418,18 @@ function groupedProject(): AudioEditorProjectCurrent {
 		id: 'grouped-warp-project', now: NOW, tempoMap: TEMPO_MAP,
 		sources: [source], clips: [warped, plain],
 		tracks: [
-			createAudioTrackV10({ id: 'track', name: 'Track', clipIds: ['clip'] }),
-			createAudioTrackV10({ id: 'track-2', name: 'Track 2', clipIds: ['plain'] }),
+			createAudioTrack({ id: 'track', name: 'Track', clipIds: ['clip'] }),
+			createAudioTrack({ id: 'track-2', name: 'Track 2', clipIds: ['plain'] }),
 		],
 	});
 }
 
 /** Three source samples stretched over 5000 frames: only the clip edges are whole samples. */
 function stretchedProject(): AudioEditorProjectCurrent {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, anchor: 'sample',
 		timelineStartFrame: 0, durationFrames: 5_000,
 		sourceStartFrame: 0, sourceDurationFrames: 3,
@@ -435,15 +443,15 @@ function stretchedProject(): AudioEditorProjectCurrent {
 	return createCurrentAudioEditorProject({
 		id: 'stretched-warp-project', now: NOW, tempoMap: TEMPO_MAP,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
 	});
 }
 
 function musicalProject(): AudioEditorProjectCurrent {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', frameCount: 100, channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, anchor: 'musical',
 		musicalStartBeat: 0, musicalExtent: 'beat', musicalDurationBeats: 2,
 		sourceStartFrame: 0, sourceDurationFrames: 100,
@@ -458,6 +466,6 @@ function musicalProject(): AudioEditorProjectCurrent {
 	return createCurrentAudioEditorProject({
 		id: 'musical-warp-project', now: NOW, tempoMap: TEMPO_MAP,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
 	});
 }

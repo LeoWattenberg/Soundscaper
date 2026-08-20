@@ -17,10 +17,10 @@ import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../../src/common/ed
 import { PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS } from '../../src/common/editor/project-feature-audio-track-render-v1.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../../src/common/editor/project-feature-capabilities.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../../src/common/editor/project-media-factory.ts';
 import { inspectWavLayout } from '../../src/common/editor/wav.js';
 
 const CANONICAL_SOURCE_ID = 'canonical-audio';
@@ -329,21 +329,21 @@ export function createFixture(options: FixtureOptions = {}) {
 }
 
 function fallbackProject(featureId: string, role: FallbackRole = 'mix'): AudioEditorProjectCurrent {
-	const canonical = createAudioSourceV9({
+	const canonical = createAudioSource({
 		id: CANONICAL_SOURCE_ID, storageKey: CANONICAL_SOURCE_ID, frameCount: 8,
 		channelCount: 2, sampleRate: 48_000, chunkFrames: 4,
 	});
-	const fallback = createAudioSourceV9({
+	const fallback = createAudioSource({
 		id: FALLBACK_SOURCE_ID, storageKey: FALLBACK_SOURCE_ID, frameCount: role === 'track' ? 8 : 12,
 		channelCount: 2, sampleRate: 48_000, chunkFrames: 4,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'canonical-clip', sourceId: canonical.id, durationFrames: canonical.frameCount,
 	});
 	return createCurrentAudioEditorProject({
 		id: 'audio-fallback-export-service', now: '2026-08-02T12:00:00.000Z',
 		sources: [canonical, fallback], clips: [clip],
-		tracks: [createAudioTrackV9({
+		tracks: [createAudioTrack({
 			id: 'canonical-track',
 			clipIds: [clip.id],
 			effects: role === 'track'

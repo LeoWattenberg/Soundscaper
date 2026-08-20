@@ -6,12 +6,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	DesktopSharedProjectSourceUnavailableError,
 	verifyDesktopSharedProjectSourceAvailability,
@@ -130,7 +130,7 @@ test('recipient binding covers persisted identity and kind-specific media geomet
 	const videoChanges: ReadonlyArray<readonly [string, unknown]> = [
 		['storageKey', 'other-media'],
 		['mimeType', 'video/webm'],
-		['frameCount', Number(video.frameCount) + 1],
+		['sampleFrameCount', Number(video.sampleFrameCount) + 1],
 		['sampleRate', 44_100],
 		['width', 1_280],
 		['height', 720],
@@ -139,14 +139,17 @@ test('recipient binding covers persisted identity and kind-specific media geomet
 		['audioCodec', 'opus'],
 		['hasAudio', false],
 	];
-
 	for (const [project, source, changes] of [
 		[audioProject, audio, audioChanges],
 		[videoProject, video, videoChanges],
 	] as const) {
 		for (const [field, value] of changes) {
 			const calls: string[] = [];
-			const changed = { ...source, [field]: value };
+			const changed = {
+				...source, [field]: value,
+				...(source.kind === 'video' && field === 'frameRate'
+					? { timingDecision: { mode: 'conform-cfr-at-ingest', rate: value } } : {}),
+			};
 			await assert.rejects(
 				verifyDesktopSharedProjectSourceAvailability(
 					project,
@@ -501,7 +504,7 @@ function chunk(index: number, channels: readonly (readonly number[])[]): StoredC
 function audioSource(
 	overrides: Readonly<Record<string, unknown>> = {},
 ): Readonly<Record<string, unknown>> {
-	return createAudioSourceV9({
+	return createAudioSource({
 		id: 'audio-source',
 		name: 'Audio source',
 		mimeType: 'audio/wav',
@@ -519,7 +522,7 @@ function audioSource(
 function videoSource(
 	overrides: Readonly<Record<string, unknown>> = {},
 ): Readonly<Record<string, unknown>> {
-	return createVideoSourceV9({
+	return createVideoSource({
 		id: 'video-source',
 		name: 'Video source',
 		mimeType: 'video/mp4',
@@ -548,24 +551,24 @@ function projectWithSources(
 	for (const [index, source] of sources.entries()) {
 		const sourceId = String(source.id);
 		if (index === 0 && source.kind === 'audio') {
-			const clip = createAudioClipV9({
+			const clip = createAudioClip({
 				id: `${sourceId}-timeline-clip`,
 				sourceId,
 				durationFrames: Math.min(2, Number(source.frameCount)),
 			});
 			timelineClips.push(clip);
-			tracks.push(createAudioTrackV9({ id: `${sourceId}-track`, clipIds: [clip.id] }));
+			tracks.push(createAudioTrack({ id: `${sourceId}-track`, clipIds: [clip.id] }));
 			continue;
 		}
 		const clipOptions = {
 			id: `${sourceId}-bin-clip`,
 			sourceId,
-			durationFrames: Math.min(2, Number(source.frameCount)),
+			durationFrames: Math.min(2, Number(source.kind === 'video' ? source.sampleFrameCount : source.frameCount)),
 			binItemId: `${sourceId}-bin-item`,
 		};
 		binClips.push(source.kind === 'video'
-			? createVideoClipV9(clipOptions)
-			: createAudioClipV9(clipOptions));
+			? createVideoClip(clipOptions)
+			: createAudioClip(clipOptions));
 	}
 	return createCurrentAudioEditorProject({
 		id,
@@ -591,7 +594,6 @@ function priorProject(
 		sources,
 	});
 }
-
 function isUnavailable(error: unknown): boolean {
 	assert.ok(error instanceof DesktopSharedProjectSourceUnavailableError);
 	return true;

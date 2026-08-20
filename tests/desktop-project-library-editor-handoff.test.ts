@@ -17,10 +17,10 @@ import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createEditorController } from '../src/common/editor/facade.ts';
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
@@ -68,7 +68,7 @@ test('source-bearing exact-current handoff refuses activation without recipient-
 		createEntryId: () => 'handoff-entry-0002',
 	});
 	const sourceId = 'handoff-audio-source';
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: sourceId,
 		name: 'Soundscaper-only.wav',
 		mimeType: 'audio/wav',
@@ -80,14 +80,14 @@ test('source-bearing exact-current handoff refuses activation without recipient-
 		sampleFormat: 'float32',
 		chunkFrames: 4,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'handoff-audio-clip',
 		sourceId,
 		title: 'Soundscaper-only clip',
 		durationFrames: 4,
 		sourceDurationFrames: 4,
 	});
-	const track = createAudioTrackV9({
+	const track = createAudioTrack({
 		id: 'handoff-audio-track',
 		name: 'Soundscaper audio',
 		clipIds: [clip.id],

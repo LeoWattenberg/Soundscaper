@@ -127,7 +127,6 @@ export interface ProjectSwitchServiceRuntime<
 	}>) => Project;
 	readonly normalizeProjectSampleRate: (sampleRate: unknown) => number;
 	readonly createInitialAudioTrackCommand: (options: Readonly<{
-		schemaVersion: 2;
 		type: 'audio';
 		name: string;
 		armed: true;

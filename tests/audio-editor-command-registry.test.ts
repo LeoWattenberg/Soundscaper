@@ -28,7 +28,9 @@ import {
 } from '../src/common/editor/commands/protocol.ts';
 import { createEditorCommandRuntime } from '../src/common/editor/commands/runtime-registry.ts';
 import { createEffect } from '../src/common/editor/effects.js';
-import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 const NOW = '2026-07-26T12:00:00.000Z';
 
@@ -141,7 +143,7 @@ test('the exhaustive registry rejects a missing handler and dispatches every dec
 });
 
 test('the commands.js facade preserves cross-domain batch semantics with one commit', () => {
-	const original = createAudioEditorProjectV2({ id: 'command-registry', title: 'Before', now: NOW });
+	const original = createCurrentAudioEditorProject({ id: 'command-registry', title: 'Before', now: NOW });
 	const command = {
 		type: 'batch',
 		commands: [{
@@ -176,7 +178,7 @@ test('the commands.js facade preserves cross-domain batch semantics with one com
 });
 
 test('a failing child leaves an atomic batch input untouched', () => {
-	const original = createAudioEditorProjectV2({ id: 'atomic-command', title: 'Before', now: NOW });
+	const original = createCurrentAudioEditorProject({ id: 'atomic-command', title: 'Before', now: NOW });
 	const snapshot = structuredClone(original);
 	const command = {
 		type: 'batch',

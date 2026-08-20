@@ -3,8 +3,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioClipV9, createAudioSourceV9, createAudioTrackV9 } from '../src/common/editor/project-v9.ts';
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+
 import { createFramescaperPlaybackProjectServiceV19 } from '../src/framescaper/editor-project-playback-v19.ts';
 import { FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v19.ts';
 import { createFramescaperProjectV19 } from '../src/framescaper/editor-project-v19.ts';
@@ -68,7 +74,7 @@ function videoProject() {
 		id: 'export-v19',
 		title: 'Export V19',
 		now: '2026-08-14T12:00:00.000Z',
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'source', name: 'Source', storageKey: 'source', mimeType: 'video/mp4',
 			contentSha256: '12'.repeat(32), sampleFrameCount: 48_000,
 			sourceFrameCount: 30, frameRate: rate, width: 1920, height: 1080,
@@ -78,7 +84,7 @@ function videoProject() {
 			sequenceStartFrame: 0, sequenceFrameCount: 30, sourceInFrame: 0,
 			sourceFrameCount: 30, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({ id: 'track', name: 'Video', clipIds: ['clip'], locked: false })],
+		tracks: [createVideoTrack({ id: 'track', name: 'Video', clipIds: ['clip'], locked: false })],
 		sequences: [{ id: 'main', rate, trackIds: ['track'] }],
 		primarySequenceId: 'main',
 	});
@@ -86,20 +92,20 @@ function videoProject() {
 
 function audioFallbackProject() {
 	const original = {
-		...createAudioSourceV9({
+		...createAudioSource({
 			id: 'original-source', storageKey: 'original-source', frameCount: 4,
 			channelCount: 2, sampleRate: 48_000,
 		}),
 		contentSha256: '12'.repeat(32),
 	};
 	const fallback = {
-		...createAudioSourceV9({
+		...createAudioSource({
 			id: 'fallback-source', storageKey: 'fallback-source', frameCount: 6,
 			channelCount: 2, sampleRate: 48_000,
 		}),
 		contentSha256: '34'.repeat(32),
 	};
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'original-clip', sourceId: original.id, durationFrames: original.frameCount,
 	});
 	return createFramescaperProjectV19(PROFILE, {
@@ -108,7 +114,7 @@ function audioFallbackProject() {
 		now: '2026-08-14T12:00:00.000Z',
 		sources: [original, fallback],
 		clips: [clip],
-		tracks: [createAudioTrackV9({ id: 'track', name: 'Audio', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'track', name: 'Audio', clipIds: [clip.id] })],
 		featureRequirements: { schemaVersion: 2, requirements: [{
 			id: 'publisher-render',
 			featureId: 'org.example.future-mixer',

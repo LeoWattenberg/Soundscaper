@@ -51,7 +51,6 @@ export function createProjectSwitchService<
 	async function newProject(options: NewProjectOptions = {}): Promise<void> {
 		const title = String(options.title || runtime.copy.untitledProject).trim() || runtime.copy.untitledProject;
 		const trackCommand = runtime.createInitialAudioTrackCommand({
-			schemaVersion: 2,
 			type: 'audio',
 			name: `${runtime.copy.track} 1`,
 			armed: true,

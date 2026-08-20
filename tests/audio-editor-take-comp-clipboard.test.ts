@@ -17,7 +17,10 @@ import {
 	prepareTakeCompClipboardPasteIds,
 	stageTakeCompClipboardPaste,
 } from '../src/common/editor/commands/take-comp-clipboard.ts';
-import { createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import { createAudioEditorSessionClipboard } from '../src/common/editor/session-clipboard-codec.ts';
 
@@ -27,16 +30,16 @@ function project() {
 	return createAudioEditorProjectV17({
 		id: 'take-clipboard-project', title: 'Take clipboard project', now: NOW,
 		sources: [
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'take-source-a', storageKey: 'take-source-a', name: 'Take A',
 				frameCount: 2_000, channelCount: 1, sampleRate: 48_000,
 			}),
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'take-source-b', storageKey: 'take-source-b', name: 'Take B',
 				frameCount: 2_000, channelCount: 1, sampleRate: 48_000,
 			}),
 		],
-		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'track-a', name: 'Vocal', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['track-a'] }],
 		primarySequenceId: 'main-sequence',
 		takeGroups: [{

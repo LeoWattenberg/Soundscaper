@@ -9,7 +9,7 @@ import {
 	describeClipTimePitchRender,
 	loadStoredSourceChannels,
 } from '../src/common/editor/clip-time-pitch-cache.js';
-import { createAudioClipV2, createAudioSourceV2 } from '../src/common/editor/project-v2.js';
+import { createAudioClip, createAudioSource } from '../src/common/editor/project-media-factory.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 
 test('clip StaffPad plans key every immutable input and chain sequential extreme-speed passes', async () => {
@@ -465,7 +465,7 @@ test('cache APIs fail closed on invalid models, buffers, store chunks, and Staff
 });
 
 function sourceFixture(options = {}) {
-	return createAudioSourceV2({
+	return createAudioSource({
 		id: 'source-a',
 		storageKey: 'source-a',
 		name: 'Source A',
@@ -479,7 +479,7 @@ function sourceFixture(options = {}) {
 }
 
 function clipFixture(options = {}) {
-	return createAudioClipV2({
+	return createAudioClip({
 		id: 'clip-a',
 		sourceId: 'source-a',
 		title: 'Clip A',

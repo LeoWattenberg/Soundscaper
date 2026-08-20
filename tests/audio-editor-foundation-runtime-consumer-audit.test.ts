@@ -14,11 +14,13 @@ import {
 	FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS,
 } from '../src/common/editor/foundation-runtime-consumer-audit.ts';
 import {
-	createAudioClipV10,
-	createAudioEditorProjectV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	createSourceFile,
 	forEachChild,
@@ -217,8 +219,8 @@ test('registered projection boundaries terminate at the branded clip resolver', 
 });
 
 test('audio export admission receives resolved musical clip timing from its entry projection', () => {
-	const source = createAudioSourceV10({ id: 'source', frameCount: 192_000, channelCount: 1 });
-	const clip = createAudioClipV10({
+	const source = createAudioSource({ id: 'source', frameCount: 192_000, channelCount: 1 });
+	const clip = createAudioClip({
 		id: 'clip',
 		sourceId: source.id,
 		sourceDurationFrames: 48_000,
@@ -227,8 +229,8 @@ test('audio export admission receives resolved musical clip timing from its entr
 		musicalExtent: 'beat',
 		musicalDurationBeats: { num: 2, den: 1 },
 	});
-	const track = createAudioTrackV10({ id: 'track', clipIds: [clip.id] });
-	const project = createAudioEditorProjectV10({
+	const track = createAudioTrack({ id: 'track', clipIds: [clip.id] });
+	const project = createCurrentAudioEditorProject({
 		id: 'audio-export-runtime-projection',
 		now: '2026-08-09T12:00:00.000Z',
 		sources: [source],

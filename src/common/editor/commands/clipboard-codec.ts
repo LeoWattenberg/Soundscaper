@@ -7,9 +7,9 @@ import {
 import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from '../timeline-coordinate-limits.ts';
 import { normalizeRational } from '../timeline-time.ts';
 import {
-	admitAudioEditorProjectV9ValidationStructure,
-	AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
-} from '../project-v9-validation-budget.ts';
+	admitAudioEditorProjectValidationStructure,
+	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+} from '../project-validation-budget.ts';
 import {
 	assertTakeCompClipboardTrackOwnership,
 	collectTakeCompClipboardSourceIds,
@@ -89,9 +89,9 @@ export function normalizeAudioEditorClipboardDescriptor(descriptor: unknown): Au
 			schemaVersion >= 4 ? TOP_LEVEL_V4_KEYS : TOP_LEVEL_V3_KEYS,
 			'clipboard',
 		);
-		admitAudioEditorProjectV9ValidationStructure(
+		admitAudioEditorProjectValidationStructure(
 			candidate,
-			AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+			AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 		);
 		candidate = clone(candidate);
 	}

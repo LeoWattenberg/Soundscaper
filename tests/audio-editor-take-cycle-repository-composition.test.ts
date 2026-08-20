@@ -18,7 +18,9 @@ import {
 import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
 import type { TakeCycleFinalizationRequest } from '../src/common/editor/controller/take-cycle-recording-service.ts';
 import { createEditorHistory, executeEditorCommand } from '../src/common/editor/history.js';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17, type AudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import { validateAudioEditorProjectV17 } from '../src/common/editor/project-v17-validation.ts';
 import { createScapeDigest, scapeHex } from '../src/common/editor/scape-archive-media.ts';
@@ -284,8 +286,8 @@ async function compositionFixture(): Promise<Fixture> {
 	const base = createAudioEditorProjectV17({
 		id: 'project-cycle', title: 'Cycle project', now: NOW,
 		tracks: [
-			createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: [] }),
-			createAudioTrackV10({ id: 'track-b', name: 'Guitar', clipIds: [] }),
+			createAudioTrack({ id: 'track-a', name: 'Vocal', clipIds: [] }),
+			createAudioTrack({ id: 'track-b', name: 'Guitar', clipIds: [] }),
 		],
 		sequences: [{ id: 'main-sequence', trackIds: ['track-a', 'track-b'] }],
 		primarySequenceId: 'main-sequence',

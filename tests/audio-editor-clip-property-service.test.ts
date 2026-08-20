@@ -11,6 +11,11 @@ import {
 	EditorProjectGeneration,
 } from '../src/common/editor/controller/lifecycle.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	brandRuntimeProjectProjection,
+	RUNTIME_CLIP_PROJECTION_VERSION,
+} from '../src/common/editor/runtime-clip-projection.ts';
 
 test('time/pitch edits and grouped stretching preserve render revisions and envelopes', () => {
 	const project = projectFixture();
@@ -232,8 +237,15 @@ function createHarness(
 }
 
 function projectFixture(overrides: Partial<ClipTransformProject> = {}): ClipTransformProject {
-	return {
-		schemaVersion: 2, id: 'project', title: 'Project', sampleRate: 48_000,
+	return brandRuntimeProjectProjection({
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		id: 'project', title: 'Project', sampleRate: 48_000,
+		projectBin: { clips: [] }, timelineAnnotations: [],
+		sequences: [{ id: 'main-sequence' }], primarySequenceId: 'main-sequence',
+		tempoMap: {
+			mode: 'musical',
+			events: [{ id: 'tempo', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+		},
 		tracks: [{ id: 'track-a', name: 'A', type: 'audio', clipIds: ['active'] }, {
 			id: 'track-b', name: 'B', type: 'audio', clipIds: ['companion'],
 		}],
@@ -250,11 +262,12 @@ function projectFixture(overrides: Partial<ClipTransformProject> = {}): ClipTran
 			clipIds: ['active', 'companion'], frequencyRange: null,
 		},
 		...overrides,
-	};
+		runtimeProjectionVersion: RUNTIME_CLIP_PROJECTION_VERSION,
+	}) as unknown as ClipTransformProject;
 }
 
 function clipFixture(overrides: Readonly<Record<string, unknown>> = {}) {
-	return {
+	const clip = {
 		id: 'active', sourceId: 'source', title: 'Clip', kind: 'audio' as const,
 		timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 1_000,
 		durationFrames: 1_000, trimStartFrames: 0, trimEndFrames: 0,
@@ -263,6 +276,14 @@ function clipFixture(overrides: Readonly<Record<string, unknown>> = {}) {
 		pitchCents: 0, speedRatio: 1, preserveFormants: false,
 		stretchToTempo: false, renderCacheRevision: 2, opaqueExtensions: {},
 		...overrides,
+	};
+	return {
+		...clip,
+		timelineEndFrame: Number(clip.timelineStartFrame) + Number(clip.durationFrames),
+		sourceEndFrame: Number(clip.sourceStartFrame) + Number(clip.sourceDurationFrames),
+		sequenceStartFrame: null,
+		sequenceEndFrame: null,
+		coordinateDomain: 'resolved-samples' as const,
 	};
 }
 

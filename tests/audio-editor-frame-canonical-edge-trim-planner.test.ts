@@ -4,16 +4,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { planFrameCanonicalEdgeTrim } from '../src/common/editor/frame-canonical-edge-trim-planner.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioEditorProjectV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+	type MediaClipLeaf,
+	type MediaTrackLeaf,
+} from '../src/common/editor/project-media-factory.ts';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { brandRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import {
 	sampleFrameToVideoFrame,
@@ -410,26 +412,26 @@ function fixture(options: Readonly<{
 	const timelineStartFrame = boundary(sequenceStartFrame, rate);
 	const timelineEndFrame = boundary(sequenceStartFrame + sequenceFrameCount, rate);
 	const durationFrames = timelineEndFrame - timelineStartFrame;
-	const videoSource = createVideoSourceV10({
+	const videoSource = createVideoSource({
 		id: 'video-source', frameCount: 2_000_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: options.sourceRate ?? { num: 48, den: 1 },
 		sourceFrameCount: 1_000,
 	}, SAMPLE_RATE);
-	const audioSource = createAudioSourceV10({
+	const audioSource = createAudioSource({
 		id: 'audio-source', frameCount: 2_000_000, sampleRate: SAMPLE_RATE, channelCount: 1,
 	});
 	const avLinkId = options.linkedAudio ? 'av-link' : null;
-	const video = createVideoClipV10({
+	const video = createVideoClip({
 		id: 'video', sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame, sequenceFrameCount,
 		sourceInFrame: options.sourceInFrame ?? 100,
 		sourceFrameCount: options.sourceFrameCount ?? 20,
 		avLinkId,
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate }, source: videoSource });
-	const clips = [video];
-	const tracks = [createVideoTrackV10({ id: 'video-track', clipIds: ['video'] })];
+	const clips: MediaClipLeaf[] = [video];
+	const tracks: MediaTrackLeaf[] = [createVideoTrack({ id: 'video-track', clipIds: ['video'], laneGroupId: options.linkedAudio ? 'av-lane' : null })];
 	if (options.linkedAudio) {
-		clips.push(createAudioClipV10({
+		clips.push(createAudioClip({
 			id: 'audio', sourceId: 'audio-source', timelineStartFrame,
 			durationFrames, sourceStartFrame: options.audioSourceStartFrame ?? 20_000,
 			sourceDurationFrames: durationFrames, avLinkId,
@@ -439,14 +441,14 @@ function fixture(options: Readonly<{
 			fadeInFrames: options.audioFadeInFrames ?? 0,
 			fadeOutFrames: options.audioFadeOutFrames ?? 0,
 		}));
-		tracks.push(createAudioTrackV10({ id: 'audio-track', clipIds: ['audio'] }, SAMPLE_RATE));
+		tracks.push(createAudioTrack({ id: 'audio-track', clipIds: ['audio'], laneGroupId: 'av-lane' }, SAMPLE_RATE));
 	}
-	const persisted = createAudioEditorProjectV10({
+	const persisted = createCurrentAudioEditorProject({
 		id: 'frame-trim', now: '2026-08-11T12:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate, trackIds: tracks.map(({ id }) => String(id)) }],
 		primarySequenceId: 'main', sources: [videoSource, audioSource], clips, tracks,
 	});
-	return projectV10ForCommand(
+	return projectForCommand(
 		persisted as unknown as Record<string, unknown>,
 	) as unknown as CommandProject;
 }
@@ -455,13 +457,13 @@ function relationFixture() {
 	const project = fixture({ linkedAudio: true });
 	const source = project.sources.find(({ id }) => id === 'audio-source');
 	assert.ok(source);
-	const audio = (id: string, groupId: string | null) => createAudioClipV10({
+	const audio = (id: string, groupId: string | null) => createAudioClip({
 		id, sourceId: 'audio-source', timelineStartFrame: 20_000,
 		durationFrames: 20_000, sourceStartFrame: 20_000, sourceDurationFrames: 20_000, groupId,
 	});
 	const sameTrackSource = project.sources.find(({ id }) => id === 'video-source');
 	assert.ok(sameTrackSource);
-	const sameTrack = createVideoClipV10({
+	const sameTrack = createVideoClip({
 		id: 'same-track-video', sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame: 30, sequenceFrameCount: 5, sourceInFrame: 200, sourceFrameCount: 10,
 		groupId: 'selected-group',
@@ -478,9 +480,9 @@ function relationFixture() {
 		tracks: [
 			{ ...project.tracks[0], clipIds: ['active-video', 'same-track-video'] },
 			{ ...project.tracks[1], clipIds: ['linked-audio'] },
-			createAudioTrackV10({ id: 'transitive-track', clipIds: ['transitive-audio'] }, SAMPLE_RATE),
-			createAudioTrackV10({ id: 'selected-track', clipIds: ['selected-audio'] }, SAMPLE_RATE),
-			createAudioTrackV10({ id: 'unselected-track', clipIds: ['unselected-audio'] }, SAMPLE_RATE),
+			createAudioTrack({ id: 'transitive-track', clipIds: ['transitive-audio'] }, SAMPLE_RATE),
+			createAudioTrack({ id: 'selected-track', clipIds: ['selected-audio'] }, SAMPLE_RATE),
+			createAudioTrack({ id: 'unselected-track', clipIds: ['unselected-audio'] }, SAMPLE_RATE),
 		],
 		selection: {
 			startFrame: 0, endFrame: 0, trackIds: [],
@@ -493,7 +495,7 @@ function compositionFixture() {
 	const project = fixture();
 	const source = project.sources.find(({ id }) => id === 'video-source');
 	assert.ok(source);
-	const earlier = createVideoClipV10({
+	const earlier = createVideoClip({
 		id: 'earlier-video', sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame: 5, sequenceFrameCount: 10, sourceInFrame: 10, sourceFrameCount: 20,
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: PAL }, source });
@@ -507,7 +509,7 @@ function mixedSequenceFixture() {
 	const project = fixture();
 	const source = project.sources.find(({ id }) => id === 'video-source');
 	assert.ok(source);
-	const other = createVideoClipV10({
+	const other = createVideoClip({
 		id: 'video-b', sourceId: 'video-source', sequenceId: 'other',
 		sequenceStartFrame: 10, sequenceFrameCount: 10, sourceInFrame: 100, sourceFrameCount: 20,
 		groupId: 'group',
@@ -516,7 +518,7 @@ function mixedSequenceFixture() {
 		clips: [{ ...project.clips[0], id: 'video-a', groupId: 'group' }, other],
 		tracks: [
 			{ ...project.tracks[0], id: 'video-track-a', clipIds: ['video-a'] },
-			createVideoTrackV10({ id: 'video-track-b', clipIds: ['video-b'] }),
+			createVideoTrack({ id: 'video-track-b', clipIds: ['video-b'] }),
 		],
 		sequences: [
 			{ id: 'main', rate: PAL, trackIds: ['video-track-a'] },
@@ -546,7 +548,7 @@ function reproject(
 	project: CommandProject,
 	changes: Readonly<Record<string, unknown>>,
 ): CommandProject {
-	return projectV10ForCommand({ ...project, ...changes }) as unknown as CommandProject;
+	return projectForCommand({ ...project, ...changes }) as unknown as CommandProject;
 }
 
 function diagnostics(plan: Readonly<{

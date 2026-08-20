@@ -8,41 +8,43 @@ import {
 	createClipboardDescriptor,
 	preparePasteCommand,
 } from '../src/common/editor/commands.js';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioEditorProjectV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-	validateAudioEditorProjectV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { resolveRuntimeClipProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 
 const NOW = '2026-08-09T12:00:00.000Z';
 
-test('v10 clipboard paste preserves musical authority and audio warp maps', () => {
-	const source = createAudioSourceV10({ id: 'source', frameCount: 480_000, channelCount: 1 });
+test('current clipboard paste preserves musical authority and audio warp maps', () => {
+	const source = createAudioSource({ id: 'source', frameCount: 480_000, channelCount: 1 });
 	const warpMap = {
 		feature: 'audio-warp',
 		points: [
-			{ outer: { num: 0, den: 1 }, source: { num: 0, den: 1 }, mode: 'forward' },
-			{ outer: { num: 2, den: 1 }, source: { num: 48_000, den: 1 }, mode: 'forward' },
+			{ outer: { num: 0, den: 1 }, source: { num: 12_000, den: 1 }, mode: 'forward' },
+			{ outer: { num: 2, den: 1 }, source: { num: 60_000, den: 1 }, mode: 'forward' },
 		],
 	};
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, sourceStartFrame: 12_000, sourceDurationFrames: 48_000,
 		anchor: 'musical', musicalStartBeat: { num: 3, den: 1 }, musicalExtent: 'beat',
 		musicalDurationBeats: { num: 2, den: 1 }, warpMap,
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'musical-clipboard', now: NOW, sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
 	});
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const clipboard = createClipboardDescriptor(runtime, {
 		startFrame: 72_000,
 		endFrame: 120_000,
@@ -62,39 +64,41 @@ test('v10 clipboard paste preserves musical authority and audio warp maps', () =
 	assert.deepEqual(result.musicalDurationBeats, { num: 2, den: 1 });
 	assert.deepEqual(result.warpMap, warpMap);
 	assert.deepEqual([result.sourceStartFrame, result.sourceDurationFrames], [12_000, 48_000]);
-	assert.equal(validateAudioEditorProjectV10(pasted), true);
+	assert.equal(validateCurrentAudioEditorProject(pasted), true);
 });
 
-test('v10 clipboard paste preserves video source-frame and retime authority', () => {
+test('current clipboard carries video retime authority into the protected paste boundary', () => {
 	const rate = { num: 24, den: 1 };
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'source', frameCount: 441_000, sampleRate: 44_100,
 		width: 16, height: 16, frameRate: rate, sourceFrameCount: 240,
 	}, 44_100);
 	const retimeMap = {
 		feature: 'video-retime',
+		version: 2,
 		points: [
-			{ outer: { num: 0, den: 1 }, source: { num: 10, den: 1 }, mode: 'forward' },
-			{ outer: { num: 4, den: 1 }, source: { num: 22, den: 1 }, mode: 'forward' },
+			{ outerFrame: 0, sourceFrame: { num: 10, den: 1 } },
+			{ outerFrame: 4, sourceFrame: { num: 22, den: 1 } },
 		],
+		segments: [{ mode: 'constant-forward' }],
 	};
-	const clip = createVideoClipV10({
+	const clip = { ...createVideoClip({
 		id: 'clip', sourceId: source.id, sequenceId: 'main',
 		sequenceStartFrame: 2, sequenceFrameCount: 4,
-		sourceInFrame: 10, sourceFrameCount: 12, retimeMap,
+		sourceInFrame: 10, sourceFrameCount: 12,
 	}, {
 		projectSampleRate: 44_100,
 		sequence: { id: 'main', rate },
 		source,
-	});
-	const project = createAudioEditorProjectV10({
+	}), retimeMap };
+	const project = createCurrentAudioEditorProject({
 		id: 'video-clipboard', now: NOW, sampleRate: 44_100,
 		sequences: [{ id: 'main', rate }], primarySequenceId: 'main',
 		sources: [source], clips: [clip],
-		tracks: [createVideoTrackV10({ id: 'track', clipIds: ['clip'] })],
+		tracks: [createVideoTrack({ id: 'track', clipIds: ['clip'] })],
 	});
 	const original = resolveRuntimeClipProjection(project, project.clips[0]);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const clipboard = createClipboardDescriptor(runtime, {
 		startFrame: original.timelineStartFrame,
 		endFrame: original.timelineEndFrame,
@@ -104,22 +108,24 @@ test('v10 clipboard paste preserves video source-frame and retime authority', ()
 		atFrame: 20_000,
 		project: runtime,
 	}, () => 'pasted');
-	const pasted = applyEditorCommand(project, command as AudioEditorCommand, { now: NOW });
-	const result = pasted.clips.find((candidate) => candidate.id === 'pasted');
+	const copied = clipboard.tracks[0]?.clips[0];
 
-	assert.ok(result);
-	assert.equal(result.sequenceId, 'main');
-	assert.equal(result.sequenceFrameCount, 4);
-	assert.equal(result.sourceInFrame, 10);
-	assert.equal(result.sourceFrameCount, 12);
-	assert.deepEqual(result.retimeMap, retimeMap);
-	assert.equal(validateAudioEditorProjectV10(pasted), true);
+	assert.ok(copied);
+	assert.deepEqual([
+		copied.sequenceFrameCount, copied.sourceInFrame, copied.sourceFrameCount,
+	], [4, 10, 12]);
+	assert.deepEqual(copied.retimeMap, retimeMap);
+	assert.throws(
+		() => applyEditorCommand(project, command as AudioEditorCommand, { now: NOW }),
+		/retime.*protected/iu,
+	);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
 });
 
-test('v10 video paste uses one destination frame anchor and the owning sequence', () => {
+test('current video paste uses one destination frame anchor and the owning sequence', () => {
 	const rate = { num: 24, den: 1 };
 	const targetRate = { num: 30, den: 1 };
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'source', frameCount: 441_000, sampleRate: 44_100,
 		width: 16, height: 16, frameRate: rate, sourceFrameCount: 240,
 	}, 44_100);
@@ -129,16 +135,16 @@ test('v10 video paste uses one destination frame anchor and the owning sequence'
 		source,
 	};
 	const clips = [
-		createVideoClipV10({
+		createVideoClip({
 			id: 'first', sourceId: source.id, sequenceId: 'source-sequence',
 			sequenceStartFrame: 0, sequenceFrameCount: 1, sourceInFrame: 0, sourceFrameCount: 1,
 		}, clipContext),
-		createVideoClipV10({
+		createVideoClip({
 			id: 'second', sourceId: source.id, sequenceId: 'source-sequence',
 			sequenceStartFrame: 3, sequenceFrameCount: 1, sourceInFrame: 3, sourceFrameCount: 1,
 		}, clipContext),
 	];
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'cross-sequence-clipboard', now: NOW, sampleRate: 44_100,
 		sequences: [
 			{ id: 'source-sequence', rate, trackIds: ['source-track'] },
@@ -146,12 +152,12 @@ test('v10 video paste uses one destination frame anchor and the owning sequence'
 		],
 		primarySequenceId: 'source-sequence', sources: [source], clips,
 		tracks: [
-			createVideoTrackV10({ id: 'source-track', clipIds: ['first', 'second'] }),
-			createVideoTrackV10({ id: 'target-track', clipIds: [] }),
+			createVideoTrack({ id: 'source-track', clipIds: ['first', 'second'] }),
+			createVideoTrack({ id: 'target-track', clipIds: [] }),
 		],
 	});
-	assert.equal(validateAudioEditorProjectV10(project), true);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const clipboard = createClipboardDescriptor(runtime, {
 		startFrame: 0,
 		endFrame: 7_350,
@@ -170,21 +176,21 @@ test('v10 video paste uses one destination frame anchor and the owning sequence'
 
 	assert.deepEqual(results.map(({ sequenceId }) => sequenceId), ['target-sequence', 'target-sequence']);
 	assert.deepEqual(results.map(({ sequenceStartFrame }) => sequenceStartFrame), [2, 6]);
-	assert.equal(validateAudioEditorProjectV10(pasted), true);
+	assert.equal(validateCurrentAudioEditorProject(pasted), true);
 });
 
 test('overlap paste conforms collision trimming with its linked audio target', () => {
 	const rate = { num: 24, den: 1 };
 	const sampleRate = 44_100;
-	const video = createVideoSourceV10({
+	const video = createVideoSource({
 		id: 'video-source', frameCount: sampleRate, sampleRate,
 		width: 16, height: 16, frameRate: rate, sourceFrameCount: 24,
 	}, sampleRate);
-	const audio = createAudioSourceV10({
+	const audio = createAudioSource({
 		id: 'audio-source', frameCount: sampleRate, channelCount: 1, sampleRate,
 	});
 	const context = { projectSampleRate: sampleRate, sequence: { id: 'main', rate }, source: video };
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'overlap-paste-conformance', now: NOW, sampleRate,
 		sequences: [{
 			id: 'main', rate,
@@ -192,44 +198,44 @@ test('overlap paste conforms collision trimming with its linked audio target', (
 		}],
 		primarySequenceId: 'main', sources: [video, audio],
 		clips: [
-			createVideoClipV10({
+			createVideoClip({
 				id: 'copy-video', sourceId: video.id, sequenceId: 'main',
 				sequenceStartFrame: 0, sequenceFrameCount: 1,
 				sourceInFrame: 0, sourceFrameCount: 1, avLinkId: 'copy-link',
 			}, context),
-			createAudioClipV10({
+			createAudioClip({
 				id: 'copy-audio', sourceId: audio.id, timelineStartFrame: 0,
 				durationFrames: 1_838, sourceStartFrame: 0, sourceDurationFrames: 1_838,
 				avLinkId: 'copy-link',
 			}),
-			createVideoClipV10({
+			createVideoClip({
 				id: 'target-video', sourceId: video.id, sequenceId: 'main',
 				sequenceStartFrame: 1, sequenceFrameCount: 2,
 				sourceInFrame: 1, sourceFrameCount: 2, avLinkId: 'target-link',
 			}, context),
-			createAudioClipV10({
+			createAudioClip({
 				id: 'target-audio', sourceId: audio.id, timelineStartFrame: 1_838,
 				durationFrames: 3_675, sourceStartFrame: 1_838, sourceDurationFrames: 3_675,
 				avLinkId: 'target-link',
 			}),
 		],
 		tracks: [
-			createVideoTrackV10({
+			createVideoTrack({
 				id: 'copy-video-track', laneGroupId: 'copy-lane', clipIds: ['copy-video'],
 			}),
-			createAudioTrackV10({
+			createAudioTrack({
 				id: 'copy-audio-track', laneGroupId: 'copy-lane', clipIds: ['copy-audio'],
 			}, sampleRate),
-			createVideoTrackV10({
+			createVideoTrack({
 				id: 'target-video-track', laneGroupId: 'target-lane', clipIds: ['target-video'],
 			}),
-			createAudioTrackV10({
+			createAudioTrack({
 				id: 'target-audio-track', laneGroupId: 'target-lane', clipIds: ['target-audio'],
 			}, sampleRate),
 		],
 	});
-	assert.equal(validateAudioEditorProjectV10(project), true);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const clipboard = createClipboardDescriptor(runtime, {
 		startFrame: 0, endFrame: 1_838, trackIds: ['copy-video-track'],
 	});
@@ -251,7 +257,7 @@ test('overlap paste conforms collision trimming with its linked audio target', (
 		[targetAudio.sourceStartFrame, targetAudio.sourceDurationFrames],
 		[1_838, 3_675],
 	);
-	assert.equal(validateAudioEditorProjectV10(pasted), true);
+	assert.equal(validateCurrentAudioEditorProject(pasted), true);
 
 	let replacementId = 0;
 	const replacement = applyEditorCommand(project, preparePasteCommand(clipboard, {
@@ -278,7 +284,7 @@ test('overlap paste conforms collision trimming with its linked audio target', (
 			survivingAudio.sourceStartFrame, survivingAudio.sourceDurationFrames],
 		[3_675, 1_838, 3_675, 1_838],
 	);
-	assert.equal(validateAudioEditorProjectV10(replacement), true);
+	assert.equal(validateCurrentAudioEditorProject(replacement), true);
 });
 
 test('overlap paste uses the pasted destination span when relative rounding is shorter', () => {
@@ -329,11 +335,11 @@ function pasteCrossRateVideo(options: {
 }) {
 	const sampleRate = 44_100;
 	const targetRate = { num: 30_000, den: 1_001 };
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'cross-rate-source', frameCount: sampleRate * 10, sampleRate,
 		width: 16, height: 16, frameRate: options.sourceRate, sourceFrameCount: 240,
 	}, sampleRate);
-	const copy = createVideoClipV10({
+	const copy = createVideoClip({
 		id: 'copy', sourceId: source.id, sequenceId: 'copy-sequence',
 		sequenceStartFrame: 0, sequenceFrameCount: 2,
 		sourceInFrame: 0, sourceFrameCount: 2,
@@ -342,7 +348,7 @@ function pasteCrossRateVideo(options: {
 		sequence: { id: 'copy-sequence', rate: options.sourceRate },
 		source,
 	});
-	const target = createVideoClipV10({
+	const target = createVideoClip({
 		id: 'target', sourceId: source.id, sequenceId: 'target-sequence',
 		sequenceStartFrame: 0, sequenceFrameCount: 8,
 		sourceInFrame: 10, sourceFrameCount: 8,
@@ -351,7 +357,7 @@ function pasteCrossRateVideo(options: {
 		sequence: { id: 'target-sequence', rate: targetRate },
 		source,
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'cross-rate-span', now: NOW, sampleRate,
 		sequences: [
 			{ id: 'copy-sequence', rate: options.sourceRate, trackIds: ['copy-track'] },
@@ -359,12 +365,12 @@ function pasteCrossRateVideo(options: {
 		],
 		primarySequenceId: 'copy-sequence', sources: [source], clips: [copy, target],
 		tracks: [
-			createVideoTrackV10({ id: 'copy-track', clipIds: ['copy'] }),
-			createVideoTrackV10({ id: 'target-track', clipIds: ['target'] }),
+			createVideoTrack({ id: 'copy-track', clipIds: ['copy'] }),
+			createVideoTrack({ id: 'target-track', clipIds: ['target'] }),
 		],
 	});
 	const copyProjection = resolveRuntimeClipProjection(project, copy);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const clipboard = createClipboardDescriptor(runtime, {
 		startFrame: copyProjection.timelineStartFrame,
 		endFrame: copyProjection.timelineEndFrame,
@@ -379,7 +385,7 @@ function pasteCrossRateVideo(options: {
 	}, (prefix) => `${prefix}-${String(nextId++)}`);
 	const result = applyEditorCommand(project, command as AudioEditorCommand, { now: NOW });
 
-	assert.equal(validateAudioEditorProjectV10(result), true);
+	assert.equal(validateCurrentAudioEditorProject(result), true);
 	const targetTrack = result.tracks.find(({ id }) => id === 'target-track') as
 		| { clipIds: string[] }
 		| undefined;

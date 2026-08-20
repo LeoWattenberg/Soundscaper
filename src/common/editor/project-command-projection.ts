@@ -9,7 +9,7 @@ import {
 	isTimelineAnnotationProjectSchema,
 	isTrackFolderProjectSchema,
 } from './project-schema-version.ts';
-import { reconcileFolderAwareTrackHierarchy } from './project-v13-hierarchy-reconcile.ts';
+import { reconcileFolderAwareTrackHierarchy } from './project-hierarchy-reconcile.ts';
 import { sampleFrameToBeat } from './timeline-tempo-inverse.ts';
 import {
 	beatToSampleFrame,
@@ -41,7 +41,7 @@ interface ConformedBoundaryDelta {
 type ConformedOperationDeltas = Map<number, ConformedBoundaryDelta>;
 
 /** Supply command implementations with legacy-shaped, transient resolved coordinates. */
-export function projectV10ForCommand(project: DataRecord): DataRecord {
+export function projectForCommand(project: DataRecord): DataRecord {
 	const runtime = resolveRuntimeProjectProjection(project);
 	const projected = {
 		...runtime,
@@ -57,8 +57,8 @@ export function projectV10ForCommand(project: DataRecord): DataRecord {
 	return brandRuntimeProjectProjection(projected);
 }
 
-/** Convert a command's resolved-sample mutations back to one authoritative v10 domain per coordinate. */
-export function reconcileProjectV10CommandResult(draft: DataRecord, persistedBase: DataRecord): void {
+/** Convert a command's resolved-sample mutations back to one authoritative domain per coordinate. */
+export function reconcileProjectCommandResult(draft: DataRecord, persistedBase: DataRecord): void {
 	const sampleRate = positiveSafeInteger(draft.sampleRate, 'project.sampleRate');
 	const tempoMap = draft.tempoMap as HoldTempoMap;
 	const sequences = recordArray(draft.sequences, 'project.sequences');

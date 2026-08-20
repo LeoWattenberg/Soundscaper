@@ -21,9 +21,9 @@ import {
 } from '../src/common/editor/project-v17.ts';
 import { projectForCommandConsumers } from '../src/common/editor/project-current-runtime.ts';
 import {
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
 import { planFrameCanonicalEdgeTrim } from '../src/common/editor/frame-canonical-edge-trim-planner.ts';
 import { planFrameCanonicalRollRippleTrim } from '../src/common/editor/frame-canonical-roll-ripple-trim-planner.ts';
@@ -492,7 +492,7 @@ function projectFixture(overrides: Readonly<{
 			videoEffects: [effect], videoComposition: DEFAULT_VIDEO_CLIP_COMPOSITION,
 			videoKeyframes: authoredKeyframes(sequenceFrameCount),
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,
 		})],
 		sequences: [{
@@ -531,7 +531,7 @@ function authoredKeyframes(duration = 10): Record<string, unknown> {
 }
 
 function videoSource(id: string, digest: string): Record<string, unknown> {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id, name: id, storageKey: id, mimeType: 'video/mp4', contentSha256: digest.repeat(32),
 		sampleFrameCount: 20 * FRAME_SAMPLES, sourceFrameCount: 20,
 		frameRate: { num: 10, den: 1 }, width: 1_920, height: 1_080,

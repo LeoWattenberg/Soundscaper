@@ -15,10 +15,10 @@ import {
 	type AudioEditorProjectCurrent,
 } from '../src/common/editor/project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const NOW = '2026-08-11T13:00:00.000Z';
 
@@ -119,14 +119,14 @@ test('failed nested admission appends no history while standalone lock undo-redo
 });
 
 function lockProject(locked: boolean): AudioEditorProjectCurrent {
-	const source = createAudioSourceV10({ id: 'source', frameCount: 48_000, channelCount: 1 });
-	const clip = createAudioClipV10({
+	const source = createAudioSource({ id: 'source', frameCount: 48_000, channelCount: 1 });
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, title: 'Clip', timelineStartFrame: 100,
 		durationFrames: 100, sourceStartFrame: 0, sourceDurationFrames: 100,
 	});
 	return createCurrentAudioEditorProject({
 		id: 'batch-lock-project', now: NOW, sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', locked, clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'track', locked, clipIds: [clip.id] })],
 	});
 }
 

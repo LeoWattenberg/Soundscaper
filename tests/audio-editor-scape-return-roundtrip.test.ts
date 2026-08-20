@@ -9,10 +9,10 @@ import test, { type TestContext } from 'node:test';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { evaluateProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
@@ -147,7 +147,7 @@ test('a whole-mix audio render fallback survives the same Scape return roundtrip
 function fallbackProject(
 	fallback: AudioEditorProjectCurrent['featureRequirements']['requirements'][number]['fallback'],
 ): AudioEditorProjectCurrent {
-	const laneSource = createAudioSourceV9({
+	const laneSource = createAudioSource({
 		id: LANE_SOURCE_ID,
 		storageKey: LANE_SOURCE_ID,
 		name: 'Canonical lane.wav',
@@ -155,7 +155,7 @@ function fallbackProject(
 		frameCount: LANE_SAMPLES.length,
 		channelCount: 1,
 	});
-	const fallbackSource = createAudioSourceV9({
+	const fallbackSource = createAudioSource({
 		id: FALLBACK_SOURCE_ID,
 		storageKey: FALLBACK_SOURCE_ID,
 		name: 'Rendered lane.wav',
@@ -163,7 +163,7 @@ function fallbackProject(
 		frameCount: FALLBACK_SAMPLES.length,
 		channelCount: 1,
 	});
-	const laneClip = createAudioClipV9({
+	const laneClip = createAudioClip({
 		id: 'canonical-lane-clip',
 		sourceId: LANE_SOURCE_ID,
 		timelineStartFrame: 0,
@@ -176,7 +176,7 @@ function fallbackProject(
 		sampleRate: 48_000,
 		sources: [laneSource, fallbackSource],
 		clips: [laneClip],
-		tracks: [createAudioTrackV9({
+		tracks: [createAudioTrack({
 			id: TARGET_TRACK_ID,
 			name: 'Saturated lane',
 			clipIds: [laneClip.id],

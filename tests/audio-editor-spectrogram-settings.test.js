@@ -9,7 +9,9 @@ import {
 	createAudioEditorPreferencesV1,
 	updateAudioEditorPreferencesV1,
 } from '../src/common/editor/preferences.js';
-import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 function apply(project, command) {
 	return applyEditorCommand(project, command, { now: '2026-07-13T00:00:00.000Z' });
@@ -42,14 +44,13 @@ test('spectrogram settings are stored per track while preferences remain new-tra
 	assert.equal(changedDefaults.spectrogram.windowSize, 4_096);
 	assert.equal(changedDefaults.spectrogram.maximumFrequency, 18_000);
 
-	let project = createAudioEditorProjectV2({
+	let project = createCurrentAudioEditorProject({
 		id: 'spectrogram-settings-project',
 		title: 'Spectrogram settings',
 		sampleRate: 48_000,
 		now: '2026-07-13T00:00:00.000Z',
 	});
 	project = apply(project, createAddTrackCommand({
-		schemaVersion: 2,
 		id: 'spectrogram-track',
 		name: 'Spectrogram track',
 		spectrogram: defaults.spectrogram,
@@ -98,14 +99,13 @@ test('spectrogram settings are stored per track while preferences remain new-tra
 });
 
 test('time-frequency selections preserve independently adjustable frame and frequency bounds', () => {
-	let project = createAudioEditorProjectV2({
+	let project = createCurrentAudioEditorProject({
 		id: 'spectral-selection-project',
 		title: 'Spectral selection',
 		sampleRate: 48_000,
 		now: '2026-07-13T00:00:00.000Z',
 	});
 	project = apply(project, createAddTrackCommand({
-		schemaVersion: 2,
 		id: 'spectral-track',
 		name: 'Spectral track',
 	}));
@@ -131,6 +131,7 @@ test('time-frequency selections preserve independently adjustable frame and freq
 		endFrame: 23_999,
 		trackIds: ['spectral-track'],
 		clipIds: [],
+		annotationIds: [],
 		frequencyRange: { minimumFrequency: 310, maximumFrequency: 7_990 },
 	});
 });

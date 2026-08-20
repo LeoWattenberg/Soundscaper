@@ -11,7 +11,11 @@ import { createExportRenderProject } from '../src/common/editor/controller/expor
 import { stemProject } from '../src/common/editor/controller/temporary-export.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { normalizeProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
-import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { projectTrackFolderMediaStateV12 } from '../src/common/editor/track-folder-media-runtime.ts';
 import {
 	createSoundscaperAudioTrackFreezePlaybackServiceV23,
@@ -134,8 +138,8 @@ function folderedProject() {
 function frozenFixture() {
 	const options = baseOptions();
 	const clip = options.clips[0]!;
-	const bare = createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'], effects: [] });
-	const derivedSource = createAudioSourceV10({
+	const bare = createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'], effects: [] });
+	const derivedSource = createAudioSource({
 		id: 'voice-freeze', storageKey: 'derived:voice-freeze', contentSha256: DERIVED_SHA256,
 		frameCount: 8, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
@@ -156,7 +160,7 @@ function frozenFixture() {
 	const project = createSoundscaperProjectV23({
 		...options,
 		sources: [...options.sources, derivedSource],
-		tracks: [createAudioTrackV10({
+		tracks: [createAudioTrack({
 			id: 'voice', name: 'Voice', clipIds: ['voice-clip'], effects: [], audioFreeze: freeze,
 		})],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
@@ -165,19 +169,19 @@ function frozenFixture() {
 }
 
 function baseOptions() {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'voice-source', storageKey: 'pcm:voice', contentSha256: CONTENT_SHA256,
 		frameCount: 8, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'voice-clip', sourceId: 'voice-source', title: 'Voice', timelineStartFrame: 0,
 		durationFrames: 8, sourceStartFrame: 0, sourceDurationFrames: 8,
 	});
 	return {
 		id: 'export-render-project', title: 'Export render', now: NOW,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'], effects: [] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'], effects: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 	};

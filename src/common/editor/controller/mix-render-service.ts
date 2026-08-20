@@ -304,7 +304,6 @@ export function createMixRenderService(
 			committed = true;
 			assertOwned(ownership);
 			const source: ControllerSource = Object.freeze({
-				schemaVersion: 2,
 				id: sourceId,
 				storageKey: sourceId,
 				name,

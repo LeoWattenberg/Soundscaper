@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import { prepareThreePointEditCommand } from '../src/common/editor/commands/three-point-edit-runtime.js';
 import {
 	createCurrentAudioEditorProject,
@@ -12,13 +12,13 @@ import {
 } from '../src/common/editor/project-current.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const NOW = '2026-08-10T12:00:00.000Z';
 const SAMPLE_RATE = 48_000;
@@ -30,7 +30,7 @@ const SECOND = SAMPLE_RATE;
 type ProjectRecord = ReturnType<typeof editableProject>;
 
 function videoSource(id: string, sourceFrameCount: number) {
-	return createVideoSourceV10({
+	return createVideoSource({
 		kind: 'video',
 		id,
 		storageKey: id,
@@ -54,7 +54,7 @@ function videoSource(id: string, sourceFrameCount: number) {
 function editableProject() {
 	const existing = videoSource('existing-source', 50);
 	const incoming = videoSource('incoming-source', 250);
-	const audioSource = createAudioSourceV10({
+	const audioSource = createAudioSource({
 		kind: 'audio',
 		id: 'existing-audio-source',
 		storageKey: 'existing-audio-source',
@@ -64,7 +64,7 @@ function editableProject() {
 		channelCount: 2,
 		sampleRate: SAMPLE_RATE,
 	});
-	const videoClip = createVideoClipV10({
+	const videoClip = createVideoClip({
 		id: 'existing-video',
 		sourceId: existing.id,
 		sequenceId: SEQUENCE.id,
@@ -74,7 +74,7 @@ function editableProject() {
 		sourceFrameCount: 50,
 		avLinkId: 'existing-link',
 	}, { projectSampleRate: SAMPLE_RATE, sequence: SEQUENCE, source: existing });
-	const audioClip = createAudioClipV10({
+	const audioClip = createAudioClip({
 		id: 'existing-audio',
 		sourceId: audioSource.id,
 		timelineStartFrame: 0,
@@ -92,8 +92,8 @@ function editableProject() {
 		sources: [existing, incoming, audioSource],
 		clips: [videoClip, audioClip],
 		tracks: [
-			createVideoTrackV10({ id: 'video-track', clipIds: ['existing-video'], laneGroupId: 'lane' }),
-			createAudioTrackV10({ id: 'audio-track', clipIds: ['existing-audio'], laneGroupId: 'lane' }, SAMPLE_RATE),
+			createVideoTrack({ id: 'video-track', clipIds: ['existing-video'], laneGroupId: 'lane' }),
+			createAudioTrack({ id: 'audio-track', clipIds: ['existing-audio'], laneGroupId: 'lane' }, SAMPLE_RATE),
 		],
 	});
 }
@@ -108,7 +108,7 @@ function editCommand(project: ProjectRecord, options: Record<string, unknown>): 
 	// The command runtime is JavaScript, so the prepared command is narrowed to
 	// the protocol shape at this boundary.
 	return prepareThreePointEditCommand(
-		projectV10ForCommand(project as unknown as Record<string, unknown>),
+		projectForCommand(project as unknown as Record<string, unknown>),
 		options,
 		(prefix?: string) => `${String(prefix)}-${String(next++)}`,
 	) as unknown as ReturnType<typeof editCommand>;

@@ -64,7 +64,7 @@
 		"src/common/editor/ffmpeg-video-source-characteristics.ts",
 		"src/common/editor/ffmpeg-video-timing-probe.ts",
 		"src/common/editor/project-schema-version.ts",
-		"src/common/editor/project-v12-validation.ts",
+		"src/common/editor/project-hierarchy-document-validation.ts",
 		"src/common/editor/scape-project-document.ts"
 	],
 	"exclude": ["dist", "node_modules", "test-results"]

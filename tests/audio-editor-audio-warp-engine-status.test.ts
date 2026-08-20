@@ -14,7 +14,11 @@ import {
 	AUDIO_WARP_EXACT_MIN_CHUNK_FRAMES,
 	planExactAudioWarpWindow,
 } from '../src/common/editor/engine/audio-warp-fallback.ts';
-import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { ENGINE_SCHEDULE_PLAYBACK } from '../src/common/editor/engine/runtime-symbols.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 
@@ -373,11 +377,11 @@ test('play() keeps a cursor parked in the silent editor timeline tail', async ()
 });
 
 function warpProject(middleSource = 2, durationFrames = 4, sampleRate = 48_000, masterChannels = 1, warped = true) {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', frameCount: durationFrames,
 		channelCount: masterChannels, sampleRate,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 			id: 'clip', kind: 'audio', sourceId: 'source', anchor: 'sample',
 		timelineStartFrame: 0, durationFrames, sourceStartFrame: 0, sourceDurationFrames: durationFrames,
 		warpMap: warped ? { feature: 'audio-warp', points: [
@@ -389,7 +393,7 @@ function warpProject(middleSource = 2, durationFrames = 4, sampleRate = 48_000, 
 	return createAudioEditorProjectV17({
 		id: 'warp-project', title: 'Warp project', now: '2026-08-12T12:00:00.000Z',
 		sampleRate, masterChannels, sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', name: 'Warp', clipIds: ['clip'] }, sampleRate)],
+		tracks: [createAudioTrack({ id: 'track', name: 'Warp', clipIds: ['clip'] }, sampleRate)],
 	});
 }
 

@@ -3,7 +3,7 @@
 import {
 	preparePersistedProjectCommandDraft,
 } from '../common/editor/project-current-runtime.ts';
-import { projectV10ForCommand } from '../common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../common/editor/project-command-projection.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { normalizeVideoProxyAttachmentV18 } from '../common/editor/video-proxy-attachment-v18.ts';
 import {
@@ -114,7 +114,7 @@ export function framescaperProjectForCommandConsumersV18(
 ): FramescaperProjectRuntimeFoundationV17 {
 	assertFramescaperProjectV18Profile(profile);
 	validateFramescaperProjectV18(profile, project);
-	const projection = projectV10ForCommand({
+	const projection = projectForCommand({
 		...(project as FramescaperProjectV18),
 		schemaVersion: 17,
 	});

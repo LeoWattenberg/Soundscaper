@@ -21,7 +21,7 @@ const {
 	createFramescaperEditorProjectEnvironmentV19,
 } = await import('../src/framescaper/editor-project-environment-v19.ts');
 const { createInstrumentedIndexedDB } = await import('./helpers/instrumented-indexeddb.js');
-const { createVideoSourceV10, createVideoTrackV10 } = await import('../src/common/editor/project-v10.ts');
+const { createVideoSource, createVideoTrack } = await import('../src/common/editor/project-media-factory.ts');
 const {
 	DEFAULT_VIDEO_CLIP_COMPOSITION,
 } = await import('../src/common/editor/video-clip-composition.ts');
@@ -72,7 +72,7 @@ test('V19 controller commits video composition through authoritative history wit
 		id: 'controller-v19-composition',
 		title: 'Composition',
 		now: '2026-08-13T12:00:00.000Z',
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'source', name: 'Source', storageKey: 'source', mimeType: 'video/mp4',
 			contentSha256: '12'.repeat(32), sampleFrameCount: 48_000,
 			sourceFrameCount: 300, frameRate: rate, width: 1920, height: 1080,
@@ -82,7 +82,7 @@ test('V19 controller commits video composition through authoritative history wit
 			sequenceStartFrame: 0, sequenceFrameCount: 30, sourceInFrame: 0,
 			sourceFrameCount: 30, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'track', name: 'Video', clipIds: ['clip'], locked: false,
 		})],
 		sequences: [{ id: 'main', rate, trackIds: ['track'] }],

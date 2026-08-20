@@ -19,11 +19,10 @@ import {
 	loadCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV16 } from '../src/common/editor/project-v16.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createAudioEditorProjectV17,
 	type AudioEditorProjectV17,
@@ -59,16 +58,16 @@ function project(takeGroups: readonly unknown[] = [group()], locked = false): Au
 	return createAudioEditorProjectV17({
 		id: 'take-command-project', title: 'Take command project', now: NOW,
 		sources: [
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'source-a', storageKey: 'source-a', name: 'Take A',
 				frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'source-b', storageKey: 'source-b', name: 'Take B',
 				frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
 		],
-		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: [], locked })],
+		tracks: [createAudioTrack({ id: 'track-a', name: 'Vocal', clipIds: [], locked })],
 		sequences: [{ id: 'main-sequence', trackIds: ['track-a'] }],
 		primarySequenceId: 'main-sequence',
 		takeGroups,
@@ -116,9 +115,10 @@ test('serializable V17 commands create, replace, and remove canonical take group
 		type: 'take-comp/group-update', groupId: 'group-a',
 		group: commandObject({ ...added.takeGroups[0], id: 'renamed-group' }),
 	}, { now: NOW }), /identity is immutable/iu);
-	assert.throws(() => applyEditorCommand(createAudioEditorProjectV16({ id: 'v16', now: NOW }), {
+	const { takeGroups: _retiredTakeGroups, ...retiredV16 } = createAudioEditorProjectV17({ id: 'v16', now: NOW });
+	assert.throws(() => applyEditorCommand({ ...retiredV16, schemaVersion: 16 } as never, {
 		type: 'take-comp/group-add', group: commandObject(group()),
-	}, { now: NOW }), /Unsupported audio editor schema version: 16/iu);
+	}, { now: NOW }), /current audio editor project/iu);
 });
 
 test('the controller plans audition and commits promotion and boundary edits as atomic group updates', () => {
@@ -292,11 +292,11 @@ test('flatten rejects inexact publications and a rendered snapshot invalidated b
 });
 
 function flattenPublication(): { source: CommandObject; clip: CommandObject } {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'flat-source', storageKey: 'flat-source', name: 'Flattened comp',
 		frameCount: 400, channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'flat-clip', sourceId: 'flat-source', kind: 'audio', anchor: 'sample',
 		timelineStartFrame: 100, durationFrames: 400,
 		sourceStartFrame: 0, sourceDurationFrames: 400,

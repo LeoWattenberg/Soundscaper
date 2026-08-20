@@ -17,10 +17,10 @@ import { createEffect } from '../src/common/editor/effects.js';
 import type { EngineChunkSource, EngineChunkReadValue } from '../src/common/editor/engine/types.ts';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { normalizeProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
@@ -239,19 +239,19 @@ test('fresh Framescaper acquires, plays, and delivers an unknown-feature audio f
 });
 
 function fallbackProjectFixture() {
-	const original = createAudioSourceV9({
+	const original = createAudioSource({
 		id: 'fallback-handoff-original', storageKey: 'physical/fallback-handoff-original',
 		name: 'Editable original.wav', mimeType: 'audio/wav', frameCount: ORIGINAL_CHANNELS[0].length,
 		channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: ORIGINAL_CHANNELS[0].length,
 	});
-	const fallback = createAudioSourceV9({
+	const fallback = createAudioSource({
 		id: 'fallback-handoff-render', storageKey: 'physical/fallback-handoff-render',
 		name: 'Rendered fallback.wav', mimeType: 'audio/wav', frameCount: FALLBACK_CHANNELS[0].length,
 		channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: FALLBACK_CHANNELS[0].length,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'fallback-handoff-original-clip', sourceId: original.id,
 		title: 'Editable original', durationFrames: original.frameCount,
 		sourceDurationFrames: original.frameCount,
@@ -261,7 +261,7 @@ function fallbackProjectFixture() {
 		id: 'audio-rendered-fallback-handoff', title: 'Audio rendered fallback handoff', revision: 3,
 		now: '2026-08-02T12:00:00.000Z', sampleRate: 48_000, masterChannels: 2,
 		sources: [original, fallback], clips: [clip],
-		tracks: [createAudioTrackV9({
+		tracks: [createAudioTrack({
 			id: 'fallback-handoff-original-track', name: 'Editable effects', clipIds: [clip.id],
 			effects: [createEffect('compressor', { id: 'fallback-handoff-compressor' })],
 		})],
@@ -325,7 +325,7 @@ function projectStore(databaseName: string, bridge: DesktopSharedProjectBridge) 
 
 async function writePcm(
 	store: AudioEditorProjectStore,
-	source: ReturnType<typeof createAudioSourceV9>,
+	source: ReturnType<typeof createAudioSource>,
 	channels: readonly (readonly number[])[],
 ): Promise<void> {
 	const writer = await store.beginSourceWrite(source.storageKey, {

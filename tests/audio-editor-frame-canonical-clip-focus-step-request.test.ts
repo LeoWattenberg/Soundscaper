@@ -7,16 +7,18 @@ import {
 	buildFrameCanonicalClipFocusStepRequest,
 	resolveFrameCanonicalClipFocusIntent,
 } from '../src/common/editor/frame-canonical-clip-focus-step-request.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	brandRuntimeProjectProjection,
 	type RuntimeClipProject,
@@ -154,42 +156,42 @@ function commandProject(options: Readonly<{
 	rate: RationalRate;
 }>) {
 	const { sampleRate, rate } = options;
-	const videoSource = createVideoSourceV10({
+	const videoSource = createVideoSource({
 		id: 'video-source', sampleFrameCount: sampleRate * 20, sampleRate,
 		width: 16, height: 16, frameRate: rate, sourceFrameCount: 1_000,
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate },
 	}, sampleRate);
-	const audioSource = createAudioSourceV10({
+	const audioSource = createAudioSource({
 		id: 'audio-source', frameCount: sampleRate * 20, sampleRate, channelCount: 1,
 	});
 	const sequence = Object.freeze({ id: 'main', rate });
-	const video = createVideoClipV10({
+	const video = createVideoClip({
 		id: 'linked-video', sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame: 10, sequenceFrameCount: 10,
 		sourceInFrame: 100, sourceFrameCount: 10, avLinkId: 'exact-link',
 	}, { projectSampleRate: sampleRate, sequence, source: videoSource });
 	const start = boundary(10, rate, sampleRate);
 	const end = boundary(20, rate, sampleRate);
-	const audio = createAudioClipV10({
+	const audio = createAudioClip({
 		id: 'linked-audio', sourceId: 'audio-source', avLinkId: 'exact-link',
 		timelineStartFrame: start, durationFrames: end - start,
 		sourceStartFrame: sampleRate, sourceDurationFrames: end - start,
 	});
 	const tracks = [
-		createVideoTrackV10({
+		createVideoTrack({
 			id: 'video-track', clipIds: ['linked-video'], laneGroupId: 'av-lanes', locked: false,
 		}),
-		createAudioTrackV10({
+		createAudioTrack({
 			id: 'audio-track', clipIds: ['linked-audio'], laneGroupId: 'av-lanes', locked: false,
 		}, sampleRate),
 	];
-	const persisted = createAudioEditorProjectV15({
+	const persisted = createCurrentAudioEditorProject({
 		id: 'clip-focus-step', now: NOW, sampleRate,
 		sequences: [{ id: 'main', rate, trackIds: ['video-track', 'audio-track'] }],
 		primarySequenceId: 'main', sources: [videoSource, audioSource],
 		clips: [video, audio], tracks,
 	});
-	return projectV10ForCommand(
+	return projectForCommand(
 		persisted as unknown as Record<string, unknown>,
 	) as CommandProject;
 }

@@ -8,7 +8,9 @@ import type { DesktopLibraryOwner } from '../../desktop/project-library-contract
 import { DesktopSharedProjectLibraryService } from '../../desktop/project-library-editor-service.ts';
 import { DesktopProjectLibraryHost } from '../../desktop/project-library-host.ts';
 import type { EngineChunkReadValue } from '../../src/common/editor/engine/types.ts';
-import type { AudioEditorProjectV9 } from '../../src/common/editor/project-v9.ts';
+import {
+	type AudioEditorProjectCurrent,
+} from '../../src/common/editor/project-current.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../../src/common/editor/storage.js';
 import type { DesktopSharedProjectBridge } from '../../src/common/editor/storage/desktop-shared-project-repository.ts';
 import type { EditorController } from '../../src/common/editor/types.ts';
@@ -21,7 +23,7 @@ export interface BridgeProbe {
 
 export interface HeadlessEngineProbe {
 	readonly engine: Readonly<Record<string, unknown>>;
-	readonly project: () => AudioEditorProjectV9 | null;
+	readonly project: () => AudioEditorProjectCurrent | null;
 	readonly samplesFor: (sourceId: string) => readonly (readonly number[])[] | null;
 	readonly state: () => 'paused' | 'playing' | 'stopped';
 }
@@ -115,10 +117,10 @@ export async function readPcm(store: AudioEditorProjectStore, storageKey: string
 
 export function createHeadlessEngine(): HeadlessEngineProbe {
 	const appliedSources = new Map<string, readonly (readonly number[])[]>();
-	let appliedProject: AudioEditorProjectV9 | null = null;
+	let appliedProject: AudioEditorProjectCurrent | null = null;
 	let state: 'paused' | 'playing' | 'stopped' = 'stopped';
 	const capture = (project: unknown, buffers: unknown): void => {
-		appliedProject = project as AudioEditorProjectV9;
+		appliedProject = project as AudioEditorProjectCurrent;
 		appliedSources.clear();
 		if (!(buffers instanceof Map)) return;
 		for (const [sourceId, buffer] of buffers) {

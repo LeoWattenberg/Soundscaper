@@ -9,7 +9,10 @@ import type {
 	VideoKeyframeOfflineVideoExportRequest,
 } from '../src/common/editor/ui/video-keyframe-offline-video-export.ts';
 import type { VideoKeyframeExportPlanV7 } from '../src/common/editor/video-keyframe-export-plan-v7.ts';
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import {
 	reconcileFramescaperProjectFeatureRequirementsV20,
@@ -442,7 +445,7 @@ test('common lifecycle bypasses the invalid schema-17 exact-project clone for ke
 function keyedProject() {
 	const options = framescaperV20Options();
 	const sources = options.sources as Record<string, unknown>[];
-	sources.push(createVideoSourceV10({
+	sources.push(createVideoSource({
 		id: 'late-source', name: 'Late', storageKey: 'late-source', mimeType: 'video/mp4',
 		contentSha256: '34'.repeat(32), sampleFrameCount: 48_000, sourceFrameCount: 30,
 		frameRate: { num: 30_000, den: 1_001 }, width: 1_920, height: 1_080,
@@ -467,7 +470,7 @@ function keyedProject() {
 function folderProject(keyed: boolean) {
 	const options = framescaperV20Options();
 	const sources = options.sources as Record<string, unknown>[];
-	sources.push(createVideoSourceV10({
+	sources.push(createVideoSource({
 		id: 'late-source', name: 'Late', storageKey: 'late-source', mimeType: 'video/mp4',
 		contentSha256: '34'.repeat(32), sampleFrameCount: 48_000, sourceFrameCount: 30,
 		frameRate: { num: 30_000, den: 1_001 }, width: 1_920, height: 1_080,
@@ -479,7 +482,7 @@ function folderProject(keyed: boolean) {
 		sourceInFrame: 0, sourceFrameCount: 30, retimeMap: null,
 	});
 	const tracks = options.tracks as Record<string, unknown>[];
-	tracks.push(createVideoTrackV10({
+	tracks.push(createVideoTrack({
 		id: 'late-track', name: 'Late', clipIds: ['late-clip'], locked: false,
 	}));
 	options.trackFolders = [{

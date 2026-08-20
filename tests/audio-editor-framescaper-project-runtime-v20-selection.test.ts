@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createSetVideoKeyframesCommand } from '../src/common/editor/commands.js';
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { editorProjectStorageProfileNames } from '../src/common/editor/storage/project-storage-profile.ts';
 import {
 	reconcileFramescaperProjectFeatureRequirementsV20,
@@ -114,7 +117,7 @@ test('V20 qualification runtime owns isolated store and lock profiles', async ()
 function projectFixture(id: string): ReturnType<typeof createFramescaperProjectV20> {
 	const project = createFramescaperProjectV20(PROFILE, {
 		id, title: 'Selected V20', now: NOW,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'video-source', name: 'Video', storageKey: 'video-source', mimeType: 'video/mp4',
 			contentSha256: '12'.repeat(32), frameCount: 48_000, sampleFrameCount: 48_000,
 			sourceFrameCount: 30, frameRate: { num: 30, den: 1 }, width: 1_920, height: 1_080,
@@ -124,7 +127,7 @@ function projectFixture(id: string): ReturnType<typeof createFramescaperProjectV
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 30,
 			sourceInFrame: 0, sourceFrameCount: 30, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 }, trackIds: ['video-track'] }],

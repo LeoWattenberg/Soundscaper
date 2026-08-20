@@ -7,10 +7,10 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import {
 	DESKTOP_SHARED_AUDIO_ENCODING,
@@ -104,7 +104,7 @@ test('an accepted shadow commits managed acquisition before observing late cance
 function managedLoadScenario(
 	save: (project: AudioEditorProjectCurrent) => Promise<ProjectDocument>,
 ) {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'managed-load-source',
 		storageKey: 'managed-load-storage',
 		name: 'managed-load.wav',
@@ -116,7 +116,7 @@ function managedLoadScenario(
 		sampleFormat: 'float32',
 		chunkFrames: 1,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'managed-load-clip',
 		sourceId: source.id,
 		durationFrames: 1,
@@ -129,7 +129,7 @@ function managedLoadScenario(
 		now: NOW,
 		sources: [source],
 		clips: [clip],
-		tracks: [createAudioTrackV9({ id: 'managed-load-track', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'managed-load-track', clipIds: [clip.id] })],
 	});
 	const bytes = canonicalPcmBytes(SAMPLE);
 	const descriptor: DesktopSharedManagedSourceDescriptor = Object.freeze({
@@ -234,7 +234,7 @@ function transferStore(): Readonly<{
 }
 
 function availableAudio(
-	source: ReturnType<typeof createAudioSourceV9>,
+	source: ReturnType<typeof createAudioSource>,
 ): DesktopSharedProjectSourceAvailability {
 	return {
 		async getSourceMetadata(sourceId) {

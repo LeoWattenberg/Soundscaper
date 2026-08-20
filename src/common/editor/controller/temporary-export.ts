@@ -170,22 +170,29 @@ export async function createStreamingZipArchive(
 	};
 }
 
-export function stemProject(
-	project: Parameters<typeof cloneProject>[0],
+export function stemProject<Project extends object>(
+	project: Project,
 	trackId: string,
-): ReturnType<typeof cloneProject> {
+): Project {
 	const mediaProject = projectTrackFolderMediaStateV12(project);
 	const snapshot = inheritTrackFolderMediaStateProjectionV12(
 		mediaProject,
 		cloneProject(mediaProject),
 	);
-	const production = isSoundscaperProductionProjectSchema(snapshot.schemaVersion);
-	snapshot.tracks = snapshot.tracks.map((track) => track.id === trackId
+	const mutable = snapshot as unknown as MutableStemProject;
+	const production = isSoundscaperProductionProjectSchema(mutable.schemaVersion);
+	mutable.tracks = mutable.tracks.map((track) => track.id === trackId
 		? { ...track, mute: false, solo: false }
 		: { ...track, mute: true, solo: false, ...(production ? {} : { effects: [] }) });
-	if (production) projectProductionStemSnapshot(snapshot);
-	else snapshot.master = { gain: 1, effects: [] };
+	if (production) projectProductionStemSnapshot(mutable);
+	else mutable.master = { gain: 1, effects: [] };
 	return snapshot;
+}
+
+interface MutableStemProject {
+	schemaVersion?: unknown;
+	tracks: Record<string, unknown>[];
+	master: Record<string, unknown>;
 }
 
 interface MutableProductionStemProject {

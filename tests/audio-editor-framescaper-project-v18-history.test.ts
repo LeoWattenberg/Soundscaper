@@ -7,7 +7,10 @@ import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
 } from '../src/common/editor/scape-project-document.ts';
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	FRAMESCAPER_NESTED_SEQUENCES_REQUIREMENT_V18,
 	FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18,
@@ -73,10 +76,10 @@ test('generic V18 commands cannot introduce a proxy, and carry or drop the one t
 	assert.equal(addedSource?.kind, 'video');
 	assert.equal(addedSource?.proxyAttachment, null);
 
-	const attachedSource = createVideoSourceV10({
+	const attachedSource = createVideoSource({
 		...hostileSource, contentSha256: '12'.repeat(32),
 	});
-	delete attachedSource.proxyAttachment;
+	Reflect.deleteProperty(attachedSource, 'proxyAttachment');
 	const attached = structuredClone(createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
 		id: 'v18-attached', title: 'Attached', now: CREATED,
 		sources: [attachedSource],
@@ -85,7 +88,7 @@ test('generic V18 commands cannot introduce a proxy, and carry or drop the one t
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({ id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true })],
+		tracks: [createVideoTrack({ id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true })],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],
 		primarySequenceId: 'main-sequence',
 	})) as unknown as Record<string, unknown>;

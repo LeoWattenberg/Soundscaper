@@ -8,16 +8,18 @@ import {
 } from '../src/common/editor/frame-canonical-slip-slide-step-request.ts';
 import type { VideoSourceTimingView } from '../src/common/editor/frame-canonical-slip-slide-domain.ts';
 import { planFrameCanonicalSlipSlide } from '../src/common/editor/frame-canonical-slip-slide-planner.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';
 
 const SAMPLE_RATE = 48_000;
@@ -116,7 +118,7 @@ function commandProject(options: Readonly<{
 	linkedAudio?: boolean;
 	zeroAuthority?: boolean;
 }> = {}) {
-	const videoSource = createVideoSourceV10({
+	const videoSource = createVideoSource({
 		id: 'video-source', sampleFrameCount: 2_000_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: SOURCE_RATE, sourceFrameCount: 1_000,
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate: SOURCE_RATE },
@@ -129,7 +131,7 @@ function commandProject(options: Readonly<{
 		{ id: 'center-video', sequenceStartFrame: 1, sequenceFrameCount: 1, sourceInFrame: 200 },
 		{ id: 'right-video', sequenceStartFrame: 2, sequenceFrameCount: 2, sourceInFrame: 300 },
 	] as const;
-	const clips: Record<string, unknown>[] = specifications.map((specification) => createVideoClipV10({
+	const clips: Record<string, unknown>[] = specifications.map((specification) => createVideoClip({
 		...specification,
 		sourceFrameCount: specification.sequenceFrameCount * 10,
 		sourceId: 'video-source', sequenceId: 'main',
@@ -140,33 +142,33 @@ function commandProject(options: Readonly<{
 		source: videoSource,
 	}));
 	const sources: Record<string, unknown>[] = [videoSource];
-	const tracks: Record<string, unknown>[] = [createVideoTrackV10({
+	const tracks: Record<string, unknown>[] = [createVideoTrack({
 		id: 'video-track', clipIds: specifications.map(({ id }) => id), locked: false,
 		laneGroupId: options.linkedAudio ? 'av-lanes' : null,
 	})];
 	if (options.linkedAudio) {
-		const audioSource = createAudioSourceV10({
+		const audioSource = createAudioSource({
 			id: 'audio-source', frameCount: 200_000, sampleRate: SAMPLE_RATE, channelCount: 1,
 		});
 		const start = boundary(1);
 		const end = boundary(2);
-		clips.push(createAudioClipV10({
+		clips.push(createAudioClip({
 			id: 'center-audio', sourceId: 'audio-source', avLinkId: 'center-link',
 			timelineStartFrame: start, durationFrames: end - start,
 			sourceStartFrame: 10_000, sourceDurationFrames: end - start,
 		}));
 		sources.push(audioSource);
-		tracks.push(createAudioTrackV10({
+		tracks.push(createAudioTrack({
 			id: 'audio-track', clipIds: ['center-audio'], locked: false,
 			laneGroupId: 'av-lanes',
 		}, SAMPLE_RATE));
 	}
-	const persisted = createAudioEditorProjectV15({
+	const persisted = createCurrentAudioEditorProject({
 		id: 'slip-slide-step-request', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate: SEQUENCE_RATE, trackIds: tracks.map(({ id }) => String(id)) }],
 		primarySequenceId: 'main', sources, clips, tracks,
 	});
-	return projectV10ForCommand(persisted as unknown as Record<string, unknown>);
+	return projectForCommand(persisted as unknown as Record<string, unknown>);
 }
 
 function boundary(frame: number): number {

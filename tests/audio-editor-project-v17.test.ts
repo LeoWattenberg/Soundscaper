@@ -19,16 +19,16 @@ import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
 	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION,
 	isActiveAudioEditorProjectSchema,
 	isTakeCompProjectSchema,
 	isVideoRetimeCurveProjectSchema,
 } from '../src/common/editor/project-schema-version.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV16 } from '../src/common/editor/project-v16.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION,
 	cloneAudioEditorProjectV17,
@@ -46,9 +46,10 @@ import { normalizeProjectFeatureRequirements } from '../src/common/editor/projec
 
 const NOW = '2026-08-12T10:00:00.000Z';
 
-test('active audio-authoring schemas admit V17 and Soundscaper V21 only', () => {
+test('active audio-authoring schemas admit V17 and Soundscaper V21/V23 only', () => {
 	assert.equal(isActiveAudioEditorProjectSchema(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION), true);
 	assert.equal(isActiveAudioEditorProjectSchema(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION), true);
+	assert.equal(isActiveAudioEditorProjectSchema(SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION), true);
 	assert.equal(isActiveAudioEditorProjectSchema(16), false);
 	assert.equal(isActiveAudioEditorProjectSchema(FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION), false);
 	assert.equal(isActiveAudioEditorProjectSchema(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1), false);
@@ -58,14 +59,14 @@ function options(takeGroups: readonly unknown[] = [group()]): Record<string, unk
 	return {
 		id: 'take-comp-project', title: 'Take comp project', now: NOW,
 		sources: [
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'source-a', name: 'Take A', frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'source-b', name: 'Take B', frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
 		],
-		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'track-a', name: 'Vocal', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['track-a'] }],
 		primarySequenceId: 'main-sequence',
 		takeGroups,
@@ -130,7 +131,7 @@ test('V17 creates canonical take/comp state and its reserved no-fallback require
 });
 
 test('valid Project Bin warp state places as a distinct native timeline clip', () => {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'bin-warp-source', storageKey: 'bin-warp-source',
 		frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 	});
@@ -142,7 +143,7 @@ test('valid Project Bin warp state places as a distinct native timeline clip', (
 			{ outer: 500, source: 600, mode: 'forward' as const },
 		],
 	};
-	const binClip = createAudioClipV10({
+	const binClip = createAudioClip({
 		id: 'bin-warp-clip', binItemId: 'bin-warp-clip', sourceId: source.id,
 		timelineStartFrame: 0, durationFrames: 500,
 		sourceStartFrame: 100, sourceDurationFrames: 500, warpMap,
@@ -150,7 +151,7 @@ test('valid Project Bin warp state places as a distinct native timeline clip', (
 	const project = createAudioEditorProjectV17({
 		id: 'bin-warp-project', title: 'Project Bin warp', now: NOW,
 		sources: [source], clips: [],
-		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Audio', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'track-a', name: 'Audio', clipIds: [] })],
 		projectBin: { clips: [binClip] },
 	});
 	const placed = applyEditorCommand(project, {
@@ -176,7 +177,7 @@ test('V17 defaults to no take groups and does not invent optional feature state'
 test('V17 accepts only timeline warp maps with complete native runtime authority', () => {
 	const warpOptions = (overrides: Record<string, unknown> = {}) => ({
 		...options([]),
-		clips: [createAudioClipV10({
+		clips: [createAudioClip({
 			id: 'warp-clip', kind: 'audio', sourceId: 'source-a', anchor: 'sample',
 			timelineStartFrame: 0, durationFrames: 100,
 			sourceStartFrame: 10, sourceDurationFrames: 200,
@@ -186,7 +187,7 @@ test('V17 accepts only timeline warp maps with complete native runtime authority
 			] },
 			...overrides,
 		})],
-		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: ['warp-clip'] })],
+		tracks: [createAudioTrack({ id: 'track-a', name: 'Vocal', clipIds: ['warp-clip'] })],
 	});
 	assert.equal(validateAudioEditorProjectV17(createAudioEditorProjectV17(warpOptions())), true);
 	for (const warpMap of [
@@ -347,7 +348,10 @@ test('V17 is the sole current schema while V16 reimports and V18 remains opaque'
 	assert.equal(isTakeCompProjectSchema(16), false);
 	assert.equal(isVideoRetimeCurveProjectSchema(17), true);
 
-	const v16 = createAudioEditorProjectV16({ id: 'historical-v16', now: NOW });
+	const v16 = {
+		...createAudioEditorProjectV17({ id: 'historical-v16', now: NOW }),
+		schemaVersion: 16,
+	};
 	assert.throws(
 		() => migrateAudioEditorProject(v16),
 		(error: unknown) => error instanceof AudioEditorProjectReimportRequiredError,

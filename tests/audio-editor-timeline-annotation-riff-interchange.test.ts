@@ -5,7 +5,9 @@ import test from 'node:test';
 
 import { createExportPlan } from '../src/common/editor/export.js';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-import { createAudioEditorProjectV10, createLabelTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createLabelTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { createRiffMarkerChunks, parseRiffMarkers } from '../src/common/editor/riff-markers.ts';
 import {
@@ -130,7 +132,7 @@ test('RIFF import loss-accounts sub-sample region expansion and rejects unsafe e
 });
 
 test('WAV planning keeps annotations and maintained label tracks explicitly selectable and distinct', () => {
-	const labelTrack = createLabelTrackV10({
+	const labelTrack = createLabelTrack({
 		id: 'labels',
 		name: 'Internal labels',
 		labels: [
@@ -169,12 +171,14 @@ test('WAV planning keeps annotations and maintained label tracks explicitly sele
 		markerSource: 'timeline-annotations',
 		markerTrackId: 'labels',
 	}), /cannot select/iu);
-	const legacy = createAudioEditorProjectV10({ id: 'legacy-riff-source', now: NOW });
-	assert.throws(() => createRiffAnnotationExport(legacy, {
+	assert.throws(() => createRiffAnnotationExport({
+		...structuredClone(project),
+		schemaVersion: 10,
+	} as never, {
 		range: { startFrame: 0, endFrame: 1 },
 		outputSampleRate: 48_000,
 		markerSource: 'timeline-annotations',
-	}), /maintained timeline-annotation project schema/iu);
+	}), /timeline-annotation project schema/iu);
 });
 
 function annotation(overrides: Record<string, unknown>): Record<string, unknown> {

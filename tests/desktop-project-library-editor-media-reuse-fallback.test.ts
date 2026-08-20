@@ -19,10 +19,10 @@ import {
 import { DesktopLibraryMediaReuseUnavailableError } from '../desktop/project-library-media-reuse.ts';
 import type { DesktopLibraryLoadedProjectBundle } from '../desktop/project-library-projects.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const PROJECT_SHA256 = '0'.repeat(64);
 const WRITE_ID = '1'.repeat(32);
@@ -76,7 +76,7 @@ test('an unavailable hard-link optimization falls back to a normal bounded uploa
 });
 
 function mediaFixture() {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'reuse-fallback-source',
 		name: 'Reuse fallback.wav',
 		mimeType: 'audio/wav',
@@ -88,7 +88,7 @@ function mediaFixture() {
 		sampleFormat: 'float32',
 		chunkFrames: 2,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'reuse-fallback-clip',
 		sourceId: source.id,
 		durationFrames: source.frameCount,
@@ -101,7 +101,7 @@ function mediaFixture() {
 		sampleRate: 48_000,
 		sources: [source],
 		clips: [clip],
-		tracks: [createAudioTrackV9({ id: 'reuse-fallback-track', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'reuse-fallback-track', clipIds: [clip.id] })],
 	});
 	const byteLength = source.frameCount * source.channelCount * Float32Array.BYTES_PER_ELEMENT + 8;
 	const bytes = Uint8Array.from({ length: byteLength }, (_, index) => index + 1);

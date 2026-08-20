@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import {
 	DEFAULT_VIDEO_CLIP_COMPOSITION,
@@ -107,7 +110,7 @@ function projectFixture() {
 		id: 'framescaper-v19-scape',
 		title: 'Framescaper V19 Scape',
 		now: NOW,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'video-source', name: 'V19.mp4', storageKey: 'video-source',
 			mimeType: 'video/mp4', contentSha256: VIDEO_SHA256,
 			frameCount: 48_000, sampleFrameCount: 48_000, sourceFrameCount: 10,
@@ -118,7 +121,7 @@ function projectFixture() {
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,
 		})],
 		sequences: [{

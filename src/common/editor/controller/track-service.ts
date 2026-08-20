@@ -162,7 +162,6 @@ export function createEditorTrackService(
 		const color = options.color || dependencies.trackColors[audioTrackCount % dependencies.trackColors.length];
 		const command = createAddTrackCommand({
 			...options,
-			schemaVersion: 2,
 			type: 'audio',
 			id: trackId,
 			name: String(options.name || `${dependencies.copy.track} ${project.tracks.length + 1}`).trim()
@@ -191,7 +190,6 @@ export function createEditorTrackService(
 			|| `Video ${project.tracks.filter((track) => track.type === 'video').length + 1}`).trim();
 		const commands: AudioEditorCommand[] = [{
 			...createAddTrackCommand({
-				schemaVersion: 4,
 				type: 'video',
 				id: videoTrackId,
 				name: baseName,
@@ -201,7 +199,6 @@ export function createEditorTrackService(
 			index: requestedIndex,
 		}, {
 			...createAddTrackCommand({
-				schemaVersion: 4,
 				type: 'audio',
 				id: audioTrackId,
 				name: `${baseName} Audio`,

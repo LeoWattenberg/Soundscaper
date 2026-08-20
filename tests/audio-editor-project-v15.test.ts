@@ -5,60 +5,39 @@ import test from 'node:test';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
+	createAudioTrack,
+	createLabelTrack,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
 	cloneCurrentAudioEditorProject,
 	createCurrentAudioEditorProject,
 	loadCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
 } from '../src/common/editor/project-current.ts';
-import {
-	isSourceCharacteristicsProjectSchema,
-	isTimelineAnnotationProjectSchema,
-	isTrackFolderProjectSchema,
-	isTrackLockProjectSchema,
-} from '../src/common/editor/project-schema-version.ts';
-import {
-	createAudioTrackV10,
-	createLabelTrackV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import {
-	createAudioEditorProjectV14,
-	validateAudioEditorProjectV14,
-} from '../src/common/editor/project-v14.ts';
-import {
-	AUDIO_EDITOR_PROJECT_V15_SCHEMA_VERSION,
-	cloneAudioEditorProjectV15,
-	createAudioEditorProjectV15,
-	loadAudioEditorProjectV15,
-	validateAudioEditorProjectV15,
-	type AudioEditorProjectV15,
-} from '../src/common/editor/project-v15.ts';
+import { validateProjectTrackLocks } from '../src/common/editor/project-track-lock-validation.ts';
 import { projectTrackFolderMediaStateV12 } from '../src/common/editor/track-folder-media-runtime.ts';
 
 const NOW = '2026-08-11T14:00:00.000Z';
 
-function allTrackKindsProject(): AudioEditorProjectV15 {
-	return createAudioEditorProjectV15({
-		id: 'v15-track-locks',
-		title: 'V15 track locks',
+function allTrackKindsProject(): AudioEditorProjectCurrent {
+	return createCurrentAudioEditorProject({
+		id: 'current-track-locks',
+		title: 'Current track locks',
 		now: NOW,
 		tracks: [
-			createAudioTrackV10({ id: 'audio', name: 'Audio' }),
-			createVideoTrackV10({ id: 'video', name: 'Video', locked: true }),
-			createLabelTrackV10({ id: 'label', name: 'Labels' }),
+			createAudioTrack({ id: 'audio', name: 'Audio' }),
+			createVideoTrack({ id: 'video', name: 'Video', locked: true }),
+			createLabelTrack({ id: 'label', name: 'Labels' }),
 		],
 	});
 }
 
-test('V15 remains historical and defaults a required lock for every track kind', () => {
+test('current construction defaults an enumerable lock for every track kind', () => {
 	const project = allTrackKindsProject();
 
-	assert.equal(AUDIO_EDITOR_PROJECT_V15_SCHEMA_VERSION, 15);
-	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 17);
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 17);
-	assert.equal(project.schemaVersion, 15);
+	assert.equal(project.schemaVersion, 17);
 	assert.deepEqual(project.tracks.map(({ type, locked }) => ({ type, locked })), [
 		{ type: 'audio', locked: false },
 		{ type: 'video', locked: true },
@@ -70,15 +49,16 @@ test('V15 remains historical and defaults a required lock for every track kind',
 		assert.equal(Object.hasOwn(descriptor ?? {}, 'value'), true);
 		assert.equal(typeof descriptor?.value, 'boolean');
 	}
-	assert.equal(validateAudioEditorProjectV15(project), true);
-	assert.throws(() => validateCurrentAudioEditorProject(project), /schema version/iu);
+	validateProjectTrackLocks(project);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
 });
 
-test('V15 rejects a missing, hidden, accessor-backed, or non-boolean track lock', () => {
+test('neutral lock validation rejects missing, hidden, accessor-backed, and non-boolean state', () => {
 	const project = allTrackKindsProject();
 	const missing = structuredClone(project) as unknown as Record<string, unknown>;
 	delete (missing.tracks as Record<string, unknown>[])[0]!.locked;
-	assert.throws(() => validateAudioEditorProjectV15(missing), /locked.*own.*data property/iu);
+	assert.throws(() => validateProjectTrackLocks(missing), /locked.*own.*data property/iu);
+	assert.throws(() => validateCurrentAudioEditorProject(missing), /locked.*own.*data property/iu);
 
 	const hidden = structuredClone(project) as unknown as Record<string, unknown>;
 	Object.defineProperty((hidden.tracks as Record<string, unknown>[])[0], 'locked', {
@@ -86,8 +66,8 @@ test('V15 rejects a missing, hidden, accessor-backed, or non-boolean track lock'
 		value: false,
 	});
 	assert.throws(
-		() => validateAudioEditorProjectV15(hidden),
-		/locked.*own.*enumerable.*data property|properties must be enumerable data properties/iu,
+		() => validateProjectTrackLocks(hidden),
+		/locked.*own.*enumerable.*data property/iu,
 	);
 
 	let getterCalls = 0;
@@ -99,62 +79,31 @@ test('V15 rejects a missing, hidden, accessor-backed, or non-boolean track lock'
 			return false;
 		},
 	});
-	assert.throws(
-		() => validateAudioEditorProjectV15(accessor),
-		/locked.*data property|accessor|properties must be enumerable data properties/iu,
-	);
+	assert.throws(() => validateProjectTrackLocks(accessor), /locked.*data property/iu);
 	assert.equal(getterCalls, 0);
 
 	const invalid = structuredClone(project) as unknown as Record<string, unknown>;
 	(invalid.tracks as Record<string, unknown>[])[0]!.locked = 'false';
-	assert.throws(() => validateAudioEditorProjectV15(invalid), /locked.*boolean/iu);
+	assert.throws(() => validateProjectTrackLocks(invalid), /locked.*boolean/iu);
 });
 
-test('V15 clone/load preserve locks, V14 remains historical, and V16 stays opaque read-only', () => {
+test('current clone and load preserve lock authority without aliases', () => {
 	const project = allTrackKindsProject();
-	const clone = cloneAudioEditorProjectV15(project);
-	const loaded = loadAudioEditorProjectV15(JSON.parse(JSON.stringify(project)) as unknown);
+	const clone = cloneCurrentAudioEditorProject(project);
+	const loaded = loadCurrentAudioEditorProject(JSON.parse(JSON.stringify(project)) as unknown);
 
 	assert.notStrictEqual(clone, project);
 	assert.deepEqual(clone, project);
+	assert.notStrictEqual(clone.tracks, project.tracks);
 	assert.deepEqual(loaded, { project, readOnly: false, reason: null });
 	assert.equal(clone.tracks[1]?.locked, true);
-
-	const v14 = createAudioEditorProjectV14({ id: 'historical-v14', now: NOW });
-	assert.equal(validateAudioEditorProjectV14(v14), true);
-	assert.throws(() => validateAudioEditorProjectV15(v14), /unsupported audio editor schema version/iu);
-	assert.throws(() => loadAudioEditorProjectV15(v14), /unsupported audio editor schema version/iu);
-
-	const future = { ...project, schemaVersion: 16, futureState: { retained: true } };
-	const futureLoaded = loadAudioEditorProjectV15(future);
-	assert.deepEqual(futureLoaded, {
-		project: future,
-		readOnly: true,
-		reason: 'newer-schema',
-	});
-	assert.notStrictEqual(futureLoaded.project, future);
 });
 
-test('current aliases route V17 while inherited lock predicates retain V15', () => {
-	const project = createCurrentAudioEditorProject({ now: NOW });
-	const clone = cloneCurrentAudioEditorProject(project);
-	const loaded = loadCurrentAudioEditorProject(project);
-
-	assert.equal(project.schemaVersion, 17);
-	assert.deepEqual(clone, project);
-	assert.deepEqual(loaded, { project, readOnly: false, reason: null });
-	assert.equal(isTimelineAnnotationProjectSchema(15), true);
-	assert.equal(isTrackFolderProjectSchema(15), true);
-	assert.equal(isSourceCharacteristicsProjectSchema(15), true);
-	assert.equal(isTrackLockProjectSchema(15), true);
-	assert.equal(isTrackLockProjectSchema(14), false);
-});
-
-test('the exact-current folder media projection retains V17 lock state', () => {
+test('folder media projection retains current lock state while applying folder media state', () => {
 	const project = createCurrentAudioEditorProject({
-		id: 'v17-folder-projection',
+		id: 'current-folder-projection',
 		now: NOW,
-		tracks: [createAudioTrackV10({ id: 'audio', name: 'Audio', locked: true, mute: false })],
+		tracks: [createAudioTrack({ id: 'audio', name: 'Audio', locked: true, mute: false })],
 		trackFolders: [{
 			id: 'folder', name: 'Folder', collapsed: false, height: 40,
 			hidden: false, mute: true, solo: false,
@@ -175,12 +124,12 @@ test('the exact-current folder media projection retains V17 lock state', () => {
 	assert.equal(projected.tracks[0]?.locked, true);
 });
 
-test('current V17 track commands retain the V15 lock contract', () => {
+test('current track commands default and retain lock authority', () => {
 	let project = createCurrentAudioEditorProject({ id: 'track-commands', now: NOW });
 	for (const track of [
-		createAudioTrackV10({ id: 'audio', name: 'Audio' }),
-		createVideoTrackV10({ id: 'video', name: 'Video' }),
-		createLabelTrackV10({ id: 'label', name: 'Labels' }),
+		createAudioTrack({ id: 'audio', name: 'Audio' }),
+		createVideoTrack({ id: 'video', name: 'Video' }),
+		createLabelTrack({ id: 'label', name: 'Labels' }),
 	]) {
 		project = applyEditorCommand(project, { type: 'track/add', track });
 	}

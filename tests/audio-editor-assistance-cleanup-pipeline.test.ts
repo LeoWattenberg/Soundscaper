@@ -15,10 +15,10 @@ import {
 } from '../src/common/editor/commands.js';
 import { createEditorHistory, executeEditorCommand, undoEditorCommand } from '../src/common/editor/history.js';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import {
@@ -59,11 +59,11 @@ const RECOGNITION = Object.freeze({
 });
 
 function podcastProject() {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', name: 'Episode',
 		frameCount: SAMPLE_RATE * 30, channelCount: 1, sampleRate: SAMPLE_RATE,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, title: 'Episode', anchor: 'sample',
 		timelineStartFrame: 0, durationFrames: SAMPLE_RATE * 30,
 		sourceStartFrame: 0, sourceDurationFrames: SAMPLE_RATE * 30,
@@ -71,7 +71,7 @@ function podcastProject() {
 	return createCurrentAudioEditorProject({
 		id: 'cleanup-project', now: NOW,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', name: 'Dialogue', clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', name: 'Dialogue', clipIds: ['clip'] })],
 	});
 }
 

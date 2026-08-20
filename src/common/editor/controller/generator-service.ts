@@ -300,7 +300,6 @@ export function createAudioGeneratorService(
 			await writer.commit({ sampleRate, channelCount });
 			assertOwnership(ownership);
 			const source = {
-				schemaVersion: 2,
 				sampleRate,
 				sampleFormat: 'float32',
 				chunkFrames: dependencies.sourceChunkFrames,
@@ -384,7 +383,6 @@ export function createAudioGeneratorService(
 		})) {
 			trackId = dependencies.createId('track');
 			commands.push(createAddTrackCommand({
-				schemaVersion: 2,
 				type: 'audio',
 				id: trackId,
 				name,
@@ -392,7 +390,6 @@ export function createAudioGeneratorService(
 		}
 		const clipId = dependencies.createId('clip');
 		commands.push(createAddClipCommand(trackId, {
-			schemaVersion: 2,
 			title: name,
 			sourceDurationFrames: frameCount,
 			id: clipId,

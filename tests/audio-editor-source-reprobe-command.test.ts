@@ -9,13 +9,13 @@ import {
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createVideoTimingAssetPublication,
 	decodeVideoTimingAsset,
@@ -53,7 +53,7 @@ function exactTiming(frameCount: number) {
 
 /** Ten seconds of media whose rate nothing ever read: 300 fabricated frames. */
 function unprobedProject() {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		kind: 'video',
 		id: 'video-source',
 		storageKey: 'video-source',
@@ -78,7 +78,7 @@ function unprobedProject() {
 		hasAudio: false,
 	}, SAMPLE_RATE);
 	const context = { projectSampleRate: SAMPLE_RATE, sequence: SEQUENCE, source };
-	const timeline = createVideoClipV10({
+	const timeline = createVideoClip({
 		id: 'timeline-clip',
 		sourceId: source.id,
 		sequenceId: SEQUENCE.id,
@@ -87,7 +87,7 @@ function unprobedProject() {
 		sourceInFrame: 0,
 		sourceFrameCount: 300,
 	}, context);
-	const binned = createVideoClipV10({
+	const binned = createVideoClip({
 		id: 'bin-clip',
 		sourceId: source.id,
 		sequenceId: SEQUENCE.id,
@@ -105,7 +105,7 @@ function unprobedProject() {
 		primarySequenceId: SEQUENCE.id,
 		sources: [source],
 		clips: [timeline],
-		tracks: [createVideoTrackV10({ id: 'video-track', clipIds: ['timeline-clip'] })],
+		tracks: [createVideoTrack({ id: 'video-track', clipIds: ['timeline-clip'] })],
 		projectBin: { clips: [binned] },
 	});
 }
@@ -206,7 +206,7 @@ test('a range the command is handed that the new media cannot hold is rejected',
 
 test('linked audio does not move, because the video clip it mirrors did not', () => {
 	const project = unprobedProject();
-	const audioSource = createAudioSourceV10({
+	const audioSource = createAudioSource({
 		kind: 'audio',
 		id: 'audio-source',
 		storageKey: 'audio-source',
@@ -216,7 +216,7 @@ test('linked audio does not move, because the video clip it mirrors did not', ()
 		channelCount: 2,
 		sampleRate: SAMPLE_RATE,
 	});
-	const audioClip = createAudioClipV10({
+	const audioClip = createAudioClip({
 		id: 'audio-clip',
 		sourceId: 'audio-source',
 		timelineStartFrame: 0,
@@ -232,8 +232,8 @@ test('linked audio does not move, because the video clip it mirrors did not', ()
 		sources: [...project.sources, audioSource],
 		clips: [{ ...project.clips[0], avLinkId: 'av-link' }, audioClip],
 		tracks: [
-			createVideoTrackV10({ id: 'video-track', clipIds: ['timeline-clip'], laneGroupId: 'media-lane' }),
-			createAudioTrackV10({ id: 'audio-track', clipIds: ['audio-clip'], laneGroupId: 'media-lane' }, SAMPLE_RATE),
+			createVideoTrack({ id: 'video-track', clipIds: ['timeline-clip'], laneGroupId: 'media-lane' }),
+			createAudioTrack({ id: 'audio-track', clipIds: ['audio-clip'], laneGroupId: 'media-lane' }, SAMPLE_RATE),
 		],
 	}) as ProjectRecord;
 	const before = linked.clips.find((clip) => clip.id === 'audio-clip');

@@ -11,7 +11,11 @@ import {
 import { projectFeatureAudioRenderedFallbackPlayback } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { evaluateProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
-import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { compactProjectSourceMetadata } from '../src/common/editor/retention.js';
 import {
 	soundscaperAudioTrackFreezeRequirementIdV21,
@@ -143,19 +147,19 @@ test('an unavailable audio-track-freeze capability projects only the derived fro
 });
 
 function frozenProject() {
-	const liveSource = createAudioSourceV10({
+	const liveSource = createAudioSource({
 		id: 'voice-source', name: 'Voice source', storageKey: 'pcm:voice-source',
 		contentSha256: LIVE_DIGEST,
 		frameCount: 512, channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const derivedSource = createAudioSourceV10({
+	const derivedSource = createAudioSource({
 		id: 'voice-freeze', name: 'Voice freeze', storageKey: 'derived:voice-freeze',
 		contentSha256: DERIVED_DIGEST,
 		frameCount: 1_024, channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'voice-clip', sourceId: 'voice-source', title: 'Voice',
 		timelineStartFrame: 100, durationFrames: 512,
 		sourceStartFrame: 0, sourceDurationFrames: 512,
@@ -183,7 +187,7 @@ function frozenProject() {
 			timebase: 'absolute-samples', points: [{ id: 'start', position: 0, value: 1 }], segments: [],
 		},
 	] as const;
-	const editableTrack = createAudioTrackV10({
+	const editableTrack = createAudioTrack({
 		id: 'voice', name: 'Voice', clipIds: ['voice-clip'],
 		effects: [effect, automationEffect],
 	});
@@ -197,7 +201,7 @@ function frozenProject() {
 		automationLanes,
 		tempoMap: null,
 	});
-	const track = createAudioTrackV10({
+	const track = createAudioTrack({
 		id: 'voice', name: 'Voice', clipIds: ['voice-clip'], effects: [effect, automationEffect],
 		audioFreeze: freezeRecord(digests),
 	});

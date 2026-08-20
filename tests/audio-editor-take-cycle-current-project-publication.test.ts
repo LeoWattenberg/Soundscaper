@@ -5,7 +5,9 @@ import test from 'node:test';
 
 import { createEditorHistory } from '../src/common/editor/history.js';
 import { createAudioEditorSessionController } from '../src/common/editor/session.js';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import {
 	createTakeCycleCurrentProjectPublicationService,
@@ -83,7 +85,7 @@ function publicationFixture(options: Readonly<{
 }> = {}) {
 	const base = createAudioEditorProjectV17({
 		id: 'project-cycle', title: 'Cycle', now: NOW,
-		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'track-a', name: 'Vocal', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['track-a'] }],
 		primarySequenceId: 'main-sequence',
 	});

@@ -9,11 +9,11 @@ import {
 	validateFolderBusesV13,
 } from '../src/common/editor/folder-bus-v13.ts';
 import {
-	createAudioEditorProjectV14,
-	validateAudioEditorProjectV14,
-	type AudioEditorProjectV14,
-} from '../src/common/editor/project-v14.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+	createCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
+import { createAudioTrack, createVideoTrack } from '../src/common/editor/project-media-factory.ts';
 
 const NOW = '2026-08-10T09:00:00.000Z';
 
@@ -30,8 +30,8 @@ function node(kind: 'folder' | 'track', id: string, parentFolderId: string | nul
  *   plate         (video)
  * vocals          (root audio track, no folder bus)
  */
-function mixedProject(): AudioEditorProjectV14 {
-	return createAudioEditorProjectV14({
+function mixedProject(): AudioEditorProjectCurrent {
+	return createCurrentAudioEditorProject({
 		id: 'folder-bus', title: 'Folder bus', now: NOW, primarySequenceId: 'main',
 		trackFolders: [
 			{ id: 'band', name: 'Band' },
@@ -39,10 +39,10 @@ function mixedProject(): AudioEditorProjectV14 {
 			{ id: 'picture', name: 'Picture' },
 		],
 		tracks: [
-			createAudioTrackV10({ id: 'kick', name: 'Kick' }),
-			createAudioTrackV10({ id: 'bass', name: 'Bass' }),
-			{ ...createAudioTrackV10({ id: 'plate', name: 'Plate' }), type: 'video' },
-			createAudioTrackV10({ id: 'vocals', name: 'Vocals' }),
+			createAudioTrack({ id: 'kick', name: 'Kick' }),
+			createAudioTrack({ id: 'bass', name: 'Bass' }),
+			createVideoTrack({ id: 'plate', name: 'Plate' }),
+			createAudioTrack({ id: 'vocals', name: 'Vocals' }),
 		],
 		sequences: [{
 			id: 'main',
@@ -89,7 +89,7 @@ test('a video-only top-level folder owns no bus and authors no route', () => {
 	const groupIds = ((project.mixer as { groups: { id: string }[] }).groups).map(({ id }) => id);
 	assert.equal(groupIds.includes('picture'), false);
 	assert.equal(groupIds.includes('drums'), false);
-	assert.equal(validateAudioEditorProjectV14(project), true);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
 });
 
 test('a missing, misnamed, or opinionated folder bus is rejected rather than repaired', () => {

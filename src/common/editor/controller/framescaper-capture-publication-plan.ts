@@ -150,7 +150,6 @@ export function planFramescaperCapturePublication(
 			const timelineClipId = createOwnedId(request.createId, `${stream.role}-capture-clip`);
 			const trackIndex = exactSum(trackInsertionIndex, offset, 'capture track index');
 			const trackCommand = createAddTrackCommand({
-				schemaVersion: 10,
 				type: sourceKind(stream.source),
 				id: trackId,
 				name: trackName(stream.role),
@@ -392,7 +391,6 @@ function createClip(
 	}>,
 ): CommandObject {
 	const common = {
-		schemaVersion: 10,
 		kind: sourceKind(stream.source),
 		id: options.id,
 		sourceId: stream.sourceId,

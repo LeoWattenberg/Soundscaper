@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	createVideoSourceV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
@@ -20,9 +21,7 @@ import {
 	verifyProjectFallbackIntegrity,
 	type ProjectVideoFallbackIntegritySelector,
 } from '../src/common/editor/project-fallback-integrity.ts';
-import {
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import {
@@ -183,21 +182,21 @@ function clipFallbackFixture(): ClipFallbackFixture {
 	const fallbackSourceId = 'rendered-target-video';
 	const targetClipId = 'target-video-clip';
 	const unaffectedClipId = 'unaffected-video-clip';
-	const targetSource = createVideoSourceV10({
+	const targetSource = createVideoSource({
 		id: targetSourceId, storageKey: 'canonical-target-video-storage',
 		name: 'Target.mp4', mimeType: 'video/mp4', sampleFrameCount: 192_000,
 		sourceFrameCount: 120, sampleRate: SAMPLE_RATE, width: 1_920, height: 1_080,
 		frameRate: { num: 30, den: 1 },
 		videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	}) as unknown as FixtureVideoSource;
-	const unaffectedSource = createVideoSourceV10({
+	const unaffectedSource = createVideoSource({
 		id: unaffectedSourceId, storageKey: 'canonical-unaffected-video-storage',
 		name: 'Unaffected.mp4', mimeType: 'video/mp4', sampleFrameCount: 48_000,
 		sourceFrameCount: 24, sampleRate: SAMPLE_RATE, width: 1_280, height: 720,
 		frameRate: { num: 24, den: 1 },
 		videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	}) as unknown as FixtureVideoSource;
-	const fallbackSource = createVideoSourceV10({
+	const fallbackSource = createVideoSource({
 		id: fallbackSourceId, storageKey: 'rendered-target-video-storage',
 		name: 'Rendered target.mp4', mimeType: 'video/mp4', sampleFrameCount: 32_000,
 		sourceFrameCount: 20, sampleRate: SAMPLE_RATE, width: 1_920, height: 1_080,
@@ -224,7 +223,7 @@ function clipFallbackFixture(): ClipFallbackFixture {
 		now: '2026-08-03T12:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sources: [targetSource, unaffectedSource, fallbackSource],
 		clips: [targetClip, unaffectedClip],
-		tracks: [createVideoTrackV9({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Picture', clipIds: [targetClipId, unaffectedClipId],
 		})],
 		featureRequirements: {

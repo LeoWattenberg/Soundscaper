@@ -7,12 +7,12 @@ import { createHash } from 'node:crypto';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelope.ts';
 import { SCAPE_MAXIMUM_AUDIO_CHUNKS } from '../src/common/editor/scape-archive-media.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
@@ -366,7 +366,7 @@ interface AudioFixture {
 	readonly project: AudioEditorProjectCurrent;
 	readonly samples: readonly (readonly number[])[];
 	readonly sha256: string;
-	readonly source: ReturnType<typeof createAudioSourceV9>;
+	readonly source: ReturnType<typeof createAudioSource>;
 }
 
 function audioFixture({
@@ -381,7 +381,7 @@ function audioFixture({
 	assert.ok(samples.length > 0);
 	const frameCount = samples[0]?.length ?? 0;
 	assert.ok(frameCount > 0 && samples.every((channel) => channel.length === frameCount));
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id,
 		storageKey,
 		name: `${id}.wav`,
@@ -418,7 +418,7 @@ function metadataAudioProject(
 		chunkFrames?: number;
 	}>[],
 ): AudioEditorProjectCurrent {
-	const sources = specifications.map((value) => createAudioSourceV9({
+	const sources = specifications.map((value) => createAudioSource({
 		...value,
 		name: `${value.id}.wav`,
 		mimeType: 'audio/wav',
@@ -428,30 +428,30 @@ function metadataAudioProject(
 		channelCount: value.channelCount ?? 1,
 		chunkFrames: value.chunkFrames ?? 65_536,
 	}));
-	const clips = sources.map((source) => createAudioClipV9({
+	const clips = sources.map((source) => createAudioClip({
 		id: `${source.id}-clip`, sourceId: source.id,
 		durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
 	}));
 	return createCurrentAudioEditorProject({
 		id, title: 'Metadata-only handoff preflight', revision: 1,
 		now: '2026-08-01T12:00:00.000Z', sources, clips,
-		tracks: [createAudioTrackV9({ id: `${id}-track`, clipIds: clips.map(({ id: clipId }) => clipId) })],
+		tracks: [createAudioTrack({ id: `${id}-track`, clipIds: clips.map(({ id: clipId }) => clipId) })],
 	});
 }
 
 function projectWithReachableVideo(includeAudio: boolean): AudioEditorProjectCurrent {
-	const video = createVideoSourceV9({
+	const video = createVideoSource({
 		id: 'preflight-video', storageKey: 'preflight-video-storage', name: 'video.mp4',
 		mimeType: 'video/mp4', frameCount: 30, sampleRate: SAMPLE_RATE,
 		width: 1_920, height: 1_080, frameRate: 30, videoCodec: 'h264',
 		audioCodec: null, hasAudio: false,
 	});
-	const audio = createAudioSourceV9({
+	const audio = createAudioSource({
 		id: 'preflight-audio', storageKey: 'preflight-audio-storage', frameCount: 1,
 		channelCount: 1, sampleRate: SAMPLE_RATE, originalSampleRate: SAMPLE_RATE,
 		sampleFormat: 'float32', chunkFrames: 1,
 	});
-	const audioClip = createAudioClipV9({
+	const audioClip = createAudioClip({
 		id: 'preflight-audio-clip', sourceId: audio.id, durationFrames: 1,
 	});
 	return createCurrentAudioEditorProject({
@@ -459,8 +459,8 @@ function projectWithReachableVideo(includeAudio: boolean): AudioEditorProjectCur
 		title: 'Video handoff preflight', revision: 1, now: '2026-08-01T12:00:00.000Z',
 		sources: includeAudio ? [audio, video] : [video],
 		clips: includeAudio ? [audioClip] : [],
-		tracks: includeAudio ? [createAudioTrackV9({ id: 'preflight-track', clipIds: [audioClip.id] })] : [],
-		projectBin: { clips: [createVideoClipV9({
+		tracks: includeAudio ? [createAudioTrack({ id: 'preflight-track', clipIds: [audioClip.id] })] : [],
+		projectBin: { clips: [createVideoClip({
 			id: 'preflight-video-clip', sourceId: video.id, durationFrames: 1,
 			binItemId: 'preflight-video-item',
 		})] },
@@ -488,7 +488,7 @@ function guardedSenderPorts(onRead?: () => never) {
 }
 
 function projectWithFixtures(id: string, fixtures: readonly AudioFixture[]): AudioEditorProjectCurrent {
-	const clips = fixtures.map(({ source }, index) => createAudioClipV9({
+	const clips = fixtures.map(({ source }, index) => createAudioClip({
 		id: `${id}-clip-${String(index)}`,
 		sourceId: source.id,
 		title: `${source.id} clip`,
@@ -503,7 +503,7 @@ function projectWithFixtures(id: string, fixtures: readonly AudioFixture[]): Aud
 		sampleRate: SAMPLE_RATE,
 		sources: fixtures.map(({ source }) => source),
 		clips,
-		tracks: [createAudioTrackV9({ id: `${id}-track`, clipIds: clips.map(({ id: clipId }) => clipId) })],
+		tracks: [createAudioTrack({ id: `${id}-track`, clipIds: clips.map(({ id: clipId }) => clipId) })],
 	});
 }
 

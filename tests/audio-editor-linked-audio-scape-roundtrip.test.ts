@@ -13,10 +13,10 @@ import {
 } from '@zip.js/zip.js';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { LinkedOriginalPort } from '../src/common/editor/storage/linked-original-resolver.ts';
@@ -95,7 +95,7 @@ for (const container of LINKED_PCM_CONTAINERS) test(
 		linkedOriginalPort: port,
 	}));
 	await sender.ready();
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: SOURCE_ID,
 		storageKey: STORAGE_KEY,
 		name: `Linked portable audio${container.extension}`,
@@ -107,13 +107,13 @@ for (const container of LINKED_PCM_CONTAINERS) test(
 		sampleFormat: 'float32',
 		chunkFrames: SAMPLES.length,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'linked-scape-audio-clip',
 		sourceId: source.id,
 		durationFrames: source.frameCount,
 		sourceDurationFrames: source.frameCount,
 	});
-	const track = createAudioTrackV9({
+	const track = createAudioTrack({
 		id: 'linked-scape-audio-track',
 		name: 'Linked portable audio',
 		clipIds: [clip.id],

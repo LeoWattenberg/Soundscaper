@@ -9,13 +9,13 @@ import {
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createTrimMediaPlan } from '../src/common/editor/trim-media-plan.ts';
 import { runTrimMedia, type TrimMediaPorts } from '../src/common/editor/trim-media-operation.ts';
 import { createTrimMediaProjectEdit } from '../src/common/editor/trim-media-project-edit.ts';
@@ -32,21 +32,21 @@ function project() {
 		sampleRate: SAMPLE_RATE,
 		sequences: [SEQUENCE],
 		primarySequenceId: SEQUENCE.id,
-		sources: [createAudioSourceV10({
+		sources: [createAudioSource({
 			kind: 'audio', id: 'src', storageKey: 'src', name: 'take.wav', mimeType: 'audio/wav',
 			frameCount: 1_000, channelCount: 2, sampleRate: SAMPLE_RATE,
 		})],
 		clips: [
-			createAudioClipV10({
+			createAudioClip({
 				id: 'c1', sourceId: 'src', timelineStartFrame: 0, durationFrames: 100,
 				sourceStartFrame: 100, sourceDurationFrames: 100,
 			}),
-			createAudioClipV10({
+			createAudioClip({
 				id: 'c2', sourceId: 'src', timelineStartFrame: 200, durationFrames: 100,
 				sourceStartFrame: 600, sourceDurationFrames: 100,
 			}),
 		],
-		tracks: [createAudioTrackV10({ id: 'track', clipIds: ['c1', 'c2'] })],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['c1', 'c2'] })],
 		projectBin: { clips: [] },
 	});
 }
@@ -130,15 +130,15 @@ test('nothing to trim produces no command at all', async () => {
 	const whole = createCurrentAudioEditorProject({
 		id: 'whole', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [SEQUENCE], primarySequenceId: SEQUENCE.id,
-		sources: [createAudioSourceV10({
+		sources: [createAudioSource({
 			kind: 'audio', id: 'src', storageKey: 'src', name: 'take.wav',
 			frameCount: 100, channelCount: 2, sampleRate: SAMPLE_RATE,
 		})],
-		clips: [createAudioClipV10({
+		clips: [createAudioClip({
 			id: 'c1', sourceId: 'src', timelineStartFrame: 0, durationFrames: 100,
 			sourceStartFrame: 0, sourceDurationFrames: 100,
 		})],
-		tracks: [createAudioTrackV10({ id: 'track', clipIds: ['c1'] })],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['c1'] })],
 		projectBin: { clips: [] },
 	});
 	const result = await edit(whole);
@@ -195,7 +195,7 @@ test('a video source is rewritten in pictures and told both of its lengths', asy
 	// length the document also holds is derived from the picture count, because
 	// stating one and letting the other stand would leave the document holding
 	// a length the trimmed file does not have.
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		kind: 'video', id: 'vid', storageKey: 'vid', name: 'take.mp4', mimeType: 'video/mp4',
 		frameCount: SAMPLE_RATE * 10, sampleRate: SAMPLE_RATE, width: 640, height: 360,
 		frameRate: SEQUENCE.rate, sourceFrameCount: 300, timingAsset: null,
@@ -210,11 +210,11 @@ test('a video source is rewritten in pictures and told both of its lengths', asy
 		id: 'trim-video-project', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [SEQUENCE], primarySequenceId: SEQUENCE.id,
 		sources: [source],
-		clips: [createVideoClipV10({
+		clips: [createVideoClip({
 			id: 'v1', sourceId: 'vid', sequenceId: SEQUENCE.id,
 			sequenceStartFrame: 0, sequenceFrameCount: 60, sourceInFrame: 120, sourceFrameCount: 60,
 		}, context)],
-		tracks: [createVideoTrackV10({ id: 'video-track', clipIds: ['v1'] })],
+		tracks: [createVideoTrack({ id: 'video-track', clipIds: ['v1'] })],
 		projectBin: { clips: [] },
 	});
 

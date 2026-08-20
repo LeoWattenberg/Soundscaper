@@ -5,10 +5,10 @@ import {
 	type AudioEditorProjectCurrent,
 } from '../../src/common/editor/project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../../src/common/editor/project-media-factory.ts';
 
 export const WARP_PROJECT_ID = 'audio-warp-cross-product-project';
 export const WARP_SOURCE_ID = 'audio-warp-cross-product-source';
@@ -47,7 +47,7 @@ export interface AudioWarpProjectFixture {
 
 /** A current project with one nonidentity native audio-warp map and exact owned PCM. */
 export function createAudioWarpProjectFixture(): AudioWarpProjectFixture {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: WARP_SOURCE_ID,
 		storageKey: WARP_STORAGE_KEY,
 		name: 'Warped ramp.wav',
@@ -59,7 +59,7 @@ export function createAudioWarpProjectFixture(): AudioWarpProjectFixture {
 		sampleFormat: 'float32',
 		chunkFrames: WARP_CHANNELS[0]!.length,
 	}) as AudioWarpSource;
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'audio-warp-cross-product-clip',
 		sourceId: source.id,
 		name: 'Nonidentity warped ramp',
@@ -69,7 +69,7 @@ export function createAudioWarpProjectFixture(): AudioWarpProjectFixture {
 		sourceDurationFrames: 8,
 		warpMap: WARP_MAP,
 	});
-	const track = createAudioTrackV10({
+	const track = createAudioTrack({
 		id: 'audio-warp-cross-product-track',
 		name: 'Warped audio',
 		clipIds: [clip.id],

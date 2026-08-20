@@ -135,14 +135,16 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/project-runtime-profile-prerequisite.js',
 		'src/common/editor/project-runtime-profile.js',
 		'src/common/editor/project-schema-version.js',
-		'src/common/editor/project-v10-foundation-validation.js',
-		'src/common/editor/project-v12-validation.js',
-		'src/common/editor/project-v15-validation.js',
+		'src/common/editor/project-audio-warp-validation.js',
+		'src/common/editor/project-foundation-validation.js',
+		'src/common/editor/project-hierarchy-document-validation.js',
+		'src/common/editor/project-track-lock-validation.js',
 		'src/common/editor/project-v17-validation.js',
-		'src/common/editor/project-v9-document-validation.js',
-		'src/common/editor/project-v9-media-validation.js',
-		'src/common/editor/project-v9-validation-budget.js',
-		'src/common/editor/project-v9-validation-primitives.js',
+		'src/common/editor/project-document-validation.js',
+		'src/common/editor/project-media-validation.js',
+		'src/common/editor/project-media-types.js',
+		'src/common/editor/project-validation-budget.js',
+		'src/common/editor/project-validation-primitives.js',
 		'src/common/editor/retention.js',
 		'src/common/editor/routing-cycle-v21.js',
 		'src/common/editor/runtime-clip-projection.js',
@@ -237,10 +239,8 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/parameter-address.js',
 		'src/common/editor/pffft.js',
 		'src/common/editor/project-current-runtime.js',
-		'src/common/editor/project-v10-command-projection.js',
-		'src/common/editor/project-v10-validation.js',
-		'src/common/editor/project-v11-validation.js',
-		'src/common/editor/project-v13-hierarchy-reconcile.js',
+		'src/common/editor/project-command-projection.js',
+		'src/common/editor/project-hierarchy-reconcile.js',
 		'src/common/editor/project.js',
 		'src/common/editor/reviewed-effects/catalog.js',
 		'src/common/editor/reviewed-effects/errors.js',
@@ -278,12 +278,11 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		assert.ok(result.files.includes(target.slice(packagedRuntimePrefix.length)),
 			`${specifier} must resolve to a compiled desktop runtime member`);
 	}
-	assert.ok(result.files.includes('src/common/editor/project-v12-validation.js'));
+	assert.ok(result.files.includes('src/common/editor/project-hierarchy-document-validation.js'));
 	assert.ok(result.files.includes('src/common/editor/track-folder-v12.js'));
 	assert.ok(result.files.includes('src/common/editor/track-hierarchy-v12.js'));
 	assert.ok(result.files.includes('src/common/editor/timeline-annotation.js'));
 	assert.equal(result.files.includes('src/common/editor/project-current.js'), false);
-	assert.equal(result.files.includes('src/common/editor/project-v11.js'), false);
 	assert.equal(result.files.includes('src/common/editor/pffft.js'), true);
 	const runtime = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-host.js')).href}?test=${Date.now()}`);
 	const linkedVideoRegistry = await import(`${pathToFileURL(join(outputRoot, 'desktop/linked-video-locator-registry.js')).href}?test=${Date.now()}`);

@@ -8,11 +8,11 @@ import {
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
 import {
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioSource,
+	createAudioTrack,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { collectProjectSourceIds } from '../src/common/editor/retention.js';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import {
@@ -118,13 +118,13 @@ function currentProject(): Record<string, unknown> {
 		title: 'Retention round trip V17',
 		now: NOW,
 		sources: [
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'clip-source', name: 'Clip', frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'take-source', name: 'Take', frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'render-source', name: 'Render', frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
 		],
@@ -132,7 +132,7 @@ function currentProject(): Record<string, unknown> {
 			kind: 'audio', id: 'audio-clip', sourceId: 'clip-source', title: 'Clip',
 			sequenceId: 'main-sequence', start: 0, duration: 1_000, offset: 0,
 		}],
-		tracks: [createAudioTrackV10({ id: 'audio-track', name: 'Vocal', clipIds: ['audio-clip'] })],
+		tracks: [createAudioTrack({ id: 'audio-track', name: 'Vocal', clipIds: ['audio-clip'] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['audio-track'] }],
 		primarySequenceId: 'main-sequence',
 		takeGroups: [takeGroup()],
@@ -166,7 +166,7 @@ function framescaperProject(): Record<string, unknown> {
 			videoSource('camera-a', CAMERA_A_SHA),
 			videoSource('camera-b', CAMERA_B_SHA),
 			videoSource('render-source', RENDER_SHA),
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'take-source', name: 'Take', frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
 		],
@@ -181,8 +181,8 @@ function framescaperProject(): Record<string, unknown> {
 			sequenceFrameCount: 10, sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}] },
 		tracks: [
-			createVideoTrackV10({ id: 'video-track', name: 'Video', clipIds: ['video-clip'] }),
-			createAudioTrackV10({ id: 'audio-track', name: 'Vocal', clipIds: [] }),
+			createVideoTrack({ id: 'video-track', name: 'Video', clipIds: ['video-clip'] }),
+			createAudioTrack({ id: 'audio-track', name: 'Vocal', clipIds: [] }),
 		],
 		sequences: [{
 			id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track', 'audio-track'],
@@ -204,7 +204,7 @@ function framescaperProject(): Record<string, unknown> {
 }
 
 function videoSource(id: string, contentSha256: string): Record<string, unknown> {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id, name: id, storageKey: id, mimeType: 'video/mp4', contentSha256,
 		frameCount: 48_000, sampleFrameCount: 48_000, sourceFrameCount: 10,
 		frameRate: { num: 10, den: 1 }, width: 1920, height: 1080,

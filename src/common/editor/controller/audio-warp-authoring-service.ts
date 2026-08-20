@@ -33,12 +33,12 @@ import type {
 import {
 	validateAudioEditorProjectV17,
 } from '../project-v17-validation.ts';
-import type { AudioEditorFolderHierarchyDocument } from '../project-v12-validation.ts';
+import type { ProjectHierarchyDocument } from '../project-hierarchy-document-validation.ts';
 import { isAudioWarpProjectSchema } from '../project-schema-version.ts';
 import type { RationalInput } from '../timeline-time.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
 
-export type AudioWarpAuthoringProject = AudioEditorFolderHierarchyDocument & Readonly<{
+export type AudioWarpAuthoringProject = ProjectHierarchyDocument & Readonly<{
 	readonly schemaVersion: 17 | 21;
 }>;
 

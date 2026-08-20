@@ -6,13 +6,15 @@ import test from 'node:test';
 import { createRegularIntervalAnnotationCommand } from '../src/common/editor/controller/regular-interval-annotation-service.ts';
 import { createRegularIntervalAnnotationController } from '../src/common/editor/controller/regular-interval-annotation-controller.ts';
 import { createEditorHistory, executeEditorCommand, redoEditorCommand, undoEditorCommand } from '../src/common/editor/history.js';
-import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import type { TimelineAnnotationV11 } from '../src/common/editor/timeline-annotation.ts';
 
 const NOW = new Date('2026-08-09T14:00:00.000Z');
 
 test('plans sample markers and regions as one stable batch', () => {
-	const project = createAudioEditorProjectV11({ id: 'regular-sample', now: NOW });
+	const project = createCurrentAudioEditorProject({ id: 'regular-sample', now: NOW });
 	const markerPlan = createRegularIntervalAnnotationCommand(project, {
 		kind: 'marker',
 		anchor: 'sample',
@@ -55,7 +57,7 @@ test('plans sample markers and regions as one stable batch', () => {
 });
 
 test('plans exact musical intervals and can include the terminal marker', () => {
-	const project = createAudioEditorProjectV11({ id: 'regular-musical', now: NOW });
+	const project = createCurrentAudioEditorProject({ id: 'regular-musical', now: NOW });
 	const plan = createRegularIntervalAnnotationCommand(project, {
 		kind: 'marker',
 		anchor: 'musical',
@@ -79,7 +81,7 @@ test('plans exact musical intervals and can include the terminal marker', () => 
 });
 
 test('one command creates, undoes, and redoes the complete interval batch', () => {
-	const project = createAudioEditorProjectV11({ id: 'regular-history', now: NOW });
+	const project = createCurrentAudioEditorProject({ id: 'regular-history', now: NOW });
 	const plan = createRegularIntervalAnnotationCommand(project, {
 		kind: 'region',
 		anchor: 'musical',
@@ -103,7 +105,7 @@ test('one command creates, undoes, and redoes the complete interval batch', () =
 });
 
 test('controller composes the planner into exactly one project commit', () => {
-	const project = createAudioEditorProjectV11({ id: 'regular-controller', now: NOW });
+	const project = createCurrentAudioEditorProject({ id: 'regular-controller', now: NOW });
 	const commands: unknown[] = [];
 	const controller = createRegularIntervalAnnotationController({
 		getProject: () => project,
@@ -120,7 +122,7 @@ test('controller composes the planner into exactly one project commit', () => {
 });
 
 test('rejects unsafe ranges, capacity overflow, schema mismatches, and unstable identities before mutation', () => {
-	const project = createAudioEditorProjectV11({ id: 'regular-invalid', now: NOW });
+	const project = createCurrentAudioEditorProject({ id: 'regular-invalid', now: NOW });
 	const base = {
 		kind: 'marker' as const,
 		anchor: 'sample' as const,

@@ -15,8 +15,8 @@ test('V16 security evidence limits video retime to preservation and refusal', as
 	);
 	assert.ok(control);
 	assert.deepEqual(control.evidence, [
-		{ kind: 'implementation', path: 'src/common/editor/project-v16.ts' },
-		{ kind: 'implementation', path: 'src/common/editor/project-v16-validation.ts' },
+		{ kind: 'implementation', path: 'src/common/editor/project-retime-factory.ts' },
+		{ kind: 'implementation', path: 'src/common/editor/project-foundation-validation.ts' },
 		{ kind: 'implementation', path: 'src/common/editor/project-v17.ts' },
 		{ kind: 'implementation', path: 'src/common/editor/project-v17-validation.ts' },
 		{ kind: 'implementation', path: 'src/common/editor/video-retime-v16.ts' },

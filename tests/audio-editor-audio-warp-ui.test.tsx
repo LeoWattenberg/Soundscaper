@@ -7,10 +7,10 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import AudioWarpDialog from '../src/common/editor/ui/dialogs/AudioWarpDialog.tsx';
 import { createAudioWarpApplicationMenuItems } from '../src/common/editor/ui/audio-warp-application-menu.ts';
@@ -158,11 +158,11 @@ function project(
 	withWarpMap = false,
 	createProject: typeof createAudioEditorProjectV17 | typeof createSoundscaperProjectV21 = createAudioEditorProjectV17,
 ) {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', name: 'Warp source',
 		frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'clip', sourceId: 'source', title: 'Warp clip',
 		timelineStartFrame: 0, durationFrames: 200,
 		sourceStartFrame: 100, sourceDurationFrames: 200,
@@ -177,6 +177,6 @@ function project(
 	return createProject({
 		id: 'warp-ui-project', title: 'Warp UI project', now: NOW,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', name: 'Track', locked, clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', name: 'Track', locked, clipIds: ['clip'] })],
 	});
 }

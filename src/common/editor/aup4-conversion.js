@@ -14,10 +14,10 @@ import { readAup4ClipTiming } from './aup4-clip-timing.ts';
 import { sanitizeAup4ProjectRoot } from './aup4-sanitization.js';
 import { createCurrentAudioEditorProject } from './project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from './project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from './project-media-factory.ts';
 import { createStableId } from './project.js';
 import { canonicalAudacityMusicalRoot } from './audacity-tempo-import.ts';
 import { createAudacityAnnotationImport, readAup4AnnotationTracks } from './audacity-annotation-interchange.ts';
@@ -149,7 +149,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				durationFrames,
 			);
 			const nativeEnvelopeNode = audacityXmlChildren(clipNode, 'envelope')[0];
-			const source = createAudioSourceV10({
+			const source = createAudioSource({
 				id: sourceId,
 				name: String(audacityXmlAttribute(clipNode, 'name', `Audio ${clipIndex + 1}`)),
 				mimeType: 'audio/x-audacity-sampleblocks',
@@ -162,7 +162,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				opaqueExtensions: { aup4Sequence: opaqueNode(audacityXmlChildren(clipNode, 'sequence')[0]) },
 			});
 			const groupId = audacityXmlAttribute(clipNode, 'groupId', -1);
-			const clip = createAudioClipV10({
+			const clip = createAudioClip({
 				id: clipId,
 				sourceId,
 				title: String(audacityXmlAttribute(clipNode, 'name', `Audio ${clipIndex + 1}`)),
@@ -221,7 +221,7 @@ export async function decodeAudacityProjectTree(root, loadBlock, options = {}) {
 				data: {},
 			});
 		}
-		const track = createAudioTrackV10({
+		const track = createAudioTrack({
 			id: trackId,
 			name: String(audacityXmlAttribute(group[0], 'name', `Track ${trackIndex + 1}`)),
 			color: trackColor(audacityXmlAttribute(group[0], 'colorindex', 0)),

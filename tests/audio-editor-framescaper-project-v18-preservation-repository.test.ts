@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { openDatabase, request, transact } from '../src/common/editor/storage/indexeddb-backend.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from '../src/common/editor/storage/media-asset-staging-schema.ts';
@@ -205,7 +208,7 @@ async function seedPreservation(
 function baseProject(): FramescaperProjectV18 {
 	return createFramescaperProjectV18(PROFILE, {
 		id: PROJECT_ID, title: 'Before', now: '2026-08-13T10:00:00.000Z',
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: SOURCE_ID, name: 'Video', storageKey: SOURCE_ID, mimeType: 'video/mp4',
 			contentSha256: ORIGINAL_SHA, frameCount: 48_000, sampleFrameCount: 48_000,
 			sourceFrameCount: 10, frameRate: { num: 10, den: 1 }, width: 1920, height: 1080,
@@ -215,7 +218,7 @@ function baseProject(): FramescaperProjectV18 {
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true,
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],

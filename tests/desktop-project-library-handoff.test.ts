@@ -4,7 +4,9 @@ import {
 	createCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -152,7 +154,7 @@ function commitOptions(
 				title: 'Shared handoff project',
 				revision,
 				now: '2026-07-29T12:00:00.000Z',
-				tracks: [createAudioTrackV10({ id: 'handoff-track', name: 'Handoff track' })],
+				tracks: [createAudioTrack({ id: 'handoff-track', name: 'Handoff track' })],
 				trackFolders: [{ id: 'handoff-folder', name: 'Handoff folder', collapsed: true }],
 				sequences: [{
 					id: 'main-sequence',

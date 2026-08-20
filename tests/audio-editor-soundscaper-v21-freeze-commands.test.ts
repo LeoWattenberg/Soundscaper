@@ -7,7 +7,11 @@ import {
 	type AudioTrackFreezeV1,
 } from '../src/common/editor/audio-track-freeze-v21.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
-import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { resolveTerminalChannelWidths } from '../src/common/editor/terminal-channel-widths.ts';
 import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
 import {
@@ -137,7 +141,7 @@ test('committing a freeze drops lanes addressed to the sidechain edges it remove
 	// are first-class: the routing editor authors sidechain edges and lanes may address
 	// an edge as well as an effect.
 	const sourced = applySoundscaperProjectCommandV21(project, {
-		type: 'track/add', track: createAudioTrackV10({ id: 'music', name: 'Music', clipIds: [] }),
+		type: 'track/add', track: createAudioTrack({ id: 'music', name: 'Music', clipIds: [] }),
 	} as never);
 	const sidechainId = 'sidechain:duck:voice:voice-fx';
 	const withSidechain = applySoundscaperProjectCommandV21(sourced, {
@@ -208,7 +212,7 @@ test('a freeze cannot narrow a track underneath the channel maps already aimed a
 	const committed = applySoundscaperProjectCommandV21(installed, {
 		type: 'audio-freeze/commit', trackId: 'stem', expectedFreeze: freeze,
 		operationDigests: digests, derivedSourceContentSha256: DERIVED_DIGEST,
-		derivedClip: createAudioClipV10({
+		derivedClip: createAudioClip({
 			id: 'stem-committed', sourceId: 'stem-freeze', title: 'Stem committed', anchor: 'sample',
 			timelineStartFrame: 0, durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
 		}),
@@ -231,19 +235,19 @@ function busMap(project: ReturnType<typeof createSoundscaperProjectV21>): readon
 }
 
 function wideFixture() {
-	const liveSource = createAudioSourceV10({
+	const liveSource = createAudioSource({
 		id: 'stem-live', storageKey: 'pcm:stem-live', frameCount: 512, contentSha256: LIVE_DIGEST,
 		channelCount: 6, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const liveClip = createAudioClipV10({
+	const liveClip = createAudioClip({
 		id: 'stem-clip', sourceId: 'stem-live', title: 'Stem', timelineStartFrame: 0,
 		durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
 	});
 	const base = createSoundscaperProjectV21({
 		id: 'freeze-width-project', title: 'Freeze width project', now: NOW, masterChannels: 2,
 		sources: [liveSource], clips: [liveClip],
-		tracks: [createAudioTrackV10({ id: 'stem', name: 'Stem', clipIds: ['stem-clip'] })],
+		tracks: [createAudioTrack({ id: 'stem', name: 'Stem', clipIds: ['stem-clip'] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['stem'] }], primarySequenceId: 'main-sequence',
 	} as never);
 	const project = applySoundscaperProjectCommandV21(base, {
@@ -280,7 +284,7 @@ function wideFixture() {
 		schemaVersion: 1, derivedSourceId: 'stem-freeze', ...digests,
 		renderStartFrame: 0, renderFrameCount: 512, capturePosition: 'post-insert-pre-strip',
 	};
-	const derivedSource = createAudioSourceV10({
+	const derivedSource = createAudioSource({
 		id: 'stem-freeze', storageKey: 'derived:stem-freeze', contentSha256: DERIVED_DIGEST,
 		frameCount: 512, channelCount: 6, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
@@ -289,12 +293,12 @@ function wideFixture() {
 }
 
 function fixture() {
-	const liveSource = createAudioSourceV10({
+	const liveSource = createAudioSource({
 		id: 'voice-live', storageKey: 'pcm:voice-live', frameCount: 512,
 		channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const liveClip = createAudioClipV10({
+	const liveClip = createAudioClip({
 		id: 'voice-clip', sourceId: 'voice-live', title: 'Voice', timelineStartFrame: 0,
 		durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
 	});
@@ -319,7 +323,7 @@ function fixture() {
 		address: { kind: 'strip', strip: { kind: 'track', id: 'voice' }, parameterId: 'gain' },
 		timebase: 'absolute-samples', points: [{ id: 'start', position: 0, value: 0.8 }], segments: [],
 	};
-	const voiceTrack = createAudioTrackV10({
+	const voiceTrack = createAudioTrack({
 		id: 'voice', name: 'Voice', gain: 0.8, pan: -0.2, clipIds: ['voice-clip'],
 		effects: [voiceEffect, automationEffect],
 	});
@@ -347,7 +351,7 @@ function fixture() {
 		renderStartFrame: 0, renderFrameCount: 1_024,
 		capturePosition: 'post-insert-pre-strip',
 	};
-	const derivedSource = createAudioSourceV10({
+	const derivedSource = createAudioSource({
 		id: 'voice-freeze', storageKey: 'derived:voice-freeze', contentSha256: DERIVED_DIGEST,
 		frameCount: 1_024, channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
@@ -356,7 +360,7 @@ function fixture() {
 }
 
 function committedClip(): Readonly<Record<string, unknown>> {
-	return createAudioClipV10({
+	return createAudioClip({
 		id: 'voice-committed', sourceId: 'voice-freeze', title: 'Voice committed',
 		anchor: 'sample', timelineStartFrame: 0, durationFrames: 1_024,
 		sourceStartFrame: 0, sourceDurationFrames: 1_024,

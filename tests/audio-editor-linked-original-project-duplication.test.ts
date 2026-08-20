@@ -6,13 +6,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	duplicateProjectWithLinkedOriginals,
 	type LinkedOriginalProjectDuplicationPort,
@@ -82,20 +82,20 @@ test('generic duplication rolls back the exact mixed alias batch after publicati
 });
 
 function mixedProject() {
-	const audio = createAudioSourceV9({
+	const audio = createAudioSource({
 		id: 'audio-source', storageKey: 'audio-storage', mimeType: 'audio/wav',
 		frameCount: 120, channelCount: 2, sampleRate: 48_000,
 		originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const video = createVideoSourceV9({
+	const video = createVideoSource({
 		id: 'video-source', storageKey: 'video-storage', mimeType: 'video/mp4',
 		frameCount: 120, sampleRate: 48_000, width: 1_920, height: 1_080,
 		frameRate: 30, videoCodec: 'h264', audioCodec: 'aac', hasAudio: true,
 	});
-	const audioClip = createAudioClipV9({
+	const audioClip = createAudioClip({
 		id: 'audio-clip', sourceId: audio.id, durationFrames: 120, sourceDurationFrames: 120,
 	});
-	const videoClip = createVideoClipV9({
+	const videoClip = createVideoClip({
 		id: 'video-clip', sourceId: video.id, durationFrames: 120, sourceDurationFrames: 120,
 	});
 	return createCurrentAudioEditorProject({
@@ -105,8 +105,8 @@ function mixedProject() {
 		sources: [audio, video],
 		clips: [audioClip, videoClip],
 		tracks: [
-			createAudioTrackV9({ id: 'audio-track', clipIds: [audioClip.id] }),
-			createVideoTrackV9({ id: 'video-track', clipIds: [videoClip.id] }),
+			createAudioTrack({ id: 'audio-track', clipIds: [audioClip.id] }),
+			createVideoTrack({ id: 'video-track', clipIds: [videoClip.id] }),
 		],
 	});
 }

@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { MixerEdgeV21 } from '../src/common/editor/mixer-graph-v21.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createSoundscaperRoutingEditorModel,
 	editSoundscaperRoutingGraph,
@@ -128,7 +130,7 @@ test('a draft that breaks the folder rules is refused before Apply, not after', 
 	// failing the commit leaves the user with no way to see what is wrong.
 	const foldered = createSoundscaperProjectV21({
 		id: 'foldered', title: 'Foldered', now: NOW,
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		trackFolders: [{ id: 'stems', name: 'Stems' }],
 		sequences: [{
 			id: 'main-sequence', trackIds: ['voice'], trackNodes: [

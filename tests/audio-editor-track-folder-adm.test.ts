@@ -9,7 +9,9 @@ import {
 	createMoveTrackNodeCommand,
 	createUpdateTrackFolderCommand,
 } from '../src/common/editor/commands/factories.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
@@ -43,8 +45,8 @@ function authoredFolderedProject(): AudioEditorProjectCurrent {
 		},
 		trackFolders: [{ id: 'music', name: 'Music' }],
 		tracks: [
-			createAudioTrackV10({ id: 'strings', name: 'Strings' }),
-			createAudioTrackV10({ id: 'dialogue', name: 'Dialogue' }),
+			createAudioTrack({ id: 'strings', name: 'Strings' }),
+			createAudioTrack({ id: 'dialogue', name: 'Dialogue' }),
 		],
 		sequences: [{
 			id: 'main',

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS } from '../project-v9-validation-budget.ts';
+import { AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS } from '../project-validation-budget.ts';
 import type { AudioEditorCommand } from './protocol.ts';
 
 type DataRecord = Record<string, unknown>;
@@ -52,7 +52,7 @@ export function snapshotInertEditorCommand(
 }
 
 function snapshotInertCommandGraph(value: unknown, name: string): unknown {
-	const limits = AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS;
+	const limits = AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS;
 	const clones = new WeakMap<object, SnapshotClone>();
 	const active = new Set<object>();
 	const stack: SnapshotWork[] = [];

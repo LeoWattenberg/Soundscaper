@@ -345,7 +345,7 @@ function audioSource(
 ): Readonly<Record<string, unknown>> {
 	if (stream.storage.kind !== 'raw-pcm') throw new Error('Capture PCM source storage changed.');
 	return Object.freeze({
-		kind: 'audio', schemaVersion: 4,
+		kind: 'audio',
 		id: stream.storage.sourceId, storageKey: stream.storage.sourceId,
 		name: captureName(stream.role), mimeType: 'audio/x-soundscaper-pcm',
 		sampleRate: stream.storage.sampleRate, originalSampleRate: stream.storage.sampleRate,

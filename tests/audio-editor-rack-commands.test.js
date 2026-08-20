@@ -14,7 +14,9 @@ import {
 import {
 	findTrack,
 } from '../src/common/editor/project.js';
-import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 const NOW = '2026-07-13T12:00:00.000Z';
 
@@ -23,10 +25,11 @@ function apply(project, command) {
 }
 
 function createRackFixture() {
-	let project = createAudioEditorProjectV2({ id: 'rack-project', now: NOW });
+	let project = createCurrentAudioEditorProject({ id: 'rack-project', now: NOW });
 	for (const [id, name] of [['track-a', 'Target A'], ['track-b', 'Control'], ['track-c', 'Target C']]) {
-		project = apply(project, createAddTrackCommand({ schemaVersion: 2, type: 'audio', id, name }));
+		project = apply(project, createAddTrackCommand({ type: 'audio', id, name }));
 	}
+	assert.ok(project.tracks.every((track) => !Object.hasOwn(track, 'schemaVersion')));
 	return project;
 }
 

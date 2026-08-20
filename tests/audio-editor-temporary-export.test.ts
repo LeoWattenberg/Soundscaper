@@ -9,10 +9,10 @@ import {
 	stemProject,
 } from '../src/common/editor/controller/temporary-export.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createSoundscaperProjectV21,
 	validateSoundscaperProjectV21,
@@ -234,18 +234,18 @@ test('V21 stem snapshots retain active control racks without retaining inactive 
 });
 
 test('a master-only V21 stem projection reconciles the features it removes', () => {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'pcm:source', contentSha256: 'c'.repeat(64),
 		frameCount: 100, sampleRate: 48_000, channelCount: 1,
 	});
 	const project = createSoundscaperProjectV21({
 		id: 'master-only-stem', title: 'Master-only stem', now: '2026-08-20T00:00:00.000Z',
 		sources: [source],
-		clips: [createAudioClipV10({
+		clips: [createAudioClip({
 			id: 'clip', sourceId: source.id, timelineStartFrame: 0, sourceStartFrame: 0,
 			durationFrames: 100, sourceDurationFrames: 100,
 		})],
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['clip'] })],
 		sequences: [{ id: 'sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'sequence',
 		master: {
@@ -263,11 +263,11 @@ test('a master-only V21 stem projection reconciles the features it removes', () 
 });
 
 function productionStemProject() {
-	const source = (id: string) => createAudioSourceV10({
+	const source = (id: string) => createAudioSource({
 		id, storageKey: `pcm:${id}`, contentSha256: id === 'voice-source' ? 'a'.repeat(64) : 'b'.repeat(64),
 		frameCount: 100, sampleRate: 48_000, channelCount: 1,
 	});
-	const clip = (id: string, sourceId: string) => createAudioClipV10({
+	const clip = (id: string, sourceId: string) => createAudioClip({
 		id, sourceId, timelineStartFrame: 0, sourceStartFrame: 0,
 		durationFrames: 100, sourceDurationFrames: 100,
 	});
@@ -276,11 +276,11 @@ function productionStemProject() {
 		sources: [source('voice-source'), source('control-source')],
 		clips: [clip('voice-clip', 'voice-source'), clip('control-clip', 'control-source')],
 		tracks: [
-			createAudioTrackV10({
+			createAudioTrack({
 				id: 'voice', name: 'Voice', clipIds: ['voice-clip'],
 				effects: [{ id: 'voice-gate', type: 'gate', enabled: true, params: { threshold: -30 } }],
 			}),
-			createAudioTrackV10({
+			createAudioTrack({
 				id: 'control', name: 'Control', clipIds: ['control-clip'],
 				effects: [{
 					id: 'control-filter', type: 'highpass', enabled: true, params: { frequency: 100 },

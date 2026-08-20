@@ -8,13 +8,15 @@ import { planFrameCanonicalSlipSlide } from '../src/common/editor/frame-canonica
 import {
 	sourceTimeToVideoBoundary,
 } from '../src/common/editor/frame-canonical-slip-slide-timing.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	createVideoTimingAssetPublication,
 	validateVideoTimingAssetBytes,
@@ -131,7 +133,7 @@ function singleVfrFixture(input: Readonly<{
 		sourceInFrame: input.sourceInFrame, sourceFrameCount: input.sourceFrameCount,
 		groupId: null,
 	});
-	const track = createVideoTrackV10({
+	const track = createVideoTrack({
 		id: 'video-track', clipIds: ['active-video'], locked: false,
 	});
 	return {
@@ -141,7 +143,7 @@ function singleVfrFixture(input: Readonly<{
 }
 
 function groupedVfrFixture(specifications: readonly BlockerSpec[]) {
-	const authoritySource = createVideoSourceV10({
+	const authoritySource = createVideoSource({
 		id: 'authority-source', sampleFrameCount: 500_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: AUTHORITY_RATE, sourceFrameCount: 500,
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate: AUTHORITY_RATE },
@@ -151,7 +153,7 @@ function groupedVfrFixture(specifications: readonly BlockerSpec[]) {
 		id: 'authority-video', sourceId: 'authority-source', source: authoritySource,
 		sourceInFrame: 1, sourceFrameCount: 1, groupId: 'slip-block',
 	})];
-	const tracks: Record<string, unknown>[] = [createVideoTrackV10({
+	const tracks: Record<string, unknown>[] = [createVideoTrack({
 		id: 'authority-track', clipIds: ['authority-video'], locked: false,
 	})];
 	const views = new Map<string, VideoSourceTimingView>([[
@@ -173,7 +175,7 @@ function groupedVfrFixture(specifications: readonly BlockerSpec[]) {
 			id: clipId, sourceId, source, sourceInFrame: 0, sourceFrameCount: 1,
 			groupId: 'slip-block',
 		}));
-		tracks.push(createVideoTrackV10({
+		tracks.push(createVideoTrack({
 			id: `${specification.id}-track`, clipIds: [clipId], locked: false,
 		}));
 		views.set(sourceId, timing.view);
@@ -208,7 +210,7 @@ function exactVideoSource(
 	timing: ReturnType<typeof verifiedVfr>,
 	frameCount: number,
 ) {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id, sampleFrameCount: 500_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: SEQUENCE_RATE, sourceFrameCount: frameCount,
 		contentSha256: timing.sourceSha256, timingAsset: timing.publication.reference,
@@ -224,7 +226,7 @@ function videoClip(input: Readonly<{
 	sourceFrameCount: number;
 	groupId: string | null;
 }>) {
-	return createVideoClipV10({
+	return createVideoClip({
 		id: input.id, sourceId: input.sourceId, sequenceId: 'main',
 		sequenceStartFrame: 0, sequenceFrameCount: 2,
 		sourceInFrame: input.sourceInFrame, sourceFrameCount: input.sourceFrameCount,
@@ -241,7 +243,7 @@ function commandProject(
 	clips: readonly Record<string, unknown>[],
 	tracks: readonly Record<string, unknown>[],
 ) {
-	const persisted = createAudioEditorProjectV15({
+	const persisted = createCurrentAudioEditorProject({
 		id: 'vfr-discontinuities', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [{
 			id: 'main', rate: SEQUENCE_RATE,
@@ -249,5 +251,5 @@ function commandProject(
 		}],
 		primarySequenceId: 'main', sources, clips, tracks,
 	});
-	return projectV10ForCommand(persisted as unknown as Record<string, unknown>);
+	return projectForCommand(persisted as unknown as Record<string, unknown>);
 }

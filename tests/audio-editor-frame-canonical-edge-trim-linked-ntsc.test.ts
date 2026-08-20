@@ -4,16 +4,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { planFrameCanonicalEdgeTrim } from '../src/common/editor/frame-canonical-edge-trim-planner.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioEditorProjectV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';
 
 const SAMPLE_RATE = 48_000;
@@ -41,50 +43,50 @@ test('each linked audio member follows its own NTSC video edge delta', () => {
 });
 
 function fixture(): Record<string, unknown> {
-	const videoSource = createVideoSourceV10({
+	const videoSource = createVideoSource({
 		id: 'video-source', frameCount: 200_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: NTSC, sourceFrameCount: 100,
 	}, SAMPLE_RATE);
-	const audioSource = createAudioSourceV10({
+	const audioSource = createAudioSource({
 		id: 'audio-source', frameCount: 200_000, sampleRate: SAMPLE_RATE, channelCount: 1,
 	});
-	const videoA = createVideoClipV10({
+	const videoA = createVideoClip({
 		id: 'video-a', sourceId: videoSource.id, sequenceId: 'main',
 		sequenceStartFrame: 0, sequenceFrameCount: 10,
 		sourceInFrame: 0, sourceFrameCount: 10,
 		groupId: 'video-group', avLinkId: 'link-a',
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: NTSC }, source: videoSource });
-	const videoB = createVideoClipV10({
+	const videoB = createVideoClip({
 		id: 'video-b', sourceId: videoSource.id, sequenceId: 'main',
 		sequenceStartFrame: 1, sequenceFrameCount: 10,
 		sourceInFrame: 20, sourceFrameCount: 10,
 		groupId: 'video-group', avLinkId: 'link-b',
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: NTSC }, source: videoSource });
-	const audioA = createAudioClipV10({
+	const audioA = createAudioClip({
 		id: 'audio-a', sourceId: audioSource.id,
 		timelineStartFrame: boundary(0), durationFrames: boundary(10) - boundary(0),
 		sourceStartFrame: 10_000, sourceDurationFrames: boundary(10) - boundary(0),
 		avLinkId: 'link-a',
 	});
-	const audioB = createAudioClipV10({
+	const audioB = createAudioClip({
 		id: 'audio-b', sourceId: audioSource.id,
 		timelineStartFrame: boundary(1), durationFrames: boundary(11) - boundary(1),
 		sourceStartFrame: 30_000, sourceDurationFrames: boundary(11) - boundary(1),
 		avLinkId: 'link-b',
 	});
 	const tracks = [
-		createVideoTrackV10({ id: 'video-track-a', clipIds: ['video-a'] }),
-		createAudioTrackV10({ id: 'audio-track-a', clipIds: ['audio-a'] }, SAMPLE_RATE),
-		createVideoTrackV10({ id: 'video-track-b', clipIds: ['video-b'] }),
-		createAudioTrackV10({ id: 'audio-track-b', clipIds: ['audio-b'] }, SAMPLE_RATE),
+		createVideoTrack({ id: 'video-track-a', clipIds: ['video-a'], laneGroupId: 'link-a-lanes' }),
+		createAudioTrack({ id: 'audio-track-a', clipIds: ['audio-a'], laneGroupId: 'link-a-lanes' }, SAMPLE_RATE),
+		createVideoTrack({ id: 'video-track-b', clipIds: ['video-b'], laneGroupId: 'link-b-lanes' }),
+		createAudioTrack({ id: 'audio-track-b', clipIds: ['audio-b'], laneGroupId: 'link-b-lanes' }, SAMPLE_RATE),
 	];
-	const persisted = createAudioEditorProjectV10({
+	const persisted = createCurrentAudioEditorProject({
 		id: 'linked-ntsc-trim', now: '2026-08-11T14:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate: NTSC, trackIds: tracks.map(({ id }) => String(id)) }],
 		primarySequenceId: 'main', sources: [videoSource, audioSource],
 		clips: [videoA, audioA, videoB, audioB], tracks,
 	});
-	return projectV10ForCommand(persisted as unknown as Record<string, unknown>);
+	return projectForCommand(persisted as unknown as Record<string, unknown>);
 }
 
 function boundary(frame: number): number {

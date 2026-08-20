@@ -5,13 +5,15 @@ import test from 'node:test';
 
 import type { VideoSourceTimingView } from '../src/common/editor/frame-canonical-slip-slide-domain.ts';
 import { planFrameCanonicalSlipSlide } from '../src/common/editor/frame-canonical-slip-slide-planner.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	createVideoTimingAssetPublication,
 	validateVideoTimingAssetBytes,
@@ -37,26 +39,26 @@ const ALTERNATE_INDEX = validateVideoTimingAssetBytes(
 );
 
 test('VFR slip clamp crosses a collapsed sparse gap to the nearest reappearing legal target', () => {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', sampleFrameCount: 10_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: RATE, sourceFrameCount: INDEX.frameCount,
 		contentSha256: SOURCE_SHA256, timingAsset: PUBLICATION.reference,
 		timingDecision: { mode: 'exact', rate: RATE, backend: 'fixture' },
 	}, SAMPLE_RATE);
-	const clip = createVideoClipV10({
+	const clip = createVideoClip({
 		id: 'video', sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame: 10, sequenceFrameCount: 4,
 		sourceInFrame: 1, sourceFrameCount: 1,
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: RATE }, source });
-	const track = createVideoTrackV10({
+	const track = createVideoTrack({
 		id: 'video-track', clipIds: ['video'], locked: false,
 	});
-	const persisted = createAudioEditorProjectV15({
+	const persisted = createCurrentAudioEditorProject({
 		id: 'vfr-gap-slip', now: '2026-08-11T18:10:00.000Z', sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track'] }],
 		primarySequenceId: 'main', sources: [source], clips: [clip], tracks: [track],
 	});
-	const project = projectV10ForCommand(persisted as unknown as Record<string, unknown>);
+	const project = projectForCommand(persisted as unknown as Record<string, unknown>);
 	const view: VideoSourceTimingView = Object.freeze({
 		kind: 'vfr', reference: PUBLICATION.reference, index: INDEX,
 	});

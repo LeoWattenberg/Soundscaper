@@ -9,11 +9,11 @@ import {
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import {
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	reconcileFramescaperProjectFeatureRequirementsV20,
 } from '../src/framescaper/editor-project-feature-requirements-v20.ts';
@@ -168,7 +168,7 @@ function folderFixture(): ReturnType<typeof createCurrentAudioEditorProject> {
 	const sampleRate = 48_000;
 	const sequence = { id: 'main-sequence', rate: RATE };
 	const source = (id: string, kind: 'video' | 'audio' = 'video') => kind === 'video'
-		? createVideoSourceV10({
+		? createVideoSource({
 			id, name: id, storageKey: id, mimeType: 'video/mp4', contentSha256: '12'.repeat(32),
 			frameCount: 144_000, sampleFrameCount: 144_000, sourceFrameCount: 30,
 			frameRate: RATE, width: 64, height: 32,
@@ -177,7 +177,7 @@ function folderFixture(): ReturnType<typeof createCurrentAudioEditorProject> {
 			kind: 'audio', id, name: id, storageKey: id, mimeType: 'audio/wav',
 			frameCount: 144_000, channelCount: 1, sampleRate, originalSampleRate: sampleRate,
 		};
-	const video = (id: string, sourceId: string, start: number) => createVideoClipV10({
+	const video = (id: string, sourceId: string, start: number) => createVideoClip({
 		id, sourceId, title: id, sequenceId: sequence.id, sequenceStartFrame: start,
 		sequenceFrameCount: 10, sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 	}, { projectSampleRate: sampleRate, sequence, source: source(sourceId) });
@@ -198,12 +198,12 @@ function folderFixture(): ReturnType<typeof createCurrentAudioEditorProject> {
 		},
 	];
 	const tracks = [
-		createVideoTrackV10({ id: 'visible-track', name: 'Visible', clipIds: ['visible-clip', 'shared-clip'] }),
-		createVideoTrackV10({ id: 'empty-track', name: 'Empty', clipIds: [] }),
-		createVideoTrackV10({ id: 'folder-hidden-track', name: 'Folder hidden', clipIds: ['hidden-clip'] }),
-		createVideoTrackV10({ id: 'track-hidden-track', name: 'Track hidden', hidden: true, clipIds: ['track-hidden-clip'] }),
-		createVideoTrackV10({ id: 'late-track', name: 'Late', clipIds: ['late-clip'] }),
-		createAudioTrackV10({ id: 'audio-track', name: 'Audio', clipIds: ['audio-clip'] }, sampleRate),
+		createVideoTrack({ id: 'visible-track', name: 'Visible', clipIds: ['visible-clip', 'shared-clip'] }),
+		createVideoTrack({ id: 'empty-track', name: 'Empty', clipIds: [] }),
+		createVideoTrack({ id: 'folder-hidden-track', name: 'Folder hidden', clipIds: ['hidden-clip'] }),
+		createVideoTrack({ id: 'track-hidden-track', name: 'Track hidden', hidden: true, clipIds: ['track-hidden-clip'] }),
+		createVideoTrack({ id: 'late-track', name: 'Late', clipIds: ['late-clip'] }),
+		createAudioTrack({ id: 'audio-track', name: 'Audio', clipIds: ['audio-clip'] }, sampleRate),
 	];
 	return createCurrentAudioEditorProject({
 		id: 'inventory-folders', now: NOW, sampleRate, sources, clips, tracks,
@@ -228,7 +228,7 @@ function folderFixture(): ReturnType<typeof createCurrentAudioEditorProject> {
 function nestedV20Project() {
 	const project = createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_MODEL_PROFILE, {
 		id: 'inventory-nested', title: 'Nested', now: NOW,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'nested-source', name: 'Nested source', storageKey: 'nested-source', mimeType: 'video/mp4',
 			contentSha256: '34'.repeat(32), frameCount: 144_000, sampleFrameCount: 144_000,
 			sourceFrameCount: 30, frameRate: RATE, width: 64, height: 32,
@@ -238,7 +238,7 @@ function nestedV20Project() {
 			sequenceStartFrame: 0, sequenceFrameCount: 10, sourceInFrame: 0, sourceFrameCount: 10,
 			retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({ id: 'leaf-track', name: 'Leaf', clipIds: ['leaf-clip'], locked: false })],
+		tracks: [createVideoTrack({ id: 'leaf-track', name: 'Leaf', clipIds: ['leaf-clip'], locked: false })],
 		sequences: [
 			{ id: 'main', rate: RATE, trackIds: [] },
 			{ id: 'leaf', rate: RATE, trackIds: ['leaf-track'] },

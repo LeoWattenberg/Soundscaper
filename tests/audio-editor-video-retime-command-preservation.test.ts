@@ -21,9 +21,9 @@ import {
 } from '../src/common/editor/project-current.ts';
 import { projectForCommandConsumers } from '../src/common/editor/project-current-runtime.ts';
 import {
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import type { VideoRetimeCurveV16 } from '../src/common/editor/video-retime-v16.ts';
 
 const NOW = '2026-08-11T19:00:00.000Z';
@@ -45,7 +45,7 @@ function curve(): VideoRetimeCurveV16 {
 }
 
 function project(retimeMap: VideoRetimeCurveV16 | null = curve()): AudioEditorProjectCurrent {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', name: 'Video', frameCount: 40_000,
 		sampleFrameCount: 40_000, sourceFrameCount: 20,
 		frameRate: { num: 24, den: 1 }, width: 16, height: 16,
@@ -58,7 +58,7 @@ function project(retimeMap: VideoRetimeCurveV16 | null = curve()): AudioEditorPr
 			sequenceId: 'main', sequenceStartFrame: 0, sequenceFrameCount: 4,
 			sourceInFrame: 2, sourceFrameCount: 8, retimeMap,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', locked: false, clipIds: ['retimed'],
 		})],
 		sequences: [{ id: 'main', rate: { num: 24, den: 1 }, trackIds: ['video-track'] }],

@@ -7,12 +7,14 @@ import { createPlaybackProjectService } from '../src/common/editor/controller/pl
 import { acquireVideoExportTimingIndexes } from '../src/common/editor/controller/video-export-timing.ts';
 import { buildProjectGraph } from '../src/common/editor/engine/project-graph.ts';
 import {
-	createAudioEditorProjectV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	TRACK_FOLDER_STATE_PROJECTION_VERSION,
 	inheritTrackFolderMediaStateProjectionV12,
@@ -243,9 +245,9 @@ interface AudioFolderProjectOptions {
 
 function audioFolderProject(options: AudioFolderProjectOptions = {}) {
 	const tracks: DataRecord[] = [
-		createAudioTrackV10({ id: 'selected', name: 'Selected' }),
-		createAudioTrackV10({ id: 'nested-muted', name: 'Nested muted' }),
-		createAudioTrackV10({ id: 'outside', name: 'Outside' }),
+		createAudioTrack({ id: 'selected', name: 'Selected' }),
+		createAudioTrack({ id: 'nested-muted', name: 'Nested muted' }),
+		createAudioTrack({ id: 'outside', name: 'Outside' }),
 	];
 	const folders: TrackFolderV12Options[] = [
 		{ id: 'branch', name: 'Branch', ...options.branch },
@@ -262,11 +264,11 @@ function audioFolderProject(options: AudioFolderProjectOptions = {}) {
 	for (const folder of options.extraFolders ?? []) {
 		nodes.push({ kind: 'folder', id: folder.id, parentFolderId: null });
 		if (folder.id === 'video-only' && options.includeVideoOnlyTrack) {
-			tracks.push(createVideoTrackV10({ id: 'video-only-track', name: 'Picture', clipIds: [] }));
+			tracks.push(createVideoTrack({ id: 'video-only-track', name: 'Picture', clipIds: [] }));
 			nodes.push({ kind: 'track', id: 'video-only-track', parentFolderId: folder.id });
 		}
 	}
-	const base = createAudioEditorProjectV10({
+	const base = createCurrentAudioEditorProject({
 		id: 'audio-folders', now: NOW, tracks,
 		mixer: {
 			groups: [{ id: 'group', name: 'Group', gain: 1, pan: 0, mute: false, solo: options.groupSolo ?? false, effects: [], envelope: [] }],
@@ -284,29 +286,29 @@ function audioFolderProject(options: AudioFolderProjectOptions = {}) {
 function videoFolderProject() {
 	const sampleRate = 8_000;
 	const sequence = { id: 'main', rate: { num: 25, den: 1 } };
-	const hiddenSource = createVideoSourceV10({
+	const hiddenSource = createVideoSource({
 		id: 'hidden-source', storageKey: 'hidden-source', mimeType: 'video/mp4',
 		frameCount: 100, sampleRate, width: 16, height: 16,
 		sourceFrameRate: sequence.rate, sourceFrameCount: 25,
 		timingAsset: null,
 	}, sampleRate);
-	const visibleSource = createVideoSourceV10({
+	const visibleSource = createVideoSource({
 		...hiddenSource, id: 'visible-source', storageKey: 'visible-source', timingAsset: null,
 	}, sampleRate);
-	const hiddenClip = createVideoClipV10({
+	const hiddenClip = createVideoClip({
 		id: 'hidden-clip', sourceId: hiddenSource.id, sequenceId: sequence.id,
 		sequenceStartFrame: 0, sequenceFrameCount: 25, sourceInFrame: 0, sourceFrameCount: 25,
 	}, { projectSampleRate: sampleRate, sequence, source: hiddenSource });
-	const visibleClip = createVideoClipV10({
+	const visibleClip = createVideoClip({
 		id: 'visible-clip', sourceId: visibleSource.id, sequenceId: sequence.id,
 		sequenceStartFrame: 0, sequenceFrameCount: 25, sourceInFrame: 0, sourceFrameCount: 25,
 	}, { projectSampleRate: sampleRate, sequence, source: visibleSource });
 	const tracks: DataRecord[] = [
-		createVideoTrackV10({ id: 'hidden-video', name: 'Hidden', clipIds: [hiddenClip.id], laneGroupId: 'av' }),
-		createAudioTrackV10({ id: 'hidden-audio', name: 'Hidden audio', laneGroupId: 'av' }, sampleRate),
-		createVideoTrackV10({ id: 'visible-video', name: 'Visible', clipIds: [visibleClip.id] }),
+		createVideoTrack({ id: 'hidden-video', name: 'Hidden', clipIds: [hiddenClip.id], laneGroupId: 'av' }),
+		createAudioTrack({ id: 'hidden-audio', name: 'Hidden audio', laneGroupId: 'av' }, sampleRate),
+		createVideoTrack({ id: 'visible-video', name: 'Visible', clipIds: [visibleClip.id] }),
 	];
-	const base = createAudioEditorProjectV10({
+	const base = createCurrentAudioEditorProject({
 		id: 'video-folders', now: NOW, sampleRate, sequences: [sequence], primarySequenceId: sequence.id,
 		sources: [hiddenSource, visibleSource], clips: [hiddenClip, visibleClip], tracks,
 	});

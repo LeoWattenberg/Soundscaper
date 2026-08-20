@@ -12,14 +12,14 @@ import { createPlaybackProjectService } from '../src/common/editor/controller/pl
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createLabelTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createLabelTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const DIGEST = 'ed'.repeat(32);
 
@@ -144,26 +144,26 @@ test('audio delivery does not traverse future project feature or media state', (
 });
 
 function combinedFallbackProject() {
-	const canonicalAudio = createAudioSourceV9({
+	const canonicalAudio = createAudioSource({
 		id: 'canonical-audio', storageKey: 'canonical-audio', frameCount: 8,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const fallbackAudio = createAudioSourceV9({
+	const fallbackAudio = createAudioSource({
 		id: 'fallback-audio', storageKey: 'fallback-audio', frameCount: 12,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const canonicalVideo = createVideoSourceV9({
+	const canonicalVideo = createVideoSource({
 		id: 'canonical-video', storageKey: 'canonical-video', frameCount: 8,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 	});
-	const fallbackVideo = createVideoSourceV9({
+	const fallbackVideo = createVideoSource({
 		id: 'fallback-video', storageKey: 'fallback-video', frameCount: 10,
 		sampleRate: 48_000, width: 1_280, height: 720, frameRate: 24,
 	});
-	const audioClip = createAudioClipV9({
+	const audioClip = createAudioClip({
 		id: 'canonical-audio-clip', sourceId: canonicalAudio.id, durationFrames: 8,
 	});
-	const videoClip = createVideoClipV9({
+	const videoClip = createVideoClip({
 		id: 'canonical-video-clip', sourceId: canonicalVideo.id, durationFrames: 8,
 		videoEffects: [{ id: 'video-effect', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
 	});
@@ -172,9 +172,9 @@ function combinedFallbackProject() {
 		sources: [canonicalAudio, fallbackAudio, canonicalVideo, fallbackVideo],
 		clips: [audioClip, videoClip],
 		tracks: [
-			createAudioTrackV9({ id: 'canonical-audio-track', clipIds: [audioClip.id] }),
-			createVideoTrackV9({ id: 'canonical-video-track', clipIds: [videoClip.id] }),
-			createLabelTrackV9({ id: 'labels', labels: [] }),
+			createAudioTrack({ id: 'canonical-audio-track', clipIds: [audioClip.id] }),
+			createVideoTrack({ id: 'canonical-video-track', clipIds: [videoClip.id] }),
+			createLabelTrack({ id: 'labels', labels: [] }),
 		],
 		featureRequirements: { schemaVersion: 1, requirements: [
 			{
@@ -200,21 +200,21 @@ function audioRequirementProject(requirement: Readonly<{
 	disposition: 'bypass' | 'rendered-fallback';
 	fallback: null | Readonly<{ kind: 'audio'; sourceId: string; sha256: string }>;
 }>) {
-	const canonical = createAudioSourceV9({
+	const canonical = createAudioSource({
 		id: 'canonical-audio', storageKey: 'canonical-audio', frameCount: 8,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const fallback = createAudioSourceV9({
+	const fallback = createAudioSource({
 		id: 'fallback-audio', storageKey: 'fallback-audio', frameCount: 8,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'canonical-audio-clip', sourceId: canonical.id, durationFrames: 8,
 	});
 	return createCurrentAudioEditorProject({
 		id: `audio-requirement-${requirement.disposition}`,
 		now: '2026-08-02T12:00:00.000Z', sources: [canonical, fallback], clips: [clip],
-		tracks: [createAudioTrackV9({ id: 'canonical-audio-track', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'canonical-audio-track', clipIds: [clip.id] })],
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'publisher-audio-requirement', featureId: requirement.featureId,
 			displayName: 'Publisher audio requirement',

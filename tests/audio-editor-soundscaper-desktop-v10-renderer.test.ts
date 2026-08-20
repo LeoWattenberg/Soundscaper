@@ -9,7 +9,7 @@ import {
 	createSoundscaperDesktopProjectLibraryV10Handshake,
 } from '../desktop/soundscaper-project-library-v10-contract.ts'
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts'
-import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts'
+import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 import {
 	connectSoundscaperDesktopProjectLibraryV10Renderer,
 	type SoundscaperDesktopProjectLibraryV10ShadowStore,
@@ -489,20 +489,20 @@ function productionProject(id: string): SoundscaperProjectV23 {
 		id: 'voice-vca', name: 'Voice VCA', gain: 0.9, mute: false,
 		members: [{ kind: 'track', id: 'voice' }],
 	})
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'live-source', storageKey: 'pcm:live-source', frameCount: 2, channelCount: 1,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	})
-	const derived = createAudioSourceV10({
+	const derived = createAudioSource({
 		id: 'freeze-source', storageKey: 'derived:freeze-source', contentSha256: PCM_SHA256,
 		frameCount: 2, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	})
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'live-clip', sourceId: source.id, title: 'Live', timelineStartFrame: 0,
 		durationFrames: 2, sourceStartFrame: 0, sourceDurationFrames: 2,
 	})
-	const track = createAudioTrackV10({
+	const track = createAudioTrack({
 		id: 'voice', name: 'Voice', clipIds: [clip.id], audioFreeze: {
 			schemaVersion: 1, derivedSourceId: derived.id,
 			inputDigestSha256: '11'.repeat(32), rackDigestSha256: '22'.repeat(32),

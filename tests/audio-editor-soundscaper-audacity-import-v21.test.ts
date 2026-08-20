@@ -3,7 +3,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts'
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { verifyProjectFallbackIntegrity } from '../src/common/editor/project-fallback-integrity.ts'
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts'
 import {
@@ -22,7 +24,7 @@ test('Audacity interchange promotes exact V17 output into V21 without widening n
 		title: 'Audacity import',
 		now: NOW,
 		revision: 7,
-		tracks: [createAudioTrackV10({
+		tracks: [createAudioTrack({
 			id: 'voice',
 			name: 'Voice',
 			clipIds: [],

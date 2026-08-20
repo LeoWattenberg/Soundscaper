@@ -6,13 +6,13 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
 	type LinkedOriginalBindingInput,
@@ -211,11 +211,12 @@ function bindingInput(
 		...shared,
 		kind: 'video',
 		sourceShape: {
-			frameCount: Number(source.frameCount),
+			frameCount: Number(source.sampleFrameCount),
 			sampleRate: Number(source.sampleRate),
 			width: Number(source.width),
 			height: Number(source.height),
-			frameRate: Number(source.frameRate),
+			frameRate: Number((source.frameRate as { num: number; den: number }).num)
+				/ Number((source.frameRate as { num: number; den: number }).den),
 			videoCodec: String(source.videoCodec),
 			audioCodec: source.audioCodec === null ? null : String(source.audioCodec),
 			hasAudio: Boolean(source.hasAudio),
@@ -228,10 +229,10 @@ function rootedProject(
 	audio?: TestSource,
 	video?: TestSource,
 ): AudioEditorProjectCurrent {
-	const audioClip = audio ? createAudioClipV9({
+	const audioClip = audio ? createAudioClip({
 		id: 'audio-clip', sourceId: audio.id, durationFrames: 120, sourceDurationFrames: 120,
 	}) : null;
-	const videoClip = video ? createVideoClipV9({
+	const videoClip = video ? createVideoClip({
 		id: 'video-clip', sourceId: video.id, durationFrames: 120, sourceDurationFrames: 120,
 	}) : null;
 	return createCurrentAudioEditorProject({
@@ -240,16 +241,18 @@ function rootedProject(
 		revision,
 		now: NOW,
 		sources: [audio, video].filter((source): source is TestSource => source !== undefined),
-		clips: [audioClip, videoClip].filter((clip): clip is Record<string, unknown> => clip !== null),
+		clips: [audioClip, videoClip].filter((clip): clip is NonNullable<
+			typeof audioClip | typeof videoClip
+		> => clip !== null),
 		tracks: [
-			...(audioClip ? [createAudioTrackV9({ id: 'audio-track', clipIds: [audioClip.id] })] : []),
-			...(videoClip ? [createVideoTrackV9({ id: 'video-track', clipIds: [videoClip.id] })] : []),
+			...(audioClip ? [createAudioTrack({ id: 'audio-track', clipIds: [audioClip.id] })] : []),
+			...(videoClip ? [createVideoTrack({ id: 'video-track', clipIds: [videoClip.id] })] : []),
 		],
 	});
 }
 
 function audioSource(id: string): TestSource {
-	return createAudioSourceV9({
+	return createAudioSource({
 		id, storageKey: `${id}-storage`, mimeType: 'audio/wav', frameCount: 120,
 		channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
@@ -257,8 +260,8 @@ function audioSource(id: string): TestSource {
 }
 
 function videoSource(id: string): TestSource {
-	return createVideoSourceV9({
-		id, storageKey: `${id}-storage`, mimeType: 'video/mp4', frameCount: 120,
+	return createVideoSource({
+		id, storageKey: `${id}-storage`, mimeType: 'video/mp4', sampleFrameCount: 120,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 		videoCodec: 'h264', audioCodec: 'aac', hasAudio: true,
 	}) as TestSource;

@@ -11,9 +11,9 @@ import {
 	normalizeAudioEditorClipboardDescriptor,
 } from '../src/common/editor/commands/clipboard-codec.ts';
 import {
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	DEFAULT_VIDEO_CLIP_COMPOSITION,
 	normalizeVideoClipComposition,
@@ -239,7 +239,7 @@ test('clipboard V5 requires composition only on video while V1 through V4 remain
 function projectFixture(): FramescaperProjectV19 {
 	return createFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, {
 		id: 'composition-edit-preservation', title: 'Composition edit preservation', now: CREATED,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'video-source', name: 'Video', storageKey: 'video-source', mimeType: 'video/mp4',
 			contentSha256: '12'.repeat(32), frameCount: 48_000, sampleFrameCount: 48_000,
 			sourceFrameCount: 10, frameRate: { num: 10, den: 1 }, width: 1_920, height: 1_080,
@@ -251,7 +251,7 @@ function projectFixture(): FramescaperProjectV19 {
 			fadeInFrames: 0, fadeOutFrames: 0,
 			videoComposition: authoredComposition(),
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,
 		})],
 		sequences: [{

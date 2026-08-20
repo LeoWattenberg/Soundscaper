@@ -14,10 +14,10 @@ import {
 } from '../src/common/editor/controller/track-duplication-service.ts'
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts'
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts'
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts'
 import type { AudioEditorProjectStore } from '../src/common/editor/storage.js'
 import {
 	FRAMESCAPER_V20_PROJECT_MODEL_PROFILE,
@@ -377,19 +377,19 @@ function productionProject(id: string): SoundscaperProjectV21 {
 		mute: false,
 		members: [{ kind: 'track', id: 'voice' }],
 	})
-	const liveSource = createAudioSourceV10({
+	const liveSource = createAudioSource({
 		id: 'voice-live', storageKey: 'voice-live', name: 'Voice.wav', mimeType: 'audio/wav',
 		contentSha256: LIVE_SHA256,
 		frameCount: 4, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	})
-	const freezeSource = createAudioSourceV10({
+	const freezeSource = createAudioSource({
 		id: 'voice-freeze', storageKey: 'voice-freeze', name: 'Voice freeze.wav', mimeType: 'audio/wav',
 		contentSha256: FREEZE_SHA256,
 		frameCount: 4, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	})
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'voice-clip', sourceId: 'voice-live', title: 'Voice',
 		timelineStartFrame: 0, durationFrames: 4, sourceStartFrame: 0, sourceDurationFrames: 4,
 	})
@@ -403,7 +403,7 @@ function productionProject(id: string): SoundscaperProjectV21 {
 		],
 		segments: [{ kind: 'linear' }],
 	}
-	const baseTrack = createAudioTrackV10({
+	const baseTrack = createAudioTrack({
 		id: 'voice', name: 'Voice', clipIds: ['voice-clip'],
 	})
 	const digests = computeAudioTrackFreezeDigestsV1({
@@ -416,7 +416,7 @@ function productionProject(id: string): SoundscaperProjectV21 {
 		automationLanes: [automationLane],
 		tempoMap: null,
 	})
-	const track = createAudioTrackV10({
+	const track = createAudioTrack({
 		id: 'voice', name: 'Voice', clipIds: ['voice-clip'],
 		audioFreeze: {
 			schemaVersion: 1,

@@ -11,9 +11,9 @@ import {
 import { createIndexedBeatFrameProjector } from './indexed-tempo-projector.ts';
 import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './timeline-coordinate-limits.ts';
 import {
-	admitAudioEditorProjectV9ValidationStructure,
-	resolveAudioEditorProjectV9ValidationLimits,
-} from './project-v9-validation-budget.ts';
+	admitAudioEditorProjectValidationStructure,
+	resolveAudioEditorProjectValidationLimits,
+} from './project-validation-budget.ts';
 
 export const AUDIO_EDITOR_TIMELINE_ANNOTATION_COLORS = Object.freeze([
 	'auto',
@@ -97,7 +97,7 @@ const MUSICAL_REGION_KEYS = new Set([...COMMON_KEYS, 'startBeat', 'endBeat']);
 const RATIONAL_KEYS = new Set(['num', 'den']);
 const COLOR_SET: ReadonlySet<string> = new Set(AUDIO_EDITOR_TIMELINE_ANNOTATION_COLORS);
 const INVALID_CANONICAL_TEXT = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
-const EXTENSION_VALIDATION_LIMITS = resolveAudioEditorProjectV9ValidationLimits();
+const EXTENSION_VALIDATION_LIMITS = resolveAudioEditorProjectValidationLimits();
 
 /** Create one canonical persisted V11 annotation without adding derived coordinates. */
 export function createTimelineAnnotationV11(
@@ -295,7 +295,7 @@ function annotationRecord(value: unknown, name: string): DataRecord {
 }
 
 function extensionRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {
-	admitAudioEditorProjectV9ValidationStructure(value, EXTENSION_VALIDATION_LIMITS);
+	admitAudioEditorProjectValidationStructure(value, EXTENSION_VALIDATION_LIMITS);
 	if (!isPlainRecord(value)) throw new TypeError(`${name} must be an object.`);
 	return value;
 }

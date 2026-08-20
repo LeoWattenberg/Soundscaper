@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	createVideoClipV9,
-	createVideoSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createVideoClip,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	desktopSharedLinkedVideoGroupMatches,
 	desktopSharedLinkedVideoTrustedSourceIds,
@@ -162,7 +162,7 @@ function resolverFixture(port: LinkedVideoOriginalPort) {
 }
 
 function videoSource(id: string) {
-	return createVideoSourceV9({
+	return createVideoSource({
 		id,
 		storageKey: 'physical/shared-linked-video',
 		name: `${id}.mp4`,
@@ -186,11 +186,11 @@ function videoProject(sources: readonly ReturnType<typeof videoSource>[]) {
 		now: '2026-08-02T10:11:12.345Z',
 		sources,
 		projectBin: {
-			clips: sources.map((source, index) => createVideoClipV9({
+			clips: sources.map((source, index) => createVideoClip({
 				id: `clip-${String(index)}`,
 				sourceId: source.id,
-				durationFrames: source.frameCount,
-				sourceDurationFrames: source.frameCount,
+				durationFrames: source.sampleFrameCount,
+				sourceDurationFrames: source.sampleFrameCount,
 				binItemId: `bin-${String(index)}`,
 			})),
 		},

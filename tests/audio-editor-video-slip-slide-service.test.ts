@@ -9,13 +9,15 @@ import type {
 	FrameCanonicalSlipSlideRequest,
 	VideoSourceTimingView,
 } from '../src/common/editor/frame-canonical-slip-slide-domain.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { isRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 
 const NOW = '2026-08-11T18:20:00.000Z';
@@ -230,20 +232,20 @@ function createHarness(options: Readonly<{ blocked?: boolean }> = {}) {
 }
 
 function createProject() {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', sampleFrameCount: 200_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: RATE, sourceFrameCount: 100,
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate: RATE },
 	}, SAMPLE_RATE);
-	const clip = createVideoClipV10({
+	const clip = createVideoClip({
 		id: 'video', sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame: 10, sequenceFrameCount: 4,
 		sourceInFrame: 10, sourceFrameCount: 4,
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: RATE }, source });
-	const track = createVideoTrackV10({
+	const track = createVideoTrack({
 		id: 'video-track', clipIds: ['video'], locked: false,
 	});
-	return createAudioEditorProjectV15({
+	return createCurrentAudioEditorProject({
 		id: 'slip-slide-service', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track'] }],
 		primarySequenceId: 'main', sources: [source], clips: [clip], tracks: [track],
@@ -251,7 +253,7 @@ function createProject() {
 }
 
 function lockedProjection(project: PersistedProject, lockedTrackIds: ReadonlySet<string>) {
-	return projectV10ForCommand({
+	return projectForCommand({
 		...project,
 		tracks: project.tracks.map((track) => ({
 			...track, locked: lockedTrackIds.has(String(track.id)),
