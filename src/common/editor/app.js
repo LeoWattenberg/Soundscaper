@@ -1918,11 +1918,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 			try { await operation(); } catch (error) { disposalError ||= error; if (fencesSourceRetirement) sourceRetirementError ||= error; }
 		};
 		try {
+			removeDeviceChangeListener();
+			removeDeviceChangeListener = () => {};
 			await cleanup(() => Promise.all([framescaperCapture?.dispose(), framescaperCaptureProxyScheduler?.dispose?.()]), true);
 			takeCycleOpenRecovery.dispose(); projectGeneration.invalidate();
 			const visualDisposal = projectVisualService.dispose(), scapeInspectionDrain = scapeInspectionQuiescence.drain();
-			removeDeviceChangeListener();
-			removeDeviceChangeListener = () => {};
 			unsubscribeParametricEqErrors();
 			cancelTimedRecording({ publish: false, status: false });
 			cancelRecordingStart();
