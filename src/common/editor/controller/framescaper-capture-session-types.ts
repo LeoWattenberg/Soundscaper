@@ -4,12 +4,16 @@ import type {
 	CaptureDestination,
 	CapturePacket,
 	CaptureRuntimeAvailability,
+	CaptureSelectedSource,
 	CaptureSourceRole,
 	CaptureStreamMetrics,
 } from '../framescaper-capture-domain.ts';
 import type { CapturePreviewSource, CaptureSourcePortV1 } from '../platform/capture-source-port.ts';
 import type { FramescaperCaptureOriginGuard } from './framescaper-capture-origin-guard.ts';
-import type { FramescaperCaptureArmOptions } from './framescaper-capture-state-machine.ts';
+import type {
+	FramescaperCaptureArmOptions,
+	FramescaperCaptureStateSnapshot,
+} from './framescaper-capture-state-machine.ts';
 
 export type FramescaperCaptureRecorderFormat = Readonly<
 	| { readonly kind: 'encoded-media'; readonly mimeType: string }
@@ -139,8 +143,20 @@ export interface FramescaperCaptureSessionActions {
 	resetFailure(): void;
 }
 
+export interface FramescaperCaptureSessionSnapshot extends Omit<FramescaperCaptureStateSnapshot, 'sources'> {
+	readonly sources: readonly Readonly<CaptureSelectedSource & {
+		readonly label?: string;
+		readonly settings?: Readonly<Record<string, unknown>>;
+		readonly capabilities?: Readonly<Record<string, unknown>>;
+	}>[];
+	readonly monitoring: boolean;
+	readonly inputGain: number;
+	readonly elapsedTimeMs: number;
+	readonly metrics: readonly Readonly<CaptureStreamMetrics>[];
+}
+
 export interface FramescaperCaptureSessionService {
-	readonly snapshot: Readonly<Record<string, unknown>>;
+	readonly snapshot: Readonly<FramescaperCaptureSessionSnapshot>;
 	readonly actions: Readonly<FramescaperCaptureSessionActions>;
 	initialize(): Promise<void>;
 	settled(): Promise<void>;

@@ -8,6 +8,7 @@ import {
 	createFramescaperCaptureSessionService,
 } from '../src/common/editor/controller/framescaper-capture-session-service.ts';
 import type {
+	FramescaperCaptureDurablePort,
 	FramescaperCaptureRecorder,
 	FramescaperCaptureRecorderRequest,
 } from '../src/common/editor/controller/framescaper-capture-session-types.ts';
@@ -99,14 +100,14 @@ function serviceHarness(options: Readonly<{
 	const packets = new Map<CaptureSourceRole, (packet: Readonly<CapturePacket>) => Promise<void>>();
 	const errors = new Map<CaptureSourceRole, (error: unknown) => void>();
 	let time = 100;
-	const durable = {
-		async prepare(request: Readonly<Record<string, unknown>>) {
+	const durable: FramescaperCaptureDurablePort = {
+		async prepare(request) {
 			events.push('durable:prepare');
 			return { ...request, marker: 'durable-session' };
 		},
-		async append(session: unknown) { events.push('durable:append'); return session; },
-		async recordPauseSpan(session: unknown) { events.push('durable:pause'); return session; },
-		async seal(session: unknown) { events.push('durable:seal'); return session; },
+		async append(session) { events.push('durable:append'); return session; },
+		async recordPauseSpan(session) { events.push('durable:pause'); return session; },
+		async seal(session) { events.push('durable:seal'); return session; },
 		async discard() { events.push('durable:discard'); },
 		async findRecovery() { events.push('recovery-inventory'); return options.recovery ?? null; },
 	};

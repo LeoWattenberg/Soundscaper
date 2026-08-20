@@ -25,6 +25,7 @@ import type {
 	FramescaperCaptureSessionActions,
 	FramescaperCaptureSessionService,
 	FramescaperCaptureSessionServiceOptions,
+	FramescaperCaptureSessionSnapshot,
 	FramescaperCaptureStreamIdentity,
 } from './framescaper-capture-session-types.ts';
 
@@ -59,7 +60,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	let disposed = false;
 	let sourceEndCleanups: readonly (() => void)[] = Object.freeze([]);
 
-	function snapshot(): Readonly<Record<string, unknown>> {
+	function snapshot(): Readonly<FramescaperCaptureSessionSnapshot> {
 		const state = machine.snapshot;
 		const elapsedTimeMs = clock && state.phase !== 'inactive'
 			? clock.snapshot(now()).activeTimeMs
