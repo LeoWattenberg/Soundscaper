@@ -3,8 +3,24 @@
 	Cross-Origin-Opener-Policy: same-origin
 	Cross-Origin-Embedder-Policy: credentialless
 	Referrer-Policy: strict-origin-when-cross-origin
-	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()
 	X-Content-Type-Options: nosniff
+
+# Cloudflare joins same-name headers from every matching rule. These document
+# path shapes are deliberately disjoint so each response receives one policy.
+/
+	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()
+
+/:locale/
+	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()
+
+/embed/:locale/
+	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()
+
+/framescaper/:locale/
+	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(self), geolocation=()
+
+/framescaper/embed/:locale/
+	Permissions-Policy: microphone=(), speaker-selection=(), display-capture=(), camera=(), geolocation=()
 
 /assets/*
 	Cache-Control: public, max-age=31536000, immutable
