@@ -20,7 +20,7 @@ const VIDEO_MIME_CANDIDATES = Object.freeze([
 
 export type BrowserCaptureSourceRole = 'camera' | 'microphone' | 'display' | 'system-audio';
 
-interface BrowserCaptureTrack {
+export interface BrowserCaptureTrack {
 	readonly id?: string;
 	readonly kind: string;
 	readonly label?: string;
@@ -29,7 +29,7 @@ interface BrowserCaptureTrack {
 	stop(): void;
 }
 
-interface BrowserCaptureStream {
+export interface BrowserCaptureStream {
 	getTracks(): readonly BrowserCaptureTrack[];
 	getAudioTracks(): readonly BrowserCaptureTrack[];
 	getVideoTracks(): readonly BrowserCaptureTrack[];
