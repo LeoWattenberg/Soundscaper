@@ -75,6 +75,7 @@ export default function FramescaperCaptureRecordControl({
 	const capture = snapshot.capture;
 	if (!capture) return null;
 	const actions = controller.actions.capture;
+	const recordingBlocked = Boolean(blocked || snapshot.readOnly);
 	const primary = capturePrimaryAction(capture);
 	const active = ['countdown', 'recording', 'paused'].includes(capture.phase);
 	const openSetup = (): void => {
@@ -91,6 +92,7 @@ export default function FramescaperCaptureRecordControl({
 		if (operation) void run(operation);
 	};
 	const executePrimary = (): void => {
+		if (primary.kind === 'start' && recordingBlocked) return;
 		switch (primary.kind) {
 			case 'start': invoke(actions?.start); break;
 			case 'stop': invoke(actions?.stop); break;
@@ -112,7 +114,7 @@ export default function FramescaperCaptureRecordControl({
 			: primary.kind === 'open-setup';
 	const disabled = primary.disabled
 		|| !actionAvailable
-		|| (primary.kind === 'start' && (blocked || snapshot.readOnly));
+		|| (primary.kind === 'start' && recordingBlocked);
 
 	return <span data-transport="framescaper-record" data-capture-active={active || undefined}>
 		<AudioEditorSplitButton
@@ -123,11 +125,12 @@ export default function FramescaperCaptureRecordControl({
 			recording={active}
 			pressed={active}
 			disabled={disabled}
-			onClick={executePrimary}
+			onClick={disabled ? undefined : executePrimary}
 		>
 			{({ close }) => <div className="kw-audio-editor__split-button-options" data-framescaper-capture-record-options>
 				<CaptureMenuItem label={copy.panelRecordingSetup} onClick={openSetup} close={close} />
-				<CaptureMenuItem label={copy.captureStart} disabled={capture.phase !== 'armed' || !actions?.start}
+				<CaptureMenuItem label={copy.captureStart}
+					disabled={recordingBlocked || capture.phase !== 'armed' || !actions?.start}
 					onClick={() => invoke(actions?.start)} close={close} />
 				<CaptureMenuItem label={capture.phase === 'paused' ? copy.captureResume : copy.capturePause}
 					disabled={!['recording', 'paused'].includes(capture.phase)
@@ -138,9 +141,10 @@ export default function FramescaperCaptureRecordControl({
 					onClick={() => invoke(actions?.stop)} close={close} />
 				{capture.phase === 'recovery' && <>
 					<ContextMenuItem isDivider />
-					<CaptureMenuItem label={copy.captureRecover} disabled={!actions?.recover}
+					<CaptureMenuItem label={copy.captureRecover} disabled={recordingBlocked || !actions?.recover}
 						onClick={() => invoke(actions?.recover)} close={close} />
-					<CaptureMenuItem label={copy.captureImportAsIs} disabled={!actions?.importAsIs}
+					<CaptureMenuItem label={copy.captureImportAsIs}
+						disabled={recordingBlocked || !actions?.importAsIs}
 						onClick={() => invoke(actions?.importAsIs)} close={close} />
 					<CaptureMenuItem label={copy.captureDelete} disabled={!actions?.discard}
 						onClick={() => invoke(actions?.discard)} close={close} />

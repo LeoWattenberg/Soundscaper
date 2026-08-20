@@ -150,13 +150,30 @@ test('recording setup cannot arm or start without a writable destination project
 		copy={ENGLISH_COPY} locale="en" run={(operation) => operation()}
 	/>);
 	assert.match(readOnly, /<button[^>]*disabled=""[^>]*><span[^>]*>Arm capture<\/span><\/button>/u);
+	assert.doesNotMatch(
+		readOnly,
+		/<button[^>]*disabled=""[^>]*><span[^>]*>Release sources<\/span><\/button>/u,
+	);
 
-	const noProject = render(<RecordingSetupPanel
-		controller={controller([])}
-		snapshot={{ productId: 'framescaper', capture: capture('armed') }}
-		copy={ENGLISH_COPY} locale="en" run={(operation) => operation()}
-	/>);
-	assert.match(noProject, /<button[^>]*disabled=""[^>]*><span[^>]*>Start capture<\/span><\/button>/u);
+	for (const state of [
+		{ readOnly: true, blocked: false, project: { id: 'project-a' } },
+		{ readOnly: false, blocked: true, project: { id: 'project-a' } },
+		{ readOnly: false, blocked: false, project: undefined },
+	] as const) {
+		const armed = render(<RecordingSetupPanel
+			controller={controller([])} blocked={state.blocked}
+			snapshot={{
+				productId: 'framescaper', readOnly: state.readOnly, project: state.project,
+				capture: capture('armed'),
+			}}
+			copy={ENGLISH_COPY} locale="en" run={(operation) => operation()}
+		/>);
+		assert.match(armed, /<button[^>]*disabled=""[^>]*><span[^>]*>Start capture<\/span><\/button>/u);
+		assert.doesNotMatch(
+			armed,
+			/<button[^>]*disabled=""[^>]*><span[^>]*>Release sources<\/span><\/button>/u,
+		);
+	}
 
 	const active = render(<RecordingSetupPanel
 		controller={controller([])}
@@ -165,6 +182,33 @@ test('recording setup cannot arm or start without a writable destination project
 		copy={ENGLISH_COPY} locale="en" run={(operation) => operation()}
 	/>);
 	assert.doesNotMatch(active, /<button[^>]*disabled=""[^>]*><span[^>]*>Stop and import<\/span><\/button>/u);
+});
+
+test('recording setup blocks recovery publication but keeps exact capture deletion available', () => {
+	for (const state of [
+		{ readOnly: true, blocked: false, project: { id: 'project-a' } },
+		{ readOnly: false, blocked: true, project: { id: 'project-a' } },
+		{ readOnly: false, blocked: false, project: undefined },
+	] as const) {
+		const markup = render(<RecordingSetupPanel
+			controller={controller([])}
+			blocked={state.blocked}
+			snapshot={{
+				productId: 'framescaper', readOnly: state.readOnly, project: state.project,
+				capture: capture('recovery', 'unavailable'),
+			}}
+			copy={ENGLISH_COPY} locale="en" run={(operation) => operation()}
+		/>);
+		for (const label of ['Recover capture', 'Import playable data as-is']) {
+			assert.match(markup, new RegExp(
+				`<button[^>]*disabled=""[^>]*><span[^>]*>${label}<\\/span><\\/button>`, 'u',
+			));
+		}
+		assert.doesNotMatch(
+			markup,
+			/<button[^>]*disabled=""[^>]*><span[^>]*>Delete capture<\/span><\/button>/u,
+		);
+	}
 });
 
 test('recording setup exposes only permission-returned devices and supported source settings', () => {
@@ -272,6 +316,22 @@ test('Framescaper record split control exposes phase-correct accessible actions'
 	assert.match(active, /data-capture-active="true"/u);
 });
 
+test('Framescaper record control blocks every start and recovery publication entry', () => {
+	for (const policy of [
+		{ readOnly: true, blocked: false },
+		{ readOnly: false, blocked: true },
+	] as const) {
+		const armed = inspectRecordControl(capture('armed'), policy);
+		assert.equal(armed.primaryDisabled, true);
+		assert.equal(armed.menuDisabled.get('Start capture'), true);
+
+		const recovery = inspectRecordControl(capture('recovery'), policy);
+		assert.equal(recovery.menuDisabled.get('Recover capture'), true);
+		assert.equal(recovery.menuDisabled.get('Import playable data as-is'), true);
+		assert.equal(recovery.menuDisabled.get('Delete capture'), false);
+	}
+});
+
 function capture(
 	phase: CapturePhase,
 	availabilityStatus: 'available' | 'unavailable' = 'available',
@@ -296,6 +356,43 @@ function controller(calls: string[]) {
 			preferences: { setPanel: () => calls.push('setPanel') },
 		},
 	};
+}
+
+function inspectRecordControl(
+	captureSnapshot: FramescaperCaptureUiSnapshot,
+	policy: Readonly<{ readOnly: boolean; blocked: boolean }>,
+): Readonly<{ primaryDisabled: boolean; menuDisabled: ReadonlyMap<string, boolean> }> {
+	const tree = FramescaperCaptureRecordControl({
+		controller: controller([]),
+		snapshot: { capture: captureSnapshot, readOnly: policy.readOnly },
+		copy: ENGLISH_COPY,
+		blocked: policy.blocked,
+		run: (operation) => operation(),
+	});
+	assert.ok(React.isValidElement<{ readonly children: React.ReactNode }>(tree));
+	const split = React.Children.only(tree.props.children);
+	assert.ok(React.isValidElement<{
+		readonly disabled?: boolean;
+		readonly children: (controls: Readonly<{ close(): void }>) => React.ReactNode;
+	}>(split));
+	const menu = split.props.children({ close: () => undefined });
+	const menuDisabled = new Map<string, boolean>();
+	visitMenuElements(menu, menuDisabled);
+	return { primaryDisabled: Boolean(split.props.disabled), menuDisabled };
+}
+
+function visitMenuElements(node: React.ReactNode, disabledByLabel: Map<string, boolean>): void {
+	React.Children.forEach(node, (child) => {
+		if (!React.isValidElement<{
+			readonly label?: unknown;
+			readonly disabled?: boolean;
+			readonly children?: React.ReactNode;
+		}>(child)) return;
+		if (typeof child.props.label === 'string') {
+			disabledByLabel.set(child.props.label, Boolean(child.props.disabled));
+		}
+		visitMenuElements(child.props.children, disabledByLabel);
+	});
 }
 
 interface MenuItem {

@@ -308,9 +308,9 @@ function CapturePanelActions({
 				onClick={() => invoke(actions?.stop)}>{copy.captureStopImport}</Button>
 		</>}
 		{phase === 'recovery' && <>
-			<Button variant="primary" disabled={!actions?.recover}
+			<Button variant="primary" disabled={recordingBlocked || !actions?.recover}
 				onClick={() => invoke(actions?.recover)}>{copy.captureRecover}</Button>
-			<Button variant="secondary" disabled={!actions?.importAsIs}
+			<Button variant="secondary" disabled={recordingBlocked || !actions?.importAsIs}
 				onClick={() => invoke(actions?.importAsIs)}>{copy.captureImportAsIs}</Button>
 			<Button variant="secondary" disabled={!actions?.discard}
 				onClick={() => invoke(actions?.discard)}>{copy.captureDelete}</Button>
