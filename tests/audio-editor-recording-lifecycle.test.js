@@ -55,7 +55,15 @@ test('a failed stop post rejects asynchronously and disposal completes cleanup',
 
 test('successful recording stop waits for the final serialized chunk write', async () => {
 	const write = deferred();
-	const fixture = await createFixture({ onChunk: () => write.promise });
+	const stopTimers = new Set();
+	const fixture = await createFixture({
+		onChunk: () => write.promise,
+		setTimeout(callback) {
+			stopTimers.add(callback);
+			return callback;
+		},
+		clearTimeout(callback) { stopTimers.delete(callback); },
+	});
 	fixture.controller.start();
 	fixture.node.port.onmessage({
 		data: {
@@ -66,7 +74,9 @@ test('successful recording stop waits for the final serialized chunk write', asy
 		},
 	});
 	const stopping = fixture.controller.stop();
+	assert.equal(stopTimers.size, 1);
 	fixture.node.port.onmessage({ data: { type: 'stopped', frame: 1 } });
+	assert.equal(stopTimers.size, 0, 'the worklet acknowledgement clears its timeout before storage drains');
 	let settled = false;
 	stopping.finally(() => { settled = true; });
 	await new Promise((resolve) => setImmediate(resolve));
@@ -91,6 +101,8 @@ async function createFixture(options = {}) {
 		stopTimeoutMs: options.stopTimeoutMs,
 		onChunk: options.onChunk,
 		onError: options.onError,
+		setTimeout: options.setTimeout,
+		clearTimeout: options.clearTimeout,
 	});
 	return { controller, node, source, track };
 }

@@ -318,6 +318,10 @@ export async function createRecordingController({
 			}).finally(() => { pendingChunks -= 1; });
 		} else if (message.type === 'stopped') {
 			acceptingChunks = false;
+			if (stopRequest?.timer != null && typeof clearTimeoutFn === 'function') {
+				clearTimeoutFn(stopRequest.timer);
+				stopRequest.timer = null;
+			}
 			writeQueue.then(() => {
 				if (!disposing) {
 					state = 'stopped';
