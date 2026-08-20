@@ -5,7 +5,9 @@ import test from 'node:test';
 
 import { createInterchangeVisibility } from '../src/common/editor/interchange-track-visibility.ts';
 import { createMixerGraphAudibilityV21 } from '../src/common/editor/mixer-graph-audibility-v21.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
 
@@ -70,8 +72,8 @@ function routedProject({ busMuted }: { busMuted: boolean }) {
 	const base = createSoundscaperProjectV21({
 		id: 'graph-audibility', title: 'Graph audibility', now: NOW,
 		tracks: [
-			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] }),
-			createAudioTrackV10({ id: 'music', name: 'Music', clipIds: [] }),
+			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] }),
+			createAudioTrack({ id: 'music', name: 'Music', clipIds: [] }),
 		],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],
 		primarySequenceId: 'main-sequence',
@@ -105,8 +107,8 @@ function vcaProject() {
 	const base = createSoundscaperProjectV21({
 		id: 'graph-audibility-vca', title: 'Graph audibility VCA', now: NOW,
 		tracks: [
-			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] }),
-			createAudioTrackV10({ id: 'music', name: 'Music', clipIds: [] }),
+			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] }),
+			createAudioTrack({ id: 'music', name: 'Music', clipIds: [] }),
 		],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],
 		primarySequenceId: 'main-sequence',

@@ -76,6 +76,13 @@ test('canonical capture publication copies sealed PCM and video into ordinary V2
 	assert.equal(fixture.project.clips.length, 2);
 	assert.equal(fixture.project.projectBin.clips.length, 2);
 	assert.equal(fixture.project.revision, fixture.initialRevision + 1);
+	assert.ok([
+		...fixture.project.sources,
+		...fixture.project.tracks,
+		...fixture.project.clips,
+		...fixture.project.projectBin.clips,
+	].every((leaf) => !Object.hasOwn(leaf, 'schemaVersion')),
+	'capture publication emits schema-neutral project leaves');
 
 	const camera = fixture.project.sources.find(({ id }) => id === 'camera-source');
 	const microphone = fixture.project.sources.find(({ id }) => id === 'microphone-source');

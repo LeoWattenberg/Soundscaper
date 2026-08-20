@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, ContextMenu, ContextMenuItem, DialogHeader } from '@dilsonspickles/components';
 
-import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-v2.js';
+import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import ProjectBinCard from './ProjectBinCard.jsx';

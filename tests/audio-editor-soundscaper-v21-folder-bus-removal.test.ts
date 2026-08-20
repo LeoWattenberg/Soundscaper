@@ -3,7 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
 
@@ -89,8 +91,8 @@ function project() {
 	return createSoundscaperProjectV21({
 		id: 'folder-bus-removal', title: 'Folder bus removal', now: NOW,
 		tracks: [
-			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] }),
-			createAudioTrackV10({ id: 'guitar', name: 'Guitar', clipIds: [] }),
+			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] }),
+			createAudioTrack({ id: 'guitar', name: 'Guitar', clipIds: [] }),
 		],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'guitar'] }],
 		primarySequenceId: 'main-sequence',

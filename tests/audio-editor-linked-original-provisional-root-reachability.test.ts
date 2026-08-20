@@ -6,10 +6,10 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
 	type LinkedOriginalBinding,
@@ -222,7 +222,7 @@ function bindingInput(locatorId: string) {
 }
 
 function project(rooted = false): AudioEditorProjectCurrent {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: SOURCE_ID,
 		storageKey: 'provisional-audio-storage',
 		mimeType: 'audio/wav',
@@ -233,7 +233,7 @@ function project(rooted = false): AudioEditorProjectCurrent {
 		sampleFormat: 'float32',
 		chunkFrames: 65_536,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'provisional-audio-clip',
 		sourceId: source.id,
 		durationFrames: 120,
@@ -246,6 +246,6 @@ function project(rooted = false): AudioEditorProjectCurrent {
 		now: NOW,
 		sources: rooted ? [source] : [],
 		clips: rooted ? [clip] : [],
-		tracks: rooted ? [createAudioTrackV9({ id: 'provisional-audio-track', clipIds: [clip.id] })] : [],
+		tracks: rooted ? [createAudioTrack({ id: 'provisional-audio-track', clipIds: [clip.id] })] : [],
 	});
 }

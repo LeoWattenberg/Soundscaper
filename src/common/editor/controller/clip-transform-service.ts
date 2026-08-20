@@ -186,7 +186,6 @@ export function createClipTransformService(
 		const trackDelta = audioTracks.length - activeTrackIndex;
 		const newTrackCount = Math.max(...sourceTrackIndices) + trackDelta - audioTracks.length + 1;
 		const newTrackCommands = Array.from({ length: newTrackCount }, (_, index) => createAddTrackCommand({
-			schemaVersion: 2,
 			type: 'audio',
 			id: dependencies.createId('track'),
 			name: `${dependencies.copy.track} ${project.tracks.length + index + 1}`,
@@ -253,10 +252,10 @@ export function createClipTransformService(
 				const videoTrackId = dependencies.createId('video-track');
 				const audioTrackId = dependencies.createId('track');
 				newTrackCommands.push(createAddTrackCommand({
-					schemaVersion: 4, type: 'video', id: videoTrackId, name: track.name,
+					type: 'video', id: videoTrackId, name: track.name,
 					height: track.height, laneGroupId,
 				}), createAddTrackCommand({
-					schemaVersion: 4, type: 'audio', id: audioTrackId,
+					type: 'audio', id: audioTrackId,
 					name: companion?.name || `${track.name} Audio`,
 					channelCount: companion?.channelCount || 2,
 					color: companion?.color, armed: false, laneGroupId,
@@ -268,7 +267,7 @@ export function createClipTransformService(
 			if (track.type === 'audio') {
 				const trackId = dependencies.createId('track');
 				newTrackCommands.push(createAddTrackCommand({
-					schemaVersion: 4, type: 'audio', id: trackId,
+					type: 'audio', id: trackId,
 					name: `${dependencies.copy.track} ${project.tracks.length + newTrackCommands.length + 1}`,
 					channelCount: track.channelCount, color: track.color, armed: false,
 				}));

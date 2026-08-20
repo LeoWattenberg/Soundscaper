@@ -8,9 +8,9 @@ import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 import {
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import {
 	FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18,
@@ -411,7 +411,7 @@ function diamondSequenceOptions(depth: number): Record<string, unknown> {
 function nestedSequenceOptions(): Record<string, unknown> {
 	return {
 		id: 'nested-v18', title: 'Nested V18', now: NOW,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'nested-source', name: 'Nested source', storageKey: 'nested-source', mimeType: 'video/mp4',
 			contentSha256: ORIGINAL_SHA, sampleFrameCount: 192_000, sourceFrameCount: 100,
 			frameRate: { num: 25, den: 1 }, width: 1920, height: 1080,
@@ -421,7 +421,7 @@ function nestedSequenceOptions(): Record<string, unknown> {
 			sequenceId: 'leaf', sequenceStartFrame: 5, sequenceFrameCount: 20,
 			sourceInFrame: 0, sourceFrameCount: 20, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'leaf-track', name: 'Leaf track', clipIds: ['leaf-clip'], locked: false,
 		})],
 		sequences: [
@@ -450,7 +450,7 @@ function nestedSequenceOptions(): Record<string, unknown> {
 function options(): Record<string, unknown> {
 	return {
 		id: 'framescaper-v18', title: 'Framescaper V18', now: NOW,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'video-source', name: 'Video', storageKey: 'video-source', mimeType: 'video/mp4',
 			contentSha256: ORIGINAL_SHA, frameCount: 48_000, sampleFrameCount: 48_000,
 			sourceFrameCount: 10, frameRate: { num: 10, den: 1 }, width: 1920, height: 1080,
@@ -460,7 +460,7 @@ function options(): Record<string, unknown> {
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({ id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true })],
+		tracks: [createVideoTrack({ id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true })],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],
 		primarySequenceId: 'main-sequence',
 	};

@@ -13,13 +13,13 @@ import {
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { sequenceFrameBoundarySample } from '../src/common/editor/sequence-frame-navigation.ts';
 import { resolveSequenceTimingView } from '../src/common/editor/sequence-timing-model.ts';
@@ -198,11 +198,11 @@ test('repeating a rate change is idempotent and a commensurable round trip resto
 });
 
 function project(): ReturnType<typeof createCurrentAudioEditorProject> {
-	const video = createVideoSourceV10({
+	const video = createVideoSource({
 		id: 'video-source', frameCount: SAMPLE_RATE, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: RATE_30, sourceFrameCount: 30,
 	}, SAMPLE_RATE);
-	const audio = createAudioSourceV10({
+	const audio = createAudioSource({
 		id: 'audio-source', frameCount: SAMPLE_RATE, sampleRate: SAMPLE_RATE, channelCount: 1,
 	});
 	const context = { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: RATE_30 }, source: video };
@@ -211,38 +211,38 @@ function project(): ReturnType<typeof createCurrentAudioEditorProject> {
 		sequences: [{ id: 'main', rate: RATE_30 }], primarySequenceId: 'main',
 		sources: [video, audio],
 		clips: [
-			createVideoClipV10({
+			createVideoClip({
 				id: 'video', sourceId: video.id, sequenceId: 'main',
 				sequenceStartFrame: 4, sequenceFrameCount: 6,
 				sourceInFrame: 4, sourceFrameCount: 6, avLinkId: 'link',
 			}, context),
-			createAudioClipV10({
+			createAudioClip({
 				id: 'audio', sourceId: audio.id, timelineStartFrame: 6_400,
 				durationFrames: 9_600, sourceDurationFrames: 9_600, avLinkId: 'link',
 			}),
 		],
 		projectBin: {
 			clips: [
-				createVideoClipV10({
+				createVideoClip({
 					id: 'bin-video', binItemId: 'bin-item', sourceId: video.id, sequenceId: 'main',
 					sequenceStartFrame: 0, sequenceFrameCount: 5,
 					sourceInFrame: 0, sourceFrameCount: 5,
 				}, context),
-				createAudioClipV10({
+				createAudioClip({
 					id: 'bin-audio', binItemId: 'bin-item', sourceId: audio.id,
 					timelineStartFrame: 0, durationFrames: 8_000, sourceDurationFrames: 8_000,
 				}),
 			],
 		},
 		tracks: [
-			createVideoTrackV10({ id: 'video-track', laneGroupId: 'lanes', clipIds: ['video'] }),
-			createAudioTrackV10({ id: 'audio-track', laneGroupId: 'lanes', clipIds: ['audio'] }, SAMPLE_RATE),
+			createVideoTrack({ id: 'video-track', laneGroupId: 'lanes', clipIds: ['video'] }),
+			createAudioTrack({ id: 'audio-track', laneGroupId: 'lanes', clipIds: ['audio'] }, SAMPLE_RATE),
 		],
 	});
 }
 
 function twoSequenceProject(): ReturnType<typeof createCurrentAudioEditorProject> {
-	const video = createVideoSourceV10({
+	const video = createVideoSource({
 		id: 'video-source', frameCount: SAMPLE_RATE, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: RATE_30, sourceFrameCount: 30,
 	}, SAMPLE_RATE);
@@ -254,14 +254,14 @@ function twoSequenceProject(): ReturnType<typeof createCurrentAudioEditorProject
 		],
 		primarySequenceId: 'main',
 		sources: [video],
-		clips: [createVideoClipV10({
+		clips: [createVideoClip({
 			id: 'video', sourceId: video.id, sequenceId: 'main',
 			sequenceStartFrame: 3, sequenceFrameCount: 2,
 			sourceInFrame: 3, sourceFrameCount: 2,
 		}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: RATE_30 }, source: video })],
 		tracks: [
-			createVideoTrackV10({ id: 'video-track', clipIds: ['video'] }),
-			createVideoTrackV10({ id: 'other-track', clipIds: [] }),
+			createVideoTrack({ id: 'video-track', clipIds: ['video'] }),
+			createVideoTrack({ id: 'other-track', clipIds: [] }),
 		],
 	});
 }

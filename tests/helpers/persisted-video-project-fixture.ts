@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	createAudioClipV4,
-	createAudioSourceV4,
-	createVideoClipV4,
-	createVideoSourceV4,
-} from '../../src/common/editor/project-v4.js';
+	createAudioClip,
+	createAudioSource,
+	createVideoClip,
+	createVideoSource,
+} from '../../src/common/editor/project-media-factory.ts';
 import {
 	createCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
@@ -15,7 +15,7 @@ export function createPersistedVideoProject(
 	{ projectBin = false, timeline = false }: Readonly<{ projectBin?: boolean; timeline?: boolean }> = {},
 ) {
 	const frameCount = 48_000;
-	const videoSource = createVideoSourceV4({
+	const videoSource = createVideoSource({
 		id: 'persisted-video-source',
 		name: 'persisted-camera.mp4',
 		mimeType: 'video/mp4',
@@ -30,7 +30,7 @@ export function createPersistedVideoProject(
 		hasAudio: true,
 		opaqueExtensions: { byteLength: 15 },
 	});
-	const audioSource = createAudioSourceV4({
+	const audioSource = createAudioSource({
 		id: 'persisted-audio-source',
 		name: 'persisted camera audio',
 		storageKey: 'persisted-audio-source',
@@ -39,7 +39,7 @@ export function createPersistedVideoProject(
 		sampleRate: 48_000,
 	});
 	const binClips = projectBin ? [
-		createVideoClipV4({
+		createVideoClip({
 			id: 'persisted-bin-video',
 			sourceId: videoSource.id,
 			title: 'Persisted scene',
@@ -48,7 +48,7 @@ export function createPersistedVideoProject(
 			durationFrames: frameCount,
 			binItemId: 'persisted-bin-item',
 		}),
-		createAudioClipV4({
+		createAudioClip({
 			id: 'persisted-bin-audio',
 			sourceId: audioSource.id,
 			title: 'Persisted scene',
@@ -60,7 +60,7 @@ export function createPersistedVideoProject(
 	] : [];
 	const avLinkId = timeline ? 'persisted-av-link' : null;
 	const timelineClips = timeline ? [
-		createVideoClipV4({
+		createVideoClip({
 			id: 'persisted-timeline-video',
 			sourceId: videoSource.id,
 			title: 'Timeline scene',
@@ -69,7 +69,7 @@ export function createPersistedVideoProject(
 			durationFrames: frameCount,
 			avLinkId,
 		}),
-		createAudioClipV4({
+		createAudioClip({
 			id: 'persisted-timeline-audio',
 			sourceId: audioSource.id,
 			title: 'Timeline scene audio',

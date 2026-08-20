@@ -17,7 +17,9 @@ import { DIRECT_WAV_MAXIMUM_FILE_BYTES, prepareDirectWavDestination } from '../s
 import { createExportPlan as createAudioExportPlan } from '../src/common/editor/export.js';
 import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';
 import { createAsyncPlanarPcmSinkQueue } from '../src/common/editor/pcm-sink.js';
-import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { createStreamingWindowedSincResampler } from '../src/common/editor/resample.js';
 import { createWavStreamEncoder } from '../src/common/editor/wav.js';
 
@@ -224,7 +226,7 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 });
 
 function createReferenceFixture(): ReferenceFixture {
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'direct-wav-reference-project',
 		title: 'Direct WAV reference',
 		now: '2026-07-30T00:00:00.000Z',

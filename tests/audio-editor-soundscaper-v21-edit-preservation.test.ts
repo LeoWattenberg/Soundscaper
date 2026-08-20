@@ -12,10 +12,10 @@ import {
 import { createEffect } from '../src/common/editor/effects.js';
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	applySoundscaperProjectCommandV21,
 	soundscaperProjectForCommandConsumersV21,
@@ -82,24 +82,24 @@ test('insert paste opens only target-track automation and carries no strip lanes
 
 test('input edits preserve frozen authority verbatim so freshness classification can report stale', () => {
 	const digest = 'ab'.repeat(32);
-	const derived = createAudioSourceV10({
+	const derived = createAudioSource({
 		id: 'voice-freeze', name: 'Voice freeze', storageKey: 'derived:voice-freeze',
 		contentSha256: digest, frameCount: 100, channelCount: 2,
 		sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const live = createAudioSourceV10({
+	const live = createAudioSource({
 		id: 'voice-source', name: 'Voice source', storageKey: 'voice-source',
 		contentSha256: 'cd'.repeat(32), frameCount: 100, channelCount: 2,
 		sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'voice-clip', sourceId: 'voice-source', title: 'Voice',
 		timelineStartFrame: 0, sourceStartFrame: 0,
 		sourceDurationFrames: 100, durationFrames: 100,
 	});
-	const frozenTrack = createAudioTrackV10({
+	const frozenTrack = createAudioTrack({
 		id: 'voice', name: 'Voice', clipIds: ['voice-clip'], audioFreeze: {
 			schemaVersion: 1, derivedSourceId: 'voice-freeze',
 			inputDigestSha256: digest, rackDigestSha256: digest,
@@ -123,23 +123,23 @@ test('input edits preserve frozen authority verbatim so freshness classification
 });
 
 test('clip ripple removal uses the removed clip interval while ordinary clip geometry stays lane-neutral', () => {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', name: 'Source', storageKey: 'source', contentSha256: 'ef'.repeat(32),
 		frameCount: 200, channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const removedClip = createAudioClipV10({
+	const removedClip = createAudioClip({
 		id: 'removed', sourceId: 'source', title: 'Removed', timelineStartFrame: 20,
 		sourceStartFrame: 0, sourceDurationFrames: 40, durationFrames: 40,
 	});
-	const laterClip = createAudioClipV10({
+	const laterClip = createAudioClip({
 		id: 'later', sourceId: 'source', title: 'Later', timelineStartFrame: 100,
 		sourceStartFrame: 40, sourceDurationFrames: 40, durationFrames: 40,
 	});
 	const project = createSoundscaperProjectV21({
 		id: 'clip-ripple', title: 'Clip ripple', now: NOW,
 		sources: [source], clips: [removedClip, laterClip],
-		tracks: [createAudioTrackV10({
+		tracks: [createAudioTrack({
 			id: 'voice', name: 'Voice', clipIds: ['removed', 'later'],
 		})],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
@@ -191,8 +191,8 @@ function fixture() {
 	return createSoundscaperProjectV21({
 		id: 'automation-edit-preservation', title: 'Automation edit preservation', now: NOW,
 		tracks: [
-			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] }),
-			createAudioTrackV10({ id: 'music', name: 'Music', clipIds: [] }),
+			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] }),
+			createAudioTrack({ id: 'music', name: 'Music', clipIds: [] }),
 		],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],
 		primarySequenceId: 'main-sequence',
@@ -208,10 +208,10 @@ function effectFixture() {
 	const limiter = createEffect('limiter', { id: 'limiter' });
 	const filter = createEffect('highpass', { id: 'filter' });
 	const tracks = [
-		createAudioTrackV10({
+		createAudioTrack({
 			id: 'voice', name: 'Voice', clipIds: [], effects: [limiter, filter],
 		}),
-		createAudioTrackV10({ id: 'music', name: 'Music', clipIds: [] }),
+		createAudioTrack({ id: 'music', name: 'Music', clipIds: [] }),
 	];
 	const baseMixer = createDefaultMixerGraphV21([{ id: 'voice' }, { id: 'music' }]);
 	return createSoundscaperProjectV21({

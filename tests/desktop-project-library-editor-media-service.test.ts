@@ -27,12 +27,12 @@ import type {
 	DesktopLibraryLoadedProjectBundle,
 } from '../desktop/project-library-projects.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createCurrentAudioEditorProject,
 	type AudioEditorProjectCurrent,
@@ -418,7 +418,7 @@ function projectFixture(): ProjectFixture {
 	const reachableAudio = audioSource('reachable-audio');
 	const uncataloguedAudio = audioSource('uncatalogued-audio');
 	const unreachableAudio = audioSource('unreachable-audio');
-	const video = createVideoSourceV9({
+	const video = createVideoSource({
 		id: 'reachable-video',
 		name: 'Reachable video',
 		mimeType: 'video/mp4',
@@ -434,7 +434,7 @@ function projectFixture(): ProjectFixture {
 		posterStorageKey: 'reachable-video-poster',
 		thumbnailStorageKey: 'reachable-video-thumbnail',
 	});
-	const reachableClip = createAudioClipV9({
+	const reachableClip = createAudioClip({
 		id: 'reachable-audio-clip',
 		sourceId: reachableAudio.id,
 		durationFrames: reachableAudio.frameCount,
@@ -447,18 +447,18 @@ function projectFixture(): ProjectFixture {
 		sampleRate: 48_000,
 		sources: [reachableAudio, uncataloguedAudio, unreachableAudio, video],
 		clips: [reachableClip],
-		tracks: [createAudioTrackV9({
+		tracks: [createAudioTrack({
 			id: 'reachable-audio-track',
 			clipIds: [reachableClip.id],
 		})],
 		projectBin: { clips: [
-			createAudioClipV9({
+			createAudioClip({
 				id: 'uncatalogued-audio-bin-clip',
 				sourceId: uncataloguedAudio.id,
 				durationFrames: uncataloguedAudio.frameCount,
 				binItemId: 'uncatalogued-audio-bin-item',
 			}),
-			createVideoClipV9({
+			createVideoClip({
 				id: 'reachable-video-bin-clip',
 				sourceId: video.id,
 				durationFrames: 2,
@@ -476,7 +476,7 @@ function projectFixture(): ProjectFixture {
 }
 
 function audioSource(id: string): TestAudioSource {
-	return createAudioSourceV9({
+	return createAudioSource({
 		id,
 		name: id,
 		mimeType: 'audio/wav',

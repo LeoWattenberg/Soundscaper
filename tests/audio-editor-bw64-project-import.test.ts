@@ -4,7 +4,9 @@ import test from 'node:test';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import { createProjectImportService, type ProjectImportRuntime } from '../src/common/editor/controller/project-import-service.ts';
-import { createAudioEditorProjectV7 } from '../src/common/editor/project-v7.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 interface TestCommand {
 	readonly type?: string;
@@ -56,7 +58,7 @@ test('empty-project BW64 import attaches JSON-safe pristine ADM provenance atomi
 	assert.equal(adm.valid, true);
 	assert.doesNotThrow(() => JSON.stringify(adm));
 	assert.deepEqual(source.opaqueExtensions.adm, descriptor.adm);
-	const applied = applyEditorCommand(createAudioEditorProjectV7({
+	const applied = applyEditorCommand(createCurrentAudioEditorProject({
 		now: '2026-07-28T12:00:00.000Z',
 		revision: 7,
 		tracks: [{ id: 'track-1', name: 'Track 1', type: 'audio', clipIds: [] }],

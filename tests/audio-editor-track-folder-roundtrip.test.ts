@@ -9,7 +9,9 @@ import {
 	createMoveTrackNodeCommand,
 	createUpdateTrackFolderCommand,
 } from '../src/common/editor/commands/factories.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	cloneCurrentAudioEditorProject,
 	createCurrentAudioEditorProject,
@@ -33,8 +35,8 @@ function mutatedProject(): AudioEditorProjectCurrent {
 		id: 'folder-roundtrip', title: 'Folder roundtrip', now: NOW, primarySequenceId: 'main',
 		trackFolders: [{ id: 'band', name: 'Band' }],
 		tracks: [
-			createAudioTrackV10({ id: 'kick', name: 'Kick' }),
-			createAudioTrackV10({ id: 'vocals', name: 'Vocals' }),
+			createAudioTrack({ id: 'kick', name: 'Kick' }),
+			createAudioTrack({ id: 'vocals', name: 'Vocals' }),
 		],
 		sequences: [{
 			id: 'main',

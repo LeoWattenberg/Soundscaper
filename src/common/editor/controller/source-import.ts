@@ -342,7 +342,6 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			};
 			const audioSource = canonicalAudio ? {
 				kind: 'audio',
-				schemaVersion: 4,
 				sampleFormat: 'float32',
 				chunkFrames: SOURCE_CHUNK_FRAMES,
 				id: audioSourceId,
@@ -376,7 +375,6 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			};
 			const audioClip = canonicalAudio ? {
 				kind: 'audio',
-				schemaVersion: 4,
 				id: audioClipId,
 				sourceId: audioSourceId,
 				title: `${trackName} Audio`,
@@ -417,7 +415,6 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 						: getProject().tracks.length;
 					commands.push({
 						...createAddTrackCommand({
-							schemaVersion: 4,
 							type: 'video',
 							id: videoTrackId,
 							name: trackName,
@@ -426,7 +423,6 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 						index,
 					}, {
 						...createAddTrackCommand({
-							schemaVersion: 4,
 							type: 'audio',
 							id: audioTrackId,
 							name: `${trackName} Audio`,

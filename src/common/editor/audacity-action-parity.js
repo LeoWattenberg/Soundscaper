@@ -18,7 +18,7 @@ import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { createAudacityActionDefinition as actionDefinition } from './audacity-action-roadmap.ts';
 import { audacitySpectrogramTrackSelected } from './audacity-action-enablement.ts';
 import { createAudacityShortcutCommandInventory } from './audacity-shortcut-command-inventory.ts';
-import { audioTrackChannelCountV2 } from './project-v2.js';
+import { audioTrackChannelCount } from './project-audio-factory.js';
 import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
 
 export const AUDACITY_ACTION_SOURCE = deepFreeze({
@@ -668,9 +668,9 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'editable-track-selected': editable && Boolean(selectedTrack),
 		'audio-track-selected': Boolean(selectedAudioTrack),
 		'editable-audio-track-selected': editable && Boolean(selectedAudioTrack),
-		'stereo-track-selected': audioTrackChannelCountV2(project, selectedAudioTrack) === 2,
-		'compatible-mono-tracks': editable && audioTrackChannelCountV2(project, selectedAudioTrack) === 1 && tracks.some((track) => (
-			track.id !== selectedAudioTrack.id && track.type !== 'label' && audioTrackChannelCountV2(project, track) === 1
+		'stereo-track-selected': audioTrackChannelCount(project, selectedAudioTrack) === 2,
+		'compatible-mono-tracks': editable && audioTrackChannelCount(project, selectedAudioTrack) === 1 && tracks.some((track) => (
+			track.id !== selectedAudioTrack.id && track.type !== 'label' && audioTrackChannelCount(project, track) === 1
 		)),
 		'label-track-present': tracks.some((track) => track.type === 'label'),
 		'loop-region': Boolean(project?.loop?.enabled && project.loop.endFrame > project.loop.startFrame),

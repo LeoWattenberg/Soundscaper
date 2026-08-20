@@ -16,10 +16,10 @@ import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const CANONICAL_SOURCE_ID = 'canonical-audio';
 const FALLBACK_SOURCE_ID = 'fallback-audio';
@@ -191,19 +191,19 @@ test('private rendered fallback publishes an admitted offline compressed mix dir
 });
 
 function fallbackProject(): AudioEditorProjectCurrent {
-	const canonical = createAudioSourceV9({
+	const canonical = createAudioSource({
 		id: CANONICAL_SOURCE_ID, storageKey: CANONICAL_SOURCE_ID, frameCount: 8,
 		channelCount: 2, sampleRate: 48_000, chunkFrames: 4,
 	});
-	const fallback = createAudioSourceV9({
+	const fallback = createAudioSource({
 		id: FALLBACK_SOURCE_ID, storageKey: FALLBACK_SOURCE_ID, frameCount: 12,
 		channelCount: 2, sampleRate: 48_000, chunkFrames: 4,
 	});
-	const clip = createAudioClipV9({ id: 'canonical-clip', sourceId: canonical.id, durationFrames: canonical.frameCount });
+	const clip = createAudioClip({ id: 'canonical-clip', sourceId: canonical.id, durationFrames: canonical.frameCount });
 	return createCurrentAudioEditorProject({
 		id: 'offline-compressed-fallback', now: '2026-08-02T12:00:00.000Z',
 		sources: [canonical, fallback], clips: [clip],
-		tracks: [createAudioTrackV9({ id: 'canonical-track', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'canonical-track', clipIds: [clip.id] })],
 		featureRequirements: { schemaVersion: 2, requirements: [{
 			id: 'publisher-audio-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 			displayName: 'Publisher audio render', disposition: 'rendered-fallback',

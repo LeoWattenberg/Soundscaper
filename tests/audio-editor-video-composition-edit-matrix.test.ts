@@ -20,11 +20,11 @@ import {
 	type ProjectBinLinkedVideoRelinkDependencies,
 } from '../src/common/editor/controller/project-bin-linked-video-relink-service.ts';
 import {
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioSource,
+	createAudioTrack,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	DEFAULT_VIDEO_CLIP_COMPOSITION,
 	normalizeVideoClipComposition,
@@ -379,11 +379,11 @@ function projectWithVideoClips(
 		sources: [
 			videoSource('video-source-a', '12'),
 			videoSource('video-source-b', '34'),
-			...(withAudio ? [createAudioSourceV10({
+			...(withAudio ? [createAudioSource({
 				id: 'audio-source', name: 'Audio', storageKey: 'audio-source',
 				mimeType: 'audio/wav', contentSha256: '78'.repeat(32),
 				frameCount: 100 * FRAME_SAMPLES, sampleRate: SAMPLE_RATE, channelCount: 1,
-			}), createAudioSourceV10({
+			}), createAudioSource({
 				id: 'audio-source-b', name: 'Audio B', storageKey: 'audio-source-b',
 				mimeType: 'audio/wav', contentSha256: '9a'.repeat(32),
 				frameCount: 100 * FRAME_SAMPLES, sampleRate: SAMPLE_RATE, channelCount: 1,
@@ -391,12 +391,12 @@ function projectWithVideoClips(
 		],
 		clips: [...videoClips, ...(withAudio ? [audioClip] : [])],
 		tracks: [
-			createVideoTrackV10({
+			createVideoTrack({
 				id: 'video-track', name: 'Video',
 				...(withAudio ? { laneGroupId: 'media-lanes' } : {}),
 				clipIds: videoClips.map(({ id: clipId }) => String(clipId)), locked: false,
 			}),
-			...(withAudio ? [createAudioTrackV10({
+			...(withAudio ? [createAudioTrack({
 				id: 'audio-track', name: 'Audio', laneGroupId: 'media-lanes',
 				clipIds: ['audio'], locked: false,
 			}, SAMPLE_RATE)] : []),
@@ -414,7 +414,7 @@ function multicameraProject(): FramescaperProjectV19 {
 		id: 'multicamera-composition-v19', title: 'Multicamera composition', now: CREATED,
 		sources: [videoSource('video-source-a', '12'), videoSource('video-source-b', '34')],
 		clips: [videoClip('output', 0, 10, 0, composition(1))],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['output'], locked: false,
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],
@@ -431,7 +431,7 @@ function multicameraProject(): FramescaperProjectV19 {
 }
 
 function videoSource(id: string, digestByte: string): Record<string, unknown> {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id, name: id, storageKey: id, mimeType: 'video/mp4',
 		contentSha256: digestByte.repeat(32), sampleFrameCount: 100 * FRAME_SAMPLES,
 		sourceFrameCount: 100, frameRate: { num: 10, den: 1 },

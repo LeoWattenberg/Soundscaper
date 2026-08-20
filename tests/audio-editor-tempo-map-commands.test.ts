@@ -20,14 +20,16 @@ import {
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
 import {
-	createAudioClipV10,
-	createAudioEditorProjectV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createLabelTrackV10,
-	createLabelV10,
-	type AudioEditorProjectV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createLabel,
+	createLabelTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 
 const CREATED_AT = '2026-08-09T14:00:00.000Z';
@@ -63,7 +65,7 @@ test('tempo and signature factories preserve caller-owned stable IDs and exact c
 });
 
 test('musical tempo CRUD is stable-ID based, ordered, hold-only, and exact-rational', () => {
-	let project = createAudioEditorProjectV10({ id: 'musical-crud', now: CREATED_AT });
+	let project = createCurrentAudioEditorProject({ id: 'musical-crud', now: CREATED_AT });
 	project = apply(project, createAddTempoEventCommand({
 		id: 'tempo-outro', beat: { num: 8, den: 1 }, bpm: { num: 90, den: 1 },
 	}));
@@ -114,7 +116,7 @@ test('musical tempo CRUD is stable-ID based, ordered, hold-only, and exact-ratio
 });
 
 test('sample-locked tempo CRUD derives exact beats from authoritative sample positions', () => {
-	let project = createAudioEditorProjectV10({
+	let project = createCurrentAudioEditorProject({
 		id: 'sample-locked-crud', now: CREATED_AT, sampleRate: 48_000,
 		tempoMap: { mode: 'musical', events: [
 			{ id: 'tempo-root', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } },
@@ -158,7 +160,7 @@ test('sample-locked tempo CRUD derives exact beats from authoritative sample pos
 });
 
 test('signature CRUD preserves stable identity, bar ordering, and legacy first-signature projection', () => {
-	let project = createAudioEditorProjectV10({ id: 'signature-crud', now: CREATED_AT });
+	let project = createCurrentAudioEditorProject({ id: 'signature-crud', now: CREATED_AT });
 	project = apply(project, createAddSignatureEventCommand({
 		id: 'signature-outro', bar: 12, numerator: 5, denominator: 4,
 	}));
@@ -191,7 +193,7 @@ test('signature CRUD preserves stable identity, bar ordering, and legacy first-s
 });
 
 test('legacy tempo/set updates authoritative map roots and re-derives sample-locked beats', () => {
-	let project = createAudioEditorProjectV10({
+	let project = createCurrentAudioEditorProject({
 		id: 'legacy-tempo-command', now: CREATED_AT, sampleRate: 48_000,
 		tempoMap: { mode: 'sampleLocked', events: [
 			{ id: 'tempo-root', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 }, samplePosition: 0 },
@@ -217,7 +219,7 @@ test('tempo commands reflow musical material, preserve sample anchors, and undo 
 	history = executeEditorCommand(history, createUpdateTempoEventCommand('tempo-root', {
 		bpm: { num: 60, den: 1 },
 	}), { now: EDITED_AT });
-	const edited = history.present as AudioEditorProjectV10;
+	const edited = history.present as AudioEditorProjectCurrent;
 	assert.deepEqual(tempoEvents(edited)[0]?.bpm, { num: 60, den: 1 });
 	assert.deepEqual(runtimeStarts(resolveRuntimeProjectProjection(edited)), {
 		musical: 192_000, sample: 12_000, label: 192_000,
@@ -225,56 +227,56 @@ test('tempo commands reflow musical material, preserve sample anchors, and undo 
 	assert.deepEqual(recordById(edited.clips, 'musical-clip').musicalStartBeat, { num: 4, den: 1 });
 
 	history = undoEditorCommand(history, { now: UNDONE_AT });
-	const restored = history.present as AudioEditorProjectV10;
+	const restored = history.present as AudioEditorProjectCurrent;
 	assert.deepEqual(tempoEvents(restored)[0]?.bpm, { num: 120, den: 1 });
 	assert.deepEqual(runtimeStarts(resolveRuntimeProjectProjection(restored)), {
 		musical: 96_000, sample: 12_000, label: 96_000,
 	});
 });
 
-function reflowProject(): AudioEditorProjectV10 {
+function reflowProject(): AudioEditorProjectCurrent {
 	const tempoMap = { mode: 'musical', events: [
 		{ id: 'tempo-root', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } },
 	] } as const;
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', name: 'Audio', mimeType: 'audio/wav',
 		frameCount: 480_000, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 	});
-	const musical = createAudioClipV10({
+	const musical = createAudioClip({
 		id: 'musical-clip', sourceId: 'source', anchor: 'musical',
 		musicalStartBeat: { num: 4, den: 1 }, musicalExtent: 'fixedSamples',
 		durationFrames: 24_000, sourceStartFrame: 0, sourceDurationFrames: 24_000,
 	}, { projectSampleRate: 48_000, tempoMap });
-	const sample = createAudioClipV10({
+	const sample = createAudioClip({
 		id: 'sample-clip', sourceId: 'source', anchor: 'sample', timelineStartFrame: 12_000,
 		durationFrames: 24_000, sourceStartFrame: 24_000, sourceDurationFrames: 24_000,
 	});
-	const label = createLabelV10({
+	const label = createLabel({
 		id: 'musical-label', title: 'Cue', color: 'violet', opaqueExtensions: {}, anchor: 'musical',
 		startBeat: { num: 4, den: 1 }, endBeat: { num: 5, den: 1 },
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'tempo-reflow', now: CREATED_AT, sampleRate: 48_000, tempoMap,
 		sources: [source], clips: [musical, sample], tracks: [
-			createAudioTrackV10({ id: 'audio-track', clipIds: ['musical-clip', 'sample-clip'] }),
-			createLabelTrackV10({ id: 'label-track', labels: [label] }),
+			createAudioTrack({ id: 'audio-track', clipIds: ['musical-clip', 'sample-clip'] }),
+			createLabelTrack({ id: 'label-track', labels: [label] }),
 		],
 	});
 }
 
-function apply(project: AudioEditorProjectV10, command: AudioEditorCommand): AudioEditorProjectV10 {
-	return applyEditorCommand(project, command, { now: EDITED_AT }) as AudioEditorProjectV10;
+function apply(project: AudioEditorProjectCurrent, command: AudioEditorCommand): AudioEditorProjectCurrent {
+	return applyEditorCommand(project, command, { now: EDITED_AT }) as AudioEditorProjectCurrent;
 }
 
-function tempoEvents(project: AudioEditorProjectV10): readonly Readonly<Record<string, unknown>>[] {
+function tempoEvents(project: AudioEditorProjectCurrent): readonly Readonly<Record<string, unknown>>[] {
 	return project.tempoMap.events as unknown as readonly Readonly<Record<string, unknown>>[];
 }
 
-function signatureEvents(project: AudioEditorProjectV10): readonly Readonly<Record<string, unknown>>[] {
+function signatureEvents(project: AudioEditorProjectCurrent): readonly Readonly<Record<string, unknown>>[] {
 	return project.signatureMap.events as readonly Readonly<Record<string, unknown>>[];
 }
 
-function legacyTempo(project: AudioEditorProjectV10): Readonly<Record<string, unknown>> {
+function legacyTempo(project: AudioEditorProjectCurrent): Readonly<Record<string, unknown>> {
 	return project.tempo as Readonly<Record<string, unknown>>;
 }
 

@@ -28,13 +28,13 @@ import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/edito
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const FALLBACK_SOURCE_ID = 'fallback-source';
 
@@ -434,16 +434,16 @@ function createFixture(options: Readonly<{
 }
 
 function renderedFallbackProject(id: string): TestProject {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'original-source', storageKey: 'original-source', frameCount: 4,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const fallback = createAudioSourceV9({
+	const fallback = createAudioSource({
 		id: FALLBACK_SOURCE_ID, storageKey: FALLBACK_SOURCE_ID, frameCount: 6,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV9({ id: 'original-clip', sourceId: source.id, durationFrames: 4 });
-	const track = createAudioTrackV9({
+	const clip = createAudioClip({ id: 'original-clip', sourceId: source.id, durationFrames: 4 });
+	const track = createAudioTrack({
 		id: 'original-track', clipIds: [clip.id],
 		effects: [createEffect('compressor', { id: 'effect-a' })],
 	});
@@ -458,16 +458,16 @@ function renderedFallbackProject(id: string): TestProject {
 }
 
 function videoRenderedFallbackProject(id: string): TestProject {
-	const original = createVideoSourceV9({
+	const original = createVideoSource({
 		id: 'original-video', storageKey: 'original-video', frameCount: 4,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 	});
-	const fallback = createVideoSourceV9({
+	const fallback = createVideoSource({
 		id: 'fallback-video', storageKey: 'fallback-video', frameCount: 6,
 		sampleRate: 48_000, width: 1_280, height: 720, frameRate: 24,
 	});
-	const clip = createVideoClipV9({ id: 'original-video-clip', sourceId: original.id, durationFrames: 4 });
-	const track = createVideoTrackV9({ id: 'original-video-track', clipIds: [clip.id] });
+	const clip = createVideoClip({ id: 'original-video-clip', sourceId: original.id, durationFrames: 4 });
+	const track = createVideoTrack({ id: 'original-video-track', clipIds: [clip.id] });
 	return createCurrentAudioEditorProject({
 		id, now: '2026-08-01T12:00:00.000Z', sources: [original, fallback], clips: [clip], tracks: [track],
 		featureRequirements: { schemaVersion: 1, requirements: [{

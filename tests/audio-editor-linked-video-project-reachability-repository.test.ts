@@ -6,10 +6,10 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { LINKED_ORIGINAL_BINDING_SCHEMA_VERSION } from '../src/common/editor/storage/linked-original-binding.ts';
 import { LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME } from '../src/common/editor/storage/linked-original-provisional-root.ts';
 import { LinkedOriginalRepository } from '../src/common/editor/storage/linked-original-repository.ts';
@@ -330,11 +330,12 @@ interface TestVideoSource extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly storageKey: string;
 	readonly mimeType: string;
-	readonly frameCount: number;
+	readonly sampleFrameCount: number;
+	readonly sourceFrameCount: number;
 	readonly sampleRate: number;
 	readonly width: number;
 	readonly height: number;
-	readonly frameRate: number;
+	readonly frameRate: Readonly<{ readonly num: number; readonly den: number }>;
 	readonly videoCodec: string;
 	readonly audioCodec: string | null;
 	readonly hasAudio: boolean;
@@ -409,11 +410,11 @@ function bindingInput(
 		byteLength: 65_536,
 		sha256: 'ab'.repeat(32),
 		sourceShape: {
-			frameCount: Number(source.frameCount),
+			frameCount: Number(source.sampleFrameCount),
 			sampleRate: Number(source.sampleRate),
 			width: Number(source.width),
 			height: Number(source.height),
-			frameRate: Number(source.frameRate),
+			frameRate: source.frameRate.num / source.frameRate.den,
 			videoCodec: String(source.videoCodec),
 			audioCodec: source.audioCodec === null ? null : String(source.audioCodec),
 			hasAudio: Boolean(source.hasAudio),
@@ -432,18 +433,18 @@ function rootedProject(
 	const sources = [roots.timeline, roots.bin, roots.fallback].filter(
 		(source): source is TestVideoSource => source !== undefined,
 	);
-	const timelineClip = roots.timeline ? createVideoClipV9({
+	const timelineClip = roots.timeline ? createVideoClip({
 		id: 'timeline-clip',
 		sourceId: roots.timeline.id,
-		durationFrames: roots.timeline.frameCount,
-		sourceDurationFrames: roots.timeline.frameCount,
+		durationFrames: roots.timeline.sampleFrameCount,
+		sourceDurationFrames: roots.timeline.sampleFrameCount,
 	}) : null;
-	const binClip = roots.bin ? createVideoClipV9({
+	const binClip = roots.bin ? createVideoClip({
 		id: 'bin-clip',
 		binItemId: 'bin-item',
 		sourceId: roots.bin.id,
-		durationFrames: roots.bin.frameCount,
-		sourceDurationFrames: roots.bin.frameCount,
+		durationFrames: roots.bin.sampleFrameCount,
+		sourceDurationFrames: roots.bin.sampleFrameCount,
 	}) : null;
 	return createCurrentAudioEditorProject({
 		id: PROJECT_ID,
@@ -452,7 +453,7 @@ function rootedProject(
 		now: NOW,
 		sources,
 		clips: timelineClip ? [timelineClip] : [],
-		tracks: timelineClip ? [createVideoTrackV9({
+		tracks: timelineClip ? [createVideoTrack({
 			id: 'timeline-track',
 			name: 'Timeline video',
 			clipIds: [timelineClip.id],
@@ -476,12 +477,12 @@ function rootedProject(
 }
 
 function videoSource(id: string): TestVideoSource {
-	return createVideoSourceV9({
+	return createVideoSource({
 		id,
 		storageKey: `${id}-storage`,
 		name: `${id}.mp4`,
 		mimeType: 'video/mp4',
-		frameCount: 90,
+		sampleFrameCount: 90,
 		sampleRate: 48_000,
 		width: 1_920,
 		height: 1_080,

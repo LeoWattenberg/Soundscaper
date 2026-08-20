@@ -140,7 +140,6 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 				committedEntries.push(entry);
 				projectScope.assertCurrent();
 				const source: RecordedAudioSource = Object.freeze({
-					schemaVersion: 2,
 					sampleRate: entry.sampleRate,
 					originalSampleRate: entry.sampleRate,
 					sampleFormat: 'float32',

@@ -5,9 +5,9 @@ import {
 	videoKeyframeCurvesEqual,
 } from '../video-keyframe-curves.ts';
 import {
-	AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
-	admitAudioEditorProjectV9ValidationStructure,
-} from '../project-v9-validation-budget.ts';
+	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+	admitAudioEditorProjectValidationStructure,
+} from '../project-validation-budget.ts';
 import type { EditorCommandProject } from './protocol.ts';
 import {
 	defineVideoKeyframesCommandHandlers,
@@ -62,13 +62,13 @@ function normalizationContext(clip: DataRecord, clipId: string): Readonly<Record
 	}
 	const composition = dataProperty(clip, 'videoComposition', name);
 	const videoEffects = dataProperty(clip, 'videoEffects', name);
-	admitAudioEditorProjectV9ValidationStructure(
+	admitAudioEditorProjectValidationStructure(
 		composition,
-		AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+		AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 	);
-	admitAudioEditorProjectV9ValidationStructure(
+	admitAudioEditorProjectValidationStructure(
 		videoEffects,
-		AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+		AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 	);
 	return Object.freeze({
 		duration: Object.freeze({ num: Number(sequenceFrameCount), den: 1 }),

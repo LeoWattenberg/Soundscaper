@@ -6,16 +6,18 @@ import test from 'node:test';
 import {
 	planFrameCanonicalRollRippleTrim,
 } from '../src/common/editor/frame-canonical-roll-ripple-trim-planner.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	videoFrameToSampleFrame,
 	type RationalRate,
@@ -173,7 +175,7 @@ test('left ripple uses a separate suffix cut for same-edge lanes with unequal du
 	]);
 });
 
-test('plans are deeply frozen and repeated planning never mutates the V15 command projection', () => {
+test('plans are deeply frozen and repeated planning never mutates the current command projection', () => {
 	const project = videoFixture();
 	const before = JSON.stringify(project);
 	const first = planFrameCanonicalRollRippleTrim(project, {
@@ -191,9 +193,9 @@ test('plans are deeply frozen and repeated planning never mutates the V15 comman
 	assert.ok(first.transforms.every(({ changes }) => Object.isFrozen(changes)));
 });
 
-test('persisted V15 locks refuse affected work even when a caller predicate tries to weaken them', () => {
+test('persisted current locks refuse affected work even when a caller predicate tries to weaken them', () => {
 	const project = videoFixture({ locked: true });
-	assert.equal(project.schemaVersion, 15);
+	assert.equal(project.schemaVersion, 17);
 	assert.deepEqual(project.tracks.map(({ locked }) => locked), [true]);
 
 	assert.throws(() => planFrameCanonicalRollRippleTrim(project, {
@@ -282,7 +284,7 @@ function videoFixture(options: Readonly<{
 		clips[0] = videoClip(source, rate, 'active-video', 0, 10, 100);
 		clips[1] = videoClip(source, rate, 'suffix-video', 10, 10, 200);
 	}
-	const track = createVideoTrackV10({
+	const track = createVideoTrack({
 		id: 'video-track',
 		clipIds: clips.map(({ id }) => String(id)),
 		locked: options.locked ?? false,
@@ -295,19 +297,19 @@ function videoFixture(options: Readonly<{
 
 function linkedNtscFixture(): CommandProject {
 	const video = videoSource(NTSC);
-	const audio = createAudioSourceV10({
+	const audio = createAudioSource({
 		id: 'audio-source', frameCount: 200_000, sampleRate: SAMPLE_RATE, channelCount: 1,
 	});
 	const activeVideo = videoClip(video, NTSC, 'active-video', 0, 1, 100, 'active-link');
 	const suffixVideo = videoClip(video, NTSC, 'suffix-video', 2, 2, 300, 'suffix-link');
-	const activeAudio = createAudioClipV10({
+	const activeAudio = createAudioClip({
 		id: 'active-audio', sourceId: 'audio-source', avLinkId: 'active-link',
 		timelineStartFrame: boundary(0, NTSC),
 		durationFrames: boundary(1, NTSC),
 		sourceStartFrame: 10_000,
 		sourceDurationFrames: boundary(1, NTSC),
 	});
-	const suffixAudio = createAudioClipV10({
+	const suffixAudio = createAudioClip({
 		id: 'suffix-audio', sourceId: 'audio-source', avLinkId: 'suffix-link',
 		timelineStartFrame: boundary(2, NTSC),
 		durationFrames: boundary(4, NTSC) - boundary(2, NTSC),
@@ -315,11 +317,11 @@ function linkedNtscFixture(): CommandProject {
 		sourceDurationFrames: boundary(4, NTSC) - boundary(2, NTSC),
 	});
 	const tracks = [
-		createVideoTrackV10({
+		createVideoTrack({
 			id: 'video-track', clipIds: ['active-video', 'suffix-video'],
 			locked: false, laneGroupId: 'linked-lanes',
 		}),
-		createAudioTrackV10({
+		createAudioTrack({
 			id: 'audio-track', clipIds: ['active-audio', 'suffix-audio'],
 			locked: false, laneGroupId: 'linked-lanes',
 		}, SAMPLE_RATE),
@@ -341,8 +343,8 @@ function unequalLeftRippleFixture(): CommandProject {
 		videoClip(source, PAL, 'suffix-b', 25, 5, 700),
 	];
 	const tracks = [
-		createVideoTrackV10({ id: 'track-a', clipIds: ['active-a', 'suffix-a'], locked: false }),
-		createVideoTrackV10({ id: 'track-b', clipIds: ['active-b', 'suffix-b'], locked: false }),
+		createVideoTrack({ id: 'track-a', clipIds: ['active-a', 'suffix-a'], locked: false }),
+		createVideoTrack({ id: 'track-b', clipIds: ['active-b', 'suffix-b'], locked: false }),
 	];
 	return commandProject({ rate: PAL, sources: [source], clips, tracks });
 }
@@ -356,12 +358,12 @@ function mixedSequenceSuffixFixture(): CommandProject {
 			sequenceId: 'other', groupId: 'suffix-group' },
 	];
 	const tracks = [
-		createVideoTrackV10({
+		createVideoTrack({
 			id: 'main-track', clipIds: ['active-video', 'suffix-video'], locked: false,
 		}),
-		createVideoTrackV10({ id: 'other-track', clipIds: ['other-video'], locked: false }),
+		createVideoTrack({ id: 'other-track', clipIds: ['other-video'], locked: false }),
 	];
-	const project = createAudioEditorProjectV15({
+	const project = createCurrentAudioEditorProject({
 		id: 'mixed-suffix-rate', now: '2026-08-11T16:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sequences: [
 			{ id: 'main', rate: PAL, trackIds: ['main-track'] },
@@ -369,7 +371,7 @@ function mixedSequenceSuffixFixture(): CommandProject {
 		],
 		primarySequenceId: 'main', sources: [source], clips, tracks,
 	});
-	return projectV10ForCommand(
+	return projectForCommand(
 		project as unknown as Record<string, unknown>,
 	) as unknown as CommandProject;
 }
@@ -399,16 +401,16 @@ function relationSuffixFixture(options: Readonly<{
 	clips.push(videoClip(source, PAL, 'peer-later', 25, 5, 700));
 	peerClipIds.push('relation-peer', 'peer-later');
 	const tracks = [
-		createVideoTrackV10({
+		createVideoTrack({
 			id: 'main-track', clipIds: ['active-video', 'main-suffix'], locked: false,
 		}),
-		createVideoTrackV10({ id: 'peer-track', clipIds: peerClipIds, locked: false }),
+		createVideoTrack({ id: 'peer-track', clipIds: peerClipIds, locked: false }),
 	];
 	return commandProject({ rate: PAL, sources: [source], clips, tracks });
 }
 
 function videoSource(rate: RationalRate): Record<string, unknown> {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id: 'video-source', frameCount: 2_000_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: rate, sourceFrameCount: 1_000,
 	}, SAMPLE_RATE);
@@ -423,7 +425,7 @@ function videoClip(
 	sourceInFrame: number,
 	avLinkId: string | null = null,
 ): Record<string, unknown> {
-	return createVideoClipV10({
+	return createVideoClip({
 		id, sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame, sequenceFrameCount,
 		sourceInFrame, sourceFrameCount: sequenceFrameCount,
@@ -438,7 +440,7 @@ function commandProject(input: Readonly<{
 	tracks: readonly Record<string, unknown>[];
 	selectedClipIds?: readonly string[];
 }>): CommandProject {
-	const project = createAudioEditorProjectV15({
+	const project = createCurrentAudioEditorProject({
 		id: 'roll-ripple', now: '2026-08-11T16:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sequences: [{
 			id: 'main', rate: input.rate,
@@ -453,10 +455,10 @@ function commandProject(input: Readonly<{
 			clipIds: input.selectedClipIds, frequencyRange: null,
 		},
 	});
-	const projection = projectV10ForCommand(
+	const projection = projectForCommand(
 		project as unknown as Record<string, unknown>,
 	) as unknown as CommandProject;
-	assert.equal(projection.schemaVersion, 15);
+	assert.equal(projection.schemaVersion, 17);
 	assert.ok(projection.tracks.every(({ locked }) => typeof locked === 'boolean'));
 	return projection;
 }

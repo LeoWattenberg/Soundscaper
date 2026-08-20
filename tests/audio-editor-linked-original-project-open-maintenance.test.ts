@@ -6,10 +6,10 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import {
 	DesktopSharedProjectRepository,
@@ -365,7 +365,7 @@ function bind(
 }
 
 function audioSource() {
-	return createAudioSourceV9({
+	return createAudioSource({
 		id: 'linked-audio-source', storageKey: 'linked-audio-storage', mimeType: 'audio/wav',
 		frameCount: 4, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 2,
@@ -377,7 +377,7 @@ function project(
 	revision: number,
 	source?: ReturnType<typeof audioSource>,
 ) {
-	const clips = source ? [createAudioClipV9({
+	const clips = source ? [createAudioClip({
 		id: `${id}-clip`, sourceId: source.id,
 		durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
 	})] : [];
@@ -388,7 +388,7 @@ function project(
 		now: NOW,
 		sources: source ? [source] : [],
 		clips,
-		tracks: clips.length === 0 ? [] : [createAudioTrackV9({ id: `${id}-track`, clipIds: [clips[0].id] })],
+		tracks: clips.length === 0 ? [] : [createAudioTrack({ id: `${id}-track`, clipIds: [clips[0].id] })],
 	});
 }
 

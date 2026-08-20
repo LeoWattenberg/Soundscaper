@@ -24,7 +24,7 @@ import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	createCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+
 import {
 	SCAPE_FORMAT,
 	exportScapeProject,
@@ -134,13 +134,16 @@ test('timeline annotations survive a current-format scape semantic round trip', 
 test('an explicit historical V10 scape fails with typed re-import before persistence', async () => {
 	const sourceStore = memoryStore('scape-v10-reimport-source');
 	const backingStore = memoryStore('scape-v10-reimport-target');
-	const historical = createAudioEditorProjectV10({
+	const historical = createCurrentAudioEditorProject({
 		id: 'scape-v10-reimport-project',
 		title: 'Historical V10 project',
 		now: '2026-08-09T18:05:00.000Z',
 		sources: [], clips: [], tracks: [],
 	});
 	const exported = await exportScapeProject(historical, sourceStore);
+	const stale = await rewriteScapeProjectDocument(exported.blob, (document) => {
+		document.schemaVersion = 10;
+	});
 	let persistenceCalls = 0;
 	const targetStore = new Proxy(backingStore, {
 		get(target, property) {
@@ -156,7 +159,7 @@ test('an explicit historical V10 scape fails with typed re-import before persist
 	});
 
 	await assert.rejects(
-		() => importScapeProject(exported.blob, targetStore),
+		() => importScapeProject(stale, targetStore),
 		(error) => error instanceof AudioEditorProjectReimportRequiredError
 			&& error.schemaVersion === 10
 			&& error.currentSchemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,

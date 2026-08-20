@@ -13,10 +13,10 @@ import {
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
 
 test('video source mapping consumes registered VFR PTS instead of nominal-rate division', () => {
@@ -79,14 +79,14 @@ test('VFR preview mapping and export use one exact PTS span', () => {
 		finalFrameDurationTicks: 200n,
 	});
 	const sequence = { id: 'main', rate: { num: 10, den: 1 } };
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'vfr-source', storageKey: 'vfr-source', name: 'VFR', mimeType: 'video/mp4',
 		frameCount: 5_000, sampleRate: 10_000, width: 16, height: 16,
 		frameRate: { num: 24, den: 1 }, sourceFrameCount: 3,
 		contentSha256: sourceSha256, timingAsset: timing.reference,
 		timingDecision: { mode: 'exact', rate: { num: 24, den: 1 } },
 	}, 10_000);
-	const clip = createVideoClipV10({
+	const clip = createVideoClip({
 		id: 'clip', sourceId: source.id, sequenceId: sequence.id,
 		sequenceStartFrame: 0, sequenceFrameCount: 3,
 		sourceInFrame: 0, sourceFrameCount: 3,
@@ -95,7 +95,7 @@ test('VFR preview mapping and export use one exact PTS span', () => {
 		id: 'vfr-export', sampleRate: 10_000,
 		sequences: [sequence], primarySequenceId: sequence.id,
 		sources: [source], clips: [clip],
-		tracks: [createVideoTrackV10({ id: 'video', clipIds: [clip.id] })],
+		tracks: [createVideoTrack({ id: 'video', clipIds: [clip.id] })],
 	});
 
 	registerVideoTimingIndex(source, {

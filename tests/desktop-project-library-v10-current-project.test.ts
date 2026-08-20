@@ -6,7 +6,9 @@ import test from 'node:test';
 import {
 	validateFramescaperDesktopCurrentProjectV18,
 } from '../desktop/project-library-v10-current-project.ts';
-import { createVideoSourceV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import {
 	createFramescaperProjectV18,
@@ -24,7 +26,7 @@ test('accepts only exact validated Framescaper V18 documents', () => {
 			id: 'desktop-v10-project',
 			title: 'Desktop V10 project',
 			now: NOW,
-			sources: [createVideoSourceV10({
+			sources: [createVideoSource({
 				id: 'video-source',
 				name: 'Video source',
 				storageKey: 'video-source',

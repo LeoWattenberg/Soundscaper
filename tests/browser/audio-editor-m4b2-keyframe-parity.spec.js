@@ -50,7 +50,7 @@ test('collects keyed preview/offline RGBA and exact dual-consumer ledgers withou
 			workload, projection, timelineModule, frameSourceModule, renderStateModule,
 			rendererModule, previewStateModule,
 			compositorModule, timingAssetModule, timingViewModule, presentationModule,
-			projectV10, framescaperV20, framescaperProfile, framescaperRuntime,
+			projectMediaFactory, framescaperV20, framescaperProfile, framescaperRuntime,
 			framescaperRequirements,
 		] = await Promise.all([
 			import(`${root}/src/common/editor/quality/m4b2-keyframe-parity-workload.ts`),
@@ -64,7 +64,7 @@ test('collects keyed preview/offline RGBA and exact dual-consumer ledgers withou
 			import(`${root}/src/common/editor/video-timing-asset.ts`),
 			import(`${root}/src/common/editor/video-source-timing-view.ts`),
 			import(`${root}/src/common/editor/video-keyframe-export-presentation-authority.ts`),
-			import(`${root}/src/common/editor/project-v10.ts`),
+			import(`${root}/src/common/editor/project-media-factory.ts`),
 			import(`${root}/src/framescaper/editor-project-v20.ts`),
 			import(`${root}/src/framescaper/editor-project-v20-profile.ts`),
 			import(`${root}/src/framescaper/editor-project-v20-runtime.ts`),
@@ -251,7 +251,7 @@ test('collects keyed preview/offline RGBA and exact dual-consumer ledgers withou
 				presentationTicks: [0n, 5n, 13n, 20n, 33n, 41n, 55n, 62n, 76n, 90n, 105n, 113n],
 				finalFrameDurationTicks: 7n,
 			});
-			const sourceValue = projectV10.createVideoSourceV10({
+			const sourceValue = projectMediaFactory.createVideoSource({
 				id: sourceId, name: 'M4B2 VFR source', storageKey: sourceId,
 				mimeType: 'video/mp4', contentSha256: digest,
 				frameCount: 48_000, sampleFrameCount: 48_000,
@@ -269,7 +269,7 @@ test('collects keyed preview/offline RGBA and exact dual-consumer ledgers withou
 					title: 'Bezier leaf', sequenceId: 'leaf', sequenceStartFrame: 0,
 					sequenceFrameCount: 12, sourceInFrame: 0, sourceFrameCount: 12, retimeMap: null,
 				}],
-				tracks: [projectV10.createVideoTrackV10({
+				tracks: [projectMediaFactory.createVideoTrack({
 					id: 'leaf-track', name: 'Leaf',
 					clipIds: ['m4b2-opacity-bezier-leaf-clip'], locked: false,
 				})],
@@ -494,7 +494,7 @@ async function transpileSourceModules() {
 		'common/editor/video-timing-asset.ts',
 		'common/editor/video-source-timing-view.ts',
 		'common/editor/video-keyframe-export-presentation-authority.ts',
-		'common/editor/project-v10.ts',
+		'common/editor/project-media-factory.ts',
 		'framescaper/editor-project-v20.ts',
 		'framescaper/editor-project-v20-profile.ts',
 		'framescaper/editor-project-v20-runtime.ts',

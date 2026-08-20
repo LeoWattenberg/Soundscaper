@@ -351,7 +351,7 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 	},
 	{
 		id: 'command-authority-reconciliation',
-		file: 'src/common/editor/project-v10-command-projection.ts',
+		file: 'src/common/editor/project-command-projection.ts',
 		behavior: 'Command results conform frame-backed endpoints as points and invert resolved sample edits to exact musical coordinates.',
 		conversions: [
 			{ helper: 'beatToSampleFrame', policies: ['point'] },
@@ -361,14 +361,14 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 	},
 	{
 		id: 'foundation-coordinate-validation',
-		file: 'src/common/editor/project-v10-foundation-validation.ts',
+		file: 'src/common/editor/project-foundation-validation.ts',
 		behavior: 'Foundation validation resolves tempo events and musical extents as absolute point samples to prove ordering and safe ranges.',
 		conversions: [{ helper: 'beatToSampleFrame', policies: ['point'] }],
 	},
 	{
-		id: 'foundation-factory-compatibility',
-		file: 'src/common/editor/project-v10.ts',
-		behavior: 'Factories enclose legacy duration claims, resolve legacy anchors as points, and derive video extents from absolute endpoints.',
+		id: 'foundation-media-factory',
+		file: 'src/common/editor/project-media-factory.ts',
+		behavior: 'Media factories enclose imported duration claims, resolve sample anchors as points, and derive video extents from absolute endpoints.',
 		conversions: [
 			{ helper: 'beatToSampleFrame', policies: ['point'] },
 			{ helper: 'sampleFrameToVideoFrame', policies: ['enclosingEnd', 'point'] },

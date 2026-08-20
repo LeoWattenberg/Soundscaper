@@ -1,9 +1,9 @@
 import { createCurrentAudioEditorProject } from './project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from './project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from './project-media-factory.ts';
 import { createStableId } from './project.js';
 import { canonicalAudacityMusicalRoot } from './audacity-tempo-import.ts';
 import { createAudacityAnnotationImport } from './audacity-annotation-interchange.ts';
@@ -58,7 +58,7 @@ export function convertLegacyAupToProject(structure, options = {}) {
 			const sourceId = idFactory('source');
 			const clipId = idFactory('clip');
 			const name = String(inputClip.name || `${inputTrack.name || 'Audio'} ${clipIndex + 1}`);
-		const source = createAudioSourceV10({
+		const source = createAudioSource({
 				id: sourceId,
 				storageKey: sourceId,
 				name,
@@ -70,7 +70,7 @@ export function convertLegacyAupToProject(structure, options = {}) {
 				sampleFormat: legacySampleFormat(inputTrack.sampleFormat),
 				opaqueExtensions: { legacyAupSource: inputClip.opaqueExtensions || {} },
 			});
-			const clip = createAudioClipV10({
+			const clip = createAudioClip({
 				id: clipId,
 				sourceId,
 				title: name,
@@ -93,7 +93,7 @@ export function convertLegacyAupToProject(structure, options = {}) {
 			clips.push(clip);
 			clipIds.push(clip.id);
 		}
-		tracks.push(createAudioTrackV10({
+		tracks.push(createAudioTrack({
 			id: trackId,
 			name: String(inputTrack.name || `Track ${trackIndex + 1}`),
 			gain: finiteInRange(inputTrack.gain, 0, 4, 1),

@@ -8,7 +8,7 @@ import {
 	type MasteringSequenceV23,
 } from '../common/editor/mastering-sequence.ts'
 import type { MixerGraphV21 } from '../common/editor/mixer-graph-v21.ts'
-import type { AudioEditorFolderHierarchyDocument } from '../common/editor/project-v12-validation.ts'
+import type { ProjectHierarchyDocument } from '../common/editor/project-hierarchy-document-validation.ts'
 import { SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION } from '../common/editor/project-schema-version.ts'
 import type { TakeCompDocumentGroup } from '../common/editor/take-comp-document-v17.ts'
 import {
@@ -40,7 +40,7 @@ export const SOUNDSCAPER_V23_PROJECT_FIELDS = Object.freeze([
 	'masteringSequences',
 ] as const)
 
-export interface SoundscaperProjectV23 extends AudioEditorFolderHierarchyDocument {
+export interface SoundscaperProjectV23 extends ProjectHierarchyDocument {
 	readonly schemaVersion: 23
 	readonly automationLanes: readonly AutomationLaneV21[]
 	readonly mixer: MixerGraphV21

@@ -13,7 +13,10 @@ import { createImportedAdmPassthroughMetadata } from '../src/common/editor/contr
 import { createExportPlan } from '../src/common/editor/export.js';
 import { createRiffIxmlChunk } from '../src/common/editor/ixml.ts';
 import type { ProjectBextMetadataInput } from '../src/common/editor/project-bext-metadata.ts';
-import { createAudioEditorProjectV7, type AudioEditorProjectV7 } from '../src/common/editor/project-v7.ts';
+import {
+	createCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 import { createRiffMarkerChunks, type RiffMarkerInput } from '../src/common/editor/riff-markers.ts';
 import { createWavStreamEncoder, inspectWavLayout } from '../src/common/editor/wav.js';
 import { inspectWavBlobPcm } from '../src/common/editor/wav-import.js';
@@ -64,7 +67,7 @@ interface RiffSequenceEntry {
 
 interface PristineFixture {
 	readonly plan: PassthroughPlan;
-	readonly project: AudioEditorProjectV7;
+	readonly project: AudioEditorProjectCurrent;
 	readonly sourceSequence: readonly RiffSequenceEntry[];
 }
 
@@ -261,7 +264,7 @@ test('stale or edited passthrough projects fail planning before target selection
 	]) {
 		let prepareCalls = 0;
 		assert.throws(() => {
-			const plan = createPassthroughPlan(candidate as AudioEditorProjectV7);
+			const plan = createPassthroughPlan(candidate as AudioEditorProjectCurrent);
 			void prepareDirectBw64Destination({
 				prepareSave() { prepareCalls += 1; return { mode: 'blob' }; },
 			}, plan, {}, new AbortController().signal);
@@ -303,7 +306,7 @@ async function pristinePassthroughFixture(
 	});
 	assert.ok(importedAdm?.mode === 'passthrough');
 	assert.ok(descriptor.bext == null || descriptor.bext.version === 2);
-	const project = createAudioEditorProjectV7({
+	const project = createCurrentAudioEditorProject({
 		id: 'pristine-import', title: 'Pristine import', revision: 1,
 		now: '2026-07-30T12:00:00.000Z', masterChannels: descriptor.channelCount,
 		sources: [storedSource],
@@ -398,7 +401,7 @@ function wavLayout(plan: PassthroughPlan): ReturnType<typeof inspectWavLayout> {
 	});
 }
 
-function createPassthroughPlan(project: AudioEditorProjectV7): PassthroughPlan {
+function createPassthroughPlan(project: AudioEditorProjectCurrent): PassthroughPlan {
 	return createExportPlan(project, {
 		format: 'bw64', bitDepth: 16, dither: 'none', includeTail: false,
 		mobile: true, livePcmBytes: 321 * 1024 ** 2,

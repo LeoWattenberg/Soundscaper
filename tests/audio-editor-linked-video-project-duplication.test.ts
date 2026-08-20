@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createVideoClipV9,
-	createVideoSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createVideoClip,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import { ProjectPublicationQuotaError } from '../src/common/editor/project-publication-admission.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
@@ -16,8 +16,8 @@ import type { LinkedVideoOriginalBinding } from '../src/common/editor/storage/li
 import type { LinkedVideoOriginalLocatorReference } from '../src/common/editor/storage/linked-video-original-repository.ts';
 import type { DesktopSharedProjectBridge } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
 import type {
+	FoundationLinkedVideoOriginalSource,
 	LinkedVideoOriginalPort,
-	LinkedVideoOriginalSource,
 } from '../src/common/editor/storage/linked-video-original-resolver.ts';
 import { linkedVideoOriginalBindingKey } from '../src/common/editor/storage/linked-video-original-schema.ts';
 import {
@@ -553,12 +553,12 @@ function mutatingCreateFactory(): StorageRepositoryFactory {
 
 function linkedProject(id: string, title: string, revision = 3): AudioEditorProjectCurrent {
 	const source = linkedSource();
-	const clip = createVideoClipV9({
+	const clip = createVideoClip({
 		id: `${id}-bin-clip`,
 		binItemId: `${id}-bin-item`,
 		sourceId: source.id,
-		durationFrames: source.frameCount,
-		sourceDurationFrames: source.frameCount,
+		durationFrames: source.sampleFrameCount,
+		sourceDurationFrames: source.sampleFrameCount,
 	});
 	return createCurrentAudioEditorProject({
 		id, title, revision, now: NOW,
@@ -566,13 +566,13 @@ function linkedProject(id: string, title: string, revision = 3): AudioEditorProj
 		projectBin: { clips: [clip] },
 	});
 }
-function linkedSource(): LinkedVideoOriginalSource {
-	return createVideoSourceV9({
+function linkedSource(): FoundationLinkedVideoOriginalSource {
+	return createVideoSource({
 		id: SOURCE_ID,
 		storageKey: 'linked-duplicate-video-storage',
 		name: 'Linked duplicate video.mp4',
 		mimeType: 'video/mp4',
-		frameCount: 90,
+		sampleFrameCount: 90,
 		sampleRate: 48_000,
 		width: 1_920,
 		height: 1_080,

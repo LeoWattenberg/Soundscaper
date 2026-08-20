@@ -82,7 +82,6 @@ export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntim
 		}
 
 		const source = {
-			schemaVersion: 2,
 			sampleFormat: 'float32',
 			chunkFrames: SOURCE_CHUNK_FRAMES,
 			id: sourceId,
@@ -101,7 +100,6 @@ export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntim
 			} } : {}),
 		};
 		const prepared = prepareImportedMediaCommand(source, {
-			schemaVersion: 2,
 			title: trackName,
 			sourceDurationFrames: descriptor.frameCount,
 			id: clipId,

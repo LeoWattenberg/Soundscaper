@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
 	FRAMESCAPER_MULTICAMERA_FEATURE_ID,
@@ -245,7 +248,7 @@ function options(): Record<string, unknown> {
 		id: 'framescaper-v18-features',
 		title: 'Framescaper V18 features',
 		now: '2026-08-13T10:00:00.000Z',
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'video-source', name: 'Video', storageKey: 'video-source', mimeType: 'video/mp4',
 			contentSha256: ORIGINAL_SHA, frameCount: 48_000, sampleFrameCount: 48_000,
 			sourceFrameCount: 10, frameRate: { num: 10, den: 1 }, width: 1920, height: 1080,
@@ -255,7 +258,7 @@ function options(): Record<string, unknown> {
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true,
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],

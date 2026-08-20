@@ -13,13 +13,13 @@ import {
 	validateAudioEditorProject,
 } from '../src/common/editor/project.js';
 import {
-	createAudioClipV2,
-	createAudioSourceV2,
-	createAudioTrackV2,
-} from '../src/common/editor/project-v2.js';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
-	createAudioEditorProjectV3,
-} from '../src/common/editor/project-v3.js';
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	collectHistorySourceIds,
 	collectProjectSourceIds,
@@ -31,14 +31,14 @@ const NOW = '2026-07-18T10:00:00.000Z';
 const LATER = '2026-07-18T10:01:00.000Z';
 
 function createBinFixture() {
-	const source = createAudioSourceV2({
+	const source = createAudioSource({
 		id: 'source-1',
 		name: 'voice.wav',
 		storageKey: 'pcm/source-1',
 		frameCount: 1_000,
 		channelCount: 2,
 	});
-	const first = createAudioClipV2({
+	const first = createAudioClip({
 		id: 'clip-1',
 		sourceId: source.id,
 		title: 'First',
@@ -62,7 +62,7 @@ function createBinFixture() {
 		renderCacheRevision: 7,
 		opaqueExtensions: { retained: true },
 	});
-	const second = createAudioClipV2({
+	const second = createAudioClip({
 		id: 'clip-2',
 		sourceId: source.id,
 		title: 'Second',
@@ -73,7 +73,7 @@ function createBinFixture() {
 		trimEndFrames: 800,
 		groupId: 'group-1',
 	});
-	return createAudioEditorProjectV3({
+	return createCurrentAudioEditorProject({
 		id: 'project-bin-fixture',
 		title: 'Project bin fixture',
 		now: NOW,
@@ -86,16 +86,16 @@ function createBinFixture() {
 		sources: [source],
 		clips: [first, second],
 		tracks: [
-			createAudioTrackV2({ id: 'track-1', clipIds: [first.id] }),
-			createAudioTrackV2({ id: 'track-2', clipIds: [second.id] }),
+			createAudioTrack({ id: 'track-1', clipIds: [first.id] }),
+			createAudioTrack({ id: 'track-2', clipIds: [second.id] }),
 		],
 	});
 }
 
-test('V3 factory retains bin clips separately from the timeline', () => {
+test('current factory retains bin clips separately from the timeline', () => {
 	const project = createBinFixture();
 	const binClip = { ...project.clips[0], id: 'bin-clip', groupId: null };
-	const withBin = createAudioEditorProjectV3({
+	const withBin = createCurrentAudioEditorProject({
 		...project,
 		now: project.createdAt,
 		clips: [project.clips[1]],
@@ -124,7 +124,11 @@ test('project-bin commands preserve transforms, clear groups, reuse items, and u
 	assert.deepEqual(history.present.tracks.map((track) => track.clipIds), [[], []]);
 	assert.deepEqual(history.present.selection.clipIds, []);
 	assert.deepEqual(history.present.projectBin.clips.map((clip) => clip.id), ['clip-1', 'clip-2']);
-	assert.deepEqual(findProjectBinClip(history.present, 'clip-1'), { ...originalFirst, groupId: null });
+	assert.deepEqual(findProjectBinClip(history.present, 'clip-1'), {
+		...originalFirst,
+		groupId: null,
+		binItemId: 'clip-1',
+	});
 
 	history = undoEditorCommand(history, { now: LATER });
 	assert.deepEqual(history.present.clips, project.clips);

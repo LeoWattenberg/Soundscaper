@@ -7,6 +7,11 @@ import {
 } from '../src/common/editor/controller/clip-transform-service.ts';
 import type { ClipTransformProject } from '../src/common/editor/controller/clip-domain-types.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	brandRuntimeProjectProjection,
+	RUNTIME_CLIP_PROJECTION_VERSION,
+} from '../src/common/editor/runtime-clip-projection.ts';
 
 test('clip moves preserve selected companions, selection offsets, and one atomic command', () => {
 	const project = projectFixture();
@@ -41,7 +46,6 @@ test('clip moves preserve selected companions, selection offsets, and one atomic
 
 test('moving linked video media to new tracks reserves a paired lane atomically', () => {
 	const project = projectFixture({
-		schemaVersion: 4,
 		tracks: [{
 			id: 'video-track', name: 'Picture', type: 'video', clipIds: ['video'],
 			laneGroupId: 'lane', height: 220,
@@ -152,7 +156,7 @@ test('overwrite preparation assigns stable split IDs before the command is commi
 	assert.deepEqual(command.changes, { timelineStartFrame: 400 });
 });
 
-test('single-clip move and V2 new-track moves preserve direct command and selection behavior', () => {
+test('single-clip and current new-track moves preserve direct command and selection behavior', () => {
 	const project = projectFixture({
 		tracks: [{ id: 'track-a', name: 'A', type: 'audio', clipIds: ['active'] }],
 		clips: [clipFixture({ id: 'active', timelineStartFrame: 100 })],
@@ -178,9 +182,8 @@ test('single-clip move and V2 new-track moves preserve direct command and select
 	assert.equal(transform.transforms[0]?.changes.timelineStartFrame, 0, 'moves clamp at the timeline origin');
 });
 
-test('V4 drops redirect across a media lane and invalid destinations fail before commit', () => {
+test('current drops redirect across a media lane and invalid destinations fail before commit', () => {
 	const media = projectFixture({
-		schemaVersion: 4,
 		tracks: [{
 			id: 'video-track', name: 'Video', type: 'video', clipIds: ['video'], laneGroupId: 'lane',
 		}, {
@@ -298,11 +301,19 @@ function createHarness(project: ClipTransformProject) {
 }
 
 function projectFixture(overrides: Partial<ClipTransformProject> = {}): ClipTransformProject {
-	return {
-		schemaVersion: 2,
+	return brandRuntimeProjectProjection({
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		id: 'project',
 		title: 'Project',
 		sampleRate: 48_000,
+		projectBin: { clips: [] },
+		timelineAnnotations: [],
+		sequences: [{ id: 'main-sequence' }],
+		primarySequenceId: 'main-sequence',
+		tempoMap: {
+			mode: 'musical',
+			events: [{ id: 'tempo', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+		},
 		tracks: [{ id: 'track-a', name: 'A', type: 'audio', clipIds: ['active'] }, {
 			id: 'track-b', name: 'B', type: 'audio', clipIds: ['companion'],
 		}, { id: 'track-c', name: 'C', type: 'audio', clipIds: [] }],
@@ -319,11 +330,12 @@ function projectFixture(overrides: Partial<ClipTransformProject> = {}): ClipTran
 			frequencyRange: null,
 		},
 		...overrides,
-	};
+		runtimeProjectionVersion: RUNTIME_CLIP_PROJECTION_VERSION,
+	}) as unknown as ClipTransformProject;
 }
 
 function clipFixture(overrides: Readonly<Record<string, unknown>> = {}) {
-	return {
+	const clip = {
 		id: 'active', sourceId: 'source', title: 'Clip', kind: 'audio' as const,
 		timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 1_000,
 		durationFrames: 1_000, trimStartFrames: 0, trimEndFrames: 0,
@@ -332,5 +344,13 @@ function clipFixture(overrides: Readonly<Record<string, unknown>> = {}) {
 		preserveFormants: false, stretchToTempo: false, renderCacheRevision: 0,
 		opaqueExtensions: {},
 		...overrides,
+	};
+	return {
+		...clip,
+		timelineEndFrame: Number(clip.timelineStartFrame) + Number(clip.durationFrames),
+		sourceEndFrame: Number(clip.sourceStartFrame) + Number(clip.sourceDurationFrames),
+		sequenceStartFrame: null,
+		sequenceEndFrame: null,
+		coordinateDomain: 'resolved-samples' as const,
 	};
 }

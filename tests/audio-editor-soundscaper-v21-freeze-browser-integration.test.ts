@@ -4,7 +4,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { AudioTrackFreezeCoordinatorCommandV21 } from '../src/common/editor/audio-track-freeze-coordinator-v21.ts';
 import type { EngineRenderMixOptions } from '../src/common/editor/engine/public-api.ts';
-import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import type { StorageRecord } from '../src/common/editor/storage/media-records.ts';
 import type { SourcePcmReadSession } from '../src/common/editor/storage/source-read-repository.ts';
 import type { AudioSourceWriter } from '../src/common/editor/storage/source-write-repository.ts';
@@ -28,7 +32,7 @@ test('browser freeze actions render, persist, activate, refresh, unfreeze, and c
 		createSoundscaperPlaybackProjectServiceV21(),
 		store,
 	);
-	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSourceV10({
+	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
 		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	}));
@@ -161,7 +165,7 @@ test('an unrelated edit during a freeze does not discard the render', async () =
 		createSoundscaperPlaybackProjectServiceV21(),
 		store,
 	);
-	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSourceV10({
+	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
 		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	}));
@@ -205,7 +209,7 @@ test('an edit to the frozen material during a freeze still discards the render',
 		createSoundscaperPlaybackProjectServiceV21(),
 		store,
 	);
-	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSourceV10({
+	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
 		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	}));
@@ -243,16 +247,16 @@ test('an edit to the frozen material during a freeze still discards the render',
 });
 
 function projectFixture(contentSha256: string): SoundscaperProjectV21 {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'voice-source', storageKey: 'pcm:voice', contentSha256,
 		frameCount: 8, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'voice-clip', sourceId: source.id, title: 'Voice', timelineStartFrame: 12,
 		durationFrames: 8, sourceStartFrame: 0, sourceDurationFrames: 8,
 	});
-	const track = createAudioTrackV10({
+	const track = createAudioTrack({
 		id: 'voice', name: 'Voice', gain: 0.25, pan: 0.5, mute: true,
 		clipIds: [clip.id], effects: [],
 	});

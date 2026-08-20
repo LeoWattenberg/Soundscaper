@@ -1,10 +1,10 @@
 import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../../src/common/editor/project-media-factory.ts';
 import { exportScapeProject, SCAPE_MIME_TYPE } from '../../src/common/editor/scape-project.js';
 import { createProjectStore } from '../../src/common/editor/storage.js';
 import { createFramescaperProjectV19 } from '../../src/framescaper/editor-project-v19.ts';
@@ -306,11 +306,11 @@ async function createAudioWarpArchive(withWarpMap, authority) {
 		databaseName: `browser-audio-warp-fixture-${String(withWarpMap)}-${String(Date.now())}`,
 		preferOpfs: false,
 	});
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'audio-warp-source', storageKey: 'audio-warp-source', name: 'Warp drum source',
 		frameCount: FRAME_COUNT, channelCount: 1, sampleRate: SAMPLE_RATE,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: CLIP_ID, sourceId: source.id, title: 'Warp drums',
 		timelineStartFrame: 0, durationFrames: FRAME_COUNT,
 		sourceStartFrame: 0, sourceDurationFrames: FRAME_COUNT,
@@ -328,7 +328,7 @@ async function createAudioWarpArchive(withWarpMap, authority) {
 			masterChannels: 2,
 			sources: [source],
 			clips: [clip],
-			tracks: [createAudioTrackV10({ id: TRACK_ID, name: 'Drums', clipIds: [CLIP_ID] })],
+			tracks: [createAudioTrack({ id: TRACK_ID, name: 'Drums', clipIds: [CLIP_ID] })],
 		};
 		const project = authority === 'framescaper-v19'
 			? createFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, options)

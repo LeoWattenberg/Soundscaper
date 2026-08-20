@@ -6,9 +6,9 @@ import {
 	type ClosedDomainRecord,
 } from '../closed-domain-value.ts';
 import {
-	AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
-	admitAudioEditorProjectV9ValidationStructure,
-} from '../project-v9-validation-budget.ts';
+	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+	admitAudioEditorProjectValidationStructure,
+} from '../project-validation-budget.ts';
 import {
 	VIDEO_KEYFRAME_CURVES_SCHEMA_VERSION,
 } from '../video-keyframe-curves.ts';
@@ -70,8 +70,8 @@ export function snapshotVideoKeyframesSetCommand(value: unknown): VideoKeyframes
 
 function snapshotWire(value: unknown, name: string): VideoKeyframeCommandWire {
 	const wire = readClosedDomainRecord(value, `video keyframes command.${name}`, KEYFRAME_FIELDS);
-	admitAudioEditorProjectV9ValidationStructure(
-		wire, AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+	admitAudioEditorProjectValidationStructure(
+		wire, AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 	);
 	if (readClosedDomainField(wire, 'schemaVersion', `video keyframes command.${name}`)
 		!== VIDEO_KEYFRAME_CURVES_SCHEMA_VERSION) {

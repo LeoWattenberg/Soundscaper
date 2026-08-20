@@ -9,7 +9,11 @@ import {
 	type AudioTrackFreezeCoordinatorCommandV21,
 	type AudioTrackFreezeCoordinatorPortsV21,
 } from '../src/common/editor/audio-track-freeze-coordinator-v21.ts';
-import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { collectHistorySourceIds, editorHistoryProjects } from '../src/common/editor/retention.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import {
@@ -335,7 +339,7 @@ function coordinatorFixture(options: Readonly<{ historyLimit?: number }> = {}) {
 		async verifyStagedSource({ stage }) {
 			log.push('verify');
 			fixture.afterAwait?.('verify');
-			return createAudioSourceV10({
+			return createAudioSource({
 				id: stage.sourceId, storageKey: stage.sourceId,
 				contentSha256: stage.digest, frameCount: stage.frameCount,
 				channelCount: stage.channelCount, sampleRate: stage.sampleRate,
@@ -357,12 +361,12 @@ function coordinatorFixture(options: Readonly<{ historyLimit?: number }> = {}) {
 }
 
 function projectFixture(): SoundscaperProjectV21 {
-	const liveSource = createAudioSourceV10({
+	const liveSource = createAudioSource({
 		id: 'voice-live', storageKey: 'pcm:voice-live', contentSha256: LIVE_DIGEST,
 		frameCount: 512, channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'voice-clip', sourceId: liveSource.id, title: 'Voice', timelineStartFrame: 0,
 		durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
 	});
@@ -374,7 +378,7 @@ function projectFixture(): SoundscaperProjectV21 {
 		id: 'voice-filter', type: 'highpass', enabled: true,
 		params: { frequency: 1_000, q: 1 },
 	};
-	const trackValue = createAudioTrackV10({
+	const trackValue = createAudioTrack({
 		id: 'voice', name: 'Voice', gain: 0.75, pan: -0.1, clipIds: [clip.id],
 		effects: [effect, automationEffect],
 	});
@@ -399,7 +403,7 @@ function projectFixture(): SoundscaperProjectV21 {
 }
 
 function committedClip(sourceId: string): Readonly<Record<string, unknown>> {
-	return createAudioClipV10({
+	return createAudioClip({
 		id: 'voice-committed', sourceId, title: 'Committed voice', anchor: 'sample',
 		timelineStartFrame: 0, durationFrames: 1_024, sourceStartFrame: 0,
 		sourceDurationFrames: 1_024, trimStartFrames: 0, trimEndFrames: 0,

@@ -10,11 +10,11 @@ import {
 } from '../../src/common/editor/video-proxy-relationship.ts';
 import { createAudioEditorProjectV17 } from '../../src/common/editor/project-v17.ts';
 import {
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../../src/common/editor/project-v10.ts';
+	createAudioSource,
+	createAudioTrack,
+	createVideoSource,
+	createVideoTrack,
+} from '../../src/common/editor/project-media-factory.ts';
 import {
 	bindVideoSourceTimingView,
 	type BoundVideoSourceTimingView,
@@ -392,7 +392,7 @@ export function videoProxyProject(options: Readonly<{
 }> = {}): Record<string, unknown> {
 	const originalSource = videoSource(ORIGINAL_SOURCE_ID, ORIGINAL_SHA256);
 	const otherSource = videoSource('other-source', OTHER_SHA256);
-	const takeSource = createAudioSourceV10({
+	const takeSource = createAudioSource({
 		id: 'take-source', name: 'Canonical take', storageKey: 'take-source-storage',
 		frameCount: 480, channelCount: 1, sampleRate: 48_000,
 	});
@@ -407,10 +407,10 @@ export function videoProxyProject(options: Readonly<{
 		sources: [originalSource, otherSource, takeSource],
 		clips: [timeline],
 		tracks: [
-			createVideoTrackV10({
+			createVideoTrack({
 				id: 'video-track', name: 'Video', clipIds: ['timeline-original'], locked: false,
 			}),
-			createAudioTrackV10({ id: 'take-track', name: 'Take track', clipIds: [] }),
+			createAudioTrack({ id: 'take-track', name: 'Take track', clipIds: [] }),
 		],
 		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track', 'take-track'] }],
 		primarySequenceId: 'main',
@@ -471,7 +471,7 @@ function bindOriginalTiming(source: Readonly<Record<string, unknown>>): BoundVid
 }
 
 function videoSource(id: string, sha256: string): Record<string, unknown> {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id,
 		name: id,
 		mimeType: 'video/mp4',

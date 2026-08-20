@@ -15,13 +15,13 @@ import { prepareTransformClipsCommand } from '../src/common/editor/commands.js';
 import { createAudioWarpClipAuthority } from '../src/common/editor/audio-warp-clip-authority.ts';
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';
 import {
 	applySoundscaperProjectCommandV21,
@@ -93,7 +93,7 @@ test('inherited edits preserve V21 authority and reconcile added audio tracks', 
 
 	const added = applySoundscaperProjectCommandV21(renamed, {
 		type: 'track/add',
-		track: createAudioTrackV10({ id: 'music', name: 'Music', clipIds: [] }),
+		track: createAudioTrack({ id: 'music', name: 'Music', clipIds: [] }),
 	} as AudioEditorCommand);
 	assert.equal(added.tracks.some(({ id }) => id === 'music'), true);
 	assert.equal(added.mixer.edges.some((edge) => (
@@ -126,11 +126,11 @@ test('inherited ADM width changes reconcile the default V21 main output geometry
 });
 
 test('an inherited mono import reconciles its default stereo assignment as dual mono', () => {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'mono-source', name: 'Mono source', storageKey: 'mono-source', mimeType: 'audio/wav',
 		frameCount: 48_000, sampleRate: 48_000, channelCount: 1,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'mono-clip', sourceId: 'mono-source', timelineStartFrame: 0,
 		sourceStartFrame: 0, durationFrames: 48_000, sourceDurationFrames: 48_000,
 	});
@@ -138,7 +138,7 @@ test('an inherited mono import reconciles its default stereo assignment as dual 
 		type: 'batch',
 		commands: [
 			{ type: 'source/add', source },
-			{ type: 'track/add', track: createAudioTrackV10({ id: 'mono', name: 'Mono', clipIds: [] }) },
+			{ type: 'track/add', track: createAudioTrack({ id: 'mono', name: 'Mono', clipIds: [] }) },
 			{ type: 'clip/add', trackId: 'mono', clip },
 		],
 	} as AudioEditorCommand);
@@ -147,11 +147,11 @@ test('an inherited mono import reconciles its default stereo assignment as dual 
 });
 
 test('unrelated inherited controls retain an authored mono channel map byte-for-byte', () => {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'mono-source', name: 'Mono source', storageKey: 'mono-source', mimeType: 'audio/wav',
 		frameCount: 48_000, sampleRate: 48_000, channelCount: 1,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'mono-clip', sourceId: source.id, timelineStartFrame: 0,
 		sourceStartFrame: 0, durationFrames: 48_000, sourceDurationFrames: 48_000,
 	});
@@ -162,7 +162,7 @@ test('unrelated inherited controls retain an authored mono channel map byte-for-
 	const project = createSoundscaperProjectV21({
 		id: 'authored-mono-map', title: 'Authored mono map', now: NOW,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'mono', name: 'Mono', clipIds: ['mono-clip'] })],
+		tracks: [createAudioTrack({ id: 'mono', name: 'Mono', clipIds: ['mono-clip'] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['mono'] }],
 		primarySequenceId: 'main-sequence', mixer,
 	});
@@ -173,18 +173,18 @@ test('unrelated inherited controls retain an authored mono channel map byte-for-
 });
 
 test('native V21 dispatch admits audio-warp commands without changing production authority', () => {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'warp-source', name: 'Warp source', storageKey: 'warp-source', mimeType: 'audio/wav',
 		frameCount: 100, sampleRate: 48_000, channelCount: 2,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'warp-clip', sourceId: source.id, timelineStartFrame: 0, sourceStartFrame: 0,
 		durationFrames: 100, sourceDurationFrames: 100, renderCacheRevision: 0, warpMap: null,
 	});
 	const project = createSoundscaperProjectV21({
 		id: 'native-warp', title: 'Native warp', now: NOW,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'warp-track', name: 'Warp', clipIds: ['warp-clip'] })],
+		tracks: [createAudioTrack({ id: 'warp-track', name: 'Warp', clipIds: ['warp-clip'] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['warp-track'] }],
 		primarySequenceId: 'main-sequence',
 		automationLanes: [{
@@ -212,11 +212,11 @@ test('native V21 dispatch admits audio-warp commands without changing production
 });
 
 test('native V21 command projections retain canonical video placement authority', () => {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', frameCount: 120, sampleRate: 48_000,
 		width: 16, height: 16, frameRate: HIGH_RATE, sourceFrameCount: 100,
 	}, 48_000);
-	const clip = createVideoClipV10({
+	const clip = createVideoClip({
 		id: 'video-clip', sourceId: source.id, sequenceId: 'main-sequence',
 		sequenceStartFrame: 0, sequenceFrameCount: 2, sourceInFrame: 0, sourceFrameCount: 2,
 	}, {
@@ -227,7 +227,7 @@ test('native V21 command projections retain canonical video placement authority'
 	const project = createSoundscaperProjectV21({
 		id: 'native-video-transform', title: 'Native video transform', now: NOW,
 		sources: [source], clips: [clip],
-		tracks: [createVideoTrackV10({ id: 'video-track', name: 'Video', clipIds: ['video-clip'] })],
+		tracks: [createVideoTrack({ id: 'video-track', name: 'Video', clipIds: ['video-clip'] })],
 		sequences: [{ id: 'main-sequence', rate: HIGH_RATE, trackIds: ['video-track'] }],
 		primarySequenceId: 'main-sequence',
 	});
@@ -250,12 +250,12 @@ test('native V21 command transactions admit the direct video-import batch', () =
 	const project = createSoundscaperProjectV21({
 		id: 'native-video-import', title: 'Native video import', now: NOW,
 	});
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', frameCount: 25_600, sampleRate: 48_000,
 		width: 96, height: 54, frameRate: rate, sourceFrameCount: 8,
 		videoCodec: 'vp8', timingDecision: { mode: 'conform-cfr-at-ingest', rate },
 	}, 48_000);
-	const clip = createVideoClipV10({
+	const clip = createVideoClip({
 		id: 'video-clip', sourceId: source.id, sequenceId: 'main-sequence',
 		sequenceStartFrame: 0, sequenceFrameCount: 16,
 		sourceInFrame: 0, sourceFrameCount: 8,
@@ -265,20 +265,20 @@ test('native V21 command transactions admit the direct video-import batch', () =
 		sequence: { id: 'main-sequence', rate: { num: 30, den: 1 } },
 		source,
 	});
-	const audioSource = createAudioSourceV10({
+	const audioSource = createAudioSource({
 		id: 'audio-source', name: 'Video Audio', storageKey: 'audio-source',
 		mimeType: 'audio/x-soundscaper-extracted', frameCount: 25_600,
 		sampleRate: 48_000, channelCount: 1,
 	});
-	const audioClip = createAudioClipV10({
+	const audioClip = createAudioClip({
 		id: 'audio-clip', sourceId: audioSource.id, timelineStartFrame: 0,
 		sourceStartFrame: 0, sourceDurationFrames: 25_600, durationFrames: 25_600,
 		avLinkId: 'video-import-link',
 	});
-	const videoTrack = createVideoTrackV10({
+	const videoTrack = createVideoTrack({
 		id: 'video-track', name: 'Video', clipIds: [], laneGroupId: 'video-import-lane',
 	});
-	const audioTrack = createAudioTrackV10({
+	const audioTrack = createAudioTrack({
 		id: 'audio-track', name: 'Video Audio', clipIds: [], laneGroupId: 'video-import-lane',
 	});
 	const command = {
@@ -345,8 +345,8 @@ test('V21 folder reconciliation retains authored-ADM terminal ownership admissio
 		},
 		trackFolders: [{ id: 'music', name: 'Music' }],
 		tracks: [
-			createAudioTrackV10({ id: 'strings', name: 'Strings', clipIds: [] }),
-			createAudioTrackV10({ id: 'dialogue', name: 'Dialogue', clipIds: [] }),
+			createAudioTrack({ id: 'strings', name: 'Strings', clipIds: [] }),
+			createAudioTrack({ id: 'dialogue', name: 'Dialogue', clipIds: [] }),
 		],
 		sequences: [{
 			id: 'main-sequence',
@@ -369,18 +369,18 @@ test('V21 folder reconciliation retains authored-ADM terminal ownership admissio
 });
 
 test('native V21 inherited commands retain track-lock admission and product authority', () => {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'locked-source', name: 'Locked source', storageKey: 'locked-source',
 		mimeType: 'audio/wav', frameCount: 100, sampleRate: 48_000, channelCount: 2,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'locked-clip', sourceId: source.id, timelineStartFrame: 0,
 		sourceStartFrame: 0, durationFrames: 100, sourceDurationFrames: 100,
 	});
 	const project = createSoundscaperProjectV21({
 		id: 'v21-locked-command', title: 'V21 locked command', now: NOW,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({
+		tracks: [createAudioTrack({
 			id: 'locked-track', name: 'Locked', clipIds: ['locked-clip'], locked: true,
 		})],
 		sequences: [{ id: 'main-sequence', trackIds: ['locked-track'] }],
@@ -432,7 +432,7 @@ test('track duplication remaps strip automation identities without copying freez
 	});
 	const duplicated = applySoundscaperProjectCommandV21(source, {
 		type: 'track/add',
-		track: createAudioTrackV10({ id: 'voice-copy', name: 'Voice copy', clipIds: [] }),
+		track: createAudioTrack({ id: 'voice-copy', name: 'Voice copy', clipIds: [] }),
 		productionDuplicate: { sourceTrackId: 'voice', effectIds: [] },
 	} as AudioEditorCommand);
 	const copiedLane = duplicated.automationLanes.find((lane) => (
@@ -556,7 +556,7 @@ test('V21 history restores lanes and graph exactly across undo and redo', () => 
 function fixture() {
 	return createSoundscaperProjectV21({
 		id: 'production-command-project', title: 'Production command project', now: NOW,
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 	});

@@ -26,10 +26,10 @@ import type {
 	DesktopLibraryLoadedProjectBundle,
 } from '../desktop/project-library-projects.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const PROJECT_SHA256 = '0'.repeat(64);
 const SOURCE_SHA256 = '1'.repeat(64);
@@ -217,7 +217,7 @@ function readyId(admission: DesktopSharedSourceWriteAdmission): string {
 }
 
 function projectFixture(): AudioEditorProjectCurrent {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'lifecycle-audio-source',
 		storageKey: 'lifecycle-audio-storage',
 		name: 'Lifecycle audio',
@@ -229,7 +229,7 @@ function projectFixture(): AudioEditorProjectCurrent {
 		sampleFormat: 'float32',
 		chunkFrames: 1,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'lifecycle-audio-clip',
 		sourceId: source.id,
 		durationFrames: 1,
@@ -242,7 +242,7 @@ function projectFixture(): AudioEditorProjectCurrent {
 		sampleRate: 48_000,
 		sources: [source],
 		clips: [clip],
-		tracks: [createAudioTrackV9({ id: 'lifecycle-audio-track', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'lifecycle-audio-track', clipIds: [clip.id] })],
 	});
 }
 

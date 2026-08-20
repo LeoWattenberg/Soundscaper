@@ -9,13 +9,13 @@ import {
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { trimProjectMedia } from '../src/common/editor/controller/trim-media-service.ts';
 
 const NOW = '2026-08-19T12:00:00.000Z';
@@ -25,7 +25,7 @@ const SEQUENCE = Object.freeze({ id: 'main', rate: Object.freeze({ num: 30, den:
 const KEYFRAME_INTERVAL = 10;
 
 function project() {
-	const video = createVideoSourceV10({
+	const video = createVideoSource({
 		kind: 'video', id: 'vid', storageKey: 'vid', name: 'take.mp4', mimeType: 'video/mp4',
 		frameCount: SAMPLE_RATE * 10, sampleRate: SAMPLE_RATE, width: 640, height: 360,
 		frameRate: SEQUENCE.rate, sourceFrameCount: 300, timingAsset: null,
@@ -35,7 +35,7 @@ function project() {
 		},
 		videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	}, SAMPLE_RATE);
-	const audio = createAudioSourceV10({
+	const audio = createAudioSource({
 		kind: 'audio', id: 'aud', storageKey: 'aud', name: 'take.wav', mimeType: 'audio/wav',
 		frameCount: 1_000, channelCount: 2, sampleRate: SAMPLE_RATE,
 	});
@@ -45,18 +45,18 @@ function project() {
 		sequences: [SEQUENCE], primarySequenceId: SEQUENCE.id,
 		sources: [video, audio],
 		clips: [
-			createVideoClipV10({
+			createVideoClip({
 				id: 'v1', sourceId: 'vid', sequenceId: SEQUENCE.id,
 				sequenceStartFrame: 0, sequenceFrameCount: 60, sourceInFrame: 123, sourceFrameCount: 60,
 			}, context),
-			createAudioClipV10({
+			createAudioClip({
 				id: 'a1', sourceId: 'aud', timelineStartFrame: 0, durationFrames: 100,
 				sourceStartFrame: 400, sourceDurationFrames: 100,
 			}),
 		],
 		tracks: [
-			createVideoTrackV10({ id: 'video-track', clipIds: ['v1'] }),
-			createAudioTrackV10({ id: 'audio-track', clipIds: ['a1'] }),
+			createVideoTrack({ id: 'video-track', clipIds: ['v1'] }),
+			createAudioTrack({ id: 'audio-track', clipIds: ['a1'] }),
 		],
 		projectBin: { clips: [] },
 	});

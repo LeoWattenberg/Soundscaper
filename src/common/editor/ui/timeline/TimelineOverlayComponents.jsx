@@ -4,7 +4,7 @@ import { CLIP_CONTENT_OFFSET, ContextMenuItem, PlayheadCursor } from '@dilsonspi
 
 import { audacityContextMenuAction } from '../../audacity-context-menu.js';
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
-import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-v2.js';
+import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 
 export function TimelineOverlayPortal({ target, children }) {

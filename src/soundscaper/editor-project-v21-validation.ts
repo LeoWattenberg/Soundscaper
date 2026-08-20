@@ -3,7 +3,7 @@
 import type { AutomationLaneV21 } from '../common/editor/automation-lane-v21.ts'
 import type { AudioTrackFreezeV1 } from '../common/editor/audio-track-freeze-v21.ts'
 import type { MixerGraphV21 } from '../common/editor/mixer-graph-v21.ts'
-import type { AudioEditorFolderHierarchyDocument } from '../common/editor/project-v12-validation.ts'
+import type { ProjectHierarchyDocument } from '../common/editor/project-hierarchy-document-validation.ts'
 import { SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION } from '../common/editor/project-schema-version.ts'
 import type { TakeCompDocumentGroup } from '../common/editor/take-comp-document-v17.ts'
 import {
@@ -14,7 +14,7 @@ import { validateSoundscaperProjectFeatureRequirementsV21 } from './editor-proje
 
 export { SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION } from '../common/editor/project-schema-version.ts'
 
-export interface SoundscaperProjectV21 extends AudioEditorFolderHierarchyDocument {
+export interface SoundscaperProjectV21 extends ProjectHierarchyDocument {
 	readonly schemaVersion: 21
 	readonly automationLanes: readonly AutomationLaneV21[]
 	readonly mixer: MixerGraphV21

@@ -284,7 +284,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		if (!track) {
 			commands.push({
 				...createAddTrackCommand({
-					schemaVersion: 2,
 					type: 'audio',
 					id: trackId,
 					name: trackName,
@@ -390,7 +389,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}
 
 		const prepared = prepareImportedMediaCommand({
-			schemaVersion: 2,
 			sampleFormat: 'float32',
 			chunkFrames: SOURCE_CHUNK_FRAMES,
 			id: sourceId,
@@ -408,7 +406,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 				...(wavMetadata.sourceAdm ? { adm: wavMetadata.sourceAdm } : {}),
 			} } : {}),
 		}, {
-			schemaVersion: 2,
 			title: trackName,
 			sourceDurationFrames: canonical.length,
 			id: clipId,

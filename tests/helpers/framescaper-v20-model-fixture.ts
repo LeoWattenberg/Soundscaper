@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../../src/common/editor/project-media-factory.ts';
 
 export const FRAMESCAPER_V20_FIXTURE_NOW = '2026-08-13T12:00:00.000Z';
 
@@ -10,7 +13,7 @@ export function framescaperV20Options(): Record<string, unknown> {
 		title: 'Framescaper V20',
 		now: FRAMESCAPER_V20_FIXTURE_NOW,
 		sources: [
-			createVideoSourceV10({
+			createVideoSource({
 				id: 'video-source',
 				name: 'Video',
 				storageKey: 'video-source',
@@ -49,7 +52,7 @@ export function framescaperV20Options(): Record<string, unknown> {
 			}],
 		},
 		tracks: [
-			createVideoTrackV10({
+			createVideoTrack({
 				id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,
 			}),
 			{

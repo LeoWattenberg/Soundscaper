@@ -61,7 +61,7 @@ import {
 	findTrack,
 	projectEnvelope,
 } from './project.js';
-import { AUDIO_EDITOR_TRACK_COLORS, audioTrackChannelCountV2 } from './project-v2.js';
+import { AUDIO_EDITOR_TRACK_COLORS, audioTrackChannelCount } from './project-audio-factory.js';
 import { verifyProjectFallbackIntegrity } from './project-fallback-integrity.ts';
 import { createStreamingWindowedSincResampler } from './resample.js';
 import {
@@ -1147,7 +1147,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		commit,
 		projectSampleRate,
 		normalizeProjectSampleRate,
-		audioTrackChannelCount: audioTrackChannelCountV2,
+		audioTrackChannelCount,
 		preflightStorage,
 		setProcessing: (processing) => { state.audacityEffectProcessing = processing; },
 		setStatus,
@@ -1275,7 +1275,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		activeSelection,
 		resolveEditingSelection,
 		audacitySelectionChannelCount,
-		audioTrackChannelCount: audioTrackChannelCountV2,
+		audioTrackChannelCount,
 		selectedTracksTimeRange,
 		projectSampleRate,
 		editingBlocked,
@@ -1471,7 +1471,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		editingBlocked,
 		getPositionFrames: () => engine.getPositionFrames(),
 		snapFrame: snapTimelineFrame,
-		trackChannelCount: audioTrackChannelCountV2,
+		trackChannelCount: audioTrackChannelCount,
 		effectTargets: audacityEffectTargets,
 		persistEffectResults: (results, type, scope) => (
 			persistAudacityEffectResults(results, type, scope)

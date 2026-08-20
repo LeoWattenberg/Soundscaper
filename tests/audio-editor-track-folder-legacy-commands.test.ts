@@ -7,7 +7,9 @@ import { applyEditorCommand } from '../src/common/editor/commands.js';
 import { createAddTrackCommand } from '../src/common/editor/commands/factories.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { assertEditorCommandCapabilities } from '../src/common/editor/controller/command-capability-policy.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
@@ -41,9 +43,9 @@ function folderedProject(): AudioEditorProjectCurrent {
 		id: 'legacy-folder', title: 'Legacy on folders', now: NOW, primarySequenceId: 'main',
 		trackFolders: [{ id: 'band', name: 'Band' }],
 		tracks: [
-			createAudioTrackV10({ id: 'kick', name: 'Kick' }),
-			createAudioTrackV10({ id: 'bass', name: 'Bass' }),
-			createAudioTrackV10({ id: 'vocals', name: 'Vocals' }),
+			createAudioTrack({ id: 'kick', name: 'Kick' }),
+			createAudioTrack({ id: 'bass', name: 'Bass' }),
+			createAudioTrack({ id: 'vocals', name: 'Vocals' }),
 		],
 		sequences: [{
 			id: 'main',
@@ -107,9 +109,9 @@ test('legacy removal of one lane member removes the pair and their nodes togethe
 		id: 'legacy-lanes', title: 'Legacy lanes', now: NOW, primarySequenceId: 'main',
 		trackFolders: [{ id: 'picture', name: 'Picture' }],
 		tracks: [
-			{ ...createAudioTrackV10({ id: 'cam', name: 'Camera' }), type: 'video', laneGroupId: 'lane-a' },
-			{ ...createAudioTrackV10({ id: 'cam-audio', name: 'Camera audio' }), laneGroupId: 'lane-a' },
-			createAudioTrackV10({ id: 'vocals', name: 'Vocals' }),
+			{ ...createAudioTrack({ id: 'cam', name: 'Camera' }), type: 'video', laneGroupId: 'lane-a' },
+			{ ...createAudioTrack({ id: 'cam-audio', name: 'Camera audio' }), laneGroupId: 'lane-a' },
+			createAudioTrack({ id: 'vocals', name: 'Vocals' }),
 		],
 		sequences: [{
 			id: 'main',
@@ -163,8 +165,8 @@ test('cross-sequence legacy reorder still rejects with the pinned message', () =
 		id: 'legacy-cross', title: 'Legacy cross', now: NOW, primarySequenceId: 'main',
 		trackFolders: [{ id: 'band', name: 'Band' }],
 		tracks: [
-			createAudioTrackV10({ id: 'kick', name: 'Kick' }),
-			createAudioTrackV10({ id: 'stem', name: 'Stem' }),
+			createAudioTrack({ id: 'kick', name: 'Kick' }),
+			createAudioTrack({ id: 'stem', name: 'Stem' }),
 		],
 		sequences: [
 			{

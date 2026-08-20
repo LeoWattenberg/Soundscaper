@@ -8,10 +8,6 @@ import { convertLegacyAupToProject } from '../src/common/editor/aup-legacy-conve
 import { decodeAudacityProjectTree } from '../src/common/editor/aup4-conversion.js';
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import {
-	AudioEditorProjectReimportRequiredError,
-	migrateAudioEditorProject,
-} from '../src/common/editor/migration.js';
-import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
 	cloneCurrentAudioEditorProject,
@@ -20,18 +16,7 @@ import {
 	validateCurrentAudioEditorProject,
 	type AudioEditorProjectCurrent,
 } from '../src/common/editor/project-current.ts';
-import {
-	AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION,
-	createAudioEditorProjectV10,
-	loadAudioEditorProjectV10,
-	validateAudioEditorProjectV10,
-} from '../src/common/editor/project-v10.ts';
-import {
-	AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION,
-	createAudioEditorProjectV11,
-	loadAudioEditorProjectV11,
-	validateAudioEditorProjectV11,
-} from '../src/common/editor/project-v11.ts';
+import { validateProjectHierarchyDocument } from '../src/common/editor/project-hierarchy-document-validation.ts';
 import { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 
 const NOW = '2026-08-09T16:00:00.000Z';
@@ -44,85 +29,31 @@ function sampleMarker(overrides: Readonly<Record<string, unknown>> = {}): Record
 	};
 }
 
-test('V17 is exact current while V11 and V10 remain honest historical generations', () => {
-	const current = createCurrentAudioEditorProject({ id: 'current-v17', now: NOW });
-	const historicalV11 = createAudioEditorProjectV11({ id: 'historical-v11', now: NOW });
-	const historical = createAudioEditorProjectV10({ id: 'historical-v10', now: NOW });
+test('the exact current pipeline always owns annotation and selection collections', () => {
+	const project = createCurrentAudioEditorProject({ id: 'current-v17', now: NOW });
 
 	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 17);
 	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 17);
-	assert.equal(AUDIO_EDITOR_PROJECT_V11_SCHEMA_VERSION, 11);
-	assert.equal(AUDIO_EDITOR_PROJECT_V10_SCHEMA_VERSION, 10);
-	assert.equal(current.schemaVersion, 17);
-	assert.equal(historicalV11.schemaVersion, 11);
-	assert.equal(historical.schemaVersion, 10);
-	assert.deepEqual(current.timelineAnnotations, []);
-	assert.deepEqual(current.takeGroups, []);
-	assert.deepEqual(current.selection.annotationIds, []);
-	assert.equal(validateCurrentAudioEditorProject(current), true);
-	assert.equal(validateAudioEditorProjectV11(historicalV11), true);
-	assert.equal(validateAudioEditorProjectV10(historical), true);
-	assert.throws(() => validateAudioEditorProjectV10(current), /schema version/iu);
-	assert.throws(() => validateAudioEditorProjectV11(current), /schema version/iu);
+	assert.equal(project.schemaVersion, 17);
+	assert.deepEqual(project.timelineAnnotations, []);
+	assert.deepEqual(project.selection.annotationIds, []);
+	assert.deepEqual(project.takeGroups, []);
+	assert.equal(validateProjectHierarchyDocument(project, 17), true);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
 });
 
-test('the historical V11 contract owns its exact schema boundary', () => {
-	const project = createAudioEditorProjectV11({ id: 'v11-boundary', now: NOW });
-	const future = { ...project, schemaVersion: 15 };
-
-	assert.deepEqual(loadAudioEditorProjectV11(future), {
-		project: future,
-		readOnly: true,
-		reason: 'newer-schema',
-	});
-	const loaded = loadAudioEditorProjectV11(project);
-	assert.equal(loaded.readOnly, false);
-	assert.deepEqual(loaded.project, project);
-	assert.throws(() => loadAudioEditorProjectV11({ ...project, schemaVersion: 10 }), /schema version/iu);
-});
-
-test('current and historical loaders reject non-integer schema wire values', () => {
-	for (const schemaVersion of [11.5, Number.POSITIVE_INFINITY, '12', 12n]) {
+test('current loaders reject non-integer schema wire values', () => {
+	for (const schemaVersion of [17.5, Number.POSITIVE_INFINITY, '17', 17n]) {
 		assert.throws(
 			() => loadCurrentAudioEditorProject({ schemaVersion }),
 			/schema version.*safe integer|safe integer.*schema version/iu,
 		);
 	}
-	for (const schemaVersion of [10.5, Number.POSITIVE_INFINITY, '11', 11n]) {
-		assert.throws(
-			() => loadAudioEditorProjectV10({ schemaVersion }),
-			/schema version.*safe integer|safe integer.*schema version/iu,
-		);
-	}
-	for (const schemaVersion of [11.5, Number.POSITIVE_INFINITY, '12', 12n]) {
-		assert.throws(
-			() => loadAudioEditorProjectV11({ schemaVersion }),
-			/schema version.*safe integer|safe integer.*schema version/iu,
-		);
-	}
 });
 
-test('historical V10 cannot carry the V11 annotation document field', () => {
-	const historical = createAudioEditorProjectV10({ id: 'historical-v10', now: NOW });
-	assert.throws(
-		() => validateAudioEditorProjectV10({ ...historical, timelineAnnotations: [] }),
-		/timelineAnnotations.*V11/iu,
-	);
-	assert.throws(
-		() => validateAudioEditorProjectV10({
-			...historical,
-			selection: {
-				...(historical.selection as Readonly<Record<string, unknown>>),
-				annotationIds: [],
-			},
-		}),
-		/selection\.annotationIds.*V11|V11.*selection\.annotationIds/iu,
-	);
-});
-
-test('V11 requires annotations and retains validated annotation selection without derived coordinates', () => {
+test('current annotations retain validated selection without derived coordinates', () => {
 	const input = sampleMarker({ opaqueExtensions: { riffCue: { id: 7 } } });
-	const project = createAudioEditorProjectV11({
+	const project = createCurrentAudioEditorProject({
 		now: NOW,
 		timelineAnnotations: [input],
 		selection: { annotationIds: ['annotation-1'] },
@@ -136,31 +67,48 @@ test('V11 requires annotations and retains validated annotation selection withou
 	(input.opaqueExtensions as { riffCue: { id: number } }).riffCue.id = 9;
 	assert.deepEqual(annotation.opaqueExtensions, { riffCue: { id: 7 } });
 	assert.deepEqual(project.selection.annotationIds, ['annotation-1']);
-	assert.equal(validateAudioEditorProjectV11(project), true);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
 
 	const missing = structuredClone(project) as unknown as Record<string, unknown>;
 	delete missing.timelineAnnotations;
-	assert.throws(() => validateAudioEditorProjectV11(missing), /timelineAnnotations.*array/iu);
-	assert.throws(() => createAudioEditorProjectV11({
+	assert.throws(() => validateCurrentAudioEditorProject(missing), /timelineAnnotations.*array/iu);
+	assert.throws(() => createCurrentAudioEditorProject({
 		now: NOW,
 		timelineAnnotations: [sampleMarker({ sequenceId: 'missing-sequence' })],
 	}), /missing.*sequence|sequence.*missing/iu);
-	assert.throws(() => createAudioEditorProjectV11({
+	assert.throws(() => createCurrentAudioEditorProject({
 		now: NOW,
 		timelineAnnotations: [input],
 		selection: { annotationIds: ['missing-annotation'] },
 	}), /selection.*missing-annotation|missing.*annotation/iu);
-	assert.throws(() => createAudioEditorProjectV11({
+	assert.throws(() => createCurrentAudioEditorProject({
 		now: NOW,
 		timelineAnnotations: [input],
 		selection: { annotationIds: ['annotation-1', 'annotation-1'] },
 	}), /annotation.*duplicate|duplicate.*ID/iu);
 });
 
-test('current clone, JSON save/load, and store reload are byte-idempotent', async () => {
+test('annotation accessors are rejected without invocation', () => {
+	let getterCalls = 0;
+	const marker = sampleMarker();
+	Object.defineProperty(marker, 'positionFrame', {
+		enumerable: true,
+		get() {
+			getterCalls += 1;
+			return 24_000;
+		},
+	});
+	assert.throws(
+		() => createCurrentAudioEditorProject({ now: NOW, timelineAnnotations: [marker] }),
+		/data property|accessor/iu,
+	);
+	assert.equal(getterCalls, 0);
+});
+
+test('current clone, JSON load, and store reload are byte-idempotent', async () => {
 	const project = createCurrentAudioEditorProject({
-		id: 'v11-roundtrip',
-		title: 'V11 round trip',
+		id: 'annotation-roundtrip',
+		title: 'Annotation round trip',
 		now: NOW,
 		timelineAnnotations: [sampleMarker()],
 	});
@@ -177,7 +125,7 @@ test('current clone, JSON save/load, and store reload are byte-idempotent', asyn
 
 	const store = new AudioEditorProjectStore({
 		indexedDB: null,
-		databaseName: 'v11-current-project-roundtrip',
+		databaseName: 'current-annotation-roundtrip',
 	});
 	await store.saveProject(project);
 	const reopened = await store.loadProject(project.id);
@@ -186,77 +134,37 @@ test('current clone, JSON save/load, and store reload are byte-idempotent', asyn
 	await store.close();
 });
 
-test('current commands retain the authoritative V11 annotation collection', () => {
-	const project = createCurrentAudioEditorProject({ now: NOW, timelineAnnotations: [sampleMarker()] });
-	const updated = applyEditorCommand(project, {
-		type: 'metadata/update',
-		changes: { artist: 'Soundscaper' },
-	}, { now: '2026-08-09T16:01:00.000Z' });
-
-	assert.deepEqual(updated.timelineAnnotations, project.timelineAnnotations);
-	assert.notStrictEqual(updated.timelineAnnotations, project.timelineAnnotations);
-	assert.equal((updated.metadata as Readonly<{ artist: string }>).artist, 'Soundscaper');
-	assert.equal(validateCurrentAudioEditorProject(updated), true);
-});
-
-test('current selection commands preserve the mandatory annotation selection field', () => {
+test('current commands retain authoritative annotations and selection', () => {
 	const project = createCurrentAudioEditorProject({
 		now: NOW,
 		timelineAnnotations: [sampleMarker()],
 		selection: { annotationIds: ['annotation-1'] },
 	});
-	const cleared = applyEditorCommand(project, {
+	const updated = applyEditorCommand(project, {
+		type: 'metadata/update',
+		changes: { artist: 'Soundscaper' },
+	}, { now: '2026-08-09T16:01:00.000Z' });
+	assert.deepEqual(updated.timelineAnnotations, project.timelineAnnotations);
+	assert.notStrictEqual(updated.timelineAnnotations, project.timelineAnnotations);
+
+	const cleared = applyEditorCommand(updated, {
 		type: 'selection/set',
 		startFrame: 10,
 		endFrame: 20,
-	}, { now: '2026-08-09T16:01:00.000Z' });
+	}, { now: '2026-08-09T16:02:00.000Z' });
 	const selected = applyEditorCommand(cleared, {
 		type: 'selection/set',
 		startFrame: 10,
 		endFrame: 20,
 		annotationIds: ['annotation-1'],
-	}, { now: '2026-08-09T16:02:00.000Z' });
+	}, { now: '2026-08-09T16:03:00.000Z' });
 
 	assert.deepEqual(cleared.selection.annotationIds, []);
 	assert.deepEqual(selected.selection.annotationIds, ['annotation-1']);
 	assert.equal(validateCurrentAudioEditorProject(selected), true);
 });
 
-test('the raw router rejects schemas 1 through 16, loads exact V17, and preserves V18 opaquely read-only', () => {
-	for (const schemaVersion of [16.5, Number.POSITIVE_INFINITY, '17', 17n]) {
-		assert.throws(
-			() => migrateAudioEditorProject({ schemaVersion }),
-			/unsupported.*schema version|schema version.*unsupported/iu,
-		);
-	}
-	for (let schemaVersion = 1; schemaVersion <= 16; schemaVersion += 1) {
-		assert.throws(
-			() => migrateAudioEditorProject({ schemaVersion }),
-			(error: unknown) => error instanceof AudioEditorProjectReimportRequiredError
-				&& error.schemaVersion === schemaVersion
-				&& error.currentSchemaVersion === 17,
-		);
-	}
-	const current = createCurrentAudioEditorProject({ id: 'router-v17', now: NOW });
-	const loaded = migrateAudioEditorProject(current);
-	assert.equal(loaded.readOnly, false);
-	assert.deepEqual(loaded.project, current);
-
-	const future = {
-		...current,
-		schemaVersion: 18,
-		timelineAnnotations: { futureShape: { retained: true } },
-	};
-	assert.deepEqual(migrateAudioEditorProject(future), {
-		project: future,
-		migrated: false,
-		fromVersion: 18,
-		readOnly: true,
-		reason: 'newer-schema',
-	});
-});
-
-test('legacy AUP and AUP4 imports author exact V17 documents with empty optional editorial state', async () => {
+test('legacy AUP and AUP4 imports author exact current documents with empty editorial state', async () => {
 	const legacy = convertLegacyAupToProject({ sampleRate: 48_000, tracks: [] }, {
 		idFactory: (prefix: string) => prefix,
 		now: NOW,

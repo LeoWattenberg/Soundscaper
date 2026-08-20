@@ -10,7 +10,9 @@ import type {
 	ProductVideoExportStrategyEncodeRequest,
 	ProductVideoExportStrategyPlanRequest,
 } from '../src/common/editor/controller/product-video-export-strategy.ts';
-import { createVideoSourceV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import { createVideoKeyframeExportPlanV7 } from '../src/common/editor/video-keyframe-export-plan-v7.ts';
 import { registeredVideoTimingIndex } from '../src/common/editor/video-source-time.ts';
 import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
@@ -134,7 +136,7 @@ interface FixtureOptions {
 function createFixture(options: FixtureOptions) {
 	const events: string[] = [];
 	const errors: unknown[] = [];
-	const activeSource = createVideoSourceV10({
+	const activeSource = createVideoSource({
 		id: ACTIVE_SOURCE_ID,
 		name: 'Active',
 		storageKey: 'active-video-storage',
@@ -148,7 +150,7 @@ function createFixture(options: FixtureOptions) {
 		width: 640,
 		height: 360,
 	});
-	const offRangeSource = createVideoSourceV10({
+	const offRangeSource = createVideoSource({
 		id: OFF_RANGE_SOURCE_ID,
 		name: 'Off range',
 		storageKey: 'off-range-video-storage',

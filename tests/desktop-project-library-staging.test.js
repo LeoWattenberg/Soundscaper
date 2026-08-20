@@ -65,13 +65,13 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-projects.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-sequential-upload.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-stage-inventory.js'));
-	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v12-validation.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-hierarchy-document-validation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/track-folder-v12.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/track-hierarchy-v12.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/timeline-annotation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/runtime-timeline-annotation-projection.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/timeline-coordinate-limits.js'));
-	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-v9-validation-budget.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/project-validation-budget.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/retention.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/scape-project-document.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/scape-project-json-preflight.js'));

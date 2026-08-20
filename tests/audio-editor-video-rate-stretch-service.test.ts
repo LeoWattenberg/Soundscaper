@@ -5,15 +5,15 @@ import test from 'node:test';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { createVideoRateStretchService } from '../src/common/editor/controller/video-rate-stretch-service.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { isRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';
@@ -234,30 +234,30 @@ function createHarness(options: Readonly<{ blocked?: boolean; oneFrame?: boolean
 
 function createProject(options: Readonly<{ oneFrame?: boolean }> = {}) {
 	const sequenceCount = options.oneFrame === true ? 1 : 10;
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', sampleFrameCount: 2_000_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: RATE, sourceFrameCount: 1_000,
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate: RATE },
 	}, SAMPLE_RATE);
-	const audioSource = createAudioSourceV10({
+	const audioSource = createAudioSource({
 		id: 'audio-source', frameCount: 2_000_000, sampleRate: SAMPLE_RATE, channelCount: 1,
 	});
-	const clip = createVideoClipV10({
+	const clip = createVideoClip({
 		id: 'video', sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame: 10, sequenceFrameCount: sequenceCount,
 		sourceInFrame: 100, sourceFrameCount: sequenceCount, avLinkId: 'exact-link',
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: RATE }, source });
 	const start = boundary(10);
 	const end = boundary(10 + sequenceCount);
-	const audioClip = createAudioClipV10({
+	const audioClip = createAudioClip({
 		id: 'linked-audio', sourceId: 'audio-source', avLinkId: 'exact-link',
 		timelineStartFrame: start, durationFrames: end - start,
 		sourceStartFrame: 1_000, sourceDurationFrames: end - start,
 	});
-	const track = createVideoTrackV10({
+	const track = createVideoTrack({
 		id: 'video-track', clipIds: ['video'], laneGroupId: 'av-lanes', locked: false,
 	});
-	const audioTrack = createAudioTrackV10({
+	const audioTrack = createAudioTrack({
 		id: 'audio-track', clipIds: ['linked-audio'], laneGroupId: 'av-lanes', locked: false,
 	}, SAMPLE_RATE);
 	return createCurrentAudioEditorProject({
@@ -269,7 +269,7 @@ function createProject(options: Readonly<{ oneFrame?: boolean }> = {}) {
 }
 
 function lockedProjection(project: PersistedProject, lockedTrackIds: ReadonlySet<string>) {
-	return projectV10ForCommand({
+	return projectForCommand({
 		...project,
 		tracks: project.tracks.map((track) => ({
 			...track,

@@ -15,10 +15,10 @@ import {
 	type AudioEditorProjectCurrent,
 } from '../src/common/editor/project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const NOW = '2026-08-12T18:00:00.000Z';
 const SOURCE_SHA256 = 'ab'.repeat(32);
@@ -247,11 +247,11 @@ function compositionFixture(options: Readonly<{
 }
 
 function project(locked: boolean, selectedClipKind: 'audio' | 'video' = 'audio'): AudioEditorProjectCurrent {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'source', storageKey: 'source', name: 'Source',
 		frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, title: 'Clip', anchor: 'sample',
 		timelineStartFrame: 1_000, durationFrames: 100,
 		sourceStartFrame: 100, sourceDurationFrames: 200,
@@ -260,7 +260,7 @@ function project(locked: boolean, selectedClipKind: 'audio' | 'video' = 'audio')
 	const result = createCurrentAudioEditorProject({
 		id: 'warp-project', now: NOW, tempoMap: TEMPO_MAP,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrackV10({ id: 'track', name: 'Track', locked, clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', name: 'Track', locked, clipIds: ['clip'] })],
 	});
 	if (selectedClipKind === 'video') (result.clips[0] as Record<string, unknown>).kind = 'video';
 	return result;

@@ -11,14 +11,16 @@ import {
 	prepareRangeDeleteCommand,
 } from '../src/common/editor/commands.js';
 import { segmentOfClip } from '../src/common/editor/commands/shared-runtime.js';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioEditorProjectV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-	validateAudioEditorProjectV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 
@@ -30,7 +32,7 @@ const PROJECT = { schemaVersion: 10, sampleRate: SAMPLE_RATE, clips: [], tracks:
 test('slow video splits retain one positive in-bounds source frame at every internal boundary', () => {
 	for (const boundary of [2, 3]) {
 		const project = videoProject(1);
-		const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+		const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 		let nextId = 0;
 		const command = prepareLinkedSplitCommand(
 			runtime,
@@ -44,13 +46,13 @@ test('slow video splits retain one positive in-bounds source frame at every inte
 			[0, boundary, 5, 1],
 			[boundary, 4 - boundary, 5, 1],
 		]);
-		assert.equal(validateAudioEditorProjectV10(edited), true);
+		assert.equal(validateCurrentAudioEditorProject(edited), true);
 	}
 });
 
 test('slow video lift-delete retains positive in-bounds source authority for both survivors', () => {
 	const project = videoProject(1);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	let nextId = 0;
 	const command = prepareRangeDeleteCommand(runtime, {
 		startFrame: videoBoundary(1),
@@ -64,12 +66,12 @@ test('slow video lift-delete retains positive in-bounds source authority for bot
 		[0, 1, 5, 1],
 		[2, 2, 5, 1],
 	]);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
 test('slow video later-half clipboard segments stay valid through duplicate-style paste', () => {
 	const project = videoProject(1);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const clipboard = createClipboardDescriptor(runtime, {
 		startFrame: videoBoundary(2),
 		endFrame: videoBoundary(4),
@@ -94,12 +96,12 @@ test('slow video later-half clipboard segments stay valid through duplicate-styl
 		[0, 4, 5, 1],
 		[4, 2, 5, 1],
 	]);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
 test('ordinary video segmentation keeps exact contiguous source-frame authority', () => {
 	const splitProject = videoProject(4);
-	const splitRuntime = projectV10ForCommand(splitProject as unknown as Record<string, unknown>);
+	const splitRuntime = projectForCommand(splitProject as unknown as Record<string, unknown>);
 	let splitId = 0;
 	const split = applyEditorCommand(splitProject, prepareLinkedSplitCommand(
 		splitRuntime,
@@ -112,10 +114,10 @@ test('ordinary video segmentation keeps exact contiguous source-frame authority'
 		[0, 2, 5, 2],
 		[2, 2, 7, 2],
 	]);
-	assert.equal(validateAudioEditorProjectV10(split), true);
+	assert.equal(validateCurrentAudioEditorProject(split), true);
 
 	const liftProject = videoProject(4);
-	const liftRuntime = projectV10ForCommand(liftProject as unknown as Record<string, unknown>);
+	const liftRuntime = projectForCommand(liftProject as unknown as Record<string, unknown>);
 	let liftId = 0;
 	const lift = applyEditorCommand(liftProject, prepareRangeDeleteCommand(liftRuntime, {
 		startFrame: videoBoundary(1),
@@ -128,10 +130,10 @@ test('ordinary video segmentation keeps exact contiguous source-frame authority'
 		[0, 1, 5, 1],
 		[2, 2, 7, 2],
 	]);
-	assert.equal(validateAudioEditorProjectV10(lift), true);
+	assert.equal(validateCurrentAudioEditorProject(lift), true);
 
 	const clipboardProject = videoProject(4);
-	const clipboardRuntime = projectV10ForCommand(clipboardProject as unknown as Record<string, unknown>);
+	const clipboardRuntime = projectForCommand(clipboardProject as unknown as Record<string, unknown>);
 	const clipboard = createClipboardDescriptor(clipboardRuntime, {
 		startFrame: videoBoundary(2),
 		endFrame: videoBoundary(4),
@@ -181,7 +183,7 @@ test('non-collapsed fractional-speed source segmentation preserves established m
 });
 
 function videoProject(sourceFrameCount: number) {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source',
 		frameCount: SAMPLE_RATE,
 		sampleRate: SAMPLE_RATE,
@@ -190,7 +192,7 @@ function videoProject(sourceFrameCount: number) {
 		frameRate: RATE,
 		sourceFrameCount: 24,
 	}, SAMPLE_RATE);
-	const clip = createVideoClipV10({
+	const clip = createVideoClip({
 		id: 'video',
 		sourceId: source.id,
 		sequenceId: 'main',
@@ -203,7 +205,7 @@ function videoProject(sourceFrameCount: number) {
 		sequence: { id: 'main', rate: RATE },
 		source,
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'source-segmentation',
 		now: NOW,
 		sampleRate: SAMPLE_RATE,
@@ -211,7 +213,7 @@ function videoProject(sourceFrameCount: number) {
 		primarySequenceId: 'main',
 		sources: [source],
 		clips: [clip],
-		tracks: [createVideoTrackV10({ id: 'video-track', clipIds: ['video'] })],
+		tracks: [createVideoTrack({ id: 'video-track', clipIds: ['video'] })],
 	});
 }
 

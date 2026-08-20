@@ -24,7 +24,9 @@ import type {
 } from '../src/common/editor/controller/recording-transaction-types.ts';
 import type { TakeCycleRoutedCaptureProject } from '../src/common/editor/controller/take-cycle-routed-capture-types.ts';
 import { createEditorHistory, executeEditorCommand } from '../src/common/editor/history.js';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17, type AudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { createAudioEditorSessionController } from '../src/common/editor/session.js';
@@ -63,7 +65,7 @@ test('selection clear settles through the production current-project cycle path 
 			id: PROJECT_ID, title: 'Cycle settlement', now: NOW,
 			selection: { startFrame: 100, endFrame: 108 },
 			loop: { enabled: true, startFrame: 100, endFrame: 108 },
-			tracks: [createAudioTrackV10({ id: TRACK_ID, name: 'Vocal', clipIds: [], armed: true })],
+			tracks: [createAudioTrack({ id: TRACK_ID, name: 'Vocal', clipIds: [], armed: true })],
 			sequences: [{ id: 'main-sequence', trackIds: [TRACK_ID] }],
 			primarySequenceId: 'main-sequence',
 		}) as SettlementProject;

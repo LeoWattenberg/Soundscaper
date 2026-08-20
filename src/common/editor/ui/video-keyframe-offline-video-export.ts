@@ -2,9 +2,9 @@
 
 import { canonicalMediaContentBlob } from '../storage/media-content-digest.ts';
 import {
-	admitAudioEditorProjectV9ValidationStructure,
-	AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
-} from '../project-v9-validation-budget.ts';
+	admitAudioEditorProjectValidationStructure,
+	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+} from '../project-validation-budget.ts';
 import { MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES } from '../project-publication-admission.ts';
 import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
 import {
@@ -313,9 +313,9 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 
 function snapshotProject(value: unknown): Readonly<Record<string, unknown>> {
 	const project = record(value, 'offline video export project');
-	admitAudioEditorProjectV9ValidationStructure(
+	admitAudioEditorProjectValidationStructure(
 		project,
-		AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+		AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 	);
 	assertSnapshotPayloadBound(project);
 	let snapshot: unknown;

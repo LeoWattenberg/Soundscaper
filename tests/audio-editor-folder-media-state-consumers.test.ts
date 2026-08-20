@@ -7,12 +7,12 @@ import { createAup4ExportPlan } from '../src/common/editor/aup4-export.js';
 import { exportProjectEdl } from '../src/common/editor/controller/interchange-export-action.ts';
 import { edlExportableVideoTracks } from '../src/common/editor/ui/application-menus.js';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { projectTrackFolderMediaStateV12 } from '../src/common/editor/track-folder-media-runtime.ts';
 import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
 
@@ -78,16 +78,16 @@ function edlRuntime(project: Readonly<Record<string, unknown>>) {
 function audioProject({ folderMuted }: { folderMuted: boolean }) {
 	return createSoundscaperProjectV23({
 		id: 'folder-consumers-audio', title: 'Folder consumers', now: NOW,
-		sources: [createAudioSourceV10({
+		sources: [createAudioSource({
 			id: 'voice-source', storageKey: 'pcm:voice', frameCount: 480_000, channelCount: 1,
 			sampleRate: SAMPLE_RATE, originalSampleRate: SAMPLE_RATE, sampleFormat: 'float32',
 			chunkFrames: 65_536,
 		})],
-		clips: [createAudioClipV10({
+		clips: [createAudioClip({
 			id: 'voice-clip', sourceId: 'voice-source', title: 'Voice', timelineStartFrame: 0,
 			durationFrames: 48_000, sourceStartFrame: 0, sourceDurationFrames: 48_000,
 		})],
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] })],
 		trackFolders: [{ id: 'stems', name: 'Stems', mute: folderMuted }],
 		sequences: [{
 			id: 'seq',
@@ -107,7 +107,7 @@ function videoProject(
 ) {
 	return createSoundscaperProjectV23({
 		id: 'folder-consumers-video', title: 'Folder consumers', now: NOW,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'cam', name: 'CAM', storageKey: 'media/cam.mp4', mimeType: 'video/mp4',
 			frameCount: SAMPLE_RATE * 10, sampleRate: SAMPLE_RATE, channelCount: 2,
 			frameRate: PAL, width: 1920, height: 1080,
@@ -116,7 +116,7 @@ function videoProject(
 			kind: 'video', id: 'v-clip', sourceId: 'cam', title: 'Wide', sequenceId: 'seq',
 			sequenceStartFrame: 0, sequenceFrameCount: 25, sourceInFrame: 0, sourceFrameCount: 25,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'v1', name: 'V1', clipIds: ['v-clip'], hidden: trackHidden, solo: trackSolo,
 		})],
 		trackFolders: [{ id: 'picture', name: 'Picture', hidden: folderHidden }],

@@ -2,6 +2,7 @@
 
 import { applyEditorCommand } from '../common/editor/commands.js';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import type { AudioEditorProjectV17 } from '../common/editor/project-v17-validation.ts';
 import {
 	reconcileFramescaperProjectFeatureRequirementsV18,
 } from './editor-project-feature-requirements-v18.ts';
@@ -62,7 +63,11 @@ export function applyFramescaperProjectCommandV18(
 	const v17Project = structuredClone(persisted) as unknown as Record<string, unknown>;
 	v17Project.schemaVersion = 17;
 	for (const source of v17Project.sources as Record<string, unknown>[]) delete source.proxyAttachment;
-	const commanded = applyEditorCommand(v17Project, command, options) as unknown as Record<string, unknown>;
+	const commanded = applyEditorCommand(
+		v17Project as unknown as AudioEditorProjectV17,
+		command,
+		options,
+	) as unknown as Record<string, unknown>;
 	commanded.schemaVersion = 18;
 	retainFramescaperVideoProxyAttachmentsV18(commanded, attachments);
 	commanded.multicameraGroups = structuredClone(persisted.multicameraGroups);

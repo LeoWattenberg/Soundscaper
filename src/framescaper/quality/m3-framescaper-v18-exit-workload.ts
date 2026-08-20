@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../../common/editor/project-v10.ts';
+import { createVideoSource, createVideoTrack } from '../../common/editor/project-media-factory.ts';
 import {
 	createVideoTimingAssetPublication,
 	validateVideoTimingAssetBytes,
@@ -146,17 +146,17 @@ export function validateM3FramescaperV18ExitWorkload(
 function exitProject(profile: unknown): FramescaperProjectV18 {
 	const integerRate = { num: 30, den: 1 };
 	const ntscRate = { num: 30_000, den: 1_001 };
-	const sourceA = createVideoSourceV10({
+	const sourceA = createVideoSource({
 		id: 'camera-a', name: 'Camera A', storageKey: 'camera-a', mimeType: 'video/mp4',
 		contentSha256: ORIGINAL_SHA_A, sampleFrameCount: SAMPLE_RATE * DURATION_SECONDS,
 		sourceFrameCount: 216_000, frameRate: integerRate, width: 1920, height: 1080,
 	});
-	const sourceB = createVideoSourceV10({
+	const sourceB = createVideoSource({
 		id: 'camera-b', name: 'Camera B', storageKey: 'camera-b', mimeType: 'video/mp4',
 		contentSha256: ORIGINAL_SHA_B, sampleFrameCount: SAMPLE_RATE * DURATION_SECONDS,
 		sourceFrameCount: 216_000, frameRate: integerRate, width: 1920, height: 1080,
 	});
-	const vfrSource = createVideoSourceV10({
+	const vfrSource = createVideoSource({
 		id: 'vfr-source', name: 'Verified VFR', storageKey: 'vfr-source', mimeType: 'video/mp4',
 		contentSha256: VFR_SHA, sampleFrameCount: SAMPLE_RATE * 5,
 		sourceFrameCount: 3, frameRate: { num: 1, den: 1 }, width: 1920, height: 1080,
@@ -172,9 +172,9 @@ function exitProject(profile: unknown): FramescaperProjectV18 {
 			videoClip('vfr-video-clip', 'vfr-source', 'vfr-sequence', 0, 3),
 		],
 		tracks: [
-			createVideoTrackV10({ id: 'main-video', name: 'Main video', clipIds: ['multicamera-output'] }),
-			createVideoTrackV10({ id: 'nested-video', name: 'Nested video', clipIds: ['nested-video-clip'] }),
-			createVideoTrackV10({ id: 'vfr-video', name: 'Verified VFR', clipIds: ['vfr-video-clip'] }),
+			createVideoTrack({ id: 'main-video', name: 'Main video', clipIds: ['multicamera-output'] }),
+			createVideoTrack({ id: 'nested-video', name: 'Nested video', clipIds: ['nested-video-clip'] }),
+			createVideoTrack({ id: 'vfr-video', name: 'Verified VFR', clipIds: ['vfr-video-clip'] }),
 		],
 		sequences: [
 			{

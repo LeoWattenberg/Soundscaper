@@ -6,13 +6,13 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
 	type LinkedOriginalBindingInput,
@@ -346,27 +346,39 @@ function bindingInput(projectId: string, source: TestSource, locatorId: string):
 		},
 	} : {
 		...shared, kind: 'video', sourceShape: {
-			frameCount: Number(source.frameCount), sampleRate: Number(source.sampleRate),
-			width: Number(source.width), height: Number(source.height), frameRate: Number(source.frameRate),
+			frameCount: videoSampleFrameCount(source), sampleRate: Number(source.sampleRate),
+			width: Number(source.width), height: Number(source.height), frameRate: videoFrameRate(source),
 			videoCodec: String(source.videoCodec), audioCodec: source.audioCodec === null ? null : String(source.audioCodec),
 			hasAudio: Boolean(source.hasAudio),
 		},
 	};
 }
 
+function videoSampleFrameCount(source: TestSource): number {
+	return Number(source.sampleFrameCount ?? source.frameCount);
+}
+
+function videoFrameRate(source: TestSource): number {
+	const rate = source.frameRate;
+	return rate && typeof rate === 'object' && !Array.isArray(rate)
+		? Number((rate as Readonly<Record<string, unknown>>).num)
+			/ Number((rate as Readonly<Record<string, unknown>>).den)
+		: Number(rate);
+}
+
 function project(id: string, revision: number, source?: TestSource): AudioEditorProjectCurrent {
 	const clip = source?.kind === 'audio'
-		? createAudioClipV9({ id: `${id}-clip`, sourceId: source.id, durationFrames: 120, sourceDurationFrames: 120 })
+		? createAudioClip({ id: `${id}-clip`, sourceId: source.id, durationFrames: 120, sourceDurationFrames: 120 })
 		: source?.kind === 'video'
-			? createVideoClipV9({ id: `${id}-clip`, sourceId: source.id, durationFrames: 120, sourceDurationFrames: 120 })
+			? createVideoClip({ id: `${id}-clip`, sourceId: source.id, durationFrames: 120, sourceDurationFrames: 120 })
 			: null;
 	return createCurrentAudioEditorProject({
 		id, title: id, revision, now: NOW,
 		sources: source ? [source] : [],
 		clips: clip ? [clip] : [],
 		tracks: clip ? [source?.kind === 'audio'
-			? createAudioTrackV9({ id: `${id}-track`, clipIds: [clip.id] })
-			: createVideoTrackV9({ id: `${id}-track`, clipIds: [clip.id] })] : [],
+			? createAudioTrack({ id: `${id}-track`, clipIds: [clip.id] })
+			: createVideoTrack({ id: `${id}-track`, clipIds: [clip.id] })] : [],
 	});
 }
 
@@ -376,7 +388,7 @@ function projectWithBinAndFallback(
 	bin: TestSource,
 	fallback: TestSource,
 ): AudioEditorProjectCurrent {
-	const binClip = createVideoClipV9({
+	const binClip = createVideoClip({
 		id: `${id}-bin-clip`, binItemId: `${id}-bin-item`, sourceId: bin.id,
 		durationFrames: 120, sourceDurationFrames: 120,
 	});
@@ -393,7 +405,7 @@ function projectWithBinAndFallback(
 }
 
 function audioSource(id: string): TestSource {
-	return createAudioSourceV9({
+	return createAudioSource({
 		id, storageKey: `${id}-storage`, mimeType: 'audio/wav', frameCount: 120,
 		channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
@@ -401,7 +413,7 @@ function audioSource(id: string): TestSource {
 }
 
 function videoSource(id: string): TestSource {
-	return createVideoSourceV9({
+	return createVideoSource({
 		id, storageKey: `${id}-storage`, mimeType: 'video/mp4', frameCount: 120,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 		videoCodec: 'h264', audioCodec: 'aac', hasAudio: true,

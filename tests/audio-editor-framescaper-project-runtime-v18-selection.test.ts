@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { editorProjectStorageProfileNames } from '../src/common/editor/storage/project-storage-profile.ts';
 import { FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18 } from '../src/framescaper/editor-project-feature-requirements-v18.ts';
 import { createEditorProjectRuntimeV18Selection } from '../src/framescaper/editor-project-runtime-v18-selection.ts';
@@ -92,7 +95,7 @@ function attachedProject(): ReturnType<typeof createFramescaperProjectV18> {
 	const timingSha = '56'.repeat(32);
 	const project = createFramescaperProjectV18(PROFILE, {
 		id: 'attached-v18', title: 'Attached', now: '2026-08-13T12:00:00.000Z',
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'video-source', name: 'Video', storageKey: 'video-source', mimeType: 'video/mp4',
 			contentSha256: originalSha, frameCount: 48_000, sampleFrameCount: 48_000,
 			sourceFrameCount: 10, frameRate: { num: 10, den: 1 }, width: 1920, height: 1080,
@@ -102,7 +105,7 @@ function attachedProject(): ReturnType<typeof createFramescaperProjectV18> {
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true,
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],

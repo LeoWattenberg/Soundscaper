@@ -4,74 +4,72 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
-import { createProjectFeatureCompatibilityService } from '../src/common/editor/controller/project-feature-compatibility-service.ts';
 import {
 	createEditorHistory,
 	executeEditorCommand,
 	redoEditorCommand,
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
+import { createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 import {
-	AudioEditorProjectReimportRequiredError,
-	migrateAudioEditorProject,
-} from '../src/common/editor/migration.js';
-import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
 	cloneCurrentAudioEditorProject,
 	createCurrentAudioEditorProject,
 	loadCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
 } from '../src/common/editor/project-current.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
-import {
-	PROJECT_FEATURE_AUDIO_CAPABILITY_IDS,
-	PROJECT_FEATURE_CAPABILITY_IDS,
-	PROJECT_FEATURE_VIDEO_CAPABILITY_IDS,
-} from '../src/common/editor/project-feature-capabilities.ts';
+import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../src/common/editor/project-owned-feature-requirements.ts';
 import { normalizeProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
-import {
-	createAudioEditorProjectV11,
-	validateAudioEditorProjectV11,
-} from '../src/common/editor/project-v11.ts';
-import {
-	AUDIO_EDITOR_PROJECT_V14_SCHEMA_VERSION,
-	createAudioEditorProjectV14,
-	validateAudioEditorProjectV14,
-	type AudioEditorProjectV14,
-} from '../src/common/editor/project-v14.ts';
 import { AudioEditorProjectStore } from '../src/common/editor/storage.js';
-import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
-import { PRODUCT_PROFILES } from '../src/common/products.js';
+import { validateVideoSourceCharacteristicsV14 } from '../src/common/editor/source-characteristics-v14.ts';
+import { createUnreportedVideoSourceCharacteristics } from '../src/common/editor/video-source-characteristics.ts';
 
 const NOW = '2026-08-09T18:00:00.000Z';
 
-function folderProject(): AudioEditorProjectV14 {
-	return createAudioEditorProjectV14({
+function reportedCharacteristics(): Record<string, unknown> {
+	return {
+		backend: 'ffprobe',
+		codedWidth: 1920,
+		codedHeight: 1080,
+		rotationDegrees: 0,
+		pixelAspectRatio: { num: 1, den: 1 },
+		fieldOrder: 'progressive',
+		hasAlpha: false,
+		videoCodec: 'h264',
+		colour: { primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', range: 'limited' },
+		audioStreams: null,
+		extractedAudioStreamIndex: null,
+		startTimecode: null,
+	};
+}
+
+function folderProject(): AudioEditorProjectCurrent {
+	return createCurrentAudioEditorProject({
 		id: 'folder-project',
-		title: 'Folder project',
+		title: 'Folder and source characteristics project',
 		now: NOW,
+		sources: [{
+			kind: 'video', id: 'video-source', name: 'Video', storageKey: 'video-source',
+			mimeType: 'video/mp4', frameCount: 40_000, sampleFrameCount: 40_000,
+			sourceFrameCount: 20, frameRate: { num: 24, den: 1 }, width: 1920, height: 1080,
+			videoCodec: 'h264', characteristics: reportedCharacteristics(),
+		}],
+		projectBin: { clips: [{
+			kind: 'video', id: 'bin-video', binItemId: 'bin-video', sourceId: 'video-source',
+			title: 'Video', sequenceId: 'main-sequence', sequenceStartFrame: 0,
+			sequenceFrameCount: 4, sourceInFrame: 0, sourceFrameCount: 4,
+		}] },
 		tracks: [
-			createAudioTrackV10({ id: 'track-a', name: 'Track A' }),
-			createAudioTrackV10({ id: 'track-b', name: 'Track B' }),
+			createAudioTrack({ id: 'track-a', name: 'Track A' }),
+			createAudioTrack({ id: 'track-b', name: 'Track B' }),
 		],
 		trackFolders: [{
-			id: 'folder-a',
-			name: 'Folder A',
-			collapsed: true,
-			height: 72,
-			hidden: false,
-			mute: true,
-			solo: false,
+			id: 'folder-a', name: 'Folder A', collapsed: true, height: 72,
+			hidden: false, mute: true, solo: false,
 		}, {
-			id: 'folder-b',
-			name: 'Folder B',
-			collapsed: false,
-			height: 40,
-			hidden: true,
-			mute: false,
-			solo: true,
+			id: 'folder-b', name: 'Folder B', collapsed: false, height: 40,
+			hidden: true, mute: false, solo: true,
 		}],
 		sequences: [{
 			id: 'main-sequence',
@@ -90,17 +88,11 @@ function folderProject(): AudioEditorProjectV14 {
 	});
 }
 
-function currentFolderProject() {
-	return createCurrentAudioEditorProject(folderProject());
-}
-
-test('V14 remains historical and retains V11 annotations with authoritative folder hierarchy', () => {
+test('current construction accumulates annotations, hierarchy, and reported source characteristics', () => {
 	const project = folderProject();
+	const source = project.sources[0] as Readonly<Record<string, unknown>>;
 
-	assert.equal(AUDIO_EDITOR_PROJECT_SCHEMA_VERSION, 17);
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 17);
-	assert.equal(AUDIO_EDITOR_PROJECT_V14_SCHEMA_VERSION, 14);
-	assert.equal(project.schemaVersion, 14);
+	assert.equal(project.schemaVersion, 17);
 	assert.deepEqual(project.trackFolders.map(({ id }) => id), ['folder-a', 'folder-b']);
 	assert.deepEqual(project.sequences[0]?.trackIds, ['track-a', 'track-b']);
 	assert.deepEqual(project.sequences[0]?.trackNodes, [
@@ -109,40 +101,80 @@ test('V14 remains historical and retains V11 annotations with authoritative fold
 		{ kind: 'folder', id: 'folder-b', parentFolderId: 'folder-a' },
 		{ kind: 'track', id: 'track-b', parentFolderId: 'folder-b' },
 	]);
-	assert.deepEqual(project.tracks.map(({ id }) => id), ['track-a', 'track-b']);
 	assert.deepEqual(project.selection.annotationIds, ['marker-a']);
-	assert.equal(validateAudioEditorProjectV14(project), true);
-	assert.throws(() => validateCurrentAudioEditorProject(project), /schema version/iu);
+	assert.deepEqual(source.characteristics, reportedCharacteristics());
+	assert.equal(validateCurrentAudioEditorProject(project), true);
+
+	for (const id of [
+		PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.trackFolders,
+		PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.sourceCharacteristics,
+	]) {
+		const requirement = project.featureRequirements.requirements.find((candidate) => candidate.id === id);
+		assert.equal(requirement?.disposition, 'bypass');
+		assert.equal(requirement?.fallback, null);
+	}
 });
 
-test('V14 derives root track nodes by default while V11 rejects every folder persistence field', () => {
-	const current = createCurrentAudioEditorProject({
+test('unreported video characteristics are explicit and do not claim ownership', () => {
+	const project = createCurrentAudioEditorProject({
 		now: NOW,
-		tracks: [createAudioTrackV10({ id: 'track-a' })],
+		sources: [{
+			kind: 'video', id: 'video-source', name: 'Video', storageKey: 'video-source',
+			mimeType: 'video/mp4', frameCount: 40_000, sampleFrameCount: 40_000,
+			sourceFrameCount: 20, frameRate: { num: 24, den: 1 }, width: 1920, height: 1080,
+		}],
 	});
-	assert.deepEqual(current.trackFolders, []);
-	assert.deepEqual(current.sequences[0]?.trackNodes, [
-		{ kind: 'track', id: 'track-a', parentFolderId: null },
-	]);
+	const source = project.sources[0] as Readonly<Record<string, unknown>>;
 
-	const v11 = createAudioEditorProjectV11({
-		now: NOW,
-		tracks: [createAudioTrackV10({ id: 'track-a' })],
-	});
+	assert.deepEqual(source.characteristics, createUnreportedVideoSourceCharacteristics());
+	assert.equal(project.featureRequirements.requirements.some(
+		({ id }) => id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.sourceCharacteristics,
+	), false);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
+});
+
+test('current validation rejects source-characteristic drift instead of repairing it', () => {
+	const project = folderProject();
+	const missing = structuredClone(project) as unknown as Record<string, unknown>;
+	delete ((missing.sources as Record<string, unknown>[])[0]!).characteristics;
+	assert.throws(() => validateVideoSourceCharacteristicsV14(missing), /characteristics.*required/iu);
+	assert.throws(() => validateCurrentAudioEditorProject(missing), /owned feature|characteristics/iu);
+
+	const codecDrift = structuredClone(project) as unknown as Record<string, unknown>;
+	(codecDrift.sources as Record<string, unknown>[])[0]!.videoCodec = 'hevc';
+	assert.throws(() => validateCurrentAudioEditorProject(codecDrift), /videoCodec.*disagrees/iu);
+
+	const nonCanonical = structuredClone(project) as unknown as Record<string, unknown>;
+	const characteristics = (nonCanonical.sources as Record<string, unknown>[])[0]!
+		.characteristics as Record<string, unknown>;
+	characteristics.pixelAspectRatio = { num: 2, den: 2 };
+	assert.throws(() => validateCurrentAudioEditorProject(nonCanonical), /canonical reported form/iu);
+});
+
+test('hierarchy projection and metadata order remain exact current authority', () => {
+	const project = folderProject();
+	const sequence = project.sequences[0]!;
 	assert.throws(
-		() => validateAudioEditorProjectV11({ ...v11, trackFolders: [] }),
-		/trackFolders.*V12|V12.*trackFolders/iu,
-	);
-	assert.throws(
-		() => validateAudioEditorProjectV11({ ...v11, trackFolderStateProjectionVersion: 1 }),
+		() => validateCurrentAudioEditorProject({ ...project, trackFolderStateProjectionVersion: 1 }),
 		/persisted project.*runtime projection marker/iu,
 	);
 	assert.throws(
-		() => validateAudioEditorProjectV11({
-			...v11,
-			sequences: v11.sequences.map((sequence) => ({ ...sequence, trackNodes: [] })),
+		() => validateCurrentAudioEditorProject({
+			...project,
+			sequences: [{ ...sequence, trackIds: ['track-b', 'track-a'] }],
 		}),
-		/trackNodes.*V12|V12.*trackNodes/iu,
+		/trackIds.*derived leaf order/iu,
+	);
+	assert.throws(
+		() => validateCurrentAudioEditorProject({ ...project, tracks: [...project.tracks].reverse() }),
+		/project\.tracks.*exact hierarchy preorder/iu,
+	);
+	assert.throws(
+		() => validateCurrentAudioEditorProject({
+			...project,
+			trackFolders: [...project.trackFolders].reverse(),
+		}),
+		/project\.trackFolders.*exact hierarchy preorder/iu,
 	);
 
 	let getterCalls = 0;
@@ -155,44 +187,14 @@ test('V14 derives root track nodes by default while V11 rejects every folder per
 		},
 	});
 	assert.throws(
-		() => createAudioEditorProjectV14({ sequences: [hostileSequence] }),
+		() => createCurrentAudioEditorProject({ sequences: [hostileSequence] }),
 		/trackNodes.*own enumerable data property/iu,
 	);
 	assert.equal(getterCalls, 0);
 });
 
-test('V14 rejects hierarchy projection drift and project metadata order drift', () => {
+test('clone, JSON load, and local storage preserve hierarchy and characteristics byte-exactly', async () => {
 	const project = folderProject();
-	const sequence = project.sequences[0]!;
-	assert.throws(
-		() => validateAudioEditorProjectV14({ ...project, trackFolderStateProjectionVersion: 1 }),
-		/persisted project.*runtime projection marker/iu,
-	);
-	assert.throws(
-		() => validateAudioEditorProjectV14({
-			...project,
-			sequences: [{ ...sequence, trackIds: ['track-b', 'track-a'] }],
-		}),
-		/trackIds.*derived leaf order/iu,
-	);
-	assert.throws(
-		() => validateAudioEditorProjectV14({
-			...project,
-			tracks: [...project.tracks].reverse(),
-		}),
-		/project\.tracks.*exact hierarchy preorder/iu,
-	);
-	assert.throws(
-		() => validateAudioEditorProjectV14({
-			...project,
-			trackFolders: [...project.trackFolders].reverse(),
-		}),
-		/project\.trackFolders.*exact hierarchy preorder/iu,
-	);
-});
-
-test('current V17 is byte-idempotent across clone, JSON, and local store save/open', async () => {
-	const project = currentFolderProject();
 	const serialized = JSON.stringify(project);
 	const loaded = loadCurrentAudioEditorProject(JSON.parse(serialized));
 	const cloned = cloneCurrentAudioEditorProject(project);
@@ -201,10 +203,10 @@ test('current V17 is byte-idempotent across clone, JSON, and local store save/op
 	assert.notStrictEqual(loaded.project, project);
 	assert.deepEqual(cloned, project);
 	assert.notStrictEqual(cloned.trackFolders, project.trackFolders);
-	assert.notStrictEqual(cloned.sequences[0]?.trackNodes, project.sequences[0]?.trackNodes);
+	assert.notStrictEqual(cloned.sources[0], project.sources[0]);
 	assert.equal(JSON.stringify(loaded.project), serialized);
 
-	const store = new AudioEditorProjectStore({ indexedDB: null, databaseName: 'v12-folder-roundtrip' });
+	const store = new AudioEditorProjectStore({ indexedDB: null, databaseName: 'current-structure-roundtrip' });
 	await store.saveProject(project);
 	const reopened = await store.loadProject(project.id);
 	assert.deepEqual(reopened, project);
@@ -212,47 +214,13 @@ test('current V17 is byte-idempotent across clone, JSON, and local store save/op
 	await store.close();
 });
 
-test('current .scape archive round trip preserves nonempty folder state byte-exactly', async () => {
-	const project = currentFolderProject();
-	const sourceStore = new AudioEditorProjectStore({
-		indexedDB: null,
-		databaseName: 'v12-folder-scape-source',
-	});
-	const targetStore = new AudioEditorProjectStore({
-		indexedDB: null,
-		databaseName: 'v12-folder-scape-target',
-	});
-	const exported = await exportScapeProject(project, sourceStore);
-	assert.equal(exported.manifest.project.schemaVersion, 17);
-	const imported = await importScapeProject(exported.blob, targetStore);
-	assert.equal(imported.readOnly, false);
-	assert.equal(JSON.stringify(imported.project), JSON.stringify(project));
-	assert.deepEqual(imported.project.trackFolders, project.trackFolders);
-	assert.deepEqual(imported.project.sequences[0]?.trackNodes, project.sequences[0]?.trackNodes);
-	assert.equal(JSON.stringify(await targetStore.loadProject(project.id)), JSON.stringify(project));
-	const copied = await importScapeProject(exported.blob, targetStore, { collision: 'copy' });
-	assert.notEqual(copied.project.id, project.id);
-	assert.deepEqual(copied.project.trackFolders, project.trackFolders);
-	assert.deepEqual(copied.project.sequences[0]?.trackNodes, project.sequences[0]?.trackNodes);
-	assert.deepEqual(copied.project.sequences[0]?.trackIds, project.sequences[0]?.trackIds);
-	assert.deepEqual(
-		copied.project.tracks.map((track: Readonly<{ id: string }>) => track.id),
-		project.tracks.map(({ id }) => id),
-	);
-	await sourceStore.close();
-	await targetStore.close();
-});
-
-test('ordinary edits, undo, and redo preserve exact current folder state', () => {
-	const project = currentFolderProject();
-	const command = {
-		type: 'metadata/update',
-		changes: { artist: 'Soundscaper' },
-	} as const;
+test('ordinary edits, undo, and redo preserve current structural layers', () => {
+	const project = folderProject();
+	const command = { type: 'metadata/update', changes: { artist: 'Soundscaper' } } as const;
 	const edited = applyEditorCommand(project, command, { now: '2026-08-09T18:01:00.000Z' });
 	assert.deepEqual(edited.trackFolders, project.trackFolders);
 	assert.deepEqual(edited.sequences[0]?.trackNodes, project.sequences[0]?.trackNodes);
-	assert.equal(validateCurrentAudioEditorProject(edited), true);
+	assert.deepEqual(edited.sources[0], project.sources[0]);
 
 	const executed = executeEditorCommand(createEditorHistory(project), command, {
 		now: '2026-08-09T18:01:00.000Z',
@@ -261,211 +229,48 @@ test('ordinary edits, undo, and redo preserve exact current folder state', () =>
 	const redone = redoEditorCommand(undone);
 	assert.deepEqual(undone.present.trackFolders, project.trackFolders);
 	assert.deepEqual(undone.present.sequences[0]?.trackNodes, project.sequences[0]?.trackNodes);
+	assert.deepEqual(undone.present.sources, project.sources);
 	assert.equal(undone.present.metadata.artist, project.metadata.artist);
 	assert.deepEqual(redone.present.trackFolders, edited.trackFolders);
 	assert.deepEqual(redone.present.sequences[0]?.trackNodes, edited.sequences[0]?.trackNodes);
+	assert.deepEqual(redone.present.sources, edited.sources);
 	assert.equal(redone.present.metadata.artist, edited.metadata.artist);
 	assert.equal(validateCurrentAudioEditorProject(undone.present), true);
 	assert.equal(validateCurrentAudioEditorProject(redone.present), true);
 });
 
-test('legacy track add, reorder, and remove keep empty-folder V16 root hierarchy exact', () => {
-	let project = createCurrentAudioEditorProject({
-		now: NOW,
-		tracks: [
-			createAudioTrackV10({ id: 'track-a' }),
-			createAudioTrackV10({ id: 'track-b' }),
-		],
-	});
-	project = applyEditorCommand(project, {
-		type: 'track/add',
-		track: { id: 'track-c', name: 'Track C' },
-		index: 1,
-	}, { now: NOW });
-	assert.deepEqual(project.sequences[0]?.trackIds, ['track-a', 'track-c', 'track-b']);
-	assert.deepEqual(project.sequences[0]?.trackNodes, [
-		{ kind: 'track', id: 'track-a', parentFolderId: null },
-		{ kind: 'track', id: 'track-c', parentFolderId: null },
-		{ kind: 'track', id: 'track-b', parentFolderId: null },
-	]);
-
-	project = applyEditorCommand(project, {
-		type: 'track/reorder', trackId: 'track-b', index: 0,
-	}, { now: NOW });
-	assert.deepEqual(project.sequences[0]?.trackIds, ['track-b', 'track-a', 'track-c']);
-	assert.deepEqual(project.sequences[0]?.trackNodes.map(({ id }) => id), ['track-b', 'track-a', 'track-c']);
-
-	project = applyEditorCommand(project, {
-		type: 'track/remove', trackId: 'track-a',
-	}, { now: NOW });
-	assert.deepEqual(project.sequences[0]?.trackIds, ['track-b', 'track-c']);
-	assert.deepEqual(project.sequences[0]?.trackNodes.map(({ id }) => id), ['track-b', 'track-c']);
-	assert.equal(validateCurrentAudioEditorProject(project), true);
-});
-
-test('legacy root track edits preserve multi-sequence blocks and reject cross-sequence reorder', () => {
-	let project = createCurrentAudioEditorProject({
-		now: NOW,
-		tracks: [
-			createAudioTrackV10({ id: 'track-a' }),
-			createAudioTrackV10({ id: 'track-b' }),
-		],
-		sequences: [{
-			id: 'main-sequence',
-			trackNodes: [{ kind: 'track', id: 'track-a', parentFolderId: null }],
-		}, {
-			id: 'secondary-sequence',
-			trackNodes: [{ kind: 'track', id: 'track-b', parentFolderId: null }],
-		}],
-	});
-	project = applyEditorCommand(project, {
-		type: 'track/add',
-		track: { id: 'track-c', name: 'Track C' },
-	}, { now: NOW });
-	assert.deepEqual(project.tracks.map(({ id }) => id), ['track-a', 'track-c', 'track-b']);
-	assert.deepEqual(project.sequences.map(({ trackIds }) => trackIds), [
-		['track-a', 'track-c'],
-		['track-b'],
-	]);
-
-	project = applyEditorCommand(project, {
-		type: 'track/reorder', trackId: 'track-c', index: 0,
-	}, { now: NOW });
-	assert.deepEqual(project.tracks.map(({ id }) => id), ['track-c', 'track-a', 'track-b']);
-	assert.deepEqual(project.sequences[0]?.trackNodes.map(({ id }) => id), ['track-c', 'track-a']);
-
-	project = applyEditorCommand(project, {
-		type: 'track/remove', trackId: 'track-c',
-	}, { now: NOW });
-	assert.deepEqual(project.tracks.map(({ id }) => id), ['track-a', 'track-b']);
-	assert.deepEqual(project.sequences.map(({ trackIds }) => trackIds), [['track-a'], ['track-b']]);
-
-	const snapshot = structuredClone(project);
-	assert.throws(() => applyEditorCommand(project, {
-		type: 'track/reorder', trackId: 'track-a', index: 1,
-	}, { now: NOW }), /cross.*sequence|sequence boundar/iu);
-	assert.deepEqual(project, snapshot);
-});
-
-test('legacy structural track commands delegate to the folder-aware path on nonempty hierarchy', () => {
-	const project = currentFolderProject();
-	const snapshot = structuredClone(project);
+test('root track edits reconcile current hierarchy without discarding folders', () => {
+	const project = folderProject();
 	const appended = applyEditorCommand(project, {
 		type: 'track/add', track: { id: 'track-c', name: 'Track C' },
 	}, { now: NOW });
-	assert.deepEqual(project, snapshot);
-	const appendedNodes = appended.sequences[0].trackNodes;
-	assert.deepEqual(appendedNodes[appendedNodes.length - 1], {
+	assert.deepEqual(appended.sequences[0]?.trackNodes.at(-1), {
 		kind: 'track', id: 'track-c', parentFolderId: null,
 	});
 	assert.equal(validateCurrentAudioEditorProject(appended), true);
-
-	// A flat insertion position adopts the parent of the track it lands beside.
-	const replaced = applyEditorCommand(project, {
-		type: 'batch',
-		commands: [
-			{ type: 'track/remove', trackId: 'track-a' },
-			{
-				type: 'track/add',
-				index: 0,
-				track: { id: 'replacement', name: 'Replacement track' },
-			},
-		],
-	}, { now: NOW });
-	assert.deepEqual(project, snapshot);
-	assert.deepEqual(replaced.sequences[0].trackNodes.map(({ id, parentFolderId }) => ({ id, parentFolderId })), [
-		{ id: 'folder-a', parentFolderId: null },
-		{ id: 'folder-b', parentFolderId: 'folder-a' },
-		{ id: 'replacement', parentFolderId: 'folder-b' },
-		{ id: 'track-b', parentFolderId: 'folder-b' },
-	]);
-	assert.equal(validateCurrentAudioEditorProject(replaced), true);
 });
 
-test('schemas 1 through 16 require typed re-import and future V18 stays opaque read-only', () => {
-	for (let schemaVersion = 1; schemaVersion <= 16; schemaVersion += 1) {
-		assert.throws(
-			() => migrateAudioEditorProject({ schemaVersion }),
-			(error: unknown) => error instanceof AudioEditorProjectReimportRequiredError
-				&& error.schemaVersion === schemaVersion
-				&& error.currentSchemaVersion === 17,
-		);
-	}
-	const project = currentFolderProject();
-	const future = { ...project, schemaVersion: 18, futureFolderState: { opaque: true } };
-	const loaded = migrateAudioEditorProject(future);
-	assert.deepEqual(loaded, {
-		project: future,
-		migrated: false,
-		fromVersion: 18,
-		readOnly: true,
-		reason: 'newer-schema',
-	});
-	assert.notStrictEqual(loaded.project, future);
-});
-
-test('nonempty folder state owns one bypass-only requirement in both product profiles', () => {
-	const project = currentFolderProject();
-	assert.deepEqual(project.featureRequirements.requirements.filter(({ id }) => (
-		id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.trackFolders
-	)), [{
-		id: 'soundscaper.track-folders',
-		featureId: 'org.soundscaper.capability.track-folders',
-		displayName: 'Nested track folders',
-		disposition: 'bypass',
-		fallback: null,
-	}]);
-	assert.equal(PROJECT_FEATURE_CAPABILITY_IDS.trackFolders, 'org.soundscaper.capability.track-folders');
-	assert.equal(new Set<string>(PROJECT_FEATURE_AUDIO_CAPABILITY_IDS).has(PROJECT_FEATURE_CAPABILITY_IDS.trackFolders), false);
-	assert.equal(new Set<string>(PROJECT_FEATURE_VIDEO_CAPABILITY_IDS).has(PROJECT_FEATURE_CAPABILITY_IDS.trackFolders), false);
-
-	assert.equal(PRODUCT_PROFILES.soundscaper.capabilities.trackFolders, true);
-	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.trackFolders, false);
-	for (const [productId, availability, disposition] of [
-		['soundscaper', 'available', 'native'],
-		['framescaper', 'unavailable', 'bypassed'],
-	] as const) {
-		const report = createProjectFeatureCompatibilityService(
-			PRODUCT_PROFILES[productId].capabilities,
-		).evaluate(project);
-		const item = report?.items.find(({ featureId }) => featureId === PROJECT_FEATURE_CAPABILITY_IDS.trackFolders);
-		assert.deepEqual(item && {
-			availability: item.availability,
-			declaredDisposition: item.declaredDisposition,
-			disposition: item.disposition,
-			fallback: item.fallback,
-		}, {
-			availability,
-			declaredDisposition: 'bypass',
-			disposition,
-			fallback: null,
-		});
-	}
-});
-
-test('registered track-folder requirements reject audio and video rendered fallbacks', () => {
-	for (const [kind, role] of [
-		['audio', 'project-audio-mix-v1'],
-		['video', 'project-video-render-v1'],
-	] as const) {
+test('owned structural features remain bypass-only and reject rendered substitution', () => {
+	for (const featureId of [
+		PROJECT_FEATURE_CAPABILITY_IDS.trackFolders,
+		PROJECT_FEATURE_CAPABILITY_IDS.sourceCharacteristics,
+	]) {
 		assert.throws(() => normalizeProjectFeatureRequirements({
 			schemaVersion: 2,
 			requirements: [{
-				id: `publisher-${kind}-folder-render`,
-				featureId: PROJECT_FEATURE_CAPABILITY_IDS.trackFolders,
-				displayName: 'Nested track folders',
+				id: `publisher-${featureId}`,
+				featureId,
+				displayName: 'Structural authority',
 				disposition: 'rendered-fallback',
 				fallback: {
-					role,
-					kind,
-					sourceId: `fallback-${kind}`,
-					sha256: 'ab'.repeat(32),
+					role: 'project-video-render-v1', kind: 'video',
+					sourceId: 'fallback-video', sha256: 'ab'.repeat(32),
 				},
 			}],
 		}, {
-			sources: [{ id: `fallback-${kind}`, kind }],
+			sources: [{ id: 'fallback-video', kind: 'video' }],
 			clips: [],
 			tracks: [],
-		}), /not eligible for an? (?:audio|video) rendered fallback/iu);
+		}), /not eligible for a video rendered fallback/iu);
 	}
 });

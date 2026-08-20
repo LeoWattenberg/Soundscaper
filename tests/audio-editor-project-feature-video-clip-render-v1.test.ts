@@ -9,41 +9,41 @@ import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-fea
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
 import { projectFeatureVideoRenderedFallbackPlayback } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const VIDEO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.videoEffects;
 const DIGEST = '9a'.repeat(32);
 
 function fixture() {
-	const audioSource = createAudioSourceV9({
+	const audioSource = createAudioSource({
 		id: 'audio-source', storageKey: 'audio-source', frameCount: 1_600,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const canonicalVideo = createVideoSourceV9({
+	const canonicalVideo = createVideoSource({
 		id: 'canonical-video', storageKey: 'canonical-video', frameCount: 200,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 	});
-	const unaffectedVideo = createVideoSourceV9({
+	const unaffectedVideo = createVideoSource({
 		id: 'unaffected-video', storageKey: 'unaffected-video', frameCount: 40,
 		sampleRate: 48_000, width: 1_280, height: 720, frameRate: 24,
 	});
-	const fallbackVideo = createVideoSourceV9({
+	const fallbackVideo = createVideoSource({
 		id: 'fallback-video', storageKey: 'fallback-video', frameCount: 1_600,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 		hasAudio: false,
 	});
-	const linkedAudio = createAudioClipV9({
+	const linkedAudio = createAudioClip({
 		id: 'linked-audio-clip', sourceId: audioSource.id, durationFrames: 1_600,
 		sourceDurationFrames: 1_600, timelineStartFrame: 0,
 		avLinkId: 'av-link-a', title: 'Linked production sound',
 	});
-	const target = createVideoClipV9({
+	const target = createVideoClip({
 		id: 'target-video-clip', sourceId: canonicalVideo.id, title: 'Hero shot',
 		timelineStartFrame: 120, sourceStartFrame: 9, sourceDurationFrames: 40,
 		durationFrames: 20, trimStartFrames: 3, trimEndFrames: 4,
@@ -53,7 +53,7 @@ function fixture() {
 			id: 'pixelate-a', type: 'pixelate', enabled: true, params: { blockSize: 12 },
 		}],
 	});
-	const unaffected = createVideoClipV9({
+	const unaffected = createVideoClip({
 		id: 'unaffected-video-clip', sourceId: unaffectedVideo.id, title: 'Title card',
 		timelineStartFrame: 4, sourceStartFrame: 2, sourceDurationFrames: 10,
 		durationFrames: 10, color: '#abcdef', opaqueExtensions: { titleCard: true },
@@ -63,14 +63,14 @@ function fixture() {
 		sources: [audioSource, canonicalVideo, unaffectedVideo, fallbackVideo],
 		clips: [unaffected, linkedAudio, target],
 		tracks: [
-			createVideoTrackV9({
+			createVideoTrack({
 				id: 'title-track', clipIds: [unaffected.id], name: 'Titles', hidden: true,
 			}),
-			createVideoTrackV9({
+			createVideoTrack({
 				id: 'hero-track', clipIds: [target.id], name: 'Hero', mute: true,
 				laneGroupId: 'scene-lane', opaqueExtensions: { compositorTrack: 'hero-track-node' },
 			}),
-			createAudioTrackV9({
+			createAudioTrack({
 				id: 'production-sound', clipIds: [linkedAudio.id], laneGroupId: 'scene-lane',
 			}),
 		],

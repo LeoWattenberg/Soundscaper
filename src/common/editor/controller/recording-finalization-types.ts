@@ -23,7 +23,6 @@ export interface RecordingProjectTransactionScope {
 }
 
 export interface RecordedAudioSource extends Readonly<Record<string, unknown>> {
-	readonly schemaVersion: 2;
 	readonly sampleRate: number;
 	readonly originalSampleRate: number;
 	readonly sampleFormat: 'float32';

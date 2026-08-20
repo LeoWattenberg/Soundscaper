@@ -12,7 +12,9 @@ import {
 } from '../src/common/editor/adm-metadata.ts';
 import { createRiffBextChunk } from '../src/common/editor/broadcast-wave.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
-import { createAudioEditorProjectV7 } from '../src/common/editor/project-v7.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 
 const NOW = '2026-07-28T12:00:00.000Z';
@@ -20,7 +22,7 @@ const NOW = '2026-07-28T12:00:00.000Z';
 test('authored BW64 plans validate routing and derive a 5.1 ADM bed with BEXT v2', () => {
 	const layout = '5.1';
 	const channelOrder = ['L', 'R', 'C', 'LFE', 'Ls', 'Rs'] as const;
-	const project = createAudioEditorProjectV7({
+	const project = createCurrentAudioEditorProject({
 		id: 'authored-adm',
 		title: 'Drama master',
 		now: NOW,
@@ -105,7 +107,7 @@ test('authored BW64 plans validate routing and derive a 5.1 ADM bed with BEXT v2
 });
 
 test('BW64 authored export rejects stems, missing ADM, mismatched beds, and incomplete routing', () => {
-	const project = createAudioEditorProjectV7({
+	const project = createCurrentAudioEditorProject({
 		now: NOW,
 		masterChannels: 2,
 		sources: [{ id: 'source', storageKey: 'pcm/source', frameCount: 4, channelCount: 2 }],
@@ -171,7 +173,7 @@ test('pristine BW64 passthrough preserves raw ADM chunks and rejects stale or ch
 		riffChunk('id3 ', Uint8Array.of(0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 0)),
 		riffChunk('MD5 ', Uint8Array.of(7, 8)),
 	];
-	const project = createAudioEditorProjectV7({
+	const project = createCurrentAudioEditorProject({
 		id: 'passthrough-adm',
 		title: 'Imported master',
 		now: NOW,
@@ -249,7 +251,7 @@ test('pristine BW64 passthrough preserves raw ADM chunks and rejects stale or ch
 		/preserved.*ID3|ID3.*passthrough/iu,
 	);
 	const structural = riffChunk('data', Uint8Array.of(1, 2));
-	assert.throws(() => createAudioEditorProjectV7({
+	assert.throws(() => createCurrentAudioEditorProject({
 		...project,
 		metadata: { ...project.metadata, adm: {
 			...passthroughAdm,
@@ -258,7 +260,7 @@ test('pristine BW64 passthrough preserves raw ADM chunks and rejects stale or ch
 			}],
 		} },
 	}), /duplicates.*structural|modeled.*data/iu);
-	const tamperedProject = createAudioEditorProjectV7({
+	const tamperedProject = createCurrentAudioEditorProject({
 		...project,
 		metadata: { ...project.metadata, adm: {
 			...passthroughAdm,
@@ -271,7 +273,7 @@ test('pristine BW64 passthrough preserves raw ADM chunks and rejects stale or ch
 	assert.throws(() => createExportPlan(tamperedProject, options), /CHNA.*geometry|CHNA.*disagree/iu);
 
 	const sxml = sxmlPayload(4);
-	const sxmlProject = createAudioEditorProjectV7({
+	const sxmlProject = createCurrentAudioEditorProject({
 		...project,
 		metadata: { ...project.metadata, adm: {
 			...passthroughAdm,
@@ -299,7 +301,7 @@ test('pristine BW64 passthrough preserves raw ADM chunks and rejects stale or ch
 		],
 	};
 	const repeatedTrackPayload = encodeChnaPayload(repeatedTrackChna);
-	const repeatedTrackProject = createAudioEditorProjectV7({
+	const repeatedTrackProject = createCurrentAudioEditorProject({
 		...sxmlProject,
 		metadata: { ...sxmlProject.metadata, adm: {
 			...sxmlAdm,
@@ -318,7 +320,7 @@ test('pristine BW64 passthrough preserves raw ADM chunks and rejects stale or ch
 		'AC_00010001',
 		'AC_00010002',
 	]);
-	const emptyAxmlProject = createAudioEditorProjectV7({
+	const emptyAxmlProject = createCurrentAudioEditorProject({
 		...project,
 		metadata: { ...project.metadata, adm: {
 			...passthroughAdm,
@@ -410,7 +412,7 @@ test('pristine BW64 sequence retains ADM, INFO, adtl, and opaque chunk order byt
 	})), ...after.map((raw) => ({
 		id: chunkId(raw), placement: 'after-data' as const, rawBase64: Buffer.from(raw).toString('base64'),
 	}))];
-	const project = createAudioEditorProjectV7({
+	const project = createCurrentAudioEditorProject({
 		id: 'sequenced-passthrough', title: 'Imported master', now: NOW, revision: 0, masterChannels: 1,
 		sources: [{
 			id: 'source', storageKey: 'pcm/source', name: 'Imported', mimeType: 'audio/wav',
@@ -419,7 +421,11 @@ test('pristine BW64 sequence retains ADM, INFO, adtl, and opaque chunk order byt
 		clips: [{ id: 'clip', sourceId: 'source', durationFrames: 4 }],
 		tracks: [
 			{ type: 'audio', id: 'bed', clipIds: ['clip'] },
-			{ type: 'label', id: 'markers', labels: [{ id: 'marker', title: 'Original', startFrame: 1, endFrame: 1 }] },
+			{
+				type: 'label',
+				id: 'markers',
+				labels: [{ id: 'marker', title: 'Original', startFrame: 1, endFrame: 1, color: 'auto' }],
+			},
 		],
 		metadata: { bext: bextMetadata, adm: {
 			mode: 'passthrough',
@@ -446,7 +452,9 @@ test('pristine BW64 sequence retains ADM, INFO, adtl, and opaque chunk order byt
 	});
 	const projectAdm = project.metadata.adm;
 	assert.ok(projectAdm?.mode === 'passthrough');
-	const options = { format: 'bw64', bitDepth: 24, dither: 'none' } as const;
+	const options = {
+		format: 'bw64', bitDepth: 24, dither: 'none', markerSource: 'label-track',
+	} as const;
 	const plan = createExportPlan(project, options);
 
 	assert.deepEqual(plan.preDataChunks, before);
@@ -483,7 +491,7 @@ test('pristine BW64 sequence retains ADM, INFO, adtl, and opaque chunk order byt
 	);
 
 	const mismatchedAxml = riffChunk('axml', new TextEncoder().encode('<audioFormatExtended />'));
-	const tampered = createAudioEditorProjectV7({
+	const tampered = createCurrentAudioEditorProject({
 		...project,
 		metadata: { ...project.metadata, adm: {
 			...projectAdm,

@@ -2,9 +2,9 @@
 
 import { validatePersistedAudioEffects } from './persisted-audio-effect-validation.ts';
 import {
-	validateProjectV9Media,
-	type ProjectV9MediaCollections,
-} from './project-v9-media-validation.ts';
+	validateProjectMedia,
+	type ProjectMediaCollections,
+} from './project-media-validation.ts';
 import {
 	projectArray,
 	projectBoolean,
@@ -17,15 +17,15 @@ import {
 	projectUniqueStrings,
 	type ProjectDataRecord,
 	validateProjectEnvelope,
-} from './project-v9-validation-primitives.ts';
+} from './project-validation-primitives.ts';
 
-export interface ValidatedProjectV9Document {
+export interface ValidatedProjectDocument {
 	readonly project: ProjectDataRecord;
 	readonly metadata: ProjectDataRecord;
-	readonly media: ProjectV9MediaCollections;
+	readonly media: ProjectMediaCollections;
 }
 
-export interface ProjectV9AudioAuthorityValidation {
+export interface ProjectAudioAuthorityValidation {
 	readonly stripEnvelopeAuthority?: 'required' | 'forbidden';
 	readonly validateMixer?: (
 		value: unknown,
@@ -33,10 +33,10 @@ export interface ProjectV9AudioAuthorityValidation {
 	) => void;
 }
 
-export function validateProjectV9Document(
+export function validateProjectDocument(
 	value: unknown,
-	audioAuthority: ProjectV9AudioAuthorityValidation = {},
-): ValidatedProjectV9Document {
+	audioAuthority: ProjectAudioAuthorityValidation = {},
+): ValidatedProjectDocument {
 	const project = projectRecord(value, 'project');
 	projectString(project.id, 'project.id');
 	projectString(project.title, 'project.title');
@@ -53,7 +53,7 @@ export function validateProjectV9Document(
 	validateLoop(project.loop);
 	validateView(project.view);
 	const stripEnvelopeAuthority = audioAuthority.stripEnvelopeAuthority ?? 'required';
-	const media = validateProjectV9Media(project, sampleRate, { stripEnvelopeAuthority });
+	const media = validateProjectMedia(project, sampleRate, { stripEnvelopeAuthority });
 	validateMaster(project.master, stripEnvelopeAuthority);
 	(audioAuthority.validateMixer ?? validateMixer)(project.mixer, media.tracks);
 	return { project, metadata, media };

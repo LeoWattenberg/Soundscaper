@@ -19,7 +19,9 @@ import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
-import { createLabelTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createLabelTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const NOW = '2026-08-09T00:00:00.000Z';
 const MUSICAL_ROOT = Object.freeze({
@@ -155,7 +157,7 @@ test('AUP4 label tracks import as selected annotations with explicit compatibili
 });
 
 test('AUP4 export adds a distinct projected annotation label track and reports semantic losses', () => {
-	const internalLabels = createLabelTrackV10({
+	const internalLabels = createLabelTrack({
 		id: 'internal-labels',
 		name: 'Internal labels',
 		labels: [{ id: 'internal', title: 'Internal', startFrame: 5, endFrame: 5, color: 'auto', opaqueExtensions: {} }],

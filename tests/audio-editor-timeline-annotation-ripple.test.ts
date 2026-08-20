@@ -16,16 +16,17 @@ import {
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
 import {
-	createAudioClipV10,
-	createAudioEditorProjectV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
-import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import type { TimelineAnnotationV11 } from '../src/common/editor/timeline-annotation.ts';
 
@@ -90,16 +91,16 @@ test('regions use half-open contraction boundaries and retain surviving batch id
 
 test('video participation conforms one shared span for media and annotation ripple', () => {
 	const rate = { num: 24, den: 1 };
-	const videoSource = createVideoSourceV10({
+	const videoSource = createVideoSource({
 		id: 'video-source', sampleFrameCount: 20_000, sourceFrameCount: 10,
 		width: 16, height: 16, frameRate: rate,
 	});
-	const audioSource = createAudioSourceV10({ id: 'audio-source', frameCount: 20_000, channelCount: 1 });
-	const videoClip = createVideoClipV10({
+	const audioSource = createAudioSource({ id: 'audio-source', frameCount: 20_000, channelCount: 1 });
+	const videoClip = createVideoClip({
 		id: 'video-clip', sourceId: 'video-source', sequenceId: MAIN_SEQUENCE,
 		sequenceStartFrame: 2, sequenceFrameCount: 1, sourceInFrame: 2, sourceFrameCount: 1,
 	}, { projectSampleRate: 48_000, sequence: { id: MAIN_SEQUENCE, rate }, source: videoSource });
-	const audioClip = createAudioClipV10({
+	const audioClip = createAudioClip({
 		id: 'audio-clip', sourceId: 'audio-source', timelineStartFrame: 4_000,
 		durationFrames: 2_000, sourceDurationFrames: 2_000,
 	});
@@ -168,10 +169,10 @@ test('only fully covered media sequences ripple while labels do not block partic
 		['second-marker', 'sample', 20, 20, null],
 	]);
 
-	const source = createAudioSourceV10({ id: 'source', frameCount: 1_000, channelCount: 1 });
+	const source = createAudioSource({ id: 'source', frameCount: 1_000, channelCount: 1 });
 	const clips = [
-		createAudioClipV10({ id: 'early', sourceId: 'source', timelineStartFrame: 0, durationFrames: 5 }),
-		createAudioClipV10({ id: 'late', sourceId: 'source', timelineStartFrame: 30, durationFrames: 5 }),
+		createAudioClip({ id: 'early', sourceId: 'source', timelineStartFrame: 0, durationFrames: 5 }),
+		createAudioClip({ id: 'late', sourceId: 'source', timelineStartFrame: 30, durationFrames: 5 }),
 	];
 	const withClips = projectWithTracks({
 		sources: [source],
@@ -198,7 +199,7 @@ test('disjoint preparation simulates annotation contraction right-to-left and re
 		annotations: [sampleMarker('after', 50), sampleMarker('removed', 35)],
 		selectedAnnotationIds: ['removed'],
 	});
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const command = prepareDisjointRangeDeleteCommand(runtime, {
 		ranges: [{ startFrame: 10, endFrame: 20 }, { startFrame: 30, endFrame: 40 }],
 		trackIds: ['main-track'],
@@ -244,8 +245,10 @@ test('malformed or forged annotation operations reject the complete edit without
 	assert.throws(() => applyEditorCommand(project, missing as AudioEditorCommand, { now: NOW }), /requires annotation ripple operations/iu);
 	assert.deepEqual(project, snapshot);
 
-	const legacy = createAudioEditorProjectV10({ id: 'legacy-ripple', now: NOW });
-	const legacyCommand = prepareRangeDeleteCommand(legacy, {
+	const legacyCommand = prepareRangeDeleteCommand({
+		...structuredClone(project),
+		schemaVersion: 10,
+	} as never, {
 		startFrame: 10, endFrame: 20, rippleMode: 'track',
 	});
 	assert.equal(Object.hasOwn(legacyCommand, 'annotationRippleOperations'), false);
@@ -260,21 +263,21 @@ test('history undo and redo restore the exact pre- and post-ripple annotation st
 	const before = annotationState(project);
 	let history = createEditorHistory(project);
 	history = executeEditorCommand(history, preparedRipple(project, 10, 20, ['main-track']), { now: NOW });
-	const after = annotationState(history.present as ReturnType<typeof createAudioEditorProjectV11>);
+	const after = annotationState(history.present as ReturnType<typeof createCurrentAudioEditorProject>);
 	assert.notDeepEqual(after, before);
 	history = undoEditorCommand(history, { now: NOW });
-	assert.deepEqual(annotationState(history.present as ReturnType<typeof createAudioEditorProjectV11>), before);
+	assert.deepEqual(annotationState(history.present as ReturnType<typeof createCurrentAudioEditorProject>), before);
 	history = redoEditorCommand(history, { now: NOW });
-	assert.deepEqual(annotationState(history.present as ReturnType<typeof createAudioEditorProjectV11>), after);
+	assert.deepEqual(annotationState(history.present as ReturnType<typeof createCurrentAudioEditorProject>), after);
 });
 
 function preparedRipple(
-	project: ReturnType<typeof createAudioEditorProjectV11>,
+	project: ReturnType<typeof createCurrentAudioEditorProject>,
 	startFrame: number,
 	endFrame: number,
 	trackIds: readonly string[],
 ): Extract<AudioEditorCommand, { readonly type: 'range/ripple-delete' }> {
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const command = prepareRangeDeleteCommand(runtime, { startFrame, endFrame, trackIds, rippleMode: 'track' });
 	if (command.type !== 'range/ripple-delete') throw new TypeError('Expected a ripple-delete command.');
 	return command as unknown as Extract<AudioEditorCommand, { readonly type: 'range/ripple-delete' }>;
@@ -287,8 +290,8 @@ function projectWithTracks(options: Readonly<{
 	selectedAnnotationIds?: readonly string[];
 	sources?: readonly Record<string, unknown>[];
 	clips?: readonly Record<string, unknown>[];
-}>): ReturnType<typeof createAudioEditorProjectV11> {
-	return createAudioEditorProjectV11({
+}>): ReturnType<typeof createCurrentAudioEditorProject> {
+	return createCurrentAudioEditorProject({
 		id: 'annotation-ripple',
 		now: NOW,
 		tracks: options.tracks,
@@ -302,11 +305,11 @@ function projectWithTracks(options: Readonly<{
 }
 
 function audioTrack(id: string, clipIds: readonly string[] = []): Record<string, unknown> {
-	return createAudioTrackV10({ id, name: id, clipIds });
+	return createAudioTrack({ id, name: id, clipIds });
 }
 
 function videoTrack(id: string, clipIds: readonly string[] = []): Record<string, unknown> {
-	return createVideoTrackV10({ id, name: id, clipIds });
+	return createVideoTrack({ id, name: id, clipIds });
 }
 
 function labelTrack(id: string): Record<string, unknown> {
@@ -363,7 +366,7 @@ function rational(num: number, den = 1): Readonly<{ num: number; den: number }> 
 	return { num, den };
 }
 
-function annotationState(project: ReturnType<typeof createAudioEditorProjectV11>): readonly unknown[] {
+function annotationState(project: ReturnType<typeof createCurrentAudioEditorProject>): readonly unknown[] {
 	return project.timelineAnnotations.map((annotation) => {
 		if (annotation.kind === 'marker' && annotation.anchor === 'sample') {
 			return [annotation.id, annotation.anchor, annotation.positionFrame, annotation.positionFrame, annotation.batchId];

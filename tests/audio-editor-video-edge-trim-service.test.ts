@@ -17,7 +17,7 @@ import {
 	redoEditorCommand,
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { createPersistedVideoProject } from './helpers/persisted-video-project-fixture.ts';
@@ -138,7 +138,7 @@ test('one service commit persists canonical linked V15 geometry in one undoable 
 	const commands: AudioEditorCommand[] = [];
 	const service = createVideoEdgeTrimService({
 		lifetime: { assertActive: () => undefined },
-		getProject: () => projectV10ForCommand(
+		getProject: () => projectForCommand(
 			history.present as unknown as Record<string, unknown>,
 		),
 		editingBlocked: () => false,
@@ -267,7 +267,7 @@ function lockedProjection(
 	project: PersistedVideoProject,
 	lockedTrackIds: ReadonlySet<string>,
 ) {
-	return projectV10ForCommand({
+	return projectForCommand({
 		...project,
 		tracks: project.tracks.map((track) => ({
 			...track,

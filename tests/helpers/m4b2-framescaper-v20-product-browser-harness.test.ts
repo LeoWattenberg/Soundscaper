@@ -2,7 +2,7 @@
 
 import { createAudioEditorFileService } from '../../src/common/editor/file-service.js';
 import type { FfmpegOutputSink } from '../../src/common/editor/ffmpeg-output-stream.ts';
-import { createVideoSourceV10, createVideoTrackV10 } from '../../src/common/editor/project-v10.ts';
+import { createVideoSource, createVideoTrack } from '../../src/common/editor/project-media-factory.ts';
 import type { VideoKeyframeOfflineVideoExportRequest } from '../../src/common/editor/ui/video-keyframe-offline-video-export.ts';
 import { registeredVideoTimingIndex, type RuntimeVideoTimingIndex } from '../../src/common/editor/video-source-time.ts';
 import { boundVideoSourceTimingViewInfo } from '../../src/common/editor/video-source-timing-view.ts';
@@ -261,7 +261,7 @@ function keyedProject(
 	digest: string,
 	timingAsset: Readonly<Record<string, unknown>>,
 ): FramescaperProjectV20 {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: SOURCE_ID, name: 'M4B2 keyed video', storageKey: SOURCE_ID,
 		mimeType: 'video/mp4', contentSha256: digest,
 		frameCount: 48_000, sampleFrameCount: 48_000, sourceFrameCount: 10,
@@ -279,7 +279,7 @@ function keyedProject(
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
 		projectBin: { clips: [] },
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: [CLIP_ID], locked: false,
 		})],
 		sequences: [{

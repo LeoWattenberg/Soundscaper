@@ -12,18 +12,10 @@ import {
 	updateEffect,
 } from '../effects.js';
 import {
-	createAudioMasterV2,
-	createAudioMixerBusV2,
-	createLabelTrackV2,
-	createLabelV2,
-} from '../project-v2.js';
-import {
-	createLabelTrackV4,
-} from '../project-v4.js';
-import {
-	createLabelV10,
-} from '../project-v10.ts';
-import { isTrackLockProjectSchema } from '../project-schema-version.ts';
+	createAudioMaster,
+	createAudioMixerBus,
+} from '../project-audio-factory.js';
+import { createLabel } from '../project-media-factory.ts';
 import {
 	allEffects,
 } from './effects-video-runtime.js';
@@ -40,10 +32,7 @@ import {
 
 function addTrack(project, value, requestedIndex, placement = {}) {
 	if (value?.type === 'label') {
-		if (project.schemaVersion < 2) throw new RangeError('Label tracks require an AudioEditorProjectV2 or newer project.');
-		const labelTrack = project.schemaVersion >= 10
-			? normalizeTrackForProject(project, value)
-			: project.schemaVersion >= 4 ? createLabelTrackV4(value) : createLabelTrackV2(value);
+		const labelTrack = normalizeTrackForProject(project, value);
 		assertUnusedId(project.tracks, labelTrack.id, 'track');
 		const labelIndex = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
 		if (hasNonemptyFolderHierarchy(project)) {
@@ -53,7 +42,6 @@ function addTrack(project, value, requestedIndex, placement = {}) {
 		return;
 	}
 	if (value?.type === 'video') {
-		if (project.schemaVersion < 4) throw new RangeError('Video tracks require an AudioEditorProjectV4 project.');
 		const track = normalizeTrackForProject(project, value);
 		assertUnusedId(project.tracks, track.id, 'track');
 		if (track.clipIds.length) throw new RangeError('Add clips after adding a track.');
@@ -151,26 +139,19 @@ function disableAutoDuckForRemovedControlTrack(project, controlTrackId) {
 function updateTrack(project, trackId, changes = {}) {
 	const track = requireTrack(project, trackId);
 	if (track.type === 'label') {
-		const allowed = new Set(['name', 'collapsed', 'height']);
-		if (isTrackLockProjectSchema(project.schemaVersion)) allowed.add('locked');
+		const allowed = new Set(['name', 'collapsed', 'height', 'locked']);
 		for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Label track field cannot be updated: ${key}.`);
-		Object.assign(track, project.schemaVersion >= 10
-			? normalizeTrackForProject(project, { ...track, ...changes, labels: track.labels })
-			: project.schemaVersion >= 4
-			? createLabelTrackV4({ ...track, ...changes, labels: track.labels })
-			: createLabelTrackV2({ ...track, ...changes, labels: track.labels }));
+		Object.assign(track, normalizeTrackForProject(project, { ...track, ...changes, labels: track.labels }));
 		return;
 	}
 	if (track.type === 'video') {
-		const allowed = new Set(['name', 'mute', 'solo', 'hidden', 'collapsed', 'height']);
-		if (isTrackLockProjectSchema(project.schemaVersion)) allowed.add('locked');
+		const allowed = new Set(['name', 'mute', 'solo', 'hidden', 'collapsed', 'height', 'locked']);
 		for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Video track field cannot be updated: ${key}.`);
 		Object.assign(track, normalizeTrackForProject(project, { ...track, ...changes, clipIds: track.clipIds }));
 		return;
 	}
-	const allowed = new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed', 'effectsActive']);
+	const allowed = new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed', 'effectsActive', 'locked']);
 	for (const key of ['displayMode', 'color', 'spectrogram', 'envelope', 'collapsed', 'height']) allowed.add(key);
-	if (isTrackLockProjectSchema(project.schemaVersion)) allowed.add('locked');
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Track field cannot be updated: ${key}.`);
 	const updated = normalizeTrackForProject(project, { ...track, ...changes, effects: track.effects, clipIds: track.clipIds });
 	Object.assign(track, updated);
@@ -188,7 +169,7 @@ function reorderTrack(project, trackId, requestedIndex) {
 		folderAwareReorderTrack(project, trackId, index);
 		return;
 	}
-	if (project.schemaVersion >= 4 && project.tracks.some((track) => track.laneGroupId)) {
+	if (project.tracks.some((track) => track.laneGroupId)) {
 		const blocks = [];
 		const consumedLaneGroups = new Set();
 		for (const track of project.tracks) {
@@ -224,7 +205,7 @@ function reorderTrack(project, trackId, requestedIndex) {
 
 function addLabel(project, trackId, value) {
 	const track = requireLabelTrack(project, trackId);
-	const label = project.schemaVersion >= 10 ? createLabelV10(value) : createLabelV2(value);
+	const label = createLabel(value);
 	assertUnusedId(track.labels, label.id, 'label');
 	track.labels.push(label);
 	track.labels.sort((left, right) => left.startFrame - right.startFrame || left.endFrame - right.endFrame || left.id.localeCompare(right.id));
@@ -236,9 +217,7 @@ function updateLabel(project, trackId, labelId, changes = {}) {
 	if (index < 0) throw new ReferenceError(`Unknown label: ${labelId}.`);
 	const allowed = new Set(['title', 'startFrame', 'endFrame', 'color', 'opaqueExtensions']);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Label field cannot be updated: ${key}.`);
-	track.labels[index] = project.schemaVersion >= 10
-		? createLabelV10({ ...track.labels[index], ...changes, id: labelId })
-		: createLabelV2({ ...track.labels[index], ...changes, id: labelId });
+	track.labels[index] = createLabel({ ...track.labels[index], ...changes, id: labelId });
 	track.labels.sort((left, right) => left.startFrame - right.startFrame || left.endFrame - right.endFrame || left.id.localeCompare(right.id));
 }
 
@@ -253,13 +232,13 @@ function updateMaster(project, changes = {}) {
 	const keys = Object.keys(changes);
 	const allowed = new Set(['gain', 'pan', 'mute', 'solo', 'envelope', 'collapsed', 'effectsActive']);
 	if (keys.some((key) => !allowed.has(key))) throw new RangeError('Unsupported master mixer field.');
-	const normalized = createAudioMasterV2({ ...project.master, ...changes, effects: project.master.effects });
+	const normalized = createAudioMaster({ ...project.master, ...changes, effects: project.master.effects });
 	for (const key of keys) project.master[key] = normalized[key];
 }
 
 function addMixerBus(project, command) {
 	const collection = mixerBusCollection(project, command.busType);
-	const bus = createAudioMixerBusV2(command.bus, command.busType, collection.length);
+	const bus = createAudioMixerBus(command.bus, command.busType, collection.length);
 	const allBuses = [...ensureMixer(project).groups, ...ensureMixer(project).sends];
 	if (allBuses.some((candidate) => candidate.id === bus.id)) throw new RangeError(`Duplicate mixer bus ID: ${bus.id}.`);
 	for (const effect of bus.effects) {
@@ -281,7 +260,7 @@ function updateMixerBus(project, command) {
 	const allowed = new Set(['name', 'color', 'gain', 'pan', 'mute', 'solo', 'envelope', 'collapsed', 'effectsActive']);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Mixer bus field cannot be updated: ${key}.`);
 	const collection = mixerBusCollection(project, command.busType);
-	const normalized = createAudioMixerBusV2({ ...bus, ...changes, effects: bus.effects }, command.busType, collection.indexOf(bus));
+	const normalized = createAudioMixerBus({ ...bus, ...changes, effects: bus.effects }, command.busType, collection.indexOf(bus));
 	Object.assign(bus, normalized);
 }
 

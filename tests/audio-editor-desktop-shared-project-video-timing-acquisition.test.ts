@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test, { type TestContext } from 'node:test';
 
-import { createVideoClipV9, createVideoSourceV9 } from '../src/common/editor/project-v9.ts';
+import {
+	createVideoClip,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import {
@@ -28,13 +31,13 @@ test('video timing handoff publishes exact bytes and rolls back the original whe
 		presentationTicks: [0n, 3_003n, 6_007n],
 		finalFrameDurationTicks: 3_002n,
 	});
-	const video = createVideoSourceV9({
+	const video = createVideoSource({
 		id: 'timed-video', storageKey: 'timed-video-storage', name: 'timed.mp4', mimeType: 'video/mp4',
 		frameCount: 4_805, sampleRate: SAMPLE_RATE, width: 1_920, height: 1_080,
 		frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	});
-	const clip = createVideoClipV9({
-		id: 'timed-video-clip', sourceId: video.id, durationFrames: video.frameCount,
+	const clip = createVideoClip({
+		id: 'timed-video-clip', sourceId: video.id, durationFrames: video.sampleFrameCount,
 		binItemId: 'timed-video-item',
 	});
 	const project = createCurrentAudioEditorProject({
@@ -46,6 +49,9 @@ test('video timing handoff publishes exact bytes and rolls back the original whe
 			sourceFrameCount: timing.reference.frameCount,
 			contentSha256: videoSha256,
 			timingAsset: timing.reference,
+			timingDecision: {
+				mode: 'exact', rate: { num: 30_000, den: 1_001 }, backend: 'fixture',
+			},
 		}],
 		projectBin: { clips: [clip] },
 	});

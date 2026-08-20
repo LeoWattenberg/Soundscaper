@@ -15,10 +15,10 @@ import {
 	validateScapeOpenSmokeResult,
 } from '../../desktop/scape-open-smoke.js';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject, validateCurrentAudioEditorProject } from '../../src/common/editor/project-current.ts';
 import { exportScapeProject } from '../../src/common/editor/scape-project.js';
 import {
@@ -431,7 +431,7 @@ export async function findPackagedExecutable(invocation) {
 
 function createFixtureProject() {
 	const fixture = DESKTOP_SCAPE_OPEN_FIXTURE;
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: fixture.project.sourceId,
 		storageKey: fixture.project.sourceId,
 		name: 'Packaged source.wav',
@@ -442,14 +442,14 @@ function createFixtureProject() {
 		originalSampleRate: fixture.audio.sampleRate,
 		chunkFrames: fixture.audio.chunkFrames,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: fixture.project.clipId,
 		sourceId: fixture.project.sourceId,
 		title: 'Packaged clip',
 		durationFrames: fixture.audio.frameCount,
 		sourceDurationFrames: fixture.audio.frameCount,
 	});
-	const track = createAudioTrackV10({
+	const track = createAudioTrack({
 		id: fixture.project.trackId,
 		name: 'Packaged track',
 		clipIds: [fixture.project.clipId],

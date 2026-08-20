@@ -210,7 +210,6 @@ export function createProjectBinService(
 			const insertion = project.tracks.length;
 			commands.push({
 				...createAddTrackCommand({
-					schemaVersion: 4,
 					type: 'video',
 					id: videoTrackId,
 					name: binClip.title || 'Video',
@@ -219,7 +218,6 @@ export function createProjectBinService(
 				index: insertion,
 			}, {
 				...createAddTrackCommand({
-					schemaVersion: 4,
 					type: 'audio',
 					id: audioTrackId,
 					name: `${binClip.title || dependencies.copy.track} Audio`,
@@ -233,7 +231,6 @@ export function createProjectBinService(
 		} else if (audioClip && !audioTrack) {
 			const audioTrackId = dependencies.createId('track');
 			commands.push(createAddTrackCommand({
-				schemaVersion: project.schemaVersion,
 				type: 'audio',
 				id: audioTrackId,
 				name: binClip.title || `${dependencies.copy.track} ${project.tracks.length + 1}`,

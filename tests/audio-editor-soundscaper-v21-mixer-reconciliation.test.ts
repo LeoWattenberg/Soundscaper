@@ -6,10 +6,10 @@ import test from 'node:test';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createSoundscaperRoutingEditorModel } from '../src/common/editor/ui/soundscaper-routing-editor-model.ts';
 import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
@@ -22,7 +22,7 @@ test('an authored group assignment survives unrelated commands', () => {
 	// reclaim it and silently reroute the track straight to master.
 	const project = createSoundscaperProjectV21({
 		id: 'grouped', title: 'Grouped', now: NOW,
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 	});
@@ -71,7 +71,7 @@ test('narrowing the master restates every product-authored assignment map', () =
 	const project = createSoundscaperProjectV21({
 		id: 'adm-narrow', title: 'ADM narrow', now: NOW,
 		masterChannels: 6, metadata: { adm: authored('5.1') },
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 		mixer: {
@@ -114,7 +114,7 @@ test('narrowing a track restates its send route as well as its assignment', () =
 	const project = createSoundscaperProjectV21({
 		id: 'send-narrow', title: 'Send narrow', now: NOW,
 		masterChannels: 6, metadata: { adm: authored('5.1') },
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 		mixer: createDefaultMixerGraphV21([{ id: 'voice', channelCount: 6 }], 6),
@@ -144,7 +144,7 @@ test('the routing editor accepts the graph the product authored for a wide maste
 	// same way or it refuses to open the very graph it would be used to repair.
 	const project = createSoundscaperProjectV21({
 		id: 'wide', title: 'Wide', now: NOW, masterChannels: 6,
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 		mixer: createDefaultMixerGraphV21([{ id: 'voice', channelCount: 6 }], 6),
@@ -160,18 +160,18 @@ test('a clip edit that narrows a track restates its send route with the master u
 	// The trigger need not be a master width change: a track takes its width from clip
 	// content, so swapping a six-channel clip for a mono one narrows the source under
 	// an already-authored send map.
-	const six = createAudioSourceV10({
+	const six = createAudioSource({
 		id: 'six', storageKey: 'pcm:six', frameCount: 512, channelCount: 6,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const sixClip = createAudioClipV10({
+	const sixClip = createAudioClip({
 		id: 'six-clip', sourceId: 'six', title: 'Six', timelineStartFrame: 0,
 		durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
 	});
 	const project = createSoundscaperProjectV21({
 		id: 'clip-narrow', title: 'Clip narrow', now: NOW, masterChannels: 6,
 		sources: [six], clips: [sixClip],
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['six-clip'] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['six-clip'] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 		mixer: createDefaultMixerGraphV21([{ id: 'voice', channelCount: 6 }], 6),
@@ -186,7 +186,7 @@ test('a clip edit that narrows a track restates its send route with the master u
 		.find((edge) => edge.kind === 'send')?.channelMap;
 	assert.deepEqual(sendMap(routed), [0, 1, 2, 3, 4, 5]);
 
-	const mono = createAudioSourceV10({
+	const mono = createAudioSource({
 		id: 'one', storageKey: 'pcm:one', frameCount: 512, channelCount: 1,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
@@ -196,7 +196,7 @@ test('a clip edit that narrows a track restates its send route with the master u
 			{ type: 'clip/remove-many', clipIds: ['six-clip'], rippleMode: 'none' },
 			{
 				type: 'clip/add', trackId: 'voice',
-				clip: createAudioClipV10({
+				clip: createAudioClip({
 					id: 'one-clip', sourceId: 'one', title: 'One', timelineStartFrame: 0,
 					durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
 				}),
@@ -212,11 +212,11 @@ test('narrowing a key track restates the sidechain map it feeds', () => {
 	// editor lets its author type the edge ID. Its map was therefore left behind by every
 	// width change, so narrowing the key track pointed it at channels the source no
 	// longer had, and the engine refused to build the graph the document still validated.
-	const wide = (id: string, channelCount: number) => createAudioSourceV10({
+	const wide = (id: string, channelCount: number) => createAudioSource({
 		id, storageKey: `pcm:${id}`, frameCount: 512, channelCount,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const take = (id: string, sourceId: string) => createAudioClipV10({
+	const take = (id: string, sourceId: string) => createAudioClip({
 		id, sourceId, title: id, timelineStartFrame: 0,
 		durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
 	});
@@ -225,11 +225,11 @@ test('narrowing a key track restates the sidechain map it feeds', () => {
 		sources: [wide('bed-live', 6), wide('key-live', 6)],
 		clips: [take('bed-clip', 'bed-live'), take('key-clip', 'key-live')],
 		tracks: [
-			createAudioTrackV10({
+			createAudioTrack({
 				id: 'bed', name: 'Bed', clipIds: ['bed-clip'],
 				effects: [{ id: 'bed-comp', type: 'compressor', enabled: true, params: {} }],
 			}),
-			createAudioTrackV10({ id: 'key', name: 'Key', clipIds: ['key-clip'] }),
+			createAudioTrack({ id: 'key', name: 'Key', clipIds: ['key-clip'] }),
 		],
 		sequences: [{ id: 'main-sequence', trackIds: ['bed', 'key'] }],
 		primarySequenceId: 'main-sequence',
@@ -268,18 +268,18 @@ test('a hand-shaped map is still preserved across a width change', () => {
 	// The shape test is what admits a sidechain for restatement, so it has to keep
 	// refusing a map its author actually shaped: only a map still matching the default
 	// for the widths it was built against is ours to move.
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'six', storageKey: 'pcm:six', frameCount: 512, channelCount: 6,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
 	const base = createSoundscaperProjectV21({
 		id: 'hand-shaped', title: 'Hand shaped', now: NOW, masterChannels: 6,
 		sources: [source],
-		clips: [createAudioClipV10({
+		clips: [createAudioClip({
 			id: 'six-clip', sourceId: 'six', title: 'Six', timelineStartFrame: 0,
 			durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
 		})],
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['six-clip'] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['six-clip'] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 		mixer: createDefaultMixerGraphV21([{ id: 'voice', channelCount: 6 }], 6),
@@ -295,7 +295,7 @@ test('a hand-shaped map is still preserved across a width change', () => {
 		},
 	} as never);
 
-	const mono = createAudioSourceV10({
+	const mono = createAudioSource({
 		id: 'one', storageKey: 'pcm:one', frameCount: 512, channelCount: 1,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
@@ -305,7 +305,7 @@ test('a hand-shaped map is still preserved across a width change', () => {
 			{ type: 'clip/remove-many', clipIds: ['six-clip'], rippleMode: 'none' },
 			{
 				type: 'clip/add', trackId: 'voice',
-				clip: createAudioClipV10({
+				clip: createAudioClip({
 					id: 'one-clip', sourceId: 'one', title: 'One', timelineStartFrame: 0,
 					durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
 				}),

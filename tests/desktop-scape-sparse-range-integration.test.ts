@@ -54,8 +54,8 @@ test('an historical 8 GiB sparse desktop Scape is range-inspected and rejected b
 		return;
 	}
 	assert.equal(fixture.logicalSize, 8 * 1024 ** 3);
-	assert.equal(fixture.assetSha256, '7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be');
-	assert.equal(fixture.assetCrc32, 2_909_126_900);
+	assert.equal(fixture.assetSha256, '44aa612ac90240a47309d2c27dd8b7f2226179d059041389fb6873ca4b4236e4');
+	assert.equal(fixture.assetCrc32, 1_372_644_915);
 	assert.ok(fixture.allocatedBytes < MAX_INSPECTION_TRANSFER_BYTES);
 	assert.deepEqual(fixture.entries.map(({ name }) => name), [
 		'project.json',

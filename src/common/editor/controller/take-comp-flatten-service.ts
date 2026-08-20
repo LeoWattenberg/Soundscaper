@@ -1,12 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { CommandObject } from '../commands/protocol.ts';
-import {
-	createAudioClipV6,
-	createAudioEditorProjectV6,
-	createAudioTrackV6,
-} from '../project-v6.ts';
-import { createAudioClipV10, createAudioSourceV10 } from '../project-v10.ts';
+import { createAudioPreviewProject } from '../engine/audio-preview-project.ts';
+import { createAudioClip, createAudioSource } from '../project-media-factory.ts';
 import type { AudioEditorProjectV17 } from '../project-v17.ts';
 import type { TakeCompDocumentGroup, TakeCompDocumentTake } from '../take-comp-document-v17.ts';
 import type { TakeCompFlattenTakeSegment } from '../take-comp-domain.ts';
@@ -123,8 +119,8 @@ export function createTakeCompFlattenService(dependencies: TakeCompFlattenServic
 		try {
 			assertOwned(ownership);
 			return Object.freeze({
-				source: commandObject(createAudioSourceV10(record.source)),
-				clip: commandObject(createAudioClipV10({
+				source: commandObject(createAudioSource(record.source)),
+				clip: commandObject(createAudioClip({
 					id: preparation.renderPlan.outputId,
 					sourceId: record.source.id,
 					title: `${group.id} — flattened take`,
@@ -163,7 +159,7 @@ function flattenRenderProject(
 		createId('take-flatten-render-clip'),
 	));
 	const sourceIds = new Set(takeSegments.map(({ takeId }) => requireTake(takeById, takeId).sourceId));
-	const track = createAudioTrackV6({
+	const track = {
 		id: createId('take-flatten-render-track'),
 		name: 'Take comp render',
 		clipIds: clips.map(({ id }) => id),
@@ -173,15 +169,14 @@ function flattenRenderProject(
 		pan: 0,
 		mute: false,
 		solo: false,
-	});
-	return createAudioEditorProjectV6({
+	};
+	return createAudioPreviewProject({
 		title: 'Take comp render',
 		sampleRate: project.sampleRate,
 		sources: project.sources.filter(({ id }) => sourceIds.has(String(id))),
 		clips,
 		tracks: [track],
-		projectBin: { clips: [] },
-	}) as EngineProject;
+	});
 }
 
 function flattenSegmentClip(
@@ -190,7 +185,7 @@ function flattenSegmentClip(
 	id: string,
 ): Readonly<Record<string, unknown>> {
 	const duration = segment.endSample - segment.startSample;
-	return createAudioClipV6({
+	return {
 		id,
 		sourceId: take.sourceId,
 		title: take.id,
@@ -201,7 +196,7 @@ function flattenSegmentClip(
 		groupId: null,
 		avLinkId: null,
 		binItemId: null,
-	});
+	};
 }
 
 function requireWritableGroup(project: AudioEditorProjectV17, groupId: string): TakeCompDocumentGroup {

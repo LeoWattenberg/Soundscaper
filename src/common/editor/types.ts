@@ -29,13 +29,10 @@ export type EditorFrame = SampleFrame;
 export interface EditorSelection {
 	readonly startFrame: EditorFrame;
 	readonly endFrame: EditorFrame;
-	readonly trackIds?: readonly EditorId[];
-	readonly clipIds?: readonly EditorId[];
-	readonly frequencyRange?: Readonly<{ minimum: number; maximum: number }> | null;
-}
-
-export interface EditorSelectionV11 extends EditorSelection {
+	readonly trackIds: readonly EditorId[];
+	readonly clipIds: readonly EditorId[];
 	readonly annotationIds: readonly EditorId[];
+	readonly frequencyRange?: Readonly<{ minimum: number; maximum: number }> | null;
 }
 
 export interface EditorAudioSource {
@@ -110,6 +107,7 @@ interface EditorTrackBase {
 	readonly name: string;
 	readonly height: number;
 	readonly collapsed: boolean;
+	readonly locked: boolean;
 	readonly [extension: string]: unknown;
 }
 
@@ -141,8 +139,9 @@ export interface EditorLabelTrack extends EditorTrackBase {
 
 export type EditorTrack = EditorAudioTrack | EditorVideoTrack | EditorLabelTrack;
 
-export interface EditorProjectV5 {
-	readonly schemaVersion: 5;
+/** The exact current shared editor persistence document. */
+export interface EditorProject {
+	readonly schemaVersion: 17;
 	readonly id: EditorId;
 	readonly title: string;
 	readonly revision: number;
@@ -150,105 +149,27 @@ export interface EditorProjectV5 {
 	readonly sources: readonly EditorSource[];
 	readonly clips: readonly EditorClip[];
 	readonly tracks: readonly EditorTrack[];
-	readonly selection: EditorSelection | null;
+	readonly selection: EditorSelection;
 	readonly projectBin: Readonly<{ clips: readonly EditorClip[] }>;
-	readonly [extension: string]: unknown;
-}
-
-export type EditorProjectV6 = Omit<EditorProjectV5, 'schemaVersion'> & Readonly<{
-	schemaVersion: 6;
-	metadata: Readonly<Record<string, unknown>> & Readonly<{
+	readonly metadata: Readonly<Record<string, unknown>> & Readonly<{
 		bext: ProjectBextMetadata | null;
 		ixml?: IxmlMetadata | null;
 		cart?: CartMetadata | null;
-	}>;
-}>;
-
-export type EditorProjectV7 = Omit<EditorProjectV6, 'schemaVersion' | 'metadata'> & Readonly<{
-	schemaVersion: 7;
-	metadata: EditorProjectV6['metadata'] & Readonly<{
 		adm: AdmProjectMetadata | null;
 	}>;
-}>;
-
-export type EditorProjectV8 = Omit<EditorProjectV7, 'schemaVersion'> & Readonly<{
-	schemaVersion: 8;
-}>;
-
-export type EditorProjectV9 = Omit<EditorProjectV8, 'schemaVersion'> & Readonly<{
-	schemaVersion: 9;
-	featureRequirements: ProjectFeatureRequirementsManifest;
-}>;
-
-export type EditorProjectV10 = Omit<EditorProjectV9, 'schemaVersion'> & Readonly<{
-	schemaVersion: 10;
-	sequences: readonly Readonly<Record<string, unknown>>[];
-	primarySequenceId: string;
-	tempoMap: Readonly<Record<string, unknown>>;
-	signatureMap: Readonly<Record<string, unknown>>;
-}>;
-
-export type EditorProjectV11 = Omit<EditorProjectV10, 'schemaVersion' | 'selection'> & Readonly<{
-	schemaVersion: 11;
-	selection: EditorSelectionV11;
-	timelineAnnotations: readonly TimelineAnnotationV11[];
-}>;
-
-export type EditorProjectV12 = Omit<EditorProjectV11, 'schemaVersion' | 'sequences'> & Readonly<{
-	schemaVersion: 12;
-	trackFolders: readonly Readonly<Record<string, unknown>>[];
-	sequences: readonly (Readonly<Record<string, unknown>> & {
+	readonly featureRequirements: ProjectFeatureRequirementsManifest;
+	readonly sequences: readonly (Readonly<Record<string, unknown>> & {
 		readonly trackIds: readonly string[];
 		readonly trackNodes: readonly Readonly<Record<string, unknown>>[];
 	})[];
-}>;
-
-export interface EditorLegacyProject<Version extends 2 | 3 | 4> {
-	readonly schemaVersion: Version;
-	readonly id: EditorId;
-	readonly title: string;
-	readonly revision: number;
-	readonly sampleRate: number;
-	readonly sources: readonly Readonly<Record<string, unknown>>[];
-	readonly clips: readonly Readonly<Record<string, unknown>>[];
-	readonly tracks: readonly Readonly<Record<string, unknown>>[];
-	readonly selection: EditorSelection | null;
+	readonly primarySequenceId: string;
+	readonly tempoMap: Readonly<Record<string, unknown>>;
+	readonly signatureMap: Readonly<Record<string, unknown>>;
+	readonly timelineAnnotations: readonly TimelineAnnotationV11[];
+	readonly trackFolders: readonly Readonly<Record<string, unknown>>[];
+	readonly takeGroups: readonly Readonly<Record<string, unknown>>[];
 	readonly [extension: string]: unknown;
 }
-
-export type EditorProjectV2 = EditorLegacyProject<2>;
-export type EditorProjectV3 = EditorLegacyProject<3>;
-export type EditorProjectV4 = EditorLegacyProject<4>;
-export type EditorProjectV13 = Omit<EditorProjectV11, 'schemaVersion' | 'sequences'> & Readonly<{
-	schemaVersion: 13;
-	trackFolders: readonly Readonly<Record<string, unknown>>[];
-	sequences: readonly (Readonly<Record<string, unknown>> & {
-		readonly trackIds: readonly string[];
-		readonly trackNodes: readonly Readonly<Record<string, unknown>>[];
-	})[];
-}>;
-
-export type EditorProjectV14 = Omit<EditorProjectV13, 'schemaVersion'> & Readonly<{
-	schemaVersion: 14;
-}>;
-
-export type EditorTrackV15 = EditorTrack & Readonly<{ locked: boolean }>;
-
-export type EditorProjectV15 = Omit<EditorProjectV14, 'schemaVersion' | 'tracks'> & Readonly<{
-	schemaVersion: 15;
-	tracks: readonly EditorTrackV15[];
-}>;
-
-export type EditorProjectV16 = Omit<EditorProjectV15, 'schemaVersion'> & Readonly<{
-	schemaVersion: 16;
-}>;
-
-export type EditorProjectV17 = Omit<EditorProjectV16, 'schemaVersion'> & Readonly<{
-	schemaVersion: 17;
-	takeGroups: readonly Readonly<Record<string, unknown>>[];
-}>;
-
-export type EditorProject = EditorProjectV2 | EditorProjectV3 | EditorProjectV4 | EditorProjectV5 | EditorProjectV6 | EditorProjectV7 | EditorProjectV8 | EditorProjectV9 | EditorProjectV10 | EditorProjectV11 | EditorProjectV12 | EditorProjectV13 | EditorProjectV14 | EditorProjectV15 | EditorProjectV16 | EditorProjectV17;
 
 export type EditorAction = (...args: readonly unknown[]) => unknown;
 export interface EditorActionTree {

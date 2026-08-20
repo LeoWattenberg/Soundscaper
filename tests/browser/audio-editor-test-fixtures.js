@@ -18,11 +18,13 @@ import {
 	createAup4SampleBlock,
 } from '../../src/common/editor/aup4-profile.js';
 import {
-	createAudioClipV2,
-	createAudioEditorProjectV2,
-	createAudioSourceV2,
-	createAudioTrackV2,
-} from '../../src/common/editor/project-v2.js';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../../src/common/editor/project-current.ts';
 
 export const AUDIO_EDITOR_PATHS = [
 	{
@@ -106,7 +108,7 @@ export async function createAup4MissingEffectFixture() {
 	const SQL = await (aup4FixtureSql ||= initSqlJs());
 	const sampleRate = 48_000;
 	const frameCount = sampleRate;
-	const source = createAudioSourceV2({
+	const source = createAudioSource({
 		id: 'missing-effects-source',
 		storageKey: 'missing-effects-source',
 		name: 'Missing effects source',
@@ -115,7 +117,7 @@ export async function createAup4MissingEffectFixture() {
 		sampleRate,
 		originalSampleRate: sampleRate,
 	});
-	const clip = createAudioClipV2({
+	const clip = createAudioClip({
 		id: 'missing-effects-clip',
 		sourceId: source.id,
 		title: 'Missing effects audio',
@@ -124,7 +126,7 @@ export async function createAup4MissingEffectFixture() {
 		sourceDurationFrames: frameCount,
 		durationFrames: frameCount,
 	});
-	const track = createAudioTrackV2({
+	const track = createAudioTrack({
 		id: 'missing-effects-track',
 		name: 'Missing effects track',
 		clipIds: [clip.id],
@@ -146,7 +148,7 @@ export async function createAup4MissingEffectFixture() {
 			}),
 		],
 	}, sampleRate);
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'missing-effects-project',
 		title: 'Missing effects fixture',
 		sampleRate,
@@ -202,8 +204,8 @@ export {
 	createMissingEffect,
 	createAup4ProjectDocument,
 	createAup4SampleBlock,
-	createAudioClipV2,
-	createAudioEditorProjectV2,
-	createAudioSourceV2,
-	createAudioTrackV2,
+	createAudioClip,
+	createCurrentAudioEditorProject,
+	createAudioSource,
+	createAudioTrack,
 };

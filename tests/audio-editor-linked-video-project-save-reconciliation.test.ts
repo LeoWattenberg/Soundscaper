@@ -6,10 +6,10 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { LinkedVideoOriginalPort } from '../src/common/editor/storage/linked-video-original-resolver.ts';
 import type { DesktopSharedProjectBridge } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
@@ -196,7 +196,7 @@ async function storeFixture(
 }
 
 function videoSource(id: string) {
-	return createVideoSourceV9({
+	return createVideoSource({
 		id,
 		storageKey: id,
 		name: `${id}.mp4`,
@@ -213,12 +213,12 @@ function videoSource(id: string) {
 }
 
 function project(revision: number, source?: ReturnType<typeof videoSource>) {
-	const clip = source ? createVideoClipV9({
+	const clip = source ? createVideoClip({
 		id: `clip-${source.id}`,
 		sourceId: source.id,
 		title: source.name,
-		durationFrames: source.frameCount,
-		sourceDurationFrames: source.frameCount,
+		durationFrames: source.sampleFrameCount,
+		sourceDurationFrames: source.sampleFrameCount,
 	}) : null;
 	return createCurrentAudioEditorProject({
 		id: PROJECT_ID,
@@ -227,7 +227,7 @@ function project(revision: number, source?: ReturnType<typeof videoSource>) {
 		now: NOW,
 		sources: source ? [source] : [],
 		clips: clip ? [clip] : [],
-		tracks: clip ? [createVideoTrackV9({ id: 'video-track', clipIds: [clip.id] })] : [],
+		tracks: clip ? [createVideoTrack({ id: 'video-track', clipIds: [clip.id] })] : [],
 	});
 }
 

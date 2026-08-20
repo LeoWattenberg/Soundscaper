@@ -17,7 +17,9 @@ import {
 } from '../src/common/editor/media-export.js';
 import { createAiffStreamEncoder, encodeAiff } from '../src/common/editor/aiff.js';
 import { createExportPlan } from '../src/common/editor/export.js';
-import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { encodeWav, inspectWavLayout } from '../src/common/editor/wav.js';
 
 test('media export registry classifies native and pinned FFmpeg formats', () => {
@@ -307,7 +309,7 @@ test('native dither modes honor none and keep high-pass state per channel', () =
 });
 
 test('export plans cover loop range, custom channel mapping, AIFF, and FFmpeg extensions', () => {
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'media-export-project',
 		title: 'Media export',
 		now: '2026-07-13T00:00:00.000Z',
@@ -334,7 +336,7 @@ test('export plans cover loop range, custom channel mapping, AIFF, and FFmpeg ex
 });
 
 test('BWF export plans derive defaults, offset TimeReference exactly, and append the actual PCM coding row', () => {
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'broadcast-export-project',
 		title: 'Morning show',
 		now: '2026-07-13T14:15:16.000Z',

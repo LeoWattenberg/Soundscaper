@@ -7,7 +7,11 @@ import {
 	computeAudioTrackFreezeDigestsV1,
 	type AudioTrackFreezeV1,
 } from '../src/common/editor/audio-track-freeze-v21.ts';
-import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	isTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
@@ -104,21 +108,21 @@ function pcmStore() {
 }
 
 function fixture(revision: 'V21' | 'V23') {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		id: 'voice-source', storageKey: 'pcm:voice', contentSha256: CONTENT_SHA256,
 		frameCount: 8, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const derivedSource = createAudioSourceV10({
+	const derivedSource = createAudioSource({
 		id: 'voice-freeze', storageKey: 'derived:voice-freeze', contentSha256: DERIVED_SHA256,
 		frameCount: 8, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: 'voice-clip', sourceId: source.id, title: 'Voice', timelineStartFrame: 0,
 		durationFrames: 8, sourceStartFrame: 0, sourceDurationFrames: 8,
 	});
-	const bare = createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [clip.id], effects: [] });
+	const bare = createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [clip.id], effects: [] });
 	const digests = computeAudioTrackFreezeDigestsV1({
 		sampleRate: 48_000,
 		renderStartFrame: 0,
@@ -137,7 +141,7 @@ function fixture(revision: 'V21' | 'V23') {
 		renderFrameCount: 8,
 		capturePosition: 'post-insert-pre-strip',
 	};
-	const track = createAudioTrackV10({
+	const track = createAudioTrack({
 		id: 'voice', name: 'Voice', clipIds: [clip.id], effects: [], audioFreeze: freeze,
 	});
 	const options = {

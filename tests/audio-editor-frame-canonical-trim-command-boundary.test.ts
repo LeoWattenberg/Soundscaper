@@ -14,12 +14,12 @@ import {
 	redoEditorCommand,
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
@@ -31,7 +31,7 @@ const NOW = '2026-08-11T21:00:00.000Z';
 
 test('an edge plan round-trips canonical video placement when sample deltas alias frame deltas', () => {
 	const project = highRateProject(false);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const plan = planFrameCanonicalEdgeTrim(runtime, {
 		activeClipId: 'active-video',
 		edge: 'right',
@@ -74,7 +74,7 @@ for (const row of [
 	},
 ]) test(`a ${row.mode} plan round-trips every canonical video placement at 48k/40k`, () => {
 	const project = highRateProject(true);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const plan = planFrameCanonicalRollRippleTrim(runtime, {
 		mode: row.mode,
 		activeClipId: 'active-video',
@@ -101,7 +101,7 @@ for (const row of [
 
 test('canonical placement refuses an absolute sample alias mismatch during preparation', () => {
 	const project = highRateProject(false);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	assert.throws(() => prepareTransformClipsCommand(runtime, [{
 		clipId: 'active-video',
 		trackId: 'video-track',
@@ -112,7 +112,7 @@ test('canonical placement refuses an absolute sample alias mismatch during prepa
 
 test('canonical placement rejects malformed authority and ambiguous target sequence ownership', () => {
 	const project = highRateProject(false);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const accessor = {} as Record<string, unknown>;
 	Object.defineProperties(accessor, {
 		sequenceStartFrame: { enumerable: true, get: () => 0 },
@@ -164,7 +164,7 @@ test('canonical placement is unavailable to non-video and pre-foundation transfo
 
 test('generic and overwrite transform preparation retain the legacy transform shape', () => {
 	const project = highRateProject(false);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const input = [{
 		clipId: 'active-video',
 		trackId: 'video-track',
@@ -180,7 +180,7 @@ test('generic and overwrite transform preparation retain the legacy transform sh
 });
 
 function highRateProject(withSuffix: boolean) {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source',
 		frameCount: 120,
 		sampleRate: SAMPLE_RATE,
@@ -194,7 +194,7 @@ function highRateProject(withSuffix: boolean) {
 		sequenceStartFrame: number,
 		sequenceFrameCount: number,
 		sourceInFrame: number,
-	) => createVideoClipV10({
+	) => createVideoClip({
 		id,
 		sourceId: 'video-source',
 		sequenceId: 'main',
@@ -211,7 +211,7 @@ function highRateProject(withSuffix: boolean) {
 		clip('active-video', 0, 2, 0),
 		...(withSuffix ? [clip('suffix-video', 2, 2, 10)] : []),
 	];
-	const track = createVideoTrackV10({
+	const track = createVideoTrack({
 		id: 'video-track',
 		clipIds: clips.map(({ id }) => String(id)),
 		locked: false,

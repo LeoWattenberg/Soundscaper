@@ -41,12 +41,12 @@ import {
 	compactEditorHistorySourceMetadata,
 	evictUnreferencedSourceCaches,
 } from '../src/common/editor/retention.js';
-import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
-	createAudioClipV4,
-	createAudioEditorProjectV4,
-	createAudioSourceV4,
-} from '../src/common/editor/project-v4.js';
+	createAudioClip,
+	createAudioSource,
+} from '../src/common/editor/project-media-factory.ts';
 
 const NOW = '2026-07-12T10:00:00.000Z';
 
@@ -70,7 +70,7 @@ function coreClip(clip) {
 }
 
 function createFixture(options = {}) {
-	let project = createAudioEditorProjectV2({ id: 'project-1', title: 'Studio Test', now: NOW });
+	let project = createCurrentAudioEditorProject({ id: 'project-1', title: 'Studio Test', now: NOW });
 	project = apply(project, {
 		type: 'source/add',
 		source: {
@@ -83,9 +83,9 @@ function createFixture(options = {}) {
 	return project;
 }
 
-test('audio editor projects use a normalized, frame-accurate v2 document', () => {
+test('audio editor projects use the normalized, frame-accurate current document', () => {
 	const project = createFixture();
-	assert.equal(project.schemaVersion, 2);
+	assert.equal(project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 	assert.equal(project.sampleRate, 48_000);
 	assert.equal(project.masterChannels, 2);
 	assert.deepEqual(project.tracks.map((track) => track.clipIds), [[], []]);
@@ -97,7 +97,7 @@ test('audio editor projects use a normalized, frame-accurate v2 document', () =>
 });
 
 test('Project Bin media replacement preserves spacing or contracts shortened instances atomically', () => {
-	const oldSource = createAudioSourceV4({
+	const oldSource = createAudioSource({
 		id: 'bin-old-source',
 		name: 'old.wav',
 		storageKey: 'bin-old-source',
@@ -105,7 +105,7 @@ test('Project Bin media replacement preserves spacing or contracts shortened ins
 		channelCount: 1,
 		sampleRate: 48_000,
 	});
-	const laterSource = createAudioSourceV4({
+	const laterSource = createAudioSource({
 		id: 'later-source',
 		name: 'later.wav',
 		storageKey: 'later-source',
@@ -113,7 +113,7 @@ test('Project Bin media replacement preserves spacing or contracts shortened ins
 		channelCount: 1,
 		sampleRate: 48_000,
 	});
-	const replacementSource = createAudioSourceV4({
+	const replacementSource = createAudioSource({
 		id: 'bin-new-source',
 		name: 'new.wav',
 		storageKey: 'bin-new-source',
@@ -121,7 +121,7 @@ test('Project Bin media replacement preserves spacing or contracts shortened ins
 		channelCount: 1,
 		sampleRate: 48_000,
 	});
-	const binClip = createAudioClipV4({
+	const binClip = createAudioClip({
 		id: 'bin-template',
 		sourceId: oldSource.id,
 		title: 'Reusable take',
@@ -131,7 +131,7 @@ test('Project Bin media replacement preserves spacing or contracts shortened ins
 		durationFrames: 48_000,
 		binItemId: 'bin-template',
 	});
-	const timelineClip = createAudioClipV4({
+	const timelineClip = createAudioClip({
 		id: 'timeline-instance',
 		sourceId: oldSource.id,
 		title: 'Edited instance',
@@ -142,7 +142,7 @@ test('Project Bin media replacement preserves spacing or contracts shortened ins
 		durationFrames: 48_000,
 		fadeOutFrames: 30_000,
 	});
-	const laterClip = createAudioClipV4({
+	const laterClip = createAudioClip({
 		id: 'later-clip',
 		sourceId: laterSource.id,
 		timelineStartFrame: 60_000,
@@ -150,7 +150,7 @@ test('Project Bin media replacement preserves spacing or contracts shortened ins
 		sourceDurationFrames: 4_800,
 		durationFrames: 4_800,
 	});
-	const project = createAudioEditorProjectV4({
+	const project = createCurrentAudioEditorProject({
 		id: 'replacement-project',
 		now: NOW,
 		sources: [oldSource, laterSource],
@@ -163,7 +163,7 @@ test('Project Bin media replacement preserves spacing or contracts shortened ins
 		}],
 		projectBin: { clips: [binClip] },
 	});
-	const replacementTemplate = createAudioClipV4({
+	const replacementTemplate = createAudioClip({
 		id: 'staged-template',
 		sourceId: replacementSource.id,
 		title: replacementSource.name,
@@ -201,7 +201,7 @@ test('Project Bin media replacement preserves spacing or contracts shortened ins
 	assert.equal(validateAudioEditorProject(contracted), true);
 });
 
-test('V2 clip commands preserve layered overlaps and source bounds while moving and trimming', () => {
+test('current clip commands preserve layered overlaps and source bounds while moving and trimming', () => {
 	let project = createFixture();
 	project = apply(project, { type: 'clip/add', trackId: 'track-1', clip: {
 		id: 'clip-1', sourceId: 'source-1', timelineStartFrame: 100, sourceStartFrame: 50,

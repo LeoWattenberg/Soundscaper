@@ -7,7 +7,10 @@ import {
 	loadCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { copyFutureScapeArchive } from '../src/common/editor/scape-archive-copy.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import { importScapeProject } from '../src/common/editor/scape-project.js';
@@ -223,7 +226,7 @@ function compositionProject() {
 		id: 'framescaper-v19-cross-product',
 		title: 'Framescaper V19 cross product',
 		now: NOW,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'video-source', name: 'Cross product.mp4', storageKey: 'video-source',
 			mimeType: 'video/mp4', contentSha256: VIDEO_SHA256,
 			frameCount: 48_000, sampleFrameCount: 48_000, sourceFrameCount: 10,
@@ -241,7 +244,7 @@ function compositionProject() {
 				sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null, binItemId: 'bin-video',
 			}],
 		},
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,
 		})],
 		sequences: [{

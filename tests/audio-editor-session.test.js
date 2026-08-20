@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { applyEditorCommand } from '../src/common/editor/commands.js';
-import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	AUDIO_EDITOR_SESSION_SCHEMA_VERSION,
 	createAudioEditorSessionClipboard,
@@ -13,7 +15,7 @@ const NOW = '2026-07-13T10:00:00.000Z';
 const LATER = '2026-07-13T11:00:00.000Z';
 
 function audioProject(id, sourceId, options = {}) {
-	let project = createAudioEditorProjectV2({ id, title: options.title || id, now: NOW });
+	let project = createCurrentAudioEditorProject({ id, title: options.title || id, now: NOW });
 	project = applyEditorCommand(project, {
 		type: 'source/add',
 		source: {
@@ -49,7 +51,7 @@ function audioProject(id, sourceId, options = {}) {
 }
 
 function emptyProjectLike(project) {
-	return createAudioEditorProjectV2({ id: project.id, title: project.title, now: project.createdAt });
+	return createCurrentAudioEditorProject({ id: project.id, title: project.title, now: project.createdAt });
 }
 
 test('session tabs open once, preserve order, switch explicitly, and choose a deterministic close fallback', () => {
@@ -116,7 +118,7 @@ test('each tab owns independent history, dirty state, rename state, and read-onl
 	assert.throws(() => controller.updateProject(second.id, (project) => project), /read-only: project-lock/);
 	assert.throws(() => controller.renameProject(second.id, 'No'), /read-only/);
 
-	const future = { ...createAudioEditorProjectV2({ id: 'future', now: NOW }), schemaVersion: 99 };
+	const future = { ...createCurrentAudioEditorProject({ id: 'future', now: NOW }), schemaVersion: 99 };
 	controller.openProject(future, { metadata: { compatibilityReport: ['newer writer'] } });
 	const futureTab = controller.getSnapshot().tabs.find((tab) => tab.projectId === future.id);
 	assert.equal(futureTab.readOnly, true);
@@ -229,7 +231,7 @@ test('cross-project clipboard retains source metadata and owns source roots afte
 	const released = [];
 	const first = audioProject('project-z', 'source-z');
 	const second = audioProject('project-a', 'source-a');
-	const differentRate = createAudioEditorProjectV2({ id: 'project-hires', title: 'Hi-res', sampleRate: 96_000, now: NOW });
+	const differentRate = createCurrentAudioEditorProject({ id: 'project-hires', title: 'Hi-res', sampleRate: 96_000, now: NOW });
 	const controller = createAudioEditorSessionController({
 		projects: [first, second, differentRate],
 		onSourcesReleased: (sourceIds, context) => released.push({ sourceIds, reason: context.reason }),

@@ -15,7 +15,7 @@ import {
 	readClosedDomainField,
 	readClosedDomainRecord,
 } from '../common/editor/closed-domain-value.ts';
-import { AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS } from '../common/editor/project-v9-validation-budget.ts';
+import { AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS } from '../common/editor/project-validation-budget.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import {
 	applyFramescaperProjectCommandV18,
@@ -172,7 +172,7 @@ function assertClipTrackUnlocked(project: FramescaperProjectV19, clipId: string)
 }
 
 function assertCurrentVideoClipboardV19(command: FramescaperProjectCommandV19): void {
-	const limits = AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS;
+	const limits = AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS;
 	const stack: Array<Readonly<{ command: unknown; depth: number }>> = [{ command, depth: 0 }];
 	let nodes = 0;
 	while (stack.length > 0) {

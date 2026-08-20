@@ -177,7 +177,6 @@ export function createNyquistGeneratedAudioService(runtime: NyquistGeneratedAudi
 			await writer.commit({ sampleRate, channelCount: channels.length });
 			assertCurrent(runtime, projectToken, signal);
 			const source = {
-				schemaVersion: 2,
 				sampleRate,
 				sampleFormat: 'float32',
 				chunkFrames: runtime.sourceChunkFrames,
@@ -206,12 +205,11 @@ export function createNyquistGeneratedAudioService(runtime: NyquistGeneratedAudi
 			})) {
 				targetTrackId = runtime.createId('track');
 				commands.push(createAddTrackCommand({
-					schemaVersion: 2, type: 'audio', id: targetTrackId, name,
+					type: 'audio', id: targetTrackId, name,
 				}));
 			}
 			const selectedClipId = runtime.createId('clip');
 			commands.push(createAddClipCommand(requireId(targetTrackId, 'track'), {
-				schemaVersion: 2,
 				title: name,
 				sourceDurationFrames: frameCount,
 				id: selectedClipId,

@@ -17,10 +17,10 @@ import {
 } from '../desktop/project-library-media.ts';
 import type { DesktopLibraryLoadedProjectBundle } from '../desktop/project-library-projects.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const PROJECT_ID = 'managed-media-freshness-project';
 const SOURCE_ID = 'managed-media-freshness-source';
@@ -114,7 +114,7 @@ function fakeHost(projectValue: AudioEditorProjectCurrent, mediaValues: readonly
 }
 
 function project(revision: number): AudioEditorProjectCurrent {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: SOURCE_ID,
 		name: 'Managed media freshness source',
 		mimeType: 'audio/wav',
@@ -126,7 +126,7 @@ function project(revision: number): AudioEditorProjectCurrent {
 		sampleFormat: 'float32',
 		chunkFrames: 2,
 	});
-	const clip = createAudioClipV9({ id: 'freshness-clip', sourceId: source.id, durationFrames: 4 });
+	const clip = createAudioClip({ id: 'freshness-clip', sourceId: source.id, durationFrames: 4 });
 	return createCurrentAudioEditorProject({
 		id: PROJECT_ID,
 		title: 'Managed media freshness',
@@ -135,7 +135,7 @@ function project(revision: number): AudioEditorProjectCurrent {
 		sampleRate: 48_000,
 		sources: [source],
 		clips: [clip],
-		tracks: [createAudioTrackV9({ id: 'freshness-track', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'freshness-track', clipIds: [clip.id] })],
 	});
 }
 

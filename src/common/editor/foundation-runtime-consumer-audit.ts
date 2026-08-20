@@ -135,21 +135,6 @@ export const FOUNDATION_RUNTIME_TIMING_READER_EXCLUSIONS: readonly FoundationRun
 		reason: 'Private downstream helper; every call passes the runtimeProject captured by a registered video-export boundary.',
 	},
 	{
-		file: 'src/common/editor/project.js',
-		entryPoint: 'validateAudioEditorProject',
-		reason: 'Persisted-document validation intentionally inspects authoritative wire fields and is not a runtime consumer.',
-	},
-	{
-		file: 'src/common/editor/project.js',
-		entryPoint: 'validateProjectV2Shape',
-		reason: 'Retained legacy persisted-shape validation is authoritative schema work rather than runtime timing consumption.',
-	},
-	{
-		file: 'src/common/editor/project.js',
-		entryPoint: 'validateProjectV3Shape',
-		reason: 'Retained legacy persisted-shape validation is authoritative schema work rather than runtime timing consumption.',
-	},
-	{
 		file: 'src/common/editor/timeline-annotation-riff-interchange.ts',
 		entryPoint: 'createRiffAnnotationImport',
 		reason: 'RIFF import creates new persisted sample-authoritative coordinates and does not consume resolved runtime timing.',
@@ -255,11 +240,11 @@ export const FOUNDATION_RUNTIME_PROJECTION_IMPORTER_EXCLUSIONS: readonly Foundat
 		reason: 'Fallback relationship admission resolves canonical target geometry before creating its separate transient playback projection.',
 	},
 	{
-		file: 'src/common/editor/project-v10-command-projection.ts',
+		file: 'src/common/editor/project-command-projection.ts',
 		reason: 'The command projection adapter explicitly converts between persisted authority and the runtime command surface.',
 	},
 	{
-		file: 'src/common/editor/project-v10-foundation-validation.ts',
+		file: 'src/common/editor/project-foundation-validation.ts',
 		reason: 'Foundation validation intentionally resolves authoritative wire coordinates to prove bounds and derived equality.',
 	},
 	{

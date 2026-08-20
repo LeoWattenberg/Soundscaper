@@ -60,8 +60,7 @@ export function applySoundscaperProjectCommandV23(
 	return applyInheritedCommand(project, command, options);
 }
 
-/** True for a mastering-sequence command, including one nested inside a batch. */
-/** The V10 projection command consumers read, gated on exact V23 authority. */
+/** The shared command projection consumers read, gated on exact V23 authority. */
 export function soundscaperProjectForCommandConsumersV23(
 	projectValue: SoundscaperProjectV23 | unknown,
 ): Record<string, unknown> {

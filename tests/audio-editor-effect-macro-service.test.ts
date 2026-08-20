@@ -7,7 +7,9 @@ import { createEffectMacroService } from '../src/common/editor/controller/effect
 import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
 import type { EffectTarget } from '../src/common/editor/controller/effect-selection-service.ts';
 import { projectGraphLatencyFramesV21 } from '../src/common/editor/engine/project-graph-v21.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import type { SoundscaperProductionDialogOperation } from '../src/common/editor/ui/dialogs/SoundscaperProductionDialog.tsx';
 import {
 	executeSoundscaperProductionOperation,
@@ -234,8 +236,8 @@ function v21MacroProject() {
 	return createSoundscaperProjectV21({
 		id: 'project-a', title: 'Restoration render', now: '2026-08-14T12:00:00.000Z',
 		tracks: [
-			createAudioTrackV10({ id: 'track-a', name: 'A', clipIds: [] }),
-			createAudioTrackV10({ id: 'track-b', name: 'B', clipIds: [] }),
+			createAudioTrack({ id: 'track-a', name: 'A', clipIds: [] }),
+			createAudioTrack({ id: 'track-b', name: 'B', clipIds: [] }),
 		],
 		sequences: [{ id: 'main', trackIds: ['track-a', 'track-b'] }],
 		primarySequenceId: 'main',

@@ -26,10 +26,10 @@ import {
 	type ProjectAudioFallbackIntegritySelector,
 } from '../src/common/editor/project-fallback-integrity.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const AUDIO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
 const FALLBACK_SOURCE_ID = 'fallback-track-render';
@@ -49,19 +49,19 @@ const TRACK_SELECTOR: ProjectAudioFallbackIntegritySelector = Object.freeze({
 });
 
 function trackFallbackProject(): AudioEditorProjectCurrent {
-	const laneSource = createAudioSourceV9({
+	const laneSource = createAudioSource({
 		id: 'lane-source', storageKey: 'lane-source', frameCount: 3, channelCount: 2, chunkFrames: 2,
 	});
-	const drySource = createAudioSourceV9({
+	const drySource = createAudioSource({
 		id: 'dry-source', storageKey: 'dry-source', frameCount: 3, channelCount: 2, chunkFrames: 2,
 	});
-	const fallbackSource = createAudioSourceV9({
+	const fallbackSource = createAudioSource({
 		id: FALLBACK_SOURCE_ID, storageKey: FALLBACK_SOURCE_ID, frameCount: 3, channelCount: 2, chunkFrames: 2,
 	});
-	const laneClip = createAudioClipV9({
+	const laneClip = createAudioClip({
 		id: 'lane-clip', sourceId: laneSource.id, timelineStartFrame: 0, durationFrames: 3,
 	});
-	const dryClip = createAudioClipV9({
+	const dryClip = createAudioClip({
 		id: 'dry-clip', sourceId: drySource.id, timelineStartFrame: 0, durationFrames: 3,
 	});
 	return createCurrentAudioEditorProject({
@@ -69,11 +69,11 @@ function trackFallbackProject(): AudioEditorProjectCurrent {
 		sources: [laneSource, drySource, fallbackSource],
 		clips: [laneClip, dryClip],
 		tracks: [
-			createAudioTrackV9({
+			createAudioTrack({
 				id: 'fx-track', name: 'Saturated lane', clipIds: [laneClip.id],
 				effects: [{ id: 'foreign-fx', type: 'com.example.saturator', enabled: true, params: {} }],
 			}),
-			createAudioTrackV9({ id: 'dry-track', name: 'Dry lane', clipIds: [dryClip.id] }),
+			createAudioTrack({ id: 'dry-track', name: 'Dry lane', clipIds: [dryClip.id] }),
 		],
 		featureRequirements: {
 			schemaVersion: 2,

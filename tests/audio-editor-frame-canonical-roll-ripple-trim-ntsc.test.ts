@@ -4,16 +4,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { planFrameCanonicalRollRippleTrim } from '../src/common/editor/frame-canonical-roll-ripple-trim-planner.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { brandRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { videoFrameToSampleFrame } from '../src/common/editor/timeline-time.ts';
 
@@ -209,56 +211,56 @@ test('near-safe sequence origins saturate extreme requested deltas before clampi
 });
 
 function linkedNtscProject(): unknown {
-	const videoSource = createVideoSourceV10({
+	const videoSource = createVideoSource({
 		id: 'video-source', frameCount: 200_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: NTSC, sourceFrameCount: 1_000,
 	}, SAMPLE_RATE);
-	const audioSource = createAudioSourceV10({
+	const audioSource = createAudioSource({
 		id: 'audio-source', frameCount: 200_000, sampleRate: SAMPLE_RATE, channelCount: 1,
 	});
-	const activeVideo = createVideoClipV10({
+	const activeVideo = createVideoClip({
 		id: 'active-video', sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame: 0, sequenceFrameCount: 2,
 		sourceInFrame: 100, sourceFrameCount: 2, avLinkId: 'active-link',
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: NTSC }, source: videoSource });
-	const suffixVideo = createVideoClipV10({
+	const suffixVideo = createVideoClip({
 		id: 'suffix-video', sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame: 2, sequenceFrameCount: 2,
 		sourceInFrame: 300, sourceFrameCount: 2, avLinkId: 'suffix-link',
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: NTSC }, source: videoSource });
-	const activeAudio = createAudioClipV10({
+	const activeAudio = createAudioClip({
 		id: 'active-audio', sourceId: 'audio-source', avLinkId: 'active-link',
 		timelineStartFrame: boundary(0), durationFrames: boundary(2) - boundary(0),
 		sourceStartFrame: 10_000, sourceDurationFrames: boundary(2) - boundary(0),
 	});
-	const suffixAudio = createAudioClipV10({
+	const suffixAudio = createAudioClip({
 		id: 'suffix-audio', sourceId: 'audio-source', avLinkId: 'suffix-link',
 		timelineStartFrame: boundary(2), durationFrames: boundary(4) - boundary(2),
 		sourceStartFrame: 30_000, sourceDurationFrames: boundary(4) - boundary(2),
 	});
 	const tracks = [
-		createVideoTrackV10({
+		createVideoTrack({
 			id: 'video-track', clipIds: ['active-video', 'suffix-video'],
 			laneGroupId: 'linked-lanes', locked: false,
 		}),
-		createAudioTrackV10({
+		createAudioTrack({
 			id: 'audio-track', clipIds: ['active-audio', 'suffix-audio'],
 			laneGroupId: 'linked-lanes', locked: false,
 		}, SAMPLE_RATE),
 	];
-	const project = createAudioEditorProjectV15({
+	const project = createCurrentAudioEditorProject({
 		id: 'left-ripple-ntsc', now: '2026-08-11T18:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate: NTSC, trackIds: tracks.map(({ id }) => String(id)) }],
 		primarySequenceId: 'main', sources: [videoSource, audioSource],
 		clips: [activeVideo, activeAudio, suffixVideo, suffixAudio], tracks,
 	});
-	return projectV10ForCommand(project as unknown as Record<string, unknown>);
+	return projectForCommand(project as unknown as Record<string, unknown>);
 }
 
 function nearSafeOriginProject(): unknown {
 	const rate = Object.freeze({ num: SAMPLE_RATE, den: 1 });
 	const origin = Number.MAX_SAFE_INTEGER - 30;
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'near-safe-source', frameCount: 2_000_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: rate, sourceFrameCount: 1_000,
 	}, SAMPLE_RATE);
@@ -267,7 +269,7 @@ function nearSafeOriginProject(): unknown {
 		sequenceStartFrame: number,
 		sequenceFrameCount: number,
 		sourceInFrame: number,
-	) => createVideoClipV10({
+	) => createVideoClip({
 		id, sourceId: 'near-safe-source', sequenceId: 'main',
 		sequenceStartFrame, sequenceFrameCount,
 		sourceInFrame, sourceFrameCount: sequenceFrameCount,
@@ -276,15 +278,15 @@ function nearSafeOriginProject(): unknown {
 		clip('active-video', origin, 10, 100),
 		clip('suffix-video', origin + 10, 5, 300),
 	];
-	const track = createVideoTrackV10({
+	const track = createVideoTrack({
 		id: 'video-track', clipIds: clips.map(({ id }) => String(id)), locked: false,
 	});
-	const project = createAudioEditorProjectV15({
+	const project = createCurrentAudioEditorProject({
 		id: 'near-safe-roll-ripple', now: '2026-08-11T19:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate, trackIds: ['video-track'] }],
 		primarySequenceId: 'main', sources: [source], clips, tracks: [track],
 	});
-	return projectV10ForCommand(project as unknown as Record<string, unknown>);
+	return projectForCommand(project as unknown as Record<string, unknown>);
 }
 
 function groupedRollProject(options: Readonly<{
@@ -293,7 +295,7 @@ function groupedRollProject(options: Readonly<{
 }> = {}): unknown {
 	const rate = Object.freeze({ num: 24, den: 1 });
 	const origin = options.origin ?? 0;
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', frameCount: 2_000_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: rate, sourceFrameCount: 1_000,
 	}, SAMPLE_RATE);
@@ -302,7 +304,7 @@ function groupedRollProject(options: Readonly<{
 		sequenceStartFrame: number,
 		sourceInFrame: number,
 		groupId: string | null = null,
-	) => createVideoClipV10({
+	) => createVideoClip({
 		id, sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame, sequenceFrameCount: 10,
 		sourceInFrame, sourceFrameCount: 10, groupId,
@@ -314,24 +316,24 @@ function groupedRollProject(options: Readonly<{
 		clip('right-b', origin + 10, 400),
 	];
 	const tracks = [
-		createVideoTrackV10({ id: 'track-a', clipIds: ['left-a', 'right-a'], locked: false }),
-		createVideoTrackV10({
+		createVideoTrack({ id: 'track-a', clipIds: ['left-a', 'right-a'], locked: false }),
+		createVideoTrack({
 			id: 'track-b', clipIds: ['left-b', 'right-b'],
 			locked: options.lockSecondLane === true,
 		}),
 	];
-	const project = createAudioEditorProjectV15({
+	const project = createCurrentAudioEditorProject({
 		id: 'grouped-roll', now: '2026-08-11T18:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate, trackIds: tracks.map(({ id }) => String(id)) }],
 		primarySequenceId: 'main', sources: [source], clips, tracks,
 	});
-	return projectV10ForCommand(project as unknown as Record<string, unknown>);
+	return projectForCommand(project as unknown as Record<string, unknown>);
 }
 
 function nearMaximumSequenceProject(): unknown {
 	const rate = Object.freeze({ num: SAMPLE_RATE, den: 1 });
 	const origin = Number.MAX_SAFE_INTEGER - 30;
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', frameCount: 10_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: rate, sourceFrameCount: 1_000,
 	}, SAMPLE_RATE);
@@ -340,7 +342,7 @@ function nearMaximumSequenceProject(): unknown {
 		sequenceStartFrame: number,
 		sequenceFrameCount: number,
 		sourceInFrame: number,
-	) => createVideoClipV10({
+	) => createVideoClip({
 		id, sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame, sequenceFrameCount,
 		sourceInFrame, sourceFrameCount: sequenceFrameCount,
@@ -349,15 +351,15 @@ function nearMaximumSequenceProject(): unknown {
 		clip('active-video', origin, 10, 100),
 		clip('suffix-video', origin + 10, 5, 300),
 	];
-	const track = createVideoTrackV10({
+	const track = createVideoTrack({
 		id: 'video-track', clipIds: ['active-video', 'suffix-video'], locked: false,
 	});
-	const project = createAudioEditorProjectV15({
+	const project = createCurrentAudioEditorProject({
 		id: 'near-maximum-sequence', now: '2026-08-11T18:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sequences: [{ id: 'main', rate, trackIds: ['video-track'] }],
 		primarySequenceId: 'main', sources: [source], clips, tracks: [track],
 	});
-	return projectV10ForCommand(project as unknown as Record<string, unknown>);
+	return projectForCommand(project as unknown as Record<string, unknown>);
 }
 
 function boundary(frame: number): number {

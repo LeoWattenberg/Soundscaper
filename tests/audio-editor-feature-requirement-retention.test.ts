@@ -16,14 +16,14 @@ import {
 	compactProjectSourceMetadata,
 } from '../src/common/editor/retention.js';
 import {
-	createAudioSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioSource,
+} from '../src/common/editor/project-media-factory.ts';
 
 const NOW = '2026-07-29T12:00:00.000Z';
 const FALLBACK_DIGEST = 'ab'.repeat(32);
 
 function source(id: string) {
-	return createAudioSourceV9({
+	return createAudioSource({
 		id,
 		storageKey: id,
 		name: `${id}.wav`,

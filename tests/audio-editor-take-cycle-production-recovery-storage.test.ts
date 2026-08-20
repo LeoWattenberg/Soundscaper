@@ -10,7 +10,9 @@ import {
 import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
 import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording-transaction-types.ts';
 import type { TakeCycleRoutedCaptureProject } from '../src/common/editor/controller/take-cycle-routed-capture-types.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17, type AudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import { validateAudioEditorProjectV17 } from '../src/common/editor/project-v17-validation.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
@@ -164,7 +166,7 @@ async function openProcess(
 	const recovery = store.takeCycleRecoveryEnvelopeRepository as TakeCycleRecoveryEnvelopeRepository;
 	const base = baseValue ?? createAudioEditorProjectV17({
 		id: PROJECT_ID, title: 'Mixed recovery', now: NOW,
-		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: [], armed: true })],
+		tracks: [createAudioTrack({ id: 'track-a', name: 'Vocal', clipIds: [], armed: true })],
 		sequences: [{ id: 'main-sequence', trackIds: ['track-a'] }],
 		primarySequenceId: 'main-sequence',
 		loop: { enabled: true, startFrame: 0, endFrame: 4 },

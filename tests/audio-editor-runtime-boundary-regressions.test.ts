@@ -11,15 +11,17 @@ import {
 	projectForRuntimeConsumers,
 } from '../src/common/editor/project-current-runtime.ts';
 import {
-	createAudioEditorProjectV10,
-	createLabelTrackV10,
-	createLabelV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-	loadAudioEditorProjectV10,
-	validateAudioEditorProjectV10,
-} from '../src/common/editor/project-v10.ts';
+	createLabel,
+	createLabelTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+	loadCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	brandRuntimeProjectProjection,
 	isRuntimeProjectProjection,
@@ -51,7 +53,7 @@ test('persisted runtime markers cannot bypass any runtime projection boundary', 
 	const project = videoProject();
 	const poisoned = { ...project, runtimeProjectionVersion: 1 };
 
-	assert.throws(() => validateAudioEditorProjectV10(poisoned), /runtime projection/iu);
+	assert.throws(() => validateCurrentAudioEditorProject(poisoned), /runtime projection/iu);
 	const runtime = projectForRuntimeConsumers(poisoned);
 	assert.notStrictEqual(runtime, poisoned);
 	assert.equal(isRuntimeProjectProjection(runtime), true);
@@ -100,11 +102,11 @@ test('foundation video clip rendered fallbacks remain editable through unrelated
 	}, { now: NOW });
 
 	assert.equal(updated.tracks[0]?.name, 'Renamed after return');
-	assert.equal(validateAudioEditorProjectV10(updated), true);
+	assert.equal(validateCurrentAudioEditorProject(updated), true);
 });
 
 test('audio export resolves musical labels through the runtime projection', () => {
-	const label = createLabelV10({
+	const label = createLabel({
 		id: 'beat-label',
 		title: 'Beat label',
 		color: 'auto',
@@ -112,14 +114,14 @@ test('audio export resolves musical labels through the runtime projection', () =
 		startBeat: { num: 1, den: 1 },
 		endBeat: { num: 2, den: 1 },
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'musical-label-export',
 		title: 'Musical label export',
 		now: NOW,
-		tracks: [createLabelTrackV10({ id: 'labels', name: 'Labels', labels: [label] })],
+		tracks: [createLabelTrack({ id: 'labels', name: 'Labels', labels: [label] })],
 	});
 
-	assert.equal(validateAudioEditorProjectV10(project), true);
+	assert.equal(validateCurrentAudioEditorProject(project), true);
 	const plan = createExportPlan(project, { format: 'wav', markerTrackId: 'labels' });
 	assert.deepEqual(plan.markers, [{
 		id: 1,
@@ -131,7 +133,7 @@ test('audio export resolves musical labels through the runtime projection', () =
 });
 
 test('untrusted v10 admission rejects foundation state whose owned requirement was omitted', () => {
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'owned-feature-admission',
 		now: NOW,
 		tempoMap: {
@@ -150,14 +152,14 @@ test('untrusted v10 admission rejects foundation state whose owned requirement w
 		featureRequirements: { schemaVersion: 2, requirements: [] },
 	};
 
-	assert.throws(() => validateAudioEditorProjectV10(omitted), /owned feature requirement/iu);
-	assert.throws(() => loadAudioEditorProjectV10(omitted), /owned feature requirement/iu);
+	assert.throws(() => validateCurrentAudioEditorProject(omitted), /owned feature requirement/iu);
+	assert.throws(() => loadCurrentAudioEditorProject(omitted), /owned feature requirement/iu);
 });
 
 function videoProject() {
 	const sampleRate = 44_100;
 	const sequence = { id: 'main', rate: { num: 24, den: 1 } };
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source',
 		storageKey: 'video-source',
 		mimeType: 'video/mp4',
@@ -168,7 +170,7 @@ function videoProject() {
 		sourceFrameRate: sequence.rate,
 		sourceFrameCount: 24,
 	}, sampleRate);
-	const clip = createVideoClipV10({
+	const clip = createVideoClip({
 		id: 'video-clip',
 		sourceId: source.id,
 		sequenceId: sequence.id,
@@ -177,7 +179,7 @@ function videoProject() {
 		sourceInFrame: 0,
 		sourceFrameCount: 4,
 	}, { projectSampleRate: sampleRate, sequence, source });
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'runtime-boundary-video',
 		title: 'Runtime boundary video',
 		now: NOW,
@@ -186,7 +188,7 @@ function videoProject() {
 		primarySequenceId: sequence.id,
 		sources: [source],
 		clips: [clip],
-		tracks: [createVideoTrackV10({ id: 'video-track', clipIds: [clip.id] })],
+		tracks: [createVideoTrack({ id: 'video-track', clipIds: [clip.id] })],
 	});
 }
 
@@ -197,7 +199,7 @@ function videoClipFallbackProject() {
 		videoEffects: [createVideoEffect('pixelate', { id: 'fallback-effect' })],
 	};
 	const targetId = String(target.id);
-	const fallback = createVideoSourceV10({
+	const fallback = createVideoSource({
 		...base.sources[0],
 		id: 'video-fallback',
 		storageKey: 'video-fallback',
@@ -206,7 +208,7 @@ function videoClipFallbackProject() {
 		sourceFrameCount: target.sourceFrameCount,
 		hasAudio: false,
 	}, base.sampleRate);
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		...base,
 		sources: [base.sources[0], fallback],
 		clips: [target],

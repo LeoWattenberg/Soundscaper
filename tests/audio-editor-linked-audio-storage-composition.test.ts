@@ -6,10 +6,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import { createStorageRepositories } from '../src/common/editor/storage/repositories.ts';
@@ -161,12 +161,12 @@ test('generic lifecycle retires audio and legacy-video locators through one kind
 		id: 'mixed-linked-project',
 		sources: [audio, video],
 		clips: [
-			createAudioClipV9({
+			createAudioClip({
 				id: 'linked-audio-clip', sourceId: audio.id,
 				durationFrames: 2, sourceDurationFrames: 2,
 			}),
 		],
-		tracks: [createAudioTrackV9({ id: 'linked-audio-track', clipIds: ['linked-audio-clip'] })],
+		tracks: [createAudioTrack({ id: 'linked-audio-track', clipIds: ['linked-audio-clip'] })],
 	});
 
 	await store.bindLinkedAudioOriginal(project.id, audio, LOCATOR_ID, {
@@ -270,7 +270,7 @@ function audioSource({
 	id = 'source-audio',
 	storageKey = 'physical-audio',
 } = {}) {
-	return createAudioSourceV9({
+	return createAudioSource({
 		id, storageKey, mimeType: 'audio/wav',
 		frameCount, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 2,
@@ -278,7 +278,7 @@ function audioSource({
 }
 
 function audioProject(id: string, source: ReturnType<typeof audioSource>) {
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: `${id}-clip`, sourceId: source.id,
 		durationFrames: source.frameCount, sourceDurationFrames: source.frameCount,
 	});
@@ -286,7 +286,7 @@ function audioProject(id: string, source: ReturnType<typeof audioSource>) {
 		id,
 		sources: [source],
 		clips: [clip],
-		tracks: [createAudioTrackV9({ id: `${id}-track`, clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: `${id}-track`, clipIds: [clip.id] })],
 	});
 }
 

@@ -13,7 +13,7 @@ import type {
 	FrameCanonicalEdgeTrimPlan,
 	FrameCanonicalEdgeTrimRequest,
 } from '../src/common/editor/frame-canonical-edge-trim-domain.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import { createPersistedVideoProject } from './helpers/persisted-video-project-fixture.ts';
 
 const COPY: VideoEdgeTrimFeedbackCopy = Object.freeze({
@@ -97,7 +97,7 @@ test('the service reports only commit outcomes, after a successful mutation or a
 
 test('blocked, refused, and failed commits never publish trim-result feedback', () => {
 	const fixture = createPersistedVideoProject({ timeline: true });
-	const project = projectV10ForCommand(fixture.project as unknown as Record<string, unknown>);
+	const project = projectForCommand(fixture.project as unknown as Record<string, unknown>);
 	const events: string[] = [];
 	const common = {
 		lifetime: { assertActive: () => undefined },
@@ -130,7 +130,7 @@ test('blocked, refused, and failed commits never publish trim-result feedback', 
 
 function serviceHarness(events: string[]) {
 	const fixture = createPersistedVideoProject({ timeline: true });
-	const project = projectV10ForCommand(fixture.project as unknown as Record<string, unknown>);
+	const project = projectForCommand(fixture.project as unknown as Record<string, unknown>);
 	return createVideoEdgeTrimService({
 		lifetime: { assertActive: () => undefined },
 		getProject: () => project,

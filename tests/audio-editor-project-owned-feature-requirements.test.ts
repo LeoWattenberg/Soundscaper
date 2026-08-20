@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -13,11 +15,11 @@ import {
 	reconcileProjectOwnedFeatureRequirements,
 } from '../src/common/editor/project-owned-feature-requirements.ts';
 import {
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createVideoEffect } from '../src/common/editor/video-effects.js';
 
 const EMPTY_MANIFEST = Object.freeze({ schemaVersion: 2 as const, requirements: Object.freeze([]) });
@@ -32,7 +34,7 @@ interface MutableVideoEffectProject {
 }
 
 function audioTrackWithEffect(id = 'effect-a') {
-	return createAudioTrackV9({
+	return createAudioTrack({
 		id: 'track-a',
 		name: 'Track A',
 		effects: [createEffect('compressor', { id })],
@@ -40,7 +42,7 @@ function audioTrackWithEffect(id = 'effect-a') {
 }
 
 function videoSource() {
-	return createVideoSourceV9({
+	return createVideoSource({
 		id: 'video-source',
 		frameCount: 1,
 		width: 16,
@@ -51,7 +53,7 @@ function videoSource() {
 }
 
 function videoClipWithEffect(id = 'video-effect-a', enabled = true) {
-	return createVideoClipV9({
+	return createVideoClip({
 		id: 'video-clip',
 		sourceId: 'video-source',
 		durationFrames: 1,
@@ -61,7 +63,7 @@ function videoClipWithEffect(id = 'video-effect-a', enabled = true) {
 }
 
 test('owned audio-effect requirements follow maintained rack state across create and commit', () => {
-	const project = createAudioEditorProjectV10({ tracks: [audioTrackWithEffect()] });
+	const project = createCurrentAudioEditorProject({ tracks: [audioTrackWithEffect()] });
 	assert.deepEqual(project.featureRequirements.requirements, [{
 		id: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.audioEffects,
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
@@ -84,10 +86,10 @@ test('owned audio-effect requirements follow maintained rack state across create
 });
 
 test('owned video-effect requirements follow maintained timeline state across create and commit', () => {
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		sources: [videoSource()],
 		clips: [videoClipWithEffect()],
-		tracks: [createVideoTrackV9({ id: 'video-track', clipIds: ['video-clip'] })],
+		tracks: [createVideoTrack({ id: 'video-track', clipIds: ['video-clip'] })],
 	});
 	assert.deepEqual(project.featureRequirements.requirements, [{
 		id: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.videoEffects,
@@ -111,11 +113,11 @@ test('owned video-effect requirements follow maintained timeline state across cr
 });
 
 test('disabled and Project Bin video effects still declare the owned preservation requirement', () => {
-	for (const project of [createAudioEditorProjectV10({
+	for (const project of [createCurrentAudioEditorProject({
 		sources: [videoSource()],
 		clips: [videoClipWithEffect('disabled-video-effect', false)],
-		tracks: [createVideoTrackV9({ id: 'video-track', clipIds: ['video-clip'] })],
-	}), createAudioEditorProjectV10({
+		tracks: [createVideoTrack({ id: 'video-track', clipIds: ['video-clip'] })],
+	}), createCurrentAudioEditorProject({
 		sources: [videoSource()],
 		projectBin: { clips: [videoClipWithEffect('bin-video-effect')] },
 	})]) {
@@ -127,12 +129,12 @@ test('disabled and Project Bin video effects still declare the owned preservatio
 });
 
 test('audio and video ownership reconcile independently while foreign video state stays inert', () => {
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		sources: [videoSource()],
 		clips: [videoClipWithEffect()],
 		tracks: [
 			audioTrackWithEffect(),
-			createVideoTrackV9({ id: 'video-track', clipIds: ['video-clip'] }),
+			createVideoTrack({ id: 'video-track', clipIds: ['video-clip'] }),
 		],
 	});
 	assert.deepEqual(project.featureRequirements.requirements.map(({ id }) => id), [
@@ -162,12 +164,12 @@ test('disabled and inactive maintained effects still declare preservation requir
 	}, {
 		mixer: { groups: [], sends: [{ id: 'send-a', effects: [createEffect('reverb', { id: 'send-effect' })] }], routes: {} },
 	}]) {
-		const created = createAudioEditorProjectV10(project);
+		const created = createCurrentAudioEditorProject(project);
 		assert.equal(created.featureRequirements.requirements[0]?.featureId, PROJECT_FEATURE_CAPABILITY_IDS.audioEffects);
 	}
 
-	const missing = createAudioEditorProjectV10({
-		tracks: [createAudioTrackV9({
+	const missing = createCurrentAudioEditorProject({
+		tracks: [createAudioTrack({
 			id: 'missing-track',
 			effects: [createEffect('missing', {
 				id: 'missing-effect',
@@ -196,7 +198,7 @@ test('explicit audio-effect requirements win without being overwritten or duplic
 		frameCount: 1, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536, opaqueExtensions: {},
 	};
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		sources: [source],
 		tracks: [audioTrackWithEffect()],
 		featureRequirements: { schemaVersion: 2, requirements: [explicit] },
@@ -225,10 +227,10 @@ test('explicit video-effect requirements win without being overwritten or duplic
 		disposition: 'bypass' as const,
 		fallback: null,
 	};
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		sources: [videoSource()],
 		clips: [videoClipWithEffect()],
-		tracks: [createVideoTrackV9({ id: 'video-track', clipIds: ['video-clip'] })],
+		tracks: [createVideoTrack({ id: 'video-track', clipIds: ['video-clip'] })],
 		featureRequirements: { schemaVersion: 1, requirements: [explicit] },
 	});
 	assert.deepEqual(project.featureRequirements.requirements, [explicit]);

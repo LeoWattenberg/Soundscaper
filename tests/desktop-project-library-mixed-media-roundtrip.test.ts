@@ -17,13 +17,13 @@ import {
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createEditorController } from '../src/common/editor/facade.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
@@ -227,25 +227,25 @@ test('mixed media returns to the original Soundscaper profile without copying lo
 });
 
 function mixedProjectFixture() {
-	const audio = createAudioSourceV9({
+	const audio = createAudioSource({
 		id: 'roundtrip-audio-source', storageKey: 'physical/roundtrip-audio-pcm', name: 'Roundtrip audio.wav',
 		mimeType: 'audio/wav', frameCount: PCM_SAMPLES.length, channelCount: 1, sampleRate: 48_000,
 		originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: PCM_SAMPLES.length,
 	});
-	const video = createVideoSourceV9({
+	const video = createVideoSource({
 		id: 'roundtrip-video-source', storageKey: 'physical/roundtrip-original-video', name: 'Roundtrip picture.mp4',
 		mimeType: 'video/mp4', frameCount: 48_000, sampleRate: 48_000, width: 1_920, height: 1_080,
 		frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	});
-	const audioClip = createAudioClipV9({
+	const audioClip = createAudioClip({
 		id: 'roundtrip-audio-clip', sourceId: audio.id, title: 'Exact PCM',
 		durationFrames: PCM_SAMPLES.length, sourceDurationFrames: PCM_SAMPLES.length,
 	});
-	const videoClip = createVideoClipV9({
+	const videoClip = createVideoClip({
 		id: 'roundtrip-video-clip', sourceId: video.id, title: 'Original picture',
 		durationFrames: 48_000, sourceDurationFrames: 48_000,
 	});
-	const binClip = createVideoClipV9({
+	const binClip = createVideoClip({
 		id: 'roundtrip-bin-video', binItemId: 'roundtrip-bin-item', sourceId: video.id,
 		title: 'Original picture master', durationFrames: 48_000, sourceDurationFrames: 48_000,
 	});
@@ -254,8 +254,8 @@ function mixedProjectFixture() {
 		now: '2026-08-01T12:00:00.000Z', sampleRate: 48_000,
 		sources: [audio, video], clips: [audioClip, videoClip],
 		tracks: [
-			createAudioTrackV9({ id: 'roundtrip-audio-track', name: 'Sound', clipIds: [audioClip.id] }),
-			createVideoTrackV9({ id: 'roundtrip-video-track', name: 'Picture', clipIds: [videoClip.id] }),
+			createAudioTrack({ id: 'roundtrip-audio-track', name: 'Sound', clipIds: [audioClip.id] }),
+			createVideoTrack({ id: 'roundtrip-video-track', name: 'Picture', clipIds: [videoClip.id] }),
 		],
 		projectBin: { clips: [binClip] },
 		opaqueExtensions: { editorialNote: 'history-visible mixed-media state' },

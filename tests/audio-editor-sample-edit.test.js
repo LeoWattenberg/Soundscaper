@@ -21,7 +21,9 @@ import {
 	redoEditorCommand,
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
-import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { collectHistorySourceIds } from '../src/common/editor/retention.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 
@@ -221,7 +223,7 @@ test('failed source streams abort pending sample writes without publishing parti
 });
 
 test('clip source replacement is one undoable command and retains both immutable history roots', () => {
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'sample-edit-project',
 		now: '2026-01-01T00:00:00.000Z',
 		sources: [SOURCE],

@@ -5,16 +5,18 @@ import test from 'node:test';
 
 import type { VideoSourceTimingView } from '../src/common/editor/frame-canonical-slip-slide-domain.ts';
 import { planFrameCanonicalSlipSlide } from '../src/common/editor/frame-canonical-slip-slide-planner.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import {
 	videoFrameToSampleFrame,
 	type RationalRate,
@@ -89,7 +91,7 @@ test('a hidden locked lane reached through its center refuses after neighbor com
 });
 
 test('two disjoint selected and grouped clips on one lane slip atomically', () => {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', sampleFrameCount: 200_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: PAL, sourceFrameCount: 100,
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate: PAL },
@@ -98,7 +100,7 @@ test('two disjoint selected and grouped clips on one lane slip atomically', () =
 		videoClip(source, PAL, 'first-video', 0, 2, 10, 2, null, 'slip-group'),
 		videoClip(source, PAL, 'second-video', 4, 2, 20, 2, null, 'slip-group'),
 	];
-	const track = createVideoTrackV10({
+	const track = createVideoTrack({
 		id: 'video-track', clipIds: ['first-video', 'second-video'], locked: false,
 	});
 	const project = commandProject({
@@ -133,12 +135,12 @@ function slideFixture(options: Readonly<{
 	hiddenAudioTrack?: boolean;
 	lockedAudioTrack?: boolean;
 }>) {
-	const videoSource = createVideoSourceV10({
+	const videoSource = createVideoSource({
 		id: 'video-source', sampleFrameCount: 800_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: SOURCE_RATE, sourceFrameCount: 400,
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate: SOURCE_RATE },
 	}, SAMPLE_RATE);
-	const audioSource = createAudioSourceV10({
+	const audioSource = createAudioSource({
 		id: 'audio-source', frameCount: 200_000, sampleRate: SAMPLE_RATE, channelCount: 1,
 	});
 	const specifications = [
@@ -158,7 +160,7 @@ function slideFixture(options: Readonly<{
 		));
 		const timelineStart = boundary(specification.start, NTSC);
 		const timelineEnd = boundary(specification.start + specification.count, NTSC);
-		clips.push(createAudioClipV10({
+		clips.push(createAudioClip({
 			id: `${specification.role}-audio`, sourceId: 'audio-source', avLinkId,
 			timelineStartFrame: timelineStart, durationFrames: timelineEnd - timelineStart,
 			sourceStartFrame: 10_000 + index * 10_000,
@@ -172,18 +174,18 @@ function slideFixture(options: Readonly<{
 		const duration = options.extra === 'equal'
 			? boundary(2, NTSC) - boundary(1, NTSC)
 			: 200;
-		clips.push(createAudioClipV10({
+		clips.push(createAudioClip({
 			id: 'extra-audio', sourceId: 'audio-source',
 			timelineStartFrame: start, durationFrames: duration,
 			sourceStartFrame: 60_000, sourceDurationFrames: duration,
 		}));
 	}
-	const videoTrack = createVideoTrackV10({
+	const videoTrack = createVideoTrack({
 		id: 'video-track',
 		clipIds: specifications.map(({ role }) => `${role}-video`),
 		locked: false, laneGroupId: 'linked-lanes',
 	});
-	const audioTrack = createAudioTrackV10({
+	const audioTrack = createAudioTrack({
 		id: 'audio-track',
 		clipIds: [
 			'left-audio', 'center-audio', 'right-audio',
@@ -213,7 +215,7 @@ function videoClip(
 	avLinkId: string | null,
 	groupId: string | null,
 ) {
-	return createVideoClipV10({
+	return createVideoClip({
 		id, sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame, sequenceFrameCount, sourceInFrame, sourceFrameCount,
 		avLinkId, groupId,
@@ -227,7 +229,7 @@ function commandProject(input: Readonly<{
 	tracks: readonly Record<string, unknown>[];
 	selectedClipIds?: readonly string[];
 }>) {
-	const persisted = createAudioEditorProjectV15({
+	const persisted = createCurrentAudioEditorProject({
 		id: 'slip-slide-topology', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [{
 			id: 'main', rate: input.rate,
@@ -239,7 +241,7 @@ function commandProject(input: Readonly<{
 			clipIds: input.selectedClipIds, frequencyRange: null,
 		},
 	});
-	return projectV10ForCommand(persisted as unknown as Record<string, unknown>);
+	return projectForCommand(persisted as unknown as Record<string, unknown>);
 }
 
 function cfrTimingViews(

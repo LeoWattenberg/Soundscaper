@@ -5,7 +5,9 @@ import test from 'node:test';
 
 import { createDocumentTrackFolderSnapshot } from '../src/common/editor/controller/document-track-folder-snapshot.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	planTrackListRows,
 	resolveTrackFolderMoveKey,
@@ -33,10 +35,10 @@ function project() {
 			{ id: 'voices', name: 'Voices' },
 		],
 		tracks: [
-			createAudioTrackV10({ id: 'kick', name: 'Kick' }),
-			createAudioTrackV10({ id: 'snare', name: 'Snare' }),
-			createAudioTrackV10({ id: 'vocals', name: 'Vocals' }),
-			createAudioTrackV10({ id: 'outside', name: 'Outside' }),
+			createAudioTrack({ id: 'kick', name: 'Kick' }),
+			createAudioTrack({ id: 'snare', name: 'Snare' }),
+			createAudioTrack({ id: 'vocals', name: 'Vocals' }),
+			createAudioTrack({ id: 'outside', name: 'Outside' }),
 		],
 		sequences: [{
 			id: 'main',
@@ -97,7 +99,7 @@ test('tree levels, positions, and set sizes describe the folder tree, not track 
 test('a folder-free project plans plain track rows with no tree', () => {
 	const document = createCurrentAudioEditorProject({
 		id: 'flat', title: 'Flat', now: NOW, primarySequenceId: 'main',
-		tracks: [createAudioTrackV10({ id: 'only', name: 'Only' })],
+		tracks: [createAudioTrack({ id: 'only', name: 'Only' })],
 		sequences: [{ id: 'main', trackNodes: [{ kind: 'track', id: 'only', parentFolderId: null }] }],
 	});
 	const rows = plan(document);

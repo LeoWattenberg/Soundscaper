@@ -6,10 +6,10 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { copyFutureScapeArchive } from '../src/common/editor/scape-archive-copy.ts';
 import { createScapeArchiveByteSource } from '../src/common/editor/scape-archive-byte-source.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
@@ -100,7 +100,7 @@ async function currentArchive(context: TestContext): Promise<Blob> {
 	});
 	await writer.write([Float32Array.of(0.25, -0.5, 0.75, 0)]);
 	await writer.commit();
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'copy-clip', sourceId: SOURCE_ID, timelineStartFrame: 0, durationFrames: 4,
 	});
 	const project = createCurrentAudioEditorProject({
@@ -108,12 +108,12 @@ async function currentArchive(context: TestContext): Promise<Blob> {
 		title: 'Unchanged copy fixture',
 		now: '2026-08-08T17:00:00.000Z',
 		sampleRate: 48_000,
-		sources: [createAudioSourceV9({
+		sources: [createAudioSource({
 			id: SOURCE_ID, storageKey: SOURCE_ID, name: 'copy.wav', mimeType: 'audio/wav',
 			frameCount: 4, channelCount: 1,
 		})],
 		clips: [clip],
-		tracks: [createAudioTrackV9({ id: 'copy-track', name: 'Copy', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'copy-track', name: 'Copy', clipIds: [clip.id] })],
 	});
 	const exported = await exportScapeProject(project, store);
 	if (!(exported.blob instanceof Blob)) throw new TypeError('Expected an assembled archive Blob.');

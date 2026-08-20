@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	registerVideoTimingIndex,
 	unregisterVideoTimingIndex,
@@ -206,7 +209,7 @@ function cfrProject(
 			sequenceId: clipSequenceId, sequenceStartFrame: nested ? 0 : 10, sequenceFrameCount: 3,
 			sourceInFrame: 2, sourceFrameCount: 3, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: trackId, name: 'Video', clipIds: ['output-clip'], locked: false,
 		})],
 		sequences: nested ? [
@@ -257,7 +260,7 @@ function vfrProject(
 			sequenceId: 'main-sequence', sequenceStartFrame: 10, sequenceFrameCount: sourceFrameCount,
 			sourceInFrame, sourceFrameCount, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['output-clip'], locked: false,
 		})],
 		sequences: [{ id: 'main-sequence', rate, trackIds: ['video-track'] }],
@@ -297,7 +300,7 @@ function videoSource(
 	sourceFrameCount: number,
 	options: Readonly<Record<string, unknown>> = {},
 ): Record<string, unknown> {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id, name: id, storageKey: id, mimeType: 'video/mp4', contentSha256,
 		sampleFrameCount: 48_000, sourceFrameCount, frameRate: rate,
 		width: 1920, height: 1080, ...options,

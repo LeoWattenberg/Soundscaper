@@ -13,9 +13,9 @@ import {
 import { DesktopSharedProjectLibraryService } from '../desktop/project-library-editor-service.ts';
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import {
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	parseScapeProjectDocument,
@@ -98,7 +98,7 @@ function projectOptions(): Record<string, unknown> {
 		title: 'Desktop V16 retime project',
 		revision: 1,
 		now: NOW,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'video-source',
 			name: 'Video',
 			frameCount: 40_000,
@@ -109,7 +109,7 @@ function projectOptions(): Record<string, unknown> {
 			height: 1_080,
 		})],
 		clips: [videoClip('timeline-video', TIMELINE_CURVE)],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track',
 			name: 'Video',
 			clipIds: ['timeline-video'],

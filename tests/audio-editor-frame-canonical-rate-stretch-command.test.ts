@@ -12,15 +12,15 @@ import {
 	redoEditorCommand,
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
@@ -33,7 +33,7 @@ const NOW = '2026-08-11T20:30:00.000Z';
 
 test('a 48k/40k sample alias persists preview-equal linked geometry in one history step', () => {
 	const original = createProject();
-	const projection = projectV10ForCommand(original as unknown as Record<string, unknown>);
+	const projection = projectForCommand(original as unknown as Record<string, unknown>);
 	const plan = planFrameCanonicalRateStretch(projection, timingViews(), {
 		activeClipId: 'video', edge: 'right', requestedBoundarySample: 3,
 	});
@@ -86,7 +86,7 @@ test('a 48k/40k sample alias persists preview-equal linked geometry in one histo
 
 test('tampered canonical placement refuses before rate-stretch command publication', () => {
 	const original = createProject();
-	const projection = projectV10ForCommand(original as unknown as Record<string, unknown>);
+	const projection = projectForCommand(original as unknown as Record<string, unknown>);
 	const plan = planFrameCanonicalRateStretch(projection, timingViews(), {
 		activeClipId: 'video', edge: 'right', requestedBoundarySample: 4,
 	});
@@ -101,21 +101,21 @@ test('tampered canonical placement refuses before rate-stretch command publicati
 });
 
 function createProject() {
-	const videoSource = createVideoSourceV10({
+	const videoSource = createVideoSource({
 		id: 'video-source', sampleFrameCount: 1_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: RATE, sourceFrameCount: 100,
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate: RATE },
 	}, SAMPLE_RATE);
-	const audioSource = createAudioSourceV10({
+	const audioSource = createAudioSource({
 		id: 'audio-source', frameCount: 1_000, sampleRate: SAMPLE_RATE, channelCount: 1,
 	});
-	const video = createVideoClipV10({
+	const video = createVideoClip({
 		id: 'video', sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame: 0, sequenceFrameCount: 2,
 		sourceInFrame: 10, sourceFrameCount: 2,
 		avLinkId: 'link', speedRatio: 9,
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: RATE }, source: videoSource });
-	const audio = createAudioClipV10({
+	const audio = createAudioClip({
 		id: 'audio', sourceId: 'audio-source', timelineStartFrame: 0, durationFrames: 2,
 		sourceStartFrame: 100, sourceDurationFrames: 2, avLinkId: 'link',
 		envelope: [{ frame: 1, value: 0.5 }], renderCacheRevision: 7,
@@ -125,10 +125,10 @@ function createProject() {
 		sequences: [{ id: 'main', rate: RATE, trackIds: ['video-track', 'audio-track'] }],
 		primarySequenceId: 'main', sources: [videoSource, audioSource], clips: [video, audio],
 		tracks: [
-			createVideoTrackV10({
+			createVideoTrack({
 				id: 'video-track', clipIds: ['video'], laneGroupId: 'lanes', locked: false,
 			}),
-			createAudioTrackV10({
+			createAudioTrack({
 				id: 'audio-track', clipIds: ['audio'], laneGroupId: 'lanes', locked: false,
 			}, SAMPLE_RATE),
 		],

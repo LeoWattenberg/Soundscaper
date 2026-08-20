@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	type VideoProxyClaimRecord,
 	videoProxyClaimKey,
@@ -210,7 +210,7 @@ function scope(currentProject: unknown) {
 function allNullProject(): FramescaperProjectV18 {
 	return createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
 		id: 'framescaper-retention', title: 'Framescaper retention', now: NOW,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'video-source', name: 'Video', storageKey: CANONICAL_SOURCE_KEY,
 			mimeType: 'video/mp4', contentSha256: ORIGINAL_SHA,
 			frameCount: 48_000, sampleFrameCount: 48_000,
@@ -227,7 +227,7 @@ function allNullProject(): FramescaperProjectV18 {
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true,
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],
@@ -265,7 +265,7 @@ function dormantReferenceProject(): FramescaperProjectV18 {
 }
 
 function dormantSource(id: string, storageKey: string, contentSha256: string): unknown {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id, name: id, storageKey, mimeType: 'video/mp4', contentSha256,
 		frameCount: 48_000, sampleFrameCount: 48_000, sourceFrameCount: 10,
 		frameRate: { num: 10, den: 1 }, width: 1920, height: 1080,

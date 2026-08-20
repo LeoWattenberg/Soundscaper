@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	reconcileFramescaperProjectFeatureRequirementsV20,
 } from '../src/framescaper/editor-project-feature-requirements-v20.ts';
@@ -88,7 +91,7 @@ function nestedVideoProject(): FramescaperProjectV20 {
 			sequenceId: 'child', sequenceStartFrame: 0, sequenceFrameCount: 30,
 			sourceInFrame: 0, sourceFrameCount: 30, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'child-track', name: 'Child video', clipIds: ['child-clip'], locked: false,
 		})],
 		sequences: [
@@ -120,7 +123,7 @@ function projectOptions(): Record<string, unknown> {
 	const rate = { num: 30, den: 1 };
 	return {
 		id: 'runtime-v20', title: 'Runtime V20', now: '2026-08-13T12:00:00.000Z',
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'source', name: 'Source', storageKey: 'source', mimeType: 'video/mp4',
 			contentSha256: '34'.repeat(32), sampleFrameCount: 48_000,
 			sourceFrameCount: 300, frameRate: rate, width: 1_920, height: 1_080,
@@ -130,7 +133,7 @@ function projectOptions(): Record<string, unknown> {
 			sequenceStartFrame: 0, sequenceFrameCount: 30, sourceInFrame: 0,
 			sourceFrameCount: 30, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({ id: 'track', name: 'Video', clipIds: ['clip'], locked: false })],
+		tracks: [createVideoTrack({ id: 'track', name: 'Video', clipIds: ['clip'], locked: false })],
 		sequences: [{ id: 'main', rate, trackIds: ['track'] }],
 		primarySequenceId: 'main',
 	};

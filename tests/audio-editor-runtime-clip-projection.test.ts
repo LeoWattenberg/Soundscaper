@@ -9,7 +9,9 @@ import {
 	resolveRuntimeClipProjection,
 	resolveRuntimeProjectProjection,
 } from '../src/common/editor/runtime-clip-projection.ts';
-import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 const tempoMap = {
 	mode: 'musical' as const,
@@ -97,7 +99,7 @@ test('projection rejects incomplete authority instead of falling back to persist
 });
 
 test('shared V11 projection resolves annotations in document order and brands their complete shape', () => {
-	const project = createAudioEditorProjectV11({
+	const project = createCurrentAudioEditorProject({
 		now: '2026-08-09T18:00:00.000Z',
 		timelineAnnotations: [{
 			id: 'later', sequenceId: 'main-sequence', name: 'Later', color: 'auto', batchId: null,

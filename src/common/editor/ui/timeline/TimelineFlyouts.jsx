@@ -5,7 +5,7 @@ import { ContextMenu, Icon } from '@dilsonspickles/components';
 // or tree-shaking drops it with the unused component module.
 import '../../../../../vendor/audacity-design-system/components/src/AddTrackFlyout/AddTrackFlyout.css';
 
-import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-v2.js';
+import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import { colorName } from './TimelineOverlayComponents.jsx';
 
 export function ContainerAddTrackFlyout({

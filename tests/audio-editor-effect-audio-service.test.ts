@@ -18,7 +18,7 @@ import {
 	createEffect,
 	normalizeAudioSelectionEffectParams,
 } from '../src/common/editor/effects.js';
-import { createAudioClipV10, createAudioSourceV10, createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import { projectTrackFolderMediaStateV12 } from '../src/common/editor/track-folder-media-runtime.ts';
 import {
@@ -540,17 +540,17 @@ test('dry rendering a foldered legacy project keeps a hierarchy the engine will 
 function folderedLegacyProject() {
 	return createAudioEditorProjectV17({
 		id: 'project-folders', title: 'Foldered legacy', now: '2026-08-19T12:00:00.000Z',
-		sources: [createAudioSourceV10({
+		sources: [createAudioSource({
 			id: 'source-a', storageKey: 'pcm:a', frameCount: 8, channelCount: 1,
 			sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 		})],
-		clips: [createAudioClipV10({
+		clips: [createAudioClip({
 			id: 'voice-clip', sourceId: 'source-a', title: 'Voice', timelineStartFrame: 0,
 			durationFrames: 8, sourceStartFrame: 0, sourceDurationFrames: 8,
 		})],
 		tracks: [
-			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'], effects: [] }),
-			createAudioTrackV10({ id: 'music', name: 'Music', clipIds: [], effects: [] }),
+			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'], effects: [] }),
+			createAudioTrack({ id: 'music', name: 'Music', clipIds: [], effects: [] }),
 		],
 		trackFolders: [{ id: 'stems', name: 'Stems', mute: true }],
 		sequences: [{
@@ -569,14 +569,14 @@ function v21RenderProject() {
 	return createSoundscaperProjectV21({
 		id: 'project-a', title: 'Selection render', now: '2026-08-14T12:00:00.000Z',
 		tracks: [
-			createAudioTrackV10({
+			createAudioTrack({
 				id: 'track-a', name: 'A', clipIds: [],
 				effects: [
 					createEffect('delay', { id: 'before' }),
 					createEffect('audacity-noise-reduction', { id: 'noise', enabled: false }),
 				],
 			}),
-			createAudioTrackV10({ id: 'track-b', name: 'B', clipIds: [] }),
+			createAudioTrack({ id: 'track-b', name: 'B', clipIds: [] }),
 		],
 		sequences: [{ id: 'main', trackIds: ['track-a', 'track-b'] }],
 		primarySequenceId: 'main',

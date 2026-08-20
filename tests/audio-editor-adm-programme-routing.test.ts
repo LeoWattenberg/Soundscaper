@@ -6,7 +6,9 @@ import test from 'node:test';
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import { createAdmProgrammeRouter } from '../src/common/editor/engine/adm-programme-routing.ts';
 import { buildProjectGraph } from '../src/common/editor/engine/project-graph.ts';
-import { createAudioEditorProjectV7 } from '../src/common/editor/project-v7.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 const NOW = '2026-07-28T12:34:56.000Z';
 
@@ -79,14 +81,14 @@ class MockContext {
 }
 
 test('authored ADM creation and metadata updates synchronize the project master width', () => {
-	const created = createAudioEditorProjectV7({
+	const created = createCurrentAudioEditorProject({
 		now: NOW,
 		masterChannels: 2,
 		metadata: { adm: authored('5.1') },
 	});
 	assert.equal(created.masterChannels, 6);
 
-	const stereo = createAudioEditorProjectV7({ now: NOW });
+	const stereo = createCurrentAudioEditorProject({ now: NOW });
 	const mono = applyEditorCommand(stereo, {
 		type: 'metadata/update', changes: { adm: authored('mono') },
 	}, { now: NOW });

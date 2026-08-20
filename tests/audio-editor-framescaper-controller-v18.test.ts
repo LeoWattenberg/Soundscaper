@@ -29,7 +29,7 @@ const {
 const { FramescaperScapeArchiveV18 } = await import('../src/framescaper/scape-project-preservation-v18.ts');
 const { FramescaperScapeProjectFileV18 } = await import('../src/framescaper/scape-project-file-v18.ts');
 const { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } = await import('../src/framescaper/editor-project-runtime-profile-v18.ts');
-const { createVideoSourceV10, createVideoTrackV10 } = await import('../src/common/editor/project-v10.ts');
+const { createVideoSource, createVideoTrack } = await import('../src/common/editor/project-media-factory.ts');
 
 test('product-owned controller activates a fresh writable V18 project', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV18({
@@ -117,7 +117,7 @@ test('product controller executes fenced multicamera menu commands with undo', a
 	const project = environment.runtime.createProject({
 		id: 'multicamera-controller', title: 'Multicamera controller',
 		now: '2026-08-13T12:00:00.000Z', sampleRate: 48_000,
-		sources: ['a', 'b'].map((suffix) => createVideoSourceV10({
+		sources: ['a', 'b'].map((suffix) => createVideoSource({
 			id: `camera-${suffix}`, name: `Camera ${suffix.toUpperCase()}`,
 			storageKey: `camera-${suffix}`, mimeType: 'video/mp4',
 			contentSha256: (suffix === 'a' ? '12' : '34').repeat(32),
@@ -134,7 +134,7 @@ test('product controller executes fenced multicamera menu commands with undo', a
 			title: 'Camera B', sequenceId: 'main', sequenceStartFrame: 0, sequenceFrameCount: 30,
 			sourceInFrame: 0, sourceFrameCount: 30, retimeMap: null,
 		}] },
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['output-clip'], locked: false,
 		})],
 		sequences: [{ id: 'main', rate, trackIds: ['video-track'] }],

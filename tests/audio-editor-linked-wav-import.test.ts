@@ -56,7 +56,6 @@ test('linked WAV import binds and activates canonical PCM without publishing an 
 	]);
 	const source = fixture.calls.find(([name]) => name === 'bind-audio')?.[1] as Record<string, unknown>;
 	assert.deepEqual(source, {
-		schemaVersion: 2,
 		kind: 'audio',
 		sampleFormat: 'float32',
 		chunkFrames: 65_536,

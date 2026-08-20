@@ -20,18 +20,19 @@ import {
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
 import {
-	createAudioClipV10,
-	createAudioEditorProjectV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
-import { createAudioEditorProjectV11 } from '../src/common/editor/project-v11.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import type { TimelineAnnotationV11 } from '../src/common/editor/timeline-annotation.ts';
 
 const NOW = '2026-08-09T12:00:00.000Z';
 
-test('V3 copy/paste remaps sequences, item and batch IDs while scaling only sample offsets', () => {
+test('V4 copy/paste remaps sequences, item and batch IDs while scaling only sample offsets', () => {
 	const source = annotationProject({
 		id: 'source',
 		sampleRate: 48_000,
@@ -48,7 +49,7 @@ test('V3 copy/paste remaps sequences, item and batch IDs while scaling only samp
 	const clipboard = createClipboardDescriptor(commandProject(source), {
 		startFrame: 0, endFrame: 48_000, trackIds: ['source-track'],
 	});
-	assert.equal(clipboard.schemaVersion, 3);
+	assert.equal(clipboard.schemaVersion, 4);
 	assert.equal(clipboard.tracks[0]?.sourceSequenceId, 'source-sequence');
 	assert.equal(clipboard.annotations?.length, 4);
 
@@ -73,24 +74,24 @@ test('V3 copy/paste remaps sequences, item and batch IDs while scaling only samp
 	]);
 });
 
-test('V3 remains lossless for rich media descriptors while annotations are empty', () => {
-	const source = createAudioSourceV10({ id: 'source', frameCount: 48_000, channelCount: 1 });
-	const clip = createAudioClipV10({
+test('V4 remains lossless for rich media descriptors while annotations are empty', () => {
+	const source = createAudioSource({ id: 'source', frameCount: 48_000, channelCount: 1 });
+	const clip = createAudioClip({
 		id: 'clip', sourceId: 'source', timelineStartFrame: 0,
 		durationFrames: 1_000, sourceStartFrame: 100, sourceDurationFrames: 1_000,
 		groupId: 'group', gain: 0.5, fadeInFrames: 10, fadeOutFrames: 20,
 		envelope: [{ frame: 0, value: 0.5 }, { frame: 1_000, value: 1 }],
 	});
-	const project = createAudioEditorProjectV11({
+	const project = createCurrentAudioEditorProject({
 		id: 'rich-media', now: NOW, sources: [source], clips: [clip],
 		sequences: [{ id: 'main', name: 'Main', rate: { num: 24, den: 1 }, trackIds: ['track'] }],
 		primarySequenceId: 'main',
-		tracks: [createAudioTrackV10({ id: 'track', clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
 	});
 	const clipboard = createClipboardDescriptor(commandProject(project), {
 		startFrame: 0, endFrame: 1_000, trackIds: ['track'],
 	});
-	assert.equal(clipboard.schemaVersion, 3);
+	assert.equal(clipboard.schemaVersion, 4);
 	assert.deepEqual(clipboard.annotations, []);
 	const descriptor = clipboard.tracks[0]?.clips[0];
 	assert.deepEqual(
@@ -110,7 +111,7 @@ test('V3 remains lossless for rich media descriptors while annotations are empty
 });
 
 test('copy includes selected annotations outside the range and overlapping regions without clipping them', () => {
-	const project = createAudioEditorProjectV11({
+	const project = createCurrentAudioEditorProject({
 		id: 'selection-copy', now: NOW,
 		sequences: [
 			{ id: 'main', name: 'Main', rate: { num: 24, den: 1 }, trackIds: ['track'] },
@@ -118,8 +119,8 @@ test('copy includes selected annotations outside the range and overlapping regio
 		],
 		primarySequenceId: 'main',
 		tracks: [
-			createAudioTrackV10({ id: 'track', clipIds: [] }),
-			createAudioTrackV10({ id: 'secondary-track', clipIds: [] }),
+			createAudioTrack({ id: 'track', clipIds: [] }),
+			createAudioTrack({ id: 'secondary-track', clipIds: [] }),
 		],
 		timelineAnnotations: [
 			sampleMarker('outside-selected', 'secondary', 90),
@@ -190,7 +191,7 @@ test('V3 preparation maps a not-yet-created target track to the primary sequence
 		type: 'batch',
 		commands: [{
 			type: 'track/add',
-			track: createAudioTrackV10({ id: 'created-track', name: 'Created', clipIds: [] }),
+			track: createAudioTrack({ id: 'created-track', name: 'Created', clipIds: [] }),
 		}, paste],
 	};
 	const pasted = applyEditorCommand(project, command, { now: NOW });
@@ -423,12 +424,12 @@ test('paste replay fails on fresh IDs while undo and redo restore exact annotati
 	assert.deepEqual((history.present as AnnotationProject).timelineAnnotations, after);
 });
 
-test('legacy V1/V2 media clipboards remain readable and carry no annotation identity maps', () => {
-	const project = createAudioEditorProjectV10({
-		id: 'legacy', now: NOW,
+test('legacy V1/V2 media clipboards remain readable in the current project and carry no annotation identity maps', () => {
+	const project = createCurrentAudioEditorProject({
+		id: 'legacy-clipboard-current-project', now: NOW,
 		sequences: [{ id: 'main', name: 'Main', rate: { num: 24, den: 1 }, trackIds: ['track'] }],
 		primarySequenceId: 'main',
-		tracks: [createAudioTrackV10({ id: 'track', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'track', clipIds: [] })],
 	});
 	for (const schemaVersion of [1, 2] as const) {
 		const clipboard = {
@@ -447,7 +448,7 @@ test('legacy V1/V2 media clipboards remain readable and carry no annotation iden
 	assert.doesNotThrow(() => applyEditorCommand(project, currentMediaOnly as AudioEditorCommand, { now: NOW }));
 });
 
-type AnnotationProject = ReturnType<typeof createAudioEditorProjectV11>;
+type AnnotationProject = ReturnType<typeof createCurrentAudioEditorProject>;
 type PasteCommand = Extract<AudioEditorCommand, { readonly type: 'clipboard/paste' }>;
 
 function annotationProject(options: Readonly<{
@@ -459,14 +460,14 @@ function annotationProject(options: Readonly<{
 	trackType?: 'audio' | 'video';
 	selectedAnnotationIds?: readonly string[];
 }>): AnnotationProject {
-	return createAudioEditorProjectV11({
+	return createCurrentAudioEditorProject({
 		id: options.id,
 		now: NOW,
 		sampleRate: options.sampleRate ?? 48_000,
 		sequences: [{ id: options.sequenceId, name: options.sequenceId, rate: { num: 24, den: 1 }, trackIds: [options.trackId] }],
 		primarySequenceId: options.sequenceId,
 		tracks: [{
-			...createAudioTrackV10({ id: options.trackId, name: options.trackId, clipIds: [] }, options.sampleRate ?? 48_000),
+			...createAudioTrack({ id: options.trackId, name: options.trackId, clipIds: [] }, options.sampleRate ?? 48_000),
 			type: options.trackType ?? 'audio',
 		}],
 		timelineAnnotations: options.annotations,
@@ -551,7 +552,7 @@ function rational(num: number, den = 1) {
 }
 
 function commandProject(project: AnnotationProject) {
-	return projectV10ForCommand(project as unknown as Record<string, unknown>);
+	return projectForCommand(project as unknown as Record<string, unknown>);
 }
 
 function sequentialIds() {

@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import type {
 	ProjectDocument,
 	ProjectLoadOptions,
@@ -141,7 +144,7 @@ function baseProject(id: string): ReturnType<typeof createFramescaperProjectV18>
 	const originalSha = '12'.repeat(32);
 	return createFramescaperProjectV18(PROFILE, {
 		id, title: 'V18', now: '2026-08-13T12:00:00.000Z',
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'video-source', name: 'Video', storageKey: 'video-source', mimeType: 'video/mp4',
 			contentSha256: originalSha, frameCount: 48_000, sampleFrameCount: 48_000,
 			sourceFrameCount: 10, frameRate: { num: 10, den: 1 }, width: 1920, height: 1080,
@@ -151,7 +154,7 @@ function baseProject(id: string): ReturnType<typeof createFramescaperProjectV18>
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true,
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],

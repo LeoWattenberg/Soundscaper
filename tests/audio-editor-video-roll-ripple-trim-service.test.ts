@@ -19,12 +19,12 @@ import {
 	redoEditorCommand,
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
@@ -245,23 +245,23 @@ function createHarness(options: Readonly<{ blocked?: boolean }> = {}) {
 }
 
 function createProject() {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'video-source', frameCount: 2_000_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: RATE, sourceFrameCount: 1_000,
 	}, SAMPLE_RATE);
 	const clips = [
-		createVideoClipV10({
+		createVideoClip({
 			id: 'active-video', sourceId: 'video-source', sequenceId: 'main',
 			sequenceStartFrame: 10, sequenceFrameCount: 10,
 			sourceInFrame: 100, sourceFrameCount: 10,
 		}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: RATE }, source }),
-		createVideoClipV10({
+		createVideoClip({
 			id: 'suffix-video', sourceId: 'video-source', sequenceId: 'main',
 			sequenceStartFrame: 20, sequenceFrameCount: 5,
 			sourceInFrame: 300, sourceFrameCount: 5,
 		}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: RATE }, source }),
 	];
-	const track = createVideoTrackV10({
+	const track = createVideoTrack({
 		id: 'video-track', clipIds: clips.map(({ id }) => String(id)), locked: false,
 	});
 	return createCurrentAudioEditorProject({
@@ -272,7 +272,7 @@ function createProject() {
 }
 
 function lockedProjection(project: PersistedProject, lockedTrackIds: ReadonlySet<string>) {
-	return projectV10ForCommand({
+	return projectForCommand({
 		...project,
 		tracks: project.tracks.map((track) => ({
 			...track, locked: lockedTrackIds.has(String(track.id)),
@@ -281,7 +281,7 @@ function lockedProjection(project: PersistedProject, lockedTrackIds: ReadonlySet
 }
 
 function commandProjection(project: PersistedProject) {
-	return projectV10ForCommand(project as unknown as Record<string, unknown>);
+	return projectForCommand(project as unknown as Record<string, unknown>);
 }
 
 function rippleRequest(boundaryFrame: number): FrameCanonicalRollRippleTrimRequest {

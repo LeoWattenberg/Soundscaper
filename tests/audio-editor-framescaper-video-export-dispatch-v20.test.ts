@@ -3,7 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	reconcileFramescaperProjectFeatureRequirementsV20,
 } from '../src/framescaper/editor-project-feature-requirements-v20.ts';
@@ -173,7 +175,7 @@ function nestedProject(): ReturnType<typeof createFramescaperProjectV20> {
 		sequenceStartFrame: 0, sequenceFrameCount: 10, sourceInFrame: 0, sourceFrameCount: 10,
 		retimeMap: null,
 	}];
-	options.tracks = [createVideoTrackV10({
+	options.tracks = [createVideoTrack({
 		id: 'leaf-track', name: 'Leaf', clipIds: ['leaf-clip'], locked: false,
 	})];
 	options.sequences = [

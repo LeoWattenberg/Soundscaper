@@ -34,7 +34,7 @@ import {
 	projectUniqueIds,
 	projectUniqueStrings,
 	type ProjectDataRecord,
-} from './project-v9-validation-primitives.ts';
+} from './project-validation-primitives.ts';
 
 export const AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE = 8_000;
 export const AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE = 768_000;
@@ -45,17 +45,17 @@ export const AUDIO_EDITOR_FOUNDATION_MAXIMUM_EVENTS = 4_096;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const DROP_FRAME_RATES = new Set(SEQUENCE_DROP_FRAME_RATES);
 
-export interface ProjectV10FoundationCollections {
+export interface ProjectFoundationCollections {
 	readonly sources: readonly ProjectDataRecord[];
 	readonly clips: readonly ProjectDataRecord[];
 	readonly tracks: readonly ProjectDataRecord[];
 	readonly binClips: readonly ProjectDataRecord[];
 }
 
-/** Validate only the v10 foundation layer; the shared v9 document validator owns unchanged fields. */
-export function validateProjectV10Foundation(
+/** Validate the shared project foundation layer; the document validator owns unchanged fields. */
+export function validateProjectFoundation(
 	project: ProjectDataRecord,
-	media: ProjectV10FoundationCollections,
+	media: ProjectFoundationCollections,
 ): true {
 	const sampleRate = projectSafeInteger(
 		project.sampleRate,

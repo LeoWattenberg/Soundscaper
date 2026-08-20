@@ -18,13 +18,13 @@ import type {
 	ProjectVideoFallbackIntegritySelector,
 } from '../src/common/editor/project-fallback-integrity.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
 
@@ -449,7 +449,7 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 });
 
 function clipFallbackProject(): AudioEditorProjectCurrent {
-	const targetSource = createVideoSourceV9({
+	const targetSource = createVideoSource({
 		id: CANONICAL_TARGET_SOURCE_ID,
 		storageKey: 'canonical-target-video-storage',
 		frameCount: 96_000,
@@ -461,7 +461,7 @@ function clipFallbackProject(): AudioEditorProjectCurrent {
 		hasAudio: true,
 		opaqueExtensions: { byteLength: 90 },
 	});
-	const fallbackSource = createVideoSourceV9({
+	const fallbackSource = createVideoSource({
 		id: FALLBACK_SOURCE_ID,
 		storageKey: 'rendered-target-video-storage',
 		frameCount: TARGET_DURATION,
@@ -473,7 +473,7 @@ function clipFallbackProject(): AudioEditorProjectCurrent {
 		hasAudio: false,
 		opaqueExtensions: { byteLength: 45 },
 	});
-	const unaffectedSource = createVideoSourceV9({
+	const unaffectedSource = createVideoSource({
 		id: UNAFFECTED_SOURCE_ID,
 		storageKey: 'unaffected-video-storage',
 		frameCount: 72_000,
@@ -484,21 +484,21 @@ function clipFallbackProject(): AudioEditorProjectCurrent {
 		hasAudio: false,
 		opaqueExtensions: { byteLength: 60 },
 	});
-	const audioSource = createAudioSourceV9({
+	const audioSource = createAudioSource({
 		id: AUDIO_SOURCE_ID,
 		storageKey: 'linked-audio-storage',
 		frameCount: TARGET_DURATION,
 		channelCount: 2,
 		sampleRate: SAMPLE_RATE,
 	});
-	const fallbackAudioSource = createAudioSourceV9({
+	const fallbackAudioSource = createAudioSource({
 		id: FALLBACK_AUDIO_SOURCE_ID,
 		storageKey: 'rendered-audio-mix-storage',
 		frameCount: PROJECT_END,
 		channelCount: 2,
 		sampleRate: SAMPLE_RATE,
 	});
-	const targetClip = createVideoClipV9({
+	const targetClip = createVideoClip({
 		id: TARGET_CLIP_ID,
 		sourceId: targetSource.id,
 		timelineStartFrame: TARGET_START,
@@ -514,13 +514,13 @@ function clipFallbackProject(): AudioEditorProjectCurrent {
 			id: 'pixelate-target', type: 'pixelate', enabled: true, params: { blockSize: 12 },
 		}],
 	});
-	const unaffectedClip = createVideoClipV9({
+	const unaffectedClip = createVideoClip({
 		id: 'unaffected-clip',
 		sourceId: unaffectedSource.id,
 		timelineStartFrame: TRANSITION_START,
 		durationFrames: PROJECT_END - TRANSITION_START,
 	});
-	const audioClip = createAudioClipV9({
+	const audioClip = createAudioClip({
 		id: 'linked-audio-clip',
 		sourceId: audioSource.id,
 		timelineStartFrame: TARGET_START,
@@ -536,12 +536,12 @@ function clipFallbackProject(): AudioEditorProjectCurrent {
 		sources: [targetSource, fallbackSource, unaffectedSource, audioSource, fallbackAudioSource],
 		clips: [targetClip, unaffectedClip, audioClip],
 		tracks: [
-			createVideoTrackV9({
+			createVideoTrack({
 				id: 'picture-track',
 				clipIds: [targetClip.id, unaffectedClip.id],
 				laneGroupId: 'camera-lane',
 			}),
-			createAudioTrackV9({
+			createAudioTrack({
 				id: 'linked-audio-track',
 				clipIds: [audioClip.id],
 				laneGroupId: 'camera-lane',

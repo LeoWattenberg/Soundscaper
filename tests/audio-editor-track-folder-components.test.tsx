@@ -6,7 +6,9 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { createDocumentTrackFolderSnapshot } from '../src/common/editor/controller/document-track-folder-snapshot.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { TrackFolderRow } from '../src/common/editor/ui/timeline/TrackFolderRow.jsx';
 import { planTrackListRows } from '../src/common/editor/ui/timeline/track-folder-ui-model.ts';
@@ -21,7 +23,7 @@ function foldersPlan() {
 			{ id: 'band', name: 'Band', mute: true },
 			{ id: 'drums', name: 'Drums', collapsed: true },
 		],
-		tracks: [createAudioTrackV10({ id: 'kick', name: 'Kick' })],
+		tracks: [createAudioTrack({ id: 'kick', name: 'Kick' })],
 		sequences: [{
 			id: 'main',
 			trackNodes: [

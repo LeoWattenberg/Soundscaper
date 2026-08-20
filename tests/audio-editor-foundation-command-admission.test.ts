@@ -8,14 +8,16 @@ import {
 	prepareOverwriteClipCommand,
 	prepareTransformClipsCommand,
 } from '../src/common/editor/commands.js';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioEditorProjectV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-	validateAudioEditorProjectV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 
@@ -23,7 +25,7 @@ const NOW = '2026-08-09T12:00:00.000Z';
 
 test('absolute video move destinations reject negative sample coordinates', () => {
 	const project = crossSequenceVideoProject();
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const before = structuredClone(project);
 
 	assert.throws(() => applyEditorCommand(project, {
@@ -51,7 +53,7 @@ test('absolute video move destinations reject negative sample coordinates', () =
 
 test('legacy overwrite adopts the destination sequence while preserving video extent', () => {
 	const project = crossSequenceVideoProject();
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const command = prepareOverwriteClipCommand(runtime, 'clip', {
 		trackId: 'track-30', changes: { timelineStartFrame: 5_000 },
 	});
@@ -74,17 +76,17 @@ test('legacy overwrite adopts the destination sequence while preserving video ex
 		['track-24', []],
 		['track-30', ['clip']],
 	]);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
 function crossSequenceVideoProject() {
 	const sampleRate = 44_100;
 	const sourceRate = { num: 24_000, den: 1_001 };
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'source', frameCount: sampleRate, sampleRate,
 		width: 16, height: 16, frameRate: sourceRate, sourceFrameCount: 24,
 	}, sampleRate);
-	const clip = createVideoClipV10({
+	const clip = createVideoClip({
 		id: 'clip', sourceId: source.id, sequenceId: 'sequence-24',
 		sequenceStartFrame: 2, sequenceFrameCount: 2,
 		sourceInFrame: 4, sourceFrameCount: 2,
@@ -93,7 +95,7 @@ function crossSequenceVideoProject() {
 		sequence: { id: 'sequence-24', rate: sourceRate },
 		source,
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'cross-sequence-command-admission', now: NOW, sampleRate,
 		sequences: [
 			{ id: 'sequence-24', rate: sourceRate, trackIds: ['track-24'] },
@@ -101,8 +103,8 @@ function crossSequenceVideoProject() {
 		],
 		primarySequenceId: 'sequence-24', sources: [source], clips: [clip],
 		tracks: [
-			createVideoTrackV10({ id: 'track-24', clipIds: ['clip'] }),
-			createVideoTrackV10({ id: 'track-30', clipIds: [] }),
+			createVideoTrack({ id: 'track-24', clipIds: ['clip'] }),
+			createVideoTrack({ id: 'track-30', clipIds: [] }),
 		],
 	});
 }

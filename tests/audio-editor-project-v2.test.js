@@ -1,16 +1,18 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-	AUDIO_EDITOR_PROJECT_SCHEMA_VERSION,
 	AUDIO_EDITOR_SOURCE_CHUNK_FRAMES,
-	createAudioClipV2,
-	createAudioEditorProjectV2,
-	createAudioSourceV2,
-	createAudioTrackV2,
-	createLabelTrackV2,
-	projectDurationFramesV2,
-} from '../src/common/editor/project-v2.js';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createLabelTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import { projectDurationFrames } from '../src/common/editor/project.js';
+import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import {
 	applyAudioEditorWorkspace,
 	createAudioEditorPreferencesV1,
@@ -26,8 +28,8 @@ import {
 const CREATED_AT = '2026-07-12T10:00:00.000Z';
 const UPDATED_AT = '2026-07-13T11:30:00.000Z';
 
-function richV2Fixture() {
-	const source = createAudioSourceV2({
+function richAudioFoundationFixture() {
+	const source = createAudioSource({
 		id: 'source-hires',
 		name: 'hires.wav',
 		storageKey: 'pcm/hires',
@@ -37,7 +39,7 @@ function richV2Fixture() {
 		originalSampleRate: 192_000,
 		sampleFormat: 'int24',
 	});
-	const clip = createAudioClipV2({
+	const clip = createAudioClip({
 		id: 'clip-hires',
 		sourceId: source.id,
 		title: 'Verse',
@@ -55,22 +57,22 @@ function richV2Fixture() {
 		preserveFormants: true,
 		renderCacheRevision: 4,
 	});
-	const audioTrack = createAudioTrackV2({
+	const audioTrack = createAudioTrack({
 		id: 'track-audio',
 		name: 'Hi-res clips',
 		displayMode: 'multiview',
 		clipIds: [clip.id],
 	});
-	const labelTrack = createLabelTrackV2({
+	const labelTrack = createLabelTrack({
 		id: 'track-labels',
 		name: 'Markers',
 		labels: [
-			{ id: 'label-point', title: 'Hit', startFrame: 1_000, endFrame: 1_000 },
-			{ id: 'label-range', title: 'Verse', startFrame: 1_200, endFrame: 2_400 },
+			{ id: 'label-point', title: 'Hit', startFrame: 1_000, endFrame: 1_000, color: 'auto', opaqueExtensions: {} },
+			{ id: 'label-range', title: 'Verse', startFrame: 1_200, endFrame: 2_400, color: 'auto', opaqueExtensions: {} },
 		],
 	});
-	return createAudioEditorProjectV2({
-		id: 'project-v2',
+	return createAudioEditorProjectV17({
+		id: 'project-audio-foundation',
 		title: 'Arbitrary rates',
 		revision: 3,
 		now: CREATED_AT,
@@ -98,21 +100,21 @@ function richV2Fixture() {
 	});
 }
 
-test('V2 defaults are explicit and editor projects accept arbitrary project and source rates', () => {
-	const empty = createAudioEditorProjectV2({ id: 'empty', now: CREATED_AT });
-	assert.equal(empty.schemaVersion, AUDIO_EDITOR_PROJECT_SCHEMA_VERSION);
+test('current audio-foundation defaults are explicit and accept arbitrary project and source rates', () => {
+	const empty = createAudioEditorProjectV17({ id: 'empty', now: CREATED_AT });
+	assert.equal(empty.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 	assert.equal(empty.sampleRate, 48_000);
 	assert.equal(empty.tempo.bpm, 120);
 	assert.deepEqual(empty.tempo.timeSignature, { numerator: 4, denominator: 4 });
 	assert.deepEqual(empty.selection, {
-		startFrame: 0, endFrame: 0, trackIds: [], clipIds: [], frequencyRange: null,
+		startFrame: 0, endFrame: 0, trackIds: [], clipIds: [], frequencyRange: null, annotationIds: [],
 	});
 	assert.equal(empty.snap.unit, 'seconds');
 	assert.equal(empty.timeDisplay.format, 'hh:mm:ss+milliseconds');
 	assert.deepEqual(empty.master.envelope, []);
 	assert.equal(empty.master.collapsed, true);
 
-	const project = richV2Fixture();
+	const project = richAudioFoundationFixture();
 	assert.equal(project.sampleRate, 96_000);
 	assert.equal(project.sources[0].sampleRate, 44_100);
 	assert.equal(project.sources[0].channelCount, 6);
@@ -124,11 +126,11 @@ test('V2 defaults are explicit and editor projects accept arbitrary project and 
 	}
 	assert.equal(project.clips[0].pitchCents, 300);
 	assert.equal(project.selection.frequencyRange.maximumFrequency, 40_000);
-	assert.equal(projectDurationFramesV2(project), 2_400);
+	assert.equal(projectDurationFrames(project), 2_400);
 });
 
 test('master and mixer buses normalize persistent envelope and collapsed row state without extending duration', () => {
-	const project = createAudioEditorProjectV2({
+	const project = createAudioEditorProjectV17({
 		id: 'output-envelope-project',
 		now: CREATED_AT,
 		master: {
@@ -156,20 +158,20 @@ test('master and mixer buses normalize persistent envelope and collapsed row sta
 	assert.deepEqual(project.mixer.sends[0].envelope, []);
 	assert.equal(project.mixer.sends[0].collapsed, true);
 	assert.equal(Object.hasOwn(project.mixer.groups[0], 'clipIds'), false);
-	assert.equal(projectDurationFramesV2(project), 0);
+	assert.equal(projectDurationFrames(project), 0);
 
-	assert.throws(() => createAudioEditorProjectV2({
+	assert.throws(() => createAudioEditorProjectV17({
 		id: 'bad-master-envelope', now: CREATED_AT,
 		master: { envelope: [{ frame: 1, value: 1 }, { frame: 1, value: 0.5 }] },
 	}), /strictly increasing frames/);
-	assert.throws(() => createAudioEditorProjectV2({
+	assert.throws(() => createAudioEditorProjectV17({
 		id: 'bad-send-envelope', now: CREATED_AT,
 		mixer: { sends: [{ id: 'send-1', envelope: [{ frame: 0, value: 17 }] }] },
 	}), /mixer\.send\.envelope\[0\]\.value/);
 });
 
 test('one audio track accepts sequential clips backed by mixed-rate mono and stereo sources', () => {
-	const mono = createAudioSourceV2({
+	const mono = createAudioSource({
 		id: 'mono-44k',
 		name: 'mono.wav',
 		storageKey: 'pcm/mono-44k',
@@ -178,7 +180,7 @@ test('one audio track accepts sequential clips backed by mixed-rate mono and ste
 		sampleRate: 44_100,
 		sampleFormat: 'int16',
 	});
-	const stereo = createAudioSourceV2({
+	const stereo = createAudioSource({
 		id: 'stereo-96k',
 		name: 'stereo.wav',
 		storageKey: 'pcm/stereo-96k',
@@ -188,19 +190,19 @@ test('one audio track accepts sequential clips backed by mixed-rate mono and ste
 		sampleFormat: 'float32',
 	});
 	const clips = [
-		createAudioClipV2({
+		createAudioClip({
 			id: 'mono-clip', sourceId: mono.id, timelineStartFrame: 0,
 			sourceStartFrame: 0, sourceDurationFrames: mono.frameCount, durationFrames: 48_000,
 		}),
-		createAudioClipV2({
+		createAudioClip({
 			id: 'stereo-clip', sourceId: stereo.id, timelineStartFrame: 48_000,
 			sourceStartFrame: 0, sourceDurationFrames: stereo.frameCount, durationFrames: 48_000,
 		}),
 	];
-	const track = createAudioTrackV2({
+	const track = createAudioTrack({
 		id: 'mixed-track', name: 'Mixed source formats', clipIds: clips.map((clip) => clip.id),
 	});
-	const project = createAudioEditorProjectV2({
+	const project = createAudioEditorProjectV17({
 		id: 'mixed-source-project',
 		title: 'Mixed source formats',
 		now: CREATED_AT,

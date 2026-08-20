@@ -1,9 +1,9 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 
 import {
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../../src/common/editor/project-v10.ts';
+	createAudioSource,
+	createAudioTrack,
+} from '../../src/common/editor/project-media-factory.ts';
 import { exportScapeProject, SCAPE_MIME_TYPE } from '../../src/common/editor/scape-project.js';
 import { createProjectStore } from '../../src/common/editor/storage.js';
 import { FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v19.ts';
@@ -166,11 +166,11 @@ async function createTakeCompArchive(productId) {
 		preferOpfs: false,
 	});
 	const sources = [
-		createAudioSourceV10({
+		createAudioSource({
 			id: 'source-a', storageKey: 'source-a', name: 'Take A',
 			frameCount: FRAME_COUNT, channelCount: 1, sampleRate: SAMPLE_RATE,
 		}),
-		createAudioSourceV10({
+		createAudioSource({
 			id: 'source-b', storageKey: 'source-b', name: 'Take B',
 			frameCount: FRAME_COUNT, channelCount: 1, sampleRate: SAMPLE_RATE,
 		}),
@@ -190,7 +190,7 @@ async function createTakeCompArchive(productId) {
 			sampleRate: SAMPLE_RATE,
 			masterChannels: 1,
 			sources,
-			tracks: [createAudioTrackV10({ id: TRACK_ID, name: 'Vocal', clipIds: [] })],
+			tracks: [createAudioTrack({ id: TRACK_ID, name: 'Vocal', clipIds: [] })],
 			sequences: [{ id: 'main-sequence', trackIds: [TRACK_ID] }],
 			primarySequenceId: 'main-sequence',
 			takeGroups: [{

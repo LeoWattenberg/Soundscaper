@@ -23,7 +23,10 @@ import {
 	FramescaperDesktopProjectLibraryV10TransferService,
 	type FramescaperDesktopProjectLibraryV10TransferHost,
 } from '../desktop/project-library-v10-transfer-service.ts';
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { FRAMESCAPER_VIDEO_PROXY_REQUIREMENT_V18 } from '../src/framescaper/editor-project-feature-requirements-v18.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
@@ -358,7 +361,7 @@ function projectDocument(): string {
 function attachedProject(): FramescaperProjectV18 {
 	const project = createFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, {
 		id: PROJECT_ID, title: 'Framescaper transport', now: '2026-08-13T10:00:00.000Z',
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: SOURCE_ID, name: 'Video', storageKey: SOURCE_ID, mimeType: 'video/mp4',
 			contentSha256: ORIGINAL_SHA, frameCount: 48_000, sampleFrameCount: 48_000,
 			sourceFrameCount: 1, frameRate: { num: 1, den: 1 }, width: 1920, height: 1080,
@@ -368,7 +371,7 @@ function attachedProject(): FramescaperProjectV18 {
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 1,
 			sourceInFrame: 0, sourceFrameCount: 1, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({ id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true })],
+		tracks: [createVideoTrack({ id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true })],
 		sequences: [{ id: 'main-sequence', rate: { num: 1, den: 1 }, trackIds: ['video-track'] }],
 		primarySequenceId: 'main-sequence',
 	});

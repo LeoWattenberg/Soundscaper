@@ -9,7 +9,9 @@ import {
 import { EditorControllerLifetime, EditorProjectGeneration } from '../../src/common/editor/controller/lifecycle.ts';
 import type { TakeCyclePassOperation } from '../../src/common/editor/controller/take-cycle-recording-service.ts';
 import { createEditorHistory, executeEditorCommand } from '../../src/common/editor/history.js';
-import { createAudioTrackV10 } from '../../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17, type AudioEditorProjectV17 } from '../../src/common/editor/project-v17.ts';
 import { createScapeDigest, scapeHex } from '../../src/common/editor/scape-archive-media.ts';
 import { serializeScapeProjectDocument } from '../../src/common/editor/scape-project-document.ts';
@@ -71,7 +73,7 @@ export async function createCycleProducedTakeFixture(
 			title: 'Cycle-produced cross-product project',
 			now: NOW,
 			sampleRate: 48_000,
-			tracks: [createAudioTrackV10({ id: TRACK_ID, name: 'Cycle vocal', clipIds: [] })],
+			tracks: [createAudioTrack({ id: TRACK_ID, name: 'Cycle vocal', clipIds: [] })],
 			sequences: [{ id: SEQUENCE_ID, trackIds: [TRACK_ID] }],
 			primarySequenceId: SEQUENCE_ID,
 		});

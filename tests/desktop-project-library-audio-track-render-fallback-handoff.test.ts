@@ -15,10 +15,10 @@ import type { EngineChunkSource } from '../src/common/editor/engine/types.ts';
 import { PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS } from '../src/common/editor/project-feature-audio-track-render-v1.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import {
 	HeadlessAudioBuffer,
@@ -244,30 +244,30 @@ test('fresh Framescaper acquires, plays, and delivers a track render fallback', 
 });
 
 function fallbackProjectFixture() {
-	const target = createAudioSourceV9({
+	const target = createAudioSource({
 		id: 'track-handoff-target', storageKey: 'physical/track-handoff-target',
 		name: 'Effected lane.wav', mimeType: 'audio/wav', frameCount: TARGET_CHANNELS[0].length,
 		channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: TARGET_CHANNELS[0].length,
 	});
-	const native = createAudioSourceV9({
+	const native = createAudioSource({
 		id: 'track-handoff-native', storageKey: 'physical/track-handoff-native',
 		name: 'Native lane.wav', mimeType: 'audio/wav', frameCount: NATIVE_CHANNELS[0].length,
 		channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: NATIVE_CHANNELS[0].length,
 	});
-	const render = createAudioSourceV9({
+	const render = createAudioSource({
 		id: 'track-handoff-render', storageKey: 'physical/track-handoff-render',
 		name: 'Track render.wav', mimeType: 'audio/wav', frameCount: RENDER_CHANNELS[0].length,
 		channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: RENDER_CHANNELS[0].length,
 	});
-	const targetClip = createAudioClipV9({
+	const targetClip = createAudioClip({
 		id: 'track-handoff-target-clip', sourceId: target.id,
 		title: 'Effected lane', timelineStartFrame: 2, durationFrames: target.frameCount,
 		sourceDurationFrames: target.frameCount,
 	});
-	const nativeClip = createAudioClipV9({
+	const nativeClip = createAudioClip({
 		id: NATIVE_CLIP_ID, sourceId: native.id,
 		title: 'Native lane', durationFrames: native.frameCount,
 		sourceDurationFrames: native.frameCount,
@@ -278,11 +278,11 @@ function fallbackProjectFixture() {
 		now: '2026-08-03T12:00:00.000Z', sampleRate: 48_000, masterChannels: 2,
 		sources: [target, native, render], clips: [targetClip, nativeClip],
 		tracks: [
-			createAudioTrackV9({
+			createAudioTrack({
 				id: TARGET_TRACK_ID, name: 'Effected lane', clipIds: [targetClip.id],
 				effects: [createEffect('compressor', { id: 'track-handoff-compressor' })],
 			}),
-			createAudioTrackV9({ id: NATIVE_TRACK_ID, name: 'Native lane', clipIds: [nativeClip.id] }),
+			createAudioTrack({ id: NATIVE_TRACK_ID, name: 'Native lane', clipIds: [nativeClip.id] }),
 		],
 		featureRequirements: { schemaVersion: 2, requirements: [{
 			id: 'publisher-track-render',

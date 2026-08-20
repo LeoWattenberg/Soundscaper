@@ -21,9 +21,9 @@ import {
 	type RationalInput,
 } from './timeline-time.ts';
 import {
-	admitAudioEditorProjectV9ValidationStructure,
-	AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
-} from './project-v9-validation-budget.ts';
+	admitAudioEditorProjectValidationStructure,
+	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+} from './project-validation-budget.ts';
 import { MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES } from './project-publication-admission.ts';
 
 interface ExportProject extends Readonly<Record<string, unknown>> {
@@ -464,9 +464,9 @@ function positiveSafeInteger(value: unknown, name: string): number {
 }
 
 function immutableProjectSnapshot(project: ExportProject): ExportProject {
-	admitAudioEditorProjectV9ValidationStructure(
+	admitAudioEditorProjectValidationStructure(
 		project,
-		AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+		AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 	);
 	assertSnapshotPayloadBound(project);
 	let snapshot: unknown;

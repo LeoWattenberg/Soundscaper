@@ -13,10 +13,10 @@ import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-fea
 import type { ProjectFeatureRequirementsManifest } from '../src/common/editor/project-feature-requirements.ts';
 import { reconcileProjectOwnedFeatureRequirements } from '../src/common/editor/project-owned-feature-requirements.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
 
 const NOW = '2026-08-20T12:00:00.000Z';
@@ -93,17 +93,17 @@ function frozenProject() {
 }
 
 function frozenTrack(id: string, automationLanes: readonly unknown[]) {
-	const liveSource = createAudioSourceV10({
+	const liveSource = createAudioSource({
 		id: `${id}-source`, name: `${id} source`, storageKey: `pcm:${id}`,
 		contentSha256: digest(id === 'voice' ? 'a' : 'b'), frameCount: 8, channelCount: 1,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const derivedSource = createAudioSourceV10({
+	const derivedSource = createAudioSource({
 		id: `${id}-freeze`, name: `${id} freeze`, storageKey: `derived:${id}`,
 		contentSha256: digest(id === 'voice' ? 'c' : 'd'), frameCount: 8, channelCount: 1,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const clip = createAudioClipV10({
+	const clip = createAudioClip({
 		id: `${id}-clip`, sourceId: liveSource.id, title: id,
 		timelineStartFrame: 0, durationFrames: 8, sourceStartFrame: 0, sourceDurationFrames: 8,
 	});
@@ -111,7 +111,7 @@ function frozenTrack(id: string, automationLanes: readonly unknown[]) {
 		id: `${id}-filter`, type: 'highpass', enabled: true,
 		params: { frequency: 200, q: 1 },
 	};
-	const editableTrack = createAudioTrackV10({
+	const editableTrack = createAudioTrack({
 		id, name: id, clipIds: [clip.id], effects: [effect],
 	});
 	const freezeDigests = computeAudioTrackFreezeDigestsV1({
@@ -120,7 +120,7 @@ function frozenTrack(id: string, automationLanes: readonly unknown[]) {
 		sourceContentIdentities: [{ sourceId: liveSource.id, contentSha256: liveSource.contentSha256! }],
 		automationLanes, tempoMap: null,
 	});
-	const track = createAudioTrackV10({
+	const track = createAudioTrack({
 		id, name: id, clipIds: [clip.id], effects: [effect],
 		audioFreeze: {
 			schemaVersion: 1, derivedSourceId: derivedSource.id, ...freezeDigests,

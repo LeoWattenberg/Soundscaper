@@ -15,7 +15,6 @@ import {
 	createUpdateTimelineAnnotationsCommand,
 } from '../src/common/editor/commands.js';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-import { createAudioEditorProjectV10 } from '../src/common/editor/project-v10.ts';
 import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../src/common/editor/project-owned-feature-requirements.ts';
 import type { TimelineAnnotationV11 } from '../src/common/editor/timeline-annotation.ts';
 import { createTimelineAnnotationRuntimeHandlers } from '../src/common/editor/commands/timeline-annotation-runtime.ts';
@@ -89,10 +88,13 @@ test('annotation commands are exact-current, atomic, and reconcile the reserved 
 		id !== PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.timelineAnnotations
 	)));
 
-	const historical = createAudioEditorProjectV10({ id: 'annotation-v10-reject', now: NOW });
 	assert.throws(
-		() => applyEditorCommand(historical, createAddTimelineAnnotationCommand(sampleMarker('no-v10', 10)), { now: NOW }),
-		/schema V11 or V12|schema 11 or 12/iu,
+		() => applyEditorCommand(
+			{ schemaVersion: 10 } as never,
+			createAddTimelineAnnotationCommand(sampleMarker('no-v10', 10)),
+			{ now: NOW },
+		),
+		/current audio editor project/iu,
 	);
 
 	const original = fixtureProject();

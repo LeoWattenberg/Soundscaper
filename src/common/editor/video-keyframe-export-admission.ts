@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
-	admitAudioEditorProjectV9ValidationStructure,
-} from './project-v9-validation-budget.ts';
+	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+	admitAudioEditorProjectValidationStructure,
+} from './project-validation-budget.ts';
 import { normalizeVideoKeyframeCurves } from './video-keyframe-curves.ts';
 
 export class VideoKeyframeExportUnavailableError extends Error {
@@ -41,8 +41,8 @@ export function animatedVideoKeyframeClipIdsForExport(
 		if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
 			throw new TypeError('video export clip.videoKeyframes must be an own enumerable data property.');
 		}
-		admitAudioEditorProjectV9ValidationStructure(
-			descriptor.value, AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+		admitAudioEditorProjectValidationStructure(
+			descriptor.value, AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 		);
 		const id = nonEmptyString(dataProperty(clip, 'id', 'video export clip'), 'video export clip.id');
 		const sequenceFrameCount = positiveSafeInteger(

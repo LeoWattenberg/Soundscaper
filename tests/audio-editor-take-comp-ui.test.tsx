@@ -7,9 +7,9 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import {
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import TakeCompDialog from '../src/common/editor/ui/dialogs/TakeCompDialog.tsx';
 import { createTakeCompApplicationMenuItems } from '../src/common/editor/ui/take-comp-application-menu.ts';
@@ -206,16 +206,16 @@ function project(locked = false, takeAName = 'Take A') {
 	return createAudioEditorProjectV17({
 		id: 'take-ui-project', title: 'Take UI project', now: NOW,
 		sources: [
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'source-a', storageKey: 'source-a', name: takeAName,
 				frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
-			createAudioSourceV10({
+			createAudioSource({
 				id: 'source-b', storageKey: 'source-b', name: 'Take B',
 				frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
 			}),
 		],
-		tracks: [createAudioTrackV10({ id: 'track-a', name: 'Vocal', clipIds: [], locked })],
+		tracks: [createAudioTrack({ id: 'track-a', name: 'Vocal', clipIds: [], locked })],
 		sequences: [{ id: 'main-sequence', trackIds: ['track-a'] }],
 		primarySequenceId: 'main-sequence',
 		takeGroups: [{

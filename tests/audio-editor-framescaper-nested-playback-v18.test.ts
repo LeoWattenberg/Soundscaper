@@ -6,12 +6,12 @@ import test from 'node:test';
 import { validateAudioEditorProjectV17 } from '../src/common/editor/project-v17-validation.ts';
 import { resolveActiveVideoLayers } from '../src/common/editor/video-timeline.js';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	materializeFramescaperNestedPlaybackFoundationV18,
 } from '../src/framescaper/editor-project-v18-nested-playback.ts';
@@ -210,7 +210,7 @@ function aliasesProject(): FramescaperProjectV18 {
 			sequenceId: 'child', sequenceStartFrame: 4, sequenceFrameCount: 12,
 			sourceInFrame: 10, sourceFrameCount: 12, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'child-track', name: 'Child track', clipIds: ['child-clip'], locked: false,
 		})],
 		sequences: [
@@ -255,9 +255,9 @@ function layeredProject(nested: boolean): FramescaperProjectV18 {
 			},
 		],
 		tracks: [
-			createVideoTrackV10({ id: 'v-top', name: 'V top', clipIds: ['top-clip'], locked: false }),
-			createVideoTrackV10({ id: 'v-bottom', name: 'V bottom', clipIds: ['bottom-clip'], locked: false }),
-			createVideoTrackV10({ id: 'v-child', name: 'V child', clipIds: ['child-clip'], locked: false }),
+			createVideoTrack({ id: 'v-top', name: 'V top', clipIds: ['top-clip'], locked: false }),
+			createVideoTrack({ id: 'v-bottom', name: 'V bottom', clipIds: ['bottom-clip'], locked: false }),
+			createVideoTrack({ id: 'v-child', name: 'V child', clipIds: ['child-clip'], locked: false }),
 		],
 		sequences: [
 			{ id: 'root', rate: { num: 24, den: 1 }, trackIds: ['v-top', 'v-bottom'] },
@@ -282,7 +282,7 @@ function fractionalSourceProject(): FramescaperProjectV18 {
 			sequenceId: 'child', sequenceStartFrame: 0, sequenceFrameCount: 3,
 			sourceInFrame: 0, sourceFrameCount: 2, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'fractional-track', name: 'Fractional track', clipIds: ['fractional-clip'], locked: false,
 		})],
 		sequences: [
@@ -302,13 +302,13 @@ function audioProject(): FramescaperProjectV18 {
 	const project = createFramescaperProjectV18(PROFILE, {
 		id: 'nested-playback-audio', title: 'Nested playback audio', now: NOW,
 		sources: [audioSource('nested-audio-source', 40_000)],
-		clips: [createAudioClipV10({
+		clips: [createAudioClip({
 			id: 'child-audio-clip', sourceId: 'nested-audio-source', title: 'Child audio',
 			timelineStartFrame: 8_000, durationFrames: 24_000,
 			sourceStartFrame: 100, sourceDurationFrames: 12_000,
 			anchor: 'sample', avLinkId: null,
 		})],
-		tracks: [createAudioTrackV10({
+		tracks: [createAudioTrack({
 			id: 'child-audio-track', name: 'Child audio', clipIds: ['child-audio-clip'], locked: false,
 		})],
 		sequences: [
@@ -332,13 +332,13 @@ function inexactAudioGridProject(): FramescaperProjectV18 {
 	return createFramescaperProjectV18(PROFILE, {
 		id: 'nested-playback-inexact-audio', title: 'Inexact audio grid', now: NOW,
 		sources: [audioSource('inexact-audio-source', 4_000)],
-		clips: [createAudioClipV10({
+		clips: [createAudioClip({
 			id: 'inexact-audio-clip', sourceId: 'inexact-audio-source', title: 'Inexact audio',
 			timelineStartFrame: 0, durationFrames: 2_000,
 			sourceStartFrame: 0, sourceDurationFrames: 2_000,
 			anchor: 'sample', avLinkId: null,
 		})],
-		tracks: [createAudioTrackV10({
+		tracks: [createAudioTrack({
 			id: 'inexact-audio-track', name: 'Inexact audio', clipIds: ['inexact-audio-clip'], locked: false,
 		})],
 		sequences: [
@@ -355,7 +355,7 @@ function inexactAudioGridProject(): FramescaperProjectV18 {
 }
 
 function audioSource(id: string, frameCount: number): Record<string, unknown> {
-	return createAudioSourceV10({
+	return createAudioSource({
 		id, name: id, storageKey: id, mimeType: 'audio/wav', frameCount,
 		channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 4_096,
@@ -367,7 +367,7 @@ function videoSource(
 	frameCount: number,
 	rate: Readonly<{ num: number; den: number }>,
 ): Record<string, unknown> {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id, name: id, storageKey: id, mimeType: 'video/mp4', contentSha256: SOURCE_SHA,
 		sampleFrameCount: Math.ceil(frameCount * 48_000 * rate.den / rate.num),
 		sourceFrameCount: frameCount, frameRate: rate, width: 1920, height: 1080,

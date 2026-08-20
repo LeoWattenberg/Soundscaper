@@ -5,16 +5,21 @@ import test from 'node:test';
 
 import type { VideoSourceTimingView } from '../src/common/editor/frame-canonical-slip-slide-domain.ts';
 import { planFrameCanonicalSlipSlide } from '../src/common/editor/frame-canonical-slip-slide-planner.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
-import { createAudioEditorProjectV15 } from '../src/common/editor/project-v15.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+	type MediaClipLeaf,
+	type MediaSourceLeaf,
+	type MediaTrackLeaf,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { isRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import {
 	videoFrameToSampleFrame,
@@ -312,7 +317,7 @@ test('one common slide clamp controls the triplet and its immutable start is a n
 	assert.deepEqual(noop.previews, []);
 });
 
-test('plans are deeply frozen and planning mutates neither branded V15 input nor timing evidence', () => {
+test('plans are deeply frozen and planning mutates neither branded current input nor timing evidence', () => {
 	const fixture = slipFixture({ vfr: true, sourceInFrame: 1, sourceFrameCount: 3 });
 	const projectBefore = JSON.stringify(fixture.project);
 	const timingBefore = timingSnapshot(fixture.timingViews);
@@ -331,7 +336,7 @@ test('plans are deeply frozen and planning mutates neither branded V15 input nor
 
 test('a persisted lock on one reached A/V lane refuses slip', () => {
 	const fixture = slipFixture({ linkedAudio: true, lockedAudio: true });
-	assert.equal(fixture.project.schemaVersion, 15);
+	assert.equal(fixture.project.schemaVersion, 17);
 	assert.equal(fixture.project.tracks.find(({ id }) => id === 'audio-track')?.locked, true);
 	assert.throws(() => planSlipSlide(fixture.project, fixture.timingViews, {
 		mode: 'slip', activeClipId: 'video', requestedSourceInFrame: 12,
@@ -346,7 +351,7 @@ function slipFixture(options: Readonly<{
 	sourceFrameCount?: number;
 }> = {}): Fixture {
 	const sourceFrameCount = options.vfr ? VERIFIED_VFR_INDEX.frameCount : 32;
-	const videoSource = createVideoSourceV10({
+	const videoSource = createVideoSource({
 		id: 'video-source', sampleFrameCount: boundary(sourceFrameCount, PAL), sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: PAL, sourceFrameCount,
 		...(options.vfr ? {
@@ -355,24 +360,24 @@ function slipFixture(options: Readonly<{
 		} : { timingDecision: { mode: 'conform-cfr-at-ingest', rate: PAL } }),
 	}, SAMPLE_RATE);
 	const avLinkId = options.linkedAudio ? 'center-link' : null;
-	const video = createVideoClipV10({
+	const video = createVideoClip({
 		id: 'video', sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame: 10, sequenceFrameCount: 4,
 		sourceInFrame: options.sourceInFrame ?? 10,
 		sourceFrameCount: options.sourceFrameCount ?? 4,
 		avLinkId,
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: PAL }, source: videoSource });
-	const clips = [video];
-	const sources = [videoSource];
-	const tracks = [createVideoTrackV10({
+	const clips: MediaClipLeaf[] = [video];
+	const sources: MediaSourceLeaf[] = [videoSource];
+	const tracks: MediaTrackLeaf[] = [createVideoTrack({
 		id: 'video-track', clipIds: ['video'], locked: false,
 		...(options.linkedAudio ? { laneGroupId: 'linked-lanes' } : {}),
 	})];
 	if (options.linkedAudio) {
-		const audioSource = createAudioSourceV10({
+		const audioSource = createAudioSource({
 			id: 'audio-source', frameCount: 200_000, sampleRate: 44_100, channelCount: 1,
 		});
-		clips.push(createAudioClipV10({
+		clips.push(createAudioClip({
 			id: 'audio', sourceId: 'audio-source', avLinkId,
 			timelineStartFrame: boundary(10, PAL), durationFrames: boundary(4, PAL),
 			sourceStartFrame: 10_000, sourceDurationFrames: 7_350,
@@ -380,7 +385,7 @@ function slipFixture(options: Readonly<{
 			fadeInFrames: 150, fadeOutFrames: 250,
 		}));
 		sources.push(audioSource);
-		tracks.push(createAudioTrackV10({
+		tracks.push(createAudioTrack({
 			id: 'audio-track', clipIds: ['audio'], locked: options.lockedAudio ?? false,
 			laneGroupId: 'linked-lanes',
 		}, SAMPLE_RATE));
@@ -398,7 +403,7 @@ function slipFixture(options: Readonly<{
 function slideFixture(options: Readonly<{
 	linkedAudio?: boolean;
 }> = {}): Fixture {
-	const videoSource = createVideoSourceV10({
+	const videoSource = createVideoSource({
 		id: 'video-source', sampleFrameCount: 800_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: { num: 60, den: 1 }, sourceFrameCount: 400,
 		timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: 60, den: 1 } },
@@ -409,7 +414,7 @@ function slideFixture(options: Readonly<{
 		{ role: 'right', sequenceStartFrame: 2, sequenceFrameCount: 2, sourceInFrame: 300, sourceFrameCount: 20 },
 	] as const;
 	const clips: Record<string, unknown>[] = [];
-	for (const specification of specifications) clips.push(createVideoClipV10({
+	for (const specification of specifications) clips.push(createVideoClip({
 		id: `${specification.role}-video`, sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame: specification.sequenceStartFrame,
 		sequenceFrameCount: specification.sequenceFrameCount,
@@ -417,13 +422,13 @@ function slideFixture(options: Readonly<{
 		sourceFrameCount: specification.sourceFrameCount,
 		avLinkId: options.linkedAudio ? `${specification.role}-link` : null,
 	}, { projectSampleRate: SAMPLE_RATE, sequence: { id: 'main', rate: NTSC }, source: videoSource }));
-	const sources = [videoSource];
-	const tracks = [createVideoTrackV10({
+	const sources: MediaSourceLeaf[] = [videoSource];
+	const tracks: MediaTrackLeaf[] = [createVideoTrack({
 		id: 'video-track', clipIds: specifications.map(({ role }) => `${role}-video`),
 		locked: false, ...(options.linkedAudio ? { laneGroupId: 'linked-lanes' } : {}),
 	})];
 	if (options.linkedAudio) {
-		const audioSource = createAudioSourceV10({
+		const audioSource = createAudioSource({
 			id: 'audio-source', frameCount: 200_000, sampleRate: SAMPLE_RATE, channelCount: 1,
 		});
 		const audioStarts = [10_000, 20_000, 30_000] as const;
@@ -433,7 +438,7 @@ function slideFixture(options: Readonly<{
 				specification.sequenceStartFrame + specification.sequenceFrameCount,
 				NTSC,
 			);
-			clips.splice(index * 2 + 1, 0, createAudioClipV10({
+			clips.splice(index * 2 + 1, 0, createAudioClip({
 				id: `${specification.role}-audio`, sourceId: 'audio-source',
 				avLinkId: `${specification.role}-link`, timelineStartFrame: start,
 				durationFrames: end - start, sourceStartFrame: audioStarts[index],
@@ -443,7 +448,7 @@ function slideFixture(options: Readonly<{
 			}));
 		}
 		sources.push(audioSource);
-		tracks.push(createAudioTrackV10({
+		tracks.push(createAudioTrack({
 			id: 'audio-track', clipIds: specifications.map(({ role }) => `${role}-audio`),
 			locked: false, laneGroupId: 'linked-lanes',
 		}, SAMPLE_RATE));
@@ -460,7 +465,7 @@ function commandProject(input: Readonly<{
 	clips: readonly Record<string, unknown>[];
 	tracks: readonly Record<string, unknown>[];
 }>): CommandProject {
-	const project = createAudioEditorProjectV15({
+	const project = createCurrentAudioEditorProject({
 		id: 'slip-slide', now: '2026-08-11T18:00:00.000Z', sampleRate: SAMPLE_RATE,
 		sequences: [{
 			id: 'main', rate: input.rate,
@@ -468,10 +473,10 @@ function commandProject(input: Readonly<{
 		}],
 		primarySequenceId: 'main', sources: input.sources, clips: input.clips, tracks: input.tracks,
 	});
-	const projection = projectV10ForCommand(
+	const projection = projectForCommand(
 		project as unknown as Record<string, unknown>,
 	) as unknown as CommandProject;
-	assert.equal(projection.schemaVersion, 15);
+	assert.equal(projection.schemaVersion, 17);
 	assert.equal(isRuntimeProjectProjection(projection), true);
 	assert.ok(projection.tracks.every(({ locked }) => typeof locked === 'boolean'));
 	return projection;

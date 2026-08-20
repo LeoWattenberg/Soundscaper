@@ -18,7 +18,9 @@ import {
 	redoEditorCommand,
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
@@ -57,9 +59,9 @@ function folderedProject(): AudioEditorProjectCurrent {
 			{ id: 'drums', name: 'Drums' },
 		],
 		tracks: [
-			createAudioTrackV10({ id: 'kick', name: 'Kick' }),
-			createAudioTrackV10({ id: 'bass', name: 'Bass' }),
-			createAudioTrackV10({ id: 'vocals', name: 'Vocals' }),
+			createAudioTrack({ id: 'kick', name: 'Kick' }),
+			createAudioTrack({ id: 'bass', name: 'Bass' }),
+			createAudioTrack({ id: 'vocals', name: 'Vocals' }),
 		],
 		sequences: [{
 			id: 'main',
@@ -263,7 +265,7 @@ test('legacy structural commands compose with folder-aware ones on a foldered do
 test('a folder created mid-batch cannot follow a root-hierarchy structural edit', () => {
 	const rootOnly = createCurrentAudioEditorProject({
 		id: 'root-only', title: 'Root only', now: NOW, primarySequenceId: 'main',
-		tracks: [createAudioTrackV10({ id: 'vocals', name: 'Vocals' })],
+		tracks: [createAudioTrack({ id: 'vocals', name: 'Vocals' })],
 		sequences: [{ id: 'main', trackNodes: [{ kind: 'track', id: 'vocals', parentFolderId: null }] }],
 	});
 	assert.throws(

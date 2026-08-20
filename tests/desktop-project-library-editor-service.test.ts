@@ -17,10 +17,10 @@ import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { DesktopLibraryProjectStore } from '../desktop/project-library-projects.ts';
 import { SharedDesktopProjectLibrary } from '../desktop/project-library.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	parseScapeProjectDocument,
 	SCAPE_PROJECT_BINARY_HARD_LIMITS,
@@ -152,7 +152,7 @@ test('editor service requires a bounded exact-current root envelope without publ
 		createEntryId: () => 'opaque-entry-0002',
 	});
 	const current = parseScapeProjectDocument(currentDocument(1)) as Record<string, unknown>;
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'domain-source-1',
 		name: 'Domain source',
 		storageKey: 'domain-source-storage-1',
@@ -167,12 +167,12 @@ test('editor service requires a bounded exact-current root envelope without publ
 		now: NOW,
 		sources: [source],
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'domain-clip-1',
 		sourceId: source.id,
 		durationFrames: 48_000,
 	});
-	const track = createAudioTrackV9({ id: 'domain-track-1', clipIds: [clip.id] });
+	const track = createAudioTrack({ id: 'domain-track-1', clipIds: [clip.id] });
 	const withGraph = createCurrentAudioEditorProject({
 		id: 'domain-graph-project-1',
 		title: 'Domain graph project',
@@ -389,7 +389,7 @@ test('canonical source references remain metadata-only and do not claim managed 
 		now: () => 10_000,
 		createEntryId: () => 'opaque-entry-0003',
 	});
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'retained-source-1',
 		name: 'Retained source',
 		storageKey: 'indexeddb-source-1',

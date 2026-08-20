@@ -15,10 +15,10 @@ import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createEditorController } from '../src/common/editor/facade.ts';
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { normalizeProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
@@ -234,22 +234,22 @@ test('fresh Soundscaper acquires, plays, and delivers an unknown whole-project v
 });
 
 function fallbackProjectFixture() {
-	const original = createVideoSourceV9({
+	const original = createVideoSource({
 		id: 'video-fallback-handoff-original', storageKey: 'physical/video-fallback-handoff-original',
 		name: 'Editable original.mp4', mimeType: 'video/mp4', frameCount: 120,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 		videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	});
-	const fallback = createVideoSourceV9({
+	const fallback = createVideoSource({
 		id: 'video-fallback-handoff-render', storageKey: 'physical/video-fallback-handoff-render',
 		name: 'Rendered fallback.mp4', mimeType: 'video/mp4', frameCount: 120,
 		sampleRate: 48_000, width: 1_280, height: 720, frameRate: 30,
 		videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	});
-	const clip = createVideoClipV9({
+	const clip = createVideoClip({
 		id: 'video-fallback-handoff-original-clip', sourceId: original.id,
-		title: 'Editable original', durationFrames: original.frameCount,
-		sourceDurationFrames: original.frameCount,
+		title: 'Editable original', durationFrames: original.sampleFrameCount,
+		sourceDurationFrames: original.sampleFrameCount,
 		videoEffects: [createVideoEffect('pixelate', { id: 'video-fallback-handoff-pixelate' })],
 	});
 	const fallbackSha256 = digest(FALLBACK_BYTES);
@@ -257,7 +257,7 @@ function fallbackProjectFixture() {
 		id: 'video-rendered-fallback-handoff', title: 'Video rendered fallback handoff', revision: 4,
 		now: '2026-08-02T12:00:00.000Z', sampleRate: 48_000,
 		sources: [original, fallback], clips: [clip],
-		tracks: [createVideoTrackV9({
+		tracks: [createVideoTrack({
 			id: 'video-fallback-handoff-original-track', name: 'Editable effects', clipIds: [clip.id],
 		})],
 		featureRequirements: { schemaVersion: 1, requirements: [{
@@ -314,7 +314,7 @@ function projectStore(databaseName: string, bridge: DesktopSharedProjectBridge) 
 
 async function writeVideo(
 	store: AudioEditorProjectStore,
-	source: ReturnType<typeof createVideoSourceV9>,
+	source: ReturnType<typeof createVideoSource>,
 	bytes: Uint8Array,
 ): Promise<void> {
 	const body = new ArrayBuffer(bytes.byteLength);

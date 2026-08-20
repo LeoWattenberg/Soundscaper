@@ -9,13 +9,13 @@ import {
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 
 const NOW = '2026-08-19T12:00:00.000Z';
@@ -28,7 +28,7 @@ const SEQUENCE = Object.freeze({ id: 'main', rate: Object.freeze({ num: 30, den:
  * leaves 200 frames, and the two references land at 0 and 100.
  */
 function project() {
-	const source = createAudioSourceV10({
+	const source = createAudioSource({
 		kind: 'audio',
 		id: 'src',
 		storageKey: 'src',
@@ -39,7 +39,7 @@ function project() {
 		channelCount: 2,
 		sampleRate: SAMPLE_RATE,
 	});
-	const timeline = createAudioClipV10({
+	const timeline = createAudioClip({
 		id: 'timeline-clip',
 		sourceId: 'src',
 		timelineStartFrame: 0,
@@ -47,7 +47,7 @@ function project() {
 		sourceStartFrame: 400,
 		sourceDurationFrames: 100,
 	});
-	const binned = createAudioClipV10({
+	const binned = createAudioClip({
 		id: 'bin-clip',
 		sourceId: 'src',
 		timelineStartFrame: 0,
@@ -64,7 +64,7 @@ function project() {
 		primarySequenceId: SEQUENCE.id,
 		sources: [source],
 		clips: [timeline],
-		tracks: [createAudioTrackV10({ id: 'audio-track', clipIds: ['timeline-clip'] })],
+		tracks: [createAudioTrack({ id: 'audio-track', clipIds: ['timeline-clip'] })],
 		projectBin: { clips: [binned] },
 	});
 }
@@ -192,7 +192,7 @@ test('the command refuses a range the trimmed media cannot hold, and an unknown 
 
 /** The same rewrite against video, where a length is two numbers, not one. */
 function videoProject() {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		kind: 'video',
 		id: 'vid',
 		storageKey: 'vid',
@@ -217,7 +217,7 @@ function videoProject() {
 		hasAudio: false,
 	}, SAMPLE_RATE);
 	const context = { projectSampleRate: SAMPLE_RATE, sequence: SEQUENCE, source };
-	const clip = createVideoClipV10({
+	const clip = createVideoClip({
 		id: 'video-clip',
 		sourceId: 'vid',
 		sequenceId: SEQUENCE.id,
@@ -234,7 +234,7 @@ function videoProject() {
 		primarySequenceId: SEQUENCE.id,
 		sources: [source],
 		clips: [clip],
-		tracks: [createVideoTrackV10({ id: 'video-track', clipIds: ['video-clip'] })],
+		tracks: [createVideoTrack({ id: 'video-track', clipIds: ['video-clip'] })],
 		projectBin: { clips: [] },
 	});
 }

@@ -15,7 +15,9 @@ import {
 import { DesktopSharedProjectLibraryService } from '../desktop/project-library-editor-service.ts';
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
@@ -33,8 +35,8 @@ test('fresh desktop library V9 saves and reopens current folder hierarchy byte-e
 		revision: 1,
 		now: NOW,
 		tracks: [
-			createAudioTrackV10({ id: 'track-a', name: 'Track A', locked: true }),
-			createAudioTrackV10({ id: 'track-b', name: 'Track B' }),
+			createAudioTrack({ id: 'track-a', name: 'Track A', locked: true }),
+			createAudioTrack({ id: 'track-b', name: 'Track B' }),
 		],
 		trackFolders: [
 			{ id: 'folder-a', name: 'Folder A', collapsed: true, height: 72 },

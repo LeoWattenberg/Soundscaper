@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	createVideoClipV9,
-	createVideoSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createVideoClip,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import {
 	DESKTOP_SHARED_VIDEO_ENCODING,
@@ -59,7 +59,7 @@ test('a source-shape-mismatched linked binding cannot authorize a shared load', 
 	const boundSource = videoSource();
 	const boundProject = videoProject(boundSource);
 	const linked = await linkedOriginalFixture(boundProject, boundSource);
-	const changedSource = createVideoSourceV9({ ...boundSource, width: 1_280 });
+	const changedSource = createVideoSource({ ...boundSource, width: 1_280 });
 	const changedProject = videoProject(changedSource);
 	const owned = guardedOwnedMediaStore();
 	const repository = sharedRepository({
@@ -127,7 +127,7 @@ test('prepareHandoff publishes a linked original Blob through the maintained man
 	assert.deepEqual(owned.calls, []);
 });
 
-type VideoSource = ReturnType<typeof createVideoSourceV9>;
+type VideoSource = ReturnType<typeof createVideoSource>;
 
 interface LinkedDesktopRepositoryOptions extends Omit<
 	DesktopSharedProjectRepositoryOptions,
@@ -144,7 +144,7 @@ function sharedRepository(options: LinkedDesktopRepositoryOptions): DesktopShare
 }
 
 function videoSource(): VideoSource {
-	return createVideoSourceV9({
+	return createVideoSource({
 		id: 'linked-workflow-source',
 		storageKey: 'linked-workflow-storage',
 		name: 'Linked workflow video.mp4',
@@ -161,11 +161,11 @@ function videoSource(): VideoSource {
 }
 
 function videoProject(source: VideoSource): AudioEditorProjectCurrent {
-	const clip = createVideoClipV9({
+	const clip = createVideoClip({
 		id: 'linked-workflow-clip',
 		sourceId: source.id,
-		durationFrames: source.frameCount,
-		sourceDurationFrames: source.frameCount,
+		durationFrames: source.sampleFrameCount,
+		sourceDurationFrames: source.sampleFrameCount,
 		binItemId: 'linked-workflow-bin-item',
 	});
 	return createCurrentAudioEditorProject({

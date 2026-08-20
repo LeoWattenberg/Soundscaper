@@ -396,6 +396,7 @@ test('new and migrated projects preserve preparation and read-only semantics', a
 	const fixture = createFixture();
 	await fixture.service.newProject({ title: '   ', sampleRate: 44_100 });
 	assert.deepEqual([fixture.getProject()?.title, fixture.getProject()?.sampleRate, fixture.getProject()?.tracks[0]?.name], ['Untitled', 44_100, 'Track 1']);
+	assert.equal(Object.hasOwn(fixture.getProject()?.tracks[0] ?? {}, 'schemaVersion'), false);
 	assert.deepEqual(fixture.assignedTracks, ['prepared-track']);
 
 	fixture.setMigrationReadOnly(true);

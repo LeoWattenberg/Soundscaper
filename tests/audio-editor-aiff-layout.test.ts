@@ -10,7 +10,9 @@ import {
 	inspectAiffLayout,
 } from '../src/common/editor/aiff.js';
 import { createExportPlan } from '../src/common/editor/export.js';
-import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
+import {
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 test('AIFF layout reports exact integer PCM geometry shared by the encoder', () => {
 	const layout = inspectAiffLayout({
@@ -105,7 +107,7 @@ test('AIFF layout enforces the unsigned 32-bit FORM boundary without PCM allocat
 });
 
 test('AIFF export plans expose the exact encoder file size', () => {
-	const project = createAudioEditorProjectV2({
+	const project = createCurrentAudioEditorProject({
 		id: 'exact-aiff-layout',
 		title: 'Exact AIFF layout',
 		now: '2026-07-30T00:00:00.000Z',

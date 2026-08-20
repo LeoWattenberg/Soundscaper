@@ -21,9 +21,9 @@ const {
 	createAudioEditorController,
 } = await import('../src/common/editor/app.js');
 const {
-	createAudioClipV4,
-	createVideoClipV4,
-} = await import('../src/common/editor/project-v4.js');
+	createAudioClip,
+	createVideoClip,
+} = await import('../src/common/editor/project-media-factory.ts');
 const {
 	createCurrentAudioEditorProject,
 	validateCurrentAudioEditorProject,
@@ -644,7 +644,7 @@ test('linked video moves create crossfades with aligned audio and reject a third
 	const projectInput = structuredClone(fixture.project);
 	for (const [suffix, timelineStartFrame] of [['second', 48_000], ['third', 96_000]]) {
 		const avLinkId = `${suffix}-av-link`;
-		const videoClip = createVideoClipV4({
+		const videoClip = createVideoClip({
 			id: `${suffix}-timeline-video`,
 			sourceId: fixture.videoSource.id,
 			title: `${suffix} video`,
@@ -653,8 +653,8 @@ test('linked video moves create crossfades with aligned audio and reject a third
 			sourceDurationFrames: 48_000,
 			durationFrames: 48_000,
 			avLinkId,
-		});
-		const audioClip = createAudioClipV4({
+		}, { projectSampleRate: projectInput.sampleRate, sequence: projectInput.sequences[0], source: fixture.videoSource });
+		const audioClip = createAudioClip({
 			id: `${suffix}-timeline-audio`,
 			sourceId: fixture.audioSource.id,
 			title: `${suffix} audio`,

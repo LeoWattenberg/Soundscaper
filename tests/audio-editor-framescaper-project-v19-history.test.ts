@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	DEFAULT_VIDEO_CLIP_COMPOSITION,
 	normalizeVideoClipComposition,
@@ -154,7 +157,7 @@ function projectFixture() {
 		title: 'Framescaper V19 commands',
 		now: CREATED,
 		sources: [
-			createVideoSourceV10({
+			createVideoSource({
 				id: 'video-source',
 				name: 'Video',
 				storageKey: 'video-source',
@@ -193,7 +196,7 @@ function projectFixture() {
 			}],
 		},
 		tracks: [
-			createVideoTrackV10({
+			createVideoTrack({
 				id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,
 			}),
 			{

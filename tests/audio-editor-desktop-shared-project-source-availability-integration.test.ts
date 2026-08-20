@@ -6,12 +6,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import {
@@ -28,7 +28,7 @@ test('real desktop store adapters admit bound, readable recipient audio and vide
 	const databaseName = `shared-source-availability-${Date.now()}-${Math.random()}`;
 	const local = createProjectStore({ indexedDB: null, preferOpfs: false, databaseName });
 	context.after(async () => { await local.close(); });
-	const audio = createAudioSourceV9({
+	const audio = createAudioSource({
 		id: 'logical-bound-audio',
 		storageKey: 'physical-bound-audio',
 		name: 'Bound audio.wav',
@@ -40,7 +40,7 @@ test('real desktop store adapters admit bound, readable recipient audio and vide
 		sampleFormat: 'float32',
 		chunkFrames: 2,
 	});
-	const video = createVideoSourceV9({
+	const video = createVideoSource({
 		id: 'logical-bound-video',
 		storageKey: 'physical-bound-video',
 		name: 'Bound video.mp4',
@@ -53,10 +53,10 @@ test('real desktop store adapters admit bound, readable recipient audio and vide
 		videoCodec: 'h264',
 		hasAudio: false,
 	});
-	const audioClip = createAudioClipV9({
+	const audioClip = createAudioClip({
 		id: 'bound-audio-clip', sourceId: audio.id, durationFrames: 3,
 	});
-	const videoBinClip = createVideoClipV9({
+	const videoBinClip = createVideoClip({
 		id: 'bound-video-bin-clip',
 		sourceId: video.id,
 		durationFrames: 48,
@@ -69,7 +69,7 @@ test('real desktop store adapters admit bound, readable recipient audio and vide
 		now,
 		sources: [audio, video],
 		clips: [audioClip],
-		tracks: [createAudioTrackV9({ id: 'bound-audio-track', clipIds: [audioClip.id] })],
+		tracks: [createAudioTrack({ id: 'bound-audio-track', clipIds: [audioClip.id] })],
 		projectBin: { clips: [videoBinClip] },
 	});
 
@@ -132,7 +132,7 @@ test('real desktop store adapters admit bound, readable recipient audio and vide
 });
 
 test('digestless recipient video rejects before body read without changing the prior revision', async () => {
-	const source = createVideoSourceV9({
+	const source = createVideoSource({
 		id: 'digestless-logical-video',
 		storageKey: 'digestless-physical-video',
 		name: 'Digestless video.mp4',
@@ -145,7 +145,7 @@ test('digestless recipient video rejects before body read without changing the p
 		videoCodec: 'h264',
 		hasAudio: false,
 	});
-	const clip = createVideoClipV9({
+	const clip = createVideoClip({
 		id: 'digestless-video-clip',
 		sourceId: source.id,
 		durationFrames: 1,
@@ -203,14 +203,14 @@ test('digestless recipient video rejects before body read without changing the p
 });
 
 test('repository cancellation abandons stalled PCM cleanup without changing the prior revision', async () => {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'cancelled-logical-audio',
 		storageKey: 'cancelled-physical-audio',
 		frameCount: 1,
 		channelCount: 1,
 		chunkFrames: 1,
 	});
-	const clip = createAudioClipV9({ id: 'cancelled-clip', sourceId: source.id, durationFrames: 1 });
+	const clip = createAudioClip({ id: 'cancelled-clip', sourceId: source.id, durationFrames: 1 });
 	const project = (revision: number) => createCurrentAudioEditorProject({
 		id: 'cancelled-shared-project',
 		title: 'Cancelled shared project',
@@ -218,7 +218,7 @@ test('repository cancellation abandons stalled PCM cleanup without changing the 
 		now: revision === 1 ? PRIOR_NOW : LATEST_NOW,
 		sources: [source],
 		clips: [clip],
-		tracks: [createAudioTrackV9({ id: 'cancelled-track', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'cancelled-track', clipIds: [clip.id] })],
 	});
 	const local = new ProjectRepository({
 		memory: getMemoryDatabase(`cancelled-shared-load-${Date.now()}-${Math.random()}`),

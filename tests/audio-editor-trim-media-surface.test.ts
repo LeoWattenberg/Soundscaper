@@ -11,10 +11,10 @@ import {
 	createCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
 import {
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 interface MenuItem {
 	readonly id: string;
@@ -145,7 +145,7 @@ test('a project with no FFmpeg answers null rather than pretending', async () =>
 });
 
 function project() {
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		kind: 'video', id: 'vid', storageKey: 'vid', name: 'take.mp4', mimeType: 'video/mp4',
 		frameCount: SAMPLE_RATE * 10, sampleRate: SAMPLE_RATE, width: 640, height: 360,
 		frameRate: SEQUENCE.rate, sourceFrameCount: 300, timingAsset: null,
@@ -160,11 +160,11 @@ function project() {
 		id: 'trim-surface-project', now: NOW, sampleRate: SAMPLE_RATE,
 		sequences: [SEQUENCE], primarySequenceId: SEQUENCE.id,
 		sources: [source],
-		clips: [createVideoClipV10({
+		clips: [createVideoClip({
 			id: 'v1', sourceId: 'vid', sequenceId: SEQUENCE.id,
 			sequenceStartFrame: 0, sequenceFrameCount: 60, sourceInFrame: 120, sourceFrameCount: 60,
 		}, context)],
-		tracks: [createVideoTrackV10({ id: 'video-track', clipIds: ['v1'] })],
+		tracks: [createVideoTrack({ id: 'video-track', clipIds: ['v1'] })],
 		projectBin: { clips: [] },
 	}) as unknown as Readonly<Record<string, unknown>>;
 }

@@ -14,10 +14,10 @@ import type { DesktopLibraryOwner } from '../desktop/project-library-contract.ts
 import { DesktopProjectLibraryHost } from '../desktop/project-library-host.ts';
 import { createEditorController } from '../src/common/editor/facade.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	parseScapeProjectDocument,
 	serializeScapeProjectDocument,
@@ -105,7 +105,7 @@ for (const container of LINKED_PCM_CONTAINERS) test(
 		now: () => 30_000,
 		createEntryId: () => 'managed-handoff-entry-0001',
 	});
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'managed-handoff-audio-source',
 		storageKey: 'managed-handoff-audio-source',
 		name: `Managed handoff${container.extension}`,
@@ -117,14 +117,14 @@ for (const container of LINKED_PCM_CONTAINERS) test(
 		sampleFormat: 'float32',
 		chunkFrames: PCM_SAMPLES.length,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'managed-handoff-audio-clip',
 		sourceId: source.id,
 		title: 'Managed handoff clip',
 		durationFrames: PCM_SAMPLES.length,
 		sourceDurationFrames: PCM_SAMPLES.length,
 	});
-	const track = createAudioTrackV9({
+	const track = createAudioTrack({
 		id: 'managed-handoff-audio-track',
 		name: 'Managed handoff audio',
 		clipIds: [clip.id],

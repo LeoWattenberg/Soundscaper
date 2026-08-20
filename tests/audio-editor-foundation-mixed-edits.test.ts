@@ -10,18 +10,20 @@ import {
 	prepareRangeDeleteCommand,
 	prepareTransformClipsCommand,
 } from '../src/common/editor/commands.js';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioEditorProjectV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	loadAudioEditorProjectV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-	validateAudioEditorProjectV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+	loadCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 
@@ -30,7 +32,7 @@ const RATE = { num: 24, den: 1 };
 
 test('mixed ripple conforms one range for unlinked audio and video lanes', () => {
 	const project = mixedProject();
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const command = prepareRangeDeleteCommand(runtime, {
 		startFrame: 0,
 		endFrame: 800,
@@ -44,13 +46,13 @@ test('mixed ripple conforms one range for unlinked audio and video lanes', () =>
 		resolved.clips.map((clip) => [clip.id, clip.timelineStartFrame]),
 		[['video', 3_675], ['audio', 3_675]],
 	);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
 test('sub-frame mixed ripple is one no-op even when the range intersects clips', () => {
 	const project = mixedProject({ sequenceStartFrame: 0, audioStartFrame: 0, frameCount: 1 });
 	const before = structuredClone(project);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const command = prepareRangeDeleteCommand(runtime, {
 		startFrame: 0,
 		endFrame: 800,
@@ -60,24 +62,24 @@ test('sub-frame mixed ripple is one no-op even when the range intersects clips',
 	const edited = applyEditorCommand(project, command as AudioEditorCommand, { now: NOW });
 
 	assert.deepEqual(edited.clips, before.clips);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
 test('grouped video move reuses one frame delta instead of rounding each absolute start', () => {
 	const source = videoSource();
-	const clips = [0, 3].map((sequenceStartFrame, index) => createVideoClipV10({
+	const clips = [0, 3].map((sequenceStartFrame, index) => createVideoClip({
 		id: `video-${String(index + 1)}`, sourceId: source.id, sequenceId: 'main',
 		sequenceStartFrame, sequenceFrameCount: 1,
 		sourceInFrame: index, sourceFrameCount: 1,
 		groupId: 'group',
 	}, { projectSampleRate: 44_100, sequence: { id: 'main', rate: RATE }, source }));
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'grouped-move', now: NOW, sampleRate: 44_100,
 		sequences: [{ id: 'main', rate: RATE }], primarySequenceId: 'main',
 		sources: [source], clips,
-		tracks: [createVideoTrackV10({ id: 'video-track', clipIds: ['video-1', 'video-2'] })],
+		tracks: [createVideoTrack({ id: 'video-track', clipIds: ['video-1', 'video-2'] })],
 	});
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const runtimeClips = runtime.clips as Array<Record<string, number | string>>;
 	const command = prepareTransformClipsCommand(runtime, runtimeClips.map((clip) => ({
 		clipId: String(clip.id),
@@ -90,33 +92,33 @@ test('grouped video move reuses one frame delta instead of rounding each absolut
 		edited.clips.map((clip) => [clip.id, clip.sequenceStartFrame]),
 		[['video-1', 1], ['video-2', 4]],
 	);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
 test('mixed grouped move gives unlinked audio the video operation delta', () => {
 	const video = videoSource();
-	const audio = createAudioSourceV10({ id: 'audio-source', frameCount: 44_100, channelCount: 1, sampleRate: 44_100 });
-	const project = createAudioEditorProjectV10({
+	const audio = createAudioSource({ id: 'audio-source', frameCount: 44_100, channelCount: 1, sampleRate: 44_100 });
+	const project = createCurrentAudioEditorProject({
 		id: 'mixed-grouped-move', now: NOW, sampleRate: 44_100,
 		sequences: [{ id: 'main', rate: RATE }], primarySequenceId: 'main',
 		sources: [video, audio],
 		clips: [
-			createVideoClipV10({
+			createVideoClip({
 				id: 'video', sourceId: video.id, sequenceId: 'main',
 				sequenceStartFrame: 0, sequenceFrameCount: 1,
 				sourceInFrame: 0, sourceFrameCount: 1, groupId: 'group',
 			}, { projectSampleRate: 44_100, sequence: { id: 'main', rate: RATE }, source: video }),
-			createAudioClipV10({
+			createAudioClip({
 				id: 'audio', sourceId: audio.id, timelineStartFrame: 0,
 				durationFrames: 1_838, sourceDurationFrames: 1_838, groupId: 'group',
 			}),
 		],
 		tracks: [
-			createVideoTrackV10({ id: 'video-track', clipIds: ['video'] }),
-			createAudioTrackV10({ id: 'audio-track', clipIds: ['audio'] }, 44_100),
+			createVideoTrack({ id: 'video-track', clipIds: ['video'] }),
+			createAudioTrack({ id: 'audio-track', clipIds: ['audio'] }, 44_100),
 		],
 	});
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const command = prepareTransformClipsCommand(runtime, [
 		{ clipId: 'video', trackId: 'video-track', changes: { timelineStartFrame: 2_756 } },
 		{ clipId: 'audio', trackId: 'audio-track', changes: { timelineStartFrame: 2_756 } },
@@ -128,30 +130,30 @@ test('mixed grouped move gives unlinked audio the video operation delta', () => 
 		resolved.clips.map((clip) => [clip.id, clip.timelineStartFrame]),
 		[['video', 1_838], ['audio', 1_838]],
 	);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
 test('separate batched moves do not couple unrelated equal numeric deltas', () => {
 	const video = videoSource();
-	const audio = createAudioSourceV10({ id: 'audio-source', frameCount: 44_100, channelCount: 1, sampleRate: 44_100 });
-	const project = createAudioEditorProjectV10({
+	const audio = createAudioSource({ id: 'audio-source', frameCount: 44_100, channelCount: 1, sampleRate: 44_100 });
+	const project = createCurrentAudioEditorProject({
 		id: 'independent-batch-moves', now: NOW, sampleRate: 44_100,
 		sequences: [{ id: 'main', rate: RATE }], primarySequenceId: 'main',
 		sources: [video, audio],
 		clips: [
-			createVideoClipV10({
+			createVideoClip({
 				id: 'video', sourceId: video.id, sequenceId: 'main',
 				sequenceStartFrame: 0, sequenceFrameCount: 1,
 				sourceInFrame: 0, sourceFrameCount: 1,
 			}, { projectSampleRate: 44_100, sequence: { id: 'main', rate: RATE }, source: video }),
-			createAudioClipV10({
+			createAudioClip({
 				id: 'audio', sourceId: audio.id, timelineStartFrame: 10_000,
 				durationFrames: 100, sourceDurationFrames: 100,
 			}),
 		],
 		tracks: [
-			createVideoTrackV10({ id: 'video-track', clipIds: ['video'] }),
-			createAudioTrackV10({ id: 'audio-track', clipIds: ['audio'] }, 44_100),
+			createVideoTrack({ id: 'video-track', clipIds: ['video'] }),
+			createAudioTrack({ id: 'audio-track', clipIds: ['audio'] }, 44_100),
 		],
 	});
 	const edited = applyEditorCommand(project, {
@@ -167,42 +169,42 @@ test('separate batched moves do not couple unrelated equal numeric deltas', () =
 		resolved.clips.map((clip) => [clip.id, clip.timelineStartFrame]),
 		[['video', 1_838], ['audio', 12_756]],
 	);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
 test('mixed roll conforms both audio boundaries to the video edit point', () => {
 	const video = videoSource();
-	const audio = createAudioSourceV10({ id: 'audio-source', frameCount: 44_100, channelCount: 1, sampleRate: 44_100 });
-	const project = createAudioEditorProjectV10({
+	const audio = createAudioSource({ id: 'audio-source', frameCount: 44_100, channelCount: 1, sampleRate: 44_100 });
+	const project = createCurrentAudioEditorProject({
 		id: 'mixed-roll', now: NOW, sampleRate: 44_100,
 		sequences: [{ id: 'main', rate: RATE }], primarySequenceId: 'main',
 		sources: [video, audio],
 		clips: [
-			createVideoClipV10({
+			createVideoClip({
 				id: 'video-1', sourceId: video.id, sequenceId: 'main',
 				sequenceStartFrame: 0, sequenceFrameCount: 2,
 				sourceInFrame: 0, sourceFrameCount: 2,
 			}, { projectSampleRate: 44_100, sequence: { id: 'main', rate: RATE }, source: video }),
-			createVideoClipV10({
+			createVideoClip({
 				id: 'video-2', sourceId: video.id, sequenceId: 'main',
 				sequenceStartFrame: 2, sequenceFrameCount: 2,
 				sourceInFrame: 2, sourceFrameCount: 2,
 			}, { projectSampleRate: 44_100, sequence: { id: 'main', rate: RATE }, source: video }),
-			createAudioClipV10({
+			createAudioClip({
 				id: 'audio-1', sourceId: audio.id, timelineStartFrame: 0,
 				durationFrames: 3_675, sourceDurationFrames: 3_675,
 			}),
-			createAudioClipV10({
+			createAudioClip({
 				id: 'audio-2', sourceId: audio.id, timelineStartFrame: 3_675,
 				durationFrames: 3_675, sourceStartFrame: 3_675, sourceDurationFrames: 3_675,
 			}),
 		],
 		tracks: [
-			createVideoTrackV10({ id: 'video-track', clipIds: ['video-1', 'video-2'] }),
-			createAudioTrackV10({ id: 'audio-track', clipIds: ['audio-1', 'audio-2'] }, 44_100),
+			createVideoTrack({ id: 'video-track', clipIds: ['video-1', 'video-2'] }),
+			createAudioTrack({ id: 'audio-track', clipIds: ['audio-1', 'audio-2'] }, 44_100),
 		],
 	});
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const command = prepareTransformClipsCommand(runtime, [
 		{ clipId: 'video-1', trackId: 'video-track', changes: { durationFrames: 4_675, sourceDurationFrames: 3 } },
 		{ clipId: 'video-2', trackId: 'video-track', changes: {
@@ -233,36 +235,36 @@ test('mixed roll conforms both audio boundaries to the video edit point', () => 
 		)),
 		[['audio-1', 0, 5_513], ['audio-2', 5_513, 1_837]],
 	);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
 test('sample edits retain exact musical authority when its reduced denominator exceeds one million', () => {
-	const source = createAudioSourceV10({ id: 'source', frameCount: 48_000, channelCount: 1 });
-	const clip = createAudioClipV10({
+	const source = createAudioSource({ id: 'source', frameCount: 48_000, channelCount: 1 });
+	const clip = createAudioClip({
 		id: 'clip', sourceId: source.id, anchor: 'musical',
 		musicalStartBeat: { num: 0, den: 1 }, musicalExtent: 'fixedSamples',
 		durationFrames: 100, sourceDurationFrames: 100,
 	});
-	const project = createAudioEditorProjectV10({
+	const project = createCurrentAudioEditorProject({
 		id: 'musical-inverse', now: NOW, sources: [source], clips: [clip],
 		tempoMap: {
 			mode: 'musical',
 			events: [{ id: 'tempo-1', beat: { num: 0, den: 1 }, bpm: { num: 121, den: 1 } }],
 		},
-		tracks: [createAudioTrackV10({ id: 'track', clipIds: ['clip'] })],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
 	});
 	const edited = applyEditorCommand(project, {
 		type: 'clip/move', clipId: 'clip', trackId: 'track', timelineStartFrame: 1,
 	}, { now: NOW });
 
 	assert.deepEqual(edited.clips[0].musicalStartBeat, { num: 121, den: 2_880_000 });
-	assert.equal(validateAudioEditorProjectV10(edited), true);
-	assert.equal(loadAudioEditorProjectV10(structuredClone(edited)).readOnly, false);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
+	assert.equal(loadCurrentAudioEditorProject(structuredClone(edited)).readOnly, false);
 });
 
 test('video split uses one conformed sequence boundary for both halves', () => {
 	const project = splitProject(false);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	let nextId = 0;
 	const command = prepareLinkedSplitCommand(runtime, 'video', 2_759, (prefix) => (
 		`${prefix}-split-${String(nextId++)}`
@@ -282,12 +284,12 @@ test('video split uses one conformed sequence boundary for both halves', () => {
 		resolved.clips.map((clip) => [clip.id, clip.timelineStartFrame, clip.timelineEndFrame]),
 		[['video', 0, 1_839], ['clip-split-0', 1_839, 5_518]],
 	);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
 test('linked split reuses the video-conformed boundary for both A/V pairs', () => {
 	const project = splitProject(true);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	let nextId = 0;
 	const command = prepareLinkedSplitCommand(runtime, 'audio', 2_759, (prefix) => (
 		`${prefix}-split-${String(nextId++)}`
@@ -316,12 +318,12 @@ test('linked split reuses the video-conformed boundary for both A/V pairs', () =
 		)),
 		[[0, 1_839], [1_839, 3_679]],
 	);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
 test('video overwrite cuts inactive material at the active clip conformed boundaries', () => {
 	const project = overwriteProject();
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	let nextId = 0;
 	const command = prepareTransformClipsCommand(runtime, [{
 		clipId: 'moving', trackId: 'video-track', changes: { timelineStartFrame: 2_759 },
@@ -331,7 +333,7 @@ test('video overwrite cuts inactive material at the active clip conformed bounda
 
 test('single-clip overwrite cuts inactive material at the active clip conformed boundaries', () => {
 	const project = overwriteProject();
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	let nextId = 0;
 	const command = prepareOverwriteClipCommand(runtime, 'moving', {
 		trackId: 'video-track', changes: { timelineStartFrame: 2_759 },
@@ -341,7 +343,7 @@ test('single-clip overwrite cuts inactive material at the active clip conformed 
 
 test('video overwrite propagates its conformed cut through an inactive linked A/V pair', () => {
 	const project = overwriteProject(true);
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	let nextId = 0;
 	const command = prepareTransformClipsCommand(runtime, [{
 		clipId: 'moving', trackId: 'video-track', changes: { timelineStartFrame: 2_759 },
@@ -371,13 +373,13 @@ test('video overwrite propagates its conformed cut through an inactive linked A/
 		edited.clips.filter((clip) => clip.id !== 'moving').map((clip) => clip.avLinkId),
 		['target-link', 'av-link-overwrite-2', 'target-link', 'av-link-overwrite-2'],
 	);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 });
 
 test('video move controllers adopt the destination sequence and preserve frame extent', () => {
 	for (const controller of ['move', 'transform-many']) {
 		const project = crossSequenceProject();
-		const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+		const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 		const command = controller === 'move'
 			? { type: 'batch', commands: [
 				{ type: 'clip/move', clipId: 'video', trackId: 'track-30', timelineStartFrame: 5_000 },
@@ -409,7 +411,7 @@ test('video move controllers adopt the destination sequence and preserve frame e
 			)),
 			[[4_410, 2_940, 0, 3_678]],
 		);
-		assert.equal(validateAudioEditorProjectV10(edited), true);
+		assert.equal(validateCurrentAudioEditorProject(edited), true);
 	}
 });
 
@@ -439,71 +441,71 @@ function assertConformedOverwrite(
 			['target', 0, 1_839],
 		],
 	);
-	assert.equal(validateAudioEditorProjectV10(edited), true);
+	assert.equal(validateCurrentAudioEditorProject(edited), true);
 }
 
 function overwriteProject(linked = false) {
 	const sampleRate = 44_100;
 	const rate = { num: 24_000, den: 1_001 };
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'overwrite-source', frameCount: sampleRate, sampleRate,
 		width: 16, height: 16, frameRate: rate, sourceFrameCount: 24,
 	}, sampleRate);
-	const audio = createAudioSourceV10({
+	const audio = createAudioSource({
 		id: 'overwrite-audio-source', frameCount: sampleRate, sampleRate, channelCount: 1,
 	});
-	const target = createVideoClipV10({
+	const target = createVideoClip({
 		id: 'target', sourceId: source.id, sequenceId: 'main',
 		sequenceStartFrame: 0, sequenceFrameCount: 3,
 		sourceInFrame: 0, sourceFrameCount: 3,
 		avLinkId: linked ? 'target-link' : null,
 	}, { projectSampleRate: sampleRate, sequence: { id: 'main', rate }, source });
-	const moving = createVideoClipV10({
+	const moving = createVideoClip({
 		id: 'moving', sourceId: source.id, sequenceId: 'main',
 		sequenceStartFrame: 5, sequenceFrameCount: 1,
 		sourceInFrame: 5, sourceFrameCount: 1,
 	}, { projectSampleRate: sampleRate, sequence: { id: 'main', rate }, source });
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'overwrite-conformance', now: NOW, sampleRate,
 		sequences: [{ id: 'main', rate }], primarySequenceId: 'main',
 		sources: linked ? [source, audio] : [source],
 		clips: linked ? [
 			target,
-			createAudioClipV10({
+			createAudioClip({
 				id: 'target-audio', sourceId: audio.id, timelineStartFrame: 0,
 				durationFrames: 5_518, sourceDurationFrames: 5_518, avLinkId: 'target-link',
 			}),
 			moving,
 		] : [target, moving],
 		tracks: linked ? [
-			createVideoTrackV10({
+			createVideoTrack({
 				id: 'video-track', laneGroupId: 'overwrite-lanes', clipIds: ['target', 'moving'],
 			}),
-			createAudioTrackV10({
+			createAudioTrack({
 				id: 'audio-track', laneGroupId: 'overwrite-lanes', clipIds: ['target-audio'],
 			}, sampleRate),
-		] : [createVideoTrackV10({ id: 'video-track', clipIds: ['target', 'moving'] })],
+		] : [createVideoTrack({ id: 'video-track', clipIds: ['target', 'moving'] })],
 	});
 }
 
 function crossSequenceProject() {
 	const sampleRate = 44_100;
 	const sourceRate = { num: 24_000, den: 1_001 };
-	const source = createVideoSourceV10({
+	const source = createVideoSource({
 		id: 'cross-sequence-source', frameCount: sampleRate, sampleRate,
 		width: 16, height: 16, frameRate: sourceRate, sourceFrameCount: 24,
 	}, sampleRate);
-	const clip = createVideoClipV10({
+	const clip = createVideoClip({
 		id: 'video', sourceId: source.id, sequenceId: 'sequence-24',
 		sequenceStartFrame: 2, sequenceFrameCount: 2, sourceInFrame: 0, sourceFrameCount: 2,
 		avLinkId: 'cross-sequence-link',
 	}, { projectSampleRate: sampleRate, sequence: { id: 'sequence-24', rate: sourceRate }, source });
-	const audio = createAudioSourceV10({ id: 'cross-sequence-audio', frameCount: sampleRate, sampleRate, channelCount: 1 });
-	const audioClip = createAudioClipV10({
+	const audio = createAudioSource({ id: 'cross-sequence-audio', frameCount: sampleRate, sampleRate, channelCount: 1 });
+	const audioClip = createAudioClip({
 		id: 'audio', sourceId: audio.id, timelineStartFrame: 3_679, durationFrames: 3_678,
 		sourceDurationFrames: 3_678, avLinkId: 'cross-sequence-link',
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'cross-sequence-move', now: NOW, sampleRate, sources: [source, audio], clips: [clip, audioClip],
 		sequences: [
 			{ id: 'sequence-24', rate: sourceRate, trackIds: ['track-24', 'audio-track-24'] },
@@ -511,10 +513,10 @@ function crossSequenceProject() {
 		],
 		primarySequenceId: 'sequence-24',
 		tracks: [
-			createVideoTrackV10({ id: 'track-24', laneGroupId: 'lanes-24', clipIds: ['video'] }),
-			createAudioTrackV10({ id: 'audio-track-24', laneGroupId: 'lanes-24', clipIds: ['audio'] }, sampleRate),
-			createVideoTrackV10({ id: 'track-30', laneGroupId: 'lanes-30', clipIds: [] }),
-			createAudioTrackV10({ id: 'audio-track-30', laneGroupId: 'lanes-30', clipIds: [] }, sampleRate),
+			createVideoTrack({ id: 'track-24', laneGroupId: 'lanes-24', clipIds: ['video'] }),
+			createAudioTrack({ id: 'audio-track-24', laneGroupId: 'lanes-24', clipIds: ['audio'] }, sampleRate),
+			createVideoTrack({ id: 'track-30', laneGroupId: 'lanes-30', clipIds: [] }),
+			createAudioTrack({ id: 'audio-track-30', laneGroupId: 'lanes-30', clipIds: [] }, sampleRate),
 		],
 	});
 }
@@ -525,21 +527,21 @@ function mixedProject(options: Readonly<{
 	frameCount?: number;
 }> = {}) {
 	const video = videoSource();
-	const audio = createAudioSourceV10({
+	const audio = createAudioSource({
 		id: 'audio-source', frameCount: 44_100, sampleRate: 44_100, channelCount: 1,
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'mixed-ripple', now: NOW, sampleRate: 44_100,
 		sequences: [{ id: 'main', rate: RATE }], primarySequenceId: 'main',
 		sources: [video, audio],
 		clips: [
-			createVideoClipV10({
+			createVideoClip({
 				id: 'video', sourceId: video.id, sequenceId: 'main',
 				sequenceStartFrame: options.sequenceStartFrame ?? 2,
 				sequenceFrameCount: options.frameCount ?? 2,
 				sourceInFrame: 0, sourceFrameCount: options.frameCount ?? 2,
 			}, { projectSampleRate: 44_100, sequence: { id: 'main', rate: RATE }, source: video }),
-			createAudioClipV10({
+			createAudioClip({
 				id: 'audio', sourceId: audio.id,
 				timelineStartFrame: options.audioStartFrame ?? 3_675,
 				durationFrames: options.frameCount === 1 ? 1_838 : 3_675,
@@ -547,14 +549,14 @@ function mixedProject(options: Readonly<{
 			}),
 		],
 		tracks: [
-			createVideoTrackV10({ id: 'video-track', clipIds: ['video'] }),
-			createAudioTrackV10({ id: 'audio-track', clipIds: ['audio'] }, 44_100),
+			createVideoTrack({ id: 'video-track', clipIds: ['video'] }),
+			createAudioTrack({ id: 'audio-track', clipIds: ['audio'] }, 44_100),
 		],
 	});
 }
 
 function videoSource() {
-	return createVideoSourceV10({
+	return createVideoSource({
 		id: 'video-source', frameCount: 44_100, sampleRate: 44_100,
 		width: 16, height: 16, frameRate: RATE, sourceFrameCount: 24,
 	}, 44_100);
@@ -563,31 +565,31 @@ function videoSource() {
 function splitProject(linked: boolean) {
 	const sampleRate = 44_100;
 	const rate = { num: 24_000, den: 1_001 };
-	const video = createVideoSourceV10({
+	const video = createVideoSource({
 		id: 'split-video-source', frameCount: sampleRate, sampleRate,
 		width: 16, height: 16, frameRate: rate, sourceFrameCount: 24,
 	}, sampleRate);
-	const audio = createAudioSourceV10({
+	const audio = createAudioSource({
 		id: 'split-audio-source', frameCount: sampleRate, sampleRate, channelCount: 1,
 	});
-	const clips = [createVideoClipV10({
+	const clips = [createVideoClip({
 		id: 'video', sourceId: video.id, sequenceId: 'main',
 		sequenceStartFrame: 0, sequenceFrameCount: 3,
 		sourceInFrame: 0, sourceFrameCount: 3,
 		avLinkId: linked ? 'left-link' : null,
 	}, { projectSampleRate: sampleRate, sequence: { id: 'main', rate }, source: video })];
-	if (linked) clips.push(createAudioClipV10({
+	if (linked) clips.push(createAudioClip({
 		id: 'audio', sourceId: audio.id, timelineStartFrame: 0,
 		durationFrames: 5_518, sourceStartFrame: 0, sourceDurationFrames: 5_518,
 		avLinkId: 'left-link',
-	}) as typeof clips[number]);
-	return createAudioEditorProjectV10({
+		}) as unknown as typeof clips[number]);
+	return createCurrentAudioEditorProject({
 		id: `split-${linked ? 'linked' : 'video'}`, now: NOW, sampleRate,
 		sequences: [{ id: 'main', rate }], primarySequenceId: 'main',
 		sources: linked ? [video, audio] : [video], clips,
 		tracks: linked ? [
-			createVideoTrackV10({ id: 'video-track', laneGroupId: 'lane', clipIds: ['video'] }),
-			createAudioTrackV10({ id: 'audio-track', laneGroupId: 'lane', clipIds: ['audio'] }, sampleRate),
-		] : [createVideoTrackV10({ id: 'video-track', clipIds: ['video'] })],
+			createVideoTrack({ id: 'video-track', laneGroupId: 'lane', clipIds: ['video'] }),
+			createAudioTrack({ id: 'audio-track', laneGroupId: 'lane', clipIds: ['audio'] }, sampleRate),
+		] : [createVideoTrack({ id: 'video-track', clipIds: ['video'] })],
 	});
 }

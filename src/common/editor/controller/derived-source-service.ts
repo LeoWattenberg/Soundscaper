@@ -139,7 +139,6 @@ export function createDerivedSourceService(
 			channelCount: channels.length,
 			sampleRate,
 			originalSampleRate: sampleRate,
-			schemaVersion: 2,
 			sampleFormat: 'float32',
 			opaqueExtensions: {},
 			chunkFrames: dependencies.sourceChunkFrames,

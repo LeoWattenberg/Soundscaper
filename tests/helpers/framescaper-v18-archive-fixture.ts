@@ -4,7 +4,10 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import type { TestContext } from 'node:test';
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../../src/common/editor/project-media-factory.ts';
 import type { ScapeArchiveEntry } from '../../src/common/editor/scape-archive-envelope.ts';
 import { openDatabase, request, transact } from '../../src/common/editor/storage/indexeddb-backend.ts';
 import { KeyValueRepository } from '../../src/common/editor/storage/key-value-repository.ts';
@@ -254,7 +257,7 @@ export function archiveProject(
 		id: options.id ?? ARCHIVE_PROJECT_ID,
 		title: options.title ?? 'Framescaper archive',
 		now: '2026-08-13T10:00:00.000Z',
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: ARCHIVE_SOURCE_ID, name: 'Video', storageKey: ARCHIVE_SOURCE_ID, mimeType: 'video/mp4',
 			contentSha256: ARCHIVE_ORIGINAL_SHA, frameCount: 48_000, sampleFrameCount: 48_000,
 			sourceFrameCount: 10, frameRate: { num: 10, den: 1 }, width: 1920, height: 1080,
@@ -264,7 +267,7 @@ export function archiveProject(
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['archive-clip'], locked: true,
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],

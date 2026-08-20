@@ -12,7 +12,7 @@ import {
 	redoEditorCommand,
 	undoEditorCommand,
 } from '../src/common/editor/history.js';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { createPersistedVideoProject } from './helpers/persisted-video-project-fixture.ts';
@@ -21,7 +21,7 @@ const NOW = '2026-08-11T13:00:00.000Z';
 
 test('one current V15 transform persists canonical video fields and linked equal endpoints', () => {
 	const { project } = createPersistedVideoProject({ timeline: true });
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const plan = planFrameCanonicalEdgeTrim(runtime, {
 		activeClipId: 'persisted-timeline-video',
 		edge: 'right',
@@ -76,7 +76,7 @@ test('one current V15 transform persists canonical video fields and linked equal
 
 test('a left trim reconciles V15 sequence and source starts in one undo step', () => {
 	const { project } = createPersistedVideoProject({ timeline: true });
-	const runtime = projectV10ForCommand(project as unknown as Record<string, unknown>);
+	const runtime = projectForCommand(project as unknown as Record<string, unknown>);
 	const plan = planFrameCanonicalEdgeTrim(runtime, {
 		activeClipId: 'persisted-timeline-video',
 		edge: 'left',

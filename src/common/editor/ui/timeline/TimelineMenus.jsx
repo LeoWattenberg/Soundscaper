@@ -6,7 +6,7 @@ import {
 } from '@dilsonspickles/components';
 
 import { AUDACITY_CLIP_CONTEXT_ACTION_IDS } from '../../audacity-context-menu.js';
-import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-v2.js';
+import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import {
 	MAXIMUM_WAVEFORM_VERTICAL_ZOOM,
 	normalizeSpectrogramScale,

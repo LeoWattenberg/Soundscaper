@@ -6,9 +6,9 @@ import {
 	readClosedDomainRecord,
 } from '../common/editor/closed-domain-value.ts';
 import {
-	AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
-	admitAudioEditorProjectV9ValidationStructure,
-} from '../common/editor/project-v9-validation-budget.ts';
+	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+	admitAudioEditorProjectValidationStructure,
+} from '../common/editor/project-validation-budget.ts';
 import {
 	createDefaultVideoKeyframeCurves,
 	normalizeVideoKeyframeCurves,
@@ -68,8 +68,8 @@ interface KeyframeSnapshot {
 }
 
 const BATCH_FIELDS = Object.freeze(['type', 'commands']);
-const MAXIMUM_BATCH_COMMANDS = AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS.maximumTraversalNodes;
-const MAXIMUM_BATCH_DEPTH = AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS.maximumTraversalDepth;
+const MAXIMUM_BATCH_COMMANDS = AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS.maximumTraversalNodes;
+const MAXIMUM_BATCH_DEPTH = AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS.maximumTraversalDepth;
 const MAXIMUM_BATCH_ORDERED_BOUNDARIES = 128;
 const VIDEO_KEYFRAME_HANDLERS = createVideoKeyframesRuntimeHandlers();
 
@@ -165,9 +165,9 @@ function snapshotCommand(
 			budget.activeBatches.delete(record);
 		}
 	}
-	admitAudioEditorProjectV9ValidationStructure(
+	admitAudioEditorProjectValidationStructure(
 		command,
-		AUDIO_EDITOR_PROJECT_V9_VALIDATION_HARD_LIMITS,
+		AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 	);
 	const inherited = snapshotFramescaperProjectCommandV19(command as FramescaperProjectCommandV19);
 	if (explicitFreshVideoIds(inherited).size > 0) countOrderedBoundary(budget);

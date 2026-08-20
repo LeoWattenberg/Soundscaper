@@ -11,19 +11,21 @@ import {
 } from '../src/common/editor/history.js';
 import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../src/common/editor/project-owned-feature-requirements.ts';
 import {
-	createAudioClipV10,
-	createAudioEditorProjectV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createLabelTrackV10,
-	createLabelV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-	loadAudioEditorProjectV10,
-	validateAudioEditorProjectV10,
-	type AudioEditorProjectV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createLabel,
+	createLabelTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
+import {
+	createCurrentAudioEditorProject,
+	loadCurrentAudioEditorProject,
+	validateCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 import {
 	resolveRuntimeClipProjection,
 	resolveRuntimeProjectProjection,
@@ -33,6 +35,11 @@ import {
 	type BreakpointMap,
 	type SampleFrame,
 } from '../src/common/editor/timeline-time.ts';
+import { evaluateVideoRetimeCurve } from '../src/common/editor/video-retime-curve.ts';
+import {
+	compileVideoRetimeCurveV16,
+	type VideoRetimeCurveV16,
+} from '../src/common/editor/video-retime-v16.ts';
 import {
 	createVideoTimingAssetPublication,
 	validateVideoTimingAssetBytes,
@@ -81,15 +88,21 @@ const WARP_MAP = {
 	],
 } as const;
 
-const RETIME_MAP = {
+const RETIME_MAP: VideoRetimeCurveV16 = {
 	feature: 'video-retime',
+	version: 2,
 	points: [
-		{ outer: { num: 0, den: 1 }, source: { num: 4, den: 1 }, mode: 'reverse' },
-		{ outer: { num: 2, den: 1 }, source: { num: 2, den: 1 }, mode: 'freeze' },
-		{ outer: { num: 3, den: 1 }, source: { num: 2, den: 1 }, mode: 'forward' },
-		{ outer: { num: 5, den: 1 }, source: { num: 4, den: 1 }, mode: 'forward' },
+		{ outerFrame: 0, sourceFrame: { num: 4, den: 1 } },
+		{ outerFrame: 2, sourceFrame: { num: 2, den: 1 } },
+		{ outerFrame: 3, sourceFrame: { num: 2, den: 1 } },
+		{ outerFrame: 5, sourceFrame: { num: 4, den: 1 } },
 	],
-} as const;
+	segments: [
+		{ mode: 'constant-reverse' },
+		{ mode: 'freeze' },
+		{ mode: 'constant-forward' },
+	],
+};
 
 const TIMING_PUBLICATION = createVideoTimingAssetPublication(SOURCE_SHA256, {
 	timescale: 24_000,
@@ -97,14 +110,14 @@ const TIMING_PUBLICATION = createVideoTimingAssetPublication(SOURCE_SHA256, {
 	finalFrameDurationTicks: 1_000n,
 });
 
-test('V10 foundation authorities survive command normalization, undo history, and reload', () => {
+test('current foundation authorities survive command normalization, undo history, and reload', () => {
 	const project = createFoundationProject();
 	assertFoundationSemantics(project);
 	const initialDocument = JSON.stringify(project);
-	const initialReload = loadAudioEditorProjectV10(JSON.parse(initialDocument));
+	const initialReload = loadCurrentAudioEditorProject(JSON.parse(initialDocument));
 	assert.equal(initialReload.readOnly, false);
-	assert.equal(JSON.stringify(initialReload.project), initialDocument, 'normalized V10 load/save must be byte-idempotent');
-	assertFoundationSemantics(initialReload.project as AudioEditorProjectV10);
+	assert.equal(JSON.stringify(initialReload.project), initialDocument, 'normalized current load/save must be byte-idempotent');
+	assertFoundationSemantics(initialReload.project as AudioEditorProjectCurrent);
 
 	const command: AudioEditorCommand = {
 		type: 'clip/update',
@@ -113,34 +126,34 @@ test('V10 foundation authorities survive command normalization, undo history, an
 	};
 	let history = createEditorHistory(project);
 	history = executeEditorCommand(history, command, { now: EDITED_AT });
-	const edited = history.present as AudioEditorProjectV10;
+	const edited = history.present as AudioEditorProjectCurrent;
 	assert.equal(byId(edited.clips, 'audio-clip').title, 'Edited musical audio');
 	assertFoundationSemantics(edited);
 
 	history = undoEditorCommand(history, { now: UNDONE_AT });
-	const restored = history.present as AudioEditorProjectV10;
+	const restored = history.present as AudioEditorProjectCurrent;
 	assert.equal(byId(restored.clips, 'audio-clip').title, 'Musical audio');
 	assert.equal(restored.revision, edited.revision + 1);
 	assert.equal(restored.updatedAt, UNDONE_AT);
 	assertFoundationSemantics(restored);
 
 	const restoredDocument = JSON.stringify(restored);
-	const restoredReload = loadAudioEditorProjectV10(JSON.parse(restoredDocument));
+	const restoredReload = loadCurrentAudioEditorProject(JSON.parse(restoredDocument));
 	assert.equal(restoredReload.readOnly, false);
 	assert.equal(
 		JSON.stringify(restoredReload.project),
 		restoredDocument,
 		'undo snapshot load/save must remain byte-idempotent apart from the already-applied revision metadata',
 	);
-	assertFoundationSemantics(restoredReload.project as AudioEditorProjectV10);
+	assertFoundationSemantics(restoredReload.project as AudioEditorProjectCurrent);
 });
 
-function createFoundationProject(): AudioEditorProjectV10 {
-	const audioSource = createAudioSourceV10({
+function createFoundationProject(): AudioEditorProjectCurrent {
+	const audioSource = createAudioSource({
 		id: 'audio-source', storageKey: 'audio-source', name: 'Audio', mimeType: 'audio/wav',
 		frameCount: 192_000, channelCount: 2, sampleRate: 48_000, originalSampleRate: 96_000,
 	});
-	const videoSource = createVideoSourceV10({
+	const videoSource = createVideoSource({
 		id: 'video-source', storageKey: 'video-source', name: 'Video', mimeType: 'video/mp4',
 		sampleFrameCount: 12_400, sampleRate: 48_000, width: 1_920, height: 1_080,
 		frameRate: { num: 24_000, den: 1_001 }, sourceFrameCount: 6,
@@ -149,38 +162,41 @@ function createFoundationProject(): AudioEditorProjectV10 {
 		timingDecision: { mode: 'exact', rate: { num: 24_000, den: 1_001 }, backend: 'ffprobe' },
 		videoCodec: 'h264', audioCodec: null, hasAudio: false,
 	});
-	const audioClip = createAudioClipV10({
+	const audioClip = createAudioClip({
 		id: 'audio-clip', sourceId: 'audio-source', title: 'Musical audio',
 		sourceStartFrame: 1_234, sourceDurationFrames: 100_000,
 		anchor: 'musical', musicalStartBeat: { num: 3, den: 2 }, musicalExtent: 'beat',
 		musicalDurationBeats: { num: 7, den: 2 }, warpMap: WARP_MAP,
 	}, { projectSampleRate: 48_000, tempoMap: TEMPO_MAP });
-	const videoClip = createVideoClipV10({
+	const videoClip = createVideoClip({
 		id: 'video-clip', sourceId: 'video-source', title: 'Retimed video',
 		sequenceId: SEQUENCE.id, sequenceStartFrame: 45, sequenceFrameCount: 5,
-		sourceInFrame: 1, sourceFrameCount: 4, retimeMap: RETIME_MAP,
+		sourceInFrame: 1, sourceFrameCount: 4,
 	}, { projectSampleRate: 48_000, sequence: SEQUENCE, source: videoSource });
-	const label = createLabelV10({
+	const label = createLabel({
 		id: 'musical-label', title: 'Cue', color: 'violet', opaqueExtensions: {},
 		anchor: 'musical', startBeat: { num: 5, den: 2 }, endBeat: { num: 9, den: 2 },
 	});
-	return createAudioEditorProjectV10({
+	return createCurrentAudioEditorProject({
 		id: 'foundation-history', title: 'Foundation history', now: CREATED_AT, sampleRate: 48_000,
 		sequences: [SEQUENCE], primarySequenceId: SEQUENCE.id,
 		tempoMap: TEMPO_MAP, signatureMap: SIGNATURE_MAP,
-		sources: [audioSource, videoSource], clips: [audioClip, videoClip],
+		sources: [audioSource, videoSource], clips: [audioClip, { ...videoClip, retimeMap: RETIME_MAP }],
 		tracks: [
-			createAudioTrackV10({ id: 'audio-track', clipIds: ['audio-clip'] }),
-			createVideoTrackV10({ id: 'video-track', clipIds: ['video-clip'] }),
-			createLabelTrackV10({ id: 'label-track', labels: [label] }),
+			createAudioTrack({ id: 'audio-track', clipIds: ['audio-clip'] }),
+			createVideoTrack({ id: 'video-track', clipIds: ['video-clip'] }),
+			createLabelTrack({ id: 'label-track', labels: [label] }),
 		],
 	});
 }
 
-function assertFoundationSemantics(project: AudioEditorProjectV10): void {
-	assert.equal(validateAudioEditorProjectV10(project), true);
+function assertFoundationSemantics(project: AudioEditorProjectCurrent): void {
+	assert.equal(validateCurrentAudioEditorProject(project), true);
 	assert.equal(project.primarySequenceId, SEQUENCE.id);
-	assert.deepEqual(project.sequences, [SEQUENCE]);
+	assert.deepEqual(project.sequences, [{
+		...SEQUENCE,
+		trackNodes: SEQUENCE.trackIds.map((id) => ({ kind: 'track', id, parentFolderId: null })),
+	}]);
 	assert.deepEqual(project.tempoMap, TEMPO_MAP);
 	assert.deepEqual(project.signatureMap, SIGNATURE_MAP);
 
@@ -245,14 +261,20 @@ function assertFoundationSemantics(project: AudioEditorProjectV10): void {
 		],
 		[72_072, 80_080, 8_008, 1, 5],
 	);
-	assert.deepEqual(evaluateBreakpointMap(videoClip.retimeMap as BreakpointMap, { num: 1, den: 1 }), {
-		num: 3, den: 1,
+	const retimeCurve = compileVideoRetimeCurveV16(videoClip.retimeMap, {
+		sequenceFrameCount: videoClip.sequenceFrameCount,
+		sourceInFrame: videoClip.sourceInFrame,
+		sourceFrameCount: videoClip.sourceFrameCount,
 	});
-	assert.deepEqual(evaluateBreakpointMap(videoClip.retimeMap as BreakpointMap, { num: 5, den: 2 }), {
-		num: 2, den: 1,
+	assert.ok(retimeCurve);
+	assert.deepEqual(evaluateVideoRetimeCurve(retimeCurve, { num: 1, den: 1 }), {
+		numerator: 3n, denominator: 1n,
 	});
-	assert.deepEqual(evaluateBreakpointMap(videoClip.retimeMap as BreakpointMap, { num: 4, den: 1 }), {
-		num: 3, den: 1,
+	assert.deepEqual(evaluateVideoRetimeCurve(retimeCurve, { num: 5, den: 2 }), {
+		numerator: 2n, denominator: 1n,
+	});
+	assert.deepEqual(evaluateVideoRetimeCurve(retimeCurve, { num: 4, den: 1 }), {
+		numerator: 3n, denominator: 1n,
 	});
 
 	const runtimeProject = resolveRuntimeProjectProjection(project);

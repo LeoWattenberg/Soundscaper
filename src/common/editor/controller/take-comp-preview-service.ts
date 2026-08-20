@@ -1,10 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	createAudioClipV6,
-	createAudioEditorProjectV6,
-	createAudioTrackV6,
-} from '../project-v6.ts';
+import { createAudioPreviewProject } from '../engine/audio-preview-project.ts';
 import type { AudioEditorProjectV17 } from '../project-v17.ts';
 import type { TakeCompDocumentGroup, TakeCompDocumentTake } from '../take-comp-document-v17.ts';
 import type { EngineChunkSourceInput, EngineSourceBufferInput } from '../engine/public-api.ts';
@@ -173,7 +169,7 @@ function previewProject(
 ): EngineProject {
 	const sourceIds = new Set(takes.map(({ sourceId }) => sourceId));
 	const sources = project.sources.filter(({ id }) => sourceIds.has(String(id)));
-	const clips = takes.map((take) => createAudioClipV6({
+	const clips = takes.map((take) => ({
 		id: createId('take-preview-clip'),
 		sourceId: take.sourceId,
 		title: String(project.sources.find(({ id }) => id === take.sourceId)?.name ?? take.id),
@@ -185,7 +181,7 @@ function previewProject(
 		avLinkId: null,
 		binItemId: null,
 	}));
-	const track = createAudioTrackV6({
+	const track = {
 		id: createId('take-preview-track'),
 		name: 'Take preview',
 		clipIds: clips.map(({ id }) => id),
@@ -195,15 +191,14 @@ function previewProject(
 		pan: 0,
 		mute: false,
 		solo: false,
-	});
-	return createAudioEditorProjectV6({
+	};
+	return createAudioPreviewProject({
 		title: 'Take preview',
 		sampleRate: project.sampleRate,
 		sources,
 		clips,
 		tracks: [track],
-		projectBin: { clips: [] },
-	}) as EngineProject;
+	});
 }
 
 function requireGroup(project: AudioEditorProjectV17, groupId: string): TakeCompDocumentGroup {

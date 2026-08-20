@@ -2,7 +2,6 @@
 
 import {
 	clipEndFrame,
-	clipsOverlap,
 	findClip,
 	findClipTrack,
 	findProjectBinClip,
@@ -10,27 +9,10 @@ import {
 	findTrack,
 } from '../project.js';
 import {
-	createAudioClipV2,
-	createAudioSourceV2,
-	createAudioTrackV2,
-} from '../project-v2.js';
-import {
-	createMediaClipV4,
-	createMediaSourceV4,
-	createMediaTrackV4,
-} from '../project-v4.js';
-import {
-	createMediaClipV5,
-	createMediaSourceV5,
-	createMediaTrackV5,
-} from '../project-v5.js';
-import { createMediaClipV8 } from '../project-v8.ts';
-import {
-	createMediaClipV10,
-	createMediaSourceV10,
-	createMediaTrackV10,
-} from '../project-v10.ts';
-import { isTrackLockProjectSchema } from '../project-schema-version.ts';
+	createMediaClip,
+	createMediaSource,
+	createMediaTrack,
+} from '../project-media-factory.ts';
 import {
 	isRuntimeProjectProjection,
 	resolveRuntimeClipProjection,
@@ -110,7 +92,7 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
 		? clip.sourceStartFrame + sourceDuration - sourceOffsetFrames - segmentSourceDuration
 		: clip.sourceStartFrame + sourceOffsetFrames;
 	// A full-extent segment keeps the clip's own map, so only a narrowed segment
-	// re-derives one; that also leaves pre-authority schema maps untouched.
+	// re-derives one.
 	const warpSegment = clip.kind === 'audio' && clip.warpMap != null
 		&& (segmentStartFrame !== clip.timelineStartFrame || segmentEndFrame !== clipEndFrame(clip))
 		? trimAudioWarpClipToTimelineRange(project, clip, segmentStartFrame, segmentEndFrame)
@@ -142,7 +124,6 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
 				: 0,
 		} : {}),
 	}, clip, `Segment ${id}`), clip, `Segment ${id}`);
-	if (!clip.kind) return normalizeClipValue(value);
 	if (clip.kind === 'video' && id !== clip.id && clip.videoEffects?.length) {
 		value.videoEffects = cloneVideoEffectsWithCommandIds(
 			clip.videoEffects,
@@ -159,8 +140,7 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
 		clip.kind === 'video' && id !== clip.id && Boolean(clip.videoEffects?.length),
 		`Segment ${id}`,
 	);
-	if (clip.anchor != null || clip.sequenceId != null) return value;
-	return Array.isArray(clip.videoEffects) ? createMediaClipV5(value) : createMediaClipV4(value);
+	return value;
 }
 
 /**
@@ -242,25 +222,14 @@ export function assertClipSourceBounds(project, clip) {
 	if (clip.sourceStartFrame + (clip.sourceDurationFrames ?? clip.durationFrames) > sourceFrames) throw new RangeError('Clip exceeds its source bounds.');
 }
 
-export function assertClipSpace(project, track, candidate, excludedClipId = null, additionalClips = []) {
-	if (project.schemaVersion >= 2) return;
-	const clips = track.clipIds
-		.filter((clipId) => clipId !== excludedClipId)
-		.map((clipId) => requireClip(project, clipId));
-	if ([...clips, ...additionalClips].some((clip) => clipsOverlap(clip, candidate))) {
-		throw new RangeError(`Clip overlaps existing material on track ${track.id}.`);
-	}
-}
+export function assertClipSpace() {}
 
-export function validateTrackReplacement(project, track, deletedIds, clips) {
+export function validateTrackReplacement(project, _track, deletedIds, clips) {
 	const ids = new Set(project.clips.filter((clip) => !deletedIds.has(clip.id)).map((clip) => clip.id));
 	for (const clip of clips) {
 		if (ids.has(clip.id)) throw new RangeError(`Duplicate clip ID: ${clip.id}.`);
 		ids.add(clip.id);
 		assertClipSourceBounds(project, clip);
-	}
-	if (project.schemaVersion < 2) for (let index = 1; index < clips.length; index += 1) {
-		if (clipsOverlap(clips[index - 1], clips[index])) throw new RangeError(`Range replacement overlaps existing material on track ${track.id}.`);
 	}
 }
 
@@ -343,8 +312,8 @@ export function requireClip(project, clipId) {
 }
 
 export function requireProjectBin(project) {
-	if (project.schemaVersion < 3 || !project.projectBin || !Array.isArray(project.projectBin.clips)) {
-		throw new RangeError('Project-bin commands require an AudioEditorProjectV3 or newer project.');
+	if (!project.projectBin || !Array.isArray(project.projectBin.clips)) {
+		throw new RangeError('Project-bin commands require a project bin.');
 	}
 	return project.projectBin;
 }
@@ -410,102 +379,51 @@ export function normalizeFrequencyRange(value, sampleRate) {
 	return { minimumFrequency, maximumFrequency };
 }
 
-function normalizeClipValue(value) {
-	if (Array.isArray(value?.videoEffects) || value?.schemaVersion >= 5) return createMediaClipV5(value);
-	return value?.kind ? createMediaClipV4(value) : createAudioClipV2(value);
-}
-
 export function normalizeSourceForProject(project, value) {
-	if (project.schemaVersion >= 10) {
-		const source = createMediaSourceV10({ ...value, kind: value?.kind || 'audio' }, project.sampleRate);
-		return source.kind === 'video' ? { ...source, frameCount: source.sampleFrameCount } : source;
-	}
-	return project.schemaVersion >= 5
-		? createMediaSourceV5({ ...value, kind: value?.kind || 'audio' }, project.sampleRate)
-		: project.schemaVersion >= 4
-		? createMediaSourceV4({ ...value, kind: value?.kind || 'audio' }, project.sampleRate)
-		: createAudioSourceV2(value);
+	const source = createMediaSource({ ...value, kind: value?.kind || 'audio' }, project.sampleRate);
+	return source.kind === 'video' ? { ...source, frameCount: source.sampleFrameCount } : source;
 }
 
 export function normalizeTrackForProject(project, value) {
-	let track;
-	if (project.schemaVersion >= 10) {
-		track = createMediaTrackV10({ ...value, type: value?.type || 'audio' }, project.sampleRate);
-	} else {
-		track = project.schemaVersion >= 5
-			? createMediaTrackV5({ ...value, type: value?.type || 'audio' }, project.sampleRate)
-			: project.schemaVersion >= 4
-			? createMediaTrackV4({ ...value, type: value?.type || 'audio' }, project.sampleRate)
-			: createAudioTrackV2(value, project.sampleRate);
-	}
-	if (!isTrackLockProjectSchema(project.schemaVersion)) return track;
+	const track = createMediaTrack({ ...value, type: value?.type || 'audio' }, project.sampleRate);
 	const descriptor = Object.getOwnPropertyDescriptor(track, 'locked');
 	if (descriptor === undefined) return { ...track, locked: false };
 	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'boolean') {
-		throw new TypeError('A V15 track lock must be an own enumerable boolean data property.');
+		throw new TypeError('A track lock must be an own enumerable boolean data property.');
 	}
 	return track;
 }
 
 export function normalizeClipForProject(project, value) {
-	if (project.schemaVersion >= 10) {
-		if (isRuntimeProjectProjection(project) && value?.coordinateDomain === 'resolved-samples') {
-			const timelineStartFrame = Number(value.timelineStartFrame);
-			const durationFrames = Number(value.durationFrames);
-			const sourceStartFrame = Number(value.sourceStartFrame);
-			const sourceDurationFrames = Number(value.sourceDurationFrames);
-			return detachVideoKeyframeCarrier(detachVideoCompositionCarrier({
-				...value,
-				timelineEndFrame: timelineStartFrame + durationFrames,
-				sourceEndFrame: sourceStartFrame + sourceDurationFrames,
-			}, value, `Clip ${String(value?.id ?? '')}`), value, `Clip ${String(value?.id ?? '')}`);
-		}
-		const source = requireSource(project, value.sourceId);
-		const sequenceId = value.sequenceId || project.primarySequenceId;
-		const sequence = project.sequences.find((candidate) => candidate.id === sequenceId);
-		if (!sequence) throw new ReferenceError(`Unknown sequence: ${sequenceId}.`);
-		const clip = createMediaClipV10({
+	if (isRuntimeProjectProjection(project) && value?.coordinateDomain === 'resolved-samples') {
+		const timelineStartFrame = Number(value.timelineStartFrame);
+		const durationFrames = Number(value.durationFrames);
+		const sourceStartFrame = Number(value.sourceStartFrame);
+		const sourceDurationFrames = Number(value.sourceDurationFrames);
+		return detachVideoKeyframeCarrier(detachVideoCompositionCarrier({
 			...value,
-			kind: value?.kind || 'audio',
-			binItemId: value?.binItemId ?? null,
-			avLinkId: value?.avLinkId ?? null,
-		}, {
-			projectSampleRate: project.sampleRate,
-			tempoMap: project.tempoMap,
-			sequence,
-			source,
-		});
-		return detachVideoKeyframeCarrier(detachVideoCompositionCarrier(
-			resolveRuntimeClipProjection(project, clip),
-			value,
-			`Clip ${String(value?.id ?? '')}`,
-		), value, `Clip ${String(value?.id ?? '')}`);
+			timelineEndFrame: timelineStartFrame + durationFrames,
+			sourceEndFrame: sourceStartFrame + sourceDurationFrames,
+		}, value, `Clip ${String(value?.id ?? '')}`), value, `Clip ${String(value?.id ?? '')}`);
 	}
-	const clip = project.schemaVersion >= 8
-		? createMediaClipV8({
-			...value,
-			kind: value?.kind || 'audio',
-			binItemId: value?.binItemId ?? null,
-			avLinkId: value?.avLinkId ?? null,
-		})
-		: project.schemaVersion >= 5
-		? createMediaClipV5({
-			...value,
-			kind: value?.kind || 'audio',
-			binItemId: value?.binItemId ?? null,
-			avLinkId: value?.avLinkId ?? null,
-		})
-		: project.schemaVersion >= 4
-		? createMediaClipV4({
-			...value,
-			kind: value?.kind || 'audio',
-			binItemId: value?.binItemId ?? null,
-			avLinkId: value?.avLinkId ?? null,
-		})
-		: createAudioClipV2(value);
-	return detachVideoKeyframeCarrier(
-		detachVideoCompositionCarrier(clip, value, `Clip ${String(value?.id ?? '')}`),
+	const source = requireSource(project, value.sourceId);
+	const sequenceId = value.sequenceId || project.primarySequenceId;
+	const sequence = project.sequences.find((candidate) => candidate.id === sequenceId);
+	if (!sequence) throw new ReferenceError(`Unknown sequence: ${sequenceId}.`);
+	const clip = createMediaClip({
+		...value,
+		kind: value?.kind || 'audio',
+		binItemId: value?.binItemId ?? null,
+		avLinkId: value?.avLinkId ?? null,
+	}, {
+		projectSampleRate: project.sampleRate,
+		tempoMap: project.tempoMap,
+		sequence,
+		source,
+	});
+	return detachVideoKeyframeCarrier(detachVideoCompositionCarrier(
+		resolveRuntimeClipProjection(project, clip),
 		value,
 		`Clip ${String(value?.id ?? '')}`,
-	);
+	), value, `Clip ${String(value?.id ?? '')}`);
 }

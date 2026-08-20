@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 
-import { createVideoClipV9, createVideoSourceV9 } from '../src/common/editor/project-v9.ts';
+import {
+	createVideoClip,
+	createVideoSource,
+} from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { SCAPE_ARCHIVE_LIMITS } from '../src/common/editor/scape-archive-envelope.ts';
 import {
@@ -59,7 +62,7 @@ function aliasFixture() {
 		finalFrameDurationTicks: 40n,
 	});
 	const videos = ['first', 'second'].map((name) => ({
-		...createVideoSourceV9({
+		...createVideoSource({
 			id: `${name}-video`, storageKey: `${name}-storage`, name: `${name}.mp4`, mimeType: 'video/mp4',
 			frameCount: 1_600, sampleRate: 48_000, width: 640, height: 360,
 			frameRate: 30, videoCodec: 'h264', audioCodec: null, hasAudio: false,
@@ -68,7 +71,7 @@ function aliasFixture() {
 		sourceFrameCount: timing.reference.frameCount,
 		timingAsset: timing.reference,
 	}));
-	const clips = videos.map((video, index) => createVideoClipV9({
+	const clips = videos.map((video, index) => createVideoClip({
 		id: `${video.id}-clip`, sourceId: video.id, durationFrames: 1_600, binItemId: `item-${index}`,
 	}));
 	const project = createCurrentAudioEditorProject({

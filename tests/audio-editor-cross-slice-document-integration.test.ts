@@ -16,12 +16,12 @@ import { createMixRenderSnapshot } from '../src/common/editor/controller/mix-ren
 import type { ControllerProject, ControllerTrack } from '../src/common/editor/controller/track-domain-types.ts';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createSoundscaperPlaybackProjectServiceV23 } from '../src/soundscaper/editor-project-playback-v23.ts';
 import {
 	applySoundscaperProjectCommandV23,
@@ -162,22 +162,22 @@ function trackOf(project: unknown, id: string): Record<string, unknown> | undefi
 }
 
 function crossSliceProject() {
-	const voiceSource = createAudioSourceV10({
+	const voiceSource = createAudioSource({
 		id: 'voice-source', storageKey: 'pcm:voice', contentSha256: 'a'.repeat(64),
 		frameCount: SAMPLE_RATE * 10, channelCount: 1, sampleRate: SAMPLE_RATE,
 		originalSampleRate: SAMPLE_RATE, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const musicSource = createAudioSourceV10({
+	const musicSource = createAudioSource({
 		id: 'music-source', storageKey: 'pcm:music', contentSha256: 'b'.repeat(64),
 		frameCount: SAMPLE_RATE * 10, channelCount: 1, sampleRate: SAMPLE_RATE,
 		originalSampleRate: SAMPLE_RATE, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const takeSource = createAudioSourceV10({
+	const takeSource = createAudioSource({
 		id: 'take-source', storageKey: 'pcm:take', contentSha256: 'c'.repeat(64),
 		frameCount: SAMPLE_RATE * 10, channelCount: 1, sampleRate: SAMPLE_RATE,
 		originalSampleRate: SAMPLE_RATE, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const camera = createVideoSourceV10({
+	const camera = createVideoSource({
 		id: 'cam', name: 'CAM', storageKey: 'media/cam.mp4', mimeType: 'video/mp4',
 		frameCount: SAMPLE_RATE * 10, sampleRate: SAMPLE_RATE, channelCount: 2,
 		frameRate: PAL, width: 1_920, height: 1_080,
@@ -186,11 +186,11 @@ function crossSliceProject() {
 		id: 'cross-slice', title: 'Cross slice', now: NOW,
 		sources: [voiceSource, musicSource, takeSource, camera],
 		clips: [
-			createAudioClipV10({
+			createAudioClip({
 				id: 'voice-clip', sourceId: 'voice-source', title: 'Voice', timelineStartFrame: 0,
 				durationFrames: SAMPLE_RATE, sourceStartFrame: 0, sourceDurationFrames: SAMPLE_RATE,
 			}),
-			createAudioClipV10({
+			createAudioClip({
 				id: 'music-clip', sourceId: 'music-source', title: 'Music', timelineStartFrame: 0,
 				durationFrames: SAMPLE_RATE, sourceStartFrame: 0, sourceDurationFrames: SAMPLE_RATE,
 			}),
@@ -200,15 +200,15 @@ function crossSliceProject() {
 			},
 		],
 		tracks: [
-			createAudioTrackV10({
+			createAudioTrack({
 				id: 'voice', name: 'Voice', clipIds: ['voice-clip'],
 				effects: [{
 					id: 'voice-fx', type: 'limiter', enabled: true,
 					params: { ceiling: -1, lookahead: 0.005, release: 0.1 },
 				}],
 			}),
-			createAudioTrackV10({ id: 'music', name: 'Music', clipIds: ['music-clip'] }),
-			createVideoTrackV10({ id: 'picture', name: 'Picture', clipIds: ['v-clip'] }),
+			createAudioTrack({ id: 'music', name: 'Music', clipIds: ['music-clip'] }),
+			createVideoTrack({ id: 'picture', name: 'Picture', clipIds: ['v-clip'] }),
 			{
 				type: 'label', id: 'labels', name: 'Labels',
 				labels: [{

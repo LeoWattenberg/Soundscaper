@@ -4,9 +4,17 @@ import { normalizeProjectFeatureRequirements } from './project-feature-requireme
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 import { AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION } from './project-schema-version.ts';
 import {
-	createAudioEditorProjectV16,
-	type AudioEditorProjectV16Options,
-} from './project-v16.ts';
+	createProjectFoundation,
+	type ProjectFoundationOptions,
+} from './project-foundation-factory.ts';
+import {
+	createProjectRetimeFoundation,
+	type ProjectRetimeFoundationOptions,
+} from './project-retime-factory.ts';
+import {
+	createProjectStructureFoundation,
+	type ProjectStructureFoundationOptions,
+} from './project-structure-factory.ts';
 import {
 	validateAudioEditorProjectV17,
 	type AudioEditorProjectV17,
@@ -21,7 +29,8 @@ export {
 	type AudioEditorProjectV17,
 } from './project-v17-validation.ts';
 
-export interface AudioEditorProjectV17Options extends AudioEditorProjectV16Options {
+export interface AudioEditorProjectV17Options
+	extends ProjectFoundationOptions, ProjectStructureFoundationOptions, ProjectRetimeFoundationOptions {
 	readonly takeGroups?: readonly unknown[];
 }
 
@@ -30,7 +39,13 @@ export function createAudioEditorProjectV17(
 	options: AudioEditorProjectV17Options = {},
 ): AudioEditorProjectV17 {
 	const { takeGroups: takeGroupInput = [], ...foundationOptions } = options;
-	const foundation = createAudioEditorProjectV16(foundationOptions) as unknown as Record<string, unknown>;
+	const foundation = createProjectRetimeFoundation(
+		foundationOptions,
+		(retimeOptions) => createProjectStructureFoundation(
+			retimeOptions,
+			createProjectFoundation,
+		),
+	) as unknown as Record<string, unknown>;
 	const draft: Record<string, unknown> = {
 		...foundation,
 		schemaVersion: AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION,

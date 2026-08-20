@@ -18,13 +18,13 @@ import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/edito
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-	createVideoClipV9,
-	createVideoSourceV9,
-	createVideoTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const DIGEST = 'cd'.repeat(32);
 
@@ -63,18 +63,18 @@ function preparedSources(
 }
 
 function fallbackProject(featureId: string = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects) {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'original-source', storageKey: 'original-source', frameCount: 4,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const fallback = createAudioSourceV9({
+	const fallback = createAudioSource({
 		id: 'fallback-source', storageKey: 'fallback-source', frameCount: 6,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'original-clip', sourceId: source.id, durationFrames: 4,
 	});
-	const track = createAudioTrackV9({
+	const track = createAudioTrack({
 		id: 'original-track', clipIds: [clip.id],
 		effects: [createEffect('compressor', { id: 'effect-a' })],
 	});
@@ -92,19 +92,19 @@ function fallbackProject(featureId: string = PROJECT_FEATURE_CAPABILITY_IDS.audi
 }
 
 function videoFallbackProject(featureId: string = PROJECT_FEATURE_CAPABILITY_IDS.videoEffects) {
-	const original = createVideoSourceV9({
+	const original = createVideoSource({
 		id: 'original-video', storageKey: 'original-video', frameCount: 4,
 		sampleRate: 48_000, width: 1_920, height: 1_080, frameRate: 30,
 	});
-	const fallback = createVideoSourceV9({
+	const fallback = createVideoSource({
 		id: 'fallback-video', storageKey: 'fallback-video', frameCount: 6,
 		sampleRate: 48_000, width: 1_280, height: 720, frameRate: 24,
 	});
-	const clip = createVideoClipV9({
+	const clip = createVideoClip({
 		id: 'original-video-clip', sourceId: original.id, durationFrames: 4,
 		videoEffects: [{ id: 'effect-a', type: 'pixelate', enabled: true, params: { blockSize: 12 } }],
 	});
-	const track = createVideoTrackV9({ id: 'original-video-track', clipIds: [clip.id] });
+	const track = createVideoTrack({ id: 'original-video-track', clipIds: [clip.id] });
 	return createCurrentAudioEditorProject({
 		id: 'video-fallback-project', now: '2026-08-01T12:00:00.000Z',
 		sources: [original, fallback], clips: [clip], tracks: [track],
@@ -177,26 +177,26 @@ test('an unknown whole-mix role is projected and staged without a registered fea
 });
 
 test('a track-render fallback replaces one lane while other tracks stay native surfaces', () => {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: 'fx-lane-source', storageKey: 'fx-lane-source', frameCount: 4, channelCount: 2, sampleRate: 48_000,
 	});
-	const drySource = createAudioSourceV9({
+	const drySource = createAudioSource({
 		id: 'dry-lane-source', storageKey: 'dry-lane-source', frameCount: 4, channelCount: 2, sampleRate: 48_000,
 	});
-	const fallback = createAudioSourceV9({
+	const fallback = createAudioSource({
 		id: 'track-render-source', storageKey: 'track-render-source', frameCount: 4, channelCount: 2, sampleRate: 48_000,
 	});
-	const fxClip = createAudioClipV9({ id: 'fx-clip', sourceId: source.id, durationFrames: 4 });
-	const dryClip = createAudioClipV9({ id: 'dry-clip', sourceId: drySource.id, durationFrames: 4 });
+	const fxClip = createAudioClip({ id: 'fx-clip', sourceId: source.id, durationFrames: 4 });
+	const dryClip = createAudioClip({ id: 'dry-clip', sourceId: drySource.id, durationFrames: 4 });
 	const canonical = createCurrentAudioEditorProject({
 		id: 'track-render-project', now: '2026-08-08T12:00:00.000Z',
 		sources: [source, drySource, fallback], clips: [fxClip, dryClip],
 		tracks: [
-			createAudioTrackV9({
+			createAudioTrack({
 				id: 'fx-track', clipIds: [fxClip.id],
 				effects: [createEffect('compressor', { id: 'effect-a' })],
 			}),
-			createAudioTrackV9({ id: 'dry-track', clipIds: [dryClip.id] }),
+			createAudioTrack({ id: 'dry-track', clipIds: [dryClip.id] }),
 		],
 		featureRequirements: { schemaVersion: 2, requirements: [{
 			id: 'publisher-track-render', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
@@ -328,7 +328,7 @@ test('combined fallback reapply keeps staged audio out of direct video readiness
 test('the playback service retains the existing bounded bypass path and never traverses future projects', () => {
 	const bypass = createCurrentAudioEditorProject({
 		id: 'bypass', now: '2026-07-30T12:00:00.000Z',
-		tracks: [createAudioTrackV9({
+		tracks: [createAudioTrack({
 			id: 'track', effects: [createEffect('limiter', { id: 'limiter-a' })],
 		})],
 	});

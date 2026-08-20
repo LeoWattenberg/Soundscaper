@@ -20,10 +20,10 @@ import {
 } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectAudioFallbackIntegritySelector } from '../src/common/editor/project-fallback-integrity.ts';
 import {
-	createAudioClipV9,
-	createAudioSourceV9,
-	createAudioTrackV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 
 const FALLBACK_SOURCE_ID = 'fallback-audio';
 const DIGEST = 'ef'.repeat(32);
@@ -270,21 +270,21 @@ test('audio fallback integrity admission fails closed before exposing invalid me
 function canonicalProject(
 	featureId: string = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
 ) {
-	const original = createAudioSourceV9({
+	const original = createAudioSource({
 		id: 'canonical-audio', storageKey: 'canonical-audio', frameCount: 8,
 		channelCount: 2, sampleRate: 48_000,
 	});
-	const fallback = createAudioSourceV9({
+	const fallback = createAudioSource({
 		id: FALLBACK_SOURCE_ID, storageKey: FALLBACK_SOURCE_ID, frameCount: 12,
 		channelCount: 2, sampleRate: 48_000, chunkFrames: 4,
 	});
-	const clip = createAudioClipV9({
+	const clip = createAudioClip({
 		id: 'canonical-clip', sourceId: original.id, durationFrames: original.frameCount,
 	});
 	return createCurrentAudioEditorProject({
 		id: 'audio-fallback-export', now: '2026-08-02T12:00:00.000Z',
 		sources: [original, fallback], clips: [clip],
-		tracks: [createAudioTrackV9({ id: 'canonical-track', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({ id: 'canonical-track', clipIds: [clip.id] })],
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'publisher-audio-render',
 			featureId,

@@ -14,7 +14,9 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
-import { createVideoTrackV10 } from '../../src/common/editor/project-v10.ts';
+import {
+	createVideoTrack,
+} from '../../src/common/editor/project-media-factory.ts';
 import type { ScapeArchiveEntry } from '../../src/common/editor/scape-archive-envelope.ts';
 import type { ScapeArchiveReader } from '../../src/common/editor/scape-archive-reader.ts';
 import {
@@ -109,7 +111,7 @@ export function nestedArchiveProject(
 		title: 'Nested source',
 		sequenceId: 'nested-source-sequence',
 	});
-	(project.tracks as Record<string, unknown>[]).push(createVideoTrackV10({
+	(project.tracks as Record<string, unknown>[]).push(createVideoTrack({
 		id: 'nested-source-track', name: 'Nested source', clipIds: ['nested-source-clip'], locked: true,
 	}) as unknown as Record<string, unknown>);
 	const sourceSequence = structuredClone(

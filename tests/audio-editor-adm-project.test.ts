@@ -12,10 +12,10 @@ import {
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 import { resolveTerminalChannelWidths } from '../src/common/editor/terminal-channel-widths.ts';
 import { validateAudioEditorProject } from '../src/common/editor/project.js';
-import { createAudioEditorProjectV6 } from '../src/common/editor/project-v6.ts';
 import {
-	createAudioEditorProjectV7,
-} from '../src/common/editor/project-v7.ts';
+	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	createCurrentAudioEditorProject,
+} from '../src/common/editor/project-current.ts';
 
 const NOW = '2026-07-28T12:34:56.000Z';
 
@@ -108,7 +108,7 @@ test('authored ADM project names reject control characters before export', () =>
 });
 
 test('authored ADM routing reports missing, non-terminal, and out-of-range assignments without rejecting drafts', () => {
-	const project = createAudioEditorProjectV7({
+	const project = createCurrentAudioEditorProject({
 		now: NOW,
 		masterChannels: 2,
 		tracks: [
@@ -122,7 +122,10 @@ test('authored ADM routing reports missing, non-terminal, and out-of-range assig
 		},
 		metadata: { adm: authoredAdm() },
 	});
-	const issues = validateAdmAuthoredRouting(project.metadata.adm, project);
+	const issues = validateAdmAuthoredRouting(
+		project.metadata.adm as ReturnType<typeof normalizeAdmProjectMetadata>,
+		project,
+	);
 	assert.ok(issues.some((issue) => issue.code === 'non-terminal-strip' && issue.stripId === 'dialogue'));
 	assert.ok(issues.some((issue) => issue.code === 'missing-terminal-strip' && issue.stripId === 'dry'));
 	assert.ok(issues.some((issue) => issue.code === 'missing-terminal-strip' && issue.stripId === 'reverb'));
@@ -195,7 +198,7 @@ test('a production mixer graph decides its own ADM terminals and bus widths', ()
 });
 
 test('authored ADM routing validates terminal bus channels against routed source width', () => {
-	const project = createAudioEditorProjectV7({
+	const project = createCurrentAudioEditorProject({
 		now: NOW,
 		masterChannels: 6,
 		sources: [{ id: 'source', storageKey: 'pcm/source', frameCount: 4, channelCount: 2 }],
@@ -326,20 +329,22 @@ test('passthrough ADM stays JSON-safe and eligibility requires pristine source g
 	})), /fact.*forbidden|forbidden.*fact|structural.*fact/iu);
 });
 
-test('V7 projects require canonical nullable ADM and metadata commands normalize and clear it', () => {
-	const empty = createAudioEditorProjectV7({ now: NOW });
-	assert.equal(empty.schemaVersion, 7);
+test('current projects require canonical nullable ADM and metadata commands normalize and clear it', () => {
+	const empty = createCurrentAudioEditorProject({ now: NOW });
+	assert.equal(empty.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
 	assert.equal(empty.metadata.adm, null);
 	assert.equal(validateAudioEditorProject(empty as never), true);
 
-	const project = createAudioEditorProjectV7({ now: NOW, metadata: { adm: authoredAdm() } });
-	assert.equal(project.metadata.adm?.mode, 'authored');
+	const project = createCurrentAudioEditorProject({ now: NOW, metadata: { adm: authoredAdm() } });
+	const projectAdm = project.metadata.adm as ReturnType<typeof normalizeAdmProjectMetadata>;
+	assert.equal(projectAdm?.mode, 'authored');
 
 	const updated = applyEditorCommand(empty, {
 		type: 'metadata/update', changes: { adm: authoredAdm() },
 	}, { now: NOW });
-	assert.equal(updated.metadata.adm?.mode, 'authored');
-	assert.equal(updated.metadata.adm?.bed.assignments[0]?.gain, 1);
+	const updatedAdm = updated.metadata.adm as ReturnType<typeof normalizeAdmProjectMetadata>;
+	assert.equal(updatedAdm?.mode, 'authored');
+	assert.equal(updatedAdm?.mode === 'authored' ? updatedAdm.bed.assignments[0]?.gain : null, 1);
 	const multichannelPassthrough = applyEditorCommand(empty, {
 		type: 'metadata/update',
 		changes: { adm: passthroughAdm({
@@ -351,9 +356,9 @@ test('V7 projects require canonical nullable ADM and metadata commands normalize
 		type: 'metadata/update', changes: { adm: null },
 	}, { now: NOW });
 	assert.equal(cleared.metadata.adm, null);
-	assert.throws(() => applyEditorCommand(createAudioEditorProjectV6({ now: NOW }), {
+	assert.throws(() => applyEditorCommand({ schemaVersion: 6 } as never, {
 		type: 'metadata/update', changes: { adm: authoredAdm() },
-	}, { now: NOW }), /cannot be updated/u);
+	}, { now: NOW }), /current audio editor project/iu);
 });
 
 function riffChunk(id: string, payload: Uint8Array): Uint8Array {

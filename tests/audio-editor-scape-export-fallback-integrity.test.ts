@@ -6,10 +6,9 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 
-import { createAudioEditorProjectV2 } from '../src/common/editor/project-v2.js';
 import {
-	createAudioSourceV9,
-} from '../src/common/editor/project-v9.ts';
+	createAudioSource,
+} from '../src/common/editor/project-media-factory.ts';
 import { exportScapeProject, inspectScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 
@@ -126,7 +125,7 @@ test('Scape export rejects a source-level toJSON hook before it can rewrite sour
 
 test('Scape export does not delegate source snapshotting to an input-controlled array map', async () => {
 	const project = featureProject('scape-feature-export-source-map');
-	const sources = project.sources as Readonly<Record<string, unknown>>[];
+	const sources = project.sources as readonly Readonly<Record<string, unknown>>[];
 	const source = firstSource(project);
 	Reflect.set(source, 'toJSON', () => ({ ...source, id: 'drifted-source' }));
 	let mapCalls = 0;
@@ -204,16 +203,16 @@ test('Scape export rejects a whitespace-only source storage key before store acc
 });
 
 test('Scape export rejects video classification in an audio-only retained schema before media access', async () => {
-	const project = createAudioEditorProjectV2({
+	const project = {
+		schemaVersion: 2,
 		id: 'scape-feature-export-v2-video',
-		now: NOW,
 		sources: [{
 			id: FALLBACK_SOURCE_ID,
 			storageKey: FALLBACK_SOURCE_ID,
 			frameCount: 4,
 			channelCount: 1,
 		}],
-	});
+	} as unknown as AudioEditorProjectCurrent;
 	const source = (project.sources as readonly Readonly<Record<string, unknown>>[])[0];
 	assert.ok(source);
 	Reflect.set(source, 'kind', 'video');
@@ -238,7 +237,7 @@ test('Scape export rejects video classification in an audio-only retained schema
 });
 
 function featureProject(id: string, fallbackDigest = FALLBACK_DIGEST): AudioEditorProjectCurrent {
-	const source = createAudioSourceV9({
+	const source = createAudioSource({
 		id: FALLBACK_SOURCE_ID,
 		storageKey: FALLBACK_SOURCE_ID,
 		name: 'Rendered fallback.wav',

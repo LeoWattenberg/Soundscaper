@@ -4,15 +4,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { planFrameCanonicalRateStretch } from '../src/common/editor/frame-canonical-rate-stretch-planner.ts';
-import { projectV10ForCommand } from '../src/common/editor/project-v10-command-projection.ts';
+import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-	createVideoClipV10,
-	createVideoSourceV10,
-	createVideoTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+	createVideoClip,
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
@@ -293,7 +293,7 @@ function fixture(options: FixtureOptions = {}) {
 	const sequenceFrameCount = options.sequenceFrameCount ?? 10;
 	const sourceInFrame = options.sourceInFrame ?? 100;
 	const sourceFrameCount = options.sourceFrameCount ?? 10;
-	const videoSource = createVideoSourceV10({
+	const videoSource = createVideoSource({
 		id: 'video-source', sampleFrameCount: 2_000_000, sampleRate: SAMPLE_RATE,
 		width: 16, height: 16, frameRate: sourceRate,
 		sourceFrameCount: options.vfr ? VFR_INDEX.frameCount : 1_000,
@@ -304,7 +304,7 @@ function fixture(options: FixtureOptions = {}) {
 	}, SAMPLE_RATE);
 	const linkedAudio = options.linkedAudio === true;
 	const hasAudio = linkedAudio || options.unlinkedAudioGroupId != null;
-	const video = createVideoClipV10({
+	const video = createVideoClip({
 		id: 'video', sourceId: 'video-source', sequenceId: 'main',
 		sequenceStartFrame, sequenceFrameCount, sourceInFrame, sourceFrameCount,
 		groupId: options.videoGroupId ?? null,
@@ -313,13 +313,13 @@ function fixture(options: FixtureOptions = {}) {
 	const clips: Record<string, unknown>[] = [video];
 	const sources: Record<string, unknown>[] = [videoSource];
 	const videoTrackIds = ['video'];
-	const videoTrack = createVideoTrackV10({
+	const videoTrack = createVideoTrack({
 		id: 'video-track', clipIds: videoTrackIds, locked: options.lockedVideo ?? false,
 		...(linkedAudio ? { laneGroupId: 'linked-lanes' } : {}),
 	});
 	const tracks: Record<string, unknown>[] = [videoTrack];
 	if (options.secondary) {
-		const secondary = createVideoClipV10({
+		const secondary = createVideoClip({
 			id: 'video-b', sourceId: 'video-source', sequenceId: 'main',
 			sequenceStartFrame: options.secondary.sequenceStartFrame,
 			sequenceFrameCount: options.secondary.sequenceFrameCount,
@@ -329,20 +329,20 @@ function fixture(options: FixtureOptions = {}) {
 		clips.push(secondary);
 		if (options.secondary.sameTrack) {
 			videoTrackIds.push('video-b');
-			tracks[0] = createVideoTrackV10({
+			tracks[0] = createVideoTrack({
 				id: 'video-track', clipIds: videoTrackIds, locked: options.lockedVideo ?? false,
 				...(linkedAudio ? { laneGroupId: 'linked-lanes' } : {}),
 			});
 		}
-		else tracks.push(createVideoTrackV10({ id: 'video-track-b', clipIds: ['video-b'], locked: false }));
+		else tracks.push(createVideoTrack({ id: 'video-track-b', clipIds: ['video-b'], locked: false }));
 	}
 	if (hasAudio) {
 		const start = boundary(sequenceStartFrame, rate);
 		const end = boundary(sequenceStartFrame + sequenceFrameCount, rate);
-		const audioSource = createAudioSourceV10({
+		const audioSource = createAudioSource({
 			id: 'audio-source', frameCount: 200_000, sampleRate: 44_100, channelCount: 1,
 		});
-		clips.push(createAudioClipV10({
+		clips.push(createAudioClip({
 			id: 'audio', sourceId: 'audio-source', timelineStartFrame: start,
 			durationFrames: end - start, sourceStartFrame: 10_000, sourceDurationFrames: 6_000,
 			avLinkId: linkedAudio ? 'av-link' : null,
@@ -356,7 +356,7 @@ function fixture(options: FixtureOptions = {}) {
 			],
 		}));
 		sources.push(audioSource);
-		tracks.push(createAudioTrackV10({
+		tracks.push(createAudioTrack({
 			id: 'audio-track', clipIds: ['audio'], locked: false,
 			...(linkedAudio ? { laneGroupId: 'linked-lanes' } : {}),
 		}, SAMPLE_RATE));
@@ -366,7 +366,7 @@ function fixture(options: FixtureOptions = {}) {
 		sequences: [{ id: 'main', rate, trackIds: tracks.map(({ id }) => String(id)) }],
 		primarySequenceId: 'main', clips, tracks, sources,
 	});
-	const project = projectV10ForCommand(persisted as unknown as Record<string, unknown>);
+	const project = projectForCommand(persisted as unknown as Record<string, unknown>);
 	assert.equal(isRuntimeProjectProjection(project), true);
 	const view: VideoSourceTimingView = options.vfr
 		? Object.freeze({ kind: 'vfr', reference: VFR_PUBLICATION.reference, index: VFR_INDEX })

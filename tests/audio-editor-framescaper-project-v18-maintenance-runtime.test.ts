@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test, { type TestContext } from 'node:test';
 
-import { createVideoSourceV10, createVideoTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createVideoSource,
+	createVideoTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	createFramescaperEditorProjectEnvironmentV18,
 	type FramescaperEditorProjectEnvironmentV18,
@@ -137,7 +140,7 @@ function project(
 		id,
 		title: root,
 		now: NOW,
-		sources: [createVideoSourceV10({
+		sources: [createVideoSource({
 			id: 'video-source', name: root, storageKey: `owned/${root}`,
 			mimeType: 'video/mp4', contentSha256: digest,
 			frameCount: 48_000, sampleFrameCount: 48_000,
@@ -154,7 +157,7 @@ function project(
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
 		}],
-		tracks: [createVideoTrackV10({
+		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: true,
 		})],
 		sequences: [{ id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'] }],

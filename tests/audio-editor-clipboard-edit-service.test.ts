@@ -141,14 +141,14 @@ test('multiple split boundaries are prepared descending in one atomic batch', ()
 test('cross-project A/V paste prepares sources, paired lanes, and paste as one batch', () => {
 	const clipboard: AudioEditorClipboard = {
 		schemaVersion: 2,
-		sampleRate: 1_000,
+		sampleRate: 8_000,
 		durationFrames: 20,
 		tracks: [
 			{ sourceTrackId: 'video-origin', sourceTrackName: 'Video', sourceTrackType: 'video', sourceLaneGroupId: 'source-lanes', clips: [{ key: 'video', kind: 'video', sourceId: 'video-source', offsetFrame: 0, sourceStartFrame: 0, durationFrames: 20 }] },
 			{ sourceTrackId: 'audio-origin', sourceTrackName: 'Audio', sourceTrackType: 'audio', sourceLaneGroupId: 'source-lanes', clips: [{ key: 'audio', kind: 'audio', sourceId: 'audio-source', offsetFrame: 0, sourceStartFrame: 0, durationFrames: 20 }] },
 		],
 	};
-	const fixture = createFixture(project({ sources: [], tracks: [], clips: [], selection: null }), {
+	const fixture = createFixture(project({ sampleRate: 8_000, sources: [], tracks: [], clips: [], selection: null }), {
 		session: {
 			setClipboard: (descriptor) => ({ clipboard: { descriptor, sources: [] } }),
 			clipboardForProject: () => ({
@@ -156,12 +156,12 @@ test('cross-project A/V paste prepares sources, paired lanes, and paste as one b
 				sources: [{
 					schemaVersion: 5, kind: 'video', id: 'video-source', storageKey: 'video-source',
 					name: 'Video', mimeType: 'video/mp4', frameCount: 20, channelCount: 0,
-					sampleRate: 1_000, originalSampleRate: 1_000, width: 320, height: 180,
+					sampleRate: 8_000, originalSampleRate: 8_000, width: 320, height: 180,
 					frameRate: 25, videoCodec: 'avc1', audioCodec: null, hasAudio: false,
 				}, {
 					schemaVersion: 5, kind: 'audio', id: 'audio-source', storageKey: 'audio-source',
 					name: 'Audio', mimeType: 'audio/wav', frameCount: 20, channelCount: 1,
-					sampleRate: 1_000, originalSampleRate: 1_000,
+					sampleRate: 8_000, originalSampleRate: 8_000,
 				}],
 			}),
 		},

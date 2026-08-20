@@ -3,7 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAudioTrackV10 } from '../src/common/editor/project-v10.ts';
+import {
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	folderOwnedMixerBusIds,
 	mixerAudibilityAuthority,
@@ -70,7 +72,7 @@ function folderedProject() {
 function plainProject() {
 	return createSoundscaperProjectV21({
 		id: 'mixer-folder-buses', title: 'Mixer folder buses', now: NOW,
-		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 	});

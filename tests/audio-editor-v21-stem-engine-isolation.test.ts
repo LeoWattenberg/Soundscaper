@@ -7,10 +7,10 @@ import { stemProject } from '../src/common/editor/controller/temporary-export.ts
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import type { EngineOfflineContextOptions } from '../src/common/editor/engine/runtime-types.ts';
 import {
-	createAudioClipV10,
-	createAudioSourceV10,
-	createAudioTrackV10,
-} from '../src/common/editor/project-v10.ts';
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
 
 const SAMPLE_RATE = 48_000;
@@ -80,8 +80,8 @@ function fixture() {
 		sources: [source('voice-source'), source('music-source')],
 		clips: [clip('voice-clip', 'voice-source'), clip('music-clip', 'music-source')],
 		tracks: [
-			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] }),
-			createAudioTrackV10({ id: 'music', name: 'Music', clipIds: ['music-clip'] }),
+			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] }),
+			createAudioTrack({ id: 'music', name: 'Music', clipIds: ['music-clip'] }),
 		],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],
 		primarySequenceId: 'main-sequence',
@@ -109,7 +109,7 @@ function fixture() {
 }
 
 function source(id: string) {
-	return createAudioSourceV10({
+	return createAudioSource({
 		id,
 		name: id,
 		storageKey: id,
@@ -121,7 +121,7 @@ function source(id: string) {
 }
 
 function clip(id: string, sourceId: string) {
-	return createAudioClipV10({
+	return createAudioClip({
 		id,
 		sourceId,
 		timelineStartFrame: 0,
