@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@dilsonspickles/components';
 
 import type {
@@ -71,8 +71,6 @@ export default function RecordingSetupPanel({
 	const productId = snapshot.productId ?? 'framescaper';
 	const capture = snapshot.capture;
 	const actions = controller.actions.capture;
-	const panelRef = useRef<HTMLElement>(null);
-	useCapturePanelFocusRestoration(panelRef);
 	const [selectedRoles, setSelectedRoles] = useState<readonly CaptureSourceRole[]>(() => (
 		capture?.requestedRoles.length ? capture.requestedRoles : defaultSourceRoles(capture)
 	));
@@ -125,7 +123,6 @@ export default function RecordingSetupPanel({
 	const recordingBlocked = Boolean(blocked || snapshot.readOnly || !snapshot.project);
 
 	return <section
-		ref={panelRef}
 		className="kw-framescaper-capture"
 		data-framescaper-recording-setup
 		data-capture-phase={phase}
@@ -422,35 +419,4 @@ function sameSourceRoles(
 	right: readonly CaptureSourceRole[],
 ): boolean {
 	return left.length === right.length && left.every((role) => right.includes(role));
-}
-
-function useCapturePanelFocusRestoration(panelRef: RefObject<HTMLElement | null>): void {
-	const originRef = useRef<HTMLElement | null>(null);
-	useEffect(() => {
-		if (typeof document === 'undefined') return undefined;
-		const panel = panelRef.current;
-		const active = document.activeElement;
-		if (active instanceof HTMLElement && !panel?.contains(active)) originRef.current = active;
-		let panelFocused = false;
-		const focusIn = (): void => { panelFocused = true; };
-		const focusOut = (event: FocusEvent): void => {
-			if (!(event.relatedTarget instanceof Node) || !panel?.contains(event.relatedTarget)) panelFocused = false;
-		};
-		panel?.addEventListener('focusin', focusIn);
-		panel?.addEventListener('focusout', focusOut);
-		return () => {
-			panel?.removeEventListener('focusin', focusIn);
-			panel?.removeEventListener('focusout', focusOut);
-			if (!panelFocused || typeof requestAnimationFrame !== 'function') return;
-			let attempts = 3;
-			const restore = (): void => {
-				const origin = originRef.current?.isConnected ? originRef.current : null;
-				const fallback = document.querySelector('[data-transport="framescaper-record"] button');
-				const target = origin ?? (fallback instanceof HTMLElement ? fallback : null);
-				if (target) target.focus();
-				else if (--attempts > 0) requestAnimationFrame(restore);
-			};
-			requestAnimationFrame(restore);
-		};
-	}, [panelRef]);
 }

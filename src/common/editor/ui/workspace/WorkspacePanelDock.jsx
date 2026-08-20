@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 
 import { formatResizeLabel } from '../localization-template.ts';
 import { timelineAnnotationsAvailable } from '../timeline/timeline-annotation-ui-model.ts';
-import { workspacePanelAvailable } from '../framescaper-capture-ui-model.ts';
+import {
+	FRAMESCAPER_CAPTURE_PANEL_ID,
+	workspacePanelAvailable,
+} from '../framescaper-capture-ui-model.ts';
 import WorkspacePanelContent from './WorkspacePanelContent.jsx';
 import {
 	ANALYZER_PANEL_ID_SET,
@@ -548,7 +551,7 @@ export default function WorkspacePanelDock({
 							type="button"
 							className="kw-audio-editor__workspace-panel-close"
 							aria-label={`${copy.close}: ${workspacePanelLabel(copy, panelId)}`}
-							onClick={() => onTogglePanel(panelId)}
+							onClick={(event) => closePanelAndRestoreFocus(event, panelId, onTogglePanel)}
 						>×</button>
 					</header>
 					<div className="kw-audio-editor__workspace-panel-content">
@@ -574,4 +577,21 @@ export default function WorkspacePanelDock({
 			})}
 		</aside>
 	);
+}
+
+function closePanelAndRestoreFocus(event, panelId, onTogglePanel) {
+	const ownerDocument = event.currentTarget.ownerDocument;
+	onTogglePanel(panelId);
+	if (panelId !== FRAMESCAPER_CAPTURE_PANEL_ID) return;
+	let attempts = 4;
+	const restore = () => {
+		const trigger = ownerDocument.querySelector('[data-transport="framescaper-record"] button');
+		if (trigger instanceof HTMLElement) {
+			trigger.focus();
+			return;
+		}
+		attempts -= 1;
+		if (attempts > 0) requestAnimationFrame(restore);
+	};
+	requestAnimationFrame(restore);
 }

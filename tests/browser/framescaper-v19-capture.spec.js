@@ -57,6 +57,7 @@ test.describe('Framescaper V19 recoverable capture', () => {
 		await expect(toolbarRecord).toBeVisible();
 		await editor.getByRole('button', { name: 'Close: Recording setup', exact: true }).click();
 		await expect(workspacePanel).toHaveCount(0);
+		await expect(toolbarRecord).toBeFocused();
 		await toolbarRecord.press('Enter');
 		await waitForRecordingSetup(editor);
 		await expectCaptureCalls(page, []);
@@ -129,6 +130,15 @@ test.describe('Framescaper V19 recoverable capture', () => {
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
 		let panel = await openRecordingSetup(page, editor);
+		const settings = editor.getByRole('button', { name: 'Customize toolbar', exact: true });
+		await settings.click();
+		const toolbarFlyout = page.getByRole('dialog', { name: 'Customize toolbar', exact: true });
+		const recordToggle = toolbarFlyout.getByRole('checkbox', { name: 'Recording setup', exact: true });
+		await expect(recordToggle).toHaveAttribute('aria-checked', 'true');
+		await recordToggle.click();
+		await expect(recordToggle).toHaveAttribute('aria-checked', 'false');
+		await page.keyboard.press('Escape');
+		await expect(editor.getByRole('button', { name: 'Recording setup', exact: true })).toHaveCount(0);
 
 		await selectSourceRoles(panel, ['microphone']);
 		await panel.getByRole('button', { name: 'Preview sources', exact: true }).press('Enter');
@@ -141,6 +151,9 @@ test.describe('Framescaper V19 recoverable capture', () => {
 		await panel.getByRole('button', { name: 'Start capture', exact: true }).press('Enter');
 		await expectCapturePhase(panel, 'recording');
 		await expect.poll(async () => (await captureHarnessState(page)).audioDataClosed).toBeGreaterThanOrEqual(3);
+		await editor.getByRole('button', { name: 'Close: Recording setup', exact: true }).click();
+		await expect(editor.getByRole('button', { name: 'Stop and import', exact: true })).toBeVisible();
+		panel = await openRecordingSetup(page, editor);
 
 		await panel.getByRole('button', { name: 'Pause capture', exact: true }).press('Enter');
 		await expectCapturePhase(panel, 'paused');

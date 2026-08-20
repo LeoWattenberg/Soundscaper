@@ -36,6 +36,7 @@ import { SequenceTimingControls } from './SequenceTimingControls.jsx';
 import FramescaperCaptureRecordControl, {
 	useFramescaperCaptureRecordVisibility,
 } from './FramescaperCaptureRecordControl.tsx';
+import { framescaperCaptureRecordRequired } from '../framescaper-capture-ui-model.ts';
 import { WORKSPACE_TOOLBAR_IDS } from '../workspace/workspace-panel-model.ts';
 import {
 	handleEditorToolbarBlur,
@@ -107,8 +108,10 @@ export default function EditorToolToolbar({
 		&& snapshot.preferences?.workspace?.activeId === 'video-editor'
 		&& Boolean(project?.sequences?.length);
 	const framescaperCaptureRecordVisible = useFramescaperCaptureRecordVisibility(snapshot);
+	const captureRecordRequired = framescaperCaptureRecordRequired(snapshot.capture);
+	const captureRecordSlotVisible = isToolbarButtonVisible('record') || captureRecordRequired;
 	const transportButtonsVisible = ['play', 'stop', ...((capabilities.audioRecording || framescaperCaptureRecordVisible) ? ['record'] : []), 'jump-start', 'jump-end', 'loop', 'metronome']
-		.some(isToolbarButtonVisible);
+		.some((buttonId) => buttonId === 'record' ? captureRecordSlotVisible : isToolbarButtonVisible(buttonId));
 	const viewButtonsVisible = ['split-tool', 'volume-automation', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
 		.some(isToolbarButtonVisible);
 	const zoomButtonsVisible = ['zoom-in', 'zoom-out', 'zoom-fit'].some(isToolbarButtonVisible);
@@ -209,7 +212,7 @@ export default function EditorToolToolbar({
 						</AudioEditorSplitButton>
 					</span>
 					}
-					{framescaperCaptureRecordVisible && isToolbarButtonVisible('record') && <FramescaperCaptureRecordControl
+					{framescaperCaptureRecordVisible && captureRecordSlotVisible && <FramescaperCaptureRecordControl
 						controller={controller}
 						snapshot={snapshot}
 						copy={copy}

@@ -14,6 +14,7 @@ import { assignCapturePreviewStream } from '../src/common/editor/ui/workspace/Fr
 import {
 	FRAMESCAPER_CAPTURE_PANEL_ID,
 	capturePrimaryAction,
+	framescaperCaptureRecordRequired,
 	framescaperCaptureRecordVisible,
 	workspacePanelAvailable,
 	type FramescaperCaptureUiSnapshot,
@@ -57,6 +58,16 @@ test('record control stays absent before opt-in but survives an active or recove
 	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('recording'), false), true);
 	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('recovery'), false), true);
 	assert.equal(framescaperCaptureRecordVisible('soundscaper', capture('recording'), true), false);
+});
+
+test('active media ownership overrides a hidden customized Record slot', () => {
+	for (const phase of [
+		'permission-pending', 'previewing', 'armed', 'countdown',
+		'recording', 'paused', 'finalizing', 'recovery',
+	] as const) {
+		assert.equal(framescaperCaptureRecordRequired(capture(phase)), true, phase);
+	}
+	assert.equal(framescaperCaptureRecordRequired(capture('inactive')), false);
 });
 
 test('record primary action focuses setup until armed and never implicitly requests media', () => {

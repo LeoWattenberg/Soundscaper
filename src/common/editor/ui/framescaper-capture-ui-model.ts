@@ -99,6 +99,13 @@ export function framescaperCaptureRecordVisible(
 	return locallyOptedIn || Boolean(capture && ACTIVE_OR_RECOVERY_PHASES.has(capture.phase));
 }
 
+/** Media ownership and recovery must retain a reachable status/release control. */
+export function framescaperCaptureRecordRequired(
+	capture: Pick<FramescaperCaptureUiSnapshot, 'phase'> | null | undefined,
+): boolean {
+	return Boolean(capture && ACTIVE_OR_RECOVERY_PHASES.has(capture.phase));
+}
+
 /** Main Record never opens a source: setup owns every permission-generating gesture. */
 export function capturePrimaryAction(
 	capture: Pick<FramescaperCaptureUiSnapshot, 'availability' | 'phase'>,
