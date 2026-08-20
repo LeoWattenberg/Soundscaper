@@ -358,6 +358,8 @@ function createMixRenderSnapshotV21(
 	}
 	const edges = graph.edges.filter((edge) => {
 		if (edge.source.kind === 'track' && !targetIds.has(edge.source.id)) return false;
+		if (edge.destination.kind === 'effect-sidechain'
+			&& edge.destination.strip.kind === 'master') return false;
 		return edge.destination.kind !== 'effect-sidechain'
 			|| edge.destination.strip.kind !== 'track'
 			|| targetIds.has(edge.destination.strip.id);
@@ -436,7 +438,7 @@ function laneSurvivesMixSnapshot(
 	if (address.kind === 'edge') return edgeIds.has(String(address.edgeId));
 	if (address.kind !== 'strip' && address.kind !== 'effect') return false;
 	const strip = dataRecord(address.strip, 'automation lane strip');
-	if (strip.kind === 'master') return true;
+	if (strip.kind === 'master') return false;
 	if (strip.kind === 'track') return trackIds.has(String(strip.id));
 	return strip.kind === 'mixer-node' && nodeIds.has(String(strip.id));
 }

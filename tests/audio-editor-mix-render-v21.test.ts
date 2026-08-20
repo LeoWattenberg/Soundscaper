@@ -40,6 +40,8 @@ test('V21 mix snapshots retain exact graph authority and never create legacy rou
 		(snapshot as unknown as { automationLanes: readonly { id: string }[] }).automationLanes.map(({ id }) => id),
 		['voice-gain', 'music-gain'],
 	);
+	assert.equal((snapshot.master as { readonly effects: readonly unknown[] }).effects.length, 1);
+	assert.equal(mixer.edges.some(({ id }) => id === 'voice-master-sidechain'), false);
 	assert.equal(Object.hasOwn(project.mixer, 'routes'), false);
 });
 
@@ -126,8 +128,50 @@ function fixture() {
 		],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],
 		primarySequenceId: 'main-sequence',
-		automationLanes: [lane('voice-gain', 'voice'), lane('music-gain', 'music')],
+		master: {
+			effectsActive: true,
+			effects: [{ id: 'master-filter', type: 'highpass', enabled: true, params: { frequency: 200 } }],
+		},
+		mixer: {
+			schemaVersion: 1, groups: [], sends: [], cues: [], vcas: [],
+			outputs: [{ id: 'main', name: 'Main', role: 'main', channelCount: 2 }],
+			edges: [
+				routingEdge('voice-master', 'assignment', { kind: 'track', id: 'voice' }, { kind: 'master' }),
+				routingEdge('music-master', 'assignment', { kind: 'track', id: 'music' }, { kind: 'master' }),
+				routingEdge('voice-master-sidechain', 'sidechain', { kind: 'track', id: 'voice' }, {
+					kind: 'effect-sidechain', strip: { kind: 'master' }, effectId: 'master-filter',
+				}),
+				routingEdge('master-main', 'assignment', { kind: 'master' }, { kind: 'output', id: 'main' }),
+			],
+		},
+		automationLanes: [
+			lane('voice-gain', 'voice'),
+			lane('music-gain', 'music'),
+			{
+				id: 'master-frequency',
+				address: {
+					kind: 'effect', strip: { kind: 'master' },
+					effectId: 'master-filter', parameterId: 'frequency',
+				},
+				timebase: 'absolute-samples',
+				points: [{ id: 'master-frequency-start', position: 0, value: 200 }],
+				segments: [],
+			},
+			{
+				id: 'master-sidechain-level',
+				address: { kind: 'edge', edgeId: 'voice-master-sidechain', parameterId: 'level' },
+				timebase: 'absolute-samples',
+				points: [{ id: 'master-sidechain-level-start', position: 0, value: 1 }],
+				segments: [],
+			},
+		],
 	});
+}
+
+function routingEdge(id: string, kind: string, source: unknown, destination: unknown) {
+	return {
+		id, kind, source, destination, position: 'post-fader', level: 1, enabled: true, channelMap: [],
+	};
 }
 
 function source(id: string) {
