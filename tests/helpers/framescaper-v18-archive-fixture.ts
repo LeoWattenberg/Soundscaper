@@ -131,11 +131,21 @@ export class FixtureArchiveStore {
 
 	async discardSourceIfCurrent(): Promise<boolean> { return false; }
 
-	async loadProject(projectId: string): Promise<Record<string, unknown> | null> {
-		const value = await transact(this.#database, 'projects', 'readonly', ({ projects }) => (
-			request(projects.get(projectId))
-		));
-		return value && typeof value === 'object' ? structuredClone(value) as Record<string, unknown> : null;
+	async loadProject(
+		projectId: string,
+		options: Readonly<{ revision?: number }> = {},
+	): Promise<Record<string, unknown> | null> {
+		const value = options.revision === undefined
+			? await transact(this.#database, 'projects', 'readonly', ({ projects }) => request(projects.get(projectId)))
+			: await transact(this.#database, 'revisions', 'readonly', ({ revisions }) => request(revisions.get(
+				`${projectId}:${String(options.revision).padStart(12, '0')}`,
+			)));
+		const project = options.revision === undefined
+			? value
+			: value && typeof value === 'object' ? (value as Record<string, unknown>).project : null;
+		return project && typeof project === 'object'
+			? structuredClone(project) as Record<string, unknown>
+			: null;
 	}
 
 	async loadMediaAsset(sourceId: string): Promise<Blob | null> {

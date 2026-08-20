@@ -8,6 +8,7 @@ import {
 	createFramescaperCaptureDerivativeScheduler,
 	type FramescaperCaptureDerivativeProject,
 	type FramescaperCaptureDerivativeSchedulerOptions,
+	type FramescaperCapturedVideoProxyRequest,
 	type FramescaperCaptureVideoDerivativeInput,
 	type FramescaperCaptureVideoFrameCaptureOptions,
 } from '../src/common/editor/controller/framescaper-capture-derivative-scheduler.ts';
@@ -49,9 +50,11 @@ function createFixture(options: FixtureOptions = {}) {
 		storageKey: 'camera-storage',
 		name: 'Camera capture',
 		characteristics: Object.freeze({ hasAlpha: true }),
+		contentSha256: 'ca'.repeat(32),
 	});
 	const project: FramescaperCaptureDerivativeProject = Object.freeze({
 		id: 'origin-project',
+		revision: 7,
 		sources: Object.freeze([audio, video]),
 	});
 	const media = new Blob([Uint8Array.of(1, 2, 3)], { type: 'video/webm' });
@@ -119,8 +122,8 @@ function createFixture(options: FixtureOptions = {}) {
 			return Object.freeze([1, 6, 11]);
 		},
 		...(options.proxy === 'absent' ? {} : {
-			scheduleProxy(proxyRequest: FramescaperCaptureDerivativeRequest) {
-				calls.push(`proxy:${proxyRequest.sessionId}`);
+			scheduleProxy(proxyRequest: FramescaperCapturedVideoProxyRequest) {
+				calls.push(`proxy:${proxyRequest.sessionId}:${proxyRequest.sourceId}:${String(proxyRequest.expectedProjectRevision)}:${proxyRequest.expectedContentSha256}`);
 				if (options.proxy === 'failure') throw new Error('proxy failed');
 			},
 		}),
@@ -158,7 +161,7 @@ test('capture derivatives activate audio peaks and create retained-video poster 
 		'save:thumbnail:11',
 		'extractor:dispose',
 		'activate-video:camera-source',
-		'proxy:capture-session',
+		`proxy:capture-session:camera-source:7:${'ca'.repeat(32)}`,
 	]);
 	assert.equal(fixture.saved.length, 4);
 	assert.deepEqual(fixture.saved.map(({ sourceId, derivative }) => ({
@@ -202,12 +205,76 @@ test('audio and proxy failures do not prevent video derivatives and are reported
 		assert.ok(error instanceof AggregateError);
 		assert.equal(error.errors.length, 2);
 		assert.match(String(error.errors[0]), /microphone-source waveform/iu);
-		assert.match(String(error.errors[1]), /proxy scheduling/iu);
+		assert.match(String(error.errors[1]), /camera-source proxy scheduling/iu);
 		return true;
 	});
 
 	assert.equal(fixture.saved.length, 4, 'video work survives an audio derivative failure');
-	assert.equal(fixture.calls.at(-1), 'proxy:capture-session');
+	assert.match(fixture.calls.at(-1) ?? '', /^proxy:capture-session:camera-source:/u);
+});
+
+test('proxy scheduling runs once for every captured video and never for audio', async () => {
+	const fixture = createFixture({ proxy: 'absent' });
+	const scheduled: FramescaperCapturedVideoProxyRequest[] = [];
+	const secondVideo = Object.freeze({
+		...fixture.video,
+		id: 'display-source',
+		storageKey: 'display-storage',
+		contentSha256: 'db'.repeat(32),
+	});
+	const request = Object.freeze({
+		...fixture.request,
+		sourceIds: Object.freeze([
+			...fixture.request.sourceIds,
+			secondVideo.id,
+		]),
+		plan: Object.freeze({
+			...fixture.request.plan,
+			entries: Object.freeze([
+				...fixture.request.plan.entries,
+				publicationEntry('display-stream', 'display', secondVideo.id),
+			]),
+		}),
+	});
+	const schedule = createFramescaperCaptureDerivativeScheduler({
+		getOriginProject: () => Object.freeze({
+			id: 'origin-project',
+			revision: 7,
+			sources: Object.freeze([fixture.audio, fixture.video, secondVideo]),
+		}),
+		store: {
+			getSourceMetadata: () => Object.freeze({ sourceId: fixture.audio.storageKey }),
+			loadMediaAsset: () => new Blob([Uint8Array.of(1)], { type: 'video/webm' }),
+			saveVideoDerivative: () => undefined,
+		},
+		activateStoredSource: () => undefined,
+		createVideoFrameExtractor: () => ({
+			metadata: Object.freeze({ durationSeconds: 1, width: 16, height: 16 }),
+			capture: (timestampSeconds) => Object.freeze({
+				timestampSeconds,
+				width: 16,
+				height: 16,
+				mimeType: 'image/webp',
+				blob: new Blob([Uint8Array.of(1)], { type: 'image/webp' }),
+			}),
+			dispose: () => undefined,
+		}),
+		videoThumbnailTimes: () => Object.freeze([]),
+		scheduleProxy: (value) => { scheduled.push(value); },
+	});
+
+	await schedule(request);
+
+	assert.deepEqual(scheduled, [
+		{
+			projectId: 'origin-project', sessionId: 'capture-session', sourceId: 'camera-source',
+			expectedProjectRevision: 7, expectedContentSha256: 'ca'.repeat(32),
+		},
+		{
+			projectId: 'origin-project', sessionId: 'capture-session', sourceId: 'display-source',
+			expectedProjectRevision: 7, expectedContentSha256: 'db'.repeat(32),
+		},
+	]);
 });
 
 test('the optional proxy seam is not required', async () => {
@@ -265,7 +332,7 @@ function derivativeRequest(): FramescaperCaptureDerivativeRequest {
 
 function publicationEntry(
 	streamId: string,
-	role: 'microphone' | 'camera',
+	role: 'microphone' | 'camera' | 'display',
 	sourceId: string,
 ) {
 	return Object.freeze({

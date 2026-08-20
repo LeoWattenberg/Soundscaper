@@ -8,7 +8,20 @@ import type { FramescaperProjectV18 } from './editor-project-v18.ts';
 
 const REVISION_ENVELOPE_ALLOWANCE_BYTES = 64 * 1024;
 const BODY_STAGING_ALLOWANCE_BYTES = 2 * MEDIA_CONTENT_DIGEST_CHUNK_BYTES;
-const STORE_BUDGETS = new WeakMap<object, Promise<void>>();
+const STORE_BUDGETS = new WeakMap<object, BudgetState>();
+
+interface BudgetWaiter {
+	readonly signal?: AbortSignal;
+	readonly resolve: (release: () => void) => void;
+	readonly reject: (error: unknown) => void;
+	aborted: boolean;
+	abortListener: (() => void) | null;
+}
+
+interface BudgetState {
+	active: boolean;
+	readonly waiters: BudgetWaiter[];
+}
 
 export interface FramescaperVideoProxyCapacityStoreV18 {
 	estimateStorage(): Promise<Readonly<{ usage: number | null; quota: number | null }>>;
@@ -56,17 +69,64 @@ export async function assertFramescaperVideoProxyAttachmentCapacityV18(
 	}
 }
 
-export async function acquireFramescaperVideoProxyAttachmentBudgetV18(store: object): Promise<() => void> {
-	const prior = STORE_BUDGETS.get(store) ?? Promise.resolve();
-	let release!: () => void;
-	const current = new Promise<void>((resolve) => { release = resolve; });
-	const tail = prior.then(() => current);
-	STORE_BUDGETS.set(store, tail);
-	await prior;
-	return () => {
-		release();
-		if (STORE_BUDGETS.get(store) === tail) STORE_BUDGETS.delete(store);
-	};
+export function acquireFramescaperVideoProxyAttachmentBudgetV18(
+	store: object,
+	signal?: AbortSignal,
+): Promise<() => void> {
+	try { throwIfAborted(signal); }
+	catch (error) { return Promise.reject(error); }
+	const state = STORE_BUDGETS.get(store) ?? { active: false, waiters: [] };
+	STORE_BUDGETS.set(store, state);
+	return new Promise<() => void>((resolve, reject) => {
+		const waiter: BudgetWaiter = {
+			...(signal ? { signal } : {}), resolve, reject, aborted: false, abortListener: null,
+		};
+		if (signal) {
+			waiter.abortListener = () => {
+				waiter.aborted = true;
+				waiter.reject(abortReason(signal));
+				settleBudgetQueue(store, state);
+			};
+			signal.addEventListener('abort', waiter.abortListener, { once: true });
+		}
+		state.waiters.push(waiter);
+		settleBudgetQueue(store, state);
+	});
+}
+
+function settleBudgetQueue(store: object, state: BudgetState): void {
+	if (state.active) return;
+	let waiter = state.waiters.shift();
+	while (waiter?.aborted) {
+		removeAbortListener(waiter);
+		waiter = state.waiters.shift();
+	}
+	if (!waiter) {
+		if (STORE_BUDGETS.get(store) === state) STORE_BUDGETS.delete(store);
+		return;
+	}
+	removeAbortListener(waiter);
+	state.active = true;
+	let released = false;
+	waiter.resolve(() => {
+		if (released) return;
+		released = true;
+		state.active = false;
+		settleBudgetQueue(store, state);
+	});
+}
+
+function removeAbortListener(waiter: BudgetWaiter): void {
+	if (waiter.signal && waiter.abortListener) {
+		waiter.signal.removeEventListener('abort', waiter.abortListener);
+	}
+	waiter.abortListener = null;
+}
+
+function abortReason(signal: AbortSignal): unknown {
+	return signal.reason === undefined
+		? new DOMException('V18 video proxy attachment was cancelled.', 'AbortError')
+		: signal.reason;
 }
 
 function knownBytes(value: unknown): value is number {

@@ -42,12 +42,19 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
 	readonly autosaveDelayMs?: number;
 }
 
+interface ProjectSaveAdmissionGate {
+	count: number;
+	readonly promise: Promise<void>;
+	readonly open: () => void;
+}
+
 /**
  * Serializes project persistence independently from controller feature work.
  * Every queued snapshot is written, but only the newest generation for the
  * active project may publish a saved state. A terminal flush closes scheduling
  * before appending its final snapshot to the same queue. Temporary suspension
- * closes save admission while a destructive owner drains the stable queue.
+ * closes either all save admission or one exact project's admission while its
+ * owner drains the stable queue.
  */
 export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	dependencies: ProjectSaveServiceDependencies<Project>,
@@ -60,6 +67,8 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	const autosaveDelayMs = dependencies.autosaveDelayMs ?? 500;
 	let terminal = false;
 	let suspended = false;
+	let scheduledProjectId: string | null = null;
+	const suspendedProjects = new Map<string, ProjectSaveAdmissionGate>();
 
 	return Object.freeze({
 		scheduleAutosave,
@@ -67,6 +76,8 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		terminalFlush,
 		suspend,
 		resume: () => { suspended = false; },
+		suspendProject,
+		resumeProject,
 		cancelScheduled,
 		drain: () => state.saveQueue,
 		get pendingSnapshots(): ReadonlySet<Project> {
@@ -76,16 +87,22 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 
 	function scheduleAutosave(): boolean {
 		if (terminal || suspended || dependencies.isReadOnly()) return false;
+		const project = dependencies.getProject();
+		if (!project) { cancelScheduled(); return false; }
+		if (suspendedProjects.has(project.id)) {
+			if (scheduledProjectId === project.id) cancelScheduled();
+			return false;
+		}
 		cancelScheduled();
 		state.saveGeneration += 1;
 		const generation = state.saveGeneration;
-		const project = dependencies.getProject();
-		if (!project) return false;
 		const snapshot = dependencies.cloneProject(project);
 		state.saveState = 'saving';
 		dependencies.publish();
+		scheduledProjectId = project.id;
 		state.autosaveTimer = scheduleTimer(() => {
 			state.autosaveTimer = 0;
+			scheduledProjectId = null;
 			void enqueueSaveSnapshot(snapshot, generation).catch(() => undefined);
 		}, autosaveDelayMs);
 		return true;
@@ -94,11 +111,37 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	function cancelScheduled(): void {
 		if (state.autosaveTimer) clearTimer(state.autosaveTimer);
 		state.autosaveTimer = 0;
+		scheduledProjectId = null;
 	}
 
 	function suspend(): void {
 		suspended = true;
 		cancelScheduled();
+	}
+
+	function suspendProject(projectId: string): void {
+		if (typeof projectId !== 'string' || !projectId) {
+			throw new TypeError('A project save suspension requires a project ID.');
+		}
+		const current = suspendedProjects.get(projectId);
+		if (current) current.count += 1;
+		else {
+			let open: () => void = () => undefined;
+			const promise = new Promise<void>((resolve) => { open = resolve; });
+			suspendedProjects.set(projectId, { count: 1, promise, open });
+		}
+		if (scheduledProjectId === projectId) cancelScheduled();
+	}
+
+	function resumeProject(projectId: string): boolean {
+		const gate = suspendedProjects.get(projectId);
+		if (!gate) return false;
+		if (gate.count > 1) gate.count -= 1;
+		else {
+			suspendedProjects.delete(projectId);
+			gate.open();
+		}
+		return true;
 	}
 
 	function flushProject(): Promise<unknown> | undefined {
@@ -114,13 +157,20 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 
 	function flushCurrentProject(allowTerminal: boolean): Promise<unknown> | undefined {
 		if (suspended || (terminal && !allowTerminal)) return undefined;
+		const project = dependencies.getProject();
 		if (!dependencies.hasHistory() || dependencies.isReadOnly()
 			|| dependencies.hasUnsavedProjectChanges?.() === false) {
-			cancelScheduled();
+			if (!project || scheduledProjectId === project.id) cancelScheduled();
 			return undefined;
 		}
+		if (project) {
+			const gate = suspendedProjects.get(project.id);
+			if (gate) {
+				if (scheduledProjectId === project.id) cancelScheduled();
+				return gate.promise.then(() => flushCurrentProject(allowTerminal));
+			}
+		}
 		cancelScheduled();
-		const project = dependencies.getProject();
 		if (!project) return undefined;
 		const generation = state.saveGeneration;
 		return enqueueSaveSnapshot(dependencies.cloneProject(project), generation);

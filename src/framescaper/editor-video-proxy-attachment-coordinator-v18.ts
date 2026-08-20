@@ -165,7 +165,7 @@ export class FramescaperVideoProxyAttachmentCoordinatorV18 {
 		requestValue: FramescaperVideoProxyAttachmentRequestV18 | unknown,
 	): Promise<Readonly<FramescaperVideoProxyAttachmentResultV18>> {
 		const request = captureRequest(requestValue);
-		const releaseBudget = await acquireFramescaperVideoProxyAttachmentBudgetV18(this.#store);
+		const releaseBudget = await acquireFramescaperVideoProxyAttachmentBudgetV18(this.#store, request.signal);
 		let ticket: FramescaperVideoProxyAttachmentGateTicketV18 | null = null;
 		const staged: StagedBody[] = [];
 		let committed: FramescaperProjectV18 | null = null;

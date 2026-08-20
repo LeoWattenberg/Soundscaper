@@ -218,7 +218,7 @@ import { createTakeCycleRecordingAppSession } from './controller/take-cycle-reco
 import { createTakeCycleOpenRecoveryAppPort, createTakeCycleOpenRecoveryCoordinator } from './controller/take-cycle-open-recovery-app-port.ts';
 import { createFramescaperCaptureAppBinding } from './controller/framescaper-capture-app-binding.ts';
 import { createFramescaperCaptureAdminInterlock } from './controller/framescaper-capture-admin-interlock.ts';
-import { createFramescaperCaptureDerivativeScheduler } from './controller/framescaper-capture-derivative-scheduler.ts';
+import { createFramescaperCaptureDerivativeScheduler, createFramescaperCaptureProxyActiveProjectSynchronizer, createFramescaperCaptureProxySaveQuiescence } from './controller/framescaper-capture-derivative-scheduler.ts';
 import { createFramescaperCaptureProjectWriteAuthority } from './controller/framescaper-capture-project-write-authority.ts';
 import { createAudioWarpControllerComposition } from './controller/audio-warp-composition.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
@@ -896,14 +896,14 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
 		scapeMimeType: SCAPE_MIME_TYPE,
 	});
-	const framescaperCaptureDerivatives = options.framescaperCaptureRouteSchemaVersion
+	const framescaperCaptureProxyScheduler = options.createFramescaperCaptureProxyScheduler?.({ runtime: ffmpeg, helperTimingProbe: fileService.helperTimingProbe, quiesceProjectSaves: createFramescaperCaptureProxySaveQuiescence({ getActiveProjectId: () => project?.id ?? null, hasUnsavedProjectChanges: () => Boolean(project && sessionTab(project.id)?.dirty), saves: projectSaveService }), synchronizeActiveProject: createFramescaperCaptureProxyActiveProjectSynchronizer({ getActiveProject: () => project, setActiveProject: (value) => { project = value; }, setActiveHistory: (value) => { state.history = value; }, applyProjectToPlaybackEngine, publishProjectState }) }) ?? null, framescaperCaptureDerivatives = options.framescaperCaptureRouteSchemaVersion
 		? createFramescaperCaptureDerivativeScheduler({
 			getOriginProject: async (projectId) => sessionTab(projectId)?.history?.present ?? store.loadProject(projectId),
 			store,
 			activateStoredSource: (source, metadata, activationOptions) => activateStoredSource(source, metadata, activationOptions),
 			activateVideoSource: (source) => findSource(project, source.id) ? projectVisualService.activateVideoSource(source) : undefined,
-			createVideoFrameExtractor: createAudioEditorVideoFrameExtractor,
-			videoThumbnailTimes: audioEditorVideoThumbnailTimes,
+			createVideoFrameExtractor: createAudioEditorVideoFrameExtractor, videoThumbnailTimes: audioEditorVideoThumbnailTimes,
+			...(framescaperCaptureProxyScheduler ? { scheduleProxy: framescaperCaptureProxyScheduler } : {}),
 		})
 		: null;
 	const framescaperCaptureWriteAuthority = options.framescaperCaptureRouteSchemaVersion
@@ -1918,7 +1918,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			try { await operation(); } catch (error) { disposalError ||= error; if (fencesSourceRetirement) sourceRetirementError ||= error; }
 		};
 		try {
-			await cleanup(() => framescaperCapture?.dispose() ?? Promise.resolve(), true);
+			await cleanup(() => Promise.all([framescaperCapture?.dispose(), framescaperCaptureProxyScheduler?.dispose?.()]), true);
 			takeCycleOpenRecovery.dispose(); projectGeneration.invalidate();
 			const visualDisposal = projectVisualService.dispose(), scapeInspectionDrain = scapeInspectionQuiescence.drain();
 			removeDeviceChangeListener();

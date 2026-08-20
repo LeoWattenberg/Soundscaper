@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createAudioEditorController } from '../common/editor/app.js';
+import { createFramescaperCapturedVideoProxySchedulerV18 } from './editor-captured-video-proxy-scheduler.ts';
 import {
 	assertFramescaperEditorProjectEnvironmentV18,
 	type FramescaperEditorProjectEnvironmentV18,
@@ -59,6 +60,13 @@ export function createFramescaperAudioEditorControllerV18(
 		projectMaintenanceRuntime: maintenance,
 		scapeProjectRuntime,
 		productSequenceActions,
+		createFramescaperCaptureProxyScheduler: (composition: Readonly<Record<string, unknown>>) => (
+			createFramescaperCapturedVideoProxySchedulerV18(
+				environment,
+				maintenance.sessionController,
+				composition as never,
+			)
+		),
 		...presentation,
 	});
 	executeProductSequenceCommand = (command) => controller.actions.edit.commit(command);

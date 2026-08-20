@@ -79,18 +79,31 @@ export class FramescaperDesktopV10MainFixture {
 	readonly events: string[] = [];
 	readonly reads: string[] = [];
 	readonly api;
+	beginFailure: Error | null = null;
+	acceptBodies = false;
+	afterUpload: (() => Promise<void>) | null = null;
 	beforeFinish: (() => Promise<void>) | null = null;
 	beforeDuplicate: (() => PromiseLike<void> | void) | null = null;
 	afterDuplicate: (() => PromiseLike<void> | void) | null = null;
+	beforeRead: ((projectId: string) => PromiseLike<void> | void) | null = null;
+	afterFinishCommit: (() => PromiseLike<void> | void) | null = null;
 	finishFailureAfterCommit: Error | null = null;
 	duplicateFailureAfterCommit: Error | null = null;
 	deleteFailureAfterCommit: Error | null = null;
 	readonly readFailures = new Map<string, Error>();
+	readonly readFailureCounts = new Map<string, number>();
 	lastBegin: Record<string, unknown> | null = null;
 	#metadataRevision = 0;
 	#projects = new Map<string, FramescaperProjectV18>();
 	#active: FramescaperProjectV18 | null = null;
 	#activePublicationId: string | null = null;
+	#activeBodyDescriptors: Record<string, unknown>[] = [];
+	#activeBodyBytes: Uint8Array[] = [];
+	#activeBodyOffsets: number[] = [];
+	#projectBodies = new Map<string, Readonly<{
+		descriptors: readonly Record<string, unknown>[];
+		bytes: readonly Uint8Array[];
+	}>>();
 	#connected = false;
 	#publications = 0;
 
@@ -107,22 +120,33 @@ export class FramescaperDesktopV10MainFixture {
 			}),
 			readProjectBundle: async (projectId: string) => {
 				this.reads.push(projectId);
+				await this.beforeRead?.(projectId);
 				const failure = this.readFailures.get(projectId);
-				if (failure) throw failure;
+				const remaining = this.readFailureCounts.get(projectId);
+				if (failure && (remaining === undefined || remaining > 0)) {
+					if (remaining !== undefined) this.readFailureCounts.set(projectId, remaining - 1);
+					throw failure;
+				}
 				const project = this.#projects.get(projectId);
-				return project ? bundle(project, this.#metadataRevision) : null;
+				return project ? bundle(project, this.#metadataRevision, this.#projectBodies.get(projectId)?.descriptors) : null;
 			},
-			readBodyChunk: async () => { throw new Error('Format-1 fixture has no desktop bodies.'); },
+			readBodyChunk: async (request: Record<string, unknown>) => this.#readBodyChunk(request),
 			beginPublication: async (request: Record<string, unknown>) => this.#begin(request),
-			writePublicationChunk: async () => { throw new Error('Format-1 fixture has no upload bodies.'); },
+			writePublicationChunk: async (request: Record<string, unknown>) => this.#writeBodyChunk(request),
 			finishPublication: async (request: Record<string, unknown>) => this.#finish(request),
-			abortPublication: async () => { this.#active = null; return true; },
+			abortPublication: async () => { this.#clearActive(); return true; },
 			deleteProject: async (request: Record<string, unknown>) => this.#delete(request),
 			duplicateProject: async (request: Record<string, unknown>) => this.#duplicate(request),
 		});
 	}
 
 	get publications(): number { return this.#publications; }
+
+	failNextReads(projectId: string, count: number, error: Error): void {
+		assert.ok(Number.isSafeInteger(count) && count > 0);
+		this.readFailures.set(projectId, error);
+		this.readFailureCounts.set(projectId, count);
+	}
 
 	seed(project: FramescaperProjectV18): void {
 		const prior = this.#projects.get(String(project.id));
@@ -143,14 +167,48 @@ export class FramescaperDesktopV10MainFixture {
 			|| digest(new TextEncoder().encode(JSON.stringify(current))) !== expected.projectSha256) {
 			throw new Error('project CAS stale');
 		}
-		assert.deepEqual(request.bodies, []);
+		if (this.beginFailure) throw this.beginFailure;
+		const descriptors = structuredClone(request.bodies) as Record<string, unknown>[];
+		if (!this.acceptBodies) assert.deepEqual(descriptors, []);
 		this.#active = project;
 		this.#activePublicationId = String(request.publicationId);
+		this.#activeBodyDescriptors = descriptors;
+		this.#activeBodyBytes = descriptors.map(({ byteLength }) => new Uint8Array(Number(byteLength)));
+		this.#activeBodyOffsets = descriptors.map(() => 0);
 		return {
 			publicationId: this.#activePublicationId,
 			maximumChunkBytes: 4 * 1024 * 1024,
-			bodyCount: 0,
+			bodyCount: descriptors.length,
 		};
+	}
+
+	async #writeBodyChunk(request: Record<string, unknown>) {
+		assert.equal(request.publicationId, this.#activePublicationId);
+		const bodyIndex = Number(request.bodyIndex);
+		const offset = Number(request.offset);
+		const bytes = request.bytes;
+		assert.ok(bytes instanceof Uint8Array);
+		assert.equal(offset, this.#activeBodyOffsets[bodyIndex]);
+		const body = this.#activeBodyBytes[bodyIndex];
+		assert.ok(body && offset + bytes.byteLength <= body.byteLength);
+		body.set(bytes, offset);
+		const nextOffset = offset + bytes.byteLength;
+		this.#activeBodyOffsets[bodyIndex] = nextOffset;
+		if (this.#activeBodyOffsets.every((candidateOffset, index) => (
+			candidateOffset === this.#activeBodyBytes[index]!.byteLength
+		))) await this.afterUpload?.();
+		return { bodyIndex, nextOffset, complete: nextOffset === body.byteLength };
+	}
+
+	#readBodyChunk(request: Record<string, unknown>): Uint8Array {
+		const projectId = String(request.projectId);
+		const stored = this.#projectBodies.get(projectId);
+		if (!stored) throw new Error('Format-1 fixture has no desktop bodies.');
+		const storageKey = String((request.body as Record<string, unknown>).storageKey);
+		const index = stored.descriptors.findIndex((descriptor) => descriptor.storageKey === storageKey);
+		assert.notEqual(index, -1);
+		const offset = Number(request.offset);
+		return stored.bytes[index]!.slice(offset, offset + Number(request.length));
 	}
 
 	async #finish(request: Record<string, unknown>) {
@@ -159,13 +217,25 @@ export class FramescaperDesktopV10MainFixture {
 		assert.ok(this.#active);
 		await this.beforeFinish?.();
 		const project = this.#active;
-		this.#active = null;
-		this.#activePublicationId = null;
+		assert.ok(this.#activeBodyBytes.every((body, index) => this.#activeBodyOffsets[index] === body.byteLength));
+		const descriptors = structuredClone(this.#activeBodyDescriptors);
+		const bytes = this.#activeBodyBytes.map((body) => body.slice());
+		this.#clearActive();
 		this.#projects.set(String(project.id), structuredClone(project));
+		this.#projectBodies.set(String(project.id), { descriptors, bytes });
 		this.#metadataRevision += 1;
 		this.#publications += 1;
+		await this.afterFinishCommit?.();
 		if (this.finishFailureAfterCommit) throw this.finishFailureAfterCommit;
-		return bundle(project, this.#metadataRevision);
+		return bundle(project, this.#metadataRevision, descriptors);
+	}
+
+	#clearActive(): void {
+		this.#active = null;
+		this.#activePublicationId = null;
+		this.#activeBodyDescriptors = [];
+		this.#activeBodyBytes = [];
+		this.#activeBodyOffsets = [];
 	}
 
 	async #delete(request: Record<string, unknown>) {
@@ -304,7 +374,11 @@ async function baseFixture(
 	return { localStore, archive, main: environment.main ?? new FramescaperDesktopV10MainFixture() };
 }
 
-function bundle(project: FramescaperProjectV18, metadataRevision: number) {
+function bundle(
+	project: FramescaperProjectV18,
+	metadataRevision: number,
+	bodies: readonly Record<string, unknown>[] = [],
+) {
 	const document = JSON.stringify(project);
 	const bytes = new TextEncoder().encode(document);
 	const sha = digest(bytes);
@@ -319,7 +393,7 @@ function bundle(project: FramescaperProjectV18, metadataRevision: number) {
 			byteLength: bytes.byteLength, sha256: sha,
 		},
 		document,
-		bodies: [],
+		bodies: structuredClone(bodies),
 	};
 }
 

@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
 import type { ProjectLifecycleLock } from '../src/common/editor/controller/project-lifecycle-types.ts';
 import { PLAYBACK_PROJECT_APPLY_TASK } from '../src/common/editor/controller/playback-project-service.ts';
 import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../src/common/editor/controller/project-bin-linked-video-relink-service.ts';
@@ -48,6 +49,64 @@ test('project activation resets scoped state and publishes only after sources ar
 	fixture.setStopPreview(async () => { fixture.events.push('stop-preview'); }); const renderFailure = new Error('render-engine disposal failed');
 	fixture.setDisposeRenderEngines(async () => { fixture.events.push('dispose-render-engines:failed'); throw renderFailure; });
 	await assert.rejects(fixture.service.switchProject(project('render-failure')), (error) => error === renderFailure); assert.equal(fixture.events.filter((event) => event === 'begin-provider-replacement').length, 1);
+});
+
+test('project switch waits for a suspended origin save and flushes its edit before activation', async () => {
+	const fixture = createFixture();
+	type FixtureProject = NonNullable<ReturnType<typeof fixture.getProject>>;
+	const editedOrigin = { ...fixture.getProject() as FixtureProject, revision: 1 };
+	fixture.setProject(editedOrigin);
+	let dirty = true;
+	const written: FixtureProject[] = [];
+	const flushStarted = deferred<void>();
+	const saveState = {
+		autosaveTimer: 0,
+		saveGeneration: 0,
+		pendingSaveSnapshots: new Set<FixtureProject>(),
+		saveQueue: Promise.resolve<unknown>(undefined),
+		saveState: 'dirty',
+	};
+	const saves = createProjectSaveService<FixtureProject>({
+		state: saveState,
+		getProject: fixture.getProject,
+		hasHistory: () => true,
+		hasUnsavedProjectChanges: () => dirty,
+		isReadOnly: () => false,
+		cloneProject: structuredClone,
+		admitProjectPublication: async () => undefined,
+		saveProject: async (snapshot) => { written.push(snapshot); },
+		persistActiveProjectId: async () => undefined,
+		isCurrentProject: (projectId) => fixture.getProject()?.id === projectId,
+		hasSessionTab: () => true,
+		markProjectSaved: () => { dirty = false; },
+		publish: () => undefined,
+		garbageCollect: async () => undefined,
+		refreshStorageUsage: async () => undefined,
+		handleError: () => undefined,
+	});
+	fixture.setSaveNow(async () => {
+		flushStarted.resolve();
+		await saves.flushProject();
+	});
+	saves.suspendProject(editedOrigin.id);
+
+	const switching = fixture.service.switchProject(project('next-project'));
+	await flushStarted.promise;
+	let settled = false;
+	void switching.finally(() => { settled = true; });
+	await Promise.resolve();
+	assert.equal(settled, false);
+	assert.strictEqual(fixture.getProject(), editedOrigin);
+	assert.deepEqual(written, []);
+
+	assert.equal(saves.resumeProject(editedOrigin.id), true);
+	await switching;
+	assert.deepEqual(written.map(({ id, revision }) => ({ id, revision })), [{
+		id: editedOrigin.id,
+		revision: editedOrigin.revision,
+	}]);
+	assert.equal(dirty, false);
+	assert.equal(fixture.getProject()?.id, 'next-project');
 });
 
 test('pending recovery inspects before open mutations and resumes them in authority order', async () => {

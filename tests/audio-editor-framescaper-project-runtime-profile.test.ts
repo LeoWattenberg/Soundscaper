@@ -303,6 +303,10 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 	}
 	assert.deepEqual(exportReferences, [
 		'desktop/project-library-v10-current-project.ts',
+		// Capture-owned proxy publication uses the final V18 profile both for its
+		// native route and for the attachment-preserving foundation of V19.
+		'src/framescaper/editor-captured-video-proxy-scheduler-composition.ts',
+		'src/framescaper/editor-project-claim-cleanup-profile.ts',
 		'src/framescaper/editor-project-environment-v18.ts',
 		'src/framescaper/editor-project-feature-requirements-v19.ts',
 		PRODUCT_MODULE,
@@ -363,6 +367,8 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 	]);
 	assert.deepEqual(productPathReferences, [
 		'desktop/project-library-v10-current-project.ts',
+		'src/framescaper/editor-captured-video-proxy-scheduler-composition.ts',
+		'src/framescaper/editor-project-claim-cleanup-profile.ts',
 		'src/framescaper/editor-project-environment-v18.ts',
 		'src/framescaper/editor-project-feature-requirements-v19.ts',
 		'src/framescaper/editor-project-runtime-v19-selection.ts',
@@ -428,6 +434,9 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'src/framescaper/desktop-project-library-v10-renderer-lifecycle.ts',
 		'src/framescaper/desktop-project-library-v10-renderer.ts',
 		'src/framescaper/desktop-project-library-v10-store-adapter.ts',
+		'src/framescaper/editor-captured-video-proxy-preservation.ts',
+		'src/framescaper/editor-captured-video-proxy-scheduler-composition.ts',
+		'src/framescaper/editor-project-claim-cleanup-profile.ts',
 		'src/framescaper/editor-project-feature-requirements-v18.ts',
 		'src/framescaper/editor-project-feature-requirements-v19.ts',
 		'src/framescaper/editor-project-playback-v18.ts',
@@ -441,7 +450,6 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'src/framescaper/editor-project-store-v18.ts',
 		'src/framescaper/editor-project-store-v19.ts',
 		'src/framescaper/editor-project-v18-archive-repository.ts',
-		'src/framescaper/editor-project-v18-claim-cleanup-repository.ts',
 		'src/framescaper/editor-project-v18-commands.ts',
 		'src/framescaper/editor-project-v18-history.ts',
 		'src/framescaper/editor-project-v18-migration.ts',

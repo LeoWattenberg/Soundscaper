@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createAudioEditorController } from '../common/editor/app.js';
+import { createFramescaperCapturedVideoProxySchedulerV19 } from './editor-captured-video-proxy-scheduler.ts';
 import {
 	assertFramescaperEditorProjectEnvironmentV19,
 	type FramescaperEditorProjectEnvironmentV19,
@@ -40,12 +41,13 @@ export function createFramescaperAudioEditorControllerV19(
 		...createFramescaperSequenceActionsV18(execute),
 		...createFramescaperMulticameraActionsV18(execute),
 	});
+	const sessionController = environment.runtime.createSessionController();
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
 		framescaperCaptureRouteSchemaVersion: 19,
 		store: environment.store,
-		sessionController: environment.runtime.createSessionController(),
+		sessionController,
 		acquireProjectLock: environment.runtime.acquireProjectLock,
 		projectRuntime: environment.runtime,
 		playbackProjectService: environment.playback,
@@ -53,6 +55,9 @@ export function createFramescaperAudioEditorControllerV19(
 		scapeProjectRuntime,
 		productSequenceActions,
 		productVideoExportStrategy: createFramescaperVideoExportStrategyV19(environment.runtime.profile),
+		createFramescaperCaptureProxyScheduler: (composition: Readonly<Record<string, unknown>>) => (
+			createFramescaperCapturedVideoProxySchedulerV19(environment, sessionController, composition as never)
+		),
 		...presentation,
 	});
 	executeProductSequenceCommand = (command) => controller.actions.edit.commit(command);

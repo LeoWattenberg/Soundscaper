@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import {
 	createVideoProxyCleanupTombstone,
 	failVideoProxyCleanupTombstone,
@@ -22,9 +21,11 @@ import { publishSource, type StorageRecord } from '../common/editor/storage/medi
 import type { OpfsRepository } from '../common/editor/storage/opfs-repository.ts';
 import type { StorageRepositoryPort } from '../common/editor/storage/repository-port.ts';
 import type { VideoProxyAttachmentV18 } from '../common/editor/video-proxy-attachment-v18.ts';
-import { cloneFramescaperProjectHistoryV18 } from './editor-project-v18-history.ts';
-import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
-import { cloneFramescaperProjectV18, type FramescaperProjectV18 } from './editor-project-v18.ts';
+import type { FramescaperProjectV18 } from './editor-project-v18.ts';
+import {
+	framescaperClaimCleanupProjectProfile,
+	type FramescaperClaimCleanupProjectProfile,
+} from './editor-project-claim-cleanup-profile.ts';
 import {
 	appendCleanupMapValue,
 	boundedCleanupInventory,
@@ -116,17 +117,17 @@ type ClaimSelector = (claim: Readonly<VideoProxyClaimRecord>) => boolean;
 
 /** Durable-only startup and maintenance owner for abandoned V18 body claims. */
 export class FramescaperProjectV18ClaimCleanupRepository {
-	readonly #profile: EditorProjectRuntimeProfile;
+	readonly #profile: FramescaperClaimCleanupProjectProfile;
 	readonly #port: StorageRepositoryPort;
 	readonly #opfs: OpfsRepository;
 	readonly #now: () => number;
 	readonly #maximumInventory: number;
 
 	constructor(
-		profile: EditorProjectRuntimeProfile | unknown,
+		profile: unknown,
 		dependenciesValue: FramescaperProjectV18ClaimCleanupDependencies | unknown,
 	) {
-		assertFramescaperProjectV18Profile(profile);
+		const projectProfile = framescaperClaimCleanupProjectProfile(profile);
 		const dependencies = cleanupOptionalClosedRecord(
 			dependenciesValue,
 			DEPENDENCY_FIELDS,
@@ -144,7 +145,7 @@ export class FramescaperProjectV18ClaimCleanupRepository {
 		if (dependencies.now !== undefined && typeof dependencies.now !== 'function') {
 			throw new TypeError('The V18 claim cleanup clock must be a function.');
 		}
-		this.#profile = profile;
+		this.#profile = projectProfile;
 		this.#port = dependencies.port as StorageRepositoryPort;
 		this.#opfs = dependencies.opfs as OpfsRepository;
 		this.#now = (dependencies.now as (() => number) | undefined) ?? Date.now;
@@ -219,7 +220,7 @@ export class FramescaperProjectV18ClaimCleanupRepository {
 }
 
 async function reconcileMetadata(
-	database: IDBDatabase, profile: EditorProjectRuntimeProfile, scope: NormalizedScope,
+	database: IDBDatabase, profile: FramescaperClaimCleanupProjectProfile, scope: NormalizedScope,
 	maximum: number, now: number, select: ClaimSelector, requireLapsedClaims: boolean,
 ): Promise<MetadataPhase> {
 	return transact(database, [
@@ -301,7 +302,7 @@ async function reconcileMetadata(
 
 async function recheckTombstones(
 	database: IDBDatabase,
-	profile: EditorProjectRuntimeProfile,
+	profile: FramescaperClaimCleanupProjectProfile,
 	scope: NormalizedScope,
 	maximum: number,
 	expected: readonly Readonly<VideoProxyCleanupTombstoneRecord>[],
@@ -325,7 +326,7 @@ async function recheckTombstones(
 
 async function finalizeTombstones(
 	database: IDBDatabase,
-	profile: EditorProjectRuntimeProfile,
+	profile: FramescaperClaimCleanupProjectProfile,
 	scope: NormalizedScope,
 	maximum: number,
 	expected: readonly Readonly<VideoProxyCleanupTombstoneRecord>[],
@@ -384,7 +385,7 @@ async function classifyTombstones(
 
 async function readInventory(
 	stores: Readonly<Record<string, IDBObjectStore>>,
-	profile: EditorProjectRuntimeProfile,
+	profile: FramescaperClaimCleanupProjectProfile,
 	scope: NormalizedScope,
 	maximum: number,
 ): Promise<Inventory> {
@@ -406,7 +407,7 @@ async function readInventory(
 		remainingAfter(revisionValues, remaining);
 		const claims = claimValues.map(normalizeVideoProxyClaimRecord);
 		const tombstones = tombstoneValues.map(normalizeVideoProxyCleanupTombstoneRecord);
-		const durableProjects = projectValues.map((value) => cloneFramescaperProjectV18(profile, value));
+		const durableProjects = projectValues.map((value) => profile.project(value));
 		for (const value of revisionValues) durableProjects.push(revisionProject(profile, value));
 		assertUniqueTombstones(tombstones);
 		const roots = rootInventory(durableProjects, scope.projects);
@@ -455,25 +456,20 @@ function rootInventory(
 }
 
 function normalizeScope(
-	profile: EditorProjectRuntimeProfile,
+	profile: FramescaperClaimCleanupProjectProfile,
 	value: unknown,
 	maximum: number,
 ): NormalizedScope {
 	const raw = cleanupClosedRecord(value, SCOPE_FIELDS, 'Framescaper V18 claim cleanup scope');
 	const session = cleanupDenseArray(raw.sessionProjects, 'V18 cleanup session projects')
-		.map((project) => cloneFramescaperProjectV18(profile, project));
+		.map((project) => profile.project(project));
 	const pending = cleanupCollection(raw.pendingSaveSnapshots, 'V18 cleanup pending saves')
-		.map((project) => cloneFramescaperProjectV18(profile, project));
+		.map((project) => profile.project(project));
 	const histories = cleanupDenseArray(raw.histories, 'V18 cleanup histories')
-		.map((history) => cloneFramescaperProjectHistoryV18(profile, history));
+		.map((history) => profile.historyProjects(history));
 	const projects = [...session, ...pending];
 	let inputCount = projects.length;
-	for (const history of histories) {
-		const snapshots = [
-			history.present,
-			...history.undoStack.map((entry) => entry.project),
-			...history.redoStack.map((entry) => entry.project),
-		];
+	for (const snapshots of histories) {
 		projects.push(...snapshots);
 		inputCount += snapshots.length;
 	}
@@ -481,7 +477,7 @@ function normalizeScope(
 	return { projects: Object.freeze(projects), inputCount };
 }
 
-function revisionProject(profile: EditorProjectRuntimeProfile, value: unknown): FramescaperProjectV18 {
+function revisionProject(profile: FramescaperClaimCleanupProjectProfile, value: unknown): FramescaperProjectV18 {
 	const required = ['key', 'projectId', 'revision', 'project'] as const;
 	const raw = cleanupOptionalClosedRecord(
 		value,
@@ -495,7 +491,7 @@ function revisionProject(profile: EditorProjectRuntimeProfile, value: unknown): 
 	)) {
 		throw new TypeError('A V18 revision creation fence is invalid.');
 	}
-	const project = cloneFramescaperProjectV18(profile, raw.project);
+	const project = profile.project(raw.project);
 	if (raw.projectId !== project.id || raw.revision !== project.revision
 		|| raw.key !== `${String(project.id)}:${String(project.revision).padStart(12, '0')}`) {
 		throw new TypeError('A V18 revision record must match its exact project snapshot.');

@@ -56,7 +56,10 @@ export interface FramescaperDesktopProjectLibraryV10RendererComposition {
 
 export interface FramescaperDesktopProjectLibraryV10ShadowStore extends
 	FramescaperScapeArchiveBodyStoreV18, FramescaperDesktopV10RawShadowProjectStore {
-	loadProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown> | unknown;
+	loadProject(
+		projectId: string,
+		options?: Readonly<{ revision?: number; signal?: AbortSignal }>,
+	): PromiseLike<unknown> | unknown;
 	getStatus(): unknown;
 	readonly settingsRepository: FramescaperDesktopV10DeleteIntentStore;
 	readonly linkedOriginalStoreService: Readonly<{
@@ -67,7 +70,11 @@ export interface FramescaperDesktopProjectLibraryV10ShadowStore extends
 export interface FramescaperDesktopProjectLibraryV10Renderer {
 	listProjects(): Promise<readonly Readonly<FramescaperDesktopV10ProjectSummary>[]>;
 	readProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<FramescaperProjectV18 | null>;
-	publishProject(request: Readonly<{ readonly project: unknown; readonly signal?: AbortSignal }> | unknown):
+	publishProject(request: Readonly<{
+		readonly project: unknown;
+		readonly signal?: AbortSignal;
+		readonly beforeFinish?: () => PromiseLike<void> | void;
+	}> | unknown):
 		Promise<FramescaperProjectV18>;
 	deleteProject(projectId: string): Promise<void>;
 	cleanupDeletedProject(projectId: string): Promise<boolean>;
@@ -90,7 +97,7 @@ export {
 
 const COMPOSITION_FIELDS = ['store', 'archive'] as const;
 const PUBLICATION_REQUIRED_FIELDS = ['project'] as const;
-const PUBLICATION_OPTIONAL_FIELDS = ['signal'] as const;
+const PUBLICATION_OPTIONAL_FIELDS = ['signal', 'beforeFinish'] as const;
 const SIGNAL_FIELDS = ['signal'] as const;
 
 /** Connect the packaged V10 bridge only to one already-authenticated V18 shadow/archive pair. */
@@ -307,6 +314,7 @@ class Renderer implements FramescaperDesktopProjectLibraryV10Renderer {
 			for (const [bodyIndex, asset] of exported.assets.entries()) {
 				await this.#uploadBody(publicationId, bodyIndex, planned.bodies[bodyIndex]!, asset.body, request.signal);
 			}
+			await request.beforeFinish?.();
 			throwIfScapeAborted(request.signal);
 			const result = validateFramescaperDesktopV10Bundle(
 				this.#profile,
@@ -417,6 +425,7 @@ interface NormalizedPublication {
 	readonly document: string;
 	readonly documentSha256: string;
 	readonly signal?: AbortSignal;
+	readonly beforeFinish?: () => PromiseLike<void> | void;
 }
 
 interface RendererPublication {
@@ -424,6 +433,7 @@ interface RendererPublication {
 	readonly document: string;
 	readonly documentSha256: string;
 	readonly signal?: AbortSignal;
+	readonly beforeFinish?: () => PromiseLike<void> | void;
 }
 
 function rendererPublicationRequest(profile: EditorProjectRuntimeProfile, value: unknown): RendererPublication {
@@ -432,11 +442,15 @@ function rendererPublicationRequest(profile: EditorProjectRuntimeProfile, value:
 	);
 	const snapshot = snapshotFramescaperDesktopV10Project(profile, raw.project);
 	const signal = raw.signal === undefined ? undefined : abortSignal(raw.signal);
+	const beforeFinish = raw.beforeFinish === undefined
+		? undefined
+		: callback(raw.beforeFinish, 'Framescaper desktop V10 before-finish callback');
 	return Object.freeze({
 		project: snapshot.project,
 		document: snapshot.document,
 		documentSha256: snapshot.sha256,
 		...(signal ? { signal } : {}),
+		...(beforeFinish ? { beforeFinish } : {}),
 	});
 }
 
@@ -494,6 +508,11 @@ function signalOptions(value: unknown): AbortSignal | undefined {
 function abortSignal(value: unknown): AbortSignal {
 	if (!(value instanceof AbortSignal)) throw new TypeError('A Framescaper desktop V10 AbortSignal is required.');
 	return value;
+}
+
+function callback(value: unknown, name: string): () => PromiseLike<void> | void {
+	if (typeof value !== 'function') throw new TypeError(`${name} is required.`);
+	return value as () => PromiseLike<void> | void;
 }
 
 function allowedRecord<const Required extends string, const Optional extends string>(

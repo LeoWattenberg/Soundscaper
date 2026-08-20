@@ -60,6 +60,7 @@ export function createFixture(
 	let loadSources: (value: TestProject) => Promise<unknown> = async () => undefined;
 	let stopPreview = async (options: Readonly<{ dispose: true }>) => { assert.equal(options.dispose, true); await Promise.resolve(); events.push('stop-preview'); };
 	let disposeRenderEngines = async () => { await Promise.resolve(); events.push('dispose-render-engines'); };
+	let saveNow = async () => { events.push('save-now'); };
 	let recoveryBlocked = false;
 	const recoveryProjects = new Set<string>();
 	const recoveryDeferred = new Map<string, Array<() => PromiseLike<unknown> | unknown>>();
@@ -176,7 +177,7 @@ export function createFixture(
 		cancelPlayAtSpeedPreparation: () => { events.push('cancel-speed'); },
 		stopRecording: async () => { events.push('stop-recording'); },
 		persistActiveSessionUiState: () => { events.push('persist-session'); },
-		saveNow: async () => { events.push('save-now'); },
+		saveNow: () => saveNow(),
 		cancelScheduledSave: () => { events.push('cancel-save'); },
 		stopEngine: () => { events.push('stop-engine'); },
 		stopProjectBinPreview: (options: Readonly<{ dispose: true }>) => stopPreview(options), disposeRenderEngines: () => disposeRenderEngines(),
@@ -266,11 +267,13 @@ export function createFixture(
 		state,
 		statuses,
 		getProject: () => currentProject,
+		setProject(value: TestProject | null) { currentProject = value; },
 		getLoadedEngineProject: () => loadedEngineProject,
 		getTabMetadata: (projectId: string) => tabs.get(projectId)?.metadata,
 		setAcquire(value: typeof acquire) { acquire = value; },
 		setLoadSources(value: typeof loadSources) { loadSources = value; },
 		setStopPreview(value: typeof stopPreview) { stopPreview = value; }, setDisposeRenderEngines(value: typeof disposeRenderEngines) { disposeRenderEngines = value; },
+		setSaveNow(value: typeof saveNow) { saveNow = value; },
 		setMigrationReadOnly(value: boolean) { migrationReadOnly = value; },
 		setRecoveryBlocked(value: boolean) { recoveryBlocked = value; },
 		setPendingRecovery(projectId: string) { recoveryProjects.add(projectId); },

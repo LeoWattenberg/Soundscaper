@@ -221,6 +221,11 @@ test('remains a closed scalar owner with only the reviewed V18 consumers', () =>
 		/video-timing-asset\.ts|video-timing-storage|candidate-observation|proxy-relationship|project-|storage\/|controller\/|ui\/|repository|capabilit|scape-|desktop|app\./u);
 	const consumers = new Set([
 		'scripts/lib/desktop-project-library-runtime.mjs',
+		// Capture generation constructs, transactionally preserves, and schedules
+		// this same reviewed scalar wire without adding a parallel attachment type.
+		'src/framescaper/editor-captured-video-proxy-bodies.ts',
+		'src/framescaper/editor-captured-video-proxy-preservation.ts',
+		'src/framescaper/editor-captured-video-proxy-scheduler.ts',
 		'src/framescaper/editor-project-v18-archive-repository.ts',
 		'src/framescaper/editor-project-v18-claim-cleanup-repository.ts',
 		'src/framescaper/editor-project-v18-preservation-repository.ts',

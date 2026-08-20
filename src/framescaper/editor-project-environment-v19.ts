@@ -11,6 +11,11 @@ import {
 	createEditorProjectRuntimeV19Selection,
 	type EditorProjectRuntimeV19Selection,
 } from './editor-project-runtime-v19-selection.ts';
+import {
+	FramescaperProjectV18ClaimCleanupRepository,
+	type FramescaperProjectV18ClaimCleanupResult,
+} from './editor-project-v18-claim-cleanup-repository.ts';
+import { framescaperProjectStoreAuthorityV19 } from './editor-project-store-v19.ts';
 import { FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v19.ts';
 
 const OPTION_FIELDS = ['storeOptions'] as const;
@@ -24,14 +29,15 @@ export interface FramescaperEditorProjectEnvironmentV19 {
 	readonly runtime: Readonly<EditorProjectRuntimeV19Selection>;
 	readonly store: AudioEditorProjectStore;
 	readonly playback: PlaybackProjectService;
+	readonly claimCleanup: FramescaperProjectV18ClaimCleanupRepository;
+	readonly initialCleanup: Readonly<FramescaperProjectV18ClaimCleanupResult>;
 	readonly createProjectIfAbsent: (project: ProjectDocument) => Promise<ProjectDocument | null>;
 	readonly close: () => Promise<void>;
 }
 
 /**
- * Open the lean exact-V19 browser authority. Proxy maintenance, desktop
- * adapters, and archive preservation remain owned by their V18 implementations
- * until dedicated V19 ports are available.
+ * Open the exact-V19 browser authority, including attachment-claim cleanup over
+ * the V19 document's authenticated V18 preservation foundation.
  */
 export async function createFramescaperEditorProjectEnvironmentV19(
 	optionsValue: FramescaperEditorProjectEnvironmentV19Options | unknown = {},
@@ -45,9 +51,26 @@ export async function createFramescaperEditorProjectEnvironmentV19(
 		if (!storageStatus?.persistent) {
 			throw new Error('Durable storage is required; memory V19 project storage is unsupported.');
 		}
+		const authority = framescaperProjectStoreAuthorityV19(
+			FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+			store,
+		);
+		if (!authority.opfs) throw new TypeError('The exact V19 OPFS repository is required.');
+		const claimCleanup = new FramescaperProjectV18ClaimCleanupRepository(
+			FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+			{ port: authority.port, opfs: authority.opfs },
+		);
+		const initialCleanup = await claimCleanup.reconcile({
+			sessionProjects: [], histories: [], pendingSaveSnapshots: [],
+		});
+		if (initialCleanup.status !== 'settled') {
+			throw new Error('Framescaper V19 startup claim cleanup is indeterminate.');
+		}
 		const environment = Object.freeze({
 			runtime,
 			store,
+			claimCleanup,
+			initialCleanup,
 			playback: createFramescaperPlaybackProjectServiceV19(
 				FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
 				{ timingStore: store },
