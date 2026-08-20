@@ -16,6 +16,15 @@ const SOUND_ACTIVATION_SNAPSHOT = Object.freeze({
 	preferenceMutationBlockReason: null,
 	sources: Object.freeze([]),
 });
+const CAPTURE_SNAPSHOT = Object.freeze({
+	phase: 'recording' as const,
+	availability: Object.freeze({ status: 'available' as const, sourceRoles: Object.freeze(['microphone'] as const) }),
+	requestedRoles: Object.freeze(['microphone'] as const), sources: Object.freeze([]), sourcesFrozen: true,
+	destination: 'both' as const, countdownMs: 0, permissionRequestGeneration: 1, failure: null,
+	devices: Object.freeze([]), selectedDeviceIds: Object.freeze({}), displaySelectionMode: null,
+	displaySources: Object.freeze([]), selectedDisplaySourceToken: null,
+	monitoring: false, inputGain: 1, elapsedTimeMs: 1_250, metrics: Object.freeze([]),
+});
 
 test('document snapshots expose durability, scheduling, history, and compatibility semantically', () => {
 	const project: SnapshotProject = {
@@ -95,9 +104,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		getRackEffectTypes: () => [{ type: 'gain' }],
 		getVideoEffectTypes: () => [{ type: 'fade' }],
 		getVideoNavigationSnapshot: () => Object.freeze({ rate: 2, positionFrame: 960 }),
-		getFramescaperCaptureSnapshot: () => Object.freeze({
-			phase: 'recording', elapsedTimeMs: 1_250,
-		}),
+		getFramescaperCaptureSnapshot: () => CAPTURE_SNAPSHOT,
 		getSelectionEffectTypes: () => [{ type: 'normalize' }],
 		getSelectionEffectParams: () => ({ amount: 1 }),
 		getSelectionEffectDefinition: () => ({ type: 'normalize' }),
@@ -163,7 +170,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	});
 	assert.strictEqual(snapshot.videoPreviewProject, videoPreviewProject);
 	assert.deepEqual(snapshot.videoNavigation, { rate: 2, positionFrame: 960 });
-	assert.deepEqual(snapshot.capture, { phase: 'recording', elapsedTimeMs: 1_250 });
+	assert.strictEqual(snapshot.capture, CAPTURE_SNAPSHOT);
 	assert.equal(Object.isFrozen(snapshot), true);
 	assert.equal(Object.isFrozen(snapshot.effects), true);
 });
