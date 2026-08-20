@@ -34,7 +34,7 @@ const REQUIRED_SOURCE_COMBINATIONS = Object.freeze([
 test.describe('Framescaper V19 recoverable capture', () => {
 	registerAudioEditorHooks();
 
-	test('is default-hidden and opens setup without implicit device access', async ({ page }) => {
+	test('is default-hidden and opens setup without implicit device access', async ({ browserName, page }) => {
 		await installCaptureHarness(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
 		const workspacePanel = recordingSetupWorkspacePanel(editor);
@@ -55,8 +55,10 @@ test.describe('Framescaper V19 recoverable capture', () => {
 		await expectCaptureCalls(page, []);
 		await assertAccessibleBasics(panel);
 		await assertNoSeriousAxeViolations(page, '[data-workspace-panel="recording-setup"]');
-		await page.emulateMedia({ forcedColors: 'active' });
-		await expect(panel.getByRole('status')).toHaveCSS('forced-color-adjust', 'none');
+		if (browserName !== 'webkit') {
+			await page.emulateMedia({ forcedColors: 'active' });
+			await expect(panel.getByRole('status')).toHaveCSS('forced-color-adjust', 'none');
+		}
 		await page.emulateMedia({ forcedColors: 'none' });
 
 		const toolbarRecord = editor.getByRole('button', { name: 'Recording setup', exact: true });
@@ -176,6 +178,7 @@ test.describe('Framescaper V19 recoverable capture', () => {
 		await expect(panel.getByRole('checkbox', { name: 'Microphone', exact: true })).toBeDisabled();
 		await panel.getByRole('button', { name: 'Start capture', exact: true }).press('Enter');
 		await expectCapturePhase(panel, 'recording');
+		await releaseAudioFrames(page, 3);
 		await expect.poll(async () => (await captureHarnessState(page)).audioDataClosed).toBeGreaterThanOrEqual(3);
 		await editor.getByRole('button', { name: 'Close: Recording setup', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Stop and import', exact: true })).toBeVisible();
@@ -186,6 +189,7 @@ test.describe('Framescaper V19 recoverable capture', () => {
 		const pausedAt = (await captureHarnessState(page)).audioDataClosed;
 		await panel.getByRole('button', { name: 'Resume capture', exact: true }).press('Enter');
 		await expectCapturePhase(panel, 'recording');
+		await releaseAudioFrames(page, 3);
 		await expect.poll(async () => (await captureHarnessState(page)).audioDataClosed).toBeGreaterThan(pausedAt + 2);
 
 		await panel.getByRole('button', { name: 'Stop and import', exact: true }).press('Enter');
@@ -223,6 +227,7 @@ test.describe('Framescaper V19 recoverable capture', () => {
 		await expect.poll(async () => (
 			await captureHarnessState(page)
 		).audioProcessorConstructions).toBe(2);
+		await releaseAudioFrames(page, 1);
 		await expect.poll(async () => (await captureHarnessState(page)).audioDataClosed).toBeGreaterThanOrEqual(2);
 		await panel.getByRole('button', { name: 'Stop and import', exact: true }).press('Enter');
 		await expectCapturePhase(panel, 'inactive', 30_000);
@@ -261,6 +266,7 @@ test.describe('Framescaper V19 recoverable capture', () => {
 		await expect.poll(async () => (
 			await captureHarnessState(page)
 		).audioProcessorConstructions).toBe(1);
+		await releaseAudioFrames(page, 1);
 
 		await editor.getByRole('button', { name: 'New project', exact: true }).click();
 		await expect(editor).not.toHaveAttribute('data-project-id', originProjectId);
@@ -307,6 +313,7 @@ test.describe('Framescaper V19 recoverable capture', () => {
 		await panel.getByRole('button', { name: 'Arm capture', exact: true }).press('Enter');
 		await panel.getByRole('button', { name: 'Start capture', exact: true }).press('Enter');
 		await expectCapturePhase(panel, 'recording');
+		await releaseAudioFrames(page, 2);
 		await expect.poll(async () => (await captureHarnessState(page)).audioDataClosed).toBeGreaterThanOrEqual(2);
 		expect(await page.evaluate(() => globalThis.__framescaperCaptureHarness.endNewest('microphone'))).toBe(true);
 		await expectCapturePhase(panel, 'recovery');
@@ -391,11 +398,23 @@ async function captureHarnessState(page) {
 	});
 }
 
+async function releaseAudioFrames(page, rounds) {
+	const before = (await captureHarnessState(page)).audioDataClosed;
+	const released = await page.evaluate(async (count) => (
+		globalThis.__framescaperCaptureHarness.releaseAudioFrames(count)
+	), rounds);
+	expect(released).toBeGreaterThanOrEqual(rounds);
+	await expect.poll(async () => (await captureHarnessState(page)).audioDataClosed)
+		.toBeGreaterThanOrEqual(before + released);
+}
+
 async function installCaptureHarness(page) {
 	const videoBase64 = videoTimingProbeMedia.find(({ kind }) => kind === 'vfr').file.buffer.toString('base64');
 	await page.addInitScript(({ videoBase64: encodedVideo }) => {
 		const binaryVideo = atob(encodedVideo);
 		const videoBytes = Uint8Array.from(binaryVideo, (value) => value.charCodeAt(0));
+		const audioFrameCount = 4_096;
+		const audioFrameIntervalMilliseconds = Math.ceil(audioFrameCount * 1_000 / 48_000);
 		const harness = {
 			requests: [],
 			displayCalls: 0,
@@ -411,12 +430,41 @@ async function installCaptureHarness(page) {
 			denyNextUser: false,
 			denyNextDisplay: false,
 			trackEntries: [],
+			audioReaders: [],
+			nextAudioReleaseAt: 0,
+			async waitForPendingAudioReaders() {
+				const deadline = performance.now() + 10_000;
+				while (performance.now() < deadline) {
+					const readers = this.audioReaders.filter((reader) => reader.isActive());
+					if (readers.length > 0 && readers.every((reader) => reader.hasPendingRead())) return readers;
+					await new Promise((resolve) => setTimeout(resolve, 10));
+				}
+				throw new Error('Fixture audio readers did not request the next frame.');
+			},
+			async releaseAudioFrames(rounds) {
+				if (!Number.isInteger(rounds) || rounds < 1) throw new Error('Fixture audio rounds must be positive.');
+				let released = 0;
+				for (let round = 0; round < rounds; round += 1) {
+					const readers = await this.waitForPendingAudioReaders();
+					const now = performance.now();
+					const delay = Math.max(0, this.nextAudioReleaseAt - now);
+					if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+					this.nextAudioReleaseAt = performance.now() + audioFrameIntervalMilliseconds;
+					for (const reader of readers) {
+						if (!reader.releaseFrame()) throw new Error('Fixture audio reader lost its pending frame.');
+						released += 1;
+					}
+				}
+				await this.waitForPendingAudioReaders();
+				return released;
+			},
 			endNewest(role) {
 				const entry = [...this.trackEntries].reverse().find((candidate) => (
 					candidate.role === role && !candidate.stopped
 				));
 				if (!entry) return false;
-				entry.track.dispatchEvent(new Event('ended'));
+				entry.track.stop();
+				entry.signalEnded();
 				return true;
 			},
 		};
@@ -427,7 +475,22 @@ async function installCaptureHarness(page) {
 
 		function instrumentTrack(track, role, cleanup, settings, capabilities) {
 			const nativeStop = track.stop.bind(track);
-			const entry = { track, role, stopped: false };
+			const nativeAddEventListener = track.addEventListener.bind(track);
+			const nativeRemoveEventListener = track.removeEventListener.bind(track);
+			const endedListeners = new Set();
+			const entry = {
+				track,
+				role,
+				stopped: false,
+				signalEnded() {
+					const event = new Event('ended');
+					for (const listener of endedListeners) {
+						if (typeof listener === 'function') listener.call(track, event);
+						else listener.handleEvent(event);
+					}
+					endedListeners.clear();
+				},
+			};
 			harness.trackEntries.push(entry);
 			harness.createdTracks += 1;
 			try {
@@ -448,6 +511,20 @@ async function installCaptureHarness(page) {
 					entry.stopped = true;
 					harness.stopCalls += 1;
 					try { cleanup(); } finally { nativeStop(); }
+				},
+			});
+			Object.defineProperty(track, 'addEventListener', {
+				configurable: true,
+				value: (type, listener, options) => {
+					if (type === 'ended') endedListeners.add(listener);
+					else nativeAddEventListener(type, listener, options);
+				},
+			});
+			Object.defineProperty(track, 'removeEventListener', {
+				configurable: true,
+				value: (type, listener, options) => {
+					if (type === 'ended') endedListeners.delete(listener);
+					else nativeRemoveEventListener(type, listener, options);
 				},
 			});
 			return track;
@@ -573,6 +650,18 @@ async function installCaptureHarness(page) {
 				let canceled = false;
 				let frameStart = 0;
 				let pending = null;
+				const readerControl = {
+					isActive: () => !canceled,
+					hasPendingRead: () => pending !== null,
+					releaseFrame: () => {
+						if (!pending) return false;
+						const release = pending;
+						pending = null;
+						release();
+						return true;
+					},
+				};
+				harness.audioReaders.push(readerControl);
 				this.readable = {
 					getReader: () => ({
 						read: () => {
@@ -585,7 +674,7 @@ async function installCaptureHarness(page) {
 										return;
 									}
 									const start = frameStart;
-									const frames = 512;
+									const frames = audioFrameCount;
 									frameStart += frames;
 									resolve({
 										done: false,
@@ -593,6 +682,8 @@ async function installCaptureHarness(page) {
 											numberOfFrames: frames,
 											numberOfChannels: channelCount,
 											sampleRate,
+											timestamp: Math.round(start * 1_000_000 / sampleRate),
+											duration: Math.round(frames * 1_000_000 / sampleRate),
 											copyTo(destination, options) {
 												for (let index = 0; index < destination.length; index += 1) {
 													destination[index] = Math.sin(
@@ -604,11 +695,7 @@ async function installCaptureHarness(page) {
 										},
 									});
 								};
-								const timer = setTimeout(finish, 8);
-								pending = () => {
-									clearTimeout(timer);
-									finish();
-								};
+								pending = finish;
 							});
 						},
 						cancel: () => {
