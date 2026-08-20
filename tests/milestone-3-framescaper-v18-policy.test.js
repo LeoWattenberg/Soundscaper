@@ -111,7 +111,8 @@ test('milestone narratives report implemented V18 slices without closing milesto
 	assert.match(roadmap, /nested sequences.*Implemented/isu);
 	assert.match(roadmap, /multicamera.*Implemented/isu);
 	assert.match(roadmap, /proxy.*preservation.*implemented/isu);
-	assert.match(roadmap, /proxy generation.*unavailable/isu);
+	assert.match(roadmap, /capture-only.*post-commit.*generation/isu);
+	assert.match(roadmap, /general user-invoked editorial generator.*unavailable/isu);
 	assert.match(roadmap, /retime.*hard-stopped/isu);
 	assert.doesNotMatch(roadmap, /maintained retime workflows, nested sequences, subsequence time mapping, and\s+flattening remain later slices/iu);
 	assert.doesNotMatch(roadmap, /no selector, proxy behavior, capability flip, or Soundscaper change is authorized/iu);

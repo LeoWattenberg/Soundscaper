@@ -435,6 +435,7 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'src/framescaper/desktop-project-library-v10-renderer.ts',
 		'src/framescaper/desktop-project-library-v10-store-adapter.ts',
 		'src/framescaper/editor-captured-video-proxy-preservation.ts',
+		'src/framescaper/editor-captured-video-proxy-project.ts',
 		'src/framescaper/editor-captured-video-proxy-scheduler-composition.ts',
 		'src/framescaper/editor-project-claim-cleanup-profile.ts',
 		'src/framescaper/editor-project-feature-requirements-v18.ts',
