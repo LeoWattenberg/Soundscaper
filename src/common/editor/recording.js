@@ -318,15 +318,10 @@ export async function createRecordingController({
 			}).finally(() => { pendingChunks -= 1; });
 		} else if (message.type === 'stopped') {
 			acceptingChunks = false;
-			if (stopRequest?.timer != null && typeof clearTimeoutFn === 'function') {
-				clearTimeoutFn(stopRequest.timer);
-				stopRequest.timer = null;
-			}
+			if (stopRequest?.timer != null && typeof clearTimeoutFn === 'function') clearTimeoutFn(stopRequest.timer);
+			if (stopRequest) stopRequest.timer = null;
 			writeQueue.then(() => {
-				if (!disposing) {
-					state = 'stopped';
-					notifyState();
-				}
+				if (!disposing) { state = 'stopped'; notifyState(); }
 				if (writeError) settleStop(writeError);
 				else settleStop(null, { frame: message.frame });
 			});
