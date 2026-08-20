@@ -149,6 +149,7 @@ test('selection clear settles through the production current-project cycle path 
 				timelineAnnotations: true, videoEffects: true, trackFolders: true,
 			},
 			projectReadOnlyMessage: 'Project is read-only.',
+			assertEditingAllowed: () => undefined,
 			getProject: () => project,
 			setProject: (value) => { if (value) project = value; },
 			getHistory: () => history,

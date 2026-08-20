@@ -43,6 +43,7 @@ export function createFramescaperAudioEditorControllerV19(
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
+		framescaperCaptureRouteSchemaVersion: 19,
 		store: environment.store,
 		sessionController: environment.runtime.createSessionController(),
 		acquireProjectLock: environment.runtime.acquireProjectLock,

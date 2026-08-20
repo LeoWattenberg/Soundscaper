@@ -82,6 +82,7 @@ export interface ProjectMutationServiceDependencies<
 	readonly productName: string;
 	readonly capabilities: EditorCommandCapabilities;
 	readonly projectReadOnlyMessage: string;
+	readonly assertEditingAllowed: () => void;
 	readonly getProject: () => Project | null;
 	readonly setProject: (project: Project | null) => void;
 	readonly getHistory: () => History | null;
@@ -247,6 +248,7 @@ export function createProjectMutationService<
 	}
 
 	function assertWritable(): void {
+		dependencies.assertEditingAllowed();
 		if (dependencies.state.readOnly) throw new Error(dependencies.projectReadOnlyMessage);
 		if (dependencies.state.takeCycleRecovery || dependencies.state.takeCycleRecoveryInspecting) {
 			throw new Error('Resolve pending take cycle recovery before editing.');

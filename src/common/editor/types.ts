@@ -16,6 +16,7 @@ import type { TimelineAnnotationV11 } from './timeline-annotation.ts';
 import type { RuntimeTimelineAnnotationProjection } from './runtime-timeline-annotation-projection.ts';
 import type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
 import type { TakeCyclePendingOpenRecovery } from './controller/take-cycle-capture-orchestrator.ts';
+import type { FramescaperCaptureSessionSnapshot } from './controller/framescaper-capture-session-types.ts';
 
 export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
 export type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
@@ -321,6 +322,7 @@ export interface EditorSnapshot {
 	readonly recordingInputs: EditorRecordingInputSnapshot;
 	readonly recordingKind: 'ordinary' | 'take-cycle' | null;
 	readonly takeCycleRecovery: TakeCyclePendingOpenRecovery | null;
+	readonly capture: Readonly<FramescaperCaptureSessionSnapshot> | null;
 	readonly readOnly: boolean;
 	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 	readonly storage: EditorStoreStatus & Readonly<StorageCapacitySnapshot>;

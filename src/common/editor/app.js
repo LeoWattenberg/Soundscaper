@@ -216,6 +216,10 @@ import { createTakeCompControllerComposition } from './controller/take-comp-comp
 import { createTakeCycleAppComposition } from './controller/take-cycle-app-composition.ts';
 import { createTakeCycleRecordingAppSession } from './controller/take-cycle-recording-app-session.ts';
 import { createTakeCycleOpenRecoveryAppPort, createTakeCycleOpenRecoveryCoordinator } from './controller/take-cycle-open-recovery-app-port.ts';
+import { createFramescaperCaptureAppBinding } from './controller/framescaper-capture-app-binding.ts';
+import { createFramescaperCaptureAdminInterlock } from './controller/framescaper-capture-admin-interlock.ts';
+import { createFramescaperCaptureDerivativeScheduler } from './controller/framescaper-capture-derivative-scheduler.ts';
+import { createFramescaperCaptureProjectWriteAuthority } from './controller/framescaper-capture-project-write-authority.ts';
 import { createAudioWarpControllerComposition } from './controller/audio-warp-composition.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
@@ -441,7 +445,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		},
 	});
 	const playbackProjectService = options.playbackProjectService || createPlaybackProjectService(product.capabilities);
-	let videoNavigationService = null;
+	let videoNavigationService = null, framescaperCapture = null; const framescaperCaptureAdminInterlock = createFramescaperCaptureAdminInterlock();
 	const documentSnapshotRuntime = {
 		state, product, productId, capabilities, locale, projectForPlayback: (candidate) => playbackProjectService.projectForPlayback(candidate).project,
 		getCurrentProject: () => projectWithVideoEffectGestures(state.history?.present ?? null),
@@ -466,6 +470,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		})),
 		getVideoEffectTypes: () => VIDEO_EFFECT_TYPES.map((type) => VIDEO_EFFECT_DEFINITIONS[type]),
 		getVideoNavigationSnapshot: () => !state.disposed && project && capabilities.videoCompositing && videoNavigationService ? videoNavigationService.view() : null,
+		getFramescaperCaptureSnapshot: () => framescaperCapture?.snapshot ?? null,
 		getSelectionEffectTypes: () => audioSelectionEffectTypes().map((type) => Object.freeze({
 			type,
 			label: audioSelectionEffectLabel(type, copy),
@@ -675,7 +680,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		productName: product.name,
 		capabilities,
 		projectReadOnlyMessage: copy.projectReadOnly,
-		getProject: () => project,
+		getProject: () => project, assertEditingAllowed: () => { if (project) framescaperCapture?.assertOriginEditAllowed(project.id); },
 		setProject: (nextProject) => { project = nextProject; },
 		getHistory: () => state.history,
 		setHistory: (history) => { state.history = history; },
@@ -727,7 +732,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		scheduleTimer: globalThis.setTimeout.bind(globalThis), sessionController, sessionTab,
 		setProject: (nextProject) => { project = nextProject; },
 		disposeRenderEngines: clipTimePitchCacheService.disposeRenderEngines, sourceBuffers, sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview, stopRecording, store,
-		switchProject,
+		switchProject, ...(options.framescaperCaptureRouteSchemaVersion ? { beginCaptureInterlockedAdminOperation: framescaperCaptureAdminInterlock.beginAdminOperation } : {}),
 	});
 	const analysisService = createAudioAnalysisService({
 		lifetime, copy, state,
@@ -891,10 +896,49 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
 		scapeMimeType: SCAPE_MIME_TYPE,
 	});
+	const framescaperCaptureDerivatives = options.framescaperCaptureRouteSchemaVersion
+		? createFramescaperCaptureDerivativeScheduler({
+			getOriginProject: async (projectId) => sessionTab(projectId)?.history?.present ?? store.loadProject(projectId),
+			store,
+			activateStoredSource: (source, metadata, activationOptions) => activateStoredSource(source, metadata, activationOptions),
+			activateVideoSource: (source) => findSource(project, source.id) ? projectVisualService.activateVideoSource(source) : undefined,
+			createVideoFrameExtractor: createAudioEditorVideoFrameExtractor,
+			videoThumbnailTimes: audioEditorVideoThumbnailTimes,
+		})
+		: null;
+	const framescaperCaptureWriteAuthority = options.framescaperCaptureRouteSchemaVersion
+		? createFramescaperCaptureProjectWriteAuthority({
+			getProjectAdmission: (projectId) => { const tab = sessionTab(projectId); return tab ? { readOnly: Boolean(tab.readOnly), intrinsicReadOnly: Boolean(tab.metadata?.intrinsicReadOnly || tab.metadata?.declaredReadOnly || tab.metadata?.featureRequirementsReadOnly) } : null; },
+			getActiveProjectId: () => project?.id ?? null, getActiveReadOnly: () => state.readOnly,
+			getActiveLock: () => state.projectLock, acquireProjectLock: (projectId) => acquireLock(projectId),
+		}) : null;
+	framescaperCapture = createFramescaperCaptureAppBinding({
+		productId, adminInterlock: framescaperCaptureAdminInterlock, routeSchemaVersion: options.framescaperCaptureRouteSchemaVersion,
+		isDesktop: Boolean(fileService.isDesktop), embedded: globalThis.document?.documentElement?.dataset?.embedded === 'true',
+		store, sessionController, projectRuntime, mediaDevices,
+		getActiveProject: () => project, getActiveHistory: () => state.history,
+		getActivePlayheadFrame: () => state.positionFrame,
+		setActiveProject: (value) => { project = value; }, setActiveHistory: (value) => { state.history = value; },
+		synchronizeProject: async (value) => { await applyProjectToPlaybackEngine(value); publishProjectState(); },
+		assertProjectWritable: framescaperCaptureWriteAuthority?.assertProjectWritable,
+		acquireProjectWriteAuthority: framescaperCaptureWriteAuthority?.acquireProjectWriteAuthority,
+		prepareCaptureStart: flushProject,
+		getAudioContext: () => engine.getAudioContext({ resume: false }),
+		createStream: options.createStream, MediaRecorder: options.MediaRecorder,
+		MediaStreamTrackProcessor: options.MediaStreamTrackProcessor,
+		recordingControllerFactory: options.recordingControllerFactory, AudioWorkletNode: options.AudioWorkletNode,
+		helperTimingProbe: fileService.helperTimingProbe, ffmpeg,
+		desktopBridge: globalThis.framescaperCaptureDesktop?.v1 ?? null,
+		createId: createStableId, now: currentTimeMs,
+		...(framescaperCaptureDerivatives ? { scheduleDerivatives: framescaperCaptureDerivatives } : {}),
+		onWarning: handleError, onChange: publishDocumentSnapshot,
+	});
 
 	const bootstrapToken = lifetime.capture();
 	const ready = bootstrap(bootstrapToken)
-		.then(() => {
+		.then(async () => {
+			if (lifetime.inactive) return getSnapshot();
+			await framescaperCapture?.initialize();
 			if (lifetime.inactive) return getSnapshot();
 			lifetime.markReady();
 			state.phase = lifetime.phase;
@@ -1830,7 +1874,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		selectionViewService, sequenceTimingService, timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		audioWarpService, sourceMonitorService, takeCompService, taskProgress, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService, ...productActionRuntime(options),
+		audioWarpService, sourceMonitorService, takeCompService, taskProgress, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService, framescaperCaptureActions: framescaperCapture?.actions, ...productActionRuntime(options),
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}), () => lifetime.assertActive());
 	let disposePromise = null;
@@ -1874,6 +1918,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			try { await operation(); } catch (error) { disposalError ||= error; if (fencesSourceRetirement) sourceRetirementError ||= error; }
 		};
 		try {
+			await cleanup(() => framescaperCapture?.dispose() ?? Promise.resolve(), true);
 			takeCycleOpenRecovery.dispose(); projectGeneration.invalidate();
 			const visualDisposal = projectVisualService.dispose(), scapeInspectionDrain = scapeInspectionQuiescence.drain();
 			removeDeviceChangeListener();
@@ -1935,27 +1980,17 @@ export function createAudioEditorController(_root = null, options = {}) {
 		if (disposalError) throw disposalError;
 	}
 
-	function getSnapshot() {
-		return documentChannel.get();
-	}
-	function getTelemetrySnapshot() {
-		return telemetryChannel.get();
-	}
-	function publishDocumentSnapshot({ force = false } = {}) {
-		documentChannel.publish({ force });
-	}
+	function getSnapshot() { return documentChannel.get(); }
+	function getTelemetrySnapshot() { return telemetryChannel.get(); }
+	function publishDocumentSnapshot({ force = false } = {}) { documentChannel.publish({ force }); }
 	function publishRecordingPreview() {
 		const now = globalThis.performance?.now?.() ?? Date.now();
 		if (now - state.recordingPreviewLastPublishedAt < LIVE_RECORDING_WAVEFORM_PUBLISH_INTERVAL_MS) return;
 		state.recordingPreviewLastPublishedAt = now;
 		publishDocumentSnapshot();
 	}
-	function publishTelemetrySnapshot() {
-		telemetryChannel.publish();
-	}
-	function buildDocumentSnapshot() {
-		return createEditorDocumentSnapshot(documentSnapshotRuntime);
-	}
+	function publishTelemetrySnapshot() { telemetryChannel.publish(); }
+	function buildDocumentSnapshot() { return createEditorDocumentSnapshot(documentSnapshotRuntime); }
 	function projectWithVideoEffectGestures(currentProject) {
 		return applyVideoEffectGesturePreviews(
 			currentProject,
@@ -1963,9 +1998,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			videoEffectGestureKey,
 		);
 	}
-	function buildTelemetrySnapshot() {
-		return createEditorTelemetrySnapshot(state, engine);
-	}
+	function buildTelemetrySnapshot() { return createEditorTelemetrySnapshot(state, engine); }
 	function audioDevicesSnapshot() {
 		return createAudioDeviceSnapshot(
 			state,
@@ -1975,57 +2008,27 @@ export function createAudioEditorController(_root = null, options = {}) {
 			RECORDING_DISPLAY_SOURCE_KEY,
 		);
 	}
-	function getClipVisualData(...args) {
-		return projectVisualService.getClipVisualData(...args);
-	}
-	function getProjectBinClipVisualData(...args) {
-		return projectVisualService.getProjectBinClipVisualData(...args);
-	}
-	function revokeVideoVisuals() {
-		return projectVisualService.revokeVideoVisuals();
-	}
-	function revokeVideoVisual(...args) {
-		return projectVisualService.revokeVideoVisual(...args);
-	}
-	function activateVideoSource(...args) {
-		return projectVisualService.activateVideoSource(...args);
-	}
-	function allProjectClips(...args) {
-		return projectVisualService.allProjectClips(...args);
-	}
-	function hasMissingTimelineSources(...args) {
-		return projectVisualService.hasMissingTimelineSources(...args);
-	}
-	function getVisibleClips(...args) {
-		return projectVisualService.getVisibleClips(...args);
-	}
+	function getClipVisualData(...args) { return projectVisualService.getClipVisualData(...args); }
+	function getProjectBinClipVisualData(...args) { return projectVisualService.getProjectBinClipVisualData(...args); }
+	function revokeVideoVisuals() { return projectVisualService.revokeVideoVisuals(); }
+	function revokeVideoVisual(...args) { return projectVisualService.revokeVideoVisual(...args); }
+	function activateVideoSource(...args) { return projectVisualService.activateVideoSource(...args); }
+	function allProjectClips(...args) { return projectVisualService.allProjectClips(...args); }
+	function hasMissingTimelineSources(...args) { return projectVisualService.hasMissingTimelineSources(...args); }
+	function getVisibleClips(...args) { return projectVisualService.getVisibleClips(...args); }
 	async function loadPreferences(token = lifetime.capture()) {
 		return preferencesService.load((value) => lifetime.guard(value, token));
 	}
 	async function persistSetting(key, value, { policy = 'best-effort' } = {}) {
 		return settingPersistence.persist(key, value, { policy });
 	}
-	function updatePreferences(patch) {
-		return preferencesService.update(patch);
-	}
-	function revertFactorySettings() {
-		return preferencesService.revertFactorySettings();
-	}
-	function setWorkspacePreference(workspaceId) {
-		return preferencesService.setWorkspace(workspaceId);
-	}
-	function toggleToolbarPreference(toolbarId) {
-		return preferencesService.toggleToolbar(toolbarId);
-	}
-	function moveToolbarPreference(toolbarId, requestedIndex) {
-		return preferencesService.moveToolbar(toolbarId, requestedIndex);
-	}
-	function setToolbarButtonPreference(buttonId, visible) {
-		return preferencesService.setToolbarButton(buttonId, visible);
-	}
-	function togglePanelPreference(panelId) {
-		return preferencesService.togglePanel(panelId);
-	}
+	function updatePreferences(patch) { return preferencesService.update(patch); }
+	function revertFactorySettings() { return preferencesService.revertFactorySettings(); }
+	function setWorkspacePreference(workspaceId) { return preferencesService.setWorkspace(workspaceId); }
+	function toggleToolbarPreference(toolbarId) { return preferencesService.toggleToolbar(toolbarId); }
+	function moveToolbarPreference(toolbarId, requestedIndex) { return preferencesService.moveToolbar(toolbarId, requestedIndex); }
+	function setToolbarButtonPreference(buttonId, visible) { return preferencesService.setToolbarButton(buttonId, visible); }
+	function togglePanelPreference(panelId) { return preferencesService.togglePanel(panelId); }
 	function setPanelPreference(panelId, changes = {}) {
 		return preferencesService.setPanel(panelId, changes);
 	}
@@ -2117,12 +2120,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 	async function ensureProjectSourcesAvailable(snapshot, options) {
 		return sourceLifecycleService.ensureProjectSourcesAvailable(snapshot, options);
 	}
-
 	async function listProjects() {
 		return projectAdminService.listProjects();
 	}
 
 	async function prepareProjectHandoff() {
+		if (project) framescaperCapture?.assertOriginHandoffAllowed(project.id);
 		return projectAdminService.prepareProjectHandoff();
 	}
 
@@ -2131,6 +2134,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function closeProjectTab(projectId = project?.id, closeOptions = {}) {
+		if (projectId) framescaperCapture?.assertOriginCloseAllowed(projectId);
 		return projectAdminService.closeProjectTab(projectId, closeOptions);
 	}
 
@@ -2143,6 +2147,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function deleteProject() {
+		if (project) framescaperCapture?.assertOriginDeleteAllowed(project.id);
 		return projectAdminService.deleteProject();
 	}
 
@@ -2151,6 +2156,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function clearLocalData() {
+		const origin = framescaperCapture?.originSnapshot().origin;
+		if (origin) framescaperCapture.assertOriginDeleteAllowed(origin.projectId);
 		return projectAdminService.clearLocalData();
 	}
 
@@ -2401,21 +2408,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return recordingRoutingService.setRetainInputs(enabled);
 	}
 
-	function releaseInputs() {
-		return recordingRoutingService.releaseInputs();
-	}
-
-	function releaseUnretainedRecordingInputs({ force = false } = {}) {
-		return recordingRoutingService.releaseUnretainedRecordingInputs({ force });
-	}
-
-	function syncRecordingPoolSnapshot() {
-		return recordingRoutingService.syncRecordingPoolSnapshot();
-	}
-
-	function handleRecordingPoolChange(sources) {
-		return recordingInputCoordinationService.handleRecordingPoolChange(sources);
-	}
+	function releaseInputs() { return recordingRoutingService.releaseInputs(); }
+	function releaseUnretainedRecordingInputs({ force = false } = {}) { return recordingRoutingService.releaseUnretainedRecordingInputs({ force }); }
+	function syncRecordingPoolSnapshot() { return recordingRoutingService.syncRecordingPoolSnapshot(); }
+	function handleRecordingPoolChange(sources) { return recordingInputCoordinationService.handleRecordingPoolChange(sources); }
 
 	function setMonitoring(enabled) {
 		state.monitoring = Boolean(enabled);
@@ -2425,29 +2421,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return state.monitoring;
 	}
 
-	function pauseLoudnessMeasurement(kind = 'playback') {
-		return microphoneMeterService.pauseLoudnessMeasurement(kind);
-	}
-
-	function continueLoudnessMeasurement(kind = 'playback') {
-		return microphoneMeterService.continueLoudnessMeasurement(kind);
-	}
-
-	function resetLoudnessMeasurement(kind = 'playback') {
-		return microphoneMeterService.resetLoudnessMeasurement(kind);
-	}
-
-	async function setMicrophoneMetering(enabled) {
-		return microphoneMeterService.setMicrophoneMetering(enabled);
-	}
-
-	function stopMicrophoneMetering(options = {}) {
-		return microphoneMeterService.stopMicrophoneMetering(options);
-	}
-
-	function synchronizeMicrophoneMeterTarget() {
-		return microphoneMeterService.synchronizeTarget();
-	}
+	function pauseLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.pauseLoudnessMeasurement(kind); }
+	function continueLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.continueLoudnessMeasurement(kind); }
+	function resetLoudnessMeasurement(kind = 'playback') { return microphoneMeterService.resetLoudnessMeasurement(kind); }
+	async function setMicrophoneMetering(enabled) { return microphoneMeterService.setMicrophoneMetering(enabled); }
+	function stopMicrophoneMetering(options = {}) { return microphoneMeterService.stopMicrophoneMetering(options); }
+	function synchronizeMicrophoneMeterTarget() { return microphoneMeterService.synchronizeTarget(); }
 
 	function setRecordingInputGain(value) {
 		return microphoneMeterService.setRecordingInputGain(value, normalizeRecordingInputGain);
@@ -2852,7 +2831,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function editingBlocked() {
-		return selectAudioEditorControllerEditBlock(state).blocked;
+		return selectAudioEditorControllerEditBlock(state).blocked
+			|| Boolean(framescaperCapture?.originSnapshot(project?.id ?? null).editBlocked);
 	}
 
 	function updatePlayhead(frame = 0, duration = project ? projectDurationFrames(project) : 0) {

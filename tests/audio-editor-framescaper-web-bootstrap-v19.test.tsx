@@ -41,6 +41,10 @@ test('Framescaper web runtime reaches exact V19 without exposing construction au
 		(ready.preferences.workspace as Readonly<{ activeId: string }>).activeId,
 		'video-editor',
 	);
+	const capture = ready.capture as Readonly<{ readonly availability?: Readonly<{ readonly status?: string }> }>;
+	assert.ok(capture);
+	assert.equal(capture.availability?.status, 'unavailable');
+	assert.equal(typeof runtime.controller.actions.capture.requestPreview, 'function');
 	const first = runtime.dispose();
 	assert.equal(runtime.dispose(), first);
 	await first;

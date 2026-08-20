@@ -116,6 +116,23 @@ test('read-only mutation fails before command execution', () => {
 	assert.equal(executed, 0);
 });
 
+test('external edit ownership blocks every command mutation before execution', () => {
+	let executed = 0;
+	const fixture = mutationFixture({
+		assertEditingAllowed: () => { throw new Error('Capture origin is protected.'); },
+		executeHistory: (history) => { executed += 1; return history; },
+	});
+	assert.throws(
+		() => fixture.service.commit({ type: 'project/rename', title: 'Blocked' }),
+		/Capture origin is protected/u,
+	);
+	assert.throws(
+		() => fixture.service.updateSelection({ type: 'selection/set', startFrame: 0, endFrame: 0 }),
+		/Capture origin is protected/u,
+	);
+	assert.equal(executed, 0);
+});
+
 test('disabled audio warp rejects authored clip state before command execution', () => {
 	let executed = 0;
 	const fixture = mutationFixture({
@@ -275,6 +292,7 @@ interface FixtureOverrides {
 	readonly assertProject?: (token: Readonly<{ projectId: string; generation: number }>) => void;
 	readonly handleError?: (error: unknown) => void;
 	readonly synchronizeAnnotationFocus?: () => void;
+	readonly assertEditingAllowed?: () => void;
 	readonly capabilities?: Readonly<{
 		audioEffects: boolean; audioRecording: boolean; audioSpectralEditing: boolean;
 		audioWarp: boolean; takeComp: boolean; timelineAnnotations: boolean;
@@ -311,6 +329,7 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 			timelineAnnotations: true, videoEffects: true, videoGeometry: true, trackFolders: true,
 		},
 		projectReadOnlyMessage: 'Project is read-only.',
+		assertEditingAllowed: overrides.assertEditingAllowed || (() => undefined),
 		getProject,
 		setProject,
 		getHistory,
