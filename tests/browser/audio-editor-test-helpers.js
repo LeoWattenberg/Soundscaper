@@ -6,6 +6,7 @@ import {
 	TRANSLATIONS_ROOT,
 } from './audio-editor-test-fixtures.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { settleFiniteAnimations } from './helpers/settle-finite-animations.js';
 
 export function registerAudioEditorHooks() {
 	test.beforeEach(async ({ page }) => {
@@ -441,19 +442,7 @@ export async function assertAccessibleBasics(root) {
 }
 
 export async function assertNoSeriousAxeViolations(page, selector = '#kw-audio-editor-design-system') {
-	// axe reads computed colour, so a menu still fading in — or a theme swap whose
-	// transition is still running — reads as a contrast failure that no user would
-	// ever see. Settling the finite animations first makes the check deterministic
-	// instead of load-dependent; the bound keeps an indefinite one from hanging it.
-	await page.evaluate(async () => {
-		const finite = document.getAnimations().filter((animation) => (
-			animation.effect?.getComputedTiming?.().iterations !== Infinity
-		));
-		await Promise.race([
-			Promise.all(finite.map((animation) => animation.finished.catch(() => undefined))),
-			new Promise((resolve) => { setTimeout(resolve, 1_000); }),
-		]);
-	});
+	await settleFiniteAnimations(page);
 	const results = await new AxeBuilder({ page })
 		.include(selector)
 		.analyze();
