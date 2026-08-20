@@ -214,10 +214,10 @@ test('V21 stem snapshots retain active control racks without retaining inactive 
 	const project = productionStemProject();
 	const snapshot = stemProject(project as never, 'voice') as unknown as typeof project;
 	assert.deepEqual(snapshot.automationLanes.map(({ id }) => id), [
-		'voice-gain', 'control-frequency', 'voice-sidechain-level',
+		'voice-gain', 'control-frequency', 'voice-sidechain-level', 'control-master-level',
 	]);
 	assert.equal(snapshot.mixer.edges.some(({ id }) => id === 'control-master-sidechain'), false);
-	assert.equal(snapshot.mixer.edges.find(({ id }) => id === 'control-master')?.level, 0);
+	assert.equal(snapshot.mixer.edges.find(({ id }) => id === 'control-master')?.level, 1);
 	assert.equal(snapshot.mixer.edges.some(({ id }) => id === 'control-voice-sidechain'), true);
 	const control = snapshot.tracks.find(({ id }) => id === 'control') as { readonly effects: readonly unknown[] };
 	assert.equal(control.effects.length, 1);

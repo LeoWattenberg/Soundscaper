@@ -182,7 +182,7 @@ export function stemProject(
 	snapshot.tracks = snapshot.tracks.map((track) => track.id === trackId
 		? { ...track, mute: false, solo: false }
 		: { ...track, mute: true, solo: false, ...(production ? {} : { effects: [] }) });
-	if (production) projectProductionStemSnapshot(snapshot, trackId);
+	if (production) projectProductionStemSnapshot(snapshot);
 	else snapshot.master = { gain: 1, effects: [] };
 	return snapshot;
 }
@@ -194,22 +194,14 @@ interface MutableProductionStemProject {
 	automationLanes: unknown[];
 }
 
-function projectProductionStemSnapshot(value: unknown, trackId: string): void {
+function projectProductionStemSnapshot(value: unknown): void {
 	const project = value as MutableProductionStemProject;
 	const graph = normalizeMixerGraphV21(project.mixer);
-	const silencedEdgeIds = new Set<string>();
-	const edges = graph.edges.flatMap((edge) => {
-		if (edge.destination.kind === 'effect-sidechain'
-			&& edge.destination.strip.kind === 'master') return [];
-		if (edge.kind !== 'sidechain' && edge.source.kind === 'track' && edge.source.id !== trackId) {
-			silencedEdgeIds.add(edge.id);
-			return [{ ...edge, level: 0 }];
-		}
-		return [edge];
-	});
-	const automatedEdgeIds = new Set(edges
-		.filter(({ id }) => !silencedEdgeIds.has(id))
-		.map(({ id }) => id));
+	const edges = graph.edges.filter((edge) => !(
+		edge.destination.kind === 'effect-sidechain'
+		&& edge.destination.strip.kind === 'master'
+	));
+	const automatedEdgeIds = new Set(edges.map(({ id }) => id));
 	project.mixer = normalizeMixerGraphV21({ ...graph, edges });
 	project.automationLanes = project.automationLanes.filter((value) => {
 		const { address } = normalizeAutomationLaneV21(value);
