@@ -262,6 +262,12 @@ export function buildProjectGraphV21(
 	const mainOutput = graph.outputs.find(({ role }) => role === 'main');
 	if (!mainOutput) throw new TypeError('The V21 mixer graph has no main output.');
 	let mainConnection: AudioNode = outputInputs.get(mainOutput.id)!;
+	mainConnection = applyEdgeCompensation(
+		context,
+		nodes,
+		mainConnection,
+		plan.latencyFrames - (plan.outputLatencyFrames.get(mainOutput.id) ?? 0),
+	);
 	const masterAnalyser = metering ? createAnalyser(context, nodes) : null;
 	if (masterAnalyser) {
 		connect(mainConnection, masterAnalyser);
