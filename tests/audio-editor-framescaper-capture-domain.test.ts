@@ -194,6 +194,24 @@ test('capture state separates recoverable exits from pre-capture failures', () =
 	assert.equal(pending.snapshot.phase, 'inactive');
 });
 
+test('capture state restores a sealed session without reopening any source', () => {
+	const restored = createFramescaperCaptureStateMachine({ availability: AVAILABLE });
+	restored.restoreRecovery({
+		sources: [{ sourceId: 'display-source', role: 'display' }],
+		destination: 'timeline',
+		failure: { code: 'runtime-lost', message: 'The previous session ended unexpectedly.' },
+	});
+	assert.equal(restored.snapshot.phase, 'recovery');
+	assert.equal(restored.snapshot.sourcesFrozen, true);
+	assert.equal(restored.snapshot.destination, 'timeline');
+	assert.deepEqual(restored.snapshot.requestedRoles, ['display']);
+	assert.throws(() => restored.issueDirectGesture(), /while recovery/u);
+	restored.beginRecoveryFinalization();
+	assert.equal(restored.snapshot.phase, 'finalizing');
+	restored.completeFinalization();
+	assert.equal(restored.snapshot.phase, 'inactive');
+});
+
 test('active-time clock removes pause spans without allowing time to move backwards', () => {
 	const clock = createFramescaperCaptureActiveTimeClock(100);
 	assert.deepEqual(clock.snapshot(150), {

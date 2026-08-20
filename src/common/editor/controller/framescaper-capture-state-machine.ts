@@ -23,6 +23,12 @@ export interface FramescaperCaptureArmOptions {
 	readonly countdownMs: number;
 }
 
+export interface FramescaperCaptureRecoveryOptions {
+	readonly sources: readonly Readonly<CaptureSelectedSource>[];
+	readonly destination: CaptureDestination;
+	readonly failure: Readonly<CaptureFailure>;
+}
+
 export interface FramescaperCaptureStateSnapshot {
 	readonly phase: CapturePhase;
 	readonly availability: CaptureRuntimeAvailability;
@@ -61,6 +67,8 @@ export interface FramescaperCaptureStateMachine {
 	stop(): Readonly<FramescaperCaptureStateSnapshot>;
 	completeFinalization(): Readonly<FramescaperCaptureStateSnapshot>;
 	enterRecovery(failure: Readonly<CaptureFailure>): Readonly<FramescaperCaptureStateSnapshot>;
+	restoreRecovery(options: Readonly<FramescaperCaptureRecoveryOptions>): Readonly<FramescaperCaptureStateSnapshot>;
+	beginRecoveryFinalization(): Readonly<FramescaperCaptureStateSnapshot>;
 	completeRecovery(): Readonly<FramescaperCaptureStateSnapshot>;
 	fail(failure: Readonly<CaptureFailure>): Readonly<FramescaperCaptureStateSnapshot>;
 	resetFailure(): Readonly<FramescaperCaptureStateSnapshot>;
@@ -287,6 +295,29 @@ export function createFramescaperCaptureStateMachine(
 		return createSnapshot();
 	}
 
+	function beginRecoveryFinalization(): Readonly<FramescaperCaptureStateSnapshot> {
+		requirePhase('finalize recovery', ['recovery']);
+		phase = 'finalizing';
+		return createSnapshot();
+	}
+
+	function restoreRecovery(
+		options: Readonly<FramescaperCaptureRecoveryOptions>,
+	): Readonly<FramescaperCaptureStateSnapshot> {
+		requirePhase('restore recovery', ['inactive']);
+		const restoredSources = normalizeCaptureSelectedSources(options?.sources);
+		phase = 'recovery';
+		sources = restoredSources;
+		requestedRoles = Object.freeze(restoredSources.map(({ role }) => role));
+		sourcesFrozen = true;
+		destination = normalizeCaptureDestination(options?.destination);
+		countdownMs = null;
+		permissionRequestGeneration = null;
+		failure = normalizeCaptureFailure(options?.failure);
+		issuedGesture = null;
+		return createSnapshot();
+	}
+
 	function fail(captureFailure: Readonly<CaptureFailure>): Readonly<FramescaperCaptureStateSnapshot> {
 		if (['countdown', 'recording', 'paused', 'finalizing'].includes(phase)) {
 			throw new Error('Capture must enter recovery instead of failing an active capture.');
@@ -343,6 +374,8 @@ export function createFramescaperCaptureStateMachine(
 		stop,
 		completeFinalization,
 		enterRecovery,
+		restoreRecovery,
+		beginRecoveryFinalization,
 		completeRecovery,
 		fail,
 		resetFailure,
