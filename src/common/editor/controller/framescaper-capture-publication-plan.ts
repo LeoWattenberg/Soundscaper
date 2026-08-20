@@ -1,17 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	createAddClipCommand,
-	createAddSourceCommand,
-	createAddTrackCommand,
-} from '../commands/factories.ts';
+import { createAddClipCommand, createAddSourceCommand, createAddTrackCommand } from '../commands/factories.ts';
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
 import type { CaptureDestination, CaptureSourceRole } from '../framescaper-capture-domain.ts';
-import {
-	sampleFrameToVideoFrame,
-	videoFrameRangeToSampleRange,
-	type RationalRate,
-} from '../timeline-time.ts';
+import { sampleFrameToVideoFrame, videoFrameRangeToSampleRange, type RationalRate } from '../timeline-time.ts';
+import { normalizeFramescaperCaptureExactPresentationRange, type FramescaperCaptureExactPresentationRange } from './framescaper-capture-exact-presentation-range.ts';
 
 const ROLE_ORDER = Object.freeze([
 	'camera', 'microphone', 'display', 'system-audio',
@@ -33,6 +26,8 @@ export interface FramescaperFinalizedCaptureStream {
 	readonly role: CaptureSourceRole;
 	/** Offset from the capture session's record-start position, in project samples. */
 	readonly startOffsetFrames: number;
+	readonly presentationEndOffsetFrames: number;
+	readonly exactPresentationRange?: FramescaperCaptureExactPresentationRange | null;
 	/** Exact presentation duration after final probe, in project samples. */
 	readonly timelineDurationFrames: number;
 	readonly metrics: FramescaperCapturePublicationMetrics;
@@ -250,6 +245,9 @@ function normalizeStreams(
 		roles.add(role);
 		streamIds.add(streamId);
 		const startOffsetFrames = nonNegativeInteger(input.startOffsetFrames, `${role} start offset`);
+		const presentationEndOffsetFrames = positiveInteger(input.presentationEndOffsetFrames, `${role} presentation end offset`);
+		if (presentationEndOffsetFrames <= startOffsetFrames) throw new RangeError(`Capture ${role} presentation range must have positive duration.`);
+		const exactPresentationRange = normalizeFramescaperCaptureExactPresentationRange(input.exactPresentationRange);
 		const timelineDurationFrames = positiveInteger(input.timelineDurationFrames, `${role} timeline duration`);
 		const timelineStartFrame = exactSum(context.recordStartFrame, startOffsetFrames, `${role} timeline start`);
 		const timelineEndFrame = exactSum(timelineStartFrame, timelineDurationFrames, `${role} timeline end`);
@@ -260,6 +258,8 @@ function normalizeStreams(
 			manifestSha256: context.manifestSha256,
 			recoveryProvenance: context.recoveryProvenance,
 			startOffsetFrames,
+			presentationEndOffsetFrames,
+			exactPresentationRange,
 			timelineDurationFrames,
 			metrics: normalizeMetrics(input.metrics),
 			terminationReason: nullableStableText(input.terminationReason, `${role} termination reason`, 256),
@@ -273,7 +273,7 @@ function normalizeStreams(
 		}
 		validateSourceGeometry(source, role);
 		if (kind === 'audio') return Object.freeze({
-			...input, streamId, role, source, sourceId, startOffsetFrames, timelineDurationFrames,
+			...input, streamId, role, source, sourceId, startOffsetFrames, presentationEndOffsetFrames, exactPresentationRange, timelineDurationFrames,
 			metrics: normalizeMetrics(input.metrics),
 			terminationReason: nullableStableText(input.terminationReason, `${role} termination reason`, 256),
 			timelineStartFrame, timelineEndFrame,
@@ -292,7 +292,7 @@ function normalizeStreams(
 			context.projectSampleRate,
 		);
 		return Object.freeze({
-			...input, streamId, role, source, sourceId, startOffsetFrames, timelineDurationFrames,
+			...input, streamId, role, source, sourceId, startOffsetFrames, presentationEndOffsetFrames, exactPresentationRange, timelineDurationFrames,
 			metrics: normalizeMetrics(input.metrics),
 			terminationReason: nullableStableText(input.terminationReason, `${role} termination reason`, 256),
 			timelineStartFrame: range.startFrame,
@@ -364,7 +364,11 @@ function planExactLinks(
 		const audio = byRole.get(audioRole);
 		if (!video || !audio
 			|| video.timelineStartFrame !== audio.timelineStartFrame
-			|| video.timelineEndFrame !== audio.timelineEndFrame) continue;
+			|| video.timelineEndFrame !== audio.timelineEndFrame
+			|| video.startOffsetFrames !== audio.startOffsetFrames
+			|| video.presentationEndOffsetFrames !== audio.presentationEndOffsetFrames
+			|| video.exactPresentationRange === null
+			|| video.exactPresentationRange !== audio.exactPresentationRange) continue;
 		const link = Object.freeze({
 			laneGroupId: createOwnedId(createId, `${videoRole}-capture-lanes`),
 			avLinkId: createOwnedId(createId, `${videoRole}-capture-av-link`),

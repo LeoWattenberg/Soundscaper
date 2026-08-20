@@ -19,12 +19,13 @@ test('browser recorder factory retains the video encoder actual MIME type', asyn
 	assert.deepEqual(recorder.format, {
 		kind: 'encoded-media', mimeType: 'video/webm;codecs=vp8',
 	});
-	recorder.start();
+	recorder.start(250_000);
 	FakeMediaRecorder.latest?.emit(new Blob([new Uint8Array([1, 2, 3])]), 10);
 	await recorder.stop();
 	assert.equal(packets.length, 1);
 	assert.equal(packets[0]?.kind, 'encoded-video');
 	assert.equal(packets[0]?.mimeType, 'video/webm;codecs=vp8');
+	assert.equal(packets[0]?.presentationTimeUs, 250_000);
 });
 
 test('browser recorder factory packetizes actual PCM and marks pause input gaps expected', async () => {
@@ -40,7 +41,7 @@ test('browser recorder factory packetizes actual PCM and marks pause input gaps 
 	assert.deepEqual(recorder.format, {
 		kind: 'raw-pcm', sampleRate: 48_000, channelCount: 1, chunkFrames: 4_096,
 	});
-	recorder.start();
+	recorder.start(100_000);
 	processor.push(audioData(0, [0.25, -0.5]));
 	await eventually(() => packets.length === 1);
 	assert.equal(await recorder.pause(), true);
@@ -49,7 +50,32 @@ test('browser recorder factory packetizes actual PCM and marks pause input gaps 
 	await eventually(() => packets.length === 2);
 	await recorder.stop();
 	assert.equal(packets[0]?.kind, 'pcm-audio');
+	assert.equal(packets[0]?.presentationTimeUs, 100_000);
 	assert.equal(packets[1]?.droppedBefore.value, 0);
+});
+
+test('worklet-global frames are rebased onto the shared session origin', async () => {
+	const packets: CapturePacket[] = [];
+	let emit!: (chunk: Readonly<{
+		frameStart: number; frames: number; channels: readonly Float32Array[];
+	}>) => PromiseLike<void> | void;
+	const createRecorder = createFramescaperBrowserRecorderFactory({
+		MediaRecorder: null,
+		MediaStreamTrackProcessor: class { constructor() { throw new DOMException('unsupported', 'NotSupportedError'); } } as never,
+		getAudioContext: () => ({ sampleRate: 48_000 }),
+		recordingControllerFactory: (options) => {
+			emit = options.onChunk;
+			return {
+				start() {}, pause: () => true, resume: () => true,
+				stop: async () => {}, detach: async () => {},
+			};
+		},
+	});
+	const recorder = await createRecorder(request('microphone', packets));
+	await recorder.start(100_000);
+	await emit({ frameStart: 9_600_000, frames: 2, channels: [Float32Array.of(0.25, -0.5)] });
+	await recorder.stop();
+	assert.equal(packets[0]?.presentationTimeUs, 100_000);
 });
 
 function request(role: 'camera' | 'microphone', packets: CapturePacket[]) {

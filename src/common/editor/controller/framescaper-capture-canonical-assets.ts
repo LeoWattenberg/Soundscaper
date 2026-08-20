@@ -42,6 +42,10 @@ import {
 	type FramescaperCaptureEncodedMaterial,
 	type FramescaperCaptureEncodedMediaInput,
 } from './framescaper-capture-encoded-media.ts';
+import {
+	inspectFramescaperCapturePcmTimeline,
+	writeFramescaperCapturePcmTimeline,
+} from './framescaper-capture-canonical-pcm.ts';
 
 type EncodedSpoolPublicationPort = Pick<EncodedCaptureSpoolRepository, 'load' | 'read'>;
 type RawPcmSpoolPublicationPort = Pick<RawPcmSpoolRepository, 'load' | 'chunks'>;
@@ -106,13 +110,14 @@ async function publishRawPcm(
 	const storage = streamManifest.storage;
 	const spool = await options.rawPcmSpools.load(manifest.projectFence.projectId, storage.spoolId);
 	assertRawPcmSpool(manifest, streamManifest, spool);
-	const durationFrames = scaledFrameCount(storage.frameCount, projectSampleRate, storage.sampleRate);
+	const timeline = await inspectFramescaperCapturePcmTimeline(options.rawPcmSpools, spool, streamManifest);
+	const durationFrames = scaledFrameCount(timeline.outputFrameCount, projectSampleRate, storage.sampleRate);
 	assertFinalDuration(stream, durationFrames);
-	const fingerprint = publicationFingerprint(manifest, streamManifest);
+	const fingerprint = publicationFingerprint(manifest, streamManifest, timeline.outputFrameCount);
 	const existing = await options.store.getSourceMetadata(storage.sourceId);
 	if (existing) {
-		assertExistingAudio(existing, storage, fingerprint);
-		return borrowedPublication(audioSource(streamManifest, spool), durationFrames);
+		assertExistingAudio(existing, storage, timeline.outputFrameCount, fingerprint);
+		return borrowedPublication(audioSource(streamManifest, spool, timeline.outputFrameCount), durationFrames);
 	}
 	if (publicationMode === 'reconcile-only') {
 		throw new Error(`Capture source ${storage.sourceId} is missing during commit reconciliation.`);
@@ -127,26 +132,14 @@ async function publishRawPcm(
 	});
 	let committed: StorageRecord | null = null;
 	try {
-		let chunkCount = 0;
-		let frameCount = 0;
-		for await (const chunk of options.rawPcmSpools.chunks(spool)) {
-			throwIfAborted(signal);
-			if (chunk.index !== chunkCount) throw new Error('Capture PCM spool emitted a non-contiguous chunk.');
-			await writer.write(chunk.channels, signal ? { signal } : {});
-			chunkCount += 1;
-			frameCount += chunk.frames;
-		}
-		if (chunkCount !== storage.chunkCount || frameCount !== storage.frameCount
-			|| writer.framesWritten !== storage.frameCount) {
-			throw new Error('Capture PCM publication did not consume its exact acknowledged prefix.');
-		}
+		await writeFramescaperCapturePcmTimeline(options.rawPcmSpools, spool, writer, timeline, signal);
 		committed = await writer.commit({
 			sampleRate: storage.sampleRate,
 			channelCount: storage.channelCount,
 		}, { ...(signal ? { signal } : {}), ifAbsent: true });
-		assertExistingAudio(committed, storage, fingerprint);
+		assertExistingAudio(committed, storage, timeline.outputFrameCount, fingerprint);
 		return Object.freeze({
-			source: audioSource(streamManifest, spool),
+			source: audioSource(streamManifest, spool, timeline.outputFrameCount),
 			timelineDurationFrames: durationFrames,
 			discardIfCurrent: () => options.store.discardSourceIfCurrent(committed!),
 		});
@@ -164,8 +157,8 @@ async function publishRawPcm(
 		await abortWriter(writer, error);
 		const concurrent = await options.store.getSourceMetadata(storage.sourceId);
 		if (concurrent) {
-			assertExistingAudio(concurrent, storage, fingerprint);
-			return borrowedPublication(audioSource(streamManifest, spool), durationFrames);
+			assertExistingAudio(concurrent, storage, timeline.outputFrameCount, fingerprint);
+			return borrowedPublication(audioSource(streamManifest, spool, timeline.outputFrameCount), durationFrames);
 		}
 		throw error;
 	}
@@ -348,6 +341,7 @@ async function publishCanonicalTiming(
 function audioSource(
 	stream: FramescaperCaptureStreamManifestV1,
 	spool: RawPcmSpoolRecord,
+	outputFrameCount: number,
 ): Readonly<Record<string, unknown>> {
 	if (stream.storage.kind !== 'raw-pcm') throw new Error('Capture PCM source storage changed.');
 	return Object.freeze({
@@ -355,7 +349,7 @@ function audioSource(
 		id: stream.storage.sourceId, storageKey: stream.storage.sourceId,
 		name: captureName(stream.role), mimeType: 'audio/x-soundscaper-pcm',
 		sampleRate: stream.storage.sampleRate, originalSampleRate: stream.storage.sampleRate,
-		frameCount: stream.storage.frameCount, channelCount: stream.storage.channelCount,
+		frameCount: outputFrameCount, channelCount: stream.storage.channelCount,
 		sampleFormat: 'float32', chunkFrames: spool.chunkFrames,
 		opaqueExtensions: Object.freeze({}),
 	});
@@ -421,14 +415,15 @@ function assertEncodedSpool(
 function publicationFingerprint(
 	manifest: FramescaperCaptureSessionManifestV1,
 	stream: FramescaperCaptureStreamManifestV1,
+	outputFrameCount?: number,
 ): Readonly<Record<string, unknown>> {
 	const storage = stream.storage;
 	return Object.freeze({
 		version: 1, projectId: manifest.projectFence.projectId, sessionId: manifest.sessionId,
 		streamId: stream.streamId, spoolId: storage.spoolId, spoolToken: storage.spoolToken,
-		sourceId: storage.sourceId, kind: storage.kind,
+		sourceId: storage.sourceId, kind: storage.kind, timing: stream.timing,
 		acknowledgedUnits: storage.kind === 'raw-pcm'
-			? Object.freeze({ frameCount: storage.frameCount, chunkCount: storage.chunkCount })
+			? Object.freeze({ frameCount: storage.frameCount, chunkCount: storage.chunkCount, outputFrameCount })
 			: Object.freeze({
 				packetCount: storage.packetCount, chunkCount: storage.chunkCount, byteLength: storage.byteLength,
 			}),
@@ -438,10 +433,11 @@ function publicationFingerprint(
 function assertExistingAudio(
 	metadata: StorageRecord,
 	storage: Extract<FramescaperCaptureStreamManifestV1['storage'], { readonly kind: 'raw-pcm' }>,
+	outputFrameCount: number,
 	fingerprint: Readonly<Record<string, unknown>>,
 ): void {
 	if (metadata.id !== storage.sourceId || metadata.sampleRate !== storage.sampleRate
-		|| metadata.channelCount !== storage.channelCount || metadata.frameCount !== storage.frameCount
+		|| metadata.channelCount !== storage.channelCount || metadata.frameCount !== outputFrameCount
 		|| !sameData(metadata.framescaperCapturePublicationV1, fingerprint)) {
 		throw new Error(`Capture source ${storage.sourceId} is owned by different content.`);
 	}

@@ -13,6 +13,7 @@ import {
 	type FramescaperCaptureDurableStream,
 	type FramescaperFinalizedCaptureStream,
 } from '../src/common/editor/controller/framescaper-capture-publication-plan.ts';
+import { createFramescaperCaptureExactPresentationRange } from '../src/common/editor/controller/framescaper-capture-exact-presentation-range.ts';
 import { applyFramescaperProjectCommandV18 } from '../src/framescaper/editor-project-v18-commands.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import { createFramescaperProjectV18 } from '../src/framescaper/editor-project-v18.ts';
@@ -109,6 +110,31 @@ test('a non-equal resolved range never manufactures an A/V link', () => {
 		audioStream('microphone', 1, 47_999),
 	], 'timeline'));
 	assert.ok(plan.entries.every(({ avLinkId, laneGroupId }) => avLinkId === null && laneGroupId === null));
+});
+
+test('equal media geometry never links unequal retained presentation ranges', () => {
+	const camera = videoStream('camera', 0, 48_000);
+	const microphone = audioStream('microphone', 0, 48_000);
+	const plan = planFramescaperCapturePublication(planRequest([
+		{ ...camera, presentationEndOffsetFrames: 48_000 },
+		{ ...microphone, presentationEndOffsetFrames: 48_001 },
+	], 'timeline'));
+	assert.ok(plan.entries.every(({ avLinkId, laneGroupId }) => avLinkId === null && laneGroupId === null));
+});
+
+test('sample-quantized or absent exact ranges never manufacture an A/V link', () => {
+	const camera = videoStream('camera', 0, 48_000);
+	const microphone = audioStream('microphone', 0, 48_000);
+	for (const streams of [
+		[camera, {
+			...microphone,
+			exactPresentationRange: createFramescaperCaptureExactPresentationRange(1, 48_001),
+		}],
+		[{ ...camera, exactPresentationRange: null }, { ...microphone, exactPresentationRange: null }],
+	]) {
+		const plan = planFramescaperCapturePublication(planRequest(streams, 'timeline'));
+		assert.ok(plan.entries.every(({ avLinkId, laneGroupId }) => avLinkId === null && laneGroupId === null));
+	}
 });
 
 test('project-bin-only publication creates no timeline tracks or links', () => {
@@ -317,7 +343,13 @@ function finalized(
 	timelineDurationFrames: number,
 ): FramescaperFinalizedCaptureStream {
 	return {
-		streamId: `${role}-stream`, role, startOffsetFrames, timelineDurationFrames,
+		streamId: `${role}-stream`, role, startOffsetFrames,
+		presentationEndOffsetFrames: startOffsetFrames + timelineDurationFrames,
+		exactPresentationRange: createFramescaperCaptureExactPresentationRange(
+			startOffsetFrames,
+			startOffsetFrames + timelineDurationFrames,
+		),
+		timelineDurationFrames,
 		metrics: metrics(), terminationReason: null,
 	};
 }

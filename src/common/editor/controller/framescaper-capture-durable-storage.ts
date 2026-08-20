@@ -13,6 +13,7 @@ import type {
 	RawPcmSpoolRecord,
 	RawPcmSpoolRepository,
 } from '../storage/raw-pcm-spool-repository.ts';
+import { FRAMESCAPER_CAPTURE_PCM_MAXIMUM_GAP_FRAMES } from '../storage/raw-pcm-spool-chunk-timing.ts';
 
 interface CaptureStreamRegistrationBase {
 	readonly streamId: string;
@@ -39,10 +40,10 @@ export type FramescaperCaptureStreamRegistration =
 	FramescaperEncodedCaptureStreamRegistration | FramescaperRawPcmCaptureStreamRegistration;
 
 export type EncodedSpoolPort = Pick<EncodedCaptureSpoolRepository,
-	'create' | 'load' | 'append' | 'seal' | 'delete'
+	'create' | 'load' | 'append' | 'seal' | 'delete' | 'releaseAdopted' | 'restoreAcknowledgedPrefix'
 >;
 export type RawPcmSpoolPort = Pick<RawPcmSpoolRepository,
-	'create' | 'load' | 'append' | 'seal' | 'remove'
+	'create' | 'load' | 'append' | 'seal' | 'remove' | 'restoreAcknowledgedPrefix'
 >;
 
 export interface DurableCaptureStoragePorts {
@@ -148,6 +149,7 @@ export function createCaptureStreamManifest(
 			role: registration.role,
 			required: registration.required,
 			playability: 'unknown',
+			timing: Object.freeze({ firstPresentationMicroseconds: null, lastPresentationEndMicroseconds: null }),
 			storage: Object.freeze({
 				kind: 'encoded-media',
 				spoolId: spool.record.spoolId,
@@ -166,6 +168,7 @@ export function createCaptureStreamManifest(
 			role: registration.role,
 			required: registration.required,
 			playability: 'unknown',
+			timing: Object.freeze({ firstPresentationMicroseconds: null, lastPresentationEndMicroseconds: null }),
 			storage: Object.freeze({
 				kind: 'raw-pcm',
 				spoolId: spool.record.spoolId,
@@ -230,8 +233,9 @@ export function assertEncodedCapturePacket(
 	if (packet.sequence !== record.packetCount) {
 		throw new Error('Encoded capture packets require the next contiguous sequence.');
 	}
-	const expectedPts = record.lastPtsEndMicroseconds ?? 0;
-	if (packet.presentationTimeUs !== expectedPts) {
+	const expectedPts = record.lastPtsEndMicroseconds;
+	if (!Number.isSafeInteger(packet.presentationTimeUs) || packet.presentationTimeUs < 0
+		|| (expectedPts !== null && packet.presentationTimeUs !== expectedPts)) {
 		throw new Error('Encoded capture packets require contiguous presentation time.');
 	}
 }
@@ -249,11 +253,22 @@ export function assertPcmCapturePacket(
 	if (packet.sequence !== record.chunkCount) {
 		throw new Error('PCM capture packets require the next contiguous sequence.');
 	}
-	if (packet.presentationTimeUs !== frameTimeMicroseconds(record.frameCount, record.sampleRate)) {
-		throw new Error('PCM capture packets require contiguous presentation time.');
-	}
 	if (packet.durationUs !== frameTimeMicroseconds(packet.frameCount, record.sampleRate)) {
 		throw new Error('PCM capture packet duration does not match its frame count.');
+	}
+	const droppedFrames = exactDroppedFrames(packet);
+	const previousEnd = stream.timing.lastPresentationEndMicroseconds;
+	if (!Number.isSafeInteger(packet.presentationTimeUs) || packet.presentationTimeUs < 0
+		|| (record.chunkCount === 0 && (previousEnd !== null || droppedFrames !== 0))) {
+		throw new Error('PCM capture packet has invalid initial presentation time.');
+	}
+	if (record.chunkCount > 0) {
+		if (previousEnd === null || Math.abs(
+				packet.presentationTimeUs - previousEnd
+				- frameTimeMicroseconds(droppedFrames, record.sampleRate),
+			) > 1) {
+			throw new Error('PCM capture packet contiguous presentation time disagrees with exact dropped frames.');
+		}
 	}
 }
 
@@ -370,4 +385,14 @@ function storageStateMatches(
 
 function frameTimeMicroseconds(frames: number, sampleRate: number): number {
 	return Math.round(frames * 1_000_000 / sampleRate);
+}
+
+function exactDroppedFrames(packet: Extract<CapturePacket, { readonly kind: 'pcm-audio' }>): number {
+	const observation = packet.droppedBefore;
+	if (observation.confidence !== 'exact' || !Number.isSafeInteger(observation.value)
+		|| Number(observation.value) < 0
+		|| Number(observation.value) > FRAMESCAPER_CAPTURE_PCM_MAXIMUM_GAP_FRAMES) {
+		throw new Error('PCM capture packets require bounded exact dropped-frame evidence.');
+	}
+	return Number(observation.value);
 }

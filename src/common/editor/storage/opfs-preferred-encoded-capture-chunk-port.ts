@@ -22,6 +22,7 @@ interface CaptureChunkFallbackPort {
 	write(record: MediaAssetChunkRecord): PromiseLike<void> | void;
 	chunks(token: string): AsyncIterable<MediaAssetChunkRead>;
 	deleteOwned(token: string, sourceId: string): PromiseLike<boolean> | boolean;
+	deleteTailOwned(token: string, sourceId: string, firstIndex: number): PromiseLike<boolean> | boolean;
 }
 
 interface CaptureChunkStorageSelection {
@@ -137,6 +138,29 @@ export class OpfsPreferredEncodedCaptureChunkPort {
 			await this.#opfs.deletePath(reference.path);
 		}
 		return this.#values.deleteIfCurrent(selectionKey(token), selection);
+	}
+
+	async deleteTailOwned(tokenValue: string, sourceIdValue: string, firstIndex: number): Promise<boolean> {
+		const token = stableText(tokenValue, 'encoded capture chunk token', 512);
+		const sourceId = stableText(sourceIdValue, 'encoded capture sourceId', 256);
+		const selection = await this.#selection(token);
+		if (!selection) return this.#fallback.deleteTailOwned(token, sourceId, firstIndex);
+		if (selection.sourceId !== sourceId) return false;
+		if (selection.backend === 'chunk-fallback') {
+			return this.#fallback.deleteTailOwned(token, sourceId, firstIndex);
+		}
+		const references: OpfsCaptureChunkReference[] = [];
+		for (let index = firstIndex; ; index += 1) {
+			const reference = await this.#reference(token, index);
+			if (!reference) break;
+			if (reference.sourceId !== sourceId) return false;
+			references.push(reference);
+		}
+		for (const reference of references) {
+			if (!await this.#values.deleteIfCurrent(referenceKey(token, reference.index), reference)) return false;
+			await this.#opfs.deletePath(reference.path);
+		}
+		return true;
 	}
 
 	async backend(tokenValue: string): Promise<EncodedCaptureChunkBackend | null> {

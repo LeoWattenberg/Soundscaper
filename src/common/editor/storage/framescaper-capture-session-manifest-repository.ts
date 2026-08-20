@@ -195,6 +195,18 @@ function assertStreamForward(
 	if (!playabilityCanTransition(expected.playability, next.playability)) {
 		throw new Error('Framescaper capture playability evidence cannot move backward.');
 	}
+	const timingChanged = JSON.stringify(expected.timing) !== JSON.stringify(next.timing);
+	if (!prefixMayAdvance && timingChanged) {
+		throw new Error('A sealed Framescaper capture cannot change its presentation timing.');
+	}
+	if (expected.timing.firstPresentationMicroseconds !== null
+		&& next.timing.firstPresentationMicroseconds !== expected.timing.firstPresentationMicroseconds) {
+		throw new Error('Framescaper capture first presentation timing cannot change.');
+	}
+	if (timingChanged && expected.timing.lastPresentationEndMicroseconds !== null
+		&& next.timing.lastPresentationEndMicroseconds! <= expected.timing.lastPresentationEndMicroseconds) {
+		throw new Error('Framescaper capture presentation timing cannot move backward.');
+	}
 	const expectedPrefix = storagePrefix(expected);
 	const nextPrefix = storagePrefix(next);
 	if (!prefixMayAdvance && JSON.stringify(expectedPrefix) !== JSON.stringify(nextPrefix)) {
@@ -208,6 +220,10 @@ function assertStreamForward(
 	const deltas = nextPrefix.map((value, index) => value - expectedPrefix[index]!);
 	if (deltas.some((value) => value > 0) && !deltas.every((value) => value > 0)) {
 		throw new Error('Framescaper capture acknowledged-prefix geometry changed inconsistently.');
+	}
+	const storageAdvanced = deltas.some((value) => value > 0);
+	if (storageAdvanced !== timingChanged) {
+		throw new Error('Framescaper capture presentation timing must advance with its storage prefix.');
 	}
 }
 

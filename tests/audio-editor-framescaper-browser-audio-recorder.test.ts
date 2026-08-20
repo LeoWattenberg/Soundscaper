@@ -113,9 +113,10 @@ test('track processor is preferred and emits bounded planar chunks in the actual
 	assert.equal(recorder.channelCount, 2);
 	assert.equal(recorder.monitoring, false);
 	assert.equal(recorder.inputGain, 1);
-	assert.deepEqual(harness.construction(), { track: recorder.track, maxBufferSize: 32 });
+	assert.equal(harness.construction(), null, 'the processor cannot buffer preview audio before durable start');
 
 	recorder.start();
+	assert.deepEqual(harness.construction(), { track: recorder.track, maxBufferSize: 32 });
 	const data = audioData(130);
 	harness.reader.push(data);
 	await waitUntil(() => chunks.length === 2);
@@ -261,7 +262,7 @@ test('unsupported processor construction falls back to the AudioWorklet controll
 			factoryCalls.push(options as unknown as Record<string, unknown>);
 			delegateChunk = options.onChunk;
 			return {
-				start: () => { delegateCalls.push('start'); },
+				start: (startOptions) => { delegateCalls.push(`start:${String(startOptions)}`); },
 				pause: () => { delegateCalls.push('pause'); return true; },
 				resume: () => { delegateCalls.push('resume'); return true; },
 				stop: async () => { delegateCalls.push('stop'); },
@@ -270,24 +271,30 @@ test('unsupported processor construction falls back to the AudioWorklet controll
 		},
 		onChunk: (chunk) => { output.push(chunk.frameStart); },
 	});
+	assert.equal(recorder.backend, 'track-processor', 'backend selection stays lazy until durable start');
+	assert.equal(factoryCalls.length, 0);
+	await recorder.start(4_800);
 	assert.equal(recorder.backend, 'audio-worklet');
-	assert.equal(factoryCalls.length, 1);
 	assert.equal(factoryCalls[0]!.monitor, false);
 	assert.equal(factoryCalls[0]!.inputGain, 1);
 	assert.equal(factoryCalls[0]!.channelCount, 2);
 	assert.equal(factoryCalls[0]!.chunkFrames, 4_096);
-	recorder.start();
 	await delegateChunk?.({
-		frameStart: 27,
+		frameStart: 9_600_000,
 		frames: 2,
 		channels: [new Float32Array([1, 2]), new Float32Array([3, 4])],
+	});
+	await delegateChunk?.({
+		frameStart: 9_600_002,
+		frames: 2,
+		channels: [new Float32Array([5, 6]), new Float32Array([7, 8])],
 	});
 	assert.equal(recorder.pause(), true);
 	assert.equal(recorder.resume(), true);
 	await recorder.stop();
 	await recorder.dispose();
-	assert.deepEqual(output, [27]);
-	assert.deepEqual(delegateCalls, ['start', 'pause', 'resume', 'stop', 'detach']);
+	assert.deepEqual(output, [4_800, 4_802]);
+	assert.deepEqual(delegateCalls, ['start:undefined', 'pause', 'resume', 'stop', 'detach']);
 });
 
 test('monitoring selects AudioWorklet and retains configured capture gain', async () => {
@@ -318,7 +325,7 @@ test('monitoring selects AudioWorklet and retains configured capture gain', asyn
 	await recorder.dispose();
 });
 
-test('dispose before start releases a processor reader without touching source tracks', async () => {
+test('dispose before start never creates a processor reader or touches source tracks', async () => {
 	const harness = createProcessorHarness();
 	let trackStops = 0;
 	const track = { ...audioTrack(), stop: () => { trackStops += 1; } };
@@ -328,8 +335,9 @@ test('dispose before start releases a processor reader without touching source t
 		onChunk: () => {},
 	});
 	await recorder.dispose();
-	assert.equal(harness.reader.cancelCalls, 1);
-	assert.equal(harness.reader.releaseCalls, 1);
+	assert.equal(harness.construction(), null);
+	assert.equal(harness.reader.cancelCalls, 0);
+	assert.equal(harness.reader.releaseCalls, 0);
 	assert.equal(trackStops, 0);
 });
 
@@ -343,6 +351,7 @@ test('reader cancellation failure is surfaced without skipping exact release', a
 		onChunk: () => {},
 		onError: (error) => { errors.push(error); },
 	});
+	recorder.start();
 	await assert.rejects(recorder.dispose(), /reader cancellation failed/);
 	assert.equal(recorder.state, 'disposed');
 	assert.equal(harness.reader.cancelCalls, 1);

@@ -39,6 +39,11 @@ export interface FramescaperCaptureClockV1 {
 	readonly pauseSpans: readonly FramescaperCapturePauseSpanV1[];
 }
 
+export interface FramescaperCaptureStreamTimingV1 {
+	readonly firstPresentationMicroseconds: number | null;
+	readonly lastPresentationEndMicroseconds: number | null;
+}
+
 interface FramescaperCaptureStorageBaseV1 {
 	readonly spoolId: string;
 	readonly spoolToken: string;
@@ -68,6 +73,7 @@ export interface FramescaperCaptureStreamManifestV1 {
 	readonly role: FramescaperCaptureSourceRole;
 	readonly required: boolean;
 	readonly playability: FramescaperCapturePlayability;
+	readonly timing: FramescaperCaptureStreamTimingV1;
 	readonly storage: FramescaperCaptureStorageV1;
 }
 
@@ -206,10 +212,11 @@ function normalizeClock(value: unknown): FramescaperCaptureClockV1 {
 
 function normalizeStream(value: unknown): FramescaperCaptureStreamManifestV1 {
 	const record = dataRecord(value, 'Framescaper capture stream', [
-		'streamId', 'role', 'required', 'playability', 'storage',
+		'streamId', 'role', 'required', 'playability', 'timing', 'storage',
 	]);
 	const role = sourceRole(record.role);
 	const storage = normalizeStorage(record.storage);
+	const timing = normalizeStreamTiming(record.timing, storageHasData(storage));
 	if ((role === 'camera' || role === 'display') !== (storage.kind === 'encoded-media')) {
 		throw new Error('Framescaper video roles require encoded media and audio roles require raw PCM.');
 	}
@@ -219,7 +226,30 @@ function normalizeStream(value: unknown): FramescaperCaptureStreamManifestV1 {
 		role,
 		required: record.required,
 		playability: playability(record.playability),
+		timing,
 		storage,
+	});
+}
+
+function normalizeStreamTiming(value: unknown, hasData: boolean): FramescaperCaptureStreamTimingV1 {
+	const record = dataRecord(value, 'Framescaper capture stream presentation timing', [
+		'firstPresentationMicroseconds', 'lastPresentationEndMicroseconds',
+	]);
+	const first = nullableNonNegativeInteger(
+		record.firstPresentationMicroseconds,
+		'Framescaper first presentation time',
+	);
+	const end = nullableNonNegativeInteger(
+		record.lastPresentationEndMicroseconds,
+		'Framescaper last presentation end time',
+	);
+	if ((first === null) !== (end === null) || hasData !== (first !== null)
+		|| first !== null && end! <= first) {
+		throw new Error('Framescaper stream presentation timing does not match its acknowledged prefix.');
+	}
+	return Object.freeze({
+		firstPresentationMicroseconds: first,
+		lastPresentationEndMicroseconds: end,
 	});
 }
 
@@ -277,6 +307,10 @@ function normalizeStorage(value: unknown): FramescaperCaptureStorageV1 {
 		});
 	}
 	throw new TypeError('Framescaper capture storage kind is invalid.');
+}
+
+function storageHasData(storage: FramescaperCaptureStorageV1): boolean {
+	return storage.kind === 'encoded-media' ? storage.packetCount > 0 : storage.frameCount > 0;
 }
 
 function assertUniqueStreams(streams: readonly FramescaperCaptureStreamManifestV1[]): void {
@@ -417,6 +451,10 @@ function positiveInteger(value: unknown, name: string): number {
 function nonNegativeInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 0) throw new RangeError(`${name} must be non-negative.`);
 	return Number(value);
+}
+
+function nullableNonNegativeInteger(value: unknown, name: string): number | null {
+	return value === null ? null : nonNegativeInteger(value, name);
 }
 
 function boundedPositiveInteger(value: unknown, maximum: number, name: string): number {

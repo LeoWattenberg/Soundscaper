@@ -18,7 +18,9 @@ test('maximum-pass evidence keeps only one chunk accumulator live at a time', as
 	const evidence = await collectTakeCycleLivePassEvidence({
 		chunks: (async function* () {
 			for (let index = 0; index < TAKE_CYCLE_CAPTURE_MAXIMUM_PASSES; index += 1) {
-				yield Object.freeze({ index, frames: 1, channels: Object.freeze([Float32Array.of(index % 2)]) });
+				yield Object.freeze({
+					index, frames: 1, channels: Object.freeze([Float32Array.of(index % 2)]), timing: null,
+				});
 			}
 		})(),
 		captureSpans,

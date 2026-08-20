@@ -91,9 +91,9 @@ function createVideoRecorder<Recorder extends FramescaperMediaRecorderLike>(
 	});
 	return Object.freeze({
 		format: Object.freeze({ kind: 'encoded-media' as const, mimeType: recorder.mimeType }),
-		start: () => recorder.start(),
+		start: (activeTimeUs = 0) => recorder.start(activeTimeUs),
 		pause: () => recorder.pause(),
-		resume: () => recorder.resume(),
+		resume: (pauseDurationUs = 0) => recorder.resume(pauseDurationUs),
 		stop: () => recorder.stop(),
 		dispose: () => recorder.dispose(),
 	});
@@ -139,7 +139,10 @@ async function createAudioRecorder<Recorder extends FramescaperMediaRecorderLike
 			channelCount: recorder.channelCount,
 			chunkFrames: recorder.chunkFrames,
 		}),
-		start: () => recorder.start(),
+		start: (activeTimeUs = 0) => recorder.start(activeTimeFrame(
+			activeTimeUs,
+			recorder.sampleRate,
+		)),
 		pause: () => {
 			const paused = recorder.pause();
 			if (paused) packetizer?.expectPauseGap();
@@ -164,4 +167,13 @@ function runtimeMediaRecorder<Recorder extends FramescaperMediaRecorderLike>():
 	return typeof value === 'function'
 		? value as unknown as MediaRecorderConstructor<Recorder>
 		: null;
+}
+
+function activeTimeFrame(activeTimeUs: number, sampleRate: number): number {
+	if (!Number.isSafeInteger(activeTimeUs) || activeTimeUs < 0) {
+		throw new RangeError('Capture recorder active time must be a non-negative integer.');
+	}
+	const frame = Math.round(activeTimeUs * sampleRate / 1_000_000);
+	if (!Number.isSafeInteger(frame) || frame < 0) throw new RangeError('Capture recorder start frame exceeds the safe range.');
+	return frame;
 }

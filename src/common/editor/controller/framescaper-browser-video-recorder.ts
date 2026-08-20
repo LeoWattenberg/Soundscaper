@@ -58,9 +58,9 @@ export interface FramescaperBrowserVideoRecorder<Recorder extends FramescaperMed
 	readonly mimeType: string;
 	/** Exposed as a narrow test/diagnostic port; callers must use this wrapper. */
 	readonly mediaRecorder: Recorder;
-	start(): void;
+	start(presentationOriginUs?: number): void;
 	pause(): boolean;
-	resume(): boolean;
+	resume(excludedPauseDurationUs?: number): boolean;
 	stop(): Promise<void>;
 	dispose(): Promise<void>;
 }
@@ -101,7 +101,9 @@ export function createFramescaperBrowserVideoRecorder<Recorder extends Framescap
 	const receiptTime = options.receiptTime ?? (() => globalThis.performance?.now?.() ?? Date.now());
 	let state: RecorderState = 'ready';
 	let sequence = 0;
-	let previousTimecodeMs = 0;
+	let presentationOriginUs = 0;
+	let previousTimecodeUs = 0;
+	let excludedPauseTimeUs = 0;
 	let pendingEvents = 0;
 	let pressureReported = false;
 	let queue = Promise.resolve();
@@ -115,8 +117,9 @@ export function createFramescaperBrowserVideoRecorder<Recorder extends Framescap
 		fail(event.error ?? new Error('The capture video encoder failed.'));
 	};
 
-	function start(): void {
+	function start(originValue = 0): void {
 		if (state !== 'ready') throw new Error('Capture video recorder can start only once.');
+		presentationOriginUs = nonNegativeSafeInteger(originValue, 'Capture video presentation origin');
 		recorder.start(timesliceMs);
 		state = 'recording';
 	}
@@ -128,8 +131,13 @@ export function createFramescaperBrowserVideoRecorder<Recorder extends Framescap
 		return true;
 	}
 
-	function resume(): boolean {
+	function resume(excludedPauseDurationUs = 0): boolean {
 		if (state !== 'paused') return false;
+		excludedPauseTimeUs = exactSum(
+			excludedPauseTimeUs,
+			nonNegativeSafeInteger(excludedPauseDurationUs, 'Capture video excluded pause duration'),
+			'Capture video excluded pause time',
+		);
 		recorder.resume();
 		state = 'recording';
 		pressureReported = false;
@@ -196,13 +204,19 @@ export function createFramescaperBrowserVideoRecorder<Recorder extends Framescap
 			fail(new RangeError('Capture video encoder emitted an oversized logical packet.'));
 			return;
 		}
-		const reportedTimecodeMs = finiteTimecode(event.timecode, previousTimecodeMs + timesliceMs);
-		const eventTimecodeMs = reportedTimecodeMs > previousTimecodeMs
-			? reportedTimecodeMs
-			: previousTimecodeMs + timesliceMs;
-		const presentationTimeUs = millisecondsToMicroseconds(previousTimecodeMs);
-		const durationUs = millisecondsToMicroseconds(Math.max(0, eventTimecodeMs - previousTimecodeMs));
-		previousTimecodeMs = Math.max(previousTimecodeMs, eventTimecodeMs);
+		const fallbackTimecodeMs = (previousTimecodeUs + excludedPauseTimeUs) / 1_000 + timesliceMs;
+		const reportedTimecodeUs = millisecondsToMicroseconds(finiteTimecode(event.timecode, fallbackTimecodeMs));
+		const activeTimecodeUs = Math.max(0, reportedTimecodeUs - excludedPauseTimeUs);
+		const eventTimecodeUs = activeTimecodeUs > previousTimecodeUs
+			? activeTimecodeUs
+			: exactSum(previousTimecodeUs, timesliceMs * 1_000, 'Capture video fallback timecode');
+		const presentationTimeUs = exactSum(
+			presentationOriginUs,
+			previousTimecodeUs,
+			'Capture video presentation time',
+		);
+		const durationUs = eventTimecodeUs - previousTimecodeUs;
+		previousTimecodeUs = eventTimecodeUs;
 		queue = queue.then(async () => {
 			const bytes = new Uint8Array(await event.data.arrayBuffer());
 			if (bytes.byteLength < 1 || bytes.byteLength > maximumPacketBytes) {
@@ -285,6 +299,17 @@ function finiteTimecode(value: number | undefined, fallback: number): number {
 function finiteReceiptTime(value: number): number {
 	if (!Number.isFinite(value) || value < 0) throw new RangeError('Capture receipt time must be finite and non-negative.');
 	return value;
+}
+
+function nonNegativeSafeInteger(value: number, name: string): number {
+	if (!Number.isSafeInteger(value) || value < 0) throw new RangeError(`${name} must be a non-negative integer.`);
+	return value;
+}
+
+function exactSum(left: number, right: number, name: string): number {
+	const result = left + right;
+	if (!Number.isSafeInteger(result) || result < 0) throw new RangeError(`${name} exceeds the safe range.`);
+	return result;
 }
 
 function millisecondsToMicroseconds(value: number): number {

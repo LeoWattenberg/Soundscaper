@@ -46,7 +46,7 @@ test('video recorder retains actual MIME and timestamps bounded logical events',
 		onPacket: async (packet) => { packets.push(packet); },
 	});
 	assert.equal(recorder.mimeType, 'video/webm;codecs=vp8');
-	recorder.start();
+	recorder.start(250_000);
 	assert.equal(recorder.state, 'recording');
 	assert.equal(recorder.mediaRecorder.startTimeslice, 1_000);
 	recorder.mediaRecorder.emit(new Blob([new Uint8Array([1, 2, 3, 4, 5, 6])]), 1_000);
@@ -56,11 +56,31 @@ test('video recorder retains actual MIME and timestamps bounded logical events',
 	assert.deepEqual(packets.map(({ sequence, bytes, presentationTimeUs, durationUs, mimeType }) => ({
 		sequence, bytes: [...bytes], presentationTimeUs, durationUs, mimeType,
 	})), [
-		{ sequence: 0, bytes: [1, 2, 3, 4, 5, 6], presentationTimeUs: 0, durationUs: 1_000_000, mimeType: 'video/webm;codecs=vp8' },
-		{ sequence: 1, bytes: [7, 8], presentationTimeUs: 1_000_000, durationUs: 1_000_000, mimeType: 'video/webm;codecs=vp8' },
+		{ sequence: 0, bytes: [1, 2, 3, 4, 5, 6], presentationTimeUs: 250_000, durationUs: 1_000_000, mimeType: 'video/webm;codecs=vp8' },
+		{ sequence: 1, bytes: [7, 8], presentationTimeUs: 1_250_000, durationUs: 1_000_000, mimeType: 'video/webm;codecs=vp8' },
 	]);
 	assert.equal(recorder.state, 'stopped');
 	assert.equal(recorder.mediaRecorder.requestDataCalls, 1);
+});
+
+test('video recorder excludes a declared pause from its shared presentation range', async () => {
+	const packets: Array<Readonly<{ presentationTimeUs: number; durationUs: number }>> = [];
+	const recorder = createFramescaperBrowserVideoRecorder({
+		MediaRecorder: FakeMediaRecorder,
+		stream: {}, sessionId: 'session-1', streamId: 'camera-1', role: 'camera',
+		selectedMimeType: 'video/webm', timesliceMs: 1_000,
+		onPacket: (packet) => { packets.push(packet); },
+	});
+	recorder.start(400_000);
+	recorder.mediaRecorder.emit(new Blob([Uint8Array.of(1)]), 1_000);
+	assert.equal(recorder.pause(), true);
+	assert.equal(recorder.resume(5_000_000), true);
+	recorder.mediaRecorder.emit(new Blob([Uint8Array.of(2)]), 7_000);
+	await recorder.stop();
+	assert.deepEqual(packets.map(({ presentationTimeUs, durationUs }) => ({ presentationTimeUs, durationUs })), [
+		{ presentationTimeUs: 400_000, durationUs: 1_000_000 },
+		{ presentationTimeUs: 1_400_000, durationUs: 1_000_000 },
+	]);
 });
 
 test('pause, resume, stop, and dispose are idempotent', async () => {

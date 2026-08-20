@@ -6,6 +6,7 @@ import {
 	type MediaAssetChunkRead,
 	type MediaAssetChunkRecord,
 } from './media-asset-chunk-records.ts';
+import { restoreEncodedCaptureAcknowledgedPrefix } from './framescaper-capture-spool-prefix-repair.ts';
 
 const KEY_PREFIX = 'framescaper-encoded-capture-spool-v1:';
 const MAXIMUM_PACKET_CHUNKS = 16;
@@ -102,6 +103,7 @@ export interface EncodedCaptureSpoolChunkPort {
 	write(record: MediaAssetChunkRecord): PromiseLike<void> | void;
 	chunks(token: string): AsyncIterable<MediaAssetChunkRead>;
 	deleteOwned(token: string, sourceId: string): PromiseLike<boolean> | boolean;
+	deleteTailOwned(token: string, sourceId: string, firstIndex: number): PromiseLike<boolean> | boolean;
 }
 
 interface EncodedCaptureSpoolOptions {
@@ -253,6 +255,23 @@ export class EncodedCaptureSpoolRepository {
 			firstChunkIndex,
 			chunkCount: packetChunkCount,
 			byteLength: packet.payload.size,
+		});
+	}
+
+	/** Restore the exact manifest-acknowledged prefix after its following manifest CAS is refused. */
+	async restoreAcknowledgedPrefix(
+		currentValue: EncodedCaptureSpoolRecord,
+		acknowledgedValue: EncodedCaptureSpoolRecord,
+	): Promise<EncodedCaptureSpoolRecord> {
+		const current = normalizeRecord(currentValue);
+		const acknowledged = normalizeRecord(acknowledgedValue);
+		assertSameOwnership(current, acknowledged);
+		return restoreEncodedCaptureAcknowledgedPrefix(current, acknowledged, {
+			replace: () => this.#replace(current, acknowledged),
+			load: () => this.load(current.projectId, current.spoolId),
+			deleteTail: () => Promise.resolve(this.#chunks.deleteTailOwned(
+				acknowledged.spoolToken, acknowledged.sourceId, acknowledged.chunkCount,
+			)),
 		});
 	}
 
@@ -499,10 +518,7 @@ function assertSameOwnership(left: EncodedCaptureSpoolRecord, right: EncodedCapt
 	}
 }
 
-function freezeRecord(value: EncodedCaptureSpoolRecord): EncodedCaptureSpoolRecord {
-	return Object.freeze({ ...value });
-}
-
+function freezeRecord(value: EncodedCaptureSpoolRecord): EncodedCaptureSpoolRecord { return Object.freeze({ ...value }); }
 function sameRecord(left: EncodedCaptureSpoolRecord, right: EncodedCaptureSpoolRecord): boolean {
 	return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -511,33 +527,21 @@ function dataRecord(value: unknown, name: string): Readonly<Record<string, unkno
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a data record.`);
 	return value as Readonly<Record<string, unknown>>;
 }
-
 function spoolState(value: unknown): EncodedCaptureSpoolState {
 	if (value !== 'capturing' && value !== 'sealed' && value !== 'adopted' && value !== 'deleting') {
 		throw new TypeError('Encoded capture spool state is invalid.');
 	}
 	return value;
 }
-
-function literalOne(value: unknown, name: string): 1 {
-	if (value !== 1) throw new Error(`${name} is invalid.`);
-	return 1;
-}
-
-function stableId(value: unknown, name: string): string {
-	return stableText(value, name, 256);
-}
-
+function literalOne(value: unknown, name: string): 1 { if (value !== 1) throw new Error(`${name} is invalid.`); return 1; }
+function stableId(value: unknown, name: string): string { return stableText(value, name, 256); }
 function stableText(value: unknown, name: string, maximumLength: number): string {
 	if (typeof value !== 'string' || !value.length || value !== value.trim()
 		|| value !== value.normalize('NFC') || value.length > maximumLength
 		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
 	return value;
 }
-
-function mimeType(value: unknown): string {
-	return stableText(value, 'encoded capture MIME type', 255);
-}
+function mimeType(value: unknown): string { return stableText(value, 'encoded capture MIME type', 255); }
 
 function digestText(value: unknown): string {
 	if (typeof value !== 'string' || !/^[a-f0-9]{64}$/u.test(value)) {
@@ -546,9 +550,7 @@ function digestText(value: unknown): string {
 	return value;
 }
 
-function timestamp(value: unknown, name: string): number {
-	return nonNegativeInteger(value, name);
-}
+function timestamp(value: unknown, name: string): number { return nonNegativeInteger(value, name); }
 
 function positiveInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1) throw new RangeError(`${name} must be positive.`);

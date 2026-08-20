@@ -60,12 +60,30 @@ test('desktop source selection preserves explicit opaque generation and tears it
 	await harness.value.actions.requestPreview(['display']);
 	assert.equal(harness.mediaOpens, 1);
 	assert.deepEqual(harness.desktopEvents, [
-		'status', 'list:1', `grant:1:${'a'.repeat(32)}:display`,
+		'status', 'list:1', `grant:1:${'a'.repeat(32)}:display+system-audio`,
 	]);
 	await harness.value.actions.release();
 	assert.deepEqual(harness.desktopEvents, [
-		'status', 'list:1', `grant:1:${'a'.repeat(32)}:display`, 'teardown:1',
+		'status', 'list:1', `grant:1:${'a'.repeat(32)}:display+system-audio`, 'teardown:1',
 	]);
+});
+
+test('desktop display grants stay video-only when loopback is unavailable', async () => {
+	const events: string[] = [];
+	const harness = compositionHarness({
+		embedded: true,
+		desktop: true,
+		desktopBridge: desktopBridge(events, 'none'),
+	});
+	await harness.value.initialize();
+	await harness.value.actions.listDisplaySources();
+	harness.value.actions.selectDisplaySource('a'.repeat(32));
+	await harness.value.actions.requestPreview(['display']);
+
+	assert.deepEqual(events, [
+		'status', 'list:1', `grant:1:${'a'.repeat(32)}:display`,
+	]);
+	await harness.value.dispose();
 });
 
 test('initialization corruption fails capture closed without rejecting editor readiness', async () => {
@@ -209,12 +227,14 @@ function captureStore(onManifestList: () => void) {
 		encodedCaptureSpoolRepository: {
 			async create() { throw new Error('not reached'); }, async load() { return null; },
 			async append() { throw new Error('not reached'); }, async seal() { throw new Error('not reached'); },
-			async delete() {}, async *read() {},
+			async delete() {}, async releaseAdopted() {},
+			async restoreAcknowledgedPrefix() { throw new Error('not reached'); }, async *read() {},
 		},
 		rawPcmSpoolRepository: {
 			async create() { throw new Error('not reached'); }, async load() { return null; },
 			async append() { throw new Error('not reached'); }, async seal() { throw new Error('not reached'); },
-			async remove() { return true; }, async *chunks() {},
+			async remove() { return true; },
+			async restoreAcknowledgedPrefix() { throw new Error('not reached'); }, async *chunks() {},
 		},
 		async getSourceMetadata() { return null; }, async beginSourceWrite() { throw new Error('not reached'); },
 		async discardSourceIfCurrent() { return true; }, async getMediaAssetMetadata() { return null; },
@@ -222,13 +242,13 @@ function captureStore(onManifestList: () => void) {
 	};
 }
 
-function desktopBridge(events: string[]) {
+function desktopBridge(events: string[], systemAudio: 'windows-loopback' | 'none' = 'windows-loopback') {
 	return {
 		async status() {
 			events.push('status');
 			return {
 				version: 1 as const, available: true, unavailableReason: null,
-				selectionMode: 'source-list' as const, systemAudio: 'windows-loopback' as const,
+				selectionMode: 'source-list' as const, systemAudio,
 				sourceLimit: 64, sourceListTtlMs: 300_000, grantTtlMs: 15_000,
 			};
 		},

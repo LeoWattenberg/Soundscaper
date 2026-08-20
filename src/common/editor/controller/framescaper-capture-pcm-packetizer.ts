@@ -50,6 +50,7 @@ export function createFramescaperCapturePcmPacketizer(
 	let sequence = 0;
 	let capturedFrames = 0;
 	let expectedInputFrame: number | null = null;
+	let excludedPauseFrames = 0;
 	let acceptsPauseGap = false;
 
 	function expectPauseGap(): void {
@@ -74,12 +75,21 @@ export function createFramescaperCapturePcmPacketizer(
 		if (expectedInputFrame !== null && frameStart < expectedInputFrame) {
 			throw new Error('Capture PCM input chunks cannot overlap or move backward.');
 		}
-		const droppedFrames = expectedInputFrame === null || acceptsPauseGap
-			? 0
-			: frameStart - expectedInputFrame;
+		const inputGapFrames = expectedInputFrame === null ? 0 : frameStart - expectedInputFrame;
+		const droppedFrames = acceptsPauseGap ? 0 : inputGapFrames;
+		if (acceptsPauseGap) {
+			excludedPauseFrames = exactSum(
+				excludedPauseFrames,
+				inputGapFrames,
+				'Capture PCM excluded pause frames',
+			);
+		}
 		acceptsPauseGap = false;
 		expectedInputFrame = exactSum(frameStart, frames, 'Capture PCM input frame end');
-		const presentationTimeUs = frameTimeMicroseconds(capturedFrames, sampleRate);
+		const presentationTimeUs = frameTimeMicroseconds(
+			frameStart - excludedPauseFrames,
+			sampleRate,
+		);
 		const durationUs = frameTimeMicroseconds(frames, sampleRate);
 		const samples = new Float32Array(frames * channelCount);
 		for (let frame = 0; frame < frames; frame += 1) {

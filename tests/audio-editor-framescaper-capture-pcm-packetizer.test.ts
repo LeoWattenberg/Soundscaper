@@ -7,7 +7,7 @@ import {
 	createFramescaperCapturePcmPacketizer,
 } from '../src/common/editor/controller/framescaper-capture-pcm-packetizer.ts';
 
-test('PCM packetizer preserves actual format, interleaves samples, and builds an active-time grid', () => {
+test('PCM packetizer preserves actual format, interleaves samples, and retains the shared active-time grid', () => {
 	let now = 10;
 	const packetizer = createFramescaperCapturePcmPacketizer({
 		sessionId: 'session-1', streamId: 'microphone-1', role: 'microphone',
@@ -28,12 +28,12 @@ test('PCM packetizer preserves actual format, interleaves samples, and builds an
 		receiptTimeMs: first.receiptTimeMs, samples: [...first.samples],
 		droppedBefore: first.droppedBefore,
 	}, {
-		sequence: 0, presentationTimeUs: 0, durationUs: 63, frameCount: 3,
+		sequence: 0, presentationTimeUs: 100_000, durationUs: 63, frameCount: 3,
 		sampleRate: 48_000, channelCount: 2, receiptTimeMs: 10,
 		samples: [1, 4, 2, 5, 3, 6], droppedBefore: { value: 0, confidence: 'exact' },
 	});
 	assert.equal(second.sequence, 1);
-	assert.equal(second.presentationTimeUs, 63);
+	assert.equal(second.presentationTimeUs, 100_063);
 	assert.equal(second.durationUs, 42);
 	assert.deepEqual([...second.samples], [7, 9, 8, 10]);
 	assert.equal(packetizer.frameCount, 5);
@@ -47,10 +47,11 @@ test('PCM packetizer reports unannounced source gaps and excludes declared pause
 	packetizer.packet({ frameStart: 100, frames: 2, channels: [new Float32Array(2)] });
 	const dropped = packetizer.packet({ frameStart: 105, frames: 2, channels: [new Float32Array(2)] });
 	assert.deepEqual(dropped.droppedBefore, { value: 3, confidence: 'exact' });
+	assert.equal(dropped.presentationTimeUs, 105_000, 'unannounced holes remain on the active grid');
 	packetizer.expectPauseGap();
 	const resumed = packetizer.packet({ frameStart: 1_000, frames: 2, channels: [new Float32Array(2)] });
 	assert.deepEqual(resumed.droppedBefore, { value: 0, confidence: 'exact' });
-	assert.equal(resumed.presentationTimeUs, 4_000);
+	assert.equal(resumed.presentationTimeUs, 107_000, 'declared pause input is removed from active time');
 });
 
 test('PCM packetizer rejects malformed, overlapping, and wrong-format chunks', () => {

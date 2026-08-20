@@ -14,6 +14,7 @@ export interface FramescaperCaptureDurablePortBinding {
 	readonly port: FramescaperCaptureDurablePort;
 	coordinatorSession(session: FramescaperCaptureDurableSession): CoordinatorSession;
 	refresh(session: FramescaperCaptureDurableSession): Promise<CoordinatorSession>;
+	retireCommitted(session: FramescaperCaptureDurableSession): Promise<void>;
 }
 
 interface FramescaperCaptureDurablePortOptions {
@@ -59,6 +60,10 @@ export function createFramescaperCaptureDurablePortBinding(
 		assertWrappedIdentity(session, loaded);
 		owned.set(session, loaded);
 		return loaded;
+	}
+
+	async function retireCommitted(session: FramescaperCaptureDurableSession): Promise<void> {
+		await coordinatorSession(session).retireCommitted();
 	}
 
 	const port: FramescaperCaptureDurablePort = {
@@ -130,7 +135,7 @@ export function createFramescaperCaptureDurablePortBinding(
 	};
 	Object.freeze(port);
 
-	return Object.freeze({ port, coordinatorSession, refresh });
+	return Object.freeze({ port, coordinatorSession, refresh, retireCommitted });
 }
 
 function assertWrappedIdentity(

@@ -9,6 +9,7 @@ import {
 	type FramescaperCaptureCanonicalPublicationRequest,
 	type FramescaperCaptureCanonicalStore,
 } from '../src/common/editor/controller/framescaper-capture-canonical-publication.ts';
+import { createFramescaperCaptureExactPresentationRange } from '../src/common/editor/controller/framescaper-capture-exact-presentation-range.ts';
 import {
 	createFramescaperCaptureDurableSessionCoordinator,
 	type FramescaperCaptureDurableSession,
@@ -109,8 +110,8 @@ test('canonical capture publication copies sealed PCM and video into ordinary V2
 	await Promise.resolve();
 	assert.equal(calls.at(-1), 'derivatives:camera-source,microphone-source');
 	assert.equal(warnings.length, 1, 'derivative failures warn without reversing the canonical commit');
-	assert.ok(await fixture.store.rawPcmSpoolRepository.load('capture-project', 'microphone-spool'));
-	assert.ok(await fixture.store.encodedCaptureSpoolRepository.load('capture-project', 'camera-spool'));
+	assert.equal(await fixture.store.rawPcmSpoolRepository.load('capture-project', 'microphone-spool'), null);
+	assert.equal(await fixture.store.encodedCaptureSpoolRepository.load('capture-project', 'camera-spool'), null);
 });
 
 test('known project CAS refusal rolls back only newly owned canonical bodies and timing assets', async () => {
@@ -508,10 +509,17 @@ function publicationRequest(
 		projectSampleRate: 48_000,
 		sequence: { id: 'main-sequence', rate: { num: 30, den: 1 } },
 		trackInsertionIndex: 0,
-		streams: manifest.streams.map(({ streamId, role }) => ({
+		streams: manifest.streams.map(({ streamId, role, timing }) => ({
 			streamId,
 			role,
-			startOffsetFrames: 0,
+			exactPresentationRange: createFramescaperCaptureExactPresentationRange(
+				timing.firstPresentationMicroseconds!,
+				timing.lastPresentationEndMicroseconds!,
+			),
+			startOffsetFrames: Math.round(timing.firstPresentationMicroseconds! * 48_000 / 1_000_000),
+			presentationEndOffsetFrames: Math.round(
+				timing.lastPresentationEndMicroseconds! * 48_000 / 1_000_000,
+			),
 			metrics: {
 				confidence: 'exact',
 				droppedUnits: 0,

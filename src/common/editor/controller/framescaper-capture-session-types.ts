@@ -31,9 +31,9 @@ export type FramescaperCaptureRecorderFormat = Readonly<
 
 export interface FramescaperCaptureRecorder {
 	readonly format: FramescaperCaptureRecorderFormat;
-	start(): PromiseLike<void> | void;
+	start(activeTimeUs?: number): PromiseLike<void> | void;
 	pause(): PromiseLike<boolean> | boolean;
-	resume(): PromiseLike<boolean> | boolean;
+	resume(excludedPauseDurationUs?: number): PromiseLike<boolean> | boolean;
 	stop(): PromiseLike<void> | void;
 	dispose(): PromiseLike<void> | void;
 	setMonitoring?(enabled: boolean): unknown;

@@ -120,6 +120,7 @@ test('encoded prefixes and session manifests reload from existing IndexedDB stor
 		projectFence: { projectId: 'project-reload', baseRevision: 1, baseSha256: 'cd'.repeat(32) },
 		streams: [{
 			streamId: 'display-stream', role: 'display', required: true, playability: 'unknown',
+			timing: { firstPresentationMicroseconds: 0, lastPresentationEndMicroseconds: 1_000 },
 			storage: {
 				kind: 'encoded-media', spoolId: spool.spoolId, spoolToken: spool.spoolToken,
 				sourceId: spool.sourceId, mimeType: spool.mimeType, packetCount: spool.packetCount,
@@ -183,6 +184,44 @@ test('encoded capture prefers durable OPFS chunks and reopens their exact owners
 	await reopened.delete(loaded);
 	assert.equal(files.size, 0);
 	assert.equal(await reopenedChunks.backend(spool.spoolToken), null);
+});
+
+test('OPFS acknowledged-prefix repair removes its exact tail before retry or deletion', async () => {
+	const memory = getMemoryDatabase(uniqueName());
+	const files = new Map<string, Blob>();
+	const port = { memory, database: async () => null };
+	const values = new KeyValueRepository(port, 'analysis');
+	const chunks = new OpfsPreferredEncodedCaptureChunkPort({
+		values,
+		opfs: new OpfsRepository({ preferOpfs: true, opfsRoot: createOpfsDirectory(files) }),
+		fallback: new MediaAssetChunkRecords(port),
+	});
+	const repository = new EncodedCaptureSpoolRepository(values, chunks, { createId: () => 'repair-token' });
+	const created = await repository.create({
+		projectId: 'project-repair', sessionId: 'session-repair', streamId: 'camera-stream',
+		spoolId: 'camera-spool', sourceId: 'camera-source', mimeType: 'video/webm',
+	});
+	const acknowledged = (await repository.append(created, {
+		sequence: 0, ptsMicroseconds: 0, durationMicroseconds: 1_000,
+		payload: new Blob([Uint8Array.of(1, 2, 3)]),
+	})).spool;
+	const advanced = (await repository.append(acknowledged, {
+		sequence: 1, ptsMicroseconds: 1_000, durationMicroseconds: 1_000,
+		payload: new Blob([Uint8Array.of(4, 5, 6)]),
+	})).spool;
+
+	await repository.restoreAcknowledgedPrefix(advanced, acknowledged);
+	const restored = await repository.load('project-repair', 'camera-spool');
+	assert.deepEqual(restored, acknowledged);
+	assert.equal((await collect(repository.read(acknowledged))).length, 1);
+	assert.equal(files.size, 1, 'the OPFS tail body and reference are reclaimed together');
+	const retried = (await repository.append(acknowledged, {
+		sequence: 1, ptsMicroseconds: 1_000, durationMicroseconds: 1_000,
+		payload: new Blob([Uint8Array.of(7, 8, 9)]),
+	})).spool;
+	await repository.delete(retried);
+	assert.equal(files.size, 0);
+	assert.equal(await chunks.backend(retried.spoolToken), null);
 });
 
 test('project-store composition exposes capture recovery storage and retention protects its fallback', async () => {
@@ -278,10 +317,14 @@ test('capture manifest repository CAS permits only forward state and acknowledge
 	const advanced = manifest({
 		updatedAt: 2,
 		streams: initial.streams.map((stream) => stream.storage.kind === 'encoded-media'
-			? { ...stream, storage: {
+			? { ...stream, timing: {
+				firstPresentationMicroseconds: 0, lastPresentationEndMicroseconds: 1_000,
+			}, storage: {
 				...stream.storage, packetCount: 1, chunkCount: 1, byteLength: 3,
 			} }
-			: { ...stream, storage: {
+			: { ...stream, timing: {
+				firstPresentationMicroseconds: 0, lastPresentationEndMicroseconds: 10_000,
+			}, storage: {
 				...stream.storage, frameCount: 480, chunkCount: 1,
 			} }),
 	});
@@ -330,6 +373,7 @@ function manifest(
 		clock: { monotonicOriginMicroseconds: 10_000, pauseSpans: [] },
 		streams: [{
 			streamId: 'camera-stream', role: 'camera', required: true, playability: 'unknown',
+			timing: { firstPresentationMicroseconds: null, lastPresentationEndMicroseconds: null },
 			storage: {
 				kind: 'encoded-media', spoolId: 'camera-spool', spoolToken: 'camera-token',
 				sourceId: 'camera-source', mimeType: 'video/webm', packetCount: 0,
@@ -337,6 +381,7 @@ function manifest(
 			},
 		}, {
 			streamId: 'microphone-stream', role: 'microphone', required: true, playability: 'unknown',
+			timing: { firstPresentationMicroseconds: null, lastPresentationEndMicroseconds: null },
 			storage: {
 				kind: 'raw-pcm', spoolId: 'microphone-spool', spoolToken: 'microphone-token',
 				sourceId: 'microphone-source', sampleRate: 48_000, channelCount: 1,

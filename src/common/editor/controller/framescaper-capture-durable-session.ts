@@ -8,6 +8,7 @@ import {
 	type FramescaperCapturePlayability,
 	type FramescaperCaptureProjectFenceV1,
 	type FramescaperCaptureSessionManifestV1,
+	type FramescaperCaptureStreamManifestV1,
 } from '../framescaper-capture-session-manifest.ts';
 import type { FramescaperCaptureSessionManifestRepository } from '../storage/framescaper-capture-session-manifest-repository.ts';
 import {
@@ -59,6 +60,7 @@ export interface FramescaperCaptureDurableSession {
 		streamId: string,
 		playability: Exclude<FramescaperCapturePlayability, 'unknown'>,
 	): Promise<FramescaperCaptureSessionManifestV1>;
+	retireCommitted(): Promise<void>;
 	delete(): Promise<void>;
 }
 
@@ -84,6 +86,7 @@ export function createFramescaperCaptureDurableSessionCoordinator(
 		const created = new Map<string, OwnedCaptureSpool>();
 		try {
 			assertCaptureStreamRegistrations(request.streams);
+			await retireSettledSessions(request.projectFence.projectId);
 			for (const registration of request.streams) {
 				created.set(registration.streamId, await createCaptureSpool(options, {
 					sessionId: request.sessionId,
@@ -122,10 +125,27 @@ export function createFramescaperCaptureDurableSessionCoordinator(
 		const manifest = await options.manifests.load(projectId, sessionId);
 		if (!manifest) return null;
 		const inspection = await inspectCaptureStorage(options, manifest);
-		if (inspection.storageStatus !== 'exact' && manifest.state !== 'discarded') {
+		if (inspection.storageStatus === 'changed'
+			|| (inspection.storageStatus === 'missing'
+				&& manifest.state !== 'discarded' && manifest.state !== 'committed')) {
 			throw new Error(`Framescaper capture storage ownership changed for ${inspection.affectedStreamIds.join(', ')}.`);
 		}
 		return new DurableSession(options, now, manifest, inspection.spools);
+	}
+
+	async function retireSettledSessions(projectId: string): Promise<void> {
+		for (const manifest of await options.manifests.listProject(projectId)) {
+			if (manifest.state === 'committed' || manifest.state === 'discarded') {
+				await retireSettledManifest(manifest);
+			}
+		}
+	}
+
+	async function retireSettledManifest(manifest: FramescaperCaptureSessionManifestV1): Promise<void> {
+		const session = await load(manifest.projectFence.projectId, manifest.sessionId);
+		if (!session) return;
+		if (manifest.state === 'committed') await session.retireCommitted();
+		else await session.delete();
 	}
 
 	async function recoveryInventory(
@@ -133,7 +153,10 @@ export function createFramescaperCaptureDurableSessionCoordinator(
 	): Promise<readonly FramescaperCaptureRecoveryInventoryEntry[]> {
 		const entries: FramescaperCaptureRecoveryInventoryEntry[] = [];
 		for (const manifest of await options.manifests.listProject(projectId)) {
-			if (manifest.state === 'committed') continue;
+			if (manifest.state === 'committed' || manifest.state === 'discarded') {
+				await retireSettledManifest(manifest);
+				continue;
+			}
 			const inspection = await inspectCaptureStorage(options, manifest);
 			entries.push(Object.freeze({
 				manifest,
@@ -225,6 +248,52 @@ class DurableSession implements FramescaperCaptureDurableSession {
 		});
 	}
 
+	retireCommitted(): Promise<void> {
+		return this.#enqueue(async () => {
+			if (this.#deleted) return;
+			this.#assertSynchronized();
+			const current = await this.#repositories.manifests.load(
+				this.#manifest.projectFence.projectId,
+				this.#manifest.sessionId,
+			);
+			if (!current) {
+				this.#spools.clear();
+				this.#deleted = true;
+				return;
+			}
+			if (!sameManifestEvidence(this.#manifest, current)) {
+				throw new Error('Framescaper committed capture manifest ownership changed before retirement.');
+			}
+			if (current.state !== 'committed') {
+				throw new Error('Only a durably committed Framescaper capture can retire its spools.');
+			}
+			this.#manifest = current;
+			const inspection = await inspectCaptureStorage(this.#repositories, current);
+			if (inspection.storageStatus === 'changed') {
+				throw new Error(`Framescaper capture storage ownership changed for ${inspection.affectedStreamIds.join(', ')}.`);
+			}
+			this.#spools.clear();
+			for (const [streamId, spool] of inspection.spools) this.#spools.set(streamId, spool);
+			for (const stream of current.streams) {
+				const spool = this.#spools.get(stream.streamId);
+				if (!spool) continue;
+				if (spool.kind === 'encoded-media') {
+					if (spool.record.state === 'adopted') {
+						await this.#repositories.encodedSpools.releaseAdopted(spool.record);
+					} else await this.#repositories.encodedSpools.delete(spool.record);
+				} else if (!await this.#repositories.rawPcmSpools.remove(spool.record)) {
+					throw new Error(`Framescaper capture storage ownership changed for ${stream.streamId}.`);
+				}
+				this.#spools.delete(stream.streamId);
+			}
+			try { await this.#repositories.manifests.remove(current); }
+			catch (error) {
+				if (await this.#repositories.manifests.load(current.projectFence.projectId, current.sessionId)) throw error;
+			}
+			this.#deleted = true;
+		});
+	}
+
 	delete(): Promise<void> {
 		return this.#enqueue(async () => {
 			if (this.#deleted) return;
@@ -271,6 +340,7 @@ class DurableSession implements FramescaperCaptureDurableSession {
 		if (streamIndex < 0) throw new Error(`Capture packet stream ${packet.streamId} is not registered.`);
 		const stream = this.#manifest.streams[streamIndex]!;
 		const spool = requiredCaptureSpool(this.#spools, stream.streamId);
+		const acknowledgedSpool = spool;
 		let nextStream = stream;
 		if (packet.kind === 'encoded-video' && spool.kind === 'encoded-media'
 			&& stream.storage.kind === 'encoded-media') {
@@ -286,6 +356,7 @@ class DurableSession implements FramescaperCaptureDurableSession {
 			}));
 			nextStream = Object.freeze({
 				...stream,
+				timing: packetTiming(stream, packet.presentationTimeUs, packet.durationUs),
 				storage: Object.freeze({
 					...stream.storage,
 					packetCount: acknowledgement.spool.packetCount,
@@ -300,10 +371,16 @@ class DurableSession implements FramescaperCaptureDurableSession {
 				spool.record,
 				deinterleaveCapturePcm(packet.samples, packet.frameCount, packet.channelCount),
 				spool.owner,
+				{
+					presentationTimeMicroseconds: packet.presentationTimeUs,
+					durationMicroseconds: packet.durationUs,
+					droppedFramesBefore: packet.droppedBefore.value!,
+				},
 			);
 			this.#spools.set(stream.streamId, Object.freeze({ ...spool, record }));
 			nextStream = Object.freeze({
 				...stream,
+				timing: packetTiming(stream, packet.presentationTimeUs, packet.durationUs),
 				storage: Object.freeze({
 					...stream.storage,
 					frameCount: record.frameCount,
@@ -320,7 +397,10 @@ class DurableSession implements FramescaperCaptureDurableSession {
 			streams,
 			updatedAt: this.#updatedAt(),
 		});
-		return this.#replaceManifest(next);
+		return this.#replaceManifestAfterAppend(next, stream.streamId, acknowledgedSpool, requiredCaptureSpool(
+			this.#spools,
+			stream.streamId,
+		));
 	}
 
 	async #seal(): Promise<FramescaperCaptureSessionManifestV1> {
@@ -372,6 +452,52 @@ class DurableSession implements FramescaperCaptureDurableSession {
 		}
 	}
 
+	async #replaceManifestAfterAppend(
+		next: FramescaperCaptureSessionManifestV1,
+		streamId: string,
+		acknowledged: OwnedCaptureSpool,
+		advanced: OwnedCaptureSpool,
+	): Promise<FramescaperCaptureSessionManifestV1> {
+		try {
+			this.#manifest = await this.#repositories.manifests.replace(this.#manifest, next);
+			return this.#manifest;
+		} catch (error) {
+			try {
+				const observed = await this.#repositories.manifests.load(
+					this.#manifest.projectFence.projectId,
+					this.#manifest.sessionId,
+				);
+				if (observed && sameManifest(observed, next)) {
+					this.#manifest = observed;
+					return observed;
+				}
+				if (!observed || !sameManifest(observed, this.#manifest)) {
+					throw new Error('Framescaper capture manifest changed during acknowledged-prefix repair.');
+				}
+				if (acknowledged.kind === 'encoded-media' && advanced.kind === 'encoded-media') {
+					await this.#repositories.encodedSpools.restoreAcknowledgedPrefix(
+						advanced.record,
+						acknowledged.record,
+					);
+				} else if (acknowledged.kind === 'raw-pcm' && advanced.kind === 'raw-pcm') {
+					await this.#repositories.rawPcmSpools.restoreAcknowledgedPrefix(
+						advanced.record,
+						acknowledged.record,
+					);
+				} else throw new Error('Framescaper capture spool kind changed during prefix repair.');
+				this.#spools.set(streamId, acknowledged);
+			} catch (repairError) {
+				this.#synchronized = false;
+				throw new AggregateError(
+					[error, repairError],
+					'Framescaper capture manifest acknowledgement and spool-prefix repair both failed.',
+					{ cause: error },
+				);
+			}
+			throw error;
+		}
+	}
+
 	#assertWritableCapture(): void {
 		this.#assertSynchronized();
 		if (this.#manifest.state !== 'capturing') {
@@ -398,4 +524,46 @@ class DurableSession implements FramescaperCaptureDurableSession {
 function timestamp(value: number, name: string): number {
 	if (!Number.isSafeInteger(value) || value < 0) throw new RangeError(`${name} must be non-negative.`);
 	return value;
+}
+
+function sameManifest(left: FramescaperCaptureSessionManifestV1, right: FramescaperCaptureSessionManifestV1): boolean {
+	return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function sameManifestEvidence(
+	left: FramescaperCaptureSessionManifestV1,
+	right: FramescaperCaptureSessionManifestV1,
+): boolean {
+	const evidence = (manifest: FramescaperCaptureSessionManifestV1) => ({
+		version: manifest.version,
+		sessionId: manifest.sessionId,
+		generation: manifest.generation,
+		projectFence: manifest.projectFence,
+		origin: manifest.origin,
+		clock: manifest.clock,
+		streams: manifest.streams.map(({ playability: _playability, ...stream }) => stream),
+		createdAt: manifest.createdAt,
+	});
+	return JSON.stringify(evidence(left)) === JSON.stringify(evidence(right));
+}
+
+function packetTiming(
+	stream: FramescaperCaptureStreamManifestV1,
+	presentationTimeUs: number,
+	durationUs: number,
+): FramescaperCaptureStreamManifestV1['timing'] {
+	return Object.freeze({
+		firstPresentationMicroseconds: stream.timing.firstPresentationMicroseconds ?? presentationTimeUs,
+		lastPresentationEndMicroseconds: exactSum(
+			presentationTimeUs,
+			durationUs,
+			'Framescaper capture packet presentation end',
+		),
+	});
+}
+
+function exactSum(left: number, right: number, name: string): number {
+	const result = left + right;
+	if (!Number.isSafeInteger(result)) throw new RangeError(`${name} exceeds the safe integer range.`);
+	return result;
 }

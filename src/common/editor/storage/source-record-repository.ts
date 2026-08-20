@@ -145,6 +145,22 @@ export class SourceRecordRepository {
 		));
 	}
 
+	async deleteChunksFrom(token: string, firstIndex: number): Promise<void> {
+		const database = await this.#port.database();
+		if (!database) {
+			for (const [key, value] of this.#port.memory.sourceChunks) {
+				const record = asChunk(value);
+				if (record?.sourceToken === token && record.index >= firstIndex) {
+					this.#port.memory.sourceChunks.delete(key);
+				}
+			}
+			return;
+		}
+		await transact(database, 'sourceChunks', 'readwrite', ({ sourceChunks }) => (
+			deleteChunkTail(sourceChunks.index('sourceToken'), token, firstIndex)
+		));
+	}
+
 	async cleanupStaleChunks(retainedTokens: ReadonlySet<string>, cutoff: number): Promise<void> {
 		const database = await this.#port.database();
 		if (!database) {
@@ -202,6 +218,20 @@ export class SourceRecordRepository {
 			return true;
 		});
 	}
+}
+
+function deleteChunkTail(index: IDBIndex, token: string, firstIndex: number): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const cursorRequest = index.openCursor(token);
+		cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Could not enumerate source chunks.'));
+		cursorRequest.onsuccess = () => {
+			const cursor = cursorRequest.result;
+			if (!cursor) { resolve(); return; }
+			const record = asChunk(cursor.value);
+			if (record && record.index >= firstIndex) cursor.delete();
+			cursor.continue();
+		};
+	});
 }
 
 function asChunk(value: unknown): SourceChunkRecord | null {

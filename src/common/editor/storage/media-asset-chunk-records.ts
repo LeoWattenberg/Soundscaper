@@ -139,6 +139,31 @@ export class MediaAssetChunkRecords {
 		}
 	}
 
+	async deleteTailOwned(token: string, sourceId: string, firstIndex: number): Promise<boolean> {
+		const database = await this.#port.database();
+		if (!database) {
+			const matches = [...this.#port.memory.mediaAssetChunks.entries()].filter(([, value]) => {
+				const record = mediaAssetChunkRecord(value);
+				return record?.mediaChunkToken === token && record.index >= firstIndex;
+			});
+			if (matches.some(([, value]) => mediaAssetChunkRecord(value)?.sourceId !== sourceId)) return false;
+			for (const [key] of matches) this.#port.memory.mediaAssetChunks.delete(key);
+			return true;
+		}
+		try {
+			await transact(database, MEDIA_ASSET_CHUNK_STORE_NAME, 'readwrite', (stores) => (
+				deleteOwnedChunkTail(
+					stores[MEDIA_ASSET_CHUNK_STORE_NAME].index(MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME),
+					token, sourceId, firstIndex,
+				)
+			));
+			return true;
+		} catch (error) {
+			if (error instanceof MediaAssetChunkOwnershipError) return false;
+			throw error;
+		}
+	}
+
 	async cleanupStale(retainedTokens: ReadonlySet<string>, cutoff: number): Promise<void> {
 		const database = await this.#port.database();
 		if (!database) {
@@ -181,6 +206,25 @@ function deleteOwnedChunks(index: IDBIndex, token: string, sourceId: string): Pr
 				return;
 			}
 			const record = mediaAssetChunkRecord(cursor.value);
+			if (!record || record.sourceId !== sourceId) {
+				reject(new MediaAssetChunkOwnershipError('Media chunk ownership does not match its metadata.'));
+				return;
+			}
+			cursor.delete();
+			cursor.continue();
+		};
+	});
+}
+
+function deleteOwnedChunkTail(index: IDBIndex, token: string, sourceId: string, firstIndex: number): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const cursorRequest = index.openCursor(token);
+		cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Could not enumerate media chunks.'));
+		cursorRequest.onsuccess = () => {
+			const cursor = cursorRequest.result;
+			if (!cursor) { resolve(); return; }
+			const record = mediaAssetChunkRecord(cursor.value);
+			if (record && record.index < firstIndex) { cursor.continue(); return; }
 			if (!record || record.sourceId !== sourceId) {
 				reject(new MediaAssetChunkOwnershipError('Media chunk ownership does not match its metadata.'));
 				return;

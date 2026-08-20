@@ -155,6 +155,7 @@ function sessionStub(events: string[], initialManifest: FramescaperCaptureSessio
 		async addPauseSpan() { events.push('pause'); return current; },
 		async seal() { events.push('seal'); current = manifest('sealed'); return current; },
 		async setPlayability() { return current; },
+		async retireCommitted() { events.push('retire'); },
 		async delete() { events.push('delete'); },
 	};
 }
@@ -175,6 +176,7 @@ function manifest(state: FramescaperCaptureSessionManifestV1['state'], sessionId
 		clock: { monotonicOriginMicroseconds: 1_000, pauseSpans: Object.freeze([]) },
 		streams: Object.freeze([{
 			streamId: 'video-a', role: 'camera' as const, required: true, playability: 'unknown' as const,
+			timing: { firstPresentationMicroseconds: 0, lastPresentationEndMicroseconds: 1_000 },
 			storage: {
 				kind: 'encoded-media' as const, spoolId: 'spool-a', spoolToken: 'token-a',
 				sourceId: 'source-a', chunkCount: 1, mimeType: 'video/webm', packetCount: 1, byteLength: 4,

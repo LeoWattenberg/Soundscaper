@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createRecordingController } from '../recording.js';
+import { createFramescaperBrowserAudioProcessorRecorder } from './framescaper-browser-audio-processor-recorder.ts';
+import { createFramescaperCapturePcmFrameMapper } from './framescaper-capture-pcm-frame-mapper.ts';
 import type { CapturePcmChunk } from './framescaper-capture-pcm-packetizer.ts';
-
 const CAPTURE_AUDIO_CHANNEL_COUNT_MAXIMUM = 32;
 const CAPTURE_AUDIO_SAMPLE_RATE_MAXIMUM = 768_000;
 const CAPTURE_AUDIO_CHUNK_FRAMES_DEFAULT = 4_096;
@@ -105,7 +106,7 @@ export interface FramescaperBrowserAudioRecorder {
 	readonly pendingChunks: number;
 	/** Exposed only for source ownership and diagnostics; the recorder never stops it. */
 	readonly track: FramescaperAudioTrackLike;
-	start(): void;
+	start(startFrame?: number): PromiseLike<void> | void;
 	pause(): boolean;
 	resume(): boolean;
 	stop(): Promise<void>;
@@ -155,20 +156,15 @@ export async function createFramescaperBrowserAudioRecorder(
 	const Processor = options.MediaStreamTrackProcessor === undefined
 		? runtimeTrackProcessorConstructor()
 		: options.MediaStreamTrackProcessor;
-	let processorError: unknown = null;
 	if (Processor && !monitoring) {
-		try {
-			const processor = new Processor({ track: options.track, maxBufferSize: maximumPendingChunks });
-			const reader = processor.readable.getReader();
-			return createProcessorRecorder({
-				options, reader, format, chunkFrames, inputGain, sink, failures,
-			});
-		} catch (error) {
-			processorError = error;
-		}
+		return createFramescaperBrowserAudioProcessorRecorder({
+			options, Processor, format, chunkFrames, maximumPendingChunks, inputGain, sink, failures,
+			...(options.context ? { createFallback: () => createWorkletRecorder({
+				options, format, chunkFrames, maximumPendingChunks, monitoring, inputGain, sink, failures,
+			}) } : {}),
+		});
 	}
 	if (!options.context) {
-		if (processorError) throw processorError;
 		throw new Error('Capture audio requires AudioData track processing or an AudioWorklet context.');
 	}
 	if (options.context.sampleRate !== format.sampleRate) {
@@ -195,160 +191,6 @@ interface BoundedPcmSink {
 	settle(): Promise<void>;
 }
 
-function createProcessorRecorder(input: Readonly<{
-	options: FramescaperBrowserAudioRecorderOptions;
-	reader: FramescaperAudioTrackProcessorReader;
-	format: ActualAudioFormat;
-	chunkFrames: number;
-	inputGain: number;
-	sink: BoundedPcmSink;
-	failures: FailureChannel;
-}>): FramescaperBrowserAudioRecorder {
-	const { options, reader, format, chunkFrames, inputGain, sink, failures } = input;
-	let state: FramescaperCaptureAudioRecorderState = 'ready';
-	let inputFrameStart = 0;
-	let readLoop: Promise<void> | null = null;
-	let cancelPromise: Promise<void> | null = null;
-	let released = false;
-	let stopPromise: Promise<void> | null = null;
-	let disposePromise: Promise<void> | null = null;
-
-	function start(): void {
-		assertStartable(state, failures.failure);
-		state = 'recording';
-		readLoop = runReader();
-		void readLoop.catch(() => undefined);
-	}
-
-	function pause(): boolean {
-		assertUsable(state, failures.failure);
-		if (state !== 'recording') return false;
-		state = 'paused';
-		return true;
-	}
-
-	function resume(): boolean {
-		assertUsable(state, failures.failure);
-		if (state !== 'paused') return false;
-		state = 'recording';
-		return true;
-	}
-
-	function stop(): Promise<void> {
-		if (stopPromise) return stopPromise;
-		if (state !== 'disposed') state = failures.failure ? 'failed' : 'stopping';
-		stopPromise = (async () => {
-			try { await cancelReader(); } catch { /* Failure channel retains the error. */ }
-			if (readLoop) {
-				try { await readLoop; } catch { /* Failure channel retains the error. */ }
-			} else releaseReader();
-			try { await sink.settle(); } catch { /* Failure channel retains the error. */ }
-			if (failures.failure) throw failures.failure;
-			if (state !== 'disposed') state = 'stopped';
-		})();
-		return stopPromise;
-	}
-
-	function dispose(): Promise<void> {
-		if (disposePromise) return disposePromise;
-		disposePromise = stop().finally(() => { state = 'disposed'; });
-		return disposePromise;
-	}
-
-	async function runReader(): Promise<void> {
-		try {
-			while (state === 'recording' || state === 'paused') {
-				const result = await reader.read();
-				if (result.done) {
-					if (state === 'recording' || state === 'paused') {
-						fail(new Error('The capture audio track ended unexpectedly.'));
-					}
-					break;
-				}
-				const data = result.value;
-				if (!data) throw new Error('The capture audio processor returned an empty frame.');
-				const frameStart = inputFrameStart;
-				try {
-					validateAudioData(data, format);
-					inputFrameStart = exactFrameSum(inputFrameStart, data.numberOfFrames);
-					if (!isAcceptingProcessorData()) continue;
-					for (let offset = 0; offset < data.numberOfFrames; offset += chunkFrames) {
-						const frames = Math.min(chunkFrames, data.numberOfFrames - offset);
-						const channels = Array.from({ length: format.channelCount }, (_unused, planeIndex) => {
-							const channel = new Float32Array(frames);
-							data.copyTo(channel, {
-								planeIndex, frameOffset: offset, frameCount: frames, format: 'f32-planar',
-							});
-							if (inputGain !== 1) channel.forEach((value, index) => { channel[index] = value * inputGain; });
-							return channel;
-						});
-						const write = sink.push(Object.freeze({
-							frameStart: exactFrameSum(frameStart, offset),
-							frames,
-							channels: Object.freeze(channels),
-						}));
-						void write.catch((error: unknown) => { fail(error); });
-						if (failures.failure) break;
-					}
-				} finally {
-					try { data.close(); } catch (error) { fail(error); }
-				}
-				if (failures.failure) break;
-			}
-		} catch (error) {
-			if (state !== 'stopping' && state !== 'disposed') fail(error);
-		} finally {
-			if (failures.failure) {
-				try { await cancelReader(); } catch { /* Continue exact reader release. */ }
-			}
-			releaseReader();
-		}
-		if (failures.failure) throw failures.failure;
-	}
-
-	function fail(error: unknown): Error {
-		const failure = failures.fail(error);
-		state = 'failed';
-		void cancelReader().catch(() => undefined);
-		return failure;
-	}
-
-	function isAcceptingProcessorData(): boolean { return state === 'recording'; }
-
-	function cancelReader(): Promise<void> {
-		if (cancelPromise) return cancelPromise;
-		cancelPromise = Promise.resolve().then(() => reader.cancel?.()).then(() => undefined).catch((error: unknown) => {
-			if (!failures.failure) failures.fail(error);
-			throw failures.failure ?? error;
-		});
-		return cancelPromise;
-	}
-
-	function releaseReader(): void {
-		if (released) return;
-		released = true;
-		try { reader.releaseLock(); } catch (error) { failures.fail(error); }
-	}
-
-	return Object.freeze({
-		role: options.role,
-		backend: 'track-processor' as const,
-		get state(): FramescaperCaptureAudioRecorderState { return state; },
-		sampleRate: format.sampleRate,
-		channelCount: format.channelCount,
-		chunkFrames,
-		monitoring: false as const,
-		inputGain,
-		get pendingChunks(): number { return sink.pendingChunks; },
-		track: options.track,
-		start,
-		pause,
-		resume,
-		stop,
-		dispose,
-	});
-}
-
 async function createWorkletRecorder(input: Readonly<{
 	options: FramescaperBrowserAudioRecorderOptions;
 	format: ActualAudioFormat;
@@ -362,6 +204,7 @@ async function createWorkletRecorder(input: Readonly<{
 	const { options, format, chunkFrames, maximumPendingChunks, monitoring, inputGain, sink, failures } = input;
 	const factory = options.recordingControllerFactory
 		?? (createRecordingController as unknown as FramescaperWorkletRecordingControllerFactory);
+	const frameMapper = createFramescaperCapturePcmFrameMapper();
 	let state: FramescaperCaptureAudioRecorderState = 'ready';
 	let stopPromise: Promise<void> | null = null;
 	let disposePromise: Promise<void> | null = null;
@@ -373,15 +216,17 @@ async function createWorkletRecorder(input: Readonly<{
 		monitor: monitoring,
 		inputGain,
 		maxPendingChunks: maximumPendingChunks,
-		onChunk: (chunk) => sink.push(chunk),
+		onChunk: (chunk) => sink.push(frameMapper.map(chunk)),
 		onError: (error) => {
 			failures.fail(error);
 			state = 'failed';
 		},
 	});
 
-	function start(): void {
+	function start(startFrameValue = 0): void {
 		assertStartable(state, failures.failure);
+		const startFrame = boundedInteger(startFrameValue, 0, Number.MAX_SAFE_INTEGER, 'Capture audio start frame');
+		frameMapper.start(startFrame);
 		try { delegate.start(); } catch (error) { state = 'failed'; throw failures.fail(error); }
 		state = 'recording';
 	}
@@ -528,16 +373,6 @@ function actualTrackFormat(track: FramescaperAudioTrackLike): ActualAudioFormat 
 		'Capture audio actual channel count',
 	);
 	return Object.freeze({ sampleRate, channelCount });
-}
-
-function validateAudioData(data: FramescaperAudioDataLike, format: ActualAudioFormat): void {
-	boundedInteger(data.numberOfFrames, 1, 1_048_576, 'Capture AudioData frame count');
-	if (data.sampleRate !== format.sampleRate || data.numberOfChannels !== format.channelCount) {
-		throw new Error('Capture AudioData does not match the source track actual format.');
-	}
-	if (typeof data.copyTo !== 'function' || typeof data.close !== 'function') {
-		throw new TypeError('Capture processor returned invalid AudioData.');
-	}
 }
 
 function validatePcmChunk(

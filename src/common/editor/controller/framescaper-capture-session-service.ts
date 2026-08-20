@@ -297,8 +297,8 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 					onBackpressure: () => reportActiveFailure(new Error('Capture storage backpressure exceeded its bound.')),
 				});
 				created.push(Object.freeze({ source, identity, recorder }));
+				recorders = Object.freeze([...created]);
 			}
-			recorders = Object.freeze(created);
 			captureGeneration += 1;
 			const destination = machine.snapshot.destination!;
 			durableSession = await options.durable.prepare({
@@ -316,8 +316,9 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			sourceEndCleanups = installCaptureSourceEndWatchers(lease.sources, () => {
 				reportActiveFailure(new Error('A required capture source ended.'));
 			});
-			for (const entry of recorders) await entry.recorder.start();
+			const sharedStartActiveTimeUs = clock.snapshot(now()).activeTimeUs;
 			machine.startRecording();
+			for (const entry of recorders) await entry.recorder.start(sharedStartActiveTimeUs);
 			notify();
 		} catch (error) {
 			if (signal.aborted && machine.snapshot.phase === 'finalizing') return;
@@ -356,7 +357,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			startMicroseconds: Math.round((span.startedAtMs - clockSnapshot.startedAtMs) * 1_000),
 			endMicroseconds: Math.round((span.endedAtMs - clockSnapshot.startedAtMs) * 1_000),
 		});
-		await Promise.all(recorders.map(({ recorder }) => recorder.resume()));
+		await Promise.all(recorders.map(({ recorder }) => recorder.resume(Math.round(span.durationMs * 1_000))));
 		notify();
 	}
 	function stop(): Promise<void> {
@@ -430,7 +431,6 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		releaseOrigin('stopped');
 		notify();
 	}
-
 	function finalizeRecovery(provenance: 'recovered' | 'import-as-is'): Promise<void> {
 		assertActive();
 		if (recoveryFinalizationPromise) return recoveryFinalizationPromise;

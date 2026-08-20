@@ -6,7 +6,6 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import {
 	createCaptureRuntimeAvailability,
 	type CaptureRuntimeAvailability,
-	type CaptureStreamMetrics,
 } from '../framescaper-capture-domain.ts';
 import type { FramescaperCaptureSessionManifestV1 } from '../framescaper-capture-session-manifest.ts';
 import type {
@@ -44,14 +43,15 @@ import {
 	type FramescaperCaptureDurablePortBinding,
 } from './framescaper-capture-durable-port.ts';
 import { createFramescaperCaptureDurableSessionCoordinator } from './framescaper-capture-durable-session.ts';
+import { finalizeFramescaperCaptureDurability } from './framescaper-capture-durable-finalization.ts';
 import { createFramescaperCaptureOriginGuard } from './framescaper-capture-origin-guard.ts';
 import type { FramescaperCaptureProjectPublicationPort } from './framescaper-capture-project-publication-port.ts';
 import type {
-	FramescaperCaptureAssetStream,
 	FramescaperCaptureRetryableRecoveryRecord,
 } from './framescaper-capture-publication-service.ts';
 import type { FramescaperCapturePublicationSequence } from './framescaper-capture-publication-plan.ts';
 import { createFramescaperCaptureSessionService } from './framescaper-capture-session-service.ts';
+import { createFramescaperCaptureAssetStreams } from './framescaper-capture-stream-timing.ts';
 import type {
 	FramescaperCaptureDisplaySelectionPort,
 	FramescaperCaptureDurablePort,
@@ -67,15 +67,11 @@ import {
 } from '../video-timing-probe.ts';
 
 type EncodedCaptureRepositories = Pick<EncodedCaptureSpoolRepository,
-	'create' | 'load' | 'append' | 'seal' | 'delete' | 'read'
->;
+	'create' | 'load' | 'append' | 'seal' | 'delete' | 'read' | 'releaseAdopted' | 'restoreAcknowledgedPrefix'>;
 type RawPcmCaptureRepositories = Pick<RawPcmSpoolRepository,
-	'create' | 'load' | 'append' | 'seal' | 'remove' | 'chunks'
->;
+	'create' | 'load' | 'append' | 'seal' | 'remove' | 'chunks' | 'restoreAcknowledgedPrefix'>;
 type CaptureManifestRepositories = Pick<FramescaperCaptureSessionManifestRepository,
-	'create' | 'load' | 'listProject' | 'replace' | 'remove'
->;
-
+	'create' | 'load' | 'listProject' | 'replace' | 'remove'>;
 export interface FramescaperCaptureAppStore extends FramescaperCaptureCanonicalStore {
 	readonly encodedCaptureSpoolRepository?: EncodedCaptureRepositories;
 	readonly rawPcmSpoolRepository?: RawPcmCaptureRepositories;
@@ -335,10 +331,15 @@ function createDesktopCaptureSelection(bridge: FramescaperCaptureDesktopBridgeV1
 			if (request.roles.includes('system-audio') && !systemAudio) {
 				throw new Error('Desktop system audio is unavailable on this platform.');
 			}
+			const roles = systemAudio
+				&& request.roles.includes('display')
+				&& !request.roles.includes('system-audio')
+				? Object.freeze([...request.roles, 'system-audio' as const])
+				: request.roles;
 			const usesInventory = mode === 'source-list' && request.roles.includes('display');
 			const next = usesInventory ? inventoryGeneration : ++generation;
 			if (!next) throw new Error('Choose a current desktop source before preview.');
-			await bridge.grant({ ...request, generation: next });
+			await bridge.grant({ ...request, roles, generation: next });
 			inventoryGeneration = null;
 			currentGeneration = next;
 		},
@@ -442,46 +443,20 @@ async function finalizeCapture(
 	const coordinator = durable.coordinatorSession(request.session);
 	const manifest = coordinator.manifest;
 	const context = await options.capturePublicationContext(manifest);
-	try {
-		await canonical.publish({
+	await finalizeFramescaperCaptureDurability({
+		state: manifest.state,
+		publish: () => canonical.publish({
 			manifest,
 			recoveryProvenance: request.provenance,
 			destination: manifest.origin.destination,
 			...context,
-			streams: captureAssetStreams(manifest, request.metrics),
+			streams: createFramescaperCaptureAssetStreams(manifest, request.metrics, context.projectSampleRate),
 			createId: createFramescaperCapturePublicationIdFactory(manifest.sessionId),
-		});
-	} finally {
-		await durable.refresh(request.session);
-	}
-}
-
-function captureAssetStreams(
-	manifest: FramescaperCaptureSessionManifestV1,
-	metrics: readonly Readonly<CaptureStreamMetrics>[],
-): readonly FramescaperCaptureAssetStream[] {
-	const byId = new Map(metrics.map((value) => [value.streamId, value]));
-	return Object.freeze(manifest.streams.map((stream) => {
-		const metric = byId.get(stream.streamId);
-		const observations = metric
-			? [metric.droppedUnits, metric.maximumAbsoluteDriftUs, metric.currentDriftUs]
-			: [];
-		const confidence = observations.length === 0 || observations.some((value) => value.confidence === 'unavailable')
-			? 'unavailable' as const
-			: observations.some((value) => value.confidence === 'estimated') ? 'estimated' as const : 'exact' as const;
-		return Object.freeze({
-			streamId: stream.streamId,
-			role: stream.role,
-			startOffsetFrames: 0,
-			metrics: Object.freeze({
-				confidence,
-				droppedUnits: metric?.droppedUnits.value ?? null,
-				maximumAbsoluteDriftMicroseconds: metric?.maximumAbsoluteDriftUs.value ?? null,
-				finalDriftMicroseconds: metric?.currentDriftUs.value ?? null,
-			}),
-			terminationReason: null,
-		});
-	}));
+		}),
+		retireCommitted: () => durable.retireCommitted(request.session),
+		refreshRecovery: () => durable.refresh(request.session).then(() => undefined),
+		...(options.onWarning ? { onCleanupWarning: options.onWarning } : {}),
+	});
 }
 
 async function completeRuntimeProbe(input: Readonly<{
@@ -536,11 +511,12 @@ function hasCaptureRepositories(
 	'encodedCaptureSpoolRepository' | 'rawPcmSpoolRepository' | 'framescaperCaptureManifestRepository'
 >> {
 	return Boolean(store
-		&& methods(store.encodedCaptureSpoolRepository, ['create', 'load', 'append', 'seal', 'delete', 'read'])
-		&& methods(store.rawPcmSpoolRepository, ['create', 'load', 'append', 'seal', 'remove', 'chunks'])
+		&& methods(store.encodedCaptureSpoolRepository,
+			['create', 'load', 'append', 'seal', 'delete', 'read', 'releaseAdopted', 'restoreAcknowledgedPrefix'])
+		&& methods(store.rawPcmSpoolRepository,
+			['create', 'load', 'append', 'seal', 'remove', 'chunks', 'restoreAcknowledgedPrefix'])
 		&& methods(store.framescaperCaptureManifestRepository, ['create', 'load', 'listProject', 'replace', 'remove']));
 }
-
 function hasCanonicalStore(store: FramescaperCaptureAppStore): boolean {
 	return methods(store, [
 		'getSourceMetadata', 'beginSourceWrite', 'discardSourceIfCurrent',

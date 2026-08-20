@@ -2,6 +2,13 @@
 
 import type { KeyValueRepository } from './key-value-repository.ts';
 import type { SourceChunkRecord, SourceRecordRepository } from './source-record-repository.ts';
+import { restoreRawPcmAcknowledgedPrefix } from './framescaper-capture-spool-prefix-repair.ts';
+import {
+	normalizeRawPcmSpoolChunkTiming,
+	normalizeTimedRawPcmSpoolChunk,
+	type RawPcmSpoolChunkTiming,
+	type TimedRawPcmSpoolChunk,
+} from './raw-pcm-spool-chunk-timing.ts';
 
 const KEY_PREFIX = 'raw-pcm-spool-registry-v1:';
 const GENERATION_KEY_PREFIX = 'take-cycle-publication-generation-v1:';
@@ -51,24 +58,23 @@ interface RawPcmSpoolGlobalInventory {
 	}>[];
 }
 
-export interface RawPcmSpoolChunk {
-	readonly index: number;
-	readonly frames: number;
-	readonly channels: readonly Float32Array[];
-}
+export type RawPcmSpoolChunk = TimedRawPcmSpoolChunk;
+export type { RawPcmSpoolChunkTiming } from './raw-pcm-spool-chunk-timing.ts';
 
 /** CAS-owned raw PCM prefixes using existing analysis and source-chunk stores. */
 export class RawPcmSpoolRepository {
 	readonly #values: Pick<KeyValueRepository,
 		'get' | 'putIfAbsent' | 'replaceIfCurrent' | 'deleteIfCurrent' | 'listByPrefix'
 	>;
-	readonly #chunks: Pick<SourceRecordRepository, 'writeChunk' | 'chunk' | 'deleteChunks'>;
+	readonly #chunks: Pick<SourceRecordRepository, 'writeChunk' | 'chunk' | 'deleteChunks'>
+		& Partial<Pick<SourceRecordRepository, 'deleteChunksFrom'>>;
 
 	constructor(
 		values: Pick<KeyValueRepository,
 			'get' | 'putIfAbsent' | 'replaceIfCurrent' | 'deleteIfCurrent' | 'listByPrefix'
 		>,
-		chunks: Pick<SourceRecordRepository, 'writeChunk' | 'chunk' | 'deleteChunks'>,
+		chunks: Pick<SourceRecordRepository, 'writeChunk' | 'chunk' | 'deleteChunks'>
+			& Partial<Pick<SourceRecordRepository, 'deleteChunksFrom'>>,
 	) {
 		this.#values = values;
 		this.#chunks = chunks;
@@ -161,10 +167,12 @@ export class RawPcmSpoolRepository {
 		expectedValue: RawPcmSpoolRecord,
 		channelsValue: readonly Float32Array[],
 		data: unknown,
+		timingValue: RawPcmSpoolChunkTiming | null = null,
 	): Promise<RawPcmSpoolRecord> {
 		const expected = normalizeRecord(expectedValue);
 		if (expected.state !== 'capturing') throw new Error('Only a capturing raw PCM spool can append PCM.');
 		const channels = snapshotChannels(channelsValue, expected.channelCount, expected.chunkFrames);
+		const timing = normalizeRawPcmSpoolChunkTiming(timingValue);
 		const frames = channels[0]!.length;
 		const next = freezeRecord({
 			...expected,
@@ -180,6 +188,7 @@ export class RawPcmSpoolRepository {
 			frames,
 			channels: channels.map((channel) => channel.buffer.slice(0)),
 			createdAt: Date.now(),
+			...(timing ? { framescaperCaptureTimingV1: timing } : {}),
 		};
 		await this.#chunks.writeChunk(chunk);
 		const replaced = await this.#replace(expected, next);
@@ -187,6 +196,22 @@ export class RawPcmSpoolRepository {
 			throw new Error('Raw PCM spool ownership changed after its next chunk became a removable tail.');
 		}
 		return next;
+	}
+
+	/** Restore the exact manifest-acknowledged prefix after its following manifest CAS is refused. */
+	async restoreAcknowledgedPrefix(
+		currentValue: RawPcmSpoolRecord,
+		acknowledgedValue: RawPcmSpoolRecord,
+	): Promise<RawPcmSpoolRecord> {
+		const current = normalizeRecord(currentValue);
+		const acknowledged = normalizeRecord(acknowledgedValue);
+		assertSameOwnership(current, acknowledged);
+		if (!this.#chunks.deleteChunksFrom) throw new Error('Raw PCM acknowledged-prefix cleanup is unavailable.');
+		return restoreRawPcmAcknowledgedPrefix(current, acknowledged, {
+			replace: () => this.#replace(current, acknowledged),
+			load: () => this.load(current.projectId, current.spoolId),
+			deleteTail: () => this.#chunks.deleteChunksFrom!(acknowledged.spoolToken, acknowledged.chunkCount),
+		});
 	}
 
 	async seal(expectedValue: RawPcmSpoolRecord, data: unknown): Promise<RawPcmSpoolRecord> {
@@ -222,7 +247,7 @@ export class RawPcmSpoolRepository {
 		await this.#assertCurrent(record);
 		for (let index = 0; index < record.chunkCount; index += 1) {
 			const stored = await this.#chunks.chunk(record.spoolToken, index);
-			const chunk = normalizeStoredChunk(stored, record, index);
+			const chunk = normalizeTimedRawPcmSpoolChunk(stored, record, index);
 			yield chunk;
 		}
 		await this.#assertCurrent(record);
@@ -237,7 +262,7 @@ export class RawPcmSpoolRepository {
 		if (index >= record.chunkCount) throw new RangeError(`Raw PCM spool chunk ${String(index)} is outside its prefix.`);
 		await this.#assertCurrent(record);
 		const stored = await this.#chunks.chunk(record.spoolToken, index);
-		const chunk = normalizeStoredChunk(stored, record, index);
+		const chunk = normalizeTimedRawPcmSpoolChunk(stored, record, index);
 		await this.#assertCurrent(record);
 		return chunk;
 	}
@@ -490,12 +515,9 @@ function normalizeGlobalInventory(value: unknown): RawPcmSpoolGlobalInventory {
 }
 
 function freezeGlobalInventory(entries: RawPcmSpoolGlobalInventory['entries']): RawPcmSpoolGlobalInventory {
-	return Object.freeze({
-		version: 1,
-		entries: Object.freeze([...entries].sort((left, right) => left.spoolToken.localeCompare(right.spoolToken))),
-	});
+	return Object.freeze({ version: 1,
+		entries: Object.freeze([...entries].sort((left, right) => left.spoolToken.localeCompare(right.spoolToken))) });
 }
-
 function globalEntry(record: RawPcmSpoolRecord): RawPcmSpoolGlobalInventory['entries'][number] {
 	return Object.freeze({
 		projectId: record.projectId,
@@ -503,26 +525,6 @@ function globalEntry(record: RawPcmSpoolRecord): RawPcmSpoolGlobalInventory['ent
 		spoolToken: record.spoolToken,
 	});
 }
-
-function normalizeStoredChunk(
-	value: SourceChunkRecord | null,
-	record: RawPcmSpoolRecord,
-	index: number,
-): RawPcmSpoolChunk {
-	if (!value || value.sourceToken !== record.spoolToken || value.index !== index
-		|| !Array.isArray(value.channels) || value.channels.length !== record.channelCount) {
-		throw new Error(`Raw PCM spool chunk ${String(index)} is missing or invalid.`);
-	}
-	const frames = boundedPositiveInteger(value.frames, record.chunkFrames, 'raw PCM spool chunk frames');
-	const channels = value.channels.map((buffer) => {
-		if (!(buffer instanceof ArrayBuffer) || buffer.byteLength !== frames * Float32Array.BYTES_PER_ELEMENT) {
-			throw new Error(`Raw PCM spool chunk ${String(index)} has invalid channel bytes.`);
-		}
-		return new Float32Array(buffer.slice(0));
-	});
-	return Object.freeze({ index, frames, channels: Object.freeze(channels) });
-}
-
 function snapshotChannels(
 	value: readonly Float32Array[],
 	channelCount: number,
@@ -539,13 +541,11 @@ function snapshotChannels(
 	}
 	return Object.freeze(value.map((channel) => channel.slice()));
 }
-
 function assertSameOwnership(expected: RawPcmSpoolRecord, replacement: RawPcmSpoolRecord): void {
 	for (const key of ['version', 'projectId', 'spoolId', 'spoolToken', 'sampleRate', 'channelCount', 'chunkFrames'] as const) {
 		if (expected[key] !== replacement[key]) throw new Error(`Raw PCM spool replacement changed ${key}.`);
 	}
 }
-
 function sameRecord(left: RawPcmSpoolRecord, right: RawPcmSpoolRecord): boolean {
 	return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -554,34 +554,24 @@ function dataRecord(value: unknown, name: string): Readonly<Record<string, unkno
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a data record.`);
 	return value as Readonly<Record<string, unknown>>;
 }
-
 function snapshotData<Value>(value: Value): Value {
 	if (value === undefined || value === null) return value;
 	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
 	return JSON.parse(JSON.stringify(value)) as Value;
 }
-
 function exactSum(left: number, right: number, name: string): number {
 	const result = left + right;
 	if (!Number.isSafeInteger(result)) throw new RangeError(`${name} exceeds the safe integer range.`);
 	return result;
 }
-
-function chunkKey(token: string, index: number): string {
-	return `${token}:${String(index).padStart(10, '0')}`;
-}
-
-function registryKey(projectId: string): string {
-	return `${KEY_PREFIX}${encodeURIComponent(projectId)}`;
-}
-
+function chunkKey(token: string, index: number): string { return `${token}:${String(index).padStart(10, '0')}`; }
+function registryKey(projectId: string): string { return `${KEY_PREFIX}${encodeURIComponent(projectId)}`; }
 function stableId(value: unknown, name: string): string {
 	if (typeof value !== 'string' || !value.length || value !== value.trim()
 		|| value !== value.normalize('NFC') || value.length > 256
 		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
 	return value;
 }
-
 function boundedPositiveInteger(value: unknown, maximum: number, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > maximum) {
 		throw new RangeError(`${name} must be a supported positive integer.`);
@@ -593,8 +583,6 @@ function nonNegativeInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 0) throw new RangeError(`${name} must be non-negative.`);
 	return Number(value);
 }
-
 function createId(): string {
-	if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-	return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+	return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }

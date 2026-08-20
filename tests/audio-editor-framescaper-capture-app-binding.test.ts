@@ -327,6 +327,7 @@ function manifest(value: FramescaperCaptureAppProject): FramescaperCaptureSessio
 		clock: { monotonicOriginMicroseconds: 1_000, pauseSpans: Object.freeze([]) },
 		streams: Object.freeze([{
 			streamId: 'camera-stream', role: 'camera', required: true, playability: 'unknown',
+			timing: { firstPresentationMicroseconds: 0, lastPresentationEndMicroseconds: 1_000 },
 			storage: {
 				kind: 'encoded-media', spoolId: 'camera-spool', spoolToken: 'camera-token',
 				sourceId: 'camera-source', mimeType: 'video/webm', packetCount: 1,
@@ -365,12 +366,14 @@ function captureStore(value: FramescaperCaptureAppProject) {
 		encodedCaptureSpoolRepository: {
 			async create() { throw new Error('not reached'); }, async load() { return null; },
 			async append() { throw new Error('not reached'); }, async seal() { throw new Error('not reached'); },
-			async delete() {}, async *read() {},
+			async delete() {}, async releaseAdopted() {},
+			async restoreAcknowledgedPrefix() { throw new Error('not reached'); }, async *read() {},
 		},
 		rawPcmSpoolRepository: {
 			async create() { throw new Error('not reached'); }, async load() { return null; },
 			async append() { throw new Error('not reached'); }, async seal() { throw new Error('not reached'); },
-			async remove() { return true; }, async *chunks() {},
+			async remove() { return true; },
+			async restoreAcknowledgedPrefix() { throw new Error('not reached'); }, async *chunks() {},
 		},
 		async getSourceMetadata() { return null; }, async beginSourceWrite() { throw new Error('not reached'); },
 		async discardSourceIfCurrent() { return true; }, async getMediaAssetMetadata() { return null; },
