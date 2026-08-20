@@ -222,6 +222,18 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'roundRational', policies: ['point'] }],
 	},
 	{
+		id: 'framescaper-capture-origin-placement',
+		file: 'src/common/editor/controller/framescaper-capture-app-binding.ts',
+		behavior: 'Capture admission freezes the active playhead as nearest-point microseconds, and publication resolves that same origin once onto the exact project sample grid.',
+		conversions: [{ helper: 'roundRational', policies: ['point'] }],
+	},
+	{
+		id: 'framescaper-capture-stream-presentation-range',
+		file: 'src/common/editor/controller/framescaper-capture-stream-timing.ts',
+		behavior: 'Each manifest-acknowledged presentation start and end resolves once to nearest project-frame boundaries while retaining the exact microsecond range beside it.',
+		conversions: [{ helper: 'roundRational', policies: ['point'] }],
+	},
+	{
 		id: 'framescaper-capture-sequence-conformance',
 		file: 'src/common/editor/controller/framescaper-capture-publication-plan.ts',
 		behavior: 'Captured video placement point-conforms both resolved sample endpoints to the destination sequence grid, then owns the enclosing sample range represented by those sequence frames.',
