@@ -80,6 +80,32 @@ test('combined preview requests display first and exposes optional system audio 
 	}
 });
 
+test('display preview requests optional audio and exposes it when the picker returns a track', async () => {
+	const displayVideo = track('display-video', 'video');
+	const systemAudio = track('display-audio', 'audio');
+	let requestedAudio: unknown = false;
+	const port = createBrowserFramescaperCaptureSourcePort({
+		mediaDevices: {
+			async getDisplayMedia(constraints) {
+				requestedAudio = constraints.audio;
+				return stream([displayVideo, systemAudio]);
+			},
+			async enumerateDevices() { return []; },
+		},
+		consumeUserAction: () => true,
+		createStream: (tracks) => stream(tracks as FakeTrack[]),
+	});
+	const lease = await port.openPreview({
+		signal: new AbortController().signal,
+		userActionGeneration: 1,
+		roles: ['display'],
+	});
+
+	assert.equal(requestedAudio, true);
+	assert.deepEqual(lease.sources.map(({ role }) => role), ['display', 'system-audio']);
+	await lease.dispose();
+});
+
 test('a later camera denial releases the already granted display stream', async () => {
 	const displayVideo = track('display-video', 'video');
 	const refusal = new DOMException('No camera', 'NotAllowedError');

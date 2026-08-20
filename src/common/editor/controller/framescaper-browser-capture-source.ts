@@ -159,7 +159,7 @@ export function createBrowserFramescaperCaptureSourcePort(
 					displayStream = await mediaDevices.getDisplayMedia({
 						...request.displayConstraints,
 						video: true,
-						audio: request.roles.includes('system-audio'),
+						audio: true,
 						selfBrowserSurface: 'exclude',
 						systemAudio: 'include',
 						windowAudio: 'system',
@@ -199,9 +199,7 @@ export function createBrowserFramescaperCaptureSourcePort(
 				const display = request.roles.includes('display')
 					? requiredTrack(displayStream?.getVideoTracks(), 'display')
 					: null;
-				const systemAudio = request.roles.includes('system-audio')
-					? displayStream?.getAudioTracks()[0] ?? null
-					: null;
+				const systemAudio = displayStream?.getAudioTracks()[0] ?? null;
 				const selected = [
 					camera ? descriptor('camera', camera, createStream) : null,
 					microphone ? descriptor('microphone', microphone, createStream) : null,
