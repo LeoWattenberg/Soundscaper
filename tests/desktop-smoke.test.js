@@ -202,6 +202,16 @@ test('desktop smoke validates the closed Framescaper V18 UI, preload, and main r
 		}, expected),
 		/unsupported fields|closed/iu,
 	);
+	assert.throws(
+		() => assertDesktopSmokePayload({
+			...payload,
+			framescaperCapture: {
+				...payload.framescaperCapture,
+				teardown: { retired: true, retiredAgain: true },
+			},
+		}, expected),
+		/retired.*exactly once|teardown/iu,
+	);
 });
 
 test('packaged desktop smoke isolates both Chromium and shared library data', async () => {
@@ -258,6 +268,26 @@ function validFramescaperV18Payload() {
 				},
 				project: { ...project },
 			},
+		},
+		framescaperCapture: {
+			preloadBridge: ['grant', 'listSources', 'status', 'teardown'],
+			status: {
+				version: 1,
+				available: true,
+				unavailableReason: null,
+				selectionMode: 'system-picker',
+				systemAudio: 'unavailable',
+				sourceLimit: 64,
+				sourceListTtlMs: 300_000,
+				grantTtlMs: 15_000,
+			},
+			grant: {
+				generation: 1,
+				expiresAtMs: 1_015_000,
+				roles: ['camera', 'microphone'],
+				opaqueId: true,
+			},
+			teardown: { retired: true, retiredAgain: false },
 		},
 	};
 }

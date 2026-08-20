@@ -42,7 +42,8 @@ test('Framescaper artifact renderer refuses preload drift and UI/bundle disagree
 test('Framescaper artifact probe waits for renderer readiness and joins sanitized V18 main evidence', async () => {
 	const renderer = rendererFixture().expected;
 	const main = validMainEvidence(renderer.framescaperV18.project);
-	const fixture = artifactProbeFixture(renderer, main);
+	const capture = validCaptureEvidence();
+	const fixture = artifactProbeFixture(renderer, main, capture);
 	fixture.probe.attach(fixture.window);
 
 	await fixture.window.webContents.emit('did-finish-load');
@@ -51,13 +52,14 @@ test('Framescaper artifact probe waits for renderer readiness and joins sanitize
 
 	await fixture.probe.rendererReady();
 
-	assert.equal(fixture.window.webContents.executions.length, 1);
+	assert.equal(fixture.window.webContents.executions.length, 2);
 	assert.deepEqual(fixture.evidenceCalls, [renderer.framescaperV18.project.projectId]);
 	assert.deepEqual(fixture.exits, [0]);
 	assert.equal(fixture.errors.length, 0);
 	const payload = JSON.parse(fixture.logs[0].slice('SOUNDSCAPER_DESKTOP_SMOKE '.length));
 	assert.deepEqual(payload, {
 		...renderer,
+		framescaperCapture: capture,
 		framescaperV18: { ...renderer.framescaperV18, main },
 	});
 	assert.doesNotMatch(JSON.stringify(payload), /metadataFile|instanceId|processId|libraryRoot|document/iu);
@@ -222,12 +224,35 @@ function validMainEvidence(project) {
 	};
 }
 
-function artifactProbeFixture(executionResult, evidence) {
+function validCaptureEvidence() {
+	return {
+		preloadBridge: ['grant', 'listSources', 'status', 'teardown'],
+		status: {
+			version: 1,
+			available: true,
+			unavailableReason: null,
+			selectionMode: 'source-list',
+			systemAudio: 'unavailable',
+			sourceLimit: 64,
+			sourceListTtlMs: 300_000,
+			grantTtlMs: 15_000,
+		},
+		grant: {
+			generation: 1,
+			expiresAtMs: 1_015_000,
+			roles: ['camera', 'microphone'],
+			opaqueId: true,
+		},
+		teardown: { retired: true, retiredAgain: false },
+	};
+}
+
+function artifactProbeFixture(executionResult, evidence, captureEvidence = validCaptureEvidence()) {
 	const logs = [];
 	const errors = [];
 	const exits = [];
 	const evidenceCalls = [];
-	const window = fakeWindow(executionResult);
+	const window = fakeWindow(executionResult, captureEvidence);
 	const probe = createDesktopSmokeProbe({
 		argv: ['/opt/Framescaper', '--soundscaper-smoke'],
 		appName: 'Framescaper',
@@ -246,14 +271,15 @@ function artifactProbeFixture(executionResult, evidence) {
 	return { errors, evidenceCalls, exits, logs, probe, window };
 }
 
-function fakeWindow(executionResult) {
+function fakeWindow(...executionResults) {
 	const listeners = new Map();
+	let executionIndex = 0;
 	const webContents = {
 		executions: [],
 		once(name, listener) { listeners.set(name, listener); },
 		async executeJavaScript(source) {
 			this.executions.push(source);
-			return structuredClone(executionResult);
+			return structuredClone(executionResults[executionIndex++]);
 		},
 		async emit(name, ...args) {
 			const listener = listeners.get(name);

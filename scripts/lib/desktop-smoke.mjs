@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 
+import { validateFramescaperCaptureArtifactEvidence } from '../../desktop/framescaper-capture-artifact-smoke.js';
 import { validateFramescaperV18ArtifactEvidence } from '../../desktop/framescaper-v18-artifact-smoke.js';
 
 const SUPPORTED_ARCHITECTURES = new Set(['arm64', 'x64']);
@@ -115,8 +116,10 @@ export function assertDesktopSmokePayload(payload, expected) {
 		'Smoke reported an unexpected target architecture.',
 	);
 	if (expected.productId === 'framescaper') {
+		validateFramescaperCaptureArtifactEvidence(payload?.framescaperCapture);
 		validateFramescaperV18ArtifactEvidence(payload?.framescaperV18);
 	} else {
+		assert(payload?.framescaperCapture === undefined, 'Soundscaper smoke emitted Framescaper capture evidence.');
 		assert(payload?.framescaperV18 === undefined, 'Soundscaper smoke emitted Framescaper V18 evidence.');
 	}
 }

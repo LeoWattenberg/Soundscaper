@@ -35,6 +35,10 @@ import {
 	runFramescaperV18ArtifactRendererSmoke,
 } from './framescaper-v18-artifact-smoke.js';
 import {
+	runFramescaperCaptureArtifactRendererSmoke,
+	validateFramescaperCaptureArtifactEvidence,
+} from './framescaper-capture-artifact-smoke.js';
+import {
 	createDesktopProjectLibrarySourceBearingSmokeSession,
 } from './project-library-source-bearing-smoke-session.js';
 import { runProjectLibraryRendererSmoke } from './project-library-renderer-smoke.js';
@@ -201,9 +205,15 @@ export function createDesktopSmokeProbe(options) {
 					})})`,
 				)
 				: await window.webContents.executeJavaScript(ARTIFACT_SMOKE_SCRIPT);
+			const captureExecution = productId === 'framescaper'
+				? await window.webContents.executeJavaScript(
+					`(${runFramescaperCaptureArtifactRendererSmoke.toString()})(globalThis)`, true,
+				)
+				: undefined;
 			const result = productId === 'framescaper'
 				? {
 					...execution,
+					framescaperCapture: validateFramescaperCaptureArtifactEvidence(captureExecution),
 					framescaperV18: joinFramescaperV18ArtifactEvidence(
 						execution?.framescaperV18,
 						await projectLibraryEvidence(execution?.framescaperV18?.project?.projectId),
