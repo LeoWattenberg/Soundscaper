@@ -1881,12 +1881,13 @@
 				},
 				{
 					"id": "bounded-streaming-media-extraction",
-					"summary": "Original video entries emit at most 4 MiB per zip.js chunk, are charged and independently hashed before each awaited transactional storage write, and must match declared size and SHA-256 before publication. OPFS receives bounded writes; IndexedDB uses source-owned native Blob chunks; process-memory fallback rejects payloads above 64 MiB before extraction. Cancellation, metadata drift, and failed publication remove staging and preserve prior inventory.",
+					"summary": "Original video entries emit at most 4 MiB per zip.js chunk, are charged and independently hashed before each awaited transactional storage write, and must match declared size and SHA-256 before publication. OPFS receives bounded writes; IndexedDB persists source-owned bounded byte-backed chunks and normalizes them, plus legacy Blob rows, to canonical Blob reads; process-memory fallback rejects payloads above 64 MiB before extraction. Cancellation, metadata drift, and failed publication remove staging and preserve prior inventory.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/scape-archive-video.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
 						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-write-repository.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/storage/media-asset-chunk-records.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-media-asset-load.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-scape-streaming-video.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-streaming-media-storage.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-streaming-media-lifecycle.test.ts" }

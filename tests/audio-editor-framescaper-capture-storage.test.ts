@@ -123,6 +123,13 @@ test('encoded prefixes and session manifests reload from existing IndexedDB stor
 		sequence: 0, ptsMicroseconds: 0, durationMicroseconds: 1_000,
 		payload: new Blob([Uint8Array.of(4, 5, 6)]),
 	})).spool;
+	const [persistedChunk] = indexedDB.records(databaseName, 'mediaAssetChunks') as Array<Record<string, unknown>>;
+	assert.ok(persistedChunk);
+	assert.equal(persistedChunk.payloadEncoding, 'array-buffer-v1');
+	assert.ok(persistedChunk.payloadBytes instanceof ArrayBuffer);
+	assert.equal(Object.hasOwn(persistedChunk, 'payload'), false);
+	assert.deepEqual(new Uint8Array(persistedChunk.payloadBytes), Uint8Array.of(4, 5, 6));
+	assert.equal(persistedChunk.captureSpoolId, 'display-spool');
 	const session = manifest({
 		sessionId: 'session-reload',
 		projectFence: { projectId: 'project-reload', baseRevision: 1, baseSha256: 'cd'.repeat(32) },
@@ -146,6 +153,8 @@ test('encoded prefixes and session manifests reload from existing IndexedDB stor
 	loaded = await acknowledgeEncoded(reopened.spools, loaded);
 	assert.deepEqual(await collect(reopened.spools.read(loaded)), expectedChunks);
 	assert.deepEqual(await reopened.manifests.load('project-reload', 'session-reload'), session);
+	await reopened.spools.delete(loaded);
+	assert.equal(indexedDB.recordCount(databaseName, 'mediaAssetChunks'), 0);
 	await reopened.close();
 });
 

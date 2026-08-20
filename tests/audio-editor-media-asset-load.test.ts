@@ -128,6 +128,61 @@ test('fallback media persists canonical source-owned native Blob chunks', async 
 	assert.deepEqual(new Uint8Array(await loaded.arrayBuffer()), bytes);
 });
 
+test('IndexedDB fallback persists byte-backed chunks and reads legacy Blob rows', async () => {
+	const indexedDB = createInstrumentedIndexedDB();
+	const databaseName = uniqueDatabaseName('media-byte-backed-chunks');
+	const store = createProjectStore({ indexedDB, memoryFallback: false, preferOpfs: false, databaseName });
+	await store.ready();
+	const sourceId = 'byte-backed-media';
+	const bytes = Uint8Array.of(0x10, 0x20, 0x30);
+	const writer = await store.beginMediaAssetWrite(sourceId, { mimeType: 'video/webm' }, {
+		expectedBytes: bytes.byteLength,
+		expectedSha256: digest(bytes),
+	});
+	await writer.write(bytes);
+	await writer.commit();
+
+	const [persisted] = indexedDB.records(databaseName, 'mediaAssetChunks') as Array<Record<string, unknown>>;
+	assert.ok(persisted);
+	assert.equal(persisted.payloadEncoding, 'array-buffer-v1');
+	assert.ok(persisted.payloadBytes instanceof ArrayBuffer);
+	assert.equal(Object.hasOwn(persisted, 'payload'), false);
+	assert.equal(persisted.byteLength, bytes.byteLength);
+	assert.deepEqual(new Uint8Array(persisted.payloadBytes), bytes);
+	const loaded = await store.loadMediaAsset(sourceId);
+	assert.ok(loaded instanceof Blob);
+	assert.deepEqual(new Uint8Array(await loaded.arrayBuffer()), bytes);
+
+	const legacySourceId = 'legacy-blob-chunk-media';
+	const legacyBytes = Uint8Array.of(0x40, 0x50);
+	indexedDB.seedRecord(databaseName, 'mediaAssets', chunkedMediaRecord(legacySourceId, legacyBytes));
+	indexedDB.seedRecord(databaseName, 'mediaAssetChunks', validChunk(legacySourceId, legacyBytes));
+	const legacyLoaded = await store.loadMediaAsset(legacySourceId);
+	assert.ok(legacyLoaded instanceof Blob);
+	assert.deepEqual(new Uint8Array(await legacyLoaded.arrayBuffer()), legacyBytes);
+
+	const corruptRows = [
+		['dual payloads', {
+			...byteBackedChunk('dual-payloads'),
+			payload: new Blob([Uint8Array.of(1)]),
+		}],
+		['typed array bytes', {
+			...byteBackedChunk('typed-array-bytes'),
+			payloadBytes: Uint8Array.of(1),
+		}],
+		['byte length drift', {
+			...byteBackedChunk('byte-length-drift'),
+			byteLength: 2,
+		}],
+	] as const;
+	for (const [label, row] of corruptRows) {
+		const corruptSourceId = String((row as Readonly<Record<string, unknown>>).sourceId);
+		indexedDB.seedRecord(databaseName, 'mediaAssets', chunkedMediaRecord(corruptSourceId));
+		indexedDB.seedRecord(databaseName, 'mediaAssetChunks', row);
+		await assert.rejects(store.loadMediaAsset(corruptSourceId), /media asset is missing/iu, label);
+	}
+});
+
 test('chunked media loading fails closed for malformed fallback inventories', async () => {
 	const cases = [
 		['missing', []],
@@ -317,6 +372,17 @@ function validChunk(
 		sourceId,
 		payload: new Blob([exactArrayBuffer(bytes)]),
 		byteLength: bytes.byteLength,
+		createdAt: Date.now(),
+	});
+}
+
+function byteBackedChunk(sourceId: string): Readonly<Record<string, unknown>> {
+	return Object.freeze({
+		...chunkIdentity(sourceId, 0),
+		sourceId,
+		payloadEncoding: 'array-buffer-v1',
+		payloadBytes: exactArrayBuffer(Uint8Array.of(1)),
+		byteLength: 1,
 		createdAt: Date.now(),
 	});
 }

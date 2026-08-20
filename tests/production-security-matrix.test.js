@@ -283,7 +283,7 @@ test('planned native plug-in surfaces stay disabled and portable archive control
 	);
 	assert.match(
 		implementedControls.get('bounded-streaming-media-extraction').summary,
-		/4 MiB.*awaited transactional storage write.*native Blob chunks.*64 MiB/iu,
+		/4 MiB.*awaited transactional storage write.*byte-backed chunks.*legacy Blob rows.*canonical Blob reads.*64 MiB/iu,
 	);
 	assert.match(
 		implementedControls.get('bounded-direct-archive-publication').summary,

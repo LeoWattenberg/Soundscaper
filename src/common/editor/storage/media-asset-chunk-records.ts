@@ -18,6 +18,7 @@ import type { StorageRepositoryPort } from './repository-port.ts';
 export { MEDIA_ASSET_CHUNK_STORE_NAME, MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME };
 
 const MEDIA_ASSET_CHUNK_CURSOR_PAGE_SIZE = 1;
+const MEDIA_ASSET_CHUNK_PAYLOAD_ENCODING = 'array-buffer-v1';
 
 export interface MediaAssetChunkRecord extends Record<string, unknown> {
 	readonly key: string;
@@ -47,20 +48,23 @@ export class MediaAssetChunkRecords {
 		capturedDatabase?: IDBDatabase | null,
 		lease?: MediaAssetStagingLease,
 	): Promise<void> {
+		const normalized = mediaAssetChunkRecord(record);
+		if (!normalized) throw new TypeError('A valid media asset chunk is required.');
 		const database = capturedDatabase === undefined
 			? await this.#port.database()
 			: capturedDatabase;
 		if (!database) {
 			lease?.assertInMemory({ renew: true });
-			this.#port.memory.mediaAssetChunks.set(record.key, cloneChunk(record));
+			this.#port.memory.mediaAssetChunks.set(normalized.key, cloneChunk(normalized));
 			return;
 		}
+		const persisted = await encodePersistedChunk(normalized);
 		const storeNames = lease
 			? [MEDIA_ASSET_CHUNK_STORE_NAME, MEDIA_ASSET_STAGING_STORE_NAME]
 			: [MEDIA_ASSET_CHUNK_STORE_NAME];
 		await transact(database, storeNames, 'readwrite', async (stores) => {
 			if (lease) await lease.assertInStore(stores[MEDIA_ASSET_STAGING_STORE_NAME], { renew: true });
-			await request(stores[MEDIA_ASSET_CHUNK_STORE_NAME].put(record));
+			await request(stores[MEDIA_ASSET_CHUNK_STORE_NAME].put(persisted));
 		});
 	}
 
@@ -89,7 +93,7 @@ export class MediaAssetChunkRecords {
 			const value = await transact(database, MEDIA_ASSET_CHUNK_STORE_NAME, 'readonly', (stores) => (
 				request(stores[MEDIA_ASSET_CHUNK_STORE_NAME].get(primaryKey))
 			));
-			yield { primaryKey, value };
+			yield { primaryKey, value: materializePersistedChunk(value) };
 		}
 	}
 
@@ -205,7 +209,7 @@ function deleteOwnedChunks(index: IDBIndex, token: string, sourceId: string): Pr
 				resolve();
 				return;
 			}
-			const record = mediaAssetChunkRecord(cursor.value);
+			const record = persistedMediaAssetChunkRecord(cursor.value);
 			if (!record || record.sourceId !== sourceId) {
 				reject(new MediaAssetChunkOwnershipError('Media chunk ownership does not match its metadata.'));
 				return;
@@ -223,7 +227,7 @@ function deleteOwnedChunkTail(index: IDBIndex, token: string, sourceId: string, 
 		cursorRequest.onsuccess = () => {
 			const cursor = cursorRequest.result;
 			if (!cursor) { resolve(); return; }
-			const record = mediaAssetChunkRecord(cursor.value);
+			const record = persistedMediaAssetChunkRecord(cursor.value);
 			if (record && record.index < firstIndex) { cursor.continue(); return; }
 			if (!record || record.sourceId !== sourceId) {
 				reject(new MediaAssetChunkOwnershipError('Media chunk ownership does not match its metadata.'));
@@ -241,6 +245,11 @@ export function mediaAssetChunkKey(token: string, index: number): string {
 
 export function mediaAssetChunkRecord(value: unknown): MediaAssetChunkRecord | null {
 	if (!value || typeof value !== 'object') return null;
+	if (hasPersistedChunkEncoding(value)) return persistedMediaAssetChunkRecord(value);
+	return blobMediaAssetChunkRecord(value);
+}
+
+function blobMediaAssetChunkRecord(value: object): MediaAssetChunkRecord | null {
 	const record = value as Partial<MediaAssetChunkRecord>;
 	let payload: Blob;
 	try {
@@ -248,6 +257,13 @@ export function mediaAssetChunkRecord(value: unknown): MediaAssetChunkRecord | n
 	} catch {
 		return null;
 	}
+	return validateMediaAssetChunkRecord(record, payload);
+}
+
+function validateMediaAssetChunkRecord(
+	record: Partial<MediaAssetChunkRecord>,
+	payload: Blob,
+): MediaAssetChunkRecord | null {
 	if (typeof record.key !== 'string'
 		|| typeof record.sourceId !== 'string'
 		|| record.sourceId.length < 1
@@ -258,6 +274,50 @@ export function mediaAssetChunkRecord(value: unknown): MediaAssetChunkRecord | n
 		|| record.byteLength !== payload.size
 		|| !Number.isFinite(record.createdAt)) return null;
 	return { ...record, payload } as MediaAssetChunkRecord;
+}
+
+async function encodePersistedChunk(record: MediaAssetChunkRecord): Promise<Record<string, unknown>> {
+	const payloadBytes = await record.payload.arrayBuffer();
+	if (!(payloadBytes instanceof ArrayBuffer) || payloadBytes.byteLength !== record.byteLength) {
+		throw new Error('Media asset chunk bytes changed before durable storage.');
+	}
+	const persisted: Record<string, unknown> = {
+		...record,
+		payloadEncoding: MEDIA_ASSET_CHUNK_PAYLOAD_ENCODING,
+		payloadBytes,
+	};
+	delete persisted.payload;
+	return persisted;
+}
+
+function persistedMediaAssetChunkRecord(value: unknown): MediaAssetChunkRecord | null {
+	if (!value || typeof value !== 'object') return null;
+	const hasByteEncoding = hasPersistedChunkEncoding(value);
+	if (!hasByteEncoding) return blobMediaAssetChunkRecord(value);
+	if (Object.hasOwn(value, 'payload')) return null;
+	const persisted = value as Partial<MediaAssetChunkRecord> & {
+		readonly payloadEncoding?: unknown;
+		readonly payloadBytes?: unknown;
+	};
+	if (persisted.payloadEncoding !== MEDIA_ASSET_CHUNK_PAYLOAD_ENCODING
+		|| !(persisted.payloadBytes instanceof ArrayBuffer)) return null;
+	const payload = new Blob([persisted.payloadBytes]);
+	const record = validateMediaAssetChunkRecord(persisted, payload);
+	if (!record) return null;
+	const materialized: Record<string, unknown> = { ...record };
+	delete materialized.payloadEncoding;
+	delete materialized.payloadBytes;
+	return materialized as MediaAssetChunkRecord;
+}
+
+function materializePersistedChunk(value: unknown): unknown {
+	const record = persistedMediaAssetChunkRecord(value);
+	if (record) return record;
+	return value && typeof value === 'object' && hasPersistedChunkEncoding(value) ? null : value;
+}
+
+function hasPersistedChunkEncoding(value: object): boolean {
+	return Object.hasOwn(value, 'payloadEncoding') || Object.hasOwn(value, 'payloadBytes');
 }
 
 function cloneChunk(record: MediaAssetChunkRecord): MediaAssetChunkRecord {
