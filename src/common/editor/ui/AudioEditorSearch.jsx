@@ -16,6 +16,10 @@ function formatCount(copy, count) {
 	return text(copy, 'editorSearchResultCount', '{count} search results').replace('{count}', String(count));
 }
 
+function searchEntryKey(entry, index) {
+	return String(entry?.key || `${entry?.kind || 'entry'}-${index}`);
+}
+
 export default function AudioEditorSearch({
 	copy,
 	entries = [],
@@ -32,7 +36,7 @@ export default function AudioEditorSearch({
 	const wasOpenRef = useRef(open);
 	const listboxId = useId();
 	const [query, setQuery] = useState('');
-	const [activeIndex, setActiveIndex] = useState(-1);
+	const [activeKey, setActiveKey] = useState(null);
 	const direction = getLocaleDescriptor(locale)?.direction || 'ltr';
 	const hasQuery = Boolean(query.trim());
 
@@ -55,6 +59,12 @@ export default function AudioEditorSearch({
 			orderedEntries: nextGroups.flatMap((group) => group.entries.map(({ entry }) => entry)),
 		};
 	}, [hasQuery, rankedEntries]);
+	const keyedActiveIndex = orderedEntries.findIndex((entry, index) => (
+		!entry.disabled && searchEntryKey(entry, index) === activeKey
+	));
+	const activeIndex = keyedActiveIndex >= 0
+		? keyedActiveIndex
+		: orderedEntries.findIndex((entry) => !entry.disabled);
 
 	const rememberFocus = useCallback((candidate) => {
 		if (candidate && candidate !== inputRef.current && typeof candidate.focus === 'function') {
@@ -74,7 +84,7 @@ export default function AudioEditorSearch({
 
 	const close = useCallback(({ restoreFocus = false } = {}) => {
 		setQuery('');
-		setActiveIndex(-1);
+		setActiveKey(null);
 		onOpenChange?.(false);
 		if (!restoreFocus) return;
 		const previousFocus = previousFocusRef.current;
@@ -87,7 +97,7 @@ export default function AudioEditorSearch({
 	const activate = useCallback((entry) => {
 		if (!entry || entry.disabled) return;
 		setQuery('');
-		setActiveIndex(-1);
+		setActiveKey(null);
 		onOpenChange?.(false);
 		queueMicrotask(() => onActivate?.(entry));
 	}, [onActivate, onOpenChange]);
@@ -95,15 +105,10 @@ export default function AudioEditorSearch({
 	useEffect(() => {
 		if (wasOpenRef.current && !open) {
 			setQuery('');
-			setActiveIndex(-1);
+			setActiveKey(null);
 		}
 		wasOpenRef.current = open;
 	}, [open]);
-
-	useEffect(() => {
-		if (!open) return;
-		setActiveIndex(orderedEntries.findIndex((entry) => !entry.disabled));
-	}, [open, orderedEntries]);
 
 	useEffect(() => {
 		const openFromShortcut = (event) => {
@@ -148,7 +153,8 @@ export default function AudioEditorSearch({
 		const nextPosition = enabledPosition < 0
 			? delta > 0 ? 0 : enabledIndexes.length - 1
 			: (enabledPosition + delta + enabledIndexes.length) % enabledIndexes.length;
-		setActiveIndex(enabledIndexes[nextPosition]);
+		const nextIndex = enabledIndexes[nextPosition];
+		setActiveKey(searchEntryKey(orderedEntries[nextIndex], nextIndex));
 	};
 
 	const onInputKeyDown = (event) => {
@@ -162,7 +168,8 @@ export default function AudioEditorSearch({
 			const enabledIndexes = orderedEntries
 				.map((entry, index) => entry.disabled ? -1 : index)
 				.filter((index) => index >= 0);
-			setActiveIndex(event.key === 'Home' ? enabledIndexes[0] ?? -1 : enabledIndexes.at(-1) ?? -1);
+			const nextIndex = event.key === 'Home' ? enabledIndexes[0] : enabledIndexes.at(-1);
+			setActiveKey(nextIndex === undefined ? null : searchEntryKey(orderedEntries[nextIndex], nextIndex));
 		} else if (event.key === 'Enter') {
 			event.preventDefault();
 			event.stopPropagation();
@@ -236,6 +243,7 @@ export default function AudioEditorSearch({
 						}}
 						onChange={(event) => {
 							setQuery(event.currentTarget.value);
+							setActiveKey(null);
 							if (!open) onOpenChange?.(true);
 						}}
 						onKeyDown={onInputKeyDown}
@@ -266,7 +274,7 @@ export default function AudioEditorSearch({
 									</div>
 									{group.entries.map(({ entry, index }) => (
 										<div
-											key={entry.key || `${entry.kind}-${index}`}
+											key={searchEntryKey(entry, index)}
 											ref={(element) => { optionRefs.current[index] = element; }}
 											id={`${listboxId}-option-${index}`}
 											className="kw-audio-editor__search-option"
@@ -277,7 +285,9 @@ export default function AudioEditorSearch({
 											role="option"
 											aria-selected={activeIndex === index}
 											aria-disabled={entry.disabled || undefined}
-											onMouseMove={() => { if (!entry.disabled) setActiveIndex(index); }}
+											onMouseMove={() => {
+												if (!entry.disabled) setActiveKey(searchEntryKey(entry, index));
+											}}
 											onPointerDown={(event) => event.preventDefault()}
 											onClick={() => activate(entry)}
 										>

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export function useWorkspaceParityRequests({
 	controller,
@@ -21,9 +21,14 @@ export function useWorkspaceParityRequests({
 	toggleFullscreen,
 	workspaceRef,
 }) {
+	const handledRequestRef = useRef(null);
 	useEffect(() => {
 		const request = parityUi.request;
 		if (!request) return;
+		// Handler dependencies may change while a one-shot request remains in
+		// the UI snapshot. Never replay that request on the resulting effect run.
+		if (handledRequestRef.current === request) return;
+		handledRequestRef.current = request;
 		const payload = request.payload || {};
 		if (request.type === 'open-surface') {
 			if (payload.surface === 'generator') setGeneratorType(payload.type || 'tone');

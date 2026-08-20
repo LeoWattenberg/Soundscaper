@@ -48,10 +48,26 @@ test('an unqualified browser falls back with its reason instead of failing', asy
 	}
 });
 
-test('a browser with an encoder but no frame constructor falls back', async () => {
+test('an unisolated runtime falls back before asking its encoder probe', async () => {
+	let probed = false;
 	const decision = await resolveVideoDeliveryEncoderTier({
+		format: 'mp4', canvas: CANVAS, quality: 'balanced', eligible: true,
+	}, {
+		async isConfigSupported() {
+			probed = true;
+			return { supported: true };
+		},
+	});
+
+	assert.equal(probed, false);
+	assert.equal(decision.tier, 'ffmpeg');
+	assert.match(decision.reason ?? '', /cross-origin isolated/u);
+});
+
+test('a browser with an encoder but no frame constructor falls back', async () => {
+	const decision = await withVideoDeliveryIsolation(() => resolveVideoDeliveryEncoderTier({
 		format: 'mp4', canvas: CANVAS, quality: 'high', eligible: true,
-	}, supportingEncoder());
+	}, supportingEncoder()));
 	assert.equal(decision.tier, 'ffmpeg');
 	assert.match(decision.reason ?? '', /video frame/u);
 });
@@ -95,13 +111,27 @@ function supportingEncoder() {
 }
 
 async function withVideoFrame<Value>(run: () => Promise<Value>): Promise<Value> {
+	return withVideoDeliveryIsolation(async () => {
+		const globals = globalThis as Record<string, unknown>;
+		const original = Object.hasOwn(globals, 'VideoFrame') ? globals.VideoFrame : undefined;
+		globals.VideoFrame = class {};
+		try {
+			return await run();
+		} finally {
+			if (original === undefined) delete globals.VideoFrame;
+			else globals.VideoFrame = original;
+		}
+	});
+}
+
+async function withVideoDeliveryIsolation<Value>(run: () => Promise<Value>): Promise<Value> {
 	const globals = globalThis as Record<string, unknown>;
-	const original = Object.hasOwn(globals, 'VideoFrame') ? globals.VideoFrame : undefined;
-	globals.VideoFrame = class {};
+	const original = Object.getOwnPropertyDescriptor(globals, 'crossOriginIsolated');
+	Object.defineProperty(globals, 'crossOriginIsolated', { configurable: true, value: true });
 	try {
 		return await run();
 	} finally {
-		if (original === undefined) delete globals.VideoFrame;
-		else globals.VideoFrame = original;
+		if (original) Object.defineProperty(globals, 'crossOriginIsolated', original);
+		else delete globals.crossOriginIsolated;
 	}
 }

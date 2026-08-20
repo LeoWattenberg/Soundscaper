@@ -60,6 +60,10 @@ export async function resolveVideoDeliveryEncoderTier(
 	if (!request.eligible) {
 		return fallback('This delivery is composed by FFmpeg’s own filter graph.');
 	}
+	if ((globalThis as Record<string, unknown>).crossOriginIsolated !== true
+		|| typeof (globalThis as Record<string, unknown>).SharedArrayBuffer !== 'function') {
+		return fallback('This page is not cross-origin isolated for WebCodecs video delivery.');
+	}
 	if (typeof (globalThis as Record<string, unknown>).VideoFrame !== 'function') {
 		return fallback('This browser has no WebCodecs video frame.');
 	}

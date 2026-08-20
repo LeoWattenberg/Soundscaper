@@ -31,7 +31,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('opens unified search from fixed shortcuts with an owned keyboard-accessible listbox', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await editor.locator('[data-project-bin-input]').setInputFiles([toneA]);
-		const sourceInput = editor.locator('[data-project-bin-name]');
+		const sourceInput = editor.locator('[data-project-bin-name]').first();
 		const search = editor.locator('[data-editor-search-input]');
 		const popup = editor.locator('[data-editor-search-popup]');
 		const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
@@ -51,6 +51,17 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator(`#${initialActiveId}`)).toHaveAttribute('aria-selected', 'true');
 		await search.press('ArrowDown');
 		await expect.poll(() => search.getAttribute('aria-activedescendant')).not.toBe(initialActiveId);
+		const movedActiveId = await search.getAttribute('aria-activedescendant');
+		const movedActiveKey = await page.locator(`#${movedActiveId}`).getAttribute('data-editor-search-key');
+		expect(movedActiveKey).toBeTruthy();
+		await editor.locator('[data-project-bin-input]').setInputFiles([toneB]);
+		await expect(editor.locator('[data-project-bin-name]')).toHaveCount(2);
+		await expect.poll(async () => {
+			const activeId = await search.getAttribute('aria-activedescendant');
+			return activeId
+				? page.locator(`#${activeId}`).getAttribute('data-editor-search-key')
+				: null;
+		}).toBe(movedActiveKey);
 		await assertNoSeriousAxeViolations(page, '[data-editor-search]');
 
 		await search.press('Escape');
