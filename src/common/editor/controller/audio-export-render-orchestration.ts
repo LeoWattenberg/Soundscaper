@@ -47,12 +47,21 @@ interface ExportProgressRange {
 	readonly start: number;
 }
 
+export interface ExportRenderTarget {
+	readonly includeMaster?: boolean;
+	readonly respectMuteSolo?: boolean;
+	readonly trackId?: string | null;
+}
+
 interface OfflineRenderRange {
 	readonly endFrame: number;
 	readonly includeTail: number | false;
+	readonly includeMaster?: boolean;
 	readonly outputFrames: number;
 	readonly preRollFrames: number;
+	readonly respectMuteSolo?: boolean;
 	readonly startFrame: number;
+	readonly trackId?: string | null;
 }
 
 export interface ExportEncodedOutput {
@@ -75,6 +84,7 @@ export interface AudioExportRenderOrchestrationRuntime {
 		settings: ExportRenderSettings,
 		signal: AbortSignal,
 		renderSources: ExportRenderSources,
+		renderTarget: ExportRenderTarget,
 		directDestination: DirectPcmDestination | null,
 		directCompressedDestination: DirectCompressedDestination | null,
 		assertDirectCurrent: () => void,
@@ -103,6 +113,7 @@ export interface AudioExportRenderOptions {
 	readonly plan: ExportRenderPlan;
 	readonly progressRange?: ExportProgressRange;
 	readonly renderSources: ExportRenderSources;
+	readonly renderTarget?: ExportRenderTarget;
 	readonly settings: ExportRenderSettings;
 	readonly signal: AbortSignal;
 	readonly snapshot: ExportRenderSnapshot;
@@ -119,11 +130,17 @@ export async function renderAndEncodeAudioExport(
 	} = runtime;
 	const {
 		plan, renderSources, settings, signal, snapshot,
+		renderTarget: requestedRenderTarget = {},
 		directCompressedDestination = null,
 		directDestination = null,
 		assertDirectCurrent = () => undefined,
 		progressRange = { start: 0, end: 1 },
 	} = options;
+	const renderTarget = {
+		trackId: requestedRenderTarget.trackId,
+		includeMaster: requestedRenderTarget.includeMaster,
+		respectMuteSolo: requestedRenderTarget.respectMuteSolo,
+	};
 	const { copy, setStatus, throwIfAborted } = encodingRuntime;
 	throwIfAborted(signal);
 	const progressSpan = progressRange.end - progressRange.start;
@@ -137,6 +154,7 @@ export async function renderAndEncodeAudioExport(
 		setStatus(copy.largeProjectRealtimeExport);
 		return renderRealtimeEncoded(
 			snapshot, plan, settings, signal, renderSources,
+			renderTarget,
 			directDestination, directCompressedDestination, assertDirectCurrent,
 		);
 	}
@@ -169,6 +187,7 @@ export async function renderAndEncodeAudioExport(
 				sourceMap: renderSources.sourceMap,
 			})
 			: await renderSnapshot(snapshot, {
+				...renderTarget,
 				startFrame: plan.range.startFrame,
 				endFrame: plan.range.endFrame,
 				includeTail: settings.includeTail ? plan.tailFrames / renderSampleRate : false,
@@ -188,6 +207,7 @@ export async function renderAndEncodeAudioExport(
 		setStatus(copy.realtimeExportFallback);
 		return renderRealtimeEncoded(
 			snapshot, plan, settings, signal, renderSources,
+			renderTarget,
 			directDestination, directCompressedDestination, assertDirectCurrent,
 		);
 	}
@@ -217,6 +237,7 @@ export async function renderAndEncodeAudioExport(
 		setStatus(copy.realtimeExportFallback);
 		return renderRealtimeEncoded(
 			snapshot, plan, settings, signal, renderSources,
+			renderTarget,
 			directDestination, directCompressedDestination, assertDirectCurrent,
 		);
 	}

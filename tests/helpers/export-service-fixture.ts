@@ -24,7 +24,13 @@ export interface TestProject {
 export interface TestPlan extends Record<string, unknown> {
 	mode: string;
 	/** `kind` is what a stems delivery states on each member, as the plan does. */
-	outputs: Array<{ fileName: string; trackId: string; kind?: string }>;
+	outputs: Array<{
+		fileName: string;
+		trackId: string | null;
+		kind?: string;
+		includeMaster?: boolean;
+		respectMuteSolo?: boolean;
+	}>;
 	outputBytesPerRender: number;
 	requiredTemporaryBytes: number;
 	archive: null | {
@@ -81,7 +87,10 @@ export function defaultProject(): TestProject {
 export function defaultPlan(): TestPlan {
 	return {
 		mode: 'mix',
-		outputs: [{ fileName: 'mix.wav', trackId: 'video-track' }],
+		outputs: [{
+			fileName: 'mix.wav', trackId: null,
+			includeMaster: true, respectMuteSolo: true,
+		}],
 		outputBytesPerRender: 128,
 		requiredTemporaryBytes: 256,
 		archive: null,
@@ -112,6 +121,7 @@ export function createFixture() {
 	const resampleFrameRequests: number[] = [];
 	const encodedFrameCounts: number[] = [];
 	const encodedChannelCounts: number[] = [];
+	const realtimeRenderOptions: Array<Record<string, unknown>> = [];
 	// Exactly the plan's `outputFrames`. A render that disagrees with its plan is
 	// the defect conformance reopens the file to catch, so a fixture that ships
 	// the disagreement cannot also stand for an ordinary delivery.
@@ -179,6 +189,7 @@ export function createFixture() {
 			onChunk: (channels: Float32Array[], metadata?: { sampleRate?: number }) => void;
 			onProgress?: (progress: Readonly<{ progress: number }>) => void;
 		}) {
+			realtimeRenderOptions.push(range as unknown as Record<string, unknown>);
 			calls.push('render-realtime');
 			if (realtimeThrows) throw new Error('realtime failed');
 			range.onProgress?.({ progress: 0.25 });
@@ -375,6 +386,7 @@ export function createFixture() {
 		encodedFrameCounts,
 		encodedChannelCounts,
 		renderOptions,
+		realtimeRenderOptions,
 		runtime,
 		state,
 		statuses,

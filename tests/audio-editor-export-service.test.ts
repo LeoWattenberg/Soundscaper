@@ -127,11 +127,17 @@ test('compressed exports stage PCM and return publisher cancellation cleanly', a
 
 test('stem exports archive each output, report progress, and abort failed archives', async () => {
 	const fixture = createFixture();
+	const renderRanges: Array<Record<string, unknown>> = [];
+	const renderSnapshot = fixture.renderOptions.renderSnapshot!;
+	fixture.renderOptions.renderSnapshot = async (...args: unknown[]) => {
+		renderRanges.push(args[1] as Record<string, unknown>);
+		return renderSnapshot(...args);
+	};
 	const stems = defaultPlan();
 	stems.mode = 'stems';
 	stems.outputs = [
-		{ fileName: 'one.wav', trackId: 'one' },
-		{ fileName: 'two.wav', trackId: 'two' },
+		{ fileName: 'one.wav', trackId: 'one', includeMaster: false, respectMuteSolo: false },
+		{ fileName: 'two.wav', trackId: 'two', includeMaster: false, respectMuteSolo: false },
 	];
 	stems.requiredTemporaryBytes = 768;
 	stems.archive = {
@@ -149,6 +155,25 @@ test('stem exports archive each output, report progress, and abort failed archiv
 	assert.equal(fixture.preflightBytes[0], 768);
 	assert.deepEqual(fixture.progress, [0.5, 1]);
 	assert.equal(fixture.calls.filter((entry) => entry.startsWith('archive-add')).length, 2);
+	assert.deepEqual(renderRanges.map(({ trackId, includeMaster, respectMuteSolo }) => ({
+		trackId, includeMaster, respectMuteSolo,
+	})), [
+		{ trackId: 'one', includeMaster: false, respectMuteSolo: false },
+		{ trackId: 'two', includeMaster: false, respectMuteSolo: false },
+	]);
+	assert.equal(renderRanges.some((range) => 'fileName' in range || 'kind' in range), false);
+
+	const realtime = createFixture();
+	const realtimeStems = structuredClone(stems);
+	realtimeStems.outputs = [stems.outputs[0]!];
+	realtimeStems.archive!.entries = [stems.archive.entries[0]!];
+	realtimeStems.render = { strategy: 'realtime-stream' };
+	realtime.setPlan(realtimeStems);
+	await createEditorExportService(realtime.runtime).handleExportAction('export');
+	assert.deepEqual(realtime.realtimeRenderOptions.map(({ trackId, includeMaster, respectMuteSolo }) => ({
+		trackId, includeMaster, respectMuteSolo,
+	})), [{ trackId: 'one', includeMaster: false, respectMuteSolo: false }]);
+	assert.equal(realtime.realtimeRenderOptions.some((range) => 'fileName' in range || 'kind' in range), false);
 
 	const failed = createFixture();
 	failed.setPlan(stems);

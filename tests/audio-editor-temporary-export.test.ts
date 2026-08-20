@@ -213,8 +213,12 @@ test('stem snapshots isolate one track and reset master processing', () => {
 test('V21 stem snapshots retain active control racks without retaining inactive master automation', () => {
 	const project = productionStemProject();
 	const snapshot = stemProject(project as never, 'voice') as unknown as typeof project;
-	assert.deepEqual(snapshot.automationLanes.map(({ id }) => id), ['voice-gain', 'control-frequency']);
+	assert.deepEqual(snapshot.automationLanes.map(({ id }) => id), [
+		'voice-gain', 'control-frequency', 'voice-sidechain-level',
+	]);
 	assert.equal(snapshot.mixer.edges.some(({ id }) => id === 'control-master-sidechain'), false);
+	assert.equal(snapshot.mixer.edges.find(({ id }) => id === 'control-master')?.level, 0);
+	assert.equal(snapshot.mixer.edges.some(({ id }) => id === 'control-voice-sidechain'), true);
 	const control = snapshot.tracks.find(({ id }) => id === 'control') as { readonly effects: readonly unknown[] };
 	assert.equal(control.effects.length, 1);
 	assert.deepEqual(snapshot.master, {
@@ -272,7 +276,10 @@ function productionStemProject() {
 		sources: [source('voice-source'), source('control-source')],
 		clips: [clip('voice-clip', 'voice-source'), clip('control-clip', 'control-source')],
 		tracks: [
-			createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] }),
+			createAudioTrackV10({
+				id: 'voice', name: 'Voice', clipIds: ['voice-clip'],
+				effects: [{ id: 'voice-gate', type: 'gate', enabled: true, params: { threshold: -30 } }],
+			}),
 			createAudioTrackV10({
 				id: 'control', name: 'Control', clipIds: ['control-clip'],
 				effects: [{
@@ -291,7 +298,12 @@ function productionStemProject() {
 			outputs: [{ id: 'main', name: 'Main', role: 'main', channelCount: 2 }],
 			edges: [
 				stemEdge('voice-master', 'assignment', { kind: 'track', id: 'voice' }, { kind: 'master' }),
-				stemEdge('control-master', 'assignment', { kind: 'track', id: 'control' }, { kind: 'master' }),
+				stemEdge(
+					'control-master', 'assignment', { kind: 'track', id: 'control' }, { kind: 'master' }, 'pre-fader',
+				),
+				stemEdge('control-voice-sidechain', 'sidechain', { kind: 'track', id: 'control' }, {
+					kind: 'effect-sidechain', strip: { kind: 'track', id: 'voice' }, effectId: 'voice-gate',
+				}),
 				stemEdge('control-master-sidechain', 'sidechain', { kind: 'track', id: 'control' }, {
 					kind: 'effect-sidechain', strip: { kind: 'master' }, effectId: 'master-filter',
 				}),
@@ -313,13 +325,25 @@ function productionStemProject() {
 			stemLane('master-sidechain-level', {
 				kind: 'edge', edgeId: 'control-master-sidechain', parameterId: 'level',
 			}, 1),
+			stemLane('voice-sidechain-level', {
+				kind: 'edge', edgeId: 'control-voice-sidechain', parameterId: 'level',
+			}, 1),
+			stemLane('control-master-level', {
+				kind: 'edge', edgeId: 'control-master', parameterId: 'level',
+			}, 1),
 		],
 	});
 }
 
-function stemEdge(id: string, kind: string, source: unknown, destination: unknown) {
+function stemEdge(
+	id: string,
+	kind: string,
+	source: unknown,
+	destination: unknown,
+	position = 'post-fader',
+) {
 	return {
-		id, kind, source, destination, position: 'post-fader', level: 1, enabled: true, channelMap: [],
+		id, kind, source, destination, position, level: 1, enabled: true, channelMap: [],
 	};
 }
 

@@ -210,6 +210,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			if (plan.mode === 'mix') {
 				const encoded = await renderAndEncode(
 					exportProject, plan, settings, abort.signal, exportRenderSources,
+					plan.outputs[0],
 					{ start: 0, end: 1 },
 					directCompressed ? null : pendingDirectDestination as DirectPcmDestination | null,
 					directCompressed ? pendingDirectDestination as DirectCompressedDestination : null,
@@ -247,7 +248,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					assertCurrent: assertExportCurrent,
 					async renderStem(output, index) {
 						const snapshot = stemProject(exportProject, output.trackId);
-						return renderAndEncode(snapshot, plan, settings, abort.signal, exportRenderSources, {
+						return renderAndEncode(snapshot, plan, settings, abort.signal, exportRenderSources, output, {
 							start: index / plan.outputs.length,
 							end: (index + 1) / plan.outputs.length,
 						}, null, null, assertExportCurrent);
@@ -269,7 +270,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 						throwIfAborted(abort.signal);
 						const output = plan.outputs[index];
 						const snapshot = stemProject(exportProject, output.trackId);
-						const encoded = await renderAndEncode(snapshot, plan, settings, abort.signal, exportRenderSources, {
+						const encoded = await renderAndEncode(snapshot, plan, settings, abort.signal, exportRenderSources, output, {
 							start: index / plan.outputs.length,
 							end: (index + 1) / plan.outputs.length,
 						});
@@ -403,6 +404,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 	async function renderAndEncode(
 		snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue,
 		renderSources: ExportRenderSources,
+		renderTarget: RuntimeValue,
 		progressRange: RuntimeValue = { start: 0, end: 1 },
 		directDestination: DirectPcmDestination | null = null,
 		directCompressedDestination: DirectCompressedDestination | null = null,
@@ -425,6 +427,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			plan,
 			progressRange,
 			renderSources,
+			renderTarget,
 			settings,
 			signal,
 			snapshot,
@@ -435,6 +438,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 	async function renderRealtimeEncoded(
 		snapshot: RuntimeValue, plan: RuntimeValue, settings: RuntimeValue, signal: RuntimeValue,
 		renderSources: ExportRenderSources,
+		renderTarget: RuntimeValue,
 		directDestination: DirectPcmDestination | null = null,
 		directCompressedDestination: DirectCompressedDestination | null = null,
 		assertDirectCurrent: () => void = () => undefined,
@@ -505,6 +509,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				chunkSources: renderSources.chunkSources,
 			});
 			await renderEngine.renderMixRealtime({
+				...renderTarget,
 				startFrame: plan.range.startFrame,
 				endFrame: plan.range.endFrame,
 				includeTail: settings.includeTail ? plan.tailFrames / renderSampleRate : false,
