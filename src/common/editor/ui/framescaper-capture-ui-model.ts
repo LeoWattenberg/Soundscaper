@@ -9,6 +9,8 @@ import type {
 	CaptureRuntimeAvailability,
 	CaptureSourceRole,
 } from '../framescaper-capture-domain.ts';
+import type { CaptureSourceDeviceDescriptor } from '../platform/capture-source-port.ts';
+import type { FramescaperCaptureDisplaySource } from '../controller/framescaper-capture-session-types.ts';
 
 export const FRAMESCAPER_CAPTURE_PANEL_ID = 'recording-setup' as const;
 export const FRAMESCAPER_CAPTURE_TOOLBAR_OPT_IN_KEY =
@@ -30,13 +32,17 @@ export interface FramescaperCaptureUiSource {
 	readonly role: CaptureSourceRole;
 	readonly label?: string;
 	readonly previewUrl?: string | null;
+	readonly previewStream?: unknown;
 	readonly level?: number | null;
 	readonly settings?: Readonly<{
+		readonly deviceId?: string;
 		readonly width?: number;
 		readonly height?: number;
+		readonly frameRate?: number;
 		readonly sampleRate?: number;
 		readonly channelCount?: number;
 	}>;
+	readonly capabilities?: Readonly<Record<string, unknown>>;
 }
 
 export interface FramescaperCaptureUiMetric {
@@ -51,6 +57,11 @@ export interface FramescaperCaptureUiSnapshot {
 	readonly availability: CaptureRuntimeAvailability;
 	readonly requestedRoles: readonly CaptureSourceRole[];
 	readonly sources: readonly FramescaperCaptureUiSource[];
+	readonly devices?: readonly Readonly<CaptureSourceDeviceDescriptor>[];
+	readonly selectedDeviceIds?: Readonly<Partial<Record<'camera' | 'microphone', string>>>;
+	readonly displaySelectionMode?: 'source-list' | 'system-picker' | null;
+	readonly displaySources?: readonly Readonly<FramescaperCaptureDisplaySource>[];
+	readonly selectedDisplaySourceToken?: string | null;
 	readonly sourcesFrozen?: boolean;
 	readonly destination: CaptureDestination | null;
 	readonly countdownMs: number | null;

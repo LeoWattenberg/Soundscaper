@@ -1,37 +1,28 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	createCaptureRuntimeAvailability,
-	type CaptureFailure,
-	type CapturePacket,
-	type CaptureSourceRole,
-} from '../framescaper-capture-domain.ts';
-import type {
-	CapturePreviewLease,
-	CapturePreviewSource,
-} from '../platform/capture-source-port.ts';
-import type {
-	FramescaperCaptureOriginAuthority,
-} from './framescaper-capture-origin-guard.ts';
+import { createCaptureRuntimeAvailability, type CaptureFailure, type CapturePacket, type CaptureSourceRole } from '../framescaper-capture-domain.ts';
+import type { CapturePreviewLease, CapturePreviewSource } from '../platform/capture-source-port.ts';
+import type { FramescaperCaptureOriginAuthority } from './framescaper-capture-origin-guard.ts';
 import { createFramescaperCaptureActiveTimeClock } from './framescaper-capture-active-time-clock.ts';
 import { createFramescaperCaptureMetrics } from './framescaper-capture-metrics.ts';
 import {
-	createFramescaperCaptureStateMachine,
-	type FramescaperCaptureArmOptions,
-} from './framescaper-capture-state-machine.ts';
+	applyCaptureSourceSettings, capturePreviewSourceSnapshots, createFramescaperCapturePreviewResources,
+	disposeCapturePreviewOwnership, normalizeCaptureDisplaySources, selectedCaptureDevices,
+	type FramescaperCapturePreviewResources,
+} from './framescaper-capture-preview-resources.ts';
+import {
+	captureSessionFailure, captureSessionInputGain, installCaptureSourceEndWatchers,
+	safelyStopCaptureClock, waitForCaptureCountdown,
+} from './framescaper-capture-session-runtime.ts';
+import { createFramescaperCaptureStateMachine, type FramescaperCaptureArmOptions } from './framescaper-capture-state-machine.ts';
 import type {
-	FramescaperCaptureDurableSession,
-	FramescaperCaptureRecorder,
-	FramescaperCaptureSessionActions,
-	FramescaperCaptureSessionService,
-	FramescaperCaptureSessionServiceOptions,
-	FramescaperCaptureSessionSnapshot,
-	FramescaperCaptureStreamIdentity,
+	FramescaperCaptureDurableSession, FramescaperCaptureRecorder, FramescaperCaptureSessionActions,
+	FramescaperCaptureSessionService, FramescaperCaptureSessionServiceOptions,
+	FramescaperCaptureSessionSnapshot, FramescaperCaptureSourceSettings, FramescaperCaptureStreamIdentity,
 } from './framescaper-capture-session-types.ts';
 
 interface ActiveRecorder<Stream, Track> {
-	readonly source: Readonly<CapturePreviewSource<Stream, Track>>;
-	readonly identity: Readonly<FramescaperCaptureStreamIdentity>;
+	readonly source: Readonly<CapturePreviewSource<Stream, Track>>; readonly identity: Readonly<FramescaperCaptureStreamIdentity>;
 	readonly recorder: FramescaperCaptureRecorder;
 }
 
@@ -42,8 +33,9 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	const machine = createFramescaperCaptureStateMachine();
 	const now = options.now ?? (() => globalThis.performance?.now?.() ?? Date.now());
 	const createId = options.createId ?? ((prefix) => `${prefix}-${globalThis.crypto.randomUUID()}`);
-	const waitCountdown = options.waitCountdown ?? abortableDelay;
+	const waitCountdown = options.waitCountdown ?? waitForCaptureCountdown;
 	let previewLease: CapturePreviewLease<Stream, Track> | null = null;
+	let previewResources: FramescaperCapturePreviewResources | null = null;
 	let recorders: readonly ActiveRecorder<Stream, Track>[] = Object.freeze([]);
 	let durableSession: FramescaperCaptureDurableSession | null = null;
 	let clock: ReturnType<typeof createFramescaperCaptureActiveTimeClock> | null = null;
@@ -54,30 +46,24 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	let stopPromise: Promise<void> | null = null;
 	let recoveryPromise: Promise<void> | null = null;
 	let initializePromise: Promise<void> | null = null;
-	let monitoring = false;
-	let inputGain = 1;
+	let monitoring = false; let inputGain = 1;
 	let captureGeneration = 0;
 	let disposed = false;
 	let sourceEndCleanups: readonly (() => void)[] = Object.freeze([]);
+	let devices: FramescaperCaptureSessionSnapshot['devices'] = Object.freeze([]);
+	let selectedDeviceIds: FramescaperCaptureSessionSnapshot['selectedDeviceIds'] = Object.freeze({});
+	let displaySources: FramescaperCaptureSessionSnapshot['displaySources'] = Object.freeze([]);
+	let selectedDisplaySourceToken: string | null = null;
 
 	function snapshot(): Readonly<FramescaperCaptureSessionSnapshot> {
 		const state = machine.snapshot;
-		const elapsedTimeMs = clock && state.phase !== 'inactive'
-			? clock.snapshot(now()).activeTimeMs
-			: 0;
-		const richSources = previewLease?.sources.map((source) => Object.freeze({
-			sourceId: source.sourceId,
-			role: source.role,
-			label: trackLabel(source.track),
-			settings: source.settings,
-			capabilities: source.capabilities,
-		})) ?? state.sources;
+		const elapsedTimeMs = clock && state.phase !== 'inactive' ? clock.snapshot(now()).activeTimeMs : 0;
+		const richSources = previewLease ? capturePreviewSourceSnapshots(previewLease.sources, previewResources) : state.sources;
 		return Object.freeze({
-			...state,
-			sources: Object.freeze(richSources),
-			monitoring,
-			inputGain,
-			elapsedTimeMs,
+			...state, sources: Object.freeze(richSources), devices, selectedDeviceIds,
+			displaySelectionMode: options.displaySelection?.mode ?? null,
+			displaySources, selectedDisplaySourceToken,
+			monitoring, inputGain, elapsedTimeMs,
 			metrics: state.phase === 'inactive' ? Object.freeze([]) : metrics?.snapshot ?? Object.freeze([]),
 		});
 	}
@@ -111,30 +97,137 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 
 	async function requestPreview(roles: readonly CaptureSourceRole[]): Promise<void> {
 		assertActive();
+		const sourceToken = displaySourceToken(roles);
 		const previous = previewLease;
+		const previousResources = previewResources;
 		previewLease = null;
-		const previousDisposal = previous?.dispose() ?? Promise.resolve();
+		previewResources = null;
+		const previousDisposal = disposeCapturePreviewOwnership(previous, previousResources);
 		const gesture = machine.issueDirectGesture();
 		const requestGeneration = machine.requestPreview(gesture, roles);
 		options.authorizeUserAction?.(gesture.generation);
-		const opening = options.sourcePort.openPreview({
+		const previewRequest = {
 			signal: new AbortController().signal,
 			userActionGeneration: gesture.generation,
 			roles,
-		});
+			cameraDeviceId: selectedDeviceIds.camera,
+			microphoneDeviceId: selectedDeviceIds.microphone,
+		};
+		const opening = options.displaySelection
+			? Promise.resolve(options.displaySelection.authorize({
+				generation: gesture.generation, roles, sourceToken,
+			})).then(() => options.sourcePort.openPreview(previewRequest))
+			: options.sourcePort.openPreview(previewRequest);
 		notify();
+		let openedLease: CapturePreviewLease<Stream, Track> | null = null;
+		let openedResources: FramescaperCapturePreviewResources | null = null;
 		try {
 			await previousDisposal;
-			const lease = await opening;
-			previewLease = lease;
-			machine.previewReady(requestGeneration, lease.sources.map(({ sourceId, role }) => ({ sourceId, role })));
+			openedLease = await opening;
+			openedResources = await createFramescaperCapturePreviewResources(openedLease.sources, {
+				createPreviewSurface: options.createPreviewSurface,
+				createLevelMonitor: options.createLevelMonitor,
+				onLevel: notify,
+			});
+			previewLease = openedLease;
+			previewResources = openedResources;
+			machine.previewReady(requestGeneration, openedLease.sources.map(({ sourceId, role }) => ({ sourceId, role })));
+			selectedDeviceIds = selectedCaptureDevices(openedLease.sources, selectedDeviceIds);
+			if (sourceToken) {
+				displaySources = Object.freeze([]);
+				selectedDisplaySourceToken = null;
+			}
 			notify();
+			await refreshDeviceInventory(openedLease);
 		} catch (error) {
-			void opening.then((lease) => lease.dispose(), () => undefined);
-			machine.previewFailed(requestGeneration, captureFailure(error, 'permission-denied'));
+			if (!openedLease) void opening.then((lease) => lease.dispose(), () => undefined);
+			else await disposeCapturePreviewOwnership(openedLease, openedResources).catch(() => undefined);
+			if (previewLease === openedLease) previewLease = null;
+			if (previewResources === openedResources) previewResources = null;
+			clearDeviceInventory();
+			machine.previewFailed(requestGeneration, captureSessionFailure(error, 'permission-denied'));
 			notify();
 			throw error;
 		}
+	}
+
+	async function listDisplaySources(): Promise<void> {
+		assertActive();
+		if (!['inactive', 'previewing'].includes(machine.snapshot.phase)
+			|| options.displaySelection?.mode !== 'source-list' || !options.displaySelection.listSources) {
+			throw new Error('Capture display source listing is unavailable.');
+		}
+		displaySources = normalizeCaptureDisplaySources(await options.displaySelection.listSources());
+		selectedDisplaySourceToken = null;
+		notify();
+	}
+
+	function selectDisplaySource(sourceToken: string): void {
+		assertActive();
+		if (!['inactive', 'previewing'].includes(machine.snapshot.phase)
+			|| !displaySources.some(({ token }) => token === sourceToken)) {
+			throw new Error('The selected display source is not in the current inventory.');
+		}
+		selectedDisplaySourceToken = sourceToken;
+		notify();
+	}
+
+	async function selectDevice(role: 'camera' | 'microphone', deviceId: string): Promise<void> {
+		assertActive();
+		if (machine.snapshot.phase !== 'previewing') throw new Error('Capture devices can change only while previewing.');
+		if (!devices.some((device) => device.kind === role && device.id === deviceId)) {
+			throw new Error('The selected capture device is not in the permission-returned inventory.');
+		}
+		selectedDeviceIds = Object.freeze({ ...selectedDeviceIds, [role]: deviceId });
+		await requestPreview(machine.snapshot.requestedRoles);
+	}
+
+	async function refreshDeviceInventory(owner: CapturePreviewLease<Stream, Track>): Promise<void> {
+		try {
+			const inventory = await options.sourcePort.enumerate({
+				signal: new AbortController().signal,
+				permissionGranted: true,
+			});
+			if (previewLease !== owner || machine.snapshot.phase !== 'previewing') return;
+			devices = Object.freeze(inventory.devices.map((device) => Object.freeze({ ...device })));
+			selectedDeviceIds = selectedCaptureDevices(owner.sources, selectedDeviceIds);
+			notify();
+		} catch {
+			if (previewLease !== owner || machine.snapshot.phase !== 'previewing') return;
+			devices = Object.freeze([]);
+			notify();
+		}
+	}
+
+	function clearDeviceInventory(): void {
+		devices = Object.freeze([]);
+		selectedDeviceIds = Object.freeze({});
+		displaySources = Object.freeze([]);
+		selectedDisplaySourceToken = null;
+	}
+
+	function displaySourceToken(roles: readonly CaptureSourceRole[]): string | null {
+		if (!roles.includes('display') || !options.displaySelection
+			|| options.displaySelection.mode === 'system-picker') return null;
+		if (!selectedDisplaySourceToken
+			|| !displaySources.some(({ token }) => token === selectedDisplaySourceToken)) {
+			throw new Error('Choose a display source before opening its preview.');
+		}
+		return selectedDisplaySourceToken;
+	}
+
+	async function configureSource(
+		sourceId: string,
+		settings: Readonly<FramescaperCaptureSourceSettings>,
+	): Promise<void> {
+		assertActive();
+		if (machine.snapshot.phase !== 'previewing' || !previewLease) {
+			throw new Error('Capture source settings can change only while previewing.');
+		}
+		const source = previewLease.sources.find((candidate) => candidate.sourceId === sourceId);
+		if (!source) throw new Error('The selected capture source is not active.');
+		await applyCaptureSourceSettings(source.track, settings);
+		notify();
 	}
 
 	async function release(): Promise<void> {
@@ -142,9 +235,12 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		if (machine.snapshot.phase === 'armed') machine.disarm();
 		machine.releasePreview();
 		const lease = previewLease;
+		const resources = previewResources;
 		previewLease = null;
+		previewResources = null;
+		clearDeviceInventory();
 		notify();
-		await lease?.dispose();
+		await disposeCapturePreviewOwnership(lease, resources);
 	}
 
 	function configure(changes: Readonly<Record<string, unknown>>): void {
@@ -157,7 +253,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			throw new TypeError('Capture setup changes have an invalid closed shape.');
 		}
 		if (Object.hasOwn(changes, 'monitoring')) monitoring = Boolean(changes.monitoring);
-		if (Object.hasOwn(changes, 'inputGain')) inputGain = captureInputGain(changes.inputGain);
+		if (Object.hasOwn(changes, 'inputGain')) inputGain = captureSessionInputGain(changes.inputGain);
 		notify();
 	}
 
@@ -228,7 +324,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 					...identity, required: true as const, format: recorder.format,
 				}))),
 			});
-			sourceEndCleanups = installSourceEndWatchers(lease.sources, () => {
+			sourceEndCleanups = installCaptureSourceEndWatchers(lease.sources, () => {
 				reportActiveFailure(new Error('A required capture source ended.'));
 			});
 			for (const entry of recorders) await entry.recorder.start();
@@ -326,10 +422,10 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	async function recoverActive(error: unknown, code: CaptureFailure['code']): Promise<void> {
 		const phase = machine.snapshot.phase;
 		if (!['countdown', 'recording', 'paused', 'finalizing'].includes(phase)) return;
-		machine.enterRecovery(captureFailure(error, code));
+		machine.enterRecovery(captureSessionFailure(error, code));
 		countdownAbort?.abort(error);
 		notify();
-		if (clock) safeStopClock(clock, now());
+		if (clock) safelyStopCaptureClock(clock, now());
 		await releaseCaptureResources();
 		if (durableSession) {
 			try { durableSession = await options.durable.seal(durableSession); }
@@ -342,7 +438,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		if (machine.snapshot.phase === 'countdown') machine.stop();
 		await releaseCaptureResources();
 		if (machine.snapshot.phase === 'finalizing') machine.completeFinalization();
-		machine.fail(captureFailure(error, 'encoder-failed'));
+		machine.fail(captureSessionFailure(error, 'encoder-failed'));
 		releaseOrigin('stopped');
 		notify();
 	}
@@ -363,7 +459,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			clearSettledSession();
 			notify();
 		} catch (error) {
-			machine.enterRecovery(captureFailure(error, 'finalization-failed'));
+			machine.enterRecovery(captureSessionFailure(error, 'finalization-failed'));
 			notify();
 			throw error;
 		}
@@ -402,8 +498,11 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			catch (error) { return Promise.reject(error); }
 		});
 		const lease = previewLease;
+		const resources = previewResources;
 		previewLease = null;
-		await lease?.dispose().catch(() => undefined);
+		previewResources = null;
+		clearDeviceInventory();
+		await disposeCapturePreviewOwnership(lease, resources).catch(() => undefined);
 		for (const cleanup of sourceEndCleanups) cleanup();
 		sourceEndCleanups = Object.freeze([]);
 		const settled = await Promise.allSettled(stopResults);
@@ -448,8 +547,10 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		if (['countdown', 'recording', 'paused', 'finalizing'].includes(machine.snapshot.phase)) {
 			await recoverActive(new Error('Capture runtime closed.'), 'runtime-lost');
 		} else if (previewLease) {
-			await previewLease.dispose();
+			await disposeCapturePreviewOwnership(previewLease, previewResources);
 			previewLease = null;
+			previewResources = null;
+			clearDeviceInventory();
 		}
 	}
 
@@ -471,6 +572,10 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	const actions: Readonly<FramescaperCaptureSessionActions> = Object.freeze({
 		openSetup: () => undefined,
 		requestPreview,
+		listDisplaySources,
+		selectDisplaySource,
+		selectDevice,
+		configureSource,
 		release,
 		configure,
 		arm,
@@ -490,61 +595,5 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		initialize,
 		settled,
 		dispose,
-	});
-}
-
-function installSourceEndWatchers<Stream, Track>(
-	sources: readonly Readonly<CapturePreviewSource<Stream, Track>>[],
-	onEnded: () => void,
-): readonly (() => void)[] {
-	return Object.freeze(sources.flatMap(({ track }) => {
-		const eventTarget = track as Readonly<{
-			addEventListener?: (type: string, listener: () => void, options?: unknown) => void;
-			removeEventListener?: (type: string, listener: () => void) => void;
-		}>;
-		if (typeof eventTarget.addEventListener !== 'function') return [];
-		eventTarget.addEventListener('ended', onEnded, { once: true });
-		return [() => eventTarget.removeEventListener?.('ended', onEnded)];
-	}));
-}
-
-function trackLabel(value: unknown): string {
-	if (!value || typeof value !== 'object') return '';
-	const label = (value as { readonly label?: unknown }).label;
-	return typeof label === 'string' ? label : '';
-}
-
-function captureFailure(error: unknown, fallback: CaptureFailure['code']): Readonly<CaptureFailure> {
-	const name = error && typeof error === 'object' ? (error as { readonly name?: unknown }).name : null;
-	const code = name === 'NotAllowedError'
-		? 'permission-denied'
-		: name === 'AbortError' ? 'permission-dismissed' : fallback;
-	const message = error instanceof Error ? error.message : String(error || 'Capture failed.');
-	return Object.freeze({ code, message: message.slice(0, 1_024) || 'Capture failed.' });
-}
-
-function captureInputGain(value: unknown): number {
-	if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 2) {
-		throw new RangeError('Capture input gain must be between zero and two.');
-	}
-	return value;
-}
-
-function safeStopClock(
-	clock: ReturnType<typeof createFramescaperCaptureActiveTimeClock>,
-	now: number,
-): void {
-	try { clock.stop(now); } catch { /* A concurrent stop already closed the clock. */ }
-}
-
-function abortableDelay(durationMs: number, signal: AbortSignal): Promise<void> {
-	if (signal.aborted) return Promise.reject(signal.reason);
-	if (durationMs <= 0) return Promise.resolve();
-	return new Promise((resolve, reject) => {
-		const timer = globalThis.setTimeout(resolve, durationMs);
-		signal.addEventListener('abort', () => {
-			globalThis.clearTimeout(timer);
-			reject(signal.reason);
-		}, { once: true });
 	});
 }

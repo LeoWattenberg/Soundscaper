@@ -8,7 +8,11 @@ import type {
 	CaptureSourceRole,
 	CaptureStreamMetrics,
 } from '../framescaper-capture-domain.ts';
-import type { CapturePreviewSource, CaptureSourcePortV1 } from '../platform/capture-source-port.ts';
+import type {
+	CapturePreviewSource,
+	CaptureSourceDeviceDescriptor,
+	CaptureSourcePortV1,
+} from '../platform/capture-source-port.ts';
 import type { FramescaperCaptureOriginGuard } from './framescaper-capture-origin-guard.ts';
 import type {
 	FramescaperCaptureArmOptions,
@@ -103,10 +107,50 @@ export interface FramescaperCaptureFinalizeRequest {
 	readonly provenance: 'live' | 'recovered' | 'import-as-is';
 }
 
+export interface FramescaperCapturePreviewSurface {
+	/** A runtime-owned URL, when the preview backend exposes one. */
+	readonly url?: string | null;
+	/** A live MediaStream-like value for modern browser `srcObject` playback. */
+	readonly stream?: unknown;
+	dispose(): PromiseLike<void> | void;
+}
+
+export interface FramescaperCaptureLevelMonitor {
+	readonly level: number | null;
+	dispose(): PromiseLike<void> | void;
+}
+
+export interface FramescaperCaptureSourceSettings {
+	readonly width?: number;
+	readonly height?: number;
+	readonly frameRate?: number;
+	readonly sampleRate?: number;
+	readonly channelCount?: number;
+}
+
+export interface FramescaperCaptureDisplaySource {
+	/** Opaque, expiring desktop authority; never a native source identifier. */
+	readonly token: string;
+	readonly name: string;
+	readonly kind: 'screen' | 'window';
+}
+
+export interface FramescaperCaptureDisplaySelectionPort {
+	readonly mode: 'source-list' | 'system-picker';
+	listSources?(): PromiseLike<readonly Readonly<FramescaperCaptureDisplaySource>[]>
+		| readonly Readonly<FramescaperCaptureDisplaySource>[];
+	authorize(request: Readonly<{
+		readonly generation: number;
+		readonly roles: readonly CaptureSourceRole[];
+		readonly sourceToken: string | null;
+	}>): PromiseLike<void> | void;
+}
+
 export interface FramescaperCaptureSessionServiceOptions<Stream = unknown, Track = unknown> {
 	readonly enabled: boolean;
 	readonly embedded: boolean;
 	readonly sourcePort: CaptureSourcePortV1<Stream, Track>;
+	readonly displaySelection?: FramescaperCaptureDisplaySelectionPort;
 	readonly durable: FramescaperCaptureDurablePort;
 	readonly originGuard: FramescaperCaptureOriginGuard;
 	readonly completeRuntimeProbe?: (
@@ -120,6 +164,13 @@ export interface FramescaperCaptureSessionServiceOptions<Stream = unknown, Track
 	createRecorder(
 		request: FramescaperCaptureRecorderRequest<Stream, Track>,
 	): PromiseLike<FramescaperCaptureRecorder> | FramescaperCaptureRecorder;
+	readonly createPreviewSurface?: (
+		source: Readonly<CapturePreviewSource<Stream, Track>>,
+	) => PromiseLike<FramescaperCapturePreviewSurface> | FramescaperCapturePreviewSurface;
+	readonly createLevelMonitor?: (
+		source: Readonly<CapturePreviewSource<Stream, Track>>,
+		onLevel: () => void,
+	) => PromiseLike<FramescaperCaptureLevelMonitor> | FramescaperCaptureLevelMonitor;
 	finalize(request: FramescaperCaptureFinalizeRequest): PromiseLike<void> | void;
 	readonly createId?: (prefix: string) => string;
 	readonly now?: () => number;
@@ -130,6 +181,10 @@ export interface FramescaperCaptureSessionServiceOptions<Stream = unknown, Track
 export interface FramescaperCaptureSessionActions {
 	openSetup(): void;
 	requestPreview(roles: readonly CaptureSourceRole[]): Promise<void>;
+	listDisplaySources(): Promise<void>;
+	selectDisplaySource(sourceToken: string): void;
+	selectDevice(role: 'camera' | 'microphone', deviceId: string): Promise<void>;
+	configureSource(sourceId: string, settings: Readonly<FramescaperCaptureSourceSettings>): Promise<void>;
 	release(): Promise<void>;
 	configure(changes: Readonly<Record<string, unknown>>): void;
 	arm(options: Readonly<FramescaperCaptureArmOptions>): void;
@@ -148,7 +203,15 @@ export interface FramescaperCaptureSessionSnapshot extends Omit<FramescaperCaptu
 		readonly label?: string;
 		readonly settings?: Readonly<Record<string, unknown>>;
 		readonly capabilities?: Readonly<Record<string, unknown>>;
+		readonly previewUrl?: string | null;
+		readonly previewStream?: unknown;
+		readonly level?: number | null;
 	}>[];
+	readonly devices: readonly Readonly<CaptureSourceDeviceDescriptor>[];
+	readonly selectedDeviceIds: Readonly<Partial<Record<'camera' | 'microphone', string>>>;
+	readonly displaySelectionMode: 'source-list' | 'system-picker' | null;
+	readonly displaySources: readonly Readonly<FramescaperCaptureDisplaySource>[];
+	readonly selectedDisplaySourceToken: string | null;
 	readonly monitoring: boolean;
 	readonly inputGain: number;
 	readonly elapsedTimeMs: number;

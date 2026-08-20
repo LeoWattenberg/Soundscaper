@@ -48,6 +48,17 @@
 	gap: 8px 14px;
 }
 
+#kw-audio-editor-design-system .kw-framescaper-capture__display-source {
+	display: grid;
+	grid-template-columns: minmax(180px, 1fr) auto;
+	align-items: end;
+	gap: 8px;
+}
+
+#kw-audio-editor-design-system .kw-framescaper-capture__display-source .kw-framescaper-capture__hint {
+	grid-column: 1 / -1;
+}
+
 #kw-audio-editor-design-system .kw-framescaper-capture__source-choices label,
 #kw-audio-editor-design-system .kw-framescaper-capture__setup-options fieldset label,
 #kw-audio-editor-design-system .kw-framescaper-capture__check {
@@ -86,7 +97,9 @@
 
 #kw-audio-editor-design-system .kw-framescaper-capture__preview header,
 #kw-audio-editor-design-system .kw-framescaper-capture__preview p,
-#kw-audio-editor-design-system .kw-framescaper-capture__meter {
+#kw-audio-editor-design-system .kw-framescaper-capture__meter,
+#kw-audio-editor-design-system .kw-framescaper-capture__device,
+#kw-audio-editor-design-system .kw-framescaper-capture__format-controls {
 	margin-inline: 9px;
 }
 
@@ -111,6 +124,21 @@
 	aspect-ratio: 16 / 9;
 	background: color-mix(in srgb, var(--kw-editor-bg) 85%, black);
 	object-fit: contain;
+}
+
+#kw-audio-editor-design-system .kw-framescaper-capture__preview-placeholder {
+	display: grid;
+	place-items: center;
+	padding: 8px;
+	color: var(--kw-editor-text);
+	font-size: 10px;
+	text-align: center;
+}
+
+#kw-audio-editor-design-system .kw-framescaper-capture__format-controls {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+	gap: 7px;
 }
 
 #kw-audio-editor-design-system .kw-framescaper-capture__meter {
@@ -150,6 +178,7 @@
 
 #kw-audio-editor-design-system .kw-framescaper-capture__select select {
 	grid-column: 1 / -1;
+	width: 100%;
 	min-height: 30px;
 }
 
@@ -195,6 +224,10 @@
 
 @media (max-width: 760px) {
 	#kw-audio-editor-design-system .kw-framescaper-capture__setup-options {
+		grid-template-columns: 1fr;
+	}
+
+	#kw-audio-editor-design-system .kw-framescaper-capture__display-source {
 		grid-template-columns: 1fr;
 	}
 

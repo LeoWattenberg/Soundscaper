@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Button } from '@dilsonspickles/components';
 
 import type {
@@ -14,11 +14,15 @@ import {
 	capturePhaseIsSourceLocked,
 	workspacePanelAvailable,
 	type FramescaperCaptureUiSnapshot,
-	type FramescaperCaptureUiSource,
 } from '../framescaper-capture-ui-model.ts';
+import { FramescaperCaptureSources } from './FramescaperCaptureSources.tsx';
 
 interface CaptureActions {
 	requestPreview?(roles: readonly CaptureSourceRole[]): unknown;
+	listDisplaySources?(): unknown;
+	selectDisplaySource?(sourceToken: string): unknown;
+	selectDevice?(role: 'camera' | 'microphone', deviceId: string): unknown;
+	configureSource?(sourceId: string, settings: Readonly<Record<string, number>>): unknown;
 	release?(): unknown;
 	configure?(changes: Readonly<Record<string, unknown>>): unknown;
 	arm?(options: Readonly<{ destination: CaptureDestination; countdownMs: number }>): unknown;
@@ -63,6 +67,8 @@ export default function RecordingSetupPanel({
 	const productId = snapshot.productId ?? 'framescaper';
 	const capture = snapshot.capture;
 	const actions = controller.actions.capture;
+	const panelRef = useRef<HTMLElement>(null);
+	useCapturePanelFocusRestoration(panelRef);
 	const [selectedRoles, setSelectedRoles] = useState<readonly CaptureSourceRole[]>(() => (
 		capture?.requestedRoles.length ? capture.requestedRoles : defaultSourceRoles(capture)
 	));
@@ -114,6 +120,7 @@ export default function RecordingSetupPanel({
 	const statusText = captureStatusText(capture, copy);
 
 	return <section
+		ref={panelRef}
 		className="kw-framescaper-capture"
 		data-framescaper-recording-setup
 		data-capture-phase={phase}
@@ -130,35 +137,19 @@ export default function RecordingSetupPanel({
 			{capture?.failure?.message ? <span>{capture.failure.message}</span> : null}
 		</div>
 
-		{availability.status === 'available' && <>
-			<fieldset className="kw-framescaper-capture__sources">
-				<legend>{copy.captureSources}</legend>
-				<div className="kw-framescaper-capture__source-choices">
-					{SELECTABLE_SOURCE_ROLES.map((role) => <label key={role}>
-						<input
-							type="checkbox"
-							checked={selectedRoles.includes(role)}
-							disabled={sourceLocked || !availability.sourceRoles.includes(role)}
-							onChange={(event) => toggleRole(role, event.currentTarget.checked)}
-						/>
-						<span>{sourceRoleLabel(copy, role)}</span>
-					</label>)}
-					{capture?.sources.some(({ role }) => role === 'system-audio') && <label>
-						<input type="checkbox" checked disabled />
-						<span>{copy.captureSystemAudio}</span>
-					</label>}
-				</div>
-				{sourceLocked && <p className="kw-framescaper-capture__hint">{copy.captureSourceLocked}</p>}
-				{!selectedRoles.length && <p className="kw-framescaper-capture__hint" role="alert">{copy.captureNoSources}</p>}
-			</fieldset>
-
-			{Boolean(capture?.sources.length) && <div className="kw-framescaper-capture__previews">
-				{capture?.sources.map((source) => <CaptureSourcePreview
-					key={source.sourceId}
-					source={source}
-					copy={copy}
-				/>)}
-			</div>}
+		{availability.status === 'available' && capture && <>
+			<FramescaperCaptureSources
+				capture={capture} selectedRoles={selectedRoles} sourceLocked={sourceLocked}
+				copy={copy} locale={locale}
+				canListDisplaySources={Boolean(actions?.listDisplaySources)}
+				canSelectDevice={Boolean(actions?.selectDevice)}
+				canConfigureSource={Boolean(actions?.configureSource)}
+				onToggleRole={toggleRole}
+				onListDisplaySources={() => invoke(actions?.listDisplaySources)}
+				onSelectDisplaySource={(sourceToken) => invoke(() => actions?.selectDisplaySource?.(sourceToken))}
+				onSelectDevice={(role, deviceId) => invoke(() => actions?.selectDevice?.(role, deviceId))}
+				onConfigureSource={(sourceId, settings) => invoke(() => actions?.configureSource?.(sourceId, settings))}
+			/>
 
 			{['previewing', 'armed'].includes(phase) && <CaptureSetupOptions
 				copy={copy}
@@ -183,39 +174,13 @@ export default function RecordingSetupPanel({
 				selectedRoles={selectedRoles}
 				destination={destination}
 				countdownMs={countdownMs}
+				capture={capture}
 				invoke={invoke}
 			/>}
 
 		{capture && ['recording', 'paused', 'finalizing', 'recovery'].includes(phase)
 			&& <CaptureSessionStatus capture={capture} copy={copy} locale={locale} />}
 	</section>;
-}
-
-function CaptureSourcePreview({
-	source,
-	copy,
-}: Readonly<{
-	source: FramescaperCaptureUiSource;
-	copy: Readonly<Record<string, string | undefined>>;
-}>) {
-	const title = source.label || sourceRoleLabel(copy, source.role);
-	const settings = sourceSettingsText(source);
-	const level = Math.max(0, Math.min(1, source.level ?? 0));
-	return <article className="kw-framescaper-capture__preview" data-capture-source-role={source.role}>
-		<header><strong>{title}</strong><span>{sourceRoleLabel(copy, source.role)}</span></header>
-		{source.previewUrl && ['camera', 'display'].includes(source.role)
-			? <video src={source.previewUrl} autoPlay muted playsInline aria-label={title} />
-			: <div className="kw-framescaper-capture__preview-placeholder" aria-hidden="true" />}
-		{settings && <p><span>{copy.captureSourceFormat}</span>: {settings}</p>}
-		{['microphone', 'system-audio'].includes(source.role) && <div
-			className="kw-framescaper-capture__meter"
-			role="meter"
-			aria-label={`${title}: ${copy.captureInputGain}`}
-			aria-valuemin={0}
-			aria-valuemax={1}
-			aria-valuenow={level}
-		><span style={{ width: `${String(level * 100)}%` }} /></div>}
-	</article>;
 }
 
 function CaptureSetupOptions({
@@ -283,6 +248,7 @@ function CapturePanelActions({
 	selectedRoles,
 	destination,
 	countdownMs,
+	capture,
 	invoke,
 }: Readonly<{
 	phase: CapturePhase;
@@ -291,14 +257,24 @@ function CapturePanelActions({
 	selectedRoles: readonly CaptureSourceRole[];
 	destination: CaptureDestination;
 	countdownMs: number;
+	capture: FramescaperCaptureUiSnapshot | undefined;
 	invoke(operation: (() => unknown) | undefined): void;
 }>) {
+	const previewNeedsUpdate = phase === 'previewing'
+		&& !sameSourceRoles(selectedRoles, capture?.requestedRoles ?? []);
+	const displaySelectionRequired = selectedRoles.includes('display')
+		&& capture?.displaySelectionMode === 'source-list'
+		&& !capture.selectedDisplaySourceToken
+		&& (phase === 'inactive' || previewNeedsUpdate);
 	return <div className="kw-framescaper-capture__actions">
-		{phase === 'inactive' && <Button variant="primary" disabled={!selectedRoles.length || !actions?.requestPreview}
+		{phase === 'inactive' && <Button variant="primary" disabled={!selectedRoles.length || displaySelectionRequired || !actions?.requestPreview}
 			onClick={() => invoke(() => actions?.requestPreview?.(selectedRoles))}>{copy.capturePreviewSources}</Button>}
 		{phase === 'permission-pending' && <Button variant="primary" disabled>{copy.capturePreviewSources}</Button>}
 		{phase === 'previewing' && <>
-			<Button variant="primary" disabled={!actions?.arm}
+			{previewNeedsUpdate && <Button variant="primary"
+				disabled={!selectedRoles.length || displaySelectionRequired || !actions?.requestPreview}
+				onClick={() => invoke(() => actions?.requestPreview?.(selectedRoles))}>{copy.captureUpdatePreview}</Button>}
+			<Button variant="primary" disabled={previewNeedsUpdate || !actions?.arm}
 				onClick={() => invoke(() => actions?.arm?.({ destination, countdownMs }))}>{copy.captureArm}</Button>
 			<Button variant="secondary" disabled={!actions?.release}
 				onClick={() => invoke(actions?.release)}>{copy.captureReleaseSources}</Button>
@@ -422,16 +398,6 @@ function confidenceLabel(
 	}[confidence];
 }
 
-function sourceSettingsText(source: FramescaperCaptureUiSource): string {
-	const settings = source.settings;
-	if (!settings) return '';
-	if (settings.width && settings.height) return `${String(settings.width)} × ${String(settings.height)}`;
-	if (settings.sampleRate) {
-		return `${String(settings.sampleRate)} Hz${settings.channelCount ? ` · ${String(settings.channelCount)}` : ''}`;
-	}
-	return '';
-}
-
 function defaultSourceRoles(
 	capture: FramescaperCaptureUiSnapshot | undefined,
 ): readonly CaptureSourceRole[] {
@@ -441,4 +407,42 @@ function defaultSourceRoles(
 		&& capture.availability.sourceRoles.includes(role));
 	if (selected.length) return Object.freeze(selected);
 	return Object.freeze(capture.availability.sourceRoles.filter((role) => role !== 'system-audio'));
+}
+
+function sameSourceRoles(
+	left: readonly CaptureSourceRole[],
+	right: readonly CaptureSourceRole[],
+): boolean {
+	return left.length === right.length && left.every((role) => right.includes(role));
+}
+
+function useCapturePanelFocusRestoration(panelRef: RefObject<HTMLElement | null>): void {
+	const originRef = useRef<HTMLElement | null>(null);
+	useEffect(() => {
+		if (typeof document === 'undefined') return undefined;
+		const panel = panelRef.current;
+		const active = document.activeElement;
+		if (active instanceof HTMLElement && !panel?.contains(active)) originRef.current = active;
+		let panelFocused = false;
+		const focusIn = (): void => { panelFocused = true; };
+		const focusOut = (event: FocusEvent): void => {
+			if (!(event.relatedTarget instanceof Node) || !panel?.contains(event.relatedTarget)) panelFocused = false;
+		};
+		panel?.addEventListener('focusin', focusIn);
+		panel?.addEventListener('focusout', focusOut);
+		return () => {
+			panel?.removeEventListener('focusin', focusIn);
+			panel?.removeEventListener('focusout', focusOut);
+			if (!panelFocused || typeof requestAnimationFrame !== 'function') return;
+			let attempts = 3;
+			const restore = (): void => {
+				const origin = originRef.current?.isConnected ? originRef.current : null;
+				const fallback = document.querySelector('[data-transport="framescaper-record"] button');
+				const target = origin ?? (fallback instanceof HTMLElement ? fallback : null);
+				if (target) target.focus();
+				else if (--attempts > 0) requestAnimationFrame(restore);
+			};
+			requestAnimationFrame(restore);
+		};
+	}, [panelRef]);
 }

@@ -10,6 +10,7 @@ import { filterProductMenus } from '../src/common/editor/ui/application-menu-pro
 import type { CapturePhase } from '../src/common/editor/framescaper-capture-domain.ts';
 import FramescaperCaptureRecordControl from '../src/common/editor/ui/toolbar/FramescaperCaptureRecordControl.tsx';
 import RecordingSetupPanel from '../src/common/editor/ui/workspace/RecordingSetupPanel.tsx';
+import { assignCapturePreviewStream } from '../src/common/editor/ui/workspace/FramescaperCaptureSources.tsx';
 import {
 	FRAMESCAPER_CAPTURE_PANEL_ID,
 	capturePrimaryAction,
@@ -137,6 +138,94 @@ test('recording setup presents explicit sources, destinations, capture controls 
 	for (const label of ['Recover capture', 'Import playable data as-is', 'Delete capture']) {
 		assert.match(recovery, new RegExp(`>${label}<`, 'u'));
 	}
+});
+
+test('recording setup exposes only permission-returned devices and supported source settings', () => {
+	const markup = render(<RecordingSetupPanel
+		controller={controller([])}
+		snapshot={{ productId: 'framescaper', capture: {
+			...capture('previewing'),
+			requestedRoles: ['camera', 'microphone'],
+			devices: [
+				{ id: 'camera-a', kind: 'camera', label: 'Front camera' },
+				{ id: 'camera-b', kind: 'camera', label: 'Document camera' },
+				{ id: 'microphone-a', kind: 'microphone', label: 'Desk microphone' },
+			],
+			selectedDeviceIds: { camera: 'camera-a', microphone: 'microphone-a' },
+			sources: [
+				{
+					sourceId: 'camera-track', role: 'camera', label: 'Front camera',
+					previewUrl: 'blob:camera-preview',
+					settings: { deviceId: 'camera-a', width: 1280, height: 720, frameRate: 30 },
+					capabilities: {
+						width: { min: 640, max: 1920 }, height: { min: 480, max: 1080 },
+						frameRate: { min: 24, max: 60 },
+					},
+				},
+				{
+					sourceId: 'microphone-track', role: 'microphone', label: 'Desk microphone', level: 0.375,
+					settings: { deviceId: 'microphone-a', sampleRate: 48000, channelCount: 1 },
+					capabilities: {
+						sampleRate: { min: 44100, max: 96000 }, channelCount: { min: 1, max: 2 },
+					},
+				},
+			],
+		} }}
+		copy={ENGLISH_COPY}
+		locale="en"
+		run={(operation) => operation()}
+	/>);
+
+	assert.match(markup, /<select[^>]*aria-label="Camera device"/u);
+	assert.match(markup, /Document camera/u);
+	assert.match(markup, /<select[^>]*aria-label="Microphone device"/u);
+	assert.match(markup, /src="blob:camera-preview"/u);
+	assert.match(markup, />Resolution</u);
+	assert.match(markup, />Frame rate</u);
+	assert.match(markup, />Sample rate</u);
+	assert.match(markup, />Channels</u);
+	assert.match(markup, /aria-valuetext="38%"/u);
+	assert.doesNotMatch(markup, /System or tab audio device/u);
+});
+
+test('desktop screen inventory requires an explicit pathless source choice', () => {
+	const calls: string[] = [];
+	const markup = render(<RecordingSetupPanel
+		controller={controller(calls)}
+		snapshot={{ productId: 'framescaper', capture: {
+			...capture('inactive'),
+			availability: { status: 'available', sourceRoles: ['display'] },
+			displaySelectionMode: 'source-list',
+			displaySources: [
+				{ token: 'opaque-screen', name: 'Main screen', kind: 'screen' },
+				{ token: 'opaque-window', name: 'Slides', kind: 'window' },
+			],
+			selectedDisplaySourceToken: null,
+		} }}
+		copy={ENGLISH_COPY} locale="en" run={(operation) => operation()}
+	/>);
+
+	assert.deepEqual(calls, []);
+	assert.match(markup, /aria-label="Screen or window source"/u);
+	assert.match(markup, /Select a screen or window/u);
+	assert.match(markup, /Main screen · Screen/u);
+	assert.match(markup, /Slides · Window/u);
+	assert.match(markup, /Choose a screen or window/u);
+	assert.match(markup, /<button[^>]*disabled=""[^>]*>.*Preview sources.*<\/button>/u);
+});
+
+test('live preview stream cleanup never clears a replacement stream', () => {
+	const element: { srcObject: unknown } = { srcObject: null };
+	const first = { id: 'first' };
+	const second = { id: 'second' };
+	const cleanupFirst = assignCapturePreviewStream(element as Pick<HTMLVideoElement, 'srcObject'>, first);
+	assert.equal(element.srcObject, first);
+	element.srcObject = second;
+	cleanupFirst();
+	assert.equal(element.srcObject, second);
+	const cleanupSecond = assignCapturePreviewStream(element as Pick<HTMLVideoElement, 'srcObject'>, second);
+	cleanupSecond();
+	assert.equal(element.srcObject, null);
 });
 
 test('Framescaper record split control exposes phase-correct accessible actions', () => {
