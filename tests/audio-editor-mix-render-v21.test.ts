@@ -20,6 +20,7 @@ import {
 } from '../src/common/editor/project-v10.ts';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { validateSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21-validation.ts';
 
 const NOW = '2026-08-14T12:00:00.000Z';
 
@@ -70,6 +71,18 @@ test('single-track V21 mix uses a closed direct graph and removes baked strip au
 	assert.equal(Object.hasOwn(trackUpdate.changes, 'envelope'), false);
 });
 
+test('V21 mix snapshots reconcile owned requirements after pruning master-only automation', () => {
+	for (const project of [singleTrackMasterAutomationFixture(), fixture(false)]) {
+		const targets = project.tracks.filter(({ type }) => type === 'audio') as unknown as readonly ControllerTrack[];
+		const snapshot = createMixRenderSnapshot(project as unknown as ControllerProject, targets);
+		assert.deepEqual(
+			(snapshot as unknown as { automationLanes: readonly unknown[] }).automationLanes,
+			[],
+		);
+		assert.equal(validateSoundscaperProjectV21(snapshot), true);
+	}
+});
+
 test('a V21 mix snapshot of a foldered project is one the engine will load', async () => {
 	// The snapshot narrows tracks to the mix targets while keeping the authored
 	// folders and sequence nodes, so it has to carry the folder projection: the
@@ -113,7 +126,7 @@ function folderedFixture() {
 	});
 }
 
-function fixture() {
+function fixture(includeTrackAutomation = true) {
 	const voiceSource = source('voice-source');
 	const musicSource = source('music-source');
 	const voiceClip = clip('voice-clip', 'voice-source');
@@ -145,8 +158,7 @@ function fixture() {
 			],
 		},
 		automationLanes: [
-			lane('voice-gain', 'voice'),
-			lane('music-gain', 'music'),
+			...(includeTrackAutomation ? [lane('voice-gain', 'voice'), lane('music-gain', 'music')] : []),
 			{
 				id: 'master-frequency',
 				address: {
@@ -165,6 +177,31 @@ function fixture() {
 				segments: [],
 			},
 		],
+	});
+}
+
+function singleTrackMasterAutomationFixture() {
+	return createSoundscaperProjectV21({
+		id: 'mix-v21-single', title: 'Single V21 mix', now: NOW,
+		sources: [source('voice-source')],
+		clips: [clip('voice-clip', 'voice-source')],
+		tracks: [createAudioTrackV10({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] })],
+		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
+		primarySequenceId: 'main-sequence',
+		master: {
+			effectsActive: true,
+			effects: [{ id: 'master-filter', type: 'highpass', enabled: true, params: { frequency: 200 } }],
+		},
+		automationLanes: [{
+			id: 'master-frequency',
+			address: {
+				kind: 'effect', strip: { kind: 'master' },
+				effectId: 'master-filter', parameterId: 'frequency',
+			},
+			timebase: 'absolute-samples',
+			points: [{ id: 'master-frequency-start', position: 0, value: 200 }],
+			segments: [],
+		}],
 	});
 }
 

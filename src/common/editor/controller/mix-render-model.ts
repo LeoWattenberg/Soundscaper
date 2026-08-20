@@ -11,6 +11,8 @@ import {
 	normalizeMixerGraphV21,
 	type MixerGraphV21,
 } from '../mixer-graph-v21.ts';
+import type { ProjectFeatureRequirementsManifest } from '../project-feature-requirements.ts';
+import { reconcileProjectOwnedFeatureRequirements } from '../project-owned-feature-requirements.ts';
 import { isSoundscaperProductionProjectSchema } from '../project-schema-version.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import {
@@ -310,6 +312,7 @@ function isActiveAutoDuckEffect(effect: ControllerEffect): boolean {
 }
 
 interface MutableMixRenderProjectV21 extends MutableControllerProject {
+	featureRequirements: ProjectFeatureRequirementsManifest;
 	mixer: MutableControllerProject['mixer'] & MixerGraphV21;
 	automationLanes: unknown[];
 	masterChannels: number;
@@ -354,7 +357,7 @@ function createMixRenderSnapshotV21(
 		snapshot.automationLanes = snapshot.automationLanes.filter((lane) => (
 			laneTargetsTrack(lane, targetTracks[0]!.id)
 		));
-		return snapshot;
+		return reconcileMixRenderRequirementsV21(snapshot);
 	}
 	const edges = graph.edges.filter((edge) => {
 		if (edge.source.kind === 'track' && !targetIds.has(edge.source.id)) return false;
@@ -381,6 +384,16 @@ function createMixRenderSnapshotV21(
 	snapshot.automationLanes = snapshot.automationLanes.filter((lane) => (
 		laneSurvivesMixSnapshot(lane, targetIds, nodeIds, edgeIds)
 	));
+	return reconcileMixRenderRequirementsV21(snapshot);
+}
+
+function reconcileMixRenderRequirementsV21(
+	snapshot: MutableMixRenderProjectV21,
+): MutableMixRenderProjectV21 {
+	snapshot.featureRequirements = reconcileProjectOwnedFeatureRequirements(
+		snapshot,
+		snapshot.featureRequirements,
+	);
 	return snapshot;
 }
 
