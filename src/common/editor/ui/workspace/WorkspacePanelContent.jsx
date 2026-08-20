@@ -72,6 +72,7 @@ export default function WorkspacePanelContent({
 					copy={copy}
 					locale={locale}
 					run={run}
+					blocked={blocked}
 				/>
 			</React.Suspense>
 		);

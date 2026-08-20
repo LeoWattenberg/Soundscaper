@@ -140,6 +140,33 @@ test('recording setup presents explicit sources, destinations, capture controls 
 	}
 });
 
+test('recording setup cannot arm or start without a writable destination project', () => {
+	const readOnly = render(<RecordingSetupPanel
+		controller={controller([])}
+		snapshot={{
+			productId: 'framescaper', readOnly: true, project: { id: 'project-a' },
+			capture: { ...capture('previewing'), requestedRoles: ['camera', 'microphone'] },
+		}}
+		copy={ENGLISH_COPY} locale="en" run={(operation) => operation()}
+	/>);
+	assert.match(readOnly, /<button[^>]*disabled=""[^>]*><span[^>]*>Arm capture<\/span><\/button>/u);
+
+	const noProject = render(<RecordingSetupPanel
+		controller={controller([])}
+		snapshot={{ productId: 'framescaper', capture: capture('armed') }}
+		copy={ENGLISH_COPY} locale="en" run={(operation) => operation()}
+	/>);
+	assert.match(noProject, /<button[^>]*disabled=""[^>]*><span[^>]*>Start capture<\/span><\/button>/u);
+
+	const active = render(<RecordingSetupPanel
+		controller={controller([])}
+		blocked
+		snapshot={{ productId: 'framescaper', readOnly: true, capture: capture('recording') }}
+		copy={ENGLISH_COPY} locale="en" run={(operation) => operation()}
+	/>);
+	assert.doesNotMatch(active, /<button[^>]*disabled=""[^>]*><span[^>]*>Stop and import<\/span><\/button>/u);
+});
+
 test('recording setup exposes only permission-returned devices and supported source settings', () => {
 	const markup = render(<RecordingSetupPanel
 		controller={controller([])}

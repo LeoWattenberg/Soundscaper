@@ -40,8 +40,11 @@ interface RecordingSetupPanelProps {
 	readonly controller: Readonly<{ actions: Readonly<{ capture?: CaptureActions }> }>;
 	readonly snapshot: Readonly<{
 		readonly productId?: string;
+		readonly project?: unknown;
+		readonly readOnly?: boolean;
 		readonly capture?: FramescaperCaptureUiSnapshot;
 	}>;
+	readonly blocked?: boolean;
 	readonly copy: Readonly<Record<string, string | undefined>>;
 	readonly locale: string;
 	run(action: () => unknown): unknown;
@@ -63,6 +66,7 @@ export default function RecordingSetupPanel({
 	copy,
 	locale,
 	run,
+	blocked,
 }: RecordingSetupPanelProps) {
 	const productId = snapshot.productId ?? 'framescaper';
 	const capture = snapshot.capture;
@@ -118,6 +122,7 @@ export default function RecordingSetupPanel({
 			: Object.freeze(current.filter((candidate) => candidate !== role)));
 	};
 	const statusText = captureStatusText(capture, copy);
+	const recordingBlocked = Boolean(blocked || snapshot.readOnly || !snapshot.project);
 
 	return <section
 		ref={panelRef}
@@ -175,6 +180,7 @@ export default function RecordingSetupPanel({
 				destination={destination}
 				countdownMs={countdownMs}
 				capture={capture}
+				recordingBlocked={recordingBlocked}
 				invoke={invoke}
 			/>}
 
@@ -249,6 +255,7 @@ function CapturePanelActions({
 	destination,
 	countdownMs,
 	capture,
+	recordingBlocked,
 	invoke,
 }: Readonly<{
 	phase: CapturePhase;
@@ -258,6 +265,7 @@ function CapturePanelActions({
 	destination: CaptureDestination;
 	countdownMs: number;
 	capture: FramescaperCaptureUiSnapshot | undefined;
+	recordingBlocked: boolean;
 	invoke(operation: (() => unknown) | undefined): void;
 }>) {
 	const previewNeedsUpdate = phase === 'previewing'
@@ -274,13 +282,13 @@ function CapturePanelActions({
 			{previewNeedsUpdate && <Button variant="primary"
 				disabled={!selectedRoles.length || displaySelectionRequired || !actions?.requestPreview}
 				onClick={() => invoke(() => actions?.requestPreview?.(selectedRoles))}>{copy.captureUpdatePreview}</Button>}
-			<Button variant="primary" disabled={previewNeedsUpdate || !actions?.arm}
+			<Button variant="primary" disabled={recordingBlocked || previewNeedsUpdate || !actions?.arm}
 				onClick={() => invoke(() => actions?.arm?.({ destination, countdownMs }))}>{copy.captureArm}</Button>
 			<Button variant="secondary" disabled={!actions?.release}
 				onClick={() => invoke(actions?.release)}>{copy.captureReleaseSources}</Button>
 		</>}
 		{phase === 'armed' && <>
-			<Button variant="primary" disabled={!actions?.start}
+			<Button variant="primary" disabled={recordingBlocked || !actions?.start}
 				onClick={() => invoke(actions?.start)}>{copy.captureStart}</Button>
 			<Button variant="secondary" disabled={!actions?.release}
 				onClick={() => invoke(actions?.release)}>{copy.captureReleaseSources}</Button>
