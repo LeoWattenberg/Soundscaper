@@ -7,11 +7,13 @@ import {
 	compileAutomationLaneEventsV21,
 	scheduleAutomationLaneV21,
 } from '../src/common/editor/engine/automation-lane-scheduler-v21.ts';
+import { scheduleProjectAutomationLanesV21 } from '../src/common/editor/engine/project-automation-scheduler-v21.ts';
 import { canonicalParameterAddressKey, type ParameterAddress } from '../src/common/editor/parameter-address.ts';
 import {
 	ScheduledParameterRegistry,
 	type ScheduledParameterMessage,
 } from '../src/common/editor/engine/scheduled-parameter-registry.ts';
+import type { EngineProject } from '../src/common/editor/engine/types.ts';
 
 const ADDRESS: ParameterAddress = {
 	kind: 'effect',
@@ -97,6 +99,47 @@ test('registry scheduling applies the target latency once to exact message offse
 			{ kind: 'linear', frameOffset: 22, value: 1 },
 		],
 	}]);
+});
+
+test('project scheduling omits a lane only when its valid graph parameter is explicitly suspended', () => {
+	const registry = new ScheduledParameterRegistry();
+	registry.registerSuspendedParameter(descriptor());
+	const project = {
+		schemaVersion: 21,
+		automationLanes: [lane()],
+	} as EngineProject;
+
+	assert.deepEqual(scheduleProjectAutomationLanesV21(project, registry, {
+		fromFrame: 0,
+		toFrame: 20,
+		contextStartTime: 0,
+		sampleRate: 48_000,
+		contextSampleRate: 48_000,
+	}), []);
+
+	const unclassified = new ScheduledParameterRegistry();
+	assert.throws(() => scheduleProjectAutomationLanesV21(project, unclassified, {
+		fromFrame: 0,
+		toFrame: 20,
+		contextStartTime: 0,
+		sampleRate: 48_000,
+		contextSampleRate: 48_000,
+	}), /no active graph target/iu);
+
+	assert.throws(() => scheduleProjectAutomationLanesV21({
+		...project,
+		automationLanes: [{
+			...lane(),
+			points: [{ id: 'invalid', position: 0, value: 2 }],
+			segments: [],
+		}],
+	}, registry, {
+		fromFrame: 0,
+		toFrame: 20,
+		contextStartTime: 0,
+		sampleRate: 48_000,
+		contextSampleRate: 48_000,
+	}), /outside its target range/iu);
 });
 
 test('musical points and tempo changes compile to deterministic exact frame events', () => {

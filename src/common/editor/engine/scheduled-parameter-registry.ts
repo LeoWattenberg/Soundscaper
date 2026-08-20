@@ -187,6 +187,7 @@ class RegisteredScheduledParameterTarget implements ScheduledParameterTarget {
 
 export class ScheduledParameterRegistry {
 	#targets = new Map<string, RegisteredScheduledParameterTarget>();
+	#suspendedParameters = new Map<string, ParameterDescriptor>();
 
 	get size(): number {
 		return this.#targets.size;
@@ -243,12 +244,29 @@ export class ScheduledParameterRegistry {
 		return this.#register(descriptor, Object.freeze({ kind: 'message', receive }), options);
 	}
 
+	/** Classify a valid automatable parameter which this graph intentionally omits. */
+	registerSuspendedParameter(descriptorValue: ParameterDescriptor): void {
+		const descriptor = normalizeDescriptor(descriptorValue);
+		if (!descriptor.automatable) {
+			throw new RangeError(`Parameter ${descriptor.id} is not automatable.`);
+		}
+		const key = descriptor.id;
+		if (this.#targets.has(key) || this.#suspendedParameters.has(key)) {
+			throw new RangeError(`Parameter target ${key} is already registered.`);
+		}
+		this.#suspendedParameters.set(key, descriptor);
+	}
+
 	get(address: unknown): ScheduledParameterTarget | null {
 		return this.#targets.get(canonicalParameterAddressKey(address)) || null;
 	}
 
 	has(address: unknown): boolean {
 		return this.#targets.has(canonicalParameterAddressKey(address));
+	}
+
+	getSuspendedParameter(address: unknown): ParameterDescriptor | null {
+		return this.#suspendedParameters.get(canonicalParameterAddressKey(address)) || null;
 	}
 
 	entries(): readonly ScheduledParameterTarget[] {
@@ -261,6 +279,7 @@ export class ScheduledParameterRegistry {
 
 	clear(): void {
 		this.#targets.clear();
+		this.#suspendedParameters.clear();
 	}
 
 	owns(key: string, target: RegisteredScheduledParameterTarget): boolean {
@@ -277,7 +296,9 @@ export class ScheduledParameterRegistry {
 			throw new RangeError(`Parameter ${descriptor.id} is not automatable.`);
 		}
 		const key = canonicalParameterAddressKey(descriptor.address);
-		if (this.#targets.has(key)) throw new RangeError(`Parameter target ${key} is already registered.`);
+		if (this.#targets.has(key) || this.#suspendedParameters.has(key)) {
+			throw new RangeError(`Parameter target ${key} is already registered.`);
+		}
 		const latencyFrames = options.latencyFrames === undefined
 			? descriptor.latencyFrames
 			: nonNegativeSafeInteger(options.latencyFrames, 'target latencyFrames');

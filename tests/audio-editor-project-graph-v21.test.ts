@@ -8,6 +8,7 @@ import { ensureProjectWorklets } from '../src/common/editor/engine/effect-workle
 import { scheduleProjectClips } from '../src/common/editor/engine/clip-scheduler.ts';
 import { buildProjectGraph, projectGraphLatencyFrames } from '../src/common/editor/engine/project-graph.ts';
 import { createStripMeterAnalyserBankV21 } from '../src/common/editor/engine/strip-meter-analyser-bank-v21.ts';
+import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import type { EngineProject } from '../src/common/editor/engine/types.ts';
 
 type ParamCall = readonly ['set' | 'linear' | 'cancel', number, number?];
@@ -337,6 +338,96 @@ test('V21 schedules every automation lane once for a playback or render window w
 	}
 });
 
+test('V21 suspends pan automation when a wide or ADM-preserving graph intentionally has no panner', async () => {
+	for (const [name, options] of [
+		['wide', { channelCount: 6, metadata: {} }],
+		['ADM', { channelCount: 2, metadata: { adm: { mode: 'passthrough' } } }],
+	] as const) {
+		const context = new FakeContext();
+		const address = {
+			kind: 'strip' as const,
+			strip: { kind: 'track' as const, id: 'voice' },
+			parameterId: 'pan' as const,
+		};
+		const project = automationProjectV21(options.channelCount, options.metadata, {
+			id: `${name}-pan`, address,
+			timebase: 'absolute-samples',
+			points: [{ id: 'start', position: 0, value: -0.5 }],
+			segments: [],
+		});
+		const graph = buildProjectGraph(
+			context as unknown as BaseAudioContext,
+			context.destination as unknown as AudioNode,
+			project,
+			{ metering: false },
+		);
+		assert.equal(graph.parameterRegistry.get(address), null, name);
+		assert.ok(graph.parameterRegistry.getSuspendedParameter(address), name);
+		await assertSchedulesWithoutActiveTarget(context, project, graph);
+	}
+});
+
+test('V21 suspends automation for disabled, bypassed, and rack-disabled effects', async () => {
+	for (const [name, effectState, effectsActive] of [
+		['disabled', { enabled: false, bypassed: false }, true],
+		['bypassed', { enabled: true, bypassed: true }, true],
+		['rack-disabled', { enabled: true, bypassed: false }, false],
+	] as const) {
+		const context = new FakeContext();
+		const effectId = `${name}-filter`;
+		const address = {
+			kind: 'effect' as const,
+			strip: { kind: 'track' as const, id: 'voice' },
+			effectId,
+			parameterId: 'frequency',
+		};
+		const project = automationProjectV21(2, {}, {
+			id: `${name}-frequency`, address,
+			timebase: 'absolute-samples',
+			points: [{ id: 'start', position: 0, value: 1_000 }],
+			segments: [],
+		}, {
+			effectsActive,
+			effects: [{ id: effectId, type: 'highpass', ...effectState, params: { frequency: 1_000 } }],
+		});
+		const graph = buildProjectGraph(
+			context as unknown as BaseAudioContext,
+			context.destination as unknown as AudioNode,
+			project,
+			{ metering: false },
+		);
+		assert.equal(graph.parameterRegistry.get(address), null, name);
+		assert.ok(graph.parameterRegistry.getSuspendedParameter(address), name);
+		await assertSchedulesWithoutActiveTarget(context, project, graph);
+	}
+
+	const context = new FakeContext();
+	const missingAddress = {
+		kind: 'effect' as const,
+		strip: { kind: 'track' as const, id: 'voice' },
+		effectId: 'disabled-filter',
+		parameterId: 'missing',
+	};
+	const invalid = automationProjectV21(2, {}, {
+		id: 'missing-parameter', address: missingAddress,
+		timebase: 'absolute-samples',
+		points: [{ id: 'start', position: 0, value: 1 }], segments: [],
+	}, {
+		effects: [{
+			id: 'disabled-filter', type: 'highpass', enabled: false, bypassed: false,
+			params: { frequency: 1_000 },
+		}],
+	});
+	const graph = buildProjectGraph(
+		context as unknown as BaseAudioContext,
+		context.destination as unknown as AudioNode,
+		invalid,
+		{ metering: false },
+	);
+	assert.equal(graph.parameterRegistry.getSuspendedParameter(missingAddress), null);
+	await assert.rejects(assertSchedulesWithoutActiveTarget(context, invalid, graph), /no active graph target/iu);
+});
+
 function productionProjectV21(): EngineProject {
 	const strip = (id: string, effects: readonly Record<string, unknown>[] = []) => ({
 		id, name: id, color: '', gain: 1, pan: 0, mute: false, solo: false,
@@ -457,4 +548,48 @@ function trackSidechainProjectV21(): EngineProject {
 			],
 		},
 	} as EngineProject;
+}
+
+function automationProjectV21(
+	channelCount: number,
+	metadata: Readonly<Record<string, unknown>>,
+	lane: Readonly<Record<string, unknown>>,
+	rack: Readonly<Record<string, unknown>> = {},
+): EngineProject {
+	return {
+		schemaVersion: 21,
+		sampleRate: 48_000,
+		masterChannels: channelCount,
+		metadata,
+		tracks: [{
+			type: 'audio', id: 'voice', gain: 1, pan: 0, mute: false, solo: false,
+			effectsActive: true, effects: [], ...rack,
+		}],
+		master: { gain: 1, pan: 0, mute: false, solo: false, effectsActive: true, effects: [] },
+		mixer: createDefaultMixerGraphV21([{ id: 'voice', channelCount }], channelCount),
+		automationLanes: [lane],
+	} as EngineProject;
+}
+
+async function assertSchedulesWithoutActiveTarget(
+	context: FakeContext,
+	project: EngineProject,
+	graph: ReturnType<typeof buildProjectGraph>,
+): Promise<void> {
+	await scheduleProjectClips({
+		context: context as unknown as BaseAudioContext,
+		project,
+		sources: new Map(),
+		trackInputs: graph.trackInputs,
+		projectGainParams: graph.projectGainParams,
+		parameterRegistry: graph.parameterRegistry,
+		fromFrame: 0,
+		toFrame: 48_000,
+		contextStartTime: 0,
+		sampleRate: 48_000,
+		reversedBuffers: new WeakMap(),
+		sourceResolver: null,
+		activeSources: graph.sources,
+		allNodes: graph.nodes,
+	});
 }

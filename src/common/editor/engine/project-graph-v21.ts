@@ -3,12 +3,13 @@
 import { connectSurroundMonitoring } from '../surround-monitoring.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import { createAdmProgrammeRouter } from './adm-programme-routing.ts';
-import { stripParameterDescriptor } from '../effect-parameter-descriptors.ts';
+import { normalizeAutomationLaneV21, type AutomationLaneV21 } from '../automation-lane-v21.ts';
+import { effectParameterInventory, stripParameterDescriptor } from '../effect-parameter-descriptors.ts';
 import {
 	normalizeMixerGraphV21,
 	type MixerGraphV21,
 } from '../mixer-graph-v21.ts';
-import type { StripRef } from '../parameter-address.ts';
+import { canonicalParameterAddressKey, type StripRef } from '../parameter-address.ts';
 import { addNode, connect, setParam, type AudioNodeArray } from './audio-node-utils.ts';
 import { clamp, DEFAULT_SAMPLE_RATE, finite, positiveInteger } from './buffer-math.ts';
 import {
@@ -61,6 +62,7 @@ interface StripRuntimeV21 {
 	readonly mute: boolean;
 	readonly solo: boolean;
 	readonly effects: readonly EngineEffect[];
+	readonly suspendedEffects: readonly EngineEffect[];
 }
 
 interface StripTapsV21 {
@@ -106,6 +108,9 @@ export function buildProjectGraphV21(
 	const nodes: AudioNodeArray = [];
 	const sources = new Set<AudioScheduledSourceNode>();
 	const parameterRegistry = new ScheduledParameterRegistry();
+	const automationLanes = Array.isArray(project.automationLanes)
+		? project.automationLanes.map((lane) => normalizeAutomationLaneV21(lane))
+		: [];
 	const trackInputs = new Map<string, AudioNode>();
 	const trackGainParams = new Map<string, ScheduledGainParam>();
 	const groupGainParams = new Map<string, ScheduledGainParam>();
@@ -163,6 +168,13 @@ export function buildProjectGraphV21(
 	for (const strip of strips) {
 		const latencyFrames = plan.nodeOutputLatencyFrames.get(strip.key) ?? 0;
 		const explicitSidechains = sidechainInputs.get(strip.key);
+		registerSuspendedEffectParameters(
+			parameterRegistry,
+			strip.ref,
+			strip.suspendedEffects,
+			automationLanes,
+			sampleRate,
+		);
 		let output = applyEffectRack(context, strip.input, strip.effects, nodes, {
 			sidechainInputByEffectId: explicitSidechains,
 			scope: strip.scope,
@@ -197,6 +209,10 @@ export function buildProjectGraphV21(
 			registerStripParam(parameterRegistry, strip.ref, 'pan', panner.pan, latencyFrames);
 			connect(output, panner);
 			output = panner;
+		} else {
+			parameterRegistry.registerSuspendedParameter(stripParameterDescriptor({
+				kind: 'strip', strip: strip.ref, parameterId: 'pan',
+			}, latencyFrames));
 		}
 		const gate = addNode(nodes, context.createGain());
 		const audible = (!respectMuteSolo || !strip.mute) && soloActive(strip.key);
@@ -362,6 +378,7 @@ function createStripRuntimes(
 		mute: Boolean(track.mute),
 		solo: Boolean(track.solo),
 		effects: activeRackEffects(track),
+		suspendedEffects: suspendedRackEffects(track),
 	}));
 	for (const strip of [...graph.groups, ...graph.sends, ...graph.cues]) {
 		result.push({
@@ -376,6 +393,7 @@ function createStripRuntimes(
 			mute: strip.mute,
 			solo: strip.solo,
 			effects: activeRackEffects(strip as unknown as { effectsActive: boolean; effects: readonly EngineEffect[] }),
+			suspendedEffects: suspendedRackEffects(strip),
 		});
 	}
 	result.push({
@@ -390,8 +408,42 @@ function createStripRuntimes(
 		mute: includeMaster && Boolean(project.master?.mute),
 		solo: includeMaster && Boolean(project.master?.solo),
 		effects: includeMaster ? activeRackEffects(project.master) : [],
+		suspendedEffects: suspendedRackEffects(project.master, includeMaster),
 	});
 	return Object.freeze(result);
+}
+
+function suspendedRackEffects(
+	owner: Readonly<{ effectsActive?: boolean; effects?: readonly EngineEffect[] }> | null | undefined,
+	included = true,
+): readonly EngineEffect[] {
+	const effects = Array.isArray(owner?.effects) ? owner.effects : [];
+	if (!included || owner?.effectsActive === false) return effects;
+	return Object.freeze(effects.filter((effect) => effect?.enabled === false || effect?.bypassed === true));
+}
+
+function registerSuspendedEffectParameters(
+	registry: ScheduledParameterRegistry,
+	strip: StripRef,
+	effects: readonly EngineEffect[],
+	lanes: readonly AutomationLaneV21[],
+	sampleRate: number,
+): void {
+	for (const effect of effects) {
+		const laneKeys = new Set(lanes.flatMap((lane) => (
+			lane.address.kind === 'effect'
+				&& stripKey(lane.address.strip) === stripKey(strip)
+				&& lane.address.effectId === effect.id
+				? [canonicalParameterAddressKey(lane.address)]
+				: []
+		)));
+		if (!laneKeys.size) continue;
+		for (const descriptor of effectParameterInventory(strip, effect, { sampleRate }).descriptors) {
+			if (descriptor.automatable && laneKeys.has(descriptor.id)) {
+				registry.registerSuspendedParameter(descriptor);
+			}
+		}
+	}
 }
 
 function createSidechainInputs(
