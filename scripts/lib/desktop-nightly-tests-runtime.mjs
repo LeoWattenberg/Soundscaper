@@ -2,59 +2,30 @@
 
 import { spawn } from 'node:child_process';
 import { createReadStream } from 'node:fs';
-import {
-	mkdtemp,
-	open,
-	readdir,
-	realpath,
-	rename,
-	stat,
-	unlink,
-	writeFile,
-} from 'node:fs/promises';
+import { mkdtemp, open, readdir, realpath, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import {
-	extname,
-	isAbsolute,
-	join,
-	posix,
-	win32,
-} from 'node:path';
+import { extname, isAbsolute, join, posix, win32 } from 'node:path';
 
 import {
 	resolveDesktopNightlyTestsStaticRequestFile,
 	StaticRequestError,
 } from './desktop-nightly-tests-static-route.mjs';
+import { runDesktopNightlyTestsMetricsPhase } from './desktop-nightly-tests-metrics.mjs';
 
 const RESULT_KIND = 'soundscaper-desktop-nightly-tests';
 const PRODUCT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/u;
 const SOURCE_REVISION_PATTERN = /^[a-f\d]{40}$/u;
 const STATIC_HOST = '127.0.0.1';
 const MIME_TYPES = Object.freeze({
-	'.avif': 'image/avif',
-	'.css': 'text/css; charset=utf-8',
-	'.gif': 'image/gif',
-	'.html': 'text/html; charset=utf-8',
-	'.ico': 'image/x-icon',
-	'.jpeg': 'image/jpeg',
-	'.jpg': 'image/jpeg',
-	'.js': 'text/javascript; charset=utf-8',
-	'.json': 'application/json; charset=utf-8',
-	'.mjs': 'text/javascript; charset=utf-8',
-	'.mp3': 'audio/mpeg',
-	'.mp4': 'video/mp4',
-	'.png': 'image/png',
-	'.svg': 'image/svg+xml',
-	'.ttf': 'font/ttf',
-	'.txt': 'text/plain; charset=utf-8',
-	'.wasm': 'application/wasm',
-	'.wav': 'audio/wav',
-	'.webm': 'video/webm',
-	'.webmanifest': 'application/manifest+json; charset=utf-8',
-	'.webp': 'image/webp',
-	'.woff': 'font/woff',
-	'.woff2': 'font/woff2',
-	'.xml': 'application/xml; charset=utf-8',
+	'.avif': 'image/avif', '.css': 'text/css; charset=utf-8',
+	'.gif': 'image/gif', '.html': 'text/html; charset=utf-8', '.ico': 'image/x-icon',
+	'.jpeg': 'image/jpeg', '.jpg': 'image/jpeg', '.js': 'text/javascript; charset=utf-8',
+	'.json': 'application/json; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+	'.mp3': 'audio/mpeg', '.mp4': 'video/mp4', '.png': 'image/png', '.svg': 'image/svg+xml',
+	'.ttf': 'font/ttf', '.txt': 'text/plain; charset=utf-8', '.wasm': 'application/wasm',
+	'.wav': 'audio/wav', '.webm': 'video/webm',
+	'.webmanifest': 'application/manifest+json; charset=utf-8', '.webp': 'image/webp',
+	'.woff': 'font/woff', '.woff2': 'font/woff2', '.xml': 'application/xml; charset=utf-8',
 });
 
 export function resolveDesktopNightlyTestsOutputRoot({
@@ -240,7 +211,7 @@ export function createDesktopNightlyTestsResultEnvelope({
 	const finished = finishedAt === null ? null : dateIso(finishedAt, 'finishedAt');
 	validateResultState({ status, exitCode, signal, failure, finished });
 	return Object.freeze({
-		schemaVersion: 1,
+		schemaVersion: 2,
 		kind: RESULT_KIND,
 		product: productSnapshot,
 		runtime: Object.freeze({ platform, arch }),
@@ -257,6 +228,13 @@ export function createDesktopNightlyTestsResultEnvelope({
 			jsonReport: 'results.json',
 			junitReport: 'junit.xml',
 			testResults: 'test-results',
+			metricsConsoleLog: 'metrics/console.log',
+			metricsHtmlReport: 'metrics/playwright-report/index.html',
+			metricsJsonReport: 'metrics/results.json',
+			metricsJunitReport: 'metrics/junit.xml',
+			metricsRaw: 'metrics/raw.json',
+			metricsSummary: 'metrics/summary.json',
+			metricsTestResults: 'metrics/test-results',
 		}),
 	});
 }
@@ -301,17 +279,28 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 	try {
 		server = await startStaticServer({ root: join(options.payloadRoot, 'dist') });
 		const resolveEsbuildBinary = dependencies.resolveEsbuildBinary ?? resolveDesktopNightlyTestsEsbuildBinary;
+		const esbuildBinaryPath = await resolveEsbuildBinary({ payloadRoot: options.payloadRoot });
 		const plan = createDesktopNightlyTestsPlaywrightPlan({
 			executablePath: options.executablePath,
 			payloadRoot: options.payloadRoot,
 			runRoot,
 			baseURL: server.baseURL,
-			esbuildBinaryPath: await resolveEsbuildBinary({ payloadRoot: options.payloadRoot }),
+			esbuildBinaryPath,
 			environment,
 		});
 		const child = await runPlaywright(plan);
 		signal = child.signal ?? null;
 		outcome = mapDesktopNightlyTestsExit({ code: child.code, signal });
+		if (outcome.status === 'passed' || outcome.status === 'failed') {
+			const metrics = await runDesktopNightlyTestsMetricsPhase({
+				executablePath: options.executablePath, payloadRoot: options.payloadRoot, runRoot,
+				baseURL: server.baseURL, esbuildBinaryPath, environment,
+				sourceRevision: options.sourceRevision ?? null,
+			}, { runPlaywright, writeEvidence: dependencies.writeMetricsEvidence });
+			const metricsOutcome = mapDesktopNightlyTestsExit(metrics.child);
+			signal = metrics.child.signal ?? signal;
+			outcome = combineOutcomes(outcome, metricsOutcome, metrics.evidence.passed);
+		}
 	} catch (error) {
 		failure = message(error);
 	} finally {
@@ -584,6 +573,16 @@ function present(value) {
 
 function combineFailures(first, second) {
 	return first ? `${first}\n${second}` : second;
+}
+
+function combineOutcomes(functional, metrics, metricsPassed) {
+	if (functional.status === 'error' || metrics.status === 'error') return Object.freeze({ status: 'error', exitCode: 2 });
+	if (metrics.status === 'interrupted') return metrics;
+	if (functional.status === 'interrupted') return functional;
+	if (functional.status === 'failed' || metrics.status === 'failed' || !metricsPassed) {
+		return Object.freeze({ status: 'failed', exitCode: 1 });
+	}
+	return Object.freeze({ status: 'passed', exitCode: 0 });
 }
 
 function message(error) {

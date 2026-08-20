@@ -84,6 +84,40 @@ test('bundled Playwright config uses only absolute launcher-provided paths', asy
 	}
 });
 
+test('bundled metrics config isolates registered collectors from the functional suite', async () => {
+	const originalEnvironment = Object.fromEntries(
+		environmentKeys.map((key) => [key, process.env[key]]),
+	);
+	const payloadRoot = resolve('/tmp/soundscaper-nightly-metrics-payload');
+	const runRoot = resolve('/tmp/soundscaper-nightly-metrics-run');
+	try {
+		process.env.SOUNDSCAPER_NIGHTLY_TESTS_BASE_URL = 'http://127.0.0.1:41001';
+		process.env.SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT = payloadRoot;
+		process.env.SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT = runRoot;
+		const { default: config } = await import(
+			'../playwright.nightly-metrics.config.mjs?absolute-launcher-paths'
+		);
+
+		assert.equal(config.workers, 1);
+		assert.equal(config.retries, 0);
+		assert.equal(config.fullyParallel, false);
+		assert.deepEqual(config.projects.map(({ name }) => name), ['chromium']);
+		assert.equal(config.outputDir, resolve(runRoot, 'metrics/test-results'));
+		assert.ok(config.testMatch.includes('audio-editor-video-preview-benchmark.spec.js'));
+		assert.deepEqual(config.reporter, [
+			['list'],
+			['html', { outputFolder: resolve(runRoot, 'metrics/playwright-report'), open: 'never' }],
+			['json', { outputFile: resolve(runRoot, 'metrics/results.json') }],
+			['junit', { outputFile: resolve(runRoot, 'metrics/junit.xml') }],
+		]);
+	} finally {
+		for (const [key, value] of Object.entries(originalEnvironment)) {
+			if (value === undefined) delete process.env[key];
+			else process.env[key] = value;
+		}
+	}
+});
+
 test('package scripts expose local preparation and packaging of the diagnostic flavor', async () => {
 	const packageMetadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 

@@ -34,8 +34,10 @@ async function startNightlyTests() {
 		await dialog.showMessageBox({
 			type: run.exitCode === 0 ? 'info' : 'error',
 			title: 'Soundscaper Nightly Tests',
-			message: run.exitCode === 0 ? 'Playwright tests passed.' : 'Playwright tests did not pass.',
-			detail: `Results were written to:\n${run.runRoot}`,
+			message: run.exitCode === 0
+				? 'Playwright tests and diagnostic metric gates passed.'
+				: 'Playwright tests or diagnostic metric gates did not pass.',
+			detail: `Results and pending-external metric evidence were written to:\n${run.runRoot}`,
 		});
 		app.exit(run.exitCode);
 	} catch (error) {

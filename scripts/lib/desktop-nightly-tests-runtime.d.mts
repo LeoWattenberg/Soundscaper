@@ -38,7 +38,7 @@ export interface DesktopNightlyTestsPlaywrightPlan {
 export type DesktopNightlyTestsStatus = 'running' | 'passed' | 'failed' | 'error' | 'interrupted';
 
 export interface DesktopNightlyTestsResultEnvelope {
-	readonly schemaVersion: 1;
+	readonly schemaVersion: 2;
 	readonly kind: 'soundscaper-desktop-nightly-tests';
 	readonly product: DesktopNightlyTestsProduct;
 	readonly runtime: {
@@ -58,6 +58,13 @@ export interface DesktopNightlyTestsResultEnvelope {
 		readonly jsonReport: 'results.json';
 		readonly junitReport: 'junit.xml';
 		readonly testResults: 'test-results';
+		readonly metricsConsoleLog: 'metrics/console.log';
+		readonly metricsHtmlReport: 'metrics/playwright-report/index.html';
+		readonly metricsJsonReport: 'metrics/results.json';
+		readonly metricsJunitReport: 'metrics/junit.xml';
+		readonly metricsRaw: 'metrics/raw.json';
+		readonly metricsSummary: 'metrics/summary.json';
+		readonly metricsTestResults: 'metrics/test-results';
 	};
 }
 
@@ -140,6 +147,12 @@ export interface DesktopNightlyTestsDependencies {
 	readonly runPlaywright?: (
 		plan: DesktopNightlyTestsPlaywrightPlan,
 	) => Promise<{ readonly code: number | null; readonly signal: string | null }>;
+	readonly writeMetricsEvidence?: (options: {
+		readonly payloadRoot: string;
+		readonly runRoot: string;
+		readonly sourceRevision: string | null;
+		readonly playwrightExit: { readonly code: number | null; readonly signal: string | null };
+	}) => Promise<{ readonly passed: boolean }>;
 	readonly writeResult?: (
 		runRoot: string,
 		result: DesktopNightlyTestsResultEnvelope,

@@ -26,7 +26,10 @@ const TEST_FILE = /\.(?:spec|test)\.[cm]?[jt]sx?$/u;
 const BUILTIN_MODULES = new Set(builtinModules.flatMap((name) => [name, `node:${name}`]));
 
 test('the nightly test payload satisfies every import its browser specs reach', async () => {
-	const entryPoints = await collectTestFiles(BROWSER_TESTS);
+	const entryPoints = [
+		...await collectTestFiles(BROWSER_TESTS),
+		join(REPOSITORY_ROOT, 'scripts/lib/desktop-nightly-tests-metrics.mjs'),
+	];
 	assert.ok(entryPoints.length > 0, 'the browser test tree must contain Playwright test files');
 
 	const externals = new Map();

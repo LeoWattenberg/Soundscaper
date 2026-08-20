@@ -17,6 +17,12 @@ test('desktop documentation explains how to run and find nightly-with-tests resu
 		'playwright-report/index.html',
 		'test-results/',
 		'console.log',
+		'metrics/summary.json',
+		'metrics/raw.json',
+		'metrics/results.json',
+		'metrics/console.log',
 	]) assert.ok(documentation.includes(`\`${resultPath}\``), `${resultPath} is not documented`);
+	assert.match(documentation, /one worker.*zero retries/isu);
+	assert.match(documentation, /pending-external/iu);
 	assert.match(documentation, /diagnostic.*not.*public release/isu);
 });

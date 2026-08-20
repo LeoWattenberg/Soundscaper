@@ -335,7 +335,7 @@ test('Playwright exit mapping and result envelopes distinguish failures from inf
 		failure: null,
 	});
 	assert.deepEqual(envelope, {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		kind: 'soundscaper-desktop-nightly-tests',
 		product: PRODUCT,
 		runtime: { platform: 'linux', arch: 'x64' },
@@ -352,6 +352,13 @@ test('Playwright exit mapping and result envelopes distinguish failures from inf
 			jsonReport: 'results.json',
 			junitReport: 'junit.xml',
 			testResults: 'test-results',
+			metricsConsoleLog: 'metrics/console.log',
+			metricsHtmlReport: 'metrics/playwright-report/index.html',
+			metricsJsonReport: 'metrics/results.json',
+			metricsJunitReport: 'metrics/junit.xml',
+			metricsRaw: 'metrics/raw.json',
+			metricsSummary: 'metrics/summary.json',
+			metricsTestResults: 'metrics/test-results',
 		},
 	});
 	assert.equal(Object.isFrozen(envelope), true);
@@ -364,6 +371,7 @@ test('the injected nightly runtime records terminal results and always closes it
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	let closeCalls = 0;
 	const plansSeen: DesktopNightlyTestsPlaywrightPlan[] = [];
+	let metricsEvidenceCalls = 0;
 	const times = [
 		new Date('2026-08-08T13:00:00.000Z'),
 		new Date('2026-08-08T13:05:00.000Z'),
@@ -386,7 +394,15 @@ test('the injected nightly runtime records terminal results and always closes it
 		}),
 		runPlaywright: async (plan) => {
 			plansSeen.push(plan);
-			return { code: 1, signal: null };
+			return plansSeen.length === 1
+				? { code: 1, signal: null }
+				: { code: 0, signal: null };
+		},
+		writeMetricsEvidence: async ({ playwrightExit, runRoot }) => {
+			metricsEvidenceCalls += 1;
+			assert.deepEqual(playwrightExit, { code: 0, signal: null });
+			assert.ok(runRoot);
+			return { passed: true };
 		},
 	});
 
@@ -396,7 +412,10 @@ test('the injected nightly runtime records terminal results and always closes it
 	assert.equal(completed.result.status, 'failed');
 	assert.equal(completed.result.finishedAt, '2026-08-08T13:05:00.000Z');
 	assert.equal(closeCalls, 1);
+	assert.equal(metricsEvidenceCalls, 1);
+	assert.equal(plansSeen.length, 2);
 	assert.equal(plansSeen[0]?.env.SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT, completed.runRoot);
+	assert.match(plansSeen[1]?.args.at(-1) ?? '', /playwright\.nightly-metrics\.config\.mjs$/u);
 	assert.deepEqual(
 		JSON.parse(await readFile(join(completed.runRoot, 'run.json'), 'utf8')),
 		completed.result,
@@ -495,6 +514,7 @@ test('the default Playwright child runner captures output and reaches a terminal
 			baseURL: 'http://127.0.0.1:49999',
 			close: async () => undefined,
 		}),
+		writeMetricsEvidence: async () => ({ passed: true }),
 	});
 
 	assert.equal(completed.exitCode, 0);
@@ -524,12 +544,42 @@ test('a Playwright child spawn error closes its log and records infrastructure f
 			baseURL: 'http://127.0.0.1:49998',
 			close: async () => undefined,
 		}),
+		writeMetricsEvidence: async () => ({ passed: true }),
 	});
 
 	assert.equal(completed.exitCode, 2);
 	assert.equal(completed.result.status, 'error');
 	assert.match(completed.result.failure ?? '', /ENOENT|spawn/iu);
 	assert.equal(await readFile(join(completed.runRoot, 'console.log'), 'utf8'), '');
+});
+
+test('a failed diagnostic metric gate fails an otherwise passing nightly run', async (context) => {
+	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-metric-gate-'));
+	context.after(() => rm(outputRoot, { recursive: true, force: true }));
+	let childCalls = 0;
+	const completed = await runDesktopNightlyTests({
+		executablePath: '/opt/soundscaper-tests',
+		payloadRoot: '/opt/resources/nightly-tests',
+		outputRoot,
+		product: PRODUCT,
+		platform: 'linux',
+		arch: 'x64',
+		environment: {},
+	}, {
+		startStaticServer: async () => ({
+			baseURL: 'http://127.0.0.1:49997',
+			close: async () => undefined,
+		}),
+		runPlaywright: async () => {
+			childCalls += 1;
+			return { code: 0, signal: null };
+		},
+		writeMetricsEvidence: async () => ({ passed: false }),
+	});
+
+	assert.equal(childCalls, 2);
+	assert.equal(completed.exitCode, 1);
+	assert.equal(completed.result.status, 'failed');
 });
 
 function rawRequest(baseURL: string, path: string): Promise<{ readonly statusCode: number | undefined }> {

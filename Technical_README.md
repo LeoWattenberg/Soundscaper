@@ -186,6 +186,19 @@ as the executable (or beside the macOS `.app`), a unique
 - `run.json` — launcher status, exit code, source revision, platform, and paths;
 - `console.log` — the Playwright console stream.
 
+After the functional suite, the binary runs the registered M1 720p preview,
+M4 production-parity, and M4B2 keyframe collectors in a separate Chromium
+process with one worker and zero retries. Its `metrics/`
+directory contains `metrics/summary.json` with evaluated metric gates,
+`metrics/raw.json` with the parsed diagnostics, `metrics/results.json` and
+`metrics/junit.xml` for machine-readable test results, `metrics/console.log`,
+`metrics/playwright-report/index.html`, and `metrics/test-results/`.
+
+These measurements are useful host diagnostics, but remain `pending-external`:
+the downloadable binary deliberately cannot publish qualification evidence for
+an unprovisioned machine. A metric-threshold or collector failure makes the
+overall run fail without turning a passing diagnostic into a roadmap gate.
+
 Those two launcher files are attempted even for infrastructure failures. Once
 Playwright starts, the directory also contains `results.json` and `junit.xml`
 for machine-readable results, `playwright-report/index.html` for the browsable

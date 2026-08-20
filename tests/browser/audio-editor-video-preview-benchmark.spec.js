@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
 test('benchmarks the complete 720p video preview effect stack', async ({ page, context, browser }) => {
@@ -47,6 +49,7 @@ test('benchmarks the complete 720p video preview effect stack', async ({ page, c
 			return renderingContext;
 		};
 	});
+	await installPinnedFfmpegRuntimeRoutes(page);
 
 	const fixture = await createGeneratedVideoFixture(page, {
 		name: 'video-preview-benchmark.webm',
