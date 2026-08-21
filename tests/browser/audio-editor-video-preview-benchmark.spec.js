@@ -61,10 +61,11 @@ test('benchmarks the complete 720p video preview effect stack', async ({ page, c
 	const clipMenu = page.locator('.audio-editor-clip-context-menu');
 	await expect(clipMenu).toBeVisible();
 	await clipMenu.locator('[data-action-id="clip-properties"]').click();
-	const dialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+	const dialog = page.locator('[data-clip-properties-dialog]');
+	await expect(dialog).toBeVisible();
 	const rack = dialog.locator('[data-video-effect-rack]');
 	const picker = rack.locator('[data-video-effect-picker]');
-	const addEffect = rack.getByRole('button', { name: 'Add effect', exact: true });
+	const addEffect = rack.locator('[data-video-effect-add] button');
 	const effectLabels = [
 		'Color Adjust',
 		'Pixelate',
@@ -85,7 +86,8 @@ test('benchmarks the complete 720p video preview effect stack', async ({ page, c
 		await addEffect.click();
 		await expect(rack.locator('[data-video-effect-id]')).toHaveCount(index + 1);
 	}
-	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await page.keyboard.press('Escape');
+	await expect(dialog).toBeHidden();
 
 	const preview = editor.locator('[data-video-preview]');
 	const canvas = preview.locator('[data-video-preview-canvas]');
@@ -116,7 +118,8 @@ test('benchmarks the complete 720p video preview effect stack', async ({ page, c
 		globalThis.__soundscaperPreviewFrameTimes.length = 0;
 		globalThis.__soundscaperMeasurePreviewFrames = true;
 	});
-	await editor.getByRole('button', { name: 'Play', exact: true }).evaluate((button) => button.click());
+	await editor.locator('[data-transport="play"] .kw-audio-editor__split-button-main button')
+		.evaluate((button) => button.click());
 	await expect.poll(
 		() => canvas.evaluate(() => globalThis.__soundscaperPreviewFrameTimes.length),
 		{ timeout: 60_000 },
@@ -143,7 +146,7 @@ test('benchmarks the complete 720p video preview effect stack', async ({ page, c
 		globalThis.__soundscaperPreviewFrameTimes.length = 0;
 		return measured;
 	});
-	await editor.getByRole('button', { name: 'Stop', exact: true }).evaluate((button) => button.click());
+	await editor.locator('[data-transport="stop"] button').evaluate((button) => button.click());
 	await cdp.send('HeapProfiler.collectGarbage');
 	const heapAfter = await cdp.send('Runtime.getHeapUsage');
 	const browserEnvironment = await page.evaluate(() => ({
@@ -187,12 +190,12 @@ test('benchmarks the complete 720p video preview effect stack', async ({ page, c
 });
 
 async function bootVideoEditor(page) {
-	if (process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS !== '1') await page.goto('/framescaper/en/');
+	if (process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS !== '1') await page.goto('/framescaper/de/');
 	const editor = page.locator('[data-audio-editor]');
 	await expect(editor).toBeVisible();
 	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
-	const decline = page.getByRole('button', { name: 'Decline', exact: true });
+	const decline = page.getByRole('button', { name: /^(Decline|Ablehnen)$/ });
 	if (await decline.isVisible()) await decline.click();
 	if (process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS !== '1') {
 		await page.locator('[data-sidebar] [data-workspace-select]').selectOption('video-editor');

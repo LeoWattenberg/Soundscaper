@@ -83,8 +83,24 @@ test('packaged-runtime tests reuse one Electron process per product worker', asy
 
 	assert.match(source, /packagedRuntime:\s*\[async \([^]*?workerInfo\) =>/u);
 	assert.match(source, /productId = workerInfo\.project\.metadata\.productId/u);
+	assert.match(source, /connectOverCDP\(endpoint,\s*\{\s*timeout:\s*90_000\s*\}\)/u);
+	assert.match(source, /Packaged runtime CDP connection failed\./u);
 	assert.match(source, /\{ scope: 'worker' \}\]/u);
 	assert.match(source, /auto: true/u);
+});
+
+test('packaged video benchmark drives localized controls through stable hooks', async () => {
+	const source = await readFile(
+		resolve(ROOT, 'tests/browser/audio-editor-video-preview-benchmark.spec.js'),
+		'utf8',
+	);
+
+	assert.match(source, /\[data-clip-properties-dialog\]/u);
+	assert.match(source, /\[data-video-effect-add\]/u);
+	assert.match(source, /\[data-transport="play"\]/u);
+	assert.match(source, /\[data-transport="stop"\]/u);
+	assert.match(source, /page\.goto\('\/framescaper\/de\/'\)/u);
+	assert.doesNotMatch(source, /name: '(?:Clip properties|Add effect|Play|Stop)'/u);
 });
 
 test('nightly product staging builds isolated Soundscaper and Framescaper trees', async (context) => {

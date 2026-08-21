@@ -55,7 +55,11 @@ const packagedTest = base.extend({
 		let browser;
 		try {
 			const endpoint = await waitForDevToolsEndpoint(port, child, () => output);
-			browser = await chromium.connectOverCDP(endpoint);
+			try {
+				browser = await chromium.connectOverCDP(endpoint, { timeout: 90_000 });
+			} catch (cause) {
+				throw new Error(`Packaged runtime CDP connection failed.\n${output}`, { cause });
+			}
 			await use(Object.freeze({ browser, executablePath, output: () => output }));
 		} finally {
 			await browser?.close().catch(() => undefined);
@@ -109,7 +113,7 @@ async function reserveLoopbackPort() {
 
 async function waitForDevToolsEndpoint(port, child, output) {
 	const endpoint = `http://127.0.0.1:${String(port)}`;
-	const deadline = Date.now() + 30_000;
+	const deadline = Date.now() + 90_000;
 	while (Date.now() < deadline) {
 		if (child.exitCode !== null) throw new Error(`Packaged runtime exited before CDP startup.\n${output()}`);
 		try {

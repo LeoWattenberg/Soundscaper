@@ -172,7 +172,7 @@ export default function EditorToolToolbar({
 				{[
 				transportButtonsVisible && <WorkspaceToolbarSection key="transport" {...toolbarSectionProps('transport')}>
 				<ToolbarButtonGroup className="kw-audio-editor__transport" gap={2}>
-					{isToolbarButtonVisible('play') && <AudioEditorSplitButton
+					{isToolbarButtonVisible('play') && <span data-transport="play"><AudioEditorSplitButton
 						icon={telemetry.transportState === 'playing' ? 'pause' : 'play'}
 						className="kw-audio-editor__transport-play kw-audio-editor__transport-play-split"
 						ariaLabel={telemetry.transportState === 'playing' ? copy.pause : copy.play}
@@ -183,8 +183,8 @@ export default function EditorToolToolbar({
 						onClick={() => run(() => controller.actions.transport.playPause())}
 					>
 						{({ close }) => <PlaySpeedFlyout copy={copy} snapshot={snapshot} telemetry={telemetry} blocked={blocked} controller={controller} run={run} close={close} />}
-					</AudioEditorSplitButton>}
-					{isToolbarButtonVisible('stop') && <TransportButton icon="stop" ariaLabel={copy.stop} onClick={() => run(() => controller.actions.transport.stop())} />}
+					</AudioEditorSplitButton></span>}
+					{isToolbarButtonVisible('stop') && <span data-transport="stop"><TransportButton icon="stop" ariaLabel={copy.stop} onClick={() => run(() => controller.actions.transport.stop())} /></span>}
 					{capabilities.audioRecording && isToolbarButtonVisible('record') && <span data-transport="record">
 						<AudioEditorSplitButton
 							icon="record"
