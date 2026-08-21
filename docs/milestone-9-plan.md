@@ -88,11 +88,10 @@ parallel per environment.
    `native-os-lab-matrix` (:198-212), `capture-os-browser-lab-matrix`
    (:214-226), and `release-qualification-matrix` (:228-239) all carry
    null fingerprints and `qualificationEligible: false`.
-2. **No soak or pinned long-session fixture exists.** The only milestone-1
-   timing fixture generates its media with `MediaRecorder` per run and is
-   explicitly provisional (docs/quality-budgets.md:26-28). Roadmap §9's
-   "every pinned long-session fixture" (roadmap.md:824-825) currently
-   quantifies over an empty set.
+2. **No soak or pinned long-session fixture exists.** The milestone-1 preview
+   medium is now a digest-pinned six-second VP8 fixture, but it is not a
+   long-session or soak workload. Roadmap §9's "every pinned long-session
+   fixture" (roadmap.md:824-825) still quantifies over an empty set.
 3. **No checked-in run profile satisfies the no-retry rule.** Both
    Playwright configs set `retries: 1` under CI (playwright.config.mjs:13,
    playwright.nightly-tests.config.mjs:48); qualification needs a
@@ -297,9 +296,9 @@ re-grounding, following the milestone-3 pattern
   `m9-complete-system-soak-8h-v1` (pinned generator revision, seed, and
   digests — the fixture discipline of docs/quality-budgets.md:144-152)
   exercising both products across autosave, handoff, render/export jobs,
-  and — after 8A/8B — capture and MIDI; a digest-pinned replacement for
-  the MediaRecorder-generated preview medium so the milestone-1 fixture
-  can graduate; collectors for every soak metric including
+  and — after 8A/8B — capture and MIDI; retention and revalidation of the
+  digest-pinned milestone-1 preview medium; collectors for every soak metric
+  including
   `soak.unrecoveredJobs` over the milestone-6 queues and
   `soak.failedAutosaves`.
 - **Invariants:** Fixtures are deterministic and digest-pinned; the

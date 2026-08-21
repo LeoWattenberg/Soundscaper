@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { createVideoPreviewBenchmarkFixture } from './fixtures/video-preview-benchmark-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
@@ -51,16 +52,7 @@ test('benchmarks the complete 720p video preview effect stack', async ({ page, c
 	});
 	await installPinnedFfmpegRuntimeRoutes(page);
 
-	const fixture = await createGeneratedVideoFixture(page, {
-		name: 'video-preview-benchmark.webm',
-		color: '#2f3e79',
-		accent: '#f1c75b',
-		frequency: 330,
-		width: 1_280,
-		height: 720,
-		frameCount: 600,
-		frameDelayMs: 40,
-	});
+	const fixture = createVideoPreviewBenchmarkFixture();
 	const editor = await bootVideoEditor(page);
 	await importTimelineFiles(editor, [fixture]);
 	const videoClip = editor.locator('[data-clip-kind="video"]').first();
@@ -192,68 +184,6 @@ test('benchmarks the complete 720p video preview effect stack', async ({ page, c
 		expect(p95Ms, 'complete 1280x720 effect stack p95 frame interval').toBeLessThanOrEqual(33.34);
 	}
 });
-
-async function createGeneratedVideoFixture(page, options) {
-	const base64 = await page.evaluate(async (fixture) => {
-		const canvas = document.createElement('canvas');
-		canvas.width = fixture.width;
-		canvas.height = fixture.height;
-		const context = canvas.getContext('2d');
-		const videoStream = canvas.captureStream(30);
-		const audioContext = new AudioContext({ sampleRate: 48_000 });
-		const oscillator = audioContext.createOscillator();
-		const gain = audioContext.createGain();
-		const audioDestination = audioContext.createMediaStreamDestination();
-		oscillator.frequency.value = fixture.frequency;
-		gain.gain.value = 0.06;
-		oscillator.connect(gain).connect(audioDestination);
-		oscillator.start();
-		await audioContext.resume();
-		const stream = new MediaStream([
-			...videoStream.getVideoTracks(),
-			...audioDestination.stream.getAudioTracks(),
-		]);
-		const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-			? 'video/webm;codecs=vp8,opus'
-			: 'video/webm';
-		const recorder = new MediaRecorder(stream, {
-			mimeType,
-			videoBitsPerSecond: 1_500_000,
-			audioBitsPerSecond: 32_000,
-		});
-		const chunks = [];
-		recorder.addEventListener('dataavailable', (event) => {
-			if (event.data.size) chunks.push(event.data);
-		});
-		const stopped = new Promise((resolve) => recorder.addEventListener('stop', resolve, { once: true }));
-		recorder.start();
-		for (let frame = 0; frame < fixture.frameCount; frame += 1) {
-			context.fillStyle = fixture.color;
-			context.fillRect(0, 0, canvas.width, canvas.height);
-			context.fillStyle = fixture.accent;
-			const markerSize = Math.max(5, Math.round(Math.min(canvas.width, canvas.height) / 5));
-			const denominator = Math.max(1, fixture.frameCount - 1);
-			const markerX = Math.round((canvas.width - markerSize) * frame / denominator);
-			context.fillRect(markerX, Math.round((canvas.height - markerSize) / 2), markerSize, markerSize);
-			await new Promise((resolve) => setTimeout(resolve, fixture.frameDelayMs));
-		}
-		recorder.stop();
-		await stopped;
-		stream.getTracks().forEach((track) => track.stop());
-		oscillator.stop();
-		await audioContext.close();
-		const blob = new Blob(chunks, { type: 'video/webm' });
-		const bytes = new Uint8Array(await blob.arrayBuffer());
-		let binary = '';
-		for (const byte of bytes) binary += String.fromCharCode(byte);
-		return btoa(binary);
-	}, options);
-	return {
-		name: options.name,
-		mimeType: 'video/webm',
-		buffer: Buffer.from(base64, 'base64'),
-	};
-}
 
 async function bootVideoEditor(page) {
 	await page.goto('/framescaper/en/');

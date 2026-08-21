@@ -44,9 +44,23 @@ fixture, environment, metric, and threshold identifiers.
   mismatch aborts collection before writing either pending or accepted files.
   Accepted evidence pins the complete budget-config digest and, through its
   digest-bound raw artifact, the exact registered workload descriptor digest.
-- The 12-effect 1280x720 preview test records timing and heap data, but its media
-  file is generated with `MediaRecorder` for each run. It therefore remains a
-  provisional fixture.
+- Recorded local observation, 2026-08-21: the Windows x64 downloadable nightly
+  at revision `75ebd2bbd0c500b6ce783c9af697241af70c3b6f` used an NVIDIA
+  GeForce RTX 3090 through ANGLE/D3D11 and passed all five M4 metric thresholds
+  in one attempt with zero retries: maximum audio sample error `0`, PDC error
+  `0`, minimum video SSIM `0.981534357583265`, maximum normalized channel MAE
+  `0.020067401960784315`, and silently omitted effects `0`. The observation is
+  `pending-external`, not qualification; the overall downloadable metrics
+  collection failed separately because its M1 preview diagnostic crashed
+  before publication. The retained downloadable artifacts are identified by
+  summary SHA-256
+  `aebe70405017ddcb9b698fbf6e52cf126fd1794df3786e67d37cd739e2a8fb8e`
+  and raw SHA-256
+  `f5a07e3093e7426edf7199b4992bc6ee126276e0c1e5da5ce08aedd1c2df15ab`.
+- The 12-effect 1280x720 preview test records timing and heap data against a
+  repository-owned, digest-pinned, six-second synthetic VP8 fixture. It remains
+  provisional until the fixed reference GPU environment is provisioned and the
+  measurement procedure is qualified.
 - Hosted CI is suitable for deterministic correctness checks. Its shared CPU
   and software-renderer behavior make it ineligible for fixed-hardware timing
   qualification.

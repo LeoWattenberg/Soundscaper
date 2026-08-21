@@ -254,14 +254,18 @@
 			"id": "video-preview-12fx-720p-v1",
 			"milestones": ["1", "4", "9"],
 			"status": "provisional",
-			"kind": "runtime-generated-media",
+			"kind": "digest-pinned-media",
 			"specification": {
 				"width": 1280,
 				"height": 720,
 				"effectCount": 12,
-				"measuredIntervals": 120
+				"measuredIntervals": 120,
+				"sourceFrameRate": 30,
+				"sourceFrameCount": 180,
+				"sourceByteLength": 109277,
+				"sourceSha256": "f1319d3549943c190e5eb3f86b63fd2afb644bd49b32e3f257699b450271bc8c"
 			},
-			"limitation": "The current MediaRecorder fixture is generated per run and is not digest-pinned.",
+			"limitation": "The repository-owned synthetic VP8 source is digest-pinned and isolates the complete 1280x720 shader-preview path. It is silent and remains provisional rather than qualifying decoder/audio scheduling or the unprovisioned reference GPU host.",
 			"evidence": ["tests/browser/audio-editor-video-preview-benchmark.spec.js"]
 		},
 		{
