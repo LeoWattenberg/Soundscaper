@@ -14,12 +14,12 @@ const runtimeGlobals = {
 export default tseslint.config(
 	{
 		ignores: [
-			'.astro/**',
+			'**/.astro/**',
 			'.claude/worktrees/**',
 			'.desktop-build/**',
 			'.wrangler/**',
 			'coverage/**',
-			'dist/**',
+			'**/dist/**',
 			'node_modules/**',
 			'playwright-report/**',
 			'release/**',
@@ -64,7 +64,7 @@ export default tseslint.config(
 			parserOptions: {
 				...config.languageOptions?.parserOptions,
 				ecmaFeatures: { jsx: true },
-				project: ['./tsconfig.json', './tsconfig.tests.json'],
+				project: ['./tsconfig.json', './tsconfig.tests.json', './handbook/tsconfig.json'],
 				tsconfigRootDir: import.meta.dirname,
 			},
 		},

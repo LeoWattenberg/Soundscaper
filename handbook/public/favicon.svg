@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 92.463 90.693" role="img" aria-label="Soundscaper">
+	<style>
+		.wordmark { fill: #0f172a; }
+		@media (prefers-color-scheme: dark) { .wordmark { fill: #f8fafc; } }
+	</style>
+	<g transform="translate(-6.471 -65.779)">
+		<path fill="#ff6900" d="m78.052 110.124-1.547 5.461-52.464 30.386V75.779l52.465 30.928z" />
+		<text class="wordmark" x="12.915" y="126.833" font-family="Ubuntu, sans-serif" font-size="50.8" font-weight="700">kw</text>
+		<circle cx="85.281" cy="111.204" r="3.652" fill="#ff6900" />
+	</g>
+</svg>

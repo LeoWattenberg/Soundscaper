@@ -41,7 +41,7 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 	});
 	await controller.ready;
 	const uiController = createAudioEditorUiActionController();
-	const runtime = createAudacityActionRuntime(controller, { uiController });
+	const runtime = createAudacityActionRuntime(controller, { uiController, productId: 'framescaper' });
 
 	try {
 		const audit = auditAudacityActionRuntime(runtime.actions);
@@ -125,6 +125,13 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		assert.equal(uiController.getSnapshot().request.type, 'center-playhead');
 		runtime.actions.help.revertFactorySettings();
 		assert.equal(uiController.getSnapshot().request.type, 'revert-factory');
+		runtime.actions.help.openManual();
+		assert.equal(uiController.getSnapshot().request.payload.url, 'https://docs.soundscaper.org/framescaper/');
+		runtime.actions.help.openTutorials();
+		assert.equal(
+			uiController.getSnapshot().request.payload.url,
+			'https://docs.soundscaper.org/framescaper/first-project/',
+		);
 
 		const originalTrackId = controller.getSnapshot().selectedTrackId;
 		const originalTrackCount = controller.getSnapshot().project.tracks.length;

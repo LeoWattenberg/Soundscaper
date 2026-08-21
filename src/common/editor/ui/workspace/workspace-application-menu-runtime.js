@@ -1,4 +1,5 @@
 import { otherProductId, productLocalePath } from '../../../products.js';
+import { documentationUrl } from '../../documentation-links.ts';
 
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
 import createApplicationMenus from '../application-menus.js';
@@ -309,8 +310,8 @@ export function createWorkspaceApplicationMenus({
 					openEbuR128: () => openWorkspacePanel('ebu-r128'),
 					setWorkspace: (workspaceId) => run(() => controller.actions.preferences.setWorkspace(workspaceId)),
 					togglePanel: toggleWorkspacePanel,
-					manual: () => openExternal('https://support.audacityteam.org/au4'),
-					tutorials: () => openExternal('https://support.audacityteam.org/au4'),
+					manual: () => openExternal(documentationUrl(productId, 'manual')),
+					tutorials: () => openExternal(documentationUrl(productId, 'tutorials')),
 					support: () => openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
 					revertFactorySettings: () => parityRuntime.actions.help.revertFactorySettings(),
 					toggleStoragePanel: () => parityRuntime.actions.help.toggleStoragePanel(),

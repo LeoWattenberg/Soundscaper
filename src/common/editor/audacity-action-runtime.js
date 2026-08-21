@@ -1,6 +1,7 @@
 import { projectDurationFrames } from './project.js';
 import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
 import { createAudacitySpectralActionRuntime } from './controller/audacity-spectral-action-runtime.ts';
+import { documentationUrl } from './documentation-links.ts';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
 	changeTempo: 'audacity-change-tempo',
@@ -46,7 +47,6 @@ export function createAudioEditorUiActionController(options = {}) {
 		publish();
 		return request;
 	}
-
 	function toggleFlag(name) {
 		ensureUsable();
 		if (!Object.hasOwn(flags, name)) throw new ReferenceError(`Unknown audio editor UI flag: ${name}.`);
@@ -575,8 +575,8 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			noise: () => openGenerator('noise'),
 		},
 		help: {
-			openTutorials: () => ui.openExternal('https://support.audacityteam.org/au4'),
-			openManual: () => ui.openExternal('https://support.audacityteam.org/au4'),
+			openTutorials: () => ui.openExternal(documentationUrl(options.productId ?? 'soundscaper', 'tutorials')),
+			openManual: () => ui.openExternal(documentationUrl(options.productId ?? 'soundscaper', 'manual')),
 			openSupport: () => ui.openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
 			revertFactorySettings: () => ui.issue('revert-factory'),
 			toggleStoragePanel: () => ui.toggleFlag('storagePanel'),
