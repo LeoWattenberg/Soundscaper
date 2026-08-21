@@ -21,6 +21,7 @@ import {
 // payload carries everything the shipped specs reach for.
 const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const BROWSER_TESTS = join(REPOSITORY_ROOT, 'tests/browser');
+const V20_LIFECYCLE_SPEC = join(BROWSER_TESTS, 'audio-editor-framescaper-v20-product-lifecycle.spec.js');
 // The `testMatch` of playwright.nightly-tests.config.mjs.
 const TEST_FILE = /\.(?:spec|test)\.[cm]?[jt]sx?$/u;
 const BUILTIN_MODULES = new Set(builtinModules.flatMap((name) => [name, `node:${name}`]));
@@ -28,6 +29,7 @@ const BUILTIN_MODULES = new Set(builtinModules.flatMap((name) => [name, `node:${
 test('the nightly test payload satisfies every import its browser specs reach', async () => {
 	const entryPoints = [
 		...await collectTestFiles(BROWSER_TESTS),
+		await readDynamicHarnessPath(),
 		join(REPOSITORY_ROOT, 'scripts/lib/desktop-nightly-tests-metrics.mjs'),
 	];
 	assert.ok(entryPoints.length > 0, 'the browser test tree must contain Playwright test files');
@@ -91,14 +93,7 @@ test('the nightly test payload satisfies every import its browser specs reach', 
 });
 
 test('the nightly payload stages browser harnesses loaded as dynamic esbuild entry points', async () => {
-	const lifecycleSpec = await readFile(
-		join(BROWSER_TESTS, 'audio-editor-framescaper-v20-product-lifecycle.spec.js'),
-		'utf8',
-	);
-	const harnessPath = lifecycleSpec.match(
-		/const HARNESS_PATH = resolve\(REPOSITORY_ROOT, '([^']+)'\);/u,
-	)?.[1];
-	assert.ok(harnessPath, 'the V20 lifecycle spec must declare its dynamic harness path');
+	const harnessPath = relative(REPOSITORY_ROOT, await readDynamicHarnessPath());
 	assert.ok(
 		isStagedInput(harnessPath),
 		`NIGHTLY_TEST_PAYLOAD_INPUTS is missing dynamic browser harness ${harnessPath}`,
@@ -110,6 +105,15 @@ test('the nightly payload stages browser harnesses loaded as dynamic esbuild ent
 		`the nightly-tests extraResources filter drops dynamic browser harness ${harnessPath}`,
 	);
 });
+
+async function readDynamicHarnessPath() {
+	const lifecycleSpec = await readFile(V20_LIFECYCLE_SPEC, 'utf8');
+	const harnessPath = lifecycleSpec.match(
+		/const HARNESS_PATH = resolve\(REPOSITORY_ROOT, '([^']+)'\);/u,
+	)?.[1];
+	assert.ok(harnessPath, 'the V20 lifecycle spec must declare its dynamic harness path');
+	return join(REPOSITORY_ROOT, harnessPath);
+}
 
 function isStagedInput(input) {
 	if (input.startsWith('..') || isAbsolute(input)) return false;

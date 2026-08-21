@@ -27,6 +27,7 @@ export const NIGHTLY_TEST_RUNTIME_PACKAGE_ROOTS = Object.freeze([
 	'@echogarden/pffft-wasm',
 	'@ffmpeg/core',
 	'@ffmpeg/ffmpeg',
+	'@fontsource/inter',
 	'@noble/hashes',
 	'@playwright/test',
 	'@zip.js/zip.js',
@@ -75,6 +76,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 const REQUIRED_NOTICE_FILES = Object.freeze({
 	'@axe-core/playwright': Object.freeze(['LICENSE']),
 	'@echogarden/pffft-wasm': Object.freeze(['COPYING']),
+	'@fontsource/inter': Object.freeze(['LICENSE']),
 	'@playwright/test': Object.freeze(['LICENSE', 'NOTICE']),
 	'axe-core': Object.freeze(['LICENSE', 'LICENSE-3RD-PARTY.txt']),
 	esbuild: Object.freeze(['LICENSE.md']),

@@ -29,6 +29,7 @@ const EXPECTED_RUNTIME_PACKAGES = [
 	'@ffmpeg/core',
 	'@ffmpeg/ffmpeg',
 	'@ffmpeg/types',
+	'@fontsource/inter',
 	'@noble/hashes',
 	'@playwright/test',
 	'@zip.js/zip.js',
@@ -41,6 +42,16 @@ const EXPECTED_RUNTIME_PACKAGES = [
 	'sql.js',
 	'typescript',
 	'xmlchars',
+];
+
+const BURN_IN_FONT_FILES = [
+	'inter-cyrillic-ext-600-normal.woff',
+	'inter-cyrillic-600-normal.woff',
+	'inter-greek-ext-600-normal.woff',
+	'inter-greek-600-normal.woff',
+	'inter-latin-ext-600-normal.woff',
+	'inter-latin-600-normal.woff',
+	'inter-vietnamese-600-normal.woff',
 ];
 
 test('nightly test staging creates a hermetic, manifest-bound Playwright payload', async (context) => {
@@ -59,6 +70,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'@echogarden/pffft-wasm',
 		'@ffmpeg/core',
 		'@ffmpeg/ffmpeg',
+		'@fontsource/inter',
 		'@noble/hashes',
 		'@playwright/test',
 		'@zip.js/zip.js',
@@ -115,8 +127,12 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'licenses/node_modules/playwright-core/ThirdPartyNotices.txt',
 		'licenses/node_modules/@axe-core/playwright/LICENSE',
 		'licenses/node_modules/@echogarden/pffft-wasm/COPYING',
+		'licenses/node_modules/@fontsource/inter/LICENSE',
 		'licenses/node_modules/axe-core/LICENSE-3RD-PARTY.txt',
 	]) await access(join(fixture.outputRoot, relativePath));
+	for (const name of BURN_IN_FONT_FILES) {
+		await access(join(fixture.outputRoot, 'node_modules/@fontsource/inter/files', name));
+	}
 	await assert.rejects(() => access(join(fixture.outputRoot, 'tests/browser/AGENTS.md')), /ENOENT/u);
 	await assert.rejects(
 		() => access(join(fixture.outputRoot, 'node_modules/playwright-core/.local-browsers')),
@@ -461,6 +477,7 @@ async function createFixture(context) {
 		['@ffmpeg/core', {}],
 		['@ffmpeg/ffmpeg', { dependencies: { '@ffmpeg/types': '0.12.4' } }],
 		['@ffmpeg/types', {}],
+		['@fontsource/inter', { licenses: ['LICENSE'], files: BURN_IN_FONT_FILES.map((name) => `files/${name}`) }],
 		['@noble/hashes', { licenses: ['LICENSE'] }],
 		['@playwright/test', { dependencies: { playwright: '1.61.1' }, licenses: ['LICENSE', 'NOTICE'] }],
 		['playwright', { dependencies: { 'playwright-core': '1.61.1' }, licenses: ['LICENSE', 'NOTICE', 'ThirdPartyNotices.txt'] }],
@@ -526,6 +543,9 @@ async function writeFixturePackage(repositoryRoot, name, metadata) {
 	await writeFixtureFile(repositoryRoot, `node_modules/${name}/index.js`, 'module.exports = {};\n');
 	for (const license of metadata.licenses ?? []) {
 		await writeFixtureFile(repositoryRoot, `node_modules/${name}/${license}`, `${name} ${license}\n`);
+	}
+	for (const file of metadata.files ?? []) {
+		await writeFixtureFile(repositoryRoot, `node_modules/${name}/${file}`, `${name} ${file}\n`);
 	}
 }
 
