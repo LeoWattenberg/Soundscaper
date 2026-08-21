@@ -73,6 +73,28 @@
 			"rawEvidence": "positive-byte-length-and-sha256"
 		}
 	},
+	"packagedRuntimeQualification": {
+		"status": "active",
+		"environmentId": "owner-qualified-windows-x64-rtx3090-01",
+		"observedEnvironmentId": "packaged-runtime-win32-x64",
+		"workloadId": "m4-production-render-parity",
+		"fixtureId": "m4-production-parity-v1",
+		"profile": "deterministic-production-parity-v1",
+		"observationClass": "complete-pcm-rgba-render-ledger-v1",
+		"rendererClass": "hardware",
+		"fingerprint": {
+			"browserVersion": "150.0.7871.114",
+			"platform": "win32",
+			"architecture": "x64",
+			"webglVendor": "Google Inc. (NVIDIA)",
+			"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+		},
+		"evidence": [
+			"scripts/lib/desktop-nightly-tests-qualification.mjs",
+			"tests/desktop-nightly-tests-qualification.test.ts",
+			"docs/quality-budgets.md#fixed-hardware-environments"
+		]
+	},
 	"measurementPolicy": {
 		"percentileMethod": "nearest-rank",
 		"missingMetric": "fail",
@@ -172,6 +194,26 @@
 				"measurementClass": "first-party-owned-structural-counters"
 			},
 			"evidence": [".nvmrc", "package.json", "package-lock.json", "docs/quality-budgets.md#portable-structural-environment"]
+		},
+		{
+			"id": "owner-qualified-windows-x64-rtx3090-01",
+			"status": "active",
+			"kind": "owner-qualified-packaged-runtime-fixed-gpu",
+			"qualificationEligible": true,
+			"rendererRequirement": "hardware",
+			"eligibleWorkloadIds": ["m4-production-render-parity"],
+			"fingerprint": {
+				"browserVersion": "150.0.7871.114",
+				"platform": "win32",
+				"architecture": "x64",
+				"webglVendor": "Google Inc. (NVIDIA)",
+				"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+			},
+			"evidence": [
+				"scripts/lib/desktop-nightly-tests-qualification.mjs",
+				"tests/desktop-nightly-tests-qualification.test.ts",
+				"docs/quality-budgets.md#fixed-hardware-environments"
+			]
 		},
 		{
 			"id": "reference-linux-gpu-01",
@@ -1287,7 +1329,7 @@
 			"milestone": "4",
 			"status": "provisional",
 			"fixtureIds": ["video-effect-parity-rgba-v1", "m4-production-parity-v1"],
-			"environmentIds": ["github-ubuntu-playwright-1.61.1", "reference-linux-gpu-01"],
+			"environmentIds": ["github-ubuntu-playwright-1.61.1", "reference-linux-gpu-01", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "parity.audioMaximumAbsoluteSampleError", "comparison": "lte", "value": 0.000001, "unit": "ratio" },
 				{ "metricId": "parity.pdcErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },

@@ -439,6 +439,9 @@ jobs:
         env:
           PLAYWRIGHT_BROWSERS_PATH: '0'
 
+      - name: Verify the nightly formal qualification contract
+        run: node --import tsx --test tests/desktop-nightly-tests-qualification.test.ts
+
       - name: Package the product runtimes exercised by nightly-with-tests
         run: node scripts/desktop-nightly-tests-products.mjs
         env:

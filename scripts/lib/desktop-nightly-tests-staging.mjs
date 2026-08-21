@@ -52,6 +52,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/lib/desktop-nightly-tests-runtime.mjs', destination: 'scripts/lib/desktop-nightly-tests-runtime.mjs', kind: 'file', label: 'nightly test runtime' },
 	{ source: 'scripts/lib/desktop-nightly-tests-static-route.mjs', destination: 'scripts/lib/desktop-nightly-tests-static-route.mjs', kind: 'file', label: 'nightly test static route resolver' },
 	{ source: 'scripts/lib/desktop-nightly-tests-metrics.mjs', destination: 'scripts/lib/desktop-nightly-tests-metrics.mjs', kind: 'file', label: 'nightly metrics runtime' },
+	{ source: 'scripts/lib/desktop-nightly-tests-qualification.mjs', destination: 'scripts/lib/desktop-nightly-tests-qualification.mjs', kind: 'file', label: 'nightly formal qualification verifier' },
 	{ source: 'scripts/lib/desktop-nightly-tests-packaged-runtime.mjs', destination: 'scripts/lib/desktop-nightly-tests-packaged-runtime.mjs', kind: 'file', label: 'nightly packaged-runtime metrics' },
 	{ source: 'scripts/collect-m4-production-parity-quality.mjs', destination: 'scripts/collect-m4-production-parity-quality.mjs', kind: 'file', label: 'M4 production parity metric collector' },
 	{ source: 'scripts/collect-m4b2-keyframe-parity-quality.mjs', destination: 'scripts/collect-m4b2-keyframe-parity-quality.mjs', kind: 'file', label: 'M4B2 keyframe metric collector' },

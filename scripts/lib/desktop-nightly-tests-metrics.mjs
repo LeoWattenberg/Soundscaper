@@ -12,6 +12,7 @@ import {
 	createPendingM4B2KeyframeParityResult,
 	parseM4B2KeyframeParityDiagnostic,
 } from '../collect-m4b2-keyframe-parity-quality.mjs';
+import { createPackagedRuntimeQualification } from './desktop-nightly-tests-qualification.mjs';
 
 const DOWNLOADABLE_HOST_FAILURE = 'A downloadable nightly host is diagnostic-only and not a qualified environment.';
 const DEFAULT_COLLECTORS = Object.freeze([
@@ -213,30 +214,45 @@ export function createDesktopNightlyTestsMetricsEvidence({
 		}
 	}
 	const collectionPassed = failures.length === 0 && workloads.length === collectors.length;
+	const raw = Object.freeze({
+		schemaVersion: 1,
+		kind: `soundscaper-desktop-nightly${kindSuffix}-metrics-raw`,
+		executionSurface: evidenceKind,
+		sourceRevision,
+		budgetSha256,
+		diagnostics: Object.freeze(diagnostics),
+	});
+	const pendingSummary = Object.freeze({
+		schemaVersion: 1,
+		kind: `soundscaper-desktop-nightly${kindSuffix}-metrics`,
+		executionSurface: evidenceKind,
+		sourceRevision,
+		budgetSha256,
+		attemptCount: 1,
+		retryCount: 0,
+		workerCount: 1,
+		collectionPassed,
+		qualificationEvidencePublished: false,
+		workloads: Object.freeze(workloads),
+		failures: Object.freeze(failures),
+	});
+	const qualification = evidenceKind === 'packaged-runtime'
+		? createPackagedRuntimeQualification({ config, raw, summary: pendingSummary })
+		: null;
+	const qualifiedWorkloads = qualification?.status === 'accepted'
+		? workloads.map((workload) => workload.workloadId === qualification.workloadId
+			? acceptedWorkload(workload, qualification.environmentId) : workload)
+		: workloads;
+	const summary = qualification?.status === 'accepted' ? Object.freeze({
+		...pendingSummary,
+		qualificationEvidencePublished: true,
+		workloads: Object.freeze(qualifiedWorkloads),
+	}) : pendingSummary;
 	return Object.freeze({
 		passed: collectionPassed,
-		raw: Object.freeze({
-			schemaVersion: 1,
-			kind: `soundscaper-desktop-nightly${kindSuffix}-metrics-raw`,
-			executionSurface: evidenceKind,
-			sourceRevision,
-			budgetSha256,
-			diagnostics: Object.freeze(diagnostics),
-		}),
-		summary: Object.freeze({
-			schemaVersion: 1,
-			kind: `soundscaper-desktop-nightly${kindSuffix}-metrics`,
-			executionSurface: evidenceKind,
-			sourceRevision,
-			budgetSha256,
-			attemptCount: 1,
-			retryCount: 0,
-			workerCount: 1,
-			collectionPassed,
-			qualificationEvidencePublished: false,
-			workloads: Object.freeze(workloads),
-			failures: Object.freeze(failures),
-		}),
+		raw,
+		summary,
+		qualification,
 	});
 }
 
@@ -271,6 +287,9 @@ export async function writeDesktopNightlyTestsMetricsEvidence({
 	await Promise.all([
 		writeFile(join(metricsRoot, 'raw.json'), `${JSON.stringify(evidence.raw, null, '\t')}\n`, { flag: 'wx' }),
 		writeFile(join(metricsRoot, 'summary.json'), `${JSON.stringify(evidence.summary, null, '\t')}\n`, { flag: 'wx' }),
+		...(evidence.qualification === null ? [] : [
+			writeFile(join(metricsRoot, 'qualification.json'), `${JSON.stringify(evidence.qualification, null, '\t')}\n`, { flag: 'wx' }),
+		]),
 	]);
 	return evidence;
 }
@@ -315,6 +334,20 @@ function normalizeDiagnosticResult(resultValue, metricGatePassed) {
 			...originalEvaluation,
 			passed: false,
 			failures: Object.freeze([...originalFailures, DOWNLOADABLE_HOST_FAILURE]),
+		}),
+	});
+}
+
+function acceptedWorkload(workload, environmentId) {
+	return Object.freeze({
+		...workload,
+		status: 'accepted',
+		qualificationEnvironmentId: environmentId,
+		qualificationEvidencePublished: true,
+		evaluation: Object.freeze({
+			...(isRecord(workload.evaluation) ? workload.evaluation : {}),
+			passed: true,
+			failures: Object.freeze([]),
 		}),
 	});
 }

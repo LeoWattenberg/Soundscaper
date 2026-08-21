@@ -12,6 +12,7 @@ export interface DesktopNightlyTestsMetricsEvidence {
 	readonly passed: boolean;
 	readonly raw?: DesktopNightlyTestsMetricsRaw;
 	readonly summary?: DesktopNightlyTestsMetricsSummary;
+	readonly qualification?: DesktopNightlyTestsQualification | null;
 }
 
 export interface DesktopNightlyTestsMetricCollector {
@@ -25,11 +26,11 @@ export interface DesktopNightlyTestsMetricCollector {
 }
 
 export interface DesktopNightlyTestsMetricsWorkload extends Readonly<Record<string, unknown>> {
-	readonly status: 'failed' | 'pending-external';
+	readonly status: 'accepted' | 'failed' | 'pending-external';
 	readonly metricGatePassed: boolean;
-	readonly qualificationEvidencePublished: false;
+	readonly qualificationEvidencePublished: boolean;
 	readonly evaluation: Readonly<{
-		passed: false;
+		passed: boolean;
 		failures: readonly string[];
 		readonly [key: string]: unknown;
 	}>;
@@ -54,9 +55,14 @@ export interface DesktopNightlyTestsMetricsSummary {
 	readonly retryCount: 0;
 	readonly workerCount: 1;
 	readonly collectionPassed: boolean;
-	readonly qualificationEvidencePublished: false;
+	readonly qualificationEvidencePublished: boolean;
 	readonly workloads: readonly DesktopNightlyTestsMetricsWorkload[];
 	readonly failures: readonly string[];
+}
+
+export interface DesktopNightlyTestsQualification extends Readonly<Record<string, unknown>> {
+	readonly status: 'accepted' | 'rejected';
+	readonly qualificationEvidencePublished: boolean;
 }
 
 export function createDesktopNightlyTestsMetricsPlan(options: {
@@ -94,6 +100,7 @@ export function createDesktopNightlyTestsMetricsEvidence(
 	readonly passed: boolean;
 	readonly raw: DesktopNightlyTestsMetricsRaw;
 	readonly summary: DesktopNightlyTestsMetricsSummary;
+	readonly qualification: DesktopNightlyTestsQualification | null;
 };
 
 export function writeDesktopNightlyTestsMetricsEvidence(

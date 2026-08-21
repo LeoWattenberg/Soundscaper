@@ -106,6 +106,51 @@ test('downloadable-host metric evidence can pass gates but never self-qualifies'
 	);
 });
 
+test('packaged evidence publishes formal M4 qualification only for the owner-designated host', () => {
+	const fingerprint = {
+		browserVersion: '150.0.7871.114', platform: 'win32', architecture: 'x64',
+		webglVendor: 'Google Inc. (NVIDIA)',
+		webglRenderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)',
+	};
+	const metrics = { 'parity.silentlyOmittedEffects': 0 };
+	const diagnostic = {
+		schemaVersion: 1, profile: 'deterministic-production-parity-v1',
+		observationClass: 'complete-pcm-rgba-render-ledger-v1',
+		workloadId: 'm4-production-render-parity', fixtureId: 'm4-production-parity-v1',
+		environmentId: 'packaged-runtime-win32-x64', rendererClass: 'hardware',
+		environmentFingerprint: fingerprint,
+	};
+	const config = {
+		measurementPolicy: { timingWorkers: 1, benchmarkRetries: 0 },
+		packagedRuntimeQualification: {
+			status: 'active', environmentId: 'owner-qualified-windows-x64-rtx3090-01',
+			observedEnvironmentId: 'packaged-runtime-win32-x64',
+			workloadId: diagnostic.workloadId, fixtureId: diagnostic.fixtureId,
+			profile: diagnostic.profile, observationClass: diagnostic.observationClass,
+			rendererClass: 'hardware', fingerprint,
+		},
+		workloads: [{ id: diagnostic.workloadId, thresholds: [{ metricId: 'parity.silentlyOmittedEffects' }] }],
+	};
+	const evidence = createDesktopNightlyTestsMetricsEvidence({
+		consoleOutput: 'raw diagnostic', config,
+		sourceRevision: 'a'.repeat(40), budgetSha256: 'b'.repeat(64),
+		playwrightExit: { code: 1, signal: null },
+	}, { evidenceKind: 'packaged-runtime', collectors: [{
+		workloadId: 'm4-production-parity', parse: () => diagnostic,
+		evaluate: () => ({ ...diagnostic, attemptCount: 1, retryCount: 0,
+			metricGatePassed: true, metrics,
+			evaluation: { passed: false, failures: [], verdicts: [{ metricId: 'parity.silentlyOmittedEffects', passed: true }] },
+		}),
+		metricGatePassed: () => true,
+	}] });
+
+	assert.equal(evidence.passed, false, 'the unrelated Playwright failure remains visible');
+	assert.equal(evidence.qualification?.status, 'accepted');
+	assert.equal(evidence.summary.qualificationEvidencePublished, true);
+	assert.equal(evidence.summary.workloads[0].status, 'accepted');
+	assert.equal(evidence.summary.workloads[0].qualificationEvidencePublished, true);
+});
+
 test('metric evidence records partial diagnostics and fails closed', () => {
 	const evidence = createDesktopNightlyTestsMetricsEvidence({
 		consoleOutput: 'partial output',

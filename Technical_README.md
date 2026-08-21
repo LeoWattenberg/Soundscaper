@@ -208,13 +208,20 @@ directory contains `packaged-runtime/summary.json`,
 `packaged-runtime/raw.json`, `packaged-runtime/results.json`,
 `packaged-runtime/junit.xml`, `packaged-runtime/console.log`,
 `packaged-runtime/playwright-report/index.html`, and
-`packaged-runtime/test-results/`. This makes packaged-runtime evidence
-machine-readable instead of relying only on CI log lines.
+`packaged-runtime/test-results/`. It also writes
+`packaged-runtime/qualification.json`: a fail-closed formal verification of the
+Soundscaper M4 result against the owner-designated Windows x64 RTX 3090 host
+fingerprint, the registered workload, the exact budget digest, one attempt,
+zero retries, one worker, hardware rendering, and every registered threshold.
+Framescaper failures remain visible in the overall run but do not invalidate a
+complete, independently admitted Soundscaper M4 qualification. This makes
+packaged-runtime evidence machine-readable instead of relying only on CI log
+lines.
 
-These measurements are useful host diagnostics, but remain `pending-external`:
-the downloadable binary deliberately cannot publish qualification evidence for
-an unprovisioned machine. A metric-threshold or collector failure makes the
-overall run fail without turning a passing diagnostic into a roadmap gate.
+Other hosts and workloads remain `pending-external`. An identity, renderer,
+source-revision, budget-digest, retry, worker, or metric mismatch is recorded as
+a rejected qualification. A metric-threshold or collector failure still makes
+the overall run fail.
 
 The browser phase carries full Chromium rather than Chromium Headless Shell and
 launches it headlessly with `--enable-gpu` for normal hardware renderer

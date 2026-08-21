@@ -364,7 +364,7 @@ test('Playwright exit mapping and result envelopes distinguish failures from inf
 			packagedRuntimeJsonReport: 'packaged-runtime/results.json',
 			packagedRuntimeJunitReport: 'packaged-runtime/junit.xml',
 			packagedRuntimeRaw: 'packaged-runtime/raw.json',
-			packagedRuntimeSummary: 'packaged-runtime/summary.json',
+			packagedRuntimeSummary: 'packaged-runtime/summary.json', packagedRuntimeQualification: 'packaged-runtime/qualification.json',
 			packagedRuntimeTestResults: 'packaged-runtime/test-results',
 		},
 	});

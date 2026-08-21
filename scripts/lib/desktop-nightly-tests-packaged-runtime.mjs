@@ -17,6 +17,7 @@ export const PACKAGED_RUNTIME_ARTIFACT_PATHS = Object.freeze({
 	packagedRuntimeJunitReport: 'packaged-runtime/junit.xml',
 	packagedRuntimeRaw: 'packaged-runtime/raw.json',
 	packagedRuntimeSummary: 'packaged-runtime/summary.json',
+	packagedRuntimeQualification: 'packaged-runtime/qualification.json',
 	packagedRuntimeTestResults: 'packaged-runtime/test-results',
 });
 

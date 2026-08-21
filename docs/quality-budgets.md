@@ -175,11 +175,13 @@ result may promote them.
 ## Fixed hardware environments
 
 The owner-designated fixed-GPU reference is the Windows x64 RTX 3090 machine
-used by the accepted 2026-08-21 downloadable metrics run. The older
-`reference-linux-gpu-01` name in the machine-readable collector contract is a
-legacy identifier and must not be interpreted as requiring a different Linux
-machine. A future collector-contract cleanup should replace that misleading
-identifier while preserving this accepted run and its artifact digests.
+used by the accepted 2026-08-21 downloadable metrics run. Its packaged-runtime
+identity is `owner-qualified-windows-x64-rtx3090-01`; the nightly-with-tests
+runner formally verifies M4 against the exact observed Chromium/WebGL
+fingerprint and writes `packaged-runtime/qualification.json`. That admission is
+independent of Framescaper results in the same run. The older
+`reference-linux-gpu-01` descriptor is retained only for older general-purpose
+collector contracts and is not the M4 packaged-runtime qualification host.
 
 Reference-host observations continue to capture these exact values for future
 runs:
