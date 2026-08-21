@@ -106,6 +106,52 @@ test('clean projects do not emit equal-revision explicit or terminal saves', asy
 	assert.deepEqual(saved, []);
 });
 
+test('an exact snapshot flush persists selection state after an older save marks the project clean', async () => {
+	let project: TestProject = { id: 'project', revision: 3 };
+	let dirty = true;
+	const state = {
+		autosaveTimer: 0,
+		saveGeneration: 0,
+		pendingSaveSnapshots: new Set<TestProject>(),
+		saveQueue: Promise.resolve<unknown>(undefined),
+		saveState: 'saved',
+	};
+	const timers = new Map<number, () => void>();
+	const saved: number[] = [];
+	const service = createProjectSaveService({
+		state,
+		getProject: () => project,
+		hasHistory: () => true,
+		hasUnsavedProjectChanges: () => dirty,
+		isReadOnly: () => false,
+		cloneProject: (value) => ({ ...value }),
+		admitProjectPublication: async () => undefined,
+		saveProject: async (snapshot) => { saved.push(snapshot.revision); },
+		persistActiveProjectId: async () => undefined,
+		isCurrentProject: (projectId) => project.id === projectId,
+		hasSessionTab: () => true,
+		markProjectSaved: () => { dirty = false; },
+		publish: () => undefined,
+		garbageCollect: async () => undefined,
+		refreshStorageUsage: async () => undefined,
+		handleError: () => undefined,
+		scheduleTimer(callback) { timers.set(1, callback); return 1; },
+		clearTimer: (handle) => { timers.delete(handle); },
+	});
+
+	assert.equal(service.scheduleAutosave(), true);
+	timers.get(state.autosaveTimer)?.();
+	project = { id: 'project', revision: 4 };
+	await service.drain();
+	assert.equal(dirty, false, 'the older save cannot see the later selection-only revision');
+	assert.equal(service.flushProject(), undefined);
+
+	const exact = service.flushProject({ forceCurrentSnapshot: true });
+	assert.ok(exact);
+	await exact;
+	assert.deepEqual(saved, [3, 4]);
+});
+
 test('autosaves collect immutable deduplicated kindful roots when the queued write starts', async () => {
 	const project: TestProject = { id: 'project', revision: 1 };
 	let releaseQueue: () => void = () => undefined;

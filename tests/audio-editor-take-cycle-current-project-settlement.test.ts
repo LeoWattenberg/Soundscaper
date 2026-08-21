@@ -126,6 +126,7 @@ test('selection clear settles through the production current-project cycle path 
 			state,
 			getProject: () => project,
 			hasHistory: () => Boolean(state.history),
+			hasUnsavedProjectChanges: () => Boolean(session.getSnapshot().tabs[0]?.dirty),
 			isReadOnly: () => false,
 			cloneProject: (value) => structuredClone(value),
 			admitProjectPublication: async () => undefined,
@@ -234,7 +235,7 @@ test('selection clear settles through the production current-project cycle path 
 			synchronizeProject: () => undefined, now: () => NOW,
 		});
 		const recording = createTakeCycleRecordingAppSession({
-			cycle, prepareCurrentProject: () => saves.flushProject(),
+			cycle, prepareCurrentProject: (options) => saves.flushProject(options),
 			recordingMessage: 'Recording', setTransportState: () => undefined, setStatus: () => undefined,
 		});
 		await recordPass(recording, captures, 1);

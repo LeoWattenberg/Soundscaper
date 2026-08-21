@@ -7,15 +7,17 @@ import { createTakeCycleRecordingAppSession } from '../src/common/editor/control
 
 test('take cycle start flushes the exact current project before capture I/O', async () => {
 	const events: string[] = [];
+	const preparationOptions: unknown[] = [];
 	const service = createTakeCycleRecordingAppSession({
 		cycle: { start: async () => { events.push('capture'); return { stop() {} }; } },
-		prepareCurrentProject: async () => { events.push('flush'); },
+		prepareCurrentProject: async (options) => { preparationOptions.push(options); events.push('flush'); },
 		recordingMessage: 'Recording',
 		setTransportState: () => undefined,
 		setStatus: () => undefined,
 	});
 	await service.begin({ generation: 1, projectId: 'project', assertCurrent: () => { events.push('assert'); } });
 	assert.deepEqual(events, ['assert', 'flush', 'assert', 'capture']);
+	assert.deepEqual(preparationOptions, [{ forceCurrentSnapshot: true }]);
 });
 
 test('take cycle start does not acquire capture when project preparation fails or becomes stale', async () => {

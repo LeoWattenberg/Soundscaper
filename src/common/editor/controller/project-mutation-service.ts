@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand } from '../commands/protocol.ts';
+import type { ProjectFlushOptions } from './project-save-service.ts';
 import {
 	assertEditorCommandCapabilities,
 	type EditorCommandCapabilities,
@@ -57,7 +58,7 @@ interface ProjectPublisherPort {
 
 interface ProjectSavePort {
 	scheduleAutosave(): boolean;
-	flushProject(): PromiseLike<unknown> | unknown;
+	flushProject(options?: ProjectFlushOptions): PromiseLike<unknown> | unknown;
 }
 
 export interface CommitSelection {
@@ -116,7 +117,7 @@ export interface ProjectMutationService<Project extends MutationProject> {
 	projectChanged(options?: ProjectChangedOptions): void;
 	scheduleAutosave(): boolean;
 	saveNow(): Promise<unknown>;
-	flushProject(): Promise<unknown>;
+	flushProject(options?: ProjectFlushOptions): Promise<unknown>;
 }
 
 /** Coordinates the one synchronous command/history/project publication path. */
@@ -222,9 +223,9 @@ export function createProjectMutationService<
 		return dependencies.saves.flushProject();
 	}
 
-	async function flushProject(): Promise<unknown> {
+	async function flushProject(options: ProjectFlushOptions = {}): Promise<unknown> {
 		dependencies.lifetime.assertActive();
-		return dependencies.saves.flushProject();
+		return dependencies.saves.flushProject(options);
 	}
 
 	function queuePlaybackProject(project: Project): void {

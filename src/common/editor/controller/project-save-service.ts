@@ -7,6 +7,10 @@ export interface ProjectSaveSnapshot {
 	readonly id: string;
 }
 
+export interface ProjectFlushOptions {
+	readonly forceCurrentSnapshot?: boolean;
+}
+
 export interface ProjectSaveState<Project extends ProjectSaveSnapshot> {
 	autosaveTimer: number;
 	saveGeneration: number;
@@ -144,22 +148,25 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		return true;
 	}
 
-	function flushProject(): Promise<unknown> | undefined {
-		return flushCurrentProject(false);
+	function flushProject(options: ProjectFlushOptions = {}): Promise<unknown> | undefined {
+		return flushCurrentProject(false, options.forceCurrentSnapshot === true);
 	}
 
 	async function terminalFlush(): Promise<unknown> {
 		terminal = true;
-		const operation = flushCurrentProject(true);
+		const operation = flushCurrentProject(true, false);
 		if (operation) return operation;
 		return state.saveQueue;
 	}
 
-	function flushCurrentProject(allowTerminal: boolean): Promise<unknown> | undefined {
+	function flushCurrentProject(
+		allowTerminal: boolean,
+		forceCurrentSnapshot: boolean,
+	): Promise<unknown> | undefined {
 		if (suspended || (terminal && !allowTerminal)) return undefined;
 		const project = dependencies.getProject();
 		if (!dependencies.hasHistory() || dependencies.isReadOnly()
-			|| dependencies.hasUnsavedProjectChanges?.() === false) {
+			|| (!forceCurrentSnapshot && dependencies.hasUnsavedProjectChanges?.() === false)) {
 			if (!project || scheduledProjectId === project.id) cancelScheduled();
 			return undefined;
 		}
@@ -167,7 +174,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 			const gate = suspendedProjects.get(project.id);
 			if (gate) {
 				if (scheduledProjectId === project.id) cancelScheduled();
-				return gate.promise.then(() => flushCurrentProject(allowTerminal));
+				return gate.promise.then(() => flushCurrentProject(allowTerminal, forceCurrentSnapshot));
 			}
 		}
 		cancelScheduled();
