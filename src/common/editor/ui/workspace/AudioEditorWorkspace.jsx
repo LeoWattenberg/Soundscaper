@@ -27,6 +27,7 @@ import { createWorkspaceApplicationMenus, useSoundscaperNativeServicesMenuRefres
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
 import { partitionWorkspaceFiles } from './workspace-file-routing.js';
 import { desktopExternalDestination, formatDateTimeLocalInput, useMediaQuery } from '../workspace-runtime.js';
+import { WEB_VCR_PANEL_ID } from '../web-vcr-ui-model.ts';
 export default function AudioEditorWorkspace({
 	locale,
 	copy,
@@ -334,14 +335,10 @@ export default function AudioEditorWorkspace({
 		});
 	}, [controller, run]);
 	const toggleWorkspacePanel = useCallback((panelId) => {
-		if (panelId !== 'project-bin') {
-			return run(() => controller.actions.preferences.togglePanel(panelId));
-		}
-		if (projectBinEffectivelyOpen) {
-			return run(() => controller.actions.preferences.setPanel(panelId, { visible: false }));
-		}
-		setProjectBinSessionOpened(true);
-		return run(() => controller.actions.preferences.setPanel(panelId, { visible: true }));
+		if (panelId === WEB_VCR_PANEL_ID) return run(() => controller.actions.webVcr.close());
+		if (panelId !== 'project-bin') return run(() => controller.actions.preferences.togglePanel(panelId));
+		if (!projectBinEffectivelyOpen) setProjectBinSessionOpened(true);
+		return run(() => controller.actions.preferences.setPanel(panelId, { visible: !projectBinEffectivelyOpen }));
 	}, [controller, projectBinEffectivelyOpen, run]);
 	const revealProjectBin = useCallback(
 		() => openWorkspacePanel('project-bin'),

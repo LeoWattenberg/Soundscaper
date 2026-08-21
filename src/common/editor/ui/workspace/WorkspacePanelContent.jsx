@@ -14,6 +14,7 @@ import { ANALYSIS_MODE_PANEL_IDS, historyCommandLabel } from './workspace-panel-
 const AnalysisPanel = React.lazy(() => import('../inspector/AnalysisPanel.jsx'));
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const RecordingSetupPanel = React.lazy(() => import('./RecordingSetupPanel.tsx'));
+const WebVcrPanel = React.lazy(() => import('./WebVcrPanel.tsx'));
 
 function LazyInspectorFallback({ copy }) {
 	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;
@@ -74,6 +75,13 @@ export default function WorkspacePanelContent({
 					run={run}
 					blocked={blocked}
 				/>
+			</React.Suspense>
+		);
+	}
+	if (panelId === 'web-vcr') {
+		return (
+			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+				<WebVcrPanel controller={controller} snapshot={snapshot} copy={copy} run={run} blocked={blocked} />
 			</React.Suspense>
 		);
 	}

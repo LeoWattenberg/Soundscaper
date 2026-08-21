@@ -195,7 +195,7 @@ test('recording setup cannot arm or start without a writable destination project
 	assert.doesNotMatch(active, /<button[^>]*disabled=""[^>]*><span[^>]*>Stop and import<\/span><\/button>/u);
 });
 
-test('recording setup blocks recovery publication but keeps exact capture deletion available', () => {
+test('recording setup recovery follows its frozen origin rather than the active project', () => {
 	for (const state of [
 		{ readOnly: true, blocked: false, project: { id: 'project-a' } },
 		{ readOnly: false, blocked: true, project: { id: 'project-a' } },
@@ -211,9 +211,11 @@ test('recording setup blocks recovery publication but keeps exact capture deleti
 			copy={ENGLISH_COPY} locale="en" run={(operation) => operation()}
 		/>);
 		for (const label of ['Recover capture', 'Import playable data as-is']) {
-			assert.match(markup, new RegExp(
+			const disabled = new RegExp(
 				`<button[^>]*disabled=""[^>]*><span[^>]*>${label}<\\/span><\\/button>`, 'u',
-			));
+			);
+			if (state.blocked) assert.match(markup, disabled);
+			else assert.doesNotMatch(markup, disabled);
 		}
 		assert.doesNotMatch(
 			markup,
@@ -327,7 +329,7 @@ test('Framescaper record split control exposes phase-correct accessible actions'
 	assert.match(active, /data-capture-active="true"/u);
 });
 
-test('Framescaper record control blocks every start and recovery publication entry', () => {
+test('Framescaper record control gates starts by the active project and recovery by its origin', () => {
 	for (const policy of [
 		{ readOnly: true, blocked: false },
 		{ readOnly: false, blocked: true },
@@ -337,8 +339,8 @@ test('Framescaper record control blocks every start and recovery publication ent
 		assert.equal(armed.menuDisabled.get('Start capture'), true);
 
 		const recovery = inspectRecordControl(capture('recovery'), policy);
-		assert.equal(recovery.menuDisabled.get('Recover capture'), true);
-		assert.equal(recovery.menuDisabled.get('Import playable data as-is'), true);
+		assert.equal(recovery.menuDisabled.get('Recover capture'), policy.blocked);
+		assert.equal(recovery.menuDisabled.get('Import playable data as-is'), policy.blocked);
 		assert.equal(recovery.menuDisabled.get('Delete capture'), false);
 	}
 });

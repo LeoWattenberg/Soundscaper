@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { isDesktopTextEditingElement } from '../workspace-runtime.js';
+import { editorCloseHasActiveWork, sealEditorCaptureForClose } from './desktop-editor-close-work.ts';
 
 export function useDesktopEditorBridge({
 	controller,
@@ -54,19 +55,11 @@ export function useDesktopEditorBridge({
 			let allow = false;
 			try {
 				const current = controller.getSnapshot();
-				const activeWork = current.importing
-					|| current.save?.state === 'saving'
-					|| current.recording
-					|| current.recordingStarting
-					|| current.recordingScheduling
-					|| current.scheduledRecording
-					|| current.exporting
-					|| current.processingEffect
-					|| current.analysisProcessing
-					|| current.sampleEdit?.processing;
+				const activeWork = editorCloseHasActiveWork(current);
 				if (activeWork) {
 					const stopAndQuit = globalThis.confirm?.('Soundscaper is still recording or processing. Stop the active work and quit?') ?? false;
 					if (!stopAndQuit) return;
+					await sealEditorCaptureForClose(controller);
 					await Promise.resolve(controller.actions.export.cancel());
 					await Promise.resolve(controller.actions.recording.cancelScheduled());
 					await Promise.resolve(controller.actions.recording.stop());

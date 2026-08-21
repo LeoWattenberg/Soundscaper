@@ -545,7 +545,13 @@ export function loadAudioEditorPreferencesV1(value) {
 			...clone(value),
 			shortcuts: migrateLoadedAudioEditorShortcuts(normalized.shortcuts),
 			view: normalized.view,
-			workspace: { ...clone(value.workspace), panels: normalized.workspace.panels },
+			workspace: {
+				...clone(value.workspace),
+				panels: {
+					...normalized.workspace.panels,
+					'web-vcr': { ...normalized.workspace.panels['web-vcr'], visible: false },
+				},
+			},
 			recording: normalized.recording,
 			playback: normalized.playback,
 		},

@@ -249,6 +249,13 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.equal(preferences.editing.collisionBehavior, 'audacity');
 	assert.equal(validateAudioEditorPreferencesV1(preferences), true);
 	assert.deepEqual(loadAudioEditorPreferencesV1(preferences), { preferences, readOnly: false, reason: null });
+	const savedWithWebVcrOpen = structuredClone(preferences);
+	savedWithWebVcrOpen.workspace.panels['web-vcr'] = {
+		...savedWithWebVcrOpen.workspace.panels['web-vcr'], visible: true, dock: 'floating', x: 72, y: 96,
+	};
+	const restarted = loadAudioEditorPreferencesV1(savedWithWebVcrOpen).preferences.workspace.panels['web-vcr'];
+	assert.equal(restarted.visible, false);
+	assert.deepEqual({ dock: restarted.dock, x: restarted.x, y: restarted.y }, { dock: 'floating', x: 72, y: 96 });
 
 	const custom = createAudioEditorPreferencesV1({
 		appearance: { theme: 'high-contrast-dark', clipStyle: 'classic' },

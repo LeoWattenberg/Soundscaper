@@ -3,7 +3,7 @@ import { listNyquistPlugins } from '../nyquist/plugin-registry.js';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
 import { EFFECT_MENU_GROUPS, createSnapMenu } from './application-menu-model.js';
 import { timelineAnnotationsAvailable } from './timeline/timeline-annotation-ui-model.ts';
-import { ANALYZER_PANEL_ID_SET, WORKSPACE_PANEL_IDS, workspacePanelLabel } from './workspace/workspace-panel-model.ts';
+import { ANALYZER_PANEL_ID_SET, WORKSPACE_DISCOVERABLE_PANEL_IDS, workspacePanelLabel } from './workspace/workspace-panel-model.ts';
 import { filterProductMenus } from './application-menu-product-filter.js';
 import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
 import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-video-trim-application-menu.ts';
@@ -381,7 +381,7 @@ export default function createApplicationMenus({
 					label: copy.panels,
 					items: [
 						{ id: 'toggle-tracks', label: copy.tracksPanel, checked: uiFlags.tracksPanel },
-						...WORKSPACE_PANEL_IDS
+						...WORKSPACE_DISCOVERABLE_PANEL_IDS
 							.filter((panelId) => !ANALYZER_PANEL_ID_SET.has(panelId)
 								&& (capabilities.audioEffects || panelId !== 'effects')
 								&& (capabilities.audioAnalysis || panelId !== 'ebu-r128')

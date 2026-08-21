@@ -11,6 +11,11 @@ import type {
 } from '../framescaper-capture-domain.ts';
 import type { CaptureSourceDeviceDescriptor } from '../platform/capture-source-port.ts';
 import type { FramescaperCaptureDisplaySource } from '../controller/framescaper-capture-session-types.ts';
+import {
+	WEB_VCR_PANEL_ID,
+	type WebVcrUiSnapshot,
+	webVcrCapabilityAvailable,
+} from './web-vcr-ui-model.ts';
 
 export const FRAMESCAPER_CAPTURE_PANEL_ID = 'recording-setup' as const;
 export const FRAMESCAPER_CAPTURE_TOOLBAR_OPT_IN_KEY =
@@ -59,12 +64,16 @@ export interface FramescaperCaptureUiSnapshot {
 	readonly sources: readonly FramescaperCaptureUiSource[];
 	readonly devices?: readonly Readonly<CaptureSourceDeviceDescriptor>[];
 	readonly selectedDeviceIds?: Readonly<Partial<Record<'camera' | 'microphone', string>>>;
-	readonly displaySelectionMode?: 'source-list' | 'system-picker' | null;
+	readonly displaySelectionMode?: 'source-list' | 'system-picker' | 'owned-source' | null;
 	readonly displaySources?: readonly Readonly<FramescaperCaptureDisplaySource>[];
 	readonly selectedDisplaySourceToken?: string | null;
 	readonly sourcesFrozen?: boolean;
 	readonly destination: CaptureDestination | null;
 	readonly countdownMs: number | null;
+	readonly setupDefaults?: Readonly<{
+		readonly destination: CaptureDestination;
+		readonly countdownMs: number;
+	}>;
 	readonly permissionRequestGeneration?: number | null;
 	readonly failure?: Readonly<{ readonly message: string }> | null;
 	readonly elapsedTimeMs?: number;
@@ -85,9 +94,22 @@ export interface CapturePrimaryAction {
 }
 
 /** Application capability policy shared by menus, preferences, docks and toolbar. */
-export function workspacePanelAvailable(productId: string, panelId: string): boolean {
+export function workspacePanelAvailable(
+	productId: string,
+	panelId: string,
+	webVcr?: Pick<WebVcrUiSnapshot, 'capability' | 'modeActive'> | null,
+): boolean {
+	if (panelId === WEB_VCR_PANEL_ID) {
+		return productProfile(productId).applicationFeatures.framescaperCapture === true
+			&& webVcrCapabilityAvailable(webVcr);
+	}
+	if (panelId === FRAMESCAPER_CAPTURE_PANEL_ID && webVcr?.modeActive === true) return false;
 	if (panelId !== FRAMESCAPER_CAPTURE_PANEL_ID) return true;
 	return productProfile(productId).applicationFeatures.framescaperCapture === true;
+}
+
+export function workspacePanelRestoresCaptureFocus(panelId: string): boolean {
+	return panelId === FRAMESCAPER_CAPTURE_PANEL_ID || panelId === WEB_VCR_PANEL_ID;
 }
 
 export function framescaperCaptureRecordVisible(

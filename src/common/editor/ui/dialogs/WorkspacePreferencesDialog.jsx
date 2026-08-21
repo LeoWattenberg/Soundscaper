@@ -20,7 +20,7 @@ import { workspacePanelAvailable } from '../framescaper-capture-ui-model.ts';
 import OfflineRuntimePreferencePanel from './OfflineRuntimePreferencePanel.tsx';
 import {
 	WORKSPACE_DOCK_IDS,
-	WORKSPACE_PANEL_IDS,
+	WORKSPACE_DISCOVERABLE_PANEL_IDS,
 	workspaceDockLabel,
 	workspacePanelLabel,
 } from '../workspace/workspace-panel-model.ts';
@@ -348,7 +348,7 @@ export default function WorkspacePreferencesDialog({
 						{selectedPage === 'panels' && (
 							<PreferencePanel title={copy.panels}>
 								<div className="kw-audio-editor-preferences__panel-list">
-									{WORKSPACE_PANEL_IDS.filter((panelId) => workspacePanelAvailable(productId, panelId)).map((panelId) => {
+									{WORKSPACE_DISCOVERABLE_PANEL_IDS.filter((panelId) => workspacePanelAvailable(productId, panelId)).map((panelId) => {
 										const panel = preferences.workspace.panels[panelId];
 										const label = workspacePanelLabel(copy, panelId);
 										return (

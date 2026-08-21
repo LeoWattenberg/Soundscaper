@@ -1,3 +1,5 @@
+import { WEB_VCR_PANEL_ID } from '../web-vcr-ui-model.ts';
+
 export const ANALYSIS_MODE_PANEL_IDS = Object.freeze({
 	levels: 'analysis',
 	spectrum: 'spectrum',
@@ -26,7 +28,11 @@ export const WORKSPACE_PANEL_IDS = Object.freeze([
 	'contrast',
 	'ebu-r128',
 	'recording-setup',
+	WEB_VCR_PANEL_ID,
 ]);
+export const WORKSPACE_DISCOVERABLE_PANEL_IDS = Object.freeze(
+	WORKSPACE_PANEL_IDS.filter((panelId) => panelId !== WEB_VCR_PANEL_ID),
+);
 export const WORKSPACE_TOOLBAR_IDS = Object.freeze(['transport', 'tools', 'edit', 'meter']);
 export const WORKSPACE_DOCK_IDS = Object.freeze(['left', 'right', 'bottom', 'floating']);
 export const FLOATING_PANEL_MIN_WIDTH = 240;
@@ -86,6 +92,7 @@ export function workspacePanelLabel(copy: EditorCopy, panelId: string): string {
 		'video-preview': copy.panelVideoPreview,
 		'source-monitor': copy.panelSourceMonitor,
 		'recording-setup': copy.panelRecordingSetup,
+		[WEB_VCR_PANEL_ID]: copy.webVcrTitle,
 		analysis: copy.analysisCommand,
 		spectrum: copy.plotSpectrum,
 		clipping: copy.findClipping,

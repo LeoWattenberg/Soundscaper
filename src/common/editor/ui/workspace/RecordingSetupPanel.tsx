@@ -25,6 +25,7 @@ interface CaptureActions {
 	configureSource?(sourceId: string, settings: Readonly<Record<string, number>>): unknown;
 	release?(): unknown;
 	configure?(changes: Readonly<Record<string, unknown>>): unknown;
+	setSetupDefaults?(defaults: Readonly<{ destination: CaptureDestination; countdownMs: number }>): unknown;
 	arm?(options: Readonly<{ destination: CaptureDestination; countdownMs: number }>): unknown;
 	start?(): unknown;
 	pause?(): unknown;
@@ -74,8 +75,12 @@ export default function RecordingSetupPanel({
 	const [selectedRoles, setSelectedRoles] = useState<readonly CaptureSourceRole[]>(() => (
 		capture?.requestedRoles.length ? capture.requestedRoles : defaultSourceRoles(capture)
 	));
-	const [destination, setDestination] = useState<CaptureDestination>(capture?.destination ?? 'both');
-	const [countdownMs, setCountdownMs] = useState(capture?.countdownMs ?? 3_000);
+	const [destination, setDestination] = useState<CaptureDestination>(
+		capture?.destination ?? capture?.setupDefaults?.destination ?? 'both',
+	);
+	const [countdownMs, setCountdownMs] = useState(
+		capture?.countdownMs ?? capture?.setupDefaults?.countdownMs ?? 3_000,
+	);
 
 	useEffect(() => {
 		if (capture?.requestedRoles.length) setSelectedRoles(capture.requestedRoles);
@@ -98,13 +103,13 @@ export default function RecordingSetupPanel({
 		});
 	}, [supportedRoleKey]);
 	useEffect(() => {
-		if (capture?.destination) setDestination(capture.destination);
-	}, [capture?.destination]);
+		const next = capture?.destination ?? capture?.setupDefaults?.destination;
+		if (next) setDestination(next);
+	}, [capture?.destination, capture?.setupDefaults?.destination]);
 	useEffect(() => {
-		if (capture?.countdownMs !== null && capture?.countdownMs !== undefined) {
-			setCountdownMs(capture.countdownMs);
-		}
-	}, [capture?.countdownMs]);
+		const next = capture?.countdownMs ?? capture?.setupDefaults?.countdownMs;
+		if (next !== undefined) setCountdownMs(next);
+	}, [capture?.countdownMs, capture?.setupDefaults?.countdownMs]);
 
 	if (!workspacePanelAvailable(productId, FRAMESCAPER_CAPTURE_PANEL_ID)) return null;
 	const phase = capture?.phase ?? 'inactive';
@@ -121,6 +126,15 @@ export default function RecordingSetupPanel({
 	};
 	const statusText = captureStatusText(capture, copy);
 	const recordingBlocked = Boolean(blocked || snapshot.readOnly || !snapshot.project);
+	const recoveryBlocked = Boolean(blocked);
+	const updateSetupDefaults = (next: Readonly<{
+		destination: CaptureDestination;
+		countdownMs: number;
+	}>): void => {
+		setDestination(next.destination);
+		setCountdownMs(next.countdownMs);
+		invoke(() => actions?.setSetupDefaults?.(next));
+	};
 
 	return <section
 		className="kw-framescaper-capture"
@@ -160,8 +174,8 @@ export default function RecordingSetupPanel({
 				monitoring={Boolean(capture?.monitoring)}
 				inputGain={capture?.inputGain ?? 1}
 				disabled={phase === 'armed'}
-				onDestination={setDestination}
-				onCountdown={setCountdownMs}
+				onDestination={(value) => updateSetupDefaults({ destination: value, countdownMs })}
+				onCountdown={(value) => updateSetupDefaults({ destination, countdownMs: value })}
 				onMonitoring={(monitoring) => invoke(() => actions?.configure?.({ monitoring }))}
 				onInputGain={(inputGain) => invoke(() => actions?.configure?.({ inputGain }))}
 			/>}
@@ -176,8 +190,9 @@ export default function RecordingSetupPanel({
 				selectedRoles={selectedRoles}
 				destination={destination}
 				countdownMs={countdownMs}
-				capture={capture}
-				recordingBlocked={recordingBlocked}
+					capture={capture}
+					recordingBlocked={recordingBlocked}
+					recoveryBlocked={recoveryBlocked}
 				invoke={invoke}
 			/>}
 
@@ -253,6 +268,7 @@ function CapturePanelActions({
 	countdownMs,
 	capture,
 	recordingBlocked,
+	recoveryBlocked,
 	invoke,
 }: Readonly<{
 	phase: CapturePhase;
@@ -263,6 +279,7 @@ function CapturePanelActions({
 	countdownMs: number;
 	capture: FramescaperCaptureUiSnapshot | undefined;
 	recordingBlocked: boolean;
+	recoveryBlocked: boolean;
 	invoke(operation: (() => unknown) | undefined): void;
 }>) {
 	const previewNeedsUpdate = phase === 'previewing'
@@ -305,9 +322,9 @@ function CapturePanelActions({
 				onClick={() => invoke(actions?.stop)}>{copy.captureStopImport}</Button>
 		</>}
 		{phase === 'recovery' && <>
-			<Button variant="primary" disabled={recordingBlocked || !actions?.recover}
+			<Button variant="primary" disabled={recoveryBlocked || !actions?.recover}
 				onClick={() => invoke(actions?.recover)}>{copy.captureRecover}</Button>
-			<Button variant="secondary" disabled={recordingBlocked || !actions?.importAsIs}
+			<Button variant="secondary" disabled={recoveryBlocked || !actions?.importAsIs}
 				onClick={() => invoke(actions?.importAsIs)}>{copy.captureImportAsIs}</Button>
 			<Button variant="secondary" disabled={!actions?.discard}
 				onClick={() => invoke(actions?.discard)}>{copy.captureDelete}</Button>

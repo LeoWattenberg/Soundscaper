@@ -33,6 +33,7 @@ test('the project registry covers project capabilities without absorbing applica
 		assert.deepEqual(registryKeys, Object.keys(profile.capabilities).sort(), profile.id);
 	}
 	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperCapture, true);
+	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperWebVcr, false);
 	assert.equal(Object.hasOwn(PRODUCT_PROFILES.soundscaper.applicationFeatures, 'framescaperCapture'), false);
 	const featureIds = Object.values(PROJECT_FEATURE_CAPABILITY_IDS);
 	assert.equal(new Set(featureIds).size, featureIds.length);
