@@ -15,6 +15,11 @@ import {
 	DESKTOP_VIDEO_TIMING_PROBE_MODE,
 	decodeDesktopVideoTimingProbePlan,
 } from './video-timing-probe-smoke.js';
+import {
+	FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE,
+	FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE,
+	decodeFramescaperWebVcrSmokePlan,
+} from './framescaper-web-vcr-smoke-plan.js';
 
 const SMOKE_ARGUMENT = '--soundscaper-smoke';
 const SMOKE_MODE_PREFIX = '--soundscaper-smoke-mode=';
@@ -48,6 +53,8 @@ export function parseDesktopSmokeConfigurationWithProjectPlan(argv, decodeProjec
 		[DESKTOP_SCAPE_OPEN_SMOKE_MODE, decodeScapeOpenSmokePlan],
 		[DESKTOP_SCAPE_REOPEN_SMOKE_MODE, decodeScapeReopenSmokePlan],
 		[DESKTOP_VIDEO_TIMING_PROBE_MODE, decodeDesktopVideoTimingProbePlan],
+		[FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE, decodeFramescaperWebVcrSmokePlan],
+		[FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE, decodeFramescaperWebVcrSmokePlan],
 	]);
 	const decode = decoders.get(modes[0]);
 	if (!decode) throw new TypeError('Unsupported desktop smoke mode');
@@ -62,6 +69,8 @@ function labelFor(mode) {
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE) return 'Scape-open';
 	if (mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return 'Scape persisted-reopen';
 	if (mode === DESKTOP_VIDEO_TIMING_PROBE_MODE) return 'Video timing-probe';
+	if (mode === FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE) return 'Framescaper Web VCR dormant';
+	if (mode === FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE) return 'Framescaper Web VCR packaged';
 	return 'Unsupported desktop';
 }
 

@@ -3,6 +3,9 @@
 interface PermissionDetails {
 	readonly requestingUrl?: string;
 	readonly mediaTypes?: readonly string[];
+	readonly mediaType?: 'video' | 'audio' | 'unknown';
+	readonly isMainFrame?: boolean;
+	readonly securityOrigin?: string;
 }
 
 type PermissionCheckHandler = (
@@ -28,8 +31,9 @@ interface DisplayMediaRequest {
 }
 
 type DisplayMediaResult = Readonly<{
-	readonly video?: Readonly<{ readonly id: string; readonly name: string }>;
-	readonly audio?: 'loopback';
+	readonly video?: object;
+	readonly audio?: 'loopback' | object;
+	readonly enableLocalEcho?: boolean;
 }>;
 
 type DisplayMediaRequestHandler = (
@@ -64,6 +68,16 @@ interface CaptureAuthority {
 	dispose(): void;
 }
 
+interface WebVcrCaptureAuthority {
+	hasPending(owner: object): boolean;
+	consumeCurrent(owner: object, request: Readonly<{
+		readonly userGesture: boolean;
+		readonly videoRequested: boolean;
+		readonly audioRequested: boolean;
+	}>): DisplayMediaResult | null | undefined;
+	dispose(): void;
+}
+
 interface WindowReference {
 	readonly webContents: Readonly<{
 		readonly mainFrame: unknown;
@@ -77,12 +91,50 @@ interface FramescaperCaptureSessionSecurityOptions {
 	readonly productId: string;
 	readonly trustedOrigin: string;
 	readonly capture: CaptureAuthority;
+	readonly webVcrCapture?: WebVcrCaptureAuthority;
 	readonly session: FramescaperCaptureSessionSecuritySession;
 	readonly windowFor: () => WindowReference | null;
 	readonly currentOwnerFor: (webContents: object) => object;
 	readonly isAppUrl: (value: string) => boolean;
 	readonly isEditorDocumentUrl: (value: string) => boolean;
+	readonly onWebVcrDisplaySecurityWitness?: (
+		value: FramescaperWebVcrDisplaySecurityWitnessV1,
+	) => void;
 }
+
+export type FramescaperWebVcrDisplaySecurityWitnessV1 = Readonly<
+	| {
+		readonly version: 1;
+		readonly stage: 'permission-check' | 'permission-request';
+		readonly windowLive: boolean;
+		readonly focused: boolean;
+		readonly senderMatches: boolean;
+		readonly originMatches: boolean;
+		readonly editorDocument: boolean;
+		readonly ownerAvailable: boolean;
+		readonly pending: boolean;
+		readonly systemPicker: boolean;
+		readonly allowed: boolean;
+	}
+	| {
+		readonly version: 1;
+		readonly stage: 'display-request';
+		readonly windowLive: boolean;
+		readonly focused: boolean;
+		readonly frameMatches: boolean;
+		readonly originMatches: boolean;
+		readonly editorDocument: boolean;
+		readonly ownerAvailable: boolean;
+		readonly userGesture: boolean;
+		readonly videoRequested: boolean;
+		readonly audioRequested: boolean;
+		readonly pending: boolean;
+		readonly systemPicker: boolean;
+		readonly outcome: 'rejected-trust' | 'rejected-system-picker'
+			| 'rejected-web-vcr-grant' | 'rejected-device-grant'
+			| 'granted-web-vcr' | 'granted-device';
+	}
+>;
 
 export interface FramescaperCaptureSessionSecurityRegistration {
 	dispose(): void;
@@ -113,13 +165,46 @@ export function configureFramescaperCaptureSessionSecurityV1(
 			return trustedAppDocument(seams, webContents, details.requestingUrl, requestingOrigin);
 		}
 		const owner = trustedCaptureOwner(seams, webContents, details.requestingUrl, requestingOrigin);
-		if (!owner) return false;
-		if (permission === 'display-capture') {
-			return seams.capture.status().selectionMode !== 'system-picker'
-				&& seams.capture.allowsDisplayPermission(owner);
+		if (permission === 'media' && details.mediaType !== undefined
+			&& !trustedOrigin(details.securityOrigin, seams.trustedOrigin)) return false;
+		// Electron rewrites display-video preflight to the same `video` shape as camera.
+		// This check is non-consuming; the exact empty request below is the final discriminator.
+		if (permission === 'media' && details.mediaType === 'video'
+			&& details.mediaTypes === undefined
+			&& trustedOrigin(details.securityOrigin, seams.trustedOrigin)) {
+			const pending = Boolean(owner && seams.webVcrCapture?.hasPending(owner));
+			const systemPicker = seams.capture.status().selectionMode === 'system-picker';
+			const allowed = owner !== null && details.isMainFrame === true
+				&& pending && !systemPicker;
+			emitPermissionWitness(seams, 'permission-check', webContents,
+				details.requestingUrl, requestingOrigin, owner, pending, systemPicker, allowed);
+			return allowed;
 		}
+		if (permission === 'display-capture') {
+			const window = seams.windowFor();
+			const windowLive = Boolean(window && !window.isDestroyed());
+			const focused = Boolean(windowLive && window?.isFocused());
+			const senderMatches = Boolean(windowLive && webContents === window?.webContents);
+			const originMatches = trustedOrigin(requestingOrigin, seams.trustedOrigin);
+			const editorDocument = Boolean(windowLive && seams.isEditorDocumentUrl(
+				details.requestingUrl || window!.webContents.getURL(),
+			) && seams.isEditorDocumentUrl(window!.webContents.getURL()));
+			const pending = Boolean(owner && seams.webVcrCapture?.hasPending(owner));
+			const systemPicker = seams.capture.status().selectionMode === 'system-picker';
+			const allowed = owner !== null && !systemPicker
+				&& (pending || seams.capture.allowsDisplayPermission(owner));
+			emitWitness(seams, Object.freeze({
+				version: 1, stage: 'permission-check', windowLive, focused, senderMatches,
+				originMatches, editorDocument, ownerAvailable: owner !== null, pending, systemPicker, allowed,
+			}));
+			return allowed;
+		}
+		if (!owner) return false;
 		if (permission !== 'media') return false;
-		return seams.capture.allowsMedia(owner, details.mediaTypes ?? []);
+		const mediaTypes = details.mediaTypes
+			?? (details.mediaType === 'audio' || details.mediaType === 'video'
+				? [details.mediaType] : []);
+		return mediaTypes.length > 0 && seams.capture.allowsMedia(owner, mediaTypes);
 	};
 
 	const permissionRequest: PermissionRequestHandler = (
@@ -130,38 +215,115 @@ export function configureFramescaperCaptureSessionSecurityV1(
 	) => {
 		const requestingUrl = details.requestingUrl ?? '';
 		const requestingOrigin = originForDocument(requestingUrl);
-		if (permission === 'display-capture' && !disposed
-			&& seams.capture.status().selectionMode === 'system-picker') {
-			const owner = trustedCaptureOwner(seams, webContents, requestingUrl, requestingOrigin);
-			callback(Boolean(owner && seams.capture.consumeSystemPickerGrant(owner)));
+		if (permission === 'display-capture') {
+			const window = seams.windowFor();
+			const windowLive = Boolean(window && !window.isDestroyed());
+			const focused = Boolean(windowLive && window?.isFocused());
+			const senderMatches = Boolean(windowLive && webContents === window?.webContents);
+			const originMatches = trustedOrigin(requestingOrigin, seams.trustedOrigin);
+			const editorDocument = Boolean(windowLive && seams.isEditorDocumentUrl(
+				requestingUrl || window!.webContents.getURL(),
+			) && seams.isEditorDocumentUrl(window!.webContents.getURL()));
+			const owner = disposed ? null
+				: trustedCaptureOwner(seams, webContents, requestingUrl, requestingOrigin);
+			const pending = Boolean(owner && seams.webVcrCapture?.hasPending(owner));
+			const systemPicker = seams.capture.status().selectionMode === 'system-picker';
+			const allowed = !owner ? false
+				: systemPicker
+					? !pending && seams.capture.consumeSystemPickerGrant(owner)
+					: pending || seams.capture.allowsDisplayPermission(owner);
+			emitWitness(seams, Object.freeze({
+				version: 1, stage: 'permission-request', windowLive, focused, senderMatches,
+				originMatches, editorDocument, ownerAvailable: owner !== null, pending,
+				systemPicker, allowed,
+			}));
+			callback(allowed);
 			return;
 		}
 		if (permission === 'media' && !disposed) {
 			const owner = trustedCaptureOwner(seams, webContents, requestingUrl, requestingOrigin);
-			callback(Boolean(owner && seams.capture.consumeMediaGrant(owner, details.mediaTypes ?? [])));
+			const mediaTypes = details.mediaTypes;
+			if (Array.isArray(mediaTypes) && mediaTypes.length === 0) {
+				const pending = Boolean(owner && seams.webVcrCapture?.hasPending(owner));
+				const systemPicker = seams.capture.status().selectionMode === 'system-picker';
+				const allowed = owner !== null && details.isMainFrame === true
+					&& trustedOrigin(details.securityOrigin, seams.trustedOrigin)
+					&& pending && !systemPicker;
+				emitPermissionWitness(seams, 'permission-request', webContents,
+					requestingUrl, requestingOrigin, owner, pending, systemPicker, allowed);
+				callback(allowed);
+				return;
+			}
+			callback(Boolean(owner && mediaTypes && mediaTypes.length > 0
+				&& seams.capture.consumeMediaGrant(owner, mediaTypes)));
 			return;
 		}
 		callback(permissionCheck(webContents, permission, requestingOrigin, details));
 	};
 
 	const displayRequest: DisplayMediaRequestHandler = (request, callback) => {
-		const window = trustedFocusedWindow(seams);
-		if (!window || request.frame !== window.webContents.mainFrame
-			|| !trustedOrigin(request.securityOrigin, seams.trustedOrigin)
-			|| !seams.isEditorDocumentUrl(window.webContents.getURL())
-			|| request.userGesture !== true || request.videoRequested !== true) {
+		const window = seams.windowFor();
+		const windowLive = Boolean(window && !window.isDestroyed());
+		const focused = Boolean(windowLive && window?.isFocused());
+		const frameMatches = Boolean(windowLive && request.frame === window?.webContents.mainFrame);
+		const originMatches = trustedOrigin(request.securityOrigin, seams.trustedOrigin);
+		const editorDocument = Boolean(windowLive
+			&& seams.isEditorDocumentUrl(window!.webContents.getURL()));
+		const userGesture = request.userGesture === true;
+		const videoRequested = request.videoRequested === true;
+		const audioRequested = request.audioRequested === true;
+		const systemPicker = seams.capture.status().selectionMode === 'system-picker';
+		if (disposed || !windowLive || !focused || !frameMatches || !originMatches
+			|| !editorDocument || !userGesture || !videoRequested) {
+			emitDisplayWitness(seams, {
+				windowLive, focused, frameMatches, originMatches, editorDocument,
+				userGesture, videoRequested, audioRequested, owner: null, pending: false,
+				systemPicker, outcome: 'rejected-trust',
+			});
 			callback(Object.freeze({}));
 			return;
 		}
-		const owner = currentOwner(seams, window.webContents);
+		const owner = currentOwner(seams, window!.webContents);
 		if (!owner) {
+			emitDisplayWitness(seams, {
+				windowLive, focused, frameMatches, originMatches, editorDocument,
+				userGesture, videoRequested, audioRequested, owner: null, pending: false,
+				systemPicker, outcome: 'rejected-trust',
+			});
 			callback(Object.freeze({}));
 			return;
 		}
-		const granted = seams.capture.consumeDisplayGrant(owner, {
+		const admittedRequest = {
 			userGesture: true,
 			videoRequested: true,
-			audioRequested: request.audioRequested === true,
+			audioRequested,
+		};
+		const webVcrCapture = seams.webVcrCapture;
+		const pending = Boolean(webVcrCapture?.hasPending(owner));
+		if (pending && webVcrCapture) {
+			if (systemPicker) {
+				emitDisplayWitness(seams, {
+					windowLive, focused, frameMatches, originMatches, editorDocument,
+					userGesture, videoRequested, audioRequested, owner, pending, systemPicker,
+					outcome: 'rejected-system-picker',
+				});
+				callback(Object.freeze({}));
+				return;
+			}
+			const granted = webVcrCapture.consumeCurrent(owner, admittedRequest);
+			emitDisplayWitness(seams, {
+				windowLive, focused, frameMatches, originMatches, editorDocument,
+				userGesture, videoRequested, audioRequested, owner, pending, systemPicker,
+				outcome: granted ? 'granted-web-vcr' : 'rejected-web-vcr-grant',
+			});
+			callback(granted ?? Object.freeze({}));
+			return;
+		}
+		const granted = seams.capture.consumeDisplayGrant(owner, admittedRequest);
+		emitDisplayWitness(seams, {
+			windowLive, focused, frameMatches, originMatches, editorDocument,
+			userGesture, videoRequested, audioRequested, owner, pending, systemPicker,
+			outcome: granted ? 'granted-device' : 'rejected-device-grant',
 		});
 		callback(granted ?? Object.freeze({}));
 	};
@@ -183,6 +345,7 @@ export function configureFramescaperCaptureSessionSecurityV1(
 			session.setDisplayMediaRequestHandler(null);
 			session.removeListener('will-download', cancelDownload);
 			seams.capture.dispose();
+			seams.webVcrCapture?.dispose();
 		},
 	});
 }
@@ -194,10 +357,88 @@ function validateOptions(
 		|| typeof value.trustedOrigin !== 'string' || typeof value.capture !== 'object'
 		|| typeof value.session !== 'object' || typeof value.windowFor !== 'function'
 		|| typeof value.currentOwnerFor !== 'function' || typeof value.isAppUrl !== 'function'
-		|| typeof value.isEditorDocumentUrl !== 'function') {
+		|| typeof value.isEditorDocumentUrl !== 'function'
+		|| (value.onWebVcrDisplaySecurityWitness !== undefined
+			&& typeof value.onWebVcrDisplaySecurityWitness !== 'function')) {
 		throw new TypeError('Framescaper capture session security seams are invalid.');
 	}
+	if (value.webVcrCapture !== undefined && (!value.webVcrCapture
+		|| typeof value.webVcrCapture.hasPending !== 'function'
+		|| typeof value.webVcrCapture.consumeCurrent !== 'function'
+		|| typeof value.webVcrCapture.dispose !== 'function')) {
+		throw new TypeError('Framescaper Web VCR capture security seam is invalid.');
+	}
 	return value;
+}
+
+function emitDisplayWitness(
+	seams: FramescaperCaptureSessionSecurityOptions,
+	value: Readonly<{
+		readonly windowLive: boolean;
+		readonly focused: boolean;
+		readonly frameMatches: boolean;
+		readonly originMatches: boolean;
+		readonly editorDocument: boolean;
+		readonly userGesture: boolean;
+		readonly videoRequested: boolean;
+		readonly audioRequested: boolean;
+		readonly owner: object | null;
+		readonly pending: boolean;
+		readonly systemPicker: boolean;
+		readonly outcome: Extract<FramescaperWebVcrDisplaySecurityWitnessV1,
+			{ readonly stage: 'display-request' }>['outcome'];
+	}>,
+): void {
+	emitWitness(seams, Object.freeze({
+		version: 1,
+		stage: 'display-request',
+		windowLive: value.windowLive,
+		focused: value.focused,
+		frameMatches: value.frameMatches,
+		originMatches: value.originMatches,
+		editorDocument: value.editorDocument,
+		ownerAvailable: value.owner !== null,
+		userGesture: value.userGesture,
+		videoRequested: value.videoRequested,
+		audioRequested: value.audioRequested,
+		pending: value.pending,
+		systemPicker: value.systemPicker,
+		outcome: value.outcome,
+	}));
+}
+
+function emitPermissionWitness(
+	seams: FramescaperCaptureSessionSecurityOptions,
+	stage: 'permission-check' | 'permission-request',
+	webContents: unknown,
+	requestingUrl: string | undefined,
+	requestingOrigin: string,
+	owner: object | null,
+	pending: boolean,
+	systemPicker: boolean,
+	allowed: boolean,
+): void {
+	const window = seams.windowFor();
+	const windowLive = Boolean(window && !window.isDestroyed());
+	const focused = Boolean(windowLive && window?.isFocused());
+	const senderMatches = Boolean(windowLive && webContents === window?.webContents);
+	const originMatches = trustedOrigin(requestingOrigin, seams.trustedOrigin);
+	const editorDocument = Boolean(windowLive && seams.isEditorDocumentUrl(
+		requestingUrl || window!.webContents.getURL(),
+	) && seams.isEditorDocumentUrl(window!.webContents.getURL()));
+	emitWitness(seams, Object.freeze({
+		version: 1, stage, windowLive, focused, senderMatches, originMatches,
+		editorDocument, ownerAvailable: owner !== null, pending, systemPicker, allowed,
+	}));
+}
+
+function emitWitness(
+	seams: FramescaperCaptureSessionSecurityOptions,
+	value: FramescaperWebVcrDisplaySecurityWitnessV1,
+): void {
+	try { seams.onWebVcrDisplaySecurityWitness?.(value); } catch {
+		// Packaged qualification observation can never alter capture admission.
+	}
 }
 
 function trustedCaptureOwner(

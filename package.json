@@ -81,6 +81,7 @@
 		"desktop:smoke:direct-wav": "node scripts/desktop-direct-wav-smoke.mjs",
 		"desktop:smoke:scape-open": "node --import tsx scripts/desktop-scape-open-smoke.mjs",
 		"desktop:smoke:framescaper": "SCAPE_PRODUCT=framescaper node scripts/desktop-smoke.mjs",
+		"desktop:smoke:framescaper-web-vcr": "node scripts/framescaper-web-vcr-smoke.mjs",
 		"desktop:smoke:project-library-handoff": "node scripts/desktop-project-library-handoff-smoke.mjs",
 		"desktop:smoke:project-library-lease-matrix": "node --import tsx scripts/desktop-project-library-lease-matrix.mjs",
 		"desktop:smoke:project-library-source-bearing-handoff": "node scripts/desktop-project-library-source-bearing-handoff-smoke.mjs",

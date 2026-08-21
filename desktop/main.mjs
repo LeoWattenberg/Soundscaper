@@ -28,6 +28,7 @@ import {
 import { DesktopApplicationShutdown, resolveDesktopProjectLibraryAppData } from './project-library-runtime/desktop/application-lifecycle.js';
 import { registerAssistance } from './assistance-registration.mjs';
 import { disposeDesktopCaptureSecurity, registerDesktopCaptureSecurity, revokeDesktopCaptureOwner } from './framescaper-capture-registration.mjs';
+import { framescaperWebVcrSmokeQualification } from './framescaper-web-vcr-smoke-plan.js';
 import { desktopNativeTierMenu, disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
@@ -313,11 +314,13 @@ function isRendererSaveOwnerCurrent(owner) {
 async function registerIpcHandlers(desktopSession) {
 	captureSecurity = registerDesktopCaptureSecurity({
 		appOrigin: APP_ORIGIN, desktopCapturer, desktopRoot: __dirname, desktopSession,
+		createWebVcrWindow: (options) => new BrowserWindow(options), sessionFromPartition: (partition) => session.fromPartition(partition),
 		handle, removeHandler: (channel) => ipcMain.removeHandler(channel),
 		ownerFor: rendererSaveOwnerFor,
 		currentOwnerFor: (webContents) => rendererSaveOwnership.currentOwnerFor(webContents),
+		observeWebVcrDisplaySecurityWitness: (value) => desktopSmokeProbe.observeWebVcrDisplaySecurityWitness(value),
 		platform: process.platform, productId: PRODUCT_ID,
-		systemVersion: process.getSystemVersion?.() ?? '', windowFor: () => mainWindow,
+		systemVersion: process.getSystemVersion?.() ?? '', webVcrQualification: framescaperWebVcrSmokeQualification(process.argv, { packaged: app.isPackaged, productId: PRODUCT_ID }), windowFor: () => mainWindow,
 	});
 	projectLibraryIpc = projectLibraryRuntime.registerRendererBridge({
 		desktopRoot: __dirname,

@@ -19,6 +19,21 @@
 		"desktop/framescaper-capture-desktop-port.ts",
 		"desktop/framescaper-capture-main-channels.js",
 		"desktop/framescaper-capture-session-security.ts",
+		"desktop/framescaper-web-vcr-capture-authority.ts",
+		"desktop/framescaper-web-vcr-contract.ts",
+		"desktop/framescaper-web-vcr-electron-window.ts",
+		"desktop/framescaper-web-vcr-guest-security.ts",
+		"desktop/framescaper-web-vcr-host.ts",
+		"desktop/framescaper-web-vcr-main-channels.ts",
+		"desktop/framescaper-web-vcr-preload-registration.ts",
+		"desktop/framescaper-web-vcr-registration.ts",
+		"desktop/framescaper-web-vcr-runtime-capture-state.ts",
+		"desktop/framescaper-web-vcr-runtime-snapshot.ts",
+		"desktop/framescaper-web-vcr-runtime-support.ts",
+		"desktop/framescaper-web-vcr-runtime.ts",
+		"desktop/framescaper-web-vcr-security-policy.ts",
+		"desktop/framescaper-web-vcr-target-observer.ts",
+		"desktop/framescaper-web-vcr-target-tracker.ts",
 		"desktop/helper-contract.ts",
 		"desktop/helper-job-grant.ts",
 		"desktop/helper-probe-service.ts",
@@ -65,7 +80,9 @@
 		"src/common/editor/ffmpeg-video-timing-probe.ts",
 		"src/common/editor/project-schema-version.ts",
 		"src/common/editor/project-hierarchy-document-validation.ts",
-		"src/common/editor/scape-project-document.ts"
+		"src/common/editor/scape-project-document.ts",
+		"src/common/editor/web-vcr-domain.ts",
+		"src/common/editor/web-vcr-geometry.ts"
 	],
 	"exclude": ["dist", "node_modules", "test-results"]
 }

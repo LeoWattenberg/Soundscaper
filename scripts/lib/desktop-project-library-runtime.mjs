@@ -8,6 +8,7 @@ import { build } from 'esbuild';
 
 const FRAMESCAPER_V10_PRELOAD_BUNDLE = 'project-library-v10-sandbox-preload.cjs';
 const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
+const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
 const SOUNDSCAPER_V10_PRELOAD_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
 
 // Staged desktop sources may not import TypeScript specifiers: the packaged
@@ -37,6 +38,21 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/framescaper-capture-desktop-port.js',
 	'desktop/framescaper-capture-main-channels.js',
 	'desktop/framescaper-capture-session-security.js',
+	'desktop/framescaper-web-vcr-capture-authority.js',
+	'desktop/framescaper-web-vcr-contract.js',
+	'desktop/framescaper-web-vcr-electron-window.js',
+	'desktop/framescaper-web-vcr-guest-security.js',
+	'desktop/framescaper-web-vcr-host.js',
+	'desktop/framescaper-web-vcr-main-channels.js',
+	'desktop/framescaper-web-vcr-preload-registration.js',
+	'desktop/framescaper-web-vcr-registration.js',
+	'desktop/framescaper-web-vcr-runtime-capture-state.js',
+	'desktop/framescaper-web-vcr-runtime-snapshot.js',
+	'desktop/framescaper-web-vcr-runtime-support.js',
+	'desktop/framescaper-web-vcr-runtime.js',
+	'desktop/framescaper-web-vcr-security-policy.js',
+	'desktop/framescaper-web-vcr-target-observer.js',
+	'desktop/framescaper-web-vcr-target-tracker.js',
 	'desktop/helper-contract.js',
 	'desktop/helper-job-grant.js',
 	'desktop/helper-probe-service.js',
@@ -191,6 +207,8 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-timing-asset-reference.js',
 	'src/common/editor/video-timing-asset.js',
 	'src/common/editor/wav-opaque-chunks.js',
+	'src/common/editor/web-vcr-domain.js',
+	'src/common/editor/web-vcr-geometry.js',
 	'src/framescaper/editor-project-feature-capability-profile-v18.js',
 	'src/framescaper/editor-project-feature-requirements-v18.js',
 	'src/framescaper/editor-project-runtime-profile-v18-prerequisite.js',
@@ -354,6 +372,12 @@ export async function stageDesktopApplicationSources({
 		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
 		outputPath: join(applicationRoot, FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE),
 		productName: 'Framescaper Capture',
+	});
+	await bundleV10SandboxPreload({
+		entryPoint: join(sourceRoot, 'framescaper-web-vcr-sandbox-preload.ts'),
+		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
+		outputPath: join(applicationRoot, FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE),
+		productName: 'Framescaper Web VCR',
 	});
 }
 

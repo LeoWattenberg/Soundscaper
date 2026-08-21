@@ -64,6 +64,14 @@ import {
 	runDesktopVideoTimingProbeRendererSmoke,
 	validateDesktopVideoTimingProbeResult,
 } from './video-timing-probe-smoke.js';
+import {
+	FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE,
+	FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_PREFIX,
+	FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE,
+	FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_PREFIX,
+} from './framescaper-web-vcr-smoke-plan.js';
+import { createFramescaperWebVcrSmokeSession } from './framescaper-web-vcr-smoke-session.js';
+import { FRAMESCAPER_WEB_VCR_SMOKE_STAGE_KEY } from './framescaper-web-vcr-renderer-smoke.js';
 
 export const DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_SMOKE';
 
@@ -133,6 +141,9 @@ export function createDesktopSmokeProbe(options) {
 	const videoTimingStorageProfile = configuration.mode === DESKTOP_VIDEO_TIMING_PROBE_MODE
 		? createDesktopVideoTimingProbeStorageProfile(productId)
 		: null;
+	const webVcrSmokeSession = [FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE,
+		FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE].includes(configuration.mode)
+		? createFramescaperWebVcrSmokeSession(configuration) : null;
 
 	let attachedWindow = null;
 	let timeout = null;
@@ -161,9 +172,10 @@ export function createDesktopSmokeProbe(options) {
 		leaseSession?.attach(window);
 		timeout = schedule(() => {
 			void (async () => {
-				const stage = configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE
-					? await stalledStage(window, { schedule, cancel })
-					: null;
+				const stageKey = configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE
+					? DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY
+					: webVcrSmokeSession ? FRAMESCAPER_WEB_VCR_SMOKE_STAGE_KEY : null;
+				const stage = stageKey ? await stalledStage(window, { schedule, cancel }, 5_000, stageKey) : null;
 				await fail(`${prefixFor(configuration.mode)} timed out${stage ? ` waiting for ${stage}` : ''}`);
 			})();
 		}, timeoutFor(configuration.mode));
@@ -250,13 +262,21 @@ export function createDesktopSmokeProbe(options) {
 		if (![PROJECT_LIBRARY_MODE, DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
 			DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 			DESKTOP_DIRECT_WAV_SMOKE_MODE, DESKTOP_SCAPE_OPEN_SMOKE_MODE,
-			DESKTOP_SCAPE_REOPEN_SMOKE_MODE, DESKTOP_VIDEO_TIMING_PROBE_MODE].includes(configuration.mode)
+			DESKTOP_SCAPE_REOPEN_SMOKE_MODE, DESKTOP_VIDEO_TIMING_PROBE_MODE,
+			FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE,
+			FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE].includes(configuration.mode)
 			|| finished || (started && !sourceBearing && !leaseSession)) return;
 		started = true;
 		try {
 			if (!attachedWindow) throw new Error('Desktop smoke renderer became ready before window attachment');
 			const plan = configuration.plan;
 			if (!plan || plan.productId !== productId) throw new Error('Packaged smoke plan targets a different product');
+			if (webVcrSmokeSession) {
+				const payload = await webVcrSmokeSession.run(attachedWindow.webContents);
+				log(`${webVcrSmokeSession.prefix}${JSON.stringify(payload)}`);
+				await finish(0);
+				return;
+			}
 			if (leaseSession) {
 				const payload = await leaseSession.rendererReady(attachedWindow.webContents);
 				if (payload === null) return;
@@ -356,6 +376,9 @@ export function createDesktopSmokeProbe(options) {
 
 	return Object.freeze({
 		attach,
+		observeWebVcrDisplaySecurityWitness: (value) => (
+			webVcrSmokeSession?.observeDisplaySecurityWitness(value) ?? false
+		),
 		observeProjectDescriptor,
 		projectLibraryV10Qualification: () => leaseSession?.v10Qualification ?? null,
 		rendererReady,
@@ -444,6 +467,8 @@ function timeoutFor(mode) {
 	if (mode === DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE) return 90_000;
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE || mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return 90_000;
 	if (mode === DESKTOP_VIDEO_TIMING_PROBE_MODE) return DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS;
+	if (mode === FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE
+		|| mode === FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE) return 120_000;
 	return 15_000;
 }
 
@@ -453,13 +478,18 @@ function timeoutFor(mode) {
  * the renderer is already unresponsive by assumption, so an unavailable marker
  * degrades to an unqualified timeout rather than delaying the failure.
  */
-async function stalledStage(window, { schedule, cancel }, budgetMs = 5_000) {
+async function stalledStage(
+	window,
+	{ schedule, cancel },
+	budgetMs = 5_000,
+	stageKey = DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY,
+) {
 	const contents = window?.webContents;
 	if (!contents || typeof contents.executeJavaScript !== 'function' || contents.isDestroyed?.()) return null;
 	let timer = null;
 	try {
 		const stage = await Promise.race([
-			contents.executeJavaScript(`globalThis[${JSON.stringify(DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY)}] ?? null`, true),
+			contents.executeJavaScript(`globalThis[${JSON.stringify(stageKey)}] ?? null`, true),
 			new Promise((resolve) => { timer = schedule(() => resolve(null), budgetMs); }),
 		]);
 		return typeof stage === 'string' && stage ? stage.slice(0, 128) : null;
@@ -480,6 +510,8 @@ function prefixFor(mode) {
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE) return DESKTOP_SCAPE_OPEN_SMOKE_PREFIX;
 	if (mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX;
 	if (mode === DESKTOP_VIDEO_TIMING_PROBE_MODE) return DESKTOP_VIDEO_TIMING_PROBE_PREFIX;
+	if (mode === FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE) return FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_PREFIX.trimEnd();
+	if (mode === FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE) return FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_PREFIX.trimEnd();
 	return 'SOUNDSCAPER_DESKTOP_SMOKE';
 }
 

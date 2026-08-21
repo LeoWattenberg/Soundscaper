@@ -10,6 +10,9 @@ import {
 	configureFramescaperCaptureSessionSecurityV1,
 } from './project-library-runtime/desktop/framescaper-capture-session-security.js';
 import {
+	registerFramescaperWebVcrDesktopV1,
+} from './project-library-runtime/desktop/framescaper-web-vcr-registration.js';
+import {
 	FRAMESCAPER_CAPTURE_DESKTOP_CHANNELS,
 } from './framescaper-capture-main-channels.js';
 import { acceptsSystemAudioRequest, selectSystemAudioStreams } from './display-capture.js';
@@ -39,8 +42,26 @@ export function registerDesktopCaptureSecurity(options) {
 		filePath: resolve(seams.desktopRoot, CAPTURE_PRELOAD),
 	});
 	let sessionSecurity = null;
+	let webVcr = null;
 	let disposed = false;
 	try {
+		const webVcrSeams = requireWebVcrSeams(seams);
+		webVcr = registerFramescaperWebVcrDesktopV1({
+			productId: seams.productId,
+			desktopRoot: seams.desktopRoot,
+			trustedAppSession: seams.desktopSession,
+			qualification: seams.webVcrQualification,
+			displaySelectionMode: capture.status().selectionMode === 'system-picker'
+				? 'system-picker' : 'owned-callback',
+			sessionFromPartition: webVcrSeams.sessionFromPartition,
+			createWindow: webVcrSeams.createWebVcrWindow,
+			handle: seams.handle,
+			removeHandler: seams.removeHandler,
+			ownerFor: seams.ownerFor,
+			currentOwnerFor: seams.currentOwnerFor,
+			windowFor: seams.windowFor,
+			isEditorDocumentUrl,
+		});
 		seams.handle(FRAMESCAPER_CAPTURE_DESKTOP_CHANNELS.status, (event) => {
 			focusedCaptureOwner(seams, event);
 			return capture.status();
@@ -58,26 +79,36 @@ export function registerDesktopCaptureSecurity(options) {
 			productId: seams.productId,
 			trustedOrigin: seams.appOrigin,
 			capture,
+			webVcrCapture: webVcr.captureAuthority,
 			session: seams.desktopSession,
 			windowFor: seams.windowFor,
 			currentOwnerFor: seams.currentOwnerFor,
 			isAppUrl,
 			isEditorDocumentUrl,
+			...(seams.webVcrQualification && seams.observeWebVcrDisplaySecurityWitness
+				? { onWebVcrDisplaySecurityWitness: seams.observeWebVcrDisplaySecurityWitness }
+				: {}),
 		});
 	} catch (error) {
 		for (const channel of channels) seams.removeHandler(channel);
 		seams.desktopSession.unregisterPreloadScript(preloadId);
+		webVcr?.dispose();
 		capture.dispose();
 		throw error;
 	}
 	return Object.freeze({
-		revokeOwner: (owner) => capture.revokeOwner(owner),
+		revokeOwner(owner) {
+			const captureRevoked = capture.revokeOwner(owner);
+			const webVcrRevoked = webVcr.revokeOwner(owner);
+			return captureRevoked || webVcrRevoked;
+		},
 		dispose() {
 			if (disposed) return;
 			disposed = true;
 			for (const channel of channels) seams.removeHandler(channel);
 			seams.desktopSession.unregisterPreloadScript(preloadId);
 			sessionSecurity.dispose();
+			webVcr.dispose();
 		},
 	});
 }
@@ -160,6 +191,20 @@ function requireSeams(value) {
 		if (value[name] === null || typeof value[name] !== kind) {
 			throw new TypeError(`Desktop capture registration requires a ${kind} ${name} seam.`);
 		}
+	}
+	if (value.observeWebVcrDisplaySecurityWitness !== undefined
+		&& typeof value.observeWebVcrDisplaySecurityWitness !== 'function') {
+		throw new TypeError('Desktop capture registration requires a function Web VCR witness seam.');
+	}
+	return value;
+}
+
+function requireWebVcrSeams(value) {
+	if (!Object.hasOwn(value, 'webVcrQualification')
+		|| (value.webVcrQualification !== null && typeof value.webVcrQualification !== 'object')
+		|| typeof value.sessionFromPartition !== 'function'
+		|| typeof value.createWebVcrWindow !== 'function') {
+		throw new TypeError('Desktop capture registration requires disabled Web VCR composition seams.');
 	}
 	return value;
 }
