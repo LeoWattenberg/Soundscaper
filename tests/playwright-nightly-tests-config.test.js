@@ -27,6 +27,7 @@ test('bundled Playwright config uses only absolute launcher-provided paths', asy
 		);
 
 		assert.equal(config.testDir, resolve(payloadRoot, 'tests/browser'));
+		assert.deepEqual(config.testIgnore, ['handbook/**']);
 		assert.equal(config.outputDir, resolve(runRoot, 'test-results'));
 		assert.equal(config.use.baseURL, 'http://127.0.0.1:41000');
 		assert.equal(config.webServer, undefined);

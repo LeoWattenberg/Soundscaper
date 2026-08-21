@@ -67,7 +67,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'playwright.nightly-tests.config.mjs', destination: 'playwright.nightly-tests.config.mjs', kind: 'file', label: 'nightly test Playwright config' },
 	{ source: 'dist', destination: 'dist', kind: 'directory', label: 'production web build' },
 	{ source: 'src', destination: 'src', kind: 'directory', label: 'browser-test source tree' },
-	{ source: 'tests/browser', destination: 'tests/browser', kind: 'directory', label: 'browser test tree', exclude: new Set(['AGENTS.md']) },
+	{ source: 'tests/browser', destination: 'tests/browser', kind: 'directory', label: 'browser test tree', exclude: new Set(['AGENTS.md', 'handbook']) },
 	{ source: 'tests/helpers/m4b2-framescaper-v20-product-browser-harness.test.ts', destination: 'tests/helpers/m4b2-framescaper-v20-product-browser-harness.test.ts', kind: 'file', label: 'M4B2 product browser harness' },
 	{ source: 'tests/aup3-fixture.js', destination: 'tests/aup3-fixture.js', kind: 'file', label: 'AUP3 browser support fixture' },
 	{ source: 'tests/fixtures/aup4-native-rich.js', destination: 'tests/fixtures/aup4-native-rich.js', kind: 'file', label: 'AUP4 browser support fixture' },
