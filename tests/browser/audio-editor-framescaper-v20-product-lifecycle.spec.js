@@ -11,6 +11,7 @@ import {
 	collectClientErrors,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+import { FRAMESCAPER_PRODUCT_MODULE_FILTER } from './audio-editor-framescaper-v20-product-bundle.js';
 
 const ROUTE_ROOT = '/__m4b2-framescaper-v20-product__';
 const TEST_DIRECTORY = dirname(fileURLToPath(import.meta.url));
@@ -235,7 +236,7 @@ async function bundleQualificationHarness() {
 						loader: 'ts',
 					};
 				});
-				buildApi.onLoad({ filter: /\/framescaper\/product\.js$/ }, () => {
+				buildApi.onLoad({ filter: FRAMESCAPER_PRODUCT_MODULE_FILTER }, () => {
 					enabledProductCapability = true;
 					return {
 						contents: replaceExactlyOnce(
