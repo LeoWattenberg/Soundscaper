@@ -24,8 +24,13 @@ interface OfflineHtmlVideoElement extends EventTarget {
 	muted: boolean;
 	playsInline: boolean;
 	autoplay: boolean;
+	readonly style: Pick<
+		CSSStyleDeclaration,
+		'position' | 'left' | 'top' | 'width' | 'height' | 'pointerEvents'
+	>;
 	readonly paused: boolean;
 	readonly readyState: number;
+	readonly isConnected: boolean;
 	readonly duration: number;
 	readonly videoWidth: number;
 	readonly videoHeight: number;
@@ -42,6 +47,7 @@ interface OfflineHtmlVideoElement extends EventTarget {
 
 interface OfflineHtmlVideoDocument {
 	createElement(name: 'video'): OfflineHtmlVideoElement;
+	append(video: OfflineHtmlVideoElement): void;
 }
 
 interface OfflineObjectUrlPort {
@@ -52,7 +58,7 @@ interface OfflineObjectUrlPort {
 export interface VideoKeyframeOfflineHtmlVideoSourceResolverOptions {
 	readonly sources: readonly VideoKeyframeOfflineHtmlVideoSourceAsset[];
 	readonly timeoutMs?: number;
-	readonly document?: Pick<Document, 'createElement'>;
+	readonly document?: Pick<Document, 'body' | 'createElement'>;
 	readonly url?: Pick<typeof URL, 'createObjectURL' | 'revokeObjectURL'>;
 	readonly createSeekPort?: (
 		video: OfflineHtmlVideoElement,
@@ -161,6 +167,7 @@ export function createVideoKeyframeOfflineHtmlVideoSourceResolver(
 
 	function assertLifecycleCurrent(lifecycle: SourceLifecycle): void {
 		if (disposed || lifecycle.retired
+			|| !lifecycle.video.isConnected
 			|| currentTokens.get(lifecycle.occurrenceKey) !== lifecycle.token) {
 			throw new Error('The offline HTML video source lifecycle is no longer current.');
 		}
@@ -186,6 +193,7 @@ export function createVideoKeyframeOfflineHtmlVideoSourceResolver(
 		const cleanup = mediaCleanup(video, objectUrl);
 		let lifecycle: SourceLifecycle | null = null;
 		try {
+			mountOffscreenVideo(video, options.document);
 			const loaded = waitForMetadata(video, signal, options.timeoutMs);
 			video.src = objectUrl;
 			video.load();
@@ -313,13 +321,22 @@ function snapshotOptions(value: unknown): NormalizedOptions {
 		|| typeof (documentValue as OfflineHtmlVideoDocument).createElement !== 'function') {
 		throw new Error('Browser video decoding is unavailable.');
 	}
+	const body = (documentValue as Pick<Document, 'body'>).body;
+	if (!body || typeof body.append !== 'function') {
+		throw new Error('Browser video attachment is unavailable.');
+	}
 	const urlValue = record.url ?? globalThis.URL;
 	if (!urlValue || (typeof urlValue !== 'object' && typeof urlValue !== 'function')
 		|| typeof (urlValue as OfflineObjectUrlPort).createObjectURL !== 'function'
 		|| typeof (urlValue as OfflineObjectUrlPort).revokeObjectURL !== 'function') {
 		throw new Error('Browser object URL support is unavailable.');
 	}
-	const createVideo = (documentValue as OfflineHtmlVideoDocument).createElement.bind(documentValue);
+	const createVideo = (name: 'video'): OfflineHtmlVideoElement => (
+		(documentValue as Pick<Document, 'createElement'>).createElement(name)
+	);
+	const appendVideo = (video: OfflineHtmlVideoElement): void => {
+		body.append(video as unknown as Node);
+	};
 	const objectUrl = urlValue as OfflineObjectUrlPort;
 	const url = Object.freeze({
 		createObjectURL: objectUrl.createObjectURL.bind(urlValue),
@@ -337,10 +354,24 @@ function snapshotOptions(value: unknown): NormalizedOptions {
 	return Object.freeze({
 		assets,
 		timeoutMs,
-		document: Object.freeze({ createElement: createVideo }),
+		document: Object.freeze({ createElement: createVideo, append: appendVideo }),
 		url,
 		createSeekPort: createSeekPort as NormalizedOptions['createSeekPort'],
 	});
+}
+
+/** Keep Firefox's decoded frame surface live without exposing export-owned media in the UI. */
+function mountOffscreenVideo(
+	video: OfflineHtmlVideoElement,
+	document: OfflineHtmlVideoDocument,
+): void {
+	video.style.position = 'fixed';
+	video.style.left = '-10000px';
+	video.style.top = '0px';
+	video.style.width = '1px';
+	video.style.height = '1px';
+	video.style.pointerEvents = 'none';
+	document.append(video);
 }
 
 function sourceRequest(value: unknown): Readonly<{ signal: AbortSignal }> {

@@ -43,6 +43,7 @@ test('seeks exact ordinary and retimed VFR pictures through occurrence-owned rea
 				presentationForEntry: (entry) => entry.exactPresentation,
 			}],
 			document: {
+				body: document.body,
 				createElement(name) {
 					const video = document.createElement(name);
 					videos.push(video);
@@ -92,6 +93,7 @@ test('seeks exact ordinary and retimed VFR pictures through occurrence-owned rea
 			frames.push({
 				centerRgba: [...context.getImageData(48, 20, 1, 1).data],
 				currentTime: presentation.drawable.currentTime,
+				isConnected: presentation.drawable.isConnected,
 				paused: presentation.drawable.paused,
 				decoded: [presentation.decodedWidth, presentation.decodedHeight],
 				display: [presentation.displayWidth, presentation.displayHeight],
@@ -99,7 +101,14 @@ test('seeks exact ordinary and retimed VFR pictures through occurrence-owned rea
 		}
 		const distinctOccurrences = ordinary !== retimed && ordinary.drawable !== retimed.drawable;
 		resolver.dispose();
-		return { frames, distinctOccurrences, urlCreations, urlRevocations, videoCount: videos.length };
+		return {
+			frames,
+			distinctOccurrences,
+			urlCreations,
+			urlRevocations,
+			videoCount: videos.length,
+			allDisconnected: videos.every((video) => !video.isConnected),
+		};
 
 		function descriptor(frame, times) {
 			return Object.freeze({
@@ -123,9 +132,11 @@ test('seeks exact ordinary and retimed VFR pictures through occurrence-owned rea
 	expect(actual.urlCreations).toBe(2);
 	expect(actual.urlRevocations).toBe(2);
 	expect(actual.distinctOccurrences).toBe(true);
+	expect(actual.allDisconnected).toBe(true);
 	for (const [index, expected] of videoRetimePreviewMedia.pixelOracle.entries()) {
 		expect(actual.frames[index].centerRgba).toEqual(expected.centerRgba);
 		expect(actual.frames[index].currentTime).toBe(expected.midpointSeconds);
+		expect(actual.frames[index].isConnected).toBe(true);
 		expect(actual.frames[index].paused).toBe(true);
 		expect(actual.frames[index].decoded).toEqual([64, 32]);
 		expect(actual.frames[index].display).toEqual([80, 32]);

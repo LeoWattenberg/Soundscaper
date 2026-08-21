@@ -45,9 +45,19 @@ test('resolver owns one digest-bound paused video lifecycle and exact ordinary p
 	assert.ok(seekRequest.signal instanceof AbortSignal);
 	assert.notStrictEqual(seekRequest.signal, signal);
 	assert.equal(harness.videos[0]?.paused, true);
+	assert.equal(harness.videos[0]?.isConnected, true);
+	assert.deepEqual(harness.videos[0]?.style, {
+		position: 'fixed',
+		left: '-10000px',
+		top: '0px',
+		width: '1px',
+		height: '1px',
+		pointerEvents: 'none',
+	});
 	first.dispose();
 	assert.deepEqual(harness.revoked, ['blob:offline-1']);
 	assert.equal(harness.videos[0]?.removed, true);
+	assert.equal(harness.videos[0]?.isConnected, false);
 	await assert.rejects(
 		Promise.resolve(first.present(entry(), { signal })),
 		/current|closed|disposed/iu,
@@ -185,7 +195,7 @@ test('presentation and resolver disposal retry only unfinished media cleanup ste
 });
 
 interface RuntimeHarness {
-	readonly document: Pick<Document, 'createElement'>;
+	readonly document: Pick<Document, 'body' | 'createElement'>;
 	readonly url: Pick<typeof URL, 'createObjectURL' | 'revokeObjectURL'>;
 	readonly createSeekPort: VideoKeyframeOfflineHtmlVideoSourceResolverOptions['createSeekPort'];
 	readonly videos: FakeVideo[];
@@ -206,6 +216,9 @@ function runtimeHarness(options: Readonly<{
 	const seekRequests: Array<Record<string, unknown>> = [];
 	let nextUrl = 1;
 	const document = {
+		body: {
+			append(video: FakeVideo) { video.isConnected = true; },
+		},
 		createElement(name: string) {
 			assert.equal(name, 'video');
 			const video = new FakeVideo(
@@ -216,7 +229,7 @@ function runtimeHarness(options: Readonly<{
 			videos.push(video);
 			return video;
 		},
-	} as unknown as Pick<Document, 'createElement'>;
+	} as unknown as Pick<Document, 'body' | 'createElement'>;
 	const url = {
 		createObjectURL() { return `blob:offline-${String(nextUrl++)}`; },
 		revokeObjectURL(value: string) {
@@ -258,6 +271,10 @@ class FakeVideo extends EventTarget {
 	srcObject: MediaProvider | null = null;
 	error: MediaError | null = null;
 	removed = false;
+	isConnected = false;
+	style = {
+		position: '', left: '', top: '', width: '', height: '', pointerEvents: '',
+	};
 	readonly videoWidth: number;
 	readonly videoHeight: number;
 	readonly #metadata: 'loaded' | 'pending';
@@ -279,7 +296,7 @@ class FakeVideo extends EventTarget {
 	removeAttribute(name: string): void {
 		if (name === 'src') { this.src = ''; this.currentSrc = ''; }
 	}
-	remove(): void { this.removed = true; }
+	remove(): void { this.removed = true; this.isConnected = false; }
 }
 
 function options(
