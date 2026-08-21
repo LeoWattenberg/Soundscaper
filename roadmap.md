@@ -533,9 +533,9 @@ activation/evidence gates open. Soundscaper V21 is the selected maintained
 App/runtime/storage route and its local implementation candidate is complete:
 packets 4A-1 through 4A-6 are implemented provisionally and 4A-7 local automated
 acceptance is green. The reference run passes M4 production and M4B-2 keyed
-parity. Hosted, packaged-runtime, manual, remaining Framescaper 4B, and
-milestone-3 evidence remain open; this reference pass does not close milestone
-1 or milestone 4.
+parity. `nightly-with-tests` now collects packaged-runtime evidence from the
+actual product executables; retained qualification, hosted, manual, remaining Framescaper
+4B, and milestone-3 evidence remain open. This reference pass does not close milestone 1 or milestone 4.
 **Goal:** complete non-MIDI Soundscaper production and non-recording Framescaper
 finishing over the stable editorial models.
 

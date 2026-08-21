@@ -11,6 +11,7 @@ import {
 	StaticRequestError,
 } from './desktop-nightly-tests-static-route.mjs';
 import { runDesktopNightlyTestsMetricsPhase } from './desktop-nightly-tests-metrics.mjs';
+import { PACKAGED_RUNTIME_ARTIFACT_PATHS, runDesktopNightlyTestsPackagedMetricsPhase } from './desktop-nightly-tests-packaged-runtime.mjs';
 
 const RESULT_KIND = 'soundscaper-desktop-nightly-tests';
 const PRODUCT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/u;
@@ -235,6 +236,7 @@ export function createDesktopNightlyTestsResultEnvelope({
 			metricsRaw: 'metrics/raw.json',
 			metricsSummary: 'metrics/summary.json',
 			metricsTestResults: 'metrics/test-results',
+			...PACKAGED_RUNTIME_ARTIFACT_PATHS,
 		}),
 	});
 }
@@ -300,6 +302,14 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 			const metricsOutcome = mapDesktopNightlyTestsExit(metrics.child);
 			signal = metrics.child.signal ?? signal;
 			outcome = combineOutcomes(outcome, metricsOutcome, metrics.evidence.passed);
+			const packagedMetrics = await runDesktopNightlyTestsPackagedMetricsPhase({
+				executablePath: options.executablePath, payloadRoot: options.payloadRoot, runRoot,
+				baseURL: server.baseURL, esbuildBinaryPath, environment, platform, arch,
+				sourceRevision: options.sourceRevision ?? null,
+			}, { runPlaywright, writeEvidence: dependencies.writePackagedMetricsEvidence });
+			const packagedOutcome = mapDesktopNightlyTestsExit(packagedMetrics.child);
+			signal = packagedMetrics.child.signal ?? signal;
+			outcome = combineOutcomes(outcome, packagedOutcome, packagedMetrics.evidence.passed);
 		}
 	} catch (error) {
 		failure = message(error);

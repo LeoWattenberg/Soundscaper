@@ -10,7 +10,6 @@ import {
 	symlink,
 	writeFile,
 } from 'node:fs/promises';
-import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import test from 'node:test';
@@ -29,6 +28,7 @@ import {
 import type {
 	DesktopNightlyTestsPlaywrightPlan,
 } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
+import { rawHttpRequest } from './helpers/raw-http-request.ts';
 
 const PRODUCT = Object.freeze({
 	id: 'soundscaper',
@@ -189,9 +189,9 @@ test('the bundled static server serves bounded files and rejects traversal and s
 	const post = await fetch(`${server.baseURL}/`, { method: 'POST' });
 	assert.equal(post.status, 405);
 	assert.equal(post.headers.get('allow'), 'GET, HEAD');
-	assert.equal((await rawRequest(server.baseURL, '/%2e%2e/outside.txt')).statusCode, 400);
-	assert.equal((await rawRequest(server.baseURL, '/%5coutside.txt')).statusCode, 400);
-	assert.equal((await rawRequest(server.baseURL, '/%ZZ')).statusCode, 400);
+	assert.equal((await rawHttpRequest(server.baseURL, '/%2e%2e/outside.txt')).statusCode, 400);
+	assert.equal((await rawHttpRequest(server.baseURL, '/%5coutside.txt')).statusCode, 400);
+	assert.equal((await rawHttpRequest(server.baseURL, '/%ZZ')).statusCode, 400);
 	if (process.platform !== 'win32') assert.equal((await fetch(`${server.baseURL}/escape.txt`)).status, 404);
 	assert.equal((await fetch(`${server.baseURL}/missing.txt`)).status, 404);
 	assert.equal((await fetch(`${server.baseURL}/embed/en/missing.js`, {
@@ -203,7 +203,7 @@ test('the bundled static server serves bounded files and rejects traversal and s
 	assert.equal((await fetch(`${server.baseURL}/embed/en/`, {
 		headers: { Accept: 'application/json, text/html;q=0' },
 	})).status, 404);
-	assert.equal((await rawRequest(server.baseURL, '/embed/en/')).statusCode, 404);
+	assert.equal((await rawHttpRequest(server.baseURL, '/embed/en/')).statusCode, 404);
 	assert.equal((await fetch(`${server.baseURL}/embed/en/`, {
 		headers: { Accept: '*/*' },
 	})).status, 404);
@@ -359,6 +359,13 @@ test('Playwright exit mapping and result envelopes distinguish failures from inf
 			metricsRaw: 'metrics/raw.json',
 			metricsSummary: 'metrics/summary.json',
 			metricsTestResults: 'metrics/test-results',
+			packagedRuntimeConsoleLog: 'packaged-runtime/console.log',
+			packagedRuntimeHtmlReport: 'packaged-runtime/playwright-report/index.html',
+			packagedRuntimeJsonReport: 'packaged-runtime/results.json',
+			packagedRuntimeJunitReport: 'packaged-runtime/junit.xml',
+			packagedRuntimeRaw: 'packaged-runtime/raw.json',
+			packagedRuntimeSummary: 'packaged-runtime/summary.json',
+			packagedRuntimeTestResults: 'packaged-runtime/test-results',
 		},
 	});
 	assert.equal(Object.isFrozen(envelope), true);
@@ -372,6 +379,7 @@ test('the injected nightly runtime records terminal results and always closes it
 	let closeCalls = 0;
 	const plansSeen: DesktopNightlyTestsPlaywrightPlan[] = [];
 	let metricsEvidenceCalls = 0;
+	let packagedEvidenceCalls = 0;
 	const times = [
 		new Date('2026-08-08T13:00:00.000Z'),
 		new Date('2026-08-08T13:05:00.000Z'),
@@ -404,6 +412,12 @@ test('the injected nightly runtime records terminal results and always closes it
 			assert.ok(runRoot);
 			return { passed: true };
 		},
+		writePackagedMetricsEvidence: async ({ playwrightExit, runRoot }) => {
+			packagedEvidenceCalls += 1;
+			assert.deepEqual(playwrightExit, { code: 0, signal: null });
+			assert.ok(runRoot);
+			return { passed: true };
+		},
 	});
 
 	assert.equal(completed.exitCode, 1);
@@ -413,9 +427,11 @@ test('the injected nightly runtime records terminal results and always closes it
 	assert.equal(completed.result.finishedAt, '2026-08-08T13:05:00.000Z');
 	assert.equal(closeCalls, 1);
 	assert.equal(metricsEvidenceCalls, 1);
-	assert.equal(plansSeen.length, 2);
+	assert.equal(packagedEvidenceCalls, 1);
+	assert.equal(plansSeen.length, 3);
 	assert.equal(plansSeen[0]?.env.SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT, completed.runRoot);
 	assert.match(plansSeen[1]?.args.at(-1) ?? '', /playwright\.nightly-metrics\.config\.mjs$/u);
+	assert.match(plansSeen[2]?.args.at(-1) ?? '', /playwright\.nightly-packaged-metrics\.config\.mjs$/u);
 	assert.deepEqual(
 		JSON.parse(await readFile(join(completed.runRoot, 'run.json'), 'utf8')),
 		completed.result,
@@ -575,26 +591,10 @@ test('a failed diagnostic metric gate fails an otherwise passing nightly run', a
 			return { code: 0, signal: null };
 		},
 		writeMetricsEvidence: async () => ({ passed: false }),
+		writePackagedMetricsEvidence: async () => ({ passed: true }),
 	});
 
-	assert.equal(childCalls, 2);
+	assert.equal(childCalls, 3);
 	assert.equal(completed.exitCode, 1);
 	assert.equal(completed.result.status, 'failed');
 });
-
-function rawRequest(baseURL: string, path: string): Promise<{ readonly statusCode: number | undefined }> {
-	return new Promise((resolvePromise, reject) => {
-		const url = new URL(baseURL);
-		const clientRequest = request({
-			hostname: url.hostname,
-			port: url.port,
-			method: 'GET',
-			path,
-		}, (response) => {
-			response.resume();
-			response.once('end', () => resolvePromise({ statusCode: response.statusCode }));
-		});
-		clientRequest.once('error', reject);
-		clientRequest.end();
-	});
-}

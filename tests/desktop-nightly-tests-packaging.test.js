@@ -56,12 +56,20 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 			to: 'nightly-tests/node_modules',
 		},
 	);
+	assert.deepEqual(
+		config.extraResources.find(({ to }) => to === 'nightly-tests/products'),
+		{
+			from: 'release/desktop-nightly-products',
+			to: 'nightly-tests/products',
+		},
+	);
 	assert.equal(config.extraResources.some(({ to }) => to === 'renderer' || to === 'runtime'), false);
 });
 
 test('generated nightly-with-tests packages stay outside version control', async () => {
 	const ignore = await readFile(resolve(ROOT, '.gitignore'), 'utf8');
 	assert.match(ignore, /^release\/desktop-nightly-tests\/$/mu);
+	assert.match(ignore, /^release\/desktop-nightly-products\/$/mu);
 });
 
 test('nightly-with-tests enables RunAsNode without weakening the other desktop fuses', async () => {
@@ -111,7 +119,7 @@ test('the nightly test launcher delegates to the pure runtime and never opens an
 	assert.doesNotMatch(source, /BrowserWindow/u);
 });
 
-test('desktop CI exposes one quality-gated six-target nightly-with-tests artifact matrix', async () => {
+test('desktop CI exposes one quality-gated five-target nightly-with-tests artifact matrix', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
 	assert.match(workflow, /workflow_dispatch:\s+inputs:\s+artifact_variant:/u);
 	// The tested package is built for every main commit, but off the Quality run
@@ -164,6 +172,12 @@ test('desktop CI exposes one quality-gated six-target nightly-with-tests artifac
 		assert.match(testJob, new RegExp(`runner: ${target[0]}\\s+platform: ${target[1]}\\s+arch: ${target[2]}`, 'u'));
 	}
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-prepare\.mjs/u);
+	assert.match(testJob, /node scripts\/desktop-nightly-tests-products\.mjs/u);
+	assert.ok(
+		testJob.indexOf('node scripts/desktop-nightly-tests-products.mjs')
+			< testJob.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'),
+		'product runtimes must be packaged before the test runner stages them',
+	);
 	assert.match(testJob, /npx playwright install --no-shell chromium firefox webkit/u);
 	assert.doesNotMatch(testJob, /playwright install --only-shell/u);
 	assert.match(testJob, /electron-builder --config electron-builder\.nightly-tests\.config\.cjs/u);

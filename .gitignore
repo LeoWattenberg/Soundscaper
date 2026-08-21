@@ -16,6 +16,7 @@ release/desktop/
 release/desktop-handoff/
 release/desktop-lease-matrix/
 release/desktop-nightly-tests/
+release/desktop-nightly-products/
 .env
 .env.*
 !.env.example

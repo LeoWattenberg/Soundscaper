@@ -379,7 +379,7 @@ jobs:
         )
       )
     needs: [quality, browser, firefox]
-    timeout-minutes: 90
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
@@ -438,6 +438,24 @@ jobs:
         run: npx playwright install --no-shell chromium firefox webkit
         env:
           PLAYWRIGHT_BROWSERS_PATH: '0'
+
+      - name: Package the product runtimes exercised by nightly-with-tests
+        run: node scripts/desktop-nightly-tests-products.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+
+      - name: Preserve the nested Chromium sandboxes
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mapfile -t sandboxes < <(find release/desktop-nightly-products -type f -name chrome-sandbox -print)
+          if [[ "${#sandboxes[@]}" -ne 2 ]]; then
+            echo "Expected two packaged Chromium sandboxes; found ${#sandboxes[@]}" >&2
+            exit 1
+          fi
+          sudo chown root:root -- "${sandboxes[@]}"
+          sudo chmod 4755 -- "${sandboxes[@]}"
 
       - name: Stage the nightly-with-tests application
         run: node scripts/desktop-nightly-tests-prepare.mjs

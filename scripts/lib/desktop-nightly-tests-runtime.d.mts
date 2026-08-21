@@ -65,6 +65,13 @@ export interface DesktopNightlyTestsResultEnvelope {
 		readonly metricsRaw: 'metrics/raw.json';
 		readonly metricsSummary: 'metrics/summary.json';
 		readonly metricsTestResults: 'metrics/test-results';
+		readonly packagedRuntimeConsoleLog: 'packaged-runtime/console.log';
+		readonly packagedRuntimeHtmlReport: 'packaged-runtime/playwright-report/index.html';
+		readonly packagedRuntimeJsonReport: 'packaged-runtime/results.json';
+		readonly packagedRuntimeJunitReport: 'packaged-runtime/junit.xml';
+		readonly packagedRuntimeRaw: 'packaged-runtime/raw.json';
+		readonly packagedRuntimeSummary: 'packaged-runtime/summary.json';
+		readonly packagedRuntimeTestResults: 'packaged-runtime/test-results';
 	};
 }
 
@@ -152,6 +159,15 @@ export interface DesktopNightlyTestsDependencies {
 		readonly runRoot: string;
 		readonly sourceRevision: string | null;
 		readonly playwrightExit: { readonly code: number | null; readonly signal: string | null };
+	}) => Promise<{ readonly passed: boolean }>;
+	readonly writePackagedMetricsEvidence?: (options: {
+		readonly payloadRoot: string;
+		readonly runRoot: string;
+		readonly sourceRevision: string | null;
+		readonly playwrightExit: { readonly code: number | null; readonly signal: string | null };
+		readonly consoleLogPath: string;
+		readonly artifactDirectory: 'packaged-runtime';
+		readonly evidenceKind: 'packaged-runtime';
 	}) => Promise<{ readonly passed: boolean }>;
 	readonly writeResult?: (
 		runRoot: string,

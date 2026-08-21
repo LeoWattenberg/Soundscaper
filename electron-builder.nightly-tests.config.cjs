@@ -20,6 +20,7 @@ module.exports = {
 		'scripts/lib/desktop-nightly-tests-runtime.mjs',
 		'scripts/lib/desktop-nightly-tests-static-route.mjs',
 		'scripts/lib/desktop-nightly-tests-metrics.mjs',
+		'scripts/lib/desktop-nightly-tests-packaged-runtime.mjs',
 		'scripts/lib/m4-production-parity-identity.mjs',
 		'scripts/lib/m4-production-parity-metrics.mjs',
 		'scripts/lib/m4-production-parity-video-fixture.mjs',
@@ -44,6 +45,7 @@ module.exports = {
 				'licenses/**/*',
 				'package.json',
 				'playwright.nightly-metrics.config.mjs',
+				'playwright.nightly-packaged-metrics.config.mjs',
 				'playwright.nightly-tests.config.mjs',
 				// The browser specs import spec-support helpers from here. The
 				// launcher's own modules reach the main process through `files`
@@ -58,6 +60,10 @@ module.exports = {
 		{
 			from: '.desktop-build/nightly-tests/node_modules',
 			to: 'nightly-tests/node_modules',
+		},
+		{
+			from: 'release/desktop-nightly-products',
+			to: 'nightly-tests/products',
 		},
 		{ from: 'LICENSE', to: 'licenses/Soundscaper-AGPL-3.0.txt' },
 		{ from: 'LICENSES', to: 'licenses/LICENSES' },

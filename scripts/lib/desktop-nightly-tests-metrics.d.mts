@@ -37,7 +37,8 @@ export interface DesktopNightlyTestsMetricsWorkload extends Readonly<Record<stri
 
 export interface DesktopNightlyTestsMetricsRaw {
 	readonly schemaVersion: 1;
-	readonly kind: 'soundscaper-desktop-nightly-metrics-raw';
+	readonly kind: 'soundscaper-desktop-nightly-metrics-raw' | 'soundscaper-desktop-nightly-packaged-runtime-metrics-raw';
+	readonly executionSurface: 'browser' | 'packaged-runtime';
 	readonly sourceRevision: string | null;
 	readonly budgetSha256: string;
 	readonly diagnostics: Readonly<Record<string, unknown>>;
@@ -45,7 +46,8 @@ export interface DesktopNightlyTestsMetricsRaw {
 
 export interface DesktopNightlyTestsMetricsSummary {
 	readonly schemaVersion: 1;
-	readonly kind: 'soundscaper-desktop-nightly-metrics';
+	readonly kind: 'soundscaper-desktop-nightly-metrics' | 'soundscaper-desktop-nightly-packaged-runtime-metrics';
+	readonly executionSurface: 'browser' | 'packaged-runtime';
 	readonly sourceRevision: string | null;
 	readonly budgetSha256: string;
 	readonly attemptCount: 1;
@@ -86,6 +88,7 @@ export function createDesktopNightlyTestsMetricsEvidence(
 	},
 	dependencies?: {
 		readonly collectors?: readonly DesktopNightlyTestsMetricCollector[];
+		readonly evidenceKind?: 'browser' | 'packaged-runtime';
 	},
 ): {
 	readonly passed: boolean;
@@ -100,8 +103,13 @@ export function writeDesktopNightlyTestsMetricsEvidence(
 		readonly sourceRevision: string | null;
 		readonly playwrightExit: DesktopNightlyTestsMetricsExit;
 		readonly consoleLogPath?: string;
+		readonly artifactDirectory?: 'metrics' | 'packaged-runtime';
+		readonly evidenceKind?: 'browser' | 'packaged-runtime';
 	},
-	dependencies?: { readonly collectors?: readonly DesktopNightlyTestsMetricCollector[] },
+	dependencies?: {
+		readonly collectors?: readonly DesktopNightlyTestsMetricCollector[];
+		readonly evidenceKind?: 'browser' | 'packaged-runtime';
+	},
 ): Promise<DesktopNightlyTestsMetricsEvidence>;
 
 export function runDesktopNightlyTestsMetricsPhase(

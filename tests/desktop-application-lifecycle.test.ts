@@ -88,4 +88,19 @@ test('desktop project library uses appData normally and requires an isolated smo
 		applicationDataPath,
 		argv: ['/opt/Soundscaper', `--soundscaper-smoke-app-data=${ignoredAppDataPath}`],
 	}), applicationDataPath);
+	assert.equal(resolveDesktopProjectLibraryAppData({
+		applicationDataPath,
+		argv: [
+			'/opt/Soundscaper',
+			'--soundscaper-nightly-tests-base-url=http://127.0.0.1:4323',
+			`--soundscaper-nightly-tests-app-data=${ignoredAppDataPath}`,
+		],
+	}), ignoredAppDataPath);
+	assert.throws(
+		() => resolveDesktopProjectLibraryAppData({
+			applicationDataPath,
+			argv: ['/opt/Soundscaper', `--soundscaper-nightly-tests-app-data=${ignoredAppDataPath}`],
+		}),
+		/nightly tests.*loopback/iu,
+	);
 });

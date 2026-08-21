@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './helpers/nightly-packaged-electron.js';
 import { buildSync } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { createReadStream, readdirSync } from 'node:fs';
@@ -83,7 +83,8 @@ const VIDEO_CASES = Object.freeze([
 
 test('collects complete M4 PCM, RGBA, and render-ledger evidence without qualifying the host', async ({
 	page,
-	browser,
+	runtimeBaseURL,
+	runtimeBrowser,
 }) => {
 	test.skip(
 		process.env.SOUNDSCAPER_M4_PRODUCTION_PARITY !== '1',
@@ -91,7 +92,7 @@ test('collects complete M4 PCM, RGBA, and render-ledger evidence without qualify
 	);
 	test.setTimeout(300_000);
 	await installRuntimeRoutes(page);
-	await page.goto(`${ROUTE_ROOT}/index.html`);
+	await page.goto(new URL(`${ROUTE_ROOT}/index.html`, runtimeBaseURL).href);
 	await initializeRuntime(page);
 
 	const fixture = createM4ProductionParityAudioFixture();
@@ -165,7 +166,7 @@ test('collects complete M4 PCM, RGBA, and render-ledger evidence without qualify
 	}
 
 	const renderer = await rendererDiagnostic(page);
-	const environmentFingerprint = await diagnosticEnvironmentFingerprint(browser, renderer);
+	const environmentFingerprint = await diagnosticEnvironmentFingerprint(runtimeBrowser, renderer);
 	const diagnostic = {
 		schemaVersion: 1,
 		profile: M4_PRODUCTION_PARITY_PROFILE,

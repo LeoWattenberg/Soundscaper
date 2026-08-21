@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, test } from '@playwright/test';
+import { expect, test } from './helpers/nightly-packaged-electron.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { transform } from 'esbuild';
@@ -24,24 +24,25 @@ import {
 const ROOT = '/__m4b2-keyframe-parity__';
 const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
 const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.61.1';
-const ENVIRONMENT_ID = process.env.GITHUB_ACTIONS === 'true'
+const ENVIRONMENT_ID = process.env.SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID || (process.env.GITHUB_ACTIONS === 'true'
 	? HOSTED_ENVIRONMENT_ID
-	: LOCAL_ENVIRONMENT_ID;
+	: LOCAL_ENVIRONMENT_ID);
 const NOBLE_HASH_FILES = ['sha2.js', '_md.js', '_u64.js', 'utils.js'];
 
 test('collects keyed preview/offline RGBA and exact dual-consumer ledgers without qualifying a host', async ({
-	browser,
-	browserName,
+	runtimeBrowser,
+	runtimeBrowserName,
+	runtimeBaseURL,
 	page,
 }) => {
 	test.skip(
 		process.env.SOUNDSCAPER_M4B2_KEYFRAME_PARITY !== '1',
 		'Run explicitly through the dormant M4B2 keyed parity collector.',
 	);
-	test.skip(browserName !== 'chromium', 'The maintained keyed compositor path requires Chromium WebGL.');
+	test.skip(runtimeBrowserName !== 'chromium', 'The maintained keyed compositor path requires Chromium WebGL.');
 	test.setTimeout(180_000);
 	await installRoutes(page);
-	await page.goto(`${ROOT}/index.html`);
+	await page.goto(new URL(`${ROOT}/index.html`, runtimeBaseURL).href);
 
 	const sourceBytes = createM4B2KeyframeParitySourceRgba();
 	const definitions = m4b2KeyframeParityCases();
@@ -415,7 +416,7 @@ test('collects keyed preview/offline RGBA and exact dual-consumer ledgers withou
 		environmentId: ENVIRONMENT_ID,
 		rendererClass: renderer.rendererClass,
 		environmentFingerprint: {
-			browserVersion: browser.version(),
+			browserVersion: runtimeBrowser.version(),
 			platform: process.platform,
 			architecture: process.arch,
 			webglVendor: renderer.vendor,

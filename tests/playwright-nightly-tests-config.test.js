@@ -134,8 +134,12 @@ test('package scripts expose local preparation and packaging of the diagnostic f
 		'node scripts/desktop-nightly-tests-prepare.mjs',
 	);
 	assert.equal(
+		packageMetadata.scripts['desktop:nightly-tests:products'],
+		'node scripts/desktop-nightly-tests-products.mjs',
+	);
+	assert.equal(
 		packageMetadata.scripts['desktop:nightly-tests:dist'],
-		'npm run build && npm run desktop:nightly-tests:prepare && electron-builder --config electron-builder.nightly-tests.config.cjs --publish never',
+		'npm run build && npm run desktop:nightly-tests:products && npm run desktop:nightly-tests:prepare && electron-builder --config electron-builder.nightly-tests.config.cjs --publish never',
 	);
 });
 

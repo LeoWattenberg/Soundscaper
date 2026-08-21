@@ -4,6 +4,8 @@ import { isAbsolute, normalize } from 'node:path';
 
 const SMOKE_MODE_ARGUMENT = '--soundscaper-smoke';
 const SMOKE_APP_DATA_PREFIX = '--soundscaper-smoke-app-data=';
+const NIGHTLY_TESTS_BASE_URL_PREFIX = '--soundscaper-nightly-tests-base-url=';
+const NIGHTLY_TESTS_APP_DATA_PREFIX = '--soundscaper-nightly-tests-app-data=';
 const CLEANUP_FAILURE_EXIT_CODE = 1;
 const MAXIMUM_EXIT_CODE = 255;
 
@@ -77,14 +79,24 @@ export function resolveDesktopProjectLibraryAppData(
 	if (!Array.isArray(options.argv) || options.argv.some((argument) => typeof argument !== 'string')) {
 		throw new TypeError('Desktop process arguments must be strings');
 	}
+	const nightlyBaseURLs = valuesForPrefix(options.argv, NIGHTLY_TESTS_BASE_URL_PREFIX);
+	const nightlyRoots = valuesForPrefix(options.argv, NIGHTLY_TESTS_APP_DATA_PREFIX);
+	if (nightlyBaseURLs.length || nightlyRoots.length) {
+		if (nightlyBaseURLs.length !== 1 || nightlyRoots.length !== 1) {
+			throw new TypeError('Desktop nightly tests require exactly one loopback URL and isolated appData path');
+		}
+		return absolutePath(nightlyRoots[0], 'nightly tests appData');
+	}
 	if (!options.argv.includes(SMOKE_MODE_ARGUMENT)) return applicationDataPath;
-	const smokeRoots = options.argv
-		.filter((argument) => argument.startsWith(SMOKE_APP_DATA_PREFIX))
-		.map((argument) => argument.slice(SMOKE_APP_DATA_PREFIX.length));
+	const smokeRoots = valuesForPrefix(options.argv, SMOKE_APP_DATA_PREFIX);
 	if (smokeRoots.length !== 1) {
 		throw new TypeError('Desktop smoke requires exactly one isolated appData path');
 	}
 	return absolutePath(smokeRoots[0], 'smoke appData');
+}
+
+function valuesForPrefix(argv: readonly string[], prefix: string): string[] {
+	return argv.filter((argument) => argument.startsWith(prefix)).map((argument) => argument.slice(prefix.length));
 }
 
 function validateTask(task: DesktopShutdownTask): DesktopShutdownTask {

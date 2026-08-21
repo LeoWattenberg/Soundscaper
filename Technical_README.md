@@ -172,14 +172,14 @@ not relabel a software fallback as hardware evidence.
 ### Nightly test runner artifacts
 
 For a self-contained browser test run, start the workflow manually and choose
-`nightly-with-tests`. Its six platform jobs upload artifacts named
+`nightly-with-tests`. Its five platform jobs upload artifacts named
 `nightly-with-tests-win-<architecture>`,
 `nightly-with-tests-mac-<architecture>`, or
-`nightly-with-tests-linux-<architecture>` for Windows x64/ARM64, macOS
-Intel/Apple silicon, and Linux x64/ARM64. This flavor contains the built
-site, the Playwright suite and runtime, and the platform's pinned Chromium,
-Firefox, and WebKit engines. It does not need npm or a checkout on the test
-machine.
+`nightly-with-tests-linux-<architecture>` for Windows x64/ARM64, macOS Apple
+silicon, and Linux x64/ARM64. This flavor contains the built site, the
+Playwright suite and runtime, the real packaged Soundscaper and Framescaper
+executables, and the platform's pinned Chromium, Firefox, and WebKit engines.
+It does not need npm or a checkout on the test machine.
 
 Unpack the Actions artifact to a writable directory. Run the portable `.exe` on
 Windows; unpack and run the `.app` from the inner macOS ZIP; or mark the Linux
@@ -199,15 +199,29 @@ directory contains `metrics/summary.json` with evaluated metric gates,
 `metrics/junit.xml` for machine-readable test results, `metrics/console.log`,
 `metrics/playwright-report/index.html`, and `metrics/test-results/`.
 
+The runner then launches the bundled hardened Soundscaper and Framescaper
+executables and attaches Playwright over an ephemeral loopback-only Chromium
+debugging endpoint. It repeats M1 in Framescaper, M4 in Soundscaper, and M4B2
+in Framescaper, and checks that both packaged apps boot with the reviewed
+isolated bridge. The separate `packaged-runtime/`
+directory contains `packaged-runtime/summary.json`,
+`packaged-runtime/raw.json`, `packaged-runtime/results.json`,
+`packaged-runtime/junit.xml`, `packaged-runtime/console.log`,
+`packaged-runtime/playwright-report/index.html`, and
+`packaged-runtime/test-results/`. This makes packaged-runtime evidence
+machine-readable instead of relying only on CI log lines.
+
 These measurements are useful host diagnostics, but remain `pending-external`:
 the downloadable binary deliberately cannot publish qualification evidence for
 an unprovisioned machine. A metric-threshold or collector failure makes the
 overall run fail without turning a passing diagnostic into a roadmap gate.
 
-The packaged runner carries full Chromium rather than Chromium Headless Shell
-and launches it headlessly with `--enable-gpu`, allowing normal hardware
-renderer selection. Every diagnostic still records the observed renderer; a
-SwiftShader, llvmpipe, software, or unknown result remains non-qualifying.
+The browser phase carries full Chromium rather than Chromium Headless Shell and
+launches it headlessly with `--enable-gpu` for normal hardware renderer
+selection. The packaged-runtime phase uses the
+Chromium embedded in each real Electron application. Every diagnostic records
+the observed renderer; a SwiftShader, llvmpipe, software, or unknown result
+remains non-qualifying.
 
 Those two launcher files are attempted even for infrastructure failures. Once
 Playwright starts, the directory also contains `results.json` and `junit.xml`

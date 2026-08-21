@@ -192,6 +192,11 @@ export function createDesktopNightlyTestsMetricsEvidence({
 		throw new TypeError('Nightly metrics budget digest must be SHA-256.');
 	}
 	const collectors = dependencies.collectors ?? DEFAULT_COLLECTORS;
+	const evidenceKind = dependencies.evidenceKind ?? 'browser';
+	if (!['browser', 'packaged-runtime'].includes(evidenceKind)) {
+		throw new TypeError('Nightly metrics evidence kind is invalid.');
+	}
+	const kindSuffix = evidenceKind === 'browser' ? '' : '-packaged-runtime';
 	const failures = playwrightFailures(playwrightExit);
 	const diagnostics = {};
 	const workloads = [];
@@ -212,14 +217,16 @@ export function createDesktopNightlyTestsMetricsEvidence({
 		passed: collectionPassed,
 		raw: Object.freeze({
 			schemaVersion: 1,
-			kind: 'soundscaper-desktop-nightly-metrics-raw',
+			kind: `soundscaper-desktop-nightly${kindSuffix}-metrics-raw`,
+			executionSurface: evidenceKind,
 			sourceRevision,
 			budgetSha256,
 			diagnostics: Object.freeze(diagnostics),
 		}),
 		summary: Object.freeze({
 			schemaVersion: 1,
-			kind: 'soundscaper-desktop-nightly-metrics',
+			kind: `soundscaper-desktop-nightly${kindSuffix}-metrics`,
+			executionSurface: evidenceKind,
 			sourceRevision,
 			budgetSha256,
 			attemptCount: 1,
@@ -239,6 +246,8 @@ export async function writeDesktopNightlyTestsMetricsEvidence({
 	sourceRevision,
 	playwrightExit,
 	consoleLogPath = join(runRoot, 'metrics/console.log'),
+	artifactDirectory = 'metrics',
+	evidenceKind = 'browser',
 }, dependencies = {}) {
 	assertAbsolutePath(payloadRoot, 'Desktop nightly metrics payload root');
 	assertAbsolutePath(runRoot, 'Desktop nightly metrics run root');
@@ -253,8 +262,11 @@ export async function writeDesktopNightlyTestsMetricsEvidence({
 		sourceRevision,
 		budgetSha256: createHash('sha256').update(configBytes).digest('hex'),
 		playwrightExit,
-	}, dependencies);
-	const metricsRoot = join(runRoot, 'metrics');
+	}, { ...dependencies, evidenceKind });
+	if (!['metrics', 'packaged-runtime'].includes(artifactDirectory)) {
+		throw new TypeError('Nightly metrics artifact directory is invalid.');
+	}
+	const metricsRoot = join(runRoot, artifactDirectory);
 	await mkdir(metricsRoot, { recursive: true });
 	await Promise.all([
 		writeFile(join(metricsRoot, 'raw.json'), `${JSON.stringify(evidence.raw, null, '\t')}\n`, { flag: 'wx' }),

@@ -38,6 +38,7 @@ import {
 import { registerSelectedReadCapability } from './read-selection-service.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
+import { createDesktopNightlyTestsWindow } from './nightly-tests-window.mjs';
 import { createDesktopLinkedVideoLocatorRuntime } from './linked-video-locator-runtime.js';
 import { startDesktopProjectLibraryProductRuntime } from './project-library-product-runtime.js';
 import { attachDesktopMainWindowRecovery } from './project-library-runtime/desktop/main-window-recovery.js';
@@ -62,6 +63,7 @@ const saves = new AtomicSaveManager({ targets: saveTargets });
 const rendererSaveOwnership = new RendererSaveOwnership();
 
 let mainWindow = null;
+let nightlyTestsWindow = null;
 let settings = null;
 let releaseChecker = null;
 let rendererReady = false;
@@ -204,6 +206,8 @@ async function startApplication() {
 	await registerIpcHandlers(desktopSession);
 	installMenu();
 	await createWindow();
+	nightlyTestsWindow = await createDesktopNightlyTestsWindow({ argv: process.argv, BrowserWindow });
+	nightlyTestsWindow?.once('closed', () => { nightlyTestsWindow = null; });
 	void checkForUpdates(false);
 
 	app.on('activate', () => {

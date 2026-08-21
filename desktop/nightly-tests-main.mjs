@@ -37,7 +37,7 @@ async function startNightlyTests() {
 			message: run.exitCode === 0
 				? 'Playwright tests and diagnostic metric gates passed.'
 				: 'Playwright tests or diagnostic metric gates did not pass.',
-			detail: `Results and pending-external metric evidence were written to:\n${run.runRoot}`,
+			detail: `Browser and packaged-runtime results were written to:\n${run.runRoot}`,
 		});
 		app.exit(run.exitCode);
 	} catch (error) {

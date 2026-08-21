@@ -1,11 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './helpers/nightly-packaged-electron.js';
 
 import { createVideoPreviewBenchmarkFixture } from './fixtures/video-preview-benchmark-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
-test('benchmarks the complete 720p video preview effect stack', async ({ page, context, browser }) => {
+test('benchmarks the complete 720p video preview effect stack', async ({ page, context, runtimeBrowser }) => {
 	test.skip(
 		process.env.SOUNDSCAPER_VIDEO_PREVIEW_BENCHMARK !== '1',
 		'Run explicitly with SOUNDSCAPER_VIDEO_PREVIEW_BENCHMARK=1.',
@@ -50,6 +50,7 @@ test('benchmarks the complete 720p video preview effect stack', async ({ page, c
 			return renderingContext;
 		};
 	});
+	if (process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS === '1') await page.reload();
 	await installPinnedFfmpegRuntimeRoutes(page);
 
 	const fixture = createVideoPreviewBenchmarkFixture();
@@ -171,7 +172,7 @@ test('benchmarks the complete 720p video preview effect stack', async ({ page, c
 		retainedJsHeapAfterBytes: heapAfter.usedSize,
 		retainedJsHeapDeltaBytes: heapAfter.usedSize - heapBefore.usedSize,
 		renderer,
-		browserVersion: browser.version(),
+		browserVersion: runtimeBrowser.version(),
 		browserEnvironment,
 	};
 	console.log(`SOUNDSCAPER_VIDEO_PREVIEW_BENCHMARK ${JSON.stringify(result)}`);
@@ -186,14 +187,16 @@ test('benchmarks the complete 720p video preview effect stack', async ({ page, c
 });
 
 async function bootVideoEditor(page) {
-	await page.goto('/framescaper/en/');
+	if (process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS !== '1') await page.goto('/framescaper/en/');
 	const editor = page.locator('[data-audio-editor]');
 	await expect(editor).toBeVisible();
 	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
 	const decline = page.getByRole('button', { name: 'Decline', exact: true });
 	if (await decline.isVisible()) await decline.click();
-	await page.locator('[data-sidebar] [data-workspace-select]').selectOption('video-editor');
+	if (process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS !== '1') {
+		await page.locator('[data-sidebar] [data-workspace-select]').selectOption('video-editor');
+	}
 	await expect(editor).toHaveAttribute('data-workspace-preset', 'video-editor');
 	await expect(editor.locator('[data-video-preview]')).toBeVisible();
 	return editor;
