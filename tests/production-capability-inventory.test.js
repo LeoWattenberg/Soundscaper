@@ -20,7 +20,7 @@ test('production capability inventory covers every product profile and platform 
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 
 	assert.equal(inventory.schemaVersion, 1);
-	assert.equal(inventory.groundedAt, '2026-08-01');
+	assert.equal(inventory.groundedAt, '2026-08-21');
 	assert.deepEqual(inventory.platformTiers, PLATFORM_TIERS);
 	assert.deepEqual(Object.keys(inventory.products).sort(), [...PRODUCT_IDS].sort());
 
@@ -74,7 +74,9 @@ test('MIDI stays absent while Framescaper capture is a separate application capa
 
 	assert.doesNotMatch(serializedProfiles, /midi/u);
 	assert.deepEqual(inventory.products.soundscaper.applicationFeatures, {});
-	assert.deepEqual(inventory.products.framescaper.applicationFeatures, { framescaperCapture: true });
+	assert.deepEqual(inventory.products.framescaper.applicationFeatures, {
+		framescaperCapture: true, framescaperWebVcr: false,
+	});
 	assert.equal(inventory.products.framescaper.projectFeatures.audioRecording, false);
 	assert.equal(inventory.products.soundscaper.projectFeatures.timelineAnnotations, true);
 	assert.equal(inventory.products.framescaper.projectFeatures.timelineAnnotations, false);

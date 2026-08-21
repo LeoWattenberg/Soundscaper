@@ -160,7 +160,9 @@ test('capability, quality, and roadmap records expose implementation without cla
 	]);
 	const framescaper = capabilities.products.framescaper;
 	assert.equal(framescaper.projectFeatures.audioRecording, false);
-	assert.deepEqual(framescaper.applicationFeatures, { framescaperCapture: true });
+	assert.deepEqual(framescaper.applicationFeatures, {
+		framescaperCapture: true, framescaperWebVcr: false,
+	});
 	assert.equal(framescaper.platforms['web-core'].status, 'available');
 	assert.equal(framescaper.platforms['web-enhanced'].status, 'partial');
 	assert.equal(framescaper.platforms['electron-enhanced'].status, 'partial');

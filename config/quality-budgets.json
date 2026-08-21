@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-08",
+	"groundedAt": "2026-08-21",
 	"qualification": {
 		"status": "in-progress",
 		"qualifiedWorkloadIds": [
@@ -10,7 +10,7 @@
 			"m2-direct-compressed-output-v2",
 			"m2-direct-mp4-webm-video-output-v1"
 		],
-		"reason": "The five frozen milestone-2 first-party structural workloads have one reviewed no-retry cohort. Fixed-hardware performance, browser and renderer heap, process RSS, worker/native/WASM codec memory, device, durability and release qualification remain open or out of this cohort's scope.",
+		"reason": "The five frozen milestone-2 first-party structural workloads have one reviewed no-retry cohort. Fixed-hardware performance, browser and renderer heap, process RSS, worker/native/WASM codec memory, device, durability, the unprovisioned Framescaper Web VCR packaged real-runtime matrix, and release qualification remain open or out of this cohort's scope.",
 		"acceptedResultCohorts": [
 			{
 				"id": "m2-structural-aad0ba1",
@@ -275,6 +275,34 @@
 				"docs/quality-budgets.md#fixtures-and-project-sizes",
 				"scripts/collect-m8a-capture-quality.mjs",
 				"tests/quality-budget-m8a-capture-collector.test.ts"
+			]
+		},
+		{
+			"id": "framescaper-web-vcr-runtime-matrix",
+			"status": "unprovisioned",
+			"kind": "packaged-electron-real-runtime-matrix",
+			"qualificationEligible": false,
+			"rendererRequirement": "hardware",
+			"fingerprint": {
+				"windowsX64Package": null,
+				"windowsArm64Package": null,
+				"macosArm64Package": null,
+				"linuxX64Package": null,
+				"linuxArm64Package": null,
+				"electronVersion": null,
+				"chromiumVersion": null,
+				"encoderBackend": null,
+				"gpuModel": null,
+				"gpuDriver": null,
+				"displayMode": null,
+				"devicePixelRatio": null
+			},
+			"eligibleWorkloadIds": [],
+			"evidence": [
+				"roadmap.md#8-post-milestone-8-framescaper-web-vcr-extension",
+				"docs/post-milestone-8-web-vcr-plan.md",
+				"docs/framescaper-capture-privacy.md",
+				"tests/production-security-framescaper-web-vcr-policy.test.js"
 			]
 		},
 		{
@@ -1084,6 +1112,33 @@
 			]
 		},
 		{
+			"id": "m8plus-web-vcr-loopback-https-v1",
+			"milestones": ["8+"],
+			"status": "provisional",
+			"kind": "deterministic-loopback-https-browser-fixture",
+			"specification": {
+				"bindAddress": "127.0.0.1",
+				"certificateSha256": "338b8e455fa680fbb281823d0d334e58e632f68ecf69c628b2a5583664402f61",
+				"certificateSpkiSha256Base64": "FKYjtNhMIpOI/vI03Cj8eoWUo0bwinbcxXlDbOfqgYw=",
+				"videoWidth": 640,
+				"videoHeight": 360,
+				"videoFrameRate": 30,
+				"toneFrequencyHz": 440,
+				"secureCookieLogin": true,
+				"oauthLikePopup": true,
+				"endedAndLoopModes": true,
+				"rejectedHttpRedirect": true
+			},
+			"limitation": "This deterministic loopback fixture is evidence only and establishes no packaged, operating-system, browser-profile, encoder, performance, real-runtime, or platform qualification.",
+			"evidence": [
+				"scripts/lib/framescaper-web-vcr-https-fixture.mjs",
+				"tests/fixtures/web-vcr/README.md",
+				"tests/fixtures/web-vcr/fixture-cert.pem",
+				"tests/fixtures/web-vcr/fixture-key.pem",
+				"tests/desktop-framescaper-web-vcr-https-fixture.test.js"
+			]
+		},
+		{
 			"id": "m8b-reviewed-design-interop-v1",
 			"milestones": ["8B"],
 			"status": "blocked",
@@ -1463,6 +1518,34 @@
 				"scripts/lib/m8a-capture-quality-metrics.mjs",
 				"scripts/collect-m8a-capture-quality.mjs",
 				"tests/quality-budget-m8a-capture-collector.test.ts"
+			]
+		},
+		{
+			"id": "m8plus-web-vcr-long-session",
+			"milestone": "8+",
+			"status": "provisional",
+			"activationGate": "Milestone 8 and applicable milestone 5B gates closed; packaged real-runtime matrix provisioned and accepted",
+			"fixtureIds": ["m8plus-web-vcr-loopback-https-v1"],
+			"environmentIds": ["framescaper-web-vcr-runtime-matrix"],
+			"thresholds": [
+				{ "metricId": "webVcr.resolutionTiersCompleted", "comparison": "eq", "value": 2, "unit": "count" },
+				{ "metricId": "webVcr.avDriftMaximumMs", "comparison": "lte", "value": 20, "unit": "ms" },
+				{ "metricId": "webVcr.droppedFrameRatio", "comparison": "lte", "value": 0.001, "unit": "ratio" },
+				{ "metricId": "webVcr.unreportedDroppedFrames", "comparison": "eq", "value": 0, "unit": "frames" },
+				{ "metricId": "webVcr.audioDropoutFrames", "comparison": "eq", "value": 0, "unit": "frames" },
+				{ "metricId": "webVcr.deviceTeardownP95Ms", "comparison": "lte", "value": 1000, "unit": "ms" },
+				{ "metricId": "webVcr.unrecoverableDurableFragments", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "webVcr.unauthorizedDeviceOpens", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "webVcr.exactSurfaceMismatches", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "webVcr.encoderCropMismatches", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "webVcr.retainedUncroppedProjectAssets", "comparison": "eq", "value": 0, "unit": "count" }
+			],
+			"evidence": [
+				"docs/post-milestone-8-web-vcr-plan.md",
+				"docs/framescaper-capture-privacy.md",
+				"scripts/lib/framescaper-web-vcr-https-fixture.mjs",
+				"tests/desktop-framescaper-web-vcr-https-fixture.test.js",
+				"tests/production-security-framescaper-web-vcr-policy.test.js"
 			]
 		},
 		{

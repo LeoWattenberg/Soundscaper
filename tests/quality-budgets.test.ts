@@ -185,7 +185,7 @@ test('quality budget contract names numeric gates and the exact qualified struct
 
 	assert.deepEqual(
 		[...new Set(config.workloads.map(({ milestone }) => milestone).filter((milestone) => milestone !== '1'))].sort(),
-		['2', '3', '4', '5', '6', '7', '8A', '8B', '9'],
+		['2', '3', '4', '5', '6', '7', '8+', '8A', '8B', '9'],
 	);
 	for (const workload of config.workloads) {
 		assert.ok(workload.fixtureIds.length > 0, `${workload.id} must name a fixture`);

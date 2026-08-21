@@ -2,16 +2,46 @@
 
 > Owning source for the Web VCR product, security, capture, lifecycle, and
 > qualification decisions. The [roadmap](../roadmap.md) owns sequencing and
-> closure status. This work starts only after milestone 8 closes and consumes
+> closure status. Activation starts only after milestone 8 closes and consumes
 > milestone 8A's capture contracts rather than creating an earlier recording
 > path.
+
+## Implementation status
+
+The focused Web VCR software substrate is implemented and integrated but
+disabled. Strict
+domain and geometry contracts, desktop security and lifecycle seams, capture
+authority, controller/crop/monitor/recorder modules, and a capability-gated UI
+exist behind `framescaperWebVcr: false`. A normal production Framescaper build
+therefore exposes no Web VCR menu or panel and creates no remote guest, popup,
+persistent browser profile, or capture grant. The controller reports
+`unavailable` / `roadmap-gate` and returns before desktop handshake or guest
+open. This dormant path is maintained
+software evidence; it is not an activated product, packaged real-runtime
+qualification, or platform-support claim.
+
+Activation remains blocked until milestone 8 and the applicable milestone-5B
+native-media gates close. A deterministic Linux x64/Xvfb packaged feasibility
+smoke exercises owned-guest 720p and 1080p video, page audio, authentication,
+input, crop, ended, security, data-clear, and teardown paths and emits
+`qualification: false`. The supported real-runtime matrix, encoder, recovery,
+performance, and registered quality gates remain open. 4K is unavailable until
+its independent capture-surface and encoder qualifications pass.
+
+Those dependency gates remain open. The packaged feasibility smoke uses the
+deterministic loopback HTTPS fixture to exercise login-cookie persistence,
+an OAuth-like popup, interactive input, standard HTML media with generated
+video and tone, ended/loop behavior, redirects, and clean shutdown. That
+loopback HTTPS fixture and packaged smoke are evidence only and do not
+establish the supported real-runtime matrix, performance, or platform
+qualification.
 
 ## Outcome and boundaries
 
 Framescaper desktop gains an isolated, dockable browser for capturing
 authorized HTTPS media into the normal recoverable Project Bin and timeline
 workflow. `Record`'s existing split-button menu is the sole entry point:
-`Web VCR…` summons the default-hidden panel, and the feature is absent from
+`Web VCR` summons the default-hidden panel, and the feature is absent from
 View > Panels, Preferences, search, Soundscaper, and both web products.
 
 The first release supports persistent HTTPS authentication, whole-page audio,
@@ -28,7 +58,7 @@ clock, general remote-content IPC bridge, or project schema.
 
 ## Product and UI contract
 
-- Add a Framescaper-desktop-only `Web VCR…` item to the Record flyout. Selecting
+- Add a Framescaper-desktop-only `Web VCR` item to the Record flyout. Selecting
   it makes `web-vcr` the active capture mode and opens or focuses the panel.
 - The primary Record control and the panel Record control call the same
   exclusive capture action. During capture the existing Record control remains
@@ -90,7 +120,7 @@ arbitrary evaluation or CDP methods to the renderer.
 
 ### Feasibility and capability gate
 
-Before product wiring, prove the complete guest-frame capture path against a
+Before activation, prove the complete guest-frame capture path against a
 deterministic controlled HTTPS page:
 
 1. The isolated guest renders the selected virtual viewport and remains

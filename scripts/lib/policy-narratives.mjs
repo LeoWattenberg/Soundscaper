@@ -138,6 +138,15 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		intro: null,
 	}),
 	Object.freeze({
+		marker: 'framescaper-web-vcr-dormant-isolated-guest',
+		register: 'config/production-security-matrix.json',
+		riskId: 'electron-renderer-ipc-boundary',
+		controlId: 'framescaper-web-vcr-dormant-isolated-guest',
+		field: 'summary',
+		document: 'docs/production-threat-model.md',
+		intro: null,
+	}),
+	Object.freeze({
 		marker: 'exact-direct-mp4-webm-video-save',
 		register: 'config/production-security-matrix.json',
 		riskId: 'desktop-write-path-capabilities',

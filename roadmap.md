@@ -164,7 +164,7 @@ Known architectural constraints that drive later work:
 | 6. Delivery/interchange | **In progress — web tier implemented, none qualified** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
 | 8. Capture and MIDI | **8A Implemented (provisional); 8B Blocked** | Framescaper recording implementation is complete with external qualification pending; MIDI waits for upstream design review. |
-| 8+. Framescaper Web VCR | **Planned** | Add authorized HTTPS media capture through an isolated, dockable Electron browser after milestone 8. |
+| 8+. Framescaper Web VCR | **Software substrate implemented — provisional, disabled** | Keep the dormant contracts, security seams, controller, crop pipeline, and UI behind `framescaperWebVcr: false` until post-milestone-8 runtime qualification. |
 | 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extension, and release matrix. |
 
 Earlier milestones may ship independently. The complete roadmap does not close
@@ -881,27 +881,27 @@ invent an interim Soundscaper-only design.
 
 ## 8+. Post-milestone-8 Framescaper Web VCR extension
 
-**Status:** **Planned.** **Depends on:** milestone 8 complete and the applicable milestone-5B native media gates. Sequencing, decisions, and work packets are owned by the [Web VCR plan](docs/post-milestone-8-web-vcr-plan.md).
+**Status:** **Software substrate Implemented (provisional; disabled).** `framescaperWebVcr` remains `false`, so the normal production product exposes no Web VCR entry and creates no remote guest or capture grant. Milestone 8 and the applicable milestone-5B gates must close before activation; activation is also blocked on packaged and real-runtime capture, audio, encoder, security, lifecycle, and long-session qualification. Sequencing, decisions, and work packets are owned by the [Web VCR plan](docs/post-milestone-8-web-vcr-plan.md).
 
 **Goal:** capture authorized HTTPS media through an isolated Framescaper desktop browser and the milestone-8A recoverable Project Bin/timeline workflow.
 
-- **Electron Only — Planned:** `Record`'s split-button menu is the sole entry; it summons a default-hidden dockable panel and remains the visible indicator during background capture.
-- **Electron Only — Planned:** use a dedicated persistent sandboxed HTTPS profile with no remote preload/editor authority, bounded authentication windows, denied unrelated permissions/downloads, and explicit data clearing.
-- **Electron Enhanced — Planned:** qualify 720p/1080p first and expose 4K only when runtime capture and encoder gates pass; viewport/DPI selection never promises a provider source resolution.
-- **Shared capture contract — Planned:** capture whole-page audio independently of local monitoring, freeze automatic or manual free/16:9/9:16/1:1 crop at Record, and retain only the verified cropped result.
-- **Shared capture contract — Planned:** reuse milestone 8A's clock, fragments, metrics, recovery, managed publication, and Recording Setup destination; panel closure/project switching may continue capture, while quit seals recovery.
+- **Dormant product surface — Implemented:** the integrated Framescaper-only Record-menu, default-hidden panel, controller, and desktop path is capability-gated. While the application feature is false, the UI is unreachable, the controller returns `unavailable` / `roadmap-gate` without a handshake, and the registered desktop boundary refuses guest/profile creation and capture grants.
+- **Desktop security seams — Implemented:** focused modules specify a dedicated persistent sandboxed HTTPS profile with no remote preload/editor authority, bounded authentication popups, denied unrelated permissions/downloads, closed trusted-app DTOs, one-shot capture authority, and destructive data clearing.
+- **Capture/controller seams — Implemented:** strict domain, target, aperture, normalized-crop, even-pixel encoder mapping, page-audio monitor, recorder, controller, and UI tests exercise the integrated dormant software contracts without qualifying an activated end-to-end packaged capture path.
+- **Resolution baseline — Implemented in software only:** 720p and 1080p profiles exist in the software substrate, but make no platform claim. 4K is unavailable and must remain hidden until its independent runtime and encoder gates pass; viewport/DPI selection never promises a provider source resolution.
+- **Qualification evidence — Provisional:** the deterministic loopback HTTPS fixture covers login cookies, popup, input, standard media, ended/loop, redirects, and shutdown. A Linux x64/Xvfb packaged feasibility smoke emits `qualification: false` after exact 720p and 1080p owned-guest video, page audio, visual-marker, security, clear-data, and teardown checks; both are evidence only, not qualification, and neither establishes the supported real-runtime matrix, performance, or platform support.
+- **Shared capture contract — Integrated but dormant:** the controller adapts Web VCR display and page-audio input into milestone 8A's clock, fragments, metrics, recovery, managed publication, and Recording Setup destination. The false application gate prevents activation, and no parallel production recording path or runtime qualification is claimed.
 - **Explicit non-goals:** DRM/EME/HDCP capture, anti-bot evasion, user-agent spoofing, provider-specific completion adapters, HTTP browsing, arbitrary downloads, generic remote CDP, and raw-frame ffmpeg.wasm IPC.
 
 ### Exit gate
 
-- The feature is reachable only from Framescaper desktop's Record dropdown; remote-content security, privacy, ownership, failure, background, quit, and cleanup paths pass maintained review and deterministic tests.
-- Every enabled tier meets milestone 8A's long-session sync, drop, teardown, and recovery budgets; unqualified 4K stays unavailable and no uncropped project asset remains.
-- Resulting media follows the same reopen, relink, proxy, edit, `.scape`, handoff, and delivery paths as other Framescaper recordings without persisting browser state.
+- Only after the activation gates close may the feature become reachable from Framescaper desktop's Record dropdown; remote-content security, privacy, ownership, failure, background, quit, and cleanup paths must pass maintained packaged-runtime review and tests.
+- Every enabled tier must meet milestone 8A's long-session sync, drop, teardown, and recovery budgets plus exact-surface, encoder-crop, and cropped-only retention gates; unqualified 4K stays unavailable.
+- A real packaged workflow must prove that resulting media follows the same reopen, relink, proxy, edit, `.scape`, handoff, and delivery paths as other Framescaper recordings without persisting browser state.
 
 ## 9. Final convergence and qualification
 
-**Depends on:** milestones 1–6, both milestone-8 sub-phases, and every accepted
-Web VCR platform tier above.
+**Depends on:** milestones 1–6, both milestone-8 sub-phases, and every accepted Web VCR platform tier above.
 
 **Goal:** qualify the complete products as coherent systems.
 

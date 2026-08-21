@@ -50,6 +50,7 @@ const CAPABILITY_LABELS = Object.freeze({
 
 const APPLICATION_FEATURE_LABELS = Object.freeze({
 	framescaperCapture: 'Screen and camera capture',
+	framescaperWebVcr: 'Web VCR capture',
 });
 
 const FAMILY_LABELS = Object.freeze({

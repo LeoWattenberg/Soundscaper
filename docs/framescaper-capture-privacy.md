@@ -109,6 +109,41 @@ probe, and canonical publication store are all present. A partial stack remains
 unavailable; the presence of Web Locks alone is not a durability or device
 qualification claim.
 
+## Dormant Web VCR privacy boundary
+
+The Framescaper Web VCR software substrate is disabled behind
+`framescaperWebVcr: false`. The normal production application therefore has no
+Web VCR menu or panel and does not create its remote guest, popup, persistent
+profile, or capture grant. The following rules describe maintained dormant
+contracts and activation gates, not an available product feature.
+
+If activated after qualification, Web VCR authentication would live only in a
+dedicated persistent profile. Browser URL, page title, and login state stay
+ephemeral; crop gesture history and diagnostic data stay out of project state. The remote
+page naturally receives the navigation and interactive input sent to it, but
+it receives no editor preload, IPC, filesystem, project, helper, shell, or
+DevTools authority. HTTPS authentication popups use the same isolated profile,
+and unrelated downloads and permissions are denied. The explicit idle-only
+clear action must destroy the guest and every popup before clearing cookies,
+cache, and site storage.
+
+A record action must freeze one validated crop, keep page-audio capture
+independent of local monitoring, and admit only the verified cropped result as
+an ordinary project asset. An uncropped intermediate is capture-owned working
+data, never a Project Bin asset, and must be removed after verified crop
+publication or preserved only inside the existing explicit recovery envelope
+until import or discard. Exact-surface, encoder-crop, cropped-only retention,
+sync, drop, teardown, and recovery budgets all fail closed before activation.
+
+The deterministic loopback HTTPS fixture and its Linux x64/Xvfb packaged
+feasibility smoke are evidence only. The smoke emits `qualification: false`
+after authentication, interactive input, exact 720p and 1080p owned-guest
+video, page audio, visual-marker, crop/ended, data-clear, and teardown checks.
+It does not establish the supported real-runtime matrix, encoder performance,
+long-session, platform, or privacy qualification, and it uses only a checked-in
+test certificate and loopback content rather than public network or provider
+credentials.
+
 ## Qualification status
 
 Automated tests cover permission admission, source combinations, state and
