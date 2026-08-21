@@ -83,13 +83,19 @@ test('nightly-with-tests enables RunAsNode without weakening the other desktop f
 });
 
 test('the production package keeps RunAsNode disabled and excludes the nightly payload', async () => {
-	const [configSource, fuseSource] = await Promise.all([
+	const [configSource, fuseSource, mainSource] = await Promise.all([
 		readFile(resolve(ROOT, 'electron-builder.config.cjs'), 'utf8'),
 		readFile(resolve(ROOT, 'scripts/desktop-after-pack.mjs'), 'utf8'),
+		readFile(resolve(ROOT, 'desktop/main.mjs'), 'utf8'),
 	]);
 
 	assert.match(fuseSource, /\[FuseV1Options\.RunAsNode\]: false/u);
 	assert.doesNotMatch(configSource, /nightly-tests|nightly-with-tests/u);
+	assert.match(mainSource, /app\.commandLine\.appendSwitch\('enable-gpu'\)/u);
+	assert.ok(
+		mainSource.indexOf("app.commandLine.appendSwitch('enable-gpu')") < mainSource.indexOf('app.whenReady()'),
+		'Electron must select the hardware GPU before the application becomes ready.',
+	);
 });
 
 test('the nightly test launcher delegates to the pure runtime and never opens an editor window', async () => {
@@ -158,6 +164,8 @@ test('desktop CI exposes one quality-gated six-target nightly-with-tests artifac
 		assert.match(testJob, new RegExp(`runner: ${target[0]}\\s+platform: ${target[1]}\\s+arch: ${target[2]}`, 'u'));
 	}
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-prepare\.mjs/u);
+	assert.match(testJob, /npx playwright install --no-shell chromium firefox webkit/u);
+	assert.doesNotMatch(testJob, /playwright install --only-shell/u);
 	assert.match(testJob, /electron-builder --config electron-builder\.nightly-tests\.config\.cjs/u);
 	assert.match(testJob, /name: nightly-with-tests-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}/u);
 	assert.match(testJob, /release\/desktop-nightly-tests\/\*\.AppImage/u);

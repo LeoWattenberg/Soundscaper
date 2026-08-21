@@ -48,6 +48,10 @@ test('bundled Playwright config uses only absolute launcher-provided paths', asy
 			config.projects.map(({ name }) => name),
 			process.platform === 'win32' ? ['chromium', 'firefox'] : ['chromium', 'firefox', 'webkit'],
 		);
+		const chromium = config.projects.find(({ name }) => name === 'chromium');
+		assert.equal(chromium.use.channel, 'chromium');
+		assert.equal(chromium.use.headless, true);
+		assert.deepEqual(chromium.use.launchOptions?.args, ['--enable-gpu']);
 		const firefox = config.projects.find(({ name }) => name === 'firefox');
 		assert.equal(firefox.use.launchOptions?.firefoxUserPrefs, undefined);
 		for (const project of config.projects) {
@@ -102,6 +106,9 @@ test('bundled metrics config isolates registered collectors from the functional 
 		assert.equal(config.retries, 0);
 		assert.equal(config.fullyParallel, false);
 		assert.deepEqual(config.projects.map(({ name }) => name), ['chromium']);
+		assert.equal(config.projects[0].use.channel, 'chromium');
+		assert.equal(config.projects[0].use.headless, true);
+		assert.deepEqual(config.projects[0].use.launchOptions?.args, ['--enable-gpu']);
 		assert.equal(config.outputDir, resolve(runRoot, 'metrics/test-results'));
 		assert.ok(config.testMatch.includes('audio-editor-video-preview-benchmark.spec.js'));
 		assert.deepEqual(config.reporter, [

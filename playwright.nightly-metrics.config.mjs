@@ -60,7 +60,13 @@ export function createNightlyMetricsConfig(environment = process.env) {
 		},
 		projects: [{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'], browserName: 'chromium' },
+			use: {
+				...devices['Desktop Chrome'],
+				browserName: 'chromium',
+				channel: 'chromium',
+				headless: true,
+				launchOptions: { args: ['--enable-gpu'] },
+			},
 		}],
 	});
 }

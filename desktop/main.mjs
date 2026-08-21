@@ -124,6 +124,7 @@ const desktopSmokeProbe = createDesktopSmokeProbe({
 });
 
 app.setName(APP_NAME);
+app.commandLine.appendSwitch('enable-gpu');
 app.enableSandbox();
 registerAppScheme(protocol);
 

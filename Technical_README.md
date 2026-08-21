@@ -164,6 +164,11 @@ desktop distribution still requires the release provenance recorded in
 ID signing/notarization; the compiled-native AUP4 gate is intentionally still
 pending for this preview.
 
+The packaged desktop entry point requests Electron's regular hardware GPU
+selection before the application becomes ready. The operating system and
+Chromium can still reject or block-list an unavailable driver; packaging does
+not relabel a software fallback as hardware evidence.
+
 ### Nightly test runner artifacts
 
 For a self-contained browser test run, start the workflow manually and choose
@@ -199,6 +204,11 @@ the downloadable binary deliberately cannot publish qualification evidence for
 an unprovisioned machine. A metric-threshold or collector failure makes the
 overall run fail without turning a passing diagnostic into a roadmap gate.
 
+The packaged runner carries full Chromium rather than Chromium Headless Shell
+and launches it headlessly with `--enable-gpu`, allowing normal hardware
+renderer selection. Every diagnostic still records the observed renderer; a
+SwiftShader, llvmpipe, software, or unknown result remains non-qualifying.
+
 Those two launcher files are attempted even for infrastructure failures. Once
 Playwright starts, the directory also contains `results.json` and `junit.xml`
 for machine-readable results, `playwright-report/index.html` for the browsable
@@ -218,7 +228,7 @@ To build the current platform's equivalent artifact locally after installing
 the hermetic engines, use:
 
 ```sh
-PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --only-shell chromium firefox webkit
+PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --no-shell chromium firefox webkit
 npm run desktop:nightly-tests:dist
 ```
 

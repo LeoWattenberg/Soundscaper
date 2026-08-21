@@ -100,7 +100,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'tests/aup3-fixture.js',
 		'tests/fixtures/aup4-native-rich.js',
 		'src/common/editor/example.ts',
-		'.local-browsers/chromium_headless_shell-101/INSTALLATION_COMPLETE',
+		'.local-browsers/chromium-101/INSTALLATION_COMPLETE',
 		'.local-browsers/firefox-102/INSTALLATION_COMPLETE',
 		'.local-browsers/webkit-103/INSTALLATION_COMPLETE',
 		'.local-browsers/webkit-103/libalias',
@@ -133,7 +133,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 	assert.equal(manifest.sourceRevision, 'a'.repeat(40));
 	assert.deepEqual(manifest.target, { platform: 'linux', arch: 'x64' });
 	assert.deepEqual(manifest.browserRevisions, {
-		chromiumHeadlessShell: '101',
+		chromium: '101',
 		firefox: '102',
 		webkit: '103',
 		ffmpeg: '104',
@@ -481,7 +481,7 @@ async function createFixture(context) {
 		await writeFixturePackage(repositoryRoot, name, metadata);
 	}
 	await writeFixtureFile(repositoryRoot, 'node_modules/playwright-core/browsers.json', `${JSON.stringify({ browsers: [
-		{ name: 'chromium-headless-shell', revision: '101' },
+		{ name: 'chromium', revision: '101' },
 		{ name: 'firefox', revision: '102' },
 		{ name: 'webkit', revision: '103' },
 		{ name: 'ffmpeg', revision: '104' },
@@ -489,7 +489,7 @@ async function createFixture(context) {
 	] })}\n`);
 	const browserSourceRoot = join(repositoryRoot, 'node_modules/playwright-core/.local-browsers');
 	for (const directory of [
-		'chromium_headless_shell-101',
+		'chromium-101',
 		'firefox-102',
 		'webkit-103',
 		'ffmpeg-104',

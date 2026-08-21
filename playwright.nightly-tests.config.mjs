@@ -38,7 +38,16 @@ export function createNightlyTestsConfig(environment = process.env, platform = p
 	const runRoot = requireAbsolutePath(environment, 'SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT');
 	const baseURL = requireLoopbackURL(environment);
 	const projects = [
-		{ name: 'chromium', use: { ...devices['Desktop Chrome'], browserName: 'chromium' } },
+		{
+			name: 'chromium',
+			use: {
+				...devices['Desktop Chrome'],
+				browserName: 'chromium',
+				channel: 'chromium',
+				headless: true,
+				launchOptions: { args: ['--enable-gpu'] },
+			},
+		},
 		{ name: 'firefox', use: { ...devices['Desktop Firefox'], browserName: 'firefox' } },
 		{ name: 'webkit', use: { ...devices['Desktop Safari'], browserName: 'webkit' } },
 	];

@@ -431,7 +431,7 @@ jobs:
         run: npx playwright install-deps chromium firefox webkit
 
       - name: Install the hermetic browser-engine matrix
-        run: npx playwright install --only-shell chromium firefox webkit
+        run: npx playwright install --no-shell chromium firefox webkit
         env:
           PLAYWRIGHT_BROWSERS_PATH: '0'
 

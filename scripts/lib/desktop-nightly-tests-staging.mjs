@@ -266,7 +266,7 @@ async function validateBrowserCache(root, browserRoot) {
 	if (!Array.isArray(registry.browsers)) throw new Error('Playwright browser registry has no browser inventory.');
 	const records = new Map(registry.browsers.map((browser) => [browser.name, browser]));
 	const requirements = [
-		['chromium-headless-shell', 'chromiumHeadlessShell'],
+		['chromium', 'chromium'],
 		['firefox', 'firefox'],
 		['webkit', 'webkit'],
 		['ffmpeg', 'ffmpeg'],
