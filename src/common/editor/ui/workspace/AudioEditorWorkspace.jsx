@@ -41,7 +41,7 @@ export default function AudioEditorWorkspace({
 	const capabilities = product.capabilities;
 	const aboutLabel = productId === 'framescaper' ? copy.aboutFramescaper : copy.aboutEditor;
 	const editorThemeVariables = useAudioEditorThemeVariables();
-	const parityRuntime = useMemo(() => createAudacityActionRuntime(controller), [controller]);
+	const parityRuntime = useMemo(() => createAudacityActionRuntime(controller, { productId }), [controller, productId]);
 	const snapshot = useAudioEditorSnapshot(controller);
 	const [activeSurface, setActiveSurface] = useTakeCycleRecoverySurface(productId, snapshot.takeCycleRecovery);
 	const [effectsPanelTarget, setEffectsPanelTarget] = useState(null);
