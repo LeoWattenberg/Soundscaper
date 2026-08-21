@@ -40,6 +40,7 @@ export function validateModelsDirectory(value) {
 export class DesktopSettingsStore {
 	#filePath;
 	#settings = { ...DEFAULTS };
+	#mutationTail = Promise.resolve();
 
 	constructor(filePath) {
 		this.#filePath = filePath;
@@ -54,8 +55,8 @@ export class DesktopSettingsStore {
 		}
 		this.#settings = validateSettings(parsed);
 		if (!this.#settings.locale) {
-			this.#settings.locale = resolveLocale(preferredLocales, SUPPORTED_LOCALES);
-			await this.#write();
+			const locale = resolveLocale(preferredLocales, SUPPORTED_LOCALES);
+			await this.#update((settings) => ({ ...settings, locale }));
 		}
 		return this.snapshot();
 	}
@@ -65,45 +66,62 @@ export class DesktopSettingsStore {
 	}
 
 	async setLocale(locale) {
-		this.#settings.locale = validateLocale(locale);
-		await this.#write();
-		return this.#settings.locale;
+		const validated = validateLocale(locale);
+		const settings = await this.#update((current) => ({ ...current, locale: validated }));
+		return settings.locale;
 	}
 
 	async setModelsDirectory(directory) {
-		this.#settings.modelsDirectory = validateModelsDirectory(directory);
-		await this.#write();
-		return this.#settings.modelsDirectory;
+		const validated = validateModelsDirectory(directory);
+		const settings = await this.#update((current) => ({ ...current, modelsDirectory: validated }));
+		return settings.modelsDirectory;
 	}
 
 	/** The native probe helper stays off until the user turns it on. */
 	async setNativeProbeHelperEnabled(enabled) {
-		this.#settings.nativeProbeHelperEnabled = enabled === true;
-		await this.#write();
-		return this.#settings.nativeProbeHelperEnabled;
+		const settings = await this.#update((current) => ({
+			...current,
+			nativeProbeHelperEnabled: enabled === true,
+		}));
+		return settings.nativeProbeHelperEnabled;
 	}
 
 	/** The native audio helper stays off until the user turns it on. */
 	async setNativeAudioHelperEnabled(enabled) {
-		const next = { ...this.#settings, nativeAudioHelperEnabled: enabled === true };
-		await this.#write(next);
-		this.#settings.nativeAudioHelperEnabled = next.nativeAudioHelperEnabled;
-		return this.#settings.nativeAudioHelperEnabled;
+		const settings = await this.#update((current) => ({
+			...current,
+			nativeAudioHelperEnabled: enabled === true,
+		}));
+		return settings.nativeAudioHelperEnabled;
 	}
 
 	/** Native plug-in discovery stays off until the user turns it on. */
 	async setNativePluginDiscoveryEnabled(enabled) {
-		this.#settings.nativePluginDiscoveryEnabled = enabled === true;
-		await this.#write();
-		return this.#settings.nativePluginDiscoveryEnabled;
+		const settings = await this.#update((current) => ({
+			...current,
+			nativePluginDiscoveryEnabled: enabled === true,
+		}));
+		return settings.nativePluginDiscoveryEnabled;
 	}
 
 	async recordUpdateCheck(timestamp = Date.now()) {
-		this.#settings.lastUpdateCheck = new Date(timestamp).toISOString();
-		await this.#write();
+		const lastUpdateCheck = new Date(timestamp).toISOString();
+		await this.#update((settings) => ({ ...settings, lastUpdateCheck }));
 	}
 
-	async #write(settings = this.#settings) {
+	/** Whole-file replacements must observe and commit in invocation order. */
+	#update(project) {
+		const mutation = this.#mutationTail.then(async () => {
+			const next = project(this.#settings);
+			await this.#write(next);
+			this.#settings = next;
+			return this.snapshot();
+		});
+		this.#mutationTail = mutation.then(() => undefined, () => undefined);
+		return mutation;
+	}
+
+	async #write(settings) {
 		const directory = dirname(this.#filePath);
 		await mkdir(directory, { recursive: true });
 		const temporaryPath = `${this.#filePath}.${randomBytes(8).toString('hex')}.tmp`;

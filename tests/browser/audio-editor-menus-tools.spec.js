@@ -148,11 +148,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(arm).toHaveAttribute('aria-pressed', 'true');
 	});
 
-	test('reserves standalone Alt for the menubar without stealing modified shortcuts', async ({ page }) => {
+	test('leaves browser menu accelerators to the browser', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const file = editor.getByRole('menubar', { name: 'Application menu' })
 			.getByRole('menuitem', { name: 'File', exact: true });
 		const fullscreen = editor.getByRole('button', { name: 'Fullscreen', exact: true });
+		await expect(editor.locator('[data-desktop-window-controls]')).toHaveCount(0);
 
 		await fullscreen.focus();
 		await page.keyboard.down('Alt');
@@ -164,10 +165,13 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(fullscreen).toBeFocused();
 
 		await page.keyboard.press('Alt');
-		await expect(file).toBeFocused();
+		await expect(fullscreen).toBeFocused();
 		await fullscreen.focus();
 		await page.keyboard.press('F10');
-		await expect(file).toBeFocused();
+		await expect(fullscreen).toBeFocused();
+		await page.keyboard.press('Alt+f');
+		await expect(fullscreen).toBeFocused();
+		await expect(file).toHaveAttribute('aria-expanded', 'false');
 
 		const search = editor.getByRole('combobox', { name: 'Search commands and media', exact: true });
 		await search.focus();

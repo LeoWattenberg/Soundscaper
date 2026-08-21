@@ -67,6 +67,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/local-model-store.js',
 		'desktop/main-window-recovery.js',
 		'desktop/native-services-database.js',
+		'desktop/native-tier-controls.js',
 		'desktop/project-library-abort.js',
 		'desktop/project-library-api.js',
 		'desktop/project-library-contract.js',

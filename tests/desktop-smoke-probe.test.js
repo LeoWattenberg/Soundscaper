@@ -233,8 +233,9 @@ test('base artifact smoke remains did-finish-load driven', async () => {
 	assert.equal(fixture.window.webContents.executions.length, 0);
 
 	await fixture.window.webContents.emit('did-finish-load');
+	await flushAsync();
 
-	assert.equal(fixture.window.webContents.executions.length, 1);
+	assert.equal(fixture.window.webContents.executions.length, 2);
 	assert.deepEqual(fixture.exits, [0]);
 	assert.equal(fixture.logs.length, 1);
 	assert.match(fixture.logs[0], /^SOUNDSCAPER_DESKTOP_SMOKE /u);

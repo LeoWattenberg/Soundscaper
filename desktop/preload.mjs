@@ -46,12 +46,14 @@ const CHANNELS = Object.freeze({
 	nativePluginScan: 'soundscaper:v1:helper:native-plugin-scan',
 	nativePluginInventory: 'soundscaper:v1:helper:native-plugin-inventory',
 	nativePluginClearQuarantine: 'soundscaper:v1:helper:native-plugin-clear-quarantine',
+	nativeTierControls: 'soundscaper:v1:native-tier:controls',
+	nativeTierApply: 'soundscaper:v1:native-tier:apply',
 	listAssistanceModels: 'soundscaper:v1:assistance:list',
 	installAssistanceModel: 'soundscaper:v1:assistance:install',
 	removeAssistanceModel: 'soundscaper:v1:assistance:remove',
 	assistanceInstallProgress: 'soundscaper:v1:event:assistance-progress',
 	setLocale: 'soundscaper:v1:locale:set',
-	setFullscreen: 'soundscaper:v1:fullscreen:set',
+	windowAction: 'soundscaper:v1:window:action',
 	checkForUpdates: 'soundscaper:v1:updates:check',
 	openExternal: 'soundscaper:v1:external:open',
 	editText: 'soundscaper:v1:text:edit',
@@ -60,7 +62,7 @@ const CHANNELS = Object.freeze({
 	openProject: 'soundscaper:v1:event:project-open',
 	menuCommand: 'soundscaper:v1:event:menu-command',
 	closeRequested: 'soundscaper:v1:event:close-requested',
-	fullscreenChanged: 'soundscaper:v1:event:fullscreen-changed',
+	windowStateChanged: 'soundscaper:v1:event:window-state-changed',
 });
 const MAX_CHUNK_BYTES = 4 * 1024 * 1024;
 const FINAL_PREFIX_BYTES = 32;
@@ -145,7 +147,7 @@ const api = Object.freeze({
 			.then((bytes) => sharedSourceChunkResult(bytes, request.length));
 	},
 	setLocale: (locale) => ipcRenderer.invoke(CHANNELS.setLocale, text(locale, 32)),
-	setFullscreen: (enabled) => ipcRenderer.invoke(CHANNELS.setFullscreen, enabled === true),
+	runWindowAction: (action) => ipcRenderer.invoke(CHANNELS.windowAction, windowAction(action)),
 	checkForUpdates: () => ipcRenderer.invoke(CHANNELS.checkForUpdates),
 	openExternal: (destination) => ipcRenderer.invoke(CHANNELS.openExternal, text(destination, 32)),
 	editText: (command) => ipcRenderer.invoke(CHANNELS.editText, textEditCommand(command)),
@@ -182,6 +184,8 @@ const api = Object.freeze({
 	}).then(nativePluginStatus),
 	listNativePlugins: () => ipcRenderer.invoke(CHANNELS.nativePluginInventory).then(nativePluginStatus),
 	clearNativePluginQuarantine: (request) => ipcRenderer.invoke(CHANNELS.nativePluginClearQuarantine, { digest: opaqueId(request?.digest, 64), clearance: text(request?.clearance, 16) }).then(nativePluginStatus),
+	readNativeTierControls: () => ipcRenderer.invoke(CHANNELS.nativeTierControls).then(nativeTierControls),
+	applyNativeTierControl: (request) => ipcRenderer.invoke(CHANNELS.nativeTierApply, nativeTierControlRequest(request)).then(nativeTierControls),
 	listAssistanceModels: () => ipcRenderer.invoke(CHANNELS.listAssistanceModels).then(assistanceStatus),
 	installAssistanceModel: (modelId) => ipcRenderer.invoke(CHANNELS.installAssistanceModel, assistanceModelId(modelId)).then(assistanceModel),
 	removeAssistanceModel: (modelId) => ipcRenderer.invoke(CHANNELS.removeAssistanceModel, assistanceModelId(modelId)).then(safeInteger),
@@ -192,7 +196,7 @@ const api = Object.freeze({
 		requestId: text(value?.requestId, 64),
 		reason: value?.reason === 'quit' ? 'quit' : 'window-close',
 	})),
-	onFullscreenChanged: (listener) => subscribe(CHANNELS.fullscreenChanged, listener, (value) => Object.freeze({ fullscreen: value?.fullscreen === true })),
+	onWindowStateChanged: (listener) => subscribe(CHANNELS.windowStateChanged, listener, windowState),
 });
 const bridge = Object.freeze({ v1: api });
 contextBridge.exposeInMainWorld('scapeDesktop', bridge);
@@ -614,15 +618,11 @@ function sharedSourceBytes(value) {
 	return bytes;
 }
 function sharedSourceWriteId(value) {
-	if (typeof value !== 'string' || !SOURCE_WRITE_ID.test(value)) {
-		throw new TypeError('Desktop shared-source write id is invalid');
-	}
+	if (typeof value !== 'string' || !SOURCE_WRITE_ID.test(value)) throw new TypeError('Desktop shared-source write id is invalid');
 	return value;
 }
 function sharedManagedBindingId(value) {
-	if (typeof value !== 'string' || !MANAGED_BINDING_ID.test(value)) {
-		throw new TypeError('Desktop shared-source binding id is invalid');
-	}
+	if (typeof value !== 'string' || !MANAGED_BINDING_ID.test(value)) throw new TypeError('Desktop shared-source binding id is invalid');
 	return value;
 }
 function sharedManagedEncoding(value) {
@@ -638,16 +638,10 @@ function sharedManagedSourceEncoding(kind, encoding) {
 	throw new TypeError('Desktop shared-source kind and encoding do not match');
 }
 function sharedSourceSha256(value) {
-	if (typeof value !== 'string' || !SHA256.test(value)) {
-		throw new TypeError('Desktop shared-source SHA-256 digest is invalid');
-	}
+	if (typeof value !== 'string' || !SHA256.test(value)) throw new TypeError('Desktop shared-source SHA-256 digest is invalid');
 	return value;
 }
-function positiveSafeInteger(value) {
-	const number = safeInteger(value);
-	if (number === 0) throw new RangeError('Expected a positive safe integer');
-	return number;
-}
+function positiveSafeInteger(value) { const number = safeInteger(value); if (number === 0) throw new RangeError('Expected a positive safe integer'); return number; }
 /**
  * The renderer is told what is available and why it is not, never how: no
  * payload path, no library name, no backend binary ever crosses this bridge.
@@ -667,12 +661,9 @@ function nativeAudioAvailability(value) {
 		backends: Object.freeze(bounded(value?.backends, 16).map((backend) => text(backend, 32))),
 	});
 }
-
 function nativeAudioInventory(value) {
 	const inventory = value?.inventory;
-	if (value?.status !== 'described') {
-		return Object.freeze({ status: 'failed', code: text(value?.code ?? 'helper-failed', 32), message: text(value?.message ?? '', 512) });
-	}
+	if (value?.status !== 'described') return Object.freeze({ status: 'failed', code: text(value?.code ?? 'helper-failed', 32), message: text(value?.message ?? '', 512) });
 	return Object.freeze({ status: 'described', inventory: Object.freeze({
 		backend: text(inventory?.backend, 32),
 		status: text(inventory?.status, 32),
@@ -682,11 +673,7 @@ function nativeAudioInventory(value) {
 		}))),
 	}) });
 }
-
-function bounded(value, maximum) {
-	return Array.isArray(value) ? value.slice(0, maximum) : [];
-}
-
+function bounded(value, maximum) { return Array.isArray(value) ? value.slice(0, maximum) : []; }
 /**
  * Plug-in answers are already closed-schema validated in main, so this bounds
  * and freezes rather than re-parsing. It walks the whole reply because the one
@@ -732,6 +719,19 @@ function helperProbeCompletion(value) {
 	throw new TypeError('Desktop returned an unsupported helper probe completion');
 }
 function nativeAudioEnabled(value) { return strictBoolean(value, 'Desktop native-audio setting result must be a boolean'); }
+function windowAction(value) { const action = text(value, 32);
+	if (!['minimize', 'toggle-maximize', 'toggle-fullscreen', 'quit', 'reload', 'toggle-dev-tools'].includes(action)) throw new TypeError('Unsupported window action'); return action; }
+function windowState(value) { return Object.freeze({ maximized: value?.maximized === true, fullscreen: value?.fullscreen === true }); }
+function nativeTierControls(value) { return Object.freeze({ probeHelperEnabled: value?.probeHelperEnabled === true,
+	probeHelperQuarantined: value?.probeHelperQuarantined === true, audioHelperEnabled: value?.audioHelperEnabled === true,
+	audioHelperQuarantined: value?.audioHelperQuarantined === true, nativeEffectDiscoveryEnabled: value?.nativeEffectDiscoveryEnabled === true }); }
+function nativeTierControlRequest(value) {
+	const action = text(value?.action, 48);
+	const setters = ['set-probe-helper-enabled', 'set-audio-helper-enabled', 'set-native-effect-discovery-enabled'];
+	const clears = ['clear-probe-helper-quarantine', 'clear-audio-helper-quarantine'];
+	if (!setters.includes(action) && !clears.includes(action)) throw new TypeError('Unsupported native-tier control action');
+	if (setters.includes(action) && typeof value?.enabled !== 'boolean') throw new TypeError('Native-tier enabled value must be a boolean');
+	return Object.freeze(setters.includes(action) ? { action, enabled: value.enabled } : { action }); }
 function strictBoolean(value, message = 'Desktop shared-project delete result must be a boolean') {
 	if (typeof value !== 'boolean') throw new TypeError(message);
 	return value;

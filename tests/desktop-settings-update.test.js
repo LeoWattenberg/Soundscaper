@@ -44,6 +44,67 @@ test('failed native-audio persistence rolls in-memory authority back', async (co
 		'a failed atomic write must not leave helper authority enabled only in memory');
 });
 
+test('failed native probe and effect-discovery persistence leave in-memory authority unchanged', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-settings-controls-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const filePath = join(root, 'state', 'settings.json');
+	const settings = new DesktopSettingsStore(filePath);
+	await settings.load(['en-US']);
+
+	await rm(join(root, 'state'), { recursive: true });
+	await writeFile(join(root, 'state'), 'blocks the settings directory');
+	await assert.rejects(() => settings.setNativeProbeHelperEnabled(true));
+	await assert.rejects(() => settings.setNativePluginDiscoveryEnabled(true));
+	assert.equal(settings.snapshot().nativeProbeHelperEnabled, false);
+	assert.equal(settings.snapshot().nativePluginDiscoveryEnabled, false);
+});
+
+test('concurrent whole-record setting changes serialize without losing durable fields', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-settings-concurrent-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const filePath = join(root, 'settings.json');
+	const settings = new DesktopSettingsStore(filePath);
+	await settings.load(['en-US']);
+
+	await Promise.all([
+		settings.setNativeProbeHelperEnabled(true),
+		settings.setNativeAudioHelperEnabled(true),
+		settings.setNativePluginDiscoveryEnabled(true),
+	]);
+
+	const memory = settings.snapshot();
+	const durable = JSON.parse(await readFile(filePath, 'utf8'));
+	assert.equal(memory.nativeProbeHelperEnabled, true);
+	assert.equal(memory.nativeAudioHelperEnabled, true);
+	assert.equal(memory.nativePluginDiscoveryEnabled, true);
+	assert.equal(durable.nativeProbeHelperEnabled, memory.nativeProbeHelperEnabled);
+	assert.equal(durable.nativeAudioHelperEnabled, memory.nativeAudioHelperEnabled);
+	assert.equal(durable.nativePluginDiscoveryEnabled, memory.nativePluginDiscoveryEnabled);
+});
+
+test('the settings mutation queue remains live after a rolled-back write', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-settings-liveness-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const directory = join(root, 'state');
+	const filePath = join(directory, 'settings.json');
+	const settings = new DesktopSettingsStore(filePath);
+	await settings.load(['en-US']);
+
+	await rm(directory, { recursive: true });
+	await writeFile(directory, 'blocks the settings directory');
+	await assert.rejects(() => settings.setLocale('de'));
+	assert.equal(settings.snapshot().locale, 'en');
+
+	await rm(directory);
+	await settings.setModelsDirectory(join(root, 'models'));
+	const memory = settings.snapshot();
+	const durable = JSON.parse(await readFile(filePath, 'utf8'));
+	assert.equal(memory.locale, 'en');
+	assert.equal(memory.modelsDirectory, join(root, 'models'));
+	assert.equal(durable.locale, memory.locale);
+	assert.equal(durable.modelsDirectory, memory.modelsDirectory);
+});
+
 test('semantic release selection respects preview and stable channels', () => {
 	assert.equal(compareVersions('1.0.0-beta.2', '1.0.0-beta.1'), 1);
 	assert.equal(compareVersions('1.0.0', '1.0.0-beta.9'), 1);

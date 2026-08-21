@@ -80,14 +80,16 @@ export function createAudioEditorFileService(options = {}) {
 		signalReady: () => bridge?.signalReady?.(),
 		respondToClose: (request) => bridge?.respondToClose?.(request),
 		setLocale: (locale) => bridge?.setLocale?.(locale),
-		setFullscreen: (enabled) => bridge?.setFullscreen?.(Boolean(enabled)),
+		runWindowAction: (action) => bridge?.runWindowAction?.(action),
+		readNativeTierControls: () => bridge?.readNativeTierControls?.(),
+		applyNativeTierControl: (request) => bridge?.applyNativeTierControl?.(request),
 		checkForUpdates: () => bridge?.checkForUpdates?.(),
 		openExternal: (destination) => bridge?.openExternal?.(destination),
 		editText: (command) => bridge?.editText?.(command),
 		onOpenProject: (listener) => subscribeBridgeEvent(bridge, 'onOpenProject', listener),
 		onMenuCommand: (listener) => subscribeBridgeEvent(bridge, 'onMenuCommand', listener),
 		onCloseRequested: (listener) => subscribeBridgeEvent(bridge, 'onCloseRequested', listener),
-		onFullscreenChanged: (listener) => subscribeBridgeEvent(bridge, 'onFullscreenChanged', listener),
+		onWindowStateChanged: (listener) => subscribeBridgeEvent(bridge, 'onWindowStateChanged', listener),
 	});
 
 	async function chooseFiles(request = {}) {

@@ -539,14 +539,14 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	assert.deepEqual(
 		Object.keys(bridge.v1).sort(),
 		[
-			'abortSharedSourceWrite', 'abortWrite', 'awaitVideoSourceProbe', 'beginSharedSourceWrite', 'beginVideoSourceProbe', 'beginWrite',
+			'abortSharedSourceWrite', 'abortWrite', 'applyNativeTierControl', 'awaitVideoSourceProbe', 'beginSharedSourceWrite', 'beginVideoSourceProbe', 'beginWrite',
 			'cancelVideoSourceProbe',
 			'checkForUpdates', 'chooseFiles', 'chooseLinkedAudioOriginal', 'chooseLinkedVideoOriginal', 'chooseSaveTarget', 'clearNativePluginQuarantine', 'commitSharedProject',
 			'deleteSharedProject', 'describeNativeAudioBackend', 'editText', 'finishSharedSourceWrite', 'finishWrite',
-			'getEnvironment', 'installAssistanceModel', 'listAssistanceModels', 'listNativePlugins', 'listSharedProjects', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'nativeAudioHelperAvailability', 'nativePluginAvailability', 'onAssistanceInstallProgress', 'onCloseRequested', 'onFullscreenChanged',
-			'onMenuCommand', 'onOpenProject', 'openExternal', 'patchFinalPrefix', 'probeHelperAvailability', 'readSharedProject',
+			'getEnvironment', 'installAssistanceModel', 'listAssistanceModels', 'listNativePlugins', 'listSharedProjects', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'nativeAudioHelperAvailability', 'nativePluginAvailability', 'onAssistanceInstallProgress', 'onCloseRequested',
+			'onMenuCommand', 'onOpenProject', 'onWindowStateChanged', 'openExternal', 'patchFinalPrefix', 'probeHelperAvailability', 'readNativeTierControls', 'readSharedProject',
 			'readSharedProjectBundle', 'readSharedSourceChunk', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'removeAssistanceModel', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'respondToClose', 'scanNativePlugins',
-			'setFullscreen', 'setLocale', 'setNativeAudioHelperEnabled', 'setNativePluginConsent', 'signalReady', 'writeChunk', 'writeSharedSourceChunk',
+			'runWindowAction', 'setLocale', 'setNativeAudioHelperEnabled', 'setNativePluginConsent', 'signalReady', 'writeChunk', 'writeSharedSourceChunk',
 		].sort(),
 	);
 	assert.equal(Object.isFrozen(bridge.v1), true);

@@ -88,6 +88,48 @@ const ARTIFACT_SMOKE_SCRIPT = `(async () => ({
 	}).then(() => false, (error) => /Save target expired or was already used/u.test(String(error?.message || error))),
 }))()`;
 
+/** Observe the renderer-owned chrome from the actual packaged application window. */
+export async function collectDesktopChromeArtifactWitness(scope) {
+	const platform = (await scope.scapeDesktop?.v1?.getEnvironment?.())?.platform;
+	const accessKeyReady = (value) => platform === 'darwin'
+		? value === null : typeof value === 'string' && /^Alt\+[\p{Letter}\p{Number}]$/u.test(value);
+	const deadline = Date.now() + 5_000;
+	let witness;
+	do {
+		const document = scope.document;
+		const editor = document?.querySelector?.('[data-audio-editor-bound="true"]');
+		const shell = document?.querySelector?.('.site-shell');
+		const header = editor?.querySelector?.('[data-desktop-chrome="true"]');
+		const titlebar = header?.querySelector?.('.application-header__windows-titlebar');
+		const actions = header?.querySelector?.('.kw-audio-editor__window-actions');
+		const buttons = [...(actions?.querySelectorAll?.('button') || [])];
+		const actionFor = (button) => button.classList.contains('kw-audio-editor__fullscreen')
+			? 'fullscreen' : button.dataset.windowControl;
+		const bounds = editor?.getBoundingClientRect?.();
+		const editorStyle = editor ? scope.getComputedStyle(editor) : null;
+		const region = (element) => element
+			? scope.getComputedStyle(element).getPropertyValue('-webkit-app-region').trim() : '';
+		const file = header?.querySelector?.('[data-application-menubar] [role="menuitem"]');
+		witness = {
+			documentDesktop: document?.documentElement?.dataset?.desktop === 'true',
+			shellDesktop: shell?.classList?.contains?.('desktop') === true,
+			fullBleed: Boolean(bounds && Math.abs(bounds.left) < 1 && Math.abs(bounds.top) < 1
+				&& Math.abs(bounds.right - scope.innerWidth) < 1 && Math.abs(bounds.bottom - scope.innerHeight) < 1
+				&& editorStyle?.borderTopWidth === '0px' && editorStyle?.borderTopLeftRadius === '0px'),
+			customHeader: Boolean(header),
+			titlebarDraggable: region(titlebar) === 'drag',
+			controlsNoDrag: region(actions) === 'no-drag',
+			controlsVisible: buttons.length === 4 && buttons.every((button) => button.getClientRects().length > 0),
+			maximizeEnabled: buttons.some((button) => ['maximize', 'restore'].includes(button.dataset.windowControl) && !button.disabled),
+			controlOrder: buttons.map(actionFor),
+			fileAccessKey: file?.getAttribute?.('aria-keyshortcuts') ?? null,
+		};
+		if (witness.customHeader && witness.controlsVisible && accessKeyReady(witness.fileAccessKey)) break;
+		await new Promise((resolve) => scope.setTimeout(resolve, 25));
+	} while (Date.now() < deadline);
+	return Object.freeze(witness);
+}
+
 export function parseDesktopSmokeConfiguration(argv) {
 	return parseDesktopSmokeConfigurationWithProjectPlan(argv, decodeDesktopSmokePlan);
 }
@@ -217,6 +259,9 @@ export function createDesktopSmokeProbe(options) {
 					})})`,
 				)
 				: await window.webContents.executeJavaScript(ARTIFACT_SMOKE_SCRIPT);
+			const desktopChrome = await window.webContents.executeJavaScript(
+				`(${collectDesktopChromeArtifactWitness.toString()})(globalThis)`, true,
+			);
 			const captureExecution = productId === 'framescaper'
 				? await window.webContents.executeJavaScript(
 					`(${runFramescaperCaptureArtifactRendererSmoke.toString()})(globalThis)`, true,
@@ -225,18 +270,21 @@ export function createDesktopSmokeProbe(options) {
 			const result = productId === 'framescaper'
 				? {
 					...execution,
+					desktopChrome,
 					framescaperCapture: validateFramescaperCaptureArtifactEvidence(captureExecution),
 					framescaperV18: joinFramescaperV18ArtifactEvidence(
 						execution?.framescaperV18,
 						await projectLibraryEvidence(execution?.framescaperV18?.project?.projectId),
 					),
 				}
-				: execution;
+				: { ...execution, desktopChrome };
 			const valid = result?.url === `${appOrigin}/`
 				&& result?.title === appName
 				&& result?.hasEditor === true
 				&& result?.nodeExposed === false
 				&& result?.saveOwnerReady === true
+				&& result?.desktopChrome?.fullBleed === true
+				&& result?.desktopChrome?.controlsVisible === true
 				&& result?.bridge?.includes('getEnvironment')
 				&& result?.bridge?.includes('chooseFiles')
 				&& result?.bridge?.includes('beginWrite')

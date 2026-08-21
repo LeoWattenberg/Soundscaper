@@ -99,6 +99,7 @@ export default function AudioEditorWorkspace({
 	const toolbarButtonPreferences = preferences?.workspace?.toolbarButtons || {};
 	const {
 		desktopEnvironment,
+		desktopHostRuntime,
 		localError,
 		onError,
 		parityUi,
@@ -155,17 +156,11 @@ export default function AudioEditorWorkspace({
 		setDraggedWorkspacePanelId(null);
 		return run(() => controller.actions.preferences.movePanel(panelId, dock, index));
 	}, [controller, run]);
-
-	const toggleFullscreen = useCallback(async () => {
-		const next = !isFullscreen;
-		setIsFullscreen(next);
-		try {
-			await fileService.setFullscreen(next);
-		} catch (error) {
-			setIsFullscreen(!next);
-			throw error;
-		}
-	}, [fileService, isFullscreen]);
+	const toggleFullscreen = useCallback(() => {
+		if (fileService.isDesktop) return fileService.runWindowAction('toggle-fullscreen');
+		setIsFullscreen((current) => !current);
+		return undefined;
+	}, [fileService]);
 	const toggleSplitTool = useCallback(() => {
 		if (snapshot.sampleEdit?.mode === 'pencil') run(() => controller.actions.sampleEdit.setMode(null));
 		setAutomationToolEnabled(false);
@@ -398,6 +393,7 @@ export default function AudioEditorWorkspace({
 		controller,
 		copy,
 		crossProductHandoffAvailable,
+		desktopHostRuntime,
 		durationFrames,
 		editBlocked,
 		handoffBlocked,
@@ -450,10 +446,13 @@ export default function AudioEditorWorkspace({
 		setProjectBinSearchReveal,
 		setTimelineSearchReveal,
 	});
-	useDesktopEditorBridge({
+	const desktopChrome = useDesktopEditorBridge({
+		copy,
 		controller,
+		desktopEnvironment,
 		durationFrames,
 		fileService,
+		isFullscreen,
 		onError,
 		openDesktopFiles,
 		openDesktopProjectDescriptor,
@@ -518,6 +517,7 @@ export default function AudioEditorWorkspace({
 		dialogTrackId,
 		dialogValue,
 		displayAudioSupported,
+		desktopChrome,
 		draggedWorkspacePanelId,
 		durationFrames,
 		editBlock,

@@ -220,19 +220,6 @@ export function registerDesktopPluginDiscovery({
 	});
 }
 
-/** The Tools submenu items that manage discovery, off by default like the rest. */
-export function desktopPluginDiscoveryMenuItems(settings) {
-	return [
-		{ type: 'separator' },
-		{
-			label: 'Discover Native Effects',
-			type: 'checkbox',
-			checked: settings.snapshot().nativePluginDiscoveryEnabled === true,
-			click: (item) => void settings.setNativePluginDiscoveryEnabled(item.checked),
-		},
-	];
-}
-
 /**
  * The action set is closed. An action this build does not implement is refused
  * rather than interpreted, because the one reading an authorization surface

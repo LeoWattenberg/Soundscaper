@@ -102,9 +102,60 @@ test('the native-audio setter validates its acknowledgement with its own contrac
 	);
 });
 
+test('the desktop host-control bridge closes and sanitizes its action and state contracts', async () => {
+	const controls = {
+		probeHelperEnabled: true,
+		probeHelperQuarantined: false,
+		audioHelperEnabled: false,
+		audioHelperQuarantined: true,
+		nativeEffectDiscoveryEnabled: true,
+		secret: '/tmp/helper',
+	};
+	const fixture = await loadPreload([controls, controls, true]);
+	const read = await fixture.bridge.readNativeTierControls();
+	assert.deepEqual({ ...read }, {
+		probeHelperEnabled: true,
+		probeHelperQuarantined: false,
+		audioHelperEnabled: false,
+		audioHelperQuarantined: true,
+		nativeEffectDiscoveryEnabled: true,
+	});
+	assert.equal(Object.isFrozen(read), true);
+	const applied = await fixture.bridge.applyNativeTierControl({
+		action: 'set-audio-helper-enabled', enabled: true,
+	});
+	assert.equal(applied.audioHelperQuarantined, true);
+	assert.deepEqual(fixture.invocations.map(([channel, value]) => [channel, value && { ...value }]), [
+		['soundscaper:v1:native-tier:controls', undefined],
+		['soundscaper:v1:native-tier:apply', { action: 'set-audio-helper-enabled', enabled: true }],
+	]);
+	assert.throws(
+		() => fixture.bridge.applyNativeTierControl({ action: 'set-audio-helper-enabled', enabled: 'yes' }),
+		/boolean/u,
+	);
+	assert.throws(
+		() => fixture.bridge.applyNativeTierControl({ action: 'launch-helper', enabled: true }),
+		/Unsupported native-tier control action/u,
+	);
+
+	assert.equal(await fixture.bridge.runWindowAction('minimize'), true);
+	assert.deepEqual(fixture.invocations.at(-1), ['soundscaper:v1:window:action', 'minimize']);
+	assert.throws(() => fixture.bridge.runWindowAction('close'), /Unsupported window action/u);
+	let state;
+	const unsubscribe = fixture.bridge.onWindowStateChanged((value) => { state = value; });
+	fixture.listeners.get('soundscaper:v1:event:window-state-changed')?.({}, {
+		maximized: 1, fullscreen: true, secret: true,
+	});
+	assert.deepEqual({ ...state }, { maximized: false, fullscreen: true });
+	assert.equal(Object.isFrozen(state), true);
+	unsubscribe();
+	assert.equal(fixture.listeners.has('soundscaper:v1:event:window-state-changed'), false);
+});
+
 async function loadPreload(invocationResults) {
 	let bridge;
 	const invocations = [];
+	const sent = [];
 	const listeners = new Map();
 	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
 	vm.runInNewContext(source, {
@@ -118,11 +169,11 @@ async function loadPreload(invocationResults) {
 					const result = invocationResults.shift();
 					return result instanceof Error ? Promise.reject(result) : Promise.resolve(result);
 				},
-				send: () => {},
+				send: (channel, value) => { sent.push([channel, value]); },
 				on: (channel, handler) => listeners.set(channel, handler),
 				removeListener: (channel) => listeners.delete(channel),
 			},
 		}),
 	});
-	return { bridge, invocations };
+	return { bridge, invocations, listeners, sent };
 }

@@ -205,6 +205,9 @@ function fakeWindow(executionResult, executionError) {
 			this.executions.push(source);
 			this.userGestures.push(userGesture === true);
 			if (executionError !== undefined) throw executionError;
+			if (source.includes('collectDesktopChromeArtifactWitness')) {
+				return structuredClone(validDesktopChrome(executionResult?.environment?.platform));
+			}
 			return structuredClone(executionResult);
 		},
 		async emit(name, ...args) {
@@ -214,6 +217,21 @@ function fakeWindow(executionResult, executionError) {
 		},
 	};
 	return { webContents };
+}
+
+function validDesktopChrome(platform) {
+	return {
+		documentDesktop: true,
+		shellDesktop: true,
+		fullBleed: true,
+		customHeader: true,
+		titlebarDraggable: true,
+		controlsNoDrag: true,
+		controlsVisible: true,
+		maximizeEnabled: true,
+		controlOrder: ['fullscreen', 'minimize', 'maximize', 'quit'],
+		fileAccessKey: platform === 'darwin' ? null : 'Alt+F',
+	};
 }
 
 export function escapeRegex(value) {

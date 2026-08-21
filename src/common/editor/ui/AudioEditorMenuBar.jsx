@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
 	ContextMenu,
 	ContextMenuItem,
@@ -12,7 +12,11 @@ import '../../../../vendor/audacity-design-system/components/src/ApplicationHead
 import { getLocaleDescriptor } from '../../i18n/locales.js';
 import { withBase } from '../../url';
 import AudioEditorSearch from './AudioEditorSearch.jsx';
-import { createApplicationMenuAccessKeyController } from './application-menu-access-key.ts';
+import AudioEditorWindowControls, { desktopChromeSupportsMenuAccessKeys } from './AudioEditorWindowControls.tsx';
+import {
+	createApplicationMenuAccessKeyController,
+	resolveApplicationMenuAccessKeys,
+} from './application-menu-access-key.ts';
 import { materializeApplicationMenu } from './application-menu-materialization.ts';
 import { AUDACITY_MENU_ORDER } from './application-menu-order.ts';
 
@@ -25,6 +29,7 @@ const DIRECT_ENABLED_MENU_ITEM_SELECTOR = ':scope > [role="menuitem"]:not([aria-
 export default function AudioEditorMenuBar({
 	appName,
 	copy,
+	desktopChrome = null,
 	locale,
 	menus,
 	onFullscreen,
@@ -39,15 +44,18 @@ export default function AudioEditorMenuBar({
 	const { activeProfile } = useAccessibilityProfile();
 	const menuButtonsRef = useRef([]);
 	const openMenuRef = useRef(null);
-	const openMenuContainerRef = useRef(null);
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [openMenu, setOpenMenu] = useState(null);
 	openMenuRef.current = openMenu;
 	const [searchOpen, setSearchOpen] = useState(false);
-	const menuOpen = Boolean(openMenu);
 	const orderedMenus = useMemo(() => AUDACITY_MENU_ORDER
 		.map((id) => menus.find((menu) => menu.id === id))
 		.filter(Boolean), [menus]);
+	const menuAccessKeys = useMemo(() => resolveApplicationMenuAccessKeys(orderedMenus), [orderedMenus]);
+	const menuAccessKeysById = useMemo(() => new Map(
+		menuAccessKeys.map(({ key, menuId }) => [menuId, key]),
+	), [menuAccessKeys]);
+	const menuAccessKeysEnabled = desktopChromeSupportsMenuAccessKeys(desktopChrome?.platform);
 	const flatNavigation = activeProfile.config.tabNavigation === 'sequential';
 	const menuTabIndex = activeProfile.config.tabOrder?.['file-menu'] ?? 0;
 	const horizontalRightDelta = getLocaleDescriptor(locale)?.direction === 'rtl' ? -1 : 1;
@@ -106,12 +114,17 @@ export default function AudioEditorMenuBar({
 	}, [openMenu, openMenuAt, orderedMenus.length]);
 
 	useEffect(() => {
+		if (!desktopChromeSupportsMenuAccessKeys(desktopChrome?.platform)) return undefined;
 		const accessKeys = createApplicationMenuAccessKeyController({
 			focusFileMenu: () => focusMenuButton(0, { open: false }),
-			isExcludedTarget: (target) => (
-				target instanceof Element
-				&& Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
-			),
+			openMenuByAccessKey: (key) => {
+				const match = menuAccessKeys.find((candidate) => candidate.key === key);
+				if (!match) return false;
+				const index = orderedMenus.findIndex((menu) => menu.id === match.menuId);
+				if (index < 0) return false;
+				openMenuAt(index, { keyboard: true });
+				return true;
+			},
 		});
 		document.addEventListener('keydown', accessKeys.onKeyDown, true);
 		document.addEventListener('keyup', accessKeys.onKeyUp, true);
@@ -122,29 +135,7 @@ export default function AudioEditorMenuBar({
 			window.removeEventListener('blur', accessKeys.cancel);
 			accessKeys.cancel();
 		};
-	}, [focusMenuButton]);
-
-	useEffect(() => {
-		if (!menuOpen) return undefined;
-		const navigateMenuItems = (event) => {
-			if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-			const menu = event.target instanceof Element ? event.target.closest('[role="menu"]') : null;
-			if (!menu?.closest('.kw-audio-editor__application-menu')) return;
-			const items = Array.from(menu.querySelectorAll(DIRECT_ENABLED_MENU_ITEM_SELECTOR));
-			if (!items.length) return;
-			const currentIndex = items.indexOf(event.target);
-			let nextIndex = currentIndex;
-			if (event.key === 'Home') nextIndex = 0;
-			else if (event.key === 'End') nextIndex = items.length - 1;
-			else if (event.key === 'ArrowDown') nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % items.length;
-			else nextIndex = currentIndex < 0 ? items.length - 1 : (currentIndex - 1 + items.length) % items.length;
-			event.preventDefault();
-			event.stopImmediatePropagation();
-			items[nextIndex]?.focus?.({ preventScroll: true });
-		};
-		document.addEventListener('keydown', navigateMenuItems, true);
-		return () => document.removeEventListener('keydown', navigateMenuItems, true);
-	}, [menuOpen]);
+	}, [desktopChrome?.platform, focusMenuButton, menuAccessKeys, openMenuAt, orderedMenus]);
 
 	useEffect(() => {
 		if (!openMenu) return undefined;
@@ -209,15 +200,34 @@ export default function AudioEditorMenuBar({
 	};
 
 	const onOpenMenuKeyDownCapture = (event) => {
-		if (!openMenu) return;
-		if (!(openMenuContainerRef.current?.contains(event.target))) return;
-		const inSubmenu = event.target instanceof Element && Boolean(event.target.closest('.context-menu-submenu'));
-		const submenuItem = event.target instanceof Element ? event.target.closest('.context-menu-item') : null;
+		if (!openMenu || !(event.target instanceof Element)) return;
+		const menu = event.target.closest('[role="menu"]');
+		if (!menu?.closest('.kw-audio-editor__application-menu')) return;
+		if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+			const items = Array.from(menu.querySelectorAll(DIRECT_ENABLED_MENU_ITEM_SELECTOR));
+			if (!items.length) return;
+			const currentIndex = items.indexOf(event.target);
+			let nextIndex = currentIndex;
+			if (event.key === 'Home') nextIndex = 0;
+			else if (event.key === 'End') nextIndex = items.length - 1;
+			else if (event.key === 'ArrowDown') nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % items.length;
+			else nextIndex = currentIndex < 0 ? items.length - 1 : (currentIndex - 1 + items.length) % items.length;
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			items[nextIndex]?.focus?.({ preventScroll: true });
+			return;
+		}
+		const inSubmenu = Boolean(event.target.closest('.context-menu-submenu'));
+		const submenuItem = event.target.closest('.context-menu-item');
 		const hasSubmenu = Boolean(submenuItem?.querySelector(
 			':scope > .context-menu-item-content .context-menu-item-arrow',
 		));
 		const opensSubmenu = !inSubmenu && hasSubmenu;
-		if (!inSubmenu && !opensSubmenu && event.key === 'ArrowRight') {
+		if (!inSubmenu && event.key === 'Escape') {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			closeMenu();
+		} else if (!inSubmenu && !opensSubmenu && event.key === 'ArrowRight') {
 			event.preventDefault();
 			event.stopPropagation();
 			focusMenuButton(openMenu.index + horizontalRightDelta, { open: true });
@@ -258,17 +268,15 @@ export default function AudioEditorMenuBar({
 		}
 	};
 
-	// The design system's ContextMenu listens for keydown on `document` in the
-	// capture phase and stops the event dead for Tab and Escape, which is early
-	// enough to beat React's root listener — so the menubar's own capture
-	// handler has to sit on `document` too, registered at mount so it runs
-	// first and can claim Tab before the menu's generic "just close" handling.
+	// The design system's ContextMenu also listens on `document` in the capture
+	// phase. Claim application-menu navigation one level earlier so listener
+	// registration timing cannot apply a key twice or swallow Tab.
 	const openMenuKeyDownRef = useRef(onOpenMenuKeyDownCapture);
 	openMenuKeyDownRef.current = onOpenMenuKeyDownCapture;
-	useEffect(() => {
+	useLayoutEffect(() => {
 		const handleKeyDownCapture = (event) => openMenuKeyDownRef.current(event);
-		document.addEventListener('keydown', handleKeyDownCapture, true);
-		return () => document.removeEventListener('keydown', handleKeyDownCapture, true);
+		window.addEventListener('keydown', handleKeyDownCapture, true);
+		return () => window.removeEventListener('keydown', handleKeyDownCapture, true);
 	}, []);
 
 	const onOpenMenuClickCapture = (event) => {
@@ -292,7 +300,11 @@ export default function AudioEditorMenuBar({
 	const currentMenu = openMenu?.menu || null;
 
 	return (
-		<header className="kw-audio-editor__application-header application-header application-header--windows" style={style}>
+		<header
+			className={`kw-audio-editor__application-header application-header application-header--windows${desktopChrome ? ' kw-audio-editor__application-header--desktop' : ''}`}
+			data-desktop-chrome={desktopChrome ? 'true' : undefined}
+			style={style}
+		>
 			<div className="application-header__windows-titlebar">
 				<div className="application-header__windows-title">
 					<img className="kw-audio-editor__application-mark kw-audio-editor__application-mark--light" src={applicationMarkLightSrc} alt="" aria-hidden="true" width="16" height="16" />
@@ -300,11 +312,11 @@ export default function AudioEditorMenuBar({
 					<span className="application-header__app-name">{projectName} — {appName}</span>
 				</div>
 				{projectTabs}
-				<button type="button" className="kw-audio-editor__fullscreen" aria-label={copy.fullscreen} title={copy.fullscreen} onClick={onFullscreen}>
-					<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-						<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" />
-					</svg>
-				</button>
+				<AudioEditorWindowControls
+					desktopChrome={desktopChrome}
+					fullscreenLabel={copy.fullscreen}
+					onFullscreen={onFullscreen}
+				/>
 				<span className="kw-audio-editor-sr-only" data-save-state data-state={saveState}>{saveText}</span>
 			</div>
 
@@ -329,6 +341,9 @@ export default function AudioEditorMenuBar({
 							role="menuitem"
 							aria-haspopup="menu"
 							aria-expanded={openMenu?.index === index}
+							aria-keyshortcuts={menuAccessKeysEnabled && menuAccessKeysById.has(menu.id)
+								? `Alt+${menuAccessKeysById.get(menu.id).toUpperCase()}`
+								: undefined}
 							tabIndex={flatNavigation ? 0 : index === activeIndex ? menuTabIndex : -1}
 							onFocus={() => setActiveIndex(index)}
 							onMouseEnter={() => { if (openMenu) openMenuAt(index); }}
@@ -351,12 +366,12 @@ export default function AudioEditorMenuBar({
 
 			<span className="kw-audio-editor-sr-only" data-project-name>{projectName}</span>
 			{currentMenu && (
-				<div ref={openMenuContainerRef} onClickCapture={onOpenMenuClickCapture}>
+				<div onClickCapture={onOpenMenuClickCapture}>
 					<ContextMenu
 						isOpen
 						x={openMenu.x}
 						y={openMenu.y}
-						autoFocus={openMenu.autoFocus}
+						autoFocus={false}
 						onClose={() => closeMenu()}
 						className="kw-audio-editor__application-menu"
 					>

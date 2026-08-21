@@ -52,17 +52,18 @@ test('Framescaper artifact probe waits for renderer readiness and joins sanitize
 
 	await fixture.probe.rendererReady();
 
-	assert.equal(fixture.window.webContents.executions.length, 2);
+	assert.equal(fixture.window.webContents.executions.length, 3);
 	assert.deepEqual(fixture.evidenceCalls, [renderer.framescaperV18.project.projectId]);
 	assert.deepEqual(fixture.exits, [0]);
 	assert.equal(fixture.errors.length, 0);
 	const payload = JSON.parse(fixture.logs[0].slice('SOUNDSCAPER_DESKTOP_SMOKE '.length));
 	assert.deepEqual(payload, {
 		...renderer,
+		desktopChrome: validDesktopChrome(),
 		framescaperCapture: capture,
 		framescaperV18: { ...renderer.framescaperV18, main },
 	});
-	assert.doesNotMatch(JSON.stringify(payload), /metadataFile|instanceId|processId|libraryRoot|document/iu);
+	assert.doesNotMatch(JSON.stringify(payload), /metadataFile|instanceId|processId|libraryRoot|"document"/iu);
 });
 
 test('Framescaper artifact probe rejects renderer and main V18 readback disagreement', async () => {
@@ -252,7 +253,7 @@ function artifactProbeFixture(executionResult, evidence, captureEvidence = valid
 	const errors = [];
 	const exits = [];
 	const evidenceCalls = [];
-	const window = fakeWindow(executionResult, captureEvidence);
+	const window = fakeWindow(executionResult, validDesktopChrome(), captureEvidence);
 	const probe = createDesktopSmokeProbe({
 		argv: ['/opt/Framescaper', '--soundscaper-smoke'],
 		appName: 'Framescaper',
@@ -288,4 +289,19 @@ function fakeWindow(...executionResults) {
 		},
 	};
 	return { webContents };
+}
+
+function validDesktopChrome() {
+	return {
+		documentDesktop: true,
+		shellDesktop: true,
+		fullBleed: true,
+		customHeader: true,
+		titlebarDraggable: true,
+		controlsNoDrag: true,
+		controlsVisible: true,
+		maximizeEnabled: true,
+		controlOrder: ['fullscreen', 'minimize', 'maximize', 'quit'],
+		fileAccessKey: 'Alt+F',
+	};
 }

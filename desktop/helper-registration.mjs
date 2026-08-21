@@ -11,8 +11,6 @@ import { app, utilityProcess } from 'electron/main';
 import { DesktopHelperProbeService } from './project-library-runtime/desktop/helper-probe-service.js';
 import { HelperSupervisor } from './project-library-runtime/desktop/helper-supervisor.js';
 
-let registered = null;
-
 /**
  * The helper's engine payload is the digest-pinned FFmpeg core the
  * application already ships: the pins are read from the asar-protected
@@ -90,25 +88,5 @@ export function registerDesktopHelperProbe({ channels, handle, ownerFor, readCap
 		service.awaitProbe({ owner: ownerFor(event), probeId: String(value?.probeId || '') }));
 	handle(channels.helperProbeCancel, (event, value) =>
 		service.cancelProbe({ owner: ownerFor(event), probeId: String(value?.probeId || '') }));
-	registered = { service, settings };
 	return service;
-}
-
-/** The native application-menu section that keeps the surface menu-reached and off by default. */
-export function desktopHelperProbeMenu() {
-	return [{
-		label: 'Tools',
-		submenu: [
-			{
-				label: 'Use Native Probe Helper',
-				type: 'checkbox',
-				checked: registered?.settings.snapshot().nativeProbeHelperEnabled === true,
-				click: (item) => void registered?.settings.setNativeProbeHelperEnabled(item.checked),
-			},
-			{
-				label: 'Clear Probe Helper Quarantine',
-				click: () => registered?.service.clearQuarantine(),
-			},
-		],
-	}];
 }

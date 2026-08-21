@@ -8,6 +8,7 @@ const SUPPORTED_ARCHITECTURES = new Set(['arm64', 'x64']);
 export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'abortSharedSourceWrite',
 	'abortWrite',
+	'applyNativeTierControl',
 	'awaitVideoSourceProbe',
 	'beginSharedSourceWrite',
 	'beginVideoSourceProbe',
@@ -36,12 +37,13 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'nativePluginAvailability',
 	'onAssistanceInstallProgress',
 	'onCloseRequested',
-	'onFullscreenChanged',
 	'onMenuCommand',
 	'onOpenProject',
+	'onWindowStateChanged',
 	'openExternal',
 	'patchFinalPrefix',
 	'probeHelperAvailability',
+	'readNativeTierControls',
 	'readSharedProject',
 	'readSharedProjectBundle',
 	'readSharedSourceChunk',
@@ -52,8 +54,8 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'releaseRead',
 	'removeAssistanceModel',
 	'respondToClose',
+	'runWindowAction',
 	'scanNativePlugins',
-	'setFullscreen',
 	'setLocale',
 	'setNativeAudioHelperEnabled',
 	'setNativePluginConsent',
@@ -115,6 +117,7 @@ export function assertDesktopSmokePayload(payload, expected) {
 		payload?.environment?.arch === expected.arch,
 		'Smoke reported an unexpected target architecture.',
 	);
+	assertDesktopChrome(payload?.desktopChrome, expected.platform);
 	if (expected.productId === 'framescaper') {
 		validateFramescaperCaptureArtifactEvidence(payload?.framescaperCapture);
 		validateFramescaperV18ArtifactEvidence(payload?.framescaperV18);
@@ -122,6 +125,29 @@ export function assertDesktopSmokePayload(payload, expected) {
 		assert(payload?.framescaperCapture === undefined, 'Soundscaper smoke emitted Framescaper capture evidence.');
 		assert(payload?.framescaperV18 === undefined, 'Soundscaper smoke emitted Framescaper V18 evidence.');
 	}
+}
+
+function assertDesktopChrome(chrome, platform) {
+	assert(chrome?.documentDesktop === true, 'Smoke did not activate the desktop document route.');
+	assert(chrome?.shellDesktop === true, 'Smoke did not activate the desktop application shell.');
+	assert(chrome?.fullBleed === true, 'Smoke editor chrome is not full-bleed.');
+	assert(chrome?.customHeader === true, 'Smoke did not render the custom desktop header.');
+	assert(chrome?.titlebarDraggable === true, 'Smoke custom title bar is not draggable.');
+	assert(chrome?.controlsNoDrag === true, 'Smoke window controls are not excluded from dragging.');
+	assert(chrome?.controlsVisible === true, 'Smoke window controls are not all visible.');
+	assert(chrome?.maximizeEnabled === true, 'Smoke maximize or restore control is unexpectedly disabled.');
+	const controls = chrome?.controlOrder;
+	assert(Array.isArray(controls)
+		&& controls.length === 4
+		&& controls[0] === 'fullscreen'
+		&& controls[1] === 'minimize'
+		&& (controls[2] === 'maximize' || controls[2] === 'restore')
+		&& controls[3] === 'quit', 'Smoke window controls are missing or out of order.');
+	const accessKeyIsScoped = platform === 'darwin'
+		? chrome?.fileAccessKey === null
+		: typeof chrome?.fileAccessKey === 'string'
+			&& /^Alt\+[\p{Letter}\p{Number}]$/u.test(chrome.fileAccessKey);
+	assert(accessKeyIsScoped, 'Smoke File menu access key has the wrong platform scope.');
 }
 
 function assert(condition, message) {

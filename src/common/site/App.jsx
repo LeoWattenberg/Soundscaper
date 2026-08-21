@@ -9,7 +9,7 @@ const FramescaperAudioEditorBootstrapV18 = lazy(() => import('../../framescaper/
 const FramescaperAudioEditorBootstrapV19 = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrapV19.tsx'));
 
 export default function App({ route }) {
-	const { direction, embedded, locale, productId } = route;
+	const { desktop, direction, embedded, locale, productId } = route;
 	const copy = bundledCopyForLocale(locale);
 	const EditorBootstrap = productId !== 'framescaper'
 		? SoundscaperAudioEditorBootstrapV23
@@ -23,7 +23,7 @@ export default function App({ route }) {
 	} : copy;
 
 	return (
-		<div className={`site-shell${embedded ? ' embedded' : ''}`}>
+		<div className={`site-shell${embedded ? ' embedded' : ''}${desktop ? ' desktop' : ''}`}>
 			{!embedded && <BrandSidebar locale={locale} productId={productId} />}
 			<main>
 				<section className="tool-intro">
@@ -57,6 +57,8 @@ export function applyDocumentRoute(route) {
 	root.dataset.product = route.productId;
 	if (route.embedded) root.dataset.embedded = 'true';
 	else delete root.dataset.embedded;
+	if (route.desktop) root.dataset.desktop = 'true';
+	else delete root.dataset.desktop;
 	try {
 		localStorage.setItem('scape_last_active_product', route.productId);
 		const stored = localStorage.getItem(`${route.productId}_theme`) || localStorage.getItem('soundscaper_theme');

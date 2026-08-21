@@ -12,6 +12,7 @@ import {
 } from '../src/common/editor/ui/soundscaper-native-services-bridge.ts';
 import { createWorkspaceApplicationMenus } from '../src/common/editor/ui/workspace/workspace-application-menu-runtime.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
+import type { DesktopHostMenuRuntime } from '../src/common/editor/ui/workspace/useDesktopHostMenuRuntime.ts';
 
 interface MenuItem {
 	readonly id?: string;
@@ -225,14 +226,59 @@ test('Framescaper gains no Soundscaper native services runtime', async (t) => {
 	assert.deepEqual(calls, [], 'the other product must not even probe the native tier');
 });
 
-function workspaceMenuInput(productId: string) {
+test('both desktop products gain the shared host controls without mounting the Soundscaper runtime', () => {
+	const runtime = {
+		development: false,
+		snapshot: {
+			probeHelperEnabled: false,
+			probeHelperQuarantined: false,
+			audioHelperEnabled: false,
+			audioHelperQuarantined: false,
+			nativeEffectDiscoveryEnabled: false,
+		},
+		applyNativeTierControl: () => undefined,
+		runWindowAction: () => undefined,
+		checkForUpdates: () => undefined,
+		openExternal: () => undefined,
+	};
+	for (const productId of ['soundscaper', 'framescaper']) {
+		const menus = createWorkspaceApplicationMenus(workspaceMenuInput(productId, runtime)) as readonly MenuItem[];
+		assert.deepEqual(flatten(menus).filter(({ id }) => id?.startsWith('desktop-')).map(({ id }) => id), [
+			'desktop-services',
+			'desktop-use-native-probe-helper',
+			'desktop-clear-probe-helper-quarantine',
+			'desktop-use-native-audio-helper',
+			'desktop-clear-audio-helper-quarantine',
+			'desktop-discover-native-effects',
+			'desktop-product-help',
+			'desktop-check-updates',
+			'desktop-view-source',
+		]);
+	}
+});
+
+function workspaceMenuInput(productId: string, desktopHostRuntime: DesktopHostMenuRuntime | null = null) {
 	return {
 		aboutLabel: 'About',
 		aup4InputRef: { current: null },
 		blocked: false,
 		capabilities: { audioEffects: true },
 		controller: { actions: {} },
-		copy: {},
+		copy: {
+			title: productId === 'framescaper' ? 'Framescaper' : 'Soundscaper',
+			desktopServices: 'Desktop services',
+			useNativeProbeHelper: 'Use Native Probe Helper',
+			clearProbeHelperQuarantine: 'Clear Probe Helper Quarantine',
+			useNativeAudioHelper: 'Use Native Audio Helper',
+			clearAudioHelperQuarantine: 'Clear Audio Helper Quarantine',
+			discoverNativeEffects: 'Discover Native Effects',
+			productHelp: '{product} Help',
+			checkUpdates: 'Check for updates',
+			viewSource: 'View source',
+			reloadApplication: 'Reload',
+			toggleDeveloperTools: 'Toggle Developer Tools',
+		},
+		desktopHostRuntime,
 		durationFrames: 0,
 		editBlocked: false,
 		handoffBlocked: false,

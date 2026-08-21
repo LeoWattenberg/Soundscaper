@@ -90,9 +90,10 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 });
 
 test('desktop main initializes, exposes, and disposes the shared library through bounded IPC', async () => {
-	const [mainSource, preloadSource, prepareSource, packageMetadata] = await Promise.all([
+	const [mainSource, preloadSource, desktopHostMenuSource, prepareSource, packageMetadata] = await Promise.all([
 		readFile(join(ROOT, 'desktop', 'main.mjs'), 'utf8'),
 		readFile(join(ROOT, 'desktop', 'preload.mjs'), 'utf8'),
+		readFile(join(ROOT, 'src/common/editor/ui/desktop-host-menu.ts'), 'utf8'),
 		readFile(join(ROOT, 'scripts', 'desktop-prepare.mjs'), 'utf8'),
 		readFile(join(ROOT, 'package.json'), 'utf8').then(JSON.parse),
 	]);
@@ -121,19 +122,11 @@ test('desktop main initializes, exposes, and disposes the shared library through
 		'every native helper must join the ordered shutdown barrier together');
 	assert.match(mainSource, /revokeNativeTier: \(owner\) => revokeDesktopNativeTierOwner\(nativeTier, owner\)/u,
 		'renderer ownership cleanup must drain every native surface together when a renderer goes away');
-	// Reachability, not one particular surface: an application menu entry, a
-	// toolbar control, a View > Panels panel and a keyboard shortcut each satisfy
-	// the discoverability rule on their own, so pinning the menubar would forbid
-	// moving these commands to any of the other three.
-	assert.ok(
-		[
-			/desktopNativeTierMenu\(settings/u,
-			/desktopNativeTierToolbar\(/u,
-			/desktopNativeTierPanel\(/u,
-			/desktopNativeTierShortcuts\(/u,
-		].some((surface) => surface.test(mainSource)),
-		'the native surfaces must stay reachable from a qualifying discoverability surface',
-	);
+	assert.match(mainSource, /registerDesktopNativeTierControls\(\{ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, settings, tier: nativeTier \}\)/u,
+		'the five former native-menu controls must remain behind trusted bounded IPC');
+	assert.match(preloadSource, /readNativeTierControls.*applyNativeTierControl/su);
+	assert.match(desktopHostMenuSource, /desktop-services.*desktop-use-native-probe-helper.*desktop-use-native-audio-helper.*desktop-discover-native-effects/su,
+		'the native surfaces must stay reachable from the custom Tools menu');
 	assert.match(mainSource, /name: 'read capabilities'.*readCapabilities\.dispose\(\)/su);
 	assert.match(mainSource, /name: 'save sessions'.*saves\.dispose\(\)/su);
 	const startIndex = mainSource.indexOf('void startApplication()');

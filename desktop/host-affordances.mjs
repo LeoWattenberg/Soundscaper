@@ -19,7 +19,7 @@ import { EXTERNAL_DESTINATIONS } from './constants.js';
 
 const TEXT_EDIT_COMMANDS = Object.freeze(['undo', 'redo', 'cut', 'copy', 'paste', 'selectAll']);
 
-export function registerHostAffordances({ channels, handle, mainWindow }) {
+export function registerHostAffordances({ channels, handle, windowFor }) {
 	handle(channels.openExternal, async (_event, destination) => {
 		const url = EXTERNAL_DESTINATIONS[String(destination || '')];
 		if (!url) throw new TypeError('Unsupported external destination');
@@ -28,7 +28,9 @@ export function registerHostAffordances({ channels, handle, mainWindow }) {
 	handle(channels.editText, (_event, value) => {
 		const command = String(value || '');
 		if (!TEXT_EDIT_COMMANDS.includes(command)) throw new TypeError('Unsupported text edit command');
-		mainWindow.webContents[command]();
+		const window = windowFor();
+		if (!window || window.isDestroyed?.() === true) throw new Error('The application window is unavailable.');
+		window.webContents[command]();
 		return true;
 	});
 }

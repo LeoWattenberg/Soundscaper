@@ -1,9 +1,4 @@
 {
-  "desktop/main.mjs": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "desktop/preload.mjs": {
     "no-control-regex": {
       "count": 1

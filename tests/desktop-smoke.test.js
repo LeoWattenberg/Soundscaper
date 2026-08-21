@@ -20,6 +20,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 	assert.deepEqual(DESKTOP_SMOKE_EXPECTED_BRIDGE, [
 		'abortSharedSourceWrite',
 		'abortWrite',
+		'applyNativeTierControl',
 		'awaitVideoSourceProbe',
 		'beginSharedSourceWrite',
 		'beginVideoSourceProbe',
@@ -46,12 +47,13 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'nativeAudioHelperAvailability',
 		'nativePluginAvailability', 'onAssistanceInstallProgress',
 		'onCloseRequested',
-		'onFullscreenChanged',
 		'onMenuCommand',
 		'onOpenProject',
+		'onWindowStateChanged',
 		'openExternal',
 		'patchFinalPrefix',
 		'probeHelperAvailability',
+		'readNativeTierControls',
 		'readSharedProject',
 		'readSharedProjectBundle',
 		'readSharedSourceChunk',
@@ -62,7 +64,8 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'releaseRead',
 		'removeAssistanceModel',
 		'respondToClose',
-		'scanNativePlugins', 'setFullscreen',
+		'runWindowAction',
+		'scanNativePlugins',
 		'setLocale',
 		'setNativeAudioHelperEnabled',
 		'setNativePluginConsent', 'signalReady',
@@ -139,6 +142,7 @@ test('desktop smoke validates the application-reported platform and target archi
 	};
 	const payload = {
 		bridge: [...EXPECTED_BRIDGE],
+		desktopChrome: validDesktopChromePayload('win32'),
 		environment: { arch: 'arm64', platform: 'win32', version: '1.0.0' },
 		hasEditor: true,
 		nodeExposed: false,
@@ -147,6 +151,10 @@ test('desktop smoke validates the application-reported platform and target archi
 		url: 'soundscaper-app://bundle/',
 	};
 	assert.doesNotThrow(() => assertDesktopSmokePayload(payload, expected));
+	assert.doesNotThrow(() => assertDesktopSmokePayload({
+		...payload,
+		desktopChrome: { ...payload.desktopChrome, fileAccessKey: 'Alt+D' },
+	}, expected));
 	assert.throws(
 		() => assertDesktopSmokePayload({ ...payload, environment: undefined }, expected),
 		/target platform/u,
@@ -162,6 +170,20 @@ test('desktop smoke validates the application-reported platform and target archi
 	assert.throws(
 		() => assertDesktopSmokePayload({ ...payload, saveOwnerReady: false }, expected),
 		/save owner/u,
+	);
+	assert.throws(
+		() => assertDesktopSmokePayload({
+			...payload,
+			desktopChrome: { ...payload.desktopChrome, fullBleed: false },
+		}, expected),
+		/full-bleed/iu,
+	);
+	assert.throws(
+		() => assertDesktopSmokePayload({
+			...payload,
+			desktopChrome: { ...payload.desktopChrome, fileAccessKey: null },
+		}, expected),
+		/access key/iu,
 	);
 });
 
@@ -236,6 +258,7 @@ function validFramescaperV18Payload() {
 	};
 	return {
 		bridge: [...EXPECTED_BRIDGE],
+		desktopChrome: validDesktopChromePayload('darwin'),
 		environment: { arch: 'arm64', platform: 'darwin', version: '1.0.0' },
 		hasEditor: true,
 		nodeExposed: false,
@@ -289,5 +312,20 @@ function validFramescaperV18Payload() {
 			},
 			teardown: { retired: true, retiredAgain: false },
 		},
+	};
+}
+
+function validDesktopChromePayload(platform) {
+	return {
+		documentDesktop: true,
+		shellDesktop: true,
+		fullBleed: true,
+		customHeader: true,
+		titlebarDraggable: true,
+		controlsNoDrag: true,
+		controlsVisible: true,
+		maximizeEnabled: true,
+		controlOrder: ['fullscreen', 'minimize', 'maximize', 'quit'],
+		fileAccessKey: platform === 'darwin' ? null : 'Alt+F',
 	};
 }

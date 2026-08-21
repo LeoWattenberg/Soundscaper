@@ -101,12 +101,14 @@ export const IPC = Object.freeze({
 	nativePluginScan: 'soundscaper:v1:helper:native-plugin-scan',
 	nativePluginInventory: 'soundscaper:v1:helper:native-plugin-inventory',
 	nativePluginClearQuarantine: 'soundscaper:v1:helper:native-plugin-clear-quarantine',
+	nativeTierControls: 'soundscaper:v1:native-tier:controls',
+	nativeTierApply: 'soundscaper:v1:native-tier:apply',
 	listAssistanceModels: 'soundscaper:v1:assistance:list',
 	installAssistanceModel: 'soundscaper:v1:assistance:install',
 	removeAssistanceModel: 'soundscaper:v1:assistance:remove',
 	assistanceInstallProgress: 'soundscaper:v1:event:assistance-progress',
 	setLocale: 'soundscaper:v1:locale:set',
-	setFullscreen: 'soundscaper:v1:fullscreen:set',
+	windowAction: 'soundscaper:v1:window:action',
 	checkForUpdates: 'soundscaper:v1:updates:check',
 	openExternal: 'soundscaper:v1:external:open',
 	editText: 'soundscaper:v1:text:edit',
@@ -115,7 +117,7 @@ export const IPC = Object.freeze({
 	openProject: 'soundscaper:v1:event:project-open',
 	menuCommand: 'soundscaper:v1:event:menu-command',
 	closeRequested: 'soundscaper:v1:event:close-requested',
-	fullscreenChanged: 'soundscaper:v1:event:fullscreen-changed',
+	windowStateChanged: 'soundscaper:v1:event:window-state-changed',
 });
 
 export const EXTERNAL_DESTINATIONS = Object.freeze({

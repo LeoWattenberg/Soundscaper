@@ -21,7 +21,7 @@ import { DesktopNativeAudioService } from './project-library-runtime/desktop/nat
  * and the digest it must re-check for itself.
  */
 export function registerDesktopNativeAudioHelper({
-	channels, handle, ownerFor, settings, desktopRoot, packaged, resourcesPath, refreshMenu,
+	channels, handle, ownerFor, settings, desktopRoot, packaged, resourcesPath,
 }) {
 	const applicationRoot = dirname(desktopRoot);
 	const location = Object.freeze({ applicationRoot, packaged, resourcesPath });
@@ -64,18 +64,9 @@ export function registerDesktopNativeAudioHelper({
 		describePayload: () => describeNativeAddonAvailability(location),
 	});
 	const setEnabled = async (enabled) => {
-		try {
-			const result = await settings.setNativeAudioHelperEnabled(enabled === true);
-			if (!result) service.disable();
-			return result;
-		} finally {
-			try {
-				refreshMenu();
-			} catch {
-				// Menu state is a projection of the durable setting. A projection
-				// fault cannot rewrite the authority change or mask its IPC result.
-			}
-		}
+		const result = await settings.setNativeAudioHelperEnabled(enabled === true);
+		if (!result) service.disable();
+		return result;
 	};
 	handle(channels.nativeAudioAvailability, () => service.availability());
 	handle(channels.nativeAudioInventory, (event, value) =>
@@ -89,6 +80,10 @@ export function registerDesktopNativeAudioHelper({
 	// contract v1 admits.
 	return Object.freeze({
 		availability: () => service.availability(),
+		controlSnapshot: () => Object.freeze({
+			enabled: settings.snapshot().nativeAudioHelperEnabled === true,
+			quarantined: supervisor.snapshot().quarantined === true,
+		}),
 		clearQuarantine: () => service.clearQuarantine(),
 		describeBackend: (request) => service.describeBackend(request),
 		setEnabled,
@@ -97,37 +92,4 @@ export function registerDesktopNativeAudioHelper({
 		supervisorPort: supervisor,
 		describePayload: () => describeNativeAddonAvailability(location),
 	});
-}
-
-/**
- * Keeps the surface menu-reached and off by default, like every other one, and
- * folds it into the Tools menu the probe helper already contributes rather than
- * adding a second one: the native tier is one place a user looks, not one place
- * per helper.
- *
- * The registration it acts on is a parameter, not module state: a menu that
- * reads whichever registration was made last acts on a service the tier it
- * belongs to may already have disposed.
- */
-export function withNativeAudioHelperMenuItems(sections, settings, audio) {
-	const items = [
-		{ type: 'separator' },
-		{
-			label: 'Use Native Audio Helper',
-			type: 'checkbox',
-			checked: settings.snapshot().nativeAudioHelperEnabled === true,
-			click: (item) => {
-				void audio.setEnabled(item.checked).catch((error) => {
-					console.error('Could not update native audio helper preference:', error);
-				});
-			},
-		},
-		{
-			label: 'Clear Audio Helper Quarantine',
-			click: () => audio?.clearQuarantine(),
-		},
-	];
-	return sections.map((section) => (section.label === 'Tools'
-		? { ...section, submenu: [...section.submenu, ...items] }
-		: section));
 }

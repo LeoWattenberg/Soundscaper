@@ -60,6 +60,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/native-helper-service.js',
 	'desktop/native-helper-results.js',
 	'desktop/native-addon-payload.js',
+	'desktop/native-tier-controls.js',
 	'desktop/plugin-scan-results.js',
 	'desktop/plugin-scan-service.js',
 	'desktop/plugin-registry.js',

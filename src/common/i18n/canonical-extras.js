@@ -543,6 +543,19 @@ const COPY_ENTRIES = Object.freeze([
 	["takeCycleDiscarding","Discarding takes","Takes werden verworfen"],
 	["takeCycleRecoveryWorking","Verifying exact recovery ownership","Exakte Wiederherstellungszuordnung wird geprüft"],
 	["crossProductHandoffUnavailable","Cross-product editing is unavailable for this project format. Export a .scape file to preserve a copy.","Produktübergreifendes Bearbeiten ist für dieses Projektformat nicht verfügbar. Exportiere eine .scape-Datei, um eine Kopie zu bewahren."],
+	["desktopServices","Desktop services","Desktop-Dienste"],
+	["useNativeProbeHelper","Use Native Probe Helper","Nativen Probe-Helfer verwenden"],
+	["clearProbeHelperQuarantine","Clear Probe Helper Quarantine","Quarantäne des Probe-Helfers löschen"],
+	["useNativeAudioHelper","Use Native Audio Helper","Nativen Audio-Helfer verwenden"],
+	["clearAudioHelperQuarantine","Clear Audio Helper Quarantine","Quarantäne des Audio-Helfers löschen"],
+	["discoverNativeEffects","Discover Native Effects","Native Effekte erkennen"],
+	["productHelp","{product} Help","{product}-Hilfe"],
+	["viewSource","View source","Quelltext anzeigen"],
+	["reloadApplication","Reload","Neu laden"],
+	["toggleDeveloperTools","Toggle Developer Tools","Entwicklerwerkzeuge umschalten"],
+	["minimizeWindow","Minimize window","Fenster minimieren"],
+	["maximizeWindow","Maximize window","Fenster maximieren"],
+	["restoreWindow","Restore window","Fenster wiederherstellen"],
 ]);
 
 export const CANONICAL_EXTRA_COPY_BY_LOCALE = Object.freeze({

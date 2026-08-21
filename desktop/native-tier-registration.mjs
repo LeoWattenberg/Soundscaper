@@ -3,22 +3,16 @@
 /**
  * One seam for the whole supervised native tier.
  *
- * Every helper is registered, revoked, disposed and menu-reached together, so
+ * Every helper is registered, revoked and disposed together, so
  * main holds one handle rather than one variable per helper. That matters
  * beyond tidiness: a helper that main forgets to revoke on renderer loss keeps
  * running for a window that is already gone, and a per-helper variable is
  * exactly how that gets forgotten.
  */
 
-import { desktopHelperProbeMenu, registerDesktopHelperProbe } from './helper-registration.mjs';
-import {
-	registerDesktopNativeAudioHelper,
-	withNativeAudioHelperMenuItems,
-} from './native-helper-registration.mjs';
-import {
-	desktopPluginDiscoveryMenuItems,
-	registerDesktopPluginDiscovery,
-} from './plugin-registration.mjs';
+import { registerDesktopHelperProbe } from './helper-registration.mjs';
+import { registerDesktopNativeAudioHelper } from './native-helper-registration.mjs';
+import { registerDesktopPluginDiscovery } from './plugin-registration.mjs';
 
 /**
  * What every registrar behind this seam is entitled to receive. Spreading an
@@ -37,7 +31,6 @@ const REQUIRED_SEAMS = Object.freeze({
 	resourcesPath: 'string',
 	userDataPath: 'string',
 	parentWindow: 'function',
-	refreshMenu: 'function',
 });
 
 export function registerDesktopNativeTier(options) {
@@ -71,14 +64,6 @@ export function revokeDesktopNativeTierOwner(tier, owner) {
 	tier?.probe?.revokeOwner(owner);
 	tier?.audio?.revokeOwner(owner);
 	tier?.plugins?.revokeOwner(owner);
-}
-
-/** Every native surface lives under the one Tools menu, off by default. */
-export function desktopNativeTierMenu(settings, tier) {
-	return withNativeAudioHelperMenuItems(desktopHelperProbeMenu(), settings, tier?.audio)
-		.map((section) => (section.label === 'Tools'
-			? { ...section, submenu: [...section.submenu, ...desktopPluginDiscoveryMenuItems(settings)] }
-			: section));
 }
 
 function requireNativeTierSeams(options) {

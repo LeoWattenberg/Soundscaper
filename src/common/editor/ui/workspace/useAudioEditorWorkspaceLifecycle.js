@@ -6,6 +6,7 @@ import {
 	productStorageKey,
 } from '../meter-settings.ts';
 import { isExpectedWorkspaceCancellation } from './scape-open-decision-continuation.ts';
+import { useDesktopHostMenuRuntime } from './useDesktopHostMenuRuntime.ts';
 
 export function useAudioEditorWorkspaceLifecycle({
 	controller,
@@ -96,6 +97,13 @@ export function useAudioEditorWorkspaceLifecycle({
 			return undefined;
 		}
 	}, [onError]);
+	const desktopHostRuntime = useDesktopHostMenuRuntime({
+		development: desktopEnvironment?.development === true,
+		fileService,
+		onError,
+		platform: desktopEnvironment?.platform,
+		productId,
+	});
 	const workspaceSwitcherOptions = useMemo(() => [
 		...(productId === 'soundscaper' ? [
 			{ id: 'modern', name: copy.workspaceModern },
@@ -155,5 +163,5 @@ export function useAudioEditorWorkspaceLifecycle({
 			.catch(onError);
 		return () => { active = false; };
 	}, [fileService, onError]);
-	return { desktopEnvironment, localError, onError, parityUi, run, uiFlags };
+	return { desktopEnvironment, desktopHostRuntime, localError, onError, parityUi, run, uiFlags };
 }

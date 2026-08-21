@@ -29,7 +29,7 @@ import { DesktopApplicationShutdown, resolveDesktopProjectLibraryAppData } from 
 import { registerAssistance } from './assistance-registration.mjs';
 import { disposeDesktopCaptureSecurity, registerDesktopCaptureSecurity, revokeDesktopCaptureOwner } from './framescaper-capture-registration.mjs';
 import { framescaperWebVcrSmokeQualification } from './framescaper-web-vcr-smoke-plan.js';
-import { desktopNativeTierMenu, disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
+import { disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
 import {
@@ -43,11 +43,21 @@ import { createDesktopNightlyTestsWindow } from './nightly-tests-window.mjs';
 import { createDesktopLinkedVideoLocatorRuntime } from './linked-video-locator-runtime.js';
 import { startDesktopProjectLibraryProductRuntime } from './project-library-product-runtime.js';
 import { attachDesktopMainWindowRecovery } from './project-library-runtime/desktop/main-window-recovery.js';
+import { registerDesktopNativeTierControls } from './project-library-runtime/desktop/native-tier-controls.js';
 import { RendererSaveOwnership } from './renderer-save-owner.js';
 import { DesktopRendererOwnershipCleanup } from './renderer-ownership-cleanup.js';
 import { AtomicSaveManager, SaveTargetStore } from './save-targets.js';
 import { DesktopSettingsStore } from './settings.js';
 import { ReleaseChecker } from './update-check.js';
+import {
+	desktopWindowOptions,
+	hideNativeWindowButtons,
+	installDesktopApplicationMenu,
+	onWindowStateChanged,
+	registerFocusedWindowAccelerators,
+	runWindowAction,
+	upgradePendingCloseRequestForQuit,
+} from './window-chrome.mjs';
 import {
 	acceptsFile,
 	assertEditorDocumentUrl,
@@ -205,7 +215,12 @@ async function startApplication() {
 	}));
 	if (applicationShutdown.requested) return;
 	await registerIpcHandlers(desktopSession);
-	installMenu();
+	installDesktopApplicationMenu({
+		Menu,
+		appName: APP_NAME,
+		platform: process.platform,
+		onPreferences: () => sendToRenderer(IPC.menuCommand, { command: 'preferences' }),
+	});
 	await createWindow();
 	nightlyTestsWindow = await createDesktopNightlyTestsWindow({ argv: process.argv, BrowserWindow });
 	nightlyTestsWindow?.once('closed', () => { nightlyTestsWindow = null; });
@@ -224,8 +239,8 @@ async function createWindow() {
 	rendererReady = false;
 	pendingClose = null;
 	allowNextClose = false;
-	const locale = settings.snapshot().locale;
 	mainWindow = new BrowserWindow({
+		...desktopWindowOptions(),
 		title: APP_NAME,
 		width: 1440,
 		height: 900,
@@ -245,7 +260,15 @@ async function createWindow() {
 			devTools: !app.isPackaged,
 		},
 	});
+	hideNativeWindowButtons(mainWindow, process.platform);
 	lockNavigation(mainWindow);
+	registerFocusedWindowAccelerators({
+		window: mainWindow,
+		platform: process.platform,
+		development: !app.isPackaged,
+		dispatch: (command) => sendToRenderer(IPC.menuCommand, { command }),
+		runAction: runCurrentWindowAction,
+	});
 	desktopSmokeProbe.attach(mainWindow);
 	const webContents = mainWindow.webContents;
 	attachDesktopMainWindowRecovery({
@@ -266,12 +289,17 @@ async function createWindow() {
 		}
 	});
 	mainWindow.once('ready-to-show', () => mainWindow?.show());
-	mainWindow.on('enter-full-screen', () => sendToRenderer(IPC.fullscreenChanged, { fullscreen: true }));
-	mainWindow.on('leave-full-screen', () => sendToRenderer(IPC.fullscreenChanged, { fullscreen: false }));
+	mainWindow.on('maximize', publishWindowState);
+	mainWindow.on('unmaximize', publishWindowState);
+	mainWindow.on('enter-full-screen', publishWindowState);
+	mainWindow.on('leave-full-screen', publishWindowState);
 	mainWindow.on('close', (event) => {
 		if (allowNextClose || !rendererReady) return;
 		event.preventDefault();
-		if (pendingClose) return;
+		if (pendingClose) {
+			pendingClose = upgradePendingCloseRequestForQuit(pendingClose, applicationIsQuitting);
+			return;
+		}
 		pendingClose = { requestId: randomUUID(), reason: applicationIsQuitting ? 'quit' : 'window-close' };
 		sendToRenderer(IPC.closeRequested, pendingClose);
 	});
@@ -330,12 +358,14 @@ async function registerIpcHandlers(desktopSession) {
 		session: desktopSession,
 	});
 	linkedVideoLocators.registerIpc({ dialog, handle, ownerFor: rendererSaveOwnerFor, windowFor: () => mainWindow });
-	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath, userDataPath: app.getPath('userData'), parentWindow: () => mainWindow, refreshMenu: installMenu });
+	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath, userDataPath: app.getPath('userData'), parentWindow: () => mainWindow });
 	await nativeTier.ready();
+	registerDesktopNativeTierControls({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, settings, tier: nativeTier });
 	handle(IPC.environment, () => ({
 		platform: process.platform,
 		arch: process.arch,
 		version: app.getVersion(),
+		development: !app.isPackaged,
 		locale: settings.snapshot().locale,
 		supportedLocales: [...SUPPORTED_LOCALES],
 		capabilities: { displayAudio: process.platform === 'win32', updates: settings.snapshot().updatesEnabled },
@@ -364,15 +394,13 @@ async function registerIpcHandlers(desktopSession) {
 		await mainWindow.loadURL(`${APP_ORIGIN}/`);
 		return locale;
 	});
-	handle(IPC.setFullscreen, (_event, enabled) => {
-		mainWindow.setFullScreen(enabled === true);
-		return mainWindow.isFullScreen();
-	});
 	handle(IPC.checkForUpdates, () => checkForUpdates(true));
 	registerAssistance({ channels: IPC, handle, sendToRenderer, app, settings });
-	registerHostAffordances({ channels: IPC, handle, mainWindow });
+	registerHostAffordances({ channels: IPC, handle, windowFor: () => mainWindow });
+	handle(IPC.windowAction, (_event, action) => runCurrentWindowAction(action));
 	on(IPC.rendererReady, () => {
 		rendererReady = true;
+		publishWindowState();
 		void desktopSmokeProbe.rendererReady();
 		void pendingOpenProjects.dispatch();
 	});
@@ -477,51 +505,6 @@ function lockNavigation(window) {
 	window.webContents.on('will-attach-webview', (event) => event.preventDefault());
 }
 
-function installMenu() {
-	const command = (id) => () => sendToRenderer(IPC.menuCommand, { command: id });
-	const template = [
-		...(process.platform === 'darwin' ? [{
-			label: APP_NAME,
-			submenu: [{ role: 'about' }, { type: 'separator' }, { label: 'Preferences', accelerator: 'CmdOrCtrl+,', click: command('preferences') }, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }],
-		}] : []),
-		{
-			label: 'File',
-			submenu: [
-				{ label: 'Import Audacity Interchange…', accelerator: 'CmdOrCtrl+O', click: command('project:open') },
-				{ label: 'Save', accelerator: 'CmdOrCtrl+S', click: command('project:save') },
-				{ label: 'Export Audacity Interchange As…', accelerator: 'CmdOrCtrl+Shift+S', click: command('project:save-as') },
-				{ label: 'Export Audio…', accelerator: 'CmdOrCtrl+Shift+E', click: command('audio:export') },
-				{ type: 'separator' },
-				process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' },
-			],
-		},
-		{
-			label: 'Edit',
-			submenu: [
-				{ label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: command('edit:undo') },
-				{ label: 'Redo', accelerator: process.platform === 'darwin' ? 'CmdOrCtrl+Shift+Z' : 'CmdOrCtrl+Y', click: command('edit:redo') },
-				{ type: 'separator' },
-				{ label: 'Cut', accelerator: 'CmdOrCtrl+X', click: command('edit:cut') },
-				{ label: 'Copy', accelerator: 'CmdOrCtrl+C', click: command('edit:copy') },
-				{ label: 'Paste', accelerator: 'CmdOrCtrl+V', click: command('edit:paste') },
-				{ label: 'Select All', accelerator: 'CmdOrCtrl+A', click: command('edit:select-all') },
-			],
-		},
-		{ label: 'View', submenu: [{ role: 'reload', visible: !app.isPackaged }, { role: 'toggleDevTools', visible: !app.isPackaged }, { type: 'separator', visible: !app.isPackaged }, { role: 'togglefullscreen' }] },
-		...desktopNativeTierMenu(settings, nativeTier),
-		{ label: 'Window', role: 'windowMenu' },
-		{
-			label: 'Help',
-			submenu: [
-				{ label: `${APP_NAME} Help`, click: () => void shell.openExternal(EXTERNAL_DESTINATIONS.help) },
-				{ label: 'Check for Updates…', click: () => void checkForUpdates(true) },
-				{ label: 'View Source', click: () => void shell.openExternal(EXTERNAL_DESTINATIONS.source) },
-			],
-		},
-	];
-	Menu.setApplicationMenu(Menu.buildFromTemplate(template));
-}
-
 async function checkForUpdates(manual) {
 	const result = await releaseChecker.check({ manual });
 	if (result.status === 'available' && mainWindow) {
@@ -547,6 +530,21 @@ function sendToRenderer(channel, value) {
 	if (!mainWindow || mainWindow.isDestroyed()) return false;
 	mainWindow.webContents.send(channel, value);
 	return true;
+}
+
+function publishWindowState() {
+	return onWindowStateChanged({
+		windowFor: () => mainWindow,
+		send: (state) => sendToRenderer(IPC.windowStateChanged, state),
+	});
+}
+
+function runCurrentWindowAction(action) {
+	return runWindowAction(action, {
+		windowFor: () => mainWindow,
+		quit: () => app.quit(),
+		development: !app.isPackaged,
+	});
 }
 
 function resourceRoots() {

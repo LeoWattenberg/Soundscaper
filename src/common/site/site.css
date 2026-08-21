@@ -74,6 +74,28 @@ html, body { color: var(--color-ink); background: var(--color-surface); font-fam
 :root[data-embedded='true'] .tool-intro { display: none; }
 :root[data-embedded='true'] .audio-editor-section { min-height: 100vh; padding-block: 0; }
 
+.site-shell.desktop .audio-editor-section {
+	height: 100%;
+	min-height: 0;
+	padding: 0;
+}
+
+.site-shell.desktop .audio-editor-container {
+	width: 100%;
+	max-width: none;
+	height: 100%;
+	margin: 0;
+}
+
+.site-shell.desktop #kw-audio-editor-design-system {
+	height: 100%;
+	min-height: 0;
+	flex: 1 1 auto;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+}
+
 .site-sidebar {
 	position: sticky;
 	top: 0;

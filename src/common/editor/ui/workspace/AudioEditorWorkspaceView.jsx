@@ -33,6 +33,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		controller,
 		copy,
 		displayAudioSupported,
+		desktopChrome,
 		draggedWorkspacePanelId,
 		durationFrames,
 		editBlock,
@@ -122,6 +123,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			<AudioEditorMenuBar
 				appName={copy.title}
 				copy={copy}
+				desktopChrome={desktopChrome}
 				locale={locale}
 				menus={applicationMenus}
 				projectName={project?.title || copy.untitledProject}

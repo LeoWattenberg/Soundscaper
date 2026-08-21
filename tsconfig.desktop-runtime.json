@@ -58,6 +58,7 @@
 		"desktop/local-model-download.ts",
 		"desktop/local-model-store.ts",
 		"desktop/main-window-recovery.ts",
+		"desktop/native-tier-controls.ts",
 		"desktop/native-services-database.ts",
 		"desktop/project-library-abort.ts",
 		"desktop/project-library-api.ts",

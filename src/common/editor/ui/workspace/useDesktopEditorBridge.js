@@ -1,12 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { isDesktopTextEditingElement } from '../workspace-runtime.js';
 import { editorCloseHasActiveWork, sealEditorCaptureForClose } from './desktop-editor-close-work.ts';
 
 export function useDesktopEditorBridge({
+	copy,
 	controller,
+	desktopEnvironment,
 	durationFrames,
 	fileService,
+	isFullscreen,
 	onError,
 	openDesktopFiles,
 	openDesktopProjectDescriptor,
@@ -18,6 +21,7 @@ export function useDesktopEditorBridge({
 }) {
 	const desktopReadySignalledRef = useRef(false);
 	const desktopOpenQueueRef = useRef(Promise.resolve());
+	const [maximized, setMaximized] = useState(false);
 	useEffect(() => {
 		if (!fileService.isDesktop) return undefined;
 		let active = true;
@@ -82,7 +86,10 @@ export function useDesktopEditorBridge({
 			fileService.onOpenProject(openDescriptor),
 			fileService.onMenuCommand(handleMenuCommand),
 			fileService.onCloseRequested((request) => { void handleClose(request).catch(onError); }),
-			fileService.onFullscreenChanged(({ fullscreen } = {}) => setIsFullscreen(Boolean(fullscreen))),
+			fileService.onWindowStateChanged(({ fullscreen, maximized: nextMaximized } = {}) => {
+				setIsFullscreen(Boolean(fullscreen));
+				setMaximized(Boolean(nextMaximized));
+			}),
 		];
 		void controller.ready.then(() => {
 			if (active && !desktopReadySignalledRef.current) {
@@ -96,4 +103,14 @@ export function useDesktopEditorBridge({
 			for (const unsubscribe of unsubscribers) unsubscribe();
 		};
 	}, [controller, durationFrames, fileService, onError, openDesktopFiles, openDesktopProjectDescriptor, openSurface, run, snapshot.readOnly, toggleFullscreen]);
+	if (!fileService.isDesktop) return null;
+	return {
+		platform: desktopEnvironment?.platform,
+		fullscreen: isFullscreen,
+		maximized,
+		labels: { minimize: copy.minimizeWindow, maximize: copy.maximizeWindow, restore: copy.restoreWindow, quit: copy.quitEditor },
+		onMinimize: () => run(() => fileService.runWindowAction('minimize')),
+		onToggleMaximize: () => run(() => fileService.runWindowAction('toggle-maximize')),
+		onQuit: () => run(() => fileService.runWindowAction('quit')),
+	};
 }

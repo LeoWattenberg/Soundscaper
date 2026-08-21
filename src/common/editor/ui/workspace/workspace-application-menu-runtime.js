@@ -3,6 +3,7 @@ import { documentationUrl } from '../../documentation-links.ts';
 
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
 import createApplicationMenus from '../application-menus.js';
+import { createDesktopHostMenuItems } from '../desktop-host-menu.ts';
 import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
 import {
 	resolveSoundscaperNativeServicesWorkspaceRuntime,
@@ -20,6 +21,7 @@ export function createWorkspaceApplicationMenus({
 		controller,
 		copy,
 		crossProductHandoffAvailable = false,
+		desktopHostRuntime,
 		durationFrames,
 		editBlocked,
 		handoffBlocked,
@@ -63,13 +65,20 @@ export function createWorkspaceApplicationMenus({
 		zoomProject,
 }) {
 	const soundscaperNativeServices = resolveSoundscaperNativeServicesWorkspaceRuntime({ productId, copy });
+	const desktopHost = createDesktopHostMenuItems(fileService.isDesktop !== true
+		|| desktopHostRuntime === null || desktopHostRuntime === undefined ? null : {
+		...desktopHostRuntime,
+		copy,
+		productName: copy.title,
+	});
 	return createApplicationMenus({
 			productId,
 			aboutLabel,
 			capabilities,
 			crossProductHandoffAvailable,
 			locale,
-			copy,
+		copy,
+		desktopHost,
 			project,
 			snapshot,
 			blocked,
