@@ -38,7 +38,7 @@
 		"docs:build": "npm run build --workspace @soundscaper/handbook",
 		"docs:check": "npm run docs:reference:check && npm run docs:content:check && npm run docs:build",
 		"docs:preview": "npm run preview --workspace @soundscaper/handbook --",
-		"test:docs:browser": "npm run docs:build && playwright test --config playwright.docs.config.mjs",
+		"test:docs:browser": "npm run docs:check && playwright test --config playwright.docs.config.mjs",
 		"build": "vite build && node scripts/generate-static-routes.mjs && node scripts/generate-offline-application-shell.mjs && node scripts/check-i18n-build.mjs && node scripts/check-cloudflare-assets.mjs && node scripts/check-build-chunks.mjs",
 		"preview": "vite preview --port 4321",
 		"lint": "eslint --max-warnings 0 .",
