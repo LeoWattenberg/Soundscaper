@@ -4,6 +4,7 @@ import { chooseTrackMenuAction } from './helpers/track-menu.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { evaluateWithTransientBrowserRetry } from './helpers/transient-evaluation-retry.js';
 
 // The workflow reads a Framescaper timeline and, for the legacy fallback, a
 // Soundscaper project it imports at /de/ — each from its own product database.
@@ -246,7 +247,7 @@ function sequenceTimecode(frame, rate) {
 }
 
 async function persistedTimeline(page, projectId) {
-	const timing = await page.evaluate(async ({ databaseName, id }) => {
+	const timing = await evaluateWithTransientBrowserRetry(page, async ({ databaseName, id }) => {
 		const result = (request) => new Promise((resolve, reject) => {
 			request.onsuccess = () => resolve(request.result);
 			request.onerror = () => reject(request.error);
@@ -284,7 +285,7 @@ async function persistedTimeline(page, projectId) {
 }
 
 async function persistedAudioOnlyClip(page, projectId) {
-	return page.evaluate(async ({ databaseName, id }) => {
+	return evaluateWithTransientBrowserRetry(page, async ({ databaseName, id }) => {
 		const result = (request) => new Promise((resolve, reject) => {
 			request.onsuccess = () => resolve(request.result);
 			request.onerror = () => reject(request.error);
