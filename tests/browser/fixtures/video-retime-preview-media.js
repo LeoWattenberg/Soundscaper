@@ -56,6 +56,9 @@ export const videoRetimePreviewMedia = Object.freeze({
 	rawSha256: '191afca830eff27f7bb057e46256b775e64fa5c143abc7e17f38ec394bc65203',
 	outputByteLength: 5_435,
 	outputSha256: '8fa48c25f2f209d69c67e0409dd4b163e744ddfe8511e860f70f7eb2b9829e5e',
+	// H.264 stores these frames as YUV. Decoder-specific YUV-to-RGB integer
+	// rounding changes a color channel by up to two values across platforms.
+	decoderChannelTolerance: 2,
 	generation: Object.freeze({
 		runtime: '@ffmpeg/core 0.12.10',
 		pixelFormat: 'rgb24',
@@ -73,6 +76,16 @@ export const videoRetimePreviewMedia = Object.freeze({
 	}),
 	pixelOracle: PIXEL_ORACLE,
 });
+
+/** Compare decoded RGB with the pinned oracle while keeping opaque alpha exact. */
+export function decodedRgbaMatchesOracle(actual, expected) {
+	if (!Array.isArray(actual) || !Array.isArray(expected)
+		|| actual.length !== 4 || expected.length !== 4) return false;
+	if (!actual.every(Number.isFinite) || !expected.every(Number.isFinite)) return false;
+	return actual.slice(0, 3).every((channel, index) => (
+		Math.abs(channel - expected[index]) <= videoRetimePreviewMedia.decoderChannelTolerance
+	)) && actual[3] === expected[3];
+}
 
 export function createVideoRetimePreviewOrdinalRgb() {
 	const width = videoRetimePreviewMedia.width;

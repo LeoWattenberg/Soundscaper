@@ -6,7 +6,10 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { transform } from 'esbuild';
 
-import { videoRetimePreviewMedia } from './fixtures/video-retime-preview-media.js';
+import {
+	decodedRgbaMatchesOracle,
+	videoRetimePreviewMedia,
+} from './fixtures/video-retime-preview-media.js';
 
 const ROUTE_ROOT = '/__video-keyframe-offline-html-source__';
 const FIXTURE_PATH = `${ROUTE_ROOT}/video-retime-vfr-ordinal.mp4`;
@@ -134,7 +137,7 @@ test('seeks exact ordinary and retimed VFR pictures through occurrence-owned rea
 	expect(actual.distinctOccurrences).toBe(true);
 	expect(actual.allDisconnected).toBe(true);
 	for (const [index, expected] of videoRetimePreviewMedia.pixelOracle.entries()) {
-		expect(actual.frames[index].centerRgba).toEqual(expected.centerRgba);
+		expectDecodedRgba(actual.frames[index].centerRgba, expected.centerRgba, `frame ${String(index)} center`);
 		expect(actual.frames[index].currentTime).toBe(expected.midpointSeconds);
 		expect(actual.frames[index].isConnected).toBe(true);
 		expect(actual.frames[index].paused).toBe(true);
@@ -142,6 +145,13 @@ test('seeks exact ordinary and retimed VFR pictures through occurrence-owned rea
 		expect(actual.frames[index].display).toEqual([80, 32]);
 	}
 });
+
+function expectDecodedRgba(actual, expected, label) {
+	expect(
+		decodedRgbaMatchesOracle(actual, expected),
+		`${label}: expected ${expected.join(',')}, received ${actual.join(',')}`,
+	).toBe(true);
+}
 
 async function installRoutes(page) {
 	const modules = await transpileModules();

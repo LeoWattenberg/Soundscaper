@@ -7,6 +7,10 @@ import {
 import { videoSourceGeometryMedia } from './fixtures/video-source-geometry-media.js';
 import { chooseDropdown, openExportDialog } from './audio-editor-test-helpers.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import {
+	decodePinnedVideoRgbFrame,
+	readRgbPixel,
+} from './helpers/pinned-video-frame-decoder.mjs';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
@@ -113,124 +117,40 @@ test.describe('3B-2b source display geometry qualification', () => {
 			{ timeout: 240_000 },
 		).toBe(1);
 
-		const rendered = await page.evaluate(async () => {
+		const publication = await page.evaluate(() => {
 			const state = globalThis.__videoSaveTarget;
-			const url = URL.createObjectURL(new Blob(state.chunks, { type: 'video/mp4' }));
-			const video = document.createElement('video');
-			video.muted = true;
-			video.playsInline = true;
-			video.src = url;
-			document.body.append(video);
-			try {
-				await new Promise((resolve, reject) => {
-					video.addEventListener('loadeddata', resolve, { once: true });
-					video.addEventListener('error', () => reject(new Error('the exported video did not decode')), { once: true });
-					setTimeout(() => reject(new Error('the exported video timed out')), 15_000);
-				});
-				// Decoding is not presentation. In particular, Firefox may resolve
-				// play() while drawImage still sees the pre-frame black surface, so
-				// synchronize canvas reads with a presented frame when the engine
-				// delivers that callback. Some Firefox builds expose the API without
-				// delivering callbacks for blob-backed MP4s, so media-clock progress
-				// provides a bounded fallback before the pixels are validated below.
-				video.loop = true;
-				const nextPresentedFrame = () => new Promise((resolve, reject) => {
-					let frameCallback = null;
-					let progressFrame = null;
-					let paintFrame = null;
-					let settled = false;
-					const startingTime = video.currentTime;
-					const cleanup = () => {
-						video.removeEventListener('timeupdate', onTimeUpdate);
-						if (frameCallback !== null && typeof video.cancelVideoFrameCallback === 'function') {
-							video.cancelVideoFrameCallback(frameCallback);
-						}
-						if (progressFrame !== null) cancelAnimationFrame(progressFrame);
-						if (paintFrame !== null) cancelAnimationFrame(paintFrame);
-					};
-					const finish = () => {
-						if (settled) return;
-						settled = true;
-						clearTimeout(timeout);
-						cleanup();
-						resolve();
-					};
-					const finishAfterPaintOpportunity = () => {
-						if (settled || paintFrame !== null) return;
-						paintFrame = requestAnimationFrame(finish);
-					};
-					const onTimeUpdate = () => finishAfterPaintOpportunity();
-					const pollMediaClock = () => {
-						progressFrame = null;
-						if (video.currentTime !== startingTime) {
-							finishAfterPaintOpportunity();
-							return;
-						}
-						progressFrame = requestAnimationFrame(pollMediaClock);
-					};
-					const timeout = setTimeout(() => {
-						if (settled) return;
-						settled = true;
-						cleanup();
-						reject(new Error('the exported video did not present a frame'));
-					}, 5_000);
-					video.addEventListener('timeupdate', onTimeUpdate, { once: true });
-					progressFrame = requestAnimationFrame(pollMediaClock);
-					if (typeof video.requestVideoFrameCallback === 'function') {
-						frameCallback = video.requestVideoFrameCallback(() => {
-							frameCallback = null;
-							finish();
-						});
-					}
-				});
-				const firstFrame = nextPresentedFrame();
-				await video.play();
-				await firstFrame;
-				const canvas = document.createElement('canvas');
-				canvas.width = video.videoWidth;
-				canvas.height = video.videoHeight;
-				const context = canvas.getContext('2d', { willReadFrequently: true });
-				// The picture has no black quadrant, so an all-black read means the
-				// frame has not been presented yet.
-				const painted = () => {
-					context.drawImage(video, 0, 0, canvas.width, canvas.height);
-					const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
-					return data.some((channel, index) => index % 4 !== 3 && channel > 40);
-				};
-				let framePainted = painted();
-				for (let attempt = 0; attempt < 30 && !framePainted; attempt += 1) {
-					await nextPresentedFrame();
-					framePainted = painted();
-				}
-				if (!framePainted) throw new Error('the exported video presented only black frames');
-				video.pause();
-				const quadrant = (x, y) => {
-					const [red, green, blue] = context.getImageData(x, y, 1, 1).data;
-					if (red > 140 && green < 110 && blue < 110) return 'red';
-					if (green > 140 && red < 110 && blue < 110) return 'green';
-					if (blue > 140 && red < 110 && green < 110) return 'blue';
-					if (red > 170 && green > 170 && blue > 170) return 'white';
-					return `rgb(${red},${green},${blue})`;
-				};
-				const insetX = Math.round(canvas.width / 4);
-				const insetY = Math.round(canvas.height / 4);
-				return {
-					fileName: state.fileName,
-					byteLength: state.chunks.reduce((total, chunk) => total + chunk.byteLength, 0),
-					width: video.videoWidth,
-					height: video.videoHeight,
-					topLeft: quadrant(insetX, insetY),
-					topRight: quadrant(canvas.width - insetX, insetY),
-					bottomLeft: quadrant(insetX, canvas.height - insetY),
-					bottomRight: quadrant(canvas.width - insetX, canvas.height - insetY),
-				};
-			} finally {
-				video.remove();
-				URL.revokeObjectURL(url);
+			const byteLength = state.chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
+			const bytes = new Uint8Array(byteLength);
+			let offset = 0;
+			for (const chunk of state.chunks) {
+				bytes.set(chunk, offset);
+				offset += chunk.byteLength;
 			}
+			const binary = [];
+			for (let start = 0; start < bytes.byteLength; start += 32_768) {
+				binary.push(String.fromCharCode(...bytes.subarray(start, start + 32_768)));
+			}
+			return { fileName: state.fileName, byteLength, base64: btoa(binary.join('')) };
 		});
+		// Firefox on Windows can advance and fire presentation callbacks while
+		// returning only black pixels from HTMLVideoElement canvas readback. Decode
+		// the exact bytes written to the target with Soundscaper's pinned software
+		// core so this export proof is independent of that compositor surface.
+		const { base64, ...published } = publication;
+		const decoded = await decodePinnedVideoRgbFrame(Buffer.from(base64, 'base64'));
+		const insetX = Math.round(decoded.width / 4);
+		const insetY = Math.round(decoded.height / 4);
+		const rendered = {
+			...published,
+			width: decoded.width,
+			height: decoded.height,
+			topLeft: quadrant(decoded, insetX, insetY),
+			topRight: quadrant(decoded, decoded.width - insetX, insetY),
+			bottomLeft: quadrant(decoded, insetX, decoded.height - insetY),
+			bottomRight: quadrant(decoded, decoded.width - insetX, decoded.height - insetY),
+		};
 
-		// The canvas is the source's display geometry, so the picture fills it:
+		// The decoded frame is the source's display geometry, so the picture fills it:
 		// an export that dropped the pixel aspect ratio letterboxes instead.
 		expect({ width: rendered.width, height: rendered.height }).toEqual(ROTATED_ANAMORPHIC.display);
 		// A quarter turn counter-clockwise carries the source's top right corner
@@ -246,6 +166,15 @@ test.describe('3B-2b source display geometry qualification', () => {
 		});
 	});
 });
+
+function quadrant(frame, x, y) {
+	const [red, green, blue] = readRgbPixel(frame, { x, y });
+	if (red > 140 && green < 110 && blue < 110) return 'red';
+	if (green > 140 && red < 110 && blue < 110) return 'green';
+	if (blue > 140 && red < 110 && green < 110) return 'blue';
+	if (red > 170 && green > 170 && blue > 170) return 'white';
+	return `rgb(${String(red)},${String(green)},${String(blue)})`;
+}
 
 /** Collect the bytes the direct export route writes to its prepared target. */
 async function installVideoSaveTarget(page) {

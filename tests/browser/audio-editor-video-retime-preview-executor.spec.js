@@ -9,6 +9,7 @@ import { transform } from 'esbuild';
 
 import {
 	createVideoRetimePreviewOrdinalRgb,
+	decodedRgbaMatchesOracle,
 	videoRetimePreviewMedia,
 } from './fixtures/video-retime-preview-media.js';
 
@@ -127,10 +128,13 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 		for (const [index, expected] of videoRetimePreviewMedia.pixelOracle.entries()) {
 			const actual = qualification.frames[index];
 			expect(actual.mediaTime).toBe(expected.mediaTimeSeconds);
-			expect(actual.centerRgba).toEqual(expected.centerRgba);
-			expect(actual.ordinalRgba).toEqual(expected.ordinalBits.map((bit) => (
+			expectDecodedRgba(actual.centerRgba, expected.centerRgba, `frame ${String(index)} center`);
+			const ordinalOracle = expected.ordinalBits.map((bit) => (
 				bit === 0 ? [0, 0, 0, 255] : [255, 255, 255, 255]
-			)));
+			));
+			for (const [bit, rgba] of actual.ordinalRgba.entries()) {
+				expectDecodedRgba(rgba, ordinalOracle[bit], `frame ${String(index)} ordinal bit ${String(bit)}`);
+			}
 		}
 	});
 
@@ -268,9 +272,12 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 			'constant-forward', 'constant-reverse', 'freeze', 'ramp-forward', 'ramp-reverse',
 		]);
 		expect(result.callbacks.map(({ drawableSourceFrame }) => drawableSourceFrame)).toEqual([0, 3, 1, 2, 0]);
-		expect(result.callbacks.map(({ centerRgba }) => centerRgba)).toEqual([0, 3, 1, 2, 0].map(
+		const centerOracle = [0, 3, 1, 2, 0].map(
 			(frame) => videoRetimePreviewMedia.pixelOracle[frame].centerRgba,
-		));
+		);
+		for (const [index, callback] of result.callbacks.entries()) {
+			expectDecodedRgba(callback.centerRgba, centerOracle[index], `adapter callback ${String(index)} center`);
+		}
 		expect(result.callbacks.every(({ deepFrozen }) => deepFrozen)).toBe(true);
 		expect(result.mediaTimes).toEqual([0, 0.2, 0.04, 0.13, 0]);
 		expect(result.pauseCalls).toBeGreaterThanOrEqual(1);
@@ -590,6 +597,13 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 		});
 	});
 });
+
+function expectDecodedRgba(actual, expected, label) {
+	expect(
+		decodedRgbaMatchesOracle(actual, expected),
+		`${label}: expected ${expected.join(',')}, received ${actual.join(',')}`,
+	).toBe(true);
+}
 
 async function installHarnessRoutes(page, options = {}) {
 	const strictModules = options.strictModules === true ? await transpileStrictModules() : new Map();
