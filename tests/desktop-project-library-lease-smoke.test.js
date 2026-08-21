@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,6 +11,7 @@ import {
 	createDesktopProjectLibraryLeaseSmokeSession,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 } from '../desktop/project-library-lease-smoke.js';
+import { attachDesktopMainWindowRecovery } from '../desktop/main-window-recovery.ts';
 
 test('lease smoke keeps fault paths in main and records catalog descriptor evidence', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'scape-lease-smoke-'));
@@ -128,7 +130,7 @@ test('the crash checkpoint ignores publications the plan never drove', async (co
 	assert.equal(JSON.parse(await readFile(control.result, 'utf8')).phase, 'prepared');
 });
 
-test('the staged renderer crash is followed by the reload its recovery needs', async (context) => {
+test('the staged renderer crash leaves reload ownership to application recovery', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'scape-lease-smoke-reload-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const control = Object.freeze({
@@ -139,15 +141,12 @@ test('the staged renderer crash is followed by the reload its recovery needs', a
 	});
 	const document = '{}';
 	const session = leaseSession({ action: 'renderer-loss', control, document });
-	const listeners = new Map();
 	let crashes = 0;
-	let reloads = 0;
 	session.attach({
 		isDestroyed: () => false,
 		webContents: {
-			on(event, listener) { listeners.set(event, listener); },
+			on() { throw new Error('Lease smoke must not register a competing renderer recovery path'); },
 			forcefullyCrashRenderer() { crashes += 1; },
-			reload() { reloads += 1; },
 		},
 	});
 
@@ -162,14 +161,9 @@ test('the staged renderer crash is followed by the reload its recovery needs', a
 	assert.equal(await pending, null);
 	assert.equal(crashes, 1);
 
-	// Electron leaves a crashed WebContents blank, so the recovery commit has no
-	// renderer to run in until this reload happens. Without it the workflow waits
-	// out the packaged watchdog with nothing alive left to signal ready.
-	assert.equal(reloads, 0, 'the reload belongs after the process is gone, not before');
-	listeners.get('render-process-gone')?.({}, { reason: 'crashed' });
-	assert.equal(reloads, 1);
-
-	// The recovered renderer commits, and its own loss is not staged a second time.
+	// Production main-window recovery owns the cleanup barrier and its one trusted
+	// reload. Once that renderer reports ready, the workflow commits without
+	// staging a second crash.
 	const recovered = await session.rendererReady({
 		async executeJavaScript() {
 			session.v10Qualification.checkpoint('prepared');
@@ -178,8 +172,67 @@ test('the staged renderer crash is followed by the reload its recovery needs', a
 	});
 	assert.equal(recovered.renderer.status, 'committed');
 	assert.equal(crashes, 1);
-	listeners.get('render-process-gone')?.({}, { reason: 'crashed' });
-	assert.equal(reloads, 1, 'a recovered workflow must not reload again');
+});
+
+test('the staged crash composes with one cleanup-gated application reload', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'scape-lease-smoke-recovery-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const control = Object.freeze({
+		ready: join(root, 'ready.json'),
+		release: join(root, 'release'),
+		result: join(root, 'result.json'),
+		start: join(root, 'start'),
+	});
+	const document = '{}';
+	const session = leaseSession({ action: 'renderer-loss', control, document });
+	let cleanupCalls = 0;
+	let crashes = 0;
+	let reloads = 0;
+	let releaseCleanup;
+	const cleanupBarrier = new Promise((resolve) => { releaseCleanup = resolve; });
+	const webContents = new EventEmitter();
+	webContents.forcefullyCrashRenderer = () => {
+		crashes += 1;
+		webContents.emit('render-process-gone');
+	};
+	webContents.executeJavaScript = async () => {
+		if (crashes === 0) {
+			session.v10Qualification.checkpoint('prepared');
+			throw new Error('The staged renderer exited');
+		}
+		return { status: 'committed', document };
+	};
+	const window = {
+		isDestroyed: () => false,
+		async loadURL() { reloads += 1; },
+		webContents,
+	};
+	session.attach(window);
+	const recovery = attachDesktopMainWindowRecovery({
+		cleanup: async () => { cleanupCalls += 1; await cleanupBarrier; },
+		editorUrl: 'soundscaper-app://bundle/',
+		exit: () => { throw new Error('Recovery must not exit'); },
+		isIntentional: () => false,
+		reportError: (error) => { throw error; },
+		webContents,
+		windowFor: () => window,
+	});
+	assert.equal(webContents.listenerCount('render-process-gone'), 1);
+
+	const pending = session.rendererReady(webContents);
+	await waitFor(control.ready);
+	await writeFile(control.start, '', { flag: 'wx' });
+	assert.equal(await pending, null);
+	assert.equal(cleanupCalls, 1);
+	assert.equal(reloads, 0);
+	releaseCleanup();
+	await recovery.recover();
+	assert.equal(reloads, 1);
+
+	const recovered = await session.rendererReady(webContents);
+	assert.equal(recovered.renderer.status, 'committed');
+	assert.equal(crashes, 1);
+	assert.equal(reloads, 1);
 });
 
 function leaseSession({ action, control, document }) {

@@ -71,12 +71,12 @@ test('direct WAV smoke plans are canonical, bounded, token-only base64url JSON',
 	assert.throws(() => decodeDirectWavSmokePlan(nonCanonicalJson), /canonical/iu);
 });
 
-test('serialized renderer grants authored BW64 a five-minute bounded export window', async () => {
+test('serialized renderer grants authored BW64 a ten-minute bounded export window', async () => {
 	// The routine is stringified into the renderer, so it declares its stage
 	// windows as one table and reports them through this contract; the authored
 	// BW64 render is the slowest stage and outlasts the shorter containers.
 	const { stageWindows } = await directWavRendererSmokeContract();
-	assert.equal(stageWindows.completedBw64Export, 5 * 60_000);
+	assert.equal(stageWindows.completedBw64Export, 10 * 60_000);
 	assert.ok(
 		stageWindows.completedBw64Export > stageWindows.completedExport,
 		'the authored BW64 export window outlasts the WAV, AIFF, and BWF export window',

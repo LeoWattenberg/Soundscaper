@@ -46,16 +46,9 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 	return Object.freeze({
 		attach(window) {
 			attachedWindow = window;
-			// Only renderer-loss stages a crash, and its recovery is the reloaded
-			// renderer committing again. Electron leaves a crashed WebContents blank
-			// and the product has no reason to reload one, so the workflow supplies
-			// the reload itself; without it there is nothing alive left to signal
-			// ready and the packaged watchdog is the only thing that ever fires.
-			if (admitted.action !== 'renderer-loss') return;
-			window.webContents.on('render-process-gone', () => {
-				if (!rendererLossStarted || rendererLossRecovered || window.isDestroyed()) return;
-				window.webContents.reload();
-			});
+			// Production main-window recovery owns the renderer-loss cleanup barrier
+			// and its one trusted reload. The smoke only retains the window so its
+			// qualification checkpoint can stage the crash.
 		},
 		v10Qualification: Object.freeze({
 			leaseTtlMs: admitted.leaseTtlMs,

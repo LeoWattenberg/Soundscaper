@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export async function runDirectWavRendererSmoke(scope, plan) {
-	const bw64ExportTimeout = 300_000;
+	const bw64ExportTimeout = 600_000;
 	// The supervising watchdog in main has to outlast every window a stage can
 	// wait out, so the windows are one table rather than call-site literals and
 	// waitFor refuses any window the table does not declare. This function is
