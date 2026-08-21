@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createCaptureRuntimeAvailability, type CaptureFailure, type CapturePacket, type CaptureSourceRole } from '../framescaper-capture-domain.ts';
+import { createCaptureRuntimeAvailability, type CaptureFailure, type CapturePacket, type CaptureRuntimeAvailability, type CaptureSourceRole } from '../framescaper-capture-domain.ts';
 import type { CapturePreviewLease, CapturePreviewSource } from '../platform/capture-source-port.ts';
 import type { FramescaperCaptureOriginAuthority } from './framescaper-capture-origin-guard.ts';
 import { createFramescaperCaptureActiveTimeClock } from './framescaper-capture-active-time-clock.ts';
@@ -56,7 +56,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			...state, sources: Object.freeze(richSources), devices, selectedDeviceIds,
 			displaySelectionMode: options.displaySelection?.mode ?? null,
 			displaySources, selectedDisplaySourceToken,
-			monitoring, inputGain, elapsedTimeMs,
+			monitoring, inputGain, elapsedTimeMs, setupDefaults: options.setupDefaults?.snapshot ?? Object.freeze({ destination: 'both' as const, countdownMs: 3_000 }),
 			metrics: state.phase === 'inactive' ? Object.freeze([]) : metrics?.snapshot ?? Object.freeze([]),
 		});
 	}
@@ -203,7 +203,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	}
 	function displaySourceToken(roles: readonly CaptureSourceRole[]): string | null {
 		if (!roles.includes('display') || !options.displaySelection
-			|| options.displaySelection.mode === 'system-picker') return null;
+			|| options.displaySelection.mode !== 'source-list') return null;
 		if (!selectedDisplaySourceToken
 			|| !displaySources.some(({ token }) => token === selectedDisplaySourceToken)) {
 			throw new Error('Choose a display source before opening its preview.');
@@ -281,7 +281,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			const sessionId = createId('framescaper-capture-session');
 			const identities = lease.sources.map((source) => Object.freeze({
 				streamId: createId(`${source.role}-capture-stream`),
-				sourceId: createId(`${source.role}-capture-source`),
+				sourceId: options.createSourceIdentity?.(source, createId) ?? createId(`${source.role}-capture-source`),
 				role: source.role,
 			}));
 			clock = createFramescaperCaptureActiveTimeClock(now());
@@ -578,7 +578,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		selectDevice: (role: 'camera' | 'microphone', deviceId: string) => trackAction(() => selectDevice(role, deviceId)),
 		configureSource: (sourceId: string, settings: Readonly<FramescaperCaptureSourceSettings>) => trackAction(() => configureSource(sourceId, settings)),
 		release: () => trackAction(release),
-		configure,
+		configure, setSetupDefaults: (changes: Parameters<FramescaperCaptureSessionActions['setSetupDefaults']>[0]) => options.setupDefaults?.update(changes),
 		arm,
 		start,
 		pause: () => trackAction(pause),
@@ -587,12 +587,12 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 		recover: () => finalizeRecovery('recovered'),
 		importAsIs: () => finalizeRecovery('import-as-is'),
 		discard: () => trackAction(discard),
-		resetFailure,
+		resetFailure, sealForShutdown: () => recoverActive(new Error('Capture runtime is shutting down.'), 'runtime-lost'),
 	});
-
 	return Object.freeze({
 		get snapshot() { return snapshot(); },
 		actions,
+		setRuntimeAvailability(value: CaptureRuntimeAvailability) { machine.setRuntimeAvailability(value); notify(); },
 		initialize,
 		settled,
 		dispose,

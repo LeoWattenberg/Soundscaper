@@ -33,6 +33,11 @@ export interface CaptureSourceOpenPreviewRequest extends AbortablePortOperation 
 	readonly roles: readonly CaptureSourceRole[];
 	readonly cameraDeviceId?: string;
 	readonly microphoneDeviceId?: string;
+	/** Exact browser display-video geometry for an authority-owned surface. */
+	readonly displayVideoConstraints?: Readonly<{
+		readonly width: Readonly<{ readonly ideal: number; readonly max: number }>;
+		readonly height: Readonly<{ readonly ideal: number; readonly max: number }>;
+	}>;
 }
 
 export interface CapturePreviewSource<Stream = unknown, Track = unknown> {

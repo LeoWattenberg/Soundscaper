@@ -37,7 +37,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	configureDisplayInput, continueLoudnessMeasurement, copy, copyEffectStack,
 	createStableId, createWorkspacePreference, currentAudacityEffectParams, deleteEffectPreset,
 	deleteProject, deleteWorkspacePreference, disjoinSelectedClip, dismissAup4CompatibilitySummary,
-	duplicateProject, duplicateTrack, engine, exportEffectPreset, framescaperCaptureActions,
+	duplicateProject, duplicateTrack, engine, exportEffectPreset, framescaperCaptureActions, framescaperWebVcrActions,
 	exportLabels, exportVideo, ffmpeg, fileService, findTrack, persistSetting, publishDocumentSnapshot,
 	flushProject, generateSelectionSilence, generateSignal, repeatLastGenerator, getClipVisualData,
 	getProjectBinClipVisualData, getVideoSourceVisualData, getVisibleClips, handleClipAction, handleEdit,
@@ -344,7 +344,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			toggleMetronome,
 		}),
 		recording: createRecordingActionFacade(scope as RecordingActionScope, restricted),
-		capture: Object.freeze({ ...framescaperCaptureActions }),
+		capture: Object.freeze({ ...framescaperCaptureActions }), webVcr: Object.freeze({ ...framescaperWebVcrActions }),
 		metering: Object.freeze({
 			pause: pauseLoudnessMeasurement,
 			continue: continueLoudnessMeasurement,

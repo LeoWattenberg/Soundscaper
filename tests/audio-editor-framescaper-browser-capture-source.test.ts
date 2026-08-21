@@ -84,10 +84,12 @@ test('display preview requests optional audio and exposes it when the picker ret
 	const displayVideo = track('display-video', 'video');
 	const systemAudio = track('display-audio', 'audio');
 	let requestedAudio: unknown = false;
+	let requestedVideo: unknown = false;
 	const port = createBrowserFramescaperCaptureSourcePort({
 		mediaDevices: {
 			async getDisplayMedia(constraints) {
 				requestedAudio = constraints.audio;
+				requestedVideo = constraints.video;
 				return stream([displayVideo, systemAudio]);
 			},
 			async enumerateDevices() { return []; },
@@ -102,8 +104,42 @@ test('display preview requests optional audio and exposes it when the picker ret
 	});
 
 	assert.equal(requestedAudio, true);
+	assert.equal(requestedVideo, true);
 	assert.deepEqual(lease.sources.map(({ role }) => role), ['display', 'system-audio']);
 	await lease.dispose();
+});
+
+test('display preview forwards exact 720p and 1080p video constraints', async () => {
+	const requests: unknown[] = [];
+	let generation = 0;
+	const port = createBrowserFramescaperCaptureSourcePort({
+		mediaDevices: {
+			async getDisplayMedia(constraints) {
+				requests.push(constraints.video);
+				return stream([track(`display-${String(requests.length)}`, 'video')]);
+			},
+			async enumerateDevices() { return []; },
+		},
+		consumeUserAction: (value) => value === ++generation,
+		createStream: (tracks) => stream(tracks as FakeTrack[]),
+	});
+	for (const displayVideoConstraints of [
+		{ width: { ideal: 1_280, max: 1_280 }, height: { ideal: 720, max: 720 } },
+		{ width: { ideal: 1_920, max: 1_920 }, height: { ideal: 1_080, max: 1_080 } },
+	]) {
+		const lease = await port.openPreview({
+			signal: new AbortController().signal,
+			userActionGeneration: generation + 1,
+			roles: ['display'],
+			displayVideoConstraints,
+		});
+		await lease.dispose();
+	}
+
+	assert.deepEqual(requests, [
+		{ width: { ideal: 1_280, max: 1_280 }, height: { ideal: 720, max: 720 } },
+		{ width: { ideal: 1_920, max: 1_920 }, height: { ideal: 1_080, max: 1_080 } },
+	]);
 });
 
 test('a later camera denial releases the already granted display stream', async () => {

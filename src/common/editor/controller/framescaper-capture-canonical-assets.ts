@@ -46,6 +46,7 @@ import {
 	inspectFramescaperCapturePcmTimeline,
 	writeFramescaperCapturePcmTimeline,
 } from './framescaper-capture-canonical-pcm.ts';
+import { framescaperCapturePublicationName } from './framescaper-capture-publication-name.ts';
 
 type EncodedSpoolPublicationPort = Pick<EncodedCaptureSpoolRepository, 'load' | 'read'>;
 type RawPcmSpoolPublicationPort = Pick<RawPcmSpoolRepository, 'load' | 'chunks'>;
@@ -108,6 +109,7 @@ async function publishRawPcm(
 ): Promise<FramescaperOwnedCaptureAssetPublication> {
 	if (streamManifest.storage.kind !== 'raw-pcm') throw new Error('Capture PCM storage kind changed.');
 	const storage = streamManifest.storage;
+	const name = framescaperCapturePublicationName(streamManifest.role, storage.sourceId, manifest.createdAt);
 	const spool = await options.rawPcmSpools.load(manifest.projectFence.projectId, storage.spoolId);
 	assertRawPcmSpool(manifest, streamManifest, spool);
 	const timeline = await inspectFramescaperCapturePcmTimeline(options.rawPcmSpools, spool, streamManifest);
@@ -117,13 +119,13 @@ async function publishRawPcm(
 	const existing = await options.store.getSourceMetadata(storage.sourceId);
 	if (existing) {
 		assertExistingAudio(existing, storage, timeline.outputFrameCount, fingerprint);
-		return borrowedPublication(audioSource(streamManifest, spool, timeline.outputFrameCount), durationFrames);
+		return borrowedPublication(audioSource(streamManifest, spool, timeline.outputFrameCount, name), durationFrames);
 	}
 	if (publicationMode === 'reconcile-only') {
 		throw new Error(`Capture source ${storage.sourceId} is missing during commit reconciliation.`);
 	}
 	const writer = await options.store.beginSourceWrite(storage.sourceId, {
-		name: captureName(streamManifest.role),
+		name,
 		mimeType: 'audio/x-soundscaper-pcm',
 		sampleRate: storage.sampleRate,
 		channelCount: storage.channelCount,
@@ -139,7 +141,7 @@ async function publishRawPcm(
 		}, { ...(signal ? { signal } : {}), ifAbsent: true });
 		assertExistingAudio(committed, storage, timeline.outputFrameCount, fingerprint);
 		return Object.freeze({
-			source: audioSource(streamManifest, spool, timeline.outputFrameCount),
+			source: audioSource(streamManifest, spool, timeline.outputFrameCount, name),
 			timelineDurationFrames: durationFrames,
 			discardIfCurrent: () => options.store.discardSourceIfCurrent(committed!),
 		});
@@ -158,7 +160,7 @@ async function publishRawPcm(
 		const concurrent = await options.store.getSourceMetadata(storage.sourceId);
 		if (concurrent) {
 			assertExistingAudio(concurrent, storage, timeline.outputFrameCount, fingerprint);
-			return borrowedPublication(audioSource(streamManifest, spool, timeline.outputFrameCount), durationFrames);
+			return borrowedPublication(audioSource(streamManifest, spool, timeline.outputFrameCount, name), durationFrames);
 		}
 		throw error;
 	}
@@ -175,6 +177,7 @@ async function publishEncodedVideo(
 ): Promise<FramescaperOwnedCaptureAssetPublication> {
 	if (streamManifest.storage.kind !== 'encoded-media') throw new Error('Capture video storage kind changed.');
 	const storage = streamManifest.storage;
+	const name = framescaperCapturePublicationName(streamManifest.role, storage.sourceId, manifest.createdAt);
 	const spool = await options.encodedSpools.load(manifest.projectFence.projectId, storage.spoolId);
 	assertEncodedSpool(manifest, streamManifest, spool);
 	const media = openFramescaperCaptureEncodedMedia(options.encodedSpools, spool, signal);
@@ -182,7 +185,7 @@ async function publishEncodedVideo(
 	const fingerprint = publicationFingerprint(manifest, streamManifest);
 	const body = await publishVideoBody(options.store, {
 		sourceId: storage.sourceId,
-		name: captureName(streamManifest.role),
+		name,
 		mimeType: storage.mimeType,
 		media,
 		material,
@@ -219,7 +222,7 @@ async function publishEncodedVideo(
 		timingPublication = publishedTiming.publication;
 		const source = Object.freeze({
 			kind: 'video', id: storage.sourceId, storageKey: storage.sourceId,
-			name: captureName(streamManifest.role), mimeType: storage.mimeType,
+			name, mimeType: storage.mimeType,
 			sampleFrameCount: durationFrames, sampleRate: projectSampleRate,
 			width: probed.width, height: probed.height,
 			frameRate: probed.rate, sourceFrameCount: probed.timing.frameCount,
@@ -342,12 +345,13 @@ function audioSource(
 	stream: FramescaperCaptureStreamManifestV1,
 	spool: RawPcmSpoolRecord,
 	outputFrameCount: number,
+	name: string,
 ): Readonly<Record<string, unknown>> {
 	if (stream.storage.kind !== 'raw-pcm') throw new Error('Capture PCM source storage changed.');
 	return Object.freeze({
 		kind: 'audio',
 		id: stream.storage.sourceId, storageKey: stream.storage.sourceId,
-		name: captureName(stream.role), mimeType: 'audio/x-soundscaper-pcm',
+		name, mimeType: 'audio/x-soundscaper-pcm',
 		sampleRate: stream.storage.sampleRate, originalSampleRate: stream.storage.sampleRate,
 		frameCount: outputFrameCount, channelCount: stream.storage.channelCount,
 		sampleFormat: 'float32', chunkFrames: spool.chunkFrames,
@@ -536,15 +540,6 @@ function scaledFrameCount(
 function assertFinalDuration(stream: FramescaperCaptureAssetStream, expected: number): void {
 	if (stream.timelineDurationFrames !== undefined && stream.timelineDurationFrames !== expected) {
 		throw new Error(`Capture ${stream.role} final duration disagrees with its canonical media probe.`);
-	}
-}
-
-function captureName(role: FramescaperCaptureStreamManifestV1['role']): string {
-	switch (role) {
-		case 'camera': return 'Camera Capture';
-		case 'microphone': return 'Microphone Capture';
-		case 'display': return 'Screen Capture';
-		case 'system-audio': return 'System Audio Capture';
 	}
 }
 

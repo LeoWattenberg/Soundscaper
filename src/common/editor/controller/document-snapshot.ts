@@ -11,6 +11,7 @@ import { createDocumentRecordingInputSnapshot } from './document-recording-input
 import type { SoundActivationPolicySnapshot } from './sound-activation-policy-service.ts';
 import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestrator.ts';
 import type { FramescaperCaptureSessionSnapshot } from './framescaper-capture-session-types.ts';
+import type { FramescaperWebVcrUiSnapshot } from './framescaper-web-vcr-controller-types.ts';
 
 const VIDEO_PREVIEW_PROJECTS = new WeakMap<object, object>();
 
@@ -166,6 +167,7 @@ export interface EditorDocumentSnapshotRuntime<Project extends SnapshotProject> 
 	getVideoEffectTypes(): readonly unknown[];
 	getVideoNavigationSnapshot?(): unknown;
 	getFramescaperCaptureSnapshot?(): Readonly<FramescaperCaptureSessionSnapshot> | null;
+	getFramescaperWebVcrSnapshot?(): Readonly<FramescaperWebVcrUiSnapshot> | null;
 	getSelectionEffectTypes(): readonly unknown[];
 	getSelectionEffectParams(): unknown;
 	getSelectionEffectDefinition(): unknown;
@@ -199,6 +201,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		videoPreviewProject,
 		videoNavigation: runtime.getVideoNavigationSnapshot?.() ?? null,
 		capture: runtime.getFramescaperCaptureSnapshot?.() ?? null,
+		webVcr: runtime.getFramescaperWebVcrSnapshot?.() ?? null,
 		projects: state.projects,
 		recentProjects: Object.freeze(state.recentProjectIds
 			.map((projectId) => state.projects.find((candidate) => candidate.id === projectId))

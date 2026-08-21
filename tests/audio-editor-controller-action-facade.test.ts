@@ -40,6 +40,7 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'trackFolders',
 	'transport',
 	'video',
+	'webVcr',
 ]);
 
 function createRuntime(capability = true): EditorActionRuntime {

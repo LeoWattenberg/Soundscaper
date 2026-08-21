@@ -19,11 +19,14 @@ import {
 } from './framescaper-capture-project-publication-port.ts';
 import {
 	FramescaperCaptureOriginProtectedError,
-	type FramescaperCaptureOriginBinding,
 	type FramescaperCaptureOriginGuardSnapshot,
 } from './framescaper-capture-origin-guard.ts';
 import type { FramescaperCaptureAdminInterlock } from './framescaper-capture-admin-interlock.ts';
 import type { FramescaperCaptureProjectWriteLease } from './framescaper-capture-project-write-authority.ts';
+import {
+	createFramescaperCaptureStartAdmissionCoordinator,
+	type FramescaperCaptureStartAdmissionPort,
+} from './framescaper-capture-start-admission.ts';
 import type {
 	FramescaperCaptureSessionActions,
 	FramescaperCaptureSessionService,
@@ -31,8 +34,10 @@ import type {
 
 type PassThroughOptions = Pick<FramescaperCaptureAppCompositionOptions,
 	'mediaDevices' | 'createStream' | 'MediaRecorder' | 'MediaStreamTrackProcessor'
+	| 'MediaStreamTrackGenerator' | 'VideoFrame'
 	| 'recordingControllerFactory' | 'getAudioContext' | 'AudioWorkletNode'
-	| 'videoProbe' | 'helperTimingProbe' | 'ffmpeg' | 'desktopBridge'
+	| 'videoProbe' | 'helperTimingProbe' | 'ffmpeg' | 'desktopBridge' | 'webVcrBridge'
+	| 'webVcrEnabled' | 'showWebVcrPanel' | 'hideWebVcrPanel'
 	| 'createId' | 'now' | 'waitCountdown' | 'receiptTime'
 	| 'recordRetryableRecovery' | 'scheduleDerivatives' | 'onWarning' | 'onChange'
 >;
@@ -133,13 +138,20 @@ export function createFramescaperCaptureAppBinding(
 		setActiveHistory: options.setActiveHistory,
 		synchronizeProject: options.synchronizeProject,
 	});
+	const startAdmission = createFramescaperCaptureStartAdmissionCoordinator({
+		captureOrigin: () => captureOrigin(options),
+		beginCaptureAdmission: (projectId) => options.adminInterlock.beginCaptureAdmission(projectId),
+		prepareCaptureStart: () => options.prepareCaptureStart(),
+		onChange: options.onChange,
+	});
 	const composition = createFramescaperCaptureAppComposition({
 		productId: 'framescaper',
 		routeSchemaVersion: options.routeSchemaVersion,
 		embedded: options.embedded,
 		store: options.store,
 		projectPublication,
-		captureOrigin: () => captureOrigin(options),
+		captureOrigin: startAdmission.captureOrigin,
+		startAdmission,
 		capturePublicationContext: (manifest) => deriveFramescaperCaptureAppPublicationContext(
 			options, projects, manifest,
 		),
@@ -147,9 +159,11 @@ export function createFramescaperCaptureAppBinding(
 		prepareRecoveryOrigin: (projectId) => ensureFramescaperCaptureRecoveryOrigin(options, projects, projectId),
 		...passThroughOptions(options),
 		getAudioContext: options.getAudioContext,
-		...(options.isDesktop ? { desktopBridge: options.desktopBridge } : { desktopBridge: null }),
+		...(options.isDesktop
+			? { desktopBridge: options.desktopBridge, webVcrBridge: options.webVcrBridge }
+			: { desktopBridge: null, webVcrBridge: null }),
 	});
-	return wrapPreparedStart(composition, options);
+	return wrapPreparedStart(composition, startAdmission);
 }
 
 /** Ensure a recovered background origin has an inactive session-history owner. */
@@ -310,13 +324,8 @@ function projectSequence(project: FramescaperCaptureAppProject, sequenceId: stri
 
 function wrapPreparedStart(
 	composition: Readonly<FramescaperCaptureAppComposition>,
-	options: FramescaperCaptureAppBindingOptions,
+	startAdmission: Readonly<FramescaperCaptureStartAdmissionPort>,
 ): Readonly<FramescaperCaptureAppComposition> {
-	let admissionGeneration = 0;
-	let admission: Readonly<{
-		readonly generation: number;
-		readonly origin: FramescaperCaptureOriginBinding;
-	}> | null = null;
 	let startPromise: Promise<void> | null = null;
 	let disposePromise: Promise<void> | null = null;
 	let disposed = false;
@@ -326,6 +335,7 @@ function wrapPreparedStart(
 	});
 	const service: Readonly<FramescaperCaptureSessionService> = Object.freeze({
 		get snapshot() { return composition.snapshot; }, actions,
+		setRuntimeAvailability: composition.service.setRuntimeAvailability,
 		initialize: () => composition.initialize(),
 		settled,
 		dispose,
@@ -334,6 +344,8 @@ function wrapPreparedStart(
 		service,
 		get snapshot() { return composition.snapshot; },
 		actions,
+		get webVcrSnapshot() { return composition.webVcrSnapshot; },
+		get webVcrActions() { return composition.webVcrActions; },
 		initialize: () => composition.initialize(),
 		dispose,
 		originSnapshot,
@@ -357,36 +369,18 @@ function wrapPreparedStart(
 	}
 
 	async function startReserved(): Promise<void> {
-		const captured = captureOrigin(options);
-		const interlock = options.adminInterlock.beginCaptureAdmission(captured.projectFence.projectId);
+		const admission = startAdmission.begin();
 		try {
-			admissionGeneration += 1;
-			admission = Object.freeze({
-				generation: admissionGeneration,
-				origin: Object.freeze({
-					...captured.projectFence,
-					sequenceId: captured.origin.sequenceId,
-					playheadMicroseconds: captured.origin.playheadMicroseconds,
-				}),
-			});
-			notify();
-			await options.prepareCaptureStart();
-			if (disposed) throw new Error('Framescaper capture was disposed during start admission.');
-			interlock.assertCurrent();
-			const current = captureOrigin(options);
-			if (!sameCaptureOrigin(captured, current)) {
-				throw new Error('Framescaper capture origin changed during start admission.');
-			}
+			await admission.prepare();
 			await composition.actions.start();
 		} finally {
-			admission = null;
-			interlock.release();
-			notify();
+			admission.release();
 		}
 	}
 
 	function originSnapshot(projectId: string | null = null): Readonly<FramescaperCaptureOriginGuardSnapshot> {
 		const snapshot = composition.originSnapshot(projectId);
+		const admission = startAdmission.snapshot;
 		if (snapshot.active || !admission) return snapshot;
 		const activeProjectIsOrigin = snapshot.activeProjectId === admission.origin.projectId;
 		return Object.freeze({
@@ -411,6 +405,7 @@ function wrapPreparedStart(
 			assertions[action](projectId);
 			return;
 		}
+		const admission = startAdmission.snapshot;
 		if (admission?.origin.projectId === projectId) {
 			throw new FramescaperCaptureOriginProtectedError(action, projectId, admission.generation);
 		}
@@ -420,6 +415,7 @@ function wrapPreparedStart(
 	async function settled(): Promise<void> {
 		await Promise.all([
 			Promise.resolve(startPromise).catch(() => undefined),
+			startAdmission.settled(),
 			composition.service.settled(),
 		]);
 	}
@@ -427,28 +423,15 @@ function wrapPreparedStart(
 	function dispose(): Promise<void> {
 		if (disposePromise) return disposePromise;
 		disposed = true;
+		startAdmission.dispose();
 		disposePromise = Promise.resolve().then(async () => {
 			const [compositionResult] = await Promise.allSettled([
-				composition.dispose(), Promise.resolve(startPromise).catch(() => undefined),
+				composition.dispose(), Promise.resolve(startPromise).catch(() => undefined), startAdmission.settled(),
 			]);
 			if (compositionResult.status === 'rejected') throw compositionResult.reason;
 		});
 		return disposePromise;
 	}
-
-	function notify(): void {
-		try { options.onChange?.(); } catch { /* Admission observers cannot own capture. */ }
-	}
-}
-
-function sameCaptureOrigin(
-	left: ReturnType<typeof captureOrigin>,
-	right: ReturnType<typeof captureOrigin>,
-): boolean {
-	return sameFence(left.projectFence, right.projectFence)
-		&& left.origin.sequenceId === right.origin.sequenceId
-		&& left.origin.playheadMicroseconds === right.origin.playheadMicroseconds
-		&& left.origin.destination === right.origin.destination;
 }
 
 function passThroughOptions(options: FramescaperCaptureAppBindingOptions): Partial<
@@ -461,8 +444,10 @@ function passThroughOptions(options: FramescaperCaptureAppBindingOptions): Parti
 
 const PASS_THROUGH_KEYS = Object.freeze([
 	'mediaDevices', 'createStream', 'MediaRecorder', 'MediaStreamTrackProcessor',
+	'MediaStreamTrackGenerator', 'VideoFrame',
 	'recordingControllerFactory', 'getAudioContext', 'AudioWorkletNode', 'videoProbe',
 	'helperTimingProbe', 'ffmpeg', 'createId', 'now', 'waitCountdown', 'receiptTime',
+	'webVcrBridge', 'webVcrEnabled', 'showWebVcrPanel', 'hideWebVcrPanel',
 	'recordRetryableRecovery', 'scheduleDerivatives', 'onWarning', 'onChange',
 ] as const satisfies readonly (keyof FramescaperCaptureAppBindingOptions)[]);
 

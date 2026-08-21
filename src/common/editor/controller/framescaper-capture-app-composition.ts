@@ -8,17 +8,9 @@ import {
 	type CaptureRuntimeAvailability,
 } from '../framescaper-capture-domain.ts';
 import type { FramescaperCaptureSessionManifestV1 } from '../framescaper-capture-session-manifest.ts';
-import type {
-	CapturePreviewLease,
-	CaptureSourceEnumerateRequest,
-	CaptureSourceOpenPreviewRequest,
-	CaptureSourcePortV1,
-	CaptureSourceProbeRequest,
-} from '../platform/capture-source-port.ts';
 import type { EncodedCaptureSpoolRepository } from '../storage/encoded-capture-spool-repository.ts';
 import type { FramescaperCaptureSessionManifestRepository } from '../storage/framescaper-capture-session-manifest-repository.ts';
 import type { RawPcmSpoolRepository } from '../storage/raw-pcm-spool-repository.ts';
-import { captureSpoolCrossContextLockAvailable } from '../storage/capture-spool-operation-lock.ts';
 import {
 	createFramescaperBrowserRecorderFactory,
 	type FramescaperBrowserRecorderFactoryOptions,
@@ -29,7 +21,6 @@ import {
 } from './framescaper-browser-capture-preview.ts';
 import {
 	createBrowserFramescaperCaptureSourcePort,
-	selectFramescaperVideoMimeType,
 	type BrowserCaptureSourcePortDependencies,
 	type BrowserCaptureStream,
 	type BrowserCaptureTrack,
@@ -45,22 +36,42 @@ import {
 } from './framescaper-capture-durable-port.ts';
 import { createFramescaperCaptureDurableSessionCoordinator } from './framescaper-capture-durable-session.ts';
 import { finalizeFramescaperCaptureDurability } from './framescaper-capture-durable-finalization.ts';
+import {
+	createFramescaperCaptureDeviceAdapter,
+	type FramescaperCaptureDesktopBridgeV1,
+	type FramescaperCaptureDesktopSelection,
+} from './framescaper-capture-device-adapter.ts';
 import { createFramescaperCaptureOriginGuard } from './framescaper-capture-origin-guard.ts';
+import { completeFramescaperCaptureRuntimeProbe } from './framescaper-capture-runtime-probe.ts';
 import type { FramescaperCaptureProjectPublicationPort } from './framescaper-capture-project-publication-port.ts';
 import type {
 	FramescaperCaptureRetryableRecoveryRecord,
 } from './framescaper-capture-publication-service.ts';
 import type { FramescaperCapturePublicationSequence } from './framescaper-capture-publication-plan.ts';
 import { createFramescaperCaptureSessionService } from './framescaper-capture-session-service.ts';
+import { createFramescaperCaptureSetupDefaults } from './framescaper-capture-setup-defaults.ts';
+import type { FramescaperCaptureStartAdmissionPort } from './framescaper-capture-start-admission.ts';
+import { createFramescaperCaptureSourceAdapterRouter } from './framescaper-capture-source-adapter-router.ts';
 import { createFramescaperCaptureAssetStreams } from './framescaper-capture-stream-timing.ts';
 import type {
-	FramescaperCaptureDisplaySelectionPort,
 	FramescaperCaptureDurablePort,
 	FramescaperCaptureFinalizeRequest,
 	FramescaperCaptureSessionActions,
 	FramescaperCaptureSessionService,
 	FramescaperCaptureSessionSnapshot,
 } from './framescaper-capture-session-types.ts';
+import { createFramescaperWebVcrCaptureAdapter } from './framescaper-web-vcr-capture-adapter.ts';
+import { createFramescaperWebVcrController } from './framescaper-web-vcr-controller.ts';
+import type {
+	FramescaperWebVcrActions,
+	FramescaperWebVcrBridgeV1,
+	FramescaperWebVcrController,
+	FramescaperWebVcrUiSnapshot,
+} from './framescaper-web-vcr-controller-types.ts';
+import {
+	createWebVcrCroppedVideoTrack,
+	type WebVcrVideoFrameCropRuntime,
+} from './web-vcr-video-frame-crop.ts';
 import {
 	createFfmpegVideoTimingProbe,
 	probeVideoTiming,
@@ -82,7 +93,6 @@ export interface FramescaperCaptureAppStore extends FramescaperCaptureCanonicalS
 	readonly rawPcmSpoolRepository?: RawPcmCaptureRepositories;
 	readonly framescaperCaptureManifestRepository?: CaptureManifestRepositories;
 }
-
 export interface FramescaperCapturePublicationContext {
 	readonly recordStartFrame: number;
 	readonly projectSampleRate: number;
@@ -90,26 +100,7 @@ export interface FramescaperCapturePublicationContext {
 	readonly trackInsertionIndex: number;
 	readonly signal?: AbortSignal | null;
 }
-
-export interface FramescaperCaptureDesktopBridgeV1 {
-	status(): PromiseLike<Readonly<{
-		readonly version: 1;
-		readonly available: boolean;
-		readonly unavailableReason: string | null;
-		readonly selectionMode: 'source-list' | 'system-picker' | 'unavailable';
-		readonly systemAudio: 'windows-loopback' | 'unavailable';
-	}>>;
-	listSources(generation: number): PromiseLike<Readonly<{
-		readonly generation: number;
-		readonly sources: readonly Readonly<{ readonly token: string; readonly name: string; readonly kind: 'screen' | 'window' }>[];
-	}>>;
-	grant(request: Readonly<{
-		readonly generation: number;
-		readonly roles: readonly ('camera' | 'microphone' | 'display' | 'system-audio')[];
-		readonly sourceToken: string | null;
-	}>): PromiseLike<unknown>;
-	teardown(generation: number): PromiseLike<boolean>;
-}
+export type { FramescaperCaptureDesktopBridgeV1 } from './framescaper-capture-device-adapter.ts';
 
 export interface FramescaperCaptureAppCompositionOptions {
 	readonly productId: string;
@@ -120,6 +111,8 @@ export interface FramescaperCaptureAppCompositionOptions {
 	readonly createStream?: BrowserCaptureSourcePortDependencies['createStream'];
 	readonly MediaRecorder?: FramescaperBrowserRecorderFactoryOptions['MediaRecorder'];
 	readonly MediaStreamTrackProcessor?: FramescaperBrowserRecorderFactoryOptions['MediaStreamTrackProcessor'];
+	readonly MediaStreamTrackGenerator?: WebVcrVideoFrameCropRuntime['MediaStreamTrackGenerator'] | null;
+	readonly VideoFrame?: WebVcrVideoFrameCropRuntime['VideoFrame'] | null;
 	readonly recordingControllerFactory?: FramescaperBrowserRecorderFactoryOptions['recordingControllerFactory'];
 	readonly getAudioContext: FramescaperBrowserRecorderFactoryOptions['getAudioContext'];
 	readonly AudioWorkletNode?: unknown;
@@ -127,10 +120,15 @@ export interface FramescaperCaptureAppCompositionOptions {
 	readonly helperTimingProbe?: VideoTimingProbePort | null;
 	readonly ffmpeg?: Readonly<{ probeVideoTiming?: VideoTimingProbePort['probe'] }> | null;
 	readonly desktopBridge?: FramescaperCaptureDesktopBridgeV1 | null;
+	readonly webVcrBridge?: FramescaperWebVcrBridgeV1 | null;
+	readonly webVcrEnabled?: boolean;
+	readonly showWebVcrPanel?: () => void;
+	readonly hideWebVcrPanel?: () => void;
 	readonly projectPublication?: FramescaperCaptureProjectPublicationPort | null;
 	readonly recoveryProjectIds?: () => PromiseLike<readonly string[]> | readonly string[];
 	readonly captureSpoolLockAvailable?: () => boolean;
 	readonly prepareRecoveryOrigin?: (projectId: string) => PromiseLike<void> | void;
+	readonly startAdmission?: Pick<FramescaperCaptureStartAdmissionPort, 'begin'> | null;
 	captureOrigin(): ReturnType<Parameters<typeof createFramescaperCaptureSessionService>[0]['captureOrigin']>;
 	capturePublicationContext(
 		manifest: FramescaperCaptureSessionManifestV1,
@@ -151,6 +149,8 @@ export interface FramescaperCaptureAppComposition {
 	readonly service: FramescaperCaptureSessionService;
 	readonly snapshot: Readonly<FramescaperCaptureSessionSnapshot>;
 	readonly actions: Readonly<FramescaperCaptureSessionActions>;
+	readonly webVcrSnapshot: Readonly<FramescaperWebVcrUiSnapshot>;
+	readonly webVcrActions: Readonly<FramescaperWebVcrActions>;
 	initialize(): Promise<void>;
 	dispose(): Promise<void>;
 	originSnapshot(activeProjectId?: string | null): ReturnType<ReturnType<typeof createFramescaperCaptureOriginGuard>['snapshot']>;
@@ -169,6 +169,9 @@ type CaptureVideoProbe = (
 	}>,
 ) => PromiseLike<FramescaperCaptureVideoProbeResult> | FramescaperCaptureVideoProbeResult;
 
+const UNAVAILABLE_START_ADMISSION = Object.freeze({
+	begin(): never { throw new Error('Web VCR app capture start admission is unavailable.'); },
+});
 /** Compose one Framescaper-only capture runtime without touching a media source during construction. */
 export function createFramescaperCaptureAppComposition(
 	options: FramescaperCaptureAppCompositionOptions,
@@ -176,15 +179,18 @@ export function createFramescaperCaptureAppComposition(
 	if (!options || typeof options !== 'object' || typeof options.getAudioContext !== 'function') {
 		throw new TypeError('Framescaper capture app composition dependencies are invalid.');
 	}
+	if (options.webVcrEnabled === true && !options.startAdmission) {
+		throw new TypeError('Enabled Web VCR requires exact app capture start admission.');
+	}
 	const originGuard = createFramescaperCaptureOriginGuard();
 	const gestures = new Set<number>();
-	const desktop = options.desktopBridge ? createDesktopCaptureSelection(options.desktopBridge) : null;
+	const createStream = resolveCaptureStream(options.createStream);
 	const browserSource = createBrowserFramescaperCaptureSourcePort({
 		mediaDevices: options.mediaDevices,
 		consumeUserAction: (generation) => gestures.delete(generation),
-		...(options.createStream ? { createStream: options.createStream } : {}),
+		createStream,
 	});
-	const sourcePort = desktop ? wrapDesktopCaptureSource(browserSource, desktop) : browserSource;
+	const setupDefaults = createFramescaperCaptureSetupDefaults(options.onChange);
 	const MediaRecorder = resolveMediaRecorder(options.MediaRecorder);
 	const TrackProcessor = resolveTrackProcessor(options.MediaStreamTrackProcessor);
 	const recorderFactory = createFramescaperBrowserRecorderFactory({
@@ -194,42 +200,106 @@ export function createFramescaperCaptureAppComposition(
 		...(options.recordingControllerFactory ? { recordingControllerFactory: options.recordingControllerFactory } : {}),
 		...(options.receiptTime ? { receiptTime: options.receiptTime } : {}),
 	});
+	const devices = createFramescaperCaptureDeviceAdapter({
+		sourcePort: browserSource,
+		desktopBridge: options.desktopBridge,
+		createRecorder: recorderFactory,
+	});
+	const desktop = devices.desktop;
+	let webVcr: Readonly<FramescaperWebVcrController> | null = null;
+	const webAuthority = Object.freeze({
+		prepareCapture: () => requiredWebVcr(webVcr).captureAuthority.prepareCapture(),
+		captureSurface: () => requiredWebVcr(webVcr).captureAuthority.captureSurface(),
+		attachMonitor: (value: Parameters<FramescaperWebVcrController['captureAuthority']['attachMonitor']>[0]) => requiredWebVcr(webVcr).captureAuthority.attachMonitor(value),
+		reportDimensions: (value: Parameters<FramescaperWebVcrController['captureAuthority']['reportDimensions']>[0]) => requiredWebVcr(webVcr).captureAuthority.reportDimensions(value),
+		reportFailure: (error: unknown) => requiredWebVcr(webVcr).captureAuthority.reportFailure(error),
+	});
+	const cropRuntime = resolveWebVcrCropRuntime(options, TrackProcessor);
+	const webAdapter = options.webVcrBridge && cropRuntime ? createFramescaperWebVcrCaptureAdapter({
+		sourcePort: browserSource,
+		baseRecorder: recorderFactory,
+		createStream,
+		getAudioContext: options.getAudioContext as unknown as Parameters<typeof createFramescaperWebVcrCaptureAdapter>[0]['getAudioContext'],
+		openCrop: ({ source, crop, onError }) => createWebVcrCroppedVideoTrack({
+			source, crop, onError, runtime: cropRuntime,
+		}),
+		authority: webAuthority,
+	}) : null;
+	const router = createFramescaperCaptureSourceAdapterRouter([
+		devices.adapter,
+		...(webAdapter ? [webAdapter.adapter] : []),
+	]);
 	const durable = createDurableBinding(options.store, options.createId ?? defaultId);
 	const videoProbe = options.videoProbe === undefined
 		? createFramescaperCaptureVideoProbe(options)
 		: options.videoProbe;
 	const canonical = createCanonicalPublisher(options, durable, videoProbe);
+	let deviceAvailability: CaptureRuntimeAvailability | null = null;
 	const service = createFramescaperCaptureSessionService<BrowserCaptureStream, BrowserCaptureTrack>({
 		enabled: options.productId === 'framescaper',
 		embedded: options.embedded && !desktop,
-		sourcePort,
-		...(desktop ? { displaySelection: desktop.port } : {}),
+		sourcePort: router.sourcePort,
+		...(desktop || webAdapter ? { displaySelection: router.displaySelection } : {}),
 		durable: durable?.port ?? unavailableDurablePort(),
 		originGuard,
-		completeRuntimeProbe: (availability) => completeRuntimeProbe({
-			availability, options, desktop, MediaRecorder, TrackProcessor,
+		setupDefaults,
+		completeRuntimeProbe: async (availability) => deviceAvailability = await completeFramescaperCaptureRuntimeProbe({
+			availability, productId: options.productId, routeSchemaVersion: options.routeSchemaVersion,
+			embedded: options.embedded, desktop, MediaRecorder, TrackProcessor, getAudioContext: options.getAudioContext,
+			...(options.recordingControllerFactory ? { recordingControllerFactory: options.recordingControllerFactory } : {}),
+			...(options.AudioWorkletNode !== undefined ? { AudioWorkletNode: options.AudioWorkletNode } : {}),
+			...(options.captureSpoolLockAvailable ? { captureSpoolLockAvailable: options.captureSpoolLockAvailable } : {}),
 			durable: Boolean(durable), canonical: Boolean(canonical), videoProbe: Boolean(videoProbe),
 		}),
 		...(options.recoveryProjectIds ? { recoveryProjectIds: options.recoveryProjectIds } : {}),
 		...(options.prepareRecoveryOrigin ? { prepareRecoveryOrigin: options.prepareRecoveryOrigin } : {}),
 		authorizeUserAction: (generation) => { gestures.add(generation); },
 		captureOrigin: options.captureOrigin,
-		createRecorder: recorderFactory,
+		createRecorder: router.createRecorder,
+		createSourceIdentity: router.sourceIdentity,
 		createPreviewSurface: createBrowserFramescaperCapturePreviewSurface,
 		createLevelMonitor: createBrowserFramescaperCaptureLevelMonitor,
 		finalize: (request) => finalizeCapture(options, durable, canonical, request),
 		...(options.createId ? { createId: options.createId } : {}),
 		...(options.now ? { now: options.now } : {}),
 		...(options.waitCountdown ? { waitCountdown: options.waitCountdown } : {}),
-		...(options.onChange ? { onChange: options.onChange } : {}),
+		onChange: () => { webVcr?.synchronizeCapture(); options.onChange?.(); },
+	});
+	webVcr = createFramescaperWebVcrController({
+		enabled: options.webVcrEnabled === true,
+		bridge: options.webVcrBridge,
+		cropRuntimeAvailable: Boolean(webAdapter),
+		getCapture: () => service,
+		startAdmission: options.startAdmission ?? UNAVAILABLE_START_ADMISSION,
+		adapter: Object.freeze({
+			select(id: 'devices' | 'web-vcr') {
+				router.select(id);
+				const base = deviceAvailability ?? service.snapshot.availability;
+				service.setRuntimeAvailability(withWebVcrPageAudio(
+					base, id === 'web-vcr' && webVcr?.snapshot.capability.status === 'available',
+				));
+			},
+			freezeCrop: (value: Parameters<NonNullable<typeof webAdapter>['freezeCrop']>[0]) => {
+				if (!webAdapter) throw new Error('Web VCR crop adapter is unavailable.');
+				webAdapter.freezeCrop(value);
+			},
+			setMonitorMuted: (value: boolean) => webAdapter?.setMonitorMuted(value),
+		}),
+		showPanel: options.showWebVcrPanel,
+		hidePanel: options.hideWebVcrPanel,
+		onChange: options.onChange,
+		onWarning: options.onWarning,
 	});
 	let initializationFailure: unknown = null;
 	let initializePromise: Promise<void> | null = null;
 	let disposePromise: Promise<void> | null = null;
-	const initialize = () => initializePromise ??= service.initialize().catch(async (error: unknown) => {
+	const initialize = () => initializePromise ??= Promise.resolve().then(async () => {
+		await service.initialize();
+		await webVcr!.initialize();
+	}).catch(async (error: unknown) => {
 		initializationFailure = error;
 		try { options.onWarning?.(error); } catch { /* Warning sinks cannot own editor readiness. */ }
-		await service.dispose().catch((disposeError: unknown) => {
+		await disposeComposition(service, desktop, webVcr).catch((disposeError: unknown) => {
 			try { options.onWarning?.(disposeError); } catch { /* Warning sinks cannot own editor readiness. */ }
 		});
 	});
@@ -239,19 +309,24 @@ export function createFramescaperCaptureAppComposition(
 			status: 'unavailable', reason: 'runtime-error', detail: errorMessage(initializationFailure),
 		}),
 	});
+	const dispose = () => disposePromise ??= disposeComposition(service, desktop, webVcr);
+	const actions: Readonly<FramescaperCaptureSessionActions> = Object.freeze({
+		...service.actions,
+		sealForShutdown: () => webVcr!.sealForShutdown(),
+	});
 	const appService: FramescaperCaptureSessionService = Object.freeze({
-		get snapshot() { return captureSnapshot(); }, actions: service.actions, initialize,
-		settled: () => service.settled(), dispose: () => disposeComposition(service, desktop),
+		get snapshot() { return captureSnapshot(); }, actions, initialize,
+		setRuntimeAvailability: service.setRuntimeAvailability,
+		settled: () => service.settled(), dispose,
 	});
 	const composition: FramescaperCaptureAppComposition = {
 		service: appService,
 		get snapshot() { return captureSnapshot(); },
 		get actions() { return appService.actions; },
+		get webVcrSnapshot() { return webVcr!.snapshot; },
+		get webVcrActions() { return webVcr!.actions; },
 		initialize,
-		dispose() {
-			disposePromise ??= disposeComposition(service, desktop);
-			return disposePromise;
-		},
+		dispose,
 		originSnapshot: (projectId = null) => originGuard.snapshot(projectId),
 		assertOriginEditAllowed: originGuard.assertEditAllowed,
 		assertOriginCloseAllowed: originGuard.assertCloseAllowed,
@@ -308,99 +383,6 @@ export function createFramescaperCapturePublicationIdFactory(sessionId: string):
 			|| 'capture';
 		return `${label}-${digest.slice(0, 32)}`;
 	};
-}
-
-interface DesktopCaptureSelection {
-	readonly port: FramescaperCaptureDisplaySelectionPort;
-	status(): Promise<Readonly<{ readonly available: boolean; readonly systemAudio: boolean }>>;
-	grantedGeneration(): number | null;
-	teardown(generation: number): Promise<void>;
-	dispose(): Promise<void>;
-}
-
-function createDesktopCaptureSelection(bridge: FramescaperCaptureDesktopBridgeV1): DesktopCaptureSelection {
-	let mode: 'source-list' | 'system-picker' = 'source-list';
-	let systemAudio = false;
-	let generation = 0;
-	let inventoryGeneration: number | null = null;
-	let currentGeneration: number | null = null;
-	const port = Object.freeze({
-		get mode() { return mode; },
-		async listSources() {
-			if (mode !== 'source-list') throw new Error('Desktop source listing is unavailable.');
-			generation += 1;
-			const listed = await bridge.listSources(generation);
-			if (listed.generation !== generation) throw new Error('Desktop source inventory generation changed.');
-			inventoryGeneration = generation;
-			currentGeneration = generation;
-			return listed.sources;
-		},
-		async authorize(request: Parameters<FramescaperCaptureDisplaySelectionPort['authorize']>[0]) {
-			if (request.roles.includes('system-audio') && !systemAudio) {
-				throw new Error('Desktop system audio is unavailable on this platform.');
-			}
-			const roles = systemAudio
-				&& request.roles.includes('display')
-				&& !request.roles.includes('system-audio')
-				? Object.freeze([...request.roles, 'system-audio' as const])
-				: request.roles;
-			const usesInventory = mode === 'source-list' && request.roles.includes('display');
-			const next = usesInventory ? inventoryGeneration : ++generation;
-			if (!next) throw new Error('Choose a current desktop source before preview.');
-			await bridge.grant({ ...request, roles, generation: next });
-			inventoryGeneration = null;
-			currentGeneration = next;
-		},
-	}) satisfies FramescaperCaptureDisplaySelectionPort;
-	return Object.freeze({
-		port,
-		async status() {
-			const value = await bridge.status();
-			if (value.version !== 1 || !value.available
-				|| (value.selectionMode !== 'source-list' && value.selectionMode !== 'system-picker')) {
-				return Object.freeze({ available: false, systemAudio: false });
-			}
-			mode = value.selectionMode;
-			systemAudio = value.systemAudio === 'windows-loopback';
-			return Object.freeze({ available: true, systemAudio });
-		},
-		grantedGeneration: () => currentGeneration,
-		async teardown(value: number) {
-			await bridge.teardown(value);
-			if (currentGeneration === value) currentGeneration = null;
-		},
-		async dispose() {
-			if (currentGeneration !== null) await bridge.teardown(currentGeneration);
-			currentGeneration = null;
-			inventoryGeneration = null;
-		},
-	});
-}
-
-function wrapDesktopCaptureSource(
-	source: CaptureSourcePortV1<BrowserCaptureStream, BrowserCaptureTrack>,
-	desktop: DesktopCaptureSelection,
-): CaptureSourcePortV1<BrowserCaptureStream, BrowserCaptureTrack> {
-	return Object.freeze({
-		probe: (request: CaptureSourceProbeRequest) => source.probe({ ...request, embedded: false }),
-		enumerate: (request: CaptureSourceEnumerateRequest) => source.enumerate(request),
-		async openPreview(request: CaptureSourceOpenPreviewRequest) {
-			const generation = desktop.grantedGeneration();
-			if (generation === null) throw new Error('Desktop capture preview lacks a current grant.');
-			let lease: CapturePreviewLease<BrowserCaptureStream, BrowserCaptureTrack>;
-			try { lease = await source.openPreview(request); }
-			catch (error) { await desktop.teardown(generation).catch(() => undefined); throw error; }
-			let disposed = false;
-			return Object.freeze({
-				sources: lease.sources,
-				async dispose() {
-					if (disposed) return;
-					disposed = true;
-					try { await lease.dispose(); } finally { await desktop.teardown(generation); }
-				},
-			});
-		},
-	});
 }
 
 function createDurableBinding(
@@ -467,53 +449,14 @@ async function finalizeCapture(
 	});
 }
 
-async function completeRuntimeProbe(input: Readonly<{
-	readonly availability: CaptureRuntimeAvailability;
-	readonly options: FramescaperCaptureAppCompositionOptions;
-	readonly desktop: DesktopCaptureSelection | null;
-	readonly MediaRecorder: FramescaperBrowserRecorderFactoryOptions['MediaRecorder'];
-	readonly TrackProcessor: FramescaperBrowserRecorderFactoryOptions['MediaStreamTrackProcessor'];
-	readonly durable: boolean;
-	readonly canonical: boolean;
-	readonly videoProbe: boolean;
-}>): Promise<CaptureRuntimeAvailability> {
-	if (input.options.productId !== 'framescaper') return unavailable('unsupported-platform');
-	if (input.options.routeSchemaVersion !== (input.desktop ? 18 : 19)) return unavailable('unsupported-platform');
-	if (input.options.embedded && !input.desktop) return unavailable('embedded-route');
-	if (input.availability.status !== 'available') return input.availability;
-	if (!input.availability.sourceRoles.includes('display')) return unavailable('display-capture-unavailable');
-	if (selectFramescaperVideoMimeType(input.MediaRecorder) === null) return unavailable('video-encoder-unavailable');
-	let desktopStatus: Awaited<ReturnType<DesktopCaptureSelection['status']>> | null = null;
-	if (input.desktop) {
-		desktopStatus = await input.desktop.status();
-		if (!desktopStatus.available) return unavailable('unsupported-platform');
-	}
-	let context: Awaited<ReturnType<FramescaperCaptureAppCompositionOptions['getAudioContext']>>;
-	try {
-		context = await input.options.getAudioContext();
-		if (!context || !Number.isFinite(context.sampleRate) || context.sampleRate <= 0) return unavailable('audio-packet-source-unavailable');
-	} catch { return unavailable('audio-packet-source-unavailable'); }
-	const worklet = typeof input.options.recordingControllerFactory === 'function' || (
-		typeof (input.options.AudioWorkletNode ?? globalThis.AudioWorkletNode) === 'function'
-		&& typeof context.audioWorklet?.addModule === 'function'
-		&& typeof context.createMediaStreamSource === 'function'
-	);
-	if (typeof input.TrackProcessor !== 'function' && !worklet) return unavailable('audio-packet-source-unavailable');
-	if (!(input.options.captureSpoolLockAvailable ?? captureSpoolCrossContextLockAvailable)()) {
-		return unavailable('durable-storage-unavailable');
-	}
-	if (!input.durable) return unavailable('durable-storage-unavailable');
-	if (!input.videoProbe) return unavailable('media-probe-unavailable');
-	if (!input.canonical) return unavailable('durable-storage-unavailable');
-	const sourceRoles = desktopStatus?.systemAudio === false ? input.availability.sourceRoles.filter((role) => role !== 'system-audio') : input.availability.sourceRoles;
-	return createCaptureRuntimeAvailability({ status: 'available', sourceRoles });
-}
-
-function unavailable(reason: Parameters<typeof createCaptureRuntimeAvailability>[0] extends infer _Value
-	? 'embedded-route' | 'unsupported-platform' | 'display-capture-unavailable' | 'video-encoder-unavailable'
-		| 'audio-packet-source-unavailable' | 'durable-storage-unavailable' | 'media-probe-unavailable'
-	: never): CaptureRuntimeAvailability {
-	return createCaptureRuntimeAvailability({ status: 'unavailable', reason, detail: null });
+function withWebVcrPageAudio(
+	base: CaptureRuntimeAvailability,
+	enabled: boolean,
+): CaptureRuntimeAvailability {
+	if (!enabled || base.status !== 'available' || base.sourceRoles.includes('system-audio')) return base;
+	return createCaptureRuntimeAvailability({
+		status: 'available', sourceRoles: [...base.sourceRoles, 'system-audio'],
+	});
 }
 
 function hasCaptureRepositories(
@@ -564,6 +507,42 @@ function resolveTrackProcessor(
 		? runtime.MediaStreamTrackProcessor as NonNullable<typeof value>
 		: null;
 }
+function resolveCaptureStream(
+	value: FramescaperCaptureAppCompositionOptions['createStream'],
+): NonNullable<BrowserCaptureSourcePortDependencies['createStream']> {
+	if (value) return value;
+	return (tracks) => {
+		if (typeof globalThis.MediaStream !== 'function') {
+			throw new Error('MediaStream construction is unavailable in this runtime.');
+		}
+		return new globalThis.MediaStream([...tracks] as unknown as MediaStreamTrack[]) as unknown as BrowserCaptureStream;
+	};
+}
+function resolveWebVcrCropRuntime(
+	options: FramescaperCaptureAppCompositionOptions,
+	processor: FramescaperBrowserRecorderFactoryOptions['MediaStreamTrackProcessor'],
+): WebVcrVideoFrameCropRuntime | null {
+	const runtime = globalThis as unknown as Readonly<{
+		MediaStreamTrackGenerator?: unknown;
+		VideoFrame?: unknown;
+	}>;
+	const generator = options.MediaStreamTrackGenerator === undefined
+		? runtime.MediaStreamTrackGenerator
+		: options.MediaStreamTrackGenerator;
+	const frame = options.VideoFrame === undefined ? runtime.VideoFrame : options.VideoFrame;
+	if (typeof processor !== 'function' || typeof generator !== 'function' || typeof frame !== 'function') return null;
+	return Object.freeze({
+		MediaStreamTrackProcessor: processor as unknown as WebVcrVideoFrameCropRuntime['MediaStreamTrackProcessor'],
+		MediaStreamTrackGenerator: generator as WebVcrVideoFrameCropRuntime['MediaStreamTrackGenerator'],
+		VideoFrame: frame as WebVcrVideoFrameCropRuntime['VideoFrame'],
+	});
+}
+function requiredWebVcr(
+	value: Readonly<FramescaperWebVcrController> | null,
+): Readonly<FramescaperWebVcrController> {
+	if (!value) throw new Error('Web VCR controller is not ready.');
+	return value;
+}
 function unavailableDurablePort(): FramescaperCaptureDurablePort {
 	const reject = async (): Promise<never> => { throw new Error('Durable Framescaper capture is unavailable.'); };
 	return Object.freeze({
@@ -578,9 +557,14 @@ function unavailableDurablePort(): FramescaperCaptureDurablePort {
 
 async function disposeComposition(
 	service: FramescaperCaptureSessionService,
-	desktop: DesktopCaptureSelection | null,
+	desktop: FramescaperCaptureDesktopSelection | null,
+	webVcr: Readonly<FramescaperWebVcrController> | null,
 ): Promise<void> {
-	const results = [await settle(service.dispose()), await settle(desktop?.dispose() ?? Promise.resolve())];
+	const results = [
+		await settle(service.dispose()),
+		await settle(desktop?.dispose() ?? Promise.resolve()),
+		await settle(webVcr?.dispose() ?? Promise.resolve()),
+	];
 	const failures = results.flatMap((result) => result.status === 'rejected' ? [result.reason] : []);
 	if (failures.length) throw new AggregateError(failures, 'Framescaper capture composition did not dispose cleanly.');
 }

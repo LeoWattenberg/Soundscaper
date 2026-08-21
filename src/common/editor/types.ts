@@ -17,6 +17,7 @@ import type { RuntimeTimelineAnnotationProjection } from './runtime-timeline-ann
 import type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
 import type { TakeCyclePendingOpenRecovery } from './controller/take-cycle-capture-orchestrator.ts';
 import type { FramescaperCaptureSessionSnapshot } from './controller/framescaper-capture-session-types.ts';
+import type { FramescaperWebVcrUiSnapshot } from './controller/framescaper-web-vcr-controller-types.ts';
 
 export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
 export type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
@@ -202,6 +203,7 @@ export interface EditorActions extends EditorActionTree {
 	readonly transport: EditorActionTree;
 	readonly recording: EditorRecordingActions;
 	readonly capture: EditorActionTree;
+	readonly webVcr: EditorActionTree;
 	readonly metering: EditorActionTree;
 	readonly audioDevices: EditorActionTree;
 	readonly audioWarp: EditorActionTree;
@@ -244,6 +246,7 @@ export interface EditorSnapshot {
 	readonly recordingKind: 'ordinary' | 'take-cycle' | null;
 	readonly takeCycleRecovery: TakeCyclePendingOpenRecovery | null;
 	readonly capture: Readonly<FramescaperCaptureSessionSnapshot> | null;
+	readonly webVcr: Readonly<FramescaperWebVcrUiSnapshot> | null;
 	readonly readOnly: boolean;
 	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 	readonly storage: EditorStoreStatus & Readonly<StorageCapacitySnapshot>;

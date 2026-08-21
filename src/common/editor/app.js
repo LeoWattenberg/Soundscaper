@@ -470,7 +470,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		})),
 		getVideoEffectTypes: () => VIDEO_EFFECT_TYPES.map((type) => VIDEO_EFFECT_DEFINITIONS[type]),
 		getVideoNavigationSnapshot: () => !state.disposed && project && capabilities.videoCompositing && videoNavigationService ? videoNavigationService.view() : null,
-		getFramescaperCaptureSnapshot: () => framescaperCapture?.snapshot ?? null,
+		getFramescaperCaptureSnapshot: () => framescaperCapture?.snapshot ?? null, getFramescaperWebVcrSnapshot: () => framescaperCapture?.webVcrSnapshot ?? null,
 		getSelectionEffectTypes: () => audioSelectionEffectTypes().map((type) => Object.freeze({
 			type,
 			label: audioSelectionEffectLabel(type, copy),
@@ -928,7 +928,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		MediaStreamTrackProcessor: options.MediaStreamTrackProcessor,
 		recordingControllerFactory: options.recordingControllerFactory, AudioWorkletNode: options.AudioWorkletNode,
 		helperTimingProbe: fileService.helperTimingProbe, ffmpeg,
-		desktopBridge: globalThis.framescaperCaptureDesktop?.v1 ?? null,
+		desktopBridge: globalThis.framescaperCaptureDesktop?.v1 ?? null, webVcrBridge: globalThis.framescaperWebVcr?.v1 ?? null, webVcrEnabled: product.applicationFeatures?.framescaperWebVcr === true, showWebVcrPanel: () => preferencesService.setPanel('web-vcr', { visible: true }), hideWebVcrPanel: () => preferencesService.setPanel('web-vcr', { visible: false }),
 		createId: createStableId, now: currentTimeMs,
 		...(framescaperCaptureDerivatives ? { scheduleDerivatives: framescaperCaptureDerivatives } : {}),
 		onWarning: handleError, onChange: publishDocumentSnapshot,
@@ -1874,7 +1874,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		selectionViewService, sequenceTimingService, timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		audioWarpService, sourceMonitorService, takeCompService, taskProgress, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => preferencesService.setPanel('recording-setup', { visible: true }) } : undefined, ...productActionRuntime(options),
+		audioWarpService, sourceMonitorService, takeCompService, taskProgress, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => preferencesService.setPanel('recording-setup', { visible: true }) } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}), () => lifetime.assertActive());
 	let disposePromise = null;

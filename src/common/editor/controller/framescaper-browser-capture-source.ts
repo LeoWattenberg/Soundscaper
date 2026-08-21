@@ -7,6 +7,7 @@ import {
 import type {
 	CapturePreviewLease,
 	CapturePreviewSource,
+	CaptureSourceOpenPreviewRequest,
 	CaptureSourcePortV1,
 } from '../platform/capture-source-port.ts';
 
@@ -61,12 +62,8 @@ export interface BrowserCapturePreviewLease extends CapturePreviewLease<BrowserC
 	dispose(): Promise<void>;
 }
 
-export interface BrowserCapturePreviewRequest {
-	readonly signal: AbortSignal;
-	readonly userActionGeneration: number;
+export interface BrowserCapturePreviewRequest extends CaptureSourceOpenPreviewRequest {
 	readonly roles: readonly BrowserCaptureSourceRole[];
-	readonly cameraDeviceId?: string;
-	readonly microphoneDeviceId?: string;
 	readonly cameraConstraints?: Readonly<Record<string, unknown>>;
 	readonly microphoneConstraints?: Readonly<Record<string, unknown>>;
 	readonly displayConstraints?: Readonly<Record<string, unknown>>;
@@ -158,7 +155,7 @@ export function createBrowserFramescaperCaptureSourcePort(
 					}
 					displayStream = await mediaDevices.getDisplayMedia({
 						...request.displayConstraints,
-						video: true,
+						video: request.displayVideoConstraints ?? true,
 						audio: true,
 						selfBrowserSurface: 'exclude',
 						systemAudio: 'include',

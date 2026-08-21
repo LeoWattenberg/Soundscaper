@@ -14,6 +14,7 @@ import type {
 	CaptureSourcePortV1,
 } from '../platform/capture-source-port.ts';
 import type { FramescaperCaptureOriginGuard } from './framescaper-capture-origin-guard.ts';
+import type { FramescaperCaptureSetupDefaults, FramescaperCaptureSetupDefaultsPort } from './framescaper-capture-setup-defaults.ts';
 import type {
 	FramescaperCaptureArmOptions,
 	FramescaperCaptureStateSnapshot,
@@ -136,7 +137,7 @@ export interface FramescaperCaptureDisplaySource {
 }
 
 export interface FramescaperCaptureDisplaySelectionPort {
-	readonly mode: 'source-list' | 'system-picker';
+	readonly mode: 'source-list' | 'system-picker' | 'owned-source';
 	listSources?(): PromiseLike<readonly Readonly<FramescaperCaptureDisplaySource>[]>
 		| readonly Readonly<FramescaperCaptureDisplaySource>[];
 	authorize(request: Readonly<{
@@ -153,6 +154,7 @@ export interface FramescaperCaptureSessionServiceOptions<Stream = unknown, Track
 	readonly displaySelection?: FramescaperCaptureDisplaySelectionPort;
 	readonly durable: FramescaperCaptureDurablePort;
 	readonly originGuard: FramescaperCaptureOriginGuard;
+	readonly setupDefaults?: FramescaperCaptureSetupDefaultsPort;
 	readonly completeRuntimeProbe?: (
 		availability: CaptureRuntimeAvailability,
 	) => PromiseLike<CaptureRuntimeAvailability> | CaptureRuntimeAvailability;
@@ -166,6 +168,10 @@ export interface FramescaperCaptureSessionServiceOptions<Stream = unknown, Track
 	createRecorder(
 		request: FramescaperCaptureRecorderRequest<Stream, Track>,
 	): PromiseLike<FramescaperCaptureRecorder> | FramescaperCaptureRecorder;
+	readonly createSourceIdentity?: (
+		source: Readonly<CapturePreviewSource<Stream, Track>>,
+		createId: (prefix: string) => string,
+	) => string;
 	readonly createPreviewSurface?: (
 		source: Readonly<CapturePreviewSource<Stream, Track>>,
 	) => PromiseLike<FramescaperCapturePreviewSurface> | FramescaperCapturePreviewSurface;
@@ -189,6 +195,7 @@ export interface FramescaperCaptureSessionActions {
 	configureSource(sourceId: string, settings: Readonly<FramescaperCaptureSourceSettings>): Promise<void>;
 	release(): Promise<void>;
 	configure(changes: Readonly<Record<string, unknown>>): void;
+	setSetupDefaults(changes: Readonly<Partial<FramescaperCaptureSetupDefaults>>): void;
 	arm(options: Readonly<FramescaperCaptureArmOptions>): void;
 	start(): Promise<void>;
 	pause(): Promise<void>;
@@ -197,6 +204,7 @@ export interface FramescaperCaptureSessionActions {
 	recover(): Promise<void>;
 	importAsIs(): Promise<void>;
 	discard(): Promise<void>;
+	sealForShutdown(): Promise<void>;
 	resetFailure(): void;
 }
 
@@ -211,11 +219,12 @@ export interface FramescaperCaptureSessionSnapshot extends Omit<FramescaperCaptu
 	}>[];
 	readonly devices: readonly Readonly<CaptureSourceDeviceDescriptor>[];
 	readonly selectedDeviceIds: Readonly<Partial<Record<'camera' | 'microphone', string>>>;
-	readonly displaySelectionMode: 'source-list' | 'system-picker' | null;
+	readonly displaySelectionMode: 'source-list' | 'system-picker' | 'owned-source' | null;
 	readonly displaySources: readonly Readonly<FramescaperCaptureDisplaySource>[];
 	readonly selectedDisplaySourceToken: string | null;
 	readonly monitoring: boolean;
 	readonly inputGain: number;
+	readonly setupDefaults?: Readonly<FramescaperCaptureSetupDefaults>;
 	readonly elapsedTimeMs: number;
 	readonly metrics: readonly Readonly<CaptureStreamMetrics>[];
 }
@@ -223,6 +232,7 @@ export interface FramescaperCaptureSessionSnapshot extends Omit<FramescaperCaptu
 export interface FramescaperCaptureSessionService {
 	readonly snapshot: Readonly<FramescaperCaptureSessionSnapshot>;
 	readonly actions: Readonly<FramescaperCaptureSessionActions>;
+	setRuntimeAvailability(value: CaptureRuntimeAvailability): void;
 	initialize(): Promise<void>;
 	settled(): Promise<void>;
 	dispose(): Promise<void>;
