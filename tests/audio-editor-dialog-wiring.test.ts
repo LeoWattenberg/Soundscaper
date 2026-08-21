@@ -6,6 +6,10 @@ import test from 'node:test';
 
 const WORKSPACE_ROOT = new URL('../src/common/editor/ui/workspace/', import.meta.url);
 const DIALOG_ROOT = new URL('../src/common/editor/ui/dialogs/', import.meta.url);
+const DIALOG_STYLES = new URL(
+	'../src/common/editor/ui/audio-editor-design-system/11-panels-dialogs-generators.css',
+	import.meta.url,
+);
 
 test('custom track-rate dialog retains the track whose submenu opened it', async () => {
 	const [workspace, trackRateHook, overlays, dialog, menus, parity] = await Promise.all([
@@ -41,4 +45,13 @@ test('custom track-rate dialog retains the track whose submenu opened it', async
 test('workspace overlays forward the product-specific About label to the dialog', async () => {
 	const overlays = await readFile(new URL('AudioEditorWorkspaceOverlays.jsx', WORKSPACE_ROOT), 'utf8');
 	assert.match(overlays, /<EditorDialog[\s\S]*aboutLabel=\{aboutLabel\}/u);
+});
+
+test('dialog surfaces use a drop shadow without blurring the editor behind them', async () => {
+	const styles = await readFile(DIALOG_STYLES, 'utf8');
+	assert.doesNotMatch(styles, /backdrop-filter\s*:/u);
+	assert.match(
+		styles,
+		/\.kw-audio-editor-dialog\s*\{[^}]*box-shadow:\s*0 24px 80px rgba\(0, 0, 0, 0\.38\);/su,
+	);
 });

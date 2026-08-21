@@ -31,6 +31,6 @@ export default defineConfig({
 	projects: [
 		{ name: 'chromium', use: { ...devices['Desktop Chrome'], browserName: 'chromium' } },
 		{ name: 'firefox', use: { ...devices['Desktop Firefox'], browserName: 'firefox' } },
-		{ name: 'webkit', use: { ...devices['Desktop Safari'], browserName: 'webkit' } },
+		{ name: 'webkit', use: { ...devices['Desktop Safari'], browserName: 'webkit', deviceScaleFactor: 1 } },
 	],
 });

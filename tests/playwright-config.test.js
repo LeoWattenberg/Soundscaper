@@ -24,6 +24,8 @@ test('Playwright runs the maintained evergreen browser-engine matrix', async () 
 	}
 	const firefox = config.projects.find(({ name }) => name === 'firefox');
 	assert.equal(firefox.use.launchOptions?.firefoxUserPrefs, undefined);
+	const webkit = config.projects.find(({ name }) => name === 'webkit');
+	assert.equal(webkit.use.deviceScaleFactor, 1, 'WebKit CI must avoid Retina-scale canvas rasterization');
 	for (const project of config.projects) {
 		assert.equal(project.use.launchOptions?.firefoxUserPrefs, undefined);
 	}
