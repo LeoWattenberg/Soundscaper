@@ -16,6 +16,11 @@ The generated command, format, and capability pages are committed. Change
 their authoritative runtime registries, run `npm run docs:generate`, and review
 the resulting Markdown in the same pull request.
 
+Local AI authoring and translation commands are optional maintainer tools. They
+write draft files by default, record provenance, and never run in CI or a
+Cloudflare build. Review their Git diff and revert output that is not suitable
+for publication.
+
 ## Cloudflare Pages project
 
 Create a separate Git-integrated Pages project named `soundscaper-docs` with:
