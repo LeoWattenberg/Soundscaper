@@ -1,11 +1,11 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-14",
+	"groundedAt": "2026-08-21",
 	"policyDocument": "docs/production-licensing-policy.md",
 	"lockfile": {
 		"path": "package-lock.json",
 		"lockfileVersion": 3,
-		"productionClosureRule": "packages[node_modules/**].dev !== true"
+		"productionClosureRule": "packages[node_modules/**].dev !== true, excluding linked workspaces declared in root devDependencies"
 	},
 	"distributionSurfaces": [
 		{

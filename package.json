@@ -19,6 +19,9 @@
 		"url": "https://github.com/LeoWattenberg/Soundscaper.git"
 	},
 	"license": "AGPL-3.0-only",
+	"workspaces": [
+		"handbook"
+	],
 	"packageManager": "npm@12.0.1",
 	"engines": {
 		"node": ">=26.5.0 <27",
@@ -26,6 +29,14 @@
 	},
 	"scripts": {
 		"dev": "vite",
+		"docs:dev": "npm run dev --workspace @soundscaper/handbook --",
+		"docs:generate": "node scripts/docs-reference.mjs",
+		"docs:reference:check": "node scripts/docs-reference.mjs --check",
+		"docs:content:check": "node scripts/check-handbook-content.mjs",
+		"docs:build": "npm run build --workspace @soundscaper/handbook",
+		"docs:check": "npm run docs:reference:check && npm run docs:content:check && npm run docs:build",
+		"docs:preview": "npm run preview --workspace @soundscaper/handbook --",
+		"test:docs:browser": "npm run docs:build && playwright test --config playwright.docs.config.mjs",
 		"build": "vite build && node scripts/generate-static-routes.mjs && node scripts/generate-offline-application-shell.mjs && node scripts/check-i18n-build.mjs && node scripts/check-cloudflare-assets.mjs && node scripts/check-build-chunks.mjs",
 		"preview": "vite preview --port 4321",
 		"lint": "eslint --max-warnings 0 .",
@@ -90,10 +101,11 @@
 		"audit:seven-zip:release": "node --import tsx scripts/audit-seven-zip-interop.mjs --require-native",
 		"audit:ebu-r128": "node scripts/audit-ebu-r128.mjs",
 		"audit:ci": "npm run audit:staffpad && npm run audit:nyquist && npm run audit:parametric-eq && npm run audit:wavpack && npm run audit:native-helper-addon && npm run audit:ffmpeg-runtime && npm run audit:quality-results && npm run audit:aup4-interop && npm run audit:seven-zip && npm run check:notices",
-		"check": "npm run lint && npm run typecheck && npm run check:architecture && npm run audit:ci && npm run test:coverage && npm run build",
+		"check": "npm run lint && npm run typecheck && npm run check:architecture && npm run audit:ci && npm run test:coverage && npm run docs:check && npm run build",
 		"benchmark:spectrogram": "node scripts/benchmark-spectrogram.mjs",
 		"benchmark:fft": "node scripts/benchmark-spectrogram.mjs",
 		"deploy": "npm run build && wrangler pages deploy dist --project-name soundscaper",
+		"deploy:docs": "npm run test:docs:browser && wrangler pages deploy dist --project-name soundscaper-docs --cwd handbook",
 		"deploy:runtime": "node scripts/publish-runtime-assets.mjs"
 	},
 	"dependencies": {
@@ -116,6 +128,7 @@
 		"@eslint/js": "10.0.1",
 		"@playwright/test": "^1.61.1",
 		"@resvg/resvg-js": "2.6.2",
+		"@soundscaper/handbook": "workspace:*",
 		"@types/node": "26.1.1",
 		"@types/react": "19.2.17",
 		"@types/react-dom": "19.2.3",

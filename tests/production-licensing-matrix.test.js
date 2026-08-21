@@ -50,7 +50,10 @@ test('production licensing matrix is versioned and distinguishes every distribut
 	assert.equal(matrix.policyDocument, 'docs/production-licensing-policy.md');
 	assert.equal(matrix.lockfile.path, 'package-lock.json');
 	assert.equal(matrix.lockfile.lockfileVersion, 3);
-	assert.equal(matrix.lockfile.productionClosureRule, 'packages[node_modules/**].dev !== true');
+	assert.equal(
+		matrix.lockfile.productionClosureRule,
+		'packages[node_modules/**].dev !== true, excluding linked workspaces declared in root devDependencies',
+	);
 	assert.deepEqual(matrix.distributionSurfaces.map(({ id }) => id), SURFACE_IDS);
 
 	for (const surface of matrix.distributionSurfaces) {
@@ -230,8 +233,13 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 
 function productionClosure(lock, packageMetadata) {
 	const directDependencies = new Set(Object.keys(packageMetadata.dependencies || {}));
+	const developmentDependencies = new Set(Object.keys(packageMetadata.devDependencies || {}));
 	return Object.entries(lock.packages)
-		.filter(([path, entry]) => path.startsWith('node_modules/') && entry.dev !== true)
+		.filter(([path, entry]) => {
+			if (!path.startsWith('node_modules/') || entry.dev === true) return false;
+			const name = packageNameFromLockPath(path);
+			return entry.link !== true || !developmentDependencies.has(name);
+		})
 		.map(([lockPath, entry]) => {
 			const name = packageNameFromLockPath(lockPath);
 			return {
