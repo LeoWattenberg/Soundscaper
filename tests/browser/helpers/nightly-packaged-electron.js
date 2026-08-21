@@ -21,8 +21,10 @@ const standardTest = base.extend({
 });
 
 const packagedTest = base.extend({
-	packagedRuntime: async ({ browserName: _browserName }, use, testInfo) => {
-		const productId = testInfo.project.metadata.productId;
+	// One worker maps to one product. Reusing that process avoids Electron's
+	// single-instance/CDP transition between serial tests on Windows.
+	packagedRuntime: [async ({ browserName: _browserName }, use, workerInfo) => {
+		const productId = workerInfo.project.metadata.productId;
 		const executablePath = resolvePackagedProductExecutable({
 			productRoot: requiredEnvironment('SOUNDSCAPER_PACKAGED_PRODUCT_ROOT'),
 			productId,
@@ -54,14 +56,18 @@ const packagedTest = base.extend({
 		try {
 			const endpoint = await waitForDevToolsEndpoint(port, child, () => output);
 			browser = await chromium.connectOverCDP(endpoint);
-			await use(Object.freeze({ browser, executablePath }));
+			await use(Object.freeze({ browser, executablePath, output: () => output }));
 		} finally {
 			await browser?.close().catch(() => undefined);
 			await terminate(child);
 			await rm(profile, { recursive: true, force: true });
-			if (output) await testInfo.attach('packaged-runtime-process.log', { body: output, contentType: 'text/plain' });
 		}
-	},
+	}, { scope: 'worker' }],
+	packagedRuntimeProcessLog: [async ({ packagedRuntime }, use, testInfo) => {
+		await use();
+		const output = packagedRuntime.output();
+		if (output) await testInfo.attach('packaged-runtime-process.log', { body: output, contentType: 'text/plain' });
+	}, { auto: true }],
 	context: async ({ packagedRuntime }, use) => {
 		const [context] = packagedRuntime.browser.contexts();
 		if (!context) throw new Error('Packaged runtime exposed no Chromium context.');

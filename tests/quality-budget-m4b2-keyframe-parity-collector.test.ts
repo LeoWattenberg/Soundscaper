@@ -38,6 +38,17 @@ test('complete keyed frames and dual-consumer ledgers pass only local dormant ad
 	assert.match(result.evaluation.failures.at(-1) ?? '', /registered provisionally.*unprovisioned/iu);
 });
 
+test('the keyed collector admits packaged-runtime diagnostics without treating them as qualification', () => {
+	const diagnostic = makeM4B2KeyframeParityDiagnostic();
+	diagnostic.environmentId = 'packaged-runtime-win32-x64';
+	const result = createPendingM4B2KeyframeParityResult(diagnostic);
+
+	assert.equal(result.environmentId, diagnostic.environmentId);
+	assert.equal(result.status, 'pending-external');
+	assert.equal(result.metricGatePassed, true);
+	assert.equal(result.qualificationEvidencePublished, false);
+});
+
 test('omission, substitution, and fallback remain distinct zero-count gates', () => {
 	for (const [outcome, metric] of [
 		['omitted', 'keyframes.omittedOperations'],

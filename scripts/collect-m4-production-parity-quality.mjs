@@ -37,6 +37,7 @@ const VIDEO_FIXTURE_ID = 'video-effect-parity-rgba-v1';
 const PROFILE = 'deterministic-production-parity-v1';
 const DIAGNOSTIC_MARKER = 'SOUNDSCAPER_M4_PRODUCTION_PARITY ';
 const BROWSER_SPEC = 'tests/browser/audio-editor-m4-production-parity.spec.js';
+const PACKAGED_RUNTIME_ENVIRONMENT_ID = /^packaged-runtime-(?:linux|win32|darwin)-(?:x64|arm64)$/u;
 const METRIC_IDS = Object.freeze([
 	'parity.audioMaximumAbsoluteSampleError',
 	'parity.pdcErrorSamples',
@@ -454,10 +455,14 @@ function assertIdentity(diagnostic) {
 		|| diagnostic.observationClass !== 'complete-pcm-rgba-render-ledger-v1'
 		|| diagnostic.workloadId !== WORKLOAD_ID
 		|| diagnostic.fixtureId !== FIXTURE_ID
-		|| ![LOCAL_ENVIRONMENT_ID, HOSTED_ENVIRONMENT_ID, REFERENCE_ENVIRONMENT_ID]
-			.includes(diagnostic.environmentId)) {
+		|| !isM4DiagnosticEnvironmentId(diagnostic.environmentId)) {
 		throw new Error('Browser diagnostic identity does not match the frozen M4 workload.');
 	}
+}
+
+function isM4DiagnosticEnvironmentId(value) {
+	return [LOCAL_ENVIRONMENT_ID, HOSTED_ENVIRONMENT_ID, REFERENCE_ENVIRONMENT_ID].includes(value)
+		|| (typeof value === 'string' && PACKAGED_RUNTIME_ENVIRONMENT_ID.test(value));
 }
 
 function assertMeasurementPolicy(policy) {

@@ -28,6 +28,7 @@ const OBSERVATION_CLASS = 'complete-keyed-rgba-consumer-ledger-v1';
 const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
 const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.61.1';
 const REFERENCE_ENVIRONMENT_ID = 'reference-linux-gpu-01';
+const PACKAGED_RUNTIME_ENVIRONMENT_ID = /^packaged-runtime-(?:linux|win32|darwin)-(?:x64|arm64)$/u;
 const LOCAL_ADMISSION_MINIMUM_SSIM = 0.98;
 const LOCAL_ADMISSION_MAXIMUM_CHANNEL_MAE = 6 / 255;
 const SOURCE_SHA256 = 'db9fa74f23eb1b5f9565cd10f10794a975492b629731534b56d0af3072b3ad8a';
@@ -293,10 +294,15 @@ function assertIdentity(diagnostic) {
 	if (diagnostic.schemaVersion !== 1 || diagnostic.profile !== PROFILE
 		|| diagnostic.observationClass !== OBSERVATION_CLASS || diagnostic.workloadId !== WORKLOAD_ID
 		|| diagnostic.fixtureId !== FIXTURE_ID
-		|| ![LOCAL_ENVIRONMENT_ID, HOSTED_ENVIRONMENT_ID].includes(diagnostic.environmentId)
+		|| !isM4B2DiagnosticEnvironmentId(diagnostic.environmentId)
 		|| !['hardware', 'software', 'unknown'].includes(diagnostic.rendererClass)) {
 		throw new Error('Browser diagnostic identity does not match the dormant M4B2 keyed workload.');
 	}
+}
+
+function isM4B2DiagnosticEnvironmentId(value) {
+	return [LOCAL_ENVIRONMENT_ID, HOSTED_ENVIRONMENT_ID].includes(value)
+		|| (typeof value === 'string' && PACKAGED_RUNTIME_ENVIRONMENT_ID.test(value));
 }
 
 function localAdmissionFailures(metrics) {

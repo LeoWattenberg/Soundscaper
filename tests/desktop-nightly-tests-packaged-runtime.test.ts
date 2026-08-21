@@ -3,8 +3,9 @@
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { packageDesktopNightlyTestProducts } from '../scripts/desktop-nightly-tests-products.mjs';
 import {
@@ -12,6 +13,8 @@ import {
 	packagedRuntimeChromiumArguments,
 	resolvePackagedProductExecutable,
 } from '../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 test('packaged-runtime executable resolution is closed over the staged product trees', () => {
 	const root = '/opt/Soundscaper Tests/resources/nightly-tests/products';
@@ -70,6 +73,18 @@ test('packaged-runtime Chromium arguments admit WebGL on hosted Linux renderers'
 		'--enable-webgl',
 		'--ignore-gpu-blocklist',
 	]);
+});
+
+test('packaged-runtime tests reuse one Electron process per product worker', async () => {
+	const source = await readFile(
+		resolve(ROOT, 'tests/browser/helpers/nightly-packaged-electron.js'),
+		'utf8',
+	);
+
+	assert.match(source, /packagedRuntime:\s*\[async \([^]*?workerInfo\) =>/u);
+	assert.match(source, /productId = workerInfo\.project\.metadata\.productId/u);
+	assert.match(source, /\{ scope: 'worker' \}\]/u);
+	assert.match(source, /auto: true/u);
 });
 
 test('nightly product staging builds isolated Soundscaper and Framescaper trees', async (context) => {

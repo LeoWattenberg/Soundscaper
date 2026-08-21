@@ -90,6 +90,17 @@ test('the M4 collector independently recomputes exactly five parity metrics', ()
 	assert.equal(result.evaluation.passed, false);
 	assert.match(result.evaluation.failures.join('\n'), /unprovisioned/iu);
 });
+
+test('the M4 collector admits packaged-runtime diagnostics without treating them as qualification', () => {
+	const diagnostic = makeDiagnostic();
+	diagnostic.environmentId = 'packaged-runtime-win32-x64';
+	const result = createPendingM4ProductionParityResult(diagnostic, config);
+
+	assert.equal(result.environmentId, diagnostic.environmentId);
+	assert.equal(result.status, 'pending-external');
+	assert.equal(result.metricGatePassed, true);
+	assert.equal(result.qualificationEvidencePublished, false);
+});
 test('the M4 collector reports gross PDC shifts outside the former local search window', () => {
 	const diagnostic = makeDiagnostic();
 	const audio = createM4ProductionParityAudioFixture();
