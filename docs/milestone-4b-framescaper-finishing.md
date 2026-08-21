@@ -8,8 +8,8 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-14:** the 4B-1 implementation candidate is complete apart
-from manual/reference-GPU qualification. 4B-2 is **In progress**. 4B-3 through
+**Status on 2026-08-21:** the 4B-1 implementation candidate is complete apart
+from manual qualification. 4B-2 is **In progress**. 4B-3 through
 4B-8 are planned. The owner has separately cleared Soundscaper 4A sequencing;
 its V21 local implementation candidate is **Implemented (provisional)** and the
 maintained Soundscaper route is selected under the
@@ -22,8 +22,9 @@ description, WebGL and FFmpeg consumers, localized menu editing, browser
 storage, current-format `.scape`, copy-only cross-product handoff, and the
 calibrated browser/FFmpeg golden matrix. Packaged Framescaper deliberately remains
 on its qualified V18/desktop-V10 authority until a complete V19/desktop-V11
-transport and proxy/timing archive port exists. The reference-GPU cohort and
-manual packaged qualification are still open; therefore neither this packet
+transport and proxy/timing archive port exists. The owner-designated Windows
+x64 RTX 3090 reference run passed the golden and keyed-parity rows. Manual
+packaged qualification is still open; therefore neither this packet
 nor milestone 4B is recorded complete by the implementation candidate.
 
 The 4B-2 candidate now includes the dormant exact V20 keyframe domain, bounded
@@ -41,9 +42,9 @@ provisional keyed quality registration have also landed. Real Chromium
 witnesses cover seeking, WebGL orientation/composition, backpressure, MP4
 output, and the dormant product lifecycle.
 
-4B-2 remains **In progress**. `reference-linux-gpu-01` is unprovisioned and
-qualification-ineligible, and there is no accepted external keyed-parity cohort
-or completed manual qualification. Both product profiles still advertise
+4B-2 remains **In progress**. The 2026-08-21 owner-designated fixed-GPU run is
+the accepted external keyed-parity reference pass; completed manual
+qualification is still absent. Both product profiles still advertise
 `videoKeyframes` as unavailable, the capability remains false, the browser App
 route remains V19, the packaged desktop route remains V18, and V20 is not
 selected. Capability/profile/App-route activation remains open and must not be
@@ -52,10 +53,10 @@ inferred from the implemented dormant path or its provisional evidence.
 The project owner explicitly cleared the milestone-3 implementation sequencing
 gate for Framescaper 4B against the current maintained base. That clearance is
 implementation authority, not completion or qualification evidence: milestone
-3 remains recorded **In progress**, its manual and packaged-runtime
-qualifications remain open or `pending-external`, and the milestone-4
-reference-GPU row remains `pending-external`. None of those rows is relabelled,
-waived, or cited as passing evidence by this pickup.
+3 remains recorded **In progress**, and its manual and packaged-runtime
+qualifications remain open or `pending-external`. The milestone-4 reference-GPU
+row is passed by the owner-designated run; no unrelated row is relabelled or
+waived by this pickup.
 
 The shared 4.0 interpolation, parameter-address, and hosted parity foundations
 are implemented. The interpolation vocabulary stores exact clip-relative
@@ -662,10 +663,10 @@ and rejects omissions, substitutions, fallbacks, or mutually wrong agreement;
 its quality workload is provisional correctness evidence only. Both product
 profiles still register `videoKeyframes` as known but unavailable, the browser
 App remains on V19, the packaged desktop remains on V18, and the isolated V20
-environment/bootstrap remain unselected. Capability availability must not flip
-until `reference-linux-gpu-01` is provisioned and eligible, an accepted external
-keyed-parity cohort and manual qualification exist, and the capability,
-profiles, and App routes are deliberately activated together.
+environment/bootstrap remain unselected. The accepted external keyed-parity
+reference pass satisfies the GPU row, but capability availability must not
+flip until manual qualification exists and the capability, profiles, and App
+routes are deliberately activated together.
 
 - **Outcome:** Add bounded keyframe curves to the numeric 4B-1 property IDs and
   registered video-effect parameters, with copy/paste, preset, and stale-safe

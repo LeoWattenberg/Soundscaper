@@ -40,8 +40,8 @@ Milestone 4 depends on milestone 3. The shared exact-time foundation and the
 maintained Soundscaper and Framescaper editorial base now exist, but roadmap
 milestone 3 remains **In progress** and its manual and packaged-runtime
 qualification rows remain open or `pending-external`. Shared 4.0 hosted
-correctness is green; its reference-GPU qualification is also
-`pending-external`.
+correctness is green. On 2026-08-21 the owner-designated Windows x64 RTX 3090
+reference run passed M1 preview, M4 production parity, and M4B-2 keyed parity.
 
 On 2026-08-13 the project owner explicitly cleared the milestone-3
 implementation sequencing gate for the Framescaper 4B track. On 2026-08-14 the
@@ -53,8 +53,9 @@ milestone-4 exit gate.
 
 The pickups leave concurrent milestone-3 work and its evidence state untouched.
 Framescaper V19 is the browser App authority and its dormant V20 candidate is
-implemented, but V20 activation, external keyed-parity, reference-GPU, and
-manual evidence remain open. The next globally serialized schema slot, V21, is
+implemented. External keyed parity and the reference-GPU row passed in the
+owner-designated run, but V20 activation and manual evidence remain open. The
+next globally serialized schema slot, V21, is
 therefore allocated to the now-authorized Soundscaper automation/mixer/PDC
 revision. Planned and unimplemented Framescaper transitions move to V22. No
 implemented V18, V19, or V20 statement changes.
@@ -62,8 +63,8 @@ implemented V18, V19, or V20 statement changes.
 ## 2026-08-14 implementation decisions
 
 - Serialized 4.0 is implemented provisionally. The Framescaper 4B-1
-  implementation candidate is complete apart from manual/reference-GPU
-  qualification, and the dormant V20 4B-2 candidate remains in progress with
+  implementation candidate is complete apart from manual qualification, and
+  the dormant V20 4B-2 candidate remains in progress with
   activation and external evidence open under its
   [pickup contract](milestone-4b-framescaper-finishing.md). Soundscaper 4A now
   has explicit sequencing clearance and an active
@@ -71,8 +72,8 @@ implemented V18, V19, or V20 statement changes.
   implementation candidate is complete and the maintained Soundscaper
   App/runtime/storage route is selected. Packets 4A-1 through 4A-6 are
   implemented provisionally and 4A-7's local automated acceptance is green;
-  hosted no-retry, packaged-runtime, manual, and reference-GPU qualification
-  remain open. Neither track is qualified or complete, and both track exit
+  its reference-GPU row has passed, while hosted, packaged-runtime, and manual
+  qualification remain open. Neither track is complete, and both track exit
   gates and the overall milestone-4 exit gate remain open.
 - Automation uses one timebase per lane, a 4,096-point persisted cap, and
   deterministic adaptive thinning that preserves endpoints, discontinuities,

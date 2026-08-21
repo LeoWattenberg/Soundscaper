@@ -125,8 +125,7 @@ must not become an earlier hidden recording path.
 | **Electron Enhanced** | Same outcome as web with improved scale, latency, codec coverage, or reliability through a native adapter. |
 | **Electron Only** | Requires an OS/native facility unavailable to a normal web origin; projects still open safely on web. |
 
-Playwright Chromium, Firefox, and WebKit coverage is maintained, but Safari and
-fixed-GPU qualification remain separate release gates.
+Playwright Chromium, Firefox, and WebKit coverage is maintained. The fixed-GPU reference passed M1/M4/M4B-2; Safari remains a separate release gate.
 
 ## Current foundation
 
@@ -184,13 +183,13 @@ release severity, security matrix, licensing matrix, Audacity action
 dispositions, MIDI fences, and the maintained Playwright engine matrix. Their
 evidence lives in the owning policies linked above.
 
+On 2026-08-21 the owner designated the Windows x64 RTX 3090 machine as the fixed-GPU
+reference. Its zero-retry M1 preview, M4 production parity, and M4B-2 keyed parity passed; details live in `docs/quality-budgets.md`.
+
 ### Remaining work
 
-1. Provision the fixed-GPU qualification host defined by
-   `config/quality-budgets.json`.
-2. Record the named milestone workloads without software rendering or
-   environment drift.
-3. Resolve the provisional Safari and supported-OS qualification claims needed
+1. Record the remaining named milestone workloads on their required reference environments without software rendering or environment drift.
+2. Resolve the provisional Safari and supported-OS qualification claims needed
    for the Web Core release guarantee.
 
 These are qualification-environment tasks, not a reason for an agent without
@@ -416,9 +415,9 @@ Packet boundaries, dependencies, and acceptance are owned by
   two-proxy-video-track, 10,000-edit workload, measures decoded-media A/V clocks,
   seeking, scrolling, and retained heap, and admits results through a fail-closed
   collector. A packaged Electron timing-probe harness also exists. These are
-  runnable evidence infrastructure, not accepted qualification: the fixed
-  `reference-linux-gpu-01` host remains unprovisioned, the long-form workload is
-  still provisional and absent from the qualified workload set, and all four
+  runnable evidence infrastructure, not accepted long-form qualification: the
+  designated reference host has not run this workload, it remains provisional
+  and absent from the qualified workload set, and all four
   Linux/Windows packaged Electron timing rows remain `pending-external`. WebKit
   remains deferred under milestone-2 scope revision 2.
 
@@ -533,9 +532,10 @@ Framescaper V20 keyframe candidate remains dormant and unselected with its
 activation/evidence gates open. Soundscaper V21 is the selected maintained
 App/runtime/storage route and its local implementation candidate is complete:
 packets 4A-1 through 4A-6 are implemented provisionally and 4A-7 local automated
-acceptance is green. It is not qualified; the 4A hosted no-retry,
-packaged-runtime, manual, and reference-GPU rows remain open, as do milestone-3
-manual/packaged evidence, Framescaper 4B, and the milestone-4 exit gate.
+acceptance is green. The reference run passes M4 production and M4B-2 keyed
+parity. Hosted, packaged-runtime, manual, remaining Framescaper 4B, and
+milestone-3 evidence remain open; this reference pass does not close milestone
+1 or milestone 4.
 **Goal:** complete non-MIDI Soundscaper production and non-recording Framescaper
 finishing over the stable editorial models.
 

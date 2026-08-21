@@ -3,8 +3,11 @@
 Soundscaper's quality-budget foundation is **in progress**. The checked-in
 ledger names fixtures and proposed numeric limits, validates its own contract,
 and provides a deterministic fail-closed evaluator. The five frozen milestone 2
-first-party structural workloads have qualified; no timing, heap/RSS,
-third-party codec-memory, device, durability, or release platform workload has.
+first-party structural workloads have qualified. On 2026-08-21 the project
+owner also designated the Windows x64 RTX 3090 machine as the fixed-GPU
+reference and accepted its M1 preview, M4 production-parity, and M4B-2 keyed
+parity results. Other timing, heap/RSS, third-party codec-memory, device,
+durability, and release-platform workloads remain open.
 
 The source of truth is
 [`config/quality-budgets.json`](../config/quality-budgets.json). The roadmap
@@ -44,23 +47,26 @@ fixture, environment, metric, and threshold identifiers.
   mismatch aborts collection before writing either pending or accepted files.
   Accepted evidence pins the complete budget-config digest and, through its
   digest-bound raw artifact, the exact registered workload descriptor digest.
-- Recorded local observation, 2026-08-21: the Windows x64 downloadable nightly
-  at revision `75ebd2bbd0c500b6ce783c9af697241af70c3b6f` used an NVIDIA
-  GeForce RTX 3090 through ANGLE/D3D11 and passed all five M4 metric thresholds
-  in one attempt with zero retries: maximum audio sample error `0`, PDC error
-  `0`, minimum video SSIM `0.981534357583265`, maximum normalized channel MAE
-  `0.020067401960784315`, and silently omitted effects `0`. The observation is
-  `pending-external`, not qualification; the overall downloadable metrics
-  collection failed separately because its M1 preview diagnostic crashed
-  before publication. The retained downloadable artifacts are identified by
-  summary SHA-256
-  `aebe70405017ddcb9b698fbf6e52cf126fd1794df3786e67d37cd739e2a8fb8e`
-  and raw SHA-256
-  `f5a07e3093e7426edf7199b4992bc6ee126276e0c1e5da5ce08aedd1c2df15ab`.
+- Accepted fixed-GPU reference run, 2026-08-21: the project owner designated
+  the Windows x64 downloadable-nightly machine at revision
+  `657e2d67d57070b31bbfe7c8a2b76b5a54bbe082` as the reference. Its NVIDIA
+  GeForce RTX 3090 ran through ANGLE/D3D11 with one worker, one attempt, and zero
+  retries. The metrics phase passed all three collected workloads. M1 reported
+  p95 frame interval `8.100000023841858` ms and retained-JS-heap delta `-7304`
+  bytes. M4 reported maximum audio sample error `0`, PDC error `0`, minimum
+  video SSIM `0.981534357583265`, maximum normalized channel MAE
+  `0.020067401960784315`, and silently omitted effects `0`. M4B-2 passed all 12
+  keyed preview/offline operations with no omitted, substituted, or fallback
+  operation. The accepted scope is the metrics phase only; unrelated handbook
+  failures made the enclosing nightly run fail and are not relabelled. The
+  retained metrics artifacts are identified by summary byte length `8075` and
+  SHA-256 `04ec246be3f0fef9c7b9447056f5a95f7c3b7ecb4e1465677cf2673625c090d6`,
+  plus raw byte length `5268909` and SHA-256
+  `eb7e9716d75b462f9118084a36ed9a5b2a0a38f309e5345a765e24162a399b45`.
 - The 12-effect 1280x720 preview test records timing and heap data against a
-  repository-owned, digest-pinned, six-second synthetic VP8 fixture. It remains
-  provisional until the fixed reference GPU environment is provisioned and the
-  measurement procedure is qualified.
+  repository-owned, digest-pinned, six-second synthetic VP8 fixture. Its
+  2026-08-21 owner-designated fixed-GPU reference run passed both thresholds.
+  Decoder/audio scheduling and other platforms remain outside that acceptance.
 - Hosted CI is suitable for deterministic correctness checks. Its shared CPU
   and software-renderer behavior make it ineligible for fixed-hardware timing
   qualification.
@@ -168,8 +174,15 @@ result may promote them.
 
 ## Fixed hardware environments
 
-`reference-linux-gpu-01` is intentionally unprovisioned. Before its status can
-change, capture and check in all of these exact values:
+The owner-designated fixed-GPU reference is the Windows x64 RTX 3090 machine
+used by the accepted 2026-08-21 downloadable metrics run. The older
+`reference-linux-gpu-01` name in the machine-readable collector contract is a
+legacy identifier and must not be interpreted as requiring a different Linux
+machine. A future collector-contract cleanup should replace that misleading
+identifier while preserving this accepted run and its artifact digests.
+
+Reference-host observations continue to capture these exact values for future
+runs:
 
 - OS image/revision and update policy;
 - CPU model and logical core count;
@@ -180,7 +193,7 @@ change, capture and check in all of these exact values:
 - browser version, executable digest, and launch flags; and
 - the self-hosted runner labels that resolve only to this machine.
 
-Qualification must fail if the captured identity differs. SwiftShader,
+Future reference runs must fail if the captured identity differs. SwiftShader,
 llvmpipe, another software renderer, or an unknown renderer cannot satisfy the
 preview hardware gate.
 
@@ -200,16 +213,13 @@ minimum SSIM of `0.98`, maximum normalized channel MAE of `6/255`, and exactly
 zero omitted, substituted, or fallback operations.
 
 Run the opt-in no-retry diagnostic with `node
-scripts/collect-m4b2-keyframe-parity-quality.mjs`. Local and hosted Playwright
-results are correctness evidence only. A passing collector run writes
-`pending-external`; a metric failure writes `failed`, and the collector refuses
-reference mode. The hosted Playwright environment is not qualification-eligible,
-while `reference-linux-gpu-01` remains unprovisioned with an empty fingerprint.
-
-The workload is absent from `qualification.qualifiedWorkloadIds`, and no
-accepted result cohort names it. Qualification remains unavailable until the
-reference GPU has a provisioned exact fingerprint and a separately reviewed,
-digest-bound accepted reference cohort has been retained.
+scripts/collect-m4b2-keyframe-parity-quality.mjs`. Ordinary local and hosted
+Playwright results remain correctness evidence only. The project owner's
+2026-08-21 designation makes the retained Windows RTX 3090 metrics artifact the
+accepted reference exception: all 12 keyed operations passed, with no omitted,
+substituted, or fallback operation. This acceptance removes the 4B-2 reference-
+GPU blocker; manual qualification and deliberate capability/profile/App-route
+activation remain separate gates.
 
 ## Fixtures and project sizes
 

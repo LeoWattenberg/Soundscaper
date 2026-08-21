@@ -9,13 +9,13 @@
 
 ## Pickup status and sequencing authority
 
-**Status on 2026-08-14: Implemented (provisional).** Soundscaper V21 is the
+**Status on 2026-08-21: Implemented (provisional).** Soundscaper V21 is the
 selected maintained Soundscaper App/runtime/storage route. Packets 4A-1 through
 4A-6 are implemented locally, and 4A-7's local automated acceptance is green.
-This records a complete local implementation candidate, not qualification or a
-closed milestone: the 4A no-retry hosted run, packaged-runtime and manual rows,
-and `reference-linux-gpu-01` qualification remain open or
-`pending-external`. Shared phase 4.0 remains implemented provisionally, and
+This records a complete local implementation candidate, not a closed milestone.
+The owner-designated Windows x64 RTX 3090 reference run passes the 4A-7 M4
+production-parity row. The 4A hosted, packaged-runtime, and manual rows remain
+open. Shared phase 4.0 remains implemented provisionally, and
 milestone 3 remains **In progress** with its manual and packaged-runtime rows
 unchanged. None of those rows is waived, relabelled, or cited as passing
 evidence here.
@@ -832,16 +832,17 @@ External packages, arbitrary URLs, and user trust overrides remain fenced.
 Run the complete Soundscaper V21 production surface through
 `m4-production-render-parity`: audio maximum absolute sample error at most
 `1e-6`, PDC error exactly zero samples, video SSIM at least `0.98`, normalized
-channel MAE at most `6/255`, and silently omitted effects exactly zero. Record
-the no-retry hosted result as correctness evidence. Keep reference-GPU,
+channel MAE at most `6/255`, and silently omitted effects exactly zero. The
+owner-designated 2026-08-21 fixed-GPU reference run passes these thresholds.
+Record the no-retry hosted result as correctness evidence. Keep
 packaged-runtime, manual, and milestone-3 rows at their observed states until
 their named environments are independently provisioned and run.
 
 Packets 4A-1 through 4A-6 and the complete native workflows are locally
 implemented, and 4A-7's local automated acceptance is green. V21 is therefore
 the selected maintained Soundscaper route and a complete local implementation
-candidate. It is not qualified: the 4A no-retry hosted result,
-reference-GPU, packaged-runtime, and manual evidence remain open, as do the
+candidate. Its reference-GPU row is passed, but the 4A hosted,
+packaged-runtime, and manual evidence remain open, as do the
 parallel 4B exit gate and the overall milestone-4 exit gate.
 
 ## Non-goals and fences
