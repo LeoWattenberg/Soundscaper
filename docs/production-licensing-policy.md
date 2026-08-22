@@ -160,22 +160,31 @@ requirements are implemented:
 ### Native plug-in format and codec policy rows
 
 The matrix's `nativeFormatPolicies` register carries one fail-closed row per
-plug-in format (VST3, CLAP, Audio Units, LV2, OFX) and per native codec
-capability tier the milestone-5 tracks may ship. Each row records the
-upstream licensing form, the compatibility direction into this AGPL-3.0-only
-work (GPLv3 SDK code combines one-way via GPLv3 section 13; permissive SDKs
-combine trivially; operating-system APIs and platform encoder services are
-linkage, not combined source), the redistribution posture, and a named
-blocker stating exactly which review is missing. Every row is `blocked`
-today: no format or codec capability ships, and no build flag or helper
-capability may name one, until its row's review is recorded and the owning
-`native-plugins` or `native-codecs` gate clears. A native FFmpeg helper
-binary inherits the two blocked FFmpeg release gates for exactly the
-currently enabled library set — the enabled codec set does not grow because
-a native build would make growth easy. User-installed third-party plug-in
-binaries are never redistributed by this project, so their licenses never
-enter the production closure; the rows govern what the application itself
-may ship and host.
+plug-in format (VST3, CLAP, Audio Units, LV2, OFX). Native professional media
+uses a finer inventory: each software operation is a distinct
+`operation`/`codec`/`container`/`profile` tuple. H.264 and HEVC decode have
+separate MP4 and MOV rows; AV1 decode has separate MP4 and WebM rows; VP9,
+ProRes, and DNxHR name their exact WebM, MOV, or MXF container. PNG, TIFF, and
+OpenEXR each have independent decode and encode image-sequence rows. Every
+encode profile—H.264/MP4, VP9/WebM, the two HEVC Main10 deliveries, three
+ProRes/MOV profiles, DNxHR HQX/MXF, FFV1/Matroska, and the three still
+sequences—also owns its own row. A generic profile spanning two containers
+depends on both rows, so clearing one combination cannot authorize the other.
+
+Each row records the upstream licensing form, the compatibility direction
+into this AGPL-3.0-only work (GPLv3 SDK code combines one-way via GPLv3
+section 13; permissive SDKs combine trivially; operating-system APIs and
+platform encoder services are linkage, not combined source), the
+redistribution posture, and the named review still missing for that exact
+tuple. Every codec tuple remains `blocked`; it additionally depends on the
+blocked `codec-native-ffmpeg-current-set` row and the owning `native-codecs`
+gate. This inventory does not change FFmpeg configure flags, publish a helper,
+populate a payload manifest, or activate native media. Those remain separate
+reviewed changes after corresponding source, notices, patent posture,
+interoperability, signing, and five-target evidence clear. User-installed
+third-party plug-in binaries are never redistributed by this project, so their
+licenses never enter the production closure; the plug-in rows govern what the
+application itself may ship and host.
 
 ### Local assistance model evidence
 

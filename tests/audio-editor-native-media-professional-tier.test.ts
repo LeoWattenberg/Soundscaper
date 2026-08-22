@@ -179,7 +179,9 @@ test('no profile is admitted while its licensing row is uncleared', () => {
 
 	assert.equal(verdict.admitted, false);
 	assert.deepEqual(verdict.refusals, ['policy-row-blocked']);
-	assert.deepEqual(verdict.blockedPolicyRowIds, ['codec-mezzanine-and-longform', 'container-mov-mxf-matroska']);
+	assert.deepEqual(verdict.blockedPolicyRowIds, [
+		'codec-native-ffmpeg-current-set', 'codec-encode-prores-mov-4444',
+	]);
 });
 
 test('an unknown profile is refused rather than treated as permissive', () => {

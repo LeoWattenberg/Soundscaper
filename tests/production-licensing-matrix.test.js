@@ -202,10 +202,30 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 		'plugin-format-ofx',
 		'codec-native-ffmpeg-current-set',
 		'codec-hardware-acceleration',
-		'codec-mezzanine-and-longform',
-		'codec-hevc-and-av1',
-		'codec-image-sequence-still-formats',
-		'container-mov-mxf-matroska',
+		'codec-decode-h264-mp4',
+		'codec-decode-h264-mov',
+		'codec-decode-hevc-mp4',
+		'codec-decode-hevc-mov',
+		'codec-decode-vp9-webm',
+		'codec-decode-av1-mp4',
+		'codec-decode-av1-webm',
+		'codec-decode-prores-mov',
+		'codec-decode-dnxhr-mxf',
+		'codec-decode-png-image-sequence',
+		'codec-decode-tiff-image-sequence',
+		'codec-decode-openexr-image-sequence',
+		'codec-encode-h264-mp4',
+		'codec-encode-vp9-webm',
+		'codec-encode-hevc-mp4-main10-hdr10',
+		'codec-encode-hevc-mp4-main10-sdr',
+		'codec-encode-prores-mov-proxy',
+		'codec-encode-prores-mov-422-hq',
+		'codec-encode-prores-mov-4444',
+		'codec-encode-dnxhr-mxf-hqx',
+		'codec-encode-ffv1-matroska',
+		'codec-encode-png-image-sequence',
+		'codec-encode-tiff-image-sequence',
+		'codec-encode-openexr-image-sequence',
 	]);
 	for (const row of matrix.nativeFormatPolicies) {
 		assert.match(row.kind, /^(?:plugin-format|codec-capability)$/u, row.id);
@@ -229,6 +249,24 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 	const ffmpegRow = matrix.nativeFormatPolicies.find(({ id }) => id === 'codec-native-ffmpeg-current-set');
 	assert.match(ffmpegRow.blocker, /ffmpeg-enabled-library-corresponding-source/u);
 	assert.match(ffmpegRow.blocker, /ffmpeg-enabled-codec-patent-review/u);
+	const exactCodecRows = matrix.nativeFormatPolicies.filter(({ id }) => /^codec-(?:decode|encode)-/u.test(id));
+	assert.equal(exactCodecRows.length, 24);
+	assert.equal(new Set(exactCodecRows.map((row) => [
+		row.operation, row.codec, row.container, row.profile, row.execution,
+	].join(':'))).size, exactCodecRows.length, 'every operation tuple must be unique');
+	for (const row of exactCodecRows) {
+		assert.match(row.operation, /^(?:decode|encode)$/u, row.id);
+		assert.match(row.codec, /^[a-z0-9][a-z0-9-]*$/u, row.id);
+		assert.match(row.container, /^(?:mp4|mov|webm|mxf|matroska|image-sequence)$/u, row.id);
+		assert.match(row.profile, /^(?:decode|encode)-[a-z0-9-]+$/u, row.id);
+		assert.equal(row.execution, 'software', row.id);
+	}
+	assert.equal(matrix.nativeFormatPolicies.some(({ id }) => [
+		'codec-mezzanine-and-longform',
+		'codec-hevc-and-av1',
+		'codec-image-sequence-still-formats',
+		'container-mov-mxf-matroska',
+	].includes(id)), false, 'grouped professional-media blockers must not survive');
 });
 
 function productionClosure(lock, packageMetadata) {

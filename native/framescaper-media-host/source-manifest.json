@@ -102,8 +102,8 @@
 		},
 		{
 			"path": "src/ffmpeg_image_sequence_decode.cpp",
-			"byteLength": 14179,
-			"sha256": "369440d8b259f2e3e57ec891bfd672b146a7202e14c829f13eb532ac27fc7194"
+			"byteLength": 14513,
+			"sha256": "a8bc670311a2c3c2707f2a1a01967ea2ab7faa2d2bd8288d4e6b6e9db1cf1115"
 		},
 		{
 			"path": "src/ffmpeg_image_sequence_decode.hpp",
@@ -207,8 +207,8 @@
 		},
 		{
 			"path": "src/media_host.cpp",
-			"byteLength": 25252,
-			"sha256": "de25c7fbd7127842668a5898c6d21d8cb58509237dd4895204be071700ef322a"
+			"byteLength": 25643,
+			"sha256": "9ea9664ecc48f9261ec62371ef3bd446313366010f61a78381f81066f6d14505"
 		},
 		{
 			"path": "src/media_host_contract.hpp",

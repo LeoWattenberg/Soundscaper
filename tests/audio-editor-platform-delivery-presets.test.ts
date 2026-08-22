@@ -130,7 +130,7 @@ test('a row missing from the matrix blocks rather than passing by absence', () =
 
 	assert.equal(availability.available, false);
 	assert.equal(availability.status, 'unknown');
-	assert.match(availability.blocker!, /No licensing row codec-hevc-and-av1 is recorded/u);
+	assert.match(availability.blocker!, /No licensing row codec-encode-hevc-mp4-main10-hdr10 is recorded/u);
 });
 
 test('a preset that is not from the catalog cannot ask about itself', () => {

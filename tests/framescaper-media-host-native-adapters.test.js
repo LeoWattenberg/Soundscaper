@@ -205,7 +205,7 @@ test('image-sequence pack admission binds inventory, rate, roles, index, and eve
 		assert.equal(admitted.status, 78, admitted.stderr);
 		assert.deepEqual(JSON.parse(admitted.stdout), {
 			error: 'image-sequence-licensing-unavailable', operation: 'media-decode',
-			policyRow: 'codec-image-sequence-still-formats',
+			policyRow: 'codec-decode-png-image-sequence',
 		});
 		assert.equal(exists(sequence.decodeOutput), false);
 

@@ -5,6 +5,9 @@
 import {
 	NATIVE_MEDIA_IMAGE_SEQUENCE_PACK_MAXIMUM_CHUNK_BYTES,
 } from '../common/editor/native-media-image-sequence-pack-v25.ts';
+import {
+	NATIVE_MEDIA_IMAGE_SEQUENCE_DECODE_POLICY_ROW_IDS,
+} from '../common/editor/native-media-professional-profiles.ts';
 import type {
 	NativeMediaImageSequenceInventoryReferenceV25,
 	NativeMediaImageSequenceSourcePackReferenceV25,
@@ -15,7 +18,6 @@ import type {
 	FramescaperImageSequenceNativeAdmissionRequestV25,
 } from './editor-native-image-sequence-import-v25.ts';
 
-const POLICY_ROW = 'codec-image-sequence-still-formats';
 const TRANSACTION_ID = /^[a-f0-9]{40}$/u;
 
 export interface FramescaperNativeImageSequenceImportRendererPortV25 {
@@ -56,7 +58,7 @@ export function createFramescaperImageSequenceProductionPortsV25(
 	};
 	return Object.freeze({
 		capabilities: () => options.bridge.capabilities(),
-		clearedPolicyRowIds: () => Object.freeze([POLICY_ROW]),
+		clearedPolicyRowIds: () => NATIVE_MEDIA_IMAGE_SEQUENCE_DECODE_POLICY_ROW_IDS,
 		async createSourcePackWriter(): Promise<NativeMediaImageSequenceSourcePackWriterV25> {
 			if (writerCreated || disposed) throw new Error('The candidate image-sequence writer is single-use.');
 			writerCreated = true;

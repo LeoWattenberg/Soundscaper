@@ -44,6 +44,7 @@ export interface PlatformDeliveryPresetAvailability {
 }
 
 const H264 = Object.freeze({ format: 'mp4', quality: 'balanced' });
+const NATIVE_FFMPEG = 'codec-native-ffmpeg-current-set';
 
 export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Object.freeze([
 	Object.freeze({
@@ -87,7 +88,9 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 		id: 'native-uhd-hdr10',
 		label: '4K HDR10',
 		summary: '3840x2160, 10-bit HEVC, HDR10 transfer.',
-		licensingRowIds: Object.freeze(['codec-hevc-and-av1']),
+		licensingRowIds: Object.freeze([
+			'codec-encode-hevc-mp4-main10-hdr10', NATIVE_FFMPEG,
+		]),
 		fallbackPresetId: 'web-1080p',
 		planOptions: null,
 	}),
@@ -95,7 +98,9 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 		id: 'native-10-bit-sdr',
 		label: '10-bit SDR',
 		summary: '1920x1080, 10-bit, for grading headroom without HDR.',
-		licensingRowIds: Object.freeze(['codec-hevc-and-av1']),
+		licensingRowIds: Object.freeze([
+			'codec-encode-hevc-mp4-main10-sdr', NATIVE_FFMPEG,
+		]),
 		fallbackPresetId: 'web-1080p',
 		planOptions: null,
 	}),
@@ -111,7 +116,9 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 		id: 'native-mezzanine-prores',
 		label: 'Mezzanine (ProRes 422)',
 		summary: 'MOV, ProRes 422, for handing on to another edit rather than to a viewer.',
-		licensingRowIds: Object.freeze(['codec-mezzanine-and-longform', 'container-mov-mxf-matroska']),
+		licensingRowIds: Object.freeze([
+			'codec-encode-prores-mov-422-hq', NATIVE_FFMPEG,
+		]),
 		fallbackPresetId: 'web-1080p',
 		planOptions: null,
 	}),
@@ -119,7 +126,9 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 		id: 'native-alpha-mezzanine',
 		label: 'Mezzanine with alpha',
 		summary: 'MOV, 4:4:4 with a preserved alpha channel, for compositing downstream.',
-		licensingRowIds: Object.freeze(['codec-mezzanine-and-longform', 'container-mov-mxf-matroska']),
+		licensingRowIds: Object.freeze([
+			'codec-encode-prores-mov-4444', NATIVE_FFMPEG,
+		]),
 		fallbackPresetId: 'native-mezzanine-prores',
 		planOptions: null,
 	}),
@@ -127,7 +136,9 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 		id: 'native-image-sequence-png',
 		label: 'PNG image sequence',
 		summary: 'One lossless still per frame, numbered, with the audio delivered beside it.',
-		licensingRowIds: Object.freeze(['codec-image-sequence-still-formats']),
+		licensingRowIds: Object.freeze([
+			'codec-encode-png-image-sequence', NATIVE_FFMPEG,
+		]),
 		fallbackPresetId: 'web-1080p',
 		planOptions: null,
 	}),

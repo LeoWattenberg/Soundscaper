@@ -38,7 +38,13 @@ import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.t
 import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
 
 const PROFILE = FRAMESCAPER_V26_PROJECT_CANDIDATE_PROFILE;
-const PROXY_ROWS = ['codec-mezzanine-and-longform', 'container-mov-mxf-matroska'] as const;
+const PROXY_ROWS = ['codec-native-ffmpeg-current-set', 'codec-encode-prores-mov-proxy'] as const;
+const IMAGE_SEQUENCE_ROWS = [
+	'codec-native-ffmpeg-current-set',
+	'codec-decode-png-image-sequence',
+	'codec-decode-tiff-image-sequence',
+	'codec-decode-openexr-image-sequence',
+] as const;
 const SHA_A = 'aa'.repeat(32);
 const SHA_B = 'bb'.repeat(32);
 const SHA_C = 'cc'.repeat(32);
@@ -419,7 +425,7 @@ function imageSequencePorts() {
 			probeSucceeded: true, selfTestPassed: true, userEnabled: true,
 		})),
 		}),
-		clearedPolicyRowIds: () => ['codec-image-sequence-still-formats'],
+		clearedPolicyRowIds: () => IMAGE_SEQUENCE_ROWS,
 		createSourcePackWriter: () => ({
 			write: () => undefined, commit: () => undefined, discard: () => undefined,
 		}),

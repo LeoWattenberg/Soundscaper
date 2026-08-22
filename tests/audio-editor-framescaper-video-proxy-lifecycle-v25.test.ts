@@ -10,7 +10,7 @@ import {
 } from '../src/framescaper/editor-video-proxy-lifecycle-v25.ts';
 import { createUnreportedVideoSourceCharacteristicsV25 } from '../src/common/editor/video-source-professional-characteristics-v25.ts';
 
-const ROWS = ['codec-mezzanine-and-longform', 'container-mov-mxf-matroska'] as const;
+const ROWS = ['codec-native-ffmpeg-current-set', 'codec-encode-prores-mov-proxy'] as const;
 
 test('generation is a ProRes Proxy/MOV queue job and licensing fails closed', async () => {
 	const fixture = lifecycle();

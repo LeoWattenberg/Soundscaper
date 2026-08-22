@@ -21,7 +21,12 @@ import { createFramescaperProjectStoreV25 } from '../src/framescaper/editor-proj
 import { createFramescaperProjectV25, type FramescaperProjectV25 } from '../src/framescaper/editor-project-v25.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
 
-const POLICY_ROW = 'codec-image-sequence-still-formats';
+const POLICY_ROWS = [
+	'codec-native-ffmpeg-current-set',
+	'codec-decode-png-image-sequence',
+	'codec-decode-tiff-image-sequence',
+	'codec-decode-openexr-image-sequence',
+] as const;
 const PROFILE = FRAMESCAPER_V25_PROJECT_RUNTIME_PROFILE;
 let fixtureIndex = 0;
 
@@ -176,7 +181,7 @@ async function actionFixture(usable = true) {
 				events.push('capabilities');
 				return capabilitySnapshot(usable);
 			},
-			clearedPolicyRowIds: () => [POLICY_ROW],
+			clearedPolicyRowIds: () => POLICY_ROWS,
 			createSourcePackWriter: () => ({
 				write: (chunk: Uint8Array) => { events.push(`pack-write:${String(chunk.byteLength)}`); },
 				commit: () => { events.push('pack-commit'); },

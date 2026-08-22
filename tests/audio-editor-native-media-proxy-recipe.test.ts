@@ -79,7 +79,7 @@ test('a blocked ProRes gate blocks generation rather than substituting a codec',
 	assert.ok(plan.blocked);
 	assert.deepEqual(plan.refusals, ['prores-gate-blocked']);
 	assert.deepEqual(plan.blockedPolicyRowIds, [
-		'codec-mezzanine-and-longform', 'container-mov-mxf-matroska',
+		'codec-native-ffmpeg-current-set', 'codec-encode-prores-mov-proxy',
 	]);
 	assert.equal(Object.hasOwn(plan, 'recipe'), false);
 });
@@ -88,11 +88,11 @@ test('partially cleared rows still block, because every row a profile names must
 	const plan = planNativeMediaProxy({
 		sourceWidth: 1_920,
 		sourceHeight: 1_080,
-		clearedPolicyRowIds: ['codec-mezzanine-and-longform'],
+		clearedPolicyRowIds: ['codec-native-ffmpeg-current-set'],
 	});
 
 	assert.ok(plan.blocked);
-	assert.deepEqual(plan.blockedPolicyRowIds, ['container-mov-mxf-matroska']);
+	assert.deepEqual(plan.blockedPolicyRowIds, ['codec-encode-prores-mov-proxy']);
 });
 
 test('unreported source geometry blocks rather than assuming a frame size', () => {

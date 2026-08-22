@@ -470,13 +470,19 @@ async function loadCapabilityPolicy() {
 	const nativeCodecsCleared = policyRowCleared(value, 'futureDistributionGates', 'native-codecs')
 		&& policyRowCleared(value, 'nativeFormatPolicies', 'codec-native-ffmpeg-current-set');
 	const proxyCodecCleared = nativeCodecsCleared
-		&& policyRowCleared(value, 'nativeFormatPolicies', 'codec-mezzanine-and-longform')
-		&& policyRowCleared(value, 'nativeFormatPolicies', 'container-mov-mxf-matroska');
+		&& policyRowCleared(value, 'nativeFormatPolicies', 'codec-encode-prores-mov-proxy');
 	return Object.freeze({
 		nativeCodecsCleared,
 		proxyCodecCleared,
 		imageSequencesCleared: nativeCodecsCleared
-			&& policyRowCleared(value, 'nativeFormatPolicies', 'codec-image-sequence-still-formats'),
+			&& [
+				'codec-decode-png-image-sequence',
+				'codec-decode-tiff-image-sequence',
+				'codec-decode-openexr-image-sequence',
+				'codec-encode-png-image-sequence',
+				'codec-encode-tiff-image-sequence',
+				'codec-encode-openexr-image-sequence',
+			].every((id) => policyRowCleared(value, 'nativeFormatPolicies', id)),
 		openFxCleared: policyRowCleared(value, 'futureDistributionGates', 'native-plugins')
 			&& policyRowCleared(value, 'nativeFormatPolicies', 'plugin-format-ofx')
 			&& policyRowCleared(value, 'runtimeProvenance', 'framescaper-openfx-1-5-1-source-candidate'),

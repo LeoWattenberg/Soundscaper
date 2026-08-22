@@ -68,7 +68,12 @@ import {
 
 type Awaitable<Value> = Value | PromiseLike<Value>;
 
-const POLICY_ROW = 'codec-image-sequence-still-formats';
+const POLICY_ROWS = Object.freeze([
+	'codec-native-ffmpeg-current-set',
+	'codec-decode-png-image-sequence',
+	'codec-decode-tiff-image-sequence',
+	'codec-decode-openexr-image-sequence',
+]);
 const TRANSACTION_ID = /^[a-f0-9]{40}$/u;
 const MANIFEST_VERSION = 1;
 const MAXIMUM_ACTIVE_TRANSACTIONS = 64;
@@ -488,7 +493,7 @@ export class FramescaperNativeImageSequenceImportAuthority {
 			throw new Error('Native image-sequence import is disabled or unavailable.');
 		}
 		const rows = await this.#options.clearedPolicyRowIds();
-		if (!Array.isArray(rows) || !rows.includes(POLICY_ROW)) {
+		if (!Array.isArray(rows) || POLICY_ROWS.some((row) => !rows.includes(row))) {
 			throw new Error('Native image-sequence import is blocked by its fail-closed policy row.');
 		}
 	}

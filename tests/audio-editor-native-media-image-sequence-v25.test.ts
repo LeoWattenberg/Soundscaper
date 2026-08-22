@@ -17,7 +17,12 @@ import {
 import { resolveNativeMediaImageSequence } from '../src/common/editor/native-media-image-sequence.ts';
 import { createUnreportedVideoSourceCharacteristicsV25 } from '../src/common/editor/video-source-professional-characteristics-v25.ts';
 
-const ROW = 'codec-image-sequence-still-formats';
+const ROWS = [
+	'codec-native-ffmpeg-current-set',
+	'codec-decode-png-image-sequence',
+	'codec-decode-tiff-image-sequence',
+	'codec-decode-openexr-image-sequence',
+] as const;
 const DIGESTS = ['11'.repeat(32), '22'.repeat(32), '33'.repeat(32)] as const;
 
 test('V25 project JSON stores compact digest-bound inventory and pack references', () => {
@@ -37,7 +42,7 @@ test('V25 project JSON stores compact digest-bound inventory and pack references
 		inventory: publication.reference,
 		sourcePack: pack('aa'.repeat(32), 12_345),
 		characteristics: createUnreportedVideoSourceCharacteristicsV25(),
-		clearedPolicyRowIds: [ROW],
+		clearedPolicyRowIds: ROWS,
 	});
 
 	assert.equal(source.sourceType, 'image-sequence');
@@ -85,7 +90,7 @@ test('still-format licensing remains fail-closed before a source can be authored
 		id: 'blocked-source', name: 'Blocked', selection,
 		inventory: inventory.reference, sourcePack: pack('aa'.repeat(32), 1_000),
 		characteristics: createUnreportedVideoSourceCharacteristicsV25(),
-	}), /blocked licensing rows.*codec-image-sequence-still-formats/u);
+	}), /blocked licensing rows.*codec-decode-tiff-image-sequence/u);
 });
 
 test('closed source validation rejects reference substitution and embedded frame records', () => {
@@ -116,7 +121,7 @@ test('the controller action publishes the external inventory before one project 
 			frameChunks: (index) => [frames[index]!],
 			characteristics: createUnreportedVideoSourceCharacteristicsV25(),
 		}),
-		clearedPolicyRowIds: () => [ROW],
+		clearedPolicyRowIds: () => ROWS,
 		createSourcePackWriter: () => ({
 			write: (chunk) => { events.push(`pack-write:${String(chunk.byteLength)}`); },
 			commit: (reference) => { events.push(`pack-commit:${reference.sha256}`); },
@@ -150,7 +155,7 @@ test('the controller discards an uncommitted source pack and publishes nothing a
 			frameChunks: () => [new TextEncoder().encode('changed-png')],
 			characteristics: createUnreportedVideoSourceCharacteristicsV25(),
 		}),
-		clearedPolicyRowIds: () => [ROW],
+		clearedPolicyRowIds: () => ROWS,
 		createSourcePackWriter: () => ({
 			write: () => { events.push('write'); },
 			commit: () => { events.push('pack-commit'); },
@@ -175,7 +180,7 @@ function fixtureSource() {
 		id: 'source', name: 'Source', selection,
 		inventory: inventory.reference, sourcePack: pack('aa'.repeat(32), 1_000),
 		characteristics: createUnreportedVideoSourceCharacteristicsV25(),
-		clearedPolicyRowIds: [ROW],
+		clearedPolicyRowIds: ROWS,
 	});
 }
 

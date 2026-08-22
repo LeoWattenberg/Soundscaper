@@ -21,9 +21,19 @@ export interface PlatformDeliveryLicensingRow {
 
 export const PLATFORM_DELIVERY_LICENSING_ROWS: readonly PlatformDeliveryLicensingRow[] = Object.freeze([
 	Object.freeze({
-		id: "codec-hevc-and-av1",
+		id: "codec-encode-hevc-mp4-main10-hdr10",
 		status: "blocked",
-		blocker: "No HEVC pool review and no AV1 patent-licence review are recorded, and enabling either decoder enlarges the FFmpeg enabled set that ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review already gate.",
+		blocker: "No encoder implementation or build flag is selected, no HEVC pool review is recorded, and HDR10, payload, and five-target evidence is absent.",
+	}),
+	Object.freeze({
+		id: "codec-encode-hevc-mp4-main10-sdr",
+		status: "blocked",
+		blocker: "No encoder implementation or build flag is selected, no HEVC pool review is recorded, and 10-bit SDR, payload, and five-target evidence is absent.",
+	}),
+	Object.freeze({
+		id: "codec-native-ffmpeg-current-set",
+		status: "blocked",
+		blocker: "ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review remain blocked for the shipped runtime, while the native FFmpeg 9.0.1 candidate has no reviewed build payload, exact codec/container clearance, signature, or target evidence.",
 	}),
 	Object.freeze({
 		id: "codec-hardware-acceleration",
@@ -31,19 +41,19 @@ export const PLATFORM_DELIVERY_LICENSING_ROWS: readonly PlatformDeliveryLicensin
 		blocker: "No jurisdiction-specific patent review is recorded for any hardware-accelerated codec path; enablement waits on the native-codecs gate.",
 	}),
 	Object.freeze({
-		id: "codec-mezzanine-and-longform",
+		id: "codec-encode-prores-mov-422-hq",
 		status: "blocked",
-		blocker: "No per-format inventory exists; every milestone-5B decode/encode tier lands its own row against the native-codecs gate before it is buildable.",
+		blocker: "The recipe names the encoder and muxer, but 422 HQ interoperability, payload, signing, and five-target reviews remain incomplete.",
 	}),
 	Object.freeze({
-		id: "container-mov-mxf-matroska",
+		id: "codec-encode-prores-mov-4444",
 		status: "blocked",
-		blocker: "Enabling the MOV, MXF, and Matroska muxers enlarges the FFmpeg enabled set that ffmpeg-enabled-library-corresponding-source gates, and no notices or corresponding-source inventory has been written for the enlarged set.",
+		blocker: "The recipe names the encoder and muxer, but 4444 alpha interoperability, payload, signing, and five-target reviews remain incomplete.",
 	}),
 	Object.freeze({
-		id: "codec-image-sequence-still-formats",
+		id: "codec-encode-png-image-sequence",
 		status: "blocked",
-		blocker: "The source candidate contains gated FFmpeg 9.0.1 internal PNG, TIFF, and EXR adapter code, but the closed release recipe enables none of those decoders or encoders; corresponding-source, interoperability, payload, and target review remain incomplete.",
+		blocker: "PNG encode is disabled in the native recipe; alpha, sequence, payload, and five-target reviews remain incomplete.",
 	}),]);
 
 /** The same rows in the shape the availability resolver reads a matrix in. */

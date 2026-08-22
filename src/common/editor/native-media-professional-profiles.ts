@@ -42,11 +42,19 @@ export interface NativeMediaProfileV1 {
 	readonly longGop: boolean;
 }
 
-const CURRENT_SET = 'codec-native-ffmpeg-current-set';
-const MEZZANINE = 'codec-mezzanine-and-longform';
-const ADVANCED = 'codec-hevc-and-av1';
-const STILLS = 'codec-image-sequence-still-formats';
-const CONTAINERS = 'container-mov-mxf-matroska';
+export const NATIVE_MEDIA_FFMPEG_POLICY_ROW_ID = 'codec-native-ffmpeg-current-set';
+const CURRENT_SET = NATIVE_MEDIA_FFMPEG_POLICY_ROW_ID;
+const H264_DECODE = Object.freeze(['codec-decode-h264-mp4', 'codec-decode-h264-mov']);
+const HEVC_DECODE = Object.freeze(['codec-decode-hevc-mp4', 'codec-decode-hevc-mov']);
+const VP9_DECODE = Object.freeze(['codec-decode-vp9-webm']);
+const AV1_DECODE = Object.freeze(['codec-decode-av1-mp4', 'codec-decode-av1-webm']);
+
+export const NATIVE_MEDIA_IMAGE_SEQUENCE_DECODE_POLICY_ROW_IDS: readonly string[] = Object.freeze([
+	CURRENT_SET,
+	'codec-decode-png-image-sequence',
+	'codec-decode-tiff-image-sequence',
+	'codec-decode-openexr-image-sequence',
+]);
 
 const ALL_CHROMA = VIDEO_SOURCE_V25_CHROMA_FORMATS;
 const UPTO_422: readonly string[] = Object.freeze(['4:0:0', '4:2:0', '4:2:2']);
@@ -58,53 +66,59 @@ const UPTO_420: readonly string[] = Object.freeze(['4:0:0', '4:2:0']);
  * narrowing the tier.
  */
 export const NATIVE_MEDIA_PROFESSIONAL_PROFILES: readonly NativeMediaProfileV1[] = Object.freeze([
-	decode('decode-h264', 'h264', 'any', [CURRENT_SET], 10, UPTO_422, false, true),
-	decode('decode-hevc', 'hevc', 'any', [ADVANCED], 12, ALL_CHROMA, true, true),
-	decode('decode-vp9', 'vp9', 'any', [CURRENT_SET], 12, ALL_CHROMA, true, true),
-	decode('decode-av1', 'av1', 'any', [ADVANCED], 12, ALL_CHROMA, true, true),
-	decode('decode-prores', 'prores', 'mov', [MEZZANINE, CONTAINERS], 12, ALL_CHROMA, true, false),
-	decode('decode-dnxhr', 'dnxhr', 'mxf', [MEZZANINE, CONTAINERS], 12, ALL_CHROMA, false, false),
-	sequenceDecode('decode-png-sequence', 'png', [STILLS], 16),
-	sequenceDecode('decode-tiff-sequence', 'tiff', [STILLS], 16),
-	sequenceDecode('decode-openexr-sequence', 'exr', [STILLS], 32),
+	decode('decode-h264', 'h264', 'any', rows(...H264_DECODE), 10, UPTO_422, false, true),
+	decode('decode-hevc', 'hevc', 'any', rows(...HEVC_DECODE), 12, ALL_CHROMA, true, true),
+	decode('decode-vp9', 'vp9', 'any', rows(...VP9_DECODE), 12, ALL_CHROMA, true, true),
+	decode('decode-av1', 'av1', 'any', rows(...AV1_DECODE), 12, ALL_CHROMA, true, true),
+	decode('decode-prores', 'prores', 'mov', rows('codec-decode-prores-mov'), 12, ALL_CHROMA, true, false),
+	decode('decode-dnxhr', 'dnxhr', 'mxf', rows('codec-decode-dnxhr-mxf'), 12, ALL_CHROMA, false, false),
+	sequenceDecode('decode-png-sequence', 'png', rows('codec-decode-png-image-sequence'), 16),
+	sequenceDecode('decode-tiff-sequence', 'tiff', rows('codec-decode-tiff-image-sequence'), 16),
+	sequenceDecode('decode-openexr-sequence', 'exr', rows('codec-decode-openexr-image-sequence'), 32),
 	encode({
-		id: 'encode-mp4-h264', codec: 'libx264', container: 'mp4', policyRowIds: [CURRENT_SET],
+		id: 'encode-mp4-h264', codec: 'libx264', container: 'mp4',
+		policyRowIds: rows('codec-encode-h264-mp4'),
 		maximumBitDepth: 8, chromaFormats: UPTO_420, longGop: true,
 	}),
 	encode({
-		id: 'encode-webm-vp9', codec: 'libvpx-vp9', container: 'webm', policyRowIds: [CURRENT_SET],
+		id: 'encode-webm-vp9', codec: 'libvpx-vp9', container: 'webm',
+		policyRowIds: rows('codec-encode-vp9-webm'),
 		maximumBitDepth: 8, chromaFormats: UPTO_420, longGop: true,
 	}),
 	encode({
 		id: 'encode-mov-prores-proxy', codec: 'prores_ks', container: 'mov',
-		policyRowIds: [MEZZANINE, CONTAINERS],
+		policyRowIds: rows('codec-encode-prores-mov-proxy'),
 		maximumBitDepth: 10, chromaFormats: UPTO_422, preservesHdrMetadata: true,
 	}),
 	encode({
 		id: 'encode-mov-prores-422-hq', codec: 'prores_ks', container: 'mov',
-		policyRowIds: [MEZZANINE, CONTAINERS],
+		policyRowIds: rows('codec-encode-prores-mov-422-hq'),
 		maximumBitDepth: 10, chromaFormats: UPTO_422, preservesHdrMetadata: true,
 	}),
 	encode({
 		id: 'encode-mov-prores-4444', codec: 'prores_ks', container: 'mov',
-		policyRowIds: [MEZZANINE, CONTAINERS],
+		policyRowIds: rows('codec-encode-prores-mov-4444'),
 		maximumBitDepth: 12, chromaFormats: ALL_CHROMA, supportsAlpha: true, preservesHdrMetadata: true,
 	}),
 	encode({
 		id: 'encode-mxf-dnxhr-hqx', codec: 'dnxhd', container: 'mxf',
-		policyRowIds: [MEZZANINE, CONTAINERS],
+		policyRowIds: rows('codec-encode-dnxhr-mxf-hqx'),
 		maximumBitDepth: 12, chromaFormats: UPTO_422, preservesHdrMetadata: true,
 	}),
 	encode({
 		id: 'encode-matroska-ffv1', codec: 'ffv1', container: 'matroska',
-		policyRowIds: [MEZZANINE, CONTAINERS],
+		policyRowIds: rows('codec-encode-ffv1-matroska'),
 		maximumBitDepth: 16, chromaFormats: ALL_CHROMA, supportsAlpha: true,
 		preservesHdrMetadata: true, lossless: true,
 	}),
-	sequenceEncode('encode-png-sequence', 'png', [STILLS], 16),
-	sequenceEncode('encode-tiff-sequence', 'tiff', [STILLS], 16),
-	sequenceEncode('encode-openexr-sequence', 'exr', [STILLS], 32),
+	sequenceEncode('encode-png-sequence', 'png', rows('codec-encode-png-image-sequence'), 16),
+	sequenceEncode('encode-tiff-sequence', 'tiff', rows('codec-encode-tiff-image-sequence'), 16),
+	sequenceEncode('encode-openexr-sequence', 'exr', rows('codec-encode-openexr-image-sequence'), 32),
 ]);
+
+function rows(...exactRowIds: readonly string[]): readonly string[] {
+	return Object.freeze([CURRENT_SET, ...exactRowIds]);
+}
 
 /** Every distinct licensing row the required baseline depends on. */
 export const NATIVE_MEDIA_PROFILE_POLICY_ROW_IDS: readonly string[] = Object.freeze([

@@ -124,7 +124,7 @@ test('a preset naming a gated codec reports the real recorded status and its fal
 	const gated = preset({
 		id: 'hevc-master',
 		label: 'HEVC master',
-		licensingRowId: 'codec-hevc-and-av1',
+		licensingRowId: 'codec-encode-hevc-mp4-main10-hdr10',
 		fallbackPresetId: 'cd-master',
 	});
 	const availability = resolveDeliveryPresetAvailability(gated, matrix);

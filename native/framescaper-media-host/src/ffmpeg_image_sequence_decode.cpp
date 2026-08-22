@@ -182,6 +182,12 @@ struct decoder final {
 	return "decode-openexr-sequence";
 }
 
+[[nodiscard]] std::string_view policy_row(const image_sequence_profile profile) {
+	if (profile == image_sequence_profile::png) return "codec-decode-png-image-sequence";
+	if (profile == image_sequence_profile::tiff) return "codec-decode-tiff-image-sequence";
+	return "codec-decode-openexr-image-sequence";
+}
+
 [[nodiscard]] decoder open_decoder(const image_sequence_profile profile) {
 	decoder result;
 	const auto* codec = avcodec_find_decoder(codec_id(profile));
@@ -323,7 +329,7 @@ engine_result execute_image_sequence_decode(const invocation& job) {
 	}
 	if (!image_sequence_policy_enabled) {
 		return {78, "{\"error\":\"image-sequence-licensing-unavailable\",\"operation\":\"media-decode\","
-			"\"policyRow\":\"codec-image-sequence-still-formats\"}"};
+			"\"policyRow\":\"" + std::string{policy_row(job.image_sequence->profile)} + "\"}"};
 	}
 	try { return decode(job, *job.image_sequence); }
 	catch (const sequence_decode_failure& error) {
