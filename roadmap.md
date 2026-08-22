@@ -381,8 +381,10 @@ acceptance checks pass.
 
 The foundation's browser and Node acceptance gates are green. The provisional
 mark names the four packaged Electron rows in
-`config/milestone-3-timing-probe-matrix.json`, which await the Linux and
-Windows package runners and are not treated as passing evidence.
+`config/milestone-3-timing-probe-matrix.json`. CI now runs the selected product
+routes and retains bounded timing evidence for Linux/Windows and both products;
+the rows remain `pending-external` until successful artifacts are retained,
+reviewed, and bound to their exact package revision.
 
 ### Soundscaper track (3A, parallel after 3.0)
 
@@ -402,7 +404,8 @@ Packet boundaries, dependencies, and acceptance are owned by
   top-level timeline folder holding audio owns a group bus and deeper folders
   route to it. Bus nesting below that single layer stays milestone-4 work and
   is not approximated here.
-- **Shared / Web Core — Implemented:** schema-V17 take groups persist stable,
+- **Shared / Web Core — Implemented:** take groups introduced in V17 and
+  retained by selected Soundscaper V23 persist stable,
   ordered lane, take, and non-overlapping comp-region identities. Soundscaper's
   menu-reached workflow auditions and promotes takes, edits comp boundaries,
   and flattens explicitly as one reversible edit while retaining referenced
@@ -428,14 +431,17 @@ Packet boundaries, dependencies, and acceptance are owned by
   alignment and sorting, bounded raw import, bulk selection and mute actions,
   repeat generator/analyzer, and regular-interval annotations. The audited
   milestone-3 manifest count is zero planned actions.
-- **Shared qualification — Implemented (provisional):** the local 3A-7 evidence
+- **Shared qualification — Implemented (provisional):** the 3A-7 evidence
   harness deterministically builds the two-hour, 24-audio-track,
   two-proxy-video-track, 10,000-edit workload, measures decoded-media A/V clocks,
   seeking, scrolling, and retained heap, and admits results through a fail-closed
-  collector. A packaged Electron timing-probe harness also exists. These are
-  runnable evidence infrastructure, not accepted long-form qualification: the
-  designated reference host has not run this workload, it remains provisional
-  and absent from the qualified workload set, and all four
+  collector against the selected Soundscaper V23 route. `nightly-with-tests`
+  now runs the same workload in packaged Soundscaper and the formal verifier
+  pins its exact fixture, sample counts, renderer, and owner-host fingerprint.
+  This is runnable evidence infrastructure, not accepted long-form
+  qualification: the owner-designated host has not produced a fresh artifact
+  with this profile and budget digest, the workload remains provisional and
+  absent from the qualified workload set, and all four
   Linux/Windows packaged Electron timing rows remain `pending-external`. WebKit
   remains deferred under milestone-2 scope revision 2.
 
@@ -490,18 +496,20 @@ Packet boundaries, dependencies, and acceptance are owned by
   legacy behavior. Packet 3B-4 is complete and packet **3B-5 — Retiming, ramps,
   and nested sequences** is in progress; the slice documents are linked from
   [the 3B work packets](docs/milestone-3b-work-packets.md).
-- **Shared / Web Core — Split status:** Nested sequences are **Implemented** in
-  Framescaper V18. Their registered owned requirement, strict cycle/depth/rate
-  model, lazy Tracks-menu commands, history, deterministic playback and
+- **Shared / Web Core — Split status:** Nested sequences were introduced in
+  Framescaper V18 and are retained by selected V20. Their registered owned
+  requirement, strict cycle/depth/rate model, lazy Tracks-menu commands, history, deterministic playback and
   delivery flattening, format-1/format-2 `.scape`, desktop V10, clipboard
   refusal, and Soundscaper copy-only preservation boundary are maintained.
-  Retiming remains **In progress**: exact algebra, V16 preservation, clip-bound
-  mapping, dormant frame dispatch and preview, and backend-neutral export intent
-  exist, but exact execution, maintained adoption, and the `videoRetime`
-  capability remain hard-stopped pending a reviewed exact backend or narrower
-  admitted domain. See the [retime export plan](docs/milestone-3b-video-retime-export-plan.md).
-- **Web Core — Split status:** Multicamera is **Implemented** in Framescaper V18
-  with stable group/member identity, sample-canonical offsets, stale-safe lazy
+  Retiming remains **In progress**. The milestone-5 exact ordinal oracle closes
+  the earlier arithmetic-feasibility question, and native execution validation
+  now belongs to `m5b-native-media-plan-parity-and-decode`; selected V20 still
+  has no maintained retime authoring, preview/export adoption, or qualified
+  native execution path, so `videoRetime` remains unavailable. See the
+  [retime export plan](docs/milestone-3b-video-retime-export-plan.md).
+- **Web Core — Split status:** Multicamera was introduced in Framescaper V18
+  and is retained by selected V20 with stable group/member identity,
+  sample-canonical offsets, stale-safe lazy
   menu commands, history, nested composition, and original-authoritative
   playback and delivery. CFR mapping requires exact source boundaries; VFR also
   requires verified timing evidence and refuses an in-between presentation
@@ -513,8 +521,8 @@ Packet boundaries, dependencies, and acceptance are owned by
   captured videos; a general user-invoked editorial generator, attach/detach
   menu lifecycle, adaptive proxy preview, offline handling, and relink remain
   unavailable, and export and delivery remain original-authoritative.
-  Soundscaper stays exact V17 and receives V18 only through copy-only
-  preservation.
+  Selected Soundscaper V23 retains the copy-only cross-product preservation
+  boundary rather than interpreting Framescaper-private state.
 
 The former `m3-framescaper-v18-exit` workload is retired. V18 is no longer the
 maintained Framescaper exit authority after the selected V20 and current
@@ -548,26 +556,14 @@ registered canonical-plan family; it is not an outstanding Milestone 3 gate.
 ## 4. Parallel production surfaces
 
 **Depends on:** milestone 3.
-**Status:** **In progress — shared 4.0 and Soundscaper 4A implemented
-provisionally; Framescaper 4B remains in progress.** The project owner cleared
-the maintained Framescaper base for 4B implementation and, on 2026-08-14,
-explicitly cleared the maintained Soundscaper base for 4A implementation. The
-Framescaper V20 keyframe candidate remains dormant and unselected with its
-activation/evidence gates open. Soundscaper V21 is the selected maintained
-App/runtime/storage route and its local implementation candidate is complete:
-packets 4A-1 through 4A-6 are implemented provisionally and 4A-7 local automated
-acceptance is green. The reference run formally qualifies M4 production and
-passes the M4B-2 keyed-parity diagnostic. `nightly-with-tests` retains the
-accepted packaged M4 artifact. Hosted, manual, remaining Framescaper 4B, and
-milestone-3 evidence remain open. This M4 closure does not close milestone 1 or
-milestone 4.
+**Status:** **In progress — shared 4.0, Soundscaper 4A, and selected Framescaper V20 are provisional; later Framescaper candidates remain dormant.** V20 is the selected web and desktop route with keyframes enabled, but its manual gates remain open. Soundscaper V23 is selected and its local candidate is complete. The owner-host run formally qualifies M4 production and passes the historical M4B-2 keyed-parity diagnostic; `nightly-with-tests` retains the accepted M4 artifact. M4B-2 now has a formal profile but needs a fresh post-V20-selection owner-host run. Hosted, manual, remaining 4B, milestone-3, milestone-1, and whole-milestone-4 qualification remain open. The M4 row closure does not close milestone 1 or milestone 4.
 **Goal:** complete non-MIDI Soundscaper production and non-recording Framescaper
 finishing over the stable editorial models.
 
 Sequencing, the automation/keyframe and mixer-graph decisions, their
 invariants, and the bounded work packets are owned by the
-[milestone-4 plan](docs/milestone-4-plan.md). The exact Soundscaper V21 packet
-contract is the
+[milestone-4 plan](docs/milestone-4-plan.md). The selected V23 route retains the
+exact Soundscaper V21 packet contract in the
 [milestone-4A pickup](docs/milestone-4a-soundscaper-production.md); sequencing
 clearance does not close either track or milestone exit gate.
 
@@ -582,7 +578,7 @@ clearance does not close either track or milestone exit gate.
   assignments, pre/post-fader sends, VCAs, cue/control-room mixes, output placeholders,
   sidechains, channel mapping, and cycle validation. Nested buses lift the
   milestone-3 single-layer folder rule so a track folder at any depth can own a
-  bus; the same V21 revision replaces single-stage compensation with per-path
+  bus; the selected V23 revision retains per-path
   plug-in delay compensation.
 - **Web Core — Implemented (provisional):** plug-in delay compensation across
   playback, monitoring, automation, buses, sidechains, render, and freeze.
@@ -599,24 +595,18 @@ clearance does not close either track or milestone exit gate.
 
 ### Framescaper track
 
-- **Shared / Web Core — In progress:** transform, crop, opacity, blend, flip,
-  and compositing-order controls. The exact V19 browser candidate, preservation
-  paths, and local Chromium/non-browser acceptance exist; the calibrated local
-  cross-renderer matrix passes unchanged gates, while reference-GPU
-  qualification remains open.
-- **Shared / Web Core — In progress:** keyframes with hold, linear, eased, and
-  Bézier interpolation plus copy/paste/preset semantics. The bounded V20 domain
-  slice is under implementation after the V19 render contract.
-- **Shared / Web Core — Planned:** explicit transition objects and a migrated,
-  extensible transition registry.
-- **Web Core — Planned:** masks, mattes, titles, text, shapes, solids, stills,
-  generators, adjustment layers, presets, and a selection-aware inspector.
-- **Web Enhanced — Planned:** LUTs, grading, scopes, tracking, stabilization,
-  denoise, and optical flow with deterministic software/proxy fallbacks.
-- **Web Core — Planned:** styled caption tracks with regions, speakers,
-  safe-area preview, sidecar interchange, and later burn-in/mux delivery.
-- **Web Core — Planned:** audio clip gain/fades, automation, buses, dialogue
-  cleanup, selected effects, loudness targets, and mix export.
+- **Shared / Web Core — Implemented (provisional):** V20 inherits V19
+  transform, crop, opacity, blend, flip, and compositing order on web and
+  desktop. Its historical golden diagnostic passed; manual and end-to-end
+  Framescaper qualification remain open.
+- **Shared / Web Core — Implemented (provisional):** V20 keyframes include hold,
+  linear, eased, Bézier, copy/paste, and presets. The historical keyed diagnostic
+  passed; the fresh formal-profile, manual, and release rows remain open.
+- **Shared / Web Core — Implemented dormant candidate:** V22 track-owned transitions, dissolve, history/interchange, and unified render plan V9.
+- **Web Core — Implemented dormant candidate:** V24 masks/mattes, generators, visual sources/layers/presets, freeze, and plan V10 remain known/unavailable.
+- **Web Enhanced — Planned:** LUTs, grading, scopes, tracking, stabilization, denoise, and optical flow with deterministic software/proxy fallbacks.
+- **Web Core — Planned:** styled caption tracks with regions, speakers, safe-area preview, sidecar interchange, and later burn-in/mux delivery.
+- **Web Core — Planned:** audio clip gain/fades, automation, buses, dialogue cleanup, selected effects, loudness targets, and mix export.
 - **Blocked until milestone 8:** no Framescaper camera, microphone, display, or
   voiceover recording surface.
 

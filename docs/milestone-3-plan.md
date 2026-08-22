@@ -86,16 +86,16 @@ cheap and permitted.
 
 ### Current implementation checkpoint
 
-The Framescaper track now selects its exact V18 product boundary. Nested
-sequences and multicamera groups are registered, menu-reachable, persisted, and
-materialized through maintained playback and delivery. Proxy attachments and
-their exact bodies have claim-bound preservation across local storage,
-format-2 Scape, retention, and desktop V10, while re-attestation remains an
-isolated preview-only primitive with no maintained consumer. Proxy generation,
-attach/detach lifecycle, offline handling, and relink remain unavailable.
-Retiming remains hard-stopped at exact executor feasibility. These implemented
-slices do not close milestone 3: the four packaged Electron timing rows remain
-`pending-external`, the fixed GPU host remains unprovisioned, the long-form
+The Framescaper track now selects V20 as its browser and packaged-desktop
+authority. It preserves the implemented V18 nested-sequence, multicamera, and
+proxy-attachment contracts while adding the later composition/keyframe wire;
+validation therefore runs against V20 without downgrading the project schema.
+General proxy generation, attach/detach lifecycle, offline handling, and relink
+remain unavailable. Retiming authoring remains hard-stopped; exact native
+execution belongs to the current milestone-5 workload named below. These
+implemented slices do not close milestone 3: the four packaged Electron timing
+rows remain `pending-external`, the active owner-qualified GPU host has not yet
+published a current M3 long-form qualification artifact, the long-form
 fixture/workload remains provisional, and milestone 2's Electron lease matrix
 is still partial.
 

@@ -83,11 +83,11 @@ parallel per environment.
 
 ## Verified gaps this campaign must close (grounded 2026-08-11)
 
-1. **Every qualification environment is unprovisioned:**
-   `reference-linux-gpu-01` (config/quality-budgets.json:176-196),
-   `native-os-lab-matrix` (:198-212), `capture-os-browser-lab-matrix`
-   (:214-226), and `release-qualification-matrix` (:228-239) all carry
-   null fingerprints and `qualificationEligible: false`.
+1. **Only the fixed-GPU qualification environment is provisioned:**
+   `owner-qualified-windows-x64-rtx3090-01` is active for its explicitly
+   admitted earlier workloads. `native-os-lab-matrix`,
+   `capture-os-browser-lab-matrix`, and `release-qualification-matrix` remain
+   unprovisioned with null fingerprints and `qualificationEligible: false`.
 2. **No soak or pinned long-session fixture exists.** The milestone-1 preview
    medium is now a digest-pinned six-second VP8 fixture, but it is not a
    long-session or soak workload. Roadmap §9's "every pinned long-session
@@ -438,9 +438,9 @@ unprovisioned-but-claimed environment row, or any relabeled pending row
 - Browser release cadence: "current and previous" (roadmap.md:806-807)
   is a moving target; pin the versions in the release record, not in
   this plan.
-- `reference-linux-gpu-01` provisioning may land earlier for milestone
-  4/5/6 evidence; if so, 9.0 inherits the descriptor instead of creating
-  it.
+- M6/M7 admission on `owner-qualified-windows-x64-rtx3090-01` may land earlier
+  after those workloads have formal profiles and accepted runs. The native,
+  capture, and release matrices remain independent provisioning duties for 9.0.
 
 ## Non-goals and fences
 

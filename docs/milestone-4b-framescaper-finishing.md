@@ -8,11 +8,12 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-21:** the 4B-1 implementation candidate is complete apart
-from manual qualification. 4B-2 is **In progress**. 4B-3 through
-4B-8 are planned. The owner has separately cleared Soundscaper 4A sequencing;
-its V21 local implementation candidate is **Implemented (provisional)** and the
-maintained Soundscaper route is selected under the
+**Status on 2026-08-22:** V20 is the provisionally selected Framescaper web and
+desktop route with 4B-1 composition and 4B-2 keyframes enabled. Their manual
+qualification remains open. V22 transitions and the V24 visual-model
+prerequisites are implemented dormant candidates; later finishing packets stay
+planned. The owner has separately cleared Soundscaper 4A sequencing; its V21
+production foundation is retained by the selected V23 route under the
 [4A pickup contract](milestone-4a-soundscaper-production.md), without a
 qualification or milestone-completion claim.
 
@@ -20,43 +21,47 @@ The 4B-1 browser implementation candidate includes exact V19 composition state,
 commands/history, clipboard V5 and edit preservation, the shared render
 description, WebGL and FFmpeg consumers, localized menu editing, browser
 storage, current-format `.scape`, copy-only cross-product handoff, and the
-calibrated browser/FFmpeg golden matrix. Packaged Framescaper deliberately remains
-on its qualified V18/desktop-V10 authority until a complete V19/desktop-V11
-transport and proxy/timing archive port exists. The owner-designated Windows
-x64 RTX 3090 reference run passed the golden and keyed-parity rows. Manual
-packaged qualification is still open; therefore neither this packet
-nor milestone 4B is recorded complete by the implementation candidate.
+calibrated browser/FFmpeg golden matrix. V19 is now the reserved dormant
+boundary; selected packaged Framescaper authenticates V20 through the distinct
+desktop-V12/SQLite-14/`v12` authority and does not migrate the historical
+V18/desktop-V10 library. The owner-designated Windows
+x64 RTX 3090 run passed the historical golden and keyed-parity diagnostics.
+The new formal M4B-2 profile requires a fresh post-V20-selection packaged
+nightly artifact, and manual/release qualification is still open; therefore
+neither this packet nor milestone 4B is complete.
 
-The 4B-2 candidate now includes the dormant exact V20 keyframe domain, bounded
+The selected 4B-2 route now includes the exact V20 keyframe domain, bounded
 stale-safe commands/history, clipboard V6 and edit-carrier preservation,
 current-format `.scape` preservation, the menu-opened keyframe editor, a shared
 lazy render-state provider, exact live WebGL preview evaluation, isolated V20
 browser storage/runtime composition, and a pre-I/O static-export refusal. Its
-dormant export path owns exact export-range and rational-rate timing authority,
+export path owns exact export-range and rational-rate timing authority,
 an immutable random-access frame source, exact CFR/VFR presentation authority,
 occurrence-scoped HTML-video seeking, a bounded offline WebGL RGBA renderer,
 linked A/V muxing, bounded SharedArrayBuffer FFmpeg inputs, and both Blob and
 direct-sink delivery. The V20 product export strategy and lifecycle acceptance,
-dormant security controls, semantic preview/offline parity collector, and
+security controls, semantic preview/offline parity collector, and
 provisional keyed quality registration have also landed. Real Chromium
 witnesses cover seeking, WebGL orientation/composition, backpressure, MP4
-output, and the dormant product lifecycle.
+output, and the selected product lifecycle.
 
-4B-2 remains **In progress**. The 2026-08-21 owner-designated fixed-GPU run is
-the accepted external keyed-parity reference pass; completed manual
-qualification is still absent. Both product profiles still advertise
-`videoKeyframes` as unavailable, the capability remains false, the browser App
-route remains V19, the packaged desktop route remains V18, and V20 is not
-selected. Capability/profile/App-route activation remains open and must not be
-inferred from the implemented dormant path or its provisional evidence.
+4B-2 remains **In progress** because formal packaged, manual, and release
+qualification is incomplete. The 2026-08-21 owner-designated fixed-GPU run
+remains a passing historical keyed-parity diagnostic, but its artifact predates
+the formal profile and current budget digest and is not backfilled. Product and
+project profiles now advertise
+`videoKeyframes`, both App branches authenticate V20, and the real browser and
+packaged-desktop lifecycle tests replace the former dormant source-rewriting
+harness. Selection is provisional and does not convert that local evidence into
+milestone or release qualification.
 
 The project owner explicitly cleared the milestone-3 implementation sequencing
 gate for Framescaper 4B against the current maintained base. That clearance is
 implementation authority, not completion or qualification evidence: milestone
 3 remains recorded **In progress**, and its manual and packaged-runtime
-qualifications remain open or `pending-external`. The milestone-4 reference-GPU
-row is passed by the owner-designated run; no unrelated row is relabelled or
-waived by this pickup.
+qualifications remain open or `pending-external`. Soundscaper's M4 production
+row is formally accepted; the Framescaper M4B-2 formal row awaits its fresh
+owner-host run, and no unrelated row is relabelled or waived by this pickup.
 
 The shared 4.0 interpolation, parameter-address, and hosted parity foundations
 are implemented. The interpolation vocabulary stores exact clip-relative
@@ -65,17 +70,14 @@ renderer rounding policy (`src/common/editor/interpolation-curve.ts:35-47,
 87-160`). 4B consumes that vocabulary; it does not introduce normalized
 keyframe time.
 
-Framescaper currently owns exact project V18 around an unchanged V17
-foundation (`src/framescaper/editor-project-v18.ts:40-64` and
-`editor-project-v18-validation.ts:56-110`). Its playback and command projections
-strip only product-private authority before invoking shared consumers
-(`editor-project-v18-runtime.ts:37-80` and
-`editor-project-v18-commands.ts:36-69`). 4B-1 therefore opens exact
-Framescaper **V19** and follows the same product-owned pattern. Earlier schemas
-require typed re-import, future schemas remain opaque and intrinsically
-read-only, and the new revision is atomic with its validators, history,
-storage, commands, requirements, profiles, fixtures, and selected bootstrap.
-There is no pre-release V18 migration.
+Framescaper V18 introduced the exact product-owned boundary around the V17
+foundation, V19 added composition, and selected V20 adds keyframes while
+retaining both earlier contracts. Current validation therefore targets V20;
+the historical V18/V19 modules remain evidence for their owning revisions, not
+a reason to downgrade the selected route. Earlier schemas require typed
+re-import, future schemas remain opaque and intrinsically read-only, and each
+revision remains atomic with its validators, history, storage, commands,
+requirements, profiles, fixtures, and bootstrap.
 
 Schema revisions remain serialized product-wide: one revision is in flight,
 with one owner for the command protocol, registry, capability profiles,
@@ -655,18 +657,16 @@ browser acceptance covers edit/undo/redo/save/reopen, stale refusal, Blob and
 direct publication, cancellation, and cleanup while production gates stay
 untouched.
 
-Dormant security controls now register exact V20 admission, keyed export
+Security controls now register exact selected V20 admission, keyed export
 authority, bounded keyed RGBA/A/V encoding, Blob publication, direct MP4/WebM
-delivery, and rollback without activating a route. The semantic keyed parity
+delivery, and rollback. The semantic keyed parity
 collector compares preview and offline consumers with an independent oracle
 and rejects omissions, substitutions, fallbacks, or mutually wrong agreement;
 its quality workload is provisional correctness evidence only. Both product
-profiles still register `videoKeyframes` as known but unavailable, the browser
-App remains on V19, the packaged desktop remains on V18, and the isolated V20
-environment/bootstrap remain unselected. The accepted external keyed-parity
-reference pass satisfies the GPU row, but capability availability must not
-flip until manual qualification exists and the capability, profiles, and App
-routes are deliberately activated together.
+profiles register `videoKeyframes` as available and the browser and desktop App
+routes select the authenticated V20 environment/bootstrap. The passing
+historical keyed-parity diagnostic meets its thresholds, but the new formal
+packaged profile, manual, signing, and release qualification remain open.
 
 - **Outcome:** Add bounded keyframe curves to the numeric 4B-1 property IDs and
   registered video-effect parameters, with copy/paste, preset, and stale-safe
@@ -1090,10 +1090,15 @@ until a separate reviewed fallback/revert workflow exists.
    Soundscaper authoring entry, and no new default-visible surface.
 10. Keep V22 dormant and both capabilities unavailable until canonical tests,
     full browser tests, build/chunk ceilings, security registration, quality
-    budgets, desktop/package transport, manual/reference-GPU rows, and the
-    complete V20-to-V22 clean activation rehearsal pass. Flip model, storage,
-    runtime, bootstrap, product capabilities, and menu selection in one atomic
-    activation change only after those gates.
+    budgets, desktop/package transport, and manual/fixed-GPU rows pass.
+    Lower-level V22 validation remains appropriate for the transition packet;
+    the clean end-to-end diagnostic rehearsal must run from selected V20 to the
+    latest cumulative candidate (currently V26), never by selecting or
+    downgrading the product route to V22 or V24. That rehearsal does not
+    authorize activation: selecting V26 also requires every intervening
+    M5-owned V25/V26 gate, or a newly allocated cumulative generation. Flip
+    model, storage, runtime, bootstrap, product capabilities, and menu selection
+    only after all owning gates pass.
 
 ### Non-goals and stop conditions
 

@@ -543,9 +543,10 @@ implementation gap:
    binaries, and inference cannot be proved without the artifacts from
    (1). The job protocol and supervisor are written against an injected
    channel so the adapter drops in without redesign.
-3. **`reference-linux-gpu-01` is intentionally unprovisioned**
-   (docs/quality-budgets.md:123-135), so the privacy workload can be run
-   for development evidence but not qualified.
+3. **The owner-qualified fixed-GPU host does not admit the M7 workload.**
+   The host is active for earlier milestones, but M7 has no qualification
+   profile or accepted result, so the privacy workload can be run for
+   development evidence but not qualified.
 
 The base commit is also red for reasons outside this milestone: commit
 `768627f1` added two files to `tsconfig.desktop-runtime.json` without
@@ -697,13 +698,13 @@ actually distributed, and this slice distributes none.
   `m7-local-assistance-privacy` collectors — network requests after
   install, unselected-media bytes read, digest mismatches, cancellation
   p95, canonical-state losses (config/quality-budgets.json:1047-1060) —
-  runnable locally even while `reference-linux-gpu-01` remains
-  unprovisioned.
+  runnable locally even while the owner-qualified fixed-GPU host does not
+  admit the M7 workload.
 - **Invariants:** `optional` status semantics hold: no other milestone's
   gate depends on any of this (status rule docs/quality-budgets.md:42;
   never-blocks semantics roadmap.md:744). Evidence
-  stays honest — the unprovisioned environment row is never relabeled
-  (the milestone-3 pending-external precedent,
+  stays honest — local evidence never widens the active host's workload
+  admission (the milestone-3 pending-external precedent,
   docs/milestone-3b-work-packets.md:15-17).
 - **Acceptance:** The collectors produce the five workload metrics
   against the fixture's two selected and two deliberately unselected
@@ -853,11 +854,11 @@ actually distributed, and this slice distributes none.
   `unselectedMediaBytesRead eq 0`, `acceptedDigestMismatches eq 0`,
   `cancellationP95Ms lte 2000`, `canonicalStateLosses eq 0`. WP-7.0.3
   builds the collectors; 7A-7/7B-6 run them.
-- The named environment `reference-linux-gpu-01` is intentionally
-  unprovisioned (docs/quality-budgets.md:123-135). Local runs produce
-  development evidence; qualification waits for the provisioned
-  environment and is never simulated with a software renderer. No
-  benchmark retry converts a failure into a pass
+- The named environment `owner-qualified-windows-x64-rtx3090-01` is active
+  for earlier workloads but does not admit `m7-local-assistance-privacy`.
+  Local runs produce development evidence; qualification waits for a formal
+  M7 profile and accepted run and is never simulated with a software renderer.
+  No benchmark retry converts a failure into a pass
   (docs/quality-budgets.md:102-104).
 - Bundle gates are untouched by design: no model or runtime byte enters
   the Pages bundle or any JS chunk (roadmap.md:101-103;
@@ -925,7 +926,8 @@ actually distributed, and this slice distributes none.
 - A small fine-tuned highlight classifier (the Rhapsody recipe) as the
   ranking upgrade that would leapfrog zero-shot LLM quality.
 - pyannote `community-1` (CC-BY-4.0) as the segmentation upgrade.
-- Provisioning `reference-linux-gpu-01` for real qualification runs.
+- Adding a formal M7 profile and owner-host workload admission after the model
+  artifacts and runtimes are adopted.
 - whisper.cpp's Parakeet support consolidating the ASR stack to fewer
   runtimes.
 

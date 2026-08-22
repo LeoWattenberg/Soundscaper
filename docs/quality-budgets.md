@@ -30,23 +30,15 @@ fixture, environment, metric, and threshold identifiers.
   48 kHz stereo Float32 vectors, exact impulse/PDC and automation landmarks,
   and a focused four-frame FFmpeg/WebGL workload. Run its one-worker,
   no-retry collector with `npm run quality:collect:m4-production-parity`.
-  Local and hosted runs identify themselves as local/hosted correctness and
-  remain `pending-external` while their five metrics pass. A metric failure is
-  recorded as `failed`, independently of environment qualification. After the
-  reference descriptor is provisioned, `npm run
-  quality:collect:m4-production-parity -- --reference <output-directory>`
-  enables explicit qualification. The provisioned runner must set
-  `SOUNDSCAPER_M4_REFERENCE_HOST_OBSERVATION_PATH` to an independently captured
-  `m4-reference-host-observation-v1` JSON record. Browser observations and that
-  host-owned record
-  assemble the complete OS/update-policy, CPU/RAM, GPU/VRAM/driver/WebGL,
-  display/refresh/pixel-ratio, power-policy, browser-binary/launch-flag, and
-  runner-label fingerprint. The collector requires a byte-exact descriptor
-  match before publishing accepted evidence; the configured expected value is
-  never used as observed evidence. A reference-mode identity or fingerprint
-  mismatch aborts collection before writing either pending or accepted files.
-  Accepted evidence pins the complete budget-config digest and, through its
-  digest-bound raw artifact, the exact registered workload descriptor digest.
+  Local, hosted, and packaged runs identify their observed execution surface;
+  the standalone collector writes only `pending-external` or `failed` evidence
+  and has no acceptance mode. `nightly-with-tests` is the sole formal
+  publisher: it independently verifies the complete packaged diagnostic,
+  owner-host Chromium/WebGL fingerprint, one-attempt/no-retry policy, registered
+  threshold verdicts, source revision, and exact budget digest before writing
+  `packaged-runtime/qualification.json`. A metric or identity mismatch rejects
+  that workload without preventing an independently complete workload in the
+  same run from being assessed.
 - Accepted fixed-GPU reference run, 2026-08-21: the project owner designated
   the Windows x64 downloadable-nightly machine at revision
   `657e2d67d57070b31bbfe7c8a2b76b5a54bbe082` as the reference. Its NVIDIA
@@ -177,29 +169,17 @@ result may promote them.
 The owner-designated fixed-GPU reference is the Windows x64 RTX 3090 machine
 used by the accepted 2026-08-21 downloadable metrics run. Its packaged-runtime
 identity is `owner-qualified-windows-x64-rtx3090-01`; the nightly-with-tests
-runner independently verifies M1 preview timing/heap and M4 render parity
-against their exact observed Chromium/WebGL fingerprints and writes both
-entries to `packaged-runtime/qualification.json`. Each admission is independent
-of other results in the same run. The older
-`reference-linux-gpu-01` descriptor is retained only for older general-purpose
-collector contracts and is not the M1 or M4 packaged-runtime qualification
-host.
+runner has independent formal profiles for M1 preview timing/heap, M3 long-form
+editorial, M4 render parity, and M4B-2 keyed parity. Each admission is
+independent of other results in the same run. The retained 2026-08-22 artifact
+formally accepts M4; M3 and M4B-2 require a fresh owner-host run with the new
+profiles and budget digest before their formal rows can close.
 
-Reference-host observations continue to capture these exact values for future
-runs:
-
-- OS image/revision and update policy;
-- CPU model and logical core count;
-- installed RAM;
-- GPU model, VRAM, driver, and reported WebGL vendor/renderer;
-- display resolution, refresh rate, and device-pixel ratio;
-- AC/battery and performance-governor policy;
-- browser version, executable digest, and launch flags; and
-- the self-hosted runner labels that resolve only to this machine.
-
-Future reference runs must fail if the captured identity differs. SwiftShader,
-llvmpipe, another software renderer, or an unknown renderer cannot satisfy the
-preview hardware gate.
+Future formal runs must exactly match the profile's browser version, platform,
+architecture, WebGL vendor, WebGL renderer, and required hardware renderer
+class. SwiftShader, llvmpipe, another renderer, or an unknown renderer cannot
+satisfy the gate. Workloads not listed in this host's `eligibleWorkloadIds`
+remain unqualified until their own formal profile and accepted run exist.
 
 The native OS, capture-device, and final release matrices are also
 unprovisioned. Packaging on hosted Windows, macOS, and Linux runners is valuable
@@ -218,12 +198,15 @@ zero omitted, substituted, or fallback operations.
 
 Run the opt-in no-retry diagnostic with `node
 scripts/collect-m4b2-keyframe-parity-quality.mjs`. Ordinary local and hosted
-Playwright results remain correctness evidence only. The project owner's
-2026-08-21 designation makes the retained Windows RTX 3090 metrics artifact the
-accepted reference exception: all 12 keyed operations passed, with no omitted,
-substituted, or fallback operation. This acceptance removes the 4B-2 reference-
-GPU blocker; manual qualification and deliberate capability/profile/App-route
-activation remain separate gates.
+Playwright results remain correctness evidence only, and the standalone
+collector cannot publish acceptance. The project owner's 2026-08-21 Windows
+RTX 3090 metrics artifact remains a passing historical diagnostic: all 12 keyed
+operations passed, with no omitted, substituted, or fallback operation. The
+active packaged-runtime profile now makes formal M4B-2 qualification
+repeatable, but that profile and its new budget digest require a fresh
+owner-host nightly artifact; the historical result is not backfilled. Selected
+V20 already exposes the keyed route, while manual and release qualification
+remain separate open gates.
 
 ## Fixtures and project sizes
 
@@ -658,9 +641,10 @@ No threshold moved. `m6-reference-master-delivery` keeps its eleven metrics and
 their values unchanged; what changed is that the workload now names two fixtures,
 a run must file a video delivery at each registered canvas or be rejected, and
 both fixtures must reach `qualified` before any accepted evidence could be
-published. Both remain `planned` and both named environments remain
-unprovisioned, so the collector still refuses to publish acceptance and names
-every fact the lab owes — including, now, each unbuilt fixture by name.
+published. Both fixtures remain `planned`; the fixed-GPU host does not admit
+M6 and the native OS matrix remains unprovisioned. The collector therefore
+still refuses to publish acceptance and names every fact the lab owes —
+including, now, each unbuilt fixture by name.
 
 Reviewing commit: the milestone 6B-5 exit-evidence change that introduced
 `m6-reference-master-vertical-v1`.

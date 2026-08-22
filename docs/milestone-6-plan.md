@@ -301,8 +301,9 @@ is complete — archive manifests, consolidate, and a lossless trim-media that
 rebinds the document through its own undoable command.** The
 6A track was reviewed after it closed, and the repairs that review produced are
 recorded with their slices below rather than reopening the packets. Nothing here is
-qualified — both quality environments remain unprovisioned, so no RTF or
-throughput number in this milestone is claimed as met. The two interchange
+qualified — the owner-qualified fixed-GPU host is not admitted for M6 and the
+native OS matrix remains unprovisioned, so no RTF or throughput number in this
+milestone is claimed as met. The two interchange
 acceptance items that were previously blocked are now closed: the OTIO
 reference-implementation round trip runs against the real `opentimelineio`,
 provisioned per [`interchange-conformance.md`](interchange-conformance.md), and
@@ -553,9 +554,10 @@ and
   `m6-reference-master-suite-v1` (3600 s audio, 600 s 720p30 video)
   are registered with the eleven thresholds cited above
   (config/quality-budgets.json:976-987, 1324-1343) against
-  `reference-linux-gpu-01` and `native-os-lab-matrix` — both
-  unprovisioned today. The fixture's 720p spec predates the 6B-1
-  canvas lift; a companion fixture entry (including 9:16) is a
+  `owner-qualified-windows-x64-rtx3090-01` and `native-os-lab-matrix`.
+  The fixed-GPU host is active for earlier workloads but does not admit M6;
+  the native OS matrix remains unprovisioned. The fixture's 720p spec predates
+  the 6B-1 canvas lift; a companion fixture entry (including 9:16) is a
   deliberate, reviewed budget change under the threshold-change rules
   (docs/quality-budgets.md:607), never a silent edit.
 - Correctness and conformance suites run in ordinary CI; RTF and
@@ -600,8 +602,9 @@ and
 - **The AUP4 report dialog landed** after first grounding
   (`src/common/editor/ui/application-menus.js:137-139`); WP-6.0.0
   migrates it onto the generalized report model instead of creating it.
-- **Both qualification environments are unprovisioned**; development
-  evidence proceeds, qualification rows stay honest
+- **M6 qualification remains unavailable**; the fixed-GPU host does not admit
+  the M6 workload and the native OS matrix is unprovisioned, so development
+  evidence proceeds while qualification rows stay honest
   (docs/quality-budgets.md:157-197).
 
 ## Watch items (not gates yet)
