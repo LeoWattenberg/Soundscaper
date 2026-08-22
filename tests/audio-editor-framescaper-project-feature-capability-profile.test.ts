@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
-
 import {
 	createEditorProjectFeatureCapabilityProfile,
 	editorProjectFeatureCapabilityProfileDefinition,
@@ -12,9 +11,7 @@ import {
 	type EditorProjectFeatureCapabilityProfileDefinition,
 } from '../src/common/editor/project-feature-capability-profile.ts';
 import * as capabilityProfileModule from '../src/common/editor/project-feature-capability-profile.ts';
-import {
-	FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE,
-} from '../src/framescaper/editor-project-feature-capability-profile-v18.ts';
+import { FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/framescaper/editor-project-feature-capability-profile-v18.ts';
 import * as framescaperCapabilityProfileModule from '../src/framescaper/editor-project-feature-capability-profile-v18.ts';
 import { FRAMESCAPER_PROFILE } from '../src/framescaper/product.js';
 import { SOUNDSCAPER_PROFILE } from '../src/soundscaper/product.js';
@@ -27,11 +24,8 @@ import {
 	isProjectFeatureVideoCapabilityId,
 	snapshotProjectFeatureCapabilities,
 } from '../src/common/editor/project-feature-capabilities.ts';
-import {
-	createProjectFeatureCompatibilityService,
-} from '../src/common/editor/controller/project-feature-compatibility-service.ts';
+import { createProjectFeatureCompatibilityService } from '../src/common/editor/controller/project-feature-compatibility-service.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
-
 const ROOT = resolve(import.meta.dirname, '..');
 const GENERIC_MODULE = 'src/common/editor/project-feature-capability-profile.ts';
 const PRODUCT_MODULE = 'src/framescaper/editor-project-feature-capability-profile-v18.ts';
@@ -53,8 +47,8 @@ const MULTICAMERA_ID = 'org.soundscaper.capability.multicamera';
 type Definition = EditorProjectFeatureCapabilityProfileDefinition;
 type Registration = Definition['registrations'][number];
 type MutableRecord = Record<PropertyKey, unknown>;
-type StructuralTokenIsAssignable = Readonly<Record<never, never>> extends
-	EditorProjectFeatureCapabilityProfile ? true : false;
+type StructuralTokenIsAssignable = Readonly<Record<never, never>> extends EditorProjectFeatureCapabilityProfile
+	? true : false;
 type AssertFalse<Value extends false> = Value;
 
 const EXPECTED = Object.freeze([
@@ -78,6 +72,7 @@ const EXPECTED = Object.freeze([
 	registration('multicamera', MULTICAMERA_ID, true),
 	registration('musicalTimeline', 'org.soundscaper.capability.musical-timeline', false),
 	registration('nestedSequences', NESTED_SEQUENCES_ID, true),
+	registration('ofxEffects', 'org.soundscaper.capability.openfx-effects', false),
 	registration('project', 'org.soundscaper.capability.project', true),
 	registration('projectBin', 'org.soundscaper.capability.project-bin', true),
 	registration('sequenceTiming', 'org.soundscaper.capability.sequence-timing', true),
@@ -85,18 +80,24 @@ const EXPECTED = Object.freeze([
 	registration('takeComp', 'org.soundscaper.capability.take-comp', false),
 	registration('timelineAnnotations', 'org.soundscaper.capability.timeline-annotations', false),
 	registration('trackFolders', 'org.soundscaper.capability.track-folders', false),
+	registration('videoAdjustmentLayers', 'org.soundscaper.capability.video-adjustment-layers', false),
 	registration('videoCompositing', 'org.soundscaper.capability.video-compositing', true),
 	registration('videoEffects', 'org.soundscaper.capability.video-effects', true),
 	registration('videoExport', 'org.soundscaper.capability.video-export', true),
+	registration('videoFreeze', 'org.soundscaper.capability.video-freeze', false),
+	registration('videoGenerators', 'org.soundscaper.capability.video-generators', false),
 	registration('videoImport', 'org.soundscaper.capability.video-import', true),
 	registration('videoKeyframes', VIDEO_KEYFRAMES_ID, false),
+	registration('videoMasksMattes', 'org.soundscaper.capability.video-masks-mattes', false),
 	registration('videoPlayback', 'org.soundscaper.capability.video-playback', true),
 	registration('videoProxy', VIDEO_PROXY_ID, true),
 	registration('videoRetime', 'org.soundscaper.capability.video-retime', false),
+	registration('videoStills', 'org.soundscaper.capability.video-stills', false),
 	registration('videoTimelineEditing', 'org.soundscaper.capability.video-timeline-editing', true),
 	registration('videoTimingAssets', 'org.soundscaper.capability.video-timing-assets', true),
+	registration('videoTransitionDissolve', 'org.soundscaper.capability.video-transition.dissolve', false),
+	registration('videoTransitions', 'org.soundscaper.capability.video-transitions', false),
 ] as const);
-
 test('owns two type declarations, two runtime exports, and one exact product export', async () => {
 	assert.deepEqual(Object.keys(capabilityProfileModule).sort(), [
 		'createEditorProjectFeatureCapabilityProfile',
@@ -115,7 +116,7 @@ test('owns two type declarations, two runtime exports, and one exact product exp
 	assert.doesNotMatch(source, /export\s+(?:type\s+)?\{/u);
 });
 
-test('the exact Framescaper singleton owns 37 sorted registrations with 18 available', () => {
+test('the exact Framescaper singleton owns 45 sorted registrations with 18 available', () => {
 	const token: EditorProjectFeatureCapabilityProfile =
 		FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE;
 	assert.equal(Object.isFrozen(token), true);
@@ -124,7 +125,7 @@ test('the exact Framescaper singleton owns 37 sorted registrations with 18 avail
 	const snapshot = editorProjectFeatureCapabilityProfileDefinition(token);
 	assert.equal(snapshot.owner, 'framescaper');
 	assert.deepEqual(snapshot.registrations, EXPECTED);
-	assert.equal(snapshot.registrations.length, 37);
+	assert.equal(snapshot.registrations.length, 45);
 	assert.equal(snapshot.registrations.filter((item: Registration) => item.available).length, 18);
 	// Framescaper generates, preserves, edits around, and previews through a proxy
 	// attachment, so it reports the feature as one it can provide. Soundscaper
@@ -136,20 +137,21 @@ test('the exact Framescaper singleton owns 37 sorted registrations with 18 avail
 	assert.ok(snapshot.registrations.every((item: Registration) => Object.isFrozen(item)));
 });
 
-test('the immutable V18 profile predates V19 geometry while registering unavailable V20 keyframes', () => {
-	const parity = EXPECTED.filter(({ key }) => key !== 'videoProxy');
+test('the immutable V18 profile predates geometry while the selected product enables V20 keyframes', () => {
+	const parity = EXPECTED.filter(({ key }) => key !== 'videoProxy' && key !== 'videoKeyframes');
 	const ids = PROJECT_FEATURE_CAPABILITY_IDS as Readonly<Record<string, string>>;
 	const availability = FRAMESCAPER_PROFILE.capabilities as Readonly<Record<string, unknown>>;
-	assert.equal(parity.length, 36);
+	assert.equal(parity.length, 43);
 	assert.deepEqual(
 		parity.map(({ key }) => key).sort(),
-		Object.keys(ids).filter((key) => key !== 'videoGeometry').sort(),
+		Object.keys(ids).filter((key) => key !== 'videoGeometry' && key !== 'videoKeyframes').sort(),
 	);
 	assert.deepEqual(
 		Object.keys(ids).sort(),
 		Object.keys(availability).sort(),
 	);
-	assert.equal(availability.videoKeyframes, false);
+	assert.equal(availability.videoKeyframes, true);
+	assert.equal(ids.videoKeyframes, VIDEO_KEYFRAMES_ID);
 	for (const row of parity) {
 		assert.equal(ids[row.key], row.featureId, row.key);
 		assert.equal(typeof availability[row.key], 'boolean', row.key);
@@ -366,7 +368,7 @@ test('authenticates only creator-issued identities without observing any forgery
 		FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE);
 });
 
-test('keeps private capability ownership within the closed V18 domain set', async () => {
+test('keeps private capability ownership within the closed cumulative domain set', async () => {
 	const files = await sourceFiles(['src', 'desktop', 'scripts', 'tests']);
 	const exportReferences: string[] = [];
 	const pathReferences: string[] = [];
@@ -396,23 +398,30 @@ test('keeps private capability ownership within the closed V18 domain set', asyn
 	assert.deepEqual(genericPathReferences, [
 		'scripts/lib/desktop-project-library-runtime.mjs',
 		FINAL_GENERIC_MODULE,
+		// Dormant V25 import rechecks capability authority at both native-admission
+		// and project-mutation boundaries.
+		'src/framescaper/editor-native-image-sequence-import-v25.ts',
 		PRODUCT_MODULE,
-		'src/framescaper/editor-project-feature-capability-profile-v19.ts',
-		'src/framescaper/editor-project-feature-capability-profile-v20.ts',
+		'src/framescaper/editor-project-feature-capability-profile-v19.ts', 'src/framescaper/editor-project-feature-capability-profile-v20.ts', 'src/framescaper/editor-project-feature-capability-profile-v22.ts',
+		'src/framescaper/editor-project-feature-capability-profile-v24.ts', 'src/framescaper/editor-project-feature-capability-profile-v25.ts', 'src/framescaper/editor-project-feature-capability-profile-v26.ts',
 		FEATURE_OWNER_MODULE,
-		'src/framescaper/editor-project-feature-requirements-v19.ts',
-		'src/framescaper/editor-project-feature-requirements-v20.ts',
+		'src/framescaper/editor-project-feature-requirements-v19.ts', 'src/framescaper/editor-project-feature-requirements-v20.ts',
+		'src/framescaper/editor-project-feature-requirements-v22.ts',
+		'src/framescaper/editor-project-feature-requirements-v24.ts',
+		'src/framescaper/editor-project-feature-requirements-v25.ts',
+		'src/framescaper/editor-project-feature-requirements-v26.ts',
 		FINAL_PRODUCT_MODULE,
-		'src/framescaper/editor-project-runtime-profile-v19.ts',
-		'src/soundscaper/editor-project-feature-capability-profile-v21.ts',
-		'src/soundscaper/editor-project-feature-capability-profile-v23.ts',
-		'src/soundscaper/editor-project-feature-compatibility-v21.ts',
-		'src/soundscaper/editor-project-feature-compatibility-v23.ts',
-		'src/soundscaper/editor-project-runtime-profile-v21.ts',
-		'src/soundscaper/editor-project-runtime-profile-v23.ts',
+		'src/framescaper/editor-project-runtime-profile-v19.ts', 'src/framescaper/editor-project-runtime-profile-v20.ts',
+		'src/framescaper/editor-project-runtime-profile-v22.ts', 'src/framescaper/editor-project-runtime-profile-v24.ts',
+		'src/framescaper/editor-project-runtime-profile-v25.ts', 'src/framescaper/editor-project-runtime-profile-v26.ts',
+		'src/soundscaper/editor-project-feature-capability-profile-v21.ts', 'src/soundscaper/editor-project-feature-capability-profile-v23.ts',
+		'src/soundscaper/editor-project-feature-compatibility-v21.ts', 'src/soundscaper/editor-project-feature-compatibility-v23.ts',
+		'src/soundscaper/editor-project-runtime-profile-v21.ts', 'src/soundscaper/editor-project-runtime-profile-v23.ts',
 		TEST_MODULE,
 		FINAL_TEST_MODULE,
 		'tests/audio-editor-framescaper-project-v20-profile.test.ts',
+		'tests/audio-editor-framescaper-v22-candidate.test.ts', 'tests/audio-editor-framescaper-v24-candidate.test.ts', 'tests/audio-editor-framescaper-v24-known-capabilities.test.ts',
+		'tests/audio-editor-framescaper-v25-candidate-profile.test.ts', 'tests/audio-editor-framescaper-v26-openfx-candidate.test.ts',
 		'tests/audio-editor-mastering-sequence-capability.test.ts',
 		'tests/audio-editor-soundscaper-v21-feature-registration.test.ts',
 		'tests/audio-editor-soundscaper-v23-runtime-selection.test.ts',
