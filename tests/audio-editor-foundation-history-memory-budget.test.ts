@@ -47,7 +47,7 @@ if (process.env[CHILD_FLAG] === '1') {
 			},
 			seekCheckpointsSamples: [0, 2_880_000, 86_400_000, 172_800_000, 345_552_000],
 			scrollFrameIntervalSampleCount: 240,
-			projectSha256: '00f5ec5df0210f2fb025c8435bc6368f370eed5f51418e02862dd50d66c25a5a',
+			projectSha256: '4c96e2405d63ff282a28a6577c9da32d3598183e5ad59131cb3ca1977df34427',
 			editPlanSha256: '2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf',
 		});
 		assert.deepEqual(threshold, {
