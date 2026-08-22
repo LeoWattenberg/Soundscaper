@@ -43,11 +43,12 @@ test('a provisioned FFmpeg 9.0.1 host publishes decode, proxy, render, and encod
 	assert.deepEqual({
 		evaluatedRgbaInputBound: JSON.parse(selectedSelfTest.stdout).evaluatedRgbaInputBound,
 		staticGeometryAdapterBound: JSON.parse(selectedSelfTest.stdout).staticGeometryAdapterBound,
+		captionDeliveryAdapterBound: JSON.parse(selectedSelfTest.stdout).captionDeliveryAdapterBound,
 		stagedAudioInputBound: JSON.parse(selectedSelfTest.stdout).stagedAudioInputBound,
 		ready: JSON.parse(selectedSelfTest.stdout).ready,
 	}, {
 		evaluatedRgbaInputBound: true, staticGeometryAdapterBound: false,
-		stagedAudioInputBound: true, ready: false,
+		captionDeliveryAdapterBound: false, stagedAudioInputBound: true, ready: false,
 	});
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-media-linked-'));
 	try {

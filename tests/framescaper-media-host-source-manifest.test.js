@@ -139,6 +139,19 @@ test('the C++20 contract fixture self-tests and rejects raw FFmpeg arguments', (
 		assert.deepEqual(JSON.parse(selfTest.stdout), {
 			contractVersion: 1, mode: 'contract-fixture', ok: true,
 		});
+		const selected = spawnSync(
+			executable, ['--self-test-operation', 'selected-v20-render'], { encoding: 'utf8' },
+		);
+		assert.equal(selected.status, 78, selected.stderr);
+		assert.deepEqual(JSON.parse(selected.stdout), {
+			contractVersion: 1, operation: 'media-render', profile: 'selected-v20-v7-v8',
+			planVersions: [7, 8], exactPictureOrdinals: false,
+			keyedEvaluatedRgbaExecutor: false, staticCompositionExecutor: false,
+			maximumInFlightFrames: 0, evaluatedRgbaInputBound: false,
+			staticGeometryAdapterBound: false, captionDeliveryAdapterBound: false,
+			stagedAudioInputBound: false, deliveryCodecSetAvailable: false,
+			frameCoreReady: false, ready: false,
+		});
 		const capabilities = spawnSync(executable, ['--capabilities'], { encoding: 'utf8' });
 		assert.deepEqual(JSON.parse(capabilities.stdout), {
 			contractVersion: 1,

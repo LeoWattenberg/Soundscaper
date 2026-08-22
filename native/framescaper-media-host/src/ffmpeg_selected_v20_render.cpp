@@ -31,6 +31,13 @@ namespace {
 	const bool frame_core = core.exact_picture_ordinals
 		&& core.keyed_evaluated_rgba && core.static_composition
 		&& core.maximum_in_flight_frames == 1;
+	const bool evaluated_rgba_input_bound = keyed_adapter;
+	const bool static_geometry_adapter_bound = false;
+	const bool caption_delivery_adapter_bound = false;
+	const bool staged_audio_input_bound = keyed_adapter;
+	const bool ready = frame_core && evaluated_rgba_input_bound
+		&& static_geometry_adapter_bound && caption_delivery_adapter_bound
+		&& staged_audio_input_bound && delivery_codecs_available;
 	std::ostringstream result;
 	result << "{\"contractVersion\":1,\"operation\":\"media-render\","
 		<< "\"profile\":\"selected-v20-v7-v8\",\"planVersions\":[7,8],"
@@ -38,12 +45,16 @@ namespace {
 		<< "\"keyedEvaluatedRgbaExecutor\":" << (core.keyed_evaluated_rgba ? "true" : "false") << ','
 		<< "\"staticCompositionExecutor\":" << (core.static_composition ? "true" : "false") << ','
 		<< "\"maximumInFlightFrames\":" << core.maximum_in_flight_frames << ','
-		<< "\"evaluatedRgbaInputBound\":" << (keyed_adapter ? "true" : "false") << ','
-		<< "\"staticGeometryAdapterBound\":false,"
-		<< "\"stagedAudioInputBound\":" << (keyed_adapter ? "true" : "false") << ','
+		<< "\"evaluatedRgbaInputBound\":" << (evaluated_rgba_input_bound ? "true" : "false") << ','
+		<< "\"staticGeometryAdapterBound\":"
+		<< (static_geometry_adapter_bound ? "true" : "false") << ','
+		<< "\"captionDeliveryAdapterBound\":"
+		<< (caption_delivery_adapter_bound ? "true" : "false") << ','
+		<< "\"stagedAudioInputBound\":" << (staged_audio_input_bound ? "true" : "false") << ','
 		<< "\"deliveryCodecSetAvailable\":"
 		<< (delivery_codecs_available ? "true" : "false") << ','
-		<< "\"frameCoreReady\":" << (frame_core ? "true" : "false") << ",\"ready\":false}";
+		<< "\"frameCoreReady\":" << (frame_core ? "true" : "false") << ",\"ready\":"
+		<< (ready ? "true" : "false") << '}';
 	return result.str();
 }
 

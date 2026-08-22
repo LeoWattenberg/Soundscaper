@@ -449,7 +449,8 @@ engine_result self_test_selected_v20_render() {
 		"\"exactPictureOrdinals\":false,\"keyedEvaluatedRgbaExecutor\":false,"
 		"\"staticCompositionExecutor\":false,\"maximumInFlightFrames\":0,"
 		"\"evaluatedRgbaInputBound\":false,\"staticGeometryAdapterBound\":false,"
-		"\"stagedAudioInputBound\":false,\"deliveryCodecSetAvailable\":false,"
+		"\"captionDeliveryAdapterBound\":false,\"stagedAudioInputBound\":false,"
+		"\"deliveryCodecSetAvailable\":false,"
 		"\"frameCoreReady\":false,\"ready\":false}"};
 }
 engine_result execute_ffmpeg_job(const invocation& job) {

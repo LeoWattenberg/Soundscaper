@@ -132,8 +132,8 @@
 		},
 		{
 			"path": "src/ffmpeg_selected_v20_render.cpp",
-			"byteLength": 5026,
-			"sha256": "66d184ee2f55e4f61e164e7e16ac29e6f6949528725f24f5fbc1f26fc455ea77"
+			"byteLength": 5647,
+			"sha256": "0f1c389ad325456d44323f60420fb567a9e847ed6169854e53df4b4cfa1afcd7"
 		},
 		{
 			"path": "src/ffmpeg_selected_v20_render.hpp",
@@ -197,8 +197,8 @@
 		},
 		{
 			"path": "src/media_host.cpp",
-			"byteLength": 24108,
-			"sha256": "ae7b4125ef9eac4d8c6701bbee02ed3ae59a5d8407ea3a0030ee89df20a94f41"
+			"byteLength": 24151,
+			"sha256": "ef69600b2caeed7061443966bf231638b5c4c5be0cd0101181d4bbb093fece16"
 		},
 		{
 			"path": "src/media_host_contract.hpp",
@@ -347,8 +347,8 @@
 		},
 		{
 			"path": "tests/selected_v20_operation_self_test.cmake",
-			"byteLength": 1332,
-			"sha256": "a401e84bb5daf8837d89ba0cc707581f332b72cc093e484ee6815f2d90e65376"
+			"byteLength": 1373,
+			"sha256": "50f12b140d4b97e4c94266598185b3d27aa101e7d97af6e68f0d44d58fe79cc4"
 		},
 		{
 			"path": "tests/unified_plan_admission_fixture.cpp",
