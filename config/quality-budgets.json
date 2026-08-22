@@ -1261,7 +1261,7 @@
 			"status": "planned",
 			"kind": "planned-canonical-plan-parity-and-uhd-long-gop-decode-workload",
 			"specification": {
-				"canonicalPlanVersions": [6, 7],
+				"canonicalPlanVersions": [7, 8, 9, 10, 11, 12],
 				"editorialContinuityDurationSeconds": 7200,
 				"requiredEditorialCharacteristics": ["attached-proxy", "nested-sequence", "multicamera", "verified-vfr", "source-timecode"],
 				"proceduralUhdLongGopDurationSeconds": 600,
@@ -1269,7 +1269,7 @@
 				"losslessComparison": "pixel-exact",
 				"lossyComparison": "ssim-and-psnr"
 			},
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "roadmap.md#5-electron-native-services-and-extensibility", "tests/audio-editor-native-media-plan-envelope.test.ts", "tests/audio-editor-native-media-backend-policy.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "roadmap.md#5-electron-native-services-and-extensibility", "tests/audio-editor-native-media-plan-envelope.test.ts", "tests/audio-editor-native-media-backend-policy.test.ts", "tests/audio-editor-unified-exact-render-plan.test.ts", "tests/audio-editor-video-retime-exact-ordinal-oracle.test.ts", "tests/desktop-native-media-execution.test.ts", "tests/desktop-native-media-helper-pool.test.ts", "scripts/collect-m5b-native-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-professional-format-row-suite-v1",
@@ -1281,7 +1281,7 @@
 				"requiredEncodeRows": ["encode-mp4-h264", "encode-webm-vp9", "encode-mov-prores-proxy", "encode-mov-prores-422-hq", "encode-mov-prores-4444", "encode-mxf-dnxhr-hqx", "encode-matroska-ffv1", "encode-png-sequence", "encode-tiff-sequence", "encode-openexr-sequence"],
 				"blockedUntilLicensingRowsClear": true
 			},
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "config/production-licensing-matrix.json", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "config/production-licensing-matrix.json", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts", "tests/audio-editor-native-media-image-sequence-v25.test.ts", "tests/audio-editor-video-source-professional-v25.test.ts", "tests/audio-editor-framescaper-video-proxy-lifecycle-v25.test.ts", "scripts/collect-m5b-professional-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-persistent-services-fault-v1",
@@ -1294,7 +1294,7 @@
 				"diskFullTrials": 8,
 				"duplicateDispatchTrials": 64
 			},
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-queue-state-machine.test.ts", "tests/audio-editor-native-queue-admission.test.ts", "tests/audio-editor-native-durable-root-and-scratch.test.ts", "tests/audio-editor-native-watch-folder.test.ts", "tests/desktop-native-services-database.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-queue-state-machine.test.ts", "tests/audio-editor-native-queue-admission.test.ts", "tests/audio-editor-native-durable-root-and-scratch.test.ts", "tests/audio-editor-native-watch-folder.test.ts", "tests/desktop-native-services-database.test.ts", "tests/desktop-native-services-repositories.test.ts", "tests/desktop-native-watch-scratch-publication.test.ts", "tests/desktop-native-services-runtime.test.ts", "scripts/collect-m5b-persistent-services-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-clean-display-30m-v1",
@@ -1306,7 +1306,7 @@
 				"durationSeconds": 1800,
 				"linuxWindowingSystems": ["x11", "xwayland"]
 			},
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-external-display.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-external-display.test.ts", "tests/desktop-external-display-controller.test.ts", "tests/browser/framescaper-native-services-menu.spec.js", "scripts/collect-m5b-clean-display-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-openfx-conformance-and-hostile-v1",
@@ -1315,11 +1315,12 @@
 			"kind": "planned-openfx-1-5-1-conformance-and-hostile-plugin-suite",
 			"specification": {
 				"contexts": ["generator", "filter", "transition", "paint", "retimer", "general"],
-				"interactModes": ["interact-v1", "interact-v2", "custom-parameter-interact", "draw-suite-v1"],
+				"interactModes": ["interact-v1", "custom-parameter-interact", "draw-suite-v1"],
+				"unavailableUpstream": ["interact-v2"],
 				"targets": ["win32-x64", "win32-arm64", "darwin-arm64", "linux-x64", "linux-arm64"],
 				"hostileCases": ["crash", "hang", "resource-violation", "malformed-descriptor", "network-denied", "filesystem-denied"]
 			},
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-ofx-descriptor.test.ts", "tests/audio-editor-native-ofx-consent-and-binding.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-ofx-descriptor.test.ts", "tests/audio-editor-native-ofx-consent-and-binding.test.ts", "tests/audio-editor-native-ofx-host-contract-v26.test.ts", "tests/audio-editor-framescaper-v26-openfx-candidate.test.ts", "tests/framescaper-openfx-host-source-manifest.test.js", "scripts/collect-m5b-openfx-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		}
 	],
 	"workloads": [
@@ -1773,7 +1774,7 @@
 					"unit": "bytes"
 				}
 			],
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "roadmap.md#5-electron-native-services-and-extensibility", "tests/audio-editor-native-media-plan-envelope.test.ts", "tests/audio-editor-native-media-atomic-publication.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "roadmap.md#5-electron-native-services-and-extensibility", "tests/audio-editor-native-media-plan-envelope.test.ts", "tests/audio-editor-native-media-atomic-publication.test.ts", "tests/audio-editor-unified-exact-render-plan.test.ts", "tests/audio-editor-video-retime-exact-ordinal-oracle.test.ts", "tests/desktop-native-media-execution.test.ts", "tests/desktop-native-media-helper-pool.test.ts", "scripts/collect-m5b-native-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-professional-media-tier",
@@ -1819,7 +1820,7 @@
 					"unit": "count"
 				}
 			],
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-image-sequence.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-image-sequence.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts", "tests/audio-editor-native-media-image-sequence-v25.test.ts", "tests/audio-editor-video-source-professional-v25.test.ts", "tests/audio-editor-framescaper-video-proxy-lifecycle-v25.test.ts", "scripts/collect-m5b-professional-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-persistent-services-recovery",
@@ -1871,7 +1872,7 @@
 					"unit": "count"
 				}
 			],
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-queue-state-machine.test.ts", "tests/audio-editor-native-durable-root-and-scratch.test.ts", "tests/audio-editor-native-watch-folder.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-queue-state-machine.test.ts", "tests/audio-editor-native-durable-root-and-scratch.test.ts", "tests/audio-editor-native-watch-folder.test.ts", "tests/desktop-native-services-repositories.test.ts", "tests/desktop-native-watch-scratch-publication.test.ts", "tests/desktop-native-services-runtime.test.ts", "scripts/collect-m5b-persistent-services-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-clean-external-display",
@@ -1911,7 +1912,7 @@
 					"unit": "seconds"
 				}
 			],
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-external-display.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-external-display.test.ts", "tests/desktop-external-display-controller.test.ts", "tests/browser/framescaper-native-services-menu.spec.js", "scripts/collect-m5b-clean-display-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-openfx-isolation-and-packaging",
@@ -1957,7 +1958,7 @@
 					"unit": "bytes"
 				}
 			],
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-ofx-descriptor.test.ts", "tests/audio-editor-native-ofx-consent-and-binding.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-ofx-descriptor.test.ts", "tests/audio-editor-native-ofx-consent-and-binding.test.ts", "tests/audio-editor-native-ofx-host-contract-v26.test.ts", "tests/audio-editor-framescaper-v26-openfx-candidate.test.ts", "tests/framescaper-openfx-host-source-manifest.test.js", "scripts/collect-m5b-openfx-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		}
 	]
 }
