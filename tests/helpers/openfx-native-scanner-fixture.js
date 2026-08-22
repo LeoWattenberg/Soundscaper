@@ -6,6 +6,11 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+import {
+	boostClosureIncludeArguments,
+	exactRetimeClosureAvailable,
+} from './framescaper-boost-closure.js';
+
 const repositoryRoot = resolve(import.meta.dirname, '../..');
 const sources = join(repositoryRoot, 'native/framescaper-openfx-host/src');
 const fixture = join(repositoryRoot, 'native/framescaper-openfx-host/fixtures/conformance_plugin.cpp');
@@ -82,11 +87,8 @@ export function buildOpenFxNativeContractFixture(context) {
 	const scanner = join(directory, executableName('scanner'));
 	const runtime = join(directory, executableName('runtime'));
 	const blockedScanner = join(directory, executableName('blocked-scanner'));
-	const boostRoot = process.env.FRAMESCAPER_BOOST_192_SOURCE_ROOT;
-	const boostArguments = boostRoot ? ['-I', boostRoot] : [];
-	const exactRetimeAvailable = spawnSync('c++', [
-		'-std=c++20', ...boostArguments, '-fsyntax-only', '-x', 'c++', '-',
-	], { encoding: 'utf8', input: '#include <boost/multiprecision/cpp_int.hpp>\n' }).status === 0;
+	const boostArguments = boostClosureIncludeArguments();
+	const exactRetimeAvailable = exactRetimeClosureAvailable();
 	const abiCommon = [
 		'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
 		...boostArguments, '-DFRAMESCAPER_OPENFX_CONTRACT_ONLY=1', '-I', sources,

@@ -9,6 +9,11 @@ import { join, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
+	boostClosureIncludeArguments,
+	exactRetimeClosureAvailable,
+	requireExactRetimeClosure,
+} from './helpers/framescaper-boost-closure.js';
+import {
 	mediaHostUnifiedPlanGeneration,
 } from './helpers/framescaper-media-host-unified-plan-fixture.js';
 
@@ -37,6 +42,7 @@ test.after(() => {
 });
 
 test('production media-host CLI authenticates exact timing tuples and rejects omission, replay, and tamper', (context) => {
+	if (!requireExactRetimeClosure(context)) return;
 	const fixture = buildProductionHost(context);
 	if (fixture === null) return;
 	try {
@@ -66,6 +72,34 @@ test('production media-host CLI authenticates exact timing tuples and rejects om
 		tampered[tampered.length - 1] ^= 0xff;
 		writeFileSync(fixture.timing, tampered);
 		assert.equal(runProductionHost(fixture, plan, exact).status, 65, 'timing bytes changed');
+	} finally {
+		fixture.cleanup();
+	}
+});
+
+test('a production host built without the pinned closure refuses every unified plan', (context) => {
+	if (exactRetimeClosureAvailable()) {
+		context.skip('This host provisions the pinned closure, so admission is not the refusing path.');
+		return;
+	}
+	const fixture = buildProductionHost(context);
+	if (fixture === null) return;
+	try {
+		const timing = timingAsset(PRESENTATION_TICKS, FINAL_DURATION_TICKS, TIMESCALE);
+		writeFileSync(fixture.timing, timing.bytes);
+		const reference = { ...timing.reference, sourceSha256: fixture.sourceSha256 };
+		const vfr = vfrPlan(9, reference);
+		vfr.sources[0].contentSha256 = fixture.sourceSha256;
+		for (const [label, plan, grants] of [
+			['CFR', mediaHostUnifiedPlanGeneration(9, fixture.sourceSha256), []],
+			['VFR', vfr, [{
+				path: fixture.timing, sha256: reference.sha256, byteLength: timing.bytes.length,
+			}]],
+		]) {
+			const refused = runProductionHost(fixture, plan, grants);
+			assert.equal(refused.status, 65, `${label}: ${refused.stderr}`);
+			assert.match(refused.stderr, /pinned exact arithmetic closure/iu);
+		}
 	} finally {
 		fixture.cleanup();
 	}
@@ -241,15 +275,8 @@ function buildFixture(context) {
 		context.skip('A C++ compiler is not installed on this source-audit host.');
 		return null;
 	}
-	const boostRoot = process.env.FRAMESCAPER_BOOST_192_SOURCE_ROOT;
-	const boostArguments = boostRoot ? ['-I', boostRoot] : [];
-	const boost = spawnSync('c++', ['-std=c++20', ...boostArguments, '-fsyntax-only', '-x', 'c++', '-'], {
-		encoding: 'utf8', input: '#include <boost/multiprecision/cpp_int.hpp>\n',
-	});
-	if (boost.status !== 0) {
-		context.skip('The pinned Boost closure is not provisioned on this source-audit host.');
-		return null;
-	}
+	if (!requireExactRetimeClosure(context)) return null;
+	const boostArguments = boostClosureIncludeArguments();
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-unified-vfr-validator-'));
 	const executable = join(directory, 'unified-plan-admission');
 	const files = [
@@ -278,8 +305,7 @@ function buildProductionHost(context) {
 		context.skip('A C++ compiler is not installed on this source-audit host.');
 		return null;
 	}
-	const boostRoot = process.env.FRAMESCAPER_BOOST_192_SOURCE_ROOT;
-	const boostArguments = boostRoot ? ['-I', boostRoot] : [];
+	const boostArguments = boostClosureIncludeArguments();
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-production-vfr-host-'));
 	const executable = join(directory, 'framescaper-media-host');
 	const files = [

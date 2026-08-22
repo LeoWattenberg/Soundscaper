@@ -10,6 +10,10 @@ import test from 'node:test';
 
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
 import {
+	boostClosureIncludeArguments,
+	requireExactRetimeClosure,
+} from './helpers/framescaper-boost-closure.js';
+import {
 	mediaHostUnifiedPlan,
 	mediaHostUnifiedPlanGeneration,
 } from './helpers/framescaper-media-host-unified-plan-fixture.js';
@@ -374,15 +378,8 @@ function buildContractHost(context) {
 		context.skip('A C++ compiler is not installed on this source-audit host.');
 		return null;
 	}
-	const boostRoot = process.env.FRAMESCAPER_BOOST_192_SOURCE_ROOT;
-	const boostArguments = boostRoot ? ['-I', boostRoot] : [];
-	const boost = spawnSync('c++', ['-std=c++20', ...boostArguments, '-fsyntax-only', '-x', 'c++', '-'], {
-		encoding: 'utf8', input: '#include <boost/multiprecision/cpp_int.hpp>\n',
-	});
-	if (boost.status !== 0) {
-		context.skip('The pinned Boost closure is not provisioned on this source-audit host.');
-		return null;
-	}
+	if (!requireExactRetimeClosure(context)) return null;
+	const boostArguments = boostClosureIncludeArguments();
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-media-adapters-'));
 	const executable = join(directory, 'framescaper-media-host');
 	const files = [

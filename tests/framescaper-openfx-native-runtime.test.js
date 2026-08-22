@@ -10,6 +10,7 @@ import { MessageChannel } from 'node:worker_threads';
 import { assertOfxPluginDescriptorV1 } from '../src/common/editor/native-ofx-descriptor.ts';
 import { createOpenFxHelperJobRunner } from '../desktop/openfx-helper-job.ts';
 import { receiveHelperDataPlaneReservedFile } from '../desktop/helper-data-plane-io.ts';
+import { requireExactRetimeClosure } from './helpers/framescaper-boost-closure.js';
 import {
 	buildOpenFxNativeContractFixture as buildContractFixture,
 	cleanupOpenFxNativeContractFixture,
@@ -203,6 +204,7 @@ test('native runtime cancellation and grant admission fail closed', (context) =>
 test('the native V12 seam reparses and correlates the exact invocation, graph, named frame, and output', (context) => {
 	const build = buildContractFixture(context);
 	if (build === null) return;
+	if (!requireExactRetimeClosure(context, build.exactRetimeAvailable)) return;
 	try {
 		const wire = createV12WireFixture(build, 'filter');
 		const invoked = run(build.runtime, [
@@ -320,6 +322,7 @@ test('the native V12 seam reparses and correlates the exact invocation, graph, n
 test('V12 binds genuine context topology and host-owned standard parameters', (context) => {
 	const build = buildContractFixture(context);
 	if (build === null) return;
+	if (!requireExactRetimeClosure(context, build.exactRetimeAvailable)) return;
 	try {
 		const topology = new Map([
 			['generator', []], ['filter', ['Source']],
@@ -370,6 +373,7 @@ test('V12 binds genuine context topology and host-owned standard parameters', (c
 test('the native V12 render cooperatively observes its exact cancellation marker', async (context) => {
 	const build = buildContractFixture(context);
 	if (build === null) return;
+	if (!requireExactRetimeClosure(context, build.exactRetimeAvailable)) return;
 	try {
 		const wire = createV12WireFixture(build, 'filter');
 		const cancelled = createV12PlanVariant(wire, (state) => {
@@ -420,6 +424,11 @@ test('the native V12 Retimer accepts only the exact ordinal oracle SourceTime or
 		const exact = run(build.runtime, [
 			'--invoke-v12-grant', wire.grantPath, '--grant-sha256', wire.grantSha256,
 		]);
+		if (!build.exactRetimeAvailable) {
+			assert.equal(exact.status, 65, exact.stderr);
+			assert.match(exact.stderr, /pinned exact arithmetic closure/iu);
+			return;
+		}
 		if (exact.status === 76) {
 			assert.match(exact.stderr, /"error":"exact-retime-oracle-unavailable"/u);
 		} else {
