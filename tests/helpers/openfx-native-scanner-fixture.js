@@ -35,7 +35,8 @@ export function expectedOpenFxNativeScannerDescriptor(binarySha256) {
 			: process.platform === 'darwin' ? 'MacOS'
 				: process.arch === 'arm64' ? 'Win-arm64ec' : 'Win64',
 		supportedContexts: ['generator', 'filter', 'transition', 'paint', 'retimer', 'general'],
-		parameters, components: ['RGBA'], pixelDepths: ['byte'], threading: 'fully-safe',
+		parameters, components: ['RGBA', 'RGB', 'Alpha'],
+		pixelDepths: ['byte', 'short', 'float'], threading: 'fully-safe',
 		requestedSuites: [
 			'OfxDialogSuite', 'OfxDrawSuite', 'OfxImageEffectSuite',
 			'OfxInteractSuite', 'OfxMemorySuite', 'OfxMessageSuite',
@@ -64,6 +65,20 @@ export function buildOpenFxNativeContractFixture(context) {
 	const plugin = join(directory, `conformance${extension}`);
 	const mismatchPlugin = join(directory, `context-mismatch${extension}`);
 	const spoofPlugin = join(directory, `standard-parameter-spoof${extension}`);
+	const mediaDeclarationPlugins = new Map([
+		['unknown-pixel-depth', 'FRAMESCAPER_OPENFX_UNKNOWN_PIXEL_DEPTH_FIXTURE'],
+		['unknown-component', 'FRAMESCAPER_OPENFX_UNKNOWN_COMPONENT_FIXTURE'],
+		['duplicate-pixel-depth', 'FRAMESCAPER_OPENFX_DUPLICATE_PIXEL_DEPTH_FIXTURE'],
+		['duplicate-component', 'FRAMESCAPER_OPENFX_DUPLICATE_COMPONENT_FIXTURE'],
+		['missing-pixel-depth', 'FRAMESCAPER_OPENFX_MISSING_PIXEL_DEPTH_FIXTURE'],
+		['missing-component', 'FRAMESCAPER_OPENFX_MISSING_COMPONENT_FIXTURE'],
+		['inconsistent-pixel-depth', 'FRAMESCAPER_OPENFX_INCONSISTENT_PIXEL_DEPTH_FIXTURE'],
+		['inconsistent-component', 'FRAMESCAPER_OPENFX_INCONSISTENT_COMPONENT_FIXTURE'],
+		['no-byte-pixel-depth', 'FRAMESCAPER_OPENFX_NO_BYTE_PIXEL_DEPTH_FIXTURE'],
+		['no-rgba-component', 'FRAMESCAPER_OPENFX_NO_RGBA_COMPONENT_FIXTURE'],
+	].map(([name, definition]) => [name, {
+		definition, path: join(directory, `${name}${extension}`),
+	}]));
 	const scanner = join(directory, executableName('scanner'));
 	const runtime = join(directory, executableName('runtime'));
 	const blockedScanner = join(directory, executableName('blocked-scanner'));
@@ -84,6 +99,11 @@ export function buildOpenFxNativeContractFixture(context) {
 		...common, '-DFRAMESCAPER_OPENFX_STANDARD_PARAMETER_SPOOF_FIXTURE=1',
 		...shared, fixture, '-o', spoofPlugin,
 	], { encoding: 'utf8' }), 'OpenFX standard-parameter-spoof plug-in');
+	for (const [name, value] of mediaDeclarationPlugins) {
+		assertBuilt(spawnSync('c++', [
+			...common, `-D${value.definition}=1`, ...shared, fixture, '-o', value.path,
+		], { encoding: 'utf8' }), `OpenFX ${name} plug-in`);
+	}
 	const hostSources = [
 		join(sources, 'sha256.cpp'), join(sources, 'dynamic_library.cpp'),
 		join(sources, 'host_runtime.cpp'), join(sources, 'loaded_plugin_binary.cpp'),
@@ -118,6 +138,9 @@ export function buildOpenFxNativeContractFixture(context) {
 		directory, plugin, mismatchPlugin, spoofPlugin, scanner, runtime, blockedScanner,
 		sha256: digest(bytes), mismatchSha256: digest(readFileSync(mismatchPlugin)),
 		spoofSha256: digest(readFileSync(spoofPlugin)),
+		mediaDeclarationPlugins: Object.freeze([...mediaDeclarationPlugins].map(([name, value]) => Object.freeze({
+			name, path: value.path, sha256: digest(readFileSync(value.path)),
+		}))),
 		cleanup: () => undefined,
 	};
 	return retainedBuild;

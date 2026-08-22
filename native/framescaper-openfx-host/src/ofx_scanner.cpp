@@ -87,8 +87,12 @@ int scan(const std::filesystem::path& path, const std::string& sha256) {
 			<< ",\"type\":" << json_string(parameter.type)
 			<< ",\"animates\":" << (parameter.animates ? "true" : "false") << '}';
 	}
-	std::cout << "],\"components\":[\"RGBA\"],\"pixelDepths\":[\"byte\"],\"threading\":"
-		<< json_string(inspected->threading) << ",\"requestedSuites\":";
+	std::cout << "],\"components\":";
+	write_strings(inspected->components);
+	std::cout << ",\"pixelDepths\":";
+	write_strings(inspected->pixel_depths);
+	std::cout << ",\"threading\":" << json_string(inspected->threading)
+		<< ",\"requestedSuites\":";
 	write_strings(inspected->requested_suites);
 	std::cout << "}\n";
 	return 0;

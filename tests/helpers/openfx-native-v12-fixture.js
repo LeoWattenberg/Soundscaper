@@ -17,19 +17,19 @@ import {
 
 let wireSequence = 0;
 const PRIMARY = Buffer.from([
-	9, 8, 7, 6, 20, 30, 40, 50, 255, 0, 1, 2, 170, 170, 170, 170,
-	3, 4, 5, 6, 60, 70, 80, 90, 100, 110, 120, 130, 187, 187, 187, 187,
+	9, 8, 7, 6, 20, 30, 40, 50, 170, 170, 170, 170,
+	3, 4, 5, 6, 60, 70, 80, 90, 187, 187, 187, 187,
 ]);
 const SECONDARY = Buffer.from([
-	109, 108, 107, 106, 120, 130, 140, 150, 55, 200, 201, 202, 171, 171, 171, 171,
-	103, 104, 105, 106, 160, 170, 180, 190, 200, 210, 220, 230, 188, 188, 188, 188,
+	109, 108, 107, 106, 120, 130, 140, 150, 171, 171, 171, 171,
+	103, 104, 105, 106, 160, 170, 180, 190, 188, 188, 188, 188,
 ]);
 
 export function createV12WireFixture(build, context) {
 	wireSequence += 1;
 	const suffix = `${context}-${String(wireSequence)}`;
 	const raw = structuredClone(unifiedExactPlanFixture(12));
-	raw.output.canvas.width = 3;
+	raw.output.canvas.width = 2;
 	raw.output.canvas.height = 2;
 	const effect = raw.nodes.find((node) => node.kind === 'openfx');
 	if (!effect) throw new Error('OpenFX fixture node is unavailable.');
@@ -38,7 +38,7 @@ export function createV12WireFixture(build, context) {
 	effect.state.context = context;
 	effect.state.attachment = {
 		kind: context,
-		targetId: context === 'transition' ? 'transition-1' : 'clip-out',
+		targetId: attachmentTargetForContext(context),
 	};
 	const inputNames = namesForContext(context);
 	effect.state.inputs = inputNames.map((name) => ({ name, sourceRef: 'source-1' }));
@@ -87,7 +87,7 @@ export function createV12WireFixture(build, context) {
 		inputs,
 		output: {
 			streamId: '30'.repeat(20), path: outputPath, pixelFormat: 'rgba8',
-			width: 3, height: 2, rowBytes: 16, byteLength: outputBytes.byteLength,
+			width: 2, height: 2, rowBytes: 12, byteLength: outputBytes.byteLength,
 		},
 	};
 	const admitted = writeGrant(build.directory, grant, `grant-${suffix}`);
@@ -140,7 +140,7 @@ function inputGrant(directory, suffix, name, index, bytes) {
 	writeFileSync(path, bytes, { flag: 'wx' });
 	return {
 		name, sourceRef: 'source-1', streamId: `${String(20 + index).padStart(2, '0')}`.repeat(20),
-		path, pixelFormat: 'rgba8', width: 3, height: 2, rowBytes: 16,
+		path, pixelFormat: 'rgba8', width: 2, height: 2, rowBytes: 12,
 		byteLength: bytes.byteLength, sha256: sha256(bytes),
 	};
 }
@@ -151,6 +151,13 @@ function namesForContext(context) {
 	if (context === 'paint') return ['Source', 'Mask'];
 	if (context === 'general') return ['InputA', 'InputB'];
 	return ['Source'];
+}
+
+function attachmentTargetForContext(context) {
+	if (context === 'generator') return 'generator-1';
+	if (context === 'transition') return 'transition-1';
+	if (context === 'general') return 'source-1';
+	return 'clip-out';
 }
 
 function expectedOutput(context) {
@@ -164,14 +171,14 @@ function expectedOutput(context) {
 		PRIMARY[offset], PRIMARY[offset + 1], PRIMARY[offset + 2], SECONDARY[offset + 3],
 	]);
 	return Buffer.from([
-		9, 8, 7, 138, 20, 30, 40, 138, 255, 0, 1, 138, 0, 0, 0, 0,
-		3, 4, 5, 138, 60, 70, 80, 138, 100, 110, 120, 138, 0, 0, 0, 0,
+		9, 8, 7, 138, 20, 30, 40, 138, 0, 0, 0, 0,
+		3, 4, 5, 138, 60, 70, 80, 138, 0, 0, 0, 0,
 	]);
 }
 
 function pixels(pixel) {
 	const output = Buffer.alloc(PRIMARY.byteLength);
-	for (const offset of [0, 4, 8, 16, 20, 24]) output.set(pixel(offset), offset);
+	for (const offset of [0, 4, 12, 16]) output.set(pixel(offset), offset);
 	return output;
 }
 

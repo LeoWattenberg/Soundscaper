@@ -1,10 +1,66 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-bool contains_string(const std::vector<PropertyValue>& values, const std::string_view expected) {
-	return std::any_of(values.begin(), values.end(), [expected](const auto& value) {
+using MediaDeclarationMap = std::array<std::pair<std::string_view, std::string_view>, 3>;
+
+constexpr MediaDeclarationMap kComponentDeclarations{{
+	{kOfxImageComponentRGBA, "RGBA"},
+	{kOfxImageComponentRGB, "RGB"},
+	{kOfxImageComponentAlpha, "Alpha"},
+}};
+
+constexpr MediaDeclarationMap kPixelDepthDeclarations{{
+	{kOfxBitDepthByte, "byte"},
+	{kOfxBitDepthShort, "short"},
+	{kOfxBitDepthFloat, "float"},
+}};
+
+std::optional<std::vector<std::string>> normalized_media_declarations(
+	const std::vector<PropertyValue>& values,
+	const MediaDeclarationMap& declarations
+) {
+	if (values.empty() || values.size() > declarations.size()) return std::nullopt;
+	std::set<std::string_view> observed;
+	for (const auto& value : values) {
 		const auto* text = std::get_if<std::string>(&value);
-		return text != nullptr && *text == expected;
-	});
+		if (text == nullptr) return std::nullopt;
+		const auto found = std::find_if(
+			declarations.begin(), declarations.end(), [text](const auto& declaration) {
+				return declaration.first == *text;
+			}
+		);
+		if (found == declarations.end() || !observed.insert(found->first).second) {
+			return std::nullopt;
+		}
+	}
+	std::vector<std::string> normalized;
+	for (const auto& [official, projected] : declarations) {
+		if (observed.contains(official)) normalized.emplace_back(projected);
+	}
+	return normalized;
+}
+
+std::optional<std::vector<std::string>> normalized_pixel_depths(const Effect& effect_record) {
+	const auto found = effect_record.properties.values.find(
+		kOfxImageEffectPropSupportedPixelDepths
+	);
+	return found == effect_record.properties.values.end()
+		? std::nullopt
+		: normalized_media_declarations(found->second, kPixelDepthDeclarations);
+}
+
+std::optional<std::vector<std::string>> normalized_components(const Effect& effect_record) {
+	std::optional<std::vector<std::string>> normalized;
+	for (const auto& [name, clip] : effect_record.clips) {
+		static_cast<void>(name);
+		const auto found = clip->properties.values.find(kOfxImageEffectPropSupportedComponents);
+		if (found == clip->properties.values.end()) return std::nullopt;
+		const auto current = normalized_media_declarations(found->second, kComponentDeclarations);
+		if (!current.has_value() || (normalized.has_value() && *normalized != *current)) {
+			return std::nullopt;
+		}
+		normalized = current;
+	}
+	return normalized.value_or(std::vector<std::string>{});
 }
 
 std::string normalized_parameter_type(const std::string_view type) {
@@ -25,25 +81,24 @@ std::string normalized_parameter_type(const std::string_view type) {
 }
 
 bool HostState::rgba_byte_ready() const {
-	const auto depths = effect_record.properties.values.find(kOfxImageEffectPropSupportedPixelDepths);
-	if (depths == effect_record.properties.values.end() || effect_record.clips.empty()
-		|| !contains_string(depths->second, kOfxBitDepthByte)
-		|| !effect_record.clips.contains("Output")) return false;
-	return std::all_of(effect_record.clips.begin(), effect_record.clips.end(), [](const auto& entry) {
-		const auto components = entry.second->properties.values.find(
-			kOfxImageEffectPropSupportedComponents
-		);
-		return components != entry.second->properties.values.end()
-			&& contains_string(components->second, kOfxImageComponentRGBA);
-	});
+	const auto depths = normalized_pixel_depths(effect_record);
+	const auto components = normalized_components(effect_record);
+	return !effect_record.clips.empty() && effect_record.clips.contains("Output")
+		&& depths.has_value() && components.has_value()
+		&& std::find(depths->begin(), depths->end(), "byte") != depths->end()
+		&& std::find(components->begin(), components->end(), "RGBA") != components->end();
 }
 
 std::optional<PluginInspection> HostState::inspection() const {
 	PluginInspection result;
 	const auto contexts = effect_record.properties.values.find(kOfxImageEffectPropSupportedContexts);
 	const auto threading = effect_record.properties.values.find(kOfxImageEffectPluginRenderThreadSafety);
+	const auto pixel_depths = normalized_pixel_depths(effect_record);
+	const auto components = normalized_components(effect_record);
 	if (contexts == effect_record.properties.values.end()
-		|| threading == effect_record.properties.values.end()) return std::nullopt;
+		|| threading == effect_record.properties.values.end()
+		|| threading->second.size() != 1 || !pixel_depths.has_value()
+		|| !components.has_value()) return std::nullopt;
 	for (const auto& value : contexts->second) {
 		const auto* official = std::get_if<std::string>(&value);
 		if (official == nullptr) return std::nullopt;
@@ -55,8 +110,12 @@ std::optional<PluginInspection> HostState::inspection() const {
 	}
 	const auto* safety = std::get_if<std::string>(&threading->second.front());
 	if (safety == nullptr) return std::nullopt;
-	result.threading = *safety == kOfxImageEffectRenderUnsafe ? "unsafe"
-		: *safety == kOfxImageEffectRenderInstanceSafe ? "instance-safe" : "fully-safe";
+	if (*safety == kOfxImageEffectRenderUnsafe) result.threading = "unsafe";
+	else if (*safety == kOfxImageEffectRenderInstanceSafe) result.threading = "instance-safe";
+	else if (*safety == kOfxImageEffectRenderFullySafe) result.threading = "fully-safe";
+	else return std::nullopt;
+	result.components = *components;
+	result.pixel_depths = *pixel_depths;
 	for (const auto& [name, parameter] : effect_record.parameters.parameters) {
 		const auto animates = parameter->properties.values.find(kOfxParamPropAnimates);
 		const auto type = normalized_parameter_type(parameter->type);
@@ -125,12 +184,15 @@ std::optional<PluginInspection> inspect_plugin_contexts(
 			&& accepted_status(call(plugin, kOfxActionUnload, nullptr));
 		if (!inspected.has_value() || !context_unloaded
 			|| inspected->contexts != base->contexts || inspected->threading != base->threading
+			|| inspected->pixel_depths != base->pixel_depths
 			|| (!first_context
-				&& !same_parameter_contract(result.parameters, inspected->parameters))) {
+				&& (!same_parameter_contract(result.parameters, inspected->parameters)
+					|| result.components != inspected->components))) {
 			return std::nullopt;
 		}
 		if (first_context) {
 			result.parameters = inspected->parameters;
+			result.components = inspected->components;
 			first_context = false;
 		}
 		requested_suites.insert(

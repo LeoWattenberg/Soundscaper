@@ -56,6 +56,22 @@ test('the conformance scanner authenticates one binary before enumerating its en
 	}
 });
 
+test('the conformance scanner rejects malformed or unusable media declarations', (context) => {
+	const build = buildContractFixture(context);
+	if (build === null) return;
+	try {
+		for (const fixture of build.mediaDeclarationPlugins) {
+			const scanned = run(build.scanner, [
+				'--scan', fixture.path, '--sha256', fixture.sha256,
+			]);
+			assert.notEqual(scanned.status, 0, fixture.name);
+			assert.match(scanned.stderr, /closed description/iu, fixture.name);
+		}
+	} finally {
+		build.cleanup();
+	}
+});
+
 test('the helper runner carries the actual native scanner descriptor over its reserved data plane', async (context) => {
 	const build = buildContractFixture(context);
 	if (build === null) return;
@@ -216,9 +232,9 @@ test('the native V12 seam reparses and correlates the exact invocation, graph, n
 			outputStreamId: '30'.repeat(20),
 			outputByteLength: wire.outputBytes.byteLength,
 			outputSha256: sha256(wire.outputBytes),
-			outputWidth: 3,
+			outputWidth: 2,
 			outputHeight: 2,
-			outputRowBytes: 16,
+			outputRowBytes: 12,
 		});
 		assert.equal(Object.hasOwn(result, 'outputRgbaHex'), false);
 		assert.deepEqual(readFileSync(wire.outputPath), wire.outputBytes);
@@ -283,10 +299,10 @@ test('the native V12 seam reparses and correlates the exact invocation, graph, n
 
 		for (const mutate of [
 			(grant) => { grant.inputs[0].width = 0; },
-			(grant) => { grant.inputs[0].rowBytes = 8; },
+			(grant) => { grant.inputs[0].rowBytes = 4; },
 			(grant) => { grant.inputs[0].height = 3; },
 			(grant) => { grant.inputs[0].pixelFormat = 'bgra8'; },
-			(grant) => { grant.output.rowBytes = 12; },
+			(grant) => { grant.output.rowBytes = 16; },
 			(grant) => { grant.output.path = grant.inputs[0].path; },
 		]) {
 			const candidate = structuredClone(wire.grant);

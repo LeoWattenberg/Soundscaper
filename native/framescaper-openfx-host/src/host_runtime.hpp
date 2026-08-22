@@ -74,6 +74,8 @@ struct InspectedParameter final {
 struct PluginInspection final {
 	std::vector<std::string> contexts;
 	std::vector<InspectedParameter> parameters;
+	std::vector<std::string> components;
+	std::vector<std::string> pixel_depths;
 	std::string threading;
 	std::vector<std::string> requested_suites;
 };

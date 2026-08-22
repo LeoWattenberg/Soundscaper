@@ -154,6 +154,72 @@ bool parameter_conformance(OfxParamSetHandle set) {
 		&& parameters->paramDeleteAllKeys(scalar) == kOfxStatOK;
 }
 
+bool declare_supported_pixel_depths(OfxPropertySetHandle effect_properties) {
+#if defined(FRAMESCAPER_OPENFX_MISSING_PIXEL_DEPTH_FIXTURE)
+	static_cast<void>(effect_properties);
+	return true;
+#elif defined(FRAMESCAPER_OPENFX_UNKNOWN_PIXEL_DEPTH_FIXTURE)
+	const char* depths[]{kOfxBitDepthByte, "OfxBitDepthHalf"};
+#elif defined(FRAMESCAPER_OPENFX_DUPLICATE_PIXEL_DEPTH_FIXTURE)
+	const char* depths[]{kOfxBitDepthByte, kOfxBitDepthByte};
+#elif defined(FRAMESCAPER_OPENFX_NO_BYTE_PIXEL_DEPTH_FIXTURE)
+	const char* depths[]{kOfxBitDepthFloat, kOfxBitDepthShort};
+#else
+	// Deliberately non-canonical: the scanner owns deterministic projection order.
+	const char* depths[]{kOfxBitDepthFloat, kOfxBitDepthByte, kOfxBitDepthShort};
+#endif
+#if !defined(FRAMESCAPER_OPENFX_MISSING_PIXEL_DEPTH_FIXTURE)
+	return properties->propSetStringN(
+		effect_properties, kOfxImageEffectPropSupportedPixelDepths,
+		static_cast<int>(std::size(depths)), depths
+	) == kOfxStatOK;
+#endif
+}
+
+bool declare_supported_components(
+	OfxPropertySetHandle clip_properties,
+	const char* context,
+	const char* clip
+) {
+	static_cast<void>(context);
+	static_cast<void>(clip);
+#if defined(FRAMESCAPER_OPENFX_MISSING_COMPONENT_FIXTURE)
+	if (std::strcmp(context, kOfxImageEffectContextFilter) == 0
+		&& std::strcmp(clip, "Source") == 0) return true;
+#elif defined(FRAMESCAPER_OPENFX_UNKNOWN_COMPONENT_FIXTURE)
+	const char* components[]{kOfxImageComponentRGBA, "OfxImageComponentXY"};
+#elif defined(FRAMESCAPER_OPENFX_DUPLICATE_COMPONENT_FIXTURE)
+	const char* components[]{kOfxImageComponentRGBA, kOfxImageComponentRGBA};
+#elif defined(FRAMESCAPER_OPENFX_NO_RGBA_COMPONENT_FIXTURE)
+	const char* components[]{kOfxImageComponentAlpha, kOfxImageComponentRGB};
+#else
+	const char* components[]{kOfxImageComponentAlpha, kOfxImageComponentRGBA, kOfxImageComponentRGB};
+#endif
+#if !defined(FRAMESCAPER_OPENFX_MISSING_COMPONENT_FIXTURE)
+	if (
+#if defined(FRAMESCAPER_OPENFX_INCONSISTENT_COMPONENT_FIXTURE)
+		std::strcmp(context, kOfxImageEffectContextFilter) == 0
+		&& std::strcmp(clip, "Output") == 0
+#else
+		false
+#endif
+	) {
+		return properties->propSetString(
+			clip_properties, kOfxImageEffectPropSupportedComponents, 0,
+			kOfxImageComponentRGBA
+		) == kOfxStatOK;
+	}
+	return properties->propSetStringN(
+		clip_properties, kOfxImageEffectPropSupportedComponents,
+		static_cast<int>(std::size(components)), components
+	) == kOfxStatOK;
+#else
+	static_cast<void>(clip_properties);
+	static_cast<void>(clip);
+	return true;
+#endif
+}
+
 OfxStatus overlay_interact(
 	const char* action,
 	const void* handle,
@@ -198,10 +264,8 @@ OfxStatus describe(const void* handle) {
 	};
 	if (properties->propSetStringN(
 		effect_properties, kOfxImageEffectPropSupportedContexts, 6, contexts
-		) != kOfxStatOK || properties->propSetString(
-		effect_properties, kOfxImageEffectPropSupportedPixelDepths, 0,
-		kOfxBitDepthByte
-	) != kOfxStatOK || properties->propSetString(
+		) != kOfxStatOK || !declare_supported_pixel_depths(effect_properties)
+		|| properties->propSetString(
 		effect_properties, kOfxImageEffectPluginRenderThreadSafety, 0,
 		kOfxImageEffectRenderFullySafe
 	) != kOfxStatOK || properties->propSetPointer(
@@ -247,6 +311,19 @@ OfxStatus describe_context(const void* handle, OfxPropertySetHandle input) {
 	if (images->getParamSet(
 		reinterpret_cast<OfxImageEffectHandle>(const_cast<void*>(handle)), &set
 	) != kOfxStatOK) return kOfxStatFailed;
+#if defined(FRAMESCAPER_OPENFX_INCONSISTENT_PIXEL_DEPTH_FIXTURE)
+	if (std::strcmp(context, kOfxImageEffectContextFilter) == 0) {
+		OfxPropertySetHandle effect_properties = nullptr;
+		const char* depths[]{kOfxBitDepthByte, kOfxBitDepthShort};
+		if (images->getPropertySet(
+			reinterpret_cast<OfxImageEffectHandle>(const_cast<void*>(handle)),
+			&effect_properties
+		) != kOfxStatOK || properties->propSetStringN(
+			effect_properties, kOfxImageEffectPropSupportedPixelDepths,
+			static_cast<int>(std::size(depths)), depths
+		) != kOfxStatOK) return kOfxStatFailed;
+	}
+#endif
 #if defined(FRAMESCAPER_OPENFX_STANDARD_PARAMETER_SPOOF_FIXTURE)
 	const char* spoofed = std::strcmp(context, kOfxImageEffectContextRetimer) == 0
 		? "SourceTime" : std::strcmp(context, kOfxImageEffectContextTransition) == 0
@@ -273,9 +350,9 @@ OfxStatus describe_context(const void* handle, OfxPropertySetHandle input) {
 	for (const char* clip : clips) {
 		if (images->clipDefine(
 			reinterpret_cast<OfxImageEffectHandle>(const_cast<void*>(handle)), clip, &clip_properties
-		) != kOfxStatOK || properties->propSetString(
-			clip_properties, kOfxImageEffectPropSupportedComponents, 0, kOfxImageComponentRGBA
-		) != kOfxStatOK) return kOfxStatFailed;
+		) != kOfxStatOK || !declare_supported_components(clip_properties, context, clip)) {
+			return kOfxStatFailed;
+		}
 	}
 	return kOfxStatOK;
 }
