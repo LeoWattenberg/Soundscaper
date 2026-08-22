@@ -22,8 +22,7 @@ using soundscaper::framescaper::exact_output_sample;
 constexpr std::size_t cancellation_pixel_stride = 16'384;
 
 [[nodiscard]] bool evaluated_rgba(const selected_v20_family family) noexcept {
-	return family == selected_v20_family::keyed_evaluated_rgba_v7
-		|| family == selected_v20_family::evaluated_rgba_v8;
+	return family == selected_v20_family::keyed_evaluated_rgba_v7;
 }
 
 struct timing_identity final {

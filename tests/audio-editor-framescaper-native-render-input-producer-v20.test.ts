@@ -129,7 +129,7 @@ test('selected V20 producer authenticates one snapshot and stages active RGBA pl
 	assert.equal(wav.getUint32(40, true) / 8, fixture.plan.range.durationFrames);
 });
 
-test('selected V20 producer stages exact static V8 and cleans every acquired authority after drift', async () => {
+test('selected V20 producer keeps V7 cleanup and makes V8 carrierless with optional audio only', async () => {
 	const fixture = await producerFixture({ failCurrentAfterFrame: 0 });
 	await assert.rejects(fixture.producer(fixture.request), /project changed during production/u);
 	assert.deepEqual(fixture.events.slice(-4), [
@@ -140,11 +140,14 @@ test('selected V20 producer stages exact static V8 and cleans every acquired aut
 	const v8Fixture = await producerFixture({ staticPlan: true });
 	const outputs = await v8Fixture.producer(v8Fixture.request);
 	assert.equal(v8Fixture.plan.version, 8);
-	assert.deepEqual(outputs.map(({ role }) => role), [
-		'evaluated-rgba-frame-pack', 'staged-audio-mix',
+	assert.deepEqual(outputs.map(({ role }) => role), ['staged-audio-mix']);
+	assert.deepEqual(v8Fixture.requiredTimingSources, []);
+	assert.deepEqual(v8Fixture.loads, []);
+	assert.deepEqual(v8Fixture.events, [
+		'authority:begin', 'audio:render', 'authority:finish',
 	]);
-	assert.deepEqual(v8Fixture.requiredTimingSources, [['video-source']]);
 	assert.equal(v8Fixture.audioRenders(), 1);
+
 });
 
 interface FixturePlan {

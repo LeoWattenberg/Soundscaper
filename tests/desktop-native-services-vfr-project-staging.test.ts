@@ -9,7 +9,9 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import type { HelperDataPlaneIoPort } from '../desktop/helper-data-plane-io.ts';
+import type { HelperJobRequest } from '../desktop/helper-supervisor.ts';
 import { FramescaperNativeProjectAuthority } from '../desktop/native-services-project-authority.ts';
+import { FramescaperNativeSelectedV20ProjectAuthority } from '../desktop/native-services-selected-v20-project-authority.ts';
 import {
 	authenticateNativeProjectPlanBodies,
 	type NativeProjectMediaBody,
@@ -17,6 +19,99 @@ import {
 import type { HelperDataPlaneTransferPort } from '../desktop/helper-data-plane-transfer.ts';
 import { createNativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
 import { unifiedExactVfrPlanFixture } from './helpers/unified-exact-vfr-plan-fixture.ts';
+import { nativeQueueSmallStaticPlanV8 } from './helpers/native-queue-plan-fixture.ts';
+
+test('carrierless V8 project preparation authenticates originals without a derived stage', async () => {
+	const fixtureRoot = await mkdtemp(join(tmpdir(), 'framescaper-v8-project-stage-'));
+	try {
+		const scratchRoot = join(fixtureRoot, 'scratch');
+		const outputRoot = join(fixtureRoot, 'output');
+		await mkdir(outputRoot);
+		const sourceBytes = Buffer.from('selected V20 V8 exact original');
+		const sourceSha256 = digest(sourceBytes);
+		const plan = nativeQueueSmallStaticPlanV8();
+		const body = Object.freeze({
+			kind: 'video-original' as const, encoding: 'framescaper-video-original-v1',
+			sourceId: 'source-1', storageKey: 'source-1', mimeType: 'video/mp4',
+			byteLength: sourceBytes.byteLength, sha256: sourceSha256,
+		});
+		const record = createNativeQueueRecordV2({
+			jobId: '8'.repeat(40), taskKind: 'encoded-export', plan,
+			projectId: 'v8-project', projectRevision: 1,
+			inputFingerprints: [{ sourceId: body.sourceId, sha256: body.sha256 }],
+			rootGrantId: '9'.repeat(32), relativeDestination: 'v8.mp4',
+			reservations: {
+				cpuCores: 1, processTreeRssBytes: 128 * 1_024 * 1_024,
+				scratchBytes: 32 * 1_024 * 1_024, minimumFreeBytes: 0, hardwareBackend: null,
+			},
+			position: 0, createdAtMs: 1,
+		});
+		const rootGrant = Object.freeze({
+			grantId: record.rootGrantId, rootPath: outputRoot,
+			volumeIdentity: 'volume-v8', directoryIdentity: 'directory-v8',
+			authorizedAtMs: 1, revokedAtMs: null,
+		});
+		const executablePath = join(fixtureRoot, 'framescaper-media-host');
+		const executableBytes = Buffer.from('authenticated media host');
+		await writeFile(executablePath, executableBytes, { mode: 0o700 });
+		const executableIdentity = await identity(executablePath);
+		const channels: Port[][] = [];
+		const bodyReads: string[] = [];
+		const base = new FramescaperNativeProjectAuthority({
+			project: {
+				projectState: () => Object.freeze({ open: true, writable: true }),
+				projectRecord: () => Object.freeze({
+					projectId: record.projectId, projectRevision: record.projectRevision,
+					projectSha256: 'a'.repeat(64), bodies: Object.freeze([body]),
+				}),
+				readProjectBundle: async () => ({
+					project: { projectRevision: record.projectRevision, sha256: 'a'.repeat(64) },
+					document: '{}', bodies: [body],
+				}),
+				readBody: async () => { bodyReads.push(body.sourceId); return sourceBytes; },
+			},
+			scratchRoot,
+			executable: () => Object.freeze({
+				path: executablePath, byteLength: executableBytes.byteLength,
+				sha256: digest(executableBytes), identity: executableIdentity,
+			}),
+			createMessageChannel: () => {
+				const pair = portPair(); channels.push([...pair]);
+				return { hostPort: pair[0], helperPort: pair[1] };
+			},
+			probeRoot: async () => Object.freeze({
+				exists: true, directory: true, symbolicLink: false, canonicalPath: outputRoot,
+				volumeIdentity: rootGrant.volumeIdentity, directoryIdentity: rootGrant.directoryIdentity,
+			}),
+			publicationPortFor: () => { throw new Error('publication is outside this staging test'); },
+			publicationFenceFor: () => { throw new Error('publication is outside this staging test'); },
+			reserveScratch: () => undefined, settleScratch: async () => undefined,
+			scratchMatches: () => true, licensingCleared: () => true,
+		});
+		const renderInputCalls: string[] = [];
+		const authority = new FramescaperNativeSelectedV20ProjectAuthority({
+			project: base,
+			renderInputs: {
+				revalidate: async () => { renderInputCalls.push('revalidate'); return false; },
+				inspect: async () => { renderInputCalls.push('inspect'); throw new Error('no V8 stage'); },
+				settle: async () => { renderInputCalls.push('settle'); },
+			},
+		});
+		assert.equal((await authority.revalidate(record, rootGrant, true)).inputFingerprintsMatch, true);
+		const prepared = await authority.prepare(record, rootGrant);
+		assert.deepEqual(renderInputCalls, []);
+		const request = prepared.request as HelperJobRequest<'media-render'>;
+		assert.deepEqual(request.grant.sources.map((sourceGrant) => {
+			if (sourceGrant.type !== 'file') throw new Error('V8 originals must use exact file grants.');
+			return { type: sourceGrant.type, role: sourceGrant.role, sha256: sourceGrant.sha256 };
+		}), [{ type: 'file', role: 'original', sha256: sourceSha256 }]);
+		assert.deepEqual(bodyReads, ['source-1']);
+		await prepared.cleanup?.('cancelled');
+		for (const pair of channels) pair.forEach((port) => port.close());
+	} finally {
+		await rm(fixtureRoot, { recursive: true, force: true });
+	}
+});
 
 test('VFR queue preparation stages exact project timing bodies and mints dedicated helper grants', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-vfr-project-stage-'));

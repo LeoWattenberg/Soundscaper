@@ -113,18 +113,20 @@ engine_result execute_selected_v20_render_job(const invocation& job) {
 			|| plan.includes_staged_audio != job.admitted_plan.includes_audio) {
 			return {65, "{\"error\":\"selected-v20-authority-mismatch\",\"operation\":\"media-render\"}"};
 		}
-		if (plan.family == selected_v20_family::keyed_evaluated_rgba_v7
-			|| plan.family == selected_v20_family::evaluated_rgba_v8) {
+		if (plan.family == selected_v20_family::static_composition_v8) {
+			std::ostringstream result;
+			result << "{\"error\":\"unsupported-selected-v20-static-adapter\",\"operation\":\""
+				<< operation_name(job.kind) << "\",\"planVersion\":" << job.admitted_plan.version
+				<< ",\"missing\":\"static-geometry-frame-adapter\"}";
+			return {78, result.str()};
+		}
+		if (plan.family == selected_v20_family::keyed_evaluated_rgba_v7) {
 			return execute_selected_v20_keyed_adapter(
 				job, plan, source_with_role(job, "evaluated-rgba-frame-pack"),
 				optional_source_with_role(job, "staged-audio-mix")
 			);
 		}
-		std::ostringstream result;
-		result << "{\"error\":\"unsupported-selected-v20-static-adapter\",\"operation\":\""
-			<< operation_name(job.kind) << "\",\"planVersion\":" << job.admitted_plan.version
-			<< ",\"missing\":\"static-geometry-frame-adapter\"}";
-		return {78, result.str()};
+		return {65, "{\"error\":\"selected-v20-family-mismatch\",\"operation\":\"media-render\"}"};
 	} catch (const std::exception& error) {
 		return {65, "{\"error\":\"selected-v20-execution-authority\",\"operation\":\""
 			+ std::string{operation_name(job.kind)} + "\",\"detail\":\"" + escaped(error.what()) + "\"}"};

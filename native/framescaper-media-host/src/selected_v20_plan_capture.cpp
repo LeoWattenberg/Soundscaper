@@ -173,7 +173,7 @@ void capture_staged_inputs(const json::value& root, selected_v20_execution_plan&
 
 [[nodiscard]] captured_selected_v20_execution_plan capture_v8(const json::value& root) {
 	captured_selected_v20_execution_plan result;
-	result.execution.family = selected_v20_family::evaluated_rgba_v8;
+	result.execution.family = selected_v20_family::static_composition_v8;
 	result.execution.sample_rate = 1;
 	result.execution.output_frame_count = static_cast<std::uint64_t>(safe_integer(
 		json::member(root, "outputFrameCount"), "V8 execution frame count", 1

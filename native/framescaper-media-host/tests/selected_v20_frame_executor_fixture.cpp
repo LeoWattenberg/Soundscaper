@@ -238,11 +238,11 @@ void authenticated_snapshot_capture_retains_exact_v7_authority() {
 	assert(!captured.caption_delivery.any());
 }
 
-void authenticated_snapshot_capture_routes_v8_only_to_its_evaluated_carrier() {
+void authenticated_snapshot_capture_routes_v8_to_static_native_composition() {
 	const auto captured = capture_selected_v20_execution_plan(8,
 		R"({"version":8,"outputFrameCount":3,"quality":"high","captions":null,"canvas":{"width":2,"height":2,"frameRate":24,"backgroundColor":"#01020380"},"inputs":[],"intervals":[{"durationSeconds":0.125,"layers":[]}]})"
 	);
-	assert(captured.execution.family == selected_v20_family::evaluated_rgba_v8);
+	assert(captured.execution.family == selected_v20_family::static_composition_v8);
 	assert(captured.execution.output_frame_count == 3);
 	assert(captured.execution.sample_rate == 1);
 	assert(captured.execution.output_rate.numerator() == 24);
@@ -296,6 +296,6 @@ int main() {
 	static_composition_resolves_vfr_ordinals_and_blends_deterministically();
 	core_self_test_is_operation_specific_and_truthful();
 	authenticated_snapshot_capture_retains_exact_v7_authority();
-	authenticated_snapshot_capture_routes_v8_only_to_its_evaluated_carrier();
+	authenticated_snapshot_capture_routes_v8_to_static_native_composition();
 	authenticated_snapshot_capture_retains_every_v8_caption_delivery();
 }

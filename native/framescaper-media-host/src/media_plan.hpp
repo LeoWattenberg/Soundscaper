@@ -27,6 +27,9 @@ struct admitted_media_plan final {
 	std::uint64_t source_in_frame{};
 	std::uint64_t source_frame_count{};
 	bool includes_audio{};
+	bool caption_mux{};
+	bool caption_burn_in{};
+	bool caption_sidecar{};
 	bool simple_full_frame_clip{};
 	bool requires_evaluated_rgba_carrier{};
 	std::vector<std::string> image_sequence_inventory_sha256;

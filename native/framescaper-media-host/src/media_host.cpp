@@ -298,14 +298,17 @@ void require_exact_render_source_roles(const invocation& job) {
 			if (++audio > 1) throw admission_error("An exact render admits one staged audio mix.");
 		} else throw admission_error("An exact render carries an unrelated source role.");
 	}
-	if (!job.admitted_plan.requires_evaluated_rgba_carrier) {
+	if (job.admitted_plan.version >= 9) {
 		if (carriers != 0 || audio != 0) {
 			throw admission_error("An unsupported unified render cannot acquire derived media authority.");
 		}
 		return;
 	}
-	if (carriers != 1) {
-		throw admission_error("An evaluated exact render requires one authenticated RGBA frame pack.");
+	const auto expected_carriers = job.admitted_plan.requires_evaluated_rgba_carrier ? 1U : 0U;
+	if (carriers != expected_carriers) {
+		throw admission_error(expected_carriers == 0
+			? "A static V8 render cannot acquire an evaluated RGBA carrier."
+			: "An evaluated exact render requires one authenticated RGBA frame pack.");
 	}
 	if (audio != static_cast<std::size_t>(job.admitted_plan.includes_audio)) {
 		throw admission_error("Exact staged audio does not match its canonical plan.");
@@ -458,6 +461,22 @@ engine_result execute_ffmpeg_job(const invocation& job) {
 	if (job.image_sequence) return {
 		78, "{\"error\":\"image-sequence-licensing-unavailable\",\"operation\":\"media-decode\","
 			"\"policyRow\":\"codec-image-sequence-still-formats\"}",
+	};
+	if ((job.kind == operation::media_render || job.kind == operation::media_encode)
+		&& job.admitted_plan.version == 8
+		&& (job.admitted_plan.caption_mux || job.admitted_plan.caption_burn_in
+			|| job.admitted_plan.caption_sidecar)) return {
+		78, "{\"error\":\"unsupported-caption-adapter\",\"operation\":\"" + operation_text
+			+ "\",\"planVersion\":8,\"captionDelivery\":{\"mux\":"
+			+ (job.admitted_plan.caption_mux ? "true" : "false") + ",\"burnIn\":"
+			+ (job.admitted_plan.caption_burn_in ? "true" : "false") + ",\"sidecar\":"
+			+ (job.admitted_plan.caption_sidecar ? "true" : "false") + "}}",
+	};
+	if ((job.kind == operation::media_render || job.kind == operation::media_encode)
+		&& job.admitted_plan.version == 8) return {
+		78, "{\"error\":\"unsupported-selected-v20-static-adapter\",\"operation\":\""
+			+ operation_text
+			+ "\",\"planVersion\":8,\"missing\":\"static-geometry-frame-adapter\"}",
 	};
 	if ((job.kind == operation::media_render || job.kind == operation::media_encode)
 		&& job.admitted_plan.requires_evaluated_rgba_carrier) return {

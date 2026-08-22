@@ -23,6 +23,7 @@ import { createNativeQueueRecordV2 } from '../src/common/editor/native-queue-rec
 import { createVideoKeyframeExportPlanV7 } from '../src/common/editor/video-keyframe-export-plan-v7.ts';
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
 import {
+	nativeQueueSmallStaticAudioPlanV8,
 	nativeQueueSmallStaticPlanV8,
 } from './helpers/native-queue-plan-fixture.ts';
 import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
@@ -84,22 +85,33 @@ test('V7 evaluated RGBA and WAV staging survives restart and materializes exact 
 	}
 });
 
-test('V8 evaluated RGBA staging survives restart while V9-V12 refuse carrier-less dispatch', async () => {
+test('V8 stages audio only, rejects carriers, and silent V8 has no durable stage', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-render-stage-v8-'));
 	const senderRoot = await mkdtemp(join(tmpdir(), 'framescaper-render-sender-v8-'));
 	try {
-		const envelope = createNativeMediaPlanEnvelopeV1(nativeQueueSmallStaticPlanV8());
-		assert.deepEqual(nativeMediaEvaluatedCarrierCadenceV1(envelope), { num: 2, den: 1 });
+		const silentEnvelope = createNativeMediaPlanEnvelopeV1(nativeQueueSmallStaticPlanV8());
+		assert.deepEqual(nativeMediaEvaluatedCarrierCadenceV1(silentEnvelope), { num: 2, den: 1 });
 		assert.deepEqual(nativeMediaEvaluatedCarrierCadenceV1(
 			createNativeMediaPlanEnvelopeV1(nativeQueueSmallStaticPlanV8(29.97)),
 		), { num: 2_997, den: 100 });
 		assert.throws(() => nativeMediaEvaluatedCarrierCadenceV1(
 			createNativeMediaPlanEnvelopeV1(nativeQueueSmallStaticPlanV8(30_000 / 1_001)),
 		), /exact V8 cadence.*carrier.*domain/iu);
-		const carrier = framePack(envelope);
-		const [source] = await sourceFiles(senderRoot, [carrier]);
+		const envelope = createNativeMediaPlanEnvelopeV1(nativeQueueSmallStaticAudioPlanV8());
+		const audio = float32Wav(1_000, 1_000, 2);
+		const [source] = await sourceFiles(senderRoot, [audio]);
 		const staging = new FramescaperNativeRenderInputStaging({ root, mintStageId: () => STAGE_ID });
-		await stageExact(staging, OWNER, envelope, carrier, source!);
+		const admission = await staging.begin(OWNER, beginRequest(envelope, [
+			input('staged-audio-mix', audio),
+		]));
+		assert.deepEqual(admission.inputs.map(({ role }) => role), ['staged-audio-mix']);
+		const [sender, receiver] = portPair();
+		const received = staging.receive(OWNER, {
+			stageId: admission.stageId, inputIndex: 0, binding: admission.inputs[0]!.binding,
+		}, receiver);
+		await sendHelperDataPlaneFile({ binding: admission.inputs[0]!.binding, port: sender, path: source! });
+		await received;
+		await staging.finalize(OWNER, { stageId: admission.stageId });
 		await staging.claim(OWNER, claimRequest(envelope));
 		const record = queueRecord(envelope);
 		const restarted = new FramescaperNativeRenderInputStaging({
@@ -107,24 +119,24 @@ test('V8 evaluated RGBA staging survives restart while V9-V12 refuse carrier-les
 		});
 		assert.equal(await restarted.revalidate(record), true);
 		const inspected = await restarted.inspect(record);
-		assert.equal(inspected.byteLength, carrier.byteLength);
+		assert.equal(inspected.byteLength, audio.byteLength);
+		await assert.rejects(() => staging.begin(OWNER, beginRequest(silentEnvelope, [
+			input('evaluated-rgba-frame-pack', framePack(silentEnvelope)),
+		])), /V8|carrier|derived.*audio/iu);
+		const silentRecord = queueRecord(silentEnvelope);
+		assert.equal(await restarted.revalidate(silentRecord), true);
+		await assert.rejects(() => restarted.inspect(silentRecord), /silent V8|no durable derived/iu);
+		const silentRequest = queueEnqueueRequest(silentRecord, null);
+		assert.equal(framescaperNativeQueueEnqueueRequest(silentRequest).derivedInputStageId, null);
+		assert.throws(() => framescaperNativeQueueEnqueueRequest({
+			...silentRequest, derivedInputStageId: STAGE_ID,
+		}), /silent V8|derived-input stage/iu);
 
 		const unified = createUnifiedExactRenderPlan(unifiedExactPlanFixture(9));
 		const unifiedRecord = queueRecord(createNativeMediaPlanEnvelopeV1(unified));
-		assert.throws(() => framescaperNativeQueueEnqueueRequest({
-			taskKind: unifiedRecord.taskKind,
-			planVersion: unifiedRecord.planVersion,
-			derivedInputStageId: null,
-			planFingerprint: unifiedRecord.planFingerprint,
-			planPayload: unifiedRecord.planPayload,
-			projectId: unifiedRecord.projectId,
-			projectRevision: unifiedRecord.projectRevision,
-			inputFingerprints: unifiedRecord.inputFingerprints,
-			rootGrantId: unifiedRecord.rootGrantId,
-			relativeDestination: unifiedRecord.relativeDestination,
-			reservations: unifiedRecord.reservations,
-			recoveryClass: unifiedRecord.recoveryClass,
-		}), /V9.*evaluated RGBA carrier|evaluated RGBA carrier.*V9/iu);
+		assert.throws(() => framescaperNativeQueueEnqueueRequest(
+			queueEnqueueRequest(unifiedRecord, null),
+		), /V9.*evaluated RGBA carrier|evaluated RGBA carrier.*V9/iu);
 		await assert.rejects(
 			() => restarted.inspect(unifiedRecord),
 			/V9.*evaluated RGBA carrier|evaluated RGBA carrier.*V9/iu,
@@ -503,6 +515,20 @@ function queueRecord(envelope: ReturnType<typeof createNativeMediaPlanEnvelopeV1
 			scratchBytes: 32 * 1_024 ** 2, minimumFreeBytes: 0, hardwareBackend: null,
 		},
 		position: 0, createdAtMs: 1,
+	});
+}
+
+function queueEnqueueRequest(
+	record: ReturnType<typeof queueRecord>,
+	derivedInputStageId: string | null,
+) {
+	return Object.freeze({
+		taskKind: record.taskKind, planVersion: record.planVersion, derivedInputStageId,
+		planFingerprint: record.planFingerprint, planPayload: record.planPayload,
+		projectId: record.projectId, projectRevision: record.projectRevision,
+		inputFingerprints: record.inputFingerprints, rootGrantId: record.rootGrantId,
+		relativeDestination: record.relativeDestination, reservations: record.reservations,
+		recoveryClass: record.recoveryClass,
 	});
 }
 

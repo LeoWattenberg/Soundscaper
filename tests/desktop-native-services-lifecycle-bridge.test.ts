@@ -31,11 +31,15 @@ import {
 	NATIVE_MEDIA_CAPABILITY_IDS,
 	createNativeMediaCapabilitySnapshotV1,
 } from '../src/common/editor/native-media-capability-snapshot.ts';
-import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
+import {
+	nativeQueueKeyedPlanV7,
+	nativeQueueSmallStaticPlanV8,
+} from './helpers/native-queue-plan-fixture.ts';
 
 const GRANT_ID = 'ab'.repeat(16);
 const RULE_ID = 'cd'.repeat(16);
 const JOB_ID = 'ef'.repeat(20);
+const SILENT_JOB_ID = 'ad'.repeat(20);
 const ROOT = '/private/native-output';
 const SHA_B = 'b'.repeat(64);
 
@@ -63,6 +67,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	let storedCheckpoint: unknown = null;
 	const removedRenderInputs: string[] = [];
 	const abandonedRenderInputs: string[] = [];
+	const claimedRenderInputs: string[] = [];
 	const files = new Map([
 		['exports/reel.mp4.efefefefefefefef.partial', {
 			byteLength: 10, sha256: SHA_B, symbolicLink: false,
@@ -73,7 +78,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 		lease: () => lease,
 		now: () => 1_001,
 		mintOpaqueId: () => RULE_ID,
-		mintJobId: () => JOB_ID,
+		mintJobId: () => SILENT_JOB_ID,
 		selectRoot: async () => ({
 			grantId: GRANT_ID,
 			rootPath: ROOT,
@@ -151,7 +156,9 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 			abandon: async (_owner: object, request: Readonly<{ stageId: string }>) => {
 				abandonedRenderInputs.push(request.stageId);
 			},
-			claim: async () => undefined,
+			claim: async (_owner: unknown, request: unknown) => {
+				claimedRenderInputs.push((request as { derivedInputStageId: string }).derivedInputStageId);
+			},
 			rollbackClaim: async () => undefined,
 		},
 	});
@@ -207,6 +214,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	});
 	assert.equal(enqueued.jobId, JOB_ID);
 	assert.equal(enqueued.state, 'queued');
+	assert.deepEqual(claimedRenderInputs, [JOB_ID]);
 	assert.equal((await bridge.reorder({ jobId: JOB_ID, index: 0 }))[0]?.jobId, JOB_ID);
 	queue.control(JOB_ID, { kind: 'dispatch' }, lease, 1_003);
 	const sourceInventoryDigest = createHash('sha256').update('[]').digest('hex');
@@ -231,6 +239,27 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	assert.equal(await bridge.remove({ jobId: JOB_ID }), true);
 	assert.deepEqual(removedRenderInputs, [JOB_ID]);
 	assert.equal(queue.read(JOB_ID), null);
+	const silentPlan = createNativeQueueRecordV2({
+		jobId: SILENT_JOB_ID, taskKind: 'encoded-export', plan: nativeQueueSmallStaticPlanV8(),
+		projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId: GRANT_ID,
+		relativeDestination: 'exports/silent.mp4', reservations: {
+			cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 4_096,
+			minimumFreeBytes: 0, hardwareBackend: null,
+		}, recoveryClass: 'atomic-restart', position: 0, createdAtMs: 1_004,
+	});
+	const silentEnqueued = await bridge.enqueue({
+		taskKind: silentPlan.taskKind, planVersion: silentPlan.planVersion as 8,
+		derivedInputStageId: null, planFingerprint: silentPlan.planFingerprint,
+		planPayload: silentPlan.planPayload, projectId: silentPlan.projectId,
+		projectRevision: silentPlan.projectRevision, inputFingerprints: silentPlan.inputFingerprints,
+		rootGrantId: silentPlan.rootGrantId, relativeDestination: silentPlan.relativeDestination,
+		reservations: silentPlan.reservations, recoveryClass: silentPlan.recoveryClass,
+	});
+	assert.equal(silentEnqueued.jobId, SILENT_JOB_ID);
+	assert.deepEqual(claimedRenderInputs, [JOB_ID], 'silent V8 bypasses durable derived-input claims');
+	await bridge.control({ jobId: SILENT_JOB_ID, action: 'cancel' });
+	assert.equal(await bridge.remove({ jobId: SILENT_JOB_ID }), true);
+	assert.deepEqual(removedRenderInputs, [JOB_ID, SILENT_JOB_ID]);
 
 	assert.deepEqual(await bridge.externalDisplays(), {
 		displays: [{

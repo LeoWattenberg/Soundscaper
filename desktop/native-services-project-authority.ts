@@ -8,7 +8,6 @@ import {
 	createNativeMediaPublicationPlan,
 } from '../src/common/editor/native-media-atomic-publication.ts';
 import {
-	createNativeMediaPlanEnvelopeV1,
 	type NativeMediaPlanEnvelopeV1,
 } from '../src/common/editor/native-media-plan-envelope.ts';
 import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
@@ -430,20 +429,7 @@ function projectBody(value: unknown): Readonly<ProjectBody> {
 }
 
 function inputsMatch(record: NativeQueueRecordV2, project: ProjectRecord, plan: unknown): boolean {
-	if (record.planVersion >= 9) {
-		return nativeProjectPlanBodyMetadataMatches(plan, record.inputFingerprints, project.bodies);
-	}
-	const planInputs = createNativeMediaPlanEnvelopeV1(plan).summary.videoSourceInputs;
-	if (record.inputFingerprints.length === 0) return planInputs.length === 0;
-	if (planInputs.length !== record.inputFingerprints.length) return false;
-	const originals = project.bodies.filter(({ kind }) => kind === 'video-original');
-	return record.inputFingerprints.every((input) => originals.some(
-		(body) => body.sourceId === input.sourceId && body.sha256 === input.sha256,
-	)) && planInputs.every((source) => (
-		source.contentSha256 !== null && record.inputFingerprints.some(
-			(input) => input.sourceId === source.sourceId && input.sha256 === source.contentSha256,
-		)
-	));
+	return nativeProjectPlanBodyMetadataMatches(plan, record.inputFingerprints, project.bodies);
 }
 
 function dataBinding(record: NativeQueueRecordV2, envelope: NativeMediaPlanEnvelopeV1): HelperDataPlaneBinding {

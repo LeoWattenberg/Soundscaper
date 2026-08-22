@@ -122,9 +122,12 @@ export function nativeRenderInputDescriptorsForPlan(
 	value: readonly FramescaperNativeRenderInputDescriptorV1[],
 	envelope: NativeMediaPlanEnvelopeV1,
 ): readonly FramescaperNativeRenderInputDescriptorV1[] {
-	const expected = envelope.summary.includesAudio
-		? ['evaluated-rgba-frame-pack', 'staged-audio-mix']
-		: ['evaluated-rgba-frame-pack'];
+	if (!nativeRenderInputStageRequired(envelope)) {
+		throw new TypeError('A silent selected-V20 V8 plan has no derived-input stage.');
+	}
+	const expected = envelope.planVersion === 7
+		? ['evaluated-rgba-frame-pack', ...(envelope.summary.includesAudio ? ['staged-audio-mix'] : [])]
+		: ['staged-audio-mix'];
 	if (value.length !== expected.length || value.some(({ role }, index) => role !== expected[index])) {
 		throw new TypeError('Selected-V20 derived inputs do not match the canonical plan audio contract.');
 	}
@@ -133,6 +136,11 @@ export function nativeRenderInputDescriptorsForPlan(
 		throw new RangeError('Selected-V20 derived render inputs exceed their aggregate staging ceiling.');
 	}
 	return value;
+}
+
+export function nativeRenderInputStageRequired(envelope: NativeMediaPlanEnvelopeV1): boolean {
+	if (envelope.planVersion !== 7 && envelope.planVersion !== 8) return false;
+	return envelope.planVersion === 7 || envelope.summary.includesAudio;
 }
 
 export function nativeRenderInputExactV20Envelope(
@@ -292,7 +300,7 @@ function nativeRenderInputDescriptors(
 ): readonly FramescaperNativeRenderInputDescriptorV1[] {
 	if (!Array.isArray(value) || value.length < 1 || value.length > 2
 		|| Reflect.ownKeys(value).length !== value.length + 1) {
-		throw new TypeError('A selected-V20 render-input stage requires one carrier and optional audio.');
+		throw new TypeError('A selected-V20 render-input stage requires one or two exact derived inputs.');
 	}
 	return Object.freeze(value.map((entry) => {
 		const row = nativeRenderInputClosedRecord(

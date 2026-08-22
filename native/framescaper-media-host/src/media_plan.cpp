@@ -249,7 +249,7 @@ admitted_media_plan authenticate_media_plan(
 				+ std::to_string(result.version) + "-graph";
 		} else {
 			legacy::validate_legacy_plan(root, result);
-			result.requires_evaluated_rgba_carrier = result.version == 7 || result.version == 8;
+			result.requires_evaluated_rgba_carrier = result.version == 7;
 		}
 		timing_assets.require_all_used();
 		result.authenticated_plan_json = authenticated_plan_json;

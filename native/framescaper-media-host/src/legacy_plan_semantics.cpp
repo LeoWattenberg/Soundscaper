@@ -529,6 +529,10 @@ void validate_v8(const json::value& root, admitted_media_plan& result) {
 	result.height = static_cast<std::uint32_t>(height);
 	result.output_frame_count = static_cast<std::uint64_t>(output_count);
 	result.includes_audio = inputs.audio_index.has_value();
+	result.caption_mux = captions.mux;
+	result.caption_burn_in = captions.burn_in;
+	result.caption_sidecar = captions.present
+		&& !is_null(json::member(json::member(root, "captions"), "sidecarFormat"));
 	result.unsupported_render_family = "static-composition-graph";
 }
 

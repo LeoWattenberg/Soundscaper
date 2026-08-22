@@ -58,13 +58,10 @@ export function nativeProjectPlanBodyMetadataMatches(
 	bodies: readonly Readonly<NativeProjectMediaBody>[],
 ): boolean {
 	try {
-		const sources = planSources(plan);
-		if (sources.length !== inputFingerprints.length) return false;
 		const originals = exactOriginalBodies(inputFingerprints, bodies);
 		const timings = exactTimingBodies(nativeMediaPlanVideoTimingAssetInputs(plan), bodies);
-		return sources.every((source) => inputFingerprints.some((input) => (
-			input.sourceId === source.sourceId && input.sha256 === source.sha256
-		))) && originals.length === inputFingerprints.length
+		return planSourceFingerprintsMatch(plan, inputFingerprints)
+			&& originals.length === inputFingerprints.length
 			&& timings.length === nativeMediaPlanVideoTimingAssetInputs(plan).length;
 	} catch {
 		return false;
@@ -81,6 +78,9 @@ export async function authenticateNativeProjectPlanBodies(input: Readonly<{
 	const originals = exactOriginalBodies(input.inputFingerprints, input.bodies);
 	const timingInputs = nativeMediaPlanVideoTimingAssetInputs(input.plan);
 	const timings = exactTimingBodies(timingInputs, input.bodies);
+	if (!planSourceFingerprintsMatch(input.plan, input.inputFingerprints)) {
+		throw new Error('The native plan and queue fingerprints do not share exact source authority.');
+	}
 	const requiredStagedBytes = [...originals, ...timings.map(({ body }) => body)].reduce(
 		(total, body) => safeSum(total, body.byteLength),
 		fingerprintNativeMediaPlan(input.plan).byteLength,
@@ -196,9 +196,28 @@ function safeSum(left: number, right: number): number {
 	return left + right;
 }
 
-function planSources(planValue: unknown): readonly Readonly<{ sourceId: string; sha256: string }>[] {
-	if (!planValue || typeof planValue !== 'object' || Array.isArray(planValue)) throw new TypeError('Missing plan.');
+function planSourceFingerprintsMatch(
+	plan: unknown,
+	inputFingerprints: readonly NativeQueueInputFingerprintV1[],
+): boolean {
+	const sources = planSources(plan);
+	return sources.length === inputFingerprints.length && sources.every((source) => (
+		inputFingerprints.some((input) => input.sourceId === source.sourceId
+			&& (source.sha256 === null || input.sha256 === source.sha256))
+	));
+}
+
+function planSources(planValue: unknown): readonly Readonly<{ sourceId: string; sha256: string | null }>[] {
+	if (!planValue || typeof planValue !== 'object' || Array.isArray(planValue)) {
+		throw new TypeError('Missing plan.');
+	}
 	const plan = planValue as Record<string, unknown>;
+	if (plan.version === 7 || plan.version === 8) {
+		return createNativeMediaPlanEnvelopeV1(plan).summary.videoSourceInputs.map((source) => Object.freeze({
+			sourceId: source.sourceId,
+			sha256: source.contentSha256,
+		}));
+	}
 	if (!Array.isArray(plan.sources)) throw new TypeError('Missing unified plan sources.');
 	return plan.sources.map((source) => {
 		if (!source || typeof source !== 'object' || Array.isArray(source)) throw new TypeError('Malformed source.');

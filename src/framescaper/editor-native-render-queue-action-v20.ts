@@ -80,6 +80,7 @@ interface FramescaperNativeRenderQueueSnapshotV20 {
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly planVersion: 7 | 8;
+	readonly includesAudio: boolean;
 	readonly planFingerprint: string;
 	readonly planPayload: string;
 	readonly extension: string;
@@ -170,6 +171,7 @@ function queueSnapshot(
 		projectId,
 		projectRevision,
 		planVersion: plan.planVersion,
+		includesAudio: plan.summary.includesAudio,
 		planFingerprint: plan.fingerprint,
 		planPayload,
 		extension: safeExtension(plan.summary.extension),
@@ -257,7 +259,8 @@ async function stageSelectedV20Inputs(
 	bridge: FramescaperNativeServicesBridge,
 	owner: FramescaperNativeRenderQueueProjectOwnerV20,
 	snapshot: FramescaperNativeRenderQueueSnapshotV20,
-): Promise<string> {
+): Promise<string | null> {
+	if (snapshot.planVersion === 8 && !snapshot.includesAudio) return null;
 	if (typeof owner.prepareNativeRenderInputsV20 !== 'function'
 		|| typeof bridge.stageRenderInputs !== 'function'
 		|| typeof bridge.abandonRenderInputs !== 'function') {
@@ -266,7 +269,7 @@ async function stageSelectedV20Inputs(
 	const derivedInputs = renderInputs(await owner.prepareNativeRenderInputsV20(Object.freeze({
 		planPayload: snapshot.planPayload, planFingerprint: snapshot.planFingerprint,
 		projectId: snapshot.projectId, projectRevision: snapshot.projectRevision,
-	})));
+	})), snapshot);
 	const result = await bridge.stageRenderInputs(Object.freeze({
 		stageVersion: 1, planVersion: snapshot.planVersion,
 		planFingerprint: snapshot.planFingerprint, planPayload: snapshot.planPayload,
@@ -299,21 +302,27 @@ async function abandonSelectedV20Inputs(
 	throw cause;
 }
 
-function renderInputs(value: unknown): readonly FramescaperNativeRenderInputV1[] {
-	if (!Array.isArray(value) || value.length < 1 || value.length > 2
+function renderInputs(
+	value: unknown,
+	snapshot: FramescaperNativeRenderQueueSnapshotV20,
+): readonly FramescaperNativeRenderInputV1[] {
+	const expected = snapshot.planVersion === 7
+		? ['evaluated-rgba-frame-pack', ...(snapshot.includesAudio ? ['staged-audio-mix'] : [])]
+		: snapshot.includesAudio ? ['staged-audio-mix'] : [];
+	if (!Array.isArray(value) || value.length !== expected.length
 		|| Reflect.ownKeys(value).length !== value.length + 1) {
-		throw new TypeError('Selected V20 requires one evaluated carrier and optional staged audio.');
+		throw new TypeError('Selected V20 derived inputs do not match the exact V7/V8 media contract.');
 	}
 	const inputs = value.map((entry, index) => {
 		const row = closedRecord(entry, ['role', 'byteLength', 'sha256', 'bytes'], `V20 derived input ${String(index)}`);
-		const expected = index === 0 ? 'evaluated-rgba-frame-pack' : 'staged-audio-mix';
-		if (row.role !== expected || !(row.bytes instanceof Blob)
+		const role = expected[index];
+		if (row.role !== role || !(row.bytes instanceof Blob)
 			|| !Number.isSafeInteger(row.byteLength) || Number(row.byteLength) < 1
 			|| row.bytes.size !== row.byteLength || typeof row.sha256 !== 'string' || !SHA256.test(row.sha256)) {
 			throw new TypeError('A selected V20 derived render input has invalid role or byte identity.');
 		}
 		return Object.freeze({
-			role: expected, byteLength: Number(row.byteLength), sha256: row.sha256, bytes: row.bytes,
+			role, byteLength: Number(row.byteLength), sha256: row.sha256, bytes: row.bytes,
 		}) as FramescaperNativeRenderInputV1;
 	});
 	return Object.freeze(inputs);
@@ -366,6 +375,7 @@ function sameQueueSnapshot(
 	return left.projectId === right.projectId
 		&& left.projectRevision === right.projectRevision
 		&& left.planVersion === right.planVersion
+		&& left.includesAudio === right.includesAudio
 		&& left.planFingerprint === right.planFingerprint
 		&& left.planPayload === right.planPayload
 		&& left.extension === right.extension

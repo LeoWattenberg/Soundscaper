@@ -357,9 +357,11 @@ test('FFmpeg adapter source uses libav APIs and contains no argv or filter-strin
 		assert.match(selectedCapture, new RegExp(`json::member\\(captions, "${field}"\\)`, 'u'));
 	}
 	assert.match(selectedRender, /caption_delivery\.any\(\)[\s\S]*unsupported-caption-adapter/u);
+	assert.match(selectedRender,
+		/selected_v20_family::static_composition_v8[\s\S]*unsupported-selected-v20-static-adapter/u);
 	assert.ok(
 		selectedRender.indexOf('caption_delivery.any()')
-			< selectedRender.indexOf('execute_selected_v20_keyed_adapter'),
+			< selectedRender.indexOf('unsupported-selected-v20-static-adapter'),
 		'caption delivery must be refused before the selected adapter receives any output',
 	);
 	assert.doesNotMatch(selectedRender, /includes_staged_captions/u);

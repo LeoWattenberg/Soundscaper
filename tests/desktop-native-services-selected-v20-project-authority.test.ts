@@ -16,6 +16,7 @@ import { createNativeQueueRecordV2, type NativeQueueRecordV2 } from '../src/comm
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
 import {
 	nativeQueueKeyedPlanV7,
+	nativeQueueSmallStaticAudioPlanV8,
 	nativeQueueSmallStaticPlanV8,
 } from './helpers/native-queue-plan-fixture.ts';
 import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
@@ -55,42 +56,68 @@ test('selected V20 delegates unified V9-V12 without inspecting or settling V7/V8
 	}
 });
 
-test('selected V20 preserves V7/V8 materialization, exact byte accounting, and one-shot cleanup', async (context) => {
-	for (const version of [7, 8] as const) {
-		await context.test(`V${String(version)}`, async () => {
-			const record = queueRecord(version, 60);
-			const calls: string[] = [];
-			const prepared = preparedJob(async (outcome) => { calls.push(`project.cleanup:${outcome}`); });
-			const derived = derivedInputs(calls);
-			const authority = selectedAuthority({
-				prepare: async () => prepared,
-				renderInputs: {
-					revalidate: async () => true,
-					inspect: async () => { calls.push('renderInputs.inspect'); return derived; },
-					settle: async (_record, outcome) => { calls.push(`renderInputs.settle:${outcome}`); },
-				},
-			});
+test('selected V20 preserves V7 carrier materialization, byte accounting, and one-shot cleanup', async () => {
+	const record = queueRecord(7, 60);
+	const calls: string[] = [];
+	const prepared = preparedJob(async (outcome) => { calls.push(`project.cleanup:${outcome}`); });
+	const derived = derivedInputs(calls, 'evaluated-rgba-frame-pack');
+	const authority = selectedAuthority({
+		prepare: async () => prepared,
+		renderInputs: {
+			revalidate: async () => true,
+			inspect: async () => { calls.push('renderInputs.inspect'); return derived; },
+			settle: async (_record, outcome) => { calls.push(`renderInputs.settle:${outcome}`); },
+		},
+	});
 
-			const selected = await authority.prepare(record, ROOT);
-			const request = selected.request as HelperJobRequest<'media-render'>;
-			assert.equal(request.resourcePolicy?.maximumInputBytes, 60);
-			assert.deepEqual(request.grant.sources.map(({ type, role }) => ({ type, role })), [
-				{ type: 'file', role: 'original' },
-				{ type: 'stream', role: 'staged-audio-mix' },
-				{ type: 'file', role: 'evaluated-rgba-frame-pack' },
-			]);
-			assert.deepEqual(calls, ['renderInputs.inspect', 'renderInputs.materialize:/private/scratch']);
+	const selected = await authority.prepare(record, ROOT);
+	const request = selected.request as HelperJobRequest<'media-render'>;
+	assert.equal(request.resourcePolicy?.maximumInputBytes, 60);
+	assert.deepEqual(request.grant.sources.map(({ type, role }) => ({ type, role })), [
+		{ type: 'file', role: 'original' },
+		{ type: 'stream', role: 'staged-audio-mix' },
+		{ type: 'file', role: 'evaluated-rgba-frame-pack' },
+	]);
+	assert.deepEqual(calls, ['renderInputs.inspect', 'renderInputs.materialize:/private/scratch']);
 
-			await selected.cleanup?.('paused');
-			await selected.cleanup?.('failed');
-			assert.deepEqual(calls, [
-				'renderInputs.inspect',
-				'renderInputs.materialize:/private/scratch',
-				'project.cleanup:paused',
-				'renderInputs.settle:paused',
-			]);
-		});
-	}
+	await selected.cleanup?.('paused');
+	await selected.cleanup?.('failed');
+	assert.deepEqual(calls, [
+		'renderInputs.inspect',
+		'renderInputs.materialize:/private/scratch',
+		'project.cleanup:paused',
+		'renderInputs.settle:paused',
+	]);
+});
+
+test('selected V20 V8 materializes audio only while silent V8 delegates without a stage', async () => {
+	const calls: string[] = [];
+	const prepared = preparedJob(async (outcome) => { calls.push(`project.cleanup:${outcome}`); });
+	const authority = selectedAuthority({
+		prepare: async () => { calls.push('project.prepare'); return prepared; },
+		renderInputs: {
+			revalidate: async () => true,
+			inspect: async () => {
+				calls.push('renderInputs.inspect');
+				return derivedInputs(calls, 'staged-audio-mix');
+			},
+			settle: async (_record, outcome) => { calls.push(`renderInputs.settle:${outcome}`); },
+		},
+	});
+	const audio = await authority.prepare(queueRecord(8, 60, true), ROOT);
+	assert.deepEqual((audio.request as HelperJobRequest<'media-render'>).grant.sources
+		.map(({ type, role }) => ({ type, role })).at(-1),
+	{ type: 'file', role: 'staged-audio-mix' });
+	assert.deepEqual(calls.slice(0, 3), [
+		'renderInputs.inspect', 'project.prepare', 'renderInputs.materialize:/private/scratch',
+	]);
+	await audio.cleanup?.('cancelled');
+	assert.equal(calls.includes('renderInputs.settle:cancelled'), true);
+
+	calls.length = 0;
+	const silent = await authority.prepare(queueRecord(8), ROOT);
+	assert.strictEqual(silent, prepared);
+	assert.deepEqual(calls, ['project.prepare']);
 });
 
 test('selected V20 V7/V8 preparation failures clean the delegated scratch job without settling its resumable stage', async () => {
@@ -116,7 +143,7 @@ test('selected V20 V7/V8 preparation failures clean the delegated scratch job wi
 
 	calls.length = 0;
 	await assert.rejects(
-		() => authority.prepare(queueRecord(8, 59), ROOT),
+		() => authority.prepare(queueRecord(8, 59, true), ROOT),
 		/cannot hold its exact derived inputs/iu,
 	);
 	assert.deepEqual(calls, ['project.cleanup:failed']);
@@ -162,26 +189,34 @@ function preparedJob(
 	});
 }
 
-function derivedInputs(calls: string[]): FramescaperNativeDerivedRenderInputs {
+function derivedInputs(
+	calls: string[],
+	role: 'evaluated-rgba-frame-pack' | 'staged-audio-mix',
+): FramescaperNativeDerivedRenderInputs {
 	return Object.freeze({
 		byteLength: 19,
 		materialize: async (directory: string) => {
 			calls.push(`renderInputs.materialize:${directory}`);
 			return Object.freeze([Object.freeze({
 				type: 'file' as const,
-				role: 'evaluated-rgba-frame-pack' as const,
-				path: `${directory}/evaluated.frames`, bytes: 19, sha256: '12'.repeat(32),
+				role,
+				path: `${directory}/${role === 'staged-audio-mix' ? 'audio.wav' : 'evaluated.frames'}`,
+				bytes: 19, sha256: '12'.repeat(32),
 				identity: Object.freeze({ dev: 1, ino: 2 }),
 			})]);
 		},
 	});
 }
 
-function queueRecord(version: 7 | 8 | 9 | 10 | 11 | 12, scratchBytes = 1_024): NativeQueueRecordV2 {
+function queueRecord(
+	version: 7 | 8 | 9 | 10 | 11 | 12,
+	scratchBytes = 1_024,
+	includeAudio = false,
+): NativeQueueRecordV2 {
 	const plan = version === 7
 		? nativeQueueKeyedPlanV7()
 		: version === 8
-			? nativeQueueSmallStaticPlanV8()
+			? includeAudio ? nativeQueueSmallStaticAudioPlanV8() : nativeQueueSmallStaticPlanV8()
 			: createUnifiedExactRenderPlan(unifiedExactPlanFixture(version));
 	return createNativeQueueRecordV2({
 		jobId: String(version).padStart(2, '0').repeat(20),
