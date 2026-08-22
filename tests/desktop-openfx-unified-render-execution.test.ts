@@ -20,6 +20,7 @@ import type {
 import type { HelperOfxHostJobGrant } from '../desktop/helper-contract.ts';
 import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { createNativeMediaPlanEnvelopeV1 } from '../src/common/editor/native-media-plan-envelope.ts';
+import { OfxRetryableGpuError } from '../src/common/editor/native-ofx-host-contract.ts';
 import { createUnifiedExactRenderOfxRetimerSourceTime } from '../src/common/editor/unified-exact-render-plan-consumers.ts';
 import {
 	createUnifiedExactRenderPlan,
@@ -82,6 +83,7 @@ test('a V12 node becomes one fingerprint-, state-, plan-, input-, and output-bou
 		stateSha256: attempt.invocation.stateSha256,
 		inputIds: attempt.invocation.inputFrameStreamIds,
 		outputId: attempt.invocation.outputFrameStreamId,
+		outputOrdinal: attempt.invocation.outputOrdinal,
 	}, {
 		planVersion: 12,
 		planSha256: envelope.fingerprint,
@@ -90,6 +92,7 @@ test('a V12 node becomes one fingerprint-, state-, plan-, input-, and output-bou
 		stateSha256: fingerprintNativeMediaPlan(effect.state).sha256,
 		inputIds: [resources.inputs[0]?.binding.streamId],
 		outputId: resources.output.binding.streamId,
+		outputOrdinal: 3,
 	});
 	assert.deepEqual(attempt.request.grant.inputs.map(({ name, sourceRef, frame }) => ({
 		name, sourceRef, sha256: frame.sha256,
@@ -120,12 +123,14 @@ test('V12 attempt admission refuses forged plan, plug-in, named input, transfer,
 			...valid.output,
 			transfer: { ...valid.output.transfer, streamId: '67'.repeat(20) },
 		} },
+		{ ...valid, outputOrdinal: plan.output.frameCount },
+		{ ...valid, inputs: [{ ...valid.inputs[0]!, width: 2, rowBytes: 8 }] },
 		{ ...valid, retimerSourceTime: { ...valid.retimerSourceTime! } },
 	];
 	for (const resources of cases) {
 		assert.throws(
 			() => createUnifiedExactOfxHostAttemptV1(plan, 'ofx-1', 'cpu', resources),
-			/authentic|binary|input|plan|SourceTime|stream|transfer/iu,
+			/authentic|binary|input|plan|SourceTime|stream|transfer|ordinal|geometry|canvas/iu,
 		);
 	}
 });
@@ -188,10 +193,29 @@ test('stale or unavailable runtime state resolves before execution without mutat
 	manager.dispose();
 });
 
+test('V12 preserves stale authored fallback state but can resolve it only to bypass', async () => {
+	const raw = structuredClone(unifiedExactPlanFixture(12));
+	raw.output.canvas.width = 1;
+	raw.output.canvas.height = 1;
+	const effect = raw.nodes.find((node) => node.kind === 'openfx');
+	if (!effect || effect.state.frozenFallback === null) throw new Error('fallback fixture is unavailable');
+	effect.state.frozenFallback.freshness.inputIdentitiesSha256 = '99'.repeat(32);
+	const plan = createUnifiedExactRenderPlan(raw) as UnifiedExactRenderPlanV12;
+	const manager = managerWith(() => { throw new Error('must not spawn'); });
+	const result = await executeUnifiedExactOfxNodeV1(manager, {
+		plan, instanceId: 'ofx-1', runtime: runtime(plan, { availability: 'missing' }),
+		requestedBackend: 'cpu', executionPolicy: 'framescaper-conformance-fixture',
+		createAttemptResources: () => { throw new Error('must not resolve resources'); },
+	});
+	assert.equal(result.mode, 'bypass');
+	assert.equal(effectNode(plan).state.frozenFallback?.freshness.inputIdentitiesSha256, '99'.repeat(32));
+	manager.dispose();
+});
+
 test('the conformance fixture retries a failed GPU attempt on CPU in the same fingerprint runtime', async () => {
 	const plan = candidatePlan();
 	const worker = new Worker();
-	worker.failures.push(new Error('cuda device lost'));
+	worker.failures.push(new OfxRetryableGpuError('OFX_GPU_EXECUTION_FAILED', 'cuda device lost'));
 	const fingerprints: string[] = [];
 	const manager = managerWith((fingerprint) => {
 		fingerprints.push(fingerprint);
@@ -279,6 +303,8 @@ test('crash and quarantine preserve fresh frozen playback; cancellation remains 
 
 function candidatePlan(pluginId = 'org.framescaper.conformance'): UnifiedExactRenderPlanV12 {
 	const raw = structuredClone(unifiedExactPlanFixture(12));
+	raw.output.canvas.width = 1;
+	raw.output.canvas.height = 1;
 	const effect = raw.nodes.find((node) => node.kind === 'openfx');
 	if (!effect || !('state' in effect)) throw new Error('fixture effect is unavailable');
 	(effect.state as { pluginId: string }).pluginId = pluginId;
@@ -314,6 +340,7 @@ function attemptResources(
 	return {
 		invocationId: `ofx-${backend}`,
 		abortSignalId: `abort-${backend}`,
+		outputOrdinal: 3,
 		executable: executable('ofx-host', '/runtime/ofx-host', '33'.repeat(32)),
 		pluginBinary: executable(
 			'ofx-plugin', '/fixtures/framescaper-conformance.ofx', effectNode(plan).state.binarySha256,

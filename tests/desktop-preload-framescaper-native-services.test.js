@@ -240,6 +240,30 @@ test('image-sequence selection crosses preload only as opaque files and exact ra
 	await assert.rejects(() => hostile.bridge.nativeServices.selectImageSequence(), /selection|fields/iu);
 });
 
+test('OpenFX scan, inventory, and control cross the public bridge without plug-in paths', async () => {
+	const projection = openFxProjection();
+	const fixture = await loadPreload([projection, [projection], { ...projection, state: 'enabled' }]);
+	const scanned = await fixture.bridge.nativeServices.scanOpenFxPlugin();
+	assert.equal(scanned.pluginId, projection.pluginId);
+	assert.equal(JSON.stringify(scanned).includes('/'), false);
+	assert.equal((await fixture.bridge.nativeServices.listOpenFxPlugins()).length, 1);
+	assert.equal((await fixture.bridge.nativeServices.controlOpenFxPlugin({
+		pluginHandle: projection.pluginHandle, action: 'enable',
+	})).state, 'enabled');
+	assert.deepEqual(fixture.invocations.map(([channel, request]) => [channel, request && { ...request }]), [
+		['framescaper:v1:native-services:openfx:scan', undefined],
+		['framescaper:v1:native-services:openfx:inventory', undefined],
+		['framescaper:v1:native-services:openfx:control', {
+			pluginHandle: projection.pluginHandle, action: 'enable',
+		}],
+	]);
+	assert.throws(() => fixture.bridge.nativeServices.controlOpenFxPlugin({
+		pluginHandle: projection.pluginHandle, action: 'enable', path: '/private/plugin.ofx',
+	}), /fields|control request/iu);
+	const hostile = await loadPreload([{ ...projection, path: '/private/plugin.ofx' }]);
+	await assert.rejects(() => hostile.bridge.nativeServices.scanOpenFxPlugin(), /fields|projection/iu);
+});
+
 test('default-off native preferences cross only the authenticated pathless bridge', async () => {
 	const preferences = {
 		nativeMediaEnabled: false, hardwareDecodeEnabled: false,
@@ -367,6 +391,17 @@ function capabilitySnapshot() {
 			reason: domain === 'watch' || domain === 'display' ? 'master-switch-off' : 'policy-row-blocked',
 			userEnabled: false, buildFingerprint: null, detail: 'Unavailable by exact production evidence.',
 		})),
+	};
+}
+
+function openFxProjection() {
+	return {
+		pluginHandle: '8b'.repeat(20), pluginId: 'net.example.Blur', vendor: 'Example',
+		version: { major: 1, minor: 0 }, binarySha256: '9c'.repeat(32),
+		supportedContexts: ['filter'],
+		parameters: [{ name: 'radius', type: 'double', animates: true }],
+		components: ['RGBA'], pixelDepths: ['byte'], threading: 'fully-safe',
+		state: 'consented', quarantined: false,
 	};
 }
 

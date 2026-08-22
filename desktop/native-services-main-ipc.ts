@@ -17,6 +17,7 @@ import {
 	registerFramescaperNativeRenderInputMainIpc,
 } from './native-services-render-input-main-ipc.ts';
 import type { FramescaperNativeRenderInputStaging } from './native-services-render-input-staging.ts';
+import type { FramescaperOpenFxMainService } from './openfx-main-service.ts';
 
 export const FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS = Object.freeze({
 	capabilities: 'framescaper:v1:native-services:capabilities',
@@ -45,6 +46,9 @@ export const FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS = Object.freeze({
 	selectImageSequence: 'framescaper:v1:native-services:image-sequence:select',
 	readImageSequenceFile: 'framescaper:v1:native-services:image-sequence:read',
 	releaseImageSequence: 'framescaper:v1:native-services:image-sequence:release',
+	openFxScan: 'framescaper:v1:native-services:openfx:scan',
+	openFxInventory: 'framescaper:v1:native-services:openfx:inventory',
+	openFxControl: 'framescaper:v1:native-services:openfx:control',
 	renderInputBegin: FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.begin,
 	renderInputPort: FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.port,
 	renderInputFinalize: FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.finalize,
@@ -74,6 +78,7 @@ export interface FramescaperNativeServicesMainIpcOptions {
 		FramescaperNativeImageSequenceSelectionBroker,
 		'select' | 'read' | 'release'
 	>;
+	readonly openFx?: Pick<FramescaperOpenFxMainService, 'scan' | 'inventory' | 'control'>;
 }
 
 export interface FramescaperNativeServicesMainIpcRegistration {
@@ -89,11 +94,13 @@ export function registerFramescaperNativeServicesMainIpc(
 	const hasImageSequenceSelections = Boolean(value && typeof value === 'object'
 		&& Object.hasOwn(value, 'imageSequenceSelections'));
 	const hasRenderInputs = Boolean(value && typeof value === 'object' && Object.hasOwn(value, 'renderInputs'));
+	const hasOpenFx = Boolean(value && typeof value === 'object' && Object.hasOwn(value, 'openFx'));
 	const fields = ['handle', 'removeHandler', 'authorizeOwner', 'controller',
 		...(hasPortSeams ? ['on', 'removeListener'] : []),
 		...(hasWatchImports ? ['watchImports'] : []),
 		...(hasImageSequenceSelections ? ['imageSequenceSelections'] : []),
 		...(hasRenderInputs ? ['renderInputs'] : []),
+		...(hasOpenFx ? ['openFx'] : []),
 	] as const;
 	const options = closedRecord(
 		value, fields,
@@ -129,6 +136,11 @@ export function registerFramescaperNativeServicesMainIpc(
 	if (renderInputs && (!hasPortSeams || ['begin', 'receive', 'finalize', 'claim', 'rollbackClaim']
 		.some((method) => typeof renderInputs[method as keyof typeof renderInputs] !== 'function'))) {
 		throw new TypeError('Framescaper native-services IPC requires exact render-input staging and port seams.');
+	}
+	const openFx = hasOpenFx ? options.openFx as Record<string, unknown> : null;
+	if (openFx && (Reflect.ownKeys(openFx).length !== 3
+		|| ['scan', 'inventory', 'control'].some((method) => typeof openFx[method] !== 'function'))) {
+		throw new TypeError('Framescaper native-services IPC requires an exact main-owned OpenFX service.');
 	}
 	const registered: string[] = [];
 	let framePort: FramescaperExternalDisplayFramePortRegistration | null = null;
@@ -256,6 +268,16 @@ export function registerFramescaperNativeServicesMainIpc(
 					imageSequenceSelections.release as (...args: unknown[]) => unknown,
 					imageSequenceSelections,
 					[requiredOwner(authorization), request],
+				));
+		}
+		if (openFx) {
+			register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.openFxScan,
+				() => Reflect.apply(openFx.scan as (...args: unknown[]) => unknown, openFx, []));
+			register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.openFxInventory,
+				() => Reflect.apply(openFx.inventory as (...args: unknown[]) => unknown, openFx, []));
+			register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.openFxControl,
+				(_event, request) => Reflect.apply(
+					openFx.control as (...args: unknown[]) => unknown, openFx, [request],
 				));
 		}
 	} catch (error) {

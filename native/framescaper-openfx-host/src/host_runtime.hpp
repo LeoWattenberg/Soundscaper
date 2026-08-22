@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -62,6 +63,19 @@ struct InvocationFrame final {
 	RgbaFrame frame;
 };
 
+struct InspectedParameter final {
+	std::string name;
+	std::string type;
+	bool animates = false;
+};
+
+struct PluginInspection final {
+	std::vector<std::string> contexts;
+	std::vector<InspectedParameter> parameters;
+	std::string threading;
+	std::vector<std::string> requested_suites;
+};
+
 class HostRuntime {
 public:
 	HostRuntime();
@@ -80,9 +94,10 @@ public:
 		const std::vector<HydratedParameterState>& parameters = {},
 		std::function<bool()> cancellation_probe = {},
 		RgbaFrameLayout output_layout = {},
-		bool exact_frames = false
+		bool exact_frames = false,
+		OfxTime render_time = 0
 	);
-	bool inspect(OfxPlugin& plugin);
+	std::optional<PluginInspection> inspect(OfxPlugin& plugin);
 
 private:
 	class Impl;

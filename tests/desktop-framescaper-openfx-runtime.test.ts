@@ -218,7 +218,8 @@ function invocation(id: string, pluginSha: string) {
 		nodeId: 'openfx-node', instanceId: 'instance-1', pluginId: 'net.example.Blur',
 		pluginBinarySha256: pluginSha, context: 'filter', action: 'render',
 		stateSha256: '12'.repeat(32), inputFrameStreamIds: ['34'.repeat(20)],
-		outputFrameStreamId: 'ef'.repeat(20), requestedBackend: 'cpu', abortSignalId: `abort-${id}`,
+		outputFrameStreamId: 'ef'.repeat(20), outputOrdinal: 3,
+		requestedBackend: 'cpu', abortSignalId: `abort-${id}`,
 	});
 }
 

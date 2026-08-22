@@ -2,11 +2,11 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { extname, join, resolve } from 'node:path';
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { MessageChannel } from 'node:worker_threads';
 
 import {
 	createNativeMediaPlanEnvelopeV1,
@@ -21,20 +21,25 @@ import {
 	createUnifiedExactRenderPlan,
 } from '../src/common/editor/unified-exact-render-plan.ts';
 import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
+import { assertOfxPluginDescriptorV1 } from '../src/common/editor/native-ofx-descriptor.ts';
+import { createOpenFxHelperJobRunner } from '../desktop/openfx-helper-job.ts';
+import { receiveHelperDataPlaneReservedFile } from '../desktop/helper-data-plane-io.ts';
 import {
 	unifiedExactPlanFixture,
 	unifiedExactTimingFixture,
 } from './helpers/unified-exact-render-plan-fixture.ts';
+import {
+	buildOpenFxNativeContractFixture as buildContractFixture,
+	cleanupOpenFxNativeContractFixture,
+	expectedOpenFxNativeScannerDescriptor,
+} from './helpers/openfx-native-scanner-fixture.js';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const hostRoot = join(repositoryRoot, 'native/framescaper-openfx-host');
 const sources = join(hostRoot, 'src');
-const fixture = join(hostRoot, 'fixtures', 'conformance_plugin.cpp');
-let retainedBuild;
-let retainedCleanup = () => undefined;
 let wireSequence = 0;
 
-test.after(() => retainedCleanup());
+test.after(cleanupOpenFxNativeContractFixture);
 
 test('the conformance scanner authenticates one binary before enumerating its entry points', (context) => {
 	const build = buildContractFixture(context);
@@ -45,29 +50,59 @@ test('the conformance scanner authenticates one binary before enumerating its en
 		]);
 		assert.equal(scanned.status, 0, scanned.stderr);
 		const result = JSON.parse(scanned.stdout);
-		assert.equal(result.mode, 'short-lived-scanner');
-		assert.equal(result.authenticatedBeforeLoad, true);
-		assert.equal(result.loadsOneBinary, true);
-		assert.equal(result.exitsAfterScan, true);
-		assert.equal(result.contractFixture, true);
-		assert.equal(result.osIsolationAttested, false);
-		assert.equal(result.binarySha256, build.sha256);
-		assert.deepEqual(result.plugins, [{
-			api: 'OfxImageEffectPluginAPI',
-			apiVersion: 1,
-			id: 'org.framescaper.conformance',
-			major: 1,
-			minor: 5,
-		}]);
+		assert.doesNotThrow(() => assertOfxPluginDescriptorV1(result));
+		assert.deepEqual(result, expectedOpenFxNativeScannerDescriptor(build.sha256));
 
 		const wrongDigest = run(build.scanner, [
 			'--scan', build.plugin, '--sha256', '00'.repeat(32),
 		]);
-		assert.notEqual(wrongDigest.status, 0);
-		assert.match(wrongDigest.stderr, /digest|authenticate/iu);
+			assert.notEqual(wrongDigest.status, 0);
+			assert.match(wrongDigest.stderr, /digest|authenticate/iu);
+			const mismatched = run(build.scanner, [
+				'--scan', build.mismatchPlugin, '--sha256', build.mismatchSha256,
+			]);
+			assert.notEqual(mismatched.status, 0);
+			assert.match(mismatched.stderr, /closed description/iu);
 	} finally {
 		build.cleanup();
 	}
+});
+
+test('the helper runner carries the actual native scanner descriptor over its reserved data plane', async (context) => {
+	const build = buildContractFixture(context);
+	if (build === null) return;
+	const scratchRoot = join(build.directory, 'adapter-scratch');
+	mkdirSync(scratchRoot);
+	const scratch = statSync(scratchRoot);
+	const channel = new MessageChannel();
+	context.after(() => { channel.port1.close(); channel.port2.close(); });
+	const reservation = {
+		dataPlaneVersion: 1, transport: 'message-port', streamId: 'de'.repeat(20),
+		direction: 'helper-to-host', exactByteLength: null, maximumByteLength: 4 * 1024 * 1024,
+		maximumChunkBytes: 16 * 1024 * 1024, maximumInFlightChunks: 1,
+	};
+	const outputPath = join(build.directory, 'adapter-descriptor.json');
+	const receiving = receiveHelperDataPlaneReservedFile({
+		reservation, port: channel.port2, path: outputPath,
+	});
+	const runner = createOpenFxHelperJobRunner({
+		descriptor: {
+			target: 'linux-x64', runtime: 'linux-x64', hostVersion: '1.0.0',
+			openfxVersion: '1.5.1', openfxCommit: 'ab77951',
+			scanner: nativeExecutable(build.scanner), runtimeHost: nativeExecutable(build.runtime),
+		},
+		mode: 'scanner', pluginFingerprint: null,
+	});
+	const job = runner.run({ kind: 'ofx-scan', grant: {
+		executable: nativeExecutableGrant('ofx-scanner', build.scanner),
+		pluginBinary: nativeExecutableGrant('ofx-plugin', build.plugin),
+		descriptor: reservation,
+		scratch: { rootPath: scratchRoot, rootIdentity: { dev: scratch.dev, ino: scratch.ino },
+			reservationId: 'df'.repeat(20), maximumBytes: 8 * 1024 * 1024 },
+	}, ports: [channel.port1] });
+	await Promise.all([job.completion, receiving]);
+	assert.deepEqual(JSON.parse(readFileSync(outputPath, 'utf8')),
+		expectedOpenFxNativeScannerDescriptor(build.sha256));
 });
 
 test('production entry points refuse third-party loading without OS isolation attestation', (context) => {
@@ -199,18 +234,23 @@ test('the native V12 seam reparses and correlates the exact invocation, graph, n
 		});
 		assert.equal(Object.hasOwn(result, 'outputRgbaHex'), false);
 		assert.deepEqual(readFileSync(wire.outputPath), wire.outputBytes);
-		assert.equal(result.sourceTimeVerified, false);
+		assert.equal(result.sourceTimeVerified, false); assert.equal(result.outputOrdinal, 4);
 		assert.equal(result.hydratedParameterCount, 1);
-		assert.equal(result.hydratedKeyframeCount, 1);
+		assert.equal(result.hydratedKeyframeCount, 2);
 		assert.equal(result.offscreenUiRendered, true);
 		assert.equal(result.overlayInteractVersion, 2);
 		assert.equal(result.offscreenDrawCalls, 2);
 		assert.equal(result.offscreenPixelsTouched, 5);
-
+		const gpu = structuredClone(wire.grant);
+		gpu.invocation.requestedBackend = 'cuda';
+		const gpuRejected = invokeV12Grant(build.runtime, wire.directory, gpu);
+		assert.notEqual(gpuRejected.status, 0);
+		assert.match(gpuRejected.stderr, /"error":"unsupported-backend"/u);
 		for (const mutate of [
 			(grant) => { grant.invocation.nodeId = 'different-node'; },
 			(grant) => { grant.invocation.instanceId = 'different-instance'; },
 			(grant) => { grant.invocation.stateSha256 = '11'.repeat(32); },
+			(grant) => { grant.invocation.outputOrdinal = 10; },
 			(grant) => {
 				grant.invocation.pluginId = 'net.example.Different';
 				grant.invocation.pluginFingerprint = `net.example.Different@${grant.invocation.pluginBinarySha256}`;
@@ -331,11 +371,11 @@ test('the native V12 Retimer accepts only the exact ordinal oracle SourceTime or
 			assert.equal(exact.status, 0, exact.stderr);
 			assert.equal(JSON.parse(exact.stdout).sourceTimeVerified, true);
 		}
-
-		const forged = structuredClone(wire.grant);
-		forged.invocation.retimerSourceTime.numerator = '90071992547409909';
-		const rejected = invokeV12Grant(build.runtime, wire.directory, forged);
-		assert.notEqual(rejected.status, 0);
+		const forged = structuredClone(wire.grant); forged.invocation.retimerSourceTime.outputOrdinal = 3;
+		let rejected = invokeV12Grant(build.runtime, wire.directory, forged);
+		assert.match(rejected.stderr, /SourceTime does not bind the invocation output ordinal/u);
+		forged.invocation.retimerSourceTime.outputOrdinal = 4; forged.invocation.retimerSourceTime.numerator = '90071992547409909';
+		rejected = invokeV12Grant(build.runtime, wire.directory, forged);
 		assert.match(rejected.stderr, /"error":"(?:source-time-mismatch|exact-retime-oracle-unavailable)"/u);
 	} finally {
 		build.cleanup();
@@ -353,7 +393,8 @@ test('production sources bind to the pinned SDK ABI and contain no ambient autho
 	const allSources = [
 		'isolation_contract.hpp', 'openfx_abi.hpp', 'sha256.cpp', 'sha256.hpp',
 		'dynamic_library.cpp', 'dynamic_library.hpp', 'host_runtime.cpp',
-		'host_runtime.hpp', 'host_parameter_hydration.hpp', 'ofx_scanner.cpp', 'ofx_runtime_host.cpp',
+		'host_runtime.hpp', 'host_parameter_hydration.hpp', 'host_scan_inspection.inc',
+		'loaded_plugin_binary.cpp', 'ofx_scanner.cpp', 'ofx_runtime_host.cpp',
 		'rgba_frame.hpp',
 		'v12_cancellation_channel.cpp', 'v12_cancellation_channel.hpp',
 		'v12_host_invocation.cpp', 'v12_host_invocation.hpp',
@@ -379,83 +420,19 @@ test('production sources bind to the pinned SDK ABI and contain no ambient autho
 	assert.match(cmake, /media_plan\.cpp/u);
 });
 
-function buildContractFixture(context) {
-	if (retainedBuild !== undefined) {
-		if (retainedBuild === null) context.skip('A C++ compiler is not installed on this source-audit host.');
-		return retainedBuild;
-	}
-	if (spawnSync('c++', ['--version'], { encoding: 'utf8' }).status !== 0) {
-		context.skip('A C++ compiler is not installed on this source-audit host.');
-		retainedBuild = null;
-		return null;
-	}
-	const directory = mkdtempSync(join(tmpdir(), 'framescaper-openfx-runtime-'));
-	const extension = process.platform === 'darwin' ? '.dylib'
-		: process.platform === 'win32' ? '.dll' : '.so';
-	const plugin = join(directory, `conformance${extension}`);
-	const scanner = join(directory, executableName('scanner'));
-	const runtime = join(directory, executableName('runtime'));
-	const blockedScanner = join(directory, executableName('blocked-scanner'));
-	const abiCommon = [
-		'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
-		'-DFRAMESCAPER_OPENFX_CONTRACT_ONLY=1', '-I', sources,
-	];
-	const common = [...abiCommon, '-DFRAMESCAPER_OPENFX_CONFORMANCE_FIXTURE=1'];
-	const shared = process.platform === 'darwin' ? ['-dynamiclib'] : ['-shared', '-fPIC'];
-	const pluginBuild = spawnSync('c++', [...common, ...shared, fixture, '-o', plugin], {
-		encoding: 'utf8',
-	});
-	assert.equal(pluginBuild.status, 0, pluginBuild.stderr);
-	const hostSources = [
-		join(sources, 'sha256.cpp'), join(sources, 'dynamic_library.cpp'),
-		join(sources, 'host_runtime.cpp'), join(sources, 'parameter_values.cpp'),
-		join(sources, 'v12_cancellation_channel.cpp'),
-		join(sources, 'v12_host_invocation.cpp'), join(sources, 'v12_retime_authority.cpp'),
-		join(sources, 'v12_output_file.cpp'),
-		join(repositoryRoot, 'native/framescaper-media-host/src/strict_json.cpp'),
-		join(repositoryRoot, 'native/framescaper-media-host/src/sha256.cpp'),
-		join(repositoryRoot, 'native/framescaper-media-host/src/media_file_grants.cpp'),
-		join(repositoryRoot, 'native/framescaper-media-host/src/media_plan.cpp'),
-		join(repositoryRoot, 'native/framescaper-media-host/src/legacy_plan_semantics.cpp'),
-		join(repositoryRoot, 'native/framescaper-media-host/src/legacy_plan_v8_filter_semantics.cpp'),
-	];
-	for (const [entry, output] of [
-		['ofx_scanner.cpp', scanner], ['ofx_runtime_host.cpp', runtime],
-	]) {
-		const link = process.platform === 'linux' ? ['-ldl', '-pthread'] : ['-pthread'];
-		const built = spawnSync('c++', [
-			...common, '-I', join(repositoryRoot, 'native/framescaper-media-host/src'),
-			...hostSources, join(sources, entry), ...link, '-o', output,
-		], { encoding: 'utf8' });
-		assert.equal(built.status, 0, built.stderr);
-	}
-	const blocked = spawnSync('c++', [
-		...abiCommon, '-I', join(repositoryRoot, 'native/framescaper-media-host/src'),
-		...hostSources, join(sources, 'ofx_scanner.cpp'),
-		...(process.platform === 'linux' ? ['-ldl', '-pthread'] : ['-pthread']),
-		'-o', blockedScanner,
-	], { encoding: 'utf8' });
-	assert.equal(blocked.status, 0, blocked.stderr);
-	const bytes = readFileSync(plugin);
-	retainedCleanup = () => rmSync(directory, { recursive: true, force: true });
-	retainedBuild = {
-		directory, plugin, scanner, runtime, blockedScanner,
-		sha256: createHash('sha256').update(bytes).digest('hex'),
-		cleanup: () => undefined,
-	};
-	return retainedBuild;
-}
-
 function createV12WireFixture(build, context) {
 	wireSequence += 1;
 	const suffix = `${context}-${String(wireSequence)}`;
 	const raw = structuredClone(unifiedExactPlanFixture(12));
+	raw.output.canvas.width = 3;
+	raw.output.canvas.height = 2;
 	const effect = raw.nodes.find((node) => node.kind === 'openfx');
 	if (!effect) throw new Error('OpenFX fixture node is unavailable.');
 	effect.state.pluginId = 'org.framescaper.conformance';
 	effect.state.binarySha256 = build.sha256;
 	effect.state.context = context;
 	effect.state.attachment.kind = context;
+	effect.state.parameters[0].keyframes.push({ frame: 9, value: 0.75 });
 	const plan = createUnifiedExactRenderPlan(raw);
 	const envelope = createNativeMediaPlanEnvelopeV1(plan);
 	const planFingerprint = fingerprintNativeMediaPlan(plan);
@@ -464,8 +441,8 @@ function createV12WireFixture(build, context) {
 		3, 4, 5, 6, 60, 70, 80, 90, 100, 110, 120, 130, 187, 187, 187, 187,
 	]);
 	const outputBytes = Buffer.from([
-		9, 8, 7, 128, 20, 30, 40, 128, 255, 0, 1, 128, 0, 0, 0, 0,
-		3, 4, 5, 128, 60, 70, 80, 128, 100, 110, 120, 128, 0, 0, 0, 0,
+		9, 8, 7, 138, 20, 30, 40, 138, 255, 0, 1, 138, 0, 0, 0, 0,
+		3, 4, 5, 138, 60, 70, 80, 138, 100, 110, 120, 138, 0, 0, 0, 0,
 	]);
 	const planPath = join(build.directory, `plan-${suffix}.json`);
 	const inputPath = join(build.directory, `input-${suffix}.rgba`);
@@ -474,7 +451,7 @@ function createV12WireFixture(build, context) {
 	writeFileSync(inputPath, inputBytes, { flag: 'wx' });
 	const sourceTime = context === 'retimer'
 		? createUnifiedExactRenderOfxRetimerSourceTime(
-			plan, 'ofx-1', 3, unifiedExactTimingFixture(),
+			plan, 'ofx-1', 4, unifiedExactTimingFixture(),
 		)
 		: null;
 	const invocation = createOfxHostInvocationV1({
@@ -490,6 +467,7 @@ function createV12WireFixture(build, context) {
 		stateSha256: fingerprintNativeMediaPlan(effect.state).sha256,
 		inputFrameStreamIds: ['20'.repeat(20)],
 		outputFrameStreamId: '30'.repeat(20),
+		outputOrdinal: 4,
 		requestedBackend: 'cpu',
 		abortSignalId: `abort-${suffix}`,
 		retimerSourceTime: sourceTime,
@@ -573,8 +551,15 @@ function sha256(bytes) {
 	return createHash('sha256').update(bytes).digest('hex');
 }
 
-function executableName(name) {
-	return process.platform === 'win32' && extname(name) !== '.exe' ? `${name}.exe` : name;
+function nativeExecutable(path) {
+	const bytes = readFileSync(path); const identity = statSync(path);
+	return { path, byteLength: bytes.byteLength,
+		sha256: sha256(bytes), identity: { dev: identity.dev, ino: identity.ino } };
+}
+
+function nativeExecutableGrant(role, path) {
+	const value = nativeExecutable(path);
+	return { role, path, bytes: value.byteLength, sha256: value.sha256, identity: value.identity };
 }
 
 function run(executable, args) {

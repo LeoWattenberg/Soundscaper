@@ -102,6 +102,27 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		: modules.createSelectedV20ProjectAuthority({
 			project: projectBodyAuthority, renderInputs: renderInputStaging,
 		});
+	let openFxService;
+	try {
+		openFxService = modules.createOpenFxService({
+			runtime: openFxRuntime,
+			scratchRoot: resolve(options.userDataPath, 'framescaper-openfx-scratch'),
+			preferences: () => preferenceSnapshot(options.settings.snapshot()),
+			policyCleared: () => capabilityPolicy.openFxCleared === true,
+			selectPluginBinary: options.selectOpenFxPluginBinary,
+			createMessageChannel: options.createMessageChannel,
+			currentProject: ({ id, revision }) => {
+				const current = options.projectAuthority?.projectRecord(id);
+				return current?.projectId === id && current.projectRevision === revision;
+			},
+			mintOpaqueId: nodePorts.mintOpaqueId,
+		});
+	} catch (error) {
+		imageSequenceSelectionBroker.dispose();
+		openFxRuntime.dispose();
+		mediaRuntime.dispose();
+		throw error;
+	}
 	const watchImportBroker = projectAuthority === null || options.watchImportAuthority === null
 		? null
 		: modules.createWatchImportBroker({
@@ -118,7 +139,9 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 	let externalDisplay;
 	try { externalDisplay = modules.createExternalDisplayPort(options.externalDisplay); }
 	catch (error) {
+		void watchImportBroker?.dispose().catch(options.onServiceError);
 		imageSequenceSelectionBroker.dispose();
+		openFxService.dispose();
 		openFxRuntime.dispose();
 		mediaRuntime.dispose();
 		throw error;
@@ -158,6 +181,8 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 			setPreference: async (preference, enabled) => {
 				const result = await setPreference(options.settings, preference, enabled);
 				if (preference === 'native-media' && result === false) externalDisplay.stop();
+				if ((preference === 'native-media' || preference === 'ofx-consent')
+					&& result === false) openFxService.disable();
 				return result;
 			},
 			onFenced: options.onFenced,
@@ -193,6 +218,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		externalDisplay.dispose?.();
 		void watchImportBroker?.dispose().catch(options.onServiceError);
 		imageSequenceSelectionBroker.dispose();
+		openFxService.dispose();
 		openFxRuntime.dispose();
 		mediaRuntime.dispose();
 		throw error;
@@ -204,6 +230,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		await runtime.close();
 		void watchImportBroker?.dispose().catch(options.onServiceError);
 		imageSequenceSelectionBroker.dispose();
+		openFxService.dispose();
 		openFxRuntime.dispose();
 		mediaRuntime.dispose();
 		throw error;
@@ -234,17 +261,24 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 					read: (owner, request) => imageSequenceSelectionBroker.read(owner, request),
 					release: (owner, request) => imageSequenceSelectionBroker.release(owner, request),
 				}),
+				openFx: Object.freeze({
+					scan: () => openFxService.scan(),
+					inventory: () => openFxService.inventory(),
+					control: (request) => openFxService.control(request),
+				}),
 			});
 			return ipc;
 		},
 		async revokeOwner(owner) {
 			if (disposed) return 0;
+			openFxService.disable();
 			const [abandonedStages, releasedSelections] = await Promise.all([
 				renderInputStaging === null ? 0 : renderInputStaging.abandonOwner(owner),
 				Promise.resolve().then(() => imageSequenceSelectionBroker.disposeOwner(owner)),
 			]);
 			return abandonedStages + releasedSelections;
 		},
+		executeOpenFx: (request) => openFxService.execute(request),
 		async dispose() {
 			if (disposed) return false;
 			disposed = true;
@@ -255,6 +289,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 				() => runtime.close(),
 				() => watchImportBroker?.dispose(),
 				() => imageSequenceSelectionBroker.dispose(),
+				() => openFxService.dispose(),
 				() => openFxRuntime.dispose(),
 				() => mediaRuntime.dispose(),
 			];
@@ -299,7 +334,8 @@ function setPreference(settings, preference, enabled) {
 }
 
 async function loadRuntimeModules() {
-	const [runtime, ipc, nodePorts, externalDisplay, nativeMedia, openFx, capabilityReport, displayController,
+	const [runtime, ipc, nodePorts, externalDisplay, nativeMedia, openFx, openFxService,
+		capabilityReport, displayController,
 		projectAuthority, selectedV20Authority, renderInputStaging, watchImportBroker,
 		imageSequenceSelection] = await Promise.all([
 		import('./project-library-runtime/desktop/native-services-runtime.js'),
@@ -308,6 +344,7 @@ async function loadRuntimeModules() {
 		import('./project-library-runtime/desktop/native-services-external-display-port.js'),
 		import('./framescaper-native-media-electron-runtime.mjs'),
 		import('./framescaper-openfx-electron-runtime.mjs'),
+		import('./project-library-runtime/desktop/openfx-main-service.js'),
 		import('./project-library-runtime/desktop/native-media-capability-report.js'),
 		import('./project-library-runtime/desktop/external-display-controller.js'),
 		import('./project-library-runtime/desktop/native-services-project-authority.js'),
@@ -323,6 +360,7 @@ async function loadRuntimeModules() {
 		createExternalDisplayPort: externalDisplay.createFramescaperNativeExternalDisplayPort,
 		startMediaRuntime: nativeMedia.startFramescaperNativeMediaElectronRuntime,
 		startOpenFxRuntime: openFx.startFramescaperOpenFxElectronRuntime,
+		createOpenFxService: (options) => new openFxService.FramescaperOpenFxMainService(options),
 		createCapabilityReport: capabilityReport.createFramescaperNativeCapabilityReportV1,
 		externalDisplaySupport: displayController.externalDisplayPlacementSupport,
 		createProjectAuthority: (options) => new projectAuthority.FramescaperNativeProjectAuthority(options),
@@ -464,7 +502,8 @@ function registrationOptions(value) {
 	const fields = [
 		'productId', 'userDataPath', 'instanceId', 'processId',
 		'settings', 'onFenced', 'onServiceError',
-		'selectDirectory', 'selectImageSequenceFiles', 'imageSequenceImportAuthority',
+		'selectDirectory', 'selectImageSequenceFiles', 'selectOpenFxPluginBinary',
+		'imageSequenceImportAuthority',
 		'externalDisplay', 'projectAuthority', 'watchImportAuthority', 'createMessageChannel',
 	].sort();
 	const actual = Object.keys(value).sort();
@@ -475,6 +514,7 @@ function registrationOptions(value) {
 		|| !Number.isSafeInteger(value.processId) || value.processId < 1
 		|| typeof value.selectDirectory !== 'function'
 		|| typeof value.selectImageSequenceFiles !== 'function'
+		|| typeof value.selectOpenFxPluginBinary !== 'function'
 		|| typeof value.createMessageChannel !== 'function'
 		|| !projectAuthorityPort(value.projectAuthority)
 		|| !watchImportAuthorityPort(value.watchImportAuthority)

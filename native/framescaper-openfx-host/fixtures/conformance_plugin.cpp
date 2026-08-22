@@ -23,6 +23,7 @@ const OfxParameterSuiteV1* parameters = nullptr;
 const OfxMemorySuiteV1* memory = nullptr;
 const OfxMultiThreadSuiteV1* threads = nullptr;
 const OfxProgressSuiteV2* progress = nullptr;
+const OfxTimeLineSuiteV1* timeline = nullptr;
 const OfxParametricParameterSuiteV1* parametrics = nullptr;
 const OfxInteractSuiteV1* interacts = nullptr;
 const OfxDrawSuiteV1* draws = nullptr;
@@ -47,13 +48,14 @@ bool load_suites() {
 	memory = suite<OfxMemorySuiteV1>(kOfxMemorySuite);
 	threads = suite<OfxMultiThreadSuiteV1>(kOfxMultiThreadSuite);
 	progress = suite<OfxProgressSuiteV2>(kOfxProgressSuite, 2);
+	timeline = suite<OfxTimeLineSuiteV1>(kOfxTimeLineSuite);
 	parametrics = suite<OfxParametricParameterSuiteV1>(kOfxParametricParameterSuite);
 	interacts = suite<OfxInteractSuiteV1>(kOfxInteractSuite);
 	draws = suite<OfxDrawSuiteV1>(kOfxDrawSuite);
 	const bool dispatched = properties != nullptr && images != nullptr && parameters != nullptr
 		&& memory != nullptr && threads != nullptr && progress != nullptr
 		&& suite<OfxMessageSuiteV2>(kOfxMessageSuite, 2) != nullptr
-		&& suite<OfxTimeLineSuiteV1>(kOfxTimeLineSuite) != nullptr
+		&& timeline != nullptr
 		&& interacts != nullptr && draws != nullptr
 		&& suite<OfxDialogSuiteV1>(kOfxDialogSuite) != nullptr
 		&& parametrics != nullptr
@@ -196,6 +198,9 @@ OfxStatus describe(const void* handle) {
 	if (properties->propSetStringN(
 		effect_properties, kOfxImageEffectPropSupportedContexts, 6, contexts
 		) != kOfxStatOK || properties->propSetString(
+		effect_properties, kOfxImageEffectPropSupportedPixelDepths, 0,
+		kOfxBitDepthByte
+	) != kOfxStatOK || properties->propSetString(
 		effect_properties, kOfxImageEffectPluginRenderThreadSafety, 0,
 		kOfxImageEffectRenderFullySafe
 	) != kOfxStatOK || properties->propSetPointer(
@@ -227,16 +232,36 @@ OfxStatus describe_context(const void* handle, OfxPropertySetHandle input) {
 	char* context = nullptr;
 	if (properties->propGetString(input, kOfxImageEffectPropContext, 0, &context) != kOfxStatOK
 		|| context == nullptr) return kOfxStatFailed;
-	OfxPropertySetHandle ignored = nullptr;
+#if defined(FRAMESCAPER_OPENFX_CONTEXT_MISMATCH_FIXTURE)
+	if (std::strcmp(context, kOfxImageEffectContextFilter) == 0) {
+		OfxParamSetHandle set = nullptr;
+		if (images->getParamSet(
+			reinterpret_cast<OfxImageEffectHandle>(const_cast<void*>(handle)), &set
+		) != kOfxStatOK || parameters->paramDefine(
+			set, kOfxParamTypeDouble, "filterOnly", nullptr
+		) != kOfxStatOK) return kOfxStatFailed;
+	}
+#endif
+	OfxPropertySetHandle clip_properties = nullptr;
 	for (const char* clip : {"Source", "Output"}) {
-		if (images->clipDefine(reinterpret_cast<OfxImageEffectHandle>(const_cast<void*>(handle)), clip, &ignored) != kOfxStatOK) return kOfxStatFailed;
+		if (images->clipDefine(
+			reinterpret_cast<OfxImageEffectHandle>(const_cast<void*>(handle)), clip, &clip_properties
+		) != kOfxStatOK || properties->propSetString(
+			clip_properties, kOfxImageEffectPropSupportedComponents, 0, kOfxImageComponentRGBA
+		) != kOfxStatOK) return kOfxStatFailed;
 	}
 	return kOfxStatOK;
 }
 
-OfxStatus render(const void* handle) {
+OfxStatus render(const void* handle, OfxPropertySetHandle input) {
 	auto effect = reinterpret_cast<OfxImageEffectHandle>(const_cast<void*>(handle));
 	if (images->abort(effect) != 0) return kOfxStatFailed;
+	double render_time = 0;
+	double timeline_time = 0;
+	if (input == nullptr
+		|| properties->propGetDouble(input, kOfxPropTime, 0, &render_time) != kOfxStatOK
+		|| timeline->getTime(effect, &timeline_time) != kOfxStatOK
+		|| render_time != timeline_time) return kOfxStatFailed;
 	OfxParamSetHandle set = nullptr;
 	OfxParamHandle speed = nullptr;
 	OfxParamHandle cancellation_iterations = nullptr;
@@ -247,7 +272,7 @@ OfxStatus render(const void* handle) {
 		|| parameters->paramGetHandle(set, "speed", &speed, nullptr) != kOfxStatOK
 		|| parameters->paramGetHandle(set, "cancelIterations", &cancellation_iterations, nullptr) != kOfxStatOK
 		|| parameters->paramGetValue(speed, &current_speed) != kOfxStatOK
-		|| parameters->paramGetValueAtTime(speed, 3, &keyed_speed) != kOfxStatOK
+		|| parameters->paramGetValueAtTime(speed, render_time, &keyed_speed) != kOfxStatOK
 		|| parameters->paramGetValue(cancellation_iterations, &cancellation_polls) != kOfxStatOK
 		|| cancellation_polls < 0) return kOfxStatFailed;
 	for (int poll = 0; poll < cancellation_polls; ++poll) {
@@ -259,8 +284,8 @@ OfxStatus render(const void* handle) {
 		|| images->clipGetHandle(effect, "Output", &output, nullptr) != kOfxStatOK) return kOfxStatFailed;
 	OfxPropertySetHandle source_image = nullptr;
 	OfxPropertySetHandle image = nullptr;
-	if (images->clipGetImage(source, 0, nullptr, &source_image) != kOfxStatOK
-		|| images->clipGetImage(output, 0, nullptr, &image) != kOfxStatOK) return kOfxStatFailed;
+	if (images->clipGetImage(source, render_time, nullptr, &source_image) != kOfxStatOK
+		|| images->clipGetImage(output, render_time, nullptr, &image) != kOfxStatOK) return kOfxStatFailed;
 	void* source_data = nullptr;
 	void* data = nullptr;
 	int source_row_bytes = 0;
@@ -310,7 +335,7 @@ OfxStatus entry(const char* action, const void* handle, OfxPropertySetHandle inp
 	if (!suites_ok) return kOfxStatFailed;
 	if (std::strcmp(action, kOfxActionDescribe) == 0) return describe(handle);
 	if (std::strcmp(action, kOfxImageEffectActionDescribeInContext) == 0) return describe_context(handle, input);
-	if (std::strcmp(action, kOfxImageEffectActionRender) == 0) return render(handle);
+	if (std::strcmp(action, kOfxImageEffectActionRender) == 0) return render(handle, input);
 	if (std::strcmp(action, kOfxActionUnload) == 0) { suites_ok = false; return kOfxStatOK; }
 	return kOfxStatReplyDefault;
 }

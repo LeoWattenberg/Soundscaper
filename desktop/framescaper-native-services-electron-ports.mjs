@@ -45,6 +45,12 @@ export function createFramescaperNativeServicesElectronPorts(settings, reportErr
 				? null
 				: Object.freeze([...result.filePaths]);
 		},
+		selectOpenFxPluginBinary: async () => {
+			const result = await dialog.showOpenDialog({
+				title: 'Choose OpenFX plug-in binary', properties: ['openFile'],
+			});
+			return result.canceled || result.filePaths.length !== 1 ? null : result.filePaths[0];
+		},
 		externalDisplay: Object.freeze({
 			platform: process.platform,
 			linuxSessionType: process.env.XDG_SESSION_TYPE,

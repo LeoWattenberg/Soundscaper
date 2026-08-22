@@ -255,7 +255,9 @@ function normalizeNodes(
 	for (let index = 0; index < candidates.length; index += 1) {
 		if (kinds[index] !== 'openfx') continue;
 		requireGeneration(version, 12, 'openfx');
-		const effect = normalizeUnifiedExactRenderOpenFxNode(candidates[index], identities, sources.bySourceId);
+		const effect = normalizeUnifiedExactRenderOpenFxNode(
+			candidates[index], identities, sources.bySourceId, context.outputFrameCount,
+		);
 		normalized.set(index, effect);
 	}
 	const result = candidates.map((_candidate, index) => required(normalized.get(index)));

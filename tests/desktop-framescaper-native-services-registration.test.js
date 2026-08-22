@@ -30,6 +30,8 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	let ipcDisposals = 0;
 	let mediaDisposals = 0;
 	let openFxDisposals = 0;
+	let openFxServiceDisposals = 0;
+	let openFxServiceDisables = 0;
 	let mediaAvailable = false;
 	let authorityOptions;
 	let renderInputOptions;
@@ -61,6 +63,12 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		reason: 'payload-pending-external: No OFX payload.',
 		manager: null,
 		dispose: () => { openFxDisposals += 1; },
+	};
+	const openFxService = {
+		scan: async () => null, inventory: () => [], control: async () => ({}),
+		execute: async () => ({ mode: 'bypass' }),
+		disable: () => { openFxServiceDisables += 1; },
+		dispose: () => { openFxServiceDisposals += 1; },
 	};
 	const nodePorts = {
 		mintOpaqueId: () => 'a'.repeat(40), selectRoot: async () => null,
@@ -105,6 +113,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 			},
 			startMediaRuntime: async () => mediaRuntime,
 			startOpenFxRuntime: async () => openFxRuntime,
+			createOpenFxService: () => openFxService,
 			createNodePorts: (value) => { nodePortOptions = value; return nodePorts; },
 			createExternalDisplayPort: () => externalDisplay,
 			createCapabilityReport: (value) => Object.freeze({ value }),
@@ -201,6 +210,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(await runtimeOptions.setPreference('native-media', false), false);
 	assert.equal(externalDisplayStops, 1,
 		'disabling the master closes a still-presenting session immediately');
+	assert.equal(openFxServiceDisables, 1);
 	let owners = 0;
 	registration.registerRendererBridge({
 		handle: () => undefined,
@@ -215,8 +225,12 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.deepEqual(ipcOptions.authorizeOwner({}), {});
 	assert.equal(typeof ipcOptions.watchImports.claim, 'function');
 	assert.equal(ipcOptions.renderInputs, renderInputStaging);
+	assert.equal(typeof ipcOptions.openFx.scan, 'function');
+	assert.deepEqual(await registration.executeOpenFx({}), { mode: 'bypass' });
 	assert.equal(owners, 1);
 	assert.equal(await registration.revokeOwner({}), 3);
+	assert.equal(openFxServiceDisables, 2,
+		'losing the renderer owner aborts scanner and per-fingerprint OpenFX work');
 	assert.equal(renderInputOwnerDisposals, 1);
 	assert.equal(imageSequenceOwnerDisposals, 1);
 	assert.throws(() => registration.registerRendererBridge({}), /already registered/iu);
@@ -227,6 +241,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(closes, 1);
 	assert.equal(mediaDisposals, 1);
 	assert.equal(openFxDisposals, 1);
+	assert.equal(openFxServiceDisposals, 1);
 	assert.equal(brokerDisposals, 1);
 	assert.equal(imageSequenceDisposals, 1);
 });
@@ -240,6 +255,11 @@ test('a runtime startup failure releases the session display subscription', asyn
 			startOpenFxRuntime: async () => ({
 				available: () => false, selfTestPassed: () => false, dispose: () => undefined,
 				payloadAvailability: { status: 'unavailable' }, reason: 'unavailable', manager: null,
+			}),
+			createOpenFxService: () => ({
+				scan: async () => null, inventory: () => [], control: async () => ({}),
+				execute: async () => ({}), disable: () => undefined,
+				dispose: () => undefined,
 			}),
 			createNodePorts: () => ({}),
 			createExternalDisplayPort: () => ({ dispose: () => { disposals += 1; } }),
@@ -321,6 +341,7 @@ function options(productId) {
 		onServiceError: () => undefined,
 		selectDirectory: async () => null,
 		selectImageSequenceFiles: async () => null,
+		selectOpenFxPluginBinary: async () => null,
 		imageSequenceImportAuthority: null,
 		createMessageChannel: () => ({ hostPort: {}, helperPort: {} }),
 		projectAuthority: {

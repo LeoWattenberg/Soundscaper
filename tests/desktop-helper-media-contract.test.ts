@@ -131,6 +131,7 @@ const OFX_INVOCATION = createOfxHostInvocationV1({
 	stateSha256: '3'.repeat(64),
 	inputFrameStreamIds: [OFX_INPUT_FRAME.streamId],
 	outputFrameStreamId: OFX_OUTPUT_RESERVATION.streamId,
+	outputOrdinal: 3,
 	requestedBackend: 'cpu',
 	abortSignalId: 'abort-ofx-helper-contract',
 });

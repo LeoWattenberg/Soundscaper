@@ -1,0 +1,597 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/** Main-owned picker, registry, scan, and exact V12 OpenFX execution authority. */
+
+import { randomBytes } from 'node:crypto';
+import { lstat, mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { isAbsolute, join, resolve } from 'node:path';
+
+import type { FramescaperOpenFxRuntime } from './framescaper-openfx-runtime.ts';
+import { receiveHelperDataPlaneReservedFile,
+	type HelperDataPlaneIoPort } from './helper-data-plane-io.ts';
+import { HELPER_DATA_CHUNK_MAXIMUM_BYTES, HELPER_DATA_PLANE_VERSION,
+	} from './helper-data-plane.ts';
+import type { HelperDataPlaneOutputReservation } from './helper-data-plane-output-reservation.ts';
+import type { HelperDataPlaneTransferPort } from './helper-data-plane-transfer.ts';
+import {
+	validateHelperJobGrant,
+	type HelperExecutableGrant,
+	type HelperOfxScanJobGrant,
+} from './helper-contract.ts';
+import {
+	executeUnifiedExactOfxNodeV1,
+	type OfxUnifiedNodeExecutionResultV1,
+} from './openfx-unified-render-execution.ts';
+import {
+	prepareOpenFxMainAttemptV1,
+	type PreparedOpenFxMainAttemptV1,
+} from './openfx-main-attempt.ts';
+import {
+	framescaperOpenFxExecutionRequestV1,
+	type FramescaperOpenFxExecutionRequestV1,
+} from './openfx-main-execution-request.ts';
+import {
+	authenticateFramescaperOpenFxPluginBinary,
+	sameFramescaperOpenFxPluginBinary,
+} from './openfx-main-plugin-binary.ts';
+import {
+	assertOfxPluginDescriptorV1,
+	ofxPluginFingerprint,
+	type OfxPluginDescriptorV1,
+} from '../src/common/editor/native-ofx-descriptor.ts';
+import {
+	clearOfxQuarantine,
+	enableOfxPlugin,
+	grantOfxScanConsent,
+	recordOfxFailure,
+	reconcileOfxConsent,
+	revokeOfxPlugin,
+	type OfxConsentRecordV1,
+} from '../src/common/editor/native-ofx-consent.ts';
+import { deriveUnifiedExactOfxFreshnessV26 } from '../src/common/editor/native-ofx-freshness-authority.ts';
+import {
+	framescaperOpenFxPluginControlRequestV1,
+	framescaperOpenFxPluginProjectionV1,
+	type FramescaperOpenFxPluginProjectionV1,
+} from '../src/common/editor/native-ofx-service-contract.ts';
+import {
+	type UnifiedExactRenderOpenFxNode,
+	type UnifiedExactRenderPlanV12,
+} from '../src/common/editor/unified-exact-render-plan.ts';
+
+const SCAN_DESCRIPTOR_MAXIMUM_BYTES = 4 * 1024 * 1024;
+const HANDLE = /^[a-f\d]{40}$/u;
+const MAXIMUM_REGISTERED_PLUGINS = 1_024;
+
+export interface FramescaperOpenFxMainServiceMessageChannel {
+	readonly hostPort: HelperDataPlaneIoPort;
+	readonly helperPort: HelperDataPlaneTransferPort;
+}
+
+export interface FramescaperOpenFxMainServiceOptions {
+	readonly runtime: FramescaperOpenFxRuntime;
+	readonly scratchRoot: string;
+	readonly preferences: () => Readonly<{
+		readonly nativeMediaEnabled: boolean;
+		readonly ofxConsentEnabled: boolean;
+	}>;
+	readonly policyCleared: () => boolean;
+	readonly selectPluginBinary: () => Promise<string | null>;
+	readonly createMessageChannel: () => FramescaperOpenFxMainServiceMessageChannel;
+	readonly currentProject: (
+		project: UnifiedExactRenderPlanV12['project'],
+	) => boolean | Promise<boolean>;
+	readonly mintOpaqueId?: () => string;
+	readonly now?: () => number;
+}
+
+export type FramescaperOpenFxExecutionResultV1 =
+	| (Extract<OfxUnifiedNodeExecutionResultV1, { readonly mode: 'render' }>
+		& Readonly<{ readonly rgba: Uint8Array }>)
+	| Exclude<OfxUnifiedNodeExecutionResultV1, { readonly mode: 'render' }>;
+
+interface RegisteredPlugin {
+	readonly handle: string;
+	readonly descriptor: OfxPluginDescriptorV1;
+	readonly path: string;
+	executable: HelperExecutableGrant;
+	consent: OfxConsentRecordV1;
+	identityChanged: boolean;
+	epoch: number;
+	readonly activeExecutions: Set<AbortController>;
+}
+
+export class FramescaperOpenFxMainService {
+	readonly #options: FramescaperOpenFxMainServiceOptions;
+	readonly #scratchRoot: string;
+	readonly #plugins = new Map<string, RegisteredPlugin>();
+	readonly #scanQuarantinedBinarySha256 = new Set<string>();
+	#disposed = false;
+	#scanActive = false;
+	#authorityEpoch = 0;
+	#scanAbort: AbortController | null = null;
+
+	constructor(options: FramescaperOpenFxMainServiceOptions) {
+		if (!options || !options.runtime || typeof options.runtime.available !== 'function'
+			|| typeof options.preferences !== 'function' || typeof options.policyCleared !== 'function'
+			|| typeof options.selectPluginBinary !== 'function'
+			|| typeof options.createMessageChannel !== 'function'
+			|| typeof options.currentProject !== 'function') {
+			throw new TypeError('The main-owned OpenFX service requires exact runtime and authority ports.');
+		}
+		this.#scratchRoot = absolutePath(options.scratchRoot, 'OpenFX scratch root');
+		this.#options = options;
+	}
+
+	async scan(): Promise<FramescaperOpenFxPluginProjectionV1 | null> {
+		const manager = this.#admitOperation();
+		if (this.#scanActive) throw new Error('An OpenFX scan is already active.');
+		this.#scanActive = true;
+		const abort = new AbortController();
+		this.#scanAbort = abort;
+		const epoch = this.#authorityEpoch;
+		try { return await this.#scan(manager, abort, epoch); }
+		finally {
+			if (this.#scanAbort === abort) this.#scanAbort = null;
+			this.#scanActive = false;
+		}
+	}
+
+	async #scan(
+		manager: NonNullable<FramescaperOpenFxRuntime['manager']>,
+		abort: AbortController,
+		epoch: number,
+	): Promise<FramescaperOpenFxPluginProjectionV1 | null> {
+		const path = await this.#options.selectPluginBinary();
+		if (path === null) return null;
+		abort.signal.throwIfAborted();
+		const pluginBinary = await authenticateFramescaperOpenFxPluginBinary(path);
+		abort.signal.throwIfAborted();
+		if (this.#scanQuarantinedBinarySha256.has(pluginBinary.sha256)) {
+			throw new Error('This OpenFX binary is quarantined after a failed isolated scan.');
+		}
+		const host = availableHost(this.#options.runtime);
+		let base: string | null = null;
+		let receiving: Promise<Readonly<{ byteLength: number; sha256: string }>> | null = null;
+		try {
+			base = await this.#temporaryRoot('scan');
+			abort.signal.throwIfAborted();
+			const helperRoot = join(base, 'helper');
+			const hostRoot = join(base, 'host');
+			await Promise.all([mkdir(helperRoot, { mode: 0o700 }), mkdir(hostRoot, { mode: 0o700 })]);
+			abort.signal.throwIfAborted();
+			const streamId = opaqueId();
+			const reservation: HelperDataPlaneOutputReservation = Object.freeze({
+				dataPlaneVersion: HELPER_DATA_PLANE_VERSION,
+				transport: 'message-port', streamId, direction: 'helper-to-host',
+				exactByteLength: null, maximumByteLength: SCAN_DESCRIPTOR_MAXIMUM_BYTES,
+				maximumChunkBytes: HELPER_DATA_CHUNK_MAXIMUM_BYTES, maximumInFlightChunks: 1,
+			});
+			const helperDetails = await stat(helperRoot);
+			abort.signal.throwIfAborted();
+			const channel = this.#options.createMessageChannel();
+			const descriptorPath = join(hostRoot, 'descriptor.json');
+			receiving = receiveHelperDataPlaneReservedFile({
+				reservation, port: channel.hostPort, path: descriptorPath, signal: abort.signal,
+			});
+			const grant = validateHelperJobGrant('ofx-scan', {
+				executable: executableGrant('ofx-scanner', host.scanner), pluginBinary,
+				descriptor: reservation,
+				scratch: { rootPath: helperRoot, rootIdentity: identity(helperDetails),
+					reservationId: opaqueId(), maximumBytes:
+						pluginBinary.bytes + SCAN_DESCRIPTOR_MAXIMUM_BYTES },
+			}) as HelperOfxScanJobGrant;
+			let descriptor: OfxPluginDescriptorV1;
+			try {
+				const scanning = manager.scan({
+					kind: 'ofx-scan', grant, signal: abort.signal,
+					dataPlaneTransfers: Object.freeze([Object.freeze({
+						streamId, port: channel.helperPort,
+					})]),
+				});
+				const [result, completed] = await Promise.all([scanning, receiving]);
+				if (result.descriptor.byteLength !== completed.byteLength
+					|| result.descriptor.sha256 !== completed.sha256) {
+					throw new Error('The OpenFX scanner control and data planes disagree.');
+				}
+				descriptor = scannedDescriptor(await readFile(descriptorPath), pluginBinary.sha256);
+			}
+			catch (error) {
+				if (!abort.signal.aborted && epoch === this.#authorityEpoch) {
+					this.#scanQuarantinedBinarySha256.add(pluginBinary.sha256);
+				}
+				throw error;
+			}
+			this.#admitOperation();
+			if (abort.signal.aborted || epoch !== this.#authorityEpoch) {
+				throw new Error('OpenFX scan authority changed before registration.');
+			}
+			const existing = [...this.#plugins.values()].find((plugin) => !plugin.identityChanged
+				&& plugin.consent.state !== 'revoked'
+				&& sameFramescaperOpenFxPluginBinary(plugin.executable, pluginBinary)
+				&& ofxPluginFingerprint(plugin.descriptor) === ofxPluginFingerprint(descriptor));
+			if (existing) {
+				this.#synchronizeRuntimeQuarantine(existing);
+				if (existing.consent.state === 'discovered') {
+					existing.consent = grantOfxScanConsent(existing.consent);
+				}
+				return this.#projection(existing);
+			}
+			if (this.#plugins.size >= MAXIMUM_REGISTERED_PLUGINS) {
+				throw new Error('The session OpenFX registry is full.');
+			}
+			const handle = this.#mintHandle();
+			const consent = grantOfxScanConsent(reconcileOfxConsent(null, descriptor));
+			this.#plugins.set(handle, {
+				handle, descriptor, path: pluginBinary.path, executable: pluginBinary,
+				consent, identityChanged: false, epoch: 0, activeExecutions: new Set(),
+			});
+			return this.#projection(this.#plugins.get(handle)!);
+		} catch (error) {
+			abort.abort();
+			await receiving?.catch(() => undefined);
+			throw error;
+		} finally {
+			if (base !== null) await rm(base, { recursive: true, force: true });
+		}
+	}
+
+	inventory(): readonly FramescaperOpenFxPluginProjectionV1[] {
+		this.#assertActive();
+		return Object.freeze([...this.#plugins.values()]
+			.sort((left, right) => left.handle.localeCompare(right.handle))
+			.map((plugin) => this.#projection(plugin)));
+	}
+
+	async control(value: unknown): Promise<FramescaperOpenFxPluginProjectionV1> {
+		this.#assertActive();
+		const request = framescaperOpenFxPluginControlRequestV1(value);
+		const plugin = this.#plugin(request.pluginHandle);
+		this.#synchronizeRuntimeQuarantine(plugin);
+		if (request.action === 'revoke') {
+			plugin.consent = revokeOfxPlugin(plugin.consent);
+			this.#invalidatePlugin(plugin);
+			this.#options.runtime.manager?.release(ofxPluginFingerprint(plugin.descriptor));
+			return this.#projection(plugin);
+		}
+		this.#admitOperation();
+		await this.#reauthenticate(plugin);
+		if (plugin.identityChanged || plugin.consent.state === 'revoked') {
+			throw new Error('A changed or revoked OpenFX binary cannot inherit approval.');
+		}
+		if (request.action === 'enable') {
+			plugin.consent = enableOfxPlugin(plugin.consent);
+			plugin.epoch += 1;
+		}
+		else {
+			plugin.consent = clearOfxQuarantine(plugin.consent);
+			plugin.epoch += 1;
+			this.#options.runtime.manager!.clearQuarantine(ofxPluginFingerprint(plugin.descriptor));
+		}
+		return this.#projection(plugin);
+	}
+
+	async execute(value: FramescaperOpenFxExecutionRequestV1): Promise<FramescaperOpenFxExecutionResultV1> {
+		const manager = this.#admitOperation();
+		const request = framescaperOpenFxExecutionRequestV1(value);
+		if (!await this.#options.currentProject(request.plan.project)) {
+			throw new Error('The OpenFX V12 plan does not name the exact current project revision.');
+		}
+		const plugin = this.#plugin(request.pluginHandle);
+		await this.#reauthenticate(plugin);
+		const effect = effectNode(request.plan, request.instanceId);
+		if (effect.state.pluginId !== plugin.descriptor.pluginId
+			|| effect.state.binarySha256 !== plugin.descriptor.binarySha256) {
+			throw new Error('The OpenFX handle does not match the exact V12 effect fingerprint.');
+		}
+		assertEffectMatchesDescriptor(effect, plugin.descriptor);
+		const observedFreshness = deriveUnifiedExactOfxFreshnessV26(
+			request.plan, request.instanceId, plugin.descriptor,
+		);
+		const fingerprint = ofxPluginFingerprint(plugin.descriptor);
+		this.#synchronizeRuntimeQuarantine(plugin);
+		const runtimeQuarantined = manager.snapshot().runtimes.some((entry) => (
+			entry.pluginFingerprint === fingerprint && entry.quarantined
+		));
+		const availability = plugin.identityChanged ? 'fingerprint-changed' as const
+			: runtimeQuarantined || plugin.consent.state === 'quarantined' ? 'quarantined' as const
+				: plugin.consent.state === 'enabled' ? 'available' as const : 'revoked' as const;
+		if (availability !== 'available') {
+			const unavailable = await executeUnifiedExactOfxNodeV1(manager, {
+				plan: request.plan, instanceId: request.instanceId,
+				runtime: { availability, pluginId: null, binarySha256: null,
+					freshness: observedFreshness },
+				requestedBackend: request.requestedBackend,
+				executionPolicy: 'production-attested',
+				createAttemptResources: () => { throw new Error('Unavailable OpenFX state cannot stage resources.'); },
+			});
+			if (unavailable.mode === 'render') throw new Error('Unavailable OpenFX execution rendered unexpectedly.');
+			return unavailable;
+		}
+		const epoch = plugin.epoch;
+		const abort = new AbortController();
+		const forwardAbort = (): void => abort.abort();
+		if (request.signal?.aborted) abort.abort();
+		else request.signal?.addEventListener('abort', forwardAbort, { once: true });
+		plugin.activeExecutions.add(abort);
+		const executionRequest = Object.freeze({ ...request, signal: abort.signal });
+		let primary: PreparedOpenFxMainAttemptV1 | null = null;
+		let cpu: PreparedOpenFxMainAttemptV1 | null = null;
+		try {
+			await this.#assertExecutionAuthority(plugin, epoch, executionRequest.plan.project, manager);
+			primary = await this.#prepareAttempt(
+				executionRequest, plugin, executionRequest.requestedBackend,
+			);
+			await this.#assertExecutionAuthority(plugin, epoch, executionRequest.plan.project, manager);
+			cpu = request.requestedBackend === 'cpu' ? null
+				: await this.#prepareAttempt(executionRequest, plugin, 'cpu');
+			await this.#assertExecutionAuthority(plugin, epoch, executionRequest.plan.project, manager);
+			const result = await executeUnifiedExactOfxNodeV1(manager, {
+				plan: executionRequest.plan, instanceId: executionRequest.instanceId,
+				runtime: { availability: 'available', pluginId: plugin.descriptor.pluginId,
+					binarySha256: plugin.descriptor.binarySha256, freshness: observedFreshness },
+				requestedBackend: executionRequest.requestedBackend,
+				executionPolicy: 'production-attested', signal: executionRequest.signal,
+				onHostFailure: (error) => this.#recordRuntimeFailure(plugin, error),
+				createAttemptResources: (backend) => backend === executionRequest.requestedBackend
+					? primary!.resources : cpu!.resources,
+			});
+			if (result.mode === 'render') {
+				await this.#assertExecutionAuthority(
+					plugin, epoch, executionRequest.plan.project, manager,
+				);
+			}
+			const selected = result.mode === 'render' && result.retriedOnCpu ? cpu : primary;
+			const rgba = await selected!.finish(result.mode === 'render' ? result.output : null);
+			await (selected === primary ? cpu : primary)?.finish(null);
+			return result.mode === 'render'
+				? Object.freeze({ ...result, rgba: rgba! })
+				: result;
+		} catch (error) {
+			await Promise.all([primary?.finish(null), cpu?.finish(null)]);
+			throw error;
+		} finally {
+			plugin.activeExecutions.delete(abort);
+			request.signal?.removeEventListener('abort', forwardAbort);
+		}
+	}
+
+	disable(): void {
+		this.#assertActive();
+		this.#authorityEpoch += 1;
+		this.#scanAbort?.abort();
+		for (const plugin of this.#plugins.values()) {
+			plugin.consent = revokeOfxPlugin(plugin.consent);
+			this.#invalidatePlugin(plugin);
+			this.#options.runtime.manager?.release(ofxPluginFingerprint(plugin.descriptor));
+		}
+	}
+
+	dispose(): void {
+		if (this.#disposed) return;
+		this.#disposed = true;
+		this.#authorityEpoch += 1;
+		this.#scanAbort?.abort();
+		for (const plugin of this.#plugins.values()) this.#invalidatePlugin(plugin);
+		this.#plugins.clear();
+	}
+
+	async #assertExecutionAuthority(
+		plugin: RegisteredPlugin,
+		epoch: number,
+		project: UnifiedExactRenderPlanV12['project'],
+		manager: NonNullable<FramescaperOpenFxRuntime['manager']>,
+	): Promise<void> {
+		if (this.#admitOperation() !== manager || plugin.epoch !== epoch
+			|| plugin.identityChanged || plugin.consent.state !== 'enabled') {
+			throw new Error('OpenFX execution authority changed before dispatch.');
+		}
+		if (!await this.#options.currentProject(project)) {
+			throw new Error('The OpenFX V12 plan became stale before dispatch.');
+		}
+		if (this.#admitOperation() !== manager || plugin.epoch !== epoch
+			|| plugin.identityChanged || plugin.consent.state !== 'enabled') {
+			throw new Error('OpenFX execution authority changed before dispatch.');
+		}
+	}
+
+	#invalidatePlugin(plugin: RegisteredPlugin): void {
+		plugin.epoch += 1;
+		for (const abort of plugin.activeExecutions) abort.abort();
+	}
+
+	#recordRuntimeFailure(plugin: RegisteredPlugin, error: unknown): void {
+		const kind = ofxFailureKind(error);
+		plugin.consent = recordOfxFailure(plugin.consent, kind, this.#options.now?.() ?? Date.now());
+		if (plugin.consent.state !== 'quarantined') return;
+		this.#invalidatePlugin(plugin);
+		this.#options.runtime.manager?.release(ofxPluginFingerprint(plugin.descriptor));
+	}
+
+	#synchronizeRuntimeQuarantine(plugin: RegisteredPlugin): void {
+		if (plugin.consent.state === 'quarantined') return;
+		const fingerprint = ofxPluginFingerprint(plugin.descriptor);
+		const runtimeQuarantined = this.#options.runtime.manager?.snapshot().runtimes.some((entry) => (
+			entry.pluginFingerprint === fingerprint && entry.quarantined
+		)) ?? false;
+		if (!runtimeQuarantined) return;
+		plugin.consent = recordOfxFailure(
+			plugin.consent, 'runtime-quarantine', this.#options.now?.() ?? Date.now(),
+		);
+		this.#invalidatePlugin(plugin);
+	}
+
+	async #prepareAttempt(
+		request: ReturnType<typeof framescaperOpenFxExecutionRequestV1>,
+		plugin: RegisteredPlugin,
+		_backend: Parameters<typeof executeUnifiedExactOfxNodeV1>[1]['requestedBackend'],
+	): Promise<PreparedOpenFxMainAttemptV1> {
+		const host = availableHost(this.#options.runtime);
+		request.signal?.throwIfAborted();
+		const base = await this.#temporaryRoot('execute');
+		return prepareOpenFxMainAttemptV1({
+			request, pluginBinary: plugin.executable, runtimeHost: host.runtimeHost,
+			base, createMessageChannel: this.#options.createMessageChannel,
+		});
+	}
+
+	async #reauthenticate(plugin: RegisteredPlugin): Promise<void> {
+		if (plugin.identityChanged) return;
+		try {
+			const current = await authenticateFramescaperOpenFxPluginBinary(plugin.path);
+			if (!sameFramescaperOpenFxPluginBinary(plugin.executable, current)) {
+				throw new Error('identity changed');
+			}
+			plugin.executable = current;
+		} catch {
+			plugin.identityChanged = true;
+			plugin.consent = revokeOfxPlugin(plugin.consent);
+			this.#invalidatePlugin(plugin);
+			this.#options.runtime.manager?.release(ofxPluginFingerprint(plugin.descriptor));
+		}
+	}
+
+	#projection(plugin: RegisteredPlugin): FramescaperOpenFxPluginProjectionV1 {
+		this.#synchronizeRuntimeQuarantine(plugin);
+		const fingerprint = ofxPluginFingerprint(plugin.descriptor);
+		const runtimeQuarantined = this.#options.runtime.manager?.snapshot().runtimes.some((entry) => (
+			entry.pluginFingerprint === fingerprint && entry.quarantined
+		)) ?? false;
+		const quarantined = plugin.consent.state === 'quarantined' || runtimeQuarantined;
+		return framescaperOpenFxPluginProjectionV1({
+			pluginHandle: plugin.handle, pluginId: plugin.descriptor.pluginId,
+			vendor: plugin.descriptor.vendor, version: plugin.descriptor.version,
+			binarySha256: plugin.descriptor.binarySha256,
+			supportedContexts: plugin.descriptor.supportedContexts,
+			parameters: plugin.descriptor.parameters, components: plugin.descriptor.components,
+			pixelDepths: plugin.descriptor.pixelDepths, threading: plugin.descriptor.threading,
+			state: plugin.consent.state, quarantined,
+		});
+	}
+
+	#admitOperation() {
+		this.#assertActive();
+		const preferences = this.#options.preferences();
+		if (preferences.nativeMediaEnabled !== true) throw new Error('Native media is off.');
+		if (preferences.ofxConsentEnabled !== true) throw new Error('OpenFX consent is off.');
+		if (this.#options.policyCleared() !== true) throw new Error('OpenFX licensing policy is not cleared.');
+		if (!this.#options.runtime.available() || this.#options.runtime.manager === null) {
+			throw new Error(this.#options.runtime.reason ?? 'The authenticated OpenFX payload runtime is unavailable.');
+		}
+		availableHost(this.#options.runtime);
+		return this.#options.runtime.manager;
+	}
+
+	#plugin(handleValue: unknown): RegisteredPlugin {
+		if (typeof handleValue !== 'string' || !HANDLE.test(handleValue)) {
+			throw new TypeError('An OpenFX plug-in handle is invalid.');
+		}
+		const plugin = this.#plugins.get(handleValue);
+		if (!plugin) throw new ReferenceError('The OpenFX plug-in handle is unavailable.');
+		return plugin;
+	}
+
+	async #temporaryRoot(label: string): Promise<string> {
+		await mkdir(this.#scratchRoot, { recursive: true, mode: 0o700 });
+		const root = await lstat(this.#scratchRoot);
+		if (!root.isDirectory() || root.isSymbolicLink()) {
+			throw new Error('The OpenFX scratch authority is not one canonical directory.');
+		}
+		return mkdtemp(join(this.#scratchRoot, `ofx-${label}-`));
+	}
+
+	#mintHandle(): string {
+		const value = this.#options.mintOpaqueId?.() ?? opaqueId();
+		if (!HANDLE.test(value) || this.#plugins.has(value)) {
+			throw new Error('The OpenFX opaque handle mint returned an invalid or repeated identity.');
+		}
+		return value;
+	}
+
+	#assertActive(): void {
+		if (this.#disposed) throw new Error('The main-owned OpenFX service is disposed.');
+	}
+}
+
+function ofxFailureKind(error: unknown): Parameters<typeof recordOfxFailure>[1] {
+	if (error && typeof error === 'object' && 'cause_' in error) {
+		const cause = (error as { cause_?: unknown }).cause_;
+		if (cause === 'heartbeat' || cause === 'cancellation-timeout') return 'hang';
+		if (cause === 'helper-exit') return 'crash';
+		if (cause === 'resource-violation' || cause === 'malformed-message'
+			|| cause === 'job-mismatch' || cause === 'binary-mismatch'
+			|| cause === 'handshake') return 'resource-violation';
+	}
+	return 'render-error';
+}
+
+function effectNode(plan: UnifiedExactRenderPlanV12, instanceId: string): UnifiedExactRenderOpenFxNode {
+	const effect = plan.nodes.find((node): node is UnifiedExactRenderOpenFxNode => (
+		node.kind === 'openfx' && node.state.instanceId === instanceId
+	));
+	if (!effect) throw new ReferenceError('The exact V12 OpenFX instance is unavailable.');
+	return effect;
+}
+
+function assertEffectMatchesDescriptor(
+	effect: UnifiedExactRenderOpenFxNode,
+	descriptor: OfxPluginDescriptorV1,
+): void {
+	if (!descriptor.supportedContexts.includes(effect.state.context)
+		|| !descriptor.components.includes('RGBA') || !descriptor.pixelDepths.includes('byte')) {
+		throw new Error('The OpenFX V12 node exceeds the scanned context or RGBA8 pixel contract.');
+	}
+	const parameters = new Map(descriptor.parameters.map((parameter) => [parameter.name, parameter]));
+	for (const parameter of effect.state.parameters) {
+		const declared = parameters.get(parameter.name);
+		if (!declared || declared.type !== parameter.type
+			|| (!declared.animates && parameter.keyframes.length !== 0)) {
+			throw new Error('The OpenFX V12 node exceeds the scanned parameter contract.');
+		}
+	}
+}
+
+function availableHost(runtime: FramescaperOpenFxRuntime) {
+	const availability = runtime.payloadAvailability;
+	if (availability.status !== 'available') {
+		throw new Error(runtime.reason ?? 'The authenticated OpenFX payload is unavailable.');
+	}
+	return availability.descriptor;
+}
+
+function scannedDescriptor(bytes: Uint8Array, binarySha256: string): OfxPluginDescriptorV1 {
+	let value: unknown;
+	try { value = JSON.parse(Buffer.from(bytes).toString('utf8')) as unknown; }
+	catch { throw new TypeError('The isolated OpenFX scanner returned malformed JSON.'); }
+	assertOfxPluginDescriptorV1(value);
+	if (value.binarySha256 !== binarySha256) {
+		throw new Error('The isolated OpenFX descriptor does not bind the selected binary bytes.');
+	}
+	return structuredClone(value);
+}
+
+function executableGrant(
+	role: 'ofx-scanner' | 'ofx-host',
+	value: Readonly<{ path: string; byteLength: number; sha256: string;
+		identity: Readonly<{ dev: number; ino: number }> }>,
+): HelperExecutableGrant {
+	return Object.freeze({
+		role, path: value.path, bytes: value.byteLength, sha256: value.sha256,
+		identity: value.identity,
+	});
+}
+
+function identity(value: Readonly<{ dev: number; ino: number }>) {
+	return Object.freeze({ dev: value.dev, ino: value.ino });
+}
+
+function opaqueId(): string { return randomBytes(20).toString('hex'); }
+
+function absolutePath(value: unknown, label: string): string {
+	if (typeof value !== 'string' || !isAbsolute(value) || value.includes('\0')) {
+		throw new TypeError(`The ${label} must be an absolute path.`);
+	}
+	const normalized = resolve(value);
+	if (normalized !== value) throw new TypeError(`The ${label} must be normalized.`);
+	return normalized;
+}

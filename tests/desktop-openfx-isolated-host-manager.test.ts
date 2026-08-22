@@ -8,11 +8,18 @@ import {
 	OfxIsolatedHostManager,
 	type OfxIsolatedWorkerPort,
 } from '../desktop/openfx-isolated-host-manager.ts';
+import {
+	deserializeHelperError,
+	serializeHelperError,
+} from '../desktop/helper-contract.ts';
 import type {
 	HelperJobRequest,
 	HelperSupervisorSnapshot,
 } from '../desktop/helper-supervisor.ts';
-import { createOfxHostInvocationV1 } from '../src/common/editor/native-ofx-host-contract.ts';
+import {
+	createOfxHostInvocationV1,
+	OfxRetryableGpuError,
+} from '../src/common/editor/native-ofx-host-contract.ts';
 
 const PLUGIN_SHA = 'ab'.repeat(32);
 const OTHER_SHA = 'cd'.repeat(32);
@@ -102,42 +109,86 @@ test('a runtime refuses a mismatched grant before spawning or disclosing a path'
 	manager.dispose();
 });
 
-test('GPU failure retries once on CPU in the same fingerprint process and reports degradation', async () => {
-	const runtime = new Worker();
-	let attempts = 0;
-	runtime.runJob = async function runJob<Kind extends 'ofx-scan' | 'ofx-host'>(
-		request: HelperJobRequest<Kind>,
-	): Promise<unknown> {
-		this.requests.push(request as HelperJobRequest<'ofx-scan' | 'ofx-host'>);
-		attempts += 1;
-		if (attempts === 1) throw new Error('cuda device lost');
-		return { output: {
-			streamId: 'ef'.repeat(20), byteLength: STREAM_BYTES.byteLength, sha256: STREAM_SHA,
-		} };
-	};
-	const manager = new OfxIsolatedHostManager({
-		createScanner: () => new Worker(),
-		createRuntime: () => runtime,
-	});
-	const gpuInvocation = invocationFor('gpu', PLUGIN_SHA, 'cuda');
-	const result = await manager.renderWithCpuFallback({
-		invocation: gpuInvocation,
-		request: hostRequest(gpuInvocation),
-		createCpuAttempt: () => {
-			const invocation = invocationFor('cpu', PLUGIN_SHA, 'cpu');
-			return { invocation, request: hostRequest(invocation) };
-		},
-	});
-	assert.equal(attempts, 2);
-	assert.deepEqual(result, {
-		backend: 'cpu',
-		retriedOnCpu: true,
-		reportsDegradation: true,
-		result: { output: {
-			streamId: 'ef'.repeat(20), byteLength: STREAM_BYTES.byteLength, sha256: STREAM_SHA,
-		} },
-	});
-	manager.dispose();
+test('only typed GPU failures retry once on CPU in the same fingerprint process', async (context) => {
+	for (const code of ['OFX_UNSUPPORTED_BACKEND', 'OFX_GPU_EXECUTION_FAILED'] as const) {
+		await context.test(code, async () => {
+			const runtime = new Worker();
+			let attempts = 0;
+			runtime.runJob = async function runJob<Kind extends 'ofx-scan' | 'ofx-host'>(
+				request: HelperJobRequest<Kind>,
+			): Promise<unknown> {
+				this.requests.push(request as HelperJobRequest<'ofx-scan' | 'ofx-host'>);
+				attempts += 1;
+				if (attempts === 1) {
+					throw deserializeHelperError(serializeHelperError(
+						new OfxRetryableGpuError(code, 'cuda device lost'),
+					));
+				}
+				return { output: {
+					streamId: 'ef'.repeat(20), byteLength: STREAM_BYTES.byteLength, sha256: STREAM_SHA,
+				} };
+			};
+			const manager = new OfxIsolatedHostManager({
+				createScanner: () => new Worker(),
+				createRuntime: () => runtime,
+			});
+			const gpuInvocation = invocationFor('gpu', PLUGIN_SHA, 'cuda');
+			const result = await manager.renderWithCpuFallback({
+				invocation: gpuInvocation,
+				request: hostRequest(gpuInvocation),
+				createCpuAttempt: () => {
+					const invocation = invocationFor('cpu', PLUGIN_SHA, 'cpu');
+					return { invocation, request: hostRequest(invocation) };
+				},
+			});
+			assert.equal(attempts, 2);
+			assert.deepEqual(result, {
+				backend: 'cpu',
+				retriedOnCpu: true,
+				reportsDegradation: true,
+				result: { output: {
+					streamId: 'ef'.repeat(20), byteLength: STREAM_BYTES.byteLength, sha256: STREAM_SHA,
+				} },
+			});
+			manager.dispose();
+		});
+	}
+});
+
+test('authentication, contract, resource, quarantine, and authority errors never retry on CPU', async (context) => {
+	const failures = [
+		codedError('HELPER_GRANT_IDENTITY_MISMATCH', 'authentication failed'),
+		codedError('HELPER_CONTRACT_VIOLATION', 'contract failed'),
+		codedError('HELPER_RESOURCE_LIMIT', 'resource failed'),
+		codedError('HELPER_QUARANTINED', 'runtime quarantined'),
+		codedError('OFX_AUTHORITY_REVOKED', 'authority revoked'),
+		codedError('OFX_UNSUPPORTED_BACKEND', 'untyped retry code'),
+		new Error('untyped GPU process failure'),
+	];
+	for (const failure of failures) {
+		await context.test(failure.message, async () => {
+			const runtime = new Worker();
+			runtime.failure = failure;
+			let cpuAttempts = 0;
+			const manager = new OfxIsolatedHostManager({
+				createScanner: () => new Worker(),
+				createRuntime: () => runtime,
+			});
+			const gpuInvocation = invocationFor('gpu', PLUGIN_SHA, 'cuda');
+			await assert.rejects(manager.renderWithCpuFallback({
+				invocation: gpuInvocation,
+				request: hostRequest(gpuInvocation),
+				createCpuAttempt: () => {
+					cpuAttempts += 1;
+					const invocation = invocationFor('cpu', PLUGIN_SHA, 'cpu');
+					return { invocation, request: hostRequest(invocation) };
+				},
+			}), (error: unknown) => error === failure);
+			assert.equal(cpuAttempts, 0);
+			assert.equal(runtime.requests.length, 1);
+			manager.dispose();
+		});
+	}
 });
 
 test('cancellation and CPU failures never trigger another retry', async () => {
@@ -190,9 +241,16 @@ function invocationFor(
 		stateSha256: '12'.repeat(32),
 		inputFrameStreamIds: ['34'.repeat(20)],
 		outputFrameStreamId: 'ef'.repeat(20),
+		outputOrdinal: 3,
 		requestedBackend,
 		abortSignalId: `abort-${id}`,
 	});
+}
+
+function codedError(code: string, message: string): Error {
+	const error = new Error(message) as Error & { code: string };
+	error.code = code;
+	return error;
 }
 
 function scanRequest(pluginSha: string): HelperJobRequest<'ofx-scan'> {

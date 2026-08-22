@@ -21,6 +21,7 @@ endif()
 add_library(framescaper-openfx-host-contract STATIC
 	src/dynamic_library.cpp
 	src/host_runtime.cpp
+	src/loaded_plugin_binary.cpp
 	src/parameter_values.cpp
 	src/sha256.cpp
 	src/v12_cancellation_channel.cpp

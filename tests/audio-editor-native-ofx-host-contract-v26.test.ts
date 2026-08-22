@@ -33,6 +33,7 @@ const HOST_PLAN = Object.freeze({
 	unifiedPlanSha256: SHA_D,
 	nodeId: 'openfx-node',
 	instanceId: 'ofx-instance-1',
+	outputOrdinal: 3,
 });
 
 test('the closed V26 host surface covers all contexts, suites, actions, interactions, and CPU', () => {
@@ -78,11 +79,15 @@ test('one invocation is fingerprint-bound, cancellable, closed, and carries no a
 	assert.doesNotThrow(() => assertOfxHostInvocationV1(invocation));
 	assert.equal(invocation.pluginFingerprint, `net.example.Blur@${SHA_A}`);
 	assert.equal(invocation.unifiedPlanSha256, SHA_D);
+	assert.equal(invocation.outputOrdinal, 3);
 	assert.equal(JSON.stringify(invocation).includes('/'), false);
 	assert.throws(
 		() => assertOfxHostInvocationV1({ ...invocation, pluginBinaryPath: '/plugins/blur.ofx' }),
 		/exactly|schema keys/iu,
 	);
+	const missingOrdinal = { ...invocation } as Partial<typeof invocation>;
+	delete missingOrdinal.outputOrdinal;
+	assert.throws(() => assertOfxHostInvocationV1(missingOrdinal), /schema keys|outputOrdinal/iu);
 	assert.throws(
 		() => assertOfxHostInvocationV1({ ...invocation, pluginFingerprint: `net.example.Blur@${SHA_B}` }),
 		/fingerprint/iu,

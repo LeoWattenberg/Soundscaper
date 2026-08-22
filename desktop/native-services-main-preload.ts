@@ -54,6 +54,12 @@ import {
 	type FramescaperNativeWatchImportCompletionRequest,
 } from './native-services-watch-import-broker.ts';
 import { nativeRenderInputStageIdRequest } from './native-services-render-input-contract.ts';
+import {
+	framescaperOpenFxPluginControlRequestV1,
+	framescaperOpenFxPluginProjectionV1,
+	type FramescaperOpenFxPluginControlRequestV1,
+	type FramescaperOpenFxPluginProjectionV1,
+} from '../src/common/editor/native-ofx-service-contract.ts';
 
 export interface FramescaperNativeServicesMainPreloadBridge {
 	readonly capabilities: () => Promise<NativeMediaCapabilitySnapshotV1>;
@@ -109,6 +115,11 @@ export interface FramescaperNativeServicesMainPreloadBridge {
 		readonly length: number;
 	}>) => Promise<Uint8Array>;
 	readonly releaseImageSequence: (request: Readonly<{ readonly selectionId: string }>) => Promise<boolean>;
+	readonly scanOpenFxPlugin: () => Promise<FramescaperOpenFxPluginProjectionV1 | null>;
+	readonly listOpenFxPlugins: () => Promise<readonly FramescaperOpenFxPluginProjectionV1[]>;
+	readonly controlOpenFxPlugin: (
+		request: FramescaperOpenFxPluginControlRequestV1,
+	) => Promise<FramescaperOpenFxPluginProjectionV1>;
 }
 
 /** Pathless API intended for `framescaperDesktop.v1.nativeServices`. */
@@ -312,6 +323,23 @@ export function createFramescaperNativeServicesMainPreloadBridge(
 			return booleanResult(await invoke(
 				FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.releaseImageSequence, request,
 			), 'image-sequence release');
+		},
+		async scanOpenFxPlugin(): Promise<FramescaperOpenFxPluginProjectionV1 | null> {
+			const result = clone(await invoke(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.openFxScan));
+			return result === null ? null : framescaperOpenFxPluginProjectionV1(result);
+		},
+		async listOpenFxPlugins(): Promise<readonly FramescaperOpenFxPluginProjectionV1[]> {
+			const result = clone(await invoke(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.openFxInventory));
+			if (!Array.isArray(result) || result.length > 1_024) {
+				throw new TypeError('Framescaper returned an invalid OpenFX plug-in inventory.');
+			}
+			return Object.freeze(result.map(framescaperOpenFxPluginProjectionV1));
+		},
+		async controlOpenFxPlugin(requestValue: FramescaperOpenFxPluginControlRequestV1) {
+			const request = framescaperOpenFxPluginControlRequestV1(requestValue);
+			return framescaperOpenFxPluginProjectionV1(clone(await invoke(
+				FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.openFxControl, request,
+			)));
 		},
 	});
 }

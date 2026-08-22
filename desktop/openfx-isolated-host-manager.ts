@@ -20,6 +20,7 @@ import type {
 } from './helper-supervisor.ts';
 import {
 	assertOfxHostInvocationV1,
+	isOfxRetryableGpuError,
 	type OfxHostInvocationV1,
 	type OfxRenderBackendV1,
 } from '../src/common/editor/native-ofx-host-contract.ts';
@@ -134,7 +135,9 @@ export class OfxIsolatedHostManager {
 				result,
 			});
 		} catch (error) {
-			if (request.request.signal?.aborted || request.invocation.requestedBackend === 'cpu') throw error;
+			if (request.request.signal?.aborted
+				|| request.invocation.requestedBackend === 'cpu'
+				|| !isOfxRetryableGpuError(error)) throw error;
 			const cpu = request.createCpuAttempt();
 			assertOfxHostInvocationV1(cpu.invocation);
 			if (cpu.invocation.requestedBackend !== 'cpu'

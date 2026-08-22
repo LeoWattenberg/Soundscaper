@@ -109,6 +109,7 @@ test('contract-only scanner and per-fingerprint runtime fixtures self-test separ
 			join(hostRoot, 'src', 'sha256.cpp'),
 			join(hostRoot, 'src', 'dynamic_library.cpp'),
 			join(hostRoot, 'src', 'host_runtime.cpp'),
+			join(hostRoot, 'src', 'loaded_plugin_binary.cpp'),
 			join(hostRoot, 'src', 'parameter_values.cpp'),
 			join(hostRoot, 'src', 'v12_cancellation_channel.cpp'),
 			join(hostRoot, 'src', 'v12_host_invocation.cpp'),

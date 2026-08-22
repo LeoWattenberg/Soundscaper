@@ -5,6 +5,8 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import { createNativeMediaCapabilitySnapshotV1 } from '../src/common/editor/native-media-capability-snapshot.ts';
+
 import {
 	createFramescaperNativeServicesStore,
 	DEFAULT_FRAMESCAPER_NATIVE_SERVICE_PREFERENCES,
@@ -168,7 +170,30 @@ test('Manage OFX reports consent and runtime evidence instead of a generic unava
 	assert.match(markup, /OpenFX consent/u);
 	assert.match(markup, /Runtime capability status/u);
 	assert.match(markup, /Detailed runtime capability evidence is unavailable/u);
+	assert.match(markup, /disabled="" data-framescaper-openfx-scan="true"/u);
 	assert.doesNotMatch(markup, /This operation is unavailable until/u);
+});
+
+test('Manage OFX exposes scan only when exact runtime, consent, and bridge gates agree', () => {
+	const base = rendererSnapshot({ runtimeAvailable: true, nativeMediaEnabled: true });
+	const snapshot: FramescaperNativeServicesRendererSnapshot = {
+		...base,
+		preferences: { ...base.preferences, nativeMediaEnabled: true, ofxConsentEnabled: true },
+		capabilitySnapshot: createNativeMediaCapabilitySnapshotV1({
+			masterEnabled: true,
+			entries: [{ domain: 'ofx', id: 'isolated-host', policyCleared: true,
+				buildSupported: true, probeSucceeded: true, selfTestPassed: true, userEnabled: true }],
+		}),
+	};
+	const bridge = fakeBridge({
+		scanOpenFxPlugin: async () => null,
+		listOpenFxPlugins: async () => [],
+		controlOpenFxPlugin: async () => { throw new Error('not invoked during server render'); },
+	}).bridge;
+	const markup = renderToStaticMarkup(<FramescaperNativeServicesDialog bridge={bridge}
+		initialSurface="ofx-manage" initialSnapshot={snapshot} onClose={() => undefined} />);
+	assert.match(markup, /data-framescaper-openfx-scan="true">Scan plug-in/u);
+	assert.doesNotMatch(markup, /disabled="" data-framescaper-openfx-scan="true"/u);
 });
 
 test('candidate project actions render a lazy opt-in operation instead of a placeholder', () => {

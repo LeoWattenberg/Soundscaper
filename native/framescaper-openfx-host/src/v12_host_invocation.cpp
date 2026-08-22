@@ -311,6 +311,7 @@ struct ParsedInvocation final {
 	std::string abort_signal_id;
 	std::vector<std::string> input_stream_ids;
 	std::string output_stream_id;
+	std::uint64_t output_ordinal{};
 	const json::value* source_time{};
 };
 
@@ -319,7 +320,7 @@ struct ParsedInvocation final {
 		"schemaVersion", "invocationId", "unifiedPlanVersion", "unifiedPlanSha256",
 		"nodeId", "instanceId", "pluginId", "pluginBinarySha256", "pluginFingerprint",
 		"context", "action", "stateSha256", "inputFrameStreamIds", "outputFrameStreamId",
-		"requestedBackend", "abortSignalId", "retimerSourceTime",
+		"outputOrdinal", "requestedBackend", "abortSignalId", "retimerSourceTime",
 	});
 	if (safe_integer(json::member(value, "schemaVersion"), "invocation schema", 1) != 1
 		|| safe_integer(json::member(value, "unifiedPlanVersion"), "plan version", 12) != 12) {
@@ -357,6 +358,9 @@ struct ParsedInvocation final {
 	if (output.kind != json::type::string) fail("admission", "A render invocation requires one output stream.");
 	result.output_stream_id = id(output, "output stream ID");
 	if (!unique.insert(result.output_stream_id).second) fail("admission", "The output stream aliases an input.");
+	result.output_ordinal = static_cast<std::uint64_t>(safe_integer(
+		json::member(value, "outputOrdinal"), "output ordinal"
+	));
 	result.abort_signal_id = id(json::member(value, "abortSignalId"), "abort signal ID");
 	const auto& source_time = json::member(value, "retimerSourceTime");
 	result.source_time = source_time.kind == json::type::null_value ? nullptr : &source_time;
@@ -447,6 +451,7 @@ V12HostInvocation authenticate_v12_host_invocation(
 		result.context = parsed.context;
 		result.requested_backend = parsed.backend;
 		result.abort_signal_id = parsed.abort_signal_id;
+		result.output_ordinal = parsed.output_ordinal;
 		if (result.plugin_binary_sha256 != parsed.binary_sha256) {
 			fail("identity-mismatch", "The staged plug-in binary does not match its invocation.");
 		}
@@ -462,6 +467,9 @@ V12HostInvocation authenticate_v12_host_invocation(
 		if (plan_sha256 != parsed.plan_sha256) fail("identity-mismatch", "The staged plan does not match its invocation.");
 		const auto admitted = framescaper::media::authenticate_media_plan(plan_path, plan_sha256);
 		if (admitted.version != 12) fail("admission", "The OpenFX host admits only unified exact plan V12.");
+		if (parsed.output_ordinal >= admitted.output_frame_count) {
+			fail("admission", "The OpenFX output ordinal is outside the exact V12 output frame range.");
+		}
 		const auto plan_bytes = read_stable_file(plan_path, plan_sha256, "OpenFX V12 plan", kMaximumPlanBytes);
 		if (static_cast<std::int64_t>(plan_bytes.size()) != plan_length) {
 			fail("authentication", "The OpenFX V12 plan byte length changed.");
@@ -536,6 +544,10 @@ V12HostInvocation authenticate_v12_host_invocation(
 
 		const auto& attachment = json::member(state, "attachment");
 		if (parsed.context == Context::retimer) {
+			if (safe_integer(json::member(*parsed.source_time, "outputOrdinal"), "SourceTime ordinal")
+				!= static_cast<std::int64_t>(parsed.output_ordinal)) {
+				fail("source-time-mismatch", "Retimer SourceTime does not bind the invocation output ordinal.");
+			}
 			if (json::string(json::member(attachment, "targetId"), "Retimer target")
 				!= json::string(json::member(*parsed.source_time, "clipId"), "SourceTime clip")) {
 				fail("identity-mismatch", "Retimer SourceTime does not bind its attachment clip.");

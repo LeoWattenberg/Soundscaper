@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace {
 
@@ -30,28 +31,66 @@ int self_test() {
 	return ok ? 0 : 70;
 }
 
+std::string architecture_directory() {
+#if defined(_WIN32) && defined(_M_ARM64EC)
+	return "Win-arm64ec";
+#elif defined(_WIN32) && (defined(_M_X64) || defined(__x86_64__))
+	return "Win64";
+#elif defined(__APPLE__) && defined(__aarch64__)
+	return "MacOS";
+#elif defined(__linux__) && defined(__aarch64__)
+	return "Linux-aarch64";
+#elif defined(__linux__) && defined(__x86_64__)
+	return "Linux-x86-64";
+#else
+	throw std::runtime_error("This OpenFX scanner architecture is outside the five-target contract.");
+#endif
+}
+
+void write_strings(const std::vector<std::string>& values) {
+	std::cout << '[';
+	for (std::size_t index = 0; index < values.size(); ++index) {
+		if (index != 0) std::cout << ',';
+		std::cout << framescaper::openfx::json_string(values[index]);
+	}
+	std::cout << ']';
+}
+
 int scan(const std::filesystem::path& path, const std::string& sha256) {
 	using namespace framescaper::openfx;
 	HostRuntime host;
 	LoadedPluginBinary binary{path, sha256};
 	binary.bind_host(host.host());
-	std::cout << "{\"contractVersion\":1,\"mode\":\"short-lived-scanner\","
-		<< "\"openfx\":\"" << kOpenFxVersion << "\",\"commit\":\"" << kOpenFxCommit << "\","
-		<< denied_authorities_json() << ",\"contractFixture\":true,"
-		<< "\"authenticatedBeforeLoad\":true,"
-		<< "\"loadsOneBinary\":true,\"exitsAfterScan\":true,\"binarySha256\":"
-		<< json_string(binary.sha256()) << ",\"plugins\":[";
-	for (int index = 0; index < binary.plugin_count(); ++index) {
-		auto& plugin = binary.plugin(index);
-		if (!host.inspect(plugin)) throw std::runtime_error("The OpenFX plug-in failed isolated description.");
-		if (index != 0) std::cout << ',';
-		std::cout << "{\"api\":" << json_string(plugin.pluginApi)
-			<< ",\"apiVersion\":" << plugin.apiVersion
-			<< ",\"id\":" << json_string(plugin.pluginIdentifier)
-			<< ",\"major\":" << plugin.pluginVersionMajor
-			<< ",\"minor\":" << plugin.pluginVersionMinor << '}';
+	if (binary.plugin_count() != 1) {
+		throw std::runtime_error("The selected binary must expose exactly one OpenFX plug-in entry.");
 	}
-	std::cout << "]}\n";
+	auto& plugin = binary.plugin(0);
+	const auto inspected = host.inspect(plugin);
+	if (!inspected.has_value()) {
+		throw std::runtime_error("The OpenFX plug-in failed isolated closed description.");
+	}
+	// OpenFX 1.5.1 reports no vendor identity; never infer one from the plug-in id.
+	std::cout << "{\"pluginId\":" << json_string(plugin.pluginIdentifier)
+		<< ",\"vendor\":null"
+		<< ",\"version\":{\"major\":" << plugin.pluginVersionMajor
+		<< ",\"minor\":" << plugin.pluginVersionMinor << "}"
+		<< ",\"bundleIdentity\":" << json_string("single-file-sha256:" + binary.sha256())
+		<< ",\"binarySha256\":" << json_string(binary.sha256())
+		<< ",\"architectureDirectory\":" << json_string(architecture_directory())
+		<< ",\"supportedContexts\":";
+	write_strings(inspected->contexts);
+	std::cout << ",\"parameters\":[";
+	for (std::size_t index = 0; index < inspected->parameters.size(); ++index) {
+		if (index != 0) std::cout << ',';
+		const auto& parameter = inspected->parameters[index];
+		std::cout << "{\"name\":" << json_string(parameter.name)
+			<< ",\"type\":" << json_string(parameter.type)
+			<< ",\"animates\":" << (parameter.animates ? "true" : "false") << '}';
+	}
+	std::cout << "],\"components\":[\"RGBA\"],\"pixelDepths\":[\"byte\"],\"threading\":"
+		<< json_string(inspected->threading) << ",\"requestedSuites\":";
+	write_strings(inspected->requested_suites);
+	std::cout << "}\n";
 	return 0;
 }
 

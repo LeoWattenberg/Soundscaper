@@ -10,6 +10,8 @@ import { MessageChannel } from 'node:worker_threads';
 
 import type { FramescaperOpenFxHostDescriptor } from '../desktop/framescaper-openfx-host-payload.ts';
 import {
+	assertOpenFxHostOutput,
+	createOpenFxHostProcessFailure,
 	createOpenFxV12CancellationFrame,
 	createOpenFxHelperJobRunner,
 	openFxHostProcessArguments,
@@ -31,10 +33,7 @@ import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fix
 
 test('the scanner runner authenticates both executables and publishes only exact descriptor bytes', async (context) => {
 	const fixture = await createFixture(context);
-	const descriptorBytes = Buffer.from(JSON.stringify({
-		contractVersion: 1, mode: 'short-lived-scanner', binarySha256: fixture.plugin.sha256,
-		plugins: [{ id: 'net.example.Blur', api: 'OfxImageEffectPluginAPI', apiVersion: 1, major: 1, minor: 0 }],
-	}));
+	const descriptorBytes = scannerDescriptorBytes(fixture.plugin.sha256);
 	const descriptorBinding = outputReservation('ef'.repeat(20), null, 64 * 1024);
 	const channel = new MessageChannel();
 	const invocations: OpenFxHostProcessInvocation[] = [];
@@ -68,7 +67,10 @@ test('the scanner runner authenticates both executables and publishes only exact
 	assert.equal(String(await readFile(outputPath)), String(descriptorBytes));
 	assert.deepEqual(invocations, [{
 		executablePath: fixture.descriptor.scanner.path,
-		arguments: ['--scan', fixture.plugin.path, '--sha256', fixture.plugin.sha256],
+		arguments: [
+			'--scan', join(fixture.scratch.rootPath, fixture.scratch.reservationId, 'plugin-binary.ofx'),
+			'--sha256', fixture.plugin.sha256,
+		],
 	}]);
 });
 
@@ -100,10 +102,7 @@ test('a per-fingerprint runner refuses a grant for a sibling plug-in before invo
 
 test('scanner results are fenced when the held plug-in path is replaced during execution', async (context) => {
 	const fixture = await createFixture(context);
-	const descriptorBytes = Buffer.from(JSON.stringify({
-		contractVersion: 1, mode: 'short-lived-scanner', binarySha256: fixture.plugin.sha256,
-		plugins: [{ id: 'net.example.Blur' }],
-	}));
+	const descriptorBytes = scannerDescriptorBytes(fixture.plugin.sha256);
 	const descriptor = outputReservation('ed'.repeat(20), null, 64 * 1024);
 	const invoked = deferred<void>();
 	const processResult = deferred<Readonly<{ exitCode: number; stdout: string; stderr: string }>>();
@@ -136,10 +135,7 @@ test('scanner results are fenced when the held plug-in path is replaced during e
 
 test('scanner cleanup refuses a replacement scratch reservation identity', async (context) => {
 	const fixture = await createFixture(context);
-	const descriptorBytes = Buffer.from(JSON.stringify({
-		contractVersion: 1, mode: 'short-lived-scanner', binarySha256: fixture.plugin.sha256,
-		plugins: [{ id: 'net.example.Blur' }],
-	}));
+	const descriptorBytes = scannerDescriptorBytes(fixture.plugin.sha256);
 	const descriptor = outputReservation('ec'.repeat(20), null, 64 * 1024);
 	const invoked = deferred<void>();
 	const processResult = deferred<Readonly<{ exitCode: number; stdout: string; stderr: string }>>();
@@ -227,6 +223,7 @@ test('a spooled OpenFX input replaced while the runtime runs cannot publish a re
 		pluginBinarySha256: effect.state.binarySha256, context: 'filter', action: 'render',
 		stateSha256: fingerprintNativeMediaPlan(effect.state).sha256,
 		inputFrameStreamIds: [inputBinding.streamId], outputFrameStreamId: outputBinding.streamId,
+		outputOrdinal: 3,
 		requestedBackend: 'cpu', abortSignalId: 'abort-input-replacement',
 	});
 	const planPath = join(fixture.root, 'plan-v12.json');
@@ -248,11 +245,8 @@ test('a spooled OpenFX input replaced while the runtime runs cannot publish a re
 		invokeHost: (nativeInvocation) => {
 			if (nativeInvocation.arguments[0] === '--scan') {
 				return processHandle(Promise.resolve({
-					exitCode: 0, stderr: '', stdout: JSON.stringify({
-						contractVersion: 1, mode: 'short-lived-scanner',
-						binarySha256: fixture.plugin.sha256,
-						plugins: [{ id: 'net.example.Blur' }],
-					}),
+					exitCode: 0, stderr: '',
+					stdout: String(scannerDescriptorBytes(fixture.plugin.sha256)),
 				}));
 			}
 			const grantPath = nativeInvocation.arguments[1]!;
@@ -264,7 +258,9 @@ test('a spooled OpenFX input replaced while the runtime runs cannot publish a re
 				await writeFile(nativeGrant.output.path, outputBytes, { flag: 'wx' });
 				return {
 					exitCode: 0, stderr: '', stdout: JSON.stringify({
-						accepted: true, outputStreamId: outputBinding.streamId,
+						accepted: true, requestedBackend: 'cpu', backend: 'cpu',
+						retriedOnCpu: false, reportsDegradation: false,
+						outputStreamId: outputBinding.streamId,
 						outputByteLength: outputBytes.byteLength,
 						outputSha256: digest(outputBytes), outputWidth: 1,
 						outputHeight: 1, outputRowBytes: 4,
@@ -311,6 +307,58 @@ test('a spooled OpenFX input replaced while the runtime runs cannot publish a re
 	await writeFile(stagedInput, Buffer.from([1, 2, 3, 4]));
 	finishRuntime.resolve();
 	await assert.rejects(Promise.all([job.completion, transfers]), /authenticated identity, length, or digest/iu);
+});
+
+test('runtime output admits exact CPU reporting and rejects hidden GPU degradation', () => {
+	const bytes = Buffer.from([1, 2, 3, 4]);
+	const inspected = { byteLength: bytes.byteLength, sha256: digest(bytes) };
+	const grant = {
+		invocation: { requestedBackend: 'cpu' },
+		output: {
+			frame: { streamId: '90'.repeat(20), exactByteLength: bytes.byteLength },
+			width: 1, height: 1, rowBytes: 4,
+		},
+	} as never;
+	const exact = {
+		accepted: true, requestedBackend: 'cpu', backend: 'cpu',
+		retriedOnCpu: false, reportsDegradation: false,
+		outputStreamId: '90'.repeat(20), outputByteLength: bytes.byteLength,
+		outputSha256: inspected.sha256, outputWidth: 1, outputHeight: 1, outputRowBytes: 4,
+	};
+	assert.doesNotThrow(() => assertOpenFxHostOutput(JSON.stringify(exact), grant, inspected));
+	assert.throws(() => assertOpenFxHostOutput(JSON.stringify({
+		...exact, requestedBackend: 'cuda', backend: 'cpu',
+		retriedOnCpu: true, reportsDegradation: true,
+	}), { ...grant, invocation: { requestedBackend: 'cuda' } } as never, inspected), /backend/iu);
+});
+
+test('native runtime failures expose only the closed retryable GPU error codes', () => {
+	for (const [nativeCode, wireCode] of [
+		['unsupported-backend', 'OFX_UNSUPPORTED_BACKEND'],
+		['gpu-execution-failed', 'OFX_GPU_EXECUTION_FAILED'],
+	] as const) {
+		const failure = createOpenFxHostProcessFailure({
+			exitCode: 65,
+			stdout: '',
+			stderr: `${JSON.stringify({ error: nativeCode, message: 'GPU failed exactly.' })}\n`,
+		}, 'runtime host');
+		assert.equal(failure.name, 'OfxRetryableGpuError');
+		assert.equal((failure as Error & { code?: string }).code, wireCode);
+		assert.equal(failure.message, 'GPU failed exactly.');
+	}
+	for (const [stderr, label] of [
+		[`${JSON.stringify({ error: 'authentication', message: 'denied' })}\n`, 'runtime host'],
+		[`${JSON.stringify({ error: 'unsupported-backend', message: 'denied', extra: true })}\n`, 'runtime host'],
+		['{"error":"authentication","error":"unsupported-backend","message":"denied"}\n', 'runtime host'],
+		[`${JSON.stringify({ error: 'unsupported-backend', message: 'denied' })}\n`, 'scanner'],
+		['not-json', 'runtime host'],
+	] as const) {
+		const failure = createOpenFxHostProcessFailure({
+			exitCode: 65, stdout: '', stderr,
+		}, label);
+		assert.equal((failure as Error & { code?: string }).code, undefined);
+		assert.match(failure.message, /failed with code 65/iu);
+	}
 });
 
 test('native scanner and runtime arguments are closed and shell-free', () => {
@@ -395,7 +443,7 @@ async function createFixture(context: test.TestContext) {
 		root, descriptor, plugin,
 		scratch: {
 			rootPath: scratchPath, rootIdentity: { dev: scratch.dev, ino: scratch.ino },
-			reservationId: '78'.repeat(20), maximumBytes: 64 * 1024,
+			reservationId: '78'.repeat(20), maximumBytes: 1024 * 1024,
 		},
 	};
 }
@@ -450,6 +498,17 @@ function processHandle(completion: Promise<Readonly<{
 	exitCode: number; stdout: string; stderr: string;
 }>>) {
 	return { completion, cancel: async () => undefined };
+}
+
+function scannerDescriptorBytes(binarySha256: string): Buffer {
+	return Buffer.from(JSON.stringify({
+		pluginId: 'net.example.Blur', vendor: 'net.example.Blur',
+		version: { major: 1, minor: 0 }, bundleIdentity: `sha256:${binarySha256}`,
+		binarySha256, architectureDirectory: 'Linux-x86-64',
+		supportedContexts: ['filter'], parameters: [], components: ['RGBA'],
+		pixelDepths: ['byte'], threading: 'fully-safe',
+		requestedSuites: ['OfxImageEffectSuite', 'OfxPropertySuite', 'OfxParameterSuite'],
+	}));
 }
 
 function digest(bytes: Uint8Array): string {

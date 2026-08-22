@@ -81,6 +81,15 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 	const owner = {};
 	const watchCalls: unknown[][] = [];
 	const imageSequenceCalls: unknown[][] = [];
+	const openFxCalls: unknown[][] = [];
+	const openFxProjection = {
+		pluginHandle: '8b'.repeat(20), pluginId: 'net.example.Blur', vendor: 'Example',
+		version: { major: 1, minor: 0 }, binarySha256: '9c'.repeat(32),
+		supportedContexts: ['filter'],
+		parameters: [{ name: 'radius', type: 'double', animates: true }],
+		components: ['RGBA'], pixelDepths: ['byte'], threading: 'fully-safe',
+		state: 'consented', quarantined: false,
+	};
 	const registration = registerFramescaperNativeServicesMainIpc({
 		handle: (channel: string, handler: (event: unknown, value?: unknown) => unknown) => handlers.set(channel, handler),
 		removeHandler: (channel: string) => { handlers.delete(channel); },
@@ -119,6 +128,13 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 				imageSequenceCalls.push([claimedOwner, request]);
 				return true;
 			},
+		}),
+		openFx: Object.freeze({
+			scan: () => { openFxCalls.push(['scan']); return openFxProjection; },
+			inventory: () => { openFxCalls.push(['inventory']); return [openFxProjection]; },
+			control: (request: unknown) => { openFxCalls.push(['control', request]); return {
+				...openFxProjection, state: 'enabled',
+			}; },
 		}),
 	});
 	const bridge = createFramescaperNativeServicesMainPreloadBridge({
@@ -163,6 +179,16 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 	await assert.rejects(() => bridge.selectImageSequence(), /disabled|unavailable|policy/u);
 	assert.deepEqual(watchCalls, []);
 	assert.deepEqual(imageSequenceCalls, []);
+	const scanned = await bridge.scanOpenFxPlugin();
+	assert.equal(scanned?.pluginId, 'net.example.Blur');
+	assert.equal(JSON.stringify(scanned).includes('/'), false);
+	assert.equal((await bridge.listOpenFxPlugins()).length, 1);
+	assert.equal((await bridge.controlOpenFxPlugin({
+		pluginHandle: '8b'.repeat(20), action: 'enable',
+	})).state, 'enabled');
+	assert.deepEqual(openFxCalls, [
+		['scan'], ['inventory'], ['control', { pluginHandle: '8b'.repeat(20), action: 'enable' }],
+	]);
 	await assert.rejects(
 		() => bridge.control({ jobId: '1a'.repeat(20), action: 'resume', extra: true } as never),
 		/unsupported fields/u,
@@ -243,4 +269,17 @@ test('the preload boundary rejects a hostile native capability response', async 
 	void controller;
 	await assert.rejects(() => bridge.capabilities(), /unsupported fields|exact|keys/iu);
 	database.close();
+});
+
+test('the OpenFX preload rejects path-bearing scanner output', async () => {
+	const bridge = createFramescaperNativeServicesMainPreloadBridge({
+		invoke: async () => ({
+			pluginHandle: '8b'.repeat(20), pluginId: 'net.example.Blur', vendor: 'Example',
+			version: { major: 1, minor: 0 }, binarySha256: '9c'.repeat(32),
+			supportedContexts: ['filter'], parameters: [], components: ['RGBA'],
+			pixelDepths: ['byte'], threading: 'fully-safe', state: 'consented',
+			quarantined: false, path: '/private/plugin.ofx',
+		}),
+	});
+	await assert.rejects(() => bridge.scanOpenFxPlugin(), /unsupported fields|projection/iu);
 });

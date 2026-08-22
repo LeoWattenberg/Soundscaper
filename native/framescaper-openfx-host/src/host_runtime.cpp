@@ -341,7 +341,6 @@ OfxStatus parametric_set_point(OfxParamHandle h, int c, double t, int i, double 
 OfxStatus parametric_add_point(OfxParamHandle h, int c, double t, double x, double v, bool a) { auto* p = parameter(h); return p == nullptr ? kOfxStatErrBadHandle : framescaper::openfx::parametric_add_point(p->values, c, t, x, v, a); }
 OfxStatus parametric_delete_point(OfxParamHandle h, int c, int i) { auto* p = parameter(h); return p == nullptr ? kOfxStatErrBadHandle : framescaper::openfx::parametric_delete_point(p->values, c, i); }
 OfxStatus parametric_delete_all(OfxParamHandle h, int c) { auto* p = parameter(h); return p == nullptr ? kOfxStatErrBadHandle : parametric_delete_all_points(p->values, c); }
-
 struct HostState {
 	PropertySet host_properties;
 	Effect effect_record;
@@ -361,7 +360,6 @@ struct HostState {
 	OfxDialogSuiteV1 dialog_suite{deny_vendor_dialog, redraw_pending};
 	OfxParametricParameterSuiteV1 parametric_suite{parametric_value, parametric_count, parametric_get_point, parametric_set_point, parametric_add_point, parametric_delete_point, parametric_delete_all};
 	OfxHost host_record{};
-
 	HostState() {
 		host_properties.owner = this; effect_record.properties.owner = this;
 		effect_record.parameters.properties.owner = this;
@@ -369,21 +367,22 @@ struct HostState {
 	}
 	static const void* fetch_suite(OfxPropertySetHandle host, const char* name, int version) {
 		auto* properties = property_set(host); if (properties == nullptr || properties->owner == nullptr || name == nullptr) return nullptr;
-		auto& state = *properties->owner; state.requested_suites.insert(name);
-		if (std::strcmp(name, kOfxPropertySuite) == 0 && version == 1) return &state.property_suite;
-		if (std::strcmp(name, kOfxImageEffectSuite) == 0 && version == 1) return &state.image_suite;
-		if (std::strcmp(name, kOfxParameterSuite) == 0 && version == 1) return &state.parameter_suite;
-		if (std::strcmp(name, kOfxMemorySuite) == 0 && version == 1) return &state.memory_suite;
-		if (std::strcmp(name, kOfxMultiThreadSuite) == 0 && version == 1) return &state.thread_suite;
-		if (std::strcmp(name, kOfxMessageSuite) == 0 && version == 1) return &state.message_suite_v1;
-		if (std::strcmp(name, kOfxMessageSuite) == 0 && version == 2) return &state.message_suite_v2;
-		if (std::strcmp(name, kOfxProgressSuite) == 0 && version == 1) return &state.progress_suite_v1;
-		if (std::strcmp(name, kOfxProgressSuite) == 0 && version == 2) return &state.progress_suite_v2;
-		if (std::strcmp(name, kOfxTimeLineSuite) == 0 && version == 1) return &state.timeline_suite;
-		if (std::strcmp(name, kOfxInteractSuite) == 0 && version == 1) return &state.interact_suite;
-		if (std::strcmp(name, kOfxDrawSuite) == 0 && version == 1) return &state.draw_suite;
-		if (std::strcmp(name, kOfxDialogSuite) == 0 && version == 1) return &state.dialog_suite;
-		if (std::strcmp(name, kOfxParametricParameterSuite) == 0 && version == 1) return &state.parametric_suite;
+		auto& state = *properties->owner;
+		const auto expose = [&state, name](const void* suite) { state.requested_suites.insert(name); return suite; };
+		if (std::strcmp(name, kOfxPropertySuite) == 0 && version == 1) return expose(&state.property_suite);
+		if (std::strcmp(name, kOfxImageEffectSuite) == 0 && version == 1) return expose(&state.image_suite);
+		if (std::strcmp(name, kOfxParameterSuite) == 0 && version == 1) return expose(&state.parameter_suite);
+		if (std::strcmp(name, kOfxMemorySuite) == 0 && version == 1) return expose(&state.memory_suite);
+		if (std::strcmp(name, kOfxMultiThreadSuite) == 0 && version == 1) return expose(&state.thread_suite);
+		if (std::strcmp(name, kOfxMessageSuite) == 0 && version == 1) return expose(&state.message_suite_v1);
+		if (std::strcmp(name, kOfxMessageSuite) == 0 && version == 2) return expose(&state.message_suite_v2);
+		if (std::strcmp(name, kOfxProgressSuite) == 0 && version == 1) return expose(&state.progress_suite_v1);
+		if (std::strcmp(name, kOfxProgressSuite) == 0 && version == 2) return expose(&state.progress_suite_v2);
+		if (std::strcmp(name, kOfxTimeLineSuite) == 0 && version == 1) return expose(&state.timeline_suite);
+		if (std::strcmp(name, kOfxInteractSuite) == 0 && version == 1) return expose(&state.interact_suite);
+		if (std::strcmp(name, kOfxDrawSuite) == 0 && version == 1) return expose(&state.draw_suite);
+		if (std::strcmp(name, kOfxDialogSuite) == 0 && version == 1) return expose(&state.dialog_suite);
+		if (std::strcmp(name, kOfxParametricParameterSuite) == 0 && version == 1) return expose(&state.parametric_suite);
 		return nullptr;
 	}
 	void reset(bool cancelled, std::function<bool()> cancellation_probe = {}) {
@@ -416,10 +415,22 @@ struct HostState {
 		}
 		return contains_required;
 	}
+	bool rgba_byte_ready() const;
+	std::optional<PluginInspection> inspection() const;
 };
 
+bool accepted_status(OfxStatus status);
+OfxStatus call(
+	OfxPlugin& plugin,
+	const char* action,
+	const void* target,
+	PropertySet* input = nullptr,
+	PropertySet* output = nullptr
+);
+#include "host_scan_inspection.inc"
+
 bool accepted_status(OfxStatus status) { return status == kOfxStatOK || status == kOfxStatReplyDefault; }
-OfxStatus call(OfxPlugin& plugin, const char* action, const void* target, PropertySet* input = nullptr, PropertySet* output = nullptr) {
+OfxStatus call(OfxPlugin& plugin, const char* action, const void* target, PropertySet* input, PropertySet* output) {
 	try { return plugin.mainEntry(action, target, input == nullptr ? nullptr : handle(*input), output == nullptr ? nullptr : handle(*output)); }
 	catch (...) { return kOfxStatErrFatal; }
 }
@@ -473,36 +484,13 @@ const char* official_action(std::string_view action) {
 	if (action == "purge-caches") return kOfxActionPurgeCaches;
 	return nullptr;
 }
-
 } // namespace
-
 class HostRuntime::Impl { public: HostState state; };
-
-LoadedPluginBinary::LoadedPluginBinary(const std::filesystem::path& binary, const std::string& sha256)
-	: library_(binary, sha256) {
-	number_ = reinterpret_cast<NumberFunction>(library_.required_symbol("OfxGetNumberOfPlugins"));
-	plugin_ = reinterpret_cast<PluginFunction>(library_.required_symbol("OfxGetPlugin"));
-	set_host_ = reinterpret_cast<SetHostFunction>(library_.optional_symbol("OfxSetHost"));
-}
-LoadedPluginBinary::~LoadedPluginBinary() = default;
-void LoadedPluginBinary::bind_host(OfxHost* host) {
-	if (host == nullptr || count_ != -1) throw std::logic_error("An OpenFX binary receives exactly one host connection.");
-	if (set_host_ != nullptr && !accepted_status(set_host_(host))) throw std::runtime_error("The OpenFX binary refused its authenticated host.");
-	count_ = number_(); if (count_ < 0 || count_ > 256) throw std::runtime_error("The OpenFX binary returned an unsafe plug-in count.");
-}
-int LoadedPluginBinary::plugin_count() const { if (count_ < 0) throw std::logic_error("The OpenFX binary has not received its host."); return count_; }
-OfxPlugin& LoadedPluginBinary::plugin(int index) const { if (index < 0 || index >= plugin_count()) throw std::out_of_range("The OpenFX plug-in index is outside the authenticated binary."); auto* value = plugin_(index); if (value == nullptr || !valid_plugin_entry(*value)) throw std::runtime_error("The OpenFX plug-in entry is malformed or unsupported."); return *value; }
-
 HostRuntime::HostRuntime() : impl_(std::make_unique<Impl>()) {}
 HostRuntime::~HostRuntime() = default;
 OfxHost* HostRuntime::host() { return &impl_->state.host_record; }
-bool HostRuntime::inspect(OfxPlugin& plugin) {
-	impl_->state.reset(false); plugin.setHost(host());
-	const auto loaded = call(plugin, kOfxActionLoad, nullptr);
-	const auto described = accepted_status(loaded) ? call(plugin, kOfxActionDescribe, &impl_->state.effect_record) : kOfxStatFailed;
-	const bool descriptor = accepted_status(described) && impl_->state.descriptor_valid();
-	const auto unloaded = call(plugin, kOfxActionUnload, nullptr);
-	return accepted_status(loaded) && descriptor && accepted_status(unloaded);
+std::optional<PluginInspection> HostRuntime::inspect(OfxPlugin& plugin) {
+	return inspect_plugin_contexts(impl_->state, host(), plugin);
 }
 InvocationResult HostRuntime::invoke(OfxPlugin& plugin, Context context, std::string_view action,
 	Backend backend, bool cancelled,
@@ -510,13 +498,16 @@ InvocationResult HostRuntime::invoke(OfxPlugin& plugin, Context context, std::st
 	const std::vector<HydratedParameterState>& parameters,
 	std::function<bool()> cancellation_probe,
 	RgbaFrameLayout output_layout,
-	bool exact_frames) {
+	bool exact_frames,
+	OfxTime render_time) {
 	if (!member_of(action, kActions)) throw std::invalid_argument("The OpenFX action is outside the closed host contract.");
+	if (!std::isfinite(render_time) || render_time < 0) throw std::invalid_argument("The OpenFX render time is outside its exact frame domain.");
+	if (exact_frames && backend != Backend::cpu) throw std::runtime_error("The exact V12 host has no authenticated GPU backend.");
 	InvocationResult result; result.requested_backend = kRenderBackends[static_cast<std::size_t>(backend)];
 	result.backend = "cpu"; result.retried_on_cpu = backend != Backend::cpu; result.reports_degradation = result.retried_on_cpu;
 	result.suites_dispatched = impl_->state.suites_ready();
 	if (cancelled || action == "abort") { result.cancellation_observed = true; return result; }
-	impl_->state.reset(false, std::move(cancellation_probe)); plugin.setHost(host());
+	impl_->state.reset(false, std::move(cancellation_probe)); impl_->state.effect_record.time = render_time; plugin.setHost(host());
 	auto& state = impl_->state; auto* target = &state.effect_record;
 	PropertySet context_args; context_args.owner = &state; prop_set_string(handle(context_args), kOfxImageEffectPropContext, 0, official_context(context));
 	const bool loaded = accepted_status(call(plugin, kOfxActionLoad, nullptr));
@@ -553,7 +544,7 @@ InvocationResult HostRuntime::invoke(OfxPlugin& plugin, Context context, std::st
 			prop_set_int_n(handle(image.properties), kOfxImagePropBounds, 4, bounds);
 		}
 	}
-	PropertySet render_args; render_args.owner = &state; prop_set_double(handle(render_args), kOfxPropTime, 0, 0); const double scale[]{1, 1}; prop_set_double_n(handle(render_args), kOfxImageEffectPropRenderScale, 2, scale); const int window[]{0, 0, static_cast<int>(output_layout.width), static_cast<int>(output_layout.height)}; prop_set_int_n(handle(render_args), kOfxImageEffectPropRenderWindow, 4, window);
+	PropertySet render_args; render_args.owner = &state; prop_set_double(handle(render_args), kOfxPropTime, 0, render_time); const double scale[]{1, 1}; prop_set_double_n(handle(render_args), kOfxImageEffectPropRenderScale, 2, scale); const int window[]{0, 0, static_cast<int>(output_layout.width), static_cast<int>(output_layout.height)}; prop_set_int_n(handle(render_args), kOfxImageEffectPropRenderWindow, 4, window);
 	const bool parameters_bound = frames_bound && hydrate_parameter_state(
 		state.effect_record.parameters, parameters,
 		result.hydrated_parameter_count, result.hydrated_keyframe_count
@@ -578,7 +569,6 @@ InvocationResult HostRuntime::invoke(OfxPlugin& plugin, Context context, std::st
 	if (action == "render") result.output_frame = std::move(state.effect_record.clips.at("Output")->image.frame);
 	result.cpu_rendered = action == "render"; return result;
 }
-
 bool valid_plugin_entry(const OfxPlugin& plugin) {
 	return plugin.pluginApi != nullptr && std::strcmp(plugin.pluginApi, kOfxImageEffectPluginApi) == 0
 		&& plugin.apiVersion == kOfxImageEffectPluginApiVersion
@@ -593,5 +583,4 @@ const char* official_context(Context context) {
 	}
 	throw std::invalid_argument("The OpenFX context is unsupported.");
 }
-
 } // namespace framescaper::openfx

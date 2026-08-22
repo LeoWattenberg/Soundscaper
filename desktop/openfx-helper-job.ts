@@ -29,10 +29,11 @@ import type {
 	OpenFxHelperJobRequest,
 	OpenFxHelperJobRunnerPort,
 } from './openfx-helper-worker.ts';
-import {
-	canonicalizeNativeMediaPlan,
-} from '../src/common/editor/native-media-plan-canonical-form.ts';
+import { stageOpenFxPluginBinary } from './openfx-helper-plugin-staging.ts';
+import { canonicalizeNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { createNativeMediaPlanEnvelopeV1 } from '../src/common/editor/native-media-plan-envelope.ts';
+import { assertOfxPluginDescriptorV1 } from '../src/common/editor/native-ofx-descriptor.ts';
+import { parseOfxRetryableNativeGpuErrorV1 } from '../src/common/editor/native-ofx-host-contract.ts';
 
 export const OPENFX_HOST_CONTROL_MAXIMUM_BYTES = 64 * 1024;
 
@@ -130,11 +131,14 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 				}),
 			]);
 			signal.throwIfAborted();
-			if (grant.descriptor.maximumByteLength > grant.scratch.maximumBytes) {
+			if (grant.pluginBinary.bytes + grant.descriptor.maximumByteLength > grant.scratch.maximumBytes) {
 				throw new Error('The OpenFX scan descriptor exceeds its exact scratch grant.');
 			}
 			const reservation = join(grant.scratch.rootPath, grant.scratch.reservationId);
 			await filesystem.createReservation(reservation);
+			const pluginPath = await stageOpenFxPluginBinary(
+				filesystem, reservation, grant.pluginBinary, signal,
+			);
 			const outputPath = join(reservation, 'descriptor.json');
 			await filesystem.expectOutput({
 				path: outputPath, maximumBytes: grant.descriptor.maximumByteLength,
@@ -142,7 +146,7 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 			});
 			const process = this.#invokeHost({
 				executablePath: this.#descriptor.scanner.path,
-				arguments: ['--scan', grant.pluginBinary.path, '--sha256', grant.pluginBinary.sha256],
+				arguments: ['--scan', pluginPath, '--sha256', grant.pluginBinary.sha256],
 			});
 			setProcess(process);
 			const result = await successfulResult(process.completion, 'scanner');
@@ -190,13 +194,16 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 				}),
 			]);
 			signal.throwIfAborted();
-			const demand = grant.plan.byteLength + grant.output.frame.maximumByteLength
+			const demand = grant.pluginBinary.bytes + grant.plan.byteLength + grant.output.frame.maximumByteLength
 				+ grant.inputs.reduce((total, input) => total + input.frame.byteLength, 0);
 			if (demand > grant.scratch.maximumBytes) {
 				throw new Error('The OpenFX host inputs exceed their exact scratch grant.');
 			}
 			const reservation = join(grant.scratch.rootPath, grant.scratch.reservationId);
 			await filesystem.createReservation(reservation);
+			const pluginPath = await stageOpenFxPluginBinary(
+				filesystem, reservation, grant.pluginBinary, signal,
+			);
 			const planPath = join(reservation, 'canonical-plan.json');
 			await receiveHelperDataPlaneFile({ binding: grant.plan, port: ports[0]!, path: planPath, signal });
 			await assertCanonicalV12Plan(planPath, grant.plan.sha256);
@@ -215,7 +222,7 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 				});
 				inputPaths.push(path);
 			}
-			const pluginIndex = await this.#pluginIndex(grant, signal, setProcess);
+			const pluginIndex = await this.#pluginIndex(grant, pluginPath, signal, setProcess);
 			await filesystem.revalidate();
 			signal.throwIfAborted();
 			const outputPath = join(reservation, 'output.rgba');
@@ -226,7 +233,7 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 			const grantDocument = {
 				schemaVersion: 1,
 				pluginBinary: {
-					path: grant.pluginBinary.path,
+					path: pluginPath,
 					sha256: grant.pluginBinary.sha256,
 					pluginIndex,
 				},
@@ -275,7 +282,7 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 			signal.throwIfAborted();
 			await filesystem.revalidate();
 			const inspected = await filesystem.inspectOutput();
-			assertHostOutput(result.stdout, grant, inspected);
+			assertOpenFxHostOutput(result.stdout, grant, inspected);
 			await filesystem.revalidate();
 			const output = await sendHelperDataPlaneReservedFile({
 				reservation: grant.output.frame,
@@ -296,13 +303,14 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 
 	async #pluginIndex(
 		grant: HelperOfxHostJobGrant,
+		pluginPath: string,
 		signal: AbortSignal,
 		setProcess: (value: OpenFxHostProcessHandle) => void,
 	): Promise<number> {
 		signal.throwIfAborted();
 		const process = this.#invokeHost({
 			executablePath: this.#descriptor.scanner.path,
-			arguments: ['--scan', grant.pluginBinary.path, '--sha256', grant.pluginBinary.sha256],
+			arguments: ['--scan', pluginPath, '--sha256', grant.pluginBinary.sha256],
 		});
 		setProcess(process);
 		const result = await successfulResult(process.completion, 'scanner');
@@ -515,29 +523,31 @@ function assertScannerDescriptor(stdout: string, binarySha256: string): void {
 }
 
 function scannerPluginIndex(stdout: string, binarySha256: string, pluginId: string | null): number {
-	const value = jsonRecord(stdout, 'OpenFX scanner output');
-	if (value.contractVersion !== 1 || value.mode !== 'short-lived-scanner'
-		|| value.binarySha256 !== binarySha256 || !Array.isArray(value.plugins)
-		|| value.plugins.length > 256) {
+	let value: unknown;
+	try { value = JSON.parse(stdout) as unknown; }
+	catch { throw new Error('The OpenFX scanner returned an unauthenticated descriptor.'); }
+	try { assertOfxPluginDescriptorV1(value); }
+	catch { throw new Error('The OpenFX scanner returned an unauthenticated descriptor.'); }
+	if (value.binarySha256 !== binarySha256) {
 		throw new Error('The OpenFX scanner returned an unauthenticated descriptor.');
 	}
 	if (pluginId === null) return 0;
-	const matches: number[] = [];
-	for (const [index, candidate] of value.plugins.entries()) {
-		if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)
-			&& (candidate as Record<string, unknown>).id === pluginId) matches.push(index);
+	if (value.pluginId !== pluginId) {
+		throw new Error('The OpenFX scanner did not identify one exact plug-in entry.');
 	}
-	if (matches.length !== 1) throw new Error('The OpenFX scanner did not identify one exact plug-in entry.');
-	return matches[0]!;
+	return 0;
 }
 
-function assertHostOutput(
+export function assertOpenFxHostOutput(
 	stdout: string,
 	grant: HelperOfxHostJobGrant,
 	inspected: Readonly<{ byteLength: number; sha256: string }>,
 ): void {
 	const value = jsonRecord(stdout, 'OpenFX runtime output');
 	if (value.accepted !== true || value.outputStreamId !== grant.output.frame.streamId
+		|| value.requestedBackend !== grant.invocation.requestedBackend
+		|| value.backend !== grant.invocation.requestedBackend
+		|| value.retriedOnCpu !== false || value.reportsDegradation !== false
 		|| value.outputByteLength !== grant.output.frame.exactByteLength
 		|| value.outputByteLength !== inspected.byteLength
 		|| value.outputSha256 !== inspected.sha256
@@ -545,7 +555,7 @@ function assertHostOutput(
 		|| value.outputHeight !== grant.output.height
 		|| value.outputRowBytes !== grant.output.rowBytes
 		|| Object.hasOwn(value, 'outputRgbaHex')) {
-		throw new Error('The OpenFX runtime output does not match its exact stream authority.');
+		throw new Error('The OpenFX runtime output does not match its exact backend and stream authority.');
 	}
 }
 
@@ -559,9 +569,14 @@ async function successfulResult(
 		throw new Error('The OpenFX host exceeded its 64 KiB control-output bound.');
 	}
 	if (result.exitCode !== 0) {
-		throw new Error(`The OpenFX ${label} process failed with code ${String(result.exitCode)}.`);
+		throw createOpenFxHostProcessFailure(result, label);
 	}
 	return result;
+}
+
+export function createOpenFxHostProcessFailure(result: OpenFxHostProcessResult, label: string): Error {
+	return (label === 'runtime host' && parseOfxRetryableNativeGpuErrorV1(result.stderr))
+		|| new Error(`The OpenFX ${label} process failed with code ${String(result.exitCode)}.`);
 }
 
 function jsonRecord(text: string, label: string): Record<string, unknown> {

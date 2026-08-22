@@ -30,7 +30,9 @@ const REQUIRED_CONTRACT_FILES = Object.freeze([
 	'src/dynamic_library.hpp',
 	'src/host_runtime.cpp',
 	'src/host_runtime.hpp',
+	'src/host_scan_inspection.inc',
 	'src/isolation_contract.hpp',
+	'src/loaded_plugin_binary.cpp',
 	'src/parameter_values.cpp',
 	'src/parameter_values.hpp',
 	'src/rgba_frame.hpp',
@@ -110,7 +112,10 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 			findings.push(`The OpenFX native contract does not bind pinned header ${header}.`);
 		}
 	}
-	const runtime = sourceText.get('src/host_runtime.cpp') ?? '';
+	const runtime = [
+		sourceText.get('src/host_runtime.cpp') ?? '',
+		sourceText.get('src/loaded_plugin_binary.cpp') ?? '',
+	].join('\n');
 	for (const identity of [
 		'OfxGetNumberOfPlugins', 'OfxGetPlugin', 'OfxSetHost',
 		'kOfxImageEffectActionGetFramesNeeded', 'kOfxImageEffectActionRender',

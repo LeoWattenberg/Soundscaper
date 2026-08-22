@@ -88,6 +88,11 @@ int invoke_v12(const char* const argv[]) {
 	auto grant = authenticate_v12_host_invocation(
 		std::filesystem::path{argv[2]}, argv[4]
 	);
+	if (grant.requested_backend != Backend::cpu) {
+		throw v12_invocation_error{
+			"unsupported-backend", "The exact V12 host has no authenticated GPU backend."
+		};
+	}
 	HostRuntime host;
 	LoadedPluginBinary binary{grant.plugin_binary, grant.plugin_binary_sha256};
 	binary.bind_host(host.host());
@@ -104,7 +109,7 @@ int invoke_v12(const char* const argv[]) {
 	const auto result = host.invoke(
 		plugin, grant.context, "render", grant.requested_backend, false,
 		std::move(inputs), grant.parameters, [&cancellation] { return cancellation.cancelled(); },
-		grant.output_layout, true
+		grant.output_layout, true, static_cast<OfxTime>(grant.output_ordinal)
 	);
 	if (cancellation.protocol_fault()) {
 		throw v12_invocation_error{
@@ -143,6 +148,7 @@ int invoke_v12(const char* const argv[]) {
 		<< ",\"outputWidth\":" << grant.output_layout.width
 		<< ",\"outputHeight\":" << grant.output_layout.height
 		<< ",\"outputRowBytes\":" << grant.output_layout.row_bytes
+		<< ",\"outputOrdinal\":" << grant.output_ordinal
 		<< ",\"sourceTimeVerified\":" << (grant.source_time_verified ? "true" : "false")
 		<< ",\"hydratedParameterCount\":" << result.hydrated_parameter_count
 		<< ",\"hydratedKeyframeCount\":" << result.hydrated_keyframe_count

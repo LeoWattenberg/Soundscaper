@@ -104,7 +104,7 @@ export interface OfxParameterDescriptorV1 {
 
 export interface OfxPluginDescriptorV1 {
 	readonly pluginId: string;
-	readonly vendor: string;
+	readonly vendor: string | null;
 	readonly version: OfxPluginVersionV1;
 	readonly bundleIdentity: string;
 	readonly binarySha256: string;
@@ -153,7 +153,7 @@ export function assertOfxPluginDescriptorV1(
 	const descriptor = record(value, 'OFX plug-in descriptor');
 	exactKeys(descriptor, DESCRIPTOR_KEYS, 'OFX plug-in descriptor');
 	pattern(descriptor.pluginId, PLUGIN_ID_PATTERN, 'pluginId');
-	pattern(descriptor.vendor, PLUGIN_ID_PATTERN, 'vendor');
+	if (descriptor.vendor !== null) pattern(descriptor.vendor, PLUGIN_ID_PATTERN, 'vendor');
 	version(descriptor.version);
 	pattern(descriptor.bundleIdentity, IDENTITY_PATTERN, 'bundleIdentity');
 	digest(descriptor.binarySha256, 'binarySha256');

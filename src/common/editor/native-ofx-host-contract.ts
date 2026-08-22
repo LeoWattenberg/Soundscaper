@@ -30,6 +30,49 @@ export const OFX_RENDER_BACKENDS_V1 = Object.freeze([
 
 export type OfxRenderBackendV1 = (typeof OFX_RENDER_BACKENDS_V1)[number];
 
+export const OFX_RETRYABLE_GPU_ERROR_CODES_V1 = Object.freeze([
+	'OFX_UNSUPPORTED_BACKEND',
+	'OFX_GPU_EXECUTION_FAILED',
+] as const);
+
+export type OfxRetryableGpuErrorCodeV1 =
+	(typeof OFX_RETRYABLE_GPU_ERROR_CODES_V1)[number];
+
+/** A closed native/helper failure that alone authorizes one identical CPU retry. */
+export class OfxRetryableGpuError extends Error {
+	readonly code: OfxRetryableGpuErrorCodeV1;
+
+	constructor(code: OfxRetryableGpuErrorCodeV1, message: string) {
+		super(message);
+		this.name = 'OfxRetryableGpuError';
+		this.code = code;
+	}
+}
+
+export function isOfxRetryableGpuError(value: unknown): value is Error & {
+	readonly code: OfxRetryableGpuErrorCodeV1;
+} {
+	if (!(value instanceof Error) || value.name !== 'OfxRetryableGpuError') return false;
+	return (OFX_RETRYABLE_GPU_ERROR_CODES_V1 as readonly unknown[])
+		.includes((value as Error & { readonly code?: unknown }).code);
+}
+
+/** Admit only the native host's two exact retryable GPU failure documents. */
+export function parseOfxRetryableNativeGpuErrorV1(stderr: string): OfxRetryableGpuError | null {
+	let value: unknown;
+	try { value = JSON.parse(stderr) as unknown; }
+	catch { return null; }
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| Object.keys(value).length !== 2 || !Object.hasOwn(value, 'error')
+		|| !Object.hasOwn(value, 'message')) return null;
+	const { error, message } = value as Record<string, unknown>;
+	if (typeof message !== 'string' || message.length < 1 || message.length > 4_096) return null;
+	const code = error === 'unsupported-backend' ? 'OFX_UNSUPPORTED_BACKEND'
+		: error === 'gpu-execution-failed' ? 'OFX_GPU_EXECUTION_FAILED' : null;
+	if (code === null || stderr !== `${JSON.stringify({ error, message })}\n`) return null;
+	return new OfxRetryableGpuError(code, message);
+}
+
 export const OFX_INTERACT_MODIFIERS_V1 = Object.freeze([
 	'alt', 'control', 'meta', 'shift',
 ] as const);
@@ -77,6 +120,7 @@ export interface OfxHostInvocationV1 {
 	readonly stateSha256: string;
 	readonly inputFrameStreamIds: readonly string[];
 	readonly outputFrameStreamId: string | null;
+	readonly outputOrdinal: number;
 	readonly requestedBackend: OfxRenderBackendV1;
 	readonly abortSignalId: string;
 	readonly retimerSourceTime: OfxRetimerSourceTimeWireV1 | null;
@@ -132,7 +176,7 @@ const INVOCATION_KEYS = Object.freeze([
 	'schemaVersion', 'invocationId', 'unifiedPlanVersion', 'unifiedPlanSha256',
 	'nodeId', 'instanceId', 'pluginId', 'pluginBinarySha256',
 	'pluginFingerprint', 'context', 'action', 'stateSha256',
-	'inputFrameStreamIds', 'outputFrameStreamId', 'requestedBackend',
+	'inputFrameStreamIds', 'outputFrameStreamId', 'outputOrdinal', 'requestedBackend',
 	'abortSignalId', 'retimerSourceTime',
 ]);
 const SOURCE_TIME_KEYS = Object.freeze([
@@ -167,6 +211,7 @@ export function createOfxHostInvocationV1(value: Readonly<Record<string, unknown
 		inputFrameStreamIds: snapshotIds(value.inputFrameStreamIds, 'inputFrameStreamIds', 16),
 		outputFrameStreamId: value.outputFrameStreamId === null
 			? null : pattern(value.outputFrameStreamId, ID, 'outputFrameStreamId'),
+		outputOrdinal: nonNegativeInteger(value.outputOrdinal, 'outputOrdinal'),
 		requestedBackend: value.requestedBackend as OfxRenderBackendV1,
 		abortSignalId: pattern(value.abortSignalId, ID, 'abortSignalId'),
 		retimerSourceTime: value.retimerSourceTime === undefined
@@ -203,6 +248,7 @@ export function assertOfxHostInvocationV1(value: unknown): asserts value is OfxH
 	if (invocation.outputFrameStreamId !== null) {
 		pattern(invocation.outputFrameStreamId, ID, 'outputFrameStreamId');
 	}
+	nonNegativeInteger(invocation.outputOrdinal, 'outputOrdinal');
 	if (!(OFX_RENDER_BACKENDS_V1 as readonly unknown[]).includes(invocation.requestedBackend)) {
 		throw new OfxHostContractError('An OFX host invocation render backend is unsupported.');
 	}

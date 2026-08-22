@@ -7,6 +7,7 @@
 #include "rgba_frame.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <stdexcept>
 #include <string>
@@ -47,6 +48,7 @@ struct V12HostInvocation final {
 	std::vector<HydratedParameterState> parameters;
 	std::vector<V12NamedInputFrame> inputs;
 	std::string output_stream_id;
+	std::uint64_t output_ordinal{};
 	std::filesystem::path output_path;
 	RgbaFrameLayout output_layout;
 	bool source_time_verified{};

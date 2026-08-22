@@ -24,6 +24,7 @@ import {
 } from '../native-queue-record.ts';
 import type { ExternalDisplayDescriptorV1 } from '../native-external-display.ts';
 import type { FramescaperNativeImageSequenceBridge } from './framescaper-native-image-sequence-bridge.ts';
+import type { FramescaperNativeOpenFxBridge } from './framescaper-native-openfx-bridge.ts';
 import {
 	FRAMESCAPER_NATIVE_SERVICES_LIFECYCLE_METHODS,
 	createFramescaperNativeServicesLifecycleStore,
@@ -41,7 +42,6 @@ export type {
 } from './framescaper-native-services-lifecycle-bridge.ts';
 
 export const FRAMESCAPER_NATIVE_SERVICES_RENDERER_REFRESH_INTERVAL_MS = 5_000;
-
 export const FRAMESCAPER_NATIVE_SERVICE_PREFERENCES = Object.freeze([
 	'native-media',
 	'hardware-decode',
@@ -110,7 +110,7 @@ export interface FramescaperNativeWatchImportClaim {
 }
 
 export interface FramescaperNativeServicesBridge
-	extends FramescaperNativeServicesLifecycleBridge, FramescaperNativeImageSequenceBridge {
+	extends FramescaperNativeServicesLifecycleBridge, FramescaperNativeImageSequenceBridge, FramescaperNativeOpenFxBridge {
 	snapshot(): Promise<FramescaperNativeServicesProjection>;
 	control(request: Readonly<{
 		readonly jobId: string;
@@ -191,10 +191,10 @@ const OPTIONAL_METHODS = Object.freeze([
 	'presentExternalDisplay', 'abandonRenderInputs',
 		'claimWatchImport', 'completeWatchImport',
 		'selectImageSequence', 'readImageSequenceFile', 'releaseImageSequence',
+		'scanOpenFxPlugin', 'listOpenFxPlugins', 'controlOpenFxPlugin',
 	...FRAMESCAPER_NATIVE_SERVICES_LIFECYCLE_METHODS,
 ] as const);
 
-/** Resolve only `framescaperDesktop.v1.nativeServices`; other product bridges do not qualify. */
 export function resolveFramescaperNativeServicesBridge(
 	scope: unknown = globalThis,
 ): FramescaperNativeServicesBridge | null {

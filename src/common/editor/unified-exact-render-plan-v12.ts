@@ -7,7 +7,6 @@ import {
 } from './closed-domain-value.ts';
 import {
 	assertOfxEffectStateV26,
-	type OfxEffectFreshnessV26,
 	type OfxEffectStateV26,
 } from './native-ofx-state-v26.ts';
 import type { UnifiedExactRenderPlanSource } from './unified-exact-render-plan-v9.ts';
@@ -20,15 +19,12 @@ export interface UnifiedExactRenderOpenFxNode {
 
 const NODE_FIELDS = Object.freeze(['kind', 'nodeId', 'state']);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,4095}$/u;
-const FRESHNESS_KEYS = [
-	'authoredStateSha256', 'inputIdentitiesSha256', 'renderPlanFingerprintSha256',
-	'nativeEffectFingerprintSha256',
-] as const;
 
 export function normalizeUnifiedExactRenderOpenFxNode(
 	value: unknown,
 	projectIdentities: ReadonlySet<string>,
 	sourceById: ReadonlyMap<string, UnifiedExactRenderPlanSource>,
+	outputFrameCount: number,
 ): UnifiedExactRenderOpenFxNode {
 	const name = 'unified OpenFX render node';
 	const node = readClosedDomainRecord(value, name, NODE_FIELDS);
@@ -49,8 +45,8 @@ export function normalizeUnifiedExactRenderOpenFxNode(
 		if (!source || source.contentSha256 !== state.frozenFallback.renderedAssetSha256) {
 			throw new ReferenceError('Unified OpenFX frozen fallback does not bind exact external media.');
 		}
-		if (!sameFreshness(state.freshness, state.frozenFallback.freshness)) {
-			throw new RangeError('Unified OpenFX frozen fallback freshness is stale for its authored state.');
+		if (state.frozenFallback.frameCount !== outputFrameCount) {
+			throw new RangeError('Unified OpenFX frozen fallback does not bind the exact output frame count.');
 		}
 	}
 	return Object.freeze({
@@ -58,10 +54,6 @@ export function normalizeUnifiedExactRenderOpenFxNode(
 		nodeId: stableId(field(node, 'nodeId', name), `${name}.nodeId`),
 		state,
 	});
-}
-
-function sameFreshness(left: OfxEffectFreshnessV26, right: OfxEffectFreshnessV26): boolean {
-	return FRESHNESS_KEYS.every((key) => left[key] === right[key]);
 }
 
 function stableId(value: unknown, name: string): string {

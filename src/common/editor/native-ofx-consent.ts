@@ -34,7 +34,7 @@ export type OfxConsentState = (typeof OFX_CONSENT_STATES)[number];
 export const OFX_FAILURE_KINDS = Object.freeze([
 	'crash', 'hang', 'render-error',
 	'malformed-descriptor', 'resource-violation', 'network-denied', 'filesystem-denied',
-	'top-level-window-denied',
+	'top-level-window-denied', 'runtime-quarantine',
 ] as const);
 
 export type OfxFailureKind = (typeof OFX_FAILURE_KINDS)[number];
@@ -42,7 +42,7 @@ export type OfxFailureKind = (typeof OFX_FAILURE_KINDS)[number];
 /** Failures that quarantine on their first occurrence. */
 export const OFX_IMMEDIATE_QUARANTINE_FAILURES: readonly OfxFailureKind[] = Object.freeze([
 	'malformed-descriptor', 'resource-violation', 'network-denied', 'filesystem-denied',
-	'top-level-window-denied',
+	'top-level-window-denied', 'runtime-quarantine',
 ]);
 
 export const OFX_QUARANTINE_FAILURE_LIMIT = 3;

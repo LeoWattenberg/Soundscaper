@@ -3,10 +3,10 @@
 /**
  * Main-owned V12-to-OpenFX execution seam.
  *
- * The selected product cannot enter this seam: production third-party loading
- * remains blocked until an independently reviewed OS isolation attestation is
- * implemented. The owned conformance fixture can exercise the exact candidate
- * contract without weakening that production gate.
+ * The main-owned broker may enter this seam only after exact payload, policy,
+ * consent, fingerprint, project, and isolation checks. The selected product
+ * keeps OpenFX unavailable; the dormant V26 candidate and owned conformance
+ * fixtures exercise the contract without weakening those production gates.
  */
 
 import {
@@ -52,6 +52,7 @@ import {
 
 export const OFX_CANDIDATE_EXECUTION_POLICIES = Object.freeze([
 	'production-unattested',
+	'production-attested',
 	'framescaper-conformance-fixture',
 ] as const);
 export type OfxCandidateExecutionPolicy = (typeof OFX_CANDIDATE_EXECUTION_POLICIES)[number];
@@ -82,6 +83,7 @@ export interface OfxBoundOutputFrameV1 {
 export interface OfxUnifiedHostAttemptResourcesV1 {
 	readonly invocationId: string;
 	readonly abortSignalId: string;
+	readonly outputOrdinal: number;
 	readonly executable: HelperExecutableGrant;
 	readonly pluginBinary: HelperExecutableGrant;
 	readonly plan: OfxBoundDataPlaneV1;
@@ -98,6 +100,7 @@ export interface OfxUnifiedNodeExecutionRequestV1 {
 	readonly requestedBackend: OfxRenderBackendV1;
 	readonly executionPolicy: OfxCandidateExecutionPolicy;
 	readonly signal?: AbortSignal;
+	readonly onHostFailure?: (error: unknown) => void;
 	readonly createAttemptResources: (
 		backend: OfxRenderBackendV1,
 	) => OfxUnifiedHostAttemptResourcesV1;
@@ -143,8 +146,19 @@ export function createUnifiedExactOfxHostAttemptV1(
 		|| resources.plan.binding.sha256 !== envelope.fingerprint) {
 		throw new Error('The OpenFX plan stream does not authenticate the exact canonical V12 plan.');
 	}
+	if (!Number.isSafeInteger(resources.outputOrdinal) || resources.outputOrdinal < 0
+		|| resources.outputOrdinal >= plan.output.frameCount) {
+		throw new Error('The OpenFX output ordinal exceeds the exact V12 plan domain.');
+	}
 	if (resources.pluginBinary.sha256 !== effect.state.binarySha256) {
 		throw new Error('The OpenFX plug-in authority does not match the V12 node binary fingerprint.');
+	}
+	const canvas = plan.output.canvas;
+	if (resources.output.width !== canvas.width || resources.output.height !== canvas.height
+		|| resources.output.rowBytes !== canvas.width * 4
+		|| resources.inputs.some((input) => input.width !== canvas.width
+			|| input.height !== canvas.height || input.rowBytes !== canvas.width * 4)) {
+		throw new Error('The OpenFX evaluated frame geometry does not match the exact V12 canvas.');
 	}
 	const inputs = bindInputs(effect.state, resources.inputs);
 	const invocation = createOfxHostInvocationV1({
@@ -160,6 +174,7 @@ export function createUnifiedExactOfxHostAttemptV1(
 		stateSha256: fingerprintNativeMediaPlan(effect.state).sha256,
 		inputFrameStreamIds: inputs.map(({ frame }) => frame.streamId),
 		outputFrameStreamId: resources.output.binding.streamId,
+		outputOrdinal: resources.outputOrdinal,
 		requestedBackend,
 		abortSignalId: resources.abortSignalId,
 		retimerSourceTime: resources.retimerSourceTime,
@@ -210,7 +225,8 @@ export async function executeUnifiedExactOfxNodeV1(
 		throw new RangeError('The OpenFX candidate execution policy is unsupported.');
 	}
 	if (request.executionPolicy === 'production-unattested'
-		|| effect.state.pluginId !== 'org.framescaper.conformance') {
+		|| (request.executionPolicy === 'framescaper-conformance-fixture'
+			&& effect.state.pluginId !== 'org.framescaper.conformance')) {
 		return recovery(effect.state, 'revoked', request.runtime.freshness, 'isolation-unavailable');
 	}
 	request.signal?.throwIfAborted();
@@ -248,6 +264,7 @@ export async function executeUnifiedExactOfxNodeV1(
 		});
 	} catch (error) {
 		if (isCancellation(error, request.signal)) throw error;
+		request.onHostFailure?.(error);
 		const fingerprint = primary.invocation.pluginFingerprint;
 		const quarantined = manager.snapshot().runtimes
 			.some((runtime) => runtime.pluginFingerprint === fingerprint && runtime.quarantined);
@@ -307,9 +324,10 @@ function assertSameRenderAuthority(primary: OfxCpuAttempt, cpu: OfxCpuAttempt): 
 			pluginBinary: grant.pluginBinary,
 			node: [grant.invocation.nodeId, grant.invocation.instanceId],
 			plugin: [grant.invocation.pluginId, grant.invocation.pluginBinarySha256],
-			context: grant.invocation.context,
-			stateSha256: grant.invocation.stateSha256,
-			retimerSourceTime: grant.invocation.retimerSourceTime,
+				context: grant.invocation.context,
+				stateSha256: grant.invocation.stateSha256,
+				outputOrdinal: grant.invocation.outputOrdinal,
+				retimerSourceTime: grant.invocation.retimerSourceTime,
 			inputs: grant.inputs.map(({ name, sourceRef, pixelFormat, width, height, rowBytes, frame }) => (
 				[name, sourceRef, pixelFormat, width, height, rowBytes, frame.byteLength, frame.sha256]
 			)),

@@ -130,6 +130,23 @@ manifest hashes them to reject provenance drift, but neither check establishes
 corresponding-source completeness. Public desktop release and qualified Web
 runtime distribution therefore remain blocked by the licensing matrix.
 
+## OpenFX 1.5.1 source candidate
+
+The dormant Framescaper scanner/runtime-host candidate pins the signed OpenFX
+tag `OFX_Release_1.5.1`, requested commit prefix `ab77951` (full commit
+`ab779510b2655b4d11a7e01e5c521f9aa8c88976`), under BSD-3-Clause. The pinned
+commit archive is 9,837,777 bytes with SHA-256
+`7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5`.
+
+[`native/framescaper-openfx-host/source-manifest.json`](native/framescaper-openfx-host/source-manifest.json)
+and its host-local notice retain the tag, signature identity, source digest,
+and five build recipes. Framescaper does not redistribute user-installed OFX
+plug-ins, and
+[`config/framescaper-openfx-host-payload-manifest.json`](config/framescaper-openfx-host-payload-manifest.json)
+contains no scanner or runtime-host payload. All targets remain
+`pending-external` behind licensing, isolation, conformance, signing, payload,
+and hardware evidence.
+
 ## Video-effect behavioral references
 
 Soundscaper's clip video effects are independently authored AGPL-3.0-only

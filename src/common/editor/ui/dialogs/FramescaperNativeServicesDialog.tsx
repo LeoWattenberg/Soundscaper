@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import FramescaperOpenFxManagePanel from './FramescaperOpenFxManagePanel.tsx';
 import {
 	DEFAULT_FRAMESCAPER_NATIVE_SERVICE_PREFERENCES,
 	framescaperNativeServicesStoreFor,
@@ -109,6 +110,7 @@ export default function FramescaperNativeServicesDialog({
 			</p>
 			<RuntimeNotice copy={copy} snapshot={snapshot} />
 			<SurfacePanel
+				bridge={bridge}
 				surface={initialSurface}
 				copy={copy}
 				snapshot={snapshot}
@@ -123,8 +125,9 @@ export default function FramescaperNativeServicesDialog({
 }
 
 function SurfacePanel({
-	surface, copy, snapshot, busy, perform, context, lifecycleMethods, projectActions,
+	bridge, surface, copy, snapshot, busy, perform, context, lifecycleMethods, projectActions,
 }: Readonly<{
+	bridge: FramescaperNativeServicesBridge;
 	surface: FramescaperNativeServiceSurface;
 	copy: FramescaperNativeServicesCopy;
 	snapshot: FramescaperNativeServicesRendererSnapshot;
@@ -144,7 +147,12 @@ function SurfacePanel({
 		return <PreferencesPanel {...{ copy, snapshot, busy, perform, lifecycleMethods }} />;
 	}
 	if (surface === 'ofx-manage') {
-		return <OfxManagePanel copy={copy} snapshot={snapshot} busy={busy} perform={perform} />;
+		return <>
+			<FramescaperOpenFxManagePanel {...{ bridge, copy, snapshot, busy }} setConsent={(enabled) => perform({
+				type: 'set-preference', preference: 'ofx-consent', enabled,
+			})} />
+			<CapabilityReport copy={copy} snapshot={snapshot} />
+		</>;
 	}
 	if (isFramescaperNativeProjectActionSurface(surface)) {
 		return projectActions?.surfaces.includes(surface) === true
@@ -367,36 +375,6 @@ function PreferencesPanel({ copy, snapshot, busy, perform, lifecycleMethods }: R
 		<RootsPanel {...{ copy, snapshot, busy, perform, lifecycleMethods }} />
 		<p><button type="button" disabled={busy || !lifecycleMethods.includes('cleanupScratch')}
 			onClick={() => perform({ type: 'scratch-cleanup' })}>{copy.scratchCleanup}</button></p>
-		<CapabilityReport copy={copy} snapshot={snapshot} />
-	</>;
-}
-
-function OfxManagePanel({ copy, snapshot, busy, perform }: Readonly<{
-	copy: FramescaperNativeServicesCopy;
-	snapshot: FramescaperNativeServicesRendererSnapshot;
-	busy: boolean;
-	perform: (action: FramescaperNativeServicesDialogAction) => void;
-}>) {
-	const controllable = snapshot.controllablePreferences.includes('ofx-consent');
-	return <>
-		<fieldset>
-			<legend>{copy.ofxManage}</legend>
-			<label className="kw-audio-editor-dialog__field">
-				<span>{copy.ofxConsent}</span>
-				<input
-					type="checkbox"
-					checked={snapshot.preferences.ofxConsentEnabled}
-					disabled={busy || !controllable}
-					data-native-service-preference="ofx-consent"
-					onChange={(event) => perform({
-						type: 'set-preference',
-						preference: 'ofx-consent',
-						enabled: event.currentTarget.checked,
-					})}
-				/>
-				{!controllable && <small>{copy.preferenceControlUnavailable}</small>}
-			</label>
-		</fieldset>
 		<CapabilityReport copy={copy} snapshot={snapshot} />
 	</>;
 }
