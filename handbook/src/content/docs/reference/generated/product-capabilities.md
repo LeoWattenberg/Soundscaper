@@ -36,11 +36,13 @@ Families describe product entry points, not every file extension a decoder might
 | Audio timeline editing | Enabled | Enabled |
 | Audio track freeze | Enabled | Not enabled |
 | Audio warping | Enabled | Not enabled |
+| Dissolve video transitions | Not enabled | Not enabled |
 | Immersive ADM audio | Enabled | Not enabled |
 | Mastering sequences | Enabled | Not enabled |
 | Multicamera editing | Not enabled | Enabled |
 | Musical timeline | Enabled | Not enabled |
 | Nested sequences | Not enabled | Enabled |
+| OpenFX effects | Not enabled | Not enabled |
 | Project bin | Enabled | Enabled |
 | Projects | Enabled | Enabled |
 | Sample-level audio editing | Enabled | Not enabled |
@@ -50,16 +52,22 @@ Families describe product entry points, not every file extension a decoder might
 | Take comping | Enabled | Not enabled |
 | Timeline annotations | Enabled | Not enabled |
 | Track folders | Enabled | Not enabled |
+| Video adjustment layers | Not enabled | Not enabled |
 | Video compositing | Not enabled | Enabled |
 | Video effects | Not enabled | Enabled |
 | Video export | Enabled | Enabled |
+| Video freeze | Not enabled | Not enabled |
+| Video generators | Not enabled | Not enabled |
 | Video geometry | Not enabled | Enabled |
 | Video import | Enabled | Enabled |
-| Video keyframes | Not enabled | Not enabled |
+| Video keyframes | Not enabled | Enabled |
+| Video masks and mattes | Not enabled | Not enabled |
 | Video playback | Enabled | Enabled |
 | Video retiming | Not enabled | Not enabled |
+| Video stills | Not enabled | Not enabled |
 | Video timeline editing | Enabled | Enabled |
 | Video timing assets | Enabled | Enabled |
+| Video transitions | Not enabled | Not enabled |
 
 ## Product-specific application features
 

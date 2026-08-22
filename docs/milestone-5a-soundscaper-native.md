@@ -58,7 +58,8 @@ remaining gaps are explicit:
 1. **5A-0a baseline and contract closure — implemented provisionally.** The
    reviewed smoke bridge now includes all four helper methods, the packaging
    test uses its runtime-import inventory, and the timing-probe fixture uses the
-   current Soundscaper V21 storage profile with cross-realm diagnostics.
+   selected Soundscaper V23 storage profile (including its V21-owned timing
+   contract) with cross-realm diagnostics.
    Fresh-project creation publishes the default track in canonical revision
    zero; coalesced autosaves accept only strictly higher safe-integer revisions
    under the exact prior revision-and-SHA witness; clean flushes do not replay

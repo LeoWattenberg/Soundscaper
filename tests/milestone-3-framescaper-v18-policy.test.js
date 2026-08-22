@@ -98,7 +98,7 @@ test('production capability and security registers describe only the qualified V
 	assert.match(desktop.summary, /no physical reclamation.*never reuses.*project ID/isu);
 	assert.match(desktop.summary, /ambiguous IPC.*authoritative/isu);
 	assert.match(desktop.summary, /Windows x64.*Linux x64.*pending-external/isu);
-	assert.match(desktop.summary, /source-free.*does not qualify.*delete.*duplicate/isu);
+	assert.match(desktop.summary, /unselected compatibility-boundary.*No current packaged route.*delete or duplicate.*remain unqualified/isu);
 
 	for (const item of [projectAdmission, proxyAdmission, desktop]) {
 		for (const reference of item.evidence) await evidenceExists(reference.path);

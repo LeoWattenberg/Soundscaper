@@ -130,6 +130,38 @@ manifest hashes them to reject provenance drift, but neither check establishes
 corresponding-source completeness. Public desktop release and qualified Web
 runtime distribution therefore remain blocked by the licensing matrix.
 
+## Boost.Multiprecision exact-retime build headers
+
+Boost.Multiprecision 1.92.0 is pinned as build-only C++20 header input for the
+candidate exact video-retime ordinal executor. It is distributed under the
+Boost Software License 1.0 (BSL-1.0). The official source archive is
+<https://archives.boost.io/release/1.92.0/source/boost_1_92_0.tar.bz2> (199,030,664
+bytes; SHA-256 `5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c`).
+
+[`config/boost-multiprecision-source-manifest.json`](config/boost-multiprecision-source-manifest.json)
+pins the conservative 254-file syntactic include closure rooted at
+`boost/multiprecision/cpp_int.hpp`. The closure is compile-time source, not a
+separately loaded runtime binary, and its presence does not claim that any
+native media-host or OpenFX-host payload has been built, signed, qualified, or
+shipped.
+
+## Framescaper native FFmpeg source candidate
+
+The dormant Framescaper media-host candidate pins FFmpeg 9.0.1 “Lei” from
+<https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz> (12,036,420 bytes; SHA-256
+`cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635`).
+FFmpeg is available under LGPL-2.1-or-later, or GPL-2.0-or-later when GPL
+components are enabled; the pinned candidate recipe selects the GPL mode,
+disables network support and external libraries, and admits codec/container
+flags only after their licensing rows clear.
+
+[`native/framescaper-media-host/source-manifest.json`](native/framescaper-media-host/source-manifest.json)
+and the host-local notice pin the candidate source and five build recipes.
+[`config/framescaper-media-host-payload-manifest.json`](config/framescaper-media-host-payload-manifest.json)
+contains no payloads: every target is `pending-external`. This source record
+does not alter the browser `@ffmpeg/core` 0.12.10 / FFmpeg 5.1.4 runtime above
+and does not authorize native codec distribution.
+
 ## OpenFX 1.5.1 source candidate
 
 The dormant Framescaper scanner/runtime-host candidate pins the signed OpenFX

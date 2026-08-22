@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-21",
+	"groundedAt": "2026-08-22",
 	"policyDocument": "docs/production-licensing-policy.md",
 	"lockfile": {
 		"path": "package-lock.json",
@@ -342,6 +342,30 @@
 			"status": "documented",
 			"artifactSurfaces": ["electron-shell"],
 			"evidence": ["THIRD_PARTY_LICENSES.md", "electron-builder.config.cjs"]
+		},
+		{
+			"id": "boost-multiprecision-1-92-0-build-source",
+			"status": "documented",
+			"artifactSurfaces": [],
+			"provenanceKind": "build-only-pinned-header-closure",
+			"license": "BSL-1.0",
+			"evidence": ["config/boost-multiprecision-source-manifest.json", "scripts/lib/boost-header-closure.mjs", "THIRD_PARTY_LICENSES.md", "tests/boost-multiprecision-source-manifest.test.js"]
+		},
+		{
+			"id": "framescaper-media-host-ffmpeg-9-0-1-source-candidate",
+			"status": "blocked",
+			"artifactSurfaces": [],
+			"provenanceKind": "source-and-build-recipe-only-no-runtime-payload",
+			"license": "GPL-2.0-or-later",
+			"evidence": ["native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "config/framescaper-media-host-payload-manifest.json", "scripts/audit-framescaper-media-host.mjs", "tests/framescaper-media-host-source-manifest.test.js", "tests/framescaper-native-host-build-recipes.test.js", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"id": "framescaper-openfx-1-5-1-source-candidate",
+			"status": "blocked",
+			"artifactSurfaces": [],
+			"provenanceKind": "source-and-build-recipe-only-no-runtime-payload",
+			"license": "BSD-3-Clause",
+			"evidence": ["native/framescaper-openfx-host/source-manifest.json", "native/framescaper-openfx-host/THIRD_PARTY_NOTICES.md", "config/framescaper-openfx-host-payload-manifest.json", "scripts/audit-framescaper-openfx-host.mjs", "tests/framescaper-openfx-host-source-manifest.test.js", "tests/framescaper-native-host-build-recipes.test.js", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
 	"ffmpeg": {
@@ -509,18 +533,18 @@
 			"agplCompatibilityDirection": "Permissive SDK code combines into this AGPL-3.0-only work trivially.",
 			"redistribution": "The SDK headers may ship with notices; user-installed third-party effect binaries are never redistributed by this project.",
 			"status": "blocked",
-			"blocker": "No per-platform SDK review or notices are recorded; hosting waits on the native-plugins gate and the milestone-5B isolated-OFX review.",
-			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+			"blocker": "The signed OpenFX 1.5.1 source tag and notices are pinned, but no per-platform redistribution review, isolation/conformance acceptance, built payload, signature, notarization, or hardware evidence exists; hosting remains disabled by the native-plugins gate and milestone-5B exit gate.",
+			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility", "native/framescaper-openfx-host/source-manifest.json", "native/framescaper-openfx-host/THIRD_PARTY_NOTICES.md", "config/framescaper-openfx-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "codec-native-ffmpeg-current-set",
 			"kind": "codec-capability",
-			"upstreamLicensing": "FFmpeg GPL build with the thirteen enabled external libraries pinned by the ffmpeg register",
-			"agplCompatibilityDirection": "GPL-2.0-or-later build combines into this AGPL-3.0-only work under the existing runtime provenance row.",
-			"redistribution": "A native FFmpeg helper binary may not ship until the two blocked ffmpeg release gates clear for exactly this enabled set; the set does not grow because a native build makes growth easy.",
+			"upstreamLicensing": "The shipped browser runtime remains the FFmpeg GPL build with thirteen enabled external libraries pinned by the ffmpeg register. The separate native candidate pins FFmpeg 9.0.1 in GPL mode with no external libraries and admits codec or container flags only after their licensing rows clear.",
+			"agplCompatibilityDirection": "Each GPL-2.0-or-later build combines into this AGPL-3.0-only work compatibly; the native 9.0.1 source and recipe are a separate blocked provenance record and do not replace or upgrade the browser runtime.",
+			"redistribution": "No native media-host or FFmpeg 9.0.1 binary ships. A built target may enter the runtime payload manifest only after its exact enabled set clears corresponding-source, notices, patent, signing, and target review.",
 			"status": "blocked",
-			"blocker": "ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review are blocked; a native helper binary inherits both gates unchanged.",
-			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json"]
+			"blocker": "ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review remain blocked for the shipped runtime, while the native FFmpeg 9.0.1 candidate has no reviewed build payload, exact codec/container clearance, signature, or target evidence.",
+			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json", "native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "codec-hardware-acceleration",
@@ -559,8 +583,8 @@
 			"agplCompatibilityDirection": "Permissive still-image code combines into this AGPL-3.0-only work; the FFmpeg-internal decoders inherit the existing GPL build posture.",
 			"redistribution": "Image-sequence decode and encode do not ship until this row records which decoder implementation is enabled, its notices, and its corresponding-source disposition.",
 			"status": "blocked",
-			"blocker": "No decision is recorded on whether image-sequence support uses FFmpeg-internal decoders or external libraries, so neither the notices nor the corresponding-source inventory can be written.",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "THIRD_PARTY_LICENSES.md"]
+			"blocker": "The source candidate contains gated FFmpeg 9.0.1 internal PNG, TIFF, and EXR adapter code, but the closed release recipe enables none of those decoders or encoders; corresponding-source, interoperability, payload, and target review remain incomplete.",
+			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/source-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "container-mov-mxf-matroska",

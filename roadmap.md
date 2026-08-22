@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Grounded against the repository on 2026-08-13. Milestones are ordered by dependency and close only when their exit gates pass. They are not release-date promises.
+> Grounded against the repository on 2026-08-22. Milestones are ordered by dependency and close only when their exit gates pass. They are not release-date promises.
 
 Soundscaper and Framescaper are two focused products over one local-first, mixed-media editor and one canonical `.scape` project format. The destination is an end-to-end professional workflow for recording, editing, mixing, picture editorial, finishing, and delivery on the web and in Electron. It is not parity with every specialist creative suite.
 
@@ -187,8 +187,7 @@ dispositions, MIDI fences, and the maintained Playwright engine matrix. Their
 evidence lives in the owning policies linked above.
 
 On 2026-08-21 the owner designated the Windows x64 RTX 3090 machine as the
-fixed-GPU reference. Its zero-retry M1 preview, M4 production parity, and M4B-2
-keyed parity passed; details live in `docs/quality-budgets.md`.
+fixed-GPU reference. Its zero-retry M1 preview, M4 production parity, and M4B-2 keyed parity passed; details live in `docs/quality-budgets.md`.
 
 On 2026-08-22 `nightly-with-tests` published accepted formal qualification for
 Soundscaper's `m4-production-render-parity` workload at source revision
@@ -611,13 +610,7 @@ clearance does not close either track or milestone exit gate.
 **Depends on:** milestones 2–4. Research may begin after milestone 2, but product
 integration waits for the owning shared contract.
 
-**Status:** **In progress — every 5A packet and the whole 5B software substrate
-implemented provisionally/local, none qualified.** Only `linux-x64` has a native
-payload, every third-party plug-in format stays fail-closed, and the native lab
-is unprovisioned. The 5B substrate is additionally inert: contract v1 admits no
-media, render, watch, or OFX job kind, so no helper spawns for it, no native
-capability is activated, and its menu group is absent rather than
-present-but-inert.
+**Status:** **In progress — 5A is provisionally local; bounded 5B source candidates exist and none is qualified.** Only `linux-x64` has a 5A payload; no 5B target has one. Licensing stays fail-closed, the lab is unprovisioned, and contract-v1 media/OFX jobs plus their data plane activate no native capability.
 
 **Goal:** make Electron materially more capable without weakening the renderer
 sandbox or creating a second editor engine.
@@ -629,10 +622,7 @@ product's readiness, architecture, and acceptance.
 
 ### Native service architecture
 
-- **Electron Enhanced — In progress:** contract v1 now has exact bounded,
-  direction-correct control admission, closed negotiated job/grant families,
-  quiescent cancellation, heartbeat generations, qualifying-fault quarantine,
-  and bounded monotonic progress. Task-coordinator/UI consumption is follow-on.
+- **Electron Enhanced — Implemented contract candidate, not qualified:** contract v1 has closed jobs/grants, cancellation, heartbeats, quarantine, progress, 64 KiB control and authenticated 16 MiB-chunk data planes; five-target execution remains open.
 - **Electron Enhanced — In progress:** the real off-by-default probe enforces
   input, duration, concurrency, and RSS limits. Native payloads are now target-
   selected, digest-pinned, and re-verified at staging, pack time and every spawn
@@ -656,17 +646,13 @@ product's readiness, architecture, and acceptance.
 
 ### Framescaper native tier
 
-- **Electron Enhanced — Substrate implemented, not activated:** native ffprobe
-  and multithreaded FFmpeg, hardware decode/encode, bounded intermediates, and
-  shared render-plan parity.
-- **Electron Enhanced — Substrate implemented, not activated:** long-GOP and
-  high-resolution decode, background proxies, 10-bit/HDR, color metadata, image
-  sequences, alpha masters, and distributable mezzanine formats. Their licensing
-  rows stay blocked and their exact project revision opens only after
-  milestone 4's.
-- **Electron Only — Substrate implemented, not activated:** persistent parallel
-  queues, external reference output, watch folders, managed scratch/cache
-  volumes, and isolated OFX.
+- **Electron Enhanced — Source candidate, not activated:** V7–V12 envelopes, unified authority, exact retime, pool policy and a fully extracted-tree-authenticated FFmpeg 9.0.1 recipe exist. A bounded CPU core evaluates selected-V20 frames. The renderer produces authenticated V7/V8 evaluated-RGBA frame packs and optional float32 WAV, main durably stages, claims and reclaims those inputs, and the selected carrier adapter encodes exact-timestamp H.264/AAC or VP9/Opus while rechecking source/output identity. Its authenticated selected-V20 operation self-test remains not ready because native static-geometry/caption evidence and a recipe-authenticated delivery codec set are absent. V9–V12 receive closed semantic admission but remain original-only typed unsupported; verified VFR timing bytes and broader graph execution are absent. All five payload rows remain pending-external.
+- **Electron Enhanced — Dormant V25:** professional characteristics, compact
+  image-sequence packs, proxy lifecycle and one pathless menu/CAS import exist.
+  Closed recipes have no authenticated PNG, TIFF or OpenEXR evidence; codec,
+  payload, signing and hardware rows remain blocked.
+- **Electron Only — Controller candidate, not activated:** main-owned V2 services, pathless preload/image-sequence selection, digest-bound restart checkpoints, renderer-fed display and menu surfaces remain behind default-off capabilities and blocked native-lab evidence.
+- **Electron Only — Dormant V26:** fingerprint-bound state, isolated-host recipes, exact V12/Retimer grants, a verified two-executable selector, one-shot scanner utility processes and per-fingerprint runtime supervisors exist. The owned conformance fixture transports bounded full RGBA planes with named inputs, padded rows and digest-verified output, and rasterizes offscreen events through the `kOfxImageEffectPluginPropOverlayInteractV2` property backed by Interact Suite V1 and DrawSuite V1. Its menu-only inventory/scan/enable/Add source route and verified future-payload stager are source-implemented and candidate-tested, but shipped activation remains unavailable because manifests are empty and no readiness, isolation, signing or target evidence exists. The interactive React event/compositing route and production third-party execution remain absent; no shipped build loads a plug-in binary.
 - **Blocked until milestone 8:** no new Framescaper capture IPC, permissions,
   entitlements, or UI.
 

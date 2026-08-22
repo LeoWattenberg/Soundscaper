@@ -17,7 +17,7 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	const capture = cancellation?.currentControls.find(({ id }) => id === SECURITY_CONTROL);
 	assert.ok(capture);
 	assert.equal(cancellation.status, 'partial');
-	assert.match(capture.summary, /Record is available only.*schema-19 web.*schema-18 desktop.*source.*video encoder.*audio packet.*cross-context Web Locks.*encoded\/raw\/manifest.*video probe.*canonical publication store.*partial stack.*unavailable/isu);
+	assert.match(capture.summary, /Record is available only.*schema-18.*schema-19.*selected schema-20.*source.*video encoder.*audio packet.*cross-context Web Locks.*encoded\/raw\/manifest.*video probe.*canonical publication store.*partial stack.*unavailable/isu);
 	assert.match(capture.summary, /Framescaper-only.*direct user action.*getDisplayMedia.*before.*getUserMedia.*later.*failure.*releases/isu);
 	assert.match(capture.summary, /before.*recorder.*accept.*creation inventory.*origin project ID.*tokens.*spools.*manifest.*contiguous packet sequence.*manifest-acknowledged prefix/isu);
 	assert.match(capture.summary, /partial creation.*cleanup-pending.*startup globally retries.*origin project is absent.*changed storage ownership fails closed/isu);
@@ -32,7 +32,7 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	assert.match(capture.summary, /canonical publication materializes each acknowledged spool.*one ordinary durable source.*before project mutation.*fence.*one project batch.*CAS mismatch.*rolls back.*indeterminate.*retryable recovery/isu);
 	assert.match(capture.summary, /Project Bin.*one bin item.*timeline.*one dedicated track, lane, and clip.*reuse the same ordinary sources/isu);
 	assert.match(capture.summary, /after canonical capture and manifest commit.*without awaiting.*zero audio proxies.*exactly one captured-video proxy.*warning sink.*without rolling back/isu);
-	assert.match(capture.summary, /proxy request.*session.*origin.*source.*revision.*content digest.*schema-19 web.*schema-18 desktop.*inactive-origin.*active app.*reclaim.*determinate failure/isu);
+	assert.match(capture.summary, /proxy request.*session.*origin.*source.*revision.*content digest.*schema-18.*schema-19.*selected schema-20.*inactive-origin.*active app.*reclaim.*determinate failure/isu);
 	assert.match(capture.summary, /landed proxy target.*claim cleanup.*session-history.*playback.*app-snapshot.*without regenerating.*later project edit/isu);
 	assert.match(capture.summary, /capture-derived post-commit generation.*not a user-invoked general editorial proxy.*adaptive selection.*offline generation.*relink.*memory.*RSS/isu);
 	assert.match(capture.summary, /implementation is complete.*qualification remains provisional.*synthetic media.*packaged no-device smoke.*control-plane/isu);

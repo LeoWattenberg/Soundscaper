@@ -91,7 +91,7 @@ every later packet emits reports, pins plans, and enqueues jobs.
   (`src/common/editor/scape-archive-copy.ts:37`). EDL, OTIO, FCPXML,
   and DAWproject exporters do not exist; the exporter rules milestone 3
   recorded for them are at docs/milestone-3-plan.md:449-480.
-- **Jobs are one-at-a-time and unresumable.** A single foreground task
+- **Web jobs remain one-at-a-time and unresumable.** A single foreground task
   with named-scope AbortSignal cancellation
   (`src/common/editor/controller/lifecycle.ts:150-187`;
   `src/common/editor/controller/export-service.ts:53-93`); no pause, no
@@ -100,9 +100,10 @@ every later packet emits reports, pins plans, and enqueues jobs.
   (`src/common/editor/platform/render-job-port.ts:9-23`). The 5B-3
   restartable-queue model now exists (`native-queue-record.ts`,
   `native-queue-state-machine.ts`, `desktop/native-services-database.ts`,
-  and `platform/persistent-render-queue-port.ts:39`), but with no
-  `render-job-port` host implementation and no media job kind admitted
-  into helper contract v1 — the Electron binding remains gated.
+  and `platform/persistent-render-queue-port.ts:39`). Helper contract v1 now
+  admits closed media kinds and a main-owned dispatcher exists, but its 5B
+  payload manifest is empty and source-backed production dispatch remains
+  gated. The ordinary Web fallback is unchanged.
 - **Relink exists; consolidate and trim-media do not.** The
   milestone-2 linked-media lifecycle is closed and must not be
   weakened (config/milestone-2-closure.json:245); digest
@@ -357,10 +358,10 @@ which is not redistributable. What landed:
 **6.0 acceptance is met for the web tier, so 6A/6B/6C may open.** What
 remains inside 6.0 is gated on work this milestone does not own:
 
-- The Electron queue binding waits on `render-job-port` having a host
-  implementation and on helper contract v1 admitting a media job kind. The
-  plan's honest-degradation path — the in-session queue — is what runs
-  today, which is the recorded fallback rather than a gap.
+- The Electron queue binding has a dormant main-owned V2 host and closed media
+  helper kinds, but waits on an attested payload, cleared licensing, complete
+  source authority and candidate activation. The plan's honest-degradation
+  path — the in-session queue — is what runs today.
 - The AUP4 report still renders through its own component rather than the
   shared one, though both now draw their copy from
   `src/common/i18n/report-copy.js` and share the disposition vocabulary.
@@ -586,14 +587,14 @@ and
 
 - **The three-way plan-version pin drift** is repaired in WP-6.0.0
   before any plan bump.
-- **Milestone-5 dependencies:** the 5B software substrate (queue model,
-  native-media plan admission, professional profiles) is implemented,
-  but `render-job-port` has no host implementation, helper contract v1
-  admits no media job kind, and every codec licensing row is blocked
-  (config/production-licensing-matrix.json:516-576) — together they
-  gate 6B-4 and the Electron queue binding; the web tier of every
-  6.0/6A packet works without them. The roadmap's milestone-5 status
-  line predates 5B and understates it.
+- **Milestone-5 dependencies:** 5B now has exact V7–V12 admission, closed
+  media/OFX helper kinds, a main-owned V2 queue/controller, and a bounded native
+  source host. No 5B payload is built, codec licensing remains blocked, the
+  selected V12 renderer now has digest-bound source-body handoff, V20 queue
+  admission, and pathless watch mutation, while most unified render semantics
+  remain typed unsupported. Empty payload rows, licensing, and those semantic
+  boundaries still gate 6B-4 and native execution; the web tier of every
+  6.0/6A packet works without them.
 - **Milestone-4 dependencies:** styled captions remain Planned with no
   schema in the tree and their revision deliberately unassigned
   (docs/milestone-4-plan.md:381-383), so 6B-2 burn-in scopes to label

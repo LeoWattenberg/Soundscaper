@@ -458,11 +458,11 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const audioFreezeFallback = rules.get('audio-freeze-fallback');
 	assert.match(
 		audioFreezeFallback.currentBehavior,
-		/Soundscaper V21 owns audio-track freeze, refresh, unfreeze, and commit.*post-insert, pre-strip.*no PCM enters project JSON.*digest-bound.*Only a fresh record owns an audio-track-render-v1 rendered fallback.*stale or unverifiable record.*bypass with no fallback.*never selected for playback.*format-1 Scape.*Soundscaper desktop V10.*Administrative Scape source-ID remapping.*Framescaper keeps audioTrackFreeze unavailable.*byte-stable return/iu,
+		/Selected Soundscaper V23 owns audio-track freeze, refresh, unfreeze, and commit.*post-insert, pre-strip.*no PCM enters project JSON.*digest-bound.*Only a fresh record owns an audio-track-render-v1 rendered fallback.*stale or unverifiable record.*bypass with no fallback.*never selected for playback.*format-1 Scape.*Soundscaper desktop V10.*Administrative Scape source-ID remapping.*Framescaper keeps audioTrackFreeze unavailable.*exact V23 archive.*byte-stable return/iu,
 	);
 	assert.ok(audioFreezeFallback.evidence.includes('src/common/editor/audio-track-freeze-v21.ts'));
-	assert.ok(audioFreezeFallback.evidence.includes('src/soundscaper/editor-project-feature-requirements-v21.ts'));
-	assert.ok(audioFreezeFallback.evidence.includes('tests/audio-editor-soundscaper-v21-persistence-interchange.test.ts'));
+	assert.ok(audioFreezeFallback.evidence.includes('src/soundscaper/editor-project-feature-requirements-v23.ts'));
+	assert.ok(audioFreezeFallback.evidence.includes('tests/audio-editor-soundscaper-v23-persistence-interchange.test.ts'));
 	const videoProxyFallback = rules.get('video-proxy-fallback');
 	assert.match(
 		videoProxyFallback.currentBehavior,
