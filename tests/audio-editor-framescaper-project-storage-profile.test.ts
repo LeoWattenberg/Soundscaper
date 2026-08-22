@@ -445,7 +445,6 @@ test('the exact Framescaper selector remains isolated across maintained product 
 		'desktop/project-library-v10-contract.ts',
 		'desktop/video-timing-probe-smoke.js', PRODUCT_MODULE, TEST_MODULE,
 		'tests/audio-editor-framescaper-project-store-v18.test.ts',
-		'tests/browser/framescaper-v18-exit-observation.spec.js',
 		'tests/desktop-framescaper-v18-artifact-smoke.test.js',
 		'tests/desktop-project-library-v10-contract.test.ts', 'tests/desktop-project-library-v10-proxy-media-inventory.test.ts',
 		// Selected desktop smoke owns V20/V12 names. The historical artifact fixture

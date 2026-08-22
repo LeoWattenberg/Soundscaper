@@ -99,6 +99,12 @@ slices do not close milestone 3: the four packaged Electron timing rows remain
 fixture/workload remains provisional, and milestone 2's Electron lease matrix
 is still partial.
 
+The former `m3-framescaper-v18-exit` qualification is retired because V18 is
+no longer the maintained Framescaper exit authority. Its two-hour exact
+audio/video/nested/multicamera continuity obligation is preserved by the
+current Milestone 5 `m5b-native-media-plan-parity-and-decode` workload and does
+not remain as a Milestone 3 gate.
+
 ## Time-model decision
 
 ### Canonical coordinate

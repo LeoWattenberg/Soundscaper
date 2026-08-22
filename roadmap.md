@@ -516,6 +516,12 @@ Packet boundaries, dependencies, and acceptance are owned by
   Soundscaper stays exact V17 and receives V18 only through copy-only
   preservation.
 
+The former `m3-framescaper-v18-exit` workload is retired. V18 is no longer the
+maintained Framescaper exit authority after the selected V20 and current
+Milestone 5 candidates. Its two-hour exact editorial-continuity obligation now
+belongs to `m5b-native-media-plan-parity-and-decode`, against the current
+registered canonical-plan family; it is not an outstanding Milestone 3 gate.
+
 ### Shared exit gate
 
 - Every new document type has validation, clone, undo/redo, clipboard,

@@ -559,7 +559,10 @@ implies user enablement.
 Register 5B-specific workloads and collectors rather than treating the existing
 helper/audio workload as sufficient:
 
-- native media plan parity and long-form decode performance;
+- native media plan parity and long-form decode performance, including the
+  retired V18 exit workload's two-hour exact audio/video/nested/multicamera
+  continuity requirement over attached-proxy, verified-VFR, and source-timecode
+  state, now evaluated against the current registered plan family;
 - professional codec, color, image-sequence, alpha, and proxy behavior;
 - queue, durable-root, watch, and scratch recovery;
 - clean external-display timing and correctness; and
