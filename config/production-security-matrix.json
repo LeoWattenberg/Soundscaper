@@ -1003,8 +1003,11 @@
 				},
 				{
 					"id": "framescaper-v22-v26-dormant-candidate-admission",
-					"summary": "Dormant Framescaper V22, V24, V25 and V26 candidates authenticate exact prerequisite profiles and remain distinct from the selected V20 route. V22 bounds track-owned transitions to 16,384 per track, 100,000 per project and 2,000,000 frames each, validates exact participant edges and deterministic ordering, and owns only the registered transition/dissolve requirements. V24 validates closed still, generator, adjustment, preset, mask/matte and digest-bound video-freeze state; a mask graph is limited to depth 32, 4,096 nodes and 16,384 path points, while stale or unverifiable external fallback bytes can only bypass. V25 extends the existing characteristics authority, uses compact digest-bound sequence inventories instead of per-frame project records, and keeps originals authoritative across proxy state. V26 preserves fingerprint-bound OpenFX context, named inputs, typed parameters, keyframes and frozen fallback references without loading a plug-in. Shipped profiles register these feature identities as known and unavailable, earlier schemas reject, future schemas remain opaque read-only, and no candidate status authorizes a native payload, third-party binary, edit route, release, or qualification claim.",
+					"summary": "Dormant Framescaper V22, V24, V25 and V26 candidates authenticate exact prerequisite profiles and remain distinct from the selected provisional V20 route. Selected V20 treats every V22 through V26 document as descriptor-snapshotted opaque read-only custody without dispatching candidate validation, migration, authoring, save or overwrite, activation, or native authority; V23 has no Framescaper candidate owner. Each owned candidate is exact-write only under its authenticated generation profile and repository, rejects earlier schemas, and preserves later schemas opaquely. V22 bounds track-owned transitions to 16,384 per track, 100,000 per project and 2,000,000 frames each, validates exact participant edges and deterministic ordering, and owns only the registered transition/dissolve requirements. V24 validates closed still, generator, adjustment, preset, mask/matte and digest-bound video-freeze state; a mask graph is limited to depth 32, 4,096 nodes and 16,384 path points, while stale or unverifiable external fallback bytes can only bypass. V25 extends the existing characteristics authority, uses compact digest-bound sequence inventories instead of per-frame project records, and keeps originals authoritative across proxy state. V26 preserves fingerprint-bound OpenFX context, named inputs, typed parameters, keyframes and frozen fallback references without loading a plug-in. Shipped profiles register all candidate capability identities as known, unavailable and default-off, and custody or candidate status authorizes no native payload, third-party binary, shipped edit route, release, activation, or qualification claim.",
 					"evidence": [
+						{ "kind": "implementation", "path": "src/framescaper/editor-project-v20.ts" },
+						{ "kind": "implementation", "path": "src/framescaper/editor-project-runtime-v20-selection.ts" },
+						{ "kind": "implementation", "path": "src/framescaper/editor-project-candidate-repository.ts" },
 						{ "kind": "implementation", "path": "src/framescaper/editor-project-v22-validation.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/video-transition-v1.ts" },
 						{ "kind": "implementation", "path": "src/framescaper/editor-project-v24-validation.ts" },
@@ -1014,6 +1017,9 @@
 						{ "kind": "implementation", "path": "src/common/editor/native-media-image-sequence-v25.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/native-ofx-state-v26.ts" },
 						{ "kind": "implementation", "path": "src/framescaper/editor-project-runtime-profile-v26.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-framescaper-project-runtime-v20-selection.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-framescaper-candidate-project-store.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-framescaper-candidate-scape-compatibility.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-framescaper-v22-candidate.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-framescaper-v24-candidate.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-framescaper-v25-candidate-profile.test.ts" },
@@ -1576,8 +1582,8 @@
 				},
 				{
 					"id": "native-decoder-isolation",
-					"exposure": "Future native decoding is not yet isolated from the UI process or covered by crash quarantine.",
-					"requiredControl": "Run native decoders in a supervised helper with bounded IPC and documented OS sandbox policy.",
+					"exposure": "Native media execution already has a supervised utility/helper candidate with bounded authenticated control and data planes, cancellation, heartbeat and quarantine contracts outside the renderer. Shipped native source decoding remains unavailable: authenticated carrierless V8 original-source decode is not implemented, no selected-V20 static adapter is bound, and target-reviewed OS isolation plus malformed-codec and crash evidence remain absent.",
+					"requiredControl": "Complete authenticated carrierless source decoding inside the supervised helper, retain bounded IPC, cancellation, heartbeat and quarantine enforcement, and document and review the per-OS sandbox policy before any shipped activation.",
 					"ownerMilestone": "5",
 					"acceptanceCriteria": ["Helper crash, timeout, oversized output, and malformed-message tests leave the editor process responsive."]
 				}

@@ -17,6 +17,16 @@
 			"desktopLibraryVersion": 10,
 			"behavior": "typed-media-reimport-required-no-project-or-library-migration"
 		},
+		"dormantCandidateCustody": {
+			"minimumProjectVersion": 22,
+			"maximumProjectVersion": 26,
+			"candidateProjectVersions": [22, 24, 25, 26],
+			"unownedProjectVersions": [23],
+			"selectedV20Behavior": "opaque-read-only-no-candidate-validation-migration-authoring-or-overwrite",
+			"candidateBehavior": "exact-version-only-authenticated-dormant-profile",
+			"custodyBehavior": "preserve-opaque-read-only-no-activation-native-authority-or-release-qualification",
+			"capabilityBehavior": "known-unavailable-default-off"
+		},
 		"futureSchemaBehavior": "opaque-read-only-known-feature-identities-remain-unavailable-without-authoring",
 		"revisions": [
 			{
@@ -224,6 +234,27 @@
 				"tests/audio-editor-framescaper-desktop-v12-renderer.test.ts",
 				"tests/desktop-project-library-v12-contract.test.ts",
 				"tests/browser/audio-editor-framescaper-v20-product-lifecycle.spec.js"
+			]
+		},
+		{
+			"id": "framescaper-v22-v26-compatibility-custody",
+			"status": "implemented",
+			"requiredOutcome": "Every Framescaper project version from V22 through V26 has an explicit compatibility and custody outcome while V20 remains the selected provisional route and no dormant candidate becomes shipped authority.",
+			"currentBehavior": "The selected provisional V20 route treats every V22 through V26 document as descriptor-snapshotted opaque read-only custody: it does not dispatch a candidate validator, migrate, author, save, overwrite, activate, or infer native authority. V22, V24, V25 and V26 are exact-write only under their authenticated dormant candidate profiles and generation-owned repositories; V23 has no Framescaper candidate owner and remains opaque future custody. Each candidate rejects earlier versions with typed re-import and preserves only later versions opaquely. Soundscaper and cross-product handoff may retain state read-only but never acquire edit or migration authority. All candidate capability identities remain known, unavailable, and default-off in shipped profiles; custody grants no payload, third-party code, native execution, qualification, release, or activation claim.",
+			"evidence": [
+				"src/framescaper/editor-project-v20.ts",
+				"src/framescaper/editor-project-runtime-v20-selection.ts",
+				"src/framescaper/editor-project-repository-v20.ts",
+				"src/framescaper/editor-project-candidate-repository.ts",
+				"src/framescaper/editor-project-candidate-store.ts",
+				"src/framescaper/editor-project-runtime-profile-v22.ts",
+				"src/framescaper/editor-project-runtime-profile-v24.ts",
+				"src/framescaper/editor-project-runtime-profile-v25.ts",
+				"src/framescaper/editor-project-runtime-profile-v26.ts",
+				"tests/audio-editor-framescaper-project-v20-domain.test.ts",
+				"tests/audio-editor-framescaper-project-runtime-v20-selection.test.ts",
+				"tests/audio-editor-framescaper-candidate-project-store.test.ts",
+				"tests/audio-editor-framescaper-candidate-scape-compatibility.test.ts"
 			]
 		},
 		{

@@ -37,6 +37,16 @@ test('Framescaper revision identities keep V20 selected and later candidates dor
 		desktopLibraryVersion: 10,
 		behavior: 'typed-media-reimport-required-no-project-or-library-migration',
 	});
+	assert.deepEqual(contract.dormantCandidateCustody, {
+		minimumProjectVersion: 22,
+		maximumProjectVersion: 26,
+		candidateProjectVersions: [22, 24, 25, 26],
+		unownedProjectVersions: [23],
+		selectedV20Behavior: 'opaque-read-only-no-candidate-validation-migration-authoring-or-overwrite',
+		candidateBehavior: 'exact-version-only-authenticated-dormant-profile',
+		custodyBehavior: 'preserve-opaque-read-only-no-activation-native-authority-or-release-qualification',
+		capabilityBehavior: 'known-unavailable-default-off',
+	});
 	assert.deepEqual(contract.revisions, [
 		[19, 11, 13, 'v11', 5, [8], 'reserved-dormant-boundary'],
 		[20, 12, 14, 'v12', 6, [7, 8], 'selected-provisional-unqualified'],
@@ -50,4 +60,10 @@ test('Framescaper revision identities keep V20 selected and later candidates dor
 		clipboardVersion, renderPlanVersions, status,
 	})));
 	assert.match(contract.futureSchemaBehavior, /opaque-read-only.*known.*unavailable/iu);
+	const custody = policy.rules.find(({ id }) => id === 'framescaper-v22-v26-compatibility-custody');
+	assert.ok(custody);
+	assert.equal(custody.status, 'implemented');
+	assert.match(custody.requiredOutcome, /V22 through V26.*custody/iu);
+	assert.match(custody.currentBehavior, /V20.*opaque read-only.*V23.*no Framescaper candidate owner/iu);
+	assert.match(custody.currentBehavior, /default-off/iu);
 });

@@ -111,6 +111,23 @@ preservation never grants edit, activation, migration, native feature authority,
 or release qualification.
 <!-- /policy-narrative:framescaper-v18-product-isolation -->
 
+## Framescaper V22–V26 compatibility and custody
+
+<!-- policy-narrative:framescaper-v22-v26-compatibility-custody -->
+The selected provisional V20 route treats every V22 through V26 document as
+descriptor-snapshotted opaque read-only custody: it does not dispatch a
+candidate validator, migrate, author, save, overwrite, activate, or infer native
+authority. V22, V24, V25 and V26 are exact-write only under their authenticated
+dormant candidate profiles and generation-owned repositories; V23 has no
+Framescaper candidate owner and remains opaque future custody. Each candidate
+rejects earlier versions with typed re-import and preserves only later versions
+opaquely. Soundscaper and cross-product handoff may retain state read-only but
+never acquire edit or migration authority. All candidate capability identities
+remain known, unavailable, and default-off in shipped profiles; custody grants
+no payload, third-party code, native execution, qualification, release, or
+activation claim.
+<!-- /policy-narrative:framescaper-v22-v26-compatibility-custody -->
+
 ## Framescaper V18 nested-sequence compatibility
 
 <!-- policy-narrative:framescaper-v18-nested-sequence-native -->
