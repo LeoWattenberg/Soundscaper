@@ -154,8 +154,8 @@ export async function verifyPackagedFramescaperNativeHostResources(context, depe
 
 function packagingProductId(context) {
 	const productName = context?.packager?.appInfo?.productFilename;
-	if (productName === 'Framescaper') return 'framescaper';
-	if (productName === 'Soundscaper') return 'soundscaper';
+	if (productName === 'Framescaper' || productName === 'framescaper') return 'framescaper';
+	if (productName === 'Soundscaper' || productName === 'soundscaper') return 'soundscaper';
 	throw new Error(`Unsupported packaged desktop product: ${String(productName)}.`);
 }
 

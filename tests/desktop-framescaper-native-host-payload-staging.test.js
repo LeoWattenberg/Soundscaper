@@ -210,6 +210,10 @@ test('afterPack re-verifies the exact Framescaper native-host resource tree', as
 	await assert.doesNotReject(() => verifyPackagedFramescaperNativeHostResources(
 		packagingContext, { repositoryRoot },
 	));
+	packagingContext.packager.appInfo.productFilename = 'framescaper';
+	await assert.doesNotReject(() => verifyPackagedFramescaperNativeHostResources(
+		packagingContext, { repositoryRoot },
+	));
 	await writeFile(
 		join(resources, 'runtime/native/framescaper-openfx-host', TARGET, 'framescaper-ofx-scanner'),
 		Buffer.from('signed-or-substituted'),
