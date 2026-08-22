@@ -31,24 +31,31 @@ test('candidate authoring applies, undoes, and redoes a menu-owned command throu
 	});
 
 	await controller.runtime.run('video-adjustment-layer');
-	assert.deepEqual((await saved()).videoAdjustmentLayers.map(({ id }) => id), ['adjustment-1']);
+	assert.deepEqual(adjustmentLayerIds(await saved()), ['adjustment-1']);
 	assert.equal(await controller.undo(), true);
-	assert.deepEqual((await saved()).videoAdjustmentLayers, []);
+	assert.deepEqual(adjustmentLayerIds(await saved()), []);
 	assert.equal(await controller.redo(), true);
-	assert.deepEqual((await saved()).videoAdjustmentLayers.map(({ id }) => id), ['adjustment-1']);
+	assert.deepEqual(adjustmentLayerIds(await saved()), ['adjustment-1']);
 
 	command = adjustmentCommand('adjustment-2');
 	await assert.rejects(
 		() => controller.runtime.run('video-mask-matte'),
 		/another authoring surface/u,
 	);
-	assert.deepEqual((await saved()).videoAdjustmentLayers.map(({ id }) => id), ['adjustment-1']);
+	assert.deepEqual(adjustmentLayerIds(await saved()), ['adjustment-1']);
 	await store.close();
 
 	async function saved(): Promise<FramescaperProjectV25> {
 		return await store.projectRepository.load(String(project.id)) as FramescaperProjectV25;
 	}
 });
+
+function adjustmentLayerIds(project: FramescaperProjectV25): readonly string[] {
+	return Array.from(
+		project.videoAdjustmentLayers as readonly Readonly<{ id: string }>[],
+		({ id }) => id,
+	);
+}
 
 function adjustmentCommand(id = 'adjustment-1') {
 	return {

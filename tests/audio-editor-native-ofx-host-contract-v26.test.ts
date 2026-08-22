@@ -85,7 +85,7 @@ test('one invocation is fingerprint-bound, cancellable, closed, and carries no a
 		() => assertOfxHostInvocationV1({ ...invocation, pluginBinaryPath: '/plugins/blur.ofx' }),
 		/exactly|schema keys/iu,
 	);
-	const missingOrdinal = { ...invocation } as Partial<typeof invocation>;
+	const missingOrdinal = { ...invocation } as Record<string, unknown>;
 	delete missingOrdinal.outputOrdinal;
 	assert.throws(() => assertOfxHostInvocationV1(missingOrdinal), /schema keys|outputOrdinal/iu);
 	assert.throws(

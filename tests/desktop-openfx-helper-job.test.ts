@@ -9,6 +9,7 @@ import test from 'node:test';
 import { MessageChannel } from 'node:worker_threads';
 
 import type { FramescaperOpenFxHostDescriptor } from '../desktop/framescaper-openfx-host-payload.ts';
+import type { HelperOfxHostJobGrant } from '../desktop/helper-contract.ts';
 import {
 	assertOpenFxHostOutput,
 	createOpenFxHostProcessFailure,
@@ -318,7 +319,7 @@ test('runtime output admits exact CPU reporting and rejects hidden GPU degradati
 			frame: { streamId: '90'.repeat(20), exactByteLength: bytes.byteLength },
 			width: 1, height: 1, rowBytes: 4,
 		},
-	} as never;
+	} as unknown as HelperOfxHostJobGrant;
 	const exact = {
 		accepted: true, requestedBackend: 'cpu', backend: 'cpu',
 		retriedOnCpu: false, reportsDegradation: false,

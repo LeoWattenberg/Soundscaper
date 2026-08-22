@@ -197,7 +197,9 @@ test('V12 preserves stale authored fallback state but can resolve it only to byp
 	const raw = structuredClone(unifiedExactPlanFixture(12));
 	raw.output.canvas.width = 1;
 	raw.output.canvas.height = 1;
-	const effect = raw.nodes.find((node) => node.kind === 'openfx');
+	const effect = raw.nodes.find((node) => node.kind === 'openfx') as unknown as
+		| { state: { frozenFallback: null | { freshness: { inputIdentitiesSha256: string } } } }
+		| undefined;
 	if (!effect || effect.state.frozenFallback === null) throw new Error('fallback fixture is unavailable');
 	effect.state.frozenFallback.freshness.inputIdentitiesSha256 = '99'.repeat(32);
 	const plan = createUnifiedExactRenderPlan(raw) as UnifiedExactRenderPlanV12;

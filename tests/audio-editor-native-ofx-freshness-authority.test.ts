@@ -10,11 +10,21 @@ import {
 } from '../src/common/editor/unified-exact-render-plan.ts';
 import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
 
+type DerivedFreshness = ReturnType<typeof deriveUnifiedExactOfxFreshnessV26>;
+interface MutableOpenFxFixtureNode {
+	state: {
+		freshness: DerivedFreshness;
+		frozenFallback: { freshness: DerivedFreshness } | null;
+		parameters: Array<{ value: number[] }>;
+	};
+}
+
 test('V26 freshness is derived from authored state, source identities, plan intent, and native identity', () => {
 	const raw = structuredClone(unifiedExactPlanFixture(12));
 	const initial = createUnifiedExactRenderPlan(raw);
 	const observed = deriveUnifiedExactOfxFreshnessV26(initial, 'ofx-1', descriptor());
-	const rawEffect = raw.nodes.find((node) => node.kind === 'openfx');
+	const rawEffect = raw.nodes.find((node) => node.kind === 'openfx') as
+		| MutableOpenFxFixtureNode | undefined;
 	if (!rawEffect || rawEffect.state.frozenFallback === null) throw new Error('fallback fixture unavailable');
 	rawEffect.state.freshness = observed;
 	rawEffect.state.frozenFallback.freshness = observed;
@@ -22,7 +32,8 @@ test('V26 freshness is derived from authored state, source identities, plan inte
 	assert.deepEqual(deriveUnifiedExactOfxFreshnessV26(bound, 'ofx-1', descriptor()), observed);
 
 	const changed = structuredClone(raw);
-	const changedEffect = changed.nodes.find((node) => node.kind === 'openfx');
+	const changedEffect = changed.nodes.find((node) => node.kind === 'openfx') as
+		| MutableOpenFxFixtureNode | undefined;
 	if (!changedEffect) throw new Error('effect fixture unavailable');
 	changedEffect.state.parameters[0]!.value = [0.25];
 	const changedPlan = createUnifiedExactRenderPlan(changed);

@@ -52,6 +52,9 @@ import {
 	normalizeVideoSourceCharacteristicsV25,
 	type VideoSourceCharacteristicsV25,
 } from '../src/common/editor/video-source-professional-characteristics-v25.ts';
+import type {
+	FramescaperImageSequenceNativeAdmissionRequestV25,
+} from '../src/framescaper/editor-native-image-sequence-import-v25.ts';
 import {
 	assertImageSequenceReferenceFile,
 	assertImageSequenceReferenceHandle,
