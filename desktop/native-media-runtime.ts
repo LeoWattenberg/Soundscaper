@@ -23,10 +23,16 @@ import {
 } from './native-media-helper-pool.ts';
 import {
 	assertFramescaperMediaHostSelfTest,
+	assertFramescaperMediaHostSelectedV20RenderSelfTest,
 	runFramescaperMediaHostSelfTest,
+	runFramescaperMediaHostSelectedV20RenderSelfTest,
 	type FramescaperMediaHostSelfTestResult,
+	type FramescaperMediaHostSelectedV20RenderSelfTestResult,
 } from './native-media-host-self-test.ts';
-export { assertFramescaperMediaHostSelfTest } from './native-media-host-self-test.ts';
+export {
+	assertFramescaperMediaHostSelfTest,
+	assertFramescaperMediaHostSelectedV20RenderSelfTest,
+} from './native-media-host-self-test.ts';
 
 export interface FramescaperNativeMediaRuntimeOptions {
 	readonly location: FramescaperMediaHostPayloadLocation;
@@ -41,6 +47,9 @@ export interface FramescaperNativeMediaRuntimeOptions {
 	readonly runHostSelfTest?: (
 		descriptor: FramescaperMediaHostDescriptor,
 	) => Promise<FramescaperMediaHostSelfTestResult>;
+	readonly runSelectedV20RenderSelfTest?: (
+		descriptor: FramescaperMediaHostDescriptor,
+	) => Promise<FramescaperMediaHostSelectedV20RenderSelfTestResult>;
 }
 
 export interface FramescaperNativeMediaRuntime {
@@ -49,6 +58,7 @@ export interface FramescaperNativeMediaRuntime {
 	available(): boolean;
 	snapshot(): NativeMediaHelperPoolSnapshot | null;
 	selfTestEvidence(): FramescaperMediaHostSelfTestResult | null;
+	selectedV20RenderSelfTestEvidence(): FramescaperMediaHostSelectedV20RenderSelfTestResult | null;
 	runJob(request: NativeMediaHelperPoolJobRequest): Promise<unknown>;
 	dispose(): boolean;
 }
@@ -81,6 +91,17 @@ export async function startFramescaperNativeMediaRuntime(
 			availability,
 			`self-test-failed: ${errorMessage(error)}`,
 		);
+	}
+	let selectedV20RenderSelfTestEvidence: FramescaperMediaHostSelectedV20RenderSelfTestResult | null = null;
+	try {
+		const result = await (
+			options.runSelectedV20RenderSelfTest
+			?? runFramescaperMediaHostSelectedV20RenderSelfTest
+		)(availability.descriptor);
+		assertFramescaperMediaHostSelectedV20RenderSelfTest(result);
+		selectedV20RenderSelfTestEvidence = result;
+	} catch {
+		// Operation-specific readiness gates selected V20 only; probe/proxy remain independently useful.
 	}
 	const workers: RuntimeWorker[] = [];
 	const pool = new NativeMediaHelperPool({
@@ -126,6 +147,7 @@ export async function startFramescaperNativeMediaRuntime(
 		available: () => !disposed && pool.snapshot().quarantinedWorkers < pool.snapshot().configuredWorkers,
 		snapshot: () => pool.snapshot(),
 		selfTestEvidence: () => selfTestEvidence,
+		selectedV20RenderSelfTestEvidence: () => selectedV20RenderSelfTestEvidence,
 		runJob: (request: NativeMediaHelperPoolJobRequest) => pool.runJob(request),
 		dispose: () => {
 			if (disposed) return false;
@@ -147,6 +169,7 @@ function unavailableRuntime(
 		available: () => false,
 		snapshot: () => null,
 		selfTestEvidence: () => null,
+		selectedV20RenderSelfTestEvidence: () => null,
 		runJob: (_request: HelperJobRequest<NativeMediaHelperPoolJobKind>) => Promise.reject(
 			new Error(`The authenticated Framescaper media runtime is unavailable: ${reason}`),
 		),

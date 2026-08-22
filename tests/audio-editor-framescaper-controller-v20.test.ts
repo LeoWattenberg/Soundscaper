@@ -55,6 +55,9 @@ test('selected V20 controller activates one fresh writable exact project authori
 		['render-queue-enqueue'],
 		'selected V20 advertises its queue action without candidate-only mutations',
 	);
+	assert.equal(typeof (controller as unknown as Readonly<{
+		prepareNativeRenderInputsV20?: unknown;
+	}>).prepareNativeRenderInputsV20, 'function');
 });
 
 test('V20 controller rejects cloned environments and caller-owned authority options', async (context) => {

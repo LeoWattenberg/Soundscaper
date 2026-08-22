@@ -10,6 +10,7 @@ import test from 'node:test';
 import type { HelperChannel } from '../desktop/helper-supervisor.ts';
 import {
 	assertFramescaperMediaHostSelfTest,
+	assertFramescaperMediaHostSelectedV20RenderSelfTest,
 	startFramescaperNativeMediaRuntime,
 } from '../desktop/native-media-runtime.ts';
 
@@ -19,6 +20,15 @@ const SELF_TEST = Object.freeze({
 	professionalCharacteristicsMatches: true,
 });
 
+const SELECTED_V20_RENDER_SELF_TEST = Object.freeze({
+	contractVersion: 1, operation: 'media-render', profile: 'selected-v20-v7-v8',
+	planVersions: [7, 8] as const, exactPictureOrdinals: true,
+	keyedEvaluatedRgbaExecutor: true, staticCompositionExecutor: true,
+	maximumInFlightFrames: 1, evaluatedRgbaInputBound: true,
+	staticGeometryAdapterBound: true, stagedAudioInputBound: true,
+	deliveryCodecSetAvailable: true, frameCoreReady: true, ready: true,
+});
+
 test('an authenticated payload self-tests before a default two-worker pool accepts work', async () => {
 	const fixture = await runtimeFixture();
 	try {
@@ -26,12 +36,17 @@ test('an authenticated payload self-tests before a default two-worker pool accep
 		const runtime = await startFramescaperNativeMediaRuntime({
 			location: fixture.location,
 			runHostSelfTest: async () => SELF_TEST,
+			runSelectedV20RenderSelfTest: async () => SELECTED_V20_RENDER_SELF_TEST,
 			spawnHelper: () => { spawns += 1; return new Channel(); },
 			mintJobId: () => 'cd'.repeat(20),
 		});
 		assert.equal(runtime.available(), true);
 		assert.equal(runtime.snapshot()?.configuredWorkers, 2);
 		assert.deepEqual(runtime.selfTestEvidence(), SELF_TEST);
+		assert.deepEqual(
+			runtime.selectedV20RenderSelfTestEvidence(),
+			SELECTED_V20_RENDER_SELF_TEST,
+		);
 		assert.equal(spawns, 2, 'every default-pool worker negotiates its isolated self-test before availability');
 		assert.deepEqual(await runtime.runJob({
 			kind: 'probe-video-source',
@@ -60,6 +75,7 @@ test('empty manifests and failed self-tests remain unavailable without spawning 
 	assert.match(repository.reason ?? '', /payload-pending-external/u);
 	assert.equal(repository.snapshot(), null);
 	assert.equal(repository.selfTestEvidence(), null);
+	assert.equal(repository.selectedV20RenderSelfTestEvidence(), null);
 
 	const fixture = await runtimeFixture();
 	try {
@@ -67,6 +83,7 @@ test('empty manifests and failed self-tests remain unavailable without spawning 
 		const failed = await startFramescaperNativeMediaRuntime({
 			location: fixture.location,
 			runHostSelfTest: async () => SELF_TEST,
+			runSelectedV20RenderSelfTest: async () => SELECTED_V20_RENDER_SELF_TEST,
 			spawnHelper: () => { spawns += 1; return new FailedChannel(); },
 		});
 		assert.equal(failed.available(), false);
@@ -88,8 +105,29 @@ test('a failed authenticated host self-test blocks the pool before helpers spawn
 		});
 		assert.equal(runtime.available(), false);
 		assert.equal(runtime.selfTestEvidence(), null);
+		assert.equal(runtime.selectedV20RenderSelfTestEvidence(), null);
 		assert.match(runtime.reason ?? '', /professional probe mismatch/u);
 		assert.equal(spawns, 0);
+	} finally {
+		await fixture.dispose();
+	}
+});
+
+test('a missing selected-V20 operation attestation leaves other media operations available', async () => {
+	const fixture = await runtimeFixture();
+	try {
+		const runtime = await startFramescaperNativeMediaRuntime({
+			location: fixture.location,
+			runHostSelfTest: async () => SELF_TEST,
+			runSelectedV20RenderSelfTest: async () => {
+				throw new Error('selected V20 operation is not ready');
+			},
+			spawnHelper: () => new Channel(),
+		});
+		assert.equal(runtime.available(), true);
+		assert.equal(runtime.reason, null);
+		assert.equal(runtime.selectedV20RenderSelfTestEvidence(), null);
+		runtime.dispose();
 	} finally {
 		await fixture.dispose();
 	}
@@ -105,6 +143,21 @@ test('self-test admission is closed to exact FFmpeg and retime evidence', () => 
 		{ ...SELF_TEST, professionalCharacteristicsMatches: false },
 	]) {
 		assert.throws(() => assertFramescaperMediaHostSelfTest(value));
+	}
+});
+
+test('selected-V20 render admission is closed to exact end-to-end operation evidence', () => {
+	assert.doesNotThrow(() => (
+		assertFramescaperMediaHostSelectedV20RenderSelfTest(SELECTED_V20_RENDER_SELF_TEST)
+	));
+	for (const value of [
+		{ ...SELECTED_V20_RENDER_SELF_TEST, extra: true },
+		{ ...SELECTED_V20_RENDER_SELF_TEST, planVersions: [7] },
+		{ ...SELECTED_V20_RENDER_SELF_TEST, operation: 'media-encode' },
+		{ ...SELECTED_V20_RENDER_SELF_TEST, maximumInFlightFrames: 2 },
+		{ ...SELECTED_V20_RENDER_SELF_TEST, staticGeometryAdapterBound: false },
+	]) {
+		assert.throws(() => assertFramescaperMediaHostSelectedV20RenderSelfTest(value));
 	}
 });
 
