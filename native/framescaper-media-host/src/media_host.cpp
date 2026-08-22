@@ -239,7 +239,7 @@ void require_plan_sources_match(const invocation& job, const std::vector<std::si
 	return result;
 }
 
-void require_selected_v20_source_roles(const invocation& job) {
+void require_exact_render_source_roles(const invocation& job) {
 	const auto originals = original_source_indices(job);
 	require_plan_sources_match(job, originals);
 	std::size_t carriers = 0;
@@ -247,26 +247,29 @@ void require_selected_v20_source_roles(const invocation& job) {
 	bool extras_started = false;
 	for (const auto& role : job.source_roles) {
 		if (role == "original") {
-			if (extras_started) throw admission_error("Selected V20 originals must precede derived inputs.");
+			if (extras_started) throw admission_error("Exact render originals must precede derived inputs.");
 			continue;
 		}
 		extras_started = true;
 		if (role == "evaluated-rgba-frame-pack") {
 			if (audio != 0 || ++carriers > 1) {
-				throw admission_error("Selected V20 admits one evaluated RGBA carrier before staged audio.");
+				throw admission_error("An exact render admits one evaluated RGBA carrier before staged audio.");
 			}
 		} else if (role == "staged-audio-mix") {
-			if (++audio > 1) throw admission_error("Selected V20 admits one staged audio mix.");
-		} else throw admission_error("A selected V20 render carries an unrelated source role.");
+			if (++audio > 1) throw admission_error("An exact render admits one staged audio mix.");
+		} else throw admission_error("An exact render carries an unrelated source role.");
 	}
-	if (job.admitted_plan.version == 7 && carriers != 1) {
-		throw admission_error("Selected V20 V7 requires one authenticated evaluated RGBA frame pack.");
+	if (!job.admitted_plan.requires_evaluated_rgba_carrier) {
+		if (carriers != 0 || audio != 0) {
+			throw admission_error("An unsupported unified render cannot acquire derived media authority.");
+		}
+		return;
 	}
-	if (job.admitted_plan.version == 8 && carriers != 0) {
-		throw admission_error("Selected V20 V8 evaluates only its authenticated original sources.");
+	if (carriers != 1) {
+		throw admission_error("An evaluated exact render requires one authenticated RGBA frame pack.");
 	}
 	if (audio != static_cast<std::size_t>(job.admitted_plan.includes_audio)) {
-		throw admission_error("Selected V20 staged audio does not match its canonical plan.");
+		throw admission_error("Exact staged audio does not match its canonical plan.");
 	}
 }
 
@@ -337,13 +340,12 @@ void require_selected_v20_source_roles(const invocation& job) {
 			throw authentication_error("The image-sequence pack frame count does not authenticate its canonical plan node.");
 		}
 	} else {
-		if (!job.admitted_plan.image_sequence_inventory_sha256.empty()) {
-			throw admission_error("Ordinary media jobs require only original roles and no image-sequence inventory.");
-		}
-		if ((job.kind == operation::media_render || job.kind == operation::media_encode)
-			&& (job.admitted_plan.version == 7 || job.admitted_plan.version == 8)) {
-			require_selected_v20_source_roles(job);
+		if (job.kind == operation::media_render || job.kind == operation::media_encode) {
+			require_exact_render_source_roles(job);
 		} else {
+			if (!job.admitted_plan.image_sequence_inventory_sha256.empty()) {
+				throw admission_error("Ordinary media jobs require no image-sequence inventory.");
+			}
 			if (std::any_of(job.source_roles.begin(), job.source_roles.end(), [](const std::string& role) {
 				return role != "original";
 			})) throw admission_error("This native media operation admits only original inputs.");
@@ -414,9 +416,10 @@ engine_result execute_ffmpeg_job(const invocation& job) {
 			"\"policyRow\":\"codec-image-sequence-still-formats\"}",
 	};
 	if ((job.kind == operation::media_render || job.kind == operation::media_encode)
-		&& job.admitted_plan.simple_full_frame_clip) return {
+		&& job.admitted_plan.requires_evaluated_rgba_carrier) return {
 		78, "{\"error\":\"contract-build-has-no-ffmpeg\",\"operation\":\"" + operation_text
-			+ "\",\"subset\":\"single-full-frame-clip-v1\"}",
+			+ "\",\"subset\":\"evaluated-rgba-frame-pack-v1\",\"planVersion\":"
+			+ std::to_string(job.admitted_plan.version) + "}",
 	};
 	if (job.kind == operation::media_render || job.kind == operation::media_encode) return {
 		78, "{\"error\":\"unsupported-render-subset\",\"operation\":\"" + operation_text

@@ -23,8 +23,8 @@ test('V7 admission closes keyed plan metadata, identities, nested fields, and so
 		const admitted = runLegacyPlan(fixture.executable, paths, canonical);
 		assert.equal(admitted.status, 78, admitted.stderr);
 		assert.deepEqual(JSON.parse(admitted.stdout), {
-			error: 'unsupported-render-subset', operation: 'media-render',
-			planVersion: 7, family: 'keyed-rgba-data-plane',
+			error: 'contract-build-has-no-ffmpeg', operation: 'media-render',
+			subset: 'evaluated-rgba-frame-pack-v1', planVersion: 7,
 		});
 
 		const cases = [
@@ -61,12 +61,12 @@ test('V8 admission closes static graph, filter equivalence, captions, and burn-i
 		const admitted = runLegacyPlan(fixture.executable, paths, canonical);
 		assert.equal(admitted.status, 78, admitted.stderr);
 		assert.deepEqual(JSON.parse(admitted.stdout), {
-			error: 'unsupported-render-subset', operation: 'media-render',
-			planVersion: 8, family: 'static-composition-graph',
+			error: 'contract-build-has-no-ffmpeg', operation: 'media-render',
+			subset: 'evaluated-rgba-frame-pack-v1', planVersion: 8,
 		});
 		const repeatedClip = runLegacyPlan(fixture.executable, paths, legacyV8MultiIntervalPlan());
 		assert.equal(repeatedClip.status, 78, repeatedClip.stderr);
-		assert.equal(JSON.parse(repeatedClip.stdout).family, 'static-composition-graph');
+		assert.equal(JSON.parse(repeatedClip.stdout).subset, 'evaluated-rgba-frame-pack-v1');
 
 		const cases = [
 			['reordered layer', (plan) => {
@@ -182,7 +182,7 @@ function runLegacyPlan(executable, paths, plan) {
 
 function renderArguments(paths) {
 	const derived = [
-		...(paths.planVersion === 7 ? [
+		...(paths.planVersion === 7 || paths.planVersion === 8 ? [
 			'--source', paths.carrier, '--source-sha256', paths.carrierSha256,
 			'--source-byte-length', String(paths.carrierByteLength),
 			'--source-role', 'evaluated-rgba-frame-pack',

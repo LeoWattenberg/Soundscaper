@@ -11,6 +11,7 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
+import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import { createVideoKeyframeExportPlanV7 } from '../src/common/editor/video-keyframe-export-plan-v7.ts';
 import { createVideoRetimeExportIntentV6 } from '../src/common/editor/video-retime-export-plan.ts';
 import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
@@ -113,6 +114,29 @@ test('a provisioned FFmpeg 9.0.1 host publishes decode, proxy, render, and encod
 			assert.equal(keyedResult.sha256, digest(readFileSync(keyedOutput)));
 			assertVideoOutput(executable, keyedOutput, 1);
 
+			const evaluatedV8PlanValue = selectedV20EvaluatedV8Plan();
+			const evaluatedV8PlanBytes = JSON.stringify(evaluatedV8PlanValue);
+			const evaluatedV8Plan = join(directory, 'selected-v20-v8.json');
+			writeFileSync(evaluatedV8Plan, evaluatedV8PlanBytes);
+			const evaluatedV8Output = join(destination, 'selected-v20-v8.mp4');
+			const evaluatedV8 = run(executable, [
+				'--operation', 'media-render',
+				'--plan', evaluatedV8Plan, '--plan-sha256', digest(evaluatedV8PlanBytes),
+				'--source', source, '--source-sha256', sourceSha256,
+				'--source-byte-length', String(readFileSync(source).byteLength), '--source-role', 'original',
+				'--source', carrier, '--source-sha256', digest(readFileSync(carrier)),
+				'--source-byte-length', String(readFileSync(carrier).byteLength),
+				'--source-role', 'evaluated-rgba-frame-pack',
+				'--scratch', scratch, '--maximum-output-bytes', '1048576', '--backend', 'native-cpu',
+				'--destination-root', destination, '--temporary-output', evaluatedV8Output,
+			]);
+			assert.equal(evaluatedV8.status, 0, evaluatedV8.stderr || evaluatedV8.stdout);
+			assert.deepEqual({
+				profile: JSON.parse(evaluatedV8.stdout).profile,
+				frameCount: JSON.parse(evaluatedV8.stdout).frameCount,
+			}, { profile: 'selected-v20-v8-evaluated-rgba', frameCount: 4 });
+			assertVideoOutput(executable, evaluatedV8Output, 0);
+
 		const proxy = join(destination, 'proxy.mov');
 		const proxyRun = run(executable, [
 			'--operation', 'media-proxy', ...common,
@@ -130,13 +154,12 @@ test('a provisioned FFmpeg 9.0.1 host publishes decode, proxy, render, and encod
 				'--operation', operation, ...common,
 				'--destination-root', destination, '--temporary-output', output,
 			]);
-			assert.equal(result.status, 0, result.stderr);
-			assert.deepEqual({
-				operation: JSON.parse(result.stdout).operation,
-				subset: JSON.parse(result.stdout).subset,
-				frameCount: JSON.parse(result.stdout).frameCount,
-			}, { operation, subset: 'single-full-frame-clip-v1', frameCount: 4 });
-			assertVideoOutput(executable, output);
+			assert.equal(result.status, 78, result.stderr);
+			assert.deepEqual(JSON.parse(result.stdout), {
+				error: 'unsupported-render-subset', operation, planVersion: 9,
+				family: 'unified-exact-v9-graph',
+			});
+			assert.equal(existsSync(output), false);
 		}
 
 		const mismatch = join(destination, 'mismatch.mov');
@@ -156,38 +179,27 @@ test('a provisioned FFmpeg 9.0.1 host publishes decode, proxy, render, and encod
 			unifiedExactPlanFixture(10).nodes.find(({ kind }) => kind === 'visual'),
 		);
 		assert.ok(visualNode);
+		visualNode.authoredFallback = null;
+		visualNode.fallbackDisposition = null;
 		visualNode.frozenFallback = null;
 		visualPlan.nodes.push(visualNode);
-		assertTypedRenderRefusal({
-			executable, directory, common, plan, planSha256,
-			name: 'unsupported-visual', planValue: createUnifiedExactRenderPlan(visualPlan),
-			expectedError: 'unsupported-render-subset',
+		const visualPlanValue = createUnifiedExactRenderPlan(visualPlan);
+		const visualPlanPath = join(directory, 'unified-v10-visual.json');
+		const visualPlanBytes = JSON.stringify(visualPlanValue);
+		writeFileSync(visualPlanPath, visualPlanBytes);
+		const visualOutput = join(destination, 'unified-v10-visual.mp4');
+		const visual = run(executable, [
+			'--operation', 'media-render',
+			...common.map((value) => value === plan ? visualPlanPath
+				: value === planSha256 ? digest(visualPlanBytes) : value),
+			'--destination-root', destination, '--temporary-output', visualOutput,
+		]);
+		assert.equal(visual.status, 78, visual.stderr || visual.stdout);
+		assert.deepEqual(JSON.parse(visual.stdout), {
+			error: 'unsupported-render-subset', operation: 'media-render', planVersion: 10,
+			family: 'unified-exact-v10-graph',
 		});
-
-		const invalidCombinationPlan = structuredClone(simpleExactPlan(sourceSha256));
-		invalidCombinationPlan.codecs = {
-			...invalidCombinationPlan.codecs, video: 'vp9', videoEncoder: 'libvpx-vp9',
-		};
-		assertTypedRenderRefusal({
-			executable, directory, common, plan, planSha256,
-			name: 'unsupported-combination',
-			planValue: createUnifiedExactRenderPlan(invalidCombinationPlan),
-			expectedError: 'unsupported-codec-combination',
-		});
-
-		const unavailableCodecPlan = structuredClone(simpleExactPlan(sourceSha256));
-		unavailableCodecPlan.format = {
-			container: 'webm', extension: 'webm', mimeType: 'video/webm',
-		};
-		unavailableCodecPlan.codecs = {
-			...unavailableCodecPlan.codecs, video: 'vp9', videoEncoder: 'libvpx-vp9',
-		};
-		assertTypedRenderRefusal({
-			executable, directory, common, plan, planSha256,
-			name: 'unavailable-codec',
-			planValue: createUnifiedExactRenderPlan(unavailableCodecPlan),
-			expectedError: 'codec-policy-unavailable',
-		});
+		assert.equal(existsSync(visualOutput), false);
 
 		const sequence = writePngSequenceFixture(directory);
 		const sequenceOutput = join(scratch, 'sequence.frames');
@@ -245,7 +257,9 @@ test('a provisioned FFmpeg 9.0.1 host publishes decode, proxy, render, and encod
 		const hardwareOutput = join(destination, 'hardware-request.mp4');
 		const hardware = run(executable, [
 			'--operation', 'media-render',
-			...common.map((value) => value === 'native-cpu' ? 'nvenc' : value),
+			...common.map(
+				(value) => value === 'native-cpu' ? 'nvenc' : value,
+			),
 			'--destination-root', destination, '--temporary-output', hardwareOutput,
 		]);
 		assert.equal(hardware.status, 78);
@@ -258,28 +272,6 @@ test('a provisioned FFmpeg 9.0.1 host publishes decode, proxy, render, and encod
 		rmSync(directory, { recursive: true, force: true });
 	}
 });
-
-function assertTypedRenderRefusal({
-	executable, directory, common, plan, planSha256, name, planValue, expectedError,
-}) {
-	const variantPath = join(directory, `${name}.json`);
-	const variantBytes = JSON.stringify(planValue);
-	writeFileSync(variantPath, variantBytes);
-	const output = join(directory, 'destination', `${name}.tmp`);
-	const args = [
-		'--operation', 'media-render',
-		...common.map((value) => {
-			if (value === plan) return variantPath;
-			if (value === planSha256) return digest(variantBytes);
-			return value;
-		}),
-		'--destination-root', join(directory, 'destination'), '--temporary-output', output,
-	];
-	const result = run(executable, args);
-	assert.equal(result.status, 78, result.stderr);
-	assert.equal(JSON.parse(result.stdout).error, expectedError);
-	assert.equal(existsSync(output), false);
-}
 
 function assertVideoOutput(executable, path, expectedAudioStreams = null) {
 	const result = run(executable, [
@@ -382,13 +374,16 @@ function simpleExactPlan(sourceSha256) {
 			sequenceId: 'sequence-1', sequenceRate: rate,
 		},
 		output: {
-			frameRate: rate, frameCount: 4,
+			frameRate: rate, frameCount: 4, quality: 'balanced',
 			canvas: {
 				width: 64, height: 36, fit: 'contain', pixelFormat: 'yuv420p',
 				backgroundColor: '#000000',
 			},
 			includeAudio: false, audioLayout: null,
 		},
+		tracks: [{
+			trackId: 'track-1', sequenceOrder: 0, mute: false, solo: false, hidden: false,
+		}],
 		sources: [{
 			inputIndex: 0, nodeId: 'source-node-1', sourceId: 'source-1',
 			storageKey: 'media/source-1', mimeType: 'video/quicktime', contentSha256: sourceSha256,
@@ -398,7 +393,30 @@ function simpleExactPlan(sourceSha256) {
 			kind: 'clip', nodeId: 'clip-node-1', clipId, trackId: 'track-1',
 			sourceNodeId: 'source-node-1', sequenceStartFrame: 0, sequenceFrameCount: 4,
 			sourceInFrame: 0, sourceFrameCount: 4,
-			sourceTimeMapping: { kind: 'video-retime-export-intent-v6', intent },
+			pictureState: {
+				composition: {
+					schemaVersion: 1,
+					crop: { left: 0, top: 0, right: 0, bottom: 0 },
+					transform: {
+						anchorX: 0.5, anchorY: 0.5, positionX: 0.5, positionY: 0.5,
+						scaleX: 1, scaleY: 1, rotationDegrees: 0,
+						flipHorizontal: false, flipVertical: false,
+					},
+					opacity: 1, blendMode: 'normal', compositingOrder: 0,
+				},
+				videoEffects: [],
+				videoKeyframes: {
+					schemaVersion: 1,
+					timeDomain: {
+						authoredDuration: { num: 4, den: 1 },
+						viewStart: { num: 0, den: 1 }, viewDuration: { num: 4, den: 1 },
+					},
+					curves: [],
+				},
+			},
+			sourceTimeMapping: {
+				kind: 'video-retime-export-intent-v6', sourceRate: rate, retimeMap: null, intent,
+			},
 		}],
 	});
 }
@@ -419,6 +437,33 @@ function selectedV20KeyedPlan(sourceSha256) {
 		}],
 		includeAudio: true, audioLayout: 'stereo', audioFileName: 'audio-mix.wav',
 		quality: 'balanced',
+	});
+}
+
+function selectedV20EvaluatedV8Plan() {
+	return createVideoExportPlan({
+		sampleRate: 24,
+		selection: { startFrame: 0, endFrame: 0 },
+		loop: { enabled: false, startFrame: 0, endFrame: 0 },
+		sources: [{
+			kind: 'video', id: 'source-1', name: 'Source', mimeType: 'video/quicktime',
+			storageKey: 'media/source-1', frameCount: 4, sampleRate: 24,
+			width: 64, height: 36, frameRate: 24, videoCodec: 'prores', audioCodec: null,
+			hasAudio: false, posterStorageKey: null, thumbnailStorageKey: null,
+		}],
+		clips: [{
+			kind: 'video', id: 'clip-1', sourceId: 'source-1', title: 'Clip',
+			timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 4,
+			durationFrames: 4, trimStartFrames: 0, trimEndFrames: 0, speedRatio: 1,
+			groupId: null, avLinkId: null, binItemId: null, color: 'blue',
+		}],
+		tracks: [{
+			type: 'video', id: 'track-1', name: 'Video', clipIds: ['clip-1'],
+			mute: false, hidden: false, collapsed: false, height: 120, laneGroupId: null,
+		}],
+	}, {
+		includeAudio: false, range: { startFrame: 0, endFrame: 4 },
+		canvas: { maximumWidth: 64, maximumHeight: 36 },
 	});
 }
 

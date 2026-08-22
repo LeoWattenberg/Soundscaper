@@ -237,6 +237,22 @@ void authenticated_snapshot_capture_retains_exact_v7_authority() {
 	assert(captured.audio_layout == selected_v20_audio_layout::stereo);
 }
 
+void authenticated_snapshot_capture_routes_v8_only_to_its_evaluated_carrier() {
+	const auto captured = capture_selected_v20_execution_plan(8,
+		R"({"version":8,"outputFrameCount":3,"quality":"high","canvas":{"width":2,"height":2,"frameRate":24,"backgroundColor":"#01020380"},"inputs":[],"intervals":[{"durationSeconds":0.125,"layers":[]}]})"
+	);
+	assert(captured.family == selected_v20_family::evaluated_rgba_v8);
+	assert(captured.output_frame_count == 3);
+	assert(captured.sample_rate == 1);
+	assert(captured.output_rate.numerator() == 24);
+	assert(captured.output_rate.denominator() == 1);
+	assert(captured.intervals.empty());
+	assert(captured.quality == "high");
+	assert((captured.background_rgba == std::array<std::uint8_t, 4>{1, 2, 3, 128}));
+	assert(!captured.includes_staged_audio);
+	assert(!captured.includes_staged_captions);
+}
+
 } // namespace
 
 int main() {
@@ -247,4 +263,5 @@ int main() {
 	static_composition_resolves_vfr_ordinals_and_blends_deterministically();
 	core_self_test_is_operation_specific_and_truthful();
 	authenticated_snapshot_capture_retains_exact_v7_authority();
+	authenticated_snapshot_capture_routes_v8_only_to_its_evaluated_carrier();
 }

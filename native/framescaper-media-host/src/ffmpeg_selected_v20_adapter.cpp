@@ -555,8 +555,11 @@ engine_result execute_selected_v20_keyed_adapter(
 		}
 		const auto sha256 = sha256_file(bytes.path());
 		std::ostringstream result;
+		const auto profile = plan.family == selected_v20_family::keyed_evaluated_rgba_v7
+			? std::string{"selected-v20-v7-keyed-rgba"}
+			: std::string{"selected-v20-v8-evaluated-rgba"};
 		result << "{\"contractVersion\":1,\"operation\":\"" << operation_name(job.kind) << "\","
-			<< "\"profile\":\"selected-v20-v7-keyed-rgba\",\"frameCount\":" << report.frames_written << ','
+			<< "\"profile\":\"" << profile << "\",\"frameCount\":" << report.frames_written << ','
 			<< "\"maximumInFlightFrames\":" << report.maximum_in_flight_frames << ','
 			<< "\"byteLength\":" << bytes.byte_length() << ",\"sha256\":\"" << sha256 << "\"}";
 		auto control = result.str();
