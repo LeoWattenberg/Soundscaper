@@ -121,7 +121,7 @@ using soundscaper::framescaper::cpp_int;
 void capture_staged_inputs(const json::value& root, selected_v20_execution_plan& result) {
 	for (const auto& input : json::array(json::member(root, "inputs"), "selected-V20 inputs")) {
 		const auto kind = json::string(json::member(input, "kind"), "selected-V20 input kind");
-		if (kind == "staged-captions") { result.includes_staged_captions = true; continue; }
+		if (kind == "staged-captions") continue;
 		if (kind != "staged-audio-mix") continue;
 		result.includes_staged_audio = true;
 		result.sample_rate = static_cast<std::uint64_t>(safe_integer(
@@ -136,6 +136,16 @@ void capture_staged_inputs(const json::value& root, selected_v20_execution_plan&
 		else if (layout == "stereo") result.audio_layout = selected_v20_audio_layout::stereo;
 		else throw json::parse_error("The selected-V20 staged audio layout is unsupported.");
 	}
+}
+
+[[nodiscard]] selected_v20_caption_delivery capture_caption_delivery(const json::value& root) {
+	const auto& captions = json::member(root, "captions");
+	if (legacy::is_null(captions)) return {};
+	return {
+		json::boolean(json::member(captions, "mux"), "selected-V20 caption mux delivery"),
+		json::boolean(json::member(captions, "burnIn"), "selected-V20 caption burn-in delivery"),
+		!legacy::is_null(json::member(captions, "sidecarFormat")),
+	};
 }
 
 [[nodiscard]] selected_v20_execution_plan capture_v7(const json::value& root) {
@@ -161,26 +171,35 @@ void capture_staged_inputs(const json::value& root, selected_v20_execution_plan&
 	return result;
 }
 
-[[nodiscard]] selected_v20_execution_plan capture_v8(const json::value& root) {
-	selected_v20_execution_plan result;
-	result.family = selected_v20_family::evaluated_rgba_v8;
-	result.sample_rate = 1;
-	result.output_frame_count = static_cast<std::uint64_t>(safe_integer(
+[[nodiscard]] captured_selected_v20_execution_plan capture_v8(const json::value& root) {
+	captured_selected_v20_execution_plan result;
+	result.execution.family = selected_v20_family::evaluated_rgba_v8;
+	result.execution.sample_rate = 1;
+	result.execution.output_frame_count = static_cast<std::uint64_t>(safe_integer(
 		json::member(root, "outputFrameCount"), "V8 execution frame count", 1
 	));
-	result.quality = std::string{json::string(json::member(root, "quality"), "V8 execution quality")};
+	result.execution.quality = std::string{
+		json::string(json::member(root, "quality"), "V8 execution quality")
+	};
 	const auto& canvas = json::member(root, "canvas");
-	result.width = static_cast<std::uint32_t>(safe_integer(json::member(canvas, "width"), "V8 execution width", 1));
-	result.height = static_cast<std::uint32_t>(safe_integer(json::member(canvas, "height"), "V8 execution height", 1));
-	result.output_rate = decimal_rational(json::member(canvas, "frameRate"), "V8 execution frame rate");
-	result.background_rgba = color(json::member(canvas, "backgroundColor"));
-	capture_staged_inputs(root, result);
+	result.execution.width = static_cast<std::uint32_t>(safe_integer(
+		json::member(canvas, "width"), "V8 execution width", 1
+	));
+	result.execution.height = static_cast<std::uint32_t>(safe_integer(
+		json::member(canvas, "height"), "V8 execution height", 1
+	));
+	result.execution.output_rate = decimal_rational(
+		json::member(canvas, "frameRate"), "V8 execution frame rate"
+	);
+	result.execution.background_rgba = color(json::member(canvas, "backgroundColor"));
+	capture_staged_inputs(root, result.execution);
+	result.caption_delivery = capture_caption_delivery(root);
 	return result;
 }
 
 } // namespace
 
-selected_v20_execution_plan capture_selected_v20_execution_plan(
+captured_selected_v20_execution_plan capture_selected_v20_execution_plan(
 	const int admitted_version,
 	const std::string_view authenticated_plan_json
 ) {
@@ -191,7 +210,7 @@ selected_v20_execution_plan capture_selected_v20_execution_plan(
 			"The selected-V20 execution snapshot changed generation."
 		);
 	}
-	if (admitted_version == 7) return capture_v7(root);
+	if (admitted_version == 7) return {capture_v7(root), {}};
 	if (admitted_version == 8) return capture_v8(root);
 	throw selected_v20_execution_error(
 		selected_v20_execution_error_code::plan_contract,

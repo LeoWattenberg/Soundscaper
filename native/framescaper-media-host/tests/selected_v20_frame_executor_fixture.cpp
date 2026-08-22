@@ -225,32 +225,65 @@ void authenticated_snapshot_capture_retains_exact_v7_authority() {
 	const auto captured = capture_selected_v20_execution_plan(7,
 		R"({"version":7,"outputFrameCount":3,"range":{"startFrame":100},"sampleRate":48000,"quality":"balanced","canvas":{"width":2,"height":2,"frameRate":{"num":30000,"den":1001},"backgroundColor":"#01020380"},"inputs":[{"kind":"video-source"},{"kind":"staged-audio-mix","sampleRate":48000,"durationFrames":4800,"channelLayout":"stereo"}]})"
 	);
-	assert(captured.family == selected_v20_family::keyed_evaluated_rgba_v7);
-	assert(captured.output_frame_count == 3);
-	assert(captured.sample_start == 100);
-	assert(captured.sample_rate == 48'000);
-	assert(captured.output_rate.numerator() == 30'000);
-	assert(captured.output_rate.denominator() == 1'001);
-	assert((captured.background_rgba == std::array<std::uint8_t, 4>{1, 2, 3, 128}));
-	assert(captured.includes_staged_audio);
-	assert(captured.audio_sample_count == 4'800);
-	assert(captured.audio_layout == selected_v20_audio_layout::stereo);
+	assert(captured.execution.family == selected_v20_family::keyed_evaluated_rgba_v7);
+	assert(captured.execution.output_frame_count == 3);
+	assert(captured.execution.sample_start == 100);
+	assert(captured.execution.sample_rate == 48'000);
+	assert(captured.execution.output_rate.numerator() == 30'000);
+	assert(captured.execution.output_rate.denominator() == 1'001);
+	assert((captured.execution.background_rgba == std::array<std::uint8_t, 4>{1, 2, 3, 128}));
+	assert(captured.execution.includes_staged_audio);
+	assert(captured.execution.audio_sample_count == 4'800);
+	assert(captured.execution.audio_layout == selected_v20_audio_layout::stereo);
+	assert(!captured.caption_delivery.any());
 }
 
 void authenticated_snapshot_capture_routes_v8_only_to_its_evaluated_carrier() {
 	const auto captured = capture_selected_v20_execution_plan(8,
-		R"({"version":8,"outputFrameCount":3,"quality":"high","canvas":{"width":2,"height":2,"frameRate":24,"backgroundColor":"#01020380"},"inputs":[],"intervals":[{"durationSeconds":0.125,"layers":[]}]})"
+		R"({"version":8,"outputFrameCount":3,"quality":"high","captions":null,"canvas":{"width":2,"height":2,"frameRate":24,"backgroundColor":"#01020380"},"inputs":[],"intervals":[{"durationSeconds":0.125,"layers":[]}]})"
 	);
-	assert(captured.family == selected_v20_family::evaluated_rgba_v8);
-	assert(captured.output_frame_count == 3);
-	assert(captured.sample_rate == 1);
-	assert(captured.output_rate.numerator() == 24);
-	assert(captured.output_rate.denominator() == 1);
-	assert(captured.intervals.empty());
-	assert(captured.quality == "high");
-	assert((captured.background_rgba == std::array<std::uint8_t, 4>{1, 2, 3, 128}));
-	assert(!captured.includes_staged_audio);
-	assert(!captured.includes_staged_captions);
+	assert(captured.execution.family == selected_v20_family::evaluated_rgba_v8);
+	assert(captured.execution.output_frame_count == 3);
+	assert(captured.execution.sample_rate == 1);
+	assert(captured.execution.output_rate.numerator() == 24);
+	assert(captured.execution.output_rate.denominator() == 1);
+	assert(captured.execution.intervals.empty());
+	assert(captured.execution.quality == "high");
+	assert((captured.execution.background_rgba == std::array<std::uint8_t, 4>{1, 2, 3, 128}));
+	assert(!captured.execution.includes_staged_audio);
+	assert(!captured.caption_delivery.any());
+}
+
+void authenticated_snapshot_capture_retains_every_v8_caption_delivery() {
+	const auto base = std::string{
+		R"({"version":8,"outputFrameCount":1,"quality":"balanced","captions":)"
+	};
+	const auto tail = std::string{
+		R"(,"canvas":{"width":2,"height":2,"frameRate":24,"backgroundColor":"black"},"inputs":[],"intervals":[]})"
+	};
+	const auto capture = [&](const std::string_view captions) {
+		return capture_selected_v20_execution_plan(8, base + std::string{captions} + tail);
+	};
+	const auto mux = capture(R"({"mux":true,"burnIn":false,"sidecarFormat":null})");
+	assert(mux.caption_delivery.mux);
+	assert(!mux.caption_delivery.burn_in);
+	assert(!mux.caption_delivery.sidecar);
+	assert(mux.caption_delivery.any());
+	const auto burn_in = capture(R"({"mux":false,"burnIn":true,"sidecarFormat":null})");
+	assert(!burn_in.caption_delivery.mux);
+	assert(burn_in.caption_delivery.burn_in);
+	assert(!burn_in.caption_delivery.sidecar);
+	assert(burn_in.caption_delivery.any());
+	const auto sidecar = capture(R"({"mux":false,"burnIn":false,"sidecarFormat":"vtt"})");
+	assert(!sidecar.caption_delivery.mux);
+	assert(!sidecar.caption_delivery.burn_in);
+	assert(sidecar.caption_delivery.sidecar);
+	assert(sidecar.caption_delivery.any());
+	const auto all = capture(R"({"mux":true,"burnIn":true,"sidecarFormat":"srt"})");
+	assert(all.caption_delivery.mux);
+	assert(all.caption_delivery.burn_in);
+	assert(all.caption_delivery.sidecar);
+	assert(all.caption_delivery.any());
 }
 
 } // namespace
@@ -264,4 +297,5 @@ int main() {
 	core_self_test_is_operation_specific_and_truthful();
 	authenticated_snapshot_capture_retains_exact_v7_authority();
 	authenticated_snapshot_capture_routes_v8_only_to_its_evaluated_carrier();
+	authenticated_snapshot_capture_retains_every_v8_caption_delivery();
 }

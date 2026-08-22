@@ -68,7 +68,6 @@ struct selected_v20_execution_plan final {
 	std::string quality{"balanced"};
 	std::array<std::uint8_t, 4> background_rgba{0, 0, 0, 255};
 	bool includes_staged_audio{};
-	bool includes_staged_captions{};
 	std::vector<selected_v20_interval> intervals;
 };
 
