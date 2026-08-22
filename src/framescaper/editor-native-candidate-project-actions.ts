@@ -51,6 +51,7 @@ import {
 	type FramescaperProxyQueueJobV25,
 	type FramescaperVideoSourceV25,
 } from './editor-video-proxy-lifecycle-v25.ts';
+import { framescaperVideoProxyCleanupStoreV25 } from './editor-video-proxy-cleanup-store-v25.ts';
 import {
 	composeFramescaperImageSequenceImportV25,
 	type FramescaperImageSequenceImportPortsV25,
@@ -133,6 +134,7 @@ export async function bindFramescaperNativeCandidateProjectActions(
 		throw new Error(`The dormant V${String(generation)} action project is unavailable.`);
 	}
 	const controller = new CandidateActionController(options, generation, repository, project);
+	await controller.initialize();
 	bindFramescaperNativeProjectActionRuntime(options.owner, controller.runtime);
 	return controller.binding();
 }
@@ -169,6 +171,7 @@ class CandidateActionController {
 				source, attachment as unknown as Readonly<Record<string, unknown>>,
 			),
 			cleanupBody: (storageKey) => options.proxy.cleanupBody(storageKey),
+			...framescaperVideoProxyCleanupStoreV25(options.store),
 		});
 		const actions = {
 			'image-sequence-import': () => this.#serialized(() => this.#imageSequenceImport()),
@@ -186,6 +189,8 @@ class CandidateActionController {
 			actions,
 		);
 	}
+
+	async initialize(): Promise<void> { await this.#proxy.recoverCleanup(); }
 
 	binding(): FramescaperNativeCandidateActionBinding {
 		return Object.freeze({

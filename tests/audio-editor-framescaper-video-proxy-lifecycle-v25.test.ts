@@ -51,15 +51,62 @@ test('attach, relink, and detach mutate the existing proxyAttachment relationshi
 	assert.equal(fixture.project.sources[0]?.proxyAttachment?.sha256, '33'.repeat(32));
 	assert.deepEqual(fixture.cleaned, [
 		`video-proxy-sha256:${'22'.repeat(32)}`,
-		`video-timing-sha256:${'44'.repeat(32)}`,
 	]);
 
 	await fixture.controller.detach({ sourceId: 'video-1' });
 	assert.equal(fixture.project.sources[0]?.proxyAttachment, null);
-	assert.deepEqual(fixture.cleaned.slice(2), [
+	assert.deepEqual(fixture.cleaned.slice(1), [
 		`video-proxy-sha256:${'33'.repeat(32)}`,
 		`video-timing-sha256:${'44'.repeat(32)}`,
 	]);
+});
+
+test('committed cleanup survives failure and is retried by a fresh lifecycle', async () => {
+	const fixture = lifecycle(25, { failCleanupOnce: true });
+	await fixture.controller.attach({ sourceId: 'video-1', attachment: attachment() });
+	await assert.rejects(
+		() => fixture.controller.detach({ sourceId: 'video-1' }),
+		/simulated cleanup failure/u,
+	);
+	assert.equal(fixture.project.sources[0]?.proxyAttachment, null,
+		'the relationship commit remains authoritative after cleanup failure');
+	assert.equal(fixture.journal.length, 1);
+	await fixture.restart().recoverCleanup();
+	assert.deepEqual(fixture.cleaned, [
+		`video-proxy-sha256:${'22'.repeat(32)}`,
+		`video-timing-sha256:${'44'.repeat(32)}`,
+	]);
+	assert.deepEqual(fixture.journal, []);
+});
+
+test('a failed relationship commit cancels its cleanup claim without deleting live bodies', async () => {
+	const fixture = lifecycle(25, { failCommitOnce: true });
+	await fixture.controller.attach({ sourceId: 'video-1', attachment: attachment() });
+	await assert.rejects(
+		() => fixture.controller.detach({ sourceId: 'video-1' }),
+		/simulated commit failure/u,
+	);
+	assert.notEqual(fixture.project.sources[0]?.proxyAttachment, null);
+	assert.deepEqual(fixture.cleaned, []);
+	assert.deepEqual(fixture.journal, []);
+});
+
+test('restart recovery rejects cleanup journals whose body keys were changed', async () => {
+	const fixture = lifecycle(25, { failCleanupOnce: true });
+	await fixture.controller.attach({ sourceId: 'video-1', attachment: attachment() });
+	await assert.rejects(
+		() => fixture.controller.detach({ sourceId: 'video-1' }),
+		/simulated cleanup failure/u,
+	);
+	fixture.tamperJournal((claim) => ({
+		...claim,
+		storageKeys: ['video-proxy-sha256:forged'],
+	}));
+	await assert.rejects(
+		() => fixture.restart().recoverCleanup(),
+		/forged or duplicate claim/u,
+	);
+	assert.deepEqual(fixture.cleaned, []);
 });
 
 test('relink refuses an attachment generated from a different original', async () => {
@@ -125,22 +172,50 @@ test('the cumulative V26 candidate inherits the complete V25 proxy lifecycle', a
 	assert.deepEqual(queued, { status: 'queued', jobId: 'job-1' });
 });
 
-function lifecycle(schemaVersion: 25 | 26 = 25) {
+function lifecycle(
+	schemaVersion: 25 | 26 = 25,
+	options: Readonly<{ failCleanupOnce?: boolean; failCommitOnce?: boolean }> = {},
+) {
 	let project: FramescaperProxyProjectV25 = projectFixture(schemaVersion);
 	const enqueued: Record<string, unknown>[] = [];
 	const cleaned: string[] = [];
-	const controller = new FramescaperVideoProxyLifecycleV25({
+	let journal: unknown = [];
+	let cleanupFailures = options.failCleanupOnce === true ? 1 : 0;
+	let commitFailures = options.failCommitOnce === true ? 1 : 0;
+	const create = () => new FramescaperVideoProxyLifecycleV25({
 		getProject: () => project,
-		commitProject: (next) => { project = next; },
+		commitProject: (next) => {
+			if (commitFailures > 0 && project.sources[0]?.proxyAttachment !== null) {
+				commitFailures -= 1;
+				throw new Error('simulated commit failure');
+			}
+			project = next;
+		},
 		enqueueProxy: (job) => { enqueued.push(job); return 'job-1'; },
 		reattestAttachment: () => true,
-		cleanupBody: (storageKey) => { cleaned.push(storageKey); },
+		cleanupBody: (storageKey) => {
+			if (cleanupFailures > 0) {
+				cleanupFailures -= 1;
+				throw new Error('simulated cleanup failure');
+			}
+			cleaned.push(storageKey);
+		},
+		loadCleanupJournal: () => structuredClone(journal),
+		saveCleanupJournal: (_projectId, value) => { journal = structuredClone(value); },
 	});
+	const controller = create();
 	return {
 		controller,
 		enqueued,
 		cleaned,
+		restart: create,
+		tamperJournal: (mutate: (claim: Record<string, unknown>) => unknown) => {
+			journal = (journal as readonly unknown[]).map((claim) => (
+				mutate(claim as Record<string, unknown>)
+			));
+		},
 		get project() { return project; },
+		get journal() { return structuredClone(journal) as readonly unknown[]; },
 	};
 }
 
