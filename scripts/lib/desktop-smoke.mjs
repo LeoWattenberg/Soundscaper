@@ -65,6 +65,11 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'writeSharedSourceChunk',
 ]);
 
+export const FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
+	...DESKTOP_SMOKE_EXPECTED_BRIDGE,
+	'projectLibrary',
+].sort());
+
 export function resolveSmokeArchitecture(configuredArchitecture, hostArchitecture) {
 	const architecture = configuredArchitecture === undefined
 		? hostArchitecture

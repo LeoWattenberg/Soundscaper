@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
 	DESKTOP_SMOKE_EXPECTED_BRIDGE,
+	FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE,
 	assertDesktopSmokePayload,
 	packagedExecutableCandidates,
 	resolveSmokeArchitecture,
@@ -18,6 +19,9 @@ const OUTPUT_ROOT = resolve(ROOT, 'release/desktop');
 const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
 const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
+const SMOKE_EXPECTED_BRIDGE = PRODUCT_ID === 'framescaper'
+	? FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE
+	: DESKTOP_SMOKE_EXPECTED_BRIDGE;
 const TARGET_ARCH = resolveSmokeArchitecture(process.env.SOUNDSCAPER_SMOKE_ARCH, process.arch);
 
 const executable = await findPackagedExecutable();
@@ -43,7 +47,7 @@ if (!line) throw new Error(`Packaged desktop smoke did not emit its result.\n${r
 const payload = JSON.parse(line.slice('SOUNDSCAPER_DESKTOP_SMOKE '.length));
 assertDesktopSmokePayload(payload, {
 	arch: TARGET_ARCH,
-	bridge: DESKTOP_SMOKE_EXPECTED_BRIDGE,
+	bridge: SMOKE_EXPECTED_BRIDGE,
 	platform: process.platform,
 	productId: PRODUCT_ID,
 	title: PRODUCT_NAME,

@@ -7,12 +7,14 @@ import vm from 'node:vm';
 
 import {
 	DESKTOP_SMOKE_EXPECTED_BRIDGE,
+	FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE,
 	assertDesktopSmokePayload,
 	packagedExecutableCandidates,
 	resolveSmokeArchitecture,
 } from '../scripts/lib/desktop-smoke.mjs';
 
 const EXPECTED_BRIDGE = DESKTOP_SMOKE_EXPECTED_BRIDGE;
+const FRAMESCAPER_EXPECTED_BRIDGE = FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE;
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 test('desktop smoke pins the complete sorted preload v1 bridge contract', () => {
@@ -76,6 +78,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 
 test('desktop smoke bridge inventory equals the sandbox preload surface', async () => {
 	let bridge;
+	let framescaperBridge;
 	const source = await readFile(resolve(ROOT, 'desktop', 'preload.mjs'), 'utf8');
 	vm.runInNewContext(source, {
 		ArrayBuffer, Object, Promise, RangeError, String, TypeError, Uint8Array, URL,
@@ -83,12 +86,19 @@ test('desktop smoke bridge inventory equals the sandbox preload surface', async 
 			contextBridge: {
 				exposeInMainWorld(name, value) {
 					if (name === 'scapeDesktop') bridge = value.v1;
+					if (name === 'framescaperDesktop') framescaperBridge = value.v1;
 				},
 			},
 			ipcRenderer: { invoke: () => Promise.resolve(), send: () => {}, on: () => {}, removeListener: () => {} },
 		}),
 	});
 	assert.deepEqual(Object.keys(bridge).sort(), DESKTOP_SMOKE_EXPECTED_BRIDGE);
+	assert.equal(Object.isFrozen(FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE), true);
+	assert.deepEqual(Object.keys(framescaperBridge).sort(), FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE);
+	assert.deepEqual(FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE, [
+		...DESKTOP_SMOKE_EXPECTED_BRIDGE,
+		'projectLibrary',
+	].sort());
 });
 
 test('desktop smoke resolves an explicit package architecture independently of the Node host', () => {
@@ -190,7 +200,7 @@ test('desktop smoke validates the application-reported platform and target archi
 test('desktop smoke validates the closed Framescaper V20 UI, preload, and main readback witness', () => {
 	const expected = {
 		arch: 'arm64',
-		bridge: EXPECTED_BRIDGE,
+		bridge: FRAMESCAPER_EXPECTED_BRIDGE,
 		platform: 'darwin',
 		productId: 'framescaper',
 		title: 'Framescaper',
@@ -238,7 +248,8 @@ test('desktop smoke validates the closed Framescaper V20 UI, preload, and main r
 
 test('packaged desktop smoke isolates both Chromium and shared library data', async () => {
 	const source = await readFile(resolve(ROOT, 'scripts/desktop-smoke.mjs'), 'utf8');
-	assert.match(source, /bridge: DESKTOP_SMOKE_EXPECTED_BRIDGE/u);
+	assert.match(source, /bridge: SMOKE_EXPECTED_BRIDGE/u);
+	assert.match(source, /PRODUCT_ID === 'framescaper'[\s\S]*FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE/u);
 	assert.doesNotMatch(source, /const EXPECTED_BRIDGE/u);
 	assert.match(source, /--user-data-dir=\$\{profile\}/u);
 	assert.match(source, /--soundscaper-smoke-app-data=\$\{[^}]+\}/u);
@@ -257,7 +268,7 @@ function validFramescaperV20Payload() {
 		bodyCount: 0,
 	};
 	return {
-		bridge: [...EXPECTED_BRIDGE],
+		bridge: [...FRAMESCAPER_EXPECTED_BRIDGE],
 		desktopChrome: validDesktopChromePayload('darwin'),
 		environment: { arch: 'arm64', platform: 'darwin', version: '1.0.0' },
 		hasEditor: true,
