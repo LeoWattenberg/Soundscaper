@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 
-import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import { SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { resolveRuntimeClipProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import {
 	M3_LONGFORM_EDITORIAL_SPECIFICATION,
@@ -13,12 +12,13 @@ import {
 	createM3LongformEditorialWorkload,
 	resolveM3LongformEditorialPositionChecks,
 } from '../src/common/editor/quality/m3-longform-editorial-workload.ts';
+import { validateSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23-validation.ts';
 
 test('the milestone 3 long-form fixture has the exact two-hour editorial shape', () => {
 	const project = createM3LongformEditorialBaseProject();
-	validateCurrentAudioEditorProject(project);
+	validateSoundscaperProjectV23(project);
 
-	assert.equal(project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
+	assert.equal(project.schemaVersion, SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION);
 	assert.equal(project.sampleRate, 48_000);
 	assert.equal(project.tracks.filter(({ type }) => type === 'audio').length, 24);
 	assert.equal(project.tracks.filter(({ type }) => type === 'video').length, 2);
@@ -59,7 +59,7 @@ test('the edit workload replays deterministically with exact audio and video pos
 	const plan = createM3LongformEditorialEditPlan();
 	const first = applyM3LongformEditorialEditPlan(createM3LongformEditorialBaseProject(), plan);
 	const second = applyM3LongformEditorialEditPlan(createM3LongformEditorialBaseProject(), plan);
-	validateCurrentAudioEditorProject(first);
+	validateSoundscaperProjectV23(first);
 
 	assert.deepEqual(second, first);
 	assert.equal(first.revision, 40, '250 edits are committed in each deterministic transaction');
