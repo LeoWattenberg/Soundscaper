@@ -11,6 +11,8 @@ import {
 	type NativeQueueCapacityV1,
 } from '../src/common/editor/native-queue-admission.ts';
 import { createNativeMediaPlanEnvelopeV1 } from '../src/common/editor/native-media-plan-envelope.ts';
+import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
+import { assertUnifiedExactRenderPlanWithDeferredTimingReferences } from '../src/common/editor/unified-exact-render-plan.ts';
 import type { FramescaperNativeServicesLease } from './native-services-database.ts';
 import type {
 	NativeMediaHelperPoolJobKind,
@@ -240,9 +242,16 @@ function assertQueuePlan(record: NativeQueueRecordV2): void {
 	let plan: unknown;
 	try { plan = JSON.parse(record.planPayload) as unknown; }
 	catch { throw new Error('A queued native media plan is not JSON.'); }
-	const envelope = createNativeMediaPlanEnvelopeV1(plan);
-	if (envelope.planVersion !== record.planVersion || envelope.fingerprint !== record.planFingerprint) {
+	const fingerprint = fingerprintNativeMediaPlan(plan);
+	if ((plan as Readonly<Record<string, unknown>>).version !== record.planVersion
+		|| fingerprint.sha256 !== record.planFingerprint || fingerprint.canonical !== record.planPayload) {
 		throw new Error('A queued native media plan no longer matches its exact durable fingerprint.');
+	}
+	try {
+		createNativeMediaPlanEnvelopeV1(plan);
+	} catch (error) {
+		if (record.planVersion < 9) throw error;
+		assertUnifiedExactRenderPlanWithDeferredTimingReferences(plan);
 	}
 }
 

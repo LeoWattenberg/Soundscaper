@@ -54,6 +54,7 @@ import {
 } from './unified-exact-render-plan-v12.ts';
 import {
 	authenticateUnifiedExactRenderTimingSidecars,
+	deferUnifiedExactRenderTimingSidecars,
 	type UnifiedExactRenderTimingIndex,
 	type UnifiedExactRenderTimingSidecars,
 } from './unified-exact-render-timing-authority.ts';
@@ -197,6 +198,16 @@ export function assertUnifiedExactRenderPlanWithTimingSidecars(
 	}
 }
 
+/** Durable queue rows retain references only; execution must re-run with authenticated SCTI tokens. */
+export function assertUnifiedExactRenderPlanWithDeferredTimingReferences(
+	value: unknown,
+): asserts value is UnifiedExactRenderPlan {
+	const normalized = normalizePlan(value, undefined, true);
+	if (canonicalizeNativeMediaPlan(value) !== canonicalizeNativeMediaPlan(normalized)) {
+		throw new TypeError('A deferred-timing unified render plan must retain canonical structure.');
+	}
+}
+
 export function assertUnifiedExactRenderPlanV9(value: unknown): asserts value is UnifiedExactRenderPlanV9 {
 	assertGeneration(value, 9);
 }
@@ -242,6 +253,7 @@ export function fingerprintUnifiedExactRenderPlanWithTimingSidecars(
 function normalizePlan(
 	value: unknown,
 	timingSidecars?: UnifiedExactRenderTimingSidecars,
+	deferTiming = false,
 ): UnifiedExactRenderPlan {
 	const input = readClosedDomainRecord(value, 'unified exact render plan', PLAN_FIELDS);
 	const version = planVersion(field(input, 'version', 'unified exact render plan'));
@@ -262,7 +274,9 @@ function normalizePlan(
 		throw new RangeError('Unified render output frameCount is not exact.');
 	}
 	const sourceResult = normalizeUnifiedExactRenderSources(field(input, 'sources', 'unified exact render plan'));
-	const timingIndex = authenticateUnifiedExactRenderTimingSidecars(sourceResult.sources, timingSidecars);
+	const timingIndex = deferTiming
+		? deferUnifiedExactRenderTimingSidecars(sourceResult.sources)
+		: authenticateUnifiedExactRenderTimingSidecars(sourceResult.sources, timingSidecars);
 	const trackResult = normalizeUnifiedExactRenderTracks(field(input, 'tracks', 'unified exact render plan'));
 	const context: UnifiedExactRenderTemporalContext = Object.freeze({
 		sampleStart: timebase.sampleStart,

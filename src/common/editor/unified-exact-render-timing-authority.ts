@@ -15,6 +15,7 @@ export interface UnifiedExactRenderTimingSourceAuthority {
 
 export interface UnifiedExactRenderTimingIndex {
 	readonly vfrBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>;
+	readonly deferredVfrSourceIds: ReadonlySet<string>;
 }
 
 export type UnifiedExactRenderTimingSidecars = ReadonlyMap<string, BoundVideoSourceTimingView>;
@@ -34,7 +35,10 @@ export function authenticateUnifiedExactRenderTimingSidecars(
 		if (expectedVfr.size !== 0) {
 			throw new RangeError('Unified VFR retime admission requires verified timing asset sidecars.');
 		}
-		return Object.freeze({ vfrBySourceId: new Map() });
+		return Object.freeze({
+			vfrBySourceId: new Map<string, BoundVideoSourceTimingView>(),
+			deferredVfrSourceIds: new Set<string>(),
+		});
 	}
 	if (!(value instanceof Map)) {
 		throw new TypeError('Unified exact timing sidecars must be an authenticated Map.');
@@ -68,5 +72,17 @@ export function authenticateUnifiedExactRenderTimingSidecars(
 			throw new ReferenceError(`Unified VFR source ${sourceId} has no verified timing asset sidecar.`);
 		}
 	}
-	return Object.freeze({ vfrBySourceId });
+	return Object.freeze({ vfrBySourceId, deferredVfrSourceIds: new Set<string>() });
+}
+
+/** Durable rows validate all declarative structure but cannot carry process-local SCTI tokens. */
+export function deferUnifiedExactRenderTimingSidecars(
+	sources: readonly UnifiedExactRenderTimingSourceAuthority[],
+): UnifiedExactRenderTimingIndex {
+	return Object.freeze({
+		vfrBySourceId: new Map<string, BoundVideoSourceTimingView>(),
+		deferredVfrSourceIds: new Set(sources.flatMap(({ sourceId, timing }) => (
+			timing.kind === 'vfr' ? [sourceId] : []
+		))),
+	});
 }

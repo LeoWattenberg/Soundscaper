@@ -17,7 +17,10 @@ import {
 	type VideoKeyframeCurves,
 } from './video-keyframe-curves.ts';
 import { normalizeVideoEffects } from './video-effects.js';
-import { assertUnifiedExactRetimeAuthority } from './unified-exact-retime-authority.ts';
+import {
+	assertUnifiedExactRetimeAuthority,
+	assertUnifiedExactRetimeStructureWithDeferredVfr,
+} from './unified-exact-retime-authority.ts';
 import {
 	normalizeVideoRetimeExportIntentV6Wire,
 } from './video-retime-exact-ordinal-oracle.ts';
@@ -251,11 +254,16 @@ export function normalizeUnifiedExactRenderClipNode(
 	const sourceTimingView = source.timing.kind === 'vfr'
 		? timing.vfrBySourceId.get(source.sourceId) ?? null
 		: null;
-	assertUnifiedExactRetimeAuthority(intent, context, {
+	const retimeAuthority = {
 		clipId, sourceId: source.sourceId,
 		sequenceStartFrame, sequenceFrameCount, sourceInFrame, sourceFrameCount,
 		sourceRate, retimeMap, sourceTiming: source.timing, sourceTimingView,
-	});
+	};
+	if (timing.deferredVfrSourceIds.has(source.sourceId)) {
+		assertUnifiedExactRetimeStructureWithDeferredVfr(intent, context, retimeAuthority);
+	} else {
+		assertUnifiedExactRetimeAuthority(intent, context, retimeAuthority);
+	}
 	return Object.freeze({
 		kind: 'clip' as const,
 		nodeId: stableId(field(clip, 'nodeId', name), `${name}.nodeId`),
