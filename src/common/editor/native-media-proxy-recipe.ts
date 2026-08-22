@@ -28,8 +28,9 @@ import {
 	type NativeMediaProfileV1,
 } from './native-media-professional-profiles.ts';
 import {
-	type NativeMediaProfessionalCharacteristicsV1,
-} from './native-media-professional-characteristics.ts';
+	createUnreportedVideoSourceCharacteristicsV25,
+	type VideoSourceCharacteristicsV25,
+} from './video-source-professional-characteristics-v25.ts';
 
 export const NATIVE_MEDIA_PROXY_RECIPE_ID = 'framescaper-native-prores-proxy-mov-v1';
 export const NATIVE_MEDIA_PROXY_RECIPE_VERSION = 1;
@@ -73,7 +74,7 @@ export interface NativeMediaProxyPlanRequestV1 {
 	/** The original's presented geometry, as probing established it. */
 	readonly sourceWidth: number | null;
 	readonly sourceHeight: number | null;
-	readonly sourceCharacteristics?: NativeMediaProfessionalCharacteristicsV1;
+	readonly sourceCharacteristics?: VideoSourceCharacteristicsV25;
 	readonly clearedPolicyRowIds?: readonly string[];
 }
 
@@ -138,7 +139,7 @@ export function planNativeMediaProxy(
 	const admission = evaluateNativeMediaProfileAdmission({
 		profileId: NATIVE_MEDIA_PROXY_PROFILE_ID,
 		source: request.sourceCharacteristics
-			?? emptyCharacteristics(),
+			?? createUnreportedVideoSourceCharacteristicsV25(),
 		clearedPolicyRowIds: request.clearedPolicyRowIds ?? [],
 	});
 	const refusals: NativeMediaProxyRefusal[] = [];
@@ -195,23 +196,6 @@ function blocked(
 		blocked: true,
 		refusals: Object.freeze([...refusals]),
 		blockedPolicyRowIds: Object.freeze([...blockedPolicyRowIds]),
-	});
-}
-
-function emptyCharacteristics(): NativeMediaProfessionalCharacteristicsV1 {
-	return Object.freeze({
-		bitDepth: null,
-		pixelFormat: null,
-		chromaFormat: null,
-		colourRange: null,
-		colourPrimaries: null,
-		colourTransfer: null,
-		colourMatrix: null,
-		masteringDisplay: null,
-		contentLight: null,
-		hasAlpha: null,
-		alphaMode: null,
-		alphaInterpretation: null,
 	});
 }
 

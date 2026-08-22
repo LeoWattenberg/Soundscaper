@@ -275,13 +275,19 @@ function exactFrameRate(value: unknown): NativeMediaImageSequenceRateV1 {
 		|| !Number.isSafeInteger(num) || (num as number) <= 0
 		|| (num as number) > NATIVE_MEDIA_IMAGE_SEQUENCE_MAXIMUM_RATE_TERM
 		|| !Number.isSafeInteger(den) || (den as number) <= 0
-		|| (den as number) > NATIVE_MEDIA_IMAGE_SEQUENCE_MAXIMUM_RATE_TERM) {
+		|| (den as number) > NATIVE_MEDIA_IMAGE_SEQUENCE_MAXIMUM_RATE_TERM
+		|| greatestCommonDivisor(num as number, den as number) !== 1) {
 		throw new NativeMediaImageSequenceError(
 			'frame-rate-not-exact',
 			'An image-sequence frame rate must be a bounded positive rational.',
 		);
 	}
 	return Object.freeze({ num: num as number, den: den as number });
+}
+
+function greatestCommonDivisor(left: number, right: number): number {
+	while (right !== 0) [left, right] = [right, left % right];
+	return left;
 }
 
 function bounded(values: readonly (number | string)[]): readonly (number | string)[] {

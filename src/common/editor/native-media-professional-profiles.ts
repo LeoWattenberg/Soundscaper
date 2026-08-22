@@ -19,10 +19,10 @@
  */
 
 import {
-	NATIVE_MEDIA_CHROMA_FORMATS,
-	type NativeMediaProfessionalCharacteristicsV1,
-	resolveNativeMediaHdrClaim,
-} from './native-media-professional-characteristics.ts';
+	VIDEO_SOURCE_V25_CHROMA_FORMATS,
+	resolveVideoSourceHdrClaimV25,
+	type VideoSourceCharacteristicsV25,
+} from './video-source-professional-characteristics-v25.ts';
 
 export type NativeMediaProfileOperation = 'decode' | 'encode';
 
@@ -48,7 +48,7 @@ const ADVANCED = 'codec-hevc-and-av1';
 const STILLS = 'codec-image-sequence-still-formats';
 const CONTAINERS = 'container-mov-mxf-matroska';
 
-const ALL_CHROMA = NATIVE_MEDIA_CHROMA_FORMATS;
+const ALL_CHROMA = VIDEO_SOURCE_V25_CHROMA_FORMATS;
 const UPTO_422: readonly string[] = Object.freeze(['4:0:0', '4:2:0', '4:2:2']);
 const UPTO_420: readonly string[] = Object.freeze(['4:0:0', '4:2:0']);
 
@@ -144,7 +144,7 @@ export interface NativeMediaProfileRequirementsV1 {
 
 export interface NativeMediaProfileAdmissionRequestV1 {
 	readonly profileId: string;
-	readonly source: NativeMediaProfessionalCharacteristicsV1;
+	readonly source: VideoSourceCharacteristicsV25;
 	readonly requirements?: NativeMediaProfileRequirementsV1;
 	/** Licensing rows whose review is recorded as cleared. Empty by default. */
 	readonly clearedPolicyRowIds?: readonly string[];
@@ -193,7 +193,7 @@ export function evaluateNativeMediaProfileAdmission(
 
 function appraiseBitDepth(
 	profile: NativeMediaProfileV1,
-	source: NativeMediaProfessionalCharacteristicsV1,
+	source: VideoSourceCharacteristicsV25,
 	requirements: NativeMediaProfileRequirementsV1,
 	refusals: NativeMediaProfileRefusal[],
 	disclosures: NativeMediaProfileDisclosure[],
@@ -210,7 +210,7 @@ function appraiseBitDepth(
 
 function appraiseChroma(
 	profile: NativeMediaProfileV1,
-	source: NativeMediaProfessionalCharacteristicsV1,
+	source: VideoSourceCharacteristicsV25,
 	requirements: NativeMediaProfileRequirementsV1,
 	refusals: NativeMediaProfileRefusal[],
 	disclosures: NativeMediaProfileDisclosure[],
@@ -227,12 +227,12 @@ function appraiseChroma(
 
 function appraiseHdr(
 	profile: NativeMediaProfileV1,
-	source: NativeMediaProfessionalCharacteristicsV1,
+	source: VideoSourceCharacteristicsV25,
 	requirements: NativeMediaProfileRequirementsV1,
 	refusals: NativeMediaProfileRefusal[],
 	disclosures: NativeMediaProfileDisclosure[],
 ): void {
-	const claim = resolveNativeMediaHdrClaim(source);
+	const claim = resolveVideoSourceHdrClaimV25(source);
 	const unreportedTransfer = claim.transfer === 'unreported';
 	if (unreportedTransfer) disclosures.push('transfer-unreported');
 	const carriesHdr = claim.hdr10Metadata || claim.transfer === 'pq' || claim.transfer === 'hlg';
@@ -244,7 +244,7 @@ function appraiseHdr(
 
 function appraiseAlpha(
 	profile: NativeMediaProfileV1,
-	source: NativeMediaProfessionalCharacteristicsV1,
+	source: VideoSourceCharacteristicsV25,
 	requirements: NativeMediaProfileRequirementsV1,
 	refusals: NativeMediaProfileRefusal[],
 	disclosures: NativeMediaProfileDisclosure[],

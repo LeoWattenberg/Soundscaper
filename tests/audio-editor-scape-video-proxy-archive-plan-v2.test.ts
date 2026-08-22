@@ -193,13 +193,16 @@ test('enforces proxy identity, body bounds, timing binding, and the archive entr
 	assert.throws(() => planScapeVideoProxyArchiveAssetsV2(references), /entry|asset|limit|many/iu);
 });
 
-test('has only closed dormant V18 consumers and cannot change the V17 archive owner', async () => {
+test('has only closed reviewed consumers and cannot change the V17 archive owner', async () => {
 	const references: string[] = [];
 	for (const file of await sourceFiles(['src', 'desktop', 'scripts', 'tests'])) {
 		if ((await readSource(file)).includes(MODULE_STEM)) references.push(file);
 	}
 	assert.deepEqual(references, [
 		'src/framescaper/desktop-project-library-v10-renderer-contract.ts',
+		// V25 extends the existing proxy archive relationship instead of creating a
+		// parallel custody format.
+		'src/framescaper/editor-project-v25-source-rebind.ts',
 		'src/framescaper/scape-project-envelope-v18.ts',
 		'src/framescaper/scape-project-preservation-v18-support.ts',
 		'src/framescaper/scape-project-preservation-v18.ts',

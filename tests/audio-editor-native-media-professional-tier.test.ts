@@ -27,7 +27,10 @@ test('unreported professional characteristics report nothing at all', () => {
 
 	assert.equal(nativeMediaProfessionalCharacteristicsAreReported(unreported), false);
 	assert.deepEqual(unreported, normalizeNativeMediaProfessionalCharacteristics(null));
-	assert.equal(Object.values(unreported).every((value) => value === null), true);
+	assert.equal(unreported.bitDepth, null);
+	assert.equal(unreported.pixelFormat, null);
+	assert.equal(unreported.colour.masteringDisplay, null);
+	assert.equal(Object.hasOwn(unreported, 'professionalCharacteristics'), false);
 	assert.deepEqual(resolveNativeMediaHdrClaim(unreported), {
 		transfer: 'unreported', hdr10Metadata: false, wideGamut: false,
 	});
@@ -96,7 +99,7 @@ test('luminance ordering is decided exactly, not on rounded cross-products', () 
 			...masteringDisplay(), minimumLuminance, maximumLuminance: { ...minimumLuminance },
 		},
 	});
-	assert.deepEqual(equal.masteringDisplay?.maximumLuminance, minimumLuminance);
+	assert.deepEqual(equal.colour.masteringDisplay?.maximumLuminance, minimumLuminance);
 });
 
 test('probed colour and alpha facts are validated rather than coerced', () => {
@@ -116,14 +119,14 @@ test('probed colour and alpha facts are validated rather than coerced', () => {
 	assert.deepEqual([...NATIVE_MEDIA_BIT_DEPTHS], [8, 10, 12, 16, 32]);
 
 	for (const [value, pattern] of [
-		[{ bitDepth: 9 }, /bitDepth must be a reported member value/u],
-		[{ chromaFormat: '4:1:1' }, /chromaFormat must be a reported member value/u],
-		[{ colourRange: 'video' }, /colourRange must be a reported member value/u],
-		[{ alphaMode: 'associated' }, /alphaMode must be a reported member value/u],
-		[{ hasAlpha: 'yes' }, /hasAlpha must be a boolean or null/u],
+		[{ bitDepth: 9 }, /bitDepth is unsupported/u],
+		[{ chromaFormat: '4:1:1' }, /chromaFormat is unsupported/u],
+		[{ colourRange: 'video' }, /range is unsupported/u],
+		[{ alphaMode: 'associated' }, /alphaMode is unsupported/u],
+		[{ hasAlpha: 'yes' }, /hasAlpha must be a boolean/u],
 		[{ pixelFormat: 'yuv 422' }, /pixelFormat must be a bounded probe tag/u],
 		[{ unknownKey: 1 }, /unsupported key unknownKey/u],
-		[{ hasAlpha: false, alphaMode: 'straight' }, /cannot also report an alpha mode/u],
+		[{ hasAlpha: false, alphaMode: 'straight' }, /without alpha cannot carry an alpha mode/u],
 	] as const) {
 		assert.throws(
 			() => normalizeNativeMediaProfessionalCharacteristics(value),

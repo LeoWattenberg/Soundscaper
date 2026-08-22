@@ -43,7 +43,7 @@ export const PLATFORM_DELIVERY_LICENSING_ROWS: readonly PlatformDeliveryLicensin
 	Object.freeze({
 		id: "codec-image-sequence-still-formats",
 		status: "blocked",
-		blocker: "No decision is recorded on whether image-sequence support uses FFmpeg-internal decoders or external libraries, so neither the notices nor the corresponding-source inventory can be written.",
+		blocker: "The source candidate contains gated FFmpeg 9.0.1 internal PNG, TIFF, and EXR adapter code, but the closed release recipe enables none of those decoders or encoders; corresponding-source, interoperability, payload, and target review remain incomplete.",
 	}),]);
 
 /** The same rows in the shape the availability resolver reads a matrix in. */
