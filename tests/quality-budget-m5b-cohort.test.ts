@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -12,6 +14,7 @@ import {
 import {
 	M5B_QUALITY_COHORT_PLATFORM_IDS,
 	createM5bQualityCohort,
+	writeM5bQualityCohort,
 } from '../scripts/lib/m5b-quality-cohort.mjs';
 
 const BASE_CONFIG = JSON.parse(await readFile(
@@ -60,6 +63,30 @@ test('the cohort refuses missing, duplicate, and cross-revision target evidence'
 		() => createM5bQualityCohort(PROFILE_ID, changed, config),
 		/source revision|fingerprint/iu,
 	);
+});
+
+test('the cohort writer recomputes the complete matrix before publishing one artifact', async () => {
+	const config = provisionedConfig();
+	const evidence = measurements(config);
+	const cohort = createM5bQualityCohort(PROFILE_ID, evidence, config);
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m5b-cohort-'));
+	try {
+		const written = await writeM5bQualityCohort(directory, PROFILE_ID, evidence, cohort, config);
+		assert.match(written.path, /five-target\.accepted\.json$/u);
+		const stored = JSON.parse(await readFile(written.path, 'utf8')) as {
+			qualificationEvidencePublished: boolean;
+			targets: Array<{ measurementSha256: string }>;
+		};
+		assert.equal(stored.qualificationEvidencePublished, true);
+		assert.equal(stored.targets.length, 5);
+		assert.ok(stored.targets.every(({ measurementSha256 }) => /^[a-f0-9]{64}$/u.test(measurementSha256)));
+		await assert.rejects(() => writeM5bQualityCohort(
+			directory, PROFILE_ID, evidence,
+			{ ...cohort, qualificationEvidencePublished: false }, config,
+		), /recomputed|cohort/iu);
+	} finally {
+		await rm(directory, { recursive: true, force: true });
+	}
 });
 
 function provisionedConfig(): Record<string, unknown> {

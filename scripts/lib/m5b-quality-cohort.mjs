@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createHash } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
+
 import {
 	createM5bQualityResult,
 	m5bQualityBudgetSha256,
@@ -37,9 +42,10 @@ export function createM5bQualityCohort(profileId, measurementsValue, configValue
 	const ordered = M5B_QUALITY_COHORT_PLATFORM_IDS.map((platformId) => (
 		validated.find((measurement) => measurement.platformId === platformId)
 	));
-	const targets = ordered.map((measurement) => (
-		createM5bQualityResult(profileId, measurement, configValue)
-	));
+	const targets = ordered.map((measurement) => deepFreeze({
+		...createM5bQualityResult(profileId, measurement, configValue),
+		measurementSha256: createHash('sha256').update(JSON.stringify(measurement)).digest('hex'),
+	}));
 	const failed = targets.some(({ status }) => status === 'failed');
 	const accepted = targets.every(({ status }) => status === 'accepted');
 	const blockers = [...new Set(targets.flatMap((target) => [
@@ -67,4 +73,32 @@ export function createM5bQualityCohort(profileId, measurementsValue, configValue
 			failures: blockers,
 		},
 	});
+}
+
+/** Write one recomputed cohort artifact; caller-provided publication flags have no authority. */
+export async function writeM5bQualityCohort(
+	outputDirectoryValue,
+	profileId,
+	measurements,
+	cohortValue,
+	configValue,
+) {
+	if (typeof outputDirectoryValue !== 'string' || outputDirectoryValue.length < 1
+		|| outputDirectoryValue.length > 4_096) {
+		throw new TypeError('The 5B quality cohort output directory is invalid.');
+	}
+	const expected = createM5bQualityCohort(profileId, measurements, configValue);
+	const candidate = snapshotStrictJsonData(cohortValue, '5B quality cohort');
+	if (!isDeepStrictEqual(candidate, expected)) {
+		throw new Error('The 5B quality cohort does not match its recomputed five-target evidence.');
+	}
+	const bytes = Buffer.from(`${JSON.stringify(expected, null, '\t')}\n`, 'utf8');
+	const path = join(
+		outputDirectoryValue,
+		`${expected.workloadId}.five-target.${expected.status}.json`,
+	);
+	await mkdir(outputDirectoryValue, { recursive: true });
+	await writeFile(path, bytes, { flag: 'wx' });
+	return Object.freeze({ path, byteLength: bytes.byteLength,
+		sha256: createHash('sha256').update(bytes).digest('hex'), cohort: expected });
 }
