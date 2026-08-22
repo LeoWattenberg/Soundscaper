@@ -22,18 +22,22 @@ import {
 	executeFramescaperOpenFxHostBuildRecipe,
 	fingerprintFramescaperOpenFxHostToolchainReceipt,
 } from '../native/framescaper-openfx-host/build/recipe-driver.mjs';
+import {
+	collectBoostHeaderClosure,
+	collectExtractedSourceTree,
+} from '../native/framescaper-media-host/build/source-authentication.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const SOURCE_DATE_EPOCH = 1786492800;
 const BOOST_ARCHIVE_SHA256 = '5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c';
-const BOOST_HEADER_CLOSURE_SHA256 = 'a2f5894e12bc386b7db96936aba5f5bef3910e52da634c7630c73f1fa63e913d';
 const MEDIA_INPUTS = Object.freeze([
 	'CMakeLists.txt', 'CMakePresets.json', 'build/ffmpeg-9.0.1-configure.json',
-	'build/recipe-driver.mjs', 'build/targets.json',
+	'build/recipe-driver.mjs', 'build/source-authentication.mjs', 'build/targets.json',
 	...FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS.map(({ toolchainFile }) => toolchainFile),
 ].sort());
 const OPENFX_INPUTS = Object.freeze([
-	'CMakeLists.txt', 'CMakePresets.json', 'build/recipe-driver.mjs', 'build/targets.json',
+	'CMakeLists.txt', 'CMakePresets.json', 'build/recipe-driver.mjs',
+	'build/source-authentication.mjs', 'build/targets.json',
 	...FRAMESCAPER_OPENFX_HOST_BUILD_TARGETS.map(({ toolchainFile }) => toolchainFile),
 ].sort());
 
@@ -232,6 +236,92 @@ test('repinning cannot broaden FFmpeg or smuggle ambient paths into exact preset
 	);
 });
 
+test('actual FFmpeg, OpenFX, and Boost content cannot be authorized by forged source receipts', (context) => {
+	const ffmpegDrift = buildFixture(context, 'media', 'linux-x64');
+	appendFileSync(join(ffmpegDrift.ffmpegSourceRoot, 'configure'), '# drift\n');
+	assert.throws(
+		() => createFramescaperMediaHostBuildRecipe(ffmpegDrift.options),
+		/FFmpeg extracted source tree .* pinned content closure/iu,
+	);
+
+	const forgedFfmpeg = buildFixture(context, 'media', 'linux-x64');
+	appendFileSync(join(forgedFfmpeg.ffmpegSourceRoot, 'configure'), '# forged drift\n');
+	const ffmpegReceiptPath = join(
+		forgedFfmpeg.ffmpegSourceRoot, '.framescaper-source-identity.json',
+	);
+	const ffmpegReceipt = json(ffmpegReceiptPath);
+	ffmpegReceipt.extractedTreeSha256 = collectExtractedSourceTree(
+		forgedFfmpeg.ffmpegSourceRoot,
+	).sha256;
+	writeJson(ffmpegReceiptPath, ffmpegReceipt);
+	assert.throws(
+		() => createFramescaperMediaHostBuildRecipe(forgedFfmpeg.options),
+		/FFmpeg source receipt is not the pinned/iu,
+	);
+
+	const openfxDrift = buildFixture(context, 'openfx', 'linux-x64');
+	appendFileSync(join(openfxDrift.openfxSourceRoot, 'include/ofxCore.h'), '/* drift */\n');
+	assert.throws(
+		() => createFramescaperOpenFxHostBuildRecipe(openfxDrift.options),
+		/OpenFX extracted source tree .* pinned content closure/iu,
+	);
+
+	const boostDrift = buildFixture(context, 'media', 'linux-x64');
+	mkdirSync(join(boostDrift.boostSourceRoot, 'boost/detail'));
+	writeFileSync(join(boostDrift.boostSourceRoot, 'boost/detail/forged.hpp'), '#pragma once\n');
+	appendFileSync(
+		join(boostDrift.boostSourceRoot, 'boost/multiprecision/cpp_int.hpp'),
+		'#include <boost/detail/forged.hpp>\n',
+	);
+	const boostReceiptPath = join(
+		boostDrift.boostSourceRoot, '.framescaper-source-identity.json',
+	);
+	const boostReceipt = json(boostReceiptPath);
+	boostReceipt.headerClosureSha256 = collectBoostHeaderClosure(
+		boostDrift.boostSourceRoot, ['boost/multiprecision/cpp_int.hpp'],
+	).sha256;
+	writeJson(boostReceiptPath, boostReceipt);
+	assert.throws(
+		() => createFramescaperMediaHostBuildRecipe(boostDrift.options),
+		/Boost source receipt is not the pinned/iu,
+	);
+});
+
+test('admitted source-tree and Boost-closure witnesses are rechecked before execution', (context) => {
+	const runtime = `${process.platform}-${process.arch}`;
+	const mediaTarget = FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS.find(
+		({ hostRuntime }) => hostRuntime === runtime,
+	);
+	const openfxTarget = FRAMESCAPER_OPENFX_HOST_BUILD_TARGETS.find(
+		({ hostRuntime }) => hostRuntime === runtime,
+	);
+	if (!mediaTarget || !openfxTarget) {
+		return context.skip(`No complete five-target recipe pair executes on ${runtime}.`);
+	}
+
+	for (const drift of ['ffmpeg', 'boost']) {
+		const fixture = buildFixture(context, 'media', mediaTarget.id);
+		const recipe = createFramescaperMediaHostBuildRecipe(fixture.options);
+		appendFileSync(drift === 'ffmpeg'
+			? join(fixture.ffmpegSourceRoot, 'configure')
+			: join(fixture.boostSourceRoot, 'boost/multiprecision/cpp_int.hpp'), '# drift\n');
+		let calls = 0;
+		assert.throws(() => executeFramescaperMediaHostBuildRecipe(recipe, {
+			run: () => { calls += 1; return { status: 0 }; },
+		}), /drifted from its pinned content closure/iu);
+		assert.equal(calls, 0);
+	}
+
+	const openfx = buildFixture(context, 'openfx', openfxTarget.id);
+	const openfxRecipe = createFramescaperOpenFxHostBuildRecipe(openfx.options);
+	appendFileSync(join(openfx.openfxSourceRoot, 'include/ofxParam.h'), '/* drift */\n');
+	let calls = 0;
+	assert.throws(() => executeFramescaperOpenFxHostBuildRecipe(openfxRecipe, {
+		run: () => { calls += 1; return { status: 0 }; },
+	}), /drifted from its pinned content closure/iu);
+	assert.equal(calls, 0);
+});
+
 function assertRecipe(recipe, target, phases) {
 	assert.deepEqual(recipe.target.id, target.id);
 	assert.equal(recipe.target.runtime, target.runtime);
@@ -271,7 +361,6 @@ function buildFixture(context, kind, targetId) {
 	const manifest = json(join(actualHost, 'source-manifest.json'));
 	manifest.sourceFiles = sourcePins(hostRoot, inputs);
 	const manifestPath = join(hostRoot, 'source-manifest.json');
-	writeJson(manifestPath, manifest);
 	const targets = kind === 'media'
 		? FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS
 		: FRAMESCAPER_OPENFX_HOST_BUILD_TARGETS;
@@ -286,9 +375,10 @@ function buildFixture(context, kind, targetId) {
 	};
 	if (kind === 'media') provisionMediaSources(fixture, manifest);
 	else {
-		provisionMediaContract(fixture);
 		provisionOpenFxSource(fixture, manifest);
+		provisionMediaContract(fixture, fixture.boostHeaderClosure);
 	}
+	writeJson(manifestPath, manifest);
 	fixture.options = kind === 'media' ? {
 		repositoryRoot: repositoryRootFixture, targetId, hostRuntime: target.hostRuntime,
 		toolchainReceipt: toolchain.receipt, toolchainIdentity: toolchain.identity,
@@ -332,9 +422,14 @@ function provisionMediaSources(fixture, manifest) {
 	mkdirSync(fixture.ffmpegSourceRoot);
 	writeFileSync(join(fixture.ffmpegSourceRoot, 'configure'), '#!/bin/sh\n', { mode: 0o700 });
 	writeFileSync(join(fixture.ffmpegSourceRoot, 'RELEASE'), '9.0.1\n');
+	manifest.ffmpeg.extractedTree = closureIdentity(
+		collectExtractedSourceTree(fixture.ffmpegSourceRoot),
+	);
 	writeJson(join(fixture.ffmpegSourceRoot, '.framescaper-source-identity.json'), {
 		schemaVersion: 1, component: 'ffmpeg', version: '9.0.1',
-		archiveSha256: manifest.ffmpeg.sha256, root: fixture.ffmpegSourceRoot,
+		archiveSha256: manifest.ffmpeg.sha256,
+		extractedTreeSha256: manifest.ffmpeg.extractedTree.sha256,
+		root: fixture.ffmpegSourceRoot,
 	});
 	provisionBoostSource(fixture, manifest);
 }
@@ -344,27 +439,33 @@ function provisionBoostSource(fixture, manifest) {
 	mkdirSync(join(fixture.boostSourceRoot, 'boost/multiprecision'), { recursive: true });
 	writeFileSync(join(fixture.boostSourceRoot, 'boost/version.hpp'), '#define BOOST_VERSION 109200\n');
 	writeFileSync(join(fixture.boostSourceRoot, 'boost/multiprecision/cpp_int.hpp'), '#pragma once\n');
+	fixture.boostHeaderClosure = closureIdentity(collectBoostHeaderClosure(
+		fixture.boostSourceRoot, ['boost/multiprecision/cpp_int.hpp'],
+	));
+	if (manifest.boost) manifest.boost.headerClosure = fixture.boostHeaderClosure;
 	writeJson(join(fixture.boostSourceRoot, '.framescaper-source-identity.json'), {
 		schemaVersion: 1, component: 'boost', version: '1.92.0',
 		archiveSha256: manifest.boost?.archiveSha256 ?? BOOST_ARCHIVE_SHA256,
-		headerClosureSha256: manifest.boost?.headerClosure.sha256
-			?? BOOST_HEADER_CLOSURE_SHA256,
+		headerClosureSha256: fixture.boostHeaderClosure.sha256,
 		root: fixture.boostSourceRoot,
 	});
 }
 
-function provisionMediaContract(fixture) {
+function provisionMediaContract(fixture, boostHeaderClosure) {
 	const actualRoot = join(repositoryRoot, 'native/framescaper-media-host');
 	const mediaRoot = join(fixture.repositoryRoot, 'native/framescaper-media-host');
 	const manifest = json(join(actualRoot, 'source-manifest.json'));
-	const inputs = manifest.sourceFiles.map(({ path }) => path)
-		.filter((path) => path.startsWith('src/')).sort();
+	const inputs = [
+		'build/source-authentication.mjs',
+		...listRelativeFiles(join(actualRoot, 'src')).map((path) => `src/${path}`),
+	].sort();
 	for (const path of inputs) {
 		const destination = join(mediaRoot, path);
 		mkdirSync(dirname(destination), { recursive: true });
 		copyFileSync(join(actualRoot, path), destination);
 	}
 	manifest.sourceFiles = sourcePins(mediaRoot, inputs);
+	manifest.boost.headerClosure = boostHeaderClosure;
 	writeJson(join(mediaRoot, 'source-manifest.json'), manifest);
 	fixture.mediaContractRoot = mediaRoot;
 }
@@ -375,9 +476,13 @@ function provisionOpenFxSource(fixture, manifest) {
 	for (const header of ['ofxCore.h', 'ofxImageEffect.h', 'ofxProperty.h', 'ofxParam.h']) {
 		writeFileSync(join(fixture.openfxSourceRoot, 'include', header), `/* ${header} */\n`);
 	}
+	manifest.openfx.extractedTree = closureIdentity(
+		collectExtractedSourceTree(fixture.openfxSourceRoot),
+	);
 	writeJson(join(fixture.openfxSourceRoot, '.framescaper-source-identity.json'), {
 		schemaVersion: 1, component: 'openfx', version: '1.5.1',
 		commitSha: manifest.openfx.commitSha, archiveSha256: manifest.openfx.sha256,
+		extractedTreeSha256: manifest.openfx.extractedTree.sha256,
 		root: fixture.openfxSourceRoot,
 	});
 	provisionBoostSource(fixture, manifest);
@@ -394,6 +499,25 @@ function sourcePins(root, inputs) {
 		const bytes = readFileSync(join(root, path));
 		return { path, byteLength: bytes.byteLength, sha256: sha256(bytes) };
 	});
+}
+
+function listRelativeFiles(root, prefix = '') {
+	const files = [];
+	for (const entry of readdirSync(join(root, prefix), { withFileTypes: true })) {
+		const path = prefix === '' ? entry.name : `${prefix}/${entry.name}`;
+		if (entry.isDirectory()) files.push(...listRelativeFiles(root, path));
+		else if (entry.isFile()) files.push(path);
+	}
+	return files;
+}
+
+function closureIdentity(closure) {
+	return {
+		algorithm: closure.algorithm,
+		...(closure.roots ? { roots: [...closure.roots] } : {}),
+		fileCount: closure.fileCount,
+		sha256: closure.sha256,
+	};
 }
 
 function json(path) {

@@ -75,6 +75,11 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 		url: 'https://codeload.github.com/AcademySoftwareFoundation/openfx/tar.gz/ab77951',
 		byteLength: 9_837_777,
 		sha256: '7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5',
+		extractedTree: {
+			algorithm: 'framescaper-portable-source-tree-sha256-v1',
+			fileCount: 388,
+			sha256: 'bd7c4e5850725a2ed985e7c5f1f531a33e1c2509057052b21a0062454c3a8efe',
+		},
 		license: 'BSD-3-Clause',
 	};
 	if (JSON.stringify(manifest.openfx) !== JSON.stringify(expectedOpenFx)) {

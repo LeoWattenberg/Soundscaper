@@ -30,6 +30,11 @@ test('the native host pins official FFmpeg 9.0.1 source and its complete local s
 		signingKeyFingerprint: 'FCF986EA15E6E293A5644F10B4322F04D67658D8',
 		byteLength: 12_036_420,
 		sha256: 'cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635',
+		extractedTree: {
+			algorithm: 'framescaper-portable-source-tree-sha256-v1',
+			fileCount: 10_397,
+			sha256: 'dc709cc7d80424f45aab44ac94e59f7c8669fe18b877e9e5f1319006bfa622b4',
+		},
 		configureRecipe: 'build/ffmpeg-9.0.1-configure.json',
 		licenceMode: 'GPL-2.0-or-later',
 	});

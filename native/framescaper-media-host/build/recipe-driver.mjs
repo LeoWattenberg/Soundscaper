@@ -9,13 +9,18 @@ import {
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import {
+	addBoostClosureWitness,
+	addSourceTreeWitness,
+	verifySourceAuthenticationWitness,
+} from './source-authentication.mjs';
+
 const HOST_ROOT = 'native/framescaper-media-host';
 const SOURCE_RECEIPT = '.framescaper-source-identity.json';
 const DIGEST = /^[a-f0-9]{64}$/u;
 const SOURCE_DATE_EPOCH = 1786492800;
 const FFMPEG_ARCHIVE_SHA256 = 'cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635';
 const BOOST_ARCHIVE_SHA256 = '5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c';
-const BOOST_HEADER_CLOSURE_SHA256 = 'a2f5894e12bc386b7db96936aba5f5bef3910e52da634c7630c73f1fa63e913d';
 const TARGETS = Object.freeze([
 	Object.freeze({ id: 'linux-x64', runtime: 'linux-x64', hostRuntime: 'linux-x64', cmakePreset: 'linux-x64', toolchainFile: 'build/toolchains/linux-x64.cmake', ffmpegTarget: 'x86_64-linux-gnu', payloadName: 'framescaper-media-host' }),
 	Object.freeze({ id: 'linux-arm64', runtime: 'linux-arm64', hostRuntime: 'linux-arm64', cmakePreset: 'linux-arm64', toolchainFile: 'build/toolchains/linux-arm64.cmake', ffmpegTarget: 'aarch64-linux-gnu', payloadName: 'framescaper-media-host' }),
@@ -250,7 +255,7 @@ function assertPendingTargets(manifest) {
 	], 'media-host source manifest');
 	closedRecord(manifest.ffmpeg, [
 		'version', 'releaseName', 'released', 'url', 'signatureUrl', 'signingKeyFingerprint',
-		'byteLength', 'sha256', 'configureRecipe', 'licenceMode',
+		'byteLength', 'sha256', 'extractedTree', 'configureRecipe', 'licenceMode',
 	], 'media-host FFmpeg pin');
 	closedRecord(manifest.boost, [
 		'version', 'sourceManifest', 'archiveSha256', 'headerClosure',
@@ -267,7 +272,6 @@ function assertPendingTargets(manifest) {
 		|| manifest.ffmpeg.licenceMode !== 'GPL-2.0-or-later'
 		|| manifest.boost.version !== '1.92.0'
 		|| manifest.boost.archiveSha256 !== BOOST_ARCHIVE_SHA256
-		|| manifest.boost.headerClosure.sha256 !== BOOST_HEADER_CLOSURE_SHA256
 		|| manifest.boost.headerClosure.algorithm !== 'boost-include-closure-sha256-v1'
 		|| canonicalJson(manifest.boost.headerClosure.roots) !== canonicalJson(['boost/multiprecision/cpp_int.hpp'])) {
 		throw new Error('The media-host pinned source manifest is unsupported.');
@@ -332,10 +336,13 @@ function verifyFfmpegSource(root, manifest, witnesses) {
 	const receipt = sourceReceipt(root, witnesses);
 	const expected = {
 		schemaVersion: 1, component: 'ffmpeg', version: '9.0.1',
-		archiveSha256: manifest.ffmpeg.sha256, root,
+		archiveSha256: manifest.ffmpeg.sha256,
+		extractedTreeSha256: manifest.ffmpeg.extractedTree.sha256, root,
 	};
 	if (canonicalJson(receipt) !== canonicalJson(expected)) throw new Error('The FFmpeg source receipt is not the pinned 9.0.1 identity.');
-	witnessFile(join(root, 'configure'), witnesses);
+	addSourceTreeWitness(root, manifest.ffmpeg.extractedTree, witnesses, 'FFmpeg extracted source tree');
+	const configure = witnessFile(join(root, 'configure'), witnesses).toString('utf8');
+	if (!configure.startsWith('#!/bin/sh\n')) throw new Error('The provisioned FFmpeg configure entrypoint is unusable.');
 	const release = witnessFile(join(root, 'RELEASE'), witnesses).toString('utf8').trim();
 	if (release !== '9.0.1') throw new Error('The provisioned FFmpeg source tree has version drift.');
 }
@@ -350,7 +357,7 @@ function verifyBoostSource(root, manifest, witnesses) {
 	if (canonicalJson(receipt) !== canonicalJson(expected)) throw new Error('The Boost source receipt is not the pinned 1.92.0 identity.');
 	const version = witnessFile(join(root, 'boost/version.hpp'), witnesses).toString('utf8');
 	if (!/#\s*define\s+BOOST_VERSION\s+109200\b/u.test(version)) throw new Error('The Boost source tree has version drift.');
-	witnessFile(join(root, 'boost/multiprecision/cpp_int.hpp'), witnesses);
+	addBoostClosureWitness(root, manifest.boost.headerClosure, witnesses, 'Boost 1.92.0 header closure');
 }
 
 function verifyToolchain(pathValue, identityValue, target, witnesses) {
@@ -437,6 +444,7 @@ function witnessFile(path, witnesses) {
 
 function verifyWitnesses(witnesses) {
 	for (const witness of witnesses) {
+		if (verifySourceAuthenticationWitness(witness)) continue;
 		const bytes = readFileSync(existingFile(witness.path, 'build input witness'));
 		if (bytes.byteLength !== witness.byteLength || digest(bytes) !== witness.sha256) {
 			throw new Error(`Build input drifted after recipe admission: ${witness.path}`);

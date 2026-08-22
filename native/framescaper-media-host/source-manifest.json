@@ -13,6 +13,11 @@
 		"signingKeyFingerprint": "FCF986EA15E6E293A5644F10B4322F04D67658D8",
 		"byteLength": 12036420,
 		"sha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
+		"extractedTree": {
+			"algorithm": "framescaper-portable-source-tree-sha256-v1",
+			"fileCount": 10397,
+			"sha256": "dc709cc7d80424f45aab44ac94e59f7c8669fe18b877e9e5f1319006bfa622b4"
+		},
 		"configureRecipe": "build/ffmpeg-9.0.1-configure.json",
 		"licenceMode": "GPL-2.0-or-later"
 	},
@@ -52,8 +57,13 @@
 		},
 		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 27682,
-			"sha256": "c4b937244eafd8cd3492d88108f9629a9c07e3bbb5fbcec2eac53759bf0afa20"
+			"byteLength": 28063,
+			"sha256": "714bdafd3231361326211803ec8802897f21328243ff04bdd3bfc74ac1b1723b"
+		},
+		{
+			"path": "build/source-authentication.mjs",
+			"byteLength": 7955,
+			"sha256": "4d4e522522b870f67b9a2a650f51f14e9960cbd4f1827d9c2fe7344afdf3a27e"
 		},
 		{
 			"path": "build/targets.json",

@@ -41,6 +41,11 @@ export function readFramescaperMediaHostSourceManifest(repositoryRoot) {
 		'The native host FFmpeg source URL is not the official release archive.');
 	assert(manifest.ffmpeg.byteLength === 12_036_420 && SHA256.test(manifest.ffmpeg.sha256),
 		'The native host FFmpeg source identity is incomplete.');
+	assert(canonicalJson(manifest.ffmpeg.extractedTree) === canonicalJson({
+		algorithm: 'framescaper-portable-source-tree-sha256-v1',
+		fileCount: 10_397,
+		sha256: 'dc709cc7d80424f45aab44ac94e59f7c8669fe18b877e9e5f1319006bfa622b4',
+	}), 'The native host FFmpeg extracted-tree identity is unsupported.');
 	assert(manifest.ffmpeg.signingKeyFingerprint === 'FCF986EA15E6E293A5644F10B4322F04D67658D8',
 		'The native host FFmpeg signing key is not pinned.');
 	assertBoostBuildInputs(repositoryRoot, manifest);

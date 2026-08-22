@@ -9,6 +9,12 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import {
+	addBoostClosureWitness,
+	addSourceTreeWitness,
+	verifySourceAuthenticationWitness,
+} from './source-authentication.mjs';
+
 const HOST_ROOT = 'native/framescaper-openfx-host';
 const MEDIA_HOST_ROOT = 'native/framescaper-media-host';
 const SOURCE_RECEIPT = '.framescaper-source-identity.json';
@@ -17,7 +23,6 @@ const SOURCE_DATE_EPOCH = 1786492800;
 const OPENFX_COMMIT_SHA = 'ab779510b2655b4d11a7e01e5c521f9aa8c88976';
 const OPENFX_ARCHIVE_SHA256 = '7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5';
 const BOOST_ARCHIVE_SHA256 = '5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c';
-const BOOST_HEADER_CLOSURE_SHA256 = 'a2f5894e12bc386b7db96936aba5f5bef3910e52da634c7630c73f1fa63e913d';
 const MEDIA_CONTRACT_SOURCES = Object.freeze([
 	'legacy_plan_semantics.cpp', 'legacy_plan_v8_filter_semantics.cpp',
 	'media_file_grants.cpp', 'media_plan.cpp', 'sha256.cpp', 'strict_json.cpp',
@@ -74,7 +79,7 @@ export function createFramescaperOpenFxHostBuildRecipe(value) {
 		hostRoot, mediaContract.root, outputRoot, openfxSourceRoot, boostSourceRoot,
 	]);
 	verifyOpenFxSource(openfxSourceRoot, manifest, witnesses);
-	verifyBoostSource(boostSourceRoot, witnesses);
+	verifyBoostSource(boostSourceRoot, mediaContract.boostHeaderClosure, witnesses);
 	const tools = verifyToolchain(
 		options.toolchainReceipt, options.toolchainIdentity, target, witnesses,
 	);
@@ -201,7 +206,7 @@ function assertPendingTargets(manifest) {
 	], 'OpenFX-host source manifest');
 	closedRecord(manifest.openfx, [
 		'version', 'tag', 'commit', 'commitSha', 'tagObjectSha', 'signedTagApiUrl',
-		'signedTagVerifiedAt', 'url', 'byteLength', 'sha256', 'license',
+		'signedTagVerifiedAt', 'url', 'byteLength', 'sha256', 'extractedTree', 'license',
 	], 'OpenFX-host source pin');
 	closedRecord(manifest.targets, TARGETS.map(({ id }) => id), 'OpenFX-host target states');
 	if (manifest.schemaVersion !== 1 || manifest.hostVersion !== '1.0.0'
@@ -276,10 +281,12 @@ function verifyMediaContractClosure(repositoryRoot, hostRoot, manifest, witnesse
 		|| mediaManifest.license !== 'AGPL-3.0-only'
 		|| mediaManifest.sourceDateEpoch !== SOURCE_DATE_EPOCH
 		|| mediaManifest.boost?.version !== '1.92.0'
-		|| mediaManifest.boost?.archiveSha256 !== BOOST_ARCHIVE_SHA256
-		|| mediaManifest.boost?.headerClosure?.sha256 !== BOOST_HEADER_CLOSURE_SHA256) {
+		|| mediaManifest.boost?.archiveSha256 !== BOOST_ARCHIVE_SHA256) {
 		throw new Error('The reused media-host source manifest identity is unsupported.');
 	}
+	const boostHeaderClosure = closedRecord(mediaManifest.boost.headerClosure, [
+		'algorithm', 'roots', 'fileCount', 'sha256',
+	], 'reused media-host Boost closure');
 	if (!Array.isArray(mediaManifest.sourceFiles) || mediaManifest.sourceFiles.length === 0) {
 		throw new Error('The reused media-host source manifest has no source closure.');
 	}
@@ -300,6 +307,19 @@ function verifyMediaContractClosure(repositoryRoot, hostRoot, manifest, witnesse
 
 	const queue = MEDIA_CONTRACT_SOURCES.map((path) => `src/${path}`);
 	const closure = [];
+	const sourceAuthenticationPath = 'build/source-authentication.mjs';
+	const sourceAuthenticationPin = pins.get(sourceAuthenticationPath);
+	if (!sourceAuthenticationPin) {
+		throw new Error('The reused media-host source authenticator is not manifest pinned.');
+	}
+	const sourceAuthenticationBytes = witnessFile(
+		join(mediaRoot, sourceAuthenticationPath), witnesses,
+	);
+	if (sourceAuthenticationBytes.byteLength !== sourceAuthenticationPin.byteLength
+		|| digest(sourceAuthenticationBytes) !== sourceAuthenticationPin.sha256) {
+		throw new Error('The reused media-host source authenticator drifted from its pin.');
+	}
+	closure.push({ path: sourceAuthenticationPath, ...sourceAuthenticationPin });
 	const seen = new Set();
 	while (queue.length > 0) {
 		const path = queue.shift();
@@ -327,6 +347,7 @@ function verifyMediaContractClosure(repositoryRoot, hostRoot, manifest, witnesse
 	closure.sort(({ path: left }, { path: right }) => left.localeCompare(right));
 	return Object.freeze({
 		root: mediaRoot,
+		boostHeaderClosure,
 		identitySha256: digest(Buffer.from(canonicalJson({
 			manifestSha256: digest(manifestBytes), sourceFiles: closure,
 		}))),
@@ -337,23 +358,25 @@ function verifyOpenFxSource(root, manifest, witnesses) {
 	const receipt = sourceReceipt(root, witnesses);
 	const expected = {
 		schemaVersion: 1, component: 'openfx', version: '1.5.1',
-		commitSha: OPENFX_COMMIT_SHA, archiveSha256: OPENFX_ARCHIVE_SHA256, root,
+		commitSha: OPENFX_COMMIT_SHA, archiveSha256: OPENFX_ARCHIVE_SHA256,
+		extractedTreeSha256: manifest.openfx.extractedTree.sha256, root,
 	};
 	if (canonicalJson(receipt) !== canonicalJson(expected)) {
 		throw new Error('The OpenFX source receipt is not the pinned 1.5.1 ab77951 identity.');
 	}
+	addSourceTreeWitness(root, manifest.openfx.extractedTree, witnesses, 'OpenFX extracted source tree');
 	for (const header of ['ofxCore.h', 'ofxImageEffect.h', 'ofxProperty.h', 'ofxParam.h']) {
 		const text = witnessFile(join(root, 'include', header), witnesses).toString('utf8');
 		if (text.length === 0) throw new Error(`The provisioned OpenFX source omits ${header}.`);
 	}
 }
 
-function verifyBoostSource(root, witnesses) {
+function verifyBoostSource(root, headerClosure, witnesses) {
 	const receipt = sourceReceipt(root, witnesses);
 	const expected = {
 		schemaVersion: 1, component: 'boost', version: '1.92.0',
 		archiveSha256: BOOST_ARCHIVE_SHA256,
-		headerClosureSha256: BOOST_HEADER_CLOSURE_SHA256, root,
+		headerClosureSha256: headerClosure.sha256, root,
 	};
 	if (canonicalJson(receipt) !== canonicalJson(expected)) {
 		throw new Error('The Boost source receipt is not the pinned 1.92.0 identity.');
@@ -362,7 +385,7 @@ function verifyBoostSource(root, witnesses) {
 	if (!/#\s*define\s+BOOST_VERSION\s+109200\b/u.test(version)) {
 		throw new Error('The Boost source tree has version drift.');
 	}
-	witnessFile(join(root, 'boost/multiprecision/cpp_int.hpp'), witnesses);
+	addBoostClosureWitness(root, headerClosure, witnesses, 'Boost 1.92.0 header closure');
 }
 
 function verifyToolchain(pathValue, identityValue, target, witnesses) {
@@ -443,6 +466,7 @@ function witnessFile(path, witnesses) {
 
 function verifyWitnesses(witnesses) {
 	for (const witness of witnesses) {
+		if (verifySourceAuthenticationWitness(witness)) continue;
 		const bytes = readFileSync(existingFile(witness.path, 'build input witness'));
 		if (bytes.byteLength !== witness.byteLength || digest(bytes) !== witness.sha256) {
 			throw new Error(`Build input drifted after recipe admission: ${witness.path}`);
