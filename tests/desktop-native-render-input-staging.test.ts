@@ -134,9 +134,12 @@ test('V8 stages audio only, rejects carriers, and silent V8 has no durable stage
 
 		const unified = createUnifiedExactRenderPlan(unifiedExactPlanFixture(9));
 		const unifiedRecord = queueRecord(createNativeMediaPlanEnvelopeV1(unified));
-		assert.throws(() => framescaperNativeQueueEnqueueRequest(
+		assert.equal(framescaperNativeQueueEnqueueRequest(
 			queueEnqueueRequest(unifiedRecord, null),
-		), /V9.*evaluated RGBA carrier|evaluated RGBA carrier.*V9/iu);
+		).derivedInputStageId, null);
+		assert.throws(() => framescaperNativeQueueEnqueueRequest(
+			queueEnqueueRequest(unifiedRecord, STAGE_ID),
+		), /unified V9|derived-input stage|durable.*carrier/iu);
 		await assert.rejects(
 			() => restarted.inspect(unifiedRecord),
 			/V9.*evaluated RGBA carrier|evaluated RGBA carrier.*V9/iu,

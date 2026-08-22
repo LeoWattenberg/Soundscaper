@@ -66,7 +66,7 @@ test('queue controls are exact in both directions and reject malformed requests 
 
 test('queue enqueue accepts only a bounded exact-plan declaration', async () => {
 	const projection = snapshot().queue[0];
-	const fixture = await loadPreload([projection, projection, projection]);
+	const fixture = await loadPreload(Array.from({ length: 7 }, () => projection));
 	const request = {
 		taskKind: 'encoded-export', planVersion: 7, derivedInputStageId: JOB_ID,
 		planFingerprint: '12'.repeat(32),
@@ -87,15 +87,19 @@ test('queue enqueue accepts only a bounded exact-plan declaration', async () => 
 	})).jobId, JOB_ID);
 	assert.equal(fixture.invocations[0][0], 'framescaper:v1:native-services:queue:enqueue');
 	assert.throws(() => fixture.bridge.nativeServices.enqueue({ ...request, planVersion: 6 }), /enqueue plan/iu);
+	for (const planVersion of [9, 10, 11, 12]) assert.equal((await fixture.bridge.nativeServices.enqueue({
+		...request, planVersion, derivedInputStageId: null,
+		planPayload: `{"version":${String(planVersion)}}`,
+	})).jobId, JOB_ID);
 	assert.throws(() => fixture.bridge.nativeServices.enqueue({
-		...request, planVersion: 9, derivedInputStageId: null, planPayload: '{"version":9}',
-	}), /carrier|V9|unified/iu);
+		...request, planVersion: 12, derivedInputStageId: JOB_ID, planPayload: '{"version":12}',
+	}), /unified|derived-input stage|carrier/iu);
 	assert.throws(() => fixture.bridge.nativeServices.enqueue({ ...request, state: 'running' }), /fields/iu);
 	assert.throws(() => fixture.bridge.nativeServices.enqueue({
 		...request, planVersion: 8, derivedInputStageId: null,
 		planPayload: '{"version":8,"inputs":[{"kind":"staged-audio-mix"}]}',
 	}), /derived-input stage|audio/iu);
-	assert.equal(fixture.invocations.length, 3);
+	assert.equal(fixture.invocations.length, 7);
 });
 
 test('V8 audio-only input crosses preload through one digest-bound backpressured MessagePort', async () => {

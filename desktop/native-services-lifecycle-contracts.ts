@@ -93,28 +93,33 @@ export function framescaperNativeQueueEnqueueRequest(
 		|| TEXT_ENCODER.encode(request.planPayload).byteLength > CONTROL_MESSAGE_MAXIMUM_BYTES) {
 		throw new TypeError('A native-services enqueue request has an unsupported plan or task.');
 	}
-	if ([9, 10, 11, 12].includes(request.planVersion as number)) {
-		throw new TypeError(
-			`Unified V${String(request.planVersion)} native renders have no durable evaluated RGBA carrier.`,
-		);
-	}
-	if (![7, 8].includes(request.planVersion as number)) {
-		throw new TypeError('Selected-V20 native renders require an exact V7/V8 plan.');
-	}
 	const planFingerprint = digest(request.planFingerprint, 'enqueue plan');
-	const envelope = nativeRenderInputExactV20Envelope(
-		request.planPayload, planFingerprint, request.planVersion as 7 | 8,
-	);
-	const stageRequired = nativeRenderInputStageRequired(envelope);
-	if ((request.derivedInputStageId !== null) !== stageRequired) {
-		throw new TypeError(stageRequired
-			? 'This selected-V20 V7/V8 native render requires one durable derived-input stage.'
-			: 'A silent selected-V20 V8 native render cannot name a derived-input stage.');
+	const derivedInputStageId = request.derivedInputStageId === null
+		? null : jobId(request.derivedInputStageId);
+	if ([9, 10, 11, 12].includes(request.planVersion as number)) {
+		if (derivedInputStageId !== null) {
+			throw new TypeError(
+				`Unified V${String(request.planVersion)} native renders cannot name a derived-input stage.`,
+			);
+		}
+	} else {
+		if (![7, 8].includes(request.planVersion as number)) {
+			throw new TypeError('Selected-V20 native renders require an exact V7/V8 plan.');
+		}
+		const envelope = nativeRenderInputExactV20Envelope(
+			request.planPayload, planFingerprint, request.planVersion as 7 | 8,
+		);
+		const stageRequired = nativeRenderInputStageRequired(envelope);
+		if ((derivedInputStageId !== null) !== stageRequired) {
+			throw new TypeError(stageRequired
+				? 'This selected-V20 V7/V8 native render requires one durable derived-input stage.'
+				: 'A silent selected-V20 V8 native render cannot name a derived-input stage.');
+		}
 	}
 	return Object.freeze({
 		taskKind: request.taskKind as NativeQueueTaskKind,
 		planVersion: request.planVersion as FramescaperNativeQueueEnqueueRequest['planVersion'],
-		derivedInputStageId: request.derivedInputStageId === null ? null : jobId(request.derivedInputStageId),
+		derivedInputStageId,
 		planFingerprint,
 		planPayload: request.planPayload,
 		projectId: request.projectId as string,
