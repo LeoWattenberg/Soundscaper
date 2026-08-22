@@ -3,6 +3,8 @@
 import { createNativeMediaImageSequenceSourceV25 } from '../../src/common/editor/native-media-image-sequence-v25.ts';
 import { fingerprintNativeMediaPlan } from '../../src/common/editor/native-media-plan-canonical-form.ts';
 import { createVideoFreezeFallbackV1 } from '../../src/common/editor/video-freeze-v24.ts';
+import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../../src/common/editor/video-clip-composition.ts';
+import { createDefaultVideoKeyframeCurves } from '../../src/common/editor/video-keyframe-curves.ts';
 import { createDefaultDissolveVideoTransitionV1 } from '../../src/common/editor/video-transition-registry.ts';
 import { createUnreportedVideoSourceCharacteristicsV25 } from '../../src/common/editor/video-source-professional-characteristics-v25.ts';
 import type { UnifiedExactRenderPlanVersion } from '../../src/common/editor/unified-exact-render-plan.ts';
@@ -32,7 +34,7 @@ export function unifiedExactPlanFixture(version: UnifiedExactRenderPlanVersion) 
 		project: { id: 'project-1', revision: 7 },
 		format: { container: 'mp4', extension: 'mp4', mimeType: 'video/mp4' },
 		codecs: {
-			video: 'h264', videoEncoder: 'libx264', audio: 'aac', audioEncoder: 'aac',
+			video: 'h264', videoEncoder: 'libx264', audio: null, audioEncoder: null,
 			pixelFormat: 'yuv420p',
 		},
 		timebase: {
@@ -40,13 +42,14 @@ export function unifiedExactPlanFixture(version: UnifiedExactRenderPlanVersion) 
 			sequenceId: 'sequence-1', sequenceRate: RATE_1,
 		},
 		output: {
-			frameRate: RATE_1, frameCount: 10,
+			frameRate: RATE_1, frameCount: 10, quality: 'balanced',
 			canvas: {
 				width: 1_280, height: 720, fit: 'contain', pixelFormat: 'yuv420p',
 				backgroundColor: '#000000',
 			},
-			includeAudio: true, audioLayout: 'stereo',
+			includeAudio: false, audioLayout: null,
 		},
+		tracks: [{ trackId: 'track-1', sequenceOrder: 0, mute: false, solo: false, hidden: false }],
 		sources: [source()],
 		nodes: [
 			clip('clip-out', 0, 7, 0, 7, true),
@@ -103,7 +106,15 @@ function clip(
 		kind: 'clip', nodeId: `node-${clipId}`, clipId, trackId: 'track-1',
 		sourceNodeId: 'source-node', sequenceStartFrame, sequenceFrameCount,
 		sourceInFrame, sourceFrameCount,
-		sourceTimeMapping: { kind: 'video-retime-export-intent-v6', intent },
+		pictureState: {
+			composition: DEFAULT_VIDEO_CLIP_COMPOSITION,
+			videoEffects: [],
+			videoKeyframes: createDefaultVideoKeyframeCurves(sequenceFrameCount),
+		},
+		sourceTimeMapping: {
+			kind: 'video-retime-export-intent-v6', sourceRate: RATE_1,
+			retimeMap: retimed ? linearCurve(sequenceFrameCount) : null, intent,
+		},
 	};
 }
 
@@ -133,9 +144,11 @@ function transition(
 			trackId: 'track-1',
 			outgoing: edge(
 				outgoingClipId, outgoingStart, outgoingCount, outgoingSourceIn, outgoingSourceCount,
+				fixtureRetimeMap(outgoingClipId, outgoingCount),
 			),
 			incoming: edge(
 				incomingClipId, incomingStart, incomingCount, incomingSourceIn, incomingSourceCount,
+				fixtureRetimeMap(incomingClipId, incomingCount),
 			),
 		},
 	};
@@ -147,12 +160,17 @@ function edge(
 	sequenceFrameCount: number,
 	sourceInFrame: number,
 	sourceFrameCount: number,
+	retimeMap: ReturnType<typeof linearCurve> | null,
 ) {
 	return {
 		clipId, sourceId: 'source-1', sequenceStartFrame, sequenceFrameCount,
 		sequenceRate: RATE_1, sourceInFrame, sourceFrameCount, sourceRate: RATE_1,
-		retimeMap: null,
+		retimeMap,
 	};
+}
+
+function fixtureRetimeMap(clipId: string, sequenceFrameCount: number) {
+	return clipId === 'clip-out' ? linearCurve(sequenceFrameCount) : null;
 }
 
 function visual() {
@@ -174,13 +192,22 @@ function visual() {
 		renderPlanFingerprintSha256: UNIFIED_SHA_C,
 		nativeEffectFingerprintSha256: UNIFIED_SHA_D,
 	};
+	const fallback = createVideoFreezeFallbackV1({
+		renderedSourceId: 'source-1', renderedAssetSha256: UNIFIED_SHA_A, ...freshness,
+	});
 	return {
-		kind: 'visual', nodeId: 'visual-node', modelId: 'generator-1', modelKind: 'solid',
+		kind: 'visual', nodeId: 'visual-node', modelId: 'generator-clip-1', modelKind: 'solid',
 		authoredState,
+		placement: {
+			trackId: 'track-1',
+		},
 		freshness,
-		frozenFallback: createVideoFreezeFallbackV1({
-			renderedSourceId: 'source-1', renderedAssetSha256: UNIFIED_SHA_A, ...freshness,
-		}),
+		authoredFallback: fallback,
+		fallbackDisposition: {
+			status: 'fresh', mode: 'frozen', changedComponents: [],
+			authoredStatePreserved: true, reportsDegradation: false,
+		},
+		frozenFallback: fallback,
 	};
 }
 

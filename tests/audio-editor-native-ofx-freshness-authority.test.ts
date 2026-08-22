@@ -43,6 +43,15 @@ test('V26 freshness is derived from authored state, source identities, plan inte
 	);
 	assert.equal(effect(bound).state.frozenFallback?.freshness.authoredStateSha256,
 		observed.authoredStateSha256);
+
+	const changedTrack = structuredClone(raw);
+	changedTrack.tracks[0]!.mute = true;
+	assert.notEqual(
+		deriveUnifiedExactOfxFreshnessV26(
+			createUnifiedExactRenderPlan(changedTrack), 'ofx-1', descriptor(),
+		).renderPlanFingerprintSha256,
+		observed.renderPlanFingerprintSha256,
+	);
 });
 
 function effect(plan: ReturnType<typeof createUnifiedExactRenderPlan>): UnifiedExactRenderOpenFxNode {

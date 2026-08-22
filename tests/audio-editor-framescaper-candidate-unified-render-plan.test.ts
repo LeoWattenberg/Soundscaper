@@ -4,28 +4,30 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
-import { normalizeNativeMediaImageSequenceSourceV25 } from '../src/common/editor/native-media-image-sequence-v25.ts';
-import { createUnreportedVideoSourceCharacteristicsV25 } from '../src/common/editor/video-source-professional-characteristics-v25.ts';
+import { reconcileProjectOwnedFeatureRequirements } from '../src/common/editor/project-owned-feature-requirements.ts';
+import type { ProjectFeatureRequirementsManifest } from '../src/common/editor/project-feature-requirements.ts';
 import { createVideoFreezeFallbackV1 } from '../src/common/editor/video-freeze-v24.ts';
-import { createDefaultDissolveVideoTransitionV1 } from '../src/common/editor/video-transition-registry.ts';
 import {
 	assertUnifiedExactRenderPlanV9,
 	assertUnifiedExactRenderPlanV10,
 	assertUnifiedExactRenderPlanV11,
 	assertUnifiedExactRenderPlanV12,
+	createUnifiedExactRenderPlan,
 	fingerprintUnifiedExactRenderPlan,
 	type UnifiedExactRenderClipNode,
 	type UnifiedExactRenderOpenFxNode,
 	type UnifiedExactRenderProfessionalMediaNode,
 	type UnifiedExactRenderTransitionNode,
+	type UnifiedExactRenderVisualNode,
 } from '../src/common/editor/unified-exact-render-plan.ts';
-import type { VideoSourceTimingView } from '../src/common/editor/video-source-timing-view.ts';
 import {
 	createFramescaperDormantCandidateRenderSession,
 } from '../src/framescaper/editor-dormant-candidate-render-session.ts';
 import {
+	reconcileFramescaperProjectFeatureRequirementsV22,
+} from '../src/framescaper/editor-project-feature-requirements-v22.ts';
+import {
 	createFramescaperProjectUnifiedExactRenderPlanV22,
-	type FramescaperUnifiedExactRenderAuthority,
 } from '../src/framescaper/editor-project-unified-render-plan-v22.ts';
 import {
 	createFramescaperProjectUnifiedExactRenderPlanV24,
@@ -40,20 +42,24 @@ import { FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE } from '../src/framescaper/ed
 import { FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v24.ts';
 import { FRAMESCAPER_V25_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v25.ts';
 import { FRAMESCAPER_V26_PROJECT_CANDIDATE_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v26.ts';
-import { createFramescaperProjectV22, type FramescaperProjectV22 } from '../src/framescaper/editor-project-v22.ts';
-import { createFramescaperProjectV24, type FramescaperProjectV24 } from '../src/framescaper/editor-project-v24.ts';
-import { createFramescaperProjectV25, type FramescaperProjectV25 } from '../src/framescaper/editor-project-v25.ts';
-import { createFramescaperProjectV26 } from '../src/framescaper/editor-project-v26.ts';
+import { createFramescaperProjectV22 } from '../src/framescaper/editor-project-v22.ts';
+import { opacityKeyframes } from './helpers/framescaper-v20-model-fixture.ts';
 import {
-	framescaperV20Options,
-	opacityKeyframes,
-} from './helpers/framescaper-v20-model-fixture.ts';
-
-const SHA_A = 'aa'.repeat(32);
-const SHA_B = 'bb'.repeat(32);
-const SHA_C = 'cc'.repeat(32);
-const SHA_D = 'dd'.repeat(32);
-const RATE_10 = Object.freeze({ num: 10, den: 1 });
+	candidateProfile,
+	candidateTransitionProject,
+	freshness,
+	openFxProject,
+	professionalProject,
+	renderAuthority,
+	transitionProject,
+	transitionProjectOptions,
+	UNIFIED_RENDER_SHA_A as SHA_A,
+	UNIFIED_RENDER_SHA_B as SHA_B,
+	UNIFIED_RENDER_SHA_D as SHA_D,
+	videoFreezeState,
+	visualFreshness,
+	visualProject,
+} from './helpers/framescaper-unified-render-project-fixture.ts';
 
 test('V22 builds deterministic V9 source-time and transition authority from an exact project', () => {
 	const project = transitionProject();
@@ -83,27 +89,90 @@ test('V22 builds deterministic V9 source-time and transition authority from an e
 	);
 });
 
-test('V22 refuses unavailable audio authority, unbound timing, and omitted inherited picture state', () => {
+test('V22 carries keyed picture and track-compositing authority while refusing absent audio authority', () => {
 	const project = transitionProject();
 	const authority = renderAuthority(project, 16);
+	const keyed = structuredClone(project) as unknown as Record<string, unknown>;
+	const clips = keyed.clips as Record<string, unknown>[];
+	clips[0]!.videoKeyframes = opacityKeyframes();
+	clips[0]!.videoComposition = {
+		...(clips[0]!.videoComposition as Record<string, unknown>), opacity: 0.75,
+	};
+	clips[0]!.videoEffects = [{
+		id: 'effect', type: 'color-adjust', enabled: true,
+		params: { brightness: 0.1, contrast: 1, saturation: 1, gamma: 1, hueDegrees: 0 },
+	}];
+	const tracks = keyed.tracks as Record<string, unknown>[];
+	tracks[0]!.hidden = true;
+	tracks[0]!.mute = true;
+	tracks[0]!.solo = true;
+	keyed.featureRequirements = reconcileProjectOwnedFeatureRequirements(
+		keyed, keyed.featureRequirements as ProjectFeatureRequirementsManifest,
+	);
+	keyed.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV22(
+		FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE, keyed,
+	);
 	assert.throws(() => createFramescaperProjectUnifiedExactRenderPlanV22(
 		FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE,
-		project,
-		{ ...authority, includeAudio: true, audioLayout: 'stereo' },
-	), /audio.*not represented|fail closed/iu);
+		keyed,
+		{
+			...authority, includeAudio: true, audioLayout: 'stereo',
+			codecs: { ...authority.codecs, audio: 'aac', audioEncoder: 'aac' },
+		},
+	), /Audio authority is not represented/iu);
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV22(
+		FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE, keyed, authority,
+	);
+	const picture = plan.nodes.find((node): node is UnifiedExactRenderClipNode => (
+		node.kind === 'clip' && node.clipId === 'outgoing-clip'
+	));
+	assert.deepEqual(plan.tracks, [{
+		trackId: 'video-track', sequenceOrder: 0, hidden: true, mute: true, solo: true,
+	}]);
+	assert.equal(picture?.pictureState.composition.opacity, 0.75);
+	assert.equal(picture?.pictureState.videoEffects[0]?.id, 'effect');
+	assert.equal(picture?.pictureState.videoKeyframes.curves.length, 1);
+});
+
+test('V22 carries deterministic cross-track overlap order while retaining exact timing refusal', () => {
+	const options = transitionProjectOptions();
+	const clips = options.clips as Record<string, unknown>[];
+	clips.push({
+		kind: 'video', id: 'upper-clip', sourceId: 'video-source', title: 'Upper',
+		sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
+		sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
+	});
+	const tracks = options.tracks as Record<string, unknown>[];
+	tracks.splice(1, 0, {
+		...structuredClone(tracks[0]!), id: 'upper-track', name: 'Upper',
+		clipIds: ['upper-clip'], mute: false, solo: false, hidden: false,
+	});
+	tracks.splice(2, 0, {
+		...structuredClone(tracks[0]!), id: 'empty-track', name: 'Empty', clipIds: [],
+		mute: false, solo: false, hidden: true,
+	});
+	const sequence = (options.sequences as Record<string, unknown>[])[0]!;
+	sequence.trackIds = ['video-track', 'upper-track', 'empty-track', 'audio-track'];
+	const project = createFramescaperProjectV22(
+		FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE, options,
+	);
+	const authority = renderAuthority(project, 16);
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV22(
+		FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE, project, authority,
+	);
+	const pictures = plan.nodes.filter(
+		(node): node is UnifiedExactRenderClipNode => node.kind === 'clip',
+	);
+	assert.deepEqual(plan.tracks.map(({ sequenceOrder }) => sequenceOrder), [0, 1, 2]);
+	assert.deepEqual(plan.tracks.map(({ trackId }) => trackId), [
+		'video-track', 'upper-track', 'empty-track',
+	]);
+	assert.deepEqual([...new Set(pictures.map(({ trackId }) => trackId))], ['video-track', 'upper-track']);
 	assert.throws(() => createFramescaperProjectUnifiedExactRenderPlanV22(
 		FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE,
 		project,
 		{ ...authority, timingViews: new Map() },
 	), /timing.*exact|video-source/iu);
-	const keyed = structuredClone(project) as unknown as Record<string, unknown>;
-	const clip = (keyed.clips as Record<string, unknown>[])[0]!;
-	clip.videoKeyframes = opacityKeyframes();
-	assert.throws(() => createFramescaperProjectUnifiedExactRenderPlanV22(
-		FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE,
-		keyed,
-		authority,
-	), /keyframe|project.*valid/iu);
 });
 
 test('V24 builds V10 visual and fresh external freeze authority deterministically', () => {
@@ -121,6 +190,20 @@ test('V24 builds V10 visual and fresh external freeze authority deterministicall
 	assert.deepEqual(plan.nodes.filter(({ kind }) => kind === 'visual').map((node) => (
 		node.kind === 'visual' ? node.modelKind : ''
 	)), ['still', 'title', 'adjustment-layer', 'preset', 'mask-matte']);
+	const repeated = visualProject(undefined, true);
+	const repeatedPlan = createFramescaperProjectUnifiedExactRenderPlanV24(
+		FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE,
+		repeated,
+		{
+			...renderAuthority(repeated, 30),
+			visualFreshnessByModelId: visualFreshness(repeated),
+		},
+	);
+	const stills = repeatedPlan.nodes.filter((node): node is UnifiedExactRenderVisualNode => (
+		node.kind === 'visual' && node.modelKind === 'still'
+	));
+	assert.deepEqual(stills.map(({ modelId }) => modelId), ['still-clip', 'still-clip-upper']);
+	assert.deepEqual(stills.map(({ placement }) => placement?.trackId), ['video-track', 'upper-track']);
 	const unused = new Map(authority.visualFreshnessByModelId);
 	unused.set('unused', freshness({ unused: true }));
 	assert.throws(() => createFramescaperProjectUnifiedExactRenderPlanV24(
@@ -146,21 +229,27 @@ test('V24 builds V10 visual and fresh external freeze authority deterministicall
 		frozenAuthority,
 	);
 	assertUnifiedExactRenderPlanV10(frozenPlan);
-	const freezeNode = frozenPlan.nodes.find((node) => (
+	const freezeNode = frozenPlan.nodes.find((node): node is UnifiedExactRenderVisualNode => (
 		node.kind === 'visual' && node.modelKind === 'video-freeze'
 	));
 	assert.deepEqual(freezeNode, {
-		kind: 'visual', nodeId: 'render:visual:video-source', modelId: 'video-source',
-		modelKind: 'video-freeze', authoredState, freshness: freezeFreshness,
+		kind: 'visual', nodeId: 'render:visual:video-freeze:video-source',
+		modelId: 'video-freeze:video-source',
+		modelKind: 'video-freeze', authoredState, placement: null, freshness: freezeFreshness,
+		authoredFallback: fallback,
+		fallbackDisposition: {
+			status: 'fresh', mode: 'frozen', changedComponents: [],
+			authoredStatePreserved: true, reportsDegradation: false,
+		},
 		frozenFallback: fallback,
 	});
 	assert.equal(
 		fingerprintUnifiedExactRenderPlan(frozenPlan).sha256,
-		'01326403334f4688ba3adc37d4a9c61fcba185bad99f8e7272eb0a4dd36030ce',
+		'a1863b23e2d2e8ef31eab25a4be666cd061661b8714aae21f38c9a534d88583a',
 	);
 });
 
-test('V24 refuses stale, unverifiable, and wrong-source freeze fallback authority', () => {
+test('V24 marks stale and unverifiable freeze fallback authority bypass-only', () => {
 	const authoredState = videoFreezeState('video-source');
 	const exactFreshness = freshness(authoredState);
 	const fallback = createVideoFreezeFallbackV1({
@@ -173,23 +262,82 @@ test('V24 refuses stale, unverifiable, and wrong-source freeze fallback authorit
 		visualFreshnessByModelId: visualFreshness(project),
 	};
 	const stale = new Map(authority.visualFreshnessByModelId);
-	stale.set('video-source', { ...exactFreshness, inputIdentitiesSha256: SHA_A });
-	assert.throws(() => createFramescaperProjectUnifiedExactRenderPlanV24(
+	stale.set('video-freeze:video-source', { ...exactFreshness, inputIdentitiesSha256: SHA_A });
+	const stalePlan = createFramescaperProjectUnifiedExactRenderPlanV24(
 		FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE,
 		project,
 		{ ...authority, visualFreshnessByModelId: stale },
-	), /fallback.*freshness|stale/iu);
+	);
+	const staleNode = stalePlan.nodes.find((node): node is UnifiedExactRenderVisualNode => (
+		node.kind === 'visual' && node.modelKind === 'video-freeze'
+	));
+	assert.equal(staleNode?.fallbackDisposition?.status, 'stale');
+	assert.equal(staleNode?.fallbackDisposition?.mode, 'bypass');
+	assert.equal(staleNode?.frozenFallback, null);
+	assert.deepEqual(staleNode?.authoredFallback, fallback);
 	const unverifiable = new Map(authority.visualFreshnessByModelId);
-	unverifiable.delete('video-source');
-	assert.throws(() => createFramescaperProjectUnifiedExactRenderPlanV24(
+	unverifiable.delete('video-freeze:video-source');
+	const unverifiablePlan = createFramescaperProjectUnifiedExactRenderPlanV24(
 		FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE,
 		project,
 		{ ...authority, visualFreshnessByModelId: unverifiable },
-	), /no exact freshness|freshness.*exact/iu);
+	);
+	const unverifiableNode = unverifiablePlan.nodes.find((node): node is UnifiedExactRenderVisualNode => (
+		node.kind === 'visual' && node.modelKind === 'video-freeze'
+	));
+	assert.equal(unverifiableNode?.freshness, null);
+	assert.equal(unverifiableNode?.fallbackDisposition?.status, 'unverifiable');
+	assert.equal(unverifiableNode?.fallbackDisposition?.mode, 'bypass');
+	assert.equal(unverifiableNode?.frozenFallback, null);
 	assert.throws(() => visualProject(createVideoFreezeFallbackV1({
 		renderedSourceId: 'video-source', renderedAssetSha256: SHA_D,
 		...exactFreshness,
 	})), /digest.*rendered source|external asset/iu);
+});
+
+test('V24 cross-binds still bytes and refuses unresolved adjustment or mask graph references', () => {
+	const project = visualProject();
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV24(
+		FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE,
+		project,
+		{
+			...renderAuthority(project, 30),
+			visualFreshnessByModelId: visualFreshness(project),
+		},
+	);
+	const brokenStill = structuredClone(plan) as unknown as Record<string, unknown>;
+	const stillSource = (brokenStill.sources as Record<string, unknown>[])
+		.find((source) => source.sourceId === 'still-source');
+	if (!stillSource) throw new RangeError('Missing still source fixture.');
+	stillSource.storageKey = 'different-storage';
+	assert.throws(
+		() => createUnifiedExactRenderPlan(brokenStill),
+		/still.*exact external|external plan source/iu,
+	);
+	for (const [modelId, change] of [
+		['adjustment', (state: Record<string, unknown>) => { state.targetTrackIds = ['missing-track']; }],
+		['adjustment', (state: Record<string, unknown>) => { state.effectIds = ['missing-effect']; }],
+		['mask', (state: Record<string, unknown>) => {
+			const input = (state.inputs as Record<string, unknown>[])[0]!;
+			input.sourceRef = 'missing-source';
+		}],
+	] as const) {
+		const hostile = structuredClone(plan) as unknown as Record<string, unknown>;
+		const visual = (hostile.nodes as Record<string, unknown>[]).find(
+			(node) => node.kind === 'visual' && node.modelId === modelId,
+		);
+		if (!visual) throw new RangeError(`Missing ${modelId} visual fixture.`);
+		const state = visual.authoredState as Record<string, unknown>;
+		change(state);
+		visual.freshness = {
+			...(visual.freshness as Record<string, unknown>),
+			authoredStateSha256: fingerprintNativeMediaPlan(state).sha256,
+		};
+		assert.throws(
+			() => createUnifiedExactRenderPlan(hostile),
+			/unknown track|unresolved|missing-(?:track|effect|source)/iu,
+		);
+	}
 });
 
 test('V25 builds V11 professional image-sequence authority over the original pack', () => {
@@ -292,231 +440,3 @@ test('every dormant plan generation shares its exact transition preview/export r
 		),
 	}), /V22|profile|schema 22|generation/iu);
 });
-
-function transitionProject(): FramescaperProjectV22 {
-	return createFramescaperProjectV22(
-		FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE, transitionProjectOptions(),
-	);
-}
-
-function transitionProjectOptions() {
-	const options = framescaperV20Options();
-	const clips = options.clips as Record<string, unknown>[];
-	clips[0]!.id = 'outgoing-clip';
-	clips.push({
-		kind: 'video', id: 'incoming-clip', sourceId: 'video-source', title: 'Incoming',
-		sequenceId: 'main-sequence', sequenceStartFrame: 6, sequenceFrameCount: 10,
-		sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
-	});
-	const track = (options.tracks as Record<string, unknown>[])[0]!;
-	track.clipIds = ['outgoing-clip', 'incoming-clip'];
-	return {
-		...options,
-		videoTransitionsByTrackId: {
-			'video-track': [createDefaultDissolveVideoTransitionV1({
-				id: 'transition', outgoingClipId: 'outgoing-clip', incomingClipId: 'incoming-clip',
-				durationFrames: 4,
-			})],
-		},
-	};
-}
-
-function candidateTransitionProject(generation: 22 | 24 | 25 | 26): unknown {
-	const options = transitionProjectOptions();
-	if (generation === 22) {
-		return createFramescaperProjectV22(FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE, options);
-	}
-	if (generation === 24) {
-		return createFramescaperProjectV24(FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE, options);
-	}
-	if (generation === 25) {
-		return createFramescaperProjectV25(FRAMESCAPER_V25_PROJECT_RUNTIME_PROFILE, options);
-	}
-	return createFramescaperProjectV26(FRAMESCAPER_V26_PROJECT_CANDIDATE_PROFILE, {
-		...options, ofxEffects: [],
-	});
-}
-
-function candidateProfile(generation: 22 | 24 | 25 | 26): unknown {
-	if (generation === 22) return FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE;
-	if (generation === 24) return FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE;
-	if (generation === 25) return FRAMESCAPER_V25_PROJECT_RUNTIME_PROFILE;
-	return FRAMESCAPER_V26_PROJECT_CANDIDATE_PROFILE;
-}
-
-function visualProject(freezeFallback?: ReturnType<typeof createVideoFreezeFallbackV1>): FramescaperProjectV24 {
-	const options = framescaperV20Options();
-	const still = stillSource();
-	const stillClip = visualClip('still', 'still-clip', 'still-source', 10);
-	const generator = generatorSource();
-	const generatorClip = {
-		...visualClip('generator', 'generator-clip', 'generator-source', 20),
-		sourceInFrame: 0, sourceFrameCount: 10,
-	};
-	(options.clips as Record<string, unknown>[]).push(stillClip, generatorClip);
-	((options.tracks as Record<string, unknown>[])[0]!.clipIds as string[]).push('still-clip', 'generator-clip');
-	return createFramescaperProjectV24(FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE, {
-		...options,
-		videoTransitionsByTrackId: { 'video-track': [] },
-		visualModel: {
-			stillSources: [still], generatorSources: [generator],
-			adjustmentLayers: [adjustment()], presets: [preset()], maskMattes: [mask()],
-			freezeFallbacks: freezeFallback === undefined ? [] : [freezeFallback],
-		},
-	});
-}
-
-function professionalProject(): FramescaperProjectV25 {
-	const options = framescaperV20Options();
-	const source = (options.sources as Record<string, unknown>[])[0]!;
-	const characteristics = createUnreportedVideoSourceCharacteristicsV25();
-	source.storageKey = `image-sequence-pack-sha256:${SHA_A}`;
-	source.contentSha256 = SHA_A;
-	source.characteristics = characteristics;
-	source.imageSequence = normalizeNativeMediaImageSequenceSourceV25({
-		kind: 'video', sourceType: 'image-sequence', version: 1,
-		id: 'video-source', name: 'Video', stem: 'shot_', extension: 'png',
-		frameNumberWidth: 4, firstFrameNumber: 1, lastFrameNumber: 10,
-		frameCount: 10, frameRate: RATE_10,
-		inventory: {
-			kind: 'image-sequence-inventory', version: 1,
-			storageKey: `image-sequence-inventory-sha256:${SHA_B}`,
-			sha256: SHA_B, byteLength: 512, frameCount: 10,
-			firstFrameNumber: 1, lastFrameNumber: 10,
-		},
-		sourcePack: {
-			kind: 'image-sequence-source-pack', storageKey: `image-sequence-pack-sha256:${SHA_A}`,
-			sha256: SHA_A, byteLength: 8_192,
-		},
-		characteristics,
-	});
-	return createFramescaperProjectV25(FRAMESCAPER_V25_PROJECT_RUNTIME_PROFILE, {
-		...options, videoTransitionsByTrackId: { 'video-track': [] },
-	});
-}
-
-function openFxProject(inputSourceId: string) {
-	return createFramescaperProjectV26(FRAMESCAPER_V26_PROJECT_CANDIDATE_PROFILE, {
-		...framescaperV20Options(),
-		videoTransitionsByTrackId: { 'video-track': [] },
-		ofxEffects: [{
-			schemaVersion: 1, instanceId: 'ofx-instance', pluginId: 'net.example.Filter',
-			binarySha256: SHA_A, context: 'filter',
-			attachment: { kind: 'filter', targetId: 'video-clip' },
-			inputs: [{ name: 'Source', sourceRef: inputSourceId }],
-			parameters: [], customEncodings: {}, enabled: true,
-			freshness: {
-				authoredStateSha256: SHA_A, inputIdentitiesSha256: SHA_B,
-				renderPlanFingerprintSha256: SHA_C, nativeEffectFingerprintSha256: SHA_D,
-			},
-			frozenFallback: null,
-		}],
-	});
-}
-
-function renderAuthority(project: Readonly<Record<string, unknown>>, frameCount: number): FramescaperUnifiedExactRenderAuthority {
-	const timingViews = new Map<string, VideoSourceTimingView>();
-	for (const source of project.sources as readonly Readonly<Record<string, unknown>>[]) {
-		if (source.kind !== 'video') continue;
-		timingViews.set(String(source.id), Object.freeze({
-			kind: 'cfr', rate: source.frameRate as typeof RATE_10,
-			frameCount: Number(source.sourceFrameCount),
-		}));
-	}
-	return {
-		sequenceId: 'main-sequence', sampleStart: 0,
-		sampleDuration: frameCount * 4_800, outputRate: RATE_10,
-		format: { container: 'mp4', extension: 'mp4', mimeType: 'video/mp4' },
-		codecs: {
-			video: 'h264', videoEncoder: 'libx264', audio: null, audioEncoder: null,
-			pixelFormat: 'yuv420p',
-		},
-		canvas: {
-			width: 1_920, height: 1_080, fit: 'contain', pixelFormat: 'yuv420p',
-			backgroundColor: '#000000',
-		},
-		includeAudio: false, audioLayout: null, timingViews,
-	};
-}
-
-function visualFreshness(project: FramescaperProjectV24) {
-	const sourceById = new Map(project.sources.map((source) => [String(source.id), source]));
-	const states = new Map<string, unknown>();
-	for (const clip of project.clips) {
-		if (clip.kind !== 'still' && clip.kind !== 'generator') continue;
-		states.set(String(clip.sourceId), { source: sourceById.get(String(clip.sourceId)), clip });
-	}
-	for (const state of project.videoAdjustmentLayers) states.set(state.id, state);
-	for (const state of project.videoVisualPresets) states.set(state.id, state);
-	for (const state of project.videoMaskMattes) states.set(state.id, state);
-	for (const fallback of project.videoFreezeFallbacks) {
-		states.set(fallback.renderedSourceId, videoFreezeState(fallback.renderedSourceId));
-	}
-	return new Map([...states].map(([id, state]) => [id, freshness(state)]));
-}
-
-function freshness(state: unknown) {
-	return Object.freeze({
-		authoredStateSha256: fingerprintNativeMediaPlan(state).sha256,
-		inputIdentitiesSha256: SHA_B,
-		renderPlanFingerprintSha256: SHA_C,
-		nativeEffectFingerprintSha256: SHA_D,
-	});
-}
-
-function videoFreezeState(renderedSourceId: string) {
-	return Object.freeze({ schemaVersion: 1 as const, kind: 'video-freeze' as const, renderedSourceId });
-}
-
-function stillSource() {
-	return {
-		schemaVersion: 1, kind: 'still', id: 'still-source', name: 'Plate',
-		mimeType: 'image/png', storageKey: 'still-storage', contentSha256: SHA_A,
-		width: 1_920, height: 1_080, hasAlpha: true,
-	};
-}
-
-function generatorSource() {
-	return {
-		schemaVersion: 1, kind: 'generator', id: 'generator-source', name: 'Title',
-		width: 1_920, height: 1_080, frameRate: RATE_10, frameCount: 100,
-		generator: {
-			kind: 'title', text: 'Framescaper', fontFamily: 'soundscaper-sans', fontSize: 72,
-			color: '#ffffffff', horizontalAlign: 'center', verticalAlign: 'middle',
-		},
-	};
-}
-
-function visualClip(kind: 'still' | 'generator', id: string, sourceId: string, start: number) {
-	return {
-		schemaVersion: 1, kind, id, sourceId, sequenceId: 'main-sequence',
-		sequenceStartFrame: start, sequenceFrameCount: 10,
-	};
-}
-
-function adjustment() {
-	return {
-		schemaVersion: 1, kind: 'adjustment-layer', id: 'adjustment',
-		sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 30,
-		targetTrackIds: ['video-track'], effectIds: [],
-	};
-}
-
-function preset() {
-	return {
-		schemaVersion: 1, kind: 'video-preset', id: 'preset', name: 'Look',
-		modelKind: 'adjustment-layer', authoredStateSha256: SHA_A,
-	};
-}
-
-function mask() {
-	return {
-		schemaVersion: 1, id: 'mask', kind: 'mask',
-		inputs: [{ name: 'plate', sourceRef: 'still-source', kind: 'alpha' }],
-		nodes: [{
-			id: 'shape', kind: 'vector-shape', shape: 'rectangle',
-			x: 0, y: 0, width: 1_920, height: 1_080,
-		}],
-		outputNodeId: 'shape',
-	};
-}

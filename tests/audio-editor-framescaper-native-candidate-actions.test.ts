@@ -340,7 +340,7 @@ function queueRequest(project: Readonly<Record<string, unknown>>) {
 			width: 1_920, height: 1_080, fit: 'contain' as const, pixelFormat: 'yuv420p',
 			backgroundColor: '#000000',
 		},
-		includeAudio: false, audioLayout: null,
+		quality: 'balanced' as const, includeAudio: false, audioLayout: null,
 		timingViews,
 		visualFreshnessByModelId: new Map(),
 	};

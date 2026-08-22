@@ -8,9 +8,23 @@ import {
 } from './closed-domain-value.ts';
 import type { RationalRate } from './timeline-time.ts';
 import {
+	normalizeVideoClipComposition,
+	type VideoClipComposition,
+} from './video-clip-composition.ts';
+import {
+	normalizeVideoKeyframeCurves,
+	type VideoKeyframeCurves,
+} from './video-keyframe-curves.ts';
+import { normalizeVideoEffects } from './video-effects.js';
+import { assertUnifiedExactRetimeAuthority } from './unified-exact-retime-authority.ts';
+import {
 	normalizeVideoRetimeExportIntentV6Wire,
 } from './video-retime-exact-ordinal-oracle.ts';
 import type { VideoRetimeExportIntentV6 } from './video-retime-export-plan.ts';
+import {
+	normalizeVideoRetimeCurveV16,
+	type VideoRetimeCurveV16,
+} from './video-retime-v16.ts';
 import {
 	normalizeVideoTimingAssetReference,
 	type VideoTimingAssetReference,
@@ -52,10 +66,36 @@ export interface UnifiedExactRenderClipNode {
 	readonly sequenceFrameCount: number;
 	readonly sourceInFrame: number;
 	readonly sourceFrameCount: number;
+	readonly pictureState: UnifiedExactRenderClipPictureStateV1;
 	readonly sourceTimeMapping: Readonly<{
 		readonly kind: 'video-retime-export-intent-v6';
+		readonly sourceRate: RationalRate;
+		readonly retimeMap: VideoRetimeCurveV16 | null;
 		readonly intent: VideoRetimeExportIntentV6;
 	}>;
+}
+
+export interface UnifiedExactRenderTrackAuthorityV1 {
+	readonly trackId: string;
+	readonly sequenceOrder: number;
+	readonly mute: boolean;
+	readonly solo: boolean;
+	readonly hidden: boolean;
+}
+
+export interface UnifiedExactRenderTrackIndexV1 {
+	readonly byId: ReadonlyMap<string, UnifiedExactRenderTrackAuthorityV1>;
+}
+
+export interface UnifiedExactRenderClipPictureStateV1 {
+	readonly composition: VideoClipComposition;
+	readonly videoEffects: readonly Readonly<{
+		readonly id: string;
+		readonly type: string;
+		readonly enabled: boolean;
+		readonly params: Readonly<Record<string, number>>;
+	}>[];
+	readonly videoKeyframes: VideoKeyframeCurves;
 }
 
 export interface UnifiedExactRenderTransitionNode {
@@ -87,14 +127,49 @@ const CFR_FIELDS = Object.freeze(['kind', 'frameCount', 'rate']);
 const VFR_FIELDS = Object.freeze(['kind', 'reference']);
 const CLIP_FIELDS = Object.freeze([
 	'kind', 'nodeId', 'clipId', 'trackId', 'sourceNodeId', 'sequenceStartFrame',
-	'sequenceFrameCount', 'sourceInFrame', 'sourceFrameCount', 'sourceTimeMapping',
+	'sequenceFrameCount', 'sourceInFrame', 'sourceFrameCount', 'pictureState',
+	'sourceTimeMapping',
 ]);
-const MAPPING_FIELDS = Object.freeze(['kind', 'intent']);
+const TRACK_FIELDS = Object.freeze(['trackId', 'sequenceOrder', 'mute', 'solo', 'hidden']);
+const PICTURE_STATE_FIELDS = Object.freeze(['composition', 'videoEffects', 'videoKeyframes']);
+const MAPPING_FIELDS = Object.freeze(['kind', 'sourceRate', 'retimeMap', 'intent']);
 const TRANSITION_FIELDS = Object.freeze(['kind', 'nodeId', 'transition', 'edges']);
 const RATE_FIELDS = Object.freeze(['num', 'den']);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,4095}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const MAXIMUM_SOURCES = 4_096;
+const MAXIMUM_TRACKS = 4_096;
+
+export function normalizeUnifiedExactRenderTracks(
+	value: unknown,
+): Readonly<{
+	readonly tracks: readonly UnifiedExactRenderTrackAuthorityV1[];
+	readonly index: UnifiedExactRenderTrackIndexV1;
+}> {
+	const candidates = readClosedDomainArray(value, 'unified render tracks', 0, MAXIMUM_TRACKS);
+	const byId = new Map<string, UnifiedExactRenderTrackAuthorityV1>();
+	const orders = new Set<number>();
+	const tracks = candidates.map((candidate, index) => {
+		const name = `unified render tracks[${String(index)}]`;
+		const track = readClosedDomainRecord(candidate, name, TRACK_FIELDS);
+		const normalized = Object.freeze({
+			trackId: stableId(field(track, 'trackId', name), `${name}.trackId`),
+			sequenceOrder: integer(field(track, 'sequenceOrder', name), `${name}.sequenceOrder`, 0),
+			mute: booleanValue(field(track, 'mute', name), `${name}.mute`),
+			solo: booleanValue(field(track, 'solo', name), `${name}.solo`),
+			hidden: booleanValue(field(track, 'hidden', name), `${name}.hidden`),
+		});
+		if (byId.has(normalized.trackId) || orders.has(normalized.sequenceOrder)) {
+			throw new RangeError('Unified render track identities and sequence orders must be unique.');
+		}
+		byId.set(normalized.trackId, normalized);
+		orders.add(normalized.sequenceOrder);
+		return normalized;
+	});
+	tracks.sort((left, right) => left.sequenceOrder - right.sequenceOrder
+		|| compareText(left.trackId, right.trackId));
+	return Object.freeze({ tracks: Object.freeze(tracks), index: Object.freeze({ byId }) });
+}
 
 export function normalizeUnifiedExactRenderSources(
 	value: unknown,
@@ -135,6 +210,7 @@ export function normalizeUnifiedExactRenderClipNode(
 	value: unknown,
 	context: UnifiedExactRenderTemporalContext,
 	sources: UnifiedExactRenderSourceIndex,
+	tracks: UnifiedExactRenderTrackIndexV1,
 ): UnifiedExactRenderClipNode {
 	const name = 'unified clip render node';
 	const clip = readClosedDomainRecord(value, name, CLIP_FIELDS);
@@ -156,22 +232,61 @@ export function normalizeUnifiedExactRenderClipNode(
 		throw new RangeError('Unified clip source-time mapping kind is unsupported.');
 	}
 	const clipId = stableId(field(clip, 'clipId', name), `${name}.clipId`);
+	const trackId = stableId(field(clip, 'trackId', name), `${name}.trackId`);
+	if (!tracks.byId.has(trackId)) throw new ReferenceError('Unified clip references an unknown video track.');
+	const pictureState = normalizePictureState(
+		field(clip, 'pictureState', name), sequenceFrameCount, clipId,
+	);
+	const sourceRate = rate(field(mapping, 'sourceRate', `${name}.sourceTimeMapping`), `${name}.sourceTimeMapping.sourceRate`);
+	if (source.timing.kind === 'cfr' && !sameRate(sourceRate, source.timing.rate)) {
+		throw new RangeError('Unified clip source rate disagrees with its exact CFR source authority.');
+	}
+	const retimeMap = normalizeVideoRetimeCurveV16(
+		field(mapping, 'retimeMap', `${name}.sourceTimeMapping`),
+		{ sequenceFrameCount, sourceInFrame, sourceFrameCount },
+	);
 	const intent = normalizeVideoRetimeExportIntentV6Wire(field(mapping, 'intent', `${name}.sourceTimeMapping`));
-	assertIntentContext(intent, context, clipId, source.sourceId, {
+	assertUnifiedExactRetimeAuthority(intent, context, {
+		clipId, sourceId: source.sourceId,
 		sequenceStartFrame, sequenceFrameCount, sourceInFrame, sourceFrameCount,
+		sourceRate, retimeMap, sourceTiming: source.timing,
 	});
 	return Object.freeze({
 		kind: 'clip' as const,
 		nodeId: stableId(field(clip, 'nodeId', name), `${name}.nodeId`),
-		clipId,
-		trackId: stableId(field(clip, 'trackId', name), `${name}.trackId`),
+		clipId, trackId,
 		sourceNodeId,
 		sequenceStartFrame,
 		sequenceFrameCount,
 		sourceInFrame,
 		sourceFrameCount,
-		sourceTimeMapping: Object.freeze({ kind: 'video-retime-export-intent-v6' as const, intent }),
+		pictureState,
+		sourceTimeMapping: Object.freeze({
+			kind: 'video-retime-export-intent-v6' as const, sourceRate, retimeMap, intent,
+		}),
 	});
+}
+
+function normalizePictureState(
+	value: unknown,
+	sequenceFrameCount: number,
+	clipId: string,
+): UnifiedExactRenderClipPictureStateV1 {
+	const name = `unified clip ${clipId} picture state`;
+	const state = readClosedDomainRecord(value, name, PICTURE_STATE_FIELDS);
+	const composition = normalizeVideoClipComposition(field(state, 'composition', name), `${name}.composition`);
+	const videoEffects = Object.freeze(normalizeVideoEffects(
+		field(state, 'videoEffects', name), `${name}.videoEffects`,
+	).map((effect: Readonly<Record<string, unknown>>) => Object.freeze({
+		id: String(effect.id), type: String(effect.type), enabled: effect.enabled === true,
+		params: Object.freeze({ ...(effect.params as Readonly<Record<string, number>>) }),
+	})));
+	const videoKeyframes = normalizeVideoKeyframeCurves(
+		field(state, 'videoKeyframes', name),
+		{ duration: { num: sequenceFrameCount, den: 1 }, composition, videoEffects },
+		`${name}.videoKeyframes`,
+	);
+	return Object.freeze({ composition, videoEffects, videoKeyframes });
 }
 
 export function normalizeUnifiedExactRenderTransitionNode(
@@ -200,7 +315,9 @@ export function normalizeUnifiedExactRenderTransitionNode(
 			|| edge.sequenceStartFrame !== clip.sequenceStartFrame
 			|| edge.sequenceFrameCount !== clip.sequenceFrameCount
 			|| edge.sourceInFrame !== clip.sourceInFrame
-			|| edge.sourceFrameCount !== clip.sourceFrameCount) {
+			|| edge.sourceFrameCount !== clip.sourceFrameCount
+			|| !sameRate(edge.sourceRate, clip.sourceTimeMapping.sourceRate)
+			|| JSON.stringify(edge.retimeMap) !== JSON.stringify(clip.sourceTimeMapping.retimeMap)) {
 			throw new ReferenceError(`Unified transition ${side} edge does not match its exact clip/source authority.`);
 		}
 	}
@@ -242,35 +359,6 @@ export function normalizeUnifiedExactTransitionOrder(
 
 export function unifiedExactClipUsesRetime(node: UnifiedExactRenderClipNode): boolean {
 	return node.sourceTimeMapping.intent.intersections.some((row) => row.mapping === 'curve');
-}
-
-function assertIntentContext(
-	intent: VideoRetimeExportIntentV6,
-	context: UnifiedExactRenderTemporalContext,
-	clipId: string,
-	sourceId: string,
-	range: Readonly<{
-		sequenceStartFrame: number; sequenceFrameCount: number;
-		sourceInFrame: number; sourceFrameCount: number;
-	}>,
-): void {
-	if (intent.sampleStart !== context.sampleStart || intent.sampleDuration !== context.sampleDuration
-		|| intent.sampleRate !== context.sampleRate || intent.sequenceBinding.id !== context.sequenceId
-		|| !sameRate(intent.sequenceBinding.rate, context.sequenceRate)
-		|| !sameRate(intent.outputRate, context.outputRate)
-		|| intent.outputFrameCount !== context.outputFrameCount) {
-		throw new RangeError('Unified clip exact intent disagrees with the plan time authority.');
-	}
-	if (intent.intersections.length < 1) throw new RangeError('A unified active clip requires exact mapping intersections.');
-	for (const row of intent.intersections) {
-		if (row.clipId !== clipId || row.sourceId !== sourceId
-			|| row.sequenceStartFrame !== range.sequenceStartFrame
-			|| row.outerFrameCount !== range.sequenceFrameCount
-			|| row.sourceInFrame !== range.sourceInFrame
-			|| row.sourceOutFrame !== range.sourceInFrame + range.sourceFrameCount) {
-			throw new RangeError('Unified clip exact intent row escapes its clip/source identity and ranges.');
-		}
-	}
 }
 
 function normalizeTiming(value: unknown, sourceSha256: string, name: string): UnifiedExactRenderSourceTiming {
@@ -340,6 +428,11 @@ function text(value: unknown, name: string): string {
 	if (typeof value !== 'string' || value.length < 1 || value.length > 4_096 || value.includes('\0')) {
 		throw new TypeError(`${name} must be bounded nonempty text.`);
 	}
+	return value;
+}
+
+function booleanValue(value: unknown, name: string): boolean {
+	if (typeof value !== 'boolean') throw new TypeError(`${name} must be boolean.`);
 	return value;
 }
 

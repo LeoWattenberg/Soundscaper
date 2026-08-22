@@ -79,6 +79,7 @@ function renderIntent(plan: UnifiedExactRenderPlanV12): Readonly<Record<string, 
 		codecs: plan.codecs,
 		timebase: plan.timebase,
 		output: plan.output,
+		tracks: plan.tracks,
 		sources: plan.sources,
 		nodes: plan.nodes.map((node) => node.kind === 'openfx'
 			? Object.freeze({ kind: node.kind, nodeId: node.nodeId, state: authoredState(node.state) })

@@ -126,6 +126,7 @@ export interface NativeMediaPlanSummaryV1 {
 	readonly audioCodec: string | null;
 	readonly audioEncoder: string | null;
 	readonly pixelFormat: string;
+	readonly quality: 'draft' | 'balanced' | 'high';
 	readonly width: number;
 	readonly height: number;
 	readonly backgroundColor: string;
@@ -141,6 +142,7 @@ export interface NativeMediaPlanSummaryV1 {
 	readonly compositionIntervalCount: number | null;
 	readonly videoEffectCount: number | null;
 	readonly activeClipCount: number | null;
+	readonly videoTrackCount: number | null;
 	readonly featureNodeCounts: NativeMediaPlanFeatureNodeCountsV1 | null;
 }
 
@@ -303,6 +305,7 @@ function summarizeGraphPlan(plan: NativeMediaGraphPlan): NativeMediaPlanSummaryV
 		audioCodec: plan.codecs.audio,
 		audioEncoder: plan.codecs.audioEncoder,
 		pixelFormat: plan.codecs.pixelFormat,
+		quality: plan.quality,
 		width: plan.canvas.width,
 		height: plan.canvas.height,
 		backgroundColor: plan.canvas.backgroundColor,
@@ -325,6 +328,7 @@ function summarizeGraphPlan(plan: NativeMediaGraphPlan): NativeMediaPlanSummaryV
 		compositionIntervalCount: plan.intervals.length,
 		videoEffectCount: nativeMediaGraphPlanVideoEffectCount(plan),
 		activeClipCount: null,
+		videoTrackCount: null,
 		featureNodeCounts: null,
 	});
 }
@@ -341,6 +345,7 @@ function summarizeV7(plan: VideoKeyframeExportPlanV7): NativeMediaPlanSummaryV1 
 		audioCodec: plan.codecs.audio,
 		audioEncoder: plan.codecs.audioEncoder,
 		pixelFormat: plan.codecs.pixelFormat,
+		quality: plan.quality,
 		width: plan.canvas.width,
 		height: plan.canvas.height,
 		backgroundColor: plan.canvas.backgroundColor,
@@ -373,6 +378,7 @@ function summarizeV7(plan: VideoKeyframeExportPlanV7): NativeMediaPlanSummaryV1 
 		compositionIntervalCount: null,
 		videoEffectCount: null,
 		activeClipCount: plan.activeClipIds.length,
+		videoTrackCount: null,
 		featureNodeCounts: null,
 	});
 }
@@ -401,6 +407,7 @@ function summarizeUnified(plan: UnifiedExactRenderPlan): NativeMediaPlanSummaryV
 		audioCodec: plan.codecs.audio,
 		audioEncoder: plan.codecs.audioEncoder,
 		pixelFormat: plan.codecs.pixelFormat,
+		quality: plan.output.quality,
 		width: plan.output.canvas.width,
 		height: plan.output.canvas.height,
 		backgroundColor: plan.output.canvas.backgroundColor,
@@ -429,6 +436,7 @@ function summarizeUnified(plan: UnifiedExactRenderPlan): NativeMediaPlanSummaryV
 		compositionIntervalCount: null,
 		videoEffectCount: counts.transitions + counts.visuals + counts.openFx,
 		activeClipCount: clips.length,
+		videoTrackCount: plan.tracks.length,
 		featureNodeCounts: counts,
 	});
 }
