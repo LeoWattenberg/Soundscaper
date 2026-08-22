@@ -23,6 +23,10 @@ export {
 	HELPER_JOB_KINDS,
 	HELPER_PLUGIN_FORMATS,
 	HELPER_PROBE_JOB_KINDS,
+	OFX_RGBA_FRAME_MAXIMUM_BYTES,
+	OFX_RGBA_FRAME_MAXIMUM_DIMENSION,
+	OFX_RGBA_FRAME_MAXIMUM_ROW_BYTES,
+	OFX_RGBA_FRAME_SET_MAXIMUM_BYTES,
 	helperJobGrantExceedsResourcePolicy,
 	helperJobGrantInputBytes,
 	helperJobGrantResourceUsage,
@@ -45,6 +49,7 @@ export type {
 	HelperProbeJobGrant,
 } from './helper-job-grant.ts';
 export * from './helper-data-plane.ts';
+export * from './helper-data-plane-output-reservation.ts';
 export {
 	HELPER_EXECUTABLE_ROLES,
 	HELPER_NATIVE_INPUT_ROLES,
@@ -69,8 +74,7 @@ export type {
 	HelperNativeJobResourceUsage,
 	HelperOfxInputFrameGrant,
 	HelperOfxHostJobGrant,
-	HelperOfxScanJobGrant,
-	HelperOfxScanJobResult,
+	HelperOfxScanJobGrant, HelperOfxScanJobResult, HelperOfxOutputFrameGrant,
 	HelperOutputFileGrant,
 	HelperScratchGrant,
 	HelperStreamInputGrant,
@@ -82,7 +86,6 @@ export {
 	MAXIMUM_HELPER_WIRE_MESSAGE_BYTES,
 } from './helper-wire-admission.ts';
 export type { HelperContractViolationCode } from './helper-wire-admission.ts';
-
 export const HELPER_CONTRACT_VERSION = 1;
 
 /** Fixed-length lowercase-hex job identifier minted by the main process. */

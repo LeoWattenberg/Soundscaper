@@ -1,0 +1,102 @@
+{
+	"schemaVersion": 1,
+	"hostVersion": "1.0.0",
+	"helperContractVersion": 1,
+	"license": "AGPL-3.0-only",
+	"sourceDateEpoch": 1786492800,
+	"openfx": {
+		"version": "1.5.1",
+		"tag": "OFX_Release_1.5.1",
+		"commit": "ab77951",
+		"commitSha": "ab779510b2655b4d11a7e01e5c521f9aa8c88976",
+		"tagObjectSha": "43d93ea99255cc61177b0632e421e899e802995e",
+		"signedTagApiUrl": "https://api.github.com/repos/AcademySoftwareFoundation/openfx/git/tags/43d93ea99255cc61177b0632e421e899e802995e",
+		"signedTagVerifiedAt": "2025-11-20T18:14:02Z",
+		"url": "https://codeload.github.com/AcademySoftwareFoundation/openfx/tar.gz/ab77951",
+		"byteLength": 9837777,
+		"sha256": "7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5",
+		"license": "BSD-3-Clause"
+	},
+	"sourceFiles": [
+		{ "path": "CMakeLists.txt", "byteLength": 2787, "sha256": "fe8b63008d8efe27bbd2865dc531b4ec257f89c195b8485f7dca7d37ae0026a1" },
+		{ "path": "CMakePresets.json", "byteLength": 1262, "sha256": "813684008642a1861901b49c6c1964b8aafefd504b3aedc70a969e9a94544ccc" },
+		{ "path": "THIRD_PARTY_NOTICES.md", "byteLength": 1044, "sha256": "e8a24b3e1983134a4798ad298b0a7de0114a437c1b156b5e1f810cb71096b687" },
+		{ "path": "build/recipe-driver.mjs", "byteLength": 27088, "sha256": "1545da121240c9fccf35c3ef805a178f418ee9ae7242803c31f9da524fdbeb00" },
+		{ "path": "build/targets.json", "byteLength": 1013, "sha256": "2bc079d2d76f5ae27b109501416b8108c8f83dcb808391228f2d31b3c621aba0" },
+		{ "path": "build/toolchains/linux-arm64.cmake", "byteLength": 453, "sha256": "f4b4c453e0a0edb7664db9b36fe529ee1c60566ac0a02412a217e5ec1d263163" },
+		{ "path": "build/toolchains/linux-x64.cmake", "byteLength": 452, "sha256": "e9a909e154778538d3d250afa903944db3dea7dfecbb246cb4469de5588d9701" },
+		{ "path": "build/toolchains/mac-arm64.cmake", "byteLength": 491, "sha256": "4b4cb6dd0768a1c36f7a0ef9b1258d839b115e1b4e37d25c6d059e882a4be6df" },
+		{ "path": "build/toolchains/win-arm64.cmake", "byteLength": 455, "sha256": "2dbeb9844e99431f96092047d9f391e19eaad42251f7a00ec4c9bb3ba5ec2197" },
+		{ "path": "build/toolchains/win-x64.cmake", "byteLength": 453, "sha256": "6c855769b6c354d441497b108f5344bf02db7e6b037ea9e59511cbb008367588" },
+		{ "path": "fixtures/conformance_plugin.cpp", "byteLength": 15914, "sha256": "e55bdb93a460b200c42720f49fcbff501bc8edb56780aeb645023d8c09d61838" },
+		{ "path": "src/dynamic_library.cpp", "byteLength": 2821, "sha256": "e46dc316e02d6906b12fc4986aa5cf49650a96e6e454d695838380d2f89dcb70" },
+		{ "path": "src/dynamic_library.hpp", "byteLength": 734, "sha256": "ab87ac4af918c331f8d9590a41ec6c7abdc9fa108ebb52298c21779b20f1d8f2" },
+		{ "path": "src/host_parameter_hydration.hpp", "byteLength": 1218, "sha256": "cf66aa099308c89f6499ab71703a5ba9a2fd1b377fede17548e07a48bdce0445" },
+		{ "path": "src/host_runtime.cpp", "byteLength": 45773, "sha256": "b4aa1cc5b1eed4e1d7a6aae21030cf3ae410154e964251c52dfb204fe77610a7" },
+		{ "path": "src/host_runtime.hpp", "byteLength": 2425, "sha256": "8a0fad1c8fd0726693e56b1374a86ef17d90c270de437f8e25abd5c6ca83266e" },
+		{ "path": "src/isolation_contract.hpp", "byteLength": 4728, "sha256": "addf7969560af7428639200d9bfa50edae087b9bc63d7a2e9321c41339cda2c7" },
+		{ "path": "src/ofx_runtime_host.cpp", "byteLength": 9380, "sha256": "3b4b5b6232cb547de8d4b73bd056fd860d476d6266afef6c0809ee62302776dc" },
+		{ "path": "src/ofx_scanner.cpp", "byteLength": 3048, "sha256": "7704541508c618ecc81af2e4d5993910e848778c326810220557f6ba0d3af134" },
+		{ "path": "src/openfx_abi.hpp", "byteLength": 13785, "sha256": "312f265e81d4c12568b817058562d2e3af13e23bf20963011eaba2bae8bb3b25" },
+		{ "path": "src/parameter_values.cpp", "byteLength": 17780, "sha256": "e4714edb6836b89af25cc5d68606af8a258a5a88260ca8898cdfbee7882ac34e" },
+		{ "path": "src/parameter_values.hpp", "byteLength": 2927, "sha256": "c81db719509497cfe503a8945f56321ba7c203b82ffb78e292cc5a613f0d4fb4" },
+		{ "path": "src/rgba_frame.hpp", "byteLength": 1245, "sha256": "bc632b3f8057516130452c120bcc3a2af64def5fc0e0d63e37230d86493a0c25" },
+		{ "path": "src/sha256.cpp", "byteLength": 4514, "sha256": "11c88df6f312113f0abe9d74a63c4ab97371462f202afb742e015655b0acfa54" },
+		{ "path": "src/sha256.hpp", "byteLength": 230, "sha256": "3b7cca5e9611925b7c40866ac5d2aeaf21a572aa0a27ed3e3a40fe7e15be31b0" },
+		{ "path": "src/v12_cancellation_channel.cpp", "byteLength": 2012, "sha256": "c79399ad24cf47a05f58aa3f15ea933ce5d560f559d9d1f1d75e0aba3b638fd8" },
+		{ "path": "src/v12_cancellation_channel.hpp", "byteLength": 993, "sha256": "10f444e75b7a0ba29a8b5ad0e12e2bfadf4aa9a0aeff2f3e71994b02b44dad9a" },
+		{ "path": "src/v12_host_invocation.cpp", "byteLength": 26414, "sha256": "ac85a481da4c6402aa8f9169d5bf4515aae52c4982a5c671f4a458c672449213" },
+		{ "path": "src/v12_host_invocation.hpp", "byteLength": 1538, "sha256": "eab3abf180c6a078d77731af44e00897ffd4273dcd6a0e815e0fe7f2978b7e8f" },
+		{ "path": "src/v12_output_file.cpp", "byteLength": 3078, "sha256": "cdd0fe8842ada84069e39f29377c01f92793d16776b68b52135fedd37329d7f1" },
+		{ "path": "src/v12_output_file.hpp", "byteLength": 405, "sha256": "3b1e87b90d1fadd62ea288b7ae0810373a14dc5e7f633ebfd417ceb85fdef08f" },
+		{ "path": "src/v12_retime_authority.cpp", "byteLength": 11548, "sha256": "bd71974518a556b6daac39916137597e65788fb60d8e030039d3168fd76d5e3c" },
+		{ "path": "src/v12_retime_authority.hpp", "byteLength": 369, "sha256": "cf256614e3825d5d2be4d095677525bcc566b1d62a9dbdd45bedff1f9d2bf564" }
+	],
+	"targets": {
+		"linux-x64": {
+			"runtime": "linux-x64",
+			"status": "pending-external",
+			"blockedBy": "No Linux x64 OpenFX licensing, isolation, conformance, payload, or review evidence exists.",
+			"toolchainIdentity": null,
+			"scannerPayload": null,
+			"runtimeHostPayload": null,
+			"productionReadiness": null
+		},
+		"linux-arm64": {
+			"runtime": "linux-arm64",
+			"status": "pending-external",
+			"blockedBy": "No Linux ARM64 OpenFX build host, isolation, conformance, payload, or review evidence exists.",
+			"toolchainIdentity": null,
+			"scannerPayload": null,
+			"runtimeHostPayload": null,
+			"productionReadiness": null
+		},
+		"mac-arm64": {
+			"runtime": "darwin-arm64",
+			"status": "pending-external",
+			"blockedBy": "No macOS ARM64 OpenFX signing, notarization, isolation, conformance, payload, or hardware evidence exists.",
+			"toolchainIdentity": null,
+			"scannerPayload": null,
+			"runtimeHostPayload": null,
+			"productionReadiness": null
+		},
+		"win-x64": {
+			"runtime": "win32-x64",
+			"status": "pending-external",
+			"blockedBy": "No Windows x64 OpenFX signing, isolation, conformance, payload, or hardware evidence exists.",
+			"toolchainIdentity": null,
+			"scannerPayload": null,
+			"runtimeHostPayload": null,
+			"productionReadiness": null
+		},
+		"win-arm64": {
+			"runtime": "win32-arm64",
+			"status": "pending-external",
+			"blockedBy": "No Windows Arm64EC OpenFX build, signing, isolation, conformance, payload, or hardware evidence exists.",
+			"toolchainIdentity": null,
+			"scannerPayload": null,
+			"runtimeHostPayload": null,
+			"productionReadiness": null
+		}
+	}
+}

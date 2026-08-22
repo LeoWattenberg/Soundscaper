@@ -4,6 +4,9 @@
 
 import type { HelperDataPlaneBinding } from './helper-data-plane.ts';
 import type {
+	HelperDataPlaneOutputReservation,
+} from './helper-data-plane-output-reservation.ts';
+import type {
 	AnyHelperJobGrant,
 	HelperJobKind,
 } from './helper-job-grant.ts';
@@ -72,7 +75,7 @@ export function admitHelperDataPlaneTransfers(
 function nativeBindings(
 	kind: HelperJobKind,
 	grant: AnyHelperJobGrant,
-): readonly HelperDataPlaneBinding[] {
+): readonly (HelperDataPlaneBinding | HelperDataPlaneOutputReservation)[] {
 	if (kind === 'media-decode') {
 		const value = grant as HelperMediaDecodeJobGrant;
 		return [value.plan, ...streamBindings(value.sources), value.output];
@@ -88,7 +91,7 @@ function nativeBindings(
 	if (kind === 'ofx-scan') return [(grant as HelperOfxScanJobGrant).descriptor];
 	if (kind === 'ofx-host') {
 		const value = grant as HelperOfxHostJobGrant;
-		return [value.plan, ...value.inputs.map(({ frame }) => frame), value.output];
+		return [value.plan, ...value.inputs.map(({ frame }) => frame), value.output.frame];
 	}
 	return [];
 }

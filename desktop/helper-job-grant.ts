@@ -25,6 +25,10 @@ export {
 	HELPER_EXECUTABLE_ROLES,
 	HELPER_NATIVE_INPUT_ROLES,
 	HELPER_NATIVE_JOB_KINDS,
+	OFX_RGBA_FRAME_MAXIMUM_BYTES,
+	OFX_RGBA_FRAME_MAXIMUM_DIMENSION,
+	OFX_RGBA_FRAME_MAXIMUM_ROW_BYTES,
+	OFX_RGBA_FRAME_SET_MAXIMUM_BYTES,
 } from './helper-native-job-contract.ts';
 export type {
 	HelperExecutableGrant,
@@ -45,6 +49,7 @@ export type {
 	HelperNativeJobResourceUsage,
 	HelperOfxInputFrameGrant,
 	HelperOfxHostJobGrant,
+	HelperOfxOutputFrameGrant,
 	HelperOfxScanJobGrant,
 	HelperOfxScanJobResult,
 	HelperOutputFileGrant,

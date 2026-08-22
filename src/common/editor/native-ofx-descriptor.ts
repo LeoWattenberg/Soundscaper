@@ -78,11 +78,10 @@ export const OFX_HOST_SUITES: readonly string[] = Object.freeze([
 	'OfxMessageSuite',
 	'OfxProgressSuite',
 	'OfxTimeLineSuite',
+	'OfxDialogSuite',
 	'OfxInteractSuite',
 	'OfxDrawSuite',
 	'OfxParametricParameterSuite',
-	'OfxImageEffectOpenGLRenderSuite',
-	'OfxImageEffectPlaneSuite',
 ]);
 
 /** Suites a conforming plug-in may always assume are present. */
