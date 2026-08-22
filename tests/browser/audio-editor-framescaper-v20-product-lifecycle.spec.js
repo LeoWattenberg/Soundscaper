@@ -36,9 +36,15 @@ test.describe('selected Framescaper V20 product lifecycle', () => {
 		await openKeyframeDialog(page, editor);
 		const dialog = page.getByRole('dialog', { name: 'Video keyframes', exact: true });
 		await expect(dialog).toBeVisible();
-		await dialog.locator('[data-video-keyframe-field="target"]').selectOption({ label: 'Opacity' });
-		await dialog.locator('[data-video-keyframe-field="start-value"]').fill('1');
-		await dialog.locator('[data-video-keyframe-field="end-value"]').fill('0.5');
+		const target = dialog.locator('[data-video-keyframe-field="target"]');
+		const [opacityTarget] = await target.selectOption({ label: 'Opacity' });
+		await expect(target).toHaveValue(opacityTarget);
+		const startValue = dialog.locator('[data-video-keyframe-field="start-value"]');
+		const endValue = dialog.locator('[data-video-keyframe-field="end-value"]');
+		await startValue.fill('1');
+		await endValue.fill('0.5');
+		await expect(startValue).toHaveValue('1');
+		await expect(endValue).toHaveValue('0.5');
 		await dialog.getByRole('button', { name: 'Add curve', exact: true }).click();
 		await expect(dialog.getByRole('status')).toContainText('Video keyframes applied.');
 		await expect.poll(() => storedKeyframeState(page, projectId)).toMatchObject({
@@ -66,14 +72,21 @@ test.describe('selected Framescaper V20 product lifecycle', () => {
 			endValue: 0.5,
 		});
 
-		await page.goto('/embed/en/');
-		const soundscaper = page.locator('[data-audio-editor]');
-		await expect(soundscaper).toHaveAttribute('data-audio-editor-bound', 'true');
-		await expect(soundscaper).toHaveAttribute('data-product', 'soundscaper');
-		const audioClips = await openNestedCommandMenu(page, soundscaper, 'Edit', ['Audio clips']);
-		await expect(audioClips
-			.getByRole('menuitem', { name: /^Video keyframes(?:\s|$)/u })).toHaveCount(0);
-		expect(clientErrors).toEqual([]);
+		const soundscaperPage = await page.context().newPage();
+		const soundscaperErrors = collectClientErrors(soundscaperPage);
+		try {
+			const soundscaper = await bootEditor(soundscaperPage, '/embed/en/');
+			await expect(soundscaper).toHaveAttribute('data-product', 'soundscaper');
+			const audioClips = await openNestedCommandMenu(
+				soundscaperPage, soundscaper, 'Edit', ['Audio clips'],
+			);
+			await expect(audioClips
+				.getByRole('menuitem', { name: /^Video keyframes(?:\s|$)/u })).toHaveCount(0);
+			expect(clientErrors).toEqual([]);
+			expect(soundscaperErrors).toEqual([]);
+		} finally {
+			await soundscaperPage.close();
+		}
 	});
 });
 

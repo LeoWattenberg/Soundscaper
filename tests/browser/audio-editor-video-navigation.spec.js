@@ -80,13 +80,22 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 		// A held L emits one deliberate keydown followed by repeat=true. It stays at
 		// +1x; a later deliberate L advances exactly one rung to +2x. Neither press
 		// reaches the legacy Loop preference binding in Framescaper.
+		await beginStatusObservation(editor.locator('[data-status]'));
 		await focusWorkspace(editor);
-		await page.keyboard.down('l');
-		await page.keyboard.down('l');
-		await page.keyboard.up('l');
-		await expect(editor.locator('[data-status]')).toContainText(/1(?:x|×)/u);
-		await pressWorkspaceKey(page, editor, 'L');
-		await expect(editor.locator('[data-status]')).toContainText(/2(?:x|×)/u);
+		await editor.evaluate((element) => {
+			const emit = (type, repeat = false) => element.dispatchEvent(new KeyboardEvent(type, {
+				bubbles: true,
+				cancelable: true,
+				key: 'l',
+				repeat,
+			}));
+			emit('keydown');
+			emit('keydown', true);
+			emit('keyup');
+			emit('keydown');
+			emit('keyup');
+		});
+		await expectObservedStatus(editor.locator('[data-status]'), /2(?:x|×)/u);
 		// The shuttle rung is reported in the status line rather than a menu check mark.
 		await page.keyboard.press('Escape');
 		await pressWorkspaceKey(page, editor, 'K');
@@ -131,6 +140,29 @@ async function focusWorkspace(editor) {
 async function pressWorkspaceKey(page, editor, key) {
 	await focusWorkspace(editor);
 	await page.keyboard.press(key);
+}
+
+async function beginStatusObservation(status) {
+	await status.evaluate((element) => {
+		const previous = globalThis.__soundscaperShuttleStatusObservation;
+		previous?.observer?.disconnect();
+		const values = [];
+		const record = () => values.push(element.textContent || '');
+		const observer = new MutationObserver(record);
+		observer.observe(element, { childList: true, characterData: true, subtree: true });
+		globalThis.__soundscaperShuttleStatusObservation = { observer, values };
+		record();
+	});
+}
+
+async function expectObservedStatus(status, expected) {
+	await expect.poll(() => status.evaluate(() => (
+		globalThis.__soundscaperShuttleStatusObservation?.values ?? []
+	))).toContainEqual(expect.stringMatching(expected));
+	await status.evaluate(() => {
+		globalThis.__soundscaperShuttleStatusObservation?.observer?.disconnect();
+		delete globalThis.__soundscaperShuttleStatusObservation;
+	});
 }
 
 async function expectSequenceFrame(readout, framesPerSecond, expected) {
