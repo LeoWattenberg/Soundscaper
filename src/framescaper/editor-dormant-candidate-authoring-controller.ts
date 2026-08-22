@@ -60,7 +60,7 @@ export interface FramescaperDormantAuthoringPort {
 	open(
 		surface: FramescaperCandidateAuthoringSurface,
 		project: CandidateProject,
-	): Awaitable<unknown | null>;
+	): Awaitable<unknown | null | undefined>;
 }
 
 export interface FramescaperDormantCandidateAuthoringController {
@@ -112,7 +112,7 @@ export function createFramescaperDormantCandidateAuthoringController(options: Re
 	const actions = Object.fromEntries(surfaces.map((surface) => [surface, () => serialized(async () => {
 		await synchronize();
 		const command = await options.port.open(surface, structuredClone(history.present));
-		if (command === null) return;
+		if (command === null || command === undefined) return;
 		assertSurfaceCommand(surface, command);
 		await persist(executeHistory(
 			options.generation, options.profile, history, command, options.now?.(),

@@ -117,6 +117,7 @@ test('runtime capability is rechecked before native admission and a stale or for
 		frameRate: { num: 25, den: 1 }, files: [file('shot_001.png', 'one')],
 	});
 	const changedOptions = changed.options();
+	if (typeof changedOptions.imageSequence === 'function') throw new Error('Expected direct image-sequence ports.');
 	let checks = 0;
 	const changedBinding = await bindFramescaperNativeCandidateProjectActions({
 		...changedOptions,

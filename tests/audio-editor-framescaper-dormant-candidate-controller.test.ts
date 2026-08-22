@@ -40,7 +40,9 @@ test('the dormant V26 composition binds candidate menus and pathless native acti
 				proxyDetach: () => null, proxyRelink: () => null, ofFxAdd: () => null,
 			},
 			imageSequence: imageSequencePorts(),
-			nativeServices: { enqueue: async () => ({}) },
+			nativeServices: {
+				enqueue: async () => ({}), scanOpenFxPlugin: async () => null,
+			},
 			proxy: { enqueueProxy: () => 'proxy-job', reattestAttachment: () => true,
 				cleanupBody: () => undefined },
 		},

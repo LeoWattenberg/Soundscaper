@@ -72,7 +72,10 @@ test('the dormant V26 adapter binds all seven actions through queue, history, re
 			ofFxAdd: () => effect(),
 		},
 		imageSequence: imageSequencePorts(),
-		nativeServices: { enqueue: async (request) => { queued.push(request); return {}; } },
+		nativeServices: {
+			enqueue: async (request) => { queued.push(request); return {}; },
+			scanOpenFxPlugin: async () => openFxPlugin(),
+		},
 		proxy: {
 			enqueueProxy: (job) => { proxies.push(job); return 'proxy-job-1'; },
 			reattestAttachment: () => { reattested += 1; return true; },
@@ -121,7 +124,7 @@ test('V25 advertises no OpenFX action and selected V20 cannot receive a candidat
 		nativeServices: { enqueue: async (request) => {
 			queuedVersions.push(request.planVersion);
 			return {};
-		} },
+		}, scanOpenFxPlugin: async () => openFxPlugin() },
 	});
 	assert.deepEqual(binding.runtime.surfaces, [
 		'image-sequence-import', 'render-queue-enqueue', 'proxy-generate',
@@ -231,6 +234,30 @@ test('direct candidate queue, proxy, and OpenFX calls remain fail-closed behind 
 	assert.equal(intents, 0);
 });
 
+test('V26 Add OFX binds authored state to the exact pathless enabled scan result', async () => {
+	const store = createFramescaperProjectStoreV26(PROFILE, { indexedDB: null });
+	const project = createFramescaperProjectV26(PROFILE, {
+		...framescaperV20Options(), id: 'candidate-v26-ofx-fingerprint',
+		videoTransitionsByTrackId: { 'video-track': [] }, ofxEffects: [],
+	});
+	await store.projectRepository.createIfAbsent!(project);
+	let scans = 0;
+	const options = baseOptions(Object.freeze({ candidate: 'ofx-fingerprint' }), store, project);
+	const binding = await bindFramescaperNativeCandidateProjectActions({
+		...options, profile: PROFILE,
+		intents: { ...options.intents, ofFxAdd: () => effect() },
+		nativeServices: {
+			enqueue: async () => ({}),
+			scanOpenFxPlugin: async () => { scans += 1; return openFxPlugin({ binarySha256: SHA_B }); },
+		},
+	});
+	await assert.rejects(() => binding.runtime.run('ofx-add'), /fingerprint|selected binary/iu);
+	assert.equal(scans, 1);
+	const saved = await store.projectRepository.load(String(project.id)) as FramescaperProjectV26;
+	assert.equal(saved.revision, project.revision);
+	assert.deepEqual(saved.ofxEffects, []);
+});
+
 test('candidate render queue authoring refuses an earlier-generation plan before enqueue', async () => {
 	const store = createFramescaperProjectStoreV26(PROFILE, { indexedDB: null });
 	const project = createFramescaperProjectV26(PROFILE, {
@@ -249,7 +276,10 @@ test('candidate render queue authoring refuses an earlier-generation plan before
 	const binding = await bindFramescaperNativeCandidateProjectActions({
 		...options, profile: PROFILE,
 		intents: { ...options.intents, ofFxAdd: () => effect() },
-		nativeServices: { enqueue: async () => { enqueued += 1; return {}; } },
+		nativeServices: {
+			enqueue: async () => { enqueued += 1; return {}; },
+			scanOpenFxPlugin: async () => openFxPlugin(),
+		},
 	});
 	await assert.rejects(
 		() => binding.runtime.run('render-queue-enqueue'),
@@ -277,7 +307,9 @@ function baseOptions(
 			...overrides,
 		},
 		imageSequence: imageSequencePorts(),
-		nativeServices: { enqueue: async () => ({}) },
+		nativeServices: {
+			enqueue: async () => ({}), scanOpenFxPlugin: async () => openFxPlugin(),
+		},
 		proxy: {
 			enqueueProxy: () => 'proxy-job', reattestAttachment: () => true,
 			cleanupBody: () => undefined,
@@ -456,5 +488,17 @@ function effect() {
 			renderPlanFingerprintSha256: SHA_C, nativeEffectFingerprintSha256: SHA_D,
 		},
 		frozenFallback: null,
+	};
+}
+
+function openFxPlugin(overrides: Readonly<Record<string, unknown>> = {}) {
+	return {
+		pluginHandle: 'ef'.repeat(20), pluginId: 'net.example.Blur', vendor: 'Example',
+		version: { major: 1, minor: 0 }, binarySha256: SHA_A,
+		supportedContexts: ['filter'] as const,
+		parameters: [{ name: 'radius', type: 'double' as const, animates: true }],
+		components: ['RGBA'] as const, pixelDepths: ['byte'] as const,
+		threading: 'fully-safe' as const, state: 'enabled' as const, quarantined: false,
+		...overrides,
 	};
 }

@@ -46,6 +46,10 @@ import { FRAMESCAPER_V26_PROJECT_CANDIDATE_PROFILE } from './editor-project-runt
 import { framescaperProjectStoreAuthorityV26 } from './editor-project-store-v26.ts';
 import type { FramescaperProjectV26 } from './editor-project-v26.ts';
 import {
+	attestFramescaperOpenFxEffectV26,
+	type FramescaperOpenFxPluginProjectionV1,
+} from './editor-native-openfx-authoring-v26.ts';
+import {
 	FramescaperVideoProxyLifecycleV25,
 	type FramescaperProxyProjectV25,
 	type FramescaperProxyQueueJobV25,
@@ -60,6 +64,9 @@ import {
 
 type Awaitable<Value> = Value | PromiseLike<Value>;
 type CandidateProject = FramescaperProjectV25 | FramescaperProjectV26;
+export type FramescaperImageSequenceImportPortFactoryV25 = (
+	project: CandidateProject,
+) => Awaitable<FramescaperImageSequenceImportPortsV25>;
 type CandidateHistory = FramescaperProjectHistoryV25 | FramescaperProjectHistoryV26;
 
 const V25_SURFACES = Object.freeze([
@@ -89,7 +96,10 @@ export interface FramescaperNativeCandidateActionIntents {
 		readonly sourceId: string;
 		readonly attachment: unknown;
 	}> | null>;
-	ofFxAdd?(project: FramescaperProjectV26): Awaitable<unknown | null>;
+	ofFxAdd?(
+		project: FramescaperProjectV26,
+		plugin: FramescaperOpenFxPluginProjectionV1,
+	): Awaitable<unknown | null>;
 }
 
 export interface FramescaperNativeCandidateActionOptions {
@@ -100,8 +110,11 @@ export interface FramescaperNativeCandidateActionOptions {
 	readonly intents: FramescaperNativeCandidateActionIntents;
 	readonly nativeServices: Readonly<{
 		enqueue(request: FramescaperNativeQueueEnqueueRendererRequest): Promise<unknown>;
+		scanOpenFxPlugin?(): Promise<FramescaperOpenFxPluginProjectionV1 | null>;
 	}>;
-	readonly imageSequence: FramescaperImageSequenceImportPortsV25;
+	readonly imageSequence:
+		| FramescaperImageSequenceImportPortsV25
+		| FramescaperImageSequenceImportPortFactoryV25;
 	readonly proxy: Readonly<{
 		enqueueProxy(job: FramescaperProxyQueueJobV25): Awaitable<string>;
 		reattestAttachment(
@@ -202,11 +215,12 @@ class CandidateActionController {
 
 	async #imageSequenceImport(): Promise<void> {
 		const project = this.#snapshot();
+		const ports = await this.#imageSequencePorts(project);
 		await composeFramescaperImageSequenceImportV25({
 			profile: this.#profile,
 			project,
 			select: () => this.#options.intents.imageSequenceImport(project),
-			ports: this.#options.imageSequence,
+			ports,
 			commit: async (sourceValue, projectBinClip) => {
 				const source = createFramescaperImageSequenceSourceAdmissionCommandV25(sourceValue);
 				if (ownDataField(projectBinClip, 'sourceId', 'image-sequence project-bin clip')
@@ -293,20 +307,22 @@ class CandidateActionController {
 	}
 
 	async #ofxAdd(): Promise<void> {
-		if (this.#generation !== 26 || typeof this.#options.intents.ofFxAdd !== 'function') {
+		if (this.#generation !== 26 || typeof this.#options.intents.ofFxAdd !== 'function'
+			|| typeof this.#options.nativeServices.scanOpenFxPlugin !== 'function') {
 			throw new Error('OpenFX authoring requires the dormant V26 candidate.');
 		}
 		await this.#requireNativeCapability(NATIVE_MEDIA_CAPABILITY_IDS.ofxHost, 'OpenFX authoring');
+		const plugin = await this.#options.nativeServices.scanOpenFxPlugin();
+		if (plugin === null) return;
 		const effect = await this.#options.intents.ofFxAdd(
 			this.#snapshot() as FramescaperProjectV26,
+			plugin,
 		);
 		if (effect === null) return;
-		const instanceId = stableId(
-			(effect as Readonly<Record<string, unknown>> | null)?.instanceId,
-			'OpenFX instance ID',
-		);
+		const attested = attestFramescaperOpenFxEffectV26(plugin, effect);
+		const instanceId = stableId(attested.instanceId, 'OpenFX instance ID');
 		await this.#commitCommand({
-			type: 'openfx-effect/set', instanceId, expectedEffect: null, effect,
+			type: 'openfx-effect/set', instanceId, expectedEffect: null, effect: attested,
 		});
 	}
 
@@ -341,15 +357,35 @@ class CandidateActionController {
 	}
 
 	#serialized(operation: () => Promise<void>): Promise<void> {
-		const result = this.#tail.then(operation, operation);
+		const current = async () => { await this.#refreshHistory(); await operation(); };
+		const result = this.#tail.then(current, current);
 		this.#tail = result.then(() => undefined, () => undefined);
 		return result;
 	}
 
+	async #refreshHistory(): Promise<void> {
+		const latest = await this.#repository.load(this.#options.projectId);
+		if (latest === null || Number(latest.schemaVersion) !== this.#generation) {
+			throw new Error(`The dormant V${String(this.#generation)} action project is unavailable.`);
+		}
+		if (serializeScapeProjectDocument(latest) === serializeScapeProjectDocument(this.#present())) return;
+		this.#history = this.#generation === 25
+			? createFramescaperProjectHistoryV25(this.#profile, latest)
+			: createFramescaperProjectHistoryV26(this.#profile, latest);
+	}
+
 	async #nativeCapabilities() {
-		const snapshot = structuredClone(await this.#options.imageSequence.capabilities());
+		const ports = await this.#imageSequencePorts(this.#snapshot());
+		const snapshot = structuredClone(await ports.capabilities());
 		assertNativeMediaCapabilitySnapshotV1(snapshot);
 		return snapshot;
+	}
+
+	async #imageSequencePorts(project: CandidateProject) {
+		const ports = typeof this.#options.imageSequence === 'function'
+			? await this.#options.imageSequence(structuredClone(project)) : this.#options.imageSequence;
+		assertImageSequencePorts(ports);
+		return ports;
 	}
 
 	async #requireNativeCapability(
@@ -426,20 +462,28 @@ function assertPorts(options: FramescaperNativeCandidateActionOptions, generatio
 		...(generation === 26 ? ['ofFxAdd'] as const : []),
 	] as const;
 	exactMethodRecord(options.intents, intentMethods, 'candidate native action intents');
-	if (typeof options.nativeServices?.enqueue !== 'function') {
+	if (typeof options.nativeServices?.enqueue !== 'function'
+		|| (generation === 26 && typeof options.nativeServices.scanOpenFxPlugin !== 'function')) {
 		throw new TypeError('Candidate native actions require the native queue lifecycle.');
 	}
+	if (typeof options.imageSequence !== 'function') assertImageSequencePorts(options.imageSequence);
+	for (const method of ['enqueueProxy', 'reattestAttachment', 'cleanupBody'] as const) {
+		if (typeof options.proxy?.[method] !== 'function') {
+			throw new TypeError(`Candidate native actions require proxy port ${method}.`);
+		}
+	}
+}
+
+function assertImageSequencePorts(
+	value: unknown,
+): asserts value is FramescaperImageSequenceImportPortsV25 {
 	for (const method of [
 		'capabilities', 'clearedPolicyRowIds', 'createSourcePackWriter',
 		'publishInventory', 'cleanupInventory', 'admit',
 	] as const) {
-		if (typeof options.imageSequence?.[method] !== 'function') {
+		if (!value || typeof value !== 'object'
+			|| typeof (value as Partial<FramescaperImageSequenceImportPortsV25>)[method] !== 'function') {
 			throw new TypeError(`Candidate native actions require image-sequence port ${method}.`);
-		}
-	}
-	for (const method of ['enqueueProxy', 'reattestAttachment', 'cleanupBody'] as const) {
-		if (typeof options.proxy?.[method] !== 'function') {
-			throw new TypeError(`Candidate native actions require proxy port ${method}.`);
 		}
 	}
 }
