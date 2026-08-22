@@ -3,6 +3,7 @@
 import { sequenceFrameBoundarySample } from '../common/editor/sequence-frame-navigation.ts';
 import { fingerprintNativeMediaPlan } from '../common/editor/native-media-plan-canonical-form.ts';
 import {
+	classifyVideoFreezeFallbackV1,
 	computeVideoFreezeFreshnessV1,
 	normalizeVideoFreezeFallbackV1,
 	type VideoFreezeFallbackV1,
@@ -46,14 +47,9 @@ export function createFramescaperUnifiedVisualRenderNodes(
 	const project = foundation.project;
 	const nodes: UnifiedExactRenderVisualNode[] = [];
 	const represented = new Set(foundation.representedIdentities);
-	const activeSourceIds = new Set<string>();
 	for (const placement of foundation.activeVisualPlacements) {
 		const clip = placement.clip;
 		const sourceId = String(clip.sourceId);
-		if (activeSourceIds.has(sourceId)) {
-			throw new RangeError(`Visual source ${sourceId} has multiple active placements but V10 owns one model node.`);
-		}
-		activeSourceIds.add(sourceId);
 		const source = foundation.sourceById.get(sourceId);
 		if (!source || source.kind !== clip.kind) {
 			throw new ReferenceError(`Visual clip ${String(clip.id)} has no matching source ${sourceId}.`);
@@ -70,13 +66,16 @@ export function createFramescaperUnifiedVisualRenderNodes(
 		const modelKind = authoredState.source.kind === 'still'
 			? 'still' as const
 			: generatorKind(authoredState.source.generator);
+		const modelId = String(clip.id);
 		const node = visualNode(
-			modelKind, sourceId, authoredState, authority.visualFreshnessByModelId,
-			foundation.projectIdentities,
+			modelKind, modelId, authoredState, authority.visualFreshnessByModelId,
+			foundation.projectIdentities, null,
+			Object.freeze({ trackId: placement.trackId }),
 		);
 		nodes.push(node);
 		represented.add(node.nodeId);
 		represented.add(node.modelId);
+		represented.add(sourceId);
 		represented.add(String(clip.id));
 	}
 	for (const adjustment of records(array(project, 'videoAdjustmentLayers'), 'videoAdjustmentLayers')
@@ -109,22 +108,18 @@ function pushFreeze(
 	foundation: FramescaperUnifiedRenderFoundation,
 	authority: FramescaperUnifiedExactVisualRenderAuthority,
 ): void {
-	const modelId = fallback.renderedSourceId;
-	const source = foundation.sourceById.get(modelId);
-	if (!source || !foundation.sourceNodeIdById.has(modelId)
+	const renderedSourceId = fallback.renderedSourceId;
+	const modelId = `video-freeze:${renderedSourceId}`;
+	const source = foundation.sourceById.get(renderedSourceId);
+	if (!source || !foundation.sourceNodeIdById.has(renderedSourceId)
 		|| source.contentSha256 !== fallback.renderedAssetSha256) {
 		throw new ReferenceError('V24 freeze fallback does not bind an exact rendered external source.');
 	}
 	const authoredState = Object.freeze({
 		schemaVersion: 1 as const,
 		kind: 'video-freeze' as const,
-		renderedSourceId: modelId,
+		renderedSourceId,
 	});
-	const freshness = readFreshness(authority.visualFreshnessByModelId, modelId);
-	if (fingerprintNativeMediaPlan(authoredState).sha256 !== fallback.authoredStateSha256
-		|| FRESHNESS_KEYS.some((key) => freshness[key] !== fallback[key])) {
-		throw new RangeError('V24 freeze fallback is stale or does not bind its exact authored state.');
-	}
 	const node = visualNode(
 		'video-freeze', modelId, authoredState, authority.visualFreshnessByModelId,
 		foundation.projectIdentities, fallback,
@@ -159,32 +154,45 @@ function visualNode(
 	freshnessByModelId: ReadonlyMap<string, VideoFreezeFreshnessInputV1>,
 	projectIdentities: ReadonlySet<string>,
 	frozenFallback: VideoFreezeFallbackV1 | null = null,
+	placement: UnifiedExactRenderVisualNode['placement'] = null,
 ): UnifiedExactRenderVisualNode {
-	const freshness = readFreshness(freshnessByModelId, modelId);
-	if (fingerprintNativeMediaPlan(authoredState).sha256 !== freshness.authoredStateSha256) {
+	const rawFreshness = rawFreshnessForModel(freshnessByModelId, modelId);
+	let freshness: VideoFreezeFreshnessInputV1 | null = null;
+	try {
+		const normalized = computeVideoFreezeFreshnessV1(rawFreshness);
+		freshness = Object.freeze({
+			authoredStateSha256: normalized.authoredStateSha256,
+			inputIdentitiesSha256: normalized.inputIdentitiesSha256,
+			renderPlanFingerprintSha256: normalized.renderPlanFingerprintSha256,
+			nativeEffectFingerprintSha256: normalized.nativeEffectFingerprintSha256,
+		});
+		if (fingerprintNativeMediaPlan(authoredState).sha256 !== freshness.authoredStateSha256) {
+			freshness = null;
+		}
+	} catch {
+		freshness = null;
+	}
+	if (frozenFallback === null && freshness === null) {
 		throw new RangeError(`Visual model ${modelId} freshness does not bind its exact authored state.`);
 	}
+	const fallbackDisposition = frozenFallback === null
+		? null : classifyVideoFreezeFallbackV1(frozenFallback, freshness);
 	return Object.freeze({
 		kind: 'visual' as const,
 		nodeId: generatedNodeId('visual', modelId, projectIdentities),
-		modelId, modelKind, authoredState, freshness, frozenFallback,
+		modelId, modelKind, authoredState, placement, freshness,
+		authoredFallback: frozenFallback,
+		fallbackDisposition,
+		frozenFallback: fallbackDisposition?.mode === 'frozen' ? frozenFallback : null,
 	});
 }
 
-function readFreshness(
+function rawFreshnessForModel(
 	value: ReadonlyMap<string, VideoFreezeFreshnessInputV1>,
 	modelId: string,
-): VideoFreezeFreshnessInputV1 {
+): unknown {
 	if (!(value instanceof Map)) throw new TypeError('V24 visual freshness authority must be an actual Map.');
-	const raw = Map.prototype.get.call(value, modelId) as unknown;
-	if (raw === undefined) throw new ReferenceError(`Visual model ${modelId} has no exact freshness authority.`);
-	const normalized = computeVideoFreezeFreshnessV1(raw);
-	return Object.freeze({
-		authoredStateSha256: normalized.authoredStateSha256,
-		inputIdentitiesSha256: normalized.inputIdentitiesSha256,
-		renderPlanFingerprintSha256: normalized.renderPlanFingerprintSha256,
-		nativeEffectFingerprintSha256: normalized.nativeEffectFingerprintSha256,
-	});
+	return Map.prototype.get.call(value, modelId) as unknown;
 }
 
 function assertExactFreshnessMap(
@@ -193,7 +201,7 @@ function assertExactFreshnessMap(
 ): void {
 	if (!(value instanceof Map)) throw new TypeError('V24 visual freshness authority must be an actual Map.');
 	const entries = [...Map.prototype.entries.call(value) as MapIterator<[unknown, unknown]>];
-	if (entries.length !== required.size
+	if (entries.length > required.size
 		|| entries.some(([key]) => typeof key !== 'string' || !required.has(key))) {
 		throw new RangeError('V24 visual freshness authority must contain exactly the rendered model identities.');
 	}
@@ -255,11 +263,6 @@ function compareIds(left: Record<string, unknown>, right: Record<string, unknown
 	const b = id(right, 'visual model');
 	return compareText(a, b);
 }
-
-const FRESHNESS_KEYS = Object.freeze([
-	'authoredStateSha256', 'inputIdentitiesSha256', 'renderPlanFingerprintSha256',
-	'nativeEffectFingerprintSha256',
-] as const);
 
 function compareText(left: string, right: string): number {
 	return left < right ? -1 : left > right ? 1 : 0;

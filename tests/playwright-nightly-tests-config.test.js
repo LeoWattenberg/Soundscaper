@@ -112,11 +112,48 @@ test('bundled metrics config isolates registered collectors from the functional 
 		assert.deepEqual(config.projects[0].use.launchOptions?.args, ['--enable-gpu']);
 		assert.equal(config.outputDir, resolve(runRoot, 'metrics/test-results'));
 		assert.ok(config.testMatch.includes('audio-editor-video-preview-benchmark.spec.js'));
+		assert.ok(config.testMatch.includes('audio-editor-longform-editorial-benchmark.spec.js'));
+		assert.ok(config.testMatch.includes('audio-editor-m4-production-parity.spec.js'));
+		assert.ok(config.testMatch.includes('audio-editor-m4b2-keyframe-parity.spec.js'));
 		assert.deepEqual(config.reporter, [
 			['list'],
 			['html', { outputFolder: resolve(runRoot, 'metrics/playwright-report'), open: 'never' }],
 			['json', { outputFile: resolve(runRoot, 'metrics/results.json') }],
 			['junit', { outputFile: resolve(runRoot, 'metrics/junit.xml') }],
+		]);
+	} finally {
+		for (const [key, value] of Object.entries(originalEnvironment)) {
+			if (value === undefined) delete process.env[key];
+			else process.env[key] = value;
+		}
+	}
+});
+
+test('packaged metrics run each formal workload in its owning product', async () => {
+	const payloadRoot = resolve('/tmp/soundscaper-nightly-packaged-metrics-payload');
+	const runRoot = resolve('/tmp/soundscaper-nightly-packaged-metrics-run');
+	const originalEnvironment = Object.fromEntries(
+		environmentKeys.map((key) => [key, process.env[key]]),
+	);
+	try {
+		process.env.SOUNDSCAPER_NIGHTLY_TESTS_BASE_URL = 'http://127.0.0.1:41002';
+		process.env.SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT = payloadRoot;
+		process.env.SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT = runRoot;
+		const { createNightlyPackagedMetricsConfig } = await import(
+			'../playwright.nightly-packaged-metrics.config.mjs?formal-workload-ownership'
+		);
+		const config = createNightlyPackagedMetricsConfig(process.env);
+		const projects = Object.fromEntries(config.projects.map((project) => [project.name, project.testMatch]));
+
+		assert.deepEqual(projects['packaged-soundscaper'], [
+			'desktop-packaged-runtime-smoke.spec.js',
+			'audio-editor-longform-editorial-benchmark.spec.js',
+			'audio-editor-m4-production-parity.spec.js',
+		]);
+		assert.deepEqual(projects['packaged-framescaper'], [
+			'desktop-packaged-runtime-smoke.spec.js',
+			'audio-editor-video-preview-benchmark.spec.js',
+			'audio-editor-m4b2-keyframe-parity.spec.js',
 		]);
 	} finally {
 		for (const [key, value] of Object.entries(originalEnvironment)) {

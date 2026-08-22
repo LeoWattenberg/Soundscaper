@@ -30,6 +30,7 @@ import {
 	resolveVideoPreviewRenderIssue,
 	shouldHideVideoPreviewIdentityFallback,
 } from './video-preview-fallback.ts';
+import { publishEvaluatedVideoPreviewFrame } from './video-preview-external-display.ts';
 
 function createVideoPreviewTimeline(project, controller, missingSourceIds, failedVideoSources, renderCanvas, keyframeStateProvider) {
 	const empty = { intervals: [], clipStateById: new Map(), maxLayerCount: 0, renderCanvas, keyframeStateProvider };
@@ -285,6 +286,9 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			report = createVideoPreviewCompositorFallbackReport(compositorLayersRef.current);
 		}
 		updateRenderIssue(report);
+		try {
+			publishEvaluatedVideoPreviewFrame({ compositor, project, timelineFrame });
+		} catch { /* clean-display failure must not stop the editor preview */ }
 		const nextState = report.status === 'fallback'
 			? 'fallback'
 			: report.renderedEntryCount > 0 ? 'ready' : 'webgl';

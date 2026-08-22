@@ -14,6 +14,10 @@ const DEFAULTS = Object.freeze({
 	nativeProbeHelperEnabled: false,
 	nativeAudioHelperEnabled: false,
 	nativePluginDiscoveryEnabled: false,
+	nativeMediaEnabled: false,
+	nativeHardwareDecodeEnabled: false,
+	nativeHardwareEncodeEnabled: false,
+	ofxConsentEnabled: false,
 });
 
 const MAX_MODELS_DIRECTORY_LENGTH = 4096;
@@ -104,6 +108,39 @@ export class DesktopSettingsStore {
 		return settings.nativePluginDiscoveryEnabled;
 	}
 
+	/** Framescaper's native media engine is an independent, default-off authority. */
+	async setNativeMediaEnabled(enabled) {
+		const settings = await this.#update((current) => ({
+			...current,
+			nativeMediaEnabled: enabled === true,
+		}));
+		return settings.nativeMediaEnabled;
+	}
+
+	async setNativeHardwareDecodeEnabled(enabled) {
+		const settings = await this.#update((current) => ({
+			...current,
+			nativeHardwareDecodeEnabled: enabled === true,
+		}));
+		return settings.nativeHardwareDecodeEnabled;
+	}
+
+	async setNativeHardwareEncodeEnabled(enabled) {
+		const settings = await this.#update((current) => ({
+			...current,
+			nativeHardwareEncodeEnabled: enabled === true,
+		}));
+		return settings.nativeHardwareEncodeEnabled;
+	}
+
+	async setOfxConsentEnabled(enabled) {
+		const settings = await this.#update((current) => ({
+			...current,
+			ofxConsentEnabled: enabled === true,
+		}));
+		return settings.ofxConsentEnabled;
+	}
+
 	async recordUpdateCheck(timestamp = Date.now()) {
 		const lastUpdateCheck = new Date(timestamp).toISOString();
 		await this.#update((settings) => ({ ...settings, lastUpdateCheck }));
@@ -163,5 +200,9 @@ function validateSettings(value) {
 		nativeProbeHelperEnabled: value.nativeProbeHelperEnabled === true,
 		nativeAudioHelperEnabled: value.nativeAudioHelperEnabled === true,
 		nativePluginDiscoveryEnabled: value.nativePluginDiscoveryEnabled === true,
+		nativeMediaEnabled: value.nativeMediaEnabled === true,
+		nativeHardwareDecodeEnabled: value.nativeHardwareDecodeEnabled === true,
+		nativeHardwareEncodeEnabled: value.nativeHardwareEncodeEnabled === true,
+		ofxConsentEnabled: value.ofxConsentEnabled === true,
 	};
 }

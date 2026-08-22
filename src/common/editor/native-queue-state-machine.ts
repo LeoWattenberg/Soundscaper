@@ -20,7 +20,10 @@
 
 import {
 	assertNativeQueueRecordV1,
+	assertNativeQueueRecordV2,
+	isNativeQueueRecordV2Dispatchable,
 	type NativeQueueRecordV1,
+	type NativeQueueRecordV2,
 	type NativeQueueState,
 } from './native-queue-record.ts';
 
@@ -98,7 +101,10 @@ export function applyNativeQueueTransition(
 	transition: NativeQueueTransitionV1,
 	atMs: number,
 ): NativeQueueTransitionResultV1 {
-	assertNativeQueueRecordV1(record);
+	assertCurrentOrHistoricalRecord(record);
+	if (isPermanentlyUnsupported(record) && transition.kind !== 'cancel') {
+		throw new NativeQueueTransitionError(record.state, 'run an unsupported plan version');
+	}
 	const timestamp = timestampAtOrAfter(record, atMs);
 	switch (transition.kind) {
 		case 'dispatch': return dispatch(record, timestamp);
@@ -133,10 +139,11 @@ export function recoverNativeQueueRecord(
 	revalidation: NativeQueueRevalidationV1,
 	atMs: number,
 ): NativeQueueTransitionResultV1 {
-	assertNativeQueueRecordV1(record);
+	assertCurrentOrHistoricalRecord(record);
 	if (NATIVE_QUEUE_TERMINAL_STATES.includes(record.state)) {
 		return unchanged(record);
 	}
+	if (isPermanentlyUnsupported(record)) return unchanged(record);
 	const timestamp = recoveryTimestamp(record, atMs);
 	if (!revalidation.rootGrantAuthorized) {
 		return applyNativeQueueTransition(record, { kind: 'require-authorization' }, timestamp);
@@ -268,7 +275,9 @@ function complete(record: NativeQueueRecordV1, atMs: number): NativeQueueTransit
 }
 
 function fail(record: NativeQueueRecordV1, code: string, atMs: number): NativeQueueTransitionResultV1 {
-	if (record.state !== 'running') throw new NativeQueueTransitionError(record.state, 'fail');
+	if (record.state !== 'queued' && record.state !== 'running') {
+		throw new NativeQueueTransitionError(record.state, 'fail');
+	}
 	return {
 		record: next(record, { state: 'failed', lastFailureCode: code, updatedAtMs: atMs }),
 		discardedPartialOutput: false,
@@ -359,8 +368,23 @@ function next(
 	changes: Partial<NativeQueueRecordV1>,
 ): NativeQueueRecordV1 {
 	const updated = Object.freeze({ ...record, ...changes });
-	assertNativeQueueRecordV1(updated);
+	assertCurrentOrHistoricalRecord(updated);
 	return updated;
+}
+
+function assertCurrentOrHistoricalRecord(
+	record: NativeQueueRecordV1,
+): asserts record is NativeQueueRecordV1 | NativeQueueRecordV2 {
+	if (Object.hasOwn(record, 'recordVersion')) {
+		assertNativeQueueRecordV2(record);
+		return;
+	}
+	assertNativeQueueRecordV1(record);
+}
+
+function isPermanentlyUnsupported(record: NativeQueueRecordV1): boolean {
+	return Object.hasOwn(record, 'recordVersion')
+		&& !isNativeQueueRecordV2Dispatchable(record as NativeQueueRecordV2);
 }
 
 function timestampAtOrAfter(record: NativeQueueRecordV1, atMs: number): number {

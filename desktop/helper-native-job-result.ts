@@ -7,6 +7,10 @@ import {
 	type HelperDataPlaneBinding,
 	type HelperDataPlaneCompletion,
 } from './helper-data-plane.ts';
+import {
+	assertHelperDataPlaneOutputCompletion,
+	type HelperDataPlaneOutputReservation,
+} from './helper-data-plane-output-reservation.ts';
 import type {
 	HelperMediaDecodeJobGrant,
 	HelperMediaEncodeJobGrant,
@@ -68,16 +72,19 @@ export function validateHelperNativeJobResult<Kind extends HelperNativeJobKind>(
 	if (kind === 'ofx-scan') {
 		exactKeys(record, SCAN_RESULT_KEYS);
 		return Object.freeze({
-			descriptor: streamCompletion(record.descriptor, (grant as HelperOfxScanJobGrant).descriptor),
+			descriptor: reservedStreamCompletion(
+				record.descriptor, (grant as HelperOfxScanJobGrant).descriptor,
+			),
 		}) as HelperNativeJobResultByKind[Kind];
 	}
 	if (kind === 'media-decode' || kind === 'ofx-host') {
 		exactKeys(record, STREAM_RESULT_KEYS);
-		const binding = kind === 'media-decode'
-			? (grant as HelperMediaDecodeJobGrant).output
-			: (grant as HelperOfxHostJobGrant).output;
 		return Object.freeze({
-			output: streamCompletion(record.output, binding),
+			output: kind === 'media-decode'
+				? streamCompletion(record.output, (grant as HelperMediaDecodeJobGrant).output)
+				: reservedStreamCompletion(
+					record.output, (grant as HelperOfxHostJobGrant).output.frame,
+				),
 		}) as HelperNativeJobResultByKind[Kind];
 	}
 	if (kind === 'media-encode' || kind === 'media-render' || kind === 'media-proxy') {
@@ -88,6 +95,13 @@ export function validateHelperNativeJobResult<Kind extends HelperNativeJobKind>(
 		}) as HelperNativeJobResultByKind[Kind];
 	}
 	return malformed('The native helper result kind is not part of contract v1.');
+}
+
+function reservedStreamCompletion(
+	value: unknown,
+	reservation: HelperDataPlaneOutputReservation,
+): HelperDataPlaneCompletion {
+	return assertHelperDataPlaneOutputCompletion(value, reservation);
 }
 
 function streamCompletion(value: unknown, binding: HelperDataPlaneBinding): HelperDataPlaneCompletion {

@@ -59,6 +59,30 @@ test('failed native probe and effect-discovery persistence leave in-memory autho
 	assert.equal(settings.snapshot().nativePluginDiscoveryEnabled, false);
 });
 
+test('Framescaper native media, hardware, and OFX authorities default off and persist independently', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'framescaper-native-settings-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const filePath = join(root, 'settings.json');
+	const settings = new DesktopSettingsStore(filePath);
+	const initial = await settings.load(['en-US']);
+	assert.equal(initial.nativeMediaEnabled, false);
+	assert.equal(initial.nativeHardwareDecodeEnabled, false);
+	assert.equal(initial.nativeHardwareEncodeEnabled, false);
+	assert.equal(initial.ofxConsentEnabled, false);
+
+	await Promise.all([
+		settings.setNativeMediaEnabled(true),
+		settings.setNativeHardwareDecodeEnabled(true),
+		settings.setNativeHardwareEncodeEnabled(true),
+		settings.setOfxConsentEnabled(true),
+	]);
+	const durable = JSON.parse(await readFile(filePath, 'utf8'));
+	assert.equal(durable.nativeMediaEnabled, true);
+	assert.equal(durable.nativeHardwareDecodeEnabled, true);
+	assert.equal(durable.nativeHardwareEncodeEnabled, true);
+	assert.equal(durable.ofxConsentEnabled, true);
+});
+
 test('concurrent whole-record setting changes serialize without losing durable fields', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-settings-concurrent-'));
 	context.after(() => rm(root, { recursive: true, force: true }));

@@ -89,24 +89,26 @@ post-bind Electron linked-PCM source reads.
 Canonical PCM portability is the contract; the selected external container is
 neither transferred nor reconstructed.
 
-## Framescaper V18 product isolation
+## Framescaper V20 product isolation
 
 <!-- policy-narrative:framescaper-v18-product-isolation -->
-The maintained Framescaper bootstrap authenticates a product-owned runtime
-profile before constructing its project environment. Browser routes without a
-desktop bridge select exact V19 create, clone, validation, commands, history,
-session, repository, playback, compatibility, format-1/format-2 Scape,
-product-isolated storage, and native video-geometry services; exact V18 requires
-re-import there and V20 or newer remains opaque read-only. Packaged desktop
-routes deliberately retain the qualified exact V18 environment, proxy and timing
-archive, claim cleanup, retention, and separately handshaken desktop
-V10/schema-18 renderer until a complete V19/V11 desktop authority exists, so V19
-geometry is unavailable rather than silently downgraded. The exact Framescaper
-V18 desktop owner remains distinct from Soundscaper V17. Soundscaper keeps the
-shared exact V17 owner and treats newer product schemas as read-only. The shared
-V9/schema-17 library is not selected by the Framescaper desktop composition.
-Cross-product preservation never grants edit, activation, migration, or native
-feature authority.
+The maintained Framescaper bootstrap authenticates the selected exact V20
+runtime profile before constructing its project environment on both browser and
+packaged desktop routes. V20 owns create, clone, validation, commands, history,
+session, repository, playback, compatibility, Scape, product-isolated storage,
+inherited V18 nested-sequence, multicamera, linked-original, capture, proxy,
+cleanup, archive and handoff behavior, V19 composition behavior, and available
+video-keyframe authoring. Packaged desktop uses the distinct authenticated V12
+library, SQLite user_version 14, scope v12, schema-20 renderer and public
+framescaperDesktop.v1 bridge; it does not migrate the historical desktop V10
+library. Exact Framescaper V18 and V19 projects require typed media re-import on
+the selected route, and the historical exact Framescaper V18 desktop
+V10/schema-18 boundary remains an unselected compatibility record distinct from
+Soundscaper V17. Soundscaper keeps the shared exact V17 owner and treats newer
+product schemas as read-only. V22, V24, V25 and V26 are distinct dormant
+candidates, and future schemas remain opaque read-only; cross-product
+preservation never grants edit, activation, migration, native feature authority,
+or release qualification.
 <!-- /policy-narrative:framescaper-v18-product-isolation -->
 
 ## Framescaper V18 nested-sequence compatibility
@@ -1437,12 +1439,13 @@ IPC outcomes. The delete intent does not durably capture pre-delete locator
 references: abrupt process death before outer linked-original cleanup can retain
 main-private locator metadata for later cleanup, external files are never
 deleted, and crash- or power-loss locator release remains unqualified. The
-maintained package artifact smoke proves only fresh source-free V18 creation,
-main persistence, preload activation, and UI activation; it does not qualify
-lease concurrency, restart recovery, delete, duplicate, proxy or timing bodies,
-or accepted packaged target results. The products' distinct V10 storage roots
-are cross-product physical isolation, not a shared mutable catalog. Soundscaper
-V10 Windows x64 is pending-external. Soundscaper V10 Linux x64 is
+historical V18/V10 artifact fixture remains source-tested as an unselected
+compatibility boundary, but the selected package smoke no longer invokes it and
+no current package route activates or rewrites that library; lease concurrency,
+restart recovery, delete, duplicate, proxy or timing bodies, and accepted
+packaged target results remain unqualified. The products' distinct V10 storage
+roots are cross-product physical isolation, not a shared mutable catalog.
+Soundscaper V10 Windows x64 is pending-external. Soundscaper V10 Linux x64 is
 pending-external. Framescaper V10 Windows x64 is pending-external. Framescaper
 V10 Linux x64 is pending-external. No accepted packaged result exists for any of
 the four rows, so this rule and m2-electron-lease-matrix remain Partial.

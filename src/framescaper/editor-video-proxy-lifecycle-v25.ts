@@ -17,6 +17,8 @@ import {
 	normalizeVideoProxyAttachmentV18,
 	type VideoProxyAttachmentV18,
 } from '../common/editor/video-proxy-attachment-v18.ts';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import type {
 	VideoSourceCharacteristicsV25,
 } from '../common/editor/video-source-professional-characteristics-v25.ts';
@@ -62,6 +64,18 @@ export interface FramescaperVideoProxyLifecyclePortsV25 {
 		attachment: Readonly<VideoProxyAttachmentV18>,
 	): Awaitable<boolean>;
 	cleanupBody(storageKey: string): Awaitable<void>;
+	loadCleanupJournal(projectId: string): Awaitable<unknown>;
+	saveCleanupJournal(projectId: string, journal: readonly unknown[]): Awaitable<void>;
+}
+
+export interface FramescaperVideoProxyCleanupClaimV25 {
+	readonly kind: 'framescaper-video-proxy-cleanup';
+	readonly version: 1;
+	readonly id: string;
+	readonly projectId: string;
+	readonly sourceId: string;
+	readonly expectedProjectRevision: number;
+	readonly storageKeys: readonly string[];
 }
 
 export type FramescaperVideoProxyGenerationV25 = Readonly<
@@ -105,10 +119,12 @@ export type FramescaperVideoMediaSelectionV25 = Readonly<
 
 export class FramescaperVideoProxyLifecycleV25 {
 	readonly #ports: FramescaperVideoProxyLifecyclePortsV25;
+	#operationTail: Promise<void> = Promise.resolve();
 
 	constructor(ports: FramescaperVideoProxyLifecyclePortsV25) {
 		for (const method of [
 			'getProject', 'commitProject', 'enqueueProxy', 'reattestAttachment', 'cleanupBody',
+			'loadCleanupJournal', 'saveCleanupJournal',
 		] as const) {
 			if (typeof ports?.[method] !== 'function') {
 				throw new TypeError(`V25 video proxy lifecycle requires ${method}.`);
@@ -151,24 +167,35 @@ export class FramescaperVideoProxyLifecycleV25 {
 		sourceId: string;
 		attachment: unknown;
 	}>): Promise<void> {
-		await this.#replaceAttachment(request.sourceId, request.attachment, false);
+		await this.#serialize(() => this.#replaceAttachment(request.sourceId, request.attachment, false));
 	}
 
 	async relink(request: Readonly<{
 		sourceId: string;
 		attachment: unknown;
 	}>): Promise<void> {
-		await this.#replaceAttachment(request.sourceId, request.attachment, true);
+		await this.#serialize(() => this.#replaceAttachment(request.sourceId, request.attachment, true));
 	}
 
 	async detach(request: Readonly<{ readonly sourceId: string }>): Promise<void> {
+		await this.#serialize(() => this.#detach(request.sourceId));
+	}
+
+	/** Resume idempotent body reclamation after a renderer or desktop restart. */
+	async recoverCleanup(): Promise<void> {
+		await this.#serialize(async () => {
+			const claims = await this.#loadCleanupJournal();
+			for (const claim of claims) await this.#drainCleanupClaim(claim.id);
+		});
+	}
+
+	async #detach(sourceId: string): Promise<void> {
 		const project = this.#project();
-		const source = sourceById(project, request.sourceId);
+		const source = sourceById(project, sourceId);
 		if (source.proxyAttachment === null) return;
 		const prior = normalizeVideoProxyAttachmentV18(source.proxyAttachment);
 		const next = mutateAttachment(project, source.id, null);
-		await this.#ports.commitProject(next);
-		await this.#cleanup(prior);
+		await this.#commitWithCleanup(project, source.id, next, cleanupKeys(prior, next));
 	}
 
 	async reattest(request: Readonly<{
@@ -232,14 +259,103 @@ export class FramescaperVideoProxyLifecycleV25 {
 		const prior = source.proxyAttachment === null
 			? null
 			: normalizeVideoProxyAttachmentV18(source.proxyAttachment);
-		await this.#ports.commitProject(mutateAttachment(project, source.id, attachment));
-		if (prior && (prior.sha256 !== attachment.sha256
-			|| prior.timingAsset.sha256 !== attachment.timingAsset.sha256)) await this.#cleanup(prior);
+		const next = mutateAttachment(project, source.id, attachment);
+		const keys = prior === null ? [] : cleanupKeys(prior, next);
+		await this.#commitWithCleanup(project, source.id, next, keys);
 	}
 
-	async #cleanup(attachment: Readonly<VideoProxyAttachmentV18>): Promise<void> {
-		await this.#ports.cleanupBody(attachment.storageKey);
-		await this.#ports.cleanupBody(attachment.timingAsset.storageKey);
+	async #commitWithCleanup(
+		project: FramescaperProxyProjectV25,
+		sourceId: string,
+		next: FramescaperProxyProjectV25,
+		storageKeys: readonly string[],
+	): Promise<void> {
+		if (storageKeys.length === 0) {
+			await this.#ports.commitProject(next);
+			return;
+		}
+		const claim = createCleanupClaim(project, sourceId, next.revision, storageKeys);
+		await this.#appendCleanupClaim(claim);
+		try {
+			await this.#ports.commitProject(next);
+		} catch (commitError) {
+			try {
+				await this.#removeCleanupClaim(claim.id);
+			} catch (cancelError) {
+				throw new AggregateError(
+					[commitError, cancelError],
+					'The proxy relationship commit failed and its cleanup claim could not be cancelled.',
+				);
+			}
+			throw commitError;
+		}
+		await this.#drainCleanupClaim(claim.id);
+	}
+
+	async #appendCleanupClaim(claim: FramescaperVideoProxyCleanupClaimV25): Promise<void> {
+		const journal = await this.#loadCleanupJournal();
+		if (journal.some((candidate) => candidate.id === claim.id)) {
+			throw new RangeError(`Proxy cleanup claim ${claim.id} already exists.`);
+		}
+		if (journal.length >= MAXIMUM_CLEANUP_CLAIMS) {
+			throw new RangeError('The V25 proxy cleanup journal is full.');
+		}
+		await this.#saveCleanupJournal([...journal, claim]);
+	}
+
+	async #removeCleanupClaim(claimId: string): Promise<void> {
+		const journal = await this.#loadCleanupJournal();
+		await this.#saveCleanupJournal(journal.filter((claim) => claim.id !== claimId));
+	}
+
+	async #drainCleanupClaim(claimId: string): Promise<void> {
+		let journal = await this.#loadCleanupJournal();
+		let claim = journal.find((candidate) => candidate.id === claimId);
+		if (!claim) return;
+		const project = this.#project();
+		if (project.revision < claim.expectedProjectRevision) {
+			await this.#saveCleanupJournal(journal.filter((candidate) => candidate.id !== claimId));
+			return;
+		}
+		for (const storageKey of claim.storageKeys) {
+			if (!projectReferencesStorageKey(this.#project(), storageKey)) {
+				await this.#ports.cleanupBody(storageKey);
+			}
+			journal = await this.#loadCleanupJournal();
+			claim = journal.find((candidate) => candidate.id === claimId);
+			if (!claim) return;
+			const remaining = claim.storageKeys.filter((candidate) => candidate !== storageKey);
+			if (remaining.length === 0) {
+				await this.#saveCleanupJournal(journal.filter((candidate) => candidate.id !== claimId));
+				continue;
+			}
+			const pending = createCleanupClaim(
+				{ id: claim.projectId } as FramescaperProxyProjectV25,
+				claim.sourceId,
+				claim.expectedProjectRevision,
+				remaining,
+			);
+			await this.#saveCleanupJournal(journal.map((candidate) => (
+				candidate.id === claimId ? pending : candidate
+			)));
+			claimId = pending.id;
+		}
+	}
+
+	async #loadCleanupJournal(): Promise<readonly FramescaperVideoProxyCleanupClaimV25[]> {
+		const project = this.#project();
+		return normalizeCleanupJournal(await this.#ports.loadCleanupJournal(project.id), project.id);
+	}
+
+	async #saveCleanupJournal(journal: readonly FramescaperVideoProxyCleanupClaimV25[]): Promise<void> {
+		const projectId = this.#project().id;
+		await this.#ports.saveCleanupJournal(projectId, Object.freeze([...journal]));
+	}
+
+	#serialize<Value>(operation: () => Promise<Value>): Promise<Value> {
+		const result = this.#operationTail.then(operation, operation);
+		this.#operationTail = result.then(() => undefined, () => undefined);
+		return result;
 	}
 
 	#project(): FramescaperProxyProjectV25 {
@@ -250,6 +366,91 @@ export class FramescaperVideoProxyLifecycleV25 {
 		}
 		return project;
 	}
+}
+
+const MAXIMUM_CLEANUP_CLAIMS = 4_096;
+const CLEANUP_CLAIM_KEYS = Object.freeze([
+	'kind', 'version', 'id', 'projectId', 'sourceId', 'expectedProjectRevision', 'storageKeys',
+]);
+
+function createCleanupClaim(
+	project: FramescaperProxyProjectV25,
+	sourceId: string,
+	expectedProjectRevision: number,
+	storageKeys: readonly string[],
+): FramescaperVideoProxyCleanupClaimV25 {
+	const material = [project.id, sourceId, expectedProjectRevision, storageKeys];
+	return Object.freeze({
+		kind: 'framescaper-video-proxy-cleanup',
+		version: 1,
+		id: bytesToHex(sha256(new TextEncoder().encode(JSON.stringify(material)))),
+		projectId: project.id,
+		sourceId,
+		expectedProjectRevision,
+		storageKeys: Object.freeze([...storageKeys]),
+	});
+}
+
+function normalizeCleanupJournal(
+	value: unknown,
+	projectId: string,
+): readonly FramescaperVideoProxyCleanupClaimV25[] {
+	if (!Array.isArray(value) || value.length > MAXIMUM_CLEANUP_CLAIMS) {
+		throw new TypeError('The V25 proxy cleanup journal is invalid or exceeds its bound.');
+	}
+	const ids = new Set<string>();
+	return Object.freeze(value.map((candidate) => {
+		if (!isRecord(candidate) || !hasExactKeys(candidate, CLEANUP_CLAIM_KEYS)
+			|| candidate.kind !== 'framescaper-video-proxy-cleanup' || candidate.version !== 1
+			|| candidate.projectId !== projectId || typeof candidate.id !== 'string'
+			|| !/^[a-f0-9]{64}$/u.test(candidate.id) || typeof candidate.sourceId !== 'string'
+			|| !candidate.sourceId || !Number.isSafeInteger(candidate.expectedProjectRevision)
+			|| (candidate.expectedProjectRevision as number) < 1 || !Array.isArray(candidate.storageKeys)
+			|| candidate.storageKeys.length < 1 || candidate.storageKeys.length > 2
+			|| candidate.storageKeys.some((key) => typeof key !== 'string' || !key)
+			|| new Set(candidate.storageKeys).size !== candidate.storageKeys.length) {
+			throw new TypeError('The V25 proxy cleanup journal contains an invalid claim.');
+		}
+		const normalized = createCleanupClaim(
+			{ id: projectId } as FramescaperProxyProjectV25,
+			candidate.sourceId,
+			candidate.expectedProjectRevision as number,
+			candidate.storageKeys as string[],
+		);
+		if (normalized.id !== candidate.id || ids.has(candidate.id)) {
+			throw new TypeError('The V25 proxy cleanup journal contains a forged or duplicate claim.');
+		}
+		ids.add(candidate.id);
+		return normalized;
+	}));
+}
+
+function cleanupKeys(
+	attachment: Readonly<VideoProxyAttachmentV18>,
+	next: FramescaperProxyProjectV25,
+): readonly string[] {
+	return Object.freeze([
+		attachment.storageKey,
+		attachment.timingAsset.storageKey,
+	].filter((storageKey, index, all) => all.indexOf(storageKey) === index
+		&& !projectReferencesStorageKey(next, storageKey)));
+}
+
+function projectReferencesStorageKey(project: FramescaperProxyProjectV25, storageKey: string): boolean {
+	return project.sources.some((source) => {
+		if (source.proxyAttachment === null || source.proxyAttachment === undefined) return false;
+		const attachment = normalizeVideoProxyAttachmentV18(source.proxyAttachment);
+		return attachment.storageKey === storageKey || attachment.timingAsset.storageKey === storageKey;
+	});
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasExactKeys(value: Readonly<Record<string, unknown>>, keys: readonly string[]): boolean {
+	const actual = Object.keys(value).sort();
+	return actual.length === keys.length && [...keys].sort().every((key, index) => actual[index] === key);
 }
 
 /** Adaptive preview consumes the proxy; delivery and export never do. */

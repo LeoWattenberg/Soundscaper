@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -15,10 +14,6 @@ import {
 	writeM4ProductionParityResult,
 } from '../scripts/collect-m4-production-parity-quality.mjs';
 import {
-	mergeM4ParityReferenceFingerprint,
-	readM4ParityReferenceHostObservation,
-} from '../scripts/lib/m4-production-parity-identity.mjs';
-import {
 	makeM4ProductionParityDiagnostic as makeDiagnostic,
 	toBase64,
 } from './helpers/m4-production-parity-fixture.ts';
@@ -31,30 +26,9 @@ const packageMetadata = JSON.parse(await readFile(
 	new URL('../package.json', import.meta.url),
 	'utf8',
 )) as { readonly scripts: Readonly<Record<string, string>> };
-const REFERENCE_FINGERPRINT_FIELDS = [
-	'osImage',
-	'osUpdatePolicy',
-	'cpuModel',
-	'logicalCpuCount',
-	'memoryBytes',
-	'gpuModel',
-	'gpuMemoryBytes',
-	'gpuDriver',
-	'webglVendor',
-	'webglRenderer',
-	'displayMode',
-	'displayRefreshHz',
-	'devicePixelRatio',
-	'powerProfile',
-	'browserVersion',
-	'browserBinarySha256',
-	'browserLaunchFlags',
-	'runnerLabels',
-] as const;
-
 type QualityConfig = {
 	fixtures: Array<{ id: string; status: string; kind: string; artifacts?: unknown[] }>;
-	workloads: Array<{ id: string; status: string; thresholds: unknown[] }>;
+	workloads: Array<{ id: string; status: string; thresholds: unknown[]; environmentIds?: string[] }>;
 	environments: Array<{
 		id: string;
 		status: string;
@@ -62,13 +36,16 @@ type QualityConfig = {
 		eligibleWorkloadIds?: string[];
 		fingerprint: Record<string, unknown>;
 	}>;
+	packagedRuntimeQualification: {
+		profiles: Array<{ workloadId: string; environmentId: string; observedEnvironmentId: string }>;
+	};
 };
 
 test('the M4 collector independently recomputes exactly five parity metrics', () => {
 	const result = createPendingM4ProductionParityResult(makeDiagnostic(), config);
 	assert.equal(result.status, 'pending-external');
 	assert.equal(result.environmentId, 'local-browser-correctness');
-	assert.equal(result.qualificationEnvironmentId, 'reference-linux-gpu-01');
+	assert.equal(result.qualificationEnvironmentId, 'owner-qualified-windows-x64-rtx3090-01');
 	assert.equal(result.metricGatePassed, true);
 	assert.equal(result.qualificationEvidencePublished, false);
 	assert.equal(Object.keys(result.metrics).length, 5);
@@ -88,7 +65,7 @@ test('the M4 collector independently recomputes exactly five parity metrics', ()
 		requestedCompositionInstances: 18,
 	});
 	assert.equal(result.evaluation.passed, false);
-	assert.match(result.evaluation.failures.join('\n'), /unprovisioned/iu);
+	assert.match(result.evaluation.failures.join('\n'), /nightly packaged-runtime verifier/iu);
 });
 test('the M4 collector reports gross PDC shifts outside the former local search window', () => {
 	const diagnostic = makeDiagnostic();
@@ -283,318 +260,156 @@ test('the diagnostic parser admits exactly one matching structured record', () =
 	);
 });
 
-test('matching provisioned evidence writes verified files once and never overwrites', async () => {
-	const activated = activatedReferenceConfig();
-	const diagnostic = makeReferenceDiagnostic();
-	const environment = activated.environments.find(({ id }) => id === 'reference-linux-gpu-01');
-	assert.ok(environment);
-	assert.deepEqual(resolveM4ProductionParityCollectionEnvironment({
-		outputDirectory: '/unused',
-		qualificationMode: 'reference',
-	}, activated).expectedFingerprint, environment.fingerprint);
-	const result = createPendingM4ProductionParityResult(diagnostic, activated);
-	assert.equal(result.status, 'accepted');
-
+test('metric evidence can write only pending or failed diagnostics and never accepted evidence', async () => {
+	const result = createPendingM4ProductionParityResult(makeDiagnostic(), config);
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m4-parity-'));
-	let verificationCalls = 0;
-	const dependencies = {
-		configBytes: Buffer.from(`${JSON.stringify(activated, null, '\t')}\n`),
-		sourceRevision: 'd'.repeat(40),
-		verifyAccepted: async () => {
-			verificationCalls += 1;
-			return { passed: true, failures: [], verdicts: [] };
-		},
-	};
-	const written = await writeM4ProductionParityResult(
-		directory, diagnostic, result, activated, dependencies,
+	const written = await writeM4ProductionParityResult(directory, result);
+	assert.equal(
+		written.resultPath,
+		join(directory, 'm4-production-render-parity.pending-external.json'),
 	);
-	assert.equal(verificationCalls, 1);
-	assert.equal(written.resultPath, join(directory, 'm4-production-render-parity.accepted.json'));
-	const accepted = JSON.parse(await readFile(written.resultPath, 'utf8'));
-	const raw = JSON.parse(await readFile(written.rawPath, 'utf8'));
-	assert.deepEqual(accepted.metrics, result.metrics);
-	assert.equal(accepted.rawEvidence.artifactName, 'm4-production-render-parity.raw.json');
-	assert.equal(accepted.budgetSha256, sha256(dependencies.configBytes));
-	assert.equal(raw.budgetSha256, accepted.budgetSha256);
-	assert.equal(raw.workloadSha256, sha256(Buffer.from(JSON.stringify(
-		activated.workloads.find(({ id }) => id === 'm4-production-render-parity'),
-	))));
+	const persisted = JSON.parse(await readFile(written.resultPath, 'utf8'));
+	assert.equal(persisted.status, 'pending-external');
+	assert.equal(persisted.qualificationEvidencePublished, false);
 	await assert.rejects(
-		writeM4ProductionParityResult(directory, diagnostic, result, activated, dependencies),
+		writeM4ProductionParityResult(directory, result),
 		/exists|EEXIST/iu,
 	);
-});
-
-test('accepted publication binds hashed config bytes to the evaluated config before writing', async () => {
-	const activated = activatedReferenceConfig();
-	const diagnostic = makeReferenceDiagnostic();
-	const result = createPendingM4ProductionParityResult(diagnostic, activated);
-	const mismatched = structuredClone(activated);
-	const workload = mismatched.workloads.find(({ id }) => id === 'm4-production-render-parity');
-	assert.ok(workload);
-	workload.status = 'different-config-bytes';
-	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m4-parity-mismatch-'));
-	let verificationCalls = 0;
-	await assert.rejects(
-		writeM4ProductionParityResult(directory, diagnostic, result, activated, {
-			configBytes: Buffer.from(JSON.stringify(mismatched)),
-			sourceRevision: 'd'.repeat(40),
-			verifyAccepted: async () => {
-				verificationCalls += 1;
-				return { passed: true, failures: [], verdicts: [] };
-			},
-		}),
-		/config bytes do not match/iu,
+	assert.throws(
+		() => writeM4ProductionParityResult(directory, { ...result, status: 'accepted' }),
+		/only pending-external or failed/iu,
 	);
-	assert.equal(verificationCalls, 0);
+	assert.throws(
+		() => writeM4ProductionParityResult(directory, {
+			...result,
+			qualificationEvidencePublished: true,
+		}),
+		/must not publish qualification/iu,
+	);
+	await assert.rejects(
+		readFile(join(directory, 'm4-production-render-parity.accepted.json')),
+		/ENOENT/iu,
+	);
 	await assert.rejects(
 		readFile(join(directory, 'm4-production-render-parity.raw.json')),
 		/ENOENT/iu,
 	);
-	await assert.rejects(readFile(
-		join(directory, 'm4-production-render-parity.accepted.json'),
-	), /ENOENT/iu);
 });
 
-test('hosted correctness stays pending and cannot publish qualification evidence', async () => {
-	const diagnostic = makeDiagnostic();
-	diagnostic.environmentId = 'github-ubuntu-playwright-1.62.1';
-	const identity = resolveM4ProductionParityCollectionEnvironment(
-		{ outputDirectory: '/unused', qualificationMode: 'correctness' },
-		config,
-		{ GITHUB_ACTIONS: 'true' },
-	);
-	assert.equal(identity.environmentId, diagnostic.environmentId);
-	assert.equal(identity.expectedFingerprint, null);
-	const result = createPendingM4ProductionParityResult(diagnostic, config);
-	assert.equal(result.status, 'pending-external');
-	assert.equal(result.qualificationEvidencePublished, false);
-	let acceptedVerificationCalls = 0;
-	let pendingWrites = 0;
-	await writeM4ProductionParityResult('/unused', diagnostic, result, config, {
-		verifyAccepted: async () => {
-			acceptedVerificationCalls += 1;
-			return { passed: true, failures: [], verdicts: [] };
-		},
-		writePending: async (_directory: string, value: unknown) => {
-			pendingWrites += 1;
-			return { result: value };
-		},
-	});
-	assert.equal(acceptedVerificationCalls, 0);
-	assert.equal(pendingWrites, 1);
-});
-
-test('reference mode rejects unprovisioned, incomplete, or mismatched fingerprints', () => {
-	assert.throws(() => resolveM4ProductionParityCollectionEnvironment({
-		outputDirectory: '/unused',
-		qualificationMode: 'reference',
-	}, config), /active eligible provisioned descriptor/iu);
-	const incomplete = activatedReferenceConfig();
-	const reference = incomplete.environments.find(({ id }) => id === 'reference-linux-gpu-01');
-	assert.ok(reference);
-	reference.fingerprint.gpuDriver = null;
-	assert.throws(() => resolveM4ProductionParityCollectionEnvironment({
-		outputDirectory: '/unused',
-		qualificationMode: 'reference',
-	}, incomplete), /active eligible provisioned descriptor/iu);
-	assert.throws(() => resolveM4ProductionParityCollectionEnvironment({
-		outputDirectory: '/unused',
-		qualificationMode: 'invented',
-	}, config), /correctness or reference/iu);
-});
-
-test('reference observation is independent, complete, and browser-overlap checked', async () => {
-	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m4-host-observation-'));
-	const path = join(directory, 'reference-host-observation.json');
-	const fingerprint = referenceFingerprint();
-	await writeFile(path, `${JSON.stringify({
-		schemaVersion: 1,
-		observationClass: 'm4-reference-host-observation-v1',
-		fingerprint,
-	}, null, '\t')}\n`);
-	const independentlyObserved = await readM4ParityReferenceHostObservation(path);
+test('collection identity admits local, hosted, and packaged diagnostics only', () => {
 	assert.deepEqual(
-		mergeM4ParityReferenceFingerprint(independentlyObserved, browserReferenceObservation()),
-		fingerprint,
+		resolveM4ProductionParityCollectionEnvironment({}, config, {}),
+		{ environmentId: 'local-browser-correctness' },
 	);
-
-	await assert.rejects(
-		readM4ParityReferenceHostObservation(join(directory, 'missing.json')),
-		/unavailable or invalid/iu,
+	assert.deepEqual(
+		resolveM4ProductionParityCollectionEnvironment({}, config, { GITHUB_ACTIONS: 'true' }),
+		{ environmentId: 'github-ubuntu-playwright-1.62.1' },
 	);
-	const incomplete = structuredClone(fingerprint) as Record<string, unknown>;
-	delete incomplete.gpuDriver;
-	await writeFile(path, JSON.stringify({
-		schemaVersion: 1,
-		observationClass: 'm4-reference-host-observation-v1',
-		fingerprint: incomplete,
-	}));
-	await assert.rejects(readM4ParityReferenceHostObservation(path), /exact fields/iu);
+	assert.deepEqual(resolveM4ProductionParityCollectionEnvironment({}, config, {
+		SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID: 'packaged-runtime-win32-x64',
+	}), { environmentId: 'packaged-runtime-win32-x64' });
+	const hosted = makeDiagnostic();
+	hosted.environmentId = 'github-ubuntu-playwright-1.62.1';
+	assert.equal(createPendingM4ProductionParityResult(hosted, config).status, 'pending-external');
+	const invented = makeDiagnostic();
+	invented.environmentId = 'invented-host';
 	assert.throws(
-		() => mergeM4ParityReferenceFingerprint(fingerprint, {
-			...browserReferenceObservation(),
-			webglRenderer: 'unexpected-runtime-renderer',
+		() => createPendingM4ProductionParityResult(invented, config),
+		/frozen M4 workload/iu,
+	);
+	assert.throws(
+		() => resolveM4ProductionParityCollectionEnvironment({}, config, {
+			SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID: 'invented-host',
 		}),
-		/browser-observed reference field webglRenderer/iu,
+		/not an admitted diagnostic environment/iu,
 	);
-	let reads = 0;
-	const accessorFingerprint = referenceFingerprint();
-	Object.defineProperty(accessorFingerprint, 'cpuModel', {
-		enumerable: true,
-		get() {
-			reads += 1;
-			return 'forged';
+	assert.throws(
+		() => resolveM4ProductionParityCollectionEnvironment({ qualificationMode: 'reference' }, config),
+		/exact fields/iu,
+	);
+});
+
+test('packaged collection writes diagnostic evidence without a local qualification route', async () => {
+	const diagnostic = makeDiagnostic();
+	diagnostic.environmentId = 'packaged-runtime-win32-x64';
+	let writes = 0;
+	const collected = await collectM4ProductionParityDiagnostic(
+		{ outputDirectory: '/unused' },
+		{
+			config,
+			processEnvironment: {
+				SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID: diagnostic.environmentId,
+			},
+			runBrowser: async () => ({
+				stdout: `SOUNDSCAPER_M4_PRODUCTION_PARITY ${JSON.stringify(diagnostic)}`,
+				stderr: '',
+			}),
+			writeResult: async (_directory: string, result: unknown) => {
+				writes += 1;
+				return { result };
+			},
 		},
-	});
-	assert.throws(
-		() => mergeM4ParityReferenceFingerprint(
-			accessorFingerprint,
-			browserReferenceObservation(),
-		),
-		/own data/iu,
 	);
-	assert.equal(reads, 0);
-});
+	assert.equal(writes, 1);
+	assert.equal(collected.result.status, 'pending-external');
+	assert.equal(collected.result.qualificationEvidencePublished, false);
 
-test('CLI parsing defaults to correctness and admits one explicit reference mode', () => {
-	assert.deepEqual(parseM4ProductionParityCliOptions(['/tmp/result'], {}), {
-		qualificationMode: 'correctness',
-		outputDirectory: '/tmp/result',
-	});
-	assert.deepEqual(parseM4ProductionParityCliOptions(['--reference', '/tmp/result'], {}), {
-		qualificationMode: 'reference',
-		outputDirectory: '/tmp/result',
-	});
-	assert.deepEqual(parseM4ProductionParityCliOptions([], {
-		SOUNDSCAPER_M4_REFERENCE_QUALIFICATION: '1',
-	}), { qualificationMode: 'reference', outputDirectory: null });
-	assert.throws(
-		() => parseM4ProductionParityCliOptions(['--reference'], {
-			SOUNDSCAPER_M4_REFERENCE_QUALIFICATION: '1',
-		}), /only once/iu,
-	);
-	assert.throws(() => parseM4ProductionParityCliOptions(['--unknown'], {}), /unknown/iu);
-	assert.throws(() => parseM4ProductionParityCliOptions(['/one', '/two'], {}), /one output/iu);
-});
-
-test('an observed reference fingerprint cannot be spoofed with the expected descriptor', () => {
-	const activated = activatedReferenceConfig();
-	const spoofed = structuredClone(makeReferenceDiagnostic());
-	spoofed.environmentFingerprint.gpuModel = 'different-observed-gpu';
-	const result = createPendingM4ProductionParityResult(spoofed, activated);
-	assert.equal(result.status, 'pending-external');
-	assert.equal(result.qualificationEvidencePublished, false);
-	assert.match(result.evaluation.failures.join('\n'), /fingerprint is not an exact match/iu);
-});
-
-test('reference collection rejects a mismatched browser observation before any publication', async () => {
-	const activated = activatedReferenceConfig();
-	const observed = structuredClone(makeReferenceDiagnostic());
-	observed.environmentFingerprint.gpuModel = 'unexpected-runtime-renderer';
-	let pendingWrites = 0;
-	let acceptedVerifications = 0;
+	const relabeled = makeDiagnostic();
 	await assert.rejects(
 		collectM4ProductionParityDiagnostic(
-			{ outputDirectory: '/unused', qualificationMode: 'reference' },
+			{ outputDirectory: '/unused' },
 			{
-				config: activated,
+				config,
+				processEnvironment: {
+					SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID: 'packaged-runtime-win32-x64',
+				},
 				runBrowser: async () => ({
-					stdout: `SOUNDSCAPER_M4_PRODUCTION_PARITY ${JSON.stringify(observed)}`,
+					stdout: `SOUNDSCAPER_M4_PRODUCTION_PARITY ${JSON.stringify(relabeled)}`,
 					stderr: '',
 				}),
-				writePending: async () => { pendingWrites += 1; },
-				verifyAccepted: async () => {
-					acceptedVerifications += 1;
-					return { passed: true, failures: [], verdicts: [] };
-				},
+				writeResult: async () => { writes += 1; },
 			},
 		),
-		/browser-observed reference fingerprint/iu,
+		/relabeled its collection environment/iu,
 	);
-	assert.equal(pendingWrites, 0);
-	assert.equal(acceptedVerifications, 0);
+	assert.equal(writes, 1);
 });
 
-test('quality config and package metadata expose the provisional no-retry collector', () => {
+test('CLI parsing accepts one output directory and rejects the removed reference option', () => {
+	assert.deepEqual(parseM4ProductionParityCliOptions(['/tmp/result']), {
+		outputDirectory: '/tmp/result',
+	});
+	assert.deepEqual(parseM4ProductionParityCliOptions([]), { outputDirectory: null });
+	assert.throws(() => parseM4ProductionParityCliOptions(['--reference']), /unknown/iu);
+	assert.throws(() => parseM4ProductionParityCliOptions(['--unknown']), /unknown/iu);
+	assert.throws(() => parseM4ProductionParityCliOptions(['/one', '/two']), /one output/iu);
+});
+
+test('quality config binds M4 qualification to the current owner host and formal nightly verifier', () => {
 	const quality = config as QualityConfig;
 	const fixture = quality.fixtures.find(({ id }) => id === 'm4-production-parity-v1');
 	const workload = quality.workloads.find(({ id }) => id === 'm4-production-render-parity');
-	const reference = quality.environments.find(({ id }) => id === 'reference-linux-gpu-01');
+	const owner = quality.environments.find(
+		({ id }) => id === 'owner-qualified-windows-x64-rtx3090-01',
+	);
+	const profile = quality.packagedRuntimeQualification.profiles.find(
+		({ workloadId }) => workloadId === 'm4-production-render-parity',
+	);
 	assert.equal(fixture?.status, 'provisional');
 	assert.equal(fixture?.kind, 'deterministic-audio-vectors-and-video-golden-frames');
 	assert.equal(fixture?.artifacts?.length, 5);
 	assert.equal(workload?.status, 'provisional');
 	assert.equal(workload?.thresholds.length, 5);
-	assert.deepEqual(Object.keys(reference?.fingerprint ?? {}).sort(),
-		[...REFERENCE_FINGERPRINT_FIELDS].sort());
-	assert.equal(reference?.status, 'unprovisioned');
-	assert.equal(reference?.qualificationEligible, false);
-	assert.ok(Object.values(reference?.fingerprint ?? {}).every((value) => value === null));
+	assert.deepEqual(workload?.environmentIds, [
+		'github-ubuntu-playwright-1.62.1',
+		'owner-qualified-windows-x64-rtx3090-01',
+	]);
+	assert.equal(owner?.status, 'active');
+	assert.equal(owner?.qualificationEligible, true);
+	assert.ok(owner?.eligibleWorkloadIds?.includes('m4-production-render-parity'));
+	assert.equal(profile?.workloadId, 'm4-production-render-parity');
+	assert.equal(profile?.environmentId, 'owner-qualified-windows-x64-rtx3090-01');
+	assert.equal(profile?.observedEnvironmentId, 'packaged-runtime-win32-x64');
 	assert.equal(packageMetadata.scripts['quality:collect:m4-production-parity'],
 		'node scripts/collect-m4-production-parity-quality.mjs');
 });
-
-function referenceFingerprint() {
-	return {
-		osImage: 'ubuntu-24.04',
-		osUpdatePolicy: 'pinned-image-no-unattended-upgrades',
-		cpuModel: 'provisioned-test-cpu',
-		logicalCpuCount: 16,
-		memoryBytes: 34_359_738_368,
-		gpuModel: 'provisioned-reference-gpu',
-		gpuMemoryBytes: 8_589_934_592,
-		gpuDriver: 'test-driver-1.0',
-		webglVendor: 'provisioned-vendor',
-		webglRenderer: 'provisioned-webgl-renderer',
-		displayMode: '1920x1080x24',
-		displayRefreshHz: 60,
-		devicePixelRatio: 1,
-		powerProfile: 'performance',
-		browserVersion: 'Chromium 149.0.7827.55',
-		browserBinarySha256: 'a'.repeat(64),
-		browserLaunchFlags: ['--headless=new'],
-		runnerLabels: ['self-hosted', 'linux', 'soundscaper-reference-gpu-01'],
-	};
-}
-
-function makeReferenceDiagnostic() {
-	return {
-		...makeDiagnostic(),
-		environmentId: 'reference-linux-gpu-01',
-		environmentFingerprint: mergeM4ParityReferenceFingerprint(
-			referenceFingerprint(),
-			browserReferenceObservation(),
-		),
-	};
-}
-
-function browserReferenceObservation() {
-	const fingerprint = referenceFingerprint();
-	return {
-		osImage: fingerprint.osImage,
-		cpuModel: fingerprint.cpuModel,
-		logicalCpuCount: fingerprint.logicalCpuCount,
-		memoryBytes: fingerprint.memoryBytes,
-		webglVendor: fingerprint.webglVendor,
-		webglRenderer: fingerprint.webglRenderer,
-		devicePixelRatio: fingerprint.devicePixelRatio,
-		browserVersion: fingerprint.browserVersion,
-		browserBinarySha256: fingerprint.browserBinarySha256,
-	};
-}
-
-function activatedReferenceConfig(): QualityConfig {
-	const activated = structuredClone(config) as QualityConfig;
-	const reference = activated.environments.find(({ id }) => id === 'reference-linux-gpu-01');
-	assert.ok(reference);
-	reference.status = 'active';
-	reference.qualificationEligible = true;
-	reference.eligibleWorkloadIds = ['m4-production-render-parity'];
-	reference.fingerprint = referenceFingerprint();
-	return activated;
-}
-
-function sha256(bytes: Uint8Array): string {
-	return createHash('sha256').update(bytes).digest('hex');
-}

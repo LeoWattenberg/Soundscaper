@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-21",
+	"groundedAt": "2026-08-22",
 	"qualification": {
 		"status": "in-progress",
 		"qualifiedWorkloadIds": [
@@ -114,6 +114,53 @@
 			},
 			{
 				"status": "active",
+				"diagnosticKey": "m3-longform-editorial",
+				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
+				"observedEnvironmentId": "packaged-runtime-win32-x64",
+				"workloadId": "m3-longform-editorial",
+				"fixtureId": "m3-longform-editorial-2h-v1",
+				"profile": "deterministic-two-hour-editorial-v1",
+				"observationClass": "decoded-media-av-scheduling-v1",
+				"rendererClass": "hardware",
+				"diagnosticIdentityFields": ["workloadId", "fixtureId", "profile", "observationClass"],
+				"fingerprint": {
+					"browserVersion": "150.0.7871.114",
+					"platform": "win32",
+					"architecture": "x64",
+					"webglVendor": "Google Inc. (NVIDIA)",
+					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+				},
+				"fixture": {
+					"generatorRevision": 1,
+					"seed": 1554098974,
+					"durationSeconds": 7200,
+					"sampleRate": 48000,
+					"videoFrameRate": { "num": 30, "den": 1 },
+					"audioTrackCount": 24,
+					"proxyVideoTrackCount": 2,
+					"editCount": 10000,
+					"commandsPerTransaction": 250,
+					"operationCounts": {
+						"audioClipMoves": 2500,
+						"proxyVideoClipMoves": 2500,
+						"selectionChanges": 2500,
+						"trackMixChanges": 2500
+					},
+					"projectSha256": "4c96e2405d63ff282a28a6577c9da32d3598183e5ad59131cb3ca1977df34427",
+					"editPlanSha256": "2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf"
+				},
+				"rawSampleCounts": {
+					"positionChecks": 26,
+					"decodedAvSamples": 24,
+					"seekWarmupTrials": 1,
+					"seekTrials": 5,
+					"scrollFrameIntervals": 240,
+					"forcedCollectionsBefore": 3,
+					"forcedCollectionsAfter": 3
+				}
+			},
+			{
+				"status": "active",
 				"diagnosticKey": "m4-production-parity",
 				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
 				"observedEnvironmentId": "packaged-runtime-win32-x64",
@@ -129,6 +176,48 @@
 					"architecture": "x64",
 					"webglVendor": "Google Inc. (NVIDIA)",
 					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+				}
+			},
+			{
+				"status": "active",
+				"diagnosticKey": "m4b2-keyframe-render-parity",
+				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
+				"observedEnvironmentId": "packaged-runtime-win32-x64",
+				"workloadId": "m4b2-keyframe-render-parity",
+				"fixtureId": "m4b2-keyframe-parity-rgba-v1",
+				"profile": "deterministic-keyframe-parity-v1",
+				"observationClass": "complete-keyed-rgba-consumer-ledger-v1",
+				"rendererClass": "hardware",
+				"diagnosticIdentityFields": ["workloadId", "fixtureId", "profile", "observationClass"],
+				"fingerprint": {
+					"browserVersion": "150.0.7871.114",
+					"platform": "win32",
+					"architecture": "x64",
+					"webglVendor": "Google Inc. (NVIDIA)",
+					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+				},
+				"fixture": {
+					"generatorRevision": 2,
+					"seed": 1801382864,
+					"width": 128,
+					"height": 72,
+					"sampleRate": 48000,
+					"frameRate": { "num": 12, "den": 1 },
+					"frameCount": 12,
+					"sourceByteLength": 442368,
+					"sourceSha256": "db9fa74f23eb1b5f9565cd10f10794a975492b629731534b56d0af3072b3ad8a",
+					"caseIds": ["opacity-hold", "opacity-linear", "opacity-eased", "opacity-bezier"],
+					"queryIds": ["start", "interior", "end"],
+					"evidenceClipIds": ["m4b2-opacity-hold-clip", "m4b2-opacity-linear-clip", "m4b2-opacity-eased-clip", "framescaper-v18-flat-clip-4f2ad5b3a72f098f3878c158c7025f70"],
+					"presentationClasses": ["authenticated-cfr-occurrence", "authenticated-cfr-occurrence", "authenticated-cfr-occurrence", "authenticated-vfr-materialized-occurrence"]
+				},
+				"rawSampleCounts": {
+					"cases": 4,
+					"queries": 12,
+					"videoPixels": 110592,
+					"requestedOperations": 12,
+					"requestedConsumerOperations": 24,
+					"renderedConsumerOperations": 24
 				}
 			}
 		],
@@ -258,7 +347,7 @@
 			"kind": "owner-qualified-packaged-runtime-fixed-gpu",
 			"qualificationEligible": true,
 			"rendererRequirement": "hardware",
-			"eligibleWorkloadIds": ["m1-video-preview-12fx-720p", "m4-production-render-parity"],
+			"eligibleWorkloadIds": ["m1-video-preview-12fx-720p", "m3-longform-editorial", "m4-production-render-parity", "m4b2-keyframe-render-parity"],
 			"fingerprint": {
 				"browserVersion": "150.0.7871.114",
 				"platform": "win32",
@@ -271,34 +360,6 @@
 				"tests/desktop-nightly-tests-qualification.test.ts",
 				"docs/quality-budgets.md#fixed-hardware-environments"
 			]
-		},
-		{
-			"id": "reference-linux-gpu-01",
-			"status": "unprovisioned",
-			"kind": "fixed-hardware",
-			"qualificationEligible": false,
-			"rendererRequirement": "hardware",
-			"fingerprint": {
-				"osImage": null,
-				"osUpdatePolicy": null,
-				"cpuModel": null,
-				"logicalCpuCount": null,
-				"memoryBytes": null,
-				"gpuModel": null,
-				"gpuMemoryBytes": null,
-				"gpuDriver": null,
-				"webglVendor": null,
-				"webglRenderer": null,
-				"displayMode": null,
-				"displayRefreshHz": null,
-				"devicePixelRatio": null,
-				"powerProfile": null,
-				"browserVersion": null,
-				"browserBinarySha256": null,
-				"browserLaunchFlags": null,
-				"runnerLabels": null
-			},
-			"evidence": ["docs/quality-budgets.md#fixed-hardware-environments"]
 		},
 		{
 			"id": "native-os-lab-matrix",
@@ -934,10 +995,10 @@
 				},
 				"seekCheckpointsSamples": [0, 2880000, 86400000, 172800000, 345552000],
 				"scrollFrameIntervalSampleCount": 240,
-				"projectSha256": "00f5ec5df0210f2fb025c8435bc6368f370eed5f51418e02862dd50d66c25a5a",
+				"projectSha256": "4c96e2405d63ff282a28a6577c9da32d3598183e5ad59131cb3ca1977df34427",
 				"editPlanSha256": "2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf"
 			},
-			"limitation": "The deterministic current-schema project and 10,000-command replay establish structural shape and exact persisted/runtime positions. The opt-in browser harness decodes both repository-owned VP8/Opus fixtures and samples their AudioContext and requestVideoFrameCallback presentation clocks while measuring seek, scroll and retained heap in the same long-form session. Local observations remain pending-external until reference-linux-gpu-01 is provisioned, fingerprinted and qualification-eligible; only then can the collector write digest-bound raw and accepted evidence through the common verifier.",
+			"limitation": "The deterministic current-schema project and 10,000-command replay establish structural shape and exact persisted/runtime positions. The opt-in browser harness decodes both repository-owned VP8/Opus fixtures and samples their AudioContext and requestVideoFrameCallback presentation clocks while measuring seek, scroll and retained heap in the same long-form session. Formal acceptance is emitted only by nightly packaged-runtime verification when the complete diagnostic matches the owner-designated host profile exactly.",
 			"evidence": [
 				"package.json",
 				"src/common/editor/quality/m3-longform-editorial-workload.ts",
@@ -954,7 +1015,6 @@
 			"kind": "deterministic-audio-vectors-and-video-golden-frames",
 			"specification": {
 				"localDiagnosticCommand": "npm run quality:collect:m4-production-parity",
-				"referenceHostObservationPathEnvironmentVariable": "SOUNDSCAPER_M4_REFERENCE_HOST_OBSERVATION_PATH",
 				"routineBrowserTestBehavior": "skip-with-explicit-collector",
 				"qualificationPublication": "accepted-only-after-qualified-environment-and-digest-bound-verification",
 				"generatorRevision": 1,
@@ -1008,7 +1068,7 @@
 					"sha256": "a7a1230cdd711e15deaea68e0e5f58028eb684455fb42024e2aed624ad934701"
 				}
 			],
-			"limitation": "The deterministic PCM and RGBA artifacts establish correctness only. Hosted and local observations remain pending-external; qualification waits for an exact provisioned reference-linux-gpu-01 fingerprint and hardware renderer.",
+			"limitation": "The deterministic PCM and RGBA artifacts establish correctness only. Hosted and local observations remain pending-external; formal acceptance is emitted only by nightly packaged-runtime verification on the exact owner-designated hardware profile.",
 			"evidence": [
 				"package.json",
 				"src/common/editor/quality/m4-production-parity-workload.ts",
@@ -1050,9 +1110,9 @@
 					"authenticated-vfr-materialized-occurrence"
 				],
 				"localDiagnosticCommand": "node scripts/collect-m4b2-keyframe-parity-quality.mjs",
-				"qualificationPublication": "pending-external-only"
+				"qualificationPublication": "accepted-only-after-qualified-environment-and-digest-bound-verification"
 			},
-			"limitation": "The deterministic keyed preview/offline RGBA comparison establishes local and hosted correctness only, and its passing observations remain pending-external. No local or hosted result qualifies this workload until reference-linux-gpu-01 is provisioned and a separately reviewed accepted reference cohort is retained.",
+			"limitation": "The deterministic keyed preview/offline RGBA comparison establishes local and hosted correctness only. Formal acceptance is emitted only by nightly packaged-runtime verification when the complete diagnostic matches the owner-designated host profile exactly.",
 			"evidence": [
 				"src/common/editor/quality/m4b2-keyframe-parity-workload.ts",
 				"scripts/lib/m4b2-keyframe-parity-metrics.mjs",
@@ -1201,7 +1261,7 @@
 			"status": "planned",
 			"kind": "planned-canonical-plan-parity-and-uhd-long-gop-decode-workload",
 			"specification": {
-				"canonicalPlanVersions": [6, 7],
+				"canonicalPlanVersions": [7, 8, 9, 10, 11, 12],
 				"editorialContinuityDurationSeconds": 7200,
 				"requiredEditorialCharacteristics": ["attached-proxy", "nested-sequence", "multicamera", "verified-vfr", "source-timecode"],
 				"proceduralUhdLongGopDurationSeconds": 600,
@@ -1209,7 +1269,7 @@
 				"losslessComparison": "pixel-exact",
 				"lossyComparison": "ssim-and-psnr"
 			},
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "roadmap.md#5-electron-native-services-and-extensibility", "tests/audio-editor-native-media-plan-envelope.test.ts", "tests/audio-editor-native-media-backend-policy.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "roadmap.md#5-electron-native-services-and-extensibility", "tests/audio-editor-native-media-plan-envelope.test.ts", "tests/audio-editor-native-media-backend-policy.test.ts", "tests/audio-editor-unified-exact-render-plan.test.ts", "tests/audio-editor-video-retime-exact-ordinal-oracle.test.ts", "tests/desktop-native-media-execution.test.ts", "tests/desktop-native-media-helper-pool.test.ts", "scripts/collect-m5b-native-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-professional-format-row-suite-v1",
@@ -1221,7 +1281,7 @@
 				"requiredEncodeRows": ["encode-mp4-h264", "encode-webm-vp9", "encode-mov-prores-proxy", "encode-mov-prores-422-hq", "encode-mov-prores-4444", "encode-mxf-dnxhr-hqx", "encode-matroska-ffv1", "encode-png-sequence", "encode-tiff-sequence", "encode-openexr-sequence"],
 				"blockedUntilLicensingRowsClear": true
 			},
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "config/production-licensing-matrix.json", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "config/production-licensing-matrix.json", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts", "tests/audio-editor-native-media-image-sequence-v25.test.ts", "tests/audio-editor-video-source-professional-v25.test.ts", "tests/audio-editor-framescaper-video-proxy-lifecycle-v25.test.ts", "scripts/collect-m5b-professional-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-persistent-services-fault-v1",
@@ -1234,7 +1294,7 @@
 				"diskFullTrials": 8,
 				"duplicateDispatchTrials": 64
 			},
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-queue-state-machine.test.ts", "tests/audio-editor-native-queue-admission.test.ts", "tests/audio-editor-native-durable-root-and-scratch.test.ts", "tests/audio-editor-native-watch-folder.test.ts", "tests/desktop-native-services-database.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-queue-state-machine.test.ts", "tests/audio-editor-native-queue-admission.test.ts", "tests/audio-editor-native-durable-root-and-scratch.test.ts", "tests/audio-editor-native-watch-folder.test.ts", "tests/desktop-native-services-database.test.ts", "tests/desktop-native-services-repositories.test.ts", "tests/desktop-native-watch-scratch-publication.test.ts", "tests/desktop-native-services-runtime.test.ts", "scripts/collect-m5b-persistent-services-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-clean-display-30m-v1",
@@ -1246,7 +1306,7 @@
 				"durationSeconds": 1800,
 				"linuxWindowingSystems": ["x11", "xwayland"]
 			},
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-external-display.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-external-display.test.ts", "tests/desktop-external-display-controller.test.ts", "tests/browser/framescaper-native-services-menu.spec.js", "scripts/collect-m5b-clean-display-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-openfx-conformance-and-hostile-v1",
@@ -1255,11 +1315,12 @@
 			"kind": "planned-openfx-1-5-1-conformance-and-hostile-plugin-suite",
 			"specification": {
 				"contexts": ["generator", "filter", "transition", "paint", "retimer", "general"],
-				"interactModes": ["interact-v1", "interact-v2", "custom-parameter-interact", "draw-suite-v1"],
+				"interactModes": ["interact-v1", "custom-parameter-interact", "draw-suite-v1"],
+				"unavailableUpstream": ["interact-v2"],
 				"targets": ["win32-x64", "win32-arm64", "darwin-arm64", "linux-x64", "linux-arm64"],
 				"hostileCases": ["crash", "hang", "resource-violation", "malformed-descriptor", "network-denied", "filesystem-denied"]
 			},
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-ofx-descriptor.test.ts", "tests/audio-editor-native-ofx-consent-and-binding.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-ofx-descriptor.test.ts", "tests/audio-editor-native-ofx-consent-and-binding.test.ts", "tests/audio-editor-native-ofx-host-contract-v26.test.ts", "tests/audio-editor-framescaper-v26-openfx-candidate.test.ts", "tests/framescaper-openfx-host-source-manifest.test.js", "scripts/collect-m5b-openfx-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		}
 	],
 	"workloads": [
@@ -1268,7 +1329,7 @@
 			"milestone": "1",
 			"status": "provisional",
 			"fixtureIds": ["video-preview-12fx-720p-v1"],
-			"environmentIds": ["reference-linux-gpu-01", "owner-qualified-windows-x64-rtx3090-01"],
+			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{
 					"metricId": "preview.frameIntervalP95Ms",
@@ -1290,7 +1351,7 @@
 			"milestone": "2",
 			"status": "planned",
 			"fixtureIds": ["m2-streaming-project-8gib-v1", "m2-direct-wav-385mib-v1"],
-			"environmentIds": ["reference-linux-gpu-01"],
+			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "streaming.rendererHeapDeltaBytes", "comparison": "lte", "value": 268435456, "unit": "bytes" },
 				{ "metricId": "streaming.maxBufferedBinaryBytes", "comparison": "lte", "value": 67108864, "unit": "bytes" },
@@ -1379,7 +1440,7 @@
 			"milestone": "3",
 			"status": "provisional",
 			"fixtureIds": ["m3-longform-editorial-2h-v1"],
-			"environmentIds": ["reference-linux-gpu-01"],
+			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "editorial.audioPositionErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
 				{ "metricId": "editorial.videoPositionErrorFrames", "comparison": "eq", "value": 0, "unit": "frames" },
@@ -1401,7 +1462,7 @@
 			"milestone": "4",
 			"status": "provisional",
 			"fixtureIds": ["video-effect-parity-rgba-v1", "m4-production-parity-v1"],
-			"environmentIds": ["github-ubuntu-playwright-1.62.1", "reference-linux-gpu-01", "owner-qualified-windows-x64-rtx3090-01"],
+			"environmentIds": ["github-ubuntu-playwright-1.62.1", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "parity.audioMaximumAbsoluteSampleError", "comparison": "lte", "value": 0.000001, "unit": "ratio" },
 				{ "metricId": "parity.pdcErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
@@ -1422,7 +1483,7 @@
 			"milestone": "4",
 			"status": "provisional",
 			"fixtureIds": ["m4b2-keyframe-parity-rgba-v1"],
-			"environmentIds": ["github-ubuntu-playwright-1.62.1", "reference-linux-gpu-01"],
+			"environmentIds": ["github-ubuntu-playwright-1.62.1", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "keyframes.videoMinimumSsim", "comparison": "gte", "value": 0.98, "unit": "ratio" },
 				{ "metricId": "keyframes.videoMaximumChannelMae", "comparison": "lte", "value": 0.023529411764705882, "unit": "ratio" },
@@ -1472,7 +1533,7 @@
 			"milestone": "6",
 			"status": "planned",
 			"fixtureIds": ["m6-reference-master-suite-v1", "m6-reference-master-vertical-v1"],
-			"environmentIds": ["reference-linux-gpu-01", "native-os-lab-matrix"],
+			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01", "native-os-lab-matrix"],
 			"thresholds": [
 				{ "metricId": "delivery.audioDurationErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
 				{ "metricId": "delivery.videoFrameCountError", "comparison": "eq", "value": 0, "unit": "frames" },
@@ -1503,7 +1564,7 @@
 			"milestone": "7",
 			"status": "optional",
 			"fixtureIds": ["m7-local-assistance-privacy-v1"],
-			"environmentIds": ["reference-linux-gpu-01"],
+			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "assistance.networkRequestsAfterInstall", "comparison": "eq", "value": 0, "unit": "count" },
 				{ "metricId": "assistance.unselectedMediaBytesRead", "comparison": "eq", "value": 0, "unit": "bytes" },
@@ -1713,7 +1774,7 @@
 					"unit": "bytes"
 				}
 			],
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "roadmap.md#5-electron-native-services-and-extensibility", "tests/audio-editor-native-media-plan-envelope.test.ts", "tests/audio-editor-native-media-atomic-publication.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "roadmap.md#5-electron-native-services-and-extensibility", "tests/audio-editor-native-media-plan-envelope.test.ts", "tests/audio-editor-native-media-atomic-publication.test.ts", "tests/audio-editor-unified-exact-render-plan.test.ts", "tests/audio-editor-video-retime-exact-ordinal-oracle.test.ts", "tests/desktop-native-media-execution.test.ts", "tests/desktop-native-media-helper-pool.test.ts", "scripts/collect-m5b-native-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-professional-media-tier",
@@ -1759,7 +1820,7 @@
 					"unit": "count"
 				}
 			],
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-image-sequence.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-image-sequence.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts", "tests/audio-editor-native-media-image-sequence-v25.test.ts", "tests/audio-editor-video-source-professional-v25.test.ts", "tests/audio-editor-framescaper-video-proxy-lifecycle-v25.test.ts", "scripts/collect-m5b-professional-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-persistent-services-recovery",
@@ -1811,7 +1872,7 @@
 					"unit": "count"
 				}
 			],
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-queue-state-machine.test.ts", "tests/audio-editor-native-durable-root-and-scratch.test.ts", "tests/audio-editor-native-watch-folder.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-queue-state-machine.test.ts", "tests/audio-editor-native-durable-root-and-scratch.test.ts", "tests/audio-editor-native-watch-folder.test.ts", "tests/desktop-native-services-repositories.test.ts", "tests/desktop-native-watch-scratch-publication.test.ts", "tests/desktop-native-services-runtime.test.ts", "scripts/collect-m5b-persistent-services-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-clean-external-display",
@@ -1851,7 +1912,7 @@
 					"unit": "seconds"
 				}
 			],
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-external-display.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-external-display.test.ts", "tests/desktop-external-display-controller.test.ts", "tests/browser/framescaper-native-services-menu.spec.js", "scripts/collect-m5b-clean-display-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-openfx-isolation-and-packaging",
@@ -1897,7 +1958,7 @@
 					"unit": "bytes"
 				}
 			],
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-ofx-descriptor.test.ts", "tests/audio-editor-native-ofx-consent-and-binding.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-ofx-descriptor.test.ts", "tests/audio-editor-native-ofx-consent-and-binding.test.ts", "tests/audio-editor-native-ofx-host-contract-v26.test.ts", "tests/audio-editor-framescaper-v26-openfx-candidate.test.ts", "tests/framescaper-openfx-host-source-manifest.test.js", "scripts/collect-m5b-openfx-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		}
 	]
 }

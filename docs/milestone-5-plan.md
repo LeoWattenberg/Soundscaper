@@ -100,11 +100,14 @@ integration waits for the owning shared contract (roadmap.md:565-566).
   place (`src/common/editor/controller/recording-routing-service.ts:88-100`);
   there is no exclusive mode, channel-topology API, latency
   calibration, or underrun counter.
-- **No job queue.** The task-progress coordinator is a
+- **Grounding baseline had no job queue.** The task-progress coordinator is a
   single-foreground-task UI model whose `begin()` overwrites the active
   task (`src/common/editor/controller/task-progress.ts:45-71`); the
-  abortable `render-job-port` interface exists with no implementation
-  (`src/common/editor/platform/render-job-port.ts:9-22`).
+  abortable `render-job-port` interface remains the Web-facing seam. The 5B
+  candidate now adds a main-owned V2 persistent queue, controller and helper
+  dispatcher. Its digest-bound source-body handoff and pathless watch-project
+  mutation broker exist, but the empty payload manifest and selected-operation
+  self-test's `not ready` verdict keep production dispatch fail-closed.
 - **The helper security surface is partially enacted.**
   `native-helper-processes` is now `partial` and conditionally released for
   the off-by-default probe surface. It records the pathless bridge, contract-v1
@@ -183,10 +186,11 @@ fuses require app-from-asar with integrity validation. JavaScript helper
 entrypoints currently ship inside the asar; the probe's executable engine bytes
 reuse the verified FFmpeg WebAssembly `extraResources`. Future native binaries
 and addons ship as target-selected, digest-pinned **extraResources** by default.
-No generic native-payload manifest or target selector exists yet, so 5A-0 owns
-that generalization and its tamper/package tests. Any first `asarUnpack` entry or
-runtime rebuild remains a named design decision, never an incidental build
-change.
+Generic native-addon and separate Framescaper media/OpenFX payload manifests,
+selectors, and stagers now exist with tamper and package tests. Pending-external
+targets stage no bytes, and only exact built, digest-verified rows can become
+resources. Any first `asarUnpack` entry or runtime rebuild remains a named design
+decision, never an incidental build change.
 
 ## Licensing decisions
 
@@ -345,8 +349,9 @@ to this contract rather than create another helper protocol.
   surface and the `native-os-lab-matrix` qualification rows remain open;
   the fault-and-loopback fixture stays `planned` and unqualified until that
   hardware exists. 5A-0a repairs the reviewed bridge inventory and packaging
-  test import and updates the timing fixture to the current Soundscaper V21
-  storage profile with actionable cross-realm diagnostics. After repairing
+  test import and updates the timing fixture to the selected Soundscaper V23
+  storage profile, including its inherited V21 timing contract, with actionable
+  cross-realm diagnostics. After repairing
   revision-zero creation and coalesced-update publication, one fresh local
   Linux x64 package and one no-retry timing-probe run passed both pinned
   fixtures. That run does not substitute for 5A-0b's real packaged
@@ -448,15 +453,15 @@ applicable 5A-0 proof closes.
 
 The owning pickup contract is
 [`milestone-5b-framescaper-native-tier.md`](milestone-5b-framescaper-native-tier.md).
-Its implementation record is authoritative for what has landed: the whole 5B
-software substrate — canonical plan admission, capability reporting, backend
-and comparison policy, atomic publication, the professional tier, image
-sequences and proxies, the persistent queue and its services database, durable
-roots, watch folders, managed scratch, clean display, the OpenFX contracts, and
-the product surfaces — is implemented and tested, while every part needing a
-compiled binary, a cleared licensing row, provisioned hardware, or a signing
-identity remains open. No helper process is spawned by this work, so the
-threat-model and security-matrix rows for enacted helper surfaces are unchanged.
+Its implementation record is authoritative for what has landed: 5B status is
+no longer summarized as a single “software substrate” claim. V20 is
+selected provisionally; V22 through V26, unified plans, persistent-service
+controllers, native source hosts and menu surfaces are bounded candidates with
+explicit executable gaps. No 5B payload is built or staged, and licensing,
+isolation, signing, five-target hardware and manual qualification remain open.
+The helper contract now admits closed media and OFX families, so the threat
+model and security matrix record the enacted controller/source boundaries even
+though no 5B helper can spawn from an empty payload manifest.
 
 - **5B-1 — Native media engine helper.** Outcome: multithreaded FFmpeg
   decode/encode and hardware acceleration as per-feature opt-ins with

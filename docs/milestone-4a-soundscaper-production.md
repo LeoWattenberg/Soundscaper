@@ -9,26 +9,27 @@
 
 ## Pickup status and sequencing authority
 
-**Status on 2026-08-21: Implemented (provisional).** Soundscaper V21 is the
-selected maintained Soundscaper App/runtime/storage route. Packets 4A-1 through
-4A-6 are implemented locally, and 4A-7's local automated acceptance is green.
+**Status on 2026-08-22: Implemented (provisional).** Soundscaper V23 is the
+selected maintained Soundscaper App/runtime/storage route and retains V21's
+automation, mixer, PDC and freeze foundation. Packets 4A-1 through 4A-6 are
+implemented locally, and 4A-7's local automated acceptance is green.
 This records a complete local implementation candidate, not a closed milestone.
-The owner-designated Windows x64 RTX 3090 reference run passes the 4A-7 M4
-production-parity row. The 4A hosted, packaged-runtime, and manual rows remain
-open. Shared phase 4.0 remains implemented provisionally, and
+The owner-designated Windows x64 RTX 3090 run passes the 4A-7 M4
+production-parity thresholds, and the retained 2026-08-22 packaged artifact
+formally closes that fixed-GPU row. The 4A hosted, manual, and release rows
+remain open. Shared phase 4.0 remains implemented provisionally, and
 milestone 3 remains **In progress** with its manual and packaged-runtime rows
 unchanged. None of those rows is waived, relabelled, or cited as passing
 evidence here.
 
-Framescaper V20 already owns the globally serialized schema slot after V19. Its
-implemented candidate and provisional evidence do not make the V20 product
-route selected or qualified: both product profiles still advertise
-`videoKeyframes` unavailable and the reference/manual activation gates remain
-open. With the V20 wire fixed and its implementation landed dormant, this
-pickup allocates the next product-wide schema number, **V21**, to Soundscaper's
-automation/mixer/PDC revision. The planned, unimplemented 4B-3 transition
-revision consequently moves from V21 to V22. No implemented V18, V19, or V20
-statement changes.
+Framescaper V20 owns the globally serialized schema slot after V19 and is now
+the provisionally selected web and desktop route with `videoKeyframes`
+available. Its manual and release-qualification gates remain open. With the V20
+wire fixed, this pickup allocated the next product-wide schema number, **V21**,
+to Soundscaper's
+automation/mixer/PDC revision. The 4B-3 transition revision consequently moved
+from V21 to the implemented dormant V22 candidate. No implemented V18, V19, or
+V20 statement changes.
 
 V21 is a Soundscaper-owned exact document around the maintained V17 common
 editorial foundation. It does not migrate V17, copy Framescaper V18-V20 private
@@ -44,7 +45,7 @@ registration, browser and desktop storage, `.scape`, clipboard, history,
 fixtures, and product selection fences. The complete native workflows passed
 their local technical gates together, so the Soundscaper App/runtime/storage
 route and its three capabilities are selected. That selection does not waive
-the still-open hosted, packaged-runtime, manual, or reference-GPU evidence.
+the still-open hosted, manual, or release evidence.
 
 ## Packet map
 
@@ -74,10 +75,10 @@ The implementation landed in this order:
 7. **4A-6 — Reviewed effect packages: Implemented (provisional).** The pure-WASM
    ABI, release-pinned catalog and Utility Gain package, resource enforcement,
    revocation, security, and licensing evidence landed atomically.
-8. **4A-7 — Exit evidence: Implemented locally (provisional).** The complete
-   local automated surface is green against the registered production-parity
-   workload. Hosted no-retry, packaged-runtime, manual, and reference-GPU rows
-   remain open and are not promoted.
+8. **4A-7 — Exit evidence: Implemented (provisional).** The complete local
+   automated surface is green against the registered production-parity
+   workload and the owner-host packaged M4 row is formally accepted. Hosted
+   no-retry, manual, and release rows remain open and are not promoted.
 
 The V21 domain kernel did not become a partial product route: nested buses were
 kept unavailable until per-path PDC passed, and tracks could not author
@@ -694,7 +695,7 @@ through 4A-3 passed their complete local native workflows, and enabled
 `audioTrackFreeze` after 4A-4 passed. Framescaper keeps all three known
 unavailable until its owning work adopts the shared surfaces. These were
 technical route-selection gates, not waivers of the still-open manual,
-packaged-runtime, reference-GPU, hosted no-retry, or other named qualification
+hosted no-retry, release, or other named qualification
 evidence. The capability flip was atomic with the selected
 App/runtime/storage route.
 
@@ -829,20 +830,22 @@ External packages, arbitrary URLs, and user trust overrides remain fenced.
 
 ## 4A-7 — Exit evidence
 
-Run the complete Soundscaper V21 production surface through
+Run the selected Soundscaper V23 surface, retaining V21 production state, through
 `m4-production-render-parity`: audio maximum absolute sample error at most
 `1e-6`, PDC error exactly zero samples, video SSIM at least `0.98`, normalized
 channel MAE at most `6/255`, and silently omitted effects exactly zero. The
 owner-designated 2026-08-21 fixed-GPU reference run passes these thresholds.
-Record the no-retry hosted result as correctness evidence. Keep
-packaged-runtime, manual, and milestone-3 rows at their observed states until
-their named environments are independently provisioned and run.
+The retained 2026-08-22 packaged artifact formally accepts the M4 workload.
+Record hosted no-retry runs as correctness evidence, and keep manual, release,
+and milestone-3 rows at their observed states until their own acceptance is
+complete.
 
 Packets 4A-1 through 4A-6 and the complete native workflows are locally
-implemented, and 4A-7's local automated acceptance is green. V21 is therefore
-the selected maintained Soundscaper route and a complete local implementation
-candidate. Its reference-GPU row is passed, but the 4A hosted,
-packaged-runtime, and manual evidence remain open, as do the
+implemented, and 4A-7's local automated acceptance is green. V23 is therefore
+the selected maintained Soundscaper route, retaining V21 as its automation,
+PDC and freeze foundation, and is a complete local implementation candidate.
+Its fixed-GPU packaged M4 row is formally closed, but the 4A hosted, manual,
+and release evidence remain open, as do the
 parallel 4B exit gate and the overall milestone-4 exit gate.
 
 ## Non-goals and fences

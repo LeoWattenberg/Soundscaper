@@ -34,6 +34,8 @@ test('the packaged metrics plan is Chromium-only, single-worker, and no-retry', 
 	assert.equal(plan.env.GITHUB_ACTIONS, 'false');
 	assert.equal(plan.env.SOUNDSCAPER_M4_PRODUCTION_PARITY, '1');
 	assert.equal(plan.env.SOUNDSCAPER_M4B2_KEYFRAME_PARITY, '1');
+	assert.equal(plan.env.SOUNDSCAPER_M3_LONGFORM_BENCHMARK, '1');
+	assert.equal(plan.env.SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID, 'local-browser-correctness');
 	assert.equal(plan.env.SOUNDSCAPER_VIDEO_PREVIEW_BENCHMARK, '1');
 	assert.equal(plan.env.AUDIO_EDITOR_FFMPEG_BROWSER, '1');
 	assert.equal(plan.env.SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID, 'local-browser-correctness');

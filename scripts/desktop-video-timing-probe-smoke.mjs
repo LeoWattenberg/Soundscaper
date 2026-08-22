@@ -2,7 +2,7 @@
 
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { access, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,9 +11,10 @@ import {
 	DESKTOP_VIDEO_TIMING_PROBE_MODE,
 	DESKTOP_VIDEO_TIMING_PROBE_PREFIX,
 	DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS,
+	createDesktopVideoTimingProbeEvidence,
 	createDesktopVideoTimingProbePlan,
 	encodeDesktopVideoTimingProbePlan,
-	validateDesktopVideoTimingProbeResult,
+	formatDesktopVideoTimingProbeEvidence,
 } from '../desktop/video-timing-probe-smoke.js';
 import { videoTimingProbeMedia } from '../tests/browser/fixtures/video-timing-probe-media.js';
 import { packagedExecutableCandidates, resolveSmokeArchitecture } from './lib/desktop-smoke.mjs';
@@ -75,7 +76,15 @@ try {
 	try { payload = JSON.parse(lines[0].slice(prefix.length)); } catch (error) {
 		throw new Error('Packaged video timing-probe smoke emitted invalid result JSON.', { cause: error });
 	}
-	validateDesktopVideoTimingProbeResult(payload, plan);
+	const evidence = createDesktopVideoTimingProbeEvidence({
+		arch: TARGET_ARCH,
+		platform: process.platform,
+		result: payload,
+	}, plan);
+	const evidencePath = resolve(process.env.SOUNDSCAPER_VIDEO_TIMING_PROBE_RESULT
+		|| join(OUTPUT_ROOT, `desktop-video-timing-probe-${PRODUCT_ID}-${evidence.target}.json`));
+	await mkdir(dirname(evidencePath), { recursive: true });
+	await writeFile(evidencePath, formatDesktopVideoTimingProbeEvidence(evidence), { flag: 'wx' });
 	console.log(lines[0]);
 } finally {
 	await rm(workspace, { recursive: true, force: true });

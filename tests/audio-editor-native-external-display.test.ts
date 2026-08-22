@@ -9,10 +9,17 @@ import {
 	resolveExternalDisplayColorMode,
 	restoreExternalDisplaySession,
 	NATIVE_EXTERNAL_DISPLAY_AUDIO_ROUTE,
+	NATIVE_EXTERNAL_DISPLAY_MAXIMUM_RGBA_BYTES,
 	NATIVE_EXTERNAL_DISPLAY_PERSISTENCE,
 	NativeExternalDisplayError,
 	type ExternalDisplayDescriptorV1,
 } from '../src/common/editor/native-external-display.ts';
+
+test('the bounded frame contract admits the registered UHD clean-display cohort', () => {
+	const uhdRgbaBytes = 3_840 * 2_160 * 4;
+	assert.ok(NATIVE_EXTERNAL_DISPLAY_MAXIMUM_RGBA_BYTES >= uhdRgbaBytes);
+	assert.equal(NATIVE_EXTERNAL_DISPLAY_MAXIMUM_RGBA_BYTES, 64 * 1_024 * 1_024);
+});
 
 test('the menu offers non-primary displays only', () => {
 	const displays = [primary(), secondary('display-2'), secondary('display-3')];

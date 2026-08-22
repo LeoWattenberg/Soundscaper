@@ -79,6 +79,13 @@ export class NativeMediaHelperFilesystem {
 		return inspectedOutput(this.#output);
 	}
 
+	/** Fence every held path immediately before a result leaves the helper. */
+	async revalidate(): Promise<void> {
+		this.#assertActive();
+		await this.#revalidateAuthority();
+		await this.#output?.revalidate();
+	}
+
 	async finish(options: Readonly<{ retainOutput: boolean }>): Promise<void> {
 		this.#assertActive();
 		if ((this.#expectedOutput === null) !== (this.#output === null)) {

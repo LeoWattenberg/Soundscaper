@@ -167,14 +167,13 @@ bound every slice below, and each one narrows scope rather than widening it:
    here", `assistance/transcript-labels.ts:10-11`). 6B-2 therefore scopes
    burn-in to label tracks explicitly and names its upgrade seam.
 5. **Every codec-capability licensing row is blocked.** All six rows
-   (config/production-licensing-matrix.json:516-576) and the `native-codecs`
-   gate (config/production-licensing-matrix.json:437) are shut, and helper
-   contract v1's job-kind set is closed with no media/render kind admitted.
-   The 5B software substrate exists (plan admission, professional profiles,
-   the 5B-3 queue model) but no native binary, no cleared row, and no
-   implemented `render-job-port` host
-   (`src/common/editor/platform/render-job-port.ts:9-23`). 6B-4 is therefore
-   substrate and honest declaration, not enablement.
+   and the `native-codecs` gate are shut. Helper contract v1 now admits closed
+   media/render kinds, and 5B has V7–V12 plan admission, professional profiles,
+   a V2 queue/controller, and a bounded FFmpeg source host. Both 5B payload
+   manifests remain empty, most unified semantics are typed unsupported, and
+   no licensing, target, signing, or hardware gate is cleared. 6B-4 is
+   therefore a dormant integration candidate and honest declaration, not
+   enablement.
 
 Since the plan was first grounded, a V7 keyframe export subsystem
 (`video-keyframe-export-plan-v7.ts` and siblings, FFmpeg-backed, with a

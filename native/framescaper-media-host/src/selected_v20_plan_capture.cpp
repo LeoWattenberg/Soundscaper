@@ -118,19 +118,6 @@ using soundscaper::framescaper::cpp_int;
 	return result;
 }
 
-[[nodiscard]] selected_v20_blend_mode blend_mode(const json::value& value) {
-	const auto mode = json::string(value, "V8 execution blend mode");
-	if (mode == "normal") return selected_v20_blend_mode::normal;
-	if (mode == "multiply") return selected_v20_blend_mode::multiply;
-	if (mode == "screen") return selected_v20_blend_mode::screen;
-	if (mode == "overlay") return selected_v20_blend_mode::overlay;
-	if (mode == "darken") return selected_v20_blend_mode::darken;
-	if (mode == "lighten") return selected_v20_blend_mode::lighten;
-	if (mode == "difference") return selected_v20_blend_mode::difference;
-	if (mode == "exclusion") return selected_v20_blend_mode::exclusion;
-	throw json::parse_error("The selected-V20 execution blend mode is unsupported.");
-}
-
 void capture_staged_inputs(const json::value& root, selected_v20_execution_plan& result) {
 	for (const auto& input : json::array(json::member(root, "inputs"), "selected-V20 inputs")) {
 		const auto kind = json::string(json::member(input, "kind"), "selected-V20 input kind");
@@ -176,7 +163,8 @@ void capture_staged_inputs(const json::value& root, selected_v20_execution_plan&
 
 [[nodiscard]] selected_v20_execution_plan capture_v8(const json::value& root) {
 	selected_v20_execution_plan result;
-	result.family = selected_v20_family::static_composition_v8;
+	result.family = selected_v20_family::evaluated_rgba_v8;
+	result.sample_rate = 1;
 	result.output_frame_count = static_cast<std::uint64_t>(safe_integer(
 		json::member(root, "outputFrameCount"), "V8 execution frame count", 1
 	));
@@ -187,46 +175,6 @@ void capture_staged_inputs(const json::value& root, selected_v20_execution_plan&
 	result.output_rate = decimal_rational(json::member(canvas, "frameRate"), "V8 execution frame rate");
 	result.background_rgba = color(json::member(canvas, "backgroundColor"));
 	capture_staged_inputs(root, result);
-	ExactRational covered(0);
-	for (const auto& interval_value : json::array(json::member(root, "intervals"), "V8 execution intervals")) {
-		selected_v20_interval interval;
-		interval.start_time = covered;
-		interval.duration = decimal_rational(
-			json::member(interval_value, "durationSeconds"), "V8 execution interval duration"
-		);
-		covered = covered + interval.duration;
-		const auto* interval_color = json::optional_member(interval_value, "color");
-		interval.background_rgba = interval_color ? color(*interval_color) : result.background_rgba;
-		for (const auto& layer_value : json::array(json::member(interval_value, "layers"), "V8 execution layers")) {
-			selected_v20_layer layer;
-			const auto& clips = json::array(json::member(layer_value, "clips"), "V8 execution clips");
-			if (!clips.empty()) layer.blend_mode = blend_mode(json::member(
-				json::member(clips.front(), "renderDescription"), "blendMode"
-			));
-			for (const auto& clip_value : clips) {
-				selected_v20_clip clip;
-				clip.clip_id = std::string{json::string(json::member(clip_value, "clipId"), "V8 execution clip ID")};
-				clip.input_index = static_cast<std::size_t>(safe_integer(
-					json::member(clip_value, "inputIndex"), "V8 execution input index"
-				));
-				clip.source_start = decimal_rational(
-					json::member(clip_value, "sourceStartTimeSeconds"), "V8 execution source start"
-				);
-				clip.source_end = decimal_rational(
-					json::member(clip_value, "sourceEndTimeSeconds"), "V8 execution source end"
-				);
-				clip.opacity_start = decimal_rational(
-					json::member(clip_value, "opacityStart"), "V8 execution opacity start"
-				);
-				clip.opacity_end = decimal_rational(
-					json::member(clip_value, "opacityEnd"), "V8 execution opacity end"
-				);
-				layer.clips.push_back(std::move(clip));
-			}
-			interval.layers.push_back(std::move(layer));
-		}
-		result.intervals.push_back(std::move(interval));
-	}
 	return result;
 }
 

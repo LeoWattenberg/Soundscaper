@@ -29,6 +29,7 @@ export interface FramescaperMediaHostPayloadLocation {
 	readonly applicationRoot: string;
 	readonly packaged: boolean;
 	readonly resourcesPath: string;
+	readonly externalRuntimeRoot?: string;
 	readonly platform?: string;
 	readonly arch?: string;
 }
@@ -146,7 +147,9 @@ export async function describeFramescaperMediaHostAvailability(
 		);
 	}
 	const payload = manifest.payloads.find(({ id }) => id === targetId)!;
-	const path = location.packaged
+	const path = location.externalRuntimeRoot
+		? join(resolve(location.externalRuntimeRoot), RUNTIME_PREFIX, targetId, basename(payload.path))
+		: location.packaged
 		? join(location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId, basename(payload.path))
 		: safeDevelopmentPath(location.applicationRoot, payload.path);
 	let bytes: Buffer;

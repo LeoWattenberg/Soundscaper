@@ -29,6 +29,13 @@ import type {
 import {
 	resolveFramescaperNativeServicesCopy,
 } from './framescaper-native-services-copy.ts';
+import {
+	FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,
+	type FramescaperNativeProjectActionSurface,
+} from './framescaper-native-project-actions.ts';
+import type {
+	FramescaperNativeServicesLifecycleMethod,
+} from './framescaper-native-services-lifecycle-bridge.ts';
 
 export const FRAMESCAPER_NATIVE_SERVICE_SURFACES = Object.freeze([
 	'image-sequence-import',
@@ -47,14 +54,26 @@ export const FRAMESCAPER_NATIVE_SERVICE_SURFACES = Object.freeze([
 export type FramescaperNativeServiceSurface =
 	(typeof FRAMESCAPER_NATIVE_SERVICE_SURFACES)[number];
 
+export { FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES };
+
 /** Surfaces that must stay reachable so the user can enable or repair the tier. */
 export const FRAMESCAPER_ALWAYS_REACHABLE_SURFACES: readonly FramescaperNativeServiceSurface[] =
 	Object.freeze(['native-media-preferences', 'ofx-manage']);
+
+/** Surfaces with a real selected-runtime renderer action, not a placeholder panel. */
+export const FRAMESCAPER_ACTIONABLE_NATIVE_SERVICE_SURFACES:
+	readonly FramescaperNativeServiceSurface[] = Object.freeze([
+		...FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,
+		'background-jobs', 'watch-folders', 'native-media-preferences', 'ofx-manage',
+	]);
+
+const ACTIONABLE_SURFACES = new Set(FRAMESCAPER_ACTIONABLE_NATIVE_SERVICE_SURFACES);
 
 export interface FramescaperNativeServicesMenuItem {
 	readonly id: string;
 	readonly label: string;
 	readonly disabled: boolean;
+	readonly disabledReason?: string;
 	readonly checked?: boolean;
 	readonly items?: readonly FramescaperNativeServicesMenuItem[];
 	onClick?(): unknown;
@@ -79,10 +98,14 @@ export interface FramescaperNativeServicesMenuInput {
 	readonly runtimeAvailable: boolean;
 	readonly snapshot: NativeMediaCapabilitySnapshotV1 | null;
 	readonly project: unknown;
+	readonly projectCapabilities?: Readonly<Record<string, unknown>>;
 	readonly editingBlocked: boolean;
 	readonly readOnly?: boolean;
 	readonly externalDisplays?: readonly ExternalDisplayDescriptorV1[];
 	readonly activeExternalDisplayId?: string | null;
+	readonly lifecycleMethods?: readonly FramescaperNativeServicesLifecycleMethod[];
+	/** Exact project mutations installed only by a candidate project runtime. */
+	readonly projectActionSurfaces?: readonly FramescaperNativeProjectActionSurface[];
 	readonly copy?: Readonly<Record<string, string | undefined>>;
 }
 
@@ -115,7 +138,21 @@ export function createFramescaperNativeServicesMenuItems(
 	const queueUsable = usable(NATIVE_MEDIA_CAPABILITY_IDS.renderQueue);
 	const watchUsable = usable(NATIVE_MEDIA_CAPABILITY_IDS.watchFolders);
 	const proxyUsable = usable(NATIVE_MEDIA_CAPABILITY_IDS.proxyCodec);
+	const imageSequenceUsable = usable(NATIVE_MEDIA_CAPABILITY_IDS.imageSequenceImport);
+	const displayUsable = usable(NATIVE_MEDIA_CAPABILITY_IDS.externalDisplay);
 	const ofxUsable = usable(NATIVE_MEDIA_CAPABILITY_IDS.ofxHost);
+	const watchCrudAvailable = [
+		'createWatch', 'setWatchEnabled', 'removeWatch', 'reconcileWatch',
+	].every((method) => input.lifecycleMethods?.includes(
+		method as FramescaperNativeServicesLifecycleMethod,
+	) === true);
+	const projectCapability = (key: string): boolean => input.projectCapabilities?.[key] === true;
+	const projectAction = (surface: FramescaperNativeProjectActionSurface): boolean => (
+		input.projectActionSurfaces?.includes(surface) === true
+	);
+	const schemaVersion = projectSchemaVersion(input.project);
+	const professionalMediaProject = schemaVersion === 25 || schemaVersion === 26;
+	const openFxProject = schemaVersion === 26;
 	const leaf = (
 		id: string,
 		label: string,
@@ -124,28 +161,48 @@ export function createFramescaperNativeServicesMenuItems(
 	): FramescaperNativeServicesMenuItem => Object.freeze({
 		id,
 		label,
-		disabled: !enabled,
-		onClick: () => (enabled ? actions.open(surface) : undefined),
+		disabled: !enabled || !ACTIONABLE_SURFACES.has(surface),
+		disabledReason: enabled && ACTIONABLE_SURFACES.has(surface) ? '' : copy.capabilityUnavailable,
+		onClick: () => (enabled && ACTIONABLE_SURFACES.has(surface) ? actions.open(surface) : undefined),
 	});
 
 	return Object.freeze({
 		fileImport: Object.freeze([leaf(
 			'framescaper-import-image-sequence', copy.importImageSequence,
-			'image-sequence-import', mutable,
+			'image-sequence-import', mutable && professionalMediaProject
+				&& projectCapability('sourceCharacteristics')
+				&& imageSequenceUsable && projectAction('image-sequence-import'),
 		)]),
 		fileExport: Object.freeze([leaf(
 			'framescaper-add-to-render-queue', copy.addToRenderQueue,
-			'render-queue-enqueue', hasProject && queueUsable,
+			'render-queue-enqueue', hasProject && projectCapability('videoExport') && queueUsable
+				&& projectAction('render-queue-enqueue'),
 		)]),
-		view: Object.freeze([externalDisplayMenu(input, copy, actions)]),
+		view: Object.freeze([externalDisplayMenu(
+			input, copy, actions,
+			displayUsable && hasProject && projectCapability('videoPlayback'),
+		)]),
 		tools: Object.freeze([
 			leaf('framescaper-background-jobs', copy.backgroundJobs, 'background-jobs', queueUsable),
-			leaf('framescaper-watch-folders', copy.watchFolders, 'watch-folders', watchUsable),
+			leaf('framescaper-watch-folders', copy.watchFolders, 'watch-folders',
+				mutable && projectCapability('videoImport') && watchUsable && watchCrudAvailable),
 			branch('framescaper-proxies', copy.proxies, [
-				leaf('framescaper-proxy-generate', copy.proxyGenerate, 'proxy-generate', mutable && proxyUsable),
-				leaf('framescaper-proxy-attach', copy.proxyAttach, 'proxy-attach', mutable && proxyUsable),
-				leaf('framescaper-proxy-detach', copy.proxyDetach, 'proxy-detach', mutable),
-				leaf('framescaper-proxy-relink', copy.proxyRelink, 'proxy-relink', mutable),
+				leaf('framescaper-proxy-generate', copy.proxyGenerate, 'proxy-generate',
+					mutable && professionalMediaProject
+						&& projectCapability('sourceCharacteristics') && proxyUsable
+						&& projectAction('proxy-generate')),
+				leaf('framescaper-proxy-attach', copy.proxyAttach, 'proxy-attach',
+					mutable && professionalMediaProject
+						&& projectCapability('sourceCharacteristics') && proxyUsable
+						&& projectAction('proxy-attach')),
+				leaf('framescaper-proxy-detach', copy.proxyDetach, 'proxy-detach',
+					mutable && professionalMediaProject
+						&& projectCapability('sourceCharacteristics') && snapshot?.masterEnabled === true
+						&& projectAction('proxy-detach')),
+				leaf('framescaper-proxy-relink', copy.proxyRelink, 'proxy-relink',
+					mutable && professionalMediaProject
+						&& projectCapability('sourceCharacteristics') && snapshot?.masterEnabled === true
+						&& projectAction('proxy-relink')),
 			]),
 			// Always reachable: this is where the tier is switched on.
 			leaf(
@@ -154,7 +211,9 @@ export function createFramescaperNativeServicesMenuItems(
 			),
 		]),
 		effect: Object.freeze([branch('framescaper-video-effects', copy.videoEffects, [
-			leaf('framescaper-ofx-add', copy.ofxAdd, 'ofx-add', mutable && ofxUsable),
+			leaf('framescaper-ofx-add', copy.ofxAdd, 'ofx-add',
+				mutable && openFxProject && projectCapability('ofxEffects') && ofxUsable
+					&& projectAction('ofx-add')),
 			// Always reachable: this is where consent is granted and quarantine cleared.
 			leaf('framescaper-ofx-manage', copy.ofxManage, 'ofx-manage', true),
 		])]),
@@ -165,18 +224,21 @@ function externalDisplayMenu(
 	input: FramescaperNativeServicesMenuInput,
 	copy: ReturnType<typeof resolveFramescaperNativeServicesCopy>,
 	actions: FramescaperNativeServicesMenuActions,
+	usable: boolean,
 ): FramescaperNativeServicesMenuItem {
-	const displays = input.externalDisplays ?? [];
+	const displays = (input.externalDisplays ?? []).filter(({ primary }) => !primary);
 	const active = input.activeExternalDisplayId ?? null;
-	if (displays.length === 0) {
+	if (!usable || displays.length === 0) {
 		return Object.freeze({
 			id: 'framescaper-external-display',
 			label: copy.externalDisplay,
 			disabled: true,
+			disabledReason: usable ? copy.externalDisplayUnavailable : copy.capabilityUnavailable,
 			items: Object.freeze([Object.freeze({
 				id: 'framescaper-external-display-unavailable',
-				label: copy.externalDisplayUnavailable,
+				label: usable ? copy.externalDisplayUnavailable : copy.capabilityUnavailable,
 				disabled: true,
+				disabledReason: usable ? copy.externalDisplayUnavailable : copy.capabilityUnavailable,
 			})]),
 		});
 	}
@@ -215,4 +277,13 @@ function branch(
 		disabled: items.every((item) => item.disabled),
 		items: Object.freeze([...items]),
 	});
+}
+
+function projectSchemaVersion(value: unknown): number | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const descriptor = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
+	return descriptor?.enumerable && Object.hasOwn(descriptor, 'value')
+		&& Number.isSafeInteger(descriptor.value)
+		? Number(descriptor.value)
+		: null;
 }

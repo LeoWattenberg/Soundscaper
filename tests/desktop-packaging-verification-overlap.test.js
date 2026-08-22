@@ -44,7 +44,7 @@ test('afterPack starts the native payload verification without waiting for the F
 	await settled;
 });
 
-test('beforePack verifies the FFmpeg and native runtimes at once', async () => {
+test('beforePack verifies FFmpeg, addon, and Framescaper host runtimes at once', async () => {
 	const started = [];
 	let releaseFfmpeg;
 	const ffmpeg = new Promise((resolvePromise) => { releaseFfmpeg = resolvePromise; });
@@ -56,9 +56,12 @@ test('beforePack verifies the FFmpeg and native runtimes at once', async () => {
 				await ffmpeg;
 			},
 			verifyStagedNativeAddonBeforePack: async () => { started.push('native'); },
+			verifyStagedFramescaperNativeHostsBeforePack: async () => {
+				started.push('framescaper-native-hosts');
+			},
 		},
 	).then(() => null, (error) => error);
-	assert.deepEqual(started, ['ffmpeg', 'native']);
+	assert.deepEqual(started, ['ffmpeg', 'native', 'framescaper-native-hosts']);
 	releaseFfmpeg();
 	assert.equal(await settled, null);
 });

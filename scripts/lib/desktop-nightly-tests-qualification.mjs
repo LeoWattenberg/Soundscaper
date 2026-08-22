@@ -131,6 +131,10 @@ function verifyFixtureAndSamples(diagnostic, workload, profile, failures) {
 	if (profile?.fixture !== undefined && !isDeepStrictEqual(workload?.fixture, profile.fixture)) {
 		failures.push('Workload fixture summary does not match the qualification profile.');
 	}
+	if (profile?.rawSampleCounts !== undefined
+		&& !isDeepStrictEqual(workload?.rawSampleCounts, profile.rawSampleCounts)) {
+		failures.push('Workload raw sampling counts do not match the qualification profile.');
+	}
 	const sampleShape = record(profile?.sampleShape);
 	if (sampleShape === null) return;
 	const observedShape = {

@@ -1,0 +1,10 @@
+{
+	"schemaVersion": 1,
+	"targets": [
+		{ "id": "linux-x64", "runtime": "linux-x64", "hostRuntime": "linux-x64", "preset": "linux-x64", "toolchainFile": "build/toolchains/linux-x64.cmake", "architectureDirectory": "Linux-x86-64" },
+		{ "id": "linux-arm64", "runtime": "linux-arm64", "hostRuntime": "linux-arm64", "preset": "linux-arm64", "toolchainFile": "build/toolchains/linux-arm64.cmake", "architectureDirectory": "Linux-aarch64" },
+		{ "id": "mac-arm64", "runtime": "darwin-arm64", "hostRuntime": "darwin-arm64", "preset": "mac-arm64", "toolchainFile": "build/toolchains/mac-arm64.cmake", "architectureDirectory": "MacOS" },
+		{ "id": "win-x64", "runtime": "win32-x64", "hostRuntime": "win32-x64", "preset": "win-x64", "toolchainFile": "build/toolchains/win-x64.cmake", "architectureDirectory": "Win64" },
+		{ "id": "win-arm64", "runtime": "win32-arm64", "hostRuntime": "win32-arm64", "preset": "win-arm64ec", "toolchainFile": "build/toolchains/win-arm64.cmake", "architectureDirectory": "Win-arm64ec" }
+	]
+}

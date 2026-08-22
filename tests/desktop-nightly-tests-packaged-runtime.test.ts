@@ -59,6 +59,8 @@ test('packaged-runtime metrics run through the bundled Playwright driver', () =>
 	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM, 'linux');
 	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_ARCH, 'x64');
 	assert.equal(plan.env.GITHUB_ACTIONS, 'false');
+	assert.equal(plan.env.SOUNDSCAPER_M3_LONGFORM_BENCHMARK, '1');
+	assert.equal(plan.env.SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID, 'packaged-runtime-linux-x64');
 });
 
 test('packaged-runtime Chromium arguments admit WebGL on hosted Linux renderers', () => {

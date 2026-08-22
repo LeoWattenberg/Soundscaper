@@ -15,6 +15,12 @@ import {
 	validateHelperDataPlaneBinding,
 	validateHelperDataPlaneMessage,
 } from './helper-data-plane.ts';
+import {
+	HelperDataPlaneOutputReceiver,
+	assertHelperDataPlaneOutputCompletion,
+	type HelperDataPlaneOutputReservation,
+	validateHelperDataPlaneOutputReservation,
+} from './helper-data-plane-output-reservation.ts';
 
 export interface HelperDataPlaneIoPort {
 	postMessage(message: unknown, transfer?: readonly ArrayBuffer[]): void;
@@ -31,6 +37,18 @@ interface HelperDataPlaneFileRequest {
 	readonly path: string;
 	readonly signal?: AbortSignal;
 	readonly localCancelReason?: HelperDataPlaneCancelReason;
+}
+
+interface HelperDataPlaneReservedFileRequest {
+	readonly reservation: HelperDataPlaneOutputReservation;
+	readonly port: HelperDataPlaneIoPort;
+	readonly path: string;
+	readonly signal?: AbortSignal;
+	readonly localCancelReason?: HelperDataPlaneCancelReason;
+}
+
+interface HelperDataPlaneReservedSendRequest extends HelperDataPlaneReservedFileRequest {
+	readonly completion: HelperDataPlaneCompletion;
 }
 
 /** Receive one exact stream into a newly created spool file. */
@@ -79,6 +97,60 @@ export async function receiveHelperDataPlaneFile(
 			request.signal?.aborted ? (request.localCancelReason ?? 'helper-abort') : 'protocol-fault',
 		);
 		throw request.signal?.aborted ? abortError('The helper data-plane receive was cancelled.') : error;
+	} finally {
+		inbox.dispose();
+		if (handle !== null) await handle.close().catch(() => undefined);
+		if (!completed) await rm(request.path, { force: true }).catch(() => undefined);
+		request.port.close();
+	}
+}
+
+/** Receive one digest-on-completion helper output within its pre-negotiated length bound. */
+export async function receiveHelperDataPlaneReservedFile(
+	request: HelperDataPlaneReservedFileRequest,
+): Promise<HelperDataPlaneCompletion> {
+	const reservation = validateHelperDataPlaneOutputReservation(request.reservation);
+	const inbox = new PortInbox(request.port);
+	let handle: Awaited<ReturnType<typeof open>> | null = null;
+	let completed = false;
+	try {
+		request.signal?.throwIfAborted();
+		handle = await open(request.path, 'wx', 0o600);
+		const receiver = new HelperDataPlaneOutputReceiver(reservation);
+		for (;;) {
+			const message = validateHelperDataPlaneMessage(await inbox.next(request.signal));
+			if (message.type === 'cancel') {
+				receiver.acceptCancel(message);
+				throw abortError('The remote helper output sender cancelled the stream.');
+			}
+			if (message.type === 'chunk') {
+				const acknowledgement = receiver.acceptChunk(message);
+				const write = await handle.write(
+					message.bytes, 0, message.bytes.byteLength, message.offset,
+				);
+				if (write.bytesWritten !== message.bytes.byteLength) {
+					throw new Error('A reserved helper output spool write was incomplete.');
+				}
+				request.port.postMessage(acknowledgement);
+				continue;
+			}
+			if (message.type !== 'complete') {
+				throw new TypeError('A reserved helper output accepts only chunks or completion.');
+			}
+			const completion = receiver.acceptComplete(message);
+			await handle.sync();
+			await handle.close();
+			handle = null;
+			completed = true;
+			return completion;
+		}
+	} catch (error) {
+		postCancellation(
+			request.port,
+			reservation.streamId,
+			request.signal?.aborted ? (request.localCancelReason ?? 'host-abort') : 'protocol-fault',
+		);
+		throw request.signal?.aborted ? abortError('The reserved output receive was cancelled.') : error;
 	} finally {
 		inbox.dispose();
 		if (handle !== null) await handle.close().catch(() => undefined);
@@ -148,6 +220,30 @@ export async function sendHelperDataPlaneFile(
 		if (handle !== null) await handle.close().catch(() => undefined);
 		request.port.close();
 	}
+}
+
+/** Send bytes whose digest was computed after native work, within a closed output reservation. */
+export async function sendHelperDataPlaneReservedFile(
+	request: HelperDataPlaneReservedSendRequest,
+): Promise<HelperDataPlaneCompletion> {
+	const reservation = validateHelperDataPlaneOutputReservation(request.reservation);
+	const completion = assertHelperDataPlaneOutputCompletion(request.completion, reservation);
+	return sendHelperDataPlaneFile({
+		binding: {
+			dataPlaneVersion: HELPER_DATA_PLANE_VERSION,
+			transport: 'message-port',
+			streamId: reservation.streamId,
+			direction: 'helper-to-host',
+			byteLength: completion.byteLength,
+			sha256: completion.sha256,
+			maximumChunkBytes: reservation.maximumChunkBytes,
+			maximumInFlightChunks: reservation.maximumInFlightChunks,
+		},
+		port: request.port,
+		path: request.path,
+		...(request.signal ? { signal: request.signal } : {}),
+		...(request.localCancelReason ? { localCancelReason: request.localCancelReason } : {}),
+	});
 }
 
 class PortInbox {

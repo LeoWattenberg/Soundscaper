@@ -63,6 +63,23 @@ test('packaged payloads resolve only below the verified runtime prefix', async (
 	assert.equal(reads.at(-1), availability.descriptor.path);
 });
 
+test('prepared desktop development resolves only from its staged external runtime', async () => {
+	const expected = '/build/runtime/native/framescaper-media-host/linux-x64/framescaper-media-host';
+	const reads: string[] = [];
+	const availability = await describeFramescaperMediaHostAvailability({
+		...location(), externalRuntimeRoot: '/build/runtime',
+	}, {
+		readFile: async (path) => {
+			reads.push(path);
+			return path === MANIFEST_PATH ? Buffer.from(JSON.stringify(manifest())) : BYTES;
+		},
+		stat: async () => fileStat(BYTES.byteLength),
+	});
+	assert.equal(availability.status, 'available');
+	assert.equal(availability.status === 'available' ? availability.descriptor.path : null, expected);
+	assert.equal(reads.at(-1), expected);
+});
+
 test('pending, missing, altered, and malformed payloads stay explicitly unavailable', async () => {
 	const pending = manifest({ built: false });
 	const pendingResult = await describeFramescaperMediaHostAvailability(location(), ports(pending));

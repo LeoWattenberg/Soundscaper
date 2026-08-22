@@ -2,6 +2,7 @@
 
 import { createFramescaperNestedSequenceMenuItems } from './framescaper-nested-sequence-menu.ts';
 import { createFramescaperMulticameraMenuItems } from './framescaper-multicamera-menu.ts';
+import { createFramescaperCandidateAuthoringMenuItems } from './framescaper-candidate-authoring-menu.ts';
 import { createFramescaperNativeServicesMenuItems } from './framescaper-native-services-menu.ts';
 import { createSoundscaperNativeServicesMenuItems } from './soundscaper-native-services-menu.ts';
 import { createSoundscaperProductionApplicationMenuItems } from './soundscaper-production-application-menu.ts';
@@ -54,15 +55,24 @@ export function createApplicationMenuProductItems({
 		freeze: (operation, trackId) => productionRuntime?.freeze(operation, trackId),
 	});
 	const nativeRuntime = actions.framescaperNativeServices || null;
+	const authoringRuntime = actions.framescaperCandidateAuthoring || null;
+	const candidateAuthoring = createFramescaperCandidateAuthoringMenuItems({
+		productId, project, projectCapabilities: capabilities, editingBlocked: editBlocked,
+		readOnly: snapshot.readOnly === true,
+		actionSurfaces: authoringRuntime?.surfaces ?? [], copy,
+	}, { open: (surface) => authoringRuntime?.open(surface) });
 	const nativeServices = createFramescaperNativeServicesMenuItems({
 		productId,
 		runtimeAvailable: nativeRuntime !== null,
 		snapshot: nativeRuntime?.capabilitySnapshot ?? null,
 		project,
+		projectCapabilities: capabilities,
 		editingBlocked: editBlocked,
 		readOnly: snapshot.readOnly === true,
 		externalDisplays: nativeRuntime?.externalDisplays ?? [],
 		activeExternalDisplayId: nativeRuntime?.activeExternalDisplayId ?? null,
+		lifecycleMethods: nativeRuntime?.lifecycleMethods ?? [],
+		projectActionSurfaces: nativeRuntime?.projectActionSurfaces ?? [],
 		copy,
 	}, {
 		open: (surface) => nativeRuntime?.open(surface),
@@ -79,8 +89,9 @@ export function createApplicationMenuProductItems({
 	}, { open: (surface) => soundscaperNativeRuntime?.open(surface) });
 	return Object.freeze({
 		...production,
-		tracks: Object.freeze([nestedSequences, multicamera, ...production.tracks].filter(Boolean)),
-		effect: Object.freeze([...production.effect, ...nativeServices.effect, ...soundscaperNativeServices.effect]),
+		tracks: Object.freeze([nestedSequences, multicamera, ...candidateAuthoring.tracks, ...production.tracks].filter(Boolean)),
+		generate: candidateAuthoring.generate,
+		effect: Object.freeze([...candidateAuthoring.effect, ...production.effect, ...nativeServices.effect, ...soundscaperNativeServices.effect]),
 		tools: Object.freeze([...production.tools, ...nativeServices.tools, ...soundscaperNativeServices.tools]),
 		fileImport: nativeServices.fileImport,
 		fileExport: nativeServices.fileExport,

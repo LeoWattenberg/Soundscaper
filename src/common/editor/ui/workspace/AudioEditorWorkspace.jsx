@@ -23,7 +23,11 @@ import { useWorkspaceSearchRuntime } from './useWorkspaceSearchRuntime.js';
 import { useSoundscaperProductionWorkspace } from './useSoundscaperProductionWorkspace.ts';
 import { useTrackRateDialog } from './useTrackRateDialog.js';
 import { useWorkspaceThemePreference } from './useWorkspaceThemePreference.js';
-import { createWorkspaceApplicationMenus, useSoundscaperNativeServicesMenuRefresh } from './workspace-application-menu-runtime.js';
+import {
+	createWorkspaceApplicationMenus,
+	useFramescaperNativeServicesMenuRefresh,
+	useSoundscaperNativeServicesMenuRefresh,
+} from './workspace-application-menu-runtime.js';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
 import { partitionWorkspaceFiles } from './workspace-file-routing.js';
 import { desktopExternalDestination, formatDateTimeLocalInput, useMediaQuery } from '../workspace-runtime.js';
@@ -38,6 +42,7 @@ export default function AudioEditorWorkspace({
 	crossProductHandoffAvailable = false,
 }) {
 	const product = useMemo(() => productProfile(productId), [productId]);
+	useFramescaperNativeServicesMenuRefresh({ productId });
 	useSoundscaperNativeServicesMenuRefresh({ productId });
 	const capabilities = product.capabilities;
 	const aboutLabel = productId === 'framescaper' ? copy.aboutFramescaper : copy.aboutEditor;

@@ -28,10 +28,11 @@ test('the M4 collector admits packaged-runtime diagnostics without treating them
 test('the keyed collector admits packaged-runtime diagnostics without treating them as qualification', () => {
 	const diagnostic = makeM4B2KeyframeParityDiagnostic();
 	diagnostic.environmentId = 'packaged-runtime-win32-x64';
-	const result = createPendingM4B2KeyframeParityResult(diagnostic);
+	const result = createPendingM4B2KeyframeParityResult(diagnostic, config);
 
 	assert.equal(result.environmentId, diagnostic.environmentId);
 	assert.equal(result.status, 'pending-external');
 	assert.equal(result.metricGatePassed, true);
 	assert.equal(result.qualificationEvidencePublished, false);
+	assert.equal(result.evaluation.verdicts.length, 5);
 });

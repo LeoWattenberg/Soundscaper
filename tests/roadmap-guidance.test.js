@@ -39,7 +39,7 @@ test('roadmap records the owner-designated Windows fixed-GPU reference pass', as
 	const roadmap = await readFile(roadmapUrl, 'utf8');
 	assert.match(
 		roadmap,
-		/Windows x64.*RTX 3090.*reference.*M1\s+preview.*M4 production parity.*M4B-2 keyed parity.*passed/isu,
+		/Windows x64.*RTX 3090.*reference.*M1\s+preview.*M4 production parity.*M4B-2\s+keyed parity.*passed/isu,
 	);
 	assert.match(roadmap, /reference pass.*does not close milestone\s+1 or milestone 4/isu);
 });

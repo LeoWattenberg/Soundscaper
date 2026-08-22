@@ -26,6 +26,13 @@ inline void validate_professional_characteristics(const json::value& value) {
 	for (const auto key : {"codedWidth", "codedHeight", "rotationDegrees", "extractedAudioStreamIndex", "bitDepth"}) {
 		nullable_integer(json::member(value, key), key);
 	}
+	const auto& rotation = json::member(value, "rotationDegrees");
+	if (rotation.kind != json::type::null_value) {
+		const auto degrees = safe_integer(rotation, "rotationDegrees");
+		if (degrees != 0 && degrees != 90 && degrees != 180 && degrees != 270) {
+			throw json::parse_error("Professional source rotation is unsupported.");
+		}
+	}
 	const auto& alpha = json::member(value, "hasAlpha");
 	if (alpha.kind != json::type::null_value) static_cast<void>(json::boolean(alpha, "source alpha"));
 	const auto& aspect = json::member(value, "pixelAspectRatio");
@@ -192,6 +199,34 @@ inline bool known_ofx_context(const std::string& value) {
 		|| value == "paint" || value == "retimer" || value == "general";
 }
 
+inline void validate_openfx_attachment_identity(
+	const graph_identity_index& identities,
+	const std::string& context,
+	const std::string& target
+) {
+	if (context == "generator") static_cast<void>(require_graph_identity(identities, target, {
+		graph_identity_kind::generator_source,
+	}, "An OpenFX generator attachment"));
+	else if (context == "filter" || context == "paint") {
+		static_cast<void>(require_graph_identity(identities, target, {
+			graph_identity_kind::clip,
+			graph_identity_kind::video_effect,
+			graph_identity_kind::visual_model,
+		}, "An OpenFX filter/paint attachment"));
+	} else if (context == "transition") static_cast<void>(require_graph_identity(identities, target, {
+		graph_identity_kind::transition,
+	}, "An OpenFX transition attachment"));
+	else if (context == "retimer") static_cast<void>(require_graph_identity(identities, target, {
+		graph_identity_kind::clip,
+	}, "An OpenFX retimer attachment"));
+	else static_cast<void>(require_graph_identity(identities, target, {
+		graph_identity_kind::source,
+		graph_identity_kind::generator_source,
+		graph_identity_kind::clip,
+		graph_identity_kind::visual_model,
+	}, "An OpenFX general attachment"));
+}
+
 inline void validate_ofx_value(const json::value& value, const std::string& type) {
 	if (type == "group" || type == "page" || type == "pushbutton") {
 		if (value.kind != json::type::null_value) throw json::parse_error("A valueless OFX parameter carries state.");
@@ -219,8 +254,9 @@ inline void validate_ofx_value(const json::value& value, const std::string& type
 
 inline void validate_openfx(
 	const json::value& node,
-	const std::set<std::string>& identities,
-	const source_index& sources
+	const graph_identity_index& identities,
+	const source_index& sources,
+	const std::int64_t output_frame_count
 ) {
 	exact(node, {"kind", "nodeId", "state"});
 	static_cast<void>(text(json::member(node, "nodeId"), "OpenFX node ID"));
@@ -234,17 +270,23 @@ inline void validate_openfx(
 	if (!known_ofx_context(context)) throw json::parse_error("OpenFX context is unsupported.");
 	const auto& attachment = json::member(state, "attachment");
 	exact(attachment, {"kind", "targetId"});
-	if (text(json::member(attachment, "kind"), "OpenFX attachment kind") != context
-		|| !identities.contains(text(json::member(attachment, "targetId"), "OpenFX target ID"))) {
+	if (text(json::member(attachment, "kind"), "OpenFX attachment kind") != context) {
 		throw json::parse_error("OpenFX attachment does not bind the render graph.");
 	}
+	validate_openfx_attachment_identity(
+		identities, context, stable_id(json::member(attachment, "targetId"), "OpenFX target ID")
+	);
 	const auto& inputs = json::array(json::member(state, "inputs"), "OpenFX inputs");
 	if (inputs.size() > 16) throw json::parse_error("OpenFX input ceiling is exceeded.");
 	std::set<std::string> input_names;
 	for (const auto& input : inputs) {
 		exact(input, {"name", "sourceRef"});
 		unique(input_names, text(json::member(input, "name"), "OpenFX input name"), "OpenFX input name");
-		if (!identities.contains(text(json::member(input, "sourceRef"), "OpenFX input reference"))) throw json::parse_error("OpenFX input is outside the render graph.");
+		static_cast<void>(require_renderable_identity(
+			identities,
+			stable_id(json::member(input, "sourceRef"), "OpenFX input reference"),
+			"An OpenFX named input"
+		));
 	}
 	const auto& parameters = json::array(json::member(state, "parameters"), "OpenFX parameters");
 	if (parameters.size() > 4'096) throw json::parse_error("OpenFX parameter ceiling is exceeded.");
@@ -257,6 +299,9 @@ inline void validate_openfx(
 		validate_ofx_value(json::member(parameter, "value"), type);
 		const auto& keyframes = json::array(json::member(parameter, "keyframes"), "OpenFX keyframes");
 		if (keyframes.size() > 8'192) throw json::parse_error("OpenFX keyframe ceiling is exceeded.");
+		if (!keyframes.empty() && (type == "group" || type == "page" || type == "pushbutton")) {
+			throw json::parse_error("A valueless OFX parameter cannot carry keyframes.");
+		}
 		std::int64_t previous = -1;
 		for (const auto& keyframe : keyframes) {
 			exact(keyframe, {"frame", "value"});
@@ -275,16 +320,20 @@ inline void validate_openfx(
 		if (encoding_bytes > 65'536) throw json::parse_error("OpenFX custom encodings exceed their byte ceiling.");
 	}
 	static_cast<void>(json::boolean(json::member(state, "enabled"), "OpenFX enabled"));
-	const auto freshness = validate_freshness(json::member(state, "freshness"));
+	static_cast<void>(validate_freshness(json::member(state, "freshness")));
 	const auto& fallback = json::member(state, "frozenFallback");
 	if (fallback.kind == json::type::null_value) return;
 	exact(fallback, {"externalMediaSourceId", "renderedAssetSha256", "frameCount", "freshness"});
 	const auto source_id = text(json::member(fallback, "externalMediaSourceId"), "OpenFX fallback source ID");
-	if (source_sha_by_id(sources, source_id) != digest(json::member(fallback, "renderedAssetSha256"), "OpenFX fallback digest")
-		|| safe_integer(json::member(fallback, "frameCount"), "OpenFX fallback frame count", 1) < 1
-		|| validate_freshness(json::member(fallback, "freshness")) != freshness) {
-		throw json::parse_error("OpenFX fallback is stale or does not bind exact external media.");
+	if (source_sha_by_id(sources, source_id)
+		!= digest(json::member(fallback, "renderedAssetSha256"), "OpenFX fallback digest")) {
+		throw json::parse_error("OpenFX fallback does not bind exact external media.");
 	}
+	if (safe_integer(json::member(fallback, "frameCount"), "OpenFX fallback frame count", 1)
+		!= output_frame_count) {
+		throw json::parse_error("OpenFX fallback does not bind the exact output frame count.");
+	}
+	static_cast<void>(validate_freshness(json::member(fallback, "freshness")));
 }
 
 } // namespace framescaper::media::unified

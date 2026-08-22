@@ -22,9 +22,9 @@ import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
  * Milestone 6 exit-gate collector. Ordinary CI owns the correctness half of
  * `m6-reference-master-delivery` — conformance, reporting and unreported
  * conversions are proven by the node suite on every change. The RTF half
- * qualifies only on `reference-linux-gpu-01` and `native-os-lab-matrix`, and
- * both are unprovisioned: every fingerprint row is null and neither is
- * qualification-eligible.
+ * qualifies only on `owner-qualified-windows-x64-rtx3090-01` and
+ * `native-os-lab-matrix`. The owner-qualified host is active for earlier
+ * workloads but does not admit M6, while the native matrix is unprovisioned.
  *
  * So this collector deliberately has no accepted-evidence writer. It recomputes
  * the eleven metrics from the delivery's own sealed reports, records them, and
@@ -205,7 +205,7 @@ export function assertM6ReferenceMasterCollectionHost(processEnvironment) {
 export async function writeM6ReferenceMasterResult(outputDirectory, resultValue) {
 	const result = snapshotStrictJsonData(resultValue, 'result');
 	if (result.status !== 'pending-external' && result.status !== 'failed') {
-		throw new Error(`M6 collector cannot write a ${String(result.status)} result while its environments are unprovisioned.`);
+		throw new Error(`M6 collector cannot write a ${String(result.status)} result while M6 qualification is incomplete.`);
 	}
 	if (result.qualificationEvidencePublished !== false) {
 		throw new Error('M6 collector must not mark qualification evidence as published.');
@@ -232,7 +232,7 @@ export function parseM6ReferenceMasterCliOptions(argsValue) {
 			continue;
 		}
 		if (argument === '--accept' || argument === '--qualify' || argument === '--publish') {
-			throw new Error('M6 reference qualification is unavailable while both of its environments are unprovisioned.');
+			throw new Error('M6 reference qualification is unavailable while its environment admissions are incomplete.');
 		}
 		if (argument === '--measurement') {
 			if (measurementPath !== null) throw new Error('M6 collector accepts one measurement path.');

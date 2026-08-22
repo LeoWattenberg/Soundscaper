@@ -21,7 +21,11 @@ using soundscaper::framescaper::ExactRational;
 inline constexpr std::uint64_t selected_v20_maximum_frame_bytes = 8U * 1024U * 1024U;
 inline constexpr std::uint64_t selected_v20_maximum_output_frames = 2'000'000;
 
-enum class selected_v20_family { keyed_evaluated_rgba_v7, static_composition_v8 };
+enum class selected_v20_family {
+	keyed_evaluated_rgba_v7,
+	evaluated_rgba_v8,
+	static_composition_v8,
+};
 
 enum class selected_v20_audio_layout { preserve, mono, stereo };
 

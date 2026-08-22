@@ -17,6 +17,8 @@ test('the timing-probe runner leaves teardown margin beyond the application dead
 	const source = await readFile(resolve(ROOT, 'scripts/desktop-video-timing-probe-smoke.mjs'), 'utf8');
 	assert.match(source, /DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS/u);
 	assert.match(source, /DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS \+ 10_000/u);
+	assert.match(source, /SOUNDSCAPER_VIDEO_TIMING_PROBE_RESULT/u);
+	assert.match(source, /formatDesktopVideoTimingProbeEvidence/u);
 	assert.equal(source.includes('}, 100_000);'), false);
 });
 
@@ -27,16 +29,24 @@ test('desktop CI runs the packaged timing probe for both products on Linux and W
 	const packageJob = workflow.slice(packageJobStart, nextJobStart);
 	const hardenedIndex = packageJob.indexOf('- name: Smoke the hardened packaged application');
 	const timingIndex = packageJob.indexOf('- name: Probe packaged CFR and VFR timing persistence');
+	const uploadTimingIndex = packageJob.indexOf('- name: Upload bounded timing-probe evidence');
 	const directWavIndex = packageJob.indexOf('- name: Smoke packaged direct WAV, AIFF, BWF, and BW64 exports');
 	const retainIndex = packageJob.indexOf('- name: Retain the verified runtime manifest');
 	assert.ok(timingIndex > hardenedIndex);
-	assert.ok(directWavIndex > timingIndex);
+	assert.ok(uploadTimingIndex > timingIndex);
+	assert.ok(directWavIndex > uploadTimingIndex);
 	assert.ok(retainIndex > timingIndex);
-	const step = packageJob.slice(timingIndex, directWavIndex);
+	const step = packageJob.slice(timingIndex, uploadTimingIndex);
 	assert.match(step, /if: matrix\.target\.arch == 'x64'.*matrix\.target\.platform == 'linux'.*matrix\.target\.platform == 'win'/u);
 	assert.doesNotMatch(step, /matrix\.product ==/u);
 	assert.match(step, /run: npm run desktop:smoke:timing-probe/u);
 	assert.match(step, /SOUNDSCAPER_SMOKE_ARCH: x64/u);
 	assert.match(step, /SOUNDSCAPER_SMOKE_XVFB: \$\{\{ runner\.os == 'Linux' && 'true' \|\| 'false' \}\}/u);
+	assert.match(step, /SOUNDSCAPER_VIDEO_TIMING_PROBE_RESULT: \$\{\{ runner\.temp \}\}\/desktop-video-timing-probe-\$\{\{ matrix\.product \}\}-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
+	const uploadStep = packageJob.slice(uploadTimingIndex, directWavIndex);
+	assert.match(uploadStep, /actions\/upload-artifact@[a-f\d]+/u);
+	assert.match(uploadStep, /name: desktop-video-timing-probe-\$\{\{ matrix\.product \}\}-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}/u);
+	assert.match(uploadStep, /if-no-files-found: error/u);
+	assert.match(uploadStep, /retention-days: 14/u);
 	assert.equal(workflow.match(/npm run desktop:smoke:timing-probe/gu)?.length, 1);
 });

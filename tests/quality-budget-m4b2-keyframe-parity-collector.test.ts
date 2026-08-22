@@ -14,12 +14,11 @@ import { makeM4B2KeyframeParityDiagnostic } from './helpers/m4b2-keyframe-parity
 const MARKER = 'SOUNDSCAPER_M4B2_KEYFRAME_PARITY ';
 const OPERATION = 'opacity-linear/interior/composition.opacity';
 
-test('complete keyed frames and dual-consumer ledgers pass only local dormant admission', () => {
+test('complete keyed frames and dual-consumer ledgers pass metric admission for formal nightly verification', () => {
 	const result = createPendingM4B2KeyframeParityResult(makeM4B2KeyframeParityDiagnostic());
 	assert.equal(result.status, 'pending-external');
 	assert.equal(result.metricGatePassed, true);
 	assert.equal(result.qualificationEvidencePublished, false);
-	assert.equal(result.qualificationEnvironmentId, 'reference-linux-gpu-01');
 	assert.deepEqual(result.metrics, {
 		'keyframes.videoMinimumSsim': 1,
 		'keyframes.videoMaximumChannelMae': 0,
@@ -35,7 +34,9 @@ test('complete keyed frames and dual-consumer ledgers pass only local dormant ad
 		requestedConsumerOperations: 24,
 		renderedConsumerOperations: 24,
 	});
-	assert.match(result.evaluation.failures.at(-1) ?? '', /registered provisionally.*unprovisioned/iu);
+	assert.equal(result.evaluation.verdicts.length, 5);
+	assert.ok(result.evaluation.verdicts.every(({ passed }) => passed));
+	assert.match(result.evaluation.failures.at(-1) ?? '', /formal qualification.*nightly packaged-runtime/iu);
 });
 
 test('omission, substitution, and fallback remain distinct zero-count gates', () => {
@@ -200,7 +201,7 @@ test('fixture identity and rendered state values are independently pinned', () =
 	assert.throws(() => createPendingM4B2KeyframeParityResult(state), /exact keyed value/iu);
 });
 
-test('marked diagnostic parsing requires exactly one canonical dormant identity', () => {
+test('marked diagnostic parsing requires exactly one canonical keyed identity', () => {
 	const diagnostic = makeM4B2KeyframeParityDiagnostic();
 	const line = `${MARKER}${JSON.stringify(diagnostic)}`;
 	assert.deepEqual(parseM4B2KeyframeParityDiagnostic(`noise\n${line}\n`), diagnostic);
@@ -209,12 +210,12 @@ test('marked diagnostic parsing requires exactly one canonical dormant identity'
 	assert.throws(() => parseM4B2KeyframeParityDiagnostic(`${line} `), /malformed payload/iu);
 });
 
-test('CLI and collection refuse reference claims and publish only injected dormant results', async () => {
+test('CLI and collection publish only injected pending results', async () => {
 	assert.deepEqual(parseM4B2KeyframeParityCliOptions([]), { outputDirectory: null });
 	assert.deepEqual(parseM4B2KeyframeParityCliOptions(['out']), { outputDirectory: 'out' });
 	assert.throws(
 		() => parseM4B2KeyframeParityCliOptions(['--reference']),
-		/unavailable.*unprovisioned/iu,
+		/unknown.*--reference/iu,
 	);
 	let written: unknown = null;
 	const diagnostic = makeM4B2KeyframeParityDiagnostic();

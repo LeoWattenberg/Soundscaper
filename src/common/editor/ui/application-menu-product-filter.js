@@ -4,12 +4,33 @@ import { workspacePanelAvailable } from './framescaper-capture-ui-model.ts';
 
 export function filterProductMenus(menus, capabilities, productId) {
 	const hiddenTopLevel = new Set();
-	if (!capabilities.audioGenerators) hiddenTopLevel.add('generate');
-	if (!capabilities.audioEffects) hiddenTopLevel.add('effect');
+	const candidateVideoGeneration = productId === 'framescaper'
+		&& (capabilities.videoGenerators || capabilities.videoStills);
+	if (!capabilities.audioGenerators && !candidateVideoGeneration) hiddenTopLevel.add('generate');
+	if (!capabilities.audioEffects && productId !== 'framescaper') hiddenTopLevel.add('effect');
 	if (!capabilities.audioAnalysis) hiddenTopLevel.add('analyze');
 	return menus
 		.filter((menu) => !hiddenTopLevel.has(menu.id))
 		.map((menu) => {
+			if (menu.id === 'generate' && !capabilities.audioGenerators) {
+				const framescaperVideoGeneratorIds = new Set([
+					'framescaper-add-video-still', 'framescaper-video-generators',
+				]);
+				return {
+					...menu,
+					items: menu.items.filter((item) => framescaperVideoGeneratorIds.has(item.id)),
+				};
+			}
+			if (menu.id === 'effect' && !capabilities.audioEffects) {
+				const framescaperVideoEffectIds = new Set([
+					'framescaper-video-effects', 'framescaper-video-transitions',
+					'framescaper-edit-video-mask-matte', 'framescaper-freeze-video',
+				]);
+				return {
+					...menu,
+					items: menu.items.filter((item) => framescaperVideoEffectIds.has(item.id)),
+				};
+			}
 			if (menu.id === 'tracks' && !capabilities.audioEffects) {
 				const hiddenTrackItems = new Set(['track-rate', 'track-format', 'track-channels', 'mix', 'resample']);
 				return { ...menu, items: menu.items.filter((item) => !hiddenTrackItems.has(item.id)) };
@@ -37,5 +58,6 @@ export function filterProductMenus(menus, capabilities, productId) {
 					};
 				}).filter((item) => capabilities.audioRecording || item.id !== 'show-arm-controls'),
 			};
-		});
+		})
+		.filter((menu) => menu.id !== 'effect' || capabilities.audioEffects || menu.items.length > 0);
 }

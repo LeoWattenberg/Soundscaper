@@ -490,6 +490,7 @@ export default function createApplicationMenus({
 			id: 'generate',
 			label: copy.generateMenu,
 			items: [
+				...productItems.generate,
 				createRepeatGeneratorMenuItem(importAnalysisMenuContext),
 				divider(),
 				{ id: 'silence-generator', label: copy.silenceGenerator, disabled: editBlocked, onClick: () => actions.openGenerator('silence') },

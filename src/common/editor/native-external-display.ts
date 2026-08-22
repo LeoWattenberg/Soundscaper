@@ -33,6 +33,9 @@ export const NATIVE_EXTERNAL_DISPLAY_WINDOWING_SYSTEMS = Object.freeze([
 export type NativeExternalDisplayWindowingSystem =
 	(typeof NATIVE_EXTERNAL_DISPLAY_WINDOWING_SYSTEMS)[number];
 
+/** One UHD RGBA frame fits; transfer still uses independently bounded 16 MiB chunks. */
+export const NATIVE_EXTERNAL_DISPLAY_MAXIMUM_RGBA_BYTES = 64 * 1024 * 1024;
+
 export const NATIVE_EXTERNAL_DISPLAY_REFUSALS = Object.freeze([
 	'native-wayland-placement-unavailable',
 	'display-unknown',

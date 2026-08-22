@@ -10,7 +10,7 @@
 
 namespace framescaper::media {
 
-/** Execute one V7 evaluated-RGBA carrier through the closed FFmpeg 9.0.1 mux. */
+/** Execute one V7/V8 evaluated-RGBA carrier through the closed FFmpeg 9.0.1 mux. */
 [[nodiscard]] engine_result execute_selected_v20_keyed_adapter(
 	const invocation& job,
 	const selected_v20_execution_plan& plan,

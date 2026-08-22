@@ -7,6 +7,10 @@ import {
 	type OfxHostInvocationV1,
 } from '../src/common/editor/native-ofx-host-contract.ts';
 import type { HelperDataPlaneBinding } from './helper-data-plane.ts';
+import {
+	type HelperDataPlaneOutputReservation,
+	validateHelperDataPlaneOutputReservation,
+} from './helper-data-plane-output-reservation.ts';
 import type {
 	HelperExecutableGrant,
 	HelperScratchGrant,
@@ -18,8 +22,20 @@ export interface HelperOfxInputFrameGrant {
 	readonly name: string;
 	/** Project-owned source or evaluated-node identity, never a path. */
 	readonly sourceRef: string;
+	readonly pixelFormat: 'rgba8';
+	readonly width: number;
+	readonly height: number;
+	readonly rowBytes: number;
 	/** Exact authenticated frame stream for this named input. */
 	readonly frame: HelperDataPlaneBinding;
+}
+
+export interface HelperOfxOutputFrameGrant {
+	readonly pixelFormat: 'rgba8';
+	readonly width: number;
+	readonly height: number;
+	readonly rowBytes: number;
+	readonly frame: HelperDataPlaneOutputReservation & Readonly<{ exactByteLength: number }>;
 }
 
 export interface HelperOfxHostJobGrant {
@@ -28,7 +44,7 @@ export interface HelperOfxHostJobGrant {
 	readonly invocation: OfxHostInvocationV1;
 	readonly plan: HelperDataPlaneBinding;
 	readonly inputs: readonly HelperOfxInputFrameGrant[];
-	readonly output: HelperDataPlaneBinding;
+	readonly output: HelperOfxOutputFrameGrant;
 	readonly scratch: HelperScratchGrant;
 }
 
@@ -45,10 +61,17 @@ export interface HelperOfxHostGrantValidators {
 const HOST_KEYS = Object.freeze([
 	'executable', 'pluginBinary', 'invocation', 'plan', 'inputs', 'output', 'scratch',
 ]);
-const INPUT_KEYS = Object.freeze(['name', 'sourceRef', 'frame']);
+const INPUT_KEYS = Object.freeze([
+	'name', 'sourceRef', 'pixelFormat', 'width', 'height', 'rowBytes', 'frame',
+]);
+const OUTPUT_KEYS = Object.freeze(['pixelFormat', 'width', 'height', 'rowBytes', 'frame']);
 const INPUT_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/u;
 const SOURCE_REF = /^[A-Za-z0-9][A-Za-z0-9 ._:-]{0,127}$/u;
 const MAXIMUM_INPUTS = 16;
+export const OFX_RGBA_FRAME_MAXIMUM_DIMENSION = 16_384;
+export const OFX_RGBA_FRAME_MAXIMUM_ROW_BYTES = 64 * 1024;
+export const OFX_RGBA_FRAME_MAXIMUM_BYTES = 256 * 1024 * 1024;
+export const OFX_RGBA_FRAME_SET_MAXIMUM_BYTES = 512 * 1024 * 1024;
 
 export function validateHelperOfxHostJobGrant(
 	value: unknown,
@@ -57,7 +80,7 @@ export function validateHelperOfxHostJobGrant(
 	const record = exactRecord(value, HOST_KEYS);
 	const invocation = snapshotInvocation(record.invocation);
 	const inputs = inputFrames(record.inputs, validators);
-	const output = validators.dataBinding(record.output, 'helper-to-host', 'output');
+	const output = outputFrame(record.output);
 	const plan = validators.dataBinding(record.plan, 'host-to-helper', 'plan');
 	const pluginBinary = validators.executable(record.pluginBinary, 'ofx-plugin');
 	if (pluginBinary.sha256 !== invocation.pluginBinarySha256) {
@@ -71,12 +94,17 @@ export function validateHelperOfxHostJobGrant(
 		|| inputStreamIds.some((streamId, index) => streamId !== invocation.inputFrameStreamIds[index])) {
 		unsafe('An OpenFX host invocation does not bind its exact ordered named input streams.');
 	}
-	if (invocation.outputFrameStreamId !== output.streamId) {
+	if (invocation.outputFrameStreamId !== output.frame.streamId) {
 		unsafe('An OpenFX host invocation does not bind its exact output frame stream.');
 	}
-	const streamIds = [plan.streamId, ...inputStreamIds, output.streamId];
+	const streamIds = [plan.streamId, ...inputStreamIds, output.frame.streamId];
 	if (new Set(streamIds).size !== streamIds.length) {
 		unsafe('An OpenFX host grant must use distinct plan, input, and output stream identities.');
+	}
+	const residentBytes = inputs.reduce((total, input) => total + input.frame.byteLength, 0)
+		+ (output.frame.exactByteLength ?? output.frame.maximumByteLength);
+	if (residentBytes > OFX_RGBA_FRAME_SET_MAXIMUM_BYTES) {
+		unsafe('An OpenFX host grant exceeds its bounded resident RGBA frame set.');
 	}
 	return Object.freeze({
 		executable: validators.executable(record.executable, 'ofx-host'),
@@ -115,9 +143,54 @@ function inputFrames(
 		return Object.freeze({
 			name: record.name,
 			sourceRef: record.sourceRef,
-			frame: validators.dataBinding(record.frame, 'host-to-helper', 'OpenFX input frame'),
+			...inputRgbaFrame(record, validators),
 		});
 	}));
+}
+
+function outputFrame(
+	value: unknown,
+): HelperOfxOutputFrameGrant {
+	const record = exactRecord(value, OUTPUT_KEYS);
+	const frame = validateHelperDataPlaneOutputReservation(record.frame);
+	if (frame.exactByteLength === null || frame.maximumByteLength !== frame.exactByteLength) {
+		unsafe('An OpenFX output frame requires an exact reserved RGBA byte length.');
+	}
+	const exactFrame = frame as HelperOfxOutputFrameGrant['frame'];
+	return Object.freeze({
+		...rgbaGeometry(record, exactFrame.exactByteLength, 'OpenFX output frame'),
+		frame: exactFrame,
+	});
+}
+
+function inputRgbaFrame(
+	record: Record<string, unknown>,
+	validators: HelperOfxHostGrantValidators,
+): Omit<HelperOfxInputFrameGrant, 'name' | 'sourceRef'> {
+	const frame = validators.dataBinding(record.frame, 'host-to-helper', 'OpenFX input frame');
+	return { ...rgbaGeometry(record, frame.byteLength, 'OpenFX input frame'), frame };
+}
+
+function rgbaGeometry(
+	record: Record<string, unknown>,
+	byteLength: number,
+	label: string,
+): Omit<HelperOfxOutputFrameGrant, 'frame'> {
+	const width = positiveInteger(record.width, `${label} width`, OFX_RGBA_FRAME_MAXIMUM_DIMENSION);
+	const height = positiveInteger(record.height, `${label} height`, OFX_RGBA_FRAME_MAXIMUM_DIMENSION);
+	const rowBytes = positiveInteger(record.rowBytes, `${label} rowBytes`, OFX_RGBA_FRAME_MAXIMUM_ROW_BYTES);
+	if (record.pixelFormat !== 'rgba8' || rowBytes < width * 4 || rowBytes % 4 !== 0
+		|| rowBytes * height !== byteLength || byteLength > OFX_RGBA_FRAME_MAXIMUM_BYTES) {
+		unsafe(`An ${label} requires exact bounded RGBA8 dimensions, row bytes, and byte length.`);
+	}
+	return { pixelFormat: 'rgba8', width, height, rowBytes };
+}
+
+function positiveInteger(value: unknown, label: string, maximum: number): number {
+	if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > maximum) {
+		unsafe(`An ${label} is outside its positive integer bound.`);
+	}
+	return Number(value);
 }
 
 function exactRecord(value: unknown, keys: readonly string[]): Record<string, unknown> {

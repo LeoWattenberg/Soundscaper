@@ -121,18 +121,21 @@ test('the registered workload compiles a production V21 sidechain, send, and nes
 });
 
 test('the browser collector delegates audio to the production graph and scheduler harness', async () => {
-	const [harness, collector] = await Promise.all([
+	const [harness, collector, identity] = await Promise.all([
 		readFile(new URL(
 			'../src/common/editor/quality/m4-production-parity-browser-harness.ts',
 			import.meta.url,
 		), 'utf8'),
 		readFile(new URL('./browser/audio-editor-m4-production-parity.spec.js', import.meta.url), 'utf8'),
+		readFile(new URL('../scripts/lib/m4-production-parity-identity.mjs', import.meta.url), 'utf8'),
 	]);
 	assert.match(harness, /buildProjectGraph\(/u);
 	assert.match(harness, /scheduleProjectClips\(/u);
 	assert.match(collector, /renderM4ProductionParityProductionPath/u);
 	assert.doesNotMatch(collector, /compileM4ProductionParityAudioPlan/u);
 	assert.doesNotMatch(collector, /\.createDelay\(/u);
+	assert.doesNotMatch(`${collector}\n${identity}`, /M4_PARITY_REFERENCE_ENVIRONMENT_ID/u);
+	assert.doesNotMatch(`${collector}\n${identity}`, /ReferenceHostObservation/u);
 });
 
 test('audio evidence uses canonical interleaved little-endian Float32 bytes', () => {

@@ -1,10 +1,89 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-13",
+	"groundedAt": "2026-08-22",
 	"projectSchema": {
 		"currentVersion": 17,
 		"minimumReadableVersion": 17,
 		"retainedMigrationSources": []
+	},
+	"framescaperRevisionContract": {
+		"selected": {
+			"browserProjectVersion": 20,
+			"desktopProjectVersion": 20,
+			"status": "provisional-unqualified"
+		},
+		"historicalReimportPolicy": {
+			"projectVersions": [18, 19],
+			"desktopLibraryVersion": 10,
+			"behavior": "typed-media-reimport-required-no-project-or-library-migration"
+		},
+		"futureSchemaBehavior": "opaque-read-only-known-feature-identities-remain-unavailable-without-authoring",
+		"revisions": [
+			{
+				"projectVersion": 19,
+				"desktopLibraryVersion": 11,
+				"sqliteUserVersion": 13,
+				"scope": "v11",
+				"clipboardVersion": 5,
+				"renderPlanVersions": [8],
+				"status": "reserved-dormant-boundary"
+			},
+			{
+				"projectVersion": 20,
+				"desktopLibraryVersion": 12,
+				"sqliteUserVersion": 14,
+				"scope": "v12",
+				"clipboardVersion": 6,
+				"renderPlanVersions": [7, 8],
+				"status": "selected-provisional-unqualified"
+			},
+			{
+				"projectVersion": 22,
+				"desktopLibraryVersion": 13,
+				"sqliteUserVersion": 15,
+				"scope": "v13",
+				"clipboardVersion": 7,
+				"renderPlanVersions": [9],
+				"status": "dormant-transitions-candidate"
+			},
+			{
+				"projectVersion": 24,
+				"desktopLibraryVersion": 14,
+				"sqliteUserVersion": 16,
+				"scope": "v14",
+				"clipboardVersion": 8,
+				"renderPlanVersions": [10],
+				"status": "dormant-visual-model-candidate"
+			},
+			{
+				"projectVersion": 25,
+				"desktopLibraryVersion": 15,
+				"sqliteUserVersion": 17,
+				"scope": "v15",
+				"clipboardVersion": 9,
+				"renderPlanVersions": [11],
+				"status": "dormant-professional-media-candidate"
+			},
+			{
+				"projectVersion": 26,
+				"desktopLibraryVersion": 16,
+				"sqliteUserVersion": 18,
+				"scope": "v16",
+				"clipboardVersion": 10,
+				"renderPlanVersions": [12],
+				"status": "dormant-openfx-candidate"
+			}
+		],
+		"evidence": [
+			"src/common/site/App.jsx",
+			"src/framescaper/editor-project-runtime-v20-selection.ts",
+			"desktop/project-library-v12-contract.ts",
+			"src/framescaper/editor-project-v22.ts",
+			"src/framescaper/editor-project-v24.ts",
+			"src/framescaper/editor-project-runtime-profile-v25.ts",
+			"src/framescaper/editor-project-runtime-profile-v26.ts",
+			"src/common/editor/unified-exact-render-plan.ts"
+		]
 	},
 	"portableArchive": {
 		"currentFormatVersion": 1,
@@ -105,31 +184,46 @@
 		{
 			"id": "framescaper-v18-product-isolation",
 			"status": "implemented",
-			"requiredOutcome": "Framescaper selects authenticated product-owned schema authority for each qualified platform: exact V19 for browser video geometry and exact V18/V10 for packaged desktop until a V19/V11 desktop boundary exists, without changing Soundscaper's exact-V17 owner or treating cross-product preservation as activation authority.",
-			"currentBehavior": "The maintained Framescaper bootstrap authenticates a product-owned runtime profile before constructing its project environment. Browser routes without a desktop bridge select exact V19 create, clone, validation, commands, history, session, repository, playback, compatibility, format-1/format-2 Scape, product-isolated storage, and native video-geometry services; exact V18 requires re-import there and V20 or newer remains opaque read-only. Packaged desktop routes deliberately retain the qualified exact V18 environment, proxy and timing archive, claim cleanup, retention, and separately handshaken desktop V10/schema-18 renderer until a complete V19/V11 desktop authority exists, so V19 geometry is unavailable rather than silently downgraded. The exact Framescaper V18 desktop owner remains distinct from Soundscaper V17. Soundscaper keeps the shared exact V17 owner and treats newer product schemas as read-only. The shared V9/schema-17 library is not selected by the Framescaper desktop composition. Cross-product preservation never grants edit, activation, migration, or native feature authority.",
+			"requiredOutcome": "Framescaper selects one authenticated product-owned exact-V20 authority for browser and packaged desktop without migrating historical V18/V19 projects or the desktop V10 library, while later candidate generations retain distinct handshakes, scopes, database identities, and validators and Soundscaper remains the exact-V17 owner.",
+			"currentBehavior": "The maintained Framescaper bootstrap authenticates the selected exact V20 runtime profile before constructing its project environment on both browser and packaged desktop routes. V20 owns create, clone, validation, commands, history, session, repository, playback, compatibility, Scape, product-isolated storage, inherited V18 nested-sequence, multicamera, linked-original, capture, proxy, cleanup, archive and handoff behavior, V19 composition behavior, and available video-keyframe authoring. Packaged desktop uses the distinct authenticated V12 library, SQLite user_version 14, scope v12, schema-20 renderer and public framescaperDesktop.v1 bridge; it does not migrate the historical desktop V10 library. Exact Framescaper V18 and V19 projects require typed media re-import on the selected route, and the historical exact Framescaper V18 desktop V10/schema-18 boundary remains an unselected compatibility record distinct from Soundscaper V17. Soundscaper keeps the shared exact V17 owner and treats newer product schemas as read-only. V22, V24, V25 and V26 are distinct dormant candidates, and future schemas remain opaque read-only; cross-product preservation never grants edit, activation, migration, native feature authority, or release qualification.",
 			"evidence": [
 				"src/common/site/App.jsx",
 				"src/framescaper/ui/FramescaperAudioEditorBootstrapV18.tsx",
 				"src/framescaper/ui/FramescaperAudioEditorBootstrapV19.tsx",
+				"src/framescaper/ui/FramescaperAudioEditorBootstrapV20.tsx",
 				"src/framescaper/editor-controller-v18.ts",
 				"src/framescaper/editor-controller-v19.ts",
+				"src/framescaper/editor-controller-v20.ts",
 				"src/framescaper/editor-project-environment-v18.ts",
 				"src/framescaper/editor-project-environment-v19.ts",
+				"src/framescaper/editor-project-environment-v20.ts",
 				"src/framescaper/editor-project-runtime-profile-v18.ts",
 				"src/framescaper/editor-project-runtime-profile-v19.ts",
+				"src/framescaper/editor-project-runtime-profile-v20.ts",
+				"src/framescaper/editor-project-runtime-v20-selection.ts",
 				"src/framescaper/editor-project-v18.ts",
 				"src/framescaper/editor-project-v19.ts",
+				"src/framescaper/editor-project-v20.ts",
 				"src/framescaper/editor-project-v18-migration.ts",
 				"src/framescaper/editor-project-store-v18.ts",
 				"src/framescaper/scape-project-file-v18.ts",
 				"src/framescaper/desktop-project-library-v10-store-adapter.ts",
+				"src/framescaper/desktop-project-library-v12-store-adapter.ts",
+				"desktop/project-library-v12-contract.ts",
 				"tests/audio-editor-framescaper-web-bootstrap-v18.test.tsx",
 				"tests/audio-editor-framescaper-web-bootstrap-v19.test.tsx",
+				"tests/audio-editor-framescaper-web-bootstrap-v20.test.tsx",
 				"tests/audio-editor-framescaper-controller-v18.test.ts",
+				"tests/audio-editor-framescaper-controller-v20.test.ts",
 				"tests/audio-editor-framescaper-project-environment-v18.test.ts",
+				"tests/audio-editor-framescaper-project-environment-v20.test.ts",
 				"tests/audio-editor-framescaper-project-v18-domain.test.ts",
+				"tests/audio-editor-framescaper-project-v20-domain.test.ts",
 				"tests/audio-editor-framescaper-scape-file-v18.test.ts",
-				"tests/audio-editor-framescaper-desktop-v10-store-adapter.test.ts"
+				"tests/audio-editor-framescaper-desktop-v10-store-adapter.test.ts",
+				"tests/audio-editor-framescaper-desktop-v12-renderer.test.ts",
+				"tests/desktop-project-library-v12-contract.test.ts",
+				"tests/browser/audio-editor-framescaper-v20-product-lifecycle.spec.js"
 			]
 		},
 		{
@@ -529,7 +623,7 @@
 			"status": "partial",
 			"milestone": "2",
 			"requiredOutcome": "Current desktop lease qualification is product-isolated. Soundscaper desktop-library V10 retains one process-lifetime main-owned renewable fenced writer lease across authenticated renderer sessions, exact catalog and body publication, recovery, admission fencing, drain, and shutdown release. Framescaper desktop-library V10 retains one process-lifetime main-owned renewable fenced writer lease across authenticated renderer sessions, exact catalog and body publication, recovery, admission fencing, drain, and shutdown release. The products use separate physical storage scopes and databases; cross-product evidence proves that isolation and copy-only preservation rather than a shared mutable catalog. The frozen historical eight V9/V17 m2-electron-lease-matrix workflow IDs remain evidence only and do not authorize or re-admit Framescaper V17. Current packaged qualification consists of four pending-external rows: Soundscaper V10 Windows x64, Soundscaper V10 Linux x64, Framescaper V10 Windows x64, and Framescaper V10 Linux x64.",
-			"currentBehavior": "Soundscaper V10 starts one process-lifetime main-owned lease in its separate V10 scope and database, carrying a monotonically increasing fencing token. Startup waits out an unexpired lease a crashed owner left behind rather than pre-empting it, because only expiry proves the holder is gone, then recovers any pending metadata or body journal before authenticated renderer sessions open, renews the exact lease while the process is live, fences on renewal loss, and releases only its exact lease before closing the database. Its project publications compare the expected metadata revision and the exact project revision and SHA-256, admit only a strictly higher revision so a coalesced autosave may skip revisions, and pass prepared, materialized, committed, and complete journal checkpoints. The current closed Soundscaper V10 runner executes seven workflows: same-project-simultaneous-open, writer-lease-transfer, stale-lease-takeover, conflicting-canonical-commit, renderer-loss-during-operation, orderly-process-restart, and crash-restart-recovery. The cross-product-simultaneous-open workflow and the complete historical eight-workflow V9/V17 set remain frozen evidence and are not run against current Framescaper packages. Framescaper V10 likewise starts one process-lifetime main-owned lease in its separate V10 scope and database, recovers pending metadata or body journals before opening authenticated sessions, renews the exact lease while the process is live, fences new session admission on renewal loss, aborts pre-prepare work, and drains any recovery-owned prepared publication to settlement; shutdown drains sessions, settles recovery-owned prepared publication, recovers again, and releases only its exact lease before closing the database. V10 delete and duplicate use main-first exact catalog compare-and-swap with alias-aware shadow reconciliation, durable delete-intent restart reconciliation of exact local shadow and binding rows, retained immutable revisions and bodies without physical reclamation or project-ID reuse, one rejection-based mutation slot for publication, delete, and duplicate, and authoritative recovery after ambiguous IPC outcomes. The delete intent does not durably capture pre-delete locator references: abrupt process death before outer linked-original cleanup can retain main-private locator metadata for later cleanup, external files are never deleted, and crash- or power-loss locator release remains unqualified. The maintained package artifact smoke proves only fresh source-free V18 creation, main persistence, preload activation, and UI activation; it does not qualify lease concurrency, restart recovery, delete, duplicate, proxy or timing bodies, or accepted packaged target results. The products' distinct V10 storage roots are cross-product physical isolation, not a shared mutable catalog. Soundscaper V10 Windows x64 is pending-external. Soundscaper V10 Linux x64 is pending-external. Framescaper V10 Windows x64 is pending-external. Framescaper V10 Linux x64 is pending-external. No accepted packaged result exists for any of the four rows, so this rule and m2-electron-lease-matrix remain Partial.",
+			"currentBehavior": "Soundscaper V10 starts one process-lifetime main-owned lease in its separate V10 scope and database, carrying a monotonically increasing fencing token. Startup waits out an unexpired lease a crashed owner left behind rather than pre-empting it, because only expiry proves the holder is gone, then recovers any pending metadata or body journal before authenticated renderer sessions open, renews the exact lease while the process is live, fences on renewal loss, and releases only its exact lease before closing the database. Its project publications compare the expected metadata revision and the exact project revision and SHA-256, admit only a strictly higher revision so a coalesced autosave may skip revisions, and pass prepared, materialized, committed, and complete journal checkpoints. The current closed Soundscaper V10 runner executes seven workflows: same-project-simultaneous-open, writer-lease-transfer, stale-lease-takeover, conflicting-canonical-commit, renderer-loss-during-operation, orderly-process-restart, and crash-restart-recovery. The cross-product-simultaneous-open workflow and the complete historical eight-workflow V9/V17 set remain frozen evidence and are not run against current Framescaper packages. Framescaper V10 likewise starts one process-lifetime main-owned lease in its separate V10 scope and database, recovers pending metadata or body journals before opening authenticated sessions, renews the exact lease while the process is live, fences new session admission on renewal loss, aborts pre-prepare work, and drains any recovery-owned prepared publication to settlement; shutdown drains sessions, settles recovery-owned prepared publication, recovers again, and releases only its exact lease before closing the database. V10 delete and duplicate use main-first exact catalog compare-and-swap with alias-aware shadow reconciliation, durable delete-intent restart reconciliation of exact local shadow and binding rows, retained immutable revisions and bodies without physical reclamation or project-ID reuse, one rejection-based mutation slot for publication, delete, and duplicate, and authoritative recovery after ambiguous IPC outcomes. The delete intent does not durably capture pre-delete locator references: abrupt process death before outer linked-original cleanup can retain main-private locator metadata for later cleanup, external files are never deleted, and crash- or power-loss locator release remains unqualified. The historical V18/V10 artifact fixture remains source-tested as an unselected compatibility boundary, but the selected package smoke no longer invokes it and no current package route activates or rewrites that library; lease concurrency, restart recovery, delete, duplicate, proxy or timing bodies, and accepted packaged target results remain unqualified. The products' distinct V10 storage roots are cross-product physical isolation, not a shared mutable catalog. Soundscaper V10 Windows x64 is pending-external. Soundscaper V10 Linux x64 is pending-external. Framescaper V10 Windows x64 is pending-external. Framescaper V10 Linux x64 is pending-external. No accepted packaged result exists for any of the four rows, so this rule and m2-electron-lease-matrix remain Partial.",
 			"evidence": [
 				"desktop/project-library-writer-coordinator.ts",
 				"desktop/project-library-host.ts",
@@ -1508,7 +1602,7 @@
 			"status": "implemented",
 			"milestone": "4",
 			"requiredOutcome": "Freeze, unfreeze, commit, and rendered fallback state preserve the editable source and native-effect metadata.",
-			"currentBehavior": "Soundscaper V21 owns audio-track freeze, refresh, unfreeze, and commit through exact expected-state commands and one history transaction. Freeze captures post-insert, pre-strip audio while retaining editable clips, the insert rack, strip automation, and routing; no PCM enters project JSON. Freshness is digest-bound to the exact clip and verified source-content identities, rack state, effect automation, render interval, and sample rate. Only a fresh record owns an audio-track-render-v1 rendered fallback bound to its verified derived-source SHA-256; a stale or unverifiable record remains editable but reconciles to bypass with no fallback and is never selected for playback. Browser storage, format-1 Scape, managed handoff, and the product-owned Soundscaper desktop V10 library preserve the relationship and verify its PCM body before activation. Administrative Scape source-ID remapping rebinds only a previously admitted fresh relationship, while stale state retains its old digest authority. Framescaper keeps audioTrackFreeze unavailable and can only custody an exact V21 archive opaquely for byte-stable return.",
+			"currentBehavior": "Selected Soundscaper V23 owns audio-track freeze, refresh, unfreeze, and commit through exact expected-state commands and one history transaction. Freeze captures post-insert, pre-strip audio while retaining editable clips, the insert rack, strip automation, and routing; no PCM enters project JSON. Freshness is digest-bound to the exact clip and verified source-content identities, rack state, effect automation, render interval, and sample rate. Only a fresh record owns an audio-track-render-v1 rendered fallback bound to its verified derived-source SHA-256; a stale or unverifiable record remains editable but reconciles to bypass with no fallback and is never selected for playback. Browser storage, format-1 Scape, managed handoff, and the product-owned Soundscaper desktop V10 library preserve the relationship and verify its PCM body before activation. Administrative Scape source-ID remapping rebinds only a previously admitted fresh relationship, while stale state retains its old digest authority. Framescaper keeps audioTrackFreeze unavailable and can only custody an exact V23 archive opaquely for byte-stable return.",
 			"evidence": [
 				"src/common/editor/audio-track-freeze-v21.ts",
 				"src/common/editor/audio-track-freeze-lifecycle-v21.ts",
@@ -1516,11 +1610,14 @@
 				"src/soundscaper/editor-audio-track-freeze-actions-v21.ts",
 				"src/soundscaper/editor-audio-track-freeze-playback-v21.ts",
 				"src/soundscaper/editor-project-feature-requirements-v21.ts",
+				"src/soundscaper/editor-project-feature-requirements-v23.ts",
 				"src/soundscaper/editor-scape-native-v21.ts",
+				"src/soundscaper/editor-scape-native-v23.ts",
 				"src/soundscaper/desktop-project-library-v10-renderer.ts",
 				"tests/audio-editor-audio-track-freeze-v21.test.ts",
 				"tests/audio-editor-soundscaper-v21-freeze-browser-integration.test.ts",
 				"tests/audio-editor-soundscaper-v21-persistence-interchange.test.ts",
+				"tests/audio-editor-soundscaper-v23-persistence-interchange.test.ts",
 				"tests/audio-editor-soundscaper-desktop-v10-renderer.test.ts",
 				"tests/browser/audio-editor-soundscaper-production-v21.spec.js",
 				"roadmap.md#4-parallel-production-surfaces"

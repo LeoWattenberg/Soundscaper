@@ -12,9 +12,7 @@ import {
 	type EditorProjectRuntimeProfileDefinition,
 } from '../src/common/editor/project-runtime-profile.ts';
 import * as runtimeProfileModule from '../src/common/editor/project-runtime-profile.ts';
-import {
-	FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
-} from '../src/framescaper/editor-project-runtime-profile-v18.ts';
+import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import * as framescaperRuntimeProfileModule from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
 	createEditorProjectRuntimeProfilePrerequisite,
@@ -356,8 +354,11 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'tests/audio-editor-framescaper-video-proxy-reattestation-v18.test.ts',
 		'tests/audio-editor-retention-round-trip-invariant.test.ts',
 		'tests/desktop-project-library-v10-current-project.test.ts',
-		'tests/desktop-project-library-v10-maintained-composition.test.ts',
 		'tests/desktop-project-library-v10-transport.test.ts',
+		// Selected V20 desktop V12 authenticates the inherited V18 foundation at
+		// its exact-generation contract and main-process boundaries.
+		'tests/desktop-project-library-v12-contract.test.ts',
+		'tests/desktop-project-library-v12-main.test.ts',
 		'tests/helpers/framescaper-desktop-v10-store-fixture.ts',
 		'tests/helpers/framescaper-v18-archive-fixture.ts',
 		'tests/helpers/framescaper-v18-claim-cleanup-fixture.ts',
@@ -415,8 +416,9 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'tests/audio-editor-framescaper-video-proxy-reattestation-v18.test.ts',
 		'tests/audio-editor-retention-round-trip-invariant.test.ts',
 		'tests/desktop-project-library-v10-current-project.test.ts',
-		'tests/desktop-project-library-v10-maintained-composition.test.ts',
 		'tests/desktop-project-library-v10-transport.test.ts',
+		'tests/desktop-project-library-v12-contract.test.ts',
+		'tests/desktop-project-library-v12-main.test.ts',
 		'tests/helpers/framescaper-desktop-v10-store-fixture.ts',
 		'tests/helpers/framescaper-v18-archive-fixture.ts',
 		'tests/helpers/framescaper-v18-claim-cleanup-fixture.ts',
@@ -424,15 +426,21 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 	]);
 	assert.deepEqual(genericPathReferences, [
 		'desktop/project-library-v10-current-project.ts',
+		'desktop/project-library-v12-current-project.ts',
 		'src/framescaper/desktop-project-library-v10-delete-intents.ts',
 		'src/framescaper/desktop-project-library-v10-renderer-catalog.ts',
 		'src/framescaper/desktop-project-library-v10-renderer-contract.ts',
 		'src/framescaper/desktop-project-library-v10-renderer-lifecycle.ts',
 		'src/framescaper/desktop-project-library-v10-renderer.ts',
 		'src/framescaper/desktop-project-library-v10-store-adapter.ts',
+		'src/framescaper/desktop-project-library-v12-renderer.ts',
+		'src/framescaper/desktop-project-library-v12-store-adapter.ts',
 		'src/framescaper/editor-captured-video-proxy-preservation.ts',
 		'src/framescaper/editor-captured-video-proxy-project.ts',
 		'src/framescaper/editor-captured-video-proxy-scheduler-composition.ts',
+		// Dormant V25 import rechecks the exact candidate runtime immediately
+		// before native admission and again before its one CAS mutation.
+		'src/framescaper/editor-native-image-sequence-import-v25.ts',
 		'src/framescaper/editor-project-claim-cleanup-profile.ts',
 		'src/framescaper/editor-project-feature-requirements-v18.ts',
 		'src/framescaper/editor-project-feature-requirements-v19.ts',
@@ -442,6 +450,11 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'src/framescaper/editor-project-repository-v19.ts',
 		PRODUCT_MODULE,
 		'src/framescaper/editor-project-runtime-profile-v19.ts',
+		'src/framescaper/editor-project-runtime-profile-v20.ts',
+		'src/framescaper/editor-project-runtime-profile-v22.ts',
+		'src/framescaper/editor-project-runtime-profile-v24.ts',
+		'src/framescaper/editor-project-runtime-profile-v25.ts',
+		'src/framescaper/editor-project-runtime-profile-v26.ts',
 		'src/framescaper/editor-project-runtime-v18-selection.ts',
 		'src/framescaper/editor-project-runtime-v19-selection.ts',
 		'src/framescaper/editor-project-store-v18.ts',
@@ -466,6 +479,7 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'src/framescaper/editor-project-v19-runtime.ts',
 		'src/framescaper/editor-project-v19-validation.ts',
 		'src/framescaper/editor-project-v19.ts',
+		'src/framescaper/editor-project-v20-profile.ts',
 		'src/framescaper/editor-scape-native-v18.ts',
 		'src/framescaper/editor-scape-native-v19.ts',
 		'src/framescaper/editor-video-proxy-reattestation-contract-v18.ts',
@@ -490,6 +504,10 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'src/soundscaper/editor-project-v23-profile.ts',
 		'tests/audio-editor-framescaper-project-feature-capability-profile.test.ts',
 		TEST_MODULE,
+		'tests/audio-editor-framescaper-project-v20-profile.test.ts',
+		'tests/audio-editor-framescaper-v22-candidate.test.ts',
+		'tests/audio-editor-framescaper-v24-candidate.test.ts',
+		'tests/audio-editor-framescaper-v25-candidate-profile.test.ts',
 		'tests/audio-editor-soundscaper-v23-runtime-selection.test.ts',
 		'tests/desktop-soundscaper-project-library-v10-contract.test.ts',
 		'tests/helpers/framescaper-v18-archive-fixture.ts',

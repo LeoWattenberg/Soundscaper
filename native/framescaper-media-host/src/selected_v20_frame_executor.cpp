@@ -21,6 +21,11 @@ using soundscaper::framescaper::exact_output_sample;
 
 constexpr std::size_t cancellation_pixel_stride = 16'384;
 
+[[nodiscard]] bool evaluated_rgba(const selected_v20_family family) noexcept {
+	return family == selected_v20_family::keyed_evaluated_rgba_v7
+		|| family == selected_v20_family::evaluated_rgba_v8;
+}
+
 struct timing_identity final {
 	const ExactRational* data{};
 	std::size_t size{};
@@ -63,9 +68,9 @@ void validate_plan(const selected_v20_execution_plan& plan) {
 		|| plan.output_rate.denominator() > std::numeric_limits<std::uint64_t>::max()) {
 		fail(selected_v20_execution_error_code::plan_contract, "The selected-V20 output cadence is invalid.");
 	}
-	if (plan.family == selected_v20_family::keyed_evaluated_rgba_v7) {
+	if (evaluated_rgba(plan.family)) {
 		if (plan.sample_rate == 0 || !plan.intervals.empty()) {
-			fail(selected_v20_execution_error_code::plan_contract, "The V7 keyed cadence authority is incomplete.");
+			fail(selected_v20_execution_error_code::plan_contract, "The evaluated RGBA cadence authority is incomplete.");
 		}
 		return;
 	}
@@ -330,7 +335,7 @@ selected_v20_execution_report execute_selected_v20_frames(
 ) {
 	validate_plan(plan);
 	if (!ports.write_frame) fail(selected_v20_execution_error_code::port_contract, "The frame sink is absent.");
-	if (plan.family == selected_v20_family::keyed_evaluated_rgba_v7 && !ports.keyed_frame) {
+	if (evaluated_rgba(plan.family) && !ports.keyed_frame) {
 		fail(selected_v20_execution_error_code::port_contract, "The evaluated keyed-RGBA source is absent.");
 	}
 	if (plan.family == selected_v20_family::static_composition_v8
@@ -344,7 +349,7 @@ selected_v20_execution_report execute_selected_v20_frames(
 		const auto time = output_time(plan, ordinal);
 		std::uint64_t sample = 0;
 		std::vector<std::uint8_t> rendered;
-		if (plan.family == selected_v20_family::keyed_evaluated_rgba_v7) {
+		if (evaluated_rgba(plan.family)) {
 			sample = exact_output_sample(
 				ordinal, plan.sample_start, plan.sample_rate,
 				plan.output_rate.numerator().convert_to<std::uint64_t>(),

@@ -21,11 +21,21 @@ import {
 	type HelperOfxHostJobGrant,
 	validateHelperOfxHostJobGrant,
 } from './helper-native-ofx-host-grant.ts';
+import {
+	type HelperOfxScanJobGrant,
+	validateHelperOfxScanJobGrant,
+} from './helper-native-ofx-scan-grant.ts';
 import { assertHelperMediaFileRoles } from './helper-native-media-file-roles.ts';
 
 export {
 	HELPER_NATIVE_INPUT_ROLES,
 } from './helper-native-image-sequence-grant.ts';
+export {
+	OFX_RGBA_FRAME_MAXIMUM_BYTES,
+	OFX_RGBA_FRAME_MAXIMUM_DIMENSION,
+	OFX_RGBA_FRAME_MAXIMUM_ROW_BYTES,
+	OFX_RGBA_FRAME_SET_MAXIMUM_BYTES,
+} from './helper-native-ofx-host-grant.ts';
 export type {
 	HelperMediaImageSequenceDecodeGrant,
 	HelperNativeInputRole,
@@ -33,7 +43,9 @@ export type {
 export type {
 	HelperOfxHostJobGrant,
 	HelperOfxInputFrameGrant,
+	HelperOfxOutputFrameGrant,
 } from './helper-native-ofx-host-grant.ts';
+export type { HelperOfxScanJobGrant } from './helper-native-ofx-scan-grant.ts';
 
 export {
 	validateHelperNativeJobResult,
@@ -151,13 +163,6 @@ export interface HelperMediaProxyRecipeGrant {
 	readonly height: number;
 }
 
-export interface HelperOfxScanJobGrant {
-	readonly executable: HelperExecutableGrant;
-	readonly pluginBinary: HelperExecutableGrant;
-	readonly descriptor: HelperDataPlaneBinding;
-	readonly scratch: HelperScratchGrant;
-}
-
 export interface HelperNativeJobGrantByKind {
 	readonly 'media-decode': HelperMediaDecodeJobGrant;
 	readonly 'media-encode': HelperMediaEncodeJobGrant;
@@ -181,7 +186,6 @@ const MEDIA_FILE_KEYS = MEDIA_STREAM_KEYS;
 const MEDIA_PROXY_KEYS = Object.freeze([
 	'executable', 'plan', 'source', 'proxyRecipe', 'output', 'scratch',
 ]);
-const OFX_SCAN_KEYS = Object.freeze(['executable', 'pluginBinary', 'descriptor', 'scratch']);
 const EXECUTABLE_KEYS = Object.freeze(['role', 'path', 'bytes', 'sha256', 'identity']);
 const FILE_INPUT_KEYS = Object.freeze(['type', 'role', 'path', 'bytes', 'sha256', 'identity']);
 const STREAM_INPUT_KEYS = Object.freeze(['type', 'role', 'binding']);
@@ -207,7 +211,9 @@ export function validateHelperNativeJobGrant<Kind extends HelperNativeJobKind>(
 			return validateMediaFileGrant(value) as HelperNativeJobGrantByKind[Kind];
 		}
 		if (kind === 'media-proxy') return validateMediaProxyGrant(value) as HelperNativeJobGrantByKind[Kind];
-		if (kind === 'ofx-scan') return validateOfxScanGrant(value) as HelperNativeJobGrantByKind[Kind];
+		if (kind === 'ofx-scan') return validateHelperOfxScanJobGrant(value, {
+			executable, scratch,
+		}) as HelperNativeJobGrantByKind[Kind];
 		if (kind === 'ofx-host') return validateHelperOfxHostJobGrant(value, {
 			executable, dataBinding, scratch,
 		}) as HelperNativeJobGrantByKind[Kind];
@@ -239,13 +245,14 @@ export function helperNativeJobGrantResourceUsage<Kind extends HelperNativeJobKi
 		const value = admitted as HelperOfxScanJobGrant;
 		return Object.freeze({
 			inputBytes: safeSum([value.executable.bytes, value.pluginBinary.bytes]),
-			outputBytes: value.descriptor.byteLength,
+			outputBytes: value.descriptor.maximumByteLength,
 			scratchBytes: value.scratch.maximumBytes,
-			dataPlaneBytes: value.descriptor.byteLength,
+			dataPlaneBytes: value.descriptor.maximumByteLength,
 			maximumInFlightChunks: value.descriptor.maximumInFlightChunks,
 		});
 	}
 	const value = admitted as HelperOfxHostJobGrant;
+	const output = value.output.frame;
 	return Object.freeze({
 		inputBytes: safeSum([
 			value.executable.bytes,
@@ -253,15 +260,15 @@ export function helperNativeJobGrantResourceUsage<Kind extends HelperNativeJobKi
 			value.plan.byteLength,
 			...value.inputs.map(({ frame }) => frame.byteLength),
 		]),
-		outputBytes: value.output.byteLength,
+		outputBytes: output.maximumByteLength,
 		scratchBytes: value.scratch.maximumBytes,
 		dataPlaneBytes: safeSum([
 			value.plan.byteLength,
-			value.output.byteLength,
+			output.maximumByteLength,
 			...value.inputs.map(({ frame }) => frame.byteLength),
 		]),
 		maximumInFlightChunks: Math.max(
-			...([value.plan, value.output, ...value.inputs.map(({ frame }) => frame)]
+			...([value.plan, output, ...value.inputs.map(({ frame }) => frame)]
 				.map(({ maximumInFlightChunks }) => maximumInFlightChunks)),
 		),
 	});
@@ -341,17 +348,6 @@ function proxyRecipe(value: unknown): HelperMediaProxyRecipeGrant {
 		id: 'framescaper-native-prores-proxy-mov-v1',
 		width: Number(record.width),
 		height: Number(record.height),
-	});
-}
-
-function validateOfxScanGrant(value: unknown): HelperOfxScanJobGrant {
-	const record = plainRecord(value);
-	exactKeys(record, OFX_SCAN_KEYS);
-	return Object.freeze({
-		executable: executable(record.executable, 'ofx-scanner'),
-		pluginBinary: executable(record.pluginBinary, 'ofx-plugin'),
-		descriptor: dataBinding(record.descriptor, 'helper-to-host', 'descriptor'),
-		scratch: scratch(record.scratch),
 	});
 }
 

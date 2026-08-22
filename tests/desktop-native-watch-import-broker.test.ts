@@ -1,0 +1,163 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { createWatchRuleV1 } from '../src/common/editor/native-watch-rule.ts';
+import {
+	FramescaperNativeWatchImportBroker,
+	type FramescaperNativeWatchImportBrokerOptions,
+} from '../desktop/native-services-watch-import-broker.ts';
+
+const DIGEST = 'a'.repeat(64);
+const LOCATOR_ID = 'b'.repeat(32);
+const LOCATOR_REVISION = 'c'.repeat(32);
+const CLAIM_ID = 'd'.repeat(32);
+const OWNER = Object.freeze({ owner: 1 });
+
+test('a linked watch claim stays pathless and is retained through durable acknowledgement', async () => {
+	const fixture = createFixture();
+	const pending = fixture.broker.offer(offer());
+	await fixture.locatorCreated();
+	const claim = fixture.broker.claim(OWNER, { projectId: 'project-1', projectRevision: 4 });
+	assert.ok(claim);
+	assert.equal(JSON.stringify(claim).includes('/watched'), false);
+	fixture.projectRevision = 5;
+	const completion = {
+		claimId: CLAIM_ID, projectId: 'project-1', expectedProjectRevision: 4,
+		committedProjectRevision: 5, success: true,
+	} as const;
+	assert.equal(await fixture.broker.complete(OWNER, completion), true);
+	assert.equal(await fixture.broker.complete(OWNER, completion), true, 'completion is idempotent');
+	assert.equal(await pending, true);
+	assert.equal(fixture.releases.length, 0, 'committed link is project-owned');
+	assert.equal(await fixture.broker.offer(offer()), true, 'DB retry cannot duplicate the project import');
+	assert.equal(fixture.created, 1);
+	assert.equal(fixture.broker.recorded(offer()), true);
+	await fixture.broker.dispose();
+	assert.equal(fixture.releases.length, 0);
+});
+
+test('copy and failed claims release their temporary linked locators', async () => {
+	const copyFixture = createFixture();
+	const copied = copyFixture.broker.offer(offer('copy'));
+	await copyFixture.locatorCreated();
+	assert.ok(copyFixture.broker.claim(OWNER, { projectId: 'project-1', projectRevision: 4 }));
+	copyFixture.projectRevision = 5;
+	assert.equal(await copyFixture.broker.complete(OWNER, {
+		claimId: CLAIM_ID, projectId: 'project-1', expectedProjectRevision: 4,
+		committedProjectRevision: 5, success: true,
+	}), true);
+	assert.equal(await copied, true);
+	assert.deepEqual(copyFixture.releases, [LOCATOR_ID]);
+
+	const failedFixture = createFixture();
+	const failed = failedFixture.broker.offer(offer());
+	await failedFixture.locatorCreated();
+	assert.ok(failedFixture.broker.claim(OWNER, { projectId: 'project-1', projectRevision: 4 }));
+	assert.equal(await failedFixture.broker.complete(OWNER, {
+		claimId: CLAIM_ID, projectId: 'project-1', expectedProjectRevision: 4,
+		committedProjectRevision: 5, success: false,
+	}), true);
+	assert.equal(await failed, false);
+	assert.deepEqual(failedFixture.releases, [LOCATOR_ID]);
+});
+
+test('stale owner, project revision, and proxy-generating rules fail closed', async () => {
+	const fixture = createFixture();
+	const pending = fixture.broker.offer(offer());
+	await fixture.locatorCreated();
+	assert.equal(fixture.broker.claim({}, { projectId: 'project-1', projectRevision: 4 }), null);
+	assert.equal(fixture.broker.claim(OWNER, { projectId: 'project-1', projectRevision: 3 }), null);
+	fixture.projectRevision = 5;
+	assert.equal(fixture.broker.claim(OWNER, { projectId: 'project-1', projectRevision: 4 }), null);
+	await fixture.broker.dispose();
+	assert.equal(await pending, false);
+	assert.deepEqual(fixture.releases, [LOCATOR_ID]);
+
+	const blocked = createFixture();
+	assert.equal(await blocked.broker.offer({
+		...offer(), rule: createWatchRuleV1({
+			ruleId: '1'.repeat(32), grantId: '2'.repeat(32), projectId: 'project-1',
+			extensions: ['mp4'], generateProxies: true, createdAtMs: 0,
+		}),
+	}), false);
+	assert.equal(blocked.created, 0);
+});
+
+test('an uncompleted claim times out, releases, and can be retried', async () => {
+	const callbacks: (() => void)[] = [];
+	const fixture = createFixture({
+		timeoutMs: 10,
+		schedule: (callback) => { callbacks.push(callback); return callback; },
+		cancelSchedule: () => undefined,
+	});
+	const first = fixture.broker.offer(offer());
+	await fixture.locatorCreated();
+	assert.ok(fixture.broker.claim(OWNER, { projectId: 'project-1', projectRevision: 4 }));
+	callbacks[0]!();
+	assert.equal(await first, false);
+	assert.deepEqual(fixture.releases, [LOCATOR_ID]);
+
+	const second = fixture.broker.offer(offer());
+	await fixture.locatorCreated(2);
+	assert.equal(fixture.created, 2);
+	await fixture.broker.dispose();
+	assert.equal(await second, false);
+});
+
+test('restart recovery records an already-committed project-bin source without creating a locator', async () => {
+	const fixture = createFixture({ alreadyImported: async () => true });
+	assert.equal(await fixture.broker.offer(offer()), true);
+	assert.equal(fixture.created, 0);
+});
+
+function createFixture(overrides: Partial<FramescaperNativeWatchImportBrokerOptions> = {}) {
+	let projectRevision = 4;
+	let ownerCurrent = true;
+	let created = 0;
+	const releases: string[] = [];
+	const broker = new FramescaperNativeWatchImportBroker({
+		currentOwner: () => ownerCurrent ? OWNER : null,
+		isOwnerCurrent: (owner) => ownerCurrent && owner === OWNER,
+		inspectProject: (projectId) => projectId === 'project-1' ? Object.freeze({
+			schemaVersion: 20 as const, projectId, projectRevision, open: true, writable: true,
+		}) : null,
+		alreadyImported: async () => false,
+		createLocator: async () => {
+			created += 1;
+			return Object.freeze({
+				locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
+				name: 'clip.mp4', size: 4, mimeType: 'video/mp4', lastModified: 10,
+			});
+		},
+		releaseLocator: async (locator) => { releases.push(locator.locatorId); return true; },
+		mintOpaqueId: () => CLAIM_ID,
+		...overrides,
+	});
+	return {
+		broker, releases,
+		get created() { return created; },
+		get projectRevision() { return projectRevision; },
+		set projectRevision(value: number) { projectRevision = value; },
+		set ownerCurrent(value: boolean) { ownerCurrent = value; },
+		async locatorCreated(count = 1) {
+			for (let attempt = 0; attempt < 20 && created < count; attempt += 1) await Promise.resolve();
+			assert.equal(created, count);
+		},
+	};
+}
+
+function offer(importMode: 'link' | 'copy' = 'link') {
+	return Object.freeze({
+		rule: createWatchRuleV1({
+			ruleId: '1'.repeat(32), grantId: '2'.repeat(32), projectId: 'project-1',
+			extensions: ['mp4'], importMode, createdAtMs: 0,
+		}),
+		entry: Object.freeze({
+			name: 'clip.mp4', fileIdentity: 'device-1-inode-2', sizeBytes: 4,
+			modifiedAtMs: 10, isDirectory: false, symbolicLink: false,
+		}),
+		contentSha256: DIGEST,
+	});
+}

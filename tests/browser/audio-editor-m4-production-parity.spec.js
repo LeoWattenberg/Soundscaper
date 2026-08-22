@@ -1,9 +1,7 @@
 import { expect, test } from './helpers/nightly-packaged-electron.js';
 import { buildSync } from 'esbuild';
-import { createHash } from 'node:crypto';
-import { createReadStream, readdirSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { cpus, totalmem } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -24,10 +22,6 @@ import { buildVideoFfmpegArgs } from '../../src/common/editor/video-ffmpeg.js';
 import { videoEffectDefaults } from '../../src/common/editor/video-effects.js';
 import { resolveVideoRenderDescription } from '../../src/common/editor/video-render-description.ts';
 import {
-	mergeM4ParityReferenceFingerprint,
-	readM4ParityReferenceHostObservation,
-} from '../../scripts/lib/m4-production-parity-identity.mjs';
-import {
 	VIDEO_EFFECT_PARITY_MAXIMUM_CHANNEL_MAE,
 	VIDEO_EFFECT_PARITY_MINIMUM_SSIM,
 	compareVideoEffectFrames,
@@ -38,7 +32,6 @@ import { videoPreviewSourceResponse } from './video-preview-source-route.js';
 const ROUTE_ROOT = '/__m4-production-parity__';
 const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
 const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.62.1';
-const REFERENCE_ENVIRONMENT_ID = 'reference-linux-gpu-01';
 const ENVIRONMENT_ID = process.env.SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID
 	|| (process.env.GITHUB_ACTIONS === 'true' ? HOSTED_ENVIRONMENT_ID : LOCAL_ENVIRONMENT_ID);
 const AUDIO_ENGINE_HARNESS_SOURCE = bundleAudioEngineHarness(productionDynamicsWorkletPath());
@@ -166,7 +159,7 @@ test('collects complete M4 PCM, RGBA, and render-ledger evidence without qualify
 	}
 
 	const renderer = await rendererDiagnostic(page);
-	const environmentFingerprint = await diagnosticEnvironmentFingerprint(runtimeBrowser, renderer);
+	const environmentFingerprint = diagnosticEnvironmentFingerprint(runtimeBrowser, renderer);
 	const diagnostic = {
 		schemaVersion: 1,
 		profile: M4_PRODUCTION_PARITY_PROFILE,
@@ -187,47 +180,14 @@ test('collects complete M4 PCM, RGBA, and render-ledger evidence without qualify
 	console.log(`SOUNDSCAPER_M4_PRODUCTION_PARITY ${JSON.stringify(diagnostic)}`);
 });
 
-async function diagnosticEnvironmentFingerprint(browser, renderer) {
-	const portable = {
+function diagnosticEnvironmentFingerprint(browser, renderer) {
+	return {
 		browserVersion: browser.version(),
 		platform: process.platform,
 		architecture: process.arch,
 		webglVendor: renderer.vendor,
 		webglRenderer: renderer.renderer,
 	};
-	if (ENVIRONMENT_ID !== REFERENCE_ENVIRONMENT_ID) return portable;
-	const host = await readM4ParityReferenceHostObservation(
-		process.env.SOUNDSCAPER_M4_REFERENCE_HOST_OBSERVATION_PATH,
-	);
-	const browserObservation = {
-		osImage: await linuxOsImage(),
-		cpuModel: cpus()[0]?.model || 'unknown',
-		logicalCpuCount: cpus().length,
-		memoryBytes: totalmem(),
-		webglVendor: renderer.vendor,
-		webglRenderer: renderer.renderer,
-		devicePixelRatio: renderer.devicePixelRatio,
-		browserVersion: browser.version(),
-		browserBinarySha256: await sha256File(browser.browserType().executablePath()),
-	};
-	return mergeM4ParityReferenceFingerprint(host, browserObservation);
-}
-
-async function sha256File(path) {
-	const hash = createHash('sha256');
-	for await (const chunk of createReadStream(path)) hash.update(chunk);
-	return hash.digest('hex');
-}
-
-async function linuxOsImage() {
-	const lines = (await readFile('/etc/os-release', 'utf8')).split(/\r?\n/u);
-	const values = Object.fromEntries(lines.flatMap((line) => {
-		const separator = line.indexOf('=');
-		if (separator < 1) return [];
-		return [[line.slice(0, separator), line.slice(separator + 1).replace(/^"|"$/gu, '')]];
-	}));
-	if (!values.ID || !values.VERSION_ID) throw new Error('Reference host OS image is unavailable.');
-	return `${values.ID}-${values.VERSION_ID}`;
 }
 
 function route(relativePath, contentType) {

@@ -391,9 +391,6 @@ test('keeps the product prerequisite within maintained Framescaper and packaging
 		'tests/audio-editor-framescaper-project-environment-v18.test.ts',
 		TEST_MODULE,
 		'tests/audio-editor-framescaper-project-storage-profile.test.ts',
-		// The timing-probe smoke test reads the storage profile now rather than
-		// repeating the database and OPFS names it needs.
-		'tests/desktop-video-timing-probe-smoke.test.js',
 	]);
 	const genericSource = await readSource(GENERIC_MODULE);
 	assert.deepEqual([...new Set(importSpecifiers(genericSource))], ['./storage/project-storage-profile.ts']);

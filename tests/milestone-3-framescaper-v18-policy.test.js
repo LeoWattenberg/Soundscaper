@@ -98,7 +98,7 @@ test('production capability and security registers describe only the qualified V
 	assert.match(desktop.summary, /no physical reclamation.*never reuses.*project ID/isu);
 	assert.match(desktop.summary, /ambiguous IPC.*authoritative/isu);
 	assert.match(desktop.summary, /Windows x64.*Linux x64.*pending-external/isu);
-	assert.match(desktop.summary, /source-free.*does not qualify.*delete.*duplicate/isu);
+	assert.match(desktop.summary, /unselected compatibility-boundary.*No current packaged route.*delete or duplicate.*remain unqualified/isu);
 
 	for (const item of [projectAdmission, proxyAdmission, desktop]) {
 		for (const reference of item.evidence) await evidenceExists(reference.path);
@@ -113,7 +113,7 @@ test('milestone narratives report implemented V18 slices without closing milesto
 	assert.match(roadmap, /proxy.*preservation.*implemented/isu);
 	assert.match(roadmap, /capture-only.*post-commit.*generation/isu);
 	assert.match(roadmap, /general user-invoked editorial generator.*unavailable/isu);
-	assert.match(roadmap, /retime.*hard-stopped/isu);
+	assert.match(roadmap, /milestone-5 exact ordinal oracle.*native execution validation.*V20 still lacks retime\s+authoring.*videoRetime.*unavailable/isu);
 	assert.doesNotMatch(roadmap, /maintained retime workflows, nested sequences, subsequence time mapping, and\s+flattening remain later slices/iu);
 	assert.doesNotMatch(roadmap, /no selector, proxy behavior, capability flip, or Soundscaper change is authorized/iu);
 
@@ -141,7 +141,14 @@ test('milestone 3 closure blockers remain explicit and unpromoted', async () => 
 	assert.deepEqual(new Set(matrix.electronRows.map(({ status }) => status)), new Set(['pending-external']));
 
 	const budgets = await json('config/quality-budgets.json');
-	assert.equal(byId(budgets.environments, 'reference-linux-gpu-01').status, 'unprovisioned');
+	const ownerHost = byId(budgets.environments, 'owner-qualified-windows-x64-rtx3090-01');
+	assert.equal(ownerHost.status, 'active');
+	assert.ok(ownerHost.eligibleWorkloadIds.includes('m3-longform-editorial'));
+	const m3Profile = budgets.packagedRuntimeQualification.profiles.find(
+		({ diagnosticKey }) => diagnosticKey === 'm3-longform-editorial',
+	);
+	assert.equal(m3Profile.status, 'active');
+	assert.equal(m3Profile.environmentId, 'owner-qualified-windows-x64-rtx3090-01');
 	assert.equal(byId(budgets.fixtures, 'm3-longform-editorial-2h-v1').status, 'provisional');
 	assert.equal(byId(budgets.workloads, 'm3-longform-editorial').status, 'provisional');
 

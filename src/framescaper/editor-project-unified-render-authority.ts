@@ -12,6 +12,7 @@ export interface FramescaperUnifiedExactRenderAuthority {
 	readonly format: UnifiedExactRenderPlan['format'];
 	readonly codecs: UnifiedExactRenderPlan['codecs'];
 	readonly canvas: UnifiedExactRenderPlan['output']['canvas'];
+	readonly quality: UnifiedExactRenderPlan['output']['quality'];
 	readonly includeAudio: boolean;
 	readonly audioLayout: UnifiedExactRenderPlan['output']['audioLayout'];
 	readonly timingViews: ReadonlyMap<string, VideoSourceTimingView>;
@@ -24,7 +25,7 @@ export interface FramescaperUnifiedExactVisualRenderAuthority
 
 const BASE_FIELDS = Object.freeze([
 	'sequenceId', 'sampleStart', 'sampleDuration', 'outputRate', 'format', 'codecs', 'canvas',
-	'includeAudio', 'audioLayout', 'timingViews',
+	'quality', 'includeAudio', 'audioLayout', 'timingViews',
 ]);
 const VISUAL_FIELDS = Object.freeze([...BASE_FIELDS, 'visualFreshnessByModelId']);
 
@@ -40,6 +41,7 @@ export function snapshotFramescaperUnifiedExactRenderAuthority(
 		format: source.format as FramescaperUnifiedExactRenderAuthority['format'],
 		codecs: source.codecs as FramescaperUnifiedExactRenderAuthority['codecs'],
 		canvas: source.canvas as FramescaperUnifiedExactRenderAuthority['canvas'],
+		quality: source.quality as FramescaperUnifiedExactRenderAuthority['quality'],
 		includeAudio: source.includeAudio as boolean,
 		audioLayout: source.audioLayout as FramescaperUnifiedExactRenderAuthority['audioLayout'],
 		timingViews: source.timingViews as FramescaperUnifiedExactRenderAuthority['timingViews'],

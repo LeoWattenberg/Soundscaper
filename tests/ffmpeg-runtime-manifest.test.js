@@ -123,7 +123,13 @@ test('desktop packaging revalidates staged bytes and the retained policy summary
 		outputRoot: join(fixture.root, '.desktop-build/runtime/native/linux-x64'),
 	});
 	const stageManifestPath = join(fixture.root, '.desktop-build/stage-manifest.json');
-	await writeJson(stageManifestPath, { schemaVersion: 1, ffmpeg: summary, nativeAddons });
+	await writeJson(stageManifestPath, {
+		schemaVersion: 1,
+		productId: 'soundscaper',
+		ffmpeg: summary,
+		nativeAddons,
+		framescaperNativeHosts: null,
+	});
 	await assert.doesNotReject(verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)));
 
 	const nativePayloadPath = join(fixture.root, '.desktop-build/runtime/native/linux-x64/soundscaper_helper.node');
@@ -148,7 +154,13 @@ test('desktop packaging revalidates staged bytes and the retained policy summary
 		verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
 		/stage manifest.*verified FFmpeg runtime summary/iu,
 	);
-	await writeJson(stageManifestPath, { schemaVersion: 1, ffmpeg: summary, nativeAddons });
+	await writeJson(stageManifestPath, {
+		schemaVersion: 1,
+		productId: 'soundscaper',
+		ffmpeg: summary,
+		nativeAddons,
+		framescaperNativeHosts: null,
+	});
 	await writeFile(join(outputRoot, 'manifest.json'), Buffer.from('post-prepare manifest tamper'));
 	await assert.rejects(
 		verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),

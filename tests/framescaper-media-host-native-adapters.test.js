@@ -9,11 +9,11 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
-import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
 import {
-	baseInput, bindCfrTiming, videoClip,
-} from './helpers/video-retime-export-fixtures.ts';
-import { createVideoRetimeExportIntentV6 } from '../src/common/editor/video-retime-export-plan.ts';
+	mediaHostUnifiedPlan,
+	mediaHostUnifiedPlanGeneration,
+} from './helpers/framescaper-media-host-unified-plan-fixture.js';
+import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const hostRoot = join(repositoryRoot, 'native/framescaper-media-host');
@@ -27,11 +27,12 @@ test('closed media adapters authenticate canonical plans and source bytes before
 		const result = run(fixture.executable, renderArguments(paths));
 		assert.equal(result.status, 78, result.stderr);
 		assert.deepEqual(JSON.parse(result.stdout), {
-			error: 'unsupported-render-subset',
-			operation: 'media-render',
-			planVersion: 9,
-			family: 'video-transition',
+			error: 'unsupported-render-subset', operation: 'media-render',
+			planVersion: 9, family: 'unified-exact-v9-graph',
 		});
+		const derived = run(fixture.executable, derivedRenderArguments(paths));
+		assert.equal(derived.status, 64);
+		assert.match(derived.stderr, /cannot acquire derived media authority/iu);
 
 		const tampered = run(fixture.executable, renderArguments(paths).map(
 			(value) => value === paths.planSha256 ? '00'.repeat(32) : value,
@@ -49,40 +50,95 @@ test('closed media adapters authenticate canonical plans and source bytes before
 	}
 });
 
-test('the closed simple-render seam admits only a fully validated identity-mapped clip', (context) => {
+test('V9 through V12 retain cumulative nodes behind typed non-executable admission', (context) => {
 	const fixture = buildContractHost(context);
 	if (fixture === null) return;
 	try {
 		const paths = operationPaths(fixture.directory);
-		const planValue = simpleUnifiedPlan(paths.sourceSha256);
-		const planBytes = JSON.stringify(planValue);
-		writeFileSync(paths.plan, planBytes);
-		const admitted = run(fixture.executable, renderArguments({
-			...paths, planSha256: digest(planBytes),
+		for (const version of [9, 10, 11, 12]) {
+			const planValue = mediaHostUnifiedPlanGeneration(version, paths.sourceSha256);
+			const planBytes = JSON.stringify(planValue);
+			writeFileSync(paths.plan, planBytes);
+			const result = run(fixture.executable, renderArguments({
+				...paths, planSha256: digest(planBytes),
+			}));
+			assert.equal(result.status, 78, `${String(version)}: ${result.stderr}`);
+			assert.deepEqual(JSON.parse(result.stdout), {
+				error: 'unsupported-render-subset', operation: 'media-render',
+				planVersion: version, family: `unified-exact-v${String(version)}-graph`,
+			});
+		}
+		const stale = structuredClone(mediaHostUnifiedPlanGeneration(10, paths.sourceSha256));
+		const visual = stale.nodes.find(({ kind }) => kind === 'visual');
+		visual.freshness.inputIdentitiesSha256 = 'ee'.repeat(32);
+		visual.fallbackDisposition = {
+			status: 'stale', mode: 'bypass', changedComponents: ['input-identities'],
+			authoredStatePreserved: true, reportsDegradation: true,
+		};
+		visual.frozenFallback = null;
+		const staleBytes = JSON.stringify(stale);
+		writeFileSync(paths.plan, staleBytes);
+		const acceptedBypass = run(fixture.executable, renderArguments({
+			...paths, planSha256: digest(staleBytes),
 		}));
-		assert.equal(admitted.status, 78, admitted.stderr);
-		assert.deepEqual(JSON.parse(admitted.stdout), {
-			error: 'contract-build-has-no-ffmpeg', operation: 'media-render',
-			subset: 'single-full-frame-clip-v1',
-		});
+		assert.equal(acceptedBypass.status, 78, acceptedBypass.stderr);
 
-		const forged = structuredClone(planValue);
-		forged.nodes[0].sourceTimeMapping.intent.intersections[0].sourceEndTime = {
-			numerator: '1', denominator: '5',
-		};
-		forged.nodes[0].sourceTimeMapping.intent.intersections[0].clippedSourceEndTime = {
-			numerator: '1', denominator: '5',
-		};
-		const forgedBytes = JSON.stringify(forged);
-		writeFileSync(paths.plan, forgedBytes);
-		const refused = run(fixture.executable, renderArguments({
-			...paths, planSha256: digest(forgedBytes),
+		visual.frozenFallback = visual.authoredFallback;
+		const stalePlaybackBytes = JSON.stringify(stale);
+		writeFileSync(paths.plan, stalePlaybackBytes);
+		const refusedStalePlayback = run(fixture.executable, renderArguments({
+			...paths, planSha256: digest(stalePlaybackBytes),
 		}));
-		assert.equal(refused.status, 78, refused.stderr);
-		assert.deepEqual(JSON.parse(refused.stdout), {
-			error: 'unsupported-render-subset', operation: 'media-render',
-			planVersion: 9, family: 'exact-source-time-compositor',
-		});
+		assert.equal(refusedStalePlayback.status, 65);
+		assert.match(refusedStalePlayback.stderr, /stale|bypass|fallback/iu);
+
+		const hostile = structuredClone(mediaHostUnifiedPlanGeneration(9, paths.sourceSha256));
+		hostile.nodes[0].pictureState.argv = ['-filter_complex'];
+		const hostileBytes = JSON.stringify(hostile);
+		writeFileSync(paths.plan, hostileBytes);
+		const refused = run(fixture.executable, renderArguments({
+			...paths, planSha256: digest(hostileBytes),
+		}));
+		assert.equal(refused.status, 65);
+		assert.match(refused.stderr, /picture|closed|unknown|malformed/iu);
+	} finally {
+		fixture.cleanup();
+	}
+});
+
+test('V12 preserves stale OFX fallback for bypass but binds its exact output frame count', (context) => {
+	const fixture = buildContractHost(context);
+	if (fixture === null) return;
+	try {
+		const paths = operationPaths(fixture.directory);
+		const stale = structuredClone(mediaHostUnifiedPlanGeneration(12, paths.sourceSha256));
+		const openFx = stale.nodes.find(({ kind }) => kind === 'openfx');
+		openFx.state.freshness.inputIdentitiesSha256 = 'ee'.repeat(32);
+		const staleBytes = JSON.stringify(stale);
+		writeFileSync(paths.plan, staleBytes);
+		const acceptedBypass = run(fixture.executable, renderArguments({
+			...paths, planSha256: digest(staleBytes),
+		}));
+		assert.equal(acceptedBypass.status, 78, acceptedBypass.stderr);
+
+		openFx.state.frozenFallback.frameCount = stale.output.frameCount - 1;
+		const wrongCountBytes = JSON.stringify(stale);
+		writeFileSync(paths.plan, wrongCountBytes);
+		const refusedWrongCount = run(fixture.executable, renderArguments({
+			...paths, planSha256: digest(wrongCountBytes),
+		}));
+		assert.equal(refusedWrongCount.status, 65);
+		assert.match(refusedWrongCount.stderr, /fallback.*frame count|output frame count/iu);
+
+		openFx.state.frozenFallback.frameCount = stale.output.frameCount;
+		openFx.state.frozenFallback.unexpected = true;
+		const openFallbackBytes = JSON.stringify(stale);
+		writeFileSync(paths.plan, openFallbackBytes);
+		const refusedOpenFallback = run(fixture.executable, renderArguments({
+			...paths, planSha256: digest(openFallbackBytes),
+		}));
+		assert.equal(refusedOpenFallback.status, 65);
+		assert.match(refusedOpenFallback.stderr, /unknown|closed|member|key/iu);
 	} finally {
 		fixture.cleanup();
 	}
@@ -284,7 +340,8 @@ test('FFmpeg adapter source uses libav APIs and contains no argv or filter-strin
 		'codec-policy-unavailable', 'unsupported-rate-conversion',
 		'avcodec_send_frame', 'av_interleaved_write_frame',
 	]) assert.match(simple, new RegExp(token, 'u'));
-	assert.match(engine, /execute_simple_render_job\(job\)/u);
+	assert.doesNotMatch(engine, /execute_simple_render_job\(job\)/u);
+	assert.match(engine, /admitted_plan\.version\s*==\s*7[\s\S]*admitted_plan\.version\s*==\s*8[\s\S]*execute_selected_v20_render_job/u);
 	assert.doesNotMatch(simple, /avfilter_graph_parse|system\s*\(|popen\s*\(|execv/iu);
 	assert.doesNotMatch(simple, /-vf|-filter_complex|-codec:|-c:v/iu);
 	for (const token of [
@@ -303,6 +360,15 @@ function buildContractHost(context) {
 		context.skip('A C++ compiler is not installed on this source-audit host.');
 		return null;
 	}
+	const boostRoot = process.env.FRAMESCAPER_BOOST_192_SOURCE_ROOT;
+	const boostArguments = boostRoot ? ['-I', boostRoot] : [];
+	const boost = spawnSync('c++', ['-std=c++20', ...boostArguments, '-fsyntax-only', '-x', 'c++', '-'], {
+		encoding: 'utf8', input: '#include <boost/multiprecision/cpp_int.hpp>\n',
+	});
+	if (boost.status !== 0) {
+		context.skip('The pinned Boost closure is not provisioned on this source-audit host.');
+		return null;
+	}
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-media-adapters-'));
 	const executable = join(directory, 'framescaper-media-host');
 	const files = [
@@ -312,7 +378,7 @@ function buildContractHost(context) {
 	].map((file) => join(sourceRoot, file));
 	const built = spawnSync('c++', [
 		'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
-		'-DFRAMESCAPER_MEDIA_HOST_CONTRACT_ONLY=1', '-I', sourceRoot,
+		'-DFRAMESCAPER_MEDIA_HOST_CONTRACT_ONLY=1', ...boostArguments, '-I', sourceRoot,
 		...files, '-o', executable,
 	], { encoding: 'utf8' });
 	assert.equal(built.status, 0, built.stderr);
@@ -330,13 +396,21 @@ function operationPaths(directory) {
 	const source = join(directory, 'original.bin');
 	writeFileSync(source, 'original-media-fixture');
 	const sourceSha256 = digest(readFileSync(source));
+	const carrier = join(directory, 'evaluated.frames');
+	writeFileSync(carrier, 'authenticated-evaluated-rgba-fixture');
+	const audio = join(directory, 'audio-mix.wav');
+	writeFileSync(audio, 'authenticated-staged-audio-fixture');
 	const plan = join(directory, 'plan.json');
-	const planBytes = JSON.stringify(unifiedPlan(sourceSha256));
+	const planBytes = JSON.stringify(mediaHostUnifiedPlan(sourceSha256));
 	writeFileSync(plan, planBytes);
 	return {
 		scratch, destination, source, sourceSha256,
 		sourceByteLength: readFileSync(source).byteLength, plan,
 		planSha256: digest(planBytes),
+		carrier, carrierSha256: digest(readFileSync(carrier)),
+		carrierByteLength: readFileSync(carrier).byteLength,
+		audio, audioSha256: digest(readFileSync(audio)),
+		audioByteLength: readFileSync(audio).byteLength,
 		decodeOutput: join(scratch, 'decode.frames'),
 		temporaryOutput: join(destination, 'export.tmp'),
 	};
@@ -464,61 +538,14 @@ function renderArguments(paths) {
 	];
 }
 
-function unifiedPlan(sourceSha256) {
-	const plan = structuredClone(unifiedExactPlanFixture(9));
-	plan.sources[0].contentSha256 = sourceSha256;
-	return createUnifiedExactRenderPlan(plan);
-}
-
-function simpleUnifiedPlan(sourceSha256) {
-	const rate = Object.freeze({ num: 24, den: 1 });
-	const clipId = 'clip-1';
-	const intent = createVideoRetimeExportIntentV6(baseInput({
-		sampleStart: 0,
-		sampleDuration: 4,
-		sampleRate: 24,
-		sequenceBinding: { id: 'sequence-1', rate },
-		topology: [{
-			startSample: 0, endSample: 4, layers: [{ clips: [{ clipId }] }],
-		}],
-		canonicalClips: [videoClip(clipId, 'source-1', null, {
-			sequenceStartFrame: 0, sequenceFrameCount: 4,
-			sourceInFrame: 0, sourceFrameCount: 4,
-		})],
-	}), new Map([['source-1', bindCfrTiming('source-1', 4, rate)]]));
-	return createUnifiedExactRenderPlan({
-		version: 9,
-		strategy: 'framescaper-unified-exact-v1',
-		project: { id: 'project-1', revision: 0 },
-		format: { container: 'mp4', extension: 'mp4', mimeType: 'video/mp4' },
-		codecs: {
-			video: 'h264', videoEncoder: 'libx264', audio: null,
-			audioEncoder: null, pixelFormat: 'yuv420p',
-		},
-		timebase: {
-			sampleStart: 0, sampleDuration: 4, sampleRate: 24,
-			sequenceId: 'sequence-1', sequenceRate: rate,
-		},
-		output: {
-			frameRate: rate, frameCount: 4,
-			canvas: {
-				width: 64, height: 36, fit: 'contain', pixelFormat: 'yuv420p',
-				backgroundColor: '#000000',
-			},
-			includeAudio: false, audioLayout: null,
-		},
-		sources: [{
-			inputIndex: 0, nodeId: 'source-node-1', sourceId: 'source-1',
-			storageKey: 'media/source-1', mimeType: 'video/quicktime', contentSha256: sourceSha256,
-			timing: { kind: 'cfr', frameCount: 4, rate },
-		}],
-		nodes: [{
-			kind: 'clip', nodeId: 'clip-node-1', clipId, trackId: 'track-1',
-			sourceNodeId: 'source-node-1', sequenceStartFrame: 0, sequenceFrameCount: 4,
-			sourceInFrame: 0, sourceFrameCount: 4,
-			sourceTimeMapping: { kind: 'video-retime-export-intent-v6', intent },
-		}],
-	});
+function derivedRenderArguments(paths) {
+	const argumentsValue = renderArguments(paths);
+	argumentsValue.splice(argumentsValue.indexOf('--temporary-output'), 0,
+		'--source', paths.carrier, '--source-sha256', paths.carrierSha256,
+		'--source-byte-length', String(paths.carrierByteLength),
+		'--source-role', 'evaluated-rgba-frame-pack',
+	);
+	return argumentsValue;
 }
 
 function digest(bytes) {

@@ -92,6 +92,8 @@ export function createDesktopNightlyTestsPackagedMetricsPlan({
 			SOUNDSCAPER_PACKAGED_RUNTIME_ARCH: arch,
 			AUDIO_EDITOR_FFMPEG_BROWSER: '1',
 			GITHUB_ACTIONS: 'false',
+			SOUNDSCAPER_M3_LONGFORM_BENCHMARK: '1',
+			SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID: `packaged-runtime-${platform}-${arch}`,
 			SOUNDSCAPER_M4B2_KEYFRAME_PARITY: '1',
 			SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID: `packaged-runtime-${platform}-${arch}`,
 			SOUNDSCAPER_M4_PRODUCTION_PARITY: '1',

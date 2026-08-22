@@ -3,7 +3,7 @@
 
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -18,6 +18,7 @@ import {
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
 
 const execFileAsync = promisify(execFile);
+const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
 const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const BROWSER_SPEC = 'tests/browser/audio-editor-m4b2-keyframe-parity.spec.js';
 const MARKER = 'SOUNDSCAPER_M4B2_KEYFRAME_PARITY ';
@@ -27,11 +28,17 @@ const PROFILE = 'deterministic-keyframe-parity-v1';
 const OBSERVATION_CLASS = 'complete-keyed-rgba-consumer-ledger-v1';
 const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
 const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.62.1';
-const REFERENCE_ENVIRONMENT_ID = 'reference-linux-gpu-01';
 const PACKAGED_RUNTIME_ENVIRONMENT_ID = /^packaged-runtime-(?:linux|win32|darwin)-(?:x64|arm64)$/u;
 const LOCAL_ADMISSION_MINIMUM_SSIM = 0.98;
 const LOCAL_ADMISSION_MAXIMUM_CHANNEL_MAE = 6 / 255;
 const SOURCE_SHA256 = 'db9fa74f23eb1b5f9565cd10f10794a975492b629731534b56d0af3072b3ad8a';
+const DEFAULT_THRESHOLDS = Object.freeze([
+	Object.freeze({ metricId: 'keyframes.videoMinimumSsim', comparison: 'gte', value: LOCAL_ADMISSION_MINIMUM_SSIM }),
+	Object.freeze({ metricId: 'keyframes.videoMaximumChannelMae', comparison: 'lte', value: LOCAL_ADMISSION_MAXIMUM_CHANNEL_MAE }),
+	Object.freeze({ metricId: 'keyframes.omittedOperations', comparison: 'eq', value: 0 }),
+	Object.freeze({ metricId: 'keyframes.substitutedOperations', comparison: 'eq', value: 0 }),
+	Object.freeze({ metricId: 'keyframes.fallbackOperations', comparison: 'eq', value: 0 }),
+]);
 const QUERY_DEFINITIONS = Object.freeze([
 	Object.freeze({ id: 'start', frameIndex: 2, position: Object.freeze({ num: 2, den: 1 }) }),
 	Object.freeze({ id: 'interior', frameIndex: 6, position: Object.freeze({ num: 6, den: 1 }) }),
@@ -72,7 +79,7 @@ const FIXTURE = Object.freeze({
 	presentationClasses: Object.freeze(CASE_DEFINITIONS.map(({ presentationClass }) => presentationClass)),
 });
 
-/** Run the dormant local-admission witness; reference qualification is intentionally unavailable. */
+/** Run the keyed-parity diagnostic; formal qualification is intentionally unavailable here. */
 export async function collectM4B2KeyframeParityDiagnostic(optionsValue, dependencies = {}) {
 	const options = exactRecord(
 		snapshotStrictJsonData(optionsValue, 'collector options'),
@@ -80,15 +87,16 @@ export async function collectM4B2KeyframeParityDiagnostic(optionsValue, dependen
 		'collector options',
 	);
 	const outputDirectory = boundedString(options.outputDirectory, 1, 4_096, 'outputDirectory');
+	const config = dependencies.config ?? JSON.parse(await readFile(CONFIG_URL, 'utf8'));
 	const runBrowser = dependencies.runBrowser ?? runBrowserDiagnostic;
 	const { stdout, stderr } = await runBrowser();
 	const diagnostic = parseM4B2KeyframeParityDiagnostic(`${stdout}\n${stderr}`);
-	const result = createPendingM4B2KeyframeParityResult(diagnostic);
+	const result = createPendingM4B2KeyframeParityResult(diagnostic, config);
 	const writeResult = dependencies.writeResult ?? writePendingResult;
 	return writeResult(outputDirectory, result);
 }
 
-/** Admit exactly one complete marked diagnostic with the frozen dormant identity. */
+/** Admit exactly one complete marked diagnostic with the frozen keyed identity. */
 export function parseM4B2KeyframeParityDiagnostic(output) {
 	if (typeof output !== 'string') throw new TypeError('Browser diagnostic output must be a string.');
 	const matches = [];
@@ -115,7 +123,7 @@ export function parseM4B2KeyframeParityDiagnostic(output) {
 }
 
 /** Recompute every local-admission metric from complete frames and exact consumer ledgers. */
-export function createPendingM4B2KeyframeParityResult(input) {
+export function createPendingM4B2KeyframeParityResult(input, inputConfig) {
 	const diagnostic = exactRecord(snapshotStrictJsonData(input, 'diagnostic'), [
 		'cases', 'environmentFingerprint', 'environmentId', 'fixture', 'fixtureId',
 		'observationClass', 'profile', 'rendererClass', 'schemaVersion', 'sourceBase64', 'workloadId',
@@ -212,8 +220,14 @@ export function createPendingM4B2KeyframeParityResult(input) {
 		'keyframes.substitutedOperations': substitutedOperations,
 		'keyframes.fallbackOperations': fallbackOperations,
 	});
-	const failures = localAdmissionFailures(metrics);
-	const metricGatePassed = failures.length === 0;
+	const thresholds = inputConfig === null || inputConfig === undefined
+		? DEFAULT_THRESHOLDS
+		: exactDescriptor(inputConfig.workloads, WORKLOAD_ID, 'workload').thresholds;
+	const verdicts = metricVerdicts(metrics, thresholds);
+	const failures = verdicts.filter(({ passed }) => !passed)
+		.map(({ metricId }) => `${metricId} did not pass.`);
+	const metricGatePassed = verdicts.length === DEFAULT_THRESHOLDS.length
+		&& verdicts.every(({ passed }) => passed);
 	const fingerprint = requireRecord(diagnostic.environmentFingerprint, 'environmentFingerprint');
 	if (Object.keys(fingerprint).length === 0) throw new Error('Environment fingerprint must not be empty.');
 	return Object.freeze({
@@ -222,7 +236,6 @@ export function createPendingM4B2KeyframeParityResult(input) {
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
 		environmentId: diagnostic.environmentId,
-		qualificationEnvironmentId: REFERENCE_ENVIRONMENT_ID,
 		profile: PROFILE,
 		observationClass: OBSERVATION_CLASS,
 		attemptCount: 1,
@@ -245,8 +258,9 @@ export function createPendingM4B2KeyframeParityResult(input) {
 			passed: false,
 			failures: Object.freeze([
 				...failures,
-				'Reference qualification is unavailable because the keyed workload is registered provisionally and the reference host is unprovisioned.',
+				'Formal qualification is published only by the nightly packaged-runtime verifier on the owner-designated host.',
 			]),
+			verdicts: Object.freeze(verdicts),
 		}),
 	});
 }
@@ -258,9 +272,6 @@ export function parseM4B2KeyframeParityCliOptions(argsValue) {
 	}
 	let outputDirectory = null;
 	for (const argument of args) {
-		if (argument === '--reference') {
-			throw new Error('M4B2 keyed reference qualification is unavailable while its host is unprovisioned.');
-		}
 		if (argument.startsWith('-')) throw new Error(`Unknown M4B2 collector option ${argument}.`);
 		if (outputDirectory !== null) throw new Error('M4B2 collector accepts one output directory.');
 		outputDirectory = argument;
@@ -296,7 +307,7 @@ function assertIdentity(diagnostic) {
 		|| diagnostic.fixtureId !== FIXTURE_ID
 		|| !isM4B2DiagnosticEnvironmentId(diagnostic.environmentId)
 		|| !['hardware', 'software', 'unknown'].includes(diagnostic.rendererClass)) {
-		throw new Error('Browser diagnostic identity does not match the dormant M4B2 keyed workload.');
+		throw new Error('Browser diagnostic identity does not match the M4B2 keyed workload.');
 	}
 }
 
@@ -305,18 +316,37 @@ function isM4B2DiagnosticEnvironmentId(value) {
 		|| (typeof value === 'string' && PACKAGED_RUNTIME_ENVIRONMENT_ID.test(value));
 }
 
-function localAdmissionFailures(metrics) {
-	const failures = [];
-	if (metrics['keyframes.videoMinimumSsim'] < LOCAL_ADMISSION_MINIMUM_SSIM) {
-		failures.push(`Keyed preview/offline SSIM is below the local ${String(LOCAL_ADMISSION_MINIMUM_SSIM)} admission threshold.`);
+function metricVerdicts(metrics, thresholds) {
+	if (!Array.isArray(thresholds) || thresholds.length !== DEFAULT_THRESHOLDS.length) {
+		throw new Error('M4B2 keyed workload must register exactly five thresholds.');
 	}
-	if (metrics['keyframes.videoMaximumChannelMae'] > LOCAL_ADMISSION_MAXIMUM_CHANNEL_MAE) {
-		failures.push('Keyed preview/offline channel MAE exceeds the local 6/255 admission threshold.');
-	}
-	for (const id of [
-		'keyframes.omittedOperations', 'keyframes.substitutedOperations', 'keyframes.fallbackOperations',
-	]) if (metrics[id] !== 0) failures.push(`${id} must be zero for local admission.`);
-	return failures;
+	return thresholds.map((thresholdValue) => {
+		const threshold = requireRecord(thresholdValue, 'M4B2 keyed threshold');
+		const actual = metrics[threshold.metricId];
+		if (typeof actual !== 'number' || !Number.isFinite(actual)
+			|| typeof threshold.value !== 'number' || !Number.isFinite(threshold.value)
+			|| !['eq', 'gte', 'lte'].includes(threshold.comparison)) {
+			throw new Error('M4B2 keyed threshold registration is invalid.');
+		}
+		const passed = threshold.comparison === 'eq'
+			? actual === threshold.value
+			: threshold.comparison === 'gte' ? actual >= threshold.value : actual <= threshold.value;
+		return Object.freeze({
+			metricId: threshold.metricId,
+			comparison: threshold.comparison,
+			expected: threshold.value,
+			actual,
+			passed,
+		});
+	});
+}
+
+function exactDescriptor(collection, id, label) {
+	const matches = Array.isArray(collection)
+		? collection.filter((value) => isRecord(value) && value.id === id)
+		: [];
+	if (matches.length !== 1) throw new Error(`Quality config must contain exactly one ${label} ${id}.`);
+	return matches[0];
 }
 
 function assertExpectedValue(actual, expected, path) {

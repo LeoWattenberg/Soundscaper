@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
@@ -18,6 +16,14 @@ const packageMetadata = JSON.parse(await readFile(
 	new URL('../package.json', import.meta.url),
 	'utf8',
 )) as { readonly scripts: Readonly<Record<string, string>> };
+const QUALIFICATION_ENVIRONMENT_ID = 'owner-qualified-windows-x64-rtx3090-01';
+const FINGERPRINT = Object.freeze({
+	browserVersion: '150.0.7871.114',
+	platform: 'win32',
+	architecture: 'x64',
+	webglVendor: 'Google Inc. (NVIDIA)',
+	webglRenderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)',
+});
 
 const expectedFixture = Object.freeze({
 	generatorRevision: 1,
@@ -35,7 +41,7 @@ const expectedFixture = Object.freeze({
 		selectionChanges: 2_500,
 		trackMixChanges: 2_500,
 	}),
-	projectSha256: '00f5ec5df0210f2fb025c8435bc6368f370eed5f51418e02862dd50d66c25a5a',
+	projectSha256: '4c96e2405d63ff282a28a6577c9da32d3598183e5ad59131cb3ca1977df34427',
 	editPlanSha256: '2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf',
 });
 
@@ -47,13 +53,9 @@ function makeDiagnostic() {
 		observationClass: 'decoded-media-av-scheduling-v1',
 		workloadId: 'm3-longform-editorial',
 		fixtureId: 'm3-longform-editorial-2h-v1',
-		environmentId: 'reference-linux-gpu-01',
+		environmentId: 'packaged-runtime-win32-x64',
 		rendererClass: 'hardware',
-		environmentFingerprint: {
-			browserVersion: 'Chromium 149.0.7827.55',
-			gpuModel: 'diagnostic-gpu',
-			logicalCpuCount: 8,
-		},
+		environmentFingerprint: FINGERPRINT,
 		fixture: expectedFixture,
 		positionChecks: [
 			...Array.from({ length: 24 }, (_, index) => ({
@@ -125,8 +127,8 @@ test('the long-form collector recomputes every metric with the frozen sampling p
 		forcedCollectionsAfter: 3,
 	});
 	assert.equal(result.evaluation.passed, false);
-	assert.match(result.evaluation.failures.join('\n'), /unprovisioned/iu);
-	assert.match(result.evaluation.failures.join('\n'), /not qualification-eligible/iu);
+	assert.equal(result.metricGatePassed, true);
+	assert.match(result.evaluation.failures.join('\n'), /environment mismatch/iu);
 	assert.equal(Object.hasOwn(result, 'rawEvidence'), false);
 	assert.equal(Object.hasOwn(result, 'budgetSha256'), false);
 });
@@ -182,7 +184,7 @@ test('fixture drift and malformed raw observations fail before a result can exis
 	);
 });
 
-test('a hypothetically provisioned matching environment enables accepted publication', () => {
+test('an explicitly owner-labeled exact diagnostic still requires packaged nightly verification', async () => {
 	const activated = structuredClone(config) as {
 		environments: Array<{
 			id: string;
@@ -191,61 +193,32 @@ test('a hypothetically provisioned matching environment enables accepted publica
 			fingerprint: Record<string, unknown>;
 		}>;
 	};
-	const environment = activated.environments.find(({ id }) => id === 'reference-linux-gpu-01');
+	const environment = activated.environments.find(({ id }) => id === QUALIFICATION_ENVIRONMENT_ID);
 	assert.ok(environment);
-	environment.status = 'active';
-	environment.qualificationEligible = true;
-	environment.fingerprint = structuredClone(makeDiagnostic().environmentFingerprint);
-	const result = createPendingM3LongformEditorialResult(makeDiagnostic(), activated);
-	assert.equal(result.status, 'accepted');
-	assert.equal(result.qualificationEvidencePublished, true);
-	assert.equal(result.evaluation.passed, true);
-});
-
-test('qualified measurements publish digest-bound raw and accepted artifacts', async () => {
-	const activated = structuredClone(config) as {
-		environments: Array<{
-			id: string;
-			status: string;
-			qualificationEligible: boolean;
-			fingerprint: Record<string, unknown>;
-		}>;
-	};
-	const diagnostic = makeDiagnostic();
-	const environment = activated.environments.find(({ id }) => id === 'reference-linux-gpu-01');
-	assert.ok(environment);
-	environment.status = 'active';
-	environment.qualificationEligible = true;
+	const diagnostic = { ...makeDiagnostic(), environmentId: QUALIFICATION_ENVIRONMENT_ID };
 	environment.fingerprint = structuredClone(diagnostic.environmentFingerprint);
 	const result = createPendingM3LongformEditorialResult(diagnostic, activated);
-	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m3-longform-'));
-	const configBytes = Buffer.from(`${JSON.stringify(activated, null, '\t')}\n`);
-	let verificationCalls = 0;
+	assert.equal(result.status, 'pending-external');
+	assert.equal(result.qualificationEvidencePublished, false);
+	assert.equal(result.metricGatePassed, true);
+	assert.equal(result.evaluation.passed, false);
+	assert.match(result.evaluation.failures.join('\n'), /packaged-runtime verifier/iu);
+
+	let pendingWrites = 0;
 	const written = await writeM3LongformEditorialResult(
-		directory, diagnostic, result, activated,
+		'/tmp/unused', diagnostic, result, activated,
 		{
-			configBytes,
-			sourceRevision: 'c'.repeat(40),
-			verifyAccepted: async () => {
-				verificationCalls += 1;
-				return { passed: true, failures: [], verdicts: [] };
+			writePending: async (_directory: string, pending: typeof result) => {
+				pendingWrites += 1;
+				return { resultPath: '/tmp/pending.json', result: pending };
 			},
 		},
 	);
-	assert.equal(verificationCalls, 1);
-	assert.equal(written.rawPath, join(directory, 'm3-longform-editorial.raw.json'));
-	assert.equal(written.resultPath, join(directory, 'm3-longform-editorial.accepted.json'));
-	const [raw, accepted] = await Promise.all([
-		readFile(written.rawPath, 'utf8').then(JSON.parse),
-		readFile(written.resultPath, 'utf8').then(JSON.parse),
-	]);
-	assert.equal(raw.observationClass, 'decoded-media-av-scheduling-v1');
-	assert.deepEqual(accepted.metrics, result.metrics);
-	assert.equal(accepted.rawEvidence.artifactName, 'm3-longform-editorial.raw.json');
-	assert.equal(accepted.environmentFingerprint.gpuModel, 'diagnostic-gpu');
+	assert.equal(pendingWrites, 1);
+	assert.equal(written.result.status, 'pending-external');
 });
 
-test('the registered runnable harness preserves every external qualification blocker', () => {
+test('the registered runnable harness delegates formal acceptance to packaged nightly verification', () => {
 	const quality = config as {
 		qualification: { qualifiedWorkloadIds: string[] };
 		fixtures: Array<{ id: string; status: string; kind: string; specification: Record<string, unknown> }>;
@@ -259,7 +232,10 @@ test('the registered runnable harness preserves every external qualification blo
 	};
 	const fixture = quality.fixtures.find(({ id }) => id === 'm3-longform-editorial-2h-v1');
 	const workload = quality.workloads.find(({ id }) => id === 'm3-longform-editorial');
-	const environment = quality.environments.find(({ id }) => id === 'reference-linux-gpu-01');
+	const environment = quality.environments.find(({ id }) => id === QUALIFICATION_ENVIRONMENT_ID);
+	const profile = (quality as typeof quality & {
+		packagedRuntimeQualification: { profiles: Array<{ workloadId: string; environmentId: string }> };
+	}).packagedRuntimeQualification.profiles.find(({ workloadId }) => workloadId === 'm3-longform-editorial');
 
 	assert.equal(fixture?.status, 'provisional');
 	assert.equal(fixture?.kind, 'deterministic-current-schema-project-generator');
@@ -269,8 +245,8 @@ test('the registered runnable harness preserves every external qualification blo
 	assert.equal(packageMetadata.scripts['quality:collect:m3-longform'],
 		'node scripts/collect-m3-longform-editorial-quality.mjs');
 	assert.equal(workload?.status, 'provisional');
-	assert.equal(environment?.status, 'unprovisioned');
-	assert.equal(environment?.qualificationEligible, false);
-	assert.ok(Object.values(environment?.fingerprint ?? {}).every((value) => value === null));
+	assert.equal(environment?.status, 'active');
+	assert.equal(environment?.qualificationEligible, true);
+	assert.equal(profile?.environmentId, QUALIFICATION_ENVIRONMENT_ID);
 	assert.equal(quality.qualification.qualifiedWorkloadIds.includes('m3-longform-editorial'), false);
 });

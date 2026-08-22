@@ -1,0 +1,113 @@
+{
+	"schemaVersion": 1,
+	"hostVersion": "1.0.0",
+	"helperContractVersion": 1,
+	"license": "AGPL-3.0-only",
+	"sourceDateEpoch": 1786492800,
+	"openfx": {
+		"version": "1.5.1",
+		"tag": "OFX_Release_1.5.1",
+		"commit": "ab77951",
+		"commitSha": "ab779510b2655b4d11a7e01e5c521f9aa8c88976",
+		"tagObjectSha": "43d93ea99255cc61177b0632e421e899e802995e",
+		"signedTagApiUrl": "https://api.github.com/repos/AcademySoftwareFoundation/openfx/git/tags/43d93ea99255cc61177b0632e421e899e802995e",
+		"signedTagVerifiedAt": "2025-11-20T18:14:02Z",
+		"url": "https://codeload.github.com/AcademySoftwareFoundation/openfx/tar.gz/ab77951",
+		"byteLength": 9837777,
+		"sha256": "7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5",
+		"extractedTree": {
+			"algorithm": "framescaper-portable-source-tree-sha256-v1",
+			"fileCount": 388,
+			"sha256": "bd7c4e5850725a2ed985e7c5f1f531a33e1c2509057052b21a0062454c3a8efe"
+		},
+		"license": "BSD-3-Clause"
+	},
+	"sourceFiles": [
+		{ "path": "CMakeLists.txt", "byteLength": 2851, "sha256": "278325fe2f18f11a18acaf6b63698ef2e8d35487e5478ab0699c63be433f0117" },
+		{ "path": "CMakePresets.json", "byteLength": 1262, "sha256": "813684008642a1861901b49c6c1964b8aafefd504b3aedc70a969e9a94544ccc" },
+		{ "path": "THIRD_PARTY_NOTICES.md", "byteLength": 1044, "sha256": "e8a24b3e1983134a4798ad298b0a7de0114a437c1b156b5e1f810cb71096b687" },
+		{ "path": "build/recipe-driver.mjs", "byteLength": 28219, "sha256": "90c20f738c3b6d530c16cc7ac5654c2545c8e312e6e23cfaa9a3381c4ee7eb3d" },
+		{ "path": "build/source-authentication.mjs", "byteLength": 334, "sha256": "92dbafcf17c91278d2efdbbaf0ae4d9c10aac5c4b084ff87ec330c612af97dbf" },
+		{ "path": "build/targets.json", "byteLength": 1013, "sha256": "2bc079d2d76f5ae27b109501416b8108c8f83dcb808391228f2d31b3c621aba0" },
+		{ "path": "build/toolchains/linux-arm64.cmake", "byteLength": 453, "sha256": "f4b4c453e0a0edb7664db9b36fe529ee1c60566ac0a02412a217e5ec1d263163" },
+		{ "path": "build/toolchains/linux-x64.cmake", "byteLength": 452, "sha256": "e9a909e154778538d3d250afa903944db3dea7dfecbb246cb4469de5588d9701" },
+		{ "path": "build/toolchains/mac-arm64.cmake", "byteLength": 491, "sha256": "4b4cb6dd0768a1c36f7a0ef9b1258d839b115e1b4e37d25c6d059e882a4be6df" },
+		{ "path": "build/toolchains/win-arm64.cmake", "byteLength": 455, "sha256": "2dbeb9844e99431f96092047d9f391e19eaad42251f7a00ec4c9bb3ba5ec2197" },
+		{ "path": "build/toolchains/win-x64.cmake", "byteLength": 453, "sha256": "6c855769b6c354d441497b108f5344bf02db7e6b037ea9e59511cbb008367588" },
+		{ "path": "fixtures/conformance_plugin.cpp", "byteLength": 24070, "sha256": "4f75c916fcbfbe4397ed814a344302199829520ba0de5d99b27f04aa2b4dfd38" },
+		{ "path": "src/dynamic_library.cpp", "byteLength": 2821, "sha256": "e46dc316e02d6906b12fc4986aa5cf49650a96e6e454d695838380d2f89dcb70" },
+		{ "path": "src/dynamic_library.hpp", "byteLength": 734, "sha256": "ab87ac4af918c331f8d9590a41ec6c7abdc9fa108ebb52298c21779b20f1d8f2" },
+		{ "path": "src/host_parameter_hydration.hpp", "byteLength": 1218, "sha256": "cf66aa099308c89f6499ab71703a5ba9a2fd1b377fede17548e07a48bdce0445" },
+		{ "path": "src/host_runtime.cpp", "byteLength": 45251, "sha256": "b499c815cc3ef10068cda2fb877041e51966828e4f413398f5fc06a12a2c8d61" },
+		{ "path": "src/host_runtime.hpp", "byteLength": 3015, "sha256": "41f595e8757e26d29c0edbda9cfb97f2d6f61c02e275c211460d2069d28613ff" },
+		{ "path": "src/host_scan_inspection.inc", "byteLength": 8752, "sha256": "afa5ed127628a6757ba04b9d45372775928ae59dab99ce785a665534ab19da76" },
+		{ "path": "src/host_standard_parameters.inc", "byteLength": 1532, "sha256": "89895887b1585a40d4dd6bdb58df4b517aeadcae58d600c4abc0643b7b620629" },
+		{ "path": "src/isolation_contract.hpp", "byteLength": 4728, "sha256": "addf7969560af7428639200d9bfa50edae087b9bc63d7a2e9321c41339cda2c7" },
+		{ "path": "src/loaded_plugin_binary.cpp", "byteLength": 1809, "sha256": "9ea404eb95c95922f3c10a43b67a9e99c125de3d774f44b1bd431291f5421a50" },
+		{ "path": "src/ofx_runtime_host.cpp", "byteLength": 10160, "sha256": "93a62cd6c905bab696dc98c13bfd2f19122250ace9737d813897b7914daf4e28" },
+		{ "path": "src/ofx_scanner.cpp", "byteLength": 4541, "sha256": "b670471181713aff62e31720313d12f20b0ca57458db32a502ca614400f08c0c" },
+		{ "path": "src/openfx_abi.hpp", "byteLength": 14161, "sha256": "1b7a22d48cba5d48b4ced6b6a967c9d51f3fe8ace34420b60e4ad0ebf0b2da4d" },
+		{ "path": "src/parameter_values.cpp", "byteLength": 17780, "sha256": "e4714edb6836b89af25cc5d68606af8a258a5a88260ca8898cdfbee7882ac34e" },
+		{ "path": "src/parameter_values.hpp", "byteLength": 2927, "sha256": "c81db719509497cfe503a8945f56321ba7c203b82ffb78e292cc5a613f0d4fb4" },
+		{ "path": "src/rgba_frame.hpp", "byteLength": 1245, "sha256": "bc632b3f8057516130452c120bcc3a2af64def5fc0e0d63e37230d86493a0c25" },
+		{ "path": "src/sha256.cpp", "byteLength": 4514, "sha256": "11c88df6f312113f0abe9d74a63c4ab97371462f202afb742e015655b0acfa54" },
+		{ "path": "src/sha256.hpp", "byteLength": 230, "sha256": "3b7cca5e9611925b7c40866ac5d2aeaf21a572aa0a27ed3e3a40fe7e15be31b0" },
+		{ "path": "src/v12_cancellation_channel.cpp", "byteLength": 2012, "sha256": "c79399ad24cf47a05f58aa3f15ea933ce5d560f559d9d1f1d75e0aba3b638fd8" },
+		{ "path": "src/v12_cancellation_channel.hpp", "byteLength": 993, "sha256": "10f444e75b7a0ba29a8b5ad0e12e2bfadf4aa9a0aeff2f3e71994b02b44dad9a" },
+		{ "path": "src/v12_host_invocation.cpp", "byteLength": 27442, "sha256": "799eab49f2cc2b7d13644b63252f80da57775cf9f32ac98ad0dd9a050f3e48b9" },
+		{ "path": "src/v12_host_invocation.hpp", "byteLength": 1699, "sha256": "5f8ac106dcb74746d930f956231906b076b198c3baf25c8c8ce990763e4c4b58" },
+		{ "path": "src/v12_output_file.cpp", "byteLength": 3078, "sha256": "cdd0fe8842ada84069e39f29377c01f92793d16776b68b52135fedd37329d7f1" },
+		{ "path": "src/v12_output_file.hpp", "byteLength": 405, "sha256": "3b1e87b90d1fadd62ea288b7ae0810373a14dc5e7f633ebfd417ceb85fdef08f" },
+		{ "path": "src/v12_retime_authority.cpp", "byteLength": 12605, "sha256": "60ee0e3a3cd777bd618f3a24ab8739421feb2dbb75779851677a25f8d1d29210" },
+		{ "path": "src/v12_retime_authority.hpp", "byteLength": 387, "sha256": "3b9253b68b51d72c427e9e9e2f724c582fb617ca1699b731d094fd1f470cb788" },
+		{ "path": "src/v12_transition_authority.cpp", "byteLength": 12434, "sha256": "6712c14c32b5833d7f9affba9f6e672b83ef643352009c54d4dea082423a4b43" },
+		{ "path": "src/v12_transition_authority.hpp", "byteLength": 449, "sha256": "3259c1668a9aa310f99f9c488b929a779964c2a48e81e05ade84dceab95bdc1c" }
+	],
+	"targets": {
+		"linux-x64": {
+			"runtime": "linux-x64",
+			"status": "pending-external",
+			"blockedBy": "No Linux x64 OpenFX licensing, isolation, conformance, payload, or review evidence exists.",
+			"toolchainIdentity": null,
+			"scannerPayload": null,
+			"runtimeHostPayload": null,
+			"productionReadiness": null
+		},
+		"linux-arm64": {
+			"runtime": "linux-arm64",
+			"status": "pending-external",
+			"blockedBy": "No Linux ARM64 OpenFX build host, isolation, conformance, payload, or review evidence exists.",
+			"toolchainIdentity": null,
+			"scannerPayload": null,
+			"runtimeHostPayload": null,
+			"productionReadiness": null
+		},
+		"mac-arm64": {
+			"runtime": "darwin-arm64",
+			"status": "pending-external",
+			"blockedBy": "No macOS ARM64 OpenFX signing, notarization, isolation, conformance, payload, or hardware evidence exists.",
+			"toolchainIdentity": null,
+			"scannerPayload": null,
+			"runtimeHostPayload": null,
+			"productionReadiness": null
+		},
+		"win-x64": {
+			"runtime": "win32-x64",
+			"status": "pending-external",
+			"blockedBy": "No Windows x64 OpenFX signing, isolation, conformance, payload, or hardware evidence exists.",
+			"toolchainIdentity": null,
+			"scannerPayload": null,
+			"runtimeHostPayload": null,
+			"productionReadiness": null
+		},
+		"win-arm64": {
+			"runtime": "win32-arm64",
+			"status": "pending-external",
+			"blockedBy": "No Windows Arm64EC OpenFX build, signing, isolation, conformance, payload, or hardware evidence exists.",
+			"toolchainIdentity": null,
+			"scannerPayload": null,
+			"runtimeHostPayload": null,
+			"productionReadiness": null
+		}
+	}
+}

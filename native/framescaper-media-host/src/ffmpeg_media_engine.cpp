@@ -575,7 +575,7 @@ engine_result execute_ffmpeg_job(const invocation& job) {
 			if (job.admitted_plan.version == 7 || job.admitted_plan.version == 8) {
 				return execute_selected_v20_render_job(job);
 			}
-			return execute_simple_render_job(job);
+			return unsupported_graph(job, "unsupported-render-subset");
 		}
 		return unsupported_graph(job, "unsupported-render-subset");
 	} catch (const media_failure& error) {

@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createAudioEditorController } from '../common/editor/app.js';
+import { createProductNativeRenderInputAuthorityBinding } from '../common/editor/controller/product-native-render-input-authority.ts';
 import { createFramescaperCapturedVideoProxySchedulerV20 } from './editor-captured-video-proxy-scheduler.ts';
+import { createFramescaperNativeRenderInputProducerV20 } from './editor-native-render-input-producer-v20.ts';
 import { bindFramescaperNativeRenderQueueActionV20 } from './editor-native-render-queue-action-v20.ts';
 import {
 	assertFramescaperEditorProjectEnvironmentV20,
@@ -38,6 +40,11 @@ export function createFramescaperAudioEditorControllerV20(
 		...createFramescaperSequenceActionsV18(execute),
 		...createFramescaperMulticameraActionsV18(execute),
 	});
+	const nativeRenderInputAuthority = createProductNativeRenderInputAuthorityBinding();
+	const prepareNativeRenderInputsV20 = createFramescaperNativeRenderInputProducerV20(
+		environment.runtime.profile,
+		{ authority: nativeRenderInputAuthority, store: environment.controllerStore },
+	);
 	const sessionController = environment.runtime.createSessionController();
 	const controller = createAudioEditorController(null, {
 		headless: true,
@@ -55,7 +62,14 @@ export function createFramescaperAudioEditorControllerV20(
 		createFramescaperCaptureProxyScheduler: (composition: Readonly<Record<string, unknown>>) => (
 			createFramescaperCapturedVideoProxySchedulerV20(environment, sessionController, composition as never)
 		),
+		productNativeRenderInputAuthority: nativeRenderInputAuthority,
 		...presentation,
+	});
+	Object.defineProperty(controller, 'prepareNativeRenderInputsV20', {
+		enumerable: false,
+		configurable: false,
+		writable: false,
+		value: prepareNativeRenderInputsV20,
 	});
 	executeProductSequenceCommand = (command) => controller.actions.edit.commit(command);
 	bindFramescaperNativeRenderQueueActionV20(environment.runtime.profile, controller);

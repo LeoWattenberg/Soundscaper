@@ -200,7 +200,7 @@ test('exact direct MP4 and WebM publication has narrow capability and rollback c
 	);
 });
 
-test('dormant keyed V20 admission and encoding reuse the existing video publication authority', async () => {
+test('selected keyed V20 admission and encoding reuse the existing video publication authority', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const project = findControl(
 		matrix,
@@ -255,7 +255,7 @@ test('dormant keyed V20 admission and encoding reuse the existing video publicat
 	);
 	assert.match(
 		project.summary,
-		/dormant.*unselected.*does not activate.*capability.*browser route.*desktop route/isu,
+		/selected runtime authority.*videoKeyframes available.*browser.*packaged desktop.*provisional.*does not claim.*qualification/isu,
 	);
 	assert.match(
 		authority.summary,
@@ -274,7 +274,7 @@ test('dormant keyed V20 admission and encoding reuse the existing video publicat
 		/checks.*timing acquisition.*media authentication.*render.*encode.*output publication.*encoder cleanup.*always attempted.*preserves cleanup failures.*timing lease.*finally/isu,
 	);
 	assert.doesNotMatch(authority.summary, /checks.*cleanup await|fence every.*cleanup await/isu);
-	assert.match(authority.summary, /dormant.*unselected.*neither activates.*capability.*route/isu);
+	assert.match(authority.summary, /V20 selection.*reuses.*three video publication routes.*adds no route.*qualification/isu);
 	assert.match(
 		encoder.summary,
 		/1,280.*720.*1 through 30.*2,000,000.*1 TiB/isu,
@@ -297,7 +297,7 @@ test('dormant keyed V20 admission and encoding reuse the existing video publicat
 	assert.doesNotMatch(encoder.summary, /checks.*cleanup await|fence every.*cleanup await/isu);
 	assert.match(
 		encoder.summary,
-		/dormant.*unselected.*does not qualify.*heap.*RSS.*GC.*CPU.*elapsed.*codec conformance.*reference scale/isu,
+		/selected V20.*reuses.*existing video routes.*does not qualify.*heap.*RSS.*GC.*CPU.*elapsed.*codec conformance.*reference scale/isu,
 	);
 	assert.match(publication.summary, /version-6.*or.*version-7.*keyed.*same.*video.*route/isu);
 	assert.match(rollback.summary, /version-7.*keyed.*generation.*container.*digest.*exactly once/isu);

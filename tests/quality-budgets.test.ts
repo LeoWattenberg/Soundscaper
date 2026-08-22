@@ -390,11 +390,6 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		'the counting-sink witness does not qualify the bounded-memory workload',
 	);
 
-	const gpuEnvironment = environments.get('reference-linux-gpu-01');
-	assert.equal(gpuEnvironment?.status, 'unprovisioned');
-	assert.equal(gpuEnvironment?.qualificationEligible, false);
-	assert.equal(gpuEnvironment?.rendererRequirement, 'hardware');
-	assert.ok(Object.values(gpuEnvironment?.fingerprint ?? {}).every((value) => value === null));
 	const hostedPlaywright = environments.get('github-ubuntu-playwright-1.62.1');
 	assert.equal(hostedPlaywright?.status, 'active');
 	assert.equal(hostedPlaywright?.qualificationEligible, false);
@@ -426,15 +421,15 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		presentationClasses: ['authenticated-cfr-occurrence', 'authenticated-cfr-occurrence',
 			'authenticated-cfr-occurrence', 'authenticated-vfr-materialized-occurrence'],
 		localDiagnosticCommand: 'node scripts/collect-m4b2-keyframe-parity-quality.mjs',
-		qualificationPublication: 'pending-external-only',
+		qualificationPublication: 'accepted-only-after-qualified-environment-and-digest-bound-verification',
 	});
 	assert.deepEqual(keyedFixture?.evidence, keyedEvidence);
-	assert.match(keyedFixture?.limitation ?? '', /correctness.*pending-external/iu);
-	assert.match(keyedFixture?.limitation ?? '', /provisioned.*accepted reference cohort/iu);
+	assert.match(keyedFixture?.limitation ?? '', /local and hosted correctness only/iu);
+	assert.match(keyedFixture?.limitation ?? '', /nightly packaged-runtime verification/iu);
 	assert.equal(keyedWorkload?.status, 'provisional');
 	assert.deepEqual(keyedWorkload?.fixtureIds, ['m4b2-keyframe-parity-rgba-v1']);
 	assert.deepEqual(keyedWorkload?.environmentIds,
-		['github-ubuntu-playwright-1.62.1', 'reference-linux-gpu-01']);
+		['github-ubuntu-playwright-1.62.1', 'owner-qualified-windows-x64-rtx3090-01']);
 	assert.deepEqual(keyedWorkload?.thresholds, [
 		{ metricId: 'keyframes.videoMinimumSsim', comparison: 'gte', value: 0.98, unit: 'ratio' },
 		{ metricId: 'keyframes.videoMaximumChannelMae', comparison: 'lte', value: 6 / 255, unit: 'ratio' },
@@ -571,13 +566,13 @@ test('quality budget evaluator fails closed on missing metrics, environment mism
 test('quality budget evaluator cannot qualify an unprovisioned environment', () => {
 	const evaluation = evaluateQualityBudget(
 		{
-			environmentId: 'reference-linux-gpu-01',
+			environmentId: 'unprovisioned-gpu',
 			rendererRequirement: 'hardware',
 			thresholds: [{ metricId: 'preview.frameIntervalP95Ms', comparison: 'lte', value: 33.34, unit: 'ms' }],
 		},
-		{ id: 'reference-linux-gpu-01', status: 'unprovisioned', qualificationEligible: false },
+		{ id: 'unprovisioned-gpu', status: 'unprovisioned', qualificationEligible: false },
 		{
-			environmentId: 'reference-linux-gpu-01',
+			environmentId: 'unprovisioned-gpu',
 			rendererClass: 'hardware',
 			metrics: { 'preview.frameIntervalP95Ms': 10 },
 		},

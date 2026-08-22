@@ -42,6 +42,9 @@ milestone 3 remains **In progress** and its manual and packaged-runtime
 qualification rows remain open or `pending-external`. Shared 4.0 hosted
 correctness is green. On 2026-08-21 the owner-designated Windows x64 RTX 3090
 reference run passed M1 preview, M4 production parity, and M4B-2 keyed parity.
+The retained 2026-08-22 packaged artifact formally qualifies M4 production.
+M4B-2 now has the same independent formal nightly profile, but needs a fresh
+owner-host run at the new budget digest before that formal row can close.
 
 On 2026-08-13 the project owner explicitly cleared the milestone-3
 implementation sequencing gate for the Framescaper 4B track. On 2026-08-14 the
@@ -52,20 +55,19 @@ external row, changing an observed result, or closing either track or the
 milestone-4 exit gate.
 
 The pickups leave concurrent milestone-3 work and its evidence state untouched.
-Framescaper V19 is the browser App authority and its dormant V20 candidate is
-implemented. External keyed parity and the reference-GPU row passed in the
-owner-designated run, but V20 activation and manual evidence remain open. The
-next globally serialized schema slot, V21, is
-therefore allocated to the now-authorized Soundscaper automation/mixer/PDC
-revision. Planned and unimplemented Framescaper transitions move to V22. No
-implemented V18, V19, or V20 statement changes.
+Framescaper V20 is now the selected browser and packaged-desktop App authority;
+V19 remains the reserved dormant boundary. Historical keyed/reference
+diagnostics passed in the owner-designated run, while V20 formal, manual, and
+release qualification remain open. The globally serialized V21 slot remains
+the Soundscaper automation/mixer/PDC foundation and the selected Soundscaper
+route is V23. Framescaper transitions begin at dormant V22.
 
 ## 2026-08-14 implementation decisions
 
 - Serialized 4.0 is implemented provisionally. The Framescaper 4B-1
   implementation candidate is complete apart from manual qualification, and
-  the dormant V20 4B-2 candidate remains in progress with
-  activation and external evidence open under its
+  selected V20 4B-2 route remains in progress with
+  manual and external qualification open under its
   [pickup contract](milestone-4b-framescaper-finishing.md). Soundscaper 4A now
   has explicit sequencing clearance and an active
   [V21 pickup contract](milestone-4a-soundscaper-production.md). Its local
@@ -378,10 +380,11 @@ Serialized product-wide, one in flight, atomic with validators,
 commands, and fixtures, under the pre-release policy (no migrations)
 until the first shipped release — unchanged from milestone 3
 (docs/milestone-3b-work-packets.md:25-28, 44-48). The bounded sequence is V19
-for the 4B-1 transform candidate, V20 for the implemented-but-dormant 4B-2
-keyframe candidate, V21 for the Soundscaper automation-lane/mixer-graph/PDC
-revision, and V22 for planned and unimplemented 4B-3 transitions; caption-track
-and new-kind revisions are assigned only at their own pickup. Every
+for the reserved 4B-1 transform boundary, selected V20 for 4B-2 keyframes, V21
+for the Soundscaper automation-lane/mixer-graph/PDC foundation, dormant V22 for
+4B-3 transitions, selected Soundscaper V23 for mastering sequences, and dormant
+V24 for the visual-model prerequisites; later revisions are assigned only at
+their own pickup. Every
 revision walks the full registration path — command discriminants and
 one domain registry (`src/common/editor/commands/protocol.ts:9-12`,
 `commands/registry.ts:80-137`), capability id and both product profiles
@@ -404,22 +407,24 @@ per the standing duties (roadmap.md:844-846).
 | 4A | Parallel track | Soundscaper production: automation lanes and modes, mixer graph, per-path PDC, freeze, restoration/metering, reviewed effect packages |
 | 4B | Parallel track | Framescaper finishing: transforms/keyframes, transitions, new kinds and inspector, color/motion, styled captions, Framescaper audio finishing |
 
-**Implementation status (2026-08-14):** shared phase 4.0 is implemented and
-its hosted correctness acceptance is green. Reference-GPU qualification remains
-`pending-external`, and milestone 3 remains recorded **In progress** with its
+**Implementation status (2026-08-22):** shared phase 4.0 is implemented and
+its hosted correctness acceptance is green. Soundscaper M4 production is
+formally qualified; M4B-2 formal qualification remains `pending-external`, and
+milestone 3 remains recorded **In progress** with its
 manual/external evidence unchanged. The project owner explicitly cleared the
 Framescaper implementation sequencing gate: the 4B-1 implementation candidate
-is complete apart from manual/reference-GPU qualification, and the dormant V20
-4B-2 candidate is **In progress** under the
-[pickup contract](milestone-4b-framescaper-finishing.md), with product-route
-activation and external evidence still open. The owner also explicitly cleared
-Soundscaper 4A sequencing. Its V21 candidate is **Implemented (provisional)**
+is complete apart from manual/end-to-end qualification, and selected V20
+4B-2 is **In progress** under the
+[pickup contract](milestone-4b-framescaper-finishing.md), with manual and
+external release evidence still open. The owner also explicitly cleared
+Soundscaper 4A sequencing. Its V21 foundation is retained by selected V23 and
+is **Implemented (provisional)**
 under the [4A pickup contract](milestone-4a-soundscaper-production.md), and the
 maintained Soundscaper App/runtime/storage route is selected. Packets 4A-1
 through 4A-6 are locally implemented and 4A-7 local automated acceptance is
-green. The hosted no-retry, packaged-runtime, manual, and reference-GPU rows
-remain open, so neither track is qualified or complete and the overall
-milestone-4 exit gate remains open.
+green. The fixed-GPU packaged M4 row is closed; the remaining hosted, manual,
+M4B-2 formal, and release rows stay open, so neither track is complete and the
+overall milestone-4 exit gate remains open.
 
 ## Work packets
 
@@ -473,8 +478,8 @@ each written at pickup before feature publication
 
 ### WP-4.0.2 — Production parity harness
 
-- **Status:** implemented and provisional. Reference-GPU qualification is
-  pending external provisioning.
+- **Status:** implemented; the owner-host packaged M4 production row is
+  formally qualified. Hosted diagnostics remain provisional.
 - **Outcome:** `m4-production-parity-v1` now pins one second of 48 kHz stereo
   Float32 input/reference vectors and exact impulse, PDC, and automation
   landmarks beside the existing calibrated 128×72 RGBA fixture. The focused
@@ -492,16 +497,12 @@ each written at pickup before feature publication
   visibly reported fallback, so fallback observability cannot hide missing
   production work. Renderer failure remains an independent report field, and
   effect fallback does not stop a healthy compositor's playback loop.
-- **Invariants:** fixtures deterministic and digest-pinned before any
-  4A/4B feature cites them; hosted-CI runs remain correctness evidence
-  only. Local/hosted diagnostics never claim the reference id. Explicit
-  reference mode assembles the complete runtime hardware, OS, display, power,
-  browser, and runner identity from browser observations and an independently
-  captured `m4-reference-host-observation-v1` JSON record named by
-  `SOUNDSCAPER_M4_REFERENCE_HOST_OBSERVATION_PATH`,
-  then matches it exactly to the provisioned descriptor; expected data is never
-  echoed as observation. Accepted evidence pins both the full budget config and
-  the exact registered workload descriptor through its digest-bound raw record.
+- **Invariants:** fixtures are deterministic and digest-pinned before any
+  4A/4B feature cites them; hosted-CI runs remain correctness evidence only.
+  Standalone local, hosted, and packaged diagnostics can emit only pending or
+  failed evidence. Formal acceptance belongs solely to the packaged-nightly
+  verifier, which pins the owner-host identity, source revision, budget digest,
+  attempt/retry policy, and complete registered threshold verdicts.
 - **Acceptance:** the focused Chromium/FFmpeg harness passes against today's
   features; a deliberately unsupported effect is the sole omitted ID, and
   collector tests prove one omitted or fallback-rendered effect trips the
@@ -636,11 +637,10 @@ and acceptance suite are in
   `parity.pdcErrorSamples eq 0`, `parity.videoMinimumSsim gte 0.98`,
   `parity.videoMaximumChannelMae lte 6/255`,
   `parity.silentlyOmittedEffects eq 0`
-  (config/quality-budgets.json:992-1006), against the hosted container
-  and the still-unprovisioned `reference-linux-gpu-01`
-  (config/quality-budgets.json:176-196). Local runs are development
-  evidence; qualification waits for provisioning and is never
-  software-rendered (docs/quality-budgets.md:121-142).
+  (config/quality-budgets.json:992-1006), against the hosted container and the
+  active `owner-qualified-windows-x64-rtx3090-01` profile. Local and hosted runs
+  are development evidence; only the exact owner-host packaged verifier can
+  publish formal acceptance, and it never admits a software renderer.
 - Bundle gates are untouched: the 500,000-byte chunk and 25 MiB Pages
   ceilings stay independent (docs/quality-budgets.md:33-35); new UI
   keeps the canonical check green; file-size ratchets and command
@@ -682,8 +682,8 @@ gates.
 
 ## Watch items (not gates yet)
 
-- `reference-linux-gpu-01` provisioning (the m4 workload's
-  qualification environment).
+- A fresh owner-host nightly run for the new M4B-2 formal profile and budget
+  digest; its older keyed diagnostic remains historical correctness evidence.
 - The milestone-7 packets that name m4 upgrade targets (7A-1 captions,
   7B-3 crops): if milestone 7 runs first, their proposal-side data
   migrates onto the m4 schemas when these land — coordination is a

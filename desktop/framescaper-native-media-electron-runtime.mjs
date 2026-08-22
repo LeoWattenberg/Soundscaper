@@ -18,6 +18,9 @@ export async function startFramescaperNativeMediaElectronRuntime(options = {}) {
 			applicationRoot: dirname(desktopRoot),
 			packaged: app.isPackaged,
 			resourcesPath: process.resourcesPath,
+			externalRuntimeRoot: app.isPackaged
+				? join(process.resourcesPath, 'runtime')
+				: join(dirname(desktopRoot), '..', 'runtime'),
 			platform: process.platform,
 			arch: process.arch,
 		},

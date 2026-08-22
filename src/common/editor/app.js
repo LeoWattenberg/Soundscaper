@@ -133,19 +133,15 @@ import {
 	setRecordingSourceOffset,
 	setRecordingTrackRoute,
 } from './recording-routing.js';
-import { createEditorFfmpeg } from './ffmpeg.js';
-import { inspectEncodedAudioSampleRate } from './audio-file-metadata.js';
-import { createSourceBufferCache } from './source-buffer-cache.js';
-import { createEbuR128MeterNode } from './ebu-r128-node.js';
-import { createEbuR128Meter } from './ebu-r128.js';
-import { acquireProjectLock } from './project-lock.js';
-import { createProjectStore } from './storage.js';
-import { createWavStreamEncoder, encodeWav } from './wav.js';
-import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
-import { NyquistEvaluationClient } from './nyquist/client.js';
+import { createEditorFfmpeg } from './ffmpeg.js'; import { inspectEncodedAudioSampleRate } from './audio-file-metadata.js';
+import { createSourceBufferCache } from './source-buffer-cache.js'; import { createEbuR128MeterNode } from './ebu-r128-node.js';
+import { createEbuR128Meter } from './ebu-r128.js'; import { acquireProjectLock } from './project-lock.js';
+import { createProjectStore } from './storage.js'; import { createWavStreamEncoder, encodeWav } from './wav.js';
+import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js'; import { NyquistEvaluationClient } from './nyquist/client.js';
 import { ENGLISH_COPY } from '../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
+import { connectProductNativeRenderInputAuthority } from './controller/product-native-render-input-authority.ts';
 import { createAudioAnalysisService } from './controller/analysis-service.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
@@ -1878,6 +1874,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}), () => lifetime.assertActive());
 	let disposePromise = null;
+	if (options.productNativeRenderInputAuthority) connectProductNativeRenderInputAuthority(options.productNativeRenderInputAuthority, () => {
+		const currentProject = project; if (!currentProject) throw new Error('A current project is required for native render-input production.');
+		const projectToken = projectGeneration.capture(currentProject.id), snapshot = projectRuntime.cloneProject(currentProject), task = lifetime.startTask('product-native-render-input'), assertCurrent = () => { task.assertCurrent(); projectGeneration.assertCurrent(projectToken); if (project !== currentProject) throw abortError(); };
+		return Object.freeze({ project: snapshot, signal: task.signal, assertCurrent, finish: task.finish, renderAudio: async (renderProject, range) => { assertCurrent(); const rendered = await renderSnapshot(renderProject, range, sourceBuffers, task.signal); assertCurrent(); return rendered; } }); });
 
 	return {
 		ready,

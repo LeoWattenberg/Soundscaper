@@ -7,10 +7,10 @@
 #include "unified_plan_semantics.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <fstream>
 #include <limits>
-#include <numeric>
 #include <sstream>
 #include <string_view>
 
@@ -93,7 +93,7 @@ void exact(const json::value& value, const std::initializer_list<std::string_vie
 }
 
 void validate_unified_header(const json::value& root, admitted_media_plan& result) {
-	exact(root, {"version", "strategy", "project", "format", "codecs", "timebase", "output", "sources", "nodes"});
+	exact(root, {"version", "strategy", "project", "format", "codecs", "timebase", "output", "tracks", "sources", "nodes"});
 	result.strategy = bounded_string(json::member(root, "strategy"), "plan strategy");
 	if (result.strategy != "framescaper-unified-exact-v1") throw json::parse_error("The unified strategy is unsupported.");
 	const auto& project = json::member(root, "project");
@@ -124,6 +124,11 @@ void validate_unified_header(const json::value& root, admitted_media_plan& resul
 	}
 	const auto pixel_format = bounded_string(json::member(codecs, "pixelFormat"), "pixel format");
 	result.pixel_format = pixel_format;
+	const auto canonical_codec_tuple = pixel_format == "yuv420p" && (
+		(container == "mp4" && result.video_codec == "h264" && result.video_encoder == "libx264")
+		|| (container == "webm" && result.video_codec == "vp9" && result.video_encoder == "libvpx-vp9")
+	);
+	if (!canonical_codec_tuple) throw json::parse_error("The unified format/codec tuple is not canonical.");
 	const auto& timebase = json::member(root, "timebase");
 	exact(timebase, {"sampleStart", "sampleDuration", "sampleRate", "sequenceId", "sequenceRate"});
 	const auto sample_start = bounded_integer(json::member(timebase, "sampleStart"), "sample start");
@@ -133,14 +138,23 @@ void validate_unified_header(const json::value& root, admitted_media_plan& resul
 	static_cast<void>(bounded_string(json::member(timebase, "sequenceId"), "sequence ID"));
 	static_cast<void>(rational(json::member(timebase, "sequenceRate"), "sequence rate"));
 	const auto& output = json::member(root, "output");
-	exact(output, {"frameRate", "frameCount", "canvas", "includeAudio", "audioLayout"});
+	exact(output, {"frameRate", "frameCount", "quality", "canvas", "includeAudio", "audioLayout"});
+	const auto quality = bounded_string(json::member(output, "quality"), "output quality");
+	if (quality != "draft" && quality != "balanced" && quality != "high") {
+		throw json::parse_error("The unified output quality is unsupported.");
+	}
 	const auto [rate_num, rate_den] = rational(json::member(output, "frameRate"), "output frame rate");
+	if (rate_num < rate_den || rate_num / rate_den > 30
+		|| (rate_num / rate_den == 30 && rate_num % rate_den != 0)) {
+		throw json::parse_error("The unified output rate exceeds the closed encoder domain of 1 through 30 fps.");
+	}
 	if (rate_num <= std::numeric_limits<std::uint32_t>::max()
 		&& rate_den <= std::numeric_limits<std::uint32_t>::max()) {
 		result.frame_rate_num = static_cast<std::uint32_t>(rate_num);
 		result.frame_rate_den = static_cast<std::uint32_t>(rate_den);
 	}
 	const auto frame_count = bounded_integer(json::member(output, "frameCount"), "output frame count", true);
+	if (frame_count > 2'000'000) throw json::parse_error("The unified output frame count exceeds the encoder ceiling.");
 	const auto numerator = decimal_product({
 		static_cast<std::uint64_t>(sample_duration), static_cast<std::uint64_t>(rate_num),
 	});
@@ -158,13 +172,31 @@ void validate_unified_header(const json::value& root, admitted_media_plan& resul
 	result.output_frame_count = static_cast<std::uint64_t>(frame_count);
 	const auto& canvas = json::member(output, "canvas");
 	exact(canvas, {"width", "height", "fit", "pixelFormat", "backgroundColor"});
-	result.width = static_cast<std::uint32_t>(bounded_integer(json::member(canvas, "width"), "canvas width", true));
-	result.height = static_cast<std::uint32_t>(bounded_integer(json::member(canvas, "height"), "canvas height", true));
+	const auto width = bounded_integer(json::member(canvas, "width"), "canvas width", true);
+	const auto height = bounded_integer(json::member(canvas, "height"), "canvas height", true);
+	if (width > 16'384 || height > 16'384 || width % 2 != 0 || height % 2 != 0
+		|| static_cast<std::uint64_t>(width) * static_cast<std::uint64_t>(height) * 4 > 8U * 1024U * 1024U) {
+		throw json::parse_error("The unified canvas exceeds its even, extent, or RGBA frame work bound.");
+	}
+	const auto total_rgba_bytes = static_cast<std::uint64_t>(width)
+		* static_cast<std::uint64_t>(height) * 4U * static_cast<std::uint64_t>(frame_count);
+	if (total_rgba_bytes > 1024ULL * 1024ULL * 1024ULL * 1024ULL) {
+		throw json::parse_error("The unified logical RGBA work exceeds the encoder ceiling.");
+	}
+	result.width = static_cast<std::uint32_t>(width);
+	result.height = static_cast<std::uint32_t>(height);
 	if (bounded_string(json::member(canvas, "pixelFormat"), "canvas pixel format") != pixel_format) {
 		throw json::parse_error("Canvas and codec pixel formats disagree.");
 	}
-	static_cast<void>(bounded_string(json::member(canvas, "fit"), "canvas fit"));
-	static_cast<void>(bounded_string(json::member(canvas, "backgroundColor"), "background color"));
+	const auto fit = bounded_string(json::member(canvas, "fit"), "canvas fit");
+	if (fit != "contain" && fit != "cover" && fit != "stretch") {
+		throw json::parse_error("The unified canvas fit is unsupported.");
+	}
+	const auto color = bounded_string(json::member(canvas, "backgroundColor"), "background color");
+	if ((color.size() != 7 && color.size() != 9) || color.front() != '#'
+		|| !std::all_of(color.begin() + 1, color.end(), [](const unsigned char byte) {
+			return std::isxdigit(byte) != 0;
+		})) throw json::parse_error("The unified background color is not hexadecimal RGB/RGBA.");
 	const auto include_audio = json::boolean(json::member(output, "includeAudio"), "include audio");
 	result.includes_audio = include_audio;
 	const auto& audio_layout = json::member(output, "audioLayout");
@@ -174,74 +206,9 @@ void validate_unified_header(const json::value& root, admitted_media_plan& resul
 	if (include_audio && (audio_layout.kind != json::type::string || audio.kind == json::type::null_value)) {
 		throw json::parse_error("An audio render requires canonical audio metadata.");
 	}
-}
-
-[[nodiscard]] bool decimal_rational_is(
-	const json::value& value,
-	const std::uint64_t numerator,
-	const std::uint64_t denominator
-) {
-	return json::string(json::member(value, "numerator"), "simple-render rational numerator")
-		== std::to_string(numerator)
-		&& json::string(json::member(value, "denominator"), "simple-render rational denominator")
-		== std::to_string(denominator);
-}
-
-void classify_simple_full_frame_clip(const json::value& root, admitted_media_plan& result) {
-	result.simple_full_frame_clip = false;
-	if (result.source_sha256.size() != 1 || result.includes_audio
-		|| !result.image_sequence_inventory_sha256.empty() || result.frame_rate_den != 1
-		|| result.frame_rate_num == 0 || result.output_frame_count == 0) return;
-	const auto& sources = json::array(json::member(root, "sources"), "simple-render sources");
-	const auto& nodes = json::array(json::member(root, "nodes"), "simple-render nodes");
-	if (sources.size() != 1 || nodes.size() != 1
-		|| json::string(json::member(nodes.front(), "kind"), "simple-render node kind") != "clip") return;
-	const auto& source_timing = json::member(sources.front(), "timing");
-	if (json::string(json::member(source_timing, "kind"), "simple-render source timing") != "cfr"
-		|| rational(json::member(source_timing, "rate"), "simple-render source rate")
-			!= std::pair<std::int64_t, std::int64_t>{result.frame_rate_num, 1}) return;
-	const auto& timebase = json::member(root, "timebase");
-	if (bounded_integer(json::member(timebase, "sampleStart"), "simple-render sample start") != 0
-		|| bounded_integer(json::member(timebase, "sampleRate"), "simple-render sample rate", true)
-			!= result.frame_rate_num
-		|| bounded_integer(json::member(timebase, "sampleDuration"), "simple-render sample duration", true)
-			!= static_cast<std::int64_t>(result.output_frame_count)
-		|| rational(json::member(timebase, "sequenceRate"), "simple-render sequence rate")
-			!= std::pair<std::int64_t, std::int64_t>{result.frame_rate_num, 1}) return;
-	const auto& node = nodes.front();
-	if (bounded_integer(json::member(node, "sequenceStartFrame"), "simple-render sequence start") != 0
-		|| bounded_integer(json::member(node, "sequenceFrameCount"), "simple-render sequence count", true)
-			!= static_cast<std::int64_t>(result.output_frame_count)
-		|| bounded_integer(json::member(node, "sourceInFrame"), "simple-render source in") != 0
-		|| bounded_integer(json::member(node, "sourceFrameCount"), "simple-render source count", true)
-			!= static_cast<std::int64_t>(result.output_frame_count)) return;
-	const auto& mapping = json::member(node, "sourceTimeMapping");
-	const auto& intent = json::member(mapping, "intent");
-	const auto& rows = json::array(json::member(intent, "intersections"), "simple-render intersections");
-	if (rows.size() != 1) return;
-	const auto& row = rows.front();
-	const auto count = result.output_frame_count;
-	if (json::string(json::member(row, "mapping"), "simple-render mapping") != "uniform-wall-clock"
-		|| bounded_integer(json::member(row, "startSample"), "simple-render start sample") != 0
-		|| bounded_integer(json::member(row, "endSample"), "simple-render end sample", true)
-			!= static_cast<std::int64_t>(count)
-		|| bounded_integer(json::member(row, "startOutputFrame"), "simple-render start output") != 0
-		|| bounded_integer(json::member(row, "endOutputFrame"), "simple-render end output", true)
-			!= static_cast<std::int64_t>(count)
-		|| bounded_integer(json::member(row, "clipStartSample"), "simple-render clip start") != 0
-		|| bounded_integer(json::member(row, "clipEndSample"), "simple-render clip end", true)
-			!= static_cast<std::int64_t>(count)) return;
-	const auto divisor = std::gcd(count, static_cast<std::uint64_t>(result.frame_rate_num));
-	const auto end_numerator = count / divisor;
-	const auto end_denominator = static_cast<std::uint64_t>(result.frame_rate_num) / divisor;
-	if (!decimal_rational_is(json::member(row, "sourceStartTime"), 0, 1)
-		|| !decimal_rational_is(json::member(row, "clippedSourceStartTime"), 0, 1)
-		|| !decimal_rational_is(json::member(row, "sourceEndTime"), end_numerator, end_denominator)
-		|| !decimal_rational_is(json::member(row, "clippedSourceEndTime"), end_numerator, end_denominator)) return;
-	result.source_in_frame = 0;
-	result.source_frame_count = count;
-	result.simple_full_frame_clip = true;
-	result.unsupported_render_family.clear();
+	if (include_audio) {
+		throw json::parse_error("Unified plans V9-V12 cannot include audio without an exact audio graph.");
+	}
 }
 
 } // namespace
@@ -267,8 +234,14 @@ admitted_media_plan authenticate_media_plan(
 		if (result.version >= 9) {
 			validate_unified_header(root, result);
 			unified::validate_unified_semantics(root, result);
-			classify_simple_full_frame_clip(root, result);
-		} else legacy::validate_legacy_plan(root, result);
+			result.requires_evaluated_rgba_carrier = false;
+			result.simple_full_frame_clip = false;
+			result.unsupported_render_family = "unified-exact-v"
+				+ std::to_string(result.version) + "-graph";
+		} else {
+			legacy::validate_legacy_plan(root, result);
+			result.requires_evaluated_rgba_carrier = result.version == 7 || result.version == 8;
+		}
 		result.authenticated_plan_json = authenticated_plan_json;
 		return result;
 	} catch (const authentication_error&) {

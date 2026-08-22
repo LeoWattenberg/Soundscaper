@@ -89,7 +89,7 @@ export interface FramescaperImageSequenceNativeAdmissionRequestV25 {
 
 export interface FramescaperImageSequenceImportPortsV25 {
 	capabilities(): Awaitable<unknown>;
-	clearedPolicyRowIds(): readonly string[];
+	clearedPolicyRowIds(): Awaitable<readonly string[]>;
 	createSourcePackWriter(): Awaitable<NativeMediaImageSequenceSourcePackWriterV25>;
 	publishInventory(
 		bytes: Uint8Array,
@@ -97,6 +97,8 @@ export interface FramescaperImageSequenceImportPortsV25 {
 	): Awaitable<void>;
 	cleanupInventory(reference: NativeMediaImageSequenceInventoryReferenceV25): Awaitable<void>;
 	admit(request: FramescaperImageSequenceNativeAdmissionRequestV25): Awaitable<unknown>;
+	/** Best-effort durable transaction settlement after the project CAS succeeds. */
+	complete?(request: FramescaperImageSequenceNativeAdmissionRequestV25): Awaitable<void>;
 }
 
 export interface ComposeFramescaperImageSequenceImportV25Options {
@@ -142,7 +144,7 @@ export async function composeFramescaperImageSequenceImportV25(
 		}));
 	}
 	const inventory = createNativeMediaImageSequenceInventoryV25(resolved, entries);
-	const policyRows = clearedPolicyRows(options.ports.clearedPolicyRowIds());
+	const policyRows = clearedPolicyRows(await options.ports.clearedPolicyRowIds());
 	const writer = await options.ports.createSourcePackWriter();
 	assertWriter(writer);
 	let inventoryPublished = false;
@@ -182,6 +184,8 @@ export async function composeFramescaperImageSequenceImportV25(
 			projectSource(options.project, descriptor),
 			projectBinClip(options.project, selected.projectBinClipId, descriptor),
 		);
+		try { await options.ports.complete?.(request); }
+		catch { /* The main-owned recovery manifest settles an acknowledged project commit. */ }
 	}
 	catch (error) {
 		const failures: unknown[] = [error];
@@ -376,6 +380,9 @@ function assertPorts(options: ComposeFramescaperImageSequenceImportV25Options): 
 		if (typeof options.ports?.[method] !== 'function') {
 			throw new TypeError(`Candidate image-sequence composition requires port ${method}.`);
 		}
+	}
+	if (options.ports.complete !== undefined && typeof options.ports.complete !== 'function') {
+		throw new TypeError('Candidate image-sequence composition requires a valid optional completion port.');
 	}
 }
 

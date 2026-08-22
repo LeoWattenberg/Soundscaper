@@ -2,28 +2,29 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { evaluateQualityBudget } from './quality-budget-evaluator.mjs';
-import { verifyQualityBudgetResultFiles } from './verify-quality-budget-result.mjs';
 
 const execFileAsync = promisify(execFile);
 const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
 const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const WORKLOAD_ID = 'm3-longform-editorial';
 const FIXTURE_ID = 'm3-longform-editorial-2h-v1';
-const ENVIRONMENT_ID = 'reference-linux-gpu-01';
+const QUALIFICATION_ENVIRONMENT_ID = 'owner-qualified-windows-x64-rtx3090-01';
+const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
+const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.62.1';
+const PACKAGED_RUNTIME_ENVIRONMENT_ID = /^packaged-runtime-(?:linux|win32|darwin)-(?:x64|arm64)$/u;
 const PROFILE = 'deterministic-two-hour-editorial-v1';
 const BROWSER_SPEC = 'tests/browser/audio-editor-longform-editorial-benchmark.spec.js';
 
 /**
- * Run one no-retry browser measurement. An unqualified host can publish only a
- * pending-external diagnostic; an exact activated environment writes retained,
- * digest-bound raw and accepted evidence through the common verifier.
+ * Run one no-retry browser measurement. The standalone collector publishes
+ * diagnostic evidence only; formal acceptance belongs to the packaged-nightly
+ * verifier, including when this process runs on the owner-designated host.
  */
 export async function collectM3LongformEditorialDiagnostic(options, dependencies = {}) {
 	const outputDirectory = ownString(options, 'outputDirectory');
@@ -41,14 +42,12 @@ export async function collectM3LongformEditorialDiagnostic(options, dependencies
 
 export function writeM3LongformEditorialResult(
 	outputDirectory,
-	diagnostic,
+	_diagnostic,
 	result,
-	config,
+	_config,
 	dependencies = {},
 ) {
-	return result.evaluation.passed
-		? writeAccepted(outputDirectory, diagnostic, result, config, dependencies)
-		: (dependencies.writePending ?? writePendingResult)(outputDirectory, result);
+	return (dependencies.writePending ?? writePendingResult)(outputDirectory, result);
 }
 
 /** Admit one and only one diagnostic with the frozen workload identity. */
@@ -81,7 +80,7 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 	const config = snapshotJsonData(inputConfig, 'config');
 	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
 	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
-	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
+	const environment = exactDescriptor(config.environments, QUALIFICATION_ENVIRONMENT_ID, 'environment');
 	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
 
 	assertIdentity(diagnostic);
@@ -97,8 +96,7 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 		|| workload.fixtureIds.length !== 1
 		|| workload.fixtureIds[0] !== FIXTURE_ID
 		|| !Array.isArray(workload.environmentIds)
-		|| workload.environmentIds.length !== 1
-		|| workload.environmentIds[0] !== ENVIRONMENT_ID) {
+		|| !workload.environmentIds.includes(QUALIFICATION_ENVIRONMENT_ID)) {
 		throw new Error(`Workload ${WORKLOAD_ID} must own exactly the frozen fixture and environment.`);
 	}
 
@@ -234,7 +232,7 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 		throw new Error('Browser diagnostic environmentFingerprint must not be empty.');
 	}
 	const evaluation = evaluateQualityBudget({
-		environmentId: ENVIRONMENT_ID,
+		environmentId: QUALIFICATION_ENVIRONMENT_ID,
 		rendererRequirement: environment.rendererRequirement,
 		thresholds: workload.thresholds,
 	}, environment, {
@@ -242,12 +240,15 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 		rendererClass,
 		metrics,
 	});
+	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
+		&& evaluation.verdicts.every(({ passed }) => passed);
 	return Object.freeze({
 		schemaVersion: 1,
-		status: evaluation.passed ? 'accepted' : 'pending-external',
+		status: metricGatePassed ? 'pending-external' : 'failed',
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
-		environmentId: ENVIRONMENT_ID,
+		environmentId: diagnostic.environmentId,
+		qualificationEnvironmentId: QUALIFICATION_ENVIRONMENT_ID,
 		profile: PROFILE,
 		observationClass: diagnostic.observationClass,
 		attemptCount: 1,
@@ -265,8 +266,16 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 			forcedCollectionsBefore: forcedBefore,
 			forcedCollectionsAfter: forcedAfter,
 		}),
-		qualificationEvidencePublished: evaluation.passed,
-		evaluation,
+		metricGatePassed,
+		qualificationEvidencePublished: false,
+		evaluation: Object.freeze({
+			...evaluation,
+			passed: false,
+			failures: Object.freeze([
+				...evaluation.failures,
+				'Formal qualification is published only by the nightly packaged-runtime verifier on the owner-designated host.',
+			]),
+		}),
 	});
 }
 
@@ -283,84 +292,19 @@ async function runBrowserDiagnostic() {
 		cwd: REPOSITORY_ROOT,
 		encoding: 'utf8',
 		maxBuffer: 64 * 1024 * 1024,
-		env: { ...process.env, SOUNDSCAPER_M3_LONGFORM_BENCHMARK: '1' },
+		env: {
+			...process.env,
+			SOUNDSCAPER_M3_LONGFORM_BENCHMARK: '1',
+			SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID: LOCAL_ENVIRONMENT_ID,
+		},
 	});
 }
 
 async function writePendingResult(outputDirectory, result) {
 	await mkdir(outputDirectory, { recursive: true });
-	const resultPath = join(outputDirectory, `${WORKLOAD_ID}.pending-external.json`);
+	const resultPath = join(outputDirectory, `${WORKLOAD_ID}.${result.status}.json`);
 	await writeFile(resultPath, `${JSON.stringify(result, null, '\t')}\n`, { flag: 'wx' });
 	return Object.freeze({ resultPath, result });
-}
-
-async function writeAccepted(outputDirectory, diagnostic, pending, config, dependencies) {
-	const sourceRevision = dependencies.sourceRevision ?? await currentSourceRevision();
-	const configBytes = dependencies.configBytes ?? await readFile(CONFIG_URL);
-	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
-	if (!deepEqualJson(pending.environmentFingerprint, environment.fingerprint)) {
-		throw new Error('Accepted long-form environment fingerprint does not match the qualified descriptor.');
-	}
-	const rawArtifactName = `${WORKLOAD_ID}.raw.json`;
-	const resultArtifactName = `${WORKLOAD_ID}.accepted.json`;
-	const raw = Object.freeze({
-		schemaVersion: 1,
-		workloadId: WORKLOAD_ID,
-		environmentId: ENVIRONMENT_ID,
-		environmentFingerprint: pending.environmentFingerprint,
-		sourceRevision,
-		attemptCount: 1,
-		retryCount: 0,
-		observationClass: pending.observationClass,
-		fixture: pending.fixture,
-		metrics: pending.metrics,
-		rawSampleCounts: pending.rawSampleCounts,
-		diagnostic,
-	});
-	const rawBytes = Buffer.from(`${JSON.stringify(raw, null, '\t')}\n`);
-	const result = Object.freeze({
-		schemaVersion: 1,
-		workloadId: WORKLOAD_ID,
-		fixtureIds: Object.freeze([FIXTURE_ID]),
-		environmentId: ENVIRONMENT_ID,
-		environmentFingerprint: pending.environmentFingerprint,
-		rendererClass: pending.rendererClass,
-		budgetSha256: sha256(configBytes),
-		sourceRevision,
-		attemptCount: 1,
-		retryCount: 0,
-		rawEvidence: Object.freeze({
-			artifactName: rawArtifactName,
-			byteLength: rawBytes.byteLength,
-			sha256: sha256(rawBytes),
-		}),
-		metrics: pending.metrics,
-	});
-	await mkdir(outputDirectory, { recursive: true });
-	const rawPath = join(outputDirectory, rawArtifactName);
-	const resultPath = join(outputDirectory, resultArtifactName);
-	await writeFile(rawPath, rawBytes, { flag: 'wx' });
-	await writeFile(resultPath, `${JSON.stringify(result, null, '\t')}\n`, { flag: 'wx' });
-	const verify = dependencies.verifyAccepted ?? verifyQualityBudgetResultFiles;
-	const verification = await verify({
-		configPath: fileURLToPath(CONFIG_URL), resultPath, expectedSourceRevision: sourceRevision,
-	});
-	if (!verification.passed) {
-		throw new Error(`Accepted long-form evidence failed verification:\n${verification.failures.join('\n')}`);
-	}
-	return Object.freeze({ rawPath, resultPath, result, verification });
-}
-
-async function currentSourceRevision() {
-	const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
-		cwd: REPOSITORY_ROOT,
-		encoding: 'utf8',
-	});
-	return stdout.trim();
-}
-
-function sha256(bytes) {
-	return createHash('sha256').update(bytes).digest('hex');
 }
 
 function expectedFixtureContract(fixture) {
@@ -386,9 +330,14 @@ function assertIdentity(diagnostic) {
 		|| diagnostic.profile !== PROFILE
 		|| diagnostic.workloadId !== WORKLOAD_ID
 		|| diagnostic.fixtureId !== FIXTURE_ID
-		|| diagnostic.environmentId !== ENVIRONMENT_ID) {
+		|| !isM3DiagnosticEnvironmentId(diagnostic.environmentId)) {
 		throw new Error('Browser diagnostic identity does not match the frozen workload.');
 	}
+}
+
+function isM3DiagnosticEnvironmentId(value) {
+	return [LOCAL_ENVIRONMENT_ID, HOSTED_ENVIRONMENT_ID, QUALIFICATION_ENVIRONMENT_ID].includes(value)
+		|| (typeof value === 'string' && PACKAGED_RUNTIME_ENVIRONMENT_ID.test(value));
 }
 
 function assertMeasurementPolicy(policy) {

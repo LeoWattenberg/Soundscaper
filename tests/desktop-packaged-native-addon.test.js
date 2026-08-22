@@ -101,6 +101,23 @@ test('a package that carries no native target, or more than one, is rejected', a
 	await assert.rejects(invoke(), /exactly one target; found <none>/iu);
 });
 
+test('the addon verifier leaves the closed Framescaper host subtrees to their owner', async (context) => {
+	const { root, resources } = await packagedResources(context);
+	await mkdir(join(resources, 'runtime/native/framescaper-media-host/linux-x64'), { recursive: true });
+	await mkdir(join(resources, 'runtime/native/framescaper-openfx-host/linux-x64'), { recursive: true });
+	const framescaperContext = packagingContext(root, resources);
+	framescaperContext.packager.appInfo.productFilename = 'Framescaper';
+	await assert.doesNotReject(() => verifyPackagedNativeAddonResources(framescaperContext, {
+		repositoryRoot: process.cwd(),
+	}));
+	await assert.rejects(
+		() => verifyPackagedNativeAddonResources(packagingContext(root, resources), {
+			repositoryRoot: process.cwd(),
+		}),
+		/Soundscaper resources carry Framescaper native-host payloads/iu,
+	);
+});
+
 test('a target whose payload is pending-external packages its manifest and nothing else', async (context) => {
 	const { root, resources } = await packagedResources(context, PENDING_TARGET);
 	const summary = await verifyPackagedNativeAddonResources(packagingContext(root, resources, PENDING_TARGET), {

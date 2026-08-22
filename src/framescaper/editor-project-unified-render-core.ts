@@ -3,9 +3,11 @@
 import { sequenceFrameBoundarySample } from '../common/editor/sequence-frame-navigation.ts';
 import {
 	createUnifiedExactRenderPlan,
+	type UnifiedExactRenderClipPictureStateV1,
 	type UnifiedExactRenderNode,
 	type UnifiedExactRenderPlan,
 	type UnifiedExactRenderPlanVersion,
+	type UnifiedExactRenderTrackAuthorityV1,
 } from '../common/editor/unified-exact-render-plan.ts';
 import { createVideoRetimeExportIntentV6 } from '../common/editor/video-retime-export-plan.ts';
 import {
@@ -21,6 +23,7 @@ export interface FramescaperActiveVisualPlacement {
 	readonly trackId: string;
 	readonly startSample: number;
 	readonly endSample: number;
+	readonly trackOrder: number;
 }
 
 export interface FramescaperUnifiedRenderFoundation {
@@ -33,22 +36,10 @@ export interface FramescaperUnifiedRenderFoundation {
 	readonly projectIdentities: ReadonlySet<string>;
 	readonly representedIdentities: ReadonlySet<string>;
 	readonly activeVisualPlacements: readonly FramescaperActiveVisualPlacement[];
+	readonly tracks: readonly UnifiedExactRenderTrackAuthorityV1[];
 	readonly baseNodes: readonly Readonly<Record<string, unknown>>[];
 	readonly rawPlanBase: Omit<UnifiedExactRenderPlan, 'version' | 'nodes'>;
 }
-
-const NEUTRAL_COMPOSITION = Object.freeze({
-	schemaVersion: 1,
-	crop: Object.freeze({ left: 0, top: 0, right: 0, bottom: 0 }),
-	transform: Object.freeze({
-		anchorX: 0.5, anchorY: 0.5, positionX: 0.5, positionY: 0.5,
-		scaleX: 1, scaleY: 1, rotationDegrees: 0,
-		flipHorizontal: false, flipVertical: false,
-	}),
-	opacity: 1,
-	blendMode: 'normal',
-	compositingOrder: 0,
-});
 
 /** Build the exact V9 foundation shared by all cumulative dormant generations. */
 export function createFramescaperUnifiedRenderFoundation(
@@ -72,6 +63,7 @@ export function createFramescaperUnifiedRenderFoundation(
 	const sourceValues = records(data(project, 'sources', 'project'), 'project.sources');
 	const sourceById = uniqueById(sourceValues, 'project source');
 	const timingViews = exactTimingViews(authority.timingViews, sourceValues);
+	const tracks = sequenceVideoTracks(project, sequence);
 	const externalSources = sourceValues.filter(({ kind }) => kind === 'video' || kind === 'still')
 		.sort(compareIds);
 	const sourceNodeIdById = new Map<string, string>();
@@ -97,8 +89,7 @@ export function createFramescaperUnifiedRenderFoundation(
 	});
 	const placements = activePlacements(project, sequence, {
 		sampleStart, sampleDuration, sampleRate, sequenceRate,
-	});
-	assertRepresentablePlacements(placements);
+	}, tracks);
 	const videoPlacements = placements.filter(({ clip }) => clip.kind === 'video').sort(comparePlacements);
 	const visualPlacements = placements.filter(({ clip }) => clip.kind === 'still' || clip.kind === 'generator')
 		.sort(comparePlacements);
@@ -110,7 +101,7 @@ export function createFramescaperUnifiedRenderFoundation(
 		timingBySourceId.set(sourceId, bindVideoSourceTimingView(timingViews, source));
 	}
 	const clipNodes = videoPlacements.map((placement) => {
-		assertNeutralInheritedPictureState(placement.clip);
+		assertRepresentedInheritedPictureState(placement.clip);
 		const clipId = id(placement.clip, 'video clip');
 		const sourceId = String(data(placement.clip, 'sourceId', `video clip ${clipId}`));
 		const timing = timingBySourceId.get(sourceId);
@@ -131,7 +122,17 @@ export function createFramescaperUnifiedRenderFoundation(
 			sequenceFrameCount: data(placement.clip, 'sequenceFrameCount', `video clip ${clipId}`),
 			sourceInFrame: data(placement.clip, 'sourceInFrame', `video clip ${clipId}`),
 			sourceFrameCount: data(placement.clip, 'sourceFrameCount', `video clip ${clipId}`),
-			sourceTimeMapping: Object.freeze({ kind: 'video-retime-export-intent-v6' as const, intent }),
+			pictureState: Object.freeze({
+				composition: data(placement.clip, 'videoComposition', `video clip ${clipId}`),
+				videoEffects: data(placement.clip, 'videoEffects', `video clip ${clipId}`),
+				videoKeyframes: data(placement.clip, 'videoKeyframes', `video clip ${clipId}`),
+			}) as UnifiedExactRenderClipPictureStateV1,
+			sourceTimeMapping: Object.freeze({
+				kind: 'video-retime-export-intent-v6' as const,
+				sourceRate: data(sourceById.get(sourceId)!, 'frameRate', `source ${sourceId}`),
+				retimeMap: data(placement.clip, 'retimeMap', `video clip ${clipId}`),
+				intent,
+			}),
 		});
 	});
 	const activeClipIds = new Set(clipNodes.map(({ clipId }) => clipId));
@@ -148,6 +149,7 @@ export function createFramescaperUnifiedRenderFoundation(
 	}
 	const representedIdentities = new Set<string>([String(data(project, 'id', 'project'))]);
 	for (const source of planSources) { representedIdentities.add(source.sourceId); representedIdentities.add(source.nodeId); }
+	for (const track of tracks) representedIdentities.add(track.trackId);
 	for (const node of clipNodes) {
 		representedIdentities.add(node.nodeId);
 		representedIdentities.add(node.clipId);
@@ -160,7 +162,7 @@ export function createFramescaperUnifiedRenderFoundation(
 	return Object.freeze({
 		project, authority, sequence, sequenceRate, sourceById,
 		sourceNodeIdById: Object.freeze(sourceNodeIdById),
-		projectIdentities, representedIdentities,
+		projectIdentities, representedIdentities, tracks,
 		activeVisualPlacements: Object.freeze(visualPlacements),
 		baseNodes: Object.freeze([...clipNodes, ...transitionNodes]),
 		rawPlanBase: Object.freeze({
@@ -176,9 +178,10 @@ export function createFramescaperUnifiedRenderFoundation(
 			}),
 			output: Object.freeze({
 				frameRate: authority.outputRate, frameCount: Number(frameCount),
-				canvas: authority.canvas, includeAudio: authority.includeAudio,
+				quality: authority.quality, canvas: authority.canvas, includeAudio: authority.includeAudio,
 				audioLayout: authority.audioLayout,
 			}),
+			tracks,
 			sources: Object.freeze(planSources),
 		}),
 	});
@@ -215,17 +218,17 @@ function activePlacements(
 		readonly sampleStart: number; readonly sampleDuration: number; readonly sampleRate: number;
 		readonly sequenceRate: Readonly<{ readonly num: number; readonly den: number }>;
 	}>,
+	videoTracks: readonly UnifiedExactRenderTrackAuthorityV1[],
 ): FramescaperActiveVisualPlacement[] {
-	const trackIds = strings(data(sequence, 'trackIds', 'sequence'), 'sequence.trackIds');
-	const tracks = records(data(project, 'tracks', 'project'), 'project.tracks')
-		.filter((track) => trackIds.includes(id(track, 'track')));
+	const tracksById = uniqueById(records(data(project, 'tracks', 'project'), 'project.tracks'), 'project track');
+	const orderById = new Map(videoTracks.map((track) => [track.trackId, track.sequenceOrder]));
 	const ownerByClipId = new Map<string, string[]>();
-	for (const track of tracks) {
-		if (track.type !== 'video') continue;
-		assertRepresentableVideoTrack(track);
+	for (const authority of videoTracks) {
+		const trackId = authority.trackId;
+		const track = tracksById.get(trackId)!;
 		for (const clipId of strings(data(track, 'clipIds', 'video track'), 'video track.clipIds')) {
 			const owners = ownerByClipId.get(clipId) ?? [];
-			owners.push(id(track, 'video track'));
+			owners.push(trackId);
 			ownerByClipId.set(clipId, owners);
 		}
 	}
@@ -248,41 +251,43 @@ function activePlacements(
 		const clipId = id(clip, 'timeline media clip');
 		const owners = ownerByClipId.get(clipId) ?? [];
 		if (owners.length !== 1) throw new RangeError(`Active clip ${clipId} requires exactly one video-track owner.`);
-		result.push(Object.freeze({ clip, trackId: owners[0]!, startSample, endSample }));
+		const trackOrder = orderById.get(owners[0]!);
+		if (trackOrder === undefined) throw new ReferenceError(`Active clip ${clipId} has no exact video-track state.`);
+		result.push(Object.freeze({ clip, trackId: owners[0]!, startSample, endSample, trackOrder }));
 	}
 	return result;
 }
 
-function assertRepresentablePlacements(placements: readonly FramescaperActiveVisualPlacement[]): void {
-	const tracks = new Set(placements.map(({ trackId }) => trackId));
-	if (tracks.size > 1) {
-		throw new RangeError('Unified plans V9-V12 do not carry exact cross-track picture compositing order.');
+function sequenceVideoTracks(
+	project: Readonly<Record<string, unknown>>,
+	sequence: Readonly<Record<string, unknown>>,
+): readonly UnifiedExactRenderTrackAuthorityV1[] {
+	const tracksById = uniqueById(records(data(project, 'tracks', 'project'), 'project.tracks'), 'project track');
+	const result: UnifiedExactRenderTrackAuthorityV1[] = [];
+	for (const [sequenceOrder, trackId] of strings(
+		data(sequence, 'trackIds', 'sequence'), 'sequence.trackIds',
+	).entries()) {
+		const track = tracksById.get(trackId);
+		if (!track) throw new ReferenceError(`Sequence track ${trackId} is missing.`);
+		if (track.type !== 'video') continue;
+		assertRepresentableVideoTrack(track);
+		result.push(Object.freeze({
+			trackId, sequenceOrder,
+			mute: boolean(data(track, 'mute', `video track ${trackId}`), `video track ${trackId}.mute`),
+			solo: boolean(data(track, 'solo', `video track ${trackId}`), `video track ${trackId}.solo`),
+			hidden: boolean(data(track, 'hidden', `video track ${trackId}`), `video track ${trackId}.hidden`),
+		}));
 	}
-	const ordered = [...placements].sort(comparePlacements);
-	for (let left = 0; left < ordered.length; left += 1) {
-		for (let right = left + 1; right < ordered.length; right += 1) {
-			const a = ordered[left]!;
-			const b = ordered[right]!;
-			if (b.startSample >= a.endSample) break;
-			if (a.clip.kind !== 'video' || b.clip.kind !== 'video') {
-				throw new RangeError('V10 visual placements cannot overlap because their track/layer authority is not on wire.');
-			}
-		}
-	}
+	return Object.freeze(result);
 }
 
-function assertNeutralInheritedPictureState(clip: Readonly<Record<string, unknown>>): void {
+function assertRepresentedInheritedPictureState(clip: Readonly<Record<string, unknown>>): void {
 	const clipId = id(clip, 'video clip');
-	if (!Array.isArray(clip.videoEffects) || clip.videoEffects.length !== 0) {
-		throw new RangeError(`Video clip ${clipId} effects are not represented by unified V9 source-time nodes.`);
+	if (!Array.isArray(data(clip, 'videoEffects', `video clip ${clipId}`))) {
+		throw new TypeError(`Video clip ${clipId} effects must be an exact array.`);
 	}
-	const keyframes = record(clip.videoKeyframes, `video clip ${clipId}.videoKeyframes`);
-	if (!Array.isArray(keyframes.curves) || keyframes.curves.length !== 0) {
-		throw new RangeError(`Video clip ${clipId} keyframes are not represented by unified V9 source-time nodes.`);
-	}
-	if (JSON.stringify(clip.videoComposition) !== JSON.stringify(NEUTRAL_COMPOSITION)) {
-		throw new RangeError(`Video clip ${clipId} composition is not representable by unified V9 source-time nodes.`);
-	}
+	record(data(clip, 'videoKeyframes', `video clip ${clipId}`), `video clip ${clipId}.videoKeyframes`);
+	record(data(clip, 'videoComposition', `video clip ${clipId}`), `video clip ${clipId}.videoComposition`);
 	if (clip.speedRatio !== 1) {
 		throw new RangeError(`Video clip ${clipId} has legacy speed state outside its exact retime map.`);
 	}
@@ -291,11 +296,9 @@ function assertNeutralInheritedPictureState(clip: Readonly<Record<string, unknow
 
 function assertRepresentableVideoTrack(track: Readonly<Record<string, unknown>>): void {
 	const trackId = id(track, 'video track');
-	for (const key of ['mute', 'solo', 'hidden'] as const) {
-		if (data(track, key, `video track ${trackId}`) !== false) {
-			throw new RangeError(`Video track ${trackId}.${key} is not carried by unified plans V9-V12.`);
-		}
-	}
+	for (const key of ['mute', 'solo', 'hidden'] as const) boolean(
+		data(track, key, `video track ${trackId}`), `video track ${trackId}.${key}`,
+	);
 	assertEmptyRecord(track.opaqueExtensions, `video track ${trackId}.opaqueExtensions`);
 }
 
@@ -472,6 +475,11 @@ function text(value: unknown, name: string): string {
 	return value;
 }
 
+function boolean(value: unknown, name: string): boolean {
+	if (typeof value !== 'boolean') throw new TypeError(`${name} must be boolean.`);
+	return value;
+}
+
 function rational(value: unknown, name: string): Readonly<{ readonly num: number; readonly den: number }> {
 	const candidate = record(value, name);
 	const num = positiveInteger(data(candidate, 'num', name), `${name}.num`);
@@ -505,7 +513,9 @@ function compareIds(left: Readonly<Record<string, unknown>>, right: Readonly<Rec
 }
 
 function comparePlacements(left: FramescaperActiveVisualPlacement, right: FramescaperActiveVisualPlacement): number {
-	return left.startSample - right.startSample || compareText(id(left.clip, 'clip'), id(right.clip, 'clip'));
+	return left.trackOrder - right.trackOrder
+		|| left.startSample - right.startSample
+		|| compareText(id(left.clip, 'clip'), id(right.clip, 'clip'));
 }
 
 function compareText(left: string, right: string): number { return left < right ? -1 : left > right ? 1 : 0; }

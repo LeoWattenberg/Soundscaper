@@ -14,10 +14,12 @@ import {
 	HelperDataPlaneReceiver,
 	HelperDataPlaneSender,
 	type HelperDataPlaneBinding,
+	type HelperDataPlaneOutputReservation,
 	helperJobGrantResourceUsage,
 	normalizeHelperResourcePolicy,
 	validateHelperDataPlaneBinding,
 	validateHelperDataPlaneMessage,
+	validateHelperDataPlaneOutputReservation,
 	validateHelperHostMessage,
 	validateHelperJobResult,
 } from '../desktop/helper-contract.ts';
@@ -53,6 +55,19 @@ function binding(
 		maximumInFlightChunks: 1,
 		...overrides,
 	} as HelperDataPlaneBinding;
+}
+
+function outputReservation(
+	streamId: string,
+	exactByteLength: number | null,
+	maximumByteLength = exactByteLength ?? 4_096,
+): HelperDataPlaneOutputReservation {
+	return {
+		dataPlaneVersion: 1, transport: 'message-port', streamId,
+		direction: 'helper-to-host', exactByteLength, maximumByteLength,
+		maximumChunkBytes: Math.max(1, Math.min(maximumByteLength, 16 * 1024 * 1024)),
+		maximumInFlightChunks: 1,
+	};
 }
 
 const EXECUTABLE = Object.freeze({
@@ -95,9 +110,14 @@ const SCRATCH = Object.freeze({
 
 const PLAN = Object.freeze(binding('host-to-helper', undefined, { streamId: 'ef'.repeat(20) }));
 const STREAM_OUTPUT = Object.freeze(binding('helper-to-host'));
+const OFX_OUTPUT_RESERVATION = Object.freeze(outputReservation(STREAM_ID, 4));
+const OFX_DESCRIPTOR_RESERVATION = Object.freeze(outputReservation(STREAM_ID, null));
 const OFX_INPUT_FRAME = Object.freeze(binding('host-to-helper', undefined, {
 	streamId: 'ac'.repeat(20),
 }));
+const OFX_FRAME_LAYOUT = Object.freeze({
+	pixelFormat: 'rgba8' as const, width: 1, height: 1, rowBytes: 4,
+});
 const OFX_INVOCATION = createOfxHostInvocationV1({
 	invocationId: 'ofx-helper-contract',
 	unifiedPlanVersion: 12,
@@ -110,7 +130,8 @@ const OFX_INVOCATION = createOfxHostInvocationV1({
 	action: 'render',
 	stateSha256: '3'.repeat(64),
 	inputFrameStreamIds: [OFX_INPUT_FRAME.streamId],
-	outputFrameStreamId: STREAM_OUTPUT.streamId,
+	outputFrameStreamId: OFX_OUTPUT_RESERVATION.streamId,
+	outputOrdinal: 3,
 	requestedBackend: 'cpu',
 	abortSignalId: 'abort-ofx-helper-contract',
 });
@@ -170,7 +191,7 @@ const MEDIA_JOBS = Object.freeze([
 				role: 'ofx-plugin',
 				path: '/plugins/example.ofx.bundle/Contents/Linux-x86-64/example.ofx',
 			},
-			descriptor: STREAM_OUTPUT,
+			descriptor: OFX_DESCRIPTOR_RESERVATION,
 			scratch: SCRATCH,
 		},
 	},
@@ -185,8 +206,10 @@ const MEDIA_JOBS = Object.freeze([
 			},
 			invocation: OFX_INVOCATION,
 			plan: PLAN,
-			inputs: [{ name: 'Source', sourceRef: 'source-1', frame: OFX_INPUT_FRAME }],
-			output: STREAM_OUTPUT,
+			inputs: [{
+				name: 'Source', sourceRef: 'source-1', ...OFX_FRAME_LAYOUT, frame: OFX_INPUT_FRAME,
+			}],
+			output: { ...OFX_FRAME_LAYOUT, frame: OFX_OUTPUT_RESERVATION },
 			scratch: SCRATCH,
 		},
 	},
@@ -264,6 +287,14 @@ test('OpenFX helper grants authenticate the invocation and exact named frame str
 		{ ...host.grant, inputs: [{ ...host.grant.inputs[0], frame: wrongInput }] },
 		{ ...host.grant, inputs: [{ ...host.grant.inputs[0], name: 'Source/../../path' }] },
 		{ ...host.grant, inputs: [{ ...host.grant.inputs[0], sourceRef: '/media/source.mov' }] },
+		{ ...host.grant, inputs: [{ ...host.grant.inputs[0], width: 0 }] },
+		{ ...host.grant, inputs: [{ ...host.grant.inputs[0], rowBytes: 3 }] },
+		{ ...host.grant, inputs: [{ ...host.grant.inputs[0], height: 2 }] },
+		{ ...host.grant, output: { ...host.grant.output, pixelFormat: 'bgra8' } },
+		{ ...host.grant, output: { ...host.grant.output, rowBytes: 8 } },
+		{ ...host.grant, output: {
+			...host.grant.output, frame: { ...host.grant.output.frame, sha256: SHA256 },
+		} },
 		{ ...host.grant, plan: { ...PLAN, streamId: OFX_INPUT_FRAME.streamId } },
 	]) {
 		assert.throws(() => validateHelperHostMessage({
@@ -376,6 +407,7 @@ test('new job results are closed and correlated with their exact grants', () => 
 		byteLength: STREAM_OUTPUT.byteLength,
 		sha256: STREAM_OUTPUT.sha256,
 	};
+	const reservedCompletion = { ...completion, sha256: '9'.repeat(64) };
 	const file = {
 		temporaryPath: OUTPUT.temporaryPath,
 		byteLength: 3_000,
@@ -387,8 +419,8 @@ test('new job results are closed and correlated with their exact grants', () => 
 		{ output: file },
 		{ output: file },
 		{ output: file },
-		{ descriptor: completion },
-		{ output: completion },
+		{ descriptor: reservedCompletion },
+		{ output: reservedCompletion },
 	] as const;
 	for (const [index, job] of MEDIA_JOBS.entries()) {
 		assert.deepEqual(validateHelperJobResult(job.kind, results[index], job.grant as never), results[index]);
@@ -406,6 +438,24 @@ test('new job results are closed and correlated with their exact grants', () => 
 	assert.throws(() => validateHelperJobResult('media-proxy', {
 		output: { ...file, byteLength: OUTPUT.maximumBytes + 1 },
 	}, MEDIA_JOBS[3].grant), HelperContractViolationError);
+});
+
+test('OpenFX output reservations bind bounds before work and digest only completed bytes', () => {
+	assert.deepEqual(
+		validateHelperDataPlaneOutputReservation(OFX_OUTPUT_RESERVATION),
+		OFX_OUTPUT_RESERVATION,
+	);
+	for (const candidate of [
+		{ ...OFX_OUTPUT_RESERVATION, direction: 'host-to-helper' },
+		{ ...OFX_OUTPUT_RESERVATION, sha256: SHA256 },
+		{ ...OFX_OUTPUT_RESERVATION, exactByteLength: 5 },
+		{ ...OFX_OUTPUT_RESERVATION, maximumByteLength: 3 },
+	]) {
+		assert.throws(
+			() => validateHelperDataPlaneOutputReservation(candidate),
+			HelperContractViolationError,
+		);
+	}
 });
 
 test('supervision enforces native resource use and mandatory correlated result admission', async () => {
