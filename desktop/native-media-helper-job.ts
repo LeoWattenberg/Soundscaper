@@ -3,9 +3,7 @@
 /** Exact filesystem/data-plane adapter around the closed Framescaper media-host CLI. */
 
 import { spawn } from 'node:child_process';
-import {
-	lstat, mkdir, readFile, rm,
-} from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import {
@@ -36,7 +34,7 @@ import {
 	type NativeMediaHostDecodeControl,
 	type NativeMediaHostProxyControl,
 } from './native-media-host-result.ts';
-import { authenticateNativeMediaFile } from './native-media-file-auth.ts';
+import { NativeMediaHelperFilesystem } from './native-media-helper-filesystem.ts';
 
 export const NATIVE_MEDIA_HOST_CONTROL_MAXIMUM_BYTES = 64 * 1024;
 export const NATIVE_MEDIA_PROXY_RECIPE_ID = 'framescaper-native-prores-proxy-mov-v1';
@@ -139,49 +137,60 @@ export class NativeMediaHelperJobRunner {
 		setHost: (handle: NativeMediaHostProcessHandle) => void,
 		onProgress: ((value: number | null) => void) | undefined,
 	): Promise<unknown> {
-		await verifyExecutable(this.#descriptor);
-		if (kind === 'probe-video-source') {
-			const probe = grant as HelperJobGrant<'probe-video-source'>;
-			const sourceSha256 = (await verifyGrantedFile(
-				probe.mediaPath, probe.mediaBytes, null, probe.identity,
-			)).sha256;
-			const handle = this.#invokeHost(invocation({
-				descriptor: this.#descriptor, kind, plan: null,
-				sources: [{
-					path: probe.mediaPath, sha256: sourceSha256,
-					byteLength: probe.mediaBytes, role: 'original',
-				}],
-				maximumOutputBytes: 0,
-			}));
-			setHost(handle);
-			const result = await successfulResult(handle.completion, kind);
-			return parseNativeMediaHostControl(kind, result.stdout);
-		}
-		const nativeGrant = grant as HelperMediaDecodeJobGrant | HelperMediaEncodeJobGrant | HelperMediaProxyJobGrant;
-		assertExecutableGrant(nativeGrant, this.#descriptor);
-		await verifyDirectory(nativeGrant.scratch.rootPath, nativeGrant.scratch.rootIdentity);
-		const inputs = kind === 'media-proxy'
-			? [(nativeGrant as HelperMediaProxyJobGrant).source]
-			: (nativeGrant as HelperMediaDecodeJobGrant).sources;
-		const sources: Array<NativeMediaHostSourceInvocation | null> = await Promise.all(
-			inputs.map(async (source) => {
-				if (source.type === 'stream') return null;
-				await verifyGrantedFile(source.path, source.bytes, source.sha256, source.identity);
-				return Object.freeze({
-					path: source.path, sha256: source.sha256,
-					byteLength: source.bytes, role: source.role,
-				});
-			}),
-		);
-		const demand = scratchDemand(kind, nativeGrant);
-		if (demand > nativeGrant.scratch.maximumBytes) {
-			throw new Error('The native media job exceeds its exact scratch grant.');
-		}
-		const reservationPath = join(nativeGrant.scratch.rootPath, nativeGrant.scratch.reservationId);
-		await mkdir(reservationPath, { recursive: false, mode: 0o700 });
-		let outputAccepted = false;
-		let temporaryOutputPath: string | null = null;
+		const filesystem = new NativeMediaHelperFilesystem();
 		try {
+			await filesystem.authenticateFile({
+				path: this.#descriptor.path,
+				byteLength: this.#descriptor.byteLength,
+				sha256: this.#descriptor.sha256,
+				identity: this.#descriptor.identity,
+			});
+			if (kind === 'probe-video-source') {
+				const probe = grant as HelperJobGrant<'probe-video-source'>;
+				const source = await filesystem.authenticateFile({
+					path: probe.mediaPath, byteLength: probe.mediaBytes, identity: probe.identity,
+				});
+				const handle = this.#invokeHost(invocation({
+					descriptor: this.#descriptor, kind, plan: null,
+					sources: [{
+						path: probe.mediaPath, sha256: source.sha256,
+						byteLength: probe.mediaBytes, role: 'original',
+					}],
+					maximumOutputBytes: 0,
+				}));
+				setHost(handle);
+				const result = await successfulResult(handle.completion, kind);
+				const control = parseNativeMediaHostControl(kind, result.stdout);
+				await filesystem.finish({ retainOutput: false });
+				return control;
+			}
+			const nativeGrant = grant as HelperMediaDecodeJobGrant | HelperMediaEncodeJobGrant | HelperMediaProxyJobGrant;
+			assertExecutableGrant(nativeGrant, this.#descriptor);
+			await filesystem.authenticateDirectory({
+				path: nativeGrant.scratch.rootPath, identity: nativeGrant.scratch.rootIdentity,
+			});
+			const inputs = kind === 'media-proxy'
+				? [(nativeGrant as HelperMediaProxyJobGrant).source]
+				: (nativeGrant as HelperMediaDecodeJobGrant).sources;
+			const sources: Array<NativeMediaHostSourceInvocation | null> = await Promise.all(
+				inputs.map(async (source) => {
+					if (source.type === 'stream') return null;
+					await filesystem.authenticateFile({
+						path: source.path, byteLength: source.bytes,
+						sha256: source.sha256, identity: source.identity,
+					});
+					return Object.freeze({
+						path: source.path, sha256: source.sha256,
+						byteLength: source.bytes, role: source.role,
+					});
+				}),
+			);
+			const demand = scratchDemand(kind, nativeGrant);
+			if (demand > nativeGrant.scratch.maximumBytes) {
+				throw new Error('The native media job exceeds its exact scratch grant.');
+			}
+			const reservationPath = join(nativeGrant.scratch.rootPath, nativeGrant.scratch.reservationId);
+			await filesystem.createReservation(reservationPath);
 			const planPath = join(reservationPath, 'canonical-plan.json');
 			await receiveHelperDataPlaneFile({
 				binding: nativeGrant.plan, port: ports[0]!, path: planPath, signal,
@@ -208,16 +217,26 @@ export class NativeMediaHelperJobRunner {
 			let maximumOutputBytes: number;
 			let decodeOutputPath: string | null = null;
 			let destinationRoot: string | null = null;
+			let temporaryOutputPath: string | null = null;
 			if (kind === 'media-decode') {
 				maximumOutputBytes = (nativeGrant as HelperMediaDecodeJobGrant).output.byteLength;
 				decodeOutputPath = join(reservationPath, 'decoded-output.bin');
+				await filesystem.expectOutput({
+					path: decodeOutputPath, maximumBytes: maximumOutputBytes, insideReservation: true,
+				});
 			} else {
 				const output = (nativeGrant as HelperMediaEncodeJobGrant | HelperMediaProxyJobGrant).output;
-				await verifyDirectory(output.rootPath, output.rootIdentity);
-				await assertAbsent(output.temporaryPath);
+				await filesystem.authenticateDirectory({
+					path: output.rootPath, identity: output.rootIdentity,
+				});
 				maximumOutputBytes = output.maximumBytes;
 				destinationRoot = output.rootPath;
 				temporaryOutputPath = output.temporaryPath;
+				await filesystem.expectOutput({
+					path: output.temporaryPath,
+					maximumBytes: output.maximumBytes,
+					insideReservation: false,
+				});
 			}
 			const handle = this.#invokeHost(invocation({
 				descriptor: this.#descriptor,
@@ -235,13 +254,12 @@ export class NativeMediaHelperJobRunner {
 					? ((nativeGrant as HelperMediaDecodeJobGrant).imageSequence ?? null) : null,
 			}));
 			setHost(handle);
-			const hostResult = parseNativeMediaHostControl(
-				kind, (await successfulResult(handle.completion, kind)).stdout,
-			);
+			const completed = await successfulResult(handle.completion, kind);
+			const inspected = await filesystem.inspectOutput();
+			const hostResult = parseNativeMediaHostControl(kind, completed.stdout);
 			signal.throwIfAborted();
 			if (kind === 'media-decode') {
 				const output = (nativeGrant as HelperMediaDecodeJobGrant).output;
-				const inspected = await inspectOutput(decodeOutputPath!, output.byteLength);
 				assertOutputControl(hostResult as NativeMediaHostDecodeControl, inspected);
 				if (inspected.byteLength !== output.byteLength || inspected.sha256 !== output.sha256) {
 					throw new Error('The decoded media output does not match its exact data-plane binding.');
@@ -249,13 +267,12 @@ export class NativeMediaHelperJobRunner {
 				const result = await sendHelperDataPlaneFile({
 					binding: output, port: ports.at(-1)!, path: decodeOutputPath!, signal,
 				});
+				await filesystem.finish({ retainOutput: false });
 				onProgress?.(1);
 				return Object.freeze({ output: result });
 			}
-			const output = (nativeGrant as HelperMediaEncodeJobGrant | HelperMediaProxyJobGrant).output;
-			const result = await inspectOutput(output.temporaryPath, output.maximumBytes);
 			assertOutputControl(
-				hostResult as Readonly<{ byteLength: number; sha256: string }>, result,
+				hostResult as Readonly<{ byteLength: number; sha256: string }>, inspected,
 			);
 			if (kind === 'media-proxy') {
 				const control = hostResult as NativeMediaHostProxyControl;
@@ -264,14 +281,18 @@ export class NativeMediaHelperJobRunner {
 					throw new Error('The native media proxy result does not match its exact granted geometry.');
 				}
 			}
-			outputAccepted = true;
+			await filesystem.finish({ retainOutput: true });
 			onProgress?.(1);
-			return Object.freeze({ output: result });
-		} finally {
-			if (!outputAccepted && temporaryOutputPath !== null) {
-				await rm(temporaryOutputPath, { force: true }).catch(() => undefined);
+			return Object.freeze({ output: inspected });
+		} catch (error) {
+			try { await filesystem.abort(); }
+			catch (cleanupError) {
+				throw new AggregateError(
+					[error, cleanupError],
+					`${errorMessage(error)} Native media cleanup also refused drifted authority.`,
+				);
 			}
-			await rm(reservationPath, { recursive: true, force: true });
+			throw error;
 		}
 	}
 }
@@ -448,12 +469,6 @@ function scratchDemand(
 		+ (kind === 'media-decode' ? (grant as HelperMediaDecodeJobGrant).output.byteLength : 0);
 }
 
-async function verifyExecutable(descriptor: FramescaperMediaHostDescriptor): Promise<void> {
-	await verifyGrantedFile(
-		descriptor.path, descriptor.byteLength, descriptor.sha256, descriptor.identity,
-	);
-}
-
 function assertExecutableGrant(
 	grant: HelperMediaDecodeJobGrant | HelperMediaEncodeJobGrant | HelperMediaProxyJobGrant,
 	descriptor: FramescaperMediaHostDescriptor,
@@ -463,28 +478,6 @@ function assertExecutableGrant(
 		|| executable.sha256 !== descriptor.sha256 || executable.identity.dev !== descriptor.identity.dev
 		|| executable.identity.ino !== descriptor.identity.ino) {
 		throw new Error('The media job executable grant does not match the authenticated host payload.');
-	}
-}
-
-async function verifyGrantedFile(
-	path: string,
-	byteLength: number,
-	sha256: string | null,
-	identity: Readonly<{ dev: number; ino: number }>,
-) {
-	return authenticateNativeMediaFile({
-		path, byteLength, identity, ...(sha256 === null ? {} : { sha256 }),
-	});
-}
-
-async function verifyDirectory(
-	path: string,
-	identity: Readonly<{ dev: number; ino: number }>,
-): Promise<void> {
-	const details = await lstat(path);
-	if (!details.isDirectory() || details.isSymbolicLink()
-		|| details.dev !== identity.dev || details.ino !== identity.ino) {
-		throw new Error('A native media directory no longer matches its granted identity.');
 	}
 }
 
@@ -500,23 +493,6 @@ async function assertCanonicalPlan(path: string, fingerprint: string): Promise<v
 	}
 }
 
-async function assertAbsent(path: string): Promise<void> {
-	try {
-		await lstat(path);
-		throw new Error('The native media temporary output already exists.');
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-	}
-}
-
-async function inspectOutput(path: string, maximumBytes: number) {
-	const authenticated = await authenticateNativeMediaFile({ path, maximumBytes });
-	return Object.freeze({
-		temporaryPath: path,
-		...authenticated,
-	});
-}
-
 async function successfulResult(
 	completion: Promise<NativeMediaHostProcessResult>,
 	kind: NativeMediaHelperPoolJobKind,
@@ -530,6 +506,10 @@ async function successfulResult(
 		throw new Error(`The native media host ${kind} operation failed with code ${String(result.exitCode)}.`);
 	}
 	return result;
+}
+
+function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }
 
 function assertOutputControl(

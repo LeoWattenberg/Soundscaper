@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -325,6 +325,106 @@ test('a proxy control result cannot substitute geometry outside its authenticate
 	}
 });
 
+test('a direct source replaced while the native host runs rejects the result and removes its exact output', async () => {
+	const harness = await jobHarness();
+	try {
+		const outputRoot = join(harness.root, 'output');
+		const scratchRoot = join(harness.root, 'scratch');
+		await Promise.all([mkdir(outputRoot), mkdir(scratchRoot)]);
+		const outputPath = join(outputRoot, '.replaced-source.tmp');
+		const displacedSourcePath = join(harness.root, 'displaced-source.mov');
+		const plan = planBinding(harness.planBytes);
+		const [planHost, planHelper] = portPair();
+		const invoked = deferred<void>();
+		const finishHost = deferred<void>();
+		const runner = createNativeMediaHelperJobRunner({
+			descriptor: harness.descriptor,
+			invokeHost: () => {
+				invoked.resolve();
+				return processResult('media-render', finishHost.promise.then(
+					() => writeFile(outputPath, OUTPUT_BYTES),
+				));
+			},
+		});
+		const job = runner.run({
+			kind: 'media-render',
+			grant: {
+				executable: executableGrant(harness.descriptor), plan,
+				sources: [await fileInput(harness.sourcePath)],
+				output: {
+					rootPath: outputRoot, rootIdentity: await identity(outputRoot),
+					temporaryPath: outputPath, finalPath: join(outputRoot, 'movie.mov'),
+					maximumBytes: 1_024,
+				},
+				scratch: {
+					rootPath: scratchRoot, rootIdentity: await identity(scratchRoot),
+					reservationId: 'be'.repeat(20), maximumBytes: 4_096,
+				},
+			},
+			ports: [planHelper],
+		});
+		const transfer = sendHelperDataPlaneFile({ binding: plan, port: planHost, path: harness.planPath });
+		await invoked.promise;
+		await rename(harness.sourcePath, displacedSourcePath);
+		await writeFile(harness.sourcePath, Buffer.from('replacement source media'));
+		finishHost.resolve();
+		await assert.rejects(Promise.all([job.completion, transfer]), /authenticated identity, length, or digest/u);
+		await assert.rejects(stat(outputPath), /ENOENT/u);
+	} finally {
+		await harness.dispose();
+	}
+});
+
+test('a destination directory replaced while the native host runs rejects and unpublishes its exact output', async () => {
+	const harness = await jobHarness();
+	try {
+		const outputRoot = join(harness.root, 'output');
+		const displacedOutputRoot = join(harness.root, 'displaced-output');
+		const scratchRoot = join(harness.root, 'scratch');
+		await Promise.all([mkdir(outputRoot), mkdir(scratchRoot)]);
+		const outputPath = join(outputRoot, '.replaced-root.tmp');
+		const plan = planBinding(harness.planBytes);
+		const [planHost, planHelper] = portPair();
+		const invoked = deferred<void>();
+		const finishHost = deferred<void>();
+		const runner = createNativeMediaHelperJobRunner({
+			descriptor: harness.descriptor,
+			invokeHost: () => {
+				invoked.resolve();
+				return processResult('media-render', finishHost.promise.then(
+					() => writeFile(outputPath, OUTPUT_BYTES),
+				));
+			},
+		});
+		const job = runner.run({
+			kind: 'media-render',
+			grant: {
+				executable: executableGrant(harness.descriptor), plan,
+				sources: [await fileInput(harness.sourcePath)],
+				output: {
+					rootPath: outputRoot, rootIdentity: await identity(outputRoot),
+					temporaryPath: outputPath, finalPath: join(outputRoot, 'movie.mov'),
+					maximumBytes: 1_024,
+				},
+				scratch: {
+					rootPath: scratchRoot, rootIdentity: await identity(scratchRoot),
+					reservationId: 'bf'.repeat(20), maximumBytes: 4_096,
+				},
+			},
+			ports: [planHelper],
+		});
+		const transfer = sendHelperDataPlaneFile({ binding: plan, port: planHost, path: harness.planPath });
+		await invoked.promise;
+		await rename(outputRoot, displacedOutputRoot);
+		await mkdir(outputRoot);
+		finishHost.resolve();
+		await assert.rejects(Promise.all([job.completion, transfer]), /directory no longer matches its granted identity/u);
+		await assert.rejects(stat(outputPath), /ENOENT/u);
+	} finally {
+		await harness.dispose();
+	}
+});
+
 async function jobHarness() {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-media-job-'));
 	const executablePath = join(root, 'framescaper-media-host');
@@ -392,6 +492,16 @@ async function identity(path: string) {
 
 function digest(bytes: Uint8Array): string {
 	return createHash('sha256').update(bytes).digest('hex');
+}
+
+function deferred<T>() {
+	let resolvePromise!: (value: T | PromiseLike<T>) => void;
+	let rejectPromise!: (reason?: unknown) => void;
+	const promise = new Promise<T>((resolve, reject) => {
+		resolvePromise = resolve;
+		rejectPromise = reject;
+	});
+	return Object.freeze({ promise, resolve: resolvePromise, reject: rejectPromise });
 }
 
 function processResult(
