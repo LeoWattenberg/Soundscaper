@@ -69,7 +69,7 @@ test('Framescaper failures do not invalidate an independently complete Soundscap
 test('the owner-designated packaged Windows host independently qualifies a passing M1 preview diagnostic', () => {
 	const value = m1Fixture();
 	const result = createPackagedRuntimeQualification(value);
-	const m1 = result.workloadQualifications.find(({ workloadId }) => (
+	const m1 = result.workloadQualifications.find(({ workloadId }: { workloadId: string | null }) => (
 		workloadId === 'm1-video-preview-12fx-720p'
 	));
 
