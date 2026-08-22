@@ -28,6 +28,7 @@ add_library(framescaper-openfx-host-contract STATIC
 	src/v12_host_invocation.cpp
 	src/v12_output_file.cpp
 	src/v12_retime_authority.cpp
+	src/v12_transition_authority.cpp
 	${FRAMESCAPER_MEDIA_CONTRACT_ROOT}/legacy_plan_semantics.cpp
 	${FRAMESCAPER_MEDIA_CONTRACT_ROOT}/legacy_plan_v8_filter_semantics.cpp
 	${FRAMESCAPER_MEDIA_CONTRACT_ROOT}/media_file_grants.cpp

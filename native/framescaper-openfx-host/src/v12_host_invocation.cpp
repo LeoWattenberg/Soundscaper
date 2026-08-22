@@ -8,6 +8,7 @@
 #include "strict_json.hpp"
 #include "unified_plan_common.hpp"
 #include "v12_retime_authority.hpp"
+#include "v12_transition_authority.hpp"
 
 #include <algorithm>
 #include <array>
@@ -552,8 +553,17 @@ V12HostInvocation authenticate_v12_host_invocation(
 				!= json::string(json::member(*parsed.source_time, "clipId"), "SourceTime clip")) {
 				fail("identity-mismatch", "Retimer SourceTime does not bind its attachment clip.");
 			}
-			verify_v12_retimer_source_time(plan, *parsed.source_time);
+			result.host_standard_parameter_value = verified_v12_retimer_source_time(
+				plan, *parsed.source_time
+			);
 			result.source_time_verified = true;
+		} else if (parsed.context == Context::transition) {
+			result.host_standard_parameter_value = verified_v12_transition_value(
+				plan,
+				json::string(json::member(attachment, "targetId"), "Transition target"),
+				parsed.output_ordinal
+			);
+			result.transition_value_verified = true;
 		}
 		return result;
 	} catch (const v12_invocation_error&) {

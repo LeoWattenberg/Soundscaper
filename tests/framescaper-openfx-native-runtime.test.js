@@ -1,43 +1,31 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { MessageChannel } from 'node:worker_threads';
 
-import {
-	createNativeMediaPlanEnvelopeV1,
-} from '../src/common/editor/native-media-plan-envelope.ts';
-import {
-	createOfxHostInvocationV1,
-} from '../src/common/editor/native-ofx-host-contract.ts';
-import {
-	createUnifiedExactRenderOfxRetimerSourceTime,
-} from '../src/common/editor/unified-exact-render-plan-consumers.ts';
-import {
-	createUnifiedExactRenderPlan,
-} from '../src/common/editor/unified-exact-render-plan.ts';
-import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { assertOfxPluginDescriptorV1 } from '../src/common/editor/native-ofx-descriptor.ts';
 import { createOpenFxHelperJobRunner } from '../desktop/openfx-helper-job.ts';
 import { receiveHelperDataPlaneReservedFile } from '../desktop/helper-data-plane-io.ts';
-import {
-	unifiedExactPlanFixture,
-	unifiedExactTimingFixture,
-} from './helpers/unified-exact-render-plan-fixture.ts';
 import {
 	buildOpenFxNativeContractFixture as buildContractFixture,
 	cleanupOpenFxNativeContractFixture,
 	expectedOpenFxNativeScannerDescriptor,
 } from './helpers/openfx-native-scanner-fixture.js';
+import {
+	createV12PlanVariant,
+	createV12WireFixture,
+	invokeV12Grant,
+	invokeV12PlanVariant,
+	sha256,
+} from './helpers/openfx-native-v12-fixture.js';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const hostRoot = join(repositoryRoot, 'native/framescaper-openfx-host');
 const sources = join(hostRoot, 'src');
-let wireSequence = 0;
 
 test.after(cleanupOpenFxNativeContractFixture);
 
@@ -312,6 +300,56 @@ test('the native V12 seam reparses and correlates the exact invocation, graph, n
 	}
 });
 
+test('V12 binds genuine context topology and host-owned standard parameters', (context) => {
+	const build = buildContractFixture(context);
+	if (build === null) return;
+	try {
+		const topology = new Map([
+			['generator', []], ['filter', ['Source']],
+			['transition', ['SourceFrom', 'SourceTo']], ['paint', ['Source', 'Mask']],
+			['retimer', ['Source']], ['general', ['InputA', 'InputB']],
+		]);
+		for (const [ofxContext, inputNames] of topology) {
+			const wire = createV12WireFixture(build, ofxContext);
+			const invoked = run(build.runtime, [
+				'--invoke-v12-grant', wire.grantPath, '--grant-sha256', wire.grantSha256,
+			]);
+			if (invoked.status !== 0 && /exact-(?:retime|transition)-oracle-unavailable/u.test(invoked.stderr)) {
+				assert.equal(['retimer', 'transition'].includes(ofxContext), true);
+				continue;
+			}
+			assert.equal(invoked.status, 0, invoked.stderr);
+			const result = JSON.parse(invoked.stdout);
+			assert.deepEqual(result.inputNames, inputNames);
+			assert.equal(result.hostStandardParameter,
+				ofxContext === 'retimer' ? 'SourceTime'
+					: ofxContext === 'transition' ? 'Transition' : null);
+			assert.equal(result.sourceTimeVerified, ofxContext === 'retimer');
+			assert.equal(result.transitionValueVerified, ofxContext === 'transition');
+			assert.deepEqual(readFileSync(wire.outputPath), wire.outputBytes);
+			if (ofxContext !== 'retimer' && ofxContext !== 'transition') continue;
+			const standard = ofxContext === 'retimer' ? 'SourceTime' : 'Transition';
+			const persisted = invokeV12PlanVariant(build.runtime, wire, (state) => {
+				state.parameters.push({ name: standard, type: 'double', value: [0.25], keyframes: [] });
+			});
+			assert.notEqual(persisted.status, 0);
+			assert.match(persisted.stderr, /Persisted state cannot override.*standard parameter/iu);
+		}
+		for (const ofxContext of ['retimer', 'transition']) {
+			const spoof = createV12WireFixture({
+				...build, plugin: build.spoofPlugin, sha256: build.spoofSha256,
+			}, ofxContext);
+			const rejected = run(build.runtime, [
+				'--invoke-v12-grant', spoof.grantPath, '--grant-sha256', spoof.grantSha256,
+			]);
+			assert.notEqual(rejected.status, 0);
+			assert.match(rejected.stderr, /action lifecycle|exact-(?:retime|transition)-oracle/iu);
+		}
+	} finally {
+		build.cleanup();
+	}
+});
+
 test('the native V12 render cooperatively observes its exact cancellation marker', async (context) => {
 	const build = buildContractFixture(context);
 	if (build === null) return;
@@ -394,12 +432,14 @@ test('production sources bind to the pinned SDK ABI and contain no ambient autho
 		'isolation_contract.hpp', 'openfx_abi.hpp', 'sha256.cpp', 'sha256.hpp',
 		'dynamic_library.cpp', 'dynamic_library.hpp', 'host_runtime.cpp',
 		'host_runtime.hpp', 'host_parameter_hydration.hpp', 'host_scan_inspection.inc',
+		'host_standard_parameters.inc',
 		'loaded_plugin_binary.cpp', 'ofx_scanner.cpp', 'ofx_runtime_host.cpp',
 		'rgba_frame.hpp',
 		'v12_cancellation_channel.cpp', 'v12_cancellation_channel.hpp',
 		'v12_host_invocation.cpp', 'v12_host_invocation.hpp',
 		'v12_output_file.cpp', 'v12_output_file.hpp',
 		'v12_retime_authority.cpp', 'v12_retime_authority.hpp',
+		'v12_transition_authority.cpp', 'v12_transition_authority.hpp',
 	].map((file) => readFileSync(join(sources, file), 'utf8')).join('\n');
 	assert.doesNotMatch(allSources, /\b(?:socket|connect|listen|accept|popen|system|ShellExecute)\s*\(/u);
 	assert.doesNotMatch(allSources, /CreateWindow|NSWindow|XCreateWindow/u);
@@ -411,145 +451,17 @@ test('production sources bind to the pinned SDK ABI and contain no ambient autho
 	assert.match(allSources, /kOfxDrawSuite/u);
 	assert.match(allSources, /exact_retime_ordinal\.hpp/u);
 	assert.match(allSources, /SourceTime differs from the exact ordinal oracle/u);
-	assert.doesNotMatch(
-		readFileSync(join(sources, 'v12_retime_authority.cpp'), 'utf8'),
-		/\b(?:double|float)\b/u,
+	assert.match(allSources, /output ordinal is outside its attached transition overlap/u);
+	const retimeAuthority = readFileSync(join(sources, 'v12_retime_authority.cpp'), 'utf8');
+	assert.ok(
+		retimeAuthority.indexOf('SourceTime differs from the exact ordinal oracle')
+		< retimeAuthority.indexOf('return ofx_time(expected)'),
+		'OFX conversion must occur only after exact SourceTime equality succeeds',
 	);
 	const cmake = readFileSync(join(hostRoot, 'CMakeLists.txt'), 'utf8');
 	assert.match(cmake, /find_package\(Boost 1\.92\.0 EXACT REQUIRED\)/u);
 	assert.match(cmake, /media_plan\.cpp/u);
 });
-
-function createV12WireFixture(build, context) {
-	wireSequence += 1;
-	const suffix = `${context}-${String(wireSequence)}`;
-	const raw = structuredClone(unifiedExactPlanFixture(12));
-	raw.output.canvas.width = 3;
-	raw.output.canvas.height = 2;
-	const effect = raw.nodes.find((node) => node.kind === 'openfx');
-	if (!effect) throw new Error('OpenFX fixture node is unavailable.');
-	effect.state.pluginId = 'org.framescaper.conformance';
-	effect.state.binarySha256 = build.sha256;
-	effect.state.context = context;
-	effect.state.attachment.kind = context;
-	effect.state.parameters[0].keyframes.push({ frame: 9, value: 0.75 });
-	const plan = createUnifiedExactRenderPlan(raw);
-	const envelope = createNativeMediaPlanEnvelopeV1(plan);
-	const planFingerprint = fingerprintNativeMediaPlan(plan);
-	const inputBytes = Buffer.from([
-		9, 8, 7, 6, 20, 30, 40, 50, 255, 0, 1, 2, 170, 170, 170, 170,
-		3, 4, 5, 6, 60, 70, 80, 90, 100, 110, 120, 130, 187, 187, 187, 187,
-	]);
-	const outputBytes = Buffer.from([
-		9, 8, 7, 138, 20, 30, 40, 138, 255, 0, 1, 138, 0, 0, 0, 0,
-		3, 4, 5, 138, 60, 70, 80, 138, 100, 110, 120, 138, 0, 0, 0, 0,
-	]);
-	const planPath = join(build.directory, `plan-${suffix}.json`);
-	const inputPath = join(build.directory, `input-${suffix}.rgba`);
-	const outputPath = join(build.directory, `output-${suffix}.rgba`);
-	writeFileSync(planPath, planFingerprint.canonical, { flag: 'wx' });
-	writeFileSync(inputPath, inputBytes, { flag: 'wx' });
-	const sourceTime = context === 'retimer'
-		? createUnifiedExactRenderOfxRetimerSourceTime(
-			plan, 'ofx-1', 4, unifiedExactTimingFixture(),
-		)
-		: null;
-	const invocation = createOfxHostInvocationV1({
-		invocationId: `native-${suffix}`,
-		unifiedPlanVersion: 12,
-		unifiedPlanSha256: envelope.fingerprint,
-		nodeId: 'openfx-node',
-		instanceId: 'ofx-1',
-		pluginId: 'org.framescaper.conformance',
-		pluginBinarySha256: build.sha256,
-		context,
-		action: 'render',
-		stateSha256: fingerprintNativeMediaPlan(effect.state).sha256,
-		inputFrameStreamIds: ['20'.repeat(20)],
-		outputFrameStreamId: '30'.repeat(20),
-		outputOrdinal: 4,
-		requestedBackend: 'cpu',
-		abortSignalId: `abort-${suffix}`,
-		retimerSourceTime: sourceTime,
-	});
-	const cancellationFrame = `${JSON.stringify({
-		schemaVersion: 1, type: 'cancel', invocationId: invocation.invocationId,
-		abortSignalId: invocation.abortSignalId,
-	})}\n`;
-	const grant = {
-		schemaVersion: 1,
-		pluginBinary: { path: build.plugin, sha256: build.sha256, pluginIndex: 0 },
-		invocation,
-		plan: {
-			path: planPath, byteLength: envelope.canonicalByteLength, sha256: envelope.fingerprint,
-		},
-		inputs: [{
-			name: 'Source', sourceRef: 'source-1', streamId: '20'.repeat(20),
-			path: inputPath, pixelFormat: 'rgba8', width: 3, height: 2, rowBytes: 16,
-			byteLength: inputBytes.byteLength, sha256: sha256(inputBytes),
-		}],
-		output: {
-			streamId: '30'.repeat(20), path: outputPath, pixelFormat: 'rgba8',
-			width: 3, height: 2, rowBytes: 16,
-			byteLength: outputBytes.byteLength,
-		},
-	};
-	const admitted = writeGrant(build.directory, grant, `grant-${suffix}`);
-	return {
-		...admitted, directory: build.directory, cancellationFrame,
-		outputPath, outputBytes,
-	};
-}
-
-function createV12PlanVariant(wire, mutateState) {
-	const grant = structuredClone(wire.grant);
-	const plan = JSON.parse(readFileSync(grant.plan.path, 'utf8'));
-	const effect = plan.nodes.find((node) => node.kind === 'openfx');
-	if (!effect) throw new Error('OpenFX fixture node is unavailable.');
-	mutateState(effect.state);
-	const planFingerprint = fingerprintNativeMediaPlan(plan);
-	const token = Math.random().toString(16).slice(2);
-	const planPath = join(wire.directory, `plan-variant-${token}.json`);
-	writeFileSync(planPath, planFingerprint.canonical, { flag: 'wx' });
-	grant.plan = {
-		path: planPath,
-		byteLength: planFingerprint.byteLength,
-		sha256: planFingerprint.sha256,
-	};
-	grant.invocation.unifiedPlanSha256 = planFingerprint.sha256;
-	grant.invocation.stateSha256 = fingerprintNativeMediaPlan(effect.state).sha256;
-	const admitted = writeGrant(wire.directory, grant, `grant-variant-${token}`);
-	return {
-		...admitted,
-		directory: wire.directory,
-		cancellationFrame: wire.cancellationFrame,
-	};
-}
-
-function invokeV12PlanVariant(runtime, wire, mutateState) {
-	const variant = createV12PlanVariant(wire, mutateState);
-	return run(runtime, [
-		'--invoke-v12-grant', variant.grantPath, '--grant-sha256', variant.grantSha256,
-	]);
-}
-
-function invokeV12Grant(runtime, directory, grant) {
-	const wire = writeGrant(directory, grant, `candidate-${Math.random().toString(16).slice(2)}`);
-	return run(runtime, [
-		'--invoke-v12-grant', wire.grantPath, '--grant-sha256', wire.grantSha256,
-	]);
-}
-
-function writeGrant(directory, grant, name) {
-	const bytes = Buffer.from(JSON.stringify(grant));
-	const grantPath = join(directory, `${name}.json`);
-	writeFileSync(grantPath, bytes, { flag: 'wx' });
-	return { grant, grantPath, grantSha256: sha256(bytes) };
-}
-
-function sha256(bytes) {
-	return createHash('sha256').update(bytes).digest('hex');
-}
 
 function nativeExecutable(path) {
 	const bytes = readFileSync(path); const identity = statSync(path);

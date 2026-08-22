@@ -62,7 +62,12 @@ int invoke(const char* const argv[], bool cancelled) {
 	LoadedPluginBinary binary{std::filesystem::path{argv[2]}, argv[4]};
 	binary.bind_host(host.host());
 	auto& plugin = binary.plugin(plugin_index(argv[6]));
-	const auto result = host.invoke(plugin, *context, argv[10], *backend, false);
+	const auto standard_value = *context == Context::retimer || *context == Context::transition
+		? std::optional<double>{0.5} : std::nullopt;
+	const auto result = host.invoke(
+		plugin, *context, argv[10], *backend, false, {}, {}, {}, {}, false, 0,
+		standard_value
+	);
 	std::cout << "{\"contractVersion\":1,\"mode\":\"per-binary-fingerprint-runtime\","
 		<< denied_authorities_json() << ",\"contractFixture\":true,"
 		<< "\"oneFingerprintPerProcess\":true,"
@@ -109,7 +114,8 @@ int invoke_v12(const char* const argv[]) {
 	const auto result = host.invoke(
 		plugin, grant.context, "render", grant.requested_backend, false,
 		std::move(inputs), grant.parameters, [&cancellation] { return cancellation.cancelled(); },
-		grant.output_layout, true, static_cast<OfxTime>(grant.output_ordinal)
+		grant.output_layout, true, static_cast<OfxTime>(grant.output_ordinal),
+		grant.host_standard_parameter_value
 	);
 	if (cancellation.protocol_fault()) {
 		throw v12_invocation_error{
@@ -150,6 +156,9 @@ int invoke_v12(const char* const argv[]) {
 		<< ",\"outputRowBytes\":" << grant.output_layout.row_bytes
 		<< ",\"outputOrdinal\":" << grant.output_ordinal
 		<< ",\"sourceTimeVerified\":" << (grant.source_time_verified ? "true" : "false")
+		<< ",\"transitionValueVerified\":" << (grant.transition_value_verified ? "true" : "false")
+		<< ",\"hostStandardParameter\":" << (result.host_standard_parameter_bound
+			? json_string(result.host_standard_parameter) : "null")
 		<< ",\"hydratedParameterCount\":" << result.hydrated_parameter_count
 		<< ",\"hydratedKeyframeCount\":" << result.hydrated_keyframe_count
 		<< ",\"requestedBackend\":" << json_string(result.requested_backend)
@@ -196,7 +205,8 @@ int main(const int argc, const char* const argv[]) {
 	} catch (const framescaper::openfx::v12_invocation_error& error) {
 		std::cerr << "{\"error\":" << framescaper::openfx::json_string(error.code())
 			<< ",\"message\":" << framescaper::openfx::json_string(error.what()) << "}\n";
-		return error.code() == "exact-retime-oracle-unavailable" ? 76 : 65;
+		return (error.code() == "exact-retime-oracle-unavailable"
+			|| error.code() == "exact-transition-oracle-unavailable") ? 76 : 65;
 	} catch (const framescaper::openfx::isolation_unavailable& error) {
 		std::cerr << "{\"error\":\"isolation-unavailable\",\"message\":"
 			<< framescaper::openfx::json_string(error.what()) << "}\n";

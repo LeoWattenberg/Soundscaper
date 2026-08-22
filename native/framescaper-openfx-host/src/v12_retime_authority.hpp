@@ -7,7 +7,7 @@
 namespace framescaper::openfx {
 
 /** Recompute a Retimer SourceTime from one admitted V12 plan ordinal. */
-void verify_v12_retimer_source_time(
+[[nodiscard]] double verified_v12_retimer_source_time(
 	const framescaper::media::json::value& plan,
 	const framescaper::media::json::value& source_time
 );

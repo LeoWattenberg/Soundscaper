@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -52,6 +53,8 @@ struct V12HostInvocation final {
 	std::filesystem::path output_path;
 	RgbaFrameLayout output_layout;
 	bool source_time_verified{};
+	bool transition_value_verified{};
+	std::optional<double> host_standard_parameter_value;
 };
 
 /** Authenticate, fully reparse, and correlate one staged V12 helper grant. */

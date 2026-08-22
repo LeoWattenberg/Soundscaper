@@ -55,6 +55,8 @@ struct InvocationResult {
 	std::size_t offscreen_pixels_touched = 0;
 	std::size_t hydrated_parameter_count = 0;
 	std::size_t hydrated_keyframe_count = 0;
+	std::string host_standard_parameter;
+	bool host_standard_parameter_bound = false;
 	RgbaFrame output_frame;
 };
 
@@ -95,7 +97,8 @@ public:
 		std::function<bool()> cancellation_probe = {},
 		RgbaFrameLayout output_layout = {},
 		bool exact_frames = false,
-		OfxTime render_time = 0
+		OfxTime render_time = 0,
+		std::optional<double> host_standard_parameter_value = std::nullopt
 	);
 	std::optional<PluginInspection> inspect(OfxPlugin& plugin);
 

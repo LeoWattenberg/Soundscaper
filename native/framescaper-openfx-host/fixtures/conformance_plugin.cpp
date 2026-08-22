@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #ifdef _WIN32
 #define FRAMESCAPER_EXPORT extern "C" __declspec(dllexport)
@@ -242,8 +243,34 @@ OfxStatus describe_context(const void* handle, OfxPropertySetHandle input) {
 		) != kOfxStatOK) return kOfxStatFailed;
 	}
 #endif
+	OfxParamSetHandle set = nullptr;
+	if (images->getParamSet(
+		reinterpret_cast<OfxImageEffectHandle>(const_cast<void*>(handle)), &set
+	) != kOfxStatOK) return kOfxStatFailed;
+#if defined(FRAMESCAPER_OPENFX_STANDARD_PARAMETER_SPOOF_FIXTURE)
+	const char* spoofed = std::strcmp(context, kOfxImageEffectContextRetimer) == 0
+		? "SourceTime" : std::strcmp(context, kOfxImageEffectContextTransition) == 0
+			? "Transition" : nullptr;
+	if (spoofed != nullptr
+		&& parameters->paramDefine(set, kOfxParamTypeDouble, spoofed, nullptr) != kOfxStatOK) {
+		return kOfxStatFailed;
+	}
+#endif
+	std::vector<const char*> clips;
+	if (std::strcmp(context, kOfxImageEffectContextFilter) == 0
+		|| std::strcmp(context, kOfxImageEffectContextRetimer) == 0) clips = {"Source"};
+	else if (std::strcmp(context, kOfxImageEffectContextTransition) == 0) {
+		clips = {"SourceFrom", "SourceTo"};
+	} else if (std::strcmp(context, kOfxImageEffectContextPaint) == 0) {
+		clips = {"Source", "Mask"};
+	} else if (std::strcmp(context, kOfxImageEffectContextGeneral) == 0) {
+		clips = {"InputA", "InputB"};
+	} else if (std::strcmp(context, kOfxImageEffectContextGenerator) != 0) {
+		return kOfxStatFailed;
+	}
+	clips.push_back("Output");
 	OfxPropertySetHandle clip_properties = nullptr;
-	for (const char* clip : {"Source", "Output"}) {
+	for (const char* clip : clips) {
 		if (images->clipDefine(
 			reinterpret_cast<OfxImageEffectHandle>(const_cast<void*>(handle)), clip, &clip_properties
 		) != kOfxStatOK || properties->propSetString(
@@ -278,50 +305,105 @@ OfxStatus render(const void* handle, OfxPropertySetHandle input) {
 	for (int poll = 0; poll < cancellation_polls; ++poll) {
 		if (images->abort(effect) != 0) return kOfxStatFailed;
 	}
+	const auto clip_handle = [&](const char* name, OfxImageClipHandle& result) {
+		return images->clipGetHandle(effect, name, &result, nullptr) == kOfxStatOK;
+	};
 	OfxImageClipHandle source = nullptr;
+	OfxImageClipHandle second = nullptr;
 	OfxImageClipHandle output = nullptr;
-	if (images->clipGetHandle(effect, "Source", &source, nullptr) != kOfxStatOK
-		|| images->clipGetHandle(effect, "Output", &output, nullptr) != kOfxStatOK) return kOfxStatFailed;
+	const bool transition = clip_handle("SourceFrom", source);
+	const bool paint = !transition && clip_handle("Mask", second);
+	const bool general = !transition && !paint && clip_handle("InputA", source);
+	const bool filtered = !transition && !paint && !general && clip_handle("Source", source);
+	if (transition && !clip_handle("SourceTo", second)) return kOfxStatFailed;
+	if (paint && !clip_handle("Source", source)) return kOfxStatFailed;
+	if (general && !clip_handle("InputB", second)) return kOfxStatFailed;
+	const bool generator = !transition && !paint && !general && !filtered;
+	if (!clip_handle("Output", output)) return kOfxStatFailed;
+	double standard_value = 0;
+	OfxParamHandle standard = nullptr;
+	const char* standard_name = transition ? "Transition" : filtered
+		&& parameters->paramGetHandle(set, "SourceTime", &standard, nullptr) == kOfxStatOK
+		? "SourceTime" : nullptr;
+	if (standard_name != nullptr
+		&& (parameters->paramGetHandle(set, standard_name, &standard, nullptr) != kOfxStatOK
+			|| parameters->paramGetValueAtTime(standard, render_time, &standard_value) != kOfxStatOK
+			|| !std::isfinite(standard_value)
+			|| (transition && (standard_value < 0 || standard_value > 1))
+			|| parameters->paramSetValue(standard, 0.25) != kOfxStatErrUnsupported
+			|| parameters->paramSetValueAtTime(standard, render_time, 0.25) != kOfxStatErrUnsupported
+			|| parameters->paramDeleteAllKeys(standard) != kOfxStatErrUnsupported)) {
+		return kOfxStatFailed;
+	}
 	OfxPropertySetHandle source_image = nullptr;
+	OfxPropertySetHandle second_image = nullptr;
 	OfxPropertySetHandle image = nullptr;
-	if (images->clipGetImage(source, render_time, nullptr, &source_image) != kOfxStatOK
-		|| images->clipGetImage(output, render_time, nullptr, &image) != kOfxStatOK) return kOfxStatFailed;
+	if ((!generator && images->clipGetImage(source, render_time, nullptr, &source_image) != kOfxStatOK)
+		|| ((transition || paint || general)
+			&& images->clipGetImage(second, render_time, nullptr, &second_image) != kOfxStatOK)
+		|| images->clipGetImage(output, render_time, nullptr, &image) != kOfxStatOK) {
+		return kOfxStatFailed;
+	}
 	void* source_data = nullptr;
+	void* second_data = nullptr;
 	void* data = nullptr;
 	int source_row_bytes = 0;
+	int second_row_bytes = 0;
 	int output_row_bytes = 0;
 	int source_bounds[4]{};
+	int second_bounds[4]{};
 	int output_bounds[4]{};
-	if (properties->propGetPointer(source_image, kOfxImagePropData, 0, &source_data) != kOfxStatOK
+	const auto image_identity = [&](OfxPropertySetHandle value, void*& bytes, int& row, int* bounds) {
+		return properties->propGetPointer(value, kOfxImagePropData, 0, &bytes) == kOfxStatOK
+			&& properties->propGetInt(value, kOfxImagePropRowBytes, 0, &row) == kOfxStatOK
+			&& properties->propGetIntN(value, kOfxImagePropBounds, 4, bounds) == kOfxStatOK
+			&& bytes != nullptr && row >= 4;
+	};
+	if ((!generator && !image_identity(source_image, source_data, source_row_bytes, source_bounds))
+		|| ((transition || paint || general)
+			&& !image_identity(second_image, second_data, second_row_bytes, second_bounds))
 		|| properties->propGetPointer(image, kOfxImagePropData, 0, &data) != kOfxStatOK
-		|| properties->propGetInt(source_image, kOfxImagePropRowBytes, 0, &source_row_bytes) != kOfxStatOK
 		|| properties->propGetInt(image, kOfxImagePropRowBytes, 0, &output_row_bytes) != kOfxStatOK
-		|| properties->propGetIntN(source_image, kOfxImagePropBounds, 4, source_bounds) != kOfxStatOK
 		|| properties->propGetIntN(image, kOfxImagePropBounds, 4, output_bounds) != kOfxStatOK
-		|| source_row_bytes < 4 || output_row_bytes < 4
-		|| !std::equal(std::begin(source_bounds), std::end(source_bounds), std::begin(output_bounds))
-		|| source_data == nullptr || data == nullptr) return kOfxStatFailed;
+		|| output_row_bytes < 4 || data == nullptr
+		|| (!generator && !std::equal(
+			std::begin(source_bounds), std::end(source_bounds), std::begin(output_bounds)
+		)) || ((transition || paint || general) && !std::equal(
+			std::begin(second_bounds), std::end(second_bounds), std::begin(output_bounds)
+		))) return kOfxStatFailed;
 	const auto width = output_bounds[2] - output_bounds[0];
 	const auto height = output_bounds[3] - output_bounds[1];
 	if (width < 1 || height < 1) return kOfxStatFailed;
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
-			auto* source_pixel = static_cast<unsigned char*>(source_data)
-				+ y * source_row_bytes + x * 4;
 			auto* output_pixel = static_cast<unsigned char*>(data)
 				+ y * output_row_bytes + x * 4;
-			for (std::size_t channel = 0; channel < 3; ++channel) {
-				output_pixel[channel] = source_pixel[channel];
+			if (generator) {
+				std::copy_n(std::array<unsigned char, 4>{17, 34, 51, 255}.begin(), 4, output_pixel);
+				continue;
 			}
-			output_pixel[0] = static_cast<unsigned char>(std::lround(
-				source_pixel[0] * std::clamp(current_speed, 0.0, 1.0)
-			));
-			output_pixel[3] = static_cast<unsigned char>(std::lround(
-				std::clamp(keyed_speed, 0.0, 1.0) * 255.0
-			));
+			auto* source_pixel = static_cast<unsigned char*>(source_data) + y * source_row_bytes + x * 4;
+			auto* second_pixel = second_data == nullptr ? nullptr
+				: static_cast<unsigned char*>(second_data) + y * second_row_bytes + x * 4;
+			for (std::size_t channel = 0; channel < 4; ++channel) output_pixel[channel] = source_pixel[channel];
+			if (transition || general) {
+				const auto amount = transition ? standard_value : 0.5;
+				for (std::size_t channel = 0; channel < 4; ++channel) output_pixel[channel] = static_cast<unsigned char>(
+					std::lround(source_pixel[channel] * (1 - amount) + second_pixel[channel] * amount)
+				);
+			} else if (paint) output_pixel[3] = second_pixel[3];
+			else {
+				output_pixel[0] = static_cast<unsigned char>(std::lround(
+					source_pixel[0] * std::clamp(current_speed, 0.0, 1.0)
+				));
+				output_pixel[3] = static_cast<unsigned char>(std::lround(
+					std::clamp(keyed_speed, 0.0, 1.0) * 255.0
+				));
+			}
 		}
 	}
-	if (images->clipReleaseImage(source_image) != kOfxStatOK
+	if ((!generator && images->clipReleaseImage(source_image) != kOfxStatOK)
+		|| ((transition || paint || general) && images->clipReleaseImage(second_image) != kOfxStatOK)
 		|| images->clipReleaseImage(image) != kOfxStatOK) return kOfxStatFailed;
 	if (progress->progressStart(effect, "Render", "framescaper.render") != kOfxStatOK
 		|| progress->progressUpdate(effect, 1) != kOfxStatOK

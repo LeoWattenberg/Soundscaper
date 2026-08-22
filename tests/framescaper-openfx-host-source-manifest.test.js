@@ -115,6 +115,7 @@ test('contract-only scanner and per-fingerprint runtime fixtures self-test separ
 			join(hostRoot, 'src', 'v12_host_invocation.cpp'),
 			join(hostRoot, 'src', 'v12_output_file.cpp'),
 			join(hostRoot, 'src', 'v12_retime_authority.cpp'),
+			join(hostRoot, 'src', 'v12_transition_authority.cpp'),
 			...[
 				'legacy_plan_semantics.cpp', 'legacy_plan_v8_filter_semantics.cpp',
 				'media_file_grants.cpp', 'media_plan.cpp', 'sha256.cpp', 'strict_json.cpp',

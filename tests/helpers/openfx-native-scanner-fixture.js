@@ -63,6 +63,7 @@ export function buildOpenFxNativeContractFixture(context) {
 		: process.platform === 'win32' ? '.dll' : '.so';
 	const plugin = join(directory, `conformance${extension}`);
 	const mismatchPlugin = join(directory, `context-mismatch${extension}`);
+	const spoofPlugin = join(directory, `standard-parameter-spoof${extension}`);
 	const scanner = join(directory, executableName('scanner'));
 	const runtime = join(directory, executableName('runtime'));
 	const blockedScanner = join(directory, executableName('blocked-scanner'));
@@ -79,12 +80,16 @@ export function buildOpenFxNativeContractFixture(context) {
 		...common, '-DFRAMESCAPER_OPENFX_CONTEXT_MISMATCH_FIXTURE=1',
 		...shared, fixture, '-o', mismatchPlugin,
 	], { encoding: 'utf8' }), 'OpenFX context-mismatch plug-in');
+	assertBuilt(spawnSync('c++', [
+		...common, '-DFRAMESCAPER_OPENFX_STANDARD_PARAMETER_SPOOF_FIXTURE=1',
+		...shared, fixture, '-o', spoofPlugin,
+	], { encoding: 'utf8' }), 'OpenFX standard-parameter-spoof plug-in');
 	const hostSources = [
 		join(sources, 'sha256.cpp'), join(sources, 'dynamic_library.cpp'),
 		join(sources, 'host_runtime.cpp'), join(sources, 'loaded_plugin_binary.cpp'),
 		join(sources, 'parameter_values.cpp'), join(sources, 'v12_cancellation_channel.cpp'),
 		join(sources, 'v12_host_invocation.cpp'), join(sources, 'v12_retime_authority.cpp'),
-		join(sources, 'v12_output_file.cpp'),
+		join(sources, 'v12_output_file.cpp'), join(sources, 'v12_transition_authority.cpp'),
 		join(repositoryRoot, 'native/framescaper-media-host/src/strict_json.cpp'),
 		join(repositoryRoot, 'native/framescaper-media-host/src/sha256.cpp'),
 		join(repositoryRoot, 'native/framescaper-media-host/src/media_file_grants.cpp'),
@@ -110,8 +115,9 @@ export function buildOpenFxNativeContractFixture(context) {
 	const bytes = readFileSync(plugin);
 	retainedCleanup = () => rmSync(directory, { recursive: true, force: true });
 	retainedBuild = {
-		directory, plugin, mismatchPlugin, scanner, runtime, blockedScanner,
+		directory, plugin, mismatchPlugin, spoofPlugin, scanner, runtime, blockedScanner,
 		sha256: digest(bytes), mismatchSha256: digest(readFileSync(mismatchPlugin)),
+		spoofSha256: digest(readFileSync(spoofPlugin)),
 		cleanup: () => undefined,
 	};
 	return retainedBuild;

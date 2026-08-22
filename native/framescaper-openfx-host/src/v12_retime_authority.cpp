@@ -10,10 +10,12 @@
 #endif
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace framescaper::openfx {
 namespace {
@@ -219,11 +221,36 @@ using soundscaper::framescaper::exact_wire_rational;
 		cpp_int(exact_integer(json::member(source_rate, "num"), "source rate numerator"))
 	);
 }
+
+[[nodiscard]] double ofx_time(const ExactRational& value) {
+	const auto magnitude = soundscaper::framescaper::absolute(value.numerator());
+	if (magnitude == 0) return 0;
+	const auto bounded_mantissa = [](const cpp_int& integer) {
+		const auto bits = soundscaper::framescaper::exact_bits(integer);
+		const auto shift = bits > 63 ? bits - 63 : 0;
+		return std::pair{
+			(integer >> shift).convert_to<long double>(),
+			static_cast<int>(shift),
+		};
+	};
+	const auto [numerator, numerator_shift] = bounded_mantissa(magnitude);
+	const auto [denominator, denominator_shift] = bounded_mantissa(value.denominator());
+	const auto converted = std::ldexp(
+		numerator / denominator, numerator_shift - denominator_shift
+	) * (value.numerator() < 0 ? -1 : 1);
+	const auto result = static_cast<double>(converted);
+	if (!std::isfinite(converted) || !std::isfinite(result)) {
+		throw v12_invocation_error{
+			"source-time-mismatch", "SourceTime is outside the OFX time domain."
+		};
+	}
+	return result;
+}
 #endif
 
 } // namespace
 
-void verify_v12_retimer_source_time(
+double verified_v12_retimer_source_time(
 	const json::value& plan,
 	const json::value& source_time
 ) {
@@ -256,6 +283,7 @@ void verify_v12_retimer_source_time(
 	if (soundscaper::framescaper::compare(expected, supplied) != 0) {
 		throw v12_invocation_error{"source-time-mismatch", "SourceTime differs from the exact ordinal oracle."};
 	}
+	return ofx_time(expected);
 #endif
 }
 

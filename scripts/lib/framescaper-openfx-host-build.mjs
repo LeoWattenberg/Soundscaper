@@ -31,6 +31,7 @@ const REQUIRED_CONTRACT_FILES = Object.freeze([
 	'src/host_runtime.cpp',
 	'src/host_runtime.hpp',
 	'src/host_scan_inspection.inc',
+	'src/host_standard_parameters.inc',
 	'src/isolation_contract.hpp',
 	'src/loaded_plugin_binary.cpp',
 	'src/parameter_values.cpp',
@@ -43,6 +44,8 @@ const REQUIRED_CONTRACT_FILES = Object.freeze([
 	'src/sha256.hpp',
 	'src/v12_output_file.cpp',
 	'src/v12_output_file.hpp',
+	'src/v12_transition_authority.cpp',
+	'src/v12_transition_authority.hpp',
 ]);
 const REQUIRED_OPENFX_HEADERS = Object.freeze([
 	'ofxCore.h', 'ofxImageEffect.h', 'ofxProperty.h', 'ofxParam.h',

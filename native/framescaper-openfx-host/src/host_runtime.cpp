@@ -45,6 +45,7 @@ struct Parameter {
 	PropertySet properties;
 	std::string name;
 	std::string type;
+	bool host_owned = false;
 	ParameterValues values;
 };
 struct ParameterSet {
@@ -240,14 +241,14 @@ OfxStatus param_get_value(OfxParamHandle h, ...) { auto* p = parameter(h); if (p
 OfxStatus param_get_value_at(OfxParamHandle h, OfxTime t, ...) { auto* p = parameter(h); if (p == nullptr) return kOfxStatErrBadHandle; std::va_list a; va_start(a, t); const auto s = parameter_get_at(p->values, t, a); va_end(a); return s; }
 OfxStatus param_derivative(OfxParamHandle h, OfxTime t, ...) { auto* p = parameter(h); if (p == nullptr) return kOfxStatErrBadHandle; std::va_list a; va_start(a, t); const auto s = parameter_derivative(p->values, t, a); va_end(a); return s; }
 OfxStatus param_integral(OfxParamHandle h, OfxTime f, OfxTime l, ...) { auto* p = parameter(h); if (p == nullptr) return kOfxStatErrBadHandle; std::va_list a; va_start(a, l); const auto s = parameter_integral(p->values, f, l, a); va_end(a); return s; }
-OfxStatus param_set_value(OfxParamHandle h, ...) { auto* p = parameter(h); if (p == nullptr) return kOfxStatErrBadHandle; std::va_list a; va_start(a, h); const auto s = parameter_set(p->values, a); va_end(a); return s; }
-OfxStatus param_set_value_at(OfxParamHandle h, OfxTime t, ...) { auto* p = parameter(h); if (p == nullptr) return kOfxStatErrBadHandle; std::va_list a; va_start(a, t); const auto s = parameter_set_at(p->values, t, a); va_end(a); return s; }
+OfxStatus param_set_value(OfxParamHandle h, ...) { auto* p = parameter(h); if (p == nullptr) return kOfxStatErrBadHandle; if (p->host_owned) return kOfxStatErrUnsupported; std::va_list a; va_start(a, h); const auto s = parameter_set(p->values, a); va_end(a); return s; }
+OfxStatus param_set_value_at(OfxParamHandle h, OfxTime t, ...) { auto* p = parameter(h); if (p == nullptr) return kOfxStatErrBadHandle; if (p->host_owned) return kOfxStatErrUnsupported; std::va_list a; va_start(a, t); const auto s = parameter_set_at(p->values, t, a); va_end(a); return s; }
 OfxStatus param_num_keys(OfxParamHandle h, unsigned int* count) { auto* p = parameter(h); return p == nullptr ? kOfxStatErrBadHandle : parameter_key_count(p->values, count); }
 OfxStatus param_key_time(OfxParamHandle h, unsigned int i, OfxTime* t) { auto* p = parameter(h); return p == nullptr ? kOfxStatErrBadHandle : parameter_key_time(p->values, i, t); }
 OfxStatus param_key_index(OfxParamHandle h, OfxTime t, int d, int* i) { auto* p = parameter(h); return p == nullptr ? kOfxStatErrBadHandle : parameter_key_index(p->values, t, d, i); }
-OfxStatus param_delete_key(OfxParamHandle h, OfxTime t) { auto* p = parameter(h); return p == nullptr ? kOfxStatErrBadHandle : parameter_delete_key(p->values, t); }
-OfxStatus param_delete_all(OfxParamHandle h) { auto* p = parameter(h); if (p == nullptr) return kOfxStatErrBadHandle; parameter_delete_all_keys(p->values); return kOfxStatOK; }
-OfxStatus param_copy(OfxParamHandle to, OfxParamHandle from, OfxTime offset, const OfxRangeD* range) { auto* destination = parameter(to); auto* source = parameter(from); return destination == nullptr || source == nullptr ? kOfxStatErrBadHandle : parameter_copy(destination->values, source->values, offset, range); }
+OfxStatus param_delete_key(OfxParamHandle h, OfxTime t) { auto* p = parameter(h); return p == nullptr ? kOfxStatErrBadHandle : p->host_owned ? kOfxStatErrUnsupported : parameter_delete_key(p->values, t); }
+OfxStatus param_delete_all(OfxParamHandle h) { auto* p = parameter(h); if (p == nullptr) return kOfxStatErrBadHandle; if (p->host_owned) return kOfxStatErrUnsupported; parameter_delete_all_keys(p->values); return kOfxStatOK; }
+OfxStatus param_copy(OfxParamHandle to, OfxParamHandle from, OfxTime offset, const OfxRangeD* range) { auto* destination = parameter(to); auto* source = parameter(from); return destination == nullptr || source == nullptr ? kOfxStatErrBadHandle : destination->host_owned ? kOfxStatErrUnsupported : parameter_copy(destination->values, source->values, offset, range); }
 OfxStatus param_edit_begin(OfxParamSetHandle h, const char*) { return parameter_set(h) == nullptr ? kOfxStatErrBadHandle : kOfxStatOK; }
 OfxStatus param_edit_end(OfxParamSetHandle h) { return parameter_set(h) == nullptr ? kOfxStatErrBadHandle : kOfxStatOK; }
 OfxStatus image_get_props(OfxImageEffectHandle h, OfxPropertySetHandle* out) { auto* e = effect(h); if (e == nullptr || out == nullptr) return kOfxStatErrBadHandle; *out = handle(e->properties); return kOfxStatOK; }
@@ -428,6 +429,7 @@ OfxStatus call(
 	PropertySet* output = nullptr
 );
 #include "host_scan_inspection.inc"
+#include "host_standard_parameters.inc"
 
 bool accepted_status(OfxStatus status) { return status == kOfxStatOK || status == kOfxStatReplyDefault; }
 OfxStatus call(OfxPlugin& plugin, const char* action, const void* target, PropertySet* input, PropertySet* output) {
@@ -499,7 +501,8 @@ InvocationResult HostRuntime::invoke(OfxPlugin& plugin, Context context, std::st
 	std::function<bool()> cancellation_probe,
 	RgbaFrameLayout output_layout,
 	bool exact_frames,
-	OfxTime render_time) {
+	OfxTime render_time,
+	std::optional<double> host_standard_parameter_value) {
 	if (!member_of(action, kActions)) throw std::invalid_argument("The OpenFX action is outside the closed host contract.");
 	if (!std::isfinite(render_time) || render_time < 0) throw std::invalid_argument("The OpenFX render time is outside its exact frame domain.");
 	if (exact_frames && backend != Backend::cpu) throw std::runtime_error("The exact V12 host has no authenticated GPU backend.");
@@ -545,7 +548,9 @@ InvocationResult HostRuntime::invoke(OfxPlugin& plugin, Context context, std::st
 		}
 	}
 	PropertySet render_args; render_args.owner = &state; prop_set_double(handle(render_args), kOfxPropTime, 0, render_time); const double scale[]{1, 1}; prop_set_double_n(handle(render_args), kOfxImageEffectPropRenderScale, 2, scale); const int window[]{0, 0, static_cast<int>(output_layout.width), static_cast<int>(output_layout.height)}; prop_set_int_n(handle(render_args), kOfxImageEffectPropRenderWindow, 4, window);
-	const bool parameters_bound = frames_bound && hydrate_parameter_state(
+	const bool parameters_bound = frames_bound && bind_host_standard_parameter(
+		state.effect_record.parameters, context, host_standard_parameter_value, result
+	) && hydrate_parameter_state(
 		state.effect_record.parameters, parameters,
 		result.hydrated_parameter_count, result.hydrated_keyframe_count
 	);
