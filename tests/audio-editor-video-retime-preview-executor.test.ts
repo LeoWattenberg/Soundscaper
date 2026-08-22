@@ -423,12 +423,7 @@ test('keeps retime execution behind its reviewed exact consumer boundaries', asy
 		assert.match(statement, /from ['"]\.\/video-retime-frame-dispatch\.ts['"]/u);
 	}
 	assert.ok(executorSource.split(/\r\n|\n|\r/u).length - 1 <= 600);
-	const outputCadenceConsumers = new Set([
-		'unified-exact-retime-authority.ts',
-		'video-retime-exact-ordinal-oracle.ts',
-		'video-retime-export-domain.ts',
-		'video-retime-export-plan.ts',
-	]);
+	const outputCadenceConsumers = new Set(['unified-exact-retime-authority.ts', 'video-retime-exact-ordinal-oracle.ts', 'video-retime-export-domain.ts', 'video-retime-export-plan.ts']);
 	const previewExecutorConsumers = new Set(['video-retime-html-video-seek-port.ts', 'video-retime-ordinal-consumers.ts']);
 	const rawOracleFactoryConsumers = new Set(['video-retime-exact-ordinal-authority.ts']);
 	for (const path of await maintainedSources(new URL('.', EDITOR_SOURCE_ROOT))) {
