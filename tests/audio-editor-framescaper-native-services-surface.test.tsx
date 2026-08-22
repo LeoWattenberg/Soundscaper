@@ -21,6 +21,7 @@ import {
 } from '../src/common/editor/ui/framescaper-native-project-actions.ts';
 import {
 	createFramescaperNativeServicesSurfaceHost,
+	framescaperNativeServicesDialogContextForProject,
 	resolveFramescaperNativeServicesWorkspaceRuntime,
 	wrapFramescaperNativeServicesMenuRuntime,
 } from '../src/common/editor/ui/workspace/FramescaperNativeServicesSurface.tsx';
@@ -281,6 +282,16 @@ test('workspace resolution is Framescaper-only and keeps blocked-state surfaces 
 	assert.equal(runtime.capabilitySnapshot, null);
 	assert.equal(runtime.services.runtimeAvailable, false,
 		'the pending projection must not claim helper availability');
+});
+
+test('production watch context keeps unimplemented proxy generation unavailable', () => {
+	assert.deepEqual(framescaperNativeServicesDialogContextForProject({
+		id: 'project-1', schemaVersion: 25,
+	}), {
+		projectId: 'project-1',
+		binId: null,
+		allowProxyGeneration: false,
+	});
 });
 
 test('workspace resolution admits only a branded candidate project-action runtime', () => {

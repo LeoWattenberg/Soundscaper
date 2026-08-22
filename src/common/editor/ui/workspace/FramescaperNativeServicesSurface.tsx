@@ -162,7 +162,7 @@ export function resolveFramescaperNativeServicesWorkspaceRuntime(input: Readonly
 	store.refreshIfStale();
 	const snapshot = store.getSnapshot() ?? PENDING_FRAMESCAPER_NATIVE_SERVICES_SNAPSHOT;
 	const lifecycleMethods = availableFramescaperNativeServicesLifecycleMethods(bridge);
-	const context = dialogContext(input.project, input.projectCapabilities);
+	const context = framescaperNativeServicesDialogContextForProject(input.project);
 	const projectActions = isFramescaperNativeProjectActionRuntime(input.projectActions)
 		? input.projectActions : null;
 	return Object.freeze({
@@ -200,22 +200,19 @@ export function wrapFramescaperNativeServicesMenuRuntime(
 	});
 }
 
-function dialogContext(
+export function framescaperNativeServicesDialogContextForProject(
 	project: unknown,
-	capabilities: Readonly<Record<string, unknown>> | undefined,
 ): FramescaperNativeServicesDialogContext {
 	const row = project !== null && typeof project === 'object' && !Array.isArray(project)
 		? project as Readonly<Record<string, unknown>> : null;
 	const idValue = ownData(row, 'id');
-	const versionValue = ownData(row, 'schemaVersion');
 	const projectId = typeof idValue === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(idValue)
 		? idValue : null;
-	const schemaVersion = Number.isSafeInteger(versionValue) ? Number(versionValue) : null;
 	return Object.freeze({
 		projectId,
 		binId: null,
-		allowProxyGeneration: (schemaVersion === 25 || schemaVersion === 26)
-			&& capabilities?.sourceCharacteristics === true,
+		// The selected watch-import client does not yet compose V25 proxy jobs.
+		allowProxyGeneration: false,
 	});
 }
 

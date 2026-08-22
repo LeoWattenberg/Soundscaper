@@ -257,6 +257,12 @@ export class FramescaperNativeServicesController {
 		this.#assertOpen();
 		const request = framescaperNativeWatchCreateRequest(value);
 		this.authorizeWatchProject(request.projectId);
+		if (request.generateProxies) {
+			throw new Error('Framescaper watch-folder proxy generation is unavailable.');
+		}
+		if (request.binId !== null) {
+			throw new Error('Framescaper watch-folder destination bins are unavailable.');
+		}
 		return watchProjection(this.#requireLifecycle().createWatch(request));
 	}
 

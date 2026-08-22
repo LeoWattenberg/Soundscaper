@@ -169,6 +169,14 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 		grantId: GRANT_ID, displayName: 'Authorized folder', revoked: false,
 	});
 	assert.equal(await bridge.revalidateRoot({ grantId: GRANT_ID }), true);
+	await assert.rejects(() => bridge.createWatch({
+		grantId: GRANT_ID, projectId: 'project-1', binId: null,
+		extensions: ['mov'], importMode: 'link', generateProxies: true,
+	}), /watch-folder proxy generation is unavailable/u);
+	await assert.rejects(() => bridge.createWatch({
+		grantId: GRANT_ID, projectId: 'project-1', binId: 'bin-1',
+		extensions: ['mov'], importMode: 'link', generateProxies: false,
+	}), /watch-folder destination bins are unavailable/u);
 	const rule = await bridge.createWatch({
 		grantId: GRANT_ID, projectId: 'project-1', binId: null,
 		extensions: ['mov'], importMode: 'link', generateProxies: false,
