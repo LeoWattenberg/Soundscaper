@@ -61,7 +61,7 @@ export function registerDesktopHelperProbe({ channels, handle, ownerFor, readCap
 			);
 			channel = child;
 			return Object.freeze({
-				postMessage: (message) => child.postMessage(message),
+				postMessage: (message, transfer = []) => child.postMessage(message, transfer),
 				onMessage: (listener) => child.on('message', listener),
 				onExit: (listener) => child.on('exit', (code) => listener(code ?? null)),
 				kill: () => child.kill(),

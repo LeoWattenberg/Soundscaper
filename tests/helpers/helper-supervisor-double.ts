@@ -11,6 +11,7 @@
  */
 
 import { HELPER_CONTRACT_VERSION, type HelperHostMessage } from '../../desktop/helper-contract.ts';
+import type { HelperDataPlaneTransferPort } from '../../desktop/helper-data-plane-transfer.ts';
 import {
 	HelperSupervisionError,
 	HelperSupervisor,
@@ -57,6 +58,7 @@ export class FakeTimers {
 
 export class FakeChannel implements HelperChannel {
 	readonly posted: HelperHostMessage[] = [];
+	readonly transfers: HelperDataPlaneTransferPort[][] = [];
 	killed = 0;
 	autoHello = true;
 	kinds: readonly string[] = [JOB_KIND];
@@ -64,9 +66,10 @@ export class FakeChannel implements HelperChannel {
 	#messageListener: ((message: unknown) => void) | null = null;
 	#exitListener: ((code: number | null) => void) | null = null;
 
-	postMessage(message: HelperHostMessage): void {
+	postMessage(message: HelperHostMessage, transfer: readonly HelperDataPlaneTransferPort[] = []): void {
 		if (this.throwOnPost) throw new Error('channel closed');
 		this.posted.push(message);
+		this.transfers.push([...transfer]);
 	}
 
 	onMessage(listener: (message: unknown) => void): void {

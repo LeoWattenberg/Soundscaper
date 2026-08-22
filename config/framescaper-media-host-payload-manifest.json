@@ -1,0 +1,48 @@
+{
+	"schemaVersion": 1,
+	"id": "framescaper-media-host-1.0.0",
+	"sourceManifestPath": "native/framescaper-media-host/source-manifest.json",
+	"ffmpeg": {
+		"version": "9.0.1",
+		"sha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635"
+	},
+	"runtimePrefix": "native/framescaper-media-host",
+	"payloads": [],
+	"targets": [
+		{
+			"id": "linux-x64",
+			"runtime": "linux-x64",
+			"status": "pending-external",
+			"blockedBy": "The FFmpeg licensing and corresponding-source gates are blocked and no FFmpeg 9.0.1-linked release payload has been built and reviewed on Linux x64.",
+			"payload": null
+		},
+		{
+			"id": "linux-arm64",
+			"runtime": "linux-arm64",
+			"status": "pending-external",
+			"blockedBy": "No Linux ARM64 build host or FFmpeg 9.0.1-linked signed payload evidence is provisioned; licensing gates also remain blocked.",
+			"payload": null
+		},
+		{
+			"id": "mac-arm64",
+			"runtime": "darwin-arm64",
+			"status": "pending-external",
+			"blockedBy": "No macOS ARM64 build, signing, notarization, or FFmpeg 9.0.1-linked hardware evidence is provisioned; licensing gates also remain blocked.",
+			"payload": null
+		},
+		{
+			"id": "win-x64",
+			"runtime": "win32-x64",
+			"status": "pending-external",
+			"blockedBy": "No Windows x64 build, signing, or FFmpeg 9.0.1-linked hardware evidence is provisioned; licensing gates also remain blocked.",
+			"payload": null
+		},
+		{
+			"id": "win-arm64",
+			"runtime": "win32-arm64",
+			"status": "pending-external",
+			"blockedBy": "No Windows Arm64EC build, signing, or FFmpeg 9.0.1-linked hardware evidence is provisioned; licensing gates also remain blocked.",
+			"payload": null
+		}
+	]
+}

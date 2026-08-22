@@ -10,12 +10,56 @@ import {
 	HelperContractViolationError,
 	assertHelperWireEnvelope,
 } from './helper-wire-admission.ts';
+import {
+	HELPER_NATIVE_JOB_KINDS,
+	type HelperNativeJobGrantByKind,
+	type HelperNativeJobKind,
+	type HelperNativeJobResourceUsage,
+	type HelperNativeJobResultByKind,
+	helperNativeJobGrantResourceUsage,
+	validateHelperNativeJobGrant,
+	validateHelperNativeJobResult,
+} from './helper-native-job-contract.ts';
+
+export {
+	HELPER_EXECUTABLE_ROLES,
+	HELPER_NATIVE_INPUT_ROLES,
+	HELPER_NATIVE_JOB_KINDS,
+} from './helper-native-job-contract.ts';
+export type {
+	HelperExecutableGrant,
+	HelperExecutableRole,
+	HelperFileInputGrant,
+	HelperFileOutputJobResult,
+	HelperMediaDecodeJobGrant,
+	HelperMediaEncodeJobGrant,
+	HelperMediaImageSequenceDecodeGrant,
+	HelperMediaImageSequenceDecodeJobGrant,
+	HelperMediaProxyJobGrant,
+	HelperMediaProxyRecipeGrant,
+	HelperMediaRenderJobGrant,
+	HelperNativeFileIdentity,
+	HelperNativeInputGrant,
+	HelperNativeInputRole,
+	HelperNativeJobKind,
+	HelperNativeJobResourceUsage,
+	HelperOfxInputFrameGrant,
+	HelperOfxHostJobGrant,
+	HelperOfxScanJobGrant,
+	HelperOfxScanJobResult,
+	HelperOutputFileGrant,
+	HelperScratchGrant,
+	HelperStreamInputGrant,
+	HelperStreamOutputJobResult,
+	HelperTemporaryOutputResult,
+} from './helper-native-job-contract.ts';
 
 export const HELPER_JOB_KINDS = Object.freeze([
 	'probe-video-source',
 	'audio-device',
 	'plugin-scan',
 	'plugin-host',
+	...HELPER_NATIVE_JOB_KINDS,
 ] as const);
 
 export type HelperJobKind = (typeof HELPER_JOB_KINDS)[number];
@@ -98,18 +142,30 @@ export interface HelperPluginHostJobGrant {
 	readonly identity: Readonly<HelperFileIdentity>;
 }
 
-export interface HelperJobGrantByKind {
+export interface HelperLegacyJobGrantByKind {
 	readonly 'probe-video-source': HelperProbeJobGrant;
 	readonly 'audio-device': HelperAudioDeviceJobGrant;
 	readonly 'plugin-scan': HelperPluginScanJobGrant;
 	readonly 'plugin-host': HelperPluginHostJobGrant;
 }
 
+export type HelperJobGrantByKind = HelperLegacyJobGrantByKind & HelperNativeJobGrantByKind;
+
+export interface HelperLegacyJobResultByKind {
+	readonly 'probe-video-source': unknown;
+	readonly 'audio-device': unknown;
+	readonly 'plugin-scan': unknown;
+	readonly 'plugin-host': unknown;
+}
+
+export type HelperJobResultByKind = HelperLegacyJobResultByKind & HelperNativeJobResultByKind;
+
 /** The default keeps the existing probe supervisor/service source-compatible. */
 export type HelperJobGrant<Kind extends HelperJobKind = 'probe-video-source'> =
 	HelperJobGrantByKind[Kind];
 
 export type AnyHelperJobGrant = HelperJobGrant<HelperJobKind>;
+export type HelperJobResult<Kind extends HelperJobKind> = HelperJobResultByKind[Kind];
 
 const PROBE_KEYS = Object.freeze(['mediaPath', 'mediaBytes', 'identity']);
 const AUDIO_DEVICE_KEYS = Object.freeze(['backend', 'deviceHandle', 'direction', 'mode']);
@@ -131,15 +187,73 @@ export function validateHelperJobGrant<Kind extends HelperJobKind>(
 	if (kind === 'probe-video-source') return validateProbeGrant(value) as HelperJobGrant<Kind>;
 	if (kind === 'audio-device') return validateAudioDeviceGrant(value) as HelperJobGrant<Kind>;
 	if (kind === 'plugin-scan') return validatePluginScanGrant(value) as HelperJobGrant<Kind>;
-	return validatePluginHostGrant(value) as HelperJobGrant<Kind>;
+	if (kind === 'plugin-host') return validatePluginHostGrant(value) as HelperJobGrant<Kind>;
+	return validateHelperNativeJobGrant(
+		kind as HelperNativeJobKind,
+		value,
+	) as HelperJobGrant<Kind>;
 }
 
 /** Total admitted-input accounting used before a supervisor posts any job. */
 export function helperJobGrantInputBytes(kind: HelperJobKind, value: unknown): number {
+	return helperJobGrantResourceUsage(kind, value).inputBytes;
+}
+
+export function helperJobGrantResourceUsage(
+	kind: HelperJobKind,
+	value: unknown,
+): HelperNativeJobResourceUsage {
 	const grant: AnyHelperJobGrant = validateHelperJobGrant(kind, value);
-	if ('mediaBytes' in grant) return grant.mediaBytes;
-	if ('binaryBytes' in grant) return grant.binaryBytes;
-	return 0;
+	if ((HELPER_NATIVE_JOB_KINDS as readonly string[]).includes(kind)) {
+		return helperNativeJobGrantResourceUsage(
+			kind as HelperNativeJobKind,
+			grant as HelperNativeJobGrantByKind[HelperNativeJobKind],
+		);
+	}
+	let inputBytes = 0;
+	if ('mediaBytes' in grant) inputBytes = grant.mediaBytes;
+	if ('binaryBytes' in grant) inputBytes = grant.binaryBytes;
+	return Object.freeze({
+		inputBytes,
+		outputBytes: 0,
+		scratchBytes: 0,
+		dataPlaneBytes: 0,
+		maximumInFlightChunks: 0,
+	});
+}
+
+export function helperJobGrantExceedsResourcePolicy(
+	usage: HelperNativeJobResourceUsage,
+	policy: Readonly<{
+		maximumInputBytes: number;
+		maximumOutputBytes?: number;
+		maximumScratchBytes?: number;
+		maximumDataPlaneBytes?: number;
+		maximumInFlightChunks?: number;
+	}>,
+): boolean {
+	return usage.inputBytes > policy.maximumInputBytes
+		|| usage.outputBytes > (policy.maximumOutputBytes ?? 0)
+		|| usage.scratchBytes > (policy.maximumScratchBytes ?? 0)
+		|| usage.dataPlaneBytes > (policy.maximumDataPlaneBytes ?? 0)
+		|| usage.maximumInFlightChunks > (policy.maximumInFlightChunks ?? 0);
+}
+
+export function validateHelperJobResult<Kind extends HelperJobKind>(
+	kind: Kind,
+	value: unknown,
+	grant: HelperJobGrant<Kind>,
+): HelperJobResult<Kind> {
+	const admittedGrant = validateHelperJobGrant(kind, grant);
+	if ((HELPER_NATIVE_JOB_KINDS as readonly string[]).includes(kind)) {
+		return validateHelperNativeJobResult(
+			kind as HelperNativeJobKind,
+			value,
+			admittedGrant as HelperNativeJobGrantByKind[HelperNativeJobKind],
+		) as HelperJobResult<Kind>;
+	}
+	assertHelperWireEnvelope(value);
+	return value as HelperJobResult<Kind>;
 }
 
 function validateProbeGrant(value: unknown): HelperProbeJobGrant {

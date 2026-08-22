@@ -1,14 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/**
- * The milestone-5 helper contract, version 1: the one versioned wire schema
- * every Electron native helper process speaks with the main process. Both
- * sides validate every message before acting on it — a malformed, oversized,
- * or wrongly versioned message is rejected with a typed error, never trusted.
- * Renderer processes never see this wire: helpers are spawned and owned by
- * main only, and every path or binary authority stays on the main side of
- * the renderer bridge.
- */
+/** Closed milestone-5 helper wire; renderers never receive its concrete authority. */
 
 import { admitLowerOnly } from '../src/common/editor/lower-only-seam.ts';
 import {
@@ -31,8 +23,11 @@ export {
 	HELPER_JOB_KINDS,
 	HELPER_PLUGIN_FORMATS,
 	HELPER_PROBE_JOB_KINDS,
+	helperJobGrantExceedsResourcePolicy,
 	helperJobGrantInputBytes,
+	helperJobGrantResourceUsage,
 	validateHelperJobGrant,
+	validateHelperJobResult,
 } from './helper-job-grant.ts';
 export type {
 	AnyHelperJobGrant,
@@ -42,10 +37,45 @@ export type {
 	HelperJobGrant,
 	HelperJobGrantByKind,
 	HelperJobKind,
+	HelperJobResult,
+	HelperJobResultByKind,
 	HelperPluginFormat,
 	HelperPluginHostJobGrant,
 	HelperPluginScanJobGrant,
 	HelperProbeJobGrant,
+} from './helper-job-grant.ts';
+export * from './helper-data-plane.ts';
+export {
+	HELPER_EXECUTABLE_ROLES,
+	HELPER_NATIVE_INPUT_ROLES,
+	HELPER_NATIVE_JOB_KINDS,
+} from './helper-job-grant.ts';
+export type {
+	HelperExecutableGrant,
+	HelperExecutableRole,
+	HelperFileInputGrant,
+	HelperFileOutputJobResult,
+	HelperMediaDecodeJobGrant,
+	HelperMediaImageSequenceDecodeGrant,
+	HelperMediaImageSequenceDecodeJobGrant,
+	HelperMediaEncodeJobGrant,
+	HelperMediaProxyJobGrant,
+	HelperMediaProxyRecipeGrant,
+	HelperMediaRenderJobGrant,
+	HelperNativeFileIdentity,
+	HelperNativeInputGrant,
+	HelperNativeInputRole,
+	HelperNativeJobKind,
+	HelperNativeJobResourceUsage,
+	HelperOfxInputFrameGrant,
+	HelperOfxHostJobGrant,
+	HelperOfxScanJobGrant,
+	HelperOfxScanJobResult,
+	HelperOutputFileGrant,
+	HelperScratchGrant,
+	HelperStreamInputGrant,
+	HelperStreamOutputJobResult,
+	HelperTemporaryOutputResult,
 } from './helper-job-grant.ts';
 export {
 	HelperContractViolationError,
@@ -80,18 +110,95 @@ export const HELPER_JOB_DURATION_HARD_LIMITS = Object.freeze({
 	'audio-device': 24 * 60 * 60_000,
 	'plugin-scan': 60 * 60_000,
 	'plugin-host': 24 * 60 * 60_000,
+	'media-decode': 24 * 60 * 60_000,
+	'media-encode': 24 * 60 * 60_000,
+	'media-render': 24 * 60 * 60_000,
+	'media-proxy': 24 * 60 * 60_000,
+	'ofx-scan': 60 * 60_000,
+	'ofx-host': 24 * 60 * 60_000,
 } as const satisfies Readonly<Record<HelperJobKind, number>>);
 
+const MAXIMUM_NATIVE_FILE_BYTES = 16 * 1024 ** 4;
+const MAXIMUM_NATIVE_OFX_BYTES = 64 * 1024 ** 3;
+const NATIVE_JOB_LIMITS = Object.freeze({
+	maximumInputBytes: MAXIMUM_NATIVE_FILE_BYTES,
+	maximumOutputBytes: MAXIMUM_NATIVE_FILE_BYTES,
+	maximumScratchBytes: MAXIMUM_NATIVE_FILE_BYTES,
+	maximumDataPlaneBytes: MAXIMUM_NATIVE_FILE_BYTES,
+	maximumInFlightChunks: 8,
+	maximumRssBytes: HELPER_RESOURCE_HARD_LIMITS.maximumRssBytes,
+});
+const OFX_JOB_LIMITS = Object.freeze({
+	maximumInputBytes: MAXIMUM_NATIVE_OFX_BYTES,
+	maximumOutputBytes: MAXIMUM_NATIVE_OFX_BYTES,
+	maximumScratchBytes: MAXIMUM_NATIVE_OFX_BYTES,
+	maximumDataPlaneBytes: MAXIMUM_NATIVE_OFX_BYTES,
+	maximumInFlightChunks: 8,
+	maximumRssBytes: HELPER_RESOURCE_HARD_LIMITS.maximumRssBytes,
+});
+
+/** Exact hard policy shape for every negotiated kind. */
+export const HELPER_JOB_RESOURCE_HARD_LIMITS = Object.freeze({
+	'probe-video-source': Object.freeze({
+		...HELPER_RESOURCE_HARD_LIMITS,
+		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['probe-video-source'],
+	}),
+	'audio-device': Object.freeze({
+		...HELPER_RESOURCE_HARD_LIMITS,
+		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['audio-device'],
+	}),
+	'plugin-scan': Object.freeze({
+		...HELPER_RESOURCE_HARD_LIMITS,
+		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['plugin-scan'],
+	}),
+	'plugin-host': Object.freeze({
+		...HELPER_RESOURCE_HARD_LIMITS,
+		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['plugin-host'],
+	}),
+	'media-decode': Object.freeze({
+		...NATIVE_JOB_LIMITS,
+		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['media-decode'],
+	}),
+	'media-encode': Object.freeze({
+		...NATIVE_JOB_LIMITS,
+		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['media-encode'],
+	}),
+	'media-render': Object.freeze({
+		...NATIVE_JOB_LIMITS,
+		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['media-render'],
+	}),
+	'media-proxy': Object.freeze({
+		...NATIVE_JOB_LIMITS,
+		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['media-proxy'],
+	}),
+	'ofx-scan': Object.freeze({
+		...OFX_JOB_LIMITS,
+		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['ofx-scan'],
+	}),
+	'ofx-host': Object.freeze({
+		...OFX_JOB_LIMITS,
+		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['ofx-host'],
+	}),
+} as const satisfies Readonly<Record<HelperJobKind, Readonly<{
+	maximumInputBytes: number;
+	maximumJobDurationMs: number;
+	maximumRssBytes: number;
+}>>>);
+
 /**
- * Per-job resource authority stays deny-only in v1. Omitting the booleans on
- * an older probe message normalizes them to false; true is never admitted.
- * Kind-aware duration ceilings keep probe work at ten minutes while allowing
- * a bounded scan fixture and finite long-lived audio/host sessions.
+ * Ambient resource authority stays deny-only in v1. Exact native job grants
+ * may name one verified executable, output and scratch reservation without
+ * turning these broad booleans on. Kind-aware lower-only ceilings bind those
+ * grants while older probe messages continue to normalize all booleans false.
  */
 export interface HelperJobResourcePolicy {
 	readonly maximumInputBytes: number;
 	readonly maximumJobDurationMs: number;
 	readonly maximumRssBytes: number;
+	readonly maximumOutputBytes?: number;
+	readonly maximumScratchBytes?: number;
+	readonly maximumDataPlaneBytes?: number;
+	readonly maximumInFlightChunks?: number;
 	readonly allowNetwork: false;
 	readonly allowChildProcesses: false;
 	readonly allowOutputFiles: false;
@@ -191,6 +298,9 @@ const RESULT_KEYS = Object.freeze(['contractVersion', 'type', 'jobId', 'result']
 const ERROR_KEYS = Object.freeze(['contractVersion', 'type', 'jobId', 'error']);
 const POLICY_KEYS = Object.freeze(['maximumInputBytes', 'maximumJobDurationMs', 'maximumRssBytes']);
 const POLICY_DENY_KEYS = Object.freeze(['allowNetwork', 'allowChildProcesses', 'allowOutputFiles']);
+const POLICY_NATIVE_KEYS = Object.freeze([
+	'maximumOutputBytes', 'maximumScratchBytes', 'maximumDataPlaneBytes', 'maximumInFlightChunks',
+]);
 const WIRE_ERROR_KEYS = Object.freeze(['name', 'message', 'code']);
 
 export function assertHelperJobId(value: unknown): string {
@@ -209,13 +319,30 @@ export function normalizeHelperResourcePolicy(
 	if (!(HELPER_JOB_KINDS as readonly string[]).includes(kind)) {
 		throw new RangeError('Helper resource policy requires a known contract-v1 job kind.');
 	}
-	return Object.freeze({
-		maximumInputBytes: lowerOnlyLimit(value?.maximumInputBytes, HELPER_RESOURCE_HARD_LIMITS.maximumInputBytes, 'input bytes'),
-		maximumJobDurationMs: lowerOnlyLimit(value?.maximumJobDurationMs, HELPER_JOB_DURATION_HARD_LIMITS[kind], 'job duration'),
-		maximumRssBytes: lowerOnlyLimit(value?.maximumRssBytes, HELPER_RESOURCE_HARD_LIMITS.maximumRssBytes, 'peak RSS'),
+	const hard = HELPER_JOB_RESOURCE_HARD_LIMITS[kind];
+	const base = {
+		maximumInputBytes: lowerOnlyLimit(value?.maximumInputBytes, hard.maximumInputBytes, 'input bytes'),
+		maximumJobDurationMs: lowerOnlyLimit(value?.maximumJobDurationMs, hard.maximumJobDurationMs, 'job duration'),
+		maximumRssBytes: lowerOnlyLimit(value?.maximumRssBytes, hard.maximumRssBytes, 'peak RSS'),
 		allowNetwork: denyOnly(value?.allowNetwork, 'network'),
 		allowChildProcesses: denyOnly(value?.allowChildProcesses, 'child-process'),
 		allowOutputFiles: denyOnly(value?.allowOutputFiles, 'output-file'),
+	};
+	if (!('maximumOutputBytes' in hard)) return Object.freeze(base);
+	return Object.freeze({
+		...base,
+		maximumOutputBytes: lowerOnlyLimit(value?.maximumOutputBytes, hard.maximumOutputBytes, 'output bytes'),
+		maximumScratchBytes: lowerOnlyLimit(value?.maximumScratchBytes, hard.maximumScratchBytes, 'scratch bytes'),
+		maximumDataPlaneBytes: lowerOnlyLimit(
+			value?.maximumDataPlaneBytes,
+			hard.maximumDataPlaneBytes,
+			'data-plane bytes',
+		),
+		maximumInFlightChunks: lowerOnlyLimit(
+			value?.maximumInFlightChunks,
+			hard.maximumInFlightChunks,
+			'in-flight chunks',
+		),
 	});
 }
 
@@ -339,7 +466,10 @@ export function deserializeHelperError(value: HelperWireError): Error {
 
 function validateWirePolicy(value: unknown, kind: HelperJobKind): HelperJobResourcePolicy {
 	const record = wireRecord(value);
-	exactOptionalWireKeys(record, POLICY_KEYS, POLICY_DENY_KEYS);
+	const optional = 'maximumOutputBytes' in HELPER_JOB_RESOURCE_HARD_LIMITS[kind]
+		? [...POLICY_DENY_KEYS, ...POLICY_NATIVE_KEYS]
+		: POLICY_DENY_KEYS;
+	exactOptionalWireKeys(record, POLICY_KEYS, optional);
 	try {
 		return normalizeHelperResourcePolicy(record as Partial<HelperJobResourcePolicy>, kind);
 	} catch (error) {

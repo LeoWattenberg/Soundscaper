@@ -1,0 +1,356 @@
+{
+	"schemaVersion": 1,
+	"hostVersion": "1.0.0",
+	"helperContractVersion": 1,
+	"license": "AGPL-3.0-only",
+	"sourceDateEpoch": 1786492800,
+	"ffmpeg": {
+		"version": "9.0.1",
+		"releaseName": "Lei",
+		"released": "2026-08-12",
+		"url": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz",
+		"signatureUrl": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz.asc",
+		"signingKeyFingerprint": "FCF986EA15E6E293A5644F10B4322F04D67658D8",
+		"byteLength": 12036420,
+		"sha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
+		"configureRecipe": "build/ffmpeg-9.0.1-configure.json",
+		"licenceMode": "GPL-2.0-or-later"
+	},
+	"boost": {
+		"version": "1.92.0",
+		"sourceManifest": "config/boost-multiprecision-source-manifest.json",
+		"archiveSha256": "5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c",
+		"headerClosure": {
+			"algorithm": "boost-include-closure-sha256-v1",
+			"roots": [
+				"boost/multiprecision/cpp_int.hpp"
+			],
+			"fileCount": 254,
+			"sha256": "a2f5894e12bc386b7db96936aba5f5bef3910e52da634c7630c73f1fa63e913d"
+		}
+	},
+	"sourceFiles": [
+		{
+			"path": "CMakeLists.txt",
+			"byteLength": 4233,
+			"sha256": "a34479da94609a10f9aa78329c1ad76a4a60934bede41ad1a591560b17618e85"
+		},
+		{
+			"path": "CMakePresets.json",
+			"byteLength": 1332,
+			"sha256": "6a538cb037973b59f2225b6beb442ede523d99e77fb6d292220553d643b4548e"
+		},
+		{
+			"path": "THIRD_PARTY_NOTICES.md",
+			"byteLength": 818,
+			"sha256": "c2451a0c3fb13eebe9d2928664419775646b9a1534576a6987344d435d82c76c"
+		},
+		{
+			"path": "build/ffmpeg-9.0.1-configure.json",
+			"byteLength": 1125,
+			"sha256": "1f91159bd9ea864029f96a2cbd3ce29fddaf6f1d5a29ee4d7fb5cc069dc32f8d"
+		},
+		{
+			"path": "build/recipe-driver.mjs",
+			"byteLength": 27682,
+			"sha256": "c4b937244eafd8cd3492d88108f9629a9c07e3bbb5fbcec2eac53759bf0afa20"
+		},
+		{
+			"path": "build/targets.json",
+			"byteLength": 1362,
+			"sha256": "d5f23adc0f3154fc4f5c6534eafd77414e998f5e382dd4ac68225db277ba73cd"
+		},
+		{
+			"path": "build/toolchains/linux-arm64.cmake",
+			"byteLength": 453,
+			"sha256": "f4b4c453e0a0edb7664db9b36fe529ee1c60566ac0a02412a217e5ec1d263163"
+		},
+		{
+			"path": "build/toolchains/linux-x64.cmake",
+			"byteLength": 452,
+			"sha256": "e9a909e154778538d3d250afa903944db3dea7dfecbb246cb4469de5588d9701"
+		},
+		{
+			"path": "build/toolchains/mac-arm64.cmake",
+			"byteLength": 491,
+			"sha256": "4b4cb6dd0768a1c36f7a0ef9b1258d839b115e1b4e37d25c6d059e882a4be6df"
+		},
+		{
+			"path": "build/toolchains/win-arm64.cmake",
+			"byteLength": 455,
+			"sha256": "2dbeb9844e99431f96092047d9f391e19eaad42251f7a00ec4c9bb3ba5ec2197"
+		},
+		{
+			"path": "build/toolchains/win-x64.cmake",
+			"byteLength": 453,
+			"sha256": "6c855769b6c354d441497b108f5344bf02db7e6b037ea9e59511cbb008367588"
+		},
+		{
+			"path": "src/exact_retime_ordinal.hpp",
+			"byteLength": 8110,
+			"sha256": "34f57297ac941e8c4a8bcf7dfcc9e92db2fc53e789511cb44e062a64fd1d4592"
+		},
+		{
+			"path": "src/ffmpeg_image_sequence_decode.cpp",
+			"byteLength": 14179,
+			"sha256": "369440d8b259f2e3e57ec891bfd672b146a7202e14c829f13eb532ac27fc7194"
+		},
+		{
+			"path": "src/ffmpeg_image_sequence_decode.hpp",
+			"byteLength": 335,
+			"sha256": "d4bf8e80d04704386ee3be692f7f0dd77a1c5d81a801dbd2c89001c2d37d945d"
+		},
+		{
+			"path": "src/ffmpeg_media_engine.cpp",
+			"byteLength": 26896,
+			"sha256": "f890cf7f802daca6edeac3cbcf950f29434c1d1db72eb12ea33a64679fa72010"
+		},
+		{
+			"path": "src/ffmpeg_media_engine.hpp",
+			"byteLength": 1485,
+			"sha256": "976faa1289aeccc1f1959f28e999dd3ca67cd59fc0589139066ceb20b7c8194a"
+		},
+		{
+			"path": "src/ffmpeg_selected_v20_adapter.cpp",
+			"byteLength": 27533,
+			"sha256": "cd0bc921c012e04de3f520b87818239094f5bf8f844c2302faa0c9c9c0ccaba2"
+		},
+		{
+			"path": "src/ffmpeg_selected_v20_adapter.hpp",
+			"byteLength": 681,
+			"sha256": "571b50a4543f6c10803b055b6356a9b98d4c2a958d0cb1632242affd54d0afef"
+		},
+		{
+			"path": "src/ffmpeg_selected_v20_render.cpp",
+			"byteLength": 4383,
+			"sha256": "220d3c73cae065ef82a0e3d085b9c66f49c26607099934bf7f03a1e42f1a78c1"
+		},
+		{
+			"path": "src/ffmpeg_selected_v20_render.hpp",
+			"byteLength": 497,
+			"sha256": "807a2ba590c5cc557c1d4a1b41125ece1e1172fd282e529eba0180040980fe01"
+		},
+		{
+			"path": "src/ffmpeg_simple_render.cpp",
+			"byteLength": 17199,
+			"sha256": "0bacc8326eb0b030a5a5ce5069346748d32085df8999e04b69d9aea232d2de28"
+		},
+		{
+			"path": "src/ffmpeg_simple_render.hpp",
+			"byteLength": 311,
+			"sha256": "8971149e1d07dbc24f06b130e1ca6b4f9e2c6829a91adfdb6bb545e494cfa980"
+		},
+		{
+			"path": "src/image_sequence_pack.cpp",
+			"byteLength": 12915,
+			"sha256": "b688724619fefbaa247630b7ed82b78311b7d29d3db05fdc0987b68804950397"
+		},
+		{
+			"path": "src/image_sequence_pack.hpp",
+			"byteLength": 1918,
+			"sha256": "24cd2b334f7173ba32dd2f1246ca0b283a8304d432c9c18b1575011479d33b58"
+		},
+		{
+			"path": "src/legacy_plan_semantics.cpp",
+			"byteLength": 32096,
+			"sha256": "2a842562f9d32fbd795a648d414dac5591e0b91b9ee4915f95be8390a786b8b0"
+		},
+		{
+			"path": "src/legacy_plan_semantics.hpp",
+			"byteLength": 363,
+			"sha256": "a130f971cbed0c6870b4450f2efc420a9e0bc04235116f253ccd90933ec0917b"
+		},
+		{
+			"path": "src/legacy_plan_v8_filter_semantics.cpp",
+			"byteLength": 18353,
+			"sha256": "8c248d298816a7550c0f50c31fff199f208c2fac969bd03217bbe826fd0718e8"
+		},
+		{
+			"path": "src/legacy_plan_v8_filter_semantics.hpp",
+			"byteLength": 311,
+			"sha256": "05a439b2760ed9d473ce8f8e2ed4532c2986f87a881573834adf9b74431649f6"
+		},
+		{
+			"path": "src/legacy_plan_values.hpp",
+			"byteLength": 9364,
+			"sha256": "358a2e9b28ded522b2a3f6ee1c076dc16286903a820edeb1372ce65ed6f7cdcd"
+		},
+		{
+			"path": "src/media_file_grants.cpp",
+			"byteLength": 3457,
+			"sha256": "2e6c3c75141b89ef2162de2ad72e744d0a7d95a3c8d97eaabadbab872962e741"
+		},
+		{
+			"path": "src/media_file_grants.hpp",
+			"byteLength": 953,
+			"sha256": "faf5bdac632638fa0d0afe096d69712933134d7f50dba037fed85fafb858cd3c"
+		},
+		{
+			"path": "src/media_host.cpp",
+			"byteLength": 22079,
+			"sha256": "96ac47aacc322f61e7bfb6a1f0e56c2f57812c35441d0138df5d9c97c816737f"
+		},
+		{
+			"path": "src/media_host_contract.hpp",
+			"byteLength": 1163,
+			"sha256": "ab191659b0e69751160842a7a8f095a640513cc1ad4b1a09027ba093e9b2d259"
+		},
+		{
+			"path": "src/media_plan.cpp",
+			"byteLength": 14562,
+			"sha256": "8a74bb9c8d5a7c9e0a679b54fbac0c8c7e104483707b725401818206bb683753"
+		},
+		{
+			"path": "src/media_plan.hpp",
+			"byteLength": 1153,
+			"sha256": "6c53d3fed3880aba1f1b791f1a4a56dc73d4a58ed9bcd2e8ece9ad145ee5f10b"
+		},
+		{
+			"path": "src/professional_source_probe.cpp",
+			"byteLength": 18815,
+			"sha256": "069ba6afffb60df70e8523a26546255502cfd176dc040adfbf59edfea6f2f494"
+		},
+		{
+			"path": "src/professional_source_probe.hpp",
+			"byteLength": 529,
+			"sha256": "9d6d476c188af3d419bf10e0d170c50420d4de7428ba1dbfcb9cb68b66162dda"
+		},
+		{
+			"path": "src/sha256.cpp",
+			"byteLength": 7630,
+			"sha256": "c25e775e4052015e3a6471985a9c362f88546d60d24aaf9319e2f09f4ae7f204"
+		},
+		{
+			"path": "src/sha256.hpp",
+			"byteLength": 864,
+			"sha256": "bee4cfdd0d17296a72b3048a91b47f322d44ef927ceb849655f9b1aed91aefe2"
+		},
+		{
+			"path": "src/selected_v20_frame_executor.cpp",
+			"byteLength": 17244,
+			"sha256": "95a136f32e26ca016404b4ae9298970e84e529550344ed7e827ef8ec237f5e8e"
+		},
+		{
+			"path": "src/selected_v20_frame_executor.hpp",
+			"byteLength": 4477,
+			"sha256": "3097501f8da44ff11cf13031ddcc27f421a84cebf55798ae3db36678e811f71c"
+		},
+		{
+			"path": "src/selected_v20_frame_pack.cpp",
+			"byteLength": 5482,
+			"sha256": "e683a39a0b95d5766b4ae3e5ea29a47209b37f6d17d9299477b794a9a2b71967"
+		},
+		{
+			"path": "src/selected_v20_frame_pack.hpp",
+			"byteLength": 1367,
+			"sha256": "9cd07147f3c48ba3f732fa00a29e8d6b79a21b69186c4f86ff8637d3eb6cbf2e"
+		},
+		{
+			"path": "src/selected_v20_plan_capture.cpp",
+			"byteLength": 11514,
+			"sha256": "d55b95cff8a20a440f2122934aad1c35dd69876763f3d98267a8c4e4e66b65b1"
+		},
+		{
+			"path": "src/selected_v20_plan_capture.hpp",
+			"byteLength": 445,
+			"sha256": "d0c51078ba724b5cab365530b3bba636d9b796007a000e3b5a31fc2185e46673"
+		},
+		{
+			"path": "src/strict_json.cpp",
+			"byteLength": 10182,
+			"sha256": "976c48177281ac95aaa3ae916e90dd3301e32a676a495201b7fd10edee62e588"
+		},
+		{
+			"path": "src/strict_json.hpp",
+			"byteLength": 1244,
+			"sha256": "e9345631a631ce1cb386654bad2d3e59ad4c0c47d5f5cd2613a5efcfb80c939e"
+		},
+		{
+			"path": "src/unified_plan_common.hpp",
+			"byteLength": 7462,
+			"sha256": "81cef7e8c2ba7a58ae9adbbc33758216a62a115ed4ffb58cfee378913651ade9"
+		},
+		{
+			"path": "src/unified_plan_semantics.hpp",
+			"byteLength": 4683,
+			"sha256": "c1fb72477825438f06a4213addc4236d2c385899eb721fc33432f9d7831abeaf"
+		},
+		{
+			"path": "src/unified_plan_v10_semantics.hpp",
+			"byteLength": 18623,
+			"sha256": "8cb9dd3870c7d2257e985babf798afc0c8fba867306ae052aa1c8358311ad626"
+		},
+		{
+			"path": "src/unified_plan_v11_v12_semantics.hpp",
+			"byteLength": 18960,
+			"sha256": "78f7a596621cb7759498582376d6cce66790a3113d38abd1c08e56d8655d37b8"
+		},
+		{
+			"path": "src/unified_plan_v9_semantics.hpp",
+			"byteLength": 22691,
+			"sha256": "d0aabdc47643c80ef69b7d9c58db4374e8a1e26063dff4c4d34a86bb8d644b00"
+		},
+		{
+			"path": "tests/exact_retime_ordinal_fixture.cpp",
+			"byteLength": 1080,
+			"sha256": "3be7958db0c5e059aa697d54a4678476c317e497f0ed2de5b90225780d7e6be3"
+		},
+		{
+			"path": "tests/fixtures/prores-proxy-64x36-24fps-4frames.mov.b64",
+			"byteLength": 2181,
+			"sha256": "69b15e5754c400c495d3a554a91723dbec0b22508c4a39f726c111c829733a5c"
+		},
+		{
+			"path": "tests/professional_source_probe_fixture.cpp",
+			"byteLength": 185,
+			"sha256": "114d80514efa52301b5e31113215471421a1d9bbe931c508b62eb1bedbb96599"
+		},
+		{
+			"path": "tests/selected_v20_frame_executor_fixture.cpp",
+			"byteLength": 9378,
+			"sha256": "68df1b6324e8173ca43e3d13532783c623ba68b1532c7c70ebcc034574028bb4"
+		},
+		{
+			"path": "tests/selected_v20_operation_self_test.cmake",
+			"byteLength": 1332,
+			"sha256": "a401e84bb5daf8837d89ba0cc707581f332b72cc093e484ee6815f2d90e65376"
+		}
+	],
+	"targets": {
+		"linux-x64": {
+			"runtime": "linux-x64",
+			"status": "pending-external",
+			"blockedBy": "The FFmpeg licensing and corresponding-source gates are blocked and no FFmpeg 9.0.1-linked release payload has been built and reviewed on Linux x64.",
+			"toolchainIdentity": null,
+			"payload": null
+		},
+		"linux-arm64": {
+			"runtime": "linux-arm64",
+			"status": "pending-external",
+			"blockedBy": "No Linux ARM64 build host or FFmpeg 9.0.1-linked signed payload evidence is provisioned; licensing gates also remain blocked.",
+			"toolchainIdentity": null,
+			"payload": null
+		},
+		"mac-arm64": {
+			"runtime": "darwin-arm64",
+			"status": "pending-external",
+			"blockedBy": "No macOS ARM64 build, signing, notarization, or FFmpeg 9.0.1-linked hardware evidence is provisioned; licensing gates also remain blocked.",
+			"toolchainIdentity": null,
+			"payload": null
+		},
+		"win-x64": {
+			"runtime": "win32-x64",
+			"status": "pending-external",
+			"blockedBy": "No Windows x64 build, signing, or FFmpeg 9.0.1-linked hardware evidence is provisioned; licensing gates also remain blocked.",
+			"toolchainIdentity": null,
+			"payload": null
+		},
+		"win-arm64": {
+			"runtime": "win32-arm64",
+			"status": "pending-external",
+			"blockedBy": "No Windows Arm64EC build, signing, or FFmpeg 9.0.1-linked hardware evidence is provisioned; licensing gates also remain blocked.",
+			"toolchainIdentity": null,
+			"payload": null
+		}
+	}
+}

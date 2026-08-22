@@ -105,6 +105,7 @@ test('helper contract v1 accepts every well-formed wire message', () => {
 test('helper contract v1 negotiates closed job families and kind-correlated main grants', () => {
 	assert.deepEqual(HELPER_JOB_KINDS, [
 		'probe-video-source', 'audio-device', 'plugin-scan', 'plugin-host',
+		'media-decode', 'media-encode', 'media-render', 'media-proxy', 'ofx-scan', 'ofx-host',
 	]);
 	assert.deepEqual(HELPER_PROBE_JOB_KINDS, ['probe-video-source']);
 	const hello = validateHelperProcessMessage({

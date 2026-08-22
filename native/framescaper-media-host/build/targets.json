@@ -1,0 +1,50 @@
+{
+	"schemaVersion": 1,
+	"targets": [
+		{
+			"id": "linux-x64",
+			"runtime": "linux-x64",
+			"hostRuntime": "linux-x64",
+			"cmakePreset": "linux-x64",
+			"toolchainFile": "build/toolchains/linux-x64.cmake",
+			"ffmpegTarget": "x86_64-linux-gnu",
+			"payloadName": "framescaper-media-host"
+		},
+		{
+			"id": "linux-arm64",
+			"runtime": "linux-arm64",
+			"hostRuntime": "linux-arm64",
+			"cmakePreset": "linux-arm64",
+			"toolchainFile": "build/toolchains/linux-arm64.cmake",
+			"ffmpegTarget": "aarch64-linux-gnu",
+			"payloadName": "framescaper-media-host"
+		},
+		{
+			"id": "mac-arm64",
+			"runtime": "darwin-arm64",
+			"hostRuntime": "darwin-arm64",
+			"cmakePreset": "mac-arm64",
+			"toolchainFile": "build/toolchains/mac-arm64.cmake",
+			"ffmpegTarget": "arm64-apple-darwin",
+			"payloadName": "framescaper-media-host"
+		},
+		{
+			"id": "win-x64",
+			"runtime": "win32-x64",
+			"hostRuntime": "win32-x64",
+			"cmakePreset": "win-x64",
+			"toolchainFile": "build/toolchains/win-x64.cmake",
+			"ffmpegTarget": "x86_64-w64-mingw32",
+			"payloadName": "framescaper-media-host.exe"
+		},
+		{
+			"id": "win-arm64",
+			"runtime": "win32-arm64",
+			"hostRuntime": "win32-arm64",
+			"cmakePreset": "win-arm64",
+			"toolchainFile": "build/toolchains/win-arm64.cmake",
+			"ffmpegTarget": "arm64ec-windows-msvc",
+			"payloadName": "framescaper-media-host.exe"
+		}
+	]
+}

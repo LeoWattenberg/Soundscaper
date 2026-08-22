@@ -1,0 +1,53 @@
+{
+	"version": 8,
+	"configurePresets": [
+		{
+			"name": "base",
+			"hidden": true,
+			"generator": "Ninja",
+			"binaryDir": "${sourceDir}/out/${presetName}",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release"
+			},
+			"environment": {
+				"SOURCE_DATE_EPOCH": "1786492800",
+				"TZ": "UTC",
+				"LC_ALL": "C"
+			}
+		},
+		{
+			"name": "linux-x64",
+			"inherits": "base",
+			"toolchainFile": "build/toolchains/linux-x64.cmake"
+		},
+		{
+			"name": "linux-arm64",
+			"inherits": "base",
+			"toolchainFile": "build/toolchains/linux-arm64.cmake"
+		},
+		{
+			"name": "mac-arm64",
+			"inherits": "base",
+			"toolchainFile": "build/toolchains/mac-arm64.cmake"
+		},
+		{
+			"name": "win-x64",
+			"inherits": "base",
+			"generator": "Ninja Multi-Config",
+			"toolchainFile": "build/toolchains/win-x64.cmake"
+		},
+		{
+			"name": "win-arm64",
+			"inherits": "base",
+			"generator": "Ninja Multi-Config",
+			"toolchainFile": "build/toolchains/win-arm64.cmake"
+		}
+	],
+	"buildPresets": [
+		{ "name": "linux-x64", "configurePreset": "linux-x64" },
+		{ "name": "linux-arm64", "configurePreset": "linux-arm64" },
+		{ "name": "mac-arm64", "configurePreset": "mac-arm64" },
+		{ "name": "win-x64", "configurePreset": "win-x64", "configuration": "Release" },
+		{ "name": "win-arm64", "configurePreset": "win-arm64", "configuration": "Release" }
+	]
+}

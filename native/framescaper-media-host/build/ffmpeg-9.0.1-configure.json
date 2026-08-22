@@ -1,0 +1,55 @@
+{
+	"schemaVersion": 1,
+	"sourceVersion": "9.0.1",
+	"sourceDateEpoch": 1786492800,
+	"environment": {
+		"TZ": "UTC",
+		"LC_ALL": "C",
+		"ARFLAGS": "rcD",
+		"ZERO_AR_DATE": "1"
+	},
+	"configureFlags": [
+		"--disable-everything",
+		"--disable-autodetect",
+		"--disable-doc",
+		"--disable-debug",
+		"--disable-programs",
+		"--disable-shared",
+		"--disable-network",
+		"--enable-static",
+		"--enable-pic",
+		"--enable-gpl",
+		"--enable-avcodec",
+		"--enable-avfilter",
+		"--enable-avformat",
+		"--enable-swresample",
+		"--enable-swscale",
+		"--enable-decoder=prores",
+		"--enable-encoder=prores_ks",
+		"--enable-demuxer=mov",
+		"--enable-muxer=mov",
+		"--enable-protocol=file"
+	],
+	"policy": {
+		"rawFfmpegArguments": false,
+		"network": false,
+		"externalLibraries": [],
+		"enabledDecoders": ["prores"],
+		"enabledEncoders": ["prores_ks"],
+		"enabledDemuxers": ["mov"],
+		"enabledMuxers": ["mov"],
+		"enabledProtocols": ["file"],
+		"blockedComponents": [
+			"av1",
+			"exr",
+			"h264",
+			"hevc",
+			"libvpx-vp9",
+			"libx264",
+			"png",
+			"tiff",
+			"vp9"
+		],
+		"payloadPublicationRequiresLicensingAndTargetEvidence": true
+	}
+}

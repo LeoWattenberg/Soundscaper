@@ -1,41 +1,37 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/**
- * Supervises one milestone-5 helper process under contract v1. The channel is
- * injected: in the application it is an Electron utility process owned by
- * main, and in tests it is an in-process double, so every supervision rule —
- * verified spawn, handshake, heartbeat crash detection, cancellation
- * acknowledgement, repeated-crash quarantine, and per-job admission — is
- * exercised without platform authority. A helper failure settles the active
- * job with a typed error and never touches project state: helpers are
- * read-only workers whose loss degrades, not corrupts.
- */
+/** Main-owned helper supervision with verified spawn, bounded jobs and quarantine. */
 
 import {
 	HELPER_CANCELLATION_BUDGET_MS,
 	HELPER_CRASH_DETECTION_MS,
 	HELPER_RESOURCE_HARD_LIMITS,
 	HelperContractViolationError,
+	type AnyHelperJobGrant,
 	type HelperJobGrant,
 	type HelperJobKind,
 	type HelperJobResourcePolicy,
 	type HelperHostMessage,
 	type HelperProcessMessage,
 	deserializeHelperError,
-	helperJobGrantInputBytes,
+	helperJobGrantExceedsResourcePolicy,
+	helperJobGrantResourceUsage,
 	normalizeHelperResourcePolicy,
 	validateHelperJobGrant,
+	validateHelperJobResult,
 	validateHelperHostMessage,
 	validateHelperProcessMessage,
 } from './helper-contract.ts';
-
+import {
+	admitHelperDataPlaneTransfers,
+	type HelperDataPlaneTransfer, type HelperDataPlaneTransferPort,
+} from './helper-data-plane-transfer.ts';
 export interface HelperChannel {
-	postMessage(message: HelperHostMessage): void;
+	postMessage(message: HelperHostMessage, transfer?: readonly HelperDataPlaneTransferPort[]): void;
 	onMessage(listener: (message: unknown) => void): void;
 	onExit(listener: (code: number | null) => void): void;
 	kill(): void;
 }
-
 export type HelperFailureCause =
 	| 'binary-mismatch'
 	| 'handshake'
@@ -76,7 +72,7 @@ export interface HelperJobRequest<Kind extends HelperJobKind = 'probe-video-sour
 	readonly resourcePolicy?: Partial<HelperJobResourcePolicy>;
 	readonly signal?: AbortSignal;
 	readonly onProgress?: (value: number | null) => void;
-	/** Kind-specific result admission; a rejected result is a helper fault. */
+	readonly dataPlaneTransfers?: readonly HelperDataPlaneTransfer[];
 	readonly validateResult?: (value: unknown) => unknown;
 }
 
@@ -97,6 +93,8 @@ export interface HelperSupervisorOptions {
 
 interface ActiveJob {
 	readonly jobId: string;
+	readonly kind: HelperJobKind;
+	readonly grant: AnyHelperJobGrant;
 	readonly resourcePolicy: HelperJobResourcePolicy;
 	readonly onProgress?: (value: number | null) => void;
 	readonly signal?: AbortSignal;
@@ -164,7 +162,7 @@ export class HelperSupervisor {
 		this.#crashTimestamps = [];
 		this.#quarantined = false;
 	}
-
+	async start(): Promise<void> { await this.#ensureChannel(); }
 	/**
 	 * Contract v1 admits one concurrent job, so a second caller waits for the
 	 * first instead of being refused. Every native surface shares one supervisor
@@ -180,22 +178,23 @@ export class HelperSupervisor {
 		request.signal?.throwIfAborted();
 		let admittedGrant: HelperJobGrant<Kind>;
 		let resourcePolicy: HelperJobResourcePolicy;
-		let inputBytes: number;
+		let usage: ReturnType<typeof helperJobGrantResourceUsage>;
+		let dataPlanePorts: readonly HelperDataPlaneTransferPort[];
 		try {
 			admittedGrant = validateHelperJobGrant(request.kind, request.grant);
 			resourcePolicy = normalizeHelperResourcePolicy(request.resourcePolicy, request.kind);
-			inputBytes = helperJobGrantInputBytes(request.kind, admittedGrant);
+			usage = helperJobGrantResourceUsage(request.kind, admittedGrant);
+			dataPlanePorts = admitHelperDataPlaneTransfers(
+				request.kind, admittedGrant, request.dataPlaneTransfers,
+			);
 		} catch (error) {
 			throw new HelperSupervisionError('invalid-request',
 				`The helper job failed contract admission: ${error instanceof Error ? error.message : String(error)}`);
 		}
-		if (inputBytes > resourcePolicy.maximumInputBytes) {
+		if (helperJobGrantExceedsResourcePolicy(usage, resourcePolicy)) {
 			throw new HelperSupervisionError('resource-violation',
-				'The helper job input exceeds its admitted byte limit.');
+				'The helper job exceeds its exact input, output, scratch, or data-plane resource policy.');
 		}
-		// A caller that arrives while nobody holds the gate takes it without a
-		// scheduling hop, so an uncontended job reaches the helper exactly as
-		// promptly as it did before the gate existed.
 		const contended = this.#gateHolders > 0;
 		this.#gateHolders += 1;
 		const turn = this.#gate;
@@ -203,7 +202,7 @@ export class HelperSupervisor {
 		this.#gate = new Promise<void>((resolve) => { release = resolve; });
 		try {
 			if (contended) await turn;
-			return await this.#admitJob(request, admittedGrant, resourcePolicy);
+			return await this.#admitJob(request, admittedGrant, resourcePolicy, dataPlanePorts);
 		} finally {
 			this.#gateHolders -= 1;
 			release();
@@ -215,6 +214,7 @@ export class HelperSupervisor {
 		request: HelperJobRequest<Kind>,
 		admittedGrant: HelperJobGrant<Kind>,
 		resourcePolicy: HelperJobResourcePolicy,
+		dataPlanePorts: readonly HelperDataPlaneTransferPort[],
 	): Promise<unknown> {
 		this.#assertNotDisposed();
 		if (this.#quarantined) {
@@ -252,6 +252,8 @@ export class HelperSupervisor {
 			return new Promise<unknown>((resolve, reject) => {
 				const job: ActiveJob = {
 					jobId,
+					kind: request.kind,
+					grant: admittedGrant,
 					resourcePolicy,
 					onProgress: request.onProgress,
 					signal: request.signal,
@@ -279,7 +281,7 @@ export class HelperSupervisor {
 					});
 				}, resourcePolicy.maximumJobDurationMs);
 				try {
-					this.#postValidated(admittedMessage);
+					this.#postValidated(admittedMessage, dataPlanePorts);
 				} catch (error) {
 					this.#failJob(job, new HelperSupervisionError('helper-error',
 						error instanceof Error ? error.message : String(error)), {
@@ -433,7 +435,14 @@ export class HelperSupervisor {
 			this.#settleJob(job, error);
 			return;
 		}
-		let result: unknown = validated.result;
+		let result: unknown;
+		try {
+			result = validateHelperJobResult(job.kind, validated.result, job.grant);
+		} catch (error) {
+			this.#crash(new HelperSupervisionError('malformed-message',
+				`The helper returned a result the contract rejects: ${error instanceof Error ? error.message : String(error)}`));
+			return;
+		}
 		if (job.validateResult) {
 			try {
 				result = job.validateResult(validated.result);
@@ -556,10 +565,13 @@ export class HelperSupervisor {
 		this.#postValidated(validateHelperHostMessage(message));
 	}
 
-	#postValidated(message: HelperHostMessage): void {
+	#postValidated(
+		message: HelperHostMessage,
+		transfer: readonly HelperDataPlaneTransferPort[] = [],
+	): void {
 		const channel = this.#channel;
 		if (!channel) throw new HelperSupervisionError('helper-exit', 'The helper channel is closed.');
-		channel.postMessage(message);
+		channel.postMessage(message, transfer);
 	}
 
 	#teardownChannel(): void {

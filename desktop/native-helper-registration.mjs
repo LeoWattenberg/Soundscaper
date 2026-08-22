@@ -43,7 +43,7 @@ export function registerDesktopNativeAudioHelper({
 			);
 			child = forked;
 			return Object.freeze({
-				postMessage: (message) => forked.postMessage(message),
+				postMessage: (message, transfer = []) => forked.postMessage(message, transfer),
 				onMessage: (listener) => forked.on('message', listener),
 				onExit: (listener) => forked.on('exit', (code) => listener(code ?? null)),
 				kill: () => forked.kill(),
