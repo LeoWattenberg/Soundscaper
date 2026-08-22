@@ -31,6 +31,10 @@ import {
 	stageVerifiedNativeAddonPayload,
 	verifyNativeAddonPayloadManifest,
 } from './lib/native-addon-payload-manifest.mjs';
+import {
+	stageVerifiedFramescaperNativeHostPayloads,
+	verifyFramescaperNativeHostPayloads,
+} from './lib/framescaper-native-host-payload-staging.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD_ROOT = resolve(ROOT, '.desktop-build');
@@ -41,14 +45,13 @@ const DESKTOP_RUNTIME_ROOT = resolve(BUILD_ROOT, 'desktop-runtime');
 const DESKTOP_NOTICE_PATH = resolve(BUILD_ROOT, 'licenses/THIRD_PARTY_LICENSES.md');
 const TRANSLATION_ROOT = resolve(RUNTIME_ROOT, 'translations/audacity/4');
 const DEFAULT_TRANSLATIONS_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
-// The assistance service validates its catalog against the licensing register
-// at runtime, the probe helper verifies its engine payload against the runtime
-// manifest's digest pins, and the native helper re-verifies its addon payload
-// against the native payload manifest, so all four ship inside the application
-// archive rather than only the catalog. The addon itself stays outside the
-// asar; only its pins live inside it.
+// The assistance and native services validate their catalogs and payloads
+// against these shipped registers. Executable payloads stay outside the asar;
+// only their authenticated pins live inside it.
 const ASSISTANCE_REGISTERS = Object.freeze([
 	'config/ffmpeg-runtime-manifest.json',
+	'config/framescaper-media-host-payload-manifest.json',
+	'config/framescaper-openfx-host-payload-manifest.json',
 	'config/local-model-catalog.json',
 	'config/native-addon-payload-manifest.json',
 	'config/production-licensing-matrix.json',
@@ -74,6 +77,13 @@ async function main() {
 		target: nativeTarget.id,
 		targetSource: nativeTarget.source,
 	});
+	const framescaperNativeHostRelease = PRODUCT_ID === 'framescaper'
+		? await verifyFramescaperNativeHostPayloads({
+			repositoryRoot: ROOT,
+			target: nativeTarget.id,
+			targetSource: nativeTarget.source,
+		})
+		: null;
 	await admitDesktopFfmpegAssembly({
 		repositoryRoot: ROOT,
 		assemble: async (ffmpegRelease) => {
@@ -85,12 +95,18 @@ async function main() {
 			});
 			const ffmpeg = await stageFfmpeg(ffmpegRelease);
 			const nativeAddons = await stageNativeAddons(nativeAddonRelease);
+			const framescaperNativeHosts = framescaperNativeHostRelease === null
+				? null
+				: await stageVerifiedFramescaperNativeHostPayloads({
+					release: framescaperNativeHostRelease,
+					outputRoot: RUNTIME_ROOT,
+				});
 			const translations = await stageTranslations();
 			await generateDesktopIcon({
 				...(PRODUCT_ID === 'framescaper' ? { sourcePath: resolve(ROOT, 'public/logo/framescaper-icon.svg') } : {}),
 			});
 			await buildRenderer(ffmpegRelease);
-			await stageApplication(projectPackage);
+			await stageApplication(projectPackage, framescaperNativeHostRelease);
 
 			const stageManifest = {
 				schemaVersion: 1,
@@ -103,6 +119,7 @@ async function main() {
 				desktopRuntime,
 				ffmpeg,
 				nativeAddons,
+				framescaperNativeHosts,
 				translations,
 			};
 			await writeJson(resolve(BUILD_ROOT, 'stage-manifest.json'), stageManifest);
@@ -242,7 +259,7 @@ async function buildRenderer(ffmpegRelease) {
 	await assertFile(resolve(RENDERER_ROOT, 'index.html'), 'desktop editor document');
 }
 
-async function stageApplication(projectPackage) {
+async function stageApplication(projectPackage, framescaperNativeHostRelease) {
 	await mkdir(APP_ROOT, { recursive: true });
 	await stageDesktopApplicationSources({
 		desktopSourceRoot: resolve(ROOT, 'desktop'),
@@ -252,7 +269,18 @@ async function stageApplication(projectPackage) {
 	await writeJson(resolve(APP_ROOT, 'desktop/product.json'), { id: PRODUCT_ID });
 	await mkdir(resolve(APP_ROOT, 'config'), { recursive: true });
 	for (const register of ASSISTANCE_REGISTERS) {
-		await cp(resolve(ROOT, register), resolve(APP_ROOT, register), { errorOnExist: true });
+		const verifiedBytes = framescaperNativeHostRelease === null
+			? null
+			: register === 'config/framescaper-media-host-payload-manifest.json'
+				? framescaperNativeHostRelease.mediaHost.manifestBytes
+				: register === 'config/framescaper-openfx-host-payload-manifest.json'
+					? framescaperNativeHostRelease.openFxHost.manifestBytes
+					: null;
+		if (verifiedBytes === null) {
+			await cp(resolve(ROOT, register), resolve(APP_ROOT, register), { errorOnExist: true });
+		} else {
+			await writeFile(resolve(APP_ROOT, register), verifiedBytes, { flag: 'wx' });
+		}
 	}
 	await writeJson(resolve(APP_ROOT, 'package.json'), {
 		name: `${PRODUCT_ID}-desktop`,

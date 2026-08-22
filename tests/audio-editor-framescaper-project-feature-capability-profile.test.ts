@@ -396,6 +396,7 @@ test('keeps private capability ownership within the closed cumulative domain set
 		'tests/desktop-project-library-packaging.test.js',
 	]);
 	assert.deepEqual(genericPathReferences, [
+		'scripts/lib/desktop-5b-transitive-runtime-files.mjs',
 		'scripts/lib/desktop-project-library-runtime.mjs',
 		FINAL_GENERIC_MODULE,
 		// Dormant V25 import rechecks capability authority at both native-admission

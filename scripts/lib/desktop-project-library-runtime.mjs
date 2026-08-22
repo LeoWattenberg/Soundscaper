@@ -6,7 +6,11 @@ import { extname, join, resolve } from 'node:path';
 
 import { build } from 'esbuild';
 
-const FRAMESCAPER_V10_PRELOAD_BUNDLE = 'project-library-v10-sandbox-preload.cjs';
+import {
+	DESKTOP_5B_TRANSITIVE_RUNTIME_FILES,
+	DESKTOP_RUNTIME_BUNDLED_LEAF_FILES,
+} from './desktop-5b-transitive-runtime-files.mjs';
+
 const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
 const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
 const SOUNDSCAPER_V10_PRELOAD_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
@@ -30,6 +34,7 @@ export const DESKTOP_RUNTIME_PACKAGE_IMPORTS = Object.freeze({
 });
 
 const EXPECTED_RUNTIME_FILES = Object.freeze([
+	...DESKTOP_5B_TRANSITIVE_RUNTIME_FILES,
 	'desktop/application-lifecycle.js',
 	'desktop/assistance-main-ipc.js',
 	'desktop/assistance-service.js',
@@ -38,6 +43,9 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/framescaper-capture-desktop-port.js',
 	'desktop/framescaper-capture-main-channels.js',
 	'desktop/framescaper-capture-session-security.js',
+	'desktop/framescaper-media-host-payload.js',
+	'desktop/framescaper-openfx-host-payload.js',
+	'desktop/framescaper-openfx-runtime.js',
 	'desktop/framescaper-web-vcr-capture-authority.js',
 	'desktop/framescaper-web-vcr-contract.js',
 	'desktop/framescaper-web-vcr-electron-window.js',
@@ -54,11 +62,20 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/framescaper-web-vcr-target-observer.js',
 	'desktop/framescaper-web-vcr-target-tracker.js',
 	'desktop/helper-contract.js',
+	'desktop/helper-data-plane-io.js',
+	'desktop/helper-data-plane-transfer.js',
+	'desktop/helper-data-plane.js',
 	'desktop/helper-job-grant.js',
+	'desktop/helper-native-image-sequence-grant.js',
+	'desktop/helper-native-job-contract.js',
+	'desktop/helper-native-job-result.js',
+	'desktop/helper-native-media-file-roles.js',
+	'desktop/helper-native-ofx-host-grant.js',
 	'desktop/helper-probe-service.js',
 	'desktop/helper-supervisor.js',
 	'desktop/native-helper-service.js',
 	'desktop/native-helper-results.js',
+	'desktop/native-image-sequence-selection.js',
 	'desktop/native-addon-payload.js',
 	'desktop/native-tier-controls.js',
 	'desktop/plugin-scan-results.js',
@@ -74,7 +91,40 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/local-model-download.js',
 	'desktop/local-model-store.js',
 	'desktop/main-window-recovery.js',
+	'desktop/external-display-controller.js',
+	'desktop/external-display-frame-port.js',
+	'desktop/native-media-capability-report.js',
+	'desktop/native-media-execution.js',
+	'desktop/native-media-file-auth.js',
+	'desktop/native-media-helper-job.js',
+	'desktop/native-media-helper-pool.js',
+	'desktop/native-media-helper-worker.js',
+	'desktop/native-media-host-result.js',
+	'desktop/native-media-host-self-test.js',
+	'desktop/native-media-queue-dispatcher.js',
+	'desktop/native-media-runtime.js',
+	'desktop/native-services-checkpoint-recovery.js',
+	'desktop/native-services-controller.js',
 	'desktop/native-services-database.js',
+	'desktop/native-services-external-display-port.js',
+	'desktop/native-services-lease-coordinator.js',
+	'desktop/native-services-lifecycle.js',
+	'desktop/native-services-main-ipc.js',
+	'desktop/native-services-main-preload.js',
+	'desktop/native-services-node-ports.js',
+	'desktop/native-services-publication.js',
+	'desktop/native-services-project-authority.js',
+	'desktop/native-services-queue-repository.js',
+	'desktop/native-services-root-repository.js',
+	'desktop/native-services-runtime.js',
+	'desktop/native-services-scratch-repository.js',
+	'desktop/native-services-watch-coordinator.js',
+	'desktop/native-services-watch-import-broker.js',
+	'desktop/native-services-watch-repository.js',
+	'desktop/openfx-isolated-host-manager.js',
+	'desktop/openfx-helper-job.js',
+	'desktop/openfx-helper-worker.js',
+	'desktop/openfx-unified-render-execution.js',
 	'desktop/project-library-abort.js',
 	'desktop/project-library-api.js',
 	'desktop/project-library-contract.js',
@@ -291,6 +341,102 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/soundscaper/editor-project-feature-requirements-v23.js',
 	'src/soundscaper/editor-project-production-validation.js',
 	'src/soundscaper/editor-project-v23-validation.js',
+	'desktop/project-library-exact-generation-contract.js',
+	'desktop/project-library-exact-generation-database.js',
+	'desktop/project-library-exact-generation-main-channels.js',
+	'desktop/project-library-exact-generation-main-ipc.js',
+	'desktop/project-library-exact-generation-main.js',
+	'desktop/project-library-exact-generation-storage.js',
+	'desktop/project-library-v12-contract.js',
+	'desktop/project-library-v12-current-project.js',
+	'desktop/project-library-v12-database.js',
+	'desktop/project-library-v12-main-channels.js',
+	'desktop/project-library-v12-main-ipc.js',
+	'desktop/project-library-v12-main.js',
+	'desktop/project-library-v12-values.js',
+	'src/common/editor/native-durable-root-grant.js',
+	'src/common/editor/native-external-display.js',
+	'src/common/editor/native-media-atomic-publication.js',
+	'src/common/editor/native-media-backend-policy.js',
+	'src/common/editor/native-media-capability-snapshot.js',
+	'src/common/editor/native-media-graph-plan-admission.js',
+	'src/common/editor/native-media-image-sequence-pack-v25.js',
+	'src/common/editor/native-media-image-sequence-v25.js',
+	'src/common/editor/native-media-image-sequence.js',
+	'src/common/editor/native-media-plan-canonical-form.js',
+	'src/common/editor/native-media-plan-envelope.js',
+	'src/common/editor/native-media-professional-profiles.js',
+	'src/common/editor/native-media-proxy-recipe.js',
+	'src/common/editor/native-ofx-binding.js',
+	'src/common/editor/native-ofx-descriptor.js',
+	'src/common/editor/native-ofx-host-contract.js',
+	'src/common/editor/native-ofx-packaging.js',
+	'src/common/editor/native-ofx-retimer-source-time.js',
+	'src/common/editor/native-ofx-state-v26.js',
+	'src/common/editor/native-queue-admission.js',
+	'src/common/editor/native-queue-record.js',
+	'src/common/editor/native-queue-state-machine.js',
+	'src/common/editor/native-scratch-policy.js',
+	'src/common/editor/native-validation.js',
+	'src/common/editor/native-watch-reconciliation.js',
+	'src/common/editor/native-watch-rule.js',
+	'src/common/editor/platform/bounded-transfer.js',
+	'src/common/editor/project-publication-admission.js',
+	'src/common/editor/publication-byte-estimates.js',
+	'src/common/editor/sequence-frame-navigation.js',
+	'src/common/editor/unified-exact-render-plan-v10.js',
+	'src/common/editor/unified-exact-render-plan-v11.js',
+	'src/common/editor/unified-exact-render-plan-v12.js',
+	'src/common/editor/unified-exact-render-plan-v9.js',
+	'src/common/editor/unified-exact-render-plan.js',
+	'src/common/editor/video-freeze-v24.js',
+	'src/common/editor/video-mask-matte-v24.js',
+	'src/common/editor/video-source-professional-characteristics-v25.js',
+	'src/common/editor/video-transition-registry.js',
+	'src/common/editor/video-transition-resolution.js',
+	'src/common/editor/video-transition-v1.js',
+	'src/common/editor/video-visual-model-v24.js',
+	'src/common/editor/video-visual-preset-v24.js',
+	'src/common/editor/video-burn-in-font-subsets.js',
+	'src/common/editor/video-caption-burn-in.js',
+	'src/common/editor/video-caption-cues.js',
+	'src/common/editor/video-delivery-audio-layout.js',
+	'src/common/editor/video-delivery-color.js',
+	'src/common/editor/video-delivery-quality.js',
+	'src/common/editor/video-export-plan-version.js',
+	'src/common/editor/video-keyframe-encoder-admission.js',
+	'src/common/editor/video-keyframe-export-frame-source.js',
+	'src/common/editor/video-keyframe-export-plan-v7-values.js',
+	'src/common/editor/video-keyframe-export-plan-v7.js',
+	'src/common/editor/video-keyframe-preview-state.js',
+	'src/common/editor/video-keyframe-render-state-provider.js',
+	'src/common/editor/video-keyframe-state.js',
+	'src/common/editor/video-retime-frame-binding.js',
+	'src/common/editor/video-retime-frame-dispatch.js',
+	'src/common/editor/video-retime-exact-ordinal-authority.js',
+	'src/common/editor/video-retime-exact-ordinal-oracle.js',
+	'src/common/editor/video-retime-export-domain.js',
+	'src/common/editor/video-retime-export-json.js',
+	'src/common/editor/video-retime-export-plan.js',
+	'src/common/editor/video-retime-output-cadence.js',
+	'src/common/editor/video-retime-runtime-mapping.js',
+	'src/common/editor/waveform-peak-contract.js',
+	'src/common/editor/wavpack/container.js',
+	'src/framescaper/editor-project-feature-capability-profile-v19.js',
+	'src/framescaper/editor-project-feature-capability-profile-v20.js',
+	'src/framescaper/editor-project-feature-requirements-v19.js',
+	'src/framescaper/editor-project-feature-requirements-v20.js',
+	'src/framescaper/editor-project-runtime-profile-v19-prerequisite.js',
+	'src/framescaper/editor-project-runtime-profile-v19.js',
+	'src/framescaper/editor-project-runtime-profile-v20-prerequisite.js',
+	'src/framescaper/editor-project-runtime-profile-v20.js',
+	'src/framescaper/editor-project-storage-profile-v19.js',
+	'src/framescaper/editor-project-storage-profile-v20.js',
+	'src/framescaper/editor-project-v19-profile.js',
+	'src/framescaper/editor-project-v19-validation.js',
+	'src/framescaper/editor-project-v20-profile.js',
+	'src/framescaper/editor-project-v20-structural-admission.js',
+	'src/framescaper/editor-project-v20-validation.js',
 ].sort());
 
 export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outputRoot }) {
@@ -314,13 +460,7 @@ export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outp
 }
 
 async function bundleRuntimeHashModules(root, output) {
-	for (const name of [
-		'src/common/editor/audio-track-freeze-v21.js',
-		'src/common/editor/pffft.js',
-		'src/common/editor/scape-archive-media.js',
-		'src/common/editor/video-timing-asset.js',
-		'src/soundscaper/editor-project-feature-requirements-v21.js',
-	]) {
+	for (const name of DESKTOP_RUNTIME_BUNDLED_LEAF_FILES) {
 		const outputPath = join(output, name);
 		const result = await build({
 			entryPoints: [outputPath],
@@ -356,25 +496,19 @@ export async function stageDesktopApplicationSources({
 	await cp(compiledRoot, join(applicationRoot, 'project-library-runtime'), { recursive: true });
 	await assertNoStagedTypeScriptImports(applicationRoot);
 	assertRuntimePackageImportTargets();
-	await bundleV10SandboxPreload({
-		entryPoint: join(sourceRoot, 'project-library-v10-sandbox-preload.ts'),
-		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
-		outputPath: join(applicationRoot, FRAMESCAPER_V10_PRELOAD_BUNDLE),
-		productName: 'Framescaper',
-	});
-	await bundleV10SandboxPreload({
+	await bundleSandboxPreload({
 		entryPoint: join(sourceRoot, 'soundscaper-project-library-v10-sandbox-preload.ts'),
 		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
 		outputPath: join(applicationRoot, SOUNDSCAPER_V10_PRELOAD_BUNDLE),
-		productName: 'Soundscaper',
+		productName: 'Soundscaper V10',
 	});
-	await bundleV10SandboxPreload({
+	await bundleSandboxPreload({
 		entryPoint: join(sourceRoot, 'framescaper-capture-sandbox-preload.ts'),
 		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
 		outputPath: join(applicationRoot, FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE),
 		productName: 'Framescaper Capture',
 	});
-	await bundleV10SandboxPreload({
+	await bundleSandboxPreload({
 		entryPoint: join(sourceRoot, 'framescaper-web-vcr-sandbox-preload.ts'),
 		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
 		outputPath: join(applicationRoot, FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE),
@@ -407,7 +541,7 @@ function assertRuntimePackageImportTargets() {
 	}
 }
 
-async function bundleV10SandboxPreload({ entryPoint, cryptoShim, outputPath, productName }) {
+async function bundleSandboxPreload({ entryPoint, cryptoShim, outputPath, productName }) {
 	await build({
 		entryPoints: [entryPoint],
 		outfile: outputPath,
@@ -422,7 +556,7 @@ async function bundleV10SandboxPreload({ entryPoint, cryptoShim, outputPath, pro
 	const source = await readFile(outputPath, 'utf8');
 	const required = [...source.matchAll(/require\(["']([^"']+)["']\)/gu)].map((match) => match[1]);
 	if (required.length !== 1 || required[0] !== 'electron') {
-		throw new Error(`${productName} V10 sandbox preload retained unsupported modules: ${required.join(', ')}`);
+		throw new Error(`${productName} sandbox preload retained unsupported modules: ${required.join(', ')}`);
 	}
 }
 

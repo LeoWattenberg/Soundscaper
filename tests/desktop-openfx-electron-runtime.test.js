@@ -13,6 +13,8 @@ test('Electron main owns OpenFX utility-process spawning and never exposes a plu
 	assert.match(source, /openfx-helper-process\.js/iu);
 	assert.match(source, /startFramescaperOpenFxRuntime/iu);
 	assert.match(source, /framescaper-openfx-fingerprint-runtime/iu);
+	assert.match(source, /externalRuntimeRoot.*resourcesPath.*runtime.*\.\..*runtime/su,
+		'the packaged and prepared-development hosts must both resolve from external runtime resources');
 	assert.doesNotMatch(source, /child_process|shell:\s*true/iu);
 });
 

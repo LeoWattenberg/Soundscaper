@@ -13,6 +13,10 @@ import {
 	verifyNativeAddonPayloadManifest,
 	verifyStagedNativeAddonPayload,
 } from './lib/native-addon-payload-manifest.mjs';
+import {
+	verifyFramescaperNativeHostPayloads,
+	verifyStagedFramescaperNativeHostPayloads,
+} from './lib/framescaper-native-host-payload-staging.mjs';
 
 /**
  * Electron Builder beforePack hook. Re-verify the policy-bound runtime after
@@ -26,9 +30,12 @@ export default async function verifyDesktopRuntimeBeforePack(context = {}, depen
 	const packagedTarget = nativeAddonPayloadTargetForPackagingContext(context);
 	const verifyFfmpeg = dependencies.verifyStagedFfmpegBeforePack ?? verifyStagedFfmpegBeforePack;
 	const verifyNativeAddon = dependencies.verifyStagedNativeAddonBeforePack ?? verifyStagedNativeAddonBeforePack;
+	const verifyNativeHosts = dependencies.verifyStagedFramescaperNativeHostsBeforePack
+		?? verifyStagedFramescaperNativeHostsBeforePack;
 	await Promise.all([
 		verifyFfmpeg({ repositoryRoot, stageManifestPath }),
 		verifyNativeAddon({ repositoryRoot, stageManifestPath, packagedTarget }),
+		verifyNativeHosts({ repositoryRoot, stageManifestPath, packagedTarget }),
 	]);
 }
 
@@ -68,5 +75,40 @@ export async function verifyStagedNativeAddonBeforePack({ repositoryRoot, stageM
 		release,
 		outputRoot: nativeAddonPayloadOutputRoot(resolve(repositoryRoot, '.desktop-build/runtime'), release),
 		stageManifestPath,
+	});
+}
+
+export async function verifyStagedFramescaperNativeHostsBeforePack({
+	repositoryRoot,
+	stageManifestPath,
+	packagedTarget,
+}) {
+	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	if (stage?.productId === 'soundscaper') {
+		if (stage.framescaperNativeHosts !== null) {
+			throw new Error('A Soundscaper desktop stage cannot carry Framescaper native-host payloads.');
+		}
+		return null;
+	}
+	if (stage?.productId !== 'framescaper') {
+		throw new Error('The desktop stage manifest has no supported product identity.');
+	}
+	const staged = stage.framescaperNativeHosts;
+	if (!staged || typeof staged.target !== 'string') {
+		throw new Error('The Framescaper desktop stage does not record native-host payloads.');
+	}
+	if (staged.target !== packagedTarget) {
+		throw new Error(`The staged Framescaper native hosts target ${staged.target} but electron-builder is packing ${packagedTarget}.`);
+	}
+	const release = await verifyFramescaperNativeHostPayloads({
+		repositoryRoot,
+		target: staged.target,
+		targetSource: staged.targetSource === 'build-host' ? 'build-host' : 'declared',
+	});
+	return verifyStagedFramescaperNativeHostPayloads({
+		release,
+		outputRoot: resolve(repositoryRoot, '.desktop-build/runtime'),
+		stageManifestPath,
+		applicationRoot: resolve(repositoryRoot, '.desktop-build/app'),
 	});
 }

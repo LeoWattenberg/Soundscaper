@@ -30,6 +30,7 @@ export interface FramescaperOpenFxHostPayloadLocation {
 	readonly applicationRoot: string;
 	readonly packaged: boolean;
 	readonly resourcesPath: string;
+	readonly externalRuntimeRoot?: string;
 	readonly platform?: string;
 	readonly arch?: string;
 }
@@ -414,7 +415,9 @@ function payloadPath(
 	targetId: FramescaperOpenFxHostTargetId,
 	pinnedPath: string,
 ): string {
-	return location.packaged
+	return location.externalRuntimeRoot
+		? join(resolve(location.externalRuntimeRoot), RUNTIME_PREFIX, targetId, basename(pinnedPath))
+		: location.packaged
 		? join(location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId, basename(pinnedPath))
 		: safeDevelopmentPath(location.applicationRoot, pinnedPath);
 }

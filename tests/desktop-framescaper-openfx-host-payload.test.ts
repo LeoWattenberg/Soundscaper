@@ -72,6 +72,27 @@ test('packaged OpenFX payloads resolve only below the external runtime prefix', 
 	);
 });
 
+test('prepared desktop development resolves both hosts from its staged external runtime', async () => {
+	const scanner = '/build/runtime/native/framescaper-openfx-host/linux-x64/framescaper-ofx-scanner';
+	const runtime = '/build/runtime/native/framescaper-openfx-host/linux-x64/framescaper-ofx-runtime-host';
+	const reads: string[] = [];
+	const availability = await describeFramescaperOpenFxHostAvailability({
+		...location(), externalRuntimeRoot: '/build/runtime',
+	}, {
+		readFile: async (path) => {
+			reads.push(path);
+			if (path === MANIFEST_PATH) return Buffer.from(JSON.stringify(manifest()));
+			return path === scanner ? SCANNER : RUNTIME;
+		},
+		stat: async (path) => fileStat(path === scanner ? SCANNER.byteLength : RUNTIME.byteLength),
+	});
+	assert.equal(availability.status, 'available');
+	if (availability.status !== 'available') return;
+	assert.equal(availability.descriptor.scanner.path, scanner);
+	assert.equal(availability.descriptor.runtimeHost.path, runtime);
+	assert.deepEqual(reads, [MANIFEST_PATH, scanner, runtime]);
+});
+
 test('pending, partial, altered, and malformed OpenFX payloads remain unavailable', async () => {
 	const pending = await describeFramescaperOpenFxHostAvailability(
 		location(), ports(manifest({ built: false })),

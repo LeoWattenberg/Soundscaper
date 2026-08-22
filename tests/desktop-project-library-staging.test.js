@@ -14,6 +14,19 @@ import {
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
+test('selected desktop staging omits the historical Framescaper V10 preload bundle', async () => {
+	const source = await readFile(join(ROOT, 'scripts/lib/desktop-project-library-runtime.mjs'), 'utf8');
+	assert.doesNotMatch(source, /FRAMESCAPER_V10_PRELOAD_BUNDLE/u);
+	assert.doesNotMatch(
+		source,
+		/entryPoint:\s*join\(sourceRoot, 'project-library-v10-sandbox-preload\.ts'\)/u,
+	);
+	assert.match(source, /soundscaper-project-library-v10-sandbox-preload\.ts/u);
+	assert.match(source, /desktop\/project-library-v10-main\.js/u);
+	await access(join(ROOT, 'desktop', 'project-library-v10-sandbox-preload.ts'));
+	await access(join(ROOT, 'desktop', 'project-library-v10-main.ts'));
+});
+
 test('desktop staging excludes raw TypeScript and includes the compiled runtime', async (context) => {
 	const temporaryRoot = await mkdtemp(join(tmpdir(), 'scape-desktop-stage-'));
 	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
@@ -28,6 +41,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'main.mjs'));
 	await access(join(applicationDesktopRoot, 'desktop-smoke.js'));
 	await access(join(applicationDesktopRoot, 'framescaper-v18-artifact-smoke.js'));
+	await access(join(applicationDesktopRoot, 'framescaper-v20-artifact-smoke.js'));
 	await access(join(applicationDesktopRoot, 'direct-wav-smoke.js'));
 	await access(join(applicationDesktopRoot, 'project-library-smoke-evidence.js'));
 	await access(join(applicationDesktopRoot, 'project-library-smoke-project.js'));
@@ -38,13 +52,46 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'linked-video-locator-runtime.js'));
 	await access(join(applicationDesktopRoot, 'project-library-ipc.js'));
 	await access(join(applicationDesktopRoot, 'project-library-product-runtime.js'));
-	await access(join(applicationDesktopRoot, 'project-library-v10-sandbox-preload.cjs'));
+	await assert.rejects(
+		() => access(join(applicationDesktopRoot, 'project-library-v10-sandbox-preload.cjs')),
+		/ENOENT/u,
+	);
+	await assert.rejects(
+		() => access(join(applicationDesktopRoot, 'project-library-v12-sandbox-preload.cjs')),
+		/ENOENT/u,
+	);
+	await assert.rejects(
+		() => access(join(runtimeRoot, 'desktop', 'project-library-v12-main-preload.js')),
+		/ENOENT/u,
+	);
+	await assert.rejects(
+		() => access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop', 'project-library-v12-main-preload.js')),
+		/ENOENT/u,
+	);
 	await access(join(applicationDesktopRoot, 'soundscaper-project-library-v10-sandbox-preload.cjs'));
 	await access(join(applicationDesktopRoot, 'framescaper-capture-sandbox-preload.cjs'));
 	await access(join(applicationDesktopRoot, 'framescaper-web-vcr-sandbox-preload.cjs'));
+	await access(join(applicationDesktopRoot, 'external-display-sink.html'));
+	await access(join(applicationDesktopRoot, 'external-display-sink-preload.cjs'));
+	await access(join(applicationDesktopRoot, 'native-media-helper-process.js'));
+	await access(join(applicationDesktopRoot, 'framescaper-native-media-electron-runtime.mjs'));
+	await access(join(applicationDesktopRoot, 'openfx-helper-process.js'));
+	await access(join(applicationDesktopRoot, 'framescaper-openfx-electron-runtime.mjs'));
+	await access(join(applicationDesktopRoot, 'framescaper-native-services-electron-ports.mjs'));
+	await access(join(applicationDesktopRoot, 'framescaper-native-services-registration.mjs'));
 	await access(join(applicationDesktopRoot, 'read-selection-service.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-service.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/framescaper-media-host-payload.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/framescaper-openfx-host-payload.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/framescaper-openfx-runtime.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/external-display-frame-port.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-helper-job.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-capability-report.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-host-self-test.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-runtime.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/openfx-helper-job.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/openfx-helper-worker.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/linked-original-locator-validation.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/linked-video-locator-registry.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/linked-video-locator-store.js'));
@@ -52,6 +99,13 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-host.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v10-main.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v10-main-ipc.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v12-main.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v12-database.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v12-main-ipc.js'));
+	for (const generation of [13, 14, 15, 16]) {
+		await access(join(applicationDesktopRoot, 'project-library-runtime', `desktop/project-library-v${String(generation)}-main.js`));
+		await access(join(applicationDesktopRoot, 'project-library-runtime', `desktop/project-library-v${String(generation)}-main-ipc.js`));
+	}
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/soundscaper-project-library-v10-main.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/soundscaper-project-library-v10-main-ipc.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-media-binding.js'));
@@ -138,9 +192,20 @@ test('desktop main initializes, exposes, and disposes the shared library through
 	assert.match(willQuit, /event\.preventDefault\(\)/u, 'Electron waits for the explicit async shutdown path');
 	assert.match(willQuit, /void exitApplication\(0\)/u);
 	assert.match(mainSource, /resolveDesktopProjectLibraryAppData/u);
-	assert.doesNotMatch(preloadSource, /projectLibrary|libraryRoot|appData/u);
+	assert.match(preloadSource, /projectLibrary/u);
+	assert.doesNotMatch(preloadSource, /framescaperProjectLibraryDesktop|libraryRoot|appData/u);
 	assert.match(prepareSource, /compileDesktopProjectLibraryRuntime/u);
 	assert.match(prepareSource, /stageDesktopApplicationSources/u);
+	assert.match(prepareSource, /config\/framescaper-media-host-payload-manifest\.json/u,
+		'the authenticated media-host manifest must ship with the desktop application');
+	assert.match(prepareSource, /config\/framescaper-openfx-host-payload-manifest\.json/u,
+		'the authenticated OpenFX-host manifest must ship with the desktop application');
+	assert.match(prepareSource, /verifyFramescaperNativeHostPayloads/u,
+		'the selected host payloads must be authenticated before the prior build is removed');
+	assert.match(prepareSource, /stageVerifiedFramescaperNativeHostPayloads/u,
+		'the selected host payloads must be staged from their buffered verification release');
+	assert.match(prepareSource, /framescaperNativeHosts/u,
+		'the desktop stage manifest must bind the selected native-host payload summary');
 	assert.match(prepareSource, /desktopRuntime/u);
 	assert.match(prepareSource, /imports: DESKTOP_RUNTIME_PACKAGE_IMPORTS/u,
 		'the staged application manifest must map the desktop package-imports aliases to shipped runtime members');
