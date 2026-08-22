@@ -52,6 +52,11 @@ import {
 	normalizeUnifiedExactRenderOpenFxNode,
 	type UnifiedExactRenderOpenFxNode,
 } from './unified-exact-render-plan-v12.ts';
+import {
+	authenticateUnifiedExactRenderTimingSidecars,
+	type UnifiedExactRenderTimingIndex,
+	type UnifiedExactRenderTimingSidecars,
+} from './unified-exact-render-timing-authority.ts';
 
 export type {
 	UnifiedExactRenderClipNode,
@@ -64,6 +69,7 @@ export type {
 	UnifiedExactVisualModelKind,
 	UnifiedExactRenderProfessionalMediaNode,
 	UnifiedExactRenderOpenFxNode,
+	UnifiedExactRenderTimingSidecars,
 };
 
 export const UNIFIED_EXACT_RENDER_PLAN_VERSIONS = Object.freeze([9, 10, 11, 12] as const);
@@ -151,15 +157,41 @@ const ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,4095}$/u;
 
 /** Normalize, detach, and deeply freeze one exact generation. */
 export function createUnifiedExactRenderPlan(value: unknown): UnifiedExactRenderPlan {
-	const normalized = normalizePlan(value);
+	return createPlan(value);
+}
+
+/** Normalize a V9–V12 plan while authenticating digest-bound VFR timing bodies. */
+export function createUnifiedExactRenderPlanWithTimingSidecars(
+	value: unknown,
+	timingSidecars: UnifiedExactRenderTimingSidecars,
+): UnifiedExactRenderPlan {
+	return createPlan(value, timingSidecars);
+}
+
+function createPlan(
+	value: unknown,
+	timingSidecars?: UnifiedExactRenderTimingSidecars,
+): UnifiedExactRenderPlan {
+	const normalized = normalizePlan(value, timingSidecars);
 	const canonical = canonicalizeNativeMediaPlan(normalized);
-	const detached = normalizePlan(JSON.parse(canonical) as unknown);
+	const detached = normalizePlan(JSON.parse(canonical) as unknown, timingSidecars);
 	return deepFreeze(detached);
 }
 
 /** Require an already-normalized canonical V9–V12 wire. */
 export function assertUnifiedExactRenderPlan(value: unknown): asserts value is UnifiedExactRenderPlan {
 	const normalized = normalizePlan(value);
+	if (canonicalizeNativeMediaPlan(value) !== canonicalizeNativeMediaPlan(normalized)) {
+		throw new TypeError('A unified exact render plan must use its canonical semantic order and values.');
+	}
+}
+
+/** Require a canonical V9–V12 wire and authenticate each referenced VFR body. */
+export function assertUnifiedExactRenderPlanWithTimingSidecars(
+	value: unknown,
+	timingSidecars: UnifiedExactRenderTimingSidecars,
+): asserts value is UnifiedExactRenderPlan {
+	const normalized = normalizePlan(value, timingSidecars);
 	if (canonicalizeNativeMediaPlan(value) !== canonicalizeNativeMediaPlan(normalized)) {
 		throw new TypeError('A unified exact render plan must use its canonical semantic order and values.');
 	}
@@ -186,12 +218,31 @@ export function canonicalizeUnifiedExactRenderPlan(value: unknown): string {
 	return canonicalizeNativeMediaPlan(value);
 }
 
+export function canonicalizeUnifiedExactRenderPlanWithTimingSidecars(
+	value: unknown,
+	timingSidecars: UnifiedExactRenderTimingSidecars,
+): string {
+	assertUnifiedExactRenderPlanWithTimingSidecars(value, timingSidecars);
+	return canonicalizeNativeMediaPlan(value);
+}
+
 export function fingerprintUnifiedExactRenderPlan(value: unknown): NativeMediaPlanFingerprint {
 	assertUnifiedExactRenderPlan(value);
 	return fingerprintNativeMediaPlan(value);
 }
 
-function normalizePlan(value: unknown): UnifiedExactRenderPlan {
+export function fingerprintUnifiedExactRenderPlanWithTimingSidecars(
+	value: unknown,
+	timingSidecars: UnifiedExactRenderTimingSidecars,
+): NativeMediaPlanFingerprint {
+	assertUnifiedExactRenderPlanWithTimingSidecars(value, timingSidecars);
+	return fingerprintNativeMediaPlan(value);
+}
+
+function normalizePlan(
+	value: unknown,
+	timingSidecars?: UnifiedExactRenderTimingSidecars,
+): UnifiedExactRenderPlan {
 	const input = readClosedDomainRecord(value, 'unified exact render plan', PLAN_FIELDS);
 	const version = planVersion(field(input, 'version', 'unified exact render plan'));
 	if (field(input, 'strategy', 'unified exact render plan') !== 'framescaper-unified-exact-v1') {
@@ -211,6 +262,7 @@ function normalizePlan(value: unknown): UnifiedExactRenderPlan {
 		throw new RangeError('Unified render output frameCount is not exact.');
 	}
 	const sourceResult = normalizeUnifiedExactRenderSources(field(input, 'sources', 'unified exact render plan'));
+	const timingIndex = authenticateUnifiedExactRenderTimingSidecars(sourceResult.sources, timingSidecars);
 	const trackResult = normalizeUnifiedExactRenderTracks(field(input, 'tracks', 'unified exact render plan'));
 	const context: UnifiedExactRenderTemporalContext = Object.freeze({
 		sampleStart: timebase.sampleStart,
@@ -223,7 +275,7 @@ function normalizePlan(value: unknown): UnifiedExactRenderPlan {
 	});
 	const nodes = normalizeNodes(
 		field(input, 'nodes', 'unified exact render plan'), version, project.id,
-		context, sourceResult.index, trackResult.index,
+		context, sourceResult.index, trackResult.index, timingIndex,
 	);
 	return {
 		version,
@@ -246,6 +298,7 @@ function normalizeNodes(
 	context: UnifiedExactRenderTemporalContext,
 	sources: UnifiedExactRenderSourceIndex,
 	tracks: UnifiedExactRenderTrackIndexV1,
+	timing: UnifiedExactRenderTimingIndex,
 ): readonly UnifiedExactRenderNode[] {
 	const candidates = readClosedDomainArray(value, 'unified render nodes', 0, MAXIMUM_NODES);
 	const kinds = candidates.map((candidate, index) => {
@@ -258,7 +311,7 @@ function normalizeNodes(
 	const professionalSourceNodeIds = new Set<string>();
 	for (let index = 0; index < candidates.length; index += 1) {
 		if (kinds[index] !== 'clip') continue;
-		const clip = normalizeUnifiedExactRenderClipNode(candidates[index], context, sources, tracks);
+		const clip = normalizeUnifiedExactRenderClipNode(candidates[index], context, sources, tracks, timing);
 		if (clipsById.has(clip.clipId)) throw new RangeError('Unified clip IDs must be unique.');
 		clipsById.set(clip.clipId, clip);
 		normalized.set(index, clip);

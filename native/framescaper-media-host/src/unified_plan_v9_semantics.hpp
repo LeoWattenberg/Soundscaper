@@ -5,6 +5,7 @@
 #include "media_plan.hpp"
 #include "unified_plan_common.hpp"
 #include "unified_plan_picture_crop_semantics.hpp"
+#include "unified_plan_video_timing.hpp"
 #include "unified_plan_v9_intent_authority.hpp"
 
 #include <map>
@@ -24,6 +25,7 @@ struct source_authority final {
 	std::int64_t frame_count{};
 	std::pair<std::int64_t, std::int64_t> rate{};
 	bool cfr{};
+	const video_timing_asset_authority* vfr_timing{};
 };
 
 struct retime_segment_authority final {
@@ -116,31 +118,11 @@ using track_index = std::map<std::string, track_authority>;
 	};
 }
 
-inline void validate_timing_reference(const json::value& value, const std::string& source_sha, source_authority& source) {
-	exact(value, {"encoding", "storageKey", "sha256", "sourceSha256", "byteLength", "frameCount", "timescale", "finalFrameDurationTicks"});
-	literal(json::member(value, "encoding"), "soundscaper-video-timing-v1", "timing encoding");
-	const auto sha = digest(json::member(value, "sha256"), "timing digest");
-	if (text(json::member(value, "storageKey"), "timing storage key") != "video-timing-sha256:" + sha
-		|| digest(json::member(value, "sourceSha256"), "timing source digest") != source_sha) {
-		throw json::parse_error("VFR timing does not bind its exact source and storage identities.");
-	}
-	const auto frames = safe_integer(json::member(value, "frameCount"), "timing frame count", 1);
-	if (frames > 2'000'000 || safe_integer(json::member(value, "byteLength"), "timing byte length", 1)
-		!= 32 + frames * 8 || safe_integer(json::member(value, "timescale"), "timing timescale", 1) > 0xffff'ffffLL) {
-		throw json::parse_error("VFR timing summary exceeds or disagrees with its closed authority.");
-	}
-	const auto duration = json::string(json::member(value, "finalFrameDurationTicks"), "final duration");
-	static constexpr std::string_view maximum_signed_int64{"9223372036854775807"};
-	if (duration.empty() || duration.front() < '1' || duration.front() > '9'
-		|| duration.size() > maximum_signed_int64.size()
-		|| (duration.size() == maximum_signed_int64.size() && duration > maximum_signed_int64)
-		|| !std::all_of(duration.begin() + 1, duration.end(), [](const unsigned char byte) {
-			return std::isdigit(byte) != 0;
-		})) throw json::parse_error("VFR final duration is not a positive signed 64-bit decimal.");
-	source.frame_count = frames;
-}
-
-[[nodiscard]] inline source_index validate_sources(const json::value& root, admitted_media_plan& result) {
+[[nodiscard]] inline source_index validate_sources(
+	const json::value& root,
+	admitted_media_plan& result,
+	video_timing_asset_registry& timing_assets
+) {
 	const auto& values = json::array(json::member(root, "sources"), "unified sources");
 	if (values.size() > 4'096) throw json::parse_error("The unified source ceiling is exceeded.");
 	source_index by_node;
@@ -166,7 +148,11 @@ inline void validate_timing_reference(const json::value& value, const std::strin
 			source.cfr = true;
 		} else if (kind == "vfr") {
 			exact(timing, {"kind", "reference"});
-			validate_timing_reference(json::member(timing, "reference"), source.sha256, source);
+			const auto timing_reference = validate_video_timing_reference(
+				json::member(timing, "reference"), source.sha256, timing_assets
+			);
+			source.frame_count = timing_reference.frame_count;
+			source.vfr_timing = timing_reference.asset;
 		} else throw json::parse_error("Unified source timing kind is unsupported.");
 		if (!by_node.emplace(source.node_id, source).second || !source_ids.insert(source.source_id).second) {
 			throw json::parse_error("Unified source identities are duplicated.");
@@ -381,7 +367,7 @@ inline void validate_clip_mapping(
 ) {
 	exact(value, {"kind", "sourceRate", "retimeMap", "intent"});
 	literal(json::member(value, "kind"), "video-retime-export-intent-v6", "source-time mapping kind");
-	if (!source.cfr) {
+	if (!source.cfr && source.vfr_timing == nullptr) {
 		throw json::parse_error("Unified VFR retime admission requires verified timing asset bytes.");
 	}
 	clip.source_rate = rate(json::member(value, "sourceRate"), "clip source rate");

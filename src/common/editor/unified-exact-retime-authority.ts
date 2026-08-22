@@ -23,6 +23,10 @@ import {
 	compileVideoRetimeCurveV16,
 	type VideoRetimeCurveV16,
 } from './video-retime-v16.ts';
+import {
+	videoSourceFrameTime,
+	type BoundVideoSourceTimingView,
+} from './video-source-timing-view.ts';
 
 interface UnifiedRetimePlanContext {
 	readonly sampleStart: number;
@@ -46,6 +50,7 @@ interface UnifiedRetimeClipAuthority {
 	readonly sourceTiming: Readonly<{
 		readonly kind: 'cfr' | 'vfr';
 	}>;
+	readonly sourceTimingView: BoundVideoSourceTimingView | null;
 }
 
 interface ExpectedBaseRow {
@@ -60,8 +65,8 @@ interface ExpectedBaseRow {
 
 /**
  * Reconstruct the single-clip V6 topology owned by unified plans and bind every
- * field that can select an output ordinal or source picture. VFR stays closed
- * until verified timing-index bytes can participate in this synchronous gate.
+ * field that can select an output ordinal or source picture. VFR boundaries
+ * come only from a token authenticated against the digest-bound SCTI bytes.
  */
 export function assertUnifiedExactRetimeAuthority(
 	intent: VideoRetimeExportIntentV6,
@@ -69,8 +74,8 @@ export function assertUnifiedExactRetimeAuthority(
 	clip: UnifiedRetimeClipAuthority,
 ): void {
 	assertIntentEnvelope(intent, context, clip);
-	if (clip.sourceTiming.kind !== 'cfr') {
-		throw new RangeError('Unified VFR retime admission requires verified timing asset bytes.');
+	if ((clip.sourceTiming.kind === 'vfr') !== (clip.sourceTimingView !== null)) {
+		throw new RangeError('Unified VFR retime authority requires exactly one verified timing asset sidecar.');
 	}
 	const cadence = createVideoRetimeOutputCadence({
 		sampleStart: context.sampleStart,
@@ -158,8 +163,8 @@ function uniformRows(
 	clipEndSample: number,
 ): Readonly<{ readonly rows: readonly VideoRetimeExportIntersectionV6[]; readonly geometricCandidateCount: 1 }> {
 	if (base.startOutputFrame === base.endOutputFrame) return { rows: [], geometricCandidateCount: 1 };
-	const sourceStartTime = sourceTime(clip.sourceInFrame, clip.sourceRate);
-	const sourceEndTime = sourceTime(safeAdd(clip.sourceInFrame, clip.sourceFrameCount), clip.sourceRate);
+	const sourceStartTime = sourceBoundaryTime(clip.sourceInFrame, clip);
+	const sourceEndTime = sourceBoundaryTime(safeAdd(clip.sourceInFrame, clip.sourceFrameCount), clip);
 	return {
 		rows: [{
 			index: 0, ...identityBase(clip), ...base,
@@ -233,8 +238,8 @@ function curveRows(
 			startOuterCell, endOuterCell,
 			clippedSourceStart: exactDecimal(evaluateVideoRetimeCurve(compiled, startOuterCell)),
 			clippedSourceEnd: exactDecimal(evaluateVideoRetimeCurve(compiled, endOuterCell)),
-			drawableStartTime: decimal(sourceTime(lowerFrame, clip.sourceRate)),
-			drawableEndTime: decimal(sourceTime(upperFrame + 1, clip.sourceRate)),
+			drawableStartTime: decimal(sourceBoundaryTime(lowerFrame, clip)),
+			drawableEndTime: decimal(sourceBoundaryTime(upperFrame + 1, clip)),
 		});
 	}
 	return { rows, geometricCandidateCount };
@@ -275,6 +280,16 @@ function drawableFrame(
 
 function sourceTime(frame: number, rate: Readonly<{ readonly num: number; readonly den: number }>) {
 	return normalize(BigInt(frame) * BigInt(rate.den), BigInt(rate.num));
+}
+
+function sourceBoundaryTime(frame: number, clip: UnifiedRetimeClipAuthority) {
+	if (clip.sourceTiming.kind === 'cfr') return sourceTime(frame, clip.sourceRate);
+	if (clip.sourceTimingView === null) {
+		throw new RangeError('Unified VFR source boundary has no authenticated timing sidecar.');
+	}
+	return videoSourceFrameTime(clip.sourceTimingView, {
+		numerator: BigInt(frame), denominator: 1n,
+	});
 }
 
 function decimal(value: Readonly<{ readonly numerator: bigint; readonly denominator: bigint }>): DecimalExactRationalV6 {

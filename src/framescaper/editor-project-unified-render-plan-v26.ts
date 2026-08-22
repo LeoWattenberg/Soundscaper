@@ -1,9 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	assertUnifiedExactRenderPlanV12,
-	type UnifiedExactRenderPlanV12,
-} from '../common/editor/unified-exact-render-plan.ts';
+import type { UnifiedExactRenderPlanV12 } from '../common/editor/unified-exact-render-plan.ts';
 import {
 	snapshotFramescaperUnifiedExactVisualRenderAuthority,
 	type FramescaperUnifiedExactVisualRenderAuthority,
@@ -34,7 +31,6 @@ export function createFramescaperProjectUnifiedExactRenderPlanV26(
 	const plan = finalizeFramescaperUnifiedRenderPlan(
 		foundation, 12, [...visual.nodes, ...professional, ...openFx],
 	);
-	assertUnifiedExactRenderPlanV12(plan);
 	return plan;
 }
 

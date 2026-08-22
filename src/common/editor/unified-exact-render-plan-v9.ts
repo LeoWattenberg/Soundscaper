@@ -7,6 +7,7 @@ import {
 	type ClosedDomainRecord,
 } from './closed-domain-value.ts';
 import type { RationalRate } from './timeline-time.ts';
+import type { UnifiedExactRenderTimingIndex } from './unified-exact-render-timing-authority.ts';
 import {
 	normalizeVideoClipComposition,
 	type VideoClipComposition,
@@ -211,6 +212,7 @@ export function normalizeUnifiedExactRenderClipNode(
 	context: UnifiedExactRenderTemporalContext,
 	sources: UnifiedExactRenderSourceIndex,
 	tracks: UnifiedExactRenderTrackIndexV1,
+	timing: UnifiedExactRenderTimingIndex,
 ): UnifiedExactRenderClipNode {
 	const name = 'unified clip render node';
 	const clip = readClosedDomainRecord(value, name, CLIP_FIELDS);
@@ -246,10 +248,13 @@ export function normalizeUnifiedExactRenderClipNode(
 		{ sequenceFrameCount, sourceInFrame, sourceFrameCount },
 	);
 	const intent = normalizeVideoRetimeExportIntentV6Wire(field(mapping, 'intent', `${name}.sourceTimeMapping`));
+	const sourceTimingView = source.timing.kind === 'vfr'
+		? timing.vfrBySourceId.get(source.sourceId) ?? null
+		: null;
 	assertUnifiedExactRetimeAuthority(intent, context, {
 		clipId, sourceId: source.sourceId,
 		sequenceStartFrame, sequenceFrameCount, sourceInFrame, sourceFrameCount,
-		sourceRate, retimeMap, sourceTiming: source.timing,
+		sourceRate, retimeMap, sourceTiming: source.timing, sourceTimingView,
 	});
 	return Object.freeze({
 		kind: 'clip' as const,

@@ -81,10 +81,10 @@ export function createFramescaperDormantCandidateRenderSession(
 			captured.plan, clipId, timingBySourceId, port, consumerOptions,
 		),
 		createTransitionPreviewResolver: (transitionId: string) => (
-			createUnifiedExactRenderTransitionPreviewResolver(captured.plan, transitionId)
+			createUnifiedExactRenderTransitionPreviewResolver(captured.plan, transitionId, timingBySourceId)
 		),
 		createTransitionExportResolver: (transitionId: string) => (
-			createUnifiedExactRenderTransitionExportResolver(captured.plan, transitionId)
+			createUnifiedExactRenderTransitionExportResolver(captured.plan, transitionId, timingBySourceId)
 		),
 	});
 }

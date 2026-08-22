@@ -14,11 +14,12 @@ namespace framescaper::media::unified {
 
 inline void validate_unified_semantics(
 	const json::value& root,
-	admitted_media_plan& result
+	admitted_media_plan& result,
+	video_timing_asset_registry& timing_assets
 ) {
 	const auto clock = temporal(root);
 	const auto tracks = validate_tracks(root);
-	const auto sources = validate_sources(root, result);
+	const auto sources = validate_sources(root, result, timing_assets);
 	const auto& nodes = json::array(json::member(root, "nodes"), "unified render nodes");
 	if (nodes.size() > 100'000) throw json::parse_error("The unified render node ceiling is exceeded.");
 	clip_index clips;

@@ -207,13 +207,13 @@
 		},
 		{
 			"path": "src/media_plan.cpp",
-			"byteLength": 12601,
-			"sha256": "7da1149c505195c9b17cb68c4df3e977f8712f797616eae867c428d4bbecf45f"
+			"byteLength": 12956,
+			"sha256": "f99764381eafd5343296cbcc9153c3f56d45666dade127fa0a03a59480d180a2"
 		},
 		{
 			"path": "src/media_plan.hpp",
-			"byteLength": 1194,
-			"sha256": "dab79dcea9bd96433a24a8e4c7a11083bc2db2605ae278c89807c122ae1b5c1f"
+			"byteLength": 1424,
+			"sha256": "3f2c6ef00756319c3c3ac83df625131607e93a3464160e62d77b0b8e68eaf9c2"
 		},
 		{
 			"path": "src/professional_source_probe.cpp",
@@ -292,8 +292,8 @@
 		},
 		{
 			"path": "src/unified_plan_semantics.hpp",
-			"byteLength": 6160,
-			"sha256": "866e299d2c9d27f6940b39eb25343577f058ae5ad681bea3b8fccd1196bbe70b"
+			"byteLength": 6220,
+			"sha256": "652039df6e08b644b8843a7cc20334d37a5277d6ee76c54141288ad1ba2c9e6d"
 		},
 		{
 			"path": "src/unified_plan_v10_semantics.hpp",
@@ -302,18 +302,28 @@
 		},
 		{
 			"path": "src/unified_plan_v11_v12_semantics.hpp",
-			"byteLength": 20845,
-			"sha256": "249434132ac87e70c995e2141a9236e8b9cc48d28a879ce7ecdba1d0bc5c5f14"
+			"byteLength": 20824,
+			"sha256": "30788bef1ecd6173ece1f4eeb9c08aae32f5f11ae689e532b5fa96b4bcc67f7e"
 		},
 		{
 			"path": "src/unified_plan_v9_intent_authority.hpp",
-			"byteLength": 15477,
-			"sha256": "f3f6ae1fa12bc9667a6ec39788ebbaa7672f848b639788a6d3d78a1589950546"
+			"byteLength": 15903,
+			"sha256": "ded4cd436619049cb974ae0fca5207e86f3528e2d36aa30ac9b5cdef673baebd"
 		},
 		{
 			"path": "src/unified_plan_v9_semantics.hpp",
-			"byteLength": 32518,
-			"sha256": "8ca0173fdca8e21951530ffe0a2abc0d5c8b9b7aac303a95c68aaf89eddc5a09"
+			"byteLength": 31075,
+			"sha256": "56771b5cf57c4ec7abe201a7c2bb80592af6b35fcc15ff9ccba303768d5a9680"
+		},
+		{
+			"path": "src/unified_plan_video_timing.hpp",
+			"byteLength": 3200,
+			"sha256": "6df58a12d61e3684e7fe4952f5ef411707e292204fd67c46875b73bd13983a6e"
+		},
+		{
+			"path": "src/video_timing_asset.hpp",
+			"byteLength": 7593,
+			"sha256": "c10679c32f833c42427cf447843d97b6258f8ebd3599e9ccc8f691a57dbb2311"
 		},
 		{
 			"path": "tests/exact_retime_ordinal_fixture.cpp",
@@ -342,8 +352,8 @@
 		},
 		{
 			"path": "tests/unified_plan_admission_fixture.cpp",
-			"byteLength": 620,
-			"sha256": "c8ea525b27a424f33b505c0f1abd24dac9364c949edf165356fa9a151fd7c7ef"
+			"byteLength": 935,
+			"sha256": "04095214a295ab6a7b750e397b7107e3cba863c02f1d25005d42dd1c931fb149"
 		}
 	],
 	"targets": {

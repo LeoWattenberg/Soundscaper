@@ -159,9 +159,9 @@ inline void validate_proxy(const json::value& value, const source_authority& sou
 		!= safe_integer(json::member(value, "frameCount"), "proxy frame count", 1) + 1) throw json::parse_error("Proxy boundary count is inconsistent.");
 	literal(json::member(value, "timingRule"), "exact-presentation-boundaries-v1", "proxy timing rule");
 	literal(json::member(value, "audioPolicy"), "ignore-proxy-container-audio-v1", "proxy audio policy");
-	source_authority proxy;
-	proxy.sha256 = proxy_sha;
-	validate_timing_reference(json::member(value, "timingAsset"), proxy_sha, proxy);
+	static_cast<void>(validate_video_timing_reference_summary(
+		json::member(value, "timingAsset"), proxy_sha
+	));
 }
 
 inline void validate_professional(

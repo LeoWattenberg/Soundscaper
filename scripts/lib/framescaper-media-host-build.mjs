@@ -179,9 +179,11 @@ function auditClosedAdapters(hostRoot) {
 		]],
 		['src/media_plan.cpp', [
 			'unsupported-plan-version', 'framescaper-unified-exact-v1',
+			'timing_grants', 'require_all_used',
 		]],
 		['src/media_plan.hpp', [
 			'simple_full_frame_clip', 'image_sequence_inventory_sha256',
+			'video_timing_asset_grant',
 		]],
 		['src/professional_source_probe.cpp', [
 			'AV_PKT_DATA_MASTERING_DISPLAY_METADATA', 'AV_PKT_DATA_CONTENT_LIGHT_LEVEL',
@@ -189,7 +191,17 @@ function auditClosedAdapters(hostRoot) {
 			'framescaper-media-host', 'alphaInterpretation',
 		]],
 		['src/unified_plan_semantics.hpp', ['simple_full_frame_clip']],
+		['src/unified_plan_v9_intent_authority.hpp', [
+			'intent_source_boundary', 'boundary_ticks',
+		]],
 		['src/unified_plan_v11_v12_semantics.hpp', ['image_sequence_inventory_sha256']],
+		['src/unified_plan_video_timing.hpp', [
+			'soundscaper-video-timing-v1', 'video-timing-sha256:', 'timing_assets.require',
+		]],
+		['src/video_timing_asset.hpp', [
+			'video_timing_asset_maximum_grants', 'authenticate_regular_file',
+			'sha256_bytes', 'boundary_ticks', 'require_all_used',
+		]],
 	]);
 	for (const [path, tokens] of required) {
 		let source;

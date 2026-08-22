@@ -2,10 +2,11 @@
 
 import { sequenceFrameBoundarySample } from '../common/editor/sequence-frame-navigation.ts';
 import {
-	createUnifiedExactRenderPlan,
+	createUnifiedExactRenderPlanWithTimingSidecars,
 	type UnifiedExactRenderClipPictureStateV1,
 	type UnifiedExactRenderNode,
 	type UnifiedExactRenderPlan,
+	type UnifiedExactRenderPlanSource,
 	type UnifiedExactRenderPlanVersion,
 	type UnifiedExactRenderTrackAuthorityV1,
 } from '../common/editor/unified-exact-render-plan.ts';
@@ -41,6 +42,8 @@ export interface FramescaperUnifiedRenderFoundation {
 	readonly rawPlanBase: Omit<UnifiedExactRenderPlan, 'version' | 'nodes'>;
 }
 
+const FOUNDATION_TIMING_SIDECARS = new WeakMap<object, ReadonlyMap<string, BoundVideoSourceTimingView>>();
+
 /** Build the exact V9 foundation shared by all cumulative dormant generations. */
 export function createFramescaperUnifiedRenderFoundation(
 	projectValue: unknown,
@@ -67,6 +70,7 @@ export function createFramescaperUnifiedRenderFoundation(
 	const externalSources = sourceValues.filter(({ kind }) => kind === 'video' || kind === 'still')
 		.sort(compareIds);
 	const sourceNodeIdById = new Map<string, string>();
+	const timingBySourceId = new Map<string, BoundVideoSourceTimingView>();
 	const planSources = externalSources.map((source, inputIndex) => {
 		const sourceId = id(source, 'project source');
 		if (source.kind === 'video' && Object.hasOwn(source, 'opaqueExtensions')) {
@@ -74,9 +78,14 @@ export function createFramescaperUnifiedRenderFoundation(
 		}
 		const nodeId = generatedNodeId('source', sourceId, projectIdentities);
 		sourceNodeIdById.set(sourceId, nodeId);
-		const timing = source.kind === 'video'
-			? boundVideoSourceTimingAuthority(bindVideoSourceTimingView(timingViews, source))
-			: Object.freeze({ kind: 'cfr' as const, frameCount: 1, rate: sequenceRate });
+		let timing: UnifiedExactRenderPlanSource['timing'];
+		if (source.kind === 'video') {
+			const boundTiming = bindVideoSourceTimingView(timingViews, source);
+			timingBySourceId.set(sourceId, boundTiming);
+			timing = boundVideoSourceTimingAuthority(boundTiming);
+		} else {
+			timing = Object.freeze({ kind: 'cfr' as const, frameCount: 1, rate: sequenceRate });
+		}
 		return Object.freeze({
 			inputIndex, nodeId, sourceId,
 			storageKey: data(source, 'storageKey', `source ${sourceId}`),
@@ -93,12 +102,13 @@ export function createFramescaperUnifiedRenderFoundation(
 	const videoPlacements = placements.filter(({ clip }) => clip.kind === 'video').sort(comparePlacements);
 	const visualPlacements = placements.filter(({ clip }) => clip.kind === 'still' || clip.kind === 'generator')
 		.sort(comparePlacements);
-	const timingBySourceId = new Map<string, BoundVideoSourceTimingView>();
 	for (const placement of videoPlacements) {
 		const sourceId = String(data(placement.clip, 'sourceId', 'video clip'));
 		const source = sourceById.get(sourceId);
 		if (!source || source.kind !== 'video') throw new ReferenceError(`Video source ${sourceId} is missing.`);
-		timingBySourceId.set(sourceId, bindVideoSourceTimingView(timingViews, source));
+		if (!timingBySourceId.has(sourceId)) {
+			throw new ReferenceError(`Video source ${sourceId} has no authenticated timing authority.`);
+		}
 	}
 	const clipNodes = videoPlacements.map((placement) => {
 		assertRepresentedInheritedPictureState(placement.clip);
@@ -159,7 +169,7 @@ export function createFramescaperUnifiedRenderFoundation(
 		const transition = record(data(node, 'transition', 'transition render node'), 'transition');
 		representedIdentities.add(id(transition, 'transition'));
 	}
-	return Object.freeze({
+	const foundation: FramescaperUnifiedRenderFoundation = Object.freeze({
 		project, authority, sequence, sequenceRate, sourceById,
 		sourceNodeIdById: Object.freeze(sourceNodeIdById),
 		projectIdentities, representedIdentities, tracks,
@@ -185,18 +195,24 @@ export function createFramescaperUnifiedRenderFoundation(
 			sources: Object.freeze(planSources),
 		}),
 	});
+	FOUNDATION_TIMING_SIDECARS.set(foundation, new Map(timingBySourceId));
+	return foundation;
 }
 
-export function finalizeFramescaperUnifiedRenderPlan(
+export function finalizeFramescaperUnifiedRenderPlan<Version extends UnifiedExactRenderPlanVersion>(
 	foundation: FramescaperUnifiedRenderFoundation,
-	version: UnifiedExactRenderPlanVersion,
+	version: Version,
 	extraNodes: readonly UnifiedExactRenderNode[] | readonly Readonly<Record<string, unknown>>[],
-): UnifiedExactRenderPlan {
-	return createUnifiedExactRenderPlan({
+): UnifiedExactRenderPlan & Readonly<{ readonly version: Version }> {
+	const timingSidecars = FOUNDATION_TIMING_SIDECARS.get(foundation);
+	if (!timingSidecars) throw new TypeError('An authenticated unified render foundation is required.');
+	const plan = createUnifiedExactRenderPlanWithTimingSidecars({
 		version,
 		...foundation.rawPlanBase,
 		nodes: [...foundation.baseNodes, ...extraNodes],
-	});
+	}, new Map(timingSidecars));
+	if (plan.version !== version) throw new RangeError('Unified render plan generation changed during normalization.');
+	return plan as UnifiedExactRenderPlan & Readonly<{ readonly version: Version }>;
 }
 
 export function generatedNodeId(
