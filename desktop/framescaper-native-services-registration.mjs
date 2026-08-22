@@ -2,7 +2,12 @@
 
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { isAbsolute, resolve } from 'node:path';
+import { resolve } from 'node:path';
+
+import {
+	imageSequenceImportAuthorityPort,
+	registrationOptions,
+} from './framescaper-native-services-options.mjs';
 
 /** Mount the dormant service database for Framescaper only; payload availability stays explicit. */
 export async function startFramescaperNativeServicesRegistration(value, dependencies = {}) {
@@ -506,80 +511,6 @@ function policyRowCleared(value, collection, id) {
 	return ['documented', 'implemented', 'recorded'].includes(matches[0].status);
 }
 
-function registrationOptions(value) {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError('Framescaper native-services registration options are required.');
-	}
-	const fields = [
-		'productId', 'userDataPath', 'instanceId', 'processId',
-		'settings', 'onFenced', 'onServiceError',
-		'selectDirectory', 'selectImageSequenceFiles', 'selectOpenFxPluginBinary',
-		'imageSequenceImportAuthority',
-		'externalDisplay', 'projectAuthority', 'watchImportAuthority', 'createMessageChannel',
-	].sort();
-	const actual = Object.keys(value).sort();
-	if (actual.length !== fields.length || actual.some((field, index) => field !== fields[index])
-		|| !['framescaper', 'soundscaper'].includes(value.productId)
-		|| typeof value.userDataPath !== 'string' || !isAbsolute(value.userDataPath)
-		|| typeof value.instanceId !== 'string' || value.instanceId.length < 8
-		|| !Number.isSafeInteger(value.processId) || value.processId < 1
-		|| typeof value.selectDirectory !== 'function'
-		|| typeof value.selectImageSequenceFiles !== 'function'
-		|| typeof value.selectOpenFxPluginBinary !== 'function'
-		|| typeof value.createMessageChannel !== 'function'
-		|| !projectAuthorityPort(value.projectAuthority)
-		|| !watchImportAuthorityPort(value.watchImportAuthority)
-		|| !imageSequenceImportAuthorityPort(value.imageSequenceImportAuthority)
-		|| !externalDisplayOptions(value.externalDisplay)
-		|| !value.settings || ['snapshot', 'setNativeMediaEnabled', 'setNativeHardwareDecodeEnabled',
-			'setNativeHardwareEncodeEnabled', 'setOfxConsentEnabled']
-			.some((method) => typeof value.settings[method] !== 'function')
-		|| typeof value.onFenced !== 'function' || typeof value.onServiceError !== 'function') {
-		throw new TypeError('Framescaper native-services registration options are invalid.');
-	}
-	return value;
-}
-
-function imageSequenceImportAuthorityPort(value) {
-	if (value === null) return true;
-	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
-		return false;
-	}
-	const fields = [
-		'candidateGeneration', 'projectMutationSurface',
-		'professionalCharacteristicsContract', 'isRouted',
-	].sort();
-	const keys = Reflect.ownKeys(value);
-	if (keys.length !== fields.length || keys.some((key) => typeof key !== 'string')
-		|| keys.map(String).sort().some((key, index) => key !== fields[index])) return false;
-	for (const field of fields) {
-		const descriptor = Object.getOwnPropertyDescriptor(value, field);
-		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) return false;
-	}
-	return (value.candidateGeneration === 25 || value.candidateGeneration === 26)
-		&& value.projectMutationSurface === 'image-sequence-import'
-		&& value.professionalCharacteristicsContract === 'video-source-characteristics-v25'
-		&& typeof value.isRouted === 'function';
-}
-
-function projectAuthorityPort(value) {
-	return value === null || (value && typeof value === 'object' && !Array.isArray(value)
-		&& ['projectState', 'projectRecord', 'readProjectBundle', 'readBody']
-			.every((method) => typeof value[method] === 'function'));
-}
-
-function watchImportAuthorityPort(value) {
-	if (value === null) return true;
-	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| Object.keys(value).sort().join('|') !== 'currentOwner|isOwnerCurrent|locator') return false;
-	const locator = value.locator;
-	return typeof value.currentOwner === 'function' && typeof value.isOwnerCurrent === 'function'
-		&& locator && typeof locator === 'object' && !Array.isArray(locator)
-		&& Object.keys(locator).sort().join('|') === 'registerPath|release'
-		&& typeof locator.registerPath === 'function' && typeof locator.release === 'function';
-}
-
 function mediaExecutable(mediaRuntime) {
 	const payload = mediaRuntime.payloadAvailability;
 	if (payload?.status !== 'available') return null;
@@ -589,18 +520,4 @@ function mediaExecutable(mediaRuntime) {
 		sha256: payload.descriptor.sha256,
 		identity: payload.descriptor.identity,
 	});
-}
-
-function externalDisplayOptions(value) {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const fields = [
-		'platform', 'linuxSessionType', 'isEnabled', 'listDisplays',
-		'createWindow', 'sinkSelfTestPassed', 'subscribe', 'onError',
-	].sort();
-	const actual = Object.keys(value).sort();
-	return actual.length === fields.length && actual.every((field, index) => field === fields[index])
-		&& typeof value.platform === 'string'
-		&& (value.linuxSessionType === undefined || typeof value.linuxSessionType === 'string')
-		&& ['isEnabled', 'listDisplays', 'createWindow', 'sinkSelfTestPassed', 'subscribe', 'onError']
-			.every((method) => typeof value[method] === 'function');
 }

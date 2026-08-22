@@ -79,6 +79,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'framescaper-openfx-electron-runtime.mjs'));
 	await access(join(applicationDesktopRoot, 'framescaper-native-services-electron-ports.mjs'));
 	await access(join(applicationDesktopRoot, 'framescaper-native-services-registration.mjs'));
+	await access(join(applicationDesktopRoot, 'framescaper-native-services-options.mjs'));
 	await access(join(applicationDesktopRoot, 'read-selection-service.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-service.js'));
