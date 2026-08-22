@@ -75,6 +75,63 @@
 	},
 	"packagedRuntimeQualification": {
 		"status": "active",
+		"profiles": [
+			{
+				"status": "active",
+				"diagnosticKey": "m1-video-preview-12fx-720p",
+				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
+				"observedEnvironmentId": "local-browser-correctness",
+				"workloadId": "m1-video-preview-12fx-720p",
+				"fixtureId": "video-preview-12fx-720p-v1",
+				"rendererClass": "hardware",
+				"diagnosticIdentityFields": [],
+				"diagnosticFingerprintSource": "m1-video-preview",
+				"fingerprint": {
+					"browserVersion": "150.0.7871.114",
+					"browserEnvironment": {
+						"devicePixelRatio": 1,
+						"hardwareConcurrency": 24,
+						"userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Framescaper/0.2.0-beta.1 Chrome/150.0.7871.114 Electron/43.1.1 Safari/537.36"
+					},
+					"renderer": {
+						"vendor": "Google Inc. (NVIDIA)",
+						"renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+					}
+				},
+				"fixture": {
+					"width": 1280,
+					"height": 720,
+					"effectCount": 12,
+					"measuredIntervals": 120
+				},
+				"sampleShape": {
+					"resolution": [1280, 720],
+					"effects": ["Color Adjust", "Pixelate", "Vignette", "Gaussian Blur", "Sharpen", "RGB Split", "Chroma Key", "Luma Key", "Spill Suppression", "Glow", "Outline", "Drop Shadow"],
+					"warmupFrames": 40,
+					"measuredFrames": 121,
+					"measuredIntervals": 120
+				}
+			},
+			{
+				"status": "active",
+				"diagnosticKey": "m4-production-parity",
+				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
+				"observedEnvironmentId": "packaged-runtime-win32-x64",
+				"workloadId": "m4-production-render-parity",
+				"fixtureId": "m4-production-parity-v1",
+				"profile": "deterministic-production-parity-v1",
+				"observationClass": "complete-pcm-rgba-render-ledger-v1",
+				"rendererClass": "hardware",
+				"diagnosticIdentityFields": ["workloadId", "fixtureId", "profile", "observationClass"],
+				"fingerprint": {
+					"browserVersion": "150.0.7871.114",
+					"platform": "win32",
+					"architecture": "x64",
+					"webglVendor": "Google Inc. (NVIDIA)",
+					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+				}
+			}
+		],
 		"environmentId": "owner-qualified-windows-x64-rtx3090-01",
 		"observedEnvironmentId": "packaged-runtime-win32-x64",
 		"workloadId": "m4-production-render-parity",
@@ -201,7 +258,7 @@
 			"kind": "owner-qualified-packaged-runtime-fixed-gpu",
 			"qualificationEligible": true,
 			"rendererRequirement": "hardware",
-			"eligibleWorkloadIds": ["m4-production-render-parity"],
+			"eligibleWorkloadIds": ["m1-video-preview-12fx-720p", "m4-production-render-parity"],
 			"fingerprint": {
 				"browserVersion": "150.0.7871.114",
 				"platform": "win32",
@@ -1231,7 +1288,7 @@
 			"milestone": "1",
 			"status": "provisional",
 			"fixtureIds": ["video-preview-12fx-720p-v1"],
-			"environmentIds": ["reference-linux-gpu-01"],
+			"environmentIds": ["reference-linux-gpu-01", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{
 					"metricId": "preview.frameIntervalP95Ms",

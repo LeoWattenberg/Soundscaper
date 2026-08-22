@@ -209,14 +209,14 @@ directory contains `packaged-runtime/summary.json`,
 `packaged-runtime/junit.xml`, `packaged-runtime/console.log`,
 `packaged-runtime/playwright-report/index.html`, and
 `packaged-runtime/test-results/`. It also writes
-`packaged-runtime/qualification.json`: a fail-closed formal verification of the
-Soundscaper M4 result against the owner-designated Windows x64 RTX 3090 host
-fingerprint, the registered workload, the exact budget digest, one attempt,
-zero retries, one worker, hardware rendering, and every registered threshold.
-Framescaper failures remain visible in the overall run but do not invalidate a
-complete, independently admitted Soundscaper M4 qualification. This makes
-packaged-runtime evidence machine-readable instead of relying only on CI log
-lines.
+`packaged-runtime/qualification.json`: fail-closed formal verification entries
+that independently admit the M1 preview and Soundscaper M4 results against the
+owner-designated Windows x64 RTX 3090 host fingerprint, each registered
+workload and sampling shape, the exact budget digest, one attempt, zero retries,
+one worker, hardware rendering, and every registered threshold. A failure in
+one workload or in unrelated Framescaper coverage does not invalidate another
+complete qualification. This makes packaged-runtime evidence machine-readable
+instead of relying only on CI log lines.
 
 Other hosts and workloads remain `pending-external`. An identity, renderer,
 source-revision, budget-digest, retry, worker, or metric mismatch is recorded as

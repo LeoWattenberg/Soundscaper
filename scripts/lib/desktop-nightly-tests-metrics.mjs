@@ -239,11 +239,17 @@ export function createDesktopNightlyTestsMetricsEvidence({
 	const qualification = evidenceKind === 'packaged-runtime'
 		? createPackagedRuntimeQualification({ config, raw, summary: pendingSummary })
 		: null;
-	const qualifiedWorkloads = qualification?.status === 'accepted'
-		? workloads.map((workload) => workload.workloadId === qualification.workloadId
-			? acceptedWorkload(workload, qualification.environmentId) : workload)
-		: workloads;
-	const summary = qualification?.status === 'accepted' ? Object.freeze({
+	const workloadQualifications = Array.isArray(qualification?.workloadQualifications)
+		? qualification.workloadQualifications
+		: qualification === null ? [] : [qualification];
+	const acceptedQualifications = new Map(workloadQualifications
+		.filter(({ status }) => status === 'accepted')
+		.map((value) => [value.workloadId, value]));
+	const qualifiedWorkloads = workloads.map((workload) => {
+		const accepted = acceptedQualifications.get(workload.workloadId);
+		return accepted === undefined ? workload : acceptedWorkload(workload, accepted.environmentId);
+	});
+	const summary = acceptedQualifications.size > 0 ? Object.freeze({
 		...pendingSummary,
 		qualificationEvidencePublished: true,
 		workloads: Object.freeze(qualifiedWorkloads),

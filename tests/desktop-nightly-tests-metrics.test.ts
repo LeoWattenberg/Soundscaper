@@ -151,6 +151,89 @@ test('packaged evidence publishes formal M4 qualification only for the owner-des
 	assert.equal(evidence.summary.workloads[0].qualificationEvidencePublished, true);
 });
 
+test('packaged evidence independently promotes an accepted M1 qualification', () => {
+	const fingerprint = {
+		browserVersion: '150.0.7871.114',
+		browserEnvironment: { devicePixelRatio: 1, hardwareConcurrency: 24, userAgent: 'qualified-host' },
+		renderer: { vendor: 'Google Inc. (NVIDIA)', renderer: 'ANGLE (NVIDIA, RTX 3090)' },
+	};
+	const sampleShape = {
+		resolution: [1_280, 720], effects: ['effect'], warmupFrames: 40,
+		measuredFrames: 121, measuredIntervals: 120,
+	};
+	const fixture = { width: 1_280, height: 720, effectCount: 1, measuredIntervals: 120 };
+	const metrics = { 'preview.frameIntervalP95Ms': 8 };
+	const diagnostic = {
+		...sampleShape, p95Ms: 8, retainedJsHeapDeltaBytes: 0,
+		browserVersion: fingerprint.browserVersion,
+		browserEnvironment: fingerprint.browserEnvironment,
+		renderer: fingerprint.renderer,
+	};
+	const profile = {
+		status: 'active', diagnosticKey: 'm1-video-preview-12fx-720p',
+		environmentId: 'owner-qualified-windows-x64-rtx3090-01',
+		observedEnvironmentId: 'local-browser-correctness',
+		workloadId: 'm1-video-preview-12fx-720p', fixtureId: 'video-preview-12fx-720p-v1',
+		rendererClass: 'hardware', diagnosticIdentityFields: [],
+		diagnosticFingerprintSource: 'm1-video-preview', fingerprint, fixture, sampleShape,
+	};
+	const m4Fingerprint = {
+		browserVersion: '150.0.7871.114', platform: 'win32', architecture: 'x64',
+		webglVendor: 'Google Inc. (NVIDIA)', webglRenderer: 'ANGLE (NVIDIA, RTX 3090)',
+	};
+	const m4Profile = {
+		status: 'active', diagnosticKey: 'm4-production-parity',
+		environmentId: profile.environmentId, observedEnvironmentId: 'packaged-runtime-win32-x64',
+		workloadId: 'm4-production-render-parity', fixtureId: 'm4-production-parity-v1',
+		profile: 'deterministic-production-parity-v1', observationClass: 'complete-pcm-rgba-render-ledger-v1',
+		rendererClass: 'hardware', fingerprint: m4Fingerprint,
+	};
+	const m4Diagnostic = {
+		...m4Profile, environmentId: m4Profile.observedEnvironmentId,
+		environmentFingerprint: m4Fingerprint,
+	};
+	const evidence = createDesktopNightlyTestsMetricsEvidence({
+		consoleOutput: 'raw diagnostic',
+		config: {
+			packagedRuntimeQualification: { status: 'active', profiles: [profile, m4Profile] },
+			workloads: [
+				{ id: profile.workloadId, thresholds: [{ metricId: 'preview.frameIntervalP95Ms' }] },
+				{ id: m4Profile.workloadId, thresholds: [{ metricId: 'parity.silentlyOmittedEffects' }] },
+			],
+		},
+		sourceRevision: 'a'.repeat(40), budgetSha256: 'b'.repeat(64),
+		playwrightExit: { code: 0, signal: null },
+	}, { evidenceKind: 'packaged-runtime', collectors: [{
+		workloadId: profile.diagnosticKey,
+		parse: () => diagnostic,
+		evaluate: () => ({
+			workloadId: profile.workloadId, fixtureId: profile.fixtureId,
+			environmentId: profile.observedEnvironmentId, attemptCount: 1, retryCount: 0,
+			rendererClass: 'hardware', environmentFingerprint: fingerprint, fixture,
+			rawSampleCounts: { warmupFrames: 40, measuredFrames: 121, measuredIntervals: 120 },
+			metricGatePassed: true, metrics,
+			evaluation: { verdicts: [{ metricId: 'preview.frameIntervalP95Ms', passed: true }] },
+		}),
+		metricGatePassed: () => true,
+	}, {
+		workloadId: m4Profile.diagnosticKey,
+		parse: () => m4Diagnostic,
+		evaluate: () => ({
+			...m4Diagnostic, attemptCount: 1, retryCount: 0, metricGatePassed: true,
+			metrics: { 'parity.silentlyOmittedEffects': 0 },
+			evaluation: { verdicts: [{ metricId: 'parity.silentlyOmittedEffects', passed: true }] },
+		}),
+		metricGatePassed: () => true,
+	}] });
+
+	const m1 = evidence.qualification?.workloadQualifications[0];
+	assert.equal(m1?.status, 'accepted');
+	assert.equal(evidence.summary.qualificationEvidencePublished, true);
+	assert.equal(evidence.summary.workloads[0].status, 'accepted');
+	assert.equal(evidence.summary.workloads[0].qualificationEnvironmentId, profile.environmentId);
+	assert.equal(evidence.summary.workloads[1].status, 'accepted');
+});
+
 test('metric evidence records partial diagnostics and fails closed', () => {
 	const evidence = createDesktopNightlyTestsMetricsEvidence({
 		consoleOutput: 'partial output',

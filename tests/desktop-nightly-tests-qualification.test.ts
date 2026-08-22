@@ -17,6 +17,22 @@ const FINGERPRINT = {
 	webglVendor: 'Google Inc. (NVIDIA)',
 	webglRenderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)',
 };
+const M1_FINGERPRINT = {
+	browserVersion: '150.0.7871.114',
+	browserEnvironment: {
+		devicePixelRatio: 1,
+		hardwareConcurrency: 24,
+		userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Framescaper/0.2.0-beta.1 Chrome/150.0.7871.114 Electron/43.1.1 Safari/537.36',
+	},
+	renderer: {
+		vendor: 'Google Inc. (NVIDIA)',
+		renderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)',
+	},
+};
+const M1_EFFECTS = [
+	'Color Adjust', 'Pixelate', 'Vignette', 'Gaussian Blur', 'Sharpen', 'RGB Split',
+	'Chroma Key', 'Luma Key', 'Spill Suppression', 'Glow', 'Outline', 'Drop Shadow',
+];
 
 test('the owner-designated packaged Windows host formally qualifies a passing M4 diagnostic', () => {
 	const { config, raw, summary } = fixture();
@@ -42,6 +58,38 @@ test('Framescaper failures do not invalidate an independently complete Soundscap
 	assert.equal(result.verification.passed, true);
 });
 
+test('the owner-designated packaged Windows host independently qualifies a passing M1 preview diagnostic', () => {
+	const value = m1Fixture();
+	const result = createPackagedRuntimeQualification(value);
+	const m1 = result.workloadQualifications.find(({ workloadId }) => (
+		workloadId === 'm1-video-preview-12fx-720p'
+	));
+
+	assert.equal(m1?.status, 'accepted');
+	assert.equal(m1?.qualificationEvidencePublished, true);
+	assert.equal(m1?.environmentId, 'owner-qualified-windows-x64-rtx3090-01');
+	assert.equal(m1?.rawEvidence.diagnosticKey, 'm1-video-preview-12fx-720p');
+	assert.deepEqual(m1?.verification, { passed: true, failures: [] });
+});
+
+test('M1 qualification fails closed for fingerprint, sampling, gate, retry, and digest drift', () => {
+	for (const mutate of [
+		(value: ReturnType<typeof m1Fixture>) => { value.raw.diagnostics['m1-video-preview-12fx-720p'].browserEnvironment.hardwareConcurrency = 16; },
+		(value: ReturnType<typeof m1Fixture>) => { value.raw.diagnostics['m1-video-preview-12fx-720p'].measuredIntervals = 119; },
+		(value: ReturnType<typeof m1Fixture>) => { value.summary.workloads[0].metricGatePassed = false; },
+		(value: ReturnType<typeof m1Fixture>) => { value.summary.retryCount = 1; },
+		(value: ReturnType<typeof m1Fixture>) => { value.raw.budgetSha256 = 'c'.repeat(64); },
+	]) {
+		const value = m1Fixture();
+		mutate(value);
+		const result = createPackagedRuntimeQualification(value);
+		const m1 = result.workloadQualifications[0];
+		assert.equal(m1.status, 'rejected');
+		assert.equal(m1.qualificationEvidencePublished, false);
+		assert.ok(m1.verification.failures.length > 0);
+	}
+});
+
 test('qualification fails closed for another renderer, a failed gate, or incomplete run identity', () => {
 	for (const mutate of [
 		(value: ReturnType<typeof fixture>) => { value.raw.diagnostics['m4-production-parity'].environmentFingerprint.webglRenderer = 'ANGLE (SwiftShader)'; },
@@ -58,22 +106,90 @@ test('qualification fails closed for another renderer, a failed gate, or incompl
 	}
 });
 
-test('the quality register activates only the owner-designated packaged M4 host', async () => {
+test('the quality register activates only the owner-designated packaged host for M1 and M4', async () => {
 	const config = JSON.parse(await readFile(
 		new URL('../config/quality-budgets.json', import.meta.url), 'utf8',
 	));
-	const profile = config.packagedRuntimeQualification;
+	const profiles = config.packagedRuntimeQualification.profiles;
 	const environment = config.environments.find(({ id }: { readonly id: string }) => (
 		id === 'owner-qualified-windows-x64-rtx3090-01'
 	));
 
-	assert.equal(profile.status, 'active');
-	assert.equal(profile.environmentId, environment.id);
+	assert.equal(config.packagedRuntimeQualification.status, 'active');
+	assert.deepEqual(profiles.map(({ workloadId }: { readonly workloadId: string }) => workloadId), [
+		'm1-video-preview-12fx-720p',
+		'm4-production-render-parity',
+	]);
+	assert.ok(profiles.every(({ environmentId }: { readonly environmentId: string }) => environmentId === environment.id));
 	assert.equal(environment.qualificationEligible, true);
-	assert.deepEqual(environment.eligibleWorkloadIds, ['m4-production-render-parity']);
-	assert.equal(profile.fingerprint.platform, 'win32');
-	assert.match(profile.fingerprint.webglRenderer, /NVIDIA GeForce RTX 3090/u);
+	assert.deepEqual(environment.eligibleWorkloadIds, [
+		'm1-video-preview-12fx-720p',
+		'm4-production-render-parity',
+	]);
+	assert.match(profiles[1].fingerprint.webglRenderer, /NVIDIA GeForce RTX 3090/u);
 });
+
+function m1Fixture() {
+	const diagnostic = {
+		resolution: [1_280, 720],
+		effects: [...M1_EFFECTS],
+		warmupFrames: 40,
+		measuredFrames: 121,
+		measuredIntervals: 120,
+		p95Ms: 8.665,
+		retainedJsHeapDeltaBytes: -10_108,
+		renderer: structuredClone(M1_FINGERPRINT.renderer),
+		browserVersion: M1_FINGERPRINT.browserVersion,
+		browserEnvironment: structuredClone(M1_FINGERPRINT.browserEnvironment),
+	};
+	const metrics = {
+		'preview.frameIntervalP95Ms': 8.665,
+		'preview.retainedJsHeapDeltaBytes': -10_108,
+	};
+	const profile = {
+		status: 'active',
+		diagnosticKey: 'm1-video-preview-12fx-720p',
+		environmentId: 'owner-qualified-windows-x64-rtx3090-01',
+		observedEnvironmentId: 'local-browser-correctness',
+		workloadId: 'm1-video-preview-12fx-720p',
+		fixtureId: 'video-preview-12fx-720p-v1',
+		rendererClass: 'hardware',
+		diagnosticIdentityFields: [],
+		diagnosticFingerprintSource: 'm1-video-preview',
+		fingerprint: structuredClone(M1_FINGERPRINT),
+		fixture: { width: 1_280, height: 720, effectCount: 12, measuredIntervals: 120 },
+		sampleShape: {
+			resolution: [1_280, 720], effects: [...M1_EFFECTS], warmupFrames: 40,
+			measuredFrames: 121, measuredIntervals: 120,
+		},
+	};
+	return {
+		config: {
+			packagedRuntimeQualification: { status: 'active', profiles: [profile] },
+			workloads: [{
+				id: profile.workloadId,
+				thresholds: Object.keys(metrics).map((metricId) => ({ metricId })),
+			}],
+		},
+		raw: {
+			schemaVersion: 1, executionSurface: 'packaged-runtime', sourceRevision: SOURCE_REVISION,
+			budgetSha256: BUDGET_SHA256, diagnostics: { [profile.diagnosticKey]: diagnostic },
+		},
+		summary: {
+			schemaVersion: 1, executionSurface: 'packaged-runtime', sourceRevision: SOURCE_REVISION as string | null,
+			budgetSha256: BUDGET_SHA256, attemptCount: 1, retryCount: 0, workerCount: 1,
+			collectionPassed: true, failures: [] as string[], workloads: [{
+				workloadId: profile.workloadId, fixtureId: profile.fixtureId,
+				environmentId: profile.observedEnvironmentId, attemptCount: 1, retryCount: 0,
+				rendererClass: 'hardware', environmentFingerprint: structuredClone(M1_FINGERPRINT),
+				fixture: structuredClone(profile.fixture), rawSampleCounts: {
+					warmupFrames: 40, measuredFrames: 121, measuredIntervals: 120,
+				}, metricGatePassed: true, metrics,
+				evaluation: { verdicts: Object.keys(metrics).map((metricId) => ({ metricId, passed: true })) },
+			}],
+		},
+	};
+}
 
 function fixture() {
 	const diagnostic = {

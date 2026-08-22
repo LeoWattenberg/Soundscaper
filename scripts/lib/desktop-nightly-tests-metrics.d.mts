@@ -63,6 +63,14 @@ export interface DesktopNightlyTestsMetricsSummary {
 export interface DesktopNightlyTestsQualification extends Readonly<Record<string, unknown>> {
 	readonly status: 'accepted' | 'rejected';
 	readonly qualificationEvidencePublished: boolean;
+	readonly workloadQualifications: readonly DesktopNightlyTestsWorkloadQualification[];
+}
+
+export interface DesktopNightlyTestsWorkloadQualification extends Readonly<Record<string, unknown>> {
+	readonly status: 'accepted' | 'rejected';
+	readonly qualificationEvidencePublished: boolean;
+	readonly environmentId: string | null;
+	readonly workloadId: string | null;
 }
 
 export function createDesktopNightlyTestsMetricsPlan(options: {
