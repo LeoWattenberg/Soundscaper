@@ -87,7 +87,7 @@ test('each pipeline validates a closed measurement and remains pending-external'
 	}
 });
 
-test('a provisioned exact lab can produce digest-bound accepted evidence', async () => {
+test('a provisioned exact lab can produce digest-bound accepted target evidence', async () => {
 	const profileId = 'persistent-services';
 	const measurement = makeMeasurement(profileId);
 	const provisioned = provisionedConfig(profileId, measurement.observedFingerprint);
@@ -95,7 +95,8 @@ test('a provisioned exact lab can produce digest-bound accepted evidence', async
 	const result = createM5bQualityResult(profileId, measurement, provisioned);
 	assert.equal(result.status, 'accepted');
 	assert.equal(result.metricGatePassed, true);
-	assert.equal(result.qualificationEvidencePublished, true);
+	assert.equal(result.qualificationScope, 'single-target');
+	assert.equal(result.qualificationEvidencePublished, false);
 	assert.deepEqual(result.qualificationBlockers, []);
 	assert.equal(result.evaluation.passed, true);
 
@@ -107,7 +108,7 @@ test('a provisioned exact lab can produce digest-bound accepted evidence', async
 			qualificationEvidencePublished: boolean;
 			raw: { sha256: string };
 		};
-		assert.equal(stored.qualificationEvidencePublished, true);
+		assert.equal(stored.qualificationEvidencePublished, false);
 		assert.match(stored.raw.sha256, /^[a-f\d]{64}$/u);
 	} finally {
 		await rm(directory, { recursive: true, force: true });

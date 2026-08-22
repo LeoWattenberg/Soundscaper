@@ -180,6 +180,7 @@ export function createM5bQualityResult(profileIdValue, measurementValue, configV
 	const accepted = metricGatePassed && blockers.length === 0;
 	return deepFreeze({
 		schemaVersion: 1,
+		qualificationScope: 'single-target',
 		status: !metricGatePassed ? 'failed' : accepted ? 'accepted' : 'pending-external',
 		profileId,
 		workloadId: pipeline.workloadId,
@@ -191,7 +192,7 @@ export function createM5bQualityResult(profileIdValue, measurementValue, configV
 		metrics: measurement.metrics,
 		sampleCounts: measurement.sampleCounts,
 		metricGatePassed,
-		qualificationEvidencePublished: accepted,
+		qualificationEvidencePublished: false,
 		qualificationBlockers: blockers,
 		evaluation: {
 			passed: accepted,
