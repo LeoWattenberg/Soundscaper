@@ -284,6 +284,38 @@ test('desktop V23 bootstrap publishes one canonical revision-zero project before
 	assert.equal(bridge.projectRevision(String(ready.project?.id)), 0)
 })
 
+test('desktop Scape import publishes an exact nonzero V23 project and retains exact rollback', async (context) => {
+	const store = await durableStore(context)
+	const bridge = new BridgeFixture(null, new Uint8Array())
+	installBridge(context, bridge.api)
+	const renderer = await connectSoundscaperDesktopProjectLibraryV10Renderer(
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
+		{ store: store as unknown as SoundscaperDesktopProjectLibraryV10ShadowStore },
+	)
+	assert.ok(renderer)
+	const desktopStore = createSoundscaperDesktopProjectStoreV10Adapter(
+		SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE,
+		{ localStore: store, desktopProjectLibrary: renderer },
+	)
+	const imported = revisedProject(
+		createSoundscaperProjectV23({ id: 'soundscaper-scape-import', now: NOW }),
+		7,
+		'Imported exact V23',
+		'2026-08-14T12:07:00.000Z',
+	)
+
+	const created = await desktopStore.createScapeProjectIfAbsent(imported)
+	assert.deepEqual(created, imported)
+	assert.equal(bridge.metadataRevision, 1)
+	assert.equal(bridge.projectRevision(String(imported.id)), 7)
+	assert.deepEqual(await store.loadProject(String(imported.id)), imported)
+	assert.equal(await desktopStore.createScapeProjectIfAbsent(imported), null)
+	assert.equal(await desktopStore.deleteProjectIfCurrent(created!), true)
+	assert.equal(bridge.metadataRevision, 2)
+	assert.equal(bridge.projectRevision(String(imported.id)), null)
+	assert.equal(await store.loadProject(String(imported.id)), null)
+})
+
 test('desktop adapter duplicates and deletes exact V23 projects while retaining shared freeze PCM', async (context) => {
 	const store = await durableStore(context)
 	const project = productionProject('soundscaper-desktop-lifecycle')
