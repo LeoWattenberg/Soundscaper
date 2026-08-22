@@ -38,6 +38,7 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-static-route.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-metrics.mjs'));
 	assert.ok(config.files.includes('scripts/collect-m4-production-parity-quality.mjs'));
+	assert.ok(config.files.includes('scripts/collect-m3-longform-editorial-quality.mjs'));
 	assert.ok(config.files.includes('!node_modules/**/*'));
 	const payload = config.extraResources.find(({ to }) => to === 'nightly-tests');
 	assert.ok(payload);

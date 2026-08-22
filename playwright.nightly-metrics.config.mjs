@@ -5,6 +5,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const METRIC_SPECS = Object.freeze([
 	'audio-editor-video-preview-benchmark.spec.js',
+	'audio-editor-longform-editorial-benchmark.spec.js',
 	'audio-editor-m4-production-parity.spec.js',
 	'audio-editor-m4b2-keyframe-parity.spec.js',
 ]);

@@ -22,6 +22,7 @@ module.exports = {
 		'scripts/lib/desktop-nightly-tests-metrics.mjs',
 		'scripts/lib/desktop-nightly-tests-qualification.mjs',
 		'scripts/lib/desktop-nightly-tests-packaged-runtime.mjs',
+		'scripts/collect-m3-longform-editorial-quality.mjs',
 		'scripts/lib/m4-production-parity-identity.mjs',
 		'scripts/lib/m4-production-parity-metrics.mjs',
 		'scripts/lib/m4-production-parity-video-fixture.mjs',

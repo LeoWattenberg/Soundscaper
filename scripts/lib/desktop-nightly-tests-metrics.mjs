@@ -5,6 +5,10 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import {
+	createPendingM3LongformEditorialResult,
+	parseM3LongformEditorialDiagnostic,
+} from '../collect-m3-longform-editorial-quality.mjs';
+import {
 	createPendingM4ProductionParityResult,
 	parseM4ProductionParityDiagnostic,
 } from '../collect-m4-production-parity-quality.mjs';
@@ -16,6 +20,12 @@ import { createPackagedRuntimeQualification } from './desktop-nightly-tests-qual
 
 const DOWNLOADABLE_HOST_FAILURE = 'A downloadable nightly host is diagnostic-only and not a qualified environment.';
 const DEFAULT_COLLECTORS = Object.freeze([
+	collector(
+		'm3-longform-editorial',
+		parseM3LongformEditorialDiagnostic,
+		createPendingM3LongformEditorialResult,
+		(result) => result.metricGatePassed === true,
+	),
 	collector(
 		'm1-video-preview-12fx-720p',
 		parseM1VideoPreviewDiagnostic,
@@ -31,7 +41,7 @@ const DEFAULT_COLLECTORS = Object.freeze([
 	collector(
 		'm4b2-keyframe-render-parity',
 		parseM4B2KeyframeParityDiagnostic,
-		(diagnostic) => createPendingM4B2KeyframeParityResult(diagnostic),
+		createPendingM4B2KeyframeParityResult,
 		(result) => result.metricGatePassed === true,
 	),
 ]);
@@ -71,6 +81,8 @@ export function createDesktopNightlyTestsMetricsPlan({
 			SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: runRoot,
 			AUDIO_EDITOR_FFMPEG_BROWSER: '1',
 			GITHUB_ACTIONS: 'false',
+			SOUNDSCAPER_M3_LONGFORM_BENCHMARK: '1',
+			SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID: 'local-browser-correctness',
 			SOUNDSCAPER_M4B2_KEYFRAME_PARITY: '1',
 			SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID: 'local-browser-correctness',
 			SOUNDSCAPER_M4_PRODUCTION_PARITY: '1',

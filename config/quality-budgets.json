@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-21",
+	"groundedAt": "2026-08-22",
 	"qualification": {
 		"status": "in-progress",
 		"qualifiedWorkloadIds": [
@@ -114,6 +114,53 @@
 			},
 			{
 				"status": "active",
+				"diagnosticKey": "m3-longform-editorial",
+				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
+				"observedEnvironmentId": "packaged-runtime-win32-x64",
+				"workloadId": "m3-longform-editorial",
+				"fixtureId": "m3-longform-editorial-2h-v1",
+				"profile": "deterministic-two-hour-editorial-v1",
+				"observationClass": "decoded-media-av-scheduling-v1",
+				"rendererClass": "hardware",
+				"diagnosticIdentityFields": ["workloadId", "fixtureId", "profile", "observationClass"],
+				"fingerprint": {
+					"browserVersion": "150.0.7871.114",
+					"platform": "win32",
+					"architecture": "x64",
+					"webglVendor": "Google Inc. (NVIDIA)",
+					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+				},
+				"fixture": {
+					"generatorRevision": 1,
+					"seed": 1554098974,
+					"durationSeconds": 7200,
+					"sampleRate": 48000,
+					"videoFrameRate": { "num": 30, "den": 1 },
+					"audioTrackCount": 24,
+					"proxyVideoTrackCount": 2,
+					"editCount": 10000,
+					"commandsPerTransaction": 250,
+					"operationCounts": {
+						"audioClipMoves": 2500,
+						"proxyVideoClipMoves": 2500,
+						"selectionChanges": 2500,
+						"trackMixChanges": 2500
+					},
+					"projectSha256": "4c96e2405d63ff282a28a6577c9da32d3598183e5ad59131cb3ca1977df34427",
+					"editPlanSha256": "2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf"
+				},
+				"rawSampleCounts": {
+					"positionChecks": 26,
+					"decodedAvSamples": 24,
+					"seekWarmupTrials": 1,
+					"seekTrials": 5,
+					"scrollFrameIntervals": 240,
+					"forcedCollectionsBefore": 3,
+					"forcedCollectionsAfter": 3
+				}
+			},
+			{
+				"status": "active",
 				"diagnosticKey": "m4-production-parity",
 				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
 				"observedEnvironmentId": "packaged-runtime-win32-x64",
@@ -129,6 +176,48 @@
 					"architecture": "x64",
 					"webglVendor": "Google Inc. (NVIDIA)",
 					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+				}
+			},
+			{
+				"status": "active",
+				"diagnosticKey": "m4b2-keyframe-render-parity",
+				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
+				"observedEnvironmentId": "packaged-runtime-win32-x64",
+				"workloadId": "m4b2-keyframe-render-parity",
+				"fixtureId": "m4b2-keyframe-parity-rgba-v1",
+				"profile": "deterministic-keyframe-parity-v1",
+				"observationClass": "complete-keyed-rgba-consumer-ledger-v1",
+				"rendererClass": "hardware",
+				"diagnosticIdentityFields": ["workloadId", "fixtureId", "profile", "observationClass"],
+				"fingerprint": {
+					"browserVersion": "150.0.7871.114",
+					"platform": "win32",
+					"architecture": "x64",
+					"webglVendor": "Google Inc. (NVIDIA)",
+					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+				},
+				"fixture": {
+					"generatorRevision": 2,
+					"seed": 1801382864,
+					"width": 128,
+					"height": 72,
+					"sampleRate": 48000,
+					"frameRate": { "num": 12, "den": 1 },
+					"frameCount": 12,
+					"sourceByteLength": 442368,
+					"sourceSha256": "db9fa74f23eb1b5f9565cd10f10794a975492b629731534b56d0af3072b3ad8a",
+					"caseIds": ["opacity-hold", "opacity-linear", "opacity-eased", "opacity-bezier"],
+					"queryIds": ["start", "interior", "end"],
+					"evidenceClipIds": ["m4b2-opacity-hold-clip", "m4b2-opacity-linear-clip", "m4b2-opacity-eased-clip", "framescaper-v18-flat-clip-4f2ad5b3a72f098f3878c158c7025f70"],
+					"presentationClasses": ["authenticated-cfr-occurrence", "authenticated-cfr-occurrence", "authenticated-cfr-occurrence", "authenticated-vfr-materialized-occurrence"]
+				},
+				"rawSampleCounts": {
+					"cases": 4,
+					"queries": 12,
+					"videoPixels": 110592,
+					"requestedOperations": 12,
+					"requestedConsumerOperations": 24,
+					"renderedConsumerOperations": 24
 				}
 			}
 		],
@@ -258,7 +347,7 @@
 			"kind": "owner-qualified-packaged-runtime-fixed-gpu",
 			"qualificationEligible": true,
 			"rendererRequirement": "hardware",
-			"eligibleWorkloadIds": ["m1-video-preview-12fx-720p", "m4-production-render-parity"],
+			"eligibleWorkloadIds": ["m1-video-preview-12fx-720p", "m3-longform-editorial", "m4-production-render-parity", "m4b2-keyframe-render-parity"],
 			"fingerprint": {
 				"browserVersion": "150.0.7871.114",
 				"platform": "win32",
@@ -937,7 +1026,7 @@
 				"projectSha256": "4c96e2405d63ff282a28a6577c9da32d3598183e5ad59131cb3ca1977df34427",
 				"editPlanSha256": "2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf"
 			},
-			"limitation": "The deterministic current-schema project and 10,000-command replay establish structural shape and exact persisted/runtime positions. The opt-in browser harness decodes both repository-owned VP8/Opus fixtures and samples their AudioContext and requestVideoFrameCallback presentation clocks while measuring seek, scroll and retained heap in the same long-form session. Local observations remain pending-external until reference-linux-gpu-01 is provisioned, fingerprinted and qualification-eligible; only then can the collector write digest-bound raw and accepted evidence through the common verifier.",
+			"limitation": "The deterministic current-schema project and 10,000-command replay establish structural shape and exact persisted/runtime positions. The opt-in browser harness decodes both repository-owned VP8/Opus fixtures and samples their AudioContext and requestVideoFrameCallback presentation clocks while measuring seek, scroll and retained heap in the same long-form session. Formal acceptance is emitted only by nightly packaged-runtime verification when the complete diagnostic matches the owner-designated host profile exactly.",
 			"evidence": [
 				"package.json",
 				"src/common/editor/quality/m3-longform-editorial-workload.ts",
@@ -954,7 +1043,6 @@
 			"kind": "deterministic-audio-vectors-and-video-golden-frames",
 			"specification": {
 				"localDiagnosticCommand": "npm run quality:collect:m4-production-parity",
-				"referenceHostObservationPathEnvironmentVariable": "SOUNDSCAPER_M4_REFERENCE_HOST_OBSERVATION_PATH",
 				"routineBrowserTestBehavior": "skip-with-explicit-collector",
 				"qualificationPublication": "accepted-only-after-qualified-environment-and-digest-bound-verification",
 				"generatorRevision": 1,
@@ -1008,7 +1096,7 @@
 					"sha256": "a7a1230cdd711e15deaea68e0e5f58028eb684455fb42024e2aed624ad934701"
 				}
 			],
-			"limitation": "The deterministic PCM and RGBA artifacts establish correctness only. Hosted and local observations remain pending-external; qualification waits for an exact provisioned reference-linux-gpu-01 fingerprint and hardware renderer.",
+			"limitation": "The deterministic PCM and RGBA artifacts establish correctness only. Hosted and local observations remain pending-external; formal acceptance is emitted only by nightly packaged-runtime verification on the exact owner-designated hardware profile.",
 			"evidence": [
 				"package.json",
 				"src/common/editor/quality/m4-production-parity-workload.ts",
@@ -1050,9 +1138,9 @@
 					"authenticated-vfr-materialized-occurrence"
 				],
 				"localDiagnosticCommand": "node scripts/collect-m4b2-keyframe-parity-quality.mjs",
-				"qualificationPublication": "pending-external-only"
+				"qualificationPublication": "accepted-only-after-qualified-environment-and-digest-bound-verification"
 			},
-			"limitation": "The deterministic keyed preview/offline RGBA comparison establishes local and hosted correctness only, and its passing observations remain pending-external. No local or hosted result qualifies this workload until reference-linux-gpu-01 is provisioned and a separately reviewed accepted reference cohort is retained.",
+			"limitation": "The deterministic keyed preview/offline RGBA comparison establishes local and hosted correctness only. Formal acceptance is emitted only by nightly packaged-runtime verification when the complete diagnostic matches the owner-designated host profile exactly.",
 			"evidence": [
 				"src/common/editor/quality/m4b2-keyframe-parity-workload.ts",
 				"scripts/lib/m4b2-keyframe-parity-metrics.mjs",
@@ -1379,7 +1467,7 @@
 			"milestone": "3",
 			"status": "provisional",
 			"fixtureIds": ["m3-longform-editorial-2h-v1"],
-			"environmentIds": ["reference-linux-gpu-01"],
+			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "editorial.audioPositionErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
 				{ "metricId": "editorial.videoPositionErrorFrames", "comparison": "eq", "value": 0, "unit": "frames" },
@@ -1401,7 +1489,7 @@
 			"milestone": "4",
 			"status": "provisional",
 			"fixtureIds": ["video-effect-parity-rgba-v1", "m4-production-parity-v1"],
-			"environmentIds": ["github-ubuntu-playwright-1.62.1", "reference-linux-gpu-01", "owner-qualified-windows-x64-rtx3090-01"],
+			"environmentIds": ["github-ubuntu-playwright-1.62.1", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "parity.audioMaximumAbsoluteSampleError", "comparison": "lte", "value": 0.000001, "unit": "ratio" },
 				{ "metricId": "parity.pdcErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
@@ -1422,7 +1510,7 @@
 			"milestone": "4",
 			"status": "provisional",
 			"fixtureIds": ["m4b2-keyframe-parity-rgba-v1"],
-			"environmentIds": ["github-ubuntu-playwright-1.62.1", "reference-linux-gpu-01"],
+			"environmentIds": ["github-ubuntu-playwright-1.62.1", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "keyframes.videoMinimumSsim", "comparison": "gte", "value": 0.98, "unit": "ratio" },
 				{ "metricId": "keyframes.videoMaximumChannelMae", "comparison": "lte", "value": 0.023529411764705882, "unit": "ratio" },

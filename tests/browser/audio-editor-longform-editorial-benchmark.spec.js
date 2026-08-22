@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { expect, test } from '@playwright/test';
+import { expect, test } from './helpers/nightly-packaged-electron.js';
 
 import {
 	M3_LONGFORM_EDITORIAL_FIXTURE_ID,
@@ -11,24 +11,36 @@ import {
 } from '../../src/common/editor/quality/m3-longform-editorial-workload.ts';
 import {
 	bootEditor,
-	registerAudioEditorHooks,
+	waitForEditor,
 } from './audio-editor-test-helpers.js';
+import { TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import { deterministicAvMedia } from './fixtures/deterministic-av-media.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
-const ENVIRONMENT_ID = 'reference-linux-gpu-01';
+const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
+const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.62.1';
+const ENVIRONMENT_ID = process.env.SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID
+	|| (process.env.GITHUB_ACTIONS === 'true' ? HOSTED_ENVIRONMENT_ID : LOCAL_ENVIRONMENT_ID);
 const SAMPLE_RATE = 48_000;
 const VIDEO_FRAME_SAMPLES = 1_600;
 const PIXELS_PER_SECOND = 120;
 const CLIP_CONTENT_OFFSET = 12;
 
-registerAudioEditorHooks();
+test.beforeEach(async ({ page }) => {
+	if (process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS === '1') return;
+	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
+		status: 200,
+		contentType: 'application/json',
+		headers: { 'Access-Control-Allow-Origin': '*' },
+		body: JSON.stringify({ schemaVersion: 1, locales: {} }),
+	}));
+});
 
 test('collects the opt-in two-hour editorial diagnostic without qualifying the host', async ({
 	page,
 	context,
-	browser,
+	runtimeBrowser,
 }) => {
 	test.skip(
 		process.env.SOUNDSCAPER_M3_LONGFORM_BENCHMARK !== '1',
@@ -40,12 +52,11 @@ test('collects the opt-in two-hour editorial diagnostic without qualifying the h
 	const expectedPositions = workload.editPlan.expectedClipPositions;
 	const fixture = fixtureIdentity(workload);
 
-	await bootEditor(page, '/embed/en/');
+	if (process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS === '1') await waitForEditor(page);
+	else await bootEditor(page, '/embed/en/');
 	await seedProject(page, workload.project);
 	await page.reload();
-	const editor = page.locator('[data-audio-editor]');
-	await expect(editor).toBeVisible();
-	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
+	const editor = await waitForEditor(page);
 	await expect(editor.locator('.application-header__windows-title'))
 		.toContainText('Milestone 3 two-hour editorial workload');
 	await expect(editor).toHaveAttribute('data-track-count', '26');
@@ -81,7 +92,7 @@ test('collects the opt-in two-hour editorial diagnostic without qualifying the h
 	const afterBytes = await usedHeapAfterCollections(cdp, 3);
 	const decodedAvSamples = await measureDecodedAvDrift(page);
 	const renderer = await rendererDiagnostic(page);
-	const environmentFingerprint = await browserFingerprint(page, browser, renderer);
+	const environmentFingerprint = browserFingerprint(runtimeBrowser, renderer);
 
 	const diagnostic = {
 		schemaVersion: 1,
@@ -360,24 +371,13 @@ async function rendererDiagnostic(page) {
 	});
 }
 
-async function browserFingerprint(page, browser, renderer) {
-	const values = await page.evaluate(() => ({
-		userAgent: navigator.userAgent,
-		platform: navigator.platform,
-		logicalCpuCount: navigator.hardwareConcurrency,
-		deviceMemoryGiB: navigator.deviceMemory ?? null,
-		displayMode: `${screen.width}x${screen.height}@${devicePixelRatio}`,
-		displayRefreshHz: null,
-		powerProfile: null,
-	}));
+function browserFingerprint(browser, renderer) {
 	return {
-		...values,
 		browserVersion: browser.version(),
-		browserBinarySha256: null,
-		gpuVendor: renderer.vendor,
-		gpuModel: renderer.renderer,
-		gpuMemoryBytes: null,
-		gpuDriver: null,
+		platform: process.platform,
+		architecture: process.arch,
+		webglVendor: renderer.vendor,
+		webglRenderer: renderer.renderer,
 	};
 }
 

@@ -3,12 +3,11 @@
 
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { evaluateQualityBudget } from './quality-budget-evaluator.mjs';
 import {
 	compareM4ParityAudio,
 	compareM4ParityVideo,
@@ -18,16 +17,14 @@ import {
 } from './lib/m4-production-parity-metrics.mjs';
 import {
 	M4_PARITY_HOSTED_ENVIRONMENT_ID as HOSTED_ENVIRONMENT_ID,
-	M4_PARITY_LOCAL_ENVIRONMENT_ID as LOCAL_ENVIRONMENT_ID,
-	M4_PARITY_REFERENCE_ENVIRONMENT_ID as REFERENCE_ENVIRONMENT_ID,
 	M4_PARITY_WORKLOAD_ID as WORKLOAD_ID,
 	assertM4ParityCollectionEnvironment,
+	isM4ParityDiagnosticEnvironmentId,
 	parseM4ParityCliOptions,
 	resolveM4ParityCollectionEnvironment,
 } from './lib/m4-production-parity-identity.mjs';
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
 import { validateM4ParityVideoFixture } from './lib/m4-production-parity-video-fixture.mjs';
-import { verifyQualityBudgetResultFiles } from './verify-quality-budget-result.mjs';
 
 const execFileAsync = promisify(execFile);
 const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
@@ -37,7 +34,7 @@ const VIDEO_FIXTURE_ID = 'video-effect-parity-rgba-v1';
 const PROFILE = 'deterministic-production-parity-v1';
 const DIAGNOSTIC_MARKER = 'SOUNDSCAPER_M4_PRODUCTION_PARITY ';
 const BROWSER_SPEC = 'tests/browser/audio-editor-m4-production-parity.spec.js';
-const PACKAGED_RUNTIME_ENVIRONMENT_ID = /^packaged-runtime-(?:linux|win32|darwin)-(?:x64|arm64)$/u;
+const QUALIFICATION_ENVIRONMENT_ID = 'owner-qualified-windows-x64-rtx3090-01';
 const METRIC_IDS = Object.freeze([
 	'parity.audioMaximumAbsoluteSampleError',
 	'parity.pdcErrorSamples',
@@ -69,13 +66,8 @@ export async function collectM4ProductionParityDiagnostic(options, dependencies 
 	const diagnostic = parseM4ProductionParityDiagnostic(`${stdout}\n${stderr}`);
 	assertM4ParityCollectionEnvironment(diagnostic, collectionEnvironment);
 	const result = createPendingM4ProductionParityResult(diagnostic, config);
-	return writeM4ProductionParityResult(
-		outputDirectory,
-		diagnostic,
-		result,
-		config,
-		dependencies,
-	);
+	const writeResult = dependencies.writeResult ?? writeM4ProductionParityResult;
+	return writeResult(outputDirectory, result);
 }
 
 /** Admit one and only one complete diagnostic with the frozen identity. */
@@ -115,7 +107,6 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
 	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
 	const videoFixture = exactDescriptor(config.fixtures, VIDEO_FIXTURE_ID, 'fixture');
-	const environment = exactDescriptor(config.environments, REFERENCE_ENVIRONMENT_ID, 'environment');
 	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
 	assertIdentity(diagnostic);
 	assertMeasurementPolicy(policy);
@@ -243,39 +234,18 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 	if (Object.keys(environmentFingerprint).length === 0) {
 		throw new Error('Browser diagnostic environmentFingerprint must not be empty.');
 	}
-	const evaluation = evaluateQualityBudget({
-		environmentId: REFERENCE_ENVIRONMENT_ID,
-		rendererRequirement: environment.rendererRequirement,
-		thresholds: workload.thresholds,
-	}, environment, {
-		environmentId: diagnostic.environmentId,
-		rendererClass,
-		metrics,
-	});
-	const fingerprintMatches = diagnostic.environmentId === REFERENCE_ENVIRONMENT_ID
-		&& deepEqualJson(environmentFingerprint, environment.fingerprint);
-	const eligibleForWorkload = Array.isArray(environment.eligibleWorkloadIds)
-		&& environment.eligibleWorkloadIds.includes(WORKLOAD_ID);
-	const qualificationFailures = [];
-	if (!fingerprintMatches) qualificationFailures.push('Reference environment fingerprint is not an exact match.');
-	if (!eligibleForWorkload) qualificationFailures.push(`Environment is not eligible for ${WORKLOAD_ID}.`);
-	const qualifiedEvaluation = Object.freeze({
-		passed: evaluation.passed && qualificationFailures.length === 0,
-		failures: Object.freeze([...evaluation.failures, ...qualificationFailures]),
-		verdicts: evaluation.verdicts,
-	});
-	const metricGatePassed = qualifiedEvaluation.verdicts.length === workload.thresholds.length
-		&& qualifiedEvaluation.verdicts.every(({ passed }) => passed);
-	const status = !metricGatePassed
-		? 'failed'
-		: qualifiedEvaluation.passed ? 'accepted' : 'pending-external';
+	const verdicts = metricVerdicts(metrics, workload.thresholds);
+	const failures = verdicts.filter(({ passed }) => !passed)
+		.map(({ metricId }) => `${metricId} did not pass.`);
+	const metricGatePassed = verdicts.length === METRIC_IDS.length
+		&& verdicts.every(({ passed }) => passed);
 	return Object.freeze({
 		schemaVersion: 1,
-		status,
+		status: metricGatePassed ? 'pending-external' : 'failed',
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
 		environmentId: diagnostic.environmentId,
-		qualificationEnvironmentId: REFERENCE_ENVIRONMENT_ID,
+		qualificationEnvironmentId: QUALIFICATION_ENVIRONMENT_ID,
 		profile: PROFILE,
 		observationClass: diagnostic.observationClass,
 		attemptCount: 1,
@@ -293,31 +263,28 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 			requestedCompositionInstances: requestedCompositionIds.size,
 		}),
 		metricGatePassed,
-		qualificationEvidencePublished: status === 'accepted',
-		evaluation: qualifiedEvaluation,
+		qualificationEvidencePublished: false,
+		evaluation: Object.freeze({
+			passed: false,
+			failures: Object.freeze([
+				...failures,
+				'Formal qualification is published only by the nightly packaged-runtime verifier on the owner-designated host.',
+			]),
+			verdicts: Object.freeze(verdicts),
+		}),
 	});
 }
 
-/** Persist pending or accepted evidence with exclusive-create semantics. */
-export function writeM4ProductionParityResult(
-	outputDirectory,
-	diagnostic,
-	result,
-	config,
-	dependencies = {},
-) {
-	const diagnosticSnapshot = snapshotStrictJsonData(diagnostic, 'diagnostic');
+/** Persist diagnostic-only evidence with exclusive-create semantics. */
+export function writeM4ProductionParityResult(outputDirectory, result) {
 	const resultSnapshot = snapshotStrictJsonData(result, 'result');
-	const configSnapshot = snapshotStrictJsonData(config, 'config');
-	return resultSnapshot.status === 'accepted'
-		? writeAccepted(
-			outputDirectory,
-			diagnosticSnapshot,
-			resultSnapshot,
-			configSnapshot,
-			dependencies,
-		)
-		: (dependencies.writePending ?? writePendingResult)(outputDirectory, resultSnapshot);
+	if (!['pending-external', 'failed'].includes(resultSnapshot.status)) {
+		throw new Error('The M4 collector can write only pending-external or failed evidence.');
+	}
+	if (resultSnapshot.qualificationEvidencePublished !== false) {
+		throw new Error('The M4 collector must not publish qualification evidence.');
+	}
+	return writePendingResult(outputDirectory, resultSnapshot);
 }
 
 async function runBrowserDiagnostic(collectionEnvironment) {
@@ -352,83 +319,6 @@ async function writePendingResult(outputDirectory, result) {
 	return Object.freeze({ resultPath, result });
 }
 
-async function writeAccepted(outputDirectory, diagnostic, pending, config, dependencies) {
-	const sourceRevision = dependencies.sourceRevision ?? await currentSourceRevision();
-	const configBytes = dependencies.configBytes ?? await readFile(CONFIG_URL);
-	let configFromBytes;
-	try {
-		configFromBytes = snapshotStrictJsonData(
-			JSON.parse(Buffer.from(configBytes).toString('utf8')),
-			'accepted config bytes',
-		);
-	} catch (error) {
-		throw new Error('Accepted M4 config bytes are not strict JSON.', { cause: error });
-	}
-	if (!deepEqualJson(configFromBytes, config)) {
-		throw new Error('Accepted M4 config bytes do not match the evaluated config.');
-	}
-	const environment = exactDescriptor(config.environments, REFERENCE_ENVIRONMENT_ID, 'environment');
-	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
-	if (!deepEqualJson(pending.environmentFingerprint, environment.fingerprint)) {
-		throw new Error('Accepted M4 environment fingerprint does not match the qualified descriptor.');
-	}
-	const budgetSha256 = sha256(configBytes);
-	const workloadSha256 = sha256(Buffer.from(JSON.stringify(workload)));
-	const rawArtifactName = `${WORKLOAD_ID}.raw.json`;
-	const resultArtifactName = `${WORKLOAD_ID}.accepted.json`;
-	const raw = Object.freeze({
-		schemaVersion: 1,
-		workloadId: WORKLOAD_ID,
-		environmentId: REFERENCE_ENVIRONMENT_ID,
-		environmentFingerprint: pending.environmentFingerprint,
-		sourceRevision,
-		budgetSha256,
-		workloadSha256,
-		attemptCount: 1,
-		retryCount: 0,
-		observationClass: pending.observationClass,
-		fixture: pending.fixture,
-		metrics: pending.metrics,
-		rawSampleCounts: pending.rawSampleCounts,
-		diagnostic,
-	});
-	const rawBytes = Buffer.from(`${JSON.stringify(raw, null, '\t')}\n`);
-	const result = Object.freeze({
-		schemaVersion: 1,
-		workloadId: WORKLOAD_ID,
-		fixtureIds: Object.freeze([VIDEO_FIXTURE_ID, FIXTURE_ID]),
-		environmentId: REFERENCE_ENVIRONMENT_ID,
-		environmentFingerprint: pending.environmentFingerprint,
-		rendererClass: pending.rendererClass,
-		budgetSha256,
-		sourceRevision,
-		attemptCount: 1,
-		retryCount: 0,
-		rawEvidence: Object.freeze({
-			artifactName: rawArtifactName,
-			byteLength: rawBytes.byteLength,
-			sha256: sha256(rawBytes),
-		}),
-		metrics: pending.metrics,
-	});
-	await mkdir(outputDirectory, { recursive: true });
-	const rawPath = join(outputDirectory, rawArtifactName);
-	const resultPath = join(outputDirectory, resultArtifactName);
-	await Promise.all([assertAbsent(rawPath), assertAbsent(resultPath)]);
-	await writeFile(rawPath, rawBytes, { flag: 'wx' });
-	await writeFile(resultPath, `${JSON.stringify(result, null, '\t')}\n`, { flag: 'wx' });
-	const verify = dependencies.verifyAccepted ?? verifyQualityBudgetResultFiles;
-	const verification = await verify({
-		configPath: fileURLToPath(CONFIG_URL),
-		resultPath,
-		expectedSourceRevision: sourceRevision,
-	});
-	if (!verification.passed) {
-		throw new Error(`Accepted M4 evidence failed verification:\n${verification.failures.join('\n')}`);
-	}
-	return Object.freeze({ rawPath, resultPath, result, verification });
-}
-
 function expectedFixtureContract(fixture) {
 	const specification = requireRecord(fixture.specification, 'fixture.specification');
 	return snapshotStrictJsonData({
@@ -461,8 +351,7 @@ function assertIdentity(diagnostic) {
 }
 
 function isM4DiagnosticEnvironmentId(value) {
-	return [LOCAL_ENVIRONMENT_ID, HOSTED_ENVIRONMENT_ID, REFERENCE_ENVIRONMENT_ID].includes(value)
-		|| (typeof value === 'string' && PACKAGED_RUNTIME_ENVIRONMENT_ID.test(value));
+	return isM4ParityDiagnosticEnvironmentId(value);
 }
 
 function assertMeasurementPolicy(policy) {
@@ -477,29 +366,36 @@ function assertWorkloadRegistration(workload) {
 		: [];
 	if (!deepEqualJson(workload.fixtureIds, [VIDEO_FIXTURE_ID, FIXTURE_ID])
 		|| !Array.isArray(workload.environmentIds)
-		|| !workload.environmentIds.includes('github-ubuntu-playwright-1.62.1')
-		|| !workload.environmentIds.includes(REFERENCE_ENVIRONMENT_ID)
+		|| !workload.environmentIds.includes(HOSTED_ENVIRONMENT_ID)
+		|| !workload.environmentIds.includes(QUALIFICATION_ENVIRONMENT_ID)
 		|| !deepEqualJson(thresholdIds, METRIC_IDS)) {
 		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixtures, environments, and five metrics.`);
 	}
 }
 
-async function currentSourceRevision() {
-	const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
-		cwd: REPOSITORY_ROOT,
-		encoding: 'utf8',
-	});
-	return stdout.trim();
-}
-
-async function assertAbsent(path) {
-	try {
-		await access(path);
-	} catch (error) {
-		if (error !== null && typeof error === 'object' && error.code === 'ENOENT') return;
-		throw error;
+function metricVerdicts(metrics, thresholds) {
+	if (!Array.isArray(thresholds) || thresholds.length !== METRIC_IDS.length) {
+		throw new Error('M4 production parity workload must register exactly five thresholds.');
 	}
-	throw new Error(`Quality evidence already exists at ${path}.`);
+	return thresholds.map((thresholdValue) => {
+		const threshold = requireRecord(thresholdValue, 'M4 production parity threshold');
+		const actual = metrics[threshold.metricId];
+		if (typeof actual !== 'number' || !Number.isFinite(actual)
+			|| typeof threshold.value !== 'number' || !Number.isFinite(threshold.value)
+			|| !['eq', 'gte', 'lte'].includes(threshold.comparison)) {
+			throw new Error('M4 production parity threshold registration is invalid.');
+		}
+		const passed = threshold.comparison === 'eq'
+			? actual === threshold.value
+			: threshold.comparison === 'gte' ? actual >= threshold.value : actual <= threshold.value;
+		return Object.freeze({
+			metricId: threshold.metricId,
+			comparison: threshold.comparison,
+			expected: threshold.value,
+			actual,
+			passed,
+		});
+	});
 }
 
 function exactArtifact(collection, id) {
@@ -573,7 +469,6 @@ async function main() {
 		?? fileURLToPath(new URL('../test-results/quality/m4-production-render-parity', import.meta.url)));
 	const collected = await collectM4ProductionParityDiagnostic({
 		outputDirectory,
-		qualificationMode: cli.qualificationMode,
 	});
 	process.stdout.write(`${JSON.stringify(collected.result, null, '\t')}\n`);
 }

@@ -4,6 +4,7 @@ import { isAbsolute, resolve } from 'node:path';
 import { defineConfig } from '@playwright/test';
 
 const PREVIEW = 'audio-editor-video-preview-benchmark.spec.js';
+const LONGFORM = 'audio-editor-longform-editorial-benchmark.spec.js';
 const PRODUCTION = 'audio-editor-m4-production-parity.spec.js';
 const KEYED = 'audio-editor-m4b2-keyframe-parity.spec.js';
 const SMOKE = 'desktop-packaged-runtime-smoke.spec.js';
@@ -39,7 +40,7 @@ export function createNightlyPackagedMetricsConfig(environment = process.env) {
 			{
 				name: 'packaged-soundscaper',
 				metadata: { productId: 'soundscaper' },
-				testMatch: [SMOKE, PRODUCTION],
+				testMatch: [SMOKE, LONGFORM, PRODUCTION],
 			},
 			{
 				name: 'packaged-framescaper',
