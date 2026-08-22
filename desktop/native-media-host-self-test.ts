@@ -17,6 +17,13 @@ export interface FramescaperMediaHostSelfTestResult {
 	readonly professionalCharacteristicsMatches: true;
 }
 
+export const FRAMESCAPER_MEDIA_HOST_SELF_TEST_TIMEOUT_MS = 30_000;
+const FRAMESCAPER_MEDIA_HOST_SELF_TEST_TIMEOUT_MAXIMUM_MS = 60_000;
+
+export interface FramescaperMediaHostSelfTestOptions {
+	readonly timeoutMs?: number;
+}
+
 export function assertFramescaperMediaHostSelfTest(
 	value: unknown,
 ): asserts value is FramescaperMediaHostSelfTestResult {
@@ -43,12 +50,17 @@ export function assertFramescaperMediaHostSelfTest(
 
 export function runFramescaperMediaHostSelfTest(
 	descriptor: FramescaperMediaHostDescriptor,
+	options: FramescaperMediaHostSelfTestOptions = {},
 ): Promise<FramescaperMediaHostSelfTestResult> {
-	return verifyDescriptor(descriptor).then(() => runSelfTestProcess(descriptor));
+	return verifyDescriptor(descriptor).then(() => runSelfTestProcess(
+		descriptor,
+		selfTestTimeout(options),
+	));
 }
 
 function runSelfTestProcess(
 	descriptor: FramescaperMediaHostDescriptor,
+	timeoutMs: number,
 ): Promise<FramescaperMediaHostSelfTestResult> {
 	return new Promise((resolvePromise, reject) => {
 		const child = spawn(descriptor.path, ['--self-test'], {
@@ -57,6 +69,18 @@ function runSelfTestProcess(
 		let stdout: Buffer<ArrayBufferLike> = Buffer.alloc(0);
 		let stderr: Buffer<ArrayBufferLike> = Buffer.alloc(0);
 		let oversized = false;
+		let settled = false;
+		const settle = (action: () => void): void => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeout);
+			action();
+		};
+		const timeout = setTimeout(() => {
+			child.kill('SIGKILL');
+			settle(() => reject(new Error(`The media-host self-test timed out after ${String(timeoutMs)} ms.`)));
+		}, timeoutMs);
+		timeout.unref?.();
 		const append = (current: Buffer<ArrayBufferLike>, chunk: Buffer): Buffer<ArrayBufferLike> => {
 			const result = Buffer.concat([current, chunk]);
 			if (result.byteLength > 64 * 1024) { oversized = true; child.kill(); }
@@ -64,22 +88,36 @@ function runSelfTestProcess(
 		};
 		child.stdout.on('data', (chunk: Buffer) => { stdout = append(stdout, chunk); });
 		child.stderr.on('data', (chunk: Buffer) => { stderr = append(stderr, chunk); });
-		child.once('error', reject);
+		child.once('error', (error) => settle(() => reject(error)));
 		child.once('exit', (code, signal) => {
-			if (oversized) return reject(new Error('The media-host self-test exceeded 64 KiB.'));
+			if (settled) return;
+			if (oversized) return settle(() => reject(new Error('The media-host self-test exceeded 64 KiB.')));
 			if (signal !== null || code !== 0) {
-				return reject(new Error(
+				return settle(() => reject(new Error(
 					`The media-host self-test failed (${signal ?? String(code)}): ${String(stderr)}`,
-				));
+				)));
 			}
 			let result: unknown;
 			try { result = JSON.parse(String(stdout)) as unknown; }
-			catch { return reject(new Error('The media-host self-test returned malformed JSON.')); }
+			catch { return settle(() => reject(new Error('The media-host self-test returned malformed JSON.'))); }
 			try { assertFramescaperMediaHostSelfTest(result); }
-			catch (error) { return reject(error); }
-			resolvePromise(result);
+			catch (error) { return settle(() => reject(error)); }
+			settle(() => resolvePromise(result));
 		});
 	});
+}
+
+function selfTestTimeout(options: FramescaperMediaHostSelfTestOptions): number {
+	if (!options || typeof options !== 'object' || Array.isArray(options)
+		|| Reflect.ownKeys(options).some((key) => key !== 'timeoutMs')) {
+		throw new TypeError('Framescaper media-host self-test options are invalid.');
+	}
+	const value = options.timeoutMs ?? FRAMESCAPER_MEDIA_HOST_SELF_TEST_TIMEOUT_MS;
+	if (!Number.isSafeInteger(value) || value < 1
+		|| value > FRAMESCAPER_MEDIA_HOST_SELF_TEST_TIMEOUT_MAXIMUM_MS) {
+		throw new RangeError('Framescaper media-host self-test timeout is outside its closed bound.');
+	}
+	return value;
 }
 
 async function verifyDescriptor(descriptor: FramescaperMediaHostDescriptor): Promise<void> {
