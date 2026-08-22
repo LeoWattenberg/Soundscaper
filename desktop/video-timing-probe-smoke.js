@@ -6,6 +6,7 @@ import { isAbsolute } from 'node:path';
 export const DESKTOP_VIDEO_TIMING_PROBE_MODE = 'video-timing-persistence-v1';
 export const DESKTOP_VIDEO_TIMING_PROBE_PREFIX = 'SOUNDSCAPER_DESKTOP_VIDEO_TIMING_PROBE';
 export const DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS = 120_000;
+export const DESKTOP_VIDEO_TIMING_PROBE_EVIDENCE_MAX_BYTES = 16 * 1024;
 
 const MAXIMUM_PLAN_BYTES = 64 * 1024;
 const TOKEN = /^[a-f\d]{32}$/u;
@@ -41,8 +42,8 @@ const STORAGE_PROFILES = Object.freeze({
 	}),
 	framescaper: Object.freeze({
 		productId: 'framescaper',
-		databaseName: 'kw-media-framescaper-editor-v18',
-		opfsDirectoryName: 'framescaper-editor-v18-sources',
+		databaseName: 'kw-media-framescaper-editor-v20',
+		opfsDirectoryName: 'framescaper-editor-v20-sources',
 	}),
 });
 
@@ -113,6 +114,40 @@ export function validateDesktopVideoTimingProbeResult(value, planValue) {
 		token: plan.token,
 		fixtures,
 	});
+}
+
+export function createDesktopVideoTimingProbeEvidence({ arch, platform, result }, planValue) {
+	const plan = createDesktopVideoTimingProbePlan(planValue);
+	const validated = validateDesktopVideoTimingProbeResult(result, plan);
+	const target = desktopVideoTimingProbeTarget(platform, arch);
+	return deepFreeze({
+		schemaVersion: 1,
+		evidenceType: 'desktop-video-timing-probe',
+		mode: validated.mode,
+		outcome: 'passed',
+		productId: validated.productId,
+		target,
+		storageProfile: createDesktopVideoTimingProbeStorageProfile(validated.productId),
+		fixtures: validated.fixtures.map((fixture, index) => ({
+			id: fixture.id,
+			kind: plan.fixtures[index].kind,
+			name: fixture.name,
+			sourceSha256: fixture.sourceSha256,
+			frameRate: fixture.frameRate,
+			sourceFrameCount: fixture.sourceFrameCount,
+			timingDecision: fixture.timingDecision,
+			timingAsset: fixture.timingAsset,
+			presentationTicks: plan.fixtures[index].presentationTicks,
+		})),
+	});
+}
+
+export function formatDesktopVideoTimingProbeEvidence(value) {
+	const formatted = `${canonicalJson(value)}\n`;
+	if (Buffer.byteLength(formatted, 'utf8') > DESKTOP_VIDEO_TIMING_PROBE_EVIDENCE_MAX_BYTES) {
+		throw new RangeError('Desktop video timing-probe evidence exceeds its 16 KiB byte limit');
+	}
+	return formatted;
 }
 
 export function createDesktopVideoTimingProbeFileHarness(planValue) {
@@ -317,13 +352,25 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 		const framescaper = productId === 'framescaper';
 		if ((!framescaper && productId !== 'soundscaper') || profile.productId !== productId
 			|| profile.databaseName !== (framescaper
-				? 'kw-media-framescaper-editor-v18' : 'kw-media-soundscaper-editor-v23')
+				? 'kw-media-framescaper-editor-v20' : 'kw-media-soundscaper-editor-v23')
 			|| profile.opfsDirectoryName !== (framescaper
-				? 'framescaper-editor-v18-sources' : 'soundscaper-editor-v23-sources')) {
+				? 'framescaper-editor-v20-sources' : 'soundscaper-editor-v23-sources')) {
 			throw new TypeError('Desktop video timing-probe storage profile does not match its product');
 		}
 		return Object.freeze(profile);
 	}
+}
+
+function desktopVideoTimingProbeTarget(platform, arch) {
+	const platformId = {
+		darwin: 'macos',
+		linux: 'linux',
+		win32: 'windows',
+	}[platform];
+	if (!platformId || (arch !== 'x64' && arch !== 'arm64')) {
+		throw new TypeError('Desktop video timing-probe evidence target is invalid');
+	}
+	return `${platformId}-${arch}`;
 }
 
 function validatePlanFixture(value, expected) {

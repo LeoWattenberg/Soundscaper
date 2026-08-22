@@ -6,19 +6,22 @@ import test from 'node:test';
 
 import { createDesktopSmokeProbe, parseDesktopSmokeConfiguration } from '../desktop/desktop-smoke.js';
 import {
+	DESKTOP_VIDEO_TIMING_PROBE_EVIDENCE_MAX_BYTES,
 	DESKTOP_VIDEO_TIMING_PROBE_MODE,
 	DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS,
+	createDesktopVideoTimingProbeEvidence,
 	createDesktopVideoTimingProbeStorageProfile,
 	createDesktopVideoTimingProbePlan,
 	decodeDesktopVideoTimingProbePlan,
 	encodeDesktopVideoTimingProbePlan,
+	formatDesktopVideoTimingProbeEvidence,
 	runDesktopVideoTimingProbeRendererSmoke,
 	validateDesktopVideoTimingProbeResult,
 } from '../desktop/video-timing-probe-smoke.js';
 import { videoTimingProbeMedia } from './browser/fixtures/video-timing-probe-media.js';
 import {
-	FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE,
-} from '../src/framescaper/editor-project-storage-profile-v18.ts';
+	FRAMESCAPER_V20_PROJECT_STORAGE_PROFILE,
+} from '../src/framescaper/editor-project-storage-profile-v20.ts';
 import {
 	SOUNDSCAPER_V23_PROJECT_STORAGE_PROFILE,
 } from '../src/soundscaper/editor-project-storage-profile-v23.ts';
@@ -42,7 +45,7 @@ test('packaged timing probe keeps startup margin outside its renderer deadlines'
 // packaged run.
 test('packaged timing-probe storage profiles are the ones each product mounts', () => {
 	const soundscaper = editorProjectStorageProfileNames(SOUNDSCAPER_V23_PROJECT_STORAGE_PROFILE);
-	const framescaper = editorProjectStorageProfileNames(FRAMESCAPER_V18_PROJECT_STORAGE_PROFILE);
+	const framescaper = editorProjectStorageProfileNames(FRAMESCAPER_V20_PROJECT_STORAGE_PROFILE);
 	assert.deepEqual(createDesktopVideoTimingProbeStorageProfile('soundscaper'), {
 		productId: 'soundscaper',
 		databaseName: soundscaper.databaseName,
@@ -107,6 +110,61 @@ test('packaged timing-probe result validates exact source and timing body SHA, t
 	assert.throws(
 		() => validateDesktopVideoTimingProbeResult({ ...result, unexpected: true }, plan),
 		/closed|unsupported field/iu,
+	);
+});
+
+test('packaged timing-probe emits bounded path-free evidence after exact validation', () => {
+	const plan = timingPlan('framescaper');
+	const result = timingResult(plan);
+	const evidence = createDesktopVideoTimingProbeEvidence({
+		arch: 'x64',
+		platform: 'win32',
+		result,
+	}, plan);
+	assert.deepEqual(evidence, {
+		schemaVersion: 1,
+		evidenceType: 'desktop-video-timing-probe',
+		mode: DESKTOP_VIDEO_TIMING_PROBE_MODE,
+		outcome: 'passed',
+		productId: 'framescaper',
+		target: 'windows-x64',
+		storageProfile: {
+			productId: 'framescaper',
+			databaseName: 'kw-media-framescaper-editor-v20',
+			opfsDirectoryName: 'framescaper-editor-v20-sources',
+		},
+		fixtures: plan.fixtures.map((fixture) => ({
+			id: fixture.id,
+			kind: fixture.kind,
+			name: fixture.name,
+			sourceSha256: fixture.sourceSha256,
+			frameRate: fixture.nominalRate,
+			sourceFrameCount: fixture.presentationTicks.length,
+			timingDecision: { mode: 'exact', backend: 'ffmpeg', rate: fixture.nominalRate },
+			timingAsset: timingResult(plan).fixtures.find(({ id }) => id === fixture.id).timingAsset,
+			presentationTicks: fixture.presentationTicks,
+		})),
+	});
+	const encoded = formatDesktopVideoTimingProbeEvidence(evidence);
+	assert.deepEqual(JSON.parse(encoded), evidence);
+	assert.ok(Buffer.byteLength(encoded, 'utf8') <= DESKTOP_VIDEO_TIMING_PROBE_EVIDENCE_MAX_BYTES);
+	assert.equal(encoded.includes(plan.fixtures[0].path), false);
+	assert.equal(encoded.includes(plan.token), false);
+	assert.equal(encoded.includes('timingBytes'), false);
+	assert.throws(
+		() => formatDesktopVideoTimingProbeEvidence({
+			...evidence,
+			oversized: 'x'.repeat(DESKTOP_VIDEO_TIMING_PROBE_EVIDENCE_MAX_BYTES),
+		}),
+		/exceeds.*byte limit/iu,
+	);
+	const forged = structuredClone(result);
+	forged.fixtures[0].timingAsset.sha256 = '0'.repeat(64);
+	assert.throws(
+		() => createDesktopVideoTimingProbeEvidence({
+			arch: 'x64', platform: 'linux', result: forged,
+		}, plan),
+		/timing reference/iu,
 	);
 });
 
@@ -213,7 +271,7 @@ test('desktop smoke routing admits the ordinary media chooser once and emits onl
 	assert.deepEqual(exits, [0]);
 });
 
-test('Framescaper packaged timing probe executes against the exact V18 storage profile', async () => {
+test('Framescaper packaged timing probe executes against the selected V20 storage profile', async () => {
 	const plan = timingPlan('framescaper');
 	const executions = [];
 	const probe = createDesktopSmokeProbe({

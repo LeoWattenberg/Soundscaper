@@ -438,17 +438,16 @@ test('the exact Framescaper selector remains isolated across maintained product 
 		'tests/audio-editor-framescaper-project-environment-v18.test.ts',
 		PREREQUISITE_TEST_MODULE,
 		TEST_MODULE,
-		'tests/desktop-video-timing-probe-smoke.test.js',
 	]);
 	assert.deepEqual([...literalOwners], [
 		'desktop/framescaper-v18-artifact-smoke.js',
 		'desktop/project-library-v10-contract.ts',
-		'desktop/video-timing-probe-smoke.js', PRODUCT_MODULE, TEST_MODULE,
+		PRODUCT_MODULE, TEST_MODULE,
 		'tests/audio-editor-framescaper-project-store-v18.test.ts',
 		'tests/desktop-framescaper-v18-artifact-smoke.test.js',
 		'tests/desktop-project-library-v10-contract.test.ts', 'tests/desktop-project-library-v10-proxy-media-inventory.test.ts',
 		// Selected desktop smoke owns V20/V12 names. The historical artifact fixture
-		// and timing probe continue to derive legacy V18 names from the exact profile.
+		// continues to derive legacy V18 names from the exact profile.
 		'tests/helpers/framescaper-v18-archive-fixture.ts',
 	]);
 	const genericSource = await readFile(resolve(ROOT, 'src/common/editor/storage/project-storage-profile.ts'), 'utf8');
