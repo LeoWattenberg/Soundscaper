@@ -130,27 +130,27 @@
 			"evidence": ["package.json", "package-lock.json"]
 		},
 		"playwright": {
-			"version": "1.61.1",
+			"version": "1.62.1",
 			"evidence": ["package.json", "package-lock.json", ".github/workflows/quality.yml"]
 		},
 		"browsers": {
 			"chromium": {
-				"version": "149.0.7827.55",
-				"revision": "1228",
+				"version": "151.0.7922.34",
+				"revision": "1234",
 				"project": "chromium",
 				"status": "provisional",
 				"evidence": ["package-lock.json", "playwright.config.mjs", ".github/workflows/quality.yml"]
 			},
 			"firefox": {
-				"version": "151.0",
-				"revision": "1532",
+				"version": "153.0",
+				"revision": "1538",
 				"project": "firefox",
 				"status": "provisional",
 				"evidence": ["package-lock.json", "playwright.config.mjs", ".github/workflows/quality.yml"]
 			},
 			"webkit": {
 				"version": "26.5",
-				"revision": "2311",
+				"revision": "2336",
 				"project": "webkit",
 				"status": "provisional",
 				"evidence": ["package-lock.json", "playwright.config.mjs", ".github/workflows/quality.yml"]
@@ -159,17 +159,17 @@
 	},
 	"environments": [
 		{
-			"id": "github-ubuntu-playwright-1.61.1",
+			"id": "github-ubuntu-playwright-1.62.1",
 			"status": "active",
 			"kind": "hosted-ci",
 			"qualificationEligible": false,
 			"rendererRequirement": "any",
 			"fingerprint": {
 				"osImage": "ubuntu-24.04",
-				"containerImage": "mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48",
+				"containerImage": "mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e",
 				"nodeVersion": "26.5.0",
 				"npmVersion": "12.0.1",
-				"playwrightVersion": "1.61.1"
+				"playwrightVersion": "1.62.1"
 			},
 			"evidence": [".github/workflows/quality.yml", ".nvmrc", "package-lock.json"]
 		},
@@ -1384,7 +1384,7 @@
 			"milestone": "4",
 			"status": "provisional",
 			"fixtureIds": ["video-effect-parity-rgba-v1", "m4-production-parity-v1"],
-			"environmentIds": ["github-ubuntu-playwright-1.61.1", "reference-linux-gpu-01", "owner-qualified-windows-x64-rtx3090-01"],
+			"environmentIds": ["github-ubuntu-playwright-1.62.1", "reference-linux-gpu-01", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "parity.audioMaximumAbsoluteSampleError", "comparison": "lte", "value": 0.000001, "unit": "ratio" },
 				{ "metricId": "parity.pdcErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
@@ -1405,7 +1405,7 @@
 			"milestone": "4",
 			"status": "provisional",
 			"fixtureIds": ["m4b2-keyframe-parity-rgba-v1"],
-			"environmentIds": ["github-ubuntu-playwright-1.61.1", "reference-linux-gpu-01"],
+			"environmentIds": ["github-ubuntu-playwright-1.62.1", "reference-linux-gpu-01"],
 			"thresholds": [
 				{ "metricId": "keyframes.videoMinimumSsim", "comparison": "gte", "value": 0.98, "unit": "ratio" },
 				{ "metricId": "keyframes.videoMaximumChannelMae", "comparison": "lte", "value": 0.023529411764705882, "unit": "ratio" },

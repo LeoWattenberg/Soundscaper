@@ -37,7 +37,7 @@ import { videoPreviewSourceResponse } from './video-preview-source-route.js';
 
 const ROUTE_ROOT = '/__m4-production-parity__';
 const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
-const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.61.1';
+const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.62.1';
 const REFERENCE_ENVIRONMENT_ID = 'reference-linux-gpu-01';
 const ENVIRONMENT_ID = process.env.SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID
 	|| (process.env.GITHUB_ACTIONS === 'true' ? HOSTED_ENVIRONMENT_ID : LOCAL_ENVIRONMENT_ID);

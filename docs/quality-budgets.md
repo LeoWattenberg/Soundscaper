@@ -16,7 +16,7 @@ fixture, environment, metric, and threshold identifiers.
 
 ## What is active today
 
-- Node 26.5.0, npm 12.0.1, Playwright 1.61.1, and the Playwright browser
+- Node 26.5.0, npm 12.0.1, Playwright 1.62.1, and the Playwright browser
   revisions are pinned from checked-in dependency and workflow inputs.
 - Chromium browser workflows run in the digest-pinned Playwright container.
   Their release status remains provisional.

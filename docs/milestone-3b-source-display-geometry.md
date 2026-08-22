@@ -17,7 +17,7 @@ answered, together with six neighbouring facts that change the design.
 
 The runtime under test is `@ffmpeg/core` 0.12.10, which reports itself as
 **FFmpeg 5.1.4**, driven through the same `exec` entry point the product uses.
-The browsers are the Playwright-pinned Chromium 149 and Firefox 151 that the
+The browsers are the Playwright-pinned Chromium 151 and Firefox 153 that the
 probe matrix already qualifies.
 
 | # | Question | Measured answer |

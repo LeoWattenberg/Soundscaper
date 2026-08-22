@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 export const M4_PARITY_REFERENCE_ENVIRONMENT_ID = 'reference-linux-gpu-01';
-export const M4_PARITY_HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.61.1';
+export const M4_PARITY_HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.62.1';
 export const M4_PARITY_LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
 export const M4_PARITY_WORKLOAD_ID = 'm4-production-render-parity';
 

@@ -477,7 +477,7 @@ function assertWorkloadRegistration(workload) {
 		: [];
 	if (!deepEqualJson(workload.fixtureIds, [VIDEO_FIXTURE_ID, FIXTURE_ID])
 		|| !Array.isArray(workload.environmentIds)
-		|| !workload.environmentIds.includes('github-ubuntu-playwright-1.61.1')
+		|| !workload.environmentIds.includes('github-ubuntu-playwright-1.62.1')
 		|| !workload.environmentIds.includes(REFERENCE_ENVIRONMENT_ID)
 		|| !deepEqualJson(thresholdIds, METRIC_IDS)) {
 		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixtures, environments, and five metrics.`);

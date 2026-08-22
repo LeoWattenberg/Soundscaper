@@ -108,6 +108,40 @@ test('the nightly payload stages browser harnesses loaded as dynamic esbuild ent
 	);
 });
 
+test('the nightly launcher ASAR satisfies every local import it reaches', async () => {
+	const result = await build({
+		entryPoints: [join(REPOSITORY_ROOT, 'desktop/nightly-tests-main.mjs')],
+		bundle: true,
+		write: false,
+		metafile: true,
+		logLevel: 'silent',
+		logLimit: 0,
+		platform: 'node',
+		format: 'esm',
+		outfile: join(REPOSITORY_ROOT, '.nightly-test-launcher-imports.mjs'),
+		plugins: [{
+			name: 'nightly-test-launcher-imports',
+			setup(api) {
+				api.onResolve({ filter: /.*/ }, ({ path, importer }) => {
+					if (!importer || path.startsWith('.') || isAbsolute(path)) return null;
+					return { path, external: true };
+				});
+			},
+		}],
+	});
+	const { default: config } = await import('../electron-builder.nightly-tests.config.cjs');
+	const included = config.files.filter((pattern) => !pattern.startsWith('!'));
+	const missing = Object.keys(result.metafile.inputs)
+		.map((input) => relative(REPOSITORY_ROOT, resolve(REPOSITORY_ROOT, input)))
+		.filter((input) => !included.some((pattern) => matchesGlob(input, pattern)))
+		.sort();
+	assert.deepEqual(
+		missing,
+		[],
+		`The packaged launcher would fail before writing results:\n  ${missing.join('\n  ')}`,
+	);
+});
+
 async function readDynamicHarnessPath() {
 	const lifecycleSpec = await readFile(V20_LIFECYCLE_SPEC, 'utf8');
 	const harnessPath = lifecycleSpec.match(

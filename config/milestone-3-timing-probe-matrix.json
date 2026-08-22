@@ -37,8 +37,8 @@
 	"browserRows": [
 		{
 			"project": "chromium",
-			"version": "149.0.7827.55",
-			"revision": "1228",
+			"version": "151.0.7922.34",
+			"revision": "1234",
 			"status": "automated",
 			"fixtureIds": [
 				"cfr-25fps-mp4-v1",
@@ -55,8 +55,8 @@
 		},
 		{
 			"project": "firefox",
-			"version": "151.0",
-			"revision": "1532",
+			"version": "153.0",
+			"revision": "1538",
 			"status": "automated",
 			"fixtureIds": [
 				"cfr-25fps-mp4-v1",
@@ -74,7 +74,7 @@
 		{
 			"project": "webkit",
 			"version": "26.5",
-			"revision": "2311",
+			"revision": "2336",
 			"status": "deferred",
 			"reason": "Milestone-2 scope revision 2 and the milestone-3 watch item explicitly defer WebKit qualification."
 		}

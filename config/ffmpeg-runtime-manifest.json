@@ -60,7 +60,7 @@
 		"notices": {
 			"path": "THIRD_PARTY_LICENSES.md",
 			"byteLength": 35476,
-			"sha256": "b3889267d95d3bffdb96fadfdb15809b3c4845cf6d2a72185861ee32a086f5bd"
+			"sha256": "5574f3d51e9b4e0790259acbc7ebc2b6458fc8ee89198cce373983bbb39ea149"
 		},
 		"releaseSeverityPolicy": {
 			"path": "config/release-severity-policy.json",
@@ -123,6 +123,6 @@
 			"desktop-release-policy",
 			"runtime-publication-policy"
 		],
-		"payloadSha256": "2266e73938fae734e1c7470f0272f5c7785cb2ccfb237b68e0d6fc8036fb741a"
+		"payloadSha256": "e9c9c922bdc47a36313ed455968317e2a6ed3b4af98d0d0dac3bdb9f324012fb"
 	}
 }

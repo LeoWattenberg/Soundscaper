@@ -358,7 +358,7 @@ test('accepted publication binds hashed config bytes to the evaluated config bef
 
 test('hosted correctness stays pending and cannot publish qualification evidence', async () => {
 	const diagnostic = makeDiagnostic();
-	diagnostic.environmentId = 'github-ubuntu-playwright-1.61.1';
+	diagnostic.environmentId = 'github-ubuntu-playwright-1.62.1';
 	const identity = resolveM4ProductionParityCollectionEnvironment(
 		{ outputDirectory: '/unused', qualificationMode: 'correctness' },
 		config,

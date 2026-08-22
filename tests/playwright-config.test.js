@@ -72,7 +72,7 @@ function assertBrowserQualification(workflow, label) {
 	assert.ok(browserJob.includes('name: Browser / ${{ matrix.project }}'));
 	assert.match(browserJob, /needs: quality/u);
 	assert.match(browserJob, /strategy:\n\s+fail-fast: false\n\s+matrix:\n\s+project: \[chromium, webkit\]/u);
-	assert.match(browserJob, /container:\n\s+image: mcr\.microsoft\.com\/playwright:v1\.61\.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48\n\s+options: --user 1001/u);
+	assert.match(browserJob, /container:\n\s+image: mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e\n\s+options: --user 1001/u);
 	assert.match(browserJob, /npm install --global --prefix "\$HOME\/\.local" npm@12\.0\.1/u);
 	assert.match(browserJob, /name: verified-site-build/u);
 	assert.ok(browserJob.includes('npm run test:browser:built -- --project=${{ matrix.project }}'));

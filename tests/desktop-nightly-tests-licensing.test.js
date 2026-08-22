@@ -73,7 +73,7 @@ test('nightly-with-tests notices pin the shipped test tools and browser revision
 		new RegExp(`WinLDD[\\s\\S]*PrintDeps\\.exe[\\s\\S]*revision ${winldd.revision}[\\s\\S]*MIT[\\s\\S]*Julien Waechter`, 'u'),
 	);
 	assert.ok(
-		notices.includes('https://github.com/microsoft/playwright/blob/v1.61.1/browser_patches/winldd/PrintDeps.cpp'),
+		notices.includes('https://github.com/microsoft/playwright/blob/v1.62.1/browser_patches/winldd/PrintDeps.cpp'),
 		'winldd notice must pin its exact upstream source',
 	);
 	assert.ok(

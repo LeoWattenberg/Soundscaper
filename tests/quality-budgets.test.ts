@@ -395,7 +395,7 @@ test('quality budget contract names numeric gates and the exact qualified struct
 	assert.equal(gpuEnvironment?.qualificationEligible, false);
 	assert.equal(gpuEnvironment?.rendererRequirement, 'hardware');
 	assert.ok(Object.values(gpuEnvironment?.fingerprint ?? {}).every((value) => value === null));
-	const hostedPlaywright = environments.get('github-ubuntu-playwright-1.61.1');
+	const hostedPlaywright = environments.get('github-ubuntu-playwright-1.62.1');
 	assert.equal(hostedPlaywright?.status, 'active');
 	assert.equal(hostedPlaywright?.qualificationEligible, false);
 
@@ -434,7 +434,7 @@ test('quality budget contract names numeric gates and the exact qualified struct
 	assert.equal(keyedWorkload?.status, 'provisional');
 	assert.deepEqual(keyedWorkload?.fixtureIds, ['m4b2-keyframe-parity-rgba-v1']);
 	assert.deepEqual(keyedWorkload?.environmentIds,
-		['github-ubuntu-playwright-1.61.1', 'reference-linux-gpu-01']);
+		['github-ubuntu-playwright-1.62.1', 'reference-linux-gpu-01']);
 	assert.deepEqual(keyedWorkload?.thresholds, [
 		{ metricId: 'keyframes.videoMinimumSsim', comparison: 'gte', value: 0.98, unit: 'ratio' },
 		{ metricId: 'keyframes.videoMaximumChannelMae', comparison: 'lte', value: 6 / 255, unit: 'ratio' },
@@ -479,15 +479,15 @@ test('quality budget inputs pin the checked-in Node, npm, Playwright, and browse
 	assert.equal(packageMetadata.devDependencies['@playwright/test'], `^${config.softwareInputs.playwright.version}`);
 	assert.deepEqual(config.softwareInputs.browsers, {
 		chromium: {
-			version: '149.0.7827.55', revision: '1228', project: 'chromium', status: 'provisional',
+			version: '151.0.7922.34', revision: '1234', project: 'chromium', status: 'provisional',
 			evidence: ['package-lock.json', 'playwright.config.mjs', '.github/workflows/quality.yml'],
 		},
 		firefox: {
-			version: '151.0', revision: '1532', project: 'firefox', status: 'provisional',
+			version: '153.0', revision: '1538', project: 'firefox', status: 'provisional',
 			evidence: ['package-lock.json', 'playwright.config.mjs', '.github/workflows/quality.yml'],
 		},
 		webkit: {
-			version: '26.5', revision: '2311', project: 'webkit', status: 'provisional',
+			version: '26.5', revision: '2336', project: 'webkit', status: 'provisional',
 			evidence: ['package-lock.json', 'playwright.config.mjs', '.github/workflows/quality.yml'],
 		},
 	});
