@@ -115,6 +115,124 @@ test('qualified recovery reaches an explicitly mounted dispatcher during startup
 	await second.close();
 });
 
+test('enabling Native Media wakes qualified recovered work once per preference transition', async (t) => {
+	const temporary = await mkdtemp(join(tmpdir(), 'framescaper-native-enable-recovery-'));
+	t.after(() => rm(temporary, { recursive: true, force: true }));
+	const databasePath = join(temporary, 'services.sqlite');
+	const first = startFramescaperNativeServicesRuntime({
+		databasePath, leaseId: 'lease-enable-first', instanceId: 'instance-enable-first',
+		processId: 51, runtimeAvailable: () => false, nativeMediaEnabled: () => false,
+		now: () => 6_000,
+	});
+	await first.ready;
+	const rootGrantId = 'b0'.repeat(16);
+	first.roots.authorize({
+		grantId: rootGrantId, rootPath: '/private/exports', volumeIdentity: 'volume-a',
+		directoryIdentity: 'directory-a', authorizedAtMs: 6_000,
+	}, first.lease.lease(), 6_000);
+	const recovered = createNativeQueueRecordV2({
+		jobId: 'd0'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
+		projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
+		relativeDestination: 'recovered.mp4', reservations: {
+			cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 0,
+			minimumFreeBytes: 0, hardwareBackend: null,
+		}, position: 0, createdAtMs: 6_000,
+	});
+	first.queue.enqueue(recovered, first.lease.lease(), 6_000);
+	first.queue.control(recovered.jobId, { kind: 'dispatch' }, first.lease.lease(), 6_000);
+	await first.close();
+
+	let mediaEnabled = false;
+	let now = 60_000;
+	const executed: string[] = [];
+	const errors: unknown[] = [];
+	const second = startFramescaperNativeServicesRuntime({
+		databasePath, leaseId: 'lease-enable-second', instanceId: 'instance-enable-second',
+		processId: 52, runtimeAvailable: () => true, nativeMediaEnabled: () => mediaEnabled,
+		now: () => ++now,
+		setPreference: (preference, enabled) => {
+			if (preference === 'native-media') mediaEnabled = enabled;
+			return enabled;
+		},
+		revalidate: ({ rootAuthorized }) => ({
+			projectRevisionMatches: true, planFingerprintMatches: true,
+			inputFingerprintsMatch: true, rootGrantAuthorized: rootAuthorized,
+			rootGrantValid: true, licensingCleared: true, helperBuildMatches: true,
+			scratchIdentityMatches: true,
+		}),
+		nativeQueueExecution: {
+			pool: { runJob: async (request) => {
+				executed.push((request.grant as unknown as { jobId: string }).jobId);
+				return {};
+			} },
+			prepare: async (record) => ({
+				request: {
+					kind: 'media-render',
+					grant: { jobId: record.jobId, plan: { sha256: record.planFingerprint } } as never,
+				},
+				publish: async () => undefined,
+			}),
+		},
+		onWatchError: (error) => { errors.push(error); },
+	});
+	await second.ready;
+	try {
+		assert.equal(second.queue.read(recovered.jobId)?.state, 'queued');
+		assert.deepEqual(executed, []);
+
+		assert.equal(await second.controller.setPreference({
+			preference: 'native-media', enabled: true,
+		}), true);
+		await waitForQueueState(second, recovered.jobId, 'completed');
+		assert.deepEqual(executed, [recovered.jobId]);
+
+		const later = createNativeQueueRecordV2({
+			jobId: 'd1'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
+			projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
+			relativeDestination: 'later.mp4', reservations: {
+				cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 0,
+				minimumFreeBytes: 0, hardwareBackend: null,
+			}, position: 1, createdAtMs: ++now,
+		});
+		second.queue.enqueue(later, second.lease.lease(), ++now);
+		assert.equal(await second.controller.setPreference({
+			preference: 'native-media', enabled: true,
+		}), true);
+		await flushImmediate();
+		assert.equal(second.queue.read(later.jobId)?.state, 'queued');
+		assert.deepEqual(executed, [recovered.jobId]);
+
+		assert.equal(await second.controller.setPreference({
+			preference: 'native-media', enabled: false,
+		}), false);
+		assert.equal(await second.controller.setPreference({
+			preference: 'native-media', enabled: true,
+		}), true);
+		await waitForQueueState(second, later.jobId, 'completed');
+		assert.deepEqual(executed, [recovered.jobId, later.jobId]);
+
+		await second.queueDispatcher?.dispose();
+		const deferred = createNativeQueueRecordV2({
+			jobId: 'd2'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
+			projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
+			relativeDestination: 'deferred.mp4', reservations: {
+				cpuCores: 1, processTreeRssBytes: 1_024, scratchBytes: 0,
+				minimumFreeBytes: 0, hardwareBackend: null,
+			}, position: 2, createdAtMs: ++now,
+		});
+		second.queue.enqueue(deferred, second.lease.lease(), ++now);
+		await second.controller.setPreference({ preference: 'native-media', enabled: false });
+		assert.equal(await second.controller.setPreference({
+			preference: 'native-media', enabled: true,
+		}), true);
+		await waitFor(() => errors.length === 1);
+		assert.match(String(errors[0]), /dispatcher is disposed/u);
+		assert.equal(second.queue.read(deferred.jobId)?.state, 'queued');
+	} finally {
+		await second.close();
+	}
+});
+
 test('startup leaves terminal rows visible without invoking project exact-plan revalidation', async (t) => {
 	const temporary = await mkdtemp(join(tmpdir(), 'framescaper-native-terminal-runtime-'));
 	t.after(() => rm(temporary, { recursive: true, force: true }));
@@ -291,3 +409,23 @@ test('startup recovery dispatch uses frame counts reverified by project authorit
 	assert.equal(second.queue.read(record.jobId)?.progress, 2 / 30);
 	await second.close();
 });
+
+async function waitForQueueState(
+	runtime: ReturnType<typeof startFramescaperNativeServicesRuntime>,
+	jobId: string,
+	state: string,
+): Promise<void> {
+	await waitFor(() => runtime.queue.read(jobId)?.state === state);
+}
+
+async function waitFor(predicate: () => boolean): Promise<void> {
+	for (let attempt = 0; attempt < 20; attempt += 1) {
+		if (predicate()) return;
+		await flushImmediate();
+	}
+	assert.fail('Timed out waiting for the native-services runtime state.');
+}
+
+async function flushImmediate(): Promise<void> {
+	await new Promise<void>((resolve) => setImmediate(resolve));
+}

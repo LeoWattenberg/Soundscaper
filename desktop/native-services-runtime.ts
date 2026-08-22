@@ -206,6 +206,23 @@ export function startFramescaperNativeServicesRuntime(
 				...options.nativeQueueExecution,
 			})
 			: null;
+		const updatePreference = options.setPreference;
+		const setPreference = updatePreference
+			? async (preference: FramescaperNativeServicePreference, enabled: boolean): Promise<boolean> => {
+				const nativeMediaWasEnabled = options.nativeMediaEnabled();
+				const result = await updatePreference(preference, enabled);
+				if (preference === 'native-media' && enabled && result === true
+					&& !nativeMediaWasEnabled && options.nativeMediaEnabled() && queueDispatcher !== null) {
+					const queued = Object.freeze(queue.list().filter((record) => record.state === 'queued'));
+					if (queued.length > 0) {
+						void queueDispatcher.dispatch(queued).catch(
+							(error: unknown) => options.onWatchError?.(error),
+						);
+					}
+				}
+				return result;
+			}
+			: undefined;
 		const lifecycle = new FramescaperNativeServicesLifecycle({
 			queue,
 			roots,
@@ -247,7 +264,7 @@ export function startFramescaperNativeServicesRuntime(
 			...(options.preferences ? { preferences: options.preferences } : {}),
 			...(options.capabilities ? { capabilities: options.capabilities } : {}),
 			...(options.watchProjectState ? { projectState: options.watchProjectState } : {}),
-			...(options.setPreference ? { setPreference: options.setPreference } : {}),
+			...(setPreference ? { setPreference } : {}),
 			rootDisplayName: (grant) => basename(grant.rootPath) || 'Authorized folder',
 			...(queueDispatcher ? {
 				onQueueControl: (record, action) => queueDispatcher.control(record, action),
