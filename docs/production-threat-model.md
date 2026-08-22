@@ -3,7 +3,7 @@
 This document records the production security baseline for Soundscaper's local-first Web and Electron editor. The machine-readable control register is
 [`config/production-security-matrix.json`](../config/production-security-matrix.json). Its checked-in implementation and test references are the evidence for each current claim.
 
-The model is grounded on 2026-08-21. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
+The model is grounded on 2026-08-22. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
 
 ## Meaning of the statuses
 
