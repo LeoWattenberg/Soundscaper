@@ -54,6 +54,7 @@ const SAVE_FIELDS = [
 	'admitProjectPublication', 'protectedLinkedOriginalSourceReferences', 'protectedLinkedVideoSourceIds',
 ] as const;
 const DUPLICATE_FIELDS = ['id', 'title'] as const;
+const SCAPE_CREATION_FENCE_LOST = Symbol('scape-creation-fence-lost');
 
 /** Keep web on the exact local identity; desktop receives a closed project-lifecycle overlay only. */
 export function createSoundscaperDesktopProjectStoreV10Adapter<Store extends SoundscaperDesktopProjectStoreV10Local>(
@@ -137,6 +138,21 @@ function proxyHandler<Store extends SoundscaperDesktopProjectStoreV10Local>(
 			const existing = await renderer.readProject(String(project.id));
 			if (existing !== null) return null;
 			return renderer.publishProject({ project });
+		},
+		createScapeProjectIfAbsent: (projectValue: unknown) => (
+			renderer.createScapeProjectIfAbsent(soundscaperProductionProjectClone(profile, projectValue))
+		),
+		deleteProjectIfCurrent: async (projectValue: unknown) => {
+			const project = soundscaperProductionProjectClone(profile, projectValue);
+			try {
+				return await lifecycle.deleteProject(String(project.id), async () => {
+					if (!await renderer.deleteProjectIfCurrent(project)) throw SCAPE_CREATION_FENCE_LOST;
+					return true;
+				});
+			} catch (error) {
+				if (error === SCAPE_CREATION_FENCE_LOST) return false;
+				throw error;
+			}
 		},
 		deleteProject: async (projectId: string) => {
 			try {

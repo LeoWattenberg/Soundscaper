@@ -73,9 +73,11 @@ export interface SoundscaperDesktopProjectLibraryV10ShadowStore extends
 export interface SoundscaperDesktopProjectLibraryV10Renderer {
 	listProjects(): Promise<readonly Readonly<SoundscaperDesktopV10ProjectSummary>[]>
 	readProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<SoundscaperProductionProject | null>
+	createScapeProjectIfAbsent(project: unknown): Promise<SoundscaperProductionProject | null>
 	publishProject(request: Readonly<{ readonly project: unknown; readonly signal?: AbortSignal }> | unknown):
 		Promise<SoundscaperProductionProject>
 	deleteProject(projectId: string): Promise<void>
+	deleteProjectIfCurrent(project: unknown): Promise<boolean>
 	cleanupDeletedProject(projectId: string): Promise<boolean>
 	settleDeletedProject(projectId: string): Promise<boolean>
 	duplicateProject(
@@ -177,23 +179,15 @@ class Renderer implements SoundscaperDesktopProjectLibraryV10Renderer {
 	readProject(projectIdValue: string, optionsValue: Readonly<{ signal?: AbortSignal }> = {}) {
 		const projectId = validateSoundscaperDesktopV10ProjectId(projectIdValue)
 		const signal = signalOptions(optionsValue)
+		return this.#exclusive(() => this.#readProject(projectId, signal))
+	}
+
+	createScapeProjectIfAbsent(projectValue: unknown): Promise<SoundscaperProductionProject | null> {
+		const request = rendererPublicationRequest(this.#profile, { project: projectValue })
+		const projectId = validateSoundscaperDesktopV10ProjectId(String(request.project.id))
 		return this.#exclusive(async () => {
-			throwIfScapeAborted(signal)
-			const raw = await this.#bridge.readProjectBundle(projectId)
-			throwIfScapeAborted(signal)
-			if (raw === null) {
-				const catalog = validateSoundscaperDesktopV10CatalogSnapshot(await this.#bridge.listProjects())
-				throwIfScapeAborted(signal)
-				if (catalog.projects.some(({ id }) => id === projectId)) {
-					throw new Error('The desktop V10 project bundle is absent from a catalog that still owns it.')
-				}
-				this.#ledger.rememberAbsent(projectId, catalog.metadataRevision)
-				return null
-			}
-			const snapshot = validateSoundscaperDesktopV10Bundle(this.#profile, raw, projectId)
-			const project = await this.#reconcile(snapshot, signal)
-			this.#ledger.rememberCurrent(snapshot)
-			return project
+			if (await this.#readProject(projectId, request.signal) !== null) return null
+			return this.#publishFromWitness(request, true)
 		})
 	}
 
@@ -204,6 +198,20 @@ class Renderer implements SoundscaperDesktopProjectLibraryV10Renderer {
 
 	deleteProject(projectIdValue: string): Promise<void> {
 		return this.#exclusive(() => this.#catalog.deleteProject(projectIdValue))
+	}
+
+	deleteProjectIfCurrent(projectValue: unknown): Promise<boolean> {
+		const expected = soundscaperProductionProjectClone(this.#profile, projectValue)
+		const projectId = validateSoundscaperDesktopV10ProjectId(String(expected.id))
+		return this.#exclusive(async () => {
+			const current = await this.#readProject(projectId)
+			if (current === null || !sameSoundscaperDesktopV10Project(current, expected)) return false
+			await this.#catalog.deleteProject(projectId)
+			if (!await this.#catalog.settleDeletedProject(projectId)) {
+				throw new Error('The exact Scape rollback delete could not be settled.')
+			}
+			return true
+		})
 	}
 
 	cleanupDeletedProject(projectIdValue: string): Promise<boolean> {
@@ -218,12 +226,15 @@ class Renderer implements SoundscaperDesktopProjectLibraryV10Renderer {
 		return this.#exclusive(() => this.#catalog.duplicateProject(sourceProjectId, options))
 	}
 
-	async #publishFromWitness(request: RendererPublication): Promise<SoundscaperProductionProject> {
+	async #publishFromWitness(
+		request: RendererPublication,
+		allowImportedRevision = false,
+	): Promise<SoundscaperProductionProject> {
 		const projectId = validateSoundscaperDesktopV10ProjectId(String(request.project.id))
 		await this.#catalog.observeCatalog()
 		const witness = this.#ledger.take(projectId)
 		if (witness.kind === 'absent') {
-			if (Number(request.project.revision) !== 0) {
+			if (!allowImportedRevision && Number(request.project.revision) !== 0) {
 				throw new Error('The desktop V10 absence witness can publish only fresh revision zero.')
 			}
 		} else if (!isStrictlyHigherProjectRevision(
@@ -235,6 +246,7 @@ class Renderer implements SoundscaperDesktopProjectLibraryV10Renderer {
 		try {
 			return await this.#publish(Object.freeze({
 				...request,
+				allowImportedRevision,
 				expectedMetadataRevision: witness.expectedMetadataRevision,
 				expectedProject: witness.kind === 'absent' ? null : witness.expectedProject,
 			}))
@@ -242,6 +254,28 @@ class Renderer implements SoundscaperDesktopProjectLibraryV10Renderer {
 			this.#ledger.clear()
 			throw error
 		}
+	}
+
+	async #readProject(
+		projectId: string,
+		signal?: AbortSignal,
+	): Promise<SoundscaperProductionProject | null> {
+		throwIfScapeAborted(signal)
+		const raw = await this.#bridge.readProjectBundle(projectId)
+		throwIfScapeAborted(signal)
+		if (raw === null) {
+			const catalog = validateSoundscaperDesktopV10CatalogSnapshot(await this.#bridge.listProjects())
+			throwIfScapeAborted(signal)
+			if (catalog.projects.some(({ id }) => id === projectId)) {
+				throw new Error('The desktop V10 project bundle is absent from a catalog that still owns it.')
+			}
+			this.#ledger.rememberAbsent(projectId, catalog.metadataRevision)
+			return null
+		}
+		const snapshot = validateSoundscaperDesktopV10Bundle(this.#profile, raw, projectId)
+		const project = await this.#reconcile(snapshot, signal)
+		this.#ledger.rememberCurrent(snapshot)
+		return project
 	}
 
 	async #publish(request: NormalizedPublication): Promise<SoundscaperProductionProject> {
@@ -391,6 +425,7 @@ interface RendererPublication {
 }
 
 interface NormalizedPublication extends RendererPublication {
+	readonly allowImportedRevision: boolean
 	readonly expectedMetadataRevision: number
 	readonly expectedProject: Readonly<{ readonly projectRevision: number; readonly projectSha256: string }> | null
 }
@@ -415,7 +450,7 @@ function assertLocalCas(
 	request: NormalizedPublication,
 ): void {
 	if (request.expectedProject === null) {
-		if (current !== null || Number(request.project.revision) !== 0) {
+		if (current !== null || (!request.allowImportedRevision && Number(request.project.revision) !== 0)) {
 			throw new Error('Desktop create requires an absent V21 shadow and fresh revision zero.')
 		}
 		return
@@ -447,7 +482,6 @@ function shadowMode(
 	project: SoundscaperProductionProject,
 ): 'create' | 'same' | 'update' {
 	if (current === null) {
-		if (Number(project.revision) !== 0) throw new Error('Desktop reconciliation create requires revision zero.')
 		return 'create'
 	}
 	if (sameSoundscaperDesktopV10Project(current, project)) return 'same'
