@@ -1,9 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION } from './project-library-smoke-project.js';
-
 export const DESKTOP_SCAPE_REOPEN_SMOKE_MODE = 'scape-persistent-reopen-v1';
 export const DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX = 'SOUNDSCAPER_DESKTOP_SCAPE_REOPEN_SMOKE';
+export const SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION = 23;
 
 const MAXIMUM_PLAN_BYTES = 16 * 1024;
 const TOKEN = /^[a-f\d]{32}$/u;
@@ -21,7 +20,7 @@ const PLAYBACK_FIELDS = Object.freeze([
 	'meterAboveFloor', 'playheadAdvanced', 'transportEntered', 'transportStopped',
 ]);
 const RESULT_FIELDS = Object.freeze([...PLAN_FIELDS, ...EXECUTION_FIELDS]);
-const CURRENT_PROJECT_SCHEMA_VERSION = DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION;
+const CURRENT_PROJECT_SCHEMA_VERSION = SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION;
 
 export function validateScapeReopenSmokePlan(value) {
 	assertClosedRecord(value, PLAN_FIELDS, 'Scape persisted-reopen smoke plan');
@@ -190,13 +189,13 @@ export function validateScapeReopenSmokeResult(value, expectedPlan = null) {
 }
 
 export async function runScapeReopenRendererSmoke(scope, plan) {
-	const currentProjectSchemaVersion = 17;
+	const currentProjectSchemaVersion = 23;
 	const document = scope?.document;
-	const api = scope?.scapeDesktop?.v1;
+	const api = scope?.soundscaperProjectLibraryDesktop?.v10;
 	if (!document || typeof document.querySelectorAll !== 'function'
 		|| typeof scope?.setTimeout !== 'function'
 		|| typeof scope?.requestAnimationFrame !== 'function'
-		|| !api || typeof api.readSharedProject !== 'function') {
+		|| !api || typeof api.connect !== 'function' || typeof api.readProjectBundle !== 'function') {
 		throw new Error('Packaged Scape persisted-reopen renderer environment is incomplete');
 	}
 	const closed = (value, keys) => value && typeof value === 'object' && !Array.isArray(value)
@@ -207,7 +206,9 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 		|| !closed(plan.project, ['clipId', 'id', 'revision', 'sourceId', 'title', 'trackId'])) {
 		throw new TypeError('Packaged Scape persisted-reopen plan is invalid');
 	}
-	const projectDocument = await api.readSharedProject(plan.project.id);
+	await api.connect();
+	const projectBundle = await api.readProjectBundle(plan.project.id);
+	const projectDocument = projectBundle?.document;
 	if (typeof projectDocument !== 'string') {
 		throw new Error('Persisted shared project is unavailable on descriptor-free reopen');
 	}

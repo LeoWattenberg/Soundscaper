@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	DESKTOP_SCAPE_REOPEN_SMOKE_MODE,
 	DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX,
+	SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION,
 	decodeScapeReopenSmokePlan,
 	encodeScapeReopenSmokePlan,
 	runScapeReopenRendererSmoke,
@@ -17,7 +18,6 @@ import {
 	createDesktopSmokeProbe,
 	parseDesktopSmokeConfiguration,
 } from '../desktop/desktop-smoke.js';
-import { DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION } from '../desktop/project-library-smoke-project.js';
 
 const TOKEN = '0123456789abcdef0123456789abcdef';
 const PLAN = Object.freeze({
@@ -77,6 +77,7 @@ test('renderer rereads the canonical source-bearing project and proves its exact
 	const result = await serialized(fixture.scope, PLAN);
 
 	assert.deepEqual(fixture.readIds, [PLAN.project.id]);
+	assert.equal(fixture.connectCalls, 1);
 	assert.deepEqual(result, rendererResult());
 	assert.equal(fixture.zoomClicks, 0, 'already-ready PCM does not trigger unnecessary zoom');
 	assert.equal(fixture.polls, 0);
@@ -237,7 +238,7 @@ function smokeArgv(encoded = encodeScapeReopenSmokePlan(PLAN)) {
 function rendererResult() {
 	return {
 		sharedProject: {
-			schemaVersion: DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION,
+			schemaVersion: SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION,
 			revision: PLAN.project.revision,
 			sourceCount: 1,
 			trackCount: 1,
@@ -272,7 +273,7 @@ function smokeResult() {
 
 function sharedProjectDocument(plan, overrides = {}) {
 	return JSON.stringify({
-		schemaVersion: DESKTOP_SMOKE_PROJECT_SCHEMA_VERSION,
+		schemaVersion: SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION,
 		id: plan.project.id,
 		title: plan.project.title,
 		revision: plan.project.revision,
@@ -312,6 +313,7 @@ function rendererFixture(plan, {
 	let playClicks = 0;
 	let stopClicks = 0;
 	let animationFrames = 0;
+	let connectCalls = 0;
 	const readIds = [];
 	const attribute = (values, textContent = '') => ({
 		textContent,
@@ -410,11 +412,14 @@ function rendererFixture(plan, {
 				return [];
 			},
 		},
-		scapeDesktop: {
-			v1: {
-				async readSharedProject(projectId) {
+		soundscaperProjectLibraryDesktop: {
+			v10: {
+				async connect() {
+					connectCalls += 1;
+				},
+				async readProjectBundle(projectId) {
 					readIds.push(projectId);
-					return sharedDocument;
+					return sharedDocument === null ? null : { document: sharedDocument };
 				},
 			},
 		},
@@ -442,6 +447,7 @@ function rendererFixture(plan, {
 	return {
 		readIds,
 		scope,
+		get connectCalls() { return connectCalls; },
 		get polls() { return polls; },
 		get zoomClicks() { return zoomClicks; },
 		get playClicks() { return playClicks; },

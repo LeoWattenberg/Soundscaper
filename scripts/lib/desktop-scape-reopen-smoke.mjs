@@ -8,6 +8,7 @@ import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import {
 	DESKTOP_SCAPE_REOPEN_SMOKE_MODE,
 	DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX,
+	SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION,
 	decodeScapeReopenSmokePlan,
 	encodeScapeReopenSmokePlan,
 	validateScapeReopenSmokePlan,
@@ -28,7 +29,11 @@ import {
 	resolveSmokeArchitecture,
 } from './desktop-smoke.mjs';
 
-export { DESKTOP_SCAPE_REOPEN_SMOKE_MODE, DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX };
+export {
+	DESKTOP_SCAPE_REOPEN_SMOKE_MODE,
+	DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX,
+	SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION,
+};
 
 export const MAX_DESKTOP_SCAPE_REOPEN_PLAN_BYTES = 4 * 1024;
 const MAXIMUM_CHILD_OUTPUT_BYTES = 1024 * 1024;

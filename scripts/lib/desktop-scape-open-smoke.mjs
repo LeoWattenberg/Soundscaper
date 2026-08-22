@@ -19,8 +19,8 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../../src/common/editor/project-media-factory.ts';
-import { createCurrentAudioEditorProject, validateCurrentAudioEditorProject } from '../../src/common/editor/project-current.ts';
-import { exportScapeProject } from '../../src/common/editor/scape-project.js';
+import { createSoundscaperProjectV23, validateSoundscaperProjectV23 } from '../../src/soundscaper/editor-project-v23.ts';
+import { createSoundscaperScapeNativeRuntimeV23 } from '../../src/soundscaper/editor-scape-native-v23.ts';
 import {
 	packagedExecutableCandidates,
 	resolveSmokeArchitecture,
@@ -62,7 +62,7 @@ export const DESKTOP_SCAPE_OPEN_FIXTURE = deepFreeze({
 export async function createDesktopScapeOpenFixture(profileRoot) {
 	const profile = absolutePath(profileRoot, 'fixture profile root');
 	const project = createFixtureProject();
-	validateCurrentAudioEditorProject(project);
+	validateSoundscaperProjectV23(project);
 	const samples = createFixtureSamples();
 	const store = {
 		async loadMediaAsset() { return null; },
@@ -75,7 +75,7 @@ export async function createDesktopScapeOpenFixture(profileRoot) {
 			})();
 		},
 	};
-	const exported = await exportScapeProject(project, store);
+	const exported = await createSoundscaperScapeNativeRuntimeV23().exportScapeProject(project, store);
 	if (!(exported.blob instanceof Blob)) {
 		throw new Error('Packaged Scape-open fixture export did not produce a Blob');
 	}
@@ -454,7 +454,7 @@ function createFixtureProject() {
 		name: 'Packaged track',
 		clipIds: [fixture.project.clipId],
 	}, fixture.audio.sampleRate);
-	return createCurrentAudioEditorProject({
+	return createSoundscaperProjectV23({
 		id: fixture.project.id,
 		title: fixture.project.title,
 		revision: fixture.project.revision,
