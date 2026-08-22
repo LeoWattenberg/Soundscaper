@@ -191,9 +191,13 @@ void capture_staged_inputs(const json::value& root, selected_v20_execution_plan&
 	result.execution.output_rate = decimal_rational(
 		json::member(canvas, "frameRate"), "V8 execution frame rate"
 	);
-	result.execution.background_rgba = color(json::member(canvas, "backgroundColor"));
+	// V8's closed delivery-color grammar includes FFmpeg named colors. The
+	// carrierless static family must preserve that token in static semantics,
+	// not guess an RGBA value before a real geometry/filter adapter is bound.
+	result.execution.background_rgba = {0, 0, 0, 0};
 	capture_staged_inputs(root, result.execution);
 	result.caption_delivery = capture_caption_delivery(root);
+	result.static_visual_semantics = legacy::capture_v8_static_visual_semantics(root);
 	return result;
 }
 
@@ -210,7 +214,7 @@ captured_selected_v20_execution_plan capture_selected_v20_execution_plan(
 			"The selected-V20 execution snapshot changed generation."
 		);
 	}
-	if (admitted_version == 7) return {capture_v7(root), {}};
+	if (admitted_version == 7) return {capture_v7(root), {}, std::nullopt};
 	if (admitted_version == 8) return capture_v8(root);
 	throw selected_v20_execution_error(
 		selected_v20_execution_error_code::plan_contract,

@@ -97,6 +97,23 @@ if(BUILD_TESTING)
 		NAME framescaper-selected-v20-frame-executor-test
 		COMMAND framescaper-selected-v20-frame-executor-test
 	)
+	add_executable(framescaper-selected-v20-v8-visual-semantics-test
+		tests/selected_v20_v8_visual_semantics_fixture.cpp
+		src/legacy_plan_v8_filter_semantics.cpp
+		src/strict_json.cpp
+	)
+	target_include_directories(framescaper-selected-v20-v8-visual-semantics-test PRIVATE src)
+	if(MSVC)
+		target_compile_options(framescaper-selected-v20-v8-visual-semantics-test PRIVATE /W4 /WX /permissive-)
+	else()
+		target_compile_options(framescaper-selected-v20-v8-visual-semantics-test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror
+		)
+	endif()
+	add_test(
+		NAME framescaper-selected-v20-v8-visual-semantics-test
+		COMMAND framescaper-selected-v20-v8-visual-semantics-test
+	)
 	add_executable(framescaper-professional-source-probe-test
 		tests/professional_source_probe_fixture.cpp
 		src/professional_source_probe.cpp

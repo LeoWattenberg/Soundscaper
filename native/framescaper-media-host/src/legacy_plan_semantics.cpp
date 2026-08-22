@@ -2,6 +2,7 @@
 
 #include "legacy_plan_semantics.hpp"
 #include "legacy_plan_v8_filter_semantics.hpp"
+#include "legacy_plan_v8_visual_semantics.hpp"
 #include "legacy_plan_values.hpp"
 
 #include <algorithm>
@@ -19,8 +20,6 @@ namespace {
 
 constexpr std::size_t maximum_sources = 4'096;
 constexpr std::size_t maximum_clips = 100'000;
-constexpr std::size_t maximum_intervals = 100'000;
-constexpr std::size_t maximum_layers = 4'096;
 constexpr std::int64_t maximum_frame_count = 2'000'000;
 constexpr std::int64_t maximum_canvas_extent = 16'384;
 constexpr std::int64_t maximum_caption_cues = 100'000;
@@ -287,9 +286,6 @@ struct v8_caption_state final {
 			if (!video_mime(text(json::member(input, "mimeType"), "V8 source MIME", 128))) {
 				throw json::parse_error("A V8 source MIME type is not canonical.");
 			}
-			if (!is_null(json::member(input, "presentation"))) {
-				throw json::parse_error("unsupported-v8-source-presentation: this native host cannot interpret it.");
-			}
 			result.source_sha256.emplace_back();
 		} else if (kind == "staged-audio-mix") {
 			exact(input, {"kind", "inputIndex", "fileName", "sampleRate", "startFrame", "durationFrames", "channelLayout"});
@@ -318,129 +314,6 @@ struct v8_caption_state final {
 		throw json::parse_error("The V8 muxed-caption decision and staged input disagree.");
 	}
 	return state;
-}
-
-void validate_render_description(const json::value& value, const json::value& clip) {
-	exact(value, {"crop", "sourceDisplayToCanvas", "opacityStart", "opacityEnd", "blendMode", "compositingOrder"});
-	const auto& crop = json::member(value, "crop");
-	exact(crop, {"normalized", "sourcePixels"});
-	const auto& normalized = json::member(crop, "normalized");
-	exact(normalized, {"left", "top", "right", "bottom"});
-	const auto left = bounded_number(json::member(normalized, "left"), "V8 crop left", 0, 1);
-	const auto top = bounded_number(json::member(normalized, "top"), "V8 crop top", 0, 1);
-	const auto right = bounded_number(json::member(normalized, "right"), "V8 crop right", 0, 1);
-	const auto bottom = bounded_number(json::member(normalized, "bottom"), "V8 crop bottom", 0, 1);
-	if (left + right >= 1 || top + bottom >= 1) throw json::parse_error("The V8 normalized crop is empty.");
-	const auto& pixels = json::member(crop, "sourcePixels");
-	exact(pixels, {"x", "y", "width", "height"});
-	static_cast<void>(bounded_number(json::member(pixels, "x"), "V8 crop x", 0, 1e9));
-	static_cast<void>(bounded_number(json::member(pixels, "y"), "V8 crop y", 0, 1e9));
-	static_cast<void>(bounded_number(json::member(pixels, "width"), "V8 crop width", std::numeric_limits<double>::min(), 1e9));
-	static_cast<void>(bounded_number(json::member(pixels, "height"), "V8 crop height", std::numeric_limits<double>::min(), 1e9));
-	const auto& matrix = json::array(json::member(value, "sourceDisplayToCanvas"), "V8 display matrix");
-	if (matrix.size() != 6) throw json::parse_error("The V8 display matrix must have six coefficients.");
-	for (const auto& coefficient : matrix) static_cast<void>(bounded_number(coefficient, "V8 display matrix coefficient", -1e9, 1e9));
-	require_same(json::member(value, "opacityStart"), json::member(clip, "opacityStart"), "V8 render opacity start");
-	require_same(json::member(value, "opacityEnd"), json::member(clip, "opacityEnd"), "V8 render opacity end");
-	if (!one_of(json::member(value, "blendMode"), {"normal", "multiply", "screen", "overlay", "darken", "lighten", "difference", "exclusion"}, "V8 blend mode")) {
-		throw json::parse_error("The V8 blend mode is unsupported.");
-	}
-	const auto order = json::integer(json::member(value, "compositingOrder"), "V8 compositing order");
-	if (order < -32'768 || order > 32'767) throw json::parse_error("The V8 compositing order exceeds its bounds.");
-}
-
-void validate_v8_intervals(
-	const json::value& value,
-	const std::int64_t range_start,
-	const std::int64_t range_end,
-	const double duration_seconds,
-	const v8_input_state& inputs,
-	std::set<std::string>& clip_ids
-) {
-	const auto& intervals = json::array(value, "V8 intervals");
-	if (intervals.empty() || intervals.size() > maximum_intervals) throw json::parse_error("V8 intervals exceed their nonempty ceiling.");
-	auto covered = range_start;
-	std::size_t clip_count = 0;
-	for (std::size_t interval_index = 0; interval_index < intervals.size(); ++interval_index) {
-		const auto& interval = intervals[interval_index];
-		exact_optional(interval, {"index", "kind", "timelineStartFrame", "timelineEndFrame", "outputStartFrame", "durationFrames", "durationSeconds", "color", "layers"}, "color");
-		if (safe_integer(json::member(interval, "index"), "V8 interval index") != static_cast<std::int64_t>(interval_index)) {
-			throw json::parse_error("V8 interval indices must equal their positions.");
-		}
-		const auto kind = text(json::member(interval, "kind"), "V8 interval kind", 32);
-		if (kind != "black" && kind != "composition") throw json::parse_error("The V8 interval kind is unsupported.");
-		const auto start = safe_integer(json::member(interval, "timelineStartFrame"), "V8 interval start");
-		const auto end = safe_integer(json::member(interval, "timelineEndFrame"), "V8 interval end", 1);
-		const auto frames = safe_integer(json::member(interval, "durationFrames"), "V8 interval duration", 1);
-		if (start != covered || end - start != frames || start < range_start || end > range_end
-			|| safe_integer(json::member(interval, "outputStartFrame"), "V8 interval output start") != start - range_start) {
-			throw json::parse_error("V8 intervals do not exactly tile their export range.");
-		}
-		const auto seconds = finite_number(json::member(interval, "durationSeconds"), "V8 interval duration seconds");
-		const auto expected_seconds = duration_seconds * static_cast<double>(frames)
-			/ static_cast<double>(range_end - range_start);
-		if (seconds <= 0 || !approximately_equal(seconds, expected_seconds)) {
-			throw json::parse_error("A V8 interval duration disagrees with the export timebase.");
-		}
-		const auto& color = json::optional_member(interval, "color");
-		const auto& layers = json::array(json::member(interval, "layers"), "V8 interval layers");
-		if (kind == "black") {
-			if (!color || !delivery_color(text(*color, "V8 black color", 128)) || !layers.empty()) {
-				throw json::parse_error("A V8 black interval has non-canonical color or layers.");
-			}
-		} else if (color || layers.empty() || layers.size() > maximum_layers) {
-			throw json::parse_error("A V8 composition interval has non-canonical color or layers.");
-		}
-		std::set<std::string> tracks;
-		std::set<std::int64_t> track_indices;
-		std::set<std::string> interval_clip_ids;
-		for (const auto& layer : layers) {
-			exact(layer, {"trackId", "trackIndex", "clips"});
-			unique(tracks, id(json::member(layer, "trackId"), "V8 layer track ID"), "V8 layer track ID");
-			const auto track_index = safe_integer(json::member(layer, "trackIndex"), "V8 layer track index");
-			if (!track_indices.insert(track_index).second) throw json::parse_error("A V8 layer track index is duplicated.");
-			const auto& clips = json::array(json::member(layer, "clips"), "V8 layer clips");
-			if (clips.empty() || clips.size() > 2 || clip_count + clips.size() > maximum_clips) {
-				throw json::parse_error("V8 layer clips exceed the closed transition overlap domain.");
-			}
-			for (std::size_t clip_index = 0; clip_index < clips.size(); ++clip_index) {
-				const auto& clip = clips[clip_index];
-				exact(clip, {"role", "clipId", "sourceId", "inputIndex", "sourceStartFrame", "sourceEndFrame", "sourceDurationFrames", "sourceStartTimeSeconds", "sourceEndTimeSeconds", "playbackRate", "opacityStart", "opacityEnd", "renderDescription", "videoEffects"});
-				const auto role = text(json::member(clip, "role"), "V8 clip role", 16);
-				const auto expected_role = clips.size() == 1 ? "single" : clip_index == 0 ? "outgoing" : "incoming";
-				if (role != expected_role) throw json::parse_error("The V8 clip overlap roles are not canonical.");
-				const auto clip_id = id(json::member(clip, "clipId"), "V8 clip ID");
-				unique(interval_clip_ids, clip_id, "V8 interval clip ID");
-				clip_ids.insert(clip_id);
-				const auto source_id = id(json::member(clip, "sourceId"), "V8 clip source ID");
-				const auto input_index = safe_integer(json::member(clip, "inputIndex"), "V8 clip input index");
-				if (input_index >= static_cast<std::int64_t>(inputs.video_source_by_index.size())
-					|| inputs.video_source_by_index[static_cast<std::size_t>(input_index)] != source_id) {
-					throw json::parse_error("A V8 clip does not bind its exact video input identity.");
-				}
-				const auto source_start = safe_integer(json::member(clip, "sourceStartFrame"), "V8 source start");
-				const auto source_end = safe_integer(json::member(clip, "sourceEndFrame"), "V8 source end", 1);
-				const auto source_duration = safe_integer(json::member(clip, "sourceDurationFrames"), "V8 source duration", 1);
-				if (source_end - source_start != source_duration) throw json::parse_error("The V8 clip source span is inconsistent.");
-				const auto source_start_seconds = finite_number(json::member(clip, "sourceStartTimeSeconds"), "V8 source start seconds");
-				const auto source_end_seconds = finite_number(json::member(clip, "sourceEndTimeSeconds"), "V8 source end seconds");
-				const auto playback_rate = finite_number(json::member(clip, "playbackRate"), "V8 playback rate");
-				if (source_start_seconds < 0 || source_end_seconds <= source_start_seconds || playback_rate <= 0
-					|| !approximately_equal((source_end_seconds - source_start_seconds) / playback_rate, seconds)) {
-					throw json::parse_error("The V8 clip source-time interval is invalid.");
-				}
-				static_cast<void>(bounded_number(json::member(clip, "opacityStart"), "V8 opacity start", 0, 1));
-				static_cast<void>(bounded_number(json::member(clip, "opacityEnd"), "V8 opacity end", 0, 1));
-				validate_render_description(json::member(clip, "renderDescription"), clip);
-				if (!json::array(json::member(clip, "videoEffects"), "V8 video effects").empty()) {
-					throw json::parse_error("unsupported-v8-video-effects: this native host cannot interpret them.");
-				}
-				++clip_count;
-			}
-		}
-		covered = end;
-	}
-	if (covered != range_end) throw json::parse_error("V8 intervals do not finish their export range.");
 }
 
 void validate_v8_codecs(
@@ -512,8 +385,11 @@ void validate_v8(const json::value& root, admitted_media_plan& result) {
 		|| static_cast<double>(output_count) != std::ceil(duration_seconds * frame_rate)) {
 		throw json::parse_error("The V8 output frame count is not exact or exceeds its ceiling.");
 	}
+	const auto visual_semantics = capture_v8_static_visual_semantics(root);
 	std::set<std::string> clip_ids;
-	validate_v8_intervals(json::member(root, "intervals"), range_start, range_end, duration_seconds, inputs, clip_ids);
+	for (const auto& interval : visual_semantics.intervals) for (const auto& layer : interval.layers) {
+		for (const auto& clip : layer.clips) clip_ids.insert(clip.clip_id);
+	}
 	if (!reference_clip.empty() && !clip_ids.contains(reference_clip)) {
 		throw json::parse_error("The V8 reference clip is outside the rendered intervals.");
 	}

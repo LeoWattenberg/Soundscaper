@@ -64,6 +64,25 @@ test('V8 admission closes static graph, filter equivalence, captions, and burn-i
 			error: 'unsupported-caption-adapter', operation: 'media-render', planVersion: 8,
 			captionDelivery: { mux: true, burnIn: true, sidecar: true },
 		});
+		const visual = structuredClone(canonical);
+		visual.inputs[0].presentation = {
+			autorotate: true, decodedWidth: 320, decodedHeight: 360,
+			sampleAspect: { num: 2, den: 1 }, scaledWidth: 640, scaledHeight: 360,
+		};
+		const effect = {
+			id: 'pixels', type: 'pixelate', enabled: true, params: { blockSize: 12 },
+		};
+		visual.intervals[0].layers[0].clips[0].videoEffects = [effect];
+		const operations = visual.filterPlan.intervals[0].layers[0].clips[0].operations;
+		operations.splice(operations.findIndex(({ name }) => name === 'fps') + 1, 0, {
+			name: 'video-effect', effect,
+		});
+		const visualAdmission = runLegacyPlan(fixture.executable, paths, visual);
+		assert.equal(visualAdmission.status, 78, visualAdmission.stderr);
+		assert.deepEqual(JSON.parse(visualAdmission.stdout), {
+			error: 'unsupported-caption-adapter', operation: 'media-render', planVersion: 8,
+			captionDelivery: { mux: true, burnIn: true, sidecar: true },
+		});
 		const repeatedClip = runLegacyPlan(fixture.executable, paths, legacyV8MultiIntervalPlan());
 		assert.equal(repeatedClip.status, 78, repeatedClip.stderr);
 		assert.deepEqual(JSON.parse(repeatedClip.stdout), {

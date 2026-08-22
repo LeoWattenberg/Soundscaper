@@ -26,6 +26,7 @@ import {
 	VIDEO_BURN_IN_MAXIMUM_TEXT_LENGTH,
 } from './video-caption-burn-in.ts';
 import { videoBurnInFontSubset } from './video-burn-in-font-subsets.ts';
+import { normalizeVideoExportPlan } from './video-ffmpeg-plan-normalization.js';
 
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INPUTS = 4_096;
 export const NATIVE_MEDIA_GRAPH_PLAN_MAXIMUM_INTERVALS = 100_000;
@@ -175,12 +176,23 @@ export function assertNativeMediaGraphPlan(value: unknown): asserts value is Nat
 	assertCanvas(plan.canvas);
 	assertInputs(plan.inputs, range);
 	assertIntervals(plan.intervals, range);
+	assertRendererVisualSemantics(plan);
 	const filterPlan = record(plan.filterPlan, 'video export graph plan filterPlan');
 	exactKeys(filterPlan, FILTER_PLAN_KEYS, 'video export graph plan filterPlan');
 	if (filterPlan.strategy !== 'layered-composition') {
 		nativeMediaPlanViolation('malformed', 'Video export graph plan must declare the layered-composition filter strategy.');
 	}
 	assertBurnIn(filterPlan.burnIn, plan.captions);
+}
+
+/** Reuse the renderer's closed presentation/effect/geometry decomposition as a second admission opinion. */
+function assertRendererVisualSemantics(plan: Record<string, unknown>): void {
+	try {
+		normalizeVideoExportPlan(plan);
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : 'unknown visual-semantics violation';
+		nativeMediaPlanViolation('malformed', `Video export graph plan visual semantics are invalid: ${detail}`);
+	}
 }
 
 /**

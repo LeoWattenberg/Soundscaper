@@ -173,10 +173,16 @@ function auditClosedAdapters(hostRoot) {
 		]],
 		['src/legacy_plan_semantics.cpp', [
 			'framescaper-keyframed-rgba-v1', 'keyed-rgba-data-plane',
-			'static-composition-graph', 'unsupported-v8-video-effects',
+			'static-composition-graph', 'capture_v8_static_visual_semantics',
 		]],
 		['src/legacy_plan_v8_filter_semantics.cpp', [
 			'layered-composition', 'V8 filter clip authority', 'maximum_burn_in_cues',
+			'V8 filter effect authority',
+		]],
+		['src/legacy_plan_v8_visual_semantics_impl.hpp', [
+			'V8 source presentation must state a residual stretch',
+			'V8 display matrix contains unsupported shear',
+			'V8 transition render descriptions must share blend and order',
 		]],
 		['src/media_plan.cpp', [
 			'unsupported-plan-version', 'framescaper-unified-exact-v1',

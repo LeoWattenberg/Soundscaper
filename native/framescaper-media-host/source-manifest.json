@@ -37,8 +37,8 @@
 	"sourceFiles": [
 		{
 			"path": "CMakeLists.txt",
-			"byteLength": 4233,
-			"sha256": "a34479da94609a10f9aa78329c1ad76a4a60934bede41ad1a591560b17618e85"
+			"byteLength": 4896,
+			"sha256": "7900808849e7b939d05316249f833d07b982ac86f7205f49f0fd0ff4bcf9f136"
 		},
 		{
 			"path": "CMakePresets.json",
@@ -162,8 +162,8 @@
 		},
 		{
 			"path": "src/legacy_plan_semantics.cpp",
-			"byteLength": 32297,
-			"sha256": "4cd6951fc1e8e29479675304b59a410100e9d299a2d68eaa753714056d96c163"
+			"byteLength": 23277,
+			"sha256": "ee6b60f72c4c381bc067d327ee96b4148d8ea3b55977762a9035bfacb0d500ec"
 		},
 		{
 			"path": "src/legacy_plan_semantics.hpp",
@@ -172,13 +172,23 @@
 		},
 		{
 			"path": "src/legacy_plan_v8_filter_semantics.cpp",
-			"byteLength": 18353,
-			"sha256": "8c248d298816a7550c0f50c31fff199f208c2fac969bd03217bbe826fd0718e8"
+			"byteLength": 18994,
+			"sha256": "28e18a9be1e5354fa29bd0474c9e6b575a2241b5df2a9f9c46c0903d95512ad6"
 		},
 		{
 			"path": "src/legacy_plan_v8_filter_semantics.hpp",
 			"byteLength": 311,
 			"sha256": "05a439b2760ed9d473ce8f8e2ed4532c2986f87a881573834adf9b74431649f6"
+		},
+		{
+			"path": "src/legacy_plan_v8_visual_semantics.hpp",
+			"byteLength": 3375,
+			"sha256": "649052d386f6a2493e8d3579a84f38979f092d6b7118303cc51c111f9ac439de"
+		},
+		{
+			"path": "src/legacy_plan_v8_visual_semantics_impl.hpp",
+			"byteLength": 27750,
+			"sha256": "5d0faa15e2ab1b7a50ef03440be043ad4f187625b78032f479d91cce0ea2ebf1"
 		},
 		{
 			"path": "src/legacy_plan_values.hpp",
@@ -247,13 +257,13 @@
 		},
 		{
 			"path": "src/selected_v20_plan_capture.cpp",
-			"byteLength": 9488,
-			"sha256": "b6f3e3b61b4f358331cb2a9289da7af411d189033aa857967a629b7eaf2679e1"
+			"byteLength": 9777,
+			"sha256": "c85491c2bb84fe39158d672dd5ab6ad0ed5015e1a312bf021f89ddc88a1f1aba"
 		},
 		{
 			"path": "src/selected_v20_plan_capture.hpp",
-			"byteLength": 860,
-			"sha256": "f78f3ab3d477dc9e7e47eb01299f80875c751b265d232e08a043979f4400de67"
+			"byteLength": 1000,
+			"sha256": "f3f39ccce0eb0ac12a323a889ca234aff0c2bfd757f8340b20b15eabeff327f1"
 		},
 		{
 			"path": "src/sha256.cpp",
@@ -342,13 +352,18 @@
 		},
 		{
 			"path": "tests/selected_v20_frame_executor_fixture.cpp",
-			"byteLength": 12068,
-			"sha256": "c5864d31b9bd7b55a65693ddfb0a8653e73e3b2c844afdeef0db3475a5f4bf0a"
+			"byteLength": 12864,
+			"sha256": "a40f132c80c688aae567a576fec2f5168e279d132a7625120505b51532941d4b"
 		},
 		{
 			"path": "tests/selected_v20_operation_self_test.cmake",
 			"byteLength": 1373,
 			"sha256": "50f12b140d4b97e4c94266598185b3d27aa101e7d97af6e68f0d44d58fe79cc4"
+		},
+		{
+			"path": "tests/selected_v20_v8_visual_semantics_fixture.cpp",
+			"byteLength": 11653,
+			"sha256": "4a68ad7734adb52150161a110d45571b575e827d549f3969afd6566a1e93767a"
 		},
 		{
 			"path": "tests/unified_plan_admission_fixture.cpp",

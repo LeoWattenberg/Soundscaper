@@ -238,10 +238,23 @@ void authenticated_snapshot_capture_retains_exact_v7_authority() {
 	assert(!captured.caption_delivery.any());
 }
 
+[[nodiscard]] std::string valid_v8_capture_plan(
+	const std::string_view captions,
+	const std::string_view background = "#01020380"
+) {
+	return std::string{R"({"version":8,"outputFrameCount":3,"quality":"high","captions":)"}
+		+ std::string{captions}
+		+ R"(,"range":{"startFrame":0,"endFrame":1,"durationFrames":1},"durationSeconds":0.125,)"
+		+ R"("canvas":{"width":2,"height":2,"frameRate":24,"fit":"contain","backgroundColor":")"
+		+ std::string{background}
+		+ R"("},"inputs":[{"kind":"video-source","inputIndex":0,"sourceId":"source-1",)"
+		+ R"("storageKey":"media/source-1","mimeType":"video/mp4","presentation":null}],)"
+		+ R"("intervals":[{"index":0,"kind":"black","timelineStartFrame":0,"timelineEndFrame":1,)"
+		+ R"("outputStartFrame":0,"durationFrames":1,"durationSeconds":0.125,"color":"black","layers":[]}]})";
+}
+
 void authenticated_snapshot_capture_routes_v8_to_static_native_composition() {
-	const auto captured = capture_selected_v20_execution_plan(8,
-		R"({"version":8,"outputFrameCount":3,"quality":"high","captions":null,"canvas":{"width":2,"height":2,"frameRate":24,"backgroundColor":"#01020380"},"inputs":[],"intervals":[{"durationSeconds":0.125,"layers":[]}]})"
-	);
+	const auto captured = capture_selected_v20_execution_plan(8, valid_v8_capture_plan("null"));
 	assert(captured.execution.family == selected_v20_family::static_composition_v8);
 	assert(captured.execution.output_frame_count == 3);
 	assert(captured.execution.sample_rate == 1);
@@ -249,20 +262,21 @@ void authenticated_snapshot_capture_routes_v8_to_static_native_composition() {
 	assert(captured.execution.output_rate.denominator() == 1);
 	assert(captured.execution.intervals.empty());
 	assert(captured.execution.quality == "high");
-	assert((captured.execution.background_rgba == std::array<std::uint8_t, 4>{1, 2, 3, 128}));
+	assert((captured.execution.background_rgba == std::array<std::uint8_t, 4>{0, 0, 0, 0}));
 	assert(!captured.execution.includes_staged_audio);
 	assert(!captured.caption_delivery.any());
+	assert(captured.static_visual_semantics.has_value());
+	assert(captured.static_visual_semantics->sources.size() == 1);
+	assert(!captured.static_visual_semantics->sources[0].presentation.has_value());
+	const auto named = capture_selected_v20_execution_plan(
+		8, valid_v8_capture_plan("null", "rebeccapurple@0.5")
+	);
+	assert(named.static_visual_semantics->canvas.background_color == "rebeccapurple@0.5");
 }
 
 void authenticated_snapshot_capture_retains_every_v8_caption_delivery() {
-	const auto base = std::string{
-		R"({"version":8,"outputFrameCount":1,"quality":"balanced","captions":)"
-	};
-	const auto tail = std::string{
-		R"(,"canvas":{"width":2,"height":2,"frameRate":24,"backgroundColor":"black"},"inputs":[],"intervals":[]})"
-	};
 	const auto capture = [&](const std::string_view captions) {
-		return capture_selected_v20_execution_plan(8, base + std::string{captions} + tail);
+		return capture_selected_v20_execution_plan(8, valid_v8_capture_plan(captions, "black"));
 	};
 	const auto mux = capture(R"({"mux":true,"burnIn":false,"sidecarFormat":null})");
 	assert(mux.caption_delivery.mux);

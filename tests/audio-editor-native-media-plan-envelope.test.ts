@@ -199,6 +199,22 @@ test('a plan whose canonical shape is not the exact graph contract is refused be
 		[(plan: Record<string, unknown>) => {
 			(plan.intervals as Record<string, unknown>[])[0]!.durationFrames = 400;
 		}, /exact frame span/u],
+		[(plan: Record<string, unknown>) => {
+			const input = (plan.inputs as Record<string, unknown>[])[0]!;
+			input.presentation = {
+				autorotate: false, decodedWidth: 1280, decodedHeight: 720,
+				sampleAspect: { num: 2, den: 1 }, scaledWidth: 2560, scaledHeight: 720,
+			};
+		}, /autorotate must be true/u],
+		[(plan: Record<string, unknown>) => {
+			const interval = (plan.intervals as Record<string, unknown>[])[0]!;
+			const layer = (interval.layers as Record<string, unknown>[])[0]!;
+			const clip = (layer.clips as Record<string, unknown>[])[0]!;
+			clip.videoEffects = [{
+				id: 'hostile', type: 'pixelate', enabled: true,
+				params: { blockSize: 12, expression: 'movie=secret' },
+			}];
+		}, /not supported/u],
 	] as const) {
 		const plan = JSON.parse(JSON.stringify(staticPlan())) as Record<string, unknown>;
 		mutate(plan);
@@ -234,14 +250,16 @@ test('intervals that do not actually tile their export range are refused', () =>
 
 test('intervals that tile their export range exactly are admitted', () => {
 	const plan = JSON.parse(JSON.stringify(staticPlan())) as Record<string, unknown>;
-	const template = (plan.intervals as Record<string, unknown>[])[0]!;
 	plan.intervals = [interval(0, 400), interval(400, 1_000)].map((entry, index) => ({
-		...template,
 		index,
+		kind: 'black',
 		timelineStartFrame: entry.startFrame,
 		timelineEndFrame: entry.endFrame,
 		outputStartFrame: entry.startFrame,
 		durationFrames: entry.endFrame - entry.startFrame,
+		durationSeconds: (entry.endFrame - entry.startFrame) / 1_000,
+		color: '#000000',
+		layers: [],
 	}));
 
 	assert.equal(createNativeMediaPlanEnvelopeV1(plan).summary.compositionIntervalCount, 2);
