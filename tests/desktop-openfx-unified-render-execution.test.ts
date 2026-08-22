@@ -99,10 +99,10 @@ test('a V12 node becomes one fingerprint-, state-, plan-, input-, and output-bou
 	})), [{ name: 'Source', sourceRef: 'source-1', sha256: INPUT_SHA }]);
 	assert.deepEqual(attempt.request.grant.inputs[0], {
 		name: 'Source', sourceRef: 'source-1', pixelFormat: 'rgba8',
-		width: 1, height: 1, rowBytes: 4, frame: resources.inputs[0]?.binding,
+		width: 2, height: 2, rowBytes: 8, frame: resources.inputs[0]?.binding,
 	});
 	assert.deepEqual(attempt.request.grant.output, {
-		pixelFormat: 'rgba8', width: 1, height: 1, rowBytes: 4,
+		pixelFormat: 'rgba8', width: 2, height: 2, rowBytes: 8,
 		frame: resources.output.binding,
 	});
 	assert.deepEqual(attempt.request.dataPlaneTransfers?.map(({ streamId }) => streamId), [
@@ -124,7 +124,7 @@ test('V12 attempt admission refuses forged plan, plug-in, named input, transfer,
 			transfer: { ...valid.output.transfer, streamId: '67'.repeat(20) },
 		} },
 		{ ...valid, outputOrdinal: plan.output.frameCount },
-		{ ...valid, inputs: [{ ...valid.inputs[0]!, width: 2, rowBytes: 8 }] },
+		{ ...valid, inputs: [{ ...valid.inputs[0]!, width: 4, rowBytes: 16 }] },
 		{ ...valid, retimerSourceTime: { ...valid.retimerSourceTime! } },
 	];
 	for (const resources of cases) {
@@ -195,8 +195,8 @@ test('stale or unavailable runtime state resolves before execution without mutat
 
 test('V12 preserves stale authored fallback state but can resolve it only to bypass', async () => {
 	const raw = structuredClone(unifiedExactPlanFixture(12));
-	raw.output.canvas.width = 1;
-	raw.output.canvas.height = 1;
+	raw.output.canvas.width = 2;
+	raw.output.canvas.height = 2;
 	const effect = raw.nodes.find((node) => node.kind === 'openfx') as unknown as
 		| { state: { frozenFallback: null | { freshness: { inputIdentitiesSha256: string } } } }
 		| undefined;
@@ -305,8 +305,8 @@ test('crash and quarantine preserve fresh frozen playback; cancellation remains 
 
 function candidatePlan(pluginId = 'org.framescaper.conformance'): UnifiedExactRenderPlanV12 {
 	const raw = structuredClone(unifiedExactPlanFixture(12));
-	raw.output.canvas.width = 1;
-	raw.output.canvas.height = 1;
+	raw.output.canvas.width = 2;
+	raw.output.canvas.height = 2;
 	const effect = raw.nodes.find((node) => node.kind === 'openfx');
 	if (!effect || !('state' in effect)) throw new Error('fixture effect is unavailable');
 	(effect.state as { pluginId: string }).pluginId = pluginId;
@@ -353,12 +353,12 @@ function attemptResources(
 		)),
 		inputs: [{
 			name: 'Source', sourceRef: 'source-1',
-			pixelFormat: 'rgba8', width: 1, height: 1, rowBytes: 4,
-			...bound(binding('host-to-helper', `${String(prefix)}1`.repeat(20), 4, INPUT_SHA)),
+			pixelFormat: 'rgba8', width: 2, height: 2, rowBytes: 8,
+			...bound(binding('host-to-helper', `${String(prefix)}1`.repeat(20), 16, INPUT_SHA)),
 		}],
 		output: {
-			pixelFormat: 'rgba8', width: 1, height: 1, rowBytes: 4,
-			...boundOutput(outputReservation(`${String(prefix)}2`.repeat(20), 4)),
+			pixelFormat: 'rgba8', width: 2, height: 2, rowBytes: 8,
+			...boundOutput(outputReservation(`${String(prefix)}2`.repeat(20), 16)),
 		},
 		scratch: {
 			rootPath: '/scratch/framescaper', rootIdentity: { dev: 4, ino: 21 },

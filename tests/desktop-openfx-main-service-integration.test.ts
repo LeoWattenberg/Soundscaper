@@ -37,7 +37,14 @@ import {
 import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
 
 const PLUGIN_SHA = '16b3c51f93a8ee62dda14918f2089518fe054144d2016b177c57c7bc66d07af7';
-const OUTPUT_BYTES = new Uint8Array([9, 8, 7, 6]);
+const INPUT_BYTES = new Uint8Array([
+	1, 2, 3, 4, 5, 6, 7, 8,
+	9, 10, 11, 12, 13, 14, 15, 16,
+]);
+const OUTPUT_BYTES = new Uint8Array([
+	9, 8, 7, 6, 5, 4, 3, 2,
+	1, 0, 1, 2, 3, 4, 5, 6,
+]);
 
 test('main owns an actual one-shot scan and exact V12 per-fingerprint execution path', async (context) => {
 	const fixture = await createFixture(context);
@@ -65,8 +72,8 @@ test('main owns an actual one-shot scan and exact V12 per-fingerprint execution 
 		requestedBackend: 'cpu',
 		outputOrdinal: 3,
 		inputs: [{
-			name: 'Source', sourceRef: 'source-1', width: 1, height: 1, rowBytes: 4,
-			rgba: new Uint8Array([1, 2, 3, 4]),
+			name: 'Source', sourceRef: 'source-1', width: 2, height: 2, rowBytes: 8,
+			rgba: new Uint8Array(INPUT_BYTES),
 		}],
 	});
 	assert.equal(result.mode, 'render');
@@ -107,8 +114,8 @@ test('changed and revoked binary handles cannot execute or inherit approval', as
 	const revoked = await revokedFixture.service.execute({
 		pluginHandle: revokedScan.pluginHandle, plan: revokedFixture.plan, instanceId: 'ofx-1',
 		requestedBackend: 'cpu', outputOrdinal: 3,
-		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 1, height: 1, rowBytes: 4,
-			rgba: new Uint8Array([1, 2, 3, 4]) }],
+		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 2, height: 2, rowBytes: 8,
+			rgba: new Uint8Array(INPUT_BYTES) }],
 	});
 	assert.notEqual(revoked.mode, 'render');
 	assert.equal(revoked.availability, 'revoked');
@@ -127,8 +134,8 @@ test('changed and revoked binary handles cannot execute or inherit approval', as
 	const changed = await fixture.service.execute({
 		pluginHandle: scanned.pluginHandle, plan: fixture.plan, instanceId: 'ofx-1',
 		requestedBackend: 'cpu', outputOrdinal: 3,
-		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 1, height: 1, rowBytes: 4,
-			rgba: new Uint8Array([1, 2, 3, 4]) }],
+		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 2, height: 2, rowBytes: 8,
+			rgba: new Uint8Array(INPUT_BYTES) }],
 	});
 	assert.notEqual(changed.mode, 'render');
 	assert.equal(changed.availability, 'fingerprint-changed');
@@ -150,8 +157,8 @@ test('runtime quarantine becomes consent authority and clearing requires a fresh
 	await fixture.service.execute({
 		pluginHandle: scanned.pluginHandle, plan: fixture.plan, instanceId: 'ofx-1',
 		requestedBackend: 'cpu', outputOrdinal: 3,
-		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 1, height: 1, rowBytes: 4,
-			rgba: new Uint8Array([1, 2, 3, 4]) }],
+		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 2, height: 2, rowBytes: 8,
+			rgba: new Uint8Array(INPUT_BYTES) }],
 	});
 	fixture.runtimeState.quarantined = true;
 	assert.deepEqual(fixture.service.inventory().map(({ state, quarantined }) => ({ state, quarantined })), [
@@ -371,8 +378,8 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 
 function candidatePlan(): UnifiedExactRenderPlanV12 {
 	const raw = structuredClone(unifiedExactPlanFixture(12));
-	raw.output.canvas.width = 1;
-	raw.output.canvas.height = 1;
+	raw.output.canvas.width = 2;
+	raw.output.canvas.height = 2;
 	const effect = raw.nodes.find((node) => node.kind === 'openfx');
 	if (!effect || !('state' in effect)) throw new Error('fixture effect is unavailable');
 	Object.assign(effect.state as object, {
@@ -393,8 +400,8 @@ function executionRequest(
 	return {
 		pluginHandle, plan: fixture.plan, instanceId: 'ofx-1',
 		requestedBackend: 'cpu' as const, outputOrdinal: 3,
-		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 1, height: 1, rowBytes: 4,
-			rgba: new Uint8Array([1, 2, 3, 4]) }],
+		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 2, height: 2, rowBytes: 8,
+			rgba: new Uint8Array(INPUT_BYTES) }],
 	};
 }
 
