@@ -42,8 +42,14 @@ export interface BoundVideoSourceTimingView {
 	readonly kind: 'cfr' | 'vfr';
 }
 
+export type BoundVideoSourceTimingAuthority = Readonly<
+	{ readonly kind: 'cfr'; readonly frameCount: number; readonly rate: RationalRate }
+	| { readonly kind: 'vfr'; readonly reference: Readonly<VideoTimingAssetReference> }
+>;
+
 type BoundVideoSourceTimingState = Readonly<{
 	readonly info: BoundVideoSourceTimingView;
+	readonly authority: BoundVideoSourceTimingAuthority;
 } & (
 	| {
 		readonly kind: 'cfr';
@@ -177,6 +183,7 @@ export function bindVideoSourceTimingView(
 		});
 		state = Object.freeze({
 			info,
+			authority: Object.freeze({ kind: 'cfr' as const, frameCount: info.frameCount, rate }),
 			kind: 'cfr' as const,
 			frameDuration: normalizeExact(BigInt(rate.den), BigInt(rate.num)),
 		});
@@ -188,6 +195,7 @@ export function bindVideoSourceTimingView(
 		});
 		state = Object.freeze({
 			info,
+			authority: Object.freeze({ kind: 'vfr' as const, reference: view.reference }),
 			kind: 'vfr' as const,
 			timescale: BigInt(view.index.timescale),
 			presentationTicks: view.index.presentationTicks,
@@ -206,6 +214,11 @@ export function bindVideoSourceTimingView(
 
 export function boundVideoSourceTimingViewInfo(value: unknown): BoundVideoSourceTimingView {
 	return boundVideoSourceTimingState(value).info;
+}
+
+/** Inspect the exact persisted authority captured by an authenticated timing token. */
+export function boundVideoSourceTimingAuthority(value: unknown): BoundVideoSourceTimingAuthority {
+	return boundVideoSourceTimingState(value).authority;
 }
 
 export function videoSourceFrameTime(

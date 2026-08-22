@@ -415,7 +415,7 @@ test('disposal is terminal and fences every late active or pending publication',
 	assert.equal(harness.presentations.length, 1);
 	assert.equal(harness.published.length, 0);
 });
-test('keeps the reviewed dormant retime family out of product consumers', async () => {
+test('keeps retime execution behind its reviewed exact consumer boundaries', async () => {
 	const executorSource = await readFile(EXECUTOR_SOURCE_URL, 'utf8');
 	const importStatements = executorSource.match(/^import[\s\S]*?;$/gmu) ?? [];
 	for (const statement of importStatements) {
@@ -423,21 +423,22 @@ test('keeps the reviewed dormant retime family out of product consumers', async 
 		assert.match(statement, /from ['"]\.\/video-retime-frame-dispatch\.ts['"]/u);
 	}
 	assert.ok(executorSource.split(/\r\n|\n|\r/u).length - 1 <= 600);
-	const outputCadenceConsumers = new Set(['video-retime-export-domain.ts', 'video-retime-export-plan.ts']);
-	const previewExecutorConsumers = new Set(['video-retime-html-video-seek-port.ts']);
+	const outputCadenceConsumers = new Set(['video-retime-exact-ordinal-oracle.ts', 'video-retime-export-domain.ts', 'video-retime-export-plan.ts']);
+	const previewExecutorConsumers = new Set(['video-retime-html-video-seek-port.ts', 'video-retime-ordinal-consumers.ts']);
+	const rawOracleFactoryConsumers = new Set(['video-retime-exact-ordinal-authority.ts']);
 	for (const path of await maintainedSources(new URL('.', EDITOR_SOURCE_ROOT))) {
-		const name = path.pathname.split('/').at(-1) ?? '';
-		const source = await readFile(path, 'utf8');
+		const name = path.pathname.split('/').at(-1) ?? ''; const source = await readFile(path, 'utf8');
 		if (name !== 'video-retime-output-cadence.ts' && !outputCadenceConsumers.has(name)) {
-			assert.doesNotMatch(source,
-				/from\s+['"][^'"]*video-retime-output-cadence(?:\.ts)?['"]|import\s*\(\s*['"][^'"]*video-retime-output-cadence(?:\.ts)?['"]\s*\)/u,
-				`${path.pathname} must not consume dormant 5f cadence`);
+			assert.doesNotMatch(source, /from\s+['"][^'"]*video-retime-output-cadence(?:\.ts)?['"]|import\s*\(\s*['"][^'"]*video-retime-output-cadence(?:\.ts)?['"]\s*\)/u,
+				`${path.pathname} must not bypass the reviewed exact cadence consumers`);
 		}
 		if (name !== 'video-retime-preview-executor.ts' && !previewExecutorConsumers.has(name)) {
-			assert.doesNotMatch(source,
-				/from\s+['"][^'"]*video-retime-preview-executor(?:\.ts)?['"]|import\s*\(\s*['"][^'"]*video-retime-preview-executor(?:\.ts)?['"]\s*\)/u,
-				`${path.pathname} must not consume the dormant 5f preview executor`);
+			assert.doesNotMatch(source, /from\s+['"][^'"]*video-retime-preview-executor(?:\.ts)?['"]|import\s*\(\s*['"][^'"]*video-retime-preview-executor(?:\.ts)?['"]\s*\)/u,
+				`${path.pathname} must not bypass the reviewed exact preview consumers`);
 		}
+		if (name !== 'video-retime-exact-ordinal-oracle.ts' && !rawOracleFactoryConsumers.has(name))
+			assert.doesNotMatch(source, /\bcreateVideoRetimeExactOrdinalOracle\b/u,
+				`${path.pathname} must not bypass the authenticated exact authority`);
 	}
 });
 function executorFor(harness: ReturnType<typeof mediaHarness>) {

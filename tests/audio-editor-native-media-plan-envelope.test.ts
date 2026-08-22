@@ -28,10 +28,10 @@ import {
 	createVideoKeyframeExportPlanV7,
 } from '../src/common/editor/video-keyframe-export-plan-v7.ts';
 
-test('the accepted plan union is exactly the canonical graph and keyed V7 plans', () => {
+test('the accepted plan union is exactly the legacy plans and unified exact V9-V12 plans', () => {
 	assert.deepEqual(
 		[...NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS].sort((left, right) => left - right),
-		[VIDEO_KEYFRAME_EXPORT_PLAN_VERSION, CANONICAL_VIDEO_EXPORT_PLAN_VERSION]
+		[VIDEO_KEYFRAME_EXPORT_PLAN_VERSION, CANONICAL_VIDEO_EXPORT_PLAN_VERSION, 9, 10, 11, 12]
 			.sort((left, right) => left - right),
 		'the native tier admits what the product builds, not the versions it once built',
 	);
@@ -163,7 +163,7 @@ test('the canonical form never invokes a hostile accessor and refuses symbol key
 });
 
 test('an unknown plan version is refused rather than generically accepted', () => {
-	for (const version of [null, undefined, 0, 5, 6, 9, 20, '7', 6.5]) {
+	for (const version of [null, undefined, 0, 5, 6, 13, 20, '7', 6.5]) {
 		const plan = { ...staticPlan(), version } as Record<string, unknown>;
 		assert.throws(() => createNativeMediaPlanEnvelopeV1(plan), (error: unknown) => {
 			assert.ok(error instanceof NativeMediaPlanViolationError);

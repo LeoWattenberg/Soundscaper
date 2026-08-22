@@ -8,10 +8,10 @@
  * an envelope carries the plan in its canonical form, the fingerprint both
  * consumers derive independently, and a version-normalized semantic summary
  * that makes Web/native parity checkable field by field. The union contains
- * exactly the canonical static composition graph plan and the keyed V7 RGBA
- * plan — the two the product builds, never their history. Admitting a further
- * version is a deliberate change here — a new adapter, validator, fingerprint
- * rule, and parity golden — never a generic "unknown but plausible" acceptance.
+ * exactly the legacy canonical static/keyed plans plus each closed unified
+ * V9–V12 generation. Admitting a further version is a deliberate change here
+ * — a new adapter, validator, fingerprint rule, and parity golden — never a
+ * generic "unknown but plausible" acceptance.
  */
 
 import {
@@ -28,6 +28,14 @@ import {
 	assertVideoKeyframeExportPlanV7,
 	type VideoKeyframeExportPlanV7,
 } from './video-keyframe-export-plan-v7.ts';
+import {
+	assertUnifiedExactRenderPlanV9,
+	assertUnifiedExactRenderPlanV10,
+	assertUnifiedExactRenderPlanV11,
+	assertUnifiedExactRenderPlanV12,
+	type UnifiedExactRenderPlan,
+} from './unified-exact-render-plan.ts';
+import { unifiedExactClipUsesRetime } from './unified-exact-render-plan-v9.ts';
 import {
 	CANONICAL_VIDEO_EXPORT_PLAN_VERSION,
 	VIDEO_KEYFRAME_EXPORT_PLAN_VERSION,
@@ -49,13 +57,17 @@ export const NATIVE_MEDIA_PLAN_ENVELOPE_VERSION = 1;
  * a canonical bump that forgot this list would otherwise leave the native tier
  * refusing every plan the renderer produces, at delivery time rather than here.
  */
-export const NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS = Object.freeze([7, 8] as const);
+export const NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS = Object.freeze([7, 8, 9, 10, 11, 12] as const);
 
 export type NativeMediaPlanVersion = (typeof NATIVE_MEDIA_PLAN_ACCEPTED_VERSIONS)[number];
 
 export const NATIVE_MEDIA_PLAN_STRATEGIES = Object.freeze({
 	7: 'framescaper-keyframed-rgba-v1',
 	8: 'framescaper-static-composition',
+	9: 'framescaper-unified-exact-v1',
+	10: 'framescaper-unified-exact-v1',
+	11: 'framescaper-unified-exact-v1',
+	12: 'framescaper-unified-exact-v1',
 } as const);
 
 for (const [version, name] of [
@@ -71,10 +83,10 @@ export type NativeMediaPlanStrategy =
 	(typeof NATIVE_MEDIA_PLAN_STRATEGIES)[NativeMediaPlanVersion];
 
 /**
- * A rate is reported the way its plan states it. V7 states an exact rational;
- * The graph plan states a decimal it already reduced. Neither is re-derived into the other,
- * because guessing a rational back out of a decimal is exactly the inference
- * the canonical-plan discipline forbids.
+ * A rate is reported the way its plan states it. V7 and unified V9–V12 state
+ * exact rationals; the legacy graph plan states a decimal it already reduced.
+ * Neither is re-derived into the other, because guessing a rational back out
+ * of a decimal is exactly the inference the canonical-plan discipline forbids.
  */
 export type NativeMediaPlanRateV1 =
 	| Readonly<{ readonly kind: 'rational'; readonly num: number; readonly den: number }>
@@ -89,6 +101,14 @@ export interface NativeMediaPlanSourceInputV1 {
 	readonly sourceId: string;
 	readonly mimeType: string;
 	readonly contentSha256: string | null;
+}
+
+export interface NativeMediaPlanFeatureNodeCountsV1 {
+	readonly transitions: number;
+	readonly visuals: number;
+	readonly professionalMedia: number;
+	readonly openFx: number;
+	readonly retimedClips: number;
 }
 
 /**
@@ -121,6 +141,7 @@ export interface NativeMediaPlanSummaryV1 {
 	readonly compositionIntervalCount: number | null;
 	readonly videoEffectCount: number | null;
 	readonly activeClipCount: number | null;
+	readonly featureNodeCounts: NativeMediaPlanFeatureNodeCountsV1 | null;
 }
 
 export interface NativeMediaPlanEnvelopeV1 {
@@ -149,7 +170,9 @@ export function createNativeMediaPlanEnvelopeV1(value: unknown): NativeMediaPlan
 	const plan = deepFreeze(JSON.parse(fingerprint.canonical) as Record<string, unknown>);
 	const summary = planVersion === CANONICAL_VIDEO_EXPORT_PLAN_VERSION
 		? summarizeGraphPlan(admitGraphPlan(plan))
-		: summarizeV7(admitV7(plan));
+		: planVersion === VIDEO_KEYFRAME_EXPORT_PLAN_VERSION
+			? summarizeV7(admitV7(plan))
+			: summarizeUnified(admitUnified(plan, planVersion));
 	return Object.freeze({
 		envelopeVersion: NATIVE_MEDIA_PLAN_ENVELOPE_VERSION,
 		planVersion,
@@ -256,6 +279,17 @@ function admitV7(plan: Readonly<Record<string, unknown>>): VideoKeyframeExportPl
 	return plan;
 }
 
+function admitUnified(
+	plan: Readonly<Record<string, unknown>>,
+	version: Exclude<NativeMediaPlanVersion, 7 | 8>,
+): UnifiedExactRenderPlan {
+	if (version === 9) assertUnifiedExactRenderPlanV9(plan);
+	else if (version === 10) assertUnifiedExactRenderPlanV10(plan);
+	else if (version === 11) assertUnifiedExactRenderPlanV11(plan);
+	else assertUnifiedExactRenderPlanV12(plan);
+	return plan;
+}
+
 function summarizeGraphPlan(plan: NativeMediaGraphPlan): NativeMediaPlanSummaryV1 {
 	const audioInput = plan.inputs.find((input) => input.kind === 'staged-audio-mix') ?? null;
 	return Object.freeze({
@@ -291,6 +325,7 @@ function summarizeGraphPlan(plan: NativeMediaGraphPlan): NativeMediaPlanSummaryV
 		compositionIntervalCount: plan.intervals.length,
 		videoEffectCount: nativeMediaGraphPlanVideoEffectCount(plan),
 		activeClipCount: null,
+		featureNodeCounts: null,
 	});
 }
 
@@ -338,7 +373,69 @@ function summarizeV7(plan: VideoKeyframeExportPlanV7): NativeMediaPlanSummaryV1 
 		compositionIntervalCount: null,
 		videoEffectCount: null,
 		activeClipCount: plan.activeClipIds.length,
+		featureNodeCounts: null,
 	});
+}
+
+function summarizeUnified(plan: UnifiedExactRenderPlan): NativeMediaPlanSummaryV1 {
+	const clips = plan.nodes.filter((node) => node.kind === 'clip');
+	const counts = Object.freeze({
+		transitions: plan.nodes.filter((node) => node.kind === 'transition').length,
+		visuals: plan.nodes.filter((node) => node.kind === 'visual').length,
+		professionalMedia: plan.nodes.filter((node) => node.kind === 'professional-media').length,
+		openFx: plan.nodes.filter((node) => node.kind === 'openfx').length,
+		retimedClips: clips.filter(unifiedExactClipUsesRetime).length,
+	});
+	const durationDivisor = greatestCommonDivisor(
+		BigInt(plan.timebase.sampleDuration),
+		BigInt(plan.timebase.sampleRate),
+	);
+	return Object.freeze({
+		planVersion: plan.version,
+		strategy: NATIVE_MEDIA_PLAN_STRATEGIES[plan.version],
+		container: plan.format.container,
+		extension: plan.format.extension,
+		mimeType: plan.format.mimeType,
+		videoCodec: plan.codecs.video,
+		videoEncoder: plan.codecs.videoEncoder,
+		audioCodec: plan.codecs.audio,
+		audioEncoder: plan.codecs.audioEncoder,
+		pixelFormat: plan.codecs.pixelFormat,
+		width: plan.output.canvas.width,
+		height: plan.output.canvas.height,
+		backgroundColor: plan.output.canvas.backgroundColor,
+		frameRate: Object.freeze({
+			kind: 'rational' as const,
+			num: plan.output.frameRate.num,
+			den: plan.output.frameRate.den,
+		}),
+		startFrame: plan.timebase.sampleStart,
+		endFrame: plan.timebase.sampleStart + plan.timebase.sampleDuration,
+		durationFrames: plan.timebase.sampleDuration,
+		outputFrameCount: plan.output.frameCount,
+		duration: Object.freeze({
+			kind: 'rational-seconds' as const,
+			num: Number(BigInt(plan.timebase.sampleDuration) / durationDivisor),
+			den: Number(BigInt(plan.timebase.sampleRate) / durationDivisor),
+		}),
+		includesAudio: plan.output.includeAudio,
+		projectSampleRate: plan.output.includeAudio ? plan.timebase.sampleRate : null,
+		videoSourceInputs: Object.freeze(plan.sources.map((source) => Object.freeze({
+			inputIndex: source.inputIndex,
+			sourceId: source.sourceId,
+			mimeType: source.mimeType,
+			contentSha256: source.contentSha256,
+		}))),
+		compositionIntervalCount: null,
+		videoEffectCount: counts.transitions + counts.visuals + counts.openFx,
+		activeClipCount: clips.length,
+		featureNodeCounts: counts,
+	});
+}
+
+function greatestCommonDivisor(left: bigint, right: bigint): bigint {
+	while (right !== 0n) [left, right] = [right, left % right];
+	return left;
 }
 
 function sameSemantics(left: unknown, right: unknown): boolean {
