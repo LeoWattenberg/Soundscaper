@@ -6,20 +6,14 @@ import { extname, join, resolve } from 'node:path';
 
 import { build } from 'esbuild';
 
-import {
-	DESKTOP_5B_TRANSITIVE_RUNTIME_FILES,
-	DESKTOP_RUNTIME_BUNDLED_LEAF_FILES,
-} from './desktop-5b-transitive-runtime-files.mjs';
+import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, DESKTOP_RUNTIME_BUNDLED_LEAF_FILES } from './desktop-5b-transitive-runtime-files.mjs';
 
 const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
 const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
 const SOUNDSCAPER_V10_PRELOAD_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
 
-// Staged desktop sources may not import TypeScript specifiers: the packaged
-// application ships no `src/` tree and no TypeScript loader. Modules that need
-// a `src/common` member resolve it through a package-imports alias that the
-// repository maps to the TypeScript source and the staged application
-// manifest maps to the compiled runtime member that already ships.
+// Staged sources ship no TypeScript loader. Package aliases resolve to source
+// TypeScript in the repository and compiled runtime members in the application.
 export const DESKTOP_RUNTIME_PACKAGE_IMPORTS = Object.freeze({
 	'#desktop-runtime/ffmpeg-video-source-characteristics':
 		'./desktop/project-library-runtime/src/common/editor/ffmpeg-video-source-characteristics.js',
@@ -389,11 +383,15 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/project-publication-admission.js',
 	'src/common/editor/publication-byte-estimates.js',
 	'src/common/editor/sequence-frame-navigation.js',
+	'src/common/editor/unified-exact-render-identity-authority.js',
+	'src/common/editor/unified-exact-render-output-admission.js',
 	'src/common/editor/unified-exact-render-plan-v10.js',
 	'src/common/editor/unified-exact-render-plan-v11.js',
 	'src/common/editor/unified-exact-render-plan-v12.js',
 	'src/common/editor/unified-exact-render-plan-v9.js',
 	'src/common/editor/unified-exact-render-plan.js',
+	'src/common/editor/unified-exact-render-timing-authority.js',
+	'src/common/editor/unified-exact-retime-authority.js',
 	'src/common/editor/video-freeze-v24.js',
 	'src/common/editor/video-mask-matte-v24.js',
 	'src/common/editor/video-source-professional-characteristics-v25.js',
