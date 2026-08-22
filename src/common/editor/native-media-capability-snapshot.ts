@@ -64,12 +64,15 @@ export interface NativeMediaCapabilityRefV1 {
  * describes.
  */
 export const NATIVE_MEDIA_CAPABILITY_IDS: Readonly<Record<
-	'renderQueue' | 'watchFolders' | 'proxyCodec' | 'ofxHost',
+	'renderQueue' | 'watchFolders' | 'proxyCodec' | 'imageSequenceImport'
+	| 'externalDisplay' | 'ofxHost',
 	NativeMediaCapabilityRefV1
 >> = Object.freeze({
 	renderQueue: Object.freeze({ domain: 'queue', id: 'persistent-render-queue' }),
 	watchFolders: Object.freeze({ domain: 'watch', id: 'watch-folders' }),
 	proxyCodec: Object.freeze({ domain: 'codec', id: 'encode-mov-prores-proxy' }),
+	imageSequenceImport: Object.freeze({ domain: 'operation', id: 'image-sequence-import' }),
+	externalDisplay: Object.freeze({ domain: 'display', id: 'external-display' }),
 	ofxHost: Object.freeze({ domain: 'ofx', id: 'isolated-host' }),
 });
 

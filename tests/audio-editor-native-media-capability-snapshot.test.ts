@@ -39,6 +39,8 @@ test('the gated capability rows are named once, and the proxy row names its prof
 		renderQueue: { domain: 'queue', id: 'persistent-render-queue' },
 		watchFolders: { domain: 'watch', id: 'watch-folders' },
 		proxyCodec: { domain: 'codec', id: 'encode-mov-prores-proxy' },
+		imageSequenceImport: { domain: 'operation', id: 'image-sequence-import' },
+		externalDisplay: { domain: 'display', id: 'external-display' },
 		ofxHost: { domain: 'ofx', id: 'isolated-host' },
 	});
 	// A second spelling of the proxy codec would gate the menu on a row no
