@@ -90,6 +90,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-capability-report.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-host-self-test.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-runtime.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-queue-capacity-provider.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/openfx-helper-job.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/openfx-helper-worker.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/linked-original-locator-validation.js'));

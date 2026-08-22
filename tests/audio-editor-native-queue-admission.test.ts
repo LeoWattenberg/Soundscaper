@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	admitNativeQueueJobs,
 	clampNativeQueueConcurrency,
+	nativeQueueCapacitySnapshotV1,
 	NATIVE_QUEUE_DEFAULT_CONCURRENCY,
 	NATIVE_QUEUE_MAXIMUM_CONCURRENCY,
 	NATIVE_QUEUE_MINIMUM_CONCURRENCY,
@@ -180,6 +181,22 @@ test('malformed capacity is refused rather than treated as unlimited', () => {
 		);
 	}
 	assert.throws(() => admitNativeQueueJobs([job('01')], -1, capacity()), /runningCount/u);
+});
+
+test('capacity snapshots are exact immutable main-owned observations', () => {
+	const snapshot = nativeQueueCapacitySnapshotV1({
+		...capacity(), busyHardwareBackends: ['nvenc'],
+	});
+	assert.equal(Object.isFrozen(snapshot), true);
+	assert.equal(Object.isFrozen(snapshot.busyHardwareBackends), true);
+	assert.deepEqual(snapshot.busyHardwareBackends, ['nvenc']);
+	assert.throws(() => nativeQueueCapacitySnapshotV1({ ...capacity(), ambientGuess: true }), /fields/iu);
+	assert.throws(() => nativeQueueCapacitySnapshotV1({
+		...capacity(), busyHardwareBackends: ['nvenc', 'nvenc'],
+	}), /same hardware backend/iu);
+	assert.throws(() => nativeQueueCapacitySnapshotV1({
+		...capacity(), busyHardwareBackends: ['../../gpu'],
+	}), /hardware backend/iu);
 });
 
 function capacity(overrides: Partial<NativeQueueCapacityV1> = {}): NativeQueueCapacityV1 {

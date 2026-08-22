@@ -83,6 +83,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/native-media-host-self-test.js',
 		'desktop/native-media-queue-dispatcher.js',
 		'desktop/native-media-runtime.js',
+		'desktop/native-queue-capacity-provider.js',
 		'desktop/native-services-checkpoint-recovery.js',
 		'desktop/plugin-scan-service.js',
 		'desktop/plugin-scan-results.js',

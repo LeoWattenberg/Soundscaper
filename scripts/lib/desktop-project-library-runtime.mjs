@@ -97,6 +97,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/native-media-host-self-test.js',
 	'desktop/native-media-queue-dispatcher.js',
 	'desktop/native-media-runtime.js',
+	'desktop/native-queue-capacity-provider.js',
 	'desktop/native-services-checkpoint-recovery.js',
 	'desktop/native-services-controller.js',
 	'desktop/native-services-database.js',

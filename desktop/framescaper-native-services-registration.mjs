@@ -10,13 +10,17 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 	if (options.productId !== 'framescaper') return null;
 	const modules = dependencies.modules ?? await loadRuntimeModules();
 	const capabilityPolicy = await (dependencies.loadCapabilityPolicy ?? loadCapabilityPolicy)();
+	const scratchRoot = resolve(options.userDataPath, 'framescaper-native-scratch');
 	const nodePorts = modules.createNodePorts({
-		scratchRoot: resolve(options.userDataPath, 'framescaper-native-scratch'),
+		scratchRoot,
 		selectDirectory: options.selectDirectory,
 		...(options.watchImportAuthority === null ? {} : {
 			watchLocator: options.watchImportAuthority.locator,
 		}),
 	});
+	const capacityFactory = modules.createQueueCapacityProvider;
+	const queueCapacity = capacityFactory === undefined ? null : capacityFactory({ scratchRoot });
+	if (queueCapacity !== null && typeof queueCapacity !== 'function') throw new TypeError('Framescaper native queue capacity authority is invalid.');
 	const mediaRuntime = await modules.startMediaRuntime();
 	let openFxRuntime;
 	try { openFxRuntime = await modules.startOpenFxRuntime(); }
@@ -40,7 +44,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 	const runtimeReady = new Promise((resolveRuntime) => { releaseRuntime = resolveRuntime; });
 	const projectBodyAuthority = options.projectAuthority === null ? null : modules.createProjectAuthority({
 		project: options.projectAuthority,
-		scratchRoot: resolve(options.userDataPath, 'framescaper-native-scratch'),
+		scratchRoot,
 		executable: () => mediaExecutable(mediaRuntime),
 		createMessageChannel: options.createMessageChannel,
 		probeRoot: nodePorts.probeRoot,
@@ -161,7 +165,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 				policy: capabilityPolicy,
 				externalDisplay: options.externalDisplay,
 				externalDisplaySupport: modules.externalDisplaySupport,
-				queueSourceAuthorityMounted: projectAuthority !== null,
+				queueSourceAuthorityMounted: projectAuthority !== null, queueCapacityAuthorityMounted: queueCapacity !== null,
 				watchProjectMutationMounted: watchImportBroker !== null,
 				imageSequenceImportMounted: framescaperImageSequenceImportAuthorityMounted(
 					options.imageSequenceImportAuthority,
@@ -170,13 +174,11 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 			revalidate: ({ record, root, rootAuthorized }) => projectAuthority === null
 				? failClosedMediaRevalidation(mediaRuntime.available(), rootAuthorized)
 				: projectAuthority.revalidate(record, root, rootAuthorized),
-			nativeQueueExecution: {
-				pool: mediaRuntime,
-				prepare: projectAuthority === null
-					? async () => { throw new Error('Native queue source authority is not mounted.'); }
-					: (record, root) => projectAuthority.prepare(record, root),
-				onError: options.onServiceError,
-			},
+			...(projectAuthority === null || queueCapacity === null ? {} : { nativeQueueExecution: {
+					pool: mediaRuntime, capacity: queueCapacity,
+					prepare: (record, root) => projectAuthority.prepare(record, root),
+					onError: options.onServiceError,
+			} }),
 			preferences: () => preferenceSnapshot(options.settings.snapshot()),
 			setPreference: async (preference, enabled) => {
 				const result = await setPreference(options.settings, preference, enabled);
@@ -337,7 +339,7 @@ async function loadRuntimeModules() {
 	const [runtime, ipc, nodePorts, externalDisplay, nativeMedia, openFx, openFxService,
 		capabilityReport, displayController,
 		projectAuthority, selectedV20Authority, renderInputStaging, watchImportBroker,
-		imageSequenceSelection] = await Promise.all([
+		imageSequenceSelection, queueCapacity] = await Promise.all([
 		import('./project-library-runtime/desktop/native-services-runtime.js'),
 		import('./project-library-runtime/desktop/native-services-main-ipc.js'),
 		import('./project-library-runtime/desktop/native-services-node-ports.js'),
@@ -352,12 +354,14 @@ async function loadRuntimeModules() {
 		import('./project-library-runtime/desktop/native-services-render-input-staging.js'),
 		import('./project-library-runtime/desktop/native-services-watch-import-broker.js'),
 		import('./project-library-runtime/desktop/native-image-sequence-selection.js'),
+		import('./project-library-runtime/desktop/native-queue-capacity-provider.js'),
 	]);
 	return Object.freeze({
 		startRuntime: runtime.startFramescaperNativeServicesRuntime,
 		registerIpc: ipc.registerFramescaperNativeServicesMainIpc,
 		createNodePorts: nodePorts.createFramescaperNativeServicesNodePorts,
 		createExternalDisplayPort: externalDisplay.createFramescaperNativeExternalDisplayPort,
+		createQueueCapacityProvider: queueCapacity.createFramescaperNativeQueueCapacityProvider,
 		startMediaRuntime: nativeMedia.startFramescaperNativeMediaElectronRuntime,
 		startOpenFxRuntime: openFx.startFramescaperOpenFxElectronRuntime,
 		createOpenFxService: (options) => new openFxService.FramescaperOpenFxMainService(options),
@@ -377,7 +381,8 @@ async function loadRuntimeModules() {
 
 function capabilityReportOptions({
 	preferences, mediaRuntime, openFxRuntime, policy, externalDisplay, externalDisplaySupport,
-	queueSourceAuthorityMounted, watchProjectMutationMounted, imageSequenceImportMounted,
+	queueSourceAuthorityMounted, queueCapacityAuthorityMounted, watchProjectMutationMounted,
+	imageSequenceImportMounted,
 }) {
 	const payload = mediaRuntime.payloadAvailability;
 	const payloadBuilt = payload?.status === 'available';
@@ -418,7 +423,7 @@ function capabilityReportOptions({
 			detail: mediaDetail.slice(0, 512),
 		}),
 		policy,
-		queueSourceAuthorityMounted,
+		queueSourceAuthorityMounted, queueCapacityAuthorityMounted,
 		watchProjectMutationMounted,
 		imageSequenceImportMounted,
 		externalDisplay: Object.freeze({

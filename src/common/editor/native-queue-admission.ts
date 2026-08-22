@@ -62,6 +62,83 @@ export class NativeQueueAdmissionError extends Error {
 	}
 }
 
+const CAPACITY_REQUIRED_FIELDS = Object.freeze([
+	'availableCpuCores',
+	'availableProcessTreeRssBytes',
+	'availableScratchBytes',
+	'volumeFreeBytes',
+	'reservedFreeBytes',
+] as const);
+const CAPACITY_OPTIONAL_FIELDS = Object.freeze([
+	'configuredConcurrency', 'busyHardwareBackends',
+] as const);
+const HARDWARE_BACKEND = /^[a-z][a-z0-9-]{0,63}$/u;
+const MAXIMUM_BUSY_HARDWARE_BACKENDS = 1_024;
+
+/** Close and freeze one main-owned capacity observation before queue admission. */
+export function nativeQueueCapacitySnapshotV1(value: unknown): NativeQueueCapacityV1 {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
+		throw new NativeQueueAdmissionError('A native queue capacity snapshot must be a plain record.');
+	}
+	const record = value as Record<string, unknown>;
+	const allowed = new Set<string>([...CAPACITY_REQUIRED_FIELDS, ...CAPACITY_OPTIONAL_FIELDS]);
+	const fields = Reflect.ownKeys(record);
+	if (fields.some((field) => typeof field !== 'string' || !allowed.has(field))
+		|| CAPACITY_REQUIRED_FIELDS.some((field) => !Object.hasOwn(record, field))) {
+		throw new NativeQueueAdmissionError('A native queue capacity snapshot has missing or unsupported fields.');
+	}
+	for (const field of fields) {
+		const descriptor = Object.getOwnPropertyDescriptor(record, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new NativeQueueAdmissionError('A native queue capacity snapshot must contain enumerable data fields.');
+		}
+	}
+	const snapshot: {
+		configuredConcurrency?: number;
+		availableCpuCores: number;
+		availableProcessTreeRssBytes: number;
+		availableScratchBytes: number;
+		volumeFreeBytes: number;
+		reservedFreeBytes: number;
+		busyHardwareBackends?: readonly string[];
+	} = {
+		availableCpuCores: nonNegativeInteger(record.availableCpuCores, 'availableCpuCores'),
+		availableProcessTreeRssBytes: nonNegativeInteger(
+			record.availableProcessTreeRssBytes, 'availableProcessTreeRssBytes',
+		),
+		availableScratchBytes: nonNegativeInteger(record.availableScratchBytes, 'availableScratchBytes'),
+		volumeFreeBytes: nonNegativeInteger(record.volumeFreeBytes, 'volumeFreeBytes'),
+		reservedFreeBytes: nonNegativeInteger(record.reservedFreeBytes, 'reservedFreeBytes'),
+	};
+	if (Object.hasOwn(record, 'configuredConcurrency')) {
+		clampConcurrency(record.configuredConcurrency as number | undefined);
+		if (record.configuredConcurrency !== undefined) {
+			snapshot.configuredConcurrency = record.configuredConcurrency as number;
+		}
+	}
+	if (Object.hasOwn(record, 'busyHardwareBackends')) {
+		if (!Array.isArray(record.busyHardwareBackends)
+			|| record.busyHardwareBackends.length > MAXIMUM_BUSY_HARDWARE_BACKENDS) {
+			throw new NativeQueueAdmissionError('A native queue capacity snapshot has an invalid hardware backend list.');
+		}
+		const backends: string[] = [];
+		const seen = new Set<string>();
+		for (const backend of record.busyHardwareBackends as readonly unknown[]) {
+			if (typeof backend !== 'string' || !HARDWARE_BACKEND.test(backend)) {
+				throw new NativeQueueAdmissionError('A native queue capacity snapshot names an invalid hardware backend.');
+			}
+			if (seen.has(backend)) {
+				throw new NativeQueueAdmissionError('A native queue capacity snapshot names the same hardware backend twice.');
+			}
+			seen.add(backend);
+			backends.push(backend);
+		}
+		snapshot.busyHardwareBackends = Object.freeze(backends);
+	}
+	return Object.freeze(snapshot);
+}
+
 /**
  * Choose which queued jobs to dispatch now.
  *

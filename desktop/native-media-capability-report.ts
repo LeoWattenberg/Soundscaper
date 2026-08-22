@@ -35,6 +35,7 @@ export interface FramescaperNativeCapabilityReportOptionsV1 {
 	readonly media: FramescaperNativeCapabilityRuntimeV1;
 	readonly policy: FramescaperNativeCapabilityPolicyV1;
 	readonly queueSourceAuthorityMounted: boolean;
+	readonly queueCapacityAuthorityMounted: boolean;
 	readonly watchProjectMutationMounted: boolean;
 	readonly imageSequenceImportMounted: boolean;
 	readonly externalDisplay: Readonly<{
@@ -63,6 +64,20 @@ export function createFramescaperNativeCapabilityReportV1(
 	const mediaEnabled = masterEnabled;
 	const media = options.media;
 	const mediaProbe = media.runtimeAvailable || media.quarantined || media.degraded;
+	const queueExecutionMounted = options.queueSourceAuthorityMounted
+		&& options.queueCapacityAuthorityMounted;
+	const renderQueueDetail = !options.queueSourceAuthorityMounted
+		? `Queue source authority is not mounted. ${media.detail}`
+		: !options.queueCapacityAuthorityMounted
+			? `Queue capacity authority is not mounted. ${media.detail}`
+			: media.selectedV20RenderSelfTestPassed
+				? media.detail
+				: `Selected V20 V7/V8 render execution is not self-tested. ${media.detail}`;
+	const proxyQueueDetail = !options.queueSourceAuthorityMounted
+		? `Proxy project/source authority is not mounted. ${media.detail}`
+		: !options.queueCapacityAuthorityMounted
+			? `Proxy queue capacity authority is not mounted. ${media.detail}`
+			: media.detail;
 	return createNativeMediaCapabilitySnapshotV1({
 		masterEnabled,
 		buildFingerprint: null,
@@ -70,7 +85,7 @@ export function createFramescaperNativeCapabilityReportV1(
 			{
 				...NATIVE_MEDIA_CAPABILITY_IDS.renderQueue,
 				policyCleared: options.policy.nativeCodecsCleared,
-				buildSupported: media.payloadBuilt && options.queueSourceAuthorityMounted
+				buildSupported: media.payloadBuilt && queueExecutionMounted
 					&& media.selectedV20RenderSelfTestPassed,
 				probeSucceeded: mediaProbe,
 				selfTestPassed: media.selfTestPassed && media.selectedV20RenderSelfTestPassed,
@@ -78,11 +93,7 @@ export function createFramescaperNativeCapabilityReportV1(
 				degraded: media.degraded,
 				userEnabled: mediaEnabled,
 				buildFingerprint: media.buildFingerprint,
-				detail: options.queueSourceAuthorityMounted
-					? media.selectedV20RenderSelfTestPassed
-						? media.detail
-						: `Selected V20 V7/V8 render execution is not self-tested. ${media.detail}`
-					: `Queue source authority is not mounted. ${media.detail}`,
+				detail: renderQueueDetail,
 			},
 			{
 				...NATIVE_MEDIA_CAPABILITY_IDS.watchFolders,
@@ -98,16 +109,14 @@ export function createFramescaperNativeCapabilityReportV1(
 			{
 				...NATIVE_MEDIA_CAPABILITY_IDS.proxyCodec,
 				policyCleared: options.policy.proxyCodecCleared,
-				buildSupported: media.payloadBuilt && options.queueSourceAuthorityMounted,
+				buildSupported: media.payloadBuilt && queueExecutionMounted,
 				probeSucceeded: mediaProbe,
 				selfTestPassed: media.selfTestPassed,
 				quarantined: media.quarantined,
 				degraded: media.degraded,
 				userEnabled: mediaEnabled,
 				buildFingerprint: media.buildFingerprint,
-				detail: options.queueSourceAuthorityMounted
-					? media.detail
-					: `Proxy project/source authority is not mounted. ${media.detail}`,
+				detail: proxyQueueDetail,
 			},
 			{
 				...NATIVE_MEDIA_CAPABILITY_IDS.imageSequenceImport,
@@ -173,6 +182,7 @@ export function framescaperClosedNativeCapabilityReportV1(
 			openFxCleared: false,
 		},
 		queueSourceAuthorityMounted: false,
+		queueCapacityAuthorityMounted: false,
 		watchProjectMutationMounted: false,
 		imageSequenceImportMounted: false,
 		externalDisplay: {

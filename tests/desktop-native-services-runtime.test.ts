@@ -11,6 +11,7 @@ import {
 	startFramescaperNativeServicesRuntime,
 } from '../desktop/native-services-runtime.ts';
 import { FramescaperNativeProjectAuthority } from '../desktop/native-services-project-authority.ts';
+import type { NativeQueueCapacityV1 } from '../src/common/editor/native-queue-admission.ts';
 import { createNativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
 import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
 
@@ -161,6 +162,7 @@ test('enabling Native Media wakes qualified recovered work once per preference t
 			scratchIdentityMatches: true,
 		}),
 		nativeQueueExecution: {
+			capacity: async () => queueCapacity(),
 			pool: { runJob: async (request) => {
 				executed.push((request.grant as unknown as { jobId: string }).jobId);
 				return {};
@@ -428,4 +430,15 @@ async function waitFor(predicate: () => boolean): Promise<void> {
 
 async function flushImmediate(): Promise<void> {
 	await new Promise<void>((resolve) => setImmediate(resolve));
+}
+
+function queueCapacity(): NativeQueueCapacityV1 {
+	return {
+		availableCpuCores: 8,
+		availableProcessTreeRssBytes: 1024 ** 3,
+		availableScratchBytes: 1024 ** 3,
+		volumeFreeBytes: 20 * 1024 ** 3,
+		reservedFreeBytes: 10 * 1024 ** 3,
+		busyHardwareBackends: [],
+	};
 }
