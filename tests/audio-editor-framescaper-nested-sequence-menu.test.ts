@@ -66,6 +66,9 @@ test('Framescaper exposes sequence and placement authoring leaves with exact com
 	assert.equal(createFramescaperNestedSequenceMenuItems({
 		productId: 'framescaper', project: { ...project(), schemaVersion: 19 }, editingBlocked: false, copy: COPY,
 	}, { execute: () => undefined })?.disabled, false);
+	assert.equal(createFramescaperNestedSequenceMenuItems({
+		productId: 'framescaper', project: { ...project(), schemaVersion: 20 }, editingBlocked: false, copy: COPY,
+	}, { execute: () => undefined })?.disabled, false);
 });
 
 test('a fresh Framescaper project can create its first secondary sequence while unsafe state stays inert', () => {

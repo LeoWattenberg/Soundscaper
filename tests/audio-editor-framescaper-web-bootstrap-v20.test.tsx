@@ -24,7 +24,7 @@ const {
 	default: FramescaperAudioEditorBootstrapV20,
 } = await import('../src/framescaper/ui/FramescaperAudioEditorBootstrapV20.tsx');
 
-test('dormant Framescaper web runtime reaches exact V20 without exposing authority', async (context) => {
+test('selected Framescaper web runtime reaches exact V20 without exposing authority', async (context) => {
 	installIndexedDB(context);
 	const runtime = await createFramescaperWebEditorRuntimeV20({ locale: 'en', copy: {} });
 	assert.deepEqual(Object.keys(runtime), ['controller', 'fileService', 'dispose']);
@@ -33,6 +33,13 @@ test('dormant Framescaper web runtime reaches exact V20 without exposing authori
 	assert.equal(ready.phase, 'ready', JSON.stringify(ready.status));
 	assert.equal(ready.project.schemaVersion, 20);
 	assert.equal(ready.readOnly, false);
+	assert.equal(runtime.fileService.isDesktop, false);
+	assert.equal(runtime.fileService.linkedOriginalPort, null);
+	assert.equal(runtime.fileService.linkedVideoOriginalPort, null);
+	const capture = ready.capture as Readonly<{ readonly availability?: Readonly<{ readonly status?: string }> }>;
+	assert.ok(capture);
+	assert.equal(capture.availability?.status, 'unavailable');
+	assert.equal(typeof runtime.controller.actions.capture.requestPreview, 'function');
 	const first = runtime.dispose();
 	assert.equal(runtime.dispose(), first);
 	await first;

@@ -46,7 +46,7 @@ import {
 	deferred,
 } from './helpers/video-proxy-relationship-fixtures.ts';
 
-for (const schemaVersion of [18, 19] as const) {
+for (const schemaVersion of [18, 19, 20] as const) {
 	test(`captured video proxy scheduling commits exact V${String(schemaVersion)} while another project stays active`, async (context) => {
 		const fixture = await createFixture(context, schemaVersion);
 

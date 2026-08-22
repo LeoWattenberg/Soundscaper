@@ -112,7 +112,7 @@ test('authenticates the V20 profile before reading a hostile project', () => {
 	});
 	assert.throws(
 		() => classifyFramescaperVideoExportDispatchV20({}, hostile, 'project'),
-		/exact Framescaper V20 model profile/iu,
+		/exact Framescaper V20 runtime profile/iu,
 	);
 	assert.equal(reads, 0);
 });

@@ -55,7 +55,7 @@ test('portable Scape inspects, imports, and reopens exact V20 keyframes', async 
 	assert.equal(inspection.schemaVersion, 20);
 	assert.equal(inspection.readOnly, false);
 	assert.equal((inspection.featureRequirementsCompatibility as { compatible?: boolean } | null)
-		?.compatible, false);
+		?.compatible, true);
 
 	const imported = await runtime.importScapeProject(exported.blob, recipient, { collision: 'copy' });
 	assert.equal(imported.readOnly, false);

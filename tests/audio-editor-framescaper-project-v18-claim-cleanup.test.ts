@@ -56,7 +56,7 @@ test('cleanup authenticates the exact profile before dependencies and never fall
 	});
 	assert.throws(
 		() => new FramescaperProjectV18ClaimCleanupRepository({}, dependencies),
-		/exact Framescaper V18 runtime profile/iu,
+		/exact maintained Framescaper capture-cleanup runtime profile/iu,
 	);
 	assert.equal(dependencyTraps, 0);
 

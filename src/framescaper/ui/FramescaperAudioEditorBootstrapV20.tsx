@@ -1,19 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { createAudioEditorFileService } from '../../common/editor/file-service.js';
 import { resolveCatalog } from '../../common/i18n/runtime.js';
+import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
+import { resolveFramescaperNativeServicesBridge } from '../../common/editor/ui/framescaper-native-services-bridge.ts';
 import { createFramescaperAudioEditorControllerV20 } from '../editor-controller-v20.ts';
+import {
+	createFramescaperNativeWatchImportClientV20,
+	type FramescaperNativeWatchImportClientV20,
+} from '../editor-native-watch-import-client-v20.ts';
 import {
 	createFramescaperEditorProjectEnvironmentV20,
 	type FramescaperEditorProjectEnvironmentV20,
 } from '../editor-project-environment-v20.ts';
-
-const BoundAudioEditorApp = lazy(async () => {
-	const module = await import('../../common/editor/ui/AudioEditorApp.jsx');
-	return { default: module.BoundAudioEditorApp };
-});
 
 type FramescaperWebControllerV20 = ReturnType<typeof createFramescaperAudioEditorControllerV20>;
 type FramescaperWebFileServiceV20 = ReturnType<typeof createAudioEditorFileService>;
@@ -39,22 +40,32 @@ export interface FramescaperAudioEditorBootstrapV20Props {
 	readonly fallbackCopy: Readonly<Record<string, unknown>>;
 }
 
-/** Construct the dormant exact-V20 web presentation without selecting its route. */
+/** Construct the selected exact-V20 web presentation. */
 export async function createFramescaperWebEditorRuntimeV20(
 	presentationValue: FramescaperWebEditorRuntimePresentationV20 | unknown,
 ): Promise<Readonly<FramescaperWebEditorRuntimeV20>> {
 	const presentation = snapshotPresentation(presentationValue);
-	const environment = await createFramescaperEditorProjectEnvironmentV20();
+	const fileService = createAudioEditorFileService();
+	const environment = await createFramescaperEditorProjectEnvironmentV20({
+		storeOptions: {
+			linkedOriginalPort: fileService.linkedOriginalPort,
+			linkedVideoOriginalPort: fileService.linkedVideoOriginalPort,
+		},
+	});
 	try {
-		const fileService = createAudioEditorFileService();
 		const controller = createFramescaperAudioEditorControllerV20(environment, {
 			locale: presentation.locale,
 			copy: presentation.copy,
 			fileService,
 		});
+		const watchImports = createFramescaperNativeWatchImportClientV20({
+			controller,
+			linkedVideoOriginalPort: fileService.linkedVideoOriginalPort,
+			bridge: resolveFramescaperNativeServicesBridge(),
+		});
 		let disposal: Promise<void> | null = null;
 		const dispose = (): Promise<void> => {
-			disposal ??= disposeRuntime(controller, environment);
+			disposal ??= disposeRuntime(controller, environment, watchImports);
 			return disposal;
 		};
 		const runtime = Object.freeze({ controller, fileService, dispose });
@@ -74,7 +85,7 @@ export async function createFramescaperWebEditorRuntimeV20(
 	}
 }
 
-/** Product route adapter; it remains unselected until V20 export qualification passes. */
+/** Selected product route adapter; provisional qualification remains explicit in policy. */
 export default function FramescaperAudioEditorBootstrapV20({
 	locale,
 	fallbackCopy: fallbackCopyValue,
@@ -146,6 +157,7 @@ export default function FramescaperAudioEditorBootstrapV20({
 			controller={runtime.controller}
 			fileService={runtime.fileService}
 			projectForRuntimeConsumers={runtimeProjector(runtime)}
+			crossProductHandoffAvailable={runtime.fileService.isDesktop}
 		/>
 	</Suspense>;
 }
@@ -161,12 +173,18 @@ function runtimeProjector(
 async function disposeRuntime(
 	controller: FramescaperWebControllerV20,
 	environment: Readonly<FramescaperEditorProjectEnvironmentV20>,
+	watchImports: Readonly<FramescaperNativeWatchImportClientV20>,
 ): Promise<void> {
 	let failure: unknown;
 	try {
-		await controller.dispose();
+		await watchImports.dispose();
 	} catch (error) {
 		failure = error;
+	}
+	try {
+		await controller.dispose();
+	} catch (error) {
+		failure = failure ? new AggregateError([failure, error], 'Framescaper V20 watch and controller disposal failed.') : error;
 	}
 	try {
 		await environment.close();

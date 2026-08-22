@@ -14,9 +14,6 @@ import {
 	normalizeVideoKeyframeCurves,
 	type VideoKeyframeCurves,
 } from '../common/editor/video-keyframe-curves.ts';
-import {
-	normalizeAudioEditorClipboardDescriptor,
-} from '../common/editor/commands/clipboard-codec.ts';
 import { createVideoKeyframesRuntimeHandlers } from '../common/editor/commands/video-keyframes-runtime.ts';
 import {
 	snapshotVideoKeyframesSetCommand,
@@ -40,6 +37,12 @@ import { normalizeFramescaperProjectClipCompositionsV19 } from './editor-project
 import {
 	applyFramescaperProjectCommandV18,
 } from './editor-project-v18-commands.ts';
+import {
+	framescaperV20FreshVideoAddAvLinkIds,
+	framescaperV20SegmentContainsAvLinkPair,
+	framescaperV20SegmentContainsAvLinkPeer,
+} from './editor-project-v20-av-link-command-segmentation.ts';
+import { framescaperV20ExplicitFreshVideoIds } from './editor-project-v20-fresh-video-command.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v18.ts';
 import type { FramescaperProjectCommandV18 } from './editor-project-v18-subsequence.ts';
 import {
@@ -170,7 +173,7 @@ function snapshotCommand(
 		AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 	);
 	const inherited = snapshotFramescaperProjectCommandV19(command as FramescaperProjectCommandV19);
-	if (explicitFreshVideoIds(inherited).size > 0) countOrderedBoundary(budget);
+	if (framescaperV20ExplicitFreshVideoIds(inherited).size > 0) countOrderedBoundary(budget);
 	return inherited;
 }
 
@@ -206,12 +209,14 @@ function applyBatch(
 	const commands = flattenBatchCommands(command);
 	const needsOrderedSegmentation = commands.some(isFramescaperVideoKeyframesCommandV20)
 		|| (commands.length > 1
-			&& commands.some((child) => explicitFreshVideoIds(child).size > 0));
+			&& commands.some((child) => framescaperV20ExplicitFreshVideoIds(child).size > 0));
 	if (!needsOrderedSegmentation) {
 		return applyInherited(profile, project, command, options);
 	}
 	let current = project;
 	let inherited: FramescaperProjectCommandV20[] = [];
+	let inheritedContainsFreshVideo = false;
+	const pendingFreshAvLinks = new Set<string>();
 	const intermediateOptions: FramescaperProjectCommandOptionsV20 = Object.freeze({
 		now: String(project.updatedAt),
 	});
@@ -224,13 +229,28 @@ function applyBatch(
 		current = applyInherited(profile, current, group, intermediateOptions);
 		restoreOuterBookkeeping(current, project);
 		inherited = [];
+		inheritedContainsFreshVideo = false;
+		pendingFreshAvLinks.clear();
 	};
 	for (const child of commands) {
 		if (!isFramescaperVideoKeyframesCommandV20(child)) {
-			const createsFreshVideo = explicitFreshVideoIds(child).size > 0;
-			if (createsFreshVideo) flushInherited();
+			const createsFreshVideo = framescaperV20ExplicitFreshVideoIds(child).size > 0;
+			const freshAvLinks = framescaperV20FreshVideoAddAvLinkIds(child);
+			const joinsPriorPeer = freshAvLinks.some((avLinkId) => (
+				framescaperV20SegmentContainsAvLinkPeer(inherited, avLinkId)
+			));
+			if (createsFreshVideo && pendingFreshAvLinks.size === 0 && !joinsPriorPeer) {
+				flushInherited();
+			}
 			inherited.push(child);
-			if (createsFreshVideo) flushInherited();
+			inheritedContainsFreshVideo ||= createsFreshVideo;
+			for (const avLinkId of freshAvLinks) pendingFreshAvLinks.add(avLinkId);
+			for (const avLinkId of pendingFreshAvLinks) {
+				if (framescaperV20SegmentContainsAvLinkPair(inherited, avLinkId)) {
+					pendingFreshAvLinks.delete(avLinkId);
+				}
+			}
+			if (inheritedContainsFreshVideo && pendingFreshAvLinks.size === 0) flushInherited();
 			continue;
 		}
 		flushInherited();
@@ -383,7 +403,7 @@ function completeClipKeyframes(
 	const exact = new Map(snapshots.map((snapshot) => [occurrenceKey(snapshot.scope, snapshot.id), snapshot]));
 	const byId = new Map<string, KeyframeSnapshot | null>();
 	for (const snapshot of snapshots) byId.set(snapshot.id, byId.has(snapshot.id) ? null : snapshot);
-	const defaultableIds = explicitFreshVideoIds(command);
+	const defaultableIds = framescaperV20ExplicitFreshVideoIds(command);
 	visitClipCollections(project, (clip, name, scope) => {
 		if (dataProperty(clip, 'kind', name) !== 'video') {
 			delete clip.videoKeyframes;
@@ -406,65 +426,6 @@ function completeClipKeyframes(
 		}
 		clip.videoKeyframes = createDefaultVideoKeyframeCurves(clipDuration(clip, name));
 	});
-}
-
-function explicitFreshVideoIds(command: FramescaperProjectCommandV20): ReadonlySet<string> {
-	const result = new Set<string>();
-	const pending: unknown[] = [command];
-	while (pending.length > 0) {
-		const candidate = pending.pop();
-		const type = commandType(candidate);
-		if (type === 'batch') {
-			const batch = readClosedDomainRecord(candidate, 'Framescaper V20 command batch', BATCH_FIELDS);
-			pending.push(...readClosedDomainArray(
-				readClosedDomainField(batch, 'commands', 'Framescaper V20 command batch'),
-				'Framescaper V20 command batch.commands', 1, MAXIMUM_BATCH_COMMANDS,
-			));
-			continue;
-		}
-		if (type === 'clipboard/paste') {
-			collectClipboardDefaultableVideoIds(candidate, result);
-			continue;
-		}
-		if (type !== 'clip/add' && type !== 'project-bin/add') continue;
-		const record = dataRecord(candidate, `Framescaper V20 ${type} command`);
-		const clip = dataRecord(dataProperty(record, 'clip', `Framescaper V20 ${type} command`), `${type} clip`);
-		if (dataProperty(clip, 'kind', `${type} clip`) === 'video') {
-			result.add(stableId(dataProperty(clip, 'id', `${type} clip`), `${type} clip.id`));
-		}
-	}
-	return result;
-}
-
-function collectClipboardDefaultableVideoIds(command: unknown, result: Set<string>): void {
-	const record = dataRecord(command, 'Framescaper V20 clipboard/paste command');
-	const clipboard = normalizeAudioEditorClipboardDescriptor(dataProperty(
-		record, 'clipboard', 'Framescaper V20 clipboard/paste command',
-	));
-	const videoClips = clipboard.tracks.flatMap((track) => track.clips.filter((clip) => (
-		dataProperty(dataRecord(clip, 'Framescaper V20 clipboard clip'), 'kind', 'Framescaper V20 clipboard clip')
-			=== 'video'
-	)));
-	if (videoClips.length === 0) return;
-	if (clipboard.schemaVersion !== 6) {
-		throw new RangeError('Framescaper V20 video clipboard content requires V6 recopy.');
-	}
-	const clipIds = dataRecord(
-		dataProperty(record, 'clipIds', 'Framescaper V20 clipboard/paste command'),
-		'Framescaper V20 clipboard/paste command.clipIds',
-	);
-	for (const clipValue of videoClips) {
-		const clip = dataRecord(clipValue, 'Framescaper V20 clipboard video clip');
-		if (Object.hasOwn(clip, 'videoKeyframes')) continue;
-		const key = stableId(
-			dataProperty(clip, 'key', 'Framescaper V20 clipboard video clip'),
-			'Framescaper V20 clipboard video clip.key',
-		);
-		result.add(stableId(
-			dataProperty(clipIds, key, 'Framescaper V20 clipboard/paste command.clipIds'),
-			`Framescaper V20 clipboard/paste command.clipIds.${key}`,
-		));
-	}
 }
 
 function keyframeContext(clip: DataRecord, name: string): Readonly<Record<string, unknown>> {

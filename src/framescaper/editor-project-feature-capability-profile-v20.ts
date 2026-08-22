@@ -4,7 +4,7 @@ import {
 	createEditorProjectFeatureCapabilityProfile,
 } from '../common/editor/project-feature-capability-profile.ts';
 
-/** Unselected exact V20 capabilities; availability does not select a product route. */
+/** Selected exact V20 capabilities. */
 export const FRAMESCAPER_V20_PROJECT_FEATURE_CAPABILITY_PROFILE =
 	createEditorProjectFeatureCapabilityProfile({
 		owner: 'framescaper',
@@ -29,6 +29,7 @@ export const FRAMESCAPER_V20_PROJECT_FEATURE_CAPABILITY_PROFILE =
 			{ key: 'multicamera', featureId: 'org.soundscaper.capability.multicamera', available: true },
 			{ key: 'musicalTimeline', featureId: 'org.soundscaper.capability.musical-timeline', available: false },
 			{ key: 'nestedSequences', featureId: 'org.soundscaper.capability.nested-sequences', available: true },
+			{ key: 'ofxEffects', featureId: 'org.soundscaper.capability.openfx-effects', available: false },
 			{ key: 'project', featureId: 'org.soundscaper.capability.project', available: true },
 			{ key: 'projectBin', featureId: 'org.soundscaper.capability.project-bin', available: true },
 			{ key: 'sequenceTiming', featureId: 'org.soundscaper.capability.sequence-timing', available: true },
@@ -36,16 +37,23 @@ export const FRAMESCAPER_V20_PROJECT_FEATURE_CAPABILITY_PROFILE =
 			{ key: 'takeComp', featureId: 'org.soundscaper.capability.take-comp', available: false },
 			{ key: 'timelineAnnotations', featureId: 'org.soundscaper.capability.timeline-annotations', available: false },
 			{ key: 'trackFolders', featureId: 'org.soundscaper.capability.track-folders', available: false },
+			{ key: 'videoAdjustmentLayers', featureId: 'org.soundscaper.capability.video-adjustment-layers', available: false },
 			{ key: 'videoCompositing', featureId: 'org.soundscaper.capability.video-compositing', available: true },
 			{ key: 'videoEffects', featureId: 'org.soundscaper.capability.video-effects', available: true },
 			{ key: 'videoExport', featureId: 'org.soundscaper.capability.video-export', available: true },
+			{ key: 'videoFreeze', featureId: 'org.soundscaper.capability.video-freeze', available: false },
+			{ key: 'videoGenerators', featureId: 'org.soundscaper.capability.video-generators', available: false },
 			{ key: 'videoGeometry', featureId: 'org.soundscaper.capability.video-geometry', available: true },
 			{ key: 'videoImport', featureId: 'org.soundscaper.capability.video-import', available: true },
-			{ key: 'videoKeyframes', featureId: 'org.soundscaper.capability.video-keyframes', available: false },
+			{ key: 'videoKeyframes', featureId: 'org.soundscaper.capability.video-keyframes', available: true },
+			{ key: 'videoMasksMattes', featureId: 'org.soundscaper.capability.video-masks-mattes', available: false },
 			{ key: 'videoPlayback', featureId: 'org.soundscaper.capability.video-playback', available: true },
 			{ key: 'videoProxy', featureId: 'org.soundscaper.capability.video-proxy', available: true },
 			{ key: 'videoRetime', featureId: 'org.soundscaper.capability.video-retime', available: false },
+			{ key: 'videoStills', featureId: 'org.soundscaper.capability.video-stills', available: false },
 			{ key: 'videoTimelineEditing', featureId: 'org.soundscaper.capability.video-timeline-editing', available: true },
 			{ key: 'videoTimingAssets', featureId: 'org.soundscaper.capability.video-timing-assets', available: true },
+			{ key: 'videoTransitionDissolve', featureId: 'org.soundscaper.capability.video-transition.dissolve', available: false },
+			{ key: 'videoTransitions', featureId: 'org.soundscaper.capability.video-transitions', available: false },
 		],
 	});

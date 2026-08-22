@@ -9,6 +9,7 @@ import {
 } from './editor-project-feature-requirements-v20.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v18.ts';
 import { FRAMESCAPER_V20_PROJECT_STORAGE_PROFILE } from './editor-project-storage-profile-v20.ts';
+import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v20.ts';
 import { createFramescaperSessionClipboardV18 } from './editor-project-v18-interchange.ts';
 import { createFramescaperProjectStoreV20 } from './editor-project-store-v20.ts';
 import {
@@ -93,13 +94,15 @@ export interface EditorProjectRuntimeV20Selection {
 }
 
 /**
- * Compose the complete V20 authority for qualification. Construction alone
- * does not select a browser or packaged product route.
+ * Compose the complete selected V20 authority.
  */
 export function createEditorProjectRuntimeV20Selection(
 	profile: FramescaperProjectV20Profile | unknown,
 ): Readonly<EditorProjectRuntimeV20Selection> {
 	assertFramescaperProjectV20Profile(profile);
+	if (profile !== FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE) {
+		throw new TypeError('The selected Framescaper V20 runtime profile is required.');
+	}
 	const compatibility = createFramescaperProjectFeatureCompatibilityServiceV20(profile);
 	const selection: EditorProjectRuntimeV20Selection = {
 		profile,
@@ -134,7 +137,7 @@ export function createEditorProjectRuntimeV20Selection(
 		canRedo: (history) => history.redoStack.length > 0,
 		createSessionController(...args: unknown[]) {
 			if (args.length !== 0) {
-				throw new TypeError('The V20 qualification session does not accept caller-owned options.');
+				throw new TypeError('The selected V20 session does not accept caller-owned options.');
 			}
 			return createSelectedSession(profile);
 		},
@@ -207,11 +210,11 @@ function profiledLockOptions(value: Record<string, unknown>): Record<string, unk
 
 function selectedStoreOptions(value: AudioEditorProjectStoreOptions | unknown): AudioEditorProjectStoreOptions {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError('V20 qualification store options must be a record.');
+		throw new TypeError('Selected V20 store options must be a record.');
 	}
 	for (const field of STORE_AUTHORITY_FIELDS) {
 		if (Object.getOwnPropertyDescriptor(value, field)) {
-			throw new TypeError(`The V20 qualification store rejects the ${field} authority override.`);
+			throw new TypeError(`The selected V20 store rejects the ${field} authority override.`);
 		}
 	}
 	return value as AudioEditorProjectStoreOptions;

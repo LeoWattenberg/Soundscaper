@@ -4,6 +4,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import { isFramescaperCaptureProjectSchema } from '../common/editor/project-schema-version.ts';
 import { serializeScapeProjectDocument } from '../common/editor/scape-project-document.ts';
 import { request, transact } from '../common/editor/storage/indexeddb-backend.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from '../common/editor/storage/media-asset-staging-schema.ts';
@@ -24,11 +25,15 @@ import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile
 import { cloneFramescaperProjectV18, type FramescaperProjectV18 } from './editor-project-v18.ts';
 import { assertFramescaperProjectV19Profile } from './editor-project-v19-profile.ts';
 import { cloneFramescaperProjectV19, type FramescaperProjectV19 } from './editor-project-v19.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV20 } from './editor-project-feature-requirements-v20.ts';
+import { assertFramescaperProjectV20Profile } from './editor-project-v20-profile.ts';
+import { cloneFramescaperProjectV20, type FramescaperProjectV20 } from './editor-project-v20.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 
-export type FramescaperCapturedVideoProxySchemaVersion = 18 | 19;
-export type FramescaperCapturedVideoProxyProject = FramescaperProjectV18 | FramescaperProjectV19;
+export type FramescaperCapturedVideoProxySchemaVersion = 18 | 19 | 20;
+export type FramescaperCapturedVideoProxyProject =
+	FramescaperProjectV18 | FramescaperProjectV19 | FramescaperProjectV20;
 
 export interface FramescaperCapturedVideoProxyPreservationPublication {
 	readonly expected: unknown;
@@ -56,15 +61,14 @@ export class FramescaperCapturedVideoProxyPreservationRepository {
 			readonly claims: VideoProxyClaimRepository;
 		}>,
 	) {
-		if (schemaVersion !== 18 && schemaVersion !== 19) {
-			throw new TypeError('Captured proxy preservation requires exact schema 18 or 19.');
+		if (!isFramescaperCaptureProjectSchema(schemaVersion)) {
+			throw new TypeError('Captured proxy preservation requires a maintained Framescaper schema.');
 		}
 		if (!dependencies?.port || typeof dependencies.port.database !== 'function'
 			|| !(dependencies.claims instanceof VideoProxyClaimRepository)) {
 			throw new TypeError('Captured proxy preservation requires its exact durable authorities.');
 		}
-		if (schemaVersion === 18) assertFramescaperProjectV18Profile(profile);
-		else assertFramescaperProjectV19Profile(profile);
+		assertProfile(schemaVersion, profile);
 		this.#schemaVersion = schemaVersion;
 		this.#profile = profile;
 		this.#port = dependencies.port;
@@ -218,9 +222,7 @@ function assertExactTransition(
 	const source = exactSource(candidate as unknown as FramescaperCapturedVideoProxyProject, sourceId);
 	if (source.proxyAttachment !== null) throw new Error('The captured proxy target was already attached.');
 	source.proxyAttachment = attachment;
-	candidate.featureRequirements = schemaVersion === 18
-		? reconcileFramescaperProjectFeatureRequirementsV18(profile, candidate)
-		: reconcileFramescaperProjectFeatureRequirementsV19(profile, candidate);
+	candidate.featureRequirements = reconcileRequirements(schemaVersion, profile, candidate);
 	const normalized = cloneProject(schemaVersion, profile, candidate);
 	if (!sameProject(normalized, project)) {
 		throw new Error('Captured proxy publication may change only its target attachment and owned revision fields.');
@@ -371,9 +373,28 @@ function cloneProject(
 	profile: EditorProjectRuntimeProfile,
 	project: unknown,
 ): FramescaperCapturedVideoProxyProject {
-	return schemaVersion === 18
-		? cloneFramescaperProjectV18(profile, project)
-		: cloneFramescaperProjectV19(profile, project);
+	if (schemaVersion === 18) return cloneFramescaperProjectV18(profile, project);
+	if (schemaVersion === 19) return cloneFramescaperProjectV19(profile, project);
+	return cloneFramescaperProjectV20(profile, project);
+}
+
+function assertProfile(
+	schemaVersion: FramescaperCapturedVideoProxySchemaVersion,
+	profile: EditorProjectRuntimeProfile,
+): void {
+	if (schemaVersion === 18) assertFramescaperProjectV18Profile(profile);
+	else if (schemaVersion === 19) assertFramescaperProjectV19Profile(profile);
+	else assertFramescaperProjectV20Profile(profile);
+}
+
+function reconcileRequirements(
+	schemaVersion: FramescaperCapturedVideoProxySchemaVersion,
+	profile: EditorProjectRuntimeProfile,
+	project: unknown,
+): unknown {
+	if (schemaVersion === 18) return reconcileFramescaperProjectFeatureRequirementsV18(profile, project);
+	if (schemaVersion === 19) return reconcileFramescaperProjectFeatureRequirementsV19(profile, project);
+	return reconcileFramescaperProjectFeatureRequirementsV20(profile, project);
 }
 
 function exactSource(

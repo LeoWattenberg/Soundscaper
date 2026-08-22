@@ -1,21 +1,22 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-declare const framescaperProjectV20ProfileIdentity: unique symbol;
+import {
+	editorProjectRuntimeProfileDefinition,
+	type EditorProjectRuntimeProfile,
+} from '../common/editor/project-runtime-profile.ts';
+import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v20.ts';
 
-/** Unselected model authority. Runtime/persistence selection is deliberately separate. */
-export type FramescaperProjectV20Profile = Readonly<{
-	readonly [framescaperProjectV20ProfileIdentity]: true;
-}>;
+export type FramescaperProjectV20Profile = EditorProjectRuntimeProfile;
 
-export const FRAMESCAPER_V20_PROJECT_MODEL_PROFILE = Object.freeze(
-	Object.create(null),
-) as FramescaperProjectV20Profile;
+/** Compatibility name for callers compiled before V20 became the selected route. */
+export const FRAMESCAPER_V20_PROJECT_MODEL_PROFILE = FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE;
 
 /** Authenticate the process-local V20 model authority before document traversal. */
 export function assertFramescaperProjectV20Profile(
 	profile: unknown,
 ): asserts profile is FramescaperProjectV20Profile {
-	if (profile !== FRAMESCAPER_V20_PROJECT_MODEL_PROFILE) {
-		throw new TypeError('The exact Framescaper V20 model profile is required.');
+	if (profile !== FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE) {
+		throw new TypeError('The exact Framescaper V20 runtime profile is required.');
 	}
+	editorProjectRuntimeProfileDefinition(profile);
 }

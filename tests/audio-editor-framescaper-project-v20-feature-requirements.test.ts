@@ -32,7 +32,7 @@ test('neutral V20 documents do not falsely require video keyframes', () => {
 	assert.equal(createFramescaperProjectFeatureCompatibilityServiceV20(PROFILE).evaluate(project)?.compatible, true);
 });
 
-test('authored V20 curves own one unavailable bypass/null requirement until workflow selection', () => {
+test('authored V20 curves own one natively available selected requirement', () => {
 	assert.deepEqual(FRAMESCAPER_VIDEO_KEYFRAMES_REQUIREMENT_V20, {
 		id: 'framescaper.video-keyframes',
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoKeyframes,
@@ -50,11 +50,11 @@ test('authored V20 curves own one unavailable bypass/null requirement until work
 		requirementId: 'framescaper.video-keyframes',
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoKeyframes,
 		displayName: 'Video keyframes',
-		availability: 'unavailable',
+		availability: 'available',
 		declaredDisposition: 'bypass',
-		disposition: 'bypassed',
+		disposition: 'native',
 		fallback: null,
-		message: 'Video keyframes is known but unavailable and will be bypassed.',
+		message: 'Video keyframes is available natively.',
 	});
 });
 

@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test';
 
 import { chooseFileAction, getMenuItem } from './audio-editor-test-helpers.js';
+import {
+	FRAMESCAPER_DATABASE_NAME,
+	SOUNDSCAPER_DATABASE_NAME,
+} from './helpers/editor-databases.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
-const SOUNDSCAPER_DATABASE = 'kw-media-soundscaper-editor-v23';
-const FRAMESCAPER_V19_DATABASE = 'kw-media-framescaper-editor-v19';
 
 test.describe('Soundscaper and Framescaper product surfaces', () => {
 	test.beforeEach(async ({ page }) => {
@@ -103,7 +105,7 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Framescaper', exact: true })).toBeVisible();
 	});
 
-	test('the File menu explains the exact V23 and V19 cross-product editing fence', async ({ page }) => {
+	test('the File menu explains the exact V23 and selected V20 cross-product editing fence', async ({ page }) => {
 		await page.goto('/en/');
 		const soundscaper = await readyEditor(page, 'soundscaper');
 		const soundscaperProjectId = await soundscaper.getAttribute('data-project-id');
@@ -135,12 +137,12 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 			.toHaveAttribute('data-disabled-reason', /Cross-product editing is unavailable/u);
 		await page.keyboard.press('Escape');
 
-		await expect.poll(() => storedProject(page, SOUNDSCAPER_DATABASE, soundscaperProjectId))
+		await expect.poll(() => storedProject(page, SOUNDSCAPER_DATABASE_NAME, soundscaperProjectId))
 			.toEqual({ id: soundscaperProjectId, schemaVersion: 23 });
-		await expect.poll(() => storedProject(page, FRAMESCAPER_V19_DATABASE, framescaperProjectId))
-			.toEqual({ id: framescaperProjectId, schemaVersion: 19 });
-		expect(await storedProject(page, SOUNDSCAPER_DATABASE, framescaperProjectId)).toBeNull();
-		expect(await storedProject(page, FRAMESCAPER_V19_DATABASE, soundscaperProjectId)).toBeNull();
+		await expect.poll(() => storedProject(page, FRAMESCAPER_DATABASE_NAME, framescaperProjectId))
+			.toEqual({ id: framescaperProjectId, schemaVersion: 20 });
+		expect(await storedProject(page, SOUNDSCAPER_DATABASE_NAME, framescaperProjectId)).toBeNull();
+		expect(await storedProject(page, FRAMESCAPER_DATABASE_NAME, soundscaperProjectId)).toBeNull();
 
 		await page.goto(`/framescaper/en/?project=${encodeURIComponent(framescaperProjectId)}`);
 		const reopenedFramescaper = await readyEditor(page, 'framescaper');

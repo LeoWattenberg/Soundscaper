@@ -12,7 +12,7 @@ import { FRAMESCAPER_V20_PROJECT_STORAGE_PROFILE } from '../src/framescaper/edit
 import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
-test('qualification environment composes one exact writable V20 browser authority', async (context) => {
+test('selected environment composes one exact writable V20 browser authority', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV20({
 		storeOptions: {
 			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
@@ -22,6 +22,8 @@ test('qualification environment composes one exact writable V20 browser authorit
 	context.after(() => environment.close());
 
 	assert.equal(environment.runtime.profile, FRAMESCAPER_V20_PROJECT_MODEL_PROFILE);
+	assert.equal(environment.initialCleanup.status, 'settled');
+	assert.ok(environment.claimCleanup);
 	assert.equal(assertFramescaperEditorProjectEnvironmentV20(environment), environment);
 	assert.throws(
 		() => assertFramescaperEditorProjectEnvironmentV20({ ...environment }),
@@ -42,7 +44,7 @@ test('qualification environment composes one exact writable V20 browser authorit
 	assert.equal((await environment.store.loadProject(project.id))?.schemaVersion, 20);
 });
 
-test('qualification V20 environment exposes no profile, store, or repository authority seam', async () => {
+test('selected V20 environment exposes no profile, store, or repository authority seam', async () => {
 	for (const field of ['profile', 'store', 'repositoryFactory', 'desktopProjectBridge']) {
 		let reads = 0;
 		const options = Object.defineProperty({}, field, {
@@ -57,7 +59,7 @@ test('qualification V20 environment exposes no profile, store, or repository aut
 	}
 });
 
-test('qualification V20 environment fails closed when durable storage is unavailable', async () => {
+test('selected V20 environment fails closed when durable storage is unavailable', async () => {
 	await assert.rejects(createFramescaperEditorProjectEnvironmentV20({
 		storeOptions: { indexedDB: null, preferOpfs: false },
 	}), /durable.*required|memory.*unsupported/iu);

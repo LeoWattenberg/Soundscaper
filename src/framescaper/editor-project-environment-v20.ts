@@ -5,13 +5,25 @@ import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/pr
 import type { ProjectDocument } from '../common/editor/storage/project-repository.ts';
 import { AudioEditorProjectStore } from '../common/editor/storage.js';
 import {
+	connectFramescaperDesktopProjectLibraryV12Renderer,
+	type FramescaperDesktopProjectLibraryV12Renderer,
+} from './desktop-project-library-v12-renderer.ts';
+import {
+	createFramescaperDesktopProjectStoreV12Adapter,
+} from './desktop-project-library-v12-store-adapter.ts';
+import {
 	createFramescaperPlaybackProjectServiceV20,
 } from './editor-project-playback-v20.ts';
 import {
 	createEditorProjectRuntimeV20Selection,
 	type EditorProjectRuntimeV20Selection,
 } from './editor-project-runtime-v20-selection.ts';
-import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from './editor-project-v20-profile.ts';
+import {
+	FramescaperProjectV18ClaimCleanupRepository,
+	type FramescaperProjectV18ClaimCleanupResult,
+} from './editor-project-v18-claim-cleanup-repository.ts';
+import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v20.ts';
+import { framescaperProjectStoreAuthorityV20 } from './editor-project-store-v20.ts';
 
 const OPTION_FIELDS = ['storeOptions'] as const;
 const PRODUCT_ENVIRONMENTS = new WeakSet<object>();
@@ -23,20 +35,24 @@ export interface FramescaperEditorProjectEnvironmentV20Options {
 export interface FramescaperEditorProjectEnvironmentV20 {
 	readonly runtime: Readonly<EditorProjectRuntimeV20Selection>;
 	readonly store: AudioEditorProjectStore;
+	readonly controllerStore: AudioEditorProjectStore;
+	readonly desktopProjectLibrary: FramescaperDesktopProjectLibraryV12Renderer | null;
 	readonly playback: PlaybackProjectService;
+	readonly claimCleanup: FramescaperProjectV18ClaimCleanupRepository;
+	readonly initialCleanup: Readonly<FramescaperProjectV18ClaimCleanupResult>;
 	readonly createProjectIfAbsent: (project: ProjectDocument) => Promise<ProjectDocument | null>;
 	readonly close: () => Promise<void>;
 }
 
 /**
- * Open a qualification-only exact V20 browser environment. Route selection and
- * capability availability are intentionally separate activation steps.
+ * Open the selected exact-V20 browser authority, including inherited capture
+ * attachment cleanup over its authenticated V18 preservation foundation.
  */
 export async function createFramescaperEditorProjectEnvironmentV20(
 	optionsValue: FramescaperEditorProjectEnvironmentV20Options | unknown = {},
 ): Promise<Readonly<FramescaperEditorProjectEnvironmentV20>> {
 	const options = snapshotOptions(optionsValue);
-	const runtime = createEditorProjectRuntimeV20Selection(FRAMESCAPER_V20_PROJECT_MODEL_PROFILE);
+	const runtime = createEditorProjectRuntimeV20Selection(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE);
 	const store = runtime.createProjectStore(options.storeOptions ?? {}) as AudioEditorProjectStore;
 	try {
 		await store.ready();
@@ -44,15 +60,47 @@ export async function createFramescaperEditorProjectEnvironmentV20(
 		if (!storageStatus?.persistent) {
 			throw new Error('Durable storage is required; memory V20 project storage is unsupported.');
 		}
+		const authority = framescaperProjectStoreAuthorityV20(
+			FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
+			store,
+		);
+		if (!authority.opfs) throw new TypeError('The exact V20 OPFS repository is required.');
+		const claimCleanup = new FramescaperProjectV18ClaimCleanupRepository(
+			FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
+			{ port: authority.port, opfs: authority.opfs },
+		);
+		const initialCleanup = await claimCleanup.reconcile({
+			sessionProjects: [], histories: [], pendingSaveSnapshots: [],
+		});
+		if (initialCleanup.status !== 'settled') {
+			throw new Error('Framescaper V20 startup claim cleanup is indeterminate.');
+		}
+		const desktopProjectLibrary = await connectFramescaperDesktopProjectLibraryV12Renderer(
+			FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
+			store,
+		);
+		const controllerStore = createFramescaperDesktopProjectStoreV12Adapter(
+			FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
+			{ localStore: store, desktopProjectLibrary },
+		) as AudioEditorProjectStore;
 		const environment = Object.freeze({
 			runtime,
 			store,
+			controllerStore,
+			desktopProjectLibrary,
+			claimCleanup,
+			initialCleanup,
 			playback: createFramescaperPlaybackProjectServiceV20(
-				FRAMESCAPER_V20_PROJECT_MODEL_PROFILE,
+				FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
 				{ timingStore: store },
 			),
-			createProjectIfAbsent: (project: ProjectDocument) => exactProjectRepository(store)
-				.createIfAbsent(project),
+			createProjectIfAbsent: controllerStore === store
+				? (project: ProjectDocument) => exactProjectRepository(store).createIfAbsent(project)
+				: (project: ProjectDocument) => (
+					controllerStore as unknown as Readonly<{
+						createProjectIfAbsent(value: unknown): Promise<ProjectDocument | null>;
+					}>
+				).createProjectIfAbsent(project),
 			close: () => store.close(),
 		});
 		PRODUCT_ENVIRONMENTS.add(environment);

@@ -10,11 +10,12 @@ import {
 	selectFramescaperVideoMimeType,
 } from './framescaper-browser-capture-source.ts';
 import type { FramescaperCaptureDesktopSelection } from './framescaper-capture-device-adapter.ts';
+import { isFramescaperCaptureProjectSchema } from '../project-schema-version.ts';
 
 export interface FramescaperCaptureRuntimeProbeOptions {
 	readonly availability: CaptureRuntimeAvailability;
 	readonly productId: string;
-	readonly routeSchemaVersion: 18 | 19;
+	readonly routeSchemaVersion: 18 | 19 | 20;
 	readonly embedded: boolean;
 	readonly desktop: FramescaperCaptureDesktopSelection | null;
 	readonly MediaRecorder: FramescaperBrowserRecorderFactoryOptions['MediaRecorder'];
@@ -32,7 +33,9 @@ export async function completeFramescaperCaptureRuntimeProbe(
 	input: Readonly<FramescaperCaptureRuntimeProbeOptions>,
 ): Promise<CaptureRuntimeAvailability> {
 	if (input.productId !== 'framescaper') return unavailable('unsupported-platform');
-	if (input.routeSchemaVersion !== (input.desktop ? 18 : 19)) return unavailable('unsupported-platform');
+	if (!isCaptureRouteForPlatform(input.routeSchemaVersion, Boolean(input.desktop))) {
+		return unavailable('unsupported-platform');
+	}
 	if (input.embedded && !input.desktop) return unavailable('embedded-route');
 	if (input.availability.status !== 'available') return input.availability;
 	if (!input.availability.sourceRoles.includes('display')) return unavailable('display-capture-unavailable');
@@ -63,6 +66,11 @@ export async function completeFramescaperCaptureRuntimeProbe(
 		? input.availability.sourceRoles.filter((role) => role !== 'system-audio')
 		: input.availability.sourceRoles;
 	return createCaptureRuntimeAvailability({ status: 'available', sourceRoles });
+}
+
+function isCaptureRouteForPlatform(value: unknown, desktop: boolean): value is 18 | 19 | 20 {
+	return isFramescaperCaptureProjectSchema(value)
+		&& (value === 20 || value === (desktop ? 18 : 19));
 }
 
 function unavailable(reason: Parameters<typeof createCaptureRuntimeAvailability>[0] extends infer _Value

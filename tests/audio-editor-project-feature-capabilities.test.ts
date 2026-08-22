@@ -15,7 +15,9 @@ import {
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION,
 	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 
 type Requirement = Readonly<{
@@ -38,7 +40,10 @@ test('the project registry covers project capabilities without absorbing applica
 	const featureIds = Object.values(PROJECT_FEATURE_CAPABILITY_IDS);
 	assert.equal(new Set(featureIds).size, featureIds.length);
 	for (const featureId of featureIds) {
-		assert.match(featureId, /^org\.soundscaper\.capability\.[a-z0-9]+(?:-[a-z0-9]+)*$/u);
+		assert.match(
+			featureId,
+			/^org\.soundscaper\.capability\.[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)*$/u,
+		);
 	}
 	assert.equal(Object.isFrozen(PROJECT_FEATURE_CAPABILITY_IDS), true);
 	assert.deepEqual([...PROJECT_FEATURE_AUDIO_EFFECT_TYPES].sort(), audioEffectTypes().sort());
@@ -89,8 +94,8 @@ test('capability availability is a strict immutable construction-time snapshot',
 test('dormant and future project schemas remain opaque to feature compatibility evaluation', () => {
 	const service = createProjectFeatureCompatibilityService(PRODUCT_PROFILES.soundscaper.capabilities);
 	for (const schemaVersion of [
-		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION + 1,
-		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1,
+		FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION + 2,
+		SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION + 1,
 	]) {
 		const unsupportedProject = {
 			schemaVersion,
@@ -106,7 +111,9 @@ test('selected product schemas retain feature compatibility evaluation after act
 	const service = createProjectFeatureCompatibilityService(PRODUCT_PROFILES.soundscaper.capabilities);
 	for (const schemaVersion of [
 		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+		FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION,
 		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+		SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION,
 	]) {
 		const report = service.evaluate({
 			...featureProject([

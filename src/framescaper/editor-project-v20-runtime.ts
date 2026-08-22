@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	brandRuntimeProjectProjection,
+	isRuntimeProjectProjection,
 	resolveRuntimeProjectProjection,
 	type RuntimeProjectProjection,
 } from '../common/editor/runtime-clip-projection.ts';
@@ -113,7 +115,10 @@ function detachVideoAuthoringOccurrences(
 		);
 		return Object.freeze({ ...clip, videoComposition: composition, videoKeyframes: keyframes });
 	});
-	return Object.freeze({ ...project, clips: Object.freeze(clips) }) as FramescaperProjectRuntimeFoundationV17;
+	const detached = Object.freeze({ ...project, clips: Object.freeze(clips) });
+	return (isRuntimeProjectProjection(project)
+		? brandRuntimeProjectProjection(detached)
+		: detached) as FramescaperProjectRuntimeFoundationV17;
 }
 
 function clipDuration(clip: DataRecord, name: string): Readonly<{ num: number; den: 1 }> {

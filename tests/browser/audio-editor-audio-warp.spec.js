@@ -7,8 +7,8 @@ import {
 } from '../../src/common/editor/project-media-factory.ts';
 import { exportScapeProject, SCAPE_MIME_TYPE } from '../../src/common/editor/scape-project.js';
 import { createProjectStore } from '../../src/common/editor/storage.js';
-import { createFramescaperProjectV19 } from '../../src/framescaper/editor-project-v19.ts';
-import { FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v19.ts';
+import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v20.ts';
+import { createFramescaperProjectV20 } from '../../src/framescaper/editor-project-v20.ts';
 import { createSoundscaperProjectV21 } from '../../src/soundscaper/editor-project-v21.ts';
 import {
 	assertAccessibleBasics,
@@ -187,7 +187,7 @@ test.describe('audio warp and transient workflow', () => {
 	test('Framescaper preserves authored warp maps read-only and exposes no menu or surface', async ({ page }) => {
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
-		await openAudioWarpArchive(editor, true, 'framescaper-v19');
+		await openAudioWarpArchive(editor, true, 'framescaper-v20');
 		const decision = page.getByRole('dialog', { name: 'Project features unavailable', exact: true });
 		await expect(decision).toBeVisible();
 		await expect(decision).toContainText('Audio warp maps');
@@ -330,8 +330,8 @@ async function createAudioWarpArchive(withWarpMap, authority) {
 			clips: [clip],
 			tracks: [createAudioTrack({ id: TRACK_ID, name: 'Drums', clipIds: [CLIP_ID] })],
 		};
-		const project = authority === 'framescaper-v19'
-			? createFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, options)
+		const project = authority === 'framescaper-v20'
+			? createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, options)
 			: createSoundscaperProjectV21(options);
 		const exported = await exportScapeProject(project, store);
 		if (!(exported.blob instanceof Blob)) throw new Error('Audio warp fixture export did not return a Blob.');

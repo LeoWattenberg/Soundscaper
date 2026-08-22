@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isFramescaperSequenceProjectSchema } from '../project-schema-version.ts';
+
 type DataRecord = Readonly<Record<string, unknown>>;
 
 interface MulticameraMember extends DataRecord {
@@ -90,7 +92,7 @@ export function createFramescaperMulticameraMenuItems(
 ): Readonly<FramescaperMulticameraMenu> | null {
 	if (input.productId !== 'framescaper') return null;
 	const project = record(input.project);
-	const enabled = (project?.schemaVersion === 18 || project?.schemaVersion === 19) && !input.editingBlocked;
+	const enabled = isFramescaperSequenceProjectSchema(project?.schemaVersion) && !input.editingBlocked;
 	const selectedClip = enabled ? selectedVideoClip(project) : null;
 	const groups = records(project?.multicameraGroups);
 	const current = selectedClip

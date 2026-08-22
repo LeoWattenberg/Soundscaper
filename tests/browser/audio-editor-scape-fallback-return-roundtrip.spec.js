@@ -12,9 +12,9 @@ import {
 import { createUnreportedVideoSourceCharacteristics } from '../../src/common/editor/video-source-characteristics.ts';
 import { resolveRuntimeClipProjection } from '../../src/common/editor/runtime-clip-projection.ts';
 import {
-	FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
-} from '../../src/framescaper/editor-project-runtime-profile-v19.ts';
-import { validateFramescaperProjectV19 } from '../../src/framescaper/editor-project-v19-validation.ts';
+	FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
+} from '../../src/framescaper/editor-project-runtime-profile-v20.ts';
+import { validateFramescaperProjectV20 } from '../../src/framescaper/editor-project-v20-validation.ts';
 import { validateSoundscaperProjectV23 } from '../../src/soundscaper/editor-project-v23-validation.ts';
 
 import {
@@ -64,14 +64,14 @@ const WORKFLOWS = [{
 	recipient: 'framescaper',
 	kind: 'audio',
 	role: 'project-audio-mix-v1',
-	schemaVersion: 19,
+	schemaVersion: 20,
 }, {
 	id: 'audio-track-render-web-roundtrip',
 	origin: 'framescaper',
 	recipient: 'framescaper',
 	kind: 'audio',
 	role: 'audio-track-render-v1',
-	schemaVersion: 19,
+	schemaVersion: 20,
 }, {
 	id: 'video-full-project-web-roundtrip',
 	origin: 'soundscaper',
@@ -168,8 +168,8 @@ async function createVideoBaseArchive(page, editor, id) {
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
 		timeout: 10_000,
 	});
-	const v19Archive = await exportScapeArchive(page, editor);
-	const archive = await promoteFramescaperArchiveToSoundscaperV23(v19Archive, {
+	const v20Archive = await exportScapeArchive(page, editor);
+	const archive = await promoteFramescaperArchiveToSoundscaperV23(v20Archive, {
 		id: `${id}-base`,
 		title: `${id} base`,
 	}, rewriteArchive);
@@ -317,8 +317,8 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 		if (project.schemaVersion !== workflow.schemaVersion) {
 			throw new Error(`${workflow.id} requires exact schema ${String(workflow.schemaVersion)}.`);
 		}
-		if (workflow.schemaVersion === 19) {
-			validateFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, project);
+		if (workflow.schemaVersion === 20) {
+			validateFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, project);
 		} else {
 			validateSoundscaperProjectV23(project);
 		}

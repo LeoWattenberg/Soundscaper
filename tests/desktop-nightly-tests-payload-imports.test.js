@@ -31,7 +31,6 @@ test('the nightly test payload satisfies every import its browser specs reach', 
 		.filter((path) => isStagedInput(relative(REPOSITORY_ROOT, path)));
 	const entryPoints = [
 		...browserTests,
-		await readDynamicHarnessPath(),
 		join(REPOSITORY_ROOT, 'scripts/lib/desktop-nightly-tests-metrics.mjs'),
 	];
 	assert.ok(browserTests.length > 0, 'the nightly payload must contain Playwright test files');
@@ -94,18 +93,22 @@ test('the nightly test payload satisfies every import its browser specs reach', 
 	);
 });
 
-test('the nightly payload stages browser harnesses loaded as dynamic esbuild entry points', async () => {
-	const harnessPath = relative(REPOSITORY_ROOT, await readDynamicHarnessPath());
+test('the nightly payload runs the selected V20 lifecycle against the shipped route', async () => {
+	const lifecyclePath = relative(REPOSITORY_ROOT, V20_LIFECYCLE_SPEC);
 	assert.ok(
-		isStagedInput(harnessPath),
-		`NIGHTLY_TEST_PAYLOAD_INPUTS is missing dynamic browser harness ${harnessPath}`,
+		isStagedInput(lifecyclePath),
+		`NIGHTLY_TEST_PAYLOAD_INPUTS is missing selected lifecycle ${lifecyclePath}`,
 	);
-	const packagedPath = packagedPathOf(harnessPath);
+	const packagedPath = packagedPathOf(lifecyclePath);
 	const packagedFilter = await readPackagedPayloadFilter();
 	assert.ok(
 		packagedPath !== null && packagedFilter.some((pattern) => matchesGlob(packagedPath, pattern)),
-		`the nightly-tests extraResources filter drops dynamic browser harness ${harnessPath}`,
+		`the nightly-tests extraResources filter drops selected lifecycle ${lifecyclePath}`,
 	);
+	const lifecycleSource = await readFile(V20_LIFECYCLE_SPEC, 'utf8');
+	assert.match(lifecycleSource, /bootEditor\(page, '\/framescaper\/embed\/en\/'\)/u);
+	assert.doesNotMatch(lifecycleSource, /HARNESS_PATH|source-rewriting|writeFile\(|esbuild/u,
+		'the selected lifecycle must exercise the real product route without generating source');
 });
 
 test('the nightly launcher ASAR satisfies every local import it reaches', async () => {
@@ -141,15 +144,6 @@ test('the nightly launcher ASAR satisfies every local import it reaches', async 
 		`The packaged launcher would fail before writing results:\n  ${missing.join('\n  ')}`,
 	);
 });
-
-async function readDynamicHarnessPath() {
-	const lifecycleSpec = await readFile(V20_LIFECYCLE_SPEC, 'utf8');
-	const harnessPath = lifecycleSpec.match(
-		/const HARNESS_PATH = resolve\(REPOSITORY_ROOT, '([^']+)'\);/u,
-	)?.[1];
-	assert.ok(harnessPath, 'the V20 lifecycle spec must declare its dynamic harness path');
-	return join(REPOSITORY_ROOT, harnessPath);
-}
 
 function isStagedInput(input) {
 	if (input.startsWith('..') || isAbsolute(input)) return false;

@@ -32,7 +32,7 @@ export interface FramescaperProjectStoreV20Options extends AudioEditorProjectSto
 	readonly store?: AudioEditorProjectStore;
 }
 
-/** Construct the isolated dormant V20 store without selecting a product route. */
+/** Construct the isolated selected V20 store. */
 export function createFramescaperProjectStoreV20(
 	profile: FramescaperProjectV20Profile | unknown,
 	options: FramescaperProjectStoreV20Options | unknown = {},

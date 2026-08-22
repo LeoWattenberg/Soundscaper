@@ -27,7 +27,7 @@ export interface FramescaperScapeNativeStoreV20 {
 	loadProject?(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown> | unknown;
 }
 
-/** Bind the portable archive implementation to the unselected exact V20 model. */
+/** Bind the portable archive implementation to the selected exact V20 runtime. */
 export function createFramescaperScapeNativeRuntimeV20(
 	profile: FramescaperProjectV20Profile | unknown,
 ) {

@@ -31,7 +31,7 @@ const REQUIRED_SOURCE_COMBINATIONS = Object.freeze([
 	Object.freeze({ roles: ['camera', 'display', 'microphone'], calls: ['display', 'user'], tracks: 4, systemAudio: true }),
 ]);
 
-test.describe('Framescaper V19 recoverable capture', () => {
+test.describe('Framescaper selected-V20 recoverable capture', () => {
 	registerAudioEditorHooks();
 
 	test('is default-hidden and opens setup without implicit device access', async ({ browserName, page }) => {

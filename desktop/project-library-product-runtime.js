@@ -8,8 +8,7 @@ const START_FIELDS = Object.freeze([
 const BRIDGE_FIELDS = Object.freeze([
 	'desktopRoot', 'handle', 'ownerFor', 'removeHandler', 'session',
 ]);
-const V10_PRELOAD_BY_PRODUCT = Object.freeze({
-	framescaper: 'project-library-v10-sandbox-preload.cjs',
+const EXACT_PRELOAD_BY_PRODUCT = Object.freeze({
 	soundscaper: 'soundscaper-project-library-v10-sandbox-preload.cjs',
 });
 
@@ -27,28 +26,28 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 		throw new TypeError('Desktop project-library startup seams are invalid');
 	}
 	if (productId === 'framescaper') {
-		const [{ createFramescaperDesktopProjectLibraryV10Handshake },
-			{ FramescaperDesktopProjectLibraryV10Main },
-			{ registerFramescaperDesktopProjectLibraryV10MainIpc }] = await Promise.all([
-			import('./project-library-runtime/desktop/project-library-v10-contract.js'),
-			import('./project-library-runtime/desktop/project-library-v10-main.js'),
-			import('./project-library-runtime/desktop/project-library-v10-main-ipc.js'),
+		const [{ createFramescaperDesktopProjectLibraryV12Handshake },
+			{ FramescaperDesktopProjectLibraryV12Main },
+			{ registerFramescaperDesktopProjectLibraryV12MainIpc }] = await Promise.all([
+			import('./project-library-runtime/desktop/project-library-v12-contract.js'),
+			import('./project-library-runtime/desktop/project-library-v12-main.js'),
+			import('./project-library-runtime/desktop/project-library-v12-main-ipc.js'),
 		]);
-		const host = await FramescaperDesktopProjectLibraryV10Main.start({
+		const host = await FramescaperDesktopProjectLibraryV12Main.start({
 			appDataPath,
 			owner,
-			handshake: createFramescaperDesktopProjectLibraryV10Handshake(),
+			handshake: createFramescaperDesktopProjectLibraryV12Handshake(),
 		});
 		return new DesktopProjectLibraryProductRuntime({
 			productId,
 			host,
-			register: (bridge) => registerFramescaperDesktopProjectLibraryV10MainIpc({
+			register: (bridge) => registerFramescaperDesktopProjectLibraryV12MainIpc({
 				handle: bridge.handle,
 				removeHandler: bridge.removeHandler,
 				ownerFor: bridge.ownerFor,
 				main: host,
 			}),
-			smokeEvidence: (projectId) => createV10SmokeEvidence(host, projectId, 'Framescaper'),
+			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Framescaper', 'V12'),
 		});
 	}
 	if (productId === 'soundscaper') {
@@ -74,7 +73,7 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 				ownerFor: bridge.ownerFor,
 				main: host,
 			}),
-			smokeEvidence: (projectId) => createV10SmokeEvidence(host, projectId, 'Soundscaper'),
+			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Soundscaper', 'V10'),
 		});
 	}
 	const [{ registerDesktopProjectLibraryIpc }, { createDesktopProjectLibrarySmokeEvidence },
@@ -108,7 +107,7 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 	});
 }
 
-async function createV10SmokeEvidence(host, projectId, productName) {
+async function createExactSmokeEvidence(host, projectId, productName, generation) {
 	const session = host.openSession(host.localHandshake);
 	let bundle = null;
 	let readFailure = null;
@@ -119,14 +118,14 @@ async function createV10SmokeEvidence(host, projectId, productName) {
 		if (readFailure) {
 			throw new AggregateError(
 				[readFailure, error],
-				`${productName} V10 smoke readback cleanup failed`,
+				`${productName} ${generation} smoke readback cleanup failed`,
 				{ cause: error },
 			);
 		}
 		throw error;
 	}
 	if (readFailure) throw readFailure;
-	if (!bundle) throw new Error(`${productName} V10 smoke project was not persisted by main`);
+	if (!bundle) throw new Error(`${productName} ${generation} smoke project was not persisted by main`);
 	const snapshot = host.snapshot();
 	return Object.freeze({
 		host: Object.freeze({
@@ -172,6 +171,20 @@ class DesktopProjectLibraryProductRuntime {
 		return this.#smokeEvidence(projectId);
 	}
 
+	nativeServicesAuthority() {
+		if (this.#productId !== 'framescaper'
+			|| typeof this.#host.nativeProjectState !== 'function'
+			|| typeof this.#host.nativeProjectRecord !== 'function'
+			|| typeof this.#host.readNativeProjectBundle !== 'function'
+			|| typeof this.#host.readNativeBody !== 'function') return null;
+		return Object.freeze({
+			projectState: (projectId) => this.#host.nativeProjectState(projectId),
+			projectRecord: (projectId) => this.#host.nativeProjectRecord(projectId),
+			readProjectBundle: (projectId) => this.#host.readNativeProjectBundle(projectId),
+			readBody: (body) => this.#host.readNativeBody(body),
+		});
+	}
+
 	registerRendererBridge(value) {
 		if (this.#closed) throw new Error('Desktop project-library product runtime is closed');
 		if (this.#bridge) throw new Error('Desktop project-library renderer bridge is already registered');
@@ -181,11 +194,11 @@ class DesktopProjectLibraryProductRuntime {
 			throw new TypeError('Desktop project-library renderer bridge seams are invalid');
 		}
 		let preloadId = null;
-		const preloadFile = V10_PRELOAD_BY_PRODUCT[this.#productId];
+		const preloadFile = EXACT_PRELOAD_BY_PRODUCT[this.#productId];
 		if (preloadFile) {
 			if (!options.session || typeof options.session.registerPreloadScript !== 'function'
 				|| typeof options.session.unregisterPreloadScript !== 'function') {
-				throw new TypeError(`${this.#productId} V10 requires an exact session preload owner`);
+				throw new TypeError(`${this.#productId} requires an exact project-library session preload owner`);
 			}
 			preloadId = options.session.registerPreloadScript({
 				type: 'frame',

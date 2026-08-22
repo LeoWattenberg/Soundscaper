@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
-
 import { createEditorProjectStorageProfile, editorProjectStorageProfileNames,
 	type EditorProjectStorageProfile, type EditorProjectStorageProfileNames,
 } from '../src/common/editor/storage/project-storage-profile.ts';
@@ -19,7 +18,6 @@ import { OpfsSyncWorkerClient, type OpfsSyncWorkerClientOptions,
 import type { StorageRepositories, StorageRepositoryFactory,
 	StorageRepositoryOptions } from '../src/common/editor/storage/repositories.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
-
 const ROOT = resolve(import.meta.dirname, '..');
 const PREREQUISITE_MODULE = 'src/framescaper/editor-project-runtime-profile-v18-prerequisite.ts';
 const PRODUCT_MODULE = 'src/framescaper/editor-project-storage-profile-v18.ts';
@@ -32,7 +30,6 @@ const FRAME_NAMES = Object.freeze({
 	opfsWorkerName: 'framescaper-editor-v18-opfs-storage',
 	projectLockPrefix: 'kw-media-framescaper-editor-v18-lock:',
 } as const satisfies EditorProjectStorageProfileNames);
-
 interface ProfileRoutingNames { readonly opfsDirectoryName: string; readonly opfsWorkerName: string; }
 type ProfiledRepositoryOptions = StorageRepositoryOptions & ProfileRoutingNames;
 type ProfiledOpfsRepositoryOptions = OpfsRepositoryOptions & ProfileRoutingNames;
@@ -42,7 +39,7 @@ type ProfiledWorkerClientOptions = Omit<OpfsSyncWorkerClientOptions, 'workerFact
 };
 interface FinishedProjectLock { release(): void; readonly finished: Promise<unknown>; }
 
-test('owns only the opaque generic API and exact dormant Framescaper profile', () => {
+test('owns only the opaque generic API and exact selected Framescaper profile', () => {
 	assert.deepEqual(Object.keys(projectStorageProfileModule).sort(), [
 		'createEditorProjectStorageProfile',
 		'editorProjectStorageProfileNames',
@@ -444,13 +441,16 @@ test('the exact Framescaper selector remains isolated across maintained product 
 		'tests/desktop-video-timing-probe-smoke.test.js',
 	]);
 	assert.deepEqual([...literalOwners], [
-		'desktop/framescaper-v18-artifact-smoke.js', 'desktop/project-library-v10-contract.ts',
+		'desktop/framescaper-v18-artifact-smoke.js',
+		'desktop/project-library-v10-contract.ts',
 		'desktop/video-timing-probe-smoke.js', PRODUCT_MODULE, TEST_MODULE,
 		'tests/audio-editor-framescaper-project-store-v18.test.ts',
-		'tests/browser/framescaper-v18-exit-observation.spec.js', 'tests/desktop-framescaper-v18-artifact-smoke.test.js',
+		'tests/browser/framescaper-v18-exit-observation.spec.js',
+		'tests/desktop-framescaper-v18-artifact-smoke.test.js',
 		'tests/desktop-project-library-v10-contract.test.ts', 'tests/desktop-project-library-v10-proxy-media-inventory.test.ts',
-		// The timing probe derives these names from the profile now, not literally.
-		'tests/desktop-smoke.test.js', 'tests/helpers/framescaper-v18-archive-fixture.ts',
+		// Selected desktop smoke owns V20/V12 names. The historical artifact fixture
+		// and timing probe continue to derive legacy V18 names from the exact profile.
+		'tests/helpers/framescaper-v18-archive-fixture.ts',
 	]);
 	const genericSource = await readFile(resolve(ROOT, 'src/common/editor/storage/project-storage-profile.ts'), 'utf8');
 	assert.doesNotMatch(genericSource, /framescaper/iu);

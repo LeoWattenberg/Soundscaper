@@ -5,8 +5,10 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import vm from 'node:vm';
 
-import { createDesktopSmokeProbe } from '../desktop/desktop-smoke.js';
-import { runFramescaperV18ArtifactRendererSmoke } from '../desktop/framescaper-v18-artifact-smoke.js';
+import {
+	joinFramescaperV18ArtifactEvidence,
+	runFramescaperV18ArtifactRendererSmoke,
+} from '../desktop/framescaper-v18-artifact-smoke.js';
 
 test('Framescaper artifact renderer witnesses the exact ready UI, V10 preload, handshake, and V18 bundle', async () => {
 	const fixture = rendererFixture();
@@ -39,48 +41,20 @@ test('Framescaper artifact renderer refuses preload drift and UI/bundle disagree
 	);
 });
 
-test('Framescaper artifact probe waits for renderer readiness and joins sanitized V18 main evidence', async () => {
-	const renderer = rendererFixture().expected;
-	const main = validMainEvidence(renderer.framescaperV18.project);
-	const capture = validCaptureEvidence();
-	const fixture = artifactProbeFixture(renderer, main, capture);
-	fixture.probe.attach(fixture.window);
-
-	await fixture.window.webContents.emit('did-finish-load');
-	assert.equal(fixture.window.webContents.executions.length, 0, 'load alone must not inspect an unready V18 UI');
-	assert.deepEqual(fixture.exits, []);
-
-	await fixture.probe.rendererReady();
-
-	assert.equal(fixture.window.webContents.executions.length, 3);
-	assert.deepEqual(fixture.evidenceCalls, [renderer.framescaperV18.project.projectId]);
-	assert.deepEqual(fixture.exits, [0]);
-	assert.equal(fixture.errors.length, 0);
-	const payload = JSON.parse(fixture.logs[0].slice('SOUNDSCAPER_DESKTOP_SMOKE '.length));
-	assert.deepEqual(payload, {
-		...renderer,
-		desktopChrome: validDesktopChrome(),
-		framescaperCapture: capture,
-		framescaperV18: { ...renderer.framescaperV18, main },
-	});
-	assert.doesNotMatch(JSON.stringify(payload), /metadataFile|instanceId|processId|libraryRoot|"document"/iu);
+test('the historical V18 boundary joins only sanitized renderer and main evidence', () => {
+	const renderer = rendererFixture().expected.framescaperV18;
+	const main = validMainEvidence(renderer.project);
+	const result = joinFramescaperV18ArtifactEvidence(renderer, main);
+	assert.deepEqual(result, { ...renderer, main });
+	assert.doesNotMatch(JSON.stringify(result), /metadataFile|instanceId|processId|libraryRoot|"document"/iu);
 });
 
-test('Framescaper artifact probe rejects renderer and main V18 readback disagreement', async () => {
-	const renderer = rendererFixture().expected;
-	const main = validMainEvidence(renderer.framescaperV18.project);
-	const fixture = artifactProbeFixture(renderer, {
-		...main,
-		project: { ...main.project, sha256: 'cd'.repeat(32) },
-	});
-	fixture.probe.attach(fixture.window);
-
-	await fixture.probe.rendererReady();
-
-	assert.deepEqual(fixture.exits, [2]);
-	assert.equal(fixture.logs.length, 0);
-	assert.equal(fixture.errors.length, 1);
-	assert.match(fixture.errors[0], /SOUNDSCAPER_DESKTOP_SMOKE failed:.*V18.*match|readback/iu);
+test('the historical V18 boundary rejects renderer and main readback disagreement', () => {
+	const renderer = rendererFixture().expected.framescaperV18;
+	const main = validMainEvidence(renderer.project);
+	assert.throws(() => joinFramescaperV18ArtifactEvidence(renderer, {
+		...main, project: { ...main.project, sha256: 'cd'.repeat(32) },
+	}), /V18.*match|readback/iu);
 });
 
 function rendererFixture({ omitPreloadMethod = null, uiTitle = 'Untitled project' } = {}) {
@@ -222,86 +196,5 @@ function validMainEvidence(project) {
 			activePublication: false,
 		},
 		project: { ...project },
-	};
-}
-
-function validCaptureEvidence() {
-	return {
-		preloadBridge: ['grant', 'listSources', 'status', 'teardown'],
-		status: {
-			version: 1,
-			available: true,
-			unavailableReason: null,
-			selectionMode: 'source-list',
-			systemAudio: 'unavailable',
-			sourceLimit: 64,
-			sourceListTtlMs: 300_000,
-			grantTtlMs: 15_000,
-		},
-		grant: {
-			generation: 1,
-			expiresAtMs: 1_015_000,
-			roles: ['camera', 'microphone'],
-			opaqueId: true,
-		},
-		teardown: { retired: true, retiredAgain: false },
-	};
-}
-
-function artifactProbeFixture(executionResult, evidence, captureEvidence = validCaptureEvidence()) {
-	const logs = [];
-	const errors = [];
-	const exits = [];
-	const evidenceCalls = [];
-	const window = fakeWindow(executionResult, validDesktopChrome(), captureEvidence);
-	const probe = createDesktopSmokeProbe({
-		argv: ['/opt/Framescaper', '--soundscaper-smoke'],
-		appName: 'Framescaper',
-		appOrigin: 'framescaper-app://bundle',
-		productId: 'framescaper',
-		exit: async (code) => { exits.push(code); },
-		log: (value) => { logs.push(value); },
-		reportError: (value) => { errors.push(value); },
-		projectLibraryEvidence: async (projectId) => {
-			evidenceCalls.push(projectId);
-			return evidence;
-		},
-		setTimeout: () => 1,
-		clearTimeout: () => undefined,
-	});
-	return { errors, evidenceCalls, exits, logs, probe, window };
-}
-
-function fakeWindow(...executionResults) {
-	const listeners = new Map();
-	let executionIndex = 0;
-	const webContents = {
-		executions: [],
-		once(name, listener) { listeners.set(name, listener); },
-		async executeJavaScript(source) {
-			this.executions.push(source);
-			return structuredClone(executionResults[executionIndex++]);
-		},
-		async emit(name, ...args) {
-			const listener = listeners.get(name);
-			listeners.delete(name);
-			return listener?.(...args);
-		},
-	};
-	return { webContents };
-}
-
-function validDesktopChrome() {
-	return {
-		documentDesktop: true,
-		shellDesktop: true,
-		fullBleed: true,
-		customHeader: true,
-		titlebarDraggable: true,
-		controlsNoDrag: true,
-		controlsVisible: true,
-		maximizeEnabled: true,
-		controlOrder: ['fullscreen', 'minimize', 'maximize', 'quit'],
-		fileAccessKey: 'Alt+F',
 	};
 }

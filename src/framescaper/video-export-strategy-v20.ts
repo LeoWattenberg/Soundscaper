@@ -57,7 +57,7 @@ const DEFAULT_DEPENDENCIES: FramescaperVideoExportStrategyV20Dependencies = Obje
 	encodeOfflineToSink: encodeVideoKeyframeOfflineVideoToSink as OfflineSinkEncoder,
 });
 
-/** Own the dormant V20 choice while common code retains delivery/publication ownership. */
+/** Own the selected V20 choice while common code retains delivery/publication ownership. */
 export function createFramescaperVideoExportStrategyV20(
 	profile: FramescaperProjectV20Profile | unknown,
 	dependenciesValue: FramescaperVideoExportStrategyV20Dependencies | unknown = DEFAULT_DEPENDENCIES,

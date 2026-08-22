@@ -82,6 +82,9 @@ test('the Tracks menu creates one bounded zero-offset group from explicit select
 	assert.equal(createFramescaperMulticameraMenuItems({
 		productId: 'framescaper', project: { ...project(), schemaVersion: 19 }, editingBlocked: false, copy: COPY,
 	}, { execute: () => undefined })?.disabled, false);
+	assert.equal(createFramescaperMulticameraMenuItems({
+		productId: 'framescaper', project: { ...project(), schemaVersion: 20 }, editingBlocked: false, copy: COPY,
+	}, { execute: () => undefined })?.disabled, false);
 });
 
 test('the Tracks menu switches, frame-nudges, and removes only the selected group', () => {

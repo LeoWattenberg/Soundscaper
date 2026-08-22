@@ -54,6 +54,7 @@ import {
 import {
 	capturedVideoProxySchedulerDependenciesV18,
 	capturedVideoProxySchedulerDependenciesV19,
+	capturedVideoProxySchedulerDependenciesV20,
 	type CapturedVideoProxySchedulerDependencies,
 	type FramescaperCapturedVideoProxyRuntimeComposition,
 } from './editor-captured-video-proxy-scheduler-composition.ts';
@@ -73,6 +74,7 @@ import {
 } from './editor-captured-video-proxy-request.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV18 } from './editor-project-feature-requirements-v18.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV19 } from './editor-project-feature-requirements-v19.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV20 } from './editor-project-feature-requirements-v20.ts';
 import type { CapturedVideoProxyControllerTicket } from './editor-captured-video-proxy-session-reconciliation.ts';
 import {
 	acquireFramescaperVideoProxyAttachmentBudgetV18,
@@ -104,6 +106,16 @@ export function createFramescaperCapturedVideoProxySchedulerV19(
 	composition: FramescaperCapturedVideoProxyRuntimeComposition,
 ): FramescaperCapturedVideoProxyScheduler {
 	return createScheduler(capturedVideoProxySchedulerDependenciesV19(
+		environmentValue, sessionValue, composition,
+	));
+}
+
+export function createFramescaperCapturedVideoProxySchedulerV20(
+	environmentValue: unknown,
+	sessionValue: unknown,
+	composition: FramescaperCapturedVideoProxyRuntimeComposition,
+): FramescaperCapturedVideoProxyScheduler {
+	return createScheduler(capturedVideoProxySchedulerDependenciesV20(
 		environmentValue, sessionValue, composition,
 	));
 }
@@ -532,7 +544,9 @@ function nextAttachedProject(
 	draft.updatedAt = new Date(Math.max(Date.now(), baseTime + 1)).toISOString();
 	draft.featureRequirements = dependencies.schemaVersion === 18
 		? reconcileFramescaperProjectFeatureRequirementsV18(dependencies.profile, draft)
-		: reconcileFramescaperProjectFeatureRequirementsV19(dependencies.profile, draft);
+		: dependencies.schemaVersion === 19
+			? reconcileFramescaperProjectFeatureRequirementsV19(dependencies.profile, draft)
+			: reconcileFramescaperProjectFeatureRequirementsV20(dependencies.profile, draft);
 	return cloneProject(dependencies, draft);
 }
 

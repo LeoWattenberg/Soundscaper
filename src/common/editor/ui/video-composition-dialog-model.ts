@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { selectAudioEditorEditBlock, type AudioEditorEditBlockingSnapshot } from '../edit-blocking.ts';
+import { isFramescaperVideoCompositionProjectSchema } from '../project-schema-version.ts';
 import {
 	normalizeVideoClipComposition,
 	type VideoClipComposition,
@@ -62,13 +63,13 @@ export interface VideoCompositionBatchCommand {
 	readonly commands: readonly VideoCompositionSetCommand[];
 }
 
-/** Project the one selected timeline video clip from an exact V19 document. */
+/** Project the selected timeline video clip from a composition-owning document. */
 export function resolveSelectedVideoCompositionClip(
 	projectValue: unknown,
 	selectedClipIdValue: unknown,
 ): Readonly<SelectedVideoCompositionClip> | null {
 	const project = dataRecord(projectValue);
-	if (!project || project.schemaVersion !== 19) return null;
+	if (!project || !isFramescaperVideoCompositionProjectSchema(project.schemaVersion)) return null;
 	const selectedClipIds = selectedIds(project, selectedClipIdValue);
 	if (selectedClipIds.length !== 1) return null;
 	const clips = dataRecords(project.clips);
@@ -95,7 +96,8 @@ export function createVideoCompositionDialogModel(
 	input: VideoCompositionDialogModelInput,
 ): Readonly<VideoCompositionDialogModel> {
 	const project = dataRecord(input.project);
-	if (input.productId !== 'framescaper' || !input.capability || project?.schemaVersion !== 19) {
+	if (input.productId !== 'framescaper' || !input.capability
+		|| !isFramescaperVideoCompositionProjectSchema(project?.schemaVersion)) {
 		return emptyModel('unsupported');
 	}
 	const selected = resolveSelectedVideoCompositionClip(input.project, input.snapshot.selectedClipId);

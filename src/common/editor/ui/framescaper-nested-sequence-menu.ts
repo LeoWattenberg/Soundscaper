@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isFramescaperSequenceProjectSchema } from '../project-schema-version.ts';
+
 type DataRecord = Readonly<Record<string, unknown>>;
 
 interface NestedSequenceValue extends DataRecord {
@@ -65,7 +67,7 @@ export function createFramescaperNestedSequenceMenuItems(
 	if (input.productId !== 'framescaper') return null;
 	const project = record(input.project);
 	const schemaVersion = safeInteger(project?.schemaVersion, 18);
-	const exactAuthority = schemaVersion === 18 || schemaVersion === 19;
+	const exactAuthority = isFramescaperSequenceProjectSchema(schemaVersion);
 	const sequences = records(project?.sequences);
 	const subsequences = records(project?.subsequences);
 	const primaryId = typeof project?.primarySequenceId === 'string' ? project.primarySequenceId : null;

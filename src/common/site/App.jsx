@@ -1,21 +1,19 @@
 import { lazy, Suspense } from 'react';
 
 import { bundledCopyForLocale } from '../i18n/catalogs.js';
+import '../editor/ui/audio-editor-design-system.css';
 import BrandSidebar from './BrandSidebar.jsx';
 import './site.css';
 
 const SoundscaperAudioEditorBootstrapV23 = lazy(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrapV23.tsx'));
-const FramescaperAudioEditorBootstrapV18 = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrapV18.tsx'));
-const FramescaperAudioEditorBootstrapV19 = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrapV19.tsx'));
+const FramescaperAudioEditorBootstrapV20 = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrapV20.tsx'));
 
 export default function App({ route }) {
 	const { desktop, direction, embedded, locale, productId } = route;
 	const copy = bundledCopyForLocale(locale);
 	const EditorBootstrap = productId !== 'framescaper'
 		? SoundscaperAudioEditorBootstrapV23
-		: hasFramescaperDesktopBridge()
-			? FramescaperAudioEditorBootstrapV18
-			: FramescaperAudioEditorBootstrapV19;
+		: FramescaperAudioEditorBootstrapV20;
 	const intro = productId === 'framescaper' ? {
 		eyebrow: copy.framescaperEyebrow,
 		title: copy.framescaperTitle,
@@ -44,10 +42,6 @@ export default function App({ route }) {
 			</main>
 		</div>
 	);
-}
-
-function hasFramescaperDesktopBridge() {
-	return typeof globalThis.framescaperDesktop?.v1 === 'object';
 }
 
 export function applyDocumentRoute(route) {

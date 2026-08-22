@@ -12,7 +12,7 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
-import { FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
+import { FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
 import { asymmetricStereoTone, expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	assertAccessibleBasics,
@@ -161,7 +161,7 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens exact V19 audio rack effects as persistent control-free bypass placeholders', async ({ page }) => {
+	test('opens exact V20 audio rack effects as persistent control-free bypass placeholders', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const publisher = await bootEditor(page, '/framescaper/embed/en/');
 		await expect(publisher).toHaveAttribute('data-product', 'framescaper');
@@ -173,9 +173,9 @@ test.describe('Scape open feature decisions', () => {
 		const incomingId = `${originalId}-audio-effect`;
 		const archive = await rewriteArchive(exported, ({ project }) => {
 			project.id = incomingId;
-			project.title = 'Exact V19 audio effect';
+			project.title = 'Exact V20 audio effect';
 			const track = project.tracks.find((candidate) => candidate.type === 'audio');
-			if (!track) throw new Error('V19 audio-effect fixture requires an audio track.');
+			if (!track) throw new Error('V20 audio-effect fixture requires an audio track.');
 			track.effectsActive = true;
 			track.effects = [{ id: 'fixture-invert', type: 'audacity-invert', enabled: true, params: {} }];
 			project.featureRequirements = publisherRequirementManifest(project, {
@@ -200,7 +200,7 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('plays an admitted exact V19 audio-effects render in Framescaper', async ({ page }) => {
+	test('plays an admitted exact V20 audio-effects render in Framescaper', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const publisher = await bootEditor(page, '/framescaper/embed/en/');
 		const originalId = await publisher.getAttribute('data-project-id');
@@ -211,7 +211,7 @@ test.describe('Scape open feature decisions', () => {
 		const incomingId = `${originalId}-audio-render`;
 		const archive = await audioEffectsRenderedFallbackArchive(exported, {
 			id: incomingId,
-			title: 'Exact V19 rendered fallback',
+			title: 'Exact V20 rendered fallback',
 			fallbackSourceName: asymmetricStereoTone.name,
 		});
 		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
@@ -253,7 +253,7 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('streams an oversized admitted exact V19 audio-effects render in Framescaper', async ({ page }) => {
+	test('streams an oversized admitted exact V20 audio-effects render in Framescaper', async ({ page }) => {
 		test.setTimeout(120_000);
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const errors = collectClientErrors(page);
@@ -266,7 +266,7 @@ test.describe('Scape open feature decisions', () => {
 		const incomingId = `${originalId}-streamed-audio-render`;
 		const archive = await audioEffectsRenderedFallbackArchive(exported, {
 			id: incomingId,
-			title: 'Exact V19 streamed fallback',
+			title: 'Exact V20 streamed fallback',
 			fallbackSourceName: asymmetricStereoTone.name,
 			fallbackFrameCount: OVERSIZED_FALLBACK_FRAME_COUNT,
 		});
@@ -532,9 +532,9 @@ async function audioEffectsRenderedFallbackArchive(input, {
 	fallbackFrameCount = null,
 }) {
 	return rewriteArchive(input, ({ project, manifest, payloads }) => {
-		if (project.schemaVersion !== FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION) {
+		if (project.schemaVersion !== FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION) {
 			throw new Error(
-				`Rendered fallback fixture requires schema ${FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION}.`,
+				`Rendered fallback fixture requires schema ${FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION}.`,
 			);
 		}
 		project.id = id;

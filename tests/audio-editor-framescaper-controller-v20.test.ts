@@ -20,9 +20,12 @@ const {
 const {
 	createFramescaperEditorProjectEnvironmentV20,
 } = await import('../src/framescaper/editor-project-environment-v20.ts');
+const {
+	framescaperNativeProjectActionRuntimeFor,
+} = await import('../src/common/editor/ui/framescaper-native-project-actions.ts');
 const { createInstrumentedIndexedDB } = await import('./helpers/instrumented-indexeddb.js');
 
-test('dormant V20 controller activates one fresh writable exact project authority', async (context) => {
+test('selected V20 controller activates one fresh writable exact project authority', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV20({
 		storeOptions: {
 			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
@@ -47,6 +50,11 @@ test('dormant V20 controller activates one fresh writable exact project authorit
 	assert.equal(controller.project.schemaVersion, 20);
 	assert.equal(controller.project.title, 'Framescaper V20');
 	assert.equal((await environment.store.loadProject(ready.project.id))?.schemaVersion, 20);
+	assert.deepEqual(
+		framescaperNativeProjectActionRuntimeFor(controller)?.surfaces,
+		['render-queue-enqueue'],
+		'selected V20 advertises its queue action without candidate-only mutations',
+	);
 });
 
 test('V20 controller rejects cloned environments and caller-owned authority options', async (context) => {

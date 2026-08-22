@@ -72,7 +72,7 @@ const CANVAS_FIELDS = [
 	'maximumWidth', 'maximumHeight', 'maximumFrameRate',
 ] as const;
 
-/** Build an unselected V7 plan only after exact V20 and keyed-range authentication. */
+/** Build a selected V7 keyed plan only after exact V20 and range authentication. */
 export function createFramescaperVideoKeyframeExportPlanV20(
 	profile: FramescaperProjectV20Profile | unknown,
 	projectValue: FramescaperProjectV20 | unknown,

@@ -1,19 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { createAudioEditorFileService } from '../../common/editor/file-service.js';
+import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
 import { resolveCatalog } from '../../common/i18n/runtime.js';
 import { createSoundscaperAudioEditorControllerV23 } from '../editor-controller-v23.ts';
 import {
 	createSoundscaperEditorProjectEnvironmentV23,
 	type SoundscaperEditorProjectEnvironmentV23,
 } from '../editor-project-environment-v23.ts';
-
-const BoundAudioEditorApp = lazy(async () => {
-	const module = await import('../../common/editor/ui/AudioEditorApp.jsx');
-	return { default: module.BoundAudioEditorApp };
-});
 
 type SoundscaperWebControllerV23 = ReturnType<typeof createSoundscaperAudioEditorControllerV23>;
 type SoundscaperWebFileServiceV23 = ReturnType<typeof createAudioEditorFileService>;

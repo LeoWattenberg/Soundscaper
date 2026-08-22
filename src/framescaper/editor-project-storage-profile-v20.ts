@@ -2,7 +2,7 @@
 
 import { createEditorProjectStorageProfile } from '../common/editor/storage/project-storage-profile.ts';
 
-/** V20 keeps its dormant model data isolated from every selected project route. */
+/** Selected V20 storage remains isolated from every other project generation. */
 export const FRAMESCAPER_V20_PROJECT_STORAGE_PROFILE = createEditorProjectStorageProfile({
 	databaseName: 'kw-media-framescaper-editor-v20',
 	opfsDirectoryName: 'framescaper-editor-v20-sources',

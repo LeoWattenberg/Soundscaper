@@ -24,7 +24,7 @@ import { opacityKeyframes } from './helpers/framescaper-v20-model-fixture.ts';
 const PROFILE = FRAMESCAPER_V20_PROJECT_MODEL_PROFILE;
 const NOW = '2026-08-13T12:00:00.000Z';
 
-test('V20 runtime composition authenticates model authority before optional traversal', () => {
+test('V20 runtime composition authenticates selected authority before optional traversal', () => {
 	let reads = 0;
 	const options = new Proxy({}, {
 		get() { reads += 1; throw new Error('option get'); },
@@ -37,7 +37,7 @@ test('V20 runtime composition authenticates model authority before optional trav
 	assert.equal(reads, 0);
 });
 
-test('V20 qualification runtime composes exact projects, commands, histories, and projections', () => {
+test('selected V20 runtime composes exact projects, commands, histories, and projections', () => {
 	const runtime = createEditorProjectRuntimeV20Selection(PROFILE);
 	const project = projectFixture('selected-v20');
 	assert.equal(runtime.validateProject(project), true);
@@ -65,7 +65,7 @@ test('V20 qualification runtime composes exact projects, commands, histories, an
 	);
 });
 
-test('V20 qualification session opens exact documents and future documents read-only', () => {
+test('selected V20 session opens exact documents and future documents read-only', () => {
 	const runtime = createEditorProjectRuntimeV20Selection(PROFILE);
 	const session = runtime.createSessionController();
 	const project = projectFixture('session-v20');
@@ -85,7 +85,7 @@ test('V20 qualification session opens exact documents and future documents read-
 	))?.readOnly, true);
 });
 
-test('V20 qualification runtime owns isolated store and lock profiles', async () => {
+test('selected V20 runtime owns isolated store and lock profiles', async () => {
 	const runtime = createEditorProjectRuntimeV20Selection(PROFILE);
 	const store = runtime.createProjectStore({ indexedDB: null, preferOpfs: false }) as {
 		databaseName: string;
@@ -105,7 +105,7 @@ test('V20 qualification runtime owns isolated store and lock profiles', async ()
 			enumerable: true,
 			get() { reads += 1; throw new Error('authority getter'); },
 		});
-		assert.throws(() => runtime.createProjectStore(options), /authority override|V20 qualification/iu);
+		assert.throws(() => runtime.createProjectStore(options), /authority override|selected V20/iu);
 		assert.equal(reads, 0);
 	}
 	assert.throws(

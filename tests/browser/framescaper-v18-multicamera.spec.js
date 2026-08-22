@@ -24,7 +24,7 @@ test.describe('Framescaper selected-web multicamera workflow', () => {
 		}));
 	});
 
-	test('creates, switches, saves, and reopens an exact V19 camera group from Tracks', async ({ page, browserName }, testInfo) => {
+	test('creates, switches, saves, and reopens an exact selected-V20 camera group from Tracks', async ({ page, browserName }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit',
 			'Playwright WebKit rejects the IndexedDB Blob write that persists imported A/V sources.');
 		test.setTimeout(180_000);
@@ -68,6 +68,7 @@ test.describe('Framescaper selected-web multicamera workflow', () => {
 		await expect.poll(async () => JSON.stringify(await storedMulticamera(page, projectId)))
 			.toContain('"groupCount":1');
 		const created = await storedMulticamera(page, projectId);
+		expect(created.schemaVersion).toBe(20);
 		const initialActiveMemberId = created.activeMemberId;
 		expect(initialActiveMemberId).toBeTruthy();
 		expect(created.requirementIds).toContain(MULTICAMERA_REQUIREMENT_ID);
@@ -128,6 +129,7 @@ async function storedMulticamera(page, projectId) {
 	const groups = latest?.multicameraGroups || [];
 	const group = groups[0] || null;
 	return {
+		schemaVersion: latest?.schemaVersion ?? null,
 		groupCount: groups.length,
 		memberCount: group?.members?.length || 0,
 		activeMemberId: group?.activeMemberId || null,

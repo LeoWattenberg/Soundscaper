@@ -14,6 +14,7 @@ import type { AudioEditorProjectStore } from '../../src/common/editor/storage.js
 import {
 	createFramescaperCapturedVideoProxySchedulerV18,
 	createFramescaperCapturedVideoProxySchedulerV19,
+	createFramescaperCapturedVideoProxySchedulerV20,
 	type FramescaperCapturedVideoProxyScheduler,
 } from '../../src/framescaper/editor-captured-video-proxy-scheduler.ts';
 import {
@@ -24,8 +25,13 @@ import {
 	createFramescaperEditorProjectEnvironmentV19,
 	type FramescaperEditorProjectEnvironmentV19,
 } from '../../src/framescaper/editor-project-environment-v19.ts';
+import {
+	createFramescaperEditorProjectEnvironmentV20,
+	type FramescaperEditorProjectEnvironmentV20,
+} from '../../src/framescaper/editor-project-environment-v20.ts';
 import { framescaperProjectStoreAuthorityV18 } from '../../src/framescaper/editor-project-store-v18.ts';
 import { framescaperProjectStoreAuthorityV19 } from '../../src/framescaper/editor-project-store-v19.ts';
+import { framescaperProjectStoreAuthorityV20 } from '../../src/framescaper/editor-project-store-v20.ts';
 import {
 	FramescaperDesktopV10MainFixture,
 	installFramescaperDesktopV10Bridge,
@@ -38,7 +44,8 @@ import {
 } from './video-proxy-relationship-fixtures.ts';
 
 export type CapturedProxyEnvironment = Readonly<FramescaperEditorProjectEnvironmentV18>
-	| Readonly<FramescaperEditorProjectEnvironmentV19>;
+	| Readonly<FramescaperEditorProjectEnvironmentV19>
+	| Readonly<FramescaperEditorProjectEnvironmentV20>;
 
 export interface CapturedProxyFixture {
 	readonly environment: CapturedProxyEnvironment;
@@ -53,7 +60,7 @@ export interface CapturedProxyFixture {
 
 export async function createCapturedProxyFixture(
 	context: TestContext,
-	schemaVersion: 18 | 19,
+	schemaVersion: 18 | 19 | 20,
 	secondVideo = false,
 	generatorGate?: ReturnType<typeof deferred<void>>,
 	desktopMain?: FramescaperDesktopV10MainFixture,
@@ -69,7 +76,9 @@ export async function createCapturedProxyFixture(
 	};
 	const environment: CapturedProxyEnvironment = schemaVersion === 18
 		? await createFramescaperEditorProjectEnvironmentV18(options)
-		: await createFramescaperEditorProjectEnvironmentV19(options);
+		: schemaVersion === 19
+			? await createFramescaperEditorProjectEnvironmentV19(options)
+			: await createFramescaperEditorProjectEnvironmentV20(options);
 	context.after(() => environment.close());
 	const relationship = createVideoProxyFixture({ ...(generatorGate ? { generatorGate } : {}) });
 	const originalSha256 = await digestMediaContent(relationship.original);
@@ -140,10 +149,15 @@ export async function createCapturedProxyFixture(
 			runtime: null,
 			candidateObserver: relationship.candidateObserver,
 		})
-		: createFramescaperCapturedVideoProxySchedulerV19(environment, session, {
-			runtime: null,
-			candidateObserver: relationship.candidateObserver,
-		});
+		: schemaVersion === 19
+			? createFramescaperCapturedVideoProxySchedulerV19(environment, session, {
+				runtime: null,
+				candidateObserver: relationship.candidateObserver,
+			})
+			: createFramescaperCapturedVideoProxySchedulerV20(environment, session, {
+				runtime: null,
+				candidateObserver: relationship.candidateObserver,
+			});
 	return {
 		environment,
 		controllerStore,
@@ -204,7 +218,9 @@ export function nextCapturedProxyOrdinaryRevision(
 	draft.updatedAt = new Date(new Date(String(draft.updatedAt)).getTime() + 1).toISOString();
 	return (Number(draft.schemaVersion) === 18
 		? (environment as FramescaperEditorProjectEnvironmentV18).runtime.cloneProject(draft)
-		: (environment as FramescaperEditorProjectEnvironmentV19).runtime.cloneProject(draft)) as unknown as Record<string, unknown>;
+		: Number(draft.schemaVersion) === 19
+			? (environment as FramescaperEditorProjectEnvironmentV19).runtime.cloneProject(draft)
+			: (environment as FramescaperEditorProjectEnvironmentV20).runtime.cloneProject(draft)) as unknown as Record<string, unknown>;
 }
 
 export async function capturedProxyStorageInventory(environment: CapturedProxyEnvironment): Promise<Readonly<{
@@ -214,7 +230,7 @@ export async function capturedProxyStorageInventory(environment: CapturedProxyEn
 }>> {
 	const authority = 'controllerStore' in environment
 		? framescaperProjectStoreAuthorityV18(environment.runtime.profile, environment.store)
-		: framescaperProjectStoreAuthorityV19(environment.runtime.profile, environment.store);
+		: framescaperV19OrV20StoreAuthority(environment);
 	const database = await authority.port.database();
 	assert.ok(database);
 	const [bodies, staging] = await transact(
@@ -238,6 +254,17 @@ export async function capturedProxyStorageInventory(environment: CapturedProxyEn
 		tombstoneKeys: Object.freeze(records(staging).filter(({ kind }) => kind === VIDEO_PROXY_CLEANUP_TOMBSTONE_KIND)
 			.map(({ key }) => String(key)).sort()),
 	});
+}
+
+function framescaperV19OrV20StoreAuthority(
+	environment: Readonly<FramescaperEditorProjectEnvironmentV19>
+		| Readonly<FramescaperEditorProjectEnvironmentV20>,
+) {
+	try {
+		return framescaperProjectStoreAuthorityV19(environment.runtime.profile, environment.store);
+	} catch {
+		return framescaperProjectStoreAuthorityV20(environment.runtime.profile, environment.store);
+	}
 }
 
 export async function writeCapturedProxyOrdinaryBody(

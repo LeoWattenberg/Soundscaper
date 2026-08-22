@@ -22,7 +22,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // mounts them: the newest profile present is not the one that owns data.
 test('the browser workflows open the database the web Framescaper bootstrap mounts', async () => {
 	const app = await readFile(resolve(ROOT, 'src/common/site/App.jsx'), 'utf8');
-	const mounted = /hasFramescaperDesktopBridge\(\)\s*\?\s*FramescaperAudioEditorBootstrapV\d+\s*:\s*FramescaperAudioEditorBootstrapV(\d+)/u
+	const mounted = /productId !== 'framescaper'[\s\S]*?:\s*FramescaperAudioEditorBootstrapV(\d+)/u
 		.exec(app);
 	assert.ok(
 		mounted,

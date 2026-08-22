@@ -4,6 +4,10 @@ import type {
 	PlaybackProjectProjection,
 	PlaybackProjectService,
 } from '../common/editor/controller/playback-project-service.ts';
+import { projectFeatureAudioEffectPlaybackBypass } from '../common/editor/project-feature-audio-effect-bypass.ts';
+import { projectFeatureAudioRenderedFallbackPlayback } from '../common/editor/project-feature-audio-rendered-fallback.ts';
+import { projectFeatureVideoEffectPlaybackBypass } from '../common/editor/project-feature-video-effect-bypass.ts';
+import { projectFeatureVideoRenderedFallbackPlayback } from '../common/editor/project-feature-video-rendered-fallback.ts';
 import { registerVideoTimingIndex } from '../common/editor/video-source-time.ts';
 import {
 	loadVideoTimingAsset,
@@ -35,8 +39,8 @@ export interface FramescaperPlaybackProjectServiceV20Options {
 }
 
 /**
- * Qualify exact V20 playback while preserving authored keyframes on every
- * materialized occurrence. This service is dormant until route activation.
+ * Run selected exact-V20 playback while preserving authored keyframes on every
+ * materialized occurrence.
  */
 export function createFramescaperPlaybackProjectServiceV20(
 	profile: FramescaperProjectV20Profile | unknown,
@@ -97,15 +101,19 @@ export function createFramescaperPlaybackProjectServiceV20(
 		}
 		validateFramescaperProjectV20(profile, project);
 		const canonical = project as unknown as FramescaperProjectV20;
+		const projected = compatibilityProjection(canonical, compatibility.evaluate(canonical));
 		return Object.freeze({
 			project,
-			featureRequirementsReport: compatibility.evaluate(canonical),
-			audioEffectPlaybackBypass: null,
-			audioRenderedFallback: null,
-			videoEffectPlaybackBypass: null,
-			videoRenderedFallback: null,
-			requiredAudioSourceIds: EMPTY_SOURCE_IDS,
-			requiredVideoSourceIds: multicameraMemberSourceIds(canonical),
+			featureRequirementsReport: projected.featureRequirementsReport,
+			audioEffectPlaybackBypass: projected.audioEffectPlaybackBypass,
+			audioRenderedFallback: projected.audioRenderedFallback,
+			videoEffectPlaybackBypass: projected.videoEffectPlaybackBypass,
+			videoRenderedFallback: projected.videoRenderedFallback,
+			requiredAudioSourceIds: projected.requiredAudioSourceIds,
+			requiredVideoSourceIds: frozenSourceIds(
+				projected.requiredVideoSourceIds,
+				multicameraMemberSourceIds(canonical),
+			),
 		});
 	}
 
@@ -116,16 +124,18 @@ export function createFramescaperPlaybackProjectServiceV20(
 			return opaqueProjection(project);
 		}
 		const canonical = project as unknown as FramescaperProjectV20;
+		const featureRequirementsReport = compatibility.evaluate(canonical);
 		const runtimeProject = framescaperProjectForPlaybackFoundationV20(profile, canonical);
+		const projected = compatibilityProjection(runtimeProject, featureRequirementsReport);
 		return Object.freeze({
-			project: runtimeProject as unknown as Project,
-			featureRequirementsReport: compatibility.evaluate(canonical),
-			audioEffectPlaybackBypass: null,
-			audioRenderedFallback: null,
-			videoEffectPlaybackBypass: null,
-			videoRenderedFallback: null,
-			requiredAudioSourceIds: EMPTY_SOURCE_IDS,
-			requiredVideoSourceIds: EMPTY_SOURCE_IDS,
+			project: projected.project as unknown as Project,
+			featureRequirementsReport: projected.featureRequirementsReport,
+			audioEffectPlaybackBypass: projected.audioEffectPlaybackBypass,
+			audioRenderedFallback: projected.audioRenderedFallback,
+			videoEffectPlaybackBypass: projected.videoEffectPlaybackBypass,
+			videoRenderedFallback: projected.videoRenderedFallback,
+			requiredAudioSourceIds: projected.requiredAudioSourceIds,
+			requiredVideoSourceIds: projected.requiredVideoSourceIds,
 		});
 	}
 
@@ -134,12 +144,49 @@ export function createFramescaperPlaybackProjectServiceV20(
 		return Object.freeze({
 			project: projection.project,
 			featureRequirementsReport: projection.featureRequirementsReport,
-			audioRenderedFallback: null,
-			videoRenderedFallback: null,
-			requiredAudioSourceIds: EMPTY_SOURCE_IDS,
-			requiredVideoSourceIds: EMPTY_SOURCE_IDS,
+			audioRenderedFallback: projection.audioRenderedFallback,
+			videoRenderedFallback: projection.videoRenderedFallback,
+			requiredAudioSourceIds: projection.requiredAudioSourceIds,
+			requiredVideoSourceIds: projection.requiredVideoSourceIds,
 		});
 	}
+
+	function compatibilityProjection<Project extends object>(
+		project: Project,
+		featureRequirementsReport: ReturnType<typeof compatibility.evaluate>,
+	) {
+		const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(project, featureRequirementsReport);
+		const renderedVideo = projectFeatureVideoRenderedFallbackPlayback(
+			renderedAudio.project,
+			featureRequirementsReport,
+		);
+		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
+			renderedVideo.project,
+			featureRequirementsReport,
+		);
+		const bypassedVideo = projectFeatureVideoEffectPlaybackBypass(
+			bypassedAudio.project,
+			featureRequirementsReport,
+		);
+		return Object.freeze({
+			project: bypassedVideo.project,
+			featureRequirementsReport,
+			audioEffectPlaybackBypass: bypassedAudio.metadata,
+			audioRenderedFallback: renderedAudio.metadata,
+			videoEffectPlaybackBypass: bypassedVideo.metadata,
+			videoRenderedFallback: renderedVideo.metadata,
+			requiredAudioSourceIds: Object.freeze(
+				renderedAudio.metadata ? [renderedAudio.metadata.sourceId] : [],
+			),
+			requiredVideoSourceIds: Object.freeze(
+				renderedVideo.metadata ? [renderedVideo.metadata.sourceId] : [],
+			),
+		});
+	}
+}
+
+function frozenSourceIds(...groups: readonly (readonly string[])[]): readonly string[] {
+	return Object.freeze([...new Set(groups.flat())].sort((left, right) => left.localeCompare(right)));
 }
 
 function multicameraMemberSourceIds(project: FramescaperProjectV20): readonly string[] {

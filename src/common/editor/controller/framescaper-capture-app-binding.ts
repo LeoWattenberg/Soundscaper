@@ -31,6 +31,7 @@ import type {
 	FramescaperCaptureSessionActions,
 	FramescaperCaptureSessionService,
 } from './framescaper-capture-session-types.ts';
+import { isFramescaperCaptureProjectSchema } from '../project-schema-version.ts';
 
 type PassThroughOptions = Pick<FramescaperCaptureAppCompositionOptions,
 	'mediaDevices' | 'createStream' | 'MediaRecorder' | 'MediaStreamTrackProcessor'
@@ -44,7 +45,7 @@ type PassThroughOptions = Pick<FramescaperCaptureAppCompositionOptions,
 
 export interface FramescaperCaptureAppProject extends Record<string, unknown> {
 	readonly id: string;
-	readonly schemaVersion: 18 | 19;
+	readonly schemaVersion: 18 | 19 | 20;
 	readonly revision: number;
 	readonly updatedAt?: unknown;
 	readonly sampleRate: number;
@@ -124,7 +125,7 @@ export function createFramescaperCaptureAppBinding(
 		throw new TypeError('Framescaper capture app binding options are required.');
 	}
 	if (options.productId !== 'framescaper') return null;
-	if (options.routeSchemaVersion !== (options.isDesktop ? 18 : 19)) return null;
+	if (!isCaptureRouteForPlatform(options.routeSchemaVersion, options.isDesktop)) return null;
 	assertBindingOptions(options);
 	const projects = createFramescaperCaptureAppProjectRepository(options);
 	const projectPublication = createFramescaperCaptureProjectPublicationPort({
@@ -296,7 +297,7 @@ function routeProject(value: unknown, routeSchemaVersion: number): FramescaperCa
 		throw new TypeError('Framescaper capture requires an exact route project.');
 	}
 	const project = value as Partial<FramescaperCaptureAppProject>;
-	if ((routeSchemaVersion !== 18 && routeSchemaVersion !== 19)
+	if (!isFramescaperCaptureProjectSchema(routeSchemaVersion)
 		|| project.schemaVersion !== routeSchemaVersion) {
 		throw new RangeError('Framescaper capture project does not match its exact route schema.');
 	}
@@ -308,6 +309,11 @@ function routeProject(value: unknown, routeSchemaVersion: number): FramescaperCa
 		throw new TypeError('Framescaper capture project requires sequences.');
 	}
 	return project as FramescaperCaptureAppProject;
+}
+
+function isCaptureRouteForPlatform(value: unknown, desktop: boolean): value is 18 | 19 | 20 {
+	return isFramescaperCaptureProjectSchema(value)
+		&& (value === 20 || value === (desktop ? 18 : 19));
 }
 
 function projectSequence(project: FramescaperCaptureAppProject, sequenceId: string) {

@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createAudioEditorController } from '../common/editor/app.js';
+import { createFramescaperCapturedVideoProxySchedulerV20 } from './editor-captured-video-proxy-scheduler.ts';
+import { bindFramescaperNativeRenderQueueActionV20 } from './editor-native-render-queue-action-v20.ts';
 import {
 	assertFramescaperEditorProjectEnvironmentV20,
 	type FramescaperEditorProjectEnvironmentV20,
@@ -19,7 +21,7 @@ export interface FramescaperAudioEditorControllerPresentationV20 {
 	readonly fileService?: unknown;
 }
 
-/** Bind the common controller to the dormant exact-V20 browser authority. */
+/** Bind the common controller to the selected exact-V20 browser authority. */
 export function createFramescaperAudioEditorControllerV20(
 	environmentValue: FramescaperEditorProjectEnvironmentV20 | unknown,
 	presentationValue: FramescaperAudioEditorControllerPresentationV20 | unknown = {},
@@ -36,11 +38,13 @@ export function createFramescaperAudioEditorControllerV20(
 		...createFramescaperSequenceActionsV18(execute),
 		...createFramescaperMulticameraActionsV18(execute),
 	});
+	const sessionController = environment.runtime.createSessionController();
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
-		store: environment.store,
-		sessionController: environment.runtime.createSessionController(),
+		framescaperCaptureRouteSchemaVersion: 20,
+		store: environment.controllerStore,
+		sessionController,
 		acquireProjectLock: environment.runtime.acquireProjectLock,
 		projectRuntime: environment.runtime,
 		playbackProjectService: environment.playback,
@@ -48,9 +52,13 @@ export function createFramescaperAudioEditorControllerV20(
 		scapeProjectRuntime,
 		productSequenceActions,
 		productVideoExportStrategy: createFramescaperVideoExportStrategyV20(environment.runtime.profile),
+		createFramescaperCaptureProxyScheduler: (composition: Readonly<Record<string, unknown>>) => (
+			createFramescaperCapturedVideoProxySchedulerV20(environment, sessionController, composition as never)
+		),
 		...presentation,
 	});
 	executeProductSequenceCommand = (command) => controller.actions.edit.commit(command);
+	bindFramescaperNativeRenderQueueActionV20(environment.runtime.profile, controller);
 	return controller;
 }
 

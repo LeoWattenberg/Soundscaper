@@ -174,7 +174,7 @@ test('model selection and project reads reject accessor authority without invoca
 	assert.equal(reads, 0);
 });
 
-test('the keyframe entry is menu-only, exact-V20-only, and dormant under the shipped capability', () => {
+test('the keyframe entry is menu-only, exact-V20-only, and available under the shipped capability', () => {
 	const opened: string[] = [];
 	const input = {
 		productId: 'framescaper', capability: true, project: project(),

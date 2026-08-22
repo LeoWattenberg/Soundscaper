@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ProjectFeatureRequirementsManifest } from '../common/editor/project-feature-requirements.ts';
+import { FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION } from '../common/editor/project-schema-version.ts';
 import {
 	normalizeVideoKeyframeCurves,
 	type VideoKeyframeCurves,
@@ -20,7 +21,7 @@ import {
 	type FramescaperProjectV20ValidationOptions,
 } from './editor-project-v20-structural-admission.ts';
 
-export const FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION = 20 as const;
+export { FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION } from '../common/editor/project-schema-version.ts';
 
 export type { FramescaperProjectV20ValidationOptions } from './editor-project-v20-structural-admission.ts';
 

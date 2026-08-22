@@ -86,6 +86,34 @@ test('V20 ordered batch defaults clip/add before set and rolls back a stale late
 	assert.equal(project.clips.some(({ id }) => id === 'added-video'), false);
 });
 
+test('V20 defaults a freshly added video only after its A/V-linked audio peer lands', () => {
+	const project = structuredClone(fixture()) as FramescaperProjectV20;
+	for (const track of project.tracks) {
+		(track as unknown as Record<string, unknown>).laneGroupId = 'fresh-media-lane';
+	}
+	const edited = apply(project, {
+		type: 'batch',
+		commands: [
+			{
+				...videoAddCommand('linked-video', 10),
+				clip: { ...videoAddCommand('linked-video', 10).clip, avLinkId: 'fresh-av-link' },
+			},
+			{
+				type: 'clip/add',
+				trackId: 'audio-track',
+				clip: {
+					kind: 'audio', id: 'linked-audio', sourceId: 'audio-source', title: 'Linked audio',
+					timelineStartFrame: 48_000, sourceStartFrame: 0, sourceDurationFrames: 48_000,
+					durationFrames: 48_000, avLinkId: 'fresh-av-link',
+				},
+			},
+		],
+	});
+	assert.equal(edited.revision, project.revision + 1);
+	assert.deepEqual(keyframes(edited, 'linked-video'), createDefaultVideoKeyframeCurves(10));
+	assert.equal(edited.clips.find(({ id }) => id === 'linked-audio')?.avLinkId, 'fresh-av-link');
+});
+
 test('V20 treats remove then keyless same-ID add as a fresh video occurrence', () => {
 	const seeded = apply(fixture(), setKeyframes(
 		'video-clip', createDefaultVideoKeyframeCurves(10), opacityKeyframes(),
@@ -189,7 +217,10 @@ function videoPasteCommand(): AudioEditorCommand {
 	};
 }
 
-function videoAddCommand(id: string, sequenceStartFrame: number): AudioEditorCommand {
+function videoAddCommand(
+	id: string,
+	sequenceStartFrame: number,
+): Extract<AudioEditorCommand, { readonly type: 'clip/add' }> {
 	return {
 		type: 'clip/add',
 		trackId: 'video-track',

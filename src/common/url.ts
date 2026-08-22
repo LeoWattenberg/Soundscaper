@@ -3,7 +3,7 @@ export function withBase(href: string): string {
 		return href;
 	}
 
-	const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+	const base = (import.meta.env?.BASE_URL ?? '').replace(/\/$/, '');
 
 	if (!base || href.startsWith(`${base}/`)) {
 		return href;

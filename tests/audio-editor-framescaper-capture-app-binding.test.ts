@@ -29,6 +29,12 @@ test('the app binding exists only on exact maintained Framescaper routes', () =>
 	assert.throws(() => createFramescaperCaptureAppBinding({
 		productId: 'framescaper', routeSchemaVersion: 19, isDesktop: false,
 	} as never), /dependencies are incomplete/iu);
+	assert.throws(() => createFramescaperCaptureAppBinding({
+		productId: 'framescaper', routeSchemaVersion: 20, isDesktop: false,
+	} as never), /dependencies are incomplete/iu);
+	assert.throws(() => createFramescaperCaptureAppBinding({
+		productId: 'framescaper', routeSchemaVersion: 20, isDesktop: true,
+	} as never), /dependencies are incomplete/iu);
 });
 
 test('desktop binding without its capture bridge remains available as a truthful unavailable runtime', async () => {
@@ -319,7 +325,7 @@ test('binding initialization is media-cold and start reserves one writable origi
 });
 
 function project(
-	schemaVersion: 18 | 19,
+	schemaVersion: 18 | 19 | 20,
 	revision: number,
 	id = 'project-a',
 ): FramescaperCaptureAppProject {

@@ -4,9 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import {
-	createDefaultVideoKeyframeCurves,
-} from '../src/common/editor/video-keyframe-curves.ts';
+import { createDefaultVideoKeyframeCurves } from '../src/common/editor/video-keyframe-curves.ts';
 import {
 	DEFAULT_VIDEO_CLIP_COMPOSITION,
 	normalizeVideoClipComposition,
@@ -109,6 +107,19 @@ test('V20 inherited V19 and common commands preserve keyframes and default new v
 	assert.deepEqual(videoKeyframes(added, 'video-clip'), authored);
 });
 
+test('V20 defaults keyframes on video occurrences allocated by insert and overwrite edits', () => {
+	for (const mode of ['insert', 'overwrite'] as const) {
+		const clipId = `${mode}-video`;
+		const edited = apply(projectFixture(), {
+			type: `edit/${mode}`, startFrame: mode === 'insert' ? 48_000 : 0,
+			endFrame: mode === 'insert' ? 96_000 : 48_000, trackIds: ['video-track'],
+			placements: [{ trackId: 'video-track', clipId, sourceId: 'video-source',
+				kind: 'video', sourceIn: 0, sourceCount: 10 }],
+			splitClipIds: {}, splitAvLinkIds: {}, videoEffectIds: {},
+		});
+		assert.deepEqual(videoKeyframes(edited, clipId), createDefaultVideoKeyframeCurves(10));
+	}
+});
 test('V20 private inherited edits partition and rejoin keyframes without opening public V19', () => {
 	const authored = opacityKeyframes();
 	const keyed = apply(

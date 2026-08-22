@@ -30,11 +30,18 @@ import {
 	assertFramescaperEditorProjectEnvironmentV19,
 	type FramescaperEditorProjectEnvironmentV19,
 } from './editor-project-environment-v19.ts';
+import {
+	assertFramescaperEditorProjectEnvironmentV20,
+	type FramescaperEditorProjectEnvironmentV20,
+} from './editor-project-environment-v20.ts';
 import { framescaperProjectStoreAuthorityV18 } from './editor-project-store-v18.ts';
 import { framescaperProjectStoreAuthorityV19 } from './editor-project-store-v19.ts';
+import { framescaperProjectStoreAuthorityV20 } from './editor-project-store-v20.ts';
 import { framescaperProjectForAuthoredFoundationV18 } from './editor-project-v18-runtime.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v18.ts';
 import { framescaperProjectV18FoundationV19 } from './editor-project-v19-validation.ts';
+import { FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v19.ts';
+import { framescaperProjectV19FoundationV20 } from './editor-project-v20-validation.ts';
 import type { FramescaperVideoProxyCapacityStoreV18 } from './editor-video-proxy-attachment-capacity-v18.ts';
 
 export interface FramescaperCapturedVideoProxyRuntimeComposition
@@ -149,6 +156,47 @@ export function capturedVideoProxySchedulerDependenciesV19(
 		loadAuthoritativeProject: (projectId, signal) => Promise.resolve(environment.store.loadProject(
 			projectId, signal ? { signal } : {},
 		)),
+		claimCleanup: environment.claimCleanup,
+		synchronizeActiveProject: composition.synchronizeActiveProject ?? null,
+		quiesceProjectSaves: composition.quiesceProjectSaves ?? null,
+		session,
+		candidateObserver: candidateObserver(composition),
+		port: authority.port,
+		opfs: authority.opfs,
+		policy: capturedVideoProxySchedulerPolicy(composition as unknown as Readonly<Record<string, unknown>>),
+	};
+}
+
+export function capturedVideoProxySchedulerDependenciesV20(
+	environmentValue: FramescaperEditorProjectEnvironmentV20 | unknown,
+	sessionValue: unknown,
+	composition: FramescaperCapturedVideoProxyRuntimeComposition,
+): CapturedVideoProxySchedulerDependencies {
+	const environment = assertFramescaperEditorProjectEnvironmentV20(environmentValue);
+	const session = assertSession(sessionValue);
+	const authority = framescaperProjectStoreAuthorityV20(environment.runtime.profile, environment.store);
+	if (!authority.opfs) throw new TypeError('Captured V20 proxy scheduling requires exact OPFS authority.');
+	return {
+		schemaVersion: 20,
+		profile: environment.runtime.profile,
+		store: environment.store as CapturedVideoProxySchedulerStore,
+		projectForRelationship: (project) => framescaperProjectForAuthoredFoundationV18(
+			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+			framescaperProjectV18FoundationV19(
+				FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+				framescaperProjectV19FoundationV20(environment.runtime.profile, project),
+			),
+		),
+		loadAuthoritativeProject: (projectId, signal) => Promise.resolve(environment.controllerStore.loadProject(
+			projectId, signal ? { signal } : {},
+		)),
+		...(environment.controllerStore === environment.store ? {} : {
+			publishDesktopProject: (project: unknown, signal?: AbortSignal, beforeFinish?: () => PromiseLike<void> | void) => (
+				environment.desktopProjectLibrary!.publishProject({
+					project, ...(signal ? { signal } : {}), ...(beforeFinish ? { beforeFinish } : {}),
+				})
+			),
+		}),
 		claimCleanup: environment.claimCleanup,
 		synchronizeActiveProject: composition.synchronizeActiveProject ?? null,
 		quiesceProjectSaves: composition.quiesceProjectSaves ?? null,

@@ -7,6 +7,7 @@ import {
 	createVideoSource,
 	createVideoTrack,
 } from '../src/common/editor/project-media-factory.ts';
+import { isRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import {
 	reconcileFramescaperProjectFeatureRequirementsV20,
 } from '../src/framescaper/editor-project-feature-requirements-v20.ts';
@@ -25,7 +26,7 @@ import { opacityKeyframes } from './helpers/framescaper-v20-model-fixture.ts';
 
 const PROFILE = FRAMESCAPER_V20_PROJECT_MODEL_PROFILE;
 
-test('V20 runtime authenticates its model authority before project traversal', () => {
+test('V20 runtime authenticates its selected authority before project traversal', () => {
 	let reads = 0;
 	const hostile = new Proxy({}, {
 		get() { reads += 1; throw new Error('project get'); },
@@ -36,7 +37,7 @@ test('V20 runtime authenticates its model authority before project traversal', (
 		framescaperProjectForCommandConsumersV20,
 		framescaperProjectForPlaybackFoundationV20,
 		framescaperProjectForRuntimeConsumersV20,
-	]) assert.throws(() => operation({}, hostile), /exact Framescaper V20 model profile/iu);
+	]) assert.throws(() => operation({}, hostile), /exact Framescaper V20 runtime profile/iu);
 	assert.equal(reads, 0);
 });
 
@@ -45,6 +46,7 @@ test('V20 command and runtime projections retain detached authored keyframes', (
 	const persisted = videoKeyframes(project.clips[0]);
 	const command = framescaperProjectForCommandConsumersV20(PROFILE, project);
 	const runtime = framescaperProjectForRuntimeConsumersV20(PROFILE, project);
+	assert.equal(isRuntimeProjectProjection(command), true);
 	for (const projected of [command, runtime]) {
 		const clips = projectClips(projected);
 		assert.equal(projected.schemaVersion, 17);

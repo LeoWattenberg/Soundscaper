@@ -37,7 +37,7 @@ test('V20 authenticates its exact authority before traversing hostile project in
 		() => cloneFramescaperProjectV20({}, hostile),
 		() => loadFramescaperProjectV20({}, hostile),
 		() => framescaperProjectV19FoundationV20({}, hostile),
-	] as const) assert.throws(operation, /exact Framescaper V20 model profile/iu);
+	] as const) assert.throws(operation, /exact Framescaper V20 runtime profile/iu);
 	assert.equal(traps, 0);
 });
 

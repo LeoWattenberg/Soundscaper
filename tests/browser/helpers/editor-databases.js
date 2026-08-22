@@ -11,8 +11,8 @@
 // profile in the tree when this needs updating again.
 export const SOUNDSCAPER_DATABASE_NAME = 'kw-media-soundscaper-editor-v23';
 export const SOUNDSCAPER_OPFS_DIRECTORY_NAME = 'soundscaper-editor-v23-sources';
-export const FRAMESCAPER_DATABASE_NAME = 'kw-media-framescaper-editor-v19';
-export const FRAMESCAPER_OPFS_DIRECTORY_NAME = 'framescaper-editor-v19-sources';
+export const FRAMESCAPER_DATABASE_NAME = 'kw-media-framescaper-editor-v20';
+export const FRAMESCAPER_OPFS_DIRECTORY_NAME = 'framescaper-editor-v20-sources';
 
 export function editorDatabaseName(product) {
 	if (product === 'framescaper') return FRAMESCAPER_DATABASE_NAME;

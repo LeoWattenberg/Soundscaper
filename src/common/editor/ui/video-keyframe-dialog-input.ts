@@ -2,7 +2,7 @@
 
 export type VideoKeyframeUiDataRecord = Readonly<Record<string, unknown>>;
 
-/** Descriptor-safe projections used by the dormant V20 inspector boundary. */
+/** Descriptor-safe projections used by the selected V20 inspector boundary. */
 export function ordinaryVideoKeyframeUiRecord(value: unknown): VideoKeyframeUiDataRecord | null {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 	const prototype = Object.getPrototypeOf(value);

@@ -104,7 +104,7 @@ export type { FramescaperCaptureDesktopBridgeV1 } from './framescaper-capture-de
 
 export interface FramescaperCaptureAppCompositionOptions {
 	readonly productId: string;
-	readonly routeSchemaVersion: 18 | 19;
+	readonly routeSchemaVersion: 18 | 19 | 20;
 	readonly embedded: boolean;
 	readonly store?: FramescaperCaptureAppStore | null;
 	readonly mediaDevices?: BrowserCaptureSourcePortDependencies['mediaDevices'];

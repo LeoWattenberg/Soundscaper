@@ -21,7 +21,7 @@ import {
 import VideoCompositionDialog from '../src/common/editor/ui/inspector/VideoCompositionDialog.tsx';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 
-test('video composition is a capability-gated Framescaper menu action for one writable V19 video clip', () => {
+test('video composition is capability-gated for writable Framescaper V19 and V20 video clips', () => {
 	const opened: string[] = [];
 	const input = {
 		productId: 'framescaper', capability: true, project: project(),
@@ -43,6 +43,7 @@ test('video composition is a capability-gated Framescaper menu action for one wr
 	assert.equal(createVideoCompositionApplicationMenuItems({ ...input, project: project({ selection: ['video', 'other-video'] }) })[0]?.disabled, true);
 	assert.equal(createVideoCompositionApplicationMenuItems({ ...input, selectedClipId: 'audio' })[0]?.disabled, true);
 	assert.equal(createVideoCompositionApplicationMenuItems({ ...input, project: { ...project(), schemaVersion: 18 } })[0]?.disabled, true);
+	assert.equal(createVideoCompositionApplicationMenuItems({ ...input, project: { ...project(), schemaVersion: 20 } })[0]?.disabled, false);
 });
 
 test('a linked A/V selection resolves the focused video clip as one composition owner', () => {

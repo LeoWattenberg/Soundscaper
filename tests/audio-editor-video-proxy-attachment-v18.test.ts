@@ -212,7 +212,7 @@ test('descriptor-snapshots and validates the complete nested timing reference', 
 	assert.throws(() => normalizeVideoProxyAttachmentV18(frameMismatch), /frame|timing/iu);
 });
 
-test('remains a closed scalar owner with only the reviewed V18 consumers', () => {
+test('remains a closed scalar owner with only the reviewed cumulative consumers', () => {
 	const sourceFile = 'src/common/editor/video-proxy-attachment-v18.ts';
 	const source = fs.readFileSync(path.join(ROOT, sourceFile), 'utf8');
 	assert.match(source, /from ['"]\.\/video-timing-asset-reference\.ts['"]/u);
@@ -221,17 +221,27 @@ test('remains a closed scalar owner with only the reviewed V18 consumers', () =>
 		/video-timing-asset\.ts|video-timing-storage|candidate-observation|proxy-relationship|project-|storage\/|controller\/|ui\/|repository|capabilit|scape-|desktop|app\./u);
 	const consumers = new Set([
 		'scripts/lib/desktop-project-library-runtime.mjs',
+		// The V11 professional-media plan extends the existing proxy relationship
+		// while keeping the original authoritative for export.
+		'src/common/editor/unified-exact-render-plan-v11.ts',
+		// Selected V12 handoff transfers the inherited exact attachment body.
+		'src/framescaper/desktop-project-library-v12-body-transfer.ts',
 		// Capture generation constructs, transactionally preserves, and schedules
 		// this same reviewed scalar wire without adding a parallel attachment type.
 		'src/framescaper/editor-captured-video-proxy-bodies.ts',
 		'src/framescaper/editor-captured-video-proxy-preservation.ts',
 		'src/framescaper/editor-captured-video-proxy-scheduler.ts',
+		// Dormant menu actions and V25 commands validate and mutate the same
+		// inherited relationship through its closed lifecycle.
+		'src/framescaper/editor-native-candidate-project-actions.ts',
 		'src/framescaper/editor-project-v18-archive-repository.ts',
 		'src/framescaper/editor-project-v18-claim-cleanup-repository.ts',
 		'src/framescaper/editor-project-v18-preservation-repository.ts',
 		'src/framescaper/editor-project-v18-runtime.ts',
 		'src/framescaper/editor-project-v18-validation.ts',
 		'src/framescaper/editor-project-v18.ts',
+		'src/framescaper/editor-project-v25-commands.ts',
+		'src/framescaper/editor-project-v25-validation.ts',
 		'src/framescaper/editor-video-proxy-attachment-coordinator-v18.ts',
 		// Decides which attachments an edit leaves true, so it reads the wire it
 		// carries forward.
@@ -240,6 +250,7 @@ test('remains a closed scalar owner with only the reviewed V18 consumers', () =>
 		'src/framescaper/editor-video-proxy-preview-v18.ts',
 		'src/framescaper/editor-video-proxy-reattestation-contract-v18.ts',
 		'src/framescaper/editor-video-proxy-reattestation-v18.ts',
+		'src/framescaper/editor-video-proxy-lifecycle-v25.ts',
 		'src/framescaper/scape-project-envelope-v18.ts',
 		'src/framescaper/scape-project-preservation-v18-support.ts',
 	]);
