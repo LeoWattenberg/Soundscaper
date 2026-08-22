@@ -10,6 +10,7 @@ import {
 	collectBoostHeaderClosure,
 	verifyBoostHeaderClosureManifest,
 } from './boost-header-closure.mjs';
+import { lineEndingPolicyFindings } from './line-ending-policy.mjs';
 
 export const FRAMESCAPER_MEDIA_HOST_ROOT = 'native/framescaper-media-host';
 export const FRAMESCAPER_MEDIA_HOST_SOURCE_MANIFEST =
@@ -111,6 +112,10 @@ export function auditFramescaperMediaHost({ repositoryRoot }) {
 			findings.push(`Media-host source digest mismatch: ${path}`);
 		}
 	}
+	findings.push(...lineEndingPolicyFindings(root, [
+		`/${FRAMESCAPER_MEDIA_HOST_ROOT}/**`,
+		`/${FRAMESCAPER_MEDIA_HOST_PAYLOAD_MANIFEST}`,
+	]));
 	findings.push(...auditClosedAdapters(hostRoot));
 	for (const target of FRAMESCAPER_MEDIA_HOST_TARGETS) {
 		const record = manifest.targets[target.id];

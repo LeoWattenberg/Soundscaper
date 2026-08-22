@@ -61,6 +61,9 @@ test('future built targets require two exact target-root payloads before derivat
 	context.after(() => rmSync(directory, { recursive: true, force: true }));
 	const copiedHost = join(directory, 'native/framescaper-openfx-host');
 	cpSync(hostRoot, copiedHost, { recursive: true });
+	// The audit reports a root whose line-ending policy does not pin the host tree, so the
+	// fixture root carries the policy the real repository states rather than omitting it.
+	cpSync(join(repositoryRoot, '.gitattributes'), join(directory, '.gitattributes'));
 	const manifestPath = join(copiedHost, 'source-manifest.json');
 	const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 	manifest.sourceFiles = sourcePins(copiedHost);

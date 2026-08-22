@@ -4,6 +4,8 @@ import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
+import { lineEndingPolicyFindings } from './line-ending-policy.mjs';
+
 export const FRAMESCAPER_OPENFX_HOST_ROOT = 'native/framescaper-openfx-host';
 export const FRAMESCAPER_OPENFX_SOURCE_MANIFEST =
 	`${FRAMESCAPER_OPENFX_HOST_ROOT}/source-manifest.json`;
@@ -61,7 +63,10 @@ export function readFramescaperOpenFxSourceManifest(repositoryRoot) {
 
 export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 	const manifest = readFramescaperOpenFxSourceManifest(repositoryRoot);
-	const findings = [];
+	const findings = lineEndingPolicyFindings(repositoryRoot, [
+		`/${FRAMESCAPER_OPENFX_HOST_ROOT}/**`,
+		`/${FRAMESCAPER_OPENFX_PAYLOAD_MANIFEST}`,
+	]);
 	if (manifest.schemaVersion !== 1 || manifest.hostVersion !== '1.0.0'
 		|| manifest.helperContractVersion !== 1 || manifest.license !== 'AGPL-3.0-only') {
 		findings.push('The OpenFX host source identity is unsupported.');

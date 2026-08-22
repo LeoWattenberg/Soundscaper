@@ -233,6 +233,7 @@ function builtFixture(context, prefix = 'framescaper-built-host-fixture-') {
 		join(REPOSITORY_ROOT, 'config/boost-multiprecision-source-manifest.json'),
 		join(root, 'config/boost-multiprecision-source-manifest.json'),
 	);
+	cpSync(join(REPOSITORY_ROOT, '.gitattributes'), join(root, '.gitattributes'));
 	mkdirSync(join(root, MEDIA_ROOT, 'prebuilt', TARGET), { recursive: true });
 	mkdirSync(join(root, OPENFX_ROOT, 'prebuilt', TARGET, 'bin'), { recursive: true });
 	writeFileSync(join(root, MEDIA_PATH), MEDIA_BYTES);
