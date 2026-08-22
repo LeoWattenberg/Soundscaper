@@ -22,6 +22,7 @@ const OWNERSHIP_FILE = /^stage-([a-f0-9]{40})\.ownership\.json$/u;
 const MAXIMUM_OWNERSHIP_BYTES = 4 * 1_024;
 const OWNED_STAGE_FILES = new Set([
 	'input-00.frames',
+	'input-00.wav',
 	'input-01.wav',
 	'manifest.json',
 	'manifest.sha256',

@@ -3,6 +3,7 @@
 #include "v12_retime_authority.hpp"
 
 #include "v12_host_invocation.hpp"
+#include "unified_plan_video_timing.hpp"
 
 #if __has_include(<boost/multiprecision/cpp_int.hpp>)
 #include "exact_retime_ordinal.hpp"
@@ -165,7 +166,8 @@ using soundscaper::framescaper::exact_wire_rational;
 	const json::value& clip,
 	const json::value& source,
 	const json::value& row,
-	const std::uint64_t ordinal
+	const std::uint64_t ordinal,
+	framescaper::media::video_timing_asset_registry& timing_assets
 ) {
 	const auto& intent = json::member(json::member(clip, "sourceTimeMapping"), "intent");
 	const auto sample_start = exact_integer(json::member(intent, "sampleStart"), "sample start");
@@ -185,10 +187,6 @@ using soundscaper::framescaper::exact_wire_rational;
 	}
 	if (mapping != "curve") {
 		throw v12_invocation_error{"source-time-mismatch", "The Retimer mapping is unsupported."};
-	}
-	const auto& timing = json::member(source, "timing");
-	if (json::string(json::member(timing, "kind"), "source timing kind") != "cfr") {
-		throw v12_invocation_error{"unsupported-retimer-timing", "A VFR Retimer requires its authenticated timing asset."};
 	}
 	const auto& sequence_rate = json::member(json::member(intent, "sequenceBinding"), "rate");
 	const auto sequence_num = exact_integer(json::member(sequence_rate, "num"), "sequence rate numerator");
@@ -215,6 +213,32 @@ using soundscaper::framescaper::exact_wire_rational;
 		velocity("startVelocity"), velocity("endVelocity"),
 	};
 	const auto position = exact_source_position(segment, outer_cell);
+	const auto& timing = json::member(source, "timing");
+	const auto timing_kind = json::string(json::member(timing, "kind"), "source timing kind");
+	if (timing_kind == "vfr") {
+		const auto reference = framescaper::media::unified::validate_video_timing_reference(
+			json::member(timing, "reference"),
+			std::string{json::string(json::member(source, "contentSha256"), "source digest")},
+			timing_assets
+		);
+		const auto frame = exact_floor(position);
+		if (frame < 0 || frame > reference.frame_count
+			|| (frame == reference.frame_count && position.numerator() % position.denominator() != 0)) {
+			throw v12_invocation_error{"source-time-mismatch", "VFR SourceTime escaped its timing asset."};
+		}
+		const auto index = frame.convert_to<std::int64_t>();
+		const auto start = reference.asset->boundary_ticks(index);
+		if (index == reference.frame_count) {
+			return ExactRational(cpp_int(start), cpp_int(reference.timescale));
+		}
+		const auto end = reference.asset->boundary_ticks(index + 1);
+		const auto remainder = position - ExactRational(frame, cpp_int(1));
+		return ExactRational(cpp_int(start), cpp_int(reference.timescale))
+			+ remainder * ExactRational(cpp_int(end - start), cpp_int(reference.timescale));
+	}
+	if (timing_kind != "cfr") {
+		throw v12_invocation_error{"source-time-mismatch", "The Retimer source timing kind is unsupported."};
+	}
 	const auto& source_rate = json::member(timing, "rate");
 	return position * ExactRational(
 		cpp_int(exact_integer(json::member(source_rate, "den"), "source rate denominator")),
@@ -252,11 +276,13 @@ using soundscaper::framescaper::exact_wire_rational;
 
 double verified_v12_retimer_source_time(
 	const json::value& plan,
-	const json::value& source_time
+	const json::value& source_time,
+	const std::vector<framescaper::media::video_timing_asset_grant>& timing_grants
 ) {
 #if !defined(FRAMESCAPER_OPENFX_HAS_EXACT_RETIME)
 	static_cast<void>(plan);
 	static_cast<void>(source_time);
+	static_cast<void>(timing_grants);
 	throw v12_invocation_error{
 		"exact-retime-oracle-unavailable",
 		"The pinned Boost.Multiprecision exact ordinal oracle is unavailable in this host build."
@@ -274,7 +300,8 @@ double verified_v12_retimer_source_time(
 	const auto& clip = matching_clip(plan, clip_id);
 	const auto& source = matching_source(plan, clip, source_id);
 	const auto& row = matching_row(clip, ordinal, clip_id, source_id);
-	const auto expected = expected_source_time(clip, source, row, ordinal);
+	framescaper::media::video_timing_asset_registry timing_assets(timing_grants);
+	const auto expected = expected_source_time(clip, source, row, ordinal, timing_assets);
 	const auto supplied = decimal_tokens(
 		json::member(source_time, "numerator"),
 		json::member(source_time, "denominator"),

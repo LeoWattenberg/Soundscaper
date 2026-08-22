@@ -136,6 +136,7 @@ function auditClosedAdapters(hostRoot) {
 	const required = new Map([
 		['src/media_host.cpp', [
 			'--plan-sha256', '--source-sha256', '--source-byte-length', '--source-role',
+			'--video-timing-asset', '--video-timing-sha256', '--video-timing-byte-length',
 			'--sequence-profile', '--sequence-rate-num', '--decode-output', '--destination-root',
 			'--maximum-output-bytes', 'framescaper-native-prores-proxy-mov-v1',
 		]],
@@ -172,16 +173,24 @@ function auditClosedAdapters(hostRoot) {
 		]],
 		['src/legacy_plan_semantics.cpp', [
 			'framescaper-keyframed-rgba-v1', 'keyed-rgba-data-plane',
-			'static-composition-graph', 'unsupported-v8-video-effects',
+			'static-composition-graph', 'capture_v8_static_visual_semantics',
 		]],
 		['src/legacy_plan_v8_filter_semantics.cpp', [
 			'layered-composition', 'V8 filter clip authority', 'maximum_burn_in_cues',
+			'V8 filter effect authority',
+		]],
+		['src/legacy_plan_v8_visual_semantics_impl.hpp', [
+			'V8 source presentation must state a residual stretch',
+			'V8 display matrix contains unsupported shear',
+			'V8 transition render descriptions must share blend and order',
 		]],
 		['src/media_plan.cpp', [
 			'unsupported-plan-version', 'framescaper-unified-exact-v1',
+			'timing_grants', 'require_all_used',
 		]],
 		['src/media_plan.hpp', [
 			'simple_full_frame_clip', 'image_sequence_inventory_sha256',
+			'video_timing_asset_grant',
 		]],
 		['src/professional_source_probe.cpp', [
 			'AV_PKT_DATA_MASTERING_DISPLAY_METADATA', 'AV_PKT_DATA_CONTENT_LIGHT_LEVEL',
@@ -189,7 +198,17 @@ function auditClosedAdapters(hostRoot) {
 			'framescaper-media-host', 'alphaInterpretation',
 		]],
 		['src/unified_plan_semantics.hpp', ['simple_full_frame_clip']],
+		['src/unified_plan_v9_intent_authority.hpp', [
+			'intent_source_boundary', 'boundary_ticks',
+		]],
 		['src/unified_plan_v11_v12_semantics.hpp', ['image_sequence_inventory_sha256']],
+		['src/unified_plan_video_timing.hpp', [
+			'soundscaper-video-timing-v1', 'video-timing-sha256:', 'timing_assets.require',
+		]],
+		['src/video_timing_asset.hpp', [
+			'video_timing_asset_maximum_grants', 'authenticate_regular_file',
+			'sha256_bytes', 'boundary_ticks', 'require_all_used',
+		]],
 	]);
 	for (const [path, tokens] of required) {
 		let source;

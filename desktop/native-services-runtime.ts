@@ -32,6 +32,9 @@ import {
 	FramescaperNativeMediaQueueDispatcher,
 	type FramescaperNativeMediaQueueDispatcherOptions,
 } from './native-media-queue-dispatcher.ts';
+import type {
+	FramescaperNativeQueueCapacityProvider,
+} from './native-queue-capacity-provider.ts';
 import {
 	FramescaperNativeQueueRepository,
 	nativeQueueRecordNeedsRecoveryRevalidation,
@@ -113,7 +116,9 @@ export interface FramescaperNativeServicesRuntimeOptions {
 	readonly checkpointStore?: FramescaperNativeCheckpointStore;
 	readonly externalDisplay?: FramescaperNativeExternalDisplayPort;
 	readonly nativeQueueExecution?: Pick<FramescaperNativeMediaQueueDispatcherOptions,
-		'pool' | 'prepare' | 'concurrency' | 'onError'>;
+		'pool' | 'prepare' | 'onError'> & Readonly<{
+		readonly capacity: FramescaperNativeQueueCapacityProvider;
+	}>;
 }
 
 export type FramescaperNativeQueueRevalidator = (
@@ -198,12 +203,16 @@ export function startFramescaperNativeServicesRuntime(
 			...(options.cancelSchedule ? { cancelSchedule: options.cancelSchedule } : {}),
 			...(options.onWatchError ? { onError: options.onWatchError } : {}),
 		});
-		const queueDispatcher = options.nativeQueueExecution
+		const queueExecution = options.nativeQueueExecution;
+		const queueDispatcher = queueExecution
 			? new FramescaperNativeMediaQueueDispatcher({
 				queue, roots, lease: () => lease!.lease(), now,
 				available: options.runtimeAvailable,
 				nativeMediaEnabled: options.nativeMediaEnabled,
-				...options.nativeQueueExecution,
+				capacity: () => queueExecution.capacity({ queue: queue.list(), scratch: scratch.list() }),
+				pool: queueExecution.pool,
+				prepare: queueExecution.prepare,
+				...(queueExecution.onError ? { onError: queueExecution.onError } : {}),
 			})
 			: null;
 		const updatePreference = options.setPreference;

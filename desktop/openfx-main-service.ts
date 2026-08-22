@@ -30,6 +30,8 @@ import {
 	framescaperOpenFxExecutionRequestV1,
 	type FramescaperOpenFxExecutionRequestV1,
 } from './openfx-main-execution-request.ts';
+import type { RegisteredOpenFxPluginV1 as RegisteredPlugin } from './openfx-main-registered-plugin.ts';
+import type { NativePlanVideoTimingAssetBytes } from './native-services-video-timing-staging.ts';
 import {
 	authenticateFramescaperOpenFxPluginBinary,
 	sameFramescaperOpenFxPluginBinary,
@@ -46,7 +48,6 @@ import {
 	recordOfxFailure,
 	reconcileOfxConsent,
 	revokeOfxPlugin,
-	type OfxConsentRecordV1,
 } from '../src/common/editor/native-ofx-consent.ts';
 import { deriveUnifiedExactOfxFreshnessV26 } from '../src/common/editor/native-ofx-freshness-authority.ts';
 import {
@@ -81,6 +82,9 @@ export interface FramescaperOpenFxMainServiceOptions {
 	readonly currentProject: (
 		project: UnifiedExactRenderPlanV12['project'],
 	) => boolean | Promise<boolean>;
+	readonly videoTimingAssets: (
+		plan: UnifiedExactRenderPlanV12,
+	) => Promise<readonly NativePlanVideoTimingAssetBytes[]>;
 	readonly mintOpaqueId?: () => string;
 	readonly now?: () => number;
 }
@@ -89,17 +93,6 @@ export type FramescaperOpenFxExecutionResultV1 =
 	| (Extract<OfxUnifiedNodeExecutionResultV1, { readonly mode: 'render' }>
 		& Readonly<{ readonly rgba: Uint8Array }>)
 	| Exclude<OfxUnifiedNodeExecutionResultV1, { readonly mode: 'render' }>;
-
-interface RegisteredPlugin {
-	readonly handle: string;
-	readonly descriptor: OfxPluginDescriptorV1;
-	readonly path: string;
-	executable: HelperExecutableGrant;
-	consent: OfxConsentRecordV1;
-	identityChanged: boolean;
-	epoch: number;
-	readonly activeExecutions: Set<AbortController>;
-}
 
 export class FramescaperOpenFxMainService {
 	readonly #options: FramescaperOpenFxMainServiceOptions;
@@ -116,7 +109,8 @@ export class FramescaperOpenFxMainService {
 			|| typeof options.preferences !== 'function' || typeof options.policyCleared !== 'function'
 			|| typeof options.selectPluginBinary !== 'function'
 			|| typeof options.createMessageChannel !== 'function'
-			|| typeof options.currentProject !== 'function') {
+			|| typeof options.currentProject !== 'function'
+			|| typeof options.videoTimingAssets !== 'function') {
 			throw new TypeError('The main-owned OpenFX service requires exact runtime and authority ports.');
 		}
 		this.#scratchRoot = absolutePath(options.scratchRoot, 'OpenFX scratch root');
@@ -308,6 +302,7 @@ export class FramescaperOpenFxMainService {
 			if (unavailable.mode === 'render') throw new Error('Unavailable OpenFX execution rendered unexpectedly.');
 			return unavailable;
 		}
+		const videoTimingAssets = await this.#options.videoTimingAssets(request.plan);
 		const epoch = plugin.epoch;
 		const abort = new AbortController();
 		const forwardAbort = (): void => abort.abort();
@@ -320,11 +315,11 @@ export class FramescaperOpenFxMainService {
 		try {
 			await this.#assertExecutionAuthority(plugin, epoch, executionRequest.plan.project, manager);
 			primary = await this.#prepareAttempt(
-				executionRequest, plugin, executionRequest.requestedBackend,
+				executionRequest, plugin, executionRequest.requestedBackend, videoTimingAssets,
 			);
 			await this.#assertExecutionAuthority(plugin, epoch, executionRequest.plan.project, manager);
 			cpu = request.requestedBackend === 'cpu' ? null
-				: await this.#prepareAttempt(executionRequest, plugin, 'cpu');
+				: await this.#prepareAttempt(executionRequest, plugin, 'cpu', videoTimingAssets);
 			await this.#assertExecutionAuthority(plugin, epoch, executionRequest.plan.project, manager);
 			const result = await executeUnifiedExactOfxNodeV1(manager, {
 				plan: executionRequest.plan, instanceId: executionRequest.instanceId,
@@ -425,13 +420,14 @@ export class FramescaperOpenFxMainService {
 		request: ReturnType<typeof framescaperOpenFxExecutionRequestV1>,
 		plugin: RegisteredPlugin,
 		_backend: Parameters<typeof executeUnifiedExactOfxNodeV1>[1]['requestedBackend'],
+		videoTimingAssets: readonly NativePlanVideoTimingAssetBytes[],
 	): Promise<PreparedOpenFxMainAttemptV1> {
 		const host = availableHost(this.#options.runtime);
 		request.signal?.throwIfAborted();
 		const base = await this.#temporaryRoot('execute');
 		return prepareOpenFxMainAttemptV1({
 			request, pluginBinary: plugin.executable, runtimeHost: host.runtimeHost,
-			base, createMessageChannel: this.#options.createMessageChannel,
+			base, createMessageChannel: this.#options.createMessageChannel, videoTimingAssets,
 		});
 	}
 

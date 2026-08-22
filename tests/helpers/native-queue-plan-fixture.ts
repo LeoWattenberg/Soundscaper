@@ -44,6 +44,14 @@ export function nativeQueueSmallStaticPlanV8(frameRate = 2): Record<string, unkn
 	}) as Record<string, unknown>;
 }
 
+export function nativeQueueSmallStaticAudioPlanV8(frameRate = 2): Record<string, unknown> {
+	return createVideoExportPlan(singleClipProject(true), {
+		includeAudio: true,
+		range: { startFrame: 0, endFrame: 1_000 },
+		canvas: { size: { width: 2, height: 2 }, frameRate },
+	}) as Record<string, unknown>;
+}
+
 function keyedSource(id: string, digestByte: string): Record<string, unknown> {
 	return {
 		kind: 'video', id, storageKey: `storage-${id}`, mimeType: 'video/mp4',
@@ -51,8 +59,8 @@ function keyedSource(id: string, digestByte: string): Record<string, unknown> {
 	};
 }
 
-function singleClipProject() {
-	return {
+function singleClipProject(includeAudio = false) {
+	const project = {
 		sampleRate: 1_000,
 		selection: { startFrame: 0, endFrame: 0 },
 		loop: { enabled: false, startFrame: 0, endFrame: 0 },
@@ -73,4 +81,21 @@ function singleClipProject() {
 			hidden: false, collapsed: false, height: 120, laneGroupId: null,
 		}],
 	};
+	if (includeAudio) {
+		project.sources.push({
+			kind: 'audio', id: 'audio-1', name: 'Audio', mimeType: 'audio/wav',
+			storageKey: 'media/audio-1', frameCount: 1_000, channelCount: 2,
+			sampleRate: 1_000, originalSampleRate: 1_000,
+		} as never);
+		project.clips.push({
+			kind: 'audio', id: 'audio-clip-1', sourceId: 'audio-1', title: 'Audio',
+			timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 1_000,
+			durationFrames: 1_000,
+		} as never);
+		project.tracks.push({
+			type: 'audio', id: 'audio-track-1', name: 'Audio', clipIds: ['audio-clip-1'],
+			mute: false, hidden: false, collapsed: false, height: 96, laneGroupId: null,
+		} as never);
+	}
+	return project;
 }

@@ -39,6 +39,7 @@ import {
 	nativeRenderInputStageIdentityDigest,
 	nativeRenderInputStageId,
 	nativeRenderInputStageIdRequest,
+	nativeRenderInputStageRequired,
 	type FramescaperNativeRenderInputStageAdmissionV1,
 	type FramescaperNativeRenderInputStageIdentity,
 } from './native-services-render-input-contract.ts';
@@ -403,7 +404,12 @@ export class FramescaperNativeRenderInputStaging
 
 	async revalidate(record: NativeQueueRecordV2): Promise<boolean> {
 		if (record.planVersion !== 7 && record.planVersion !== 8) return true;
-		try { await this.inspect(record); return true; } catch { return false; }
+		try {
+			assertNativeQueueRecordV2(record);
+			if (!nativeRenderInputStageRequired(exactRecordEnvelope(record))) return true;
+			await this.inspect(record);
+			return true;
+		} catch { return false; }
 	}
 
 	async inspect(recordValue: NativeQueueRecordV2): Promise<FramescaperNativeDerivedRenderInputs> {
@@ -412,6 +418,9 @@ export class FramescaperNativeRenderInputStaging
 			throw new Error(
 				`Native render plan V${String(recordValue.planVersion)} has no durable evaluated RGBA carrier.`,
 			);
+		}
+		if (!nativeRenderInputStageRequired(exactRecordEnvelope(recordValue))) {
+			throw new Error('A silent selected-V20 V8 plan has no durable derived-input stage.');
 		}
 		const owned = await readNativeRenderInputOwnedStage(this.#root, recordValue.jobId);
 		if (owned === null) throw new Error('The durable native render-input ownership record is missing.');
@@ -451,6 +460,7 @@ export class FramescaperNativeRenderInputStaging
 	async remove(recordValue: NativeQueueRecordV2): Promise<void> {
 		assertNativeQueueRecordV2(recordValue);
 		if (recordValue.planVersion !== 7 && recordValue.planVersion !== 8) return;
+		if (!nativeRenderInputStageRequired(exactRecordEnvelope(recordValue))) return;
 		await this.#mutate(async () => {
 			const owned = await readNativeRenderInputOwnedStage(this.#root, recordValue.jobId);
 			if (owned === null) return;
@@ -511,6 +521,12 @@ function assertClaimIdentity(
 		|| JSON.stringify(identity.inputFingerprints) !== JSON.stringify(request.inputFingerprints)) {
 		throw new Error('The native render-input claim substituted its plan, project, or originals.');
 	}
+}
+
+function exactRecordEnvelope(record: NativeQueueRecordV2) {
+	return nativeRenderInputExactV20Envelope(
+		record.planPayload, record.planFingerprint, record.planVersion as 7 | 8,
+	);
 }
 
 function exactLiveRecords(records: readonly NativeQueueRecordV2[]): ReadonlyMap<string, NativeQueueRecordV2> {

@@ -14,7 +14,7 @@ import {
 	type OfxRetimerSourceTimeV1,
 } from '../src/common/editor/native-ofx-retimer-source-time.ts';
 import {
-	assertUnifiedExactRenderPlanV12,
+	assertUnifiedExactRenderPlanWithDeferredTimingReferences,
 	type UnifiedExactRenderPlanV12,
 } from '../src/common/editor/unified-exact-render-plan.ts';
 
@@ -50,7 +50,7 @@ export function framescaperOpenFxExecutionRequestV1(
 	const allowed = [...REQUIRED_KEYS, 'retimerSourceTime', 'signal'];
 	const record = closedRecord(value, allowed, REQUIRED_KEYS, 'OpenFX execution request');
 	const plan = record.plan;
-	assertUnifiedExactRenderPlanV12(plan);
+	assertDeferredV12Plan(plan);
 	if (typeof record.pluginHandle !== 'string' || !HANDLE.test(record.pluginHandle)
 		|| typeof record.instanceId !== 'string' || !ID.test(record.instanceId)
 		|| typeof record.requestedBackend !== 'string'
@@ -117,6 +117,11 @@ export function framescaperOpenFxExecutionRequestV1(
 		retimerSourceTime: (record.retimerSourceTime ?? null) as OfxRetimerSourceTimeV1 | null,
 		...(record.signal ? { signal: record.signal as AbortSignal } : {}),
 	});
+}
+
+function assertDeferredV12Plan(value: unknown): asserts value is UnifiedExactRenderPlanV12 {
+	assertUnifiedExactRenderPlanWithDeferredTimingReferences(value);
+	if (value.version !== 12) throw new RangeError('OpenFX execution requires exact render plan V12.');
 }
 
 function closedRecord(

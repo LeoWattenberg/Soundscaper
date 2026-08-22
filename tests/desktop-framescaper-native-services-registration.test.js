@@ -36,6 +36,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	let authorityOptions;
 	let renderInputOptions;
 	let selectedV20AuthorityOptions;
+	let queueCapacityOptions;
 	let brokerOptions;
 	let nodePortOptions;
 	let brokerDisposals = 0;
@@ -82,6 +83,11 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		stop: () => { externalDisplayStops += 1; },
 	});
 	const prepared = Object.freeze({ request: { kind: 'media-render' }, publish: async () => undefined });
+	const queueCapacity = async () => Object.freeze({
+		availableCpuCores: 4, availableProcessTreeRssBytes: 1024 ** 3,
+		availableScratchBytes: 1024 ** 3, volumeFreeBytes: 20 * 1024 ** 3,
+		reservedFreeBytes: 10 * 1024 ** 3, busyHardwareBackends: [],
+	});
 	const projectAuthorityRuntime = {
 		revalidate: async (_record, _root, rootAuthorized) => ({
 			projectRevisionMatches: true, planFingerprintMatches: true,
@@ -116,6 +122,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 			createOpenFxService: () => openFxService,
 			createNodePorts: (value) => { nodePortOptions = value; return nodePorts; },
 			createExternalDisplayPort: () => externalDisplay,
+			createQueueCapacityProvider: (value) => { queueCapacityOptions = value; return queueCapacity; },
 			createCapabilityReport: (value) => Object.freeze({ value }),
 			createProjectAuthority: (value) => { authorityOptions = value; return projectAuthorityRuntime; },
 			createRenderInputStaging: (value) => { renderInputOptions = value; return renderInputStaging; },
@@ -147,12 +154,15 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	mediaAvailable = true;
 	assert.equal(runtimeOptions.runtimeAvailable(), true);
 	assert.equal(runtimeOptions.nativeQueueExecution.pool, mediaRuntime);
+	assert.equal(runtimeOptions.nativeQueueExecution.capacity, queueCapacity);
+	assert.match(queueCapacityOptions.scratchRoot, /framescaper-native-scratch$/u);
 	const capabilities = runtimeOptions.capabilities();
 	assert.equal(capabilities.value.media.payloadBuilt, false);
 	assert.equal(capabilities.value.media.buildFingerprint, null);
 	assert.equal(capabilities.value.openFx.payloadBuilt, false);
 	assert.equal(capabilities.value.openFx.selfTestPassed, false);
 	assert.equal(capabilities.value.queueSourceAuthorityMounted, true);
+	assert.equal(capabilities.value.queueCapacityAuthorityMounted, true);
 	assert.equal(capabilities.value.watchProjectMutationMounted, true);
 	assert.equal(capabilities.value.imageSequenceImportMounted, false);
 	assert.equal(capabilities.value.externalDisplay.placementSupported, true);
@@ -271,9 +281,13 @@ test('a runtime startup failure releases the session display subscription', asyn
 			createRenderInputStaging: () => ({}),
 			createSelectedV20ProjectAuthority: ({ project }) => project,
 			createWatchImportBroker: () => ({ dispose: async () => undefined }),
-			startRuntime: () => { throw new Error('startup failed'); },
+			startRuntime: (value) => {
+				assert.equal(value.nativeQueueExecution, undefined);
+				assert.equal(value.capabilities().value.queueCapacityAuthorityMounted, false);
+				throw new Error('startup failed');
+			},
 			registerIpc: () => { throw new Error('must not register'); },
-			createCapabilityReport: () => ({}),
+			createCapabilityReport: (value) => ({ value }),
 			externalDisplaySupport: () => ({ supported: false, reason: 'unsupported-platform' }),
 		},
 		loadCapabilityPolicy: async () => ({

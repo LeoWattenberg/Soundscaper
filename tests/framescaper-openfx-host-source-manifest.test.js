@@ -118,6 +118,7 @@ test('contract-only scanner and per-fingerprint runtime fixtures self-test separ
 			join(hostRoot, 'src', 'parameter_values.cpp'),
 			join(hostRoot, 'src', 'v12_cancellation_channel.cpp'),
 			join(hostRoot, 'src', 'v12_host_invocation.cpp'),
+			join(hostRoot, 'src', 'v12_video_timing_grants.cpp'),
 			join(hostRoot, 'src', 'v12_output_file.cpp'),
 			join(hostRoot, 'src', 'v12_retime_authority.cpp'),
 			join(hostRoot, 'src', 'v12_transition_authority.cpp'),

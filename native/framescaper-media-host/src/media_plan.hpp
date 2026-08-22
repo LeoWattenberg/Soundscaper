@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "video_timing_asset.hpp"
+
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -25,6 +27,9 @@ struct admitted_media_plan final {
 	std::uint64_t source_in_frame{};
 	std::uint64_t source_frame_count{};
 	bool includes_audio{};
+	bool caption_mux{};
+	bool caption_burn_in{};
+	bool caption_sidecar{};
 	bool simple_full_frame_clip{};
 	bool requires_evaluated_rgba_carrier{};
 	std::vector<std::string> image_sequence_inventory_sha256;
@@ -38,6 +43,11 @@ struct admitted_media_plan final {
 [[nodiscard]] admitted_media_plan authenticate_media_plan(
 	const std::filesystem::path& path,
 	const std::string& expected_sha256
+);
+[[nodiscard]] admitted_media_plan authenticate_media_plan(
+	const std::filesystem::path& path,
+	const std::string& expected_sha256,
+	const std::vector<video_timing_asset_grant>& timing_grants
 );
 
 } // namespace framescaper::media

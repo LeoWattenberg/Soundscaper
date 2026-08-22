@@ -383,8 +383,7 @@ test('keeps private capability ownership within the closed cumulative domain set
 	}
 	assert.deepEqual(exportReferences, [
 		PRODUCT_MODULE, FINAL_PRODUCT_MODULE, TEST_MODULE, FINAL_TEST_MODULE,
-		// The mastering-sequence capability asserts its unavailability in this
-		// exact profile, which is the intended way to reference it from outside.
+		// This external test intentionally asserts that mastering sequences are unavailable.
 		'tests/audio-editor-mastering-sequence-capability.test.ts',
 	]);
 	assert.deepEqual(pathReferences, [

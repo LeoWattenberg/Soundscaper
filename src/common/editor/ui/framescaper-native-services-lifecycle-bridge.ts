@@ -207,12 +207,18 @@ function queueEnqueueRequest(value: unknown): FramescaperNativeQueueEnqueueRende
 	const derivedInputStageId = row.derivedInputStageId === null
 		? null : pattern(row.derivedInputStageId, JOB_ID, 'derived input stage id');
 	if (envelope.planVersion >= 9) {
-		throw new TypeError(
-			`Unified V${String(envelope.planVersion)} queue requests have no durable evaluated RGBA carrier.`,
-		);
-	}
-	if (derivedInputStageId === null) {
-		throw new TypeError('Selected-V20 V7/V8 queue requests require one durable derived-input stage.');
+		if (derivedInputStageId !== null) {
+			throw new TypeError(
+				`Unified V${String(envelope.planVersion)} queue requests cannot name a derived-input stage.`,
+			);
+		}
+	} else {
+		const stageRequired = envelope.planVersion === 7 || envelope.summary.includesAudio;
+		if ((derivedInputStageId !== null) !== stageRequired) {
+			throw new TypeError(stageRequired
+				? 'This selected-V20 V7/V8 queue request requires one durable derived-input stage.'
+				: 'A silent selected-V20 V8 queue request cannot name a derived-input stage.');
+		}
 	}
 	const recoveryClass = member(row.recoveryClass, NATIVE_QUEUE_RECOVERY_CLASSES, 'recovery class');
 	if (recoveryClass === 'verified-frame-checkpoint' && taskKind !== 'image-sequence-export') {

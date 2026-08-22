@@ -1,9 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	assertUnifiedExactRenderPlanV9,
-	type UnifiedExactRenderPlanV9,
-} from '../common/editor/unified-exact-render-plan.ts';
+import type { UnifiedExactRenderPlanV9 } from '../common/editor/unified-exact-render-plan.ts';
 import {
 	snapshotFramescaperUnifiedExactRenderAuthority,
 	type FramescaperUnifiedExactRenderAuthority,
@@ -24,11 +21,11 @@ export function createFramescaperProjectUnifiedExactRenderPlanV22(
 ): UnifiedExactRenderPlanV9 {
 	validateFramescaperProjectV22(profile, project);
 	const authority = snapshotFramescaperUnifiedExactRenderAuthority(authorityValue);
+	const foundation = createFramescaperUnifiedRenderFoundation(project, authority);
 	const plan = finalizeFramescaperUnifiedRenderPlan(
-		createFramescaperUnifiedRenderFoundation(project, authority),
+		foundation,
 		9,
 		[],
 	);
-	assertUnifiedExactRenderPlanV9(plan);
 	return plan;
 }

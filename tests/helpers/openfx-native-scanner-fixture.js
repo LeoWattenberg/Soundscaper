@@ -82,9 +82,14 @@ export function buildOpenFxNativeContractFixture(context) {
 	const scanner = join(directory, executableName('scanner'));
 	const runtime = join(directory, executableName('runtime'));
 	const blockedScanner = join(directory, executableName('blocked-scanner'));
+	const boostRoot = process.env.FRAMESCAPER_BOOST_192_SOURCE_ROOT;
+	const boostArguments = boostRoot ? ['-I', boostRoot] : [];
+	const exactRetimeAvailable = spawnSync('c++', [
+		'-std=c++20', ...boostArguments, '-fsyntax-only', '-x', 'c++', '-',
+	], { encoding: 'utf8', input: '#include <boost/multiprecision/cpp_int.hpp>\n' }).status === 0;
 	const abiCommon = [
 		'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
-		'-DFRAMESCAPER_OPENFX_CONTRACT_ONLY=1', '-I', sources,
+		...boostArguments, '-DFRAMESCAPER_OPENFX_CONTRACT_ONLY=1', '-I', sources,
 	];
 	const common = [...abiCommon, '-DFRAMESCAPER_OPENFX_CONFORMANCE_FIXTURE=1'];
 	const shared = process.platform === 'darwin' ? ['-dynamiclib'] : ['-shared', '-fPIC'];
@@ -108,7 +113,8 @@ export function buildOpenFxNativeContractFixture(context) {
 		join(sources, 'sha256.cpp'), join(sources, 'dynamic_library.cpp'),
 		join(sources, 'host_runtime.cpp'), join(sources, 'loaded_plugin_binary.cpp'),
 		join(sources, 'parameter_values.cpp'), join(sources, 'v12_cancellation_channel.cpp'),
-		join(sources, 'v12_host_invocation.cpp'), join(sources, 'v12_retime_authority.cpp'),
+		join(sources, 'v12_host_invocation.cpp'), join(sources, 'v12_video_timing_grants.cpp'),
+		join(sources, 'v12_retime_authority.cpp'),
 		join(sources, 'v12_output_file.cpp'), join(sources, 'v12_transition_authority.cpp'),
 		join(repositoryRoot, 'native/framescaper-media-host/src/strict_json.cpp'),
 		join(repositoryRoot, 'native/framescaper-media-host/src/sha256.cpp'),
@@ -136,6 +142,7 @@ export function buildOpenFxNativeContractFixture(context) {
 	retainedCleanup = () => rmSync(directory, { recursive: true, force: true });
 	retainedBuild = {
 		directory, plugin, mismatchPlugin, spoofPlugin, scanner, runtime, blockedScanner,
+		exactRetimeAvailable,
 		sha256: digest(bytes), mismatchSha256: digest(readFileSync(mismatchPlugin)),
 		spoofSha256: digest(readFileSync(spoofPlugin)),
 		mediaDeclarationPlugins: Object.freeze([...mediaDeclarationPlugins].map(([name, value]) => Object.freeze({

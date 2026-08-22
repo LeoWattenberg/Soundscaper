@@ -19,12 +19,13 @@ const READY_OPERATION_RECORD = Object.freeze({
 	planVersions: [7, 8] as const, exactPictureOrdinals: true,
 	keyedEvaluatedRgbaExecutor: true, staticCompositionExecutor: true,
 	maximumInFlightFrames: 1, evaluatedRgbaInputBound: true,
-	staticGeometryAdapterBound: true, stagedAudioInputBound: true,
+	staticGeometryAdapterBound: true, captionDeliveryAdapterBound: true,
+	stagedAudioInputBound: true,
 	deliveryCodecSetAvailable: true, frameCoreReady: true, ready: true,
 });
 const READY_OPERATION = JSON.stringify(READY_OPERATION_RECORD);
 const UNREADY_OPERATION = JSON.stringify({
-	...READY_OPERATION_RECORD, staticGeometryAdapterBound: false, ready: false,
+	...READY_OPERATION_RECORD, captionDeliveryAdapterBound: false, ready: false,
 });
 
 test('a hung authenticated media-host self-test is killed within its exact timeout', {

@@ -46,6 +46,7 @@ test('only an authenticated payload digest becomes a media build fingerprint', (
 			imageSequencesCleared: true, openFxCleared: false,
 		},
 		queueSourceAuthorityMounted: false,
+		queueCapacityAuthorityMounted: false,
 		watchProjectMutationMounted: false,
 		imageSequenceImportMounted: false,
 		externalDisplay: {
@@ -82,6 +83,7 @@ test('the render queue requires a selected V20 plan-family self-test', () => {
 			imageSequencesCleared: false, openFxCleared: false,
 		},
 		queueSourceAuthorityMounted: true,
+		queueCapacityAuthorityMounted: true,
 		watchProjectMutationMounted: false,
 		imageSequenceImportMounted: false,
 		externalDisplay: {
@@ -94,6 +96,39 @@ test('the render queue requires a selected V20 plan-family self-test', () => {
 	});
 	assert.equal(report.entries.find((entry) => entry.id === 'persistent-render-queue')?.state, 'unavailable');
 	assert.equal(report.entries.find((entry) => entry.id === 'encode-mov-prores-proxy')?.state, 'available');
+});
+
+test('queue and proxy execution require a mounted capacity authority', () => {
+	const report = createFramescaperNativeCapabilityReportV1({
+		preferences: { ...DISABLED, nativeMediaEnabled: true },
+		media: {
+			payloadBuilt: true, runtimeAvailable: true, selfTestPassed: true,
+			selectedV20RenderSelfTestPassed: true,
+			professionalCharacteristicsSelfTestPassed: false,
+			quarantined: false, degraded: false, buildFingerprint: 'de'.repeat(32),
+			detail: 'Authenticated media runtime is available.',
+		},
+		policy: {
+			nativeCodecsCleared: true, proxyCodecCleared: true,
+			imageSequencesCleared: false, openFxCleared: false,
+		},
+		queueSourceAuthorityMounted: true,
+		queueCapacityAuthorityMounted: false,
+		watchProjectMutationMounted: false,
+		imageSequenceImportMounted: false,
+		externalDisplay: {
+			placementSupported: false, sinkSelfTestPassed: false, detail: 'Unavailable.',
+		},
+		openFx: {
+			payloadBuilt: false, runtimeAvailable: false, selfTestPassed: false,
+			quarantined: false, buildFingerprint: null, detail: 'Unavailable.',
+		},
+	});
+	for (const id of ['persistent-render-queue', 'encode-mov-prores-proxy']) {
+		const entry = report.entries.find((candidate) => candidate.id === id);
+		assert.equal(entry?.state, 'unavailable');
+		assert.match(entry?.detail ?? '', /capacity authority/iu);
+	}
 });
 
 test('a generic media-host self-test cannot claim V25 professional image-sequence admission', () => {
@@ -111,6 +146,7 @@ test('a generic media-host self-test cannot claim V25 professional image-sequenc
 			imageSequencesCleared: true, openFxCleared: false,
 		},
 		queueSourceAuthorityMounted: false,
+		queueCapacityAuthorityMounted: false,
 		watchProjectMutationMounted: false,
 		imageSequenceImportMounted: true,
 		externalDisplay: {

@@ -24,6 +24,7 @@ foreach(required
 	"\"maximumInFlightFrames\":1"
 	"\"evaluatedRgbaInputBound\":true"
 	"\"staticGeometryAdapterBound\":false"
+	"\"captionDeliveryAdapterBound\":false"
 	"\"stagedAudioInputBound\":true"
 	"\"deliveryCodecSetAvailable\":"
 	"\"frameCoreReady\":true"

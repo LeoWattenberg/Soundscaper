@@ -217,6 +217,15 @@ admitted_media_plan authenticate_media_plan(
 	const std::filesystem::path& path,
 	const std::string& expected_sha256
 ) {
+	return authenticate_media_plan(path, expected_sha256, {});
+}
+
+admitted_media_plan authenticate_media_plan(
+	const std::filesystem::path& path,
+	const std::string& expected_sha256,
+	const std::vector<video_timing_asset_grant>& timing_grants
+) {
+	video_timing_asset_registry timing_assets(timing_grants);
 	const auto canonical = authenticate_regular_file(path, expected_sha256, "plan", maximum_plan_bytes);
 	std::ifstream input(canonical, std::ios::binary);
 	std::ostringstream bytes;
@@ -233,15 +242,16 @@ admitted_media_plan authenticate_media_plan(
 		result.version = static_cast<int>(version_value);
 		if (result.version >= 9) {
 			validate_unified_header(root, result);
-			unified::validate_unified_semantics(root, result);
+			unified::validate_unified_semantics(root, result, timing_assets);
 			result.requires_evaluated_rgba_carrier = false;
 			result.simple_full_frame_clip = false;
 			result.unsupported_render_family = "unified-exact-v"
 				+ std::to_string(result.version) + "-graph";
 		} else {
 			legacy::validate_legacy_plan(root, result);
-			result.requires_evaluated_rgba_carrier = result.version == 7 || result.version == 8;
+			result.requires_evaluated_rgba_carrier = result.version == 7;
 		}
+		timing_assets.require_all_used();
 		result.authenticated_plan_json = authenticated_plan_json;
 		return result;
 	} catch (const authentication_error&) {

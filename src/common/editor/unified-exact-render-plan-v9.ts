@@ -7,6 +7,7 @@ import {
 	type ClosedDomainRecord,
 } from './closed-domain-value.ts';
 import type { RationalRate } from './timeline-time.ts';
+import type { UnifiedExactRenderTimingIndex } from './unified-exact-render-timing-authority.ts';
 import {
 	normalizeVideoClipComposition,
 	type VideoClipComposition,
@@ -16,7 +17,10 @@ import {
 	type VideoKeyframeCurves,
 } from './video-keyframe-curves.ts';
 import { normalizeVideoEffects } from './video-effects.js';
-import { assertUnifiedExactRetimeAuthority } from './unified-exact-retime-authority.ts';
+import {
+	assertUnifiedExactRetimeAuthority,
+	assertUnifiedExactRetimeStructureWithDeferredVfr,
+} from './unified-exact-retime-authority.ts';
 import {
 	normalizeVideoRetimeExportIntentV6Wire,
 } from './video-retime-exact-ordinal-oracle.ts';
@@ -211,6 +215,7 @@ export function normalizeUnifiedExactRenderClipNode(
 	context: UnifiedExactRenderTemporalContext,
 	sources: UnifiedExactRenderSourceIndex,
 	tracks: UnifiedExactRenderTrackIndexV1,
+	timing: UnifiedExactRenderTimingIndex,
 ): UnifiedExactRenderClipNode {
 	const name = 'unified clip render node';
 	const clip = readClosedDomainRecord(value, name, CLIP_FIELDS);
@@ -246,11 +251,19 @@ export function normalizeUnifiedExactRenderClipNode(
 		{ sequenceFrameCount, sourceInFrame, sourceFrameCount },
 	);
 	const intent = normalizeVideoRetimeExportIntentV6Wire(field(mapping, 'intent', `${name}.sourceTimeMapping`));
-	assertUnifiedExactRetimeAuthority(intent, context, {
+	const sourceTimingView = source.timing.kind === 'vfr'
+		? timing.vfrBySourceId.get(source.sourceId) ?? null
+		: null;
+	const retimeAuthority = {
 		clipId, sourceId: source.sourceId,
 		sequenceStartFrame, sequenceFrameCount, sourceInFrame, sourceFrameCount,
-		sourceRate, retimeMap, sourceTiming: source.timing,
-	});
+		sourceRate, retimeMap, sourceTiming: source.timing, sourceTimingView,
+	};
+	if (timing.deferredVfrSourceIds.has(source.sourceId)) {
+		assertUnifiedExactRetimeStructureWithDeferredVfr(intent, context, retimeAuthority);
+	} else {
+		assertUnifiedExactRetimeAuthority(intent, context, retimeAuthority);
+	}
 	return Object.freeze({
 		kind: 'clip' as const,
 		nodeId: stableId(field(clip, 'nodeId', name), `${name}.nodeId`),

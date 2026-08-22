@@ -13,6 +13,7 @@ import {
 } from './helper-data-plane-io.ts';
 import {
 	HELPER_DATA_CHUNK_MAXIMUM_BYTES,
+	HELPER_DATA_PLANE_MAXIMUM_BYTES,
 	HELPER_DATA_PLANE_VERSION,
 	type HelperDataPlaneBinding,
 } from './helper-data-plane.ts';
@@ -22,8 +23,11 @@ import type { HelperExecutableGrant } from './helper-contract.ts';
 import type { FramescaperOpenFxExecutableDescriptor } from './framescaper-openfx-host-payload.ts';
 import type { framescaperOpenFxExecutionRequestV1 } from './openfx-main-execution-request.ts';
 import type { OfxUnifiedHostAttemptResourcesV1 } from './openfx-unified-render-execution.ts';
+import {
+	authenticateNativePlanVideoTimingAssets,
+	type NativePlanVideoTimingAssetBytes,
+} from './native-services-video-timing-staging.ts';
 import { canonicalizeNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
-import { createNativeMediaPlanEnvelopeV1 } from '../src/common/editor/native-media-plan-envelope.ts';
 
 const CONTROL_HEADROOM_BYTES = 64 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -44,6 +48,7 @@ export interface PrepareOpenFxMainAttemptOptionsV1 {
 	readonly runtimeHost: FramescaperOpenFxExecutableDescriptor;
 	readonly base: string;
 	readonly createMessageChannel: () => OpenFxMainAttemptMessageChannelV1;
+	readonly videoTimingAssets?: readonly NativePlanVideoTimingAssetBytes[];
 	readonly mintOpaqueId?: () => string;
 }
 
@@ -81,7 +86,12 @@ async function prepareAt(
 	const hostRoot = join(options.base, 'host');
 	await Promise.all([mkdir(helperRoot, { mode: 0o700 }), mkdir(hostRoot, { mode: 0o700 })]);
 	abort.signal.throwIfAborted();
-	const envelope = createNativeMediaPlanEnvelopeV1(request.plan);
+	const timing = authenticateNativePlanVideoTimingAssets({
+		plan: request.plan,
+		assets: options.videoTimingAssets ?? [],
+		maximumStagedBytes: HELPER_DATA_PLANE_MAXIMUM_BYTES,
+	});
+	const envelope = timing.envelope;
 	const canonicalPlan = canonicalizeNativeMediaPlan(envelope.plan);
 	const planPath = join(hostRoot, 'plan.json');
 	await writeFile(planPath, canonicalPlan, { flag: 'wx', mode: 0o600 });
@@ -90,6 +100,22 @@ async function prepareAt(
 	transfers.push(sendHelperDataPlaneFile({
 		binding: planBinding, port: planChannel.hostPort, path: planPath, signal: abort.signal,
 	}));
+	const timingResources = [];
+	for (const [index, asset] of timing.timingAssets.entries()) {
+		abort.signal.throwIfAborted();
+		const path = join(hostRoot, `timing-${String(index).padStart(4, '0')}.scti`);
+		await writeFile(path, asset.bytes, { flag: 'wx', mode: 0o600 });
+		const timingBinding = binding(asset.bytes.byteLength, asset.input.sha256);
+		const channel = options.createMessageChannel();
+		transfers.push(sendHelperDataPlaneFile({
+			binding: timingBinding, port: channel.hostPort, path, signal: abort.signal,
+		}));
+		timingResources.push(Object.freeze({
+			role: 'video-timing' as const,
+			binding: timingBinding,
+			transfer: { streamId: timingBinding.streamId, port: channel.helperPort },
+		}));
+	}
 	const inputResources = [];
 	for (const [index, input] of request.inputs.entries()) {
 		abort.signal.throwIfAborted();
@@ -130,6 +156,7 @@ async function prepareAt(
 		throw new Error('The OpenFX helper scratch reservation changed during staging.');
 	}
 	const scratchBytes = envelope.canonicalByteLength + outputBytes
+		+ timing.timingAssets.reduce((sum, asset) => sum + asset.bytes.byteLength, 0)
 		+ request.inputs.reduce((sum, input) => sum + input.rgba.byteLength, 0)
 		+ options.pluginBinary.bytes + CONTROL_HEADROOM_BYTES;
 	const mint = options.mintOpaqueId ?? opaqueId;
@@ -141,6 +168,9 @@ async function prepareAt(
 		retimerSourceTime: request.retimerSourceTime,
 		plan: { binding: planBinding,
 			transfer: { streamId: planBinding.streamId, port: planChannel.helperPort } },
+		...(timingResources.length === 0 ? {} : {
+			videoTimingAssets: Object.freeze(timingResources),
+		}),
 		inputs: Object.freeze(inputResources),
 		output: {
 			pixelFormat: 'rgba8' as const, width: outputWidth,

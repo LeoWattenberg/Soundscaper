@@ -31,7 +31,12 @@ export async function inspectNativeRenderDerivedFile(
 	envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 | 8 }>,
 ): Promise<void> {
 	await inspectExactNativeRenderInputFile(path, descriptor);
-	if (descriptor.role === 'evaluated-rgba-frame-pack') await inspectFramePack(path, envelope);
+	if (descriptor.role === 'evaluated-rgba-frame-pack') {
+		if (envelope.planVersion !== 7) {
+			throw new Error('A selected-V20 V8 plan cannot acquire an evaluated RGBA carrier.');
+		}
+		await inspectFramePack(path, envelope);
+	}
 	else await inspectFloat32Wav(path, envelope);
 }
 

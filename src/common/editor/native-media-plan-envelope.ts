@@ -24,6 +24,7 @@ import {
 	fingerprintNativeMediaPlan,
 	nativeMediaPlanViolation,
 } from './native-media-plan-canonical-form.ts';
+import { nativeMediaPlanVideoTimingAssetInputs } from './native-media-plan-video-timing.ts';
 import {
 	assertVideoKeyframeExportPlanV7,
 	type VideoKeyframeExportPlanV7,
@@ -33,7 +34,9 @@ import {
 	assertUnifiedExactRenderPlanV10,
 	assertUnifiedExactRenderPlanV11,
 	assertUnifiedExactRenderPlanV12,
+	assertUnifiedExactRenderPlanWithTimingSidecars,
 	type UnifiedExactRenderPlan,
+	type UnifiedExactRenderTimingSidecars,
 } from './unified-exact-render-plan.ts';
 import { unifiedExactClipUsesRetime } from './unified-exact-render-plan-v9.ts';
 import {
@@ -103,6 +106,19 @@ export interface NativeMediaPlanSourceInputV1 {
 	readonly contentSha256: string | null;
 }
 
+export interface NativeMediaPlanVideoTimingAssetInputV1 {
+	readonly inputIndex: number;
+	readonly sourceId: string;
+	readonly encoding: 'soundscaper-video-timing-v1';
+	readonly storageKey: string;
+	readonly sha256: string;
+	readonly sourceSha256: string;
+	readonly byteLength: number;
+	readonly frameCount: number;
+	readonly timescale: number;
+	readonly finalFrameDurationTicks: string;
+}
+
 export interface NativeMediaPlanFeatureNodeCountsV1 {
 	readonly transitions: number;
 	readonly visuals: number;
@@ -139,6 +155,7 @@ export interface NativeMediaPlanSummaryV1 {
 	readonly includesAudio: boolean;
 	readonly projectSampleRate: number | null;
 	readonly videoSourceInputs: readonly NativeMediaPlanSourceInputV1[];
+	readonly videoTimingAssetInputs: readonly NativeMediaPlanVideoTimingAssetInputV1[];
 	readonly compositionIntervalCount: number | null;
 	readonly videoEffectCount: number | null;
 	readonly activeClipCount: number | null;
@@ -166,7 +183,10 @@ const ENVELOPE_KEYS = Object.freeze([
  * canonical re-parse, so an envelope's fingerprint always describes exactly the
  * bytes it carries and no later mutation of the caller's object can desync it.
  */
-export function createNativeMediaPlanEnvelopeV1(value: unknown): NativeMediaPlanEnvelopeV1 {
+export function createNativeMediaPlanEnvelopeV1(
+	value: unknown,
+	timingSidecars?: UnifiedExactRenderTimingSidecars,
+): NativeMediaPlanEnvelopeV1 {
 	const planVersion = acceptedPlanVersion(value);
 	const fingerprint = fingerprintNativeMediaPlan(value);
 	const plan = deepFreeze(JSON.parse(fingerprint.canonical) as Record<string, unknown>);
@@ -174,7 +194,7 @@ export function createNativeMediaPlanEnvelopeV1(value: unknown): NativeMediaPlan
 		? summarizeGraphPlan(admitGraphPlan(plan))
 		: planVersion === VIDEO_KEYFRAME_EXPORT_PLAN_VERSION
 			? summarizeV7(admitV7(plan))
-			: summarizeUnified(admitUnified(plan, planVersion));
+			: summarizeUnified(admitUnified(plan, planVersion, timingSidecars));
 	return Object.freeze({
 		envelopeVersion: NATIVE_MEDIA_PLAN_ENVELOPE_VERSION,
 		planVersion,
@@ -193,6 +213,7 @@ export function createNativeMediaPlanEnvelopeV1(value: unknown): NativeMediaPlan
  */
 export function assertNativeMediaPlanEnvelopeV1(
 	value: unknown,
+	timingSidecars?: UnifiedExactRenderTimingSidecars,
 ): asserts value is NativeMediaPlanEnvelopeV1 {
 	const envelope = record(value, 'native media plan envelope');
 	const present = Object.keys(envelope);
@@ -202,7 +223,7 @@ export function assertNativeMediaPlanEnvelopeV1(
 	if (envelope.envelopeVersion !== NATIVE_MEDIA_PLAN_ENVELOPE_VERSION) {
 		nativeMediaPlanViolation('unsupported-version', 'The native media plan envelope version is unsupported.');
 	}
-	const derived = createNativeMediaPlanEnvelopeV1(envelope.plan);
+	const derived = createNativeMediaPlanEnvelopeV1(envelope.plan, timingSidecars);
 	if (envelope.planVersion !== derived.planVersion
 		|| envelope.strategy !== derived.strategy
 		|| envelope.fingerprint !== derived.fingerprint
@@ -284,8 +305,10 @@ function admitV7(plan: Readonly<Record<string, unknown>>): VideoKeyframeExportPl
 function admitUnified(
 	plan: Readonly<Record<string, unknown>>,
 	version: Exclude<NativeMediaPlanVersion, 7 | 8>,
+	timingSidecars?: UnifiedExactRenderTimingSidecars,
 ): UnifiedExactRenderPlan {
-	if (version === 9) assertUnifiedExactRenderPlanV9(plan);
+	if (timingSidecars !== undefined) assertUnifiedExactRenderPlanWithTimingSidecars(plan, timingSidecars);
+	else if (version === 9) assertUnifiedExactRenderPlanV9(plan);
 	else if (version === 10) assertUnifiedExactRenderPlanV10(plan);
 	else if (version === 11) assertUnifiedExactRenderPlanV11(plan);
 	else assertUnifiedExactRenderPlanV12(plan);
@@ -325,6 +348,7 @@ function summarizeGraphPlan(plan: NativeMediaGraphPlan): NativeMediaPlanSummaryV
 				mimeType: input.mimeType,
 				contentSha256: null,
 			}))),
+		videoTimingAssetInputs: Object.freeze([]),
 		compositionIntervalCount: plan.intervals.length,
 		videoEffectCount: nativeMediaGraphPlanVideoEffectCount(plan),
 		activeClipCount: null,
@@ -375,6 +399,7 @@ function summarizeV7(plan: VideoKeyframeExportPlanV7): NativeMediaPlanSummaryV1 
 				mimeType: input.mimeType,
 				contentSha256: input.contentSha256,
 			}))),
+		videoTimingAssetInputs: Object.freeze([]),
 		compositionIntervalCount: null,
 		videoEffectCount: null,
 		activeClipCount: plan.activeClipIds.length,
@@ -433,6 +458,7 @@ function summarizeUnified(plan: UnifiedExactRenderPlan): NativeMediaPlanSummaryV
 			mimeType: source.mimeType,
 			contentSha256: source.contentSha256,
 		}))),
+		videoTimingAssetInputs: nativeMediaPlanVideoTimingAssetInputs(plan),
 		compositionIntervalCount: null,
 		videoEffectCount: counts.transitions + counts.visuals + counts.openFx,
 		activeClipCount: clips.length,

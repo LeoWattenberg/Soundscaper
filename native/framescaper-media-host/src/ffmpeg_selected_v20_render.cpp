@@ -31,6 +31,13 @@ namespace {
 	const bool frame_core = core.exact_picture_ordinals
 		&& core.keyed_evaluated_rgba && core.static_composition
 		&& core.maximum_in_flight_frames == 1;
+	const bool evaluated_rgba_input_bound = keyed_adapter;
+	const bool static_geometry_adapter_bound = false;
+	const bool caption_delivery_adapter_bound = false;
+	const bool staged_audio_input_bound = keyed_adapter;
+	const bool ready = frame_core && evaluated_rgba_input_bound
+		&& static_geometry_adapter_bound && caption_delivery_adapter_bound
+		&& staged_audio_input_bound && delivery_codecs_available;
 	std::ostringstream result;
 	result << "{\"contractVersion\":1,\"operation\":\"media-render\","
 		<< "\"profile\":\"selected-v20-v7-v8\",\"planVersions\":[7,8],"
@@ -38,12 +45,16 @@ namespace {
 		<< "\"keyedEvaluatedRgbaExecutor\":" << (core.keyed_evaluated_rgba ? "true" : "false") << ','
 		<< "\"staticCompositionExecutor\":" << (core.static_composition ? "true" : "false") << ','
 		<< "\"maximumInFlightFrames\":" << core.maximum_in_flight_frames << ','
-		<< "\"evaluatedRgbaInputBound\":" << (keyed_adapter ? "true" : "false") << ','
-		<< "\"staticGeometryAdapterBound\":false,"
-		<< "\"stagedAudioInputBound\":" << (keyed_adapter ? "true" : "false") << ','
+		<< "\"evaluatedRgbaInputBound\":" << (evaluated_rgba_input_bound ? "true" : "false") << ','
+		<< "\"staticGeometryAdapterBound\":"
+		<< (static_geometry_adapter_bound ? "true" : "false") << ','
+		<< "\"captionDeliveryAdapterBound\":"
+		<< (caption_delivery_adapter_bound ? "true" : "false") << ','
+		<< "\"stagedAudioInputBound\":" << (staged_audio_input_bound ? "true" : "false") << ','
 		<< "\"deliveryCodecSetAvailable\":"
 		<< (delivery_codecs_available ? "true" : "false") << ','
-		<< "\"frameCoreReady\":" << (frame_core ? "true" : "false") << ",\"ready\":false}";
+		<< "\"frameCoreReady\":" << (frame_core ? "true" : "false") << ",\"ready\":"
+		<< (ready ? "true" : "false") << '}';
 	return result.str();
 }
 
@@ -82,33 +93,40 @@ engine_result self_test_selected_v20_render() {
 
 engine_result execute_selected_v20_render_job(const invocation& job) {
 	try {
-		const auto plan = capture_selected_v20_execution_plan(
+		const auto captured = capture_selected_v20_execution_plan(
 			job.admitted_plan.version, job.admitted_plan.authenticated_plan_json
 		);
+		if (captured.caption_delivery.any()) {
+			std::ostringstream result;
+			result << "{\"error\":\"unsupported-caption-adapter\",\"operation\":\""
+				<< operation_name(job.kind) << "\",\"planVersion\":"
+				<< job.admitted_plan.version << ",\"captionDelivery\":{\"mux\":"
+				<< (captured.caption_delivery.mux ? "true" : "false")
+				<< ",\"burnIn\":" << (captured.caption_delivery.burn_in ? "true" : "false")
+				<< ",\"sidecar\":" << (captured.caption_delivery.sidecar ? "true" : "false")
+				<< "}}";
+			return {78, result.str()};
+		}
+		const auto& plan = captured.execution;
 		if (plan.width != job.admitted_plan.width || plan.height != job.admitted_plan.height
 			|| plan.output_frame_count != job.admitted_plan.output_frame_count
 			|| plan.includes_staged_audio != job.admitted_plan.includes_audio) {
 			return {65, "{\"error\":\"selected-v20-authority-mismatch\",\"operation\":\"media-render\"}"};
 		}
-		if ((plan.family == selected_v20_family::keyed_evaluated_rgba_v7
-			|| plan.family == selected_v20_family::evaluated_rgba_v8)
-			&& plan.includes_staged_captions) {
-			return {78, "{\"error\":\"unsupported-staged-caption-adapter\",\"operation\":\""
-				+ std::string{operation_name(job.kind)} + "\",\"planVersion\":"
-				+ std::to_string(job.admitted_plan.version) + "}"};
+		if (plan.family == selected_v20_family::static_composition_v8) {
+			std::ostringstream result;
+			result << "{\"error\":\"unsupported-selected-v20-static-adapter\",\"operation\":\""
+				<< operation_name(job.kind) << "\",\"planVersion\":" << job.admitted_plan.version
+				<< ",\"missing\":\"static-geometry-frame-adapter\"}";
+			return {78, result.str()};
 		}
-		if (plan.family == selected_v20_family::keyed_evaluated_rgba_v7
-			|| plan.family == selected_v20_family::evaluated_rgba_v8) {
+		if (plan.family == selected_v20_family::keyed_evaluated_rgba_v7) {
 			return execute_selected_v20_keyed_adapter(
 				job, plan, source_with_role(job, "evaluated-rgba-frame-pack"),
 				optional_source_with_role(job, "staged-audio-mix")
 			);
 		}
-		std::ostringstream result;
-		result << "{\"error\":\"unsupported-selected-v20-static-adapter\",\"operation\":\""
-			<< operation_name(job.kind) << "\",\"planVersion\":" << job.admitted_plan.version
-			<< ",\"missing\":\"static-geometry-frame-adapter\"}";
-		return {78, result.str()};
+		return {65, "{\"error\":\"selected-v20-family-mismatch\",\"operation\":\"media-render\"}"};
 	} catch (const std::exception& error) {
 		return {65, "{\"error\":\"selected-v20-execution-authority\",\"operation\":\""
 			+ std::string{operation_name(job.kind)} + "\",\"detail\":\"" + escaped(error.what()) + "\"}"};

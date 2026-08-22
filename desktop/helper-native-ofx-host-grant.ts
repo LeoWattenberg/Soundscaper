@@ -15,6 +15,10 @@ import type {
 	HelperExecutableGrant,
 	HelperScratchGrant,
 } from './helper-native-job-contract.ts';
+import {
+	type HelperOfxVideoTimingAssetGrant,
+	validateHelperOfxVideoTimingAssetGrants,
+} from './helper-native-ofx-video-timing-grant.ts';
 import { HelperContractViolationError } from './helper-wire-admission.ts';
 
 export interface HelperOfxInputFrameGrant {
@@ -43,6 +47,7 @@ export interface HelperOfxHostJobGrant {
 	readonly pluginBinary: HelperExecutableGrant;
 	readonly invocation: OfxHostInvocationV1;
 	readonly plan: HelperDataPlaneBinding;
+	readonly videoTimingAssets?: readonly HelperOfxVideoTimingAssetGrant[];
 	readonly inputs: readonly HelperOfxInputFrameGrant[];
 	readonly output: HelperOfxOutputFrameGrant;
 	readonly scratch: HelperScratchGrant;
@@ -61,6 +66,7 @@ export interface HelperOfxHostGrantValidators {
 const HOST_KEYS = Object.freeze([
 	'executable', 'pluginBinary', 'invocation', 'plan', 'inputs', 'output', 'scratch',
 ]);
+const HOST_TIMING_KEYS = Object.freeze([...HOST_KEYS, 'videoTimingAssets']);
 const INPUT_KEYS = Object.freeze([
 	'name', 'sourceRef', 'pixelFormat', 'width', 'height', 'rowBytes', 'frame',
 ]);
@@ -77,8 +83,12 @@ export function validateHelperOfxHostJobGrant(
 	value: unknown,
 	validators: HelperOfxHostGrantValidators,
 ): HelperOfxHostJobGrant {
-	const record = exactRecord(value, HOST_KEYS);
+	const hasTiming = hasOwnTiming(value);
+	const record = exactRecord(value, hasTiming ? HOST_TIMING_KEYS : HOST_KEYS);
 	const invocation = snapshotInvocation(record.invocation);
+	const videoTimingAssets = hasTiming
+		? validateHelperOfxVideoTimingAssetGrants(record.videoTimingAssets, validators.dataBinding)
+		: null;
 	const inputs = inputFrames(record.inputs, validators);
 	const output = outputFrame(record.output);
 	const plan = validators.dataBinding(record.plan, 'host-to-helper', 'plan');
@@ -97,7 +107,9 @@ export function validateHelperOfxHostJobGrant(
 	if (invocation.outputFrameStreamId !== output.frame.streamId) {
 		unsafe('An OpenFX host invocation does not bind its exact output frame stream.');
 	}
-	const streamIds = [plan.streamId, ...inputStreamIds, output.frame.streamId];
+	const streamIds = [plan.streamId,
+		...(videoTimingAssets ?? []).map(({ binding }) => binding.streamId),
+		...inputStreamIds, output.frame.streamId];
 	if (new Set(streamIds).size !== streamIds.length) {
 		unsafe('An OpenFX host grant must use distinct plan, input, and output stream identities.');
 	}
@@ -111,10 +123,16 @@ export function validateHelperOfxHostJobGrant(
 		pluginBinary,
 		invocation,
 		plan,
+		...(videoTimingAssets === null ? {} : { videoTimingAssets }),
 		inputs,
 		output,
 		scratch: validators.scratch(record.scratch),
 	});
+}
+
+function hasOwnTiming(value: unknown): boolean {
+	return Boolean(value && typeof value === 'object' && !Array.isArray(value)
+		&& Object.hasOwn(value, 'videoTimingAssets'));
 }
 
 function snapshotInvocation(value: unknown): OfxHostInvocationV1 {

@@ -23,7 +23,6 @@ inline constexpr std::uint64_t selected_v20_maximum_output_frames = 2'000'000;
 
 enum class selected_v20_family {
 	keyed_evaluated_rgba_v7,
-	evaluated_rgba_v8,
 	static_composition_v8,
 };
 
@@ -68,7 +67,6 @@ struct selected_v20_execution_plan final {
 	std::string quality{"balanced"};
 	std::array<std::uint8_t, 4> background_rgba{0, 0, 0, 255};
 	bool includes_staged_audio{};
-	bool includes_staged_captions{};
 	std::vector<selected_v20_interval> intervals;
 };
 

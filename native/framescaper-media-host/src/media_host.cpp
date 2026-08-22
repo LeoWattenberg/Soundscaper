@@ -4,6 +4,7 @@
 #include "ffmpeg_selected_v20_render.hpp"
 #include "media_file_grants.hpp"
 #include "media_host_contract.hpp"
+#include "video_timing_asset.hpp"
 
 #include <charconv>
 #include <algorithm>
@@ -90,6 +91,9 @@ struct parsed_arguments final {
 	std::vector<std::string> source_sha256;
 	std::vector<std::uint64_t> source_byte_lengths;
 	std::vector<std::string> source_roles;
+	std::vector<std::filesystem::path> video_timing_assets;
+	std::vector<std::string> video_timing_sha256;
+	std::vector<std::uint64_t> video_timing_byte_lengths;
 	std::optional<std::filesystem::path> temporary_output;
 	std::optional<std::filesystem::path> decode_output;
 	std::optional<std::filesystem::path> destination_root;
@@ -152,6 +156,23 @@ void unique_flag(std::unordered_set<std::string>& flags, const std::string& flag
 		} else if (flag == "--source-byte-length") {
 			if (parsed.source_byte_lengths.size() >= maximum_sources) throw admission_error("The host source length list exceeds its hard ceiling.");
 			parsed.source_byte_lengths.push_back(positive_integer(value, "source byte length", maximum_native_file_bytes));
+		} else if (flag == "--video-timing-asset") {
+			if (parsed.video_timing_assets.size() >= video_timing_asset_maximum_grants) {
+				throw admission_error("The host timing-asset list exceeds its hard ceiling.");
+			}
+			parsed.video_timing_assets.push_back(admitted_path(value, "video timing asset"));
+		} else if (flag == "--video-timing-sha256") {
+			if (parsed.video_timing_sha256.size() >= video_timing_asset_maximum_grants) {
+				throw admission_error("The host timing-digest list exceeds its hard ceiling.");
+			}
+			parsed.video_timing_sha256.emplace_back(value);
+		} else if (flag == "--video-timing-byte-length") {
+			if (parsed.video_timing_byte_lengths.size() >= video_timing_asset_maximum_grants) {
+				throw admission_error("The host timing-length list exceeds its hard ceiling.");
+			}
+			parsed.video_timing_byte_lengths.push_back(positive_integer(
+				value, "video timing asset byte length", video_timing_asset_maximum_bytes
+			));
 		} else if (flag == "--temporary-output") {
 			unique_flag(flags, flag); parsed.temporary_output = admitted_path(value, "temporary output");
 		} else if (flag == "--decode-output") {
@@ -219,6 +240,24 @@ void require_source_authentication(
 	job.source_roles = parsed.source_roles;
 }
 
+[[nodiscard]] std::vector<video_timing_asset_grant> video_timing_grants(
+	const parsed_arguments& parsed
+) {
+	if (parsed.video_timing_assets.size() != parsed.video_timing_sha256.size()
+		|| parsed.video_timing_assets.size() != parsed.video_timing_byte_lengths.size()) {
+		throw admission_error("Every video timing asset requires its exact digest and byte length grant.");
+	}
+	std::vector<video_timing_asset_grant> grants;
+	grants.reserve(parsed.video_timing_assets.size());
+	for (std::size_t index = 0; index < parsed.video_timing_assets.size(); ++index) {
+		grants.push_back({
+			parsed.video_timing_assets[index], parsed.video_timing_sha256[index],
+			parsed.video_timing_byte_lengths[index],
+		});
+	}
+	return grants;
+}
+
 void require_plan_sources_match(const invocation& job, const std::vector<std::size_t>& source_indices) {
 	if (job.admitted_plan.source_sha256.size() != source_indices.size()) {
 		throw authentication_error("The source grants do not authenticate the plan's exact source list.");
@@ -259,14 +298,17 @@ void require_exact_render_source_roles(const invocation& job) {
 			if (++audio > 1) throw admission_error("An exact render admits one staged audio mix.");
 		} else throw admission_error("An exact render carries an unrelated source role.");
 	}
-	if (!job.admitted_plan.requires_evaluated_rgba_carrier) {
+	if (job.admitted_plan.version >= 9) {
 		if (carriers != 0 || audio != 0) {
 			throw admission_error("An unsupported unified render cannot acquire derived media authority.");
 		}
 		return;
 	}
-	if (carriers != 1) {
-		throw admission_error("An evaluated exact render requires one authenticated RGBA frame pack.");
+	const auto expected_carriers = job.admitted_plan.requires_evaluated_rgba_carrier ? 1U : 0U;
+	if (carriers != expected_carriers) {
+		throw admission_error(expected_carriers == 0
+			? "A static V8 render cannot acquire an evaluated RGBA carrier."
+			: "An evaluated exact render requires one authenticated RGBA frame pack.");
 	}
 	if (audio != static_cast<std::size_t>(job.admitted_plan.includes_audio)) {
 		throw admission_error("Exact staged audio does not match its canonical plan.");
@@ -286,7 +328,9 @@ void require_exact_render_source_roles(const invocation& job) {
 			|| !parsed.source_roles.empty() || !parsed.source_byte_lengths.empty()
 			|| parsed.proxy_recipe || parsed.proxy_width || parsed.proxy_height
 			|| parsed.maximum_output_bytes || parsed.sequence_profile
-			|| parsed.sequence_rate_num || parsed.sequence_rate_den) {
+			|| parsed.sequence_rate_num || parsed.sequence_rate_den
+			|| !parsed.video_timing_assets.empty() || !parsed.video_timing_sha256.empty()
+			|| !parsed.video_timing_byte_lengths.empty()) {
 			throw admission_error("A probe job carries exactly one authenticated source and no render authority.");
 		}
 		return job;
@@ -299,7 +343,9 @@ void require_exact_render_source_roles(const invocation& job) {
 	}
 	job.plan = *parsed.plan;
 	job.plan_sha256 = *parsed.plan_sha256;
-	job.admitted_plan = authenticate_media_plan(job.plan, job.plan_sha256);
+	job.admitted_plan = authenticate_media_plan(
+		job.plan, job.plan_sha256, video_timing_grants(parsed)
+	);
 	job.backend = *parsed.backend;
 	job.maximum_output_bytes = *parsed.maximum_output_bytes;
 	job.scratch_root = authenticate_directory(*parsed.scratch_root, "scratch root");
@@ -406,7 +452,8 @@ engine_result self_test_selected_v20_render() {
 		"\"exactPictureOrdinals\":false,\"keyedEvaluatedRgbaExecutor\":false,"
 		"\"staticCompositionExecutor\":false,\"maximumInFlightFrames\":0,"
 		"\"evaluatedRgbaInputBound\":false,\"staticGeometryAdapterBound\":false,"
-		"\"stagedAudioInputBound\":false,\"deliveryCodecSetAvailable\":false,"
+		"\"captionDeliveryAdapterBound\":false,\"stagedAudioInputBound\":false,"
+		"\"deliveryCodecSetAvailable\":false,"
 		"\"frameCoreReady\":false,\"ready\":false}"};
 }
 engine_result execute_ffmpeg_job(const invocation& job) {
@@ -414,6 +461,22 @@ engine_result execute_ffmpeg_job(const invocation& job) {
 	if (job.image_sequence) return {
 		78, "{\"error\":\"image-sequence-licensing-unavailable\",\"operation\":\"media-decode\","
 			"\"policyRow\":\"codec-image-sequence-still-formats\"}",
+	};
+	if ((job.kind == operation::media_render || job.kind == operation::media_encode)
+		&& job.admitted_plan.version == 8
+		&& (job.admitted_plan.caption_mux || job.admitted_plan.caption_burn_in
+			|| job.admitted_plan.caption_sidecar)) return {
+		78, "{\"error\":\"unsupported-caption-adapter\",\"operation\":\"" + operation_text
+			+ "\",\"planVersion\":8,\"captionDelivery\":{\"mux\":"
+			+ (job.admitted_plan.caption_mux ? "true" : "false") + ",\"burnIn\":"
+			+ (job.admitted_plan.caption_burn_in ? "true" : "false") + ",\"sidecar\":"
+			+ (job.admitted_plan.caption_sidecar ? "true" : "false") + "}}",
+	};
+	if ((job.kind == operation::media_render || job.kind == operation::media_encode)
+		&& job.admitted_plan.version == 8) return {
+		78, "{\"error\":\"unsupported-selected-v20-static-adapter\",\"operation\":\""
+			+ operation_text
+			+ "\",\"planVersion\":8,\"missing\":\"static-geometry-frame-adapter\"}",
 	};
 	if ((job.kind == operation::media_render || job.kind == operation::media_encode)
 		&& job.admitted_plan.requires_evaluated_rgba_carrier) return {

@@ -134,33 +134,39 @@ export function createFramescaperNativeRenderInputProducerV20(
 			assertReady(operation);
 			const project = exactProject(profile, operation.project, request);
 			const plan = exactPlan(profile, project, request);
-			const activeSourceIds = selectedV20ActiveSourceIds(plan);
-			const store = exactBlobStore(authority.store);
 			const renderProject = projectTrackFolderMediaStateV12(
 				framescaperProjectForPlaybackFoundationV20(profile, project),
 			);
-			timing = await runtime.acquireTiming(renderProject, store, {
-				findClip, findSource,
-			}, {
-				signal: operation.signal,
-				assertCurrent: operation.assertCurrent,
-				requiredSourceIds: activeSourceIds,
-			});
-			assertReady(operation);
-			const carrier = await renderCarrier(
-				plan, activeSourceIds, renderProject, timing.timingBySourceId, store, operation, runtime,
-			);
-			const audio = await renderAudio(plan, renderProject, operation);
-			assertReady(operation);
-			result = Object.freeze([
-				Object.freeze({
-					role: 'evaluated-rgba-frame-pack' as const,
-					byteLength: carrier.byteLength,
-					sha256: carrier.sha256,
-					bytes: carrier.bytes,
-				}),
-				...(audio ? [audio] : []),
-			]);
+			if (plan.version === 8) {
+				const audio = await renderAudio(plan, renderProject, operation);
+				assertReady(operation);
+				result = Object.freeze(audio ? [audio] : []);
+			} else {
+				const activeSourceIds = selectedV20ActiveSourceIds(plan);
+				const store = exactBlobStore(authority.store);
+				timing = await runtime.acquireTiming(renderProject, store, {
+					findClip, findSource,
+				}, {
+					signal: operation.signal,
+					assertCurrent: operation.assertCurrent,
+					requiredSourceIds: activeSourceIds,
+				});
+				assertReady(operation);
+				const carrier = await renderCarrier(
+					plan, activeSourceIds, renderProject, timing.timingBySourceId, store, operation, runtime,
+				);
+				const audio = await renderAudio(plan, renderProject, operation);
+				assertReady(operation);
+				result = Object.freeze([
+					Object.freeze({
+						role: 'evaluated-rgba-frame-pack' as const,
+						byteLength: carrier.byteLength,
+						sha256: carrier.sha256,
+						bytes: carrier.bytes,
+					}),
+					...(audio ? [audio] : []),
+				]);
+			}
 		} catch (error) {
 			primary = error;
 			hasPrimary = true;

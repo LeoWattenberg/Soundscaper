@@ -198,6 +198,26 @@ template<typename Map, typename Clip>
 	));
 }
 
+template<typename Source>
+[[nodiscard]] ExactRational intent_source_boundary(
+	const Source& source,
+	const std::int64_t frame
+) {
+	if (frame < 0 || frame > source.frame_count) {
+		throw json::parse_error("A source-time boundary escapes its exact source authority.");
+	}
+	if (source.cfr) {
+		return ExactRational(cpp_int{frame} * source.rate.second, source.rate.first);
+	}
+	if (source.vfr_timing == nullptr) {
+		throw json::parse_error("Unified VFR retime admission requires verified timing asset bytes.");
+	}
+	return ExactRational(
+		source.vfr_timing->boundary_ticks(frame),
+		source.vfr_timing->timescale
+	);
+}
+
 [[nodiscard]] inline std::int64_t intent_decimal_bytes(const json::value& value) {
 	if (value.kind == json::type::object) {
 		const auto* numerator = json::optional_member(value, "numerator");
@@ -278,10 +298,8 @@ void validate_exact_intent_authority(
 			|| safe_integer(json::member(row, "clipEndSample"), "clip end sample", 1) != clip_end) {
 			throw json::parse_error("A wall-clock row does not bind its exact clip sample range.");
 		}
-		const ExactRational source_start(cpp_int{clip.source_in} * clip.source_rate.second, clip.source_rate.first);
-		const ExactRational source_end(
-			cpp_int{clip.source_in + clip.source_count} * clip.source_rate.second, clip.source_rate.first
-		);
+		const auto source_start = intent_source_boundary(source, clip.source_in);
+		const auto source_end = intent_source_boundary(source, clip.source_in + clip.source_count);
 		require_intent_decimal(json::member(row, "sourceStartTime"), source_start, "source start time");
 		require_intent_decimal(json::member(row, "sourceEndTime"), source_end, "source end time");
 		const auto interpolate = [&](const std::int64_t sample) {
@@ -341,12 +359,12 @@ void validate_exact_intent_authority(
 			const auto upper = std::max(first, last);
 			require_intent_decimal(
 				json::member(row, "drawableStartTime"),
-				ExactRational(cpp_int{lower} * clip.source_rate.second, clip.source_rate.first),
+				intent_source_boundary(source, lower),
 				"drawable source start time"
 			);
 			require_intent_decimal(
 				json::member(row, "drawableEndTime"),
-				ExactRational(cpp_int{upper + 1} * clip.source_rate.second, clip.source_rate.first),
+				intent_source_boundary(source, upper + 1),
 				"drawable source end time"
 			);
 		}
@@ -365,7 +383,6 @@ void validate_exact_intent_authority(
 			!= intent_decimal_bytes(json::member(intent, "intersections"))) {
 		throw json::parse_error("Unified retime intent limit accounting is not its exact owning authority.");
 	}
-	static_cast<void>(source);
 }
 
 #else

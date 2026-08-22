@@ -9,6 +9,7 @@
 #include "unified_plan_common.hpp"
 #include "v12_retime_authority.hpp"
 #include "v12_transition_authority.hpp"
+#include "v12_video_timing_grants.hpp"
 
 #include <algorithm>
 #include <array>
@@ -430,7 +431,10 @@ V12HostInvocation authenticate_v12_host_invocation(
 		std::string canonical_grant;
 		framescaper::media::unified::append_canonical_json(canonical_grant, grant);
 		if (canonical_grant != grant_bytes) fail("admission", "The OpenFX V12 grant bytes are not canonical JSON.");
-		exact(grant, {"schemaVersion", "pluginBinary", "invocation", "plan", "inputs", "output"});
+		const auto* timing_value = json::optional_member(grant, "videoTimingAssets");
+		exact(grant, timing_value == nullptr
+			? std::initializer_list<std::string_view>{"schemaVersion", "pluginBinary", "invocation", "plan", "inputs", "output"}
+			: std::initializer_list<std::string_view>{"schemaVersion", "pluginBinary", "invocation", "plan", "videoTimingAssets", "inputs", "output"});
 		if (safe_integer(json::member(grant, "schemaVersion"), "grant schema", 1) != 1) {
 			fail("admission", "The OpenFX V12 grant schema is unsupported.");
 		}
@@ -466,7 +470,13 @@ V12HostInvocation authenticate_v12_host_invocation(
 		const auto plan_sha256 = digest(json::member(plan_binding, "sha256"), "plan digest");
 		const auto plan_length = safe_integer(json::member(plan_binding, "byteLength"), "plan byte length", 1);
 		if (plan_sha256 != parsed.plan_sha256) fail("identity-mismatch", "The staged plan does not match its invocation.");
-		const auto admitted = framescaper::media::authenticate_media_plan(plan_path, plan_sha256);
+		const auto timing = parse_v12_video_timing_grants(
+			timing_value, grant_directory,
+			{grant_path.lexically_normal(), result.plugin_binary, plan_path}
+		);
+		const auto admitted = framescaper::media::authenticate_media_plan(
+			plan_path, plan_sha256, timing.grants
+		);
 		if (admitted.version != 12) fail("admission", "The OpenFX host admits only unified exact plan V12.");
 		if (parsed.output_ordinal >= admitted.output_frame_count) {
 			fail("admission", "The OpenFX output ordinal is outside the exact V12 output frame range.");
@@ -507,6 +517,7 @@ V12HostInvocation authenticate_v12_host_invocation(
 			const auto input_path = absolute_path(json::member(inputs[index], "path"), "input path");
 			if (!input_names.insert(name).second
 				|| !input_paths.insert(input_path).second
+				|| timing.paths.contains(input_path)
 				|| name != json::string(json::member(state_inputs[index], "name"), "state input name")
 				|| source_ref != json::string(json::member(state_inputs[index], "sourceRef"), "state input reference")) {
 				fail("identity-mismatch", "A named input does not bind its V12 state identity.");
@@ -527,7 +538,8 @@ V12HostInvocation authenticate_v12_host_invocation(
 		if (result.output_path.parent_path() != grant_directory) {
 			fail("identity-mismatch", "The OpenFX output frame escaped its authenticated scratch reservation.");
 		}
-		if (input_paths.contains(result.output_path) || result.output_path == plan_path
+		if (input_paths.contains(result.output_path) || timing.paths.contains(result.output_path)
+			|| result.output_path == plan_path
 			|| result.output_path == grant_path.lexically_normal()) {
 			fail("identity-mismatch", "The OpenFX output frame aliases authenticated input authority.");
 		}
@@ -554,7 +566,7 @@ V12HostInvocation authenticate_v12_host_invocation(
 				fail("identity-mismatch", "Retimer SourceTime does not bind its attachment clip.");
 			}
 			result.host_standard_parameter_value = verified_v12_retimer_source_time(
-				plan, *parsed.source_time
+				plan, *parsed.source_time, timing.grants
 			);
 			result.source_time_verified = true;
 		} else if (parsed.context == Context::transition) {

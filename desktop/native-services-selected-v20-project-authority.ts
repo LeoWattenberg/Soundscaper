@@ -9,6 +9,10 @@ import type { HelperJobRequest } from './helper-supervisor.ts';
 import type { PreparedNativeMediaQueueJob } from './native-media-queue-dispatcher.ts';
 import type { FramescaperNativeProjectAuthority } from './native-services-project-authority.ts';
 import type { FramescaperNativeRenderInputStaging } from './native-services-render-input-staging.ts';
+import {
+	nativeRenderInputExactV20Envelope,
+	nativeRenderInputStageRequired,
+} from './native-services-render-input-contract.ts';
 import type { FramescaperNativeRootGrant } from './native-services-root-repository.ts';
 
 export interface FramescaperNativeSelectedV20ProjectAuthorityOptions {
@@ -45,7 +49,7 @@ export class FramescaperNativeSelectedV20ProjectAuthority {
 	): Promise<NativeQueueRevalidationV1> {
 		const [base, derivedMatch] = await Promise.all([
 			this.#project.revalidate(record, root, rootAuthorized),
-			this.#renderInputs.revalidate(record),
+			selectedV20StageRequired(record) ? this.#renderInputs.revalidate(record) : true,
 		]);
 		return Object.freeze({
 			...base,
@@ -57,9 +61,12 @@ export class FramescaperNativeSelectedV20ProjectAuthority {
 		record: NativeQueueRecordV2,
 		root: FramescaperNativeRootGrant,
 	): Promise<PreparedNativeMediaQueueJob> {
+		if (record.planVersion !== 7 && record.planVersion !== 8) {
+			return this.#project.prepare(record, root);
+		}
+		if (!selectedV20StageRequired(record)) return this.#project.prepare(record, root);
 		const derived = await this.#renderInputs.inspect(record);
 		const prepared = await this.#project.prepare(record, root);
-		if (record.planVersion !== 7 && record.planVersion !== 8) return prepared;
 		try {
 			if (prepared.request.kind !== 'media-render') {
 				throw new Error('A selected-V20 V7/V8 queue record requires one media-render helper job.');
@@ -108,6 +115,13 @@ export class FramescaperNativeSelectedV20ProjectAuthority {
 			throw error;
 		}
 	}
+}
+
+function selectedV20StageRequired(record: NativeQueueRecordV2): boolean {
+	if (record.planVersion !== 7 && record.planVersion !== 8) return false;
+	return nativeRenderInputStageRequired(nativeRenderInputExactV20Envelope(
+		record.planPayload, record.planFingerprint, record.planVersion,
+	));
 }
 
 function inputBytes(value: Readonly<{ readonly type: string; readonly bytes?: number; readonly binding?: Readonly<{ byteLength: number }> }>): number {

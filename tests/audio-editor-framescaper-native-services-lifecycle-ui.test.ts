@@ -16,7 +16,9 @@ import {
 	canonicalizeNativeMediaPlan,
 	fingerprintNativeMediaPlan,
 } from '../src/common/editor/native-media-plan-canonical-form.ts';
+import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
 import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
+import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
 
 const ROOT_ID = 'ab'.repeat(16);
 const RULE_ID = 'cd'.repeat(16);
@@ -129,6 +131,21 @@ test('queue enqueue is exposed only for an exact canonical plan identity', async
 	await store.enqueue(request);
 	assert.equal(fixture.calls.some((call) => call[0] === 'enqueue'
 		&& call[1] === fingerprint.sha256), true);
+	for (const version of [9, 10, 11, 12] as const) {
+		const unified = createUnifiedExactRenderPlan(unifiedExactPlanFixture(version));
+		const identity = fingerprintNativeMediaPlan(unified);
+		await store.enqueue({
+			...request, planVersion: version, derivedInputStageId: null,
+			planFingerprint: identity.sha256, planPayload: canonicalizeNativeMediaPlan(unified),
+			inputFingerprints: [{ sourceId: 'source-1', sha256: '12'.repeat(32) }],
+		});
+	}
+	const unified = createUnifiedExactRenderPlan(unifiedExactPlanFixture(12));
+	await assert.rejects(() => store.enqueue({
+		...request, planVersion: 12, derivedInputStageId: JOB_ID,
+		planFingerprint: fingerprintNativeMediaPlan(unified).sha256,
+		planPayload: canonicalizeNativeMediaPlan(unified),
+	}), /unified V12|derived-input stage|durable.*carrier/iu);
 	await assert.rejects(
 		() => store.enqueue({ ...request, planFingerprint: '34'.repeat(32) }),
 		/exact plan identity/iu,

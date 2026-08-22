@@ -529,6 +529,11 @@ engine_result execute_selected_v20_keyed_adapter(
 	const std::optional<std::size_t> audio_index
 ) {
 	try {
+		if (plan.family != selected_v20_family::keyed_evaluated_rgba_v7) {
+			throw adapter_failure(
+				"plan-family", "The keyed selected-V20 adapter admits only a V7 evaluated RGBA carrier.", 65
+			);
+		}
 		selected_v20_frame_pack carrier(
 			job.sources.at(carrier_index), job.source_byte_lengths.at(carrier_index)
 		);
@@ -555,9 +560,7 @@ engine_result execute_selected_v20_keyed_adapter(
 		}
 		const auto sha256 = sha256_file(bytes.path());
 		std::ostringstream result;
-		const auto profile = plan.family == selected_v20_family::keyed_evaluated_rgba_v7
-			? std::string{"selected-v20-v7-keyed-rgba"}
-			: std::string{"selected-v20-v8-evaluated-rgba"};
+		const auto profile = std::string{"selected-v20-v7-keyed-rgba"};
 		result << "{\"contractVersion\":1,\"operation\":\"" << operation_name(job.kind) << "\","
 			<< "\"profile\":\"" << profile << "\",\"frameCount\":" << report.frames_written << ','
 			<< "\"maximumInFlightFrames\":" << report.maximum_in_flight_frames << ','

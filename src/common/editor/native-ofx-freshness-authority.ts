@@ -14,7 +14,7 @@ import type {
 	OfxEffectStateV26,
 } from './native-ofx-state-v26.ts';
 import {
-	assertUnifiedExactRenderPlanV12,
+	assertUnifiedExactRenderPlanWithDeferredTimingReferences,
 	type UnifiedExactRenderOpenFxNode,
 	type UnifiedExactRenderPlanV12,
 } from './unified-exact-render-plan.ts';
@@ -24,7 +24,7 @@ export function deriveUnifiedExactOfxFreshnessV26(
 	instanceId: string,
 	descriptorValue: unknown,
 ): OfxEffectFreshnessV26 {
-	assertUnifiedExactRenderPlanV12(planValue);
+	assertDeferredV12Plan(planValue);
 	assertOfxPluginDescriptorV1(descriptorValue);
 	const plan = planValue;
 	const descriptor = descriptorValue;
@@ -42,6 +42,11 @@ export function deriveUnifiedExactOfxFreshnessV26(
 		renderPlanFingerprintSha256: digest(renderIntent(plan)),
 		nativeEffectFingerprintSha256: digest(nativeEffect(descriptor)),
 	});
+}
+
+function assertDeferredV12Plan(value: unknown): asserts value is UnifiedExactRenderPlanV12 {
+	assertUnifiedExactRenderPlanWithDeferredTimingReferences(value);
+	if (value.version !== 12) throw new RangeError('OpenFX freshness requires exact render plan V12.');
 }
 
 function effectNode(

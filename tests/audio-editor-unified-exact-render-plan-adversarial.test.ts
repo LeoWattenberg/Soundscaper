@@ -104,7 +104,7 @@ test('V11 permits at most one professional-media authority per source', () => {
 	assert.throws(() => createUnifiedExactRenderPlan(duplicate), /professional.*source|source.*professional|duplicate/iu);
 });
 
-test('VFR unified admission fails closed until verified timing bytes participate', () => {
+test('context-free VFR unified admission fails closed without verified timing sidecars', () => {
 	const candidate = mutate(unifiedExactPlanFixture(9), (plan) => {
 		const source = (plan.sources as Record<string, unknown>[])[0]!;
 		source.timing = {

@@ -61,12 +61,45 @@ test('V8 admission closes static graph, filter equivalence, captions, and burn-i
 		const admitted = runLegacyPlan(fixture.executable, paths, canonical);
 		assert.equal(admitted.status, 78, admitted.stderr);
 		assert.deepEqual(JSON.parse(admitted.stdout), {
-			error: 'contract-build-has-no-ffmpeg', operation: 'media-render',
-			subset: 'evaluated-rgba-frame-pack-v1', planVersion: 8,
+			error: 'unsupported-caption-adapter', operation: 'media-render', planVersion: 8,
+			captionDelivery: { mux: true, burnIn: true, sidecar: true },
+		});
+		const visual = structuredClone(canonical);
+		visual.inputs[0].presentation = {
+			autorotate: true, decodedWidth: 320, decodedHeight: 360,
+			sampleAspect: { num: 2, den: 1 }, scaledWidth: 640, scaledHeight: 360,
+		};
+		const effect = {
+			id: 'pixels', type: 'pixelate', enabled: true, params: { blockSize: 12 },
+		};
+		visual.intervals[0].layers[0].clips[0].videoEffects = [effect];
+		const operations = visual.filterPlan.intervals[0].layers[0].clips[0].operations;
+		operations.splice(operations.findIndex(({ name }) => name === 'fps') + 1, 0, {
+			name: 'video-effect', effect,
+		});
+		const visualAdmission = runLegacyPlan(fixture.executable, paths, visual);
+		assert.equal(visualAdmission.status, 78, visualAdmission.stderr);
+		assert.deepEqual(JSON.parse(visualAdmission.stdout), {
+			error: 'unsupported-caption-adapter', operation: 'media-render', planVersion: 8,
+			captionDelivery: { mux: true, burnIn: true, sidecar: true },
 		});
 		const repeatedClip = runLegacyPlan(fixture.executable, paths, legacyV8MultiIntervalPlan());
 		assert.equal(repeatedClip.status, 78, repeatedClip.stderr);
-		assert.equal(JSON.parse(repeatedClip.stdout).subset, 'evaluated-rgba-frame-pack-v1');
+		assert.deepEqual(JSON.parse(repeatedClip.stdout), {
+			error: 'unsupported-selected-v20-static-adapter', operation: 'media-render',
+			planVersion: 8, missing: 'static-geometry-frame-adapter',
+		});
+		const carrier = renderArguments({
+			...paths, planSha256: digest(JSON.stringify(legacyV8MultiIntervalPlan())),
+			planVersion: 8, includesAudio: false,
+		});
+		carrier.splice(carrier.indexOf('--temporary-output'), 0,
+			'--source', paths.carrier, '--source-sha256', paths.carrierSha256,
+			'--source-byte-length', String(paths.carrierByteLength),
+			'--source-role', 'evaluated-rgba-frame-pack');
+		const refusedCarrier = spawnSync(fixture.executable, carrier, { encoding: 'utf8' });
+		assert.equal(refusedCarrier.status, 64);
+		assert.match(refusedCarrier.stderr, /V8|carrier|evaluated RGBA/iu);
 
 		const cases = [
 			['reordered layer', (plan) => {
@@ -182,7 +215,7 @@ function runLegacyPlan(executable, paths, plan) {
 
 function renderArguments(paths) {
 	const derived = [
-		...(paths.planVersion === 7 || paths.planVersion === 8 ? [
+		...(paths.planVersion === 7 ? [
 			'--source', paths.carrier, '--source-sha256', paths.carrierSha256,
 			'--source-byte-length', String(paths.carrierByteLength),
 			'--source-role', 'evaluated-rgba-frame-pack',

@@ -72,6 +72,7 @@ test.describe('adaptive WavPack PCM persistence', () => {
 
 		await page.reload();
 		editor = await waitForEditor(page);
+		await editor.getByRole('button', { name: 'Jump to project start', exact: true }).click();
 		await expect(clipByName(editor, fixture.name)).toBeVisible();
 		await seekAndPlay(editor);
 		expect(await legacySourceState(page, seeded.sourceId)).toMatchObject({

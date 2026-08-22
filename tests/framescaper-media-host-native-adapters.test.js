@@ -325,6 +325,8 @@ test('FFmpeg adapter source uses libav APIs and contains no argv or filter-strin
 	const engine = readFileSync(join(sourceRoot, 'ffmpeg_media_engine.cpp'), 'utf8');
 	const simple = readFileSync(join(sourceRoot, 'ffmpeg_simple_render.cpp'), 'utf8');
 	const selected = readFileSync(join(sourceRoot, 'ffmpeg_selected_v20_adapter.cpp'), 'utf8');
+	const selectedRender = readFileSync(join(sourceRoot, 'ffmpeg_selected_v20_render.cpp'), 'utf8');
+	const selectedCapture = readFileSync(join(sourceRoot, 'selected_v20_plan_capture.cpp'), 'utf8');
 	const framePack = readFileSync(join(sourceRoot, 'selected_v20_frame_pack.cpp'), 'utf8');
 	for (const api of [
 		'avformat_open_input', 'avcodec_send_packet', 'avcodec_receive_frame',
@@ -351,6 +353,18 @@ test('FFmpeg adapter source uses libav APIs and contains no argv or filter-strin
 	]) assert.match(selected, new RegExp(token, 'u'));
 	assert.match(framePack, /framescaper-rgba-frame-pack-v1/u);
 	assert.match(framePack, /require_output_cadence/u);
+	for (const field of ['mux', 'burnIn', 'sidecarFormat']) {
+		assert.match(selectedCapture, new RegExp(`json::member\\(captions, "${field}"\\)`, 'u'));
+	}
+	assert.match(selectedRender, /caption_delivery\.any\(\)[\s\S]*unsupported-caption-adapter/u);
+	assert.match(selectedRender,
+		/selected_v20_family::static_composition_v8[\s\S]*unsupported-selected-v20-static-adapter/u);
+	assert.ok(
+		selectedRender.indexOf('caption_delivery.any()')
+			< selectedRender.indexOf('unsupported-selected-v20-static-adapter'),
+		'caption delivery must be refused before the selected adapter receives any output',
+	);
+	assert.doesNotMatch(selectedRender, /includes_staged_captions/u);
 	assert.doesNotMatch(selected, /avfilter_graph_parse|system\s*\(|popen\s*\(|execv/iu);
 	assert.doesNotMatch(selected, /-vf|-filter_complex|-codec:|-c:v/iu);
 });

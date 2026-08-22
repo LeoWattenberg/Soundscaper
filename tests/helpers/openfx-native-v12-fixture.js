@@ -9,11 +9,17 @@ import { createNativeMediaPlanEnvelopeV1 } from '../../src/common/editor/native-
 import { createOfxHostInvocationV1 } from '../../src/common/editor/native-ofx-host-contract.ts';
 import { fingerprintNativeMediaPlan } from '../../src/common/editor/native-media-plan-canonical-form.ts';
 import { createUnifiedExactRenderOfxRetimerSourceTime } from '../../src/common/editor/unified-exact-render-plan-consumers.ts';
-import { createUnifiedExactRenderPlan } from '../../src/common/editor/unified-exact-render-plan.ts';
+import {
+	createUnifiedExactRenderPlan,
+	createUnifiedExactRenderPlanWithTimingSidecars,
+} from '../../src/common/editor/unified-exact-render-plan.ts';
+import { createVideoRetimeExportIntentV6 } from '../../src/common/editor/video-retime-export-plan.ts';
 import {
 	unifiedExactPlanFixture,
 	unifiedExactTimingFixture,
 } from './unified-exact-render-plan-fixture.ts';
+import { unifiedExactVfrPlanFixture } from './unified-exact-vfr-plan-fixture.ts';
+import { videoClip } from './video-retime-export-fixtures.ts';
 
 let wireSequence = 0;
 const PRIMARY = Buffer.from([
@@ -101,6 +107,88 @@ export function createV12WireFixture(build, context) {
 	};
 }
 
+export function createV12VfrRetimerWireFixture(build) {
+	wireSequence += 1;
+	const suffix = `retimer-vfr-${String(wireSequence)}`;
+	const fixture = unifiedExactVfrPlanFixture(12);
+	const raw = structuredClone(fixture.plan);
+	raw.output.canvas.width = 2;
+	raw.output.canvas.height = 2;
+	const retimeMap = {
+		feature: 'video-retime', version: 2,
+		points: [
+			{ outerFrame: 0, sourceFrame: { num: 0, den: 1 } },
+			{ outerFrame: 4, sourceFrame: { num: 3, den: 1 } },
+		],
+		segments: [{ mode: 'constant-forward' }],
+	};
+	const intent = createVideoRetimeExportIntentV6({
+		sampleStart: 0, sampleDuration: 4, sampleRate: 1,
+		sequenceBinding: { id: 'sequence-1', rate: { num: 1, den: 1 } },
+		outputRate: { num: 1, den: 1 },
+		topology: [{ startSample: 0, endSample: 4,
+			layers: [{ clips: [{ clipId: 'vfr-clip' }] }] }],
+		canonicalClips: [videoClip('vfr-clip', 'vfr-source', retimeMap, {
+			sequenceFrameCount: 4, sourceFrameCount: 4,
+		})],
+	}, new Map([['vfr-source', fixture.timing]]));
+	raw.nodes[0].sourceTimeMapping = {
+		kind: 'video-retime-export-intent-v6', sourceRate: { num: 30_000, den: 1_001 },
+		retimeMap, intent,
+	};
+	const effectState = structuredClone(
+		unifiedExactPlanFixture(12).nodes.find((node) => node.kind === 'openfx'),
+	);
+	if (!effectState) throw new Error('OpenFX VFR fixture state is unavailable.');
+	Object.assign(effectState.state, {
+		pluginId: 'org.framescaper.conformance', binarySha256: build.sha256,
+		context: 'retimer', attachment: { kind: 'retimer', targetId: 'vfr-clip' },
+		inputs: [{ name: 'Source', sourceRef: 'vfr-source' }], frozenFallback: null,
+	});
+	raw.nodes.push(effectState);
+	const plan = createUnifiedExactRenderPlanWithTimingSidecars(raw, fixture.timingSidecars);
+	const envelope = createNativeMediaPlanEnvelopeV1(plan, fixture.timingSidecars);
+	const planFingerprint = fingerprintNativeMediaPlan(plan);
+	const outputOrdinal = 2;
+	const sourceTime = createUnifiedExactRenderOfxRetimerSourceTime(
+		plan, 'ofx-1', outputOrdinal, fixture.timingSidecars,
+	);
+	const effect = plan.nodes.find((node) => node.kind === 'openfx');
+	if (!effect) throw new Error('OpenFX VFR fixture node is unavailable.');
+	const planPath = join(build.directory, `plan-${suffix}.json`);
+	const timingPath = join(build.directory, `timing-${suffix}.scti`);
+	const outputPath = join(build.directory, `output-${suffix}.rgba`);
+	writeFileSync(planPath, planFingerprint.canonical, { flag: 'wx' });
+	writeFileSync(timingPath, fixture.publication.bytes, { flag: 'wx' });
+	const inputs = [inputGrant(build.directory, suffix, 'Source', 0, PRIMARY, 'vfr-source')];
+	const invocation = createOfxHostInvocationV1({
+		invocationId: `native-${suffix}`, unifiedPlanVersion: 12,
+		unifiedPlanSha256: envelope.fingerprint, nodeId: 'openfx-node', instanceId: 'ofx-1',
+		pluginId: 'org.framescaper.conformance', pluginBinarySha256: build.sha256,
+		context: 'retimer', action: 'render',
+		stateSha256: fingerprintNativeMediaPlan(effect.state).sha256,
+		inputFrameStreamIds: inputs.map(({ streamId }) => streamId),
+		outputFrameStreamId: '30'.repeat(20), outputOrdinal, requestedBackend: 'cpu',
+		abortSignalId: `abort-${suffix}`, retimerSourceTime: sourceTime,
+	});
+	const outputBytes = expectedOutput('retimer');
+	const grant = {
+		schemaVersion: 1,
+		pluginBinary: { path: build.plugin, sha256: build.sha256, pluginIndex: 0 },
+		invocation,
+		plan: { path: planPath, byteLength: envelope.canonicalByteLength, sha256: envelope.fingerprint },
+		videoTimingAssets: [{ path: timingPath, byteLength: fixture.publication.bytes.byteLength,
+			sha256: fixture.publication.reference.sha256 }],
+		inputs,
+		output: { streamId: '30'.repeat(20), path: outputPath, pixelFormat: 'rgba8',
+			width: 2, height: 2, rowBytes: 12, byteLength: outputBytes.byteLength },
+	};
+	return {
+		...writeGrant(build.directory, grant, `grant-${suffix}`),
+		directory: build.directory, outputPath, outputBytes, timingPath,
+	};
+}
+
 export function createV12PlanVariant(wire, mutateState) {
 	const grant = structuredClone(wire.grant);
 	const plan = JSON.parse(readFileSync(grant.plan.path, 'utf8'));
@@ -135,11 +223,11 @@ export function sha256(bytes) {
 	return createHash('sha256').update(bytes).digest('hex');
 }
 
-function inputGrant(directory, suffix, name, index, bytes) {
+function inputGrant(directory, suffix, name, index, bytes, sourceRef = 'source-1') {
 	const path = join(directory, `input-${suffix}-${String(index)}.rgba`);
 	writeFileSync(path, bytes, { flag: 'wx' });
 	return {
-		name, sourceRef: 'source-1', streamId: `${String(20 + index).padStart(2, '0')}`.repeat(20),
+		name, sourceRef, streamId: `${String(20 + index).padStart(2, '0')}`.repeat(20),
 		path, pixelFormat: 'rgba8', width: 2, height: 2, rowBytes: 12,
 		byteLength: bytes.byteLength, sha256: sha256(bytes),
 	};

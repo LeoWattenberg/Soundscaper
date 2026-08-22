@@ -50,6 +50,7 @@ export type {
 	HelperOfxInputFrameGrant,
 	HelperOfxHostJobGrant,
 	HelperOfxOutputFrameGrant,
+	HelperOfxVideoTimingAssetGrant,
 	HelperOfxScanJobGrant,
 	HelperOfxScanJobResult,
 	HelperOutputFileGrant,
@@ -57,6 +58,7 @@ export type {
 	HelperStreamInputGrant,
 	HelperStreamOutputJobResult,
 	HelperTemporaryOutputResult,
+	HelperVideoTimingAssetGrant,
 } from './helper-native-job-contract.ts';
 
 export const HELPER_JOB_KINDS = Object.freeze([

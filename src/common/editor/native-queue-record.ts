@@ -32,6 +32,10 @@ import {
 	type NativeMediaPlanVersion,
 } from './native-media-plan-envelope.ts';
 import {
+	assertUnifiedExactRenderPlanWithDeferredTimingReferences,
+	type UnifiedExactRenderTimingSidecars,
+} from './unified-exact-render-plan.ts';
+import {
 	createNativeValidators,
 	NATIVE_SHA256_HEX_PATTERN,
 } from './native-validation.ts';
@@ -261,6 +265,7 @@ export function createNativeQueueRecordV2(input: Readonly<{
 	jobId: string;
 	taskKind: NativeQueueTaskKind;
 	plan: unknown;
+	timingSidecars?: UnifiedExactRenderTimingSidecars;
 	projectId: string;
 	projectRevision: number;
 	inputFingerprints: readonly NativeQueueInputFingerprintV1[];
@@ -273,7 +278,7 @@ export function createNativeQueueRecordV2(input: Readonly<{
 }>): NativeQueueRecordV2 {
 	let envelope: ReturnType<typeof createNativeMediaPlanEnvelopeV1>;
 	try {
-		envelope = createNativeMediaPlanEnvelopeV1(input.plan);
+		envelope = createNativeMediaPlanEnvelopeV1(input.plan, input.timingSidecars);
 	} catch (error) {
 		throw planAdmissionError(error);
 	}
@@ -392,7 +397,13 @@ function assertStoredPlanFingerprint(
 		try {
 			envelope = createNativeMediaPlanEnvelopeV1(parsed);
 		} catch (error) {
-			throw planAdmissionError(error);
+			if (planVersion < 9) throw planAdmissionError(error);
+			try {
+				assertUnifiedExactRenderPlanWithDeferredTimingReferences(parsed);
+			} catch (deferredError) {
+				throw planAdmissionError(deferredError);
+			}
+			return;
 		}
 		if (envelope.planVersion !== planVersion || envelope.fingerprint !== planFingerprint) {
 			throw new NativeQueueRecordError('A native queue record plan payload failed exact executable-plan revalidation.');

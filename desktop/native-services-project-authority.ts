@@ -1,22 +1,18 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 /** Main-private V12 project/body authority for durable native-media jobs. */
 
 import { createHash } from 'node:crypto';
 import { lstat, mkdir, readFile, realpath, rm, statfs, unlink, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, normalize, relative, resolve } from 'node:path';
-
 import {
 	createNativeMediaPublicationPlan,
 } from '../src/common/editor/native-media-atomic-publication.ts';
 import {
-	createNativeMediaPlanEnvelopeV1,
 	type NativeMediaPlanEnvelopeV1,
 } from '../src/common/editor/native-media-plan-envelope.ts';
+import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { resolveNativeMediaProxyGeometry } from '../src/common/editor/native-media-proxy-recipe.ts';
-import type {
-	NativeQueueRecordV2,
-} from '../src/common/editor/native-queue-record.ts';
+import type { NativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
 import type { NativeQueueRevalidationV1 } from '../src/common/editor/native-queue-state-machine.ts';
 import {
 	HELPER_DATA_CHUNK_MAXIMUM_BYTES,
@@ -28,6 +24,7 @@ import type { HelperDataPlaneTransferPort } from './helper-data-plane-transfer.t
 import type { HelperNativeFileIdentity } from './helper-native-job-contract.ts';
 import type { NativeMediaHelperPoolJobRequest } from './native-media-helper-pool.ts';
 import type { PreparedNativeMediaQueueJob } from './native-media-queue-dispatcher.ts';
+import { authenticateOpenFxProjectTimingAssets } from './openfx-main-project-timing-authority.ts';
 import {
 	recoverNativeImageSequenceCheckpoint,
 	type FramescaperNativeCheckpointStore,
@@ -37,6 +34,13 @@ import {
 	type FramescaperNativePublicationFence,
 	type FramescaperNativePublicationPort,
 } from './native-services-publication.ts';
+import {
+	authenticateNativeProjectPlanBodies,
+	nativeProjectPlanBodyMetadataMatches,
+	stageAuthenticatedVideoTimingAssets,
+	type AuthenticatedNativeProjectPlanBodies,
+	type NativeProjectMediaBody,
+} from './native-services-video-timing-staging.ts';
 import type {
 	FramescaperNativeRootGrant,
 	FramescaperNativeRootObservation,
@@ -45,16 +49,7 @@ import type {
 const SHA256 = /^[a-f0-9]{64}$/u;
 const MAXIMUM_SOURCE_BODIES = 4_096;
 
-interface ProjectBody {
-	readonly kind: 'video-original' | 'video-proxy' | 'video-timing';
-	readonly encoding: string;
-	readonly bindingId?: string;
-	readonly sourceId: string;
-	readonly storageKey: string;
-	readonly mimeType: string;
-	readonly byteLength: number;
-	readonly sha256: string;
-}
+type ProjectBody = NativeProjectMediaBody;
 
 interface ProjectRecord {
 	readonly projectId: string;
@@ -130,6 +125,12 @@ export class FramescaperNativeProjectAuthority {
 		return this.#options.project.projectState(projectId);
 	}
 
+	openFxTimingAssets(plan: unknown) {
+		return authenticateOpenFxProjectTimingAssets({
+			plan, project: this.#options.project, parseBundle: projectBundle,
+		});
+	}
+
 	watchProject(projectId: string): Readonly<{
 		schemaVersion: 20;
 		projectId: string;
@@ -168,7 +169,8 @@ export class FramescaperNativeProjectAuthority {
 		rootAuthorized: boolean,
 	): Promise<NativeQueueRevalidationV1> {
 		const project = this.#options.project.projectRecord(record.projectId);
-		const planMatches = exactPlan(record).fingerprint === record.planFingerprint;
+		const plan = storedPlan(record);
+		const planMatches = plan.fingerprint === record.planFingerprint;
 		const rootValid = rootAuthorized && root !== null && await this.#rootValid(root);
 		const manifestDigest = scratchManifestDigest(record, root?.directoryIdentity ?? 'missing-root');
 		const scratchMatches = record.state === 'running'
@@ -184,7 +186,7 @@ export class FramescaperNativeProjectAuthority {
 		return Object.freeze({
 			projectRevisionMatches: project?.projectRevision === record.projectRevision,
 			planFingerprintMatches: planMatches,
-			inputFingerprintsMatch: project !== null && inputsMatch(record, project),
+			inputFingerprintsMatch: project !== null && inputsMatch(record, project, plan.plan),
 			rootGrantAuthorized: rootAuthorized,
 			rootGrantValid: rootValid,
 			licensingCleared: this.#options.licensingCleared(record),
@@ -206,17 +208,21 @@ export class FramescaperNativeProjectAuthority {
 		if (!projectRecord || projectRecord.projectRevision !== record.projectRevision) {
 			throw new Error('The native queue project revision is no longer current.');
 		}
-		const envelope = exactPlan(record);
 		const bundle = projectBundle(await this.#options.project.readProjectBundle(record.projectId));
 		if (bundle.project.projectRevision !== record.projectRevision
 			|| bundle.project.sha256 !== projectRecord.projectSha256
-			|| !inputsMatch(record, projectRecord)) {
+			|| !inputsMatch(record, projectRecord, storedPlan(record).plan)) {
 			throw new Error('The native queue project or input fingerprint changed before staging.');
 		}
-		const bodies = exactInputBodies(record, bundle.bodies);
-		const directory = await this.#prepareScratch(record, root, envelope, bodies);
+		const authenticated = await authenticateNativeProjectPlanBodies({
+			plan: storedPlan(record).plan, inputFingerprints: record.inputFingerprints,
+			bodies: bundle.bodies,
+			readBody: (body) => this.#options.project.readBody(body),
+			maximumStagedBytes: record.reservations.scratchBytes,
+		});
+		const directory = await this.#prepareScratch(record, root);
 		try {
-			return await this.#preparedJob(record, root, executable, envelope, bundle, bodies, directory);
+			return await this.#preparedJob(record, root, executable, authenticated, bundle, directory);
 		} catch (error) {
 			await this.#options.settleScratch(record.jobId, 'failed').catch(() => undefined);
 			throw error;
@@ -226,18 +232,11 @@ export class FramescaperNativeProjectAuthority {
 	async #prepareScratch(
 		record: NativeQueueRecordV2,
 		root: FramescaperNativeRootGrant,
-		envelope: NativeMediaPlanEnvelopeV1,
-		bodies: readonly Readonly<ProjectBody>[],
 	): Promise<Readonly<{ path: string; manifestDigest: string }>> {
 		await mkdir(this.#scratchRoot, { recursive: true, mode: 0o700 });
 		const directoryName = `job-${record.jobId}`;
 		const path = join(this.#scratchRoot, directoryName);
 		const manifestDigest = scratchManifestDigest(record, root.directoryIdentity);
-		const requiredBytes = envelope.canonicalByteLength
-			+ bodies.reduce((total, body) => safeSum(total, body.byteLength), 0);
-		if (requiredBytes > record.reservations.scratchBytes) {
-			throw new RangeError('The native queue scratch reservation cannot stage its exact plan and sources.');
-		}
 		const volume = await statfs(this.#scratchRoot, { bigint: true });
 		await this.#options.reserveScratch({
 			jobId: record.jobId, directoryName, manifestDigest,
@@ -255,15 +254,15 @@ export class FramescaperNativeProjectAuthority {
 		record: NativeQueueRecordV2,
 		root: FramescaperNativeRootGrant,
 		executable: NonNullable<ReturnType<FramescaperNativeProjectAuthorityOptions['executable']>>,
-		envelope: NativeMediaPlanEnvelopeV1,
+		authenticated: AuthenticatedNativeProjectPlanBodies,
 		bundle: ProjectBundle,
-		bodies: readonly Readonly<ProjectBody>[],
 		directory: Readonly<{ path: string; manifestDigest: string }>,
 	): Promise<PreparedNativeMediaQueueJob> {
+		const { envelope } = authenticated;
 		const planPath = join(directory.path, 'queue-plan.json');
 		await writeFile(planPath, record.planPayload, { flag: 'wx', mode: 0o600 });
 		const sources = [];
-		for (const [index, body] of bodies.entries()) {
+		for (const [index, body] of authenticated.originals.entries()) {
 			const path = join(directory.path, `source-${String(index).padStart(4, '0')}.media`);
 			const bytes = await this.#options.project.readBody(body);
 			if (bytes.byteLength !== body.byteLength || digest(bytes) !== body.sha256) {
@@ -276,6 +275,9 @@ export class FramescaperNativeProjectAuthority {
 				bytes: body.byteLength, sha256: body.sha256, identity,
 			}));
 		}
+		const videoTimingAssets = await stageAuthenticatedVideoTimingAssets(
+			directory.path, authenticated.timingAssets,
+		);
 		const publication = createNativeMediaPublicationPlan({
 			jobId: record.jobId, relativeDestination: record.relativeDestination,
 			planFingerprint: record.planFingerprint,
@@ -294,6 +296,7 @@ export class FramescaperNativeProjectAuthority {
 				sha256: executable.sha256, identity: executable.identity,
 			}),
 			plan: planBinding,
+			...(videoTimingAssets.length === 0 ? {} : { videoTimingAssets }),
 			output,
 			scratch: Object.freeze({
 				rootPath: directory.path, rootIdentity: scratchIdentity,
@@ -315,8 +318,7 @@ export class FramescaperNativeProjectAuthority {
 				streamId: planBinding.streamId, port: channel.helperPort,
 			})]),
 			resourcePolicy: Object.freeze({
-				maximumInputBytes: safeSum(executable.byteLength,
-					safeSum(envelope.canonicalByteLength, bodies.reduce((sum, body) => safeSum(sum, body.byteLength), 0))),
+				maximumInputBytes: safeSum(executable.byteLength, authenticated.requiredStagedBytes),
 				maximumOutputBytes: output.maximumBytes,
 				maximumScratchBytes: record.reservations.scratchBytes,
 				maximumDataPlaneBytes: envelope.canonicalByteLength,
@@ -379,15 +381,20 @@ function projectContainsWatchImport(
 	});
 }
 
-function exactPlan(record: NativeQueueRecordV2): NativeMediaPlanEnvelopeV1 {
+function storedPlan(record: NativeQueueRecordV2): Readonly<{
+	plan: Readonly<Record<string, unknown>>;
+	fingerprint: string;
+}> {
 	let value: unknown;
 	try { value = JSON.parse(record.planPayload) as unknown; }
 	catch { throw new Error('The queued native media plan is not JSON.'); }
-	const envelope = createNativeMediaPlanEnvelopeV1(value);
-	if (envelope.planVersion !== record.planVersion || envelope.fingerprint !== record.planFingerprint) {
+	const fingerprint = fingerprintNativeMediaPlan(value);
+	const plan = value as Readonly<Record<string, unknown>>;
+	if (plan.version !== record.planVersion || fingerprint.sha256 !== record.planFingerprint
+		|| fingerprint.canonical !== record.planPayload) {
 		throw new Error('The queued native media plan changed exact version or fingerprint.');
 	}
-	return envelope;
+	return Object.freeze({ plan, fingerprint: fingerprint.sha256 });
 }
 
 function projectBundle(value: unknown): ProjectBundle {
@@ -428,29 +435,8 @@ function projectBody(value: unknown): Readonly<ProjectBody> {
 	});
 }
 
-function inputsMatch(record: NativeQueueRecordV2, project: ProjectRecord): boolean {
-	if (record.inputFingerprints.length === 0) return exactPlan(record).summary.videoSourceInputs.length === 0;
-	const planInputs = exactPlan(record).summary.videoSourceInputs;
-	if (planInputs.length !== record.inputFingerprints.length) return false;
-	const originals = project.bodies.filter(({ kind }) => kind === 'video-original');
-	return record.inputFingerprints.every((input) => originals.some(
-		(body) => body.sourceId === input.sourceId && body.sha256 === input.sha256,
-	)) && planInputs.every((source) => (
-		source.contentSha256 !== null && record.inputFingerprints.some(
-			(input) => input.sourceId === source.sourceId && input.sha256 === source.contentSha256,
-		)
-	));
-}
-
-function exactInputBodies(
-	record: NativeQueueRecordV2,
-	bodies: readonly Readonly<ProjectBody>[],
-): readonly Readonly<ProjectBody>[] {
-	const output = record.inputFingerprints.map((input) => bodies.find((body) => (
-		body.kind === 'video-original' && body.sourceId === input.sourceId && body.sha256 === input.sha256
-	)) ?? null);
-	if (output.some((body) => body === null)) throw new Error('A native source body is not under exact V12 authority.');
-	return Object.freeze(output as ProjectBody[]);
+function inputsMatch(record: NativeQueueRecordV2, project: ProjectRecord, plan: unknown): boolean {
+	return nativeProjectPlanBodyMetadataMatches(plan, record.inputFingerprints, project.bodies);
 }
 
 function dataBinding(record: NativeQueueRecordV2, envelope: NativeMediaPlanEnvelopeV1): HelperDataPlaneBinding {

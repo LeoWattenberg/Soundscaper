@@ -43,11 +43,12 @@ test('a provisioned FFmpeg 9.0.1 host publishes decode, proxy, render, and encod
 	assert.deepEqual({
 		evaluatedRgbaInputBound: JSON.parse(selectedSelfTest.stdout).evaluatedRgbaInputBound,
 		staticGeometryAdapterBound: JSON.parse(selectedSelfTest.stdout).staticGeometryAdapterBound,
+		captionDeliveryAdapterBound: JSON.parse(selectedSelfTest.stdout).captionDeliveryAdapterBound,
 		stagedAudioInputBound: JSON.parse(selectedSelfTest.stdout).stagedAudioInputBound,
 		ready: JSON.parse(selectedSelfTest.stdout).ready,
 	}, {
 		evaluatedRgbaInputBound: true, staticGeometryAdapterBound: false,
-		stagedAudioInputBound: true, ready: false,
+		captionDeliveryAdapterBound: false, stagedAudioInputBound: true, ready: false,
 	});
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-media-linked-'));
 	try {
@@ -114,28 +115,25 @@ test('a provisioned FFmpeg 9.0.1 host publishes decode, proxy, render, and encod
 			assert.equal(keyedResult.sha256, digest(readFileSync(keyedOutput)));
 			assertVideoOutput(executable, keyedOutput, 1);
 
-			const evaluatedV8PlanValue = selectedV20EvaluatedV8Plan();
-			const evaluatedV8PlanBytes = JSON.stringify(evaluatedV8PlanValue);
-			const evaluatedV8Plan = join(directory, 'selected-v20-v8.json');
-			writeFileSync(evaluatedV8Plan, evaluatedV8PlanBytes);
-			const evaluatedV8Output = join(destination, 'selected-v20-v8.mp4');
-			const evaluatedV8 = run(executable, [
+			const staticV8PlanValue = selectedV20EvaluatedV8Plan();
+			const staticV8PlanBytes = JSON.stringify(staticV8PlanValue);
+			const staticV8Plan = join(directory, 'selected-v20-v8.json');
+			writeFileSync(staticV8Plan, staticV8PlanBytes);
+			const staticV8Output = join(destination, 'selected-v20-v8.mp4');
+			const staticV8 = run(executable, [
 				'--operation', 'media-render',
-				'--plan', evaluatedV8Plan, '--plan-sha256', digest(evaluatedV8PlanBytes),
+				'--plan', staticV8Plan, '--plan-sha256', digest(staticV8PlanBytes),
 				'--source', source, '--source-sha256', sourceSha256,
 				'--source-byte-length', String(readFileSync(source).byteLength), '--source-role', 'original',
-				'--source', carrier, '--source-sha256', digest(readFileSync(carrier)),
-				'--source-byte-length', String(readFileSync(carrier).byteLength),
-				'--source-role', 'evaluated-rgba-frame-pack',
 				'--scratch', scratch, '--maximum-output-bytes', '1048576', '--backend', 'native-cpu',
-				'--destination-root', destination, '--temporary-output', evaluatedV8Output,
+				'--destination-root', destination, '--temporary-output', staticV8Output,
 			]);
-			assert.equal(evaluatedV8.status, 0, evaluatedV8.stderr || evaluatedV8.stdout);
-			assert.deepEqual({
-				profile: JSON.parse(evaluatedV8.stdout).profile,
-				frameCount: JSON.parse(evaluatedV8.stdout).frameCount,
-			}, { profile: 'selected-v20-v8-evaluated-rgba', frameCount: 4 });
-			assertVideoOutput(executable, evaluatedV8Output, 0);
+			assert.equal(staticV8.status, 78, staticV8.stderr || staticV8.stdout);
+			assert.deepEqual(JSON.parse(staticV8.stdout), {
+				error: 'unsupported-selected-v20-static-adapter', operation: 'media-render',
+				planVersion: 8, missing: 'static-geometry-frame-adapter',
+			});
+			assert.equal(existsSync(staticV8Output), false);
 
 		const proxy = join(destination, 'proxy.mov');
 		const proxyRun = run(executable, [

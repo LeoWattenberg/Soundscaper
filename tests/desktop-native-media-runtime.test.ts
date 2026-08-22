@@ -25,7 +25,8 @@ const SELECTED_V20_RENDER_SELF_TEST = Object.freeze({
 	planVersions: [7, 8] as const, exactPictureOrdinals: true,
 	keyedEvaluatedRgbaExecutor: true, staticCompositionExecutor: true,
 	maximumInFlightFrames: 1, evaluatedRgbaInputBound: true,
-	staticGeometryAdapterBound: true, stagedAudioInputBound: true,
+	staticGeometryAdapterBound: true, captionDeliveryAdapterBound: true,
+	stagedAudioInputBound: true,
 	deliveryCodecSetAvailable: true, frameCoreReady: true, ready: true,
 });
 
@@ -156,6 +157,7 @@ test('selected-V20 render admission is closed to exact end-to-end operation evid
 		{ ...SELECTED_V20_RENDER_SELF_TEST, operation: 'media-encode' },
 		{ ...SELECTED_V20_RENDER_SELF_TEST, maximumInFlightFrames: 2 },
 		{ ...SELECTED_V20_RENDER_SELF_TEST, staticGeometryAdapterBound: false },
+		{ ...SELECTED_V20_RENDER_SELF_TEST, captionDeliveryAdapterBound: false },
 	]) {
 		assert.throws(() => assertFramescaperMediaHostSelectedV20RenderSelfTest(value));
 	}

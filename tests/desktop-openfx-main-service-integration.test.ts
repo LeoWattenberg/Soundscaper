@@ -32,12 +32,24 @@ import type {
 import {
 	assertUnifiedExactRenderPlanV12,
 	createUnifiedExactRenderPlan,
+	createUnifiedExactRenderPlanWithTimingSidecars,
 	type UnifiedExactRenderPlanV12,
 } from '../src/common/editor/unified-exact-render-plan.ts';
+import { nativeMediaPlanVideoTimingAssetInputs } from '../src/common/editor/native-media-plan-video-timing.ts';
+import { createUnifiedExactRenderOfxRetimerSourceTime } from '../src/common/editor/unified-exact-render-plan-consumers.ts';
+import type { NativePlanVideoTimingAssetBytes } from '../desktop/native-services-video-timing-staging.ts';
 import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
+import { unifiedExactVfrPlanFixture } from './helpers/unified-exact-vfr-plan-fixture.ts';
 
 const PLUGIN_SHA = '16b3c51f93a8ee62dda14918f2089518fe054144d2016b177c57c7bc66d07af7';
-const OUTPUT_BYTES = new Uint8Array([9, 8, 7, 6]);
+const INPUT_BYTES = new Uint8Array([
+	1, 2, 3, 4, 5, 6, 7, 8,
+	9, 10, 11, 12, 13, 14, 15, 16,
+]);
+const OUTPUT_BYTES = new Uint8Array([
+	9, 8, 7, 6, 5, 4, 3, 2,
+	1, 0, 1, 2, 3, 4, 5, 6,
+]);
 
 test('main owns an actual one-shot scan and exact V12 per-fingerprint execution path', async (context) => {
 	const fixture = await createFixture(context);
@@ -65,8 +77,8 @@ test('main owns an actual one-shot scan and exact V12 per-fingerprint execution 
 		requestedBackend: 'cpu',
 		outputOrdinal: 3,
 		inputs: [{
-			name: 'Source', sourceRef: 'source-1', width: 1, height: 1, rowBytes: 4,
-			rgba: new Uint8Array([1, 2, 3, 4]),
+			name: 'Source', sourceRef: 'source-1', width: 2, height: 2, rowBytes: 8,
+			rgba: new Uint8Array(INPUT_BYTES),
 		}],
 	});
 	assert.equal(result.mode, 'render');
@@ -76,6 +88,28 @@ test('main owns an actual one-shot scan and exact V12 per-fingerprint execution 
 	assert.equal(fixture.hostJobs, 1);
 	assert.equal(fixture.currentProjectChecks, 5);
 	assert.equal(JSON.stringify(fixture.service.inventory()).includes(fixture.pluginPath), false);
+});
+
+test('main resolves VFR timing authority before staging a dormant Retimer attempt', async (context) => {
+	const candidate = retimerVfrCandidate();
+	const fixture = await createFixture(context, {
+		plan: candidate.plan, videoTimingAssets: candidate.assets, descriptorContext: 'retimer',
+	});
+	fixture.preferences.nativeMediaEnabled = true;
+	fixture.preferences.ofxConsentEnabled = true;
+	const scanned = await fixture.service.scan();
+	assert.ok(scanned);
+	await fixture.service.control({ pluginHandle: scanned.pluginHandle, action: 'enable' });
+	const result = await fixture.service.execute({
+		pluginHandle: scanned.pluginHandle, plan: candidate.plan, instanceId: 'ofx-1',
+		requestedBackend: 'cpu', outputOrdinal: 2,
+		inputs: [{ name: 'Source', sourceRef: 'vfr-source', width: 2, height: 2, rowBytes: 8,
+			rgba: new Uint8Array(INPUT_BYTES) }],
+		retimerSourceTime: candidate.sourceTime,
+	});
+	assert.equal(result.mode, 'render');
+	assert.equal(fixture.videoTimingAuthorityChecks, 1);
+	assert.equal(fixture.videoTimingStreams, 1);
 });
 
 test('default-off, policy, and missing-payload states fail before selection or helper execution', async (context) => {
@@ -107,8 +141,8 @@ test('changed and revoked binary handles cannot execute or inherit approval', as
 	const revoked = await revokedFixture.service.execute({
 		pluginHandle: revokedScan.pluginHandle, plan: revokedFixture.plan, instanceId: 'ofx-1',
 		requestedBackend: 'cpu', outputOrdinal: 3,
-		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 1, height: 1, rowBytes: 4,
-			rgba: new Uint8Array([1, 2, 3, 4]) }],
+		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 2, height: 2, rowBytes: 8,
+			rgba: new Uint8Array(INPUT_BYTES) }],
 	});
 	assert.notEqual(revoked.mode, 'render');
 	assert.equal(revoked.availability, 'revoked');
@@ -127,8 +161,8 @@ test('changed and revoked binary handles cannot execute or inherit approval', as
 	const changed = await fixture.service.execute({
 		pluginHandle: scanned.pluginHandle, plan: fixture.plan, instanceId: 'ofx-1',
 		requestedBackend: 'cpu', outputOrdinal: 3,
-		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 1, height: 1, rowBytes: 4,
-			rgba: new Uint8Array([1, 2, 3, 4]) }],
+		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 2, height: 2, rowBytes: 8,
+			rgba: new Uint8Array(INPUT_BYTES) }],
 	});
 	assert.notEqual(changed.mode, 'render');
 	assert.equal(changed.availability, 'fingerprint-changed');
@@ -150,8 +184,8 @@ test('runtime quarantine becomes consent authority and clearing requires a fresh
 	await fixture.service.execute({
 		pluginHandle: scanned.pluginHandle, plan: fixture.plan, instanceId: 'ofx-1',
 		requestedBackend: 'cpu', outputOrdinal: 3,
-		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 1, height: 1, rowBytes: 4,
-			rgba: new Uint8Array([1, 2, 3, 4]) }],
+		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 2, height: 2, rowBytes: 8,
+			rgba: new Uint8Array(INPUT_BYTES) }],
 	});
 	fixture.runtimeState.quarantined = true;
 	assert.deepEqual(fixture.service.inventory().map(({ state, quarantined }) => ({ state, quarantined })), [
@@ -256,6 +290,9 @@ test('pre-aborted execution and staged transfer failure clean every attempt', as
 interface FixtureOptions {
 	readonly beforeScanResult?: () => Promise<void>;
 	readonly scanDescriptor?: unknown;
+	readonly descriptorContext?: 'filter' | 'retimer';
+	readonly plan?: UnifiedExactRenderPlanV12;
+	readonly videoTimingAssets?: readonly NativePlanVideoTimingAssetBytes[];
 }
 
 async function createFixture(context: TestContext, options: FixtureOptions = {}) {
@@ -274,6 +311,7 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 	assert.equal(digest(pluginBytes), PLUGIN_SHA);
 	let scanJobs = 0;
 	let hostJobs = 0;
+	let videoTimingStreams = 0;
 	const runtimeState = { quarantined: false, failures: [] as Error[] };
 	const manager = new OfxIsolatedHostManager({
 		createScanner: () => worker(async (request) => {
@@ -284,8 +322,9 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 				pluginId: 'org.framescaper.conformance', vendor: 'Framescaper',
 				version: { major: 1, minor: 0 }, bundleIdentity: 'bundle:conformance',
 				binarySha256: PLUGIN_SHA, architectureDirectory: 'Linux-x86-64',
-				supportedContexts: ['filter'],
-				parameters: [{ name: 'radius', type: 'double', animates: true }],
+				supportedContexts: [options.descriptorContext ?? 'filter'],
+				parameters: options.descriptorContext === 'retimer' ? []
+					: [{ name: 'radius', type: 'double', animates: true }],
 				components: ['RGBA'], pixelDepths: ['byte'], threading: 'fully-safe',
 				requestedSuites: ['OfxImageEffectSuite', 'OfxPropertySuite', 'OfxParameterSuite'],
 			}));
@@ -305,9 +344,16 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 			const transfers = request.dataPlaneTransfers!;
 			await receiveHelperDataPlaneFile({ binding: grant.plan,
 				port: transfers[0]!.port as never, path: join(root, `plan-${String(hostJobs)}.json`) });
+			let portIndex = 1;
+			for (const [index, timing] of (grant.videoTimingAssets ?? []).entries()) {
+				videoTimingStreams += 1;
+				await receiveHelperDataPlaneFile({ binding: timing.binding,
+					port: transfers[portIndex++]!.port as never,
+					path: join(root, `timing-${String(hostJobs)}-${String(index)}.scti`) });
+			}
 			for (const [index, input] of grant.inputs.entries()) {
 				await receiveHelperDataPlaneFile({ binding: input.frame,
-					port: transfers[index + 1]!.port as never,
+					port: transfers[portIndex + index]!.port as never,
 					path: join(root, `input-${String(hostJobs)}-${String(index)}.rgba`) });
 			}
 			const outputPath = join(root, `output-${String(hostJobs)}.rgba`);
@@ -327,8 +373,9 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 	const payloadAvailable = { value: true };
 	let selections = 0;
 	let currentProjectChecks = 0;
+	let videoTimingAuthorityChecks = 0;
 	const channelState: { calls: number; failAt: number | null } = { calls: 0, failAt: null };
-	const plan = candidatePlan();
+	const plan = options.plan ?? candidatePlan();
 	const service = new FramescaperOpenFxMainService({
 		runtime: {
 			get payloadAvailability() { return payloadAvailable.value
@@ -357,6 +404,11 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 			currentProjectChecks += 1;
 			return id === plan.project.id && revision === plan.project.revision;
 		},
+		videoTimingAssets: async (timingPlan) => {
+			videoTimingAuthorityChecks += 1;
+			assert.equal(timingPlan, plan);
+			return options.videoTimingAssets ?? [];
+		},
 		mintOpaqueId: () => '11'.repeat(20),
 	});
 	return {
@@ -365,14 +417,45 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 		get selections() { return selections; },
 		get scanJobs() { return scanJobs; },
 		get hostJobs() { return hostJobs; },
+		get videoTimingStreams() { return videoTimingStreams; },
+		get videoTimingAuthorityChecks() { return videoTimingAuthorityChecks; },
 		get currentProjectChecks() { return currentProjectChecks; },
 	};
 }
 
+function retimerVfrCandidate() {
+	const fixture = unifiedExactVfrPlanFixture(12, '77'.repeat(32));
+	const raw = structuredClone(fixture.plan);
+	raw.output.canvas.width = 2;
+	raw.output.canvas.height = 2;
+	const effect = structuredClone(unifiedExactPlanFixture(12).nodes.find(({ kind }) => kind === 'openfx'));
+	if (!effect || !('state' in effect)) throw new Error('The OpenFX fixture is unavailable.');
+	Object.assign(effect.state as object, {
+		pluginId: 'org.framescaper.conformance', binarySha256: PLUGIN_SHA,
+		context: 'retimer', attachment: { kind: 'retimer', targetId: 'vfr-clip' },
+		inputs: [{ name: 'Source', sourceRef: 'vfr-source' }], parameters: [],
+		frozenFallback: null,
+	});
+	(raw.nodes as unknown as object[]).push(effect);
+	const plan = createUnifiedExactRenderPlanWithTimingSidecars(
+		raw, fixture.timingSidecars,
+	) as UnifiedExactRenderPlanV12;
+	if (plan.version !== 12) throw new Error('The VFR OpenFX fixture did not create V12.');
+	const input = nativeMediaPlanVideoTimingAssetInputs(plan)[0];
+	if (!input) throw new Error('The VFR OpenFX fixture has no timing reference.');
+	return Object.freeze({
+		plan,
+		assets: Object.freeze([{ input, bytes: fixture.publication.bytes }]),
+		sourceTime: createUnifiedExactRenderOfxRetimerSourceTime(
+			plan, 'ofx-1', 2, fixture.timingSidecars,
+		),
+	});
+}
+
 function candidatePlan(): UnifiedExactRenderPlanV12 {
 	const raw = structuredClone(unifiedExactPlanFixture(12));
-	raw.output.canvas.width = 1;
-	raw.output.canvas.height = 1;
+	raw.output.canvas.width = 2;
+	raw.output.canvas.height = 2;
 	const effect = raw.nodes.find((node) => node.kind === 'openfx');
 	if (!effect || !('state' in effect)) throw new Error('fixture effect is unavailable');
 	Object.assign(effect.state as object, {
@@ -393,8 +476,8 @@ function executionRequest(
 	return {
 		pluginHandle, plan: fixture.plan, instanceId: 'ofx-1',
 		requestedBackend: 'cpu' as const, outputOrdinal: 3,
-		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 1, height: 1, rowBytes: 4,
-			rgba: new Uint8Array([1, 2, 3, 4]) }],
+		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 2, height: 2, rowBytes: 8,
+			rgba: new Uint8Array(INPUT_BYTES) }],
 	};
 }
 

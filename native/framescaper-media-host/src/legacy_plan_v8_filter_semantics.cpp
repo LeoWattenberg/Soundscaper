@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace framescaper::media::legacy {
 namespace {
@@ -108,7 +109,13 @@ void validate_clip_operations(
 ) {
 	const auto& operations = json::array(operations_value, "V8 filter clip operations");
 	const auto fit = text(json::member(canvas, "fit"), "V8 canvas fit", 16);
-	if (operations.size() != (fit == "stretch" ? 7U : 8U)) {
+	std::vector<const json::value*> enabled_effects;
+	for (const auto& effect : json::array(json::member(clip, "videoEffects"), "V8 authoritative effects")) {
+		if (json::boolean(json::member(effect, "enabled"), "V8 effect enabled flag")) {
+			enabled_effects.push_back(&effect);
+		}
+	}
+	if (operations.size() != (fit == "stretch" ? 7U : 8U) + enabled_effects.size()) {
 		throw json::parse_error("V8 filter clip operations do not match the closed canvas-fit pipeline.");
 	}
 	const auto& trim = operations[0];
@@ -144,6 +151,12 @@ void validate_clip_operations(
 	literal(json::member(fps, "name"), "fps", "V8 fps operation");
 	same_member(fps, canvas, "frameRate", "V8 filter frame rate");
 	std::size_t tail = 5;
+	for (const auto* effect : enabled_effects) {
+		const auto& operation = operations[tail++];
+		exact(operation, {"name", "effect"});
+		literal(json::member(operation, "name"), "video-effect", "V8 video-effect operation");
+		require_same(json::member(operation, "effect"), *effect, "V8 filter effect authority");
+	}
 	if (fit == "contain") {
 		const auto& pad = operations[tail++];
 		exact(pad, {"name", "width", "height", "x", "y", "color"});

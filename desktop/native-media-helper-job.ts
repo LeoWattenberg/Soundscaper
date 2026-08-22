@@ -47,11 +47,18 @@ export interface NativeMediaHostSourceInvocation {
 		| 'image-sequence-pack' | 'image-sequence-inventory';
 }
 
+export interface NativeMediaHostVideoTimingInvocation {
+	readonly path: string;
+	readonly sha256: string;
+	readonly byteLength: number;
+}
+
 export interface NativeMediaHostInvocation {
 	readonly executablePath: string;
 	readonly operation: NativeMediaHelperPoolJobKind;
 	readonly plan: Readonly<{ path: string; sha256: string }> | null;
 	readonly sources: readonly NativeMediaHostSourceInvocation[];
+	readonly videoTimingAssets: readonly NativeMediaHostVideoTimingInvocation[];
 	readonly backend: 'native-cpu';
 	readonly maximumOutputBytes: number;
 	readonly scratchPath: string | null;
@@ -185,6 +192,16 @@ export class NativeMediaHelperJobRunner {
 					});
 				}),
 			);
+			const videoTimingAssets: NativeMediaHostVideoTimingInvocation[] = [];
+			for (const asset of nativeGrant.videoTimingAssets ?? []) {
+				await filesystem.authenticateFile({
+					path: asset.path, byteLength: asset.bytes,
+					sha256: asset.sha256, identity: asset.identity,
+				});
+				videoTimingAssets.push(Object.freeze({
+					path: asset.path, sha256: asset.sha256, byteLength: asset.bytes,
+				}));
+			}
 			const demand = scratchDemand(kind, nativeGrant);
 			if (demand > nativeGrant.scratch.maximumBytes) {
 				throw new Error('The native media job exceeds its exact scratch grant.');
@@ -243,6 +260,7 @@ export class NativeMediaHelperJobRunner {
 				kind,
 				plan: { path: planPath, sha256: nativeGrant.plan.sha256 },
 				sources: sources as NativeMediaHostSourceInvocation[],
+				videoTimingAssets,
 				maximumOutputBytes,
 				scratchPath: reservationPath,
 				decodeOutputPath,
@@ -316,6 +334,13 @@ export function nativeMediaHostArguments(invocation_: NativeMediaHostInvocation)
 				'--source-role', source.role,
 			);
 		}
+	}
+	for (const timing of invocation_.videoTimingAssets) {
+		args.push(
+			'--video-timing-asset', timing.path,
+			'--video-timing-sha256', timing.sha256,
+			'--video-timing-byte-length', String(timing.byteLength),
+		);
 	}
 	if (invocation_.operation !== 'probe-video-source') {
 		args.push(
@@ -392,6 +417,7 @@ interface InvocationParts {
 	readonly kind: NativeMediaHelperPoolJobKind;
 	readonly plan: NativeMediaHostInvocation['plan'];
 	readonly sources: readonly NativeMediaHostSourceInvocation[];
+	readonly videoTimingAssets?: readonly NativeMediaHostVideoTimingInvocation[];
 	readonly maximumOutputBytes: number;
 	readonly scratchPath?: string | null;
 	readonly decodeOutputPath?: string | null;
@@ -407,6 +433,7 @@ function invocation(parts: InvocationParts): NativeMediaHostInvocation {
 		operation: parts.kind,
 		plan: parts.plan,
 		sources: Object.freeze([...parts.sources]),
+		videoTimingAssets: Object.freeze([...(parts.videoTimingAssets ?? [])]),
 		backend: 'native-cpu' as const,
 		maximumOutputBytes: parts.maximumOutputBytes,
 		scratchPath: parts.scratchPath ?? null,

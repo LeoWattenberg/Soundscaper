@@ -12,6 +12,8 @@ import {
 	nativeRenderInputDeclaredBytes,
 	nativeRenderInputDigest,
 	nativeRenderInputDigestValue,
+	nativeRenderInputDescriptorsForPlan,
+	nativeRenderInputExactV20Envelope,
 	nativeRenderInputFingerprints,
 	nativeRenderInputIdentifier,
 	nativeRenderInputNonNegative,
@@ -49,6 +51,10 @@ export async function assertNativeRenderInputLiveOwnedStage(
 	}
 	const manifest = await readNativeRenderInputStageManifest(owned.directory);
 	assertRecordIdentity(manifest, record);
+	const envelope = nativeRenderInputExactV20Envelope(
+		record.planPayload, record.planFingerprint, record.planVersion,
+	);
+	nativeRenderInputDescriptorsForPlan(manifest.files, envelope);
 	await requireNativeRenderInputStageClaim(owned.directory, record.jobId);
 	const identity = Object.freeze({
 		planFingerprint: manifest.planFingerprint,
@@ -137,8 +143,9 @@ function manifestFiles(value: unknown): readonly NativeRenderInputStagedFile[] {
 			identity: fileIdentity(row.identity),
 		});
 	}));
-	if (files[0]?.role !== 'evaluated-rgba-frame-pack'
-		|| (files.length === 2 && files[1]?.role !== 'staged-audio-mix')) {
+	if ((files[0]?.role !== 'evaluated-rgba-frame-pack' && files[0]?.role !== 'staged-audio-mix')
+		|| (files.length === 2 && (files[0]?.role !== 'evaluated-rgba-frame-pack'
+			|| files[1]?.role !== 'staged-audio-mix'))) {
 		throw new TypeError('A render-input manifest has non-canonical role order.');
 	}
 	return files;

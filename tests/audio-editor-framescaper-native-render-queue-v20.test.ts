@@ -50,6 +50,8 @@ test('selected V20 advertises only queue enqueue and authors canonical static V8
 	assert.equal(request.planVersion, 8);
 	assert.equal(request.derivedInputStageId, STAGE_ID);
 	assert.equal(requestRecord(staged[0]).planVersion, 8);
+	assert.deepEqual((requestRecord(staged[0]).derivedInputs as Array<{ role: string }>)
+		.map(({ role }) => role), ['staged-audio-mix']);
 	assert.equal(plan.version, 8);
 	assert.equal(request.planPayload, canonicalizeNativeMediaPlan(plan));
 	assert.equal(request.planFingerprint, fingerprintNativeMediaPlan(plan).sha256);
@@ -209,15 +211,16 @@ test('V7 queue admission reports both enqueue and stage-abandon failures', async
 function projectOwner(project: FramescaperProjectV20) {
 	return {
 		project,
-		prepareNativeRenderInputsV20: async () => {
+		prepareNativeRenderInputsV20: async (request: Readonly<{ planPayload: string }>) => {
 			const carrier = new Blob([new Uint8Array([1, 2, 3])]);
 			const audio = new Blob([new Uint8Array([4, 5])]);
-			return Object.freeze([
+			const inputs = [
 				Object.freeze({ role: 'evaluated-rgba-frame-pack' as const,
 					byteLength: carrier.size, sha256: '56'.repeat(32), bytes: carrier }),
 				Object.freeze({ role: 'staged-audio-mix' as const,
 					byteLength: audio.size, sha256: '78'.repeat(32), bytes: audio }),
-			]);
+			];
+			return Object.freeze(JSON.parse(request.planPayload).version === 8 ? inputs.slice(1) : inputs);
 		},
 	};
 }

@@ -23,6 +23,10 @@ import {
 	compileVideoRetimeCurveV16,
 	type VideoRetimeCurveV16,
 } from './video-retime-v16.ts';
+import {
+	videoSourceFrameTime,
+	type BoundVideoSourceTimingView,
+} from './video-source-timing-view.ts';
 
 interface UnifiedRetimePlanContext {
 	readonly sampleStart: number;
@@ -46,6 +50,7 @@ interface UnifiedRetimeClipAuthority {
 	readonly sourceTiming: Readonly<{
 		readonly kind: 'cfr' | 'vfr';
 	}>;
+	readonly sourceTimingView: BoundVideoSourceTimingView | null;
 }
 
 interface ExpectedBaseRow {
@@ -60,17 +65,38 @@ interface ExpectedBaseRow {
 
 /**
  * Reconstruct the single-clip V6 topology owned by unified plans and bind every
- * field that can select an output ordinal or source picture. VFR stays closed
- * until verified timing-index bytes can participate in this synchronous gate.
+ * field that can select an output ordinal or source picture. VFR boundaries
+ * come only from a token authenticated against the digest-bound SCTI bytes.
  */
 export function assertUnifiedExactRetimeAuthority(
 	intent: VideoRetimeExportIntentV6,
 	context: UnifiedRetimePlanContext,
 	clip: UnifiedRetimeClipAuthority,
 ): void {
+	assertRetimeAuthority(intent, context, clip, false);
+}
+
+/** Validate every plan-owned field while deferring only SCTI-derived decimal boundaries. */
+export function assertUnifiedExactRetimeStructureWithDeferredVfr(
+	intent: VideoRetimeExportIntentV6,
+	context: UnifiedRetimePlanContext,
+	clip: UnifiedRetimeClipAuthority,
+): void {
+	if (clip.sourceTiming.kind !== 'vfr' || clip.sourceTimingView !== null) {
+		throw new RangeError('Deferred timing validation applies only to an unresolved VFR source.');
+	}
+	assertRetimeAuthority(intent, context, clip, true);
+}
+
+function assertRetimeAuthority(
+	intent: VideoRetimeExportIntentV6,
+	context: UnifiedRetimePlanContext,
+	clip: UnifiedRetimeClipAuthority,
+	deferredVfr: boolean,
+): void {
 	assertIntentEnvelope(intent, context, clip);
-	if (clip.sourceTiming.kind !== 'cfr') {
-		throw new RangeError('Unified VFR retime admission requires verified timing asset bytes.');
+	if (!deferredVfr && (clip.sourceTiming.kind === 'vfr') !== (clip.sourceTimingView !== null)) {
+		throw new RangeError('Unified VFR retime authority requires exactly one verified timing asset sidecar.');
 	}
 	const cadence = createVideoRetimeOutputCadence({
 		sampleStart: context.sampleStart,
@@ -98,14 +124,15 @@ export function assertUnifiedExactRetimeAuthority(
 		+ 1
 		+ (activeEnd === planEndSample ? 0 : 1)
 		+ 2;
+	const deferredRows = deferredVfr ? intent.intersections : undefined;
 	const expected = clip.retimeMap === null
 		? uniformRows(clip, {
 			topologyIntervalIndex, layerIndex: 0, clipIndex: 0,
 			startSample: activeStart, endSample: activeEnd,
 			startOutputFrame: videoRetimeExportOutputBoundary(activeStart, cadence),
 			endOutputFrame: videoRetimeExportOutputBoundary(activeEnd, cadence),
-		}, clipStartSample, clipEndSample)
-		: curveRows(clip, cadence, activeStart, activeEnd, topologyIntervalIndex, context);
+		}, clipStartSample, clipEndSample, deferredRows)
+		: curveRows(clip, cadence, activeStart, activeEnd, topologyIntervalIndex, context, deferredRows);
 	if (expected.rows.length < 1 || expected.rows.length !== intent.intersections.length) {
 		throw new RangeError('Unified retime intersections do not exactly cover their active ordinal authority.');
 	}
@@ -156,21 +183,31 @@ function uniformRows(
 	base: ExpectedBaseRow,
 	clipStartSample: number,
 	clipEndSample: number,
+	deferredRows?: readonly VideoRetimeExportIntersectionV6[],
 ): Readonly<{ readonly rows: readonly VideoRetimeExportIntersectionV6[]; readonly geometricCandidateCount: 1 }> {
 	if (base.startOutputFrame === base.endOutputFrame) return { rows: [], geometricCandidateCount: 1 };
-	const sourceStartTime = sourceTime(clip.sourceInFrame, clip.sourceRate);
-	const sourceEndTime = sourceTime(safeAdd(clip.sourceInFrame, clip.sourceFrameCount), clip.sourceRate);
+	const deferred = deferredRows?.[0];
+	const sourceStartTime = deferred?.mapping === 'uniform-wall-clock'
+		? deferred.sourceStartTime : decimal(sourceBoundaryTime(clip.sourceInFrame, clip));
+	const sourceEndTime = deferred?.mapping === 'uniform-wall-clock'
+		? deferred.sourceEndTime : decimal(sourceBoundaryTime(safeAdd(clip.sourceInFrame, clip.sourceFrameCount), clip));
+	const clippedSourceStartTime = deferred?.mapping === 'uniform-wall-clock'
+		? deferred.clippedSourceStartTime : decimal(videoRetimeInterpolateSourceTime(
+			sourceBoundaryTime(clip.sourceInFrame, clip),
+			sourceBoundaryTime(safeAdd(clip.sourceInFrame, clip.sourceFrameCount), clip),
+			base.startSample, clipStartSample, clipEndSample,
+		));
+	const clippedSourceEndTime = deferred?.mapping === 'uniform-wall-clock'
+		? deferred.clippedSourceEndTime : decimal(videoRetimeInterpolateSourceTime(
+			sourceBoundaryTime(clip.sourceInFrame, clip),
+			sourceBoundaryTime(safeAdd(clip.sourceInFrame, clip.sourceFrameCount), clip),
+			base.endSample, clipStartSample, clipEndSample,
+		));
 	return {
 		rows: [{
 			index: 0, ...identityBase(clip), ...base,
 			mapping: 'uniform-wall-clock', clipStartSample, clipEndSample,
-			sourceStartTime: decimal(sourceStartTime), sourceEndTime: decimal(sourceEndTime),
-			clippedSourceStartTime: decimal(videoRetimeInterpolateSourceTime(
-				sourceStartTime, sourceEndTime, base.startSample, clipStartSample, clipEndSample,
-			)),
-			clippedSourceEndTime: decimal(videoRetimeInterpolateSourceTime(
-				sourceStartTime, sourceEndTime, base.endSample, clipStartSample, clipEndSample,
-			)),
+			sourceStartTime, sourceEndTime, clippedSourceStartTime, clippedSourceEndTime,
 		}],
 		geometricCandidateCount: 1,
 	};
@@ -183,6 +220,7 @@ function curveRows(
 	activeEnd: number,
 	topologyIntervalIndex: number,
 	context: UnifiedRetimePlanContext,
+	deferredRows?: readonly VideoRetimeExportIntersectionV6[],
 ): Readonly<{ readonly rows: readonly VideoRetimeExportIntersectionV6[]; readonly geometricCandidateCount: number }> {
 	const map = clip.retimeMap!;
 	const compiled = compileVideoRetimeCurveV16(map, {
@@ -219,6 +257,7 @@ function curveRows(
 		const lastFrame = drawableFrame(compiled, endOuterCell - 1, segment.mode, clip);
 		const lowerFrame = Math.min(firstFrame, lastFrame);
 		const upperFrame = Math.max(firstFrame, lastFrame);
+		const deferred = deferredRows?.[rows.length];
 		rows.push({
 			index: rows.length, ...identityBase(clip),
 			topologyIntervalIndex, layerIndex: 0, clipIndex: 0,
@@ -233,8 +272,10 @@ function curveRows(
 			startOuterCell, endOuterCell,
 			clippedSourceStart: exactDecimal(evaluateVideoRetimeCurve(compiled, startOuterCell)),
 			clippedSourceEnd: exactDecimal(evaluateVideoRetimeCurve(compiled, endOuterCell)),
-			drawableStartTime: decimal(sourceTime(lowerFrame, clip.sourceRate)),
-			drawableEndTime: decimal(sourceTime(upperFrame + 1, clip.sourceRate)),
+			drawableStartTime: deferred?.mapping === 'curve'
+				? deferred.drawableStartTime : decimal(sourceBoundaryTime(lowerFrame, clip)),
+			drawableEndTime: deferred?.mapping === 'curve'
+				? deferred.drawableEndTime : decimal(sourceBoundaryTime(upperFrame + 1, clip)),
 		});
 	}
 	return { rows, geometricCandidateCount };
@@ -275,6 +316,16 @@ function drawableFrame(
 
 function sourceTime(frame: number, rate: Readonly<{ readonly num: number; readonly den: number }>) {
 	return normalize(BigInt(frame) * BigInt(rate.den), BigInt(rate.num));
+}
+
+function sourceBoundaryTime(frame: number, clip: UnifiedRetimeClipAuthority) {
+	if (clip.sourceTiming.kind === 'cfr') return sourceTime(frame, clip.sourceRate);
+	if (clip.sourceTimingView === null) {
+		throw new RangeError('Unified VFR source boundary has no authenticated timing sidecar.');
+	}
+	return videoSourceFrameTime(clip.sourceTimingView, {
+		numerator: BigInt(frame), denominator: 1n,
+	});
 }
 
 function decimal(value: Readonly<{ readonly numerator: bigint; readonly denominator: bigint }>): DecimalExactRationalV6 {

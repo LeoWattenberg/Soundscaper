@@ -7,6 +7,7 @@ import {
 } from './native-ofx-retimer-source-time.ts';
 import {
 	assertUnifiedExactRenderPlan,
+	assertUnifiedExactRenderPlanWithTimingSidecars,
 	type UnifiedExactRenderClipNode,
 	type UnifiedExactRenderOpenFxNode,
 	type UnifiedExactRenderPlan,
@@ -44,7 +45,7 @@ export function createUnifiedExactRenderClipOrdinalAuthority(
 	clipId: string,
 	timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>,
 ): VideoRetimeExactOrdinalAuthority {
-	assertUnifiedExactRenderPlan(plan);
+	assertUnifiedExactRenderPlanWithTimingSidecars(plan, timingBySourceId);
 	const clip = clipById(plan, clipId);
 	const timing = exactTimingForClip(plan, clip, timingBySourceId);
 	return createVideoRetimeExactOrdinalAuthority(clip.sourceTimeMapping.intent, timing);
@@ -78,16 +79,18 @@ export function createUnifiedExactRenderClipPreviewConsumer(
 export function createUnifiedExactRenderTransitionPreviewResolver(
 	plan: UnifiedExactRenderPlan,
 	transitionId: string,
+	timingBySourceId?: ReadonlyMap<string, BoundVideoSourceTimingView>,
 ): UnifiedExactRenderTransitionResolver {
-	return createUnifiedExactRenderTransitionResolver(plan, transitionId);
+	return createUnifiedExactRenderTransitionResolver(plan, transitionId, timingBySourceId);
 }
 
 /** Preview and export deliberately expose the same plan-owned transition evaluator. */
 export function createUnifiedExactRenderTransitionExportResolver(
 	plan: UnifiedExactRenderPlan,
 	transitionId: string,
+	timingBySourceId?: ReadonlyMap<string, BoundVideoSourceTimingView>,
 ): UnifiedExactRenderTransitionResolver {
-	return createUnifiedExactRenderTransitionResolver(plan, transitionId);
+	return createUnifiedExactRenderTransitionResolver(plan, transitionId, timingBySourceId);
 }
 
 export function createUnifiedExactRenderOfxRetimerSourceTime(
@@ -96,7 +99,7 @@ export function createUnifiedExactRenderOfxRetimerSourceTime(
 	outputOrdinal: number,
 	timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>,
 ): OfxRetimerSourceTimeV1 {
-	assertUnifiedExactRenderPlan(plan);
+	assertUnifiedExactRenderPlanWithTimingSidecars(plan, timingBySourceId);
 	const effect = plan.nodes.find((node): node is UnifiedExactRenderOpenFxNode => (
 		node.kind === 'openfx' && node.state.instanceId === instanceId
 	));
@@ -140,8 +143,10 @@ function exactTimingForClip(
 function createUnifiedExactRenderTransitionResolver(
 	plan: UnifiedExactRenderPlan,
 	transitionId: string,
+	timingBySourceId?: ReadonlyMap<string, BoundVideoSourceTimingView>,
 ): UnifiedExactRenderTransitionResolver {
-	assertUnifiedExactRenderPlan(plan);
+	if (timingBySourceId === undefined) assertUnifiedExactRenderPlan(plan);
+	else assertUnifiedExactRenderPlanWithTimingSidecars(plan, timingBySourceId);
 	if (typeof transitionId !== 'string' || transitionId.length < 1 || transitionId.length > 4_096) {
 		throw new TypeError('A bounded unified exact transition identity is required.');
 	}

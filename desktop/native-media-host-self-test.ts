@@ -28,6 +28,7 @@ export interface FramescaperMediaHostSelectedV20RenderSelfTestResult {
 	readonly maximumInFlightFrames: 0 | 1;
 	readonly evaluatedRgbaInputBound: boolean;
 	readonly staticGeometryAdapterBound: boolean;
+	readonly captionDeliveryAdapterBound: boolean;
 	readonly stagedAudioInputBound: boolean;
 	readonly deliveryCodecSetAvailable: boolean;
 	readonly frameCoreReady: boolean;
@@ -76,7 +77,8 @@ export function assertFramescaperMediaHostSelectedV20RenderSelfTest(
 	const expected = [
 		'contractVersion', 'operation', 'profile', 'planVersions', 'exactPictureOrdinals',
 		'keyedEvaluatedRgbaExecutor', 'staticCompositionExecutor', 'maximumInFlightFrames',
-		'evaluatedRgbaInputBound', 'staticGeometryAdapterBound', 'stagedAudioInputBound',
+		'evaluatedRgbaInputBound', 'staticGeometryAdapterBound', 'captionDeliveryAdapterBound',
+		'stagedAudioInputBound',
 		'deliveryCodecSetAvailable', 'frameCoreReady', 'ready',
 	].sort();
 	const actual = Object.keys(record).sort();
@@ -84,7 +86,8 @@ export function assertFramescaperMediaHostSelectedV20RenderSelfTest(
 	const booleans = [
 		record.exactPictureOrdinals, record.keyedEvaluatedRgbaExecutor,
 		record.staticCompositionExecutor, record.evaluatedRgbaInputBound,
-		record.staticGeometryAdapterBound, record.stagedAudioInputBound,
+		record.staticGeometryAdapterBound, record.captionDeliveryAdapterBound,
+		record.stagedAudioInputBound,
 		record.deliveryCodecSetAvailable, record.frameCoreReady, record.ready,
 	];
 	if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])
@@ -100,7 +103,8 @@ export function assertFramescaperMediaHostSelectedV20RenderSelfTest(
 		&& record.staticCompositionExecutor === true
 		&& record.maximumInFlightFrames === 1;
 	const ready = frameCoreReady && record.evaluatedRgbaInputBound === true
-		&& record.staticGeometryAdapterBound === true && record.stagedAudioInputBound === true
+		&& record.staticGeometryAdapterBound === true
+		&& record.captionDeliveryAdapterBound === true && record.stagedAudioInputBound === true
 		&& record.deliveryCodecSetAvailable === true;
 	if (record.frameCoreReady !== frameCoreReady || record.ready !== ready) {
 		throw selectedV20SelfTestError();

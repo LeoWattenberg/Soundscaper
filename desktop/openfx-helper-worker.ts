@@ -162,5 +162,5 @@ export function openFxHelperTransferredPortCount(
 ): number {
 	if (kind === 'ofx-scan') return 1;
 	const host = grant as HelperOfxHostJobGrant;
-	return 2 + host.inputs.length;
+	return 2 + (host.videoTimingAssets?.length ?? 0) + host.inputs.length;
 }

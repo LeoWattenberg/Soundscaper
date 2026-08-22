@@ -37,8 +37,8 @@
 	"sourceFiles": [
 		{
 			"path": "CMakeLists.txt",
-			"byteLength": 4233,
-			"sha256": "a34479da94609a10f9aa78329c1ad76a4a60934bede41ad1a591560b17618e85"
+			"byteLength": 4896,
+			"sha256": "7900808849e7b939d05316249f833d07b982ac86f7205f49f0fd0ff4bcf9f136"
 		},
 		{
 			"path": "CMakePresets.json",
@@ -122,8 +122,8 @@
 		},
 		{
 			"path": "src/ffmpeg_selected_v20_adapter.cpp",
-			"byteLength": 27706,
-			"sha256": "77b86b482e4b367fa3381f7462e14cfedcaa93ed98686c10fa4b12146b5fa172"
+			"byteLength": 27792,
+			"sha256": "767abc450e776876e5ac9e4210ced706a9d54db6a17d3310975eb9ee23ac715b"
 		},
 		{
 			"path": "src/ffmpeg_selected_v20_adapter.hpp",
@@ -132,8 +132,8 @@
 		},
 		{
 			"path": "src/ffmpeg_selected_v20_render.cpp",
-			"byteLength": 4822,
-			"sha256": "fa5ea806bbe1692301b91e8d07e15f543785d2d7ac1f877746fee66e6d786790"
+			"byteLength": 5757,
+			"sha256": "574e8115d31bdb471e7fb078c7817d7b6be4a595bfc074dde70e08d1eb9981ee"
 		},
 		{
 			"path": "src/ffmpeg_selected_v20_render.hpp",
@@ -162,8 +162,8 @@
 		},
 		{
 			"path": "src/legacy_plan_semantics.cpp",
-			"byteLength": 32096,
-			"sha256": "2a842562f9d32fbd795a648d414dac5591e0b91b9ee4915f95be8390a786b8b0"
+			"byteLength": 23277,
+			"sha256": "ee6b60f72c4c381bc067d327ee96b4148d8ea3b55977762a9035bfacb0d500ec"
 		},
 		{
 			"path": "src/legacy_plan_semantics.hpp",
@@ -172,13 +172,23 @@
 		},
 		{
 			"path": "src/legacy_plan_v8_filter_semantics.cpp",
-			"byteLength": 18353,
-			"sha256": "8c248d298816a7550c0f50c31fff199f208c2fac969bd03217bbe826fd0718e8"
+			"byteLength": 18994,
+			"sha256": "28e18a9be1e5354fa29bd0474c9e6b575a2241b5df2a9f9c46c0903d95512ad6"
 		},
 		{
 			"path": "src/legacy_plan_v8_filter_semantics.hpp",
 			"byteLength": 311,
 			"sha256": "05a439b2760ed9d473ce8f8e2ed4532c2986f87a881573834adf9b74431649f6"
+		},
+		{
+			"path": "src/legacy_plan_v8_visual_semantics.hpp",
+			"byteLength": 3375,
+			"sha256": "649052d386f6a2493e8d3579a84f38979f092d6b7118303cc51c111f9ac439de"
+		},
+		{
+			"path": "src/legacy_plan_v8_visual_semantics_impl.hpp",
+			"byteLength": 27750,
+			"sha256": "5d0faa15e2ab1b7a50ef03440be043ad4f187625b78032f479d91cce0ea2ebf1"
 		},
 		{
 			"path": "src/legacy_plan_values.hpp",
@@ -197,8 +207,8 @@
 		},
 		{
 			"path": "src/media_host.cpp",
-			"byteLength": 22081,
-			"sha256": "57c55bef483fa05c834ca2f15d540ec282d97b79278800d6c12bd024acc232eb"
+			"byteLength": 25252,
+			"sha256": "de25c7fbd7127842668a5898c6d21d8cb58509237dd4895204be071700ef322a"
 		},
 		{
 			"path": "src/media_host_contract.hpp",
@@ -207,13 +217,13 @@
 		},
 		{
 			"path": "src/media_plan.cpp",
-			"byteLength": 12601,
-			"sha256": "7da1149c505195c9b17cb68c4df3e977f8712f797616eae867c428d4bbecf45f"
+			"byteLength": 12933,
+			"sha256": "ac8d83e56d0a0e6436bf93355d867929544bece033740cde3a4a81a17b1f3383"
 		},
 		{
 			"path": "src/media_plan.hpp",
-			"byteLength": 1194,
-			"sha256": "dab79dcea9bd96433a24a8e4c7a11083bc2db2605ae278c89807c122ae1b5c1f"
+			"byteLength": 1495,
+			"sha256": "e52ba9fbb68e7584a7e4b9716e2afaf109302216e23f421c9a18dee8fcb21ea9"
 		},
 		{
 			"path": "src/professional_source_probe.cpp",
@@ -227,13 +237,13 @@
 		},
 		{
 			"path": "src/selected_v20_frame_executor.cpp",
-			"byteLength": 17354,
-			"sha256": "80ceb4fc6a5034bc294a0afc7533c174ea0ba471edbedf58923e91f7fd838577"
+			"byteLength": 17300,
+			"sha256": "756fcf96ade297e36d9520281fceff59de6b9e245291250e74a8403f0733857a"
 		},
 		{
 			"path": "src/selected_v20_frame_executor.hpp",
-			"byteLength": 4500,
-			"sha256": "c6536ec3d6b5695a39a578ebef46925b8a27e8509d9bbcae14b95720e9dfb42d"
+			"byteLength": 4446,
+			"sha256": "ac50a9b29db7523cd9cdae3577df0a58f703ca4e3cd671a0d39851dd9ea68867"
 		},
 		{
 			"path": "src/selected_v20_frame_pack.cpp",
@@ -247,13 +257,13 @@
 		},
 		{
 			"path": "src/selected_v20_plan_capture.cpp",
-			"byteLength": 8876,
-			"sha256": "7c90acdccc4c0814d0b935ffc6e4e2fcdd305e847f4c6eb0a64883785685bd7e"
+			"byteLength": 9777,
+			"sha256": "c85491c2bb84fe39158d672dd5ab6ad0ed5015e1a312bf021f89ddc88a1f1aba"
 		},
 		{
 			"path": "src/selected_v20_plan_capture.hpp",
-			"byteLength": 445,
-			"sha256": "d0c51078ba724b5cab365530b3bba636d9b796007a000e3b5a31fc2185e46673"
+			"byteLength": 1000,
+			"sha256": "f3f39ccce0eb0ac12a323a889ca234aff0c2bfd757f8340b20b15eabeff327f1"
 		},
 		{
 			"path": "src/sha256.cpp",
@@ -292,8 +302,8 @@
 		},
 		{
 			"path": "src/unified_plan_semantics.hpp",
-			"byteLength": 6160,
-			"sha256": "866e299d2c9d27f6940b39eb25343577f058ae5ad681bea3b8fccd1196bbe70b"
+			"byteLength": 6220,
+			"sha256": "652039df6e08b644b8843a7cc20334d37a5277d6ee76c54141288ad1ba2c9e6d"
 		},
 		{
 			"path": "src/unified_plan_v10_semantics.hpp",
@@ -302,18 +312,28 @@
 		},
 		{
 			"path": "src/unified_plan_v11_v12_semantics.hpp",
-			"byteLength": 20845,
-			"sha256": "249434132ac87e70c995e2141a9236e8b9cc48d28a879ce7ecdba1d0bc5c5f14"
+			"byteLength": 20824,
+			"sha256": "30788bef1ecd6173ece1f4eeb9c08aae32f5f11ae689e532b5fa96b4bcc67f7e"
 		},
 		{
 			"path": "src/unified_plan_v9_intent_authority.hpp",
-			"byteLength": 15477,
-			"sha256": "f3f6ae1fa12bc9667a6ec39788ebbaa7672f848b639788a6d3d78a1589950546"
+			"byteLength": 15903,
+			"sha256": "ded4cd436619049cb974ae0fca5207e86f3528e2d36aa30ac9b5cdef673baebd"
 		},
 		{
 			"path": "src/unified_plan_v9_semantics.hpp",
-			"byteLength": 32518,
-			"sha256": "8ca0173fdca8e21951530ffe0a2abc0d5c8b9b7aac303a95c68aaf89eddc5a09"
+			"byteLength": 31075,
+			"sha256": "56771b5cf57c4ec7abe201a7c2bb80592af6b35fcc15ff9ccba303768d5a9680"
+		},
+		{
+			"path": "src/unified_plan_video_timing.hpp",
+			"byteLength": 3200,
+			"sha256": "6df58a12d61e3684e7fe4952f5ef411707e292204fd67c46875b73bd13983a6e"
+		},
+		{
+			"path": "src/video_timing_asset.hpp",
+			"byteLength": 7761,
+			"sha256": "b636d9357bbceedd7aa8aca88e6cce1b4f989d5c91323a05a266fd94eab3ac72"
 		},
 		{
 			"path": "tests/exact_retime_ordinal_fixture.cpp",
@@ -332,18 +352,23 @@
 		},
 		{
 			"path": "tests/selected_v20_frame_executor_fixture.cpp",
-			"byteLength": 10291,
-			"sha256": "ad2324d1b5a93f7da08c1d012f6973c4ff58becf64ca7fd2123f80b91de54e76"
+			"byteLength": 12864,
+			"sha256": "a40f132c80c688aae567a576fec2f5168e279d132a7625120505b51532941d4b"
 		},
 		{
 			"path": "tests/selected_v20_operation_self_test.cmake",
-			"byteLength": 1332,
-			"sha256": "a401e84bb5daf8837d89ba0cc707581f332b72cc093e484ee6815f2d90e65376"
+			"byteLength": 1373,
+			"sha256": "50f12b140d4b97e4c94266598185b3d27aa101e7d97af6e68f0d44d58fe79cc4"
+		},
+		{
+			"path": "tests/selected_v20_v8_visual_semantics_fixture.cpp",
+			"byteLength": 11653,
+			"sha256": "4a68ad7734adb52150161a110d45571b575e827d549f3969afd6566a1e93767a"
 		},
 		{
 			"path": "tests/unified_plan_admission_fixture.cpp",
-			"byteLength": 620,
-			"sha256": "c8ea525b27a424f33b505c0f1abd24dac9364c949edf165356fa9a151fd7c7ef"
+			"byteLength": 996,
+			"sha256": "10002611292f36c2c922a864ae32c496af2a462f88bf9418a57fad37ea909f46"
 		}
 	],
 	"targets": {
