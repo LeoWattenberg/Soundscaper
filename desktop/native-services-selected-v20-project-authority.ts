@@ -57,9 +57,11 @@ export class FramescaperNativeSelectedV20ProjectAuthority {
 		record: NativeQueueRecordV2,
 		root: FramescaperNativeRootGrant,
 	): Promise<PreparedNativeMediaQueueJob> {
+		if (record.planVersion !== 7 && record.planVersion !== 8) {
+			return this.#project.prepare(record, root);
+		}
 		const derived = await this.#renderInputs.inspect(record);
 		const prepared = await this.#project.prepare(record, root);
-		if (record.planVersion !== 7 && record.planVersion !== 8) return prepared;
 		try {
 			if (prepared.request.kind !== 'media-render') {
 				throw new Error('A selected-V20 V7/V8 queue record requires one media-render helper job.');
