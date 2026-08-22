@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
@@ -27,10 +27,48 @@ const PRESENTATION_TICKS = Object.freeze(Array.from({ length: 20 }, (_, index) =
 const TIMESCALE = 10;
 const FINAL_DURATION_TICKS = 19n;
 let compiledFixture = null;
+let compiledProductionHost = null;
 
 test.after(() => {
 	compiledFixture?.dispose();
 	compiledFixture = null;
+	compiledProductionHost?.dispose();
+	compiledProductionHost = null;
+});
+
+test('production media-host CLI authenticates exact timing tuples and rejects omission, replay, and tamper', (context) => {
+	const fixture = buildProductionHost(context);
+	if (fixture === null) return;
+	try {
+		const timing = timingAsset(PRESENTATION_TICKS, FINAL_DURATION_TICKS, TIMESCALE);
+		writeFileSync(fixture.timing, timing.bytes);
+		const reference = { ...timing.reference, sourceSha256: fixture.sourceSha256 };
+		const plan = vfrPlan(9, reference);
+		plan.sources[0].contentSha256 = fixture.sourceSha256;
+		const exact = [{ path: fixture.timing, sha256: reference.sha256, byteLength: timing.bytes.length }];
+		const admitted = runProductionHost(fixture, plan, exact);
+		assert.equal(admitted.status, 78, admitted.stderr);
+		assert.deepEqual(JSON.parse(admitted.stdout), {
+			error: 'unsupported-render-subset', operation: 'media-render',
+			planVersion: 9, family: 'unified-exact-v9-graph',
+		});
+		assert.equal(runProductionHost(fixture, plan, []).status, 65, 'missing timing grant');
+		assert.equal(runProductionHost(fixture, plan, [...exact, ...exact]).status, 65, 'replayed timing grant');
+		assert.equal(
+			runProductionHost(fixture, mediaHostUnifiedPlanGeneration(9, fixture.sourceSha256), exact).status,
+			65,
+			'unused timing grant',
+		);
+		assert.equal(runProductionHost(fixture, plan, [{
+			...exact[0], byteLength: timing.bytes.length - 1,
+		}]).status, 65, 'wrong timing byte-length grant');
+		const tampered = Buffer.from(timing.bytes);
+		tampered[tampered.length - 1] ^= 0xff;
+		writeFileSync(fixture.timing, tampered);
+		assert.equal(runProductionHost(fixture, plan, exact).status, 65, 'timing bytes changed');
+	} finally {
+		fixture.cleanup();
+	}
 });
 
 test('native unified validators admit authenticated VFR timing without graph dispatch authority', (context) => {
@@ -232,6 +270,60 @@ function buildFixture(context) {
 		dispose: () => rmSync(directory, { recursive: true, force: true }),
 	};
 	return compiledFixture;
+}
+
+function buildProductionHost(context) {
+	if (compiledProductionHost !== null) return compiledProductionHost;
+	if (spawnSync('c++', ['--version'], { encoding: 'utf8' }).status !== 0) {
+		context.skip('A C++ compiler is not installed on this source-audit host.');
+		return null;
+	}
+	const boostRoot = process.env.FRAMESCAPER_BOOST_192_SOURCE_ROOT;
+	const boostArguments = boostRoot ? ['-I', boostRoot] : [];
+	const directory = mkdtempSync(join(tmpdir(), 'framescaper-production-vfr-host-'));
+	const executable = join(directory, 'framescaper-media-host');
+	const files = [
+		'media_host.cpp', 'image_sequence_pack.cpp', 'legacy_plan_semantics.cpp',
+		'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp', 'media_plan.cpp',
+		'sha256.cpp', 'strict_json.cpp',
+	].map((file) => join(sourceRoot, file));
+	const built = spawnSync('c++', [
+		'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror', ...boostArguments,
+		'-DFRAMESCAPER_MEDIA_HOST_CONTRACT_ONLY=1', '-I', sourceRoot,
+		...files, '-o', executable,
+	], { encoding: 'utf8' });
+	assert.equal(built.status, 0, built.stderr);
+	const source = join(directory, 'source.mov');
+	writeFileSync(source, 'production-vfr-source');
+	const scratch = join(directory, 'scratch');
+	const destination = join(directory, 'destination');
+	for (const path of [scratch, destination]) mkdirSync(path);
+	compiledProductionHost = {
+		directory, executable, source, sourceSha256: digest(readFileSync(source)),
+		sourceByteLength: readFileSync(source).byteLength,
+		scratch, destination, plan: join(directory, 'plan.json'),
+		timing: join(directory, 'timing.scti'), temporaryOutput: join(destination, 'output.tmp'),
+		cleanup: () => undefined,
+		dispose: () => rmSync(directory, { recursive: true, force: true }),
+	};
+	return compiledProductionHost;
+}
+
+function runProductionHost(fixture, plan, timing) {
+	const bytes = JSON.stringify(plan);
+	writeFileSync(fixture.plan, bytes);
+	return spawnSync(fixture.executable, [
+		'--operation', 'media-render', '--plan', fixture.plan, '--plan-sha256', digest(bytes),
+		'--source', fixture.source, '--source-sha256', fixture.sourceSha256,
+		'--source-byte-length', String(fixture.sourceByteLength), '--source-role', 'original',
+		...timing.flatMap((asset) => [
+			'--video-timing-asset', asset.path, '--video-timing-sha256', asset.sha256,
+			'--video-timing-byte-length', String(asset.byteLength),
+		]),
+		'--backend', 'native-cpu', '--maximum-output-bytes', '1048576',
+		'--scratch', fixture.scratch, '--destination-root', fixture.destination,
+		'--temporary-output', fixture.temporaryOutput,
+	], { encoding: 'utf8' });
 }
 
 function admit(fixture, plan, timingGrants = []) {

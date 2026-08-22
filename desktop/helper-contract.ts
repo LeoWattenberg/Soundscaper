@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 /** Closed milestone-5 helper wire; renderers never receive its concrete authority. */
 
 import { admitLowerOnly } from '../src/common/editor/lower-only-seam.ts';
@@ -80,6 +79,7 @@ export type {
 	HelperStreamInputGrant,
 	HelperStreamOutputJobResult,
 	HelperTemporaryOutputResult,
+	HelperVideoTimingAssetGrant,
 } from './helper-job-grant.ts';
 export {
 	HelperContractViolationError,

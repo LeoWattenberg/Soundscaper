@@ -197,8 +197,8 @@
 		},
 		{
 			"path": "src/media_host.cpp",
-			"byteLength": 22081,
-			"sha256": "57c55bef483fa05c834ca2f15d540ec282d97b79278800d6c12bd024acc232eb"
+			"byteLength": 24108,
+			"sha256": "ae7b4125ef9eac4d8c6701bbee02ed3ae59a5d8407ea3a0030ee89df20a94f41"
 		},
 		{
 			"path": "src/media_host_contract.hpp",
@@ -322,8 +322,8 @@
 		},
 		{
 			"path": "src/video_timing_asset.hpp",
-			"byteLength": 7593,
-			"sha256": "c10679c32f833c42427cf447843d97b6258f8ebd3599e9ccc8f691a57dbb2311"
+			"byteLength": 7761,
+			"sha256": "b636d9357bbceedd7aa8aca88e6cce1b4f989d5c91323a05a266fd94eab3ac72"
 		},
 		{
 			"path": "tests/exact_retime_ordinal_fixture.cpp",
@@ -352,8 +352,8 @@
 		},
 		{
 			"path": "tests/unified_plan_admission_fixture.cpp",
-			"byteLength": 935,
-			"sha256": "04095214a295ab6a7b750e397b7107e3cba863c02f1d25005d42dd1c931fb149"
+			"byteLength": 996,
+			"sha256": "10002611292f36c2c922a864ae32c496af2a462f88bf9418a57fad37ea909f46"
 		}
 	],
 	"targets": {

@@ -15,7 +15,8 @@ int main(const int argc, char** argv) {
 	try {
 		std::vector<framescaper::media::video_timing_asset_grant> timing_grants;
 		for (int index = 3; index < argc; index += 2) {
-			timing_grants.push_back({std::filesystem::path{argv[index]}, argv[index + 1]});
+			const auto path = std::filesystem::path{argv[index]};
+			timing_grants.push_back({path, argv[index + 1], std::filesystem::file_size(path)});
 		}
 		const auto plan = framescaper::media::authenticate_media_plan(
 			argv[1], argv[2], timing_grants

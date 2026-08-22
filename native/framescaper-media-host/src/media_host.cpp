@@ -4,6 +4,7 @@
 #include "ffmpeg_selected_v20_render.hpp"
 #include "media_file_grants.hpp"
 #include "media_host_contract.hpp"
+#include "video_timing_asset.hpp"
 
 #include <charconv>
 #include <algorithm>
@@ -90,6 +91,9 @@ struct parsed_arguments final {
 	std::vector<std::string> source_sha256;
 	std::vector<std::uint64_t> source_byte_lengths;
 	std::vector<std::string> source_roles;
+	std::vector<std::filesystem::path> video_timing_assets;
+	std::vector<std::string> video_timing_sha256;
+	std::vector<std::uint64_t> video_timing_byte_lengths;
 	std::optional<std::filesystem::path> temporary_output;
 	std::optional<std::filesystem::path> decode_output;
 	std::optional<std::filesystem::path> destination_root;
@@ -152,6 +156,23 @@ void unique_flag(std::unordered_set<std::string>& flags, const std::string& flag
 		} else if (flag == "--source-byte-length") {
 			if (parsed.source_byte_lengths.size() >= maximum_sources) throw admission_error("The host source length list exceeds its hard ceiling.");
 			parsed.source_byte_lengths.push_back(positive_integer(value, "source byte length", maximum_native_file_bytes));
+		} else if (flag == "--video-timing-asset") {
+			if (parsed.video_timing_assets.size() >= video_timing_asset_maximum_grants) {
+				throw admission_error("The host timing-asset list exceeds its hard ceiling.");
+			}
+			parsed.video_timing_assets.push_back(admitted_path(value, "video timing asset"));
+		} else if (flag == "--video-timing-sha256") {
+			if (parsed.video_timing_sha256.size() >= video_timing_asset_maximum_grants) {
+				throw admission_error("The host timing-digest list exceeds its hard ceiling.");
+			}
+			parsed.video_timing_sha256.emplace_back(value);
+		} else if (flag == "--video-timing-byte-length") {
+			if (parsed.video_timing_byte_lengths.size() >= video_timing_asset_maximum_grants) {
+				throw admission_error("The host timing-length list exceeds its hard ceiling.");
+			}
+			parsed.video_timing_byte_lengths.push_back(positive_integer(
+				value, "video timing asset byte length", video_timing_asset_maximum_bytes
+			));
 		} else if (flag == "--temporary-output") {
 			unique_flag(flags, flag); parsed.temporary_output = admitted_path(value, "temporary output");
 		} else if (flag == "--decode-output") {
@@ -217,6 +238,24 @@ void require_source_authentication(
 	job.source_sha256 = parsed.source_sha256;
 	job.source_byte_lengths = parsed.source_byte_lengths;
 	job.source_roles = parsed.source_roles;
+}
+
+[[nodiscard]] std::vector<video_timing_asset_grant> video_timing_grants(
+	const parsed_arguments& parsed
+) {
+	if (parsed.video_timing_assets.size() != parsed.video_timing_sha256.size()
+		|| parsed.video_timing_assets.size() != parsed.video_timing_byte_lengths.size()) {
+		throw admission_error("Every video timing asset requires its exact digest and byte length grant.");
+	}
+	std::vector<video_timing_asset_grant> grants;
+	grants.reserve(parsed.video_timing_assets.size());
+	for (std::size_t index = 0; index < parsed.video_timing_assets.size(); ++index) {
+		grants.push_back({
+			parsed.video_timing_assets[index], parsed.video_timing_sha256[index],
+			parsed.video_timing_byte_lengths[index],
+		});
+	}
+	return grants;
 }
 
 void require_plan_sources_match(const invocation& job, const std::vector<std::size_t>& source_indices) {
@@ -286,7 +325,9 @@ void require_exact_render_source_roles(const invocation& job) {
 			|| !parsed.source_roles.empty() || !parsed.source_byte_lengths.empty()
 			|| parsed.proxy_recipe || parsed.proxy_width || parsed.proxy_height
 			|| parsed.maximum_output_bytes || parsed.sequence_profile
-			|| parsed.sequence_rate_num || parsed.sequence_rate_den) {
+			|| parsed.sequence_rate_num || parsed.sequence_rate_den
+			|| !parsed.video_timing_assets.empty() || !parsed.video_timing_sha256.empty()
+			|| !parsed.video_timing_byte_lengths.empty()) {
 			throw admission_error("A probe job carries exactly one authenticated source and no render authority.");
 		}
 		return job;
@@ -299,7 +340,9 @@ void require_exact_render_source_roles(const invocation& job) {
 	}
 	job.plan = *parsed.plan;
 	job.plan_sha256 = *parsed.plan_sha256;
-	job.admitted_plan = authenticate_media_plan(job.plan, job.plan_sha256);
+	job.admitted_plan = authenticate_media_plan(
+		job.plan, job.plan_sha256, video_timing_grants(parsed)
+	);
 	job.backend = *parsed.backend;
 	job.maximum_output_bytes = *parsed.maximum_output_bytes;
 	job.scratch_root = authenticate_directory(*parsed.scratch_root, "scratch root");

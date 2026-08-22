@@ -4,6 +4,8 @@
 export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'desktop/helper-data-plane-output-reservation.js',
 	'desktop/helper-native-ofx-scan-grant.js',
+	'desktop/helper-native-proxy-recipe-grant.js',
+	'desktop/helper-native-video-timing-grant.js',
 	'desktop/native-media-filesystem-lease.js',
 	'desktop/native-media-helper-filesystem.js',
 	'desktop/native-services-lifecycle-contracts.js',

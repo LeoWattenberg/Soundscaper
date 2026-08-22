@@ -26,6 +26,7 @@ constexpr std::uintmax_t video_timing_asset_maximum_bytes =
 struct video_timing_asset_grant final {
 	std::filesystem::path path;
 	std::string sha256;
+	std::uintmax_t byte_length{};
 };
 
 struct video_timing_asset_authority final {
@@ -99,6 +100,9 @@ namespace video_timing_detail {
 	const auto length = std::filesystem::file_size(canonical, error);
 	if (error || length > video_timing_asset_maximum_bytes) {
 		throw grant_error("The VFR timing asset length could not be authenticated.");
+	}
+	if (length != grant.byte_length) {
+		throw authentication_error("The VFR timing asset length changed from its exact helper grant.");
 	}
 	std::vector<std::uint8_t> bytes(static_cast<std::size_t>(length));
 	std::ifstream input(canonical, std::ios::binary);

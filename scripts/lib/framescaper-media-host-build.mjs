@@ -136,6 +136,7 @@ function auditClosedAdapters(hostRoot) {
 	const required = new Map([
 		['src/media_host.cpp', [
 			'--plan-sha256', '--source-sha256', '--source-byte-length', '--source-role',
+			'--video-timing-asset', '--video-timing-sha256', '--video-timing-byte-length',
 			'--sequence-profile', '--sequence-rate-num', '--decode-output', '--destination-root',
 			'--maximum-output-bytes', 'framescaper-native-prores-proxy-mov-v1',
 		]],

@@ -33,6 +33,7 @@ test('the CLI adapter emits only finalized closed arguments, with a role per sou
 			{ path: '/media/a.mov', sha256: '2'.repeat(64), byteLength: 2_048, role: 'original' },
 			{ path: '/media/b.wav', sha256: '3'.repeat(64), byteLength: 1_024, role: 'original' },
 		],
+		videoTimingAssets: [],
 		backend: 'native-cpu', maximumOutputBytes: 4_096,
 		scratchPath: '/scratch/job', decodeOutputPath: null,
 		destinationRoot: '/output', temporaryOutputPath: '/output/.proxy.tmp',
