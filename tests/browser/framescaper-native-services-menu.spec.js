@@ -118,3 +118,107 @@ test('Framescaper keeps blocked native preferences and OFX management menu-only 
 	const soundscaperTools = await openNestedCommandMenu(page, soundscaper, 'Tools', []);
 	await expect(getMenuItem(soundscaperTools, 'Native media and scratch…')).toHaveCount(0);
 });
+
+test('enabled OpenFX scan, inventory, and control stay inside the menu-opened surface', async ({ page }) => {
+	await page.addInitScript(() => {
+		const calls = [];
+		const preferences = {
+			nativeMediaEnabled: true,
+			hardwareDecodeEnabled: false,
+			hardwareEncodeEnabled: false,
+			ofxConsentEnabled: true,
+		};
+		let plugins = [];
+		const plugin = (state = 'consented') => ({
+			pluginHandle: '12'.repeat(20),
+			pluginId: 'org.framescaper.browserfixture',
+			vendor: 'Framescaper',
+			version: { major: 1, minor: 0 },
+			binarySha256: '34'.repeat(32),
+			supportedContexts: ['filter'],
+			parameters: [{ name: 'radius', type: 'double', animates: true }],
+			components: ['RGBA'], pixelDepths: ['byte'], threading: 'fully-safe',
+			state, quarantined: false,
+		});
+		const nativeServices = {
+			snapshot: async () => ({
+				snapshotVersion: 1, runtimeAvailable: true, nativeMediaEnabled: true,
+				queue: [], roots: [], watchRules: [],
+			}),
+			control: async () => { throw new Error('No queue job belongs to this fixture.'); },
+			reorder: async () => [],
+			remove: async () => false,
+			capabilities: async () => ({
+				snapshotVersion: 1, masterEnabled: true, buildFingerprint: null,
+				entries: [{
+					domain: 'ofx', id: 'isolated-host', state: 'available', reason: 'ready',
+					userEnabled: true, buildFingerprint: null, detail: null,
+				}],
+			}),
+			preferences: async () => ({ ...preferences }),
+			setPreference: async ({ preference, enabled }) => {
+				calls.push(['preference', preference, enabled]);
+				return enabled;
+			},
+			scanOpenFxPlugin: async () => {
+				calls.push(['scan']);
+				plugins = [plugin()];
+				return plugins[0];
+			},
+			listOpenFxPlugins: async () => {
+				calls.push(['inventory']);
+				return plugins.map((entry) => structuredClone(entry));
+			},
+			controlOpenFxPlugin: async ({ pluginHandle, action }) => {
+				calls.push(['control', pluginHandle, action]);
+				if (pluginHandle !== '12'.repeat(20) || action !== 'enable') {
+					throw new Error('The browser fixture admits one exact enable control.');
+				}
+				plugins = [plugin('enabled')];
+				return plugins[0];
+			},
+		};
+		Object.defineProperty(globalThis, '__framescaperOpenFxCalls', {
+			configurable: true, value: calls,
+		});
+		Object.defineProperty(globalThis, 'framescaperDesktop', {
+			configurable: true,
+			enumerable: true,
+			value: Object.freeze({ v1: Object.freeze({
+				nativeServices: Object.freeze(nativeServices),
+				readNativeTierControls: async () => ({
+					probeHelperEnabled: false, probeHelperQuarantined: false,
+					audioHelperEnabled: false, audioHelperQuarantined: false,
+					nativeEffectDiscoveryEnabled: false,
+				}),
+				applyNativeTierControl: async () => ({
+					probeHelperEnabled: false, probeHelperQuarantined: false,
+					audioHelperEnabled: false, audioHelperQuarantined: false,
+					nativeEffectDiscoveryEnabled: false,
+				}),
+			}) }),
+		});
+	});
+	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	await expect(editor.locator('[data-framescaper-openfx-scan="true"]')).toHaveCount(0);
+	await expect(editor.getByText('org.framescaper.browserfixture')).toHaveCount(0);
+
+	const videoEffects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects']);
+	const manageOfx = getMenuItem(videoEffects, 'Manage OFX…');
+	await expect(manageOfx).toBeEnabled();
+	await manageOfx.click();
+	const dialog = page.getByRole('dialog', { name: /Manage OFX/u });
+	const scan = dialog.locator('[data-framescaper-openfx-scan="true"]');
+	await expect(scan).toBeEnabled();
+	await scan.click();
+	const row = dialog.locator('[data-framescaper-openfx-plugin="' + '12'.repeat(20) + '"]');
+	await expect(row).toContainText('org.framescaper.browserfixture');
+	await expect(row).toContainText('consented');
+	await expect(row).not.toContainText('/private/');
+	await row.getByRole('button', { name: 'Enable', exact: true }).click();
+	await expect(row).toContainText('enabled');
+	await expect.poll(() => page.evaluate(() => globalThis.__framescaperOpenFxCalls)).toEqual([
+		['inventory'], ['scan'], ['inventory'],
+		['control', '12'.repeat(20), 'enable'], ['inventory'],
+	]);
+});
