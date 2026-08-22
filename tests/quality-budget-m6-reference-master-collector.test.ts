@@ -134,8 +134,8 @@ function measurement(overrides: Record<string, unknown> = {}) {
 		schemaVersion: 1,
 		workloadId: M6_REFERENCE_MASTER_WORKLOAD_ID,
 		profile: 'reference-master-delivery-v1',
-		environmentId: 'reference-linux-gpu-01',
-		platformId: 'linuxX64',
+		environmentId: 'owner-qualified-windows-x64-rtx3090-01',
+		platformId: 'win32-x64',
 		fingerprint: { osImage: 'observed', cpuModel: 'observed' },
 		audioArtifacts: [audioArtifact()],
 		videoArtifacts: [videoArtifact(), verticalVideoArtifact()],
@@ -373,9 +373,9 @@ test('the collector refuses to publish, and names every fact the lab still owes'
 	assert.deepEqual(result.observedFingerprint, { osImage: 'observed', cpuModel: 'observed' });
 
 	const blockers = result.qualificationBlockers;
-	assert.ok(blockers.includes('Environment reference-linux-gpu-01 is unprovisioned.'));
-	assert.ok(blockers.includes('Environment reference-linux-gpu-01 is not qualification-eligible.'));
-	assert.ok(blockers.some((line: string) => /has no recorded fingerprint for gpuModel/u.test(line)));
+	assert.ok(blockers.includes(
+		'Environment owner-qualified-windows-x64-rtx3090-01 does not list m6-reference-master-delivery among its eligible workloads.',
+	));
 	assert.ok(blockers.some((line: string) => /Fixture m6-reference-master-suite-v1 status is planned/u.test(line)));
 	assert.ok(blockers.some((line: string) => /Workload .* status is planned/u.test(line)));
 	assert.ok(blockers.some((line: string) => /not registered in qualification.qualifiedWorkloadIds/u.test(line)));
@@ -395,7 +395,10 @@ test('the collector stops rather than sign off once the environment is provision
 	// A pending record naming nothing missing would read as "measured, awaiting
 	// sign-off" when the truth is that the publishing half is unwritten.
 	const provisioned = provisionedConfig();
-	assert.equal(assessM6ReferenceMasterQualification(provisioned, 'reference-linux-gpu-01').provisioned, true);
+	assert.equal(
+		assessM6ReferenceMasterQualification(provisioned, 'owner-qualified-windows-x64-rtx3090-01').provisioned,
+		true,
+	);
 	assert.throws(
 		() => createM6ReferenceMasterResult(measurement(), provisioned),
 		/accepted-evidence writer lands with the lab/u,
@@ -487,7 +490,9 @@ test('the collected result lands as a pending file and never overwrites one', as
 
 function provisionedConfig() {
 	const config = JSON.parse(JSON.stringify(CONFIG));
-	const environment = config.environments.find(({ id }: { id: string }) => id === 'reference-linux-gpu-01');
+	const environment = config.environments.find(
+		({ id }: { id: string }) => id === 'owner-qualified-windows-x64-rtx3090-01',
+	);
 	environment.status = 'active';
 	environment.qualificationEligible = true;
 	environment.eligibleWorkloadIds = [M6_REFERENCE_MASTER_WORKLOAD_ID];
