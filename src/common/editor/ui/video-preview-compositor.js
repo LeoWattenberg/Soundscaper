@@ -9,6 +9,7 @@ import {
 	videoEffectPasses,
 } from './video-preview-effects.js';
 import { videoDeliveryColorChannels } from '../video-delivery-color.ts';
+import { NATIVE_EXTERNAL_DISPLAY_MAXIMUM_RGBA_BYTES } from '../native-external-display.ts';
 import {
 	pruneVideoTextures,
 	releaseVideoTexture,
@@ -548,6 +549,30 @@ export class VideoPreviewCompositor {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		this.pruneUnusedVideoTextures();
 		return completeVideoPreviewRenderLedger(ledger, renderedEntries);
+	}
+
+	/** Read the just-presented preview framebuffer; this does not evaluate it again. */
+	captureEvaluatedRgba() {
+		if (this.disposed || this.contextLost) return null;
+		const width = this.canvas.width;
+		const height = this.canvas.height;
+		const byteLength = width * height * 4;
+		if (!Number.isSafeInteger(byteLength) || byteLength < 4 || byteLength > NATIVE_EXTERNAL_DISPLAY_MAXIMUM_RGBA_BYTES) {
+			throw new RangeError('The evaluated preview framebuffer exceeds its capture ceiling.');
+		}
+		const rgba = new Uint8Array(byteLength);
+		this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+		this.gl.readPixels(0, 0, width, height, this.gl.RGBA, this.gl.UNSIGNED_BYTE, rgba);
+		const rowBytes = width * 4;
+		const row = new Uint8Array(rowBytes);
+		for (let top = 0, bottom = height - 1; top < bottom; top += 1, bottom -= 1) {
+			const topOffset = top * rowBytes;
+			const bottomOffset = bottom * rowBytes;
+			row.set(rgba.subarray(topOffset, topOffset + rowBytes));
+			rgba.copyWithin(topOffset, bottomOffset, bottomOffset + rowBytes);
+			rgba.set(row, bottomOffset);
+		}
+		return Object.freeze({ width, height, rgba });
 	}
 
 	dispose() {

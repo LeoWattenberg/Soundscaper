@@ -45,7 +45,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'loadLinkedAudioOriginal',
 		'loadLinkedVideoOriginal',
 		'nativeAudioHelperAvailability',
-		'nativePluginAvailability', 'onAssistanceInstallProgress',
+		'nativePluginAvailability', 'nativeServices', 'onAssistanceInstallProgress',
 		'onCloseRequested',
 		'onMenuCommand',
 		'onOpenProject',
@@ -187,7 +187,7 @@ test('desktop smoke validates the application-reported platform and target archi
 	);
 });
 
-test('desktop smoke validates the closed Framescaper V18 UI, preload, and main readback witness', () => {
+test('desktop smoke validates the closed Framescaper V20 UI, preload, and main readback witness', () => {
 	const expected = {
 		arch: 'arm64',
 		bridge: EXPECTED_BRIDGE,
@@ -196,16 +196,16 @@ test('desktop smoke validates the closed Framescaper V18 UI, preload, and main r
 		title: 'Framescaper',
 		url: 'framescaper-app://bundle/',
 	};
-	const payload = validFramescaperV18Payload();
+	const payload = validFramescaperV20Payload();
 	assert.doesNotThrow(() => assertDesktopSmokePayload(payload, expected));
 	assert.throws(
 		() => assertDesktopSmokePayload({
 			...payload,
-			framescaperV18: {
-				...payload.framescaperV18,
+			framescaperV20: {
+				...payload.framescaperV20,
 				main: {
-					...payload.framescaperV18.main,
-					project: { ...payload.framescaperV18.main.project, sha256: 'cd'.repeat(32) },
+					...payload.framescaperV20.main,
+					project: { ...payload.framescaperV20.main.project, sha256: 'cd'.repeat(32) },
 				},
 			},
 		}, expected),
@@ -214,11 +214,11 @@ test('desktop smoke validates the closed Framescaper V18 UI, preload, and main r
 	assert.throws(
 		() => assertDesktopSmokePayload({
 			...payload,
-			framescaperV18: {
-				...payload.framescaperV18,
+			framescaperV20: {
+				...payload.framescaperV20,
 				main: {
-					...payload.framescaperV18.main,
-					project: { ...payload.framescaperV18.main.project, metadataFile: 'private/file.json' },
+					...payload.framescaperV20.main,
+					project: { ...payload.framescaperV20.main.project, metadataFile: 'private/file.json' },
 				},
 			},
 		}, expected),
@@ -245,11 +245,11 @@ test('packaged desktop smoke isolates both Chromium and shared library data', as
 	assert.match(source, /productId:\s*PRODUCT_ID/u);
 });
 
-function validFramescaperV18Payload() {
+function validFramescaperV20Payload() {
 	const project = {
-		projectId: 'framescaper-artifact-v18',
+		projectId: 'framescaper-artifact-v20',
 		title: 'Untitled project',
-		projectSchemaVersion: 18,
+		projectSchemaVersion: 20,
 		projectRevision: 0,
 		metadataRevision: 1,
 		byteLength: 4_096,
@@ -265,7 +265,7 @@ function validFramescaperV18Payload() {
 		saveOwnerReady: true,
 		title: 'Framescaper',
 		url: 'framescaper-app://bundle/',
-		framescaperV18: {
+		framescaperV20: {
 			preloadBridge: [
 				'abortPublication', 'beginPublication', 'connect', 'deleteProject', 'duplicateProject',
 				'finishPublication', 'handshakeState', 'listProjects', 'readBodyChunk', 'readProjectBundle',
@@ -275,13 +275,13 @@ function validFramescaperV18Payload() {
 				kind: 'framescaper-project-library-handshake',
 				version: 1,
 				owner: 'framescaper',
-				projectSchemaVersion: 18,
+				projectSchemaVersion: 20,
 				scapeFormatVersions: [1, 2],
 				attachedScapeFormatVersion: 2,
-				storageDatabaseName: 'kw-media-framescaper-editor-v18',
-				desktopLibrarySchemaVersion: 10,
-				desktopDatabaseUserVersion: 12,
-				desktopLibraryScope: ['kw.media', 'scape-project-library', 'v10'],
+				storageDatabaseName: 'kw-media-framescaper-editor-v20',
+				desktopLibrarySchemaVersion: 12,
+				desktopDatabaseUserVersion: 14,
+				desktopLibraryScope: ['kw.media', 'scape-project-library', 'v12'],
 			},
 			ui: { projectId: project.projectId, title: project.title, trackCount: 1, clipCount: 0 },
 			project,

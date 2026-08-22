@@ -3,7 +3,6 @@ import React from 'react';
 import { DesignSystemProviders } from './DesignSystemRuntime.jsx';
 import AudioEditorWorkspace from './workspace/AudioEditorWorkspace.jsx';
 import DefaultAudioEditorWorkspace from './workspace/DefaultAudioEditorWorkspace.jsx';
-import './audio-editor-design-system.css';
 
 export default function AudioEditorApp(props) {
 	return <AudioEditorFrame copy={props.copy}>

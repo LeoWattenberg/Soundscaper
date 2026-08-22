@@ -28,6 +28,8 @@ import {
 import { DesktopApplicationShutdown, resolveDesktopProjectLibraryAppData } from './project-library-runtime/desktop/application-lifecycle.js';
 import { registerAssistance } from './assistance-registration.mjs';
 import { disposeDesktopCaptureSecurity, registerDesktopCaptureSecurity, revokeDesktopCaptureOwner } from './framescaper-capture-registration.mjs';
+import { createFramescaperNativeServicesElectronPorts } from './framescaper-native-services-electron-ports.mjs';
+import { startFramescaperNativeServicesRegistration } from './framescaper-native-services-registration.mjs';
 import { framescaperWebVcrSmokeQualification } from './framescaper-web-vcr-smoke-plan.js';
 import { disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
@@ -84,12 +86,14 @@ let projectLibraryStartup = null;
 let projectLibraryIpc = null;
 let linkedVideoLocators = null;
 let nativeTier = null;
+let nativeServices = null;
 let captureSecurity = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 
 const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
 	revokeCapture: (owner) => revokeDesktopCaptureOwner(captureSecurity, owner),
+	revokeNativeServices: (owner) => nativeServices?.revokeOwner(owner),
 	revokeNativeTier: (owner) => revokeDesktopNativeTierOwner(nativeTier, owner),
 	linkedVideoLocators: () => linkedVideoLocators,
 	ownership: rendererSaveOwnership,
@@ -115,6 +119,7 @@ const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery
 const applicationShutdown = new DesktopApplicationShutdown({
 	tasks: [
 		{ name: 'capture security', run: () => disposeDesktopCaptureSecurity(captureSecurity) },
+		{ name: 'native services', run: () => nativeServices?.dispose() },
 		{ name: 'project library', run: closeProjectLibraryHost },
 		{ name: 'linked-video locators', run: () => linkedVideoLocators?.dispose() },
 		{ name: 'native tier', run: () => disposeDesktopNativeTier(nativeTier) },
@@ -204,6 +209,17 @@ async function startApplication() {
 	settings = new DesktopSettingsStore(resolve(app.getPath('userData'), 'desktop-settings.json'));
 	await settings.load([app.getLocale(), ...app.getPreferredSystemLanguages()]);
 	if (applicationShutdown.requested) return;
+	nativeServices = await startFramescaperNativeServicesRegistration({
+		productId: PRODUCT_ID, userDataPath: app.getPath('userData'), instanceId: randomUUID(),
+		processId: process.pid, settings,
+		projectAuthority: projectLibraryRuntime.nativeServicesAuthority(),
+		imageSequenceImportAuthority: null,
+		watchImportAuthority: PRODUCT_ID === 'framescaper' ? Object.freeze({ currentOwner: currentRendererSaveOwner, isOwnerCurrent: isRendererSaveOwnerCurrent, locator: linkedVideoLocators.watchImportAuthority() }) : null,
+		onFenced: (error) => { console.error('Framescaper native services were fenced:', cleanError(error)); void exitApplication(1); },
+		...createFramescaperNativeServicesElectronPorts(settings, (error) => (
+			console.error('Framescaper native service failed:', cleanError(error))
+		)),
+	});
 	releaseChecker = new ReleaseChecker({ currentVersion: app.getVersion(), settings, tagPrefix: UPDATE_TAG_PREFIX });
 
 	const desktopSession = session.fromPartition(SESSION_PARTITION);
@@ -332,12 +348,9 @@ function rendererSaveOwnerFor(event) {
 	});
 }
 
-function isRendererSaveOwnerCurrent(owner) {
-	if (!owner || !rendererReady || !mainWindow || mainWindow.isDestroyed()) return false;
-	try {
-		return rendererSaveOwnership.currentOwnerFor(mainWindow.webContents) === owner;
-	} catch { return false; }
-}
+function isRendererSaveOwnerCurrent(owner) { if (!owner || !rendererReady || !mainWindow || mainWindow.isDestroyed()) return false; try { return rendererSaveOwnership.currentOwnerFor(mainWindow.webContents) === owner; } catch { return false; } }
+
+function currentRendererSaveOwner() { if (!rendererReady || !mainWindow || mainWindow.isDestroyed()) return null; try { return rendererSaveOwnership.currentOwnerFor(mainWindow.webContents); } catch { return null; } }
 
 async function registerIpcHandlers(desktopSession) {
 	captureSecurity = registerDesktopCaptureSecurity({
@@ -357,6 +370,7 @@ async function registerIpcHandlers(desktopSession) {
 		removeHandler: (channel) => ipcMain.removeHandler(channel),
 		session: desktopSession,
 	});
+	nativeServices?.registerRendererBridge({ handle, ownerFor: rendererSaveOwnerFor, removeHandler: (channel) => ipcMain.removeHandler(channel), on: (channel, listener) => ipcMain.on(channel, listener), removeListener: (channel, listener) => ipcMain.removeListener(channel, listener) });
 	linkedVideoLocators.registerIpc({ dialog, handle, ownerFor: rendererSaveOwnerFor, windowFor: () => mainWindow });
 	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath, userDataPath: app.getPath('userData'), parentWindow: () => mainWindow });
 	await nativeTier.ready();

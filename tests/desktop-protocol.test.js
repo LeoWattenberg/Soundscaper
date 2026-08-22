@@ -534,21 +534,23 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	});
 	assert.deepEqual([...exposed.keys()], ['scapeDesktop', 'soundscaperDesktop', 'framescaperDesktop']);
 	assert.equal(exposed.get('scapeDesktop'), exposed.get('soundscaperDesktop'));
-	assert.equal(exposed.get('scapeDesktop'), exposed.get('framescaperDesktop'));
+	assert.notEqual(exposed.get('scapeDesktop'), exposed.get('framescaperDesktop'));
 	const bridge = exposed.get('scapeDesktop');
-	assert.deepEqual(
-		Object.keys(bridge.v1).sort(),
-		[
+	const baseFields = [
 			'abortSharedSourceWrite', 'abortWrite', 'applyNativeTierControl', 'awaitVideoSourceProbe', 'beginSharedSourceWrite', 'beginVideoSourceProbe', 'beginWrite',
 			'cancelVideoSourceProbe',
 			'checkForUpdates', 'chooseFiles', 'chooseLinkedAudioOriginal', 'chooseLinkedVideoOriginal', 'chooseSaveTarget', 'clearNativePluginQuarantine', 'commitSharedProject',
 			'deleteSharedProject', 'describeNativeAudioBackend', 'editText', 'finishSharedSourceWrite', 'finishWrite',
-			'getEnvironment', 'installAssistanceModel', 'listAssistanceModels', 'listNativePlugins', 'listSharedProjects', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'nativeAudioHelperAvailability', 'nativePluginAvailability', 'onAssistanceInstallProgress', 'onCloseRequested',
+			'getEnvironment', 'installAssistanceModel', 'listAssistanceModels', 'listNativePlugins', 'listSharedProjects', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'nativeAudioHelperAvailability', 'nativePluginAvailability', 'nativeServices', 'onAssistanceInstallProgress', 'onCloseRequested',
 			'onMenuCommand', 'onOpenProject', 'onWindowStateChanged', 'openExternal', 'patchFinalPrefix', 'probeHelperAvailability', 'readNativeTierControls', 'readSharedProject',
 			'readSharedProjectBundle', 'readSharedSourceChunk', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'removeAssistanceModel', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'respondToClose', 'scanNativePlugins',
 			'runWindowAction', 'setLocale', 'setNativeAudioHelperEnabled', 'setNativePluginConsent', 'signalReady', 'writeChunk', 'writeSharedSourceChunk',
-		].sort(),
-	);
+		].sort();
+	assert.deepEqual(Object.keys(bridge.v1).sort(), baseFields);
+	const framescaperBridge = exposed.get('framescaperDesktop');
+	assert.deepEqual(Object.keys(framescaperBridge.v1).sort(), [...baseFields, 'projectLibrary'].sort());
+	assert.equal(Object.hasOwn(framescaperBridge.v1, 'v12'), false);
+	assert.equal(Object.isFrozen(framescaperBridge.v1.projectLibrary), true);
 	assert.equal(Object.isFrozen(bridge.v1), true);
 	bridge.v1.signalReady();
 	assert.deepEqual(calls[0], { method: 'send', channel: 'soundscaper:v1:renderer:ready', value: undefined });

@@ -119,3 +119,36 @@ test('keeps preview YUV simulation by default and exposes one raw RGBA final pas
 	assert.deepEqual(finalPasses, [7, null]);
 	compositor.dispose();
 });
+
+test('captures the already-evaluated framebuffer as top-down RGBA', () => {
+	const canvas = createStubCanvas();
+	canvas.width = 2;
+	canvas.height = 2;
+	canvas.gl.readPixels = (_x, _y, _width, _height, _format, _type, output) => {
+		output.set([
+			9, 10, 11, 255, 12, 13, 14, 255,
+			1, 2, 3, 255, 4, 5, 6, 255,
+		]);
+	};
+	const compositor = createVideoPreviewCompositor(canvas);
+	assert.deepEqual(compositor.captureEvaluatedRgba(), {
+		width: 2, height: 2,
+		rgba: Uint8Array.of(
+			1, 2, 3, 255, 4, 5, 6, 255,
+			9, 10, 11, 255, 12, 13, 14, 255,
+		),
+	});
+	compositor.dispose();
+});
+
+test('captures an evaluated framebuffer larger than one 16 MiB transport chunk', () => {
+	const canvas = createStubCanvas();
+	canvas.width = 2_048;
+	canvas.height = 2_049;
+	const compositor = createVideoPreviewCompositor(canvas);
+	const frame = compositor.captureEvaluatedRgba();
+	assert.equal(frame.width, 2_048);
+	assert.equal(frame.height, 2_049);
+	assert.equal(frame.rgba.byteLength, 2_048 * 2_049 * 4);
+	compositor.dispose();
+});

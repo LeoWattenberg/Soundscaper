@@ -4,14 +4,21 @@ import { documentationUrl } from '../../documentation-links.ts';
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
 import createApplicationMenus from '../application-menus.js';
 import { createDesktopHostMenuItems } from '../desktop-host-menu.ts';
+import { framescaperNativeProjectActionRuntimeFor } from '../framescaper-native-project-actions.ts';
+import { framescaperCandidateAuthoringActionRuntimeFor } from '../framescaper-candidate-authoring-actions.ts';
 import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
+import {
+	resolveFramescaperNativeServicesWorkspaceRuntime,
+	useFramescaperNativeServicesMenuRefresh,
+	wrapFramescaperNativeServicesMenuRuntime,
+} from './FramescaperNativeServicesSurface.tsx';
 import {
 	resolveSoundscaperNativeServicesWorkspaceRuntime,
 	useSoundscaperNativeServicesMenuRefresh,
 } from './SoundscaperNativeServicesSurface.tsx';
 import { ANALYSIS_MODE_PANEL_IDS } from './workspace-panel-model.ts';
 
-export { useSoundscaperNativeServicesMenuRefresh };
+export { useFramescaperNativeServicesMenuRefresh, useSoundscaperNativeServicesMenuRefresh };
 
 export function createWorkspaceApplicationMenus({
 		aboutLabel,
@@ -65,6 +72,18 @@ export function createWorkspaceApplicationMenus({
 		zoomProject,
 }) {
 	const soundscaperNativeServices = resolveSoundscaperNativeServicesWorkspaceRuntime({ productId, copy });
+	const framescaperNativeServicesRuntime = resolveFramescaperNativeServicesWorkspaceRuntime({
+		productId, copy, project, projectCapabilities: capabilities,
+		projectActions: framescaperNativeProjectActionRuntimeFor(controller),
+	});
+	const framescaperNativeServices = wrapFramescaperNativeServicesMenuRuntime(
+		framescaperNativeServicesRuntime, run,
+	);
+	const candidateAuthoringRuntime = framescaperCandidateAuthoringActionRuntimeFor(controller);
+	const framescaperCandidateAuthoring = candidateAuthoringRuntime === null ? null : Object.freeze({
+		surfaces: candidateAuthoringRuntime.surfaces,
+		open: (surface) => run(() => candidateAuthoringRuntime.run(surface)),
+	});
 	const desktopHost = createDesktopHostMenuItems(fileService.isDesktop !== true
 		|| desktopHostRuntime === null || desktopHostRuntime === undefined ? null : {
 		...desktopHostRuntime,
@@ -94,6 +113,8 @@ export function createWorkspaceApplicationMenus({
 			uiFlags,
 			actionRuntime: parityRuntime.actions,
 			actions: {
+				framescaperCandidateAuthoring,
+				framescaperNativeServices,
 				soundscaperProduction,
 				soundscaperNativeServices,
 				executeMulticameraCommand: (command) => run(() => {

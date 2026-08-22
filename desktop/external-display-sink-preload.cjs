@@ -5,7 +5,7 @@ const { ipcRenderer } = require('electron');
 
 const CONNECT_CHANNEL = 'framescaper:external-display:v1:connect';
 const CLOSE_CHANNEL = 'framescaper:external-display:v1:close';
-const FRAME_BYTES_MAXIMUM = 16 * 1024 * 1024;
+const FRAME_BYTES_MAXIMUM = 64 * 1024 * 1024;
 const SHA256 = /^[a-f0-9]{64}$/u;
 let port = null;
 let lastSequence = -1;

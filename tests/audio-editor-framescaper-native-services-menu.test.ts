@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	createFramescaperNativeServicesMenuItems,
+	FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,
 	FRAMESCAPER_ALWAYS_REACHABLE_SURFACES,
 	FRAMESCAPER_NATIVE_SERVICE_SURFACES,
 	type FramescaperNativeServiceSurface,
@@ -18,6 +19,7 @@ import {
 import {
 	NATIVE_MEDIA_PROXY_PROFILE_ID,
 } from '../src/common/editor/native-media-proxy-recipe.ts';
+import { filterProductMenus } from '../src/common/editor/ui/application-menu-product-filter.js';
 
 test('Soundscaper receives no native video or OFX surface at all', () => {
 	const items = createFramescaperNativeServicesMenuItems(
@@ -73,22 +75,103 @@ test('the surfaces sit in the menu families the plan names', () => {
 	]);
 });
 
-test('an enabled tier with an open project makes every surface actionable', () => {
+test('Framescaper retains only its video-effect menu when audio effects are unavailable', () => {
+	const nativeBranch = menu().effect[0];
+	const filtered = filterProductMenus([{
+		id: 'effect', label: 'Effect', items: [
+			{ id: 'audio-effect', label: 'Audio effect' },
+			nativeBranch,
+		],
+	}], {
+		audioGenerators: false,
+		audioEffects: false,
+		audioAnalysis: false,
+		audioMacros: false,
+		audioRecording: false,
+	}, 'framescaper');
+
+	assert.deepEqual(filtered.map(({ id }: { id: string }) => id), ['effect']);
+	assert.deepEqual(filtered[0]?.items?.map(({ id }: { id: string }) => id), ['framescaper-video-effects']);
+});
+
+test('an enabled tier exposes only surfaces with real selected-runtime actions', () => {
 	const opened: string[] = [];
 	const items = createFramescaperNativeServicesMenuItems(
 		{
 			productId: 'framescaper', runtimeAvailable: true, snapshot: enabledSnapshot(),
-			project: {}, editingBlocked: false,
+			project: { schemaVersion: 20 }, editingBlocked: false,
+			projectCapabilities: selectedCapabilities(),
+			lifecycleMethods: watchLifecycleMethods(),
 		},
 		{ open: (surface) => opened.push(surface), openExternalDisplay: () => undefined },
 	);
 
 	for (const item of allItems(items)) {
 		if (!surfaceFor(item.id) || item.items) continue;
-		assert.equal(item.disabled, false, item.id);
 		item.onClick?.();
 	}
-	assert.deepEqual([...opened].sort(), [...FRAMESCAPER_NATIVE_SERVICE_SURFACES].sort());
+	assert.deepEqual([...opened].sort(), [
+		'background-jobs', 'native-media-preferences', 'ofx-manage', 'watch-folders',
+	]);
+	for (const id of [
+		'framescaper-import-image-sequence', 'framescaper-add-to-render-queue',
+		'framescaper-proxy-generate', 'framescaper-proxy-attach',
+		'framescaper-proxy-detach', 'framescaper-proxy-relink', 'framescaper-ofx-add',
+	]) assert.equal(item(items, id)?.disabled, true, id);
+});
+
+test('an exact candidate action port enables only its declared project mutations', () => {
+	const opened: string[] = [];
+	const items = createFramescaperNativeServicesMenuItems(
+		{
+			productId: 'framescaper', runtimeAvailable: true, snapshot: enabledSnapshot(),
+			project: { schemaVersion: 26 }, editingBlocked: false,
+			projectCapabilities: { ...selectedCapabilities(), ofxEffects: true },
+			lifecycleMethods: watchLifecycleMethods(),
+			projectActionSurfaces: FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,
+		},
+		{ open: (surface) => opened.push(surface), openExternalDisplay: () => undefined },
+	);
+
+	for (const id of [
+		'framescaper-import-image-sequence', 'framescaper-add-to-render-queue',
+		'framescaper-proxy-generate', 'framescaper-proxy-attach',
+		'framescaper-proxy-detach', 'framescaper-proxy-relink', 'framescaper-ofx-add',
+	]) {
+		const entry = item(items, id);
+		assert.equal(entry?.disabled, false, id);
+		entry?.onClick?.();
+	}
+	assert.deepEqual(opened, FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES);
+});
+
+test('a candidate action declaration cannot bypass the owning schema and capability gates', () => {
+	const items = menu({
+		projectActionSurfaces: FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,
+		projectCapabilities: { ...selectedCapabilities(), sourceCharacteristics: false, ofxEffects: false },
+	});
+
+	for (const id of [
+		'framescaper-import-image-sequence', 'framescaper-proxy-generate',
+		'framescaper-proxy-attach', 'framescaper-proxy-detach',
+		'framescaper-proxy-relink', 'framescaper-ofx-add',
+	]) assert.equal(item(items, id)?.disabled, true, id);
+	assert.equal(item(items, 'framescaper-add-to-render-queue')?.disabled, false);
+});
+
+test('V25 and V26 authoring surfaces do not borrow broad V20 capability gates', () => {
+	const items = menu({
+		project: { schemaVersion: 20 },
+		projectCapabilities: {
+			...selectedCapabilities(),
+			sourceCharacteristics: true,
+			ofxEffects: true,
+		},
+	});
+
+	assert.equal(item(items, 'framescaper-import-image-sequence')?.disabled, true);
+	assert.equal(item(items, 'framescaper-proxy-generate')?.disabled, true);
+	assert.equal(item(items, 'framescaper-ofx-add')?.disabled, true);
 });
 
 test('with the tier switched off the user can still reach the pane that turns it on', () => {
@@ -150,22 +233,41 @@ test('a capability the user has not opted into leaves its command disabled', () 
 	assert.equal(item(items, 'framescaper-watch-folders')?.disabled, true);
 	assert.equal(item(items, 'framescaper-proxy-generate')?.disabled, true);
 	assert.equal(item(items, 'framescaper-ofx-add')?.disabled, true);
-	// Detach and relink repair authored state and do not need the codec.
-	assert.equal(item(items, 'framescaper-proxy-detach')?.disabled, false);
+	assert.equal(item(items, 'framescaper-proxy-detach')?.disabled, true);
 });
 
-test('the proxy commands read the capability row the proxy recipe already names', () => {
+test('candidate-only project capabilities keep authoring commands fail-closed', () => {
+	const items = menu({
+		projectCapabilities: {
+			videoExport: true,
+			videoImport: true,
+			sourceCharacteristics: false,
+			ofxEffects: false,
+		},
+	});
+
+	assert.equal(item(items, 'framescaper-add-to-render-queue')?.disabled, true);
+	assert.equal(item(items, 'framescaper-watch-folders')?.disabled, false);
+	assert.equal(item(items, 'framescaper-import-image-sequence')?.disabled, true);
+	assert.equal(item(items, 'framescaper-proxy-generate')?.disabled, true);
+	assert.equal(item(items, 'framescaper-ofx-add')?.disabled, true);
+	assert.equal(item(items, 'framescaper-native-media-preferences')?.disabled, false);
+	assert.equal(item(items, 'framescaper-ofx-manage')?.disabled, false);
+});
+
+test('a valid proxy codec row cannot enable an unwired project mutation', () => {
 	// A producer keyed to the encode profile reports this row and no other; a
 	// menu spelling it differently would stay disabled with the tier ready.
 	const items = menu({
+		project: { schemaVersion: 25 },
 		snapshot: createNativeMediaCapabilitySnapshotV1({
 			masterEnabled: true,
 			entries: [entry('codec', NATIVE_MEDIA_PROXY_PROFILE_ID, true)],
 		}),
 	});
 
-	assert.equal(item(items, 'framescaper-proxy-generate')?.disabled, false);
-	assert.equal(item(items, 'framescaper-proxy-attach')?.disabled, false);
+	assert.equal(item(items, 'framescaper-proxy-generate')?.disabled, true);
+	assert.equal(item(items, 'framescaper-proxy-attach')?.disabled, true);
 });
 
 test('the external display submenu lists non-primary displays and a None entry', () => {
@@ -174,7 +276,9 @@ test('the external display submenu lists non-primary displays and a None entry',
 		productId: 'framescaper',
 		runtimeAvailable: true,
 		snapshot: enabledSnapshot(),
-		project: {},
+		project: { schemaVersion: 20 },
+		projectCapabilities: selectedCapabilities(),
+		lifecycleMethods: watchLifecycleMethods(),
 		editingBlocked: false,
 		externalDisplays: [display('display-2', 'Programme'), display('display-3', 'Client')],
 		activeExternalDisplayId: 'display-2',
@@ -194,12 +298,39 @@ test('the external display submenu lists non-primary displays and a None entry',
 	assert.deepEqual(chosen, ['display-3', null]);
 });
 
+test('external display selection requires a current project with video playback authority', () => {
+	for (const overrides of [
+		{ project: null },
+		{ projectCapabilities: { ...selectedCapabilities(), videoPlayback: false } },
+	]) {
+		const submenu = menu({
+			externalDisplays: [display('display-2', 'Programme')],
+			...overrides,
+		}).view[0]!;
+		assert.equal(submenu.disabled, true);
+	}
+});
+
 test('with no second display the submenu explains itself instead of vanishing', () => {
 	const submenu = menu().view[0]!;
 
 	assert.equal(submenu.disabled, true);
 	assert.equal(submenu.items?.length, 1);
 	assert.equal(submenu.items?.[0]?.disabled, true);
+});
+
+test('the clean-display menu never offers the primary display as an output', () => {
+	const submenu = menu({
+		externalDisplays: [
+			{ ...display('display-1', 'Primary'), primary: true },
+			display('display-2', 'Programme'),
+		],
+	}).view[0]!;
+
+	assert.deepEqual(submenu.items?.map(({ id }) => id), [
+		'framescaper-external-display-none',
+		'framescaper-external-display-display-2',
+	]);
 });
 
 function surfaceFor(id: string): FramescaperNativeServiceSurface | null {
@@ -217,6 +348,10 @@ function surfaceFor(id: string): FramescaperNativeServiceSurface | null {
 		'framescaper-ofx-manage': 'ofx-manage',
 	};
 	return map[id] ?? null;
+}
+
+function watchLifecycleMethods() {
+	return ['createWatch', 'setWatchEnabled', 'removeWatch', 'reconcileWatch'] as const;
 }
 
 function allItems(
@@ -269,6 +404,8 @@ function enabledSnapshot() {
 			ref('renderQueue', true),
 			ref('watchFolders', true),
 			ref('proxyCodec', true),
+			ref('imageSequenceImport', true),
+			ref('externalDisplay', true),
 			ref('ofxHost', true),
 		],
 	});
@@ -290,8 +427,20 @@ function menu(overrides: Record<string, unknown> = {}) {
 		productId: 'framescaper',
 		runtimeAvailable: true,
 		snapshot: enabledSnapshot(),
-		project: {},
+		project: { schemaVersion: 20 },
+		projectCapabilities: selectedCapabilities(),
+		lifecycleMethods: watchLifecycleMethods(),
 		editingBlocked: false,
 		...overrides,
 	} as Parameters<typeof createFramescaperNativeServicesMenuItems>[0], noopActions());
+}
+
+function selectedCapabilities(): Readonly<Record<string, boolean>> {
+	return Object.freeze({
+		sourceCharacteristics: true,
+		videoExport: true,
+		videoImport: true,
+		videoPlayback: true,
+		ofxEffects: false,
+	});
 }
