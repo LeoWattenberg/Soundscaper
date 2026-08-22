@@ -52,6 +52,40 @@ test('read descriptors, lookups, leases, and URLs carry their main-assigned prof
 	await rangeLease?.close();
 });
 
+test('Scape range leases reuse the pinned handle without native stream listeners', async (context) => {
+	const bytes = Buffer.from('bounded');
+	let nativeStreamCalls = 0;
+	let readCalls = 0;
+	const handle = {
+		async stat() { return { isFile: () => true, size: bytes.byteLength, mtimeMs: 1_700_000_000_000 }; },
+		async read(buffer, offset, length, position) {
+			readCalls += 1;
+			const copied = bytes.copy(buffer, offset, position, position + length);
+			return { bytesRead: copied, buffer };
+		},
+		createReadStream() {
+			nativeStreamCalls += 1;
+			throw new Error('Scape ranges must not attach a native FileHandle stream');
+		},
+		async close() {},
+	};
+	const store = new ReadCapabilityStore({ openImpl: async () => handle });
+	context.after(async () => { await store.dispose().catch(() => undefined); });
+	const descriptor = await store.registerScapeRangePath('/tmp/bounded.scape', { owner: OWNER_A });
+	const lease = store.acquireRequest(descriptor.id, READ_PROFILE_SCAPE_RANGE_V1);
+	assert.ok(lease);
+
+	const chunks = [];
+	for await (const chunk of lease.createReadStream({ start: 1, end: 6, autoClose: false })) {
+		chunks.push(chunk);
+	}
+	await lease.close();
+
+	assert.equal(Buffer.concat(chunks).toString('utf8'), 'ounded');
+	assert.equal(readCalls, 1);
+	assert.equal(nativeStreamCalls, 0);
+});
+
 test('Scape range registration derives canonical identity from a terminal .scape path', async (context) => {
 	let openCalls = 0;
 	const store = new ReadCapabilityStore({
@@ -281,7 +315,7 @@ test('range stream-construction failure releases the global request slot', async
 	assert.ok(failedLease);
 	assert.throws(
 		() => failedLease.createReadStream({ start: 0, end: 0, autoClose: false }),
-		/unexpected stream/iu,
+		/non-owning file-handle range/iu,
 	);
 	await failedLease.close();
 	const nextLease = store.acquireRequest(second.id, READ_PROFILE_SCAPE_RANGE_V1);

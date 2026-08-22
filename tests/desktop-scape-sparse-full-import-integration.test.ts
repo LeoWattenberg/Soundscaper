@@ -2,7 +2,6 @@
 
 import assert from 'node:assert/strict';
 import { createHash, type Hash } from 'node:crypto';
-import { EventEmitter, setMaxListeners } from 'node:events';
 import { open, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -306,12 +305,9 @@ test('portable reference-scale gate: an exact 8 GiB sparse desktop Scape fully i
 	const readCapabilities = capabilityStore = new ReadCapabilityStore({
 		openImpl: (async (filePath: string, flags: string) => {
 			const handle = await open(filePath, flags);
-			setMaxListeners(0, handle as unknown as EventEmitter);
 			return {
 				stat: () => handle.stat(),
-				createReadStream: (options: Parameters<typeof handle.createReadStream>[0]) => (
-					handle.createReadStream(options)
-				),
+				read: (...args: Parameters<typeof handle.read>) => handle.read(...args),
 				close: async () => {
 					pinnedHandleCloseCalls += 1;
 					await handle.close();

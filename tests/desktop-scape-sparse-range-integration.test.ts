@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { EventEmitter, setMaxListeners } from 'node:events';
 import { open, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -78,12 +77,9 @@ test('an historical 8 GiB sparse desktop Scape is range-inspected and rejected b
 	const readStore = store = new ReadCapabilityStore({
 		openImpl: (async (filePath: string, flags: string) => {
 			const handle = await open(filePath, flags);
-			setMaxListeners(0, handle as unknown as EventEmitter);
 			return {
 				stat: () => handle.stat(),
-				createReadStream: (options: Parameters<typeof handle.createReadStream>[0]) => (
-					handle.createReadStream(options)
-				),
+				read: (...args: Parameters<typeof handle.read>) => handle.read(...args),
 				close: async () => {
 					pinnedHandleCloseCalls += 1;
 					await handle.close();
