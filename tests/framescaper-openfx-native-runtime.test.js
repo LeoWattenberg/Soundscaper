@@ -17,6 +17,7 @@ import {
 } from './helpers/openfx-native-scanner-fixture.js';
 import {
 	createV12PlanVariant,
+	createV12VfrRetimerWireFixture,
 	createV12WireFixture,
 	invokeV12Grant,
 	invokeV12PlanVariant,
@@ -431,6 +432,75 @@ test('the native V12 Retimer accepts only the exact ordinal oracle SourceTime or
 		forged.invocation.retimerSourceTime.outputOrdinal = 4; forged.invocation.retimerSourceTime.numerator = '90071992547409909';
 		rejected = invokeV12Grant(build.runtime, wire.directory, forged);
 		assert.match(rejected.stderr, /"error":"(?:source-time-mismatch|exact-retime-oracle-unavailable)"/u);
+	} finally {
+		build.cleanup();
+	}
+});
+
+test('the native V12 Retimer authenticates VFR timing bytes before accepting exact SourceTime', (context) => {
+	const build = buildContractFixture(context);
+	if (build === null) return;
+	try {
+		const wire = createV12VfrRetimerWireFixture(build);
+		const exact = run(build.runtime, [
+			'--invoke-v12-grant', wire.grantPath, '--grant-sha256', wire.grantSha256,
+		]);
+		if (!build.exactRetimeAvailable) {
+			assert.equal(exact.status, 65, exact.stderr);
+			assert.match(exact.stderr, /pinned exact arithmetic closure/iu);
+			return;
+		}
+		assert.equal(exact.status, 0, exact.stderr);
+		assert.equal(JSON.parse(exact.stdout).sourceTimeVerified, true);
+
+		const missing = structuredClone(wire.grant);
+		delete missing.videoTimingAssets;
+		let rejected = invokeV12Grant(build.runtime, wire.directory, missing);
+		assert.notEqual(rejected.status, 0);
+		assert.match(rejected.stderr, /timing asset|timing bytes/iu);
+
+		const extraBytes = Buffer.from(readFileSync(wire.timingPath));
+		extraBytes.writeBigInt64LE(20n, 40);
+		const extraPath = join(wire.directory, 'timing-extra.scti');
+		writeFileSync(extraPath, extraBytes, { flag: 'wx' });
+		const extra = structuredClone(wire.grant);
+		extra.videoTimingAssets.push({
+			path: extraPath, byteLength: extraBytes.byteLength, sha256: sha256(extraBytes),
+		});
+		rejected = invokeV12Grant(build.runtime, wire.directory, extra);
+		assert.notEqual(rejected.status, 0);
+		assert.match(rejected.stderr, /not owned|timing asset/iu);
+
+		const replayed = structuredClone(wire.grant);
+		replayed.videoTimingAssets.push(structuredClone(replayed.videoTimingAssets[0]));
+		rejected = invokeV12Grant(build.runtime, wire.directory, replayed);
+		assert.notEqual(rejected.status, 0);
+		assert.match(rejected.stderr, /duplicated|replay/iu);
+
+		const swapped = structuredClone(wire.grant);
+		swapped.videoTimingAssets[0] = {
+			path: extraPath, byteLength: extraBytes.byteLength, sha256: sha256(extraBytes),
+		};
+		rejected = invokeV12Grant(build.runtime, wire.directory, swapped);
+		assert.notEqual(rejected.status, 0);
+		assert.match(rejected.stderr, /requires verified timing asset bytes|timing asset/iu);
+
+		const forged = structuredClone(wire.grant);
+		forged.invocation.retimerSourceTime.numerator = String(
+			BigInt(forged.invocation.retimerSourceTime.numerator) + 1n,
+		);
+		rejected = invokeV12Grant(build.runtime, wire.directory, forged);
+		assert.notEqual(rejected.status, 0);
+		assert.match(rejected.stderr, /source-time-mismatch|SourceTime differs/iu);
+
+		const original = readFileSync(wire.timingPath);
+		const tampered = Buffer.from(original);
+		tampered[tampered.byteLength - 1] ^= 1;
+		writeFileSync(wire.timingPath, tampered);
+		rejected = invokeV12Grant(build.runtime, wire.directory, wire.grant);
+		assert.notEqual(rejected.status, 0);
+		assert.match(rejected.stderr, /digest|authenticate|timing/iu);
+		writeFileSync(wire.timingPath, original);
 	} finally {
 		build.cleanup();
 	}

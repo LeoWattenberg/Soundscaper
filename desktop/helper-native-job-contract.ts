@@ -20,6 +20,7 @@ import {
 	type HelperOfxHostJobGrant,
 	validateHelperOfxHostJobGrant,
 } from './helper-native-ofx-host-grant.ts';
+import { helperNativeOfxHostResourceUsage } from './helper-native-ofx-resource-usage.ts';
 import {
 	type HelperOfxScanJobGrant,
 	validateHelperOfxScanJobGrant,
@@ -48,6 +49,7 @@ export type {
 	HelperNativeInputRole,
 } from './helper-native-image-sequence-grant.ts';
 export type { HelperVideoTimingAssetGrant } from './helper-native-video-timing-grant.ts';
+export type { HelperOfxVideoTimingAssetGrant } from './helper-native-ofx-video-timing-grant.ts';
 export type { HelperMediaProxyRecipeGrant } from './helper-native-proxy-recipe-grant.ts';
 export type {
 	HelperOfxHostJobGrant,
@@ -261,26 +263,7 @@ export function helperNativeJobGrantResourceUsage<Kind extends HelperNativeJobKi
 		});
 	}
 	const value = admitted as HelperOfxHostJobGrant;
-	const output = value.output.frame;
-	return Object.freeze({
-		inputBytes: safeSum([
-			value.executable.bytes,
-			value.pluginBinary.bytes,
-			value.plan.byteLength,
-			...value.inputs.map(({ frame }) => frame.byteLength),
-		]),
-		outputBytes: output.maximumByteLength,
-		scratchBytes: value.scratch.maximumBytes,
-		dataPlaneBytes: safeSum([
-			value.plan.byteLength,
-			output.maximumByteLength,
-			...value.inputs.map(({ frame }) => frame.byteLength),
-		]),
-		maximumInFlightChunks: Math.max(
-			...([value.plan, output, ...value.inputs.map(({ frame }) => frame)]
-				.map(({ maximumInFlightChunks }) => maximumInFlightChunks)),
-		),
-	});
+	return helperNativeOfxHostResourceUsage(value);
 }
 
 function validateMediaStreamGrant(value: unknown): HelperMediaDecodeJobGrant {

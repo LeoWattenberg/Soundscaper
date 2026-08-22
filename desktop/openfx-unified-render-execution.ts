@@ -31,7 +31,7 @@ import {
 	canonicalizeNativeMediaSummaryValue,
 	fingerprintNativeMediaPlan,
 } from '../src/common/editor/native-media-plan-canonical-form.ts';
-import { createNativeMediaPlanEnvelopeV1 } from '../src/common/editor/native-media-plan-envelope.ts';
+import { nativeMediaPlanVideoTimingAssetInputs } from '../src/common/editor/native-media-plan-video-timing.ts';
 import {
 	createOfxHostInvocationV1,
 	type OfxRenderBackendV1,
@@ -45,7 +45,7 @@ import {
 	type OfxFrozenFallbackV26,
 } from '../src/common/editor/native-ofx-state-v26.ts';
 import {
-	assertUnifiedExactRenderPlanV12,
+	assertUnifiedExactRenderPlanWithDeferredTimingReferences,
 	type UnifiedExactRenderOpenFxNode,
 	type UnifiedExactRenderPlanV12,
 } from '../src/common/editor/unified-exact-render-plan.ts';
@@ -80,6 +80,10 @@ export interface OfxBoundOutputFrameV1 {
 	readonly rowBytes: number;
 }
 
+export interface OfxBoundVideoTimingAssetV1 extends OfxBoundDataPlaneV1 {
+	readonly role: 'video-timing';
+}
+
 export interface OfxUnifiedHostAttemptResourcesV1 {
 	readonly invocationId: string;
 	readonly abortSignalId: string;
@@ -87,6 +91,7 @@ export interface OfxUnifiedHostAttemptResourcesV1 {
 	readonly executable: HelperExecutableGrant;
 	readonly pluginBinary: HelperExecutableGrant;
 	readonly plan: OfxBoundDataPlaneV1;
+	readonly videoTimingAssets?: readonly OfxBoundVideoTimingAssetV1[];
 	readonly inputs: readonly OfxBoundInputFrameV1[];
 	readonly output: OfxBoundOutputFrameV1;
 	readonly scratch: HelperScratchGrant;
@@ -138,12 +143,12 @@ export function createUnifiedExactOfxHostAttemptV1(
 	resources: OfxUnifiedHostAttemptResourcesV1,
 	signal?: AbortSignal,
 ): OfxCpuAttempt {
-	assertUnifiedExactRenderPlanV12(plan);
+	assertV12PlanReferences(plan);
 	const effect = effectNode(plan, instanceId);
 	if (!effect.state.enabled) throw new Error('A bypassed OpenFX V12 node cannot create a host attempt.');
-	const envelope = createNativeMediaPlanEnvelopeV1(plan);
-	if (resources.plan.binding.byteLength !== envelope.canonicalByteLength
-		|| resources.plan.binding.sha256 !== envelope.fingerprint) {
+	const planFingerprint = fingerprintNativeMediaPlan(plan);
+	if (resources.plan.binding.byteLength !== planFingerprint.byteLength
+		|| resources.plan.binding.sha256 !== planFingerprint.sha256) {
 		throw new Error('The OpenFX plan stream does not authenticate the exact canonical V12 plan.');
 	}
 	if (!Number.isSafeInteger(resources.outputOrdinal) || resources.outputOrdinal < 0
@@ -152,6 +157,14 @@ export function createUnifiedExactOfxHostAttemptV1(
 	}
 	if (resources.pluginBinary.sha256 !== effect.state.binarySha256) {
 		throw new Error('The OpenFX plug-in authority does not match the V12 node binary fingerprint.');
+	}
+	const expectedTiming = nativeMediaPlanVideoTimingAssetInputs(plan);
+	const videoTimingAssets = resources.videoTimingAssets ?? [];
+	if (videoTimingAssets.length !== expectedTiming.length
+		|| videoTimingAssets.some((asset, index) => asset.role !== 'video-timing'
+			|| asset.binding.byteLength !== expectedTiming[index]!.byteLength
+			|| asset.binding.sha256 !== expectedTiming[index]!.sha256)) {
+		throw new Error('The OpenFX timing streams do not bind the exact ordered V12 timing references.');
 	}
 	const canvas = plan.output.canvas;
 	if (resources.output.width !== canvas.width || resources.output.height !== canvas.height
@@ -164,7 +177,7 @@ export function createUnifiedExactOfxHostAttemptV1(
 	const invocation = createOfxHostInvocationV1({
 		invocationId: resources.invocationId,
 		unifiedPlanVersion: 12,
-		unifiedPlanSha256: envelope.fingerprint,
+		unifiedPlanSha256: planFingerprint.sha256,
 		nodeId: effect.nodeId,
 		instanceId: effect.state.instanceId,
 		pluginId: effect.state.pluginId,
@@ -184,6 +197,9 @@ export function createUnifiedExactOfxHostAttemptV1(
 		pluginBinary: resources.pluginBinary,
 		invocation,
 		plan: resources.plan.binding,
+		...(videoTimingAssets.length === 0 ? {} : {
+			videoTimingAssets: videoTimingAssets.map(({ role, binding }) => ({ role, binding })),
+		}),
 		inputs,
 		output: {
 			pixelFormat: resources.output.pixelFormat,
@@ -196,6 +212,7 @@ export function createUnifiedExactOfxHostAttemptV1(
 	}) as HelperOfxHostJobGrant;
 	const transfers = Object.freeze([
 		transfer(resources.plan),
+		...videoTimingAssets.map(transfer),
 		...resources.inputs.map(transfer),
 		transfer(resources.output),
 	]);
@@ -214,7 +231,7 @@ export async function executeUnifiedExactOfxNodeV1(
 	manager: OfxIsolatedHostManager,
 	request: OfxUnifiedNodeExecutionRequestV1,
 ): Promise<OfxUnifiedNodeExecutionResultV1> {
-	assertUnifiedExactRenderPlanV12(request.plan);
+	assertV12PlanReferences(request.plan);
 	const effect = effectNode(request.plan, request.instanceId);
 	const initial = resolveOfxEffectStateV26(effect.state, request.runtime);
 	if (initial.mode !== 'render') {
@@ -276,6 +293,11 @@ export async function executeUnifiedExactOfxNodeV1(
 	}
 }
 
+function assertV12PlanReferences(value: unknown): asserts value is UnifiedExactRenderPlanV12 {
+	assertUnifiedExactRenderPlanWithDeferredTimingReferences(value);
+	if (value.version !== 12) throw new RangeError('OpenFX execution requires exact render plan V12.');
+}
+
 function effectNode(
 	plan: UnifiedExactRenderPlanV12,
 	instanceId: string,
@@ -320,6 +342,9 @@ function assertSameRenderAuthority(primary: OfxCpuAttempt, cpu: OfxCpuAttempt): 
 		const grant = attempt.request.grant;
 		return canonicalizeNativeMediaSummaryValue({
 			plan: [grant.plan.byteLength, grant.plan.sha256],
+			timing: (grant.videoTimingAssets ?? []).map(({ binding }) => (
+				[binding.byteLength, binding.sha256]
+			)),
 			executable: grant.executable,
 			pluginBinary: grant.pluginBinary,
 			node: [grant.invocation.nodeId, grant.invocation.instanceId],

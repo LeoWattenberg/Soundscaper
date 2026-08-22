@@ -91,7 +91,9 @@ function nativeBindings(
 	if (kind === 'ofx-scan') return [(grant as HelperOfxScanJobGrant).descriptor];
 	if (kind === 'ofx-host') {
 		const value = grant as HelperOfxHostJobGrant;
-		return [value.plan, ...value.inputs.map(({ frame }) => frame), value.output.frame];
+		return [value.plan,
+			...(value.videoTimingAssets ?? []).map(({ binding }) => binding),
+			...value.inputs.map(({ frame }) => frame), value.output.frame];
 	}
 	return [];
 }

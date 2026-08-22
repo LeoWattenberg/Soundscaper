@@ -24,6 +24,7 @@ import type { HelperDataPlaneTransferPort } from './helper-data-plane-transfer.t
 import type { HelperNativeFileIdentity } from './helper-native-job-contract.ts';
 import type { NativeMediaHelperPoolJobRequest } from './native-media-helper-pool.ts';
 import type { PreparedNativeMediaQueueJob } from './native-media-queue-dispatcher.ts';
+import { authenticateOpenFxProjectTimingAssets } from './openfx-main-project-timing-authority.ts';
 import {
 	recoverNativeImageSequenceCheckpoint,
 	type FramescaperNativeCheckpointStore,
@@ -122,6 +123,12 @@ export class FramescaperNativeProjectAuthority {
 
 	projectState(projectId: string): Readonly<{ open: boolean; writable: boolean }> {
 		return this.#options.project.projectState(projectId);
+	}
+
+	openFxTimingAssets(plan: unknown) {
+		return authenticateOpenFxProjectTimingAssets({
+			plan, project: this.#options.project, parseBundle: projectBundle,
+		});
 	}
 
 	watchProject(projectId: string): Readonly<{

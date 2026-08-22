@@ -23,7 +23,7 @@
 		"license": "BSD-3-Clause"
 	},
 	"sourceFiles": [
-		{ "path": "CMakeLists.txt", "byteLength": 2851, "sha256": "278325fe2f18f11a18acaf6b63698ef2e8d35487e5478ab0699c63be433f0117" },
+		{ "path": "CMakeLists.txt", "byteLength": 2884, "sha256": "0b19483e45477796e79eb39fd4b6492abcd544e1c81787f9edb5c8da1149a21a" },
 		{ "path": "CMakePresets.json", "byteLength": 1262, "sha256": "813684008642a1861901b49c6c1964b8aafefd504b3aedc70a969e9a94544ccc" },
 		{ "path": "THIRD_PARTY_NOTICES.md", "byteLength": 1044, "sha256": "e8a24b3e1983134a4798ad298b0a7de0114a437c1b156b5e1f810cb71096b687" },
 		{ "path": "build/recipe-driver.mjs", "byteLength": 28219, "sha256": "90c20f738c3b6d530c16cc7ac5654c2545c8e312e6e23cfaa9a3381c4ee7eb3d" },
@@ -54,14 +54,16 @@
 		{ "path": "src/sha256.hpp", "byteLength": 230, "sha256": "3b7cca5e9611925b7c40866ac5d2aeaf21a572aa0a27ed3e3a40fe7e15be31b0" },
 		{ "path": "src/v12_cancellation_channel.cpp", "byteLength": 2012, "sha256": "c79399ad24cf47a05f58aa3f15ea933ce5d560f559d9d1f1d75e0aba3b638fd8" },
 		{ "path": "src/v12_cancellation_channel.hpp", "byteLength": 993, "sha256": "10f444e75b7a0ba29a8b5ad0e12e2bfadf4aa9a0aeff2f3e71994b02b44dad9a" },
-		{ "path": "src/v12_host_invocation.cpp", "byteLength": 27442, "sha256": "799eab49f2cc2b7d13644b63252f80da57775cf9f32ac98ad0dd9a050f3e48b9" },
+		{ "path": "src/v12_host_invocation.cpp", "byteLength": 28056, "sha256": "1ee9ab933a75c705bd602fa702ba190e0fc145510bc5f227860a8f7c38ba51f4" },
 		{ "path": "src/v12_host_invocation.hpp", "byteLength": 1699, "sha256": "5f8ac106dcb74746d930f956231906b076b198c3baf25c8c8ce990763e4c4b58" },
 		{ "path": "src/v12_output_file.cpp", "byteLength": 3078, "sha256": "cdd0fe8842ada84069e39f29377c01f92793d16776b68b52135fedd37329d7f1" },
 		{ "path": "src/v12_output_file.hpp", "byteLength": 405, "sha256": "3b1e87b90d1fadd62ea288b7ae0810373a14dc5e7f633ebfd417ceb85fdef08f" },
-		{ "path": "src/v12_retime_authority.cpp", "byteLength": 12605, "sha256": "60ee0e3a3cd777bd618f3a24ab8739421feb2dbb75779851677a25f8d1d29210" },
-		{ "path": "src/v12_retime_authority.hpp", "byteLength": 387, "sha256": "3b9253b68b51d72c427e9e9e2f724c582fb617ca1699b731d094fd1f470cb788" },
+		{ "path": "src/v12_retime_authority.cpp", "byteLength": 14020, "sha256": "2338951e110bd89f4a7dc12882de6777edd4c01338d74a4e7028ca185d37a9e0" },
+		{ "path": "src/v12_retime_authority.hpp", "byteLength": 521, "sha256": "3bb8457e1ed7bdb78e9b5db62a3377ea3d3fee2840462fb37fde4c2537491396" },
 		{ "path": "src/v12_transition_authority.cpp", "byteLength": 12434, "sha256": "6712c14c32b5833d7f9affba9f6e672b83ef643352009c54d4dea082423a4b43" },
-		{ "path": "src/v12_transition_authority.hpp", "byteLength": 449, "sha256": "3259c1668a9aa310f99f9c488b929a779964c2a48e81e05ade84dceab95bdc1c" }
+		{ "path": "src/v12_transition_authority.hpp", "byteLength": 449, "sha256": "3259c1668a9aa310f99f9c488b929a779964c2a48e81e05ade84dceab95bdc1c" },
+		{ "path": "src/v12_video_timing_grants.cpp", "byteLength": 2595, "sha256": "be525b668cf067f9e59aa4f8d9ba19b451a6e96b8c849cac8b2695eaf02e5ce8" },
+		{ "path": "src/v12_video_timing_grants.hpp", "byteLength": 694, "sha256": "04b9e283464ad28f627014390d09256ddce7fbdb6c2d43371f5609fcf06479c1" }
 	],
 	"targets": {
 		"linux-x64": {

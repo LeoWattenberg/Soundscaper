@@ -74,7 +74,7 @@ export type {
 	HelperOfxInputFrameGrant,
 	HelperOfxHostJobGrant,
 	HelperOfxScanJobGrant, HelperOfxScanJobResult, HelperOfxOutputFrameGrant,
-	HelperOutputFileGrant,
+	HelperOfxVideoTimingAssetGrant, HelperOutputFileGrant,
 	HelperScratchGrant,
 	HelperStreamInputGrant,
 	HelperStreamOutputJobResult,

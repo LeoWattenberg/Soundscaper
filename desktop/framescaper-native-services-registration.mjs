@@ -115,10 +115,10 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 			policyCleared: () => capabilityPolicy.openFxCleared === true,
 			selectPluginBinary: options.selectOpenFxPluginBinary,
 			createMessageChannel: options.createMessageChannel,
-			currentProject: ({ id, revision }) => {
-				const current = options.projectAuthority?.projectRecord(id);
-				return current?.projectId === id && current.projectRevision === revision;
-			},
+			currentProject: ({ id, revision }) => ((current) => current?.projectId === id
+				&& current.projectRevision === revision)(options.projectAuthority?.projectRecord(id)),
+			videoTimingAssets: (plan) => projectBodyAuthority?.openFxTimingAssets(plan)
+				?? Promise.reject(new Error('OpenFX project timing authority is unavailable.')),
 			mintOpaqueId: nodePorts.mintOpaqueId,
 		});
 	} catch (error) {

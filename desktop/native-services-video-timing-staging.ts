@@ -52,6 +52,22 @@ export interface AuthenticatedNativeProjectPlanBodies {
 	readonly requiredStagedBytes: number;
 }
 
+export type AuthenticatedNativeProjectTimingBodies = Pick<
+	AuthenticatedNativeProjectPlanBodies,
+	'envelope' | 'timingAssets' | 'requiredStagedBytes'
+>;
+
+export interface NativePlanVideoTimingAssetBytes {
+	readonly input: NativeMediaPlanVideoTimingAssetInput;
+	readonly bytes: Uint8Array;
+}
+
+export interface AuthenticatedNativePlanTimingAssets {
+	readonly envelope: NativeMediaPlanEnvelopeV1;
+	readonly timingAssets: readonly NativePlanVideoTimingAssetBytes[];
+	readonly requiredStagedBytes: number;
+}
+
 export function nativeProjectPlanBodyMetadataMatches(
 	plan: unknown,
 	inputFingerprints: readonly NativeQueueInputFingerprintV1[],
@@ -76,18 +92,28 @@ export async function authenticateNativeProjectPlanBodies(input: Readonly<{
 	readonly maximumStagedBytes: number;
 }>): Promise<AuthenticatedNativeProjectPlanBodies> {
 	const originals = exactOriginalBodies(input.inputFingerprints, input.bodies);
-	const timingInputs = nativeMediaPlanVideoTimingAssetInputs(input.plan);
-	const timings = exactTimingBodies(timingInputs, input.bodies);
 	if (!planSourceFingerprintsMatch(input.plan, input.inputFingerprints)) {
 		throw new Error('The native plan and queue fingerprints do not share exact source authority.');
 	}
-	const requiredStagedBytes = [...originals, ...timings.map(({ body }) => body)].reduce(
+	const timing = await authenticateNativeProjectTimingBodies(input);
+	const requiredStagedBytes = originals.reduce(
 		(total, body) => safeSum(total, body.byteLength),
-		fingerprintNativeMediaPlan(input.plan).byteLength,
+		timing.requiredStagedBytes,
 	);
 	if (requiredStagedBytes > input.maximumStagedBytes) {
 		throw new RangeError('The native queue scratch reservation cannot stage its exact plan and sources.');
 	}
+	return Object.freeze({ ...timing, originals, requiredStagedBytes });
+}
+
+export async function authenticateNativeProjectTimingBodies(input: Readonly<{
+	readonly plan: unknown;
+	readonly bodies: readonly Readonly<NativeProjectMediaBody>[];
+	readonly readBody: (body: Readonly<NativeProjectMediaBody>) => Promise<Uint8Array>;
+	readonly maximumStagedBytes: number;
+}>): Promise<AuthenticatedNativeProjectTimingBodies> {
+	const timingInputs = nativeMediaPlanVideoTimingAssetInputs(input.plan);
+	const timings = exactTimingBodies(timingInputs, input.bodies);
 	const loadedTimings: Array<AuthenticatedNativeProjectBody & Readonly<{
 		readonly input: NativeMediaPlanVideoTimingAssetInput;
 	}>> = [];
@@ -95,6 +121,56 @@ export async function authenticateNativeProjectPlanBodies(input: Readonly<{
 		loadedTimings.push(Object.freeze({
 			...await loadBody(body, input.readBody), input: timingInput,
 		}));
+	}
+	const authenticated = authenticateNativePlanVideoTimingAssets({
+		plan: input.plan,
+		assets: loadedTimings,
+		maximumStagedBytes: input.maximumStagedBytes,
+	});
+	return Object.freeze({
+		envelope: authenticated.envelope,
+		timingAssets: Object.freeze(loadedTimings),
+		requiredStagedBytes: authenticated.requiredStagedBytes,
+	});
+}
+
+/** Bind exact ordered SCTI bytes to a declarative plan before any helper grant is minted. */
+export function authenticateNativePlanVideoTimingAssets(input: Readonly<{
+	readonly plan: unknown;
+	readonly assets: readonly NativePlanVideoTimingAssetBytes[];
+	readonly maximumStagedBytes: number;
+}>): AuthenticatedNativePlanTimingAssets {
+	const timingInputs = nativeMediaPlanVideoTimingAssetInputs(input.plan);
+	if (!Array.isArray(input.assets) || input.assets.length !== timingInputs.length) {
+		throw new Error('The native plan requires its exact timing asset count in plan order.');
+	}
+	const suppliedDigests = new Set<string>();
+	const loadedTimings = timingInputs.map((timingInput, index) => {
+		const candidate = input.assets[index];
+		const suppliedDigest = candidate?.input?.sha256;
+		if (typeof suppliedDigest === 'string' && suppliedDigests.has(suppliedDigest)) {
+			throw new Error('A native timing asset digest was duplicated or replayed.');
+		}
+		if (typeof suppliedDigest === 'string') suppliedDigests.add(suppliedDigest);
+		if (!candidate || !sameTimingInput(candidate.input, timingInput)) {
+			throw new Error('A native timing asset is outside the exact plan order or source authority.');
+		}
+		if (!(candidate.bytes instanceof Uint8Array)
+			|| Object.getPrototypeOf(candidate.bytes) !== Uint8Array.prototype
+			|| !(candidate.bytes.buffer instanceof ArrayBuffer)) {
+			throw new TypeError('Native timing asset bytes must be one private Uint8Array.');
+		}
+		const bytes = new Uint8Array(candidate.bytes);
+		validateVideoTimingAssetBytes(timingInput, bytes);
+		return Object.freeze({ input: timingInput, bytes });
+	});
+	const requiredStagedBytes = loadedTimings.reduce(
+		(total, { bytes }) => safeSum(total, bytes.byteLength),
+		fingerprintNativeMediaPlan(input.plan).byteLength,
+	);
+	if (!Number.isSafeInteger(input.maximumStagedBytes) || input.maximumStagedBytes < 1
+		|| requiredStagedBytes > input.maximumStagedBytes) {
+		throw new RangeError('The native scratch reservation cannot stage its exact plan and timing assets.');
 	}
 	const timingSidecars = new Map<string, BoundVideoSourceTimingView>();
 	for (const loaded of loadedTimings) {
@@ -116,9 +192,30 @@ export async function authenticateNativeProjectPlanBodies(input: Readonly<{
 	);
 	return Object.freeze({
 		envelope,
-		originals,
 		timingAssets: Object.freeze(loadedTimings),
 		requiredStagedBytes,
+	});
+}
+
+function sameTimingInput(
+	value: unknown,
+	expected: NativeMediaPlanVideoTimingAssetInput,
+): value is NativeMediaPlanVideoTimingAssetInput {
+	if (!value || typeof value !== 'object' || Array.isArray(value) || ArrayBuffer.isView(value)
+		|| (Object.getPrototypeOf(value) !== Object.prototype
+			&& Object.getPrototypeOf(value) !== null)) return false;
+	const record = value as Record<string, unknown>;
+	const fields = [
+		'inputIndex', 'sourceId', 'encoding', 'storageKey', 'sha256', 'sourceSha256',
+		'byteLength', 'frameCount', 'timescale', 'finalFrameDurationTicks',
+	] as const;
+	const keys = Reflect.ownKeys(record);
+	if (keys.length !== fields.length || keys.some((key) => typeof key !== 'string'
+		|| !fields.includes(key as typeof fields[number]))) return false;
+	return fields.every((field) => {
+		const descriptor = Object.getOwnPropertyDescriptor(record, field);
+		return descriptor?.enumerable === true && Object.hasOwn(descriptor, 'value')
+			&& descriptor.value === expected[field];
 	});
 }
 

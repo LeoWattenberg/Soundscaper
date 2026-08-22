@@ -30,10 +30,16 @@ import type {
 	OpenFxHelperJobRunnerPort,
 } from './openfx-helper-worker.ts';
 import { stageOpenFxPluginBinary } from './openfx-helper-plugin-staging.ts';
-import { canonicalizeNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
-import { createNativeMediaPlanEnvelopeV1 } from '../src/common/editor/native-media-plan-envelope.ts';
+import { canonicalOpenFxV12NativeGrant } from './openfx-helper-v12-native-grant.ts';
+import { stageOpenFxVideoTimingAssetsV1 } from './openfx-helper-video-timing-staging.ts';
+import {
+	canonicalizeNativeMediaPlan,
+	fingerprintNativeMediaPlan,
+} from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { assertOfxPluginDescriptorV1 } from '../src/common/editor/native-ofx-descriptor.ts';
 import { parseOfxRetryableNativeGpuErrorV1 } from '../src/common/editor/native-ofx-host-contract.ts';
+import { assertUnifiedExactRenderPlanWithDeferredTimingReferences,
+} from '../src/common/editor/unified-exact-render-plan.ts';
 
 export const OPENFX_HOST_CONTROL_MAXIMUM_BYTES = 64 * 1024;
 
@@ -93,7 +99,8 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 		}
 		const grant = validateHelperJobGrant(request.kind, request.grant);
 		const ports = admittedPorts(request.ports, request.kind === 'ofx-scan'
-			? 1 : 2 + (grant as HelperOfxHostJobGrant).inputs.length);
+			? 1 : 2 + ((grant as HelperOfxHostJobGrant).videoTimingAssets?.length ?? 0)
+				+ (grant as HelperOfxHostJobGrant).inputs.length);
 		const abort = new AbortController();
 		let process: OpenFxHostProcessHandle | null = null;
 		const completion = (request.kind === 'ofx-scan'
@@ -195,6 +202,7 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 			]);
 			signal.throwIfAborted();
 			const demand = grant.pluginBinary.bytes + grant.plan.byteLength + grant.output.frame.maximumByteLength
+				+ (grant.videoTimingAssets ?? []).reduce((total, asset) => total + asset.binding.byteLength, 0)
 				+ grant.inputs.reduce((total, input) => total + input.frame.byteLength, 0);
 			if (demand > grant.scratch.maximumBytes) {
 				throw new Error('The OpenFX host inputs exceed their exact scratch grant.');
@@ -210,12 +218,17 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 			await filesystem.authenticateFile({
 				path: planPath, byteLength: grant.plan.byteLength, sha256: grant.plan.sha256,
 			});
+			const timingAssets = await stageOpenFxVideoTimingAssetsV1({
+				grants: grant.videoTimingAssets ?? [], ports, firstPortIndex: 1,
+				reservation, filesystem, signal,
+			});
 			signal.throwIfAborted();
 			const inputPaths: string[] = [];
+			const inputPortOffset = 1 + timingAssets.length;
 			for (const [index, input] of grant.inputs.entries()) {
 				const path = join(reservation, `input-${String(index).padStart(2, '0')}.rgba`);
 				await receiveHelperDataPlaneFile({
-					binding: input.frame, port: ports[index + 1]!, path, signal,
+					binding: input.frame, port: ports[inputPortOffset + index]!, path, signal,
 				});
 				await filesystem.authenticateFile({
 					path, byteLength: input.frame.byteLength, sha256: input.frame.sha256,
@@ -230,41 +243,10 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 				path: outputPath, maximumBytes: grant.output.frame.maximumByteLength,
 				insideReservation: true,
 			});
-			const grantDocument = {
-				schemaVersion: 1,
-				pluginBinary: {
-					path: pluginPath,
-					sha256: grant.pluginBinary.sha256,
-					pluginIndex,
-				},
-				invocation: grant.invocation,
-				plan: { path: planPath, byteLength: grant.plan.byteLength, sha256: grant.plan.sha256 },
-				inputs: grant.inputs.map((input, index) => ({
-					name: input.name,
-					sourceRef: input.sourceRef,
-					streamId: input.frame.streamId,
-					path: inputPaths[index]!,
-					pixelFormat: input.pixelFormat,
-					width: input.width,
-					height: input.height,
-					rowBytes: input.rowBytes,
-					byteLength: input.frame.byteLength,
-					sha256: input.frame.sha256,
-				})),
-				output: {
-					streamId: grant.output.frame.streamId,
-					path: outputPath,
-					pixelFormat: grant.output.pixelFormat,
-					width: grant.output.width,
-					height: grant.output.height,
-					rowBytes: grant.output.rowBytes,
-					byteLength: grant.output.frame.exactByteLength,
-				},
-			};
-			const canonicalGrant = canonicalizeNativeMediaPlan(grantDocument);
-			if (Buffer.byteLength(canonicalGrant) > OPENFX_HOST_CONTROL_MAXIMUM_BYTES) {
-				throw new Error('The canonical OpenFX V12 native grant exceeds 64 KiB.');
-			}
+			const canonicalGrant = canonicalOpenFxV12NativeGrant({
+				grant, pluginPath, pluginIndex, planPath, timingAssets, inputPaths, outputPath,
+				maximumControlBytes: OPENFX_HOST_CONTROL_MAXIMUM_BYTES,
+			});
 			if (demand + Buffer.byteLength(canonicalGrant) > grant.scratch.maximumBytes) {
 				throw new Error('The canonical OpenFX V12 grant exceeds its exact scratch authority.');
 			}
@@ -511,9 +493,10 @@ async function assertCanonicalV12Plan(path: string, expectedSha256: string): Pro
 	let plan: unknown;
 	try { plan = JSON.parse(String(bytes)) as unknown; }
 	catch { throw new Error('The helper-spooled OpenFX plan is not JSON.'); }
-	const envelope = createNativeMediaPlanEnvelopeV1(plan);
-	if (envelope.planVersion !== 12 || envelope.fingerprint !== expectedSha256
-		|| Buffer.from(canonicalizeNativeMediaPlan(envelope.plan)).compare(bytes) !== 0) {
+	assertUnifiedExactRenderPlanWithDeferredTimingReferences(plan);
+	const fingerprint = fingerprintNativeMediaPlan(plan);
+	if (plan.version !== 12 || fingerprint.sha256 !== expectedSha256
+		|| Buffer.from(canonicalizeNativeMediaPlan(plan)).compare(bytes) !== 0) {
 		throw new Error('The helper-spooled OpenFX plan is not exact canonical V12.');
 	}
 }
