@@ -95,14 +95,20 @@ export async function authenticateNativeProjectPlanBodies(input: Readonly<{
 	if (!planSourceFingerprintsMatch(input.plan, input.inputFingerprints)) {
 		throw new Error('The native plan and queue fingerprints do not share exact source authority.');
 	}
-	const timing = await authenticateNativeProjectTimingBodies(input);
+	const timingInputs = nativeMediaPlanVideoTimingAssetInputs(input.plan);
+	const timings = exactTimingBodies(timingInputs, input.bodies);
+	const timingRequiredBytes = requiredTimingStagedBytes(input.plan, timingInputs);
 	const requiredStagedBytes = originals.reduce(
 		(total, body) => safeSum(total, body.byteLength),
-		timing.requiredStagedBytes,
+		timingRequiredBytes,
 	);
-	if (requiredStagedBytes > input.maximumStagedBytes) {
-		throw new RangeError('The native queue scratch reservation cannot stage its exact plan and sources.');
-	}
+	assertStagedByteLimit(input.maximumStagedBytes, requiredStagedBytes,
+		'The native queue scratch reservation cannot stage its exact plan and sources.');
+	const timing = await loadAuthenticatedProjectTimingBodies({
+		plan: input.plan, timings, readBody: input.readBody,
+		maximumStagedBytes: input.maximumStagedBytes,
+		requiredStagedBytes: timingRequiredBytes,
+	});
 	return Object.freeze({ ...timing, originals, requiredStagedBytes });
 }
 
@@ -114,10 +120,29 @@ export async function authenticateNativeProjectTimingBodies(input: Readonly<{
 }>): Promise<AuthenticatedNativeProjectTimingBodies> {
 	const timingInputs = nativeMediaPlanVideoTimingAssetInputs(input.plan);
 	const timings = exactTimingBodies(timingInputs, input.bodies);
+	const requiredStagedBytes = requiredTimingStagedBytes(input.plan, timingInputs);
+	assertStagedByteLimit(input.maximumStagedBytes, requiredStagedBytes,
+		'The native scratch reservation cannot stage its exact plan and timing assets.');
+	return loadAuthenticatedProjectTimingBodies({
+		plan: input.plan, timings, readBody: input.readBody,
+		maximumStagedBytes: input.maximumStagedBytes, requiredStagedBytes,
+	});
+}
+
+async function loadAuthenticatedProjectTimingBodies(input: Readonly<{
+	readonly plan: unknown;
+	readonly timings: readonly Readonly<{
+		readonly body: NativeProjectMediaBody;
+		readonly input: NativeMediaPlanVideoTimingAssetInput;
+	}>[];
+	readonly readBody: (body: Readonly<NativeProjectMediaBody>) => Promise<Uint8Array>;
+	readonly maximumStagedBytes: number;
+	readonly requiredStagedBytes: number;
+}>): Promise<AuthenticatedNativeProjectTimingBodies> {
 	const loadedTimings: Array<AuthenticatedNativeProjectBody & Readonly<{
 		readonly input: NativeMediaPlanVideoTimingAssetInput;
 	}>> = [];
-	for (const { body, input: timingInput } of timings) {
+	for (const { body, input: timingInput } of input.timings) {
 		loadedTimings.push(Object.freeze({
 			...await loadBody(body, input.readBody), input: timingInput,
 		}));
@@ -127,10 +152,13 @@ export async function authenticateNativeProjectTimingBodies(input: Readonly<{
 		assets: loadedTimings,
 		maximumStagedBytes: input.maximumStagedBytes,
 	});
+	if (authenticated.requiredStagedBytes !== input.requiredStagedBytes) {
+		throw new Error('Authenticated native timing bytes changed their preflight geometry.');
+	}
 	return Object.freeze({
 		envelope: authenticated.envelope,
 		timingAssets: Object.freeze(loadedTimings),
-		requiredStagedBytes: authenticated.requiredStagedBytes,
+		requiredStagedBytes: input.requiredStagedBytes,
 	});
 }
 
@@ -144,6 +172,9 @@ export function authenticateNativePlanVideoTimingAssets(input: Readonly<{
 	if (!Array.isArray(input.assets) || input.assets.length !== timingInputs.length) {
 		throw new Error('The native plan requires its exact timing asset count in plan order.');
 	}
+	const requiredStagedBytes = requiredTimingStagedBytes(input.plan, timingInputs);
+	assertStagedByteLimit(input.maximumStagedBytes, requiredStagedBytes,
+		'The native scratch reservation cannot stage its exact plan and timing assets.');
 	const suppliedDigests = new Set<string>();
 	const loadedTimings = timingInputs.map((timingInput, index) => {
 		const candidate = input.assets[index];
@@ -164,14 +195,6 @@ export function authenticateNativePlanVideoTimingAssets(input: Readonly<{
 		validateVideoTimingAssetBytes(timingInput, bytes);
 		return Object.freeze({ input: timingInput, bytes });
 	});
-	const requiredStagedBytes = loadedTimings.reduce(
-		(total, { bytes }) => safeSum(total, bytes.byteLength),
-		fingerprintNativeMediaPlan(input.plan).byteLength,
-	);
-	if (!Number.isSafeInteger(input.maximumStagedBytes) || input.maximumStagedBytes < 1
-		|| requiredStagedBytes > input.maximumStagedBytes) {
-		throw new RangeError('The native scratch reservation cannot stage its exact plan and timing assets.');
-	}
 	const timingSidecars = new Map<string, BoundVideoSourceTimingView>();
 	for (const loaded of loadedTimings) {
 		const index = validateVideoTimingAssetBytes(loaded.input, loaded.bytes);
@@ -291,6 +314,22 @@ function safeSum(left: number, right: number): number {
 		throw new RangeError('Native staged byte accounting overflowed.');
 	}
 	return left + right;
+}
+
+function requiredTimingStagedBytes(
+	plan: unknown,
+	inputs: readonly NativeMediaPlanVideoTimingAssetInput[],
+): number {
+	return inputs.reduce(
+		(total, input) => safeSum(total, input.byteLength),
+		fingerprintNativeMediaPlan(plan).byteLength,
+	);
+}
+
+function assertStagedByteLimit(maximum: number, required: number, message: string): void {
+	if (!Number.isSafeInteger(maximum) || maximum < 1 || required > maximum) {
+		throw new RangeError(message);
+	}
 }
 
 function planSourceFingerprintsMatch(

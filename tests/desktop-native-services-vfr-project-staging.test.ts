@@ -14,6 +14,7 @@ import { FramescaperNativeProjectAuthority } from '../desktop/native-services-pr
 import { FramescaperNativeSelectedV20ProjectAuthority } from '../desktop/native-services-selected-v20-project-authority.ts';
 import {
 	authenticateNativeProjectPlanBodies,
+	authenticateNativeProjectTimingBodies,
 	type NativeProjectMediaBody,
 } from '../desktop/native-services-video-timing-staging.ts';
 import type { HelperDataPlaneTransferPort } from '../desktop/helper-data-plane-transfer.ts';
@@ -264,6 +265,20 @@ test('project timing-body resolution rejects missing and digest-drifted SCTI aut
 		/scratch reservation/iu,
 	);
 	assert.equal(refusedReadCount, 0, 'metadata overflow is refused before reading a project body');
+	let refusedTimingReadCount = 0;
+	await assert.rejects(
+		authenticateNativeProjectTimingBodies({
+			plan: request.plan,
+			bodies: [timing],
+			maximumStagedBytes: 1,
+			readBody: async (body) => {
+				refusedTimingReadCount += 1;
+				return request.readBody(body);
+			},
+		}),
+		/scratch reservation/iu,
+	);
+	assert.equal(refusedTimingReadCount, 0, 'timing-only metadata overflow is refused before a body read');
 	await assert.rejects(
 		authenticateNativeProjectPlanBodies({ ...request, bodies: [original] }),
 		/no unique exact video-timing project body/iu,
