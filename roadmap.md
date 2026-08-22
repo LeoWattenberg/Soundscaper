@@ -125,7 +125,10 @@ must not become an earlier hidden recording path.
 | **Electron Enhanced** | Same outcome as web with improved scale, latency, codec coverage, or reliability through a native adapter. |
 | **Electron Only** | Requires an OS/native facility unavailable to a normal web origin; projects still open safely on web. |
 
-Playwright Chromium, Firefox, and WebKit coverage is maintained. The fixed-GPU reference passed M1/M4/M4B-2; Safari remains a separate release gate.
+Playwright Chromium, Firefox, and WebKit coverage is maintained. Soundscaper's
+fixed-GPU M4 production render-parity gate is formally qualified; the M1 and
+M4B-2 reference diagnostics also pass, while Safari remains a separate release
+gate.
 
 ## Current foundation
 
@@ -159,7 +162,7 @@ Known architectural constraints that drive later work:
 | 1. Baseline contracts | **In progress — external qualification** | Close reproducible quality qualification. |
 | 2. Shared platform/storage/media | **In progress — current priority** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
 | 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
-| 4. Production surfaces | **In progress — provisional candidates** | Complete automation, routing, compositing, captions, and finishing. |
+| 4. Production surfaces | **In progress — Soundscaper M4 qualified; other gates remain** | Complete automation, routing, compositing, captions, and finishing. |
 | 5. Electron-native services | **In progress — 5A provisional, 5B substrate inert** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **In progress — web tier implemented, none qualified** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
@@ -183,12 +186,25 @@ release severity, security matrix, licensing matrix, Audacity action
 dispositions, MIDI fences, and the maintained Playwright engine matrix. Their
 evidence lives in the owning policies linked above.
 
-On 2026-08-21 the owner designated the Windows x64 RTX 3090 machine as the fixed-GPU
-reference. Its zero-retry M1 preview, M4 production parity, and M4B-2 keyed parity passed; details live in `docs/quality-budgets.md`.
+On 2026-08-21 the owner designated the Windows x64 RTX 3090 machine as the
+fixed-GPU reference. Its zero-retry M1 preview, M4 production parity, and M4B-2
+keyed parity passed; details live in `docs/quality-budgets.md`.
+
+On 2026-08-22 `nightly-with-tests` published accepted formal qualification for
+Soundscaper's `m4-production-render-parity` workload at source revision
+`538f6f26a186c7b46cedf5e5272152448439b002`. The retained artifact records the
+owner-qualified host fingerprint, hardware rendering, one attempt, zero
+retries, one worker, all five passing render-ledger thresholds, and no
+verification failures. This closes the Soundscaper fixed-GPU M4 production
+render-parity/render-ledger qualification gate. It does not close M1, M4B-2,
+Safari, Framescaper, manual/hosted release qualification, or the milestone-4
+exit as a whole.
 
 ### Remaining work
 
-1. Record the remaining named milestone workloads on their required reference environments without software rendering or environment drift.
+1. Record the remaining named milestone workloads, excluding the now-qualified
+   Soundscaper M4 production render-parity workload, on their required reference
+   environments without software rendering or environment drift.
 2. Resolve the provisional Safari and supported-OS qualification claims needed
    for the Web Core release guarantee.
 
@@ -210,8 +226,10 @@ new platform, distribution, schema, or security boundary.
   job.
 - Every Audacity action remains implemented, planned, blocked, or justified
   excluded.
-- Required fixed-GPU and Safari qualification is recorded rather than
-  provisional.
+- Soundscaper's fixed-GPU M4 production render-parity qualification is recorded
+  as accepted.
+- Remaining required fixed-GPU and Safari qualification is recorded rather
+  than provisional.
 
 ## 2. Shared platform, storage, and media foundation
 
@@ -532,10 +550,11 @@ Framescaper V20 keyframe candidate remains dormant and unselected with its
 activation/evidence gates open. Soundscaper V21 is the selected maintained
 App/runtime/storage route and its local implementation candidate is complete:
 packets 4A-1 through 4A-6 are implemented provisionally and 4A-7 local automated
-acceptance is green. The reference run passes M4 production and M4B-2 keyed
-parity. `nightly-with-tests` now collects packaged-runtime evidence from the
-actual product executables; retained qualification, hosted, manual, remaining Framescaper
-4B, and milestone-3 evidence remain open. This reference pass does not close milestone 1 or milestone 4.
+acceptance is green. The reference run formally qualifies M4 production and
+passes the M4B-2 keyed-parity diagnostic. `nightly-with-tests` retains the
+accepted packaged M4 artifact. Hosted, manual, remaining Framescaper 4B, and
+milestone-3 evidence remain open. This M4 closure does not close milestone 1 or
+milestone 4.
 **Goal:** complete non-MIDI Soundscaper production and non-recording Framescaper
 finishing over the stable editorial models.
 
