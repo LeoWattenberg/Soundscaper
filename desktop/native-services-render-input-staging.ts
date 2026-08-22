@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Durable, main-owned admission for renderer-evaluated selected-V20 V7 inputs. */
+/** Durable, main-owned admission for renderer-evaluated selected-V20 V7/V8 inputs. */
 
 import { constants as fsConstants } from 'node:fs';
 import {
@@ -29,7 +29,7 @@ import {
 	nativeRenderInputDeclaredBytes,
 	nativeRenderInputDescriptorsForPlan,
 	nativeRenderInputDigest,
-	nativeRenderInputExactV7Envelope,
+	nativeRenderInputExactV20Envelope,
 	nativeRenderInputFingerprints,
 	nativeRenderInputIdentifier,
 	nativeRenderInputNonNegative,
@@ -122,7 +122,7 @@ export interface FramescaperNativeRenderInputLifecyclePort {
 interface PendingStage {
 	readonly owner: object;
 	readonly owned: NativeRenderInputOwnedStage;
-	readonly envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 }>;
+	readonly envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 | 8 }>;
 	readonly identity: FramescaperNativeRenderInputStageIdentity;
 	readonly descriptors: readonly FramescaperNativeRenderInputDescriptorV1[];
 	readonly bindings: readonly HelperDataPlaneBinding[];
@@ -159,7 +159,9 @@ export class FramescaperNativeRenderInputStaging
 	async begin(ownerValue: unknown, value: unknown): Promise<FramescaperNativeRenderInputStageAdmissionV1> {
 		const owner = this.#activeOwner(requiredOwner(ownerValue));
 		const request = nativeRenderInputBeginRequest(value);
-		const envelope = nativeRenderInputExactV7Envelope(request.planPayload, request.planFingerprint);
+		const envelope = nativeRenderInputExactV20Envelope(
+			request.planPayload, request.planFingerprint, request.planVersion,
+		);
 		const descriptors = nativeRenderInputDescriptorsForPlan(request.derivedInputs, envelope);
 		const identity = Object.freeze({
 			planFingerprint: envelope.fingerprint,
@@ -267,7 +269,7 @@ export class FramescaperNativeRenderInputStaging
 			}));
 		}
 		const manifest: NativeRenderInputStageManifest = Object.freeze({
-			stageVersion: 1, stageId: request.stageId, planVersion: 7,
+			stageVersion: 1, stageId: request.stageId, planVersion: stage.envelope.planVersion,
 			...stage.identity, files: Object.freeze(files),
 		});
 		const payload = JSON.stringify(manifest);
@@ -400,20 +402,22 @@ export class FramescaperNativeRenderInputStaging
 	}
 
 	async revalidate(record: NativeQueueRecordV2): Promise<boolean> {
-		if (record.planVersion !== 7) return true;
+		if (record.planVersion !== 7 && record.planVersion !== 8) return true;
 		try { await this.inspect(record); return true; } catch { return false; }
 	}
 
 	async inspect(recordValue: NativeQueueRecordV2): Promise<FramescaperNativeDerivedRenderInputs> {
 		assertNativeQueueRecordV2(recordValue);
-		if (recordValue.planVersion !== 7) {
-			return Object.freeze({ byteLength: 0, materialize: async () => Object.freeze([]) });
+		if (recordValue.planVersion !== 7 && recordValue.planVersion !== 8) {
+			throw new Error(
+				`Native render plan V${String(recordValue.planVersion)} has no durable evaluated RGBA carrier.`,
+			);
 		}
 		const owned = await readNativeRenderInputOwnedStage(this.#root, recordValue.jobId);
 		if (owned === null) throw new Error('The durable native render-input ownership record is missing.');
 		const manifest = await assertNativeRenderInputLiveOwnedStage(owned, recordValue);
-		const envelope = nativeRenderInputExactV7Envelope(
-			recordValue.planPayload, recordValue.planFingerprint,
+		const envelope = nativeRenderInputExactV20Envelope(
+			recordValue.planPayload, recordValue.planFingerprint, recordValue.planVersion,
 		);
 		for (const file of manifest.files) {
 			const path = join(owned.directory, file.name);
@@ -446,7 +450,7 @@ export class FramescaperNativeRenderInputStaging
 
 	async remove(recordValue: NativeQueueRecordV2): Promise<void> {
 		assertNativeQueueRecordV2(recordValue);
-		if (recordValue.planVersion !== 7) return;
+		if (recordValue.planVersion !== 7 && recordValue.planVersion !== 8) return;
 		await this.#mutate(async () => {
 			const owned = await readNativeRenderInputOwnedStage(this.#root, recordValue.jobId);
 			if (owned === null) return;

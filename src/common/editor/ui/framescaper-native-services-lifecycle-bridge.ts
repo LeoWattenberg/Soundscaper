@@ -77,7 +77,7 @@ export interface FramescaperNativeRenderInputV1 {
 
 export interface FramescaperNativeRenderInputStageRendererRequestV1 {
 	readonly stageVersion: 1;
-	readonly planVersion: 7;
+	readonly planVersion: 7 | 8;
 	readonly planFingerprint: string;
 	readonly planPayload: string;
 	readonly projectId: string;
@@ -206,8 +206,13 @@ function queueEnqueueRequest(value: unknown): FramescaperNativeQueueEnqueueRende
 	const taskKind = member(row.taskKind, NATIVE_QUEUE_TASK_KINDS, 'task kind');
 	const derivedInputStageId = row.derivedInputStageId === null
 		? null : pattern(row.derivedInputStageId, JOB_ID, 'derived input stage id');
-	if ((envelope.planVersion === 7) !== (derivedInputStageId !== null)) {
-		throw new TypeError('Only V7 queue requests require one durable derived-input stage.');
+	if (envelope.planVersion >= 9) {
+		throw new TypeError(
+			`Unified V${String(envelope.planVersion)} queue requests have no durable evaluated RGBA carrier.`,
+		);
+	}
+	if (derivedInputStageId === null) {
+		throw new TypeError('Selected-V20 V7/V8 queue requests require one durable derived-input stage.');
 	}
 	const recoveryClass = member(row.recoveryClass, NATIVE_QUEUE_RECOVERY_CLASSES, 'recovery class');
 	if (recoveryClass === 'verified-frame-checkpoint' && taskKind !== 'image-sequence-export') {

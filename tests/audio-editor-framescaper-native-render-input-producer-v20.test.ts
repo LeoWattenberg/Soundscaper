@@ -12,6 +12,7 @@ import {
 	fingerprintNativeMediaPlan,
 } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { digestMediaContent } from '../src/common/editor/storage/media-content-digest.ts';
+import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import {
 	bindVideoSourceTimingView,
 	type VideoSourceTimingView,
@@ -28,6 +29,7 @@ import {
 } from '../src/framescaper/editor-project-feature-requirements-v20.ts';
 import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v20.ts';
 import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
+import { framescaperProjectForRuntimeConsumersV20 } from '../src/framescaper/editor-project-v20-runtime.ts';
 import {
 	createFramescaperVideoKeyframeExportPlanV20,
 } from '../src/framescaper/video-export-plan-v20.ts';
@@ -123,11 +125,11 @@ test('selected V20 producer authenticates one snapshot and stages active RGBA pl
 	assert.equal(ascii(wav, 8, 12), 'WAVE');
 	assert.equal(wav.getUint16(20, true), 3, 'IEEE float');
 	assert.equal(wav.getUint16(22, true), 2);
-	assert.equal(wav.getUint32(24, true), fixture.plan.sampleRate);
+	assert.equal(wav.getUint32(24, true), fixture.sampleRate);
 	assert.equal(wav.getUint32(40, true) / 8, fixture.plan.range.durationFrames);
 });
 
-test('selected V20 producer fails closed on V8 and cleans every acquired authority after drift', async () => {
+test('selected V20 producer stages exact static V8 and cleans every acquired authority after drift', async () => {
 	const fixture = await producerFixture({ failCurrentAfterFrame: 0 });
 	await assert.rejects(fixture.producer(fixture.request), /project changed during production/u);
 	assert.deepEqual(fixture.events.slice(-4), [
@@ -135,17 +137,29 @@ test('selected V20 producer fails closed on V8 and cleans every acquired authori
 	]);
 	assert.equal(fixture.audioRenders(), 0);
 
-	const v8Fixture = await producerFixture();
-	const staticPlan = { version: 8, strategy: 'composed-video-graph-v2' };
-	const payload = canonicalizeNativeMediaPlan(staticPlan);
-	await assert.rejects(v8Fixture.producer({
-		...v8Fixture.request,
-		planPayload: payload,
-		planFingerprint: fingerprintNativeMediaPlan(staticPlan).sha256,
-	}), /V7|keyed|unsupported/iu);
+	const v8Fixture = await producerFixture({ staticPlan: true });
+	const outputs = await v8Fixture.producer(v8Fixture.request);
+	assert.equal(v8Fixture.plan.version, 8);
+	assert.deepEqual(outputs.map(({ role }) => role), [
+		'evaluated-rgba-frame-pack', 'staged-audio-mix',
+	]);
+	assert.deepEqual(v8Fixture.requiredTimingSources, [['video-source']]);
+	assert.equal(v8Fixture.audioRenders(), 1);
 });
 
-async function producerFixture(options: Readonly<{ failCurrentAfterFrame?: number }> = {}) {
+interface FixturePlan {
+	readonly version: 7 | 8;
+	readonly outputFrameCount: number;
+	readonly range: Readonly<{ startFrame: number; endFrame: number; durationFrames: number }>;
+	readonly canvas: Readonly<{ width: number; height: number }>;
+	readonly sampleRate?: number;
+	readonly inputs: readonly Readonly<{ kind: string; sampleRate?: number }>[];
+}
+
+async function producerFixture(options: Readonly<{
+	readonly failCurrentAfterFrame?: number;
+	readonly staticPlan?: boolean;
+}> = {}) {
 	const sourceBlob = new Blob([Uint8Array.of(1, 2, 3, 4)], { type: 'video/mp4' });
 	const sourceDigest = await digestMediaContent(sourceBlob);
 	const projectOptions = framescaperV20Options();
@@ -154,12 +168,21 @@ async function producerFixture(options: Readonly<{ failCurrentAfterFrame?: numbe
 	source.width = 2;
 	source.height = 2;
 	const project = createFramescaperProjectV20(PROFILE, projectOptions);
-	(project.clips[0] as unknown as Record<string, unknown>).videoKeyframes = opacityKeyframes();
-	(project as unknown as Record<string, unknown>).featureRequirements =
-		reconcileFramescaperProjectFeatureRequirementsV20(PROFILE, project);
-	const plan = createFramescaperVideoKeyframeExportPlanV20(PROFILE, project, {
-		format: 'mp4', range: 'project', includeAudio: true,
-	});
+	if (!options.staticPlan) {
+		(project.clips[0] as unknown as Record<string, unknown>).videoKeyframes = opacityKeyframes();
+		(project as unknown as Record<string, unknown>).featureRequirements =
+			reconcileFramescaperProjectFeatureRequirementsV20(PROFILE, project);
+	}
+	const plan = (options.staticPlan
+		? createVideoExportPlan(framescaperProjectForRuntimeConsumersV20(PROFILE, project), {
+			format: 'mp4', range: 'project', includeAudio: true,
+		})
+		: createFramescaperVideoKeyframeExportPlanV20(PROFILE, project, {
+			format: 'mp4', range: 'project', includeAudio: true,
+		})) as unknown as FixturePlan;
+	const sampleRate = plan.sampleRate
+		?? plan.inputs.find(({ kind }) => kind === 'staged-audio-mix')?.sampleRate;
+	if (typeof sampleRate !== 'number') throw new Error('Fixture plan has no audio sample rate.');
 	const planPayload = canonicalizeNativeMediaPlan(plan);
 	const events: string[] = [];
 	const loads: string[] = [];
@@ -190,7 +213,7 @@ async function producerFixture(options: Readonly<{ failCurrentAfterFrame?: numbe
 				assert.equal(renderProject.id, project.id);
 				assert.equal(range.outputFrames, plan.range.durationFrames);
 				return Object.freeze({
-					sampleRate: plan.sampleRate,
+					sampleRate,
 					channels: [new Float32Array(plan.range.durationFrames), new Float32Array(plan.range.durationFrames)],
 				});
 			},
@@ -247,6 +270,7 @@ async function producerFixture(options: Readonly<{ failCurrentAfterFrame?: numbe
 			projectRevision: project.revision,
 		}),
 		plan,
+		sampleRate,
 		events,
 		loads,
 		requiredTimingSources,

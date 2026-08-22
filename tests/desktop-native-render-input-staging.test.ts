@@ -10,15 +10,22 @@ import test from 'node:test';
 
 import type { HelperDataPlaneIoPort } from '../desktop/helper-data-plane-io.ts';
 import { sendHelperDataPlaneFile } from '../desktop/helper-data-plane-io.ts';
+import { framescaperNativeQueueEnqueueRequest } from '../desktop/native-services-lifecycle.ts';
 import {
 	FRAMESCAPER_NATIVE_RENDER_INPUT_MAXIMUM_PENDING_STAGES,
 	FRAMESCAPER_NATIVE_RENDER_INPUT_STAGE_EXPIRY_MS,
 	FRAMESCAPER_NATIVE_RENDER_INPUT_TOTAL_MAXIMUM_BYTES,
 	FramescaperNativeRenderInputStaging,
 } from '../desktop/native-services-render-input-staging.ts';
+import { nativeMediaEvaluatedCarrierCadenceV1 } from '../src/common/editor/native-media-evaluated-carrier-v1.ts';
 import { createNativeMediaPlanEnvelopeV1 } from '../src/common/editor/native-media-plan-envelope.ts';
 import { createNativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
 import { createVideoKeyframeExportPlanV7 } from '../src/common/editor/video-keyframe-export-plan-v7.ts';
+import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
+import {
+	nativeQueueSmallStaticPlanV8,
+} from './helpers/native-queue-plan-fixture.ts';
+import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
 
 const STAGE_ID = 'ab'.repeat(20);
 const OWNER = Object.freeze({ generation: 20 });
@@ -71,6 +78,59 @@ test('V7 evaluated RGBA and WAV staging survives restart and materializes exact 
 		]);
 		assert.deepEqual(await readFile(grants[0]!.path), carrier);
 		assert.deepEqual(await readFile(grants[1]!.path), audio);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+		await rm(senderRoot, { recursive: true, force: true });
+	}
+});
+
+test('V8 evaluated RGBA staging survives restart while V9-V12 refuse carrier-less dispatch', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'framescaper-render-stage-v8-'));
+	const senderRoot = await mkdtemp(join(tmpdir(), 'framescaper-render-sender-v8-'));
+	try {
+		const envelope = createNativeMediaPlanEnvelopeV1(nativeQueueSmallStaticPlanV8());
+		assert.deepEqual(nativeMediaEvaluatedCarrierCadenceV1(envelope), { num: 2, den: 1 });
+		assert.deepEqual(nativeMediaEvaluatedCarrierCadenceV1(
+			createNativeMediaPlanEnvelopeV1(nativeQueueSmallStaticPlanV8(29.97)),
+		), { num: 2_997, den: 100 });
+		assert.throws(() => nativeMediaEvaluatedCarrierCadenceV1(
+			createNativeMediaPlanEnvelopeV1(nativeQueueSmallStaticPlanV8(30_000 / 1_001)),
+		), /exact V8 cadence.*carrier.*domain/iu);
+		const carrier = framePack(envelope);
+		const [source] = await sourceFiles(senderRoot, [carrier]);
+		const staging = new FramescaperNativeRenderInputStaging({ root, mintStageId: () => STAGE_ID });
+		await stageExact(staging, OWNER, envelope, carrier, source!);
+		await staging.claim(OWNER, claimRequest(envelope));
+		const record = queueRecord(envelope);
+		const restarted = new FramescaperNativeRenderInputStaging({
+			root, mintStageId: () => { throw new Error('restart must not mint'); },
+		});
+		assert.equal(await restarted.revalidate(record), true);
+		const inspected = await restarted.inspect(record);
+		assert.equal(inspected.byteLength, carrier.byteLength);
+
+		const unified = createUnifiedExactRenderPlan(unifiedExactPlanFixture(9));
+		const unifiedRecord = queueRecord(createNativeMediaPlanEnvelopeV1(unified));
+		assert.throws(() => framescaperNativeQueueEnqueueRequest({
+			taskKind: unifiedRecord.taskKind,
+			planVersion: unifiedRecord.planVersion,
+			derivedInputStageId: null,
+			planFingerprint: unifiedRecord.planFingerprint,
+			planPayload: unifiedRecord.planPayload,
+			projectId: unifiedRecord.projectId,
+			projectRevision: unifiedRecord.projectRevision,
+			inputFingerprints: unifiedRecord.inputFingerprints,
+			rootGrantId: unifiedRecord.rootGrantId,
+			relativeDestination: unifiedRecord.relativeDestination,
+			reservations: unifiedRecord.reservations,
+			recoveryClass: unifiedRecord.recoveryClass,
+		}), /V9.*evaluated RGBA carrier|evaluated RGBA carrier.*V9/iu);
+		await assert.rejects(
+			() => restarted.inspect(unifiedRecord),
+			/V9.*evaluated RGBA carrier|evaluated RGBA carrier.*V9/iu,
+		);
+		await restarted.settle(record, 'cancelled');
+		assert.equal(await restarted.revalidate(record), false);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 		await rm(senderRoot, { recursive: true, force: true });
@@ -387,7 +447,7 @@ function beginRequest(
 ) {
 	return Object.freeze({
 		stageVersion: 1 as const,
-		planVersion: 7 as const,
+		planVersion: envelope.planVersion as 7 | 8,
 		planFingerprint: envelope.fingerprint,
 		planPayload: JSON.stringify(envelope.plan),
 		projectId: 'project-1', projectRevision: 7,
@@ -406,7 +466,7 @@ function claimRequest(
 ) {
 	return Object.freeze({
 		derivedInputStageId,
-		planVersion: 7 as const, planFingerprint: envelope.fingerprint,
+		planVersion: envelope.planVersion as 7 | 8, planFingerprint: envelope.fingerprint,
 		planPayload: JSON.stringify(envelope.plan), projectId: 'project-1', projectRevision: 7,
 		inputFingerprints: Object.freeze([{ sourceId: 'source-1', sha256: '12'.repeat(32) }]),
 	});
@@ -448,13 +508,16 @@ function queueRecord(envelope: ReturnType<typeof createNativeMediaPlanEnvelopeV1
 
 function framePack(envelope: ReturnType<typeof createNativeMediaPlanEnvelopeV1>): Buffer {
 	const { width, height, outputFrameCount, frameRate } = envelope.summary;
-	assert.equal(frameRate.kind, 'rational');
+	const rate = frameRate.kind === 'rational'
+		? frameRate
+		: { kind: 'rational' as const, num: frameRate.value, den: 1 };
+	assert.equal(Number.isSafeInteger(rate.num), true);
 	const frameBytes = width * height * 4;
 	const output = Buffer.alloc(59 + outputFrameCount * (32 + frameBytes));
 	output.write('framescaper-rgba-frame-pack-v1\n', 0, 'ascii');
 	output.writeUInt32LE(1, 31); output.writeUInt32LE(width, 35); output.writeUInt32LE(height, 39);
 	output.writeBigUInt64LE(BigInt(outputFrameCount), 43);
-	output.writeUInt32LE(frameRate.den, 51); output.writeUInt32LE(frameRate.num, 55);
+	output.writeUInt32LE(rate.den, 51); output.writeUInt32LE(rate.num, 55);
 	let offset = 59;
 	for (let ordinal = 0; ordinal < outputFrameCount; ordinal += 1) {
 		output.writeBigUInt64LE(BigInt(ordinal), offset);

@@ -132,9 +132,7 @@ async function enqueueCurrentProject(
 	if (!sameQueueSnapshot(initial, current)) {
 		throw new Error('The V20 project or source fingerprints changed during queue admission.');
 	}
-	const derivedInputStageId = initial.planVersion === 7
-		? await stageV7Inputs(bridge, owner, initial)
-		: null;
+	const derivedInputStageId = await stageSelectedV20Inputs(bridge, owner, initial);
 	try {
 		if (exactBridge() !== bridge) {
 			throw new Error('The authenticated desktop bridge changed while render inputs were staged.');
@@ -150,7 +148,7 @@ async function enqueueCurrentProject(
 		await lifecycle.enqueue(request);
 	} catch (error) {
 		if (derivedInputStageId !== null) {
-			await abandonV7Inputs(bridge, derivedInputStageId, error);
+			await abandonSelectedV20Inputs(bridge, derivedInputStageId, error);
 		}
 		throw error;
 	}
@@ -255,7 +253,7 @@ function queueRequest(
 	});
 }
 
-async function stageV7Inputs(
+async function stageSelectedV20Inputs(
 	bridge: FramescaperNativeServicesBridge,
 	owner: FramescaperNativeRenderQueueProjectOwnerV20,
 	snapshot: FramescaperNativeRenderQueueSnapshotV20,
@@ -270,7 +268,7 @@ async function stageV7Inputs(
 		projectId: snapshot.projectId, projectRevision: snapshot.projectRevision,
 	})));
 	const result = await bridge.stageRenderInputs(Object.freeze({
-		stageVersion: 1, planVersion: 7,
+		stageVersion: 1, planVersion: snapshot.planVersion,
 		planFingerprint: snapshot.planFingerprint, planPayload: snapshot.planPayload,
 		projectId: snapshot.projectId, projectRevision: snapshot.projectRevision,
 		inputFingerprints: snapshot.inputFingerprints, derivedInputs,
@@ -278,7 +276,7 @@ async function stageV7Inputs(
 	return patternId(result?.stageId, /^[a-f0-9]{40}$/u, 'V20 derived-input stage ID');
 }
 
-async function abandonV7Inputs(
+async function abandonSelectedV20Inputs(
 	bridge: FramescaperNativeServicesBridge,
 	stageId: string,
 	cause: unknown,

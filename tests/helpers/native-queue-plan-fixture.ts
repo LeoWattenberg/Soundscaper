@@ -36,6 +36,14 @@ export function nativeQueueStaticPlanV8(): Record<string, unknown> {
 	}) as Record<string, unknown>;
 }
 
+export function nativeQueueSmallStaticPlanV8(frameRate = 2): Record<string, unknown> {
+	return createVideoExportPlan(singleClipProject(), {
+		includeAudio: false,
+		range: { startFrame: 0, endFrame: 1_000 },
+		canvas: { size: { width: 2, height: 2 }, frameRate },
+	}) as Record<string, unknown>;
+}
+
 function keyedSource(id: string, digestByte: string): Record<string, unknown> {
 	return {
 		kind: 'video', id, storageKey: `storage-${id}`, mimeType: 'video/mp4',

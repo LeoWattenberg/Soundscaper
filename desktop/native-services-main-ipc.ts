@@ -170,8 +170,8 @@ export function registerFramescaperNativeServicesMainIpc(
 		register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.enqueue, async (_event, value, authorization) => {
 			const request = framescaperNativeQueueEnqueueRequest(value);
 			controller.authorizeQueueEnqueue(request);
-			if (request.planVersion !== 7) return controller.enqueue(request);
-			if (!renderInputs) throw new Error('Durable V7 render-input staging is unavailable.');
+			if (request.planVersion !== 7 && request.planVersion !== 8) return controller.enqueue(request);
+			if (!renderInputs) throw new Error('Durable selected-V20 render-input staging is unavailable.');
 			const owner = requiredOwner(authorization);
 			await renderInputs.claim(owner, request);
 			try { return controller.enqueue(request); }

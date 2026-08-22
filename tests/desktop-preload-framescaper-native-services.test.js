@@ -66,7 +66,7 @@ test('queue controls are exact in both directions and reject malformed requests 
 
 test('queue enqueue accepts only a bounded exact-plan declaration', async () => {
 	const projection = snapshot().queue[0];
-	const fixture = await loadPreload([projection]);
+	const fixture = await loadPreload([projection, projection]);
 	const request = {
 		taskKind: 'encoded-export', planVersion: 7, derivedInputStageId: JOB_ID,
 		planFingerprint: '12'.repeat(32),
@@ -77,13 +77,19 @@ test('queue enqueue accepts only a bounded exact-plan declaration', async () => 
 			minimumFreeBytes: 0, hardwareBackend: null }, recoveryClass: 'atomic-restart',
 	};
 	assert.equal((await fixture.bridge.nativeServices.enqueue(request)).jobId, JOB_ID);
+	assert.equal((await fixture.bridge.nativeServices.enqueue({
+		...request, planVersion: 8, planPayload: '{"version":8}',
+	})).jobId, JOB_ID);
 	assert.equal(fixture.invocations[0][0], 'framescaper:v1:native-services:queue:enqueue');
 	assert.throws(() => fixture.bridge.nativeServices.enqueue({ ...request, planVersion: 6 }), /enqueue plan/iu);
+	assert.throws(() => fixture.bridge.nativeServices.enqueue({
+		...request, planVersion: 9, derivedInputStageId: null, planPayload: '{"version":9}',
+	}), /carrier|V9|unified/iu);
 	assert.throws(() => fixture.bridge.nativeServices.enqueue({ ...request, state: 'running' }), /fields/iu);
-	assert.equal(fixture.invocations.length, 1);
+	assert.equal(fixture.invocations.length, 2);
 });
 
-test('V7 derived inputs cross preload through one digest-bound backpressured MessagePort', async () => {
+test('V8 derived inputs cross preload through one digest-bound backpressured MessagePort', async () => {
 	const bytes = new Blob([new Uint8Array([1, 2, 3, 4])]);
 	const sha256 = createHash('sha256').update(new Uint8Array(await bytes.arrayBuffer())).digest('hex');
 	const binding = {
@@ -96,8 +102,8 @@ test('V7 derived inputs cross preload through one digest-bound backpressured Mes
 		inputs: [{ inputIndex: 0, role: 'evaluated-rgba-frame-pack', binding }],
 	}, { stageId: JOB_ID }]);
 	const result = await fixture.bridge.nativeServices.stageRenderInputs({
-		stageVersion: 1, planVersion: 7, planFingerprint: '12'.repeat(32),
-		planPayload: '{"version":7}', projectId: 'project-1', projectRevision: 1,
+		stageVersion: 1, planVersion: 8, planFingerprint: '12'.repeat(32),
+		planPayload: '{"version":8}', projectId: 'project-1', projectRevision: 1,
 		inputFingerprints: [{ sourceId: 'source-1', sha256: '34'.repeat(32) }],
 		derivedInputs: [{ role: 'evaluated-rgba-frame-pack', byteLength: bytes.size, sha256, bytes }],
 	});

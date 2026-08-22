@@ -11,6 +11,12 @@ import {
 	canonicalizeNativeMediaPlan,
 	fingerprintNativeMediaPlan,
 } from '../common/editor/native-media-plan-canonical-form.ts';
+import { nativeMediaEvaluatedCarrierCadenceV1 } from '../common/editor/native-media-evaluated-carrier-v1.ts';
+import {
+	assertNativeMediaGraphPlan,
+	type NativeMediaGraphPlan,
+} from '../common/editor/native-media-graph-plan-admission.ts';
+import { createNativeMediaPlanEnvelopeV1 } from '../common/editor/native-media-plan-envelope.ts';
 import {
 	canonicalMediaContentBlob,
 	digestMediaContent,
@@ -34,6 +40,7 @@ import { createVideoKeyframeExportFrameSource } from '../common/editor/video-key
 import { createVideoKeyframeExportPresentationAuthority } from '../common/editor/video-keyframe-export-presentation-authority.ts';
 import { encodeWav } from '../common/editor/wav.js';
 import { findClip, findSource } from '../common/editor/project.js';
+import { createVideoExportPlan } from '../common/editor/video-export.js';
 import type { FramescaperNativeRenderInputV1 } from '../common/editor/ui/framescaper-native-services-lifecycle-bridge.ts';
 import {
 	cloneFramescaperProjectV20,
@@ -43,7 +50,10 @@ import {
 	assertFramescaperProjectV20Profile,
 	type FramescaperProjectV20Profile,
 } from './editor-project-v20-profile.ts';
-import { framescaperProjectForPlaybackFoundationV20 } from './editor-project-v20-runtime.ts';
+import {
+	framescaperProjectForPlaybackFoundationV20,
+	framescaperProjectForRuntimeConsumersV20,
+} from './editor-project-v20-runtime.ts';
 import { createFramescaperVideoKeyframeExportPlanV20 } from './video-export-plan-v20.ts';
 import { createFramescaperNativeRgbaFramePackV1 } from './native-render-frame-pack-v1.ts';
 
@@ -81,6 +91,8 @@ interface OfflineCanvas extends HTMLCanvasElement {
 	width: number;
 	height: number;
 }
+
+type SelectedV20NativeRenderPlan = VideoKeyframeExportPlanV7 | NativeMediaGraphPlan;
 
 export interface FramescaperNativeRenderInputProducerDependenciesV20 {
 	readonly acquireTiming: typeof acquireVideoExportTimingIndexes;
@@ -122,6 +134,7 @@ export function createFramescaperNativeRenderInputProducerV20(
 			assertReady(operation);
 			const project = exactProject(profile, operation.project, request);
 			const plan = exactPlan(profile, project, request);
+			const activeSourceIds = selectedV20ActiveSourceIds(plan);
 			const store = exactBlobStore(authority.store);
 			const renderProject = projectTrackFolderMediaStateV12(
 				framescaperProjectForPlaybackFoundationV20(profile, project),
@@ -131,11 +144,11 @@ export function createFramescaperNativeRenderInputProducerV20(
 			}, {
 				signal: operation.signal,
 				assertCurrent: operation.assertCurrent,
-				requiredSourceIds: plan.activeSourceIds,
+				requiredSourceIds: activeSourceIds,
 			});
 			assertReady(operation);
 			const carrier = await renderCarrier(
-				plan, renderProject, timing.timingBySourceId, store, operation, runtime,
+				plan, activeSourceIds, renderProject, timing.timingBySourceId, store, operation, runtime,
 			);
 			const audio = await renderAudio(plan, renderProject, operation);
 			assertReady(operation);
@@ -172,24 +185,30 @@ export function createFramescaperNativeRenderInputProducerV20(
 }
 
 async function renderCarrier(
-	plan: VideoKeyframeExportPlanV7,
+	plan: SelectedV20NativeRenderPlan,
+	activeSourceIds: readonly string[],
 	project: Readonly<Record<string, unknown>>,
 	timingBySourceId: Awaited<ReturnType<typeof acquireVideoExportTimingIndexes>>['timingBySourceId'],
 	store: ExactNativeRenderInputStoreV20,
 	operation: ProductNativeRenderInputOperation,
 	dependencies: FramescaperNativeRenderInputProducerDependenciesV20,
 ) {
+	const cadence = nativeMediaEvaluatedCarrierCadenceV1(createNativeMediaPlanEnvelopeV1(plan));
 	const sourcePlan = planVideoKeyframeOfflineVideoSources({
 		project,
 		timingBySourceId,
 		startFrame: plan.range.startFrame,
 		endFrame: plan.range.endFrame,
 	});
+	if (sourcePlan.activeSourceIds.length !== activeSourceIds.length
+		|| sourcePlan.activeSourceIds.some((sourceId) => !activeSourceIds.includes(sourceId))) {
+		throw new Error('Selected V20 active sources changed between plan and renderer evaluation.');
+	}
 	const presentation = createVideoKeyframeExportPresentationAuthority({
 		project: sourcePlan.project,
 		timingBySourceId,
 	});
-	const sourceBlobs = await loadActiveSources(plan, store, operation);
+	const sourceBlobs = await loadActiveSources(plan, activeSourceIds, store, operation);
 	const assets = await sourcePlan.authenticate(
 		sourceBlobs,
 		presentation.presentationForEntry,
@@ -201,7 +220,7 @@ async function renderCarrier(
 		canvas: Object.freeze({
 			width: plan.canvas.width,
 			height: plan.canvas.height,
-			frameRate: plan.canvas.frameRate,
+			frameRate: cadence,
 			fit: plan.canvas.fit,
 			backgroundColor: plan.canvas.backgroundColor,
 		}),
@@ -233,7 +252,7 @@ async function renderCarrier(
 			width: plan.canvas.width,
 			height: plan.canvas.height,
 			frameCount: plan.outputFrameCount,
-			frameRate: plan.canvas.frameRate,
+			frameRate: cadence,
 			signal: operation.signal,
 			assertCurrent: operation.assertCurrent,
 			renderFrame: (ordinal, output) => renderer!.produce(
@@ -268,18 +287,19 @@ async function renderCarrier(
 }
 
 async function loadActiveSources(
-	plan: VideoKeyframeExportPlanV7,
+	plan: SelectedV20NativeRenderPlan,
+	activeSourceIds: readonly string[],
 	store: ExactNativeRenderInputStoreV20,
 	operation: ProductNativeRenderInputOperation,
 ): Promise<readonly Readonly<{ sourceId: string; blob: Blob }>[]> {
 	const videoInputs = plan.inputs.filter((input) => input.kind === 'video-source');
-	if (videoInputs.length !== plan.activeSourceIds.length) {
+	if (videoInputs.length !== activeSourceIds.length) {
 		throw new Error('Selected V20 active source and plan input inventories diverge.');
 	}
 	const result: Readonly<{ sourceId: string; blob: Blob }>[] = [];
 	for (const [index, input] of videoInputs.entries()) {
 		assertReady(operation);
-		if (input.sourceId !== plan.activeSourceIds[index]) {
+		if (input.sourceId !== activeSourceIds[index]) {
 			throw new Error('Selected V20 active sources are not in canonical input order.');
 		}
 		const value = await store.loadMediaAsset(input.storageKey, { signal: operation.signal });
@@ -296,28 +316,30 @@ async function loadActiveSources(
 }
 
 async function renderAudio(
-	plan: VideoKeyframeExportPlanV7,
+	plan: SelectedV20NativeRenderPlan,
 	project: Readonly<Record<string, unknown>>,
 	operation: ProductNativeRenderInputOperation,
 ): Promise<FramescaperNativeRenderInputV1 | null> {
 	const audio = plan.inputs.find((input) => input.kind === 'staged-audio-mix');
 	if (!audio) return null;
+	const audioAuthority = audio as typeof audio & Readonly<{ channelLayout: string }>;
+	const sampleRate = plan.version === 7 ? plan.sampleRate : audio.sampleRate;
 	assertReady(operation);
 	const rendered = await operation.renderAudio(project, Object.freeze({
 		startFrame: plan.range.startFrame,
 		endFrame: plan.range.endFrame,
 		includeTail: false,
 		outputFrames: plan.range.durationFrames,
-		preRollFrames: Math.min(plan.range.startFrame, plan.sampleRate * 10),
+		preRollFrames: Math.min(plan.range.startFrame, sampleRate * 10),
 	}));
 	assertReady(operation);
 	if (!rendered || typeof rendered !== 'object'
-		|| (rendered as Readonly<{ sampleRate?: unknown }>).sampleRate !== plan.sampleRate) {
+		|| (rendered as Readonly<{ sampleRate?: unknown }>).sampleRate !== sampleRate) {
 		throw new Error('The selected V20 audio renderer changed the plan sample rate.');
 	}
 	const channels = applyMediaChannelMapping(
 		audioBufferChannels(rendered as AudioBuffer),
-		audio.channelLayout,
+		audioAuthority.channelLayout,
 	);
 	if (channels.length < 1 || channels.length > 32
 		|| channels.some((channel) => channel.length !== plan.range.durationFrames)) {
@@ -328,7 +350,7 @@ async function renderAudio(
 		throw new RangeError('The selected V20 float32 WAV exceeds its 2 GiB stage.');
 	}
 	const wav = encodeWav(channels, {
-		sampleRate: plan.sampleRate,
+		sampleRate,
 		bitDepth: 32,
 		float: true,
 		dither: 'none',
@@ -365,25 +387,43 @@ function exactPlan(
 	profile: FramescaperProjectV20Profile,
 	project: FramescaperProjectV20,
 	request: FramescaperNativeRenderInputRequestV20,
-): VideoKeyframeExportPlanV7 {
+): SelectedV20NativeRenderPlan {
 	let parsed: unknown;
 	try { parsed = JSON.parse(request.planPayload) as unknown; } catch (cause) {
 		throw new TypeError('The selected V20 native render plan is not JSON.', { cause });
 	}
-	assertVideoKeyframeExportPlanV7(parsed);
+	if ((parsed as Readonly<{ version?: unknown }> | null)?.version === 7) {
+		assertVideoKeyframeExportPlanV7(parsed);
+	} else {
+		assertNativeMediaGraphPlan(parsed);
+	}
 	const canonical = canonicalizeNativeMediaPlan(parsed);
 	if (canonical !== request.planPayload
 		|| fingerprintNativeMediaPlan(parsed).sha256 !== request.planFingerprint) {
 		throw new Error('The selected V20 native render plan has no exact canonical identity.');
 	}
-	const expected = createFramescaperVideoKeyframeExportPlanV20(profile, project, {
-		format: 'mp4', range: 'project', includeAudio: true,
-	});
+	const expected = parsed.version === 7
+		? createFramescaperVideoKeyframeExportPlanV20(profile, project, {
+			format: 'mp4', range: 'project', includeAudio: true,
+		})
+		: createVideoExportPlan(framescaperProjectForRuntimeConsumersV20(profile, project), {
+			format: 'mp4', range: 'project', includeAudio: true,
+		}) as unknown;
 	if (canonicalizeNativeMediaPlan(expected) !== canonical
 		|| fingerprintNativeMediaPlan(expected).sha256 !== request.planFingerprint) {
 		throw new Error('The selected V20 native render plan changed from its current project authority.');
 	}
-	return parsed;
+	return parsed as SelectedV20NativeRenderPlan;
+}
+
+function selectedV20ActiveSourceIds(plan: SelectedV20NativeRenderPlan): readonly string[] {
+	const ids = plan.version === 7
+		? plan.activeSourceIds
+		: plan.inputs.filter((input) => input.kind === 'video-source').map(({ sourceId }) => sourceId);
+	if (new Set(ids).size !== ids.length) {
+		throw new Error('Selected V20 render inputs contain a duplicate active source identity.');
+	}
+	return Object.freeze([...ids]);
 }
 
 function requestSnapshot(value: unknown): FramescaperNativeRenderInputRequestV20 {

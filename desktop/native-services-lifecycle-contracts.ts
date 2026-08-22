@@ -89,8 +89,14 @@ export function framescaperNativeQueueEnqueueRequest(
 		|| TEXT_ENCODER.encode(request.planPayload).byteLength > CONTROL_MESSAGE_MAXIMUM_BYTES) {
 		throw new TypeError('A native-services enqueue request has an unsupported plan or task.');
 	}
-	if ((request.planVersion === 7) !== (request.derivedInputStageId !== null)) {
-		throw new TypeError('Only V7 native renders require one durable derived-input stage.');
+	if ([9, 10, 11, 12].includes(request.planVersion as number)) {
+		throw new TypeError(
+			`Unified V${String(request.planVersion)} native renders have no durable evaluated RGBA carrier.`,
+		);
+	}
+	if (![7, 8].includes(request.planVersion as number)
+		|| request.derivedInputStageId === null) {
+		throw new TypeError('Selected-V20 V7/V8 native renders require one durable derived-input stage.');
 	}
 	return Object.freeze({
 		taskKind: request.taskKind as NativeQueueTaskKind,

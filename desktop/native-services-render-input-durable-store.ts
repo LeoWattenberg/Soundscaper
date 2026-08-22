@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated ownership and bounded cleanup for durable V7 input stages. */
+/** Authenticated ownership and bounded cleanup for durable selected-V20 V7/V8 input stages. */
 
 import { constants } from 'node:fs';
 import {

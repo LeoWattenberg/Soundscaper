@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Closed control records for selected-V20 renderer-derived V7 staging. */
+/** Closed control records for selected-V20 renderer-derived V7/V8 staging. */
 
 import { createHash } from 'node:crypto';
 
@@ -35,7 +35,7 @@ const PROJECT_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
 
 export interface FramescaperNativeRenderInputStageBeginRequestV1 {
 	readonly stageVersion: typeof FRAMESCAPER_NATIVE_RENDER_INPUT_STAGE_VERSION;
-	readonly planVersion: 7;
+	readonly planVersion: 7 | 8;
 	readonly planFingerprint: string;
 	readonly planPayload: string;
 	readonly projectId: string;
@@ -68,11 +68,12 @@ export function nativeRenderInputBeginRequest(
 		'stageVersion', 'planVersion', 'planFingerprint', 'planPayload', 'projectId',
 		'projectRevision', 'inputFingerprints', 'derivedInputs',
 	], 'render-input stage begin request');
-	if (row.stageVersion !== 1 || row.planVersion !== 7 || typeof row.planPayload !== 'string') {
-		throw new TypeError('Native render-input staging admits only a canonical V7 plan.');
+	if (row.stageVersion !== 1 || (row.planVersion !== 7 && row.planVersion !== 8)
+		|| typeof row.planPayload !== 'string') {
+		throw new TypeError('Native render-input staging admits only canonical selected-V20 V7/V8 plans.');
 	}
 	return Object.freeze({
-		stageVersion: 1, planVersion: 7,
+		stageVersion: 1, planVersion: row.planVersion,
 		planFingerprint: nativeRenderInputDigestValue(row.planFingerprint, 'plan fingerprint'),
 		planPayload: row.planPayload,
 		projectId: nativeRenderInputIdentifier(row.projectId, 'project id'),
@@ -98,16 +99,17 @@ export function nativeRenderInputClaimRequest(value: unknown) {
 		'derivedInputStageId', 'planVersion', 'planFingerprint', 'planPayload',
 		'projectId', 'projectRevision', 'inputFingerprints',
 	], 'render-input claim request');
-	if (row.planVersion !== 7 || typeof row.planPayload !== 'string') {
-		throw new TypeError('A native render-input claim must name its V7 plan.');
+	if ((row.planVersion !== 7 && row.planVersion !== 8) || typeof row.planPayload !== 'string') {
+		throw new TypeError('A native render-input claim must name its selected-V20 V7/V8 plan.');
 	}
-	const envelope = nativeRenderInputExactV7Envelope(
+	const envelope = nativeRenderInputExactV20Envelope(
 		row.planPayload,
 		nativeRenderInputDigestValue(row.planFingerprint, 'plan fingerprint'),
+		row.planVersion,
 	);
 	return Object.freeze({
 		derivedInputStageId: nativeRenderInputStageId(row.derivedInputStageId),
-		planVersion: 7 as const,
+		planVersion: envelope.planVersion,
 		planFingerprint: envelope.fingerprint,
 		planPayload: row.planPayload,
 		projectId: nativeRenderInputIdentifier(row.projectId, 'project id'),
@@ -124,25 +126,31 @@ export function nativeRenderInputDescriptorsForPlan(
 		? ['evaluated-rgba-frame-pack', 'staged-audio-mix']
 		: ['evaluated-rgba-frame-pack'];
 	if (value.length !== expected.length || value.some(({ role }, index) => role !== expected[index])) {
-		throw new TypeError('V7 derived inputs do not match the canonical plan audio contract.');
+		throw new TypeError('Selected-V20 derived inputs do not match the canonical plan audio contract.');
 	}
 	const total = nativeRenderInputDeclaredBytes(value);
 	if (total > FRAMESCAPER_NATIVE_RENDER_INPUT_STAGE_MAXIMUM_BYTES) {
-		throw new RangeError('V7 derived render inputs exceed their aggregate staging ceiling.');
+		throw new RangeError('Selected-V20 derived render inputs exceed their aggregate staging ceiling.');
 	}
 	return value;
 }
 
-export function nativeRenderInputExactV7Envelope(payload: string, fingerprint: string) {
+export function nativeRenderInputExactV20Envelope(
+	payload: string,
+	fingerprint: string,
+	expectedVersion?: 7 | 8,
+) {
 	let plan: unknown;
 	try { plan = JSON.parse(payload) as unknown; }
 	catch { throw new TypeError('A native render-input plan payload must be JSON.'); }
 	const envelope = createNativeMediaPlanEnvelopeV1(plan);
-	if (envelope.planVersion !== 7 || canonicalizeNativeMediaPlan(plan) !== payload
+	if ((envelope.planVersion !== 7 && envelope.planVersion !== 8)
+		|| (expectedVersion !== undefined && envelope.planVersion !== expectedVersion)
+		|| canonicalizeNativeMediaPlan(plan) !== payload
 		|| envelope.fingerprint !== fingerprint) {
-		throw new TypeError('The native render-input plan identity is not exact canonical V7.');
+		throw new TypeError('The native render-input plan identity is not exact canonical selected-V20 V7/V8.');
 	}
-	return envelope as NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 }>;
+	return envelope as NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 | 8 }>;
 }
 
 export function nativeRenderInputDataBinding(
@@ -284,7 +292,7 @@ function nativeRenderInputDescriptors(
 ): readonly FramescaperNativeRenderInputDescriptorV1[] {
 	if (!Array.isArray(value) || value.length < 1 || value.length > 2
 		|| Reflect.ownKeys(value).length !== value.length + 1) {
-		throw new TypeError('A V7 render-input stage requires one carrier and optional audio.');
+		throw new TypeError('A selected-V20 render-input stage requires one carrier and optional audio.');
 	}
 	return Object.freeze(value.map((entry) => {
 		const row = nativeRenderInputClosedRecord(

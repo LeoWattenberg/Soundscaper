@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Adds durable renderer-derived V7 inputs without broadening project-body authority. */
+/** Adds durable renderer-derived V7/V8 inputs without broadening project-body authority. */
 
 import type { NativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
 import type { NativeQueueRevalidationV1 } from '../src/common/editor/native-queue-state-machine.ts';
@@ -59,23 +59,23 @@ export class FramescaperNativeSelectedV20ProjectAuthority {
 	): Promise<PreparedNativeMediaQueueJob> {
 		const derived = await this.#renderInputs.inspect(record);
 		const prepared = await this.#project.prepare(record, root);
-		if (record.planVersion !== 7) return prepared;
+		if (record.planVersion !== 7 && record.planVersion !== 8) return prepared;
 		try {
 			if (prepared.request.kind !== 'media-render') {
-				throw new Error('A selected-V20 V7 queue record requires one media-render helper job.');
+				throw new Error('A selected-V20 V7/V8 queue record requires one media-render helper job.');
 			}
 			const preparedRequest = prepared.request as HelperJobRequest<'media-render'>;
 			const preparedCleanup = prepared.cleanup;
 			const maximumInputBytes = preparedRequest.resourcePolicy?.maximumInputBytes;
 			if (!preparedCleanup || !Number.isSafeInteger(maximumInputBytes) || maximumInputBytes! < 0) {
-				throw new Error('A selected-V20 V7 helper job lacks exact cleanup or input-byte authority.');
+				throw new Error('A selected-V20 V7/V8 helper job lacks exact cleanup or input-byte authority.');
 			}
 			const grant = preparedRequest.grant;
 			const stagedBytes = grant.plan.byteLength
 				+ grant.sources.reduce((sum, source) => safeSum(sum, inputBytes(source)), 0)
 				+ derived.byteLength;
 			if (stagedBytes > record.reservations.scratchBytes) {
-				throw new RangeError('The V7 queue scratch reservation cannot hold its exact derived inputs.');
+				throw new RangeError('The selected-V20 queue scratch reservation cannot hold its exact derived inputs.');
 			}
 			const sources = Object.freeze([
 				...grant.sources,
@@ -116,8 +116,8 @@ function inputBytes(value: Readonly<{ readonly type: string; readonly bytes?: nu
 
 function safeSum(left: number, right: number): number {
 	if (!Number.isSafeInteger(left) || !Number.isSafeInteger(right) || left < 0 || right < 0
-		|| left > Number.MAX_SAFE_INTEGER - right) throw new RangeError('V7 staged byte accounting overflowed.');
+		|| left > Number.MAX_SAFE_INTEGER - right) throw new RangeError('Selected-V20 staged byte accounting overflowed.');
 	return left + right;
 }
 
-function invalidBytes(): never { throw new Error('A V7 helper input has no exact byte identity.'); }
+function invalidBytes(): never { throw new Error('A selected-V20 helper input has no exact byte identity.'); }

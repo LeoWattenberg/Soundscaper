@@ -36,18 +36,20 @@ test('selected V20 advertises only queue enqueue and authors canonical static V8
 	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
 	const owner = projectOwner(project);
 	const requests: unknown[] = [];
+	const staged: unknown[] = [];
 	bindFramescaperNativeRenderQueueActionV20(PROFILE, owner);
 	const runtime = framescaperNativeProjectActionRuntimeFor(owner);
 	assert.ok(runtime);
 	assert.deepEqual(runtime.surfaces, ['render-queue-enqueue']);
 
-	installDesktopBridge(context, bridgeFixture({ requests }));
+	installDesktopBridge(context, bridgeFixture({ requests, staged }));
 	await runtime.run('render-queue-enqueue');
 	assert.equal(requests.length, 1);
 	const request = requestRecord(requests[0]);
 	const plan = JSON.parse(String(request.planPayload)) as Record<string, unknown>;
 	assert.equal(request.planVersion, 8);
-	assert.equal(request.derivedInputStageId, null);
+	assert.equal(request.derivedInputStageId, STAGE_ID);
+	assert.equal(requestRecord(staged[0]).planVersion, 8);
 	assert.equal(plan.version, 8);
 	assert.equal(request.planPayload, canonicalizeNativeMediaPlan(plan));
 	assert.equal(request.planFingerprint, fingerprintNativeMediaPlan(plan).sha256);
@@ -227,6 +229,7 @@ function bridgeFixture(options: Readonly<{
 	readonly rootAuthorized?: boolean;
 	readonly onSelectRoot?: () => void;
 	readonly onStage?: () => void;
+	readonly staged?: unknown[];
 	readonly abandoned?: string[];
 	readonly enqueueError?: Error;
 	readonly abandonError?: Error;
@@ -260,8 +263,9 @@ function bridgeFixture(options: Readonly<{
 			};
 		},
 		revalidateRoot: async () => options.rootAuthorized !== false,
-		stageRenderInputs: async () => {
+		stageRenderInputs: async (request: unknown) => {
 			options.onStage?.();
+			options.staged?.push(request);
 			return Object.freeze({ stageId: STAGE_ID });
 		},
 		abandonRenderInputs: async ({ stageId }: Readonly<{ stageId: string }>) => {

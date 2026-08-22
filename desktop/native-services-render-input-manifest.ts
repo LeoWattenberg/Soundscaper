@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Exact durable manifest/claim validation for selected-V20 V7 input stages. */
+/** Exact durable manifest/claim validation for selected-V20 V7/V8 input stages. */
 
 import { lstat, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -34,7 +34,7 @@ export interface NativeRenderInputStagedFile extends FramescaperNativeRenderInpu
 export interface NativeRenderInputStageManifest extends FramescaperNativeRenderInputStageIdentity {
 	readonly stageVersion: 1;
 	readonly stageId: string;
-	readonly planVersion: 7;
+	readonly planVersion: 7 | 8;
 	readonly files: readonly NativeRenderInputStagedFile[];
 }
 
@@ -42,9 +42,10 @@ export async function assertNativeRenderInputLiveOwnedStage(
 	owned: NativeRenderInputOwnedStage,
 	record: NativeQueueRecordV2,
 ): Promise<NativeRenderInputStageManifest> {
-	if (record.planVersion !== 7 || record.jobId !== owned.ownership.stageId
+	if ((record.planVersion !== 7 && record.planVersion !== 8)
+		|| record.jobId !== owned.ownership.stageId
 		|| !owned.directoryPresent || !owned.claimedMarkerPresent) {
-		throw new Error('A durable V7 stage does not match one exact live queue record.');
+		throw new Error('A durable selected-V20 stage does not match one exact live queue record.');
 	}
 	const manifest = await readNativeRenderInputStageManifest(owned.directory);
 	assertRecordIdentity(manifest, record);
@@ -85,13 +86,13 @@ export async function readNativeRenderInputStageManifest(
 		'stageVersion', 'stageId', 'planVersion', 'planFingerprint', 'projectId',
 		'projectRevision', 'inputFingerprints', 'files',
 	], 'render-input manifest');
-	if (row.stageVersion !== 1 || row.planVersion !== 7) {
+	if (row.stageVersion !== 1 || (row.planVersion !== 7 && row.planVersion !== 8)) {
 		throw new Error('The render-input manifest version is unsupported.');
 	}
 	const manifest: NativeRenderInputStageManifest = Object.freeze({
 		stageVersion: 1,
 		stageId: nativeRenderInputStageId(row.stageId),
-		planVersion: 7,
+		planVersion: row.planVersion,
 		planFingerprint: nativeRenderInputDigestValue(row.planFingerprint, 'manifest plan'),
 		projectId: nativeRenderInputIdentifier(row.projectId, 'manifest project'),
 		projectRevision: nativeRenderInputNonNegative(row.projectRevision, 'manifest project revision'),
@@ -157,6 +158,7 @@ function assertRecordIdentity(
 	record: NativeQueueRecordV2,
 ): void {
 	if (manifest.stageId !== record.jobId || manifest.planFingerprint !== record.planFingerprint
+		|| manifest.planVersion !== record.planVersion
 		|| manifest.projectId !== record.projectId || manifest.projectRevision !== record.projectRevision
 		|| JSON.stringify(manifest.inputFingerprints) !== JSON.stringify(record.inputFingerprints)) {
 		throw new Error('The durable native render-input identity disagrees with its queue record.');

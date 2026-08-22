@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Exact invoke/MessagePort ingress for durable selected-V20 V7 inputs. */
+/** Exact invoke/MessagePort ingress for durable selected-V20 V7/V8 inputs. */
 
 import type { HelperDataPlaneIoPort } from './helper-data-plane-io.ts';
 import type { FramescaperNativeRenderInputStaging } from './native-services-render-input-staging.ts';

@@ -294,8 +294,8 @@ export class FramescaperNativeServicesLifecycle {
 			&& !(job.state === 'blocked' && job.lastFailureCode === 'unsupported-plan-version')) {
 			throw new Error('An active native queue job must be cancelled before removal.');
 		}
-		if (job.planVersion === 7) {
-			if (!this.#removeRenderInputs) throw unavailable('remove durable V7 render inputs');
+		if (job.planVersion === 7 || job.planVersion === 8) {
+			if (!this.#removeRenderInputs) throw unavailable('remove durable selected-V20 render inputs');
 			await this.#removeRenderInputs(job);
 		}
 		if (this.#scratch.read(job.jobId) !== null) {

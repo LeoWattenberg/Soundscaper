@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Streaming validation for selected-V20 renderer-derived V7 carriers. */
+/** Streaming validation for selected-V20 renderer-derived V7/V8 carriers. */
 
 import { createHash } from 'node:crypto';
 import { lstat, open } from 'node:fs/promises';
 
 import type { NativeMediaPlanEnvelopeV1 } from '../src/common/editor/native-media-plan-envelope.ts';
+import { nativeMediaEvaluatedCarrierCadenceV1 } from '../src/common/editor/native-media-evaluated-carrier-v1.ts';
 import { HELPER_DATA_CHUNK_MAXIMUM_BYTES } from './helper-data-plane.ts';
 import type { HelperNativeFileIdentity } from './helper-native-job-contract.ts';
 
@@ -27,7 +28,7 @@ export interface FramescaperNativeRenderInputDescriptorV1 {
 export async function inspectNativeRenderDerivedFile(
 	path: string,
 	descriptor: FramescaperNativeRenderInputDescriptorV1,
-	envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 }>,
+	envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 | 8 }>,
 ): Promise<void> {
 	await inspectExactNativeRenderInputFile(path, descriptor);
 	if (descriptor.role === 'evaluated-rgba-frame-pack') await inspectFramePack(path, envelope);
@@ -74,8 +75,9 @@ export function sameNativeRenderInputFileIdentity(
 
 async function inspectFramePack(
 	path: string,
-	envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 }>,
+	envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 | 8 }>,
 ): Promise<void> {
+	const cadence = nativeMediaEvaluatedCarrierCadenceV1(envelope);
 	const handle = await open(path, 'r');
 	try {
 		const header = await readExactly(handle, 0, HEADER_BYTES);
@@ -84,10 +86,9 @@ async function inspectFramePack(
 			|| header.readUInt32LE(35) !== envelope.summary.width
 			|| header.readUInt32LE(39) !== envelope.summary.height
 			|| header.readBigUInt64LE(43) !== BigInt(envelope.summary.outputFrameCount)
-			|| envelope.summary.frameRate.kind !== 'rational'
-			|| header.readUInt32LE(51) !== envelope.summary.frameRate.den
-			|| header.readUInt32LE(55) !== envelope.summary.frameRate.num) {
-			throw new Error('The evaluated RGBA carrier header disagrees with its V7 plan.');
+			|| header.readUInt32LE(51) !== cadence.den
+			|| header.readUInt32LE(55) !== cadence.num) {
+			throw new Error('The evaluated RGBA carrier header disagrees with its selected-V20 plan.');
 		}
 		const frameBytes = BigInt(envelope.summary.width) * BigInt(envelope.summary.height) * 4n;
 		const expectedBytes = BigInt(HEADER_BYTES)
@@ -112,7 +113,7 @@ async function inspectFramePack(
 
 async function inspectFloat32Wav(
 	path: string,
-	envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 }>,
+	envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 | 8 }>,
 ): Promise<void> {
 	const handle = await open(path, 'r');
 	try {
