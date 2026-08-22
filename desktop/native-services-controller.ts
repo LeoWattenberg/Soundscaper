@@ -1,13 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	projectDurableRootGrant,
-	type DurableRootGrantV1,
-	type DurableRootGrantProjectionV1,
+	projectDurableRootGrant, type DurableRootGrantV1, type DurableRootGrantProjectionV1,
 } from '../src/common/editor/native-durable-root-grant.ts';
-import type {
-	NativeQueueRecordV2, NativeQueueState, NativeQueueTaskKind,
-} from '../src/common/editor/native-queue-record.ts';
+import type { NativeQueueRecordV2, NativeQueueState, NativeQueueTaskKind } from '../src/common/editor/native-queue-record.ts';
 import {
 	NATIVE_MEDIA_CAPABILITY_IDS,
 	type NativeMediaCapabilityRefV1,
@@ -20,14 +16,11 @@ import {
 	type FramescaperNativeExternalDisplayProjection,
 } from './native-services-lifecycle.ts';
 import {
-	framescaperNativeExternalDisplayRequest,
-	framescaperNativeQueueEnqueueRequest,
-	framescaperNativeWatchCreateRequest,
-	framescaperNativeWatchEnabledRequest,
+	framescaperNativeExternalDisplayRequest, framescaperNativeQueueEnqueueRequest,
+	framescaperNativeWatchCreateRequest, framescaperNativeWatchEnabledRequest,
 } from './native-services-lifecycle-contracts.ts';
 import {
-	assertFramescaperNativeOperationCapability,
-	assertFramescaperNativeWritableProject,
+	assertFramescaperNativeOperationCapability, assertFramescaperNativeWritableProject,
 } from './native-services-operation-authority.ts';
 import type {
 	FramescaperNativePublicationResult,
