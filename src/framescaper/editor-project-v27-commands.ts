@@ -136,7 +136,29 @@ function applyBatch(
 	options: FramescaperProjectCommandOptionsV27,
 ): FramescaperProjectV27 {
 	let current = project;
-	for (const child of command.commands) current = applyNormalized(profile, current, child, options);
+	let inheritedSegment: FramescaperInheritedProjectCommandV27[] = [];
+	const flushInheritedSegment = (): void => {
+		if (inheritedSegment.length === 0) return;
+		const inherited = inheritedSegment.length === 1
+			? inheritedSegment[0]!
+			: Object.freeze({
+				type: 'batch' as const,
+				commands: Object.freeze([...inheritedSegment]),
+			});
+		current = applyInheritedFramescaperProjectCommandV27(
+			profile, current, inherited, options,
+		);
+		inheritedSegment = [];
+	};
+	for (const child of command.commands) {
+		if (!isBatch(child) && !isFramescaperOwnedFinishingCommandTypeV27(child.type)) {
+			inheritedSegment.push(child as FramescaperInheritedProjectCommandV27);
+			continue;
+		}
+		flushInheritedSegment();
+		current = applyNormalized(profile, current, child, options);
+	}
+	flushInheritedSegment();
 	const draft = structuredClone(current) as unknown as Record<string, unknown>;
 	advanceBookkeeping(draft, project, options);
 	normalizeFramescaperProjectFinishingStateV27(draft);
