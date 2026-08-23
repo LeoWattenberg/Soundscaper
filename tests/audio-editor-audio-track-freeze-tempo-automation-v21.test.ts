@@ -89,6 +89,32 @@ test('a tempo edit keeps a freeze whose covered automation is sample-timebased',
 	);
 });
 
+test('a tempo edit makes a freeze with a musically anchored clip stale', () => {
+	// The render resolves anchor:'musical' clips to timeline frames through the
+	// tempo map, so the map is freeze input even when no covered lane reads it.
+	const input = musicalClipInput();
+	const frozen = computeAudioTrackFreezeDigestsV1(input);
+	const retempoed = computeAudioTrackFreezeDigestsV1({ ...input, tempoMap: TEMPO_140 });
+
+	assert.notEqual(
+		retempoed.freshnessDigestSha256,
+		frozen.freshnessDigestSha256,
+		'a musically anchored clip lands on different frames under a different tempo',
+	);
+	assert.equal(
+		classifyAudioTrackFreezeFreshnessV1(freezeRecord(frozen), retempoed).status,
+		'stale',
+	);
+});
+
+test('a musically anchored clip requires the tempo map that places it', () => {
+	const input = musicalClipInput();
+	assert.throws(
+		() => computeAudioTrackFreezeDigestsV1({ ...input, tempoMap: null }),
+		/tempo map/iu,
+	);
+});
+
 test('a musical lane outside the freeze boundary leaves the tempo map out of the digest', () => {
 	const covered = digestInput({ timebase: 'absolute-samples' });
 	const uncovered = {
@@ -139,6 +165,19 @@ function digestInput(options: Readonly<{ timebase: 'absolute-samples' | 'musical
 			effectId: 'fx-a', parameterId: 'threshold',
 		})],
 		tempoMap: TEMPO_120,
+	};
+}
+
+function musicalClipInput() {
+	const base = digestInput({ timebase: 'absolute-samples' });
+	return {
+		...base,
+		clips: [{
+			...base.clips[0],
+			anchor: 'musical',
+			musicalStartBeat: rational(4),
+			musicalExtent: 'fixedSamples',
+		}],
 	};
 }
 

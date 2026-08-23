@@ -185,11 +185,13 @@ export function computeAudioTrackFreezeDigestsV1(value: AudioTrackFreezeDigestIn
 	}
 	const identities = sourceIdentities(field(input, 'sourceContentIdentities', 'audio track freeze digest input'));
 	const usedSourceIds = new Set<string>();
+	let hasMusicalClip = false;
 	const orderedInputs = clipIds.map((clipId, index) => {
 		const candidate = clipsById.get(clipId);
 		if (!candidate) throw new ReferenceError(`The audio track freeze clip ${clipId} does not exist.`);
 		const clip = inspectDataRecord(candidate, `owned audio clip ${clipId}`);
 		if (clip.kind !== 'audio') throw new RangeError(`The owned freeze clip ${clipId} must be audio.`);
+		if (clip.anchor === 'musical') hasMusicalClip = true;
 		const sourceId = stableId(clip.sourceId, `owned clip ${clipId} source`);
 		const contentSha256 = identities.get(sourceId);
 		if (!contentSha256) throw new ReferenceError(`Source content identity ${sourceId} is required.`);
@@ -213,6 +215,7 @@ export function computeAudioTrackFreezeDigestsV1(value: AudioTrackFreezeDigestIn
 	const effectAutomation = canonicalRackAutomation(lanes, trackId, effectIds);
 	const tempoAuthority = coveredTempoAuthority(
 		effectAutomation,
+		hasMusicalClip,
 		field(input, 'tempoMap', 'audio track freeze digest input'),
 		snapshotNodeBudget,
 	);
@@ -252,7 +255,8 @@ export function computeAudioTrackFreezeDigestsV1(value: AudioTrackFreezeDigestIn
  *
  * This states exactly what the render reads: the track's rack and clip
  * ownership, the clips themselves, the identity of the media under them, the
- * rack automation, and the tempo map that resolves a musical lane. Live strip
+ * rack automation, and the tempo map that resolves a musical lane or places a
+ * musically anchored clip. Live strip
  * controls are outside the freeze boundary and stay outside this, so a fader
  * move during a freeze is not a reason to discard it.
  */
@@ -333,23 +337,28 @@ function canonicalRackAutomation(
 }
 
 /**
- * The tempo authority a frozen rack actually reads, or null when it reads none.
+ * The tempo authority a freeze render actually reads, or null when it reads none.
  *
- * A musical lane resolves through the whole map: the scheduler projects every
- * point and breaks each segment at the tempo events inside it, so no prefix of
- * the map is safely ignorable without repeating that projection here. Deciding
- * that a given tempo event could not have moved the render is exactly the
- * reasoning that produced stale frozen audio, so this hashes the map whole and
- * re-renders more often rather than serving a render the tempo has left behind.
+ * Two consumers pull the map inside the freeze boundary: a musical lane
+ * resolves every automation point through it, and a musically anchored clip
+ * resolves its timeline placement (and beat extent) through it. Either one
+ * makes the render tempo-dependent. A musical consumer resolves through the
+ * whole map: the scheduler projects every point and breaks each segment at the
+ * tempo events inside it, so no prefix of the map is safely ignorable without
+ * repeating that projection here. Deciding that a given tempo event could not
+ * have moved the render is exactly the reasoning that produced stale frozen
+ * audio, so this hashes the map whole and re-renders more often rather than
+ * serving a render the tempo has left behind.
  */
 function coveredTempoAuthority(
 	lanes: readonly AutomationLaneV21[],
+	hasMusicalClip: boolean,
 	tempoMap: unknown,
 	budget: { remaining: number },
 ): unknown {
-	if (!lanes.some((lane) => lane.timebase === 'musical-beats')) return null;
+	if (!hasMusicalClip && !lanes.some((lane) => lane.timebase === 'musical-beats')) return null;
 	if (tempoMap === null || tempoMap === undefined) {
-		throw new TypeError('Musical rack automation requires the project tempo map to digest a freeze.');
+		throw new TypeError('Musical rack automation or a musically anchored clip requires the project tempo map to digest a freeze.');
 	}
 	return snapshotJson(tempoMap, 'audio track freeze tempo map', budget, new Set<object>());
 }
