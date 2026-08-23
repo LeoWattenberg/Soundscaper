@@ -1,9 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	defaultVideoSourceColorInterpretationV1,
-	type VideoSourceColorInterpretationV1,
-} from '../common/editor/video-color-management-v27.ts';
+import type { VideoSourceColorInterpretationV1 } from '../common/editor/video-color-management-v27.ts';
+import { deriveVideoSourceColorInterpretationV1 } from '../common/editor/video-source-color-interpretation-v27.ts';
 import { createDefaultFramescaperAudioFinishingV27 } from './editor-audio-finishing-v27.ts';
 import {
 	reconcileFramescaperProjectFeatureRequirementsV22,
@@ -241,8 +239,9 @@ function defaultSourceInterpretations(
 ): readonly VideoSourceColorInterpretationV1[] {
 	return records(project.sources, 'sources').flatMap((source) => {
 		if (source.kind !== 'video' && source.kind !== 'still') return [];
-		const interpretation = defaultVideoSourceColorInterpretationV1(source.kind, id(source, 'source'));
-		return [legacy ? Object.freeze({ ...interpretation, provenance: 'legacy-unmanaged-encoded' as const }) : interpretation];
+		return [deriveVideoSourceColorInterpretationV1(source, legacy ? {
+			unreported: 'legacy-unmanaged-encoded',
+		} : {})];
 	});
 }
 

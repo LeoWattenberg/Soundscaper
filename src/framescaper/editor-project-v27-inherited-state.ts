@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	defaultVideoSourceColorInterpretationV1,
-} from '../common/editor/video-color-management-v27.ts';
+import { deriveVideoSourceColorInterpretationV1 } from '../common/editor/video-source-color-interpretation-v27.ts';
 import {
 	createDefaultFramescaperAudioFinishingV27,
 	normalizeFramescaperAudioFinishingV27,
@@ -27,12 +25,15 @@ export function reconcileInheritedFramescaperProjectStateV27(project: Record<str
 		records(project.videoSourceColorInterpretations, 'videoSourceColorInterpretations'),
 		'sourceId',
 	);
-	project.videoSourceColorInterpretations = sources.flatMap((source) => {
+	project.videoSourceColorInterpretations = sources.flatMap<unknown>((source) => {
 		if (source.kind !== 'video' && source.kind !== 'still') return [];
 		const existing = interpretations.get(stableId(source));
-		return [existing?.sourceKind === source.kind
-			? existing
-			: defaultVideoSourceColorInterpretationV1(source.kind, stableId(source))];
+		if (existing?.sourceKind === source.kind && existing.provenance === 'user-override') {
+			return [existing];
+		}
+		return [deriveVideoSourceColorInterpretationV1(source, existing?.provenance === 'legacy-unmanaged-encoded'
+			? { unreported: 'legacy-unmanaged-encoded' }
+			: {})];
 	});
 	const stacks = records(project.videoProcessorStacks, 'videoProcessorStacks')
 		.filter((stack) => sourceById.get(String(stack.sourceId))?.kind === 'video');

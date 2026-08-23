@@ -20,9 +20,9 @@ export const VIDEO_COLOR_LIMITS_V1 = Object.freeze({
 	maximumCubeLutSize: 64,
 });
 
-export type VideoSourceColorPrimariesV1 = 'srgb' | 'bt709' | 'display-p3' | 'bt2020';
-export type VideoSourceColorTransferV1 = 'srgb' | 'bt709' | 'pq' | 'hlg';
-export type VideoSourceColorMatrixV1 = 'rgb' | 'bt709' | 'bt2020-ncl';
+export type VideoSourceColorPrimariesV1 = 'srgb' | 'bt709' | 'display-p3' | 'bt2020' | 'unknown';
+export type VideoSourceColorTransferV1 = 'srgb' | 'bt709' | 'pq' | 'hlg' | 'unknown';
+export type VideoSourceColorMatrixV1 = 'rgb' | 'bt709' | 'bt2020-ncl' | 'unknown';
 export type VideoColorOutputSpaceV1 = 'linear-rec709-d65' | 'srgb' | 'rec709';
 export type RgbTripletV1 = readonly [number, number, number];
 export type LinearRgbaV1 = readonly [number, number, number, number];
@@ -43,7 +43,7 @@ export interface VideoSourceColorInterpretationV1 {
 	readonly primaries: VideoSourceColorPrimariesV1;
 	readonly transfer: VideoSourceColorTransferV1;
 	readonly matrix: VideoSourceColorMatrixV1;
-	readonly range: 'full' | 'limited';
+	readonly range: 'full' | 'limited' | 'unknown';
 	readonly provenance:
 		| 'metadata'
 		| 'default-still-srgb-full'
@@ -87,6 +87,7 @@ type ManagedSdrInterpretationV1 = VideoSourceColorInterpretationV1 & Readonly<{
 	readonly primaries: 'srgb' | 'bt709';
 	readonly transfer: 'srgb' | 'bt709';
 	readonly matrix: 'rgb' | 'bt709';
+	readonly range: 'full' | 'limited';
 }>;
 
 const CONTEXT_FIELDS = Object.freeze([
@@ -158,10 +159,10 @@ export function normalizeVideoSourceColorInterpretationV1(
 		schemaVersion: 1 as const,
 		sourceId: stableId(field(record, 'sourceId', name), 'color source ID'),
 		sourceKind,
-		primaries: oneOf(field(record, 'primaries', name), ['srgb', 'bt709', 'display-p3', 'bt2020'] as const, 'color primaries'),
-		transfer: oneOf(field(record, 'transfer', name), ['srgb', 'bt709', 'pq', 'hlg'] as const, 'color transfer'),
-		matrix: oneOf(field(record, 'matrix', name), ['rgb', 'bt709', 'bt2020-ncl'] as const, 'color matrix'),
-		range: oneOf(field(record, 'range', name), ['full', 'limited'] as const, 'color range'),
+		primaries: oneOf(field(record, 'primaries', name), ['srgb', 'bt709', 'display-p3', 'bt2020', 'unknown'] as const, 'color primaries'),
+		transfer: oneOf(field(record, 'transfer', name), ['srgb', 'bt709', 'pq', 'hlg', 'unknown'] as const, 'color transfer'),
+		matrix: oneOf(field(record, 'matrix', name), ['rgb', 'bt709', 'bt2020-ncl', 'unknown'] as const, 'color matrix'),
+		range: oneOf(field(record, 'range', name), ['full', 'limited', 'unknown'] as const, 'color range'),
 		provenance: oneOf(field(record, 'provenance', name), [
 			'metadata', 'default-still-srgb-full', 'default-video-bt709-limited',
 			'user-override', 'legacy-unmanaged-encoded',
@@ -424,7 +425,8 @@ function assertManagedSdr(
 	const primaries = value.primaries === 'srgb' || value.primaries === 'bt709';
 	const transfer = value.transfer === 'srgb' || value.transfer === 'bt709';
 	const matrix = value.matrix === 'rgb' || value.matrix === 'bt709';
-	if (!primaries || !transfer || !matrix) {
+	const range = value.range === 'full' || value.range === 'limited';
+	if (!primaries || !transfer || !matrix || !range) {
 		throw new RangeError('Managed SDR grading requires an admitted SDR transform; HDR and wide-gamut identity are preserved without silent tone mapping.');
 	}
 }

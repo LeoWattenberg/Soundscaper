@@ -9,6 +9,7 @@ import { parseCubeLutV1 } from '../src/common/editor/video-color-management-v27.
 import { analyzeVideoMotionV1 } from '../src/common/editor/video-motion-analysis-v27.ts';
 import { createGrayVideoFrameV1 } from '../src/common/editor/video-motion-processing-v27.ts';
 import { exportVideoCaptionTrackV1 } from '../src/common/editor/video-caption-track-v27.ts';
+import { createUnreportedVideoSourceCharacteristics } from '../src/common/editor/video-source-characteristics.ts';
 import type { VideoKeyframeOfflineVideoExportRequest } from '../src/common/editor/ui/video-keyframe-offline-video-export.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV27 } from '../src/framescaper/editor-project-feature-requirements-v27.ts';
 import { createFramescaperPlaybackProjectServiceV27 } from '../src/framescaper/editor-project-playback-v27.ts';
@@ -150,6 +151,19 @@ test('selected V27 browser strategy selects exact keyed and product-owned visual
 	assert.throws(() => strategy.createExportProject({
 		canonicalProject: legacy, delivery: delivery(legacy),
 	}), /legacy unmanaged source/iu);
+
+	const hdrOptions = structuredClone(framescaperV20Options());
+	const hdrSource = (hdrOptions.sources as Array<Record<string, unknown>>)[0]!;
+	const hdrCharacteristics = structuredClone(createUnreportedVideoSourceCharacteristics()) as unknown as Record<string, unknown>;
+	hdrCharacteristics.colour = {
+		primaries: 'bt2020', transfer: 'smpte2084', matrix: 'bt2020nc', range: 'limited',
+	};
+	hdrSource.characteristics = hdrCharacteristics;
+	const hdr = createFramescaperProjectV27(PROFILE, hdrOptions);
+	assert.equal(hdr.videoSourceColorInterpretations[0]?.provenance, 'metadata');
+	assert.throws(() => strategy.createExportProject({
+		canonicalProject: hdr, delivery: delivery(hdr),
+	}), /HDR or wide-gamut source interpretation/iu);
 });
 
 test('selected V27 picture export retains explicit captions for sidecar-only delivery', () => {

@@ -110,6 +110,42 @@ test('inherited media commands create the required managed-color interpretation'
 	}]);
 });
 
+test('inherited source admission derives reported identity and retains explicit user overrides', () => {
+	const project = projectFixture('metadata-source-command-v27');
+	const source = structuredClone((project.sources as readonly Record<string, unknown>[])[0]!);
+	source.id = 'hdr-video';
+	source.storageKey = 'hdr-video';
+	source.contentSha256 = '56'.repeat(32);
+	const characteristics = source.characteristics as Record<string, unknown>;
+	characteristics.colour = {
+		primaries: 'bt2020', transfer: 'arib-std-b67', matrix: 'bt2020nc', range: 'limited',
+	};
+	const applied = applyFramescaperProjectCommandV27(PROFILE, project, {
+		type: 'source/add', source,
+	});
+	assert.deepEqual(applied.videoSourceColorInterpretations.find(({ sourceId }) => (
+		sourceId === 'hdr-video'
+	)), {
+		schemaVersion: 1, sourceId: 'hdr-video', sourceKind: 'video',
+		primaries: 'bt2020', transfer: 'hlg', matrix: 'bt2020-ncl', range: 'limited',
+		provenance: 'metadata',
+	});
+
+	const overriddenValue = structuredClone(applied) as unknown as Record<string, unknown>;
+	const interpretation = (overriddenValue.videoSourceColorInterpretations as Array<Record<string, unknown>>)
+		.find(({ sourceId }) => sourceId === 'hdr-video')!;
+	Object.assign(interpretation, {
+		primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', range: 'limited',
+		provenance: 'user-override',
+	});
+	const renamed = applyFramescaperProjectCommandV27(PROFILE, overriddenValue, {
+		type: 'project/rename', title: 'Override retained',
+	});
+	assert.equal(renamed.videoSourceColorInterpretations.find(({ sourceId }) => (
+		sourceId === 'hdr-video'
+	))?.provenance, 'user-override');
+});
+
 test('inherited media import batches admit an adjacent A/V lane pair atomically', () => {
 	const project = projectFixture('import-batch-v27');
 	const applied = applyFramescaperProjectCommandV27(PROFILE, project, {

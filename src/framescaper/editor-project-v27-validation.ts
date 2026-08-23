@@ -13,6 +13,7 @@ import {
 	type VideoColorContextV1,
 	type VideoSourceColorInterpretationV1,
 } from '../common/editor/video-color-management-v27.ts';
+import { deriveVideoSourceColorInterpretationV1 } from '../common/editor/video-source-color-interpretation-v27.ts';
 import {
 	normalizeVideoMotionAnalysisReferenceV1,
 	normalizeVideoProcessorStackV1,
@@ -158,8 +159,17 @@ function validateFinishingState(project: Record<string, unknown>): void {
 		'source color interpretation',
 	);
 	for (const interpretation of interpretations) {
-		if (sourceById.get(interpretation.sourceId)?.kind !== interpretation.sourceKind) {
+		const source = sourceById.get(interpretation.sourceId);
+		if (source?.kind !== interpretation.sourceKind) {
 			throw new RangeError(`Color interpretation ${interpretation.sourceId} kind does not match its source.`);
+		}
+		if (interpretation.provenance !== 'user-override') {
+			const derived = deriveVideoSourceColorInterpretationV1(source, interpretation.provenance === 'legacy-unmanaged-encoded'
+				? { unreported: 'legacy-unmanaged-encoded' }
+				: {});
+			if (JSON.stringify(derived) !== JSON.stringify(interpretation)) {
+				throw new RangeError(`Color interpretation ${interpretation.sourceId} does not match its source metadata or disclosed assumption.`);
+			}
 		}
 	}
 	const adjustmentIds = new Set(records(data(project, 'videoAdjustmentLayers'), 'videoAdjustmentLayers').map((item) => id(item, 'adjustment layer')));

@@ -7,6 +7,7 @@ import { editorProjectFeatureCapabilityProfileDefinition } from '../src/common/e
 import { editorProjectRuntimeProfileDefinition } from '../src/common/editor/project-runtime-profile.ts';
 import { editorProjectRuntimeProfilePrerequisiteDefinition } from '../src/common/editor/project-runtime-profile-prerequisite.ts';
 import { defaultVideoSourceColorInterpretationV1 } from '../src/common/editor/video-color-management-v27.ts';
+import { createUnreportedVideoSourceCharacteristics } from '../src/common/editor/video-source-characteristics.ts';
 import {
 	FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
 } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
@@ -128,6 +129,25 @@ test('new projects disclose source assumptions while explicit old-project reimpo
 	assert.equal(reimportFramescaperProjectV27(PROFILE, v24).schemaVersion, 27);
 });
 
+test('creation and reimport bind recognized source color metadata instead of claiming defaults', () => {
+	const options = optionsWithVideoColour({
+		primaries: 'bt2020', transfer: 'smpte2084', matrix: 'bt2020nc', range: 'limited',
+	});
+	const created = createFramescaperProjectV27(PROFILE, options);
+	assert.deepEqual(created.videoSourceColorInterpretations[0], {
+		schemaVersion: 1, sourceId: 'video-source', sourceKind: 'video',
+		primaries: 'bt2020', transfer: 'pq', matrix: 'bt2020-ncl', range: 'limited',
+		provenance: 'metadata',
+	});
+	const v20 = createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, options);
+	assert.deepEqual(reimportFramescaperProjectV27(PROFILE, v20)
+		.videoSourceColorInterpretations[0], created.videoSourceColorInterpretations[0]);
+
+	const fabricated = structuredClone(created) as unknown as Record<string, unknown>;
+	((fabricated.videoSourceColorInterpretations as Array<Record<string, unknown>>)[0]!).transfer = 'hlg';
+	assert.throws(() => validateFramescaperProjectV27(PROFILE, fabricated), /metadata.*source|source.*metadata/iu);
+});
+
 test('dormant V25/V26 remain opaque read-only custody and are never interpreted as V27', () => {
 	for (const schemaVersion of [25, 26]) {
 		const opaque = { schemaVersion, id: `opaque-${String(schemaVersion)}`, nativeVideoSources: [{ secret: true }] };
@@ -202,4 +222,13 @@ function masterGainLane() {
 		points: [{ id: 'point-1', position: 0, value: 1 }],
 		segments: [],
 	};
+}
+
+function optionsWithVideoColour(colour: Readonly<Record<string, unknown>>) {
+	const options = structuredClone(framescaperV20Options());
+	const source = (options.sources as Array<Record<string, unknown>>)[0]!;
+	const characteristics = structuredClone(createUnreportedVideoSourceCharacteristics()) as unknown as Record<string, unknown>;
+	characteristics.colour = colour;
+	source.characteristics = characteristics;
+	return options;
 }
