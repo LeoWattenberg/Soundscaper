@@ -1434,29 +1434,32 @@ activation gating and legacy Soundscaper library migration remain deliberately
 separate from this slice.
 
 <!-- policy-narrative:desktop-electron-lease-protections -->
-Soundscaper V10 and Framescaper V17 each start one process-lifetime main-owned
+Soundscaper V10 and Framescaper V18 each start one process-lifetime main-owned
 lease in separate product scope and database, carrying a persistently monotonic
 fencing token. Startup waits out an unexpired lease left by a crashed owner,
 recovers pending prepared, materialized, or committed journals before
 authenticated renderer admission, renews the exact lease while the process is
 live, fences new admission and publication on renewal loss, drains admitted
 work, and releases only the exact lease before closing the database. Framescaper
-V17 authenticates library generation 17, project generation 20, SQLite
-user_version 19 and scope v17; its idempotent first-open importer copy-forwards
-the read-only V12 database and bodies through durable cursor checkpoints and
-resumes without rewriting the source. Publication compares the expected metadata
-and project revisions and SHA-256, admits only a strictly higher revision, and
-passes prepared, materialized, committed, and complete journal checkpoints. The
-closed runner executes `same-project-simultaneous-open`,
-`writer-lease-transfer`, `stale-lease-takeover`, `conflicting-canonical-commit`,
+V18 authenticates library generation 18, project generation 27, SQLite
+user_version 20 and scope v18; its idempotent first-open importer opens V17
+read-only only after its V12 lineage, lease, and journal state are settled,
+explicitly reimports each exact V20 document through the selected V20-to-V27
+authority, copy-forwards managed bodies byte-for-byte through durable cursor
+checkpoints, resumes without duplication after interruption, and never rewrites
+V17 or V12. Publication compares the expected metadata and project revisions and
+SHA-256, admits only a strictly higher revision, and passes prepared,
+materialized, committed, and complete journal checkpoints. The closed runner
+executes `same-project-simultaneous-open`, `writer-lease-transfer`,
+`stale-lease-takeover`, `conflicting-canonical-commit`,
 `renderer-loss-during-operation`, `orderly-process-restart`, and
 `crash-restart-recovery` for each product, then executes
-`cross-product-simultaneous-open` once to prove the V10 and V17 storage roots
+`cross-product-simultaneous-open` once to prove the V10 and V18 storage roots
 and fencing domains remain physically isolated. Qualification may only lower the
 shipped lease TTL and renewal interval. CI is configured to build both unpacked
 products and emit one bounded no-retry aggregate on Windows x64 and Linux x64.
-Soundscaper V10 Windows x64, Soundscaper V10 Linux x64, Framescaper V17 Windows
-x64, and Framescaper V17 Linux x64 remain pending-external; no accepted packaged
+Soundscaper V10 Windows x64, Soundscaper V10 Linux x64, Framescaper V18 Windows
+x64, and Framescaper V18 Linux x64 remain pending-external; no accepted packaged
 result is checked in, so this rule and m2-electron-lease-matrix remain Partial.
 <!-- /policy-narrative:desktop-electron-lease-protections -->
 

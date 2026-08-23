@@ -299,11 +299,12 @@ update an item's status only after its listed acceptance conditions pass.
 - `m2-electron-lease-matrix`
 
 The current executable matrix runs the seven product-specific workflows against
-Soundscaper desktop-library V10 and Framescaper desktop-library V17, then runs
+Soundscaper desktop-library V10 and Framescaper desktop-library V18, then runs
 `cross-product-simultaneous-open` once against the paired packages. Framescaper
-V17 owns project schema 20, SQLite `user_version` 19 and scope `v17`; its
-idempotent, crash-resumable first-open import copies the immutable V12 source
-forward without rewriting it. Both products hold separate process-lifetime
+V18 owns project schema 27, SQLite `user_version` 20 and scope `v18`; its
+idempotent, crash-resumable first-open import explicitly reimports V17's exact
+V20 documents into V27 and copies bodies forward without rewriting immutable
+V17 or its inherited V12 lineage. Both products hold separate process-lifetime
 main-owned renewable fenced leases, journal recovery, admission fencing, drain,
 and exact release contracts. Windows x64 and Linux x64 accepted packaged results
 remain absent for both products, so the gate remains **Partial**.
