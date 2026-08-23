@@ -59,6 +59,9 @@ export function createSoundscaperPlaybackProjectServiceV23(): PlaybackProjectSer
 		}) as PlaybackProjectProjection<Project>
 	}
 
+	// Playback and export are the same render: delivery reapplies the exact
+	// effect bypasses playback applied, so a bypassed effect never reappears
+	// in the delivered file.
 	function projectForAudioRenderedFallbackDelivery<Project extends object>(project: Project) {
 		validateSoundscaperProjectV23(project)
 		const featureRequirementsReport = compatibility.evaluate(project)
@@ -67,8 +70,12 @@ export function createSoundscaperPlaybackProjectServiceV23(): PlaybackProjectSer
 			mediaProject,
 			featureRequirementsReport,
 		)
+		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
+			renderedAudio.project,
+			featureRequirementsReport,
+		)
 		return Object.freeze({
-			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, renderedAudio.project),
+			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, bypassedAudio.project),
 			featureRequirementsReport,
 			audioRenderedFallback: renderedAudio.metadata,
 			requiredAudioSourceIds: Object.freeze(
@@ -89,8 +96,16 @@ export function createSoundscaperPlaybackProjectServiceV23(): PlaybackProjectSer
 			renderedAudio.project,
 			featureRequirementsReport,
 		)
+		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
+			renderedVideo.project,
+			featureRequirementsReport,
+		)
+		const bypassedVideo = projectFeatureVideoEffectPlaybackBypass(
+			bypassedAudio.project,
+			featureRequirementsReport,
+		)
 		return Object.freeze({
-			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, renderedVideo.project),
+			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, bypassedVideo.project),
 			featureRequirementsReport,
 			audioRenderedFallback: renderedAudio.metadata,
 			videoRenderedFallback: renderedVideo.metadata,

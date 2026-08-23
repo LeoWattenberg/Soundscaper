@@ -173,7 +173,13 @@ export function createPlaybackProjectService(
 		});
 	}
 
-	/** Apply only the maintained audio whole-mix rendered fallback for final delivery. */
+	/**
+	 * Apply the maintained audio whole-mix rendered fallback for final delivery.
+	 *
+	 * Playback and export are the same render, so delivery reapplies the exact
+	 * effect bypass playback applied: a bypassed effect never reappears in the
+	 * delivered file.
+	 */
 	function projectForAudioRenderedFallbackDelivery<Project extends object>(
 		project: Project,
 	): AudioRenderedFallbackDeliveryProjection<Project> {
@@ -183,8 +189,12 @@ export function createPlaybackProjectService(
 			mediaProject,
 			featureRequirementsReport,
 		);
+		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
+			renderedAudio.project,
+			featureRequirementsReport,
+		);
 		return Object.freeze({
-			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, renderedAudio.project),
+			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, bypassedAudio.project),
 			featureRequirementsReport,
 			audioRenderedFallback: renderedAudio.metadata,
 			requiredAudioSourceIds: Object.freeze(
@@ -193,7 +203,7 @@ export function createPlaybackProjectService(
 		});
 	}
 
-	/** Compose the maintained audio and video rendered fallbacks for video delivery. */
+	/** Compose the rendered fallbacks and playback's effect bypasses for video delivery. */
 	function projectForVideoRenderedFallbackDelivery<Project extends object>(
 		project: Project,
 	): VideoRenderedFallbackDeliveryProjection<Project> {
@@ -207,8 +217,16 @@ export function createPlaybackProjectService(
 			renderedAudio.project,
 			featureRequirementsReport,
 		);
+		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
+			renderedVideo.project,
+			featureRequirementsReport,
+		);
+		const bypassedVideo = projectFeatureVideoEffectPlaybackBypass(
+			bypassedAudio.project,
+			featureRequirementsReport,
+		);
 		return Object.freeze({
-			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, renderedVideo.project),
+			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, bypassedVideo.project),
 			featureRequirementsReport,
 			audioRenderedFallback: renderedAudio.metadata,
 			videoRenderedFallback: renderedVideo.metadata,
