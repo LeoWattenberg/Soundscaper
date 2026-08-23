@@ -109,6 +109,9 @@ export async function createFramescaperVideoExportFinishingV27(
 			sourceFrame: occurrence.sourceFrame,
 			sequenceFrame: occurrence.sequenceFrame,
 			frame: input,
+			// Offline-rendered export pixels are browser readback (WebGL
+			// readPixels of browser-decoded media): full-range canvas sRGB.
+			frameEncoding: 'canvas-srgb',
 			temporalNeighbors,
 			analysisBodies: assets.analyses,
 			lutBodies: assets.luts,

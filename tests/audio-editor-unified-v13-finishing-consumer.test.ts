@@ -163,6 +163,41 @@ test('temporal denoise requests an exact symmetric frame-addressed neighborhood'
 	}), /temporal neighbor 0.*unavailable/iu);
 });
 
+test('canvas-readback frames decode as canvas sRGB while the file interpretation still gates admission', async () => {
+	// Canvas 2D readback returns full-range sRGB pixels no matter what the
+	// source file's tags say: the browser already applied the file
+	// interpretation while drawing. Decoding readback bytes with the file
+	// tuple applies limited-range expansion and the BT.709 EOTF a second
+	// time, crushing shadows and clipping highlights in preview and export
+	// alike.
+	const project = createFramescaperProjectV27(PROFILE, {
+		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
+		finishing: {
+			...finishing({ processors: [], grade: null }),
+			sourceColorInterpretations: [{
+				schemaVersion: 1, sourceId: 'video-source', sourceKind: 'video',
+				primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', range: 'limited',
+				provenance: 'default-video-bt709-limited',
+			}],
+			visualPresentations: [],
+			processorStacks: [],
+		},
+	});
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+		...renderAuthority(project, 10), visualFreshnessByModelId: new Map(),
+	});
+	const consumer = createUnifiedExactRenderFinishingExportConsumerV13(plan);
+	const input = rgba(3, 1, [16, 128, 235]);
+	const resolved = await consumer.resolveFrame({
+		clipId: 'video-clip', sourceFrame: 0, sequenceFrame: 0, frame: input,
+		frameEncoding: 'canvas-srgb',
+	});
+	assert.deepEqual(
+		[...resolved.pixels], [...input.pixels],
+		'an ungraded readback frame round-trips identically through managed color',
+	);
+});
+
 function finishing(input: Readonly<{ processors: readonly unknown[]; grade: unknown }>) {
 	return {
 		colorContexts: [{

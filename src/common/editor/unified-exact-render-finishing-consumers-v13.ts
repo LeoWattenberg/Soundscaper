@@ -3,8 +3,9 @@
 /** Shared selected-V13 pixel resolver used by maintained preview and browser export. */
 
 import {
+	applyManagedSdrCanvasReadbackGradeStackLinearPixelV1,
 	applyManagedSdrGradeStackLinearPixelV1,
-	applyManagedSdrGradeStackPixelV1,
+	encodeManagedSdrLinearPixelV1,
 	type ParsedCubeLutV1,
 } from './video-color-management-v27.ts';
 import {
@@ -77,6 +78,15 @@ export interface UnifiedExactRenderFinishingFrameRequestV13 {
 	readonly presentationScope?: 'all' | 'source';
 	/** Exact compositors retain linear working pixels and encode only their final picture. */
 	readonly outputEncoding?: 'encoded-output' | 'linear-rec709-d65';
+	/**
+	 * How request.frame's pixels are encoded. Browser capture — canvas 2D
+	 * readback or WebGL readPixels — yields full-range sRGB pixels whatever
+	 * the file's tags say ('canvas-srgb'); the persisted source
+	 * interpretation then gates admission only. The 'source-encoded' default
+	 * decodes with the file interpretation for callers supplying genuinely
+	 * source-encoded pixels.
+	 */
+	readonly frameEncoding?: 'source-encoded' | 'canvas-srgb';
 	readonly signal?: AbortSignal;
 	readonly onProgress?: (progress: UnifiedExactRenderFinishingProgressV13) => void;
 }
@@ -190,7 +200,8 @@ async function resolveFrame(
 		}
 	}
 	frame = managedColor(authority.finishing, source, presentations, frame,
-		request.lutBodies, request.outputEncoding ?? 'encoded-output', request.signal);
+		request.lutBodies, request.outputEncoding ?? 'encoded-output',
+		request.frameEncoding ?? 'source-encoded', request.signal);
 	request.onProgress?.(Object.freeze({
 		phase: 'managed-color', completed: completed + 1, total: executable.length + 1,
 	}));
@@ -232,6 +243,7 @@ function managedColor(
 	frame: UnifiedExactRenderRgbaFrameV13,
 	lutBodies: ReadonlyMap<string, ParsedCubeLutV1> | undefined,
 	outputEncoding: 'encoded-output' | 'linear-rec709-d65',
+	frameEncoding: 'source-encoded' | 'canvas-srgb',
 	signal?: AbortSignal,
 ): UnifiedExactRenderRgbaFrameV13 {
 	const interpretation = finishing.sourceInterpretations.find(({ sourceId }) => sourceId === source.sourceId);
@@ -252,11 +264,12 @@ function managedColor(
 				],
 				interpretation, grades, luts,
 			};
+			const linear = frameEncoding === 'canvas-srgb'
+				? applyManagedSdrCanvasReadbackGradeStackLinearPixelV1(gradeRequest)
+				: applyManagedSdrGradeStackLinearPixelV1(gradeRequest);
 			const value = outputEncoding === 'linear-rec709-d65'
-				? applyManagedSdrGradeStackLinearPixelV1(gradeRequest)
-				: applyManagedSdrGradeStackPixelV1({
-					...gradeRequest, outputSpace: finishing.colorContext.outputSpace,
-				});
+				? linear
+				: encodeManagedSdrLinearPixelV1(linear, finishing.colorContext.outputSpace);
 			for (let channel = 0; channel < 4; channel += 1) {
 				pixels[offset + channel] = Math.round(value[channel]! * 255);
 			}

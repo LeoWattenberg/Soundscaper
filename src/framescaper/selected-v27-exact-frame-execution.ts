@@ -223,6 +223,8 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			const resolved = await finishingConsumer.resolveFrame({
 				clipId, sourceFrame, sequenceFrame: clip.sequenceStartFrame + outerCell,
 				frame, presentationScope: 'source', outputEncoding: 'linear-rec709-d65',
+				// Captured media pixels are browser readback: full-range canvas sRGB.
+				frameEncoding: 'canvas-srgb',
 				analysisBodies: finishingAssets.analyses, lutBodies: finishingAssets.luts,
 				...(accelerator ? { accelerator } : {}),
 				onAcceleratorFallback(reason) { if (!fallbackReasons.includes(reason)) fallbackReasons.push(reason); },

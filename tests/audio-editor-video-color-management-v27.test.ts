@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	applyManagedSdrCanvasReadbackGradeStackLinearPixelV1,
 	applyManagedSdrGradePixelV1,
 	applyManagedSdrGradeStackLinearPixelV1,
 	applyManagedSdrGradeStackPixelV1,
@@ -50,6 +51,44 @@ test('unknown stills and videos receive disclosed, overrideable assumptions', ()
 	});
 	assert.equal(override.range, 'full');
 	assert.equal(Object.isFrozen(override), true);
+});
+
+test('canvas-readback pixels decode as sRGB full-range under any admitted file interpretation', () => {
+	// The browser applied the file interpretation while drawing, so readback
+	// bytes are canvas sRGB whatever the file's tags say. Decoding them with
+	// the limited-range file tuple would crush code 16 to black a second time.
+	const limited = defaultVideoSourceColorInterpretationV1('video', 'video-1');
+	const readback = applyManagedSdrCanvasReadbackGradeStackLinearPixelV1({
+		rgba: [16 / 255, 128 / 255, 235 / 255, 1], interpretation: limited, grades: [],
+	});
+	const srgbFull = applyManagedSdrGradeStackLinearPixelV1({
+		rgba: [16 / 255, 128 / 255, 235 / 255, 1],
+		interpretation: {
+			...defaultVideoSourceColorInterpretationV1('still', 'video-1'),
+			sourceId: 'video-1',
+		},
+		grades: [],
+	});
+	assert.deepEqual(readback, srgbFull, 'the file range and transfer are not re-applied');
+	assert.ok(readback[0]! > 0, 'the limited-range floor is not crushed to black twice');
+
+	// The file interpretation still gates admission: HDR identity refuses.
+	assert.throws(() => applyManagedSdrCanvasReadbackGradeStackLinearPixelV1({
+		rgba: [0.5, 0.5, 0.5, 1],
+		interpretation: { ...limited, transfer: 'pq', provenance: 'metadata' },
+		grades: [],
+	}), /managed sdr/iu);
+
+	// Grades still apply in the linear working space after the sRGB decode.
+	const graded = applyManagedSdrCanvasReadbackGradeStackLinearPixelV1({
+		rgba: [128 / 255, 128 / 255, 128 / 255, 1], interpretation: limited,
+		grades: [{
+			schemaVersion: 1, exposureStops: 1, contrast: 1, pivot: 0.18,
+			lift: [0, 0, 0], gamma: [1, 1, 1], gain: [1, 1, 1],
+			saturation: 1, lut: null,
+		}],
+	});
+	close(graded[0]!, srgbFull[1]! * 2, 1e-9);
 });
 
 test('the color context fixes one linear Rec.709 working and deterministic output space', () => {

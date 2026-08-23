@@ -243,6 +243,41 @@ export function applyManagedSdrGradeStackLinearPixelV1(request: Readonly<{
 	});
 }
 
+/**
+ * Decode and grade one canvas-readback pixel into straight-alpha linear
+ * Rec.709/D65 without encoding.
+ *
+ * getImageData and WebGL readback return pixels in the canvas colour space —
+ * full-range, sRGB-encoded — whatever the source file's tags say, because the
+ * browser already applied the file interpretation (range expansion and
+ * transfer conversion) while drawing the media. Decoding readback bytes with
+ * the file tuple would apply that conversion a second time, crushing shadows
+ * below the limited-range floor and clipping highlights above it. The
+ * persisted file interpretation therefore gates ADMISSION here — HDR and
+ * wide-gamut identity still refuse rather than silently tone-map — while the
+ * pixels decode as what the readback actually produced.
+ */
+export function applyManagedSdrCanvasReadbackGradeStackLinearPixelV1(request: Readonly<{
+	readonly rgba: readonly number[];
+	readonly interpretation: unknown;
+	readonly grades: readonly unknown[];
+	readonly luts?: readonly (ParsedCubeLutV1 | undefined)[];
+}>): LinearRgbaV1 {
+	const interpretation = normalizeVideoSourceColorInterpretationV1(request?.interpretation);
+	assertManagedSdr(interpretation);
+	const rgba = rgbaTuple(request?.rgba);
+	return applyManagedSdrLinearGradeStackPixelV1({
+		rgba: [
+			decodeTransfer(rgba[0], 'srgb'),
+			decodeTransfer(rgba[1], 'srgb'),
+			decodeTransfer(rgba[2], 'srgb'),
+			rgba[3],
+		],
+		grades: request.grades,
+		...(request.luts === undefined ? {} : { luts: request.luts }),
+	});
+}
+
 /** Apply grades to an already-decoded straight-alpha linear working pixel. */
 export function applyManagedSdrLinearGradeStackPixelV1(request: Readonly<{
 	readonly rgba: readonly number[];

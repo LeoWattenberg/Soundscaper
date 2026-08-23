@@ -176,6 +176,48 @@ test('selected V27 preview uses the same exact source-layer route and presentati
 	preview.dispose();
 });
 
+test('selected V27 decodes canvas-captured media as canvas sRGB regardless of the file tags', async () => {
+	// The browser already expanded limited range and converted the transfer
+	// while drawing the video into the capture canvas, so a BT.709
+	// limited-tagged source must not be range-expanded or EOTF-decoded a
+	// second time from its readback bytes.
+	const project = createFramescaperProjectV27(PROFILE, {
+		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
+		finishing: {
+			...finishing(),
+			sourceColorInterpretations: [{
+				schemaVersion: 1, sourceId: 'video-source', sourceKind: 'video',
+				primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', range: 'limited',
+				provenance: 'default-video-bt709-limited',
+			}],
+			visualPresentations: [],
+		},
+	});
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+		...renderAuthority(project, 10),
+		canvas: { width: 2, height: 2, fit: 'contain' as const,
+			pixelFormat: 'yuv420p', backgroundColor: '#000000' },
+		visualFreshnessByModelId: new Map(),
+	});
+	const signal = new AbortController().signal;
+	const execution = await createFramescaperSelectedExactFrameExecutionV27({
+		project, plan, timingSidecars: bindFramescaperUnifiedRenderTimingSidecarsV27(
+			project, renderAuthority(project, 10).timingViews,
+		), signal, assertCurrent() {},
+		captureFrame: () => rgbaFrame(128),
+	});
+	const target = new Uint8Array(16);
+	await execution.render({
+		sequencePosition: { num: 0, den: 1 },
+		layers: [mediaLayer('video-clip', 1)], width: 2, height: 2, target, signal,
+	});
+	assert.deepEqual(
+		[...target.subarray(0, 4)], [128, 0, 0, 255],
+		'mid-gray readback survives managed color unshifted',
+	);
+	await execution.dispose();
+});
+
 function finishing() {
 	return {
 		colorContexts: [{
