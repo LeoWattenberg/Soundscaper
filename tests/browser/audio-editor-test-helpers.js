@@ -90,14 +90,14 @@ export async function fileDataTransfer(page, files) {
 	})));
 }
 
-export async function importFiles(editor, files) {
+export async function importFiles(editor, files, options = { timeout: 20_000 }) {
 	const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
 	if (await projectBin.isVisible()) {
 		await projectBin.locator('.kw-audio-editor__workspace-panel-close').click();
 		await expect(projectBin).toBeHidden();
 	}
 	await editor.locator('[data-import-input]').setInputFiles(files);
-	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
+	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', options);
 }
 
 export function trackNameText(editor) {
@@ -240,8 +240,8 @@ export async function openEffectStackMenu(panel, scope) {
 	return menu;
 }
 
-export async function chooseFileAction(page, editor, action) {
-	await chooseCommandAction(page, editor, 'File', action);
+export async function chooseFileAction(page, editor, action, options = {}) {
+	await chooseCommandAction(page, editor, 'File', action, options);
 }
 
 export async function showToolbarButton(page, editor, label) {
@@ -255,48 +255,48 @@ export async function showToolbarButton(page, editor, label) {
 	await expect(flyout).toBeHidden();
 }
 
-export async function chooseCommandAction(page, editor, menu, action) {
-	const commandMenu = await openCommandMenu(page, editor, menu);
+export async function chooseCommandAction(page, editor, menu, action, options = {}) {
+	const commandMenu = await openCommandMenu(page, editor, menu, options);
 	const item = getMenuItem(commandMenu, action);
-	await item.focus();
-	await page.keyboard.press('Enter');
+	await item.press('Enter', options);
+	await expect(commandMenu).toBeHidden(options);
 }
-export async function chooseNestedCommandAction(page, editor, menu, actions) {
-	let currentMenu = await openCommandMenu(page, editor, menu);
+export async function chooseNestedCommandAction(page, editor, menu, actions, options = {}) {
+	const commandMenu = await openCommandMenu(page, editor, menu, options);
+	let currentMenu = commandMenu;
 	for (const [index, action] of actions.entries()) {
 		const item = getMenuItem(currentMenu, action);
 		if (index < actions.length - 1) {
-			currentMenu = await openMenuItemSubmenu(page, item);
+			currentMenu = await openMenuItemSubmenu(page, item, options);
 		} else {
 			let target = item;
 			if (await item.locator(':scope > .context-menu-item-content .context-menu-item-arrow').count()) {
-				const terminalMenu = await openMenuItemSubmenu(page, item);
+				const terminalMenu = await openMenuItemSubmenu(page, item, options);
 				target = getMenuItem(terminalMenu, action);
 			}
-			await expect(target).toBeEnabled();
-			await target.focus();
-			await page.keyboard.press('Enter');
+			await expect(target).toBeEnabled(options);
+			await target.press('Enter', options);
+			await expect(commandMenu).toBeHidden(options);
 		}
 	}
 }
-export async function openNestedCommandMenu(page, editor, menu, actions) {
-	let currentMenu = await openCommandMenu(page, editor, menu);
-	for (const action of actions) currentMenu = await openMenuItemSubmenu(page, getMenuItem(currentMenu, action));
+export async function openNestedCommandMenu(page, editor, menu, actions, options = {}) {
+	let currentMenu = await openCommandMenu(page, editor, menu, options);
+	for (const action of actions) currentMenu = await openMenuItemSubmenu(page, getMenuItem(currentMenu, action), options);
 	return currentMenu;
 }
-async function openCommandMenu(page, editor, menu) {
+async function openCommandMenu(page, editor, menu, options) {
 	await editor.getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ })
 		.getByRole('menuitem', { name: menu, exact: true }).click();
 	const commandMenu = page.getByRole('menu', { name: menu, exact: true });
-	await expect(commandMenu).toBeVisible();
+	await expect(commandMenu).toBeVisible(options);
 	return commandMenu;
 }
-async function openMenuItemSubmenu(page, item) {
-	await expect(item).toBeEnabled();
-	await item.focus();
-	await page.keyboard.press('ArrowRight');
+async function openMenuItemSubmenu(page, item, options) {
+	await expect(item).toBeEnabled(options);
+	await item.press('ArrowRight', options);
 	const submenu = item.getByRole('menu');
-	await expect(submenu).toBeVisible();
+	await expect(submenu).toBeVisible(options);
 	return submenu;
 }
 export function getMenuItem(menu, label) {

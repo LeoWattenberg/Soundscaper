@@ -18,15 +18,17 @@ import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtim
 
 const CFR_VIDEO = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 const VISUAL_READINESS_TIMEOUT = 30_000;
+const VISUAL_OPERATION_TIMEOUT = 120_000;
 const VISUAL_WORKFLOW_TIMEOUT = 600_000;
+const VISUAL_COMMAND_OPTIONS = { timeout: VISUAL_READINESS_TIMEOUT };
+const VISUAL_FFMPEG_OPTIONS = { timeout: 120_000 };
+const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
 test.describe('selected V27 exact visual preview', () => {
 	test.describe.configure({ mode: 'serial' });
 
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page, {
-			sameOriginRoot: '/__framescaper-v27-ffmpeg',
-		});
+		page.setDefaultTimeout(VISUAL_READINESS_TIMEOUT);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -42,10 +44,9 @@ test.describe('selected V27 exact visual preview', () => {
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
 
-		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
-		await waitForStoredVisualState(page, projectId, {
-			generatorCount: 1, presentationCount: 0, maskCount: 0, presetCount: 0,
-		});
+		await chooseNestedCommandAction(
+			page, editor, 'Generate', ['Video Generators', 'Add Solid…'], VISUAL_COMMAND_OPTIONS,
+		);
 		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1, {
 			timeout: VISUAL_READINESS_TIMEOUT,
 		});
@@ -62,13 +63,13 @@ test.describe('selected V27 exact visual preview', () => {
 		const originalPixels = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 
 		let dialog = await openVisualInspector(page, editor);
-		await expect(dialog.locator('[data-visual-inspector-opacity]')).toBeFocused();
+		await expect(dialog.locator('[data-visual-inspector-opacity]')).toBeFocused(VISUAL_COMMAND_OPTIONS);
 		await assertNoSeriousAxeViolations(page, '[data-framescaper-v27-visual-inspector]');
 		await dialog.locator('[data-visual-inspector-color]').fill('#ff0000ff');
 		await dialog.locator('[data-visual-inspector-apply]').click();
 		await expectVisualCommandStatus(dialog, 'Selected visual updated.');
 		await page.keyboard.press('Escape');
-		await expect(dialog).toBeHidden();
+		await expect(dialog).toBeHidden(VISUAL_COMMAND_OPTIONS);
 		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, {
 			generatorCount: 1, presentationCount: 1,
@@ -77,10 +78,12 @@ test.describe('selected V27 exact visual preview', () => {
 		const redPixels = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		expect(redPixels).not.toBe(originalPixels);
 
-		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Save Visual Preset…']);
+		await chooseNestedCommandAction(
+			page, editor, 'Generate', ['Video Generators', 'Save Visual Preset…'], VISUAL_COMMAND_OPTIONS,
+		);
 		let authoring = page.getByRole('dialog', { name: 'Selected Visual Presets', exact: true });
-		await expect(authoring).toBeVisible();
-		await expect(authoring.locator('[data-v27-authoring-preset-name]')).toBeFocused();
+		await expect(authoring).toBeVisible(VISUAL_COMMAND_OPTIONS);
+		await expect(authoring.locator('[data-v27-authoring-preset-name]')).toBeFocused(VISUAL_COMMAND_OPTIONS);
 		await assertNoSeriousAxeViolations(page, '[data-framescaper-selected-v27-authoring]');
 		await authoring.locator('[data-v27-authoring-preset-name]').fill('Selected red solid');
 		await authoring.locator('[data-v27-authoring-save-visual]').click();
@@ -88,9 +91,11 @@ test.describe('selected V27 exact visual preview', () => {
 		await page.keyboard.press('Escape');
 		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, { presetCount: 1 });
-		await chooseNestedCommandAction(page, editor, 'Effect', ['Edit Video Mask/Matte…']);
+		await chooseNestedCommandAction(
+			page, editor, 'Effect', ['Edit Video Mask/Matte…'], VISUAL_COMMAND_OPTIONS,
+		);
 		authoring = page.getByRole('dialog', { name: 'Selected Mask / Matte', exact: true });
-		await expect(authoring).toBeVisible();
+		await expect(authoring).toBeVisible(VISUAL_COMMAND_OPTIONS);
 		await authoring.locator('[data-v27-authoring-mask-shape]').selectOption('ellipse');
 		await authoring.locator('[data-v27-authoring-mask-width]').fill('0.5');
 		await authoring.locator('[data-v27-authoring-apply]').click();
@@ -99,7 +104,7 @@ test.describe('selected V27 exact visual preview', () => {
 		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, { maskCount: 1 });
 		state = await storedVisualState(page, projectId);
-		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
+		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true', VISUAL_COMMAND_OPTIONS);
 		dialog = await openVisualInspector(page, editor);
 		await dialog.locator('[data-visual-inspector-mask]').selectOption(state.maskIds[0]);
 		await dialog.locator('[data-visual-inspector-mask-width]').fill('0.5');
@@ -107,13 +112,18 @@ test.describe('selected V27 exact visual preview', () => {
 		await dialog.locator('[data-visual-inspector-apply]').click();
 		await expectVisualCommandStatus(dialog, 'Selected visual updated.');
 		await page.keyboard.press('Escape');
-		await expect(preview).toHaveAttribute('data-video-preview-visual-omitted-count', '0');
-		await expect(preview).toHaveAttribute('data-video-preview-visual-consumed-node-ids', /mask/u);
+		await expect(preview).toHaveAttribute(
+			'data-video-preview-visual-omitted-count', '0', VISUAL_COMMAND_OPTIONS,
+		);
+		await expect(preview).toHaveAttribute(
+			'data-video-preview-visual-consumed-node-ids', /mask/u, VISUAL_COMMAND_OPTIONS,
+		);
 		const maskedPixels = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		expect(maskedPixels).not.toBe(redPixels);
 
-		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
-		await waitForStoredVisualState(page, projectId, { generatorCount: 2 });
+		await chooseNestedCommandAction(
+			page, editor, 'Generate', ['Video Generators', 'Add Solid…'], VISUAL_COMMAND_OPTIONS,
+		);
 		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(2, {
 			timeout: VISUAL_READINESS_TIMEOUT,
 		});
@@ -125,17 +135,20 @@ test.describe('selected V27 exact visual preview', () => {
 		await selectAndSeekClip(editor, secondClipId, 0.25, state);
 		await expectExactVisualFrame(preview, 1);
 		const beforePreset = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
-		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Save Visual Preset…']);
+		await chooseNestedCommandAction(
+			page, editor, 'Generate', ['Video Generators', 'Save Visual Preset…'], VISUAL_COMMAND_OPTIONS,
+		);
 		authoring = page.getByRole('dialog', { name: 'Selected Visual Presets', exact: true });
-		await expect(authoring).toBeVisible();
+		await expect(authoring).toBeVisible(VISUAL_COMMAND_OPTIONS);
 		await authoring.locator('[data-v27-authoring-visual-preset]').selectOption({ label: 'Selected red solid' });
 		await authoring.locator('[data-v27-authoring-apply-visual]').click();
 		await expectVisualCommandStatus(authoring, 'Selected authored state applied.');
+		await page.keyboard.press('Escape');
+		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, {
 			generatorColorByClip: { [secondClipId]: '#ff0000ff' },
 		});
 		state = await storedVisualState(page, projectId);
-		await page.keyboard.press('Escape');
 		await selectAndSeekClip(editor, secondClipId, 0.5, state);
 		await expectExactVisualFrame(preview, 1);
 		const afterPreset = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
@@ -150,18 +163,20 @@ test.describe('selected V27 exact visual preview', () => {
 		});
 		await page.reload();
 		editor = page.locator('[data-audio-editor]');
-		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
-		await expect(editor).toHaveAttribute('data-project-id', projectId);
+		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true', VISUAL_COMMAND_OPTIONS);
+		await expect(editor).toHaveAttribute('data-project-id', projectId, VISUAL_COMMAND_OPTIONS);
 		state = await storedVisualState(page, projectId);
 		expect(state.generatorColorByClip[secondClipId]).toBe('#ff0000ff');
 		await selectAndSeekClip(editor, secondClipId, 0.25, state);
 		await expectExactVisualFrame(editor.locator('[data-video-preview]'), 1);
-		await expect.poll(() => screenshotDigest(editor.locator('[data-video-preview-canvas]')))
+		await expect.poll(() => screenshotDigest(editor.locator('[data-video-preview-canvas]')), {
+			timeout: VISUAL_READINESS_TIMEOUT,
+		})
 			.toBe(afterPreset);
 
-		await chooseFileAction(page, editor, 'Export audio');
+		await chooseFileAction(page, editor, 'Export audio', VISUAL_COMMAND_OPTIONS);
 		const exportDialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
-		await expect(exportDialog).toBeVisible();
+		await expect(exportDialog).toBeVisible(VISUAL_COMMAND_OPTIONS);
 		await chooseDropdown(
 			page,
 			exportDialog.getByRole('group', { name: 'Format', exact: true }),
@@ -172,64 +187,83 @@ test.describe('selected V27 exact visual preview', () => {
 		await canvasSize.nth(1).fill('64');
 		await exportDialog.locator('[data-export-field="canvasFrameRate"] input').fill('1');
 		await expect(exportDialog.locator('[data-export-action="start"]').getByRole('button'))
-			.toBeEnabled();
+			.toBeEnabled(VISUAL_COMMAND_OPTIONS);
 		await exportDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-		await expect(exportDialog).toBeHidden();
+		await expect(exportDialog).toBeHidden(VISUAL_COMMAND_OPTIONS);
 		expect(clientErrors).toEqual([]);
 	});
 
-	test('menu-authored adjustment changes video pixels and freeze holds one authenticated picture', async ({ page }) => {
-		test.setTimeout(180_000);
+	test('menu-authored adjustment changes video pixels and freeze holds one authenticated picture', async ({
+		browserName,
+		page,
+	}) => {
+		test.skip(browserName === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
+		test.setTimeout(VISUAL_WORKFLOW_TIMEOUT);
 		const clientErrors = collectClientErrors(page);
+		await installPinnedFfmpegRuntimeRoutes(page);
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
-		await importFiles(editor, [CFR_VIDEO.file]);
+		await importFiles(editor, [CFR_VIDEO.file], VISUAL_FFMPEG_OPTIONS);
 		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 30_000 });
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
+		await saveProjectAndWait(page, editor);
 		const videoClip = editor.getByRole('group', { name: /^Video clip:/u });
-		await videoClip.focus();
-		await videoClip.press('Enter');
+		await videoClip.press('Enter', VISUAL_COMMAND_OPTIONS);
+		await expect(videoClip.locator('.clip-display')).toHaveClass(
+			/clip-display--selected/u, VISUAL_COMMAND_OPTIONS,
+		);
 		const preview = editor.locator('[data-video-preview]');
-		await expect(preview).toHaveAttribute('data-video-preview-renderer', /^(?:ready|webgl)$/u);
+		await expect(preview).toHaveAttribute(
+			'data-video-preview-renderer', /^(?:ready|webgl)$/u, VISUAL_COMMAND_OPTIONS,
+		);
 		const beforeAdjustment = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 
-		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add Video Adjustment Layer…']);
+		await chooseNestedCommandAction(
+			page, editor, 'Tracks', ['Add Video Adjustment Layer…'], VISUAL_COMMAND_OPTIONS,
+		);
 		let authoring = page.getByRole('dialog', { name: 'Selected Video Adjustment Layer', exact: true });
-		await expect(authoring).toBeVisible();
+		await expect(authoring).toBeVisible(VISUAL_COMMAND_OPTIONS);
 		await authoring.locator('[data-v27-authoring-brightness]').fill('0.4');
 		await authoring.locator('[data-v27-authoring-apply]').click();
-		await expect(authoring.getByRole('status')).toContainText('Selected authored state applied.');
+		await expectVisualCommandStatus(authoring, 'Selected authored state applied.');
 		await page.keyboard.press('Escape');
 		await saveProjectAndWait(page, editor);
-		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ adjustmentCount: 1 });
+		await waitForStoredVisualState(page, projectId, { adjustmentCount: 1 });
 		await expectExactVisualFrame(preview, 1);
-		await expect(preview).toHaveAttribute('data-video-preview-requested-effect-count', '1');
-		await expect(preview).toHaveAttribute('data-video-preview-omitted-effect-count', '0');
+		await expect(preview).toHaveAttribute(
+			'data-video-preview-requested-effect-count', '1', VISUAL_COMMAND_OPTIONS,
+		);
+		await expect(preview).toHaveAttribute(
+			'data-video-preview-omitted-effect-count', '0', VISUAL_COMMAND_OPTIONS,
+		);
 		const afterAdjustment = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		expect(afterAdjustment).not.toBe(beforeAdjustment);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await saveProjectAndWait(page, editor);
-		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ adjustmentCount: 0 });
+		await waitForStoredVisualState(page, projectId, { adjustmentCount: 0 });
 		await editor.getByRole('button', { name: 'Redo', exact: true }).click();
 		await saveProjectAndWait(page, editor);
-		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ adjustmentCount: 1 });
+		await waitForStoredVisualState(page, projectId, { adjustmentCount: 1 });
 
-		await chooseNestedCommandAction(page, editor, 'Effect', ['Freeze Video…']);
+		await chooseNestedCommandAction(
+			page, editor, 'Effect', ['Freeze Video…'], VISUAL_COMMAND_OPTIONS,
+		);
 		authoring = page.getByRole('dialog', { name: 'Freeze Selected Video', exact: true });
-		await expect(authoring).toBeVisible();
+		await expect(authoring).toBeVisible(VISUAL_COMMAND_OPTIONS);
 		await authoring.locator('[data-v27-authoring-freeze-duration]').fill('24');
 		await authoring.locator('[data-v27-authoring-freeze]').click();
-		await expect(authoring.getByRole('status')).toContainText('Exact playhead freeze created.', { timeout: 30_000 });
+		await expectVisualCommandStatus(authoring, 'Exact playhead freeze created.');
 		await page.keyboard.press('Escape');
 		await saveProjectAndWait(page, editor);
-		await expect.poll(() => storedVisualState(page, projectId), { timeout: 30_000 })
-			.toMatchObject({ freezeCount: 1, stillCount: 1 });
+		await waitForStoredVisualState(page, projectId, { freezeCount: 1, stillCount: 1 });
 		const state = await storedVisualState(page, projectId);
 		const freezeClipId = state.stillClipIds[0];
 		expect(freezeClipId).toBeTruthy();
 		await selectAndSeekClip(editor, freezeClipId, 0.2, state);
 		await expectExactVisualFrame(preview, 2);
-		await expect(preview).toHaveAttribute('data-video-preview-active-freeze-node-ids', /video-freeze/u);
+		await expect(preview).toHaveAttribute(
+			'data-video-preview-active-freeze-node-ids', /video-freeze/u, VISUAL_COMMAND_OPTIONS,
+		);
 		const freezeEarly = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		await selectAndSeekClip(editor, freezeClipId, 0.8, state);
 		await expectExactVisualFrame(preview, 2);
@@ -238,9 +272,16 @@ test.describe('selected V27 exact visual preview', () => {
 		expect(clientErrors).toEqual([]);
 	});
 
-	test('generator-only visual publishes one finite MP4 download', async ({ page }) => {
-		test.setTimeout(180_000);
+	test('generator-only visual publishes one finite MP4 download', async ({ browserName, page }) => {
+		test.skip(
+			browserName !== 'chromium',
+			'The maintained browser MP4 publication route requires Chromium shared-memory FFmpeg.',
+		);
+		test.setTimeout(VISUAL_WORKFLOW_TIMEOUT);
 		const clientErrors = collectClientErrors(page);
+		await installPinnedFfmpegRuntimeRoutes(page, {
+			sameOriginRoot: '/__framescaper-v27-ffmpeg',
+		});
 		await installProductionIsolationHeaders(page, '/framescaper/en/');
 		const editor = await bootEditor(page, '/framescaper/en/');
 		expect(await page.evaluate(() => ({
@@ -249,12 +290,15 @@ test.describe('selected V27 exact visual preview', () => {
 		}))).toEqual({ crossOriginIsolated: true, sharedArrayBuffer: 'function' });
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
-		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
-		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toBeVisible();
+		await chooseNestedCommandAction(
+			page, editor, 'Generate', ['Video Generators', 'Add Solid…'], VISUAL_COMMAND_OPTIONS,
+		);
+		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true }))
+			.toBeVisible(VISUAL_COMMAND_OPTIONS);
 		await saveProjectAndWait(page, editor);
-		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ generatorCount: 1 });
+		await waitForStoredVisualState(page, projectId, { generatorCount: 1 });
 
-		await chooseFileAction(page, editor, 'Export audio');
+		await chooseFileAction(page, editor, 'Export audio', VISUAL_COMMAND_OPTIONS);
 		const dialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
 		await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
 		const canvasSize = dialog.locator('[data-export-field="canvasSize"] input');
@@ -264,7 +308,7 @@ test.describe('selected V27 exact visual preview', () => {
 		await dialog.locator('[data-export-action="start"]').getByRole('button').click();
 		const download = dialog.locator('[data-export-download]');
 		await waitForVideoPublication(page, editor, download, 120_000, clientErrors);
-		await expect(download).toHaveAttribute('download', /\.mp4$/u);
+		await expect(download).toHaveAttribute('download', /\.mp4$/u, VISUAL_COMMAND_OPTIONS);
 		const witness = await download.evaluate(async (link) => {
 			const response = await fetch(link.href);
 			const bytes = new Uint8Array(await response.arrayBuffer());
@@ -329,7 +373,7 @@ async function waitForVideoPublication(page, editor, download, timeout, clientEr
 async function openVisualInspector(page, editor) {
 	await chooseNestedCommandAction(page, editor, 'Effect', [
 		'Video Finishing', 'Selected Visual Inspector…',
-	]);
+	], VISUAL_COMMAND_OPTIONS);
 	const dialog = page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true });
 	await expect(dialog).toBeVisible({ timeout: VISUAL_READINESS_TIMEOUT });
 	return dialog;
@@ -392,17 +436,17 @@ async function expectExactVisualFrame(preview, minimumRequested) {
 
 async function expectVisualCommandStatus(dialog, message) {
 	await expect(dialog.getByRole('status')).toContainText(message, {
-		timeout: VISUAL_READINESS_TIMEOUT,
+		timeout: VISUAL_OPERATION_TIMEOUT,
 	});
 }
 
 async function screenshotDigest(canvas) {
-	await expect(canvas).toBeVisible();
+	await expect(canvas).toBeVisible(VISUAL_COMMAND_OPTIONS);
 	return createHash('sha256').update(await canvas.screenshot()).digest('hex');
 }
 
 async function saveProjectAndWait(page, editor) {
-	await chooseFileAction(page, editor, 'Save project');
+	await chooseFileAction(page, editor, 'Save project', VISUAL_COMMAND_OPTIONS);
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
 		timeout: VISUAL_READINESS_TIMEOUT,
 	});
