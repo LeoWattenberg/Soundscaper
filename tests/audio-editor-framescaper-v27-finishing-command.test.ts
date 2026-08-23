@@ -8,6 +8,15 @@ import {
 	snapshotFramescaperOwnedFinishingCommandV27,
 } from '../src/framescaper/editor-project-v27-finishing-command.ts';
 import {
+	applyFramescaperProjectCommandV27,
+} from '../src/framescaper/editor-project-v27-commands.ts';
+import {
+	createFramescaperProjectHistoryV27,
+	executeFramescaperProjectCommandV27,
+	redoFramescaperProjectCommandV27,
+	undoFramescaperProjectCommandV27,
+} from '../src/framescaper/editor-project-v27-history.ts';
+import {
 	reconcileFramescaperProjectFeatureRequirementsV27,
 } from '../src/framescaper/editor-project-feature-requirements-v27.ts';
 import {
@@ -64,6 +73,50 @@ test('V27 finishing commands reject stale state, identity changes, extra keys, a
 	assert.throws(() => snapshotFramescaperOwnedFinishingCommandV27({
 		...command, presentation: command.expectedPresentation,
 	}), /mutate|no-op/iu);
+});
+
+test('V27 applies owned finishing commands through the selected project command authority', () => {
+	const project = projectFixture();
+	const applied = applyFramescaperProjectCommandV27(
+		PROFILE, project, finishingCommands(project)[2], { now: '2026-08-23T10:00:00.000Z' },
+	);
+	assert.equal(applied.revision, Number(project.revision) + 1);
+	assert.equal(applied.updatedAt, '2026-08-23T10:00:00.000Z');
+	assert.equal(applied.videoVisualPresentations[0]?.opacity, 0.5);
+	assert.equal(project.videoVisualPresentations[0]?.opacity, 1);
+});
+
+test('V27 finishing batches are atomic and advance project bookkeeping once', () => {
+	const project = projectFixture();
+	const commands = finishingCommands(project);
+	const applied = applyFramescaperProjectCommandV27(PROFILE, project, {
+		type: 'batch', commands: [commands[0], commands[6]],
+	}, { now: '2026-08-23T10:05:00.000Z' });
+	assert.equal(applied.revision, Number(project.revision) + 1);
+	assert.equal(applied.videoColorContexts[0]?.outputSpace, 'srgb');
+	assert.equal(applied.videoCaptionTracks[0]?.language, 'de');
+	assert.throws(() => applyFramescaperProjectCommandV27(PROFILE, project, {
+		type: 'batch', commands: [commands[0], commands[0]],
+	}), /stale/iu);
+	assert.equal(project.videoColorContexts[0]?.outputSpace, 'rec709');
+});
+
+test('V27 history restores owned finishing commands with one-step undo and redo', () => {
+	const project = projectFixture();
+	const command = finishingCommands(project)[7];
+	const history = executeFramescaperProjectCommandV27(
+		PROFILE, createFramescaperProjectHistoryV27(PROFILE, project), command,
+		{ now: '2026-08-23T10:10:00.000Z' },
+	);
+	assert.equal(history.present.automationLanes[0]?.points[0]?.value, 0.5);
+	const undone = undoFramescaperProjectCommandV27(
+		PROFILE, history, { now: '2026-08-23T10:11:00.000Z' },
+	);
+	assert.equal(undone.present.automationLanes[0]?.points[0]?.value, 1);
+	const redone = redoFramescaperProjectCommandV27(
+		PROFILE, undone, { now: '2026-08-23T10:12:00.000Z' },
+	);
+	assert.equal(redone.present.automationLanes[0]?.points[0]?.value, 0.5);
 });
 
 function projectFixture() {
