@@ -39,15 +39,13 @@ import {
 	prepareScapeExport,
 	serializeScapeExportManifest,
 } from './scape-export-plan.ts';
-import {
-	assertScapeImportStore,
-	ScapeImportTransaction,
-} from './scape-import-transaction.ts';
+import { assertScapeImportStore, ScapeImportTransaction } from './scape-import-transaction.ts';
 import { preflightScapeImportCapacity } from './scape-import-capacity.ts';
 import { indexScapeProjectAssets, indexScapeProjectTimingAssets } from './scape-project-assets.ts';
 import { parseScapeProjectDocument } from './scape-project-document.ts';
 import { withScapeProjectInput } from './scape-project-input.ts';
 import { remapScapeProjectSourceReferences } from './scape-project-source-remap.ts';
+import { prepareScapeImportSourceIdentities, resolveScapeProjectAssetExtension } from './scape-project-asset-extension.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
 import {
 	normalizeVideoTimingAssetReference,
@@ -69,16 +67,22 @@ export async function exportScapeProject(project, store, options = {}) {
 	const signal = options.signal;
 	const writable = options.writable;
 	const createWritable = options.createWritable;
+	const assetExtension = resolveScapeProjectAssetExtension(options.projectAssetExtension);
 	if (writable && createWritable) throw new TypeError('Choose one Scape streaming destination.');
 	if (createWritable !== undefined && typeof createWritable !== 'function') {
 		throw new TypeError('The Scape destination factory must be a function.');
 	}
 	throwIfScapeAborted(signal);
+	const additionalAssets = assetExtension ? await awaitScapeOperation(
+		assetExtension.planExportAssets({ project, store, signal }), signal,
+	) : [];
 	const plan = await prepareScapeExport(project, store, {
 		maximumBlobBytes: options.maximumBlobBytes,
 		output: writable || createWritable ? 'stream' : 'blob',
 		signal,
 		currentProjectSchemaVersion: options.currentProjectSchemaVersion,
+		additionalSourceKinds: assetExtension?.sourceKinds,
+		additionalAssets,
 	});
 	const resolvedWritable = createWritable
 		? await awaitScapeOperation(createWritable(plan.maximumArchiveBytes), signal)
@@ -114,11 +118,14 @@ export async function exportScapeProject(project, store, options = {}) {
 			if (mediaBlob.size !== asset.size) {
 				throw new Error(`Media source ${asset.source.name || asset.sourceId} changed since archive admission.`);
 			}
-			if (asset.kind === 'video-timing') {
+			if (asset.timingReference) {
 				validateVideoTimingAssetBytes(
 					asset.timingReference,
 					new Uint8Array(await mediaBlob.arrayBuffer()),
 				);
+			}
+			if (assetExtension?.assetKinds.includes(asset.kind)) {
+				await awaitScapeOperation(assetExtension.validateExportAssetBody(asset, mediaBlob, signal), signal);
 			}
 			mediaBySourceId.set(asset.sourceId, mediaBlob);
 		}
@@ -173,6 +180,7 @@ export async function exportScapeProject(project, store, options = {}) {
 
 export async function importScapeProject(input, store, options = {}) {
 	const signal = options.signal;
+	const assetExtension = resolveScapeProjectAssetExtension(options.projectAssetExtension);
 	let transaction = null;
 	try {
 		const result = await withScapeProjectInput(input, signal, async (entries) => {
@@ -181,7 +189,8 @@ export async function importScapeProject(input, store, options = {}) {
 				expandedByteBudget,
 				manifest,
 				projectText,
-			} = await readScapeArchiveEnvelope(entries, options.archiveLimits || {}, signal);
+			} = await readScapeArchiveEnvelope(entries, options.archiveLimits || {}, signal,
+				assetExtension?.assetKinds);
 			const audioChunkBudget = new ScapeAudioChunkBudget();
 			const projectBytes = TEXT_ENCODER.encode(projectText);
 			verifyScapeAssetBytes(projectBytes, manifest.project, 'project document');
@@ -191,8 +200,11 @@ export async function importScapeProject(input, store, options = {}) {
 			if (loaded.readOnly) {
 				return { project, manifest, readOnly: true, reason: loaded.reason, collision: null };
 			}
+			const archiveProject = structuredClone(project);
+			const extensionValidation = assetExtension?.validateImportAssets(project, manifest) ?? null;
 			const assetBySourceId = indexScapeProjectAssets(project, manifest, {
 				currentProjectSchemaVersion: scapeCurrentProjectSchemaVersion(options),
+				additionalSourceKinds: assetExtension?.sourceKinds,
 			});
 			const timingAssetByStorageKey = indexScapeProjectTimingAssets(project, manifest);
 			const timingReferenceByStorageKey = indexScapeTimingReferences(project.sources || []);
@@ -289,21 +301,7 @@ export async function importScapeProject(input, store, options = {}) {
 				}
 			}
 
-			const sourceIdMap = new Map();
-			for (const source of project.sources || []) {
-				throwIfScapeAborted(signal);
-				const occupied = source.kind === 'video'
-					? await awaitScapeOperation(store.getMediaAssetMetadata(source.id), signal)
-					: await awaitScapeOperation(store.getSourceMetadata(source.id), signal);
-				const nextId = occupied ? createStableId(source.kind === 'video' ? 'video-source' : 'source') : source.id;
-				sourceIdMap.set(source.id, nextId);
-				source.id = nextId;
-				source.storageKey = nextId;
-				if (!loaded.readOnly && source.kind === 'video') {
-					source.posterStorageKey = null;
-					source.thumbnailStorageKey = null;
-				}
-			}
+			const sourceIdMap = await prepareScapeImportSourceIdentities(project, store, assetExtension, signal);
 			remapScapeProjectSourceReferences(project, sourceIdMap);
 			if (!loaded.readOnly && project.schemaVersion === scapeCurrentProjectSchemaVersion(options)) {
 				if (options.rebindProjectSourceIdentities !== undefined) {
@@ -326,11 +324,17 @@ export async function importScapeProject(input, store, options = {}) {
 					},
 				);
 			}
+			assetExtension?.validateReboundProject(project);
+			if (assetExtension) await awaitScapeOperation(assetExtension.stageImportAssets({ archiveProject,
+				project, manifest, entryByName, expandedByteBudget, sourceIdMap,
+				validation: extensionValidation, store, transaction, signal }), signal);
+			assetExtension?.validateReboundProject(project);
 
 			for (const [originalSourceId, finalSourceId] of sourceIdMap) {
 				throwIfScapeAborted(signal);
-				const source = project.sources.find((candidate) => candidate.id === finalSourceId);
 				const asset = assetBySourceId.get(originalSourceId);
+				if (!asset) continue;
+				const source = project.sources.find((candidate) => candidate.id === finalSourceId);
 				const entry = entryByName.get(asset.entry);
 				if (!entry) throw new Error(`The .scape archive is missing ${asset.entry}.`);
 				if (source.kind === 'video') {
@@ -523,23 +527,26 @@ function joinScapeTimingChunks(chunks, expectedBytes) {
  *   migrateProject?: (project: unknown) => { project: Record<string, unknown>, readOnly: boolean },
  *   currentProjectSchemaVersion?: number,
  *   projectFeatureCompatibility?: { evaluate: (project: unknown) => unknown },
+ *   projectAssetExtension?: import('./scape-project-asset-extension.ts').ScapeProjectAssetExtension,
  * }} options
  * @param {{ retain?: (settlement: PromiseLike<unknown>) => void }} retention
  */
 export async function inspectScapeProject(input, store = null, options = {}, retention = {}) {
 	const signal = options.signal;
+	const assetExtension = resolveScapeProjectAssetExtension(options.projectAssetExtension);
 	return withScapeProjectInput(input, signal, async (entries) => {
-		const { manifest, projectText } = await readScapeArchiveEnvelope(
-			entries,
-			options.archiveLimits || {},
-			signal,
-		);
+		const { manifest, projectText } = await readScapeArchiveEnvelope(entries,
+			options.archiveLimits || {}, signal, assetExtension?.assetKinds);
 		verifyScapeAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
 		throwIfScapeAborted(signal);
 		const loaded = migrateScapeProjectDocument(projectText, options);
-		indexScapeProjectAssets(loaded.project, manifest, {
-			currentProjectSchemaVersion: scapeCurrentProjectSchemaVersion(options),
-		});
+		if (!loaded.readOnly) {
+			assetExtension?.validateImportAssets(loaded.project, manifest);
+			indexScapeProjectAssets(loaded.project, manifest, {
+				currentProjectSchemaVersion: scapeCurrentProjectSchemaVersion(options),
+				additionalSourceKinds: assetExtension?.sourceKinds,
+			});
+		}
 		const featureRequirementsCompatibility = options.projectFeatureCompatibility
 			? options.projectFeatureCompatibility.evaluate(loaded.project)
 			: null;

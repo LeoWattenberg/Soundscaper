@@ -15,6 +15,7 @@ import {
 	reimportFramescaperProjectV27,
 	type FramescaperProjectV27,
 } from './editor-project-v27.ts';
+import { createFramescaperScapeProjectAssetExtensionV27 } from './editor-scape-assets-v27.ts';
 
 export interface FramescaperScapeNativeStoreV27 {
 	loadProject?(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown> | unknown;
@@ -24,6 +25,7 @@ export interface FramescaperScapeNativeStoreV27 {
 export function createFramescaperScapeNativeRuntimeV27(profile: unknown) {
 	assertFramescaperProjectV27Profile(profile);
 	const compatibility = createFramescaperProjectFeatureCompatibilityServiceV27(profile);
+	const projectAssetExtension = createFramescaperScapeProjectAssetExtensionV27(profile);
 	const migrateProject = (value: unknown) => {
 		const version = readFramescaperProjectSchemaVersion(value);
 		if (version === 20 || version === 22 || version === 24) {
@@ -45,7 +47,7 @@ export function createFramescaperScapeNativeRuntimeV27(profile: unknown) {
 			retention: Readonly<{ retain(settlement: PromiseLike<unknown>): void }>,
 		) => inspectScapeProject(input, store, {
 			...options, migrateProject, currentProjectSchemaVersion: 27,
-			projectFeatureCompatibility: compatibility,
+			projectFeatureCompatibility: compatibility, projectAssetExtension,
 		}, retention),
 		importScapeProject: async (
 			input: ScapeProjectInput,
@@ -55,6 +57,7 @@ export function createFramescaperScapeNativeRuntimeV27(profile: unknown) {
 			const result = await importScapeProject(input, store, {
 				...options, migrateProject, currentProjectSchemaVersion: 27,
 				rebindProjectSourceIdentities: rebindFramescaperSourceIdentitiesV27,
+				projectAssetExtension,
 			});
 			if (result.readOnly) return result;
 			return Object.freeze({ ...result, project: cloneFramescaperProjectV27(profile, result.project) });
@@ -63,7 +66,9 @@ export function createFramescaperScapeNativeRuntimeV27(profile: unknown) {
 			project: FramescaperProjectV27 | unknown,
 			store: FramescaperScapeNativeStoreV27,
 			options: Readonly<Record<string, unknown>> = {},
-		) => exportScapeProject(cloneFramescaperProjectV27(profile, project), store, options),
+		) => exportScapeProject(cloneFramescaperProjectV27(profile, project), store, {
+			...options, currentProjectSchemaVersion: 27, projectAssetExtension,
+		}),
 		copyScapeArchive: copyFutureScapeArchive,
 	});
 }

@@ -62,7 +62,7 @@ export interface PlannedScapeExportAsset {
 	readonly source: ScapeExportSource;
 	readonly sourceId: string;
 	readonly storageKey: string;
-	readonly kind: 'audio' | 'video' | 'video-timing';
+	readonly kind: string;
 	readonly entry: string;
 	readonly encoding: string;
 	readonly mimeType: string;
@@ -88,6 +88,8 @@ export interface ScapeExportPlanOptions {
 	readonly output: 'blob' | 'stream';
 	readonly signal?: AbortSignal;
 	readonly currentProjectSchemaVersion?: number;
+	readonly additionalSourceKinds?: readonly string[];
+	readonly additionalAssets?: readonly PlannedScapeExportAsset[];
 }
 
 export async function prepareScapeExport(
@@ -102,20 +104,17 @@ export async function prepareScapeExport(
 	if (!Array.isArray(sourceInputs)) throw new TypeError('Project sources must be an array.');
 	const sourceCount = sourceInputs.length;
 	const sources: ScapeExportSource[] = [];
+	const additionalSourceKinds = normalizeAdditionalSourceKinds(options.additionalSourceKinds ?? []);
 	for (let index = 0; index < sourceCount; index += 1) {
-		sources.push(snapshotScapeExportSource(sourceInputs[index], index, projectSchemaVersion));
-	}
-	const timingStorageKeys = new Set(sources.flatMap((source) => (
-		source.kind === 'video' && isRecord(source.timingAsset)
-			? [normalizeVideoTimingAssetReference(source.timingAsset).storageKey]
-			: []
-	)));
-	if (sourceCount + timingStorageKeys.size + 2 > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
-		throw new RangeError('The project has too many sources for the portable archive.');
+		sources.push(snapshotScapeExportSource(
+			sourceInputs[index], index, projectSchemaVersion, additionalSourceKinds,
+		));
 	}
 	project.sources = Object.freeze(sources);
 	const maximumBlobBytes = resolveScapeBlobMaximumBytes(options.maximumBlobBytes);
-	const audioChunkBudget = createScapeAudioExportChunkBudget(sources);
+	const audioChunkBudget = createScapeAudioExportChunkBudget(
+		sources.filter(({ kind }) => kind === 'audio'),
+	);
 	const signal = options.signal;
 	throwIfScapeAborted(signal);
 	const fallbackSnapshot = snapshotScapeProjectFallbackIntegrity(project, {
@@ -142,6 +141,7 @@ export async function prepareScapeExport(
 	const timingAssetByStorageKey = new Map<string, PlannedScapeExportAsset>();
 	for (const source of sources) {
 		throwIfScapeAborted(signal);
+		if (source.kind !== 'audio' && source.kind !== 'video') continue;
 		const sourceId = nonEmptyString(source?.id, 'Scape source ID');
 		if (sourceIds.has(sourceId)) throw new Error(`Duplicate Scape source ID: ${sourceId}.`);
 		sourceIds.add(sourceId);
@@ -217,6 +217,20 @@ export async function prepareScapeExport(
 			assets.push(timingAsset);
 			timingAssetByStorageKey.set(timingStorageKey, timingAsset);
 		}
+	}
+	for (const asset of normalizeAdditionalAssets(options.additionalAssets ?? [])) {
+		if (sourceIds.has(asset.sourceId)) {
+			throw new Error(`Duplicate Scape source asset: ${asset.sourceId}.`);
+		}
+		if (entryNames.has(asset.entry)) {
+			throw new Error(`Duplicate Scape archive entry: ${asset.entry}.`);
+		}
+		sourceIds.add(asset.sourceId);
+		entryNames.add(asset.entry);
+		assets.push(asset);
+	}
+	if (assets.length + 2 > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
+		throw new RangeError('The project has too many assets for the portable archive.');
 	}
 	const createdAt = new Date().toISOString();
 	const placeholderAssets = assets.map((asset) => completeScapeExportAsset(
@@ -347,6 +361,7 @@ function snapshotScapeExportSource(
 	value: unknown,
 	index: number,
 	projectSchemaVersion: number,
+	additionalSourceKinds: ReadonlySet<string>,
 ): ScapeExportSource {
 	const label = `Project source ${String(index + 1)}`;
 	if (!isRecord(value)) throw new TypeError(`${label} must be an object.`);
@@ -355,13 +370,14 @@ function snapshotScapeExportSource(
 		label,
 	) as ScapeExportSource;
 	if (snapshot.kind === undefined) Reflect.set(snapshot, 'kind', 'audio');
-	if (snapshot.kind !== 'audio' && snapshot.kind !== 'video') {
-		throw new TypeError(`${label} kind must be audio or video.`);
+	if (snapshot.kind !== 'audio' && snapshot.kind !== 'video'
+		&& !additionalSourceKinds.has(String(snapshot.kind))) {
+		throw new TypeError(`${label} kind must be owned by the Scape archive route.`);
 	}
 	if (projectSchemaVersion < 4 && snapshot.kind === 'video') {
 		throw new TypeError(`${label} cannot be video in project schema ${String(projectSchemaVersion)}.`);
 	}
-	if (snapshot.kind !== 'video') {
+	if (snapshot.kind === 'audio') {
 		const layout = scapeAudioSourceLayout(snapshot as ScapeAudioSource);
 		if (layout.frameCount < 1) throw new RangeError(`${label} must contain at least one frame.`);
 		Reflect.set(snapshot, 'frameCount', layout.frameCount);
@@ -369,6 +385,64 @@ function snapshotScapeExportSource(
 		Reflect.set(snapshot, 'chunkFrames', layout.chunkFrames);
 	}
 	return Object.freeze(snapshot);
+}
+
+function normalizeAdditionalSourceKinds(value: readonly string[]): ReadonlySet<string> {
+	if (!Array.isArray(value) || value.length > 64) {
+		throw new TypeError('Additional Scape source kinds must be a bounded array.');
+	}
+	const result = new Set<string>();
+	for (const kind of value) {
+		if (typeof kind !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(kind)
+			|| kind === 'audio' || kind === 'video' || result.has(kind)) {
+			throw new TypeError(`An additional Scape source kind is invalid: ${String(kind)}.`);
+		}
+		result.add(kind);
+	}
+	return result;
+}
+
+function normalizeAdditionalAssets(
+	value: readonly PlannedScapeExportAsset[],
+): readonly PlannedScapeExportAsset[] {
+	if (!Array.isArray(value) || value.length > SCAPE_ARCHIVE_LIMITS.maximumEntryCount - 2) {
+		throw new TypeError('Additional Scape export assets must be a bounded array.');
+	}
+	return Object.freeze(value.map((asset, index) => {
+		if (!isRecord(asset) || !isRecord(asset.source)) {
+			throw new TypeError(`Additional Scape asset ${String(index)} is invalid.`);
+		}
+		const kind = nonEmptyString(asset.kind, `Additional Scape asset ${String(index)} kind`);
+		if (kind === 'audio' || kind === 'video' || kind === 'video-timing') {
+			throw new TypeError('Additional Scape assets cannot claim a canonical role.');
+		}
+		const entry = safeEntryName(asset.entry, `Additional Scape asset ${String(index)} entry`);
+		const expectedSha256 = sha256Digest(
+			asset.expectedSha256,
+			`Additional Scape asset ${String(index)} digest`,
+		);
+		return Object.freeze({
+			source: Object.freeze({ ...asset.source }),
+			sourceId: nonEmptyString(asset.sourceId, `Additional Scape asset ${String(index)} ID`),
+			storageKey: nonEmptyString(asset.storageKey, `Additional Scape asset ${String(index)} storage key`),
+			kind,
+			entry,
+			encoding: nonEmptyString(asset.encoding, `Additional Scape asset ${String(index)} encoding`),
+			mimeType: typeof asset.mimeType === 'string' ? asset.mimeType : '',
+			size: nonNegativeSafeInteger(asset.size, `Additional Scape asset ${String(index)} size`),
+			expectedSha256,
+			...(asset.timingReference === undefined ? {} : {
+				timingReference: normalizeVideoTimingAssetReference(asset.timingReference),
+			}),
+		});
+	}));
+}
+
+function safeEntryName(value: unknown, field: string): string {
+	const entry = nonEmptyString(value, field);
+	if (entry.startsWith('/') || entry.includes('\\') || entry.includes('\0')
+		|| entry.split('/').includes('..')) throw new TypeError(`${field} is unsafe.`);
+	return entry;
 }
 
 function snapshotScapeExportRecord(value: Record<string, unknown>, label: string): Record<string, unknown> {

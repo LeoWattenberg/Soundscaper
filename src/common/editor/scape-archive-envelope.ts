@@ -53,7 +53,7 @@ export interface ScapeProjectDescriptor extends ScapeDescriptor {
 
 export interface ScapeAssetDescriptor extends ScapeDescriptor {
 	sourceId: string;
-	kind: 'audio' | 'video' | 'video-timing';
+	kind: string;
 	encoding: string;
 	mimeType?: string;
 }
@@ -77,6 +77,7 @@ export async function readScapeArchiveEnvelope(
 	entries: readonly ScapeArchiveEntry[],
 	limitOverrides: Partial<ScapeArchiveLimits> = {},
 	signal?: AbortSignal,
+	additionalAssetKinds: readonly string[] = [],
 ): Promise<ScapeArchiveEnvelope> {
 	throwIfScapeAborted(signal);
 	const limits = resolveLimits(limitOverrides);
@@ -93,7 +94,7 @@ export async function readScapeArchiveEnvelope(
 		signal,
 	);
 	throwIfScapeAborted(signal);
-	const manifest = parseScapeManifest(manifestText);
+	const manifest = parseScapeManifest(manifestText, additionalAssetKinds);
 	validateManifestOwnership(manifest, entryByName, limits);
 	const projectEntry = requiredFileEntry(entryByName, SCAPE_PROJECT_ENTRY);
 	const projectText = await readBoundedTextEntry(
@@ -219,7 +220,7 @@ async function readBoundedTextEntry(
 	return textChunks.join('');
 }
 
-function parseScapeManifest(text: string): ScapeManifest {
+function parseScapeManifest(text: string, additionalAssetKinds: readonly string[]): ScapeManifest {
 	let value: unknown;
 	try {
 		value = JSON.parse(text);
@@ -234,13 +235,14 @@ function parseScapeManifest(text: string): ScapeManifest {
 		throw new TypeError('The .scape manifest is incomplete.');
 	}
 	validateDescriptor(value.project);
+	const assetKinds = allowedAssetKinds(additionalAssetKinds);
 	for (const asset of value.assets) {
 		if (!isRecord(asset)) throw new TypeError('A .scape asset descriptor is invalid.');
 		validateDescriptor(asset);
 		if (typeof asset.sourceId !== 'string' || !asset.sourceId) {
 			throw new TypeError('A .scape asset has an invalid source ID.');
 		}
-		if (asset.kind !== 'audio' && asset.kind !== 'video' && asset.kind !== 'video-timing') {
+		if (typeof asset.kind !== 'string' || !assetKinds.has(asset.kind)) {
 			throw new TypeError(`A .scape asset has an invalid kind: ${String(asset.kind)}.`);
 		}
 		if (typeof asset.encoding !== 'string' || !asset.encoding) {
@@ -248,6 +250,21 @@ function parseScapeManifest(text: string): ScapeManifest {
 		}
 	}
 	return value as unknown as ScapeManifest;
+}
+
+function allowedAssetKinds(additional: readonly string[]): ReadonlySet<string> {
+	if (!Array.isArray(additional) || additional.length > 64) {
+		throw new TypeError('Additional .scape asset kinds must be a bounded array.');
+	}
+	const result = new Set(['audio', 'video', 'video-timing']);
+	for (const kind of additional) {
+		if (typeof kind !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(kind)) {
+			throw new TypeError(`An additional .scape asset kind is invalid: ${String(kind)}.`);
+		}
+		if (result.has(kind)) throw new Error(`Duplicate .scape asset kind: ${kind}.`);
+		result.add(kind);
+	}
+	return result;
 }
 
 function validateDescriptor(descriptor: Record<string, unknown>): void {
