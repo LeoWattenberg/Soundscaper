@@ -188,6 +188,9 @@ test.describe('Scape open feature decisions', () => {
 				disposition: 'bypass',
 				fallback: null,
 			});
+			project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV27(
+				FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, project,
+			);
 		});
 		const recipient = await bootEditor(page, '/framescaper/embed/en/');
 		await setScapeInput(recipient.locator('[data-aup4-input]'), archive);

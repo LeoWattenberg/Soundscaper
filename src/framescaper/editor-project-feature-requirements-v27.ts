@@ -17,6 +17,7 @@ import {
 import {
 	reconcileFramescaperProjectFeatureRequirementsV24,
 } from './editor-project-feature-requirements-v24.ts';
+import { withoutFramescaperDialogueChainsV27 } from './editor-audio-dialogue-chain-v27.ts';
 import { FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE } from './editor-project-runtime-profile-v24.ts';
 import { assertFramescaperProjectV27Profile } from './editor-project-runtime-profile-v27.ts';
 
@@ -50,6 +51,7 @@ export function reconcileFramescaperProjectFeatureRequirementsV27(
 	assertNoPublisherConflict(manifest);
 	const foundation = structuredClone(candidate) as Record<string, unknown>;
 	stripFramescaperProjectV27State(foundation);
+	stripOwnedDialogueChains(foundation, data(candidate, 'sampleRate'));
 	foundation.featureRequirements = withoutOwned(manifest);
 	const baseline = reconcileFramescaperProjectFeatureRequirementsV24(
 		FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE,
@@ -138,7 +140,14 @@ export function framescaperProjectFeatureRequirementsForV24FoundationV27(
 	project: unknown,
 ): ProjectFeatureRequirementsManifest {
 	assertFramescaperProjectV27Profile(profile);
-	return withoutOwned(normalizeManifest(record(project, 'Framescaper V27 project')));
+	const candidate = record(project, 'Framescaper V27 project');
+	const foundation = structuredClone(candidate) as Record<string, unknown>;
+	stripFramescaperProjectV27State(foundation);
+	foundation.featureRequirements = withoutOwned(normalizeManifest(candidate));
+	return reconcileFramescaperProjectFeatureRequirementsV24(
+		FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE,
+		foundation,
+	);
 }
 
 export function stripFramescaperProjectV27State(project: Record<string, unknown>): void {
@@ -150,6 +159,15 @@ export function stripFramescaperProjectV27State(project: Record<string, unknown>
 	}
 	const master = record(project.master, 'master');
 	master.envelope = [];
+}
+
+function stripOwnedDialogueChains(project: Record<string, unknown>, sampleRate: unknown): void {
+	for (const track of records(project.tracks, 'tracks')) {
+		if (track.type !== 'audio') continue;
+		track.effects = withoutFramescaperDialogueChainsV27(
+			data(track, 'effects'), sampleRate,
+		);
+	}
 }
 
 function withoutOwned(manifest: ProjectFeatureRequirementsManifest): ProjectFeatureRequirementsManifest {

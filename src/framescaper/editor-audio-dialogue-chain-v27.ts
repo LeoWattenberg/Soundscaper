@@ -156,6 +156,28 @@ export function normalizeFramescaperDialogueChainV27(
 }
 
 /**
+ * Remove only complete racks authored by the bounded V27 dialogue command.
+ * Partial, reordered, disabled, or identity-forged sequences remain generic
+ * audio effects and therefore retain the ordinary unavailable-feature gate.
+ */
+export function withoutFramescaperDialogueChainsV27(
+	effectsValue: unknown,
+	sampleRate: unknown,
+): readonly unknown[] {
+	if (!Array.isArray(effectsValue)) throw new TypeError('Framescaper dialogue rack effects must be an array.');
+	const generic: unknown[] = [];
+	for (let index = 0; index < effectsValue.length;) {
+		const length = dialogueChainLengthAt(effectsValue, index, sampleRate);
+		if (length > 0) index += length;
+		else {
+			generic.push(effectsValue[index]);
+			index += 1;
+		}
+	}
+	return Object.freeze(generic);
+}
+
+/**
  * Create one atomic V27-owned transaction for the menu/controller layer.
  * Keeping the exact chain behind this product command avoids enabling the
  * generic effects, Nyquist, or clip time/pitch authoring surfaces.
@@ -324,6 +346,40 @@ function noisePlacement(
 
 function chainEffectId(chainId: string, type: DialogueEffectTypeV27): string {
 	return `${chainId}:${type === 'audacity-noise-reduction' ? 'profiled-noise-reduction' : type}`;
+}
+
+function dialogueChainLengthAt(effects: readonly unknown[], index: number, sampleRate: unknown): number {
+	const first = effectIdentity(effects[index]);
+	const suffix = ':highpass';
+	if (first?.type !== 'highpass' || !first.id.endsWith(suffix)) return 0;
+	const chainId = first.id.slice(0, -suffix.length);
+	const profiled = effectIdentity(effects[index + 1])?.type === 'audacity-noise-reduction';
+	const length = profiled ? 6 : 5;
+	if (index + length > effects.length) return 0;
+	try {
+		normalizeFramescaperDialogueChainV27({
+			schemaVersion: FRAMESCAPER_DIALOGUE_CHAIN_SCHEMA_VERSION_V27,
+			id: chainId,
+			sampleRate,
+			noiseReductionPlacement: profiled
+				? FRAMESCAPER_DIALOGUE_NOISE_REDUCTION_PLACEMENT_V27
+				: null,
+			effects: effects.slice(index, index + length),
+		});
+		return length;
+	} catch {
+		return 0;
+	}
+}
+
+function effectIdentity(value: unknown): Readonly<{ id: string; type: string }> | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const id = Object.getOwnPropertyDescriptor(value, 'id');
+	const type = Object.getOwnPropertyDescriptor(value, 'type');
+	return id?.enumerable && Object.hasOwn(id, 'value') && typeof id.value === 'string'
+		&& type?.enumerable && Object.hasOwn(type, 'value') && typeof type.value === 'string'
+		? Object.freeze({ id: id.value, type: type.value })
+		: null;
 }
 
 function stableChainId(value: unknown): string {

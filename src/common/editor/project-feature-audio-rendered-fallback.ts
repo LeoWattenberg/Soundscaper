@@ -3,8 +3,10 @@
 import { PROJECT_FEATURE_CAPABILITY_IDS } from './project-feature-capabilities.ts';
 import {
 	isMaintainedRenderedFallbackProjectSchema,
+	isProductionMixerProjectSchema,
 	isSoundscaperProductionProjectSchema,
 } from './project-schema-version.ts';
+import { createDefaultMixerGraphV21 } from './mixer-graph-v21.ts';
 import {
 	projectFeatureAudioTrackRenderV1Playback,
 	type ProjectFeatureAudioTrackRenderV1Metadata,
@@ -103,10 +105,20 @@ export function projectFeatureAudioRenderedFallbackPlayback<Project extends obje
 		arrayValue(dataProperty(projectRecord, 'tracks', 'project'), 'project.tracks'),
 		track,
 	);
-	const projected = replaceDataProperties(projectRecord, {
+	const productionMixer = isProductionMixerProjectSchema(schemaVersion);
+	const masterChannels = positiveSafeInteger(
+		dataProperty(projectRecord, 'masterChannels', 'project'),
+		'Project master channel count',
+	);
+	const replacements: Record<string, unknown> = {
 		clips,
 		tracks,
-		mixer: Object.freeze({ groups: Object.freeze([]), sends: Object.freeze([]), routes: Object.freeze({}) }),
+		mixer: productionMixer
+			? createDefaultMixerGraphV21([{
+				id: PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track,
+				channelCount: masterChannels,
+			}], masterChannels)
+			: Object.freeze({ groups: Object.freeze([]), sends: Object.freeze([]), routes: Object.freeze({}) }),
 		master: Object.freeze({
 			gain: 1,
 			pan: 0,
@@ -117,7 +129,11 @@ export function projectFeatureAudioRenderedFallbackPlayback<Project extends obje
 			effectsActive: false,
 			effects: Object.freeze([]),
 		}),
-	}) as unknown as Project;
+	};
+	if (productionMixer && Object.hasOwn(projectRecord, 'automationLanes')) {
+		replacements.automationLanes = Object.freeze([]);
+	}
+	const projected = replaceDataProperties(projectRecord, replacements) as unknown as Project;
 	const metadata = Object.freeze({
 		schemaVersion: 1 as const,
 		role: 'project-audio-mix-v1' as const,

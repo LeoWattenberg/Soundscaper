@@ -4,12 +4,19 @@ import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	createCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
-import { FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-version.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createEffect } from '../src/common/editor/effects.js';
+import {
+	createDefaultMixerGraphV21,
+	normalizeMixerGraphV21,
+} from '../src/common/editor/mixer-graph-v21.ts';
 import {
 	PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS,
 	projectFeatureAudioRenderedFallbackPlayback,
@@ -180,6 +187,27 @@ test('selected Framescaper V19 can project the maintained whole-mix fallback con
 
 	assert.equal(projected.metadata?.role, 'project-audio-mix-v1');
 	assert.equal((projected.project as typeof input).clips[0]?.sourceId, 'fallback-source');
+});
+
+test('selected Framescaper V27 projects a neutral production mixer for whole-mix fallback playback', () => {
+	const foundation = project();
+	const input = {
+		...foundation,
+		schemaVersion: FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION,
+		automationLanes: [{ id: 'canonical-lane' }],
+		mixer: createDefaultMixerGraphV21([{ id: 'track-a', channelCount: 2 }], 2),
+	};
+	const projected = projectFeatureAudioRenderedFallbackPlayback(input, report());
+	const playback = projected.project as typeof input;
+
+	assert.equal(projected.metadata?.role, 'project-audio-mix-v1');
+	assert.doesNotThrow(() => normalizeMixerGraphV21(playback.mixer));
+	assert.deepEqual(playback.mixer, createDefaultMixerGraphV21([{
+		id: PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track,
+		channelCount: 2,
+	}], 2));
+	assert.deepEqual(playback.automationLanes, []);
+	assert.deepEqual(input.automationLanes, [{ id: 'canonical-lane' }]);
 });
 
 test('an admitted first-party audio-effects render becomes one neutral whole-mix playback clip', () => {
