@@ -92,8 +92,8 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 			.getByRole('menuitem', { name: /^Nested sequences(?:\s|$)/u })).toBeVisible();
 		await expect(page.getByRole('menu', { name: 'Tracks', exact: true })
 			.getByRole('menuitem', { name: /^Multicamera(?:\s|$)/u })).toBeVisible();
-		await expect(getMenuItem(page.getByRole('menu', { name: 'Tracks', exact: true }), 'Automation'))
-			.toHaveCount(0);
+		await expect(getMenuItem(page.getByRole('menu', { name: 'Tracks', exact: true }), 'Automation Lanes…'))
+			.toBeEnabled();
 		await expect(getMenuItem(page.getByRole('menu', { name: 'Tracks', exact: true }), 'Freeze'))
 			.toHaveCount(0);
 		await page.keyboard.press('Escape');

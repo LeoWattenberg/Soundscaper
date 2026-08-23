@@ -184,7 +184,7 @@ test.describe('audio warp and transient workflow', () => {
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 	});
 
-	test('Framescaper preserves authored warp maps read-only and exposes no menu or surface', async ({ page }) => {
+	test('Framescaper preserves authored warp maps read-only without exposing audio-warp authoring', async ({ page }) => {
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
 		await openAudioWarpArchive(editor, true, 'framescaper-v20');
@@ -195,7 +195,11 @@ test.describe('audio warp and transient workflow', () => {
 		await expect(decision).not.toContainText('Rendered fallback declared');
 		await decision.getByRole('button', { name: 'Open read-only', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-edit-block-reason', 'read-only');
-		await expect(editor.getByRole('menuitem', { name: 'Effect', exact: true })).toHaveCount(0);
+		await editor.getByRole('menuitem', { name: 'Effect', exact: true }).click();
+		const effectMenu = page.getByRole('menu', { name: 'Effect', exact: true });
+		await expect(effectMenu).toBeVisible();
+		await expect(getMenuItem(effectMenu, 'Pitch and tempo')).toHaveCount(0);
+		await page.keyboard.press('Escape');
 		await expect(editor.locator('[data-editor-surface="audio-warp"]')).toHaveCount(0);
 	});
 });
