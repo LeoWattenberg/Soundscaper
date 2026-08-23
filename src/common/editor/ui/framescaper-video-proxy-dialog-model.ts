@@ -11,7 +11,7 @@ export interface FramescaperVideoProxyDialogModelInput {
 export interface FramescaperVideoProxyDialogSource {
 	readonly id: string;
 	readonly name: string;
-	readonly attached: boolean;
+	readonly attachmentPresent: boolean;
 	readonly originalAuthorityKind: 'owned' | 'linked' | null;
 	readonly originalAvailable: boolean;
 	readonly projectBinClipId: string | null;
@@ -47,7 +47,7 @@ export function createFramescaperVideoProxyDialogModel(
 		return Object.freeze({
 			id: String(source.id),
 			name: typeof source.name === 'string' && source.name ? source.name : String(source.id),
-			attached: source.proxyAttachment !== null,
+			attachmentPresent: source.proxyAttachment !== null,
 			originalAuthorityKind: attachment?.originalAuthorityKind === 'owned'
 				|| attachment?.originalAuthorityKind === 'linked'
 				? attachment.originalAuthorityKind : null,

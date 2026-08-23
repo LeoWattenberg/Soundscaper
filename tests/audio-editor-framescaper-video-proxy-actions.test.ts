@@ -192,6 +192,24 @@ test('adaptive pressure refreshes Auto only when it crosses the proxy threshold'
 	});
 });
 
+test('dialog trust is supplied by the resolver ledger for the exact attachment object', () => {
+	const owner = ownerFixture(27, attachment());
+	const currentAttachment = owner.source().proxyAttachment;
+	const runtime = createFramescaperVideoProxyActionsV27({
+		owner: owner.owner as never, cleanup: cleanupFixture(owner),
+		createScheduler: () => Object.assign(async () => undefined, { dispose: async () => undefined }),
+		createAttachExistingScheduler: () => Object.assign(
+			async () => undefined, { dispose: async () => undefined },
+		),
+		createDetachCommand: () => ({ type: 'framescaper-v27/video-proxy-detach' }),
+		previewTrust: (_sourceId, attachmentValue) => attachmentValue === currentAttachment
+			? 'verified' : 'unverified',
+	});
+	assert.equal(runtime.previewTrust('video-source'), 'verified');
+	owner.replace(structuredClone(currentAttachment));
+	assert.equal(runtime.previewTrust('video-source'), 'unverified');
+});
+
 test('original relink uses the maintained exact-content classification and confirms changed content', async () => {
 	const owner = ownerFixture(27, attachment());
 	let classification: 'exact-content' | 'changed-content' = 'exact-content';

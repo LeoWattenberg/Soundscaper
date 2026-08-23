@@ -47,7 +47,7 @@ test('proxy dialog model targets the selected source and reports offline attache
 	assert.equal(model.supported, true);
 	assert.equal(model.selectedSourceId, 'video-source');
 	assert.deepEqual(model.sources, [{
-		id: 'video-source', name: 'Camera', attached: true,
+		id: 'video-source', name: 'Camera', attachmentPresent: true,
 		originalAuthorityKind: 'linked', originalAvailable: false,
 		projectBinClipId: 'bin-video',
 	}]);
@@ -70,6 +70,7 @@ test('the selected proxy dialog exposes pathless attach-existing from its lazy m
 	const controller = {};
 	bindFramescaperVideoProxyActionRuntime(controller, registerFramescaperVideoProxyActionRuntime({
 		mode: () => 'auto',
+		previewTrust: () => 'unverified',
 		setMode: async () => undefined,
 		pressure: () => null,
 		reportPreviewPressure: async () => undefined,
@@ -95,6 +96,28 @@ test('the selected proxy dialog exposes pathless attach-existing from its lazy m
 	assert.match(markup, /data-video-proxy-selection-policy="strict"/u);
 	assert.match(markup, /Proxy.*refuses.*Auto.*fall back/iu);
 	assert.doesNotMatch(markup, /path=/iu);
+});
+
+test('proxy status never promotes an attachment pointer to verified trust', () => {
+	const controller = {};
+	bindFramescaperVideoProxyActionRuntime(controller, registerFramescaperVideoProxyActionRuntime({
+		mode: () => 'proxy', previewTrust: () => 'unavailable',
+		setMode: async () => undefined, pressure: () => null,
+		reportPreviewPressure: async () => undefined, generate: async () => undefined,
+		attachExisting: async () => undefined, detach: async () => undefined,
+		regenerate: async () => undefined, relinkOriginal: async () => 'relinked',
+	}));
+	const value = project(27);
+	(value.sources[0] as Record<string, unknown>).proxyAttachment = { originalAuthorityKind: 'owned' };
+	const markup = renderToStaticMarkup(<FramescaperVideoProxyDialog
+		controller={controller}
+		snapshot={{ project: value, selectedClipId: 'video-clip', missingSourceIds: [] }}
+		editingBlocked={false} copy={{}} fileService={{}}
+		run={(operation) => operation()} onClose={() => undefined}
+	/>);
+	assert.match(markup, /failed verification|missing/iu);
+	assert.match(markup, /Proxy mode refuses/iu);
+	assert.doesNotMatch(markup, /verified proxy is attached/iu);
 });
 
 function project(schemaVersion: number) {

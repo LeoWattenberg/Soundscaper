@@ -6,6 +6,7 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import {
 	framescaperVideoProxyActionRuntimeFor,
 	type FramescaperVideoProxyOriginalRelinkCandidate,
+	type FramescaperVideoProxyPreviewTrustV20,
 	type FramescaperVideoProxyProgress,
 } from '../../../../framescaper/editor-video-proxy-action-runtime-v20.ts';
 import {
@@ -66,6 +67,7 @@ export default function FramescaperVideoProxyDialog({
 	const abortRef = useRef<AbortController | null>(null);
 	const existingFileRef = useRef<HTMLInputElement | null>(null);
 	const selected = model.sources.find(({ id }) => id === selectedSourceId) ?? null;
+	const previewTrust = selected && runtime ? runtime.previewTrust(selected.id) : 'unverified';
 
 	useEffect(() => {
 		if (!model.sources.some(({ id }) => id === selectedSourceId)) {
@@ -221,7 +223,11 @@ export default function FramescaperVideoProxyDialog({
 								const next = previewMode(event.currentTarget.value);
 								if (runtime && selectedSourceId) {
 									void Promise.resolve(run(() => runtime.setMode(selectedSourceId, next)))
-										.catch((operationError: unknown) => {
+										.then(() => {
+											setStatus(label(copy, 'videoProxyModeUpdated',
+												'Preview mode updated and proxy trust refreshed.'));
+											setError('');
+										}, (operationError: unknown) => {
 											setError(operationError instanceof Error
 												? operationError.message : String(operationError));
 										});
@@ -234,19 +240,19 @@ export default function FramescaperVideoProxyDialog({
 					</select>
 				</label>
 				{selected && <section aria-label={label(copy, 'videoProxyStatus', 'Proxy status')}>
-					<p>{selected.attached
-						? label(copy, 'videoProxyAttached', 'A verified proxy is attached.')
-						: label(copy, 'videoProxyNotAttached', 'No proxy is attached.')}</p>
-					{!selected.originalAvailable && selected.attached && <p role="status">{
+					<p role={previewTrust === 'stale' || previewTrust === 'unavailable' ? 'alert' : undefined}>{
+						proxyTrustLabel(copy, selected.attachmentPresent, previewTrust)
+					}</p>
+					{!selected.originalAvailable && previewTrust === 'verified' && <p role="status">{
 						label(copy, 'videoProxyOfflineEditing',
 							'The original is offline. Verified proxy pictures remain available for editing.')
 					}</p>}
 					<div>
-						{!selected.attached && <button type="button" data-video-proxy-generate
+						{!selected.attachmentPresent && <button type="button" data-video-proxy-generate
 							disabled={mutationsDisabled || !selected.originalAvailable}
 							onClick={() => { generate(false); }}>{label(copy, 'videoProxyGenerateAttach',
 								'Generate and attach')}</button>}
-						{!selected.attached && <button type="button" data-video-proxy-attach-existing
+						{!selected.attachmentPresent && <button type="button" data-video-proxy-attach-existing
 							disabled={mutationsDisabled || !selected.originalAvailable || !attachExistingAvailable}
 							onClick={chooseExisting}>{label(copy, 'videoProxyAttachExisting',
 								'Attach existing…')}</button>}
@@ -257,10 +263,10 @@ export default function FramescaperVideoProxyDialog({
 								event.currentTarget.value = '';
 								if (candidate) attachCandidate(candidate);
 							}} />
-						{selected.attached && <button type="button" data-video-proxy-regenerate
+						{selected.attachmentPresent && <button type="button" data-video-proxy-regenerate
 							disabled={mutationsDisabled || !selected.originalAvailable}
 							onClick={() => { generate(true); }}>{label(copy, 'videoProxyRegenerate', 'Regenerate')}</button>}
-						{selected.attached && <button type="button" data-video-proxy-detach
+						{selected.attachmentPresent && <button type="button" data-video-proxy-detach
 							disabled={mutationsDisabled} onClick={detach}>{label(copy, 'videoProxyDetach', 'Detach')}</button>}
 						{fileService.linkedVideoOriginalsAvailable && selected.projectBinClipId && <button type="button"
 							disabled={mutationsDisabled} onClick={chooseOriginal}>{label(copy, 'videoProxyRelinkOriginal',
@@ -275,7 +281,7 @@ export default function FramescaperVideoProxyDialog({
 				onClick={() => { abortRef.current?.abort(); }}>{label(copy, 'cancel', 'Cancel')}</button>}
 			{changedRelink && <div role="alert">
 				<p>{label(copy, 'videoProxyChangedOriginalWarning',
-					'This file has different content. Relinking first detaches the stale proxy through project history.')}</p>
+					'This file has different content. Relinking atomically invalidates the stale proxy at publication.')}</p>
 				<button type="button" disabled={pending !== null} onClick={confirmChangedOriginal}>{
 					label(copy, 'videoProxyConfirmChangedOriginal', 'Relink changed original')
 				}</button>
@@ -292,6 +298,24 @@ export default function FramescaperVideoProxyDialog({
 
 function previewMode(value: string): FramescaperVideoProxyModeV20 {
 	return value === 'original' || value === 'proxy' ? value : 'auto';
+}
+
+function proxyTrustLabel(
+	copy: Readonly<Record<string, string>>,
+	attachmentPresent: boolean,
+	trust: FramescaperVideoProxyPreviewTrustV20,
+): string {
+	if (!attachmentPresent) return label(copy, 'videoProxyNotAttached', 'No proxy is attached.');
+	if (trust === 'verified') {
+		return label(copy, 'videoProxyVerified', 'The attached proxy bodies and timing are verified for this session.');
+	}
+	if (trust === 'stale') {
+		return label(copy, 'videoProxyStale', 'The attached proxy does not match the original. Proxy mode refuses it; regenerate or detach it.');
+	}
+	if (trust === 'unavailable') {
+		return label(copy, 'videoProxyUnavailable', 'The attached proxy bodies are missing or failed verification. Proxy mode refuses them; regenerate or detach the attachment.');
+	}
+	return label(copy, 'videoProxyUnverified', 'A proxy attachment is present but has not been verified for this preview session.');
 }
 
 function relinkChoice(value: unknown): FramescaperVideoProxyOriginalRelinkCandidate | null {

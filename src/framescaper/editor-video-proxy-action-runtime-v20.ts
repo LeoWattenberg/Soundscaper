@@ -29,8 +29,15 @@ export interface FramescaperVideoProxyOriginalRelinkCandidate {
 	readonly locator: Readonly<{ readonly locatorId: string; readonly locatorRevision: string }>;
 }
 
+export type FramescaperVideoProxyPreviewTrustV20 =
+	| 'unverified'
+	| 'verified'
+	| 'stale'
+	| 'unavailable';
+
 export interface FramescaperVideoProxyActionRuntime {
 	mode(sourceId: string): FramescaperVideoProxyModeV20;
+	previewTrust(sourceId: string): FramescaperVideoProxyPreviewTrustV20;
 	setMode(sourceId: string, mode: FramescaperVideoProxyModeV20): Promise<void>;
 	pressure(sourceId: string): Readonly<FramescaperVideoProxyPressureV20> | null;
 	reportPreviewPressure(
@@ -62,7 +69,7 @@ export function registerFramescaperVideoProxyActionRuntime(
 		throw new TypeError('A Framescaper video-proxy action runtime is required.');
 	}
 	for (const method of [
-		'mode', 'setMode', 'pressure', 'reportPreviewPressure',
+		'mode', 'previewTrust', 'setMode', 'pressure', 'reportPreviewPressure',
 		'generate', 'attachExisting', 'detach', 'regenerate', 'relinkOriginal',
 	] as const) {
 		if (typeof runtime[method] !== 'function') {

@@ -30,7 +30,10 @@ import {
 import { bindFramescaperSelectedVisualPreviewControllerV27 } from './editor-selected-v27-visual-preview-controller.ts';
 import { createFramescaperVideoExportStrategyV27 } from './video-export-strategy-v27.ts';
 import { createFramescaperVideoProxyActionsV27 } from './editor-video-proxy-actions-v20.ts';
-import type { FramescaperVideoProxyActionRuntime } from './editor-video-proxy-action-runtime-v20.ts';
+import type {
+	FramescaperVideoProxyActionRuntime,
+	FramescaperVideoProxyPreviewTrustV20,
+} from './editor-video-proxy-action-runtime-v20.ts';
 import {
 	createFramescaperVideoProxyPreviewMediaResolverV27,
 } from './editor-video-proxy-preview-media-v20.ts';
@@ -69,6 +72,10 @@ export function createFramescaperAudioEditorControllerV27(
 	const sessionController = environment.runtime.createSessionController();
 	let proxyComposition: FramescaperCapturedVideoProxyRuntimeComposition | null = null;
 	let proxyActions: FramescaperVideoProxyActionRuntime | null = null;
+	const proxyTrust = new Map<string, Readonly<{
+		attachment: unknown;
+		status: FramescaperVideoProxyPreviewTrustV20;
+	}>>();
 	let controller: ReturnType<typeof createAudioEditorController> | null = null;
 	const resolveProductVideoPreviewMedia = createFramescaperVideoProxyPreviewMediaResolverV27({
 		bodyStore: environment.store,
@@ -76,6 +83,9 @@ export function createFramescaperAudioEditorControllerV27(
 		getProject: () => controller?.project ?? null,
 		getMode: (sourceId) => proxyActions?.mode(sourceId) ?? 'auto',
 		getPressure: (sourceId) => proxyActions?.pressure(sourceId) ?? null,
+		onTrustStatus: (sourceId, attachment, status) => {
+			proxyTrust.set(sourceId, Object.freeze({ attachment, status }));
+		},
 	});
 	controller = createAudioEditorController(null, {
 		headless: true,
@@ -118,6 +128,11 @@ export function createFramescaperAudioEditorControllerV27(
 			environment, sessionController, selectedProxyComposition, candidate,
 		),
 		createDetachCommand: createFramescaperVideoProxyDetachCommandV27,
+		previewTrust: (sourceId, attachment) => {
+			const entry = proxyTrust.get(sourceId);
+			return entry !== undefined && entry.attachment === attachment
+				? entry.status : 'unverified';
+		},
 	});
 	bindFramescaperSelectedAuthoringControllerV27({
 		controller,

@@ -7,6 +7,7 @@ import {
 	type FramescaperVideoProxyActionRuntime,
 	type FramescaperVideoProxyOperationOptions,
 	type FramescaperVideoProxyOriginalRelinkCandidate,
+	type FramescaperVideoProxyPreviewTrustV20,
 } from './editor-video-proxy-action-runtime-v20.ts';
 import {
 	normalizeVideoProxyAttachmentV18,
@@ -69,6 +70,10 @@ export interface FramescaperVideoProxyActionsV20Options {
 	readonly createAttachExistingScheduler?: ExistingSchedulerFactory;
 	readonly createSessionId?: () => string;
 	readonly cleanup: FramescaperVideoProxyCleanupCoordinatorV20;
+	readonly previewTrust?: (
+		sourceId: string,
+		attachment: unknown,
+	) => FramescaperVideoProxyPreviewTrustV20;
 }
 
 export interface FramescaperVideoProxyActionsOptions extends FramescaperVideoProxyActionsV20Options {
@@ -90,6 +95,7 @@ export function bindFramescaperVideoProxyActionsV20(
 	session: SessionV20,
 	composition: FramescaperCapturedVideoProxyRuntimeComposition,
 	owner: FramescaperVideoProxyActionOwnerV20,
+	previewTrust?: FramescaperVideoProxyActionsV20Options['previewTrust'],
 ): FramescaperVideoProxyActionRuntime {
 	return createFramescaperVideoProxyActionsV20({
 		owner,
@@ -105,6 +111,7 @@ export function bindFramescaperVideoProxyActionsV20(
 			composition,
 			candidate,
 		),
+		...(previewTrust ? { previewTrust } : {}),
 	});
 }
 
@@ -135,6 +142,12 @@ export function createFramescaperVideoProxyActions(
 	const runtime = registerFramescaperVideoProxyActionRuntime(Object.freeze({
 		mode(sourceId: string): FramescaperVideoProxyModeV20 {
 			return modes.get(identifier(sourceId)) ?? 'auto';
+		},
+		previewTrust(sourceIdValue: string): FramescaperVideoProxyPreviewTrustV20 {
+			const sourceId = identifier(sourceIdValue);
+			const source = videoSource(exactProject(options.owner.project, options.schemaVersion), sourceId);
+			if (source.proxyAttachment === null) return 'unavailable';
+			return options.previewTrust?.(sourceId, source.proxyAttachment) ?? 'unverified';
 		},
 		async setMode(sourceId: string, mode: FramescaperVideoProxyModeV20): Promise<void> {
 			const id = identifier(sourceId);
@@ -552,6 +565,7 @@ function assertOptions(options: FramescaperVideoProxyActionsOptions): void {
 		|| typeof options.createScheduler !== 'function'
 		|| (options.schemaVersion !== 20 && options.schemaVersion !== 27)
 		|| (options.schemaVersion === 27 && typeof options.createAttachExistingScheduler !== 'function')
+		|| (options.previewTrust !== undefined && typeof options.previewTrust !== 'function')
 		|| !options.cleanup || typeof options.cleanup.prepareReplacement !== 'function'
 		|| typeof options.cleanup.cancel !== 'function' || typeof options.cleanup.settle !== 'function'
 		|| !options.owner.actions?.edit || !options.owner.actions.projectBin

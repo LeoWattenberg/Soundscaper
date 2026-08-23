@@ -34,6 +34,7 @@ import {
 	type FramescaperVideoProxyModeV20,
 	type FramescaperVideoProxyPressureV20,
 } from './editor-video-proxy-use-policy-v20.ts';
+import type { FramescaperVideoProxyPreviewTrustV20 } from './editor-video-proxy-action-runtime-v20.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
@@ -43,6 +44,11 @@ export interface FramescaperVideoProxyPreviewMediaOptionsV20 {
 	getProject(): unknown;
 	getMode(sourceId: string): FramescaperVideoProxyModeV20;
 	getPressure(sourceId: string): Readonly<FramescaperVideoProxyPressureV20> | null;
+	onTrustStatus?(
+		sourceId: string,
+		attachment: unknown,
+		status: FramescaperVideoProxyPreviewTrustV20,
+	): void;
 }
 
 export interface FramescaperVideoProxyOriginalStoreV20 {
@@ -89,16 +95,22 @@ export function createFramescaperVideoProxyPreviewMediaResolverV20(
 		if (!sourceId || request.source.kind !== 'video'
 			|| (request.project.schemaVersion !== 20 && request.project.schemaVersion !== 27)) return null;
 		const mode = options.getMode(sourceId);
-		if (mode === 'original') return null;
+		const attachmentValue = request.source.proxyAttachment;
 		let attachment: Readonly<VideoProxyAttachmentV18>;
 		try {
-			attachment = normalizeVideoProxyAttachmentV18(request.source.proxyAttachment);
+			attachment = normalizeVideoProxyAttachmentV18(attachmentValue);
 		} catch (error) {
+			reportTrust(options, sourceId, attachmentValue, 'unavailable');
+			if (mode === 'original') return null;
 			return unavailable(mode, 'attachment-unavailable', error);
 		}
+		reportTrust(options, sourceId, attachmentValue, 'unverified');
 		if (attachment.originalSha256 !== request.source.contentSha256) {
+			reportTrust(options, sourceId, attachmentValue, 'stale');
+			if (mode === 'original') return null;
 			return unavailable(mode, 'attachment-stale');
 		}
+		if (mode === 'original') return null;
 		throwIfAborted(request.signal);
 		const originalAvailable = await hasOriginal(options.originalStore, request);
 		const provisional = resolveFramescaperVideoProxyUseV20({
@@ -108,6 +120,7 @@ export function createFramescaperVideoProxyPreviewMediaResolverV20(
 		if (provisional.kind !== 'proxy') return null;
 		try {
 			const body = await verifyProxy(options, request, attachment);
+			reportTrust(options, sourceId, attachmentValue, 'verified');
 			const selection = resolveFramescaperVideoProxyUseV20({
 				purpose: 'preview', mode, originalAvailable,
 				proxyTrust: originalAvailable ? 'attested' : 'offline-verified',
@@ -118,6 +131,7 @@ export function createFramescaperVideoProxyPreviewMediaResolverV20(
 				: null;
 		} catch (error) {
 			if (request.signal?.aborted) throw error;
+			reportTrust(options, sourceId, attachmentValue, 'unavailable');
 			return unavailable(mode, 'verification-failed', error);
 		}
 	};
@@ -134,6 +148,15 @@ function unavailable(
 ): null {
 	if (mode === 'proxy') throw new FramescaperVideoProxyPreviewUnavailableError(reason, { cause });
 	return null;
+}
+
+function reportTrust(
+	options: FramescaperVideoProxyPreviewMediaOptionsV20,
+	sourceId: string,
+	attachment: unknown,
+	status: FramescaperVideoProxyPreviewTrustV20,
+): void {
+	options.onTrustStatus?.(sourceId, attachment, status);
 }
 
 async function verifyProxy(
@@ -289,7 +312,8 @@ function assertCurrent(
 function assertOptions(options: FramescaperVideoProxyPreviewMediaOptionsV20): void {
 	if (!options?.bodyStore || !options.originalStore
 		|| typeof options.getProject !== 'function' || typeof options.getMode !== 'function'
-		|| typeof options.getPressure !== 'function') {
+		|| typeof options.getPressure !== 'function'
+		|| (options.onTrustStatus !== undefined && typeof options.onTrustStatus !== 'function')) {
 		throw new TypeError('Framescaper proxy preview-media ports are incomplete.');
 	}
 }

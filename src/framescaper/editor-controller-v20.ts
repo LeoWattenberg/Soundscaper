@@ -16,7 +16,10 @@ import { createFramescaperMulticameraActionsV18 } from './editor-project-v18-mul
 import { createFramescaperSequenceActionsV18 } from './editor-project-v18-sequence-actions.ts';
 import { createFramescaperVideoRetimeActionsV20 } from './editor-project-v20-retime-actions.ts';
 import { bindFramescaperVideoProxyActionsV20 } from './editor-video-proxy-actions-v20.ts';
-import type { FramescaperVideoProxyActionRuntime } from './editor-video-proxy-action-runtime-v20.ts';
+import type {
+	FramescaperVideoProxyActionRuntime,
+	FramescaperVideoProxyPreviewTrustV20,
+} from './editor-video-proxy-action-runtime-v20.ts';
 import {
 	createFramescaperVideoProxyPreviewMediaResolverV20,
 } from './editor-video-proxy-preview-media-v20.ts';
@@ -64,6 +67,10 @@ export function createFramescaperAudioEditorControllerV20(
 	const sessionController = environment.runtime.createSessionController();
 	let editorialProxyComposition: FramescaperCapturedVideoProxyRuntimeComposition | null = null;
 	let editorialProxyActions: FramescaperVideoProxyActionRuntime | null = null;
+	const proxyTrust = new Map<string, Readonly<{
+		attachment: unknown;
+		status: FramescaperVideoProxyPreviewTrustV20;
+	}>>();
 	let controller: ReturnType<typeof createAudioEditorController> | null = null;
 	const resolveProductVideoPreviewMedia = createFramescaperVideoProxyPreviewMediaResolverV20({
 		bodyStore: environment.store,
@@ -71,6 +78,9 @@ export function createFramescaperAudioEditorControllerV20(
 		getProject: () => controller?.project ?? null,
 		getMode: (sourceId) => editorialProxyActions?.mode(sourceId) ?? 'auto',
 		getPressure: (sourceId) => editorialProxyActions?.pressure(sourceId) ?? null,
+		onTrustStatus: (sourceId, attachment, status) => {
+			proxyTrust.set(sourceId, Object.freeze({ attachment, status }));
+		},
 	});
 	controller = createAudioEditorController(null, {
 		headless: true,
@@ -116,6 +126,11 @@ export function createFramescaperAudioEditorControllerV20(
 		sessionController,
 		editorialProxyComposition,
 		controller,
+		(sourceId, attachment) => {
+			const entry = proxyTrust.get(sourceId);
+			return entry !== undefined && entry.attachment === attachment
+				? entry.status : 'unverified';
+		},
 	);
 	bindFramescaperNativeRenderQueueActionV20(environment.runtime.profile, controller);
 	return controller;

@@ -41,19 +41,23 @@ test('selected V20 preview verifies online/adaptive and offline proxy bodies bef
 	let pressure = null as null | Readonly<{
 		droppedFrameRatio: number; decodeQueueDepth: number; viewportScale: number;
 	}>;
+	const trust: string[] = [];
 	const online = createFramescaperVideoProxyPreviewMediaResolverV20({
 		bodyStore: fixture.environment.store,
 		originalStore: fixture.controllerStore,
 		getProject: () => project,
 		getMode: () => mode,
 		getPressure: () => pressure,
+		onTrustStatus: (_sourceId, _attachment, status) => { trust.push(status); },
 	});
 
 	assert.equal(await online(request), null, 'Auto keeps an available original without pressure');
+	assert.equal(trust.at(-1), 'unverified');
 	pressure = { droppedFrameRatio: 0.03, decodeQueueDepth: 0, viewportScale: 1 };
 	const adaptive = await online(request);
 	assert.equal(adaptive?.mediaKind, 'proxy');
 	assert.equal(adaptive?.body.size, fixture.relationship.candidate().size);
+	assert.equal(trust.at(-1), 'verified');
 
 	mode = 'auto';
 	pressure = null;
@@ -80,6 +84,7 @@ test('explicit Proxy refuses altered bytes while Auto alone may fall back to the
 	const source = capturedVideoSource(project, ORIGINAL_SOURCE_ID);
 	const attachment = normalizeVideoProxyAttachmentV18(source.proxyAttachment);
 	let mode: 'proxy' | 'auto' = 'proxy';
+	const trust: string[] = [];
 	const resolver = createFramescaperVideoProxyPreviewMediaResolverV20({
 		bodyStore: {
 			loadMediaAsset: async (storageKey) => storageKey === attachment.storageKey
@@ -90,6 +95,7 @@ test('explicit Proxy refuses altered bytes while Auto alone may fall back to the
 		getProject: () => project,
 		getMode: () => mode,
 		getPressure: () => null,
+		onTrustStatus: (_sourceId, _attachment, status) => { trust.push(status); },
 	});
 	const request = {
 		project: project as never, source: source as never, sourceTimingIndex: null,
@@ -98,6 +104,7 @@ test('explicit Proxy refuses altered bytes while Auto alone may fall back to the
 		(error as { code?: unknown }).code === 'FRAMESCAPER_PROXY_PREVIEW_UNAVAILABLE'
 			&& /validation|verified|unavailable/iu.test(String((error as Error).message))
 	));
+	assert.equal(trust.at(-1), 'unavailable');
 	mode = 'auto';
 	assert.equal(await resolver(request), null);
 });
