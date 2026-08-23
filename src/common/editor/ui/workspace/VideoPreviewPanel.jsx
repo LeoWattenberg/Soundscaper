@@ -62,6 +62,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		transportState: 'stopped',
 	});
 	const animationFrameRef = useRef(0);
+	const exactRenderActiveRef = useRef(false);
 	const requestProductVisualFrameRef = useRef(() => {});
 	const freezeCaptureProjectRef = useRef(null);
 	const freezeEvaluatedFrameRef = useRef(null);
@@ -284,47 +285,67 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		if (layersSynchronized) {
 			releaseRetiredVideoPreviewElements(compositor, retiredVideoElementsRef.current);
 		}
-		try {
-			const visualSession = visualSessionRef.current;
-			const productFrame = visualSession?.resolve(timelineFrame) ?? null;
-			composedLayersRef.current = composeProductVideoVisualPreviewLayers(
-				compositorLayersRef.current, productFrame,
-			);
-			if (visualSession) updateVisualPreviewFrame(productFrame);
-		} catch (error) {
+		const failProductFrame = (error) => {
 			composedLayersRef.current = [];
 			updateVisualPreviewFrame(null, error instanceof Error ? error.message : String(error));
 			updateCompositorState('fallback');
-			return;
-		}
-		let report;
+		};
+		const publishProductFrame = (productFrame, composedLayers, hasSession) => {
+			composedLayersRef.current = composedLayers;
+			if (hasSession) updateVisualPreviewFrame(productFrame);
+			let report;
+			try {
+				report = compositor.render(composedLayersRef.current, renderOptionsRef.current);
+			} catch {
+				report = createVideoPreviewCompositorFallbackReport(composedLayersRef.current);
+			}
+			updateRenderIssue(report);
+			const freezeProject = freezeCaptureProjectRef.current;
+			if (report.status !== 'fallback' && freezeProject?.schemaVersion === 27) {
+				freezeEvaluatedFrameRef.current = {
+					projectId: freezeProject.id,
+					projectRevision: freezeProject.revision,
+					timelineSample: timelineFrame,
+				};
+			}
+			if (previewRootRef.current && report.status !== 'fallback') {
+				previewRootRef.current.dataset.videoPreviewEvaluatedTimelineSample = String(timelineFrame);
+			}
+			try {
+				publishEvaluatedVideoPreviewFrame({ compositor, project, timelineFrame });
+			} catch { /* clean-display failure must not stop the editor preview */ }
+			updateCompositorState(report.status === 'fallback'
+				? 'fallback' : report.renderedEntryCount > 0 ? 'ready' : 'webgl');
+			if (shouldContinueVideoPreviewPlayback(report, playhead.transportState)) {
+				animationFrameRef.current = requestAnimationFrame(renderPreviewFrameCallback);
+			}
+		};
 		try {
-			report = compositor.render(composedLayersRef.current, renderOptionsRef.current);
-		} catch {
-			report = createVideoPreviewCompositorFallbackReport(composedLayersRef.current);
-		}
-		updateRenderIssue(report);
-		const freezeProject = freezeCaptureProjectRef.current;
-		if (report.status !== 'fallback' && freezeProject?.schemaVersion === 27) {
-			freezeEvaluatedFrameRef.current = {
-				projectId: freezeProject.id,
-				projectRevision: freezeProject.revision,
-				timelineSample: timelineFrame,
-			};
-		}
-		if (previewRootRef.current && report.status !== 'fallback') {
-			previewRootRef.current.dataset.videoPreviewEvaluatedTimelineSample = String(timelineFrame);
-		}
-		try {
-			publishEvaluatedVideoPreviewFrame({ compositor, project, timelineFrame });
-		} catch { /* clean-display failure must not stop the editor preview */ }
-		const nextState = report.status === 'fallback'
-			? 'fallback'
-			: report.renderedEntryCount > 0 ? 'ready' : 'webgl';
-		updateCompositorState(nextState);
-		if (shouldContinueVideoPreviewPlayback(report, playhead.transportState)) {
-			animationFrameRef.current = requestAnimationFrame(renderPreviewFrameCallback);
-		}
+			const visualSession = visualSessionRef.current;
+			const productFrame = visualSession?.resolve(timelineFrame) ?? null;
+			if (visualSession?.renderExact) {
+				if (exactRenderActiveRef.current) return;
+				exactRenderActiveRef.current = true;
+				void visualSession.renderExact({
+					timelineSample: timelineFrame, mediaLayers: compositorLayersRef.current,
+				}).then((result) => {
+					if (visualSessionRef.current === visualSession) {
+						publishProductFrame(result.frame, result.layers, true);
+					}
+				}).catch((error) => {
+					if (visualSessionRef.current === visualSession) failProductFrame(error);
+				}).finally(() => {
+					exactRenderActiveRef.current = false;
+					if (visualSessionRef.current !== visualSession && !animationFrameRef.current) {
+						animationFrameRef.current = requestAnimationFrame(renderPreviewFrameCallback);
+					}
+				});
+				return;
+			}
+			publishProductFrame(productFrame, composeProductVideoVisualPreviewLayers(
+				compositorLayersRef.current, productFrame,
+			), Boolean(visualSession));
+		} catch (error) { failProductFrame(error); }
 	}, [controller, project, updateCompositorState, updateRenderIssue, updateVisualPreviewFrame,
 		videoEffectBypass, visualSessionRef]);
 	const requestPreviewFrame = useCallback(() => {

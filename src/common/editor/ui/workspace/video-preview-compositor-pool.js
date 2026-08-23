@@ -9,6 +9,7 @@ const EMPTY_VIDEO_EFFECT_STACK = Object.freeze([]);
 function createEntry() {
 	return {
 		clipId: null,
+		sourceId: null,
 		video: null,
 		effects: EMPTY_VIDEO_EFFECT_STACK,
 		opacity: 0,
@@ -19,6 +20,7 @@ function createEntry() {
 
 export function clearVideoPreviewCompositorEntry(entry) {
 	entry.clipId = null;
+	entry.sourceId = null;
 	entry.video = null;
 	entry.effects = EMPTY_VIDEO_EFFECT_STACK;
 	entry.opacity = 0;
@@ -122,6 +124,7 @@ export function synchronizeVideoPreviewCompositorLayers(
 			const targetEntry = targetLayer.entryPool[targetEntryCount];
 			targetLayer.entries[targetEntryCount] = targetEntry;
 			targetEntry.clipId = clip.clipId;
+			targetEntry.sourceId = clip.sourceId || clip.source?.id || null;
 			targetEntry.video = videoElements.get(clip.clipId) || null;
 			applyVideoPreviewDisplaySize(displaySizes, clip.source, targetEntry, targetEntry.video);
 			const keyframeState = keyframeStates.get(clip) || null;

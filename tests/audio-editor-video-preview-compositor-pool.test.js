@@ -92,6 +92,7 @@ test('preview pool carries canonical render descriptions into entries and layer 
 	assert.strictEqual(targetLayers[0].entries[0].renderDescription, renderDescription);
 	assert.equal(targetLayers[0].entries[0].intervalProgress, 0.5);
 	assert.equal(targetLayers[0].entries[0].opacity, 0.5);
+	assert.equal(targetLayers[0].entries[0].sourceId, 'source');
 });
 
 test('preview pool removes render fields when a legacy descriptor is absent or a layer clears', () => {

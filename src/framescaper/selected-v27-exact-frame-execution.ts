@@ -37,6 +37,7 @@ import type {
 	UnifiedExactRenderPlanV13,
 } from '../common/editor/unified-exact-render-plan.ts';
 import { evaluateVideoMaskMatteRgbaV13 } from '../common/editor/video-mask-matte-rgba-v13.ts';
+import { applyVideoExactBrowserEffectsV27 } from '../common/editor/video-exact-browser-effects-v27.ts';
 import { videoDeliveryColorChannels } from '../common/editor/video-delivery-color.ts';
 import type { DisposableVideoMotionWebGl2AcceleratorV1 } from '../common/editor/video-motion-webgl2-v27.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
@@ -71,12 +72,15 @@ export interface FramescaperSelectedExactFrameExecutionV27 {
 export type CaptureFrameV27 = (entry: Data, signal: AbortSignal) => (
 	PromiseLike<UnifiedExactRenderRgbaFrameV13> | UnifiedExactRenderRgbaFrameV13
 );
+export type ApplyEffectsV27 = (frame: UnifiedExactRenderRgbaFrameV13, effects: readonly unknown[],
+	signal: AbortSignal) => PromiseLike<UnifiedExactRenderRgbaFrameV13>;
 export async function createFramescaperSelectedExactFrameExecutionV27(options: Readonly<{
 	readonly project: FramescaperProjectV27;
 	readonly plan: UnifiedExactRenderPlanV13;
 	readonly store?: FramescaperVideoExportVisualAssetStoreV27 & FramescaperVideoExportFinishingAssetStoreV27;
 	readonly sourceFrames?: FramescaperVideoFrameAddressV27;
 	readonly captureFrame?: CaptureFrameV27;
+	readonly applyEffects?: ApplyEffectsV27;
 	readonly createAcceleratorCanvas?: () => unknown;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
@@ -96,10 +100,13 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 	const finishingConsumer = createUnifiedExactRenderFinishingPreviewConsumerV13(options.plan);
 	const visualConsumer = createUnifiedExactRenderVisualPreviewConsumerV13(options.plan);
 	const captureFrame = options.captureFrame ?? captureBrowserFrame;
+	const applyEffects = options.applyEffects ?? applyVideoExactBrowserEffectsV27;
 	const clips = new Map(options.plan.nodes.flatMap((node) => (
 		node.kind === 'clip' ? [[node.clipId, node] as const] : []
 	)));
 	const sourceIdByNodeId = new Map(options.plan.sources.map(({ nodeId, sourceId }) => [nodeId, sourceId]));
+	const effectsById = new Map(options.plan.nodes.flatMap((node) => node.kind !== 'clip' ? []
+		: node.pictureState.videoEffects.map((effect) => [effect.id, effect] as const)));
 	const masks = new Map(options.plan.nodes.flatMap((node) => (
 		node.kind === 'visual' && node.modelKind === 'mask-matte' && 'inputs' in node.authoredState
 			? [[node.modelId, node.authoredState] as const] : []
@@ -141,15 +148,16 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			const trackFrames = new Map<string, UnifiedExactLinearCompositionEntryV13[]>();
 			const consumed = new Set(visual.ledger.consumedNodeIds);
 			consumed.add(finishing.nodeId);
+			const adjustmentEffects = new Set(visual.activeAdjustmentLayers.flatMap(({ effectIds }) => effectIds));
 			for (const layerValue of request.layers) await renderMediaLayer(
 				record(layerValue, 'Selected V27 media layer'), trackFrames,
-				rawVisuals, consumed, width, height,
+				rawVisuals, consumed, adjustmentEffects, width, height,
 			);
 			for (const layer of visual.layers) renderVisualLayer(
 				layer.trackId, layer.entries, trackFrames,
 				rawVisuals, width, height,
 			);
-			for (const adjustment of visual.activeAdjustmentLayers) applyAdjustment(
+			for (const adjustment of visual.activeAdjustmentLayers) await applyAdjustment(
 				adjustment, trackFrames, rawVisuals, width, height,
 			);
 			const output = createUnifiedExactLinearPremultipliedFrameV13(
@@ -178,6 +186,7 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 		trackFrames: Map<string, UnifiedExactLinearCompositionEntryV13[]>,
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 		consumed: Set<string>,
+		adjustmentEffects: ReadonlySet<string>,
 		width: number,
 		height: number,
 	): Promise<void> {
@@ -185,9 +194,9 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 		const entries = records(layer.entries, 'Selected V27 media entries');
 		const target = trackFrames.get(trackId) ?? [];
 		for (const entry of entries) {
-			if (records(entry.effects ?? [], 'Selected V27 media effects').length > 0) {
-				throw new Error('Selected V27 exact finishing refuses an unexecuted legacy video effect.');
-			}
+			const effects = records(entry.effects ?? [], 'Selected V27 media effects').filter((effect) => (
+				!adjustmentEffects.has(stableId(effect.id, 'Selected V27 media effect ID'))
+			));
 			const clipId = stableId(entry.clipId, 'Selected V27 media clip ID');
 			const clip = clips.get(clipId);
 			if (!clip) throw new ReferenceError(`Selected V27 clip ${clipId} is absent from its V13 plan.`);
@@ -201,7 +210,10 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			);
 			const outerCell = nonNegativeInteger(descriptor.outerCell, 'Selected V27 outer cell');
 			const raw = await captureFrame(entry, options.signal);
-			const frame = checkedFrame(raw, 'Selected V27 captured media frame');
+			let frame = checkedFrame(raw, 'Selected V27 captured media frame');
+			if (effects.length > 0) frame = checkedFrame(
+				await applyEffects(frame, effects, options.signal), 'Selected V27 effected media frame',
+			);
 			const resolved = await finishingConsumer.resolveFrame({
 				clipId, sourceFrame, sequenceFrame: clip.sequenceStartFrame + outerCell,
 				frame, presentationScope: 'source', outputEncoding: 'linear-rec709-d65',
@@ -261,16 +273,13 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 		trackFrames.set(trackId, target);
 	}
 
-	function applyAdjustment(
+	async function applyAdjustment(
 		adjustment: UnifiedExactRenderActiveAdjustmentV13,
 		trackFrames: Map<string, UnifiedExactLinearCompositionEntryV13[]>,
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 		width: number,
 		height: number,
-	): void {
-		if (adjustment.effectIds.length > 0) {
-			throw new Error('Selected V27 exact finishing refuses an unexecuted adjustment effect.');
-		}
+	): Promise<void> {
 		const presentations = finishing.visualPresentations.filter(({ enabled, owner }) => (
 			enabled && owner.kind === 'adjustment-layer' && owner.id === adjustment.modelId
 		));
@@ -282,7 +291,11 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			const entries = trackFrames.get(trackId);
 			if (!entries) continue;
 			const target = flattenUnifiedExactLinearCompositionV13(width, height, entries);
-			const graded = gradeLinearFrame(straightUnifiedExactLinearFrameV13(target), grades,
+			let adjusted = straightUnifiedExactLinearFrameV13(target);
+			if (adjustment.effectIds.length > 0) adjusted = checkedFrame(await applyEffects(
+				adjusted, adjustment.effectIds.map((id) => requiredVisual(effectsById, id)), options.signal,
+			), 'Selected V27 adjustment effect frame');
+			const graded = gradeLinearFrame(adjusted, grades,
 				finishingAssets.luts, options.signal);
 			const mask = adjustment.masks.length === 0 ? undefined
 				: combinedGraphs(adjustment.masks, width, height, maskInputs);
@@ -315,7 +328,6 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 
 	return Object.freeze({ render, acceleratorDisposition, dispose });
 }
-
 async function materializeVisuals(
 	entries: readonly UnifiedExactRenderVisualFrameEntryV13[],
 	stills: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
@@ -337,7 +349,6 @@ async function materializeVisuals(
 	}
 	return result;
 }
-
 function gradeVisual(
 	finishing: UnifiedExactRenderFinishingNode,
 	entry: UnifiedExactRenderVisualFrameEntryV13,
@@ -357,7 +368,6 @@ function gradeVisual(
 	return gradeEncodedFrame(frame, interpretation,
 		presentations.flatMap(({ grade }) => grade ? [grade] : []), luts, signal);
 }
-
 function gradeEncodedFrame(
 	frame: UnifiedExactRenderVisualRgbaV13,
 	interpretation: VideoSourceColorInterpretationV1,
@@ -376,7 +386,6 @@ function gradeEncodedFrame(
 	}
 	return Object.freeze({ width: frame.width, height: frame.height, pixels });
 }
-
 function gradeLinearFrame(
 	frame: UnifiedExactRenderRgbaFrameV13,
 	grades: readonly VideoColorGradeV1[],
@@ -393,7 +402,6 @@ function gradeLinearFrame(
 	}
 	return Object.freeze({ width: frame.width, height: frame.height, pixels });
 }
-
 async function createAccelerator(
 	createCanvas: (() => unknown) | undefined,
 ): Promise<DisposableVideoMotionWebGl2AcceleratorV1 | null> {

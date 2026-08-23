@@ -5,12 +5,15 @@ import test from 'node:test';
 
 import { resolveVideoRenderDescription } from '../src/common/editor/video-render-description.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
+import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
+import { bindVideoSourceTimingView } from '../src/common/editor/video-source-timing-view.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV27 } from '../src/framescaper/editor-project-unified-render-plan-v27.ts';
+import { createFramescaperSelectedExactPreviewV27 } from '../src/framescaper/editor-selected-v27-exact-preview.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
 import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
 import { createFramescaperSelectedExactFrameExecutionV27 } from '../src/framescaper/selected-v27-exact-frame-execution.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
-import { renderAuthority } from './helpers/framescaper-unified-render-project-fixture.ts';
+import { freshness, renderAuthority } from './helpers/framescaper-unified-render-project-fixture.ts';
 
 const PROFILE = FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE;
 
@@ -41,11 +44,96 @@ test('selected V27 finishes each straight-alpha source layer in linear light and
 		layers: [mediaLayer('video-clip', 1)], width: 2, height: 2, target, signal,
 	});
 	assert.deepEqual([...target.subarray(0, 4)], [128, 0, 0, 255]);
-	assert.ok(result.consumedNodeIds.length === 0);
+	assert.ok(result.consumedNodeIds.some((nodeId) => nodeId.includes('finishing')));
 	assert.deepEqual(execution.acceleratorDisposition(), {
 		attempted: false, active: false, fallbackReasons: [],
 	});
 	await execution.dispose();
+});
+
+test('selected V27 executes clip and adjustment effects once in their authored scopes', async () => {
+	const clipEffect = videoEffect('clip-effect', 0.1);
+	const adjustmentEffect = videoEffect('adjustment-effect', 0.25);
+	const adjustment = {
+		schemaVersion: 1, kind: 'adjustment-layer', id: 'adjustment',
+		sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
+		targetTrackIds: ['video-track'], effectIds: [adjustmentEffect.id],
+	};
+	const options = framescaperV20Options();
+	(options.clips as Record<string, unknown>[])[0]!.videoEffects = [clipEffect, adjustmentEffect];
+	const project = createFramescaperProjectV27(PROFILE, {
+		...options, videoTransitionsByTrackId: { 'video-track': [] },
+		visualModel: { adjustmentLayers: [adjustment] }, finishing: finishing(),
+	});
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+		...renderAuthority(project, 10),
+		canvas: { width: 2, height: 2, fit: 'contain' as const,
+			pixelFormat: 'yuv420p', backgroundColor: '#000000' },
+		visualFreshnessByModelId: new Map([['adjustment', freshness(adjustment)]]),
+	});
+	const applied: string[][] = [];
+	const signal = new AbortController().signal;
+	const execution = await createFramescaperSelectedExactFrameExecutionV27({
+		project, plan, signal, assertCurrent() {},
+		captureFrame: () => rgbaFrame(64),
+		applyEffects: (frame, effects) => {
+			applied.push(effects.map((effect) => String((effect as { id?: unknown }).id)));
+			return Promise.resolve(frame);
+		},
+	});
+	await execution.render({
+		sequencePosition: { num: 0, den: 1 },
+		layers: [mediaLayer('video-clip', 1, [clipEffect, adjustmentEffect])],
+		width: 2, height: 2, target: new Uint8Array(16), signal,
+	});
+	assert.deepEqual(applied, [['clip-effect'], ['adjustment-effect']]);
+	await execution.dispose();
+});
+
+test('selected V27 preview uses the same exact source-layer route and presentation authority', async () => {
+	const project = createFramescaperProjectV27(PROFILE, {
+		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
+		finishing: finishing(),
+	});
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+		...renderAuthority(project, 10),
+		canvas: { width: 2, height: 2, fit: 'contain' as const,
+			pixelFormat: 'yuv420p', backgroundColor: '#000000' },
+		visualFreshnessByModelId: new Map(),
+	});
+	const source = project.sources.find((candidate) => candidate.kind === 'video')!;
+	const timingViews = new Map([[source.id, Object.freeze({
+		kind: 'cfr' as const, rate: source.frameRate, frameCount: source.sourceFrameCount,
+	})]]);
+	const boundTimingViews = new Map([[source.id, bindVideoSourceTimingView(timingViews, source)]]);
+	const signal = new AbortController().signal;
+	let written: Uint8Array<ArrayBuffer> | null = null;
+	const preview = await createFramescaperSelectedExactPreviewV27({
+		project, plan, timingViews, boundTimingViews, signal, assertCurrent() {},
+		store: {} as AudioEditorProjectStore,
+		captureFrame: () => ({
+			width: 2, height: 2,
+			pixels: Uint8Array.from({ length: 16 }, (_, index) => index % 4 === 0 ? 128
+				: index % 4 === 3 ? 255 : 0),
+		}),
+		createOutput: () => ({
+			drawable: Object.freeze({}),
+			write(pixels) { written = pixels.slice(); },
+			dispose() {},
+		}),
+	});
+	const frame = Object.freeze({
+		layers: Object.freeze([]), adjustments: Object.freeze([]),
+		activeFreezeNodeIds: Object.freeze([]), availablePresetIds: Object.freeze([]),
+		ledger: Object.freeze({ requestedNodeIds: Object.freeze([]),
+			consumedNodeIds: Object.freeze([]), omittedNodeIds: Object.freeze([]) }),
+	});
+	const result = await preview.render({ timelineSample: 0, mediaLayers: [mediaLayer('video-clip', 1)], frame });
+	assert.ok(written);
+	assert.deepEqual([...written.subarray(0, 4)], [128, 0, 0, 255]);
+	assert.equal(result.layers[0]?.trackId, 'framescaper-v27-exact-output');
+	assert.deepEqual(result.frame.ledger.requestedNodeIds, result.frame.ledger.consumedNodeIds);
+	preview.dispose();
 });
 
 function finishing() {
@@ -74,13 +162,13 @@ function finishing() {
 	};
 }
 
-function mediaLayer(clipId: string, opacity: number) {
+function mediaLayer(clipId: string, opacity: number, effects: readonly unknown[] = []) {
 	return {
 		trackId: 'video-track', trackIndex: 0, entries: [{
 			kind: 'video', role: 'single', clipId, sourceId: 'video-source',
 			presentationDescriptor: { drawableSourceFrame: 0, outerCell: 0 },
 			video: { videoWidth: 2, videoHeight: 2 },
-			displayWidth: 2, displayHeight: 2, effects: [], intervalProgress: 0,
+			displayWidth: 2, displayHeight: 2, effects, intervalProgress: 0,
 			renderDescription: resolveVideoRenderDescription({
 				composition: DEFAULT_VIDEO_CLIP_COMPOSITION,
 				sourceDisplaySize: { width: 2, height: 2 },
@@ -88,4 +176,19 @@ function mediaLayer(clipId: string, opacity: number) {
 			}),
 		}],
 	};
+}
+
+function videoEffect(id: string, brightness: number) {
+	return Object.freeze({
+		id, type: 'color-adjust', enabled: true,
+		params: Object.freeze({ brightness, contrast: 1, saturation: 1, gamma: 1, hueDegrees: 0 }),
+	});
+}
+
+function rgbaFrame(red: number) {
+	return Object.freeze({
+		width: 2, height: 2,
+		pixels: Uint8Array.from({ length: 16 }, (_, index) => index % 4 === 0 ? red
+			: index % 4 === 3 ? 255 : 0),
+	});
 }

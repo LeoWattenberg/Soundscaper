@@ -43,6 +43,7 @@ import {
 	normalizeVideoStillSourceV1,
 } from '../common/editor/video-visual-model-v24.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV27 } from './editor-project-unified-render-plan-v27.ts';
+import { createFramescaperSelectedExactPreviewV27 } from './editor-selected-v27-exact-preview.ts';
 import {
 	assertFramescaperProjectV27Profile,
 } from './editor-project-runtime-profile-v27.ts';
@@ -84,7 +85,6 @@ export async function createFramescaperSelectedVisualPreviewSessionV27(
 	const canvas = previewCanvas(options.width, options.height);
 	const timingViews = previewTimingViews(project);
 	const plan = createPreviewPlan(options.profile, project, canvas, timingViews);
-	if (!plan.nodes.some((node) => node.kind === 'visual' || node.kind === 'transition')) return null;
 	const consumer = createUnifiedExactRenderVisualPreviewConsumerV13(
 		plan, previewTimingSidecars(project, timingViews),
 	);
@@ -92,6 +92,11 @@ export async function createFramescaperSelectedVisualPreviewSessionV27(
 	const drawables = await materializeDrawables(
 		plan, consumer, options.store, canvas, abort.signal,
 	);
+	const exact = await createFramescaperSelectedExactPreviewV27({
+		project: options.project as never, plan, store: options.store, timingViews,
+		boundTimingViews: previewTimingSidecars(project, timingViews), signal: abort.signal,
+		assertCurrent() { if (abort.signal.aborted) throw abort.signal.reason; },
+	});
 	const effectsById = exactEffectsById(plan);
 	let disposed = false;
 	let cachedSample = -1;
@@ -107,16 +112,9 @@ export async function createFramescaperSelectedVisualPreviewSessionV27(
 		}
 		return cached!;
 	};
-	return Object.freeze({
-		resolve(timelineSample: number): ProductVideoVisualPreviewFrame {
-			const frame = resolve(timelineSample);
-			for (const adjustment of frame.activeAdjustmentLayers) {
-				if (adjustment.opacity !== 1 || adjustment.blendMode !== 'normal'
-					|| adjustment.masks.length !== 0) {
-					throw new Error(`V13 preview cannot consume adjustment presentation ${adjustment.nodeId}.`);
-				}
-			}
-			return Object.freeze({
+	const publish = (timelineSample: number): ProductVideoVisualPreviewFrame => {
+		const frame = resolve(timelineSample);
+		return Object.freeze({
 				layers: Object.freeze(frame.layers.flatMap((layer) => layer.entries.map((entry) => {
 					const video = drawables.get(entry.modelId);
 					if (!video) throw new ReferenceError(`V13 visual drawable ${entry.modelId} is unavailable.`);
@@ -143,15 +141,25 @@ export async function createFramescaperSelectedVisualPreviewSessionV27(
 				availablePresetIds: frame.availablePresetIds,
 				ledger: frame.ledger,
 			});
-		},
+	};
+	return Object.freeze({
+		resolve: publish,
 		resolveTransitionWeight(clipId: string, timelineSample: number): number | null {
 			if (typeof clipId !== 'string' || !clipId) throw new TypeError('A transition clip ID is required.');
 			return resolve(timelineSample).transitionWeights.find((weight) => weight.clipId === clipId)?.weight ?? null;
+		},
+		async renderExact(request: Readonly<{
+			readonly timelineSample: number;
+			readonly mediaLayers: readonly unknown[];
+		}>) {
+			const frame = publish(request.timelineSample);
+			return exact.render({ ...request, frame });
 		},
 		dispose(): void {
 			if (disposed) return;
 			disposed = true;
 			abort.abort(new DOMException('The V13 preview session was disposed.', 'AbortError'));
+			exact.dispose();
 			drawables.clear();
 		},
 	});
@@ -486,7 +494,7 @@ function primarySequence(project: Data): Data {
 
 function hasExecutableVisualState(project: Data): boolean {
 	if (records(project.clips, 'Selected V27 clips').some(({ kind }) => (
-		kind === 'still' || kind === 'generator'
+		kind === 'video' || kind === 'still' || kind === 'generator'
 	))) return true;
 	if (records(project.videoAdjustmentLayers, 'Selected V27 adjustments').length > 0
 		|| records(project.videoFreezeFallbacks, 'Selected V27 freezes').length > 0) return true;

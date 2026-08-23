@@ -29,6 +29,13 @@ export interface ProductVideoVisualPreviewFrame {
 export interface ProductVideoVisualPreviewSession {
 	resolve(timelineSample: number): ProductVideoVisualPreviewFrame;
 	resolveTransitionWeight(clipId: string, timelineSample: number): number | null;
+	renderExact?(request: Readonly<{
+		readonly timelineSample: number;
+		readonly mediaLayers: readonly unknown[];
+	}>): Promise<Readonly<{
+		readonly frame: ProductVideoVisualPreviewFrame;
+		readonly layers: readonly Readonly<Record<string, unknown>>[];
+	}>>;
 	dispose(): void;
 }
 
