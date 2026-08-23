@@ -101,13 +101,14 @@ test('selected V27 preview uses the same exact source-layer route and presentati
 			pixelFormat: 'yuv420p', backgroundColor: '#000000' },
 		visualFreshnessByModelId: new Map(),
 	});
-	const source = project.sources.find((candidate) => candidate.kind === 'video')!;
+	const source = (project.sources as readonly VideoSourceFixture[])
+		.find((candidate) => candidate.kind === 'video')!;
 	const timingViews = new Map([[source.id, Object.freeze({
 		kind: 'cfr' as const, rate: source.frameRate, frameCount: source.sourceFrameCount,
 	})]]);
 	const boundTimingViews = new Map([[source.id, bindVideoSourceTimingView(timingViews, source)]]);
 	const signal = new AbortController().signal;
-	let written: Uint8Array<ArrayBuffer> | null = null;
+	const outputState: { written: Uint8Array<ArrayBuffer> | null } = { written: null };
 	const preview = await createFramescaperSelectedExactPreviewV27({
 		project, plan, timingViews, boundTimingViews, signal, assertCurrent() {},
 		store: {} as AudioEditorProjectStore,
@@ -118,7 +119,7 @@ test('selected V27 preview uses the same exact source-layer route and presentati
 		}),
 		createOutput: () => ({
 			drawable: Object.freeze({}),
-			write(pixels) { written = pixels.slice(); },
+			write(pixels) { outputState.written = pixels.slice(); },
 			dispose() {},
 		}),
 	});
@@ -129,8 +130,8 @@ test('selected V27 preview uses the same exact source-layer route and presentati
 			consumedNodeIds: Object.freeze([]), omittedNodeIds: Object.freeze([]) }),
 	});
 	const result = await preview.render({ timelineSample: 0, mediaLayers: [mediaLayer('video-clip', 1)], frame });
-	assert.ok(written);
-	assert.deepEqual([...written.subarray(0, 4)], [128, 0, 0, 255]);
+	assert.ok(outputState.written);
+	assert.deepEqual([...outputState.written.subarray(0, 4)], [128, 0, 0, 255]);
 	assert.equal(result.layers[0]?.trackId, 'framescaper-v27-exact-output');
 	assert.deepEqual(result.frame.ledger.requestedNodeIds, result.frame.ledger.consumedNodeIds);
 	preview.dispose();
@@ -176,6 +177,13 @@ function mediaLayer(clipId: string, opacity: number, effects: readonly unknown[]
 			}),
 		}],
 	};
+}
+
+interface VideoSourceFixture extends Readonly<Record<string, unknown>> {
+	readonly id: string;
+	readonly kind: 'video';
+	readonly frameRate: Readonly<{ readonly num: number; readonly den: number }>;
+	readonly sourceFrameCount: number;
 }
 
 function videoEffect(id: string, brightness: number) {

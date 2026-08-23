@@ -37,7 +37,7 @@ import type {
 	UnifiedExactRenderPlanV13,
 } from '../common/editor/unified-exact-render-plan.ts';
 import { evaluateVideoMaskMatteRgbaV13 } from '../common/editor/video-mask-matte-rgba-v13.ts';
-import { applyVideoExactBrowserEffectsV27 } from '../common/editor/video-exact-browser-effects-v27.ts';
+import { applyVideoExactBrowserEffectsV27 } from './editor-video-exact-browser-effects-v27.ts';
 import { videoDeliveryColorChannels } from '../common/editor/video-delivery-color.ts';
 import type { DisposableVideoMotionWebGl2AcceleratorV1 } from '../common/editor/video-motion-webgl2-v27.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';

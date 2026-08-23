@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { UnifiedExactRenderRgbaFrameV13 } from './unified-exact-render-finishing-consumers-v13.ts';
-import { DEFAULT_VIDEO_CLIP_COMPOSITION } from './video-clip-composition.ts';
-import { resolveVideoRenderDescription } from './video-render-description.ts';
+import type { UnifiedExactRenderRgbaFrameV13 } from '../common/editor/unified-exact-render-finishing-consumers-v13.ts';
+import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
+import { resolveVideoRenderDescription } from '../common/editor/video-render-description.ts';
 
 /** Execute maintained browser effects over straight RGBA without changing transfer encoding. */
 export async function applyVideoExactBrowserEffectsV27(
@@ -22,7 +22,7 @@ export async function applyVideoExactBrowserEffectsV27(
 	if (!context) throw new Error('Selected V27 browser effect source has no 2D context.');
 	context.putImageData(new ImageData(new Uint8ClampedArray(frame.pixels), frame.width, frame.height), 0, 0);
 	const output = globalThis.document.createElement('canvas');
-	const module = await import('./ui/video-preview-compositor.js');
+	const module = await import('../common/editor/ui/video-preview-compositor.js');
 	throwIfAborted(signal);
 	const compositor = module.createVideoPreviewCompositor(output);
 	try {

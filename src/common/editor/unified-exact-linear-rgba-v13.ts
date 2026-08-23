@@ -10,7 +10,7 @@ import type { VideoClipCompositionBlendMode } from './video-clip-composition.ts'
 import {
 	videoPreviewRenderGeometry,
 	type VideoPreviewRenderGeometry,
-} from './ui/video-preview-render-description.ts';
+} from './video-preview-render-description.ts';
 import type { UnifiedExactRenderRgbaFrameV13 } from './unified-exact-render-finishing-consumers-v13.ts';
 
 export interface UnifiedExactLinearPremultipliedFrameV13 {
