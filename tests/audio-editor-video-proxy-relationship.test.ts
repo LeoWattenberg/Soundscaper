@@ -102,22 +102,17 @@ test('prepares fresh frozen exact relationships with opaque source bytes and ign
 	assert.equal(Object.hasOwn(firstInfo, 'candidateHasAudio'), false);
 });
 
-test('refuses target timeline and Project Bin retime synchronously before all privileged work', async () => {
+test('admits target timeline and Project Bin retime in the source domain', async () => {
 	for (const [location, project] of [
 		['timeline', videoProxyProject({ timelineRetime: retimeCurve() })],
 		['Project Bin', videoProxyProject({ binRetime: retimeCurve() })],
 	] as const) {
 		const fixture = createVideoProxyFixture({ project });
-		assert.throws(
-			() => proveVideoProxyRelationship(fixture.authority, { sourceId: ORIGINAL_SOURCE_ID }),
-			/retime|proxy|target/iu,
-			`${location} retime admission must throw before returning a Promise`,
+		await assert.doesNotReject(
+			proveVideoProxyRelationship(fixture.authority, { sourceId: ORIGINAL_SOURCE_ID }),
+			`${location} retime must not alter the source-domain relationship`,
 		);
-		assert.deepEqual(fixture.counters, {
-			...zeroCounters(),
-			captureTask: 1,
-			taskChecks: 1,
-		});
+		assert.equal(fixture.counters.generatorCalls, 1);
 	}
 	const allowed = createVideoProxyFixture({ project: videoProxyProject({ includeUnrelatedRetime: true }) });
 	const allowedPromise = proveVideoProxyRelationship(allowed.authority, { sourceId: ORIGINAL_SOURCE_ID });
@@ -542,7 +537,12 @@ test('source pins pre-I/O admission, one exact proof, final recheck, same-Blob f
 		/export async function proveVideoProxyRelationship\(/u,
 		'pre-I/O target admission must throw synchronously rather than become a rejected Promise',
 	);
-	assert.match(relationship, /project\.clips[\s\S]*?projectBin[\s\S]*?retimeMap/u);
+	assert.match(relationship, /project\.clips[\s\S]*?projectBin/u);
+	assert.doesNotMatch(
+		relationship,
+		/cannot include retimed clips/u,
+		'occurrence retime is applied after source-domain proxy selection',
+	);
 	assert.equal(
 		[...relationship.matchAll(/\bproveVideoProxyTimingConformance\s*\(/gu)].length,
 		1,

@@ -481,9 +481,6 @@ function captureOccurrences(
 	for (let index = 0; index < clips.length; index += 1) {
 		const clip = dataRecord(clips[index], `${store} clip`);
 		if (dataProperty(clip, 'sourceId', `${store} clip`) !== sourceId) continue;
-		if (dataProperty(clip, 'retimeMap', `${store} clip`) !== null) {
-			throw new RangeError('A target video proxy relationship cannot include retimed clips.');
-		}
 		const clipId = nonEmptyString(dataProperty(clip, 'id', `${store} clip`), `${store} clip.id`);
 		result.push({
 			store,
