@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { prepareTransformClipsCommand } from '../src/common/editor/commands.js';
 import { createAddTrackCommand } from '../src/common/editor/commands/factories.ts';
 import { planFrameCanonicalEdgeTrim } from '../src/common/editor/frame-canonical-edge-trim-planner.ts';
 import { isRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
@@ -27,6 +28,7 @@ import {
 import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
 import { createFramescaperProjectV24 } from '../src/framescaper/editor-project-v24.ts';
 import { FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v24.ts';
+import { prepareFramescaperSelectedAuthoringV27 } from '../src/framescaper/editor-selected-v27-authoring-workflows.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
 
 const PROFILE = FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE;
@@ -47,6 +49,21 @@ test('selected V27 runtime owns exact creation, projection, storage, and explici
 		(runtime.projectForRuntimeConsumers(project).clips as readonly unknown[]).length,
 		(project.clips as readonly unknown[]).length,
 	);
+	const authored = await prepareFramescaperSelectedAuthoringV27(
+		'video-solid', project, {} as never,
+	);
+	assert.ok(authored);
+	const withSolid = runtime.applyCommand(project, authored.command as never);
+	const solidCommandProject = runtime.projectForCommandConsumers(withSolid);
+	const solidClip = (solidCommandProject.clips as readonly Readonly<Record<string, unknown>>[])
+		.find(({ kind }) => kind === 'generator');
+	assert.ok(solidClip);
+	assert.equal(solidCommandProject.schemaVersion, 17);
+	assert.equal(isRuntimeProjectProjection(solidCommandProject), true);
+	assert.equal(solidClip.coordinateDomain, 'resolved-samples');
+	assert.equal(Number.isSafeInteger(solidClip.timelineStartFrame), true);
+	assert.equal(Number.isSafeInteger(solidClip.timelineEndFrame), true);
+	assert.equal(Number(solidClip.durationFrames) > 0, true);
 	assert.deepEqual(editorProjectStorageProfileNames(runtime.storageProfile), {
 		databaseName: 'kw-media-framescaper-editor-v27',
 		opfsDirectoryName: 'framescaper-editor-v27-sources',
@@ -183,6 +200,53 @@ test('inherited media import batches admit an adjacent A/V lane pair atomically'
 	assert.equal(Number(applied.revision), Number(project.revision) + 1);
 });
 
+test('selected V27 prepares an exact transition allocation for a generic cross-track clip move', () => {
+	const runtime = createEditorProjectRuntimeV27Selection(PROFILE);
+	const project = overlapProjectFixture('automatic-transition-v27');
+	const commandProject = runtime.projectForCommandConsumers(project);
+	const command = prepareTransformClipsCommand(commandProject as never, [{
+		clipId: 'incoming-video-clip', trackId: 'video-track',
+		changes: { timelineStartFrame: 24_000 },
+	}], {}, (prefix = 'item') => `${prefix}-automatic`);
+	assert.throws(
+		() => applyFramescaperProjectCommandV27(PROFILE, project, command as never),
+		/requires videoTransitionAllocations/iu,
+	);
+	const executed = runtime.executeCommand(runtime.createHistory(project), command as never, {
+		now: '2026-08-23T12:04:00.000Z',
+	});
+	const videoTrack = (executed.present.tracks as unknown as readonly Readonly<{
+		readonly id: string;
+		readonly type: string;
+		readonly videoTransitions: readonly Readonly<{
+			readonly id: string;
+			readonly outgoingClipId: string;
+			readonly incomingClipId: string;
+			readonly durationFrames: number;
+		}>[];
+	}>[]).find(({ id }) => id === 'video-track');
+	assert.equal(videoTrack?.type, 'video');
+	const transition = videoTrack?.type === 'video' ? videoTrack.videoTransitions[0] : undefined;
+	assert.ok(transition);
+	assert.match(transition.id, /^transition-/u);
+	assert.deepEqual(videoTrack?.type === 'video' ? videoTrack.videoTransitions.map((transition) => ({
+		outgoingClipId: transition.outgoingClipId,
+		incomingClipId: transition.incomingClipId,
+		durationFrames: transition.durationFrames,
+	})) : [], [{
+		outgoingClipId: 'video-clip',
+		incomingClipId: 'incoming-video-clip',
+		durationFrames: 5,
+	}]);
+	assert.deepEqual(
+		(executed.undoStack[0]?.command as Readonly<Record<string, unknown>>).videoTransitionAllocations,
+		[{
+			trackId: 'video-track', outgoingClipId: 'video-clip',
+			incomingClipId: 'incoming-video-clip', transitionId: transition.id,
+		}],
+	);
+});
+
 test('selected V27 session refuses implicit prior conversion and preserves dormant custody', () => {
 	const runtime = createEditorProjectRuntimeV27Selection(PROFILE);
 	const session = runtime.createSessionController();
@@ -207,6 +271,36 @@ test('selected V27 session refuses implicit prior conversion and preserves dorma
 function projectFixture(id: string) {
 	return createFramescaperProjectV27(PROFILE, {
 		...framescaperV20Options(), id, videoTransitionsByTrackId: { 'video-track': [] },
+	});
+}
+
+function overlapProjectFixture(id: string) {
+	const options = structuredClone(framescaperV20Options());
+	options.id = id;
+	const source = {
+		...(options.sources as readonly Readonly<Record<string, unknown>>[])[0],
+		id: 'incoming-video-source', name: 'Incoming video', storageKey: 'incoming-video-source',
+		contentSha256: '34'.repeat(32),
+	};
+	const clip = {
+		...(options.clips as readonly Readonly<Record<string, unknown>>[])[0],
+		id: 'incoming-video-clip', sourceId: source.id, title: 'Incoming video',
+	};
+	const track = {
+		...(options.tracks as readonly Readonly<Record<string, unknown>>[])[0],
+		id: 'incoming-video-track', name: 'Incoming video', clipIds: [clip.id],
+	};
+	(options.sources as Record<string, unknown>[]).push(source);
+	(options.clips as Record<string, unknown>[]).push(clip);
+	(options.tracks as Record<string, unknown>[]).splice(1, 0, track);
+	((options.sequences as Array<Record<string, unknown>>)[0]!.trackIds as string[])
+		.splice(1, 0, String(track.id));
+	return createFramescaperProjectV27(PROFILE, {
+		...options,
+		videoTransitionsByTrackId: {
+			'video-track': [],
+			'incoming-video-track': [],
+		},
 	});
 }
 

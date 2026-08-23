@@ -5,6 +5,7 @@ import { AUDIO_EDITOR_HISTORY_LIMIT } from '../common/editor/history.js';
 import { acquireProjectLock } from '../common/editor/project-lock.js';
 import { createAudioEditorSessionController } from '../common/editor/session.js';
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
+import { createStableId } from '../common/editor/stable-id.js';
 import {
 	createFramescaperProjectFeatureCompatibilityServiceV27,
 } from './editor-project-feature-requirements-v27.ts';
@@ -52,6 +53,7 @@ import {
 	type FramescaperOpaqueCustodyProjectV27,
 } from './editor-project-opaque-custody-v27.ts';
 import { FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION, validateFramescaperProjectV27 } from './editor-project-v27-validation.ts';
+import { prepareFramescaperVideoTransitionAllocationsV27 } from './editor-project-v27-transition-allocation.ts';
 
 type LockFactory = (projectId: string, options?: Record<string, unknown>) => Promise<unknown>;
 type SessionFactory = () => ReturnType<typeof createAudioEditorSessionController>;
@@ -156,10 +158,25 @@ export function createEditorProjectRuntimeV27Selection(
 			descriptor,
 		).descriptor,
 		createHistory: (project) => createHistory(profile, project),
-		applyCommand: (project, command, options = {}) => applyFramescaperProjectCommandV27(profile, project, command, options),
-		executeCommand: (history, command, options = {}) => executeFramescaperProjectCommandV27(
-			profile, writableHistory(history), command, options,
+		applyCommand: (project, command, options = {}) => applyFramescaperProjectCommandV27(
+			profile,
+			project,
+			prepareFramescaperVideoTransitionAllocationsV27(
+				profile, project, command, createStableId,
+			),
+			options,
 		),
+		executeCommand: (history, command, options = {}) => {
+			const writable = writableHistory(history);
+			return executeFramescaperProjectCommandV27(
+				profile,
+				writable,
+				prepareFramescaperVideoTransitionAllocationsV27(
+					profile, writable.present, command, createStableId,
+				),
+				options,
+			);
+		},
 		undo: (history, options = {}) => undoFramescaperProjectCommandV27(
 			profile, writableHistory(history), options,
 		),

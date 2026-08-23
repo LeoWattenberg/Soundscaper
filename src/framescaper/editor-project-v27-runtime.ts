@@ -120,12 +120,12 @@ function mergeSelectedState(baseValue: DataRecord, project: FramescaperProjectV2
 	base.sources = [...records(base.sources, 'runtime sources'), ...structuredClone(visualSources)];
 	base.clips = [
 		...records(base.clips, 'runtime clips'),
-		...visualClips.map((clip) => runtimeClip(project, clip, runtime)),
+		...visualClips.map((clip) => runtimeClip(project, clip)),
 	];
 	const baseBin = record(base.projectBin, 'runtime project bin');
 	baseBin.clips = [
 		...records(baseBin.clips, 'runtime project bin clips'),
-		...visualBin.map((clip) => runtimeClip(project, clip, runtime)),
+		...visualBin.map((clip) => runtimeClip(project, clip)),
 	];
 	base.tracks = mergeTracks(base.tracks, canonical.tracks, new Set(visualClips.map(stableId)));
 	for (const field of [
@@ -154,8 +154,7 @@ function mergeTracks(baseValue: unknown, canonicalValue: unknown, visualIds: Rea
 	});
 }
 
-function runtimeClip(project: FramescaperProjectV27, clip: DataRecord, runtime: boolean): DataRecord {
-	if (!runtime) return structuredClone(clip);
+function runtimeClip(project: FramescaperProjectV27, clip: DataRecord): DataRecord {
 	const kind = clip.kind;
 	if (kind !== 'still' && kind !== 'generator') {
 		throw new RangeError('Selected V27 visual runtime clips must be stills or generators.');

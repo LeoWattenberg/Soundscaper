@@ -37,10 +37,7 @@ export function SequenceTimingControls({ project, snapshot, telemetry, controlle
 	const positionFrame = Math.max(0, telemetry.positionFrame || 0);
 	const disabled = snapshot.readOnly || snapshot.recording;
 	const label = sequenceTimecodeLabelAtSample(view, positionFrame, sampleRate);
-	const sourceReading = useMemo(
-		() => controller.actions.video.sourceTimecodeAtSample(positionFrame, view.id),
-		[controller, positionFrame, view.id],
-	);
+	const sourceReading = controller.actions.video.sourceTimecodeAtSample(positionFrame, view.id);
 	const inspectedSource = useMemo(
 		() => {
 			const source = project.sources?.find((candidate) => candidate.id === sourceReading?.sourceId);
