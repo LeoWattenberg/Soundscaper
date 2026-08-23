@@ -100,7 +100,7 @@ export function registerFramescaperDesktopProjectLibraryExactGenerationMainIpc(
 			if (!session) return;
 			connections.delete(target);
 			refused.add(target);
-			await session.close();
+			await session.revoke();
 		},
 	});
 }

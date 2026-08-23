@@ -106,6 +106,42 @@ test('V18 main persists only exact V27 documents in its isolated SQLite 20 catal
 	database.close();
 });
 
+test('V18 renderer revocation invalidates an in-flight prepared publication before draining', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v18-revoke-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	let resolvePrepared: (() => void) | undefined;
+	const prepared = new Promise<void>((resolve) => { resolvePrepared = resolve; });
+	const main = await FramescaperDesktopProjectLibraryV18Main.start({
+		appDataPath,
+		owner: { product: 'framescaper', processId: 1804, instanceId: 'v18-revoke' },
+		handshake: createFramescaperDesktopProjectLibraryV18Handshake(),
+		onLeaseLost: () => undefined,
+		qualification: {
+			leaseTtlMs: 30_000, renewIntervalMs: 10_000, importCheckpoint: null,
+			checkpoint: (phase: 'prepared' | 'materialized' | 'committed' | 'complete') => {
+				if (phase === 'prepared') resolvePrepared?.();
+			},
+		},
+	});
+	const session = main.openSession(main.localHandshake);
+	const project = createFramescaperProjectV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, {
+		id: 'v18-revoked-project', title: 'Revoked project', revision: 0, now: NOW,
+	});
+	await session.beginPublication({
+		publicationId: 'c2'.repeat(24), expectedMetadataRevision: 0,
+		expectedProject: null, project, bodies: [],
+	});
+	const finishing = session.finishPublication({ publicationId: 'c2'.repeat(24) });
+	await prepared;
+	const revoked = session.revoke();
+	await assert.rejects(finishing, /publication ownership changed/u);
+	await revoked;
+	const verification = main.openSession(main.localHandshake);
+	assert.equal(await verification.readProjectBundle(String(project.id)), null);
+	await verification.close();
+	await main.close();
+});
+
 test('V18 safely cascades an immutable V12-only installation through settled V17', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v18-v12-cascade-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));

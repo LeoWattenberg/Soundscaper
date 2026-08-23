@@ -89,6 +89,7 @@ export interface FramescaperDesktopProjectLibraryExactGenerationMainSession {
 	abortPublication(value: unknown): Promise<boolean>;
 	deleteProject(value: unknown): Promise<unknown>;
 	duplicateProject(value: unknown): Promise<unknown>;
+	revoke(): Promise<void>;
 	close(): Promise<void>;
 }
 
@@ -515,16 +516,18 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		});
 	}
 
-	close(): Promise<void> {
+	close(): Promise<void> { return this.#retire(false); }
+	revoke(): Promise<void> { return this.#retire(true); }
+	#retire(invalidateBeforeDrain: boolean): Promise<void> {
+		const publicationId = this.#publication?.publicationId ?? null;
+		if (invalidateBeforeDrain) this.#publication = null;
 		return this.#admission.close(async () => {
-			const publicationId = this.#publication?.publicationId ?? null;
 			this.#publication = null;
 			if (publicationId) await this.#lifecycle?.abortPublication(publicationId);
 			this.#onActiveProject(null);
 			this.#onClose();
 		});
 	}
-
 	#active(value: unknown, fields: readonly string[]): Publication {
 		this.#lifecycle?.assertCanUse();
 		const record = closedRecord(value, fields, `${this.#configuration.label} publication operation`);

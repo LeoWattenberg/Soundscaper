@@ -10,6 +10,7 @@ import test from 'node:test';
 import {
 	createDesktopProjectLibraryLeaseSmokeSession,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
+	terminateDesktopProjectLibraryLeaseSmokeRenderer,
 } from '../desktop/project-library-lease-smoke.js';
 import { attachDesktopMainWindowRecovery } from '../desktop/main-window-recovery.ts';
 
@@ -78,6 +79,42 @@ test('lease smoke keeps fault paths in main and records catalog descriptor evide
 	assert.equal(executed.length, 1);
 	assert.doesNotMatch(executed[0], new RegExp(root.replaceAll('\\', '\\\\'), 'u'));
 	assert.doesNotMatch(executed[0], /ready\.json|result\.json|leaseTtlMs/iu);
+});
+
+test('renderer-loss termination bypasses the renderer crash handler with a main-owned hard kill', () => {
+	const terminated = [];
+	terminateDesktopProjectLibraryLeaseSmokeRenderer({
+		getOSProcessId: () => 42_424,
+	}, (processId, signal) => { terminated.push({ processId, signal }); });
+	assert.deepEqual(terminated, [{ processId: 42_424, signal: 'SIGKILL' }]);
+	assert.throws(
+		() => terminateDesktopProjectLibraryLeaseSmokeRenderer(
+			{ getOSProcessId: () => process.pid },
+			() => undefined,
+		),
+		/cannot target main/iu,
+	);
+});
+
+test('renderer execution retains the product identity that selects the packaged bridge', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'scape-lease-smoke-product-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const control = Object.freeze({
+		ready: join(root, 'ready.json'), release: join(root, 'release'),
+		result: join(root, 'result.json'), start: join(root, 'start'),
+	});
+	const session = leaseSession({ action: 'commit', control, document: '{}', productId: 'framescaper' });
+	let executed = '';
+	const pending = session.rendererReady({
+		async executeJavaScript(source) {
+			executed = source;
+			return { status: 'committed', document: '{}' };
+		},
+	});
+	await waitFor(control.ready);
+	await writeFile(control.start, '', { flag: 'wx' });
+	await pending;
+	assert.match(executed, /"productId":"framescaper"/u);
 });
 
 test('the crash checkpoint ignores publications the plan never drove', async (context) => {
@@ -235,7 +272,7 @@ test('the staged crash composes with one cleanup-gated application reload', asyn
 	assert.equal(reloads, 1);
 });
 
-function leaseSession({ action, control, document }) {
+function leaseSession({ action, control, document, productId = 'soundscaper' }) {
 	const projectId = 'lease-smoke-project';
 	return createDesktopProjectLibraryLeaseSmokeSession({
 		plan: {
@@ -243,14 +280,15 @@ function leaseSession({ action, control, document }) {
 			control,
 			leaseTtlMs: 1_000,
 			mode: DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
-			productId: 'soundscaper',
+			productId,
 			projectId,
 			request: { document, expectedRevision: null },
 			schemaVersion: 1,
 		},
-		productId: 'soundscaper',
+		productId,
+		rendererProcessTerminator: (webContents) => webContents.forcefullyCrashRenderer(),
 		projectLibraryEvidence: async () => ({
-			host: { product: 'soundscaper', closed: false, fenced: false, activePublication: false },
+			host: { product: productId, closed: false, fenced: false, activePublication: false },
 			project: {
 				projectId,
 				title: 'Lease smoke',
@@ -264,7 +302,7 @@ function leaseSession({ action, control, document }) {
 		projectLibrarySnapshot: () => ({
 			closed: false,
 			fenced: false,
-			owner: { product: 'soundscaper' },
+			owner: { product: productId },
 			activeSessions: 0,
 			activePublication: false,
 			writer: { fencingToken: 3, tookOverStaleLease: false, recovery: { outcome: 'clean' } },
