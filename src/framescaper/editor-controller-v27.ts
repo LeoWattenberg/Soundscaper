@@ -7,7 +7,8 @@ import {
 } from './editor-project-environment-v27.ts';
 import { createFramescaperMulticameraActionsV18 } from './editor-project-v18-multicam-actions.ts';
 import { createFramescaperSequenceActionsV18 } from './editor-project-v18-sequence-actions.ts';
-import type { FramescaperProjectCommandV18 } from './editor-project-v18-subsequence.ts';
+import { createFramescaperVideoRetimeActionsV20 } from './editor-project-v20-retime-actions.ts';
+import type { FramescaperProjectCommandV27 } from './editor-project-v27-commands.ts';
 import { createFramescaperScapeNativeRuntimeV27 } from './editor-scape-native-v27.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
@@ -26,13 +27,20 @@ export function createFramescaperAudioEditorControllerV27(
 	const environment = assertFramescaperEditorProjectEnvironmentV27(environmentValue);
 	const presentation = snapshotPresentation(presentationValue);
 	let executeProductSequenceCommand: ((command: unknown) => unknown) | null = null;
-	const execute = (command: FramescaperProjectCommandV18): unknown => {
+	const execute = (command: FramescaperProjectCommandV27): unknown => {
 		if (!executeProductSequenceCommand) throw new Error('The Framescaper V27 controller is not ready.');
 		return executeProductSequenceCommand(command);
 	};
+	const videoRetime = createFramescaperVideoRetimeActionsV20(execute);
 	const productSequenceActions = Object.freeze({
 		...createFramescaperSequenceActionsV18(execute),
 		...createFramescaperMulticameraActionsV18(execute),
+		retimeSet: videoRetime.set,
+		retimeReset: videoRetime.reset,
+		retimeConstant: videoRetime.constant,
+		retimeReverse: videoRetime.reverse,
+		retimeFreeze: videoRetime.freeze,
+		retimeRamp: videoRetime.ramp,
 	});
 	const sessionController = environment.runtime.createSessionController();
 	const controller = createAudioEditorController(null, {
