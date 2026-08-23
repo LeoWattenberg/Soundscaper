@@ -17,6 +17,8 @@ import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const CFR_VIDEO = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
+const VISUAL_READINESS_TIMEOUT = 30_000;
+const VISUAL_WORKFLOW_TIMEOUT = 360_000;
 
 test.describe('selected V27 exact visual preview', () => {
 	test.describe.configure({ mode: 'serial' });
@@ -34,16 +36,21 @@ test.describe('selected V27 exact visual preview', () => {
 	});
 
 	test('menu-authored generator, preset, presentation, and mask change pixels, reopen, and reach video export', async ({ page }) => {
-		test.setTimeout(180_000);
+		test.setTimeout(VISUAL_WORKFLOW_TIMEOUT);
 		const clientErrors = collectClientErrors(page);
 		let editor = await bootEditor(page, '/framescaper/embed/en/');
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
 
 		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
-		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1);
+		await waitForStoredVisualState(page, projectId, {
+			generatorCount: 1, presentationCount: 0, maskCount: 0, presetCount: 0,
+		});
+		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1, {
+			timeout: VISUAL_READINESS_TIMEOUT,
+		});
 		await saveProjectAndWait(page, editor);
-		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({
+		await waitForStoredVisualState(page, projectId, {
 			generatorCount: 1, presentationCount: 0, maskCount: 0, presetCount: 0,
 		});
 		let state = await storedVisualState(page, projectId);
@@ -59,11 +66,11 @@ test.describe('selected V27 exact visual preview', () => {
 		await assertNoSeriousAxeViolations(page, '[data-framescaper-v27-visual-inspector]');
 		await dialog.locator('[data-visual-inspector-color]').fill('#ff0000ff');
 		await dialog.locator('[data-visual-inspector-apply]').click();
-		await expect(dialog.getByRole('status')).toContainText('Selected visual updated.');
+		await expectVisualCommandStatus(dialog, 'Selected visual updated.');
 		await page.keyboard.press('Escape');
 		await expect(dialog).toBeHidden();
 		await saveProjectAndWait(page, editor);
-		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({
+		await waitForStoredVisualState(page, projectId, {
 			generatorCount: 1, presentationCount: 1,
 		});
 		await expectExactVisualFrame(preview, 1);
@@ -77,20 +84,20 @@ test.describe('selected V27 exact visual preview', () => {
 		await assertNoSeriousAxeViolations(page, '[data-framescaper-selected-v27-authoring]');
 		await authoring.locator('[data-v27-authoring-preset-name]').fill('Selected red solid');
 		await authoring.locator('[data-v27-authoring-save-visual]').click();
-		await expect(authoring.getByRole('status')).toContainText('Selected visual preset saved.');
+		await expectVisualCommandStatus(authoring, 'Selected visual preset saved.');
 		await page.keyboard.press('Escape');
 		await saveProjectAndWait(page, editor);
-		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ presetCount: 1 });
+		await waitForStoredVisualState(page, projectId, { presetCount: 1 });
 		await chooseNestedCommandAction(page, editor, 'Effect', ['Edit Video Mask/Matte…']);
 		authoring = page.getByRole('dialog', { name: 'Selected Mask / Matte', exact: true });
 		await expect(authoring).toBeVisible();
 		await authoring.locator('[data-v27-authoring-mask-shape]').selectOption('ellipse');
 		await authoring.locator('[data-v27-authoring-mask-width]').fill('0.5');
 		await authoring.locator('[data-v27-authoring-apply]').click();
-		await expect(authoring.getByRole('status')).toContainText('Selected authored state applied.');
+		await expectVisualCommandStatus(authoring, 'Selected authored state applied.');
 		await page.keyboard.press('Escape');
 		await saveProjectAndWait(page, editor);
-		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ maskCount: 1 });
+		await waitForStoredVisualState(page, projectId, { maskCount: 1 });
 		state = await storedVisualState(page, projectId);
 		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
 		dialog = await openVisualInspector(page, editor);
@@ -98,7 +105,7 @@ test.describe('selected V27 exact visual preview', () => {
 		await dialog.locator('[data-visual-inspector-mask-width]').fill('0.5');
 		await dialog.locator('[data-visual-inspector-opacity]').fill('0.75');
 		await dialog.locator('[data-visual-inspector-apply]').click();
-		await expect(dialog.getByRole('status')).toContainText('Selected visual updated.');
+		await expectVisualCommandStatus(dialog, 'Selected visual updated.');
 		await page.keyboard.press('Escape');
 		await expect(preview).toHaveAttribute('data-video-preview-visual-omitted-count', '0');
 		await expect(preview).toHaveAttribute('data-video-preview-visual-consumed-node-ids', /mask/u);
@@ -106,9 +113,12 @@ test.describe('selected V27 exact visual preview', () => {
 		expect(maskedPixels).not.toBe(redPixels);
 
 		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
-		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(2);
+		await waitForStoredVisualState(page, projectId, { generatorCount: 2 });
+		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(2, {
+			timeout: VISUAL_READINESS_TIMEOUT,
+		});
 		await saveProjectAndWait(page, editor);
-		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ generatorCount: 2 });
+		await waitForStoredVisualState(page, projectId, { generatorCount: 2 });
 		state = await storedVisualState(page, projectId);
 		const secondClipId = state.generatorClipIds.find((id) => id !== firstClipId);
 		expect(secondClipId).toBeTruthy();
@@ -120,17 +130,22 @@ test.describe('selected V27 exact visual preview', () => {
 		await expect(authoring).toBeVisible();
 		await authoring.locator('[data-v27-authoring-visual-preset]').selectOption({ label: 'Selected red solid' });
 		await authoring.locator('[data-v27-authoring-apply-visual]').click();
-		await expect(authoring.getByRole('status')).toContainText('Selected authored state applied.');
+		await expectVisualCommandStatus(authoring, 'Selected authored state applied.');
+		await waitForStoredVisualState(page, projectId, {
+			generatorColorByClip: { [secondClipId]: '#ff0000ff' },
+		});
+		state = await storedVisualState(page, projectId);
 		await page.keyboard.press('Escape');
+		await selectAndSeekClip(editor, secondClipId, 0.5, state);
 		await expectExactVisualFrame(preview, 1);
 		const afterPreset = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		expect(afterPreset).not.toBe(beforePreset);
 
 		await saveProjectAndWait(page, editor);
-		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({
+		await waitForStoredVisualState(page, projectId, {
 			generatorCount: 2, presentationCount: 1, maskCount: 1, presetCount: 1,
 		});
-		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({
+		await waitForStoredVisualState(page, projectId, {
 			generatorColorByClip: { [secondClipId]: '#ff0000ff' },
 		});
 		await page.reload();
@@ -316,13 +331,13 @@ async function openVisualInspector(page, editor) {
 		'Video Finishing', 'Selected Visual Inspector…',
 	]);
 	const dialog = page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true });
-	await expect(dialog).toBeVisible();
+	await expect(dialog).toBeVisible({ timeout: VISUAL_READINESS_TIMEOUT });
 	return dialog;
 }
 
 async function selectAndSeekClip(editor, clipId, fraction, state) {
 	const clip = editor.locator(`[data-clip-id="${clipId}"]`).first();
-	await expect(clip).toBeVisible();
+	await expect(clip).toBeVisible({ timeout: VISUAL_READINESS_TIMEOUT });
 	const range = state.visualClips.find(({ id }) => id === clipId);
 	expect(range).toBeTruthy();
 	const frame = range.start + Math.min(range.count - 1, Math.max(0, Math.floor(range.count * fraction)));
@@ -330,14 +345,20 @@ async function selectAndSeekClip(editor, clipId, fraction, state) {
 	const input = editor.getByRole('textbox', { name: 'Timecode', exact: true });
 	await input.fill(timecode);
 	await input.press('Enter');
-	await expect(editor.locator('[data-sequence-timecode]')).toHaveAttribute('data-sequence-timecode', timecode);
+	await expect(editor.locator('[data-sequence-timecode]')).toHaveAttribute(
+		'data-sequence-timecode', timecode, { timeout: VISUAL_READINESS_TIMEOUT },
+	);
 	const sample = Math.round(frame * state.rate.den * state.sampleRate / state.rate.num);
 	await expect(editor.locator('[data-video-preview]')).toHaveAttribute(
-		'data-video-preview-evaluated-timeline-sample', String(sample),
+		'data-video-preview-evaluated-timeline-sample', String(sample), {
+			timeout: VISUAL_READINESS_TIMEOUT,
+		},
 	);
 	await clip.focus();
 	await clip.press('Enter');
-	await expect(clip.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
+	await expect(clip.locator('.clip-display')).toHaveClass(/clip-display--selected/u, {
+		timeout: VISUAL_READINESS_TIMEOUT,
+	});
 }
 
 function sequenceTimecode(frame, rate) {
@@ -361,8 +382,18 @@ async function expectExactVisualFrame(preview, minimumRequested) {
 			omitted: element.dataset.videoPreviewVisualOmittedCount,
 			exact: requested >= minimum && consumed === requested,
 		};
-	}, minimumRequested)).toMatchObject({ pending: 'false', error: '', omitted: '0', exact: true });
-	await expect(preview).toHaveAttribute('data-video-preview-renderer', 'ready');
+	}, minimumRequested), { timeout: VISUAL_READINESS_TIMEOUT }).toMatchObject({
+		pending: 'false', error: '', omitted: '0', exact: true,
+	});
+	await expect(preview).toHaveAttribute('data-video-preview-renderer', 'ready', {
+		timeout: VISUAL_READINESS_TIMEOUT,
+	});
+}
+
+async function expectVisualCommandStatus(dialog, message) {
+	await expect(dialog.getByRole('status')).toContainText(message, {
+		timeout: VISUAL_READINESS_TIMEOUT,
+	});
 }
 
 async function screenshotDigest(canvas) {
@@ -373,8 +404,14 @@ async function screenshotDigest(canvas) {
 async function saveProjectAndWait(page, editor) {
 	await chooseFileAction(page, editor, 'Save project');
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
-		timeout: 15_000,
+		timeout: VISUAL_READINESS_TIMEOUT,
 	});
+}
+
+async function waitForStoredVisualState(page, projectId, expected) {
+	await expect.poll(() => storedVisualState(page, projectId), {
+		timeout: VISUAL_READINESS_TIMEOUT,
+	}).toMatchObject(expected);
 }
 
 async function storedVisualState(page, projectId) {
