@@ -68,31 +68,81 @@ test('cancelling generation disposes the exact scheduler and rejects as an abort
 	assert.equal(disposals, 1);
 });
 
-test('detach and failed regenerate use normal history and restore only their own current edit', async () => {
+test('failed regeneration preserves the attached proxy without creating a history edit', async () => {
 	const owner = ownerFixture(20, attachment());
 	const commands: unknown[] = [];
-	owner.commit = (command) => {
-		commands.push(command);
-		owner.detach();
-	};
+	owner.commit = (command) => { commands.push(command); owner.detach(); };
 	let undoCalls = 0;
 	owner.undo = () => { undoCalls += 1; owner.restore(); };
+	const before = structuredClone(owner.source().proxyAttachment);
 	const runtime = createFramescaperVideoProxyActionsV20({
 		owner: owner.owner as never,
 		cleanup: cleanupFixture(owner),
 		createSessionId: () => 'regenerate-session',
 		createScheduler: () => Object.assign(
-			async () => { throw new Error('planned generation failure'); },
+			async (request: FramescaperCapturedVideoProxyRequest) => {
+				assert.deepEqual(owner.source().proxyAttachment, before,
+					'the prior attachment remains selected throughout generation');
+				assert.deepEqual(request.expectedProxyAttachment, before);
+				throw new Error('planned generation failure');
+			},
 			{ dispose: async () => undefined },
 		),
 	});
 
 	await assert.rejects(runtime.regenerate('video-source'), /planned generation failure/u);
-	assert.equal(undoCalls, 1);
-	assert.equal(commands.length, 1);
-	assert.equal((commands[0] as Readonly<Record<string, unknown>>).type,
-		'framescaper/video-proxy-detach');
-	assert.ok(owner.source().proxyAttachment);
+	assert.equal(undoCalls, 0);
+	assert.deepEqual(commands, []);
+	assert.deepEqual(owner.source().proxyAttachment, before);
+});
+
+test('cancelled regeneration preserves the old attachment and cancels its cleanup intent', async () => {
+	const owner = ownerFixture(20, attachment());
+	const before = structuredClone(owner.source().proxyAttachment);
+	let rejectOperation: ((error: unknown) => void) | null = null;
+	const runtime = createFramescaperVideoProxyActionsV20({
+		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner),
+		createSessionId: () => 'cancel-regenerate-session',
+		createScheduler: () => Object.assign(
+			() => new Promise<void>((_resolve, reject) => { rejectOperation = reject; }),
+			{ dispose: async () => {
+				rejectOperation?.(new DOMException('cancelled', 'AbortError'));
+			} },
+		),
+	});
+	const abort = new AbortController();
+	const pending = runtime.regenerate('video-source', { signal: abort.signal });
+	abort.abort(new DOMException('cancelled', 'AbortError'));
+	await assert.rejects(pending, (error: Error) => error.name === 'AbortError');
+	assert.deepEqual(owner.source().proxyAttachment, before);
+});
+
+test('successful regeneration swaps to the proven attachment before reclaiming the old bodies', async () => {
+	const owner = ownerFixture(20, attachment());
+	const before = structuredClone(owner.source().proxyAttachment);
+	const replacement = attachment('78', '9a');
+	const cleaned: string[] = [];
+	const runtime = createFramescaperVideoProxyActionsV20({
+		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner, cleaned),
+		createSessionId: () => 'successful-regenerate-session',
+		createScheduler: () => Object.assign(
+			async (request: FramescaperCapturedVideoProxyRequest) => {
+				assert.deepEqual(owner.source().proxyAttachment, before);
+				assert.deepEqual(request.expectedProxyAttachment, before);
+				owner.replace(replacement);
+			},
+			{ dispose: async () => undefined },
+		),
+	});
+
+	await runtime.regenerate('video-source');
+	assert.deepEqual(owner.source().proxyAttachment, replacement);
+	assert.deepEqual(cleaned, [
+		`video-proxy-sha256:${'34'.repeat(32)}`,
+		`video-timing-sha256:${'56'.repeat(32)}`,
+	]);
 });
 
 test('V27 requires and uses its own detach command builder while sharing the lifecycle binder', async () => {
@@ -145,13 +195,21 @@ test('adaptive pressure refreshes Auto only when it crosses the proxy threshold'
 test('original relink uses the maintained exact-content classification and confirms changed content', async () => {
 	const owner = ownerFixture(27, attachment());
 	let classification: 'exact-content' | 'changed-content' = 'exact-content';
-	const relinks: Readonly<{ readonly allowChangedContent?: boolean }>[] = [];
+	const relinks: Readonly<{
+		readonly allowChangedContent?: boolean;
+		readonly changedContentProxyInvalidation?: Readonly<{
+			commit(): void;
+			confirmBindingPublished(): void;
+		}>;
+	}>[] = [];
 	const cleaned: string[] = [];
 	let detachCommands = 0;
 	owner.commit = () => { detachCommands += 1; owner.detach(); };
 	owner.owner.actions.projectBin.classifyLinkedVideoRelink = async () => classification;
 	owner.owner.actions.projectBin.relinkLinkedVideo = async (_clipId, _file, _locator, options = {}) => {
 		relinks.push(options);
+		options.changedContentProxyInvalidation?.commit();
+		options.changedContentProxyInvalidation?.confirmBindingPublished();
 	};
 	const runtime = createFramescaperVideoProxyActionsV27({
 		owner: owner.owner as never,
@@ -176,8 +234,71 @@ test('original relink uses the maintained exact-content classification and confi
 	assert.equal(await runtime.relinkOriginal(
 		'video-source', candidate, { allowChangedContent: true },
 	), 'relinked');
-	assert.deepEqual(relinks, [{}, { allowChangedContent: true }]);
+	assert.equal(relinks[0]?.allowChangedContent, undefined);
+	assert.equal(relinks[1]?.allowChangedContent, true);
 	assert.equal(detachCommands, 1);
+	assert.equal(owner.source().proxyAttachment, null);
+	assert.deepEqual(cleaned, [
+		`video-proxy-sha256:${'34'.repeat(32)}`,
+		`video-timing-sha256:${'56'.repeat(32)}`,
+	]);
+});
+
+test('changed-content relink restores the old proxy when binding publication fails after admission', async () => {
+	const owner = ownerFixture(27, attachment());
+	const before = structuredClone(owner.source().proxyAttachment);
+	owner.commit = () => { owner.detach(); };
+	owner.undo = () => { owner.restore(); };
+	owner.owner.actions.projectBin.classifyLinkedVideoRelink = async () => 'changed-content';
+	owner.owner.actions.projectBin.relinkLinkedVideo = async (_clipId, _file, _locator, options = {}) => {
+		assert.deepEqual(owner.source().proxyAttachment, before);
+		options.changedContentProxyInvalidation?.commit();
+		assert.equal(owner.source().proxyAttachment, null);
+		throw new Error('planned binding CAS failure');
+	};
+	const runtime = createFramescaperVideoProxyActionsV27({
+		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner),
+		createSessionId: () => 'v27-relink-rollback-session',
+		createScheduler: () => Object.assign(async () => undefined, { dispose: async () => undefined }),
+		createAttachExistingScheduler: () => Object.assign(
+			async () => undefined, { dispose: async () => undefined },
+		),
+		createDetachCommand: () => ({ type: 'framescaper-v27/video-proxy-detach' }),
+	});
+
+	await assert.rejects(runtime.relinkOriginal('video-source', {
+		file: new File(['changed'], 'changed.mp4', { type: 'video/mp4' }),
+		locator: { locatorId: 'locator', locatorRevision: 'revision' },
+	}, { allowChangedContent: true }), /binding CAS failure/u);
+	assert.deepEqual(owner.source().proxyAttachment, before);
+});
+
+test('changed-content relink keeps invalidation when activation fails after binding publication', async () => {
+	const owner = ownerFixture(27, attachment());
+	const cleaned: string[] = [];
+	owner.commit = () => { owner.detach(); };
+	owner.owner.actions.projectBin.classifyLinkedVideoRelink = async () => 'changed-content';
+	owner.owner.actions.projectBin.relinkLinkedVideo = async (_clipId, _file, _locator, options = {}) => {
+		options.changedContentProxyInvalidation?.commit();
+		options.changedContentProxyInvalidation?.confirmBindingPublished();
+		throw new Error('planned post-publication activation failure');
+	};
+	const runtime = createFramescaperVideoProxyActionsV27({
+		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner, cleaned),
+		createSessionId: () => 'v27-relink-published-session',
+		createScheduler: () => Object.assign(async () => undefined, { dispose: async () => undefined }),
+		createAttachExistingScheduler: () => Object.assign(
+			async () => undefined, { dispose: async () => undefined },
+		),
+		createDetachCommand: () => ({ type: 'framescaper-v27/video-proxy-detach' }),
+	});
+
+	await assert.rejects(runtime.relinkOriginal('video-source', {
+		file: new File(['changed'], 'changed.mp4', { type: 'video/mp4' }),
+		locator: { locatorId: 'locator', locatorRevision: 'revision' },
+	}, { allowChangedContent: true }), /activation failure/u);
 	assert.equal(owner.source().proxyAttachment, null);
 	assert.deepEqual(cleaned, [
 		`video-proxy-sha256:${'34'.repeat(32)}`,
@@ -273,7 +394,13 @@ function ownerFixture(schemaVersion: 20 | 27, proxyAttachment: unknown) {
 						_clipId: string,
 						_file: File,
 						_locator: Readonly<{ locatorId: string; locatorRevision: string }>,
-						_options: Readonly<{ allowChangedContent?: boolean }> = {},
+						_options: Readonly<{
+							allowChangedContent?: boolean;
+							changedContentProxyInvalidation?: Readonly<{
+								commit(): void;
+								confirmBindingPublished(): void;
+							}>;
+						}> = {},
 					) => undefined,
 				},
 			},
@@ -286,6 +413,11 @@ function ownerFixture(schemaVersion: 20 | 27, proxyAttachment: unknown) {
 		},
 		restore() {
 			if (prior) project = prior;
+		},
+		replace(proxyAttachment: unknown) {
+			project = structuredClone(project);
+			fixture.source().proxyAttachment = proxyAttachment;
+			project.revision = Number(project.revision) + 1;
 		},
 		source(): Record<string, unknown> {
 			return (project.sources as Record<string, unknown>[])[0]!;
@@ -318,9 +450,9 @@ function projectFixture(schemaVersion: 20 | 27, proxyAttachment: unknown): Recor
 	};
 }
 
-function attachment(): Record<string, unknown> {
-	const proxySha256 = '34'.repeat(32);
-	const timingSha256 = '56'.repeat(32);
+function attachment(proxyByte = '34', timingByte = '56'): Record<string, unknown> {
+	const proxySha256 = proxyByte.repeat(32);
+	const timingSha256 = timingByte.repeat(32);
 	return {
 		kind: 'video-proxy-attachment', version: 1,
 		rule: 'exact-original-generation-proxy-content-and-timing-v1',

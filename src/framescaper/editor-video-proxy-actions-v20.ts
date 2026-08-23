@@ -10,7 +10,9 @@ import {
 } from './editor-video-proxy-action-runtime-v20.ts';
 import {
 	normalizeVideoProxyAttachmentV18,
+	type VideoProxyAttachmentV18,
 } from '../common/editor/video-proxy-attachment-v18.ts';
+import { sameCapturedVideoProxyAttachment as sameAttachment } from './editor-captured-video-proxy-request.ts';
 import type {
 	FramescaperCapturedVideoProxyRuntimeComposition,
 	FramescaperCapturedVideoProxyScheduler,
@@ -49,7 +51,13 @@ export interface FramescaperVideoProxyActionOwnerV20 {
 				clipId: string,
 				file: File,
 				locator: Readonly<{ readonly locatorId: string; readonly locatorRevision: string }>,
-				options?: Readonly<{ readonly allowChangedContent?: boolean }>,
+				options?: Readonly<{
+					readonly allowChangedContent?: boolean;
+					readonly changedContentProxyInvalidation?: Readonly<{
+						commit(): void;
+						confirmBindingPublished(): void;
+					}>;
+				}>,
 			): unknown;
 		}>;
 	}>;
@@ -201,11 +209,14 @@ export function createFramescaperVideoProxyActions(
 		operationOptions: FramescaperVideoProxyOperationOptions,
 		workPhase: 'generating' | 'validating',
 		createScheduler: SchedulerFactory,
+		expectedAttachment?: Readonly<VideoProxyAttachmentV18>,
 	): Promise<void> {
 		const sourceId = identifier(sourceIdValue);
 		const project = exactProject(options.owner.project, options.schemaVersion);
 		const source = videoSource(project, sourceId);
-		if (source.proxyAttachment !== null) {
+		if (expectedAttachment
+			? !sameAttachment(source.proxyAttachment, expectedAttachment)
+			: source.proxyAttachment !== null) {
 			throw new RangeError(`Source ${sourceId} already has a proxy; use Regenerate.`);
 		}
 		throwIfAborted(operationOptions.signal);
@@ -219,7 +230,7 @@ export function createFramescaperVideoProxyActions(
 		operationOptions.signal?.addEventListener('abort', onAbort, { once: true });
 		try {
 			progress(operationOptions, workPhase, 0);
-			await scheduler(proxyRequest(project, source, sessionId));
+			await scheduler(proxyRequest(project, source, sessionId, expectedAttachment));
 			throwIfAborted(operationOptions.signal);
 			progress(operationOptions, 'publishing', 0);
 			await refresh(sourceId);
@@ -257,37 +268,25 @@ export function createFramescaperVideoProxyActions(
 	): Promise<void> {
 		const sourceId = identifier(sourceIdValue);
 		const before = exactProject(options.owner.project, options.schemaVersion);
-		if (videoSource(before, sourceId).proxyAttachment === null) {
+		const source = videoSource(before, sourceId);
+		if (source.proxyAttachment === null) {
 			await generate(sourceId, operationOptions);
 			return;
 		}
+		const expectedAttachment = normalizeVideoProxyAttachmentV18(source.proxyAttachment);
 		const cleanupClaim = await options.cleanup.prepareReplacement(before, sourceId);
 		try {
-			await detachPointer(sourceId);
+			await publishCandidate(
+				sourceId, operationOptions, 'generating', options.createScheduler, expectedAttachment,
+			);
 		} catch (error) {
-			await cancelCleanupAfterFailedMutation(cleanupClaim, error);
-		}
-		const detached = options.owner.project;
-		try {
-			await generate(sourceId, operationOptions);
-		} catch (error) {
-			// Restore only when no other edit moved the history after our detach.
-			if (options.owner.project === detached) {
-				try {
-					await options.owner.actions.edit.undo();
-					await refresh(sourceId);
-					await options.cleanup.cancel(cleanupClaim);
-				} catch (restoreError) {
-					await settleCleanupAfterCommittedMutation(cleanupClaim, new AggregateError(
-						[error, restoreError],
-						'Proxy regeneration and restoration both failed.',
-						{ cause: error },
-					));
-				}
-			} else {
+			const current = videoSource(
+				exactProject(options.owner.project, options.schemaVersion), sourceId,
+			).proxyAttachment;
+			if (!sameAttachment(current, expectedAttachment)) {
 				await settleCleanupAfterCommittedMutation(cleanupClaim, error);
 			}
-			throw error;
+			await cancelCleanupAfterFailedMutation(cleanupClaim, error);
 		}
 		await options.cleanup.settle(cleanupClaim, options.owner.project);
 	}
@@ -315,27 +314,78 @@ export function createFramescaperVideoProxyActions(
 			throw new Error('The selected video is not an admissible original relink candidate.');
 		}
 		let cleanupClaim: Readonly<FramescaperVideoProxyCleanupClaimV20> | null = null;
-		if (classification === 'changed-content'
-			&& videoSource(exactProject(options.owner.project, options.schemaVersion), sourceId).proxyAttachment !== null) {
-			// A changed original can never retain a proxy bound to the old digest.
-			// Durable cleanup is journaled before history invalidates the pointer.
+		let expectedProxyAttachment: Readonly<VideoProxyAttachmentV18> | null = null;
+		let invalidatedProject: unknown = null;
+		let bindingPublished = false;
+		const currentSource = videoSource(
+			exactProject(options.owner.project, options.schemaVersion), sourceId,
+		);
+		if (classification === 'changed-content' && currentSource.proxyAttachment !== null) {
+			// Journal first; invalidation itself runs only at the binding CAS fence.
+			expectedProxyAttachment = normalizeVideoProxyAttachmentV18(currentSource.proxyAttachment);
 			cleanupClaim = await options.cleanup.prepareReplacement(options.owner.project, sourceId);
-			try {
-				await detachPointer(sourceId);
-			} catch (error) {
-				await cancelCleanupAfterFailedMutation(cleanupClaim, error);
-			}
 		}
 		try {
 			await options.owner.actions.projectBin.relinkLinkedVideo(
 				clipId,
 				candidate.file,
 				candidate.locator,
-				classification === 'changed-content' ? { allowChangedContent: true } : {},
+				classification === 'changed-content' ? {
+					allowChangedContent: true,
+					...(cleanupClaim ? { changedContentProxyInvalidation: {
+						commit(): void {
+							if (invalidatedProject) return;
+							const beforeInvalidation = options.owner.project;
+							let result: unknown;
+							try {
+								result = options.owner.actions.edit.commit(options.createDetachCommand
+									? options.createDetachCommand(sourceId, expectedProxyAttachment)
+									: { type: 'framescaper/video-proxy-detach', sourceId,
+										expectedAttachment: expectedProxyAttachment });
+							} finally {
+								if (options.owner.project !== beforeInvalidation) {
+									invalidatedProject = options.owner.project;
+								}
+							}
+							invalidatedProject ??= options.owner.project;
+							if (isPromiseLike(result)) {
+								throw new TypeError('Proxy invalidation must commit synchronously at the relink fence.');
+							}
+							if (videoSource(
+								exactProject(invalidatedProject, options.schemaVersion), sourceId,
+							).proxyAttachment !== null) {
+								throw new Error('Changed-content relink did not atomically invalidate the old proxy.');
+							}
+						},
+						confirmBindingPublished(): void { bindingPublished = true; },
+					} } : {}),
+				} : {},
 			);
 		} catch (error) {
-			if (cleanupClaim) await settleCleanupAfterCommittedMutation(cleanupClaim, error);
+			if (cleanupClaim) {
+				if (invalidatedProject && !bindingPublished) {
+					if (options.owner.project === invalidatedProject) {
+						try {
+							options.owner.actions.edit.undo();
+							await refresh(sourceId);
+						} catch (restoreError) {
+							await settleCleanupAfterCommittedMutation(cleanupClaim, new AggregateError(
+								[error, restoreError], 'Original relink proxy restoration failed.', { cause: error },
+							));
+						}
+						await cancelCleanupAfterFailedMutation(cleanupClaim, error);
+					}
+					await settleCleanupAfterCommittedMutation(cleanupClaim, error);
+				}
+				if (bindingPublished) await settleCleanupAfterCommittedMutation(cleanupClaim, error);
+				await cancelCleanupAfterFailedMutation(cleanupClaim, error);
+			}
 			throw error;
+		}
+		if (cleanupClaim && (!invalidatedProject || !bindingPublished)) {
+			await settleCleanupAfterCommittedMutation(
+				cleanupClaim, new Error('Changed-content relink did not publish its proxy invalidation fence.'),
+			);
 		}
 		if (cleanupClaim) await options.cleanup.settle(cleanupClaim, options.owner.project);
 		await refresh(sourceId);
@@ -404,6 +454,7 @@ function proxyRequest(
 	project: Readonly<Record<string, unknown>>,
 	source: Readonly<Record<string, unknown>>,
 	sessionId: string,
+	expectedProxyAttachment?: Readonly<VideoProxyAttachmentV18>,
 ): FramescaperCapturedVideoProxyRequest {
 	const revision = project.revision;
 	const contentSha256 = source.contentSha256;
@@ -419,6 +470,7 @@ function proxyRequest(
 		sourceId: identifier(String(source.id)),
 		expectedProjectRevision: Number(revision),
 		expectedContentSha256: contentSha256,
+		...(expectedProxyAttachment ? { expectedProxyAttachment } : {}),
 	});
 }
 
@@ -475,6 +527,11 @@ function progress(
 
 function throwIfAborted(signal?: AbortSignal): void {
 	if (signal?.aborted) throw signal.reason ?? new DOMException('Video proxy generation was cancelled.', 'AbortError');
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+	return Boolean(value && (typeof value === 'object' || typeof value === 'function')
+		&& typeof (value as Readonly<{ then?: unknown }>).then === 'function');
 }
 
 function identifier(value: unknown): string {

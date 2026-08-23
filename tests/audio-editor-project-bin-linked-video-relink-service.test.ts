@@ -328,6 +328,31 @@ test('an authorized changed-content relink probes the candidate and purges stale
 	assert.equal(JSON.stringify(fixture.project), projectBefore, 'relink must not edit the canonical project');
 });
 
+test('changed-content project invalidation is fenced by binding publication and explicitly confirmed', async () => {
+	const events: string[] = [];
+	const fixture = createHarness({
+		missing: false,
+		relink: async (_projectId, _source, _locatorId, options) => {
+			events.push('storage-admitted');
+			options.assertCanPublish();
+			events.push('storage-committed');
+			return replacementBinding(FIRST_LOCATOR);
+		},
+	});
+
+	await fixture.service.relinkLinkedVideo('bin-solo-video', changedVideoFile(), FIRST_LOCATOR, {
+		allowChangedContent: true,
+		changedContentProxyInvalidation: {
+			commit() { events.push('proxy-invalidated'); },
+			confirmBindingPublished() { events.push('binding-confirmed'); },
+		},
+	});
+
+	assert.deepEqual(events, [
+		'storage-admitted', 'proxy-invalidated', 'storage-committed', 'binding-confirmed',
+	]);
+});
+
 test('changed-content relink refuses audio-paired items and retained-audio sources', async () => {
 	const paired = createHarness({ missing: false });
 	await assert.rejects(

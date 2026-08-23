@@ -47,8 +47,8 @@ export interface FramescaperCapturedVideoProxyPreservationPublication {
 
 /**
  * Product-private one-source CAS publisher used by post-capture proxy work.
- * Existing attachments are immutable; one null target may become attached in
- * the same transaction that consumes and publishes its two body claims.
+ * One exact null or attached target may become the proven attachment in the
+ * same transaction that consumes and publishes its two body claims.
  */
 export class FramescaperCapturedVideoProxyPreservationRepository {
 	readonly #schemaVersion: FramescaperCapturedVideoProxySchemaVersion;
@@ -104,6 +104,11 @@ export class FramescaperCapturedVideoProxyPreservationRepository {
 		const expected = cloneProject(this.#schemaVersion, this.#profile, expectedValue);
 		const published = cloneProject(this.#schemaVersion, this.#profile, publishedValue);
 		const sourceId = identifier(sourceIdValue, 'source id');
+		const attachment = exactSource(published, sourceId).proxyAttachment;
+		if (!attachment) throw new Error('Captured proxy rollback requires one published attachment.');
+		assertExactTransition(
+			this.#schemaVersion, this.#profile, expected, published, sourceId, attachment,
+		);
 		const claims = rollbackClaims(expected, published, sourceId, claimsValue);
 		if (published.id !== expected.id || published.revision !== Number(expected.revision) + 1) {
 			throw new Error('Captured proxy rollback requires its exact next revision.');
@@ -186,8 +191,8 @@ function normalizePublication(
 	const baseSource = exactSource(expected, sourceId);
 	const nextSource = exactSource(project, sourceId);
 	if (baseSource.kind !== 'video' || nextSource.kind !== 'video'
-		|| baseSource.proxyAttachment !== null || nextSource.proxyAttachment === null) {
-		throw new Error('Captured proxy preservation requires one null video attachment target.');
+		|| nextSource.proxyAttachment === null) {
+		throw new Error('Captured proxy preservation requires one video attachment target.');
 	}
 	assertExactTransition(schemaVersion, profile, expected, project, sourceId, nextSource.proxyAttachment);
 	return Object.freeze({
@@ -223,7 +228,6 @@ function assertExactTransition(
 	candidate.revision = project.revision;
 	candidate.updatedAt = project.updatedAt;
 	const source = exactSource(candidate as unknown as FramescaperCapturedVideoProxyProject, sourceId);
-	if (source.proxyAttachment !== null) throw new Error('The captured proxy target was already attached.');
 	source.proxyAttachment = attachment;
 	candidate.featureRequirements = reconcileRequirements(schemaVersion, profile, candidate);
 	const normalized = cloneProject(schemaVersion, profile, candidate);
@@ -350,7 +354,7 @@ function rollbackClaims(
 		throw new RangeError('Captured proxy rollback cleanup claims are invalid.');
 	}
 	const attachment = exactSource(published, sourceId).proxyAttachment;
-	if (exactSource(expected, sourceId).proxyAttachment !== null || !attachment) {
+	if (!attachment) {
 		throw new Error('Captured proxy rollback cleanup requires its attached transition.');
 	}
 	const allowed = new Map([
