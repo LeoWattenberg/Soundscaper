@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Closed cumulative render authority for dormant Framescaper plans V9–V12. */
+/** Closed authority for dormant V9–V12 plans and the selected V13 finishing branch. */
 
 import {
 	readClosedDomainArray,
@@ -15,6 +15,11 @@ import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
 import { isVideoDeliveryAudioLayout, type VideoDeliveryAudioLayout } from './video-delivery-audio-layout.ts';
 import { isVideoDeliveryQuality, type VideoDeliveryQuality } from './video-delivery-quality.ts';
 import { assertUnifiedExactRenderOutputAdmission } from './unified-exact-render-output-admission.ts';
+import {
+	requireDormantRenderGeneration as requireDormantGeneration,
+	requireMinimumRenderGeneration as requireGeneration,
+	requireSelectedRenderGeneration as requireSelectedGeneration,
+} from './unified-exact-render-generation.ts';
 import {
 	deepFreezeExactRenderValue as deepFreeze,
 	exactRenderCeilingRatio as ceilingRatio,
@@ -62,6 +67,11 @@ import {
 	type UnifiedExactRenderOpenFxNode,
 } from './unified-exact-render-plan-v12.ts';
 import {
+	assertUnifiedExactFinishingReferences,
+	normalizeUnifiedExactRenderFinishingNode,
+	type UnifiedExactRenderFinishingNode,
+} from './unified-exact-render-plan-v13.ts';
+import {
 	authenticateUnifiedExactRenderTimingSidecars,
 	deferUnifiedExactRenderTimingSidecars,
 	type UnifiedExactRenderTimingIndex,
@@ -79,10 +89,11 @@ export type {
 	UnifiedExactVisualModelKind,
 	UnifiedExactRenderProfessionalMediaNode,
 	UnifiedExactRenderOpenFxNode,
+	UnifiedExactRenderFinishingNode,
 	UnifiedExactRenderTimingSidecars,
 };
 
-export const UNIFIED_EXACT_RENDER_PLAN_VERSIONS = Object.freeze([9, 10, 11, 12] as const);
+export const UNIFIED_EXACT_RENDER_PLAN_VERSIONS = Object.freeze([9, 10, 11, 12, 13] as const);
 export type UnifiedExactRenderPlanVersion = (typeof UNIFIED_EXACT_RENDER_PLAN_VERSIONS)[number];
 
 export type UnifiedExactRenderNode =
@@ -90,7 +101,8 @@ export type UnifiedExactRenderNode =
 	| UnifiedExactRenderTransitionNode
 	| UnifiedExactRenderVisualNode
 	| UnifiedExactRenderProfessionalMediaNode
-	| UnifiedExactRenderOpenFxNode;
+	| UnifiedExactRenderOpenFxNode
+	| UnifiedExactRenderFinishingNode;
 
 export interface UnifiedExactRenderPlan extends Readonly<Record<string, unknown>> {
 	readonly version: UnifiedExactRenderPlanVersion;
@@ -138,6 +150,7 @@ export type UnifiedExactRenderPlanV9 = UnifiedExactRenderPlan & Readonly<{ reado
 export type UnifiedExactRenderPlanV10 = UnifiedExactRenderPlan & Readonly<{ readonly version: 10 }>;
 export type UnifiedExactRenderPlanV11 = UnifiedExactRenderPlan & Readonly<{ readonly version: 11 }>;
 export type UnifiedExactRenderPlanV12 = UnifiedExactRenderPlan & Readonly<{ readonly version: 12 }>;
+export type UnifiedExactRenderPlanV13 = UnifiedExactRenderPlan & Readonly<{ readonly version: 13 }>;
 
 const PLAN_FIELDS = Object.freeze([
 	'version', 'strategy', 'project', 'format', 'codecs', 'timebase', 'output', 'tracks', 'sources', 'nodes',
@@ -160,6 +173,8 @@ const ALL_NODE_FIELDS = Object.freeze([
 	'authoredFallback', 'fallbackDisposition', 'frozenFallback',
 	'characteristics', 'imageSequence', 'proxyAttachment',
 	'exportAuthority', 'state',
+	'sequenceId', 'colorContext', 'sourceInterpretations', 'visualPresentations',
+	'processorStacks', 'motionAnalyses', 'captionTracks', 'captionDisposition', 'audioContext',
 ]);
 const MAXIMUM_NODES = 100_000;
 
@@ -168,7 +183,7 @@ export function createUnifiedExactRenderPlan(value: unknown): UnifiedExactRender
 	return createPlan(value);
 }
 
-/** Normalize a V9–V12 plan while authenticating digest-bound VFR timing bodies. */
+/** Normalize a V9–V13 plan while authenticating digest-bound VFR timing bodies. */
 export function createUnifiedExactRenderPlanWithTimingSidecars(
 	value: unknown,
 	timingSidecars: UnifiedExactRenderTimingSidecars,
@@ -186,7 +201,7 @@ function createPlan(
 	return deepFreeze(detached);
 }
 
-/** Require an already-normalized canonical V9–V12 wire. */
+/** Require an already-normalized canonical V9–V13 wire. */
 export function assertUnifiedExactRenderPlan(value: unknown): asserts value is UnifiedExactRenderPlan {
 	const normalized = normalizePlan(value);
 	if (canonicalizeNativeMediaPlan(value) !== canonicalizeNativeMediaPlan(normalized)) {
@@ -194,7 +209,7 @@ export function assertUnifiedExactRenderPlan(value: unknown): asserts value is U
 	}
 }
 
-/** Require a canonical V9–V12 wire and authenticate each referenced VFR body. */
+/** Require a canonical V9–V13 wire and authenticate each referenced VFR body. */
 export function assertUnifiedExactRenderPlanWithTimingSidecars(
 	value: unknown,
 	timingSidecars: UnifiedExactRenderTimingSidecars,
@@ -229,6 +244,10 @@ export function assertUnifiedExactRenderPlanV11(value: unknown): asserts value i
 
 export function assertUnifiedExactRenderPlanV12(value: unknown): asserts value is UnifiedExactRenderPlanV12 {
 	assertGeneration(value, 12);
+}
+
+export function assertUnifiedExactRenderPlanV13(value: unknown): asserts value is UnifiedExactRenderPlanV13 {
+	assertGeneration(value, 13);
 }
 
 export function canonicalizeUnifiedExactRenderPlan(value: unknown): string {
@@ -330,6 +349,7 @@ function normalizeNodes(
 	const normalized = new Map<number, UnifiedExactRenderNode>();
 	const clipsById = new Map<string, UnifiedExactRenderClipNode>();
 	const professionalSourceNodeIds = new Set<string>();
+	let finishingNodeCount = 0;
 	for (let index = 0; index < candidates.length; index += 1) {
 		if (kinds[index] !== 'clip') continue;
 		const clip = normalizeUnifiedExactRenderClipNode(candidates[index], context, sources, tracks, timing);
@@ -349,19 +369,25 @@ function normalizeNodes(
 				candidates[index], context.sequenceId, sources.bySourceId, tracks,
 			);
 		} else if (kind === 'professional-media') {
-			requireGeneration(version, 11, kind);
+			requireDormantGeneration(version, [11, 12], kind);
 			node = normalizeUnifiedExactRenderProfessionalNode(candidates[index], sources.byNodeId);
 			if (professionalSourceNodeIds.has(node.sourceNodeId)) {
 				throw new RangeError('A unified professional-media source may have at most one authority node.');
 			}
 			professionalSourceNodeIds.add(node.sourceNodeId);
+		} else if (kind === 'finishing') {
+			requireSelectedGeneration(version, 13, kind);
+			finishingNodeCount += 1;
+			if (finishingNodeCount > 1) throw new RangeError('A V13 plan requires exactly one finishing node.');
+			node = normalizeUnifiedExactRenderFinishingNode(candidates[index], context.sequenceId, sources.bySourceId);
 		} else throw new RangeError('Unified exact render plan node kind is unsupported.');
 		normalized.set(index, node);
 	}
+	if (version === 13 && finishingNodeCount !== 1) throw new RangeError('A selected V13 plan requires exactly one finishing node.');
 	const identities = graphIdentities(projectId, context.sequenceId, tracks, sources, normalized.values());
 	for (let index = 0; index < candidates.length; index += 1) {
 		if (kinds[index] !== 'openfx') continue;
-		requireGeneration(version, 12, 'openfx');
+		requireDormantGeneration(version, [12], 'openfx');
 		const effect = normalizeUnifiedExactRenderOpenFxNode(
 			candidates[index], identities, sources.bySourceId, context.outputFrameCount,
 		);
@@ -374,6 +400,9 @@ function normalizeNodes(
 		finalIdentities,
 		tracks,
 	);
+	for (const node of result) {
+		if (node.kind === 'finishing') assertUnifiedExactFinishingReferences(node, finalIdentities);
+	}
 	const orderedTransitions = normalizeUnifiedExactTransitionOrder(
 		result.filter((node): node is UnifiedExactRenderTransitionNode => node.kind === 'transition'),
 	);
@@ -436,6 +465,26 @@ function graphIdentities(
 		} else if (node.kind === 'openfx') {
 			claim(node.nodeId, 'openfx-node', `OpenFX node ${node.nodeId}`);
 			claim(node.state.instanceId, 'openfx-instance', `OpenFX instance ${node.state.instanceId}`, node.state.context);
+		} else if (node.kind === 'finishing') {
+			claim(node.nodeId, 'finishing-node', `finishing node ${node.nodeId}`);
+			for (const presentation of node.visualPresentations) {
+				claim(presentation.id, 'visual-presentation', `visual presentation ${presentation.id}`);
+			}
+			for (const stack of node.processorStacks) {
+				claim(stack.id, 'processor-stack', `processor stack ${stack.id}`);
+				for (const processor of stack.processors) {
+					claim(processor.id, 'video-processor', `video processor ${processor.id}`, processor.kind);
+				}
+			}
+			for (const analysis of node.motionAnalyses) {
+				claim(analysis.id, 'motion-analysis', `motion analysis ${analysis.id}`);
+			}
+			for (const track of node.captionTracks) {
+				claim(track.id, 'caption-track', `caption track ${track.id}`);
+			}
+			for (const lane of node.audioContext.automationLanes) {
+				claim(lane.id, 'automation-lane', `automation lane ${lane.id}`);
+			}
 		}
 	}
 	return createUnifiedExactRenderIdentityIndex(claims);
@@ -508,7 +557,7 @@ function normalizeOutput(
 		throw new RangeError('Unified render audio metadata is inconsistent.');
 	}
 	if (includeAudio) {
-		throw new RangeError('Unified plans V9-V12 cannot include audio until an exact audio graph is represented.');
+		throw new RangeError('Unified plans V9-V13 cannot include audio until an exact audio media graph is represented.');
 	}
 	const backgroundColor = field(canvasRecord, 'backgroundColor', 'unified render canvas');
 	if (typeof backgroundColor !== 'string' || !/^#[a-fA-F0-9]{6}(?:[a-fA-F0-9]{2})?$/u.test(backgroundColor)) {
@@ -540,8 +589,4 @@ function planVersion(value: unknown): UnifiedExactRenderPlanVersion {
 		throw new RangeError('Unified exact render plan version is unsupported.');
 	}
 	return value as UnifiedExactRenderPlanVersion;
-}
-
-function requireGeneration(actual: number, minimum: number, kind: unknown): void {
-	if (actual < minimum) throw new RangeError(`${String(kind)} render node requires plan generation V${String(minimum)}.`);
 }

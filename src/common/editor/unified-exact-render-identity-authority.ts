@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Typed identities admitted by the cumulative V9-V12 exact render graph. */
+/** Typed identities admitted by historical V9-V12 and selected V13 render graphs. */
 export type UnifiedExactRenderIdentityKind =
 	| 'project'
 	| 'sequence'
@@ -17,7 +17,14 @@ export type UnifiedExactRenderIdentityKind =
 	| 'generator-source'
 	| 'professional-media-node'
 	| 'openfx-node'
-	| 'openfx-instance';
+	| 'openfx-instance'
+	| 'finishing-node'
+	| 'visual-presentation'
+	| 'processor-stack'
+	| 'video-processor'
+	| 'motion-analysis'
+	| 'caption-track'
+	| 'automation-lane';
 
 export interface UnifiedExactRenderIdentityClaim {
 	readonly identity: string;

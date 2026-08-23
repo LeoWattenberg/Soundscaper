@@ -32,8 +32,8 @@ import {
 } from './helpers/unified-exact-render-plan-fixture.ts';
 
 test('V9 through V12 carry cumulative closed executable authority', () => {
-	assert.deepEqual(UNIFIED_EXACT_RENDER_PLAN_VERSIONS, [9, 10, 11, 12]);
-	for (const version of UNIFIED_EXACT_RENDER_PLAN_VERSIONS) {
+	assert.deepEqual(UNIFIED_EXACT_RENDER_PLAN_VERSIONS, [9, 10, 11, 12, 13]);
+	for (const version of [9, 10, 11, 12] as const) {
 		const plan = createUnifiedExactRenderPlan(unifiedExactPlanFixture(version));
 		assert.equal(plan.version, version);
 		assert.doesNotThrow(() => assertUnifiedExactRenderPlan(plan));
@@ -323,7 +323,7 @@ test('transition nodes normalize to the frozen deterministic V22 order', () => {
 });
 
 test('each generation has a stable canonical golden and exact native-envelope summary', () => {
-	for (const version of UNIFIED_EXACT_RENDER_PLAN_VERSIONS) {
+	for (const version of [9, 10, 11, 12] as const) {
 		const plan = createUnifiedExactRenderPlan(unifiedExactPlanFixture(version));
 		const fingerprint = fingerprintUnifiedExactRenderPlan(plan);
 		assert.equal(fingerprint.sha256, UNIFIED_EXACT_RENDER_PLAN_GOLDEN_SHA256[version]);

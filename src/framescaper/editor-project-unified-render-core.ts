@@ -51,7 +51,7 @@ export function createFramescaperUnifiedRenderFoundation(
 ): FramescaperUnifiedRenderFoundation {
 	const project = record(projectValue, 'Framescaper candidate project');
 	if (authority.includeAudio === true) {
-		throw new RangeError('Audio authority is not represented by unified plans V9-V12; export must fail closed.');
+		throw new RangeError('Audio authority is not represented by unified plans V9-V13 without an exact audio media graph; export must fail closed.');
 	}
 	const sampleRate = positiveInteger(data(project, 'sampleRate', 'project'), 'project.sampleRate');
 	const sampleStart = nonNegativeInteger(authority.sampleStart, 'render sampleStart');
@@ -468,7 +468,7 @@ function record(value: unknown, name: string): Record<string, unknown> {
 function assertEmptyRecord(value: unknown, name: string): void {
 	const candidate = record(value, name);
 	if (Reflect.ownKeys(candidate).length !== 0) {
-		throw new RangeError(`${name} contains render state that is not represented by unified plans V9-V12.`);
+		throw new RangeError(`${name} contains render state that is not represented by unified plans V9-V13.`);
 	}
 }
 
