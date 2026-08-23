@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
 	Button,
 	DialogFooter,
@@ -66,7 +66,7 @@ export function AudioEditorMacroManagerDialog({
 		}
 	}, [isOpen]);
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		if (isOpen && !selectedEffect && !picker) initMacroTabIndices();
 	}, [effects, initMacroTabIndices, isOpen, picker, selectedEffect]);
 

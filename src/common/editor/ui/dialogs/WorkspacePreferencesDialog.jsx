@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
 	Button,
 	DialogSideNav,
@@ -459,7 +459,7 @@ function ShortcutEditorRow({ command, preferences, controller, copy, run }) {
 	const preferenceId = command.id;
 	const persisted = preferences.shortcuts[command.id]?.[0] || preferences.shortcuts[command.preferenceId]?.[0] || '';
 	const [binding, setBinding] = useState(persisted);
-	useEffect(() => setBinding(persisted), [persisted]);
+	useLayoutEffect(() => setBinding(persisted), [persisted]);
 	let normalized = '';
 	let conflict = null;
 	if (!command.disabled && binding.trim()) {
