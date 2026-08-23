@@ -211,13 +211,7 @@ function materializeTextCue(
 	}
 	if (!start.exact) state.losses.push(timingLoss(id, 'startFrame', source.startMilliseconds, start.frame));
 	if (!end.exact) state.losses.push(timingLoss(id, 'endFrame', source.endMilliseconds, end.frame));
-	const markup = format === 'webvtt' ? parseVttCueMarkup(source.text) : {
-		text: decodePassiveText(source.text),
-		bold: false,
-		italic: false,
-		underline: false,
-		speaker: null,
-	};
+	const markup = format === 'webvtt' ? parseVttCueMarkup(source.text) : parseSrtCueMarkup(source.text);
 	const styleId = markup.bold || markup.italic || markup.underline || source.align !== null
 		? textStyleId(markup, source.align, state)
 		: null;
@@ -247,7 +241,15 @@ function exportSrtCue(
 	if (cue.regionId !== null) losses.push(captionLoss('region-omitted', `cues.${cue.id}.regionId`, 'SRT cannot preserve the caption region.', { id: cue.regionId }));
 	if (cue.speakerId !== null) losses.push(captionLoss('speaker-omitted', `cues.${cue.id}.speakerId`, 'SRT cannot preserve the caption speaker.', { id: cue.speakerId }));
 	if (cue.words.length > 0) losses.push(captionLoss('word-timing-omitted', `cues.${cue.id}.words`, 'SRT cannot preserve word timing.', { count: cue.words.length }));
-	return `${index + 1}\n${timing}\n${escapePassiveText(cue.text)}`;
+	// SRT is plain text with no entity syntax; cue bodies export verbatim. A
+	// blank line terminates an SRT block, so blank, leading, and trailing cue
+	// lines are the one unrepresentable structure — dropped and reported.
+	const printable = cue.text.split('\n').filter((line) => line.trim().length > 0);
+	const body = printable.length > 0 ? printable.join('\n') : ' ';
+	if (body !== cue.text) {
+		losses.push(captionLoss('text-lines-normalized', `cues.${cue.id}.text`, 'SRT cannot preserve leading, trailing, or blank caption lines.', {}));
+	}
+	return `${index + 1}\n${timing}\n${body}`;
 }
 
 function exportWebVttCue(
@@ -291,6 +293,40 @@ function exportMillisecondTiming(
 	if (!start.exact) losses.push(exportTimingLoss(cue, 'startFrame', start.milliseconds));
 	if (!end.exact || endMilliseconds !== end.milliseconds) losses.push(exportTimingLoss(cue, 'endFrame', endMilliseconds));
 	return `${formatMilliseconds(start.milliseconds, format)} --> ${formatMilliseconds(endMilliseconds, format)}`;
+}
+
+/**
+ * SRT cue bodies are plain text: there is no entity syntax, so ampersands
+ * stay literal. The one styling shape the strict subset accepts is a
+ * whole-body b/i/u wrapper — common in real-world files — which maps to a
+ * caption style exactly as the WebVTT importer maps it; any remaining markup
+ * refuses rather than rendering as caption text.
+ */
+function parseSrtCueMarkup(value: string): {
+	text: string;
+	bold: boolean;
+	italic: boolean;
+	underline: boolean;
+	speaker: string | null;
+} {
+	let content = value;
+	let bold = false;
+	let italic = false;
+	let underline = false;
+	for (;;) {
+		const tag = content.match(/^<(b|i|u)>/u)?.[1];
+		if (!tag || !content.endsWith(`</${tag}>`)) break;
+		if (tag === 'b') bold = true;
+		if (tag === 'i') italic = true;
+		if (tag === 'u') underline = true;
+		content = content.slice(3, -(tag.length + 3));
+	}
+	// Anything tag-shaped — an angle bracket opening a letter tag — stays
+	// outside the passive subset; a bare angle bracket is literal text.
+	if (/<\/?[a-z]/iu.test(content)) {
+		throw interchangeError('Caption cue markup is outside the passive maintained subset.', 'ACTIVE_CONTENT');
+	}
+	return { text: content, bold, italic, underline, speaker: null };
 }
 
 function parseVttCueMarkup(value: string): {

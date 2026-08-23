@@ -53,13 +53,13 @@ function captionTrack(overrides: Partial<VideoCaptionTrackV1> = {}): VideoCaptio
 			id: 'cue-1',
 			startFrame: 48_000,
 			endFrame: 96_000,
-			text: 'A <complete> sentence.\nNext line.',
+			text: 'A <-complete-> sentence.\nNext line.',
 			styleId: 'style-dialogue',
 			regionId: 'region-bottom',
 			speakerId: 'speaker-alex',
 			words: [
 				{ startFrame: 48_000, endFrame: 52_000, text: 'A' },
-				{ startFrame: 52_000, endFrame: 80_000, text: '<complete>' },
+				{ startFrame: 52_000, endFrame: 80_000, text: '<-complete->' },
 				{ startFrame: 80_000, endFrame: 96_000, text: 'sentence.\nNext line.' },
 			],
 		}],
@@ -177,7 +177,10 @@ test('SRT and WebVTT report every model field their maintained subsets omit', ()
 		assert.deepEqual(exported.losses.map((loss) => loss.code), expected[format]);
 		assert.equal(new Set(exported.losses.map((loss) => loss.path)).size, exported.losses.length);
 		assert.match(exported.text, format === 'srt' ? /00:00:01,000 --> 00:00:02,000/u : /WEBVTT\n\ncue-1\n00:00:01\.000 --> 00:00:02\.000/u);
-		assert.doesNotMatch(exported.text, /<complete>/u);
+		// WebVTT escapes angle brackets as character references; SRT has no
+		// entity syntax so non-markup angle-bracket text stays literal.
+		if (format === 'srt') assert.match(exported.text, /<-complete->/u);
+		else assert.doesNotMatch(exported.text, /<-complete->/u);
 		const imported = importVideoCaptionTrackV1(exported.text, {
 			format,
 			sampleRate: 48_000,
@@ -233,7 +236,7 @@ test('millisecond sidecars expose deterministic timing quantization as structure
 	}
 });
 
-test('text sidecars preserve cue-leading, trailing, and blank lines as passive entities', () => {
+test('WebVTT sidecars preserve cue-leading, trailing, and blank lines as passive entities', () => {
 	const source = captionTrack({
 		styles: [], regions: [], speakers: [],
 		cues: [{
@@ -248,14 +251,76 @@ test('text sidecars preserve cue-leading, trailing, and blank lines as passive e
 			words: [],
 		}],
 	});
-	for (const format of ['srt', 'webvtt'] as const) {
-		const exported = exportVideoCaptionTrackV1(source, { format, sampleRate: 48_000 });
-		assert.match(exported.text, /&#10;/u);
-		const imported = importVideoCaptionTrackV1(exported.text, {
-			format, sampleRate: 48_000, ...IMPORT_IDENTITY,
-		});
-		assert.equal(imported.track.cues[0]?.text, source.cues[0]?.text);
-	}
+	const exported = exportVideoCaptionTrackV1(source, { format: 'webvtt', sampleRate: 48_000 });
+	assert.match(exported.text, /&#10;/u);
+	const imported = importVideoCaptionTrackV1(exported.text, {
+		format: 'webvtt', sampleRate: 48_000, ...IMPORT_IDENTITY,
+	});
+	assert.equal(imported.track.cues[0]?.text, source.cues[0]?.text);
+});
+
+test('SRT export writes literal plain text and reports unrepresentable line structure', () => {
+	// SRT has no entity syntax: a standard player renders '&amp;' and '&#10;'
+	// literally on screen, so cue bodies must export verbatim. Blank, leading,
+	// and trailing lines terminate an SRT block and are the one structural
+	// loss — dropped and reported, never silently entity-encoded.
+	const source = captionTrack({
+		styles: [], regions: [], speakers: [],
+		cues: [{
+			schemaVersion: 1,
+			id: 'cue-plain',
+			startFrame: 0,
+			endFrame: 48_000,
+			text: 'Tom & Jerry\nEpisode 1',
+			styleId: null,
+			regionId: null,
+			speakerId: null,
+			words: [],
+		}, {
+			schemaVersion: 1,
+			id: 'cue-lines',
+			startFrame: 48_000,
+			endFrame: 96_000,
+			text: '\nfirst\n\nlast\n',
+			styleId: null,
+			regionId: null,
+			speakerId: null,
+			words: [],
+		}],
+	});
+	const exported = exportVideoCaptionTrackV1(source, { format: 'srt', sampleRate: 48_000 });
+	assert.match(exported.text, /Tom & Jerry\nEpisode 1/u);
+	assert.doesNotMatch(exported.text, /&amp;|&#10;/u);
+	assert.match(exported.text, /first\nlast/u);
+	assert.ok(
+		exported.losses.some((loss) => loss.code === 'text-lines-normalized'
+			&& loss.path === 'cues.cue-lines.text'),
+		'the dropped blank and boundary lines are reported',
+	);
+	assert.ok(
+		!exported.losses.some((loss) => loss.code === 'text-lines-normalized'
+			&& loss.path === 'cues.cue-plain.text'),
+		'an ordinary multi-line cue is lossless',
+	);
+	const imported = importVideoCaptionTrackV1(exported.text, {
+		format: 'srt', sampleRate: 48_000, ...IMPORT_IDENTITY,
+	});
+	assert.equal(imported.track.cues[0]?.text, 'Tom & Jerry\nEpisode 1');
+	assert.equal(imported.track.cues[1]?.text, 'first\nlast');
+});
+
+test('SRT import accepts plain-text ampersands and basic styling markup', () => {
+	const imported = importVideoCaptionTrackV1(
+		'1\n00:00:01,000 --> 00:00:02,000\nAT&T announced today\n\n'
+		+ '2\n00:00:02,000 --> 00:00:03,000\n<i>italic aside</i>\n',
+		{ format: 'srt', sampleRate: 48_000, ...IMPORT_IDENTITY },
+	);
+	assert.equal(imported.track.cues[0]?.text, 'AT&T announced today');
+	assert.equal(imported.track.cues[0]?.styleId, null);
+	assert.equal(imported.track.cues[1]?.text, 'italic aside');
+	const styleId = imported.track.cues[1]?.styleId;
+	assert.ok(styleId, 'whole-body italics map to a caption style');
+	assert.equal(imported.track.styles.find(({ id }) => id === styleId)?.fontStyle, 'italic');
 });
 
 test('IMSC import accepts bounded clock time but reports conversion that is not frame exact', () => {

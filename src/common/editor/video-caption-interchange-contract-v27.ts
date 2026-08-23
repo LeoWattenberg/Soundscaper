@@ -29,6 +29,7 @@ export type VideoCaptionInterchangeLossCodeV1 =
 	| 'style-omitted'
 	| 'style-properties-defaulted'
 	| 'style-properties-omitted'
+	| 'text-lines-normalized'
 	| 'timing-quantized'
 	| 'track-identity-normalized'
 	| 'track-metadata-omitted'
