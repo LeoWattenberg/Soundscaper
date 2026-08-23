@@ -101,6 +101,49 @@ test('V27 finishing batches are atomic and advance project bookkeeping once', ()
 	assert.equal(project.videoColorContexts[0]?.outputSpace, 'rec709');
 });
 
+test('owned V27 batches validate cross-collection changes only after the final draft', () => {
+	for (const commands of [dependentRemovalCommands(projectFixture()),
+		[...dependentRemovalCommands(projectFixture())].reverse()]) {
+		const project = projectFixture();
+		const applied = applyFramescaperProjectCommandV27(PROFILE, project, {
+			type: 'batch', commands,
+		});
+		assert.equal(applied.videoVisualPresentations[0]?.processorStackId, null);
+		assert.deepEqual(applied.videoProcessorStacks, []);
+		assert.deepEqual(applied.videoMotionAnalyses, []);
+		assert.equal(applied.revision, Number(project.revision) + 1);
+	}
+});
+
+test('an invalid owned V27 batch leaves the original exact state untouched', () => {
+	const project = projectFixture();
+	const original = structuredClone(project);
+	const stack = project.videoProcessorStacks[0]!;
+	assert.throws(() => applyFramescaperProjectCommandV27(PROFILE, project, {
+		type: 'batch', commands: [{
+			type: 'video-processor-stack/set', processorStackId: stack.id,
+			expectedProcessorStack: stack, processorStack: null,
+		}],
+	}), /processor stack|motion analysis|visual presentation|missing/iu);
+	assert.deepEqual(project, original);
+});
+
+test('a cross-collection owned batch remains one-step undoable and redoable', () => {
+	const project = projectFixture();
+	const executed = executeFramescaperProjectCommandV27(
+		PROFILE,
+		createFramescaperProjectHistoryV27(PROFILE, project),
+		{ type: 'batch', commands: dependentRemovalCommands(project) },
+	);
+	assert.deepEqual(executed.present.videoMotionAnalyses, []);
+	const undone = undoFramescaperProjectCommandV27(PROFILE, executed);
+	assert.deepEqual(undone.present.videoMotionAnalyses, project.videoMotionAnalyses);
+	assert.deepEqual(undone.present.videoProcessorStacks, project.videoProcessorStacks);
+	const redone = redoFramescaperProjectCommandV27(PROFILE, undone);
+	assert.deepEqual(redone.present.videoMotionAnalyses, []);
+	assert.deepEqual(redone.present.videoProcessorStacks, []);
+});
+
 test('V27 history restores owned finishing commands with one-step undo and redo', () => {
 	const project = projectFixture();
 	const command = finishingCommands(project)[7];
@@ -163,6 +206,28 @@ function finishingCommands(project: ReturnType<typeof projectFixture>) {
 		{ type: 'mixer-graph/set', expected: project.mixer,
 			mixer: { ...project.mixer, outputs: [{ ...project.mixer.outputs[0]!, name: 'Programme' }] } },
 	] as const;
+}
+
+function dependentRemovalCommands(project: ReturnType<typeof projectFixture>) {
+	const presentationValue = project.videoVisualPresentations[0]!;
+	const stack = project.videoProcessorStacks[0]!;
+	const analysis = project.videoMotionAnalyses[0]!;
+	return [{
+		type: 'video-processor-stack/set' as const,
+		processorStackId: stack.id,
+		expectedProcessorStack: stack,
+		processorStack: null,
+	}, {
+		type: 'video-motion-analysis/set' as const,
+		motionAnalysisId: analysis.id,
+		expectedMotionAnalysis: analysis,
+		motionAnalysis: null,
+	}, {
+		type: 'video-visual-presentation/set' as const,
+		presentationId: presentationValue.id,
+		expectedPresentation: presentationValue,
+		presentation: { ...presentationValue, processorStackId: null },
+	}] as const;
 }
 
 function presentation() {

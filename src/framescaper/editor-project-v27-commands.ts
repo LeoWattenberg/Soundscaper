@@ -137,11 +137,7 @@ function applyNormalized(
 		draft,
 		command as FramescaperOwnedFinishingCommandV27,
 	);
-	advanceBookkeeping(draft, project, options);
-	normalizeFramescaperProjectFinishingStateV27(draft);
-	draft.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV27(profile, draft);
-	validateFramescaperProjectV27(profile, draft);
-	return draft as unknown as FramescaperProjectV27;
+	return finalizeDraft(profile, project, draft, options);
 }
 
 function isBatch(command: FramescaperProjectCommandV27): command is FramescaperProjectCommandBatchV27 {
@@ -156,6 +152,7 @@ function applyBatch(
 ): FramescaperProjectV27 {
 	let current = project;
 	let inheritedSegment: FramescaperInheritedProjectCommandV27[] = [];
+	let ownedSegment: FramescaperOwnedFinishingCommandV27[] = [];
 	const flushInheritedSegment = (): void => {
 		if (inheritedSegment.length === 0) return;
 		const inherited = inheritedSegment.length === 1
@@ -169,17 +166,40 @@ function applyBatch(
 		);
 		inheritedSegment = [];
 	};
+	const flushOwnedSegment = (): void => {
+		if (ownedSegment.length === 0) return;
+		const draft = structuredClone(current) as unknown as Record<string, unknown>;
+		for (const owned of ownedSegment) applyFramescaperOwnedFinishingCommandV27(draft, owned);
+		current = finalizeDraft(profile, current, draft, options);
+		ownedSegment = [];
+	};
 	for (const child of command.commands) {
 		if (!isBatch(child) && !isFramescaperOwnedFinishingCommandTypeV27(child.type)) {
+			flushOwnedSegment();
 			inheritedSegment.push(child as FramescaperInheritedProjectCommandV27);
 			continue;
 		}
 		flushInheritedSegment();
+		if (!isBatch(child)) {
+			ownedSegment.push(child as FramescaperOwnedFinishingCommandV27);
+			continue;
+		}
+		flushOwnedSegment();
 		current = applyNormalized(profile, current, child, options);
 	}
 	flushInheritedSegment();
+	flushOwnedSegment();
 	const draft = structuredClone(current) as unknown as Record<string, unknown>;
-	advanceBookkeeping(draft, project, options);
+	return finalizeDraft(profile, project, draft, options);
+}
+
+function finalizeDraft(
+	profile: unknown,
+	prior: FramescaperProjectV27,
+	draft: Record<string, unknown>,
+	options: FramescaperProjectCommandOptionsV27,
+): FramescaperProjectV27 {
+	advanceBookkeeping(draft, prior, options);
 	normalizeFramescaperProjectFinishingStateV27(draft);
 	draft.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV27(profile, draft);
 	validateFramescaperProjectV27(profile, draft);
