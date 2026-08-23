@@ -4,6 +4,11 @@ import type { PlaybackProjectService } from '../common/editor/controller/playbac
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import type { ProjectDocument } from '../common/editor/storage/project-repository.ts';
 import { AudioEditorProjectStore } from '../common/editor/storage.js';
+import {
+	connectFramescaperDesktopProjectLibraryV18Renderer,
+	type FramescaperDesktopProjectLibraryV18Renderer,
+} from './desktop-project-library-v18-renderer.ts';
+import { createFramescaperDesktopProjectStoreV18Adapter } from './desktop-project-library-v18-store-adapter.ts';
 import { createFramescaperPlaybackProjectServiceV27 } from './editor-project-playback-v27.ts';
 import {
 	createEditorProjectRuntimeV27Selection,
@@ -23,6 +28,7 @@ export interface FramescaperEditorProjectEnvironmentV27 {
 	readonly runtime: Readonly<EditorProjectRuntimeV27Selection>;
 	readonly store: AudioEditorProjectStore;
 	readonly controllerStore: AudioEditorProjectStore;
+	readonly desktopProjectLibrary: FramescaperDesktopProjectLibraryV18Renderer | null;
 	readonly playback: PlaybackProjectService;
 	readonly createProjectIfAbsent: (project: ProjectDocument) => Promise<ProjectDocument | null>;
 	readonly close: () => Promise<void>;
@@ -43,15 +49,30 @@ export async function createFramescaperEditorProjectEnvironmentV27(
 		}
 		const authority = framescaperProjectStoreAuthorityV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, store);
 		if (!authority.opfs) throw new TypeError('The exact V27 OPFS repository is required.');
+		const desktopProjectLibrary = await connectFramescaperDesktopProjectLibraryV18Renderer(
+			FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
+			store,
+		);
+		const controllerStore = createFramescaperDesktopProjectStoreV18Adapter(
+			FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
+			{ localStore: store, desktopProjectLibrary },
+		) as AudioEditorProjectStore;
 		const environment = Object.freeze({
 			runtime,
 			store,
-			controllerStore: store,
+			controllerStore,
+			desktopProjectLibrary,
 			playback: createFramescaperPlaybackProjectServiceV27(
 				FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
 				{ timingStore: store },
 			),
-			createProjectIfAbsent: (project: ProjectDocument) => exactProjectRepository(store).createIfAbsent(project),
+			createProjectIfAbsent: controllerStore === store
+				? (project: ProjectDocument) => exactProjectRepository(store).createIfAbsent(project)
+				: (project: ProjectDocument) => (
+					controllerStore as unknown as Readonly<{
+						createProjectIfAbsent(value: unknown): Promise<ProjectDocument | null>;
+					}>
+				).createProjectIfAbsent(project),
 			close: () => store.close(),
 		});
 		PRODUCT_ENVIRONMENTS.add(environment);
