@@ -80,6 +80,18 @@ test('keyed strategy retains exact timing through direct encoding and releases i
 	assert.deepEqual(fixture.errors, []);
 });
 
+test('keyed delivery falls back from owned storage to the exact pathless linked original', async () => {
+	const fixture = createFixture({ mode: 'blob', linkedOriginal: true });
+	const result = await fixture.exportVideo({ format: 'video-mp4' });
+
+	assert.equal(result?.url, 'blob:keyed-video');
+	assertOrder(fixture.events, [
+		'product-plan', 'active-timing-load', 'prepare', 'active-video-load',
+		'active-video-linked-load', 'product-encode', 'download',
+	]);
+	assert.deepEqual(fixture.errors, []);
+});
+
 test('keyed strategy releases exact timing and publishes nothing after encoder failure', async () => {
 	const failure = new Error('keyed encoder failed');
 	const fixture = createFixture({ mode: 'blob', encodeFailure: failure });
@@ -150,6 +162,7 @@ interface FixtureOptions {
 	readonly cancelPreparation?: boolean;
 	readonly malformedPlan?: 'missing' | 'duplicate' | 'accessor' | 'entries' | 'prototype';
 	readonly staticRange?: boolean;
+	readonly linkedOriginal?: boolean;
 }
 
 function createPictureOnlyFixture(kind: 'still' | 'generator', withAudio: boolean) {
@@ -393,6 +406,7 @@ function createFixture(options: FixtureOptions) {
 	};
 	let activeController: AbortController | null = null;
 	let written = 0;
+	const linkedOriginalBlob = new Blob([Uint8Array.of(9)], { type: 'video/mp4' });
 	const runtime = {
 		abortError: () => Object.assign(new Error('aborted'), { name: 'AbortError' }),
 		audioBufferChannels: (buffer: Readonly<{ channels: readonly Float32Array[] }>) => buffer.channels,
@@ -474,6 +488,7 @@ function createFixture(options: FixtureOptions) {
 				}
 				if (storageKey === 'active-video-storage') {
 					events.push('active-video-load');
+					if (options.linkedOriginal) return null;
 					return new Blob([Uint8Array.of(9)], { type: 'video/mp4' });
 				}
 				if (storageKey === 'off-range-video-storage') {
@@ -481,6 +496,19 @@ function createFixture(options: FixtureOptions) {
 					return new Blob([Uint8Array.of(8)], { type: 'video/mp4' });
 				}
 				throw new Error(`Unexpected storage key ${storageKey}.`);
+			},
+			async resolveLinkedVideoOriginal(
+				projectId: string,
+				source: Readonly<Record<string, unknown>>,
+			) {
+				if (!options.linkedOriginal) throw new Error('Unexpected linked-original resolution.');
+				assert.equal(projectId, project.id);
+				assert.strictEqual(source, activeSource);
+				events.push('active-video-linked-load');
+				return Object.freeze({
+					blob: linkedOriginalBlob,
+					binding: Object.freeze({ bindingToken: 'linked-active-video' }),
+				});
 			},
 		},
 		throwIfAborted(signal?: AbortSignal) { if (signal?.aborted) throw signal.reason; },

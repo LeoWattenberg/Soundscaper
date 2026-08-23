@@ -36,6 +36,7 @@ import { loadVideoBurnInFonts } from '../video-burn-in-font.ts';
 import { videoBurnInFontSubsetIds } from '../video-caption-burn-in.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
 import { resolveVideoDeliveryEncoderTier } from '../video-delivery-encoder-tier.ts';
+import { loadVideoExportOriginal } from './video-export-original-loader.ts';
 
 export interface VideoExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -301,7 +302,14 @@ export function createEditorVideoExportAction(
 				throwIfAborted(abort.signal);
 				const blob = admittedFallbacks.videoBlob && input.sourceId === delivery.videoRenderedFallback?.sourceId
 					? admittedFallbacks.videoBlob
-					: await store.loadMediaAsset(input.storageKey || input.sourceId, { signal: abort.signal });
+					: await loadVideoExportOriginal({
+						store,
+						project: canonicalProject,
+						sourceId: String(input.sourceId),
+						storageKey: String(input.storageKey || input.sourceId),
+						signal: abort.signal,
+						assertCurrent: assertVideoExportCurrent,
+					});
 				if (!blob) throw videoExportMissingOriginalError(
 					canonicalProject,
 					String(input.sourceId),
