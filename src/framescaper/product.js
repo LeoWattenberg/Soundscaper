@@ -41,7 +41,7 @@ export const FRAMESCAPER_PROFILE = {
 		takeComp: false,
 		audioWarp: false,
 		sequenceTiming: true,
-		videoRetime: false,
+		videoRetime: true,
 		videoStills: false,
 		videoTimingAssets: true,
 		videoTransitionDissolve: false,

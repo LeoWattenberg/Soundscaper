@@ -83,7 +83,9 @@ test('MIDI stays absent while Framescaper capture is a separate application capa
 	assert.equal(inventory.products.soundscaper.projectFeatures.trackFolders, true);
 	assert.equal(inventory.products.framescaper.projectFeatures.trackFolders, false);
 	assert.equal(inventory.products.soundscaper.projectFeatures.audioWarp, true);
+	assert.equal(inventory.products.soundscaper.projectFeatures.videoRetime, false);
 	assert.equal(inventory.products.framescaper.projectFeatures.audioWarp, false);
+	assert.equal(inventory.products.framescaper.projectFeatures.videoRetime, true);
 	assert.equal(inventory.products.soundscaper.projectFeatures.nestedSequences, false);
 	assert.equal(inventory.products.framescaper.projectFeatures.nestedSequences, true);
 	assert.equal(inventory.products.soundscaper.projectFeatures.multicamera, false);

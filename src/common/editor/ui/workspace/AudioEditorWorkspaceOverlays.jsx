@@ -7,6 +7,7 @@ const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/Audi
 const ClipPropertiesDialog = React.lazy(() => import('../inspector/ClipPropertiesDialog.jsx'));
 const VideoCompositionDialog = React.lazy(() => import('../inspector/VideoCompositionDialog.tsx'));
 const VideoKeyframeDialog = React.lazy(() => import('../inspector/VideoKeyframeDialog.tsx'));
+const VideoRetimeDialog = React.lazy(() => import('../dialogs/VideoRetimeDialog.tsx'));
 const ExportDialog = React.lazy(() => import('../inspector/ExportDialog.jsx'));
 const DeliveryQueueDialog = React.lazy(() => import('../inspector/DeliveryQueueDialog.jsx'));
 const LabelExportDialog = React.lazy(() => import('../inspector/LabelExportDialog.jsx'));
@@ -40,6 +41,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		dialogTrackId,
 		dialogValue,
 		effectWindow,
+		editBlocked,
 		fileService,
 		generatorType,
 		locale,
@@ -120,6 +122,22 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 						<VideoKeyframeDialog
 							productId={productId}
 							capability={Boolean(capabilities.videoKeyframes)}
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{productId === 'framescaper' && capabilities.videoRetime && activeSurface === 'video-retime' && (
+				<div data-editor-surface="video-retime">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<VideoRetimeDialog
+							productId={productId}
+							capability={Boolean(capabilities.videoRetime)}
+							editingBlocked={editBlocked}
 							controller={controller}
 							snapshot={snapshot}
 							copy={copy}

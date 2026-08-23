@@ -467,7 +467,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const videoProxyFallback = rules.get('video-proxy-fallback');
 	assert.match(
 		videoProxyFallback.currentBehavior,
-		/originals remain authoritative.*shipped FFmpeg.*every frame at the presentation time.*display geometry.*conformance refuses a body whose boundaries drifted.*atomically as one undoable step.*leaves the tab editable.*carry an attachment forward only while.*relink.*replace.*reprobe.*reimport.*trim-media.*consolidate.*drop it in the same transaction.*re-attests every session.*original-or-unavailable.*videoProxy capability is available in Framescaper.*Soundscaper owns no such key.*attach and detach are not yet menu-reached.*rendered-fallback relationships remain separate.*not original-to-proxy/iu,
+		/originals remain authoritative.*shipped FFmpeg.*every frame at the presentation time.*display geometry.*conformance refuses a body whose boundaries drifted.*atomically as one undoable step.*leaves the tab editable.*carry an attachment forward only while.*source domain before an occurrence retime curve.*retiming does not detach.*relink.*replace.*reprobe.*reimport.*trim-media.*consolidate.*drop stale state in the same transaction.*re-attests every session.*original-or-unavailable.*videoProxy capability is available in Framescaper.*Soundscaper owns no such key.*attach and detach are not yet menu-reached.*rendered-fallback relationships remain separate.*not original-to-proxy/iu,
 	);
 });
 

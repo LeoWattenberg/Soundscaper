@@ -161,6 +161,7 @@ export function createWorkspaceApplicationMenus({
 				openAudioWarp: () => openSurface('audio-warp'),
 				openVideoComposition: () => openSurface('video-composition'),
 				openVideoKeyframes: () => openSurface('video-keyframes'),
+				openVideoRetime: () => openSurface('video-retime'),
 				openTakeComp: () => openSurface('take-comp'),
 				newProject: () => run(() => controller.actions.project.create()),
 				openProjects,

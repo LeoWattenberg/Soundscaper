@@ -137,6 +137,24 @@ test('the V20 controller action facade snapshots exact commands and exposes no g
 	assert.deepEqual(Object.keys(actions).sort(), ['constant', 'freeze', 'ramp', 'reset', 'reverse', 'set']);
 });
 
+test('V20 inherited editorial commands preserve authored retime while linked audio stays unwarped', () => {
+	const authored = apply(linkedProject(), createFramescaperVideoRetimeReverseCommandV20({
+		clipId: 'video-clip', expectedRetimeMap: null,
+	}));
+	const expectedMap = structuredClone(map(authored, 'video-clip'));
+	const expectedAudio = structuredClone(clip(authored, 'audio-clip'));
+	const moved = apply(authored, {
+		type: 'clip/move', clipId: 'video-clip', timelineStartFrame: 48_000,
+	});
+	assert.deepEqual(map(moved, 'video-clip'), expectedMap);
+	const movedAudio = clip(moved, 'audio-clip') as Readonly<Record<string, unknown>>;
+	assert.equal(movedAudio.timelineStartFrame, 48_000);
+	assert.equal(movedAudio.sourceStartFrame, expectedAudio.sourceStartFrame);
+	assert.equal(movedAudio.sourceDurationFrames, expectedAudio.sourceDurationFrames);
+	assert.equal(movedAudio.reversed, false);
+	assert.equal(movedAudio.warpMap, null);
+});
+
 function linkedProject(): FramescaperProjectV20 {
 	const options = framescaperV20Options();
 	(options.clips as Record<string, unknown>[])[0]!.avLinkId = 'linked-av';

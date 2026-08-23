@@ -1183,7 +1183,7 @@
 				},
 				{
 					"id": "v16-video-retime-preservation-admission",
-					"summary": "Exact schema 17 admits only the closed V2 video-retime wire introduced by schema V16, with 1 through 4,096 exact-algebra-validated segments, on timeline and Project Bin clips; null remains writable and the historical V15 breakpoint map is rejected with typed re-import rather than upgraded. A non-null curve forces the exact reserved framescaper.video-retime bypass requirement for org.soundscaper.capability.video-retime with fallback null, and publisher substitution or any rendered fallback rejects. Because videoRetime is false for both products, open requires explicit read-only-or-cancel consent and activation stays intrinsically read-only. Maintained clone, history, clipboard codec, format-1 .scape, and fresh desktop-v9 round trips preserve the wire, while clipboard/add admission and the shared direct and arbitrarily nested command boundary reject unavailable-capability introduction or any mutation of the clip, ownership, bounds, or referenced-source closure before publication and history. A focused Chromium fixture proves cancel, explicit read-only consent, the unavailable bypass notice, exact curve preservation, and current-format .scape re-export. This is preservation and refusal only: no authoring, evaluator, playback, preview, export, nested sequence, fallback, or native timing claim is made.",
+					"summary": "The closed V2 video-retime wire introduced by schema V16 remains exact and unchanged: 1 through 4,096 algebra-validated segments on timeline and Project Bin clips, canonical bounded rationals, null default, typed re-import for the historical V15 map, and an owned framescaper.video-retime bypass/no-fallback requirement that refuses publisher substitution and rendered fallback. Historical Soundscaper V17 custody remains unavailable and read-only-or-cancel. Selected Framescaper V20 registers videoRetime available only for its maintained web core and provides stale-safe set, reset, constant, ramp, reverse, and freeze commands with one-step history and one menu-only lazy dialog. Inherited placement edits preserve the curve; linked audio keeps forward source timing, warpMap null, and audioWarp false. One authenticated exact ordinal authority serves program-preview random seeks and keyed browser MP4/WebM export across integer, NTSC, CFR, verified VFR, nested, reverse, freeze, and ramp cases. Proxy/original selection precedes occurrence retime in the source domain. Clone, clipboard custody, Scape format 2, selected desktop V12, and copy-only cross-product routes preserve the wire. No V25/V26 native execution, external codec, reference-renderer, packaged-manual, hardware, signing, or release qualification is claimed.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/project-retime-factory.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/project-foundation-validation.ts" },
@@ -1204,7 +1204,16 @@
 						{ "kind": "test", "path": "tests/audio-editor-video-retime-command-preservation.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-video-retime-preservation-admission.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-project-library-v16-video-retime-roundtrip.test.ts" },
-						{ "kind": "test", "path": "tests/browser/audio-editor-scape-open-compatibility.spec.js" }
+						{ "kind": "test", "path": "tests/browser/audio-editor-scape-open-compatibility.spec.js" },
+						{ "kind": "implementation", "path": "src/framescaper/editor-project-v20-retime-command.ts" },
+						{ "kind": "implementation", "path": "src/framescaper/editor-project-v20-commands.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-retime-web-core-ordinal-authority.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-retime-web-core-preview.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/dialogs/VideoRetimeDialog.tsx" },
+						{ "kind": "test", "path": "tests/audio-editor-framescaper-video-retime-authoring-v20.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-retime-web-core-ordinal-authority.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-retime-ui.test.ts" },
+						{ "kind": "test", "path": "tests/browser/audio-editor-framescaper-v20-product-lifecycle.spec.js" }
 					]
 				},
 				{

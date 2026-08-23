@@ -14,7 +14,6 @@ import {
 	normalizeVideoKeyframeCurves,
 	type VideoKeyframeCurves,
 } from '../common/editor/video-keyframe-curves.ts';
-import { normalizeVideoRetimeCurveV16 } from '../common/editor/video-retime-v16.ts';
 import { createVideoKeyframesRuntimeHandlers } from '../common/editor/commands/video-keyframes-runtime.ts';
 import {
 	snapshotVideoKeyframesSetCommand,
@@ -44,6 +43,14 @@ import {
 	snapshotFramescaperVideoRetimeCommandV20,
 	type FramescaperVideoRetimeCommandV20,
 } from './editor-project-v20-retime-command.ts';
+import {
+	clearFramescaperVideoRetimeMapsV20,
+	findFramescaperVideoClipV20,
+	framescaperVideoRetimeBindingV20,
+	normalizeFramescaperVideoRetimeCurveV20,
+	restoreFramescaperVideoRetimeMapsV20,
+	snapshotFramescaperVideoRetimeMapsV20,
+} from './editor-project-v20-retime-state.ts';
 import {
 	framescaperV20FreshVideoAddAvLinkIds,
 	framescaperV20SegmentContainsAvLinkPair,
@@ -334,14 +341,12 @@ function applyVideoRetime(
 ): FramescaperProjectV20 {
 	if (command.scope === 'timeline') assertClipTrackUnlocked(project, command.clipId);
 	const draft = snapshotExactProject(profile, project) as unknown as DataRecord;
-	const clip = findVideoClip(draft, command.scope, command.clipId);
-	const binding = {
-		sequenceFrameCount: dataProperty(clip, 'sequenceFrameCount', 'Framescaper V20 video clip'),
-		sourceInFrame: dataProperty(clip, 'sourceInFrame', 'Framescaper V20 video clip'),
-		sourceFrameCount: dataProperty(clip, 'sourceFrameCount', 'Framescaper V20 video clip'),
-	};
-	const current = normalizeVideoRetimeMap(clip, binding);
-	const expected = normalizeVideoRetimeCurveV20(command.expectedRetimeMap, binding);
+	const clip = findFramescaperVideoClipV20(draft, command.scope, command.clipId);
+	const binding = framescaperVideoRetimeBindingV20(clip);
+	const current = normalizeFramescaperVideoRetimeCurveV20(
+		dataProperty(clip, 'retimeMap', 'Framescaper V20 video clip'), binding,
+	);
+	const expected = normalizeFramescaperVideoRetimeCurveV20(command.expectedRetimeMap, binding);
 	if (JSON.stringify(current) !== JSON.stringify(expected)) {
 		throw new RangeError(`Video clip ${command.clipId} has a stale expected retime map.`);
 	}
@@ -357,7 +362,9 @@ function applyInherited(
 	options: FramescaperProjectCommandOptionsV20,
 ): FramescaperProjectV20 {
 	const keyframes = snapshotClipKeyframes(project);
+	const retimeMaps = snapshotFramescaperVideoRetimeMapsV20(project);
 	const foundation = framescaperProjectV19FoundationV20(profile, project);
+	clearFramescaperVideoRetimeMapsV20(foundation as unknown as DataRecord);
 	const compositionCommand = isFramescaperVideoCompositionCommandV19(command);
 	const commanded = compositionCommand
 		? applyFramescaperProjectCommandV19(
@@ -369,6 +376,7 @@ function applyInherited(
 		: applyInheritedV18(foundation, keyframes, command, options);
 	commanded.schemaVersion = 20;
 	normalizeFramescaperProjectClipCompositionsV19(commanded);
+	restoreFramescaperVideoRetimeMapsV20(commanded, retimeMaps);
 	if (compositionCommand) restoreClipKeyframes(commanded, keyframes);
 	completeClipKeyframes(commanded, keyframes, command);
 	commanded.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV20(profile, commanded);
@@ -493,40 +501,6 @@ function assertClipTrackUnlocked(project: FramescaperProjectV20, clipId: string)
 			throw new RangeError(`Locked track ${String(dataProperty(track, 'id', 'Framescaper V20 track'))} cannot edit video clip ${clipId}.`);
 		}
 	}
-}
-
-function findVideoClip(
-	project: DataRecord,
-	scope: ClipScope,
-	clipId: string,
-): DataRecord {
-	let result: DataRecord | null = null;
-	visitClipCollections(project, (clip, name, candidateScope) => {
-		if (candidateScope !== scope || dataProperty(clip, 'id', name) !== clipId) return;
-		if (result) throw new RangeError(`Duplicate ${scope} clip ID ${clipId}.`);
-		if (dataProperty(clip, 'kind', name) !== 'video') {
-			throw new TypeError(`Clip ${clipId} is not a video occurrence.`);
-		}
-		result = clip;
-	});
-	if (!result) throw new ReferenceError(`Unknown ${scope} video clip ${clipId}.`);
-	return result;
-}
-
-function normalizeVideoRetimeMap(
-	clip: DataRecord,
-	binding: Readonly<Record<string, unknown>>,
-) {
-	return normalizeVideoRetimeCurveV20(
-		dataProperty(clip, 'retimeMap', 'Framescaper V20 video clip'), binding,
-	);
-}
-
-function normalizeVideoRetimeCurveV20(
-	value: unknown,
-	binding: Readonly<Record<string, unknown>>,
-) {
-	return normalizeVideoRetimeCurveV16(value, binding);
 }
 
 function visitClipCollections(

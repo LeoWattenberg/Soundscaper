@@ -49,7 +49,7 @@ export const FRAMESCAPER_V20_PROJECT_FEATURE_CAPABILITY_PROFILE =
 			{ key: 'videoMasksMattes', featureId: 'org.soundscaper.capability.video-masks-mattes', available: false },
 			{ key: 'videoPlayback', featureId: 'org.soundscaper.capability.video-playback', available: true },
 			{ key: 'videoProxy', featureId: 'org.soundscaper.capability.video-proxy', available: true },
-			{ key: 'videoRetime', featureId: 'org.soundscaper.capability.video-retime', available: false },
+			{ key: 'videoRetime', featureId: 'org.soundscaper.capability.video-retime', available: true },
 			{ key: 'videoStills', featureId: 'org.soundscaper.capability.video-stills', available: false },
 			{ key: 'videoTimelineEditing', featureId: 'org.soundscaper.capability.video-timeline-editing', available: true },
 			{ key: 'videoTimingAssets', featureId: 'org.soundscaper.capability.video-timing-assets', available: true },

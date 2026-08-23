@@ -26,6 +26,7 @@ import {
 } from '../src/framescaper/editor-project-runtime-profile-v20.ts';
 
 const VIDEO_KEYFRAMES_ID = 'org.soundscaper.capability.video-keyframes';
+const VIDEO_RETIME_ID = 'org.soundscaper.capability.video-retime';
 
 test('video keyframes are globally registered and available only in selected V20', () => {
 	assert.equal(PROJECT_FEATURE_CAPABILITY_IDS.videoKeyframes, VIDEO_KEYFRAMES_ID);
@@ -36,6 +37,19 @@ test('video keyframes are globally registered and available only in selected V20
 		const registrations = editorProjectFeatureCapabilityProfileDefinition(profile).registrations;
 		assert.deepEqual(registrations.find(({ key }) => key === 'videoKeyframes'), {
 			key: 'videoKeyframes', featureId: VIDEO_KEYFRAMES_ID, available,
+		});
+	}
+});
+
+test('video retime is unavailable before V20 and available on the selected V20 web core', () => {
+	assert.equal(PROJECT_FEATURE_CAPABILITY_IDS.videoRetime, VIDEO_RETIME_ID);
+	for (const [profile, available] of [
+		[FRAMESCAPER_V19_PROJECT_FEATURE_CAPABILITY_PROFILE, false],
+		[FRAMESCAPER_V20_PROJECT_FEATURE_CAPABILITY_PROFILE, true],
+	] as const) {
+		const registrations = editorProjectFeatureCapabilityProfileDefinition(profile).registrations;
+		assert.deepEqual(registrations.find(({ key }) => key === 'videoRetime'), {
+			key: 'videoRetime', featureId: VIDEO_RETIME_ID, available,
 		});
 	}
 });

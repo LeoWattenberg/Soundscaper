@@ -62,7 +62,9 @@ test('Framescaper V18 editorial compatibility claims match maintained scope', as
 	// export and delivery. What is still missing is a surface to reach it from.
 	assert.match(proxyUse.currentBehavior, /originals remain authoritative/isu);
 	assert.match(proxyUse.currentBehavior, /re-attests every session/isu);
-	assert.match(proxyUse.currentBehavior, /drop it in the same transaction/isu);
+	assert.match(proxyUse.currentBehavior, /source domain before an occurrence retime curve/isu);
+	assert.match(proxyUse.currentBehavior, /retiming does not detach/isu);
+	assert.match(proxyUse.currentBehavior, /drop stale state in the same transaction/isu);
 	assert.match(proxyUse.currentBehavior, /attach and detach are not yet menu-reached/isu);
 });
 

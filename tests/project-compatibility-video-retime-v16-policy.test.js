@@ -7,7 +7,7 @@ import test from 'node:test';
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
 
-test('V17 policy preserves the historical V16 video-retime wire without a timing consumer', async () => {
+test('policy preserves the V16 wire and scopes selected V20 web-core activation', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
 	const rule = policy.rules.find(({ id }) => id === 'current-video-retime-v16-preservation');
 	assert.ok(rule);
@@ -36,17 +36,27 @@ test('V17 policy preserves the historical V16 video-retime wire without a timing
 		'tests/audio-editor-video-retime-preservation-admission.test.ts',
 		'tests/desktop-project-library-v16-video-retime-roundtrip.test.ts',
 		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
+		'src/framescaper/editor-project-v20-retime-command.ts',
+		'src/framescaper/editor-project-v20-retime-actions.ts',
+		'src/framescaper/editor-project-v20-commands.ts',
+		'src/common/editor/video-retime-web-core-ordinal-authority.ts',
+		'src/common/editor/video-retime-web-core-preview.ts',
+		'src/common/editor/ui/dialogs/VideoRetimeDialog.tsx',
+		'src/common/editor/ui/video-keyframe-offline-video-export.ts',
+		'tests/audio-editor-framescaper-video-retime-authoring-v20.test.ts',
+		'tests/audio-editor-video-retime-web-core-ordinal-authority.test.ts',
+		'tests/audio-editor-video-retime-ui.test.ts',
+		'tests/browser/audio-editor-framescaper-v20-product-lifecycle.spec.js',
 	]);
-	assert.match(rule.currentBehavior, /V17 accepts and preserves.*closed JSON-safe video-retime V2 wire introduced by V16.*timeline and Project Bin.*historical raw V16 documents.*re-import.*Null.*writable default.*1 through 4,096 segments.*one more dense point.*canonical reduced nonnegative number rationals.*safe integers.*outer frame zero.*sequenceFrameCount.*sourceInFrame.*sourceFrameCount/iu);
-	assert.match(rule.currentBehavior, /adapter removes feature.*delegates direction.*freeze.*ramp velocity.*integral endpoint.*zero-crossing.*direction-change.*denominator.*bounded BigInt work.*exact V2 algebra.*deeply frozen.*rejects V15 breakpoint maps.*without guessing or migration/iu);
-	assert.match(rule.currentBehavior, /framescaper\.video-retime.*org\.soundscaper\.capability\.video-retime.*Video retime maps.*bypass.*fallback null.*publisher-authored same-feature.*cannot suppress or replace.*reserved-ID conflict.*rendered fallback rejects/iu);
-	assert.match(rule.currentBehavior, /videoRetime remains false in both product profiles.*production capability register.*explicit read-only-or-cancel.*intrinsically read-only/iu);
-	assert.match(rule.currentBehavior, /clone, load, local history, clipboard descriptor and codec.*current-format \.scape format 1.*fresh desktop library v9 metadata 9.*SQLite user_version 11.*historical v8.*metadata-8.*exact-V16.*user-version-10.*untouched/iu);
-	assert.match(rule.currentBehavior, /paste, clip add, and Project Bin add.*refuse.*shared direct-command boundary.*owning bounds.*arbitrarily nested.*before publication or history.*no authoring, playback, preview, export, fallback.*nested sequence/iu);
-	assert.match(rule.currentBehavior, /focused Chromium fixture.*cancel.*explicit read-only consent.*unavailable bypass notice.*exact curve preservation.*current-format \.scape re-export/iu);
+	assert.match(rule.currentBehavior, /closed JSON-safe V2 curve wire introduced by V16.*timeline and Project Bin.*1 through 4,096.*exact-algebra.*V15 breakpoint maps.*typed re-import/iu);
+	assert.match(rule.currentBehavior, /framescaper\.video-retime.*org\.soundscaper\.capability\.video-retime.*bypass.*no fallback.*publisher substitution.*rendered fallback rejects/iu);
+	assert.match(rule.currentBehavior, /Soundscaper V17.*unavailable.*read-only-or-cancel.*Framescaper V20.*videoRetime available.*set, reset, constant, ramp, reverse, and freeze.*lazy Edit-menu dialog.*one-step/iu);
+	assert.match(rule.currentBehavior, /ordinal authority.*program preview random seeks.*browser MP4\/WebM.*NTSC.*verified VFR.*nested.*same source ordinal/iu);
+	assert.match(rule.currentBehavior, /linked audio.*warpMap null.*audioWarp false.*source domain before the occurrence curve/iu);
+	assert.match(rule.currentBehavior, /Scape format 2.*desktop V12.*no native V25\/V26/iu);
 
 	const documentation = (await readFile(documentationUrl, 'utf8')).replace(/\s+/gu, ' ');
-	assert.match(documentation, /V16 video-retime preservation.*V17 preserves.*closed JSON-safe V2 curve wire introduced by V16.*timeline and Project Bin.*historical raw V16 documents.*re-import.*null.*writable default.*1 through 4,096 segments.*exact V2 algebra adapter/iu);
-	assert.match(documentation, /framescaper\.video-retime.*org\.soundscaper\.capability\.video-retime.*Video retime maps.*bypass.*fallback: null.*publisher declaration cannot suppress or replace.*videoRetime.*false in both products.*read-only-or-cancel.*intrinsically read-only/iu);
-	assert.match(documentation, /current-format \.scape.*fresh desktop v9 library.*tagged-binary formats remain 1.*historical desktop v8.*metadata-8.*exact-V16.*user-version-10.*untouched.*no retime authoring, playback, preview, export, fallback.*nested sequence/iu);
+	assert.match(documentation, /V16 wire preservation and selected V20 web-core retime.*V17 preserves.*closed JSON-safe V2 curve wire introduced by V16.*timeline and Project Bin.*1 through 4,096.*exact V2 algebra/iu);
+	assert.match(documentation, /Soundscaper V17.*videoRetime.*unavailable.*read-only-or-cancel.*Framescaper V20.*available.*web-core consumer/iu);
+	assert.match(documentation, /set, reset, constant, ramp, reverse, and freeze.*one history step.*menu-only lazy dialog.*linked audio.*audioWarp.*false.*program preview random seeks.*browser MP4\/WebM.*NTSC.*verified VFR.*source-domain/iu);
 });

@@ -97,20 +97,22 @@ runtime profile before constructing its project environment on both browser and
 packaged desktop routes. V20 owns create, clone, validation, commands, history,
 session, repository, playback, compatibility, Scape, product-isolated storage,
 inherited V18 nested-sequence, multicamera, linked-original, capture, proxy,
-cleanup, archive and handoff behavior, V19 composition behavior, and available
-video-keyframe authoring. Packaged desktop uses the distinct authenticated V17
+cleanup, archive and handoff behavior, V19 composition behavior, available
+video-keyframe authoring, and exact web-core video-retime authoring, preview,
+and browser export. Packaged desktop uses the distinct authenticated V17
 library, SQLite user_version 19, scope v17, schema-20 renderer and unchanged
-public framescaperDesktop.v1 bridge. Its first-open importer reads the desktop
-V12 source without opening it writable, copies canonical projects and bodies
-forward through durable cursor checkpoints, resumes idempotently after
-interruption, and never rewrites the V12 database or files. Exact Framescaper
-V18 and V19 projects require typed media re-import on the selected route, and
-the historical exact Framescaper V18 desktop V10/schema-18 boundary remains an
-unselected compatibility record distinct from Soundscaper project V17.
-Soundscaper keeps the shared exact project-V17 owner and treats newer product
-schemas as read-only. V22, V24, V25 and V26 are distinct dormant candidates, and
-future schemas remain opaque read-only; cross-product preservation never grants
-edit, activation, migration, native feature authority, or release qualification.
+public framescaperDesktop.v1 bridge; its retime consumer is the embedded web
+core, not a native-media claim. Its first-open importer reads the desktop V12
+source without opening it writable, copies canonical projects and bodies forward
+through durable cursor checkpoints, resumes idempotently after interruption, and
+never rewrites the V12 database or files. Exact Framescaper V18 and V19 projects
+require typed media re-import on the selected route, and the historical exact
+Framescaper V18 desktop V10/schema-18 boundary remains an unselected
+compatibility record distinct from Soundscaper project V17. Soundscaper keeps
+the shared exact project-V17 owner and treats newer product schemas as
+read-only. V22, V24, V25 and V26 are distinct dormant candidates, and future
+schemas remain opaque read-only; cross-product preservation never grants edit,
+activation, migration, native feature authority, or release qualification.
 <!-- /policy-narrative:framescaper-v18-product-isolation -->
 
 ## Framescaper V22–V26 compatibility and custody
@@ -314,7 +316,7 @@ AUP, and AUP4 import are separate interchange boundaries and create current
 documents directly. Retained raw-schema migrations begin with the first shipped
 release and are governed by a separate versioned policy change.
 
-## V16 video-retime preservation
+## V16 wire preservation and selected V20 web-core retime
 
 V17 preserves the closed JSON-safe V2 curve wire introduced by V16 on timeline
 and Project Bin video clips; historical raw V16 documents themselves require
@@ -330,20 +332,27 @@ A non-null map forces the exact reserved `framescaper.video-retime` requirement
 for `org.soundscaper.capability.video-retime`, display name `Video retime maps`,
 disposition `bypass`, and `fallback: null`. A publisher declaration cannot
 suppress or replace it, and any reserved-ID conflict or rendered fallback
-rejects. `videoRetime` remains false in both products and the production
-capability register, so maintained open requires explicit read-only-or-cancel
-consent and the activated document remains intrinsically read-only.
+rejects. Historical Soundscaper V17 custody keeps `videoRetime` unavailable and
+therefore retains the explicit read-only-or-cancel decision. The selected
+Framescaper V20 product and project profiles now register it as available only
+for the maintained web-core consumer.
 
-Clone, load, local history, clipboard encoding, current-format `.scape`, and the
-fresh desktop v9 library preserve both clip stores without shared mutable curve
-members. Paste/add admission and the direct and arbitrarily nested command
-boundary reject unavailable-capability introduction or any mutation of the
-retimed clip's wire, owning bounds, collection/track/sequence ownership, or
-referenced source before publication and history. The `.scape` envelope and
-tagged-binary formats remain 1, and historical desktop v8/metadata-8/exact-V16/
-user-version-10 data remains untouched. This is preservation and refusal only: it
-adds no retime authoring, playback, preview, export, fallback, native timing
-claim, correct retimed pictures or sound, or nested sequence shape.
+V20 adds stale-safe set, reset, constant, ramp, reverse, and freeze commands,
+each published as one history step, plus a menu-only lazy dialog. Safe inherited
+editorial moves retain the occurrence curve, while linked audio follows ordinary
+A/V-link placement without source warping (`warpMap` remains null and
+`audioWarp` remains false). Nested materialization reparameterizes an exact leaf
+curve onto the root occurrence. Program preview random seeks and keyed browser
+MP4/WebM export then query one authenticated ordinal authority for integer,
+NTSC, CFR, and verified VFR timing, so each output ordinal resolves the same
+source picture in both consumers. Proxy selection is source-domain input to
+that occurrence mapping and no longer invalidates a conformant attachment.
+
+V20 clone/history, V6 clipboard custody, Scape format 2, selected desktop V12,
+and copy-only cross-product routes preserve the unchanged wire. Framescaper
+V18/V19 and Soundscaper authoring remain unavailable. Dormant V22–V26 and native
+V25/V26 execution are not selected, and reference-renderer, packaged-manual,
+codec, hardware, signing, and release qualification remain open.
 
 ## V17 take/comp preservation
 

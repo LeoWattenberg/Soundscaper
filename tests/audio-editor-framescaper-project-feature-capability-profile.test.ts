@@ -137,20 +137,20 @@ test('the exact Framescaper singleton owns 45 sorted registrations with 18 avail
 	assert.ok(snapshot.registrations.every((item: Registration) => Object.isFrozen(item)));
 });
 
-test('the immutable V18 profile predates geometry while the selected product enables V20 keyframes', () => {
-	const parity = EXPECTED.filter(({ key }) => key !== 'videoProxy' && key !== 'videoKeyframes');
+test('the immutable V18 profile predates geometry while the selected product enables V20 finishing', () => {
+	const parity = EXPECTED.filter(({ key }) => key !== 'videoProxy' && key !== 'videoKeyframes' && key !== 'videoRetime');
 	const ids = PROJECT_FEATURE_CAPABILITY_IDS as Readonly<Record<string, string>>;
 	const availability = FRAMESCAPER_PROFILE.capabilities as Readonly<Record<string, unknown>>;
-	assert.equal(parity.length, 43);
+	assert.equal(parity.length, 42);
 	assert.deepEqual(
 		parity.map(({ key }) => key).sort(),
-		Object.keys(ids).filter((key) => key !== 'videoGeometry' && key !== 'videoKeyframes').sort(),
+		Object.keys(ids).filter((key) => key !== 'videoGeometry' && key !== 'videoKeyframes' && key !== 'videoRetime').sort(),
 	);
 	assert.deepEqual(
 		Object.keys(ids).sort(),
 		Object.keys(availability).sort(),
 	);
-	assert.equal(availability.videoKeyframes, true);
+	assert.deepEqual([availability.videoKeyframes, availability.videoRetime], [true, true]);
 	assert.equal(ids.videoKeyframes, VIDEO_KEYFRAMES_ID);
 	for (const row of parity) {
 		assert.equal(ids[row.key], row.featureId, row.key);
