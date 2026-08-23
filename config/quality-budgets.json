@@ -74,10 +74,10 @@
 		}
 	},
 	"packagedRuntimeQualification": {
-		"status": "active",
+		"status": "pending-external",
 		"profiles": [
 			{
-				"status": "active",
+				"status": "pending-external",
 				"diagnosticKey": "m1-video-preview-12fx-720p",
 				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
 				"observedEnvironmentId": "packaged-runtime-win32-x64",
@@ -87,12 +87,17 @@
 				"observationClass": "fresh-context-presentation-cadence-and-retained-js-heap-v1",
 				"rendererClass": "hardware",
 				"diagnosticIdentityFields": ["workloadId", "fixtureId", "profile", "observationClass"],
+				"requiredFingerprintFields": ["browserVersion", "platform", "architecture", "webglVendor", "webglRenderer", "gpuDriverVersion", "gpuDeviceId", "powerMode", "displayMode"],
 				"fingerprint": {
 					"browserVersion": "150.0.7871.114",
 					"platform": "win32",
 					"architecture": "x64",
 					"webglVendor": "Google Inc. (NVIDIA)",
-					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+					"gpuDriverVersion": null,
+					"gpuDeviceId": "10de:2204",
+					"powerMode": null,
+					"displayMode": null
 				},
 				"fixture": {
 					"width": 1280,
@@ -116,7 +121,7 @@
 				}
 			},
 			{
-				"status": "active",
+				"status": "pending-external",
 				"diagnosticKey": "m3-longform-editorial",
 				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
 				"observedEnvironmentId": "packaged-runtime-win32-x64",
@@ -126,12 +131,17 @@
 				"observationClass": "decoded-media-av-scheduling-v1",
 				"rendererClass": "hardware",
 				"diagnosticIdentityFields": ["workloadId", "fixtureId", "profile", "observationClass"],
+				"requiredFingerprintFields": ["browserVersion", "platform", "architecture", "webglVendor", "webglRenderer", "gpuDriverVersion", "gpuDeviceId", "powerMode", "displayMode"],
 				"fingerprint": {
 					"browserVersion": "150.0.7871.114",
 					"platform": "win32",
 					"architecture": "x64",
 					"webglVendor": "Google Inc. (NVIDIA)",
-					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+					"gpuDriverVersion": null,
+					"gpuDeviceId": "10de:2204",
+					"powerMode": null,
+					"displayMode": null
 				},
 				"fixture": {
 					"generatorRevision": 1,
@@ -163,7 +173,7 @@
 				}
 			},
 			{
-				"status": "active",
+				"status": "pending-external",
 				"diagnosticKey": "m4-production-parity",
 				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
 				"observedEnvironmentId": "packaged-runtime-win32-x64",
@@ -173,16 +183,21 @@
 				"observationClass": "complete-pcm-rgba-render-ledger-v1",
 				"rendererClass": "hardware",
 				"diagnosticIdentityFields": ["workloadId", "fixtureId", "profile", "observationClass"],
+				"requiredFingerprintFields": ["browserVersion", "platform", "architecture", "webglVendor", "webglRenderer", "gpuDriverVersion", "gpuDeviceId", "powerMode", "displayMode"],
 				"fingerprint": {
 					"browserVersion": "150.0.7871.114",
 					"platform": "win32",
 					"architecture": "x64",
 					"webglVendor": "Google Inc. (NVIDIA)",
-					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+					"gpuDriverVersion": null,
+					"gpuDeviceId": "10de:2204",
+					"powerMode": null,
+					"displayMode": null
 				}
 			},
 			{
-				"status": "active",
+				"status": "pending-external",
 				"diagnosticKey": "m4b2-keyframe-render-parity",
 				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
 				"observedEnvironmentId": "packaged-runtime-win32-x64",
@@ -192,12 +207,17 @@
 				"observationClass": "complete-keyed-rgba-consumer-ledger-v1",
 				"rendererClass": "hardware",
 				"diagnosticIdentityFields": ["workloadId", "fixtureId", "profile", "observationClass"],
+				"requiredFingerprintFields": ["browserVersion", "platform", "architecture", "webglVendor", "webglRenderer", "gpuDriverVersion", "gpuDeviceId", "powerMode", "displayMode"],
 				"fingerprint": {
 					"browserVersion": "150.0.7871.114",
 					"platform": "win32",
 					"architecture": "x64",
 					"webglVendor": "Google Inc. (NVIDIA)",
-					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+					"gpuDriverVersion": null,
+					"gpuDeviceId": "10de:2204",
+					"powerMode": null,
+					"displayMode": null
 				},
 				"fixture": {
 					"generatorRevision": 2,
@@ -346,9 +366,9 @@
 		},
 		{
 			"id": "owner-qualified-windows-x64-rtx3090-01",
-			"status": "active",
+			"status": "unprovisioned",
 			"kind": "owner-qualified-packaged-runtime-fixed-gpu",
-			"qualificationEligible": true,
+			"qualificationEligible": false,
 			"rendererRequirement": "hardware",
 			"eligibleWorkloadIds": ["m1-video-preview-12fx-720p", "m3-longform-editorial", "m4-production-render-parity", "m4b2-keyframe-render-parity"],
 			"fingerprint": {
@@ -356,7 +376,11 @@
 				"platform": "win32",
 				"architecture": "x64",
 				"webglVendor": "Google Inc. (NVIDIA)",
-				"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+				"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+				"gpuDriverVersion": null,
+				"gpuDeviceId": "10de:2204",
+				"powerMode": null,
+				"displayMode": null
 			},
 			"evidence": [
 				"scripts/lib/desktop-nightly-tests-qualification.mjs",

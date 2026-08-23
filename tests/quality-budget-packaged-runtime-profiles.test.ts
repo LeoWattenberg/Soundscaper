@@ -23,6 +23,7 @@ interface QualificationProfile {
 	readonly observedEnvironmentId?: string;
 	readonly profile?: string;
 	readonly rawSampleCounts?: Readonly<Record<string, number>>;
+	readonly requiredFingerprintFields?: readonly string[];
 	readonly status: string;
 	readonly workloadId: string;
 }
@@ -35,7 +36,7 @@ interface QualificationConfig {
 	}>;
 }
 
-test('packaged-runtime profiles admit only the owner-designated host workloads', async () => {
+test('packaged-runtime profiles remain open until the owner host supplies complete identity', async () => {
 	const config = JSON.parse(await readFile(
 		new URL('../config/quality-budgets.json', import.meta.url),
 		'utf8',
@@ -44,23 +45,29 @@ test('packaged-runtime profiles admit only the owner-designated host workloads',
 		({ id }) => id === 'owner-qualified-windows-x64-rtx3090-01',
 	);
 
-	assert.equal(gpuEnvironment?.status, 'active');
-	assert.equal(gpuEnvironment?.qualificationEligible, true);
+	assert.equal(gpuEnvironment?.status, 'unprovisioned');
+	assert.equal(gpuEnvironment?.qualificationEligible, false);
 	assert.equal(gpuEnvironment?.rendererRequirement, 'hardware');
-	assert.ok(Object.values(gpuEnvironment?.fingerprint ?? {}).every((value) => value !== null));
+	assert.equal(gpuEnvironment?.fingerprint.gpuDriverVersion, null);
+	assert.equal(gpuEnvironment?.fingerprint.powerMode, null);
+	assert.equal(gpuEnvironment?.fingerprint.displayMode, null);
 	assert.deepEqual(gpuEnvironment?.eligibleWorkloadIds, [
 		'm1-video-preview-12fx-720p',
 		'm3-longform-editorial',
 		'm4-production-render-parity',
 		'm4b2-keyframe-render-parity',
 	]);
-	assert.equal(config.packagedRuntimeQualification.status, 'active');
+	assert.equal(config.packagedRuntimeQualification.status, 'pending-external');
 	const m1 = config.packagedRuntimeQualification.profiles[0];
 	assert.equal(m1.observedEnvironmentId, 'packaged-runtime-win32-x64');
 	assert.equal(m1.profile, 'deterministic-video-preview-12fx-v2');
 	assert.equal(m1.observationClass, 'fresh-context-presentation-cadence-and-retained-js-heap-v1');
 	assert.deepEqual(m1.diagnosticIdentityFields, [
 		'workloadId', 'fixtureId', 'profile', 'observationClass',
+	]);
+	assert.deepEqual(m1.requiredFingerprintFields, [
+		'browserVersion', 'platform', 'architecture', 'webglVendor', 'webglRenderer',
+		'gpuDriverVersion', 'gpuDeviceId', 'powerMode', 'displayMode',
 	]);
 	assert.deepEqual(m1.fingerprint, gpuEnvironment?.fingerprint);
 	assert.equal(m1.fixture?.sourceSha256, 'f1319d3549943c190e5eb3f86b63fd2afb644bd49b32e3f257699b450271bc8c');
@@ -84,25 +91,25 @@ test('packaged-runtime profiles admit only the owner-designated host workloads',
 			{
 				diagnosticKey: 'm1-video-preview-12fx-720p',
 				environmentId: 'owner-qualified-windows-x64-rtx3090-01',
-				status: 'active',
+				status: 'pending-external',
 				workloadId: 'm1-video-preview-12fx-720p',
 			},
 			{
 				diagnosticKey: 'm3-longform-editorial',
 				environmentId: 'owner-qualified-windows-x64-rtx3090-01',
-				status: 'active',
+				status: 'pending-external',
 				workloadId: 'm3-longform-editorial',
 			},
 			{
 				diagnosticKey: 'm4-production-parity',
 				environmentId: 'owner-qualified-windows-x64-rtx3090-01',
-				status: 'active',
+				status: 'pending-external',
 				workloadId: 'm4-production-render-parity',
 			},
 			{
 				diagnosticKey: 'm4b2-keyframe-render-parity',
 				environmentId: 'owner-qualified-windows-x64-rtx3090-01',
-				status: 'active',
+				status: 'pending-external',
 				workloadId: 'm4b2-keyframe-render-parity',
 			},
 		],

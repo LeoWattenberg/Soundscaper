@@ -404,8 +404,8 @@ test('quality config binds M4 qualification to the current owner host and formal
 		'github-ubuntu-playwright-1.62.1',
 		'owner-qualified-windows-x64-rtx3090-01',
 	]);
-	assert.equal(owner?.status, 'active');
-	assert.equal(owner?.qualificationEligible, true);
+	assert.equal(owner?.status, 'unprovisioned');
+	assert.equal(owner?.qualificationEligible, false);
 	assert.ok(owner?.eligibleWorkloadIds?.includes('m4-production-render-parity'));
 	assert.equal(profile?.workloadId, 'm4-production-render-parity');
 	assert.equal(profile?.environmentId, 'owner-qualified-windows-x64-rtx3090-01');

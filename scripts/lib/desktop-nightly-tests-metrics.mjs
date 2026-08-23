@@ -459,7 +459,10 @@ function rendererClass(value) {
 
 function packagedRuntimeFingerprint(value) {
 	const fingerprint = requireRecord(value, 'M1 preview packaged-runtime environment fingerprint');
-	for (const field of ['browserVersion', 'platform', 'architecture', 'webglVendor', 'webglRenderer']) {
+	for (const field of [
+		'browserVersion', 'platform', 'architecture', 'webglVendor', 'webglRenderer',
+		'gpuDriverVersion', 'gpuDeviceId', 'powerMode', 'displayMode',
+	]) {
 		if (typeof fingerprint[field] !== 'string' || fingerprint[field].length < 1) {
 			throw new Error('M1 preview packaged-runtime environment fingerprint is incomplete.');
 		}

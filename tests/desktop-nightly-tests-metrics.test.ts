@@ -85,6 +85,9 @@ test('the M1 preview collector rejects sampling, fixture-integrity, and environm
 		[(value: ReturnType<typeof m1DiagnosticFixture>) => {
 			Reflect.deleteProperty(value.diagnostic.environmentFingerprint, 'platform');
 		}, /packaged-runtime environment fingerprint/iu],
+		[(value: ReturnType<typeof m1DiagnosticFixture>) => {
+			Reflect.deleteProperty(value.diagnostic.environmentFingerprint, 'gpuDriverVersion');
+		}, /packaged-runtime environment fingerprint/iu],
 	] as const) {
 		const value = m1DiagnosticFixture();
 		mutate(value);
@@ -325,6 +328,10 @@ function m1DiagnosticFixture() {
 		architecture: 'x64',
 		webglVendor: 'Google Inc. (NVIDIA)',
 		webglRenderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3090)',
+		gpuDriverVersion: '32.0.15.6094',
+		gpuDeviceId: '10de:2204',
+		powerMode: 'maximum-performance-ac',
+		displayMode: '3840x2160@60Hz-150pct',
 	};
 	const fixture = {
 		width: 1_280,

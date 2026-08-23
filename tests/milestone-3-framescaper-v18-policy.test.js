@@ -144,12 +144,12 @@ test('milestone 3 closure blockers remain explicit and unpromoted', async () => 
 
 	const budgets = await json('config/quality-budgets.json');
 	const ownerHost = byId(budgets.environments, 'owner-qualified-windows-x64-rtx3090-01');
-	assert.equal(ownerHost.status, 'active');
+	assert.equal(ownerHost.status, 'unprovisioned');
 	assert.ok(ownerHost.eligibleWorkloadIds.includes('m3-longform-editorial'));
 	const m3Profile = budgets.packagedRuntimeQualification.profiles.find(
 		({ diagnosticKey }) => diagnosticKey === 'm3-longform-editorial',
 	);
-	assert.equal(m3Profile.status, 'active');
+	assert.equal(m3Profile.status, 'pending-external');
 	assert.equal(m3Profile.environmentId, 'owner-qualified-windows-x64-rtx3090-01');
 	assert.equal(byId(budgets.fixtures, 'm3-longform-editorial-2h-v1').status, 'provisional');
 	assert.equal(byId(budgets.workloads, 'm3-longform-editorial').status, 'provisional');

@@ -16,6 +16,10 @@ const FINGERPRINT = {
 	architecture: 'x64',
 	webglVendor: 'Google Inc. (NVIDIA)',
 	webglRenderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)',
+	gpuDriverVersion: '32.0.15.6094',
+	gpuDeviceId: '10de:2204',
+	powerMode: 'maximum-performance-ac',
+	displayMode: '3840x2160@60Hz-150pct',
 };
 const GENERIC_FIXTURE = {
 	generatorRevision: 1,
@@ -31,6 +35,10 @@ const M1_FINGERPRINT = {
 	architecture: 'x64',
 	webglVendor: 'Google Inc. (NVIDIA)',
 	webglRenderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)',
+	gpuDriverVersion: '32.0.15.6094',
+	gpuDeviceId: '10de:2204',
+	powerMode: 'maximum-performance-ac',
+	displayMode: '3840x2160@60Hz-150pct',
 };
 const M1_SOURCE_SHA256 = 'f1319d3549943c190e5eb3f86b63fd2afb644bd49b32e3f257699b450271bc8c';
 
@@ -140,6 +148,7 @@ test('formal workload qualification fails closed for fixture and raw sample-coun
 test('M1 qualification fails closed for fingerprint, sampling, gate, retry, and digest drift', () => {
 	for (const mutate of [
 		(value: ReturnType<typeof m1Fixture>) => { value.raw.diagnostics['m1-video-preview-12fx-720p'].environmentFingerprint.architecture = 'arm64'; },
+		(value: ReturnType<typeof m1Fixture>) => { value.raw.diagnostics['m1-video-preview-12fx-720p'].environmentFingerprint.powerMode = 'balanced'; },
 		(value: ReturnType<typeof m1Fixture>) => { value.raw.diagnostics['m1-video-preview-12fx-720p'].environmentId = 'local-browser-correctness'; },
 		(value: ReturnType<typeof m1Fixture>) => { value.raw.diagnostics['m1-video-preview-12fx-720p'].fixture.sourceSha256 = '0'.repeat(64); },
 		(value: ReturnType<typeof m1Fixture>) => { value.summary.workloads[0].rawSampleCounts.measuredTrials = 4; },
@@ -181,7 +190,7 @@ test('qualification fails closed for another renderer, a failed gate, or incompl
 	}
 });
 
-test('the quality register activates only the owner-designated packaged host for M1, M3, and M4', async () => {
+test('the quality register keeps the fixed-GPU profiles open until full owner identity is recaptured', async () => {
 	const config = JSON.parse(await readFile(
 		new URL('../config/quality-budgets.json', import.meta.url), 'utf8',
 	));
@@ -190,7 +199,7 @@ test('the quality register activates only the owner-designated packaged host for
 		id === 'owner-qualified-windows-x64-rtx3090-01'
 	));
 
-	assert.equal(config.packagedRuntimeQualification.status, 'active');
+	assert.equal(config.packagedRuntimeQualification.status, 'pending-external');
 	assert.deepEqual(profiles.map(({ workloadId }: { readonly workloadId: string }) => workloadId), [
 		'm1-video-preview-12fx-720p',
 		'm3-longform-editorial',
@@ -198,7 +207,8 @@ test('the quality register activates only the owner-designated packaged host for
 		'm4b2-keyframe-render-parity',
 	]);
 	assert.ok(profiles.every(({ environmentId }: { readonly environmentId: string }) => environmentId === environment.id));
-	assert.equal(environment.qualificationEligible, true);
+	assert.equal(environment.status, 'unprovisioned');
+	assert.equal(environment.qualificationEligible, false);
 	assert.deepEqual(environment.eligibleWorkloadIds, [
 		'm1-video-preview-12fx-720p',
 		'm3-longform-editorial',
@@ -207,6 +217,7 @@ test('the quality register activates only the owner-designated packaged host for
 	]);
 	assert.equal(profiles[0].observedEnvironmentId, 'packaged-runtime-win32-x64');
 	assert.equal(profiles[0].profile, 'deterministic-video-preview-12fx-v2');
+	assert.ok(profiles.every(({ status }: { readonly status: string }) => status === 'pending-external'));
 	assert.equal(
 		profiles[0].observationClass,
 		'fresh-context-presentation-cadence-and-retained-js-heap-v1',
@@ -215,6 +226,10 @@ test('the quality register activates only the owner-designated packaged host for
 		'workloadId', 'fixtureId', 'profile', 'observationClass',
 	]);
 	assert.deepEqual(profiles[0].fingerprint, environment.fingerprint);
+	assert.deepEqual(profiles[0].requiredFingerprintFields, [
+		'browserVersion', 'platform', 'architecture', 'webglVendor', 'webglRenderer',
+		'gpuDriverVersion', 'gpuDeviceId', 'powerMode', 'displayMode',
+	]);
 	assert.deepEqual(profiles[0].rawSampleCounts, {
 		warmupTrials: 1,
 		measuredTrials: 5,
@@ -238,7 +253,7 @@ test('the quality register activates only the owner-designated packaged host for
 		forcedCollectionsAfter: 3,
 	});
 	assert.equal(profiles[1].fixture.generatorRevision, 1);
-	assert.match(profiles[2].fingerprint.webglRenderer, /NVIDIA GeForce RTX 3090/u);
+	assert.equal(profiles[2].fingerprint.gpuDriverVersion, null);
 	assert.deepEqual(profiles[3].rawSampleCounts, {
 		cases: 4,
 		queries: 12,

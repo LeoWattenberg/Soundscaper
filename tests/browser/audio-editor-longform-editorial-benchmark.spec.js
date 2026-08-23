@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { expect, test } from './helpers/nightly-packaged-electron.js';
+import { packagedRuntimeEnvironmentFingerprint } from './helpers/packaged-runtime-environment.js';
 
 import {
 	M3_LONGFORM_EDITORIAL_FIXTURE_ID,
@@ -371,15 +372,7 @@ async function rendererDiagnostic(page) {
 	});
 }
 
-function browserFingerprint(browser, renderer) {
-	return {
-		browserVersion: browser.version(),
-		platform: process.platform,
-		architecture: process.arch,
-		webglVendor: renderer.vendor,
-		webglRenderer: renderer.renderer,
-	};
-}
+const browserFingerprint = packagedRuntimeEnvironmentFingerprint;
 
 function sha256(value) {
 	return createHash('sha256').update(value).digest('hex');

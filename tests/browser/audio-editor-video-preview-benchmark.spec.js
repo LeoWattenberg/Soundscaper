@@ -7,6 +7,7 @@ import {
 	videoPreviewBenchmarkMedia,
 } from './fixtures/video-preview-benchmark-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import { packagedRuntimeEnvironmentFingerprint } from './helpers/packaged-runtime-environment.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const WARMUP_TRIAL_COUNT = 1;
@@ -62,13 +63,7 @@ test('benchmarks the complete 720p video preview effect stack', async ({ runtime
 	}
 
 	const rendererClass = softwareRenderer(warmup.renderer) ? 'software' : 'hardware';
-	const environmentFingerprint = Object.freeze({
-		browserVersion: runtimeBrowser.version(),
-		platform: process.env.SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM ?? process.platform,
-		architecture: process.env.SOUNDSCAPER_PACKAGED_RUNTIME_ARCH ?? process.arch,
-		webglVendor: String(warmup.renderer.vendor ?? ''),
-		webglRenderer: String(warmup.renderer.renderer ?? ''),
-	});
+	const environmentFingerprint = packagedRuntimeEnvironmentFingerprint(runtimeBrowser, warmup.renderer);
 	const diagnostic = {
 		schemaVersion: 1,
 		profile: 'deterministic-video-preview-12fx-v2',

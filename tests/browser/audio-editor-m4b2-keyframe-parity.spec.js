@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './helpers/nightly-packaged-electron.js';
+import { packagedRuntimeEnvironmentFingerprint } from './helpers/packaged-runtime-environment.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { transform } from 'esbuild';
@@ -415,13 +416,7 @@ test('collects keyed preview/offline RGBA and exact dual-consumer ledgers withou
 		fixtureId: M4B2_KEYFRAME_PARITY_FIXTURE_ID,
 		environmentId: ENVIRONMENT_ID,
 		rendererClass: renderer.rendererClass,
-		environmentFingerprint: {
-			browserVersion: runtimeBrowser.version(),
-			platform: process.platform,
-			architecture: process.arch,
-			webglVendor: renderer.vendor,
-			webglRenderer: renderer.renderer,
-		},
+		environmentFingerprint: packagedRuntimeEnvironmentFingerprint(runtimeBrowser, renderer),
 		fixture: { ...M4B2_KEYFRAME_PARITY_SPECIFICATION },
 		sourceBase64: Buffer.from(sourceBytes).toString('base64'),
 		cases,

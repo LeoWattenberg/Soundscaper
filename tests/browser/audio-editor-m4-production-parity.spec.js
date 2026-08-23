@@ -1,4 +1,5 @@
 import { expect, test } from './helpers/nightly-packaged-electron.js';
+import { packagedRuntimeEnvironmentFingerprint } from './helpers/packaged-runtime-environment.js';
 import { buildSync } from 'esbuild';
 import { readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -180,15 +181,7 @@ test('collects complete M4 PCM, RGBA, and render-ledger evidence without qualify
 	console.log(`SOUNDSCAPER_M4_PRODUCTION_PARITY ${JSON.stringify(diagnostic)}`);
 });
 
-function diagnosticEnvironmentFingerprint(browser, renderer) {
-	return {
-		browserVersion: browser.version(),
-		platform: process.platform,
-		architecture: process.arch,
-		webglVendor: renderer.vendor,
-		webglRenderer: renderer.renderer,
-	};
-}
+const diagnosticEnvironmentFingerprint = packagedRuntimeEnvironmentFingerprint;
 
 function route(relativePath, contentType) {
 	return { file: new URL(relativePath, import.meta.url), contentType };
