@@ -590,7 +590,7 @@ and
 - **Milestone-5 dependencies:** 5B now has exact V7–V12 admission, closed
   media/OFX helper kinds, a main-owned V2 queue/controller, and a bounded native
   source host. No 5B payload is built, codec licensing remains blocked, the
-  selected V12 renderer now has digest-bound source-body handoff, V20 queue
+  selected V17 renderer now has digest-bound source-body handoff, V20 queue
   admission, and pathless watch mutation, while most unified render semantics
   remain typed unsupported. Empty payload rows, licensing, and those semantic
   boundaries still gate 6B-4 and native execution; the web tier of every

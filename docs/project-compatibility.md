@@ -98,17 +98,19 @@ packaged desktop routes. V20 owns create, clone, validation, commands, history,
 session, repository, playback, compatibility, Scape, product-isolated storage,
 inherited V18 nested-sequence, multicamera, linked-original, capture, proxy,
 cleanup, archive and handoff behavior, V19 composition behavior, and available
-video-keyframe authoring. Packaged desktop uses the distinct authenticated V12
-library, SQLite user_version 14, scope v12, schema-20 renderer and public
-framescaperDesktop.v1 bridge; it does not migrate the historical desktop V10
-library. Exact Framescaper V18 and V19 projects require typed media re-import on
-the selected route, and the historical exact Framescaper V18 desktop
-V10/schema-18 boundary remains an unselected compatibility record distinct from
-Soundscaper V17. Soundscaper keeps the shared exact V17 owner and treats newer
-product schemas as read-only. V22, V24, V25 and V26 are distinct dormant
-candidates, and future schemas remain opaque read-only; cross-product
-preservation never grants edit, activation, migration, native feature authority,
-or release qualification.
+video-keyframe authoring. Packaged desktop uses the distinct authenticated V17
+library, SQLite user_version 19, scope v17, schema-20 renderer and unchanged
+public framescaperDesktop.v1 bridge. Its first-open importer reads the desktop
+V12 source without opening it writable, copies canonical projects and bodies
+forward through durable cursor checkpoints, resumes idempotently after
+interruption, and never rewrites the V12 database or files. Exact Framescaper
+V18 and V19 projects require typed media re-import on the selected route, and
+the historical exact Framescaper V18 desktop V10/schema-18 boundary remains an
+unselected compatibility record distinct from Soundscaper project V17.
+Soundscaper keeps the shared exact project-V17 owner and treats newer product
+schemas as read-only. V22, V24, V25 and V26 are distinct dormant candidates, and
+future schemas remain opaque read-only; cross-product preservation never grants
+edit, activation, migration, native feature authority, or release qualification.
 <!-- /policy-narrative:framescaper-v18-product-isolation -->
 
 ## Framescaper V22–V26 compatibility and custody
@@ -1423,49 +1425,30 @@ activation gating and legacy Soundscaper library migration remain deliberately
 separate from this slice.
 
 <!-- policy-narrative:desktop-electron-lease-protections -->
-Soundscaper V10 starts one process-lifetime main-owned lease in its separate V10
-scope and database, carrying a monotonically increasing fencing token. Startup
-waits out an unexpired lease a crashed owner left behind rather than pre-empting
-it, because only expiry proves the holder is gone, then recovers any pending
-metadata or body journal before authenticated renderer sessions open, renews the
-exact lease while the process is live, fences on renewal loss, and releases only
-its exact lease before closing the database. Its project publications compare
-the expected metadata revision and the exact project revision and SHA-256, admit
-only a strictly higher revision so a coalesced autosave may skip revisions, and
-pass prepared, materialized, committed, and complete journal checkpoints. The
-current closed Soundscaper V10 runner executes seven workflows:
-`same-project-simultaneous-open`, `writer-lease-transfer`,
-`stale-lease-takeover`, `conflicting-canonical-commit`,
+Soundscaper V10 and Framescaper V17 each start one process-lifetime main-owned
+lease in separate product scope and database, carrying a persistently monotonic
+fencing token. Startup waits out an unexpired lease left by a crashed owner,
+recovers pending prepared, materialized, or committed journals before
+authenticated renderer admission, renews the exact lease while the process is
+live, fences new admission and publication on renewal loss, drains admitted
+work, and releases only the exact lease before closing the database. Framescaper
+V17 authenticates library generation 17, project generation 20, SQLite
+user_version 19 and scope v17; its idempotent first-open importer copy-forwards
+the read-only V12 database and bodies through durable cursor checkpoints and
+resumes without rewriting the source. Publication compares the expected metadata
+and project revisions and SHA-256, admits only a strictly higher revision, and
+passes prepared, materialized, committed, and complete journal checkpoints. The
+closed runner executes `same-project-simultaneous-open`,
+`writer-lease-transfer`, `stale-lease-takeover`, `conflicting-canonical-commit`,
 `renderer-loss-during-operation`, `orderly-process-restart`, and
-`crash-restart-recovery`. The `cross-product-simultaneous-open` workflow and the
-complete historical eight-workflow V9/V17 set remain frozen evidence and are not
-run against current Framescaper packages. Framescaper V10 likewise starts one
-process-lifetime main-owned lease in its separate V10 scope and database,
-recovers pending metadata or body journals before opening authenticated
-sessions, renews the exact lease while the process is live, fences new session
-admission on renewal loss, aborts pre-prepare work, and drains any
-recovery-owned prepared publication to settlement; shutdown drains sessions,
-settles recovery-owned prepared publication, recovers again, and releases only
-its exact lease before closing the database. V10 delete and duplicate use
-main-first exact catalog compare-and-swap with alias-aware shadow
-reconciliation, durable delete-intent restart reconciliation of exact local
-shadow and binding rows, retained immutable revisions and bodies without
-physical reclamation or project-ID reuse, one rejection-based mutation slot for
-publication, delete, and duplicate, and authoritative recovery after ambiguous
-IPC outcomes. The delete intent does not durably capture pre-delete locator
-references: abrupt process death before outer linked-original cleanup can retain
-main-private locator metadata for later cleanup, external files are never
-deleted, and crash- or power-loss locator release remains unqualified. The
-historical V18/V10 artifact fixture remains source-tested as an unselected
-compatibility boundary, but the selected package smoke no longer invokes it and
-no current package route activates or rewrites that library; lease concurrency,
-restart recovery, delete, duplicate, proxy or timing bodies, and accepted
-packaged target results remain unqualified. The products' distinct V10 storage
-roots are cross-product physical isolation, not a shared mutable catalog.
-Soundscaper V10 Windows x64 is pending-external. Soundscaper V10 Linux x64 is
-pending-external. Framescaper V10 Windows x64 is pending-external. Framescaper
-V10 Linux x64 is pending-external. No accepted packaged result exists for any of
-the four rows, so this rule and m2-electron-lease-matrix remain Partial.
+`crash-restart-recovery` for each product, then executes
+`cross-product-simultaneous-open` once to prove the V10 and V17 storage roots
+and fencing domains remain physically isolated. Qualification may only lower the
+shipped lease TTL and renewal interval. CI is configured to build both unpacked
+products and emit one bounded no-retry aggregate on Windows x64 and Linux x64.
+Soundscaper V10 Windows x64, Soundscaper V10 Linux x64, Framescaper V17 Windows
+x64, and Framescaper V17 Linux x64 remain pending-external; no accepted packaged
+result is checked in, so this rule and m2-electron-lease-matrix remain Partial.
 <!-- /policy-narrative:desktop-electron-lease-protections -->
 
 <!-- policy-narrative:desktop-packaged-source-bearing-handoff -->

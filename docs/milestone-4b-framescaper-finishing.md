@@ -23,8 +23,9 @@ description, WebGL and FFmpeg consumers, localized menu editing, browser
 storage, current-format `.scape`, copy-only cross-product handoff, and the
 calibrated browser/FFmpeg golden matrix. V19 is now the reserved dormant
 boundary; selected packaged Framescaper authenticates V20 through the distinct
-desktop-V12/SQLite-14/`v12` authority and does not migrate the historical
-V18/desktop-V10 library. The owner-designated Windows
+desktop-V17/SQLite-19/`v17` authority, copy-forwards the immutable desktop-V12
+library on first open, and does not migrate the historical V18/desktop-V10
+library. The owner-designated Windows
 x64 RTX 3090 run passed the historical golden and keyed-parity diagnostics.
 The new formal M4B-2 profile requires a fresh post-V20-selection packaged
 nightly artifact, and manual/release qualification is still open; therefore

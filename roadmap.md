@@ -293,14 +293,15 @@ update an item's status only after its listed acceptance conditions pass.
 
 - `m2-electron-lease-matrix`
 
-Its eight workflow IDs remain frozen historical desktop-library V9 and
-Framescaper V17 evidence in the closure inventory. Current executable
-qualification runs against the shipped generation: both products are now V10,
-so Soundscaper V10 exercises the seven compatible workflows against its
-process-lifetime main-owned lease, and Framescaper V10 exercises the same lease,
-authenticated session, and recovery contract in separate storage. This does not
-re-admit Framescaper V17. Windows x64 and Linux x64 accepted packaged results
-remain absent, so the gate remains **Partial**.
+The current executable matrix runs the seven product-specific workflows against
+Soundscaper desktop-library V10 and Framescaper desktop-library V17, then runs
+`cross-product-simultaneous-open` once against the paired packages. Framescaper
+V17 owns project schema 20, SQLite `user_version` 19 and scope `v17`; its
+idempotent, crash-resumable first-open import copies the immutable V12 source
+forward without rewriting it. Both products hold separate process-lifetime
+main-owned renewable fenced leases, journal recovery, admission fencing, drain,
+and exact release contracts. Windows x64 and Linux x64 accepted packaged results
+remain absent for both products, so the gate remains **Partial**.
 
 The closed compatibility items fix the fallback role set at exactly
 `project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`,

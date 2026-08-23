@@ -147,10 +147,10 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		intro: null,
 	}),
 	Object.freeze({
-		marker: 'framescaper-v20-desktop-v12-isolation',
+		marker: 'framescaper-v20-desktop-v17-isolation',
 		register: 'config/production-security-matrix.json',
 		riskId: 'shared-desktop-project-library-integrity',
-		controlId: 'framescaper-v20-desktop-v12-isolation',
+		controlId: 'framescaper-v20-desktop-v17-isolation',
 		field: 'summary',
 		document: 'docs/production-threat-model.md',
 		intro: null,

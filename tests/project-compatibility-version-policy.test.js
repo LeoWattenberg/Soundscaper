@@ -37,6 +37,15 @@ test('Framescaper revision identities keep V20 selected and later candidates dor
 		desktopLibraryVersion: 10,
 		behavior: 'typed-media-reimport-required-no-project-or-library-migration',
 	});
+	assert.deepEqual(contract.desktopLibraryImport, {
+		sourceLibraryVersion: 12,
+		sourceSqliteUserVersion: 14,
+		sourceScope: 'v12',
+		targetLibraryVersion: 17,
+		targetSqliteUserVersion: 19,
+		targetScope: 'v17',
+		behavior: 'idempotent-crash-resumable-copy-forward-source-immutable',
+	});
 	assert.deepEqual(contract.dormantCandidateCustody, {
 		minimumProjectVersion: 22,
 		maximumProjectVersion: 26,
@@ -49,7 +58,7 @@ test('Framescaper revision identities keep V20 selected and later candidates dor
 	});
 	assert.deepEqual(contract.revisions, [
 		[19, 11, 13, 'v11', 5, [8], 'reserved-dormant-boundary'],
-		[20, 12, 14, 'v12', 6, [7, 8], 'selected-provisional-unqualified'],
+		[20, 17, 19, 'v17', 6, [7, 8], 'selected-provisional-unqualified'],
 		[22, 13, 15, 'v13', 7, [9], 'dormant-transitions-candidate'],
 		[24, 14, 16, 'v14', 8, [10], 'dormant-visual-model-candidate'],
 		[25, 15, 17, 'v15', 9, [11], 'dormant-professional-media-candidate'],
