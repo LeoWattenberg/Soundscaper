@@ -74,11 +74,13 @@ export interface LoadedFramescaperProjectV27 {
 
 export class FramescaperProjectV27ReimportRequiredError extends RangeError {
 	readonly code = 'REIMPORT_REQUIRED' as const;
-	constructor(readonly schemaVersion: number) {
+	readonly schemaVersion: number;
+	constructor(schemaVersion: number) {
 		super(schemaVersion === 20 || schemaVersion === 22 || schemaVersion === 24
 			? `Framescaper V${String(schemaVersion)} requires explicit reimport into V27.`
 			: `Framescaper schema ${String(schemaVersion)} is not an admitted V27 reimport source.`);
 		this.name = 'FramescaperProjectV27ReimportRequiredError';
+		this.schemaVersion = schemaVersion;
 	}
 }
 
