@@ -41,7 +41,10 @@ test('roadmap records the owner-designated Windows fixed-GPU reference pass', as
 		roadmap,
 		/Windows x64.*RTX 3090.*reference.*M1\s+preview.*M4 production parity.*M4B-2\s+keyed parity.*passed/isu,
 	);
-	assert.match(roadmap, /reference pass.*does not close milestone\s+1 or milestone 4/isu);
+	assert.match(
+		roadmap,
+		/historical result remains audit\s+evidence, but closes no current formal row: M1, M3 long-form, M4 production\s+parity, and M4B-2 are all `pending-external`/isu,
+	);
 });
 
 test('machine-readable policy links resolve to current roadmap headings', async () => {
