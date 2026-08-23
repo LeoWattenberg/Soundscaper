@@ -99,7 +99,16 @@ test.describe('3B-2b source display geometry qualification', () => {
 		// every other worker when the whole suite runs.
 		test.setTimeout(300_000);
 
+		// Production serves Framescaper with the isolation headers from
+		// public/_headers. Vite preview does not apply that deployment file, so
+		// reproduce the production response before exercising V27's bounded
+		// SharedArrayBuffer frame stream.
+		await installProductionIsolationHeaders(page, '/framescaper/en/');
 		const editor = await openFramescaper(page);
+		expect(await page.evaluate(() => ({
+			crossOriginIsolated: globalThis.crossOriginIsolated,
+			sharedArrayBuffer: typeof globalThis.SharedArrayBuffer,
+		}))).toEqual({ crossOriginIsolated: true, sharedArrayBuffer: 'function' });
 		await editor.locator('[data-import-input]').setInputFiles([ROTATED_ANAMORPHIC.file]);
 		await expect.poll(async () => (await persistedVideoSources(page)).length, {
 			timeout: 45_000,
@@ -196,6 +205,31 @@ async function installVideoSaveTarget(page) {
 						async abort() {},
 					}),
 				};
+			},
+		});
+	});
+}
+
+async function installProductionIsolationHeaders(page, path) {
+	await page.route(`**${path}`, async (route) => {
+		const response = await route.fetch();
+		await route.fulfill({
+			response,
+			headers: {
+				...response.headers(),
+				'Cross-Origin-Opener-Policy': 'same-origin',
+				'Cross-Origin-Embedder-Policy': 'credentialless',
+			},
+		});
+	});
+	await page.route('**/assets/worker-*.js', async (route) => {
+		const response = await route.fetch();
+		await route.fulfill({
+			response,
+			headers: {
+				...response.headers(),
+				'Cross-Origin-Embedder-Policy': 'credentialless',
+				'Cross-Origin-Resource-Policy': 'same-origin',
 			},
 		});
 	});
