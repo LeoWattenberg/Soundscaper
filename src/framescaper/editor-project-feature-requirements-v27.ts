@@ -2,11 +2,18 @@
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../common/editor/project-feature-capabilities.ts';
 import {
+	editorProjectFeatureCapabilityProfileDefinition,
+} from '../common/editor/project-feature-capability-profile.ts';
+import {
+	evaluateProjectFeatureRequirements,
 	normalizeProjectFeatureRequirements,
 	type ProjectFeatureRequirement,
 	type ProjectFeatureRequirementsManifest,
 } from '../common/editor/project-feature-requirements.ts';
-import { FRAMESCAPER_V27_FEATURE_IDS } from './editor-project-feature-capability-profile-v27.ts';
+import {
+	FRAMESCAPER_V27_FEATURE_IDS,
+	FRAMESCAPER_V27_PROJECT_FEATURE_CAPABILITY_PROFILE,
+} from './editor-project-feature-capability-profile-v27.ts';
 import {
 	reconcileFramescaperProjectFeatureRequirementsV24,
 } from './editor-project-feature-requirements-v24.ts';
@@ -97,6 +104,35 @@ export function validateFramescaperProjectFeatureRequirementsV27(
 	return actual;
 }
 
+export function createFramescaperProjectFeatureCompatibilityServiceV27(profile: unknown) {
+	assertFramescaperProjectV27Profile(profile);
+	const capability = editorProjectFeatureCapabilityProfileDefinition(
+		FRAMESCAPER_V27_PROJECT_FEATURE_CAPABILITY_PROFILE,
+	);
+	const knownFeatureIds = new Set(capability.registrations.map(({ featureId }) => featureId));
+	const availableFeatureIds = new Set(capability.registrations
+		.filter(({ available }) => available).map(({ featureId }) => featureId));
+	return Object.freeze({ evaluate });
+
+	function evaluate(project: unknown) {
+		if (!project || typeof project !== 'object' || Array.isArray(project)) return null;
+		const candidate = project as Record<string, unknown>;
+		if (data(candidate, 'schemaVersion', true) !== 27) return null;
+		const manifest = validateFramescaperProjectFeatureRequirementsV27(profile, candidate);
+		return evaluateProjectFeatureRequirements(manifest, {
+			knownFeatureIds,
+			availableFeatureIds,
+			sources: records(data(candidate, 'sources'), 'sources'),
+			clips: records(data(candidate, 'clips'), 'clips'),
+			tracks: records(data(candidate, 'tracks'), 'tracks'),
+			schemaVersion: 27,
+			sampleRate: data(candidate, 'sampleRate'),
+			sequences: records(data(candidate, 'sequences'), 'sequences'),
+			primarySequenceId: data(candidate, 'primarySequenceId'),
+		});
+	}
+}
+
 export function framescaperProjectFeatureRequirementsForV24FoundationV27(
 	profile: unknown,
 	project: unknown,
@@ -152,9 +188,13 @@ function requirement(id: string, featureId: string, displayName: string): Projec
 	return Object.freeze({ id, featureId, displayName, disposition: 'bypass', fallback: null });
 }
 
-function data(value: Record<string, unknown>, key: string): unknown {
+function data(value: Record<string, unknown>, key: string, optional = false): unknown {
 	const descriptor = Object.getOwnPropertyDescriptor(value, key);
-	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) throw new TypeError(`${key} must be data.`);
+	if (!descriptor) {
+		if (optional) return undefined;
+		throw new TypeError(`${key} must be data.`);
+	}
+	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) throw new TypeError(`${key} must be data.`);
 	return descriptor.value;
 }
 
