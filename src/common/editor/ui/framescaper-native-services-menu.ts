@@ -8,12 +8,10 @@
  * side rail, no badge. Soundscaper receives none of it at all, because a native
  * video and OFX tier is not part of that product.
  *
- * Two entries stay reachable even while the native tier is switched off or
- * unavailable — the preferences pane and the OFX manage surface. They are how a
- * user turns the tier on and how they clear a quarantine, so gating them on the
- * capability they exist to change would be a trap the user cannot escape from
- * inside the application. Everything else is disabled with the capability it
- * needs.
+ * Candidate V25/V26 custody keeps two entries reachable even while the native
+ * tier is switched off or unavailable: preferences and OFX management. The
+ * selected V27 route is Milestone 1–4 only and exposes none of this Milestone 5
+ * surface. Everything else is disabled with the capability it needs.
  */
 
 import {
@@ -56,7 +54,7 @@ export type FramescaperNativeServiceSurface =
 
 export { FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES };
 
-/** Surfaces that must stay reachable so the user can enable or repair the tier. */
+/** Candidate-only surfaces that stay reachable so the user can enable or repair the tier. */
 export const FRAMESCAPER_ALWAYS_REACHABLE_SURFACES: readonly FramescaperNativeServiceSurface[] =
 	Object.freeze(['native-media-preferences', 'ofx-manage']);
 
@@ -127,6 +125,7 @@ export function createFramescaperNativeServicesMenuItems(
 	actions: FramescaperNativeServicesMenuActions,
 ): FramescaperNativeServicesMenuItems {
 	if (input.productId !== 'framescaper' || !input.runtimeAvailable) return EMPTY;
+	if (projectSchemaVersion(input.project) === 27) return EMPTY;
 	const copy = resolveFramescaperNativeServicesCopy(input.copy);
 	const snapshot = input.snapshot;
 	const hasProject = input.project != null;
