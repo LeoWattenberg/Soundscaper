@@ -90,3 +90,18 @@ test('video delivery returns missing only after both authorities and rejects non
 		},
 	}), /linked .*original.*Blob/iu);
 });
+
+test('video delivery does not inspect linked metadata when the store has no linked resolver', async () => {
+	const project = Object.freeze({
+		id: 'project-1',
+		sources: Object.freeze([Object.freeze({ id: 'video-1' })]),
+	});
+	assert.equal(await loadVideoExportOriginal({
+		project,
+		sourceId: 'video-1',
+		storageKey: 'owned-video-1',
+		signal: new AbortController().signal,
+		assertCurrent: () => undefined,
+		store: { async loadMediaAsset() { return null; } },
+	}), null);
+});

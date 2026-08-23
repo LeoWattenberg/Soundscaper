@@ -36,9 +36,10 @@ export async function loadVideoExportOriginal(
 	assertReady(request);
 	if (owned !== null) return blob(owned, 'Owned video original');
 
-	const source = projectVideoSource(request.project, sourceId);
 	const resolveLinked = request.store.resolveLinkedVideoOriginal;
-	if (source === null || typeof resolveLinked !== 'function') return null;
+	if (typeof resolveLinked !== 'function') return null;
+	const source = projectVideoSource(request.project, sourceId);
+	if (source === null) return null;
 	const projectId = projectIdentifier(request.project);
 	if (projectId === null) return null;
 	const linked = await resolveLinked.call(request.store, projectId, source, options);
