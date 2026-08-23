@@ -95,7 +95,7 @@ export function createAudioEditorFileService(options = {}) {
 	async function chooseFiles(request = {}) {
 		if (!bridge?.chooseFiles) return [];
 		const descriptors = await bridge.chooseFiles({
-			purpose: normalizePurpose(request.purpose, ['project', 'audio', 'video', 'media', 'labels']),
+			purpose: normalizePurpose(request.purpose, ['project', 'audio', 'video', 'media', 'labels', 'lut']),
 			...(request.multiple ? { multiple: true } : {}),
 		});
 		return Array.isArray(descriptors) ? descriptors.filter(isReadDescriptor) : [];

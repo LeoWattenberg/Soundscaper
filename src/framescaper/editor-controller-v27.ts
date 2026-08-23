@@ -28,6 +28,10 @@ import {
 	createFramescaperMotionAnalysisFrameProviderV27,
 } from './editor-motion-analysis-frame-provider-v27.ts';
 import { bindFramescaperSelectedVisualPreviewControllerV27 } from './editor-selected-v27-visual-preview-controller.ts';
+import {
+	bindFramescaperCubeLutActionsV27,
+	createFramescaperCubeLutActionsV27,
+} from './editor-cube-lut-actions-v27.ts';
 import { createFramescaperVideoExportStrategyV27 } from './video-export-strategy-v27.ts';
 import { createFramescaperVideoProxyActionsV27 } from './editor-video-proxy-actions-v20.ts';
 import type {
@@ -144,6 +148,10 @@ export function createFramescaperAudioEditorControllerV27(
 		frameProvider: createFramescaperMotionAnalysisFrameProviderV27({
 			store: environment.controllerStore,
 		}),
+	}));
+	bindFramescaperCubeLutActionsV27(controller, createFramescaperCubeLutActionsV27({
+		owner: controller,
+		store: environment.store,
 	}));
 	bindFramescaperSelectedVisualPreviewControllerV27({
 		controller,

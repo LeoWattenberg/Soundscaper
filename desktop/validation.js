@@ -28,6 +28,10 @@ const FILE_PURPOSES = Object.freeze({
 		extensions: Object.freeze(['srt', 'txt', 'vtt']),
 		filters: Object.freeze([{ name: 'Labels and captions', extensions: ['srt', 'txt', 'vtt'] }]),
 	}),
+	lut: Object.freeze({
+		extensions: Object.freeze(['cube']),
+		filters: Object.freeze([{ name: 'Cube LUT', extensions: ['cube'] }]),
+	}),
 });
 
 const SAVE_PURPOSES = Object.freeze({

@@ -21,6 +21,14 @@ test('lazy V27 captions surface exposes pathless file import and common file-ser
 	assert.match(markup, /accept="[^"]*\.srt[^"]*\.vtt[^"]*\.ttml/u);
 });
 
+test('lazy V27 grading surface exposes exact cube LUT target and pathless file import', () => {
+	const markup = render('grading-presets', project(), controller());
+	assert.match(markup, /Cube LUT target/u);
+	assert.match(markup, /Choose \.cube LUT/u);
+	assert.match(markup, /data-v27-cube-lut-file/u);
+	assert.match(markup, /accept="\.cube,text\/plain"/u);
+});
+
 test('lazy V27 motion surface exposes bounded execution, freshness, progress, and cancellation controls', () => {
 	const owner = controller();
 	bindFramescaperMotionAnalysisActionsV27(owner, createFramescaperMotionAnalysisActionsV27({
@@ -53,7 +61,7 @@ test('Framescaper keeps only its motion analysis in Analyze when audio analyzers
 	}, 'framescaper'), []);
 });
 
-function render(surface: 'captions' | 'motion-tracking', value: unknown, owner: ReturnType<typeof controller>) {
+function render(surface: 'captions' | 'grading-presets' | 'motion-tracking', value: unknown, owner: ReturnType<typeof controller>) {
 	return renderToStaticMarkup(<FramescaperV27FinishingDialog
 		surface={surface}
 		controller={owner}
@@ -83,7 +91,11 @@ function project() {
 			contentSha256: '12'.repeat(32), sourceFrameCount: 10,
 			frameRate: { num: 10, den: 1 },
 		}],
-		videoColorContexts: [], videoSourceColorInterpretations: [], videoVisualPresentations: [],
+		videoColorContexts: [], videoSourceColorInterpretations: [], videoVisualPresentations: [{
+			schemaVersion: 1, id: 'presentation-1', owner: { kind: 'clip', id: 'clip-1' },
+			enabled: true, opacity: 1, blendMode: 'normal', grade: null,
+			processorStackId: null, maskMatteIds: [],
+		}],
 		videoProcessorStacks: [{
 			schemaVersion: 1, id: 'stack-1', sourceId: 'video-source', processors: [{
 				schemaVersion: 1, id: 'tracking-1', kind: 'tracking', enabled: true,

@@ -26,6 +26,10 @@ import {
 	type FramescaperMotionAnalysisProgressV27,
 	type FramescaperMotionAnalysisTargetV27,
 } from '../../../../framescaper/editor-motion-analysis-actions-v27.ts';
+import {
+	framescaperCubeLutActionsV27For,
+	type FramescaperCubeLutTargetV27,
+} from '../../../../framescaper/editor-cube-lut-actions-v27.ts';
 
 interface FramescaperV27FinishingControllerPort {
 	readonly actions: Readonly<{
@@ -72,6 +76,7 @@ export default function FramescaperV27FinishingDialog({
 	const [profiledNoiseReduction, setProfiledNoiseReduction] = useState(false);
 	const [noiseProfileText, setNoiseProfileText] = useState('');
 	const captionFileRef = useRef<HTMLInputElement | null>(null);
+	const cubeLutFileRef = useRef<HTMLInputElement | null>(null);
 	const motionRuntime = framescaperMotionAnalysisActionsV27For(controller);
 	const motionTargets = motionRuntime?.targets() ?? [];
 	const [motionStackId, setMotionStackId] = useState(() => motionTargets[0]?.stackId ?? '');
@@ -81,6 +86,13 @@ export default function FramescaperV27FinishingDialog({
 	const [motionEndFrame, setMotionEndFrame] = useState(() => String(motionTarget?.endFrame ?? 0));
 	const [motionProgress, setMotionProgress] = useState<FramescaperMotionAnalysisProgressV27 | null>(null);
 	const motionAbortRef = useRef<AbortController | null>(null);
+	const cubeLutRuntime = framescaperCubeLutActionsV27For(controller);
+	const cubeLutTargets = cubeLutRuntime?.targets() ?? [];
+	const [cubeLutTargetToken, setCubeLutTargetToken] = useState(() => (
+		cubeLutTargets[0] ? targetToken(cubeLutTargets[0]) : ''
+	));
+	const cubeLutTarget = cubeLutTargets.find((target) => targetToken(target) === cubeLutTargetToken)
+		?? cubeLutTargets[0] ?? null;
 
 	useEffect(() => {
 		setDocumentText(model.documentText);
@@ -162,6 +174,34 @@ export default function FramescaperV27FinishingDialog({
 			});
 			captionImportSummary = lossSummary(exported.losses.length);
 		}, () => captionImportSummary);
+	let cubeLutSummary = '';
+	const importCubeLutFile = (file?: Blob): void => {
+		if (!file && !fileService.isDesktop) {
+			cubeLutFileRef.current?.click();
+			return;
+		}
+		perform(async () => {
+			if (!cubeLutRuntime || !cubeLutTarget) throw new Error('Select one cube LUT target first.');
+			let body: unknown = file;
+			if (!body) {
+				if (typeof fileService.chooseFiles !== 'function') {
+					throw new Error('Desktop cube LUT file selection is unavailable.');
+				}
+				const descriptors = await fileService.chooseFiles({ purpose: 'lut', multiple: false });
+				if (descriptors[0] === undefined) {
+					cubeLutSummary = text(copy, 'cubeLutSelectionCancelled', 'No cube LUT file selected.');
+					return;
+				}
+				if (typeof fileService.openReadDescriptor !== 'function') {
+					throw new Error('Desktop cube LUT file reading is unavailable.');
+				}
+				body = await fileService.openReadDescriptor(descriptors[0]);
+			}
+			if (!(body instanceof Blob)) throw new TypeError('The selected cube LUT is not a pathless file body.');
+			const reference = await cubeLutRuntime.importCubeLut({ target: cubeLutTarget, file: body });
+			cubeLutSummary = `${cubeLutTarget.label}: ${reference.sha256.slice(0, 12)}`;
+		}, () => cubeLutSummary);
+	};
 	const analyzeMotion = (): void => {
 		if (!motionRuntime || !motionTarget || blocked) return;
 		let startFrame: number;
@@ -268,6 +308,15 @@ export default function FramescaperV27FinishingDialog({
 				onChooseFile={applyCaptionFile}
 				fileRef={captionFileRef}
 			/>}
+			{surface === 'grading-presets' && <CubeLutControls
+				blocked={blocked}
+				targets={cubeLutTargets}
+				target={cubeLutTarget}
+				copy={copy}
+				onTarget={setCubeLutTargetToken}
+				onChooseFile={importCubeLutFile}
+				fileRef={cubeLutFileRef}
+			/>}
 			{surface === 'motion-tracking' && <MotionAnalysisControls
 				blocked={blocked}
 				targets={motionTargets}
@@ -308,6 +357,41 @@ export default function FramescaperV27FinishingDialog({
 			<div role="status" aria-live="polite" aria-atomic="true">{error || status}</div>
 		</div>
 	</AudioEditorDialogShell>;
+}
+
+function CubeLutControls(props: Readonly<{
+	readonly blocked: boolean;
+	readonly targets: readonly FramescaperCubeLutTargetV27[];
+	readonly target: FramescaperCubeLutTargetV27 | null;
+	readonly copy: Readonly<Record<string, string>>;
+	readonly onTarget: (value: string) => void;
+	readonly onChooseFile: (file?: Blob) => void;
+	readonly fileRef: React.RefObject<HTMLInputElement | null>;
+}>) {
+	return <fieldset disabled={props.blocked}>
+		<legend>{text(props.copy, 'cubeLutImport', 'Cube LUT import')}</legend>
+		<label><span>{text(props.copy, 'cubeLutTarget', 'Cube LUT target')}</span><select
+			value={props.target ? targetToken(props.target) : ''}
+			disabled={props.blocked || props.targets.length === 0}
+			onChange={(event) => props.onTarget(event.currentTarget.value)}>
+			{props.targets.map((target) => <option key={targetToken(target)} value={targetToken(target)}>{
+				target.label
+			}</option>)}
+		</select></label>
+		<button type="button" disabled={props.blocked || props.target === null}
+			onClick={() => { props.onChooseFile(); }}>{
+			text(props.copy, 'cubeLutChooseFile', 'Choose .cube LUT…')
+		}</button>
+		<input ref={props.fileRef} type="file" accept=".cube,text/plain" hidden
+			data-v27-cube-lut-file onChange={(event) => {
+				const file = event.currentTarget.files?.[0] ?? null;
+				event.currentTarget.value = '';
+				if (file) props.onChooseFile(file);
+			}} />
+		{props.targets.length === 0 && <p role="status">{
+			text(props.copy, 'cubeLutTargetMissing', 'Create a visual presentation or finishing preset first.')
+		}</p>}
+	</fieldset>;
 }
 
 function CaptionSidecarEditor(props: Readonly<{
@@ -466,6 +550,10 @@ function freshnessLabel(
 	if (value === 'current') return text(copy, 'motionAnalysisCurrent', 'Analysis current.');
 	if (value === 'stale') return text(copy, 'motionAnalysisStale', 'Analysis stale; recompute before export.');
 	return text(copy, 'motionAnalysisMissing', 'Analysis missing.');
+}
+
+function targetToken(target: Readonly<{ readonly kind: string; readonly id: string }>): string {
+	return `${target.kind}:${target.id}`;
 }
 
 function inputFrame(value: string, name: string): number {

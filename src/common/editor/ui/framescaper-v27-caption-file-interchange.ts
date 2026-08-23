@@ -4,7 +4,7 @@ import type { VideoCaptionInterchangeFormatV1 } from '../video-caption-interchan
 
 export interface FramescaperCaptionFileServiceV27 {
 	readonly isDesktop?: boolean;
-	chooseFiles?(request: Readonly<{ readonly purpose: 'labels'; readonly multiple: false }> ):
+	chooseFiles?(request: Readonly<{ readonly purpose: 'labels' | 'lut'; readonly multiple: false }> ):
 		PromiseLike<readonly unknown[]> | readonly unknown[];
 	openReadDescriptor?(
 		descriptor: unknown,
