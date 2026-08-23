@@ -346,6 +346,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							controller={controller}
 							snapshot={snapshot}
 							copy={copy}
+							productId={productId}
 							locale={locale}
 							onClose={() => setActiveSurface(null)}
 						/>

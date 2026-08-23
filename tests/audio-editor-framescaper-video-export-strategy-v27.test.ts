@@ -193,10 +193,32 @@ test('selected V27 picture export retains explicit captions for sidecar-only del
 		canonicalProject: project, delivery: delivery(project),
 	});
 	assert.deepEqual(exportProject.videoCaptionTracks, [captionTrack]);
-	assert.equal(strategy.createPlan({
+	const request = {
 		canonicalProject: project, exportProject, format: 'mp4', range: 'project',
 		includeAudio: false, canvas: undefined,
-	})?.version, 7);
+	} as const;
+	assert.equal(strategy.createPlan(request)?.version, 7);
+	assert.equal(strategy.createPlan({ ...request, captions: null })?.version, 7);
+	for (const captions of [
+		'sidecar',
+		{ trackId: 'captions-en', mux: false, sidecar: 'srt', burnIn: false },
+		{ trackId: 'captions-en', mux: true, sidecar: null, burnIn: false },
+		{ trackId: 'captions-en', mux: false, sidecar: null, burnIn: true },
+	]) {
+		assert.throws(
+			() => strategy.createPlan({ ...request, captions }),
+			/selected V27.*caption.*sidecar.*Caption Tracks|caption.*mux.*burn/iu,
+		);
+	}
+	const visualProject = generatorProject();
+	const visualExport = strategy.createExportProject({
+		canonicalProject: visualProject, delivery: delivery(visualProject),
+	});
+	assert.throws(() => strategy.createPlan({
+		canonicalProject: visualProject, exportProject: visualExport,
+		format: 'mp4', range: 'project', includeAudio: false, canvas: undefined,
+		captions: { trackId: 'captions-en', mux: false, sidecar: 'srt', burnIn: false },
+	}), /selected V27.*caption.*sidecar.*Caption Tracks/iu);
 });
 
 test('selected V27 keyed export consumes the canonical dissolve resolver', async () => {

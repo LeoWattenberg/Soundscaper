@@ -189,7 +189,7 @@ test('selected V27 export executes clip presentation opacity and masks over the 
 	)?.disposition, 'executed');
 });
 
-test('complete V27 program exports original-authoritative editorial, proxy, audio, captions, and finishing', async () => {
+test('V27 delivery projection retains original-authoritative editorial, proxy, audio, captions, and finishing', async () => {
 	const project = completeProgramProject();
 	const captured: { request: VideoKeyframeOfflineVideoExportRequest | null } = { request: null };
 	const strategy = createFramescaperVideoExportStrategyV27(PROFILE, {
@@ -219,7 +219,7 @@ test('complete V27 program exports original-authoritative editorial, proxy, audi
 	assert.equal(((exportProject.mixer as { edges: Array<{ level: number }> }).edges[0]?.level), 0.5);
 	const plan = strategy.createPlan({
 		canonicalProject: project, exportProject, format: 'mp4', range: 'project',
-		includeAudio: true, canvas: { maximumWidth: 4, maximumHeight: 4 }, captions: 'sidecar',
+		includeAudio: true, canvas: { maximumWidth: 4, maximumHeight: 4 },
 	});
 	assert.ok(plan);
 	assert.equal(plan.version, 7);

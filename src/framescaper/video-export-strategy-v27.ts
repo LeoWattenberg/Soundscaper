@@ -150,6 +150,9 @@ export function createFramescaperVideoExportStrategyV27(
 		},
 		createPlan(request: ProductVideoExportStrategyPlanRequest) {
 			const authority = currentAuthority(profile, request, exports);
+			if (request.captions != null) {
+				throw new RangeError('Selected V27 caption delivery is sidecar-only through Caption Tracks; video export mux and burn-in are unavailable.');
+			}
 			const plan = hasVisibleVideoPicture(authority.canonicalProject)
 				? delegate.createPlan({
 					...request,

@@ -3,9 +3,11 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
+	chooseDropdown,
 	collectClientErrors,
 	disableNativeSavePicker,
 	importFiles,
+	openExportDialog,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
@@ -35,6 +37,18 @@ test('selected V27 imports and exports caption files and publishes built-in moti
 	expect(download.suggestedFilename()).toBe('captions-1.vtt');
 	await expect(dialog.getByRole('status')).toHaveText('1 interchange loss recorded.');
 	await closeFinishing(dialog);
+
+	const exportDialog = await openExportDialog(page, editor);
+	await chooseDropdown(page,
+		exportDialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
+	await expect(exportDialog.locator('[data-export-field="captionDeliveryUnavailable"]')).toContainText(
+		'Caption burn-in and mux are unavailable for selected Framescaper V27.',
+	);
+	await expect(exportDialog.locator('[data-effect-field="captionTrack"]')).toHaveCount(0);
+	await expect(exportDialog.locator('[data-effect-field="captionDelivery"]')).toHaveCount(0);
+	await expect(exportDialog.locator('[data-export-field="captionBurnIn"]')).toHaveCount(0);
+	await exportDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+	await expect(exportDialog).toBeHidden();
 
 	const source = await storedMotionState(page, projectId);
 	dialog = await openFinishing(page, editor, 'Analyze', /^Motion Tracking/u, 'Motion Tracking');
