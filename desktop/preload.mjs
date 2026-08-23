@@ -50,9 +50,9 @@ const CHANNELS = Object.freeze({
 	framescaperNativeCleanupScratch: 'framescaper:v1:native-services:scratch:cleanup', framescaperNativeSettleScratch: 'framescaper:v1:native-services:scratch:settle', framescaperNativePublish: 'framescaper:v1:native-services:publication:publish', framescaperNativeCheckpoint: 'framescaper:v1:native-services:publication:checkpoint', framescaperNativeExternalDisplays: 'framescaper:v1:native-services:display:list', framescaperNativeSetExternalDisplay: 'framescaper:v1:native-services:display:set', framescaperNativeFramePort: 'framescaper:v1:native-services:display:frame-port',
 	framescaperNativePreferences: 'framescaper:v1:native-services:preferences', framescaperNativeSetPreference: 'framescaper:v1:native-services:preferences:set', framescaperNativeRenderInputBegin: 'framescaper:v1:native-services:render-inputs:begin', framescaperNativeRenderInputPort: 'framescaper:v1:native-services:render-inputs:port', framescaperNativeRenderInputFinalize: 'framescaper:v1:native-services:render-inputs:finalize', framescaperNativeRenderInputAbandon: 'framescaper:v1:native-services:render-inputs:abandon',
 	framescaperNativeSelectImageSequence: 'framescaper:v1:native-services:image-sequence:select', framescaperNativeReadImageSequenceFile: 'framescaper:v1:native-services:image-sequence:read', framescaperNativeReleaseImageSequence: 'framescaper:v1:native-services:image-sequence:release', framescaperNativeOpenFxScan: 'framescaper:v1:native-services:openfx:scan', framescaperNativeOpenFxInventory: 'framescaper:v1:native-services:openfx:inventory', framescaperNativeOpenFxControl: 'framescaper:v1:native-services:openfx:control',
-	framescaperProjectHandshake: 'framescaper:v17:projects:handshake', framescaperProjectBundle: 'framescaper:v17:projects:bundle', framescaperProjectBodyRead: 'framescaper:v17:projects:bodies:read', framescaperProjectList: 'framescaper:v17:projects:list',
-	framescaperProjectDelete: 'framescaper:v17:projects:delete', framescaperProjectDuplicate: 'framescaper:v17:projects:duplicate', framescaperProjectBegin: 'framescaper:v17:projects:publication:begin',
-	framescaperProjectChunk: 'framescaper:v17:projects:publication:chunk', framescaperProjectFinish: 'framescaper:v17:projects:publication:finish', framescaperProjectAbort: 'framescaper:v17:projects:publication:abort',
+	framescaperProjectHandshake: 'framescaper:v18:projects:handshake', framescaperProjectBundle: 'framescaper:v18:projects:bundle', framescaperProjectBodyRead: 'framescaper:v18:projects:bodies:read', framescaperProjectList: 'framescaper:v18:projects:list',
+	framescaperProjectDelete: 'framescaper:v18:projects:delete', framescaperProjectDuplicate: 'framescaper:v18:projects:duplicate', framescaperProjectBegin: 'framescaper:v18:projects:publication:begin',
+	framescaperProjectChunk: 'framescaper:v18:projects:publication:chunk', framescaperProjectFinish: 'framescaper:v18:projects:publication:finish', framescaperProjectAbort: 'framescaper:v18:projects:publication:abort',
 	listAssistanceModels: 'soundscaper:v1:assistance:list', installAssistanceModel: 'soundscaper:v1:assistance:install',
 	removeAssistanceModel: 'soundscaper:v1:assistance:remove', assistanceInstallProgress: 'soundscaper:v1:event:assistance-progress',
 	setLocale: 'soundscaper:v1:locale:set', windowAction: 'soundscaper:v1:window:action',
@@ -194,9 +194,9 @@ const api = Object.freeze({
 	})),
 	onWindowStateChanged: (listener) => subscribe(CHANNELS.windowStateChanged, listener, windowState),
 });
-const FRAMESCAPER_PROJECT_LIBRARY_HANDSHAKE = Object.freeze({ kind: 'framescaper-project-library-handshake', version: 1, owner: 'framescaper', projectSchemaVersion: 20,
-	scapeFormatVersions: Object.freeze([1, 2]), attachedScapeFormatVersion: 2, storageDatabaseName: 'kw-media-framescaper-editor-v20', desktopLibrarySchemaVersion: 17,
-	desktopDatabaseUserVersion: 19, desktopLibraryScope: Object.freeze(['kw.media', 'scape-project-library', 'v17']) });
+const FRAMESCAPER_PROJECT_LIBRARY_HANDSHAKE = Object.freeze({ kind: 'framescaper-project-library-handshake', version: 1, owner: 'framescaper', projectSchemaVersion: 27,
+	scapeFormatVersions: Object.freeze([1, 2]), attachedScapeFormatVersion: 2, storageDatabaseName: 'kw-media-framescaper-editor-v27', desktopLibrarySchemaVersion: 18,
+	desktopDatabaseUserVersion: 20, desktopLibraryScope: Object.freeze(['kw.media', 'scape-project-library', 'v18']) });
 const framescaperProjectPublications = new Set(); let framescaperProjectState = 'pending'; let framescaperProjectConnection = null;
 const framescaperProjectLibrary = Object.freeze({
 	connect: connectFramescaperProjectLibrary, handshakeState: () => framescaperProjectState,

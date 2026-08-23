@@ -14,13 +14,13 @@ import {
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import { createHash as createSandboxHash } from '../desktop/project-library-v10-sandbox-crypto.ts';
 import {
-	createFramescaperDesktopProjectLibraryV17Handshake,
-} from '../desktop/project-library-v17-contract.ts';
+	createFramescaperDesktopProjectLibraryV18Handshake,
+} from '../desktop/project-library-v18-contract.ts';
 import {
 	createSoundscaperDesktopProjectLibraryV10Handshake,
 } from '../desktop/soundscaper-project-library-v10-contract.ts';
-import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v20.ts';
-import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
+import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
+import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
 import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
 import {
 	SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
@@ -31,16 +31,16 @@ const COMPOSITION = 'desktop/project-library-product-runtime.js';
 const SOUNDSCAPER_SANDBOX_ENTRY = 'desktop/soundscaper-project-library-v10-sandbox-preload.ts';
 const SOUNDSCAPER_SANDBOX_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
 const CHANNELS = Object.freeze([
-	'framescaper:v17:projects:handshake',
-	'framescaper:v17:projects:bundle',
-	'framescaper:v17:projects:bodies:read',
-	'framescaper:v17:projects:list',
-	'framescaper:v17:projects:delete',
-	'framescaper:v17:projects:duplicate',
-	'framescaper:v17:projects:publication:begin',
-	'framescaper:v17:projects:publication:chunk',
-	'framescaper:v17:projects:publication:finish',
-	'framescaper:v17:projects:publication:abort',
+	'framescaper:v18:projects:handshake',
+	'framescaper:v18:projects:bundle',
+	'framescaper:v18:projects:bodies:read',
+	'framescaper:v18:projects:list',
+	'framescaper:v18:projects:delete',
+	'framescaper:v18:projects:duplicate',
+	'framescaper:v18:projects:publication:begin',
+	'framescaper:v18:projects:publication:chunk',
+	'framescaper:v18:projects:publication:finish',
+	'framescaper:v18:projects:publication:abort',
 ]);
 const SOUNDSCAPER_CHANNELS = Object.freeze([
 	'soundscaper:v10:projects:handshake',
@@ -63,7 +63,7 @@ test('sandbox hash seam preserves the exact SHA-256 contract without Node author
 	assert.throws(() => createSandboxHash('sha1'), /only SHA-256/iu);
 });
 
-test('maintained main selects Framescaper V17 and Soundscaper V10 with existing owner cleanup', async () => {
+test('maintained main selects Framescaper V18 and Soundscaper V10 with existing owner cleanup', async () => {
 	const [main, composition, preload, soundscaperSandboxEntry] = await Promise.all([
 		readFile(join(ROOT, 'desktop/main.mjs'), 'utf8'),
 		readFile(join(ROOT, COMPOSITION), 'utf8'),
@@ -77,7 +77,7 @@ test('maintained main selects Framescaper V17 and Soundscaper V10 with existing 
 		/did-start-navigation[\s\S]*revokeRendererSaveOwner[\s\S]*did-frame-navigate[\s\S]*activateRendererSaveOwner/u);
 	assert.match(main, /attachDesktopMainWindowRecovery\([\s\S]*rendererOwnershipCleanup\.drain/u);
 	assert.match(composition, /productId\s*===\s*'framescaper'/u);
-	assert.match(composition, /FramescaperDesktopProjectLibraryV17Main\.start/u);
+	assert.match(composition, /FramescaperDesktopProjectLibraryV18Main\.start/u);
 	assert.match(composition, /SoundscaperDesktopProjectLibraryV10Main\.start/u);
 	assert.match(composition, /DesktopProjectLibraryHost\.start/u);
 	assert.match(composition, /registerPreloadScript/u);
@@ -130,9 +130,9 @@ test('staged product selector isolates exact-generation handlers, preload, sessi
 	const handshake = await handlers.get(CHANNELS[0])!({ owner }, exactHandshake());
 	assert.deepEqual(handshake, exactHandshake());
 	assert.equal(runtime.snapshot().activeSessions, 1);
-	const project = createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, {
-		id: 'framescaper-v20-package-witness',
-		title: 'Framescaper V20 package witness',
+	const project = createFramescaperProjectV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, {
+		id: 'framescaper-v27-package-witness',
+		title: 'Framescaper V27 package witness',
 		revision: 0,
 		now: '2026-08-13T12:00:00.000Z',
 	});
@@ -157,7 +157,7 @@ test('staged product selector isolates exact-generation handlers, preload, sessi
 		};
 		bodies: unknown[];
 	};
-	const evidence = await runtime.smokeEvidence(project.id);
+	const evidence = await runtime.smokeEvidence(String(project.id));
 	assert.deepEqual(evidence, {
 		host: {
 			product: 'framescaper',
@@ -168,7 +168,7 @@ test('staged product selector isolates exact-generation handlers, preload, sessi
 		project: {
 			projectId: project.id,
 			title: project.title,
-			projectSchemaVersion: 20,
+			projectSchemaVersion: 27,
 			projectRevision: project.revision,
 			metadataRevision: bundle.metadataRevision,
 			byteLength: bundle.project.byteLength,
@@ -345,7 +345,7 @@ async function stagedFixture(context: TestContext): Promise<Readonly<{
 }
 
 function exactHandshake(): Readonly<Record<string, unknown>> {
-	return createFramescaperDesktopProjectLibraryV17Handshake() as unknown as
+	return createFramescaperDesktopProjectLibraryV18Handshake() as unknown as
 		Readonly<Record<string, unknown>>;
 }
 

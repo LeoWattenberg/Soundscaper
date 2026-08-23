@@ -106,6 +106,8 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v12-main-ipc.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v17-main.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v17-main-ipc.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v18-main.js'));
+	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-v18-main-ipc.js'));
 	for (const generation of [13, 14, 15, 16]) {
 		await access(join(applicationDesktopRoot, 'project-library-runtime', `desktop/project-library-v${String(generation)}-main.js`));
 		await access(join(applicationDesktopRoot, 'project-library-runtime', `desktop/project-library-v${String(generation)}-main-ipc.js`));

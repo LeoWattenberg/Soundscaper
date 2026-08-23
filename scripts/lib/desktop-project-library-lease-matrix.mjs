@@ -10,8 +10,8 @@ import {
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX,
 } from '../../desktop/project-library-lease-smoke.js';
-import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v20.ts';
-import { createFramescaperProjectV20 } from '../../src/framescaper/editor-project-v20.ts';
+import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v27.ts';
+import { createFramescaperProjectV27 } from '../../src/framescaper/editor-project-v27.ts';
 import { createSoundscaperProjectV23 } from '../../src/soundscaper/editor-project-v23.ts';
 import { packagedExecutableCandidates, resolveSmokeArchitecture } from './desktop-smoke.mjs';
 
@@ -37,7 +37,7 @@ const TTL_MS = 1_000;
 const CHILD_TIMEOUT_MS = 90_000;
 const MAXIMUM_OUTPUT_BYTES = 1024 * 1024;
 /** Both catalogs raise a lease another live instance holds under this exact wording. */
-const WRITER_LEASE_BUSY = /desktop (?:V10|V17) writer lease is busy/u;
+const WRITER_LEASE_BUSY = /desktop (?:V10|V18) writer lease is busy/u;
 
 export function createDesktopProjectLibraryLeaseMatrixPlan({ action, control, productId, projectId, request }) {
 	return deepFreeze({
@@ -469,7 +469,7 @@ export function createDesktopProjectLibraryLeaseMatrixDocument(
 	productId = 'soundscaper',
 ) {
 	if (productId === 'framescaper') {
-		return JSON.stringify(createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, {
+		return JSON.stringify(createFramescaperProjectV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, {
 			id, title, revision, now: '2026-08-23T12:00:00.000Z',
 		}));
 	}

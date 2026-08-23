@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Exact-generation files staged for immutable V12 and selected V17. */
+/** Exact-generation files staged for immutable V12/V17 and selected V18. */
 export const DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES = Object.freeze([
 	'desktop/project-library-exact-generation-contract.js',
 	'desktop/project-library-exact-generation-database.js',
@@ -14,4 +14,6 @@ export const DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES = Object.freeze([
 		.map((name) => `desktop/project-library-v12-${name}.js`),
 	...['contract', 'current-project', 'database', 'import', 'main-channels', 'main-ipc', 'main', 'writer']
 		.map((name) => `desktop/project-library-v17-${name}.js`),
+	...['contract', 'current-project', 'database', 'import', 'main-channels', 'main-ipc', 'main', 'writer']
+		.map((name) => `desktop/project-library-v18-${name}.js`),
 ]);

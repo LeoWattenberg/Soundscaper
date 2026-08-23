@@ -512,7 +512,7 @@ jobs:
           retention-days: 14
 
   soundscaper-project-library-lease-matrix:
-    name: Soundscaper V10 + Framescaper V17 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    name: Soundscaper V10 + Framescaper V18 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     if: >-
       (github.event_name == 'push' && github.ref_type == 'tag')
       || github.event_name == 'schedule'
@@ -551,7 +551,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build unpacked Soundscaper V10 and Framescaper V17 products
+      - name: Build unpacked Soundscaper V10 and Framescaper V18 products
         shell: bash
         run: |
           for product in soundscaper framescaper; do
@@ -590,12 +590,12 @@ jobs:
         env:
           SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SMOKE_XVFB: ${{ matrix.target.platform == 'linux' && 'true' || 'false' }}
-          SOUNDSCAPER_LEASE_MATRIX_RESULT: ${{ runner.temp }}/soundscaper-v10-framescaper-v17-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          SOUNDSCAPER_LEASE_MATRIX_RESULT: ${{ runner.temp }}/soundscaper-v10-framescaper-v18-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
 
       - name: Upload bounded lease-matrix result
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: soundscaper-v10-framescaper-v17-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}
-          path: ${{ runner.temp }}/soundscaper-v10-framescaper-v17-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          name: soundscaper-v10-framescaper-v18-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: ${{ runner.temp }}/soundscaper-v10-framescaper-v18-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
           if-no-files-found: error
           retention-days: 14

@@ -26,30 +26,30 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 		throw new TypeError('Desktop project-library startup seams are invalid');
 	}
 	if (productId === 'framescaper') {
-		const [{ createFramescaperDesktopProjectLibraryV17Handshake },
-			{ FramescaperDesktopProjectLibraryV17Main },
-			{ registerFramescaperDesktopProjectLibraryV17MainIpc }] = await Promise.all([
-			import('./project-library-runtime/desktop/project-library-v17-contract.js'),
-			import('./project-library-runtime/desktop/project-library-v17-main.js'),
-			import('./project-library-runtime/desktop/project-library-v17-main-ipc.js'),
+		const [{ createFramescaperDesktopProjectLibraryV18Handshake },
+			{ FramescaperDesktopProjectLibraryV18Main },
+			{ registerFramescaperDesktopProjectLibraryV18MainIpc }] = await Promise.all([
+			import('./project-library-runtime/desktop/project-library-v18-contract.js'),
+			import('./project-library-runtime/desktop/project-library-v18-main.js'),
+			import('./project-library-runtime/desktop/project-library-v18-main-ipc.js'),
 		]);
-		const host = await FramescaperDesktopProjectLibraryV17Main.start({
+		const host = await FramescaperDesktopProjectLibraryV18Main.start({
 			appDataPath,
 			owner,
-			handshake: createFramescaperDesktopProjectLibraryV17Handshake(),
+			handshake: createFramescaperDesktopProjectLibraryV18Handshake(),
 			onLeaseLost: options.onLeaseLost,
 			qualification: framescaperQualification(options.leaseQualification),
 		});
 		return new DesktopProjectLibraryProductRuntime({
 			productId,
 			host,
-			register: (bridge) => registerFramescaperDesktopProjectLibraryV17MainIpc({
+			register: (bridge) => registerFramescaperDesktopProjectLibraryV18MainIpc({
 				handle: bridge.handle,
 				removeHandler: bridge.removeHandler,
 				ownerFor: bridge.ownerFor,
 				main: host,
 			}),
-			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Framescaper', 'V17'),
+			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Framescaper', 'V18'),
 		});
 	}
 	if (productId === 'soundscaper') {

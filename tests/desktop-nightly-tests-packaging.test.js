@@ -191,7 +191,7 @@ test('desktop CI exposes one quality-gated five-target nightly-with-tests artifa
 	assert.doesNotMatch(workflow, /^ {2}project-library-handoff:/mu);
 	assert.match(
 		workflow.slice(nextStart),
-		/soundscaper-project-library-lease-matrix:\s+name: Soundscaper V10 \+ Framescaper V17 packaged lease matrix/iu,
+		/soundscaper-project-library-lease-matrix:\s+name: Soundscaper V10 \+ Framescaper V18 packaged lease matrix/iu,
 	);
 });
 

@@ -39,7 +39,7 @@ const HISTORICAL_WORKFLOWS = [
 	'crash-restart-recovery',
 ];
 
-test('current packaged lease qualification admits Soundscaper V10 and Framescaper V17', () => {
+test('current packaged lease qualification admits Soundscaper V10 and Framescaper V18', () => {
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS, EXPECTED_WORKFLOWS);
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS, HISTORICAL_WORKFLOWS);
 	const controlRoot = resolve('test-lease-control');
@@ -87,7 +87,7 @@ test('desktop preview CI runs both selected products on qualified x64 targets', 
 	assert.match(leaseJob, /for product in soundscaper framescaper/u);
 	assert.match(leaseJob, /release\/desktop-lease-matrix\/\$product/u);
 	assert.match(leaseJob, /desktop:smoke:project-library-lease-matrix/u);
-	assert.match(leaseJob, /soundscaper-v10-framescaper-v17-lease-matrix-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
+	assert.match(leaseJob, /soundscaper-v10-framescaper-v18-lease-matrix-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
 	assert.match(runner, /\[\s*'soundscaper',\s*'framescaper'\s*\]/u);
 	assert.match(runner, /for \(const productId of \['soundscaper', 'framescaper'\]\)/u);
 	assert.match(runner, /runRendererLoss[\s\S]*awaitLeaseMatrixControlFile\(child\.control\.result, child\)/u);
@@ -239,7 +239,7 @@ function leaseInstances(faults = {}) {
 
 	const acquire = (productId) => {
 		if (lease && !faults.admitSecondInstance) {
-			throw new Error(`${productId === 'framescaper' ? 'Framescaper desktop V17' : 'Soundscaper desktop V10'} writer lease is busy`);
+			throw new Error(`${productId === 'framescaper' ? 'Framescaper desktop V18' : 'Soundscaper desktop V10'} writer lease is busy`);
 		}
 		issued += 1;
 		instances += 1;
