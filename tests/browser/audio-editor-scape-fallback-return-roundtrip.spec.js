@@ -11,10 +11,12 @@ import {
 
 import { createUnreportedVideoSourceCharacteristics } from '../../src/common/editor/video-source-characteristics.ts';
 import { resolveRuntimeClipProjection } from '../../src/common/editor/runtime-clip-projection.ts';
+import { reconcileFramescaperAudioFinishingV27 } from '../../src/framescaper/editor-audio-finishing-reconciliation-v27.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV27 } from '../../src/framescaper/editor-project-feature-requirements-v27.ts';
 import {
-	FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
-} from '../../src/framescaper/editor-project-runtime-profile-v20.ts';
-import { validateFramescaperProjectV20 } from '../../src/framescaper/editor-project-v20-validation.ts';
+	FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
+} from '../../src/framescaper/editor-project-runtime-profile-v27.ts';
+import { validateFramescaperProjectV27 } from '../../src/framescaper/editor-project-v27-validation.ts';
 import { validateSoundscaperProjectV23 } from '../../src/soundscaper/editor-project-v23-validation.ts';
 
 import {
@@ -64,14 +66,14 @@ const WORKFLOWS = [{
 	recipient: 'framescaper',
 	kind: 'audio',
 	role: 'project-audio-mix-v1',
-	schemaVersion: 20,
+	schemaVersion: 27,
 }, {
 	id: 'audio-track-render-web-roundtrip',
 	origin: 'framescaper',
 	recipient: 'framescaper',
 	kind: 'audio',
 	role: 'audio-track-render-v1',
-	schemaVersion: 20,
+	schemaVersion: 27,
 }, {
 	id: 'video-full-project-web-roundtrip',
 	origin: 'soundscaper',
@@ -168,8 +170,8 @@ async function createVideoBaseArchive(page, editor, id) {
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
 		timeout: 10_000,
 	});
-	const v20Archive = await exportScapeArchive(page, editor);
-	const archive = await promoteFramescaperArchiveToSoundscaperV23(v20Archive, {
+	const v27Archive = await exportScapeArchive(page, editor);
+	const archive = await promoteFramescaperArchiveToSoundscaperV23(v27Archive, {
 		id: `${id}-base`,
 		title: `${id} base`,
 	}, rewriteArchive);
@@ -314,11 +316,19 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 				},
 			}],
 		};
+		if (project.schemaVersion === 27) {
+			const finishing = reconcileFramescaperAudioFinishingV27(project, project);
+			project.automationLanes = structuredClone(finishing.automationLanes);
+			project.mixer = structuredClone(finishing.mixer);
+			project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV27(
+				FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, project,
+			);
+		}
 		if (project.schemaVersion !== workflow.schemaVersion) {
 			throw new Error(`${workflow.id} requires exact schema ${String(workflow.schemaVersion)}.`);
 		}
-		if (workflow.schemaVersion === 20) {
-			validateFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, project);
+		if (workflow.schemaVersion === 27) {
+			validateFramescaperProjectV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, project);
 		} else {
 			validateSoundscaperProjectV23(project);
 		}

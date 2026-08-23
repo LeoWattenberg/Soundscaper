@@ -200,7 +200,7 @@ test.describe('native timeline annotations', () => {
 				timeout: 20_000,
 			});
 			await expect(framescaper.locator('[data-status]')).toContainText(
-				/Unsupported Framescaper project schema version: 23/iu,
+				/Framescaper schema 23 is not an admitted V27 reimport source/iu,
 			);
 			await expect(framescaper).toHaveAttribute('data-product', 'framescaper');
 			await expect(framescaper).toHaveAttribute('data-project-id', framescaperProjectId);

@@ -17,7 +17,7 @@ export const FRAMESCAPER_V27_FEATURE_IDS = Object.freeze({
 });
 
 const SELECTED_AVAILABLE = new Set([
-	'audioAutomation', 'audioEffects', 'audioMixerGraph',
+	'audioAutomation', 'audioMixerGraph',
 	'videoAdjustmentLayers', 'videoCaptions', 'videoColorManagement', 'videoDenoise',
 	'videoFreeze', 'videoGenerators', 'videoGrading', 'videoMasksMattes',
 	'videoMotionTracking', 'videoRetime', 'videoStabilization', 'videoStills',

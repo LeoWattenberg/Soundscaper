@@ -51,11 +51,11 @@ test('selected V27 freezes the V18/SQLite20/v18 identity without M5 authority', 
 	});
 	const registrations = editorProjectFeatureCapabilityProfileDefinition(runtime.capabilityProfile).registrations;
 	for (const key of [
-		'audioAutomation', 'audioEffects', 'audioMixerGraph', 'videoCaptions',
+		'audioAutomation', 'audioMixerGraph', 'videoCaptions',
 		'videoColorManagement', 'videoDenoise', 'videoGrading', 'videoMotionTracking',
 		'videoRetime', 'videoStabilization', 'videoTransitionDissolve', 'videoTransitions',
 	]) assert.equal(registrations.find((row) => row.key === key)?.available, true, key);
-	for (const key of ['audioMacros', 'audioRecording', 'audioTrackFreeze', 'ofxEffects']) {
+	for (const key of ['audioEffects', 'audioMacros', 'audioRecording', 'audioTrackFreeze', 'ofxEffects']) {
 		assert.equal(registrations.find((row) => row.key === key)?.available, false, key);
 	}
 });
