@@ -569,7 +569,13 @@ async function listRuntimeFiles(root, relativeRoot = '') {
 function assertExpectedRuntime(files) {
 	if (files.length !== EXPECTED_RUNTIME_FILES.length
 		|| files.some((name, index) => name !== EXPECTED_RUNTIME_FILES[index])) {
-		throw new Error(`Desktop runtime output is incomplete or stale: ${files.join(', ')}`);
+		const expected = new Set(EXPECTED_RUNTIME_FILES);
+		const actual = new Set(files);
+		const missing = EXPECTED_RUNTIME_FILES.filter((name) => !actual.has(name));
+		const unexpected = files.filter((name) => !expected.has(name));
+		throw new Error(
+			`Desktop runtime output is incomplete or stale; missing: ${missing.join(', ') || '(none)'}; unexpected: ${unexpected.join(', ') || '(none)'}`,
+		);
 	}
 }
 
