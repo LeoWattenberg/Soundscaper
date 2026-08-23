@@ -3,6 +3,7 @@
 /** Shared selected-V13 pixel resolver used by maintained preview and browser export. */
 
 import {
+	applyManagedSdrGradeStackLinearPixelV1,
 	applyManagedSdrGradeStackPixelV1,
 	type ParsedCubeLutV1,
 } from './video-color-management-v27.ts';
@@ -58,9 +59,22 @@ export interface UnifiedExactRenderFinishingFrameRequestV13 {
 		readonly sourceFrame: number;
 		readonly frame: UnifiedExactRenderRgbaFrameV13;
 	}>[];
+	/** Random-access source-domain provider; traversal order and caches are never frame authority. */
+	readonly resolveTemporalFrame?: (request: Readonly<{
+		readonly clipId: string;
+		readonly sourceFrame: number;
+		readonly width: number;
+		readonly height: number;
+		readonly signal?: AbortSignal;
+	}>) => PromiseLike<UnifiedExactRenderRgbaFrameV13 | null> | UnifiedExactRenderRgbaFrameV13 | null;
 	readonly analysisBodies?: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
 	readonly lutBodies?: ReadonlyMap<string, ParsedCubeLutV1>;
 	readonly accelerator?: VideoMotionWebGl2AcceleratorV1;
+	readonly onAcceleratorFallback?: (reason: string) => void;
+	/** Per-source execution excludes adjustment-layer state until after track composition. */
+	readonly presentationScope?: 'all' | 'source';
+	/** Exact compositors retain linear working pixels and encode only their final picture. */
+	readonly outputEncoding?: 'encoded-output' | 'linear-rec709-d65';
 	readonly signal?: AbortSignal;
 	readonly onProgress?: (progress: UnifiedExactRenderFinishingProgressV13) => void;
 }
@@ -115,7 +129,9 @@ async function resolveFrame(
 	const sequenceFrame = nonNegativeInteger(request?.sequenceFrame, 'V13 sequence frame');
 	const clip = clipById(authority.plan, stableId(request?.clipId, 'V13 finishing clip ID'));
 	const source = sourceForClip(authority.plan, clip);
-	const presentations = applicablePresentations(authority, clip, source, sequenceFrame);
+	const presentations = applicablePresentations(
+		authority, clip, source, sequenceFrame, request.presentationScope ?? 'all',
+	);
 	let frame = rgbaFrame(request?.frame, 'V13 finishing frame');
 	const analysisCache = new Map<string, VideoMotionAnalysisBodyV1>();
 	const stacks = new Map(authority.finishing.processorStacks.map((stack) => [stack.id, stack]));
@@ -139,15 +155,21 @@ async function resolveFrame(
 				const body = analysisBody(authority, source, stack, processor.analysisId,
 					request.analysisBodies, analysisCache);
 				const motion = adjacentMotion(body, sourceFrame);
-				frame = warpApplied(frame, resolveStabilizationTransformV1(motion, processor.strength), request.signal);
+				frame = warpApplied(frame, scaleMotionToFrame(
+					resolveStabilizationTransformV1(motion, processor.strength), body, frame,
+				), request.signal);
 			} else if (processor.kind === 'spatial-denoise') {
 				frame = spatialDenoise(frame, processor.radius, processor.strength, request.signal);
 			} else {
 				const body = analysisBody(authority, source, stack, processor.analysisId,
 					request.analysisBodies, analysisCache);
+				const temporalNeighbors = await exactTemporalNeighbors(
+					request, clip.clipId, frame, sourceFrame, processor.radius, body,
+				);
 				frame = await temporalDenoise(
-					frame, sourceFrame, request.temporalNeighbors ?? [], body,
-					processor.radius, processor.strength, request.accelerator, request.signal,
+					frame, sourceFrame, temporalNeighbors, body,
+					processor.radius, processor.strength, request.accelerator,
+					request.onAcceleratorFallback, request.signal,
 				);
 			}
 			completed += 1;
@@ -159,7 +181,7 @@ async function resolveFrame(
 		}
 	}
 	frame = managedColor(authority.finishing, source, presentations, frame,
-		request.lutBodies, request.signal);
+		request.lutBodies, request.outputEncoding ?? 'encoded-output', request.signal);
 	request.onProgress?.(Object.freeze({
 		phase: 'managed-color', completed: completed + 1, total: executable.length + 1,
 	}));
@@ -171,6 +193,7 @@ function applicablePresentations(
 	clip: UnifiedExactRenderClipNode,
 	source: UnifiedExactRenderPlanSource,
 	sequenceFrame: number,
+	presentationScope: 'all' | 'source',
 ): readonly VideoVisualPresentationV1[] {
 	const visualById = new Map(authority.plan.nodes.filter(
 		(node): node is UnifiedExactRenderVisualNode => node.kind === 'visual',
@@ -181,7 +204,7 @@ function applicablePresentations(
 		if (presentation.owner.kind === 'source' || presentation.owner.kind === 'generator') {
 			return presentation.owner.id === source.sourceId;
 		}
-		if (presentation.owner.kind !== 'adjustment-layer') return false;
+		if (presentation.owner.kind !== 'adjustment-layer' || presentationScope === 'source') return false;
 		const node = visualById.get(presentation.owner.id);
 		if (!node || node.modelKind !== 'adjustment-layer'
 			|| !('kind' in node.authoredState)
@@ -199,6 +222,7 @@ function managedColor(
 	presentations: readonly VideoVisualPresentationV1[],
 	frame: UnifiedExactRenderRgbaFrameV13,
 	lutBodies: ReadonlyMap<string, ParsedCubeLutV1> | undefined,
+	outputEncoding: 'encoded-output' | 'linear-rec709-d65',
 	signal?: AbortSignal,
 ): UnifiedExactRenderRgbaFrameV13 {
 	const interpretation = finishing.sourceInterpretations.find(({ sourceId }) => sourceId === source.sourceId);
@@ -210,7 +234,7 @@ function managedColor(
 		throwIfAborted(signal);
 		for (let x = 0; x < frame.width; x += 1) {
 			const offset = (y * frame.width + x) * 4;
-			const value = applyManagedSdrGradeStackPixelV1({
+			const gradeRequest = {
 				rgba: [
 					frame.pixels[offset]! / 255,
 					frame.pixels[offset + 1]! / 255,
@@ -218,8 +242,12 @@ function managedColor(
 					frame.pixels[offset + 3]! / 255,
 				],
 				interpretation, grades, luts,
-				outputSpace: finishing.colorContext.outputSpace,
-			});
+			};
+			const value = outputEncoding === 'linear-rec709-d65'
+				? applyManagedSdrGradeStackLinearPixelV1(gradeRequest)
+				: applyManagedSdrGradeStackPixelV1({
+					...gradeRequest, outputSpace: finishing.colorContext.outputSpace,
+				});
 			for (let channel = 0; channel < 4; channel += 1) {
 				pixels[offset + channel] = Math.round(value[channel]! * 255);
 			}
@@ -253,6 +281,7 @@ async function temporalDenoise(
 	radius: number,
 	strength: number,
 	accelerator?: VideoMotionWebGl2AcceleratorV1,
+	onAcceleratorFallback?: (reason: string) => void,
 	signal?: AbortSignal,
 ): Promise<UnifiedExactRenderRgbaFrameV13> {
 	const neighbors = neighborsValue.filter((neighbor) => (
@@ -261,7 +290,9 @@ async function temporalDenoise(
 	)).map((neighbor) => Object.freeze({
 		sourceFrame: nonNegativeInteger(neighbor.sourceFrame, 'V13 temporal neighbor source frame'),
 		frame: rgbaFrame(neighbor.frame, 'V13 temporal neighbor frame'),
-		transformToCurrent: motionBetween(body, neighbor.sourceFrame, sourceFrame),
+		transformToCurrent: scaleMotionToFrame(
+			motionBetween(body, neighbor.sourceFrame, sourceFrame), body, frame,
+		),
 	}));
 	if (neighbors.some(({ frame: neighbor }) => (
 		neighbor.width !== frame.width || neighbor.height !== frame.height
@@ -277,11 +308,71 @@ async function temporalDenoise(
 			neighbors: motionNeighbors,
 			strength,
 			...(accelerator ? { accelerator } : {}),
+			...(onAcceleratorFallback ? { onAcceleratorFallback } : {}),
 			...(signal ? { signal } : {}),
 		});
 		writeChannel(pixels, channel, output);
 	}
 	return Object.freeze({ width: frame.width, height: frame.height, pixels });
+}
+
+async function exactTemporalNeighbors(
+	request: UnifiedExactRenderFinishingFrameRequestV13,
+	clipId: string,
+	frame: UnifiedExactRenderRgbaFrameV13,
+	sourceFrame: number,
+	radius: number,
+	body: VideoMotionAnalysisBodyV1,
+): Promise<readonly Readonly<{
+	readonly sourceFrame: number;
+	readonly frame: UnifiedExactRenderRgbaFrameV13;
+}>[]> {
+	const ordinals: number[] = [];
+	for (let ordinal = Math.max(body.startFrame, sourceFrame - radius);
+		ordinal <= Math.min(body.endFrame - 1, sourceFrame + radius); ordinal += 1) {
+		if (ordinal !== sourceFrame) ordinals.push(ordinal);
+	}
+	const supplied = new Map<number, UnifiedExactRenderRgbaFrameV13>();
+	for (const neighbor of request.temporalNeighbors ?? []) {
+		const ordinal = nonNegativeInteger(neighbor.sourceFrame, 'V13 temporal neighbor source frame');
+		if (supplied.has(ordinal)) throw new RangeError(`V13 temporal neighbor ${String(ordinal)} is duplicated.`);
+		supplied.set(ordinal, rgbaFrame(neighbor.frame, 'V13 temporal neighbor frame'));
+	}
+	const resolved: Array<Readonly<{
+		readonly sourceFrame: number;
+		readonly frame: UnifiedExactRenderRgbaFrameV13;
+	}>> = [];
+	for (const ordinal of ordinals) {
+		throwIfAborted(request.signal);
+		const candidate = request.resolveTemporalFrame
+			? await request.resolveTemporalFrame(Object.freeze({
+				clipId, sourceFrame: ordinal, width: frame.width, height: frame.height,
+				...(request.signal ? { signal: request.signal } : {}),
+			}))
+			: supplied.get(ordinal) ?? null;
+		throwIfAborted(request.signal);
+		if (candidate === null) {
+			throw new ReferenceError(`V13 temporal neighbor ${String(ordinal)} is unavailable.`);
+		}
+		const checked = rgbaFrame(candidate, `V13 temporal neighbor ${String(ordinal)}`);
+		if (checked.width !== frame.width || checked.height !== frame.height) {
+			throw new RangeError('V13 temporal neighbor dimensions changed.');
+		}
+		resolved.push(Object.freeze({ sourceFrame: ordinal, frame: checked }));
+	}
+	return Object.freeze(resolved);
+}
+
+function scaleMotionToFrame(
+	motion: VideoSimilarityTransformV1,
+	body: VideoMotionAnalysisBodyV1,
+	frame: UnifiedExactRenderRgbaFrameV13,
+): VideoSimilarityTransformV1 {
+	return Object.freeze({
+		...motion,
+		translateX: motion.translateX * frame.width / body.analysisWidth,
+		translateY: motion.translateY * frame.height / body.analysisHeight,
+	});
 }
 
 function analysisBody(

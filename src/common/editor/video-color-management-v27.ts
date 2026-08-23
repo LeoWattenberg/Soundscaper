@@ -214,6 +214,17 @@ export function applyManagedSdrGradeStackPixelV1(request: Readonly<{
 	readonly luts?: readonly (ParsedCubeLutV1 | undefined)[];
 	readonly outputSpace: VideoColorOutputSpaceV1;
 }>): LinearRgbaV1 {
+	const linear = applyManagedSdrGradeStackLinearPixelV1(request);
+	return encodeManagedSdrLinearPixelV1(linear, request.outputSpace);
+}
+
+/** Decode and grade into straight-alpha linear Rec.709/D65 without encoding. */
+export function applyManagedSdrGradeStackLinearPixelV1(request: Readonly<{
+	readonly rgba: readonly number[];
+	readonly interpretation: unknown;
+	readonly grades: readonly unknown[];
+	readonly luts?: readonly (ParsedCubeLutV1 | undefined)[];
+}>): LinearRgbaV1 {
 	const interpretation = normalizeVideoSourceColorInterpretationV1(request?.interpretation);
 	assertManagedSdr(interpretation);
 	if (!Array.isArray(request?.grades) || request.grades.length > 64) {
@@ -235,9 +246,20 @@ export function applyManagedSdrGradeStackPixelV1(request: Readonly<{
 	));
 	let linear = encoded.map((channel) => decodeTransfer(channel, interpretation.transfer));
 	for (const { grade, lut } of grades) linear = applyGrade(linear, grade, lut);
-	const output = linear.map((channel) => encodeOutput(clamp(channel), request.outputSpace));
+	return Object.freeze([clamp(linear[0]!), clamp(linear[1]!), clamp(linear[2]!), rgba[3]]);
+}
+
+/** Encode one straight-alpha linear working pixel exactly once. */
+export function encodeManagedSdrLinearPixelV1(
+	rgbaValue: readonly number[],
+	outputSpace: VideoColorOutputSpaceV1,
+): LinearRgbaV1 {
+	const rgba = rgbaTuple(rgbaValue);
 	return Object.freeze([
-		output[0]! * rgba[3], output[1]! * rgba[3], output[2]! * rgba[3], rgba[3],
+		encodeOutput(rgba[0], outputSpace),
+		encodeOutput(rgba[1], outputSpace),
+		encodeOutput(rgba[2], outputSpace),
+		rgba[3],
 	]);
 }
 

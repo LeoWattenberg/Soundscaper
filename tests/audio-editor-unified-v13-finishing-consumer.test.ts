@@ -96,6 +96,15 @@ test('similarity stabilization consumes only an authenticated fresh source-domai
 		analysisBodies: new Map([['analysis-1', analysis.bytes]]),
 	});
 	assert.ok(centroidX(stabilized) < centroidX(frame) - 0.5);
+	const large = scaledGrayRgba(after, 2);
+	const largeStabilized = await consumer.resolveFrame({
+		clipId: 'video-clip', sourceFrame: 1, sequenceFrame: 1, frame: large,
+		analysisBodies: new Map([['analysis-1', analysis.bytes]]),
+	});
+	assert.ok(
+		centroidX(largeStabilized) < centroidX(large) - 1.5,
+		'analysis-space translations scale to the rendered source geometry',
+	);
 
 	const corrupt = analysis.bytes.slice();
 	corrupt[corrupt.length - 2] ^= 1;
@@ -103,6 +112,55 @@ test('similarity stabilization consumes only an authenticated fresh source-domai
 		clipId: 'video-clip', sourceFrame: 1, sequenceFrame: 1, frame,
 		analysisBodies: new Map([['analysis-1', corrupt]]),
 	}), /digest|analysis body/iu);
+});
+
+test('temporal denoise requests an exact symmetric frame-addressed neighborhood', async () => {
+	const processors = [
+		{
+			schemaVersion: 1 as const, id: 'tracking-1', kind: 'tracking' as const,
+			enabled: true, maximumFeatures: 32, quality: 0.01,
+			minimumDistance: 2, windowRadius: 2, pyramidLevels: 3,
+		},
+		{
+			schemaVersion: 1 as const, id: 'temporal-1', kind: 'temporal-denoise' as const,
+			enabled: true, motionProvider: 'pyramidal-lucas-kanade' as const,
+			analysisId: 'analysis-1', radius: 2, strength: 0.5,
+		},
+	];
+	const stack = {
+		schemaVersion: 1 as const, id: 'stack-1', sourceId: 'video-source', processors,
+	};
+	const analysis = await analyzeVideoMotionV1({
+		analysisId: 'analysis-1', inputSha256: SOURCE_SHA, processorStack: stack,
+		frames: [0, 1, 2, 3, 4].map((frameNumber) => ({
+			frameNumber, frame: square(frameNumber, 0),
+		})),
+	});
+	const project = createFramescaperProjectV27(PROFILE, {
+		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
+		finishing: {
+			...finishing({ processors, grade: null }), motionAnalyses: [analysis.reference],
+		},
+	});
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+		...renderAuthority(project, 10), visualFreshnessByModelId: new Map(),
+	});
+	const consumer = createUnifiedExactRenderFinishingExportConsumerV13(plan);
+	const requested: number[] = [];
+	const current = grayRgba(square(2, 0));
+	await consumer.resolveFrame({
+		clipId: 'video-clip', sourceFrame: 2, sequenceFrame: 2, frame: current,
+		analysisBodies: new Map([['analysis-1', analysis.bytes]]),
+		resolveTemporalFrame({ sourceFrame }) {
+			requested.push(sourceFrame);
+			return grayRgba(square(sourceFrame, 0));
+		},
+	});
+	assert.deepEqual(requested, [0, 1, 3, 4]);
+	await assert.rejects(() => consumer.resolveFrame({
+		clipId: 'video-clip', sourceFrame: 2, sequenceFrame: 2, frame: current,
+		analysisBodies: new Map([['analysis-1', analysis.bytes]]),
+	}), /temporal neighbor 0.*unavailable/iu);
 });
 
 function finishing(input: Readonly<{ processors: readonly unknown[]; grade: unknown }>) {
@@ -152,6 +210,17 @@ function square(dx: number, dy: number) {
 
 function grayRgba(frame: ReturnType<typeof square>) {
 	return rgba(frame.width, frame.height, frame.samples.map((value) => Math.round(value * 255)));
+}
+
+function scaledGrayRgba(frame: ReturnType<typeof square>, scale: number) {
+	const width = frame.width * scale;
+	const height = frame.height * scale;
+	const values = Array.from({ length: width * height }, (_, index) => {
+		const x = index % width;
+		const y = Math.floor(index / width);
+		return Math.round(frame.samples[Math.floor(y / scale) * frame.width + Math.floor(x / scale)]! * 255);
+	});
+	return rgba(width, height, values);
 }
 
 function centroidX(frame: Readonly<{ width: number; height: number; pixels: Uint8Array }>): number {

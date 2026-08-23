@@ -34,6 +34,9 @@ export interface VideoMotionAnalysisBodyV1 {
 	readonly processorStackId: string;
 	readonly inputSha256: string;
 	readonly settingsSha256: string;
+	/** Pixel geometry in which every persisted translation was estimated. */
+	readonly analysisWidth: number;
+	readonly analysisHeight: number;
 	readonly startFrame: number;
 	readonly endFrame: number;
 	readonly transforms: readonly VideoMotionAnalysisTransformV1[];
@@ -101,6 +104,8 @@ export async function analyzeVideoMotionV1(
 		processorStackId: stack.id,
 		inputSha256,
 		settingsSha256,
+		analysisWidth: frames[0]!.frame.width,
+		analysisHeight: frames[0]!.frame.height,
 		startFrame: frames[0]!.frameNumber,
 		endFrame: frames[frames.length - 1]!.frameNumber + 1,
 		transforms,
@@ -239,7 +244,7 @@ function analysisFrames(value: unknown): readonly Readonly<{
 function normalizeBody(value: unknown): VideoMotionAnalysisBodyV1 {
 	const input = exactRecord(value, [
 		'schemaVersion', 'analysisId', 'sourceId', 'processorStackId', 'inputSha256',
-		'settingsSha256', 'startFrame', 'endFrame', 'transforms',
+		'settingsSha256', 'analysisWidth', 'analysisHeight', 'startFrame', 'endFrame', 'transforms',
 	], 'motion analysis body');
 	if (input.schemaVersion !== 1) throw new RangeError('The motion analysis body schema is unsupported.');
 	const startFrame = nonNegativeInteger(input.startFrame, 'motion analysis body start frame');
@@ -258,6 +263,8 @@ function normalizeBody(value: unknown): VideoMotionAnalysisBodyV1 {
 		processorStackId: stableId(input.processorStackId, 'motion analysis body stack ID'),
 		inputSha256: digest(input.inputSha256, 'motion analysis body input digest'),
 		settingsSha256: digest(input.settingsSha256, 'motion analysis body settings digest'),
+		analysisWidth: positiveInteger(input.analysisWidth, 'motion analysis body width'),
+		analysisHeight: positiveInteger(input.analysisHeight, 'motion analysis body height'),
 		startFrame,
 		endFrame,
 		transforms: Object.freeze(transforms),
@@ -325,6 +332,13 @@ function digest(value: unknown, name: string): string {
 
 function nonNegativeInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 0) throw new RangeError(`${name} must be non-negative.`);
+	return Number(value);
+}
+
+function positiveInteger(value: unknown, name: string): number {
+	if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > 65_536) {
+		throw new RangeError(`${name} must be a positive bounded integer.`);
+	}
 	return Number(value);
 }
 

@@ -5,7 +5,9 @@ import test from 'node:test';
 
 import {
 	applyManagedSdrGradePixelV1,
+	applyManagedSdrGradeStackLinearPixelV1,
 	applyManagedSdrGradeStackPixelV1,
+	encodeManagedSdrLinearPixelV1,
 	defaultVideoSourceColorInterpretationV1,
 	normalizeVideoColorContextV1,
 	normalizeVideoColorGradeV1,
@@ -69,7 +71,7 @@ test('the color context fixes one linear Rec.709 working and deterministic outpu
 	assert.throws(() => normalizeVideoColorContextV1({ ...context, toneMapping: 'automatic' }), /tone|unsupported/iu);
 });
 
-test('managed SDR grading decodes range and transfer before premultiplication', () => {
+test('managed SDR grading keeps straight alpha until its linear compositor', () => {
 	const interpretation = defaultVideoSourceColorInterpretationV1('still', 'still-1');
 	const grade = normalizeVideoColorGradeV1({
 		schemaVersion: 1,
@@ -88,10 +90,22 @@ test('managed SDR grading decodes range and transfer before premultiplication', 
 		grade,
 		outputSpace: 'linear-rec709-d65',
 	});
-	const expected = 0.21404114048223255 * 0.25;
+	const expected = 0.21404114048223255;
 	for (const channel of result.slice(0, 3)) close(channel, expected, 1e-12);
 	close(result[3], 0.25);
 	assert.equal(Object.isFrozen(result), true);
+});
+
+test('linear working pixels are encoded once without multiplying straight alpha', () => {
+	const interpretation = defaultVideoSourceColorInterpretationV1('still', 'still-1');
+	const linear = applyManagedSdrGradeStackLinearPixelV1({
+		rgba: [0.5, 0.5, 0.5, 0.5], interpretation, grades: [],
+	});
+	close(linear[0], 0.21404114048223255, 1e-12);
+	close(linear[3], 0.5);
+	const encoded = encodeManagedSdrLinearPixelV1(linear, 'srgb');
+	close(encoded[0], 0.5, 1e-12);
+	close(encoded[3], 0.5);
 });
 
 test('the grade owns exposure, contrast/pivot, lift/gamma/gain, saturation, and a LUT reference', () => {

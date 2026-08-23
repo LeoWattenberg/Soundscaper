@@ -61,6 +61,8 @@ test('built-in tracking produces a deterministic digest-bound analysis with prog
 	assert.equal(result.reference.endFrame, 13);
 	assert.equal(result.reference.byteLength, result.bytes.byteLength);
 	assert.equal(result.reference.settingsSha256, videoMotionSettingsSha256V1(stack()));
+	assert.equal(result.body.analysisWidth, 24);
+	assert.equal(result.body.analysisHeight, 24);
 	assert.equal(result.body.transforms.length, 2);
 	for (const row of result.body.transforms) {
 		assert.ok(Math.abs(row.transform.translateX - 1) < 0.3);
