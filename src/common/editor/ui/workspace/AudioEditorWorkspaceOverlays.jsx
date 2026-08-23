@@ -1,6 +1,7 @@
 import React from 'react';
 import ScapeOpenDecisionDialog from './ScapeOpenDecisionDialog.jsx';
 import SoundscaperProductionWorkspaceOverlay from './SoundscaperProductionWorkspaceOverlay.tsx';
+import { framescaperV27FinishingSurface } from '../framescaper-v27-finishing-menu.ts';
 
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
@@ -8,6 +9,7 @@ const ClipPropertiesDialog = React.lazy(() => import('../inspector/ClipPropertie
 const VideoCompositionDialog = React.lazy(() => import('../inspector/VideoCompositionDialog.tsx'));
 const VideoKeyframeDialog = React.lazy(() => import('../inspector/VideoKeyframeDialog.tsx'));
 const VideoRetimeDialog = React.lazy(() => import('../dialogs/VideoRetimeDialog.tsx'));
+const FramescaperV27FinishingDialog = React.lazy(() => import('../dialogs/FramescaperV27FinishingDialog.tsx'));
 const ExportDialog = React.lazy(() => import('../inspector/ExportDialog.jsx'));
 const DeliveryQueueDialog = React.lazy(() => import('../inspector/DeliveryQueueDialog.jsx'));
 const LabelExportDialog = React.lazy(() => import('../inspector/LabelExportDialog.jsx'));
@@ -64,6 +66,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		snapshot,
 		toggleWorkspacePanel,
 	} = model;
+	const framescaperFinishingSurface = framescaperV27FinishingSurface(activeSurface);
 	return <>
 			<SoundscaperProductionWorkspaceOverlay model={model} />
 
@@ -140,6 +143,24 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							editingBlocked={editBlocked}
 							controller={controller}
 							snapshot={snapshot}
+							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{productId === 'framescaper' && snapshot.project?.schemaVersion === 27
+				&& framescaperFinishingSurface && (
+				<div data-editor-surface="framescaper-v27-finishing">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<FramescaperV27FinishingDialog
+							surface={framescaperFinishingSurface}
+							controller={controller}
+							project={snapshot.project}
+							selectedTrackId={snapshot.selectedTrackId ?? null}
+							editingBlocked={editBlocked}
+							readOnly={snapshot.readOnly === true}
 							copy={copy}
 							run={run}
 							onClose={() => setActiveSurface(null)}

@@ -3,6 +3,7 @@
 import { createFramescaperNestedSequenceMenuItems } from './framescaper-nested-sequence-menu.ts';
 import { createFramescaperMulticameraMenuItems } from './framescaper-multicamera-menu.ts';
 import { createFramescaperCandidateAuthoringMenuItems } from './framescaper-candidate-authoring-menu.ts';
+import { createFramescaperV27FinishingMenuItems } from './framescaper-v27-finishing-menu.ts';
 import { createFramescaperNativeServicesMenuItems } from './framescaper-native-services-menu.ts';
 import { createSoundscaperNativeServicesMenuItems } from './soundscaper-native-services-menu.ts';
 import { createSoundscaperProductionApplicationMenuItems } from './soundscaper-production-application-menu.ts';
@@ -61,6 +62,10 @@ export function createApplicationMenuProductItems({
 		readOnly: snapshot.readOnly === true,
 		actionSurfaces: authoringRuntime?.surfaces ?? [], copy,
 	}, { open: (surface) => authoringRuntime?.open(surface) });
+	const selectedFinishing = createFramescaperV27FinishingMenuItems({
+		productId, project, capabilities, editingBlocked: editBlocked,
+		readOnly: snapshot.readOnly === true, copy,
+	}, { open: (surface) => actions.openFramescaperV27Finishing?.(surface) });
 	const nativeServices = createFramescaperNativeServicesMenuItems({
 		productId,
 		runtimeAvailable: nativeRuntime !== null,
@@ -89,10 +94,15 @@ export function createApplicationMenuProductItems({
 	}, { open: (surface) => soundscaperNativeRuntime?.open(surface) });
 	return Object.freeze({
 		...production,
-		tracks: Object.freeze([nestedSequences, multicamera, ...candidateAuthoring.tracks, ...production.tracks].filter(Boolean)),
+		tracks: Object.freeze([nestedSequences, multicamera, ...candidateAuthoring.tracks,
+			...selectedFinishing.tracks, ...production.tracks].filter(Boolean)),
 		generate: candidateAuthoring.generate,
-		effect: Object.freeze([...candidateAuthoring.effect, ...production.effect, ...nativeServices.effect, ...soundscaperNativeServices.effect]),
-		tools: Object.freeze([...production.tools, ...nativeServices.tools, ...soundscaperNativeServices.tools]),
+		effect: Object.freeze([...candidateAuthoring.effect, ...selectedFinishing.effect,
+			...production.effect, ...nativeServices.effect, ...soundscaperNativeServices.effect]),
+		analyze: Object.freeze([...selectedFinishing.analyze, ...production.analyze]),
+		mixer: Object.freeze([...selectedFinishing.mixer, ...production.mixer]),
+		tools: Object.freeze([...selectedFinishing.tools, ...production.tools,
+			...nativeServices.tools, ...soundscaperNativeServices.tools]),
 		fileImport: nativeServices.fileImport,
 		fileExport: nativeServices.fileExport,
 		view: nativeServices.view,

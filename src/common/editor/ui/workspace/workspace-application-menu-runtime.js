@@ -6,6 +6,7 @@ import createApplicationMenus from '../application-menus.js';
 import { createDesktopHostMenuItems } from '../desktop-host-menu.ts';
 import { framescaperNativeProjectActionRuntimeFor } from '../framescaper-native-project-actions.ts';
 import { framescaperCandidateAuthoringActionRuntimeFor } from '../framescaper-candidate-authoring-actions.ts';
+import { framescaperV27FinishingSurfaceId } from '../framescaper-v27-finishing-menu.ts';
 import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
 import {
 	resolveFramescaperNativeServicesWorkspaceRuntime,
@@ -114,6 +115,9 @@ export function createWorkspaceApplicationMenus({
 			actionRuntime: parityRuntime.actions,
 			actions: {
 				framescaperCandidateAuthoring,
+				openFramescaperV27Finishing: (surface) => openSurface(
+					framescaperV27FinishingSurfaceId(surface),
+				),
 				framescaperNativeServices,
 				soundscaperProduction,
 				soundscaperNativeServices,
