@@ -88,18 +88,19 @@ test('removing the last occurrence of a source drops it', () => {
 	assert.deepEqual(carry(project(), inBin), attachment());
 });
 
-test('retiming any occurrence drops it, including one of several', () => {
-	// A retimed occurrence no longer presents the boundaries conformance proved,
-	// so the proxy stops standing in for what is on screen.
+test('retiming occurrences retains a source-domain proxy', () => {
+	// Proxy conformance is proved in source-frame ordinals. Occurrence retime is
+	// applied only after that source frame has been selected, so it does not
+	// invalidate the source-domain attachment.
 	const after = structuredClone(project());
 	(after.clips as Record<string, unknown>[])[0]!.retimeMap = { kind: 'ramp' };
-	assert.equal(carry(project(), after), null);
+	assert.deepEqual(carry(project(), after), attachment());
 
 	const partly = structuredClone(project());
 	(partly.projectBin as { clips: unknown[] }).clips = [
 		{ id: 'bin-1', sourceId: 'video-1', retimeMap: { kind: 'ramp' } },
 	];
-	assert.equal(carry(project(), partly), null);
+	assert.deepEqual(carry(project(), partly), attachment());
 });
 
 test('a source that was never attached, or has gone, ends explicitly null', () => {
