@@ -59,6 +59,7 @@ export function framescaperProjectV20FoundationV27(profile: unknown, project: Fr
 
 function mergeSelectedState(baseValue: DataRecord, project: FramescaperProjectV27, runtime: boolean): DataRecord {
 	const base = structuredClone(baseValue) as DataRecord;
+	if (runtime) base.schemaVersion = 27;
 	const canonical = project as unknown as Readonly<DataRecord>;
 	const visualSources = records(canonical.sources, 'V27 sources').filter(isVisual);
 	const visualClips = records(canonical.clips, 'V27 clips').filter(isVisual);

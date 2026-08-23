@@ -142,6 +142,25 @@ test('project scheduling omits a lane only when its valid graph parameter is exp
 	}), /outside its target range/iu);
 });
 
+test('selected Framescaper V27 schedules shared V21 automation against active graph parameters', () => {
+	const packets: ScheduledParameterMessage[] = [];
+	const registry = new ScheduledParameterRegistry();
+	registry.registerMessageTarget(descriptor(), (message) => { packets.push(message); });
+	const result = scheduleProjectAutomationLanesV21({
+		schemaVersion: 27,
+		automationLanes: [lane()],
+	} as EngineProject, registry, {
+		fromFrame: 0,
+		toFrame: 20,
+		contextStartTime: 1,
+		sampleRate: 48_000,
+		contextSampleRate: 48_000,
+	});
+
+	assert.deepEqual(result.map(({ laneId }) => laneId), ['mix-lane']);
+	assert.equal(packets.length, 1);
+});
+
 test('musical points and tempo changes compile to deterministic exact frame events', () => {
 	const tempoMap = {
 		mode: 'musical' as const,

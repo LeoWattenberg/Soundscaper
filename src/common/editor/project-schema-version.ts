@@ -56,6 +56,12 @@ export function isSoundscaperProductionProjectSchema(value: unknown): value is 2
 		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
+/** Documents that execute the shared V21 automation and explicit mixer graph. */
+export function isProductionMixerProjectSchema(value: unknown): value is 21 | 23 | 27 {
+	return isSoundscaperProductionProjectSchema(value)
+		|| value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION;
+}
+
 /**
  * Documents whose revision owns a mastering-sequence collection.
  *
@@ -106,10 +112,11 @@ export function isActiveAudioEditorProjectSchema(value: unknown): value is 17 | 
 		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
-export function isTimelineAnnotationProjectSchema(value: unknown): value is 17 | 21 | 23 {
+export function isTimelineAnnotationProjectSchema(value: unknown): value is 17 | 21 | 23 | 27 {
 	return value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION
 		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION;
 }
 
 export function isTrackFolderProjectSchema(value: unknown): value is 17 | 21 | 23 {

@@ -35,7 +35,7 @@ test('selected V27 runtime owns exact creation, projection, storage, and explici
 	assert.equal(runtime.validateProject(project), true);
 	assert.equal(runtime.migrateProject(project).readOnly, false);
 	assert.equal(runtime.projectForCommandConsumers(project).schemaVersion, 17);
-	assert.equal(runtime.projectForRuntimeConsumers(project).schemaVersion, 17);
+	assert.equal(runtime.projectForRuntimeConsumers(project).schemaVersion, 27);
 	assert.equal(
 		(runtime.projectForRuntimeConsumers(project).clips as readonly unknown[]).length,
 		(project.clips as readonly unknown[]).length,

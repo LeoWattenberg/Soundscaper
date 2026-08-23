@@ -8,10 +8,15 @@ import test from 'node:test';
 import {
 	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
 	isSoundscaperProductionProjectSchema,
+	isProductionMixerProjectSchema,
 } from '../src/common/editor/project-schema-version.ts';
 
 test('the production authority is asked about, not compared against a revision', () => {
 	assert.equal(isSoundscaperProductionProjectSchema(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION), true);
+	assert.equal(isProductionMixerProjectSchema(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION), true);
+	assert.equal(isProductionMixerProjectSchema(23), true);
+	assert.equal(isProductionMixerProjectSchema(27), true);
+	assert.equal(isProductionMixerProjectSchema(20), false);
 	for (const value of [17, 19, 20, 12, 0, -21, 21.5, '21', null, undefined, {}, NaN]) {
 		assert.equal(
 			isSoundscaperProductionProjectSchema(value),
@@ -62,6 +67,14 @@ test('the render path in particular asks the predicate', () => {
 		'src/common/editor/engine/project-graph.ts',
 		'src/common/editor/engine/project-automation-scheduler-v21.ts',
 		'src/common/editor/engine/transport-scheduler.ts',
+	]) {
+		assert.match(
+			readFileSync(file, 'utf8'),
+			/isProductionMixerProjectSchema/u,
+			`${file} decides mixer behaviour and must ask the shared mixer predicate`,
+		);
+	}
+	for (const file of [
 		'src/common/editor/controller/mix-render-model.ts',
 		'src/common/editor/controller/effect-audio-service.ts',
 		'src/common/editor/controller/effect-macro-service.ts',

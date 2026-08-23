@@ -159,11 +159,9 @@ test('production strip analysers preserve channel geometry and expose one analys
 	}
 });
 
-test('V21 empty tracks inherit the master width used by their default channel maps', () => {
-	const context = new FakeContext();
+test('shared production mixer schemas inherit the master width used by their default channel maps', () => {
 	const channels = [0, 1, 2, 3, 4, 5];
-	const project = {
-		schemaVersion: 21,
+	const foundation = {
 		sampleRate: 48_000,
 		masterChannels: 6,
 		tracks: [{
@@ -189,13 +187,17 @@ test('V21 empty tracks inherit the master width used by their default channel ma
 			],
 		},
 		automationLanes: [],
-	} as EngineProject;
-	assert.doesNotThrow(() => buildProjectGraph(
-		context as unknown as BaseAudioContext,
-		context.destination as unknown as AudioNode,
-		project,
-		{ metering: false },
-	));
+	};
+	for (const schemaVersion of [21, 23, 27]) {
+		const context = new FakeContext();
+		const graph = buildProjectGraph(
+			context as unknown as BaseAudioContext,
+			context.destination as unknown as AudioNode,
+			{ ...foundation, schemaVersion } as EngineProject,
+			{ metering: false },
+		);
+		assert.ok(graph.mixerEdgeGainParams, `schema ${String(schemaVersion)} uses the explicit mixer graph`);
+	}
 });
 
 test('V21 builds explicit nested routes, per-edge PDC, channel maps, VCA control, and main output only', async () => {
