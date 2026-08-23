@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import {
@@ -11,10 +11,21 @@ import {
 } from '../framescaper-v27-finishing-dialog-model.ts';
 import type { FramescaperV27FinishingSurface } from '../framescaper-v27-finishing-menu.ts';
 import type { VideoCaptionInterchangeFormatV1 } from '../../video-caption-interchange-contract-v27.ts';
+import type { VideoMotionAnalysisReferenceV1 } from '../../video-motion-model-v27.ts';
+import {
+	openFramescaperCaptionSidecarFileV27,
+	saveFramescaperCaptionSidecarFileV27,
+	type FramescaperCaptionFileServiceV27,
+} from '../framescaper-v27-caption-file-interchange.ts';
 import {
 	createFramescaperDialogueChainAddCommandV27,
 	createFramescaperDialogueChainV27,
 } from '../../../../framescaper/editor-audio-dialogue-chain-v27.ts';
+import {
+	framescaperMotionAnalysisActionsV27For,
+	type FramescaperMotionAnalysisProgressV27,
+	type FramescaperMotionAnalysisTargetV27,
+} from '../../../../framescaper/editor-motion-analysis-actions-v27.ts';
 
 interface FramescaperV27FinishingControllerPort {
 	readonly actions: Readonly<{
@@ -27,6 +38,7 @@ interface FramescaperV27FinishingDialogProps {
 	readonly controller: FramescaperV27FinishingControllerPort;
 	readonly project: unknown;
 	readonly selectedTrackId?: string | null;
+	readonly fileService: FramescaperCaptionFileServiceV27;
 	readonly editingBlocked: boolean;
 	readonly readOnly: boolean;
 	readonly copy?: Readonly<Record<string, string>>;
@@ -42,7 +54,7 @@ const CAPTION_FORMATS = Object.freeze([
 
 export default function FramescaperV27FinishingDialog({
 	surface, controller, project, selectedTrackId = null, editingBlocked, readOnly,
-	copy = {}, run, onClose,
+	copy = {}, fileService, run, onClose,
 }: FramescaperV27FinishingDialogProps) {
 	const model = useMemo(() => createFramescaperV27FinishingDialogModel({ surface, project }), [
 		project, surface,
@@ -59,6 +71,16 @@ export default function FramescaperV27FinishingDialog({
 	const [captionSidecar, setCaptionSidecar] = useState('');
 	const [profiledNoiseReduction, setProfiledNoiseReduction] = useState(false);
 	const [noiseProfileText, setNoiseProfileText] = useState('');
+	const captionFileRef = useRef<HTMLInputElement | null>(null);
+	const motionRuntime = framescaperMotionAnalysisActionsV27For(controller);
+	const motionTargets = motionRuntime?.targets() ?? [];
+	const [motionStackId, setMotionStackId] = useState(() => motionTargets[0]?.stackId ?? '');
+	const motionTarget = motionTargets.find(({ stackId }) => stackId === motionStackId)
+		?? motionTargets[0] ?? null;
+	const [motionStartFrame, setMotionStartFrame] = useState(() => String(motionTarget?.startFrame ?? 0));
+	const [motionEndFrame, setMotionEndFrame] = useState(() => String(motionTarget?.endFrame ?? 0));
+	const [motionProgress, setMotionProgress] = useState<FramescaperMotionAnalysisProgressV27 | null>(null);
+	const motionAbortRef = useRef<AbortController | null>(null);
 
 	useEffect(() => {
 		setDocumentText(model.documentText);
@@ -68,6 +90,7 @@ export default function FramescaperV27FinishingDialog({
 		setStatus('');
 		setError('');
 	}, [model.surface]);
+	useEffect(() => () => { motionAbortRef.current?.abort(); }, []);
 
 	const blocked = pending || editingBlocked || readOnly;
 	const perform = (operation: () => unknown, success: string | (() => string)): void => {
@@ -101,18 +124,89 @@ export default function FramescaperV27FinishingDialog({
 		captionImportSummary = lossSummary(imported.result.losses.length);
 		return result;
 	}, () => captionImportSummary);
-	const exportSidecar = (): void => {
-		try {
+	const applyCaptionFile = (file?: Blob): void => {
+		if (!file && !fileService.isDesktop) {
+			captionFileRef.current?.click();
+			return;
+		}
+		perform(async () => {
+			const opened = await openFramescaperCaptionSidecarFileV27({
+				...(file ? { file } : {}), fileService,
+			});
+			if (opened === null) {
+				captionImportSummary = text(copy, 'captionFileSelectionCancelled', 'No sidecar file selected.');
+				return;
+			}
+			setCaptionFormat(opened.format);
+			setCaptionSidecar(opened.text);
+			const imported = importFramescaperV27CaptionSidecar({
+				project, format: opened.format, text: opened.text,
+				trackId: captionTrackId, sequenceId: captionSequenceId,
+				trackName: captionTrackName, language: captionLanguage,
+			});
+			await controller.actions.edit.commit(imported.command);
+			setDocumentText(JSON.stringify([
+				...captionTracks(project).filter(({ id }) => id !== imported.result.track.id),
+				imported.result.track,
+			], null, '\t'));
+			captionImportSummary = `${opened.fileName}: ${lossSummary(imported.result.losses.length)}`;
+		}, () => captionImportSummary);
+	};
+	const exportSidecar = (): void => perform(async () => {
 			const exported = exportFramescaperV27CaptionSidecar({
 				project, trackId: captionTrackId, format: captionFormat,
 			});
 			setCaptionSidecar(exported.text);
-			setError('');
-			setStatus(lossSummary(exported.losses.length));
-		} catch (exportError: unknown) {
+			await saveFramescaperCaptionSidecarFileV27({
+				fileService, format: captionFormat, trackId: captionTrackId, text: exported.text,
+			});
+			captionImportSummary = lossSummary(exported.losses.length);
+		}, () => captionImportSummary);
+	const analyzeMotion = (): void => {
+		if (!motionRuntime || !motionTarget || blocked) return;
+		let startFrame: number;
+		let endFrame: number;
+		try {
+			startFrame = inputFrame(motionStartFrame, 'Motion-analysis start frame');
+			endFrame = inputFrame(motionEndFrame, 'Motion-analysis end frame');
+		} catch (rangeError) {
 			setStatus('');
-			setError(exportError instanceof Error ? exportError.message : String(exportError));
+			setError(rangeError instanceof Error ? rangeError.message : String(rangeError));
+			return;
 		}
+		const abort = new AbortController();
+		motionAbortRef.current = abort;
+		setPending(true);
+		setMotionProgress(null);
+		setStatus('');
+		setError('');
+		const operation = run(() => motionRuntime.analyze({
+			processorStackId: motionTarget.stackId,
+			startFrame,
+			endFrame,
+			signal: abort.signal,
+			onProgress: setMotionProgress,
+		})) as PromiseLike<VideoMotionAnalysisReferenceV1> | VideoMotionAnalysisReferenceV1;
+		void Promise.resolve(operation).then((reference) => {
+			setDocumentText(JSON.stringify({
+				videoProcessorStacks: processorStacks(project),
+				videoMotionAnalyses: [
+					...motionAnalyses(project).filter(({ id }) => id !== reference.id),
+					reference,
+				],
+			}, null, '\t'));
+			setStatus(text(copy, 'motionAnalysisPublished', 'Motion analysis published and current.'));
+		}, (operationError: unknown) => {
+			if ((operationError as Error)?.name === 'AbortError') {
+				setStatus(text(copy, 'motionAnalysisCancelled', 'Motion analysis cancelled.'));
+			} else {
+				setError(operationError instanceof Error ? operationError.message : String(operationError));
+			}
+		}).finally(() => {
+			if (motionAbortRef.current === abort) motionAbortRef.current = null;
+			setPending(false);
+			setMotionProgress(null);
+		});
 	};
 	const applyDialogueChain = (): void => {
 		if (!selectedTrackId) return;
@@ -171,6 +265,29 @@ export default function FramescaperV27FinishingDialog({
 				onSidecar={setCaptionSidecar}
 				onImport={importSidecar}
 				onExport={exportSidecar}
+				onChooseFile={applyCaptionFile}
+				fileRef={captionFileRef}
+			/>}
+			{surface === 'motion-tracking' && <MotionAnalysisControls
+				blocked={blocked}
+				targets={motionTargets}
+				target={motionTarget}
+				stackId={motionStackId}
+				startFrame={motionStartFrame}
+				endFrame={motionEndFrame}
+				progress={motionProgress}
+				pending={pending && motionAbortRef.current !== null}
+				copy={copy}
+				onStack={(stackId) => {
+					setMotionStackId(stackId);
+					const target = motionTargets.find((candidate) => candidate.stackId === stackId);
+					setMotionStartFrame(String(target?.startFrame ?? 0));
+					setMotionEndFrame(String(target?.endFrame ?? 0));
+				}}
+				onStartFrame={setMotionStartFrame}
+				onEndFrame={setMotionEndFrame}
+				onAnalyze={analyzeMotion}
+				onCancel={() => { motionAbortRef.current?.abort(); }}
 			/>}
 			{surface === 'dialogue-chain' && <fieldset disabled={blocked}>
 				<legend>{text(copy, 'dialogueChain', 'Dialogue chain')}</legend>
@@ -211,6 +328,8 @@ function CaptionSidecarEditor(props: Readonly<{
 	readonly onSidecar: (value: string) => void;
 	readonly onImport: () => void;
 	readonly onExport: () => void;
+	readonly onChooseFile: (file?: Blob) => void;
+	readonly fileRef: React.RefObject<HTMLInputElement | null>;
 	}>) {
 	return <fieldset disabled={props.blocked}>
 		<legend>{text(props.copy, 'captionSidecarInterchange', 'Caption sidecar interchange')}</legend>
@@ -229,15 +348,84 @@ function CaptionSidecarEditor(props: Readonly<{
 			onChange={(event) => props.onLanguage(event.currentTarget.value)} /></label>
 		<label><span>{text(props.copy, 'captionSidecarText', 'Sidecar text')}</span><textarea rows={10} maxLength={16 * 1024 * 1024}
 			value={props.sidecar} onChange={(event) => props.onSidecar(event.currentTarget.value)} /></label>
-		<div><button type="button" onClick={props.onImport}>{text(props.copy, 'captionImportSidecar', 'Import sidecar')}</button>
-			<button type="button" onClick={props.onExport}>{text(props.copy, 'captionExportSelectedTrack', 'Export selected track')}</button></div>
+		<div><button type="button" onClick={() => { props.onChooseFile(); }}>{
+			text(props.copy, 'captionChooseSidecarFile', 'Choose sidecar file…')
+		}</button><button type="button" onClick={props.onImport}>{
+			text(props.copy, 'captionImportSidecar', 'Import sidecar text')
+		}</button><button type="button" onClick={props.onExport}>{
+			text(props.copy, 'captionExportSelectedTrack', 'Export selected track…')
+		}</button><input ref={props.fileRef} type="file"
+			accept=".srt,.vtt,.webvtt,.ttml,.imsc,.xml,text/vtt,application/x-subrip,application/ttml+xml"
+			hidden data-v27-caption-file onChange={(event) => {
+				const file = event.currentTarget.files?.[0] ?? null;
+				event.currentTarget.value = '';
+				if (file) props.onChooseFile(file);
+			}} /></div>
 		<p>{text(props.copy, 'captionDeliveryUnavailable',
 			'Caption burn-in and mux are intentionally unavailable in Milestones 1–4.')}</p>
 	</fieldset>;
 }
 
+function MotionAnalysisControls(props: Readonly<{
+	readonly blocked: boolean;
+	readonly targets: readonly FramescaperMotionAnalysisTargetV27[];
+	readonly target: FramescaperMotionAnalysisTargetV27 | null;
+	readonly stackId: string;
+	readonly startFrame: string;
+	readonly endFrame: string;
+	readonly progress: FramescaperMotionAnalysisProgressV27 | null;
+	readonly pending: boolean;
+	readonly copy: Readonly<Record<string, string>>;
+	readonly onStack: (value: string) => void;
+	readonly onStartFrame: (value: string) => void;
+	readonly onEndFrame: (value: string) => void;
+	readonly onAnalyze: () => void;
+	readonly onCancel: () => void;
+}>) {
+	return <fieldset disabled={props.blocked && !props.pending}>
+		<legend>{text(props.copy, 'motionAnalysisExecution', 'Built-in motion analysis')}</legend>
+		{props.targets.length === 0 ? <p role="status">{
+			text(props.copy, 'motionAnalysisTargetMissing', 'Add one enabled tracking processor stack first.')
+		}</p> : <>
+			<label><span>{text(props.copy, 'motionAnalysisTarget', 'Motion-analysis target')}</span>
+				<select value={props.stackId} disabled={props.blocked} onChange={(event) => props.onStack(
+					event.currentTarget.value,
+				)}>{props.targets.map((target) => <option key={target.stackId} value={target.stackId}>{
+					`${target.sourceName} — ${target.stackId}`
+				}</option>)}</select></label>
+			<label><span>{text(props.copy, 'motionAnalysisStartFrame', 'Start frame')}</span>
+				<input type="number" min={props.target?.startFrame ?? 0} step={1} value={props.startFrame}
+					disabled={props.blocked} onChange={(event) => props.onStartFrame(event.currentTarget.value)} /></label>
+			<label><span>{text(props.copy, 'motionAnalysisEndFrame', 'End frame')}</span>
+				<input type="number" min={1} max={props.target?.endFrame ?? 1} step={1} value={props.endFrame}
+					disabled={props.blocked} onChange={(event) => props.onEndFrame(event.currentTarget.value)} /></label>
+			<p role="status">{freshnessLabel(props.copy, props.target?.freshness ?? 'missing')}</p>
+			<button type="button" data-v27-motion-analyze disabled={props.blocked} onClick={props.onAnalyze}>{
+				props.target?.freshness === 'missing'
+					? text(props.copy, 'motionAnalysisAnalyze', 'Analyze motion')
+					: text(props.copy, 'motionAnalysisRecompute', 'Recompute motion')
+			}</button>
+			<button type="button" data-v27-motion-cancel disabled={!props.pending} onClick={props.onCancel}>{
+				text(props.copy, 'cancel', 'Cancel')
+			}</button>
+			{props.progress && <div role="status" aria-live="polite"><progress
+				value={props.progress.completed} max={Math.max(1, props.progress.total)} /> {
+					`${props.progress.phase}: ${String(props.progress.completed)}/${String(props.progress.total)}`
+				}</div>}
+		</>}
+	</fieldset>;
+}
+
 function captionTracks(value: unknown): Array<Record<string, unknown>> {
 	return records(record(value).videoCaptionTracks);
+}
+
+function processorStacks(value: unknown): Array<Record<string, unknown>> {
+	return records(record(value).videoProcessorStacks);
+}
+
+function motionAnalyses(value: unknown): Array<Record<string, unknown>> {
+	return records(record(value).videoMotionAnalyses);
 }
 
 function firstCaptionTrackId(value: unknown): string | null {
@@ -269,6 +457,21 @@ function records(value: unknown): Array<Record<string, unknown>> {
 
 function lossSummary(count: number): string {
 	return count === 0 ? 'No interchange losses.' : `${String(count)} interchange loss${count === 1 ? '' : 'es'} recorded.`;
+}
+
+function freshnessLabel(
+	copy: Readonly<Record<string, string>>,
+	value: FramescaperMotionAnalysisTargetV27['freshness'],
+): string {
+	if (value === 'current') return text(copy, 'motionAnalysisCurrent', 'Analysis current.');
+	if (value === 'stale') return text(copy, 'motionAnalysisStale', 'Analysis stale; recompute before export.');
+	return text(copy, 'motionAnalysisMissing', 'Analysis missing.');
+}
+
+function inputFrame(value: string, name: string): number {
+	const frame = Number(value);
+	if (!Number.isSafeInteger(frame) || frame < 0) throw new RangeError(`${name} must be a non-negative integer.`);
+	return frame;
 }
 
 function parseNoiseProfile(value: string): Readonly<Record<string, unknown>> {

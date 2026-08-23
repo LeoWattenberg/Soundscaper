@@ -179,6 +179,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							editingBlocked={editBlocked}
 							readOnly={snapshot.readOnly === true}
 							copy={copy}
+							fileService={fileService}
 							run={run}
 							onClose={() => setActiveSurface(null)}
 						/>

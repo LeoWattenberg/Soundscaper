@@ -6,9 +6,11 @@ export function filterProductMenus(menus, capabilities, productId) {
 	const hiddenTopLevel = new Set();
 	const candidateVideoGeneration = productId === 'framescaper'
 		&& (capabilities.videoGenerators || capabilities.videoStills);
+	const candidateVideoAnalysis = productId === 'framescaper'
+		&& capabilities.videoMotionTracking;
 	if (!capabilities.audioGenerators && !candidateVideoGeneration) hiddenTopLevel.add('generate');
 	if (!capabilities.audioEffects && productId !== 'framescaper') hiddenTopLevel.add('effect');
-	if (!capabilities.audioAnalysis) hiddenTopLevel.add('analyze');
+	if (!capabilities.audioAnalysis && !candidateVideoAnalysis) hiddenTopLevel.add('analyze');
 	return menus
 		.filter((menu) => !hiddenTopLevel.has(menu.id))
 		.map((menu) => {
@@ -34,6 +36,12 @@ export function filterProductMenus(menus, capabilities, productId) {
 			if (menu.id === 'tracks' && !capabilities.audioEffects) {
 				const hiddenTrackItems = new Set(['track-rate', 'track-format', 'track-channels', 'mix', 'resample']);
 				return { ...menu, items: menu.items.filter((item) => !hiddenTrackItems.has(item.id)) };
+			}
+			if (menu.id === 'analyze' && !capabilities.audioAnalysis) {
+				return {
+					...menu,
+					items: menu.items.filter((item) => item.id === 'framescaper-v27-motion-tracking'),
+				};
 			}
 			if (menu.id === 'tools' && !capabilities.audioMacros) {
 				return { ...menu, items: menu.items.filter((item) => !['manage-macros', 'nyquist-prompt'].includes(item.id)) };

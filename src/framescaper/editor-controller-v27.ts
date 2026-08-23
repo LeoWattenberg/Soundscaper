@@ -20,6 +20,13 @@ import {
 import { createFramescaperScapeNativeRuntimeV27 } from './editor-scape-native-v27.ts';
 import { bindFramescaperSelectedAuthoringControllerV27 } from './editor-selected-v27-authoring-controller.ts';
 import { bindFramescaperSelectedRenderSessionRuntimeV27 } from './editor-selected-v27-render-session.ts';
+import {
+	bindFramescaperMotionAnalysisActionsV27,
+	createFramescaperMotionAnalysisActionsV27,
+} from './editor-motion-analysis-actions-v27.ts';
+import {
+	createFramescaperMotionAnalysisFrameProviderV27,
+} from './editor-motion-analysis-frame-provider-v27.ts';
 import { createFramescaperVideoExportStrategyV27 } from './video-export-strategy-v27.ts';
 import { createFramescaperVideoProxyActionsV27 } from './editor-video-proxy-actions-v20.ts';
 import type { FramescaperVideoProxyActionRuntime } from './editor-video-proxy-action-runtime-v20.ts';
@@ -115,6 +122,13 @@ export function createFramescaperAudioEditorControllerV27(
 		controller,
 		store: environment.controllerStore,
 	});
+	bindFramescaperMotionAnalysisActionsV27(controller, createFramescaperMotionAnalysisActionsV27({
+		owner: controller,
+		store: environment.store,
+		frameProvider: createFramescaperMotionAnalysisFrameProviderV27({
+			store: environment.controllerStore,
+		}),
+	}));
 	bindFramescaperSelectedRenderSessionRuntimeV27(environment.runtime.profile, controller);
 	return controller;
 }
