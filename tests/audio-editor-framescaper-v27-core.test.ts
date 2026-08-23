@@ -22,6 +22,10 @@ import { createFramescaperProjectV24 } from '../src/framescaper/editor-project-v
 import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v20.ts';
 import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import {
+	FRAMESCAPER_V27_COMPATIBILITY_CONTRACT,
+	framescaperDesktopProjectTransportV27,
+} from '../src/framescaper/desktop-project-transport-v27.ts';
 
 const PROFILE = FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE;
 const SHA_A = 'a1'.repeat(32);
@@ -51,6 +55,22 @@ test('selected V27 freezes the V18/SQLite20/v18 identity without M5 authority', 
 	for (const key of ['audioMacros', 'audioRecording', 'audioTrackFreeze', 'ofxEffects']) {
 		assert.equal(registrations.find((row) => row.key === key)?.available, false, key);
 	}
+});
+
+test('selected V27 transport binds clipboard V11 and exact render plan V13', () => {
+	assert.deepEqual(FRAMESCAPER_V27_COMPATIBILITY_CONTRACT, {
+		projectSchemaVersion: 27,
+		desktopLibrarySchemaVersion: 18,
+		desktopDatabaseUserVersion: 20,
+		desktopLibraryScope: ['kw.media', 'scape-project-library', 'v18'],
+		clipboardSchemaVersion: 11,
+		renderPlanVersion: 13,
+		activation: 'selected',
+	});
+	const project = createFramescaperProjectV27(PROFILE, framescaperV20Options());
+	const transport = framescaperDesktopProjectTransportV27(PROFILE);
+	assert.deepEqual(transport.decode(transport.encode(project)), project);
+	assert.notStrictEqual(transport.encode(project), project);
 });
 
 test('V27 persists color, presentations, processors, analyses, captions, automation, and mixer state', () => {
