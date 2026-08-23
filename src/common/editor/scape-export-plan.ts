@@ -110,6 +110,22 @@ export async function prepareScapeExport(
 			sourceInputs[index], index, projectSchemaVersion, additionalSourceKinds,
 		));
 	}
+	const additionalAssets = normalizeAdditionalAssets(options.additionalAssets ?? []);
+	const canonicalSourceCount = sources.filter(
+		({ kind }) => kind === 'audio' || kind === 'video',
+	).length;
+	const timingStorageKeys = new Set(sources.flatMap((source) => (
+		source.kind === 'video' && isRecord(source.timingAsset)
+			? [normalizeVideoTimingAssetReference(source.timingAsset).storageKey]
+			: []
+	)));
+	const canonicalEntryCount = canonicalSourceCount + timingStorageKeys.size + 2;
+	if (canonicalEntryCount > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
+		throw new RangeError('The project has too many sources for the portable archive.');
+	}
+	if (canonicalEntryCount + additionalAssets.length > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
+		throw new RangeError('The project has too many assets for the portable archive.');
+	}
 	project.sources = Object.freeze(sources);
 	const maximumBlobBytes = resolveScapeBlobMaximumBytes(options.maximumBlobBytes);
 	const audioChunkBudget = createScapeAudioExportChunkBudget(
@@ -218,7 +234,7 @@ export async function prepareScapeExport(
 			timingAssetByStorageKey.set(timingStorageKey, timingAsset);
 		}
 	}
-	for (const asset of normalizeAdditionalAssets(options.additionalAssets ?? [])) {
+	for (const asset of additionalAssets) {
 		if (sourceIds.has(asset.sourceId)) {
 			throw new Error(`Duplicate Scape source asset: ${asset.sourceId}.`);
 		}
@@ -372,6 +388,9 @@ function snapshotScapeExportSource(
 	if (snapshot.kind === undefined) Reflect.set(snapshot, 'kind', 'audio');
 	if (snapshot.kind !== 'audio' && snapshot.kind !== 'video'
 		&& !additionalSourceKinds.has(String(snapshot.kind))) {
+		if (additionalSourceKinds.size === 0) {
+			throw new TypeError(`${label} kind must be audio or video.`);
+		}
 		throw new TypeError(`${label} kind must be owned by the Scape archive route.`);
 	}
 	if (projectSchemaVersion < 4 && snapshot.kind === 'video') {
