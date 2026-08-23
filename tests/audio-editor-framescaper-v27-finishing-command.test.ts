@@ -8,6 +8,10 @@ import {
 	snapshotFramescaperOwnedFinishingCommandV27,
 } from '../src/framescaper/editor-project-v27-finishing-command.ts';
 import {
+	createFramescaperDialogueChainAddCommandV27,
+	createFramescaperDialogueChainV27,
+} from '../src/framescaper/editor-audio-dialogue-chain-v27.ts';
+import {
 	applyFramescaperProjectCommandV27,
 } from '../src/framescaper/editor-project-v27-commands.ts';
 import {
@@ -84,6 +88,38 @@ test('V27 applies owned finishing commands through the selected project command 
 	assert.equal(applied.updatedAt, '2026-08-23T10:00:00.000Z');
 	assert.equal(applied.videoVisualPresentations[0]?.opacity, 0.5);
 	assert.equal(project.videoVisualPresentations[0]?.opacity, 1);
+});
+
+test('V27 owns exact dialogue-chain insertion without admitting generic rack commands', () => {
+	const project = projectFixture();
+	const canonical = project as unknown as Readonly<{
+		readonly sampleRate: number;
+		readonly revision: number;
+	}>;
+	const chain = createFramescaperDialogueChainV27({
+		id: 'dialogue:audio-track', sampleRate: canonical.sampleRate,
+	});
+	const command = createFramescaperDialogueChainAddCommandV27(
+		{ scope: 'track', trackId: 'audio-track' }, chain,
+	);
+	const applied = applyFramescaperProjectCommandV27(PROFILE, project, command);
+	const result = applied as unknown as Readonly<{
+		readonly revision: number;
+		readonly tracks: readonly Readonly<{
+			readonly id: string;
+			readonly effects: readonly Readonly<{ readonly type: string }>[];
+		}>[];
+	}>;
+	assert.deepEqual(result.tracks.find(({ id }) => id === 'audio-track')?.effects.map(({ type }) => type), [
+		'highpass', 'gate', 'eq', 'compressor', 'limiter',
+	]);
+	assert.equal(result.revision, canonical.revision + 1);
+	assert.throws(() => applyFramescaperProjectCommandV27(PROFILE, applied, command),
+		/already exist/iu);
+	assert.throws(() => applyFramescaperProjectCommandV27(PROFILE, project,
+		createFramescaperDialogueChainAddCommandV27(
+			{ scope: 'track', trackId: 'video-track' }, chain,
+		)), /existing audio track/iu);
 });
 
 test('V27 finishing batches are atomic and advance project bookkeeping once', () => {

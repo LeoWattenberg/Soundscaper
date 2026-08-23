@@ -16,7 +16,7 @@ const CAPABILITIES = Object.freeze({
 	videoCaptions: true, videoColorManagement: true, videoDenoise: true,
 	videoGrading: true, videoMotionTracking: true, videoStabilization: true,
 	videoGenerators: true,
-	audioAutomation: true, audioEffects: true, audioMixerGraph: true,
+	audioAutomation: true, audioEffects: false, audioMixerGraph: true,
 });
 
 test('selected Framescaper V27 exposes every finishing workflow through existing menus', async () => {
@@ -40,6 +40,8 @@ test('selected Framescaper V27 exposes every finishing workflow through existing
 	assert.deepEqual(items.mixer.map(({ id }) => id), [
 		'framescaper-v27-mixer', 'framescaper-v27-dialogue-chain',
 	]);
+	assert.equal(items.mixer[1]?.disabled, false,
+		'the selected dialogue action does not require generic audio-effect authoring');
 	await items.effect[0]?.items?.[0]?.onClick?.();
 	await items.tracks[0]?.onClick?.();
 	assert.deepEqual(calls, ['visual-inspector', 'captions']);

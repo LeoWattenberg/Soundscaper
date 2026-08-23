@@ -22,6 +22,10 @@ import {
 	type VideoFinishingPresetV1,
 	type VideoVisualPresentationV1,
 } from '../common/editor/video-visual-presentation-v27.ts';
+import {
+	normalizeFramescaperDialogueChainAddCommandV27,
+	type FramescaperDialogueChainAddCommandV27,
+} from './editor-audio-dialogue-chain-v27.ts';
 
 export interface FramescaperVideoColorContextSetCommandV27 {
 	readonly type: 'video-color-context/set';
@@ -86,6 +90,7 @@ export interface FramescaperMixerGraphSetCommandV27 {
 }
 
 export type FramescaperOwnedFinishingCommandV27 =
+	| FramescaperDialogueChainAddCommandV27
 	| FramescaperVideoColorContextSetCommandV27
 	| FramescaperVideoSourceColorInterpretationSetCommandV27
 	| FramescaperVideoVisualPresentationSetCommandV27
@@ -134,7 +139,10 @@ const COLLECTION_SPECS = Object.freeze({
 } as const);
 
 type CollectionCommandType = keyof typeof COLLECTION_SPECS;
-const TYPES = new Set<string>([...Object.keys(COLLECTION_SPECS), 'mixer-graph/set']);
+const DIALOGUE_CHAIN_ADD = 'framescaper/audio-dialogue-chain-add';
+const TYPES = new Set<string>([
+	...Object.keys(COLLECTION_SPECS), 'mixer-graph/set', DIALOGUE_CHAIN_ADD,
+]);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u;
 
 export function isFramescaperOwnedFinishingCommandTypeV27(type: string): boolean {
@@ -145,6 +153,7 @@ export function snapshotFramescaperOwnedFinishingCommandV27(
 	value: unknown,
 ): FramescaperOwnedFinishingCommandV27 {
 	const type = commandType(value);
+	if (type === DIALOGUE_CHAIN_ADD) return normalizeFramescaperDialogueChainAddCommandV27(value);
 	if (type === 'mixer-graph/set') return snapshotMixer(value);
 	const commandSpec = COLLECTION_SPECS[type as CollectionCommandType];
 	if (!commandSpec) throw new RangeError('Framescaper V27 finishing command type is unsupported.');
@@ -166,6 +175,10 @@ export function applyFramescaperOwnedFinishingCommandV27(
 	commandValue: FramescaperOwnedFinishingCommandV27,
 ): void {
 	const command = snapshotFramescaperOwnedFinishingCommandV27(commandValue);
+	if (command.type === DIALOGUE_CHAIN_ADD) {
+		applyDialogueChain(project, command);
+		return;
+	}
 	if (command.type === 'mixer-graph/set') {
 		if (!same(project.mixer, command.expected)) {
 			throw new Error('The expected V27 mixer graph is stale.');
@@ -186,6 +199,34 @@ export function applyFramescaperOwnedFinishingCommandV27(
 	else if (index < 0) values.push(replacement as Record<string, unknown>);
 	else values[index] = replacement as Record<string, unknown>;
 	project[commandSpec.projectField] = values;
+}
+
+function applyDialogueChain(
+	project: Record<string, unknown>,
+	command: FramescaperDialogueChainAddCommandV27,
+): void {
+	if (command.chain.sampleRate !== project.sampleRate) {
+		throw new RangeError('The dialogue-chain sample rate must match the V27 project.');
+	}
+	const tracks = records(project.tracks, 'tracks');
+	const track = tracks.find(({ id }) => id === command.trackId);
+	if (!track || track.type !== 'audio') {
+		throw new ReferenceError('The dialogue-chain target must be an existing audio track.');
+	}
+	const effects = records(track.effects, 'audio track effects');
+	const index = command.startIndex ?? effects.length;
+	if (index > effects.length) throw new RangeError('The dialogue-chain insertion index exceeds the audio rack.');
+	if (effects.length + command.chain.effects.length > 256) {
+		throw new RangeError('The dialogue chain would exceed the audio rack effect limit.');
+	}
+	const identities = new Set(effects.map(({ id }) => id));
+	if (command.chain.effects.some(({ id }) => identities.has(id))) {
+		throw new Error('The dialogue chain effect identities already exist in the target rack.');
+	}
+	effects.splice(index, 0, ...command.chain.effects.map((effect) => (
+		effect as unknown as Record<string, unknown>
+	)));
+	track.effects = effects;
 }
 
 function snapshotMixer(value: unknown): FramescaperMixerGraphSetCommandV27 {

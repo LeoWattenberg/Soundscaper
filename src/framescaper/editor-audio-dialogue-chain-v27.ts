@@ -6,12 +6,6 @@ import {
 	readClosedDomainRecord,
 	type ClosedDomainRecord,
 } from '../common/editor/closed-domain-value.ts';
-import type {
-	AudioEditorCommand,
-	BatchAudioEditorCommand,
-	CommandObject,
-	EffectRackTarget,
-} from '../common/editor/commands/protocol.ts';
 import { normalizeNoiseReductionContext } from '../common/editor/effect-macros.js';
 import { normalizeEffect } from '../common/editor/effects.js';
 import { snapshotInertJsonValue } from '../common/editor/inert-json-snapshot.ts';
@@ -77,6 +71,13 @@ export interface FramescaperDialogueChainOptionsV27 {
 		readonly profile: Readonly<Record<string, unknown>>;
 		readonly params?: Readonly<Record<string, unknown>>;
 	}>;
+}
+
+export interface FramescaperDialogueChainAddCommandV27 {
+	readonly type: 'framescaper/audio-dialogue-chain-add';
+	readonly trackId: string;
+	readonly startIndex: number | null;
+	readonly chain: FramescaperDialogueChainV27;
 }
 
 const CHAIN_FIELDS = Object.freeze([
@@ -155,27 +156,48 @@ export function normalizeFramescaperDialogueChainV27(
 }
 
 /**
- * Create one atomic shared-protocol transaction for the menu/controller layer.
- * The applier still owns admission and history; this helper only fixes rack
- * scope, identities, processor order, and insertion indexes.
+ * Create one atomic V27-owned transaction for the menu/controller layer.
+ * Keeping the exact chain behind this product command avoids enabling the
+ * generic effects, Nyquist, or clip time/pitch authoring surfaces.
  */
 export function createFramescaperDialogueChainAddCommandV27(
-	targetValue: EffectRackTarget | unknown,
+	targetValue: unknown,
 	chainValue: FramescaperDialogueChainV27 | unknown,
 	startIndex?: number,
-): BatchAudioEditorCommand {
-	const target = normalizeRackTarget(targetValue);
+): FramescaperDialogueChainAddCommandV27 {
+	const trackId = normalizeTrackTarget(targetValue);
 	const chain = normalizeFramescaperDialogueChainV27(chainValue);
 	const index = startIndex === undefined
 		? null
 		: boundedInteger(startIndex, 0, 256 - chain.effects.length, 'dialogue chain start index');
-	const commands = chain.effects.map((effect, offset): AudioEditorCommand => Object.freeze({
-		type: 'effect/add' as const,
-		...target,
-		effect: effect as unknown as CommandObject,
-		...(index === null ? {} : { index: index + offset }),
-	}));
-	return Object.freeze({ type: 'batch', commands: Object.freeze(commands) });
+	return Object.freeze({
+		type: 'framescaper/audio-dialogue-chain-add',
+		trackId,
+		startIndex: index,
+		chain,
+	});
+}
+
+export function normalizeFramescaperDialogueChainAddCommandV27(
+	value: unknown,
+): FramescaperDialogueChainAddCommandV27 {
+	const name = 'Framescaper dialogue-chain command';
+	const command = readClosedDomainRecord(value, name, [
+		'type', 'trackId', 'startIndex', 'chain',
+	]);
+	if (field(command, 'type', name) !== 'framescaper/audio-dialogue-chain-add') {
+		throw new RangeError('The Framescaper dialogue-chain command type is unsupported.');
+	}
+	const chain = normalizeFramescaperDialogueChainV27(field(command, 'chain', name));
+	const startIndex = field(command, 'startIndex', name);
+	return Object.freeze({
+		type: 'framescaper/audio-dialogue-chain-add',
+		trackId: stableRackId(field(command, 'trackId', name), 'track'),
+		startIndex: startIndex === null ? null : boundedInteger(
+			startIndex, 0, 256 - chain.effects.length, 'dialogue chain start index',
+		),
+		chain,
+	});
 }
 
 /** Delegate to the shared target authority, preserving its presets and null default. */
@@ -282,25 +304,15 @@ function inertParams(value: unknown, name: string): unknown {
 	return snapshot;
 }
 
-function normalizeRackTarget(value: unknown): EffectRackTarget {
+function normalizeTrackTarget(value: unknown): string {
 	const name = 'Framescaper dialogue rack target';
 	const target = readClosedDomainRecord(value, name, ['scope', 'trackId', 'busId'], ['scope']);
 	const scope = field(target, 'scope', name);
-	if (scope === 'master') {
-		if (Object.hasOwn(target, 'trackId') || Object.hasOwn(target, 'busId')) {
-			throw new TypeError('A master dialogue rack target cannot carry an owner ID.');
-		}
-		return Object.freeze({ scope });
-	}
 	if (scope === 'track') {
 		if (Object.hasOwn(target, 'busId')) throw new TypeError('A track dialogue rack target cannot carry a bus ID.');
-		return Object.freeze({ scope, trackId: stableRackId(field(target, 'trackId', name), 'track') });
+		return stableRackId(field(target, 'trackId', name), 'track');
 	}
-	if (scope === 'group' || scope === 'send') {
-		if (Object.hasOwn(target, 'trackId')) throw new TypeError('A mixer dialogue rack target cannot carry a track ID.');
-		return Object.freeze({ scope, busId: stableRackId(field(target, 'busId', name), 'bus') });
-	}
-	throw new RangeError('A dialogue rack scope must be track, master, group, or send.');
+	throw new RangeError('The Framescaper dialogue chain is restricted to one audio track.');
 }
 
 function noisePlacement(

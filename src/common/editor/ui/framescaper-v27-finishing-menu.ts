@@ -75,6 +75,15 @@ export function createFramescaperV27FinishingMenuItems(
 			onClick: () => enabled ? actions.open(surface) : undefined,
 		});
 	};
+	const selectedLeaf = (
+		id: string,
+		labelKey: string,
+		fallback: string,
+		surface: FramescaperV27FinishingSurface,
+	): FramescaperV27FinishingMenuItem => Object.freeze({
+		id, label: copy[labelKey] ?? fallback, disabled: !mutable,
+		onClick: () => mutable ? actions.open(surface) : undefined,
+	});
 	const videoFinishing = branch(
 		'framescaper-v27-video-finishing', copy.framescaperVideoFinishing ?? 'Video Finishing', [
 			leaf('framescaper-v27-visual-inspector', 'videoVisualInspector',
@@ -103,8 +112,8 @@ export function createFramescaperV27FinishingMenuItems(
 		]),
 		mixer: Object.freeze([
 			leaf('framescaper-v27-mixer', 'routingGraph', 'Mixer & Routing…', 'mixer', 'audioMixerGraph'),
-			leaf('framescaper-v27-dialogue-chain', 'dialogueChain',
-				'Dialogue Chain…', 'dialogue-chain', 'audioEffects'),
+			selectedLeaf('framescaper-v27-dialogue-chain', 'dialogueChain',
+				'Dialogue Chain…', 'dialogue-chain'),
 		]),
 		tools: Object.freeze([]),
 	});

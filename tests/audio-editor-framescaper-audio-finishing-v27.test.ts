@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { LOUDNESS_NORMALIZATION_TARGETS } from '../src/common/editor/loudness-normalization.ts';
 import { MIXER_GRAPH_V21_SCHEMA_VERSION } from '../src/common/editor/mixer-graph-v21.ts';
+import { assertEditorCommandCapabilities } from '../src/common/editor/controller/command-capability-policy.ts';
 import {
 	createDefaultFramescaperAudioFinishingV27,
 	normalizeFramescaperAudioFinishingV27,
@@ -136,28 +137,44 @@ test('dialogue-chain normalization rejects incomplete, disabled, foreign, and no
 	assert.throws(() => normalizeFramescaperDialogueChainV27(randomIdentity), /identity/iu);
 });
 
-test('the menu adapter can add the chain atomically to each shared V21 rack scope', () => {
+test('the menu adapter emits one bounded V27 command without generic effect authoring', () => {
 	const chain = createFramescaperDialogueChainV27({ id: 'dialogue-main', sampleRate: 48_000 });
 	const command = createFramescaperDialogueChainAddCommandV27(
 		{ scope: 'track', trackId: 'dialogue' }, chain, 2,
 	);
-	assert.equal(command.type, 'batch');
-	assert.deepEqual(command.commands.map(({ type }) => type), Array(5).fill('effect/add'));
-	assert.deepEqual(command.commands.map((item) => (
-		item.type === 'effect/add' ? [item.scope, item.trackId, item.index, item.effect?.id] : null
-	)), [
-		['track', 'dialogue', 2, 'dialogue-main:highpass'],
-		['track', 'dialogue', 3, 'dialogue-main:gate'],
-		['track', 'dialogue', 4, 'dialogue-main:eq'],
-		['track', 'dialogue', 5, 'dialogue-main:compressor'],
-		['track', 'dialogue', 6, 'dialogue-main:limiter'],
-	]);
+	assert.equal(command.type, 'framescaper/audio-dialogue-chain-add');
+	assert.equal(command.trackId, 'dialogue');
+	assert.equal(command.startIndex, 2);
+	assert.deepEqual(command.chain, chain);
+	assert.equal(JSON.stringify(command).includes('effect/add'), false);
 	assert.throws(() => createFramescaperDialogueChainAddCommandV27(
 		{ scope: 'track', trackId: '' }, chain,
 	), /track.*ID/iu);
 	assert.throws(() => createFramescaperDialogueChainAddCommandV27(
 		{ scope: 'group' }, chain,
-	), /bus.*ID/iu);
+	), /restricted.*audio track|audio track/iu);
+});
+
+test('the V27-owned chain command remains admitted while generic audio authoring stays fenced', () => {
+	const chain = createFramescaperDialogueChainV27({ id: 'dialogue-main', sampleRate: 48_000 });
+	const command = createFramescaperDialogueChainAddCommandV27(
+		{ scope: 'track', trackId: 'dialogue' }, chain,
+	);
+	const capabilities = {
+		audioEffects: false, audioAutomation: true, audioMixerGraph: true,
+		audioRecording: false, audioSpectralEditing: false, audioWarp: false,
+		takeComp: false, timelineAnnotations: false, trackFolders: false,
+		videoEffects: true, videoGeometry: true, videoKeyframes: true,
+	};
+	assert.doesNotThrow(() => assertEditorCommandCapabilities(
+		command as never, capabilities, 'Framescaper',
+	));
+	assert.throws(() => assertEditorCommandCapabilities({
+		type: 'effect/add', scope: 'track', trackId: 'dialogue', effect: chain.effects[0]!,
+	} as never, capabilities, 'Framescaper'), /does not support audioEffects/iu);
+	assert.throws(() => assertEditorCommandCapabilities({
+		type: 'clip/update', clipId: 'dialogue-clip', changes: { speedRatio: 0.5 },
+	} as never, capabilities, 'Framescaper'), /does not support audioEffects/iu);
 });
 
 test('Framescaper reuses the existing loudness targets and deliberately has no default', () => {
