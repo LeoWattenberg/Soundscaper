@@ -12,9 +12,11 @@ import {
 	collectClientErrors,
 	importFiles,
 } from './audio-editor-test-helpers.js';
-import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
+import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+
+const CFR_VIDEO = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 
 test.describe('selected V27 exact visual preview', () => {
 	test.describe.configure({ mode: 'serial' });
@@ -39,6 +41,8 @@ test.describe('selected V27 exact visual preview', () => {
 		expect(projectId).toBeTruthy();
 
 		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
+		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1);
+		await saveProjectAndWait(page, editor);
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({
 			generatorCount: 1, presentationCount: 0, maskCount: 0, presetCount: 0,
 		});
@@ -58,6 +62,7 @@ test.describe('selected V27 exact visual preview', () => {
 		await expect(dialog.getByRole('status')).toContainText('Selected visual updated.');
 		await page.keyboard.press('Escape');
 		await expect(dialog).toBeHidden();
+		await saveProjectAndWait(page, editor);
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({
 			generatorCount: 1, presentationCount: 1,
 		});
@@ -74,6 +79,7 @@ test.describe('selected V27 exact visual preview', () => {
 		await authoring.locator('[data-v27-authoring-save-visual]').click();
 		await expect(authoring.getByRole('status')).toContainText('Selected visual preset saved.');
 		await page.keyboard.press('Escape');
+		await saveProjectAndWait(page, editor);
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ presetCount: 1 });
 		await chooseNestedCommandAction(page, editor, 'Effect', ['Edit Video Mask/Matte…']);
 		authoring = page.getByRole('dialog', { name: 'Selected Mask / Matte', exact: true });
@@ -83,6 +89,7 @@ test.describe('selected V27 exact visual preview', () => {
 		await authoring.locator('[data-v27-authoring-apply]').click();
 		await expect(authoring.getByRole('status')).toContainText('Selected authored state applied.');
 		await page.keyboard.press('Escape');
+		await saveProjectAndWait(page, editor);
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ maskCount: 1 });
 		state = await storedVisualState(page, projectId);
 		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
@@ -99,6 +106,8 @@ test.describe('selected V27 exact visual preview', () => {
 		expect(maskedPixels).not.toBe(redPixels);
 
 		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
+		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(2);
+		await saveProjectAndWait(page, editor);
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ generatorCount: 2 });
 		state = await storedVisualState(page, projectId);
 		const secondClipId = state.generatorClipIds.find((id) => id !== firstClipId);
@@ -117,12 +126,9 @@ test.describe('selected V27 exact visual preview', () => {
 		const afterPreset = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		expect(afterPreset).not.toBe(beforePreset);
 
+		await saveProjectAndWait(page, editor);
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({
 			generatorCount: 2, presentationCount: 1, maskCount: 1, presetCount: 1,
-		});
-		await chooseFileAction(page, editor, 'Save project');
-		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
-			timeout: 15_000,
 		});
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({
 			generatorColorByClip: { [secondClipId]: '#ff0000ff' },
@@ -161,8 +167,8 @@ test.describe('selected V27 exact visual preview', () => {
 		test.setTimeout(180_000);
 		const clientErrors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
-		await importFiles(editor, [createDeterministicAvFixture('v27-preview-execution.webm')]);
-		await expect(editor).toHaveAttribute('data-clip-count', '2', { timeout: 30_000 });
+		await importFiles(editor, [CFR_VIDEO.file]);
+		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 30_000 });
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
 		const videoClip = editor.getByRole('group', { name: /^Video clip:/u });
@@ -179,6 +185,7 @@ test.describe('selected V27 exact visual preview', () => {
 		await authoring.locator('[data-v27-authoring-apply]').click();
 		await expect(authoring.getByRole('status')).toContainText('Selected authored state applied.');
 		await page.keyboard.press('Escape');
+		await saveProjectAndWait(page, editor);
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ adjustmentCount: 1 });
 		await expectExactVisualFrame(preview, 1);
 		await expect(preview).toHaveAttribute('data-video-preview-requested-effect-count', '1');
@@ -186,8 +193,10 @@ test.describe('selected V27 exact visual preview', () => {
 		const afterAdjustment = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		expect(afterAdjustment).not.toBe(beforeAdjustment);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await saveProjectAndWait(page, editor);
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ adjustmentCount: 0 });
 		await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+		await saveProjectAndWait(page, editor);
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ adjustmentCount: 1 });
 
 		await chooseNestedCommandAction(page, editor, 'Effect', ['Freeze Video…']);
@@ -197,6 +206,7 @@ test.describe('selected V27 exact visual preview', () => {
 		await authoring.locator('[data-v27-authoring-freeze]').click();
 		await expect(authoring.getByRole('status')).toContainText('Exact playhead freeze created.', { timeout: 30_000 });
 		await page.keyboard.press('Escape');
+		await saveProjectAndWait(page, editor);
 		await expect.poll(() => storedVisualState(page, projectId), { timeout: 30_000 })
 			.toMatchObject({ freezeCount: 1, stillCount: 1 });
 		const state = await storedVisualState(page, projectId);
@@ -225,8 +235,9 @@ test.describe('selected V27 exact visual preview', () => {
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
 		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
-		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ generatorCount: 1 });
 		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toBeVisible();
+		await saveProjectAndWait(page, editor);
+		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ generatorCount: 1 });
 
 		await chooseFileAction(page, editor, 'Export audio');
 		const dialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
@@ -359,6 +370,13 @@ async function screenshotDigest(canvas) {
 	return createHash('sha256').update(await canvas.screenshot()).digest('hex');
 }
 
+async function saveProjectAndWait(page, editor) {
+	await chooseFileAction(page, editor, 'Save project');
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
+		timeout: 15_000,
+	});
+}
+
 async function storedVisualState(page, projectId) {
 	return page.evaluate(async ({ databaseName, id }) => {
 		const result = (request) => new Promise((resolve, reject) => {
@@ -367,9 +385,14 @@ async function storedVisualState(page, projectId) {
 		});
 		const database = await result(indexedDB.open(databaseName));
 		try {
-			const project = await result(
-				database.transaction('projects', 'readonly').objectStore('projects').get(id),
-			);
+			const transaction = database.transaction('projects', 'readonly');
+			const completed = new Promise((resolve, reject) => {
+				transaction.oncomplete = () => resolve();
+				transaction.onerror = () => reject(transaction.error);
+				transaction.onabort = () => reject(transaction.error);
+			});
+			const project = await result(transaction.objectStore('projects').get(id));
+			await completed;
 			const clips = project?.clips || [];
 			const sequence = project?.sequences?.find(({ id: sequenceId }) => (
 				sequenceId === project.primarySequenceId
