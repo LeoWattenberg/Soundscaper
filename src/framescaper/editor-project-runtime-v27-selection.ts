@@ -7,8 +7,10 @@ import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/pr
 import {
 	createFramescaperProjectFeatureCompatibilityServiceV27,
 } from './editor-project-feature-requirements-v27.ts';
-import { createFramescaperSessionClipboardV18 } from './editor-project-v18-interchange.ts';
-import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v18.ts';
+import {
+	createFramescaperSessionClipboardV11,
+	type FramescaperSessionClipboardV11,
+} from './editor-session-clipboard-v11.ts';
 import {
 	applyFramescaperProjectCommandV27,
 	type FramescaperProjectCommandV27,
@@ -58,6 +60,10 @@ export interface EditorProjectRuntimeV27Selection {
 	readonly reimportProject: (project: unknown) => FramescaperProjectV27;
 	readonly projectForCommandConsumers: (project: unknown) => ReturnType<typeof framescaperProjectForCommandConsumersV27>;
 	readonly projectForRuntimeConsumers: (project: unknown) => ReturnType<typeof framescaperProjectForRuntimeConsumersV27>;
+	readonly createSessionClipboard: (
+		project: unknown,
+		descriptor: AudioEditorClipboard,
+	) => FramescaperSessionClipboardV11;
 	readonly prepareEditClipboardDescriptor: (project: unknown, descriptor: AudioEditorClipboard) => AudioEditorClipboard;
 	readonly createHistory: (project: unknown) => FramescaperProjectHistoryV27;
 	readonly applyCommand: (project: unknown, command: FramescaperProjectCommandV27, options?: Readonly<{ now?: Date | string }>) => FramescaperProjectV27;
@@ -87,10 +93,15 @@ export function createEditorProjectRuntimeV27Selection(
 		reimportProject: (project) => reimportFramescaperProjectV27(profile, project),
 		projectForCommandConsumers: (project) => framescaperProjectForCommandConsumersV27(profile, project),
 		projectForRuntimeConsumers: (project) => framescaperProjectForRuntimeConsumersV27(profile, project),
-		prepareEditClipboardDescriptor: (project, descriptor) => createFramescaperSessionClipboardV18(
-			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
-			framescaperProjectForCommandConsumersV27(profile, project) as never,
-			{ descriptor },
+		createSessionClipboard: (project, descriptor) => createFramescaperSessionClipboardV11(
+			profile,
+			project,
+			descriptor,
+		),
+		prepareEditClipboardDescriptor: (project, descriptor) => createFramescaperSessionClipboardV11(
+			profile,
+			project,
+			descriptor,
 		).descriptor,
 		createHistory: (project) => createFramescaperProjectHistoryV27(profile, project),
 		applyCommand: (project, command, options = {}) => applyFramescaperProjectCommandV27(profile, project, command, options),

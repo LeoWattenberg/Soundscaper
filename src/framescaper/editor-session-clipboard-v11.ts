@@ -1,6 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	createAudioEditorSessionClipboard,
+	normalizeAudioEditorSessionClipboard,
+	type AudioEditorSessionClipboardSource,
+} from '../common/editor/session-clipboard-codec.ts';
+import type { AudioEditorClipboard } from '../common/editor/commands/protocol.ts';
+import {
 	normalizeVideoCaptionTrackV1,
 	type VideoCaptionTrackV1,
 } from '../common/editor/video-caption-track-v27.ts';
@@ -29,6 +35,16 @@ import {
 	type FramescaperVisualClipboardV8,
 } from './editor-session-clipboard-v8.ts';
 import { validateFramescaperProjectV27, type FramescaperProjectV27 } from './editor-project-v27.ts';
+
+export interface FramescaperSessionClipboardV11 {
+	readonly schemaVersion: 11;
+	readonly kind: 'framescaper-session-clipboard';
+	readonly originProjectId: string;
+	readonly originRevision: number;
+	readonly descriptor: AudioEditorClipboard;
+	readonly sources: readonly AudioEditorSessionClipboardSource[];
+	readonly finishing: FramescaperFinishingClipboardV11;
+}
 
 export interface FramescaperFinishingClipboardV11 {
 	readonly schemaVersion: 11;
@@ -81,7 +97,72 @@ const FIELDS = Object.freeze([
 	'colorContexts', 'sourceColorInterpretations', 'visualPresentations',
 	'processorStacks', 'motionAnalyses', 'finishingPresets', 'captionTracks',
 ]);
+const SESSION_FIELDS = Object.freeze([
+	'schemaVersion', 'kind', 'originProjectId', 'originRevision', 'descriptor', 'sources', 'finishing',
+]);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
+
+/** Bind the maintained edit descriptor and its V27 finishing payload as one selected V11 clipboard. */
+export function createFramescaperSessionClipboardV11(
+	profile: unknown,
+	projectValue: unknown,
+	descriptor: AudioEditorClipboard,
+): FramescaperSessionClipboardV11 {
+	validateFramescaperProjectV27(profile, projectValue);
+	const project = projectValue as FramescaperProjectV27;
+	if (records(project.subsequences, 'V27 clipboard subsequences').length > 0) {
+		throw new Error(
+			'The Framescaper V11 session clipboard cannot preserve a nested-sequence graph; '
+			+ 'use .scape copy-only preservation.',
+		);
+	}
+	if (records(project.multicameraGroups, 'V27 clipboard multicamera groups').length > 0) {
+		throw new Error(
+			'The Framescaper V11 session clipboard cannot preserve a multicamera graph; '
+			+ 'use .scape copy-only preservation.',
+		);
+	}
+	const session = createAudioEditorSessionClipboard(project, { descriptor });
+	return normalizeFramescaperSessionClipboardV11({
+		schemaVersion: 11,
+		kind: 'framescaper-session-clipboard',
+		originProjectId: project.id,
+		originRevision: project.revision,
+		descriptor: session.descriptor,
+		sources: session.sources,
+		finishing: createFramescaperFinishingClipboardV11(profile, project),
+	});
+}
+
+/** Validate a persisted selected V11 wrapper and retain only descriptor-owned source rows. */
+export function normalizeFramescaperSessionClipboardV11(value: unknown): FramescaperSessionClipboardV11 {
+	const input = closedRecord(value, SESSION_FIELDS, 'Framescaper session clipboard V11');
+	if (input.schemaVersion !== 11) throw new RangeError('Framescaper session clipboard requires V11 re-copy.');
+	if (input.kind !== 'framescaper-session-clipboard') {
+		throw new RangeError('Framescaper session clipboard kind is unsupported.');
+	}
+	const originProjectId = stableId(input.originProjectId, 'originProjectId');
+	const originRevision = nonNegativeInteger(input.originRevision, 'originRevision');
+	const session = normalizeAudioEditorSessionClipboard({
+		schemaVersion: 1,
+		originProjectId,
+		descriptor: input.descriptor,
+		sources: input.sources,
+	});
+	const finishing = normalizeFramescaperFinishingClipboardV11(input.finishing);
+	if (finishing.originProjectId !== originProjectId || finishing.originRevision !== originRevision) {
+		throw new RangeError('V11 session and finishing clipboard origins must match exactly.');
+	}
+	return deepFreeze({
+		schemaVersion: 11 as const,
+		kind: 'framescaper-session-clipboard' as const,
+		originProjectId,
+		originRevision,
+		descriptor: session.descriptor,
+		sources: session.sources,
+		finishing,
+	});
+}
 
 export function createFramescaperFinishingClipboardV11(
 	profile: unknown,

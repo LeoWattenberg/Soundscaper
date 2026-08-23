@@ -3,9 +3,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createClipboardDescriptor } from '../src/common/editor/commands/clipboard-runtime.js';
+import {
+	createEditorProjectRuntimeV27Selection,
+} from '../src/framescaper/editor-project-runtime-v27-selection.ts';
 import {
 	createFramescaperFinishingClipboardV11,
 	normalizeFramescaperFinishingClipboardV11,
+	normalizeFramescaperSessionClipboardV11,
 	prepareFramescaperFinishingClipboardPasteV11,
 } from '../src/framescaper/editor-session-clipboard-v11.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
@@ -13,6 +18,25 @@ import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
 
 const PROFILE = FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE;
+
+test('selected V27 runtime creates its edit session clipboard through V11', () => {
+	const runtime = createEditorProjectRuntimeV27Selection(PROFILE);
+	const project = projectWithFinishing();
+	const descriptor = createClipboardDescriptor(runtime.projectForCommandConsumers(project), {
+		startFrame: 0,
+		endFrame: 48_000,
+		trackIds: ['video-track'],
+	});
+	const clipboard = runtime.createSessionClipboard(project, descriptor);
+	assert.equal(clipboard.schemaVersion, 11);
+	assert.equal(clipboard.kind, 'framescaper-session-clipboard');
+	assert.equal(clipboard.originProjectId, project.id);
+	assert.equal(clipboard.originRevision, project.revision);
+	assert.deepEqual(clipboard.descriptor, descriptor);
+	assert.equal(clipboard.finishing.visualPresentations[0]?.id, 'presentation-1');
+	assert.deepEqual(normalizeFramescaperSessionClipboardV11(structuredClone(clipboard)), clipboard);
+	assert.deepEqual(runtime.prepareEditClipboardDescriptor(project, descriptor), descriptor);
+});
 
 test('selected clipboard V11 carries V24 visuals and V27 finishing without M5 state', () => {
 	const project = projectWithFinishing();
