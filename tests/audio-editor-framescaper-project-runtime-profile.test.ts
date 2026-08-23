@@ -306,7 +306,6 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		// The V20 selection asks the V18 clipboard to make its descriptor, for the
 		// nested-sequence and multicamera graphs the shared one cannot carry.
 		'src/framescaper/editor-project-runtime-v20-selection.ts',
-		'src/framescaper/editor-project-runtime-v27-selection.ts',
 		'src/framescaper/editor-project-v18-profile.ts',
 		'src/framescaper/editor-project-v19-commands.ts',
 		'src/framescaper/editor-project-v19-runtime.ts',
@@ -369,7 +368,6 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		// The V20 selection asks the V18 clipboard to make its descriptor, for the
 		// nested-sequence and multicamera graphs the shared one cannot carry.
 		'src/framescaper/editor-project-runtime-v20-selection.ts',
-		'src/framescaper/editor-project-runtime-v27-selection.ts',
 		'src/framescaper/editor-project-v18-profile.ts',
 		'src/framescaper/editor-project-v19-commands.ts',
 		'src/framescaper/editor-project-v19-runtime.ts',
