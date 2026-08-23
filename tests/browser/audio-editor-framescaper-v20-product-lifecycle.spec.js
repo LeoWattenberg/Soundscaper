@@ -118,7 +118,7 @@ test.describe('selected Framescaper V27 product lifecycle', () => {
 		await dialog.getByRole('button', { name: 'Reverse', exact: true }).click();
 		await expect(dialog.getByRole('status')).toContainText('Video retime updated.');
 		await expect.poll(() => storedRetimeState(page, projectId)).toMatchObject({
-			schemaVersion: 20, mode: 'constant-reverse', audioWarp: null, audioReversed: false,
+			schemaVersion: 27, mode: 'constant-reverse', audioWarp: null, audioReversed: false,
 		});
 
 		await dialog.getByRole('button', { name: 'Close', exact: true }).click();

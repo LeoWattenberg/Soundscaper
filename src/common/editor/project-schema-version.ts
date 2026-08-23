@@ -93,6 +93,12 @@ export function isFramescaperVideoKeyframeProjectSchema(value: unknown): value i
 		|| value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION;
 }
 
+/** Selected Framescaper generations that own maintained occurrence-retime authoring. */
+export function isFramescaperVideoRetimeProjectSchema(value: unknown): value is 20 | 27 {
+	return value === FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION;
+}
+
 /** Active audio-authoring documents: shared V17 and Soundscaper-owned V21/V23. */
 export function isActiveAudioEditorProjectSchema(value: unknown): value is 17 | 21 | 23 {
 	return value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION

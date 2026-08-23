@@ -6,9 +6,9 @@ import test from 'node:test';
 import { createVideoRetimeApplicationMenuItems } from '../src/common/editor/ui/video-retime-application-menu.ts';
 import { createVideoRetimeDialogModel } from '../src/common/editor/ui/video-retime-dialog-model.ts';
 
-function project() {
+function project(schemaVersion: 20 | 27 = 20) {
 	return {
-		schemaVersion: 20,
+		schemaVersion,
 		clips: [{
 			id: 'video-1', kind: 'video', name: 'Picture', sourceId: 'source-1',
 			sequenceStartFrame: 12, sequenceFrameCount: 10, sourceInFrame: 3,
@@ -19,7 +19,7 @@ function project() {
 	};
 }
 
-test('video-retime menu is a V20 Framescaper capability-gated lazy entry', () => {
+test('video-retime menu is a maintained V20/V27 Framescaper capability-gated lazy entry', () => {
 	let opened = 0;
 	const input = {
 		productId: 'framescaper', capability: true, project: project(), selectedClipId: 'video-1',
@@ -31,6 +31,9 @@ test('video-retime menu is a V20 Framescaper capability-gated lazy entry', () =>
 	});
 	item?.onClick();
 	assert.equal(opened, 1);
+	assert.equal(createVideoRetimeApplicationMenuItems({
+		...input, project: project(27),
+	})[0]?.disabled, false);
 	assert.deepEqual(createVideoRetimeApplicationMenuItems({ ...input, productId: 'soundscaper' }), []);
 	assert.deepEqual(createVideoRetimeApplicationMenuItems({ ...input, capability: false }), []);
 	assert.deepEqual(createVideoRetimeApplicationMenuItems({
@@ -84,4 +87,11 @@ test('video-retime dialog model snapshots exact selected clip command authority'
 	assert.ok(mapped.commandAuthority);
 	assert.notEqual(mapped.commandAuthority.expectedRetimeMap, value.clips[0]!.retimeMap);
 	assert.deepEqual(mapped.commandAuthority.expectedRetimeMap, value.clips[0]!.retimeMap);
+
+	const selected = createVideoRetimeDialogModel({
+		productId: 'framescaper', capability: true,
+		project: project(27), selectedClipId: 'video-1', editingBlocked: false,
+	});
+	assert.equal(selected.blockReason, null);
+	assert.equal(selected.clipId, 'video-1');
 });

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isFramescaperVideoRetimeProjectSchema } from '../project-schema-version.ts';
+
 export type VideoRetimeDialogBlockReason = 'unsupported' | 'no-video-clip' | 'locked' | 'busy';
 
 export interface VideoRetimeDialogModelInput {
@@ -34,7 +36,9 @@ export function createVideoRetimeDialogModel(
 ): Readonly<VideoRetimeDialogModel> {
 	if (input.productId !== 'framescaper' || !input.capability) return blocked('unsupported');
 	const project = record(input.project);
-	if (integer(project?.schemaVersion) !== 20) return blocked('unsupported');
+	if (!isFramescaperVideoRetimeProjectSchema(integer(project?.schemaVersion))) {
+		return blocked('unsupported');
+	}
 	const clips = records(project?.clips);
 	const tracks = records(project?.tracks);
 	const selection = record(project?.selection);
