@@ -89,7 +89,10 @@ test('selected V27 browser strategy delegates exact retime/keyframe encoding thr
 	assert.equal(captured[0]?.project.schemaVersion, 17);
 	assert.notStrictEqual(captured[0]?.project, exportProject);
 	assert.equal(typeof captured[0]?.rgbaCompositor, 'function');
-	assert.deepEqual(processedPixel, [0, 0, 0, 255]);
+	// Captured pixels are canvas-sRGB readback: code 16 decodes to linear
+	// ~0.0052 (not the limited-range floor crushed to black), and the 0.35
+	// keyframe opacity over the black background encodes back to 5/255.
+	assert.deepEqual(processedPixel, [5, 5, 5, 255]);
 	assert.deepEqual(framescaperVideoExportDispositionV27For(plan).unexplainedOmittedNodeIds, []);
 
 	const other = keyedProject('other-v27');

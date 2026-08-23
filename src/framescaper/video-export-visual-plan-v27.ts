@@ -95,9 +95,20 @@ function visualProjectRange(
 	const clipIds = new Set(records(project.tracks, 'V27 visual tracks')
 		.filter((track) => trackIds.has(String(track.id)))
 		.flatMap((track) => strings(track.clipIds, 'V27 visual track clip IDs')));
+	// Playback plays every clip on the timeline, so the 'project' range must
+	// cover every clip too — matching the keyed route's shared resolver. A
+	// range from stills and generators alone would silently cut the audio
+	// tail out of the delivered file.
 	let endFrame = 0;
 	for (const clip of records(project.clips, 'V27 visual clips')) {
-		if (!clipIds.has(String(clip.id)) || (clip.kind !== 'still' && clip.kind !== 'generator')) continue;
+		if (!clipIds.has(String(clip.id))) continue;
+		if (clip.kind === 'audio') {
+			endFrame = Math.max(endFrame, positiveSum(
+				clip.timelineStartFrame, clip.durationFrames, 'V27 audio clip range',
+			));
+			continue;
+		}
+		if (clip.kind !== 'still' && clip.kind !== 'generator' && clip.kind !== 'video') continue;
 		endFrame = Math.max(endFrame, sequenceFrameBoundarySample(
 			positiveSum(clip.sequenceStartFrame, clip.sequenceFrameCount, 'V27 visual clip range'),
 			sequenceRate, sampleRate,
