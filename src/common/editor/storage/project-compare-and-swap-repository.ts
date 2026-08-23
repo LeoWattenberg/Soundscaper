@@ -48,6 +48,18 @@ export class ProjectCompareAndSwapRepository implements ProjectRepositoryPort {
 		return this.#delegate.save(project, postCommit);
 	}
 
+	restore(projectId: string, snapshot: Readonly<{
+		readonly current: ProjectDocument | null;
+		readonly revisions: readonly Readonly<{
+			readonly revision: number;
+			readonly project: ProjectDocument;
+		}>[];
+	}>): Promise<void> {
+		const restore = this.#delegate.restore;
+		if (!restore) throw new Error('Project snapshot restore is unavailable.');
+		return restore.call(this.#delegate, projectId, snapshot);
+	}
+
 	async saveIfCurrent(
 		expectedValue: ProjectDocument,
 		projectValue: ProjectDocument,

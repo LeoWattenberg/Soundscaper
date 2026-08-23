@@ -46,6 +46,15 @@ export interface ScapeImportStore {
 	saveProject(project: ScapeProjectDocument): PromiseLike<unknown>;
 	deleteProject(projectId: string): PromiseLike<unknown>;
 	deleteSource(sourceId: string): PromiseLike<unknown>;
+	/**
+	 * Replace only the project's document and revision rows with a captured
+	 * snapshot, preserving linked-original bindings and skipping publication
+	 * admission. Preferred over delete-then-resave for replace rollback.
+	 */
+	restoreProjectSnapshot?(projectId: string, snapshot: Readonly<{
+		readonly current: ScapeProjectDocument | null;
+		readonly revisions: readonly ScapeProjectRevision[];
+	}>): PromiseLike<unknown>;
 }
 
 interface ProjectSnapshot {
@@ -167,6 +176,12 @@ export class ScapeImportTransaction {
 		}
 		// A failed create-only comparison did not publish the captured absent target.
 		if (snapshot.current === null && this.#createOnlyPublicationAttempted) return true;
+		if (typeof this.#store.restoreProjectSnapshot === 'function') {
+			// The atomic restore preserves linked-original bindings and their
+			// locator grants, which the full delete lifecycle would destroy.
+			await this.#store.restoreProjectSnapshot(projectId, snapshot);
+			return true;
+		}
 		await this.#store.deleteProject(projectId);
 		const revisions = [...snapshot.revisions]
 			.sort((left, right) => left.revision - right.revision);

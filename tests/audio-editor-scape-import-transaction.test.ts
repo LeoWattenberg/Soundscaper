@@ -4,7 +4,63 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { ScapeImportTransaction } from '../src/common/editor/scape-import-transaction.ts';
+import { createProjectStore } from '../src/common/editor/storage.js';
+import type { LinkedOriginalPort } from '../src/common/editor/storage/linked-original-resolver.ts';
 import type { OwnedMediaAssetPublication } from '../src/common/editor/storage/media-asset-write-contract.ts';
+
+test('replace-import rollback preserves linked-original bindings and their locators', async () => {
+	// A rollback restores the captured documents; it must never pass through
+	// the full project-delete lifecycle, which destroys linked-original
+	// binding rows and actively releases their platform locator grants —
+	// state a document re-save can never bring back.
+	const body = new Blob(['linked pcm original bytes'], { type: 'audio/wav' });
+	const releases: unknown[] = [];
+	const port: LinkedOriginalPort = {
+		async load(kind, locatorId, { expectedRevision }) {
+			if (locatorId !== 'locator_rollback_survives_0001') return null;
+			if (expectedRevision !== null && expectedRevision !== 'revision_rollback_0001') return null;
+			return { blob: body, locatorRevision: 'revision_rollback_0001' };
+		},
+		release(reference) { releases.push(reference); return true; },
+	};
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: 'scape-rollback-binding-parity',
+		linkedOriginalPort: port,
+	});
+	await store.ready();
+	await store.saveProject({
+		id: 'p1', revision: 0, title: 'Original',
+		updatedAt: '2026-01-01T00:00:00.000Z',
+		sources: [{ id: 'src-1', kind: 'audio', name: 'orig.wav' }],
+	});
+	await store.bindLinkedAudioOriginal(
+		'p1',
+		{
+			kind: 'audio', id: 'src-1', storageKey: 'stor-1', mimeType: 'audio/wav',
+			frameCount: 4, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
+			sampleFormat: 'float32', chunkFrames: 2,
+		},
+		'locator_rollback_survives_0001',
+		{ expectedLocatorRevision: 'revision_rollback_0001', expectedSnapshot: body },
+	);
+	assert.ok(await store.getLinkedOriginalBinding('p1', 'src-1'));
+
+	const transaction = new ScapeImportTransaction(store);
+	await transaction.captureProject('p1');
+	await transaction.publishProject({ id: 'p1', revision: 1, title: 'Imported', sources: [] });
+	const primary = new Error('user cancelled after publish');
+	await assert.rejects(transaction.rollback(primary), (error: unknown) => error === primary);
+
+	const restored = await store.loadProject('p1');
+	assert.equal(restored?.title, 'Original', 'the captured project document is restored');
+	assert.ok(
+		await store.getLinkedOriginalBinding('p1', 'src-1'),
+		'the linked-original binding survives the rollback',
+	);
+	assert.deepEqual(releases, [], 'no platform locator grant was released during rollback');
+});
 
 test('Scape rollback discards exact owned media publications and PCM sources', async () => {
 	const cleanup: string[] = [];

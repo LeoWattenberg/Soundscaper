@@ -63,6 +63,14 @@ export interface ProjectRepositoryPort {
 	deleteIfCurrent?(project: ProjectDocument): Promise<boolean>;
 	deleteExact?(project: ProjectDocument): Promise<boolean>;
 	delete(projectId: string): Promise<void>;
+	/** Replace only document/revision rows with a captured snapshot; see ProjectRepository.restore. */
+	restore?(projectId: string, snapshot: Readonly<{
+		readonly current: ProjectDocument | null;
+		readonly revisions: readonly Readonly<{
+			readonly revision: number;
+			readonly project: ProjectDocument;
+		}>[];
+	}>): Promise<void>;
 }
 /** Durable project snapshots and their bounded revision history. */
 export class ProjectRepository implements ProjectRepositoryPort {
@@ -306,6 +314,53 @@ export class ProjectRepository implements ProjectRepositoryPort {
 		const created = clone(snapshot);
 		this.#creationFences.set(created, creationFence);
 		return created;
+	}
+
+	/**
+	 * Replace only the project's document and revision rows with a captured
+	 * snapshot.
+	 *
+	 * A failed replace-import rolls back through this rather than the full
+	 * delete-then-resave lifecycle: linked-original binding rows and
+	 * provisional roots hold platform locator grants that a document re-save
+	 * can never reconstruct, so they must stay untouched, and the restore
+	 * writes run without publication admission so a quota shortage cannot
+	 * leave the pre-existing project deleted after its delete committed.
+	 */
+	async restore(projectId: string, snapshot: Readonly<{
+		readonly current: ProjectDocument | null;
+		readonly revisions: readonly Readonly<{
+			readonly revision: number;
+			readonly project: ProjectDocument;
+		}>[];
+	}>): Promise<void> {
+		const rows: ProjectRevisionRecord[] = snapshot.revisions.map(({ revision, project }) => {
+			const document = compactProjectSourceMetadata(clone(project)) as ProjectDocument;
+			const value = nonNegativeInteger(revision, 0);
+			return { key: revisionKey(projectId, value), projectId, revision: value, project: document };
+		});
+		const current = snapshot.current === null
+			? null : compactProjectSourceMetadata(clone(snapshot.current)) as ProjectDocument;
+		const database = await this.#port.database();
+		if (!database) {
+			const memory = this.#port.memory;
+			const mutations: MemoryMutation[] = [deleteMemoryMutation(memory.projects, projectId)];
+			for (const [key, value] of memory.revisions) {
+				if (asRevision(value)?.projectId === projectId) {
+					mutations.push(deleteMemoryMutation(memory.revisions, key));
+				}
+			}
+			for (const row of rows) mutations.push(setMemoryMutation(memory.revisions, row.key, row));
+			if (current) mutations.push(setMemoryMutation(memory.projects, projectId, current));
+			applyMemoryMutations(mutations);
+			return;
+		}
+		await transact(database, ['projects', 'revisions'], 'readwrite', async ({ projects, revisions }) => {
+			projects.delete(projectId);
+			await deleteByIndex(revisions.index('projectId'), projectId);
+			for (const row of rows) revisions.put(row);
+			if (current) projects.put(current);
+		});
 	}
 
 	async delete(projectId: string): Promise<void> {

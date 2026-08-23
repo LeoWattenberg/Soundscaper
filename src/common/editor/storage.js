@@ -180,6 +180,27 @@ export class AudioEditorProjectStore {
 		return this.linkedOriginalStoreService.deleteProject(projectId, () => this.projectRepository.delete(projectId));
 	}
 
+	/**
+	 * Restore a captured project snapshot after a failed replace-import.
+	 *
+	 * Replaces only the project document and revision rows: linked-original
+	 * bindings, their locator grants, and provisional roots stay untouched,
+	 * and the restore runs without publication admission so it cannot be
+	 * refused by the same quota shortage that failed the import.
+	 */
+	async restoreProjectSnapshot(projectId, snapshot) {
+		if (typeof this.projectRepository.restore !== 'function') {
+			// Repositories without the atomic primitive keep the legacy
+			// delete-then-resave sequence.
+			await this.deleteProject(projectId);
+			const revisions = [...snapshot.revisions].sort((left, right) => left.revision - right.revision);
+			for (const revision of revisions) await this.saveProject(revision.project);
+			if (snapshot.current) await this.saveProject(snapshot.current);
+			return;
+		}
+		return this.projectRepository.restore(projectId, snapshot);
+	}
+
 	async prepareProjectHandoff(project, { signal } = {}) {
 		if (!(this.projectRepository instanceof DesktopSharedProjectRepository)) return Object.freeze([]);
 		return this.projectRepository.prepareHandoff(project, signal);
