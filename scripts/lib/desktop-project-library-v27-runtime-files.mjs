@@ -2,6 +2,10 @@
 
 /** V27 project/body-validation transitives emitted by the selected desktop V18 main. */
 export const DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES = Object.freeze([
+	'src/common/editor/audacity-binary-xml.js',
+	'src/common/editor/aup4-effects.js',
+	'src/common/editor/effect-macros.js',
+	'src/common/editor/loudness-normalization.js',
 	'src/common/editor/scape-archive-zip-profile.js',
 	'src/common/editor/scape-export-estimate.js',
 	'src/common/editor/scape-export-plan.js',
@@ -46,6 +50,7 @@ export const DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/worker-request-broker.js',
 	'src/framescaper/desktop-project-library-v12-body-transfer.js',
 	'src/framescaper/desktop-project-library-v27-body-contract.js',
+	'src/framescaper/editor-audio-dialogue-chain-v27.js',
 	'src/framescaper/editor-audio-finishing-v27.js',
 	'src/framescaper/editor-project-feature-capability-profile-v27.js',
 	'src/framescaper/editor-project-feature-requirements-v27.js',
