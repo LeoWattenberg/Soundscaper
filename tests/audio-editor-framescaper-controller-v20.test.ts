@@ -23,6 +23,9 @@ const {
 const {
 	framescaperNativeProjectActionRuntimeFor,
 } = await import('../src/common/editor/ui/framescaper-native-project-actions.ts');
+const {
+	framescaperVideoProxyActionRuntimeFor,
+} = await import('../src/framescaper/editor-video-proxy-action-runtime-v20.ts');
 const { createInstrumentedIndexedDB } = await import('./helpers/instrumented-indexeddb.js');
 
 test('selected V20 controller activates one fresh writable exact project authority', async (context) => {
@@ -55,6 +58,7 @@ test('selected V20 controller activates one fresh writable exact project authori
 		['render-queue-enqueue'],
 		'selected V20 advertises its queue action without candidate-only mutations',
 	);
+	assert.equal(framescaperVideoProxyActionRuntimeFor(controller)?.mode('video-source'), 'auto');
 	assert.equal(typeof (controller as unknown as Readonly<{
 		prepareNativeRenderInputsV20?: unknown;
 	}>).prepareNativeRenderInputsV20, 'function');

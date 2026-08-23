@@ -166,6 +166,7 @@ export function createWorkspaceApplicationMenus({
 				openVideoComposition: () => openSurface('video-composition'),
 				openVideoKeyframes: () => openSurface('video-keyframes'),
 				openVideoRetime: () => openSurface('video-retime'),
+				openVideoProxy: () => openSurface('video-proxy'),
 				openTakeComp: () => openSurface('take-comp'),
 				newProject: () => run(() => controller.actions.project.create()),
 				openProjects,

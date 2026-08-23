@@ -301,7 +301,11 @@ export function createEditorVideoExportAction(
 				const blob = admittedFallbacks.videoBlob && input.sourceId === delivery.videoRenderedFallback?.sourceId
 					? admittedFallbacks.videoBlob
 					: await store.loadMediaAsset(input.storageKey || input.sourceId, { signal: abort.signal });
-				if (!blob) throw new Error(copy.localSourcesMissing);
+				if (!blob) throw videoExportMissingOriginalError(
+					canonicalProject,
+					String(input.sourceId),
+					String(copy.localSourcesMissing),
+				);
 				videoBlobs.set(input.sourceId, blob);
 			}
 			let audioMixBlob = null;
@@ -508,6 +512,23 @@ export function createEditorVideoExportAction(
 			exportTask.finish();
 		}
 	};
+}
+
+export function videoExportMissingOriginalError(
+	project: unknown,
+	sourceId: string,
+	fallbackMessage: string,
+): Error {
+	const sources = project && typeof project === 'object'
+		? (project as Readonly<{ readonly sources?: readonly unknown[] }>).sources
+		: null;
+	const source = Array.isArray(sources) ? sources.find((candidate) => (
+		candidate && typeof candidate === 'object'
+		&& (candidate as Readonly<{ readonly id?: unknown }>).id === sourceId
+	)) as Readonly<{ readonly proxyAttachment?: unknown }> | undefined : undefined;
+	return new Error(source?.proxyAttachment
+		? 'The original video is unavailable. Relink the original; proxies are preview-only and cannot be delivered.'
+		: fallbackMessage);
 }
 
 function productEncodeRequest(

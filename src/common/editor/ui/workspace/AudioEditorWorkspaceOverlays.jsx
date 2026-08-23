@@ -9,6 +9,7 @@ const ClipPropertiesDialog = React.lazy(() => import('../inspector/ClipPropertie
 const VideoCompositionDialog = React.lazy(() => import('../inspector/VideoCompositionDialog.tsx'));
 const VideoKeyframeDialog = React.lazy(() => import('../inspector/VideoKeyframeDialog.tsx'));
 const VideoRetimeDialog = React.lazy(() => import('../dialogs/VideoRetimeDialog.tsx'));
+const FramescaperVideoProxyDialog = React.lazy(() => import('../dialogs/FramescaperVideoProxyDialog.tsx'));
 const FramescaperV27FinishingDialog = React.lazy(() => import('../dialogs/FramescaperV27FinishingDialog.tsx'));
 const ExportDialog = React.lazy(() => import('../inspector/ExportDialog.jsx'));
 const DeliveryQueueDialog = React.lazy(() => import('../inspector/DeliveryQueueDialog.jsx'));
@@ -144,6 +145,22 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							controller={controller}
 							snapshot={snapshot}
 							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{productId === 'framescaper' && (snapshot.project?.schemaVersion === 20
+				|| snapshot.project?.schemaVersion === 27) && activeSurface === 'video-proxy' && (
+				<div data-editor-surface="video-proxy">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<FramescaperVideoProxyDialog
+							controller={controller}
+							snapshot={snapshot}
+							editingBlocked={editBlocked}
+							copy={copy}
+							fileService={fileService}
 							run={run}
 							onClose={() => setActiveSurface(null)}
 						/>

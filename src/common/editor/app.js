@@ -534,7 +534,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceBuffers,
 		sourcePeaks,
 		waveformPcmWindows: clipWaveformPcmWindows,
-		store,
+		store, resolveProductVideoPreviewMedia: options.resolveProductVideoPreviewMedia,
 		projectDurationFrames,
 		url: {
 			createObjectURL: (blob) => globalThis.URL?.createObjectURL?.(blob) || null,
@@ -1842,7 +1842,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
 		prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
 		previewRackEffect, previewVideoEffectGesture, product, getProject: () => project,
-		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual, canRelinkLinkedAudio: projectBinService.canRelinkLinkedAudio, classifyLinkedAudioRelink: projectBinService.classifyLinkedAudioRelink, relinkLinkedAudio: projectBinService.relinkLinkedAudio, canRelinkLinkedVideo: projectBinService.canRelinkLinkedVideo, classifyLinkedVideoRelink: projectBinService.classifyLinkedVideoRelink, relinkLinkedVideo: projectBinService.relinkLinkedVideo,
+		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined), canRelinkLinkedAudio: projectBinService.canRelinkLinkedAudio, classifyLinkedAudioRelink: projectBinService.classifyLinkedAudioRelink, relinkLinkedAudio: projectBinService.relinkLinkedAudio, canRelinkLinkedVideo: projectBinService.canRelinkLinkedVideo, classifyLinkedVideoRelink: projectBinService.classifyLinkedVideoRelink, relinkLinkedVideo: projectBinService.relinkLinkedVideo,
 		removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
 		renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 		repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence: storageCapacityService.requestStoragePersistence, requestWaveformPcmWindow, resampleTrack,
@@ -2012,7 +2012,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function getProjectBinClipVisualData(...args) { return projectVisualService.getProjectBinClipVisualData(...args); }
 	function revokeVideoVisuals() { return projectVisualService.revokeVideoVisuals(); }
 	function revokeVideoVisual(...args) { return projectVisualService.revokeVideoVisual(...args); }
-	function activateVideoSource(...args) { return projectVisualService.activateVideoSource(...args); }
+	function activateVideoSource(...args) { return projectVisualService.activateVideoSource(...args); } async function reloadVideoSourceVisual(sourceId) { const source = findSource(project, sourceId); if (!source || source.kind !== 'video') throw new ReferenceError(`Video source ${String(sourceId)} is missing.`); await revokeVideoVisual(source.id); return activateVideoSource(source); }
 	function allProjectClips(...args) { return projectVisualService.allProjectClips(...args); }
 	function hasMissingTimelineSources(...args) { return projectVisualService.hasMissingTimelineSources(...args); }
 	function getVisibleClips(...args) { return projectVisualService.getVisibleClips(...args); }

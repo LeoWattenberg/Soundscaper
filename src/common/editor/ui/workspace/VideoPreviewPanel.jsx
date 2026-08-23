@@ -15,6 +15,7 @@ import {
 	shouldContinueVideoPreviewPlayback,
 } from '../video-preview-compositor.js';
 import { createVideoPreviewEffectBypass } from './video-preview-effect-bypass.ts';
+import { useFramescaperVideoProxyPreviewPressure } from './framescaper-video-proxy-pressure.ts';
 import { resolveVideoPreviewVisual } from './video-preview-visual.ts';
 import {
 	EMPTY_VIDEO_EFFECT_STACK,
@@ -50,7 +51,7 @@ function createVideoPreviewTimeline(project, controller, missingSourceIds, faile
 					project.sources?.some((source) => source.id === clip.sourceId)
 					&& sourceUrl
 					&& visual?.available !== false
-					&& !missingSourceIds.has(clip.sourceId)
+					&& (visual?.mediaKind === 'proxy' || !missingSourceIds.has(clip.sourceId))
 					&& failedVideoSources.get(clip.id) !== sourceUrl,
 				),
 			});
@@ -222,7 +223,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 						entry.source
 						&& sourceUrl
 						&& visual?.available !== false
-						&& !missingSourceIds.has(entry.sourceId)
+						&& (visual?.mediaKind === 'proxy' || !missingSourceIds.has(entry.sourceId))
 						&& failedVideoSourcesRef.current.get(entry.clipId) !== sourceUrl,
 					),
 				};
@@ -230,6 +231,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		}));
 	}, [controller, layers, mediaErrorRevision, missingSourceIds]);
 	const activeEntries = resolvedLayers.flatMap((layer) => layer.clips);
+	useFramescaperVideoProxyPreviewPressure({ reporter: controller.actions.video?.reportPreviewPressure || null, entries: activeEntries, elements: videoElementsRef, canvas: canvasRef, referenceWidth: referenceCanvas.width, referenceHeight: referenceCanvas.height, playing: transportState === 'playing', run });
 	const renderableEntries = keyframePreviewFailed
 		? []
 		: activeEntries.filter((entry) => entry.available);

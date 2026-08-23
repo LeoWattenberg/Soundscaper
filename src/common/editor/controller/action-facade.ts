@@ -52,7 +52,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	previewRackEffect, previewVideoEffectGesture, product, getProject,
 	projectBinInstanceCount, refreshAudioDevices, refreshStorageUsage,
 	canRelinkLinkedAudio, classifyLinkedAudioRelink, relinkLinkedAudio, canRelinkLinkedVideo, classifyLinkedVideoRelink, relinkLinkedVideo,
-	releaseVideoSourceVisual, removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
+	releaseVideoSourceVisual, reloadVideoSourceVisual, reportVideoPreviewPressure, removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
 	renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 	repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence, requestWaveformPcmWindow, resampleTrack,
 	resetClipPitchSpeed, resetLoudnessMeasurement, resizeTrackHeight,
@@ -217,6 +217,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			getClipVisualData,
 			getSourceVisualData: getVideoSourceVisualData,
 			releaseSourceVisual: releaseVideoSourceVisual,
+			reloadSourceVisual: reloadVideoSourceVisual, reportPreviewPressure: reportVideoPreviewPressure,
 			export: exportVideo,
 			trim: createVideoTrimActionFacade({
 				videoCompositing: capabilities.videoCompositing, productName: product.name, services: videoTrimServices,

@@ -2,7 +2,10 @@
 
 import { createAudioEditorController } from '../common/editor/app.js';
 import { createProductNativeRenderInputAuthorityBinding } from '../common/editor/controller/product-native-render-input-authority.ts';
-import { createFramescaperCapturedVideoProxySchedulerV20 } from './editor-captured-video-proxy-scheduler.ts';
+import {
+	createFramescaperCapturedVideoProxySchedulerV20,
+	type FramescaperCapturedVideoProxyRuntimeComposition,
+} from './editor-captured-video-proxy-scheduler.ts';
 import { createFramescaperNativeRenderInputProducerV20 } from './editor-native-render-input-producer-v20.ts';
 import { bindFramescaperNativeRenderQueueActionV20 } from './editor-native-render-queue-action-v20.ts';
 import {
@@ -12,6 +15,11 @@ import {
 import { createFramescaperMulticameraActionsV18 } from './editor-project-v18-multicam-actions.ts';
 import { createFramescaperSequenceActionsV18 } from './editor-project-v18-sequence-actions.ts';
 import { createFramescaperVideoRetimeActionsV20 } from './editor-project-v20-retime-actions.ts';
+import { bindFramescaperVideoProxyActionsV20 } from './editor-video-proxy-actions-v20.ts';
+import type { FramescaperVideoProxyActionRuntime } from './editor-video-proxy-action-runtime-v20.ts';
+import {
+	createFramescaperVideoProxyPreviewMediaResolverV20,
+} from './editor-video-proxy-preview-media-v20.ts';
 import type { FramescaperProjectCommandV20 } from './editor-project-v20-commands.ts';
 import { createFramescaperScapeNativeRuntimeV20 } from './editor-scape-native-v20.ts';
 import { createFramescaperVideoExportStrategyV20 } from './video-export-strategy-v20.ts';
@@ -54,7 +62,17 @@ export function createFramescaperAudioEditorControllerV20(
 		{ authority: nativeRenderInputAuthority, store: environment.controllerStore },
 	);
 	const sessionController = environment.runtime.createSessionController();
-	const controller = createAudioEditorController(null, {
+	let editorialProxyComposition: FramescaperCapturedVideoProxyRuntimeComposition | null = null;
+	let editorialProxyActions: FramescaperVideoProxyActionRuntime | null = null;
+	let controller: ReturnType<typeof createAudioEditorController> | null = null;
+	const resolveProductVideoPreviewMedia = createFramescaperVideoProxyPreviewMediaResolverV20({
+		bodyStore: environment.store,
+		originalStore: environment.controllerStore,
+		getProject: () => controller?.project ?? null,
+		getMode: (sourceId) => editorialProxyActions?.mode(sourceId) ?? 'auto',
+		getPressure: (sourceId) => editorialProxyActions?.pressure(sourceId) ?? null,
+	});
+	controller = createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
 		framescaperCaptureRouteSchemaVersion: 20,
@@ -67,9 +85,19 @@ export function createFramescaperAudioEditorControllerV20(
 		scapeProjectRuntime,
 		productSequenceActions,
 		productVideoExportStrategy: createFramescaperVideoExportStrategyV20(environment.runtime.profile),
-		createFramescaperCaptureProxyScheduler: (composition: Readonly<Record<string, unknown>>) => (
-			createFramescaperCapturedVideoProxySchedulerV20(environment, sessionController, composition as never)
-		),
+		resolveProductVideoPreviewMedia,
+		reportProductVideoPreviewPressure: (
+			sourceId: string,
+			pressure: Parameters<FramescaperVideoProxyActionRuntime['reportPreviewPressure']>[1],
+		) => editorialProxyActions?.reportPreviewPressure(sourceId, pressure),
+		createFramescaperCaptureProxyScheduler: (composition: Readonly<Record<string, unknown>>) => {
+			editorialProxyComposition = composition as unknown as FramescaperCapturedVideoProxyRuntimeComposition;
+			return createFramescaperCapturedVideoProxySchedulerV20(
+				environment,
+				sessionController,
+				editorialProxyComposition,
+			);
+		},
 		productNativeRenderInputAuthority: nativeRenderInputAuthority,
 		...presentation,
 	});
@@ -80,6 +108,15 @@ export function createFramescaperAudioEditorControllerV20(
 		value: prepareNativeRenderInputsV20,
 	});
 	executeProductSequenceCommand = (command) => controller.actions.edit.commit(command);
+	if (!editorialProxyComposition) {
+		throw new Error('The selected V20 editor did not compose its proxy runtime.');
+	}
+	editorialProxyActions = bindFramescaperVideoProxyActionsV20(
+		environment,
+		sessionController,
+		editorialProxyComposition,
+		controller,
+	);
 	bindFramescaperNativeRenderQueueActionV20(environment.runtime.profile, controller);
 	return controller;
 }

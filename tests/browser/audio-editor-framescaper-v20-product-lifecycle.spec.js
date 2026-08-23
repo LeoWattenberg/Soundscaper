@@ -130,6 +130,32 @@ test.describe('selected Framescaper V27 product lifecycle', () => {
 		});
 		expect(clientErrors).toEqual([]);
 	});
+
+	test('opens the menu-only proxy lifecycle and switches preview authority', async ({ page }) => {
+		test.setTimeout(180_000);
+		const clientErrors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/framescaper/embed/en/');
+		await importFiles(editor, [createDeterministicAvFixture('framescaper-v20-proxy.webm')]);
+		await expect(editor).toHaveAttribute('data-clip-count', '2', { timeout: 30_000 });
+
+		const audioClips = await openNestedCommandMenu(page, editor, 'Edit', ['Audio clips']);
+		const proxies = getMenuItem(audioClips, 'Video proxies…');
+		await expect(proxies).toBeEnabled();
+		await proxies.focus();
+		await proxies.press('Enter');
+		const dialog = page.getByRole('dialog', { name: 'Video proxies', exact: true });
+		await expect(dialog).toBeVisible();
+		await assertNoSeriousAxeViolations(page, '[data-video-proxy-dialog]');
+		await expect(dialog).toContainText('Export and delivery always use the original.');
+		await expect(dialog.getByRole('button', { name: 'Generate and attach', exact: true })).toBeEnabled();
+		const mode = dialog.getByRole('combobox', { name: 'Preview media', exact: true });
+		await mode.selectOption('proxy');
+		await expect(mode).toHaveValue('proxy');
+		await mode.selectOption('auto');
+		await expect(mode).toHaveValue('auto');
+		await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+		expect(clientErrors).toEqual([]);
+	});
 });
 
 async function openKeyframeDialog(page, editor) {

@@ -25,6 +25,7 @@ import {
 import {
 	admitFramescaperProjectCommandV20Structure,
 } from './editor-project-v20-command-admission.ts';
+import { flattenFramescaperProjectBatchCommandsV20 } from './editor-project-v20-batch-command.ts';
 import { FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v19.ts';
 import {
 	applyFramescaperProjectCommandV19,
@@ -57,6 +58,7 @@ import {
 	framescaperV20SegmentContainsAvLinkPeer,
 } from './editor-project-v20-av-link-command-segmentation.ts';
 import { framescaperV20ExplicitFreshVideoIds } from './editor-project-v20-fresh-video-command.ts';
+import { detachFramescaperVideoProxyDraftV20, isFramescaperVideoProxyDetachCommandV20, snapshotFramescaperVideoProxyDetachCommandV20, type FramescaperVideoProxyDetachCommandV20 } from './editor-video-proxy-command-v20.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v18.ts';
 import type { FramescaperProjectCommandV18 } from './editor-project-v18-subsequence.ts';
 import {
@@ -73,12 +75,10 @@ import { framescaperProjectV18FoundationV19 } from './editor-project-v19-validat
 export type FramescaperProjectCommandV20 =
 	| FramescaperProjectCommandV19
 	| VideoKeyframesSetCommand
-	| FramescaperVideoRetimeCommandV20;
+	| FramescaperVideoRetimeCommandV20 | FramescaperVideoProxyDetachCommandV20;
 export type FramescaperProjectCommandOptionsV20 = FramescaperProjectCommandOptionsV19;
-
 type DataRecord = Record<string, unknown>;
 type ClipScope = 'timeline' | 'project-bin';
-
 interface KeyframeSnapshot {
 	readonly scope: ClipScope;
 	readonly id: string;
@@ -100,8 +100,10 @@ interface CommandSnapshotBudget {
 /** Snapshot the one V20-owned command before project-context validation. */
 export function normalizeFramescaperProjectCommandV20(
 	value: unknown,
-): VideoKeyframesSetCommand | FramescaperVideoRetimeCommandV20 {
-	return isFramescaperVideoRetimeCommandV20(value)
+): VideoKeyframesSetCommand | FramescaperVideoRetimeCommandV20 | FramescaperVideoProxyDetachCommandV20 {
+	return isFramescaperVideoProxyDetachCommandV20(value)
+		? snapshotFramescaperVideoProxyDetachCommandV20(value)
+		: isFramescaperVideoRetimeCommandV20(value)
 		? snapshotFramescaperVideoRetimeCommandV20(value)
 		: snapshotVideoKeyframesSetCommand(value);
 }
@@ -168,6 +170,10 @@ function snapshotCommand(
 		countOrderedBoundary(budget);
 		return snapshotFramescaperVideoRetimeCommandV20(command);
 	}
+	if (type === 'framescaper/video-proxy-detach') {
+		countOrderedBoundary(budget);
+		return snapshotFramescaperVideoProxyDetachCommandV20(command);
+	}
 	if (type === 'batch') {
 		const record = readClosedDomainRecord(command, 'Framescaper V20 command batch', BATCH_FIELDS);
 		if (budget.activeBatches.has(record)) {
@@ -222,6 +228,9 @@ function applySingle(
 	if (isFramescaperVideoRetimeCommandV20(command)) {
 		return applyVideoRetime(profile, project, command, options);
 	}
+	if (isFramescaperVideoProxyDetachCommandV20(command)) {
+		return applyVideoProxyDetach(profile, project, command, options);
+	}
 	return applyInherited(profile, project, command, options);
 }
 
@@ -232,9 +241,10 @@ function applyBatch(
 	options: FramescaperProjectCommandOptionsV20,
 ): FramescaperProjectV20 {
 	nextRevision(project);
-	const commands = flattenBatchCommands(command);
+	const commands = flattenFramescaperProjectBatchCommandsV20(command);
 	const needsOrderedSegmentation = commands.some((child) => (
 		isFramescaperVideoKeyframesCommandV20(child) || isFramescaperVideoRetimeCommandV20(child)
+		|| isFramescaperVideoProxyDetachCommandV20(child)
 	))
 		|| (commands.length > 1
 			&& commands.some((child) => framescaperV20ExplicitFreshVideoIds(child).size > 0));
@@ -261,7 +271,9 @@ function applyBatch(
 		pendingFreshAvLinks.clear();
 	};
 	for (const child of commands) {
-		if (!isFramescaperVideoKeyframesCommandV20(child) && !isFramescaperVideoRetimeCommandV20(child)) {
+		if (!isFramescaperVideoKeyframesCommandV20(child)
+			&& !isFramescaperVideoRetimeCommandV20(child)
+			&& !isFramescaperVideoProxyDetachCommandV20(child)) {
 			const createsFreshVideo = framescaperV20ExplicitFreshVideoIds(child).size > 0;
 			const freshAvLinks = framescaperV20FreshVideoAddAvLinkIds(child);
 			const joinsPriorPeer = freshAvLinks.some((avLinkId) => (
@@ -284,31 +296,15 @@ function applyBatch(
 		flushInherited();
 		current = isFramescaperVideoKeyframesCommandV20(child)
 			? applyVideoKeyframes(profile, current, child, intermediateOptions)
-			: applyVideoRetime(profile, current, child, intermediateOptions);
+			: isFramescaperVideoRetimeCommandV20(child)
+				? applyVideoRetime(profile, current, child, intermediateOptions)
+				: applyVideoProxyDetach(profile, current, child, intermediateOptions);
 		restoreOuterBookkeeping(current, project);
 	}
 	flushInherited();
 	const draft = current as unknown as DataRecord;
 	finalizeDraft(profile, project, draft, options, 'V20 batch command');
 	return current;
-}
-
-function flattenBatchCommands(
-	command: Extract<FramescaperProjectCommandV20, { readonly type: 'batch' }>,
-): readonly FramescaperProjectCommandV20[] {
-	const result: FramescaperProjectCommandV20[] = [];
-	const pending: FramescaperProjectCommandV20[] = [...command.commands].reverse() as FramescaperProjectCommandV20[];
-	while (pending.length > 0) {
-		const candidate = pending.pop()!;
-		if (candidate.type !== 'batch') {
-			result.push(candidate);
-			continue;
-		}
-		for (let index = candidate.commands.length - 1; index >= 0; index -= 1) {
-			pending.push(candidate.commands[index] as FramescaperProjectCommandV20);
-		}
-	}
-	return Object.freeze(result);
 }
 
 function restoreOuterBookkeeping(
@@ -353,6 +349,18 @@ function applyVideoRetime(
 	clip.retimeMap = resolveFramescaperVideoRetimeMapV20(command, binding);
 	finalizeDraft(profile, project, draft, options, 'V20 video-retime command');
 	return draft as FramescaperProjectV20;
+}
+
+function applyVideoProxyDetach(
+	profile: FramescaperProjectV20Profile,
+	project: FramescaperProjectV20,
+	command: FramescaperVideoProxyDetachCommandV20,
+	options: FramescaperProjectCommandOptionsV20,
+): FramescaperProjectV20 {
+	const draft = snapshotExactProject(profile, project) as unknown as DataRecord;
+	detachFramescaperVideoProxyDraftV20(draft, command);
+	finalizeDraft(profile, project, draft, options, 'V20 video-proxy detach command');
+	return draft as unknown as FramescaperProjectV20;
 }
 
 function applyInherited(
