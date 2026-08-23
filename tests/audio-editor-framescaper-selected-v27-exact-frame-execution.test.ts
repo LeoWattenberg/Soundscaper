@@ -8,6 +8,7 @@ import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-
 import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { bindVideoSourceTimingView } from '../src/common/editor/video-source-timing-view.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV27 } from '../src/framescaper/editor-project-unified-render-plan-v27.ts';
+import { bindFramescaperUnifiedRenderTimingSidecarsV27 } from '../src/framescaper/editor-project-unified-render-timing-v27.ts';
 import { createFramescaperSelectedExactPreviewV27 } from '../src/framescaper/editor-selected-v27-exact-preview.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
 import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
@@ -31,7 +32,9 @@ test('selected V27 finishes each straight-alpha source layer in linear light and
 	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, authority);
 	const signal = new AbortController().signal;
 	const execution = await createFramescaperSelectedExactFrameExecutionV27({
-		project, plan, signal, assertCurrent() {},
+		project, plan, timingSidecars: bindFramescaperUnifiedRenderTimingSidecarsV27(
+			project, authority.timingViews,
+		), signal, assertCurrent() {},
 		captureFrame: () => ({
 			width: 2, height: 2,
 			pixels: Uint8Array.from({ length: 16 }, (_, index) => index % 4 === 0 ? 128
@@ -74,7 +77,9 @@ test('selected V27 executes clip and adjustment effects once in their authored s
 	const applied: string[][] = [];
 	const signal = new AbortController().signal;
 	const execution = await createFramescaperSelectedExactFrameExecutionV27({
-		project, plan, signal, assertCurrent() {},
+		project, plan, timingSidecars: bindFramescaperUnifiedRenderTimingSidecarsV27(
+			project, renderAuthority(project, 10).timingViews,
+		), signal, assertCurrent() {},
 		captureFrame: () => rgbaFrame(64),
 		applyEffects: (frame, effects) => {
 			applied.push(effects.map((effect) => String((effect as { id?: unknown }).id)));

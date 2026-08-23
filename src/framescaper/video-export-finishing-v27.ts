@@ -25,6 +25,7 @@ import type { VideoKeyframeExportPlanV7 } from '../common/editor/video-keyframe-
 import type { VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV27 } from './editor-project-unified-render-plan-v27.ts';
+import { bindFramescaperUnifiedRenderTimingSidecarsV27 } from './editor-project-unified-render-timing-v27.ts';
 import { createFramescaperVideoExportVisualFreshnessV27 } from './video-export-visual-freshness-v27.ts';
 
 export interface FramescaperVideoExportFinishingAssetStoreV27 {
@@ -79,7 +80,10 @@ export async function createFramescaperVideoExportFinishingV27(
 		request.project,
 		renderAuthority(request),
 	);
-	const consumer = createUnifiedExactRenderFinishingExportConsumerV13(exactPlan);
+	const timingSidecars = bindFramescaperUnifiedRenderTimingSidecarsV27(
+		request.project, request.timingViewsBySourceId,
+	);
+	const consumer = createUnifiedExactRenderFinishingExportConsumerV13(exactPlan, timingSidecars);
 	const finishing = exactPlan.nodes.find(
 		(node): node is UnifiedExactRenderFinishingNode => node.kind === 'finishing',
 	)!;

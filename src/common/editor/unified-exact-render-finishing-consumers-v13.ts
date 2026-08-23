@@ -30,12 +30,14 @@ import {
 import type { VideoVisualPresentationV1 } from './video-visual-presentation-v27.ts';
 import {
 	assertUnifiedExactRenderPlanV13,
+	assertUnifiedExactRenderPlanWithTimingSidecars,
 	type UnifiedExactRenderClipNode,
 	type UnifiedExactRenderFinishingNode,
 	type UnifiedExactRenderPlanSource,
 	type UnifiedExactRenderPlanV13,
 	type UnifiedExactRenderVisualNode,
 } from './unified-exact-render-plan.ts';
+import type { UnifiedExactRenderTimingSidecars } from './unified-exact-render-timing-authority.ts';
 
 export interface UnifiedExactRenderRgbaFrameV13 {
 	readonly width: number;
@@ -94,19 +96,26 @@ interface ResolutionAuthority {
 /** Preview and export deliberately delegate to this same plan-owned resolver. */
 export function createUnifiedExactRenderFinishingPreviewConsumerV13(
 	plan: UnifiedExactRenderPlanV13,
+	timingSidecars?: UnifiedExactRenderTimingSidecars,
 ): UnifiedExactRenderFinishingConsumerV13 {
-	return createConsumer(plan);
+	return createConsumer(plan, timingSidecars);
 }
 
 /** Preview and export deliberately delegate to this same plan-owned resolver. */
 export function createUnifiedExactRenderFinishingExportConsumerV13(
 	plan: UnifiedExactRenderPlanV13,
+	timingSidecars?: UnifiedExactRenderTimingSidecars,
 ): UnifiedExactRenderFinishingConsumerV13 {
-	return createConsumer(plan);
+	return createConsumer(plan, timingSidecars);
 }
 
-function createConsumer(planValue: UnifiedExactRenderPlanV13): UnifiedExactRenderFinishingConsumerV13 {
-	assertUnifiedExactRenderPlanV13(planValue);
+function createConsumer(planValue: UnifiedExactRenderPlanV13,
+	timingSidecars?: UnifiedExactRenderTimingSidecars): UnifiedExactRenderFinishingConsumerV13 {
+	if (timingSidecars === undefined) assertUnifiedExactRenderPlanV13(planValue);
+	else {
+		assertUnifiedExactRenderPlanWithTimingSidecars(planValue, timingSidecars);
+		if (planValue.version !== 13) throw new RangeError('Selected finishing requires a V13 plan.');
+	}
 	const finishingNodes = planValue.nodes.filter(
 		(node): node is UnifiedExactRenderFinishingNode => node.kind === 'finishing',
 	);

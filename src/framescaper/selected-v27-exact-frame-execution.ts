@@ -36,6 +36,7 @@ import type {
 	UnifiedExactRenderFinishingNode,
 	UnifiedExactRenderPlanV13,
 } from '../common/editor/unified-exact-render-plan.ts';
+import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-exact-render-timing-authority.ts';
 import { evaluateVideoMaskMatteRgbaV13 } from '../common/editor/video-mask-matte-rgba-v13.ts';
 import { applyVideoExactBrowserEffectsV27 } from './editor-video-exact-browser-effects-v27.ts';
 import { videoDeliveryColorChannels } from '../common/editor/video-delivery-color.ts';
@@ -50,7 +51,6 @@ import {
 	loadFramescaperVideoExportVisualAssetsV27,
 	type FramescaperVideoExportVisualAssetStoreV27,
 } from './video-export-visual-assets-v27.ts';
-
 type Data = Readonly<Record<string, unknown>>;
 export interface FramescaperSelectedExactFrameExecutionV27 {
 	render(request: Readonly<{
@@ -68,7 +68,6 @@ export interface FramescaperSelectedExactFrameExecutionV27 {
 	}>;
 	dispose(): Promise<void>;
 }
-
 export type CaptureFrameV27 = (entry: Data, signal: AbortSignal) => (
 	PromiseLike<UnifiedExactRenderRgbaFrameV13> | UnifiedExactRenderRgbaFrameV13
 );
@@ -77,6 +76,7 @@ export type ApplyEffectsV27 = (frame: UnifiedExactRenderRgbaFrameV13, effects: r
 export async function createFramescaperSelectedExactFrameExecutionV27(options: Readonly<{
 	readonly project: FramescaperProjectV27;
 	readonly plan: UnifiedExactRenderPlanV13;
+	readonly timingSidecars: UnifiedExactRenderTimingSidecars;
 	readonly store?: FramescaperVideoExportVisualAssetStoreV27 & FramescaperVideoExportFinishingAssetStoreV27;
 	readonly sourceFrames?: FramescaperVideoFrameAddressV27;
 	readonly captureFrame?: CaptureFrameV27;
@@ -86,6 +86,8 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 	readonly assertCurrent: () => void;
 }>): Promise<FramescaperSelectedExactFrameExecutionV27> {
 	assertReady(options);
+	const finishingConsumer = createUnifiedExactRenderFinishingPreviewConsumerV13(options.plan, options.timingSidecars);
+	const visualConsumer = createUnifiedExactRenderVisualPreviewConsumerV13(options.plan, options.timingSidecars);
 	const finishing = requiredFinishing(options.plan);
 	const finishingAssets = await loadFramescaperVideoExportFinishingAssetsV27({
 		project: options.project,
@@ -97,8 +99,6 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 		signal: options.signal, assertCurrent: options.assertCurrent,
 	}, options.plan, finishing);
 	assertReady(options);
-	const finishingConsumer = createUnifiedExactRenderFinishingPreviewConsumerV13(options.plan);
-	const visualConsumer = createUnifiedExactRenderVisualPreviewConsumerV13(options.plan);
 	const captureFrame = options.captureFrame ?? captureBrowserFrame;
 	const applyEffects = options.applyEffects ?? applyVideoExactBrowserEffectsV27;
 	const clips = new Map(options.plan.nodes.flatMap((node) => (

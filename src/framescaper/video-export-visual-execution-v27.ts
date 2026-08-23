@@ -32,6 +32,7 @@ import type { ProductVideoExportPlan } from '../common/editor/controller/product
 import type { VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV27 } from './editor-project-unified-render-plan-v27.ts';
+import { bindFramescaperUnifiedRenderTimingSidecarsV27 } from './editor-project-unified-render-timing-v27.ts';
 import {
 	loadFramescaperVideoExportVisualAssetsV27,
 	type FramescaperVideoExportVisualAssetStoreV27,
@@ -56,6 +57,7 @@ export interface FramescaperVideoExportPictureDispositionV27 {
 
 export interface FramescaperVideoExportVisualExecutionV27 {
 	readonly exactPlan: UnifiedExactRenderPlanV13;
+	readonly timingSidecars: ReturnType<typeof bindFramescaperUnifiedRenderTimingSidecarsV27>;
 	readonly postprocess: VideoKeyframeOfflineRgbaPostprocessor;
 	accountFrame(frame: VideoKeyframeExportFrame, consumedNodeIds: readonly string[]): void;
 	createProducer(frameSource: ProductFrameSource): VideoKeyframeVideoRgbaProducer;
@@ -82,7 +84,8 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 	const exactPlan = createFramescaperProjectUnifiedExactRenderPlanV27(
 		request.profile, request.project, renderAuthority(request),
 	);
-	const consumer = createUnifiedExactRenderVisualExportConsumerV13(exactPlan);
+	const timingSidecars = bindFramescaperUnifiedRenderTimingSidecarsV27(request.project, request.timingViewsBySourceId);
+	const consumer = createUnifiedExactRenderVisualExportConsumerV13(exactPlan, timingSidecars);
 	const finishing = requiredFinishing(exactPlan);
 	const assets = await loadFramescaperVideoExportVisualAssetsV27(request, exactPlan, finishing);
 	const executed = new Set<string>();
@@ -242,7 +245,7 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 		for (const frame of assets.stills.values()) frame.pixels.fill(0);
 	}
 
-	return Object.freeze({ exactPlan, postprocess, accountFrame, createProducer, disposition, dispose });
+	return Object.freeze({ exactPlan, timingSidecars, postprocess, accountFrame, createProducer, disposition, dispose });
 }
 
 function pictureTrackIds(frame: VideoKeyframeExportFrame, visualTrackIds: readonly string[]): Set<string> {

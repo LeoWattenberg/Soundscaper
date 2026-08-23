@@ -100,11 +100,11 @@ export function createFramescaperSelectedRenderSessionV27(
 		),
 		createFinishingPreviewConsumer: async () => {
 			const module = await import('../common/editor/unified-exact-render-finishing-consumers-v13.ts');
-			return module.createUnifiedExactRenderFinishingPreviewConsumerV13(plan);
+			return module.createUnifiedExactRenderFinishingPreviewConsumerV13(plan, timingBySourceId);
 		},
 		createFinishingExportConsumer: async () => {
 			const module = await import('../common/editor/unified-exact-render-finishing-consumers-v13.ts');
-			return module.createUnifiedExactRenderFinishingExportConsumerV13(plan);
+			return module.createUnifiedExactRenderFinishingExportConsumerV13(plan, timingBySourceId);
 		},
 		analyzeMotion: async (request: VideoMotionAnalysisRequestV1) => {
 			const module = await import('../common/editor/video-motion-analysis-v27.ts');

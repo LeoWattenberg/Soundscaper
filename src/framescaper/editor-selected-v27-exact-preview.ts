@@ -60,6 +60,7 @@ export async function createFramescaperSelectedExactPreviewV27(options: Readonly
 		sourceFrames = await createTemporalSourceFrames(options);
 		const exact = await createFramescaperSelectedExactFrameExecutionV27({
 			project: options.project, plan: options.plan, store: options.store,
+			timingSidecars: options.boundTimingViews,
 			...(sourceFrames ? { sourceFrames } : {}),
 			...(options.captureFrame ? { captureFrame: options.captureFrame } : {}),
 			signal: options.signal, assertCurrent: options.assertCurrent,

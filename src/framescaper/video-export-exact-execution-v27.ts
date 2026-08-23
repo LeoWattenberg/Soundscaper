@@ -43,7 +43,7 @@ export async function createFramescaperVideoExportExactExecutionV27(options: Rea
 	let exact: Awaited<ReturnType<typeof createFramescaperSelectedExactFrameExecutionV27>>;
 	try {
 		exact = await createFramescaperSelectedExactFrameExecutionV27({
-			project: options.project, plan: visual.exactPlan,
+			project: options.project, plan: visual.exactPlan, timingSidecars: visual.timingSidecars,
 			...(options.store ? { store: options.store } : {}),
 			...(options.captureFrame ? { captureFrame: options.captureFrame } : {}),
 			...(options.createAcceleratorCanvas
