@@ -14,7 +14,7 @@ import {
 	type VideoMaskMatteRgbaInputV13,
 } from './video-mask-matte-rgba-v13.ts';
 
-export interface UnifiedExactRenderVisualRgbaV13 extends VideoMaskMatteRgbaInputV13 {}
+export type UnifiedExactRenderVisualRgbaV13 = VideoMaskMatteRgbaInputV13;
 
 export interface UnifiedExactRenderVisualMaterializerOptionsV13 {
 	readonly targetWidth: number;
