@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { access } from 'node:fs/promises';
+import { DatabaseSync } from 'node:sqlite';
+
 import {
 	createFramescaperDesktopProjectLibraryV18Handshake,
 	createFramescaperDesktopProjectLibraryV18Paths,
@@ -9,6 +12,14 @@ import {
 	validateFramescaperDesktopProjectLibraryV18Handshake,
 	validateFramescaperDesktopProjectLibraryV18Owner,
 } from './project-library-v18-contract.ts';
+import {
+	createFramescaperDesktopProjectLibraryV12Paths,
+} from './project-library-v12-contract.ts';
+import {
+	createFramescaperDesktopProjectLibraryV17Handshake,
+	createFramescaperDesktopProjectLibraryV17Paths,
+} from './project-library-v17-contract.ts';
+import { FramescaperDesktopProjectLibraryV17Main } from './project-library-v17-main.ts';
 import { validateFramescaperDesktopV18CurrentProjectV27 } from './project-library-v18-current-project.ts';
 import {
 	FramescaperDesktopProjectLibraryExactGenerationMain,
@@ -58,10 +69,16 @@ export class FramescaperDesktopProjectLibraryV18Main {
 			throw new TypeError('Framescaper desktop V18 onLeaseLost must be a function');
 		}
 		const qualification = validateQualification(options.qualification);
+		const owner = validateFramescaperDesktopProjectLibraryV18Owner(options.owner);
+		await settleDirectV12Lineage({
+			appDataPath: options.appDataPath as string,
+			owner,
+			onLeaseLost: options.onLeaseLost as (error: unknown) => void,
+		});
 		return new FramescaperDesktopProjectLibraryV18Main(
 			await FramescaperDesktopProjectLibraryExactGenerationMain.start(CONFIGURATION, {
 				appDataPath: options.appDataPath,
-				owner: options.owner,
+				owner,
 				handshake: options.handshake,
 			}, createFramescaperDesktopProjectLibraryV18Extension({
 				onLeaseLost: options.onLeaseLost as (error: unknown) => void,
@@ -90,6 +107,63 @@ export class FramescaperDesktopProjectLibraryV18Main {
 	}
 	readNativeBody(body: unknown): Promise<Uint8Array> { return this.#core.readNativeBody(body); }
 	close(): Promise<void> { return this.#core.close(); }
+}
+
+/**
+ * A selected V18 install may encounter V12 without a previously launched V17.
+ * Settle the existing V12 -> V17 copy-forward first, then let V18's normal
+ * immutable V17 importer run. Existing V18 catalogs never reopen old scopes.
+ */
+async function settleDirectV12Lineage(value: Readonly<{
+	appDataPath: string;
+	owner: Readonly<{ product: 'framescaper'; processId: number; instanceId: string }>;
+	onLeaseLost(error: unknown): void;
+}>): Promise<void> {
+	const v18 = createFramescaperDesktopProjectLibraryV18Paths(value.appDataPath);
+	if (await fileExists(v18.databasePath)) return;
+	const v17 = createFramescaperDesktopProjectLibraryV17Paths(value.appDataPath);
+	const v12 = createFramescaperDesktopProjectLibraryV12Paths(value.appDataPath);
+	const hasV17 = await fileExists(v17.databasePath);
+	if (hasV17 && v17SourceIsSettled(v17.databasePath)) return;
+	if (!hasV17 && !await fileExists(v12.databasePath)) return;
+	const bootstrap = await FramescaperDesktopProjectLibraryV17Main.start({
+		appDataPath: value.appDataPath,
+		owner: {
+			...value.owner,
+			instanceId: `v18_v17_${value.owner.instanceId}`.slice(0, 128),
+		},
+		handshake: createFramescaperDesktopProjectLibraryV17Handshake(),
+		onLeaseLost: value.onLeaseLost,
+		qualification: null,
+	});
+	await bootstrap.close();
+}
+
+function v17SourceIsSettled(databasePath: string): boolean {
+	let database: DatabaseSync | null = null;
+	try {
+		database = new DatabaseSync(databasePath, { readOnly: true, timeout: 50 });
+		const lineage = database.prepare('SELECT state FROM v12_import WHERE singleton = 1').get();
+		const lease = database.prepare('SELECT active FROM library_lease WHERE singleton = 1').get();
+		const journals = Number(database.prepare(
+			'SELECT COUNT(*) AS count FROM publication_journal',
+		).get()?.count);
+		return lineage?.state === 'complete' && lease?.active === 0 && journals === 0;
+	} catch {
+		return false;
+	} finally {
+		database?.close();
+	}
+}
+
+async function fileExists(path: string): Promise<boolean> {
+	try {
+		await access(path);
+		return true;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+		throw error;
+	}
 }
 
 function validateQualification(

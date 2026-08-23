@@ -10,6 +10,11 @@ import test from 'node:test';
 
 import { createDesktopProjectLibraryLeaseMatrixDocument } from '../scripts/lib/desktop-project-library-lease-matrix.mjs';
 import {
+	createFramescaperDesktopProjectLibraryV12Handshake,
+	createFramescaperDesktopProjectLibraryV12Paths,
+} from '../desktop/project-library-v12-contract.ts';
+import { FramescaperDesktopProjectLibraryV12Main } from '../desktop/project-library-v12-main.ts';
+import {
 	createFramescaperDesktopProjectLibraryV17Handshake,
 	createFramescaperDesktopProjectLibraryV17Paths,
 } from '../desktop/project-library-v17-contract.ts';
@@ -98,6 +103,93 @@ test('V18 main persists only exact V27 documents in its isolated SQLite 20 catal
 	assert.equal(identity?.libraryVersion, 18);
 	assert.equal(identity?.projectVersion, 27);
 	database.close();
+});
+
+test('V18 safely cascades an immutable V12-only installation through settled V17', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v18-v12-cascade-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	const v12Paths = createFramescaperDesktopProjectLibraryV12Paths(appDataPath);
+	const source = await FramescaperDesktopProjectLibraryV12Main.start({
+		appDataPath,
+		owner: { product: 'framescaper', processId: 1201, instanceId: 'v12-v18-cascade' },
+		handshake: createFramescaperDesktopProjectLibraryV12Handshake(),
+	});
+	const sourceSession = source.openSession(source.localHandshake);
+	const project = createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, {
+		id: 'v12-only-lineage', title: 'V12 only lineage', revision: 0, now: NOW,
+	});
+	await sourceSession.beginPublication({
+		publicationId: 'bf'.repeat(24), expectedMetadataRevision: 0,
+		expectedProject: null, project, bodies: [],
+	});
+	await sourceSession.finishPublication({ publicationId: 'bf'.repeat(24) });
+	await sourceSession.close();
+	await source.close();
+	const sourceBytes = await readFile(v12Paths.databasePath);
+	const sourceTimestamp = (await stat(v12Paths.databasePath)).mtimeMs;
+
+	const selected = await startV18(appDataPath, 1804, 'v18-v12-cascade');
+	const session = selected.openSession(selected.localHandshake);
+	const imported = await session.readProjectBundle(project.id) as { document: string } | null;
+	assert.deepEqual(
+		JSON.parse(imported?.document ?? 'null'),
+		reimportFramescaperProjectV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, project),
+	);
+	await session.close();
+	await selected.close();
+
+	assert.deepEqual(await readFile(v12Paths.databasePath), sourceBytes);
+	assert.equal((await stat(v12Paths.databasePath)).mtimeMs, sourceTimestamp);
+	const v17 = new DatabaseSync(
+		createFramescaperDesktopProjectLibraryV17Paths(appDataPath).databasePath,
+		{ readOnly: true },
+	);
+	assert.equal(v17.prepare('SELECT state FROM v12_import WHERE singleton = 1').get()?.state, 'complete');
+	assert.equal(v17.prepare('SELECT active FROM library_lease WHERE singleton = 1').get()?.active, 0);
+	v17.close();
+});
+
+test('V18 resumes an interrupted V12 to V17 cascade before selecting V27', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v18-v12-resume-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	const source = await FramescaperDesktopProjectLibraryV12Main.start({
+		appDataPath,
+		owner: { product: 'framescaper', processId: 1211, instanceId: 'v12-v18-resume' },
+		handshake: createFramescaperDesktopProjectLibraryV12Handshake(),
+	});
+	const sourceSession = source.openSession(source.localHandshake);
+	for (const [index, id] of ['v12-resume-a', 'v12-resume-b'].entries()) {
+		const project = createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, {
+			id, title: id, revision: 0, now: NOW,
+		});
+		const publicationId = (index === 0 ? 'c5' : 'c6').repeat(24);
+		await sourceSession.beginPublication({
+			publicationId, expectedMetadataRevision: index, expectedProject: null, project, bodies: [],
+		});
+		await sourceSession.finishPublication({ publicationId });
+	}
+	await sourceSession.close();
+	await source.close();
+
+	await assert.rejects(FramescaperDesktopProjectLibraryV17Main.start({
+		appDataPath,
+		owner: { product: 'framescaper', processId: 1711, instanceId: 'v17-v18-interrupt' },
+		handshake: createFramescaperDesktopProjectLibraryV17Handshake(),
+		onLeaseLost: () => undefined,
+		qualification: {
+			leaseTtlMs: 30_000, renewIntervalMs: 10_000, checkpoint: null,
+			importCheckpoint: (completedProjects: number) => {
+				if (completedProjects === 1) throw new Error('injected direct-upgrade interruption');
+			},
+		},
+	}), /injected direct-upgrade interruption/u);
+
+	const selected = await startV18(appDataPath, 1813, 'v18-v12-resumed');
+	const session = selected.openSession(selected.localHandshake);
+	const catalog = await session.listProjects() as { projects: readonly unknown[] };
+	assert.equal(catalog.projects.length, 2);
+	await session.close();
+	await selected.close();
 });
 
 test('V18 reimports immutable V17 documents and copy-forwards managed bodies exactly once', async (context) => {
