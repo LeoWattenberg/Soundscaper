@@ -347,12 +347,20 @@ function completeAbsentImport(database: DatabaseSync, assertLease: (database: Da
 		assertLease(database);
 		const existing = database.prepare('SELECT state FROM v17_import WHERE singleton = 1').get() as
 			Record<string, unknown> | undefined;
-		if (!existing) database.prepare(`
-			INSERT INTO v17_import (
-				singleton, state, source_catalog_sha256, source_metadata_revision,
-				source_project_count, next_project_index, completed_at_ms
-			) VALUES (1, 'complete', ?, 0, 0, 0, ?)
-		`).run('0'.repeat(64), Date.now());
+		if (existing?.state !== undefined && existing.state !== 'complete') {
+			throw new Error('Framescaper V17 source is unavailable after durable import admission');
+		}
+		if (!existing) {
+			if (Number(database.prepare('SELECT COUNT(*) AS count FROM projects').get()?.count) !== 0) {
+				throw new Error('Framescaper V18 import destination is not empty');
+			}
+			database.prepare(`
+				INSERT INTO v17_import (
+					singleton, state, source_catalog_sha256, source_metadata_revision,
+					source_project_count, next_project_index, completed_at_ms
+				) VALUES (1, 'complete', ?, 0, 0, 0, ?)
+			`).run('0'.repeat(64), Date.now());
+		}
 		database.exec('COMMIT');
 	} catch (error) {
 		database.exec('ROLLBACK');

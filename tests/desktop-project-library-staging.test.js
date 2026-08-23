@@ -42,6 +42,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'desktop-smoke.js'));
 	await access(join(applicationDesktopRoot, 'framescaper-v18-artifact-smoke.js'));
 	await access(join(applicationDesktopRoot, 'framescaper-v20-artifact-smoke.js'));
+	await access(join(applicationDesktopRoot, 'framescaper-v27-artifact-smoke.js'));
 	await access(join(applicationDesktopRoot, 'direct-wav-smoke.js'));
 	await access(join(applicationDesktopRoot, 'project-library-smoke-evidence.js'));
 	await access(join(applicationDesktopRoot, 'project-library-smoke-project.js'));

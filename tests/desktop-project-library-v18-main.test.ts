@@ -2,12 +2,13 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, rename, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
+import { createDesktopProjectLibraryLeaseMatrixDocument } from '../scripts/lib/desktop-project-library-lease-matrix.mjs';
 import {
 	createFramescaperDesktopProjectLibraryV17Handshake,
 	createFramescaperDesktopProjectLibraryV17Paths,
@@ -27,6 +28,27 @@ import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/edit
 import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
 
 const NOW = '2026-08-23T12:00:00.000Z';
+
+test('V18 packaged lease fixture is an exact source-free V27 document', () => {
+	const document = createDesktopProjectLibraryLeaseMatrixDocument(
+		'framescaper-v18-lease-fixture', 3, 'V18 lease fixture', 'framescaper',
+	);
+	const project = JSON.parse(document) as Record<string, unknown>;
+	assert.equal(project.schemaVersion, 27);
+	assert.equal(project.revision, 3);
+	assert.deepEqual(project.sources, []);
+	assert.deepEqual(project.clips, []);
+	assert.deepEqual(project.tracks, []);
+	assert.deepEqual(
+		reimportFramescaperProjectV27(
+			FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
+			createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, {
+				id: 'framescaper-v18-lease-fixture', title: 'V18 lease fixture', revision: 3, now: NOW,
+			}),
+		),
+		project,
+	);
+});
 
 test('Framescaper desktop V18 owns exact V27/SQLite 20/v18 identity beside immutable V17', () => {
 	const root = join(tmpdir(), 'framescaper-v18-contract');
@@ -171,8 +193,14 @@ test('V18 copy-forward resumes after a committed-row interruption without duplic
 			},
 		},
 	}), /injected V18 import interruption/u);
+	const sourceDatabase = createFramescaperDesktopProjectLibraryV17Paths(appDataPath).databasePath;
+	const unavailableSource = `${sourceDatabase}.temporarily-unavailable`;
+	await rename(sourceDatabase, unavailableSource);
+	await assert.rejects(startV18(appDataPath, 1811, 'v18-missing-resume-source'),
+		/V17 source is unavailable after durable import admission/u);
+	await rename(unavailableSource, sourceDatabase);
 
-	const resumed = await startV18(appDataPath, 1811, 'v18-resumed');
+	const resumed = await startV18(appDataPath, 1812, 'v18-resumed');
 	const reopened = resumed.openSession(resumed.localHandshake);
 	const catalog = await reopened.listProjects() as { projects: readonly unknown[] };
 	assert.equal(catalog.projects.length, 2);

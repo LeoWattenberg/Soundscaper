@@ -10,8 +10,8 @@ import {
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX,
 } from '../../desktop/project-library-lease-smoke.js';
-import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v27.ts';
-import { createFramescaperProjectV27 } from '../../src/framescaper/editor-project-v27.ts';
+import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v20.ts';
+import { createFramescaperProjectV20 } from '../../src/framescaper/editor-project-v20.ts';
 import { createSoundscaperProjectV23 } from '../../src/soundscaper/editor-project-v23.ts';
 import { packagedExecutableCandidates, resolveSmokeArchitecture } from './desktop-smoke.mjs';
 
@@ -469,13 +469,65 @@ export function createDesktopProjectLibraryLeaseMatrixDocument(
 	productId = 'soundscaper',
 ) {
 	if (productId === 'framescaper') {
-		return JSON.stringify(createFramescaperProjectV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, {
-			id, title, revision, now: '2026-08-23T12:00:00.000Z',
-		}));
+		return JSON.stringify(sourceFreeFramescaperV27(id, title, revision));
 	}
 	if (productId !== 'soundscaper') throw new TypeError('Lease matrix document product is unsupported');
 	const base = createSoundscaperProjectV23({ id, title });
 	return JSON.stringify({ ...base, revision, metadata: { ...base.metadata, title } });
+}
+
+/** Closed source-free V27 lease witness; avoids loading the browser runtime into Node tooling. */
+function sourceFreeFramescaperV27(id, title, revision) {
+	const project = structuredClone(createFramescaperProjectV20(
+		FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
+		{ id, title, revision, now: '2026-08-23T12:00:00.000Z' },
+	));
+	project.schemaVersion = 27;
+	delete project.master.envelope;
+	for (const track of project.tracks) {
+		if (track.type === 'audio') delete track.envelope;
+		if (track.type === 'video') track.videoTransitions = [];
+	}
+	project.mixer = {
+		schemaVersion: 1,
+		groups: [], sends: [], cues: [], vcas: [],
+		outputs: [{ id: 'main', name: 'Main output', role: 'main', channelCount: project.masterChannels }],
+		edges: [{
+			id: 'assignment:master:output:main', kind: 'assignment',
+			source: { kind: 'master' }, destination: { kind: 'output', id: 'main' },
+			position: 'post-fader', level: 1, enabled: true,
+			channelMap: Array.from({ length: project.masterChannels }, (_, index) => index),
+		}],
+	};
+	project.featureRequirements = {
+		schemaVersion: 2,
+		requirements: [{
+			id: 'framescaper.video-color-management',
+			featureId: 'org.soundscaper.capability.video-color-management',
+			displayName: 'Managed video color', disposition: 'bypass', fallback: null,
+		}, {
+			id: 'framescaper.audio-mixer-graph',
+			featureId: 'org.soundscaper.capability.audio-mixer-graph',
+			displayName: 'Audio mixer graph', disposition: 'bypass', fallback: null,
+		}],
+	};
+	project.videoAdjustmentLayers = [];
+	project.videoVisualPresets = [];
+	project.videoMaskMattes = [];
+	project.videoFreezeFallbacks = [];
+	project.videoColorContexts = project.sequences.map(({ id: sequenceId }) => ({
+		schemaVersion: 1, sequenceId,
+		workingSpace: 'linear-rec709-d65', outputSpace: 'rec709',
+		alphaMode: 'straight-authored-premultiplied-working', toneMapping: 'none',
+	}));
+	project.videoSourceColorInterpretations = [];
+	project.videoVisualPresentations = [];
+	project.videoProcessorStacks = [];
+	project.videoMotionAnalyses = [];
+	project.videoFinishingPresets = [];
+	project.videoCaptionTracks = [];
+	project.automationLanes = [];
+	return project;
 }
 function deepFreeze(value) {
 	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;

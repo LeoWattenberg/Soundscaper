@@ -31,9 +31,9 @@ import {
 	DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX,
 } from './project-library-source-bearing-smoke.js';
 import {
-	joinFramescaperV20ArtifactEvidence,
-	runFramescaperV20ArtifactRendererSmoke,
-} from './framescaper-v20-artifact-smoke.js';
+	joinFramescaperV27ArtifactEvidence,
+	runFramescaperV27ArtifactRendererSmoke,
+} from './framescaper-v27-artifact-smoke.js';
 import {
 	runFramescaperCaptureArtifactRendererSmoke,
 	validateFramescaperCaptureArtifactEvidence,
@@ -253,7 +253,7 @@ export function createDesktopSmokeProbe(options) {
 		try {
 			const execution = productId === 'framescaper'
 				? await window.webContents.executeJavaScript(
-					`(${runFramescaperV20ArtifactRendererSmoke.toString()})(globalThis, ${JSON.stringify({
+					`(${runFramescaperV27ArtifactRendererSmoke.toString()})(globalThis, ${JSON.stringify({
 						appName,
 						appOrigin,
 					})})`,
@@ -272,9 +272,9 @@ export function createDesktopSmokeProbe(options) {
 					...execution,
 					desktopChrome,
 					framescaperCapture: validateFramescaperCaptureArtifactEvidence(captureExecution),
-					framescaperV20: joinFramescaperV20ArtifactEvidence(
-						execution?.framescaperV20,
-						await projectLibraryEvidence(execution?.framescaperV20?.project?.projectId),
+					framescaperV27: joinFramescaperV27ArtifactEvidence(
+						execution?.framescaperV27,
+						await projectLibraryEvidence(execution?.framescaperV27?.project?.projectId),
 					),
 				}
 				: { ...execution, desktopChrome };
