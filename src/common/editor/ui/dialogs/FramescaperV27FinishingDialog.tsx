@@ -62,19 +62,22 @@ export default function FramescaperV27FinishingDialog({
 
 	useEffect(() => {
 		setDocumentText(model.documentText);
+	}, [model.documentText]);
+
+	useEffect(() => {
 		setStatus('');
 		setError('');
-	}, [model.documentText, model.surface]);
+	}, [model.surface]);
 
 	const blocked = pending || editingBlocked || readOnly;
-	const perform = (operation: () => unknown, success: string): void => {
+	const perform = (operation: () => unknown, success: string | (() => string)): void => {
 		if (blocked) return;
 		setPending(true);
 		setStatus('');
 		setError('');
 		void Promise.resolve()
 			.then(() => run(operation))
-			.then(() => { setStatus(success); })
+			.then(() => { setStatus(typeof success === 'function' ? success() : success); })
 			.catch((operationError: unknown) => {
 				setError(operationError instanceof Error ? operationError.message : String(operationError));
 			})
@@ -83,6 +86,7 @@ export default function FramescaperV27FinishingDialog({
 	const applyDocument = (): void => perform(() => controller.actions.edit.commit(
 		createFramescaperV27FinishingCommand(surface, project, documentText),
 	), text(copy, 'framescaperFinishingApplied', 'Finishing state updated.'));
+	let captionImportSummary = '';
 	const importSidecar = (): void => perform(() => {
 		const imported = importFramescaperV27CaptionSidecar({
 			project, format: captionFormat, text: captionSidecar,
@@ -94,9 +98,9 @@ export default function FramescaperV27FinishingDialog({
 			...captionTracks(project).filter(({ id }) => id !== imported.result.track.id),
 			imported.result.track,
 		], null, '\t'));
-		setStatus(lossSummary(imported.result.losses.length));
+		captionImportSummary = lossSummary(imported.result.losses.length);
 		return result;
-	}, text(copy, 'captionImportComplete', 'Caption sidecar imported.'));
+	}, () => captionImportSummary);
 	const exportSidecar = (): void => {
 		try {
 			const exported = exportFramescaperV27CaptionSidecar({
