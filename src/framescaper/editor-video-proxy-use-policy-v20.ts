@@ -59,9 +59,7 @@ export function resolveFramescaperVideoProxyUseV20(
 	if (request.mode === 'proxy') {
 		return Object.freeze(proxyAvailable
 			? { kind: 'proxy', reason: 'proxy-mode', offline }
-			: request.originalAvailable
-				? { kind: 'original', reason: 'proxy-unavailable', offline }
-				: { kind: 'unavailable', reason: 'auto-unavailable', offline });
+			: { kind: 'unavailable', reason: 'proxy-unavailable', offline });
 	}
 	if (proxyAvailable && (offline || underPressure(request.pressure))) {
 		return Object.freeze({

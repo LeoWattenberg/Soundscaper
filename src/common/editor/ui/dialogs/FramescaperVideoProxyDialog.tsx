@@ -201,6 +201,8 @@ export default function FramescaperVideoProxyDialog({
 		<div className="audio-editor-video-proxy">
 			<p>{label(copy, 'videoProxyDescription',
 				'Generate lightweight preview pictures. Occurrence retime is applied after source selection; linked audio is never warped.')}</p>
+			<p data-video-proxy-selection-policy="strict">{label(copy, 'videoProxySelectionPolicy',
+				'Proxy mode refuses when a verified proxy is unavailable; Auto may fall back to the original.')}</p>
 			{!model.supported && <p role="status">{label(copy, 'videoProxyUnsupported',
 				'Video proxies are unavailable for this project version.')}</p>}
 			{model.supported && model.sources.length === 0 && <p role="status">{

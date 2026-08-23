@@ -92,6 +92,8 @@ test('the selected proxy dialog exposes pathless attach-existing from its lazy m
 	assert.match(markup, /data-video-proxy-existing-file="true"/u);
 	assert.match(markup, /type="file"/u);
 	assert.match(markup, /accept="video\/\*"/u);
+	assert.match(markup, /data-video-proxy-selection-policy="strict"/u);
+	assert.match(markup, /Proxy.*refuses.*Auto.*fall back/iu);
 	assert.doesNotMatch(markup, /path=/iu);
 });
 

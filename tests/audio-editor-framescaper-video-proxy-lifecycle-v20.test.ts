@@ -107,6 +107,11 @@ test('preview modes select verified proxies adaptively, including offline editin
 		purpose: 'preview', mode: 'proxy', originalAvailable: false,
 		proxyTrust: 'offline-verified', pressure: null,
 	}), { kind: 'proxy', reason: 'proxy-mode', offline: true });
+
+	assert.deepEqual(resolveFramescaperVideoProxyUseV20({
+		purpose: 'preview', mode: 'proxy', originalAvailable: true,
+		proxyTrust: 'unavailable', pressure: null,
+	}), { kind: 'unavailable', reason: 'proxy-unavailable', offline: false });
 });
 
 test('export and delivery are original-authoritative even when a verified proxy is present', () => {

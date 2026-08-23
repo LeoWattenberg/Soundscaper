@@ -49,3 +49,32 @@ test('an authenticated product proxy makes an offline video visual available wit
 		source, available: true, mediaUrl: 'blob:proxy', posterUrl: null, thumbnails: [], mediaKind: 'proxy',
 	});
 });
+
+test('a strict product preview refusal never falls through to the original loader', async () => {
+	const source = Object.freeze({ id: 'video', kind: 'video', storageKey: 'original' });
+	const project = Object.freeze({
+		id: 'project', schemaVersion: 27, sources: Object.freeze([source]),
+		clips: Object.freeze([{ id: 'clip', kind: 'video', sourceId: 'video' }]),
+		tracks: Object.freeze([{ id: 'track', clipIds: Object.freeze(['clip']) }]),
+	});
+	let originalReads = 0;
+	const refusal = Object.assign(new Error('Proxy mode is unavailable.'), {
+		code: 'FRAMESCAPER_PROXY_PREVIEW_UNAVAILABLE',
+	});
+	const service = createProjectVisualService({
+		getProject: () => project,
+		captureProject: () => project,
+		assertProject: () => undefined,
+		missingSourceIds: new Set(), sourceBuffers: new Map(), sourcePeaks: new Map(),
+		waveformPcmWindows: new Map(),
+		store: {
+			loadMediaAsset: async () => { originalReads += 1; return new Blob(['original']); },
+			listVideoDerivatives: async () => [], loadVideoDerivative: async () => null,
+		},
+		resolveProductVideoPreviewMedia: async () => { throw refusal; },
+		projectDurationFrames: () => 10,
+		url: { createObjectURL: () => 'blob:original', revokeObjectURL() {} },
+	});
+	await assert.rejects(service.activateVideoSource(source), (error: unknown) => error === refusal);
+	assert.equal(originalReads, 0);
+});

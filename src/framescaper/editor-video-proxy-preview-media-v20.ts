@@ -61,6 +61,24 @@ export type FramescaperVideoProxyPreviewMediaResolverV20 = (
 	request: Readonly<ProjectVideoPreviewMediaRequest>,
 ) => Promise<Readonly<ProjectVideoPreviewMedia> | null>;
 
+export class FramescaperVideoProxyPreviewUnavailableError extends Error {
+	readonly code = 'FRAMESCAPER_PROXY_PREVIEW_UNAVAILABLE' as const;
+	readonly reason: 'attachment-unavailable' | 'attachment-stale' | 'verification-failed';
+	constructor(
+		reason: FramescaperVideoProxyPreviewUnavailableError['reason'],
+		options: Readonly<{ readonly cause?: unknown }> = {},
+	) {
+		super(reason === 'attachment-unavailable'
+			? 'Proxy preview is unavailable because no verified attachment exists.'
+			: reason === 'attachment-stale'
+				? 'Proxy preview is unavailable because the attachment does not match the original.'
+				: 'Proxy preview is unavailable because its retained bodies failed verification.',
+		options.cause === undefined ? {} : { cause: options.cause });
+		this.name = 'FramescaperVideoProxyPreviewUnavailableError';
+		this.reason = reason;
+	}
+}
+
 /** Verify and select a source-domain proxy before occurrence retime is evaluated. */
 export function createFramescaperVideoProxyPreviewMediaResolverV20(
 	options: FramescaperVideoProxyPreviewMediaOptionsV20,
@@ -75,8 +93,12 @@ export function createFramescaperVideoProxyPreviewMediaResolverV20(
 		let attachment: Readonly<VideoProxyAttachmentV18>;
 		try {
 			attachment = normalizeVideoProxyAttachmentV18(request.source.proxyAttachment);
-			if (attachment.originalSha256 !== request.source.contentSha256) return null;
-		} catch { return null; }
+		} catch (error) {
+			return unavailable(mode, 'attachment-unavailable', error);
+		}
+		if (attachment.originalSha256 !== request.source.contentSha256) {
+			return unavailable(mode, 'attachment-stale');
+		}
 		throwIfAborted(request.signal);
 		const originalAvailable = await hasOriginal(options.originalStore, request);
 		const provisional = resolveFramescaperVideoProxyUseV20({
@@ -96,7 +118,7 @@ export function createFramescaperVideoProxyPreviewMediaResolverV20(
 				: null;
 		} catch (error) {
 			if (request.signal?.aborted) throw error;
-			return null;
+			return unavailable(mode, 'verification-failed', error);
 		}
 	};
 }
@@ -104,6 +126,15 @@ export function createFramescaperVideoProxyPreviewMediaResolverV20(
 /** V27 retains the same web-core source/attachment carrier and verification route. */
 export const createFramescaperVideoProxyPreviewMediaResolverV27 =
 	createFramescaperVideoProxyPreviewMediaResolverV20;
+
+function unavailable(
+	mode: FramescaperVideoProxyModeV20,
+	reason: FramescaperVideoProxyPreviewUnavailableError['reason'],
+	cause?: unknown,
+): null {
+	if (mode === 'proxy') throw new FramescaperVideoProxyPreviewUnavailableError(reason, { cause });
+	return null;
+}
 
 async function verifyProxy(
 	options: FramescaperVideoProxyPreviewMediaOptionsV20,

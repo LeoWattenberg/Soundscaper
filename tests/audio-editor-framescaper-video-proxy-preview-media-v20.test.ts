@@ -68,7 +68,7 @@ test('selected V20 preview verifies online/adaptive and offline proxy bodies bef
 		'an exact retained proxy stays usable for offline editing');
 });
 
-test('preview verification falls back instead of showing altered proxy bytes', async (context) => {
+test('explicit Proxy refuses altered bytes while Auto alone may fall back to the original', async (context) => {
 	const fixture = await createCapturedProxyFixture(context, 20);
 	await fixture.schedule(capturedProxyRequest(
 		fixture.origin,
@@ -79,6 +79,7 @@ test('preview verification falls back instead of showing altered proxy bytes', a
 	assert.ok(project);
 	const source = capturedVideoSource(project, ORIGINAL_SOURCE_ID);
 	const attachment = normalizeVideoProxyAttachmentV18(source.proxyAttachment);
+	let mode: 'proxy' | 'auto' = 'proxy';
 	const resolver = createFramescaperVideoProxyPreviewMediaResolverV20({
 		bodyStore: {
 			loadMediaAsset: async (storageKey) => storageKey === attachment.storageKey
@@ -87,10 +88,37 @@ test('preview verification falls back instead of showing altered proxy bytes', a
 		},
 		originalStore: fixture.controllerStore,
 		getProject: () => project,
-		getMode: () => 'proxy',
+		getMode: () => mode,
 		getPressure: () => null,
 	});
-	assert.equal(await resolver({
+	const request = {
 		project: project as never, source: source as never, sourceTimingIndex: null,
-	}), null);
+	};
+	await assert.rejects(resolver(request), (error: unknown) => (
+		(error as { code?: unknown }).code === 'FRAMESCAPER_PROXY_PREVIEW_UNAVAILABLE'
+			&& /validation|verified|unavailable/iu.test(String((error as Error).message))
+	));
+	mode = 'auto';
+	assert.equal(await resolver(request), null);
+});
+
+test('explicit Proxy refuses a missing attachment while Original and Auto keep their own policy', async (context) => {
+	const fixture = await createCapturedProxyFixture(context, 20);
+	const project = await fixture.environment.store.loadProject(String(fixture.origin.id));
+	assert.ok(project);
+	const source = capturedVideoSource(project, ORIGINAL_SOURCE_ID);
+	let mode: 'original' | 'proxy' | 'auto' = 'proxy';
+	const resolver = createFramescaperVideoProxyPreviewMediaResolverV20({
+		bodyStore: fixture.environment.store,
+		originalStore: fixture.controllerStore,
+		getProject: () => project,
+		getMode: () => mode,
+		getPressure: () => null,
+	});
+	const request = { project: project as never, source: source as never, sourceTimingIndex: null };
+	await assert.rejects(resolver(request), /Proxy preview.*attachment|attachment.*unavailable/iu);
+	mode = 'original';
+	assert.equal(await resolver(request), null);
+	mode = 'auto';
+	assert.equal(await resolver(request), null);
 });
