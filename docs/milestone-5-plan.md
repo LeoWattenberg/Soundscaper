@@ -1,5 +1,11 @@
 # Milestone 5 plan: Electron-native services and extensibility
 
+> **Current-route note (2026-08-23):** Framescaper V27 is the selected M1–M4
+> activation candidate and grants no Milestone-5 native-media or OpenFX
+> authority. V20 through V26 native machinery described below is historical or
+> dormant candidate state; V25/V26 remain recognized, opaque, read-only custody.
+> No 5B activation or qualification is claimed.
+
 > Owning source for milestone-5 sequencing, the helper-contract and
 > plug-in/codec decisions, their invariants, and the bounded work
 > packets. The
@@ -454,10 +460,10 @@ applicable 5A-0 proof closes.
 The owning pickup contract is
 [`milestone-5b-framescaper-native-tier.md`](milestone-5b-framescaper-native-tier.md).
 Its implementation record is authoritative for what has landed: 5B status is
-no longer summarized as a single “software substrate” claim. V20 is
-selected provisionally; V22 through V26, unified plans, persistent-service
-controllers, native source hosts and menu surfaces are bounded candidates with
-explicit executable gaps. No 5B payload is built or staged, and licensing,
+no longer summarized as a single “software substrate” claim. Selected V27
+grants no M5 authority; V20 through V26 unified plans, persistent-service
+controllers, native source hosts, and menu surfaces are historical or dormant
+candidates with explicit executable gaps. No 5B payload is built or staged, and licensing,
 isolation, signing, five-target hardware and manual qualification remain open.
 The helper contract now admits closed media and OFX families, so the threat
 model and security matrix record the enacted controller/source boundaries even

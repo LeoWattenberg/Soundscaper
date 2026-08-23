@@ -902,10 +902,12 @@ actually distributed, and this slice distributes none.
   jobs are in-memory, die with the app, and must be cheap to re-run.
   Long-VOD analysis therefore checkpoints per stage into disposable
   derivatives so a re-run resumes coarse-grained.
-- **Captions, keyframes, and transforms are milestone-4 Planned;**
-  vertical presets and burn-in are milestone-6 Planned. The packets above
-  land against today's primitives (labels, export-plan crop parameters,
-  canvas options) and name their upgrade targets instead of waiting.
+- **Selected V27 locally implements caption tracks, keyframes, and visual
+  transforms as an M1–M4 activation candidate.** Guided-local and external
+  qualification remain open. Vertical delivery presets and caption burn-in are
+  milestone-6 work; the milestone-7 packets above landed against the older
+  label/crop/canvas primitives and retain explicit upgrade targets rather than
+  silently claiming the V27 consumers.
 - **Milestone 2 is the formal prerequisite** (roadmap.md:744) with one
   open closure item; 7.0 starts after it closes unless the user
   explicitly reprioritizes (roadmap.md:61-63).

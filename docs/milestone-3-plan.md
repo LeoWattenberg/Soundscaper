@@ -1,5 +1,12 @@
 # Milestone 3 plan: parallel editorial foundations
 
+> **Current-status note (2026-08-23):** the selected Framescaper V27
+> activation candidate forward-ports the maintained V20 retime/proxy work and
+> locally implements its menu-reached authoring and consumer routes. Guided-
+> local sign-off and external qualification remain open. Statements below that
+> present V20 as selected or retime/proxy authoring as unavailable are retained
+> only as the historical milestone-3 sequencing record.
+
 > Owning source for milestone-3 sequencing, the shared time-model decision,
 > its invariants, and the bounded work packets. The
 > [roadmap](../roadmap.md#3-parallel-editorial-foundations) owns scope and
@@ -86,18 +93,16 @@ cheap and permitted.
 
 ### Current implementation checkpoint
 
-The Framescaper track now selects V20 as its browser and packaged-desktop
-authority. It preserves the implemented V18 nested-sequence, multicamera, and
-proxy-attachment contracts while adding the later composition/keyframe wire;
-validation therefore runs against V20 without downgrading the project schema.
-General proxy generation, attach/detach lifecycle, offline handling, and relink
-remain unavailable. Retiming authoring remains hard-stopped; exact native
-execution belongs to the current milestone-5 workload named below. These
-implemented slices do not close milestone 3: the four packaged Electron timing
-rows remain `pending-external`, the active owner-qualified GPU host has not yet
-published a current M3 long-form qualification artifact, the long-form
-fixture/workload remains provisional, and milestone 2's Electron lease matrix
-is still partial.
+The Framescaper track now has a selected V27 browser and packaged-desktop
+activation candidate. It preserves the V18 nested-sequence, multicamera, and
+proxy-attachment contracts; forward-ports maintained V20 composition,
+keyframe, retime, and proxy work; and carries the V24 visual lineage. The
+menu-reached retime and proxy authoring/consumer routes are locally implemented,
+with export and delivery remaining original-authoritative. V27 exposes no M5
+native execution authority. These implemented slices do not close milestone 3:
+guided-local sign-off, the packaged Electron timing rows, a current M3
+long-form owner-host qualification artifact, and the external resource matrix
+remain open.
 
 The former `m3-framescaper-v18-exit` qualification is retired because V18 is
 no longer the maintained Framescaper exit authority. Its two-hour exact

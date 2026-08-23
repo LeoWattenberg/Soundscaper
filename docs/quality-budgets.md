@@ -224,9 +224,10 @@ RTX 3090 metrics artifact remains a passing historical diagnostic: all 12 keyed
 operations passed, with no omitted, substituted, or fallback operation. The
 active packaged-runtime profile now makes formal M4B-2 qualification
 repeatable, but that profile and its new budget digest require a fresh
-owner-host nightly artifact; the historical result is not backfilled. Selected
-V20 already exposes the keyed route, while manual and release qualification
-remain separate open gates.
+owner-host nightly artifact; the historical result is not backfilled. The
+selected V27 activation candidate delegates the maintained V20 keyed route,
+while guided-local, owner-host, and release qualification remain separate open
+gates.
 
 ## Fixtures and project sizes
 

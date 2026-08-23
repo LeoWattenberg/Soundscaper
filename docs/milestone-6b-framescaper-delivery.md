@@ -158,14 +158,13 @@ bound every slice below, and each one narrows scope rather than widening it:
 3. **The muxer question is closed by measurement**, not deferred: see the
    revised decision in the milestone-6 plan. Muxing is 0.1% of FFmpeg-side
    cost, so 6B-3 reuses the shipped FFmpeg and takes on no new dependency.
-4. **Styled captions do not exist.** Milestone 4's caption schema is Planned
-   with its revision deliberately unassigned
-   (docs/milestone-4-plan.md:381-383); what exists is label tracks with
-   sidecar I/O (`src/common/editor/label-io.js:1-2`,
-   `controller/label-service.ts:19-67`), and the code records the handoff
-   ("when milestone 4 owns a styled caption schema, the target changes
-   here", `assistance/transcript-labels.ts:10-11`). 6B-2 therefore scopes
-   burn-in to label tracks explicitly and names its upgrade seam.
+4. **Selected V27 now has explicit caption tracks.** Its locally implemented
+   M1–M4 route supports SRT, WebVTT, and a bounded IMSC 1.1 subset, pending
+   guided-local and external qualification. That route deliberately grants no
+   caption burn-in or mux authority. The historical 6B-2 implementation below
+   consumes label tracks through its existing sidecar/burn-in seam; adopting
+   the V27 track model remains an explicit later delivery integration rather
+   than an implied current capability.
 5. **Every codec-capability licensing row is blocked.** All six rows
    and the `native-codecs` gate are shut. Helper contract v1 now admits closed
    media/render kinds, and 5B has V7–V12 plan admission, professional profiles,

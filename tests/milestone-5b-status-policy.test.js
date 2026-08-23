@@ -18,7 +18,8 @@ test('5B status distinguishes implemented candidate routes from shipped activati
 	const mediaPayloads = await json('config/framescaper-media-host-payload-manifest.json');
 	const openFxPayloads = await json('config/framescaper-openfx-host-payload-manifest.json');
 
-	assert.match(pickup, /V20 is selected provisionally.*V22 through V26.*dormant/isu);
+	assert.match(pickup, /V27 is the selected M1–M4\s+activation candidate.*does not select or qualify V20.V26 native candidates/isu);
+	assert.match(pickup, /V20.*through V26 labels.*historical foundations.*dormant custody.*no 5B activation/isu);
 	assert.match(pickup, /earlier claim.*whole software substrate.*inaccurate/isu);
 	assert.doesNotMatch(roadmap, /whole 5B software substrate.*implemented/iu);
 
@@ -51,7 +52,7 @@ test('5B status distinguishes implemented candidate routes from shipped activati
 
 	assert.match(threatModel, /media decode\/encode\/render source candidates.*outside the enacted payload surface/isu);
 	assert.doesNotMatch(threatModel, /decode\/encode and render helpers remain out of scope/iu);
-	assert.match(compatibility, /^## Framescaper V20 product isolation$/mu);
+	assert.match(compatibility, /^## Framescaper V27 product isolation$/mu);
 
 	for (const manifest of [mediaPayloads, openFxPayloads]) {
 		assert.deepEqual(manifest.payloads, []);

@@ -1,5 +1,12 @@
 # Milestone 4A pickup: Soundscaper production
 
+> **Current-status note (2026-08-23):** Soundscaper V23 remains the selected,
+> implementation-complete route. Guided-local and remaining external
+> qualification stay open. Framescaper V20 allocation and availability
+> statements below are historical; the current Framescaper V27 activation
+> candidate reuses the V21 automation/mixer infrastructure under its own exact
+> project profile.
+
 > Owning pickup contract for the Soundscaper half of milestone 4. The
 > [milestone-4 plan](milestone-4-plan.md) owns shared sequencing and the
 > [roadmap](../roadmap.md#4-parallel-production-surfaces) owns product scope.
@@ -22,11 +29,11 @@ milestone 3 remains **In progress** with its manual and packaged-runtime rows
 unchanged. None of those rows is waived, relabelled, or cited as passing
 evidence here.
 
-Framescaper V20 owns the globally serialized schema slot after V19 and is now
-the provisionally selected web and desktop route with `videoKeyframes`
-available. Its manual and release-qualification gates remain open. With the V20
-wire fixed, this pickup allocated the next product-wide schema number, **V21**,
-to Soundscaper's
+Framescaper V20 historically owned the globally serialized schema slot after
+V19 and was the provisional web/desktop route with `videoKeyframes` available.
+The selected V27 activation candidate now supersedes that route, with guided-
+local and external qualification still open. With the V20 wire fixed, this
+pickup allocated the next product-wide schema number, **V21**, to Soundscaper's
 automation/mixer/PDC revision. The 4B-3 transition revision consequently moved
 from V21 to the implemented dormant V22 candidate. No implemented V18, V19, or
 V20 statement changes.
@@ -675,8 +682,8 @@ The selected registration has these capability keys and feature IDs:
 
 | Capability key | Feature ID | Selected profiles |
 | --- | --- | --- |
-| `audioAutomation` | `org.soundscaper.capability.audio-automation` | Soundscaper available; Framescaper unavailable |
-| `audioMixerGraph` | `org.soundscaper.capability.audio-mixer-graph` | Soundscaper available; Framescaper unavailable |
+| `audioAutomation` | `org.soundscaper.capability.audio-automation` | Soundscaper V23 available; selected Framescaper V27 project profile locally implemented, pending guided/external qualification |
+| `audioMixerGraph` | `org.soundscaper.capability.audio-mixer-graph` | Soundscaper V23 available; selected Framescaper V27 project profile locally implemented, pending guided/external qualification |
 | `audioTrackFreeze` | `org.soundscaper.capability.audio-track-freeze` | Soundscaper available; Framescaper unavailable |
 
 Nonempty `automationLanes` own reserved requirement
@@ -692,8 +699,9 @@ carriers, project replacement, and import/handoff.
 
 Soundscaper enabled `audioAutomation` and `audioMixerGraph` together after 4A-1
 through 4A-3 passed their complete local native workflows, and enabled
-`audioTrackFreeze` after 4A-4 passed. Framescaper keeps all three known
-unavailable until its owning work adopts the shared surfaces. These were
+`audioTrackFreeze` after 4A-4 passed. Selected Framescaper V27 now adopts the
+shared automation and mixer surfaces under its exact project profile while
+keeping `audioTrackFreeze` unavailable. These were
 technical route-selection gates, not waivers of the still-open manual,
 hosted no-retry, release, or other named qualification
 evidence. The capability flip was atomic with the selected
