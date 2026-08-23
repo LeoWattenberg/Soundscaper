@@ -295,6 +295,9 @@ function offlineRequest(
 		...(request.rgbaPostprocessor === undefined ? {} : {
 			rgbaPostprocessor: request.rgbaPostprocessor,
 		}),
+		...(request.rgbaCompositor === undefined ? {} : {
+			rgbaCompositor: request.rgbaCompositor,
+		}),
 		signal: request.signal,
 		assertCurrent: request.assertCurrent,
 	});

@@ -8,14 +8,16 @@ import {
 	type VideoSourceColorInterpretationV1,
 } from '../common/editor/video-color-management-v27.ts';
 import {
-	addUnifiedExactLinearDissolveV13,
+	addUnifiedExactLinearCompositionEntryV13,
+	addUnifiedExactLinearDissolveEntryV13,
 	compositeUnifiedExactLinearFrameV13,
 	createUnifiedExactLinearPremultipliedFrameV13,
 	encodeUnifiedExactLinearFrameV13,
+	flattenUnifiedExactLinearCompositionV13,
 	placeUnifiedExactLinearRgbaFrameV13,
 	straightUnifiedExactLinearFrameV13,
 	type UnifiedExactLinearBlendModeV13,
-	type UnifiedExactLinearPremultipliedFrameV13,
+	type UnifiedExactLinearCompositionEntryV13,
 } from '../common/editor/unified-exact-linear-rgba-v13.ts';
 import {
 	createUnifiedExactRenderFinishingPreviewConsumerV13,
@@ -66,7 +68,7 @@ export interface FramescaperSelectedExactFrameExecutionV27 {
 	dispose(): Promise<void>;
 }
 
-type CaptureFrameV27 = (entry: Data, signal: AbortSignal) => (
+export type CaptureFrameV27 = (entry: Data, signal: AbortSignal) => (
 	PromiseLike<UnifiedExactRenderRgbaFrameV13> | UnifiedExactRenderRgbaFrameV13
 );
 export async function createFramescaperSelectedExactFrameExecutionV27(options: Readonly<{
@@ -102,6 +104,10 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 		node.kind === 'visual' && node.modelKind === 'mask-matte' && 'inputs' in node.authoredState
 			? [[node.modelId, node.authoredState] as const] : []
 	)));
+	const maskNodeIds = new Map(options.plan.nodes.flatMap((node) => (
+		node.kind === 'visual' && node.modelKind === 'mask-matte'
+			? [[node.modelId, node.nodeId] as const] : []
+	)));
 	const fallbackReasons: string[] = [];
 	const needsAccelerator = finishing.processorStacks.some(({ processors }) => processors.some(
 		({ enabled, kind }) => enabled && kind === 'temporal-denoise',
@@ -132,14 +138,15 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 				visual.layers.flatMap(({ entries }) => entries), visualAssets.stills,
 				width, height, options.signal,
 			);
-			const trackFrames = new Map<string, UnifiedExactLinearPremultipliedFrameV13>();
-			const trackBlendModes = new Map<string, UnifiedExactLinearBlendModeV13>();
+			const trackFrames = new Map<string, UnifiedExactLinearCompositionEntryV13[]>();
+			const consumed = new Set(visual.ledger.consumedNodeIds);
+			consumed.add(finishing.nodeId);
 			for (const layerValue of request.layers) await renderMediaLayer(
-				record(layerValue, 'Selected V27 media layer'), trackFrames, trackBlendModes,
-				rawVisuals, width, height,
+				record(layerValue, 'Selected V27 media layer'), trackFrames,
+				rawVisuals, consumed, width, height,
 			);
 			for (const layer of visual.layers) renderVisualLayer(
-				layer.trackId, layer.entries, trackFrames, trackBlendModes,
+				layer.trackId, layer.entries, trackFrames,
 				rawVisuals, width, height,
 			);
 			for (const adjustment of visual.activeAdjustmentLayers) applyAdjustment(
@@ -151,16 +158,15 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			for (const track of [...options.plan.tracks].sort((left, right) => (
 				right.sequenceOrder - left.sequenceOrder || compareText(left.trackId, right.trackId)
 			))) {
-				const layer = trackFrames.get(track.trackId);
-				if (layer) compositeUnifiedExactLinearFrameV13(
-					output, layer, trackBlendModes.get(track.trackId) ?? 'normal',
-				);
+				for (const { frame, blendMode } of trackFrames.get(track.trackId) ?? []) {
+					compositeUnifiedExactLinearFrameV13(output, frame, blendMode);
+				}
 			}
 			encodeUnifiedExactLinearFrameV13(
 				output, finishing.colorContext.outputSpace, request.target,
 			);
 			assertReady(options);
-			return Object.freeze({ consumedNodeIds: visual.ledger.consumedNodeIds });
+			return Object.freeze({ consumedNodeIds: Object.freeze([...consumed].sort(compareText)) });
 		} catch (error) {
 			if (accepted) request.target.fill(0);
 			throw error;
@@ -169,16 +175,15 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 
 	async function renderMediaLayer(
 		layer: Data,
-		trackFrames: Map<string, UnifiedExactLinearPremultipliedFrameV13>,
-		trackBlendModes: Map<string, UnifiedExactLinearBlendModeV13>,
+		trackFrames: Map<string, UnifiedExactLinearCompositionEntryV13[]>,
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
+		consumed: Set<string>,
 		width: number,
 		height: number,
 	): Promise<void> {
 		const trackId = stableId(layer.trackId, 'Selected V27 media track ID');
 		const entries = records(layer.entries, 'Selected V27 media entries');
-		const target = trackFrames.get(trackId)
-			?? createUnifiedExactLinearPremultipliedFrameV13(width, height);
+		const target = trackFrames.get(trackId) ?? [];
 		for (const entry of entries) {
 			if (records(entry.effects ?? [], 'Selected V27 media effects').length > 0) {
 				throw new Error('Selected V27 exact finishing refuses an unexecuted legacy video effect.');
@@ -215,6 +220,7 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			const presentation = mediaPresentation(finishing, clipId, sourceId);
 			const mask = presentation.maskIds.length === 0 ? undefined
 				: combinedMask(presentation.maskIds, masks, width, height, maskInputs);
+			for (const id of presentation.maskIds) consumed.add(requiredVisual(maskNodeIds, id));
 			const placed = placeUnifiedExactLinearRgbaFrameV13({
 				frame: resolved,
 				displayWidth: dimension(entry.displayWidth, 'Selected V27 media display width'),
@@ -225,8 +231,7 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 				opacity: presentation.opacity,
 				...(mask ? { mask } : {}),
 			});
-			addUnifiedExactLinearDissolveV13(target, placed);
-			claimBlendMode(trackBlendModes, trackId, presentation.blendMode
+			addUnifiedExactLinearDissolveEntryV13(target, placed, presentation.blendMode
 				?? renderBlendMode(entry.renderDescription));
 		}
 		trackFrames.set(trackId, target);
@@ -235,33 +240,30 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 	function renderVisualLayer(
 		trackId: string,
 		entries: readonly UnifiedExactRenderVisualFrameEntryV13[],
-		trackFrames: Map<string, UnifiedExactLinearPremultipliedFrameV13>,
-		trackBlendModes: Map<string, UnifiedExactLinearBlendModeV13>,
+		trackFrames: Map<string, UnifiedExactLinearCompositionEntryV13[]>,
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 		width: number,
 		height: number,
 	): void {
-		const target = trackFrames.get(trackId)
-			?? createUnifiedExactLinearPremultipliedFrameV13(width, height);
+		const target = trackFrames.get(trackId) ?? [];
 		for (const entry of entries) {
 			const raw = requiredVisual(maskInputs, entry.modelId);
 			const linear = gradeVisual(finishing, entry, raw, finishingAssets.luts, options.signal);
 			const mask = entry.masks.length === 0 ? undefined
 				: combinedGraphs(entry.masks, width, height, maskInputs);
-			addUnifiedExactLinearDissolveV13(target, placeUnifiedExactLinearRgbaFrameV13({
+			addUnifiedExactLinearCompositionEntryV13(target, placeUnifiedExactLinearRgbaFrameV13({
 				frame: linear, displayWidth: width, displayHeight: height,
 				outputWidth: width, outputHeight: height,
 				renderDescription: identityDescription(width, height, entry.blendMode),
 				opacity: entry.opacity, ...(mask ? { mask } : {}),
-			}));
-			claimBlendMode(trackBlendModes, trackId, entry.blendMode);
+			}), entry.blendMode);
 		}
 		trackFrames.set(trackId, target);
 	}
 
 	function applyAdjustment(
 		adjustment: UnifiedExactRenderActiveAdjustmentV13,
-		trackFrames: Map<string, UnifiedExactLinearPremultipliedFrameV13>,
+		trackFrames: Map<string, UnifiedExactLinearCompositionEntryV13[]>,
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 		width: number,
 		height: number,
@@ -277,8 +279,9 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 		}
 		const grades = presentations.flatMap(({ grade }) => grade ? [grade] : []);
 		for (const trackId of adjustment.targetTrackIds) {
-			const target = trackFrames.get(trackId);
-			if (!target) continue;
+			const entries = trackFrames.get(trackId);
+			if (!entries) continue;
+			const target = flattenUnifiedExactLinearCompositionV13(width, height, entries);
 			const graded = gradeLinearFrame(straightUnifiedExactLinearFrameV13(target), grades,
 				finishingAssets.luts, options.signal);
 			const mask = adjustment.masks.length === 0 ? undefined
@@ -290,6 +293,7 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 				opacity: adjustment.opacity, ...(mask ? { mask } : {}),
 			});
 			compositeUnifiedExactLinearFrameV13(target, overlay, adjustment.blendMode);
+			trackFrames.set(trackId, [Object.freeze({ frame: target, blendMode: 'normal' })]);
 		}
 	}
 
@@ -499,18 +503,6 @@ function renderBlendMode(value: unknown): UnifiedExactLinearBlendModeV13 {
 	if (!['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'difference', 'exclusion']
 		.includes(String(mode))) throw new RangeError('Selected V27 blend mode is unsupported.');
 	return mode as UnifiedExactLinearBlendModeV13;
-}
-
-function claimBlendMode(
-	byTrackId: Map<string, UnifiedExactLinearBlendModeV13>,
-	trackId: string,
-	mode: UnifiedExactLinearBlendModeV13,
-): void {
-	const current = byTrackId.get(trackId);
-	if (current !== undefined && current !== mode) {
-		throw new Error(`Selected V27 track ${trackId} has divergent active blend modes.`);
-	}
-	byTrackId.set(trackId, mode);
 }
 
 function channels(value: Uint8Array, offset: number): readonly [number, number, number, number] {

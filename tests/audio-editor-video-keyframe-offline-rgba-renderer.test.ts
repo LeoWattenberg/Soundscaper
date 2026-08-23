@@ -77,6 +77,33 @@ test('offline renderer runs one cancelled-aware post-compositor over authenticat
 	await renderer.dispose();
 });
 
+test('offline renderer delegates resolved source layers to an exact product compositor', async () => {
+	const frameSource = source();
+	const frame = frameSource.frame(0);
+	const fixture = rendererFixture();
+	const calls: unknown[] = [];
+	const renderer = createVideoKeyframeOfflineRgbaRenderer({
+		frameSource, canvas: fixture.canvas,
+		resolveSource: () => presentation().value,
+		createCompositor: fixture.createCompositor,
+		compose(request) {
+			calls.push(request);
+			assert.equal(request.layers[0]!.trackIndex, 0);
+			const entry = (request.layers[0]!.entries as readonly Readonly<Record<string, unknown>>[])[0]!;
+			assert.equal(entry.sourceId, 'source-1');
+			assert.equal(entry.clipId, 'clip-1');
+			request.rgba.fill(41);
+		},
+	});
+	const signal = new AbortController().signal;
+	const output = new Uint8Array(16);
+	await renderer.produce(frame, output, { signal });
+	assert.equal(calls.length, 1);
+	assert.deepEqual([...output], new Array(16).fill(41));
+	assert.equal(fixture.renderedEntries(), 0, 'the generic composite is bypassed exactly once');
+	await renderer.dispose();
+});
+
 test('offline renderer rejects forged and foreign frames before source work', async () => {
 	const frameSource = source();
 	const foreign = source();

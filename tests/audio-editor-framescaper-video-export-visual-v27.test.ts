@@ -21,6 +21,10 @@ import {
 	framescaperVideoExportDispositionV27For,
 } from '../src/framescaper/video-export-strategy-v27.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import {
+	captureFramescaperExactExportTestFrame,
+	composeFramescaperExactExportTestFrame,
+} from './helpers/framescaper-exact-export-fixture.ts';
 
 const PROFILE = FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE;
 
@@ -141,16 +145,16 @@ test('selected V27 export executes clip presentation opacity and masks over the 
 	});
 	let rendered: Uint8Array<ArrayBuffer> | null = null;
 	const strategy = createFramescaperVideoExportStrategyV27(PROFILE, {
+		captureExactFrame: captureFramescaperExactExportTestFrame,
 		async encodeOffline(request) {
 			const pixels = new Uint8Array(request.canvas.width * request.canvas.height * 4);
 			for (let offset = 0; offset < pixels.length; offset += 4) {
 				pixels[offset] = 200;
 				pixels[offset + 3] = 255;
 			}
-			await request.rgbaPostprocessor?.({
-				frame: keyedFrame() as never, width: request.canvas.width,
-				height: request.canvas.height, rgba: pixels, signal: request.signal,
-			});
+			await composeFramescaperExactExportTestFrame(
+				request, keyedFrame(), pixels, [200, 0, 0, 255],
+			);
 			rendered = pixels.slice() as Uint8Array<ArrayBuffer>;
 			return encodedResult();
 		},
@@ -183,14 +187,14 @@ test('complete V27 program exports original-authoritative editorial, proxy, audi
 	const project = completeProgramProject();
 	let captured: VideoKeyframeOfflineVideoExportRequest | null = null;
 	const strategy = createFramescaperVideoExportStrategyV27(PROFILE, {
+		captureExactFrame: captureFramescaperExactExportTestFrame,
 		async encodeOffline(request) {
 			captured = request;
 			const pixels = new Uint8Array(request.canvas.width * request.canvas.height * 4).fill(24);
 			for (let index = 3; index < pixels.length; index += 4) pixels[index] = 255;
-			await request.rgbaPostprocessor?.({
-				frame: keyedFrame() as never, width: request.canvas.width,
-				height: request.canvas.height, rgba: pixels, signal: request.signal,
-			});
+			await composeFramescaperExactExportTestFrame(
+				request, keyedFrame(), pixels, [24, 24, 24, 255],
+			);
 			return encodedResult();
 		},
 		async encodeOfflineToSink() { throw new Error('sink path is not used'); },

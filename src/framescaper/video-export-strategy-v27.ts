@@ -17,10 +17,7 @@ import {
 	preflightVideoKeyframeOfflineEncoder,
 	type VideoKeyframeOfflineEncoderOptions,
 } from '../common/editor/ui/video-keyframe-offline-video-export-encoder.ts';
-import type {
-	VideoKeyframeOfflineRgbaPostprocessor,
-	VideoKeyframeOfflineRgbaRenderer,
-} from '../common/editor/ui/video-keyframe-offline-rgba-renderer.ts';
+import type { VideoKeyframeOfflineRgbaRenderer } from '../common/editor/ui/video-keyframe-offline-rgba-renderer.ts';
 import { createVisibleVideoTrackPredicate } from '../common/editor/video-track-visibility.js';
 import type {
 	ProductVideoExportEncodedOutput,
@@ -34,7 +31,6 @@ import type {
 import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts';
 import {
 	assertVideoKeyframeExportPlanV7,
-	type VideoKeyframeExportPlanV7,
 } from '../common/editor/video-keyframe-export-plan-v7.ts';
 import { framescaperProjectV20FoundationV27 } from './editor-project-v27-runtime.ts';
 import { assertFramescaperProjectV27Profile } from './editor-project-runtime-profile-v27.ts';
@@ -48,18 +44,20 @@ import {
 	type FramescaperVideoExportStrategyV20Dependencies,
 } from './video-export-strategy-v20.ts';
 import {
-	createFramescaperVideoExportFinishingV27,
-} from './video-export-finishing-v27.ts';
-import {
 	createFramescaperVideoExportVisualExecutionV27,
 	type FramescaperVideoExportPictureDispositionV27,
 	type FramescaperVideoExportVisualAssetStoreV27,
 } from './video-export-visual-execution-v27.ts';
 import {
+	createFramescaperVideoExportExactExecutionV27,
+	type FramescaperVideoExportExactExecutionV27,
+} from './video-export-exact-execution-v27.ts';
+import {
 	createFramescaperVideoVisualPlanV27,
 	isFramescaperVideoVisualPlanV27,
 	type FramescaperVideoVisualPlanV27,
 } from './video-export-visual-plan-v27.ts';
+import type { CaptureFrameV27 } from './selected-v27-exact-frame-execution.ts';
 
 interface ExportAuthorityV27 {
 	readonly canonicalProject: Readonly<Record<string, unknown>>;
@@ -84,6 +82,13 @@ export interface FramescaperVideoExportStrategyV27Dependencies
 	extends FramescaperVideoExportStrategyV20Dependencies {
 	readonly encodePicture?: typeof encodeVideoKeyframeVideo;
 	readonly encodePictureToSink?: PictureSinkEncoderV27;
+	readonly captureExactFrame?: CaptureFrameV27;
+	readonly createExactAcceleratorCanvas?: () => unknown;
+}
+
+interface ExactExecutionDependenciesV27 {
+	readonly captureFrame?: CaptureFrameV27;
+	readonly createAcceleratorCanvas?: () => unknown;
 }
 
 const DEFAULT_PICTURE_ENCODERS = Object.freeze({
@@ -113,6 +118,7 @@ export function createFramescaperVideoExportStrategyV27(
 ): ProductVideoExportStrategy {
 	assertFramescaperProjectV27Profile(profile);
 	const pictureEncoders = snapshotPictureEncoders(dependencies);
+	const exactDependencies = snapshotExactExecutionDependencies(dependencies);
 	const delegate = createFramescaperVideoExportStrategyV20(
 		FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, dependencies,
 		{ forceKeyed: true },
@@ -168,7 +174,9 @@ export function createFramescaperVideoExportStrategyV27(
 			if (isFramescaperVideoVisualPlanV27(request.plan)) {
 				return encodeVisualPicture(profile, authority, request, assetStore, pictureEncoders);
 			}
-			return encodeKeyedPicture(profile, authority, request, assetStore, delegate);
+			return encodeKeyedPicture(
+				profile, authority, request, assetStore, delegate, exactDependencies,
+			);
 		},
 		async encodeToSink<Output>(
 			request: ProductVideoExportStrategyEncodeRequest,
@@ -180,7 +188,9 @@ export function createFramescaperVideoExportStrategyV27(
 					profile, authority, request, assetStore, pictureEncoders, sink,
 				);
 			}
-			return encodeKeyedPictureToSink(profile, authority, request, assetStore, delegate, sink);
+			return encodeKeyedPictureToSink(
+				profile, authority, request, assetStore, delegate, sink, exactDependencies,
+			);
 		},
 		captureTimingSourceIds(plan: ProductVideoExportPlan) {
 			const sourceIds = timingSources.get(plan);
@@ -195,29 +205,14 @@ async function createKeyedExecution(
 	authority: ExportAuthorityV27,
 	request: ProductVideoExportStrategyEncodeRequest,
 	assetStore: FramescaperVideoExportVisualAssetStoreV27 | undefined,
-) {
+	exactDependencies: ExactExecutionDependenciesV27,
+): Promise<FramescaperVideoExportExactExecutionV27> {
 	assertVideoKeyframeExportPlanV7(request.plan);
-	const timingViewsBySourceId = rawTiming(request);
-	const finishing = await createFramescaperVideoExportFinishingV27({
-		profile,
-		project: authority.canonicalProject as unknown as FramescaperProjectV27,
-		plan: request.plan as VideoKeyframeExportPlanV7,
-		timingViewsBySourceId,
-		...(assetStore === undefined ? {} : { store: assetStore }),
-		signal: request.signal,
-		assertCurrent: request.assertCurrent,
-	});
-	const visual = await createFramescaperVideoExportVisualExecutionV27({
+	return createFramescaperVideoExportExactExecutionV27({
 		profile, project: authority.canonicalProject as unknown as FramescaperProjectV27,
-		plan: request.plan, timingViewsBySourceId,
-		...(assetStore === undefined ? {} : { store: assetStore }),
-		signal: request.signal, assertCurrent: request.assertCurrent,
+		request, ...(assetStore ? { store: assetStore } : {}),
+		...exactDependencies,
 	});
-	const postprocess: VideoKeyframeOfflineRgbaPostprocessor = async (frame) => {
-		await finishing(frame);
-		await visual.postprocess(frame);
-	};
-	return Object.freeze({ visual, postprocess });
 }
 
 async function encodeKeyedPicture(
@@ -226,16 +221,19 @@ async function encodeKeyedPicture(
 	request: ProductVideoExportStrategyEncodeRequest,
 	assetStore: FramescaperVideoExportVisualAssetStoreV27 | undefined,
 	delegate: ProductVideoExportStrategy,
+	exactDependencies: ExactExecutionDependenciesV27,
 ): Promise<ProductVideoExportEncodedOutput> {
-	const execution = await createKeyedExecution(profile, authority, request, assetStore);
+	const execution = await createKeyedExecution(
+		profile, authority, request, assetStore, exactDependencies,
+	);
 	try {
 		const result = await delegate.encode({
 			...request, canonicalProject: authority.v20Project,
-			exportProject: authority.v20ExportProject, rgbaPostprocessor: execution.postprocess,
+			exportProject: authority.v20ExportProject, rgbaCompositor: execution.compositor,
 		});
-		DISPOSITIONS.set(request.plan, execution.visual.disposition());
+		DISPOSITIONS.set(request.plan, execution.disposition());
 		return result;
-	} finally { execution.visual.dispose(); }
+	} finally { await execution.dispose(); }
 }
 
 async function encodeKeyedPictureToSink<Output>(
@@ -245,16 +243,19 @@ async function encodeKeyedPictureToSink<Output>(
 	assetStore: FramescaperVideoExportVisualAssetStoreV27 | undefined,
 	delegate: ProductVideoExportStrategy,
 	sink: FfmpegOutputSink<Output>,
+	exactDependencies: ExactExecutionDependenciesV27,
 ): Promise<ProductVideoExportSinkOutput<Output>> {
-	const execution = await createKeyedExecution(profile, authority, request, assetStore);
+	const execution = await createKeyedExecution(
+		profile, authority, request, assetStore, exactDependencies,
+	);
 	try {
 		const result = await delegate.encodeToSink({
 			...request, canonicalProject: authority.v20Project,
-			exportProject: authority.v20ExportProject, rgbaPostprocessor: execution.postprocess,
+			exportProject: authority.v20ExportProject, rgbaCompositor: execution.compositor,
 		}, sink);
-		DISPOSITIONS.set(request.plan, execution.visual.disposition());
+		DISPOSITIONS.set(request.plan, execution.disposition());
 		return result;
-	} finally { execution.visual.dispose(); }
+	} finally { await execution.dispose(); }
 }
 
 async function createVisualExecution(
@@ -374,6 +375,33 @@ function snapshotPictureEncoders(
 			));
 		},
 	});
+}
+
+function snapshotExactExecutionDependencies(
+	value: FramescaperVideoExportStrategyV27Dependencies | undefined,
+): ExactExecutionDependenciesV27 {
+	if (!value) return Object.freeze({});
+	const captureFrame = optionalExactFunction(value, 'captureExactFrame');
+	const createAcceleratorCanvas = optionalExactFunction(value, 'createExactAcceleratorCanvas');
+	return Object.freeze({
+		...(captureFrame ? { captureFrame: captureFrame as CaptureFrameV27 } : {}),
+		...(createAcceleratorCanvas ? {
+			createAcceleratorCanvas: createAcceleratorCanvas as () => unknown,
+		} : {}),
+	});
+}
+
+function optionalExactFunction(
+	value: object,
+	key: 'captureExactFrame' | 'createExactAcceleratorCanvas',
+): ((...arguments_: never[]) => unknown) | undefined {
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	if (!descriptor) return undefined;
+	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')
+		|| typeof descriptor.value !== 'function') {
+		throw new TypeError(`V27 picture export dependencies.${key} must be an own function.`);
+	}
+	return descriptor.value as (...arguments_: never[]) => unknown;
 }
 
 function optionalPictureFunction(

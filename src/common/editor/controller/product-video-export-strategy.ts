@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { FfmpegOutputSink } from '../ffmpeg-output-stream.ts';
-import type { VideoKeyframeOfflineRgbaPostprocessor } from '../ui/video-keyframe-offline-rgba-renderer.ts';
+import type {
+	VideoKeyframeOfflineRgbaCompositor,
+	VideoKeyframeOfflineRgbaPostprocessor,
+} from '../ui/video-keyframe-offline-rgba-renderer.ts';
 import type {
 	BoundVideoSourceTimingView,
 	VideoSourceTimingView,
@@ -69,6 +72,8 @@ export interface ProductVideoExportStrategyEncodeRequest {
 	readonly maximumOutputBytes: unknown;
 	/** Product-owned picture finishing applied after exact compositing and before encoding. */
 	readonly rgbaPostprocessor?: VideoKeyframeOfflineRgbaPostprocessor;
+	/** Product-owned exact per-layer picture composition before encoding. */
+	readonly rgbaCompositor?: VideoKeyframeOfflineRgbaCompositor;
 }
 
 export interface ProductVideoExportEncodedOutput {

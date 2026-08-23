@@ -26,6 +26,10 @@ import {
 	framescaperVideoExportDispositionV27For,
 } from '../src/framescaper/video-export-strategy-v27.ts';
 import { framescaperV20Options, opacityKeyframes } from './helpers/framescaper-v20-model-fixture.ts';
+import {
+	captureFramescaperExactExportTestFrame,
+	composeFramescaperExactExportTestFrame,
+} from './helpers/framescaper-exact-export-fixture.ts';
 import { transitionProjectOptions } from './helpers/framescaper-unified-render-project-fixture.ts';
 
 const PROFILE = FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE;
@@ -35,15 +39,15 @@ test('selected V27 browser strategy delegates exact retime/keyframe encoding thr
 	const captured: VideoKeyframeOfflineVideoExportRequest[] = [];
 	let processedPixel: readonly number[] | null = null;
 	const strategy = createFramescaperVideoExportStrategyV27(PROFILE, {
+		captureExactFrame: captureFramescaperExactExportTestFrame,
 		async encodeOffline(request) {
 			captured.push(request);
 			const canvas = request.canvas;
 			const rgba = new Uint8Array(canvas.width * canvas.height * 4).fill(16);
 			for (let offset = 3; offset < rgba.length; offset += 4) rgba[offset] = 255;
-			await request.rgbaPostprocessor?.({
-				frame: exportFrame(0, 0) as never,
-				width: canvas.width, height: canvas.height, rgba, signal: request.signal,
-			});
+			await composeFramescaperExactExportTestFrame(
+				request, exportFrame(0, 0), rgba, [16, 16, 16, 255],
+			);
 			processedPixel = [...rgba.subarray(0, 4)];
 			return Object.freeze({
 				bytes: Uint8Array.of(1, 2, 3), byteLength: 3, videoEncoder: 'ffmpeg' as const,
@@ -83,7 +87,7 @@ test('selected V27 browser strategy delegates exact retime/keyframe encoding thr
 	assert.equal(captured.length, 1);
 	assert.equal(captured[0]?.project.schemaVersion, 17);
 	assert.notStrictEqual(captured[0]?.project, exportProject);
-	assert.equal(typeof captured[0]?.rgbaPostprocessor, 'function');
+	assert.equal(typeof captured[0]?.rgbaCompositor, 'function');
 	assert.deepEqual(processedPixel, [0, 0, 0, 255]);
 	assert.deepEqual(framescaperVideoExportDispositionV27For(plan).unexplainedOmittedNodeIds, []);
 
@@ -197,14 +201,13 @@ test('selected V27 picture export retains explicit captions for sidecar-only del
 test('selected V27 keyed export consumes the canonical dissolve resolver', async () => {
 	const project = createFramescaperProjectV27(PROFILE, transitionProjectOptions());
 	const strategy = createFramescaperVideoExportStrategyV27(PROFILE, {
+		captureExactFrame: captureFramescaperExactExportTestFrame,
 		async encodeOffline(request) {
 			const rgba = new Uint8Array(request.canvas.width * request.canvas.height * 4).fill(32);
 			for (let offset = 3; offset < rgba.length; offset += 4) rgba[offset] = 255;
-			await request.rgbaPostprocessor?.({
-				frame: transitionExportFrame() as never,
-				width: request.canvas.width, height: request.canvas.height,
-				rgba, signal: request.signal,
-			});
+			await composeFramescaperExactExportTestFrame(
+				request, transitionExportFrame(), rgba, [32, 32, 32, 255],
+			);
 			return encodedResult();
 		},
 		async encodeOfflineToSink() { throw new Error('sink path is not used'); },
@@ -274,15 +277,14 @@ test('selected V27 export loads digest-bound LUT and motion bodies before encodi
 	let processedPixel: readonly number[] | null = null;
 	let encodeCalls = 0;
 	const dependencies = {
+		captureExactFrame: captureFramescaperExactExportTestFrame,
 		async encodeOffline(request: VideoKeyframeOfflineVideoExportRequest) {
 			encodeCalls += 1;
 			const rgba = new Uint8Array(request.canvas.width * request.canvas.height * 4).fill(16);
 			for (let offset = 3; offset < rgba.length; offset += 4) rgba[offset] = 255;
-			await request.rgbaPostprocessor?.({
-				frame: exportFrame(1, 1) as never,
-				width: request.canvas.width, height: request.canvas.height,
-				rgba, signal: request.signal,
-			});
+			await composeFramescaperExactExportTestFrame(
+				request, exportFrame(1, 1), rgba, [16, 16, 16, 255],
+			);
 			processedPixel = [...rgba.subarray(0, 4)];
 			return encodedResult();
 		},

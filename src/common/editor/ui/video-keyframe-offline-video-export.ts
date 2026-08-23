@@ -90,6 +90,7 @@ export interface VideoKeyframeOfflineVideoExportRequest {
 	readonly maximumOutputChunkBytes?: number;
 	readonly sourceTimeoutMs?: number;
 	readonly rgbaPostprocessor?: VideoKeyframeOfflineRgbaPostprocessor;
+	readonly rgbaCompositor?: import('./video-keyframe-offline-rgba-renderer.ts').VideoKeyframeOfflineRgbaCompositor;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 }
@@ -123,6 +124,7 @@ interface NormalizedRequest {
 	readonly encoderOptions: Readonly<Record<string, number>>;
 	readonly sourceTimeoutMs?: number;
 	readonly rgbaPostprocessor?: VideoKeyframeOfflineRgbaPostprocessor;
+	readonly rgbaCompositor?: import('./video-keyframe-offline-rgba-renderer.ts').VideoKeyframeOfflineRgbaCompositor;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 }
@@ -132,7 +134,7 @@ const REQUEST_FIELDS = [
 	'format', 'quality', 'webCodecs', 'editorFfmpeg', 'audioMix', 'ringCapacityBytes', 'audioRingCapacityBytes',
 	'maximumAudioBytes', 'maximumWidth', 'maximumHeight',
 	'maximumFrameCount', 'maximumTotalRgbaBytes', 'maximumOutputBytes',
-	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'rgbaPostprocessor', 'signal', 'assertCurrent',
+	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'rgbaPostprocessor', 'rgbaCompositor', 'signal', 'assertCurrent',
 ] as const;
 const ENCODER_OPTION_FIELDS = [
 	'ringCapacityBytes', 'audioRingCapacityBytes', 'maximumAudioBytes',
@@ -251,6 +253,7 @@ async function executeOfflineVideo<Output>(
 				...(request.rgbaPostprocessor === undefined ? {} : {
 					postprocess: request.rgbaPostprocessor,
 				}),
+				...(request.rgbaCompositor === undefined ? {} : { compose: request.rgbaCompositor }),
 			}));
 			return Object.freeze({
 				renderer,
@@ -272,6 +275,9 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 	if (typeof request.assertCurrent !== 'function') throw new TypeError('Offline video export requires assertCurrent.');
 	if (request.rgbaPostprocessor !== undefined && typeof request.rgbaPostprocessor !== 'function') {
 		throw new TypeError('Offline video export rgbaPostprocessor must be a function.');
+	}
+	if (request.rgbaCompositor !== undefined && typeof request.rgbaCompositor !== 'function') {
+		throw new TypeError('Offline video export rgbaCompositor must be a function.');
 	}
 	const startFrame = request.startFrame === undefined
 		? undefined
@@ -329,6 +335,9 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 		...(sourceTimeoutMs === undefined ? {} : { sourceTimeoutMs }),
 		...(request.rgbaPostprocessor === undefined ? {} : {
 			rgbaPostprocessor: request.rgbaPostprocessor as VideoKeyframeOfflineRgbaPostprocessor,
+		}),
+		...(request.rgbaCompositor === undefined ? {} : {
+			rgbaCompositor: request.rgbaCompositor as import('./video-keyframe-offline-rgba-renderer.ts').VideoKeyframeOfflineRgbaCompositor,
 		}),
 		signal: request.signal,
 		assertCurrent: request.assertCurrent as () => void,

@@ -48,7 +48,7 @@ export function createFramescaperVideoFrameAddressV27(options: Readonly<{
 	}
 	const sources = new Map(options.sources);
 	const timing = new Map(options.timingViewsBySourceId);
-	if (sources.size > 4_096 || sources.size !== timing.size
+	if (sources.size > 4_096
 		|| [...sources].some(([id, body]) => !stableId(id) || !(body instanceof Blob) || !timing.has(id))) {
 		throw new RangeError('Selected V27 frame-address source authority is inconsistent.');
 	}

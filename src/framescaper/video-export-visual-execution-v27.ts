@@ -57,6 +57,7 @@ export interface FramescaperVideoExportPictureDispositionV27 {
 export interface FramescaperVideoExportVisualExecutionV27 {
 	readonly exactPlan: UnifiedExactRenderPlanV13;
 	readonly postprocess: VideoKeyframeOfflineRgbaPostprocessor;
+	accountFrame(frame: VideoKeyframeExportFrame, consumedNodeIds: readonly string[]): void;
 	createProducer(frameSource: ProductFrameSource): VideoKeyframeVideoRgbaProducer;
 	disposition(): FramescaperVideoExportPictureDispositionV27;
 	dispose(): void;
@@ -217,13 +218,28 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 		});
 	}
 
+	function accountFrame(frame: VideoKeyframeExportFrame, consumedNodeIds: readonly string[]): void {
+		if (disposed) throw new Error('V27 visual execution is disposed.');
+		for (const nodeId of consumedNodeIds) {
+			if (!exactPlan.nodes.some((node) => node.nodeId === nodeId)) {
+				throw new ReferenceError(`V27 executed node ${nodeId} is absent from its V13 plan.`);
+			}
+			executed.add(nodeId);
+		}
+		for (const clipId of frameClipIds(frame)) {
+			const nodeId = clipNodeById.get(clipId);
+			if (!nodeId) throw new ReferenceError(`V27 encoded clip ${clipId} is absent from its V13 plan.`);
+			executed.add(nodeId);
+		}
+	}
+
 	function dispose(): void {
 		if (disposed) return;
 		disposed = true;
 		for (const frame of assets.stills.values()) frame.pixels.fill(0);
 	}
 
-	return Object.freeze({ exactPlan, postprocess, createProducer, disposition, dispose });
+	return Object.freeze({ exactPlan, postprocess, accountFrame, createProducer, disposition, dispose });
 }
 
 function pictureTrackIds(frame: VideoKeyframeExportFrame, visualTrackIds: readonly string[]): Set<string> {

@@ -21,6 +21,11 @@ export interface UnifiedExactLinearPremultipliedFrameV13 {
 
 export type UnifiedExactLinearBlendModeV13 = VideoClipCompositionBlendMode | 'add';
 
+export interface UnifiedExactLinearCompositionEntryV13 {
+	readonly frame: UnifiedExactLinearPremultipliedFrameV13;
+	readonly blendMode: UnifiedExactLinearBlendModeV13;
+}
+
 export function createUnifiedExactLinearPremultipliedFrameV13(
 	widthValue: number,
 	heightValue: number,
@@ -87,6 +92,39 @@ export function addUnifiedExactLinearDissolveV13(
 			);
 		}
 	}
+}
+
+/** Accumulate canonical transition weights only within one shared blend authority. */
+export function addUnifiedExactLinearDissolveEntryV13(
+	entries: UnifiedExactLinearCompositionEntryV13[],
+	frame: UnifiedExactLinearPremultipliedFrameV13,
+	blendMode: UnifiedExactLinearBlendModeV13,
+): void {
+	const current = entries.find((entry) => entry.blendMode === blendMode);
+	if (current) addUnifiedExactLinearDissolveV13(current.frame, frame);
+	else entries.push(Object.freeze({ frame, blendMode }));
+}
+
+/** Retain an independently composited source in its authored sequence order. */
+export function addUnifiedExactLinearCompositionEntryV13(
+	entries: UnifiedExactLinearCompositionEntryV13[],
+	frame: UnifiedExactLinearPremultipliedFrameV13,
+	blendMode: UnifiedExactLinearBlendModeV13,
+): void {
+	entries.push(Object.freeze({ frame, blendMode }));
+}
+
+/** Flatten one track for an authored adjustment-layer operation. */
+export function flattenUnifiedExactLinearCompositionV13(
+	width: number,
+	height: number,
+	entries: readonly UnifiedExactLinearCompositionEntryV13[],
+): UnifiedExactLinearPremultipliedFrameV13 {
+	const output = createUnifiedExactLinearPremultipliedFrameV13(width, height);
+	for (const { frame, blendMode } of entries) {
+		compositeUnifiedExactLinearFrameV13(output, frame, blendMode);
+	}
+	return output;
 }
 
 /** Blend a complete premultiplied layer into its backdrop in the linear working space. */
