@@ -12,7 +12,7 @@ function captionTrack(): VideoCaptionTrackV1 {
 	return normalizeVideoCaptionTrackV1({
 		schemaVersion: 1,
 		id: 'captions-en',
-		sequenceId: 'main-sequence',
+		sequenceId: 'sequence-main',
 		name: 'English',
 		language: 'en-GB',
 		styles: [{
@@ -59,9 +59,19 @@ test('explicit caption tracks preserve styles, regions, speakers, cues, and word
 	assert.equal(track.cues[0]?.startFrame, 48_000);
 	assert.equal(track.cues[0]?.words[1]?.endFrame, 96_000);
 	assert.equal(track.cues[0]?.speakerId, 'speaker-alex');
+	assert.equal(track.sequenceId, 'sequence-main');
 	assert.equal(Object.isFrozen(track), true);
 	assert.equal(Object.isFrozen(track.cues), true);
 	assert.equal(Object.isFrozen(track.cues[0]?.words), true);
+});
+
+test('caption tracks require a persisted sequence binding', () => {
+	const { sequenceId: _sequenceId, ...unbound } = captionTrack();
+	assert.throws(() => normalizeVideoCaptionTrackV1(unbound), /sequenceId|sequence.*ID/iu);
+	assert.throws(() => normalizeVideoCaptionTrackV1({
+		...captionTrack(),
+		sequenceId: '../sequence',
+	}), /sequence.*ID|stable ID/iu);
 });
 
 test('caption timing and references are closed and exact', () => {
@@ -84,6 +94,10 @@ test('caption timing and references are closed and exact', () => {
 	assert.throws(() => normalizeVideoCaptionTrackV1({
 		...track,
 		cues: [{ ...track.cues[0]!, text: 'unsafe\u202e' }],
+	}), /caption.*text|unsafe/iu);
+	assert.throws(() => normalizeVideoCaptionTrackV1({
+		...track,
+		cues: [{ ...track.cues[0]!, text: 'unpaired\ud800' }],
 	}), /caption.*text|unsafe/iu);
 });
 

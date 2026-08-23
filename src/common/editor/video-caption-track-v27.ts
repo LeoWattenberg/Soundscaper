@@ -8,6 +8,32 @@ import {
 	readClosedDomainRecord,
 	type ClosedDomainRecord,
 } from './closed-domain-value.ts';
+import {
+	exportCaptionInterchangeV1,
+	importCaptionInterchangeV1,
+} from './video-caption-interchange-v27.ts';
+import type {
+	VideoCaptionExportOptionsV1,
+	VideoCaptionExportResultV1,
+	VideoCaptionImportOptionsV1,
+	VideoCaptionImportResultV1,
+} from './video-caption-interchange-contract-v27.ts';
+
+export {
+	VIDEO_CAPTION_INTERCHANGE_FORMATS_V1,
+	VIDEO_CAPTION_INTERCHANGE_HARD_LIMITS_V1,
+	VideoCaptionInterchangeError,
+} from './video-caption-interchange-contract-v27.ts';
+export type {
+	VideoCaptionExportOptionsV1,
+	VideoCaptionExportResultV1,
+	VideoCaptionImportOptionsV1,
+	VideoCaptionImportResultV1,
+	VideoCaptionInterchangeFormatV1,
+	VideoCaptionInterchangeLimitsV1,
+	VideoCaptionInterchangeLossCodeV1,
+	VideoCaptionInterchangeLossV1,
+} from './video-caption-interchange-contract-v27.ts';
 
 export const VIDEO_CAPTION_TRACK_LIMITS_V1 = Object.freeze({
 	maximumStyles: 256,
@@ -78,8 +104,7 @@ export interface VideoCaptionTrackV1 {
 }
 
 const TRACK_FIELDS = Object.freeze([
-	'schemaVersion', 'id', 'sequenceId', 'name', 'language', 'styles', 'regions', 'speakers',
-	'cues',
+	'schemaVersion', 'id', 'sequenceId', 'name', 'language', 'styles', 'regions', 'speakers', 'cues',
 ]);
 const STYLE_FIELDS = Object.freeze([
 	'schemaVersion', 'id', 'fontFamily', 'fontSizePercent', 'foregroundColor',
@@ -133,6 +158,21 @@ export function normalizeVideoCaptionTrackV1(value: unknown): VideoCaptionTrackV
 		speakers: Object.freeze(speakers),
 		cues: Object.freeze(cues),
 	});
+}
+
+export function importVideoCaptionTrackV1(
+	input: unknown,
+	options: VideoCaptionImportOptionsV1,
+): VideoCaptionImportResultV1 {
+	return importCaptionInterchangeV1(input, options, normalizeVideoCaptionTrackV1);
+}
+
+/** Serialize a caption sidecar only; V27 intentionally exposes no burn-in or mux adapter. */
+export function exportVideoCaptionTrackV1(
+	value: unknown,
+	options: VideoCaptionExportOptionsV1,
+): VideoCaptionExportResultV1 {
+	return exportCaptionInterchangeV1(normalizeVideoCaptionTrackV1(value), options);
 }
 
 function normalizeStyle(value: unknown): VideoCaptionStyleV1 {
@@ -324,8 +364,21 @@ function bounded(value: unknown, minimum: number, maximum: number, name: string)
 function safeText(value: unknown, name: string, maximum: number, empty: boolean): string {
 	if (typeof value !== 'string') throw new TypeError(`${name} must be text.`);
 	const normalized = value.replace(/\r\n?/gu, '\n');
-	if ((!empty && normalized.length === 0) || normalized.length > maximum || UNSAFE_TEXT.test(normalized)) {
+	if ((!empty && normalized.length === 0) || normalized.length > maximum
+		|| UNSAFE_TEXT.test(normalized) || !isWellFormedText(normalized)) {
 		throw new RangeError(`${name} is empty, unsafe, or outside its bound.`);
 	}
 	return normalized;
+}
+
+function isWellFormedText(value: string): boolean {
+	for (let index = 0; index < value.length; index += 1) {
+		const unit = value.charCodeAt(index);
+		if (unit >= 0xd800 && unit <= 0xdbff) {
+			const next = value.charCodeAt(index + 1);
+			if (!(next >= 0xdc00 && next <= 0xdfff)) return false;
+			index += 1;
+		} else if (unit >= 0xdc00 && unit <= 0xdfff) return false;
+	}
+	return true;
 }
