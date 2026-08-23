@@ -74,14 +74,14 @@ export interface FramescaperVideoCaptionTrackSetCommandV27 {
 
 export interface FramescaperAutomationLaneSetCommandV27 {
 	readonly type: 'automation-lane/set';
-	readonly automationLaneId: string;
-	readonly expectedAutomationLane: AutomationLaneV21 | null;
-	readonly automationLane: AutomationLaneV21 | null;
+	readonly laneId: string;
+	readonly expected: AutomationLaneV21 | null;
+	readonly lane: AutomationLaneV21 | null;
 }
 
 export interface FramescaperMixerGraphSetCommandV27 {
 	readonly type: 'mixer-graph/set';
-	readonly expectedMixer: MixerGraphV21;
+	readonly expected: MixerGraphV21;
 	readonly mixer: MixerGraphV21;
 }
 
@@ -128,8 +128,8 @@ const COLLECTION_SPECS = Object.freeze({
 	'video-caption-track/set': spec('videoCaptionTracks', 'captionTrackId',
 		'expectedCaptionTrack', 'captionTrack', 'id', true, 'caption track',
 		normalizeVideoCaptionTrackV1),
-	'automation-lane/set': spec('automationLanes', 'automationLaneId',
-		'expectedAutomationLane', 'automationLane', 'id', true, 'automation lane',
+	'automation-lane/set': spec('automationLanes', 'laneId',
+		'expected', 'lane', 'id', true, 'automation lane',
 		normalizeAutomationLaneV21),
 } as const);
 
@@ -167,7 +167,7 @@ export function applyFramescaperOwnedFinishingCommandV27(
 ): void {
 	const command = snapshotFramescaperOwnedFinishingCommandV27(commandValue);
 	if (command.type === 'mixer-graph/set') {
-		if (!same(project.mixer, command.expectedMixer)) {
+		if (!same(project.mixer, command.expected)) {
 			throw new Error('The expected V27 mixer graph is stale.');
 		}
 		project.mixer = command.mixer;
@@ -190,12 +190,12 @@ export function applyFramescaperOwnedFinishingCommandV27(
 
 function snapshotMixer(value: unknown): FramescaperMixerGraphSetCommandV27 {
 	const command = readClosedDomainRecord(value, 'Framescaper V27 mixer command', [
-		'type', 'expectedMixer', 'mixer',
+		'type', 'expected', 'mixer',
 	]);
-	const expectedMixer = normalizeMixerGraphV21(field(command, 'expectedMixer'));
+	const expected = normalizeMixerGraphV21(field(command, 'expected'));
 	const mixer = normalizeMixerGraphV21(field(command, 'mixer'));
-	assertMutation(expectedMixer, mixer, 'mixer graph');
-	return Object.freeze({ type: 'mixer-graph/set', expectedMixer, mixer });
+	assertMutation(expected, mixer, 'mixer graph');
+	return Object.freeze({ type: 'mixer-graph/set', expected, mixer });
 }
 
 function spec<T>(

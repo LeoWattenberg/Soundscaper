@@ -104,10 +104,10 @@ function finishingCommands(project: ReturnType<typeof projectFixture>) {
 			expectedFinishingPreset: preset, finishingPreset: { ...preset, name: 'Cool look' } },
 		{ type: 'video-caption-track/set', captionTrackId: captions.id,
 			expectedCaptionTrack: captions, captionTrack: { ...captions, name: 'Deutsch', language: 'de' } },
-		{ type: 'automation-lane/set', automationLaneId: lane.id,
-			expectedAutomationLane: lane, automationLane: { ...lane,
+		{ type: 'automation-lane/set', laneId: lane.id,
+			expected: lane, lane: { ...lane,
 				points: [{ ...lane.points[0]!, value: 0.5 }] } },
-		{ type: 'mixer-graph/set', expectedMixer: project.mixer,
+		{ type: 'mixer-graph/set', expected: project.mixer,
 			mixer: { ...project.mixer, outputs: [{ ...project.mixer.outputs[0]!, name: 'Programme' }] } },
 	] as const;
 }
