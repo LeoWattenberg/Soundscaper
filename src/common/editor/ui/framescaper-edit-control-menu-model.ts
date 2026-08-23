@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
-import { isFramescaperVideoCompositionProjectSchema } from '../project-schema-version.ts';
+import {
+	isFramescaperVideoCompositionProjectSchema,
+	isTimelineAnnotationProjectSchema,
+} from '../project-schema-version.ts';
 import type { RuntimeClipProject } from '../runtime-clip-projection.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
@@ -102,7 +105,9 @@ function projectForLinkedControls(project: DataRecord): DataRecord {
 		throw new TypeError('Framescaper composition projects require an empty timeline annotation carrier.');
 	}
 	const projectionInput = { ...project };
-	delete projectionInput.timelineAnnotations;
+	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) {
+		delete projectionInput.timelineAnnotations;
+	}
 	return projectForRuntimeConsumers(projectionInput as RuntimeClipProject) as unknown as DataRecord;
 }
 

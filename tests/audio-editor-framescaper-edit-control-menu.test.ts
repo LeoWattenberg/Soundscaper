@@ -10,6 +10,7 @@ import {
 import {
 	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
 	FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 import { createPersistedVideoProject } from './helpers/persisted-video-project-fixture.ts';
 
@@ -229,10 +230,11 @@ test('current persisted video coordinates resolve through the shared runtime pro
 	});
 });
 
-test('exact Framescaper V19 and V20 project their required empty annotation carrier for linked controls', () => {
+test('exact Framescaper V19, V20, and V27 project their required empty annotation carrier for linked controls', () => {
 	for (const schemaVersion of [
 		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
 		FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION,
+		FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION,
 	]) {
 		const persisted = structuredClone(createPersistedVideoProject({ timeline: true }).project) as unknown as {
 			schemaVersion: number;

@@ -49,7 +49,8 @@ export function framescaperProjectForCommandConsumersV27(
 		FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
 		framescaperProjectV20FoundationV27(profile, project),
 	) as unknown as DataRecord;
-	return Object.freeze(mergeSelectedState(base, project, false));
+	const result = Object.freeze(mergeSelectedState(base, project, false)) as RuntimeClipProject;
+	return brandRuntimeProjectProjection(result) as Readonly<DataRecord>;
 }
 
 /** Dedicated common-clipboard view: visuals impersonate video only while the descriptor is built. */

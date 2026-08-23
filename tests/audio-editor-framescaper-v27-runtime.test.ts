@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createAddTrackCommand } from '../src/common/editor/commands/factories.ts';
+import { planFrameCanonicalEdgeTrim } from '../src/common/editor/frame-canonical-edge-trim-planner.ts';
+import { isRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { editorProjectStorageProfileNames } from '../src/common/editor/storage/project-storage-profile.ts';
 import {
 	applyFramescaperProjectCommandV27,
@@ -34,7 +36,12 @@ test('selected V27 runtime owns exact creation, projection, storage, and explici
 	const project = projectFixture('selected-v27');
 	assert.equal(runtime.validateProject(project), true);
 	assert.equal(runtime.migrateProject(project).readOnly, false);
-	assert.equal(runtime.projectForCommandConsumers(project).schemaVersion, 17);
+	const commandProject = runtime.projectForCommandConsumers(project);
+	assert.equal(commandProject.schemaVersion, 17);
+	assert.equal(isRuntimeProjectProjection(commandProject), true);
+	assert.equal(planFrameCanonicalEdgeTrim(commandProject, {
+		activeClipId: 'video-clip', edge: 'left', requestedBoundarySample: 4_800,
+	}).kind, 'transform');
 	assert.equal(runtime.projectForRuntimeConsumers(project).schemaVersion, 27);
 	assert.equal(
 		(runtime.projectForRuntimeConsumers(project).clips as readonly unknown[]).length,
