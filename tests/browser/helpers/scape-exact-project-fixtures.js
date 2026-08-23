@@ -1,5 +1,7 @@
 import { Buffer } from 'node:buffer';
 
+import { framescaperProjectV20FoundationV27 } from '../../../src/framescaper/editor-project-v27-runtime.ts';
+import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../../../src/framescaper/editor-project-runtime-profile-v27.ts';
 import { createSoundscaperProjectV23 } from '../../../src/soundscaper/editor-project-v23.ts';
 
 export async function promoteFramescaperArchiveToSoundscaperV23(
@@ -8,7 +10,7 @@ export async function promoteFramescaperArchiveToSoundscaperV23(
 	rewriteArchive,
 ) {
 	return rewriteArchive(input, ({ project }) => {
-		const foundation = framescaperV19FoundationForSoundscaperV23(project);
+		const foundation = framescaperFoundationForSoundscaperV23(project);
 		foundation.id = id;
 		foundation.title = title;
 		mutate(foundation);
@@ -55,8 +57,10 @@ export function createScapePcmPayload(source) {
 	return output;
 }
 
-function framescaperV19FoundationForSoundscaperV23(value) {
-	const project = structuredClone(value);
+function framescaperFoundationForSoundscaperV23(value) {
+	const project = structuredClone(value.schemaVersion === 27
+		? framescaperProjectV20FoundationV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, value)
+		: value);
 	delete project.schemaVersion;
 	delete project.subsequences;
 	delete project.multicameraGroups;
