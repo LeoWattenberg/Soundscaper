@@ -154,9 +154,18 @@ export function createFramescaperVideoProxyActions(
 			if (mode !== 'original' && mode !== 'proxy' && mode !== 'auto') {
 				throw new RangeError('The Framescaper video-proxy mode is unsupported.');
 			}
-			if ((modes.get(id) ?? 'auto') === mode) return;
+			const previous = modes.get(id);
+			if ((previous ?? 'auto') === mode) return;
 			modes.set(id, mode);
-			await refresh(id);
+			try {
+				await refresh(id);
+			} catch (error) {
+				if (modes.get(id) === mode) {
+					if (previous === undefined) modes.delete(id);
+					else modes.set(id, previous);
+				}
+				throw error;
+			}
 		},
 		pressure(sourceId: string): Readonly<FramescaperVideoProxyPressureV20> | null {
 			return pressures.get(identifier(sourceId)) ?? null;
@@ -167,10 +176,19 @@ export function createFramescaperVideoProxyActions(
 		): Promise<void> {
 			const id = identifier(sourceId);
 			const captured = snapshotPressure(value);
-			const before = pressureSelectsProxy(pressures.get(id) ?? null);
+			const previous = pressures.get(id);
+			const before = pressureSelectsProxy(previous ?? null);
 			pressures.set(id, captured);
-			if ((modes.get(id) ?? 'auto') === 'auto'
-				&& before !== pressureSelectsProxy(captured)) await refresh(id);
+			try {
+				if ((modes.get(id) ?? 'auto') === 'auto'
+					&& before !== pressureSelectsProxy(captured)) await refresh(id);
+			} catch (error) {
+				if (pressures.get(id) === captured) {
+					if (previous === undefined) pressures.delete(id);
+					else pressures.set(id, previous);
+				}
+				throw error;
+			}
 		},
 		generate: (
 			sourceId: string,

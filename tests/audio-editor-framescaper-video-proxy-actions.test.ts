@@ -192,6 +192,38 @@ test('adaptive pressure refreshes Auto only when it crosses the proxy threshold'
 	});
 });
 
+test('proxy session state rolls back when its required visual refresh fails', async () => {
+	const owner = ownerFixture(27, attachment());
+	let refreshFailure: Error | null = new Error('planned visual refresh failure');
+	owner.reload = async () => {
+		owner.refreshes += 1;
+		if (refreshFailure) throw refreshFailure;
+	};
+	const runtime = createFramescaperVideoProxyActionsV27({
+		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner),
+		createSessionId: () => 'v27-session-publication',
+		createScheduler: () => Object.assign(async () => undefined, { dispose: async () => undefined }),
+		createAttachExistingScheduler: () => Object.assign(
+			async () => undefined, { dispose: async () => undefined },
+		),
+		createDetachCommand: () => ({ type: 'framescaper-v27/video-proxy-detach' }),
+	});
+	const lowPressure = { droppedFrameRatio: 0, decodeQueueDepth: 0, viewportScale: 1 };
+	await runtime.reportPreviewPressure('video-source', lowPressure);
+	await assert.rejects(runtime.reportPreviewPressure('video-source', {
+		droppedFrameRatio: 0.03, decodeQueueDepth: 0, viewportScale: 1,
+	}), /planned visual refresh failure/u);
+	assert.deepEqual(runtime.pressure('video-source'), lowPressure);
+
+	refreshFailure = null;
+	await runtime.setMode('video-source', 'original');
+	assert.equal(runtime.mode('video-source'), 'original');
+	refreshFailure = new Error('second planned visual refresh failure');
+	await assert.rejects(runtime.setMode('video-source', 'proxy'), /second planned visual refresh failure/u);
+	assert.equal(runtime.mode('video-source'), 'original');
+});
+
 test('dialog trust is supplied by the resolver ledger for the exact attachment object', () => {
 	const owner = ownerFixture(27, attachment());
 	const currentAttachment = owner.source().proxyAttachment;
@@ -394,6 +426,7 @@ function ownerFixture(schemaVersion: 20 | 27, proxyAttachment: unknown) {
 	const fixture = {
 		commit: (_command: unknown): unknown => undefined,
 		undo: (): unknown => undefined,
+		reload: async (): Promise<void> => { fixture.refreshes += 1; },
 		refreshes: 0,
 		owner: {
 			get project() { return project; },
@@ -403,7 +436,7 @@ function ownerFixture(schemaVersion: 20 | 27, proxyAttachment: unknown) {
 					undo: () => fixture.undo(),
 				},
 				video: {
-					reloadSourceVisual: async () => { fixture.refreshes += 1; },
+					reloadSourceVisual: () => fixture.reload(),
 				},
 				projectBin: {
 					canRelinkLinkedVideo: async () => true,
