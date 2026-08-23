@@ -35,7 +35,7 @@ const PRODUCT = Object.freeze({
 	name: 'Soundscaper',
 	version: '0.2.0-beta.1',
 });
-
+const PACKAGED_ENVIRONMENT = Object.freeze({ PATH: '/usr/bin', SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION: '555.42.02', SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID: '10de:2204', SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE: 'maximum-performance-ac', SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE: '1920x1080@60Hz-100pct' });
 test('nightly test results resolve beside each portable artifact convention', () => {
 	assert.equal(resolveDesktopNightlyTestsOutputRoot({
 		platform: 'win32',
@@ -392,7 +392,7 @@ test('the injected nightly runtime records terminal results and always closes it
 		product: PRODUCT,
 		platform: 'linux',
 		arch: 'x64',
-		environment: { PATH: '/usr/bin' },
+		environment: PACKAGED_ENVIRONMENT,
 		sourceRevision: 'b'.repeat(40),
 	}, {
 		now: () => times.shift() ?? new Date('2026-08-08T13:05:00.000Z'),
@@ -516,7 +516,6 @@ test('the default Playwright child runner captures output and reaches a terminal
 		"console.log('bundled Playwright child reached');",
 		"console.error('bundled child diagnostic');",
 	].join('\n'), 'utf8');
-
 	const completed = await runDesktopNightlyTests({
 		executablePath: process.execPath,
 		payloadRoot,
@@ -524,13 +523,14 @@ test('the default Playwright child runner captures output and reaches a terminal
 		product: PRODUCT,
 		platform: process.platform,
 		arch: process.arch,
-		environment: { PATH: process.env.PATH },
+		environment: { ...PACKAGED_ENVIRONMENT, PATH: process.env.PATH },
 	}, {
 		startStaticServer: async () => ({
 			baseURL: 'http://127.0.0.1:49999',
 			close: async () => undefined,
 		}),
 		writeMetricsEvidence: async () => ({ passed: true }),
+		writePackagedMetricsEvidence: async () => ({ passed: true }),
 	});
 
 	assert.equal(completed.exitCode, 0);
@@ -580,7 +580,7 @@ test('a failed diagnostic metric gate fails an otherwise passing nightly run', a
 		product: PRODUCT,
 		platform: 'linux',
 		arch: 'x64',
-		environment: {},
+		environment: PACKAGED_ENVIRONMENT,
 	}, {
 		startStaticServer: async () => ({
 			baseURL: 'http://127.0.0.1:49997',
