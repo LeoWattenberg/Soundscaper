@@ -1,12 +1,27 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	applyManagedSdrGradeStackPixelV1,
+	applyManagedSdrGradeStackLinearPixelV1,
+	applyManagedSdrLinearGradeStackPixelV1,
+	decodeManagedSdrOutputPixelV1,
 	defaultVideoSourceColorInterpretationV1,
 	type ParsedCubeLutV1,
 	type VideoColorGradeV1,
+	type VideoColorOutputSpaceV1,
 	type VideoSourceColorInterpretationV1,
 } from '../common/editor/video-color-management-v27.ts';
+import {
+	addUnifiedExactLinearCompositionEntryV13,
+	compositeUnifiedExactLinearFrameV13,
+	createUnifiedExactLinearPremultipliedFrameV13,
+	encodeUnifiedExactLinearFrameV13,
+	flattenUnifiedExactLinearCompositionV13,
+	placeUnifiedExactLinearRgbaFrameV13,
+	straightUnifiedExactLinearFrameV13,
+	type UnifiedExactLinearCompositionEntryV13,
+	type UnifiedExactLinearPremultipliedFrameV13,
+} from '../common/editor/unified-exact-linear-rgba-v13.ts';
+import { videoDeliveryColorChannels } from '../common/editor/video-delivery-color.ts';
 import { assertVideoKeyframeExportFrame, type VideoKeyframeExportFrame,
 	type VideoKeyframeExportFrameSource } from '../common/editor/video-keyframe-export-frame-source.ts';
 import type { VideoKeyframeVideoRgbaProducer } from '../common/editor/video-keyframe-video-encoder.ts';
@@ -130,7 +145,6 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 	): Promise<void> {
 		assertReady(request);
 		throwIfAborted(executionSignal);
-		if (clear) fillBackground(target, request.plan.canvas, width, height);
 		const resolved = consumer.resolveFrame({
 			sequencePosition: sequencePosition(frame, exactPlan),
 		});
@@ -143,10 +157,7 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 		}
 		assertTransitionInputs(frame, resolved.transitionWeights);
 		const maskInputs = new Map<string, UnifiedExactRenderVisualRgbaV13>();
-		const materialized: Array<Readonly<{
-			entry: UnifiedExactRenderVisualFrameEntryV13;
-			frame: UnifiedExactRenderVisualRgbaV13;
-		}>> = [];
+		const rawByEntry = new Map<UnifiedExactRenderVisualFrameEntryV13, UnifiedExactRenderVisualRgbaV13>();
 		for (const layer of resolved.layers) for (const entry of layer.entries) {
 			const raw = await materializeUnifiedExactRenderVisualEntryV13(Object.freeze({
 				...entry, masks: Object.freeze([]),
@@ -157,28 +168,50 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 			});
 			const source = sourceState(entry);
 			maskInputs.set(String(source.id), raw);
-			materialized.push(Object.freeze({ entry, frame: raw }));
+			rawByEntry.set(entry, raw);
 		}
-		applyVideoPresentation(frame, target, width, height, finishing, sourceIdByClipId,
-			masksById, maskInputs, request.plan.canvas, executed);
-		for (const { entry, frame: raw } of materialized) {
-			assertReady(request);
-			const masked = await materializeUnifiedExactRenderVisualEntryV13(entry, {
-				targetWidth: width, targetHeight: height,
-				decodeStill: () => Promise.resolve(raw),
-				maskInputs,
-				signal: executionSignal,
-			});
-			const graded = managedVisualFrame(finishing, entry, masked, assets.luts, executionSignal);
-			composite(target, graded.pixels, entry.opacity, entry.blendMode);
-		}
-		const activeTrackIds = pictureTrackIds(frame, resolved.layers.map(({ trackId }) => trackId));
-		for (const adjustment of resolved.activeAdjustmentLayers) {
-			if ([...activeTrackIds].some((trackId) => !adjustment.targetTrackIds.includes(trackId))) {
-				throw new Error('V27 adjustment targeting requires unavailable per-layer browser execution.');
+		// Playback and export are the same render: everything composites in the
+		// linear premultiplied working space and encodes exactly once, matching
+		// the selected exact frame execution the preview and keyed export use.
+		const outputSpace = finishing.colorContext.outputSpace;
+		const working = clear
+			? createUnifiedExactLinearPremultipliedFrameV13(
+				width, height, backgroundLinear(request.plan.canvas, outputSpace))
+			: decodeEncodedPicture(target, width, height, outputSpace);
+		if (!clear) applyVideoPresentationLinear(frame, working, width, height, finishing,
+			sourceIdByClipId, masksById, maskInputs, request.plan.canvas, outputSpace, executed);
+		const trackEntries = new Map<string, UnifiedExactLinearCompositionEntryV13[]>();
+		for (const layer of resolved.layers) {
+			const list = trackEntries.get(layer.trackId) ?? [];
+			if (!trackEntries.has(layer.trackId)) trackEntries.set(layer.trackId, list);
+			for (const entry of layer.entries) {
+				assertReady(request);
+				const raw = rawByEntry.get(entry);
+				if (!raw) throw new ReferenceError(`V27 visual entry ${entry.modelId} was not materialized.`);
+				const graded = managedVisualFrame(finishing, entry, raw, assets.luts, executionSignal);
+				const mask = entry.masks.length === 0 ? undefined
+					: combinedGraphs(entry.masks, width, height, maskInputs);
+				addUnifiedExactLinearCompositionEntryV13(list, placeUnifiedExactLinearRgbaFrameV13({
+					frame: graded, displayWidth: width, displayHeight: height,
+					outputWidth: width, outputHeight: height,
+					renderDescription: identityDescription(width, height, entry.blendMode),
+					opacity: entry.opacity, ...(mask ? { mask } : {}),
+				}), entry.blendMode);
 			}
-			applyAdjustment(finishing, adjustment, target, width, height, assets.luts, maskInputs, executionSignal);
 		}
+		const pictureTracks = clear ? new Set<string>() : pictureTrackIds(frame, []);
+		for (const adjustment of resolved.activeAdjustmentLayers) {
+			applyAdjustment(finishing, adjustment, trackEntries, working, pictureTracks,
+				width, height, assets.luts, maskInputs, executionSignal);
+		}
+		for (const track of [...exactPlan.tracks].sort((left, right) => (
+			right.sequenceOrder - left.sequenceOrder || compareText(left.trackId, right.trackId)
+		))) {
+			for (const { frame: layerFrame, blendMode } of trackEntries.get(track.trackId) ?? []) {
+				compositeUnifiedExactLinearFrameV13(working, layerFrame, blendMode);
+			}
+		}
+		encodeUnifiedExactLinearFrameV13(working, outputSpace, target);
 		throwIfAborted(executionSignal);
 		assertReady(request);
 	}
@@ -257,9 +290,9 @@ function pictureTrackIds(frame: VideoKeyframeExportFrame, visualTrackIds: readon
 	return result;
 }
 
-function applyVideoPresentation(
+function applyVideoPresentationLinear(
 	frame: VideoKeyframeExportFrame,
-	target: Uint8Array<ArrayBuffer>,
+	working: UnifiedExactLinearPremultipliedFrameV13,
 	width: number,
 	height: number,
 	finishing: UnifiedExactRenderFinishingNode,
@@ -267,6 +300,7 @@ function applyVideoPresentation(
 	masksById: ReadonlyMap<string, Readonly<{ nodeId: string; graph: Parameters<typeof evaluateVideoMaskMatteRgbaV13>[0] }>>,
 	maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 	canvas: unknown,
+	outputSpace: VideoColorOutputSpaceV1,
 	executed: Set<string>,
 ): void {
 	const clipIds = frameClipIds(frame);
@@ -287,18 +321,30 @@ function applyVideoPresentation(
 		for (const maskId of presentation.maskMatteIds) maskIds.add(maskId);
 	}
 	if (opacity === 1 && blendMode === 'normal' && maskIds.size === 0) return;
-	const source = target.slice() as Uint8Array<ArrayBuffer>;
+	const content = Object.freeze({
+		width, height, pixels: working.pixels.slice() as Float64Array<ArrayBuffer>,
+	});
 	for (const maskId of [...maskIds].sort(compareText)) {
 		const mask = masksById.get(maskId);
 		if (!mask) throw new ReferenceError(`V27 video presentation mask ${maskId} is unavailable.`);
 		const alpha = evaluateVideoMaskMatteRgbaV13(mask.graph, width, height, maskInputs);
 		for (let index = 0; index < alpha.length; index += 1) {
-			source[index * 4 + 3] = Math.round(source[index * 4 + 3]! * alpha[index]! / 255);
+			for (let channel = 0; channel < 4; channel += 1) {
+				content.pixels[index * 4 + channel] = content.pixels[index * 4 + channel]! * alpha[index]! / 255;
+			}
 		}
 		executed.add(mask.nodeId);
 	}
-	fillBackground(target, canvas, width, height);
-	composite(target, source, opacity, blendMode);
+	if (opacity !== 1) {
+		for (let offset = 0; offset < content.pixels.length; offset += 1) {
+			content.pixels[offset] = content.pixels[offset]! * opacity;
+		}
+	}
+	const backdrop = createUnifiedExactLinearPremultipliedFrameV13(
+		width, height, backgroundLinear(canvas, outputSpace),
+	);
+	compositeUnifiedExactLinearFrameV13(backdrop, content, blendMode);
+	working.pixels.set(backdrop.pixels);
 }
 
 function renderAuthority(request: CreateRequest) {
@@ -331,6 +377,7 @@ function renderAuthority(request: CreateRequest) {
 	});
 }
 
+/** Decode and grade one authored visual into straight linear working pixels. */
 function managedVisualFrame(
 	finishing: UnifiedExactRenderFinishingNode,
 	entry: UnifiedExactRenderVisualFrameEntryV13,
@@ -343,14 +390,29 @@ function managedVisualFrame(
 	const interpretation = source.kind === 'still'
 		? requiredInterpretation(finishing, String(source.id))
 		: defaultVideoSourceColorInterpretationV1('still', String(source.id));
-	return gradeFrame(frame, interpretation, presentations.flatMap(({ grade }) => grade ? [grade] : []),
-		finishing, luts, signal);
+	const grades = presentations.flatMap(({ grade }) => grade ? [grade] : []);
+	const bodies = grades.map(({ lut }) => lut ? luts.get(lut.sha256) : undefined);
+	const pixels = new Uint8Array(frame.pixels.byteLength);
+	for (let offset = 0; offset < pixels.length; offset += 4) {
+		if (offset % (frame.width * 4) === 0) throwIfAborted(signal);
+		const output = applyManagedSdrGradeStackLinearPixelV1({
+			rgba: [frame.pixels[offset]! / 255, frame.pixels[offset + 1]! / 255,
+				frame.pixels[offset + 2]! / 255, frame.pixels[offset + 3]! / 255],
+			interpretation, grades, luts: bodies,
+		});
+		for (let channel = 0; channel < 4; channel += 1) {
+			pixels[offset + channel] = Math.round(output[channel]! * 255);
+		}
+	}
+	return Object.freeze({ width: frame.width, height: frame.height, pixels });
 }
 
 function applyAdjustment(
 	finishing: UnifiedExactRenderFinishingNode,
 	adjustment: UnifiedExactRenderActiveAdjustmentV13,
-	target: Uint8Array<ArrayBuffer>,
+	trackEntries: Map<string, UnifiedExactLinearCompositionEntryV13[]>,
+	working: UnifiedExactLinearPremultipliedFrameV13,
+	pictureTracks: ReadonlySet<string>,
 	width: number,
 	height: number,
 	luts: ReadonlyMap<string, ParsedCubeLutV1>,
@@ -364,85 +426,152 @@ function applyAdjustment(
 		presentation.enabled && presentation.owner.kind === 'adjustment-layer'
 		&& presentation.owner.id === adjustment.modelId
 	));
-	const interpretation: VideoSourceColorInterpretationV1 = finishing.colorContext.outputSpace === 'srgb'
-		? defaultVideoSourceColorInterpretationV1('still', `adjustment-${adjustment.modelId}`)
-		: Object.freeze({
-			schemaVersion: 1 as const, sourceId: `adjustment-${adjustment.modelId}`,
-			sourceKind: 'still' as const, primaries: 'bt709' as const, transfer: 'bt709' as const,
-			matrix: 'rgb' as const, range: 'full' as const, provenance: 'user-override' as const,
-		});
-	let frame = gradeFrame(Object.freeze({ width, height, pixels: target.slice() as Uint8Array<ArrayBuffer> }),
-		interpretation, presentations.flatMap(({ grade }) => grade ? [grade] : []), finishing, luts, signal);
-	if (adjustment.masks.length > 0) {
-		const pixels = frame.pixels.slice() as Uint8Array<ArrayBuffer>;
-		for (const graph of adjustment.masks) {
-			const mask = evaluateVideoMaskMatteRgbaV13(graph, width, height, maskInputs);
-			for (let index = 0; index < mask.length; index += 1) {
-				pixels[index * 4 + 3] = Math.round(pixels[index * 4 + 3]! * mask[index]! / 255);
-			}
+	const grades = presentations.flatMap(({ grade }) => grade ? [grade] : []);
+	// Visual tracks adjust independently, exactly as the exact preview flattens
+	// and grades each targeted track before the cross-track composite.
+	for (const trackId of adjustment.targetTrackIds) {
+		const entries = trackEntries.get(trackId);
+		if (!entries || entries.length === 0) continue;
+		const blendModes = new Set(entries.map(({ blendMode }) => blendMode));
+		if (blendModes.size > 1) {
+			throw new Error('V27 adjustment flatten requires one track blend authority.');
 		}
-		frame = Object.freeze({ width, height, pixels });
+		const preservedBlendMode = entries[0]!.blendMode;
+		const target = flattenUnifiedExactLinearCompositionV13(width, height, entries);
+		adjustLinearContent(target, adjustment, grades, luts, maskInputs, width, height, signal);
+		trackEntries.set(trackId, [Object.freeze({ frame: target, blendMode: preservedBlendMode })]);
 	}
-	composite(target, frame.pixels, adjustment.opacity, adjustment.blendMode);
+	// A picture already baked into the backdrop is not separable per track;
+	// partial targeting of it stays refused rather than silently approximated.
+	const targetedPicture = [...pictureTracks].filter((trackId) => (
+		adjustment.targetTrackIds.includes(trackId)
+	));
+	if (targetedPicture.length === 0) return;
+	if (targetedPicture.length !== pictureTracks.size) {
+		throw new Error('V27 adjustment targeting requires unavailable per-layer browser execution.');
+	}
+	adjustLinearContent(working, adjustment, grades, luts, maskInputs, width, height, signal);
 }
 
-function gradeFrame(
-	frame: UnifiedExactRenderVisualRgbaV13,
-	interpretation: VideoSourceColorInterpretationV1,
+function adjustLinearContent(
+	target: UnifiedExactLinearPremultipliedFrameV13,
+	adjustment: UnifiedExactRenderActiveAdjustmentV13,
 	grades: readonly VideoColorGradeV1[],
-	finishing: UnifiedExactRenderFinishingNode,
+	luts: ReadonlyMap<string, ParsedCubeLutV1>,
+	maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
+	width: number,
+	height: number,
+	signal: AbortSignal,
+): void {
+	const adjusted = gradeLinearStraightFrame(
+		straightUnifiedExactLinearFrameV13(target), grades, luts, signal,
+	);
+	const mask = adjustment.masks.length === 0 ? undefined
+		: combinedGraphs(adjustment.masks, width, height, maskInputs);
+	const overlay = placeUnifiedExactLinearRgbaFrameV13({
+		frame: adjusted, displayWidth: width, displayHeight: height,
+		outputWidth: width, outputHeight: height,
+		renderDescription: identityDescription(width, height, adjustment.blendMode),
+		opacity: adjustment.opacity, ...(mask ? { mask } : {}),
+	});
+	compositeUnifiedExactLinearFrameV13(target, overlay, adjustment.blendMode);
+}
+
+/** Grade straight linear eight-bit pixels in place, staying in the working space. */
+function gradeLinearStraightFrame(
+	frame: UnifiedExactRenderVisualRgbaV13,
+	grades: readonly VideoColorGradeV1[],
 	luts: ReadonlyMap<string, ParsedCubeLutV1>,
 	signal: AbortSignal,
 ): UnifiedExactRenderVisualRgbaV13 {
 	const bodies = grades.map(({ lut }) => lut ? luts.get(lut.sha256) : undefined);
 	const pixels = new Uint8Array(frame.pixels.byteLength);
-	for (let y = 0; y < frame.height; y += 1) {
-		throwIfAborted(signal);
-		for (let x = 0; x < frame.width; x += 1) {
-			const offset = (y * frame.width + x) * 4;
-			const output = applyManagedSdrGradeStackPixelV1({
-				rgba: [frame.pixels[offset]! / 255, frame.pixels[offset + 1]! / 255,
-					frame.pixels[offset + 2]! / 255, frame.pixels[offset + 3]! / 255],
-				interpretation, grades, luts: bodies,
-				outputSpace: finishing.colorContext.outputSpace,
-			});
-			for (let channel = 0; channel < 4; channel += 1) {
-				pixels[offset + channel] = Math.round(output[channel]! * 255);
-			}
+	for (let offset = 0; offset < pixels.length; offset += 4) {
+		if (offset % (frame.width * 4) === 0) throwIfAborted(signal);
+		const output = applyManagedSdrLinearGradeStackPixelV1({
+			rgba: [frame.pixels[offset]! / 255, frame.pixels[offset + 1]! / 255,
+				frame.pixels[offset + 2]! / 255, frame.pixels[offset + 3]! / 255],
+			grades, luts: bodies,
+		});
+		for (let channel = 0; channel < 4; channel += 1) {
+			pixels[offset + channel] = Math.round(output[channel]! * 255);
 		}
 	}
 	return Object.freeze({ width: frame.width, height: frame.height, pixels });
 }
 
-function composite(
-	target: Uint8Array<ArrayBuffer>,
-	source: Uint8Array<ArrayBuffer>,
-	opacity: number,
-	blendMode: VideoVisualPresentationV1['blendMode'],
-): void {
-	for (let offset = 0; offset < target.length; offset += 4) {
-		const sourceAlpha = source[offset + 3]! / 255 * opacity;
-		const targetAlpha = target[offset + 3]! / 255;
-		const outputAlpha = sourceAlpha + targetAlpha * (1 - sourceAlpha);
-		for (let channel = 0; channel < 3; channel += 1) {
-			const below = target[offset + channel]! / 255;
-			const above = source[offset + channel]! / 255;
-			const blended = blend(below, above, blendMode);
-			const value = outputAlpha === 0 ? 0 : (blended * sourceAlpha
-				+ below * targetAlpha * (1 - sourceAlpha)) / outputAlpha;
-			target[offset + channel] = Math.round(clamp(value) * 255);
-		}
-		target[offset + 3] = Math.round(clamp(outputAlpha) * 255);
-	}
+function backgroundLinear(
+	canvasValue: unknown,
+	outputSpace: VideoColorOutputSpaceV1,
+): readonly [number, number, number, number] {
+	const channels = videoDeliveryColorChannels(String(record(canvasValue, 'V27 visual canvas').backgroundColor));
+	if (!channels) throw new TypeError('V27 visual background is invalid.');
+	const interpretation: VideoSourceColorInterpretationV1 = Object.freeze({
+		schemaVersion: 1 as const, sourceId: 'v27-output-background', sourceKind: 'still' as const,
+		primaries: outputSpace === 'srgb' ? 'srgb' as const : 'bt709' as const,
+		transfer: outputSpace === 'srgb' ? 'srgb' as const : 'bt709' as const,
+		matrix: 'rgb' as const, range: 'full' as const, provenance: 'user-override' as const,
+	});
+	return applyManagedSdrGradeStackLinearPixelV1({
+		rgba: [channels.red, channels.green, channels.blue, channels.alpha],
+		interpretation, grades: [],
+	});
 }
 
-function blend(below: number, above: number, mode: VideoVisualPresentationV1['blendMode']): number {
-	if (mode === 'multiply') return below * above;
-	if (mode === 'screen') return 1 - (1 - below) * (1 - above);
-	if (mode === 'overlay') return below <= 0.5 ? 2 * below * above
-		: 1 - 2 * (1 - below) * (1 - above);
-	if (mode === 'add') return Math.min(1, below + above);
-	return above;
+/** Bring an already-encoded picture back into premultiplied linear working pixels. */
+function decodeEncodedPicture(
+	target: Uint8Array<ArrayBuffer>,
+	width: number,
+	height: number,
+	outputSpace: VideoColorOutputSpaceV1,
+): UnifiedExactLinearPremultipliedFrameV13 {
+	if (target.byteLength !== width * height * 4) throw new RangeError('V27 visual output geometry changed.');
+	const working = createUnifiedExactLinearPremultipliedFrameV13(width, height);
+	for (let offset = 0; offset < target.length; offset += 4) {
+		const linear = decodeManagedSdrOutputPixelV1([
+			target[offset]! / 255, target[offset + 1]! / 255,
+			target[offset + 2]! / 255, target[offset + 3]! / 255,
+		], outputSpace);
+		const alpha = linear[3];
+		working.pixels[offset] = linear[0] * alpha;
+		working.pixels[offset + 1] = linear[1] * alpha;
+		working.pixels[offset + 2] = linear[2] * alpha;
+		working.pixels[offset + 3] = alpha;
+	}
+	return working;
+}
+
+function combinedGraphs(
+	graphs: readonly unknown[],
+	width: number,
+	height: number,
+	inputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
+): Uint8Array<ArrayBuffer> {
+	const output = new Uint8Array(width * height).fill(255);
+	for (const graph of graphs) {
+		const value = evaluateVideoMaskMatteRgbaV13(
+			graph as Parameters<typeof evaluateVideoMaskMatteRgbaV13>[0], width, height, inputs,
+		);
+		for (let index = 0; index < output.length; index += 1) {
+			output[index] = Math.round(output[index]! * value[index]! / 255);
+		}
+	}
+	return output;
+}
+
+function identityDescription(
+	width: number,
+	height: number,
+	blendMode: VideoVisualPresentationV1['blendMode'],
+) {
+	return Object.freeze({
+		crop: Object.freeze({
+			normalized: Object.freeze({ left: 0, top: 0, right: 0, bottom: 0 }),
+			sourcePixels: Object.freeze({ x: 0, y: 0, width, height }),
+		}),
+		sourceDisplayToCanvas: Object.freeze([1, 0, 0, 1, 0, 0]),
+		opacityStart: 1, opacityEnd: 1, blendMode, compositingOrder: 0,
+	});
 }
 
 function visualPresentations(
@@ -539,22 +668,6 @@ function sequencePosition(frame: VideoKeyframeExportFrame, plan: UnifiedExactRen
 	return Object.freeze({ num, den });
 }
 
-function fillBackground(
-	target: Uint8Array<ArrayBuffer>,
-	canvasValue: unknown,
-	width: number,
-	height: number,
-): void {
-	if (target.byteLength !== width * height * 4) throw new RangeError('V27 visual output geometry changed.');
-	const color = String(record(canvasValue, 'V27 visual canvas').backgroundColor);
-	if (!/^#[a-fA-F0-9]{6}$/u.test(color)) throw new TypeError('V27 visual background is invalid.');
-	const rgb = [1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16));
-	for (let offset = 0; offset < target.length; offset += 4) {
-		target[offset] = rgb[0]!; target[offset + 1] = rgb[1]!;
-		target[offset + 2] = rgb[2]!; target[offset + 3] = 255;
-	}
-}
-
 function requiredFinishing(plan: UnifiedExactRenderPlanV13): UnifiedExactRenderFinishingNode {
 	const nodes = plan.nodes.filter((node): node is UnifiedExactRenderFinishingNode => node.kind === 'finishing');
 	if (nodes.length !== 1) throw new ReferenceError('V27 visual execution requires one finishing node.');
@@ -596,5 +709,4 @@ function gcd(left: bigint, right: bigint): bigint {
 	return a;
 }
 
-function clamp(value: number): number { return Math.max(0, Math.min(1, value)); }
 function compareText(left: string, right: string): number { return left.localeCompare(right); }

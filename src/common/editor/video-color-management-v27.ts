@@ -303,6 +303,25 @@ export function applyManagedSdrLinearGradeStackPixelV1(request: Readonly<{
 	return Object.freeze([clamp(linear[0]!), clamp(linear[1]!), clamp(linear[2]!), rgba[3]]);
 }
 
+/** Decode one output-space-encoded pixel back into straight linear Rec.709/D65. */
+export function decodeManagedSdrOutputPixelV1(
+	rgbaValue: readonly number[],
+	outputSpace: VideoColorOutputSpaceV1,
+): LinearRgbaV1 {
+	const rgba = rgbaTuple(rgbaValue);
+	if (outputSpace === 'linear-rec709-d65') return rgba;
+	if (outputSpace !== 'srgb' && outputSpace !== 'rec709') {
+		throw new RangeError('The managed SDR output space is unsupported.');
+	}
+	const transfer = outputSpace === 'srgb' ? 'srgb' as const : 'bt709' as const;
+	return Object.freeze([
+		decodeTransfer(rgba[0], transfer),
+		decodeTransfer(rgba[1], transfer),
+		decodeTransfer(rgba[2], transfer),
+		rgba[3],
+	]);
+}
+
 /** Encode one straight-alpha linear working pixel exactly once. */
 export function encodeManagedSdrLinearPixelV1(
 	rgbaValue: readonly number[],
