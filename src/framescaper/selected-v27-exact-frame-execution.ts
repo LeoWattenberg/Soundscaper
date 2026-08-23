@@ -132,7 +132,8 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 	) {
 		if (disposed) throw new Error('Selected V27 exact frame execution is closed.');
 		if (active) throw new Error('Selected V27 exact frame execution cannot overlap frames.');
-		if (request.signal !== options.signal) throw new TypeError('Selected V27 exact frame signal changed.');
+		const signal = request.signal;
+		throwIfAborted(signal);
 		active = true;
 		let accepted = false;
 		try {
@@ -146,7 +147,7 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			const visual = visualConsumer.resolveFrame({ sequencePosition: request.sequencePosition });
 			const rawVisuals = await materializeVisuals(
 				visual.layers.flatMap(({ entries }) => entries), visualAssets.stills,
-				width, height, options.signal,
+				width, height, signal,
 			);
 			const trackFrames = new Map<string, UnifiedExactLinearCompositionEntryV13[]>();
 			const consumed = new Set(visual.ledger.consumedNodeIds);
@@ -154,14 +155,14 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			const adjustmentEffects = new Set(visual.activeAdjustmentLayers.flatMap(({ effectIds }) => effectIds));
 			for (const layerValue of request.layers) await renderMediaLayer(
 				record(layerValue, 'Selected V27 media layer'), trackFrames,
-				rawVisuals, consumed, adjustmentEffects, width, height,
+				rawVisuals, consumed, adjustmentEffects, width, height, signal,
 			);
 			for (const layer of visual.layers) renderVisualLayer(
 				layer.trackId, layer.entries, trackFrames,
-				rawVisuals, width, height,
+				rawVisuals, width, height, signal,
 			);
 			for (const adjustment of visual.activeAdjustmentLayers) await applyAdjustment(
-				adjustment, trackFrames, rawVisuals, width, height,
+				adjustment, trackFrames, rawVisuals, width, height, signal,
 			);
 			const output = createUnifiedExactLinearPremultipliedFrameV13(
 				width, height, backgroundLinear(options.plan, finishing),
@@ -176,6 +177,7 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			encodeUnifiedExactLinearFrameV13(
 				output, finishing.colorContext.outputSpace, request.target,
 			);
+			throwIfAborted(signal);
 			assertReady(options);
 			return Object.freeze({ consumedNodeIds: Object.freeze([...consumed].sort(compareText)) });
 		} catch (error) {
@@ -192,6 +194,7 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 		adjustmentEffects: ReadonlySet<string>,
 		width: number,
 		height: number,
+		signal: AbortSignal,
 	): Promise<void> {
 		const trackId = stableId(layer.trackId, 'Selected V27 media track ID');
 		const entries = records(layer.entries, 'Selected V27 media entries');
@@ -212,10 +215,10 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 				descriptor.drawableSourceFrame, 'Selected V27 drawable source frame',
 			);
 			const outerCell = nonNegativeInteger(descriptor.outerCell, 'Selected V27 outer cell');
-			const raw = await captureFrame(entry, options.signal);
+			const raw = await captureFrame(entry, signal);
 			let frame = checkedFrame(raw, 'Selected V27 captured media frame');
 			if (effects.length > 0) frame = checkedFrame(
-				await applyEffects(frame, effects, options.signal), 'Selected V27 effected media frame',
+				await applyEffects(frame, effects, signal), 'Selected V27 effected media frame',
 			);
 			const resolved = await finishingConsumer.resolveFrame({
 				clipId, sourceFrame, sequenceFrame: clip.sequenceStartFrame + outerCell,
@@ -225,12 +228,12 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 				onAcceleratorFallback(reason) { if (!fallbackReasons.includes(reason)) fallbackReasons.push(reason); },
 				...(options.sourceFrames ? {
 					resolveTemporalFrame: ({ sourceFrame: ordinal, width: frameWidth,
-						height: frameHeight, signal }) => options.sourceFrames!.resolve({
+						height: frameHeight, signal: temporalSignal }) => options.sourceFrames!.resolve({
 						sourceId, sourceFrame: ordinal, width: frameWidth, height: frameHeight,
-						signal: signal ?? options.signal,
+						signal: temporalSignal ?? signal,
 					}),
 				} : {}),
-				signal: options.signal,
+				signal,
 			});
 			const presentation = mediaPresentation(finishing, clipId, sourceId);
 			const mask = presentation.maskIds.length === 0 ? undefined
@@ -259,11 +262,12 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 		width: number,
 		height: number,
+		signal: AbortSignal,
 	): void {
 		const target = trackFrames.get(trackId) ?? [];
 		for (const entry of entries) {
 			const raw = requiredVisual(maskInputs, entry.modelId);
-			const linear = gradeVisual(finishing, entry, raw, finishingAssets.luts, options.signal);
+			const linear = gradeVisual(finishing, entry, raw, finishingAssets.luts, signal);
 			const mask = entry.masks.length === 0 ? undefined
 				: combinedGraphs(entry.masks, width, height, maskInputs);
 			addUnifiedExactLinearCompositionEntryV13(target, placeUnifiedExactLinearRgbaFrameV13({
@@ -282,6 +286,7 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 		width: number,
 		height: number,
+		signal: AbortSignal,
 	): Promise<void> {
 		const presentations = finishing.visualPresentations.filter(({ enabled, owner }) => (
 			enabled && owner.kind === 'adjustment-layer' && owner.id === adjustment.modelId
@@ -296,10 +301,10 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			const target = flattenUnifiedExactLinearCompositionV13(width, height, entries);
 			let adjusted = straightUnifiedExactLinearFrameV13(target);
 			if (adjustment.effectIds.length > 0) adjusted = checkedFrame(await applyEffects(
-				adjusted, adjustment.effectIds.map((id) => requiredVisual(effectsById, id)), options.signal,
+				adjusted, adjustment.effectIds.map((id) => requiredVisual(effectsById, id)), signal,
 			), 'Selected V27 adjustment effect frame');
 			const graded = gradeLinearFrame(adjusted, grades,
-				finishingAssets.luts, options.signal);
+				finishingAssets.luts, signal);
 			const mask = adjustment.masks.length === 0 ? undefined
 				: combinedGraphs(adjustment.masks, width, height, maskInputs);
 			const overlay = placeUnifiedExactLinearRgbaFrameV13({

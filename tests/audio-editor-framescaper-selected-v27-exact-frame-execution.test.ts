@@ -31,21 +31,31 @@ test('selected V27 finishes each straight-alpha source layer in linear light and
 	};
 	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, authority);
 	const signal = new AbortController().signal;
+	const executionSignal = new AbortController().signal;
+	let capturedSignal: AbortSignal | null = null;
+	let currentChecks = 0;
 	const execution = await createFramescaperSelectedExactFrameExecutionV27({
 		project, plan, timingSidecars: bindFramescaperUnifiedRenderTimingSidecarsV27(
 			project, authority.timingViews,
-		), signal, assertCurrent() {},
-		captureFrame: () => ({
-			width: 2, height: 2,
-			pixels: Uint8Array.from({ length: 16 }, (_, index) => index % 4 === 0 ? 128
-				: index % 4 === 3 ? 255 : 0),
-		}),
+		), signal, assertCurrent() { currentChecks += 1; },
+		captureFrame: (_entry, frameSignal) => {
+			capturedSignal = frameSignal;
+			return {
+				width: 2, height: 2,
+				pixels: Uint8Array.from({ length: 16 }, (_, index) => index % 4 === 0 ? 128
+					: index % 4 === 3 ? 255 : 0),
+			};
+		},
 	});
+	currentChecks = 0;
 	const target = new Uint8Array(16);
 	const result = await execution.render({
 		sequencePosition: { num: 0, den: 1 },
-		layers: [mediaLayer('video-clip', 1)], width: 2, height: 2, target, signal,
+		layers: [mediaLayer('video-clip', 1)], width: 2, height: 2, target,
+		signal: executionSignal,
 	});
+	assert.strictEqual(capturedSignal, executionSignal);
+	assert.equal(currentChecks, 2, 'both frame boundaries retain outer currentness checks');
 	assert.deepEqual([...target.subarray(0, 4)], [128, 0, 0, 255]);
 	assert.ok(result.consumedNodeIds.some((nodeId) => nodeId.includes('finishing')));
 	assert.deepEqual(execution.acceleratorDisposition(), {
