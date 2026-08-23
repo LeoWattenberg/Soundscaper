@@ -17,8 +17,8 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	const capture = cancellation?.currentControls.find(({ id }) => id === SECURITY_CONTROL);
 	assert.ok(capture);
 	assert.equal(cancellation.status, 'partial');
-	assert.match(capture.summary, /Record is available only.*schema-18.*schema-19.*selected schema-20.*source.*video encoder.*audio packet.*cross-context Web Locks.*encoded\/raw\/manifest.*video probe.*canonical publication store.*partial stack.*unavailable/isu);
-	assert.match(capture.summary, /Framescaper-only.*direct user action.*getDisplayMedia.*before.*getUserMedia.*later.*failure.*releases/isu);
+	assert.match(capture.summary, /dormant historical schema-18 desktop.*schema-19 web.*schema-20 web\/desktop.*Selected schema-27.*framescaperCapture false.*no capture route authority.*refused by.*app binding.*runtime probe.*Recording Setup.*absent.*menus.*preferences.*panels.*ordinary toolbar.*already-active or recovery-owned historical session.*stop.*release.*recovery.*historical route.*Record was available only.*source.*video encoder.*audio packet.*cross-context Web Locks.*encoded\/raw\/manifest.*video probe.*canonical publication store.*partial stack.*unavailable/isu);
+	assert.match(capture.summary, /historical route.*direct user action.*getDisplayMedia.*before.*getUserMedia.*later.*failure.*releases/isu);
 	assert.match(capture.summary, /before.*recorder.*accept.*creation inventory.*origin project ID.*tokens.*spools.*manifest.*contiguous packet sequence.*manifest-acknowledged prefix/isu);
 	assert.match(capture.summary, /partial creation.*cleanup-pending.*startup globally retries.*origin project is absent.*changed storage ownership fails closed/isu);
 	assert.match(capture.summary, /outer project\/session Web Lock.*before.*nested exact spool Web Lock.*previous-to-next.*before writing the body.*manifest.*session lock remains held/isu);
@@ -32,13 +32,15 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	assert.match(capture.summary, /canonical publication materializes each acknowledged spool.*one ordinary durable source.*before project mutation.*fence.*one project batch.*CAS mismatch.*rolls back.*indeterminate.*retryable recovery/isu);
 	assert.match(capture.summary, /Project Bin.*one bin item.*timeline.*one dedicated track, lane, and clip.*reuse the same ordinary sources/isu);
 	assert.match(capture.summary, /after canonical capture and manifest commit.*without awaiting.*zero audio proxies.*exactly one captured-video proxy.*warning sink.*without rolling back/isu);
-	assert.match(capture.summary, /proxy request.*session.*origin.*source.*revision.*content digest.*schema-18.*schema-19.*selected schema-20.*inactive-origin.*active app.*reclaim.*determinate failure/isu);
+	assert.match(capture.summary, /proxy request.*session.*origin.*source.*revision.*content digest.*dormant historical schema-18.*schema-19.*schema-20.*inactive-origin.*active app.*reclaim.*determinate failure/isu);
 	assert.match(capture.summary, /landed proxy target.*claim cleanup.*session-history.*playback.*app-snapshot.*without regenerating.*later project edit/isu);
-	assert.match(capture.summary, /capture-derived post-commit generation.*not a user-invoked general editorial proxy.*adaptive selection.*offline generation.*relink.*memory.*RSS/isu);
-	assert.match(capture.summary, /implementation is complete.*qualification remains provisional.*synthetic media.*packaged no-device smoke.*control-plane/isu);
+	assert.match(capture.summary, /dormant scheduler.*capture-derived post-commit generation.*selected schema-27.*menu-reached general editorial proxy lifecycle.*without gaining capture authority.*generation.*adaptive Original\/Proxy\/Auto preview selection.*offline editing.*relink.*regeneration.*cancellation.*atomic cleanup.*Neither route.*memory.*RSS/isu);
+	assert.match(capture.summary, /historical implementation.*source-complete.*dormant.*unqualified.*activation belongs to milestone 8.*synthetic media.*packaged no-device smoke.*control-plane/isu);
 	assert.match(capture.summary, /no aggregate duration.*global byte.*browser heap.*RSS.*quota reservation.*30-minute.*unprovisioned/isu);
 	assertEvidence(capture, [
 		'src/common/editor/controller/framescaper-browser-capture-source.ts',
+		'src/common/editor/controller/framescaper-capture-app-binding.ts',
+		'src/common/editor/controller/framescaper-capture-runtime-probe.ts',
 		'src/common/editor/controller/framescaper-capture-session-service.ts',
 		'src/common/editor/controller/framescaper-capture-app-composition.ts',
 		'src/common/editor/controller/framescaper-capture-durable-session.ts',
@@ -71,6 +73,7 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 		'src/common/editor/storage/raw-pcm-spool-repository.ts',
 		'src/common/editor/storage/raw-pcm-spool-tail-cleanup.ts',
 		'src/common/editor/controller/project-save-service.ts',
+		'src/common/editor/ui/framescaper-capture-ui-model.ts',
 		'src/common/editor/app.js',
 		'src/framescaper/desktop-project-library-v10-renderer.ts',
 		'src/framescaper/editor-captured-video-proxy-bodies.ts',
@@ -88,11 +91,14 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 		'src/framescaper/editor-captured-video-proxy-session-reconciliation.ts',
 		'src/framescaper/editor-controller-v18.ts',
 		'src/framescaper/editor-controller-v19.ts',
+		'src/framescaper/editor-controller-v27.ts',
+		'src/framescaper/product.js',
 		'src/framescaper/editor-project-claim-cleanup-profile.ts',
 		'src/framescaper/editor-project-environment-v19.ts',
 		'src/framescaper/editor-video-proxy-attachment-capacity-v18.ts',
 		'tests/audio-editor-framescaper-browser-capture-source.test.ts',
 		'tests/audio-editor-framescaper-capture-app-binding.test.ts',
+		'tests/audio-editor-framescaper-v27-route.test.tsx',
 		'tests/audio-editor-framescaper-capture-app-composition.test.ts',
 		'tests/audio-editor-framescaper-capture-canonical-pcm-timing.test.ts',
 		'tests/audio-editor-framescaper-capture-creation-recovery.test.ts',
@@ -119,7 +125,7 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	assert.match(threatModel, /policy-narrative:framescaper-capture-durability-and-atomic-publication/u);
 	assert.match(privacy, /after canonical capture and manifest commit.*without awaiting.*audio.*never a proxy job.*every valid owned captured video.*one\s+proxy job.*warning.*does not roll back/isu);
 	assert.match(privacy, /outer project\/session Web\s+Lock.*authoritative manifest.*nested.*spool Web Locks.*next manifest.*prefix.*previous prefix.*unacknowledged tail.*fails closed/isu);
-	assert.match(privacy, /Record becomes available only.*schema-19 web.*schema-18 desktop.*cross-context Web Locks.*complete encoded\/raw\/manifest.*video\s+probe.*canonical publication store.*partial stack.*unavailable/isu);
+	assert.match(privacy, /Record was available only.*historical exact schema-19 web.*schema-18\s+desktop.*schema-20 web\/desktop.*cross-context Web Locks.*complete\s+encoded\/raw\/manifest.*video probe.*canonical publication\s+store.*partial stack.*unavailable.*Selected\s+V27.*rejected before capture binding or runtime probing/isu);
 	assert.match(privacy, /Framescaper recording is unavailable in Soundscaper.*Soundscaper.*microphone\/display policy.*camera denied/isu);
 
 	const ipc = matrix.risks.find(({ id }) => id === 'electron-renderer-ipc-boundary');
@@ -131,6 +137,7 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	assert.match(desktop.summary, /64.*five minutes.*owner- and generation-bound.*15-second single-use/isu);
 	assert.match(desktop.summary, /macOS 15.*system picker.*Windows.*loopback.*other.*unavailable/isu);
 	assert.match(desktop.summary, /standalone Framescaper.*camera.*microphone.*display.*Soundscaper.*camera.*embedded.*deny/isu);
+	assert.match(desktop.summary, /Selected V27.*capture application capability false.*no capture route authority.*no Recording Setup menu, panel, or toolbar action.*no selected product workflow/isu);
 	assert.match(desktop.summary, /real packaged, no-device smoke.*control-plane.*status.*grant.*teardown.*actual packaged cameras.*remain unqualified/isu);
 	assertEvidence(desktop, [
 		'desktop/framescaper-capture-artifact-smoke.js',
@@ -140,6 +147,8 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 		'desktop/framescaper-capture-session-security.ts',
 		'desktop/protocol.js',
 		'electron-builder.config.cjs',
+		'src/framescaper/editor-controller-v27.ts',
+		'src/framescaper/product.js',
 		'tests/desktop-framescaper-capture-desktop-port.test.ts',
 		'tests/desktop-framescaper-capture-artifact-smoke.test.js',
 		'tests/desktop-framescaper-capture-session-security.test.ts',
@@ -147,11 +156,12 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 		'tests/desktop-framescaper-capture-protocol-policy.test.js',
 		'tests/desktop-protocol.test.js',
 		'tests/framescaper-capture-cloudflare-policy.test.js',
+		'tests/audio-editor-framescaper-v27-route.test.tsx',
 	]);
 	assert.match(threatModel, /policy-narrative:framescaper-capture-desktop-consent-authority/u);
 });
 
-test('capability, quality, and roadmap records expose implementation without claiming device qualification', async () => {
+test('capability, quality, and roadmap records retain dormant implementation without selected activation', async () => {
 	const [capabilities, quality, roadmap, plan] = await Promise.all([
 		json('config/production-capabilities.json'),
 		json('config/quality-budgets.json'),
@@ -161,7 +171,7 @@ test('capability, quality, and roadmap records expose implementation without cla
 	const framescaper = capabilities.products.framescaper;
 	assert.equal(framescaper.projectFeatures.audioRecording, false);
 	assert.deepEqual(framescaper.applicationFeatures, {
-		framescaperCapture: true, framescaperWebVcr: false,
+		framescaperCapture: false, framescaperWebVcr: false,
 	});
 	assert.equal(framescaper.platforms['web-core'].status, 'available');
 	assert.equal(framescaper.platforms['web-enhanced'].status, 'partial');
@@ -213,9 +223,10 @@ test('capability, quality, and roadmap records expose implementation without cla
 		roadmap.indexOf('### 8A. Framescaper recording setup'),
 		roadmap.indexOf('### 8B. MIDI, strictly after Audacity design review'),
 	);
-	assert.match(capture, /Status:.*Implemented \(provisional\).*external\s+qualification remains pending/isu);
+	assert.match(capture, /Status:.*Implementation complete as dormant historical substrate.*not activated.*Selected Framescaper V27.*framescaperCapture: false.*no capture route authority.*no Recording Setup menu, preference, panel, or ordinary toolbar action.*active or recovery-owned historical session.*Selected-route activation and external qualification remain open/isu);
+	assert.match(roadmap, /Blocked until milestone 8:.*no Framescaper camera, microphone, display, or\s+voiceover recording surface/isu);
 	assert.doesNotMatch(capture, /— Planned:/u);
-	assert.equal((capture.match(/— Implemented \(provisional\):/gu) ?? []).length, 11);
+	assert.equal((capture.match(/— Implemented substrate \(dormant\):/gu) ?? []).length, 11);
 	assert.match(capture, /milestone-8a-plan\.md.*framescaper-capture-privacy\.md/isu);
 	assert.equal(quality.fixtures.find(({ id }) => id === 'm8a-capture-30m-all-sources-v1')?.status, 'provisional');
 	assert.equal(quality.workloads.find(({ id }) => id === 'm8a-capture-long-session')?.status, 'provisional');
@@ -228,6 +239,7 @@ test('capability, quality, and roadmap records expose implementation without cla
 	assert.match(plan, /Commit `15a50dcb`.*framescaper-capture-stream-timing\.ts.*numeric.*null.*capture-shared-timing\.test\.ts/isu);
 	assert.match(plan, /Commit `70d1192e`.*framescaper-v19-capture\.spec\.js.*eight configured-Chromium.*incomplete-runtime denial.*mixed.*inactive origin.*source-ended recovery.*does not.*qualify.*external/isu);
 	assert.match(plan, /Milestone 8B MIDI remains independently blocked and is outside this plan/iu);
+	assert.match(plan, /Status:.*Implementation complete; dormant and not activated.*selected\s+V27.*framescaperCapture: false.*no Recording Setup menu, preference, panel, or\s+ordinary toolbar action.*active or recovery-owned historical session.*Activation and external qualification remain open/isu);
 });
 
 async function json(path) {

@@ -17,7 +17,7 @@ import {
 } from '../src/common/editor/platform-delivery-presets.ts';
 import { isVideoExportRequestFormat } from '../src/common/editor/video-export-request-format.ts';
 
-test('video export formats only apply when a video clip is assigned to a timeline video track', () => {
+test('video export formats apply when a maintained visual clip is assigned to a timeline video track', () => {
 	const project = {
 		clips: [
 			{ id: 'timeline-video', kind: 'video' },
@@ -32,6 +32,12 @@ test('video export formats only apply when a video clip is assigned to a timelin
 		},
 	};
 	assert.equal(projectHasTimelineVideo(project), true);
+	for (const kind of ['still', 'generator']) {
+		assert.equal(projectHasTimelineVideo({
+			clips: [{ id: `timeline-${kind}`, kind }],
+			tracks: [{ id: 'video-track', type: 'video', clipIds: [`timeline-${kind}`] }],
+		}), true);
+	}
 	assert.equal(projectHasTimelineVideo({
 		...project,
 		tracks: [{ id: 'video-track', type: 'video', clipIds: [] }],

@@ -6,6 +6,8 @@ import createApplicationMenus from '../application-menus.js';
 import { createDesktopHostMenuItems } from '../desktop-host-menu.ts';
 import { framescaperNativeProjectActionRuntimeFor } from '../framescaper-native-project-actions.ts';
 import { framescaperCandidateAuthoringActionRuntimeFor } from '../framescaper-candidate-authoring-actions.ts';
+import { framescaperSelectedV27VisualAuthoringSurfaceId } from '../framescaper-selected-v27-visual-authoring-menu.ts';
+import { framescaperV27FinishingSurfaceId } from '../framescaper-v27-finishing-menu.ts';
 import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
 import {
 	resolveFramescaperNativeServicesWorkspaceRuntime,
@@ -82,7 +84,12 @@ export function createWorkspaceApplicationMenus({
 	const candidateAuthoringRuntime = framescaperCandidateAuthoringActionRuntimeFor(controller);
 	const framescaperCandidateAuthoring = candidateAuthoringRuntime === null ? null : Object.freeze({
 		surfaces: candidateAuthoringRuntime.surfaces,
-		open: (surface) => run(() => candidateAuthoringRuntime.run(surface)),
+		open: (surface) => {
+			const selectedV27Surface = project?.schemaVersion === 27
+				? framescaperSelectedV27VisualAuthoringSurfaceId(surface) : null;
+			if (selectedV27Surface !== null) return openSurface(selectedV27Surface);
+			return run(() => candidateAuthoringRuntime.run(surface));
+		},
 	});
 	const desktopHost = createDesktopHostMenuItems(fileService.isDesktop !== true
 		|| desktopHostRuntime === null || desktopHostRuntime === undefined ? null : {
@@ -114,6 +121,9 @@ export function createWorkspaceApplicationMenus({
 			actionRuntime: parityRuntime.actions,
 			actions: {
 				framescaperCandidateAuthoring,
+				openFramescaperV27Finishing: (surface) => openSurface(
+					framescaperV27FinishingSurfaceId(surface),
+				),
 				framescaperNativeServices,
 				soundscaperProduction,
 				soundscaperNativeServices,
@@ -161,6 +171,8 @@ export function createWorkspaceApplicationMenus({
 				openAudioWarp: () => openSurface('audio-warp'),
 				openVideoComposition: () => openSurface('video-composition'),
 				openVideoKeyframes: () => openSurface('video-keyframes'),
+				openVideoRetime: () => openSurface('video-retime'),
+				openVideoProxy: () => openSurface('video-proxy'),
 				openTakeComp: () => openSurface('take-comp'),
 				newProject: () => run(() => controller.actions.project.create()),
 				openProjects,

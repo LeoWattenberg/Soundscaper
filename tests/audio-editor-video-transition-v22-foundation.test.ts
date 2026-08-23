@@ -109,8 +109,8 @@ test('V22 freezes transition capabilities, protocol limits, allocation spelling,
 		capabilities: Readonly<Record<string, unknown>>;
 	}>>>);
 	for (const product of products) {
-		assert.equal(product.capabilities.videoTransitions, false, product.id);
-		assert.equal(product.capabilities.videoTransitionDissolve, false, product.id);
+		assert.equal(product.capabilities.videoTransitions, product.id === 'framescaper', product.id);
+		assert.equal(product.capabilities.videoTransitionDissolve, product.id === 'framescaper', product.id);
 	}
 	assert.equal(PROJECT_FEATURE_VIDEO_CAPABILITY_IDS.includes(
 		PROJECT_FEATURE_CAPABILITY_IDS.videoTransitions as never,

@@ -3,7 +3,7 @@
 import { isAbsolute, resolve } from 'node:path';
 
 const START_FIELDS = Object.freeze([
-	'productId', 'appDataPath', 'processId', 'instanceId', 'onLeaseLost', 'v10Qualification',
+	'productId', 'appDataPath', 'processId', 'instanceId', 'onLeaseLost', 'leaseQualification',
 ]);
 const BRIDGE_FIELDS = Object.freeze([
 	'desktopRoot', 'handle', 'ownerFor', 'removeHandler', 'session',
@@ -26,28 +26,30 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 		throw new TypeError('Desktop project-library startup seams are invalid');
 	}
 	if (productId === 'framescaper') {
-		const [{ createFramescaperDesktopProjectLibraryV12Handshake },
-			{ FramescaperDesktopProjectLibraryV12Main },
-			{ registerFramescaperDesktopProjectLibraryV12MainIpc }] = await Promise.all([
-			import('./project-library-runtime/desktop/project-library-v12-contract.js'),
-			import('./project-library-runtime/desktop/project-library-v12-main.js'),
-			import('./project-library-runtime/desktop/project-library-v12-main-ipc.js'),
+		const [{ createFramescaperDesktopProjectLibraryV18Handshake },
+			{ FramescaperDesktopProjectLibraryV18Main },
+			{ registerFramescaperDesktopProjectLibraryV18MainIpc }] = await Promise.all([
+			import('./project-library-runtime/desktop/project-library-v18-contract.js'),
+			import('./project-library-runtime/desktop/project-library-v18-main.js'),
+			import('./project-library-runtime/desktop/project-library-v18-main-ipc.js'),
 		]);
-		const host = await FramescaperDesktopProjectLibraryV12Main.start({
+		const host = await FramescaperDesktopProjectLibraryV18Main.start({
 			appDataPath,
 			owner,
-			handshake: createFramescaperDesktopProjectLibraryV12Handshake(),
+			handshake: createFramescaperDesktopProjectLibraryV18Handshake(),
+			onLeaseLost: options.onLeaseLost,
+			qualification: framescaperQualification(options.leaseQualification),
 		});
 		return new DesktopProjectLibraryProductRuntime({
 			productId,
 			host,
-			register: (bridge) => registerFramescaperDesktopProjectLibraryV12MainIpc({
+			register: (bridge) => registerFramescaperDesktopProjectLibraryV18MainIpc({
 				handle: bridge.handle,
 				removeHandler: bridge.removeHandler,
 				ownerFor: bridge.ownerFor,
 				main: host,
 			}),
-			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Framescaper', 'V12'),
+			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Framescaper', 'V18'),
 		});
 	}
 	if (productId === 'soundscaper') {
@@ -62,7 +64,7 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 			appDataPath,
 			owner,
 			handshake: createSoundscaperDesktopProjectLibraryV10Handshake(),
-			qualification: options.v10Qualification ?? null,
+			qualification: soundscaperQualification(options.leaseQualification),
 		});
 		return new DesktopProjectLibraryProductRuntime({
 			productId,
@@ -104,6 +106,25 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 			createMediaBinding: createDesktopLibraryMediaBinding,
 			sourceBindingKey: desktopSharedManagedSourceBindingKey,
 		}),
+	});
+}
+
+function soundscaperQualification(value) {
+	if (value === null) return null;
+	return Object.freeze({
+		leaseTtlMs: value.leaseTtlMs,
+		renewIntervalMs: value.renewIntervalMs,
+		checkpoint: value.checkpoint,
+	});
+}
+
+function framescaperQualification(value) {
+	if (value === null) return null;
+	return Object.freeze({
+		leaseTtlMs: value.leaseTtlMs,
+		renewIntervalMs: value.renewIntervalMs,
+		checkpoint: value.checkpoint,
+		importCheckpoint: null,
 	});
 }
 

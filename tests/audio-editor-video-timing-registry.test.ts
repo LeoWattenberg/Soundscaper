@@ -8,6 +8,7 @@ import {
 	mapVideoTimelineFrameToSource,
 	registerVideoTimingIndex,
 	unregisterVideoTimingIndex,
+	videoTimingRegistryToken,
 } from '../src/common/editor/video-source-time.ts';
 
 const source = Object.freeze({
@@ -53,6 +54,33 @@ test('a preview registration made during export survives the export lease releas
 		lease.release();
 		unregisterVideoTimingIndex(source);
 	}
+});
+
+test('the registry identity changes only when the active timing authority changes', () => {
+	unregisterVideoTimingIndex(source);
+	const initial = videoTimingRegistryToken();
+	registerVideoTimingIndex(source, timing([0n, 100n, 300n], 500n));
+	const registered = videoTimingRegistryToken();
+	assert.notEqual(registered, initial);
+	assert.equal(videoTimingRegistryToken(), registered, 'reads preserve the identity');
+	const first = acquireVideoTimingIndex(source, timing([0n, 250n, 400n], 600n));
+	const firstOwned = videoTimingRegistryToken();
+	assert.notEqual(firstOwned, registered);
+	const second = acquireVideoTimingIndex(source, timing([0n, 50n, 200n], 400n));
+	const secondOwned = videoTimingRegistryToken();
+	assert.notEqual(secondOwned, firstOwned);
+	assert.equal(first.release(), false);
+	assert.equal(videoTimingRegistryToken(), secondOwned, 'an obscured release changes no active authority');
+	assert.equal(second.release(), true);
+	const restored = videoTimingRegistryToken();
+	assert.notEqual(restored, secondOwned);
+	assert.equal(second.release(), false);
+	assert.equal(videoTimingRegistryToken(), restored, 'a repeated release is a no-op');
+	unregisterVideoTimingIndex(source);
+	const removed = videoTimingRegistryToken();
+	assert.notEqual(removed, restored);
+	unregisterVideoTimingIndex(source);
+	assert.equal(videoTimingRegistryToken(), removed, 'a missing unregister is a no-op');
 });
 
 function mappedSourceFrame(): number {

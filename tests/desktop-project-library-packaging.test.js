@@ -15,6 +15,7 @@ import {
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES } from '../scripts/lib/desktop-5b-transitive-runtime-files.mjs';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
+import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FIXTURE } from './helpers/desktop-project-library-v27-runtime-fixture.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -352,11 +353,14 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/soundscaper/editor-project-production-validation.js',
 		'src/soundscaper/editor-project-v23-validation.js',
 		'desktop/project-library-exact-generation-contract.js',
+		'desktop/project-library-exact-generation-body-configuration.js',
 		'desktop/project-library-exact-generation-database.js',
+		'desktop/project-library-exact-generation-lifecycle.js',
 		'desktop/project-library-exact-generation-main-channels.js',
 		'desktop/project-library-exact-generation-main-ipc.js',
 		'desktop/project-library-exact-generation-main.js',
 		'desktop/project-library-exact-generation-storage.js',
+		'desktop/project-library-session-admission.js',
 		'desktop/project-library-v12-contract.js',
 		'desktop/project-library-v12-current-project.js',
 		'desktop/project-library-v12-database.js',
@@ -364,6 +368,22 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/project-library-v12-main-ipc.js',
 		'desktop/project-library-v12-main.js',
 		'desktop/project-library-v12-values.js',
+		'desktop/project-library-v17-contract.js',
+		'desktop/project-library-v17-current-project.js',
+		'desktop/project-library-v17-database.js',
+		'desktop/project-library-v17-import.js',
+		'desktop/project-library-v17-main-channels.js',
+		'desktop/project-library-v17-main-ipc.js',
+		'desktop/project-library-v17-main.js',
+		'desktop/project-library-v17-writer.js',
+		'desktop/project-library-v18-contract.js',
+		'desktop/project-library-v18-current-project.js',
+		'desktop/project-library-v18-database.js',
+		'desktop/project-library-v18-import.js',
+		'desktop/project-library-v18-main-channels.js',
+		'desktop/project-library-v18-main-ipc.js',
+		'desktop/project-library-v18-main.js',
+		'desktop/project-library-v18-writer.js',
 		'src/common/editor/native-durable-root-grant.js',
 		'src/common/editor/native-external-display.js',
 		'src/common/editor/native-media-atomic-publication.js',
@@ -406,6 +426,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/video-freeze-v24.js',
 		'src/common/editor/video-mask-matte-v24.js',
 		'src/common/editor/video-source-professional-characteristics-v25.js',
+		'src/common/editor/video-transition-preview-opacity.js',
 		'src/common/editor/video-transition-registry.js',
 		'src/common/editor/video-transition-resolution.js',
 		'src/common/editor/video-transition-v1.js',
@@ -451,6 +472,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/framescaper/editor-project-v20-profile.js',
 		'src/framescaper/editor-project-v20-structural-admission.js',
 		'src/framescaper/editor-project-v20-validation.js',
+		...DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FIXTURE,
 		].sort().filter((name, index, files) => index === 0 || files[index - 1] !== name));
 	for (const name of result.files) {
 		const source = await readFile(join(outputRoot, name), 'utf8');

@@ -7,7 +7,7 @@ import test from 'node:test';
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
 
-test('V16 security evidence limits video retime to preservation and refusal', async () => {
+test('V16 wire custody and selected V27 web-core retime stay route-scoped', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const risk = matrix.risks.find(({ id }) => id === 'external-project-document-validation');
 	const control = risk?.currentControls.find(
@@ -35,13 +35,37 @@ test('V16 security evidence limits video retime to preservation and refusal', as
 		{ kind: 'test', path: 'tests/audio-editor-video-retime-preservation-admission.test.ts' },
 		{ kind: 'test', path: 'tests/desktop-project-library-v16-video-retime-roundtrip.test.ts' },
 		{ kind: 'test', path: 'tests/browser/audio-editor-scape-open-compatibility.spec.js' },
+		{ kind: 'implementation', path: 'src/framescaper/editor-project-v20-retime-command.ts' },
+		{ kind: 'implementation', path: 'src/framescaper/editor-project-v20-commands.ts' },
+		{ kind: 'implementation', path: 'src/common/editor/video-retime-web-core-ordinal-authority.ts' },
+		{ kind: 'implementation', path: 'src/common/editor/video-retime-web-core-preview.ts' },
+		{ kind: 'implementation', path: 'src/common/editor/ui/dialogs/VideoRetimeDialog.tsx' },
+		{ kind: 'implementation', path: 'src/common/editor/ui/dialogs/FramescaperVideoProxyDialog.tsx' },
+		{ kind: 'implementation', path: 'src/framescaper/editor-project-runtime-v27-selection.ts' },
+		{ kind: 'implementation', path: 'src/framescaper/editor-controller-v27.ts' },
+		{ kind: 'implementation', path: 'src/framescaper/editor-project-v27-commands.ts' },
+		{ kind: 'implementation', path: 'src/framescaper/editor-existing-video-proxy-scheduler.ts' },
+		{ kind: 'implementation', path: 'src/framescaper/editor-video-proxy-action-runtime-v20.ts' },
+		{ kind: 'implementation', path: 'src/framescaper/editor-video-proxy-preview-media-v20.ts' },
+		{ kind: 'test', path: 'tests/audio-editor-framescaper-video-retime-authoring-v20.test.ts' },
+		{ kind: 'test', path: 'tests/audio-editor-framescaper-existing-video-proxy-scheduler-v27.test.ts' },
+		{ kind: 'test', path: 'tests/audio-editor-framescaper-v27-video-proxy.test.ts' },
+		{ kind: 'test', path: 'tests/audio-editor-framescaper-video-proxy-lifecycle-v20.test.ts' },
+		{ kind: 'test', path: 'tests/audio-editor-framescaper-video-proxy-preview-media-v20.test.ts' },
+		{ kind: 'test', path: 'tests/audio-editor-video-retime-web-core-ordinal-authority.test.ts' },
+		{ kind: 'test', path: 'tests/audio-editor-video-retime-ui.test.ts' },
+		{ kind: 'test', path: 'tests/browser/audio-editor-framescaper-v27-product-lifecycle.spec.js' },
 	]);
-	assert.match(control.summary, /Exact schema 17.*closed V2 video-retime wire.*schema V16.*1 through 4,096.*timeline and Project Bin.*null remains writable.*V15 breakpoint map.*typed re-import/iu);
-	assert.match(control.summary, /framescaper\.video-retime.*org\.soundscaper\.capability\.video-retime.*fallback null.*publisher substitution.*rendered fallback rejects.*videoRetime.*false for both products.*read-only-or-cancel.*intrinsically read-only/iu);
-	assert.match(control.summary, /clone, history, clipboard codec.*format-1 \.scape.*desktop-v9.*direct and arbitrarily nested command boundary.*focused Chromium fixture.*exact curve preservation.*\.scape re-export.*no authoring, evaluator, playback, preview, export, nested sequence, fallback, or native timing claim/iu);
+	assert.match(control.summary, /closed V2 video-retime wire.*schema V16.*1 through 4,096.*timeline and Project Bin.*null default.*typed re-import.*V15 map/iu);
+	assert.match(control.summary, /framescaper\.video-retime.*bypass\/no-fallback.*publisher substitution.*rendered fallback.*Soundscaper V17.*read-only-or-cancel/iu);
+	assert.match(control.summary, /Framescaper V27.*maintained V20 authority.*videoRetime.*web-core consumer.*set, reset, constant, ramp, reverse, and freeze.*one-step history.*menu-only lazy dialog/iu);
+	assert.match(control.summary, /linked audio.*warpMap null.*audioWarp false/iu);
+	assert.match(control.summary, /ordinal authority.*program-preview random seeks.*browser MP4\/WebM.*NTSC.*verified VFR.*nested/iu);
+	assert.match(control.summary, /proxy lifecycle.*source domain before occurrence retime.*offline preview.*delivery.*refuses.*Clipboard V11.*desktop library V18.*V25\/V26.*opaque read-only.*qualification/iu);
 
 	const threatModel = (await readFile(threatModelUrl, 'utf8')).replace(/\s+/gu, ' ');
-	assert.match(threatModel, /v16-video-retime-preservation-admission.*V16.*wire.*current schema 17.*1 through 4,096.*timeline and Project Bin.*null remains writable.*V15 breakpoint maps require typed re-import/iu);
-	assert.match(threatModel, /framescaper\.video-retime.*bypass\/no-fallback.*publisher substitution.*rendered fallback reject.*videoRetime.*false in both products.*read-only-or-cancel.*intrinsically read-only/iu);
-	assert.match(threatModel, /No authoring, evaluator, playback, preview, export, nested-sequence, fallback, or native-timing correctness is qualified/iu);
+	assert.match(threatModel, /v16-video-retime-preservation-admission.*V16.*1 through 4,096.*timeline and Project Bin.*null default.*typed re-import.*V15 map/iu);
+	assert.match(threatModel, /framescaper\.video-retime.*bypass\/no-fallback.*publisher substitution.*rendered fallback.*Soundscaper V17.*read-only-or-cancel/iu);
+	assert.match(threatModel, /Framescaper V27.*maintained V20 authority.*videoRetime.*web-core consumer.*set, reset, constant, ramp, reverse, and freeze.*ordinal authority.*program-preview random seeks.*MP4\/WebM/iu);
+	assert.match(threatModel, /linked audio.*warpMap(?::)? null.*audioWarp(?::)? false.*proxy lifecycle.*source domain before occurrence retime.*refuses.*original.*V25\/V26.*opaque read-only.*qualification/iu);
 });

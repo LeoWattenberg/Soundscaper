@@ -4,6 +4,11 @@ import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
 import { sourceFrameTimecodeLabel } from './source-properties-model.ts';
 import { normalizeVideoSourceCharacteristics } from './video-source-characteristics.ts';
 import { videoFrameToSampleFrame, type RationalRate } from './timeline-time.ts';
+import {
+	resolveVideoRetimeProgramOrdinal,
+	VideoRetimeProgramOrdinalUnavailableError,
+	type VideoRetimeProgramOrdinalBridge,
+} from './video-retime-program-ordinal-bridge.ts';
 
 /**
  * The source monitor: one video source addressed on its own frame grid.
@@ -167,6 +172,7 @@ export function sourceMonitorTimecodeLabel(sourceValue: unknown, frame: number):
 export function resolveProgramFrame(
 	projectValue: unknown,
 	request: ProgramFrameRequest,
+	bridgeValue?: VideoRetimeProgramOrdinalBridge,
 ): ProgramFrame | null {
 	const project = record(projectValue, 'project');
 	const sampleRate = positiveSafeInteger(project.sampleRate, 'project.sampleRate');
@@ -207,12 +213,28 @@ export function resolveProgramFrame(
 	const sequenceStartFrame = Number(matched.sequenceStartFrame);
 	const sequenceFrameCount = Number(matched.sequenceFrameCount);
 	const sourceIn = Number(matched.sourceInFrame ?? 0);
+	const source = arrayOf(project.sources).find((candidate) => (
+		candidate.kind === 'video' && String(candidate.id) === String(matched?.sourceId)
+	));
+	const retimed = matched.retimeMap != null;
+	if (retimed && (!source || !bridgeValue)) {
+		throw new VideoRetimeProgramOrdinalUnavailableError();
+	}
+	const retimedSourceFrame = source && bridgeValue
+		? resolveVideoRetimeProgramOrdinal(bridgeValue, {
+			project,
+			clip: matched,
+			source,
+			timelineSample: Math.max(0, Math.trunc(request.sample)),
+		})
+		: null;
 	return Object.freeze({
 		clipId: String(matched.id),
 		trackId,
 		sourceId: String(matched.sourceId),
 		sequenceId,
-		sourceFrame: (Number.isSafeInteger(sourceIn) ? sourceIn : 0) + (frame - sequenceStartFrame),
+		sourceFrame: retimedSourceFrame
+			?? (Number.isSafeInteger(sourceIn) ? sourceIn : 0) + (frame - sequenceStartFrame),
 		sourceIn: Number.isSafeInteger(sourceIn) ? sourceIn : 0,
 		sourceFrameCount: Number(matched.sourceFrameCount ?? sequenceFrameCount),
 		sequenceStartFrame,

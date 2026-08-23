@@ -22,16 +22,24 @@ export function applyInheritedFramescaperProjectCommandV24(
 	command: unknown,
 	options: FramescaperProjectCommandOptionsV22,
 ): FramescaperProjectV24 {
+	const visualTimelineClipIds = ownedIds(
+		(project as unknown as Readonly<Record<string, unknown>>).clips, isVisual,
+	);
+	const visualSelection = selectedVisualClipIds(command, visualTimelineClipIds);
+	const inheritedCommand = visualSelection === null ? command : {
+		...(command as Readonly<Record<string, unknown>>),
+		clipIds: (command as Readonly<{ readonly clipIds: readonly unknown[] }>).clipIds
+			.filter((id) => !visualTimelineClipIds.has(String(id))),
+	};
 	const foundation = framescaperProjectV22FoundationV24(profile, project);
 	const applied = applyFramescaperProjectCommandV22(
 		FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE,
 		foundation,
-		command as never,
+		inheritedCommand as never,
 		options,
 	) as unknown as Record<string, unknown>;
 	const original = structuredClone(project) as unknown as Record<string, unknown>;
 	const visualSourceIds = ownedIds(original.sources, isVisual);
-	const visualTimelineClipIds = ownedIds(original.clips, isVisual);
 	const originalBin = record(original.projectBin, 'projectBin');
 	const visualBinClipIds = ownedIds(originalBin.clips, isVisual);
 	applied.schemaVersion = 24;
@@ -48,10 +56,25 @@ export function applyInheritedFramescaperProjectCommandV24(
 	for (const field of [
 		'videoAdjustmentLayers', 'videoVisualPresets', 'videoMaskMattes', 'videoFreezeFallbacks',
 	]) applied[field] = structuredClone(original[field]);
+	if (visualSelection !== null) {
+		const selection = record(applied.selection, 'selection');
+		selection.clipIds = visualSelection;
+	}
 	normalizeFramescaperProjectVisualModelsV24(applied);
 	applied.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV24(profile, applied);
 	validateFramescaperProjectV24(profile, applied);
 	return applied as unknown as FramescaperProjectV24;
+}
+
+function selectedVisualClipIds(
+	command: unknown,
+	visualIds: ReadonlySet<string>,
+): string[] | null {
+	if (!command || typeof command !== 'object' || Array.isArray(command)) return null;
+	const value = command as Readonly<Record<string, unknown>>;
+	if (value.type !== 'selection/set' || !Array.isArray(value.clipIds)
+		|| !value.clipIds.some((id) => visualIds.has(String(id)))) return null;
+	return value.clipIds.map(String);
 }
 
 function mergeCollections(

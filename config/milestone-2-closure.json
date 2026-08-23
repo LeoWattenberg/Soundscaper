@@ -296,7 +296,7 @@
 				"crash-restart-recovery"
 			],
 			"acceptance": [
-				"Every workflow ID passes for Soundscaper and Framescaper packages on each qualified desktopTarget; scope revision 2 defers deferredDesktopTargets validation and retires macos-x64.",
+				"The seven product-specific workflow IDs pass for both Soundscaper and Framescaper packages on each qualified desktopTarget, and cross-product-simultaneous-open passes once per paired package set; scope revision 2 defers deferredDesktopTargets validation and retires macos-x64.",
 				"Fencing tokens increase monotonically and no losing writer publishes a project or managed-media descriptor."
 			],
 			"ownerRefs": ["docs/project-compatibility.md", "docs/production-threat-model.md"]

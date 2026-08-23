@@ -43,6 +43,12 @@ test('a build with no native-services controller shows no entries at all', () =>
 	});
 });
 
+test('selected V27 exposes no dormant milestone-5 native or OpenFX routes', () => {
+	assert.deepEqual(menu({ project: { schemaVersion: 27 } }), {
+		fileImport: [], fileExport: [], view: [], tools: [], effect: [],
+	});
+});
+
 test('every named surface is reachable from an existing menu family', () => {
 	const items = menu();
 	const surfaces = new Set<string>();

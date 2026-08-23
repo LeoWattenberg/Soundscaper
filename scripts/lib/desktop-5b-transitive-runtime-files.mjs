@@ -108,7 +108,10 @@ export const DESKTOP_RUNTIME_BUNDLED_LEAF_FILES = Object.freeze([
 	'src/common/editor/native-media-plan-canonical-form.js',
 	'src/common/editor/pffft.js',
 	'src/common/editor/scape-archive-media.js',
+	'src/common/editor/video-caption-imsc-v27.js',
 	'src/common/editor/video-freeze-v24.js',
+	'src/common/editor/video-color-management-v27.js',
 	'src/common/editor/video-timing-asset.js',
+	'src/framescaper/desktop-project-library-v27-body-contract.js',
 	'src/soundscaper/editor-project-feature-requirements-v21.js',
 ]);

@@ -9,6 +9,7 @@ import {
 import { cloneFramescaperProjectV18 } from './editor-project-v18.ts';
 import { cloneFramescaperProjectV19 } from './editor-project-v19.ts';
 import { cloneFramescaperProjectV20 } from './editor-project-v20.ts';
+import { cloneFramescaperProjectV27 } from './editor-project-v27.ts';
 
 interface CapturedVideoProxyProjectCodec {
 	readonly schemaVersion: FramescaperCapturedVideoProxySchemaVersion;
@@ -21,7 +22,8 @@ export function cloneCapturedVideoProxyProject(
 ): FramescaperCapturedVideoProxyProject {
 	if (codec.schemaVersion === 18) return cloneFramescaperProjectV18(codec.profile, project);
 	if (codec.schemaVersion === 19) return cloneFramescaperProjectV19(codec.profile, project);
-	return cloneFramescaperProjectV20(codec.profile, project);
+	if (codec.schemaVersion === 20) return cloneFramescaperProjectV20(codec.profile, project);
+	return cloneFramescaperProjectV27(codec.profile, project);
 }
 
 export function capturedVideoProxyProjectFingerprint(

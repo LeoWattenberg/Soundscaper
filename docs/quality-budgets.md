@@ -5,8 +5,12 @@ ledger names fixtures and proposed numeric limits, validates its own contract,
 and provides a deterministic fail-closed evaluator. The five frozen milestone 2
 first-party structural workloads have qualified. On 2026-08-21 the project
 owner also designated the Windows x64 RTX 3090 machine as the fixed-GPU
-reference and accepted its M1 preview, M4 production-parity, and M4B-2 keyed
-parity results. Other timing, heap/RSS, third-party codec-memory, device,
+reference and retained its then-current M1 preview, M4 production-parity, and
+M4B-2 keyed-parity results. The packaged collector contract now requires the
+GPU driver and device identity plus the power and display modes. Because those
+fields were absent from the historical run, every fixed-GPU profile is
+`pending-external`; the result remains audit evidence but is not current formal
+qualification. Other timing, heap/RSS, third-party codec-memory, device,
 durability, and release-platform workloads remain open.
 
 The source of truth is
@@ -39,7 +43,7 @@ fixture, environment, metric, and threshold identifiers.
   `packaged-runtime/qualification.json`. A metric or identity mismatch rejects
   that workload without preventing an independently complete workload in the
   same run from being assessed.
-- Accepted fixed-GPU reference run, 2026-08-21: the project owner designated
+- Historical fixed-GPU reference run, 2026-08-21: the project owner designated
   the Windows x64 downloadable-nightly machine at revision
   `657e2d67d57070b31bbfe7c8a2b76b5a54bbe082` as the reference. Its NVIDIA
   GeForce RTX 3090 ran through ANGLE/D3D11 with one worker, one attempt, and zero
@@ -55,10 +59,20 @@ fixture, environment, metric, and threshold identifiers.
   SHA-256 `04ec246be3f0fef9c7b9447056f5a95f7c3b7ecb4e1465677cf2673625c090d6`,
   plus raw byte length `5268909` and SHA-256
   `eb7e9716d75b462f9118084a36ed9a5b2a0a38f309e5345a765e24162a399b45`.
+  These retained artifacts predate the complete driver/device/power/display
+  identity contract and therefore do not close a current formal row.
 - The 12-effect 1280x720 preview test records timing and heap data against a
-  repository-owned, digest-pinned, six-second synthetic VP8 fixture. Its
-  2026-08-21 owner-designated fixed-GPU reference run passed both thresholds.
-  Decoder/audio scheduling and other platforms remain outside that acceptance.
+  repository-owned, digest-pinned, six-second synthetic VP8 fixture. The active
+  `deterministic-video-preview-12fx-v2` collector hashes the actual runtime
+  fixture bytes, runs one unreported full warm-up trial and five measured trials
+  in fresh contexts, forces three collections before every before/after heap
+  snapshot, and retains all 605 timestamps and ten heap snapshots. It passively
+  records preview cadence without synchronously draining the GPU on each draw
+  and emits the complete packaged browser/platform/architecture/WebGL
+  fingerprint. The 2026-08-21 run passed both thresholds under the superseded
+  single-context collector, so a fresh owner-host packaged-runtime run is
+  required before M1 can be formally accepted under v2. Decoder/audio
+  scheduling and other platforms remain outside that future acceptance.
 - Hosted CI is suitable for deterministic correctness checks. Its shared CPU
   and software-renderer behavior make it ineligible for fixed-hardware timing
   qualification.
@@ -129,8 +143,9 @@ and the following common procedure:
 
 Collectors must avoid materially changing the path under measurement. In
 particular, synchronously calling `WebGL2RenderingContext.finish()` for every
-preview draw changes GPU pipelining. A replacement preview collector should
-record presentation cadence and GPU completion as separate metrics.
+preview draw changes GPU pipelining. The M1 v2 collector therefore records
+cadence passively. Any future GPU-completion metric must use a separate
+observation rather than changing the cadence path.
 
 No benchmark retry may turn a failure into a pass. A failed run may be repeated
 for diagnosis, but both runs remain evidence and the original result remains
@@ -167,19 +182,24 @@ result may promote them.
 ## Fixed hardware environments
 
 The owner-designated fixed-GPU reference is the Windows x64 RTX 3090 machine
-used by the accepted 2026-08-21 downloadable metrics run. Its packaged-runtime
+used by the historical 2026-08-21 downloadable metrics run. Its packaged-runtime
 identity is `owner-qualified-windows-x64-rtx3090-01`; the nightly-with-tests
 runner has independent formal profiles for M1 preview timing/heap, M3 long-form
 editorial, M4 render parity, and M4B-2 keyed parity. Each admission is
-independent of other results in the same run. The retained 2026-08-22 artifact
-formally accepts M4; M3 and M4B-2 require a fresh owner-host run with the new
-profiles and budget digest before their formal rows can close.
+independent of other results in the same run. All four profiles are now
+`pending-external`: the retained artifact omitted GPU-driver, GPU-device,
+power-mode, and display-mode identity and cannot be promoted under the corrected
+contract. A fresh owner-host run and reviewed descriptor are required before any
+formal row can close. M1 additionally requires the v2 raw fixture digest and
+five-trial cadence/heap samples.
 
 Future formal runs must exactly match the profile's browser version, platform,
-architecture, WebGL vendor, WebGL renderer, and required hardware renderer
-class. SwiftShader, llvmpipe, another renderer, or an unknown renderer cannot
-satisfy the gate. Workloads not listed in this host's `eligibleWorkloadIds`
-remain unqualified until their own formal profile and accepted run exist.
+architecture, WebGL vendor and renderer, GPU driver version and device ID,
+power mode, display mode, and required hardware renderer class. The packaged
+runner refuses to start without all four owner-recorded fields. SwiftShader,
+llvmpipe, another renderer, or an unknown renderer cannot satisfy the gate.
+Workloads not listed in this host's `eligibleWorkloadIds` remain unqualified
+until their own formal profile and accepted run exist.
 
 The native OS, capture-device, and final release matrices are also
 unprovisioned. Packaging on hosted Windows, macOS, and Linux runners is valuable
@@ -204,9 +224,10 @@ RTX 3090 metrics artifact remains a passing historical diagnostic: all 12 keyed
 operations passed, with no omitted, substituted, or fallback operation. The
 active packaged-runtime profile now makes formal M4B-2 qualification
 repeatable, but that profile and its new budget digest require a fresh
-owner-host nightly artifact; the historical result is not backfilled. Selected
-V20 already exposes the keyed route, while manual and release qualification
-remain separate open gates.
+owner-host nightly artifact; the historical result is not backfilled. The
+selected V27 activation candidate delegates the maintained V20 keyed route,
+while guided-local, owner-host, and release qualification remain separate open
+gates.
 
 ## Fixtures and project sizes
 

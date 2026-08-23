@@ -14,6 +14,7 @@ import {
 import {
 	createVideoKeyframeExportPresentationAuthority,
 } from '../video-keyframe-export-presentation-authority.ts';
+import { createVideoRetimeWebCoreOrdinalAuthority } from '../video-retime-web-core-ordinal-authority.ts';
 import type { FfmpegOutputSink } from '../ffmpeg-output-stream.ts';
 import type { VideoKeyframeEncoderFormat } from '../video-keyframe-encoder-stream.ts';
 import {
@@ -43,6 +44,7 @@ import {
 import {
 	createVideoKeyframeOfflineRgbaRenderer,
 	type VideoKeyframeOfflineRgbaRenderer,
+	type VideoKeyframeOfflineRgbaPostprocessor,
 } from './video-keyframe-offline-rgba-renderer.ts';
 import {
 	planVideoKeyframeOfflineVideoSources,
@@ -87,6 +89,8 @@ export interface VideoKeyframeOfflineVideoExportRequest {
 	readonly maximumOutputBytes?: number;
 	readonly maximumOutputChunkBytes?: number;
 	readonly sourceTimeoutMs?: number;
+	readonly rgbaPostprocessor?: VideoKeyframeOfflineRgbaPostprocessor;
+	readonly rgbaCompositor?: import('./video-keyframe-offline-rgba-renderer.ts').VideoKeyframeOfflineRgbaCompositor;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 }
@@ -119,6 +123,8 @@ interface NormalizedRequest {
 	readonly audioMix?: Blob;
 	readonly encoderOptions: Readonly<Record<string, number>>;
 	readonly sourceTimeoutMs?: number;
+	readonly rgbaPostprocessor?: VideoKeyframeOfflineRgbaPostprocessor;
+	readonly rgbaCompositor?: import('./video-keyframe-offline-rgba-renderer.ts').VideoKeyframeOfflineRgbaCompositor;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 }
@@ -128,7 +134,7 @@ const REQUEST_FIELDS = [
 	'format', 'quality', 'webCodecs', 'editorFfmpeg', 'audioMix', 'ringCapacityBytes', 'audioRingCapacityBytes',
 	'maximumAudioBytes', 'maximumWidth', 'maximumHeight',
 	'maximumFrameCount', 'maximumTotalRgbaBytes', 'maximumOutputBytes',
-	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'signal', 'assertCurrent',
+	'maximumOutputChunkBytes', 'sourceTimeoutMs', 'rgbaPostprocessor', 'rgbaCompositor', 'signal', 'assertCurrent',
 ] as const;
 const ENCODER_OPTION_FIELDS = [
 	'ringCapacityBytes', 'audioRingCapacityBytes', 'maximumAudioBytes',
@@ -202,9 +208,17 @@ async function executeOfflineVideo<Output>(
 		...request,
 		project: runtimeProject,
 	});
+	const exactOrdinalAuthority = createVideoRetimeWebCoreOrdinalAuthority({
+		project: runtimeProject,
+		timingBySourceId: request.timingBySourceId,
+		...(request.startFrame === undefined ? {} : { startFrame: request.startFrame }),
+		...(request.endFrame === undefined ? {} : { endFrame: request.endFrame }),
+		outputRate: request.canvas.frameRate,
+	});
 	const authority = createVideoKeyframeExportPresentationAuthority({
 		project: sourcePlan.project,
 		timingBySourceId: request.timingBySourceId,
+		exactOrdinalAuthority,
 	});
 	const frameSource = createVideoKeyframeExportFrameSource({
 		project: runtimeProject,
@@ -213,6 +227,9 @@ async function executeOfflineVideo<Output>(
 		...(request.endFrame === undefined ? {} : { endFrame: request.endFrame }),
 		resolvePresentationDescriptor: authority.resolvePresentationDescriptor,
 	});
+	if (frameSource.frameCount !== exactOrdinalAuthority.outputFrameCount) {
+		throw new RangeError('The browser video frame source disagrees with its exact ordinal authority.');
+	}
 	await preflightVideoKeyframeOfflineEncoder(request, frameSource);
 	const assets = await sourcePlan.authenticate(
 		request.sources,
@@ -233,6 +250,10 @@ async function executeOfflineVideo<Output>(
 				frameSource,
 				canvas,
 				resolveSource: resolver.resolveSource,
+				...(request.rgbaPostprocessor === undefined ? {} : {
+					postprocess: request.rgbaPostprocessor,
+				}),
+				...(request.rgbaCompositor === undefined ? {} : { compose: request.rgbaCompositor }),
 			}));
 			return Object.freeze({
 				renderer,
@@ -252,6 +273,12 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 	}
 	if (!(request.signal instanceof AbortSignal)) throw new TypeError('Offline video export requires an AbortSignal.');
 	if (typeof request.assertCurrent !== 'function') throw new TypeError('Offline video export requires assertCurrent.');
+	if (request.rgbaPostprocessor !== undefined && typeof request.rgbaPostprocessor !== 'function') {
+		throw new TypeError('Offline video export rgbaPostprocessor must be a function.');
+	}
+	if (request.rgbaCompositor !== undefined && typeof request.rgbaCompositor !== 'function') {
+		throw new TypeError('Offline video export rgbaCompositor must be a function.');
+	}
 	const startFrame = request.startFrame === undefined
 		? undefined
 		: nonNegativeSafeInteger(request.startFrame, 'offline video export startFrame');
@@ -306,6 +333,12 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 		}),
 		encoderOptions: Object.freeze(encoderOptions),
 		...(sourceTimeoutMs === undefined ? {} : { sourceTimeoutMs }),
+		...(request.rgbaPostprocessor === undefined ? {} : {
+			rgbaPostprocessor: request.rgbaPostprocessor as VideoKeyframeOfflineRgbaPostprocessor,
+		}),
+		...(request.rgbaCompositor === undefined ? {} : {
+			rgbaCompositor: request.rgbaCompositor as import('./video-keyframe-offline-rgba-renderer.ts').VideoKeyframeOfflineRgbaCompositor,
+		}),
 		signal: request.signal,
 		assertCurrent: request.assertCurrent as () => void,
 	});

@@ -221,6 +221,45 @@ test('setting the session clipboard updates the controller descriptor', () => {
 	assert.equal(fixture.state.clipboard, descriptor);
 });
 
+test('product clipboard carrier survives copy and composes the next paste atomically', () => {
+	const descriptor = audioClipboard();
+	let sessionValue: unknown;
+	let composedCarrier: unknown;
+	const carrier = Object.freeze({
+		descriptor,
+		originProjectId: 'project-a',
+		sources: Object.freeze([{ id: 'source-a' }]),
+		productToken: 'selected-v11',
+	});
+	const fixture = createFixture(project(), {
+		createEditSessionClipboard: () => carrier,
+		prepareEditClipboardPasteCommand: (_project, clipboard, command) => {
+			composedCarrier = clipboard;
+			return { type: 'batch', commands: [command, { type: 'project/rename', title: 'Composed' }] };
+		},
+		session: {
+			setClipboard: (value) => {
+				sessionValue = value;
+				return { clipboard: { descriptor, sources: [{ id: 'source-a' }] } };
+			},
+			clipboardForProject: () => ({ descriptor, sources: [{ id: 'source-a' }] }),
+		},
+	});
+	const service = createClipboardEditService(fixture.dependencies);
+
+	service.setSessionClipboard(descriptor);
+	const command = service.prepareControllerPaste('overlap', 120);
+
+	assert.deepEqual(sessionValue, {
+		schemaVersion: 1, originProjectId: 'project-a', descriptor, sources: [{ id: 'source-a' }],
+	});
+	assert.equal(composedCarrier, carrier);
+	assert.equal(command.type, 'batch');
+	if (command.type === 'batch') {
+		assert.deepEqual(command.commands.map(({ type }) => type), ['clipboard/paste', 'project/rename']);
+	}
+});
+
 test('blocked and out-of-range splits do not create history entries', () => {
 	const blocked = createFixture(project(), { editingBlocked: () => true });
 	const blockedService = createClipboardEditService(blocked.dependencies);

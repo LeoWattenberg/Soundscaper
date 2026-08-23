@@ -6,6 +6,7 @@ import test from 'node:test';
 import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream.ts';
 import { createEditorVideoExportAction } from '../src/common/editor/controller/video-export-service.ts';
 import type {
+	ProductVideoExportPlan,
 	ProductVideoExportStrategy,
 	ProductVideoExportStrategyEncodeRequest,
 	ProductVideoExportStrategyPlanRequest,
@@ -17,6 +18,7 @@ import { createVideoKeyframeExportPlanV7 } from '../src/common/editor/video-keyf
 import { registeredVideoTimingIndex } from '../src/common/editor/video-source-time.ts';
 import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
+import { createFixture as createExportServiceFixture } from './helpers/export-service-fixture.ts';
 
 const SAMPLE_RATE = 48_000;
 const ACTIVE_SOURCE_ID = 'active-video';
@@ -78,6 +80,18 @@ test('keyed strategy retains exact timing through direct encoding and releases i
 	assert.deepEqual(fixture.errors, []);
 });
 
+test('keyed delivery falls back from owned storage to the exact pathless linked original', async () => {
+	const fixture = createFixture({ mode: 'blob', linkedOriginal: true });
+	const result = await fixture.exportVideo({ format: 'video-mp4' });
+
+	assert.equal(result?.url, 'blob:keyed-video');
+	assertOrder(fixture.events, [
+		'product-plan', 'active-timing-load', 'prepare', 'active-video-load',
+		'active-video-linked-load', 'product-encode', 'download',
+	]);
+	assert.deepEqual(fixture.errors, []);
+});
+
 test('keyed strategy releases exact timing and publishes nothing after encoder failure', async () => {
 	const failure = new Error('keyed encoder failed');
 	const fixture = createFixture({ mode: 'blob', encodeFailure: failure });
@@ -125,12 +139,115 @@ test('common strategy preserves video format aliases and refuses unsupported for
 	assert.equal(invalid.events.includes('product-plan'), false);
 });
 
+test('product picture authority exports stills and generators without fake video timing or audio', async () => {
+	for (const kind of ['still', 'generator'] as const) {
+		const fixture = createPictureOnlyFixture(kind, false);
+		const result = await fixture.exportVideo({ format: 'video-mp4' });
+		assert.equal(result?.fileName, `Picture-${kind}.mp4`);
+		assert.deepEqual(fixture.capture.timingSourceIds, []);
+		assert.deepEqual(fixture.capture.videoBlobIds, []);
+		assert.equal(fixture.capture.includeAudio, false);
+		assert.equal(fixture.capture.audioMix, null);
+	}
+
+	const mixed = createPictureOnlyFixture('still', true);
+	await mixed.exportVideo({ format: 'video-mp4' });
+	assert.equal(mixed.capture.includeAudio, true);
+	assert.ok(mixed.capture.audioMix instanceof Blob);
+});
+
 interface FixtureOptions {
 	readonly mode: 'blob' | 'direct';
 	readonly encodeFailure?: Error;
 	readonly cancelPreparation?: boolean;
 	readonly malformedPlan?: 'missing' | 'duplicate' | 'accessor' | 'entries' | 'prototype';
 	readonly staticRange?: boolean;
+	readonly linkedOriginal?: boolean;
+}
+
+function createPictureOnlyFixture(kind: 'still' | 'generator', withAudio: boolean) {
+	const fixture = createExportServiceFixture();
+	const pictureClip = Object.freeze({
+		id: `${kind}-clip`, kind, sourceId: `${kind}-source`,
+		timelineStartFrame: 0, durationFrames: SAMPLE_RATE,
+	});
+	const audioClip = Object.freeze({
+		id: 'audio-clip', kind: 'audio', sourceId: 'audio-source',
+		timelineStartFrame: 0, durationFrames: SAMPLE_RATE,
+	});
+	const project = Object.freeze({
+		id: `picture-${kind}`, title: `Picture ${kind}`,
+		sampleRate: SAMPLE_RATE, masterChannels: 2,
+		tracks: Object.freeze([
+			Object.freeze({
+				id: 'picture-track', type: 'video', hidden: false,
+				clipIds: Object.freeze([pictureClip.id]),
+			}),
+			...(withAudio ? [Object.freeze({
+				id: 'audio-track', type: 'audio', clipIds: Object.freeze([audioClip.id]),
+			})] : []),
+		]),
+		clips: Object.freeze([pictureClip, ...(withAudio ? [audioClip] : [])]),
+		sources: Object.freeze([Object.freeze({ id: `${kind}-source`, kind })]),
+	});
+	const capture: {
+		timingSourceIds?: readonly string[];
+		videoBlobIds?: readonly string[];
+		includeAudio?: boolean;
+		audioMix?: Blob | null;
+	} = {};
+	const plan: ProductVideoExportPlan = Object.freeze({
+		version: 13, format: 'mp4', extension: 'mp4', mimeType: 'video/mp4',
+		range: Object.freeze({ startFrame: 0, endFrame: SAMPLE_RATE, durationFrames: SAMPLE_RATE }),
+		canvas: Object.freeze({
+			width: 640, height: 360, frameRate: Object.freeze({ num: 1, den: 1 }),
+			fit: 'contain', pixelFormat: 'yuv420p', backgroundColor: '#000000',
+		}),
+		inputs: Object.freeze(withAudio ? [Object.freeze({
+			kind: 'staged-audio-mix', channelLayout: 'preserve',
+		})] : []),
+		activeSourceIds: Object.freeze([]),
+	});
+	const strategy: ProductVideoExportStrategy = Object.freeze({
+		createExportProject: () => project,
+		hasPicture: (candidate: Readonly<Record<string, unknown>>) => candidate === project,
+		createPlan(request: ProductVideoExportStrategyPlanRequest) {
+			capture.includeAudio = request.includeAudio;
+			return plan;
+		},
+		captureTimingSourceIds(candidate: ProductVideoExportPlan) {
+			assert.strictEqual(candidate, plan);
+			capture.timingSourceIds = candidate.activeSourceIds;
+			return [];
+		},
+		async encode(request: ProductVideoExportStrategyEncodeRequest) {
+			capture.videoBlobIds = [...request.videoBlobs.keys()];
+			capture.audioMix = request.audioMix;
+			return Object.freeze({
+				bytes: Uint8Array.of(1, 2, 3, 4), byteLength: 4,
+				extension: '.mp4' as const, mimeType: 'video/mp4' as const,
+			});
+		},
+		async encodeToSink() { throw new Error('picture test does not use a sink'); },
+	});
+	const runtime = {
+		...fixture.runtime,
+		getProject: () => project,
+		findClip: (_value: unknown, id: string) => (
+			project.clips.find((clip) => clip.id === id)
+		),
+		findSource: (_value: unknown, id: string) => (
+			project.sources.find((source) => source.id === id)
+		),
+		options: { productVideoExportStrategy: strategy },
+	};
+	return {
+		capture,
+		exportVideo: createEditorVideoExportAction(runtime as never, async () => Object.freeze({
+			sampleRate: SAMPLE_RATE,
+			channels: [new Float32Array(SAMPLE_RATE), new Float32Array(SAMPLE_RATE)],
+		})),
+	};
 }
 
 function createFixture(options: FixtureOptions) {
@@ -289,6 +406,7 @@ function createFixture(options: FixtureOptions) {
 	};
 	let activeController: AbortController | null = null;
 	let written = 0;
+	const linkedOriginalBlob = new Blob([Uint8Array.of(9)], { type: 'video/mp4' });
 	const runtime = {
 		abortError: () => Object.assign(new Error('aborted'), { name: 'AbortError' }),
 		audioBufferChannels: (buffer: Readonly<{ channels: readonly Float32Array[] }>) => buffer.channels,
@@ -370,6 +488,7 @@ function createFixture(options: FixtureOptions) {
 				}
 				if (storageKey === 'active-video-storage') {
 					events.push('active-video-load');
+					if (options.linkedOriginal) return null;
 					return new Blob([Uint8Array.of(9)], { type: 'video/mp4' });
 				}
 				if (storageKey === 'off-range-video-storage') {
@@ -377,6 +496,19 @@ function createFixture(options: FixtureOptions) {
 					return new Blob([Uint8Array.of(8)], { type: 'video/mp4' });
 				}
 				throw new Error(`Unexpected storage key ${storageKey}.`);
+			},
+			async resolveLinkedVideoOriginal(
+				projectId: string,
+				source: Readonly<Record<string, unknown>>,
+			) {
+				if (!options.linkedOriginal) throw new Error('Unexpected linked-original resolution.');
+				assert.equal(projectId, project.id);
+				assert.strictEqual(source, activeSource);
+				events.push('active-video-linked-load');
+				return Object.freeze({
+					blob: linkedOriginalBlob,
+					binding: Object.freeze({ bindingToken: 'linked-active-video' }),
+				});
 			},
 		},
 		throwIfAborted(signal?: AbortSignal) { if (signal?.aborted) throw signal.reason; },

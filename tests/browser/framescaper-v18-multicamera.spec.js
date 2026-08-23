@@ -68,7 +68,7 @@ test.describe('Framescaper selected-web multicamera workflow', () => {
 		await expect.poll(async () => JSON.stringify(await storedMulticamera(page, projectId)))
 			.toContain('"groupCount":1');
 		const created = await storedMulticamera(page, projectId);
-		expect(created.schemaVersion).toBe(20);
+		expect(created.schemaVersion).toBe(27);
 		const initialActiveMemberId = created.activeMemberId;
 		expect(initialActiveMemberId).toBeTruthy();
 		expect(created.requirementIds).toContain(MULTICAMERA_REQUIREMENT_ID);

@@ -30,8 +30,17 @@ const PROFILE = FRAMESCAPER_V20_PROJECT_MODEL_PROFILE;
 const NOW = '2026-08-13T19:00:00.000Z';
 const VIDEO_BYTES = new TextEncoder().encode('v20-keyframed-video');
 const VIDEO_SHA256 = digestScapeBytes(VIDEO_BYTES);
+const RETIME_CURVE = Object.freeze({
+	feature: 'video-retime' as const,
+	version: 2 as const,
+	points: Object.freeze([
+		Object.freeze({ outerFrame: 0, sourceFrame: Object.freeze({ num: 10, den: 1 }) }),
+		Object.freeze({ outerFrame: 10, sourceFrame: Object.freeze({ num: 0, den: 1 }) }),
+	]),
+	segments: Object.freeze([Object.freeze({ mode: 'constant-reverse' as const })]),
+});
 
-test('portable Scape inspects, imports, and reopens exact V20 keyframes', async (context) => {
+test('portable Scape inspects, imports, and reopens exact V20 keyframes and retime', async (context) => {
 	const sender = memoryStore(context, 'sender');
 	const recipient = memoryStore(context, 'recipient');
 	const runtime = createFramescaperScapeNativeRuntimeV20(PROFILE);
@@ -62,11 +71,17 @@ test('portable Scape inspects, imports, and reopens exact V20 keyframes', async 
 	assert.equal(validateFramescaperProjectV20(PROFILE, imported.project), true);
 	assert.deepEqual(imported.project.clips[0]?.videoKeyframes, project.clips[0]?.videoKeyframes);
 	assert.notStrictEqual(imported.project.clips[0]?.videoKeyframes, project.clips[0]?.videoKeyframes);
+	assert.deepEqual(imported.project.clips[0]?.retimeMap, RETIME_CURVE);
+	assert.notStrictEqual(imported.project.clips[0]?.retimeMap, RETIME_CURVE);
 	const reopened = await recipient.loadProject(project.id);
 	assert.ok(reopened);
 	assert.deepEqual(
 		(reopened.clips as ReadonlyArray<{ readonly videoKeyframes?: unknown }>)[0]?.videoKeyframes,
 		project.clips[0]?.videoKeyframes,
+	);
+	assert.deepEqual(
+		(reopened.clips as ReadonlyArray<{ readonly retimeMap?: unknown }>)[0]?.retimeMap,
+		RETIME_CURVE,
 	);
 	const reopenedMedia = await recipient.loadMediaAsset('video-source');
 	assert.ok(reopenedMedia);
@@ -99,7 +114,7 @@ function authoredProject() {
 		clips: [{
 			kind: 'video', id: 'video-clip', sourceId: 'video-source', title: 'V20 clip',
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
-			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
+			sourceInFrame: 0, sourceFrameCount: 10, retimeMap: RETIME_CURVE,
 		}],
 		tracks: [createVideoTrack({
 			id: 'video-track', name: 'Video', clipIds: ['video-clip'], locked: false,

@@ -14,7 +14,6 @@ import {
 } from '../../sequence-timing-model.ts';
 import {
 	resolveInspectedVideoSource,
-	resolveSourceTimecodeAtSample,
 } from '../../source-properties-model.ts';
 import { AudacityToolbarFlyoutButton } from './AudioEditorMeterControls.jsx';
 import { SourcePropertiesPanel } from './SourcePropertiesPanel.jsx';
@@ -39,12 +38,15 @@ export function SequenceTimingControls({ project, snapshot, telemetry, controlle
 	const disabled = snapshot.readOnly || snapshot.recording;
 	const label = sequenceTimecodeLabelAtSample(view, positionFrame, sampleRate);
 	const sourceReading = useMemo(
-		() => resolveSourceTimecodeAtSample(project, positionFrame, view.id),
-		[project, positionFrame, view.id],
+		() => controller.actions.video.sourceTimecodeAtSample(positionFrame, view.id),
+		[controller, positionFrame, view.id],
 	);
 	const inspectedSource = useMemo(
-		() => resolveInspectedVideoSource(project, positionFrame, view.id),
-		[project, positionFrame, view.id],
+		() => {
+			const source = project.sources?.find((candidate) => candidate.id === sourceReading?.sourceId);
+			return source || resolveInspectedVideoSource(project, positionFrame, view.id);
+		},
+		[project, positionFrame, sourceReading?.sourceId, view.id],
 	);
 	const [invalid, setInvalid] = useState(false);
 	const inputRef = useRef(null);

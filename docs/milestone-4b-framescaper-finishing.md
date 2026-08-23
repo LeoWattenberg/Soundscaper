@@ -1,5 +1,12 @@
 # Milestone 4B pickup: Framescaper finishing
 
+> **Superseded selection route:** V20/V22/V24 below remain implementation and
+> sequencing history. The current route is Framescaper V27, built from the V24
+> visual lineage after forward-porting maintained V20 retime/proxy work. V27 is
+> implementation-complete and is an activation candidate pending guided-local
+> sign-off; external qualification remains open. V25/V26 native/OpenFX projects
+> remain recognized, opaque, read-only custody and confer no M5 authority.
+
 > Owning pickup contract for the Framescaper half of milestone 4. The
 > [milestone-4 plan](milestone-4-plan.md) owns shared sequencing and the
 > [roadmap](../roadmap.md#4-parallel-production-surfaces) owns product scope.
@@ -8,12 +15,13 @@
 
 ## Pickup status and sequencing
 
-**Status on 2026-08-22:** V20 is the provisionally selected Framescaper web and
-desktop route with 4B-1 composition and 4B-2 keyframes enabled. Their manual
-qualification remains open. V22 transitions and the V24 visual-model
-prerequisites are implemented dormant candidates; later finishing packets stay
-planned. The owner has separately cleared Soundscaper 4A sequencing; its V21
-production foundation is retained by the selected V23 route under the
+**Current status on 2026-08-23:** V27 is the selected Framescaper activation
+candidate for browser and desktop. Its M1–M4 implementation is complete, but
+guided-local sign-off and external qualification remain open. It activates the
+forward-ported V20 composition/keyframe/retime/proxy work and V22/V24 visual
+lineage without selecting dormant V25/V26 native/OpenFX state. The owner has
+separately cleared Soundscaper 4A sequencing; its V21 production foundation is
+retained by the selected V23 route under the
 [4A pickup contract](milestone-4a-soundscaper-production.md), without a
 qualification or milestone-completion claim.
 
@@ -23,8 +31,9 @@ description, WebGL and FFmpeg consumers, localized menu editing, browser
 storage, current-format `.scape`, copy-only cross-product handoff, and the
 calibrated browser/FFmpeg golden matrix. V19 is now the reserved dormant
 boundary; selected packaged Framescaper authenticates V20 through the distinct
-desktop-V12/SQLite-14/`v12` authority and does not migrate the historical
-V18/desktop-V10 library. The owner-designated Windows
+desktop-V17/SQLite-19/`v17` authority, copy-forwards the immutable desktop-V12
+library on first open, and does not migrate the historical V18/desktop-V10
+library. The owner-designated Windows
 x64 RTX 3090 run passed the historical golden and keyed-parity diagnostics.
 The new formal M4B-2 profile requires a fresh post-V20-selection packaged
 nightly artifact, and manual/release qualification is still open; therefore
@@ -71,13 +80,13 @@ renderer rounding policy (`src/common/editor/interpolation-curve.ts:35-47,
 keyframe time.
 
 Framescaper V18 introduced the exact product-owned boundary around the V17
-foundation, V19 added composition, and selected V20 adds keyframes while
-retaining both earlier contracts. Current validation therefore targets V20;
-the historical V18/V19 modules remain evidence for their owning revisions, not
-a reason to downgrade the selected route. Earlier schemas require typed
-re-import, future schemas remain opaque and intrinsically read-only, and each
-revision remains atomic with its validators, history, storage, commands,
-requirements, profiles, fixtures, and bootstrap.
+foundation, V19 added composition, and the historically selected V20 added
+keyframes while retaining both earlier contracts. Current validation targets
+selected V27; V20, V22, and V24 enter it only through explicit re-import, while
+the historical V18/V19 modules remain evidence for their owning revisions.
+V25/V26 stay opaque and intrinsically read-only. Each revision remains atomic
+with its validators, history, storage, commands, requirements, profiles,
+fixtures, and bootstrap.
 
 Schema revisions remain serialized product-wide: one revision is in flight,
 with one owner for the command protocol, registry, capability profiles,
@@ -657,7 +666,7 @@ browser acceptance covers edit/undo/redo/save/reopen, stale refusal, Blob and
 direct publication, cancellation, and cleanup while production gates stay
 untouched.
 
-Security controls now register exact selected V20 admission, keyed export
+Security controls in this historical packet registered exact V20 admission, keyed export
 authority, bounded keyed RGBA/A/V encoding, Blob publication, direct MP4/WebM
 delivery, and rollback. The semantic keyed parity
 collector compares preview and offline consumers with an independent oracle
@@ -697,16 +706,14 @@ curve from the shared interpolation vocabulary. A static first-party registry
 initially maintains `dissolve`; future maintained types extend that registry
 rather than extending the wire shape or accepting project-supplied code.
 
-4B-3 depends on 4B-1's atomic track-layer composition and on 4B-2's exact curve
-and preview/export foundations. V22 implementation must start from a clean,
-selected, and fully qualified V20 activation boundary. It must not select V22,
-flip a transition capability, or mix a V20 activation repair into a transition
-schema change while the current V20 route, storage, export, or packaged
-authority remains dormant. The current 4B-2 work above therefore does not
-authorize an early V22 product selection. V21 is now allocated to the
-owner-authorized Soundscaper 4A automation/mixer/PDC revision; 4B-3 remains
-planned and unimplemented, so its reservation moves without changing any
-implemented V18, V19, or V20 statement.
+Historically, 4B-3 depended on 4B-1's atomic track-layer composition and on
+4B-2's exact curve and preview/export foundations. V22 implementation therefore
+started from the clean V20 boundary without mixing a V20 activation repair into
+the transition schema change. That sequencing record did not itself authorize
+V22 product selection. V21 was allocated to the owner-authorized Soundscaper
+4A automation/mixer/PDC revision. Selected V27 now imports the implemented V22
+transition lineage explicitly; this historical packet confers no direct V22
+selection or qualification claim.
 
 Exact V22 has no implicit-transition dialect. A version-gated adapter may
 continue to present inferred linear dissolves for schema versions at most 20,
@@ -1092,7 +1099,7 @@ until a separate reviewed fallback/revert workflow exists.
     full browser tests, build/chunk ceilings, security registration, quality
     budgets, desktop/package transport, and manual/fixed-GPU rows pass.
     Lower-level V22 validation remains appropriate for the transition packet;
-    the clean end-to-end diagnostic rehearsal must run from selected V20 to the
+    the clean end-to-end diagnostic rehearsal historically ran from V20 to the
     latest cumulative candidate (currently V26), never by selecting or
     downgrading the product route to V22 or V24. That rehearsal does not
     authorize activation: selecting V26 also requires every intervening

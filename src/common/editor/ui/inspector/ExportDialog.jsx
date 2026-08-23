@@ -26,6 +26,7 @@ import {
 	isVideoExportDialogFormat,
 	projectHasTimelineVideo,
 } from '../export-dialog-model.js';
+import { framescaperV27CaptionDeliveryUnavailable } from '../video-caption-delivery-surface.ts';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import ExportPresetSection from './ExportPresetSection.jsx';
 import {
@@ -40,7 +41,7 @@ import {
 	parseJsonObject,
 } from './inspector-helpers.ts';
 
-export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
+export function ExportDialog({ isOpen, controller, snapshot, copy, productId, onClose }) {
 	const exportProgress = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.exportProgress);
 	const [metadataOpen, setMetadataOpen] = useState(false);
 	const [metadataTab, setMetadataTab] = useState('general');
@@ -127,8 +128,11 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	const blocked = !snapshot.ready || snapshot.importing || snapshot.recording || snapshot.processingEffect || snapshot.missingSourceIds?.length > 0 || !snapshot.project?.clips?.length;
 	const hasTimelineVideo = projectHasTimelineVideo(snapshot.project);
 	const videoFormat = isVideoExportDialogFormat(settings.format);
-	// Only label tracks can caption a delivery: milestone 4's styled caption
-	// schema does not exist yet, so labels are what there is to caption from.
+	const captionDeliveryUnavailable = framescaperV27CaptionDeliveryUnavailable(
+		productId, snapshot.project,
+	);
+	// Generic video delivery captions from label tracks. Selected V27 owns its
+	// explicit caption tracks and sidecar export through the gated menu surface.
 	const labelTracks = (snapshot.project?.tracks || []).filter((track) => track?.type === 'label');
 	const admRequired = settings.format === 'bw64' && settings.adm == null;
 	const admPassthrough = settings.format === 'bw64' && settings.adm?.mode === 'passthrough';
@@ -479,6 +483,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 							labelTracks={labelTracks}
 							settings={settings}
 							onChange={setVideoDeliverySetting}
+							captionDeliveryUnavailable={captionDeliveryUnavailable}
 						/>
 					)}
 				</section>

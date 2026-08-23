@@ -85,6 +85,7 @@ const packagedTest = base.extend({
 	runtimeBrowser: async ({ packagedRuntime }, use) => use(Object.freeze({
 		version: () => packagedRuntime.browser.version(),
 		browserType: () => Object.freeze({ executablePath: () => packagedRuntime.executablePath }),
+		newContext: (options) => packagedRuntime.browser.newContext(options),
 	})),
 	runtimeBrowserName: async ({ packagedRuntime }, use) => {
 		void packagedRuntime;

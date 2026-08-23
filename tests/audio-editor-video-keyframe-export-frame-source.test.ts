@@ -8,6 +8,7 @@ import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-
 import {
 	assertVideoKeyframeExportFrame,
 	assertVideoKeyframeExportFrameSource,
+	createVideoExactPictureExportFrameSource,
 	createVideoKeyframeExportFrameSource,
 } from '../src/common/editor/video-keyframe-export-frame-source.ts';
 import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
@@ -18,6 +19,21 @@ import {
 } from './helpers/framescaper-v20-model-fixture.ts';
 
 const PROFILE = FRAMESCAPER_V20_PROJECT_MODEL_PROFILE;
+
+test('product picture frames use an exact authenticated clock without video layers', () => {
+	const source = createVideoExactPictureExportFrameSource({
+		sampleRate: 48_000, startFrame: 4_800, endFrame: 14_400,
+		canvas: {
+			width: 4, height: 2, frameRate: { num: 10, den: 1 },
+			fit: 'contain', backgroundColor: '#000000',
+		},
+	});
+	assert.equal(source.frameCount, 2);
+	assert.deepEqual(source.frame(1), {
+		index: 1, timelineSample: 9_600,
+		timelinePosition: { num: 9_600, den: 1 }, layers: [],
+	});
+});
 
 test('frame source maps output indices exactly and evaluates shared keyed state lazily', () => {
 	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
@@ -107,6 +123,7 @@ test('frame source binds exact presentation descriptors to keyed and static clip
 	assert.equal((calls[0]?.clip as { id: string }).id, entry.clipId);
 	assert.equal((calls[0]?.source as { id: string }).id, entry.sourceId);
 	assert.deepEqual(calls[0]?.localSequencePosition, { num: 10, den: 3 });
+	assert.equal(calls[0]?.outputOrdinal, 1);
 
 	const keyedProject = createFramescaperProjectV20(PROFILE, framescaperV20Options());
 	(keyedProject.clips[0] as unknown as Record<string, unknown>).videoKeyframes = opacityKeyframes();

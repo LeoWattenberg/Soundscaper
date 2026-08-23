@@ -15,6 +15,7 @@ import {
 	workspacePanelAvailable,
 	type FramescaperCaptureUiSnapshot,
 } from '../framescaper-capture-ui-model.ts';
+import type { WebVcrUiSnapshot } from '../web-vcr-ui-model.ts';
 import { FramescaperCaptureSources } from './FramescaperCaptureSources.tsx';
 
 interface CaptureActions {
@@ -44,6 +45,7 @@ interface RecordingSetupPanelProps {
 		readonly project?: unknown;
 		readonly readOnly?: boolean;
 		readonly capture?: FramescaperCaptureUiSnapshot;
+		readonly webVcr?: Pick<WebVcrUiSnapshot, 'capability' | 'modeActive'> | null;
 	}>;
 	readonly blocked?: boolean;
 	readonly copy: Readonly<Record<string, string | undefined>>;
@@ -111,7 +113,9 @@ export default function RecordingSetupPanel({
 		if (next !== undefined) setCountdownMs(next);
 	}, [capture?.countdownMs, capture?.setupDefaults?.countdownMs]);
 
-	if (!workspacePanelAvailable(productId, FRAMESCAPER_CAPTURE_PANEL_ID)) return null;
+	if (!workspacePanelAvailable(
+		productId, FRAMESCAPER_CAPTURE_PANEL_ID, snapshot.webVcr, capture,
+	)) return null;
 	const phase = capture?.phase ?? 'inactive';
 	const availability = capture?.availability ?? { status: 'checking' };
 	const sourceLocked = capturePhaseIsSourceLocked(phase) || phase === 'permission-pending';

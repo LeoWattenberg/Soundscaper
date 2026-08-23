@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 
 import {
 	createPendingM3LongformEditorialResult,
@@ -83,6 +84,7 @@ export function createDesktopNightlyTestsMetricsPlan({
 			GITHUB_ACTIONS: 'false',
 			SOUNDSCAPER_M3_LONGFORM_BENCHMARK: '1',
 			SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID: 'local-browser-correctness',
+			SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID: 'local-browser-correctness',
 			SOUNDSCAPER_M4B2_KEYFRAME_PARITY: '1',
 			SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID: 'local-browser-correctness',
 			SOUNDSCAPER_M4_PRODUCTION_PARITY: '1',
@@ -114,23 +116,66 @@ export function createPendingM1VideoPreviewResult(diagnosticValue, configValue) 
 	const fixture = exactDescriptor(config.fixtures, 'video-preview-12fx-720p-v1', 'fixture');
 	const workload = exactDescriptor(config.workloads, 'm1-video-preview-12fx-720p', 'workload');
 	const specification = requireRecord(fixture.specification, 'M1 preview fixture specification');
-	if (!Array.isArray(diagnostic.resolution)
-		|| diagnostic.resolution[0] !== specification.width
-		|| diagnostic.resolution[1] !== specification.height) {
-		throw new Error('M1 preview diagnostic does not use the registered resolution.');
+	const expectedIdentity = {
+		schemaVersion: 1,
+		profile: 'deterministic-video-preview-12fx-v2',
+		observationClass: 'fresh-context-presentation-cadence-and-retained-js-heap-v1',
+		workloadId: 'm1-video-preview-12fx-720p',
+		fixtureId: 'video-preview-12fx-720p-v1',
+	};
+	for (const [field, expected] of Object.entries(expectedIdentity)) {
+		if (diagnostic[field] !== expected) throw new Error(`M1 preview diagnostic ${field} is invalid.`);
 	}
-	if (!Array.isArray(diagnostic.effects) || diagnostic.effects.length !== specification.effectCount
-		|| diagnostic.measuredIntervals !== specification.measuredIntervals
-		|| diagnostic.measuredFrames !== specification.measuredIntervals + 1
-		|| !Number.isSafeInteger(diagnostic.warmupFrames) || diagnostic.warmupFrames < 1) {
-		throw new Error('M1 preview diagnostic does not use the registered sampling shape.');
+	if (!isDeepStrictEqual(diagnostic.fixture, specification)) {
+		throw new Error('M1 preview diagnostic fixture does not match the registered specification.');
+	}
+	const expectedSampling = {
+		warmupTrials: 1,
+		measuredTrials: 5,
+		measuredFramesPerTrial: 121,
+		measuredIntervalsPerTrial: 120,
+		forcedCollectionsPerSnapshot: 3,
+	};
+	if (!isDeepStrictEqual(diagnostic.sampling, expectedSampling)) {
+		throw new Error('M1 preview diagnostic does not use one warmup and five measured fresh-context trials.');
+	}
+	if (!Array.isArray(diagnostic.trials) || diagnostic.trials.length !== 5) {
+		throw new Error('M1 preview diagnostic must retain five measured trials.');
+	}
+	const environmentFingerprint = packagedRuntimeFingerprint(diagnostic.environmentFingerprint);
+	const observedRendererClass = rendererClass(environmentFingerprint);
+	if (diagnostic.rendererClass !== observedRendererClass) {
+		throw new Error('M1 preview diagnostic renderer class does not match its packaged-runtime fingerprint.');
+	}
+	if (typeof diagnostic.environmentId !== 'string' || diagnostic.environmentId.length < 1) {
+		throw new Error('M1 preview diagnostic environment ID is unavailable.');
+	}
+	const frameIntervals = [];
+	const retainedHeapDeltas = [];
+	for (let trialIndex = 0; trialIndex < diagnostic.trials.length; trialIndex += 1) {
+		const trial = requireRecord(diagnostic.trials[trialIndex], `M1 preview trial ${String(trialIndex + 1)}`);
+		if (trial.trial !== trialIndex + 1) throw new Error('M1 preview trial ordinals are invalid.');
+		if (!Array.isArray(trial.frameTimestampsMs) || trial.frameTimestampsMs.length !== 121
+			|| trial.frameTimestampsMs.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
+			throw new Error('Every M1 preview trial must retain 121 finite frame timestamps.');
+		}
+		for (let frameIndex = 1; frameIndex < trial.frameTimestampsMs.length; frameIndex += 1) {
+			const interval = trial.frameTimestampsMs[frameIndex] - trial.frameTimestampsMs[frameIndex - 1];
+			if (!Number.isFinite(interval) || interval <= 0) {
+				throw new Error('M1 preview frame timestamps must be strictly increasing.');
+			}
+			frameIntervals.push(interval);
+		}
+		if (trial.forcedCollectionsBefore !== 3 || trial.forcedCollectionsAfter !== 3) {
+			throw new Error('Every M1 preview heap snapshot must follow three forced collections.');
+		}
+		const heapBefore = heapSnapshot(trial.heapBefore, 'M1 preview heap-before snapshot');
+		const heapAfter = heapSnapshot(trial.heapAfter, 'M1 preview heap-after snapshot');
+		retainedHeapDeltas.push(heapAfter.usedSize - heapBefore.usedSize);
 	}
 	const metrics = Object.freeze({
-		'preview.frameIntervalP95Ms': finiteNumber(diagnostic.p95Ms, 'M1 preview p95 interval'),
-		'preview.retainedJsHeapDeltaBytes': finiteNumber(
-			diagnostic.retainedJsHeapDeltaBytes,
-			'M1 preview retained heap delta',
-		),
+		'preview.frameIntervalP95Ms': roundedMetric(nearestRankP95(frameIntervals)),
+		'preview.retainedJsHeapDeltaBytes': roundedMetric(nearestRankP95(retainedHeapDeltas)),
 	});
 	if (!Array.isArray(workload.thresholds) || workload.thresholds.length !== 2) {
 		throw new Error('M1 preview workload must register exactly two thresholds.');
@@ -156,26 +201,24 @@ export function createPendingM1VideoPreviewResult(diagnosticValue, configValue) 
 		status: metricGatePassed ? 'pending-external' : 'failed',
 		workloadId: 'm1-video-preview-12fx-720p',
 		fixtureId: 'video-preview-12fx-720p-v1',
-		environmentId: 'local-browser-correctness',
+		profile: expectedIdentity.profile,
+		observationClass: expectedIdentity.observationClass,
+		environmentId: diagnostic.environmentId,
 		attemptCount: 1,
 		retryCount: 0,
-		rendererClass: rendererClass(diagnostic.renderer),
-		environmentFingerprint: Object.freeze({
-			browserVersion: String(diagnostic.browserVersion ?? ''),
-			browserEnvironment: diagnostic.browserEnvironment,
-			renderer: diagnostic.renderer,
-		}),
-		fixture: Object.freeze({
-			width: specification.width,
-			height: specification.height,
-			effectCount: specification.effectCount,
-			measuredIntervals: specification.measuredIntervals,
-		}),
+		rendererClass: observedRendererClass,
+		environmentFingerprint,
+		fixture: Object.freeze({ ...specification }),
 		metrics,
 		rawSampleCounts: Object.freeze({
-			warmupFrames: diagnostic.warmupFrames,
-			measuredFrames: diagnostic.measuredFrames,
-			measuredIntervals: diagnostic.measuredIntervals,
+			warmupTrials: 1,
+			measuredTrials: diagnostic.trials.length,
+			measuredFrames: diagnostic.trials.length * 121,
+			measuredIntervals: frameIntervals.length,
+			forcedCollectionsBefore: diagnostic.trials.length * 3,
+			forcedCollectionsAfter: diagnostic.trials.length * 3,
+			heapSnapshotsBefore: diagnostic.trials.length,
+			heapSnapshotsAfter: diagnostic.trials.length,
 		}),
 		metricGatePassed,
 		qualificationEvidencePublished: false,
@@ -408,15 +451,47 @@ function exactDescriptor(collection, id, label) {
 	return matches[0];
 }
 
-function finiteNumber(value, label) {
-	if (typeof value !== 'number' || !Number.isFinite(value)) throw new TypeError(`${label} must be finite.`);
-	return value;
+function rendererClass(value) {
+	const fingerprint = requireRecord(value, 'M1 preview packaged-runtime environment fingerprint');
+	const description = `${fingerprint.webglVendor} ${fingerprint.webglRenderer}`;
+	return /swiftshader|llvmpipe|software|offscreen/iu.test(description) ? 'software' : 'hardware';
 }
 
-function rendererClass(value) {
-	const renderer = requireRecord(value, 'M1 preview renderer');
-	const description = `${String(renderer.vendor ?? '')} ${String(renderer.renderer ?? '')}`;
-	return /swiftshader|llvmpipe|software|offscreen/iu.test(description) ? 'software' : 'hardware';
+function packagedRuntimeFingerprint(value) {
+	const fingerprint = requireRecord(value, 'M1 preview packaged-runtime environment fingerprint');
+	for (const field of [
+		'browserVersion', 'platform', 'architecture', 'webglVendor', 'webglRenderer',
+		'gpuDriverVersion', 'gpuDeviceId', 'powerMode', 'displayMode',
+	]) {
+		if (typeof fingerprint[field] !== 'string' || fingerprint[field].length < 1) {
+			throw new Error('M1 preview packaged-runtime environment fingerprint is incomplete.');
+		}
+	}
+	if (!['win32', 'linux', 'darwin'].includes(fingerprint.platform)
+		|| !['x64', 'arm64'].includes(fingerprint.architecture)) {
+		throw new Error('M1 preview packaged-runtime environment fingerprint is invalid.');
+	}
+	return Object.freeze({ ...fingerprint });
+}
+
+function heapSnapshot(value, label) {
+	const snapshot = requireRecord(value, label);
+	if (typeof snapshot.usedSize !== 'number' || !Number.isFinite(snapshot.usedSize) || snapshot.usedSize < 0
+		|| typeof snapshot.totalSize !== 'number' || !Number.isFinite(snapshot.totalSize)
+		|| snapshot.totalSize < snapshot.usedSize) {
+		throw new Error(`${label} is invalid.`);
+	}
+	return snapshot;
+}
+
+function nearestRankP95(samples) {
+	if (!Array.isArray(samples) || samples.length < 1) throw new TypeError('M1 preview percentile samples are unavailable.');
+	const sorted = samples.toSorted((left, right) => left - right);
+	return sorted[Math.ceil(sorted.length * 0.95) - 1];
+}
+
+function roundedMetric(value) {
+	return Number(value.toFixed(9));
 }
 
 function message(error) {

@@ -275,7 +275,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 	const startStaticServer = dependencies.startStaticServer ?? startDesktopNightlyTestsStaticServer;
 	const runPlaywright = dependencies.runPlaywright ?? runPlaywrightChild;
 	let server = null;
-	let outcome = Object.freeze({ status: 'error', exitCode: 2 });
+	let outcome;
 	let signal = null;
 	let failure = null;
 	try {
@@ -312,7 +312,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 			outcome = combineOutcomes(outcome, packagedOutcome, packagedMetrics.evidence.passed);
 		}
 	} catch (error) {
-		failure = message(error);
+		outcome = Object.freeze({ status: 'error', exitCode: 2 }); failure = message(error);
 	} finally {
 		if (server) {
 			try {

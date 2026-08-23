@@ -15,12 +15,11 @@ test('current desktop lease qualification is product-isolated and remains pendin
 	assert.equal(rule.status, 'partial');
 	const claim = `${rule.requiredOutcome} ${rule.currentBehavior}`;
 	assert.match(claim, /Soundscaper.*V10.*process-lifetime.*main-owned.*lease/isu);
-	assert.match(claim, /Framescaper.*V10.*process-lifetime.*main-owned.*lease/isu);
-	assert.match(claim, /Framescaper.*session.*recovery/isu);
-	assert.match(claim, /cross-product.*(?:physical|storage).*isolation.*not.*shared mutable catalog/isu);
-	assert.match(claim, /historical.*eight.*V9.*V17/isu);
-	assert.match(claim, /do(?:es)? not authorize.*Framescaper V17/isu);
-	for (const product of ['Soundscaper V10', 'Framescaper V10']) {
+	assert.match(claim, /Framescaper.*V18.*process-lifetime.*main-owned.*lease/isu);
+	assert.match(claim, /Framescaper V18.*V17.*V12.*immutable/isu);
+	assert.match(claim, /seven product-specific workflows.*both products/isu);
+	assert.match(claim, /cross-product-simultaneous-open.*once.*paired packages/isu);
+	for (const product of ['Soundscaper V10', 'Framescaper V18']) {
 		for (const target of ['Windows x64', 'Linux x64']) {
 			assert.match(claim, new RegExp(`${product}.*${target}.*pending-external`, 'isu'));
 		}
@@ -32,21 +31,18 @@ test('current desktop lease qualification is product-isolated and remains pendin
 		currentControls.map((control) => [control.id, control])
 	)));
 	const leaseMatrix = controls.get('packaged-cross-platform-electron-lease-matrix');
-	const framescaper = controls.get('framescaper-v18-desktop-v10-isolation');
+	const framescaper = controls.get('framescaper-v20-desktop-v17-isolation');
 	assert.ok(leaseMatrix);
 	assert.ok(framescaper);
-	assert.match(leaseMatrix.summary, /Soundscaper.*V10.*seven.*workflow/isu);
-	assert.match(leaseMatrix.summary, /cross-product-simultaneous-open.*historical.*not run/isu);
+	assert.match(leaseMatrix.summary, /Soundscaper.*V10.*Framescaper.*V18.*process-lifetime/isu);
+	assert.match(leaseMatrix.summary, /crash-restart-recovery for both products.*cross-product-simultaneous-open once/isu);
 	assert.match(leaseMatrix.summary, /Windows x64.*Linux x64.*pending-external/isu);
-	assert.match(framescaper.summary, /process-lifetime.*lease.*session.*recovery/isu);
-	assert.match(framescaper.summary, /Windows x64.*Linux x64.*pending-external/isu);
-	assert.match(
-		`${leaseMatrix.summary} ${framescaper.summary}`,
-		/separate.*(?:scope|database|storage).*cross-product.*isolation/isu,
-	);
+	assert.match(framescaper.summary, /desktop-library V18.*user_version 20.*scope v18/isu);
+	assert.match(framescaper.summary, /V17.*read-only.*reimports.*V20-to-V27.*resumes idempotently/isu);
+	assert.match(leaseMatrix.summary, /separate storage scope and database.*storage and fencing isolation/isu);
 });
 
-test('roadmap preserves the frozen M2 inventory as history without re-admitting Framescaper V17', async () => {
+test('roadmap binds the M2 inventory to the selected product generations', async () => {
 	const closure = await json('config/milestone-2-closure.json');
 	const item = closure.items.find(({ id }) => id === 'm2-electron-lease-matrix');
 	assert.equal(closure.scopeRevision, 2);
@@ -62,13 +58,15 @@ test('roadmap preserves the frozen M2 inventory as history without re-admitting 
 	]);
 
 	const roadmap = await text('roadmap.md');
-	assert.match(roadmap, /eight.*workflow.*frozen historical.*V9.*V17/isu);
-	assert.match(roadmap, /current executable\s+qualification.*Soundscaper V10.*Framescaper V10/isu);
-	assert.match(roadmap, /does not.*re-admit.*Framescaper V17/isu);
+	assert.match(roadmap, /seven product-specific workflows.*Soundscaper desktop-library V10.*Framescaper desktop-library V18/isu);
+	assert.match(roadmap, /cross-product-simultaneous-open.*once.*paired packages/isu);
+	assert.match(roadmap, /user_version.*20.*scope.*v18/isu);
+	assert.match(roadmap, /reimports.*V17.*V20.*V27|V20 documents.*V27/isu);
+	assert.match(roadmap, /without reopening, rewriting, or deleting.*V17 or V12/isu);
 	assert.match(roadmap, /Windows x64.*Linux x64.*accepted packaged results.*absent.*Partial/isu);
 });
 
-test('current capability inventory separates V9 and V10 package evidence', async () => {
+test('current capability inventory names the selected desktop lease owners', async () => {
 	const capabilities = await json('config/production-capabilities.json');
 	const linuxX64 = capabilities.desktopTargets.find(
 		({ os, architecture }) => os === 'linux' && architecture === 'x64',
@@ -93,21 +91,20 @@ test('current capability inventory separates V9 and V10 package evidence', async
 		'scripts/lib/desktop-project-library-lease-matrix.mjs',
 	]) assert.ok(soundscaper.evidence.includes(path), path);
 	for (const path of [
-		'desktop/project-library-v10-main.ts',
-		'desktop/project-library-v10-main-preload.ts',
-		'desktop/project-library-v10-main-session.ts',
-		'desktop/project-library-v10-lifecycle-host.ts',
-		'desktop/project-library-v10-publication-transport.ts',
-		'desktop/framescaper-v18-artifact-smoke.js',
-		'src/framescaper/desktop-project-library-v10-delete-intents.ts',
-		'src/framescaper/desktop-project-library-v10-renderer-contract.ts',
-		'src/framescaper/desktop-project-library-v10-renderer-catalog.ts',
-		'src/framescaper/desktop-project-library-v10-renderer-lifecycle.ts',
-		'tests/audio-editor-framescaper-desktop-v10-ipc-recovery.test.ts',
-		'tests/audio-editor-framescaper-desktop-v10-lifecycle-recovery.test.ts',
-		'tests/desktop-project-library-v10-lifecycle-host.test.ts',
-		'tests/desktop-project-library-v10-main.test.ts',
-		'tests/desktop-project-library-v10-publication-host.test.ts',
+		'desktop/project-library-product-runtime.js',
+		'desktop/project-library-v18-contract.ts',
+		'desktop/project-library-v18-database.ts',
+		'desktop/project-library-v18-import.ts',
+		'desktop/project-library-v18-main.ts',
+		'desktop/project-library-v18-main-ipc.ts',
+		'desktop/project-library-v18-writer.ts',
+		'desktop/framescaper-v27-artifact-smoke.js',
+		'src/framescaper/desktop-project-library-v18-renderer.ts',
+		'src/framescaper/desktop-project-library-v18-store-adapter.ts',
+		'tests/desktop-project-library-v18-main.test.ts',
+		'tests/audio-editor-framescaper-desktop-v18-renderer.test.ts',
+		'tests/desktop-project-library-lease-matrix.test.js',
+		'tests/desktop-project-library-lease-smoke.test.js',
 		'tests/desktop-smoke.test.js',
 	]) assert.ok(framescaper.evidence.includes(path), path);
 	assert.doesNotMatch(JSON.stringify(framescaper.evidence),

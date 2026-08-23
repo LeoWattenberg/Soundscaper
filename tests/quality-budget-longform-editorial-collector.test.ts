@@ -245,8 +245,8 @@ test('the registered runnable harness delegates formal acceptance to packaged ni
 	assert.equal(packageMetadata.scripts['quality:collect:m3-longform'],
 		'node scripts/collect-m3-longform-editorial-quality.mjs');
 	assert.equal(workload?.status, 'provisional');
-	assert.equal(environment?.status, 'active');
-	assert.equal(environment?.qualificationEligible, true);
+	assert.equal(environment?.status, 'unprovisioned');
+	assert.equal(environment?.qualificationEligible, false);
 	assert.equal(profile?.environmentId, QUALIFICATION_ENVIRONMENT_ID);
 	assert.equal(quality.qualification.qualifiedWorkloadIds.includes('m3-longform-editorial'), false);
 });

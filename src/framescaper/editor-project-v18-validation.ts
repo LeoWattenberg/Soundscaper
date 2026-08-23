@@ -157,11 +157,6 @@ function validateAttachmentRelationships(
 		if (occurrences.length === 0) {
 			throw new RangeError(`Video source ${sourceId} proxy attachment requires an occurrence.`);
 		}
-		for (const clip of occurrences) {
-			if (dataProperty(clip, 'retimeMap', `video source ${sourceId} occurrence`) !== null) {
-				throw new RangeError(`Video source ${sourceId} occurrence retimeMap must be null while attached.`);
-			}
-		}
 	}
 }
 

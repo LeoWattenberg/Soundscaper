@@ -1,23 +1,34 @@
 # Framescaper capture privacy
 
-Framescaper recording is an opt-in, local-first feature. It can capture a
-camera, microphone, display, or a supported combination of those sources.
+> **Dormant historical boundary (2026-08-23):** selected Framescaper V27 sets
+> `framescaperCapture:false`, passes no capture route to its controller, and has
+> no Recording Setup menu, preference, panel, or ordinary toolbar entry. The
+> contracts below describe retained schema-18/19/20 implementation and recovery
+> safety, not an available M1–M4 product feature. Only an already-active or
+> recovery-owned historical session may retain the narrow control needed to
+> stop, release, recover, or discard its media. Activation belongs to milestone
+> 8.
+
+The retained capture implementation is local-first. It can capture a camera,
+microphone, display, or a supported combination of those sources when composed
+by one of its historical routes.
 Display capture may also return system or tab audio when the browser and
 operating system offer it. Framescaper treats that audio as a separate stream;
 it does not imply that system audio is available.
 
 ## Consent and visible state
 
-- Opening a project, opening a menu, showing Recording setup, or pressing an
-  inactive Record control does not open a device. The inactive control only
-  focuses the default-hidden **Recording setup** panel.
+- On a historical capture route, opening a project, opening a menu, showing
+  Recording setup, or pressing an inactive Record control does not open a
+  device. Selected V27 exposes none of those capture entry points.
 - A preview request consumes one fresh, direct user-action generation. Display
   selection is requested anew for each preview session.
 - A desktop source list contains only bounded, pathless, short-lived tokens,
   display names, and source kinds. Framescaper never silently chooses its first
   entry. macOS uses the system picker when the qualified runtime supports it.
-- The toolbar keeps a visible recording or paused state and a Stop action while
-  capture is active, even when Recording setup is closed.
+- A retained historical active or recovery-owned session keeps a visible status
+  and the exact Stop, release, recovery, or discard action needed to relinquish
+  media, even though ordinary capture discovery remains unavailable.
 - Embedded Framescaper routes deny camera, microphone, and display capture.
   Standalone Framescaper routes receive their own non-overlapping document
   policy. Framescaper recording is unavailable in Soundscaper; Soundscaper
@@ -69,11 +80,11 @@ disposable derivatives without awaiting them. Audio receives ordinary waveform
 activation and never a proxy job. Every valid owned captured video receives one
 proxy job after its poster and filmstrip attempt. The proxy request binds the
 capture session, origin project, source, committed revision, and source digest;
-exact V19 web and V18 desktop routes may attach it while the origin is inactive
-without switching the user's active project. A proxy or reconciliation failure
+historical exact V19 web, V18 desktop, and V20 web/desktop routes may attach it
+while the origin is inactive without switching the user's active project. A proxy or reconciliation failure
 is reported as a warning and does not roll back canonical recorded media. This
-capture-derived route is not a general user-invoked proxy, adaptive-selection,
-offline-generation, or relink feature.
+capture-derived route is not selected V27's separately implemented general
+editorial proxy lifecycle and grants V27 no capture authority.
 
 Incomplete acknowledged data remains local as an explicit recovery session.
 Startup scans stored project IDs current-first, admits at most one global
@@ -102,12 +113,13 @@ Renderer revocation, controller disposal, application shutdown, and explicit
 desktop teardown invalidate the current generation and join resource cleanup.
 Short-lived desktop grants are single-use and expire if they are not consumed.
 
-Record becomes available only on the exact schema-19 web or schema-18 desktop
-Framescaper route when the source, supported video encoder, audio packet path,
-cross-context Web Locks, complete encoded/raw/manifest repository set, video
-probe, and canonical publication store are all present. A partial stack remains
-unavailable; the presence of Web Locks alone is not a durability or device
-qualification claim.
+Record was available only on the historical exact schema-19 web, schema-18
+desktop, or schema-20 web/desktop route when the source, supported video
+encoder, audio packet path, cross-context Web Locks, complete
+encoded/raw/manifest repository set, video probe, and canonical publication
+store were all present. A partial stack remained unavailable; the presence of
+Web Locks alone was not a durability or device qualification claim. Selected
+V27 is rejected before capture binding or runtime probing.
 
 ## Dormant Web VCR privacy boundary
 

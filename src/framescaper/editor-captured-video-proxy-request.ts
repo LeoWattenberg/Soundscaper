@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { FramescaperCapturedVideoProxyRequest } from '../common/editor/controller/framescaper-capture-derivative-scheduler.ts';
+import {
+	normalizeVideoProxyAttachmentV18,
+	type VideoProxyAttachmentV18,
+} from '../common/editor/video-proxy-attachment-v18.ts';
 
 export function normalizeCapturedVideoProxyRequest(
 	value: FramescaperCapturedVideoProxyRequest,
@@ -15,10 +19,18 @@ export function normalizeCapturedVideoProxyRequest(
 	if (!/^[a-f0-9]{64}$/u.test(value.expectedContentSha256)) {
 		throw new TypeError('The captured proxy source digest is invalid.');
 	}
+	const expectedProxyAttachment = value.expectedProxyAttachment === undefined
+		? undefined
+		: normalizeVideoProxyAttachmentV18(value.expectedProxyAttachment);
+	if (expectedProxyAttachment
+		&& expectedProxyAttachment.originalSha256 !== value.expectedContentSha256) {
+		throw new Error('The captured proxy replacement attachment belongs to another original generation.');
+	}
 	return Object.freeze({
 		projectId, sessionId, sourceId,
 		expectedProjectRevision: value.expectedProjectRevision,
 		expectedContentSha256: value.expectedContentSha256,
+		...(expectedProxyAttachment ? { expectedProxyAttachment } : {}),
 	});
 }
 
@@ -29,17 +41,32 @@ export function capturedVideoProxyOperationIdentifier(request: FramescaperCaptur
 }
 
 export function capturedVideoProxyOperationKey(request: FramescaperCapturedVideoProxyRequest): string {
-	return [
+	const fields = [
 		request.sessionId,
 		request.projectId,
 		String(request.expectedProjectRevision),
 		request.sourceId,
 		request.expectedContentSha256,
-	].join('\u0000');
+	];
+	if (request.expectedProxyAttachment) {
+		fields.push(JSON.stringify(normalizeVideoProxyAttachmentV18(request.expectedProxyAttachment)));
+	}
+	return fields.join('\u0000');
 }
 
 export function capturedVideoProxyLineageKey(request: FramescaperCapturedVideoProxyRequest): string {
 	return `${request.sessionId}\u0000${request.projectId}\u0000${String(request.expectedProjectRevision)}`;
+}
+
+export function sameCapturedVideoProxyAttachment(
+	left: unknown,
+	right: Readonly<VideoProxyAttachmentV18>,
+): boolean {
+	try {
+		return JSON.stringify(normalizeVideoProxyAttachmentV18(left)) === JSON.stringify(right);
+	} catch {
+		return false;
+	}
 }
 
 function identifier(value: unknown, name: string): string {

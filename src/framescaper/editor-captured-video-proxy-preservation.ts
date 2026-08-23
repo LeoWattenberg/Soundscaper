@@ -4,7 +4,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
-import { isFramescaperCaptureProjectSchema } from '../common/editor/project-schema-version.ts';
+import { isFramescaperSequenceProjectSchema } from '../common/editor/project-schema-version.ts';
 import { serializeScapeProjectDocument } from '../common/editor/scape-project-document.ts';
 import { request, transact } from '../common/editor/storage/indexeddb-backend.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from '../common/editor/storage/media-asset-staging-schema.ts';
@@ -26,14 +26,17 @@ import { cloneFramescaperProjectV18, type FramescaperProjectV18 } from './editor
 import { assertFramescaperProjectV19Profile } from './editor-project-v19-profile.ts';
 import { cloneFramescaperProjectV19, type FramescaperProjectV19 } from './editor-project-v19.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV20 } from './editor-project-feature-requirements-v20.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV27 } from './editor-project-feature-requirements-v27.ts';
 import { assertFramescaperProjectV20Profile } from './editor-project-v20-profile.ts';
 import { cloneFramescaperProjectV20, type FramescaperProjectV20 } from './editor-project-v20.ts';
+import { cloneFramescaperProjectV27, type FramescaperProjectV27 } from './editor-project-v27.ts';
+import { assertFramescaperProjectV27Profile } from './editor-project-runtime-profile-v27.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 
-export type FramescaperCapturedVideoProxySchemaVersion = 18 | 19 | 20;
+export type FramescaperCapturedVideoProxySchemaVersion = 18 | 19 | 20 | 27;
 export type FramescaperCapturedVideoProxyProject =
-	FramescaperProjectV18 | FramescaperProjectV19 | FramescaperProjectV20;
+	FramescaperProjectV18 | FramescaperProjectV19 | FramescaperProjectV20 | FramescaperProjectV27;
 
 export interface FramescaperCapturedVideoProxyPreservationPublication {
 	readonly expected: unknown;
@@ -44,8 +47,8 @@ export interface FramescaperCapturedVideoProxyPreservationPublication {
 
 /**
  * Product-private one-source CAS publisher used by post-capture proxy work.
- * Existing attachments are immutable; one null target may become attached in
- * the same transaction that consumes and publishes its two body claims.
+ * One exact null or attached target may become the proven attachment in the
+ * same transaction that consumes and publishes its two body claims.
  */
 export class FramescaperCapturedVideoProxyPreservationRepository {
 	readonly #schemaVersion: FramescaperCapturedVideoProxySchemaVersion;
@@ -61,7 +64,7 @@ export class FramescaperCapturedVideoProxyPreservationRepository {
 			readonly claims: VideoProxyClaimRepository;
 		}>,
 	) {
-		if (!isFramescaperCaptureProjectSchema(schemaVersion)) {
+		if (!isFramescaperSequenceProjectSchema(schemaVersion)) {
 			throw new TypeError('Captured proxy preservation requires a maintained Framescaper schema.');
 		}
 		if (!dependencies?.port || typeof dependencies.port.database !== 'function'
@@ -101,6 +104,11 @@ export class FramescaperCapturedVideoProxyPreservationRepository {
 		const expected = cloneProject(this.#schemaVersion, this.#profile, expectedValue);
 		const published = cloneProject(this.#schemaVersion, this.#profile, publishedValue);
 		const sourceId = identifier(sourceIdValue, 'source id');
+		const attachment = exactSource(published, sourceId).proxyAttachment;
+		if (!attachment) throw new Error('Captured proxy rollback requires one published attachment.');
+		assertExactTransition(
+			this.#schemaVersion, this.#profile, expected, published, sourceId, attachment,
+		);
 		const claims = rollbackClaims(expected, published, sourceId, claimsValue);
 		if (published.id !== expected.id || published.revision !== Number(expected.revision) + 1) {
 			throw new Error('Captured proxy rollback requires its exact next revision.');
@@ -183,8 +191,8 @@ function normalizePublication(
 	const baseSource = exactSource(expected, sourceId);
 	const nextSource = exactSource(project, sourceId);
 	if (baseSource.kind !== 'video' || nextSource.kind !== 'video'
-		|| baseSource.proxyAttachment !== null || nextSource.proxyAttachment === null) {
-		throw new Error('Captured proxy preservation requires one null video attachment target.');
+		|| nextSource.proxyAttachment === null) {
+		throw new Error('Captured proxy preservation requires one video attachment target.');
 	}
 	assertExactTransition(schemaVersion, profile, expected, project, sourceId, nextSource.proxyAttachment);
 	return Object.freeze({
@@ -220,7 +228,6 @@ function assertExactTransition(
 	candidate.revision = project.revision;
 	candidate.updatedAt = project.updatedAt;
 	const source = exactSource(candidate as unknown as FramescaperCapturedVideoProxyProject, sourceId);
-	if (source.proxyAttachment !== null) throw new Error('The captured proxy target was already attached.');
 	source.proxyAttachment = attachment;
 	candidate.featureRequirements = reconcileRequirements(schemaVersion, profile, candidate);
 	const normalized = cloneProject(schemaVersion, profile, candidate);
@@ -347,7 +354,7 @@ function rollbackClaims(
 		throw new RangeError('Captured proxy rollback cleanup claims are invalid.');
 	}
 	const attachment = exactSource(published, sourceId).proxyAttachment;
-	if (exactSource(expected, sourceId).proxyAttachment !== null || !attachment) {
+	if (!attachment) {
 		throw new Error('Captured proxy rollback cleanup requires its attached transition.');
 	}
 	const allowed = new Map([
@@ -375,7 +382,8 @@ function cloneProject(
 ): FramescaperCapturedVideoProxyProject {
 	if (schemaVersion === 18) return cloneFramescaperProjectV18(profile, project);
 	if (schemaVersion === 19) return cloneFramescaperProjectV19(profile, project);
-	return cloneFramescaperProjectV20(profile, project);
+	if (schemaVersion === 20) return cloneFramescaperProjectV20(profile, project);
+	return cloneFramescaperProjectV27(profile, project);
 }
 
 function assertProfile(
@@ -384,7 +392,8 @@ function assertProfile(
 ): void {
 	if (schemaVersion === 18) assertFramescaperProjectV18Profile(profile);
 	else if (schemaVersion === 19) assertFramescaperProjectV19Profile(profile);
-	else assertFramescaperProjectV20Profile(profile);
+	else if (schemaVersion === 20) assertFramescaperProjectV20Profile(profile);
+	else assertFramescaperProjectV27Profile(profile);
 }
 
 function reconcileRequirements(
@@ -394,7 +403,8 @@ function reconcileRequirements(
 ): unknown {
 	if (schemaVersion === 18) return reconcileFramescaperProjectFeatureRequirementsV18(profile, project);
 	if (schemaVersion === 19) return reconcileFramescaperProjectFeatureRequirementsV19(profile, project);
-	return reconcileFramescaperProjectFeatureRequirementsV20(profile, project);
+	if (schemaVersion === 20) return reconcileFramescaperProjectFeatureRequirementsV20(profile, project);
+	return reconcileFramescaperProjectFeatureRequirementsV27(profile, project);
 }
 
 function exactSource(

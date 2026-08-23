@@ -32,10 +32,10 @@ const EMPTY: FramescaperCandidateAuthoringMenuItems = Object.freeze({
 	tracks: Object.freeze([]), generate: Object.freeze([]), effect: Object.freeze([]),
 });
 
-const TRANSITION_SCHEMAS = new Set([22, 24, 25, 26]);
-const VISUAL_SCHEMAS = new Set([24, 25, 26]);
+const TRANSITION_SCHEMAS = new Set([22, 24, 25, 26, 27]);
+const VISUAL_SCHEMAS = new Set([24, 25, 26, 27]);
 
-/** Candidate-only menu entries. V20 and every Soundscaper generation return no rows. */
+/** Generation-owned menu entries. V20 and every Soundscaper generation return no rows. */
 export function createFramescaperCandidateAuthoringMenuItems(
 	input: FramescaperCandidateAuthoringMenuInput,
 	actions: Readonly<{ open(surface: FramescaperCandidateAuthoringSurface): unknown }>,
@@ -71,16 +71,22 @@ export function createFramescaperCandidateAuthoringMenuItems(
 		return Object.freeze({ tracks: Object.freeze([]), generate: Object.freeze([]),
 			effect: Object.freeze([transitions]) });
 	}
+	const selectedV27 = schemaVersion === 27;
 	const generators = branch(
 		'framescaper-video-generators', copy.videoGenerators ?? 'Video Generators', [
 			leaf('framescaper-add-video-title', 'addVideoTitle', 'Add Title/Text…',
 				'video-title', 'videoGenerators'),
+			...(selectedV27 ? [leaf('framescaper-add-video-text', 'addVideoText', 'Add Text…',
+				'video-text', 'videoGenerators')] : []),
 			leaf('framescaper-add-video-shape', 'addVideoShape', 'Add Shape…',
 				'video-shape', 'videoGenerators'),
 			leaf('framescaper-add-video-solid', 'addVideoSolid', 'Add Solid…',
 				'video-solid', 'videoGenerators'),
-			leaf('framescaper-add-external-video-generator', 'addExternalVideoGenerator',
-				'Add External Generator…', 'video-external-generator', 'videoGenerators'),
+			...(selectedV27 ? [leaf('framescaper-save-video-visual-preset', 'saveVideoVisualPreset',
+				'Save Visual Preset…', 'video-visual-preset', 'videoGenerators')] : [
+				leaf('framescaper-add-external-video-generator', 'addExternalVideoGenerator',
+					'Add External Generator…', 'video-external-generator', 'videoGenerators'),
+			]),
 		],
 	);
 	return Object.freeze({

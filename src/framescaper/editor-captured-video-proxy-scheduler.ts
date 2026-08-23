@@ -55,6 +55,7 @@ import {
 	capturedVideoProxySchedulerDependenciesV18,
 	capturedVideoProxySchedulerDependenciesV19,
 	capturedVideoProxySchedulerDependenciesV20,
+	capturedVideoProxySchedulerDependenciesV27,
 	type CapturedVideoProxySchedulerDependencies,
 	type FramescaperCapturedVideoProxyRuntimeComposition,
 } from './editor-captured-video-proxy-scheduler-composition.ts';
@@ -66,15 +67,14 @@ import {
 	cloneCapturedVideoProxyProject as cloneProject,
 	capturedVideoProxyProjectFingerprint as projectFingerprint,
 } from './editor-captured-video-proxy-project.ts';
+import { nextCapturedVideoProxyAttachmentProject } from './editor-captured-video-proxy-transition.ts';
 import {
 	capturedVideoProxyLineageKey as lineageKey,
 	capturedVideoProxyOperationIdentifier as operationIdentifier,
 	capturedVideoProxyOperationKey as operationKey,
 	normalizeCapturedVideoProxyRequest as normalizeRequest,
+	sameCapturedVideoProxyAttachment as sameAttachment,
 } from './editor-captured-video-proxy-request.ts';
-import { reconcileFramescaperProjectFeatureRequirementsV18 } from './editor-project-feature-requirements-v18.ts';
-import { reconcileFramescaperProjectFeatureRequirementsV19 } from './editor-project-feature-requirements-v19.ts';
-import { reconcileFramescaperProjectFeatureRequirementsV20 } from './editor-project-feature-requirements-v20.ts';
 import type { CapturedVideoProxyControllerTicket } from './editor-captured-video-proxy-session-reconciliation.ts';
 import {
 	acquireFramescaperVideoProxyAttachmentBudgetV18,
@@ -116,6 +116,16 @@ export function createFramescaperCapturedVideoProxySchedulerV20(
 	composition: FramescaperCapturedVideoProxyRuntimeComposition,
 ): FramescaperCapturedVideoProxyScheduler {
 	return createScheduler(capturedVideoProxySchedulerDependenciesV20(
+		environmentValue, sessionValue, composition,
+	));
+}
+
+export function createFramescaperCapturedVideoProxySchedulerV27(
+	environmentValue: unknown,
+	sessionValue: unknown,
+	composition: FramescaperCapturedVideoProxyRuntimeComposition,
+): FramescaperCapturedVideoProxyScheduler {
+	return createScheduler(capturedVideoProxySchedulerDependenciesV27(
 		environmentValue, sessionValue, composition,
 	));
 }
@@ -196,7 +206,10 @@ function createScheduler(dependencies: CapturedVideoProxySchedulerDependencies):
 			if (!pending) landed.assertCapacity(reconciliationKey);
 			const base = await loadAdmittedBase(dependencies, lineage, request, signal, pending);
 			const target = videoSource(base, request.sourceId);
-			if (pending?.outcome === 'indeterminate' && target.proxyAttachment === null) {
+			const replacementBase = request.expectedProxyAttachment
+				? sameAttachment(target.proxyAttachment, request.expectedProxyAttachment)
+				: target.proxyAttachment === null;
+			if (pending?.outcome === 'indeterminate' && replacementBase) {
 				committed = true;
 				await settleIndeterminateCapturedVideoProxyPredecessor({
 					pending, current: base, projectId: request.projectId,
@@ -209,7 +222,10 @@ function createScheduler(dependencies: CapturedVideoProxySchedulerDependencies):
 				landed.delete(reconciliationKey);
 				return;
 			}
-			if (target.proxyAttachment !== null) {
+			if (target.proxyAttachment !== null && !replacementBase) {
+				if (request.expectedProxyAttachment && !pending) throw abortError(
+					'The captured proxy replacement attachment changed before generation.',
+				);
 				assertMatchingExistingAttachment(target, request.expectedContentSha256);
 				const reconciliation = pending ?? Object.freeze({
 					outcome: 'committed' as const, base, target: base, cleanupOperation: null,
@@ -288,7 +304,9 @@ function createScheduler(dependencies: CapturedVideoProxySchedulerDependencies):
 				videoSource(latest, request.sourceId),
 				signal,
 			);
-			const next = nextAttachedProject(dependencies, latest, request.sourceId, attachment);
+			const next = nextCapturedVideoProxyAttachmentProject(
+				dependencies, latest, request.sourceId, attachment, request.expectedProxyAttachment,
+			);
 			await assertFramescaperVideoProxyAttachmentCapacityV18(
 				dependencies.store,
 				latest as never,
@@ -513,7 +531,14 @@ async function loadAdmittedBase(
 	if (source.contentSha256 !== request.expectedContentSha256) {
 		throw abortError('The captured video source digest changed before proxy generation.');
 	}
-	if (source.proxyAttachment !== null) {
+	if (request.expectedProxyAttachment) {
+		const exactPendingTarget = Boolean(pending
+			&& projectFingerprint(dependencies, pending.target) === projectFingerprint(dependencies, base));
+		if (!sameAttachment(source.proxyAttachment, request.expectedProxyAttachment) && !exactPendingTarget) {
+			throw abortError('The captured proxy replacement attachment changed before generation.');
+		}
+		if (exactPendingTarget) return base;
+	} else if (source.proxyAttachment !== null) {
 		assertMatchingExistingAttachment(source, request.expectedContentSha256);
 		return base;
 	}
@@ -528,33 +553,14 @@ async function loadAdmittedBase(
 	return base;
 }
 
-function nextAttachedProject(
-	dependencies: CapturedVideoProxySchedulerDependencies,
-	base: FramescaperCapturedVideoProxyProject,
-	sourceId: string,
-	attachment: Readonly<VideoProxyAttachmentV18>,
-): FramescaperCapturedVideoProxyProject {
-	if (base.revision === Number.MAX_SAFE_INTEGER) throw new RangeError('The captured proxy revision cannot advance.');
-	const draft = structuredClone(base) as unknown as Record<string, unknown>;
-	const source = videoSource(draft as unknown as FramescaperCapturedVideoProxyProject, sourceId);
-	if (source.proxyAttachment !== null) throw new Error('The captured proxy target is already attached.');
-	source.proxyAttachment = attachment;
-	draft.revision = Number(base.revision) + 1;
-	const baseTime = new Date(String(base.updatedAt)).getTime();
-	draft.updatedAt = new Date(Math.max(Date.now(), baseTime + 1)).toISOString();
-	draft.featureRequirements = dependencies.schemaVersion === 18
-		? reconcileFramescaperProjectFeatureRequirementsV18(dependencies.profile, draft)
-		: dependencies.schemaVersion === 19
-			? reconcileFramescaperProjectFeatureRequirementsV19(dependencies.profile, draft)
-			: reconcileFramescaperProjectFeatureRequirementsV20(dependencies.profile, draft);
-	return cloneProject(dependencies, draft);
-}
-
 function videoSource(
 	project: FramescaperCapturedVideoProxyProject,
 	sourceId: string,
 ): Record<string, unknown> & { proxyAttachment: VideoProxyAttachmentV18 | null } {
-	const matches = project.sources.filter((source) => source.id === sourceId);
+	const sources = (project as unknown as {
+		readonly sources: readonly Readonly<Record<string, unknown>>[];
+	}).sources;
+	const matches = sources.filter((source) => source.id === sourceId);
 	if (matches.length !== 1 || matches[0]!.kind !== 'video') {
 		throw new ReferenceError(`Captured video proxy source ${sourceId} is missing or ambiguous.`);
 	}

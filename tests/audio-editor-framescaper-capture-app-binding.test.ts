@@ -14,6 +14,7 @@ import {
 import { createFramescaperCaptureAdminInterlock } from '../src/common/editor/controller/framescaper-capture-admin-interlock.ts';
 import { FramescaperCaptureOriginProtectedError } from '../src/common/editor/controller/framescaper-capture-origin-guard.ts';
 import { framescaperCaptureProjectFence } from '../src/common/editor/controller/framescaper-capture-project-publication-port.ts';
+import { completeFramescaperCaptureRuntimeProbe } from '../src/common/editor/controller/framescaper-capture-runtime-probe.ts';
 import type { FramescaperCaptureSessionManifestV1 } from '../src/common/editor/framescaper-capture-session-manifest.ts';
 
 test('the app binding exists only on exact maintained Framescaper routes', () => {
@@ -26,6 +27,12 @@ test('the app binding exists only on exact maintained Framescaper routes', () =>
 	assert.equal(createFramescaperCaptureAppBinding({
 		productId: 'framescaper', routeSchemaVersion: 19, isDesktop: true,
 	} as never), null);
+	assert.equal(createFramescaperCaptureAppBinding({
+		productId: 'framescaper', routeSchemaVersion: 27, isDesktop: false,
+	} as never), null);
+	assert.equal(createFramescaperCaptureAppBinding({
+		productId: 'framescaper', routeSchemaVersion: 27, isDesktop: true,
+	} as never), null);
 	assert.throws(() => createFramescaperCaptureAppBinding({
 		productId: 'framescaper', routeSchemaVersion: 19, isDesktop: false,
 	} as never), /dependencies are incomplete/iu);
@@ -35,6 +42,14 @@ test('the app binding exists only on exact maintained Framescaper routes', () =>
 	assert.throws(() => createFramescaperCaptureAppBinding({
 		productId: 'framescaper', routeSchemaVersion: 20, isDesktop: true,
 	} as never), /dependencies are incomplete/iu);
+});
+
+test('the selected V27 route never reaches capture runtime probing', async () => {
+	assert.deepEqual(await completeFramescaperCaptureRuntimeProbe({
+		productId: 'framescaper', routeSchemaVersion: 27, desktop: null,
+	} as never), {
+		status: 'unavailable', reason: 'unsupported-platform', detail: null,
+	});
 });
 
 test('desktop binding without its capture bridge remains available as a truthful unavailable runtime', async () => {

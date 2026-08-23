@@ -1,5 +1,11 @@
 # Milestone 3B-5g: exact serialized video-retime export intent
 
+> **Historical intent record.** The selected V27 web-core route now binds the
+> maintained exact ordinal authority to preview and browser export as specified
+> by the [Milestones 1–4 activation plan](milestones-1-to-4-activation-plan.md).
+> Hard-stop and unavailable labels below remain evidence of the earlier packet;
+> native milestone-5 execution is still excluded and unclaimed.
+
 > **3B-5g-a implemented on 2026-08-12.** Contract correction `e905a3dd`
 > removed the unreachable decimal sub-cap, and `b8bfbda5` delivers only the
 > dormant backend-neutral V6 intent below. The canonical `npm run check` gate

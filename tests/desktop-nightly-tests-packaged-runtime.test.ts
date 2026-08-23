@@ -39,6 +39,13 @@ test('packaged-runtime executable resolution is closed over the staged product t
 });
 
 test('packaged-runtime metrics run through the bundled Playwright driver', () => {
+	const fixedEnvironment = {
+		PATH: '/usr/bin',
+		SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION: '555.42.02',
+		SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID: '10de:2204',
+		SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE: 'maximum-performance-ac',
+		SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE: '1920x1080@60Hz-100pct',
+	};
 	const plan = createDesktopNightlyTestsPackagedMetricsPlan({
 		executablePath: '/opt/Soundscaper Tests/soundscaper-tests',
 		payloadRoot: '/opt/Soundscaper Tests/resources/nightly-tests',
@@ -46,7 +53,7 @@ test('packaged-runtime metrics run through the bundled Playwright driver', () =>
 		baseURL: 'http://127.0.0.1:45678',
 		platform: 'linux',
 		arch: 'x64',
-		environment: { PATH: '/usr/bin' },
+		environment: fixedEnvironment,
 	});
 
 	assert.match(plan.args.at(-1) ?? '', /playwright\.nightly-packaged-metrics\.config\.mjs$/u);
@@ -58,9 +65,26 @@ test('packaged-runtime metrics run through the bundled Playwright driver', () =>
 	);
 	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM, 'linux');
 	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_ARCH, 'x64');
+	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION, '555.42.02');
+	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID, '10de:2204');
+	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE, 'maximum-performance-ac');
+	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE, '1920x1080@60Hz-100pct');
 	assert.equal(plan.env.GITHUB_ACTIONS, 'false');
 	assert.equal(plan.env.SOUNDSCAPER_M3_LONGFORM_BENCHMARK, '1');
 	assert.equal(plan.env.SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID, 'packaged-runtime-linux-x64');
+	assert.equal(plan.env.SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID, 'packaged-runtime-linux-x64');
+});
+
+test('packaged-runtime qualification refuses an incomplete owner environment identity', () => {
+	assert.throws(() => createDesktopNightlyTestsPackagedMetricsPlan({
+		executablePath: '/opt/Soundscaper Tests/soundscaper-tests',
+		payloadRoot: '/opt/Soundscaper Tests/resources/nightly-tests',
+		runRoot: '/tmp/Soundscaper-playwright-run',
+		baseURL: 'http://127.0.0.1:45678',
+		platform: 'linux',
+		arch: 'x64',
+		environment: { PATH: '/usr/bin' },
+	}), /GPU driver version.*required/iu);
 });
 
 test('packaged-runtime Chromium arguments admit WebGL on hosted Linux renderers', () => {
@@ -87,6 +111,7 @@ test('packaged-runtime tests reuse one Electron process per product worker', asy
 	assert.match(source, /productId = workerInfo\.project\.metadata\.productId/u);
 	assert.match(source, /connectOverCDP\(endpoint,\s*\{\s*timeout:\s*90_000\s*\}\)/u);
 	assert.match(source, /Packaged runtime CDP connection failed\./u);
+	assert.match(source, /newContext:\s*\(options\) => packagedRuntime\.browser\.newContext\(options\)/u);
 	assert.match(source, /\{ scope: 'worker' \}\]/u);
 	assert.match(source, /auto: true/u);
 });
@@ -101,7 +126,8 @@ test('packaged video benchmark drives localized controls through stable hooks', 
 	assert.match(source, /\[data-video-effect-add\]/u);
 	assert.match(source, /\[data-transport="play"\]/u);
 	assert.match(source, /\[data-transport="stop"\]/u);
-	assert.match(source, /page\.goto\('\/framescaper\/de\/'\)/u);
+	assert.match(source, /runtimeBrowser\.newContext\(/u);
+	assert.match(source, /new URL\('\/framescaper\/de\/', runtimeBaseURL\)/u);
 	assert.doesNotMatch(source, /name: '(?:Clip properties|Add effect|Play|Stop)'/u);
 });
 

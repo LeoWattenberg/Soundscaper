@@ -98,6 +98,7 @@ export function workspacePanelAvailable(
 	productId: string,
 	panelId: string,
 	webVcr?: Pick<WebVcrUiSnapshot, 'capability' | 'modeActive'> | null,
+	capture?: Pick<FramescaperCaptureUiSnapshot, 'phase'> | null,
 ): boolean {
 	if (panelId === WEB_VCR_PANEL_ID) {
 		return productProfile(productId).applicationFeatures.framescaperCapture === true
@@ -105,6 +106,7 @@ export function workspacePanelAvailable(
 	}
 	if (panelId === FRAMESCAPER_CAPTURE_PANEL_ID && webVcr?.modeActive === true) return false;
 	if (panelId !== FRAMESCAPER_CAPTURE_PANEL_ID) return true;
+	if (productId === 'framescaper' && framescaperCaptureRecordRequired(capture)) return true;
 	return productProfile(productId).applicationFeatures.framescaperCapture === true;
 }
 
@@ -117,7 +119,7 @@ export function framescaperCaptureRecordVisible(
 	capture: Pick<FramescaperCaptureUiSnapshot, 'phase'> | null | undefined,
 	locallyOptedIn: boolean,
 ): boolean {
-	if (!workspacePanelAvailable(productId, FRAMESCAPER_CAPTURE_PANEL_ID)) return false;
+	if (!workspacePanelAvailable(productId, FRAMESCAPER_CAPTURE_PANEL_ID, null, capture)) return false;
 	return locallyOptedIn || Boolean(capture && ACTIVE_OR_RECOVERY_PHASES.has(capture.phase));
 }
 

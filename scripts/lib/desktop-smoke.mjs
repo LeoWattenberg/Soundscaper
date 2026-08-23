@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 
 import { validateFramescaperCaptureArtifactEvidence } from '../../desktop/framescaper-capture-artifact-smoke.js';
-import { validateFramescaperV20ArtifactEvidence } from '../../desktop/framescaper-v20-artifact-smoke.js';
+import { validateFramescaperV27ArtifactEvidence } from '../../desktop/framescaper-v27-artifact-smoke.js';
 
 const SUPPORTED_ARCHITECTURES = new Set(['arm64', 'x64']);
 
@@ -126,10 +126,10 @@ export function assertDesktopSmokePayload(payload, expected) {
 	assertDesktopChrome(payload?.desktopChrome, expected.platform);
 	if (expected.productId === 'framescaper') {
 		validateFramescaperCaptureArtifactEvidence(payload?.framescaperCapture);
-		validateFramescaperV20ArtifactEvidence(payload?.framescaperV20);
+		validateFramescaperV27ArtifactEvidence(payload?.framescaperV27);
 	} else {
 		assert(payload?.framescaperCapture === undefined, 'Soundscaper smoke emitted Framescaper capture evidence.');
-		assert(payload?.framescaperV20 === undefined, 'Soundscaper smoke emitted Framescaper V20 evidence.');
+		assert(payload?.framescaperV27 === undefined, 'Soundscaper smoke emitted Framescaper V27 evidence.');
 	}
 }
 

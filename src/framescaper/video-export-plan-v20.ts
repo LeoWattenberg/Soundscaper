@@ -52,6 +52,11 @@ export interface FramescaperVideoKeyframeExportPlanRequestV20 {
 	readonly audioLayout?: VideoDeliveryAudioLayout;
 }
 
+export interface FramescaperVideoKeyframeExportBuildOptionsV20 {
+	/** V27 finishing needs exact RGBA even without authored V20 keyframes. */
+	readonly allowNeutralExact?: boolean;
+}
+
 interface ExactCanvas {
 	readonly width: number;
 	readonly height: number;
@@ -77,6 +82,7 @@ export function createFramescaperVideoKeyframeExportPlanV20(
 	profile: FramescaperProjectV20Profile | unknown,
 	projectValue: FramescaperProjectV20 | unknown,
 	requestValue: FramescaperVideoKeyframeExportPlanRequestV20 | unknown = {},
+	buildOptions: FramescaperVideoKeyframeExportBuildOptionsV20 = {},
 ): VideoKeyframeExportPlanV7 {
 	assertFramescaperProjectV20Profile(profile);
 	validateFramescaperProjectV20(profile, projectValue);
@@ -85,8 +91,8 @@ export function createFramescaperVideoKeyframeExportPlanV20(
 	const decision = classifyFramescaperVideoExportDispatchV20(
 		profile, projectValue, requestedRange,
 	);
-	if (decision.strategy !== 'keyed-v20') {
-		throw new RangeError('The exact export range has no active authored keyframes; use legacy-v6 dispatch.');
+	if (decision.strategy !== 'keyed-v20' && buildOptions.allowNeutralExact !== true) {
+		throw new RangeError('The exact export range has no active authored keyframes or retime; use legacy-v6 dispatch.');
 	}
 	const runtimeProject = framescaperProjectForRuntimeConsumersV20(profile, projectValue);
 	const inventory = createVideoKeyframeExportInventory({

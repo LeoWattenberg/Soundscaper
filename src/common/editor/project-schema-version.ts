@@ -7,6 +7,8 @@ export const FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION = 20 as const;
 export const FRAMESCAPER_PROJECT_V25_SCHEMA_VERSION = 25 as const;
 /** Dormant isolated-OpenFX candidate; never include in shipped-route predicates. */
 export const FRAMESCAPER_PROJECT_V26_SCHEMA_VERSION = 26 as const;
+/** Selected Framescaper finishing generation; V25/V26 remain dormant custody. */
+export const FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION = 27 as const;
 export const SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION = 21 as const;
 /** Reserved dormant Framescaper transitions candidate; never a selected shared authority. */
 export const FRAMESCAPER_PROJECT_V22_SCHEMA_VERSION = 22 as const;
@@ -54,6 +56,12 @@ export function isSoundscaperProductionProjectSchema(value: unknown): value is 2
 		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
+/** Documents that execute the shared V21 automation and explicit mixer graph. */
+export function isProductionMixerProjectSchema(value: unknown): value is 21 | 23 | 27 {
+	return isSoundscaperProductionProjectSchema(value)
+		|| value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION;
+}
+
 /**
  * Documents whose revision owns a mastering-sequence collection.
  *
@@ -66,21 +74,37 @@ export function isMasteringSequenceProjectSchema(value: unknown): value is 23 {
 }
 
 /** Framescaper generations that own nested-sequence and multicamera graphs. */
-export function isFramescaperSequenceProjectSchema(value: unknown): value is 18 | 19 | 20 {
+export function isFramescaperSequenceProjectSchema(value: unknown): value is 18 | 19 | 20 | 27 {
+	return value === 18
+		|| value === FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION;
+}
+
+/** Historical Framescaper generations that own the dormant capture contract. */
+export function isFramescaperCaptureProjectSchema(value: unknown): value is 18 | 19 | 20 {
 	return value === 18
 		|| value === FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION
 		|| value === FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION;
 }
 
-/** Framescaper generations that own the capture publication contract. */
-export function isFramescaperCaptureProjectSchema(value: unknown): value is 18 | 19 | 20 {
-	return isFramescaperSequenceProjectSchema(value);
+/** Framescaper generations that own explicit clip composition state. */
+export function isFramescaperVideoCompositionProjectSchema(value: unknown): value is 19 | 20 | 27 {
+	return value === FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION;
 }
 
-/** Framescaper generations that own explicit clip composition state. */
-export function isFramescaperVideoCompositionProjectSchema(value: unknown): value is 19 | 20 {
-	return value === FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION
-		|| value === FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION;
+/** Selected Framescaper generations that own explicit video-keyframe curves. */
+export function isFramescaperVideoKeyframeProjectSchema(value: unknown): value is 20 | 27 {
+	return value === FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION;
+}
+
+/** Selected Framescaper generations that own maintained occurrence-retime authoring. */
+export function isFramescaperVideoRetimeProjectSchema(value: unknown): value is 20 | 27 {
+	return value === FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION;
 }
 
 /** Active audio-authoring documents: shared V17 and Soundscaper-owned V21/V23. */
@@ -90,10 +114,11 @@ export function isActiveAudioEditorProjectSchema(value: unknown): value is 17 | 
 		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
-export function isTimelineAnnotationProjectSchema(value: unknown): value is 17 | 21 | 23 {
+export function isTimelineAnnotationProjectSchema(value: unknown): value is 17 | 21 | 23 | 27 {
 	return value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION
 		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
-		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
+		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION;
 }
 
 export function isTrackFolderProjectSchema(value: unknown): value is 17 | 21 | 23 {
@@ -134,15 +159,16 @@ export function isAudioWarpProjectSchema(value: unknown): value is 17 | 21 | 23 
 }
 
 /** Exact selected-product schemas that persist the maintained feature manifest. */
-export function isMaintainedProjectFeatureSchema(value: unknown): value is 17 | 19 | 20 | 21 | 23 {
+export function isMaintainedProjectFeatureSchema(value: unknown): value is 17 | 19 | 20 | 21 | 23 | 27 {
 	return value === AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION
 		|| value === FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION
 		|| value === FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION
 		|| value === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
 		|| value === SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION;
 }
 
 /** Exact maintained product schemas whose closed rendered-fallback roles are understood. */
-export function isMaintainedRenderedFallbackProjectSchema(value: unknown): value is 17 | 19 | 20 | 21 | 23 {
+export function isMaintainedRenderedFallbackProjectSchema(value: unknown): value is 17 | 19 | 20 | 21 | 23 | 27 {
 	return isMaintainedProjectFeatureSchema(value);
 }

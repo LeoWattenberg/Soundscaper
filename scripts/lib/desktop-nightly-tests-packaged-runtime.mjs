@@ -68,6 +68,10 @@ export function createDesktopNightlyTestsPackagedMetricsPlan({
 	assertLoopback(baseURL);
 	if (!['linux', 'win32', 'darwin'].includes(platform)) throw new TypeError('Packaged runtime platform is invalid.');
 	if (!['x64', 'arm64'].includes(arch)) throw new TypeError('Packaged runtime architecture is invalid.');
+	requireEnvironmentIdentity(environment, 'SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION', 'GPU driver version');
+	requireEnvironmentIdentity(environment, 'SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID', 'GPU device ID');
+	requireEnvironmentIdentity(environment, 'SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE', 'power mode');
+	requireEnvironmentIdentity(environment, 'SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE', 'display mode');
 	return Object.freeze({
 		command: executablePath,
 		args: Object.freeze([
@@ -94,6 +98,7 @@ export function createDesktopNightlyTestsPackagedMetricsPlan({
 			GITHUB_ACTIONS: 'false',
 			SOUNDSCAPER_M3_LONGFORM_BENCHMARK: '1',
 			SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID: `packaged-runtime-${platform}-${arch}`,
+			SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID: `packaged-runtime-${platform}-${arch}`,
 			SOUNDSCAPER_M4B2_KEYFRAME_PARITY: '1',
 			SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID: `packaged-runtime-${platform}-${arch}`,
 			SOUNDSCAPER_M4_PRODUCTION_PARITY: '1',
@@ -101,6 +106,12 @@ export function createDesktopNightlyTestsPackagedMetricsPlan({
 		}),
 		logFile: join(runRoot, 'packaged-runtime/console.log'),
 	});
+}
+
+function requireEnvironmentIdentity(environment, name, label) {
+	if (typeof environment?.[name] !== 'string' || environment[name].length < 1) {
+		throw new Error(`Packaged runtime ${label} is required in ${name}.`);
+	}
 }
 
 export async function runDesktopNightlyTestsPackagedMetricsPhase(options, dependencies = {}) {

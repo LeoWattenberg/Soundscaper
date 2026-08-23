@@ -14,6 +14,7 @@ export interface RuntimeVideoTimingIndex {
 
 const VIDEO_TIMING_INDEXES = new Map<string, RuntimeVideoTimingIndex>();
 const VIDEO_TIMING_LEASES = new Map<string, VideoTimingLeaseRegistration>();
+let VIDEO_TIMING_REGISTRY_TOKEN: Readonly<object> = Object.freeze({});
 
 interface VideoTimingLeaseRegistration {
 	readonly index: RuntimeVideoTimingIndex;
@@ -35,6 +36,7 @@ export function registerVideoTimingIndex(sourceValue: unknown, indexValue: Runti
 	const key = videoTimingKey(source);
 	VIDEO_TIMING_INDEXES.set(key, index);
 	VIDEO_TIMING_LEASES.delete(key);
+	advanceVideoTimingRegistryToken();
 }
 
 /** Temporarily own a verified index without clobbering an independent preview registration. */
@@ -53,6 +55,7 @@ export function acquireVideoTimingIndex(
 	};
 	VIDEO_TIMING_INDEXES.set(key, index);
 	VIDEO_TIMING_LEASES.set(key, registration);
+	advanceVideoTimingRegistryToken();
 	return Object.freeze({
 		release(): boolean {
 			if (registration.released) return false;
@@ -72,27 +75,42 @@ export function acquireVideoTimingIndex(
 				else VIDEO_TIMING_INDEXES.delete(key);
 				VIDEO_TIMING_LEASES.delete(key);
 			}
+			advanceVideoTimingRegistryToken();
 			return true;
 		},
 	});
 }
 
 export function unregisterVideoTimingIndex(sourceValue: unknown): void {
+	let changed = false;
 	if (typeof sourceValue === 'string' && sourceValue) {
 		for (const key of VIDEO_TIMING_INDEXES.keys()) if (key.startsWith(`${sourceValue}:`)) {
+			changed = true;
 			VIDEO_TIMING_INDEXES.delete(key);
 			VIDEO_TIMING_LEASES.delete(key);
 		}
+		if (changed) advanceVideoTimingRegistryToken();
 		return;
 	}
 	const key = videoTimingKey(record(sourceValue, 'source'));
+	changed = VIDEO_TIMING_INDEXES.has(key) || VIDEO_TIMING_LEASES.has(key);
 	VIDEO_TIMING_INDEXES.delete(key);
 	VIDEO_TIMING_LEASES.delete(key);
+	if (changed) advanceVideoTimingRegistryToken();
 }
 
 /** Read the exact active registry object without copying or re-validating its timing payload. */
 export function registeredVideoTimingIndex(sourceValue: unknown): RuntimeVideoTimingIndex | undefined {
 	return VIDEO_TIMING_INDEXES.get(videoTimingKey(record(sourceValue, 'source')));
+}
+
+/** Identity changes whenever exact timing availability or lease restoration changes. */
+export function videoTimingRegistryToken(): Readonly<object> {
+	return VIDEO_TIMING_REGISTRY_TOKEN;
+}
+
+function advanceVideoTimingRegistryToken(): void {
+	VIDEO_TIMING_REGISTRY_TOKEN = Object.freeze({});
 }
 
 /** Compare the active source range with the timeline range in wall-clock time. */

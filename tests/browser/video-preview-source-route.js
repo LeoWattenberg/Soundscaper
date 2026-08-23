@@ -6,6 +6,7 @@ const SOURCE_MODULES = new Map([
 	['common/editor/closed-domain-value.ts', '../../src/common/editor/closed-domain-value.ts'],
 	['common/editor/video-clip-composition.ts', '../../src/common/editor/video-clip-composition.ts'],
 	['common/editor/video-delivery-color.ts', '../../src/common/editor/video-delivery-color.ts'],
+	['common/editor/video-preview-render-description.ts', '../../src/common/editor/video-preview-render-description.ts'],
 	['common/editor/ui/video-preview-composition-blend.ts', '../../src/common/editor/ui/video-preview-composition-blend.ts'],
 	['common/editor/ui/video-preview-compositor.js', '../../src/common/editor/ui/video-preview-compositor.js'],
 	['common/editor/ui/video-preview-compositor-size.js', '../../src/common/editor/ui/video-preview-compositor-size.js'],

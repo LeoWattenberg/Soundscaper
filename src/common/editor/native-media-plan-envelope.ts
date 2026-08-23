@@ -35,7 +35,10 @@ import {
 	assertUnifiedExactRenderPlanV11,
 	assertUnifiedExactRenderPlanV12,
 	assertUnifiedExactRenderPlanWithTimingSidecars,
-	type UnifiedExactRenderPlan,
+	type UnifiedExactRenderPlanV9,
+	type UnifiedExactRenderPlanV10,
+	type UnifiedExactRenderPlanV11,
+	type UnifiedExactRenderPlanV12,
 	type UnifiedExactRenderTimingSidecars,
 } from './unified-exact-render-plan.ts';
 import { unifiedExactClipUsesRetime } from './unified-exact-render-plan-v9.ts';
@@ -306,13 +309,14 @@ function admitUnified(
 	plan: Readonly<Record<string, unknown>>,
 	version: Exclude<NativeMediaPlanVersion, 7 | 8>,
 	timingSidecars?: UnifiedExactRenderTimingSidecars,
-): UnifiedExactRenderPlan {
+): UnifiedExactRenderPlanV9 | UnifiedExactRenderPlanV10 | UnifiedExactRenderPlanV11 | UnifiedExactRenderPlanV12 {
 	if (timingSidecars !== undefined) assertUnifiedExactRenderPlanWithTimingSidecars(plan, timingSidecars);
 	else if (version === 9) assertUnifiedExactRenderPlanV9(plan);
 	else if (version === 10) assertUnifiedExactRenderPlanV10(plan);
 	else if (version === 11) assertUnifiedExactRenderPlanV11(plan);
 	else assertUnifiedExactRenderPlanV12(plan);
-	return plan;
+	return plan as UnifiedExactRenderPlanV9 | UnifiedExactRenderPlanV10
+		| UnifiedExactRenderPlanV11 | UnifiedExactRenderPlanV12;
 }
 
 function summarizeGraphPlan(plan: NativeMediaGraphPlan): NativeMediaPlanSummaryV1 {
@@ -408,7 +412,10 @@ function summarizeV7(plan: VideoKeyframeExportPlanV7): NativeMediaPlanSummaryV1 
 	});
 }
 
-function summarizeUnified(plan: UnifiedExactRenderPlan): NativeMediaPlanSummaryV1 {
+function summarizeUnified(
+	plan: UnifiedExactRenderPlanV9 | UnifiedExactRenderPlanV10
+		| UnifiedExactRenderPlanV11 | UnifiedExactRenderPlanV12,
+): NativeMediaPlanSummaryV1 {
 	const clips = plan.nodes.filter((node) => node.kind === 'clip');
 	const counts = Object.freeze({
 		transitions: plan.nodes.filter((node) => node.kind === 'transition').length,

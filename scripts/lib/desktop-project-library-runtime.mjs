@@ -3,15 +3,14 @@
 import { spawn } from 'node:child_process';
 import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
-
 import { build } from 'esbuild';
-
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, DESKTOP_RUNTIME_BUNDLED_LEAF_FILES } from './desktop-5b-transitive-runtime-files.mjs';
+import { DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES } from './desktop-project-library-exact-runtime-files.mjs';
+import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES } from './desktop-project-library-v27-runtime-files.mjs';
 
 const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
 const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
 const SOUNDSCAPER_V10_PRELOAD_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
-
 // Staged sources ship no TypeScript loader. Package aliases resolve to source
 // TypeScript in the repository and compiled runtime members in the application.
 export const DESKTOP_RUNTIME_PACKAGE_IMPORTS = Object.freeze({
@@ -257,6 +256,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-track-visibility.js',
 	'src/common/editor/video-timing-asset-reference.js',
 	'src/common/editor/video-timing-asset.js',
+	'src/common/editor/video-transition-preview-opacity.js',
 	'src/common/editor/wav-opaque-chunks.js',
 	'src/common/editor/web-vcr-domain.js',
 	'src/common/editor/web-vcr-geometry.js',
@@ -341,19 +341,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/soundscaper/editor-project-feature-requirements-v23.js',
 	'src/soundscaper/editor-project-production-validation.js',
 	'src/soundscaper/editor-project-v23-validation.js',
-	'desktop/project-library-exact-generation-contract.js',
-	'desktop/project-library-exact-generation-database.js',
-	'desktop/project-library-exact-generation-main-channels.js',
-	'desktop/project-library-exact-generation-main-ipc.js',
-	'desktop/project-library-exact-generation-main.js',
-	'desktop/project-library-exact-generation-storage.js',
-	'desktop/project-library-v12-contract.js',
-	'desktop/project-library-v12-current-project.js',
-	'desktop/project-library-v12-database.js',
-	'desktop/project-library-v12-main-channels.js',
-	'desktop/project-library-v12-main-ipc.js',
-	'desktop/project-library-v12-main.js',
-	'desktop/project-library-v12-values.js',
+	...DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES,
 	'src/common/editor/native-durable-root-grant.js',
 	'src/common/editor/native-external-display.js',
 	'src/common/editor/native-media-atomic-publication.js',
@@ -441,6 +429,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/framescaper/editor-project-v20-profile.js',
 	'src/framescaper/editor-project-v20-structural-admission.js',
 	'src/framescaper/editor-project-v20-validation.js',
+	...DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES,
 ].sort());
 
 export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outputRoot }) {
@@ -578,7 +567,13 @@ async function listRuntimeFiles(root, relativeRoot = '') {
 function assertExpectedRuntime(files) {
 	if (files.length !== EXPECTED_RUNTIME_FILES.length
 		|| files.some((name, index) => name !== EXPECTED_RUNTIME_FILES[index])) {
-		throw new Error(`Desktop runtime output is incomplete or stale: ${files.join(', ')}`);
+		const expected = new Set(EXPECTED_RUNTIME_FILES);
+		const actual = new Set(files);
+		const missing = EXPECTED_RUNTIME_FILES.filter((name) => !actual.has(name));
+		const unexpected = files.filter((name) => !expected.has(name));
+		throw new Error(
+			`Desktop runtime output is incomplete or stale; missing: ${missing.join(', ') || '(none)'}; unexpected: ${unexpected.join(', ') || '(none)'}`,
+		);
 	}
 }
 

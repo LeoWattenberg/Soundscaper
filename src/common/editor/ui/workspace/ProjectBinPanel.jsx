@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button, ContextMenu, ContextMenuItem, DialogHeader } from '@dilsonspickles/components';
 
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
+import { createFramescaperVideoProxyApplicationMenuItems } from '../framescaper-video-proxy-application-menu.ts';
 import ProjectBinCard from './ProjectBinCard.jsx';
 import {
 	dispatchLinkedAudioChoice,
@@ -12,6 +13,7 @@ import {
 import { projectBinColorName, projectBinItems } from './project-bin-model.ts';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.webm,.wv';
+const FramescaperVideoProxyDialog = React.lazy(() => import('../dialogs/FramescaperVideoProxyDialog.tsx'));
 
 export default function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked }) {
 	const inputRef = useRef(null);
@@ -20,12 +22,14 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const linkedAudioRelinkRequestRef = useRef(0);
 	const linkedAudioRelinkProjectRef = useRef(null);
 	const relinkChangedChoiceRef = useRef(null);
+	const proxyProjectIdRef = useRef(null);
 	const [dropActive, setDropActive] = useState(false);
 	const [itemMenu, setItemMenu] = useState(null);
 	const [replacementClipId, setReplacementClipId] = useState(null);
 	const [replacementChoice, setReplacementChoice] = useState(null);
 	const [removeConfirmation, setRemoveConfirmation] = useState(null);
 	const [relinkChangedChoice, setRelinkChangedChoice] = useState(null);
+	const [proxyClipId, setProxyClipId] = useState(null);
 	const project = snapshot.project;
 	const projectId = project?.id;
 	const projectRevision = project?.revision;
@@ -90,6 +94,20 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const menuVideoRelinkEligible = Boolean(menuVideoClip
 		&& itemMenu?.videoClipId === menuVideoClip.id
 		&& itemMenu.linkedVideoRelinkEligible);
+	const proxyMenuItem = menuVideoClip ? createFramescaperVideoProxyApplicationMenuItems({
+		productId: snapshot.productId,
+		project,
+		copy,
+		open: () => {
+			proxyProjectIdRef.current = projectId;
+			setProxyClipId(menuVideoClip.id);
+		},
+	})[0] || null : null;
+	const proxyDialogOpen = proxyClipId !== null && proxyProjectIdRef.current === projectId;
+	const closeProxyDialog = () => {
+		proxyProjectIdRef.current = null;
+		setProxyClipId(null);
+	};
 
 	const importFiles = async (files) => {
 		if (mutationBlocked || !files.length) return undefined;
@@ -475,7 +493,28 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 					onClose={closeItemMenu}
 				/>
 			)}
+			{proxyMenuItem && (
+				<ContextMenuItem
+					label={proxyMenuItem.label}
+					disabled={proxyMenuItem.disabled}
+					onClick={proxyMenuItem.onClick}
+					onClose={closeItemMenu}
+				/>
+			)}
 		</ContextMenu>
+		{proxyDialogOpen && (
+			<React.Suspense fallback={<p role="status">{copy.loading}</p>}>
+				<FramescaperVideoProxyDialog
+					controller={controller}
+					snapshot={{ ...snapshot, selectedClipId: proxyClipId }}
+					editingBlocked={mutationBlocked}
+					copy={copy}
+					fileService={fileService}
+					run={run}
+					onClose={closeProxyDialog}
+				/>
+			</React.Suspense>
+		)}
 		{removeConfirmation && (
 			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-remove-dialog>
 				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-remove-title">

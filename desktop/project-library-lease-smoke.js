@@ -34,10 +34,14 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 	productId,
 	projectLibraryEvidence,
 	projectLibrarySnapshot,
+	rendererProcessTerminator = terminateDesktopProjectLibraryLeaseSmokeRenderer,
 }) {
 	const admitted = validatePlan(plan);
 	if (admitted.productId !== productId) throw new Error('Desktop lease smoke plan targets another product');
 	if (typeof projectLibraryEvidence !== 'function') throw new TypeError('Desktop lease smoke evidence is unavailable');
+	if (typeof rendererProcessTerminator !== 'function') {
+		throw new TypeError('Desktop lease smoke renderer terminator is unavailable');
+	}
 	let attachedWindow = null;
 	let checkpointUsed = false;
 	let planStarted = false;
@@ -48,9 +52,9 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 			attachedWindow = window;
 			// Production main-window recovery owns the renderer-loss cleanup barrier
 			// and its one trusted reload. The smoke only retains the window so its
-			// qualification checkpoint can stage the crash.
+			// qualification checkpoint can stage the abrupt process loss.
 		},
-		v10Qualification: Object.freeze({
+		leaseQualification: Object.freeze({
 			leaseTtlMs: admitted.leaseTtlMs,
 			renewIntervalMs: Math.max(100, Math.floor(admitted.leaseTtlMs / 3)),
 			// V10's journal checkpoint is synchronous, so the phase is recorded with
@@ -74,7 +78,7 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 				});
 				if (admitted.action !== 'renderer-loss') parkUntilTerminated();
 				if (!attachedWindow || attachedWindow.isDestroyed()) throw new Error('Lease smoke renderer is unavailable');
-				attachedWindow.webContents.forcefullyCrashRenderer();
+				rendererProcessTerminator(attachedWindow.webContents);
 				parkFor(RENDERER_LOSS_PARK_MS);
 			},
 		}),
@@ -107,9 +111,37 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 	});
 }
 
+/**
+ * Ends the renderer without invoking Chromium's crash reporter. A forced crash
+ * can remain inside its fatal-signal handler and never deliver
+ * `render-process-gone`; SIGKILL models sudden renderer loss and lets the
+ * production cleanup/reload path observe the terminated process on every host.
+ */
+export function terminateDesktopProjectLibraryLeaseSmokeRenderer(
+	webContents,
+	terminate = (processId, signal) => process.kill(processId, signal),
+) {
+	if (!webContents || typeof webContents.getOSProcessId !== 'function') {
+		throw new TypeError('Desktop lease smoke renderer process identity is unavailable');
+	}
+	if (typeof terminate !== 'function') {
+		throw new TypeError('Desktop lease smoke renderer process termination is unavailable');
+	}
+	const processId = webContents.getOSProcessId();
+	if (!Number.isSafeInteger(processId) || processId < 1) {
+		throw new TypeError('Desktop lease smoke renderer process identity is invalid');
+	}
+	if (processId === process.pid) {
+		throw new Error('Desktop lease smoke renderer loss cannot target main');
+	}
+	terminate(processId, 'SIGKILL');
+}
+
 export async function runDesktopProjectLibraryLeaseRendererSmoke(scope, plan) {
-	const api = scope?.soundscaperProjectLibraryDesktop?.v10;
-	if (!api) throw new Error('Soundscaper V10 lease smoke bridge is unavailable');
+	const api = plan.productId === 'framescaper'
+		? scope?.framescaperDesktop?.v1?.projectLibrary
+		: scope?.soundscaperProjectLibraryDesktop?.v10;
+	if (!api) throw new Error(`${plan.productId} lease smoke bridge is unavailable`);
 	await api.connect();
 	const catalog = await api.listProjects();
 	const bundle = await api.readProjectBundle(plan.projectId);
@@ -185,6 +217,7 @@ export async function runDesktopProjectLibraryLeaseRendererSmoke(scope, plan) {
 function execute(webContents, plan) {
 	const rendererPlan = {
 		action: plan.action,
+		productId: plan.productId,
 		projectId: plan.projectId,
 		request: plan.request,
 	};
@@ -227,8 +260,8 @@ function validatePlan(value) {
 		throw new TypeError('Desktop lease smoke plan has an invalid schema or mode');
 	}
 	if (!ACTIONS.has(record.action)) throw new TypeError('Desktop lease smoke action is unsupported');
-	if (record.productId !== 'soundscaper') {
-		throw new TypeError('Desktop lease smoke is restricted to the Soundscaper V10 contract');
+	if (record.productId !== 'soundscaper' && record.productId !== 'framescaper') {
+		throw new TypeError('Desktop lease smoke product is unsupported');
 	}
 	if (typeof record.projectId !== 'string' || !record.projectId) {
 		throw new TypeError('Desktop lease smoke project id is invalid');

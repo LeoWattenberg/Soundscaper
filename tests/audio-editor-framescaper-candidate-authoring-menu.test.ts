@@ -25,6 +25,11 @@ const VISUALS = Object.freeze([
 	'video-still', 'video-title', 'video-shape', 'video-solid',
 	'video-external-generator', 'video-adjustment-layer', 'video-mask-matte', 'video-freeze',
 ] as const satisfies readonly FramescaperCandidateAuthoringSurface[]);
+const SELECTED_V27 = Object.freeze([
+	...TRANSITIONS,
+	'video-still', 'video-title', 'video-text', 'video-shape', 'video-solid',
+	'video-adjustment-layer', 'video-visual-preset', 'video-mask-matte', 'video-freeze',
+] as const satisfies readonly FramescaperCandidateAuthoringSurface[]);
 
 test('candidate authoring runtimes are owner-bound exact dormant subsets', async () => {
 	const owner = Object.freeze({ id: 'candidate-controller' });
@@ -66,28 +71,32 @@ test('V22 exposes transition authoring only through Effect when exact capabiliti
 	assert.deepEqual(blocked.effect[0]?.items?.map(({ disabled }) => disabled), [false, true]);
 });
 
-test('V24+ exposes visual authoring in existing menus and V20/Soundscaper expose none', async () => {
+test('V24 candidates expose visual authoring in existing menus', async () => {
 	const capabilities = {
 		videoTransitions: true, videoTransitionDissolve: true,
 		videoStills: true, videoGenerators: true, videoAdjustmentLayers: true,
 		videoMasksMattes: true, videoFreeze: true,
 	};
-	const items = createFramescaperCandidateAuthoringMenuItems({
-		productId: 'framescaper', project: { schemaVersion: 24 }, editingBlocked: false,
-		projectCapabilities: capabilities, actionSurfaces: VISUALS,
-	}, { open: () => undefined });
-	assert.deepEqual(items.tracks.map(({ id }) => id), ['framescaper-add-video-adjustment-layer']);
-	assert.deepEqual(items.generate.map(({ id }) => id), [
-		'framescaper-add-video-still', 'framescaper-video-generators',
-	]);
-	assert.deepEqual(items.generate[1]?.items?.map(({ id }) => id), [
-		'framescaper-add-video-title', 'framescaper-add-video-shape',
-		'framescaper-add-video-solid', 'framescaper-add-external-video-generator',
-	]);
-	assert.deepEqual(items.effect.map(({ id }) => id), [
-		'framescaper-video-transitions', 'framescaper-edit-video-mask-matte',
-		'framescaper-freeze-video',
-	]);
+	for (const schemaVersion of [24]) {
+		const items = createFramescaperCandidateAuthoringMenuItems({
+			productId: 'framescaper', project: { schemaVersion }, editingBlocked: false,
+			projectCapabilities: capabilities, actionSurfaces: VISUALS,
+		}, { open: () => undefined });
+		assert.deepEqual(items.tracks.map(({ id }) => id), ['framescaper-add-video-adjustment-layer']);
+		assert.deepEqual(items.generate.map(({ id }) => id), [
+			'framescaper-add-video-still', 'framescaper-video-generators',
+		]);
+		assert.deepEqual(items.generate[1]?.items?.map(({ id }) => id), [
+			'framescaper-add-video-title', 'framescaper-add-video-shape',
+			'framescaper-add-video-solid', 'framescaper-add-external-video-generator',
+		]);
+		assert.deepEqual(items.effect.map(({ id }) => id), [
+			'framescaper-video-transitions', 'framescaper-edit-video-mask-matte',
+			'framescaper-freeze-video',
+		]);
+	}
+
+	// V20 remains selected only until V27 boots; Soundscaper never receives Framescaper rows.
 	for (const input of [
 		{ productId: 'framescaper', project: { schemaVersion: 20 } },
 		{ productId: 'soundscaper', project: { schemaVersion: 24 } },
@@ -96,6 +105,26 @@ test('V24+ exposes visual authoring in existing menus and V20/Soundscaper expose
 			...input, editingBlocked: false, projectCapabilities: capabilities, actionSurfaces: VISUALS,
 		}, { open: () => undefined }), { tracks: [], generate: [], effect: [] });
 	}
+});
+
+test('selected V27 exposes maintained visual workflows without the M5 external generator', () => {
+	const items = createFramescaperCandidateAuthoringMenuItems({
+		productId: 'framescaper', project: { schemaVersion: 27 }, editingBlocked: false,
+		projectCapabilities: {
+			videoTransitions: true, videoTransitionDissolve: true, videoStills: true,
+			videoGenerators: true, videoAdjustmentLayers: true, videoMasksMattes: true,
+			videoFreeze: true,
+		},
+		actionSurfaces: SELECTED_V27,
+	}, { open: () => undefined });
+	assert.deepEqual(items.generate[1]?.items?.map(({ id, disabled }) => ({ id, disabled })), [
+		{ id: 'framescaper-add-video-title', disabled: false },
+		{ id: 'framescaper-add-video-text', disabled: false },
+		{ id: 'framescaper-add-video-shape', disabled: false },
+		{ id: 'framescaper-add-video-solid', disabled: false },
+		{ id: 'framescaper-save-video-visual-preset', disabled: false },
+	]);
+	assert.equal(JSON.stringify(items).includes('external-video-generator'), false);
 });
 
 test('candidate visual entries fail closed for read-only, missing actions, and missing capabilities', () => {

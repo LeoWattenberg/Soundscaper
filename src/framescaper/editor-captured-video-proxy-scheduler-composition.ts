@@ -34,14 +34,26 @@ import {
 	assertFramescaperEditorProjectEnvironmentV20,
 	type FramescaperEditorProjectEnvironmentV20,
 } from './editor-project-environment-v20.ts';
+import {
+	assertFramescaperEditorProjectEnvironmentV27,
+	type FramescaperEditorProjectEnvironmentV27,
+} from './editor-project-environment-v27.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV18 } from './editor-project-feature-requirements-v18.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV19 } from './editor-project-feature-requirements-v19.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV20 } from './editor-project-feature-requirements-v20.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV27 } from './editor-project-feature-requirements-v27.ts';
 import { framescaperProjectStoreAuthorityV18 } from './editor-project-store-v18.ts';
 import { framescaperProjectStoreAuthorityV19 } from './editor-project-store-v19.ts';
 import { framescaperProjectStoreAuthorityV20 } from './editor-project-store-v20.ts';
+import { framescaperProjectStoreAuthorityV27 } from './editor-project-store-v27.ts';
 import { framescaperProjectForAuthoredFoundationV18 } from './editor-project-v18-runtime.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v18.ts';
 import { framescaperProjectV18FoundationV19 } from './editor-project-v19-validation.ts';
 import { FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v19.ts';
 import { framescaperProjectV19FoundationV20 } from './editor-project-v20-validation.ts';
+import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v20.ts';
+import { framescaperProjectV20FoundationV27 } from './editor-project-v27-runtime.ts';
+import type { FramescaperProjectV27 } from './editor-project-v27.ts';
 import type { FramescaperVideoProxyCapacityStoreV18 } from './editor-video-proxy-attachment-capacity-v18.ts';
 
 export interface FramescaperCapturedVideoProxyRuntimeComposition
@@ -78,6 +90,7 @@ export interface CapturedVideoProxySchedulerDependencies {
 	readonly profile: EditorProjectRuntimeProfile;
 	readonly store: CapturedVideoProxySchedulerStore;
 	readonly projectForRelationship: (project: unknown) => unknown;
+	readonly reconcileProjectRequirements: (project: unknown) => unknown;
 	readonly loadAuthoritativeProject: (projectId: string, signal?: AbortSignal) => Promise<unknown>;
 	readonly publishDesktopProject?: (
 		project: unknown,
@@ -114,6 +127,9 @@ export function capturedVideoProxySchedulerDependenciesV18(
 		projectForRelationship: (project) => framescaperProjectForAuthoredFoundationV18(
 			environment.runtime.profile,
 			project,
+		),
+		reconcileProjectRequirements: (project) => reconcileFramescaperProjectFeatureRequirementsV18(
+			environment.runtime.profile, project,
 		),
 		loadAuthoritativeProject: (projectId, signal) => Promise.resolve(environment.controllerStore.loadProject(
 			projectId, signal ? { signal } : {},
@@ -153,6 +169,9 @@ export function capturedVideoProxySchedulerDependenciesV19(
 			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
 			framescaperProjectV18FoundationV19(environment.runtime.profile, project),
 		),
+		reconcileProjectRequirements: (project) => reconcileFramescaperProjectFeatureRequirementsV19(
+			environment.runtime.profile, project,
+		),
 		loadAuthoritativeProject: (projectId, signal) => Promise.resolve(environment.store.loadProject(
 			projectId, signal ? { signal } : {},
 		)),
@@ -186,6 +205,59 @@ export function capturedVideoProxySchedulerDependenciesV20(
 				FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
 				framescaperProjectV19FoundationV20(environment.runtime.profile, project),
 			),
+		),
+		reconcileProjectRequirements: (project) => reconcileFramescaperProjectFeatureRequirementsV20(
+			environment.runtime.profile, project,
+		),
+		loadAuthoritativeProject: (projectId, signal) => Promise.resolve(environment.controllerStore.loadProject(
+			projectId, signal ? { signal } : {},
+		)),
+		...(environment.controllerStore === environment.store ? {} : {
+			publishDesktopProject: (project: unknown, signal?: AbortSignal, beforeFinish?: () => PromiseLike<void> | void) => (
+				environment.desktopProjectLibrary!.publishProject({
+					project, ...(signal ? { signal } : {}), ...(beforeFinish ? { beforeFinish } : {}),
+				})
+			),
+		}),
+		claimCleanup: environment.claimCleanup,
+		synchronizeActiveProject: composition.synchronizeActiveProject ?? null,
+		quiesceProjectSaves: composition.quiesceProjectSaves ?? null,
+		session,
+		candidateObserver: candidateObserver(composition),
+		port: authority.port,
+		opfs: authority.opfs,
+		policy: capturedVideoProxySchedulerPolicy(composition as unknown as Readonly<Record<string, unknown>>),
+	};
+}
+
+export function capturedVideoProxySchedulerDependenciesV27(
+	environmentValue: FramescaperEditorProjectEnvironmentV27 | unknown,
+	sessionValue: unknown,
+	composition: FramescaperCapturedVideoProxyRuntimeComposition,
+): CapturedVideoProxySchedulerDependencies {
+	const environment = assertFramescaperEditorProjectEnvironmentV27(environmentValue);
+	const session = assertSession(sessionValue);
+	const authority = framescaperProjectStoreAuthorityV27(environment.runtime.profile, environment.store);
+	if (!authority.opfs) throw new TypeError('Captured V27 proxy scheduling requires exact OPFS authority.');
+	return {
+		schemaVersion: 27,
+		profile: environment.runtime.profile,
+		store: environment.store as CapturedVideoProxySchedulerStore,
+		projectForRelationship: (project) => framescaperProjectForAuthoredFoundationV18(
+			FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE,
+			framescaperProjectV18FoundationV19(
+				FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+				framescaperProjectV19FoundationV20(
+					FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
+					framescaperProjectV20FoundationV27(
+						environment.runtime.profile,
+						project as FramescaperProjectV27,
+					),
+				),
+			),
+		),
+		reconcileProjectRequirements: (project) => reconcileFramescaperProjectFeatureRequirementsV27(
+			environment.runtime.profile, project,
 		),
 		loadAuthoritativeProject: (projectId, signal) => Promise.resolve(environment.controllerStore.loadProject(
 			projectId, signal ? { signal } : {},

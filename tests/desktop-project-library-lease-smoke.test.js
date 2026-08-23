@@ -10,6 +10,7 @@ import test from 'node:test';
 import {
 	createDesktopProjectLibraryLeaseSmokeSession,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
+	terminateDesktopProjectLibraryLeaseSmokeRenderer,
 } from '../desktop/project-library-lease-smoke.js';
 import { attachDesktopMainWindowRecovery } from '../desktop/main-window-recovery.ts';
 
@@ -80,6 +81,42 @@ test('lease smoke keeps fault paths in main and records catalog descriptor evide
 	assert.doesNotMatch(executed[0], /ready\.json|result\.json|leaseTtlMs/iu);
 });
 
+test('renderer-loss termination bypasses the renderer crash handler with a main-owned hard kill', () => {
+	const terminated = [];
+	terminateDesktopProjectLibraryLeaseSmokeRenderer({
+		getOSProcessId: () => 42_424,
+	}, (processId, signal) => { terminated.push({ processId, signal }); });
+	assert.deepEqual(terminated, [{ processId: 42_424, signal: 'SIGKILL' }]);
+	assert.throws(
+		() => terminateDesktopProjectLibraryLeaseSmokeRenderer(
+			{ getOSProcessId: () => process.pid },
+			() => undefined,
+		),
+		/cannot target main/iu,
+	);
+});
+
+test('renderer execution retains the product identity that selects the packaged bridge', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'scape-lease-smoke-product-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const control = Object.freeze({
+		ready: join(root, 'ready.json'), release: join(root, 'release'),
+		result: join(root, 'result.json'), start: join(root, 'start'),
+	});
+	const session = leaseSession({ action: 'commit', control, document: '{}', productId: 'framescaper' });
+	let executed = '';
+	const pending = session.rendererReady({
+		async executeJavaScript(source) {
+			executed = source;
+			return { status: 'committed', document: '{}' };
+		},
+	});
+	await waitFor(control.ready);
+	await writeFile(control.start, '', { flag: 'wx' });
+	await pending;
+	assert.match(executed, /"productId":"framescaper"/u);
+});
+
 test('the crash checkpoint ignores publications the plan never drove', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'scape-lease-smoke-checkpoint-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
@@ -108,7 +145,7 @@ test('the crash checkpoint ignores publications the plan never drove', async (co
 	// the project it opens — so a 'prepared' phase arrives before the matrix has
 	// even been told this process is ready. Crashing there strands the matrix
 	// waiting on a ready signal main can no longer send.
-	session.v10Qualification.checkpoint('prepared');
+	session.leaseQualification.checkpoint('prepared');
 	await assert.rejects(access(control.result), { code: 'ENOENT' });
 	await assert.rejects(access(control.ready), { code: 'ENOENT' });
 	assert.equal(crashes, 0);
@@ -116,7 +153,7 @@ test('the crash checkpoint ignores publications the plan never drove', async (co
 	let checkpointsDuringPlan = 0;
 	const pending = session.rendererReady({
 		async executeJavaScript() {
-			session.v10Qualification.checkpoint('prepared');
+			session.leaseQualification.checkpoint('prepared');
 			checkpointsDuringPlan += 1;
 			return { status: 'committed', document };
 		},
@@ -152,7 +189,7 @@ test('the staged renderer crash leaves reload ownership to application recovery'
 
 	const pending = session.rendererReady({
 		async executeJavaScript() {
-			session.v10Qualification.checkpoint('prepared');
+			session.leaseQualification.checkpoint('prepared');
 			return { status: 'committed', document };
 		},
 	});
@@ -166,7 +203,7 @@ test('the staged renderer crash leaves reload ownership to application recovery'
 	// staging a second crash.
 	const recovered = await session.rendererReady({
 		async executeJavaScript() {
-			session.v10Qualification.checkpoint('prepared');
+			session.leaseQualification.checkpoint('prepared');
 			return { status: 'committed', document };
 		},
 	});
@@ -197,7 +234,7 @@ test('the staged crash composes with one cleanup-gated application reload', asyn
 	};
 	webContents.executeJavaScript = async () => {
 		if (crashes === 0) {
-			session.v10Qualification.checkpoint('prepared');
+			session.leaseQualification.checkpoint('prepared');
 			throw new Error('The staged renderer exited');
 		}
 		return { status: 'committed', document };
@@ -235,7 +272,7 @@ test('the staged crash composes with one cleanup-gated application reload', asyn
 	assert.equal(reloads, 1);
 });
 
-function leaseSession({ action, control, document }) {
+function leaseSession({ action, control, document, productId = 'soundscaper' }) {
 	const projectId = 'lease-smoke-project';
 	return createDesktopProjectLibraryLeaseSmokeSession({
 		plan: {
@@ -243,14 +280,15 @@ function leaseSession({ action, control, document }) {
 			control,
 			leaseTtlMs: 1_000,
 			mode: DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
-			productId: 'soundscaper',
+			productId,
 			projectId,
 			request: { document, expectedRevision: null },
 			schemaVersion: 1,
 		},
-		productId: 'soundscaper',
+		productId,
+		rendererProcessTerminator: (webContents) => webContents.forcefullyCrashRenderer(),
 		projectLibraryEvidence: async () => ({
-			host: { product: 'soundscaper', closed: false, fenced: false, activePublication: false },
+			host: { product: productId, closed: false, fenced: false, activePublication: false },
 			project: {
 				projectId,
 				title: 'Lease smoke',
@@ -264,7 +302,7 @@ function leaseSession({ action, control, document }) {
 		projectLibrarySnapshot: () => ({
 			closed: false,
 			fenced: false,
-			owner: { product: 'soundscaper' },
+			owner: { product: productId },
 			activeSessions: 0,
 			activePublication: false,
 			writer: { fencingToken: 3, tookOverStaleLease: false, recovery: { outcome: 'clean' } },

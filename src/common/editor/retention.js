@@ -9,7 +9,11 @@ import { collectTakeGroupSourceIds } from './take-group-source-references.ts';
 
 /** Product schemas are not importable from common, so V18 is named here. */
 const FRAMESCAPER_MULTICAMERA_SCHEMA_VERSION = 18;
+const FRAMESCAPER_VISUAL_SCHEMA_VERSION = 24;
+const FRAMESCAPER_FINISHING_SCHEMA_VERSION = 27;
 const SOUNDSCAPER_PRODUCTION_SCHEMA_VERSION = 21;
+const MAXIMUM_FRAMESCAPER_FINISHING_ASSET_ROOTS = 16_384;
+const SHA256 = /^[a-f0-9]{64}$/u;
 
 /**
  * A schema only ever adds reference kinds, so each walk is gated on the
@@ -21,6 +25,7 @@ const SOURCE_REFERENCE_WALKS = [
 	{ since: AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION, collect: collectFeatureFallbackSourceIds },
 	{ since: FRAMESCAPER_MULTICAMERA_SCHEMA_VERSION, collect: collectMulticameraMemberSourceIds },
 	{ since: SOUNDSCAPER_PRODUCTION_SCHEMA_VERSION, collect: collectAudioTrackFreezeSourceIds },
+	{ since: FRAMESCAPER_VISUAL_SCHEMA_VERSION, collect: collectVideoFreezeFallbackSourceIds },
 ];
 
 export function collectProjectSourceIds(project, target = new Set()) {
@@ -68,6 +73,70 @@ function collectAudioTrackFreezeSourceIds(project, target) {
 	}
 }
 
+/** Preserve Framescaper picture freezes even when no ordinary clip names the render. */
+function collectVideoFreezeFallbackSourceIds(project, target) {
+	const freezes = Array.isArray(project?.videoFreezeFallbacks) ? project.videoFreezeFallbacks : [];
+	for (const freeze of freezes) {
+		const sourceId = freeze?.renderedSourceId;
+		if (typeof sourceId === 'string' && sourceId) target.add(sourceId);
+	}
+}
+
+/**
+ * Collect content-addressed V27 finishing bodies without exposing a partial
+ * result if an alias, malformed identity, or root bound is encountered.
+ */
+export function collectFramescaperProjectAssetStorageKeysV27(
+	project,
+	target = new Set(),
+	{ maximumRoots = MAXIMUM_FRAMESCAPER_FINISHING_ASSET_ROOTS } = {},
+) {
+	if (!(target instanceof Set)) throw new TypeError('V27 finishing asset target must be a Set.');
+	if (!Number.isSafeInteger(maximumRoots) || maximumRoots < 1
+		|| maximumRoots > MAXIMUM_FRAMESCAPER_FINISHING_ASSET_ROOTS) {
+		throw new RangeError('V27 finishing asset root limit is invalid.');
+	}
+	if (project?.schemaVersion !== FRAMESCAPER_FINISHING_SCHEMA_VERSION) return target;
+
+	const identities = new Map();
+	const add = (kind, value, expectedPrefix) => {
+		if (!value || typeof value !== 'object' || Array.isArray(value)) {
+			throw new TypeError(`V27 ${kind} asset identity must be an object.`);
+		}
+		const storageKey = value.storageKey;
+		const sha256 = value.sha256;
+		const byteLength = value.byteLength;
+		if (typeof storageKey !== 'string' || typeof sha256 !== 'string'
+			|| !SHA256.test(sha256) || storageKey !== `${expectedPrefix}${sha256}`
+			|| !Number.isSafeInteger(byteLength) || byteLength < 1) {
+			throw new RangeError(`V27 ${kind} asset identity is not content-bound.`);
+		}
+		const identity = `${kind}\u0000${sha256}\u0000${String(byteLength)}`;
+		const existing = identities.get(storageKey);
+		if (existing !== undefined && existing !== identity) {
+			throw new RangeError(`V27 finishing asset alias ${storageKey} has conflicting identity.`);
+		}
+		identities.set(storageKey, identity);
+		if (identities.size > maximumRoots) {
+			throw new RangeError('V27 finishing asset root limit was exceeded.');
+		}
+	};
+
+	for (const analysis of requiredArray(project, 'videoMotionAnalyses')) {
+		add('motion', analysis, 'motion-sha256:');
+	}
+	for (const presentation of requiredArray(project, 'videoVisualPresentations')) {
+		const lut = presentation?.grade?.lut;
+		if (lut !== null && lut !== undefined) add('LUT', lut, 'lut-sha256:');
+	}
+	for (const preset of requiredArray(project, 'videoFinishingPresets')) {
+		const lut = preset?.template?.grade?.lut;
+		if (lut !== null && lut !== undefined) add('LUT', lut, 'lut-sha256:');
+	}
+	for (const storageKey of identities.keys()) target.add(storageKey);
+	return target;
+}
+
 /** Resolve durable logical references to the keys used by source/media stores. */
 export function collectProjectStorageKeys(project, target = new Set()) {
 	const sources = Array.isArray(project?.sources) ? project.sources : [];
@@ -78,8 +147,19 @@ export function collectProjectStorageKeys(project, target = new Set()) {
 		target.add(typeof storageKey === 'string' && storageKey ? storageKey : sourceId);
 		const timingStorageKey = source?.timingAsset?.storageKey;
 		if (typeof timingStorageKey === 'string' && timingStorageKey) target.add(timingStorageKey);
+		const proxyStorageKey = source?.proxyAttachment?.storageKey;
+		if (typeof proxyStorageKey === 'string' && proxyStorageKey) target.add(proxyStorageKey);
+		const proxyTimingStorageKey = source?.proxyAttachment?.timingAsset?.storageKey;
+		if (typeof proxyTimingStorageKey === 'string' && proxyTimingStorageKey) target.add(proxyTimingStorageKey);
 	}
+	collectFramescaperProjectAssetStorageKeysV27(project, target);
 	return target;
+}
+
+function requiredArray(project, field) {
+	const value = project?.[field];
+	if (!Array.isArray(value)) throw new TypeError(`V27 ${field} must be an array.`);
+	return value;
 }
 
 export function editorHistoryProjects(history) {

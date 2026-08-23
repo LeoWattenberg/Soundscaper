@@ -520,7 +520,7 @@ index cca2a611..f359fafc 100644
  const load = async ({ coreURL: _coreURL, wasmURL: _wasmURL, workerURL: _workerURL, }) => {
      const first = !ffmpeg;
      try {
-@@ -53,17 +65,167 @@ const ffprobe = ({ args, timeout = -1 }) => {
+@@ -53,17 +65,169 @@ const ffprobe = ({ args, timeout = -1 }) => {
      ffmpeg.reset();
      return ret;
  };
@@ -681,6 +681,8 @@ index cca2a611..f359fafc 100644
  // TODO: check if deletion works.
  const deleteFile = ({ path }) => {
 +    assertNotInputStreamPath(path);
++    if (!ffmpeg.FS.analyzePath(path).exists)
++        return true;
      ffmpeg.FS.unlink(path);
      return true;
  };

@@ -52,7 +52,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	previewRackEffect, previewVideoEffectGesture, product, getProject,
 	projectBinInstanceCount, refreshAudioDevices, refreshStorageUsage,
 	canRelinkLinkedAudio, classifyLinkedAudioRelink, relinkLinkedAudio, canRelinkLinkedVideo, classifyLinkedVideoRelink, relinkLinkedVideo,
-	releaseVideoSourceVisual, removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
+	releaseVideoSourceVisual, reloadVideoSourceVisual, reportVideoPreviewPressure, removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
 	renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 	repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence, requestWaveformPcmWindow, resampleTrack,
 	resetClipPitchSpeed, resetLoudnessMeasurement, resizeTrackHeight,
@@ -217,6 +217,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			getClipVisualData,
 			getSourceVisualData: getVideoSourceVisualData,
 			releaseSourceVisual: releaseVideoSourceVisual,
+			reloadSourceVisual: reloadVideoSourceVisual, reportPreviewPressure: reportVideoPreviewPressure,
 			export: exportVideo,
 			trim: createVideoTrimActionFacade({
 				videoCompositing: capabilities.videoCompositing, productName: product.name, services: videoTrimServices,
@@ -253,8 +254,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			// program playhead.
 			replace: (request: RuntimeValue) => videoEditService.replace(request),
 			matchFrame: (request: RuntimeValue) => videoEditService.matchFrame(request),
-			// One video source open on its own frame grid: the marks an edit reads
-			// come from here, and nothing about it is persisted.
+			sourceTimecodeAtSample: (sample: RuntimeValue, sequenceId: RuntimeValue) => videoEditService.sourceTimecodeAtSample(sample, sequenceId),
+			// One video source on its own frame grid supplies marks without persistence.
 			sourceMonitor: Object.freeze({
 				view: () => sourceMonitorService.view(),
 				open: (binItemId: RuntimeValue, options: RuntimeValue) => (

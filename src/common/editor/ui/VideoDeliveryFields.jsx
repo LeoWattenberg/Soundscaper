@@ -69,7 +69,9 @@ const CAPTION_DELIVERIES = Object.freeze([
  * delivery cannot state a custom matrix, because the per-channel editor that
  * makes one legible belongs to the audio dialog.
  */
-export default function VideoDeliveryFields({ copy, disabled, labelTracks = [], settings, onChange }) {
+export default function VideoDeliveryFields({
+	copy, disabled, labelTracks = [], settings, onChange, captionDeliveryUnavailable = false,
+}) {
 	const target = findPlatformDeliveryPreset(settings.deliveryTarget);
 	const availability = target ? resolvePlatformDeliveryAvailability(target) : null;
 	// The fallback named here has to be the one the delivery actually reaches,
@@ -199,38 +201,46 @@ export default function VideoDeliveryFields({ copy, disabled, labelTracks = [], 
 					label: copy[AUDIO_LAYOUT_LABEL_KEYS[layout]],
 				}))}
 			/>
-			<LabeledDropdown
-				label={copy.videoCaptionTrack}
-				hook="captionTrack"
-				value={settings.captionTrackId}
-				onChange={(value) => onChange('captionTrackId', value)}
-				disabled={disabled || labelTracks.length === 0}
-				options={[
-					{ value: '', label: copy.videoCaptionNone },
-					...labelTracks.map((track) => ({ value: track.id, label: track.name || track.id })),
-				]}
-			/>
-			{settings.captionTrackId && (
+			{captionDeliveryUnavailable ? (
+				<p className="audio-editor-panel-hint" data-export-field="captionDeliveryUnavailable">
+					{copy.videoCaptionV27DeliveryUnavailable || 'Caption burn-in and mux are unavailable for selected Framescaper V27. Export SRT, WebVTT, or IMSC 1.1 sidecars from Tracks > Caption Tracks.'}
+				</p>
+			) : (
 				<>
 					<LabeledDropdown
-						label={copy.videoCaptionDelivery}
-						hook="captionDelivery"
-						value={settings.captionDelivery}
-						onChange={(value) => onChange('captionDelivery', value)}
-						disabled={disabled}
-						options={CAPTION_DELIVERIES.map(({ value, labelKey }) => ({ value, label: copy[labelKey] }))}
+						label={copy.videoCaptionTrack}
+						hook="captionTrack"
+						value={settings.captionTrackId}
+						onChange={(value) => onChange('captionTrackId', value)}
+						disabled={disabled || labelTracks.length === 0}
+						options={[
+							{ value: '', label: copy.videoCaptionNone },
+							...labelTracks.map((track) => ({ value: track.id, label: track.name || track.id })),
+						]}
 					/>
-					<label className="audio-editor-field" data-export-field="captionBurnIn">
-						<span>{copy.videoCaptionBurnIn}</span>
-						<span>
-							<DesignCheckbox
-								label={copy.videoCaptionBurnInHint}
-								checked={settings.captionBurnIn}
+					{settings.captionTrackId && (
+						<>
+							<LabeledDropdown
+								label={copy.videoCaptionDelivery}
+								hook="captionDelivery"
+								value={settings.captionDelivery}
+								onChange={(value) => onChange('captionDelivery', value)}
 								disabled={disabled}
-								onChange={(checked) => onChange('captionBurnIn', checked)}
+								options={CAPTION_DELIVERIES.map(({ value, labelKey }) => ({ value, label: copy[labelKey] }))}
 							/>
-						</span>
-					</label>
+							<label className="audio-editor-field" data-export-field="captionBurnIn">
+								<span>{copy.videoCaptionBurnIn}</span>
+								<span>
+									<DesignCheckbox
+										label={copy.videoCaptionBurnInHint}
+										checked={settings.captionBurnIn}
+										disabled={disabled}
+										onChange={(checked) => onChange('captionBurnIn', checked)}
+									/>
+								</span>
+							</label>
+						</>
+					)}
 				</>
 			)}
 			<p className="audio-editor-panel-hint">{copy.videoCanvasHint}</p>

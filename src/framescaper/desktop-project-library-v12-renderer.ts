@@ -74,6 +74,13 @@ interface V12Bundle {
 
 type V12Store = FramescaperDesktopV12BodyStore & Readonly<{ databaseName: string }>;
 
+export interface FramescaperDesktopProjectLibraryExactRendererIdentity {
+	readonly label: string;
+	readonly librarySchemaVersion: number;
+	readonly databaseUserVersion: number;
+	readonly scopeVersion: string;
+}
+
 export interface FramescaperDesktopProjectLibraryV12ProjectSummary {
 	readonly id: string;
 	readonly title: string;
@@ -97,24 +104,43 @@ export interface FramescaperDesktopProjectLibraryV12Renderer {
 	}>): Promise<FramescaperProjectV20>;
 }
 
-const RENDERER_COMPOSITIONS = new WeakMap<object, Readonly<{ profile: EditorProjectRuntimeProfile; store: object }>>();
+const V12_IDENTITY = Object.freeze({
+	label: 'Framescaper desktop V12', librarySchemaVersion: 12, databaseUserVersion: 14, scopeVersion: 'v12',
+});
+const RENDERER_COMPOSITIONS = new WeakMap<object, Readonly<{
+	profile: EditorProjectRuntimeProfile;
+	store: object;
+	librarySchemaVersion: number;
+}>>();
 
 /** Connect the selected V12 bridge to one exact durable V20 browser shadow. */
 export async function connectFramescaperDesktopProjectLibraryV12Renderer(
 	profileValue: EditorProjectRuntimeProfile | unknown,
 	storeValue: unknown,
 ): Promise<FramescaperDesktopProjectLibraryV12Renderer | null> {
+	return connectFramescaperDesktopProjectLibraryExactRenderer(profileValue, storeValue, V12_IDENTITY);
+}
+
+export async function connectFramescaperDesktopProjectLibraryExactRenderer(
+	profileValue: EditorProjectRuntimeProfile | unknown,
+	storeValue: unknown,
+	identity: Readonly<FramescaperDesktopProjectLibraryExactRendererIdentity>,
+): Promise<FramescaperDesktopProjectLibraryV12Renderer | null> {
 	assertFramescaperProjectV20Profile(profileValue);
 	const store = durableStore(profileValue, storeValue);
 	const bridge = resolveBridge();
 	if (!bridge) return null;
 	const handshake = await bridge.connect();
-	validateHandshake(handshake, store.databaseName);
+	validateHandshake(handshake, store.databaseName, identity);
 	if (bridge.handshakeState() !== 'admitted') {
-		throw new TypeError('The Framescaper desktop V12 bridge did not retain its admitted handshake.');
+		throw new TypeError(`The ${identity.label} bridge did not retain its admitted handshake.`);
 	}
 	const renderer = Object.freeze(new Renderer(profileValue, bridge, store));
-	RENDERER_COMPOSITIONS.set(renderer, Object.freeze({ profile: profileValue, store: storeValue as object }));
+	RENDERER_COMPOSITIONS.set(renderer, Object.freeze({
+		profile: profileValue,
+		store: storeValue as object,
+		librarySchemaVersion: identity.librarySchemaVersion,
+	}));
 	return renderer;
 }
 
@@ -123,10 +149,22 @@ export function assertFramescaperDesktopProjectLibraryV12RendererComposition(
 	store: unknown,
 	renderer: unknown,
 ): asserts renderer is FramescaperDesktopProjectLibraryV12Renderer {
+	assertFramescaperDesktopProjectLibraryExactRendererComposition(
+		profileValue, store, renderer, V12_IDENTITY,
+	);
+}
+
+export function assertFramescaperDesktopProjectLibraryExactRendererComposition(
+	profileValue: EditorProjectRuntimeProfile | unknown,
+	store: unknown,
+	renderer: unknown,
+	identity: Readonly<FramescaperDesktopProjectLibraryExactRendererIdentity>,
+): asserts renderer is FramescaperDesktopProjectLibraryV12Renderer {
 	assertFramescaperProjectV20Profile(profileValue);
 	const composition = RENDERER_COMPOSITIONS.get(renderer as object);
-	if (!composition || composition.profile !== profileValue || composition.store !== store) {
-		throw new TypeError('The exact admitted Framescaper desktop V12 renderer composition is required.');
+	if (!composition || composition.profile !== profileValue || composition.store !== store
+		|| composition.librarySchemaVersion !== identity.librarySchemaVersion) {
+		throw new TypeError(`The exact admitted ${identity.label} renderer composition is required.`);
 	}
 }
 
@@ -321,15 +359,21 @@ function recordWithOwnData(value: unknown, label: string): Readonly<Record<strin
 	return value as Readonly<Record<string, unknown>>;
 }
 
-function validateHandshake(value: unknown, databaseName: string): void {
-	const handshake = exactRecord(value, HANDSHAKE_FIELDS, 'Framescaper desktop V12 handshake');
+function validateHandshake(
+	value: unknown,
+	databaseName: string,
+	identity: Readonly<FramescaperDesktopProjectLibraryExactRendererIdentity>,
+): void {
+	const handshake = exactRecord(value, HANDSHAKE_FIELDS, `${identity.label} handshake`);
 	if (handshake.kind !== 'framescaper-project-library-handshake' || handshake.version !== 1
 		|| handshake.owner !== 'framescaper' || handshake.projectSchemaVersion !== 20
 		|| handshake.attachedScapeFormatVersion !== 2 || handshake.storageDatabaseName !== databaseName
-		|| handshake.desktopLibrarySchemaVersion !== 12 || handshake.desktopDatabaseUserVersion !== 14
+		|| handshake.desktopLibrarySchemaVersion !== identity.librarySchemaVersion
+		|| handshake.desktopDatabaseUserVersion !== identity.databaseUserVersion
 		|| JSON.stringify(handshake.scapeFormatVersions) !== '[1,2]'
-		|| JSON.stringify(handshake.desktopLibraryScope) !== '["kw.media","scape-project-library","v12"]') {
-		throw new TypeError('The Framescaper desktop V12 handshake identity is unsupported.');
+		|| JSON.stringify(handshake.desktopLibraryScope)
+			!== JSON.stringify(['kw.media', 'scape-project-library', identity.scopeVersion])) {
+		throw new TypeError(`The ${identity.label} handshake identity is unsupported.`);
 	}
 }
 

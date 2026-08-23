@@ -31,6 +31,9 @@ test('requested CFR export timing is bound exactly without loading unrelated VFR
 	try {
 		assert.deepEqual(fixture.loads, []);
 		assert.deepEqual([...lease.timingBySourceId.keys()], ['camera-cfr']);
+		assert.deepEqual(lease.timingViewsBySourceId.get('camera-cfr'), {
+			kind: 'cfr', rate: NTSC, frameCount: 3,
+		});
 		const timing = lease.timingBySourceId.get('camera-cfr');
 		assert.deepEqual(boundVideoSourceTimingViewInfo(timing), {
 			sourceId: 'camera-cfr', frameCount: 3, kind: 'cfr',
@@ -50,6 +53,27 @@ test('requested CFR export timing is bound exactly without loading unrelated VFR
 			/(?:incompatible|Map)/iu,
 		);
 		assert.deepEqual([...lease.timingBySourceId.keys()], ['camera-cfr']);
+	} finally {
+		lease.release();
+	}
+});
+
+test('a product timing closure can authenticate canonical inactive sources without media loading', async () => {
+	const fixture = timingFixture();
+	const lease = await acquireVideoExportTimingIndexes(
+		fixture.project,
+		fixture.store,
+		fixture.dependencies,
+		{
+			assertCurrent() {},
+			requiredSourceIds: ['camera-cfr', 'hidden-camera'],
+			allowInactiveRequiredSources: true,
+		},
+	);
+	try {
+		assert.deepEqual([...lease.timingBySourceId.keys()], ['camera-cfr', 'hidden-camera']);
+		assert.deepEqual([...lease.timingViewsBySourceId.keys()], ['camera-cfr', 'hidden-camera']);
+		assert.deepEqual(fixture.loads, []);
 	} finally {
 		lease.release();
 	}

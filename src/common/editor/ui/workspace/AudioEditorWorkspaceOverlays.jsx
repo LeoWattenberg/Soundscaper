@@ -1,12 +1,19 @@
 import React from 'react';
 import ScapeOpenDecisionDialog from './ScapeOpenDecisionDialog.jsx';
 import SoundscaperProductionWorkspaceOverlay from './SoundscaperProductionWorkspaceOverlay.tsx';
+import { framescaperV27FinishingSurface } from '../framescaper-v27-finishing-menu.ts';
+import { framescaperSelectedV27VisualAuthoringSurface } from '../framescaper-selected-v27-visual-authoring-menu.ts';
 
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
 const ClipPropertiesDialog = React.lazy(() => import('../inspector/ClipPropertiesDialog.jsx'));
 const VideoCompositionDialog = React.lazy(() => import('../inspector/VideoCompositionDialog.tsx'));
 const VideoKeyframeDialog = React.lazy(() => import('../inspector/VideoKeyframeDialog.tsx'));
+const VideoRetimeDialog = React.lazy(() => import('../dialogs/VideoRetimeDialog.tsx'));
+const FramescaperVideoProxyDialog = React.lazy(() => import('../dialogs/FramescaperVideoProxyDialog.tsx'));
+const FramescaperV27FinishingDialog = React.lazy(() => import('../dialogs/FramescaperV27FinishingDialog.tsx'));
+const FramescaperV27VisualInspectorDialog = React.lazy(() => import('../dialogs/FramescaperV27VisualInspectorDialog.tsx'));
+const FramescaperSelectedV27VisualAuthoringDialog = React.lazy(() => import('../dialogs/FramescaperSelectedV27VisualAuthoringDialog.tsx'));
 const ExportDialog = React.lazy(() => import('../inspector/ExportDialog.jsx'));
 const DeliveryQueueDialog = React.lazy(() => import('../inspector/DeliveryQueueDialog.jsx'));
 const LabelExportDialog = React.lazy(() => import('../inspector/LabelExportDialog.jsx'));
@@ -40,6 +47,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		dialogTrackId,
 		dialogValue,
 		effectWindow,
+		editBlocked,
 		fileService,
 		generatorType,
 		locale,
@@ -62,6 +70,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		snapshot,
 		toggleWorkspacePanel,
 	} = model;
+	const framescaperFinishingSurface = framescaperV27FinishingSurface(activeSurface);
+	const selectedV27AuthoringSurface = framescaperSelectedV27VisualAuthoringSurface(activeSurface);
 	return <>
 			<SoundscaperProductionWorkspaceOverlay model={model} />
 
@@ -123,6 +133,92 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							controller={controller}
 							snapshot={snapshot}
 							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{productId === 'framescaper' && capabilities.videoRetime && activeSurface === 'video-retime' && (
+				<div data-editor-surface="video-retime">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<VideoRetimeDialog
+							productId={productId}
+							capability={Boolean(capabilities.videoRetime)}
+							editingBlocked={editBlocked}
+							controller={controller}
+							snapshot={snapshot}
+							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{productId === 'framescaper' && (snapshot.project?.schemaVersion === 20
+				|| snapshot.project?.schemaVersion === 27) && activeSurface === 'video-proxy' && (
+				<div data-editor-surface="video-proxy">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<FramescaperVideoProxyDialog
+							controller={controller}
+							snapshot={snapshot}
+							editingBlocked={editBlocked}
+							copy={copy}
+							fileService={fileService}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{productId === 'framescaper' && snapshot.project?.schemaVersion === 27
+				&& framescaperFinishingSurface && framescaperFinishingSurface !== 'visual-inspector' && (
+				<div data-editor-surface="framescaper-v27-finishing">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<FramescaperV27FinishingDialog
+							surface={framescaperFinishingSurface}
+							controller={controller}
+							project={snapshot.project}
+							selectedTrackId={snapshot.selectedTrackId ?? null}
+							editingBlocked={editBlocked}
+							readOnly={snapshot.readOnly === true}
+							copy={copy}
+							fileService={fileService}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{productId === 'framescaper' && snapshot.project?.schemaVersion === 27
+				&& framescaperFinishingSurface === 'visual-inspector' && (
+				<div data-editor-surface="framescaper-v27-visual-inspector">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<FramescaperV27VisualInspectorDialog
+							controller={controller}
+							project={snapshot.project}
+							selectedClipId={snapshot.selectedClipId}
+							editingBlocked={editBlocked}
+							readOnly={snapshot.readOnly === true}
+							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{productId === 'framescaper' && snapshot.project?.schemaVersion === 27
+				&& selectedV27AuthoringSurface && (
+				<div data-editor-surface="framescaper-selected-v27-authoring">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<FramescaperSelectedV27VisualAuthoringDialog
+							surface={selectedV27AuthoringSurface}
+							controller={controller}
+							project={snapshot.project}
+							selectedClipId={snapshot.selectedClipId ?? null}
+							playheadSample={controller.getTelemetrySnapshot()?.positionFrame ?? 0}
+							editingBlocked={editBlocked}
+							readOnly={snapshot.readOnly === true}
 							run={run}
 							onClose={() => setActiveSurface(null)}
 						/>
@@ -250,6 +346,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							controller={controller}
 							snapshot={snapshot}
 							copy={copy}
+							productId={productId}
 							locale={locale}
 							onClose={() => setActiveSurface(null)}
 						/>

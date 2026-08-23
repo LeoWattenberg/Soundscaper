@@ -14,10 +14,20 @@ import type {
 	FramescaperDesktopProjectLibraryExactGenerationOwner,
 	FramescaperDesktopProjectLibraryExactGenerationPaths,
 } from './project-library-exact-generation-contract.ts';
+import type {
+	FramescaperDesktopProjectLibraryExactGenerationExtension,
+	FramescaperDesktopProjectLibraryExactGenerationLifecycle,
+} from './project-library-exact-generation-lifecycle.ts';
+import {
+	framescaperDesktopExactConfiguredBodies as configuredBodies,
+	framescaperDesktopExactConfiguredBody as configuredBody,
+	type ExactGenerationProject,
+	type FramescaperDesktopProjectLibraryExactGenerationBodyConfiguration,
+} from './project-library-exact-generation-body-configuration.ts';
+import { DesktopProjectLibrarySessionAdmission } from './project-library-session-admission.ts';
 import {
 	framescaperDesktopProjectLibraryV12Binary as binary,
 	framescaperDesktopProjectLibraryV12ClosedRecord as closedRecord,
-	framescaperDesktopProjectLibraryV12DenseArray as denseArray,
 	framescaperDesktopProjectLibraryV12NonNegative as nonNegative,
 	framescaperDesktopProjectLibraryV12Positive as positive,
 	framescaperDesktopProjectLibraryV12PublicationId as exactPublicationId,
@@ -47,16 +57,8 @@ const DUPLICATE_FIELDS = [
 	'expectedMetadataRevision', 'expectedSource',
 ] as const;
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
-const MAXIMUM_BODIES = 4_094;
 
-export interface ExactGenerationProject extends Record<string, unknown> {
-	readonly id: string;
-	readonly title: string;
-	readonly revision: number;
-	readonly updatedAt: string;
-}
-
-export interface FramescaperDesktopProjectLibraryExactGenerationConfiguration {
+export interface FramescaperDesktopProjectLibraryExactGenerationConfiguration extends FramescaperDesktopProjectLibraryExactGenerationBodyConfiguration {
 	readonly label: string;
 	readonly librarySchemaVersion: number;
 	readonly projectSchemaVersion: number;
@@ -74,6 +76,7 @@ export interface FramescaperDesktopProjectLibraryExactGenerationMainSnapshot {
 	readonly owner: Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>;
 	readonly activeSessions: number;
 	readonly activePublication: boolean;
+	readonly writer?: unknown;
 }
 
 export interface FramescaperDesktopProjectLibraryExactGenerationMainSession {
@@ -86,6 +89,7 @@ export interface FramescaperDesktopProjectLibraryExactGenerationMainSession {
 	abortPublication(value: unknown): Promise<boolean>;
 	deleteProject(value: unknown): Promise<unknown>;
 	duplicateProject(value: unknown): Promise<unknown>;
+	revoke(): Promise<void>;
 	close(): Promise<void>;
 }
 
@@ -96,6 +100,7 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 	readonly #database: DatabaseSync;
 	readonly #owner: Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>;
 	readonly #paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>;
+	readonly #lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null;
 	readonly #sessions = new Set<ExactGenerationSession>();
 	readonly #activeProjects = new Map<ExactGenerationSession, string>();
 	#closed = false;
@@ -105,17 +110,20 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 		paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
 		database: DatabaseSync,
 		owner: Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>,
+		lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null,
 	) {
 		this.#configuration = configuration;
 		this.localHandshake = configuration.createHandshake();
 		this.#paths = paths;
 		this.#database = database;
 		this.#owner = owner;
+		this.#lifecycle = lifecycle;
 	}
 
 	static async start(
 		configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
 		value: unknown,
+		extension: FramescaperDesktopProjectLibraryExactGenerationExtension | null = null,
 	): Promise<FramescaperDesktopProjectLibraryExactGenerationMain> {
 		const options = closedRecord(value, START_FIELDS, `${configuration.label} main options`);
 		if (typeof options.appDataPath !== 'string') {
@@ -135,7 +143,15 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 		try {
 			initializeDatabase(database, configuration);
 			await chmod(paths.databasePath, 0o600);
-			return new FramescaperDesktopProjectLibraryExactGenerationMain(configuration, paths, database, owner);
+			const lifecycle = extension ? await extension.start({
+				appDataPath: options.appDataPath,
+				database,
+				owner,
+				paths,
+			}) : null;
+			return new FramescaperDesktopProjectLibraryExactGenerationMain(
+				configuration, paths, database, owner, lifecycle,
+			);
 		} catch (error) {
 			database.close();
 			throw error;
@@ -149,16 +165,19 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 			owner: this.#owner,
 			activeSessions: this.#sessions.size,
 			activePublication: [...this.#sessions].some((session) => session.activePublication),
+			...(this.#lifecycle?.snapshot() ?? {}),
 		});
 	}
 
 	openSession(value: unknown): FramescaperDesktopProjectLibraryExactGenerationMainSession {
 		this.#assertOpen();
+		this.#lifecycle?.assertCanUse();
 		this.#configuration.validateHandshake(value);
 		const session = new ExactGenerationSession(
 			this.#configuration,
 			this.#database,
 			this.#paths,
+			this.#lifecycle,
 			(projectId) => {
 				if (projectId === null) this.#activeProjects.delete(session);
 				else this.#activeProjects.set(session, projectId);
@@ -195,14 +214,15 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 			projectId: text(row.project_id, 'project id'),
 			projectRevision: nonNegative(row.project_revision, 'project revision'),
 			projectSha256: digestValue(row.sha256),
-			bodies: parseBodies(row.bodies_json, this.#configuration.label),
+			bodies: parseBodies(row.bodies_json, this.#configuration.label, this.#configuration.validateBodyDescriptor ?? validateBody),
 		});
 	}
 
 	async readNativeProjectBundle(projectId: string): Promise<unknown> {
 		this.#assertOpen();
 		const session = new ExactGenerationSession(
-			this.#configuration, this.#database, this.#paths, () => undefined, () => undefined,
+			this.#configuration, this.#database, this.#paths, this.#lifecycle,
+			() => undefined, () => undefined,
 		);
 		try { return await session.readProjectBundle(projectId); }
 		finally { await session.close(); }
@@ -210,10 +230,11 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 
 	async readNativeBody(value: unknown): Promise<Uint8Array> {
 		this.#assertOpen();
-		const body = validateBody(value, this.#configuration.label);
+		const body = configuredBody(this.#configuration, value);
 		const chunks: Uint8Array[] = [];
 		const session = new ExactGenerationSession(
-			this.#configuration, this.#database, this.#paths, () => undefined, () => undefined,
+			this.#configuration, this.#database, this.#paths, this.#lifecycle,
+			() => undefined, () => undefined,
 		);
 		try {
 			for (let offset = 0; offset < body.byteLength; offset += MAXIMUM_CHUNK_BYTES) {
@@ -232,12 +253,20 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 		if (this.#closed) return;
 		this.#closed = true;
 		const sessions = [...this.#sessions];
-		await Promise.allSettled(sessions.map((session) => session.close()));
-		this.#database.close();
+		const failures: unknown[] = [];
+		const settled = await Promise.allSettled(sessions.map((session) => session.close()));
+		for (const result of settled) if (result.status === 'rejected') failures.push(result.reason);
+		if (this.#lifecycle) {
+			try { await this.#lifecycle.close(); } catch (error) { failures.push(error); }
+		}
+		try { this.#database.close(); } catch (error) { failures.push(error); }
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1) throw new AggregateError(failures, `${this.#configuration.label} close failed`);
 	}
 
 	#assertOpen(): void {
 		if (this.#closed) throw new Error(`${this.#configuration.label} main is closed`);
+		this.#lifecycle?.assertCanUse();
 	}
 }
 
@@ -245,23 +274,27 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 	readonly #configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration;
 	readonly #database: DatabaseSync;
 	readonly #paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>;
+	readonly #lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null;
 	readonly #onActiveProject: (projectId: string | null) => void;
 	readonly #onClose: () => void;
-	#closed = false;
+	readonly #admission: DesktopProjectLibrarySessionAdmission;
 	#publication: Publication | null = null;
 
 	constructor(
 		configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
 		database: DatabaseSync,
 		paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+		lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null,
 		onActiveProject: (projectId: string | null) => void,
 		onClose: () => void,
 	) {
 		this.#configuration = configuration;
 		this.#database = database;
 		this.#paths = paths;
+		this.#lifecycle = lifecycle;
 		this.#onActiveProject = onActiveProject;
 		this.#onClose = onClose;
+		this.#admission = new DesktopProjectLibrarySessionAdmission(configuration.label);
 	}
 
 	get activePublication(): boolean { return this.#publication !== null; }
@@ -283,29 +316,31 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		});
 	}
 
-	async readProjectBundle(projectId: string): Promise<unknown> {
-		this.#assertOpen();
-		const row = this.#row(projectId);
-		if (!row) return null;
-		const bundle = await this.#bundle(row);
-		this.#onActiveProject(projectId);
-		return bundle;
+	readProjectBundle(projectId: string): Promise<unknown> {
+		return this.#admit(async () => {
+			const row = this.#row(projectId);
+			if (!row) return null;
+			const bundle = await this.#bundle(row);
+			this.#onActiveProject(projectId);
+			return bundle;
+		});
 	}
 
-	async readBodyChunk(value: unknown): Promise<Uint8Array> {
-		this.#assertOpen();
-		const record = value as Record<string, unknown>;
-		const body = validateBody(record?.body, this.#configuration.label);
-		const offset = nonNegative(record?.offset, 'body offset');
-		const length = positive(record?.length, 'body length');
-		if (length > MAXIMUM_CHUNK_BYTES || offset > body.byteLength - length) {
-			throw new RangeError(`${this.#configuration.label} body read leaves its declared range`);
-		}
-		const bytes = await readFile(mediaPath(this.#paths, body));
-		if (bytes.byteLength !== body.byteLength || sha256(bytes) !== body.sha256) {
-			throw new Error(`${this.#configuration.label} managed body failed integrity validation`);
-		}
-		return new Uint8Array(bytes.buffer, bytes.byteOffset + offset, length).slice();
+	readBodyChunk(value: unknown): Promise<Uint8Array> {
+		return this.#admit(async () => {
+			const record = value as Record<string, unknown>;
+			const body = configuredBody(this.#configuration, record?.body);
+			const offset = nonNegative(record?.offset, 'body offset');
+			const length = positive(record?.length, 'body length');
+			if (length > MAXIMUM_CHUNK_BYTES || offset > body.byteLength - length) {
+				throw new RangeError(`${this.#configuration.label} body read leaves its declared range`);
+			}
+			const bytes = await readFile(mediaPath(this.#paths, body));
+			if (bytes.byteLength !== body.byteLength || sha256(bytes) !== body.sha256) {
+				throw new Error(`${this.#configuration.label} managed body failed integrity validation`);
+			}
+			return new Uint8Array(bytes.buffer, bytes.byteOffset + offset, length).slice();
+		});
 	}
 
 	async beginPublication(value: unknown): Promise<unknown> {
@@ -326,9 +361,8 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		if (current && project.revision <= nonNegative(current.project_revision, 'project revision')) {
 			throw new Error(`${this.#configuration.label} publication requires a strictly higher project revision`);
 		}
-		const bodies = denseArray(record.bodies, MAXIMUM_BODIES, `${this.#configuration.label} bodies`)
-			.map((body) => validateBody(body, this.#configuration.label));
 		const document = JSON.stringify(project);
+		const bodies = configuredBodies(this.#configuration, project, sha256(document), record.bodies);
 		this.#publication = {
 			publicationId,
 			expectedMetadataRevision,
@@ -368,23 +402,40 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		});
 	}
 
-	async finishPublication(value: unknown): Promise<unknown> {
-		this.#assertOpen();
-		const publication = this.#active(value, COMPLETION_FIELDS);
-		if (publication.bodies.some((body, index) => publication.offsets[index] !== body.byteLength)) {
-			throw new Error(`${this.#configuration.label} publication bodies are incomplete`);
-		}
-		const bundle = await persistPublication(this.#configuration, this.#database, this.#paths, publication);
-		this.#publication = null;
-		this.#onActiveProject(String(publication.project.id));
-		return bundle;
+	finishPublication(value: unknown): Promise<unknown> {
+		return this.#admit(async () => {
+			const publication = this.#active(value, COMPLETION_FIELDS);
+			if (publication.bodies.some((body, index) => publication.offsets[index] !== body.byteLength)) {
+				throw new Error(`${this.#configuration.label} publication bodies are incomplete`);
+			}
+			try {
+				const bundle = await persistPublication(
+					this.#configuration, this.#database, this.#paths, publication, this.#lifecycle,
+					() => this.#assertCurrent(publication.publicationId),
+				);
+				this.#publication = null;
+				this.#onActiveProject(String(publication.project.id));
+				return bundle;
+			} catch (error) {
+				this.#publication = null;
+				try { await this.#lifecycle?.abortPublication(publication.publicationId); }
+				catch (cleanupError) {
+					throw new AggregateError(
+						[error, cleanupError], `${this.#configuration.label} publication cleanup failed`,
+					);
+				}
+				throw error;
+			}
+		});
 	}
 
-	async abortPublication(value: unknown): Promise<boolean> {
-		this.#assertOpen();
-		this.#active(value, COMPLETION_FIELDS);
-		this.#publication = null;
-		return true;
+	abortPublication(value: unknown): Promise<boolean> {
+		return this.#admit(async () => {
+			const publication = this.#active(value, COMPLETION_FIELDS);
+			this.#publication = null;
+			await this.#lifecycle?.abortPublication(publication.publicationId);
+			return true;
+		});
 	}
 
 	async deleteProject(value: unknown): Promise<unknown> {
@@ -402,6 +453,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		);
 		this.#database.exec('BEGIN IMMEDIATE');
 		try {
+			this.#lifecycle?.assertLeaseInTransaction(this.#database);
 			this.#database.prepare('DELETE FROM projects WHERE project_id = ?').run(projectId);
 			setMetadataRevision(this.#database, expectedMetadataRevision + 1, this.#configuration.label);
 			this.#database.exec('COMMIT');
@@ -410,72 +462,87 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		return Object.freeze({ projectId, metadataRevision: expectedMetadataRevision + 1, deleted: true });
 	}
 
-	async duplicateProject(value: unknown): Promise<unknown> {
-		this.#assertOpen();
-		if (this.#publication) throw new Error(`${this.#configuration.label} session already owns a publication`);
-		const request = closedRecord(value, DUPLICATE_FIELDS, `${this.#configuration.label} duplicate request`);
-		const sourceProjectId = text(request.sourceProjectId, 'source project id');
-		const copyProjectId = text(request.copyProjectId, 'copy project id');
-		if (sourceProjectId === copyProjectId || this.#row(copyProjectId)) {
-			throw new Error(`${this.#configuration.label} duplicate destination is occupied`);
-		}
-		const expectedMetadataRevision = nonNegative(request.expectedMetadataRevision, 'metadata revision');
-		if (metadataRevision(this.#database) !== expectedMetadataRevision) {
-			throw new Error(`${this.#configuration.label} duplicate metadata changed`);
-		}
-		const sourceRow = this.#row(sourceProjectId);
-		assertExpected(
-			sourceRow,
-			expectedProjectRecord(request.expectedSource, this.#configuration.label),
-			this.#configuration.label,
-		);
-		if (!sourceRow) throw new Error(`${this.#configuration.label} duplicate source is unavailable`);
-		const sourceBundle = await this.#bundle(sourceRow) as Readonly<{
-			document: string; bodies: readonly Readonly<BodyDescriptor>[];
-		}>;
-		const project = structuredClone(JSON.parse(sourceBundle.document) as Record<string, unknown>);
-		project.id = copyProjectId;
-		project.title = text(request.title, 'copy project title');
-		project.revision = 0;
-		project.createdAt = instant(request.timestamp, 'copy timestamp', this.#configuration.label);
-		project.updatedAt = project.createdAt;
-		if (Array.isArray(project.multicameraGroups)) {
-			project.multicameraGroups = project.multicameraGroups.map((value) => ({
-				...(value as Record<string, unknown>), projectId: copyProjectId,
-			}));
-		}
-		this.#configuration.validateProject(project);
-		const admitted = exactGenerationProject(project, this.#configuration.label);
-		const chunks = await Promise.all(sourceBundle.bodies.map(async (body) => [
-			new Uint8Array(await readFile(mediaPath(this.#paths, body))),
-		]));
-		return persistPublication(this.#configuration, this.#database, this.#paths, {
-			publicationId: randomBytes(24).toString('hex'),
-			expectedMetadataRevision,
-			expectedProject: null,
-			project: admitted,
-			document: JSON.stringify(admitted),
-			bodies: sourceBundle.bodies,
-			chunks,
-			offsets: sourceBundle.bodies.map(({ byteLength }) => byteLength),
+	duplicateProject(value: unknown): Promise<unknown> {
+		return this.#admit(async () => {
+			if (this.#publication) throw new Error(`${this.#configuration.label} session already owns a publication`);
+			const request = closedRecord(value, DUPLICATE_FIELDS, `${this.#configuration.label} duplicate request`);
+			const sourceProjectId = text(request.sourceProjectId, 'source project id');
+			const copyProjectId = text(request.copyProjectId, 'copy project id');
+			if (sourceProjectId === copyProjectId || this.#row(copyProjectId)) {
+				throw new Error(`${this.#configuration.label} duplicate destination is occupied`);
+			}
+			const expectedMetadataRevision = nonNegative(request.expectedMetadataRevision, 'metadata revision');
+			if (metadataRevision(this.#database) !== expectedMetadataRevision) {
+				throw new Error(`${this.#configuration.label} duplicate metadata changed`);
+			}
+			const sourceRow = this.#row(sourceProjectId);
+			assertExpected(
+				sourceRow,
+				expectedProjectRecord(request.expectedSource, this.#configuration.label),
+				this.#configuration.label,
+			);
+			if (!sourceRow) throw new Error(`${this.#configuration.label} duplicate source is unavailable`);
+			const sourceBundle = await this.#bundle(sourceRow) as Readonly<{
+				document: string; bodies: readonly Readonly<BodyDescriptor>[];
+			}>;
+			const project = structuredClone(JSON.parse(sourceBundle.document) as Record<string, unknown>);
+			project.id = copyProjectId;
+			project.title = text(request.title, 'copy project title');
+			project.revision = 0;
+			project.createdAt = instant(request.timestamp, 'copy timestamp', this.#configuration.label);
+			project.updatedAt = project.createdAt;
+			if (Array.isArray(project.multicameraGroups)) {
+				project.multicameraGroups = project.multicameraGroups.map((item) => ({
+					...(item as Record<string, unknown>), projectId: copyProjectId,
+				}));
+			}
+			this.#configuration.validateProject(project);
+			const admitted = exactGenerationProject(project, this.#configuration.label);
+			const document = JSON.stringify(admitted);
+			const bodies = configuredBodies(this.#configuration, admitted, sha256(document), sourceBundle.bodies);
+			const chunks = await Promise.all(bodies.map(async (body) => [
+				new Uint8Array(await readFile(mediaPath(this.#paths, body))),
+			]));
+			return persistPublication(this.#configuration, this.#database, this.#paths, {
+				publicationId: randomBytes(24).toString('hex'),
+				expectedMetadataRevision,
+				expectedProject: null,
+				project: admitted,
+				document,
+				bodies,
+				chunks,
+				offsets: bodies.map(({ byteLength }) => byteLength),
+			}, this.#lifecycle, () => this.#assertAdmitted());
 		});
 	}
 
-	async close(): Promise<void> {
-		if (this.#closed) return;
-		this.#closed = true;
-		this.#publication = null;
-		this.#onActiveProject(null);
-		this.#onClose();
+	close(): Promise<void> { return this.#retire(false); }
+	revoke(): Promise<void> { return this.#retire(true); }
+	#retire(invalidateBeforeDrain: boolean): Promise<void> {
+		const publicationId = this.#publication?.publicationId ?? null;
+		if (invalidateBeforeDrain) this.#publication = null;
+		return this.#admission.close(async () => {
+			this.#publication = null;
+			if (publicationId) await this.#lifecycle?.abortPublication(publicationId);
+			this.#onActiveProject(null);
+			this.#onClose();
+		});
 	}
-
 	#active(value: unknown, fields: readonly string[]): Publication {
+		this.#lifecycle?.assertCanUse();
 		const record = closedRecord(value, fields, `${this.#configuration.label} publication operation`);
 		const id = exactPublicationId(record.publicationId);
 		if (!this.#publication || this.#publication.publicationId !== id) {
 			throw new Error(`${this.#configuration.label} publication is not active`);
 		}
 		return this.#publication;
+	}
+
+	#assertCurrent(publicationId: string): void {
+		this.#assertAdmitted();
+		if (this.#publication?.publicationId !== publicationId) {
+			throw new Error(`${this.#configuration.label} publication ownership changed`);
+		}
 	}
 
 	#row(projectIdValue: string): StoredProjectRow | null {
@@ -493,18 +560,24 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		if (new TextEncoder().encode(document).byteLength !== project.byteLength || sha256(document) !== project.sha256) {
 			throw new Error(`${this.#configuration.label} project document failed integrity validation`);
 		}
-		this.#configuration.validateProject(JSON.parse(document) as unknown);
+		const parsed = JSON.parse(document) as unknown;
+		this.#configuration.validateProject(parsed);
 		return Object.freeze({
 			metadataRevision: metadataRevision(this.#database),
 			project,
 			document,
-			bodies: parseBodies(row.bodies_json, this.#configuration.label),
+			bodies: configuredBodies(this.#configuration, parsed, project.sha256, JSON.parse(text(row.bodies_json, 'body inventory')) as unknown),
 		});
 	}
 
-	#assertOpen(): void {
-		if (this.#closed) throw new Error(`${this.#configuration.label} main session is closed`);
+	#assertOpen(): void { this.#admission.assertOpen(); this.#assertAdmitted(); }
+
+	#admit<Result>(operation: () => Promise<Result>): Promise<Result> {
+		this.#lifecycle?.assertCanUse();
+		return this.#admission.run(operation);
 	}
+
+	#assertAdmitted(): void { this.#lifecycle?.assertCanUse(); }
 }
 
 function exactGenerationProject(value: unknown, label: string): ExactGenerationProject {

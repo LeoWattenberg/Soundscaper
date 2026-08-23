@@ -18,9 +18,12 @@
  * - the digest the proxy was generated from is still the source's content;
  * - the frame count it conforms to is still the source's frame count;
  * - the source is still placed somewhere, because a proxy for material no
- *   occurrence uses is retention with no purpose; and
- * - no occurrence of it was retimed, because a retimed occurrence no longer
- *   presents the boundaries conformance proved.
+ *   occurrence uses is retention with no purpose.
+ *
+ * Retime is deliberately absent from that list. Proxy conformance is proved in
+ * source-frame ordinals; preview selects that source-domain proxy frame before
+ * applying an occurrence's retime map. Retime therefore changes presentation,
+ * not the source identity or boundaries recorded by the attachment.
  *
  * Relink, changed-content relink, replace, reprobe, reimport, trim-media and
  * consolidate all land as one of the first two. Deleting the last clip that uses
@@ -97,8 +100,7 @@ function stillTrue(
 ): boolean {
 	if (attachment.originalSha256 !== source.contentSha256) return false;
 	if (attachment.frameCount !== source.sourceFrameCount) return false;
-	if (occurrences.length === 0) return false;
-	return occurrences.every((clip) => clip.retimeMap == null);
+	return occurrences.length > 0;
 }
 
 function sourcesOf(project: unknown): readonly SourceRecord[] {

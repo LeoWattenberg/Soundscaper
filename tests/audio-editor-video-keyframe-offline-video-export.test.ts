@@ -88,6 +88,33 @@ test('carries the delivery fit into the frame source rather than refusing the ca
 	assert.equal(frameSource?.canvas.fit, 'cover');
 });
 
+test('threads the authenticated RGBA post-compositor only into the owned renderer', async () => {
+	const fixture = await exportFixture();
+	const events: string[] = [];
+	const base = harnessDependencies(events);
+	let renderRequest: Readonly<Record<string, unknown>> | undefined;
+	const postprocess = async () => undefined;
+	const dependencies = Object.freeze({
+		...base,
+		createRenderer(request: Parameters<typeof base.createRenderer>[0]) {
+			renderRequest = request as unknown as Readonly<Record<string, unknown>>;
+			return base.createRenderer(request);
+		},
+	}) as VideoKeyframeOfflineVideoExportDependencies;
+	await encodeVideoKeyframeOfflineVideo({
+		project: fixture.project,
+		timingBySourceId: fixture.timing,
+		sources: [{ sourceId: SOURCE_ID, blob: fixture.blob }],
+		canvas: { width: 64, height: 32, frameRate: RATE },
+		format: 'mp4',
+		rgbaPostprocessor: postprocess,
+		editorFfmpeg: editorPort(),
+		signal: new AbortController().signal,
+		assertCurrent: () => undefined,
+	}, dependencies);
+	assert.strictEqual(renderRequest?.postprocess, postprocess);
+});
+
 test('rejects missing, duplicate, or digest-mismatched Blobs before resolver and GL allocation', async () => {
 	const fixture = await exportFixture();
 	for (const [sources, match] of [

@@ -24,7 +24,7 @@ Families describe product entry points, not every file extension a decoder might
 | Capability | Soundscaper | Framescaper |
 | --- | --- | --- |
 | Audio analysis | Enabled | Not enabled |
-| Audio automation | Enabled | Not enabled |
+| Audio automation | Enabled | Enabled |
 | Audio effects | Enabled | Not enabled |
 | Audio generators | Enabled | Not enabled |
 | Audio import | Enabled | Enabled |
@@ -32,11 +32,11 @@ Families describe product entry points, not every file extension a decoder might
 | Audio mixing | Enabled | Enabled |
 | Audio playback | Enabled | Enabled |
 | Audio recording | Enabled | Not enabled |
-| Audio routing and mixer graph | Enabled | Not enabled |
+| Audio routing and mixer graph | Enabled | Enabled |
 | Audio timeline editing | Enabled | Enabled |
 | Audio track freeze | Enabled | Not enabled |
 | Audio warping | Enabled | Not enabled |
-| Dissolve video transitions | Not enabled | Not enabled |
+| Dissolve video transitions | Not enabled | Enabled |
 | Immersive ADM audio | Enabled | Not enabled |
 | Mastering sequences | Enabled | Not enabled |
 | Multicamera editing | Not enabled | Enabled |
@@ -52,26 +52,32 @@ Families describe product entry points, not every file extension a decoder might
 | Take comping | Enabled | Not enabled |
 | Timeline annotations | Enabled | Not enabled |
 | Track folders | Enabled | Not enabled |
-| Video adjustment layers | Not enabled | Not enabled |
+| Video adjustment layers | Not enabled | Enabled |
+| Video captions | Not enabled | Enabled |
+| Video color management | Not enabled | Enabled |
 | Video compositing | Not enabled | Enabled |
+| Video denoise | Not enabled | Enabled |
 | Video effects | Not enabled | Enabled |
 | Video export | Enabled | Enabled |
-| Video freeze | Not enabled | Not enabled |
-| Video generators | Not enabled | Not enabled |
+| Video freeze | Not enabled | Enabled |
+| Video generators | Not enabled | Enabled |
 | Video geometry | Not enabled | Enabled |
+| Video grading | Not enabled | Enabled |
 | Video import | Enabled | Enabled |
 | Video keyframes | Not enabled | Enabled |
-| Video masks and mattes | Not enabled | Not enabled |
+| Video masks and mattes | Not enabled | Enabled |
+| Video motion tracking | Not enabled | Enabled |
 | Video playback | Enabled | Enabled |
-| Video retiming | Not enabled | Not enabled |
-| Video stills | Not enabled | Not enabled |
+| Video retiming | Not enabled | Enabled |
+| Video stabilization | Not enabled | Enabled |
+| Video stills | Not enabled | Enabled |
 | Video timeline editing | Enabled | Enabled |
 | Video timing assets | Enabled | Enabled |
-| Video transitions | Not enabled | Not enabled |
+| Video transitions | Not enabled | Enabled |
 
 ## Product-specific application features
 
 | Capability | Soundscaper | Framescaper |
 | --- | --- | --- |
-| Screen and camera capture | Not enabled | Enabled |
+| Screen and camera capture | Not enabled | Not enabled |
 | Web VCR capture | Not enabled | Not enabled |

@@ -36,6 +36,7 @@ import {
 	rackTailFrames,
 } from './effects.js';
 import { createExportPlan } from './export.js';
+import { errorDiagnosticMessage } from './error-diagnostic-message.ts';
 import { selectAudioEditorControllerEditBlock } from './edit-blocking.ts';
 import { createAudioEditorFileService } from './file-service.js';
 import { applyMediaChannelMapping } from './media-export.js';
@@ -174,7 +175,7 @@ import { createProjectSessionService } from './controller/project-session-servic
 import { createProjectBootstrapService } from './controller/project-bootstrap-service.ts';
 import { createProjectLockService } from './controller/project-lock-service.ts';
 import { createProjectSwitchService } from './controller/project-switch-service.ts';
-import { resolveControllerProjectRuntime } from './controller/project-runtime.ts';
+import { bindControllerEditClipboardRuntime, resolveControllerProjectRuntime } from './controller/project-runtime.ts';
 import { createControllerProjectRuntimeMetrics } from './controller/project-runtime-metrics.ts';
 import { SourceChunkProviderRegistry } from './controller/source-chunk-provider-registry.ts';
 import {
@@ -204,6 +205,7 @@ import { createSequenceTimingService } from './controller/sequence-timing-servic
 import { createVideoSourceReprobeService } from './controller/video-source-reprobe-service.ts';
 import { createSourceMonitorService } from './controller/source-monitor-service.ts';
 import { createVideoEditService } from './controller/video-edit-service.ts';
+import { createVideoRetimeProgramStateResolver } from './controller/video-retime-program-state.ts';
 import { createVideoNavigationService } from './controller/video-navigation-service.ts';
 import { createVideoTrimServices } from './controller/video-trim-composition.ts';
 import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
@@ -534,7 +536,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceBuffers,
 		sourcePeaks,
 		waveformPcmWindows: clipWaveformPcmWindows,
-		store,
+		store, resolveProductVideoPreviewMedia: options.resolveProductVideoPreviewMedia,
 		projectDurationFrames,
 		url: {
 			createObjectURL: (blob) => globalThis.URL?.createObjectURL?.(blob) || null,
@@ -985,16 +987,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getPositionFrames: () => engine.getPositionFrames(),
 		seek: (frame) => engine.seek(normalizePlaybackFrame(frame)),
 	});
-	const sourceMonitorService = createSourceMonitorService({
-		lifetime, getProject: getCommandProject, publishProjectState,
-	});
+	const sourceMonitorService = createSourceMonitorService({ lifetime, getProject: getCommandProject, publishProjectState });
+	const getVideoRetimeProgramState = createVideoRetimeProgramStateResolver({ getProject: () => project, projectRuntime, createBridge: options.createProductVideoRetimeProgramOrdinalBridge });
 	const videoEditService = createVideoEditService({
 		lifetime, getProject: getCommandProject, editingBlocked, commit, publishProjectState,
 		getSelectedTrackId: () => state.selectedTrackId,
 		prepareThreePointEditCommand: (commandProject, options) => (
 			prepareThreePointEditCommand(commandProject, options, createStableId)
 		),
-		getPositionFrames: () => engine.getPositionFrames(),
+		getPositionFrames: () => engine.getPositionFrames(), getVideoRetimeProgramState,
 		sourceMonitor: sourceMonitorService,
 	});
 	videoNavigationService = createVideoNavigationService({
@@ -1440,9 +1441,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		saveExport: (result) => saveLabelExport(result, options.saveLabelFile, fileService),
 	});
 	const clipboardEditService = createClipboardEditService({
-		lifetime,
-		state,
-		copy,
+		lifetime, state, copy,
 		session: sessionController,
 		sourceBuffers,
 		getProject: getCommandProject,
@@ -1451,6 +1450,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		normalizeFrame: normalizeTimelineFrame,
 		snapFrame: snapTimelineFrame,
 		createId: createStableId,
+		...bindControllerEditClipboardRuntime(projectRuntime, () => project),
 		commit,
 		setStatus,
 	});
@@ -1488,7 +1488,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const handleEdit = createEditorEditService({
 		activeSelection, commit, commitSplitAtFrames: clipboardEditService.commitSplitAtFrames, compactLiveSourceState,
-		copy, createAddTrackCommand, createClipboardDescriptor: (commandProject, descriptorOptions) => projectRuntime.prepareEditClipboardDescriptor(project, createClipboardDescriptor(commandProject, descriptorOptions)), createStableId,
+		copy, createAddTrackCommand, createClipboardDescriptor: (commandProject, descriptorOptions) => projectRuntime.prepareEditClipboardDescriptor(project, createClipboardDescriptor(projectRuntime.projectForEditClipboardConsumers ? projectRuntime.projectForEditClipboardConsumers(project) : commandProject, descriptorOptions)), createStableId,
 		editingBlocked, engine, findClip, findClipTrack,
 		findTrack, garbageCollectSources, handleError, normalizeTimelineFrame,
 		prepareControllerPaste: clipboardEditService.prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,
@@ -1842,7 +1842,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
 		prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
 		previewRackEffect, previewVideoEffectGesture, product, getProject: () => project,
-		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual, canRelinkLinkedAudio: projectBinService.canRelinkLinkedAudio, classifyLinkedAudioRelink: projectBinService.classifyLinkedAudioRelink, relinkLinkedAudio: projectBinService.relinkLinkedAudio, canRelinkLinkedVideo: projectBinService.canRelinkLinkedVideo, classifyLinkedVideoRelink: projectBinService.classifyLinkedVideoRelink, relinkLinkedVideo: projectBinService.relinkLinkedVideo,
+		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined), canRelinkLinkedAudio: projectBinService.canRelinkLinkedAudio, classifyLinkedAudioRelink: projectBinService.classifyLinkedAudioRelink, relinkLinkedAudio: projectBinService.relinkLinkedAudio, canRelinkLinkedVideo: projectBinService.canRelinkLinkedVideo, classifyLinkedVideoRelink: projectBinService.classifyLinkedVideoRelink, relinkLinkedVideo: projectBinService.relinkLinkedVideo,
 		removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
 		renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
 		repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence: storageCapacityService.requestStoragePersistence, requestWaveformPcmWindow, resampleTrack,
@@ -2012,7 +2012,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	function getProjectBinClipVisualData(...args) { return projectVisualService.getProjectBinClipVisualData(...args); }
 	function revokeVideoVisuals() { return projectVisualService.revokeVideoVisuals(); }
 	function revokeVideoVisual(...args) { return projectVisualService.revokeVideoVisual(...args); }
-	function activateVideoSource(...args) { return projectVisualService.activateVideoSource(...args); }
+	function activateVideoSource(...args) { return projectVisualService.activateVideoSource(...args); } async function reloadVideoSourceVisual(sourceId) { const source = findSource(project, sourceId); if (!source || source.kind !== 'video') throw new ReferenceError(`Video source ${String(sourceId)} is missing.`); await revokeVideoVisual(source.id); return activateVideoSource(source); }
 	function allProjectClips(...args) { return projectVisualService.allProjectClips(...args); }
 	function hasMissingTimelineSources(...args) { return projectVisualService.hasMissingTimelineSources(...args); }
 	function getVisibleClips(...args) { return projectVisualService.getVisibleClips(...args); }
@@ -2911,8 +2911,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function handleError(error) {
-		const message = error?.message || String(error) || copy.unknownError;
-		setStatus(copy.genericError.replace('{message}', message), 'error');
+		setStatus(copy.genericError.replace('{message}', errorDiagnosticMessage(error, copy.unknownError)), 'error');
 		return null;
 	}
 

@@ -197,7 +197,7 @@ test('desktop smoke validates the application-reported platform and target archi
 	);
 });
 
-test('desktop smoke validates the closed Framescaper V20 UI, preload, and main readback witness', () => {
+test('desktop smoke validates the closed Framescaper V27 UI, preload, and main readback witness', () => {
 	const expected = {
 		arch: 'arm64',
 		bridge: FRAMESCAPER_EXPECTED_BRIDGE,
@@ -206,29 +206,29 @@ test('desktop smoke validates the closed Framescaper V20 UI, preload, and main r
 		title: 'Framescaper',
 		url: 'framescaper-app://bundle/',
 	};
-	const payload = validFramescaperV20Payload();
+	const payload = validFramescaperV27Payload();
 	assert.doesNotThrow(() => assertDesktopSmokePayload(payload, expected));
 	assert.throws(
 		() => assertDesktopSmokePayload({
 			...payload,
-			framescaperV20: {
-				...payload.framescaperV20,
+			framescaperV27: {
+				...payload.framescaperV27,
 				main: {
-					...payload.framescaperV20.main,
-					project: { ...payload.framescaperV20.main.project, sha256: 'cd'.repeat(32) },
+					...payload.framescaperV27.main,
+					project: { ...payload.framescaperV27.main.project, sha256: 'cd'.repeat(32) },
 				},
 			},
 		}, expected),
-		/V18.*match|readback/iu,
+		/V27.*match|readback/iu,
 	);
 	assert.throws(
 		() => assertDesktopSmokePayload({
 			...payload,
-			framescaperV20: {
-				...payload.framescaperV20,
+			framescaperV27: {
+				...payload.framescaperV27,
 				main: {
-					...payload.framescaperV20.main,
-					project: { ...payload.framescaperV20.main.project, metadataFile: 'private/file.json' },
+					...payload.framescaperV27.main,
+					project: { ...payload.framescaperV27.main.project, metadataFile: 'private/file.json' },
 				},
 			},
 		}, expected),
@@ -256,11 +256,11 @@ test('packaged desktop smoke isolates both Chromium and shared library data', as
 	assert.match(source, /productId:\s*PRODUCT_ID/u);
 });
 
-function validFramescaperV20Payload() {
+function validFramescaperV27Payload() {
 	const project = {
-		projectId: 'framescaper-artifact-v20',
+		projectId: 'framescaper-artifact-v27',
 		title: 'Untitled project',
-		projectSchemaVersion: 20,
+		projectSchemaVersion: 27,
 		projectRevision: 0,
 		metadataRevision: 1,
 		byteLength: 4_096,
@@ -276,7 +276,7 @@ function validFramescaperV20Payload() {
 		saveOwnerReady: true,
 		title: 'Framescaper',
 		url: 'framescaper-app://bundle/',
-		framescaperV20: {
+		framescaperV27: {
 			preloadBridge: [
 				'abortPublication', 'beginPublication', 'connect', 'deleteProject', 'duplicateProject',
 				'finishPublication', 'handshakeState', 'listProjects', 'readBodyChunk', 'readProjectBundle',
@@ -286,13 +286,13 @@ function validFramescaperV20Payload() {
 				kind: 'framescaper-project-library-handshake',
 				version: 1,
 				owner: 'framescaper',
-				projectSchemaVersion: 20,
+				projectSchemaVersion: 27,
 				scapeFormatVersions: [1, 2],
 				attachedScapeFormatVersion: 2,
-				storageDatabaseName: 'kw-media-framescaper-editor-v20',
-				desktopLibrarySchemaVersion: 12,
-				desktopDatabaseUserVersion: 14,
-				desktopLibraryScope: ['kw.media', 'scape-project-library', 'v12'],
+				storageDatabaseName: 'kw-media-framescaper-editor-v27',
+				desktopLibrarySchemaVersion: 18,
+				desktopDatabaseUserVersion: 20,
+				desktopLibraryScope: ['kw.media', 'scape-project-library', 'v18'],
 			},
 			ui: { projectId: project.projectId, title: project.title, trackCount: 1, clipCount: 0 },
 			project,

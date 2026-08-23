@@ -1,10 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
-
 import {
 	createEditorProjectRuntimeProfile,
 	editorProjectRuntimeProfileDefinition,
@@ -30,7 +28,6 @@ import {
 import {
 	FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE,
 } from '../src/framescaper/editor-project-feature-capability-profile-v18.ts';
-
 const ROOT = resolve(import.meta.dirname, '..');
 const GENERIC_MODULE = 'src/common/editor/project-runtime-profile.ts';
 const PRODUCT_MODULE = 'src/framescaper/editor-project-runtime-profile-v18.ts';
@@ -39,13 +36,11 @@ const PRODUCT_EXPORT = 'FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE';
 const PRODUCT_MODULE_STEM = 'editor-project-runtime-profile-v18.ts';
 const GENERIC_MODULE_STEM = 'project-runtime-profile.ts';
 const DEFINITION_FIELDS = ['prerequisite', 'capabilityProfile'] as const;
-
 type Definition = EditorProjectRuntimeProfileDefinition;
 type MutableRecord = Record<PropertyKey, unknown>;
 type StructuralTokenIsAssignable = Readonly<Record<never, never>> extends
 	EditorProjectRuntimeProfile ? true : false;
 type AssertFalse<Value extends false> = Value;
-
 test('owns two type declarations, two runtime exports, and one exact product export', async () => {
 	assert.deepEqual(Object.keys(runtimeProfileModule).sort(), [
 		'createEditorProjectRuntimeProfile',
@@ -63,7 +58,6 @@ test('owns two type declarations, two runtime exports, and one exact product exp
 	]);
 	assert.doesNotMatch(source, /export\s+(?:type\s+)?\{/u);
 });
-
 test('the exact singleton retains both exact authenticated Framescaper children', () => {
 	const profile: EditorProjectRuntimeProfile = FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE;
 	assert.equal(Object.isFrozen(profile), true);
@@ -355,7 +349,7 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'tests/audio-editor-retention-round-trip-invariant.test.ts',
 		'tests/desktop-project-library-v10-current-project.test.ts',
 		'tests/desktop-project-library-v10-transport.test.ts',
-		// Selected V20 desktop V12 authenticates the inherited V18 foundation at
+		// Immutable V12 and selected V17 authenticate the inherited V18 foundation at
 		// its exact-generation contract and main-process boundaries.
 		'tests/desktop-project-library-v12-contract.test.ts',
 		'tests/desktop-project-library-v12-main.test.ts',
@@ -427,6 +421,8 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 	assert.deepEqual(genericPathReferences, [
 		'desktop/project-library-v10-current-project.ts',
 		'desktop/project-library-v12-current-project.ts',
+		'desktop/project-library-v17-current-project.ts',
+		'desktop/project-library-v18-current-project.ts',
 		'src/framescaper/desktop-project-library-v10-delete-intents.ts',
 		'src/framescaper/desktop-project-library-v10-renderer-catalog.ts',
 		'src/framescaper/desktop-project-library-v10-renderer-contract.ts',
@@ -435,6 +431,10 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'src/framescaper/desktop-project-library-v10-store-adapter.ts',
 		'src/framescaper/desktop-project-library-v12-renderer.ts',
 		'src/framescaper/desktop-project-library-v12-store-adapter.ts',
+		'src/framescaper/desktop-project-library-v17-renderer.ts',
+		'src/framescaper/desktop-project-library-v17-store-adapter.ts',
+		'src/framescaper/desktop-project-library-v18-renderer.ts',
+		'src/framescaper/desktop-project-library-v18-store-adapter.ts',
 		'src/framescaper/editor-captured-video-proxy-preservation.ts',
 		'src/framescaper/editor-captured-video-proxy-project.ts',
 		'src/framescaper/editor-captured-video-proxy-scheduler-composition.ts',
@@ -455,6 +455,7 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'src/framescaper/editor-project-runtime-profile-v24.ts',
 		'src/framescaper/editor-project-runtime-profile-v25.ts',
 		'src/framescaper/editor-project-runtime-profile-v26.ts',
+		'src/framescaper/editor-project-runtime-profile-v27.ts',
 		'src/framescaper/editor-project-runtime-v18-selection.ts',
 		'src/framescaper/editor-project-runtime-v19-selection.ts',
 		'src/framescaper/editor-project-store-v18.ts',
@@ -508,6 +509,7 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'tests/audio-editor-framescaper-v22-candidate.test.ts',
 		'tests/audio-editor-framescaper-v24-candidate.test.ts',
 		'tests/audio-editor-framescaper-v25-candidate-profile.test.ts',
+		'tests/audio-editor-framescaper-v27-core.test.ts',
 		'tests/audio-editor-soundscaper-v23-runtime-selection.test.ts',
 		'tests/desktop-soundscaper-project-library-v10-contract.test.ts',
 		'tests/helpers/framescaper-v18-archive-fixture.ts',

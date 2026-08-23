@@ -47,6 +47,11 @@ export interface FramescaperVideoExportStrategyV20Dependencies {
 	readonly encodeOfflineToSink: OfflineSinkEncoder;
 }
 
+export interface FramescaperVideoExportStrategyV20Options {
+	/** Selected V27 uses the exact RGBA path even when V20 authored no keyframes. */
+	readonly forceKeyed?: boolean;
+}
+
 interface PlanAuthority {
 	readonly canonicalProject: Readonly<Record<string, unknown>>;
 	readonly exportProject: Readonly<Record<string, unknown>>;
@@ -61,9 +66,11 @@ const DEFAULT_DEPENDENCIES: FramescaperVideoExportStrategyV20Dependencies = Obje
 export function createFramescaperVideoExportStrategyV20(
 	profile: FramescaperProjectV20Profile | unknown,
 	dependenciesValue: FramescaperVideoExportStrategyV20Dependencies | unknown = DEFAULT_DEPENDENCIES,
+	options: FramescaperVideoExportStrategyV20Options = {},
 ): ProductVideoExportStrategy {
 	assertFramescaperProjectV20Profile(profile);
 	const dependencies = snapshotDependencies(dependenciesValue);
+	const forceKeyed = options.forceKeyed === true;
 	const authorities = new WeakMap<object, PlanAuthority>();
 	const exportAuthorities = new WeakMap<object, Readonly<Record<string, unknown>>>();
 	return Object.freeze({
@@ -93,7 +100,7 @@ export function createFramescaperVideoExportStrategyV20(
 				request.canonicalProject as FramescaperProjectV20,
 				request.range as FramescaperVideoExportRangeRequestV20,
 			);
-			if (decision.strategy === 'legacy-v6') return null;
+			if (decision.strategy === 'legacy-v6' && !forceKeyed) return null;
 			const plan = createFramescaperVideoKeyframeExportPlanV20(
 				profile,
 				request.canonicalProject as FramescaperProjectV20,
@@ -110,6 +117,7 @@ export function createFramescaperVideoExportStrategyV20(
 					// here is what made a caption request vanish without a word.
 					...(request.captions === undefined ? {} : { captions: request.captions }),
 				},
+				{ allowNeutralExact: forceKeyed },
 			);
 			authorities.set(plan, Object.freeze({
 				canonicalProject: request.canonicalProject,
@@ -283,6 +291,12 @@ function offlineRequest(
 		...(request.audioMix instanceof Blob ? { audioMix: request.audioMix } : {}),
 		...(request.maximumOutputBytes === undefined ? {} : {
 			maximumOutputBytes: request.maximumOutputBytes as number,
+		}),
+		...(request.rgbaPostprocessor === undefined ? {} : {
+			rgbaPostprocessor: request.rgbaPostprocessor,
+		}),
+		...(request.rgbaCompositor === undefined ? {} : {
+			rgbaCompositor: request.rgbaCompositor,
 		}),
 		signal: request.signal,
 		assertCurrent: request.assertCurrent,

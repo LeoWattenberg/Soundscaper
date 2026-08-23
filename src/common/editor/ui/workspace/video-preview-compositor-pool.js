@@ -9,6 +9,7 @@ const EMPTY_VIDEO_EFFECT_STACK = Object.freeze([]);
 function createEntry() {
 	return {
 		clipId: null,
+		sourceId: null,
 		video: null,
 		effects: EMPTY_VIDEO_EFFECT_STACK,
 		opacity: 0,
@@ -19,6 +20,7 @@ function createEntry() {
 
 export function clearVideoPreviewCompositorEntry(entry) {
 	entry.clipId = null;
+	entry.sourceId = null;
 	entry.video = null;
 	entry.effects = EMPTY_VIDEO_EFFECT_STACK;
 	entry.opacity = 0;
@@ -33,6 +35,7 @@ export function clearVideoPreviewCompositorLayer(layer) {
 		clearVideoPreviewCompositorEntry(layer.entryPool[entryIndex]);
 	}
 	layer.trackId = null;
+	layer.trackIndex = null;
 	layer.entries.length = 0;
 	delete layer.blendMode;
 }
@@ -48,6 +51,7 @@ export function primeVideoPreviewCompositorPool(layerPool, layerCount) {
 	while (layerPool.length < layerCount) {
 		layerPool.push({
 			trackId: null,
+			trackIndex: null,
 			entries: [],
 			entryPool: [createEntry(), createEntry()],
 		});
@@ -94,6 +98,7 @@ export function synchronizeVideoPreviewCompositorLayers(
 			const clip = layer.clips[clipIndex];
 			if (!timeline.clipStateById.get(clip.clipId)?.available) continue;
 			const video = videoElements.get(clip.clipId);
+			synchronizeExactPresentation(timeline, clip, timelineFrame, video);
 			if (
 				targetLayers.length
 					&& (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight)
@@ -111,6 +116,7 @@ export function synchronizeVideoPreviewCompositorLayers(
 		const targetLayer = layerPool[targetLayerCount];
 		targetLayers[targetLayerCount] = targetLayer;
 		targetLayer.trackId = layer.trackId;
+		targetLayer.trackIndex = layer.trackIndex;
 		let targetEntryCount = 0;
 		for (let clipIndex = 0; clipIndex < layer.clips.length; clipIndex += 1) {
 			const clip = layer.clips[clipIndex];
@@ -118,6 +124,7 @@ export function synchronizeVideoPreviewCompositorLayers(
 			const targetEntry = targetLayer.entryPool[targetEntryCount];
 			targetLayer.entries[targetEntryCount] = targetEntry;
 			targetEntry.clipId = clip.clipId;
+			targetEntry.sourceId = clip.sourceId || clip.source?.id || null;
 			targetEntry.video = videoElements.get(clip.clipId) || null;
 			applyVideoPreviewDisplaySize(displaySizes, clip.source, targetEntry, targetEntry.video);
 			const keyframeState = keyframeStates.get(clip) || null;
@@ -157,6 +164,30 @@ export function synchronizeVideoPreviewCompositorLayers(
 	return true;
 }
 
+function synchronizeExactPresentation(timeline, clip, timelineFrame, video) {
+	if (!video || typeof timeline.resolveClipPresentation !== 'function') return;
+	const descriptor = timeline.resolveClipPresentation({
+		clip: clip.clip,
+		source: clip.source,
+		timelineSample: timelineFrame,
+	});
+	if (!descriptor) return;
+	const exact = descriptor.sourceTime;
+	if (!exact || typeof exact.numerator !== 'bigint' || typeof exact.denominator !== 'bigint'
+		|| exact.denominator <= 0n) throw new TypeError('Exact program preview source time is invalid.');
+	const targetTime = Number(exact.numerator) / Number(exact.denominator);
+	if (!Number.isFinite(targetTime) || targetTime < 0) {
+		throw new RangeError('Exact program preview source time exceeds the browser media range.');
+	}
+	video.pause?.();
+	if (Math.abs((Number(video.currentTime) || 0) - targetTime) <= 0.000001) return;
+	try {
+		video.currentTime = targetTime;
+	} catch {
+		// Metadata readiness callbacks and the next compositor pass retry the exact seek.
+	}
+}
+
 function resolveKeyframeStates(interval, timeline, timelineFrame) {
 	const states = new Map();
 	for (const layer of interval.layers) {
@@ -167,7 +198,7 @@ function resolveKeyframeStates(interval, timeline, timelineFrame) {
 				timelineSample: timelineFrame,
 				sourceDisplaySize: resolveVideoSourceDisplaySize(clip.source),
 				canvas: timeline.renderCanvas,
-				transitionWeight: previewTransitionWeight(layer, clip, timelineFrame),
+				transitionWeight: previewTransitionWeight(layer, clip, timelineFrame, timeline),
 			});
 			if (state) states.set(clip, state);
 		}
@@ -175,8 +206,17 @@ function resolveKeyframeStates(interval, timeline, timelineFrame) {
 	return states;
 }
 
-function previewTransitionWeight(layer, clip, timelineFrame) {
+function previewTransitionWeight(layer, clip, timelineFrame, timeline) {
 	if (clip.role === 'single' || layer.clips.length === 1) return 1;
+	if (typeof timeline.resolveTransitionWeight === 'function') {
+		const exact = timeline.resolveTransitionWeight(clip.clipId, timelineFrame);
+		if (exact !== null && exact !== undefined) {
+			if (!Number.isFinite(exact) || exact < 0 || exact > 1) {
+				throw new RangeError('An exact video transition weight must be between zero and one.');
+			}
+			return exact;
+		}
+	}
 	const outgoing = layer.clips.find((candidate) => candidate.role === 'outgoing');
 	const incoming = layer.clips.find((candidate) => candidate.role === 'incoming');
 	if (!outgoing || !incoming) throw new RangeError('A preview transition requires outgoing and incoming clips.');

@@ -21,7 +21,7 @@ test('the complete Framescaper standalone runtime initializes without opening me
 	assert.equal(harness.manifestLists, 1, 'startup checks only the open project recovery inventory');
 });
 
-test('selected V20 initializes the same capture runtime on web and desktop', async () => {
+test('historical V20 initializes the same dormant capture runtime on web and desktop', async () => {
 	for (const changes of [{ routeSchemaVersion: 20 }, { routeSchemaVersion: 20, desktop: true }]) {
 		const harness = compositionHarness(changes);
 		await harness.value.initialize();

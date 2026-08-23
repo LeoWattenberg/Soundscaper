@@ -41,11 +41,21 @@ export function beginVideoPreviewRenderLedger(layers, supportedEffectTypes) {
 				const id = boundedEffectId(effect.id);
 				if (effects.has(id)) throw new Error(`Video preview effect instance ID ${id} is duplicate.`);
 				effects.set(id, {
-					entry,
+					owner: entry,
 					supported: supportedEffectTypes.has(effect.type),
 					outcome: null,
 				});
 			}
+		}
+		for (const effect of layer?.effects || []) {
+			if (!effect || effect.enabled === false) continue;
+			const id = boundedEffectId(effect.id);
+			if (effects.has(id)) throw new Error(`Video preview effect instance ID ${id} is duplicate.`);
+			effects.set(id, {
+				owner: layer,
+				supported: supportedEffectTypes.has(effect.type),
+				outcome: null,
+			});
 		}
 	}
 	return { effects, composition };
@@ -53,12 +63,22 @@ export function beginVideoPreviewRenderLedger(layers, supportedEffectTypes) {
 
 /** Mark every supported effect on one entry as semantically rendered. */
 export function recordVideoPreviewEntryRendered(ledger, entry) {
-	recordEntryOutcome(ledger, entry, 'rendered');
+	recordOwnerOutcome(ledger, entry, 'rendered');
+}
+
+/** Mark every supported adjustment-layer effect on a composed track as rendered. */
+export function recordVideoPreviewLayerRendered(ledger, layer) {
+	recordOwnerOutcome(ledger, layer, 'rendered');
 }
 
 /** Mark an effect source fallback; canonical composition is omitted fail-closed. */
 export function recordVideoPreviewEntryFallback(ledger, entry) {
-	recordEntryOutcome(ledger, entry, 'fallbackRendered');
+	recordOwnerOutcome(ledger, entry, 'fallbackRendered');
+}
+
+/** Mark an adjustment-layer source fallback. */
+export function recordVideoPreviewLayerFallback(ledger, layer) {
+	recordOwnerOutcome(ledger, layer, 'fallbackRendered');
 }
 
 /** Freeze the exact requested/rendered/fallback/omitted partition for observers. */
@@ -107,6 +127,7 @@ export function createVideoPreviewFallbackReport(layers, supportedEffectTypes) {
 	const ledger = beginVideoPreviewRenderLedger(layers, supportedEffectTypes);
 	for (const layer of layers || []) {
 		for (const entry of layer?.entries || []) recordVideoPreviewEntryFallback(ledger, entry);
+		recordVideoPreviewLayerFallback(ledger, layer);
 	}
 	return completeVideoPreviewRenderLedger(ledger, 0, 'failed');
 }
@@ -129,15 +150,15 @@ export function shouldContinueVideoPreviewPlayback(report, transportState) {
 	return transportState === 'playing' && report?.rendererStatus === 'available';
 }
 
-function recordEntryOutcome(ledger, entry, outcome) {
+function recordOwnerOutcome(ledger, owner, outcome) {
 	if (!ledger?.effects || !(ledger.effects instanceof Map)) {
 		throw new TypeError('A video preview render ledger is required.');
 	}
 	for (const state of ledger.effects.values()) {
-		if (state.entry === entry && state.supported) state.outcome = outcome;
+		if (state.owner === owner && state.supported) state.outcome = outcome;
 	}
 	for (const state of ledger.composition?.values() || []) {
-		if (state.entry === entry) {
+		if (state.entry === owner) {
 			state.outcome = outcome === 'fallbackRendered' ? 'omitted' : outcome;
 		}
 	}

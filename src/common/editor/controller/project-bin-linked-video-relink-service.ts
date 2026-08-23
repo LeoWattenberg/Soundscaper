@@ -94,6 +94,15 @@ export interface ProjectBinLinkedVideoRelinkDependencies {
 
 export type ProjectBinLinkedVideoRelinkClassification = 'exact-content' | 'changed-content';
 
+export interface ProjectBinLinkedVideoRelinkOptions {
+	readonly allowChangedContent?: boolean;
+	/** Product-owned synchronous mutation coupled to the changed-content binding CAS. */
+	readonly changedContentProxyInvalidation?: Readonly<{
+		commit(): void;
+		confirmBindingPublished(): void;
+	}>;
+}
+
 export interface ProjectBinLinkedVideoRelinkService {
 	canRelinkLinkedVideo(clipId: string): Promise<boolean>;
 	classifyLinkedVideoRelink(
@@ -104,14 +113,14 @@ export interface ProjectBinLinkedVideoRelinkService {
 		clipId: string,
 		file: Blob,
 		locator: ProjectBinLinkedVideoRelinkLocator,
-		options?: Readonly<{ allowChangedContent?: boolean }>,
+		options?: Readonly<ProjectBinLinkedVideoRelinkOptions>,
 	): Promise<string>;
 	dispose(): Promise<void>;
 }
 
 /**
- * Rebind one Project Bin linked video without changing project or history.
- * The binding publication is the ownership boundary for the selected locator.
+ * Rebind one Project Bin linked video. A product may couple one synchronous
+ * changed-content invalidation to the binding publication boundary.
  */
 export function createProjectBinLinkedVideoRelinkService(
 	dependencies: ProjectBinLinkedVideoRelinkDependencies,
@@ -165,7 +174,7 @@ export function createProjectBinLinkedVideoRelinkService(
 		clipId: string,
 		file: Blob,
 		locator: ProjectBinLinkedVideoRelinkLocator,
-		relinkOptions: Readonly<{ allowChangedContent?: boolean }> = {},
+		relinkOptions: Readonly<ProjectBinLinkedVideoRelinkOptions> = {},
 	): Promise<string> {
 		const operation = performRelink(clipId, file, locator, relinkOptions);
 		const settlement: Promise<void> = operation.then(() => undefined, () => undefined).finally(() => {
@@ -179,7 +188,7 @@ export function createProjectBinLinkedVideoRelinkService(
 		clipId: string,
 		file: Blob,
 		locator: ProjectBinLinkedVideoRelinkLocator,
-		relinkOptions: Readonly<{ allowChangedContent?: boolean }>,
+		relinkOptions: Readonly<ProjectBinLinkedVideoRelinkOptions>,
 	): Promise<string> {
 		const candidate = locatorSnapshot(locator);
 		let operationId = 0;
@@ -192,8 +201,10 @@ export function createProjectBinLinkedVideoRelinkService(
 		let published = false;
 		let activationStarted = false;
 		let activated = false;
+		let invalidationCommitted = false;
 		try {
 			assertNotDisposed(disposed);
+			assertChangedContentInvalidation(relinkOptions.changedContentProxyInvalidation);
 			task = dependencies.lifetime.startTask(PROJECT_BIN_LINKED_VIDEO_RELINK_TASK);
 			const activeTask = task;
 			const project = dependencies.getProject();
@@ -261,11 +272,30 @@ export function createProjectBinLinkedVideoRelinkService(
 						assertCurrent(dependencies, activeTask, activeToken);
 						assertWritable(dependencies);
 						assertAvailabilityStable(dependencies, activeSource.id, wasMissing);
+						if (changedContent && relinkOptions.changedContentProxyInvalidation
+							&& !invalidationCommitted) {
+							const result = relinkOptions.changedContentProxyInvalidation.commit();
+							if (isPromiseLike(result)) {
+								throw new TypeError('Changed-content project invalidation must be synchronous.');
+							}
+							invalidationCommitted = true;
+							assertCurrent(dependencies, activeTask, activeToken);
+							assertWritable(dependencies);
+						}
 					},
 					signal: activeTask.signal,
 				}),
 			);
 			published = true;
+			if (changedContent && relinkOptions.changedContentProxyInvalidation) {
+				if (!invalidationCommitted) {
+					throw new Error('Changed-content binding published without its project invalidation fence.');
+				}
+				const result = relinkOptions.changedContentProxyInvalidation.confirmBindingPublished();
+				if (isPromiseLike(result)) {
+					throw new TypeError('Changed-content binding confirmation must be synchronous.');
+				}
+			}
 			assertCurrent(dependencies, activeTask, projectToken);
 			if (!sameLocator(rebound, candidate)) {
 				throw new Error('The linked-video relink published an unexpected locator snapshot.');
@@ -460,6 +490,22 @@ function itemHasAudioMember(
 
 function assertNotDisposed(disposed: boolean): void {
 	if (disposed) throw new DOMException('The linked-video relink service is disposed.', 'AbortError');
+}
+
+function assertChangedContentInvalidation(
+	value: ProjectBinLinkedVideoRelinkOptions['changedContentProxyInvalidation'],
+): void {
+	if (value !== undefined
+		&& (typeof value !== 'object' || value === null
+			|| typeof value.commit !== 'function'
+			|| typeof value.confirmBindingPublished !== 'function')) {
+		throw new TypeError('Changed-content project invalidation requires its exact synchronous callbacks.');
+	}
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+	return Boolean(value && (typeof value === 'object' || typeof value === 'function')
+		&& typeof (value as Readonly<{ then?: unknown }>).then === 'function');
 }
 
 function assertCurrent(

@@ -17,7 +17,9 @@ import {
 	normalizeVideoClipComposition,
 } from './video-clip-composition.ts';
 import { resolveVideoRenderDescription } from './video-render-description.ts';
+import { createExactVideoPresentationMapping } from './video-exact-presentation.ts';
 import { resolveVideoSourceDisplaySize } from './video-source-presentation.ts';
+import { resolveVideoTransitionPreviewOpacity } from './video-transition-preview-opacity.js';
 export {
 	mapVideoSourceFrameToTimeline,
 	mapVideoTimelineFrameToSource,
@@ -47,13 +49,14 @@ export function validateVideoTrackComposition(track, clipById) {
 	if (!track || track.type !== 'video') throw new TypeError('A video track is required.');
 	if (!Array.isArray(track.clipIds)) throw new TypeError(`Video track ${track.id} must contain clip IDs.`);
 	const lookup = normalizeClipLookup(clipById);
-	const clips = track.clipIds.map((clipId) => {
+	const clips = track.clipIds.flatMap((clipId) => {
 		const clip = lookup.get(clipId);
 		if (!clip) throw new ReferenceError(`Video track ${track.id} references missing clip ${clipId}.`);
+		if (clip.kind === 'still' || clip.kind === 'generator') return [];
 		if (clip.kind !== 'video') {
 			throw new TypeError(`Video track ${track.id} contains non-video clip ${clip.id}.`);
 		}
-		return clip;
+		return [clip];
 	}).sort(compareVideoClips);
 	const active = [];
 
@@ -125,17 +128,22 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 		const clips = activeClips.map((clip, clipIndex) => {
 			const source = videoSourceForClip(sourceById, clip);
 			const sourceCoordinateRate = videoSourceCoordinateRate(clip, source);
-			const mapping = mapVideoTimelineFrameToSource(clip, frame, {
+			const presentationDescriptor = typeof options.resolveClipPresentation === 'function'
+				? options.resolveClipPresentation({ clip, source, timelineSample: frame })
+				: null;
+			const mapping = presentationDescriptor == null
+				? mapVideoTimelineFrameToSource(clip, frame, {
 				projectSampleRate: sampleRate,
 				sourceSampleRate: sourceCoordinateRate,
 				source,
-			});
+				})
+				: createExactVideoPresentationMapping(presentationDescriptor, frame, sampleRate);
 			const role = transition == null
 				? 'single'
 				: clipIndex === 0 ? 'outgoing' : 'incoming';
-			const transitionOpacity = transition == null
-				? 1
-				: videoTransitionOpacity(transition, role, frame);
+			const transitionOpacity = resolveVideoTransitionPreviewOpacity(
+				options, transition, clip, role, frame,
+			);
 			const keyframeState = options.renderCanvas == null || typeof options.resolveClipRenderState !== 'function'
 				? null
 				: options.resolveClipRenderState({
@@ -155,11 +163,13 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 				sourceId: source.id,
 				sourceFrame: mapping.sourceFrame,
 				sourceTimeSeconds: mapping.sourceTimeSeconds,
-				playbackRate: videoClipPlaybackRate(clip, sampleRate, sourceCoordinateRate, source),
+				playbackRate: presentationDescriptor == null
+					? videoClipPlaybackRate(clip, sampleRate, sourceCoordinateRate, source) : 0,
+				exactPresentation: presentationDescriptor != null,
 				opacity: renderDescription?.opacityStart ?? transitionOpacity,
 				...(keyframeState?.videoEffects == null ? {} : { videoEffects: keyframeState.videoEffects }),
-				...(keyframeState?.presentationDescriptor == null
-					? {} : { presentationDescriptor: keyframeState.presentationDescriptor }),
+				...(keyframeState?.presentationDescriptor == null && presentationDescriptor == null
+					? {} : { presentationDescriptor: keyframeState?.presentationDescriptor ?? presentationDescriptor }),
 				...(renderDescription == null ? {} : { renderDescription }),
 			});
 		});
@@ -242,12 +252,12 @@ export function resolveVideoCompositionIntervals(project, options = {}) {
 				const transition = layer.clips.length === 2
 					? videoTransition(layer.clips[0].clip, layer.clips[1].clip)
 					: null;
-				const transitionOpacityStart = transition == null
-					? 1
-					: videoTransitionOpacity(transition, activeClip.role, intervalStart);
-				const transitionOpacityEnd = transition == null
-					? 1
-					: videoTransitionOpacity(transition, activeClip.role, intervalEnd);
+				const transitionOpacityStart = resolveVideoTransitionPreviewOpacity(
+					options, transition, activeClip.clip, activeClip.role, intervalStart,
+				);
+				const transitionOpacityEnd = resolveVideoTransitionPreviewOpacity(
+					options, transition, activeClip.clip, activeClip.role, intervalEnd,
+				);
 				const renderDescription = options.renderCanvas == null
 					? null
 					: resolveClipRenderDescription(
@@ -475,7 +485,9 @@ function compareVideoClips(left, right) {
 }
 
 function orderedVideoTrackClips(track, clipById) {
-	return track.clipIds.map((clipId) => clipById.get(clipId)).sort(compareVideoClips);
+	return track.clipIds.map((clipId) => clipById.get(clipId)).filter((clip) => (
+		clip?.kind !== 'still' && clip?.kind !== 'generator'
+	)).sort(compareVideoClips);
 }
 
 function videoSourceForClip(sourceById, clip) {
@@ -492,14 +504,6 @@ function videoTransition(outgoing, incoming) {
 		startFrame: incoming.timelineStartFrame,
 		endFrame: videoClipEndFrame(outgoing),
 	};
-}
-
-function videoTransitionOpacity(transition, role, frame) {
-	const progress = Math.max(0, Math.min(
-		1,
-		(frame - transition.startFrame) / (transition.endFrame - transition.startFrame),
-	));
-	return role === 'outgoing' ? 1 - progress : progress;
 }
 
 function clipComposition(clip) {

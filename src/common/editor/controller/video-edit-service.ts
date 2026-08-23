@@ -18,6 +18,10 @@ import {
 	type ProgramFrame,
 } from '../source-monitor-model.ts';
 import {
+	resolveSourceTimecodeAtSample,
+	type SourceTimecodeReading,
+} from '../source-properties-model.ts';
+import {
 	sampleFrameToVideoFrame,
 	videoFrameToSampleFrame,
 	type RationalRate,
@@ -25,6 +29,7 @@ import {
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { SourceMonitorService, SourceMonitorView } from './source-monitor-service.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
+import type { VideoRetimeProgramOrdinalBridge } from '../video-retime-program-ordinal-bridge.ts';
 
 // foundation-edit-matrix: replace
 
@@ -43,6 +48,11 @@ import type { EditorControllerLifetime } from './lifecycle.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
+export interface VideoRetimeProgramState {
+	readonly project: DataRecord;
+	readonly bridge: VideoRetimeProgramOrdinalBridge;
+}
+
 export interface VideoEditServiceDependencies {
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive'>;
 	/** The command projection: resolved samples for every clip. */
@@ -54,6 +64,8 @@ export interface VideoEditServiceDependencies {
 	prepareThreePointEditCommand(project: DataRecord, options: DataRecord): AudioEditorCommand;
 	/** The program playhead, in project samples. */
 	getPositionFrames(): number;
+	/** Present only when the selected product registered exact retime execution. */
+	getVideoRetimeProgramState?(): VideoRetimeProgramState;
 	readonly sourceMonitor: Pick<SourceMonitorService, 'view' | 'openSource' | 'points'>;
 }
 
@@ -93,6 +105,7 @@ export interface VideoEditService {
 	overwrite(request?: VideoEditRequest): VideoEditResult;
 	replace(request?: VideoEditRequest): VideoEditResult;
 	matchFrame(request?: VideoEditRequest): VideoMatchFrame;
+	sourceTimecodeAtSample(sample: number, sequenceId?: string): SourceTimecodeReading | null;
 }
 
 export function createVideoEditService(
@@ -196,11 +209,13 @@ export function createVideoEditService(
 	 * lifts, so it requires the two to be the same lane.
 	 */
 	function programFrame(resolvedTargets: VideoEditTargets): ProgramFrame {
-		const frame = resolveProgramFrame(dependencies.getProject(), {
+		const retimeState = dependencies.getVideoRetimeProgramState?.();
+		const project = retimeState?.project ?? dependencies.getProject();
+		const frame = resolveProgramFrame(project, {
 			sample: Math.max(0, Math.trunc(dependencies.getPositionFrames())),
 			sequenceId: resolvedTargets.sequenceId,
 			videoTrackId: resolvedTargets.videoTrackId,
-		});
+		}, retimeState?.bridge);
 		if (!frame) {
 			throw new ThreePointEditError(
 				'no-program-clip',
@@ -229,6 +244,16 @@ export function createVideoEditService(
 		},
 		insert: (request: VideoEditRequest = {}) => edit('insert', request),
 		overwrite: (request: VideoEditRequest = {}) => edit('overwrite', request),
+		sourceTimecodeAtSample(sample: number, sequenceId?: string): SourceTimecodeReading | null {
+			dependencies.lifetime.assertActive();
+			const retimeState = dependencies.getVideoRetimeProgramState?.();
+			return resolveSourceTimecodeAtSample(
+				retimeState?.project ?? dependencies.getProject(),
+				sample,
+				sequenceId,
+				retimeState?.bridge,
+			);
+		},
 
 		/**
 		 * Replace the clip under the playhead with the monitor's material,

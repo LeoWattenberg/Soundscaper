@@ -1,5 +1,12 @@
 # Milestone 3B-6c-c1: Framescaper V18 product isolation
 
+> **Historical selection record:** this document proves the isolated V18
+> foundation that the selected V27 activation candidate retains. V27 now uses
+> Framescaper desktop library V18, SQLite `user_version` 20, scope `v18`,
+> clipboard V11, and unified render plan V13. Its local implementation is
+> complete, while guided-local sign-off and external qualification remain open;
+> V20/V18 route-selection wording below is not the current product status.
+
 > **Production selection is implemented.** The maintained Framescaper bootstrap
 > selects the exact c1a/c1b/c1c runtime identity before constructing its V18
 > schema, storage, archive, controller, compatibility, retention, and desktop
@@ -225,11 +232,11 @@ the first selector lands.
 
 ## Remaining hard stops
 
-The atomic selection, V18 validator/runtime, registered nested and multicamera
-capabilities, archive formats, claim-bound storage, controller wiring, desktop
-V10 path, and their menu-reached editorial workflows are implemented.
-Soundscaper remains unchanged at exact V17. This boundary still authorizes no
-retime capability flip without the reviewed exact executor, and it does not
-turn proxy preservation metadata into trusted pictures. Proxy generation,
-attach/detach lifecycle, proxy-consuming preview/playback, offline handling, and
-relink remain unavailable until separately implemented and qualified.
+The historical atomic selection, V18 validator/runtime, registered nested and
+multicamera capabilities, archive formats, claim-bound storage, controller
+wiring, desktop V10 path, and their menu-reached editorial workflows were
+implemented at this boundary. It authorized neither retime activation nor
+proxy consumption by itself. Selected V27 now supplies those locally
+implemented web-core retime and proxy routes under separate exact capability
+and project profiles; guided-local, resource, and external qualification remain
+open, and delivery stays original-authoritative.

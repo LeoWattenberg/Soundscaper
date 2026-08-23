@@ -9,6 +9,7 @@ import {
 	registerVideoTimingIndex,
 	unregisterVideoTimingIndex,
 } from '../video-source-time.ts';
+import type { VideoTimingIndex } from '../video-timing-asset.ts';
 
 export interface ProjectVisualSource extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -96,6 +97,15 @@ interface VideoVisual {
 	readonly mediaUrl: string | null;
 	readonly posterUrl: string | null;
 	readonly thumbnails: readonly VideoThumbnail[];
+	readonly mediaKind?: 'proxy';
+}
+
+export interface ProjectVideoPreviewMedia {
+	readonly body: Blob; readonly mediaKind: 'proxy';
+}
+export interface ProjectVideoPreviewMediaRequest {
+	readonly project: ProjectVisualProject; readonly source: ProjectVisualSource;
+	readonly sourceTimingIndex: VideoTimingIndex | null; readonly signal?: AbortSignal;
 }
 
 interface VideoVisualRecord {
@@ -125,6 +135,7 @@ export interface VideoSourceVisualData {
 	readonly mediaUrl: string | null;
 	readonly posterUrl: string | null;
 	readonly thumbnails: readonly VideoThumbnail[];
+	readonly mediaKind?: 'proxy';
 }
 
 export interface ProjectVisualServiceDependencies {
@@ -136,6 +147,8 @@ export interface ProjectVisualServiceDependencies {
 	readonly sourcePeaks: ReadonlyMap<string, unknown>;
 	readonly waveformPcmWindows: ReadonlyMap<string, unknown>;
 	readonly store: ProjectVisualStore;
+	resolveProductVideoPreviewMedia?(request: Readonly<ProjectVideoPreviewMediaRequest>):
+		Promise<Readonly<ProjectVideoPreviewMedia> | null>;
 	projectDurationFrames(project: ProjectVisualProject): number;
 	readonly url: ObjectUrlPort;
 }
@@ -199,7 +212,8 @@ export function createProjectVisualService(
 			source,
 			buffer: dependencies.sourceBuffers.get(clip.sourceId) ?? null,
 			peaks: dependencies.sourcePeaks.get(clip.sourceId) ?? null,
-			available: Boolean(source && !dependencies.missingSourceIds.has(source.id)),
+			available: Boolean(source && (!dependencies.missingSourceIds.has(source.id)
+				|| video?.mediaKind === 'proxy')),
 			mediaUrl: video?.mediaUrl ?? null,
 			posterUrl: video?.posterUrl ?? null,
 			thumbnails: video?.thumbnails ?? Object.freeze([]),
@@ -223,7 +237,8 @@ export function createProjectVisualService(
 			source,
 			buffer: dependencies.sourceBuffers.get(clip.sourceId) ?? null,
 			peaks: dependencies.sourcePeaks.get(clip.sourceId) ?? null,
-			available: Boolean(source && !dependencies.missingSourceIds.has(source.id)),
+			available: Boolean(source && (!dependencies.missingSourceIds.has(source.id)
+				|| video?.mediaKind === 'proxy')),
 			...(videoClip ? {
 				itemClips: Object.freeze(itemClips),
 				videoClip,
@@ -241,10 +256,11 @@ export function createProjectVisualService(
 		const visual = videoVisuals.get(source.id)?.visual;
 		return Object.freeze({
 			source,
-			available: !dependencies.missingSourceIds.has(source.id),
+			available: !dependencies.missingSourceIds.has(source.id) || visual?.mediaKind === 'proxy',
 			mediaUrl: visual?.mediaUrl ?? null,
 			posterUrl: visual?.posterUrl ?? null,
 			thumbnails: visual?.thumbnails ?? Object.freeze([]),
+			...(visual?.mediaKind ? { mediaKind: visual.mediaKind } : {}),
 		});
 	}
 
@@ -271,13 +287,28 @@ export function createProjectVisualService(
 			if (timing && (timing.status !== 'available' || !timing.index)) {
 				throw new Error(`The video timing asset is ${timing.status}.`);
 			}
-			let mediaBlob = await dependencies.store.loadMediaAsset(sourceId, options);
+			const productMedia = project && dependencies.resolveProductVideoPreviewMedia
+				? await dependencies.resolveProductVideoPreviewMedia({
+					project,
+					source,
+					sourceTimingIndex: timing?.index ?? null,
+					...(options.signal ? { signal: options.signal } : {}),
+				})
+				: null;
+			throwIfAborted(options.signal);
+			if (productMedia && (productMedia.mediaKind !== 'proxy'
+				|| !(productMedia.body instanceof Blob))) {
+				throw new TypeError('A product video-preview media resolver returned an invalid result.');
+			}
+			let mediaBlob = productMedia?.body
+				?? await dependencies.store.loadMediaAsset(sourceId, options);
 			throwIfAborted(options.signal);
 			if (!isActivationCurrent(source.id, operation, project, projectToken)) {
 				return cleanupLate(ownedUrls, linkedPlaybackLease);
 			}
 			let linkedBinding: unknown = null;
-			if (!mediaBlob && projectId && dependencies.store.leaseLinkedVideoOriginalPlayback) {
+			if (!productMedia && !mediaBlob && projectId
+				&& dependencies.store.leaseLinkedVideoOriginalPlayback) {
 				linkedPlaybackLease = await dependencies.store.leaseLinkedVideoOriginalPlayback.call(
 					dependencies.store, projectId, source, options,
 				);
@@ -287,7 +318,7 @@ export function createProjectVisualService(
 				}
 				linkedBinding = linkedPlaybackLease?.binding ?? null;
 			}
-			if (!mediaBlob && !linkedPlaybackLease && projectId
+			if (!productMedia && !mediaBlob && !linkedPlaybackLease && projectId
 				&& dependencies.store.resolveLinkedVideoOriginal) {
 				const linkedOriginal = await dependencies.store.resolveLinkedVideoOriginal.call(
 					dependencies.store, projectId, source, options,
@@ -366,6 +397,7 @@ export function createProjectVisualService(
 				mediaUrl,
 				posterUrl: posterUrl || thumbnails[0]?.url || null,
 				thumbnails: Object.freeze(thumbnails),
+				...(productMedia ? { mediaKind: productMedia.mediaKind } : {}),
 			});
 			if (timing?.index) registerVideoTimingIndex(source, timing.index);
 			else unregisterVideoTimingIndex(source.id);

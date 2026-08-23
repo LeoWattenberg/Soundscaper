@@ -39,13 +39,34 @@ export interface VideoKeyframeOfflineRgbaRendererOptions {
 	readonly canvas: OfflineCanvas;
 	readonly resolveSource: VideoKeyframeOfflineSourceResolver;
 	readonly createCompositor?: (canvas: OfflineCanvas) => OfflineVideoPreviewCompositor;
+	readonly compose?: VideoKeyframeOfflineRgbaCompositor;
+	readonly postprocess?: VideoKeyframeOfflineRgbaPostprocessor;
 }
+
+export type VideoKeyframeOfflineRgbaCompositor = (request: Readonly<{
+	readonly frame: VideoKeyframeExportFrame;
+	readonly layers: readonly Readonly<Record<string, unknown>>[];
+	readonly width: number;
+	readonly height: number;
+	readonly rgba: Uint8Array<ArrayBuffer>;
+	readonly signal: AbortSignal;
+}>) => PromiseLike<void> | void;
+
+export type VideoKeyframeOfflineRgbaPostprocessor = (request: Readonly<{
+	readonly frame: VideoKeyframeExportFrame;
+	readonly width: number;
+	readonly height: number;
+	readonly rgba: Uint8Array<ArrayBuffer>;
+	readonly signal: AbortSignal;
+}>) => PromiseLike<void> | void;
 
 interface NormalizedVideoKeyframeOfflineRgbaRendererOptions {
 	readonly frameSource: VideoKeyframeExportFrameSource;
 	readonly canvas: OfflineCanvas;
 	readonly resolveSource: VideoKeyframeOfflineSourceResolver;
 	readonly createCompositor: (canvas: OfflineCanvas) => OfflineVideoPreviewCompositor;
+	readonly compose?: VideoKeyframeOfflineRgbaCompositor;
+	readonly postprocess?: VideoKeyframeOfflineRgbaPostprocessor;
 }
 
 interface OfflineLayerSnapshot {
@@ -109,7 +130,12 @@ export function createVideoKeyframeOfflineRgbaRenderer(
 			try {
 				const layers = await resolveDrawableLayers(snapshots, sourceCache, signal);
 				throwIfAborted(signal);
-				const report = compositor.render([...layers], {
+				if (options.compose) await options.compose(Object.freeze({
+					frame, layers, width: plan.width, height: plan.height,
+					rgba: reusable as Uint8Array<ArrayBuffer>, signal,
+				}));
+				else {
+					const report = compositor.render([...layers], {
 					referenceWidth: plan.width,
 					referenceHeight: plan.height,
 					outputWidth: plan.width,
@@ -118,18 +144,23 @@ export function createVideoKeyframeOfflineRgbaRenderer(
 					// The delivery's own background, which the canvas states and the
 					// composed-graph path paints into its letterbox bars.
 					backgroundColor: frameSource.canvas.backgroundColor,
-				});
-				if (report.status !== 'rendered'
-					|| report.rendererStatus !== 'available'
-					|| report.renderedEntryCount !== entryCount(layers)) {
-					throw new Error('The offline video compositor omitted requested frame content.');
+					});
+					if (report.status !== 'rendered'
+						|| report.rendererStatus !== 'available'
+						|| report.renderedEntryCount !== entryCount(layers)) {
+						throw new Error('The offline video compositor omitted requested frame content.');
+					}
+					throwIfAborted(signal);
+					assertGlReady(gl);
+					gl.readPixels(0, 0, plan.width, plan.height, gl.RGBA, gl.UNSIGNED_BYTE, reusable);
+					assertGlReady(gl);
+					flipRowsInPlace(reusable, rowScratch, plan.height);
 				}
 				throwIfAborted(signal);
-				gl.finish();
-				assertGlReady(gl);
-				gl.readPixels(0, 0, plan.width, plan.height, gl.RGBA, gl.UNSIGNED_BYTE, reusable);
-				assertGlReady(gl);
-				flipRowsInPlace(reusable, rowScratch, plan.height);
+				await options.postprocess?.(Object.freeze({
+					frame, width: plan.width, height: plan.height,
+					rgba: reusable as Uint8Array<ArrayBuffer>, signal,
+				}));
 				throwIfAborted(signal);
 			} finally {
 				sourceCache.finishFrame();
@@ -184,7 +215,7 @@ async function resolveDrawableLayers(
 			throwIfAborted(signal);
 			const video = await cache.present(entry, signal);
 			const targetEntry = {
-				clipId: entry.clipId,
+				...entry,
 				video,
 				effects: entry.videoEffects
 					?? (entry.clip as Readonly<Record<string, unknown>> | undefined)?.videoEffects
@@ -201,6 +232,7 @@ async function resolveDrawableLayers(
 		}
 		layers.push(Object.freeze({
 			trackId: layer.trackId,
+			...(layer.trackIndex === undefined ? {} : { trackIndex: layer.trackIndex }),
 			entries: Object.freeze(entries),
 			...(entries[0]?.renderDescription == null ? {} : {
 				blendMode: (entries[0].renderDescription as Readonly<Record<string, unknown>>).blendMode,
@@ -249,8 +281,8 @@ function boundedEntryId(entry: Readonly<Record<string, unknown>>, key: string): 
 function snapshotOptions(value: unknown): NormalizedVideoKeyframeOfflineRgbaRendererOptions {
 	const options = record(value, 'offline video RGBA renderer options');
 	const keys = Reflect.ownKeys(options);
-	const allowed = new Set(['frameSource', 'canvas', 'resolveSource', 'createCompositor']);
-	if (keys.length < 3 || keys.length > 4 || keys.some((key) => typeof key !== 'string' || !allowed.has(key))
+	const allowed = new Set(['frameSource', 'canvas', 'resolveSource', 'createCompositor', 'compose', 'postprocess']);
+	if (keys.length < 3 || keys.length > 6 || keys.some((key) => typeof key !== 'string' || !allowed.has(key))
 		|| !keys.includes('frameSource') || !keys.includes('canvas') || !keys.includes('resolveSource')) {
 		throw new TypeError('Offline video RGBA renderer options must be a closed record.');
 	}
@@ -267,11 +299,25 @@ function snapshotOptions(value: unknown): NormalizedVideoKeyframeOfflineRgbaRend
 		? data(options, 'createCompositor', 'offline video RGBA renderer options')
 		: (target: OfflineCanvas): OfflineVideoPreviewCompositor => new VideoPreviewCompositor(target);
 	if (typeof createCompositor !== 'function') throw new TypeError('Offline compositor creation must be a function.');
+	const compose = Object.hasOwn(options, 'compose')
+		? data(options, 'compose', 'offline video RGBA renderer options') : undefined;
+	if (compose !== undefined && typeof compose !== 'function') {
+		throw new TypeError('Offline RGBA composition must be a function.');
+	}
+	const postprocess = Object.hasOwn(options, 'postprocess')
+		? data(options, 'postprocess', 'offline video RGBA renderer options') : undefined;
+	if (postprocess !== undefined && typeof postprocess !== 'function') {
+		throw new TypeError('Offline RGBA postprocessing must be a function.');
+	}
 	return Object.freeze({
 		frameSource: frameSource as VideoKeyframeExportFrameSource,
 		canvas: canvas as OfflineCanvas,
 		resolveSource: resolveSource as VideoKeyframeOfflineSourceResolver,
 		createCompositor: createCompositor as (canvas: OfflineCanvas) => OfflineVideoPreviewCompositor,
+		...(compose === undefined ? {} : { compose: compose as VideoKeyframeOfflineRgbaCompositor }),
+		...(postprocess === undefined ? {} : {
+			postprocess: postprocess as VideoKeyframeOfflineRgbaPostprocessor,
+		}),
 	});
 }
 

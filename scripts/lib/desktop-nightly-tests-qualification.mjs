@@ -70,13 +70,11 @@ function createWorkloadQualification({ config, raw, summary, profile, qualificat
 	for (const field of diagnosticIdentityFields) {
 		requireEqual(diagnostic?.[field], profile?.[field], `Diagnostic ${field} does not match the qualification profile.`, failures);
 	}
-	if (profile?.diagnosticFingerprintSource !== 'm1-video-preview') {
-		requireEqual(diagnostic?.environmentId, profile?.observedEnvironmentId, 'Observed environment ID is not qualified.', failures);
-	}
+	requireEqual(diagnostic?.environmentId, profile?.observedEnvironmentId, 'Observed environment ID is not qualified.', failures);
 	requireEqual(workload?.environmentId, profile?.observedEnvironmentId, 'Workload environment ID is not qualified.', failures);
-	requireEqual(diagnosticRendererClass(diagnostic, profile), profile?.rendererClass, 'Diagnostic renderer class is not qualified.', failures);
+	requireEqual(diagnostic?.rendererClass, profile?.rendererClass, 'Diagnostic renderer class is not qualified.', failures);
 	requireEqual(workload?.rendererClass, profile?.rendererClass, 'Workload renderer class is not qualified.', failures);
-	if (!isDeepStrictEqual(diagnosticFingerprint(diagnostic, profile), profile?.fingerprint)) {
+	if (!isDeepStrictEqual(diagnosticFingerprint(diagnostic), profile?.fingerprint)) {
 		failures.push('Observed environment fingerprint does not match the owner-designated host.');
 	}
 	if (!isDeepStrictEqual(workload?.environmentFingerprint, profile?.fingerprint)) {
@@ -86,6 +84,7 @@ function createWorkloadQualification({ config, raw, summary, profile, qualificat
 	requireEqual(workload?.attemptCount, 1, 'The workload did not use one attempt.', failures);
 	requireEqual(workload?.retryCount, 0, 'The workload did not use zero retries.', failures);
 	verifyFixtureAndSamples(diagnostic, workload, profile, failures);
+	verifyM1RawDiagnostic(diagnostic, workload, profile, failures);
 	const thresholds = registeredThresholds(config, profile?.workloadId);
 	const verdicts = Array.isArray(workload?.evaluation?.verdicts) ? workload.evaluation.verdicts : [];
 	if (thresholds === null) {
@@ -116,7 +115,7 @@ function createWorkloadQualification({ config, raw, summary, profile, qualificat
 		retryCount: 0,
 		workerCount: 1,
 		rendererClass: typeof workload?.rendererClass === 'string' ? workload.rendererClass : null,
-		environmentFingerprint: diagnosticFingerprint(diagnostic, profile),
+		environmentFingerprint: diagnosticFingerprint(diagnostic),
 		metrics: workload?.metrics ?? null,
 		rawEvidence: Object.freeze({
 			artifactName: 'raw.json',
@@ -157,23 +156,87 @@ function verifyFixtureAndSamples(diagnostic, workload, profile, failures) {
 	}
 }
 
-function diagnosticFingerprint(diagnostic, profile) {
-	if (diagnostic === null) return null;
-	if (profile?.diagnosticFingerprintSource === 'm1-video-preview') {
-		return {
-			browserVersion: diagnostic.browserVersion,
-			browserEnvironment: diagnostic.browserEnvironment,
-			renderer: diagnostic.renderer,
-		};
+function verifyM1RawDiagnostic(diagnostic, workload, profile, failures) {
+	if (profile?.workloadId !== 'm1-video-preview-12fx-720p') return;
+	if (!isDeepStrictEqual(diagnostic?.fixture, profile?.fixture)) {
+		failures.push('Raw M1 fixture does not match the qualification profile.');
 	}
+	const expectedSampling = {
+		warmupTrials: 1,
+		measuredTrials: 5,
+		measuredFramesPerTrial: 121,
+		measuredIntervalsPerTrial: 120,
+		forcedCollectionsPerSnapshot: 3,
+	};
+	if (!isDeepStrictEqual(diagnostic?.sampling, expectedSampling)) {
+		failures.push('Raw M1 sampling contract does not match the qualification profile.');
+	}
+	const trials = Array.isArray(diagnostic?.trials) ? diagnostic.trials : [];
+	const frameIntervals = [];
+	const retainedHeapDeltas = [];
+	let valid = trials.length === 5;
+	for (let trialIndex = 0; trialIndex < trials.length; trialIndex += 1) {
+		const trial = record(trials[trialIndex]);
+		const timestamps = Array.isArray(trial?.frameTimestampsMs) ? trial.frameTimestampsMs : [];
+		const heapBefore = record(trial?.heapBefore);
+		const heapAfter = record(trial?.heapAfter);
+		if (trial?.trial !== trialIndex + 1 || timestamps.length !== 121
+			|| timestamps.some((value) => typeof value !== 'number' || !Number.isFinite(value))
+			|| trial?.forcedCollectionsBefore !== 3 || trial?.forcedCollectionsAfter !== 3
+			|| !validHeapSnapshot(heapBefore) || !validHeapSnapshot(heapAfter)) {
+			valid = false;
+			continue;
+		}
+		for (let frameIndex = 1; frameIndex < timestamps.length; frameIndex += 1) {
+			const interval = timestamps[frameIndex] - timestamps[frameIndex - 1];
+			if (!Number.isFinite(interval) || interval <= 0) valid = false;
+			else frameIntervals.push(interval);
+		}
+		retainedHeapDeltas.push(heapAfter.usedSize - heapBefore.usedSize);
+	}
+	const observedCounts = {
+		warmupTrials: 1,
+		measuredTrials: trials.length,
+		measuredFrames: trials.reduce((sum, value) => (
+			sum + (Array.isArray(record(value)?.frameTimestampsMs) ? value.frameTimestampsMs.length : 0)
+		), 0),
+		measuredIntervals: frameIntervals.length,
+		forcedCollectionsBefore: trials.reduce((sum, value) => sum + Number(record(value)?.forcedCollectionsBefore ?? 0), 0),
+		forcedCollectionsAfter: trials.reduce((sum, value) => sum + Number(record(value)?.forcedCollectionsAfter ?? 0), 0),
+		heapSnapshotsBefore: trials.filter((value) => record(record(value)?.heapBefore) !== null).length,
+		heapSnapshotsAfter: trials.filter((value) => record(record(value)?.heapAfter) !== null).length,
+	};
+	if (!valid || !isDeepStrictEqual(observedCounts, profile?.rawSampleCounts)) {
+		failures.push('Raw M1 trials do not match the qualified sampling counts.');
+		return;
+	}
+	const derivedMetrics = {
+		'preview.frameIntervalP95Ms': roundedMetric(nearestRankP95(frameIntervals)),
+		'preview.retainedJsHeapDeltaBytes': roundedMetric(nearestRankP95(retainedHeapDeltas)),
+	};
+	if (!isDeepStrictEqual(workload?.metrics, derivedMetrics)) {
+		failures.push('M1 summary metrics do not match the retained raw samples.');
+	}
+}
+
+function diagnosticFingerprint(diagnostic) {
+	if (diagnostic === null) return null;
 	return diagnostic.environmentFingerprint ?? null;
 }
 
-function diagnosticRendererClass(diagnostic, profile) {
-	if (profile?.diagnosticFingerprintSource !== 'm1-video-preview') return diagnostic?.rendererClass;
-	const renderer = record(diagnostic?.renderer);
-	const description = `${String(renderer?.vendor ?? '')} ${String(renderer?.renderer ?? '')}`;
-	return /swiftshader|llvmpipe|software|offscreen/iu.test(description) ? 'software' : 'hardware';
+function validHeapSnapshot(snapshot) {
+	return typeof snapshot?.usedSize === 'number' && Number.isFinite(snapshot.usedSize) && snapshot.usedSize >= 0
+		&& typeof snapshot?.totalSize === 'number' && Number.isFinite(snapshot.totalSize)
+		&& snapshot.totalSize >= snapshot.usedSize;
+}
+
+function nearestRankP95(samples) {
+	const sorted = samples.toSorted((left, right) => left - right);
+	return sorted[Math.ceil(sorted.length * 0.95) - 1];
+}
+
+function roundedMetric(value) {
+	return Number(value.toFixed(9));
 }
 
 function rejectedQualification(summary, failure) {

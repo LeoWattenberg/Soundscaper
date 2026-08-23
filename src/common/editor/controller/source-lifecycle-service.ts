@@ -236,6 +236,10 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 					throwIfSourceLoadAborted(options.signal);
 					continue;
 				}
+				// Maintained still and generator bodies are resolved by the visual
+				// service. Treating them as PCM made a valid visual-only project look
+				// like it had missing local audio and incorrectly fenced video export.
+				if (source.kind === 'still' || source.kind === 'generator') continue;
 				const metadata = await awaitSourceLoadOperation(
 					() => store.getSourceMetadata(source.storageKey || source.id),
 					options.signal,

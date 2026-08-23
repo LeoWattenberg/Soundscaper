@@ -5,6 +5,11 @@ import type {
 	VideoKeyframeExportPresentationResolver,
 } from './video-keyframe-export-frame-source.ts';
 import {
+	assertVideoRetimeExactOrdinalAuthority,
+	resolveVideoRetimeExactPictureOrdinal,
+	type VideoRetimeExactOrdinalAuthority,
+} from './video-retime-exact-ordinal-authority.ts';
+import {
 	createVideoRetimeFrameBindingFromSnapshot,
 	snapshotVideoRetimeFrameClip,
 	type VideoRetimeFrameBinding,
@@ -22,6 +27,7 @@ import {
 export interface VideoKeyframeExportPresentationAuthorityOptions {
 	readonly project: Readonly<Record<string, unknown>>;
 	readonly timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>;
+	readonly exactOrdinalAuthority?: VideoRetimeExactOrdinalAuthority;
 }
 
 export interface VideoKeyframeExportPresentationAuthority {
@@ -64,16 +70,19 @@ const DESCRIPTOR_OWNERS = new WeakMap<object, DescriptorOwner>();
 export function createVideoKeyframeExportPresentationAuthority(
 	optionsValue: VideoKeyframeExportPresentationAuthorityOptions,
 ): VideoKeyframeExportPresentationAuthority {
+	const optionFields = Object.hasOwn(optionsValue, 'exactOrdinalAuthority')
+		? ['project', 'timingBySourceId', 'exactOrdinalAuthority']
+		: ['project', 'timingBySourceId'];
 	const options = closedRecord(
-		optionsValue,
-		'video keyframe export presentation authority options',
-		['project', 'timingBySourceId'],
+		optionsValue, 'video keyframe export presentation authority options', optionFields,
 	);
 	const project = record(options.project, 'video keyframe export presentation project');
 	const timingBySourceId = options.timingBySourceId;
 	if (!(timingBySourceId instanceof Map)) {
 		throw new TypeError('Video keyframe export presentation timing must be a ReadonlyMap.');
 	}
+	const exactOrdinalAuthority = options.exactOrdinalAuthority as VideoRetimeExactOrdinalAuthority | undefined;
+	if (exactOrdinalAuthority !== undefined) assertVideoRetimeExactOrdinalAuthority(exactOrdinalAuthority);
 	const sourceValues = denseArray(
 		data(project, 'sources', 'video keyframe export presentation project'),
 		'video keyframe export presentation project.sources',
@@ -92,10 +101,13 @@ export function createVideoKeyframeExportPresentationAuthority(
 	const resolvePresentationDescriptor = (
 		requestValue: VideoKeyframeExportPresentationRequest,
 	): VideoRetimeFrameDescriptor => {
+		const requestFields = Object.hasOwn(requestValue, 'outputOrdinal')
+			? ['clip', 'source', 'localSequencePosition', 'outputOrdinal']
+			: ['clip', 'source', 'localSequencePosition'];
 		const request = closedRecord(
 			requestValue,
 			'video keyframe export presentation request',
-			['clip', 'source', 'localSequencePosition'],
+			requestFields,
 		);
 		const clipValue = record(request.clip, 'video keyframe export presentation clip');
 		const sourceValue = record(request.source, 'video keyframe export presentation source');
@@ -105,9 +117,11 @@ export function createVideoKeyframeExportPresentationAuthority(
 		verifySourceClone(sourceValue, clip.source);
 		verifyClipClone(clipValue, clip);
 		const position = localPosition(request.localSequencePosition, clip.snapshot.outerFrameCount);
-		const descriptor = clip.binding === null
-			? uniformDescriptor(clip, position)
-			: clip.binding.ownedFrameAt(position.outerCell);
+		const descriptor = exactOrdinalAuthority === undefined
+			? clip.binding === null
+				? uniformDescriptor(clip, position)
+				: clip.binding.ownedFrameAt(position.outerCell)
+			: exactOrdinalDescriptor(exactOrdinalAuthority, request.outputOrdinal, clip);
 		DESCRIPTOR_OWNERS.set(descriptor, Object.freeze({ authority, clip }));
 		return descriptor;
 	};
@@ -149,6 +163,31 @@ export function createVideoKeyframeExportPresentationAuthority(
 	};
 
 	return Object.freeze({ resolvePresentationDescriptor, presentationForEntry });
+}
+
+function exactOrdinalDescriptor(
+	authority: VideoRetimeExactOrdinalAuthority,
+	outputOrdinalValue: unknown,
+	clip: ClipContext,
+): VideoRetimeFrameDescriptor {
+	if (!Number.isSafeInteger(outputOrdinalValue) || Number(outputOrdinalValue) < 0) {
+		throw new RangeError('Exact video presentation requires a non-negative outputOrdinal.');
+	}
+	const picture = resolveVideoRetimeExactPictureOrdinal(authority, {
+		outputOrdinal: Number(outputOrdinalValue),
+		clipId: clip.clipId,
+		sourceId: clip.source.sourceId,
+	});
+	return Object.freeze({
+		outerCell: picture.outerCell,
+		segmentIndex: picture.segmentIndex,
+		mode: picture.mode,
+		sourceFrame: picture.sourcePosition,
+		sourceTime: picture.sourceTime,
+		drawableSourceFrame: picture.sourceOrdinal,
+		drawableSourceStartTime: picture.drawableSourceStartTime,
+		drawableSourceEndTime: picture.drawableSourceEndTime,
+	});
 }
 
 function captureSources(

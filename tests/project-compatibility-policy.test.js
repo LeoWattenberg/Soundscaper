@@ -467,7 +467,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 	const videoProxyFallback = rules.get('video-proxy-fallback');
 	assert.match(
 		videoProxyFallback.currentBehavior,
-		/originals remain authoritative.*shipped FFmpeg.*every frame at the presentation time.*display geometry.*conformance refuses a body whose boundaries drifted.*atomically as one undoable step.*leaves the tab editable.*carry an attachment forward only while.*relink.*replace.*reprobe.*reimport.*trim-media.*consolidate.*drop it in the same transaction.*re-attests every session.*original-or-unavailable.*videoProxy capability is available in Framescaper.*Soundscaper owns no such key.*attach and detach are not yet menu-reached.*rendered-fallback relationships remain separate.*not original-to-proxy/iu,
+		/originals remain authoritative.*shipped FFmpeg.*every frame at the presentation time.*display geometry.*conformance refuses a body whose boundaries drift.*selected V27 lazy menu workflow.*generation.*attach existing.*detach.*relink.*regenerate.*Original, Proxy, or Auto.*progress.*cancellation.*atomic stale-safe history swap.*leaves the tab editable.*carry an attachment forward only while.*relink.*replace.*reprobe.*reimport.*trim-media.*consolidate.*drops stale state in the same transaction.*reattests each session.*source domain before occurrence retime.*retiming does not detach.*Auto adapts.*original is offline.*Export and delivery.*original.*visibly refuse.*Framescaper owns the videoProxy requirement.*Soundscaper receives V18 attachments only as copy-only preservation.*rendered-fallback relationships remain separate.*not original-to-proxy/iu,
 	);
 });
 
@@ -589,7 +589,7 @@ test('schema retirement and forward-read rules fail closed without claiming unsu
 	);
 	assert.match(
 		documentation,
-		/clip and track relationships are\s+durable\s+publisher state.*does not create them.*do not freeze,\s+unfreeze, relink, watch, or refresh a fallback.*bypass slices do not\s+generalize to unknown or third-party effects.*fallback authoring and selection\s+beyond the closed audio and maintained video roles.*simultaneous fallback\s+delivery beyond the exact one-audio.one-video final-video\s+composition.*authored proxy workflows remain planned.*broad video-export and offline-render parity.*outside/isu,
+		/clip and track relationships are\s+durable\s+publisher state.*does not create them.*do not freeze,\s+unfreeze, relink, watch, or refresh a fallback.*bypass slices do not\s+generalize to unknown or third-party effects.*fallback authoring and selection\s+beyond the closed audio and maintained video roles.*simultaneous fallback\s+delivery beyond the exact one-audio.one-video final-video\s+composition remain\s+planned.*selected V27 authored proxy lifecycle.*locally\s+implemented activation candidate.*guided-local.*resource.*decoder-memory.*external qualification remain open.*broad video-export and offline-render\s+parity.*outside/isu,
 	);
 	assert.match(documentation, /Freeze and proxy fallback/u);
 });

@@ -590,15 +590,16 @@ and
 - **Milestone-5 dependencies:** 5B now has exact V7–V12 admission, closed
   media/OFX helper kinds, a main-owned V2 queue/controller, and a bounded native
   source host. No 5B payload is built, codec licensing remains blocked, the
-  selected V12 renderer now has digest-bound source-body handoff, V20 queue
+  selected V17 renderer now has digest-bound source-body handoff, V20 queue
   admission, and pathless watch mutation, while most unified render semantics
   remain typed unsupported. Empty payload rows, licensing, and those semantic
   boundaries still gate 6B-4 and native execution; the web tier of every
   6.0/6A packet works without them.
-- **Milestone-4 dependencies:** styled captions remain Planned with no
-  schema in the tree and their revision deliberately unassigned
-  (docs/milestone-4-plan.md:381-383), so 6B-2 burn-in scopes to label
-  tracks explicitly; the mastering-sequence revision consumes the 3A
+- **Milestone-4 dependencies:** selected Framescaper V27 now locally implements
+  explicit caption tracks with SRT, WebVTT, and a bounded IMSC 1.1 subset.
+  Guided-local and external qualification remain open, and M1–M4 grant no
+  caption burn-in or mux authority; 6B-2's historical label-track burn-in path
+  remains separate from the V27 track model. The mastering-sequence revision consumes the 3A
   marker/region model (`src/common/editor/timeline-annotation.ts`).
 - **The AUP4 report dialog landed** after first grounding
   (`src/common/editor/ui/application-menus.js:137-139`); WP-6.0.0

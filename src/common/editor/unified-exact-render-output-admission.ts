@@ -10,7 +10,7 @@ import {
 } from './video-keyframe-encoder-admission.ts';
 
 interface UnifiedOutputAdmission {
-	readonly version: 9 | 10 | 11 | 12;
+	readonly version: 9 | 10 | 11 | 12 | 13;
 	readonly format: Readonly<{ readonly container: 'mp4' | 'webm' }>;
 	readonly codecs: Readonly<{
 		readonly video: string;
@@ -32,6 +32,7 @@ const CLOSED_TUPLES = Object.freeze({
 	10: tuples(),
 	11: tuples(),
 	12: tuples(),
+	13: tuples(),
 });
 
 /** Close every generation over one reproducible delivery tuple and work domain. */

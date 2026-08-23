@@ -29,6 +29,7 @@ import {
 	type VideoKeyframeCurves,
 	type VideoKeyframeTarget,
 } from '../video-keyframe-curves.ts';
+import { isFramescaperVideoKeyframeProjectSchema } from '../project-schema-version.ts';
 import { mapVideoKeyframeVisiblePosition } from '../video-keyframe-time-domain.ts';
 import { normalizeVideoEffects, videoEffectDefinition } from '../video-effects.js';
 import {
@@ -158,13 +159,13 @@ const COMPOSITION_LABELS = Object.freeze({
 	opacity: ['videoKeyframeTargetOpacity', 'Opacity'],
 } as const satisfies Readonly<Record<VideoClipCompositionNumericParameterId, readonly [string, string]>>);
 
-/** Resolve one selected exact-V20 timeline occurrence without selecting the V20 route. */
+/** Resolve one selected keyframe-route timeline occurrence without selecting a route. */
 export function createVideoKeyframeDialogModel(
 	input: VideoKeyframeDialogModelInput,
 ): Readonly<VideoKeyframeDialogModel> {
 	if (input.productId !== 'framescaper' || !input.capability) return emptyModel('unsupported');
 	const project = ordinaryRecord(input.project);
-	if (!project || safeDataProperty(project, 'schemaVersion') !== 20) return emptyModel('unsupported');
+	if (!project || !isFramescaperVideoKeyframeProjectSchema(safeDataProperty(project, 'schemaVersion'))) return emptyModel('unsupported');
 	let selected: Readonly<EditableModel> | null;
 	try {
 		selected = selectedVideo(project, input.snapshot.selectedClipId);

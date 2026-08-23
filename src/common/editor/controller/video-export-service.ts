@@ -21,7 +21,7 @@ import {
 	type DirectVideoDestination,
 } from './direct-video-export.ts';
 import {
-	captureProductVideoExportActiveSourceIds,
+	captureProductVideoExportTimingSourceIds,
 	resolveProductVideoExportStrategy,
 	type ProductVideoExportPlan,
 } from './product-video-export-strategy.ts';
@@ -36,6 +36,7 @@ import { loadVideoBurnInFonts } from '../video-burn-in-font.ts';
 import { videoBurnInFontSubsetIds } from '../video-caption-burn-in.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
 import { resolveVideoDeliveryEncoderTier } from '../video-delivery-encoder-tier.ts';
+import { loadVideoExportOriginal } from './video-export-original-loader.ts';
 
 export interface VideoExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -159,11 +160,11 @@ export function createEditorVideoExportAction(
 			? productExportProject
 			: createExportRenderProject(deliveredProject);
 		const visibleVideoTrack = createVisibleVideoTrackPredicate(exportProject.tracks);
-		const hasTimelineVideo = exportProject.tracks.some((track: RuntimeValue) => (
+		const hasTimelinePicture = exportProject.tracks.some((track: RuntimeValue) => (
 			visibleVideoTrack(track)
 			&& (track.clipIds || []).some((clipId: RuntimeValue) => findClip(exportProject, clipId)?.kind === 'video')
-		));
-		if (!hasTimelineVideo) throw new Error('Add a visible video clip to the timeline before exporting video.');
+		)) || productStrategy?.hasPicture?.(exportProject) === true;
+		if (!hasTimelinePicture) throw new Error('Add visible picture content to the timeline before exporting video.');
 		const fallbackSourceIds = new Set([
 			...delivery.requiredAudioSourceIds,
 			...delivery.requiredVideoSourceIds,
@@ -198,7 +199,7 @@ export function createEditorVideoExportAction(
 			const formatValue = videoExportPlanFormat(requestedSettings.format || 'video-mp4');
 			const descriptor = getVideoExportFormat(formatValue) as Readonly<{ id: 'mp4' | 'webm' }>;
 			const format = descriptor.id;
-			const includeAudio = exportProject.clips.some((clip: RuntimeValue) => clip.kind !== 'video');
+			const includeAudio = exportProject.clips.some((clip: RuntimeValue) => clip.kind === 'audio');
 			const requestedRange = requestedSettings.range || 'project';
 			assertVideoExportCurrent();
 			const productPlan = productStrategy?.createPlan({
@@ -212,8 +213,8 @@ export function createEditorVideoExportAction(
 				audioLayout: requestedSettings.audioLayout,
 				captions: requestedSettings.captions,
 			}) ?? null;
-			const productActiveSourceIds = productPlan
-				? captureProductVideoExportActiveSourceIds(productPlan)
+			const productTimingSourceIds = productPlan
+				? captureProductVideoExportTimingSourceIds(productStrategy!, productPlan)
 				: null;
 			let plan: RuntimeValue;
 			if (productPlan) {
@@ -224,7 +225,8 @@ export function createEditorVideoExportAction(
 					{
 						signal: abort.signal,
 						assertCurrent: assertVideoExportCurrent,
-						requiredSourceIds: productActiveSourceIds!,
+						requiredSourceIds: productTimingSourceIds!,
+						allowInactiveRequiredSources: productStrategy!.captureTimingSourceIds !== undefined,
 					},
 				);
 				plan = productPlan;
@@ -300,8 +302,19 @@ export function createEditorVideoExportAction(
 				throwIfAborted(abort.signal);
 				const blob = admittedFallbacks.videoBlob && input.sourceId === delivery.videoRenderedFallback?.sourceId
 					? admittedFallbacks.videoBlob
-					: await store.loadMediaAsset(input.storageKey || input.sourceId, { signal: abort.signal });
-				if (!blob) throw new Error(copy.localSourcesMissing);
+					: await loadVideoExportOriginal({
+						store,
+						project: canonicalProject,
+						sourceId: String(input.sourceId),
+						storageKey: String(input.storageKey || input.sourceId),
+						signal: abort.signal,
+						assertCurrent: assertVideoExportCurrent,
+					});
+				if (!blob) throw videoExportMissingOriginalError(
+					canonicalProject,
+					String(input.sourceId),
+					String(copy.localSourcesMissing),
+				);
 				videoBlobs.set(input.sourceId, blob);
 			}
 			let audioMixBlob = null;
@@ -510,6 +523,23 @@ export function createEditorVideoExportAction(
 	};
 }
 
+export function videoExportMissingOriginalError(
+	project: unknown,
+	sourceId: string,
+	fallbackMessage: string,
+): Error {
+	const sources = project && typeof project === 'object'
+		? (project as Readonly<{ readonly sources?: readonly unknown[] }>).sources
+		: null;
+	const source = Array.isArray(sources) ? sources.find((candidate) => (
+		candidate && typeof candidate === 'object'
+		&& (candidate as Readonly<{ readonly id?: unknown }>).id === sourceId
+	)) as Readonly<{ readonly proxyAttachment?: unknown }> | undefined : undefined;
+	return new Error(source?.proxyAttachment
+		? 'The original video is unavailable. Relink the original; proxies are preview-only and cannot be delivered.'
+		: fallbackMessage);
+}
+
 function productEncodeRequest(
 	canonicalProject: RuntimeValue,
 	exportProject: RuntimeValue,
@@ -529,6 +559,7 @@ function productEncodeRequest(
 		exportProject,
 		plan,
 		timingBySourceId: timingIndexes.timingBySourceId,
+		timingViewsBySourceId: timingIndexes.timingViewsBySourceId,
 		videoBlobs,
 		audioMix,
 		editorFfmpeg,

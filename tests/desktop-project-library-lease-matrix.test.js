@@ -39,7 +39,7 @@ const HISTORICAL_WORKFLOWS = [
 	'crash-restart-recovery',
 ];
 
-test('current packaged V10 lease qualification is Soundscaper-only while preserving historical IDs', () => {
+test('current packaged lease qualification admits Soundscaper V10 and Framescaper V18', () => {
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS, EXPECTED_WORKFLOWS);
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS, HISTORICAL_WORKFLOWS);
 	const controlRoot = resolve('test-lease-control');
@@ -63,46 +63,61 @@ test('current packaged V10 lease qualification is Soundscaper-only while preserv
 	assert.throws(() => decodeDesktopProjectLibraryLeaseSmokePlan(Buffer.from(JSON.stringify({
 		...plan, faultPath: resolve(controlRoot, 'outside'),
 	})).toString('base64url')), /closed object/iu);
-	assert.throws(() => decodeDesktopProjectLibraryLeaseSmokePlan(Buffer.from(JSON.stringify({
-		...plan, productId: 'framescaper',
-	})).toString('base64url')), /Soundscaper|V10|product/iu);
+	const framescaper = { ...plan, productId: 'framescaper' };
+	assert.deepEqual(decodeDesktopProjectLibraryLeaseSmokePlan(
+		Buffer.from(JSON.stringify(framescaper)).toString('base64url'),
+	), framescaper);
 });
 
-test('desktop preview CI runs the V10 matrix only for Soundscaper on qualified targets', async () => {
+test('desktop preview CI runs both selected products on qualified x64 targets', async () => {
 	const [workflow, runner] = await Promise.all([
 		readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8'),
 		readFile(new URL('../scripts/lib/desktop-project-library-lease-matrix.mjs', import.meta.url), 'utf8'),
 	]);
 	const jobMarker = '\n  soundscaper-project-library-lease-matrix:';
 	const jobIndex = workflow.indexOf(jobMarker);
-	assert.notEqual(jobIndex, -1, 'missing Soundscaper-only packaged lease job');
+	assert.notEqual(jobIndex, -1, 'missing packaged lease job');
 	const leaseJob = workflow.slice(jobIndex);
 	for (const target of [
 		['win', 'x64'], ['linux', 'x64'],
 	]) {
 		assert.match(leaseJob, new RegExp(`platform: ${target[0]}[\\s\\S]{0,80}arch: ${target[1]}`, 'u'));
 	}
-	assert.doesNotMatch(leaseJob, /product in soundscaper framescaper|SCAPE_PRODUCT=["']?framescaper/iu);
 	assert.doesNotMatch(leaseJob, /platform: (?:mac|win)[\s\S]{0,80}arch: arm64|platform: linux[\s\S]{0,80}arch: arm64/u);
-	assert.match(leaseJob, /SCAPE_PRODUCT=soundscaper/u);
+	assert.match(leaseJob, /for product in soundscaper framescaper/u);
+	assert.match(leaseJob, /release\/desktop-lease-matrix\/\$product/u);
 	assert.match(leaseJob, /desktop:smoke:project-library-lease-matrix/u);
-	assert.match(leaseJob, /soundscaper-v10-lease-matrix-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
-	assert.doesNotMatch(runner, /\[\s*'soundscaper',\s*'framescaper'\s*\]|\[\s*'framescaper',\s*'soundscaper'\s*\]/u);
+	assert.match(leaseJob, /soundscaper-v10-framescaper-v18-lease-matrix-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
+	assert.match(runner, /\[\s*'soundscaper',\s*'framescaper'\s*\]/u);
+	assert.match(runner, /for \(const productId of \['soundscaper', 'framescaper'\]\)/u);
 	assert.match(runner, /runRendererLoss[\s\S]*awaitLeaseMatrixControlFile\(child\.control\.result, child\)/u);
 	assert.ok(Buffer.byteLength(formatDesktopProjectLibraryLeaseMatrix({ cases: [] })) < 1024 * 1024);
 });
 
 const ORDER = ['soundscaper', 'soundscaper'];
 
-test('every V10 lease workflow keeps one writer instance alive at a time', async () => {
-	for (const workflowId of DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS) {
-		const record = await runDesktopProjectLibraryLeaseMatrixCase({
-			driver: leaseInstances(), workflowId, order: ORDER,
-		});
-		assert.equal(record.workflowId, workflowId);
-		assert.equal(record.order, 'soundscaper-then-soundscaper');
-		assert.match(record.winningDocumentSha256, /^[a-f\d]{64}$/u);
+test('every per-product lease workflow keeps one writer instance alive at a time', async () => {
+	for (const productId of ['soundscaper', 'framescaper']) {
+		for (const workflowId of DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS) {
+			const record = await runDesktopProjectLibraryLeaseMatrixCase({
+				driver: leaseInstances(), workflowId, order: [productId, productId],
+			});
+			assert.equal(record.workflowId, workflowId);
+			assert.equal(record.order, `${productId}-then-${productId}`);
+			assert.match(record.winningDocumentSha256, /^[a-f\d]{64}$/u);
+		}
 	}
+});
+
+test('the paired workflow proves simultaneous cross-product scope isolation', async () => {
+	const record = await runDesktopProjectLibraryLeaseMatrixCase({
+		driver: isolatedProductInstances(),
+		workflowId: 'cross-product-simultaneous-open',
+		order: ['soundscaper', 'framescaper'],
+	});
+	assert.equal(record.order, 'soundscaper-then-framescaper');
+	assert.equal(record.refusedInstances, 0);
+	assert.deepEqual(record.fencingTokens, [1, 2, 1, 3, 2]);
 });
 
 test('a second instance is refused rather than admitted beside the lease holder', async () => {
@@ -177,7 +192,7 @@ test('a workflow that advertises a managed-media body fails the source-free matr
 	assert.deepEqual(record.losingManagedMediaBodyCounts, [0, 0]);
 });
 
-test('the desktop smoke probe carries the V10 qualification seam and nothing older', () => {
+test('the desktop smoke probe carries the product-neutral lease qualification seam', () => {
 	const probe = createDesktopSmokeProbe({
 		argv: ['electron', '.'],
 		appName: 'Soundscaper',
@@ -185,7 +200,7 @@ test('the desktop smoke probe carries the V10 qualification seam and nothing old
 		productId: 'soundscaper',
 		exit: () => undefined,
 	});
-	assert.equal(probe.projectLibraryV10Qualification(), null);
+	assert.equal(probe.projectLibraryLeaseQualification(), null);
 	assert.equal(probe.projectLibraryHostOptions, undefined);
 });
 
@@ -233,8 +248,10 @@ function leaseInstances(faults = {}) {
 	let staleLease = false;
 	let pending = null;
 
-	const acquire = () => {
-		if (lease && !faults.admitSecondInstance) throw new Error('Soundscaper desktop V10 writer lease is busy');
+	const acquire = (productId) => {
+		if (lease && !faults.admitSecondInstance) {
+			throw new Error(`${productId === 'framescaper' ? 'Framescaper desktop V18' : 'Soundscaper desktop V10'} writer lease is busy`);
+		}
 		issued += 1;
 		instances += 1;
 		const recovery = pending ?? { outcome: 'clean', document: null };
@@ -271,11 +288,11 @@ function leaseInstances(faults = {}) {
 		return { status: 'committed', projectRevision: library.revision, projectSha256: library.sha256 };
 	}
 
-	function snapshot(holder, activePublication) {
+	function snapshot(productId, holder, activePublication) {
 		return {
 			closed: false,
 			fenced: false,
-			owner: { product: 'soundscaper', processId: holder.processId, instanceId: holder.instanceId },
+			owner: { product: productId, processId: holder.processId, instanceId: holder.instanceId },
 			activeSessions: 1,
 			activePublication,
 			writer: {
@@ -286,13 +303,13 @@ function leaseInstances(faults = {}) {
 		};
 	}
 
-	function payload(action, holder, rendererResult) {
+	function payload(productId, action, holder, rendererResult) {
 		return {
 			schemaVersion: 1,
 			action,
-			productId: 'soundscaper',
+			productId,
 			renderer: rendererResult,
-			host: snapshot(holder, false),
+			host: snapshot(productId, holder, false),
 			catalog: {
 				revision: library.revision,
 				projectSha256: library.sha256,
@@ -302,16 +319,19 @@ function leaseInstances(faults = {}) {
 	}
 
 	return Object.freeze({
-		async commit(_productId, action, _projectId, commitRequest) {
-			const holder = acquire();
-			const result = payload(action, holder, renderer(action, commitRequest));
+		async commit(productId, action, _projectId, commitRequest) {
+			const holder = acquire(productId);
+			const result = payload(productId, action, holder, renderer(action, commitRequest));
 			lease = null;
 			return result;
 		},
-		async hold(_productId, action, _projectId, commitRequest) {
-			const holder = acquire();
+		async hold(productId, action, _projectId, commitRequest) {
+			const holder = acquire(productId);
 			let result = null;
-			const settle = () => { result ??= payload(action, holder, renderer(action, commitRequest)); return result; };
+			const settle = () => {
+				result ??= payload(productId, action, holder, renderer(action, commitRequest));
+				return result;
+			};
 			return {
 				get result() { return result; },
 				start: async () => undefined,
@@ -326,29 +346,100 @@ function leaseInstances(faults = {}) {
 			}
 			return { refused: 'writer-lease-busy' };
 		},
-		async crash(_productId, action, _projectId, commitRequest) {
-			const holder = acquire();
+		async crash(productId, action, _projectId, commitRequest) {
+			const holder = acquire(productId);
 			const checkpoint = {
 				phase: action === 'crash-committed' ? 'committed' : 'prepared',
 				processId: holder.processId,
-				host: snapshot(holder, true),
+				host: snapshot(productId, holder, true),
 			};
 			abandon(action === 'crash-committed'
 				? { outcome: 'committed', document: commitRequest.document }
 				: { outcome: 'rolled-back', document: null });
 			return checkpoint;
 		},
-		async rendererLoss(_productId, _projectId, commitRequest) {
-			const holder = acquire();
+		async rendererLoss(productId, _projectId, commitRequest) {
+			const holder = acquire(productId);
 			const checkpoint = {
 				phase: 'prepared',
 				processId: holder.processId,
-				host: snapshot(holder, !faults.idleCheckpoint),
+				host: snapshot(productId, holder, !faults.idleCheckpoint),
 			};
 			if (faults.settleAbandonedPublication) commit(commitRequest.document);
-			const recovered = payload('renderer-loss', holder, renderer('commit', commitRequest));
+			const recovered = payload(productId, 'renderer-loss', holder, renderer('commit', commitRequest));
 			lease = null;
 			return [checkpoint, recovered];
+		},
+	});
+}
+
+function isolatedProductInstances() {
+	const states = new Map(['soundscaper', 'framescaper'].map((productId) => [productId, {
+		document: null, issued: 0, lease: null,
+	}]));
+	const stateFor = (productId) => states.get(productId);
+	const acquire = (productId) => {
+		const state = stateFor(productId);
+		if (state.lease) throw new Error(`${productId} writer lease is busy`);
+		state.issued += 1;
+		state.lease = {
+			fencingToken: state.issued,
+			instanceId: `${productId}-${String(state.issued)}`,
+			processId: 8_000 + state.issued,
+		};
+		return state.lease;
+	};
+	const payload = (productId, action, holder, renderer) => {
+		const state = stateFor(productId);
+		const sha256 = state.document === null ? null
+			: createHash('sha256').update(state.document).digest('hex');
+		return {
+			action,
+			productId,
+			renderer,
+			host: {
+				owner: { product: productId, instanceId: holder.instanceId },
+				writer: { fencingToken: holder.fencingToken },
+			},
+			catalog: { projectSha256: sha256, managedMediaBodyCount: 0 },
+		};
+	};
+	const observe = (productId) => {
+		const state = stateFor(productId);
+		return {
+			status: 'observed',
+			document: state.document,
+			projectSha256: state.document === null ? null
+				: createHash('sha256').update(state.document).digest('hex'),
+		};
+	};
+	return Object.freeze({
+		async commit(productId, action, _projectId, request) {
+			const state = stateFor(productId);
+			const holder = acquire(productId);
+			let renderer;
+			if (action === 'verify') renderer = observe(productId);
+			else {
+				state.document = request.document;
+				renderer = { status: 'committed', document: state.document,
+					projectSha256: createHash('sha256').update(state.document).digest('hex') };
+			}
+			state.lease = null;
+			return payload(productId, action, holder, renderer);
+		},
+		async hold(productId, action) {
+			const state = stateFor(productId);
+			const holder = acquire(productId);
+			let result = null;
+			return {
+				get result() { return result; },
+				start: async () => undefined,
+				waitResult: async () => {
+					result ??= payload(productId, action, holder, observe(productId));
+					return result;
+				},
+				release: async () => { state.lease = null; },
+			};
 		},
 	});
 }

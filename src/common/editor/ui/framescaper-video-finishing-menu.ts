@@ -2,10 +2,16 @@
 
 import { createVideoCompositionApplicationMenuItems } from './video-composition-application-menu.ts';
 import { createVideoKeyframeApplicationMenuItems } from './video-keyframe-application-menu.ts';
+import { createVideoRetimeApplicationMenuItems } from './video-retime-application-menu.ts';
+import { createFramescaperVideoProxyApplicationMenuItems } from './framescaper-video-proxy-application-menu.ts';
 
 export interface FramescaperVideoFinishingMenuInput {
 	readonly productId: string;
-	readonly capabilities: Readonly<{ readonly videoGeometry?: unknown; readonly videoKeyframes?: unknown }>;
+	readonly capabilities: Readonly<{
+		readonly videoGeometry?: unknown;
+		readonly videoKeyframes?: unknown;
+		readonly videoRetime?: unknown;
+	}>;
 	readonly project: unknown;
 	readonly selectedClipId: string | null;
 	readonly editingBlocked: boolean;
@@ -13,6 +19,8 @@ export interface FramescaperVideoFinishingMenuInput {
 	readonly actions: Readonly<{
 		readonly openVideoComposition: () => unknown;
 		readonly openVideoKeyframes: () => unknown;
+		readonly openVideoRetime: () => unknown;
+		readonly openVideoProxy: () => unknown;
 	}>;
 }
 
@@ -35,6 +43,17 @@ export function createFramescaperVideoFinishingMenuItems(input: FramescaperVideo
 			...shared,
 			capability: Boolean(input.capabilities.videoKeyframes),
 			open: input.actions.openVideoKeyframes,
+		}),
+		...createVideoRetimeApplicationMenuItems({
+			...shared,
+			capability: Boolean(input.capabilities.videoRetime),
+			open: input.actions.openVideoRetime,
+		}),
+		...createFramescaperVideoProxyApplicationMenuItems({
+			productId: input.productId,
+			project: input.project,
+			copy: input.copy,
+			open: input.actions.openVideoProxy,
 		}),
 	]);
 }

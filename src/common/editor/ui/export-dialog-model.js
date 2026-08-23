@@ -26,14 +26,14 @@ export function isVideoExportDialogFormat(format) {
 
 export function projectHasTimelineVideo(project) {
 	if (!project?.tracks?.length || !project?.clips?.length) return false;
-	const videoClipIds = new Set(
+	const visualClipIds = new Set(
 		project.clips
-			.filter((clip) => clip?.kind === 'video')
+			.filter((clip) => ['video', 'still', 'generator'].includes(clip?.kind))
 			.map((clip) => clip.id),
 	);
 	return project.tracks.some((track) => (
 		track?.type === 'video'
-		&& track.clipIds?.some((clipId) => videoClipIds.has(clipId))
+		&& track.clipIds?.some((clipId) => visualClipIds.has(clipId))
 	));
 }
 

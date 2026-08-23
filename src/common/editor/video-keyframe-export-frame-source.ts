@@ -59,6 +59,8 @@ export interface VideoKeyframeExportPresentationRequest {
 	readonly clip: Readonly<Record<string, unknown>>;
 	readonly source: Readonly<Record<string, unknown>>;
 	readonly localSequencePosition: Rational;
+	/** Exact random-access output index owned by the export frame source. */
+	readonly outputOrdinal?: number;
 }
 
 export type VideoKeyframeExportPresentationResolver = (
@@ -79,6 +81,13 @@ export interface VideoKeyframeExportFrameSource {
 	readonly sampleRate: number;
 	readonly canvas: VideoKeyframeExportCanvas;
 	frame(index: number): VideoKeyframeExportFrame;
+}
+
+export interface VideoExactPictureExportFrameRequest {
+	readonly sampleRate: number;
+	readonly startFrame: number;
+	readonly endFrame: number;
+	readonly canvas: VideoKeyframeExportFrameRequest['canvas'];
 }
 
 const VIDEO_KEYFRAME_EXPORT_FRAME_OWNERS = new WeakMap<object, VideoKeyframeExportFrameSource>();
@@ -175,6 +184,7 @@ export function createVideoKeyframeExportFrameSource(
 						provider,
 						stateRequest,
 						timelinePosition,
+						index,
 						resolvePresentationDescriptor,
 					)
 				),
@@ -188,10 +198,54 @@ export function createVideoKeyframeExportFrameSource(
 	return source;
 }
 
+/** Create an exact empty-layer picture clock for product-owned visual materializers. */
+export function createVideoExactPictureExportFrameSource(
+	requestValue: VideoExactPictureExportFrameRequest,
+): VideoKeyframeExportFrameSource {
+	const request = closedRecord(requestValue, new Set([
+		'sampleRate', 'startFrame', 'endFrame', 'canvas',
+	]), 'exact picture export request');
+	const sampleRate = positiveSafeInteger(
+		dataProperty(request, 'sampleRate', 'exact picture export request'), 'sampleRate',
+	);
+	const startFrame = nonNegativeSafeInteger(
+		dataProperty(request, 'startFrame', 'exact picture export request'), 'startFrame',
+	);
+	const endFrame = positiveSafeInteger(
+		dataProperty(request, 'endFrame', 'exact picture export request'), 'endFrame',
+	);
+	if (endFrame <= startFrame) throw new RangeError('Exact picture export range must be positive.');
+	const canvas = normalizeCanvas(dataProperty(request, 'canvas', 'exact picture export request'));
+	const frameCount = resolveVideoKeyframeExportFrameCount(
+		endFrame - startFrame, sampleRate, canvas.frameRate,
+	);
+	assertFramePositionDomain(startFrame, frameCount, sampleRate, canvas.frameRate);
+	const source: VideoKeyframeExportFrameSource = Object.freeze({
+		frameCount, startFrame, endFrame, sampleRate, canvas,
+		frame(indexValue: number): VideoKeyframeExportFrame {
+			const index = nonNegativeSafeInteger(indexValue, 'frame index');
+			if (index >= frameCount) throw new RangeError('Exact picture export frame is outside the range.');
+			const offset = exactFrameOffset(index, sampleRate, canvas.frameRate);
+			const timelinePosition = exactSum(startFrame, offset);
+			const frame = Object.freeze({
+				index,
+				timelineSample: timelinePosition.num / timelinePosition.den,
+				timelinePosition,
+				layers: Object.freeze([]),
+			});
+			VIDEO_KEYFRAME_EXPORT_FRAME_OWNERS.set(frame, source);
+			return frame;
+		},
+	});
+	VIDEO_KEYFRAME_EXPORT_FRAME_SOURCES.add(source);
+	return source;
+}
+
 function resolveVideoKeyframeExportState(
 	provider: VideoKeyframeRenderStateProvider,
 	request: VideoKeyframePreviewStateRequest,
 	timelinePosition: Readonly<{ num: number; den: number }>,
+	outputOrdinal: number,
 	resolvePresentationDescriptor: VideoKeyframeExportPresentationResolver | undefined,
 ) {
 	const clip = request.clip as Readonly<Record<string, unknown>>;
@@ -225,6 +279,7 @@ function resolveVideoKeyframeExportState(
 			clip,
 			source,
 			localSequencePosition,
+			outputOrdinal,
 		})]), 'video keyframe export presentation descriptor') as unknown as VideoRetimeFrameDescriptor;
 	if (!Object.hasOwn(clip, 'videoKeyframes')) {
 		return presentationDescriptor === undefined ? null : Object.freeze({ presentationDescriptor });

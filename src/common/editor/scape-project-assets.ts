@@ -38,6 +38,7 @@ export interface ScapeProjectFallbackSnapshot {
 
 export interface ScapeProjectAssetIndexOptions {
 	readonly currentProjectSchemaVersion?: number;
+	readonly additionalSourceKinds?: readonly string[];
 }
 
 /**
@@ -51,8 +52,14 @@ export function indexScapeProjectAssets(
 ): ReadonlyMap<string, ScapeAssetDescriptor> {
 	const sources = projectSources(project);
 	const currentProjectSchemaVersion = scapeAssetSchemaVersion(options);
-	const sourceAssets = manifest.assets.filter(({ kind }) => kind !== 'video-timing');
-	if (sources.length !== sourceAssets.length) {
+	const additionalSourceKinds = new Set(options.additionalSourceKinds ?? []);
+	const canonicalSources = sources.filter((value) => {
+		if (!value || typeof value !== 'object' || Array.isArray(value)) return true;
+		const kind = (value as Record<string, unknown>).kind;
+		return kind === 'audio' || kind === 'video' || !additionalSourceKinds.has(String(kind));
+	});
+	const sourceAssets = manifest.assets.filter(({ kind }) => kind === 'audio' || kind === 'video');
+	if (canonicalSources.length !== sourceAssets.length) {
 		throw new Error('The .scape project sources and manifest assets do not form a one-to-one mapping.');
 	}
 	const assetBySourceId = new Map<string, ScapeAssetDescriptor>();
@@ -64,7 +71,7 @@ export function indexScapeProjectAssets(
 	}
 
 	const projectSourceIds = new Set<string>();
-	for (const value of sources) {
+	for (const value of canonicalSources) {
 		if (!value || typeof value !== 'object' || Array.isArray(value)) {
 			throw new TypeError('The migrated .scape project contains an invalid source.');
 		}

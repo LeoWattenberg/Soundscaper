@@ -290,14 +290,14 @@ test('video export validates the timeline and cleans late publications', async (
 	absent.setProject({ ...defaultProject(), tracks: [{ id: 'audio', type: 'audio', clipIds: [] }] });
 	await assert.rejects(
 		() => createEditorExportService(absent.runtime).exportVideo(),
-		/Add a visible video clip/iu,
+		/Add visible picture content/iu,
 	);
 
 	const hidden = createFixture();
 	hidden.setProject({ ...defaultProject(), tracks: [{ id: 'video', type: 'video', hidden: true, clipIds: ['video-clip'] }] });
 	await assert.rejects(
 		() => createEditorExportService(hidden.runtime).exportVideo(),
-		/Add a visible video clip/iu,
+		/Add visible picture content/iu,
 	);
 
 	const missing = createFixture();

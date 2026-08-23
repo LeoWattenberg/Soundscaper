@@ -90,6 +90,10 @@ export function createPendingM1VideoPreviewResult(
 ): Readonly<{
 	readonly metricGatePassed: boolean;
 	readonly metrics: Readonly<Record<string, number>>;
+	readonly fixture: Readonly<Record<string, number | string>>;
+	readonly rawSampleCounts: Readonly<Record<string, number>>;
+	readonly environmentFingerprint: Readonly<Record<string, string>>;
+	readonly environmentId: string;
 }>;
 
 export function createDesktopNightlyTestsMetricsEvidence(

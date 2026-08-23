@@ -35,10 +35,12 @@ interface VideoExportTimingOptions {
 	readonly signal?: AbortSignal;
 	readonly assertCurrent: () => void;
 	readonly requiredSourceIds?: readonly string[];
+	readonly allowInactiveRequiredSources?: boolean;
 }
 
 export interface VideoExportTimingIndexLease extends VideoTimingIndexLease {
 	readonly timingBySourceId: ReadonlyMap<string, BoundVideoSourceTimingView>;
+	readonly timingViewsBySourceId: ReadonlyMap<string, VideoSourceTimingView>;
 }
 
 /** Acquire every verified timing index required by synchronous video planning. */
@@ -49,7 +51,10 @@ export async function acquireVideoExportTimingIndexes(
 	options: VideoExportTimingOptions,
 ): Promise<VideoExportTimingIndexLease> {
 	const requiredSourceIds = normalizeRequiredSourceIds(options.requiredSourceIds);
-	const sources = selectVisibleVideoSources(projectValue, dependencies, requiredSourceIds);
+	const sources = selectVisibleVideoSources(
+		projectValue, dependencies, requiredSourceIds,
+		options.allowInactiveRequiredSources === true,
+	);
 	const indexes: Array<Readonly<{
 		source: DataRecord;
 		index: NonNullable<Awaited<ReturnType<typeof loadVideoTimingAsset>>['index']>;
@@ -113,6 +118,7 @@ export async function acquireVideoExportTimingIndexes(
 		let released = false;
 		return Object.freeze({
 			timingBySourceId,
+			timingViewsBySourceId: Object.freeze(new Map(timingViews)),
 			release(): boolean {
 				if (released) return false;
 				released = true;
@@ -133,7 +139,21 @@ function selectVisibleVideoSources(
 	projectValue: unknown,
 	dependencies: VideoExportTimingDependencies,
 	requiredSourceIds: readonly string[] | null,
+	allowInactiveRequiredSources: boolean,
 ): readonly DataRecord[] {
+	if (requiredSourceIds !== null && allowInactiveRequiredSources) {
+		return Object.freeze(requiredSourceIds.map((sourceId) => {
+			const sourceValue = dependencies.findSource(projectValue, sourceId);
+			if (!sourceValue || typeof sourceValue !== 'object') {
+				throw new ReferenceError(`Required video source ${sourceId} is not canonical.`);
+			}
+			const source = snapshotTimingSource(record(sourceValue, 'video export source'));
+			if (source.kind !== 'video') {
+				throw new ReferenceError(`Required video source ${sourceId} is not video.`);
+			}
+			return source;
+		}));
+	}
 	const project = projectTrackFolderMediaStateV12(record(projectValue, 'video export project'));
 	if (!Array.isArray(project.tracks)) throw new TypeError('The video export project requires tracks.');
 	const sources: DataRecord[] = [];

@@ -354,7 +354,7 @@ function formatSoundscaperEffect(effect) {
 	return formatMacroLine('SoundscaperEffect', parameters);
 }
 
-function normalizeNoiseReductionContext(value) {
+export function normalizeNoiseReductionContext(value) {
 	if (!isPlainObject(value) || !isPlainObject(value.noiseProfile)) {
 		throw new TypeError('Noise Reduction Context requires a noiseProfile object.');
 	}

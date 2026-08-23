@@ -11,9 +11,11 @@ import {
 } from './project-library-exact-generation-database.ts';
 import type { FramescaperDesktopProjectLibraryExactGenerationPaths } from './project-library-exact-generation-contract.ts';
 import type {
-	ExactGenerationProject,
-	FramescaperDesktopProjectLibraryExactGenerationConfiguration,
-} from './project-library-exact-generation-main.ts';
+	FramescaperDesktopProjectLibraryExactGenerationLifecycle,
+	FramescaperDesktopProjectLibraryExactPublicationDeclaration,
+} from './project-library-exact-generation-lifecycle.ts';
+import type { ExactGenerationProject } from './project-library-exact-generation-body-configuration.ts';
+import type { FramescaperDesktopProjectLibraryExactGenerationConfiguration } from './project-library-exact-generation-main.ts';
 import {
 	concatenateFramescaperDesktopProjectLibraryV12Chunks as concatenate,
 	framescaperDesktopProjectLibraryV12ClosedRecord as closedRecord,
@@ -44,7 +46,10 @@ interface FramescaperDesktopExactProjectRow {
 }
 
 export interface FramescaperDesktopExactBodyDescriptor {
-	readonly kind: 'video-original' | 'video-proxy' | 'video-timing';
+	readonly kind:
+		| 'video-original' | 'video-proxy' | 'video-timing'
+		| 'framescaper-still' | 'framescaper-freeze-render'
+		| 'framescaper-cube-lut' | 'framescaper-motion-analysis';
 	readonly encoding: string;
 	readonly bindingId?: string;
 	readonly sourceId: string;
@@ -82,6 +87,8 @@ export async function persistFramescaperDesktopExactPublication(
 	database: DatabaseSync,
 	paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
 	publication: FramescaperDesktopExactPublication,
+	lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null = null,
+	assertCurrent: () => void = () => undefined,
 ): Promise<unknown> {
 	const bytes = new TextEncoder().encode(publication.document);
 	const contentDigest = sha256(bytes);
@@ -90,9 +97,19 @@ export async function persistFramescaperDesktopExactPublication(
 	await mkdir(projectDirectory, { recursive: true, mode: 0o700 });
 	const documentFile = `${entryId}/${String(publication.project.revision)}-${contentDigest}.json`;
 	const documentPath = join(paths.projectsRoot, documentFile);
+	const declaration: Readonly<FramescaperDesktopProjectLibraryExactPublicationDeclaration> = Object.freeze({
+		publicationId: publication.publicationId,
+		projectId: String(publication.project.id),
+		projectRevision: publication.project.revision,
+		projectSha256: contentDigest,
+		documentFile,
+		expectedMetadataRevision: publication.expectedMetadataRevision,
+	});
 	const temporaryDocument = `${documentPath}.tmp-${randomBytes(8).toString('hex')}`;
 	const temporaryBodies: Array<Readonly<{ temporary: string; final: string }>> = [];
 	try {
+		assertCurrent();
+		await lifecycle?.preparePublication(declaration);
 		await writeFile(temporaryDocument, bytes, { mode: 0o600, flag: 'wx' });
 		for (const [index, body] of publication.bodies.entries()) {
 			const bodyBytes = concatenate(publication.chunks[index]!, body.byteLength);
@@ -115,12 +132,16 @@ export async function persistFramescaperDesktopExactPublication(
 		}
 		for (const item of temporaryBodies) await rename(item.temporary, item.final);
 		await rename(temporaryDocument, documentPath);
+		assertCurrent();
+		await lifecycle?.publicationMaterialized(declaration);
 		const updatedAtMs = Date.parse(String(publication.project.updatedAt));
 		if (!Number.isSafeInteger(updatedAtMs) || updatedAtMs < 0) {
 			throw new TypeError(`${configuration.label} project timestamp is invalid`);
 		}
 		database.exec('BEGIN IMMEDIATE');
 		try {
+			assertCurrent();
+			lifecycle?.assertCanCommit(database, declaration);
 			if (metadataRevision(database) !== publication.expectedMetadataRevision) {
 				throw new Error(`${configuration.label} metadata changed before publication`);
 			}
@@ -142,7 +163,7 @@ export async function persistFramescaperDesktopExactPublication(
 			setMetadataRevision(database, publication.expectedMetadataRevision + 1, configuration.label);
 			database.exec('COMMIT');
 		} catch (error) { database.exec('ROLLBACK'); throw error; }
-		return Object.freeze({
+		const result = Object.freeze({
 			metadataRevision: publication.expectedMetadataRevision + 1,
 			project: Object.freeze({
 				id: entryId, projectId: String(publication.project.id), name: String(publication.project.title),
@@ -154,6 +175,9 @@ export async function persistFramescaperDesktopExactPublication(
 			document: publication.document,
 			bodies: publication.bodies,
 		});
+		await lifecycle?.publicationCommitted(declaration, result);
+		await lifecycle?.publicationComplete(declaration);
+		return result;
 	} catch (error) {
 		await rm(temporaryDocument, { force: true }).catch(() => undefined);
 		await Promise.all(temporaryBodies.map(({ temporary }) => rm(temporary, { force: true })));
@@ -177,10 +201,14 @@ export function framescaperDesktopExactProjectRow(
 export function parseFramescaperDesktopExactBodies(
 	value: unknown,
 	label: string,
+	validate: (
+		value: unknown,
+		label: string,
+	) => Readonly<FramescaperDesktopExactBodyDescriptor> = validateFramescaperDesktopExactBody,
 ): readonly Readonly<FramescaperDesktopExactBodyDescriptor>[] {
 	if (typeof value !== 'string') throw new TypeError(`${label} body inventory is invalid`);
 	return Object.freeze(denseArray(JSON.parse(value) as unknown, MAXIMUM_BODIES, `${label} bodies`)
-		.map((body) => validateFramescaperDesktopExactBody(body, label)));
+		.map((body) => validate(body, label)));
 }
 
 export function validateFramescaperDesktopExactBody(
@@ -215,7 +243,10 @@ export function framescaperDesktopExactMediaPath(
 	body: FramescaperDesktopExactBodyDescriptor,
 ): string {
 	const extension = body.kind === 'video-original' ? '.media'
-		: body.kind === 'video-proxy' ? '.proxy' : '.scti';
+		: body.kind === 'video-proxy' ? '.proxy'
+			: body.kind === 'video-timing' ? '.scti'
+				: body.kind === 'framescaper-cube-lut' ? '.cube'
+					: body.kind === 'framescaper-motion-analysis' ? '.json' : '.image';
 	return join(paths.managedMediaRoot, body.kind, body.sha256.slice(0, 2), `${body.sha256}${extension}`);
 }
 

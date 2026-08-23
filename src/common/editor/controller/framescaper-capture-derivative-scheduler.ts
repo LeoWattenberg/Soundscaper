@@ -3,6 +3,7 @@
 import type {
 	FramescaperCaptureDerivativeRequest,
 } from './framescaper-capture-canonical-publication.ts';
+import type { VideoProxyAttachmentV18 } from '../video-proxy-attachment-v18.ts';
 
 export const FRAMESCAPER_CAPTURE_MAXIMUM_FILMSTRIP_THUMBNAILS = 2_000;
 
@@ -26,6 +27,8 @@ export interface FramescaperCapturedVideoProxyRequest {
 	readonly sourceId: string;
 	readonly expectedProjectRevision: number;
 	readonly expectedContentSha256: string;
+	/** Exact old pointer required when this operation replaces an attachment. */
+	readonly expectedProxyAttachment?: Readonly<VideoProxyAttachmentV18>;
 }
 
 export interface FramescaperCapturedVideoProxyActiveUpdate {

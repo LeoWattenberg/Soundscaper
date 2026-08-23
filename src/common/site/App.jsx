@@ -6,14 +6,14 @@ import BrandSidebar from './BrandSidebar.jsx';
 import './site.css';
 
 const SoundscaperAudioEditorBootstrapV23 = lazy(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrapV23.tsx'));
-const FramescaperAudioEditorBootstrapV20 = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrapV20.tsx'));
+const FramescaperAudioEditorBootstrapV27 = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrapV27.tsx'));
 
 export default function App({ route }) {
 	const { desktop, direction, embedded, locale, productId } = route;
 	const copy = bundledCopyForLocale(locale);
 	const EditorBootstrap = productId !== 'framescaper'
 		? SoundscaperAudioEditorBootstrapV23
-		: FramescaperAudioEditorBootstrapV20;
+		: FramescaperAudioEditorBootstrapV27;
 	const intro = productId === 'framescaper' ? {
 		eyebrow: copy.framescaperEyebrow,
 		title: copy.framescaperTitle,

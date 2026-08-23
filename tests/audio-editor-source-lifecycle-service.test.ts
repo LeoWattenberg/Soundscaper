@@ -23,6 +23,7 @@ function createFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
 	const deletedAnalyses: string[] = [];
 	const activatedVideoSources: Array<Readonly<Record<string, unknown>>> = [];
 	const activatedVideoSignals: Array<AbortSignal | undefined> = [];
+	const missingSourceIds = new Set<string>();
 	const sourceBuffers = {
 		has: (id: string) => cachedBuffers.has(id),
 		get: (id: string) => cachedBuffers.get(id),
@@ -66,7 +67,7 @@ function createFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
 		sourceChunkProviders,
 		sourcePcmBytes: () => 0,
 		sourcePeaks,
-		state: { missingSourceIds: new Set<string>() },
+		state: { missingSourceIds },
 		store: { deleteAnalysis: async (key: string) => { deletedAnalyses.push(key); } },
 		waveformPcmWindowContains: () => false,
 		waveformPeaksHaveRms: () => true,
@@ -79,6 +80,7 @@ function createFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
 		sourcePeaks,
 		activatedVideoSources,
 		activatedVideoSignals,
+		missingSourceIds,
 		clipWaveformPcmRequests,
 		clipWaveformPcmWindows,
 		publishes: () => publishes,
@@ -91,6 +93,15 @@ function createFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
 	};
 }
 
+test('visual-only still and generator sources do not enter the PCM missing-source fence', async () => {
+	for (const kind of ['still', 'generator']) {
+		const fixture = createFixture();
+		const source = { id: `${kind}-source`, kind };
+		await fixture.service.loadProjectSources({ id: `${kind}-project`, sources: [source],
+			clips: [{ id: `${kind}-clip`, kind, sourceId: source.id }] });
+		assert.deepEqual([...fixture.missingSourceIds], []);
+	}
+});
 test('a required rendered-video source activates even when only its manifest references it', async () => {
 	const fixture = createFixture();
 	const source = Object.freeze({

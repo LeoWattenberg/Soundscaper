@@ -96,6 +96,32 @@ test('active video layers are frozen, bottom-to-top, and expose complementary cr
 	assert.equal('renderDescription' in layers[0].clips[0], false, 'the canvas opt-in preserves legacy shape');
 });
 
+test('media composition delegates dissolve weights to the exact shared resolver and ignores visual clips', () => {
+	const project = layeredProject();
+	project.sources.push({ kind: 'generator', id: 'title-source' });
+	project.clips.push({
+		kind: 'generator', id: 'title-clip', sourceId: 'title-source',
+		timelineStartFrame: 0, durationFrames: 100,
+		sourceStartFrame: 0, sourceDurationFrames: 100,
+	});
+	project.tracks.find(({ id }) => id === 'top-track').clipIds.push('title-clip');
+	const exact = (clipId) => clipId === 'outgoing' ? 0.8 : clipId === 'incoming' ? 0.2 : null;
+	const layers = resolveActiveVideoLayers(project, 80, { resolveTransitionWeight: exact });
+	assert.deepEqual(layers.at(-1).clips.map(({ clipId, opacity }) => ({ clipId, opacity })), [
+		{ clipId: 'outgoing', opacity: 0.8 },
+		{ clipId: 'incoming', opacity: 0.2 },
+	]);
+	const intervals = resolveVideoCompositionIntervals(project, {
+		startFrame: 70, endFrame: 90, resolveTransitionWeight: exact,
+	});
+	assert.deepEqual(intervals[0].layers.at(-1).clips.map(({ opacityStart, opacityEnd }) => ({
+		opacityStart, opacityEnd,
+	})), [
+		{ opacityStart: 0.8, opacityEnd: 0.8 },
+		{ opacityStart: 0.2, opacityEnd: 0.2 },
+	]);
+});
+
 test('a render canvas resolves frozen identity descriptions without changing legacy painter order', () => {
 	const layers = resolveActiveVideoLayers(layeredProject(), 80, { renderCanvas: RENDER_CANVAS });
 	assert.deepEqual(layers.map((layer) => layer.trackId), ['lower-track', 'top-track']);

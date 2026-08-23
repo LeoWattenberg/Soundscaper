@@ -17,6 +17,8 @@ import {
 	framescaperProjectForPlaybackFoundationV20,
 	framescaperProjectForRuntimeConsumersV20,
 } from '../src/framescaper/editor-project-v20-runtime.ts';
+import { createFramescaperVideoRetimeReverseCommandV20 } from '../src/framescaper/editor-project-v20-retime-command.ts';
+import { applyFramescaperProjectCommandV20 } from '../src/framescaper/editor-project-v20-commands.ts';
 import {
 	createFramescaperProjectV20,
 	validateFramescaperProjectV20,
@@ -73,6 +75,36 @@ test('each nested V20 playback occurrence owns independently detached curves', (
 	assert.notStrictEqual(videoKeyframes(clips[0]), videoKeyframes(clips[1]));
 	assert.notStrictEqual(videoKeyframes(clips[0]).curves, videoKeyframes(clips[1]).curves);
 	assert.notStrictEqual(videoKeyframes(clips[0]).curves[0]?.curve, videoKeyframes(clips[1]).curves[0]?.curve);
+});
+
+test('nested V20 playback rehomes exact retime curves onto every root occurrence', () => {
+	const project = nestedVideoProject();
+	const retimed = applyFramescaperProjectCommandV20(
+		PROFILE,
+		project,
+		createFramescaperVideoRetimeReverseCommandV20({
+			clipId: 'child-clip', expectedRetimeMap: null,
+		}),
+		{ now: '2026-08-23T12:00:00.000Z' },
+	);
+	const clips = projectClips(framescaperProjectForPlaybackFoundationV20(PROFILE, retimed));
+	assert.equal(clips.length, 2);
+	for (const clipValue of clips) {
+		const clip = clipValue as Readonly<Record<string, unknown>>;
+		assert.deepEqual(clip.retimeMap, {
+			feature: 'video-retime', version: 2,
+			points: [
+				{ outerFrame: 0, sourceFrame: { num: 30, den: 1 } },
+				{ outerFrame: 30, sourceFrame: { num: 0, den: 1 } },
+			],
+			segments: [{ mode: 'constant-reverse' }],
+		});
+		assert.equal(clip.sequenceFrameCount, 30);
+	}
+	assert.notStrictEqual(
+		(clips[0] as Readonly<Record<string, unknown>>).retimeMap,
+		(clips[1] as Readonly<Record<string, unknown>>).retimeMap,
+	);
 });
 
 function authoredVideoProject(): FramescaperProjectV20 {
