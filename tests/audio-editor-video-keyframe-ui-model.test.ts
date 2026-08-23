@@ -22,7 +22,7 @@ import { createVideoKeyframeApplicationMenuItems } from '../src/common/editor/ui
 
 const rational = (num: number, den = 1) => ({ num, den });
 
-test('the dialog model admits exactly one writable V20 timeline video and exposes registered targets', () => {
+test('the dialog model admits one writable selected-route timeline video and exposes registered targets', () => {
 	const value = project();
 	const model = createVideoKeyframeDialogModel({
 		productId: 'framescaper', capability: true, project: value,
@@ -35,6 +35,10 @@ test('the dialog model admits exactly one writable V20 timeline video and expose
 	assert.equal(model.operationsBlocked, false);
 	assert.equal(model.blockReason, null);
 	assert.deepEqual(model.keyframes, createDefaultVideoKeyframeCurves(rational(20)));
+	assert.equal(createVideoKeyframeDialogModel({
+		productId: 'framescaper', capability: true,
+		project: { ...value, schemaVersion: 27 }, snapshot: { selectedClipId: 'video' },
+	}).blockReason, null);
 
 	const choices = listVideoKeyframeTargetChoices(model);
 	assert.equal(choices.length, 13);
@@ -174,7 +178,7 @@ test('model selection and project reads reject accessor authority without invoca
 	assert.equal(reads, 0);
 });
 
-test('the keyframe entry is menu-only, exact-V20-only, and available under the shipped capability', () => {
+test('the keyframe entry is menu-only for selected keyframe routes and available under the shipped capability', () => {
 	const opened: string[] = [];
 	const input = {
 		productId: 'framescaper', capability: true, project: project(),
@@ -187,6 +191,9 @@ test('the keyframe entry is menu-only, exact-V20-only, and available under the s
 	});
 	item?.onClick();
 	assert.deepEqual(opened, ['video-keyframes']);
+	assert.equal(createVideoKeyframeApplicationMenuItems({
+		...input, project: { ...project(), schemaVersion: 27 },
+	})[0]?.disabled, false);
 	assert.deepEqual(createVideoKeyframeApplicationMenuItems({ ...input, capability: false }), []);
 	assert.deepEqual(createVideoKeyframeApplicationMenuItems({
 		...input, project: { ...project(), schemaVersion: 19 },

@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createAddTrackCommand } from '../src/common/editor/commands/factories.ts';
 import { editorProjectStorageProfileNames } from '../src/common/editor/storage/project-storage-profile.ts';
 import {
 	applyFramescaperProjectCommandV27,
@@ -107,6 +108,32 @@ test('inherited media commands create the required managed-color interpretation'
 	}, {
 		sourceId: 'second-video', provenance: 'default-video-bt709-limited',
 	}]);
+});
+
+test('inherited media import batches admit an adjacent A/V lane pair atomically', () => {
+	const project = projectFixture('import-batch-v27');
+	const applied = applyFramescaperProjectCommandV27(PROFILE, project, {
+		type: 'batch',
+		commands: [{
+			...createAddTrackCommand({
+				type: 'video', id: 'import-video-track', name: 'Imported video',
+				laneGroupId: 'import-media-lane',
+			}),
+			index: 2,
+		}, {
+			...createAddTrackCommand({
+				type: 'audio', id: 'import-audio-track', name: 'Imported audio',
+				laneGroupId: 'import-media-lane', armed: false,
+			}),
+			index: 3,
+		}],
+	});
+	assert.deepEqual(applied.tracks.slice(2).map(({ id, laneGroupId }) => ({ id, laneGroupId })), [{
+		id: 'import-video-track', laneGroupId: 'import-media-lane',
+	}, {
+		id: 'import-audio-track', laneGroupId: 'import-media-lane',
+	}]);
+	assert.equal(Number(applied.revision), Number(project.revision) + 1);
 });
 
 test('selected V27 session refuses implicit prior conversion and preserves dormant custody', () => {

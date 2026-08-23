@@ -121,12 +121,42 @@ function applyBatch(
 	options: FramescaperProjectCommandOptionsV24,
 ): FramescaperProjectV24 {
 	let current = project;
-	for (const child of command.commands) current = applyNormalized(profile, current, child, options);
+	let inheritedSegment: FramescaperProjectCommandV24[] = [];
+	const flushInheritedSegment = (): void => {
+		if (inheritedSegment.length === 0) return;
+		const inherited = inheritedSegment.length === 1
+			? inheritedSegment[0]!
+			: Object.freeze({
+				type: 'batch' as const,
+				commands: Object.freeze([...inheritedSegment]),
+			});
+		current = applyInheritedFramescaperProjectCommandV24(
+			profile, current, inherited, options,
+		);
+		inheritedSegment = [];
+	};
+	for (const child of command.commands) {
+		if (canJoinInheritedBatchSegment(child)) {
+			inheritedSegment.push(child);
+			continue;
+		}
+		flushInheritedSegment();
+		current = applyNormalized(profile, current, child, options);
+	}
+	flushInheritedSegment();
 	const draft = structuredClone(current) as unknown as Record<string, unknown>;
 	advanceBookkeeping(draft, project, options);
 	draft.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV24(profile, draft);
 	validateFramescaperProjectV24(profile, draft);
 	return draft as unknown as FramescaperProjectV24;
+}
+
+function canJoinInheritedBatchSegment(command: FramescaperProjectCommandV24): boolean {
+	if (isBatch(command) || isFramescaperOwnedVisualCommandTypeV24(command.type)) return false;
+	// V19 composition and V22 transition commands own validation boundaries.
+	// Foundation commands stay grouped so temporarily incomplete media pairs are
+	// never exposed to validation between children of one atomic transaction.
+	return command.type !== 'video-composition/set' && command.type !== 'video-transition/set';
 }
 
 function commandType(value: unknown): string {

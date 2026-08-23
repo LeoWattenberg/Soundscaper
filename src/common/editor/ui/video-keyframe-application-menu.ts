@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isFramescaperVideoKeyframeProjectSchema } from '../project-schema-version.ts';
+
 export interface VideoKeyframeApplicationMenuInput {
 	readonly productId: string;
 	readonly capability: boolean;
@@ -13,7 +15,7 @@ export interface VideoKeyframeApplicationMenuInput {
 const MAXIMUM_VIDEO_KEYFRAME_MENU_ITEMS = 200_000;
 interface MenuBudget { remaining: number }
 
-/** A V20-only menu entry; false capability and every V19 document receive no item. */
+/** A selected-route menu entry; false capability and non-keyframe documents receive no item. */
 export function createVideoKeyframeApplicationMenuItems(input: VideoKeyframeApplicationMenuInput) {
 	if (input.productId !== 'framescaper' || !input.capability) return Object.freeze([]);
 	const selected = lightweightSelection(input.project, input.selectedClipId);
@@ -32,7 +34,9 @@ function lightweightSelection(
 	focusedId: string | null,
 ): Readonly<{ readonly locked: boolean }> | 'unsupported' | null {
 	const project = dataRecord(value);
-	if (!project || data(project, 'schemaVersion') !== 20) return 'unsupported';
+	if (!project || !isFramescaperVideoKeyframeProjectSchema(data(project, 'schemaVersion'))) {
+		return 'unsupported';
+	}
 	const budget = { remaining: MAXIMUM_VIDEO_KEYFRAME_MENU_ITEMS };
 	const clips = dataRecords(data(project, 'clips'), budget);
 	const tracks = dataRecords(data(project, 'tracks'), budget);
