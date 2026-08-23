@@ -21,7 +21,7 @@ import {
 	type DirectVideoDestination,
 } from './direct-video-export.ts';
 import {
-	captureProductVideoExportActiveSourceIds,
+	captureProductVideoExportTimingSourceIds,
 	resolveProductVideoExportStrategy,
 	type ProductVideoExportPlan,
 } from './product-video-export-strategy.ts';
@@ -212,8 +212,8 @@ export function createEditorVideoExportAction(
 				audioLayout: requestedSettings.audioLayout,
 				captions: requestedSettings.captions,
 			}) ?? null;
-			const productActiveSourceIds = productPlan
-				? captureProductVideoExportActiveSourceIds(productPlan)
+			const productTimingSourceIds = productPlan
+				? captureProductVideoExportTimingSourceIds(productStrategy!, productPlan)
 				: null;
 			let plan: RuntimeValue;
 			if (productPlan) {
@@ -224,7 +224,8 @@ export function createEditorVideoExportAction(
 					{
 						signal: abort.signal,
 						assertCurrent: assertVideoExportCurrent,
-						requiredSourceIds: productActiveSourceIds!,
+						requiredSourceIds: productTimingSourceIds!,
+						allowInactiveRequiredSources: productStrategy!.captureTimingSourceIds !== undefined,
 					},
 				);
 				plan = productPlan;
@@ -550,6 +551,7 @@ function productEncodeRequest(
 		exportProject,
 		plan,
 		timingBySourceId: timingIndexes.timingBySourceId,
+		timingViewsBySourceId: timingIndexes.timingViewsBySourceId,
 		videoBlobs,
 		audioMix,
 		editorFfmpeg,

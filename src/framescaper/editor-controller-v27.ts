@@ -58,7 +58,9 @@ export function createFramescaperAudioEditorControllerV27(
 		createProjectIfAbsent: environment.createProjectIfAbsent,
 		scapeProjectRuntime: createFramescaperScapeNativeRuntimeV27(environment.runtime.profile),
 		productSequenceActions,
-		productVideoExportStrategy: createFramescaperVideoExportStrategyV27(environment.runtime.profile),
+		productVideoExportStrategy: createFramescaperVideoExportStrategyV27(
+			environment.runtime.profile, undefined, environment.controllerStore,
+		),
 		...presentation,
 	});
 	executeProductSequenceCommand = (command) => controller.actions.edit.commit(command);

@@ -3,6 +3,7 @@
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
 import type {
 	ProductVideoExportEncodedOutput,
+	ProductVideoExportPlan,
 	ProductVideoExportSinkOutput,
 	ProductVideoExportStrategy,
 	ProductVideoExportStrategyEncodeRequest,
@@ -10,8 +11,10 @@ import type {
 	ProductVideoExportProjectRequest,
 } from '../common/editor/controller/product-video-export-strategy.ts';
 import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts';
-import { defaultVideoSourceColorInterpretationV1 } from '../common/editor/video-color-management-v27.ts';
-import { createDefaultFramescaperAudioFinishingV27 } from './editor-audio-finishing-v27.ts';
+import {
+	assertVideoKeyframeExportPlanV7,
+	type VideoKeyframeExportPlanV7,
+} from '../common/editor/video-keyframe-export-plan-v7.ts';
 import { framescaperProjectV20FoundationV27 } from './editor-project-v27-runtime.ts';
 import { assertFramescaperProjectV27Profile } from './editor-project-runtime-profile-v27.ts';
 import {
@@ -23,10 +26,15 @@ import {
 	createFramescaperVideoExportStrategyV20,
 	type FramescaperVideoExportStrategyV20Dependencies,
 } from './video-export-strategy-v20.ts';
+import {
+	createFramescaperVideoExportFinishingV27,
+	type FramescaperVideoExportFinishingAssetStoreV27,
+} from './video-export-finishing-v27.ts';
 
 interface ExportAuthorityV27 {
 	readonly canonicalProject: Readonly<Record<string, unknown>>;
 	readonly v20Project: Readonly<Record<string, unknown>>;
+	readonly v20ExportProject: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -36,49 +44,96 @@ interface ExportAuthorityV27 {
 export function createFramescaperVideoExportStrategyV27(
 	profile: unknown,
 	dependencies?: FramescaperVideoExportStrategyV20Dependencies,
+	assetStore?: FramescaperVideoExportFinishingAssetStoreV27,
 ): ProductVideoExportStrategy {
 	assertFramescaperProjectV27Profile(profile);
-	const delegate = dependencies === undefined
-		? createFramescaperVideoExportStrategyV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE)
-		: createFramescaperVideoExportStrategyV20(
-			FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, dependencies,
-		);
+	const delegate = createFramescaperVideoExportStrategyV20(
+		FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, dependencies,
+		{ forceKeyed: true },
+	);
 	const exports = new WeakMap<object, ExportAuthorityV27>();
+	const timingSources = new WeakMap<object, readonly string[]>();
 	return Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
 			const v20Project = executableFoundation(profile, request.canonicalProject);
-			const exportProject = delegate.createExportProject({
+			const v20ExportProject = delegate.createExportProject({
 				canonicalProject: v20Project,
 				delivery: request.delivery,
 			});
+			const exportProject = dataRecord(
+				request.delivery.project, 'Selected V27 browser delivery project',
+			);
 			exports.set(exportProject, Object.freeze({
 				canonicalProject: request.canonicalProject,
 				v20Project,
+				v20ExportProject,
 			}));
 			return exportProject;
 		},
 		createPlan(request: ProductVideoExportStrategyPlanRequest) {
 			const authority = currentAuthority(profile, request, exports);
-			return delegate.createPlan({
+			const plan = delegate.createPlan({
 				...request,
 				canonicalProject: authority.v20Project,
+				exportProject: authority.v20ExportProject,
 			});
+			if (!plan) throw new Error('Selected V27 browser export requires the exact keyed RGBA route.');
+			timingSources.set(plan, allVideoSourceIds(authority.canonicalProject));
+			return plan;
 		},
 		async encode(
 			request: ProductVideoExportStrategyEncodeRequest,
 		): Promise<ProductVideoExportEncodedOutput> {
 			const authority = currentAuthority(profile, request, exports);
-			return delegate.encode({ ...request, canonicalProject: authority.v20Project });
+			const rgbaPostprocessor = await finishingPostprocessor(
+				profile, authority, request, assetStore,
+			);
+			return delegate.encode({
+				...request, canonicalProject: authority.v20Project,
+				exportProject: authority.v20ExportProject, rgbaPostprocessor,
+			});
 		},
 		async encodeToSink<Output>(
 			request: ProductVideoExportStrategyEncodeRequest,
 			sink: FfmpegOutputSink<Output>,
 		): Promise<ProductVideoExportSinkOutput<Output>> {
 			const authority = currentAuthority(profile, request, exports);
+			const rgbaPostprocessor = await finishingPostprocessor(
+				profile, authority, request, assetStore,
+			);
 			return delegate.encodeToSink(
-				{ ...request, canonicalProject: authority.v20Project }, sink,
+				{
+					...request, canonicalProject: authority.v20Project,
+					exportProject: authority.v20ExportProject, rgbaPostprocessor,
+				}, sink,
 			);
 		},
+		captureTimingSourceIds(plan: ProductVideoExportPlan) {
+			const sourceIds = timingSources.get(plan);
+			if (!sourceIds) throw new TypeError('Selected V27 timing closure requires an owned export plan.');
+			return sourceIds;
+		},
+	});
+}
+
+async function finishingPostprocessor(
+	profile: unknown,
+	authority: ExportAuthorityV27,
+	request: ProductVideoExportStrategyEncodeRequest,
+	assetStore: FramescaperVideoExportFinishingAssetStoreV27 | undefined,
+) {
+	assertVideoKeyframeExportPlanV7(request.plan);
+	if (!(request.timingViewsBySourceId instanceof Map)) {
+		throw new TypeError('Selected V27 browser export lost its raw exact timing authority.');
+	}
+	return createFramescaperVideoExportFinishingV27({
+		profile,
+		project: authority.canonicalProject as unknown as FramescaperProjectV27,
+		plan: request.plan as VideoKeyframeExportPlanV7,
+		timingViewsBySourceId: request.timingViewsBySourceId,
+		...(assetStore === undefined ? {} : { store: assetStore }),
+		signal: request.signal,
+		assertCurrent: request.assertCurrent,
 	});
 }
 
@@ -107,11 +162,11 @@ function executableFoundation(
 ): Readonly<Record<string, unknown>> {
 	validateFramescaperProjectV27(profile, projectValue);
 	const project = projectValue as FramescaperProjectV27;
-	assertV20DelegableState(project);
+	assertSupportedBrowserFinishingState(project);
 	return framescaperProjectV20FoundationV27(profile, project) as unknown as Readonly<Record<string, unknown>>;
 }
 
-function assertV20DelegableState(project: FramescaperProjectV27): void {
+function assertSupportedBrowserFinishingState(project: FramescaperProjectV27): void {
 	const record = project as unknown as Readonly<Record<string, unknown>>;
 	const sources = records(record.sources, 'V27 browser export sources');
 	const clips = [
@@ -125,8 +180,6 @@ function assertV20DelegableState(project: FramescaperProjectV27): void {
 	}
 	for (const field of [
 		'videoAdjustmentLayers', 'videoVisualPresets', 'videoMaskMattes', 'videoFreezeFallbacks',
-		'videoVisualPresentations', 'videoProcessorStacks', 'videoMotionAnalyses',
-		'videoFinishingPresets', 'videoCaptionTracks', 'automationLanes',
 	]) {
 		if (array(record[field], `V27 browser export ${field}`).length > 0) refuse(field);
 	}
@@ -136,32 +189,44 @@ function assertV20DelegableState(project: FramescaperProjectV27): void {
 			refuse('video transitions');
 		}
 	}
-	const expectedContexts = records(record.sequences, 'V27 browser export sequences').map((sequence) => ({
-		schemaVersion: 1,
-		sequenceId: stableId(sequence.id, 'V27 browser export sequence'),
-		workingSpace: 'linear-rec709-d65',
-		outputSpace: 'rec709',
-		alphaMode: 'straight-authored-premultiplied-working',
-		toneMapping: 'none',
-	}));
-	if (!sameProjectSnapshot(record.videoColorContexts, expectedContexts)) {
-		refuse('a non-default managed color context');
+	for (const interpretation of records(
+		record.videoSourceColorInterpretations, 'V27 browser export color interpretations',
+	)) {
+		if (interpretation.provenance === 'legacy-unmanaged-encoded') {
+			refuse('a legacy unmanaged source');
+		}
+		if (!['srgb', 'bt709'].includes(String(interpretation.primaries))
+			|| !['srgb', 'bt709'].includes(String(interpretation.transfer))
+			|| !['rgb', 'bt709'].includes(String(interpretation.matrix))) {
+			refuse('an HDR or wide-gamut source interpretation');
+		}
 	}
-	const expectedInterpretations = sources.flatMap((source) => source.kind === 'video'
-		? [defaultVideoSourceColorInterpretationV1(
-			'video', stableId(source.id, 'V27 browser export video source'),
-		)] : []);
-	if (!sameProjectSnapshot(record.videoSourceColorInterpretations, expectedInterpretations)) {
-		refuse('a color interpretation override or legacy unmanaged source');
+	for (const presentation of records(
+		record.videoVisualPresentations, 'V27 browser export visual presentations',
+	)) {
+		if (presentation.enabled !== true) continue;
+		const owner = dataRecord(presentation.owner, 'V27 browser export presentation owner');
+		if (!['clip', 'source'].includes(String(owner.kind))) {
+			refuse('a non-media visual presentation owner');
+		}
+		if (presentation.opacity !== 1 || presentation.blendMode !== 'normal'
+			|| array(presentation.maskMatteIds, 'V27 browser export mask/matte IDs').length > 0) {
+			refuse('presentation opacity, blending, or masks before per-layer finishing');
+		}
 	}
-	const defaults = createDefaultFramescaperAudioFinishingV27(record);
-	if (!sameProjectSnapshot(record.mixer, defaults.mixer)) refuse('a non-default mixer graph');
 }
 
 function refuse(feature: string): never {
 	throw new Error(
-		`Selected V27 browser export refuses ${feature}; its V13 finishing executor is unavailable.`,
+		`Selected V27 browser export refuses ${feature}; it has no exact V13 execution path.`,
 	);
+}
+
+function allVideoSourceIds(projectValue: Readonly<Record<string, unknown>>): readonly string[] {
+	return Object.freeze(records(projectValue.sources, 'V27 browser export timing sources')
+		.filter(({ kind }) => kind === 'video')
+		.map((source) => stableId(source.id, 'V27 browser export timing source'))
+		.sort((left, right) => left.localeCompare(right)));
 }
 
 function stableId(value: unknown, name: string): string {

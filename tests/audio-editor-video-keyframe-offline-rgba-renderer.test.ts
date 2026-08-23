@@ -44,10 +44,37 @@ test('offline renderer consumes an owned frame, flips RGBA in place, and cleans 
 	]);
 	assert.equal(fixture.renderedEntries(), 1);
 	assert.equal(fixture.renderOptions()?.outputColorModel, 'rgba');
+	assert.equal(fixture.finishCalls(), 0);
 	await renderer.dispose();
 	await renderer.dispose();
 	assert.equal(fixture.disposals(), 1);
 	assert.equal(media.disposals(), 1);
+});
+
+test('offline renderer runs one cancelled-aware post-compositor over authenticated RGBA', async () => {
+	const frameSource = source();
+	const frame = frameSource.frame(0);
+	const fixture = rendererFixture();
+	const calls: unknown[] = [];
+	const renderer = createVideoKeyframeOfflineRgbaRenderer({
+		frameSource,
+		canvas: fixture.canvas,
+		resolveSource: () => presentation().value,
+		createCompositor: fixture.createCompositor,
+		async postprocess(request) {
+			calls.push(request);
+			request.rgba[0] = 211;
+		},
+	});
+	const signal = new AbortController().signal;
+	const output = new Uint8Array(16);
+	await renderer.produce(frame, output, { signal });
+	assert.equal(calls.length, 1);
+	assert.deepEqual(calls[0], Object.freeze({
+		frame, width: 2, height: 2, rgba: output, signal,
+	}));
+	assert.equal(output[0], 211);
+	await renderer.dispose();
 });
 
 test('offline renderer rejects forged and foreign frames before source work', async () => {
@@ -332,12 +359,13 @@ function rendererFixture(mode: 'rendered' | 'fallback' | 'read-error' = 'rendere
 	let disposeCalls = 0;
 	let renderEntryCount = 0;
 	let errorCalls = 0;
+	let finishCalls = 0;
 	let lastRenderOptions: Readonly<Record<string, unknown>> | null = null;
 	const gl = {
 		RGBA: 1,
 		UNSIGNED_BYTE: 2,
 		NO_ERROR: 0,
-		finish() {},
+		finish() { finishCalls += 1; },
 		isContextLost: () => false,
 		getError: () => mode === 'read-error' && errorCalls++ > 0 ? 1 : 0,
 		readPixels(_x: number, _y: number, _width: number, _height: number,
@@ -367,5 +395,6 @@ function rendererFixture(mode: 'rendered' | 'fallback' | 'read-error' = 'rendere
 		disposals: () => disposeCalls,
 		renderedEntries: () => renderEntryCount,
 		renderOptions: () => lastRenderOptions,
+		finishCalls: () => finishCalls,
 	};
 }
