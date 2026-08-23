@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
-import sharp from 'sharp';
 
 import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import {
@@ -206,13 +205,11 @@ test.describe('selected V27 exact visual preview', () => {
 		await selectAndSeekClip(editor, freezeClipId, 0.2, state);
 		await expectExactVisualFrame(preview, 2);
 		await expect(preview).toHaveAttribute('data-video-preview-active-freeze-node-ids', /video-freeze/u);
-		const freezeEarly = await screenshotPixels(editor.locator('[data-video-preview-canvas]'));
+		const freezeEarly = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		await selectAndSeekClip(editor, freezeClipId, 0.8, state);
 		await expectExactVisualFrame(preview, 2);
-		const freezeLate = await screenshotPixels(editor.locator('[data-video-preview-canvas]'));
-		const freezeDelta = pixelDelta(freezeEarly, freezeLate);
-		expect(freezeDelta.maximum).toBeLessThanOrEqual(2);
-		expect(freezeDelta.mean).toBeLessThan(0.1);
+		const freezeLate = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
+		expect(freezeLate).toBe(freezeEarly);
 		expect(clientErrors).toEqual([]);
 	});
 
@@ -358,29 +355,8 @@ async function expectExactVisualFrame(preview, minimumRequested) {
 }
 
 async function screenshotDigest(canvas) {
-	return createHash('sha256').update(await screenshotPixels(canvas)).digest('hex');
-}
-
-async function screenshotPixels(canvas) {
 	await expect(canvas).toBeVisible();
-	const { data } = await sharp(await canvas.screenshot()).raw().toBuffer({
-		resolveWithObject: true,
-	});
-	return data;
-}
-
-function pixelDelta(left, right) {
-	expect(right.byteLength).toBe(left.byteLength);
-	let changed = 0;
-	let maximum = 0;
-	let total = 0;
-	for (let index = 0; index < left.byteLength; index += 1) {
-		const difference = Math.abs(left[index] - right[index]);
-		if (difference > 0) changed += 1;
-		maximum = Math.max(maximum, difference);
-		total += difference;
-	}
-	return { changed, maximum, mean: total / left.byteLength };
+	return createHash('sha256').update(await canvas.screenshot()).digest('hex');
 }
 
 async function storedVisualState(page, projectId) {
