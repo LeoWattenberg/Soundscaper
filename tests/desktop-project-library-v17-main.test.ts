@@ -379,9 +379,10 @@ async function replaceV12ProjectDocument(
 	try {
 		const row = database.prepare('SELECT document_file AS documentFile FROM projects WHERE project_id = ?')
 			.get(projectId) as Record<string, unknown> | undefined;
-		assert.equal(typeof row?.documentFile, 'string');
+		if (typeof row?.documentFile !== 'string') throw new Error('V12 test project document is unavailable');
+		const documentFile = row.documentFile;
 		const bytes = new TextEncoder().encode(document);
-		await writeFile(join(paths.projectsRoot, row.documentFile as string), bytes);
+		await writeFile(join(paths.projectsRoot, documentFile), bytes);
 		database.prepare('UPDATE projects SET byte_length = ?, sha256 = ? WHERE project_id = ?').run(
 			bytes.byteLength,
 			createHash('sha256').update(bytes).digest('hex'),
