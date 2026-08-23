@@ -80,13 +80,13 @@ renderer rounding policy (`src/common/editor/interpolation-curve.ts:35-47,
 keyframe time.
 
 Framescaper V18 introduced the exact product-owned boundary around the V17
-foundation, V19 added composition, and the historically selected V20 added keyframes while
-retaining both earlier contracts. Current validation therefore targets V20;
-the historical V18/V19 modules remain evidence for their owning revisions, not
-a reason to downgrade the selected route. Earlier schemas require typed
-re-import, future schemas remain opaque and intrinsically read-only, and each
-revision remains atomic with its validators, history, storage, commands,
-requirements, profiles, fixtures, and bootstrap.
+foundation, V19 added composition, and the historically selected V20 added
+keyframes while retaining both earlier contracts. Current validation targets
+selected V27; V20, V22, and V24 enter it only through explicit re-import, while
+the historical V18/V19 modules remain evidence for their owning revisions.
+V25/V26 stay opaque and intrinsically read-only. Each revision remains atomic
+with its validators, history, storage, commands, requirements, profiles,
+fixtures, and bootstrap.
 
 Schema revisions remain serialized product-wide: one revision is in flight,
 with one owner for the command protocol, registry, capability profiles,
@@ -706,16 +706,14 @@ curve from the shared interpolation vocabulary. A static first-party registry
 initially maintains `dissolve`; future maintained types extend that registry
 rather than extending the wire shape or accepting project-supplied code.
 
-4B-3 depends on 4B-1's atomic track-layer composition and on 4B-2's exact curve
-and preview/export foundations. V22 implementation must start from a clean,
-selected, and fully qualified V20 activation boundary. It must not select V22,
-flip a transition capability, or mix a V20 activation repair into a transition
-schema change while the current V20 route, storage, export, or packaged
-authority remains dormant. The current 4B-2 work above therefore does not
-authorize an early V22 product selection. V21 is now allocated to the
-owner-authorized Soundscaper 4A automation/mixer/PDC revision; 4B-3 remains
-planned and unimplemented, so its reservation moves without changing any
-implemented V18, V19, or V20 statement.
+Historically, 4B-3 depended on 4B-1's atomic track-layer composition and on
+4B-2's exact curve and preview/export foundations. V22 implementation therefore
+started from the clean V20 boundary without mixing a V20 activation repair into
+the transition schema change. That sequencing record did not itself authorize
+V22 product selection. V21 was allocated to the owner-authorized Soundscaper
+4A automation/mixer/PDC revision. Selected V27 now imports the implemented V22
+transition lineage explicitly; this historical packet confers no direct V22
+selection or qualification claim.
 
 Exact V22 has no implicit-transition dialect. A version-gated adapter may
 continue to present inferred linear dissolves for schema versions at most 20,
