@@ -69,8 +69,9 @@ gate for Framescaper 4B against the current maintained base. That clearance is
 implementation authority, not completion or qualification evidence: milestone
 3 remains recorded **In progress**, and its manual and packaged-runtime
 qualifications remain open or `pending-external`. Soundscaper's M4 production
-row is formally accepted; the Framescaper M4B-2 formal row awaits its fresh
-owner-host run, and no unrelated row is relabelled or waived by this pickup.
+and Framescaper's M4B-2 formal rows both await fresh owner-host runs; the
+historical results remain diagnostic-only, and no unrelated row is relabelled
+or waived by this pickup.
 
 The shared 4.0 interpolation, parameter-address, and hosted parity foundations
 are implemented. The interpolation vocabulary stores exact clip-relative

@@ -222,7 +222,7 @@ Playwright results remain correctness evidence only, and the standalone
 collector cannot publish acceptance. The project owner's 2026-08-21 Windows
 RTX 3090 metrics artifact remains a passing historical diagnostic: all 12 keyed
 operations passed, with no omitted, substituted, or fallback operation. The
-active packaged-runtime profile now makes formal M4B-2 qualification
+registered packaged-runtime profile now makes formal M4B-2 qualification
 repeatable, but that profile and its new budget digest require a fresh
 owner-host nightly artifact; the historical result is not backfilled. The
 selected V27 activation candidate delegates the maintained V20 keyed route,

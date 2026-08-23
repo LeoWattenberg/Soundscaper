@@ -83,11 +83,13 @@ parallel per environment.
 
 ## Verified gaps this campaign must close (grounded 2026-08-11)
 
-1. **Only the fixed-GPU qualification environment is provisioned:**
-   `owner-qualified-windows-x64-rtx3090-01` is active for its explicitly
-   admitted earlier workloads. `native-os-lab-matrix`,
-   `capture-os-browser-lab-matrix`, and `release-qualification-matrix` remain
-   unprovisioned with null fingerprints and `qualificationEligible: false`.
+1. **No hardware qualification environment is currently provisioned:**
+   `owner-qualified-windows-x64-rtx3090-01` retains historical diagnostic
+   evidence but is unprovisioned and qualification-ineligible until its full
+   current fingerprint is captured. `native-os-lab-matrix`,
+   `capture-os-browser-lab-matrix`, and `release-qualification-matrix` also
+   remain unprovisioned with null fingerprints and
+   `qualificationEligible: false`.
 2. **No soak or pinned long-session fixture exists.** The milestone-1 preview
    medium is now a digest-pinned six-second VP8 fixture, but it is not a
    long-session or soak workload. Roadmap §9's "every pinned long-session

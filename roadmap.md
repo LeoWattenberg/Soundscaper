@@ -155,7 +155,7 @@ Known architectural constraints that drive later work:
 | 1. Baseline contracts | **In progress — external qualification** | Close reproducible quality qualification. |
 | 2. Shared platform/storage/media | **In progress — current priority** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
 | 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
-| 4. Production surfaces | **In progress — Soundscaper M4 qualified; other gates remain** | Complete automation, routing, compositing, captions, and finishing. |
+| 4. Production surfaces | **In progress — local implementation complete; qualification open** | Complete automation, routing, compositing, captions, and finishing. |
 | 5. Electron-native services | **In progress — 5A provisional, 5B substrate inert** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **In progress — web tier implemented, none qualified** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
@@ -179,19 +179,18 @@ licensing, Audacity-action, MIDI-fence, and Playwright matrices linked above.
 
 On 2026-08-21 the owner designated the Windows x64 RTX 3090 machine as the
 fixed-GPU reference; its zero-retry M1 preview, M4 production parity, and M4B-2
-keyed parity passed their then-current diagnostics. The corrected M1 collector
-requires a fresh owner-host run, so this reference pass does not close milestone 1 or milestone 4. Details live in `docs/quality-budgets.md`.
-
-The accepted 2026-08-22 formal Soundscaper M4 production render-parity artifact
-closes only that fixed-GPU gate. M1, M4B-2, Safari, Framescaper, manual/hosted
-release, and whole-milestone-4 qualification remain open; exact evidence lives
-in `docs/quality-budgets.md`.
+keyed parity passed their then-current diagnostics. The corrected packaged-
+runtime fingerprint requires driver, device, power, and display identity that
+the retained artifact does not contain. The historical result remains audit
+evidence, but closes no current formal row: M1, M3 long-form, M4 production
+parity, and M4B-2 are all `pending-external` until a fresh owner-host run.
+Details live in `docs/quality-budgets.md`.
 
 ### Remaining work
 
-1. Record the remaining named milestone workloads, excluding the now-qualified
-   Soundscaper M4 production render-parity workload, on their required reference
-   environments without software rendering or environment drift.
+1. Record the named milestone workloads, including Soundscaper M4 production
+   render parity, on their required reference environments without software
+   rendering or environment drift.
 2. Resolve the provisional Safari and supported-OS qualification claims needed
    for the Web Core release guarantee.
 
@@ -213,10 +212,10 @@ new platform, distribution, schema, or security boundary.
   job.
 - Every Audacity action remains implemented, planned, blocked, or justified
   excluded.
-- Soundscaper's fixed-GPU M4 production render-parity qualification is recorded
-  as accepted.
-- Remaining required fixed-GPU and Safari qualification is recorded rather
-  than provisional.
+- Current owner-host fixed-GPU qualification for M1, M3 long-form, M4
+  production parity, and M4B-2 is recorded as accepted rather than
+  `pending-external`.
+- Required Safari qualification is recorded rather than provisional.
 
 ## 2. Shared platform, storage, and media foundation
 

@@ -544,8 +544,9 @@ implementation gap:
    (1). The job protocol and supervisor are written against an injected
    channel so the adapter drops in without redesign.
 3. **The owner-qualified fixed-GPU host does not admit the M7 workload.**
-   The host is active for earlier milestones, but M7 has no qualification
-   profile or accepted result, so the privacy workload can be run for
+   The descriptor retains historical earlier-milestone diagnostics but is
+   currently unprovisioned, and M7 has no qualification profile or accepted
+   result, so the privacy workload can be run for
    development evidence but not qualified.
 
 The base commit is also red for reasons outside this milestone: commit
@@ -854,8 +855,9 @@ actually distributed, and this slice distributes none.
   `unselectedMediaBytesRead eq 0`, `acceptedDigestMismatches eq 0`,
   `cancellationP95Ms lte 2000`, `canonicalStateLosses eq 0`. WP-7.0.3
   builds the collectors; 7A-7/7B-6 run them.
-- The named environment `owner-qualified-windows-x64-rtx3090-01` is active
-  for earlier workloads but does not admit `m7-local-assistance-privacy`.
+- The named environment `owner-qualified-windows-x64-rtx3090-01` retains
+  historical earlier-workload diagnostics but is currently unprovisioned and
+  does not admit `m7-local-assistance-privacy`.
   Local runs produce development evidence; qualification waits for a formal
   M7 profile and accepted run and is never simulated with a software renderer.
   No benchmark retry converts a failure into a pass

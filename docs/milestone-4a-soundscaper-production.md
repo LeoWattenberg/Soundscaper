@@ -21,10 +21,12 @@ selected maintained Soundscaper App/runtime/storage route and retains V21's
 automation, mixer, PDC and freeze foundation. Packets 4A-1 through 4A-6 are
 implemented locally, and 4A-7's local automated acceptance is green.
 This records a complete local implementation candidate, not a closed milestone.
-The owner-designated Windows x64 RTX 3090 run passes the 4A-7 M4
-production-parity thresholds, and the retained 2026-08-22 packaged artifact
-formally closes that fixed-GPU row. The 4A hosted, manual, and release rows
-remain open. Shared phase 4.0 remains implemented provisionally, and
+The owner-designated Windows x64 RTX 3090 run passed the then-current 4A-7 M4
+production-parity thresholds, but the retained artifact lacks the driver,
+device, power, and display identity now required by the packaged-runtime
+fingerprint. It remains diagnostic audit evidence and the current fixed-GPU row
+is `pending-external`. The 4A hosted, manual, and release rows remain open.
+Shared phase 4.0 remains implemented provisionally, and
 milestone 3 remains **In progress** with its manual and packaged-runtime rows
 unchanged. None of those rows is waived, relabelled, or cited as passing
 evidence here.
@@ -84,8 +86,9 @@ The implementation landed in this order:
    revocation, security, and licensing evidence landed atomically.
 8. **4A-7 — Exit evidence: Implemented (provisional).** The complete local
    automated surface is green against the registered production-parity
-   workload and the owner-host packaged M4 row is formally accepted. Hosted
-   no-retry, manual, and release rows remain open and are not promoted.
+   workload. The historical owner-host package is diagnostic-only, and the
+   current packaged M4 row remains `pending-external`. Hosted no-retry, manual,
+   and release rows remain open and are not promoted.
 
 The V21 domain kernel did not become a partial product route: nested buses were
 kept unavailable until per-path PDC passed, and tracks could not author
@@ -843,17 +846,18 @@ Run the selected Soundscaper V23 surface, retaining V21 production state, throug
 `1e-6`, PDC error exactly zero samples, video SSIM at least `0.98`, normalized
 channel MAE at most `6/255`, and silently omitted effects exactly zero. The
 owner-designated 2026-08-21 fixed-GPU reference run passes these thresholds.
-The retained 2026-08-22 packaged artifact formally accepts the M4 workload.
-Record hosted no-retry runs as correctness evidence, and keep manual, release,
-and milestone-3 rows at their observed states until their own acceptance is
-complete.
+The retained 2026-08-22 packaged artifact lacks the complete current runtime
+fingerprint and remains diagnostic-only; a fresh owner-host run is required to
+accept the M4 workload formally. Record hosted no-retry runs as correctness
+evidence, and keep manual, release, and milestone-3 rows at their observed
+states until their own acceptance is complete.
 
 Packets 4A-1 through 4A-6 and the complete native workflows are locally
 implemented, and 4A-7's local automated acceptance is green. V23 is therefore
 the selected maintained Soundscaper route, retaining V21 as its automation,
 PDC and freeze foundation, and is a complete local implementation candidate.
-Its fixed-GPU packaged M4 row is formally closed, but the 4A hosted, manual,
-and release evidence remain open, as do the
+Its fixed-GPU packaged M4 row remains `pending-external`, and the 4A hosted,
+manual, and release evidence remain open, as do the
 parallel 4B exit gate and the overall milestone-4 exit gate.
 
 ## Non-goals and fences

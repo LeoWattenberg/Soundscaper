@@ -50,9 +50,9 @@ milestone 3 remains **In progress** and its manual and packaged-runtime
 qualification rows remain open or `pending-external`. Shared 4.0 hosted
 correctness is green. On 2026-08-21 the owner-designated Windows x64 RTX 3090
 reference run passed M1 preview, M4 production parity, and M4B-2 keyed parity.
-The retained 2026-08-22 packaged artifact formally qualifies M4 production.
-M4B-2 now has the same independent formal nightly profile, but needs a fresh
-owner-host run at the new budget digest before that formal row can close.
+The retained artifact lacks the complete current packaged-runtime fingerprint
+and is diagnostic-only. M1, M3 long-form, M4 production parity, and M4B-2 need
+fresh owner-host runs before their `pending-external` formal rows can close.
 
 On 2026-08-13 the project owner explicitly cleared the milestone-3
 implementation sequencing gate for the Framescaper 4B track. On 2026-08-14 the
@@ -419,8 +419,8 @@ per the standing duties (roadmap.md:844-846).
 | 4B | Parallel track | Framescaper finishing: transforms/keyframes, transitions, new kinds and inspector, color/motion, styled captions, Framescaper audio finishing |
 
 **Implementation status (2026-08-22):** shared phase 4.0 is implemented and
-its hosted correctness acceptance is green. Soundscaper M4 production is
-formally qualified; M4B-2 formal qualification remains `pending-external`, and
+its hosted correctness acceptance is green. Formal qualification for
+Soundscaper M4 production and M4B-2 remains `pending-external`, and
 milestone 3 remains recorded **In progress** with its
 manual/external evidence unchanged. The project owner explicitly cleared the
 Framescaper implementation sequencing gate. That historical V20 packet record
@@ -432,8 +432,9 @@ is **Implemented (provisional)**
 under the [4A pickup contract](milestone-4a-soundscaper-production.md), and the
 maintained Soundscaper App/runtime/storage route is selected. Packets 4A-1
 through 4A-6 are locally implemented and 4A-7 local automated acceptance is
-green. The fixed-GPU packaged M4 row is closed; the remaining hosted, manual,
-M4B-2 formal, and release rows stay open, so neither track is complete and the
+green. The historical fixed-GPU M4 result is diagnostic-only and its current
+formal row remains open; hosted, manual, M4B-2 formal, and release rows also
+stay open, so neither track is complete and the
 overall milestone-4 exit gate remains open.
 
 ## Work packets
@@ -488,8 +489,9 @@ each written at pickup before feature publication
 
 ### WP-4.0.2 — Production parity harness
 
-- **Status:** implemented; the owner-host packaged M4 production row is
-  formally qualified. Hosted diagnostics remain provisional.
+- **Status:** implemented; local automated acceptance is green. The historical
+  owner-host packaged result is diagnostic-only, the current M4 production row
+  remains `pending-external`, and hosted diagnostics remain provisional.
 - **Outcome:** `m4-production-parity-v1` now pins one second of 48 kHz stereo
   Float32 input/reference vectors and exact impulse, PDC, and automation
   landmarks beside the existing calibrated 128×72 RGBA fixture. The focused
@@ -648,9 +650,10 @@ and acceptance suite are in
   `parity.videoMaximumChannelMae lte 6/255`,
   `parity.silentlyOmittedEffects eq 0`
   (config/quality-budgets.json:992-1006), against the hosted container and the
-  active `owner-qualified-windows-x64-rtx3090-01` profile. Local and hosted runs
-  are development evidence; only the exact owner-host packaged verifier can
-  publish formal acceptance, and it never admits a software renderer.
+  registered, currently unprovisioned
+  `owner-qualified-windows-x64-rtx3090-01` profile. Local and hosted runs are
+  development evidence; only the exact owner-host packaged verifier can publish
+  formal acceptance, and it never admits a software renderer.
 - Bundle gates are untouched: the 500,000-byte chunk and 25 MiB Pages
   ceilings stay independent (docs/quality-budgets.md:33-35); new UI
   keeps the canonical check green; file-size ratchets and command

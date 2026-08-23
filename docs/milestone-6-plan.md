@@ -556,8 +556,9 @@ and
   are registered with the eleven thresholds cited above
   (config/quality-budgets.json:976-987, 1324-1343) against
   `owner-qualified-windows-x64-rtx3090-01` and `native-os-lab-matrix`.
-  The fixed-GPU host is active for earlier workloads but does not admit M6;
-  the native OS matrix remains unprovisioned. The fixture's 720p spec predates
+  The fixed-GPU descriptor retains historical earlier-workload diagnostics but
+  is currently unprovisioned and does not admit M6; the native OS matrix also
+  remains unprovisioned. The fixture's 720p spec predates
   the 6B-1 canvas lift; a companion fixture entry (including 9:16) is a
   deliberate, reviewed budget change under the threshold-change rules
   (docs/quality-budgets.md:607), never a silent edit.
