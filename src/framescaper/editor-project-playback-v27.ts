@@ -20,6 +20,7 @@ import {
 } from './editor-project-v27-runtime.ts';
 import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v20.ts';
 import { assertFramescaperProjectV27Profile } from './editor-project-runtime-profile-v27.ts';
+import { createFramescaperOpaqueCustodyConsumerProjectV27 } from './editor-project-opaque-custody-v27.ts';
 import { type FramescaperProjectV27, validateFramescaperProjectV27 } from './editor-project-v27.ts';
 
 const EMPTY = Object.freeze([]) as readonly string[];
@@ -111,8 +112,9 @@ function projection<Project extends object>(
 }
 
 function opaque<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
+	const playbackShell = createFramescaperOpaqueCustodyConsumerProjectV27(project);
 	return Object.freeze({
-		project, featureRequirementsReport: null,
+		project: playbackShell as unknown as Project, featureRequirementsReport: null,
 		audioEffectPlaybackBypass: null, audioRenderedFallback: null,
 		videoEffectPlaybackBypass: null, videoRenderedFallback: null,
 		requiredAudioSourceIds: EMPTY, requiredVideoSourceIds: EMPTY,

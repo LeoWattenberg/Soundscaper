@@ -87,6 +87,37 @@ test('selected V27 controller creates, edits, saves, undoes, and redoes exact do
 	assert.ok(productVideoVisualPreviewRuntimeFor(controller));
 });
 
+test('selected V27 controller opens dormant V25/V26 as opaque read-only custody', async (context) => {
+	const environment = await createFramescaperEditorProjectEnvironmentV27({
+		storeOptions: {
+			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
+			preferOpfs: false,
+		},
+	});
+	const controller = createFramescaperAudioEditorControllerV27(environment, { locale: 'en' });
+	context.after(async () => {
+		await controller.dispose();
+		await environment.close();
+	});
+	const ready = await controller.ready;
+	assert.equal(ready.phase, 'ready', JSON.stringify(ready.status));
+	for (const schemaVersion of [25, 26]) {
+		const opaque = structuredClone(controller.project) as unknown as Record<string, unknown>;
+		opaque.schemaVersion = schemaVersion;
+		opaque.id = `custody-v${String(schemaVersion)}`;
+		opaque.title = `Dormant V${String(schemaVersion)}`;
+		opaque.nativeVideoSources = [{ retainedOpaque: schemaVersion }];
+		await controller.actions.project.open(opaque);
+		assert.deepEqual(controller.project, opaque);
+		const snapshot = controller.getSnapshot();
+		assert.equal(snapshot.readOnly, true);
+		assert.equal(snapshot.project?.schemaVersion, schemaVersion);
+		assert.equal(framescaperNativeProjectActionRuntimeFor(controller), null);
+		assert.equal(await controller.actions.project.rename('Must not mutate'), undefined);
+		assert.deepEqual(controller.project, opaque);
+	}
+});
+
 test('selected V27 visual authoring commits menu-direct state and fences dialog workflows', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV27({
 		storeOptions: {

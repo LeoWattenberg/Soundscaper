@@ -156,7 +156,11 @@ export function resolveFramescaperNativeServicesWorkspaceRuntime(input: Readonly
 	projectCapabilities?: Readonly<Record<string, unknown>>;
 	projectActions?: FramescaperNativeProjectActionRuntime | null;
 }>): Readonly<FramescaperNativeServicesWorkspaceRuntime> | null {
-	if (projectSchemaVersion(input.project) === 27) return null;
+	const schemaVersion = projectSchemaVersion(input.project);
+	const projectActions = isFramescaperNativeProjectActionRuntime(input.projectActions)
+		? input.projectActions : null;
+	if (schemaVersion === 27
+		|| ((schemaVersion === 25 || schemaVersion === 26) && projectActions === null)) return null;
 	const bridge = resolveBridge(input);
 	if (bridge === null) return null;
 	const store = framescaperNativeServicesStoreFor(bridge);
@@ -164,8 +168,6 @@ export function resolveFramescaperNativeServicesWorkspaceRuntime(input: Readonly
 	const snapshot = store.getSnapshot() ?? PENDING_FRAMESCAPER_NATIVE_SERVICES_SNAPSHOT;
 	const lifecycleMethods = availableFramescaperNativeServicesLifecycleMethods(bridge);
 	const context = framescaperNativeServicesDialogContextForProject(input.project);
-	const projectActions = isFramescaperNativeProjectActionRuntime(input.projectActions)
-		? input.projectActions : null;
 	return Object.freeze({
 		services: snapshot.services,
 		capabilitySnapshot: snapshot.capabilitySnapshot,

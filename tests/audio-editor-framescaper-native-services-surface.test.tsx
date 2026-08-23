@@ -316,6 +316,20 @@ test('selected V27 refuses direct native-services surface resolution', () => {
 	}), null);
 });
 
+test('selected V27 custody cannot surface dormant V25/V26 native services', () => {
+	for (const schemaVersion of [25, 26]) {
+		assert.equal(resolveFramescaperNativeServicesWorkspaceRuntime({
+			productId: 'framescaper', bridge: fakeBridge().bridge,
+			project: { schemaVersion }, projectActions: null,
+		}), null);
+	}
+	const actions = candidateActions();
+	assert.ok(resolveFramescaperNativeServicesWorkspaceRuntime({
+		productId: 'framescaper', bridge: fakeBridge().bridge,
+		project: { schemaVersion: 26 }, projectActions: actions,
+	}));
+});
+
 test('production watch context keeps unimplemented proxy generation unavailable', () => {
 	assert.deepEqual(framescaperNativeServicesDialogContextForProject({
 		id: 'project-1', schemaVersion: 25,
