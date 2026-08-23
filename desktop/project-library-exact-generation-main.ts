@@ -14,6 +14,10 @@ import type {
 	FramescaperDesktopProjectLibraryExactGenerationOwner,
 	FramescaperDesktopProjectLibraryExactGenerationPaths,
 } from './project-library-exact-generation-contract.ts';
+import type {
+	FramescaperDesktopProjectLibraryExactGenerationExtension,
+	FramescaperDesktopProjectLibraryExactGenerationLifecycle,
+} from './project-library-exact-generation-lifecycle.ts';
 import {
 	framescaperDesktopProjectLibraryV12Binary as binary,
 	framescaperDesktopProjectLibraryV12ClosedRecord as closedRecord,
@@ -74,6 +78,7 @@ export interface FramescaperDesktopProjectLibraryExactGenerationMainSnapshot {
 	readonly owner: Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>;
 	readonly activeSessions: number;
 	readonly activePublication: boolean;
+	readonly writer?: unknown;
 }
 
 export interface FramescaperDesktopProjectLibraryExactGenerationMainSession {
@@ -96,6 +101,7 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 	readonly #database: DatabaseSync;
 	readonly #owner: Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>;
 	readonly #paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>;
+	readonly #lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null;
 	readonly #sessions = new Set<ExactGenerationSession>();
 	readonly #activeProjects = new Map<ExactGenerationSession, string>();
 	#closed = false;
@@ -105,17 +111,20 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 		paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
 		database: DatabaseSync,
 		owner: Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>,
+		lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null,
 	) {
 		this.#configuration = configuration;
 		this.localHandshake = configuration.createHandshake();
 		this.#paths = paths;
 		this.#database = database;
 		this.#owner = owner;
+		this.#lifecycle = lifecycle;
 	}
 
 	static async start(
 		configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
 		value: unknown,
+		extension: FramescaperDesktopProjectLibraryExactGenerationExtension | null = null,
 	): Promise<FramescaperDesktopProjectLibraryExactGenerationMain> {
 		const options = closedRecord(value, START_FIELDS, `${configuration.label} main options`);
 		if (typeof options.appDataPath !== 'string') {
@@ -135,7 +144,15 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 		try {
 			initializeDatabase(database, configuration);
 			await chmod(paths.databasePath, 0o600);
-			return new FramescaperDesktopProjectLibraryExactGenerationMain(configuration, paths, database, owner);
+			const lifecycle = extension ? await extension.start({
+				appDataPath: options.appDataPath,
+				database,
+				owner,
+				paths,
+			}) : null;
+			return new FramescaperDesktopProjectLibraryExactGenerationMain(
+				configuration, paths, database, owner, lifecycle,
+			);
 		} catch (error) {
 			database.close();
 			throw error;
@@ -149,16 +166,19 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 			owner: this.#owner,
 			activeSessions: this.#sessions.size,
 			activePublication: [...this.#sessions].some((session) => session.activePublication),
+			...(this.#lifecycle?.snapshot() ?? {}),
 		});
 	}
 
 	openSession(value: unknown): FramescaperDesktopProjectLibraryExactGenerationMainSession {
 		this.#assertOpen();
+		this.#lifecycle?.assertCanUse();
 		this.#configuration.validateHandshake(value);
 		const session = new ExactGenerationSession(
 			this.#configuration,
 			this.#database,
 			this.#paths,
+			this.#lifecycle,
 			(projectId) => {
 				if (projectId === null) this.#activeProjects.delete(session);
 				else this.#activeProjects.set(session, projectId);
@@ -202,7 +222,8 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 	async readNativeProjectBundle(projectId: string): Promise<unknown> {
 		this.#assertOpen();
 		const session = new ExactGenerationSession(
-			this.#configuration, this.#database, this.#paths, () => undefined, () => undefined,
+			this.#configuration, this.#database, this.#paths, this.#lifecycle,
+			() => undefined, () => undefined,
 		);
 		try { return await session.readProjectBundle(projectId); }
 		finally { await session.close(); }
@@ -213,7 +234,8 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 		const body = validateBody(value, this.#configuration.label);
 		const chunks: Uint8Array[] = [];
 		const session = new ExactGenerationSession(
-			this.#configuration, this.#database, this.#paths, () => undefined, () => undefined,
+			this.#configuration, this.#database, this.#paths, this.#lifecycle,
+			() => undefined, () => undefined,
 		);
 		try {
 			for (let offset = 0; offset < body.byteLength; offset += MAXIMUM_CHUNK_BYTES) {
@@ -232,12 +254,20 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 		if (this.#closed) return;
 		this.#closed = true;
 		const sessions = [...this.#sessions];
-		await Promise.allSettled(sessions.map((session) => session.close()));
-		this.#database.close();
+		const failures: unknown[] = [];
+		const settled = await Promise.allSettled(sessions.map((session) => session.close()));
+		for (const result of settled) if (result.status === 'rejected') failures.push(result.reason);
+		if (this.#lifecycle) {
+			try { await this.#lifecycle.close(); } catch (error) { failures.push(error); }
+		}
+		try { this.#database.close(); } catch (error) { failures.push(error); }
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1) throw new AggregateError(failures, `${this.#configuration.label} close failed`);
 	}
 
 	#assertOpen(): void {
 		if (this.#closed) throw new Error(`${this.#configuration.label} main is closed`);
+		this.#lifecycle?.assertCanUse();
 	}
 }
 
@@ -245,6 +275,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 	readonly #configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration;
 	readonly #database: DatabaseSync;
 	readonly #paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>;
+	readonly #lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null;
 	readonly #onActiveProject: (projectId: string | null) => void;
 	readonly #onClose: () => void;
 	#closed = false;
@@ -254,12 +285,14 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
 		database: DatabaseSync,
 		paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+		lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null,
 		onActiveProject: (projectId: string | null) => void,
 		onClose: () => void,
 	) {
 		this.#configuration = configuration;
 		this.#database = database;
 		this.#paths = paths;
+		this.#lifecycle = lifecycle;
 		this.#onActiveProject = onActiveProject;
 		this.#onClose = onClose;
 	}
@@ -374,16 +407,31 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		if (publication.bodies.some((body, index) => publication.offsets[index] !== body.byteLength)) {
 			throw new Error(`${this.#configuration.label} publication bodies are incomplete`);
 		}
-		const bundle = await persistPublication(this.#configuration, this.#database, this.#paths, publication);
-		this.#publication = null;
-		this.#onActiveProject(String(publication.project.id));
-		return bundle;
+		try {
+			const bundle = await persistPublication(
+				this.#configuration, this.#database, this.#paths, publication, this.#lifecycle,
+				() => this.#assertCurrent(publication.publicationId),
+			);
+			this.#publication = null;
+			this.#onActiveProject(String(publication.project.id));
+			return bundle;
+		} catch (error) {
+			this.#publication = null;
+			try { await this.#lifecycle?.abortPublication(publication.publicationId); }
+			catch (cleanupError) {
+				throw new AggregateError(
+					[error, cleanupError], `${this.#configuration.label} publication cleanup failed`,
+				);
+			}
+			throw error;
+		}
 	}
 
 	async abortPublication(value: unknown): Promise<boolean> {
 		this.#assertOpen();
-		this.#active(value, COMPLETION_FIELDS);
+		const publication = this.#active(value, COMPLETION_FIELDS);
 		this.#publication = null;
+		await this.#lifecycle?.abortPublication(publication.publicationId);
 		return true;
 	}
 
@@ -402,6 +450,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		);
 		this.#database.exec('BEGIN IMMEDIATE');
 		try {
+			this.#lifecycle?.assertLeaseInTransaction(this.#database);
 			this.#database.prepare('DELETE FROM projects WHERE project_id = ?').run(projectId);
 			setMetadataRevision(this.#database, expectedMetadataRevision + 1, this.#configuration.label);
 			this.#database.exec('COMMIT');
@@ -458,24 +507,34 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 			bodies: sourceBundle.bodies,
 			chunks,
 			offsets: sourceBundle.bodies.map(({ byteLength }) => byteLength),
-		});
+		}, this.#lifecycle, () => this.#assertOpen());
 	}
 
 	async close(): Promise<void> {
 		if (this.#closed) return;
 		this.#closed = true;
+		const publicationId = this.#publication?.publicationId ?? null;
 		this.#publication = null;
+		if (publicationId) await this.#lifecycle?.abortPublication(publicationId);
 		this.#onActiveProject(null);
 		this.#onClose();
 	}
 
 	#active(value: unknown, fields: readonly string[]): Publication {
+		this.#lifecycle?.assertCanUse();
 		const record = closedRecord(value, fields, `${this.#configuration.label} publication operation`);
 		const id = exactPublicationId(record.publicationId);
 		if (!this.#publication || this.#publication.publicationId !== id) {
 			throw new Error(`${this.#configuration.label} publication is not active`);
 		}
 		return this.#publication;
+	}
+
+	#assertCurrent(publicationId: string): void {
+		this.#assertOpen();
+		if (this.#publication?.publicationId !== publicationId) {
+			throw new Error(`${this.#configuration.label} publication ownership changed`);
+		}
 	}
 
 	#row(projectIdValue: string): StoredProjectRow | null {
@@ -504,6 +563,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 
 	#assertOpen(): void {
 		if (this.#closed) throw new Error(`${this.#configuration.label} main session is closed`);
+		this.#lifecycle?.assertCanUse();
 	}
 }
 

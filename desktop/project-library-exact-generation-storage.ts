@@ -11,6 +11,10 @@ import {
 } from './project-library-exact-generation-database.ts';
 import type { FramescaperDesktopProjectLibraryExactGenerationPaths } from './project-library-exact-generation-contract.ts';
 import type {
+	FramescaperDesktopProjectLibraryExactGenerationLifecycle,
+	FramescaperDesktopProjectLibraryExactPublicationDeclaration,
+} from './project-library-exact-generation-lifecycle.ts';
+import type {
 	ExactGenerationProject,
 	FramescaperDesktopProjectLibraryExactGenerationConfiguration,
 } from './project-library-exact-generation-main.ts';
@@ -82,6 +86,8 @@ export async function persistFramescaperDesktopExactPublication(
 	database: DatabaseSync,
 	paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
 	publication: FramescaperDesktopExactPublication,
+	lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null = null,
+	assertCurrent: () => void = () => undefined,
 ): Promise<unknown> {
 	const bytes = new TextEncoder().encode(publication.document);
 	const contentDigest = sha256(bytes);
@@ -90,9 +96,19 @@ export async function persistFramescaperDesktopExactPublication(
 	await mkdir(projectDirectory, { recursive: true, mode: 0o700 });
 	const documentFile = `${entryId}/${String(publication.project.revision)}-${contentDigest}.json`;
 	const documentPath = join(paths.projectsRoot, documentFile);
+	const declaration: Readonly<FramescaperDesktopProjectLibraryExactPublicationDeclaration> = Object.freeze({
+		publicationId: publication.publicationId,
+		projectId: String(publication.project.id),
+		projectRevision: publication.project.revision,
+		projectSha256: contentDigest,
+		documentFile,
+		expectedMetadataRevision: publication.expectedMetadataRevision,
+	});
 	const temporaryDocument = `${documentPath}.tmp-${randomBytes(8).toString('hex')}`;
 	const temporaryBodies: Array<Readonly<{ temporary: string; final: string }>> = [];
 	try {
+		assertCurrent();
+		await lifecycle?.preparePublication(declaration);
 		await writeFile(temporaryDocument, bytes, { mode: 0o600, flag: 'wx' });
 		for (const [index, body] of publication.bodies.entries()) {
 			const bodyBytes = concatenate(publication.chunks[index]!, body.byteLength);
@@ -115,12 +131,16 @@ export async function persistFramescaperDesktopExactPublication(
 		}
 		for (const item of temporaryBodies) await rename(item.temporary, item.final);
 		await rename(temporaryDocument, documentPath);
+		assertCurrent();
+		await lifecycle?.publicationMaterialized(declaration);
 		const updatedAtMs = Date.parse(String(publication.project.updatedAt));
 		if (!Number.isSafeInteger(updatedAtMs) || updatedAtMs < 0) {
 			throw new TypeError(`${configuration.label} project timestamp is invalid`);
 		}
 		database.exec('BEGIN IMMEDIATE');
 		try {
+			assertCurrent();
+			lifecycle?.assertCanCommit(database, declaration);
 			if (metadataRevision(database) !== publication.expectedMetadataRevision) {
 				throw new Error(`${configuration.label} metadata changed before publication`);
 			}
@@ -142,7 +162,7 @@ export async function persistFramescaperDesktopExactPublication(
 			setMetadataRevision(database, publication.expectedMetadataRevision + 1, configuration.label);
 			database.exec('COMMIT');
 		} catch (error) { database.exec('ROLLBACK'); throw error; }
-		return Object.freeze({
+		const result = Object.freeze({
 			metadataRevision: publication.expectedMetadataRevision + 1,
 			project: Object.freeze({
 				id: entryId, projectId: String(publication.project.id), name: String(publication.project.title),
@@ -154,6 +174,9 @@ export async function persistFramescaperDesktopExactPublication(
 			document: publication.document,
 			bodies: publication.bodies,
 		});
+		await lifecycle?.publicationCommitted(declaration, result);
+		await lifecycle?.publicationComplete(declaration);
+		return result;
 	} catch (error) {
 		await rm(temporaryDocument, { force: true }).catch(() => undefined);
 		await Promise.all(temporaryBodies.map(({ temporary }) => rm(temporary, { force: true })));
