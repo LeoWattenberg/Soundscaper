@@ -13,7 +13,7 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
-test.describe('selected Framescaper V20 product lifecycle', () => {
+test.describe('selected Framescaper V27 product lifecycle', () => {
 	test.beforeEach(async ({ page }) => {
 		await installPinnedFfmpegRuntimeRoutes(page);
 	});
@@ -49,7 +49,7 @@ test.describe('selected Framescaper V20 product lifecycle', () => {
 		await dialog.getByRole('button', { name: 'Add curve', exact: true }).click();
 		await expect(dialog.getByRole('status')).toContainText('Video keyframes applied.');
 		await expect.poll(() => storedKeyframeState(page, projectId)).toMatchObject({
-			schemaVersion: 20,
+			schemaVersion: 27,
 			curveCount: 1,
 			startValue: 1,
 			endValue: 0.5,
@@ -67,7 +67,7 @@ test.describe('selected Framescaper V20 product lifecycle', () => {
 		await expect(editor).toHaveAttribute('data-product', 'framescaper');
 		await expect(editor).toHaveAttribute('data-project-id', projectId);
 		await expect.poll(() => storedKeyframeState(page, projectId)).toMatchObject({
-			schemaVersion: 20,
+			schemaVersion: 27,
 			curveCount: 1,
 			startValue: 1,
 			endValue: 0.5,

@@ -15,7 +15,7 @@ import { isFramescaperCaptureProjectSchema } from '../project-schema-version.ts'
 export interface FramescaperCaptureRuntimeProbeOptions {
 	readonly availability: CaptureRuntimeAvailability;
 	readonly productId: string;
-	readonly routeSchemaVersion: 18 | 19 | 20;
+	readonly routeSchemaVersion: 18 | 19 | 20 | 27;
 	readonly embedded: boolean;
 	readonly desktop: FramescaperCaptureDesktopSelection | null;
 	readonly MediaRecorder: FramescaperBrowserRecorderFactoryOptions['MediaRecorder'];
@@ -68,9 +68,9 @@ export async function completeFramescaperCaptureRuntimeProbe(
 	return createCaptureRuntimeAvailability({ status: 'available', sourceRoles });
 }
 
-function isCaptureRouteForPlatform(value: unknown, desktop: boolean): value is 18 | 19 | 20 {
+function isCaptureRouteForPlatform(value: unknown, desktop: boolean): value is 18 | 19 | 20 | 27 {
 	return isFramescaperCaptureProjectSchema(value)
-		&& (value === 20 || value === (desktop ? 18 : 19));
+		&& (value === 20 || value === 27 || value === (desktop ? 18 : 19));
 }
 
 function unavailable(reason: Parameters<typeof createCaptureRuntimeAvailability>[0] extends infer _Value
