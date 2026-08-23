@@ -162,58 +162,55 @@ test('deterministic RANSAC recovers a similarity transform and ignores an outlie
 	assert.ok(Math.abs(stable.y - 2) < 1e-9);
 });
 
-test('temporal denoise has deterministic CPU output and rejects accelerated drift', async () => {
+test('temporal denoise admits GPU-first output and computes CPU only after accelerator failure', async () => {
 	const current = createGrayVideoFrameV1({ width: 2, height: 2, samples: [1, 1, 1, 1] });
 	const neighbor = createGrayVideoFrameV1({ width: 2, height: 2, samples: [0, 0, 0, 0] });
+	const neighbors = [{ frame: neighbor, transformToCurrent: {
+		scale: 1, rotationRadians: 0, translateX: 0, translateY: 0,
+		inlierCount: 4, meanError: 0,
+	} }];
 	const cpu = await processTemporalDenoiseV1({
-		current,
-		neighbors: [{ frame: neighbor, transformToCurrent: {
-			scale: 1, rotationRadians: 0, translateX: 0, translateY: 0,
-			inlierCount: 4, meanError: 0,
-		} }],
-		strength: 0.5,
+		current, neighbors, strength: 0.5,
 	});
 	assert.deepEqual(cpu.samples, [0.75, 0.75, 0.75, 0.75]);
 
-	let fallbackObserved = false;
-	const parity = await processTemporalDenoiseV1({
-		current,
-		neighbors: [{ frame: neighbor, transformToCurrent: {
-			scale: 1, rotationRadians: 0, translateX: 0, translateY: 0,
-			inlierCount: 4, meanError: 0,
-		} }],
-		strength: 0.5,
-		accelerator: {
-			kind: 'webgl2',
-			async temporalDenoise() {
-				return createGrayVideoFrameV1({ width: 2, height: 2, samples: [0, 0, 0, 0] });
-			},
-		},
-		onAcceleratorFallback(reason) {
-			fallbackObserved = /parity/iu.test(reason);
-		},
-	});
-	assert.deepEqual(parity, cpu);
-	assert.equal(fallbackObserved, true);
-
 	const accelerated = await processTemporalDenoiseV1({
-		current,
-		neighbors: [{ frame: neighbor, transformToCurrent: {
-			scale: 1, rotationRadians: 0, translateX: 0, translateY: 0,
-			inlierCount: 4, meanError: 0,
-		} }],
+		current, neighbors,
 		strength: 0.5,
 		accelerator: {
 			kind: 'webgl2',
 			async temporalDenoise() {
-				return createGrayVideoFrameV1({
-					width: 2, height: 2,
-					samples: [0.7500001, 0.7500001, 0.7500001, 0.7500001],
-				});
+				return createGrayVideoFrameV1({ width: 2, height: 2, samples: [0.25, 0.25, 0.25, 0.25] });
 			},
 		},
 	});
-	assert.deepEqual(accelerated.samples, [0.7500001, 0.7500001, 0.7500001, 0.7500001]);
+	assert.deepEqual(accelerated.samples, [0.25, 0.25, 0.25, 0.25]);
+
+	let fallbackReason = '';
+	const fallback = await processTemporalDenoiseV1({
+		current, neighbors,
+		strength: 0.5,
+		accelerator: {
+			kind: 'webgl2',
+			async temporalDenoise() {
+				throw new Error('context lost');
+			},
+		},
+		onAcceleratorFallback(reason) { fallbackReason = reason; },
+	});
+	assert.deepEqual(fallback, cpu);
+	assert.match(fallbackReason, /WebGL2.*unavailable.*CPU fallback.*context lost/iu);
+
+	const invalidGeometry = await processTemporalDenoiseV1({
+		current, neighbors, strength: 0.5,
+		accelerator: {
+			kind: 'webgl2',
+			async temporalDenoise() {
+				return createGrayVideoFrameV1({ width: 1, height: 1, samples: [0.75] });
+			},
+		},
+	});
+	assert.deepEqual(invalidGeometry, cpu);
 });
 
 test('motion processing observes cancellation', async () => {
@@ -225,4 +222,19 @@ test('motion processing observes cancellation', async () => {
 		strength: 0.5,
 		signal: controller.signal,
 	}), /cancel motion|abort/iu);
+
+	const active = new AbortController();
+	let fallbackObserved = false;
+	await assert.rejects(() => processTemporalDenoiseV1({
+		current: translatedDot(0, 0), neighbors: [], strength: 0.5, signal: active.signal,
+		accelerator: {
+			kind: 'webgl2',
+			async temporalDenoise(request) {
+				active.abort(new Error('cancel accelerated motion'));
+				return request.current;
+			},
+		},
+		onAcceleratorFallback() { fallbackObserved = true; },
+	}), /cancel accelerated motion/iu);
+	assert.equal(fallbackObserved, false);
 });

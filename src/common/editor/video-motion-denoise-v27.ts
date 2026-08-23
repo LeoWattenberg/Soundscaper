@@ -24,8 +24,6 @@ export interface VideoMotionWebGl2AcceleratorV1 {
 	}>): Promise<GrayVideoFrameV1>;
 }
 
-const PARITY_TOLERANCE = 1e-6;
-
 export async function processTemporalDenoiseV1(request: Readonly<{
 	readonly current: GrayVideoFrameV1;
 	readonly neighbors: readonly VideoTemporalNeighborV1[];
@@ -43,24 +41,22 @@ export async function processTemporalDenoiseV1(request: Readonly<{
 		neighbor, current, `temporal denoise neighbor ${String(index)}`,
 	));
 	const strength = bounded(request?.strength, 0, 1, 'temporal denoise strength');
-	const cpu = temporalDenoiseCpu(current, neighbors, strength, request.signal);
-	if (!request.accelerator) return cpu;
+	if (!request.accelerator) return temporalDenoiseCpu(current, neighbors, strength, request.signal);
 	if (request.accelerator.kind !== 'webgl2') throw new TypeError('The motion accelerator must be WebGL2.');
 	try {
 		const accelerated = frameValue(await request.accelerator.temporalDenoise({
 			current, neighbors, strength, ...(request.signal ? { signal: request.signal } : {}),
 		}), 'accelerated temporal denoise frame');
 		throwIfAborted(request.signal);
-		if (!framesMatch(cpu, accelerated, PARITY_TOLERANCE)) {
-			request.onAcceleratorFallback?.('WebGL2 temporal denoise failed CPU parity; deterministic CPU fallback was used.');
-			return cpu;
+		if (accelerated.width !== current.width || accelerated.height !== current.height) {
+			throw new RangeError('WebGL2 temporal denoise changed the frame geometry.');
 		}
 		return accelerated;
 	} catch (error) {
 		throwIfAborted(request.signal);
 		request.onAcceleratorFallback?.(`WebGL2 temporal denoise was unavailable; deterministic CPU fallback was used: ${errorMessage(error)}`);
 	}
-	return cpu;
+	return temporalDenoiseCpu(current, neighbors, strength, request.signal);
 }
 
 export function processSpatialDenoiseV1(
@@ -159,11 +155,6 @@ function sampleBilinear(frame: GrayVideoFrameV1, x: number, y: number): number {
 
 function inside(frame: GrayVideoFrameV1, x: number, y: number): boolean {
 	return x >= 0 && y >= 0 && x <= frame.width - 1 && y <= frame.height - 1;
-}
-
-function framesMatch(left: GrayVideoFrameV1, right: GrayVideoFrameV1, tolerance: number): boolean {
-	return left.width === right.width && left.height === right.height
-		&& left.samples.every((sample, index) => Math.abs(sample - right.samples[index]!) <= tolerance);
 }
 
 function boundedInteger(value: unknown, minimum: number, maximum: number, name: string): number {

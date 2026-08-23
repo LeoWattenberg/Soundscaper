@@ -40,8 +40,8 @@ import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-
 import { evaluateVideoMaskMatteRgbaV13 } from '../common/editor/video-mask-matte-rgba-v13.ts';
 import { applyVideoExactBrowserEffectsV27 } from './editor-video-exact-browser-effects-v27.ts';
 import { videoDeliveryColorChannels } from '../common/editor/video-delivery-color.ts';
-import type { DisposableVideoMotionWebGl2AcceleratorV1 } from '../common/editor/video-motion-webgl2-v27.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
+import { createFramescaperSelectedMotionAcceleratorV27 } from './selected-v27-motion-accelerator.ts';
 import type { FramescaperVideoFrameAddressV27 } from './video-frame-address-v27.ts';
 import {
 	loadFramescaperVideoExportFinishingAssetsV27,
@@ -119,8 +119,11 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 	const needsAccelerator = finishing.processorStacks.some(({ processors }) => processors.some(
 		({ enabled, kind }) => enabled && kind === 'temporal-denoise',
 	));
-	const accelerator = needsAccelerator
-		? await createAccelerator(options.createAcceleratorCanvas) : null;
+	const acceleratorAdmission = needsAccelerator
+		? await createFramescaperSelectedMotionAcceleratorV27(options.createAcceleratorCanvas)
+		: Object.freeze({ accelerator: null, fallbackReason: null });
+	const accelerator = acceleratorAdmission.accelerator;
+	if (acceleratorAdmission.fallbackReason) fallbackReasons.push(acceleratorAdmission.fallbackReason);
 	let disposed = false;
 	let active = false;
 
@@ -402,15 +405,6 @@ function gradeLinearFrame(
 	}
 	return Object.freeze({ width: frame.width, height: frame.height, pixels });
 }
-async function createAccelerator(
-	createCanvas: (() => unknown) | undefined,
-): Promise<DisposableVideoMotionWebGl2AcceleratorV1 | null> {
-	const canvas = createCanvas?.() ?? globalThis.document?.createElement?.('canvas') ?? null;
-	if (canvas === null) return null;
-	const module = await import('../common/editor/video-motion-webgl2-v27.ts');
-	return module.tryCreateVideoMotionWebGl2AcceleratorV1(canvas);
-}
-
 async function captureBrowserFrame(entry: Data, signal: AbortSignal): Promise<UnifiedExactRenderRgbaFrameV13> {
 	throwIfAborted(signal);
 	if (!globalThis.document?.createElement) throw new Error('Selected V27 source readback is unavailable.');

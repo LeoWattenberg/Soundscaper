@@ -16,6 +16,24 @@ export interface DisposableVideoMotionWebGl2AcceleratorV1
 	dispose(): void;
 }
 
+export const VIDEO_MOTION_WEBGL2_FALLBACK_REASONS_V1 = Object.freeze({
+	canvasUnavailable: 'webgl2-canvas-unavailable',
+	contextUnavailable: 'webgl2-context-unavailable',
+	extensionsUnavailable: 'webgl2-required-extensions-unavailable',
+	capacityUnavailable: 'webgl2-texture-array-capacity-unavailable',
+	initializationFailed: 'webgl2-initialization-failed',
+} as const);
+
+export type VideoMotionWebGl2FallbackReasonV1 =
+	typeof VIDEO_MOTION_WEBGL2_FALLBACK_REASONS_V1[
+		keyof typeof VIDEO_MOTION_WEBGL2_FALLBACK_REASONS_V1
+	];
+
+export interface VideoMotionWebGl2AcceleratorAdmissionV1 {
+	readonly accelerator: DisposableVideoMotionWebGl2AcceleratorV1 | null;
+	readonly fallbackReason: VideoMotionWebGl2FallbackReasonV1 | null;
+}
+
 interface WebGl2CanvasLike {
 	getContext(
 		kind: 'webgl2',
@@ -57,19 +75,37 @@ void main(){
 export function tryCreateVideoMotionWebGl2AcceleratorV1(
 	canvasValue: unknown,
 ): DisposableVideoMotionWebGl2AcceleratorV1 | null {
+	return createVideoMotionWebGl2AcceleratorAdmissionV1(canvasValue).accelerator;
+}
+
+export function createVideoMotionWebGl2AcceleratorAdmissionV1(
+	canvasValue: unknown,
+): VideoMotionWebGl2AcceleratorAdmissionV1 {
 	if (!canvasValue || typeof canvasValue !== 'object'
-		|| typeof (canvasValue as Partial<WebGl2CanvasLike>).getContext !== 'function') return null;
+		|| typeof (canvasValue as Partial<WebGl2CanvasLike>).getContext !== 'function') {
+		return unavailable(VIDEO_MOTION_WEBGL2_FALLBACK_REASONS_V1.canvasUnavailable);
+	}
+	let gl: WebGL2RenderingContext | null;
 	try {
-		const gl = (canvasValue as WebGl2CanvasLike).getContext('webgl2', {
+		gl = (canvasValue as WebGl2CanvasLike).getContext('webgl2', {
 			alpha: false,
 			antialias: false,
 			depth: false,
 			stencil: false,
 			preserveDrawingBuffer: false,
 		});
-		return gl ? createVideoMotionWebGl2AcceleratorV1(gl) : null;
 	} catch {
-		return null;
+		return unavailable(VIDEO_MOTION_WEBGL2_FALLBACK_REASONS_V1.contextUnavailable);
+	}
+	if (!gl) return unavailable(VIDEO_MOTION_WEBGL2_FALLBACK_REASONS_V1.contextUnavailable);
+	try {
+		return Object.freeze({
+			accelerator: createVideoMotionWebGl2AcceleratorV1(gl), fallbackReason: null,
+		});
+	} catch (error) {
+		return unavailable(error instanceof VideoMotionWebGl2AdmissionError
+			? error.fallbackReason
+			: VIDEO_MOTION_WEBGL2_FALLBACK_REASONS_V1.initializationFailed);
 	}
 }
 
@@ -79,10 +115,16 @@ export function createVideoMotionWebGl2AcceleratorV1(
 	const gl = webGl2Context(glValue);
 	if (!gl.getExtension('EXT_color_buffer_float')
 		|| !gl.getExtension('OES_texture_float_linear')) {
-		throw new Error('WebGL2 float render targets and filtering are unavailable.');
+		throw new VideoMotionWebGl2AdmissionError(
+			VIDEO_MOTION_WEBGL2_FALLBACK_REASONS_V1.extensionsUnavailable,
+			'WebGL2 float render targets and filtering are unavailable.',
+		);
 	}
 	if (Number(gl.getParameter(gl.MAX_ARRAY_TEXTURE_LAYERS)) < MAXIMUM_NEIGHBORS + 1) {
-		throw new Error('WebGL2 texture-array capacity is insufficient for temporal denoise.');
+		throw new VideoMotionWebGl2AdmissionError(
+			VIDEO_MOTION_WEBGL2_FALLBACK_REASONS_V1.capacityUnavailable,
+			'WebGL2 texture-array capacity is insufficient for temporal denoise.',
+		);
 	}
 	const program = createProgram(gl);
 	const uniforms = Object.freeze({
@@ -276,6 +318,22 @@ function webGl2Context(value: unknown): WebGL2RenderingContext {
 		throw new TypeError('A WebGL2 context is required for motion acceleration.');
 	}
 	return value as WebGL2RenderingContext;
+}
+
+class VideoMotionWebGl2AdmissionError extends Error {
+	constructor(
+		readonly fallbackReason: VideoMotionWebGl2FallbackReasonV1,
+		message: string,
+	) {
+		super(message);
+		this.name = 'VideoMotionWebGl2AdmissionError';
+	}
+}
+
+function unavailable(
+	fallbackReason: VideoMotionWebGl2FallbackReasonV1,
+): VideoMotionWebGl2AcceleratorAdmissionV1 {
+	return Object.freeze({ accelerator: null, fallbackReason });
 }
 
 function requiredTexture(value: WebGLTexture | null, name: string): WebGLTexture {

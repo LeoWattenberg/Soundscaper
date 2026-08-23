@@ -54,6 +54,29 @@ test('selected V27 finishes each straight-alpha source layer in linear light and
 	await execution.dispose();
 });
 
+test('selected V27 records a stable fallback when WebGL2 context creation is unavailable', async () => {
+	const project = createFramescaperProjectV27(PROFILE, {
+		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
+		finishing: temporalFinishing(),
+	});
+	const authority = {
+		...renderAuthority(project, 10), visualFreshnessByModelId: new Map(),
+	};
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, authority);
+	const signal = new AbortController().signal;
+	const execution = await createFramescaperSelectedExactFrameExecutionV27({
+		project, plan, timingSidecars: bindFramescaperUnifiedRenderTimingSidecarsV27(
+			project, authority.timingViews,
+		), signal, assertCurrent() {}, createAcceleratorCanvas: () => ({
+			getContext() { return null; },
+		}),
+	});
+	assert.deepEqual(execution.acceleratorDisposition(), {
+		attempted: true, active: false, fallbackReasons: ['webgl2-context-unavailable'],
+	});
+	await execution.dispose();
+});
+
 test('selected V27 executes clip and adjustment effects once in their authored scopes', async () => {
 	const clipEffect = videoEffect('clip-effect', 0.1);
 	const adjustmentEffect = videoEffect('adjustment-effect', 0.25);
@@ -166,6 +189,26 @@ function finishing() {
 			processorStackId: null, maskMatteIds: [],
 		}],
 		processorStacks: [], motionAnalyses: [],
+	};
+}
+
+function temporalFinishing() {
+	const value = finishing();
+	return {
+		...value,
+		processorStacks: [{
+			schemaVersion: 1, id: 'stack-temporal', sourceId: 'video-source', processors: [{
+				schemaVersion: 1, id: 'denoise-temporal', kind: 'temporal-denoise', enabled: true,
+				motionProvider: 'pyramidal-lucas-kanade', analysisId: 'analysis-temporal',
+				radius: 1, strength: 0.5,
+			}],
+		}],
+		motionAnalyses: [{
+			schemaVersion: 1, id: 'analysis-temporal', sourceId: 'video-source',
+			processorStackId: 'stack-temporal', inputSha256: '12'.repeat(32),
+			settingsSha256: '34'.repeat(32), storageKey: `motion-sha256:${'56'.repeat(32)}`,
+			sha256: '56'.repeat(32), byteLength: 1, startFrame: 0, endFrame: 1,
+		}],
 	};
 }
 

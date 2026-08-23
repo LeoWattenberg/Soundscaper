@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Deterministic CPU motion processing with an optional parity-checked GPU port. */
+/** Deterministic CPU motion processing with an optional GPU execution port. */
 
 export interface VideoPointV1 {
 	readonly x: number;
