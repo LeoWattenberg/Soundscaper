@@ -34,6 +34,12 @@ import {
 	type FramescaperVisualClipboardPasteV8,
 	type FramescaperVisualClipboardV8,
 } from './editor-session-clipboard-v8.ts';
+import {
+	normalizeFramescaperClipboardClipBindingsV11,
+	selectFramescaperClipboardGraphV11,
+	type FramescaperClipboardClipBindingV11,
+	type FramescaperClipboardSelectionV11,
+} from './editor-session-clipboard-v11-selection.ts';
 import { validateFramescaperProjectV27, type FramescaperProjectV27 } from './editor-project-v27.ts';
 
 export interface FramescaperSessionClipboardV11 {
@@ -43,6 +49,7 @@ export interface FramescaperSessionClipboardV11 {
 	readonly originRevision: number;
 	readonly descriptor: AudioEditorClipboard;
 	readonly sources: readonly AudioEditorSessionClipboardSource[];
+	readonly clipBindings: readonly FramescaperClipboardClipBindingV11[];
 	readonly finishing: FramescaperFinishingClipboardV11;
 }
 
@@ -98,7 +105,8 @@ const FIELDS = Object.freeze([
 	'processorStacks', 'motionAnalyses', 'finishingPresets', 'captionTracks',
 ]);
 const SESSION_FIELDS = Object.freeze([
-	'schemaVersion', 'kind', 'originProjectId', 'originRevision', 'descriptor', 'sources', 'finishing',
+	'schemaVersion', 'kind', 'originProjectId', 'originRevision', 'descriptor', 'sources',
+	'clipBindings', 'finishing',
 ]);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 
@@ -123,6 +131,7 @@ export function createFramescaperSessionClipboardV11(
 		);
 	}
 	const session = createAudioEditorSessionClipboard(project, { descriptor });
+	const selection = selectFramescaperClipboardGraphV11(project, session.descriptor);
 	return normalizeFramescaperSessionClipboardV11({
 		schemaVersion: 11,
 		kind: 'framescaper-session-clipboard',
@@ -130,7 +139,8 @@ export function createFramescaperSessionClipboardV11(
 		originRevision: project.revision,
 		descriptor: session.descriptor,
 		sources: session.sources,
-		finishing: createFramescaperFinishingClipboardV11(profile, project),
+		clipBindings: selection.clipBindings,
+		finishing: finishingClipboardFromSelection(project, selection),
 	});
 }
 
@@ -160,6 +170,7 @@ export function normalizeFramescaperSessionClipboardV11(value: unknown): Framesc
 		originRevision,
 		descriptor: session.descriptor,
 		sources: session.sources,
+		clipBindings: normalizeFramescaperClipboardClipBindingsV11(input.clipBindings, session.descriptor),
 		finishing,
 	});
 }
@@ -167,22 +178,32 @@ export function normalizeFramescaperSessionClipboardV11(value: unknown): Framesc
 export function createFramescaperFinishingClipboardV11(
 	profile: unknown,
 	projectValue: unknown,
+	descriptor: AudioEditorClipboard,
 ): FramescaperFinishingClipboardV11 {
 	validateFramescaperProjectV27(profile, projectValue);
 	const project = projectValue as FramescaperProjectV27;
+	const session = createAudioEditorSessionClipboard(project, { descriptor });
+	return finishingClipboardFromSelection(
+		project,
+		selectFramescaperClipboardGraphV11(project, session.descriptor),
+	);
+}
+
+function finishingClipboardFromSelection(
+	project: FramescaperProjectV27,
+	selection: FramescaperClipboardSelectionV11,
+): FramescaperFinishingClipboardV11 {
 	const visual = normalizeFramescaperVisualClipboardV8({
 		schemaVersion: 8,
 		kind: 'framescaper-visual-fragment',
 		originProjectId: project.id,
 		originRevision: project.revision,
-		sources: records(project.sources, 'V27 clipboard sources')
-			.filter(({ kind }) => kind === 'still' || kind === 'generator'),
-		clips: records(project.clips, 'V27 clipboard clips')
-			.filter(({ kind }) => kind === 'still' || kind === 'generator'),
-		adjustmentLayers: project.videoAdjustmentLayers,
-		presets: project.videoVisualPresets,
-		maskMattes: project.videoMaskMattes,
-		freezeFallbacks: project.videoFreezeFallbacks,
+		sources: selection.visual.sources,
+		clips: selection.visual.clips,
+		adjustmentLayers: selection.visual.adjustmentLayers,
+		presets: selection.visual.presets,
+		maskMattes: selection.visual.maskMattes,
+		freezeFallbacks: selection.visual.freezeFallbacks,
 	});
 	return normalizeFramescaperFinishingClipboardV11({
 		schemaVersion: 11,
@@ -190,13 +211,13 @@ export function createFramescaperFinishingClipboardV11(
 		originProjectId: project.id,
 		originRevision: project.revision,
 		visual,
-		colorContexts: project.videoColorContexts,
-		sourceColorInterpretations: project.videoSourceColorInterpretations,
-		visualPresentations: project.videoVisualPresentations,
-		processorStacks: project.videoProcessorStacks,
-		motionAnalyses: project.videoMotionAnalyses,
-		finishingPresets: project.videoFinishingPresets,
-		captionTracks: project.videoCaptionTracks,
+		colorContexts: selection.colorContexts,
+		sourceColorInterpretations: selection.sourceColorInterpretations,
+		visualPresentations: selection.visualPresentations,
+		processorStacks: selection.processorStacks,
+		motionAnalyses: selection.motionAnalyses,
+		finishingPresets: selection.finishingPresets,
+		captionTracks: selection.captionTracks,
 	});
 }
 

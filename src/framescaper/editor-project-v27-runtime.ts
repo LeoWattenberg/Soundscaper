@@ -5,6 +5,7 @@ import {
 	resolveRuntimeClipProjection,
 	type RuntimeClipProject,
 } from '../common/editor/runtime-clip-projection.ts';
+import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
 import {
 	framescaperProjectForCommandConsumersV20,
 	framescaperProjectForRuntimeConsumersV20,
@@ -49,6 +50,56 @@ export function framescaperProjectForCommandConsumersV27(
 		framescaperProjectV20FoundationV27(profile, project),
 	) as unknown as DataRecord;
 	return Object.freeze(mergeSelectedState(base, project, false));
+}
+
+/** Dedicated common-clipboard view: visuals impersonate video only while the descriptor is built. */
+export function framescaperProjectForEditClipboardConsumersV27(
+	profile: unknown,
+	projectValue: unknown,
+): Readonly<DataRecord> {
+	validateFramescaperProjectV27(profile, projectValue);
+	const projected = structuredClone(
+		framescaperProjectForCommandConsumersV27(profile, projectValue),
+	) as DataRecord;
+	const runtime = framescaperProjectForRuntimeConsumersV27(profile, projectValue) as DataRecord;
+	const runtimeClips = new Map(records(runtime.clips, 'V27 clipboard runtime clips').map((clip) => [
+		stableId(clip), clip,
+	]));
+	projected.sources = records(projected.sources, 'V27 clipboard sources').map((source) => (
+		isVisual(source) ? { ...source, kind: 'video' } : source
+	));
+	projected.clips = records(projected.clips, 'V27 clipboard clips').map((clip) => (
+		isVisual(clip) ? {
+			...runtimeClips.get(stableId(clip)),
+			kind: 'video',
+			title: sourceName(projected.sources, clip.sourceId),
+			trimStartFrames: 0,
+			trimEndFrames: 0,
+			groupId: null,
+			color: 'auto',
+			speedRatio: 1,
+			avLinkId: null,
+			binItemId: null,
+			opaqueExtensions: {},
+			videoEffects: [],
+			retimeMap: null,
+			videoComposition: structuredClone(DEFAULT_VIDEO_CLIP_COMPOSITION),
+		} : clip
+	));
+	const bin = record(projected.projectBin, 'V27 clipboard project bin');
+	bin.clips = records(bin.clips, 'V27 clipboard bin clips').map((clip) => (
+		isVisual(clip) ? {
+			...clip,
+			kind: 'video',
+			videoComposition: structuredClone(DEFAULT_VIDEO_CLIP_COMPOSITION),
+		} : clip
+	));
+	return Object.freeze(projected);
+}
+
+function sourceName(sourcesValue: unknown, sourceId: unknown): string {
+	const source = records(sourcesValue, 'V27 clipboard sources').find(({ id }) => id === sourceId);
+	return typeof source?.name === 'string' && source.name ? source.name : 'Visual';
 }
 
 export function framescaperProjectV20FoundationV27(profile: unknown, project: FramescaperProjectV27) {

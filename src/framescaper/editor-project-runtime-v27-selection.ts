@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorClipboard } from '../common/editor/commands/protocol.ts';
+import type { AudioEditorClipboard, AudioEditorCommand } from '../common/editor/commands/protocol.ts';
 import { acquireProjectLock } from '../common/editor/project-lock.js';
 import { createAudioEditorSessionController } from '../common/editor/session.js';
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
@@ -11,6 +11,7 @@ import {
 	createFramescaperSessionClipboardV11,
 	type FramescaperSessionClipboardV11,
 } from './editor-session-clipboard-v11.ts';
+import { prepareFramescaperSessionClipboardPasteCommandV11 } from './editor-session-clipboard-v11-controller.ts';
 import {
 	applyFramescaperProjectCommandV27,
 	type FramescaperProjectCommandV27,
@@ -26,6 +27,7 @@ import {
 import { migrateFramescaperProjectV27 } from './editor-project-v27-migration.ts';
 import {
 	framescaperProjectForCommandConsumersV27,
+	framescaperProjectForEditClipboardConsumersV27,
 	framescaperProjectForRuntimeConsumersV27,
 } from './editor-project-v27-runtime.ts';
 import {
@@ -60,10 +62,21 @@ export interface EditorProjectRuntimeV27Selection {
 	readonly reimportProject: (project: unknown) => FramescaperProjectV27;
 	readonly projectForCommandConsumers: (project: unknown) => ReturnType<typeof framescaperProjectForCommandConsumersV27>;
 	readonly projectForRuntimeConsumers: (project: unknown) => ReturnType<typeof framescaperProjectForRuntimeConsumersV27>;
+	readonly projectForEditClipboardConsumers: (project: unknown) => ReturnType<typeof framescaperProjectForEditClipboardConsumersV27>;
 	readonly createSessionClipboard: (
 		project: unknown,
 		descriptor: AudioEditorClipboard,
 	) => FramescaperSessionClipboardV11;
+	readonly createEditSessionClipboard: (
+		project: unknown,
+		descriptor: AudioEditorClipboard,
+	) => FramescaperSessionClipboardV11;
+	readonly prepareEditClipboardPasteCommand: (
+		project: unknown,
+		clipboard: unknown,
+		command: AudioEditorCommand,
+		createId: (prefix?: string) => string,
+	) => FramescaperProjectCommandV27;
 	readonly prepareEditClipboardDescriptor: (project: unknown, descriptor: AudioEditorClipboard) => AudioEditorClipboard;
 	readonly createHistory: (project: unknown) => FramescaperProjectHistoryV27;
 	readonly applyCommand: (project: unknown, command: FramescaperProjectCommandV27, options?: Readonly<{ now?: Date | string }>) => FramescaperProjectV27;
@@ -93,10 +106,28 @@ export function createEditorProjectRuntimeV27Selection(
 		reimportProject: (project) => reimportFramescaperProjectV27(profile, project),
 		projectForCommandConsumers: (project) => framescaperProjectForCommandConsumersV27(profile, project),
 		projectForRuntimeConsumers: (project) => framescaperProjectForRuntimeConsumersV27(profile, project),
+		projectForEditClipboardConsumers: (project) => framescaperProjectForEditClipboardConsumersV27(
+			profile,
+			project,
+		),
 		createSessionClipboard: (project, descriptor) => createFramescaperSessionClipboardV11(
 			profile,
 			project,
 			descriptor,
+		),
+		createEditSessionClipboard: (project, descriptor) => createFramescaperSessionClipboardV11(
+			profile,
+			project,
+			descriptor,
+		),
+		prepareEditClipboardPasteCommand: (project, clipboard, command, createId) => (
+			prepareFramescaperSessionClipboardPasteCommandV11(
+				profile,
+				project,
+				clipboard,
+				command,
+				createId,
+			)
 		),
 		prepareEditClipboardDescriptor: (project, descriptor) => createFramescaperSessionClipboardV11(
 			profile,

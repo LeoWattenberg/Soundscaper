@@ -174,7 +174,7 @@ import { createProjectSessionService } from './controller/project-session-servic
 import { createProjectBootstrapService } from './controller/project-bootstrap-service.ts';
 import { createProjectLockService } from './controller/project-lock-service.ts';
 import { createProjectSwitchService } from './controller/project-switch-service.ts';
-import { resolveControllerProjectRuntime } from './controller/project-runtime.ts';
+import { bindControllerEditClipboardRuntime, resolveControllerProjectRuntime } from './controller/project-runtime.ts';
 import { createControllerProjectRuntimeMetrics } from './controller/project-runtime-metrics.ts';
 import { SourceChunkProviderRegistry } from './controller/source-chunk-provider-registry.ts';
 import {
@@ -1440,9 +1440,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		saveExport: (result) => saveLabelExport(result, options.saveLabelFile, fileService),
 	});
 	const clipboardEditService = createClipboardEditService({
-		lifetime,
-		state,
-		copy,
+		lifetime, state, copy,
 		session: sessionController,
 		sourceBuffers,
 		getProject: getCommandProject,
@@ -1451,6 +1449,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		normalizeFrame: normalizeTimelineFrame,
 		snapFrame: snapTimelineFrame,
 		createId: createStableId,
+		...bindControllerEditClipboardRuntime(projectRuntime, () => project),
 		commit,
 		setStatus,
 	});
@@ -1488,7 +1487,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const handleEdit = createEditorEditService({
 		activeSelection, commit, commitSplitAtFrames: clipboardEditService.commitSplitAtFrames, compactLiveSourceState,
-		copy, createAddTrackCommand, createClipboardDescriptor: (commandProject, descriptorOptions) => projectRuntime.prepareEditClipboardDescriptor(project, createClipboardDescriptor(commandProject, descriptorOptions)), createStableId,
+		copy, createAddTrackCommand, createClipboardDescriptor: (commandProject, descriptorOptions) => projectRuntime.prepareEditClipboardDescriptor(project, createClipboardDescriptor(projectRuntime.projectForEditClipboardConsumers ? projectRuntime.projectForEditClipboardConsumers(project) : commandProject, descriptorOptions)), createStableId,
 		editingBlocked, engine, findClip, findClipTrack,
 		findTrack, garbageCollectSources, handleError, normalizeTimelineFrame,
 		prepareControllerPaste: clipboardEditService.prepareControllerPaste, prepareDisjointRangeDeleteCommand, prepareGroupClipsCommand, prepareKeepRangeCommand,

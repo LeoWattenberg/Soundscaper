@@ -48,6 +48,12 @@ export interface ControllerTrackDuplicateCarrier {
 	readonly effectIds: readonly Readonly<ControllerTrackDuplicateEffectMapping>[];
 }
 
+export interface ControllerEditSessionClipboardCarrier extends Readonly<Record<string, unknown>> {
+	readonly descriptor: AudioEditorClipboard;
+	readonly sources?: readonly Readonly<{ readonly id: string }>[];
+	readonly originProjectId?: string;
+}
+
 export interface ControllerProjectRuntime {
 	readonly createProject: (options?: Readonly<Record<string, unknown>>) => ControllerRuntimeProject;
 	readonly cloneProject: (project: unknown) => ControllerRuntimeProject;
@@ -59,10 +65,21 @@ export interface ControllerProjectRuntime {
 	}>;
 	readonly projectForCommandConsumers: (project: unknown) => ControllerRuntimeProject;
 	readonly projectForRuntimeConsumers: (project: unknown) => ControllerRuntimeProject;
+	readonly projectForEditClipboardConsumers?: (project: unknown) => ControllerRuntimeProject;
 	readonly prepareEditClipboardDescriptor: (
 		project: unknown,
 		descriptor: AudioEditorClipboard,
 	) => AudioEditorClipboard;
+	readonly createEditSessionClipboard?: (
+		project: unknown,
+		descriptor: AudioEditorClipboard,
+	) => ControllerEditSessionClipboardCarrier;
+	readonly prepareEditClipboardPasteCommand?: (
+		project: unknown,
+		clipboard: ControllerEditSessionClipboardCarrier,
+		command: AudioEditorCommand,
+		createId: (prefix?: string) => string,
+	) => unknown;
 	readonly prepareTrackDuplicateCarrier: (
 		project: unknown,
 		request: Readonly<ControllerTrackDuplicateRequest>,
@@ -90,6 +107,11 @@ export interface ControllerProjectRuntime {
 	readonly canRedo: (history: ControllerRuntimeHistory) => boolean;
 }
 
+export type ControllerEditClipboardRuntimeBindings = Readonly<Pick<
+	ControllerProjectRuntime,
+	'createEditSessionClipboard' | 'prepareEditClipboardPasteCommand'
+>>;
+
 const DEFAULT_RUNTIME = Object.freeze({
 	createProject: createCurrentAudioEditorProject,
 	cloneProject,
@@ -98,7 +120,14 @@ const DEFAULT_RUNTIME = Object.freeze({
 	projectForRuntimeConsumers: (project: ControllerRuntimeProject) => (
 		projectForRuntimeConsumers(project as never) as ControllerRuntimeProject
 	),
+	projectForEditClipboardConsumers: projectForCommandConsumers,
 	prepareEditClipboardDescriptor: (_project: unknown, descriptor: AudioEditorClipboard) => descriptor,
+	createEditSessionClipboard: (_project: unknown, descriptor: AudioEditorClipboard) => ({ descriptor }),
+	prepareEditClipboardPasteCommand: (
+		_project: unknown,
+		_clipboard: ControllerEditSessionClipboardCarrier,
+		command: AudioEditorCommand,
+	) => command,
 	prepareTrackDuplicateCarrier: (_project: unknown, request: ControllerTrackDuplicateRequest) => ({
 		sourceTrackId: request.sourceTrackId,
 		effectIds: request.effectIds,
@@ -137,5 +166,40 @@ export function resolveControllerProjectRuntime(
 	} else {
 		snapshot.prepareTrackDuplicateCarrier = duplicateCarrier.value;
 	}
+	for (const name of [
+		'projectForEditClipboardConsumers',
+		'createEditSessionClipboard',
+		'prepareEditClipboardPasteCommand',
+	] as const) {
+		const descriptor = Object.getOwnPropertyDescriptor(runtime, name);
+		if (descriptor === undefined) snapshot[name] = DEFAULT_RUNTIME[name];
+		else if (!Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'function') {
+			throw new TypeError(`Controller project runtime ${name} must be a method.`);
+		} else snapshot[name] = descriptor.value;
+	}
 	return Object.freeze(snapshot) as unknown as ControllerProjectRuntime;
+}
+
+/** Bind clipboard product hooks to the canonical project hidden behind common consumers. */
+export function bindControllerEditClipboardRuntime(
+	runtime: Readonly<ControllerProjectRuntime>,
+	getProject: () => unknown,
+): ControllerEditClipboardRuntimeBindings {
+	const createClipboard = runtime.createEditSessionClipboard;
+	const preparePaste = runtime.prepareEditClipboardPasteCommand;
+	return Object.freeze({
+		...(createClipboard === undefined ? {} : {
+			createEditSessionClipboard: (_project: unknown, descriptor: AudioEditorClipboard) => (
+				createClipboard(getProject(), descriptor)
+			),
+		}),
+		...(preparePaste === undefined ? {} : {
+			prepareEditClipboardPasteCommand: (
+				_project: unknown,
+				clipboard: ControllerEditSessionClipboardCarrier,
+				command: AudioEditorCommand,
+				createId: (prefix?: string) => string,
+			) => preparePaste(getProject(), clipboard, command, createId),
+		}),
+	});
 }

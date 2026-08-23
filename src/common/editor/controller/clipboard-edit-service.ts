@@ -14,6 +14,7 @@ import type {
 	ClipboardPasteMode,
 } from '../commands/protocol.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
+import type { ControllerEditSessionClipboardCarrier } from './project-runtime.ts';
 
 export interface ClipboardEditClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -120,6 +121,16 @@ export interface ClipboardEditServiceDependencies {
 	normalizeFrame(value: unknown): number;
 	snapFrame(value: unknown): number;
 	createId(prefix?: string): string;
+	createEditSessionClipboard?(
+		project: ClipboardEditProject,
+		descriptor: AudioEditorClipboard,
+	): ControllerEditSessionClipboardCarrier;
+	prepareEditClipboardPasteCommand?(
+		project: ClipboardEditProject,
+		clipboard: ControllerEditSessionClipboardCarrier,
+		command: AudioEditorCommand,
+		createId: (prefix?: string) => string,
+	): unknown;
 	commit(command: AudioEditorCommand, selection?: CommitSelection): unknown;
 	setStatus(message: string, state?: string): void;
 }
@@ -137,6 +148,7 @@ type SplitCommand = Extract<AudioEditorCommand, { readonly type: 'clip/split' }>
 export function createClipboardEditService(
 	dependencies: ClipboardEditServiceDependencies,
 ): Readonly<ClipboardEditService> {
+	let editSessionClipboard: ControllerEditSessionClipboardCarrier | null = null;
 	return Object.freeze({
 		setSessionClipboard,
 		splitAtFrame,
@@ -148,8 +160,22 @@ export function createClipboardEditService(
 	function setSessionClipboard(descriptor: AudioEditorClipboard): AudioEditorClipboard {
 		dependencies.lifetime.assertActive();
 		const project = dependencies.getProject();
-		const result = dependencies.session.setClipboard(descriptor, { originProjectId: project.id });
+		const carrier: ControllerEditSessionClipboardCarrier = dependencies.createEditSessionClipboard?.(
+			project,
+			descriptor,
+		) ?? Object.freeze({ descriptor });
+		const sessionValue = carrier.sources === undefined ? carrier.descriptor : {
+			schemaVersion: 1,
+			originProjectId: carrier.originProjectId ?? project.id,
+			descriptor: carrier.descriptor,
+			sources: carrier.sources,
+		};
+		const result = dependencies.session.setClipboard(
+			sessionValue as AudioEditorClipboard,
+			{ originProjectId: project.id },
+		);
 		dependencies.state.clipboard = result.clipboard.descriptor;
+		editSessionClipboard = carrier;
 		return dependencies.state.clipboard;
 	}
 
@@ -321,7 +347,14 @@ export function createClipboardEditService(
 			assignTarget(clipboardTrack, target);
 		}
 		commands.push(preparePaste(clipboard, project, atFrame, trackMap, mode));
-		return commands.length === 1 ? commands[0] : { type: 'batch', commands };
+		const command: AudioEditorCommand = commands.length === 1 ? commands[0]! : { type: 'batch', commands };
+		if (!editSessionClipboard || !dependencies.prepareEditClipboardPasteCommand) return command;
+		return dependencies.prepareEditClipboardPasteCommand(
+			project,
+			editSessionClipboard,
+			command,
+			dependencies.createId,
+		) as AudioEditorCommand;
 	}
 
 	async function disjoinSelectedClip(): Promise<void> {
