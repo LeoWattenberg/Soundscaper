@@ -14,6 +14,10 @@ import {
 	createEditorProjectRuntimeV27Selection,
 	type EditorProjectRuntimeV27Selection,
 } from './editor-project-runtime-v27-selection.ts';
+import {
+	FramescaperProjectV18ClaimCleanupRepository,
+	type FramescaperProjectV18ClaimCleanupResult,
+} from './editor-project-v18-claim-cleanup-repository.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v27.ts';
 import { framescaperProjectStoreAuthorityV27 } from './editor-project-store-v27.ts';
 
@@ -30,6 +34,8 @@ export interface FramescaperEditorProjectEnvironmentV27 {
 	readonly controllerStore: AudioEditorProjectStore;
 	readonly desktopProjectLibrary: FramescaperDesktopProjectLibraryV18Renderer | null;
 	readonly playback: PlaybackProjectService;
+	readonly claimCleanup: FramescaperProjectV18ClaimCleanupRepository;
+	readonly initialCleanup: Readonly<FramescaperProjectV18ClaimCleanupResult>;
 	readonly createProjectIfAbsent: (project: ProjectDocument) => Promise<ProjectDocument | null>;
 	readonly close: () => Promise<void>;
 }
@@ -49,6 +55,16 @@ export async function createFramescaperEditorProjectEnvironmentV27(
 		}
 		const authority = framescaperProjectStoreAuthorityV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, store);
 		if (!authority.opfs) throw new TypeError('The exact V27 OPFS repository is required.');
+		const claimCleanup = new FramescaperProjectV18ClaimCleanupRepository(
+			FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
+			{ port: authority.port, opfs: authority.opfs },
+		);
+		const initialCleanup = await claimCleanup.reconcile({
+			sessionProjects: [], histories: [], pendingSaveSnapshots: [],
+		});
+		if (initialCleanup.status !== 'settled') {
+			throw new Error('Framescaper V27 startup proxy-claim cleanup is indeterminate.');
+		}
 		const desktopProjectLibrary = await connectFramescaperDesktopProjectLibraryV18Renderer(
 			FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
 			store,
@@ -62,6 +78,8 @@ export async function createFramescaperEditorProjectEnvironmentV27(
 			store,
 			controllerStore,
 			desktopProjectLibrary,
+			claimCleanup,
+			initialCleanup,
 			playback: createFramescaperPlaybackProjectServiceV27(
 				FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
 				{ timingStore: store },

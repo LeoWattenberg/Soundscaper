@@ -17,8 +17,10 @@
  */
 
 import type {
+	VideoProxyCandidateGeneratorPort,
 	VideoProxyCandidateObserver,
 } from '../video-proxy-candidate-observation.ts';
+import { canonicalMediaContentBlob } from '../storage/media-content-digest.ts';
 import { createVideoProxyCandidateObserver } from '../video-proxy-candidate-observation.ts';
 import { createFfmpegVideoProxyGenerator } from '../video-proxy-ffmpeg-generator.ts';
 import { VIDEO_PROXY_GENERATION_RECIPE } from '../video-proxy-generation.ts';
@@ -41,6 +43,15 @@ export interface VideoProxyCandidateCompositionOptions {
 	readonly maximumBytes?: number;
 }
 
+const EXISTING_PROXY_GENERATOR = Object.freeze({
+	id: 'framescaper-pathless-existing-proxy',
+	version: 1,
+});
+const EXISTING_PROXY_RECIPE = Object.freeze({
+	id: 'framescaper-existing-video-proxy-v1',
+	version: 1,
+});
+
 /**
  * Build the candidate observer, or answer null when this build cannot generate.
  *
@@ -55,8 +66,7 @@ export function createVideoProxyCandidateObserverForRuntime(
 ): VideoProxyCandidateObserver | null {
 	if (typeof runtime?.runProxyMediaOperation !== 'function') return null;
 	const runProxyMediaOperation = runtime.runProxyMediaOperation.bind(runtime);
-	const probes = [options.helperTimingProbe ?? null, createFfmpegVideoTimingProbe(runtime)]
-		.filter((probe): probe is VideoTimingProbePort => Boolean(probe));
+	const probes = timingProbes(runtime, options);
 	if (!probes.length) return null;
 	return createVideoProxyCandidateObserver({
 		generator: createFfmpegVideoProxyGenerator({ runOperation: runProxyMediaOperation }),
@@ -64,4 +74,56 @@ export function createVideoProxyCandidateObserverForRuntime(
 		probes,
 		...(options.maximumBytes === undefined ? {} : { maximumBytes: options.maximumBytes }),
 	});
+}
+
+/**
+ * Observe one operator-selected proxy Blob without retaining its File name or
+ * any desktop descriptor. Exact timing conformance and durable publication are
+ * still owned by the same relationship/scheduler authority as generated work.
+ */
+export function createVideoProxyExistingCandidateObserverForRuntime(
+	candidateValue: unknown,
+	runtime: VideoProxyCandidateRuntime | null | undefined,
+	options: VideoProxyCandidateCompositionOptions = {},
+): VideoProxyCandidateObserver | null {
+	const candidate = canonicalMediaContentBlob(candidateValue);
+	if (candidate.size < 1) throw new RangeError('An existing video proxy cannot be empty.');
+	if (!/^video\/[a-z0-9][a-z0-9!#$&^_.+\-]*$/u.test(candidate.type)) {
+		throw new TypeError('An existing video proxy requires a canonical video MIME type.');
+	}
+	const probes = timingProbes(runtime ?? {}, options);
+	if (!probes.length) return null;
+	const generator: VideoProxyCandidateGeneratorPort = Object.freeze({
+		...EXISTING_PROXY_GENERATOR,
+		generate(
+			_original: Parameters<VideoProxyCandidateGeneratorPort['generate']>[0],
+			_identity: Parameters<VideoProxyCandidateGeneratorPort['generate']>[1],
+			_recipe: Parameters<VideoProxyCandidateGeneratorPort['generate']>[2],
+			generation: Parameters<VideoProxyCandidateGeneratorPort['generate']>[3],
+		): Blob {
+			throwIfAborted(generation.signal);
+			generation.assertCurrent();
+			return candidate;
+		},
+	});
+	return createVideoProxyCandidateObserver({
+		generator,
+		recipe: EXISTING_PROXY_RECIPE,
+		probes,
+		...(options.maximumBytes === undefined ? {} : { maximumBytes: options.maximumBytes }),
+	});
+}
+
+function timingProbes(
+	runtime: VideoProxyCandidateRuntime,
+	options: VideoProxyCandidateCompositionOptions,
+): readonly VideoTimingProbePort[] {
+	return [options.helperTimingProbe ?? null, createFfmpegVideoTimingProbe(runtime)]
+		.filter((probe): probe is VideoTimingProbePort => Boolean(probe));
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+	if (signal?.aborted) {
+		throw signal.reason ?? new DOMException('Existing video proxy validation was cancelled.', 'AbortError');
+	}
 }

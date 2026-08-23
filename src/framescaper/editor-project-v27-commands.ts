@@ -30,6 +30,11 @@ import {
 	validateFramescaperProjectV27,
 	type FramescaperProjectV27,
 } from './editor-project-v27-validation.ts';
+import {
+	isFramescaperVideoProxyDetachCommandV20,
+	snapshotFramescaperVideoProxyDetachCommandV20,
+	type FramescaperVideoProxyDetachCommandV20,
+} from './editor-video-proxy-command-v20.ts';
 
 type FramescaperInheritedProjectCommandV27 = Exclude<
 	FramescaperProjectCommandV24,
@@ -43,6 +48,7 @@ export interface FramescaperProjectCommandBatchV27 {
 
 export type FramescaperProjectCommandV27 =
 	| FramescaperOwnedFinishingCommandV27
+	| FramescaperVideoProxyDetachCommandV20
 	| FramescaperProjectCommandBatchV27
 	| FramescaperInheritedProjectCommandV27;
 export type FramescaperProjectCommandOptionsV27 = FramescaperProjectCommandOptionsV24;
@@ -57,6 +63,16 @@ const MAXIMUM_DEPTH = AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS.maximumTravers
 
 export function snapshotFramescaperProjectCommandV27(value: unknown): FramescaperProjectCommandV27 {
 	return snapshot(value, { active: new Set(), count: 0 }, 0);
+}
+
+/** Build the exact inherited detach wire admitted by selected V27 history. */
+export function createFramescaperVideoProxyDetachCommandV27(
+	sourceId: string,
+	expectedAttachment: unknown,
+): Readonly<FramescaperVideoProxyDetachCommandV20> {
+	return snapshotFramescaperVideoProxyDetachCommandV20({
+		type: 'framescaper/video-proxy-detach', sourceId, expectedAttachment,
+	});
 }
 
 export function applyFramescaperProjectCommandV27(
@@ -80,6 +96,9 @@ function snapshot(
 	if (budget.count > MAXIMUM_COMMANDS) throw new RangeError('Framescaper V27 command tree exceeds its limit.');
 	if (depth > MAXIMUM_DEPTH) throw new RangeError('Framescaper V27 command tree exceeds its depth limit.');
 	const type = commandType(value);
+	if (isFramescaperVideoProxyDetachCommandV20(value)) {
+		return snapshotFramescaperVideoProxyDetachCommandV20(value);
+	}
 	if (isFramescaperOwnedFinishingCommandTypeV27(type)) {
 		return snapshotFramescaperOwnedFinishingCommandV27(value);
 	}

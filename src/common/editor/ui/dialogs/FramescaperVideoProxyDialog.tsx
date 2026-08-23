@@ -14,7 +14,14 @@ import {
 import type { FramescaperVideoProxyModeV20 } from '../../../../framescaper/editor-video-proxy-use-policy-v20.ts';
 
 interface ProxyFileService {
+	readonly isDesktop?: boolean;
 	readonly linkedVideoOriginalsAvailable?: boolean;
+	chooseFiles?(request: Readonly<{ readonly purpose: 'video'; readonly multiple: false }>):
+		PromiseLike<readonly unknown[]> | readonly unknown[];
+	openReadDescriptor?(
+		descriptor: unknown,
+		request?: Readonly<{ readonly signal?: AbortSignal }>,
+	): PromiseLike<unknown> | unknown;
 	chooseLinkedVideoOriginal?(): PromiseLike<unknown> | unknown;
 }
 
@@ -49,12 +56,15 @@ export default function FramescaperVideoProxyDialog({
 	}), [editingBlocked, snapshot]);
 	const [selectedSourceId, setSelectedSourceId] = useState<string | null>(model.selectedSourceId);
 	const [mode, setMode] = useState<FramescaperVideoProxyModeV20>('auto');
-	const [pending, setPending] = useState<'generate' | 'regenerate' | 'detach' | 'relink' | null>(null);
+	const [pending, setPending] = useState<
+		'generate' | 'attach' | 'regenerate' | 'detach' | 'relink' | null
+	>(null);
 	const [progress, setProgress] = useState<Readonly<FramescaperVideoProxyProgress> | null>(null);
 	const [status, setStatus] = useState('');
 	const [error, setError] = useState('');
 	const [changedRelink, setChangedRelink] = useState<FramescaperVideoProxyOriginalRelinkCandidate | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
+	const existingFileRef = useRef<HTMLInputElement | null>(null);
 	const selected = model.sources.find(({ id }) => id === selectedSourceId) ?? null;
 
 	useEffect(() => {
@@ -69,7 +79,7 @@ export default function FramescaperVideoProxyDialog({
 	useEffect(() => () => { abortRef.current?.abort(); }, []);
 
 	const perform = (
-		kind: 'generate' | 'regenerate' | 'detach',
+		kind: 'generate' | 'attach' | 'regenerate' | 'detach',
 		operation: (signal?: AbortSignal) => Promise<void>,
 	): void => {
 		const abort = kind === 'detach' ? null : new AbortController();
@@ -78,13 +88,15 @@ export default function FramescaperVideoProxyDialog({
 		setProgress(null);
 		setStatus('');
 		setError('');
-		void Promise.resolve(run(() => operation(abort?.signal))).then(() => {
+		void Promise.resolve().then(() => run(() => operation(abort?.signal))).then(() => {
 			setStatus(kind === 'detach'
 				? label(copy, 'videoProxyDetached', 'Proxy detached. Undo remains available.')
-				: label(copy, 'videoProxyGenerated', 'Proxy generated and attached.'));
+				: kind === 'attach'
+					? label(copy, 'videoProxyExistingAttached', 'Existing proxy validated and attached.')
+					: label(copy, 'videoProxyGenerated', 'Proxy generated and attached.'));
 		}, (operationError: unknown) => {
 			if ((operationError as Error)?.name === 'AbortError') {
-				setStatus(label(copy, 'videoProxyCancelled', 'Proxy generation cancelled.'));
+				setStatus(label(copy, 'videoProxyCancelled', 'Proxy work cancelled.'));
 				return;
 			}
 			setError(operationError instanceof Error ? operationError.message : String(operationError));
@@ -106,6 +118,37 @@ export default function FramescaperVideoProxyDialog({
 	const detach = (): void => {
 		if (!runtime || !selectedSourceId) return;
 		perform('detach', () => runtime.detach(selectedSourceId));
+	};
+	const attachCandidate = (candidate: Blob): void => {
+		if (!runtime || !selectedSourceId) return;
+		perform('attach', (signal) => runtime.attachExisting(selectedSourceId, candidate, {
+			...(signal ? { signal } : {}),
+			onProgress: (next) => { setProgress(next); },
+		}));
+	};
+	const chooseExisting = (): void => {
+		if (!runtime || !selectedSourceId) return;
+		if (fileService.isDesktop) {
+			if (typeof fileService.chooseFiles !== 'function'
+				|| typeof fileService.openReadDescriptor !== 'function') return;
+			perform('attach', async (signal) => {
+				const descriptors = await fileService.chooseFiles!({ purpose: 'video', multiple: false });
+				throwIfAborted(signal);
+				const descriptor = descriptors[0];
+				if (descriptor === undefined) throw new DOMException('Proxy selection cancelled.', 'AbortError');
+				const candidate = proxyCandidate(await fileService.openReadDescriptor!(
+					descriptor,
+					signal ? { signal } : {},
+				));
+				throwIfAborted(signal);
+				await runtime.attachExisting(selectedSourceId, candidate, {
+					...(signal ? { signal } : {}),
+					onProgress: (next) => { setProgress(next); },
+				});
+			});
+			return;
+		}
+		existingFileRef.current?.click();
 	};
 	const chooseOriginal = (): void => {
 		if (!runtime || !selectedSourceId || typeof fileService.chooseLinkedVideoOriginal !== 'function') return;
@@ -143,6 +186,10 @@ export default function FramescaperVideoProxyDialog({
 		}).finally(() => { setPending(null); });
 	};
 	const mutationsDisabled = model.mutationsDisabled || !runtime || pending !== null || !selected;
+	const attachExistingAvailable = !fileService.isDesktop || (
+		typeof fileService.chooseFiles === 'function'
+		&& typeof fileService.openReadDescriptor === 'function'
+	);
 
 	return <AudioEditorDialogShell
 		title={label(copy, 'videoProxyTitle', 'Video proxies')}
@@ -197,6 +244,17 @@ export default function FramescaperVideoProxyDialog({
 							disabled={mutationsDisabled || !selected.originalAvailable}
 							onClick={() => { generate(false); }}>{label(copy, 'videoProxyGenerateAttach',
 								'Generate and attach')}</button>}
+						{!selected.attached && <button type="button" data-video-proxy-attach-existing
+							disabled={mutationsDisabled || !selected.originalAvailable || !attachExistingAvailable}
+							onClick={chooseExisting}>{label(copy, 'videoProxyAttachExisting',
+								'Attach existing…')}</button>}
+						<input ref={existingFileRef} type="file" accept="video/*" hidden
+							data-video-proxy-existing-file
+							onChange={(event) => {
+								const candidate = event.currentTarget.files?.[0] ?? null;
+								event.currentTarget.value = '';
+								if (candidate) attachCandidate(candidate);
+							}} />
 						{selected.attached && <button type="button" data-video-proxy-regenerate
 							disabled={mutationsDisabled || !selected.originalAvailable}
 							onClick={() => { generate(true); }}>{label(copy, 'videoProxyRegenerate', 'Regenerate')}</button>}
@@ -250,10 +308,22 @@ function relinkChoice(value: unknown): FramescaperVideoProxyOriginalRelinkCandid
 
 function phaseLabel(copy: Readonly<Record<string, string>>, phase: string): string {
 	const fallbacks: Readonly<Record<string, string>> = {
-		queued: 'Queued', generating: 'Generating proxy', publishing: 'Attaching proxy',
+		queued: 'Queued', generating: 'Generating proxy', validating: 'Validating proxy',
+		publishing: 'Attaching proxy',
 		cleaning: 'Cleaning up', complete: 'Complete',
 	};
 	return label(copy, `videoProxyPhase${phase[0]?.toUpperCase() ?? ''}${phase.slice(1)}`, fallbacks[phase] ?? phase);
+}
+
+function proxyCandidate(value: unknown): Blob {
+	if (!(value instanceof Blob)) throw new TypeError('The selected proxy is not a pathless media body.');
+	return value;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+	if (signal?.aborted) {
+		throw signal.reason ?? new DOMException('Proxy attachment was cancelled.', 'AbortError');
+	}
 }
 
 function label(copy: Readonly<Record<string, string>>, key: string, fallback: string): string {

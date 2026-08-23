@@ -2,17 +2,30 @@
 
 import { createAudioEditorController } from '../common/editor/app.js';
 import {
+	createFramescaperCapturedVideoProxySchedulerV27,
+	type FramescaperCapturedVideoProxyRuntimeComposition,
+} from './editor-captured-video-proxy-scheduler.ts';
+import {
 	assertFramescaperEditorProjectEnvironmentV27,
 	type FramescaperEditorProjectEnvironmentV27,
 } from './editor-project-environment-v27.ts';
+import { createFramescaperExistingVideoProxySchedulerV27 } from './editor-existing-video-proxy-scheduler.ts';
 import { createFramescaperMulticameraActionsV18 } from './editor-project-v18-multicam-actions.ts';
 import { createFramescaperSequenceActionsV18 } from './editor-project-v18-sequence-actions.ts';
 import { createFramescaperVideoRetimeActionsV20 } from './editor-project-v20-retime-actions.ts';
-import type { FramescaperProjectCommandV27 } from './editor-project-v27-commands.ts';
+import {
+	createFramescaperVideoProxyDetachCommandV27,
+	type FramescaperProjectCommandV27,
+} from './editor-project-v27-commands.ts';
 import { createFramescaperScapeNativeRuntimeV27 } from './editor-scape-native-v27.ts';
 import { bindFramescaperSelectedAuthoringControllerV27 } from './editor-selected-v27-authoring-controller.ts';
 import { bindFramescaperSelectedRenderSessionRuntimeV27 } from './editor-selected-v27-render-session.ts';
 import { createFramescaperVideoExportStrategyV27 } from './video-export-strategy-v27.ts';
+import { createFramescaperVideoProxyActionsV27 } from './editor-video-proxy-actions-v20.ts';
+import type { FramescaperVideoProxyActionRuntime } from './editor-video-proxy-action-runtime-v20.ts';
+import {
+	createFramescaperVideoProxyPreviewMediaResolverV27,
+} from './editor-video-proxy-preview-media-v20.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
@@ -46,7 +59,17 @@ export function createFramescaperAudioEditorControllerV27(
 		retimeRamp: videoRetime.ramp,
 	});
 	const sessionController = environment.runtime.createSessionController();
-	const controller = createAudioEditorController(null, {
+	let proxyComposition: FramescaperCapturedVideoProxyRuntimeComposition | null = null;
+	let proxyActions: FramescaperVideoProxyActionRuntime | null = null;
+	let controller: ReturnType<typeof createAudioEditorController> | null = null;
+	const resolveProductVideoPreviewMedia = createFramescaperVideoProxyPreviewMediaResolverV27({
+		bodyStore: environment.store,
+		originalStore: environment.controllerStore,
+		getProject: () => controller?.project ?? null,
+		getMode: (sourceId) => proxyActions?.mode(sourceId) ?? 'auto',
+		getPressure: (sourceId) => proxyActions?.pressure(sourceId) ?? null,
+	});
+	controller = createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
 		framescaperCaptureRouteSchemaVersion: 27,
@@ -61,9 +84,32 @@ export function createFramescaperAudioEditorControllerV27(
 		productVideoExportStrategy: createFramescaperVideoExportStrategyV27(
 			environment.runtime.profile, undefined, environment.controllerStore,
 		),
+		resolveProductVideoPreviewMedia,
+		reportProductVideoPreviewPressure: (
+			sourceId: string,
+			pressure: Parameters<FramescaperVideoProxyActionRuntime['reportPreviewPressure']>[1],
+		) => proxyActions?.reportPreviewPressure(sourceId, pressure),
+		createFramescaperCaptureProxyScheduler: (composition: Readonly<Record<string, unknown>>) => {
+			proxyComposition = composition as unknown as FramescaperCapturedVideoProxyRuntimeComposition;
+			return createFramescaperCapturedVideoProxySchedulerV27(
+				environment, sessionController, proxyComposition,
+			);
+		},
 		...presentation,
 	});
 	executeProductSequenceCommand = (command) => controller.actions.edit.commit(command);
+	const selectedProxyComposition = proxyComposition;
+	if (!selectedProxyComposition) throw new Error('The selected V27 editor did not compose its proxy runtime.');
+	proxyActions = createFramescaperVideoProxyActionsV27({
+		owner: controller,
+		createScheduler: () => createFramescaperCapturedVideoProxySchedulerV27(
+			environment, sessionController, selectedProxyComposition,
+		),
+		createAttachExistingScheduler: (candidate) => createFramescaperExistingVideoProxySchedulerV27(
+			environment, sessionController, selectedProxyComposition, candidate,
+		),
+		createDetachCommand: createFramescaperVideoProxyDetachCommandV27,
+	});
 	bindFramescaperSelectedAuthoringControllerV27({
 		controller,
 		store: environment.controllerStore,

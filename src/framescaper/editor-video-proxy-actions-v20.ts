@@ -16,6 +16,7 @@ import type {
 	FramescaperCapturedVideoProxyScheduler,
 } from './editor-captured-video-proxy-scheduler.ts';
 import { createFramescaperCapturedVideoProxySchedulerV20 } from './editor-captured-video-proxy-scheduler.ts';
+import { createFramescaperExistingVideoProxySchedulerV20 } from './editor-existing-video-proxy-scheduler.ts';
 import type { FramescaperEditorProjectEnvironmentV20 } from './editor-project-environment-v20.ts';
 import type { FramescaperVideoProxyModeV20 } from './editor-video-proxy-use-policy-v20.ts';
 import {
@@ -25,6 +26,7 @@ import {
 
 type SessionV20 = Parameters<typeof createFramescaperCapturedVideoProxySchedulerV20>[1];
 type SchedulerFactory = () => FramescaperCapturedVideoProxyScheduler;
+type ExistingSchedulerFactory = (candidate: Blob) => FramescaperCapturedVideoProxyScheduler;
 
 export interface FramescaperVideoProxyActionOwnerV20 {
 	readonly project: unknown;
@@ -52,6 +54,7 @@ export interface FramescaperVideoProxyActionOwnerV20 {
 export interface FramescaperVideoProxyActionsV20Options {
 	readonly owner: FramescaperVideoProxyActionOwnerV20;
 	readonly createScheduler: SchedulerFactory;
+	readonly createAttachExistingScheduler?: ExistingSchedulerFactory;
 	readonly createSessionId?: () => string;
 }
 
@@ -64,6 +67,7 @@ export interface FramescaperVideoProxyActionsOptions extends FramescaperVideoPro
 }
 
 export interface FramescaperVideoProxyActionsV27Options extends FramescaperVideoProxyActionsV20Options {
+	readonly createAttachExistingScheduler: ExistingSchedulerFactory;
 	readonly createDetachCommand: NonNullable<FramescaperVideoProxyActionsOptions['createDetachCommand']>;
 }
 
@@ -80,6 +84,12 @@ export function bindFramescaperVideoProxyActionsV20(
 			environment,
 			session,
 			composition,
+		),
+		createAttachExistingScheduler: (candidate) => createFramescaperExistingVideoProxySchedulerV20(
+			environment,
+			session,
+			composition,
+			candidate,
 		),
 	});
 }
@@ -139,6 +149,11 @@ export function createFramescaperVideoProxyActions(
 			sourceId: string,
 			operationOptions: FramescaperVideoProxyOperationOptions = {},
 		) => generate(sourceId, operationOptions),
+		attachExisting: (
+			sourceId: string,
+			candidate: Blob,
+			operationOptions: FramescaperVideoProxyOperationOptions = {},
+		) => attachExisting(sourceId, candidate, operationOptions),
 		detach,
 		regenerate,
 		relinkOriginal,
@@ -150,6 +165,37 @@ export function createFramescaperVideoProxyActions(
 		sourceIdValue: string,
 		operationOptions: FramescaperVideoProxyOperationOptions,
 	): Promise<void> {
+		return publishCandidate(
+			sourceIdValue,
+			operationOptions,
+			'generating',
+			options.createScheduler,
+		);
+	}
+
+	async function attachExisting(
+		sourceIdValue: string,
+		candidate: Blob,
+		operationOptions: FramescaperVideoProxyOperationOptions,
+	): Promise<void> {
+		if (!options.createAttachExistingScheduler) {
+			throw new Error('This runtime cannot attach an existing video proxy.');
+		}
+		const createScheduler = options.createAttachExistingScheduler;
+		return publishCandidate(
+			sourceIdValue,
+			operationOptions,
+			'validating',
+			() => createScheduler(candidate),
+		);
+	}
+
+	async function publishCandidate(
+		sourceIdValue: string,
+		operationOptions: FramescaperVideoProxyOperationOptions,
+		workPhase: 'generating' | 'validating',
+		createScheduler: SchedulerFactory,
+	): Promise<void> {
 		const sourceId = identifier(sourceIdValue);
 		const project = exactProject(options.owner.project, options.schemaVersion);
 		const source = videoSource(project, sourceId);
@@ -158,7 +204,7 @@ export function createFramescaperVideoProxyActions(
 		}
 		throwIfAborted(operationOptions.signal);
 		progress(operationOptions, 'queued', 0);
-		const scheduler = options.createScheduler();
+		const scheduler = createScheduler();
 		let abortDisposal: Promise<void> | null = null;
 		const onAbort = (): void => {
 			abortDisposal ??= scheduler.dispose();
@@ -166,7 +212,7 @@ export function createFramescaperVideoProxyActions(
 		};
 		operationOptions.signal?.addEventListener('abort', onAbort, { once: true });
 		try {
-			progress(operationOptions, 'generating', 0);
+			progress(operationOptions, workPhase, 0);
 			await scheduler(proxyRequest(project, source, sessionId));
 			throwIfAborted(operationOptions.signal);
 			progress(operationOptions, 'publishing', 0);
@@ -350,7 +396,7 @@ function linkedProjectBinClipId(project: Readonly<Record<string, unknown>>, sour
 
 function progress(
 	options: FramescaperVideoProxyOperationOptions,
-	phase: 'queued' | 'generating' | 'publishing' | 'cleaning' | 'complete',
+	phase: 'queued' | 'generating' | 'validating' | 'publishing' | 'cleaning' | 'complete',
 	completed: 0 | 1,
 ): void {
 	options.onProgress?.(Object.freeze({ phase, completed, total: 1 }));
@@ -377,6 +423,7 @@ function assertOptions(options: FramescaperVideoProxyActionsOptions): void {
 	if (!options?.owner || typeof options.owner !== 'object'
 		|| typeof options.createScheduler !== 'function'
 		|| (options.schemaVersion !== 20 && options.schemaVersion !== 27)
+		|| (options.schemaVersion === 27 && typeof options.createAttachExistingScheduler !== 'function')
 		|| !options.owner.actions?.edit || !options.owner.actions.projectBin
 		|| typeof options.owner.actions.video?.reloadSourceVisual !== 'function') {
 		throw new TypeError('Framescaper V20 proxy actions require their exact controller ports.');

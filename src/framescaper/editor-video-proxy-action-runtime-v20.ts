@@ -8,6 +8,7 @@ import type {
 export type FramescaperVideoProxyProgressPhase =
 	| 'queued'
 	| 'generating'
+	| 'validating'
 	| 'publishing'
 	| 'cleaning'
 	| 'complete';
@@ -37,6 +38,11 @@ export interface FramescaperVideoProxyActionRuntime {
 		pressure: Readonly<FramescaperVideoProxyPressureV20>,
 	): Promise<void>;
 	generate(sourceId: string, options?: FramescaperVideoProxyOperationOptions): Promise<void>;
+	attachExisting(
+		sourceId: string,
+		candidate: Blob,
+		options?: FramescaperVideoProxyOperationOptions,
+	): Promise<void>;
 	detach(sourceId: string): Promise<void>;
 	regenerate(sourceId: string, options?: FramescaperVideoProxyOperationOptions): Promise<void>;
 	relinkOriginal(
@@ -57,7 +63,7 @@ export function registerFramescaperVideoProxyActionRuntime(
 	}
 	for (const method of [
 		'mode', 'setMode', 'pressure', 'reportPreviewPressure',
-		'generate', 'detach', 'regenerate', 'relinkOriginal',
+		'generate', 'attachExisting', 'detach', 'regenerate', 'relinkOriginal',
 	] as const) {
 		if (typeof runtime[method] !== 'function') {
 			throw new TypeError(`The Framescaper video-proxy runtime requires ${method}.`);

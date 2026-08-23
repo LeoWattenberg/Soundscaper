@@ -26,14 +26,17 @@ import { cloneFramescaperProjectV18, type FramescaperProjectV18 } from './editor
 import { assertFramescaperProjectV19Profile } from './editor-project-v19-profile.ts';
 import { cloneFramescaperProjectV19, type FramescaperProjectV19 } from './editor-project-v19.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV20 } from './editor-project-feature-requirements-v20.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV27 } from './editor-project-feature-requirements-v27.ts';
 import { assertFramescaperProjectV20Profile } from './editor-project-v20-profile.ts';
 import { cloneFramescaperProjectV20, type FramescaperProjectV20 } from './editor-project-v20.ts';
+import { cloneFramescaperProjectV27, type FramescaperProjectV27 } from './editor-project-v27.ts';
+import { assertFramescaperProjectV27Profile } from './editor-project-runtime-profile-v27.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 
-export type FramescaperCapturedVideoProxySchemaVersion = 18 | 19 | 20;
+export type FramescaperCapturedVideoProxySchemaVersion = 18 | 19 | 20 | 27;
 export type FramescaperCapturedVideoProxyProject =
-	FramescaperProjectV18 | FramescaperProjectV19 | FramescaperProjectV20;
+	FramescaperProjectV18 | FramescaperProjectV19 | FramescaperProjectV20 | FramescaperProjectV27;
 
 export interface FramescaperCapturedVideoProxyPreservationPublication {
 	readonly expected: unknown;
@@ -375,7 +378,8 @@ function cloneProject(
 ): FramescaperCapturedVideoProxyProject {
 	if (schemaVersion === 18) return cloneFramescaperProjectV18(profile, project);
 	if (schemaVersion === 19) return cloneFramescaperProjectV19(profile, project);
-	return cloneFramescaperProjectV20(profile, project);
+	if (schemaVersion === 20) return cloneFramescaperProjectV20(profile, project);
+	return cloneFramescaperProjectV27(profile, project);
 }
 
 function assertProfile(
@@ -384,7 +388,8 @@ function assertProfile(
 ): void {
 	if (schemaVersion === 18) assertFramescaperProjectV18Profile(profile);
 	else if (schemaVersion === 19) assertFramescaperProjectV19Profile(profile);
-	else assertFramescaperProjectV20Profile(profile);
+	else if (schemaVersion === 20) assertFramescaperProjectV20Profile(profile);
+	else assertFramescaperProjectV27Profile(profile);
 }
 
 function reconcileRequirements(
@@ -394,7 +399,8 @@ function reconcileRequirements(
 ): unknown {
 	if (schemaVersion === 18) return reconcileFramescaperProjectFeatureRequirementsV18(profile, project);
 	if (schemaVersion === 19) return reconcileFramescaperProjectFeatureRequirementsV19(profile, project);
-	return reconcileFramescaperProjectFeatureRequirementsV20(profile, project);
+	if (schemaVersion === 20) return reconcileFramescaperProjectFeatureRequirementsV20(profile, project);
+	return reconcileFramescaperProjectFeatureRequirementsV27(profile, project);
 }
 
 function exactSource(

@@ -3,9 +3,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createVideoProxyCandidateObserverForRuntime } from '../src/common/editor/controller/video-proxy-candidate-composition.ts';
+import {
+	createVideoProxyCandidateObserverForRuntime,
+	createVideoProxyExistingCandidateObserverForRuntime,
+} from '../src/common/editor/controller/video-proxy-candidate-composition.ts';
 import {
 	assertVideoProxyCandidateObserver,
+	consumeVideoProxyCandidateObservation,
+	observeVideoProxyCandidate,
 } from '../src/common/editor/video-proxy-candidate-observation.ts';
 import { buildVideoProxyGenerationArgs } from '../src/common/editor/video-proxy-generation.ts';
 import type { FfmpegMediaFileLease } from '../src/common/editor/ffmpeg-media-file-operation.ts';
@@ -113,5 +118,44 @@ test('the composed observer encodes through the shipped recipe', async () => {
 		buildVideoProxyGenerationArgs({
 			inputPath: 'editor-proxy-1', outputPath: 'editor-proxy-1-proxy.mp4',
 		}),
+	);
+});
+
+test('a pathless existing proxy composes without an encoder and retains no file name', async () => {
+	const candidate = new File([new Uint8Array([7, 8, 9])], 'private-proxy-name.webm', {
+		type: 'video/webm',
+	});
+	const observer = createVideoProxyExistingCandidateObserverForRuntime(candidate, {
+		probeVideoTiming: () => Promise.resolve(PROBE_RESULT),
+	});
+	assert.ok(observer);
+	const original = new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' });
+	const observation = await observeVideoProxyCandidate(observer, {
+		original,
+		identity: {
+			authority: 'owned', projectId: 'project', sourceId: 'source',
+			storageKey: 'original', mimeType: original.type, byteLength: original.size,
+			sha256: 'a'.repeat(64), generationToken: 'generation',
+		},
+		originalSourceId: 'source',
+		assertCurrent() {},
+	});
+	const material = consumeVideoProxyCandidateObservation(observation);
+	assert.equal(material.candidate instanceof File, false);
+	assert.equal(material.candidate.type, candidate.type);
+	assert.deepEqual(new Uint8Array(await material.candidate.arrayBuffer()), new Uint8Array([7, 8, 9]));
+	assert.equal(material.generatorId, 'framescaper-pathless-existing-proxy');
+	assert.equal(material.recipeId, 'framescaper-existing-video-proxy-v1');
+});
+
+test('an existing proxy still requires an exact timing probe', () => {
+	const candidate = new Blob(['proxy'], { type: 'video/webm' });
+	assert.equal(createVideoProxyExistingCandidateObserverForRuntime(candidate, null), null);
+	assert.throws(
+		() => createVideoProxyExistingCandidateObserverForRuntime(
+			new Blob([], { type: 'video/webm' }),
+			{ probeVideoTiming: () => Promise.resolve(PROBE_RESULT) },
+		),
+		/cannot be empty/iu,
 	);
 });

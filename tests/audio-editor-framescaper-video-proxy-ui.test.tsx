@@ -4,12 +4,20 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+import FramescaperVideoProxyDialog from '../src/common/editor/ui/dialogs/FramescaperVideoProxyDialog.tsx';
 import {
 	createFramescaperVideoProxyApplicationMenuItems,
 } from '../src/common/editor/ui/framescaper-video-proxy-application-menu.ts';
 import {
 	createFramescaperVideoProxyDialogModel,
 } from '../src/common/editor/ui/framescaper-video-proxy-dialog-model.ts';
+import {
+	bindFramescaperVideoProxyActionRuntime,
+	registerFramescaperVideoProxyActionRuntime,
+} from '../src/framescaper/editor-video-proxy-action-runtime-v20.ts';
 
 test('selected V20 and V27 expose one existing-menu proxy manager with product isolation', () => {
 	let opens = 0;
@@ -56,6 +64,35 @@ test('the proxy workflow is lazy, menu-only, and does not activate native M5 pro
 	assert.match(finishingMenu, /createFramescaperVideoProxyApplicationMenuItems/u);
 	assert.doesNotMatch(overlays, /import FramescaperVideoProxyDialog from/u);
 	assert.match(nativeMenu, /professionalMediaProject[\s\S]*schemaVersion === 25 \|\| schemaVersion === 26/u);
+});
+
+test('the selected proxy dialog exposes pathless attach-existing from its lazy menu surface', () => {
+	const controller = {};
+	bindFramescaperVideoProxyActionRuntime(controller, registerFramescaperVideoProxyActionRuntime({
+		mode: () => 'auto',
+		setMode: async () => undefined,
+		pressure: () => null,
+		reportPreviewPressure: async () => undefined,
+		generate: async () => undefined,
+		attachExisting: async () => undefined,
+		detach: async () => undefined,
+		regenerate: async () => undefined,
+		relinkOriginal: async () => 'relinked',
+	}));
+	const markup = renderToStaticMarkup(<FramescaperVideoProxyDialog
+		controller={controller}
+		snapshot={{ project: project(27), selectedClipId: 'video-clip', missingSourceIds: [] }}
+		editingBlocked={false}
+		copy={{}}
+		fileService={{}}
+		run={(operation) => operation()}
+		onClose={() => undefined}
+	/>);
+	assert.match(markup, /data-video-proxy-attach-existing="true"/u);
+	assert.match(markup, /data-video-proxy-existing-file="true"/u);
+	assert.match(markup, /type="file"/u);
+	assert.match(markup, /accept="video\/\*"/u);
+	assert.doesNotMatch(markup, /path=/iu);
 });
 
 function project(schemaVersion: number) {

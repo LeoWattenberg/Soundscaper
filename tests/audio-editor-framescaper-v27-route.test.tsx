@@ -38,6 +38,9 @@ const { framescaperCandidateAuthoringActionRuntimeFor } = await import(
 const { framescaperSelectedRenderSessionRuntimeV27For } = await import(
 	'../src/framescaper/editor-selected-v27-render-session.ts'
 );
+const { framescaperVideoProxyActionRuntimeFor } = await import(
+	'../src/framescaper/editor-video-proxy-action-runtime-v20.ts'
+);
 
 test('selected V27 controller creates, edits, saves, undoes, and redoes exact documents', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV27({
@@ -65,6 +68,15 @@ test('selected V27 controller creates, edits, saves, undoes, and redoes exact do
 	assert.equal((await environment.store.loadProject(ready.project.id))?.schemaVersion, 27);
 	assert.equal(framescaperNativeProjectActionRuntimeFor(controller), null);
 	assert.ok(framescaperSelectedRenderSessionRuntimeV27For(controller));
+	const proxyRuntime = framescaperVideoProxyActionRuntimeFor(controller);
+	assert.ok(proxyRuntime);
+	assert.equal(typeof proxyRuntime.attachExisting, 'function');
+	await controller.actions.video.reportPreviewPressure('video-source', {
+		droppedFrameRatio: 0, decodeQueueDepth: 0, viewportScale: 1,
+	});
+	assert.deepEqual(proxyRuntime.pressure('video-source'), {
+		droppedFrameRatio: 0, decodeQueueDepth: 0, viewportScale: 1,
+	});
 });
 
 test('selected V27 visual authoring commits maintained V24 state through controller history', async (context) => {

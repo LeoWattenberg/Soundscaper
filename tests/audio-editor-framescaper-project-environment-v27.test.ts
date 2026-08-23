@@ -21,6 +21,8 @@ test('selected V27 environment retains the local store when no desktop bridge ex
 	assert.equal(environment.runtime.profile, FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE);
 	assert.equal(environment.desktopProjectLibrary, null);
 	assert.equal(environment.controllerStore, environment.store);
+	assert.ok(environment.claimCleanup);
+	assert.equal(environment.initialCleanup.status, 'settled');
 	assert.equal(assertFramescaperEditorProjectEnvironmentV27(environment), environment);
 });
 
