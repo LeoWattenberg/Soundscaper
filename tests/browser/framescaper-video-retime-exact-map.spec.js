@@ -11,9 +11,11 @@ import {
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 test('exact V2 map authoring is keyboard-reached, validated, and one-step undoable', async ({ page }) => {
 	test.setTimeout(120_000);
+	await installPinnedFfmpegRuntimeRoutes(page);
 	const clientErrors = collectClientErrors(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await importFiles(editor, [createDeterministicAvFixture('exact-map-authoring.webm')]);
