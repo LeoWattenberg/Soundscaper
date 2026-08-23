@@ -20,6 +20,8 @@ import {
 } from '../src/framescaper/editor-project-v27.ts';
 import { FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v24.ts';
 import { createFramescaperProjectV24 } from '../src/framescaper/editor-project-v24.ts';
+import { FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v22.ts';
+import { createFramescaperProjectV22 } from '../src/framescaper/editor-project-v22.ts';
 import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v20.ts';
 import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
@@ -122,6 +124,16 @@ test('new projects disclose source assumptions while explicit old-project reimpo
 	assert.equal((imported.clips as readonly Readonly<Record<string, unknown>>[])
 		.find(({ id }) => id === 'video-clip')?.id, 'video-clip');
 	assert.throws(() => loadFramescaperProjectV27(PROFILE, v20), /explicit.*reimport|re-import/iu);
+
+	const v22 = createFramescaperProjectV22(FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE, {
+		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
+	});
+	const v22Before = structuredClone(v22);
+	const importedV22 = reimportFramescaperProjectV27(PROFILE, v22);
+	assert.equal(importedV22.schemaVersion, 27);
+	assert.equal(importedV22.videoSourceColorInterpretations[0]?.provenance, 'legacy-unmanaged-encoded');
+	assert.deepEqual(v22, v22Before, 'explicit reimport leaves the dormant V22 document immutable');
+	assert.throws(() => loadFramescaperProjectV27(PROFILE, v22), /explicit.*reimport|re-import/iu);
 
 	const v24 = createFramescaperProjectV24(FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE, {
 		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
