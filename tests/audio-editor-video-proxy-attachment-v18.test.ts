@@ -254,6 +254,12 @@ test('remains a closed scalar owner with only the reviewed cumulative consumers'
 		'src/framescaper/editor-video-proxy-cleanup-v20.ts',
 		'src/framescaper/editor-video-proxy-command-v20.ts',
 		'src/framescaper/editor-video-proxy-preview-media-v20.ts',
+		// The V27 desktop publication bridge validates inherited proxy bodies
+		// before transferring them into the isolated V18 library.
+		'src/framescaper/desktop-project-library-v27-body-transfer.ts',
+		// The V27 Scape extension preserves the same attachment while it plans
+		// independently authenticated proxy and timing bodies.
+		'src/framescaper/editor-scape-asset-plan-v27.ts',
 		// Decides which attachments an edit leaves true, so it reads the wire it
 		// carries forward.
 		'src/framescaper/editor-video-proxy-attachment-retention-v18.ts',

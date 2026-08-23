@@ -87,7 +87,7 @@ test('selected V27 controller creates, edits, saves, undoes, and redoes exact do
 	assert.ok(productVideoVisualPreviewRuntimeFor(controller));
 });
 
-test('selected V27 visual authoring commits maintained V24 state through controller history', async (context) => {
+test('selected V27 visual authoring commits menu-direct state and fences dialog workflows', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV27({
 		storeOptions: {
 			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
@@ -126,18 +126,19 @@ test('selected V27 visual authoring commits maintained V24 state through control
 	for (const surface of ['video-title', 'video-text', 'video-shape'] as const) {
 		await runtime.run(surface);
 	}
-	await assert.rejects(runtime.run('video-adjustment-layer'), /timeline video clip/iu);
-	await runtime.run('video-mask-matte');
-	await runtime.run('video-visual-preset');
+	for (const surface of [
+		'video-transition', 'video-transition-dissolve', 'video-adjustment-layer',
+		'video-visual-preset', 'video-mask-matte', 'video-freeze',
+	] as const) await assert.rejects(runtime.run(surface), /menu-opened dialog/iu);
 	project = visualProject(controller.project);
 	assert.deepEqual(project.sources.filter(({ kind }) => kind === 'generator')
 		.map(({ generator }) => generator?.kind), ['solid', 'title', 'text', 'shape']);
 	assert.equal(project.videoAdjustmentLayers.length, 0);
-	assert.equal(project.videoMaskMattes.length, 1);
-	assert.equal(project.videoVisualPresets.length, 1);
+	assert.equal(project.videoMaskMattes.length, 0);
+	assert.equal(project.videoVisualPresets.length, 0);
 	await controller.actions.project.save();
 	const persisted = visualProject(await environment.store.loadProject(ready.project.id));
-	assert.equal(persisted.videoVisualPresets.length, 1);
+	assert.equal(persisted.sources.filter(({ kind }) => kind === 'generator').length, 4);
 });
 
 test('selected Framescaper web runtime reaches V27 and its lazy bootstrap adds no visible control', async (context) => {

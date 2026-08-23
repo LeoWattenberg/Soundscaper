@@ -58,7 +58,7 @@ test('the candidate enables inherited transitions and V24 visual prerequisites f
 		'videoTransitions', 'videoTransitionDissolve', 'videoStills', 'videoGenerators',
 		'videoAdjustmentLayers', 'videoMasksMattes', 'videoFreeze',
 	]) assert.equal(rows.get(key), true, key);
-	assert.equal(rows.get('videoRetime'), false, 'retime remains activation-gated');
+	assert.equal(rows.get('videoRetime'), true, 'the candidate inherits activated V20 retime');
 });
 
 test('desktop V15 keeps an exact isolated handshake and path scope', () => {
