@@ -12,6 +12,7 @@ function captionTrack(): VideoCaptionTrackV1 {
 	return normalizeVideoCaptionTrackV1({
 		schemaVersion: 1,
 		id: 'captions-en',
+		sequenceId: 'main-sequence',
 		name: 'English',
 		language: 'en-GB',
 		styles: [{

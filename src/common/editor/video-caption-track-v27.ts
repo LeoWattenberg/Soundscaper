@@ -68,6 +68,7 @@ export interface VideoCaptionCueV1 {
 export interface VideoCaptionTrackV1 {
 	readonly schemaVersion: 1;
 	readonly id: string;
+	readonly sequenceId: string;
 	readonly name: string;
 	readonly language: string;
 	readonly styles: readonly VideoCaptionStyleV1[];
@@ -77,7 +78,8 @@ export interface VideoCaptionTrackV1 {
 }
 
 const TRACK_FIELDS = Object.freeze([
-	'schemaVersion', 'id', 'name', 'language', 'styles', 'regions', 'speakers', 'cues',
+	'schemaVersion', 'id', 'sequenceId', 'name', 'language', 'styles', 'regions', 'speakers',
+	'cues',
 ]);
 const STYLE_FIELDS = Object.freeze([
 	'schemaVersion', 'id', 'fontFamily', 'fontSizePercent', 'foregroundColor',
@@ -123,6 +125,7 @@ export function normalizeVideoCaptionTrackV1(value: unknown): VideoCaptionTrackV
 	return Object.freeze({
 		schemaVersion: 1 as const,
 		id: stableId(field(record, 'id', name), 'caption track ID'),
+		sequenceId: stableId(field(record, 'sequenceId', name), 'caption track sequence ID'),
 		name: safeText(field(record, 'name', name), 'caption track name', 512, false),
 		language: language(field(record, 'language', name)),
 		styles: Object.freeze(styles),
