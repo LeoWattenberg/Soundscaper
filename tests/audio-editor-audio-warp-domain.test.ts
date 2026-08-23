@@ -159,10 +159,42 @@ test('quantization applies a reusable groove target with independently adjustabl
 	assert.deepEqual(fullGroove.points[1].outer, { num: 4, den: 3 });
 });
 
-test('quantization rejects transient inversions, collisions, bounds, and invalid grids', () => {
-	assert.throws(() => quantizeAudioWarpTransients(IDENTITY_WARP, [4, { num: 41, den: 10 }], {
+test('quantization keeps a transient whose move would collide instead of failing', () => {
+	// Two onsets sharing a nearest grid line are ordinary material (eighth
+	// notes on a quarter grid); the command stays total by leaving the
+	// unquantizable transient where it is rather than refusing the action.
+	const collided = quantizeAudioWarpTransients(IDENTITY_WARP, [4, { num: 41, den: 10 }], {
 		grid: { origin: 0, interval: 2 }, strength: 1,
-	}), /strictly increasing/iu);
+	});
+	assert.deepEqual(collided.points.map(({ outer }) => outer), [
+		{ num: 0, den: 1 }, { num: 4, den: 1 }, { num: 41, den: 10 }, { num: 10, den: 1 },
+	]);
+
+	// A lone colliding pair snaps the reachable transient onto the line.
+	const paired = quantizeAudioWarpTransients(IDENTITY_WARP, [
+		{ num: 39, den: 10 }, { num: 41, den: 10 },
+	], { grid: { origin: 0, interval: 2 }, strength: 1 });
+	assert.deepEqual(paired.points.map(({ outer }) => outer), [
+		{ num: 0, den: 1 }, { num: 39, den: 10 }, { num: 4, den: 1 }, { num: 10, den: 1 },
+	]);
+
+	// A transient whose grid line is the end anchor cannot move onto it at
+	// full strength, and cannot move past it at any strength.
+	const anchored = quantizeAudioWarpTransients(IDENTITY_WARP, [9], {
+		grid: { origin: 0, interval: 10 }, strength: 1,
+	});
+	assert.deepEqual(anchored.points.map(({ outer }) => outer), [
+		{ num: 0, den: 1 }, { num: 9, den: 1 }, { num: 10, den: 1 },
+	]);
+	const partial = quantizeAudioWarpTransients(IDENTITY_WARP, [9], {
+		grid: { origin: 0, interval: 10 }, strength: { num: 1, den: 2 },
+	});
+	assert.deepEqual(partial.points.map(({ outer }) => outer), [
+		{ num: 0, den: 1 }, { num: 19, den: 2 }, { num: 10, den: 1 },
+	]);
+});
+
+test('quantization rejects transient inversions, bounds, and invalid grids', () => {
 	assert.throws(() => quantizeAudioWarpTransients(IDENTITY_WARP, [4, 3], {
 		grid: { origin: 0, interval: 2 }, strength: 0,
 	}), /transient.*strictly increasing/iu);

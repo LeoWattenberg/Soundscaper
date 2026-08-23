@@ -158,18 +158,40 @@ export function quantizeAudioWarpTransients(
 			: 1, 'audio groove strength')
 		: null;
 	if (compareRationals(strength, 0) === 0 || !transients.length) return map;
-	const points = mergeTransientPoints(map, transients).map((point, index, all) => {
-		if (!point.transient || index === 0 || index === all.length - 1) return stablePoint(point);
+	const merged = mergeTransientPoints(map, transients);
+	const candidates = merged.map((point, index) => {
+		if (!point.transient || index === 0 || index === merged.length - 1) return null;
 		const relative = divideRationals(subtractRationals(point.outer, grid.origin), grid.interval);
 		const gridIndex = roundRational(relative.num, relative.den, 'point');
 		const target = groove
 			? applyAudioGrooveTemplate(gridIndex, grid, groove, grooveStrength!)
 			: addRationals(grid.origin, multiplyRationals(grid.interval, gridIndex));
-		return Object.freeze({
-			outer: interpolateAudioWarpRational(point.outer, target, strength),
-			source: point.source,
-			mode: 'forward' as const,
-		});
+		return interpolateAudioWarpRational(point.outer, target, strength);
+	});
+	// Quantizing each transient independently can collide neighbours that
+	// share a nearest grid line, cross an unselected anchor, or land on an
+	// endpoint. The command stays total: a transient whose move cannot keep
+	// the map strictly increasing simply keeps its position. A move is safe
+	// when it stays above the previous resolved outer and below the next
+	// point's lowest possible outer, so one ordered pass resolves every point.
+	let previousOuter = merged[0]!.outer;
+	const points = merged.map((point, index) => {
+		const candidate = candidates[index];
+		if (candidate === null) {
+			previousOuter = point.outer;
+			return stablePoint(point);
+		}
+		const next = merged[index + 1]!;
+		const nextCandidate = candidates[index + 1];
+		const nextBound = nextCandidate !== null && compareRationals(nextCandidate, next.outer) < 0
+			? nextCandidate
+			: next.outer;
+		if (compareRationals(candidate, previousOuter) <= 0 || compareRationals(candidate, nextBound) >= 0) {
+			previousOuter = point.outer;
+			return stablePoint(point);
+		}
+		previousOuter = candidate;
+		return Object.freeze({ outer: candidate, source: point.source, mode: 'forward' as const });
 	});
 	return normalizeAudioWarpMap({ feature: 'audio-warp', points });
 }
