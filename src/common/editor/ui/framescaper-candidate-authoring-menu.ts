@@ -32,10 +32,10 @@ const EMPTY: FramescaperCandidateAuthoringMenuItems = Object.freeze({
 	tracks: Object.freeze([]), generate: Object.freeze([]), effect: Object.freeze([]),
 });
 
-const TRANSITION_SCHEMAS = new Set([22, 24, 25, 26]);
-const VISUAL_SCHEMAS = new Set([24, 25, 26]);
+const TRANSITION_SCHEMAS = new Set([22, 24, 25, 26, 27]);
+const VISUAL_SCHEMAS = new Set([24, 25, 26, 27]);
 
-/** Candidate-only menu entries. V20 and every Soundscaper generation return no rows. */
+/** Generation-owned menu entries. V20 and every Soundscaper generation return no rows. */
 export function createFramescaperCandidateAuthoringMenuItems(
 	input: FramescaperCandidateAuthoringMenuInput,
 	actions: Readonly<{ open(surface: FramescaperCandidateAuthoringSurface): unknown }>,

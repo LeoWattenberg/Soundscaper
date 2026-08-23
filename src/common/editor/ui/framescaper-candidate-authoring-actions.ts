@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Dormant menu-only authoring entry points. The selected V20 controller binds none. */
+/** Menu-only authoring entry points shared by dormant lineages and selected V27. */
 export const FRAMESCAPER_CANDIDATE_AUTHORING_SURFACES = Object.freeze([
 	'video-transition',
 	'video-transition-dissolve',

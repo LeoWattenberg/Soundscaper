@@ -66,28 +66,32 @@ test('V22 exposes transition authoring only through Effect when exact capabiliti
 	assert.deepEqual(blocked.effect[0]?.items?.map(({ disabled }) => disabled), [false, true]);
 });
 
-test('V24+ exposes visual authoring in existing menus and V20/Soundscaper expose none', async () => {
+test('V24 candidates and selected V27 expose visual authoring in existing menus', async () => {
 	const capabilities = {
 		videoTransitions: true, videoTransitionDissolve: true,
 		videoStills: true, videoGenerators: true, videoAdjustmentLayers: true,
 		videoMasksMattes: true, videoFreeze: true,
 	};
-	const items = createFramescaperCandidateAuthoringMenuItems({
-		productId: 'framescaper', project: { schemaVersion: 24 }, editingBlocked: false,
-		projectCapabilities: capabilities, actionSurfaces: VISUALS,
-	}, { open: () => undefined });
-	assert.deepEqual(items.tracks.map(({ id }) => id), ['framescaper-add-video-adjustment-layer']);
-	assert.deepEqual(items.generate.map(({ id }) => id), [
-		'framescaper-add-video-still', 'framescaper-video-generators',
-	]);
-	assert.deepEqual(items.generate[1]?.items?.map(({ id }) => id), [
-		'framescaper-add-video-title', 'framescaper-add-video-shape',
-		'framescaper-add-video-solid', 'framescaper-add-external-video-generator',
-	]);
-	assert.deepEqual(items.effect.map(({ id }) => id), [
-		'framescaper-video-transitions', 'framescaper-edit-video-mask-matte',
-		'framescaper-freeze-video',
-	]);
+	for (const schemaVersion of [24, 27]) {
+		const items = createFramescaperCandidateAuthoringMenuItems({
+			productId: 'framescaper', project: { schemaVersion }, editingBlocked: false,
+			projectCapabilities: capabilities, actionSurfaces: VISUALS,
+		}, { open: () => undefined });
+		assert.deepEqual(items.tracks.map(({ id }) => id), ['framescaper-add-video-adjustment-layer']);
+		assert.deepEqual(items.generate.map(({ id }) => id), [
+			'framescaper-add-video-still', 'framescaper-video-generators',
+		]);
+		assert.deepEqual(items.generate[1]?.items?.map(({ id }) => id), [
+			'framescaper-add-video-title', 'framescaper-add-video-shape',
+			'framescaper-add-video-solid', 'framescaper-add-external-video-generator',
+		]);
+		assert.deepEqual(items.effect.map(({ id }) => id), [
+			'framescaper-video-transitions', 'framescaper-edit-video-mask-matte',
+			'framescaper-freeze-video',
+		]);
+	}
+
+	// V20 remains selected only until V27 boots; Soundscaper never receives Framescaper rows.
 	for (const input of [
 		{ productId: 'framescaper', project: { schemaVersion: 20 } },
 		{ productId: 'soundscaper', project: { schemaVersion: 24 } },
