@@ -448,4 +448,3 @@ function containedDocument(root: string, value: string): string {
 	}
 	return result;
 }
-
