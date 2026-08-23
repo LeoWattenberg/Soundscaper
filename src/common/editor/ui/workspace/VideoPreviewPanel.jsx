@@ -35,10 +35,12 @@ import {
 	shouldHideVideoPreviewIdentityFallback,
 } from './video-preview-fallback.ts';
 import { publishEvaluatedVideoPreviewFrame } from './video-preview-external-display.ts';
+import { bindFramescaperV27PreviewFreezeCapture } from './video-preview-freeze-capture.ts';
 import { resolveRegisteredVideoRetimePreview } from './video-preview-retime.ts';
 
 export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	const canvasRef = useRef(null);
+	const previewRootRef = useRef(null);
 	const compositorRef = useRef(null);
 	const videoElementsRef = useRef(new Map());
 	const compositorLayersRef = useRef([]);
@@ -61,6 +63,8 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	});
 	const animationFrameRef = useRef(0);
 	const requestProductVisualFrameRef = useRef(() => {});
+	const freezeCaptureProjectRef = useRef(null);
+	const freezeEvaluatedFrameRef = useRef(null);
 	const [compositorState, setCompositorState] = useState('pending');
 	const [renderIssue, setRenderIssue] = useState(() => resolveVideoPreviewRenderIssue(null));
 	const [mediaErrorRevision, setMediaErrorRevision] = useState(0);
@@ -113,6 +117,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	);
 	const project = snapshot.videoPreviewProject || snapshot.project;
 	const canonicalProject = snapshot.project;
+	freezeCaptureProjectRef.current = canonicalProject;
 	const retimePreview = useMemo(() => resolveRegisteredVideoRetimePreview(
 		project, typeof controller.actions.sequences?.retimeSet === 'function',
 	), [controller, project]);
@@ -299,6 +304,17 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			report = createVideoPreviewCompositorFallbackReport(composedLayersRef.current);
 		}
 		updateRenderIssue(report);
+		const freezeProject = freezeCaptureProjectRef.current;
+		if (report.status !== 'fallback' && freezeProject?.schemaVersion === 27) {
+			freezeEvaluatedFrameRef.current = {
+				projectId: freezeProject.id,
+				projectRevision: freezeProject.revision,
+				timelineSample: timelineFrame,
+			};
+		}
+		if (previewRootRef.current && report.status !== 'fallback') {
+			previewRootRef.current.dataset.videoPreviewEvaluatedTimelineSample = String(timelineFrame);
+		}
 		try {
 			publishEvaluatedVideoPreviewFrame({ compositor, project, timelineFrame });
 		} catch { /* clean-display failure must not stop the editor preview */ }
@@ -393,6 +409,21 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		};
 	}, [requestPreviewFrame, updateCompositorState, updateRenderIssue]);
 	useEffect(() => {
+		if (canonicalProject?.schemaVersion !== 27) return undefined;
+		let disposed = false;
+		let release = () => {};
+		void bindFramescaperV27PreviewFreezeCapture({
+			owner: controller,
+			projectRef: freezeCaptureProjectRef,
+			evaluatedRef: freezeEvaluatedFrameRef,
+			compositorRef,
+		}).then((boundRelease) => {
+			if (disposed) boundRelease();
+			else release = boundRelease;
+		});
+		return () => { disposed = true; release(); };
+	}, [canonicalProject?.schemaVersion, controller]);
+	useEffect(() => {
 		if (compositorRef.current || compositorStateRef.current !== 'fallback') return;
 		updateRenderIssue(createVideoPreviewCompositorFallbackReport(
 			composedLayersRef.current.length ? composedLayersRef.current : constructorFallbackLayers,
@@ -422,6 +453,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 
 	return (
 		<div
+			ref={previewRootRef}
 			className="kw-audio-editor__video-preview"
 			data-video-preview
 			data-active-clip-id={visualPreviewState.activeClipIds.at(-1) || topActiveEntry?.clipId || ''}

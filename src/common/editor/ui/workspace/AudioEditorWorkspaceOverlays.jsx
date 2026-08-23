@@ -2,6 +2,7 @@ import React from 'react';
 import ScapeOpenDecisionDialog from './ScapeOpenDecisionDialog.jsx';
 import SoundscaperProductionWorkspaceOverlay from './SoundscaperProductionWorkspaceOverlay.tsx';
 import { framescaperV27FinishingSurface } from '../framescaper-v27-finishing-menu.ts';
+import { framescaperSelectedV27VisualAuthoringSurface } from '../framescaper-selected-v27-visual-authoring-menu.ts';
 
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
@@ -12,6 +13,7 @@ const VideoRetimeDialog = React.lazy(() => import('../dialogs/VideoRetimeDialog.
 const FramescaperVideoProxyDialog = React.lazy(() => import('../dialogs/FramescaperVideoProxyDialog.tsx'));
 const FramescaperV27FinishingDialog = React.lazy(() => import('../dialogs/FramescaperV27FinishingDialog.tsx'));
 const FramescaperV27VisualInspectorDialog = React.lazy(() => import('../dialogs/FramescaperV27VisualInspectorDialog.tsx'));
+const FramescaperSelectedV27VisualAuthoringDialog = React.lazy(() => import('../dialogs/FramescaperSelectedV27VisualAuthoringDialog.tsx'));
 const ExportDialog = React.lazy(() => import('../inspector/ExportDialog.jsx'));
 const DeliveryQueueDialog = React.lazy(() => import('../inspector/DeliveryQueueDialog.jsx'));
 const LabelExportDialog = React.lazy(() => import('../inspector/LabelExportDialog.jsx'));
@@ -69,6 +71,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		toggleWorkspacePanel,
 	} = model;
 	const framescaperFinishingSurface = framescaperV27FinishingSurface(activeSurface);
+	const selectedV27AuthoringSurface = framescaperSelectedV27VisualAuthoringSurface(activeSurface);
 	return <>
 			<SoundscaperProductionWorkspaceOverlay model={model} />
 
@@ -198,6 +201,24 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							editingBlocked={editBlocked}
 							readOnly={snapshot.readOnly === true}
 							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{productId === 'framescaper' && snapshot.project?.schemaVersion === 27
+				&& selectedV27AuthoringSurface && (
+				<div data-editor-surface="framescaper-selected-v27-authoring">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<FramescaperSelectedV27VisualAuthoringDialog
+							surface={selectedV27AuthoringSurface}
+							controller={controller}
+							project={snapshot.project}
+							selectedClipId={snapshot.selectedClipId ?? null}
+							playheadSample={controller.getTelemetrySnapshot()?.positionFrame ?? 0}
+							editingBlocked={editBlocked}
+							readOnly={snapshot.readOnly === true}
 							run={run}
 							onClose={() => setActiveSurface(null)}
 						/>

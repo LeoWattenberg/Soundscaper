@@ -1,11 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
+import sharp from 'sharp';
 
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
+	chooseDropdown,
+	chooseFileAction,
 	chooseNestedCommandAction,
 	collectClientErrors,
 	importFiles,
@@ -15,11 +18,13 @@ import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 test.describe('selected V27 exact visual preview', () => {
+	test.describe.configure({ mode: 'serial' });
+
 	test.beforeEach(async ({ page }) => {
 		await installPinnedFfmpegRuntimeRoutes(page);
 	});
 
-	test('menu-authored generator, preset, presentation, and mask change pixels and reopen', async ({ page }) => {
+	test('menu-authored generator, preset, presentation, and mask change pixels, reopen, and reach video export', async ({ page }) => {
 		test.setTimeout(180_000);
 		const clientErrors = collectClientErrors(page);
 		let editor = await bootEditor(page, '/framescaper/embed/en/');
@@ -27,10 +32,10 @@ test.describe('selected V27 exact visual preview', () => {
 		expect(projectId).toBeTruthy();
 
 		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
-			await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({
-				generatorCount: 1, presentationCount: 0, maskCount: 0, presetCount: 0,
-			});
-			let state = await storedVisualState(page, projectId);
+		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({
+			generatorCount: 1, presentationCount: 0, maskCount: 0, presetCount: 0,
+		});
+		let state = await storedVisualState(page, projectId);
 		const firstClipId = state.generatorClipIds[0];
 		expect(firstClipId).toBeTruthy();
 		await selectAndSeekClip(editor, firstClipId, 0.25, state);
@@ -54,9 +59,24 @@ test.describe('selected V27 exact visual preview', () => {
 		expect(redPixels).not.toBe(originalPixels);
 
 		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Save Visual Preset…']);
+		let authoring = page.getByRole('dialog', { name: 'Selected Visual Presets', exact: true });
+		await expect(authoring).toBeVisible();
+		await expect(authoring.locator('[data-v27-authoring-preset-name]')).toBeFocused();
+		await assertNoSeriousAxeViolations(page, '[data-framescaper-selected-v27-authoring]');
+		await authoring.locator('[data-v27-authoring-preset-name]').fill('Selected red solid');
+		await authoring.locator('[data-v27-authoring-save-visual]').click();
+		await expect(authoring.getByRole('status')).toContainText('Selected visual preset saved.');
+		await page.keyboard.press('Escape');
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ presetCount: 1 });
 		await chooseNestedCommandAction(page, editor, 'Effect', ['Edit Video Mask/Matte…']);
-			await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ maskCount: 1 });
+		authoring = page.getByRole('dialog', { name: 'Selected Mask / Matte', exact: true });
+		await expect(authoring).toBeVisible();
+		await authoring.locator('[data-v27-authoring-mask-shape]').selectOption('ellipse');
+		await authoring.locator('[data-v27-authoring-mask-width]').fill('0.5');
+		await authoring.locator('[data-v27-authoring-apply]').click();
+		await expect(authoring.getByRole('status')).toContainText('Selected authored state applied.');
+		await page.keyboard.press('Escape');
+		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ maskCount: 1 });
 		state = await storedVisualState(page, projectId);
 		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
 		dialog = await openVisualInspector(page, editor);
@@ -72,35 +92,61 @@ test.describe('selected V27 exact visual preview', () => {
 		expect(maskedPixels).not.toBe(redPixels);
 
 		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
-			await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ generatorCount: 2 });
+		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ generatorCount: 2 });
 		state = await storedVisualState(page, projectId);
 		const secondClipId = state.generatorClipIds.find((id) => id !== firstClipId);
 		expect(secondClipId).toBeTruthy();
 		await selectAndSeekClip(editor, secondClipId, 0.25, state);
 		await expectExactVisualFrame(preview, 1);
 		const beforePreset = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
-		dialog = await openVisualInspector(page, editor);
-		const preset = dialog.locator('[data-visual-inspector-preset]');
-		await expect(preset).toBeVisible();
-		await preset.selectOption({ label: 'Visual Preset' });
-		await dialog.locator('[data-visual-inspector-apply]').click();
-		await expect(dialog.getByRole('status')).toContainText('Selected visual updated.');
+		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Save Visual Preset…']);
+		authoring = page.getByRole('dialog', { name: 'Selected Visual Presets', exact: true });
+		await expect(authoring).toBeVisible();
+		await authoring.locator('[data-v27-authoring-visual-preset]').selectOption({ label: 'Selected red solid' });
+		await authoring.locator('[data-v27-authoring-apply-visual]').click();
+		await expect(authoring.getByRole('status')).toContainText('Selected authored state applied.');
 		await page.keyboard.press('Escape');
 		await expectExactVisualFrame(preview, 1);
 		const afterPreset = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		expect(afterPreset).not.toBe(beforePreset);
 
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({
-			generatorCount: 2, presentationCount: 2, maskCount: 1, presetCount: 1,
+			generatorCount: 2, presentationCount: 1, maskCount: 1, presetCount: 1,
+		});
+		await chooseFileAction(page, editor, 'Save project');
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
+			timeout: 15_000,
+		});
+		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({
+			generatorColorByClip: { [secondClipId]: '#ff0000ff' },
 		});
 		await page.reload();
 		editor = page.locator('[data-audio-editor]');
 		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
 		await expect(editor).toHaveAttribute('data-project-id', projectId);
 		state = await storedVisualState(page, projectId);
+		expect(state.generatorColorByClip[secondClipId]).toBe('#ff0000ff');
 		await selectAndSeekClip(editor, secondClipId, 0.25, state);
 		await expectExactVisualFrame(editor.locator('[data-video-preview]'), 1);
-		expect(await screenshotDigest(editor.locator('[data-video-preview-canvas]'))).toBe(afterPreset);
+		await expect.poll(() => screenshotDigest(editor.locator('[data-video-preview-canvas]')))
+			.toBe(afterPreset);
+
+		await chooseFileAction(page, editor, 'Export audio');
+		const exportDialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
+		await expect(exportDialog).toBeVisible();
+		await chooseDropdown(
+			page,
+			exportDialog.getByRole('group', { name: 'Format', exact: true }),
+			'MP4 video',
+		);
+		const canvasSize = exportDialog.locator('[data-export-field="canvasSize"] input');
+		await canvasSize.nth(0).fill('64');
+		await canvasSize.nth(1).fill('64');
+		await exportDialog.locator('[data-export-field="canvasFrameRate"] input').fill('1');
+		await expect(exportDialog.locator('[data-export-action="start"]').getByRole('button'))
+			.toBeEnabled();
+		await exportDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await expect(exportDialog).toBeHidden();
 		expect(clientErrors).toEqual([]);
 	});
 
@@ -120,27 +166,45 @@ test.describe('selected V27 exact visual preview', () => {
 		const beforeAdjustment = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add Video Adjustment Layer…']);
+		let authoring = page.getByRole('dialog', { name: 'Selected Video Adjustment Layer', exact: true });
+		await expect(authoring).toBeVisible();
+		await authoring.locator('[data-v27-authoring-brightness]').fill('0.4');
+		await authoring.locator('[data-v27-authoring-apply]').click();
+		await expect(authoring.getByRole('status')).toContainText('Selected authored state applied.');
+		await page.keyboard.press('Escape');
 		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ adjustmentCount: 1 });
 		await expectExactVisualFrame(preview, 1);
 		await expect(preview).toHaveAttribute('data-video-preview-requested-effect-count', '1');
 		await expect(preview).toHaveAttribute('data-video-preview-omitted-effect-count', '0');
 		const afterAdjustment = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		expect(afterAdjustment).not.toBe(beforeAdjustment);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ adjustmentCount: 0 });
+		await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ adjustmentCount: 1 });
 
 		await chooseNestedCommandAction(page, editor, 'Effect', ['Freeze Video…']);
-			await expect.poll(() => storedVisualState(page, projectId), { timeout: 30_000 })
-				.toMatchObject({ freezeCount: 1, stillCount: 1 });
-			const state = await storedVisualState(page, projectId);
+		authoring = page.getByRole('dialog', { name: 'Freeze Selected Video', exact: true });
+		await expect(authoring).toBeVisible();
+		await authoring.locator('[data-v27-authoring-freeze-duration]').fill('24');
+		await authoring.locator('[data-v27-authoring-freeze]').click();
+		await expect(authoring.getByRole('status')).toContainText('Exact playhead freeze created.', { timeout: 30_000 });
+		await page.keyboard.press('Escape');
+		await expect.poll(() => storedVisualState(page, projectId), { timeout: 30_000 })
+			.toMatchObject({ freezeCount: 1, stillCount: 1 });
+		const state = await storedVisualState(page, projectId);
 		const freezeClipId = state.stillClipIds[0];
 		expect(freezeClipId).toBeTruthy();
 		await selectAndSeekClip(editor, freezeClipId, 0.2, state);
 		await expectExactVisualFrame(preview, 2);
 		await expect(preview).toHaveAttribute('data-video-preview-active-freeze-node-ids', /video-freeze/u);
-		const freezeEarly = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
+		const freezeEarly = await screenshotPixels(editor.locator('[data-video-preview-canvas]'));
 		await selectAndSeekClip(editor, freezeClipId, 0.8, state);
 		await expectExactVisualFrame(preview, 2);
-		const freezeLate = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
-		expect(freezeLate).toBe(freezeEarly);
+		const freezeLate = await screenshotPixels(editor.locator('[data-video-preview-canvas]'));
+		const freezeDelta = pixelDelta(freezeEarly, freezeLate);
+		expect(freezeDelta.maximum).toBeLessThanOrEqual(2);
+		expect(freezeDelta.mean).toBeLessThan(0.1);
 		expect(clientErrors).toEqual([]);
 	});
 });
@@ -165,6 +229,10 @@ async function selectAndSeekClip(editor, clipId, fraction, state) {
 	await input.fill(timecode);
 	await input.press('Enter');
 	await expect(editor.locator('[data-sequence-timecode]')).toHaveAttribute('data-sequence-timecode', timecode);
+	const sample = Math.round(frame * state.rate.den * state.sampleRate / state.rate.num);
+	await expect(editor.locator('[data-video-preview]')).toHaveAttribute(
+		'data-video-preview-evaluated-timeline-sample', String(sample),
+	);
 	await clip.focus();
 	await clip.press('Enter');
 	await expect(clip.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
@@ -182,23 +250,43 @@ function sequenceTimecode(frame, rate) {
 }
 
 async function expectExactVisualFrame(preview, minimumRequested) {
-	await expect.poll(() => preview.evaluate((element) => {
+	await expect.poll(() => preview.evaluate((element, minimum) => {
 		const requested = Number(element.dataset.videoPreviewVisualRequestedCount || 0);
 		const consumed = Number(element.dataset.videoPreviewVisualConsumedCount || 0);
 		return {
 			pending: element.dataset.videoPreviewVisualPending,
 			error: element.dataset.videoPreviewVisualError,
 			omitted: element.dataset.videoPreviewVisualOmittedCount,
-			requested, consumed,
+			exact: requested >= minimum && consumed === requested,
 		};
-	})).toMatchObject({ pending: 'false', error: '', omitted: '0',
-		requested: minimumRequested, consumed: minimumRequested });
+	}, minimumRequested)).toMatchObject({ pending: 'false', error: '', omitted: '0', exact: true });
 	await expect(preview).toHaveAttribute('data-video-preview-renderer', 'ready');
 }
 
 async function screenshotDigest(canvas) {
+	return createHash('sha256').update(await screenshotPixels(canvas)).digest('hex');
+}
+
+async function screenshotPixels(canvas) {
 	await expect(canvas).toBeVisible();
-	return createHash('sha256').update(await canvas.screenshot()).digest('hex');
+	const { data } = await sharp(await canvas.screenshot()).raw().toBuffer({
+		resolveWithObject: true,
+	});
+	return data;
+}
+
+function pixelDelta(left, right) {
+	expect(right.byteLength).toBe(left.byteLength);
+	let changed = 0;
+	let maximum = 0;
+	let total = 0;
+	for (let index = 0; index < left.byteLength; index += 1) {
+		const difference = Math.abs(left[index] - right[index]);
+		if (difference > 0) changed += 1;
+		maximum = Math.max(maximum, difference);
+		total += difference;
+	}
+	return { changed, maximum, mean: total / left.byteLength };
 }
 
 async function storedVisualState(page, projectId) {
@@ -217,9 +305,19 @@ async function storedVisualState(page, projectId) {
 				sequenceId === project.primarySequenceId
 			)) || project?.sequences?.[0];
 			const visuals = clips.filter(({ kind }) => kind === 'generator' || kind === 'still');
+			const sources = project?.sources || [];
 			return {
 				generatorCount: clips.filter(({ kind }) => kind === 'generator').length,
 				generatorClipIds: clips.filter(({ kind }) => kind === 'generator').map(({ id }) => id),
+				generatorColors: clips.filter(({ kind }) => kind === 'generator').map(({ sourceId }) => (
+					sources.find(({ id }) => id === sourceId)?.generator?.color
+				)).filter(Boolean),
+				generatorColorByClip: Object.fromEntries(clips
+					.filter(({ kind }) => kind === 'generator')
+					.map(({ id: clipId, sourceId }) => [
+						clipId,
+						sources.find(({ id }) => id === sourceId)?.generator?.color ?? null,
+					])),
 				stillCount: clips.filter(({ kind }) => kind === 'still').length,
 				stillClipIds: clips.filter(({ kind }) => kind === 'still').map(({ id }) => id),
 				adjustmentCount: project?.videoAdjustmentLayers?.length || 0,
@@ -228,6 +326,7 @@ async function storedVisualState(page, projectId) {
 				maskIds: project?.videoMaskMattes?.map(({ id }) => id) || [],
 				presentationCount: project?.videoVisualPresentations?.length || 0,
 				freezeCount: project?.videoFreezeFallbacks?.length || 0,
+				sampleRate: project?.sampleRate || 48_000,
 				rate: sequence?.rate || { num: 30, den: 1 },
 				visualClips: visuals.map(({ id, sequenceStartFrame, sequenceFrameCount }) => ({
 					id, start: sequenceStartFrame, count: sequenceFrameCount,
