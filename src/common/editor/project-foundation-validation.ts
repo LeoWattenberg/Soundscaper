@@ -4,6 +4,7 @@ import { resolveRuntimeClipProjection } from './runtime-clip-projection.ts';
 import {
 	SEQUENCE_DROP_FRAME_RATES,
 	sequenceTimecodeFrameRate,
+	sequenceTimecodeGeometry,
 } from './sequence-timecode.ts';
 import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './timeline-coordinate-limits.ts';
 import {
@@ -162,7 +163,7 @@ function validateSequences(
 		if (dropFrame && !DROP_FRAME_RATES.has(`${String(rate.num)}/${String(rate.den)}`)) {
 			throw new RangeError(`${prefix} uses an illegal drop-frame rate combination.`);
 		}
-		validateStartTimecode(sequence.startTimecode, rate, prefix);
+		validateStartTimecode(sequence.startTimecode, rate, dropFrame, prefix);
 		for (const trackId of projectUniqueStrings(sequence.trackIds, `${prefix}.trackIds`)) {
 			if (!trackIds.has(trackId)) throw new ReferenceError(`${prefix} references missing track ${trackId}.`);
 			if (assigned.has(trackId)) throw new RangeError(`Track ${trackId} belongs to more than one sequence.`);
@@ -175,7 +176,12 @@ function validateSequences(
 	return sequences;
 }
 
-function validateStartTimecode(value: unknown, rate: { num: number; den: number }, prefix: string): void {
+function validateStartTimecode(
+	value: unknown,
+	rate: { num: number; den: number },
+	dropFrame: boolean,
+	prefix: string,
+): void {
 	const timecode = projectRecord(value, `${prefix}.startTimecode`);
 	projectBoolean(timecode.negative, `${prefix}.startTimecode.negative`);
 	projectSafeInteger(timecode.hours, 0, `${prefix}.startTimecode.hours`);
@@ -184,6 +190,13 @@ function validateStartTimecode(value: unknown, rate: { num: number; den: number 
 	const frames = projectSafeInteger(timecode.frames, 0, `${prefix}.startTimecode.frames`);
 	if (minutes >= 60 || seconds >= 60 || frames >= sequenceTimecodeFrameRate(rate)) {
 		throw new RangeError(`${prefix}.startTimecode is outside the sequence rate.`);
+	}
+	// A label the drop-frame sequence skips does not exist: every derived
+	// timing view throws on it, so it is rejected here like any other
+	// out-of-range field rather than admitted and crashed on later.
+	const { droppedLabels } = sequenceTimecodeGeometry(rate, dropFrame);
+	if (droppedLabels > 0 && seconds === 0 && minutes % 10 !== 0 && frames < droppedLabels) {
+		throw new RangeError(`${prefix}.startTimecode is a skipped drop-frame label.`);
 	}
 }
 

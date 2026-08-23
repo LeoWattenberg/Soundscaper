@@ -49,6 +49,35 @@ test('a sequence keeps its name, rate, drop frame, and start timecode through on
 	assert.equal(loadCurrentAudioEditorProject(JSON.parse(JSON.stringify(edited))).readOnly, false);
 });
 
+test('validation rejects a skipped drop-frame start timecode instead of admitting it', () => {
+	// 00:01:00;00 does not exist at 29.97DF. The command runtime already
+	// refuses to author it, but a hand-written or cross-product document can
+	// carry it — and every timing-view consumer throws on an admitted one, so
+	// validation must reject it like any other out-of-range field.
+	const edited = applyEditorCommand(project(), createUpdateSequenceTimingCommand('main', {
+		rate: NTSC,
+		dropFrame: true,
+		startTimecode: { negative: false, hours: 0, minutes: 0, seconds: 0, frames: 0 },
+	}), { now: NOW });
+	const document = JSON.parse(JSON.stringify(edited)) as {
+		sequences: { startTimecode: Record<string, unknown> }[];
+	};
+	document.sequences[0]!.startTimecode = {
+		negative: false, hours: 0, minutes: 1, seconds: 0, frames: 0,
+	};
+	assert.throws(
+		() => validateCurrentAudioEditorProject(document),
+		/skipped drop-frame label/u,
+	);
+
+	// The first label the rate does produce in that minute stays admitted.
+	document.sequences[0]!.startTimecode = {
+		negative: false, hours: 0, minutes: 1, seconds: 0, frames: 2,
+	};
+	assert.equal(validateCurrentAudioEditorProject(document), true);
+	assert.ok(resolveSequenceTimingView(document));
+});
+
 test('a rate change conforms video placement from resolved boundaries, not frame indices', () => {
 	const before = project();
 	const beforeResolved = resolveRuntimeProjectProjection(before).clips
