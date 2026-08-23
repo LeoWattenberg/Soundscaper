@@ -4,9 +4,7 @@
 
 import {
 	readClosedDomainArray,
-	readClosedDomainField,
 	readClosedDomainRecord,
-	type ClosedDomainRecord,
 } from './closed-domain-value.ts';
 import {
 	canonicalizeNativeMediaPlan,
@@ -17,6 +15,17 @@ import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
 import { isVideoDeliveryAudioLayout, type VideoDeliveryAudioLayout } from './video-delivery-audio-layout.ts';
 import { isVideoDeliveryQuality, type VideoDeliveryQuality } from './video-delivery-quality.ts';
 import { assertUnifiedExactRenderOutputAdmission } from './unified-exact-render-output-admission.ts';
+import {
+	deepFreezeExactRenderValue as deepFreeze,
+	exactRenderCeilingRatio as ceilingRatio,
+	exactRenderField as field,
+	exactRenderInteger as integer,
+	exactRenderNullableText as nullableText,
+	exactRenderRational as rational,
+	exactRenderRequired as required,
+	exactRenderStableId as stableId,
+	exactRenderText as text,
+} from './unified-exact-render-plan-primitives.ts';
 import {
 	createUnifiedExactRenderIdentityIndex,
 	type UnifiedExactRenderIdentityClaim,
@@ -143,7 +152,6 @@ const OUTPUT_FIELDS = Object.freeze([
 	'frameRate', 'frameCount', 'quality', 'canvas', 'includeAudio', 'audioLayout',
 ]);
 const CANVAS_FIELDS = Object.freeze(['width', 'height', 'fit', 'pixelFormat', 'backgroundColor']);
-const RATE_FIELDS = Object.freeze(['num', 'den']);
 const ALL_NODE_FIELDS = Object.freeze([
 	'kind', 'nodeId', 'clipId', 'trackId', 'sourceNodeId', 'sequenceStartFrame',
 	'sequenceFrameCount', 'sourceInFrame', 'sourceFrameCount', 'pictureState',
@@ -154,7 +162,6 @@ const ALL_NODE_FIELDS = Object.freeze([
 	'exportAuthority', 'state',
 ]);
 const MAXIMUM_NODES = 100_000;
-const ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,4095}$/u;
 
 /** Normalize, detach, and deeply freeze one exact generation. */
 export function createUnifiedExactRenderPlan(value: unknown): UnifiedExactRenderPlan {
@@ -537,57 +544,4 @@ function planVersion(value: unknown): UnifiedExactRenderPlanVersion {
 
 function requireGeneration(actual: number, minimum: number, kind: unknown): void {
 	if (actual < minimum) throw new RangeError(`${String(kind)} render node requires plan generation V${String(minimum)}.`);
-}
-
-function rational(value: unknown, name: string) {
-	const record = readClosedDomainRecord(value, name, RATE_FIELDS);
-	const num = integer(field(record, 'num', name), `${name}.num`, 1);
-	const den = integer(field(record, 'den', name), `${name}.den`, 1);
-	if (gcd(num, den) !== 1) throw new RangeError(`${name} must be reduced.`);
-	return Object.freeze({ num, den });
-}
-
-function field(record: ClosedDomainRecord, key: string, name: string): unknown {
-	return readClosedDomainField(record, key, name);
-}
-
-function integer(value: unknown, name: string, minimum: number): number {
-	if (!Number.isSafeInteger(value) || Number(value) < minimum) throw new RangeError(`${name} must be a bounded safe integer.`);
-	return Number(value);
-}
-
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !ID.test(value)) throw new TypeError(`${name} must be a canonical stable ID.`);
-	return value;
-}
-
-function nullableText(value: unknown, name: string): string | null {
-	return value === null ? null : text(value, name);
-}
-
-function text(value: unknown, name: string): string {
-	if (typeof value !== 'string' || value.length < 1 || value.length > 4_096 || value.includes('\0')) {
-		throw new TypeError(`${name} must be bounded nonempty text.`);
-	}
-	return value;
-}
-
-function ceilingRatio(numerator: bigint, denominator: bigint): bigint {
-	return (numerator + denominator - 1n) / denominator;
-}
-
-function gcd(left: number, right: number): number {
-	while (right !== 0) [left, right] = [right, left % right];
-	return left;
-}
-
-function required<Value>(value: Value | undefined): Value {
-	if (value === undefined) throw new RangeError('Unified render node normalization is incomplete.');
-	return value;
-}
-
-function deepFreeze<Value>(value: Value): Value {
-	if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value;
-	for (const nested of Object.values(value as Record<string, unknown>)) deepFreeze(nested);
-	return Object.freeze(value);
 }
