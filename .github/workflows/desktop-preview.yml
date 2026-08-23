@@ -512,7 +512,7 @@ jobs:
           retention-days: 14
 
   soundscaper-project-library-lease-matrix:
-    name: Soundscaper V10 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    name: Soundscaper V10 + Framescaper V17 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     if: >-
       (github.event_name == 'push' && github.ref_type == 'tag')
       || github.event_name == 'schedule'
@@ -551,17 +551,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build the unpacked Soundscaper V10 product
+      - name: Build unpacked Soundscaper V10 and Framescaper V17 products
         shell: bash
         run: |
-          SCAPE_PRODUCT=soundscaper \
-            SOUNDSCAPER_DESKTOP_TARGET_PLATFORM="${{ matrix.target.platform }}" \
-            SOUNDSCAPER_DESKTOP_TARGET_ARCH="${{ matrix.target.arch }}" \
-            node scripts/desktop-prepare.mjs
-          SCAPE_PRODUCT=soundscaper CSC_IDENTITY_AUTO_DISCOVERY=false \
-            npx electron-builder --config electron-builder.config.cjs \
-            --config.directories.output="release/desktop-lease-matrix/soundscaper" \
-            --${{ matrix.target.platform }} --${{ matrix.target.arch }} --dir
+          for product in soundscaper framescaper; do
+            SCAPE_PRODUCT="$product" \
+              SOUNDSCAPER_DESKTOP_TARGET_PLATFORM="${{ matrix.target.platform }}" \
+              SOUNDSCAPER_DESKTOP_TARGET_ARCH="${{ matrix.target.arch }}" \
+              node scripts/desktop-prepare.mjs
+            SCAPE_PRODUCT="$product" CSC_IDENTITY_AUTO_DISCOVERY=false \
+              npx electron-builder --config electron-builder.config.cjs \
+              --config.directories.output="release/desktop-lease-matrix/$product" \
+              --${{ matrix.target.platform }} --${{ matrix.target.arch }} --dir
+          done
 
       - name: Install virtual display
         if: matrix.target.platform == 'linux'
@@ -573,8 +575,8 @@ jobs:
         shell: bash
         run: |
           mapfile -t sandboxes < <(find release/desktop-lease-matrix -type f -name chrome-sandbox -print)
-          if [[ "${#sandboxes[@]}" -ne 1 ]]; then
-            echo "Expected one packaged Chromium sandbox" >&2
+          if [[ "${#sandboxes[@]}" -ne 2 ]]; then
+            echo "Expected two packaged Chromium sandboxes" >&2
             exit 1
           fi
           for sandbox_path in "${sandboxes[@]}"; do
@@ -582,18 +584,18 @@ jobs:
             sudo chmod 4755 -- "$sandbox_path"
           done
 
-      - name: Run the seven current Soundscaper V10 lease workflows
+      - name: Run fourteen per-product workflows plus paired scope isolation
         shell: bash
         run: npm run desktop:smoke:project-library-lease-matrix
         env:
           SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SMOKE_XVFB: ${{ matrix.target.platform == 'linux' && 'true' || 'false' }}
-          SOUNDSCAPER_LEASE_MATRIX_RESULT: ${{ runner.temp }}/soundscaper-v10-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          SOUNDSCAPER_LEASE_MATRIX_RESULT: ${{ runner.temp }}/soundscaper-v10-framescaper-v17-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
 
       - name: Upload bounded lease-matrix result
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: soundscaper-v10-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}
-          path: ${{ runner.temp }}/soundscaper-v10-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          name: soundscaper-v10-framescaper-v17-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: ${{ runner.temp }}/soundscaper-v10-framescaper-v17-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
           if-no-files-found: error
           retention-days: 14

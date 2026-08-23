@@ -355,7 +355,7 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'tests/audio-editor-retention-round-trip-invariant.test.ts',
 		'tests/desktop-project-library-v10-current-project.test.ts',
 		'tests/desktop-project-library-v10-transport.test.ts',
-		// Selected V20 desktop V12 authenticates the inherited V18 foundation at
+		// Immutable V12 and selected V17 authenticate the inherited V18 foundation at
 		// its exact-generation contract and main-process boundaries.
 		'tests/desktop-project-library-v12-contract.test.ts',
 		'tests/desktop-project-library-v12-main.test.ts',
@@ -427,6 +427,7 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 	assert.deepEqual(genericPathReferences, [
 		'desktop/project-library-v10-current-project.ts',
 		'desktop/project-library-v12-current-project.ts',
+		'desktop/project-library-v17-current-project.ts',
 		'src/framescaper/desktop-project-library-v10-delete-intents.ts',
 		'src/framescaper/desktop-project-library-v10-renderer-catalog.ts',
 		'src/framescaper/desktop-project-library-v10-renderer-contract.ts',
@@ -435,6 +436,8 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'src/framescaper/desktop-project-library-v10-store-adapter.ts',
 		'src/framescaper/desktop-project-library-v12-renderer.ts',
 		'src/framescaper/desktop-project-library-v12-store-adapter.ts',
+		'src/framescaper/desktop-project-library-v17-renderer.ts',
+		'src/framescaper/desktop-project-library-v17-store-adapter.ts',
 		'src/framescaper/editor-captured-video-proxy-preservation.ts',
 		'src/framescaper/editor-captured-video-proxy-project.ts',
 		'src/framescaper/editor-captured-video-proxy-scheduler-composition.ts',

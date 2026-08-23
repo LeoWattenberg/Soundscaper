@@ -428,7 +428,7 @@ export function createDesktopSmokeProbe(options) {
 			webVcrSmokeSession?.observeDisplaySecurityWitness(value) ?? false
 		),
 		observeProjectDescriptor,
-		projectLibraryV10Qualification: () => leaseSession?.v10Qualification ?? null,
+		projectLibraryLeaseQualification: () => leaseSession?.leaseQualification ?? null,
 		rendererReady,
 		resolveSavePath,
 		resolveOpenPaths,

@@ -41,15 +41,38 @@ export function createFramescaperDesktopProjectStoreV12Adapter<Store extends Fra
 		readonly desktopProjectLibrary: FramescaperDesktopProjectLibraryV12Renderer | null;
 	}>,
 ): Store | FramescaperDesktopProjectStoreV12Adapter<Store> {
+	return createFramescaperDesktopProjectStoreExactAdapter(
+		profileValue,
+		compositionValue,
+		assertFramescaperDesktopProjectLibraryV12RendererComposition,
+		'Framescaper desktop V12',
+	);
+}
+
+export function createFramescaperDesktopProjectStoreExactAdapter<
+	Store extends FramescaperDesktopProjectStoreV12Local,
+>(
+	profileValue: EditorProjectRuntimeProfile | unknown,
+	compositionValue: Readonly<{
+		readonly localStore: Store;
+		readonly desktopProjectLibrary: FramescaperDesktopProjectLibraryV12Renderer | null;
+	}>,
+	assertRenderer: (
+		profile: EditorProjectRuntimeProfile | unknown,
+		store: unknown,
+		renderer: unknown,
+	) => void,
+	label: string,
+): Store | FramescaperDesktopProjectStoreV12Adapter<Store> {
 	assertFramescaperProjectV20Profile(profileValue);
-	const composition = exactRecord(compositionValue, COMPOSITION_FIELDS, 'Framescaper desktop V12 store composition');
+	const composition = exactRecord(compositionValue, COMPOSITION_FIELDS, `${label} store composition`);
 	const localStore = composition.localStore as Store;
 	assertLocalStore(localStore);
 	framescaperProjectStoreAuthorityV20(profileValue, localStore);
-	const renderer = composition.desktopProjectLibrary;
+	const renderer = composition.desktopProjectLibrary as FramescaperDesktopProjectLibraryV12Renderer | null;
 	if (renderer === null) return localStore;
-	assertFramescaperDesktopProjectLibraryV12RendererComposition(profileValue, localStore, renderer);
-	return new Proxy(localStore, proxyHandler(profileValue, localStore, renderer)) as
+	assertRenderer(profileValue, localStore, renderer);
+	return new Proxy(localStore, proxyHandler(profileValue, localStore, renderer, label)) as
 		FramescaperDesktopProjectStoreV12Adapter<Store>;
 }
 
@@ -57,6 +80,7 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreV12Local>(
 	profile: EditorProjectRuntimeProfile,
 	localStore: Store,
 	renderer: FramescaperDesktopProjectLibraryV12Renderer,
+	label: string,
 ): ProxyHandler<Store> {
 	const overrides = Object.freeze({
 		listProjects: () => renderer.listProjects(),
@@ -66,14 +90,14 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreV12Local>(
 			return renderer.readProject(projectId, options.signal ? { signal: options.signal } : {});
 		},
 		saveProject: async (projectValue: unknown, optionsValue: unknown = {}) => {
-			const options = allowedRecord(optionsValue, SAVE_FIELDS, 'Framescaper desktop V12 save options');
+			const options = allowedRecord(optionsValue, SAVE_FIELDS, `${label} save options`);
 			const project = cloneFramescaperProjectV20(profile, projectValue);
 			await admitProjectPublication(localStore, project as unknown as ProjectDocument, options);
 			return renderer.publishProject({ project });
 		},
 		createProjectIfAbsent: async (projectValue: unknown) => {
 			const project = cloneFramescaperProjectV20(profile, projectValue);
-			if (project.revision !== 0) throw new Error('Framescaper desktop V12 create requires revision zero.');
+			if (project.revision !== 0) throw new Error(`${label} create requires revision zero.`);
 			if (await renderer.readProject(String(project.id)) !== null) return null;
 			return renderer.publishProject({ project });
 		},
@@ -86,9 +110,9 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreV12Local>(
 			await renderer.deleteProject(projectId);
 		},
 		duplicateProject: async (sourceProjectId: string, optionsValue: unknown = {}) => {
-			const options = allowedRecord(optionsValue, ['id', 'title'] as const, 'Framescaper V12 duplicate options');
+			const options = allowedRecord(optionsValue, ['id', 'title'] as const, `${label} duplicate options`);
 			if (typeof options.id !== 'string' || !options.id || typeof options.title !== 'string' || !options.title) {
-				throw new TypeError('Framescaper V12 duplication requires exact destination identity and title.');
+				throw new TypeError(`${label} duplication requires exact destination identity and title.`);
 			}
 			return renderer.duplicateProject(sourceProjectId, {
 				id: options.id,

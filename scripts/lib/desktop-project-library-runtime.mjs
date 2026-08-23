@@ -7,6 +7,7 @@ import { extname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, DESKTOP_RUNTIME_BUNDLED_LEAF_FILES } from './desktop-5b-transitive-runtime-files.mjs';
+import { DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES } from './desktop-project-library-exact-runtime-files.mjs';
 
 const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
 const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
@@ -341,19 +342,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/soundscaper/editor-project-feature-requirements-v23.js',
 	'src/soundscaper/editor-project-production-validation.js',
 	'src/soundscaper/editor-project-v23-validation.js',
-	'desktop/project-library-exact-generation-contract.js',
-	'desktop/project-library-exact-generation-database.js',
-	'desktop/project-library-exact-generation-main-channels.js',
-	'desktop/project-library-exact-generation-main-ipc.js',
-	'desktop/project-library-exact-generation-main.js',
-	'desktop/project-library-exact-generation-storage.js',
-	'desktop/project-library-v12-contract.js',
-	'desktop/project-library-v12-current-project.js',
-	'desktop/project-library-v12-database.js',
-	'desktop/project-library-v12-main-channels.js',
-	'desktop/project-library-v12-main-ipc.js',
-	'desktop/project-library-v12-main.js',
-	'desktop/project-library-v12-values.js',
+	...DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES,
 	'src/common/editor/native-durable-root-grant.js',
 	'src/common/editor/native-external-display.js',
 	'src/common/editor/native-media-atomic-publication.js',

@@ -16,6 +16,8 @@ import {
 	createSoundscaperDesktopProjectLibraryV10Handshake,
 } from '../desktop/soundscaper-project-library-v10-contract.ts';
 import { SoundscaperDesktopProjectLibraryV10Main } from '../desktop/soundscaper-project-library-v10-main.ts';
+import { createFramescaperDesktopProjectLibraryV17Handshake } from '../desktop/project-library-v17-contract.ts';
+import { FramescaperDesktopProjectLibraryV17Main } from '../desktop/project-library-v17-main.ts';
 
 const PROJECT_ID = 'lease-matrix-renderer';
 
@@ -179,6 +181,45 @@ test('the lease renderer smoke rethrows failures that are not a refusal by main'
 	);
 	assert.equal(refused.status, 'conflict');
 	assert.equal(conflictReason(refused), 'compare-and-swap');
+});
+
+test('the product-neutral renderer smoke publishes through the Framescaper V17 bridge', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'framescaper-v17-lease-renderer-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const handshake = createFramescaperDesktopProjectLibraryV17Handshake();
+	const main = await FramescaperDesktopProjectLibraryV17Main.start({
+		appDataPath: root,
+		owner: { product: 'framescaper', processId: 924, instanceId: 'framescaper-lease-renderer' },
+		handshake,
+		onLeaseLost: () => undefined,
+		qualification: null,
+	});
+	context.after(() => main.close());
+	const session = main.openSession(handshake);
+	context.after(() => session.close());
+	const api = {
+		connect: async () => handshake,
+		listProjects: () => session.listProjects(),
+		readProjectBundle: (projectId: string) => session.readProjectBundle(projectId),
+		beginPublication: (value: unknown) => session.beginPublication(value),
+		finishPublication: (value: unknown) => session.finishPublication(value),
+		abortPublication: (value: unknown) => session.abortPublication(value),
+	};
+	const scope = { crypto: globalThis.crypto, framescaperDesktop: { v1: { projectLibrary: api } } };
+	const document = createDesktopProjectLibraryLeaseMatrixDocument(
+		PROJECT_ID, 1, 'Framescaper initial', 'framescaper',
+	);
+	const created = await runDesktopProjectLibraryLeaseRendererSmoke(scope, {
+		action: 'commit', productId: 'framescaper', projectId: PROJECT_ID,
+		request: { document, expectedRevision: null },
+	});
+	assert.equal(created.status, 'committed');
+	assert.equal(created.projectRevision, 1);
+	const observed = await runDesktopProjectLibraryLeaseRendererSmoke(scope, {
+		action: 'verify', productId: 'framescaper', projectId: PROJECT_ID, request: null,
+	});
+	assert.equal((observed as { readonly document?: unknown }).document, document);
+	assert.equal(observed.projectSha256, created.projectSha256);
 });
 
 function failingBridge(failure: Error): Record<string, unknown> {

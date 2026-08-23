@@ -50,7 +50,7 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 			// and its one trusted reload. The smoke only retains the window so its
 			// qualification checkpoint can stage the crash.
 		},
-		v10Qualification: Object.freeze({
+		leaseQualification: Object.freeze({
 			leaseTtlMs: admitted.leaseTtlMs,
 			renewIntervalMs: Math.max(100, Math.floor(admitted.leaseTtlMs / 3)),
 			// V10's journal checkpoint is synchronous, so the phase is recorded with
@@ -108,8 +108,10 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 }
 
 export async function runDesktopProjectLibraryLeaseRendererSmoke(scope, plan) {
-	const api = scope?.soundscaperProjectLibraryDesktop?.v10;
-	if (!api) throw new Error('Soundscaper V10 lease smoke bridge is unavailable');
+	const api = plan.productId === 'framescaper'
+		? scope?.framescaperDesktop?.v1?.projectLibrary
+		: scope?.soundscaperProjectLibraryDesktop?.v10;
+	if (!api) throw new Error(`${plan.productId} lease smoke bridge is unavailable`);
 	await api.connect();
 	const catalog = await api.listProjects();
 	const bundle = await api.readProjectBundle(plan.projectId);
@@ -227,8 +229,8 @@ function validatePlan(value) {
 		throw new TypeError('Desktop lease smoke plan has an invalid schema or mode');
 	}
 	if (!ACTIONS.has(record.action)) throw new TypeError('Desktop lease smoke action is unsupported');
-	if (record.productId !== 'soundscaper') {
-		throw new TypeError('Desktop lease smoke is restricted to the Soundscaper V10 contract');
+	if (record.productId !== 'soundscaper' && record.productId !== 'framescaper') {
+		throw new TypeError('Desktop lease smoke product is unsupported');
 	}
 	if (typeof record.projectId !== 'string' || !record.projectId) {
 		throw new TypeError('Desktop lease smoke project id is invalid');

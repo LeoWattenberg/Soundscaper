@@ -10,6 +10,8 @@ import {
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX,
 } from '../../desktop/project-library-lease-smoke.js';
+import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v20.ts';
+import { createFramescaperProjectV20 } from '../../src/framescaper/editor-project-v20.ts';
 import { createSoundscaperProjectV23 } from '../../src/soundscaper/editor-project-v23.ts';
 import { packagedExecutableCandidates, resolveSmokeArchitecture } from './desktop-smoke.mjs';
 
@@ -35,7 +37,7 @@ const TTL_MS = 1_000;
 const CHILD_TIMEOUT_MS = 90_000;
 const MAXIMUM_OUTPUT_BYTES = 1024 * 1024;
 /** Both catalogs raise a lease another live instance holds under this exact wording. */
-const WRITER_LEASE_BUSY = /desktop V10 writer lease is busy/u;
+const WRITER_LEASE_BUSY = /desktop (?:V10|V17) writer lease is busy/u;
 
 export function createDesktopProjectLibraryLeaseMatrixPlan({ action, control, productId, projectId, request }) {
 	return deepFreeze({
@@ -63,15 +65,20 @@ export async function runDesktopProjectLibraryLeaseMatrix({
 	try {
 		const runtime = { root, targetArch, platform, environment, outputRoot: resolve(outputRoot), smokeRoot };
 		const cases = [];
-		for (const workflowId of DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS) {
-			cases.push(await runCase(runtime, workflowId, ['soundscaper', 'soundscaper']));
+		for (const productId of ['soundscaper', 'framescaper']) {
+			for (const workflowId of DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS) {
+				cases.push(await runCase(runtime, workflowId, [productId, productId]));
+			}
 		}
+		cases.push(await runCase(
+			runtime, 'cross-product-simultaneous-open', ['soundscaper', 'framescaper'],
+		));
 		return deepFreeze({
 			schemaVersion: 1,
 			mode: DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 			platform,
 			arch: targetArch,
-			workflows: DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS,
+			workflows: DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS,
 			cases,
 		});
 	} finally {
@@ -94,19 +101,39 @@ async function runCase(runtime, workflowId, order) {
 
 export async function runDesktopProjectLibraryLeaseMatrixCase({ driver, workflowId, order }) {
 	const projectId = `lease-matrix-${workflowId}`;
-	const initial = createDesktopProjectLibraryLeaseMatrixDocument(projectId, 1, `${workflowId} initial`);
 	const primary = order[0];
 	const secondary = order[1];
+	const initial = createDesktopProjectLibraryLeaseMatrixDocument(
+		projectId, 1, `${workflowId} initial`, primary,
+	);
 	let results;
-	if (workflowId === 'same-project-simultaneous-open' || workflowId === 'cross-product-simultaneous-open') {
-		const contender = workflowId === 'cross-product-simultaneous-open' ? secondary : primary;
+	if (workflowId === 'cross-product-simultaneous-open') {
+		if (primary === secondary) throw new Error('Cross-product isolation requires two products');
+		const isolated = createDesktopProjectLibraryLeaseMatrixDocument(
+			projectId, 1, `${workflowId} isolated`, secondary,
+		);
+		const seed = await driver.commit(primary, 'commit', projectId, request(initial, null));
+		const holder = await driver.hold(primary, 'observe-hold', projectId, null);
+		await holder.start();
+		await holder.waitResult();
+		const admitted = await driver.commit(secondary, 'commit', projectId, request(isolated, null));
+		await holder.release();
+		const primaryVerification = await driver.commit(primary, 'verify', projectId, null);
+		const secondaryVerification = await driver.commit(secondary, 'verify', projectId, null);
+		if (admitted.renderer?.status !== 'committed'
+			|| primaryVerification.renderer?.document !== initial
+			|| secondaryVerification.renderer?.document !== isolated) {
+			throw new Error('Cross-product catalogs did not remain independently writable and isolated');
+		}
+		results = [seed, holder.result, admitted, primaryVerification, secondaryVerification];
+	} else if (workflowId === 'same-project-simultaneous-open') {
 		const seed = await driver.commit(primary, 'commit', projectId, request(initial, null));
 		const holder = await driver.hold(primary, 'observe-hold', projectId, null);
 		await holder.start();
 		await holder.waitResult();
 		// One writer per library for the life of the process: the instance that
 		// arrives second is refused rather than admitted alongside the holder.
-		const refused = await driver.refuse(contender, 'observe-hold', projectId, null);
+		const refused = await driver.refuse(primary, 'observe-hold', projectId, null);
 		await holder.release();
 		results = [seed, holder.result, refused];
 	} else if (workflowId === 'writer-lease-transfer') {
@@ -115,7 +142,9 @@ export async function runDesktopProjectLibraryLeaseMatrixCase({ driver, workflow
 		await holder.waitResult();
 		// The lease only transfers once its holder has given it up.
 		await holder.release();
-		const advanced = createDesktopProjectLibraryLeaseMatrixDocument(projectId, 4, `${workflowId} advanced`);
+		const advanced = createDesktopProjectLibraryLeaseMatrixDocument(
+			projectId, 4, `${workflowId} advanced`, primary,
+		);
 		const transferred = await driver.commit(secondary, 'commit', projectId, request(advanced, 1));
 		results = [holder.result, transferred];
 	} else if (workflowId === 'stale-lease-takeover') {
@@ -125,8 +154,8 @@ export async function runDesktopProjectLibraryLeaseMatrixCase({ driver, workflow
 		if (takeover.host?.writer?.tookOverStaleLease !== true) throw new Error('Stale takeover was not evidenced');
 	} else if (workflowId === 'conflicting-canonical-commit') {
 		const seed = await driver.commit(primary, 'commit', projectId, request(initial, null));
-		const left = createDesktopProjectLibraryLeaseMatrixDocument(projectId, 8, `${workflowId} left`);
-		const right = createDesktopProjectLibraryLeaseMatrixDocument(projectId, 8, `${workflowId} right`);
+		const left = createDesktopProjectLibraryLeaseMatrixDocument(projectId, 8, `${workflowId} left`, primary);
+		const right = createDesktopProjectLibraryLeaseMatrixDocument(projectId, 8, `${workflowId} right`, primary);
 		// Both contenders are handed the seeded base, so the one that reaches the
 		// library second publishes against a base the winner already superseded.
 		const winner = await driver.commit(primary, 'commit-contend', projectId, request(left, 1));
@@ -190,15 +219,21 @@ export async function runDesktopProjectLibraryLeaseMatrixCase({ driver, workflow
 function fencingTokens(results) {
 	const tokens = [];
 	const holders = new Map();
-	let highest = null;
+	const highestByProduct = new Map();
 	for (const result of results) {
 		const token = result.host?.writer?.fencingToken;
 		if (!Number.isSafeInteger(token)) continue;
 		const holder = result.host?.owner?.instanceId;
+		const productId = result.host?.owner?.product;
 		if (typeof holder !== 'string' || !holder) {
 			throw new Error('Lease matrix fencing evidence does not identify its lease holder');
 		}
-		const held = holders.get(holder);
+		if (productId !== 'soundscaper' && productId !== 'framescaper') {
+			throw new Error('Lease matrix fencing evidence does not identify its product scope');
+		}
+		const holderKey = `${productId}:${holder}`;
+		const held = holders.get(holderKey);
+		const highest = highestByProduct.get(productId) ?? null;
 		if (held === undefined) {
 			if (highest !== null && token <= highest) {
 				throw new Error('Lease matrix fencing token did not advance across acquisitions');
@@ -206,8 +241,8 @@ function fencingTokens(results) {
 		} else if (token < held) {
 			throw new Error('Lease matrix fencing token regressed within one lease holder');
 		}
-		holders.set(holder, token);
-		highest = highest === null || token > highest ? token : highest;
+		holders.set(holderKey, token);
+		highestByProduct.set(productId, highest === null || token > highest ? token : highest);
 		tokens.push(token);
 	}
 	return tokens;
@@ -427,7 +462,18 @@ function winningDigest(results) {
 	}
 	return null;
 }
-export function createDesktopProjectLibraryLeaseMatrixDocument(id, revision, title) {
+export function createDesktopProjectLibraryLeaseMatrixDocument(
+	id,
+	revision,
+	title,
+	productId = 'soundscaper',
+) {
+	if (productId === 'framescaper') {
+		return JSON.stringify(createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, {
+			id, title, revision, now: '2026-08-23T12:00:00.000Z',
+		}));
+	}
+	if (productId !== 'soundscaper') throw new TypeError('Lease matrix document product is unsupported');
 	const base = createSoundscaperProjectV23({ id, title });
 	return JSON.stringify({ ...base, revision, metadata: { ...base.metadata, title } });
 }

@@ -5,12 +5,12 @@ import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/pr
 import type { ProjectDocument } from '../common/editor/storage/project-repository.ts';
 import { AudioEditorProjectStore } from '../common/editor/storage.js';
 import {
-	connectFramescaperDesktopProjectLibraryV12Renderer,
-	type FramescaperDesktopProjectLibraryV12Renderer,
-} from './desktop-project-library-v12-renderer.ts';
+	connectFramescaperDesktopProjectLibraryV17Renderer,
+	type FramescaperDesktopProjectLibraryV17Renderer,
+} from './desktop-project-library-v17-renderer.ts';
 import {
-	createFramescaperDesktopProjectStoreV12Adapter,
-} from './desktop-project-library-v12-store-adapter.ts';
+	createFramescaperDesktopProjectStoreV17Adapter,
+} from './desktop-project-library-v17-store-adapter.ts';
 import {
 	createFramescaperPlaybackProjectServiceV20,
 } from './editor-project-playback-v20.ts';
@@ -36,7 +36,7 @@ export interface FramescaperEditorProjectEnvironmentV20 {
 	readonly runtime: Readonly<EditorProjectRuntimeV20Selection>;
 	readonly store: AudioEditorProjectStore;
 	readonly controllerStore: AudioEditorProjectStore;
-	readonly desktopProjectLibrary: FramescaperDesktopProjectLibraryV12Renderer | null;
+	readonly desktopProjectLibrary: FramescaperDesktopProjectLibraryV17Renderer | null;
 	readonly playback: PlaybackProjectService;
 	readonly claimCleanup: FramescaperProjectV18ClaimCleanupRepository;
 	readonly initialCleanup: Readonly<FramescaperProjectV18ClaimCleanupResult>;
@@ -75,11 +75,11 @@ export async function createFramescaperEditorProjectEnvironmentV20(
 		if (initialCleanup.status !== 'settled') {
 			throw new Error('Framescaper V20 startup claim cleanup is indeterminate.');
 		}
-		const desktopProjectLibrary = await connectFramescaperDesktopProjectLibraryV12Renderer(
+		const desktopProjectLibrary = await connectFramescaperDesktopProjectLibraryV17Renderer(
 			FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
 			store,
 		);
-		const controllerStore = createFramescaperDesktopProjectStoreV12Adapter(
+		const controllerStore = createFramescaperDesktopProjectStoreV17Adapter(
 			FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
 			{ localStore: store, desktopProjectLibrary },
 		) as AudioEditorProjectStore;

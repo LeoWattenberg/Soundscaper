@@ -14,8 +14,8 @@ import {
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import { createHash as createSandboxHash } from '../desktop/project-library-v10-sandbox-crypto.ts';
 import {
-	createFramescaperDesktopProjectLibraryV12Handshake,
-} from '../desktop/project-library-v12-contract.ts';
+	createFramescaperDesktopProjectLibraryV17Handshake,
+} from '../desktop/project-library-v17-contract.ts';
 import {
 	createSoundscaperDesktopProjectLibraryV10Handshake,
 } from '../desktop/soundscaper-project-library-v10-contract.ts';
@@ -31,16 +31,16 @@ const COMPOSITION = 'desktop/project-library-product-runtime.js';
 const SOUNDSCAPER_SANDBOX_ENTRY = 'desktop/soundscaper-project-library-v10-sandbox-preload.ts';
 const SOUNDSCAPER_SANDBOX_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
 const CHANNELS = Object.freeze([
-	'framescaper:v12:projects:handshake',
-	'framescaper:v12:projects:bundle',
-	'framescaper:v12:projects:bodies:read',
-	'framescaper:v12:projects:list',
-	'framescaper:v12:projects:delete',
-	'framescaper:v12:projects:duplicate',
-	'framescaper:v12:projects:publication:begin',
-	'framescaper:v12:projects:publication:chunk',
-	'framescaper:v12:projects:publication:finish',
-	'framescaper:v12:projects:publication:abort',
+	'framescaper:v17:projects:handshake',
+	'framescaper:v17:projects:bundle',
+	'framescaper:v17:projects:bodies:read',
+	'framescaper:v17:projects:list',
+	'framescaper:v17:projects:delete',
+	'framescaper:v17:projects:duplicate',
+	'framescaper:v17:projects:publication:begin',
+	'framescaper:v17:projects:publication:chunk',
+	'framescaper:v17:projects:publication:finish',
+	'framescaper:v17:projects:publication:abort',
 ]);
 const SOUNDSCAPER_CHANNELS = Object.freeze([
 	'soundscaper:v10:projects:handshake',
@@ -63,7 +63,7 @@ test('sandbox hash seam preserves the exact SHA-256 contract without Node author
 	assert.throws(() => createSandboxHash('sha1'), /only SHA-256/iu);
 });
 
-test('maintained main selects Framescaper V12 and Soundscaper V10 with existing owner cleanup', async () => {
+test('maintained main selects Framescaper V17 and Soundscaper V10 with existing owner cleanup', async () => {
 	const [main, composition, preload, soundscaperSandboxEntry] = await Promise.all([
 		readFile(join(ROOT, 'desktop/main.mjs'), 'utf8'),
 		readFile(join(ROOT, COMPOSITION), 'utf8'),
@@ -77,7 +77,7 @@ test('maintained main selects Framescaper V12 and Soundscaper V10 with existing 
 		/did-start-navigation[\s\S]*revokeRendererSaveOwner[\s\S]*did-frame-navigate[\s\S]*activateRendererSaveOwner/u);
 	assert.match(main, /attachDesktopMainWindowRecovery\([\s\S]*rendererOwnershipCleanup\.drain/u);
 	assert.match(composition, /productId\s*===\s*'framescaper'/u);
-	assert.match(composition, /FramescaperDesktopProjectLibraryV12Main\.start/u);
+	assert.match(composition, /FramescaperDesktopProjectLibraryV17Main\.start/u);
 	assert.match(composition, /SoundscaperDesktopProjectLibraryV10Main\.start/u);
 	assert.match(composition, /DesktopProjectLibraryHost\.start/u);
 	assert.match(composition, /registerPreloadScript/u);
@@ -112,7 +112,7 @@ test('staged product selector isolates exact-generation handlers, preload, sessi
 		processId: 812,
 		instanceId: 'framescaper-maintained-runtime',
 		onLeaseLost: () => {},
-		v10Qualification: null,
+		leaseQualification: null,
 	});
 	context.after(() => runtime.close());
 	const registration = runtime.registerRendererBridge({
@@ -193,7 +193,7 @@ test('staged product selector isolates exact-generation handlers, preload, sessi
 		processId: 813,
 		instanceId: 'soundscaper-maintained-runtime',
 		onLeaseLost: () => {},
-		v10Qualification: null,
+		leaseQualification: null,
 	});
 	context.after(() => soundscaper.close());
 	const soundscaperRegistration = soundscaper.registerRendererBridge({
@@ -345,7 +345,7 @@ async function stagedFixture(context: TestContext): Promise<Readonly<{
 }
 
 function exactHandshake(): Readonly<Record<string, unknown>> {
-	return createFramescaperDesktopProjectLibraryV12Handshake() as unknown as
+	return createFramescaperDesktopProjectLibraryV17Handshake() as unknown as
 		Readonly<Record<string, unknown>>;
 }
 
