@@ -3,6 +3,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+import VideoRetimeDialog from '../src/common/editor/ui/dialogs/VideoRetimeDialog.tsx';
+import {
+	formatVideoRetimeExactMapInput,
+	parseVideoRetimeExactMapInput,
+} from '../src/common/editor/ui/video-retime-exact-map-input.ts';
 import { createVideoRetimeApplicationMenuItems } from '../src/common/editor/ui/video-retime-application-menu.ts';
 import { createVideoRetimeDialogModel } from '../src/common/editor/ui/video-retime-dialog-model.ts';
 
@@ -94,4 +102,63 @@ test('video-retime dialog model snapshots exact selected clip command authority'
 	});
 	assert.equal(selected.blockReason, null);
 	assert.equal(selected.clipId, 'video-1');
+});
+
+test('video-retime exact-map input accepts only a clip-bound canonical V2 map', () => {
+	const bounds = { outerFrameCount: 10, sourceFirstFrame: 3, sourceLastFrame: 13 };
+	const value = {
+		feature: 'video-retime', version: 2,
+		points: [
+			{ outerFrame: 0, sourceFrame: { num: 3, den: 1 } },
+			{ outerFrame: 5, sourceFrame: { num: 8, den: 1 } },
+			{ outerFrame: 10, sourceFrame: { num: 8, den: 1 } },
+		],
+		segments: [{ mode: 'constant-forward' }, { mode: 'freeze' }],
+	};
+	const parsed = parseVideoRetimeExactMapInput(JSON.stringify(value), bounds);
+	assert.deepEqual(parsed, value);
+	assert.equal(Object.isFrozen(parsed), true);
+	assert.equal(Object.isFrozen(parsed.points), true);
+	assert.equal(Object.isFrozen(parsed.points[0]), true);
+	assert.equal(Object.isFrozen(parsed.segments), true);
+
+	assert.throws(() => parseVideoRetimeExactMapInput(JSON.stringify({ ...value, version: 1 }), bounds),
+		/version must be 2/iu);
+	assert.throws(() => parseVideoRetimeExactMapInput(JSON.stringify({ ...value, hidden: true }), bounds),
+		/unsupported field/iu);
+	assert.throws(() => parseVideoRetimeExactMapInput(JSON.stringify({
+		...value,
+		points: [value.points[0], { outerFrame: 9, sourceFrame: { num: 8, den: 1 } }],
+		segments: [{ mode: 'constant-forward' }],
+	}), bounds), /last curve outer frame/iu);
+	assert.throws(() => parseVideoRetimeExactMapInput('', bounds), /JSON object/iu);
+});
+
+test('video-retime exact-map authoring is menu-dialog reached and submits through retimeSet', () => {
+	const value = project();
+	const expectedDefault = {
+		feature: 'video-retime', version: 2,
+		points: [
+			{ outerFrame: 0, sourceFrame: { num: 3, den: 1 } },
+			{ outerFrame: 10, sourceFrame: { num: 13, den: 1 } },
+		],
+		segments: [{ mode: 'constant-forward' }],
+	};
+	assert.deepEqual(JSON.parse(formatVideoRetimeExactMapInput(null, {
+		outerFrameCount: 10, sourceFirstFrame: 3, sourceLastFrame: 13,
+	})), expectedDefault);
+
+	const markup = renderToStaticMarkup(React.createElement(VideoRetimeDialog, {
+		productId: 'framescaper', capability: true, editingBlocked: false,
+		controller: { actions: { sequences: {
+			retimeConstant: () => undefined, retimeReset: () => undefined,
+			retimeReverse: () => undefined, retimeFreeze: () => undefined,
+			retimeRamp: () => undefined, retimeSet: () => undefined,
+		} } },
+		snapshot: { project: value, selectedClipId: 'video-1' }, copy: {},
+		run: (operation: () => unknown) => operation(), onClose: () => undefined,
+	}));
+	assert.match(markup, /data-video-retime-exact-map="true"/u);
+	assert.match(markup, /data-video-retime-set="true"/u);
+	assert.match(markup, /Exact retime map/iu);
 });

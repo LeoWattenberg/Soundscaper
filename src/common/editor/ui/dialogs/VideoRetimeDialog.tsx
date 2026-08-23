@@ -4,6 +4,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { createVideoRetimeDialogModel } from '../video-retime-dialog-model.ts';
+import {
+	formatVideoRetimeExactMapInput,
+	parseVideoRetimeExactMapInput,
+	VIDEO_RETIME_EXACT_MAP_INPUT_MAX_LENGTH,
+} from '../video-retime-exact-map-input.ts';
 
 interface VideoRetimeActions {
 	retimeConstant(value: unknown): unknown;
@@ -11,6 +16,7 @@ interface VideoRetimeActions {
 	retimeReverse(value: unknown): unknown;
 	retimeFreeze(value: unknown): unknown;
 	retimeRamp(value: unknown): unknown;
+	retimeSet(value: unknown): unknown;
 }
 
 interface VideoRetimeDialogProps {
@@ -41,11 +47,16 @@ export default function VideoRetimeDialog({
 		selectedClipId: typeof snapshot.selectedClipId === 'string' ? snapshot.selectedClipId : null,
 		editingBlocked: editingBlocked || snapshot.readOnly === true || snapshot.blocked === true,
 	}), [capability, editingBlocked, productId, snapshot]);
+	const exactMapSeed = useMemo(() => model.bounds === null ? '' : formatVideoRetimeExactMapInput(
+		model.commandAuthority?.expectedRetimeMap ?? null,
+		model.bounds,
+	), [model.bounds, model.commandAuthority?.expectedRetimeMap]);
 	const [freezeFrame, setFreezeFrame] = useState('0');
 	const [direction, setDirection] = useState<'forward' | 'reverse'>('forward');
 	const [startVelocity, setStartVelocity] = useState('1');
 	const [endVelocity, setEndVelocity] = useState('1');
 	const [sourceStartFrame, setSourceStartFrame] = useState('0');
+	const [exactMapText, setExactMapText] = useState(exactMapSeed);
 	const [pending, setPending] = useState(false);
 	const [status, setStatus] = useState('');
 	const [error, setError] = useState('');
@@ -59,6 +70,9 @@ export default function VideoRetimeDialog({
 		setStatus('');
 		setError('');
 	}, [direction, model.clipId, model.bounds?.sourceFirstFrame, model.bounds?.sourceLastFrame]);
+	useEffect(() => {
+		setExactMapText(exactMapSeed);
+	}, [exactMapSeed]);
 
 	const perform = (operation: () => unknown, success: string): void => {
 		setPending(true);
@@ -146,6 +160,19 @@ export default function VideoRetimeDialog({
 					endVelocity: parseRational(endVelocity, 'end velocity'),
 					sourceStartFrame: parseRational(sourceStartFrame, 'source start frame'),
 				}))}>{label(copy, 'videoRetimeApplyRamp', 'Apply ramp')}</button>
+			</fieldset>
+			<fieldset disabled={disabled || model.bounds === null}>
+				<legend>{label(copy, 'videoRetimeExactMap', 'Exact retime map')}</legend>
+				<p>{label(copy, 'videoRetimeExactMapDescription',
+					'Edit a strict clip-bound V2 retime map as JSON.')}</p>
+				<label><span>{label(copy, 'videoRetimeExactMapJson', 'V2 map JSON')}</span>
+					<textarea data-video-retime-exact-map="true" value={exactMapText}
+						maxLength={VIDEO_RETIME_EXACT_MAP_INPUT_MAX_LENGTH}
+						onChange={(event) => setExactMapText(event.currentTarget.value)} /></label>
+				<button type="button" data-video-retime-set="true" onClick={() => invokeParsed('retimeSet', () => {
+					if (model.bounds === null) throw new Error('Select one timeline video clip.');
+					return { retimeMap: parseVideoRetimeExactMapInput(exactMapText, model.bounds) };
+				})}>{label(copy, 'videoRetimeApplyExactMap', 'Apply exact map')}</button>
 			</fieldset>
 			<div role="status" aria-live="polite" aria-atomic="true">{error || status}</div>
 		</div>
