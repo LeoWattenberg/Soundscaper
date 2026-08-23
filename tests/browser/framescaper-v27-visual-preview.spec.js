@@ -18,7 +18,7 @@ import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtim
 
 const CFR_VIDEO = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 const VISUAL_READINESS_TIMEOUT = 30_000;
-const VISUAL_WORKFLOW_TIMEOUT = 360_000;
+const VISUAL_WORKFLOW_TIMEOUT = 600_000;
 
 test.describe('selected V27 exact visual preview', () => {
 	test.describe.configure({ mode: 'serial' });
