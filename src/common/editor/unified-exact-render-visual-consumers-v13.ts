@@ -7,13 +7,16 @@ import {
 	type Rational,
 	type RationalInput,
 } from './timeline-time.ts';
+import { fingerprintNativeMediaPlan } from './native-media-plan-canonical-form.ts';
 import {
 	assertUnifiedExactRenderPlanV13,
+	assertUnifiedExactRenderPlanWithTimingSidecars,
 	type UnifiedExactRenderFinishingNode,
 	type UnifiedExactRenderPlanV13,
 	type UnifiedExactRenderTransitionNode,
 	type UnifiedExactRenderVisualNode,
 } from './unified-exact-render-plan.ts';
+import type { UnifiedExactRenderTimingSidecars } from './unified-exact-render-timing-authority.ts';
 import type { VideoMaskMatteGraphV1 } from './video-mask-matte-v24.ts';
 import type { VideoVisualPresentationV1 } from './video-visual-presentation-v27.ts';
 import {
@@ -63,6 +66,13 @@ export interface UnifiedExactRenderVisualFrameLedgerV13 {
 	readonly omittedNodeIds: readonly string[];
 }
 
+export interface UnifiedExactRenderVisualPresentationStateV13 {
+	readonly opacity: number;
+	readonly blendMode: VideoVisualPresentationV1['blendMode'];
+	readonly masks: readonly VideoMaskMatteGraphV1[];
+	readonly presentationIds: readonly string[];
+}
+
 export interface UnifiedExactRenderVisualFrameV13 {
 	readonly sequencePosition: Rational;
 	readonly transitionWeights: readonly UnifiedExactRenderTransitionWeightV13[];
@@ -90,19 +100,28 @@ interface ConsumerIndex {
 /** Preview and export deliberately receive the same consumer implementation. */
 export function createUnifiedExactRenderVisualPreviewConsumerV13(
 	plan: UnifiedExactRenderPlanV13,
+	timingSidecars?: UnifiedExactRenderTimingSidecars,
 ): UnifiedExactRenderVisualConsumerV13 {
-	return createConsumer(plan);
+	return createConsumer(plan, timingSidecars);
 }
 
 /** Preview and export deliberately receive the same consumer implementation. */
 export function createUnifiedExactRenderVisualExportConsumerV13(
 	plan: UnifiedExactRenderPlanV13,
+	timingSidecars?: UnifiedExactRenderTimingSidecars,
 ): UnifiedExactRenderVisualConsumerV13 {
-	return createConsumer(plan);
+	return createConsumer(plan, timingSidecars);
 }
 
-function createConsumer(plan: UnifiedExactRenderPlanV13): UnifiedExactRenderVisualConsumerV13 {
-	assertUnifiedExactRenderPlanV13(plan);
+function createConsumer(
+	plan: UnifiedExactRenderPlanV13,
+	timingSidecars?: UnifiedExactRenderTimingSidecars,
+): UnifiedExactRenderVisualConsumerV13 {
+	if (timingSidecars === undefined) assertUnifiedExactRenderPlanV13(plan);
+	else {
+		assertUnifiedExactRenderPlanWithTimingSidecars(plan, timingSidecars);
+		if (plan.version !== 13) throw new RangeError('V13 visual execution requires a V13 plan.');
+	}
 	const finishing = plan.nodes.filter(
 		(node): node is UnifiedExactRenderFinishingNode => node.kind === 'finishing',
 	);
@@ -188,14 +207,31 @@ function resolveFrame(
 		layers: Object.freeze(frameLayers),
 		activeAdjustmentLayers: Object.freeze(adjustments),
 		activeFreezeNodeIds: Object.freeze(activeFreezeNodeIds),
-		availablePresetIds: Object.freeze(index.visuals.filter(({ modelKind }) => modelKind === 'preset')
-			.map(({ modelId }) => modelId).sort(compareText)),
+		availablePresetIds: availablePresetIds(index),
 		ledger: Object.freeze({
 			requestedNodeIds: Object.freeze(requestedNodeIds),
 			consumedNodeIds: Object.freeze(consumedNodeIds),
 			omittedNodeIds: Object.freeze(omitted),
 		}),
 	});
+}
+
+function availablePresetIds(index: ConsumerIndex): readonly string[] {
+	return Object.freeze(index.visuals.filter((node) => node.modelKind === 'preset').flatMap((preset) => {
+		if (!('authoredStateSha256' in preset.authoredState)) return [];
+		const presetState = preset.authoredState;
+		const bound = index.visuals.some((candidate) => {
+			if (presetState.modelKind === 'generator') {
+				return isPlacedVisual(candidate) && candidate.authoredState.source.kind === 'generator'
+					&& fingerprintNativeMediaPlan(candidate.authoredState.source).sha256
+						=== presetState.authoredStateSha256;
+			}
+			if (candidate.modelKind !== presetState.modelKind) return false;
+			return fingerprintNativeMediaPlan(candidate.authoredState).sha256
+				=== presetState.authoredStateSha256;
+		});
+		return bound ? [preset.modelId] : [];
+	}).sort(compareText));
 }
 
 function resolveTransitions(
@@ -273,14 +309,24 @@ function trackRenders(index: ConsumerIndex, trackId: string): boolean {
 	return soloed ? track.solo : !track.hidden;
 }
 
-function presentationState(index: ConsumerIndex, node: UnifiedExactRenderVisualNode): Readonly<{
-	opacity: number;
-	blendMode: VideoVisualPresentationV1['blendMode'];
-	masks: readonly VideoMaskMatteGraphV1[];
-}> {
+function presentationState(
+	index: ConsumerIndex,
+	node: UnifiedExactRenderVisualNode,
+): UnifiedExactRenderVisualPresentationStateV13 {
+	return resolveUnifiedExactRenderVisualPresentationV13(
+		index.finishing.visualPresentations, node, index.masksById,
+	);
+}
+
+/** Resolve the admitted presentation for timeline, Project Bin, preview, and export pictures. */
+export function resolveUnifiedExactRenderVisualPresentationV13(
+	presentationsValue: readonly VideoVisualPresentationV1[],
+	node: Pick<UnifiedExactRenderVisualNode, 'modelId' | 'authoredState'>,
+	masksById: ReadonlyMap<string, VideoMaskMatteGraphV1>,
+): UnifiedExactRenderVisualPresentationStateV13 {
 	const state = node.authoredState;
 	const sourceId = 'source' in state ? state.source.id : null;
-	const presentations = index.finishing.visualPresentations.filter((presentation) => (
+	const presentations = presentationsValue.filter((presentation) => (
 		presentation.enabled && (
 			(presentation.owner.kind === 'clip' && presentation.owner.id === node.modelId)
 			|| ((presentation.owner.kind === 'source' || presentation.owner.kind === 'generator')
@@ -291,17 +337,22 @@ function presentationState(index: ConsumerIndex, node: UnifiedExactRenderVisualN
 	let opacity = 1;
 	let blendMode: VideoVisualPresentationV1['blendMode'] = 'normal';
 	const maskIds = new Set<string>();
+	const presentationIds: string[] = [];
 	for (const presentation of presentations) {
+		presentationIds.push(presentation.id);
 		opacity *= presentation.opacity;
 		blendMode = presentation.blendMode;
 		for (const id of presentation.maskMatteIds) maskIds.add(id);
 	}
 	const masks = [...maskIds].sort(compareText).map((id) => {
-		const graph = index.masksById.get(id);
+		const graph = masksById.get(id);
 		if (!graph) throw new ReferenceError(`V13 visual presentation mask ${id} is unavailable.`);
 		return graph;
 	});
-	return Object.freeze({ opacity, blendMode, masks: Object.freeze(masks) });
+	return Object.freeze({
+		opacity, blendMode, masks: Object.freeze(masks),
+		presentationIds: Object.freeze(presentationIds.sort(compareText)),
+	});
 }
 
 function maskNodeId(index: ConsumerIndex, modelId: string, requested: Set<string>): string {

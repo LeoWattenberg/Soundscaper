@@ -59,6 +59,10 @@ const COLLECTIONS = Object.freeze({
 } as const);
 
 const SURFACE_COPY = Object.freeze({
+	'visual-inspector': Object.freeze({
+		title: 'Selected Visual Inspector',
+		description: 'Edit the selected still or built-in generator through exact V27 presentation state.',
+	}),
 	'color-management': Object.freeze({
 		title: 'Managed Color & Source Interpretation',
 		description: 'Inspect disclosed source assumptions, override them explicitly, and select deterministic sRGB or Rec.709 output.',
@@ -119,7 +123,7 @@ export function createFramescaperV27FinishingCommand(
 	documentText: string,
 ): FramescaperV27FinishingDialogCommand {
 	const project = projectRecord(projectValue);
-	if (surface === 'dialogue-chain') {
+	if (surface === 'dialogue-chain' || surface === 'visual-inspector') {
 		throw new RangeError('The dialogue chain uses its dedicated deterministic action.');
 	}
 	const parsed = parseDocument(documentText);
@@ -197,7 +201,7 @@ function finishingDocument(
 }
 
 function surfaceCommands(
-	surface: Exclude<FramescaperV27FinishingSurface, 'dialogue-chain'>,
+	surface: Exclude<FramescaperV27FinishingSurface, 'dialogue-chain' | 'visual-inspector'>,
 	project: Record<string, unknown>,
 	draft: unknown,
 ): FramescaperOwnedFinishingCommandV27[] {

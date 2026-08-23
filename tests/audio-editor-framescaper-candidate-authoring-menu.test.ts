@@ -71,13 +71,13 @@ test('V22 exposes transition authoring only through Effect when exact capabiliti
 	assert.deepEqual(blocked.effect[0]?.items?.map(({ disabled }) => disabled), [false, true]);
 });
 
-test('V24 candidates and selected V27 expose visual authoring in existing menus', async () => {
+test('V24 candidates expose visual authoring in existing menus', async () => {
 	const capabilities = {
 		videoTransitions: true, videoTransitionDissolve: true,
 		videoStills: true, videoGenerators: true, videoAdjustmentLayers: true,
 		videoMasksMattes: true, videoFreeze: true,
 	};
-	for (const schemaVersion of [24, 27]) {
+	for (const schemaVersion of [24]) {
 		const items = createFramescaperCandidateAuthoringMenuItems({
 			productId: 'framescaper', project: { schemaVersion }, editingBlocked: false,
 			projectCapabilities: capabilities, actionSurfaces: VISUALS,

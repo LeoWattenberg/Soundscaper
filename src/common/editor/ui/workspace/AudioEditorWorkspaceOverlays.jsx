@@ -11,6 +11,7 @@ const VideoKeyframeDialog = React.lazy(() => import('../inspector/VideoKeyframeD
 const VideoRetimeDialog = React.lazy(() => import('../dialogs/VideoRetimeDialog.tsx'));
 const FramescaperVideoProxyDialog = React.lazy(() => import('../dialogs/FramescaperVideoProxyDialog.tsx'));
 const FramescaperV27FinishingDialog = React.lazy(() => import('../dialogs/FramescaperV27FinishingDialog.tsx'));
+const FramescaperV27VisualInspectorDialog = React.lazy(() => import('../dialogs/FramescaperV27VisualInspectorDialog.tsx'));
 const ExportDialog = React.lazy(() => import('../inspector/ExportDialog.jsx'));
 const DeliveryQueueDialog = React.lazy(() => import('../inspector/DeliveryQueueDialog.jsx'));
 const LabelExportDialog = React.lazy(() => import('../inspector/LabelExportDialog.jsx'));
@@ -168,7 +169,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				</div>
 			)}
 			{productId === 'framescaper' && snapshot.project?.schemaVersion === 27
-				&& framescaperFinishingSurface && (
+				&& framescaperFinishingSurface && framescaperFinishingSurface !== 'visual-inspector' && (
 				<div data-editor-surface="framescaper-v27-finishing">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 						<FramescaperV27FinishingDialog
@@ -180,6 +181,23 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							readOnly={snapshot.readOnly === true}
 							copy={copy}
 							fileService={fileService}
+							run={run}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{productId === 'framescaper' && snapshot.project?.schemaVersion === 27
+				&& framescaperFinishingSurface === 'visual-inspector' && (
+				<div data-editor-surface="framescaper-v27-visual-inspector">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<FramescaperV27VisualInspectorDialog
+							controller={controller}
+							project={snapshot.project}
+							selectedClipId={snapshot.selectedClipId}
+							editingBlocked={editBlocked}
+							readOnly={snapshot.readOnly === true}
+							copy={copy}
 							run={run}
 							onClose={() => setActiveSurface(null)}
 						/>

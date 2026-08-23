@@ -152,6 +152,10 @@ export function assertUnifiedExactFinishingReferences(
 		if (presentation.owner.kind === 'adjustment-layer' && claim.role !== 'adjustment-layer') {
 			throw new ReferenceError(`V13 presentation ${presentation.id} owner is not an adjustment layer.`);
 		}
+		if (presentation.owner.kind === 'clip' && claim.kind === 'visual-model'
+			&& !VISUAL_CLIP_ROLES.has(claim.role ?? '')) {
+			throw new ReferenceError(`V13 presentation ${presentation.id} owner is not a visual clip.`);
+		}
 		if (presentation.owner.kind === 'mask-matte' && claim.role !== 'mask-matte') {
 			throw new ReferenceError(`V13 presentation ${presentation.id} owner is not a mask/matte.`);
 		}
@@ -329,8 +333,12 @@ const PRESENTATION_OWNER_KINDS: Readonly<Record<
 	VideoVisualPresentationV1['owner']['kind'], ReadonlySet<UnifiedExactRenderIdentityKind>
 >> = Object.freeze({
 	source: new Set<UnifiedExactRenderIdentityKind>(['source']),
-	clip: new Set<UnifiedExactRenderIdentityKind>(['clip']),
+	clip: new Set<UnifiedExactRenderIdentityKind>(['clip', 'visual-model']),
 	'adjustment-layer': new Set<UnifiedExactRenderIdentityKind>(['visual-model']),
 	generator: new Set<UnifiedExactRenderIdentityKind>(['generator-source']),
 	'mask-matte': new Set<UnifiedExactRenderIdentityKind>(['visual-model']),
 });
+
+const VISUAL_CLIP_ROLES = new Set([
+	'still', 'title', 'text', 'shape', 'solid', 'external-generator',
+]);

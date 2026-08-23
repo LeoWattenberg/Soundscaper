@@ -11,6 +11,7 @@ import {
 	createVideoPreviewSafeFallbackReport,
 	recordVideoPreviewEntryFallback,
 	recordVideoPreviewEntryRendered,
+	recordVideoPreviewLayerRendered,
 	shouldContinueVideoPreviewPlayback,
 } from '../src/common/editor/ui/video-preview-render-ledger.js';
 
@@ -162,6 +163,26 @@ test('renderer fallback records authored composition as omitted, never raw-rende
 		omitted: ['clip-geometry'],
 	});
 	assert.equal(report.status, 'fallback');
+});
+
+test('adjustment-layer effects are explicit compositor requests and outcomes', () => {
+	const source = entry('clip-adjusted', []);
+	const layer = { entries: [source], effects: [effect('adjustment-brightness', 'color-adjust')] };
+	const ledger = beginVideoPreviewRenderLedger([layer], supportedEffectTypes);
+	recordVideoPreviewEntryRendered(ledger, source);
+	recordVideoPreviewLayerRendered(ledger, layer);
+	assert.deepEqual(completeVideoPreviewRenderLedger(ledger, 1).effects, {
+		requested: ['adjustment-brightness'],
+		rendered: ['adjustment-brightness'],
+		fallbackRendered: [],
+		omitted: [],
+	});
+	assert.deepEqual(createVideoPreviewFallbackReport([layer], supportedEffectTypes).effects, {
+		requested: ['adjustment-brightness'],
+		rendered: [],
+		fallbackRendered: ['adjustment-brightness'],
+		omitted: [],
+	});
 });
 
 function effect(id, type, enabled = true) {

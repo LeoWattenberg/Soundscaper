@@ -27,6 +27,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 				const framescaperVideoEffectIds = new Set([
 					'framescaper-video-effects', 'framescaper-video-transitions',
 					'framescaper-edit-video-mask-matte', 'framescaper-freeze-video',
+					'framescaper-v27-video-finishing',
 				]);
 				return {
 					...menu,

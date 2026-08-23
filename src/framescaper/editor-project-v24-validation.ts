@@ -67,6 +67,13 @@ export function framescaperProjectV22FoundationV24(
 	const candidate = record(project, 'Framescaper V24 project');
 	const result = structuredClone(candidate) as Record<string, unknown>;
 	stripVisualState(result);
+	const visualClipIds = new Set(records(candidate.clips, 'V24 clips')
+		.filter((clip) => clip.kind === 'still' || clip.kind === 'generator')
+		.map(({ id }) => String(id)));
+	const selection = record(result.selection, 'V22 foundation selection');
+	if (Array.isArray(selection.clipIds)) {
+		selection.clipIds = selection.clipIds.filter((id) => !visualClipIds.has(String(id)));
+	}
 	result.featureRequirements = framescaperProjectFeatureRequirementsForV22FoundationV24(profile, candidate);
 	return result as unknown as FramescaperProjectV22;
 }
@@ -121,6 +128,12 @@ function validateVisualModels(project: Record<string, unknown>): void {
 		const owners = [...trackById.values()].filter((track) => Array.isArray(track.clipIds) && track.clipIds.includes(clipId));
 		if (owners.length !== 1 || owners[0]!.type !== 'video') {
 			throw new RangeError(`Timeline visual clip ${clipId} requires exactly one video track owner.`);
+		}
+	}
+	const selection = record(data(project, 'selection'), 'selection');
+	if (Array.isArray(selection.clipIds)) for (const clipId of selection.clipIds.map(String)) {
+		if (!clips.some(({ id }) => String(id) === clipId)) {
+			throw new ReferenceError(`V24 selection references missing timeline clip ${clipId}.`);
 		}
 	}
 	const adjustments = array(project, 'videoAdjustmentLayers').map(normalizeVideoAdjustmentLayerV1);

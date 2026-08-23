@@ -9,11 +9,13 @@ import {
 	framescaperV27FinishingSurfaceId,
 	type FramescaperV27FinishingSurface,
 } from '../src/common/editor/ui/framescaper-v27-finishing-menu.ts';
+import { filterProductMenus } from '../src/common/editor/ui/application-menu-product-filter.js';
 import { createApplicationMenuProductItems } from '../src/common/editor/ui/application-menu-product-items.js';
 
 const CAPABILITIES = Object.freeze({
 	videoCaptions: true, videoColorManagement: true, videoDenoise: true,
 	videoGrading: true, videoMotionTracking: true, videoStabilization: true,
+	videoGenerators: true,
 	audioAutomation: true, audioEffects: true, audioMixerGraph: true,
 });
 
@@ -30,6 +32,7 @@ test('selected Framescaper V27 exposes every finishing workflow through existing
 		'framescaper-v27-caption-tracks', 'framescaper-v27-audio-automation',
 	]);
 	assert.deepEqual(items.effect[0]?.items?.map(({ id }) => id), [
+		'framescaper-v27-visual-inspector',
 		'framescaper-v27-color-management', 'framescaper-v27-grading-presets',
 		'framescaper-v27-stabilization', 'framescaper-v27-denoise',
 	]);
@@ -39,7 +42,7 @@ test('selected Framescaper V27 exposes every finishing workflow through existing
 	]);
 	await items.effect[0]?.items?.[0]?.onClick?.();
 	await items.tracks[0]?.onClick?.();
-	assert.deepEqual(calls, ['color-management', 'captions']);
+	assert.deepEqual(calls, ['visual-inspector', 'captions']);
 });
 
 test('V27 finishing menus fail closed outside selected mutable capability truth', () => {
@@ -72,4 +75,19 @@ test('the product menu seam merges selected V27 finishing rows without Soundscap
 	assert.equal(items.effect.some(({ id }: { id: string }) => id === 'framescaper-v27-video-finishing'), true);
 	assert.equal(items.analyze.some(({ id }: { id: string }) => id === 'framescaper-v27-motion-tracking'), true);
 	assert.equal(items.mixer.some(({ id }: { id: string }) => id === 'framescaper-v27-mixer'), true);
+});
+
+test('Framescaper keeps its selected V27 finishing branch when audio effects are unavailable', () => {
+	const filtered = filterProductMenus([{
+		id: 'effect', items: [
+			{ id: 'audio-effect' },
+			{ id: 'framescaper-v27-video-finishing' },
+		],
+	}], {
+		audioGenerators: false, audioEffects: false, audioAnalysis: false,
+		audioMacros: false, audioRecording: false,
+	}, 'framescaper');
+	assert.deepEqual(filtered[0]?.items.map(({ id }: { id: string }) => id), [
+		'framescaper-v27-video-finishing',
+	]);
 });

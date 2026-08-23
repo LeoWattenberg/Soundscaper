@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export const FRAMESCAPER_V27_FINISHING_SURFACES = Object.freeze([
-	'color-management', 'grading-presets', 'motion-tracking', 'stabilization',
+	'visual-inspector', 'color-management', 'grading-presets', 'motion-tracking', 'stabilization',
 	'denoise', 'captions', 'automation', 'mixer', 'dialogue-chain',
 ] as const);
 
@@ -77,6 +77,8 @@ export function createFramescaperV27FinishingMenuItems(
 	};
 	const videoFinishing = branch(
 		'framescaper-v27-video-finishing', copy.framescaperVideoFinishing ?? 'Video Finishing', [
+			leaf('framescaper-v27-visual-inspector', 'videoVisualInspector',
+				'Selected Visual Inspector…', 'visual-inspector', 'videoGenerators'),
 			leaf('framescaper-v27-color-management', 'videoColorManagement',
 				'Managed Color & Source Interpretation…', 'color-management', 'videoColorManagement'),
 			leaf('framescaper-v27-grading-presets', 'videoGradingPresets',

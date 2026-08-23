@@ -27,6 +27,7 @@ import {
 import {
 	createFramescaperMotionAnalysisFrameProviderV27,
 } from './editor-motion-analysis-frame-provider-v27.ts';
+import { bindFramescaperSelectedVisualPreviewControllerV27 } from './editor-selected-v27-visual-preview-controller.ts';
 import { createFramescaperVideoExportStrategyV27 } from './video-export-strategy-v27.ts';
 import { createFramescaperVideoProxyActionsV27 } from './editor-video-proxy-actions-v20.ts';
 import type { FramescaperVideoProxyActionRuntime } from './editor-video-proxy-action-runtime-v20.ts';
@@ -129,6 +130,11 @@ export function createFramescaperAudioEditorControllerV27(
 			store: environment.controllerStore,
 		}),
 	}));
+	bindFramescaperSelectedVisualPreviewControllerV27({
+		controller,
+		profile: environment.runtime.profile,
+		store: environment.controllerStore,
+	});
 	bindFramescaperSelectedRenderSessionRuntimeV27(environment.runtime.profile, controller);
 	return controller;
 }

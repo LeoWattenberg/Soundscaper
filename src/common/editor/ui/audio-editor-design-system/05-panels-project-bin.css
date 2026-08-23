@@ -385,7 +385,8 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__project-bin-video img,
-#kw-audio-editor-design-system .kw-audio-editor__project-bin-video video {
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-video video,
+#kw-audio-editor-design-system .kw-audio-editor__project-bin-video canvas {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;

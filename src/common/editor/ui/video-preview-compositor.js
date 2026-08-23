@@ -32,7 +32,6 @@ import {
 import {
 	createVideoPreviewCompositionBlendRuntime,
 	disposeVideoPreviewCompositionBlendRuntime,
-	drawVideoPreviewCompositionBlend,
 } from './video-preview-composition-blend.ts';
 import {
 	VIDEO_PREVIEW_IDENTITY_POSITION_TRANSFORM,
@@ -48,6 +47,7 @@ import {
 	deleteVideoPreviewRenderTargets,
 } from './video-preview-render-target.js';
 import { resolveVideoPreviewCompositorSize } from './video-preview-compositor-size.js';
+import { compositeVideoPreviewAdjustedLayer } from './video-preview-layer-effects.js';
 
 export {
 	VIDEO_PREVIEW_MAX_GAUSSIAN_BLUR_KERNEL_SIGMA,
@@ -523,14 +523,12 @@ export class VideoPreviewCompositor {
 				recordVideoPreviewEntryRendered(ledger, entry);
 			}
 			if (!renderedLayerEntries) continue;
-			drawVideoPreviewCompositionBlend(gl, this.compositionBlend, {
-				backdropTexture: compositionTarget.texture,
-				sourceTexture: this.targets.layer.texture,
-				target: compositionSwapTarget,
-				blendMode: layer.blendMode || 'normal',
-			});
-			[compositionTarget, compositionSwapTarget] = [compositionSwapTarget, compositionTarget];
-			this.currentProgram = null;
+			const nextTarget = compositeVideoPreviewAdjustedLayer(
+				this, ledger, layer, compositionTarget, compositionSwapTarget,
+				referenceWidth, referenceHeight,
+			);
+			compositionSwapTarget = compositionTarget;
+			compositionTarget = nextTarget;
 		}
 
 		gl.disable(gl.BLEND);

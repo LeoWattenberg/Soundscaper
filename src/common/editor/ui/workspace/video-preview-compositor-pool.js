@@ -33,6 +33,7 @@ export function clearVideoPreviewCompositorLayer(layer) {
 		clearVideoPreviewCompositorEntry(layer.entryPool[entryIndex]);
 	}
 	layer.trackId = null;
+	layer.trackIndex = null;
 	layer.entries.length = 0;
 	delete layer.blendMode;
 }
@@ -48,6 +49,7 @@ export function primeVideoPreviewCompositorPool(layerPool, layerCount) {
 	while (layerPool.length < layerCount) {
 		layerPool.push({
 			trackId: null,
+			trackIndex: null,
 			entries: [],
 			entryPool: [createEntry(), createEntry()],
 		});
@@ -112,6 +114,7 @@ export function synchronizeVideoPreviewCompositorLayers(
 		const targetLayer = layerPool[targetLayerCount];
 		targetLayers[targetLayerCount] = targetLayer;
 		targetLayer.trackId = layer.trackId;
+		targetLayer.trackIndex = layer.trackIndex;
 		let targetEntryCount = 0;
 		for (let clipIndex = 0; clipIndex < layer.clips.length; clipIndex += 1) {
 			const clip = layer.clips[clipIndex];
@@ -192,7 +195,7 @@ function resolveKeyframeStates(interval, timeline, timelineFrame) {
 				timelineSample: timelineFrame,
 				sourceDisplaySize: resolveVideoSourceDisplaySize(clip.source),
 				canvas: timeline.renderCanvas,
-				transitionWeight: previewTransitionWeight(layer, clip, timelineFrame),
+				transitionWeight: previewTransitionWeight(layer, clip, timelineFrame, timeline),
 			});
 			if (state) states.set(clip, state);
 		}
@@ -200,8 +203,17 @@ function resolveKeyframeStates(interval, timeline, timelineFrame) {
 	return states;
 }
 
-function previewTransitionWeight(layer, clip, timelineFrame) {
+function previewTransitionWeight(layer, clip, timelineFrame, timeline) {
 	if (clip.role === 'single' || layer.clips.length === 1) return 1;
+	if (typeof timeline.resolveTransitionWeight === 'function') {
+		const exact = timeline.resolveTransitionWeight(clip.clipId, timelineFrame);
+		if (exact !== null && exact !== undefined) {
+			if (!Number.isFinite(exact) || exact < 0 || exact > 1) {
+				throw new RangeError('An exact video transition weight must be between zero and one.');
+			}
+			return exact;
+		}
+	}
 	const outgoing = layer.clips.find((candidate) => candidate.role === 'outgoing');
 	const incoming = layer.clips.find((candidate) => candidate.role === 'incoming');
 	if (!outgoing || !incoming) throw new RangeError('A preview transition requires outgoing and incoming clips.');

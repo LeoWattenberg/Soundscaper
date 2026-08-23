@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createAddTrackCommand } from '../common/editor/commands/factories.ts';
+import {
+	createAddTrackCommand,
+	createAddVideoEffectCommand,
+} from '../common/editor/commands/factories.ts';
 import { createStableId } from '../common/editor/stable-id.js';
+import { fingerprintNativeMediaPlan } from '../common/editor/native-media-plan-canonical-form.ts';
 import { digestMediaContent } from '../common/editor/storage/media-content-digest.ts';
 import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import type { FramescaperCandidateAuthoringSurface } from '../common/editor/ui/framescaper-candidate-authoring-actions.ts';
@@ -73,16 +77,37 @@ function generatorCommand(project: ReadonlyData, surface: FramescaperCandidateAu
 }
 
 function adjustmentCommand(project: ReadonlyData): unknown {
-	const placement = placementPlan(project);
+	const clips = records(project.clips, 'clips');
+	const selectedIds = Array.isArray(recordsOrEmpty(project.selection).clipIds)
+		? (recordsOrEmpty(project.selection).clipIds as unknown[]).map(String) : [];
+	const tracks = records(project.tracks, 'tracks');
+	const target = tracks.flatMap((track) => {
+		if (track.type !== 'video' || track.locked === true || !Array.isArray(track.clipIds)) return [];
+		return track.clipIds.map(String).flatMap((clipId) => {
+			const clip = clips.find(({ id }) => id === clipId && id != null && (
+				String(id) === clipId
+			));
+			return clip?.kind === 'video' ? [{ track, clip }] : [];
+		});
+	}).sort((left, right) => (
+		Number(selectedIds.includes(String(right.clip.id))) - Number(selectedIds.includes(String(left.clip.id)))
+	))[0];
+	if (!target) throw new Error('Import and select a timeline video clip before adding an adjustment layer.');
 	const id = createStableId('adjustment-layer');
-	return batch([...placement.trackCommands, {
+	const effectId = createStableId('adjustment-effect');
+	return batch([createAddVideoEffectCommand(String(target.clip.id), 'color-adjust', {
+		id: effectId,
+		params: { brightness: 0.25, contrast: 1, saturation: 1, gamma: 1, hueDegrees: 0 },
+	}), {
 		type: 'video-adjustment-layer/set', adjustmentLayerId: id,
 		expectedAdjustmentLayer: null,
 		adjustmentLayer: {
 			schemaVersion: 1, kind: 'adjustment-layer', id,
-			sequenceId: placement.sequenceId, sequenceStartFrame: placement.start,
-			sequenceFrameCount: placement.duration, targetTrackIds: [placement.trackId],
-			effectIds: [],
+			sequenceId: stableId(target.clip.sequenceId, 'adjustment sequence ID'),
+			sequenceStartFrame: nonNegativeInteger(target.clip.sequenceStartFrame, 'adjustment start'),
+			sequenceFrameCount: positiveInteger(target.clip.sequenceFrameCount, 'adjustment duration'),
+			targetTrackIds: [stableId(target.track.id, 'adjustment track ID')],
+			effectIds: [effectId],
 		},
 	}]);
 }
@@ -120,7 +145,7 @@ async function presetCommand(project: ReadonlyData): Promise<unknown> {
 		preset: {
 			schemaVersion: 1, kind: 'video-preset', id, name: 'Visual Preset',
 			modelKind: authored.modelKind,
-			authoredStateSha256: await digestValue(authored.value),
+			authoredStateSha256: fingerprintNativeMediaPlan(authored.value).sha256,
 		},
 	};
 }
@@ -206,7 +231,9 @@ async function prepareFreezeFrame(
 		expectedFreezeFallback: null,
 		freezeFallback: createVideoFreezeFallbackV1({
 			renderedSourceId: renderedSource.id, renderedAssetSha256: digest,
-			authoredStateSha256: await digestValue(clip),
+			authoredStateSha256: fingerprintNativeMediaPlan({
+				schemaVersion: 1, kind: 'video-freeze', renderedSourceId: renderedSource.id,
+			}).sha256,
 			inputIdentitiesSha256: await digestValue({ sourceId: source.id, digest: source.contentSha256 }),
 			renderPlanFingerprintSha256: await digestValue({ schemaVersion: 13, clipId: clip.id }),
 			nativeEffectFingerprintSha256: await digestValue({ nativeEffects: false }),
@@ -356,6 +383,13 @@ function surfaceName(surface: FramescaperCandidateAuthoringSurface): string {
 function safeSourceName(value: string): string {
 	const normalized = value.normalize('NFC').replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\r\n]/gu, ' ').trim();
 	return normalized.slice(0, 512) || 'Still';
+}
+
+function stableId(value: unknown, name: string): string {
+	if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(value)) {
+		throw new TypeError(`${name} must be a stable ID.`);
+	}
+	return value;
 }
 
 function records(value: unknown, name: string): Data[] {

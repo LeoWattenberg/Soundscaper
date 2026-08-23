@@ -44,6 +44,9 @@ const { framescaperVideoProxyActionRuntimeFor } = await import(
 const { framescaperMotionAnalysisActionsV27For } = await import(
 	'../src/framescaper/editor-motion-analysis-actions-v27.ts'
 );
+const { productVideoVisualPreviewRuntimeFor } = await import(
+	'../src/common/editor/ui/workspace/product-video-visual-preview-runtime.ts'
+);
 
 test('selected V27 controller creates, edits, saves, undoes, and redoes exact documents', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV27({
@@ -81,6 +84,7 @@ test('selected V27 controller creates, edits, saves, undoes, and redoes exact do
 	assert.deepEqual(proxyRuntime.pressure('video-source'), {
 		droppedFrameRatio: 0, decodeQueueDepth: 0, viewportScale: 1,
 	});
+	assert.ok(productVideoVisualPreviewRuntimeFor(controller));
 });
 
 test('selected V27 visual authoring commits maintained V24 state through controller history', async (context) => {
@@ -122,13 +126,13 @@ test('selected V27 visual authoring commits maintained V24 state through control
 	for (const surface of ['video-title', 'video-text', 'video-shape'] as const) {
 		await runtime.run(surface);
 	}
-	await runtime.run('video-adjustment-layer');
+	await assert.rejects(runtime.run('video-adjustment-layer'), /timeline video clip/iu);
 	await runtime.run('video-mask-matte');
 	await runtime.run('video-visual-preset');
 	project = visualProject(controller.project);
 	assert.deepEqual(project.sources.filter(({ kind }) => kind === 'generator')
 		.map(({ generator }) => generator?.kind), ['solid', 'title', 'text', 'shape']);
-	assert.equal(project.videoAdjustmentLayers.length, 1);
+	assert.equal(project.videoAdjustmentLayers.length, 0);
 	assert.equal(project.videoMaskMattes.length, 1);
 	assert.equal(project.videoVisualPresets.length, 1);
 	await controller.actions.project.save();

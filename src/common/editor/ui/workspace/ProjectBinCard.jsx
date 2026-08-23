@@ -12,6 +12,7 @@ import {
 	projectBinTransformBadges,
 	projectBinWaveformPath,
 } from './project-bin-model.ts';
+import { productVideoVisualPreviewRuntimeFor } from './product-video-visual-preview-runtime.ts';
 
 export default function ProjectBinCard({
 	clip,
@@ -48,6 +49,12 @@ export default function ProjectBinCard({
 	const format = formatProjectBinSource(source, copy);
 	const duration = formatProjectBinDuration(clip.durationFrames, project?.sampleRate, locale);
 	const videoClip = itemClips.find((itemClip) => itemClip.kind === 'video') || null;
+	const visualClip = itemClips.find((itemClip) => (
+		itemClip.kind === 'still' || itemClip.kind === 'generator'
+	)) || null;
+	const visualThumbnail = useProductVisualThumbnail({
+		controller, project, clipId: visualClip?.id || null,
+	});
 	const posterUrl = visual?.posterUrl || visual?.thumbnails?.[0]?.url || null;
 	const previewActive = preview?.clipId === clip.id;
 	const previewPlaying = previewActive && preview.state === 'playing';
@@ -80,7 +87,7 @@ export default function ProjectBinCard({
 		<li
 			className={`kw-audio-editor__project-bin-card${unavailable ? ' kw-audio-editor__project-bin-card--unavailable' : ''}`}
 			data-project-bin-item={clip.binItemId || clip.id}
-			data-project-bin-media-kind={videoClip ? 'video' : 'audio'}
+			data-project-bin-media-kind={visualClip ? 'visual' : videoClip ? 'video' : 'audio'}
 			data-source-id={clip.sourceId}
 			data-unavailable={unavailable ? 'true' : 'false'}
 			tabIndex={-1}
@@ -105,7 +112,22 @@ export default function ProjectBinCard({
 				onDragEnd(event.currentTarget.closest('[data-project-bin-drop-target]'));
 			}}
 		>
-			{videoClip ? (
+			{visualClip ? (
+				<div
+					className="kw-audio-editor__project-bin-video"
+					data-project-bin-visual
+					data-visual-thumbnail-pending={visualThumbnail.pending ? 'true' : 'false'}
+					data-visual-thumbnail-error={visualThumbnail.error || ''}
+					data-visual-presentation-ids={visualThumbnail.value?.presentationIds.join(' ') || ''}
+					data-visual-mask-ids={visualThumbnail.value?.maskIds.join(' ') || ''}
+					data-visual-opacity={visualThumbnail.value?.opacity ?? ''}
+					data-visual-blend-mode={visualThumbnail.value?.blendMode || ''}
+					aria-label={`${copy.videoClip}: ${name}`}
+					role="img"
+				>
+					<ProjectBinVisualThumbnail state={visualThumbnail} />
+				</div>
+			) : videoClip ? (
 				<div
 					className="kw-audio-editor__project-bin-video"
 					data-project-bin-video
@@ -236,7 +258,7 @@ export default function ProjectBinCard({
 					>
 						<span className="kw-audio-editor__project-bin-ibeam" aria-hidden="true" />
 					</button>
-					<button
+					{!visualClip && <button
 						type="button"
 						className="kw-audio-editor__project-bin-icon-button"
 						disabled={unavailable}
@@ -246,12 +268,53 @@ export default function ProjectBinCard({
 						onClick={() => run(() => controller.actions.projectBin.playPause(clip.id))}
 					>
 						<Icon name={previewPlaying ? 'pause' : 'play'} size={15} />
-					</button>
+					</button>}
 					</div>
 				</div>
 			</div>
 		</li>
 	);
+}
+
+function useProductVisualThumbnail({ controller, project, clipId }) {
+	const runtime = productVideoVisualPreviewRuntimeFor(controller);
+	const [state, setState] = useState(() => ({ pending: false, value: null, error: null }));
+	useEffect(() => {
+		const create = runtime?.createProjectBinThumbnail;
+		if (!clipId || typeof create !== 'function') {
+			setState({ pending: false, value: null, error: null });
+			return undefined;
+		}
+		const abort = new AbortController();
+		setState({ pending: true, value: null, error: null });
+		void create({ project, clipId, width: 320, height: 180, signal: abort.signal })
+			.then((value) => {
+				if (!abort.signal.aborted) setState({ pending: false, value, error: null });
+			})
+			.catch((cause) => {
+				if (!abort.signal.aborted) setState({ pending: false, value: null,
+					error: cause instanceof Error ? cause.message : String(cause) });
+			});
+		return () => { abort.abort(new DOMException('Project Bin thumbnail was replaced.', 'AbortError')); };
+	}, [clipId, project, runtime]);
+	return state;
+}
+
+function ProjectBinVisualThumbnail({ state }) {
+	const canvasRef = useRef(null);
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		const value = state.value;
+		if (!canvas || !value) return;
+		canvas.width = value.width;
+		canvas.height = value.height;
+		const context = canvas.getContext('2d');
+		if (!context) return;
+		context.putImageData(new ImageData(new Uint8ClampedArray(value.pixels), value.width, value.height), 0, 0);
+	}, [state.value]);
+	if (state.error) return <span aria-hidden="true">!</span>;
+	if (!state.value) return <span aria-hidden="true">◇</span>;
+	return <canvas ref={canvasRef} data-project-bin-visual-canvas aria-hidden="true" />;
 }
 
 function ProjectBinNameEditor({ clip, name, copy, disabled, onCommit }) {
