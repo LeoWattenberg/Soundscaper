@@ -147,6 +147,17 @@ test('renderer loss must interrupt a publication that never becomes canonical', 
 		workflowId: 'renderer-loss-during-operation',
 		order: ORDER,
 	}), /abandoned publication/iu);
+	// The matrix runs nightly against a packaged product, so a refusal has to carry what it
+	// saw: reporting the claim alone costs a whole nightly to learn the observed status.
+	await assert.rejects(runDesktopProjectLibraryLeaseMatrixCase({
+		driver: leaseInstances({ settleAbandonedPublication: true }),
+		workflowId: 'renderer-loss-during-operation',
+		order: ORDER,
+	}), (error) => {
+		assert.match(error.message, /abandoned publication canonical: \{/u);
+		assert.match(error.message, /"status"/u);
+		return true;
+	});
 	await assert.rejects(runDesktopProjectLibraryLeaseMatrixCase({
 		driver: leaseInstances({ idleCheckpoint: true }),
 		workflowId: 'renderer-loss-during-operation',

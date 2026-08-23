@@ -34,6 +34,7 @@ export const DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS = Object.freeze(
 const TTL_MS = 1_000;
 const CHILD_TIMEOUT_MS = 90_000;
 const MAXIMUM_OUTPUT_BYTES = 1024 * 1024;
+const MAXIMUM_EVIDENCE_CHARACTERS = 2_000;
 /** Both catalogs raise a lease another live instance holds under this exact wording. */
 const WRITER_LEASE_BUSY = /desktop V10 writer lease is busy/u;
 
@@ -122,7 +123,9 @@ export async function runDesktopProjectLibraryLeaseMatrixCase({ driver, workflow
 		const crashed = await driver.crash(primary, 'crash-prepared', projectId, request(initial, null));
 		const takeover = await driver.commit(secondary, 'commit', projectId, request(initial, null));
 		results = [crashed, takeover];
-		if (takeover.host?.writer?.tookOverStaleLease !== true) throw new Error('Stale takeover was not evidenced');
+		if (takeover.host?.writer?.tookOverStaleLease !== true) {
+			throw new Error(`Stale takeover was not evidenced: ${evidence(takeover)}`);
+		}
 	} else if (workflowId === 'conflicting-canonical-commit') {
 		const seed = await driver.commit(primary, 'commit', projectId, request(initial, null));
 		const left = createDesktopProjectLibraryLeaseMatrixDocument(projectId, 8, `${workflowId} left`);
@@ -131,18 +134,22 @@ export async function runDesktopProjectLibraryLeaseMatrixCase({ driver, workflow
 		// library second publishes against a base the winner already superseded.
 		const winner = await driver.commit(primary, 'commit-contend', projectId, request(left, 1));
 		const loser = await driver.commit(secondary, 'commit-contend', projectId, request(right, 1));
-		if (winner.renderer?.status !== 'committed') throw new Error('Canonical conflict did not select one winner');
+		if (winner.renderer?.status !== 'committed') {
+			throw new Error(`Canonical conflict did not select one winner: ${evidence(winner)}`);
+		}
 		if (loser.renderer?.status !== 'conflict' || loser.renderer.reason !== 'compare-and-swap') {
-			throw new Error('Canonical conflict did not refuse the second contender by compare-and-swap');
+			throw new Error(
+				`Canonical conflict did not refuse the second contender by compare-and-swap: ${evidence(loser)}`,
+			);
 		}
 		results = [seed, winner, loser];
 	} else if (workflowId === 'renderer-loss-during-operation') {
 		const [checkpoint, recovered] = await driver.rendererLoss(primary, projectId, request(initial, null));
 		if (checkpoint.phase !== 'prepared' || checkpoint.host?.activePublication !== true) {
-			throw new Error('Renderer loss did not land on an in-flight publication');
+			throw new Error(`Renderer loss did not land on an in-flight publication: ${evidence(checkpoint)}`);
 		}
 		if (recovered.renderer?.status !== 'committed') {
-			throw new Error('Renderer loss left its abandoned publication canonical');
+			throw new Error(`Renderer loss left its abandoned publication canonical: ${evidence(recovered)}`);
 		}
 		results = [checkpoint, recovered];
 	} else if (workflowId === 'orderly-process-restart') {
@@ -156,7 +163,7 @@ export async function runDesktopProjectLibraryLeaseMatrixCase({ driver, workflow
 			await driver.commit(secondary, 'commit', projectId, request(initial, null)),
 		];
 		if (results[1].host?.writer?.recovery?.outcome !== 'committed') {
-			throw new Error('Committed crash journal was not recovered');
+			throw new Error(`Committed crash journal was not recovered: ${evidence(results[1])}`);
 		}
 	}
 	const tokens = fencingTokens(results);
@@ -417,6 +424,17 @@ function childDiagnostics(process) {
 
 function touch(path) { return writeFile(path, '', { flag: 'wx' }); }
 function request(document, expectedRevision) { return { document, expectedRevision }; }
+/**
+ * A refused workflow is only actionable if it says what it saw. These assertions run once a
+ * night against a packaged product, so a failure that reports the claim without the payload
+ * costs a full nightly to learn anything from. The slice is bounded because the payload
+ * carries a whole project document.
+ */
+function evidence(value) {
+	const text = JSON.stringify(value) ?? String(value);
+	return text.length > MAXIMUM_EVIDENCE_CHARACTERS
+		? `${text.slice(0, MAXIMUM_EVIDENCE_CHARACTERS)}…` : text;
+}
 /** The digest main published, so the assertion compares stored bytes rather than re-encoded text. */
 function winningDigest(results) {
 	for (const result of results.toReversed()) {
