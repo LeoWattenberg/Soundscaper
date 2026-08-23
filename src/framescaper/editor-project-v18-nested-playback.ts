@@ -15,6 +15,7 @@ import {
 	type FramescaperFlattenedSequenceClipV18,
 } from './editor-project-v18-nested-sequence.ts';
 import { assertFramescaperProjectV18Profile } from './editor-project-v18-profile.ts';
+import { materializeFramescaperNestedVideoRetimeV18 } from './editor-project-v18-nested-retime.ts';
 import {
 	validateFramescaperProjectV18,
 	type FramescaperProjectV18,
@@ -206,9 +207,6 @@ function materializeVideoClip(
 	sequenceStartFrame: number,
 	sequenceEndFrame: number,
 ): Readonly<Record<string, unknown>> {
-	if (source.retimeMap !== null) {
-		throw new RangeError('Nested playback cannot materialize a retimed video occurrence exactly.');
-	}
 	const leafStart = exactSafeInteger(occurrence.leafStartFrame, 'leaf-sequence start');
 	const leafEnd = exactSafeInteger(occurrence.leafEndFrame, 'leaf-sequence end');
 	const sourceStart = safeInteger(source.sourceInFrame, 'source clip in frame');
@@ -218,6 +216,27 @@ function materializeVideoClip(
 	const clipEnd = safeAdd(clipStart, clipCount, 'source clip sequence range');
 	if (leafStart < clipStart || leafEnd > clipEnd) {
 		throw new RangeError('A flattened video occurrence lies outside its canonical leaf clip.');
+	}
+	const materializedFrameCount = sequenceEndFrame - sequenceStartFrame;
+	const retimeMap = materializeFramescaperNestedVideoRetimeV18({
+		retimeMap: source.retimeMap,
+		sourceInFrame: sourceStart,
+		sourceFrameCount: sourceCount,
+		authoredOuterFrameCount: clipCount,
+		visibleStartOuterFrame: leafStart - clipStart,
+		visibleEndOuterFrame: leafEnd - clipStart,
+		materializedOuterFrameCount: materializedFrameCount,
+	});
+	if (retimeMap !== null) {
+		return Object.freeze({
+			...source,
+			id: clipId,
+			sequenceId: primarySequenceId,
+			sequenceStartFrame,
+			sequenceFrameCount: materializedFrameCount,
+			retimeMap,
+			avLinkId: null,
+		});
 	}
 	const mappedStart = exactAffineInteger(sourceStart, leafStart - clipStart, sourceCount, clipCount);
 	const mappedEnd = exactAffineInteger(sourceStart, leafEnd - clipStart, sourceCount, clipCount);

@@ -125,11 +125,16 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 		const clips = activeClips.map((clip, clipIndex) => {
 			const source = videoSourceForClip(sourceById, clip);
 			const sourceCoordinateRate = videoSourceCoordinateRate(clip, source);
-			const mapping = mapVideoTimelineFrameToSource(clip, frame, {
+			const presentationDescriptor = typeof options.resolveClipPresentation === 'function'
+				? options.resolveClipPresentation({ clip, source, timelineSample: frame })
+				: null;
+			const mapping = presentationDescriptor == null
+				? mapVideoTimelineFrameToSource(clip, frame, {
 				projectSampleRate: sampleRate,
 				sourceSampleRate: sourceCoordinateRate,
 				source,
-			});
+				})
+				: exactPresentationMapping(presentationDescriptor, frame, sampleRate);
 			const role = transition == null
 				? 'single'
 				: clipIndex === 0 ? 'outgoing' : 'incoming';
@@ -155,11 +160,13 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 				sourceId: source.id,
 				sourceFrame: mapping.sourceFrame,
 				sourceTimeSeconds: mapping.sourceTimeSeconds,
-				playbackRate: videoClipPlaybackRate(clip, sampleRate, sourceCoordinateRate, source),
+				playbackRate: presentationDescriptor == null
+					? videoClipPlaybackRate(clip, sampleRate, sourceCoordinateRate, source) : 0,
+				exactPresentation: presentationDescriptor != null,
 				opacity: renderDescription?.opacityStart ?? transitionOpacity,
 				...(keyframeState?.videoEffects == null ? {} : { videoEffects: keyframeState.videoEffects }),
-				...(keyframeState?.presentationDescriptor == null
-					? {} : { presentationDescriptor: keyframeState.presentationDescriptor }),
+				...(keyframeState?.presentationDescriptor == null && presentationDescriptor == null
+					? {} : { presentationDescriptor: keyframeState?.presentationDescriptor ?? presentationDescriptor }),
 				...(renderDescription == null ? {} : { renderDescription }),
 			});
 		});
@@ -182,6 +189,28 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 	}
 
 	return Object.freeze(layers);
+}
+
+function exactPresentationMapping(descriptor, timelineFrame, sampleRate) {
+	const sourceFrame = exactNumber(descriptor?.sourceFrame, 'video presentation sourceFrame');
+	const sourceTimeSeconds = exactNumber(descriptor?.sourceTime, 'video presentation sourceTime');
+	return Object.freeze({
+		timelineFrame,
+		timelineTimeSeconds: timelineFrame / sampleRate,
+		localTimelineFrame: null,
+		progress: null,
+		sourceFrame,
+		sourceTimeSeconds,
+	});
+}
+
+function exactNumber(value, name) {
+	if (!value || typeof value !== 'object'
+		|| typeof value.numerator !== 'bigint' || typeof value.denominator !== 'bigint'
+		|| value.denominator <= 0n) throw new TypeError(`${name} must be an exact rational.`);
+	const result = Number(value.numerator) / Number(value.denominator);
+	if (!Number.isFinite(result)) throw new RangeError(`${name} exceeds the browser numeric range.`);
+	return result;
 }
 
 /**

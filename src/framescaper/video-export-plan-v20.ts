@@ -86,7 +86,7 @@ export function createFramescaperVideoKeyframeExportPlanV20(
 		profile, projectValue, requestedRange,
 	);
 	if (decision.strategy !== 'keyed-v20') {
-		throw new RangeError('The exact export range has no active authored keyframes; use legacy-v6 dispatch.');
+		throw new RangeError('The exact export range has no active authored keyframes or retime; use legacy-v6 dispatch.');
 	}
 	const runtimeProject = framescaperProjectForRuntimeConsumersV20(profile, projectValue);
 	const inventory = createVideoKeyframeExportInventory({

@@ -22,12 +22,38 @@ test('preview resolves its reference canvas before opting both timeline views in
 	), 'utf8');
 	assert.ok(source.indexOf('const referenceCanvas = useMemo') < source.indexOf('const layerResolution = useMemo'));
 	assert.match(source, /resolveActiveVideoLayers\(project, positionFrame, \{[\s\S]*renderCanvas: referenceCanvas,[\s\S]*resolveClipRenderState,[\s\S]*\}\)/u);
-	assert.match(source, /resolveVideoCompositionIntervals\(project, \{ renderCanvas \}\)/u);
+	assert.match(source, /resolveVideoCompositionIntervals\(project, \{ renderCanvas, resolveClipPresentation \}\)/u);
 	assert.match(source, /failedVideoSourcesRef\.current,\s*referenceCanvas,\s*keyframeStateProvider,/u);
 	assert.match(source, /isVideoKeyframePreviewStateError\(error\)/u);
 	assert.match(source, /clearVideoPreviewCompositorLayers/u);
 	assert.match(source, /data-video-preview-keyframe-error/u);
 	assert.match(source, /videoPreviewKeyframesUnavailable/u);
+});
+
+test('program compositor pauses and seeks retimed media from the exact ordinal descriptor', () => {
+	const layerPool = [];
+	primeVideoPreviewCompositorPool(layerPool, 1);
+	const targetLayers = [];
+	let pauses = 0;
+	const video = {
+		readyState: 4, videoWidth: 640, videoHeight: 360, currentTime: 0,
+		pause() { pauses += 1; },
+	};
+	const timeline = compositionTimeline({});
+	timeline.resolveClipPresentation = ({ timelineSample }) => ({
+		sourceTime: { numerator: BigInt(timelineSample + 5), denominator: 2n },
+	});
+	assert.equal(synchronizeVideoPreviewCompositorLayers(
+		targetLayers,
+		layerPool,
+		timeline,
+		5,
+		new Map([['clip', video]]),
+		effectBypass(),
+		new Map(),
+	), true);
+	assert.equal(video.currentTime, 5);
+	assert.equal(pauses, 1);
 });
 
 test('preview pool carries canonical render descriptions into entries and layer blend state', () => {

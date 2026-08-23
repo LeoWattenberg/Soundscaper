@@ -107,6 +107,7 @@ test('frame source binds exact presentation descriptors to keyed and static clip
 	assert.equal((calls[0]?.clip as { id: string }).id, entry.clipId);
 	assert.equal((calls[0]?.source as { id: string }).id, entry.sourceId);
 	assert.deepEqual(calls[0]?.localSequencePosition, { num: 10, den: 3 });
+	assert.equal(calls[0]?.outputOrdinal, 1);
 
 	const keyedProject = createFramescaperProjectV20(PROFILE, framescaperV20Options());
 	(keyedProject.clips[0] as unknown as Record<string, unknown>).videoKeyframes = opacityKeyframes();

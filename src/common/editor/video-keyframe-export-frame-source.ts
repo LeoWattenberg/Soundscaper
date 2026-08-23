@@ -59,6 +59,8 @@ export interface VideoKeyframeExportPresentationRequest {
 	readonly clip: Readonly<Record<string, unknown>>;
 	readonly source: Readonly<Record<string, unknown>>;
 	readonly localSequencePosition: Rational;
+	/** Exact random-access output index owned by the export frame source. */
+	readonly outputOrdinal?: number;
 }
 
 export type VideoKeyframeExportPresentationResolver = (
@@ -175,6 +177,7 @@ export function createVideoKeyframeExportFrameSource(
 						provider,
 						stateRequest,
 						timelinePosition,
+						index,
 						resolvePresentationDescriptor,
 					)
 				),
@@ -192,6 +195,7 @@ function resolveVideoKeyframeExportState(
 	provider: VideoKeyframeRenderStateProvider,
 	request: VideoKeyframePreviewStateRequest,
 	timelinePosition: Readonly<{ num: number; den: number }>,
+	outputOrdinal: number,
 	resolvePresentationDescriptor: VideoKeyframeExportPresentationResolver | undefined,
 ) {
 	const clip = request.clip as Readonly<Record<string, unknown>>;
@@ -225,6 +229,7 @@ function resolveVideoKeyframeExportState(
 			clip,
 			source,
 			localSequencePosition,
+			outputOrdinal,
 		})]), 'video keyframe export presentation descriptor') as unknown as VideoRetimeFrameDescriptor;
 	if (!Object.hasOwn(clip, 'videoKeyframes')) {
 		return presentationDescriptor === undefined ? null : Object.freeze({ presentationDescriptor });

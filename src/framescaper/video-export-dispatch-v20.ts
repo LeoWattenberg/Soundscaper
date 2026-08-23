@@ -65,8 +65,11 @@ export function classifyFramescaperVideoExportDispatchV20(
 		endFrame: range.endFrame,
 	});
 	const animatedClipIds = animatedVideoKeyframeClipIdsForExport(inventory.project.clips);
+	const retimedClipIds = inventory.project.clips
+		.filter((clip) => dataProperty(clip, 'retimeMap', 'active V20 video clip') !== null)
+		.map((clip) => String(dataProperty(clip, 'id', 'active V20 video clip')));
 	return Object.freeze({
-		strategy: animatedClipIds.length > 0 ? 'keyed-v20' : 'legacy-v6',
+		strategy: animatedClipIds.length > 0 || retimedClipIds.length > 0 ? 'keyed-v20' : 'legacy-v6',
 		range,
 		activeClipIds: inventory.activeClipIds,
 		activeSourceIds: inventory.activeSourceIds,

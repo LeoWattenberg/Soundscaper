@@ -94,6 +94,7 @@ export function synchronizeVideoPreviewCompositorLayers(
 			const clip = layer.clips[clipIndex];
 			if (!timeline.clipStateById.get(clip.clipId)?.available) continue;
 			const video = videoElements.get(clip.clipId);
+			synchronizeExactPresentation(timeline, clip, timelineFrame, video);
 			if (
 				targetLayers.length
 					&& (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight)
@@ -155,6 +156,30 @@ export function synchronizeVideoPreviewCompositorLayers(
 	}
 	targetLayers.length = targetLayerCount;
 	return true;
+}
+
+function synchronizeExactPresentation(timeline, clip, timelineFrame, video) {
+	if (!video || typeof timeline.resolveClipPresentation !== 'function') return;
+	const descriptor = timeline.resolveClipPresentation({
+		clip: clip.clip,
+		source: clip.source,
+		timelineSample: timelineFrame,
+	});
+	if (!descriptor) return;
+	const exact = descriptor.sourceTime;
+	if (!exact || typeof exact.numerator !== 'bigint' || typeof exact.denominator !== 'bigint'
+		|| exact.denominator <= 0n) throw new TypeError('Exact program preview source time is invalid.');
+	const targetTime = Number(exact.numerator) / Number(exact.denominator);
+	if (!Number.isFinite(targetTime) || targetTime < 0) {
+		throw new RangeError('Exact program preview source time exceeds the browser media range.');
+	}
+	video.pause?.();
+	if (Math.abs((Number(video.currentTime) || 0) - targetTime) <= 0.000001) return;
+	try {
+		video.currentTime = targetTime;
+	} catch {
+		// Metadata readiness callbacks and the next compositor pass retry the exact seek.
+	}
 }
 
 function resolveKeyframeStates(interval, timeline, timelineFrame) {

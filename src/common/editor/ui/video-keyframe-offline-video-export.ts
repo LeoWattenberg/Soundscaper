@@ -14,6 +14,7 @@ import {
 import {
 	createVideoKeyframeExportPresentationAuthority,
 } from '../video-keyframe-export-presentation-authority.ts';
+import { createVideoRetimeWebCoreOrdinalAuthority } from '../video-retime-web-core-ordinal-authority.ts';
 import type { FfmpegOutputSink } from '../ffmpeg-output-stream.ts';
 import type { VideoKeyframeEncoderFormat } from '../video-keyframe-encoder-stream.ts';
 import {
@@ -202,9 +203,17 @@ async function executeOfflineVideo<Output>(
 		...request,
 		project: runtimeProject,
 	});
+	const exactOrdinalAuthority = createVideoRetimeWebCoreOrdinalAuthority({
+		project: runtimeProject,
+		timingBySourceId: request.timingBySourceId,
+		...(request.startFrame === undefined ? {} : { startFrame: request.startFrame }),
+		...(request.endFrame === undefined ? {} : { endFrame: request.endFrame }),
+		outputRate: request.canvas.frameRate,
+	});
 	const authority = createVideoKeyframeExportPresentationAuthority({
 		project: sourcePlan.project,
 		timingBySourceId: request.timingBySourceId,
+		exactOrdinalAuthority,
 	});
 	const frameSource = createVideoKeyframeExportFrameSource({
 		project: runtimeProject,
@@ -213,6 +222,9 @@ async function executeOfflineVideo<Output>(
 		...(request.endFrame === undefined ? {} : { endFrame: request.endFrame }),
 		resolvePresentationDescriptor: authority.resolvePresentationDescriptor,
 	});
+	if (frameSource.frameCount !== exactOrdinalAuthority.outputFrameCount) {
+		throw new RangeError('The browser video frame source disagrees with its exact ordinal authority.');
+	}
 	await preflightVideoKeyframeOfflineEncoder(request, frameSource);
 	const assets = await sourcePlan.authenticate(
 		request.sources,

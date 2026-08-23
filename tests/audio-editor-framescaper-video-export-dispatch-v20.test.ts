@@ -15,6 +15,8 @@ import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v
 import {
 	classifyFramescaperVideoExportDispatchV20,
 } from '../src/framescaper/video-export-dispatch-v20.ts';
+import { applyFramescaperProjectCommandV20 } from '../src/framescaper/editor-project-v20-commands.ts';
+import { createFramescaperVideoRetimeFreezeCommandV20 } from '../src/framescaper/editor-project-v20-retime-command.ts';
 import {
 	framescaperV20Options,
 	opacityKeyframes,
@@ -54,6 +56,23 @@ test('selects keyed V20 only when an active runtime occurrence has authored curv
 	assert.equal(decision.strategy, 'keyed-v20');
 	assert.deepEqual(decision.activeClipIds, ['video-clip']);
 	assert.deepEqual(decision.activeSourceIds, ['video-source']);
+});
+
+test('selects keyed V20 for an active retime-only occurrence', () => {
+	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const retimed = applyFramescaperProjectCommandV20(
+		PROFILE,
+		project,
+		createFramescaperVideoRetimeFreezeCommandV20({
+			clipId: 'video-clip', expectedRetimeMap: null, sourceFrame: { num: 4, den: 1 },
+		}),
+		{ now: '2026-08-23T12:32:00.000Z' },
+	);
+	const decision = classifyFramescaperVideoExportDispatchV20(
+		PROFILE, retimed, { startFrame: 0, endFrame: 48_000 },
+	);
+	assert.equal(decision.strategy, 'keyed-v20');
+	assert.deepEqual(decision.activeClipIds, ['video-clip']);
 });
 
 test('ignores authored curves whose occurrences are outside the exact range', () => {

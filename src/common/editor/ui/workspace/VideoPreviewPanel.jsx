@@ -7,6 +7,7 @@ import {
 	isVideoKeyframePreviewStateError,
 	resolveVideoKeyframePreviewState,
 } from '../../video-keyframe-preview-state.ts';
+import { createRegisteredVideoRetimeWebCorePreviewResolver } from '../../video-retime-web-core-preview.ts';
 
 import { resolveActiveVideoLayers, resolveVideoCompositionIntervals } from '../../video-timeline.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
@@ -32,11 +33,11 @@ import {
 } from './video-preview-fallback.ts';
 import { publishEvaluatedVideoPreviewFrame } from './video-preview-external-display.ts';
 
-function createVideoPreviewTimeline(project, controller, missingSourceIds, failedVideoSources, renderCanvas, keyframeStateProvider) {
-	const empty = { intervals: [], clipStateById: new Map(), maxLayerCount: 0, renderCanvas, keyframeStateProvider };
+function createVideoPreviewTimeline(project, controller, missingSourceIds, failedVideoSources, renderCanvas, keyframeStateProvider, resolveClipPresentation) {
+	const empty = { intervals: [], clipStateById: new Map(), maxLayerCount: 0, renderCanvas, keyframeStateProvider, resolveClipPresentation };
 	if (!project) return empty;
 	try {
-		const intervals = resolveVideoCompositionIntervals(project, { renderCanvas });
+		const intervals = resolveVideoCompositionIntervals(project, { renderCanvas, resolveClipPresentation });
 		const clipStateById = new Map();
 		for (const clip of project.clips || []) {
 			if (clip?.kind !== 'video') continue;
@@ -56,7 +57,7 @@ function createVideoPreviewTimeline(project, controller, missingSourceIds, faile
 		for (const interval of intervals) {
 			maxLayerCount = Math.max(maxLayerCount, interval.layers?.length || 0);
 		}
-		return { intervals, clipStateById, maxLayerCount, renderCanvas, keyframeStateProvider };
+		return { intervals, clipStateById, maxLayerCount, renderCanvas, keyframeStateProvider, resolveClipPresentation };
 	} catch {
 		return empty;
 	}
@@ -135,6 +136,20 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		(value) => Math.max(0.001, Number(value.playbackRate) || 1),
 	);
 	const project = snapshot.videoPreviewProject || snapshot.project;
+	const retimePreview = useMemo(() => {
+		const selectedWebCore = typeof controller.actions.sequences?.retimeSet === 'function';
+		const hasRetime = project?.clips?.some((clip) => clip?.kind === 'video' && clip.retimeMap != null);
+		if (!selectedWebCore || !hasRetime) return { resolver: null, failed: false };
+		try {
+			return {
+				resolver: createRegisteredVideoRetimeWebCorePreviewResolver(project),
+				failed: false,
+			};
+		} catch {
+			return { resolver: null, failed: true };
+		}
+	}, [controller, project]);
+	const resolveClipPresentation = retimePreview.resolver?.resolveClipPresentation;
 	const keyframeStateProvider = useMemo(() => {
 		void project;
 		return createVideoKeyframeRenderStateProvider();
@@ -170,13 +185,14 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			return { layers: resolveActiveVideoLayers(project, positionFrame, {
 				renderCanvas: referenceCanvas,
 				resolveClipRenderState,
+				resolveClipPresentation,
 			}), keyframeFailed: false };
 		} catch (error) {
 			return { layers: [], keyframeFailed: isVideoKeyframePreviewStateError(error) };
 		}
-	}, [positionFrame, project, referenceCanvas, resolveClipRenderState]);
+	}, [positionFrame, project, referenceCanvas, resolveClipPresentation, resolveClipRenderState]);
 	const layers = layerResolution.layers;
-	const keyframePreviewFailed = layerResolution.keyframeFailed
+	const keyframePreviewFailed = retimePreview.failed || layerResolution.keyframeFailed
 		|| isVideoKeyframePreviewFailureCurrent(keyframeFailureProject, project);
 	useEffect(() => {
 		setKeyframeFailureProject(null);
@@ -195,9 +211,10 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 				failedVideoSourcesRef.current,
 				referenceCanvas,
 				keyframeStateProvider,
+				resolveClipPresentation,
 			);
 		},
-		[controller, keyframeStateProvider, mediaErrorRevision, missingSourceIds, project, referenceCanvas],
+		[controller, keyframeStateProvider, mediaErrorRevision, missingSourceIds, project, referenceCanvas, resolveClipPresentation],
 	);
 	const resolvedLayers = useMemo(() => {
 		void mediaErrorRevision;
@@ -527,12 +544,16 @@ function VideoPreviewClip({
 		const video = videoRef.current;
 		if (!video) return;
 		const targetTime = Math.max(0, Number(entry.sourceTimeSeconds) || 0);
-		if (Math.abs((Number(video.currentTime) || 0) - targetTime) > 0.08) {
+		if (Math.abs((Number(video.currentTime) || 0) - targetTime) > (entry.exactPresentation ? 0.000001 : 0.08)) {
 			try {
 				video.currentTime = targetTime;
 			} catch {
 				// Metadata can still be loading; media readiness callbacks retry the seek.
 			}
+		}
+		if (entry.exactPresentation) {
+			video.pause?.();
+			return;
 		}
 		video.playbackRate = Math.max(
 			0.0625,
@@ -543,6 +564,7 @@ function VideoPreviewClip({
 		} else video.pause?.();
 	}, [
 		entry.playbackRate,
+		entry.exactPresentation,
 		entry.sourceTimeSeconds,
 		transportPlaybackRate,
 		transportState,
