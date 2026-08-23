@@ -40,8 +40,9 @@ export function prepareFramescaperVideoTransitionAllocationsV27(
 	const project = projectValue as FramescaperProjectV27;
 	const command = snapshotFramescaperProjectCommandV27(commandValue);
 	if (!isV20CommandTree(command)) return command;
+	const visualClipIds = selectedVisualClipIds(project);
 	const inherited = snapshotFramescaperProjectCommandV20(
-		stripAllocations(command) as FramescaperProjectCommandV20,
+		stripAllocations(command, visualClipIds) as FramescaperProjectCommandV20,
 	);
 	const applied = applyFramescaperProjectCommandV20(
 		FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE,
@@ -86,13 +87,19 @@ function collectAllocations(command: FramescaperProjectCommandV27): readonly Vid
 		: normalizeVideoTransitionAllocationsV1(descriptor.value);
 }
 
-function stripAllocations(command: FramescaperProjectCommandV27): Record<string, unknown> {
+function stripAllocations(
+	command: FramescaperProjectCommandV27,
+	visualClipIds: ReadonlySet<string>,
+): Record<string, unknown> {
 	if (isBatch(command)) return {
 		type: 'batch',
-		commands: command.commands.map(stripAllocations),
+		commands: command.commands.map((child) => stripAllocations(child, visualClipIds)),
 	};
 	const result = structuredClone(command) as Record<string, unknown>;
 	delete result.videoTransitionAllocations;
+	if (result.type === 'selection/set' && Array.isArray(result.clipIds)) {
+		result.clipIds = result.clipIds.filter((id) => !visualClipIds.has(String(id)));
+	}
 	return result;
 }
 
@@ -135,6 +142,15 @@ function transitionPairs(project: FramescaperProjectV27): ReadonlySet<string> {
 		}
 	}
 	return pairs;
+}
+
+function selectedVisualClipIds(project: FramescaperProjectV27): ReadonlySet<string> {
+	const clips = project.clips as unknown as readonly Readonly<{
+		readonly id: string;
+		readonly kind: string;
+	}>[];
+	return new Set(clips.filter(({ kind }) => kind === 'still' || kind === 'generator')
+		.map(({ id }) => id));
 }
 
 function isBatch(

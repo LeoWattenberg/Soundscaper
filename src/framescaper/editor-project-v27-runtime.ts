@@ -128,6 +128,7 @@ function mergeSelectedState(baseValue: DataRecord, project: FramescaperProjectV2
 		...visualBin.map((clip) => runtimeClip(project, clip)),
 	];
 	base.tracks = mergeTracks(base.tracks, canonical.tracks, new Set(visualClips.map(stableId)));
+	base.selection = structuredClone(canonical.selection);
 	for (const field of [
 		'videoAdjustmentLayers', 'videoVisualPresets', 'videoMaskMattes', 'videoFreezeFallbacks',
 		'videoColorContexts', 'videoSourceColorInterpretations', 'videoVisualPresentations',

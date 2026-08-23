@@ -64,6 +64,22 @@ test('selected V27 runtime owns exact creation, projection, storage, and explici
 	assert.equal(Number.isSafeInteger(solidClip.timelineStartFrame), true);
 	assert.equal(Number.isSafeInteger(solidClip.timelineEndFrame), true);
 	assert.equal(Number(solidClip.durationFrames) > 0, true);
+	const selectedSolid = runtime.applyCommand(withSolid, {
+		type: 'selection/set', startFrame: 0, endFrame: 0,
+		trackIds: ['video-track'], clipIds: [String(solidClip.id)], frequencyRange: null,
+	} as never);
+	assert.deepEqual(
+		(selectedSolid.selection as Readonly<{ clipIds: unknown }>).clipIds,
+		[solidClip.id],
+	);
+	assert.deepEqual(
+		(runtime.projectForCommandConsumers(selectedSolid).selection as Readonly<{ clipIds: unknown }>).clipIds,
+		[solidClip.id],
+	);
+	assert.deepEqual(
+		(runtime.projectForRuntimeConsumers(selectedSolid).selection as Readonly<{ clipIds: unknown }>).clipIds,
+		[solidClip.id],
+	);
 	assert.deepEqual(editorProjectStorageProfileNames(runtime.storageProfile), {
 		databaseName: 'kw-media-framescaper-editor-v27',
 		opfsDirectoryName: 'framescaper-editor-v27-sources',
