@@ -17,6 +17,7 @@ import {
 	normalizeVideoClipComposition,
 } from './video-clip-composition.ts';
 import { resolveVideoRenderDescription } from './video-render-description.ts';
+import { createExactVideoPresentationMapping } from './video-exact-presentation.ts';
 import { resolveVideoSourceDisplaySize } from './video-source-presentation.ts';
 export {
 	mapVideoSourceFrameToTimeline,
@@ -134,7 +135,7 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 				sourceSampleRate: sourceCoordinateRate,
 				source,
 				})
-				: exactPresentationMapping(presentationDescriptor, frame, sampleRate);
+				: createExactVideoPresentationMapping(presentationDescriptor, frame, sampleRate);
 			const role = transition == null
 				? 'single'
 				: clipIndex === 0 ? 'outgoing' : 'incoming';
@@ -189,28 +190,6 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 	}
 
 	return Object.freeze(layers);
-}
-
-function exactPresentationMapping(descriptor, timelineFrame, sampleRate) {
-	const sourceFrame = exactNumber(descriptor?.sourceFrame, 'video presentation sourceFrame');
-	const sourceTimeSeconds = exactNumber(descriptor?.sourceTime, 'video presentation sourceTime');
-	return Object.freeze({
-		timelineFrame,
-		timelineTimeSeconds: timelineFrame / sampleRate,
-		localTimelineFrame: null,
-		progress: null,
-		sourceFrame,
-		sourceTimeSeconds,
-	});
-}
-
-function exactNumber(value, name) {
-	if (!value || typeof value !== 'object'
-		|| typeof value.numerator !== 'bigint' || typeof value.denominator !== 'bigint'
-		|| value.denominator <= 0n) throw new TypeError(`${name} must be an exact rational.`);
-	const result = Number(value.numerator) / Number(value.denominator);
-	if (!Number.isFinite(result)) throw new RangeError(`${name} exceeds the browser numeric range.`);
-	return result;
 }
 
 /**

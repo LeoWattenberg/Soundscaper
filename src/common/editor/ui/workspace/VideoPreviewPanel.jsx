@@ -7,8 +7,6 @@ import {
 	isVideoKeyframePreviewStateError,
 	resolveVideoKeyframePreviewState,
 } from '../../video-keyframe-preview-state.ts';
-import { createRegisteredVideoRetimeWebCorePreviewResolver } from '../../video-retime-web-core-preview.ts';
-
 import { resolveActiveVideoLayers, resolveVideoCompositionIntervals } from '../../video-timeline.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import {
@@ -32,6 +30,10 @@ import {
 	shouldHideVideoPreviewIdentityFallback,
 } from './video-preview-fallback.ts';
 import { publishEvaluatedVideoPreviewFrame } from './video-preview-external-display.ts';
+import {
+	resolveRegisteredVideoRetimePreview,
+	synchronizeVideoPreviewMedia,
+} from './video-preview-retime.ts';
 
 function createVideoPreviewTimeline(project, controller, missingSourceIds, failedVideoSources, renderCanvas, keyframeStateProvider, resolveClipPresentation) {
 	const empty = { intervals: [], clipStateById: new Map(), maxLayerCount: 0, renderCanvas, keyframeStateProvider, resolveClipPresentation };
@@ -136,19 +138,9 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		(value) => Math.max(0.001, Number(value.playbackRate) || 1),
 	);
 	const project = snapshot.videoPreviewProject || snapshot.project;
-	const retimePreview = useMemo(() => {
-		const selectedWebCore = typeof controller.actions.sequences?.retimeSet === 'function';
-		const hasRetime = project?.clips?.some((clip) => clip?.kind === 'video' && clip.retimeMap != null);
-		if (!selectedWebCore || !hasRetime) return { resolver: null, failed: false };
-		try {
-			return {
-				resolver: createRegisteredVideoRetimeWebCorePreviewResolver(project),
-				failed: false,
-			};
-		} catch {
-			return { resolver: null, failed: true };
-		}
-	}, [controller, project]);
+	const retimePreview = useMemo(() => resolveRegisteredVideoRetimePreview(
+		project, typeof controller.actions.sequences?.retimeSet === 'function',
+	), [controller, project]);
 	const resolveClipPresentation = retimePreview.resolver?.resolveClipPresentation;
 	const keyframeStateProvider = useMemo(() => {
 		void project;
@@ -543,29 +535,9 @@ function VideoPreviewClip({
 	const syncVideo = useCallback(() => {
 		const video = videoRef.current;
 		if (!video) return;
-		const targetTime = Math.max(0, Number(entry.sourceTimeSeconds) || 0);
-		if (Math.abs((Number(video.currentTime) || 0) - targetTime) > (entry.exactPresentation ? 0.000001 : 0.08)) {
-			try {
-				video.currentTime = targetTime;
-			} catch {
-				// Metadata can still be loading; media readiness callbacks retry the seek.
-			}
-		}
-		if (entry.exactPresentation) {
-			video.pause?.();
-			return;
-		}
-		video.playbackRate = Math.max(
-			0.0625,
-			Math.min(16, (Number(entry.playbackRate) || 1) * transportPlaybackRate),
-		);
-		if (transportState === 'playing') {
-			void video.play?.().catch(() => undefined);
-		} else video.pause?.();
+		synchronizeVideoPreviewMedia(video, entry, transportPlaybackRate, transportState);
 	}, [
-		entry.playbackRate,
-		entry.exactPresentation,
-		entry.sourceTimeSeconds,
+		entry,
 		transportPlaybackRate,
 		transportState,
 	]);
