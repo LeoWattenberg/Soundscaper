@@ -1,0 +1,20 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+	createVideoMotionWebGl2AcceleratorV1,
+	tryCreateVideoMotionWebGl2AcceleratorV1,
+} from '../src/common/editor/video-motion-webgl2-v27.ts';
+
+test('the optional WebGL2 provider reports unavailable canvases without claiming acceleration', () => {
+	const canvas = {
+		getContext(kind: string) {
+			assert.equal(kind, 'webgl2');
+			return null;
+		},
+	};
+	assert.equal(tryCreateVideoMotionWebGl2AcceleratorV1(canvas), null);
+	assert.throws(() => createVideoMotionWebGl2AcceleratorV1({}), /WebGL2 context/iu);
+});

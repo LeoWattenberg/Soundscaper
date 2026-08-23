@@ -7,6 +7,16 @@ import {
 	createUnifiedExactRenderTransitionPreviewResolver,
 	type UnifiedExactRenderTransitionResolver,
 } from '../common/editor/unified-exact-render-plan-consumers.ts';
+import type {
+	UnifiedExactRenderFinishingConsumerV13,
+} from '../common/editor/unified-exact-render-finishing-consumers-v13.ts';
+import type {
+	VideoMotionAnalysisRequestV1,
+	VideoMotionAnalysisResultV1,
+} from '../common/editor/video-motion-analysis-v27.ts';
+import type {
+	DisposableVideoMotionWebGl2AcceleratorV1,
+} from '../common/editor/video-motion-webgl2-v27.ts';
 import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-render-plan.ts';
 import type { VideoRetimeFrameDescriptor } from '../common/editor/video-retime-frame-dispatch.ts';
 import type {
@@ -42,6 +52,12 @@ export interface FramescaperSelectedRenderSessionV27 {
 	): VideoRetimeExactPreviewConsumer;
 	createTransitionPreviewResolver(transitionId: string): UnifiedExactRenderTransitionResolver;
 	createTransitionExportResolver(transitionId: string): UnifiedExactRenderTransitionResolver;
+	createFinishingPreviewConsumer(): Promise<UnifiedExactRenderFinishingConsumerV13>;
+	createFinishingExportConsumer(): Promise<UnifiedExactRenderFinishingConsumerV13>;
+	analyzeMotion(request: VideoMotionAnalysisRequestV1): Promise<VideoMotionAnalysisResultV1>;
+	createMotionWebGl2Accelerator(
+		canvas: unknown,
+	): Promise<DisposableVideoMotionWebGl2AcceleratorV1 | null>;
 }
 
 export interface FramescaperSelectedRenderSessionRuntimeV27 {
@@ -82,6 +98,22 @@ export function createFramescaperSelectedRenderSessionV27(
 		createTransitionExportResolver: (transitionId: string) => (
 			createUnifiedExactRenderTransitionExportResolver(plan, transitionId, timingBySourceId)
 		),
+		createFinishingPreviewConsumer: async () => {
+			const module = await import('../common/editor/unified-exact-render-finishing-consumers-v13.ts');
+			return module.createUnifiedExactRenderFinishingPreviewConsumerV13(plan);
+		},
+		createFinishingExportConsumer: async () => {
+			const module = await import('../common/editor/unified-exact-render-finishing-consumers-v13.ts');
+			return module.createUnifiedExactRenderFinishingExportConsumerV13(plan);
+		},
+		analyzeMotion: async (request: VideoMotionAnalysisRequestV1) => {
+			const module = await import('../common/editor/video-motion-analysis-v27.ts');
+			return module.analyzeVideoMotionV1(request);
+		},
+		createMotionWebGl2Accelerator: async (canvas: unknown) => {
+			const module = await import('../common/editor/video-motion-webgl2-v27.ts');
+			return module.tryCreateVideoMotionWebGl2AcceleratorV1(canvas);
+		},
 	});
 }
 

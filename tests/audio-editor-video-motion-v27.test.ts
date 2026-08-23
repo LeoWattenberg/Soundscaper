@@ -195,6 +195,25 @@ test('temporal denoise has deterministic CPU output and rejects accelerated drif
 	});
 	assert.deepEqual(parity, cpu);
 	assert.equal(fallbackObserved, true);
+
+	const accelerated = await processTemporalDenoiseV1({
+		current,
+		neighbors: [{ frame: neighbor, transformToCurrent: {
+			scale: 1, rotationRadians: 0, translateX: 0, translateY: 0,
+			inlierCount: 4, meanError: 0,
+		} }],
+		strength: 0.5,
+		accelerator: {
+			kind: 'webgl2',
+			async temporalDenoise() {
+				return createGrayVideoFrameV1({
+					width: 2, height: 2,
+					samples: [0.7500001, 0.7500001, 0.7500001, 0.7500001],
+				});
+			},
+		},
+	});
+	assert.deepEqual(accelerated.samples, [0.7500001, 0.7500001, 0.7500001, 0.7500001]);
 });
 
 test('motion processing observes cancellation', async () => {

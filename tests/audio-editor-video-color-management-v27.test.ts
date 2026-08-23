@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	applyManagedSdrGradePixelV1,
+	applyManagedSdrGradeStackPixelV1,
 	defaultVideoSourceColorInterpretationV1,
 	normalizeVideoColorContextV1,
 	normalizeVideoColorGradeV1,
@@ -216,4 +217,17 @@ test('sRGB and Rec.709 outputs use named deterministic transfer functions', () =
 	});
 	close(srgb[0], encoded, 1e-12);
 	assert.notEqual(srgb[0], rec709[0]);
+});
+
+test('a grade stack decodes once, applies each grade in linear working space, and encodes once', () => {
+	const interpretation = defaultVideoSourceColorInterpretationV1('still', 'still-1');
+	const oneStop = normalizeVideoColorGradeV1({
+		...normalizeVideoColorGradeV1(), exposureStops: 1,
+	});
+	const encoded = 1.055 * Math.pow(0.1, 1 / 2.4) - 0.055;
+	const result = applyManagedSdrGradeStackPixelV1({
+		rgba: [encoded, encoded, encoded, 1], interpretation,
+		grades: [oneStop, oneStop], outputSpace: 'linear-rec709-d65',
+	});
+	for (const channel of result.slice(0, 3)) close(channel, 0.4, 1e-12);
 });

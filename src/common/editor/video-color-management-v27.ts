@@ -196,28 +196,64 @@ export function applyManagedSdrGradePixelV1(request: Readonly<{
 	readonly lut?: ParsedCubeLutV1;
 	readonly outputSpace: VideoColorOutputSpaceV1;
 }>): LinearRgbaV1 {
+	return applyManagedSdrGradeStackPixelV1({
+		rgba: request?.rgba,
+		interpretation: request?.interpretation,
+		grades: [request?.grade],
+		luts: [request?.lut],
+		outputSpace: request?.outputSpace,
+	});
+}
+
+/** Decode once, apply an ordered grade stack in the named working space, then encode once. */
+export function applyManagedSdrGradeStackPixelV1(request: Readonly<{
+	readonly rgba: readonly number[];
+	readonly interpretation: unknown;
+	readonly grades: readonly unknown[];
+	readonly luts?: readonly (ParsedCubeLutV1 | undefined)[];
+	readonly outputSpace: VideoColorOutputSpaceV1;
+}>): LinearRgbaV1 {
 	const interpretation = normalizeVideoSourceColorInterpretationV1(request?.interpretation);
 	assertManagedSdr(interpretation);
-	const grade = normalizeVideoColorGradeV1(request?.grade);
-	const lut = grade.lut === null ? null : requireCubeLutBody(grade.lut, request.lut);
+	if (!Array.isArray(request?.grades) || request.grades.length > 64) {
+		throw new RangeError('The managed SDR grade stack exceeds its bound.');
+	}
+	if (request.luts !== undefined && (!Array.isArray(request.luts)
+		|| request.luts.length !== request.grades.length)) {
+		throw new RangeError('The managed SDR grade stack LUT bodies must align with its grades.');
+	}
+	const grades = request.grades.map((value, index) => {
+		const grade = normalizeVideoColorGradeV1(value);
+		const lut = grade.lut === null ? null
+			: requireCubeLutBody(grade.lut, request.luts?.[index]);
+		return Object.freeze({ grade, lut });
+	});
 	const rgba = rgbaTuple(request?.rgba);
 	const encoded = [rgba[0], rgba[1], rgba[2]].map((channel) => (
 		interpretation.range === 'limited' ? limitedToFull(channel) : channel
 	));
 	let linear = encoded.map((channel) => decodeTransfer(channel, interpretation.transfer));
+	for (const { grade, lut } of grades) linear = applyGrade(linear, grade, lut);
+	const output = linear.map((channel) => encodeOutput(clamp(channel), request.outputSpace));
+	return Object.freeze([
+		output[0]! * rgba[3], output[1]! * rgba[3], output[2]! * rgba[3], rgba[3],
+	]);
+}
+
+function applyGrade(
+	linearValue: readonly number[],
+	grade: VideoColorGradeV1,
+	lut: ParsedCubeLutV1 | null,
+): number[] {
 	const exposure = 2 ** grade.exposureStops;
-	linear = linear.map((channel, index) => {
+	let linear = linearValue.map((channel, index) => {
 		const contrasted = (channel * exposure - grade.pivot) * grade.contrast + grade.pivot;
 		const lifted = Math.max(0, contrasted + grade.lift[index]!);
 		return Math.pow(lifted * grade.gain[index]!, 1 / grade.gamma[index]!);
 	});
 	const luminance = linear[0]! * 0.2126 + linear[1]! * 0.7152 + linear[2]! * 0.0722;
 	linear = linear.map((channel) => luminance + (channel - luminance) * grade.saturation);
-	if (lut) linear = sampleCubeLut(lut, linear);
-	const output = linear.map((channel) => encodeOutput(clamp(channel), request.outputSpace));
-	return Object.freeze([
-		output[0]! * rgba[3], output[1]! * rgba[3], output[2]! * rgba[3], rgba[3],
-	]);
+	return lut ? sampleCubeLut(lut, linear) : linear;
 }
 
 export function parseCubeLutV1(value: string): ParsedCubeLutV1 {

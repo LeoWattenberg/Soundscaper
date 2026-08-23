@@ -53,7 +53,9 @@ export async function processTemporalDenoiseV1(request: Readonly<{
 		throwIfAborted(request.signal);
 		if (!framesMatch(cpu, accelerated, PARITY_TOLERANCE)) {
 			request.onAcceleratorFallback?.('WebGL2 temporal denoise failed CPU parity; deterministic CPU fallback was used.');
+			return cpu;
 		}
+		return accelerated;
 	} catch (error) {
 		throwIfAborted(request.signal);
 		request.onAcceleratorFallback?.(`WebGL2 temporal denoise was unavailable; deterministic CPU fallback was used: ${errorMessage(error)}`);

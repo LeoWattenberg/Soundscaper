@@ -125,6 +125,9 @@ test('selected V27 session shares one V13 ordinal and dissolve authority across 
 		previewDissolve.resolveAtSequencePosition({ num: 8, den: 1 }),
 		exportDissolve.resolveAtSequencePosition({ num: 8, den: 1 }),
 	);
+	assert.equal((await session.createFinishingPreviewConsumer()).plan, session.plan);
+	assert.equal((await session.createFinishingExportConsumer()).plan, session.plan);
+	assert.equal(await session.createMotionWebGl2Accelerator({ getContext: () => null }), null);
 
 	const owner = { project };
 	bindFramescaperSelectedRenderSessionRuntimeV27(PROFILE, owner);
