@@ -58,6 +58,7 @@ test('selected V27 motion action publishes a digest body then one stale-safe his
 		schemaVersion: 1,
 		analysisId: 'analysis:stack-1', sourceId: 'video-source', processorStackId: 'stack-1',
 		inputSha256: SHA, settingsSha256: reference.settingsSha256,
+		analysisWidth: 8, analysisHeight: 8,
 		startFrame: 0, endFrame: 2,
 		transforms: [{ frameNumber: 1, transform: {
 			scale: 1, rotationRadians: 0, translateX: 0, translateY: 0,
