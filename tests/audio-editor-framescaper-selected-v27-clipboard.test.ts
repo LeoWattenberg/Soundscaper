@@ -134,6 +134,7 @@ test('selected V27 clipboard composes foundation paste and finishing graph as on
 		now: '2026-08-23T12:00:00.000Z',
 	});
 	const descriptorKey = String(descriptor.tracks[0]!.clips[0]!.key);
+	assert.ok(base.clipIds);
 	const pastedClipId = base.clipIds[descriptorKey]!;
 	const presentation = history.present.videoVisualPresentations.find(({ owner }) => owner.id === pastedClipId);
 	assert.ok(presentation);
@@ -164,11 +165,17 @@ test('selected V27 visual clip copies through V11 and pastes as a visual instead
 		trackMap: { 'video-track': 'video-track' }, mode: 'overlap',
 	}, createId) as Extract<AudioEditorCommand, { readonly type: 'clipboard/paste' }>;
 	const command = runtime.prepareEditClipboardPasteCommand(project, clipboard, base, createId);
-	const pasted = runtime.applyCommand(project, command, { now: '2026-08-23T12:00:00.000Z' });
+	const pasted = runtime.applyCommand(project, command, {
+		now: '2026-08-23T12:00:00.000Z',
+	}) as unknown as Readonly<{ readonly clips: readonly Readonly<{
+		readonly id: string; readonly kind: string; readonly sequenceStartFrame?: number;
+	}>[] }>;
 	const copies = pasted.clips.filter(({ kind, id }) => kind === 'still' && id !== 'still-clip');
 	assert.equal(copies.length, 1);
 	assert.equal(copies[0]?.sequenceStartFrame, 10);
-	assert.equal(pasted.clips.some(({ kind, id }) => kind === 'video' && id === base.clipIds[String(
+	const clipIds = base.clipIds;
+	assert.ok(clipIds);
+	assert.equal(pasted.clips.some(({ kind, id }) => kind === 'video' && id === clipIds[String(
 		descriptor.tracks[0]!.clips[0]!.key,
 	)]), false);
 });
@@ -248,12 +255,12 @@ function projectWithVisual() {
 	videoTrack.clipIds = [...videoTrack.clipIds as string[], 'still-clip'];
 	return createFramescaperProjectV27(PROFILE, {
 		...base,
-		sources: [...base.sources as unknown[], {
+		sources: [...base.sources as ReadonlyArray<Readonly<Record<string, unknown>>>, {
 			schemaVersion: 1, kind: 'still', id: 'still-source', name: 'Poster',
 			mimeType: 'image/png', storageKey: 'still-source', contentSha256: '34'.repeat(32),
 			width: 1_920, height: 1_080, hasAlpha: true,
 		}],
-		clips: [...base.clips as unknown[], {
+		clips: [...base.clips as ReadonlyArray<Readonly<Record<string, unknown>>>, {
 			schemaVersion: 1, kind: 'still', id: 'still-clip', sourceId: 'still-source',
 			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
 		}],

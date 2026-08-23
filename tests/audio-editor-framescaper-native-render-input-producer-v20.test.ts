@@ -195,8 +195,11 @@ async function producerFixture(options: Readonly<{
 	const timingView: VideoSourceTimingView = Object.freeze({
 		kind: 'cfr', rate: { num: 10, den: 1 }, frameCount: 10,
 	});
+	const timingViewsBySourceId = new Map<string, VideoSourceTimingView>([[
+		'video-source', timingView,
+	]]);
 	const timingBySourceId = new Map([[
-		'video-source', bindVideoSourceTimingView(new Map([['video-source', timingView]]), project.sources[0]!),
+		'video-source', bindVideoSourceTimingView(timingViewsBySourceId, project.sources[0]!),
 	]]);
 	const authority = createProductNativeRenderInputAuthorityBinding();
 	connectProductNativeRenderInputAuthority(authority, () => {
@@ -237,7 +240,7 @@ async function producerFixture(options: Readonly<{
 			requiredTimingSources.push([...(timingOptions.requiredSourceIds ?? [])]);
 			return Object.freeze({
 				timingBySourceId,
-				timingViewsBySourceId: timingBySourceId,
+				timingViewsBySourceId,
 				release() { events.push('timing:release'); return true; },
 			});
 		},

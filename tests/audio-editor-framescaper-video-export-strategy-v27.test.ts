@@ -10,6 +10,7 @@ import { analyzeVideoMotionV1 } from '../src/common/editor/video-motion-analysis
 import { createGrayVideoFrameV1 } from '../src/common/editor/video-motion-processing-v27.ts';
 import { exportVideoCaptionTrackV1 } from '../src/common/editor/video-caption-track-v27.ts';
 import { createUnreportedVideoSourceCharacteristics } from '../src/common/editor/video-source-characteristics.ts';
+import type { VideoSourceTimingView } from '../src/common/editor/video-source-timing-view.ts';
 import type { VideoKeyframeOfflineVideoExportRequest } from '../src/common/editor/ui/video-keyframe-offline-video-export.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV27 } from '../src/framescaper/editor-project-feature-requirements-v27.ts';
 import { createFramescaperPlaybackProjectServiceV27 } from '../src/framescaper/editor-project-playback-v27.ts';
@@ -76,7 +77,7 @@ test('selected V27 browser strategy delegates exact retime/keyframe encoding thr
 	const signal = new AbortController().signal;
 	const encoded = await strategy.encode({
 		canonicalProject: project, exportProject, plan,
-		timingBySourceId: new Map(),
+		timingBySourceId: new Map<string, never>(),
 		timingViewsBySourceId: rawTiming(project),
 		videoBlobs: new Map([['video-source', new Blob(['video'], { type: 'video/mp4' })]]),
 		audioMix: null,
@@ -222,7 +223,7 @@ test('selected V27 keyed export consumes the canonical dissolve resolver', async
 	assert.ok(plan);
 	await strategy.encode({
 		canonicalProject: project, exportProject, plan,
-		timingBySourceId: new Map(), timingViewsBySourceId: rawTiming(project),
+		timingBySourceId: new Map<string, never>(), timingViewsBySourceId: rawTiming(project),
 		videoBlobs: new Map([['video-source', new Blob(['video'])]]), audioMix: null,
 		editorFfmpeg: {}, webCodecs: null, signal: new AbortController().signal,
 		assertCurrent() {}, maximumOutputBytes: 1_024,
@@ -311,7 +312,7 @@ test('selected V27 export loads digest-bound LUT and motion bodies before encodi
 	const signal = new AbortController().signal;
 	await strategy.encode({
 		canonicalProject: project, exportProject, plan,
-		timingBySourceId: new Map(), timingViewsBySourceId: rawTiming(project),
+		timingBySourceId: new Map<string, never>(), timingViewsBySourceId: rawTiming(project),
 		videoBlobs: new Map([['video-source', new Blob(['video'])]]), audioMix: null,
 		editorFfmpeg: {}, webCodecs: null, signal, assertCurrent() {}, maximumOutputBytes: 1_024,
 	});
@@ -332,7 +333,7 @@ test('selected V27 export loads digest-bound LUT and motion bodies before encodi
 	assert.ok(missingPlan);
 	await assert.rejects(missing.encode({
 		canonicalProject: project, exportProject: missingExport, plan: missingPlan,
-		timingBySourceId: new Map(), timingViewsBySourceId: rawTiming(project),
+		timingBySourceId: new Map<string, never>(), timingViewsBySourceId: rawTiming(project),
 		videoBlobs: new Map([['video-source', new Blob(['video'])]]), audioMix: null,
 		editorFfmpeg: {}, webCodecs: null, signal, assertCurrent() {}, maximumOutputBytes: 1_024,
 	}), /finishing asset.*missing|missing or stale/iu);
@@ -364,15 +365,20 @@ function keyedProject(id = 'keyed-v27') {
 	return cloneFramescaperProjectV27(PROFILE, mutable);
 }
 
-function rawTiming(project: ReturnType<typeof createFramescaperProjectV27>) {
-	return new Map(project.sources.flatMap((source) => source.kind !== 'video' ? [] : [[
-		String(source.id),
-		Object.freeze({
-			kind: 'cfr' as const,
-			rate: source.frameRate,
-			frameCount: source.sourceFrameCount,
-		}),
-	] as const]));
+function rawTiming(project: ReturnType<typeof createFramescaperProjectV27>): ReadonlyMap<string, VideoSourceTimingView> {
+	const result = new Map<string, VideoSourceTimingView>();
+	const sources = project.sources as readonly Readonly<{
+		readonly id: string; readonly kind: string;
+		readonly frameRate: Readonly<{ readonly num: number; readonly den: number }>;
+		readonly sourceFrameCount: number;
+	}>[];
+	for (const source of sources) {
+		if (source.kind !== 'video') continue;
+		result.set(source.id, Object.freeze({
+			kind: 'cfr', rate: source.frameRate, frameCount: source.sourceFrameCount,
+		}));
+	}
+	return result;
 }
 
 function exportFrame(sourceFrame: number, outerCell: number) {

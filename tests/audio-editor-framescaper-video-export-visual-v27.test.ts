@@ -9,6 +9,7 @@ import { digestMediaContent } from '../src/common/editor/storage/media-content-d
 import { createVideoFreezeFallbackV1 } from '../src/common/editor/video-freeze-v24.ts';
 import type { VideoKeyframeOfflineVideoExportRequest } from '../src/common/editor/ui/video-keyframe-offline-video-export.ts';
 import type { VideoKeyframeVideoEncoderRequest } from '../src/common/editor/video-keyframe-video-encoder.ts';
+import type { VideoSourceTimingView } from '../src/common/editor/video-source-timing-view.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV27 } from '../src/framescaper/editor-project-feature-requirements-v27.ts';
 import { createFramescaperPlaybackProjectServiceV27 } from '../src/framescaper/editor-project-playback-v27.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
@@ -69,7 +70,8 @@ test('selected V27 encodes still-only and generator-only pixels with an exact ze
 		assert.deepEqual(plan.activeSourceIds, []);
 		await strategy.encode({
 			canonicalProject: fixture.project, exportProject, plan,
-			timingBySourceId: new Map(), timingViewsBySourceId: new Map(),
+			timingBySourceId: new Map<string, never>(),
+			timingViewsBySourceId: new Map<string, VideoSourceTimingView>(),
 			videoBlobs: new Map(), audioMix: null, editorFfmpeg: {}, webCodecs: null,
 			signal: new AbortController().signal, assertCurrent() {}, maximumOutputBytes: 1_024,
 		});
@@ -111,7 +113,8 @@ test('selected V27 export executes masks and adjustments while accounting freeze
 	assert.ok(plan);
 	await strategy.encode({
 		canonicalProject: project, exportProject, plan,
-		timingBySourceId: new Map(), timingViewsBySourceId: new Map(),
+		timingBySourceId: new Map<string, never>(),
+		timingViewsBySourceId: new Map<string, VideoSourceTimingView>(),
 		videoBlobs: new Map(), audioMix: null, editorFfmpeg: {}, webCodecs: null,
 		signal: new AbortController().signal, assertCurrent() {}, maximumOutputBytes: 1_024,
 	});
@@ -143,7 +146,7 @@ test('selected V27 export executes clip presentation opacity and masks over the 
 			processorStackId: null, maskMatteIds: ['video-half-mask'],
 		}] },
 	});
-	let rendered: Uint8Array<ArrayBuffer> | null = null;
+	const rendered: { pixels: Uint8Array<ArrayBuffer> | null } = { pixels: null };
 	const strategy = createFramescaperVideoExportStrategyV27(PROFILE, {
 		captureExactFrame: captureFramescaperExactExportTestFrame,
 		async encodeOffline(request) {
@@ -155,7 +158,7 @@ test('selected V27 export executes clip presentation opacity and masks over the 
 			await composeFramescaperExactExportTestFrame(
 				request, keyedFrame(), pixels, [200, 0, 0, 255],
 			);
-			rendered = pixels.slice() as Uint8Array<ArrayBuffer>;
+			rendered.pixels = pixels.slice() as Uint8Array<ArrayBuffer>;
 			return encodedResult();
 		},
 		async encodeOfflineToSink() { throw new Error('sink path is not used'); },
@@ -170,14 +173,15 @@ test('selected V27 export executes clip presentation opacity and masks over the 
 	assert.ok(plan);
 	await strategy.encode({
 		canonicalProject: project, exportProject, plan,
-		timingBySourceId: new Map(), timingViewsBySourceId: rawTiming(project),
+		timingBySourceId: new Map<string, never>(), timingViewsBySourceId: rawTiming(project),
 		videoBlobs: new Map([['video-source', new Blob(['video'])]]), audioMix: null,
 		editorFfmpeg: {}, webCodecs: null, signal: new AbortController().signal,
 		assertCurrent() {}, maximumOutputBytes: 1_024,
 	});
-	assert.ok(rendered);
-	assert.ok(rendered[0]! > 0 && rendered[0]! < 200, 'masked picture is composited at authored opacity');
-	assert.deepEqual([...rendered.subarray(4, 8)], [0, 0, 0, 255]);
+	assert.ok(rendered.pixels);
+	assert.ok(rendered.pixels[0]! > 0 && rendered.pixels[0]! < 200,
+		'masked picture is composited at authored opacity');
+	assert.deepEqual([...rendered.pixels.subarray(4, 8)], [0, 0, 0, 255]);
 	assert.equal(framescaperVideoExportDispositionV27For(plan).nodeDispositions.find(
 		({ nodeId }) => nodeId.includes('video-half-mask'),
 	)?.disposition, 'executed');
@@ -185,11 +189,11 @@ test('selected V27 export executes clip presentation opacity and masks over the 
 
 test('complete V27 program exports original-authoritative editorial, proxy, audio, captions, and finishing', async () => {
 	const project = completeProgramProject();
-	let captured: VideoKeyframeOfflineVideoExportRequest | null = null;
+	const captured: { request: VideoKeyframeOfflineVideoExportRequest | null } = { request: null };
 	const strategy = createFramescaperVideoExportStrategyV27(PROFILE, {
 		captureExactFrame: captureFramescaperExactExportTestFrame,
 		async encodeOffline(request) {
-			captured = request;
+			captured.request = request;
 			const pixels = new Uint8Array(request.canvas.width * request.canvas.height * 4).fill(24);
 			for (let index = 3; index < pixels.length; index += 4) pixels[index] = 255;
 			await composeFramescaperExactExportTestFrame(
@@ -202,7 +206,10 @@ test('complete V27 program exports original-authoritative editorial, proxy, audi
 	const exportProject = strategy.createExportProject({
 		canonicalProject: project, delivery: delivery(project),
 	});
-	const canonicalSource = project.sources.find(({ id }) => id === 'video-source')!;
+	const canonicalSource = (project.sources as readonly Readonly<{
+		readonly id: string; readonly kind: string;
+		readonly proxyAttachment?: Readonly<{ readonly storageKey: string }> | null;
+	}>[]).find(({ id }) => id === 'video-source')!;
 	const exportedSource = (exportProject.sources as Readonly<Record<string, unknown>>[])[0]!;
 	assert.ok(canonicalSource.kind === 'video' && canonicalSource.proxyAttachment);
 	assert.equal(exportedSource.proxyAttachment, undefined);
@@ -217,20 +224,20 @@ test('complete V27 program exports original-authoritative editorial, proxy, audi
 	const originalInput = plan.inputs.find(({ kind }) => kind === 'video-source');
 	assert.equal(originalInput?.storageKey, 'video-source');
 	assert.notEqual(originalInput?.storageKey,
-		(canonicalSource.kind === 'video' && canonicalSource.proxyAttachment)?.storageKey);
+		canonicalSource.kind === 'video' ? canonicalSource.proxyAttachment?.storageKey : undefined);
 	const originalBlob = new Blob(['original-video'], { type: 'video/mp4' });
 	const audioMix = new Blob(['rendered-v21-mix'], { type: 'audio/wav' });
 	await strategy.encode({
 		canonicalProject: project, exportProject, plan,
-		timingBySourceId: new Map(), timingViewsBySourceId: rawTiming(project),
+		timingBySourceId: new Map<string, never>(), timingViewsBySourceId: rawTiming(project),
 		videoBlobs: new Map([['video-source', originalBlob]]), audioMix,
 		editorFfmpeg: {}, webCodecs: null, signal: new AbortController().signal,
 		assertCurrent() {}, maximumOutputBytes: 1_024,
 	});
-	assert.ok(captured);
-	assert.strictEqual(captured.audioMix, audioMix);
-	assert.strictEqual(captured.sources[0]?.blob, originalBlob);
-	assert.ok((captured.project.clips as Readonly<Record<string, unknown>>[])[0]?.retimeMap);
+	assert.ok(captured.request);
+	assert.strictEqual(captured.request.audioMix, audioMix);
+	assert.strictEqual(captured.request.sources[0]?.blob, originalBlob);
+	assert.ok((captured.request.project.clips as Readonly<Record<string, unknown>>[])[0]?.retimeMap);
 	const disposition = framescaperVideoExportDispositionV27For(plan);
 	assert.deepEqual(disposition.captionTrackIds, ['captions-en']);
 	assert.equal(disposition.captionDisposition, 'sidecar-only');
@@ -413,11 +420,20 @@ function automationLane() {
 	};
 }
 
-function rawTiming(project: ReturnType<typeof createFramescaperProjectV27>) {
-	return new Map(project.sources.flatMap((source) => source.kind !== 'video' ? [] : [[
-		String(source.id), Object.freeze({ kind: 'cfr' as const, rate: source.frameRate,
-			frameCount: source.sourceFrameCount }),
-	] as const]));
+function rawTiming(project: ReturnType<typeof createFramescaperProjectV27>): ReadonlyMap<string, VideoSourceTimingView> {
+	const result = new Map<string, VideoSourceTimingView>();
+	const sources = project.sources as readonly Readonly<{
+		readonly id: string; readonly kind: string;
+		readonly frameRate: Readonly<{ readonly num: number; readonly den: number }>;
+		readonly sourceFrameCount: number;
+	}>[];
+	for (const source of sources) {
+		if (source.kind !== 'video') continue;
+		result.set(source.id, Object.freeze({
+			kind: 'cfr', rate: source.frameRate, frameCount: source.sourceFrameCount,
+		}));
+	}
+	return result;
 }
 
 function keyedFrame() {

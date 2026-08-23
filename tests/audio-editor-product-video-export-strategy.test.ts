@@ -197,17 +197,17 @@ function createPictureOnlyFixture(kind: 'still' | 'generator', withAudio: boolea
 	});
 	const strategy: ProductVideoExportStrategy = Object.freeze({
 		createExportProject: () => project,
-		hasPicture: (candidate) => candidate === project,
-		createPlan(request) {
+		hasPicture: (candidate: Readonly<Record<string, unknown>>) => candidate === project,
+		createPlan(request: ProductVideoExportStrategyPlanRequest) {
 			capture.includeAudio = request.includeAudio;
 			return plan;
 		},
-		captureTimingSourceIds(candidate) {
+		captureTimingSourceIds(candidate: ProductVideoExportPlan) {
 			assert.strictEqual(candidate, plan);
 			capture.timingSourceIds = candidate.activeSourceIds;
 			return [];
 		},
-		async encode(request) {
+		async encode(request: ProductVideoExportStrategyEncodeRequest) {
 			capture.videoBlobIds = [...request.videoBlobs.keys()];
 			capture.audioMix = request.audioMix;
 			return Object.freeze({
