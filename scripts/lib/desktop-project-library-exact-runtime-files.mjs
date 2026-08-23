@@ -9,6 +9,7 @@ export const DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES = Object.freeze([
 	'desktop/project-library-exact-generation-main-ipc.js',
 	'desktop/project-library-exact-generation-main.js',
 	'desktop/project-library-exact-generation-storage.js',
+	'desktop/project-library-session-admission.js',
 	...['contract', 'current-project', 'database', 'main-channels', 'main-ipc', 'main', 'values']
 		.map((name) => `desktop/project-library-v12-${name}.js`),
 	...['contract', 'current-project', 'database', 'import', 'main-channels', 'main-ipc', 'main', 'writer']

@@ -358,6 +358,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/project-library-exact-generation-main-ipc.js',
 		'desktop/project-library-exact-generation-main.js',
 		'desktop/project-library-exact-generation-storage.js',
+		'desktop/project-library-session-admission.js',
 		'desktop/project-library-v12-contract.js',
 		'desktop/project-library-v12-current-project.js',
 		'desktop/project-library-v12-database.js',

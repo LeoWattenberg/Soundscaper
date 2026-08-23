@@ -218,6 +218,33 @@ test('V17 stale takeover persistently fences the former writer before publicatio
 	await takeover.close();
 });
 
+test('V17 close fences new admission and drains an admitted publication before exact release', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v17-drain-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	const first = await startV17(appDataPath, 1735, 'drain-first');
+	const session = first.openSession(first.localHandshake);
+	const project = createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, {
+		id: 'drained-project', title: 'Drained project', revision: 0, now: NOW,
+	});
+	await session.beginPublication({
+		publicationId: 'b4'.repeat(24), expectedMetadataRevision: 0,
+		expectedProject: null, project, bodies: [],
+	});
+
+	const publication = session.finishPublication({ publicationId: 'b4'.repeat(24) });
+	const closing = first.close();
+	await assert.rejects(session.listProjects(), /session is closed/u);
+	const published = await publication;
+	await closing;
+
+	const next = await startV17(appDataPath, 1736, 'drain-next');
+	assert.equal(next.snapshot().writer.fencingToken, 2);
+	const reopened = next.openSession(next.localHandshake);
+	assert.deepEqual(await reopened.readProjectBundle(project.id), published);
+	await reopened.close();
+	await next.close();
+});
+
 test('V17 recovers committed and materialized publication journals deterministically', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v17-journal-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
