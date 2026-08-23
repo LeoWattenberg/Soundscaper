@@ -14,10 +14,8 @@ import type {
 	FramescaperDesktopProjectLibraryExactGenerationLifecycle,
 	FramescaperDesktopProjectLibraryExactPublicationDeclaration,
 } from './project-library-exact-generation-lifecycle.ts';
-import type {
-	ExactGenerationProject,
-	FramescaperDesktopProjectLibraryExactGenerationConfiguration,
-} from './project-library-exact-generation-main.ts';
+import type { ExactGenerationProject } from './project-library-exact-generation-body-configuration.ts';
+import type { FramescaperDesktopProjectLibraryExactGenerationConfiguration } from './project-library-exact-generation-main.ts';
 import {
 	concatenateFramescaperDesktopProjectLibraryV12Chunks as concatenate,
 	framescaperDesktopProjectLibraryV12ClosedRecord as closedRecord,
@@ -48,7 +46,10 @@ interface FramescaperDesktopExactProjectRow {
 }
 
 export interface FramescaperDesktopExactBodyDescriptor {
-	readonly kind: 'video-original' | 'video-proxy' | 'video-timing';
+	readonly kind:
+		| 'video-original' | 'video-proxy' | 'video-timing'
+		| 'framescaper-still' | 'framescaper-freeze-render'
+		| 'framescaper-cube-lut' | 'framescaper-motion-analysis';
 	readonly encoding: string;
 	readonly bindingId?: string;
 	readonly sourceId: string;
@@ -200,10 +201,14 @@ export function framescaperDesktopExactProjectRow(
 export function parseFramescaperDesktopExactBodies(
 	value: unknown,
 	label: string,
+	validate: (
+		value: unknown,
+		label: string,
+	) => Readonly<FramescaperDesktopExactBodyDescriptor> = validateFramescaperDesktopExactBody,
 ): readonly Readonly<FramescaperDesktopExactBodyDescriptor>[] {
 	if (typeof value !== 'string') throw new TypeError(`${label} body inventory is invalid`);
 	return Object.freeze(denseArray(JSON.parse(value) as unknown, MAXIMUM_BODIES, `${label} bodies`)
-		.map((body) => validateFramescaperDesktopExactBody(body, label)));
+		.map((body) => validate(body, label)));
 }
 
 export function validateFramescaperDesktopExactBody(
@@ -238,7 +243,10 @@ export function framescaperDesktopExactMediaPath(
 	body: FramescaperDesktopExactBodyDescriptor,
 ): string {
 	const extension = body.kind === 'video-original' ? '.media'
-		: body.kind === 'video-proxy' ? '.proxy' : '.scti';
+		: body.kind === 'video-proxy' ? '.proxy'
+			: body.kind === 'video-timing' ? '.scti'
+				: body.kind === 'framescaper-cube-lut' ? '.cube'
+					: body.kind === 'framescaper-motion-analysis' ? '.json' : '.image';
 	return join(paths.managedMediaRoot, body.kind, body.sha256.slice(0, 2), `${body.sha256}${extension}`);
 }
 

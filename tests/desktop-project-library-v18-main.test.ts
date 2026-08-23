@@ -9,6 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
 import { createDesktopProjectLibraryLeaseMatrixDocument } from '../scripts/lib/desktop-project-library-lease-matrix.mjs';
+import { createVideoSource } from '../src/common/editor/project-media-factory.ts';
 import {
 	createFramescaperDesktopProjectLibraryV12Handshake,
 	createFramescaperDesktopProjectLibraryV12Paths,
@@ -201,6 +202,11 @@ test('V18 reimports immutable V17 documents and copy-forwards managed bodies exa
 	const bodySha256 = createHash('sha256').update(bodyBytes).digest('hex');
 	const project = createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, {
 		id: 'v17-lineage-project', title: 'V17 lineage', revision: 0, now: NOW,
+		sources: [createVideoSource({
+			id: 'legacy-body', name: 'Legacy.mov', storageKey: 'legacy-body', mimeType: 'video/quicktime',
+			contentSha256: bodySha256, sampleFrameCount: 4_000, sampleRate: 48_000,
+			sourceFrameCount: 2, frameRate: { num: 24, den: 1 }, width: 1920, height: 1080,
+		})],
 	});
 	const publicationId = 'c2'.repeat(24);
 	await sourceSession.beginPublication({

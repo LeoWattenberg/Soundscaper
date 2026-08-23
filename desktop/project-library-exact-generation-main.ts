@@ -18,11 +18,16 @@ import type {
 	FramescaperDesktopProjectLibraryExactGenerationExtension,
 	FramescaperDesktopProjectLibraryExactGenerationLifecycle,
 } from './project-library-exact-generation-lifecycle.ts';
+import {
+	framescaperDesktopExactConfiguredBodies as configuredBodies,
+	framescaperDesktopExactConfiguredBody as configuredBody,
+	type ExactGenerationProject,
+	type FramescaperDesktopProjectLibraryExactGenerationBodyConfiguration,
+} from './project-library-exact-generation-body-configuration.ts';
 import { DesktopProjectLibrarySessionAdmission } from './project-library-session-admission.ts';
 import {
 	framescaperDesktopProjectLibraryV12Binary as binary,
 	framescaperDesktopProjectLibraryV12ClosedRecord as closedRecord,
-	framescaperDesktopProjectLibraryV12DenseArray as denseArray,
 	framescaperDesktopProjectLibraryV12NonNegative as nonNegative,
 	framescaperDesktopProjectLibraryV12Positive as positive,
 	framescaperDesktopProjectLibraryV12PublicationId as exactPublicationId,
@@ -52,16 +57,8 @@ const DUPLICATE_FIELDS = [
 	'expectedMetadataRevision', 'expectedSource',
 ] as const;
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
-const MAXIMUM_BODIES = 4_094;
 
-export interface ExactGenerationProject extends Record<string, unknown> {
-	readonly id: string;
-	readonly title: string;
-	readonly revision: number;
-	readonly updatedAt: string;
-}
-
-export interface FramescaperDesktopProjectLibraryExactGenerationConfiguration {
+export interface FramescaperDesktopProjectLibraryExactGenerationConfiguration extends FramescaperDesktopProjectLibraryExactGenerationBodyConfiguration {
 	readonly label: string;
 	readonly librarySchemaVersion: number;
 	readonly projectSchemaVersion: number;
@@ -216,7 +213,7 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 			projectId: text(row.project_id, 'project id'),
 			projectRevision: nonNegative(row.project_revision, 'project revision'),
 			projectSha256: digestValue(row.sha256),
-			bodies: parseBodies(row.bodies_json, this.#configuration.label),
+			bodies: parseBodies(row.bodies_json, this.#configuration.label, this.#configuration.validateBodyDescriptor ?? validateBody),
 		});
 	}
 
@@ -232,7 +229,7 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 
 	async readNativeBody(value: unknown): Promise<Uint8Array> {
 		this.#assertOpen();
-		const body = validateBody(value, this.#configuration.label);
+		const body = configuredBody(this.#configuration, value);
 		const chunks: Uint8Array[] = [];
 		const session = new ExactGenerationSession(
 			this.#configuration, this.#database, this.#paths, this.#lifecycle,
@@ -331,7 +328,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 	readBodyChunk(value: unknown): Promise<Uint8Array> {
 		return this.#admit(async () => {
 			const record = value as Record<string, unknown>;
-			const body = validateBody(record?.body, this.#configuration.label);
+			const body = configuredBody(this.#configuration, record?.body);
 			const offset = nonNegative(record?.offset, 'body offset');
 			const length = positive(record?.length, 'body length');
 			if (length > MAXIMUM_CHUNK_BYTES || offset > body.byteLength - length) {
@@ -363,9 +360,8 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		if (current && project.revision <= nonNegative(current.project_revision, 'project revision')) {
 			throw new Error(`${this.#configuration.label} publication requires a strictly higher project revision`);
 		}
-		const bodies = denseArray(record.bodies, MAXIMUM_BODIES, `${this.#configuration.label} bodies`)
-			.map((body) => validateBody(body, this.#configuration.label));
 		const document = JSON.stringify(project);
+		const bodies = configuredBodies(this.#configuration, project, sha256(document), record.bodies);
 		this.#publication = {
 			publicationId,
 			expectedMetadataRevision,
@@ -501,7 +497,9 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 			}
 			this.#configuration.validateProject(project);
 			const admitted = exactGenerationProject(project, this.#configuration.label);
-			const chunks = await Promise.all(sourceBundle.bodies.map(async (body) => [
+			const document = JSON.stringify(admitted);
+			const bodies = configuredBodies(this.#configuration, admitted, sha256(document), sourceBundle.bodies);
+			const chunks = await Promise.all(bodies.map(async (body) => [
 				new Uint8Array(await readFile(mediaPath(this.#paths, body))),
 			]));
 			return persistPublication(this.#configuration, this.#database, this.#paths, {
@@ -509,10 +507,10 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 				expectedMetadataRevision,
 				expectedProject: null,
 				project: admitted,
-				document: JSON.stringify(admitted),
-				bodies: sourceBundle.bodies,
+				document,
+				bodies,
 				chunks,
-				offsets: sourceBundle.bodies.map(({ byteLength }) => byteLength),
+				offsets: bodies.map(({ byteLength }) => byteLength),
 			}, this.#lifecycle, () => this.#assertAdmitted());
 		});
 	}
@@ -559,12 +557,13 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		if (new TextEncoder().encode(document).byteLength !== project.byteLength || sha256(document) !== project.sha256) {
 			throw new Error(`${this.#configuration.label} project document failed integrity validation`);
 		}
-		this.#configuration.validateProject(JSON.parse(document) as unknown);
+		const parsed = JSON.parse(document) as unknown;
+		this.#configuration.validateProject(parsed);
 		return Object.freeze({
 			metadataRevision: metadataRevision(this.#database),
 			project,
 			document,
-			bodies: parseBodies(row.bodies_json, this.#configuration.label),
+			bodies: configuredBodies(this.#configuration, parsed, project.sha256, JSON.parse(text(row.bodies_json, 'body inventory')) as unknown),
 		});
 	}
 

@@ -16,6 +16,10 @@ import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/edit
 import { createFramescaperProjectStoreV27 } from '../src/framescaper/editor-project-store-v27.ts';
 import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import {
+	createFramescaperV27DurableBodyFixture,
+	seedFramescaperV27DurableBodies,
+} from './helpers/framescaper-v27-durable-body-fixture.ts';
 
 const PROFILE = FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE;
 
@@ -89,6 +93,28 @@ test('V18 renderer transfers V27 managed bodies through the inherited bounded pr
 	const restored = await store.loadMediaAsset('v18-managed-original');
 	assert.ok(restored);
 	assert.deepEqual(new Uint8Array(await restored.arrayBuffer()), body);
+});
+
+test('selected V18 renderer carries every V27 finishing body through packaged handoff', async (context) => {
+	const fixture = await createFramescaperV27DurableBodyFixture();
+	const harness = installBridge(context);
+	const store = await productStore(context);
+	await seedFramescaperV27DurableBodies(store, fixture);
+	const renderer = await connectFramescaperDesktopProjectLibraryV18Renderer(PROFILE, store);
+	assert.ok(renderer);
+	await renderer.publishProject({ project: fixture.project });
+	assert.deepEqual(harness.publishedBodies.map(({ kind }) => kind), [
+		'video-original', 'video-proxy', 'video-timing',
+		'framescaper-still', 'framescaper-freeze-render',
+		'framescaper-cube-lut', 'framescaper-motion-analysis',
+	]);
+	for (const storageKey of fixture.bodies.keys()) await store.deleteMediaAsset(storageKey);
+	assert.deepEqual(await renderer.readProject(String(fixture.project.id)), fixture.project);
+	for (const [storageKey, expected] of fixture.bodies) {
+		const restored = await store.loadMediaAsset(storageKey);
+		assert.ok(restored, storageKey);
+		assert.deepEqual(new Uint8Array(await restored.arrayBuffer()), expected.bytes, storageKey);
+	}
 });
 
 test('V18 renderer rejects a V17 identity before any project operation', async (context) => {

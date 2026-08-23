@@ -6,14 +6,15 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { isStrictlyHigherProjectRevision } from '../common/editor/project-revision-cas.ts';
 import {
-	acquireFramescaperDesktopV12Bodies,
-	prepareFramescaperDesktopV12PublicationBodies,
-	uploadFramescaperDesktopV12PublicationBodies,
-	validateFramescaperDesktopV12Bodies,
-	type FramescaperDesktopV12BodyDescriptor,
 	type FramescaperDesktopV12BodyStore,
 } from './desktop-project-library-v12-body-transfer.ts';
-import type { FramescaperProjectV20 } from './editor-project-v20.ts';
+import {
+	acquireFramescaperDesktopV27Bodies,
+	prepareFramescaperDesktopV27PublicationBodies,
+	uploadFramescaperDesktopV27PublicationBodies,
+	validateFramescaperDesktopV27Bodies,
+	type FramescaperDesktopV27BodyDescriptor,
+} from './desktop-project-library-v27-body-transfer.ts';
 import { assertFramescaperProjectV27Profile } from './editor-project-runtime-profile-v27.ts';
 import { framescaperProjectStoreAuthorityV27 } from './editor-project-store-v27.ts';
 import { cloneFramescaperProjectV27, type FramescaperProjectV27 } from './editor-project-v27.ts';
@@ -69,7 +70,7 @@ interface V18Bundle {
 	readonly metadataRevision: number;
 	readonly project: Readonly<V18ProjectRow>;
 	readonly document: string;
-	readonly bodies: readonly Readonly<FramescaperDesktopV12BodyDescriptor>[];
+	readonly bodies: readonly Readonly<FramescaperDesktopV27BodyDescriptor>[];
 }
 
 type V18Store = FramescaperDesktopV12BodyStore & Readonly<{ databaseName: string }>;
@@ -157,8 +158,8 @@ class Renderer implements FramescaperDesktopProjectLibraryV18Renderer {
 			throwIfAborted(options.signal);
 			if (raw === null) return null;
 			const snapshot = validateBundle(this.#profile, raw, projectId);
-			await acquireFramescaperDesktopV12Bodies(
-				bodyProject(snapshot.project), snapshot.bundle.project.sha256, snapshot.bundle.bodies,
+			await acquireFramescaperDesktopV27Bodies(
+				snapshot.project, snapshot.bundle.project.sha256, snapshot.bundle.bodies,
 				this.#bridge, this.#store, options.signal,
 			);
 			return snapshot.project;
@@ -187,8 +188,8 @@ class Renderer implements FramescaperDesktopProjectLibraryV18Renderer {
 				throw new Error('Framescaper desktop V18 catalog changed before publication.');
 			}
 			const projectSha256 = bytesToHex(sha256(new TextEncoder().encode(JSON.stringify(project))));
-			const preparedBodies = await prepareFramescaperDesktopV12PublicationBodies(
-				bodyProject(project), projectSha256, this.#store, request.signal,
+			const preparedBodies = await prepareFramescaperDesktopV27PublicationBodies(
+				project, projectSha256, this.#store, request.signal,
 			);
 			const publicationId = randomPublicationId();
 			let admitted = false;
@@ -208,7 +209,7 @@ class Renderer implements FramescaperDesktopProjectLibraryV18Renderer {
 					throw new Error('Framescaper V18 publication admission changed.');
 				}
 				admitted = true;
-				await uploadFramescaperDesktopV12PublicationBodies(
+				await uploadFramescaperDesktopV27PublicationBodies(
 					publicationId, preparedBodies, this.#bridge, this.#store, request.signal,
 				);
 				throwIfAborted(request.signal);
@@ -268,8 +269,8 @@ class Renderer implements FramescaperDesktopProjectLibraryV18Renderer {
 				},
 			});
 			const snapshot = validateBundle(this.#profile, result, options.id);
-			await acquireFramescaperDesktopV12Bodies(
-				bodyProject(snapshot.project), snapshot.bundle.project.sha256, snapshot.bundle.bodies,
+			await acquireFramescaperDesktopV27Bodies(
+				snapshot.project, snapshot.bundle.project.sha256, snapshot.bundle.bodies,
 				this.#bridge, this.#store,
 			);
 			return snapshot.project;
@@ -354,7 +355,7 @@ function validateBundle(profile: EditorProjectRuntimeProfile, value: unknown, ex
 	if (project.id !== row.projectId || project.title !== row.name || project.revision !== row.projectRevision) {
 		throw new Error('The Framescaper desktop V18 project disagrees with its descriptor.');
 	}
-	const bodies = validateFramescaperDesktopV12Bodies(bodyProject(project), row.sha256, raw.bodies);
+	const bodies = validateFramescaperDesktopV27Bodies(project, row.sha256, raw.bodies);
 	return Object.freeze({
 		bundle: Object.freeze({
 			metadataRevision: nonNegative(raw.metadataRevision, 'metadata revision'),
@@ -434,10 +435,6 @@ function inheritedData(value: object, field: string): ((...args: unknown[]) => u
 		candidate = Object.getPrototypeOf(candidate) as object | null;
 	}
 	return undefined;
-}
-
-function bodyProject(project: FramescaperProjectV27): FramescaperProjectV20 {
-	return project as unknown as FramescaperProjectV20;
 }
 
 function randomPublicationId(): string {

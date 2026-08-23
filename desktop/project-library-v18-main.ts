@@ -22,6 +22,10 @@ import {
 import { FramescaperDesktopProjectLibraryV17Main } from './project-library-v17-main.ts';
 import { validateFramescaperDesktopV18CurrentProjectV27 } from './project-library-v18-current-project.ts';
 import {
+	validateFramescaperDesktopV27Bodies,
+	validateFramescaperDesktopV27BodyDescriptor,
+} from '../src/framescaper/desktop-project-library-v27-body-contract.ts';
+import {
 	FramescaperDesktopProjectLibraryExactGenerationMain,
 	type FramescaperDesktopProjectLibraryExactGenerationMainSession,
 	type FramescaperDesktopProjectLibraryExactGenerationMainSnapshot,
@@ -46,6 +50,12 @@ const CONFIGURATION = Object.freeze({
 	createPaths: createFramescaperDesktopProjectLibraryV18Paths,
 	validateOwner: validateFramescaperDesktopProjectLibraryV18Owner,
 	validateProject: (value: unknown) => validateFramescaperDesktopV18CurrentProjectV27(value),
+	validateBodyDescriptor: (value: unknown) => validateFramescaperDesktopV27BodyDescriptor(value),
+	validateBodies: (project: unknown, projectSha256: string, value: unknown) => (
+		validateFramescaperDesktopV27Bodies(
+			validateFramescaperDesktopV18CurrentProjectV27(project), projectSha256, value,
+		)
+	),
 });
 
 export interface FramescaperDesktopProjectLibraryV18MainSnapshot

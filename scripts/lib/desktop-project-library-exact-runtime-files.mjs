@@ -3,6 +3,7 @@
 /** Exact-generation files staged for immutable V12/V17 and selected V18. */
 export const DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES = Object.freeze([
 	'desktop/project-library-exact-generation-contract.js',
+	'desktop/project-library-exact-generation-body-configuration.js',
 	'desktop/project-library-exact-generation-database.js',
 	'desktop/project-library-exact-generation-lifecycle.js',
 	'desktop/project-library-exact-generation-main-channels.js',

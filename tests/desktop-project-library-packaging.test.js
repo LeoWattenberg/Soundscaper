@@ -353,6 +353,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/soundscaper/editor-project-production-validation.js',
 		'src/soundscaper/editor-project-v23-validation.js',
 		'desktop/project-library-exact-generation-contract.js',
+		'desktop/project-library-exact-generation-body-configuration.js',
 		'desktop/project-library-exact-generation-database.js',
 		'desktop/project-library-exact-generation-lifecycle.js',
 		'desktop/project-library-exact-generation-main-channels.js',
