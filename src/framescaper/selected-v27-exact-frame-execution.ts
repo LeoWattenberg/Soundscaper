@@ -1,13 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import {
-	applyManagedSdrGradeStackLinearPixelV1,
-	applyManagedSdrLinearGradeStackPixelV1,
-	defaultVideoSourceColorInterpretationV1,
-	type ParsedCubeLutV1,
-	type VideoColorGradeV1,
-	type VideoSourceColorInterpretationV1,
-} from '../common/editor/video-color-management-v27.ts';
-import {
 	addUnifiedExactLinearCompositionEntryV13,
 	addUnifiedExactLinearDissolveEntryV13,
 	compositeUnifiedExactLinearFrameV13,
@@ -16,9 +8,21 @@ import {
 	flattenUnifiedExactLinearCompositionV13,
 	placeUnifiedExactLinearRgbaFrameV13,
 	straightUnifiedExactLinearFrameV13,
-	type UnifiedExactLinearBlendModeV13,
-	type UnifiedExactLinearCompositionEntryV13,
 } from '../common/editor/unified-exact-linear-rgba-v13.ts';
+import {
+	authoredCompositingOrder,
+	backgroundLinear,
+	captureBrowserFrame,
+	combinedGraphs,
+	combinedMask,
+	gradeLinearFrame,
+	gradeVisual,
+	identityDescription,
+	mediaPresentation,
+	orderBucketEntries,
+	renderBlendMode,
+	type TrackOrderBucketV27,
+} from './selected-v27-exact-frame-support.ts';
 import {
 	createUnifiedExactRenderFinishingPreviewConsumerV13,
 	type UnifiedExactRenderRgbaFrameV13,
@@ -37,9 +41,7 @@ import type {
 	UnifiedExactRenderPlanV13,
 } from '../common/editor/unified-exact-render-plan.ts';
 import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-exact-render-timing-authority.ts';
-import { evaluateVideoMaskMatteRgbaV13 } from '../common/editor/video-mask-matte-rgba-v13.ts';
 import { applyVideoExactBrowserEffectsV27 } from './editor-video-exact-browser-effects-v27.ts';
-import { videoDeliveryColorChannels } from '../common/editor/video-delivery-color.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
 import { createFramescaperSelectedMotionAcceleratorV27 } from './selected-v27-motion-accelerator.ts';
 import type { FramescaperVideoFrameAddressV27 } from './video-frame-address-v27.ts';
@@ -52,16 +54,6 @@ import {
 	type FramescaperVideoExportVisualAssetStoreV27,
 } from './video-export-visual-assets-v27.ts';
 type Data = Readonly<Record<string, unknown>>;
-/**
- * One track's composition entries at one authored compositing order. Tracks
- * normally contribute a single bucket at their clip's authored order; the
- * final composite interleaves buckets across tracks by order so an authored
- * compositingOrder can pull a lower track's picture in front of a higher one.
- */
-interface TrackOrderBucketV27 {
-	readonly order: number;
-	entries: UnifiedExactLinearCompositionEntryV13[];
-}
 export interface FramescaperSelectedExactFrameExecutionV27 {
 	render(request: Readonly<{
 		readonly sequencePosition: Readonly<{ readonly num: number; readonly den: number }>;
@@ -383,193 +375,6 @@ async function materializeVisuals(
 	}
 	return result;
 }
-function gradeVisual(
-	finishing: UnifiedExactRenderFinishingNode,
-	entry: UnifiedExactRenderVisualFrameEntryV13,
-	frame: UnifiedExactRenderVisualRgbaV13,
-	luts: ReadonlyMap<string, ParsedCubeLutV1>,
-	signal: AbortSignal,
-): UnifiedExactRenderRgbaFrameV13 {
-	if (!('source' in entry.authoredState)) throw new TypeError('Selected V27 visual source is unavailable.');
-	const source = entry.authoredState.source;
-	const presentations = finishing.visualPresentations.filter(({ enabled, owner }) => enabled && (
-		(owner.kind === 'clip' && owner.id === entry.modelId)
-		|| ((owner.kind === 'source' || owner.kind === 'generator') && owner.id === source.id)
-	));
-	const interpretation = source.kind === 'still'
-		? requiredInterpretation(finishing, source.id)
-		: defaultVideoSourceColorInterpretationV1('still', source.id);
-	return gradeEncodedFrame(frame, interpretation,
-		presentations.flatMap(({ grade }) => grade ? [grade] : []), luts, signal);
-}
-function gradeEncodedFrame(
-	frame: UnifiedExactRenderVisualRgbaV13,
-	interpretation: VideoSourceColorInterpretationV1,
-	grades: readonly VideoColorGradeV1[],
-	luts: ReadonlyMap<string, ParsedCubeLutV1>,
-	signal: AbortSignal,
-): UnifiedExactRenderRgbaFrameV13 {
-	const pixels = new Uint8Array(frame.pixels.length);
-	const bodies = grades.map(({ lut }) => lut ? luts.get(lut.sha256) : undefined);
-	for (let offset = 0; offset < pixels.length; offset += 4) {
-		if (offset % (frame.width * 4) === 0) throwIfAborted(signal);
-		const value = applyManagedSdrGradeStackLinearPixelV1({
-			rgba: channels(frame.pixels, offset), interpretation, grades, luts: bodies,
-		});
-		writeChannels(pixels, offset, value);
-	}
-	return Object.freeze({ width: frame.width, height: frame.height, pixels });
-}
-function gradeLinearFrame(
-	frame: UnifiedExactRenderRgbaFrameV13,
-	grades: readonly VideoColorGradeV1[],
-	luts: ReadonlyMap<string, ParsedCubeLutV1>,
-	signal: AbortSignal,
-): UnifiedExactRenderRgbaFrameV13 {
-	const pixels = new Uint8Array(frame.pixels.length);
-	const bodies = grades.map(({ lut }) => lut ? luts.get(lut.sha256) : undefined);
-	for (let offset = 0; offset < pixels.length; offset += 4) {
-		if (offset % (frame.width * 4) === 0) throwIfAborted(signal);
-		writeChannels(pixels, offset, applyManagedSdrLinearGradeStackPixelV1({
-			rgba: channels(frame.pixels, offset), grades, luts: bodies,
-		}));
-	}
-	return Object.freeze({ width: frame.width, height: frame.height, pixels });
-}
-async function captureBrowserFrame(entry: Data, signal: AbortSignal): Promise<UnifiedExactRenderRgbaFrameV13> {
-	throwIfAborted(signal);
-	if (!globalThis.document?.createElement) throw new Error('Selected V27 source readback is unavailable.');
-	const video = record(entry.video, 'Selected V27 media drawable');
-	const width = dimension(video.videoWidth, 'Selected V27 media width');
-	const height = dimension(video.videoHeight, 'Selected V27 media height');
-	const drawable = video.drawable ?? entry.video;
-	const canvas = globalThis.document.createElement('canvas');
-	canvas.width = width;
-	canvas.height = height;
-	const context = canvas.getContext('2d', { alpha: true, willReadFrequently: true });
-	if (!context) throw new Error('Selected V27 source readback has no 2D context.');
-	context.clearRect(0, 0, width, height);
-	context.drawImage(drawable as CanvasImageSource, 0, 0, width, height);
-	const data = context.getImageData(0, 0, width, height).data;
-	throwIfAborted(signal);
-	return Object.freeze({ width, height, pixels: Uint8Array.from(data) as Uint8Array<ArrayBuffer> });
-}
-
-function mediaPresentation(finishing: UnifiedExactRenderFinishingNode, clipId: string, sourceId: string) {
-	const presentations = finishing.visualPresentations.filter(({ enabled, owner }) => enabled && (
-		(owner.kind === 'clip' && owner.id === clipId) || (owner.kind === 'source' && owner.id === sourceId)
-	));
-	let opacity = 1;
-	let blendMode: UnifiedExactLinearBlendModeV13 | null = null;
-	const maskIds = new Set<string>();
-	for (const presentation of presentations) {
-		opacity *= presentation.opacity;
-		blendMode = presentation.blendMode;
-		for (const id of presentation.maskMatteIds) maskIds.add(id);
-	}
-	return Object.freeze({ opacity, blendMode, maskIds: Object.freeze([...maskIds].sort(compareText)) });
-}
-
-function combinedMask(
-	ids: readonly string[],
-	graphs: ReadonlyMap<string, unknown>,
-	width: number,
-	height: number,
-	inputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
-): Uint8Array<ArrayBuffer> {
-	return combinedGraphs(ids.map((id) => {
-		const graph = graphs.get(id);
-		if (!graph) throw new ReferenceError(`Selected V27 mask ${id} is unavailable.`);
-		return graph;
-	}), width, height, inputs);
-}
-
-function combinedGraphs(
-	graphs: readonly unknown[],
-	width: number,
-	height: number,
-	inputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
-): Uint8Array<ArrayBuffer> {
-	const output = new Uint8Array(width * height).fill(255);
-	for (const graph of graphs) {
-		const value = evaluateVideoMaskMatteRgbaV13(graph, width, height, inputs);
-		for (let index = 0; index < output.length; index += 1) {
-			output[index] = Math.round(output[index]! * value[index]! / 255);
-		}
-	}
-	return output;
-}
-
-function backgroundLinear(
-	plan: UnifiedExactRenderPlanV13,
-	finishing: UnifiedExactRenderFinishingNode,
-): readonly [number, number, number, number] {
-	const channels = videoDeliveryColorChannels(plan.output.canvas.backgroundColor);
-	if (!channels) throw new Error('Selected V27 exact finishing requires a hexadecimal background color.');
-	const transfer = finishing.colorContext.outputSpace;
-	const interpretation: VideoSourceColorInterpretationV1 = Object.freeze({
-		schemaVersion: 1, sourceId: 'v27-output-background', sourceKind: 'still',
-		primaries: transfer === 'srgb' ? 'srgb' : 'bt709',
-		transfer: transfer === 'srgb' ? 'srgb' : 'bt709',
-		matrix: 'rgb', range: 'full', provenance: 'user-override',
-	});
-	return applyManagedSdrGradeStackLinearPixelV1({
-		rgba: [channels.red, channels.green, channels.blue, channels.alpha],
-		interpretation, grades: [],
-	});
-}
-
-function identityDescription(width: number, height: number, blendMode: UnifiedExactLinearBlendModeV13) {
-	return Object.freeze({
-		crop: Object.freeze({
-			normalized: Object.freeze({ left: 0, top: 0, right: 0, bottom: 0 }),
-			sourcePixels: Object.freeze({ x: 0, y: 0, width, height }),
-		}),
-		sourceDisplayToCanvas: Object.freeze([1, 0, 0, 1, 0, 0]),
-		opacityStart: 1, opacityEnd: 1, blendMode, compositingOrder: 0,
-	});
-}
-
-function renderBlendMode(value: unknown): UnifiedExactLinearBlendModeV13 {
-	const description = record(value, 'Selected V27 render description');
-	const mode = description.blendMode;
-	if (!['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'difference', 'exclusion']
-		.includes(String(mode))) throw new RangeError('Selected V27 blend mode is unsupported.');
-	return mode as UnifiedExactLinearBlendModeV13;
-}
-
-function authoredCompositingOrder(value: unknown): number {
-	const description = record(value, 'Selected V27 render description');
-	const order = description.compositingOrder;
-	if (!Number.isSafeInteger(order) || Number(order) < -32_768 || Number(order) > 32_767) {
-		throw new RangeError('Selected V27 compositing order is outside its range.');
-	}
-	return Number(order);
-}
-
-function orderBucketEntries(
-	trackFrames: Map<string, TrackOrderBucketV27[]>,
-	trackId: string,
-	order: number,
-): UnifiedExactLinearCompositionEntryV13[] {
-	const buckets = trackFrames.get(trackId) ?? [];
-	if (!trackFrames.has(trackId)) trackFrames.set(trackId, buckets);
-	const existing = buckets.find((bucket) => bucket.order === order);
-	if (existing) return existing.entries;
-	const created: TrackOrderBucketV27 = { order, entries: [] };
-	buckets.push(created);
-	return created.entries;
-}
-
-function channels(value: Uint8Array, offset: number): readonly [number, number, number, number] {
-	return [value[offset]! / 255, value[offset + 1]! / 255,
-		value[offset + 2]! / 255, value[offset + 3]! / 255];
-}
-
-function writeChannels(target: Uint8Array, offset: number, value: readonly number[]): void {
-	for (let channel = 0; channel < 4; channel += 1) target[offset + channel] = Math.round(value[channel]! * 255);
-}
-
 function checkedFrame(value: unknown, name: string): UnifiedExactRenderRgbaFrameV13 {
 	if (!value || typeof value !== 'object') throw new TypeError(`${name} must be an RGBA frame.`);
 	const frame = value as Partial<UnifiedExactRenderRgbaFrameV13>;
@@ -584,15 +389,6 @@ function checkedFrame(value: unknown, name: string): UnifiedExactRenderRgbaFrame
 function requiredVisual<Value>(values: ReadonlyMap<string, Value>, id: string): Value {
 	const value = values.get(id);
 	if (!value) throw new ReferenceError(`Selected V27 visual ${id} is unavailable.`);
-	return value;
-}
-
-function requiredInterpretation(
-	finishing: UnifiedExactRenderFinishingNode,
-	sourceId: string,
-): VideoSourceColorInterpretationV1 {
-	const value = finishing.sourceInterpretations.find((candidate) => candidate.sourceId === sourceId);
-	if (!value) throw new ReferenceError(`Selected V27 source interpretation ${sourceId} is unavailable.`);
 	return value;
 }
 

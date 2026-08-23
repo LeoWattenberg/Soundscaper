@@ -356,51 +356,6 @@ test('the playback service retains the existing bounded bypass path and never tr
 	assert.deepEqual(unchanged.requiredVideoSourceIds, []);
 });
 
-test('the delivery projections carry the same effect bypasses as playback', () => {
-	// Playback and export are the same render: an effect bypassed for
-	// playback must not reappear in the delivered file.
-	const bypass = createCurrentAudioEditorProject({
-		id: 'bypass-delivery', now: '2026-07-30T12:00:00.000Z',
-		sources: [createVideoSource({
-			id: 'cam', name: 'CAM', storageKey: 'media/cam.mp4', mimeType: 'video/mp4',
-			frameCount: 480_000, sampleRate: 48_000, channelCount: 2,
-			frameRate: { num: 25, den: 1 }, width: 1920, height: 1080,
-		})],
-		clips: [createVideoClip({
-			id: 'v-clip', sourceId: 'cam', title: 'Wide', durationFrames: 25,
-			videoEffects: [{ id: 'fx-1', type: 'pixelate', enabled: true, params: { blockSize: 16 } }],
-		})],
-		tracks: [
-			createAudioTrack({ id: 'track', effects: [createEffect('limiter', { id: 'limiter-a' })] }),
-			createVideoTrack({ id: 'picture', name: 'Picture', clipIds: ['v-clip'] }),
-		],
-	});
-	const service = createPlaybackProjectService({ audioEffects: false, videoEffects: false });
-	const playback = service.projectForPlayback(bypass);
-	assert.equal((playback.project.tracks[0] as ControllerTrack | undefined)?.effects?.[0]?.bypassed, true);
-
-	const audioDelivery = service.projectForAudioRenderedFallbackDelivery(bypass);
-	assert.equal(
-		(audioDelivery.project.tracks[0] as ControllerTrack | undefined)?.effects?.[0]?.bypassed,
-		true,
-		'audio delivery honors the audio-effect bypass playback applied',
-	);
-
-	const videoDelivery = service.projectForVideoRenderedFallbackDelivery(bypass);
-	const deliveredClip = (videoDelivery.project.clips as readonly Record<string, unknown>[])
-		.find((clip) => clip.id === 'v-clip');
-	assert.equal(
-		(deliveredClip?.videoEffects as readonly { enabled: boolean }[] | undefined)?.[0]?.enabled,
-		false,
-		'video delivery honors the video-effect bypass playback applied',
-	);
-	assert.equal(
-		(videoDelivery.project.tracks[0] as ControllerTrack | undefined)?.effects?.[0]?.bypassed,
-		true,
-		'video delivery honors the audio-effect bypass playback applied',
-	);
-});
-
 test('playback reapplies only the projected document after required sources are ready', async () => {
 	const canonical = fallbackProject();
 	const service = createPlaybackProjectService({ audioEffects: false, videoEffects: true });

@@ -9,7 +9,8 @@ import { DesktopSharedProjectRepository } from './storage/desktop-shared-project
 import { admitLocalStoreClear } from './storage/linked-video-original-lifecycle-coordinator.ts';
 import { LinkedOriginalStoreService } from './storage/linked-original-store-service.ts';
 import { createStoreProjectIfAbsent, createStoreScapeProjectIfAbsent, deleteStoreProjectIfCurrent } from './storage/project-create-only-publication.ts';
-import { createProjectStoreId, reportDesktopSharedProjectLocalCleanupError } from './storage/project-store-defaults.ts';
+import { duplicateStoreProject, reportDesktopSharedProjectLocalCleanupError } from './storage/project-store-defaults.ts';
+import { restoreStoreProjectSnapshot } from './storage/project-snapshot-restore.ts';
 
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
 
@@ -180,26 +181,8 @@ export class AudioEditorProjectStore {
 		return this.linkedOriginalStoreService.deleteProject(projectId, () => this.projectRepository.delete(projectId));
 	}
 
-	/**
-	 * Restore a captured project snapshot after a failed replace-import.
-	 *
-	 * Replaces only the project document and revision rows: linked-original
-	 * bindings, their locator grants, and provisional roots stay untouched,
-	 * and the restore runs without publication admission so it cannot be
-	 * refused by the same quota shortage that failed the import.
-	 */
-	async restoreProjectSnapshot(projectId, snapshot) {
-		if (typeof this.projectRepository.restore !== 'function') {
-			// Repositories without the atomic primitive keep the legacy
-			// delete-then-resave sequence.
-			await this.deleteProject(projectId);
-			const revisions = [...snapshot.revisions].sort((left, right) => left.revision - right.revision);
-			for (const revision of revisions) await this.saveProject(revision.project);
-			if (snapshot.current) await this.saveProject(snapshot.current);
-			return;
-		}
-		return this.projectRepository.restore(projectId, snapshot);
-	}
+	/** Binding-preserving replace-import rollback; see restoreStoreProjectSnapshot. */
+	restoreProjectSnapshot(projectId, snapshot) { return restoreStoreProjectSnapshot(this, this.projectRepository, projectId, snapshot); }
 
 	async prepareProjectHandoff(project, { signal } = {}) {
 		if (!(this.projectRepository instanceof DesktopSharedProjectRepository)) return Object.freeze([]);
@@ -210,19 +193,8 @@ export class AudioEditorProjectStore {
 		return this.projectRepository instanceof DesktopSharedProjectRepository;
 	}
 
-	async duplicateProject(projectId, { id, title } = {}) {
-		return this.linkedOriginalStoreService.duplicateProject({
-			loadProject: (requestedId) => this.projectRepository instanceof DesktopSharedProjectRepository
-				? this.projectRepository.loadProjectForDuplication(requestedId)
-				: this.loadProject(requestedId),
-			listProjects: () => this.listProjects(),
-			createProjectIfAbsent: (project) => this.createProjectIfAbsent(project),
-		}, {
-			sourceProjectId: projectId,
-			copyProjectId: id || createProjectStoreId('project'),
-			title,
-			timestamp: new Date().toISOString(),
-		});
+	async duplicateProject(projectId, options = {}) {
+		return duplicateStoreProject(this, projectId, options);
 	}
 
 	async saveSetting(key, value) {

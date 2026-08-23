@@ -24,6 +24,24 @@ import {
 import { publishSource } from './media-records.ts';
 import { sameProjectSnapshot } from './project-snapshot-equality.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import {
+	applyMemoryMutations,
+	asRecord,
+	asRevision,
+	clone,
+	createProjectCreationFence,
+	deleteMemoryMutation,
+	isRevisionFor,
+	memoryHasProjectRevision,
+	nonNegativeInteger,
+	revisionKey,
+	setMemoryMutation,
+	sortProjects,
+	storedCreationFence,
+	storedProjectId,
+	type MemoryMutation,
+	type ProjectRevisionRecord,
+} from './project-repository-support.ts';
 
 export interface ProjectDocument {
 	readonly id: string;
@@ -36,14 +54,6 @@ export interface ProjectRevision {
 	readonly revision: number;
 	readonly project: ProjectDocument;
 }
-interface ProjectRevisionRecord {
-	readonly key: string;
-	readonly projectId: string;
-	readonly revision: number;
-	readonly project: ProjectDocument;
-	readonly creationFence?: string;
-}
-
 export interface ProjectLoadOptions {
 	readonly revision?: number;
 	readonly signal?: AbortSignal;
@@ -437,15 +447,6 @@ interface ProjectPublication {
 	readonly revisionRecord: ProjectRevisionRecord;
 }
 
-interface MemoryMutation {
-	readonly map: Map<string, unknown>;
-	readonly key: string;
-	readonly operation: 'set' | 'delete';
-	readonly value?: unknown;
-	readonly prior: unknown;
-	readonly hadPrior: boolean;
-}
-
 function projectPublication(
 	project: ProjectDocument,
 	creationFence?: string,
@@ -465,51 +466,6 @@ function projectPublication(
 			...(creationFence ? { creationFence } : {}),
 		},
 	};
-}
-
-function memoryHasProjectRevision(revisions: ReadonlyMap<string, unknown>, projectId: string): boolean {
-	for (const value of revisions.values()) {
-		if (storedProjectId(value) === projectId) return true;
-	}
-	return false;
-}
-
-function setMemoryMutation(
-	map: Map<string, unknown>,
-	key: string,
-	value: unknown,
-): MemoryMutation {
-	return { map, key, operation: 'set', value, prior: map.get(key), hadPrior: map.has(key) };
-}
-
-function deleteMemoryMutation(map: Map<string, unknown>, key: string): MemoryMutation {
-	return { map, key, operation: 'delete', prior: map.get(key), hadPrior: map.has(key) };
-}
-
-function applyMemoryMutations(mutations: readonly MemoryMutation[]): void {
-	const attempted: MemoryMutation[] = [];
-	try {
-		for (const mutation of mutations) {
-			attempted.push(mutation);
-			if (mutation.operation === 'set') mutation.map.set(mutation.key, mutation.value);
-			else mutation.map.delete(mutation.key);
-		}
-	} catch (primary) {
-		const rollbackErrors: unknown[] = [];
-		for (const mutation of attempted.reverse()) {
-			try {
-				if (mutation.hadPrior) mutation.map.set(mutation.key, mutation.prior);
-				else mutation.map.delete(mutation.key);
-			} catch (error) { rollbackErrors.push(error); }
-		}
-		if (rollbackErrors.length) {
-			throw new AggregateError(
-				[primary, ...rollbackErrors],
-				'Memory project mutation and rollback both failed.',
-			);
-		}
-		throw primary;
-	}
 }
 
 async function readProjectRecord(
@@ -587,54 +543,3 @@ function throwIfProjectLoadAborted(signal?: AbortSignal): void {
 	if (signal?.aborted) throw signal.reason;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-	return value && typeof value === 'object' ? value as Record<string, unknown> : null;
-}
-
-function storedProjectId(value: unknown): unknown {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-	const descriptor = Object.getOwnPropertyDescriptor(value, 'projectId');
-	return descriptor && Object.hasOwn(descriptor, 'value') ? descriptor.value : null;
-}
-
-function storedCreationFence(value: unknown): string | null {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-	const descriptor = Object.getOwnPropertyDescriptor(value, 'creationFence');
-	return descriptor && Object.hasOwn(descriptor, 'value') && typeof descriptor.value === 'string'
-		? descriptor.value
-		: null;
-}
-
-function asRevision(value: unknown): ProjectRevisionRecord | null {
-	const record = asRecord(value);
-	if (!record || typeof record.key !== 'string' || typeof record.projectId !== 'string') return null;
-	if (typeof record.revision !== 'number' || !record.project || typeof record.project !== 'object') return null;
-	return record as unknown as ProjectRevisionRecord;
-}
-
-function isRevisionFor(projectId: string): (record: ProjectRevisionRecord | null) => record is ProjectRevisionRecord {
-	return (record): record is ProjectRevisionRecord => record?.projectId === projectId;
-}
-
-function clone<Value>(value: Value): Value {
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
-}
-
-function createProjectCreationFence(): string {
-	const uuid = globalThis.crypto?.randomUUID?.();
-	if (!uuid) throw new Error('Secure random generation is required for create-only project storage.');
-	return `project_creation_${uuid.replaceAll('-', '')}`;
-}
-
-function revisionKey(projectId: string, revision: number): string {
-	return `${projectId}:${String(nonNegativeInteger(revision, 0)).padStart(12, '0')}`;
-}
-
-function nonNegativeInteger(value: unknown, fallback: number): number {
-	return Number.isFinite(value) && Number(value) >= 0 ? Math.floor(Number(value)) : fallback;
-}
-
-function sortProjects(left: ProjectDocument, right: ProjectDocument): number {
-	return String(right.updatedAt || '').localeCompare(String(left.updatedAt || ''));
-}

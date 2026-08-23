@@ -3,10 +3,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createPlaybackProjectService } from '../src/common/editor/controller/playback-project-service.ts';
+import type { ControllerTrack } from '../src/common/editor/controller/track-domain-types.ts';
+import { createEffect } from '../src/common/editor/effects.js';
+import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	createAudioClip,
 	createAudioSource,
 	createAudioTrack,
+	createVideoClip,
 	createVideoSource,
 	createVideoTrack,
 } from '../src/common/editor/project-media-factory.ts';
@@ -49,6 +54,51 @@ test('V21 video delivery carries the same video-effect bypass as playback', () =
 	assert.ok(playback.videoEffectPlaybackBypass, 'playback bypasses the maintained video effect');
 	assert.deepEqual(clipVideoEffects(playback.project), clipVideoEffects(delivery.project));
 	assert.equal(clipVideoEffects(delivery.project)?.[0]?.enabled, false);
+});
+
+test('the shared default delivery projections carry the same effect bypasses as playback', () => {
+	// Playback and export are the same render: an effect bypassed for
+	// playback must not reappear in the delivered file.
+	const bypass = createCurrentAudioEditorProject({
+		id: 'bypass-delivery', now: '2026-07-30T12:00:00.000Z',
+		sources: [createVideoSource({
+			id: 'cam', name: 'CAM', storageKey: 'media/cam.mp4', mimeType: 'video/mp4',
+			frameCount: 480_000, sampleRate: 48_000, channelCount: 2,
+			frameRate: { num: 25, den: 1 }, width: 1920, height: 1080,
+		})],
+		clips: [createVideoClip({
+			id: 'v-clip', sourceId: 'cam', title: 'Wide', durationFrames: 25,
+			videoEffects: [{ id: 'fx-1', type: 'pixelate', enabled: true, params: { blockSize: 16 } }],
+		})],
+		tracks: [
+			createAudioTrack({ id: 'track', effects: [createEffect('limiter', { id: 'limiter-a' })] }),
+			createVideoTrack({ id: 'picture', name: 'Picture', clipIds: ['v-clip'] }),
+		],
+	});
+	const service = createPlaybackProjectService({ audioEffects: false, videoEffects: false });
+	const playback = service.projectForPlayback(bypass);
+	assert.equal((playback.project.tracks[0] as ControllerTrack | undefined)?.effects?.[0]?.bypassed, true);
+
+	const audioDelivery = service.projectForAudioRenderedFallbackDelivery(bypass);
+	assert.equal(
+		(audioDelivery.project.tracks[0] as ControllerTrack | undefined)?.effects?.[0]?.bypassed,
+		true,
+		'audio delivery honors the audio-effect bypass playback applied',
+	);
+
+	const videoDelivery = service.projectForVideoRenderedFallbackDelivery(bypass);
+	const deliveredClip = (videoDelivery.project.clips as readonly Record<string, unknown>[])
+		.find((clip) => clip.id === 'v-clip');
+	assert.equal(
+		(deliveredClip?.videoEffects as readonly { enabled: boolean }[] | undefined)?.[0]?.enabled,
+		false,
+		'video delivery honors the video-effect bypass playback applied',
+	);
+	assert.equal(
+		(videoDelivery.project.tracks[0] as ControllerTrack | undefined)?.effects?.[0]?.bypassed,
+		true,
+		'video delivery honors the audio-effect bypass playback applied',
+	);
 });
 
 function clipVideoEffects(project: object) {

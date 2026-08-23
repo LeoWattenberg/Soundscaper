@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { ScapeImportTransaction } from '../src/common/editor/scape-import-transaction.ts';
+import {
+	assertScapeImportStore,
+	ScapeImportTransaction,
+} from '../src/common/editor/scape-import-transaction.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { LinkedOriginalPort } from '../src/common/editor/storage/linked-original-resolver.ts';
 import type { OwnedMediaAssetPublication } from '../src/common/editor/storage/media-asset-write-contract.ts';
@@ -47,7 +50,9 @@ test('replace-import rollback preserves linked-original bindings and their locat
 	);
 	assert.ok(await store.getLinkedOriginalBinding('p1', 'src-1'));
 
-	const transaction = new ScapeImportTransaction(store);
+	const importStore: unknown = store;
+	assertScapeImportStore(importStore);
+	const transaction = new ScapeImportTransaction(importStore);
 	await transaction.captureProject('p1');
 	await transaction.publishProject({ id: 'p1', revision: 1, title: 'Imported', sources: [] });
 	const primary = new Error('user cancelled after publish');
