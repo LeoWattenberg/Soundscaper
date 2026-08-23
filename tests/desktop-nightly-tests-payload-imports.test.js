@@ -21,7 +21,7 @@ import {
 // payload carries everything the shipped specs reach for.
 const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const BROWSER_TESTS = join(REPOSITORY_ROOT, 'tests/browser');
-const V20_LIFECYCLE_SPEC = join(BROWSER_TESTS, 'audio-editor-framescaper-v20-product-lifecycle.spec.js');
+const V27_LIFECYCLE_SPEC = join(BROWSER_TESTS, 'audio-editor-framescaper-v27-product-lifecycle.spec.js');
 // The `testMatch` of playwright.nightly-tests.config.mjs.
 const TEST_FILE = /\.(?:spec|test)\.[cm]?[jt]sx?$/u;
 const BUILTIN_MODULES = new Set(builtinModules.flatMap((name) => [name, `node:${name}`]));
@@ -93,8 +93,8 @@ test('the nightly test payload satisfies every import its browser specs reach', 
 	);
 });
 
-test('the nightly payload runs the selected V20 lifecycle against the shipped route', async () => {
-	const lifecyclePath = relative(REPOSITORY_ROOT, V20_LIFECYCLE_SPEC);
+test('the nightly payload runs the selected V27 lifecycle against the shipped route', async () => {
+	const lifecyclePath = relative(REPOSITORY_ROOT, V27_LIFECYCLE_SPEC);
 	assert.ok(
 		isStagedInput(lifecyclePath),
 		`NIGHTLY_TEST_PAYLOAD_INPUTS is missing selected lifecycle ${lifecyclePath}`,
@@ -105,7 +105,7 @@ test('the nightly payload runs the selected V20 lifecycle against the shipped ro
 		packagedPath !== null && packagedFilter.some((pattern) => matchesGlob(packagedPath, pattern)),
 		`the nightly-tests extraResources filter drops selected lifecycle ${lifecyclePath}`,
 	);
-	const lifecycleSource = await readFile(V20_LIFECYCLE_SPEC, 'utf8');
+	const lifecycleSource = await readFile(V27_LIFECYCLE_SPEC, 'utf8');
 	assert.match(lifecycleSource, /bootEditor\(page, '\/framescaper\/embed\/en\/'\)/u);
 	assert.doesNotMatch(lifecycleSource, /HARNESS_PATH|source-rewriting|writeFile\(|esbuild/u,
 		'the selected lifecycle must exercise the real product route without generating source');
