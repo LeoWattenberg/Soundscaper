@@ -23,6 +23,10 @@ import {
 	resolveFramescaperVideoProxyUseV20,
 	type FramescaperVideoProxyPressureV20,
 } from './editor-video-proxy-use-policy-v20.ts';
+import {
+	type FramescaperVideoProxyCleanupClaimV20,
+	type FramescaperVideoProxyCleanupCoordinatorV20,
+} from './editor-video-proxy-cleanup-v20.ts';
 
 type SessionV20 = Parameters<typeof createFramescaperCapturedVideoProxySchedulerV20>[1];
 type SchedulerFactory = () => FramescaperCapturedVideoProxyScheduler;
@@ -56,6 +60,7 @@ export interface FramescaperVideoProxyActionsV20Options {
 	readonly createScheduler: SchedulerFactory;
 	readonly createAttachExistingScheduler?: ExistingSchedulerFactory;
 	readonly createSessionId?: () => string;
+	readonly cleanup: FramescaperVideoProxyCleanupCoordinatorV20;
 }
 
 export interface FramescaperVideoProxyActionsOptions extends FramescaperVideoProxyActionsV20Options {
@@ -80,6 +85,7 @@ export function bindFramescaperVideoProxyActionsV20(
 ): FramescaperVideoProxyActionRuntime {
 	return createFramescaperVideoProxyActionsV20({
 		owner,
+		cleanup: environment.videoProxyCleanup,
 		createScheduler: () => createFramescaperCapturedVideoProxySchedulerV20(
 			environment,
 			session,
@@ -227,6 +233,10 @@ export function createFramescaperVideoProxyActions(
 	}
 
 	async function detach(sourceIdValue: string): Promise<void> {
+		await detachPointer(sourceIdValue);
+	}
+
+	async function detachPointer(sourceIdValue: string): Promise<void> {
 		const sourceId = identifier(sourceIdValue);
 		const source = videoSource(exactProject(options.owner.project, options.schemaVersion), sourceId);
 		if (source.proxyAttachment === null) return;
@@ -251,18 +261,35 @@ export function createFramescaperVideoProxyActions(
 			await generate(sourceId, operationOptions);
 			return;
 		}
-		await detach(sourceId);
+		const cleanupClaim = await options.cleanup.prepareReplacement(before, sourceId);
+		try {
+			await detachPointer(sourceId);
+		} catch (error) {
+			await cancelCleanupAfterFailedMutation(cleanupClaim, error);
+		}
 		const detached = options.owner.project;
 		try {
 			await generate(sourceId, operationOptions);
 		} catch (error) {
 			// Restore only when no other edit moved the history after our detach.
 			if (options.owner.project === detached) {
-				await options.owner.actions.edit.undo();
-				await refresh(sourceId);
+				try {
+					await options.owner.actions.edit.undo();
+					await refresh(sourceId);
+					await options.cleanup.cancel(cleanupClaim);
+				} catch (restoreError) {
+					await settleCleanupAfterCommittedMutation(cleanupClaim, new AggregateError(
+						[error, restoreError],
+						'Proxy regeneration and restoration both failed.',
+						{ cause: error },
+					));
+				}
+			} else {
+				await settleCleanupAfterCommittedMutation(cleanupClaim, error);
 			}
 			throw error;
 		}
+		await options.cleanup.settle(cleanupClaim, options.owner.project);
 	}
 
 	async function relinkOriginal(
@@ -287,20 +314,64 @@ export function createFramescaperVideoProxyActions(
 		if (classification !== 'exact-content' && classification !== 'changed-content') {
 			throw new Error('The selected video is not an admissible original relink candidate.');
 		}
+		let cleanupClaim: Readonly<FramescaperVideoProxyCleanupClaimV20> | null = null;
 		if (classification === 'changed-content'
 			&& videoSource(exactProject(options.owner.project, options.schemaVersion), sourceId).proxyAttachment !== null) {
 			// A changed original can never retain a proxy bound to the old digest.
-			// History owns the detach before the linked-original service owns the new locator.
-			await detach(sourceId);
+			// Durable cleanup is journaled before history invalidates the pointer.
+			cleanupClaim = await options.cleanup.prepareReplacement(options.owner.project, sourceId);
+			try {
+				await detachPointer(sourceId);
+			} catch (error) {
+				await cancelCleanupAfterFailedMutation(cleanupClaim, error);
+			}
 		}
-		await options.owner.actions.projectBin.relinkLinkedVideo(
-			clipId,
-			candidate.file,
-			candidate.locator,
-			classification === 'changed-content' ? { allowChangedContent: true } : {},
-		);
+		try {
+			await options.owner.actions.projectBin.relinkLinkedVideo(
+				clipId,
+				candidate.file,
+				candidate.locator,
+				classification === 'changed-content' ? { allowChangedContent: true } : {},
+			);
+		} catch (error) {
+			if (cleanupClaim) await settleCleanupAfterCommittedMutation(cleanupClaim, error);
+			throw error;
+		}
+		if (cleanupClaim) await options.cleanup.settle(cleanupClaim, options.owner.project);
 		await refresh(sourceId);
 		return 'relinked';
+	}
+
+	async function cancelCleanupAfterFailedMutation(
+		claim: Readonly<FramescaperVideoProxyCleanupClaimV20>,
+		mutationError: unknown,
+	): Promise<never> {
+		try {
+			await options.cleanup.cancel(claim);
+		} catch (cleanupError) {
+			throw new AggregateError(
+				[mutationError, cleanupError],
+				'The proxy mutation failed and its cleanup intent could not be cancelled.',
+				{ cause: mutationError },
+			);
+		}
+		throw mutationError;
+	}
+
+	async function settleCleanupAfterCommittedMutation(
+		claim: Readonly<FramescaperVideoProxyCleanupClaimV20>,
+		mutationError: unknown,
+	): Promise<never> {
+		try {
+			await options.cleanup.settle(claim, options.owner.project);
+		} catch (cleanupError) {
+			throw new AggregateError(
+				[mutationError, cleanupError],
+				'The proxy mutation failed after invalidation and body cleanup remains recoverable.',
+				{ cause: mutationError },
+			);
+		}
+		throw mutationError;
 	}
 
 	async function refresh(sourceId: string): Promise<void> {
@@ -424,6 +495,8 @@ function assertOptions(options: FramescaperVideoProxyActionsOptions): void {
 		|| typeof options.createScheduler !== 'function'
 		|| (options.schemaVersion !== 20 && options.schemaVersion !== 27)
 		|| (options.schemaVersion === 27 && typeof options.createAttachExistingScheduler !== 'function')
+		|| !options.cleanup || typeof options.cleanup.prepareReplacement !== 'function'
+		|| typeof options.cleanup.cancel !== 'function' || typeof options.cleanup.settle !== 'function'
 		|| !options.owner.actions?.edit || !options.owner.actions.projectBin
 		|| typeof options.owner.actions.video?.reloadSourceVisual !== 'function') {
 		throw new TypeError('Framescaper V20 proxy actions require their exact controller ports.');

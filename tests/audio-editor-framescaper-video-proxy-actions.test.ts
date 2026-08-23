@@ -11,6 +11,7 @@ import {
 	createFramescaperVideoProxyActionsV20,
 	createFramescaperVideoProxyActionsV27,
 } from '../src/framescaper/editor-video-proxy-actions-v20.ts';
+import { FramescaperVideoProxyCleanupCoordinatorV20 } from '../src/framescaper/editor-video-proxy-cleanup-v20.ts';
 import type { FramescaperCapturedVideoProxyRequest } from '../src/common/editor/controller/framescaper-capture-derivative-scheduler.ts';
 
 test('selected V20 generation publishes through a disposable scheduler with progress and modes', async () => {
@@ -19,6 +20,7 @@ test('selected V20 generation publishes through a disposable scheduler with prog
 	let disposals = 0;
 	const runtime = createFramescaperVideoProxyActionsV20({
 		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner),
 		createSessionId: () => 'editorial-session',
 		createScheduler: () => Object.assign(
 			async (request: FramescaperCapturedVideoProxyRequest) => { requests.push(request); },
@@ -49,6 +51,7 @@ test('cancelling generation disposes the exact scheduler and rejects as an abort
 	let disposals = 0;
 	const runtime = createFramescaperVideoProxyActionsV20({
 		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner),
 		createSessionId: () => 'cancel-session',
 		createScheduler: () => Object.assign(
 			() => new Promise<void>((_resolve, reject) => { rejectOperation = reject; }),
@@ -76,6 +79,7 @@ test('detach and failed regenerate use normal history and restore only their own
 	owner.undo = () => { undoCalls += 1; owner.restore(); };
 	const runtime = createFramescaperVideoProxyActionsV20({
 		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner),
 		createSessionId: () => 'regenerate-session',
 		createScheduler: () => Object.assign(
 			async () => { throw new Error('planned generation failure'); },
@@ -97,6 +101,7 @@ test('V27 requires and uses its own detach command builder while sharing the lif
 	owner.commit = (command) => { commands.push(command); owner.detach(); };
 	const runtime = createFramescaperVideoProxyActionsV27({
 		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner),
 		createSessionId: () => 'v27-session',
 		createScheduler: () => Object.assign(async () => undefined, { dispose: async () => undefined }),
 		createAttachExistingScheduler: () => Object.assign(
@@ -116,6 +121,7 @@ test('adaptive pressure refreshes Auto only when it crosses the proxy threshold'
 	const owner = ownerFixture(27, attachment());
 	const runtime = createFramescaperVideoProxyActionsV27({
 		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner),
 		createSessionId: () => 'v27-pressure-session',
 		createScheduler: () => Object.assign(async () => undefined, { dispose: async () => undefined }),
 		createAttachExistingScheduler: () => Object.assign(
@@ -140,6 +146,7 @@ test('original relink uses the maintained exact-content classification and confi
 	const owner = ownerFixture(27, attachment());
 	let classification: 'exact-content' | 'changed-content' = 'exact-content';
 	const relinks: Readonly<{ readonly allowChangedContent?: boolean }>[] = [];
+	const cleaned: string[] = [];
 	let detachCommands = 0;
 	owner.commit = () => { detachCommands += 1; owner.detach(); };
 	owner.owner.actions.projectBin.classifyLinkedVideoRelink = async () => classification;
@@ -148,6 +155,7 @@ test('original relink uses the maintained exact-content classification and confi
 	};
 	const runtime = createFramescaperVideoProxyActionsV27({
 		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner, cleaned),
 		createSessionId: () => 'v27-relink-session',
 		createScheduler: () => Object.assign(async () => undefined, { dispose: async () => undefined }),
 		createAttachExistingScheduler: () => Object.assign(
@@ -171,6 +179,10 @@ test('original relink uses the maintained exact-content classification and confi
 	assert.deepEqual(relinks, [{}, { allowChangedContent: true }]);
 	assert.equal(detachCommands, 1);
 	assert.equal(owner.source().proxyAttachment, null);
+	assert.deepEqual(cleaned, [
+		`video-proxy-sha256:${'34'.repeat(32)}`,
+		`video-timing-sha256:${'56'.repeat(32)}`,
+	]);
 });
 
 test('V27 attaches a pathless existing body through the atomic scheduler with progress', async () => {
@@ -181,6 +193,7 @@ test('V27 attaches a pathless existing body through the atomic scheduler with pr
 	let disposals = 0;
 	const runtime = createFramescaperVideoProxyActionsV27({
 		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner),
 		createSessionId: () => 'v27-existing-session',
 		createScheduler: () => Object.assign(async () => undefined, { dispose: async () => undefined }),
 		createAttachExistingScheduler: (value) => {
@@ -215,6 +228,7 @@ test('cancelling an existing-body attachment disposes its exact scheduler', asyn
 	let disposals = 0;
 	const runtime = createFramescaperVideoProxyActionsV27({
 		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner),
 		createSessionId: () => 'v27-existing-cancel-session',
 		createScheduler: () => Object.assign(async () => undefined, { dispose: async () => undefined }),
 		createAttachExistingScheduler: () => Object.assign(
@@ -278,6 +292,19 @@ function ownerFixture(schemaVersion: 20 | 27, proxyAttachment: unknown) {
 		},
 	};
 	return fixture;
+}
+
+function cleanupFixture(
+	owner: ReturnType<typeof ownerFixture>,
+	deleted: string[] = [],
+): FramescaperVideoProxyCleanupCoordinatorV20 {
+	let journal: unknown = [];
+	return new FramescaperVideoProxyCleanupCoordinatorV20({
+		loadJournal: async () => structuredClone(journal),
+		saveJournal: async (value) => { journal = structuredClone(value); },
+		listCurrentProjects: async () => [owner.owner.project],
+		deleteBody: async (storageKey) => { deleted.push(storageKey); },
+	});
 }
 
 function projectFixture(schemaVersion: 20 | 27, proxyAttachment: unknown): Record<string, unknown> {

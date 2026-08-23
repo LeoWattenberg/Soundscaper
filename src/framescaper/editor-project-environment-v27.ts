@@ -20,6 +20,10 @@ import {
 } from './editor-project-v18-claim-cleanup-repository.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v27.ts';
 import { framescaperProjectStoreAuthorityV27 } from './editor-project-store-v27.ts';
+import {
+	createFramescaperVideoProxyCleanupCoordinatorV20,
+	type FramescaperVideoProxyCleanupCoordinatorV20,
+} from './editor-video-proxy-cleanup-v20.ts';
 
 const OPTION_FIELDS = ['storeOptions'] as const;
 const PRODUCT_ENVIRONMENTS = new WeakSet<object>();
@@ -35,6 +39,7 @@ export interface FramescaperEditorProjectEnvironmentV27 {
 	readonly desktopProjectLibrary: FramescaperDesktopProjectLibraryV18Renderer | null;
 	readonly playback: PlaybackProjectService;
 	readonly claimCleanup: FramescaperProjectV18ClaimCleanupRepository;
+	readonly videoProxyCleanup: FramescaperVideoProxyCleanupCoordinatorV20;
 	readonly initialCleanup: Readonly<FramescaperProjectV18ClaimCleanupResult>;
 	readonly createProjectIfAbsent: (project: ProjectDocument) => Promise<ProjectDocument | null>;
 	readonly close: () => Promise<void>;
@@ -73,12 +78,18 @@ export async function createFramescaperEditorProjectEnvironmentV27(
 			FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
 			{ localStore: store, desktopProjectLibrary },
 		) as AudioEditorProjectStore;
+		const videoProxyCleanup = createFramescaperVideoProxyCleanupCoordinatorV20(
+			store,
+			controllerStore,
+		);
+		await videoProxyCleanup.recover();
 		const environment = Object.freeze({
 			runtime,
 			store,
 			controllerStore,
 			desktopProjectLibrary,
 			claimCleanup,
+			videoProxyCleanup,
 			initialCleanup,
 			playback: createFramescaperPlaybackProjectServiceV27(
 				FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,

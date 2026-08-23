@@ -102,6 +102,7 @@ export function createFramescaperAudioEditorControllerV27(
 	if (!selectedProxyComposition) throw new Error('The selected V27 editor did not compose its proxy runtime.');
 	proxyActions = createFramescaperVideoProxyActionsV27({
 		owner: controller,
+		cleanup: environment.videoProxyCleanup,
 		createScheduler: () => createFramescaperCapturedVideoProxySchedulerV27(
 			environment, sessionController, selectedProxyComposition,
 		),
