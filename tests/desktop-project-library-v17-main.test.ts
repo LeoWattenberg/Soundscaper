@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { access, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -95,6 +96,35 @@ test('V17 copy-forwards V12 once without opening the source for writes', async (
 	database.close();
 });
 
+test('V17 refuses a malformed V12 project document before copy-forward publication', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v17-malformed-import-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	const { paths, project } = await seedV12Project(appDataPath, 'malformed-import', 'Malformed import');
+	await replaceV12ProjectDocument(paths, project.id, JSON.stringify({ schemaVersion: 20 }));
+
+	await assert.rejects(async () => {
+		const unexpected = await startV17(appDataPath, 1703, 'v17-malformed-import');
+		await unexpected.close();
+	}, /project|document|schema/iu);
+	assert.equal(v17ProjectCount(appDataPath), 0);
+});
+
+test('V17 refuses a V12 project document that disagrees with its catalog row', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v17-mismatched-import-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	const { paths, project } = await seedV12Project(appDataPath, 'mismatched-import', 'Catalog title');
+	await replaceV12ProjectDocument(paths, project.id, JSON.stringify({
+		...project,
+		title: 'Document title',
+	}));
+
+	await assert.rejects(async () => {
+		const unexpected = await startV17(appDataPath, 1704, 'v17-mismatched-import');
+		await unexpected.close();
+	}, /project row disagrees with its exact document/iu);
+	assert.equal(v17ProjectCount(appDataPath), 0);
+});
+
 test('V17 copy-forward resumes after an injected post-row interruption without duplication', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v17-resume-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
@@ -129,8 +159,19 @@ test('V17 copy-forward resumes after an injected post-row interruption without d
 			},
 		},
 	}), /injected import interruption/u);
+	const sourceDatabase = createFramescaperDesktopProjectLibraryV12Paths(appDataPath).databasePath;
+	const unavailableSource = `${sourceDatabase}.temporarily-unavailable`;
+	await rename(sourceDatabase, unavailableSource);
+	try {
+		await assert.rejects(async () => {
+			const unexpected = await startV17(appDataPath, 1711, 'v17-missing-resume-source');
+			await unexpected.close();
+		}, /V12 source is unavailable after durable import admission/u);
+	} finally {
+		await rename(unavailableSource, sourceDatabase);
+	}
 
-	const resumed = await startV17(appDataPath, 1711, 'v17-resumed');
+	const resumed = await startV17(appDataPath, 1712, 'v17-resumed');
 	const reopened = resumed.openSession(resumed.localHandshake);
 	assert.equal((await reopened.listProjects() as { projects: unknown[] }).projects.length, 2);
 	await reopened.close();
@@ -306,4 +347,58 @@ async function startV17(appDataPath: string, processId: number, instanceId: stri
 		onLeaseLost: () => undefined,
 		qualification: null,
 	});
+}
+
+async function seedV12Project(appDataPath: string, id: string, title: string) {
+	const paths = createFramescaperDesktopProjectLibraryV12Paths(appDataPath);
+	const main = await FramescaperDesktopProjectLibraryV12Main.start({
+		appDataPath,
+		owner: { product: 'framescaper', processId: 1202, instanceId: `v12-${id}` },
+		handshake: createFramescaperDesktopProjectLibraryV12Handshake(),
+	});
+	const session = main.openSession(main.localHandshake);
+	const project = createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, {
+		id, title, revision: 0, now: NOW,
+	});
+	const publicationId = createHash('sha256').update(id).digest('hex').slice(0, 48);
+	await session.beginPublication({
+		publicationId, expectedMetadataRevision: 0, expectedProject: null, project, bodies: [],
+	});
+	await session.finishPublication({ publicationId });
+	await session.close();
+	await main.close();
+	return { paths, project };
+}
+
+async function replaceV12ProjectDocument(
+	paths: ReturnType<typeof createFramescaperDesktopProjectLibraryV12Paths>,
+	projectId: string,
+	document: string,
+): Promise<void> {
+	const database = new DatabaseSync(paths.databasePath);
+	try {
+		const row = database.prepare('SELECT document_file AS documentFile FROM projects WHERE project_id = ?')
+			.get(projectId) as Record<string, unknown> | undefined;
+		assert.equal(typeof row?.documentFile, 'string');
+		const bytes = new TextEncoder().encode(document);
+		await writeFile(join(paths.projectsRoot, row.documentFile as string), bytes);
+		database.prepare('UPDATE projects SET byte_length = ?, sha256 = ? WHERE project_id = ?').run(
+			bytes.byteLength,
+			createHash('sha256').update(bytes).digest('hex'),
+			projectId,
+		);
+	} finally {
+		database.close();
+	}
+}
+
+function v17ProjectCount(appDataPath: string): number {
+	const database = new DatabaseSync(createFramescaperDesktopProjectLibraryV17Paths(appDataPath).databasePath, {
+		readOnly: true,
+	});
+	try {
+		return Number(database.prepare('SELECT COUNT(*) AS count FROM projects').get()?.count);
+	} finally {
+		database.close();
+	}
 }

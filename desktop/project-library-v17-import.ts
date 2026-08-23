@@ -2,7 +2,7 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { constants, access, chmod, copyFile, mkdir, rename, rm, stat } from 'node:fs/promises';
+import { constants, access, chmod, copyFile, mkdir, readFile, rename, rm, stat } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
@@ -14,6 +14,7 @@ import {
 	type FramescaperDesktopExactBodyDescriptor,
 } from './project-library-exact-generation-storage.ts';
 import { createFramescaperDesktopProjectLibraryV12Paths } from './project-library-v12-contract.ts';
+import { validateFramescaperDesktopCurrentProjectV20 } from './project-library-v12-current-project.ts';
 
 interface SourceRow {
 	readonly entry_id: string;
@@ -144,7 +145,18 @@ async function copyRow(
 	if (!Number.isSafeInteger(row.byte_length) || row.byte_length < 1 || !digest(row.sha256)) {
 		throw new Error('Framescaper V12 project row has invalid file geometry');
 	}
+	if (!/^[a-f0-9]{48}$/u.test(row.entry_id)) {
+		throw new Error('Framescaper V12 project row has an invalid entry identity');
+	}
 	const sourceDocument = containedPath(sourcePaths.projectsRoot, row.document_file, 'V12 document');
+	const sourceBytes = await readVerifiedFile(sourceDocument, row.byte_length, row.sha256);
+	const sourceText = decodeDocument(sourceBytes);
+	const sourceProject = validateFramescaperDesktopCurrentProjectV20(JSON.parse(sourceText) as unknown);
+	if (sourceProject.id !== row.project_id || sourceProject.title !== row.title
+		|| sourceProject.revision !== row.project_revision
+		|| Date.parse(String(sourceProject.updatedAt)) !== row.updated_at_ms) {
+		throw new Error('Framescaper V12 project row disagrees with its exact document');
+	}
 	const destinationDocument = containedPath(destinationPaths.projectsRoot, row.document_file, 'V17 document');
 	await copyExactFile(sourceDocument, destinationDocument, row.byte_length, row.sha256);
 	const bodies = parseFramescaperDesktopExactBodies(row.bodies_json, 'Framescaper V12 import');
@@ -195,6 +207,28 @@ async function verifyFile(path: string, byteLength: number, expectedSha256: stri
 	const after = await stat(path);
 	if (after.size !== before.size || after.mtimeMs !== before.mtimeMs) {
 		throw new Error('Framescaper copy-forward source changed during verification');
+	}
+}
+
+async function readVerifiedFile(
+	path: string,
+	byteLength: number,
+	expectedSha256: string,
+): Promise<Uint8Array> {
+	await verifyFile(path, byteLength, expectedSha256);
+	const bytes = await readFile(path);
+	if (bytes.byteLength !== byteLength
+		|| createHash('sha256').update(bytes).digest('hex') !== expectedSha256) {
+		throw new Error('Framescaper copy-forward source changed during document read');
+	}
+	return bytes;
+}
+
+function decodeDocument(bytes: Uint8Array): string {
+	try {
+		return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+	} catch (error) {
+		throw new Error('Framescaper V12 project document is not valid UTF-8', { cause: error });
 	}
 }
 
@@ -263,12 +297,20 @@ function completeAbsentImport(database: DatabaseSync, assertLease: (database: Da
 		assertLease(database);
 		const existing = database.prepare('SELECT state FROM v12_import WHERE singleton = 1').get() as
 			Record<string, unknown> | undefined;
-		if (!existing) database.prepare(`
-			INSERT INTO v12_import (
-				singleton, state, source_catalog_sha256, source_metadata_revision,
-				source_project_count, next_project_index, completed_at_ms
-			) VALUES (1, 'complete', ?, 0, 0, 0, ?)
-		`).run('0'.repeat(64), Date.now());
+		if (existing?.state !== undefined && existing.state !== 'complete') {
+			throw new Error('Framescaper V12 source is unavailable after durable import admission');
+		}
+		if (!existing) {
+			if (Number(database.prepare('SELECT COUNT(*) AS count FROM projects').get()?.count) !== 0) {
+				throw new Error('Framescaper V17 import destination is not empty');
+			}
+			database.prepare(`
+				INSERT INTO v12_import (
+					singleton, state, source_catalog_sha256, source_metadata_revision,
+					source_project_count, next_project_index, completed_at_ms
+				) VALUES (1, 'complete', ?, 0, 0, 0, ?)
+			`).run('0'.repeat(64), Date.now());
+		}
 		database.exec('COMMIT');
 	} catch (error) {
 		database.exec('ROLLBACK');
