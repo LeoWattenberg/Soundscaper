@@ -35,6 +35,9 @@ const { framescaperNativeProjectActionRuntimeFor } = await import(
 const { framescaperCandidateAuthoringActionRuntimeFor } = await import(
 	'../src/common/editor/ui/framescaper-candidate-authoring-actions.ts'
 );
+const { framescaperSelectedRenderSessionRuntimeV27For } = await import(
+	'../src/framescaper/editor-selected-v27-render-session.ts'
+);
 
 test('selected V27 controller creates, edits, saves, undoes, and redoes exact documents', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV27({
@@ -61,6 +64,7 @@ test('selected V27 controller creates, edits, saves, undoes, and redoes exact do
 	await controller.actions.project.save();
 	assert.equal((await environment.store.loadProject(ready.project.id))?.schemaVersion, 27);
 	assert.equal(framescaperNativeProjectActionRuntimeFor(controller), null);
+	assert.ok(framescaperSelectedRenderSessionRuntimeV27For(controller));
 });
 
 test('selected V27 visual authoring commits maintained V24 state through controller history', async (context) => {

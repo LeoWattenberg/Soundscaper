@@ -12,11 +12,17 @@ import {
 import {
 	createFramescaperProjectUnifiedExactRenderPlanV27,
 } from '../src/framescaper/editor-project-unified-render-plan-v27.ts';
+import {
+	bindFramescaperSelectedRenderSessionRuntimeV27,
+	createFramescaperSelectedRenderSessionV27,
+	framescaperSelectedRenderSessionRuntimeV27For,
+} from '../src/framescaper/editor-selected-v27-render-session.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
 import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
 import {
 	renderAuthority,
+	transitionProjectOptions,
 	UNIFIED_RENDER_SHA_A,
 	UNIFIED_RENDER_SHA_B,
 } from './helpers/framescaper-unified-render-project-fixture.ts';
@@ -86,6 +92,46 @@ test('V13 requires exact color/source/caption/audio reference closure', () => {
 		.find(({ kind }) => kind === 'finishing')!.audioContext as Record<string, unknown>);
 	audio.audioTracks = [];
 	assert.throws(() => createUnifiedExactRenderPlan(missingTrack), /automation.*owner|audio track|mixer.*track/iu);
+});
+
+test('selected V27 session shares one V13 ordinal and dissolve authority across preview and export', async () => {
+	const project = createFramescaperProjectV27(PROFILE, transitionProjectOptions());
+	const authority = {
+		...renderAuthority(project as unknown as Readonly<Record<string, unknown>>, 16),
+		visualFreshnessByModelId: new Map(),
+	};
+	const session = createFramescaperSelectedRenderSessionV27({ profile: PROFILE, project, authority });
+	assert.equal(session.status, 'selected-v27-render-session');
+	assert.equal(session.generation, 27);
+	assert.equal(session.plan.version, 13);
+	const exporting = session.createClipExportFrameSource('outgoing-clip');
+	const exported = exporting.frameAt(2);
+	let previewOrdinal = -1;
+	const preview = session.createClipPreviewConsumer('outgoing-clip', {
+		pause() {}, assertCurrent() {},
+		present(request) {
+			previewOrdinal = request.drawableSourceFrame;
+			return Promise.resolve({ mediaTime: request.targetSeconds });
+		},
+	}, { onPresented() {} });
+	assert.deepEqual(await preview.requestFrame({
+		outputOrdinal: 2, clipId: 'outgoing-clip', sourceId: 'video-source',
+	}), { kind: 'presented' });
+	assert.equal(previewOrdinal, exported.pictures[0]?.sourceOrdinal);
+	preview.dispose();
+	const previewDissolve = session.createTransitionPreviewResolver('transition');
+	const exportDissolve = session.createTransitionExportResolver('transition');
+	assert.deepEqual(
+		previewDissolve.resolveAtSequencePosition({ num: 8, den: 1 }),
+		exportDissolve.resolveAtSequencePosition({ num: 8, den: 1 }),
+	);
+
+	const owner = { project };
+	bindFramescaperSelectedRenderSessionRuntimeV27(PROFILE, owner);
+	const runtime = framescaperSelectedRenderSessionRuntimeV27For(owner);
+	assert.ok(runtime);
+	assert.equal(runtime.create(authority).plan.version, 13);
+	assert.equal(framescaperSelectedRenderSessionRuntimeV27For({ project }), null);
 });
 
 function finishingProject() {

@@ -11,6 +11,8 @@ import { createFramescaperVideoRetimeActionsV20 } from './editor-project-v20-ret
 import type { FramescaperProjectCommandV27 } from './editor-project-v27-commands.ts';
 import { createFramescaperScapeNativeRuntimeV27 } from './editor-scape-native-v27.ts';
 import { bindFramescaperSelectedAuthoringControllerV27 } from './editor-selected-v27-authoring-controller.ts';
+import { bindFramescaperSelectedRenderSessionRuntimeV27 } from './editor-selected-v27-render-session.ts';
+import { createFramescaperVideoExportStrategyV27 } from './video-export-strategy-v27.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
@@ -56,6 +58,7 @@ export function createFramescaperAudioEditorControllerV27(
 		createProjectIfAbsent: environment.createProjectIfAbsent,
 		scapeProjectRuntime: createFramescaperScapeNativeRuntimeV27(environment.runtime.profile),
 		productSequenceActions,
+		productVideoExportStrategy: createFramescaperVideoExportStrategyV27(environment.runtime.profile),
 		...presentation,
 	});
 	executeProductSequenceCommand = (command) => controller.actions.edit.commit(command);
@@ -63,6 +66,7 @@ export function createFramescaperAudioEditorControllerV27(
 		controller,
 		store: environment.controllerStore,
 	});
+	bindFramescaperSelectedRenderSessionRuntimeV27(environment.runtime.profile, controller);
 	return controller;
 }
 
