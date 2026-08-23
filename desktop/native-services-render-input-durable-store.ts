@@ -98,7 +98,7 @@ export async function createNativeRenderInputOwnedStage(
 		wroteOwnership = true;
 		await mkdir(directory, { recursive: false, mode: 0o700 });
 		createdDirectory = true;
-		await requireExactDirectory(directory);
+		await requireExactStageDirectory(directory);
 		return Object.freeze({
 			root,
 			ownership: exact,
@@ -156,7 +156,7 @@ export async function readNativeRenderInputOwnedStage(
 	const directory = nativeRenderInputStageDirectory(root, stageId);
 	let directoryPresent = false;
 	try {
-		await requireExactDirectory(directory);
+		await requireExactStageDirectory(directory);
 		directoryPresent = true;
 	} catch (error) {
 		if (!missing(error)) throw error;
@@ -219,8 +219,9 @@ export async function requireNativeRenderInputRoot(
 		throw new TypeError('The native render-input staging root must be an absolute normalized path.');
 	}
 	if (create) await mkdir(value, { recursive: true, mode: 0o700 });
-	await requireExactDirectory(value);
-	return value;
+	// Resolve once here so that every path below is derived from the canonical root, which
+	// is what lets the stage directories be checked against their exact expected spelling.
+	return requireExactDirectory(value);
 }
 
 function nativeRenderInputStageOwnership(value: unknown): NativeRenderInputStageOwnershipV1 {
@@ -291,9 +292,25 @@ async function writeExclusiveSynced(path: string, payload: string): Promise<void
 	}
 }
 
-async function requireExactDirectory(path: string): Promise<void> {
+/**
+ * Admit one directory and report its canonical path. The named entry itself must be a real
+ * directory and never a link, which is the redirection this store has to refuse. Its
+ * ancestors are a different matter: the caller is handed its root by the OS, and that
+ * spelling is legitimately an alias of the canonical one — a `/var` symlink on macOS, an
+ * 8.3 short name on Windows — so requiring the caller's own string to equal its resolved
+ * form refuses ordinary platform paths rather than any attack.
+ */
+async function requireExactDirectory(path: string): Promise<string> {
 	const details = await lstat(path);
-	if (!details.isDirectory() || details.isSymbolicLink() || await realpath(path) !== path) {
+	if (!details.isDirectory() || details.isSymbolicLink()) {
+		throw new Error('A native render-input directory changed filesystem identity.');
+	}
+	return realpath(path);
+}
+
+/** A stage directory sits directly under the canonical root, so it is its own canonical path. */
+async function requireExactStageDirectory(path: string): Promise<void> {
+	if (await requireExactDirectory(path) !== path) {
 		throw new Error('A native render-input directory changed filesystem identity.');
 	}
 }
