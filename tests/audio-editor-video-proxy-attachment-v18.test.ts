@@ -230,7 +230,12 @@ test('remains a closed scalar owner with only the reviewed cumulative consumers'
 		// this same reviewed scalar wire without adding a parallel attachment type.
 		'src/framescaper/editor-captured-video-proxy-bodies.ts',
 		'src/framescaper/editor-captured-video-proxy-preservation.ts',
+		'src/framescaper/editor-captured-video-proxy-request.ts',
 		'src/framescaper/editor-captured-video-proxy-scheduler.ts',
+		'src/framescaper/editor-captured-video-proxy-transition.ts',
+		// The common scheduler request carries an optional exact old-attachment
+		// fence for atomic selected-proxy replacement.
+		'src/common/editor/controller/framescaper-capture-derivative-scheduler.ts',
 		// Dormant menu actions and V25 commands validate and mutate the same
 		// inherited relationship through its closed lifecycle.
 		'src/framescaper/editor-native-candidate-project-actions.ts',
@@ -243,6 +248,12 @@ test('remains a closed scalar owner with only the reviewed cumulative consumers'
 		'src/framescaper/editor-project-v25-commands.ts',
 		'src/framescaper/editor-project-v25-validation.ts',
 		'src/framescaper/editor-video-proxy-attachment-coordinator-v18.ts',
+		// Selected V20/V27 authoring, cleanup, commands, and verified preview all
+		// consume the same closed V18 attachment rather than defining a new wire.
+		'src/framescaper/editor-video-proxy-actions-v20.ts',
+		'src/framescaper/editor-video-proxy-cleanup-v20.ts',
+		'src/framescaper/editor-video-proxy-command-v20.ts',
+		'src/framescaper/editor-video-proxy-preview-media-v20.ts',
 		// Decides which attachments an edit leaves true, so it reads the wire it
 		// carries forward.
 		'src/framescaper/editor-video-proxy-attachment-retention-v18.ts',

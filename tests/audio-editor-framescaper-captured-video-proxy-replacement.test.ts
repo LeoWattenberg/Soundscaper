@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { VideoProxyAttachmentV18 } from '../src/common/editor/video-proxy-attachment-v18.ts';
+import { normalizeVideoProxyAttachmentV18 } from '../src/common/editor/video-proxy-attachment-v18.ts';
 import { createFramescaperCapturedVideoProxySchedulerV19 } from '../src/framescaper/editor-captured-video-proxy-scheduler.ts';
 import {
 	capturedProxyRequest,
@@ -26,9 +26,9 @@ test('captured proxy replacement proves and atomically swaps old to new without 
 		));
 		const before = await fixture.controllerStore.loadProject(String(fixture.origin.id));
 		assert.ok(before);
-		const oldAttachment = structuredClone(
+		const oldAttachment = normalizeVideoProxyAttachmentV18(structuredClone(
 			capturedVideoSource(before, ORIGINAL_SOURCE_ID).proxyAttachment,
-		) as VideoProxyAttachmentV18;
+		));
 		fixture.relationship.setCandidate(new Blob(['replacement-proxy'], { type: 'video/webm' }));
 
 		await fixture.schedule({
@@ -76,9 +76,9 @@ test('desktop main-first replacement compare-and-swaps the exact old attachment'
 	));
 	const before = await fixture.controllerStore.loadProject(String(fixture.origin.id));
 	assert.ok(before);
-	const oldAttachment = structuredClone(
+	const oldAttachment = normalizeVideoProxyAttachmentV18(structuredClone(
 		capturedVideoSource(before, ORIGINAL_SOURCE_ID).proxyAttachment,
-	) as VideoProxyAttachmentV18;
+	));
 	fixture.relationship.setCandidate(new Blob(['desktop-replacement-proxy'], { type: 'video/webm' }));
 
 	await fixture.schedule({
@@ -99,9 +99,9 @@ test('scheduler cancellation keeps the old attachment selected throughout replac
 	));
 	const before = await fixture.controllerStore.loadProject(String(fixture.origin.id));
 	assert.ok(before);
-	const oldAttachment = structuredClone(
+	const oldAttachment = normalizeVideoProxyAttachmentV18(structuredClone(
 		capturedVideoSource(before, ORIGINAL_SOURCE_ID).proxyAttachment,
-	) as VideoProxyAttachmentV18;
+	));
 	const generatorGate = deferred<void>();
 	const relationship = createVideoProxyFixture({ generatorGate });
 	relationship.setFingerprint({ sha256: fixture.originalSha256 });
