@@ -189,7 +189,10 @@ test('desktop CI exposes one quality-gated five-target nightly-with-tests artifa
 	assert.match(testJob, /release\/desktop-nightly-tests\/\*\.zip/u);
 	assert.match(testJob, /compression-level: 0/u);
 	assert.doesNotMatch(workflow, /^ {2}project-library-handoff:/mu);
-	assert.match(workflow.slice(nextStart), /soundscaper-project-library-lease-matrix:\s+name: Soundscaper V10 packaged lease matrix/iu);
+	assert.match(
+		workflow.slice(nextStart),
+		/soundscaper-project-library-lease-matrix:\s+name: Soundscaper V10 \+ Framescaper V17 packaged lease matrix/iu,
+	);
 });
 
 function packagingContext(appOutDir) {
