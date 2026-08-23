@@ -461,12 +461,7 @@ import {
 			.getByRole('button', { name: 'Select effect', exact: true }).click();
 		const echoSettings = page.getByRole('dialog', { name: 'Echo', exact: true });
 		const delayInput = echoSettings.locator('[data-effect-param="delaySeconds"] input');
-		await delayInput.fill('0.75');
-		await page.evaluate(() => new Promise((resolve) => {
-			requestAnimationFrame(() => requestAnimationFrame(resolve));
-		}));
-		await delayInput.press('Tab');
-		await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+		await commitInput(delayInput, '0.75');
 		await closeDialog(echoSettings);
 
 		// Reopen once and wait on the controlled value. Repeated reopen/close cycles

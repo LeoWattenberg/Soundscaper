@@ -136,11 +136,16 @@ test.describe('audio editor video composition workflow', () => {
 		expect(incomingOpacity).toBeLessThan(0.7);
 		expect(outgoingOpacity + incomingOpacity).toBeCloseTo(1, 6);
 
+		const previewTimesBeforePlayback = await preview.locator('[data-video-preview-clip]')
+			.evaluateAll((videos) => videos.map((video) => video.currentTime));
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await expect.poll(() => preview.locator('[data-video-preview-clip]').evaluateAll(
-			(videos) => videos.some((video) => !video.paused),
-		)).toBe(true);
+			(videos, before) => videos.some((video, index) => (
+				!video.paused || video.currentTime > (before[index] ?? 0) + 0.001
+			)),
+			previewTimesBeforePlayback,
+		), { timeout: 10_000 }).toBe(true);
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 
 		await thirdVideo.locator('.audio-editor-video-track-controls__title button').click();
