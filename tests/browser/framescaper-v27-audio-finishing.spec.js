@@ -80,7 +80,7 @@ test.describe('selected Framescaper V27 audio finishing', () => {
 			'WEBVTT', '', 'duplicate', '00:00.000 --> 00:01.000', 'First', '',
 			'duplicate', '00:01.000 --> 00:02.000', 'Second', '',
 		].join('\n'));
-		await dialog.getByRole('button', { name: 'Import sidecar', exact: true }).click();
+		await dialog.getByRole('button', { name: 'Import sidecar text', exact: true }).click();
 		await expect(dialog.getByRole('status')).toHaveText('1 interchange loss recorded.');
 		await closeFinishing(dialog);
 
@@ -124,7 +124,7 @@ async function openFinishing(page, editor, owner, parents, itemName, title) {
 	const item = menu.getByRole('menuitem', { name: itemName }).first();
 	await expect(item).toBeEnabled();
 	await item.focus();
-	await page.keyboard.press('Enter');
+	await item.press('Enter');
 	const dialog = page.getByRole('dialog', { name: title, exact: true });
 	await expect(dialog).toBeVisible();
 	return dialog;
