@@ -1,10 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { deriveVideoSourceColorInterpretationV1 } from '../common/editor/video-source-color-interpretation-v27.ts';
-import {
-	createDefaultFramescaperAudioFinishingV27,
-	normalizeFramescaperAudioFinishingV27,
-} from './editor-audio-finishing-v27.ts';
+import { reconcileFramescaperAudioFinishingV27 } from './editor-audio-finishing-reconciliation-v27.ts';
 
 /** Reconcile references affected by inherited source/clip/track/sequence commands. */
 export function reconcileInheritedFramescaperProjectStateV27(project: Record<string, unknown>): void {
@@ -67,18 +64,12 @@ export function reconcileInheritedFramescaperProjectStateV27(project: Record<str
 }
 
 function reconcileAudio(project: Record<string, unknown>): void {
-	try {
-		const audio = normalizeFramescaperAudioFinishingV27(project, {
-			automationLanes: project.automationLanes,
-			mixer: project.mixer,
-		});
-		project.automationLanes = audio.automationLanes;
-		project.mixer = audio.mixer;
-	} catch {
-		const defaults = createDefaultFramescaperAudioFinishingV27(project);
-		project.automationLanes = defaults.automationLanes;
-		project.mixer = defaults.mixer;
-	}
+	const audio = reconcileFramescaperAudioFinishingV27(project, {
+		automationLanes: project.automationLanes,
+		mixer: project.mixer,
+	});
+	project.automationLanes = audio.automationLanes;
+	project.mixer = audio.mixer;
 }
 
 function ownerExists(
