@@ -119,8 +119,13 @@ test('disposable video-preview admission remains narrowly evidenced and document
 	);
 	assert.match(
 		previewScope,
-		/genuine editorial (?:video )?prox(?:y|ies).*(?:future|remain.*open)/isu,
-		`${name} must retain genuine editorial proxies as future work`,
+		/selected Framescaper V27 activation\s+candidate locally implements.*general editorial proxy lifecycle.*Guided-local sign-off,\s+resource\s+qualification,\s+and external qualification remain open/isu,
+		`${name} must distinguish the implemented V27 proxy lifecycle from its open qualification`,
+	);
+	assert.match(
+		previewScope,
+		/Disposable thumbnail derivatives are not editorial proxies/iu,
+		`${name} must keep disposable preview derivatives outside the editorial proxy lifecycle`,
 	);
 });
 

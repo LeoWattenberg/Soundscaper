@@ -125,15 +125,7 @@ must not become an earlier hidden recording path.
 | **Electron Enhanced** | Same outcome as web with improved scale, latency, codec coverage, or reliability through a native adapter. |
 | **Electron Only** | Requires an OS/native facility unavailable to a normal web origin; projects still open safely on web. |
 
-Playwright Chromium, Firefox, and WebKit coverage is maintained. Soundscaper's
-fixed-GPU M4 production render-parity gate is formally qualified; the historical
-M1 and M4B-2 reference diagnostics passed their then-current collectors, while their active formal profiles still need fresh owner-host runs and Safari remains
-a separate release gate. That historical reference pass does not close milestone
-1 or milestone 4 under the current qualification profiles.
-
 ## Current foundation
-
-The following baseline exists and should not be re-planned:
 
 | Area | Current capability |
 | --- | --- |
@@ -182,27 +174,18 @@ the shared schema or native boundary.
 
 ### Current state
 
-Implemented contracts include the capability inventory, project compatibility,
-release severity, security matrix, licensing matrix, Audacity action
-dispositions, MIDI fences, and the maintained Playwright engine matrix. Their
-evidence lives in the owning policies linked above.
+Implemented contracts include the capability, compatibility, release, security,
+licensing, Audacity-action, MIDI-fence, and Playwright matrices linked above.
 
 On 2026-08-21 the owner designated the Windows x64 RTX 3090 machine as the
-fixed-GPU reference. Its zero-retry M1 preview, M4 production parity, and M4B-2
-keyed parity passed their then-current diagnostics; details live in
-`docs/quality-budgets.md`. The M1 preview collector now has a corrected v2
-contract, so that historical M1 result cannot close the active profile and a
-fresh owner-host run remains required.
+fixed-GPU reference; its zero-retry M1 preview, M4 production parity, and M4B-2
+keyed parity passed their then-current diagnostics. The corrected M1 collector
+requires a fresh owner-host run, so this reference pass does not close milestone 1 or milestone 4. Details live in `docs/quality-budgets.md`.
 
-On 2026-08-22 `nightly-with-tests` published accepted formal qualification for
-Soundscaper's `m4-production-render-parity` workload at source revision
-`538f6f26a186c7b46cedf5e5272152448439b002`. The retained artifact records the
-owner-qualified host fingerprint, hardware rendering, one attempt, zero
-retries, one worker, all five passing render-ledger thresholds, and no
-verification failures. This closes the Soundscaper fixed-GPU M4 production
-render-parity/render-ledger qualification gate. It does not close M1, M4B-2,
-Safari, Framescaper, manual/hosted release qualification, or the milestone-4
-exit as a whole.
+The accepted 2026-08-22 formal Soundscaper M4 production render-parity artifact
+closes only that fixed-GPU gate. M1, M4B-2, Safari, Framescaper, manual/hosted
+release, and whole-milestone-4 qualification remain open; exact evidence lives
+in `docs/quality-budgets.md`.
 
 ### Remaining work
 
@@ -298,18 +281,14 @@ update an item's status only after its listed acceptance conditions pass.
 
 - `m2-electron-lease-matrix`
 
-The current executable matrix runs the seven product-specific workflows against
-Soundscaper desktop-library V10 and Framescaper desktop-library V18, then runs
-`cross-product-simultaneous-open` once against the paired packages. Framescaper
-V18 owns project schema 27, SQLite `user_version` 20 and scope `v18`; its
-idempotent, crash-resumable first-open path safely completes an immutable
-V12-to-V17 copy-forward when only V12 exists, otherwise opens the already
-settled V17 source read-only, then explicitly reimports its exact V20 documents
-into V27 and copies bodies forward without reopening, rewriting, or deleting
-V17 or V12. Both products hold separate process-lifetime
-main-owned renewable fenced leases, journal recovery, admission fencing, drain,
-and exact release contracts. Windows x64 and Linux x64 accepted packaged results
-remain absent for both products, so the gate remains **Partial**.
+The executable matrix runs seven workflows independently against Soundscaper V10
+and Framescaper V18, then one paired isolation workflow. Framescaper V18 owns
+schema 27, SQLite `user_version` 20 and scope `v18`; its crash-resumable first
+open copies V12 to V17 when needed, then reimports exact V20 documents into V27
+without mutating either source. Each product holds a separate process-lifetime
+renewable fenced lease with journal recovery, admission fencing, drain, and exact
+release. Windows and Linux x64 packaged evidence remains absent, so the gate is
+**Partial**.
 
 The closed compatibility items fix the fallback role set at exactly
 `project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`,
@@ -756,10 +735,8 @@ invariants, and the bounded work packets are owned by the
 ## 7. Optional local assistance
 
 **Depends on:** milestone 2. **Optional:** never blocks milestones 8 or 9.
-The assistance helper process is milestone-7-owned scope whose protocol is
-required to conform to the now-enacted milestone-5 helper contract before it is
-wired into a packaged runtime; milestone 5 remains the owning contract for the
-general helper architecture, and its exit gate owns full qualification.
+The optional milestone-7 helper must conform to the milestone-5 helper contract
+before packaged wiring; milestone 5 owns its architecture and qualification.
 
 Sequencing, the runtime and model-catalog decisions, the assistance-lifecycle
 invariants, and the bounded work packets are owned by the

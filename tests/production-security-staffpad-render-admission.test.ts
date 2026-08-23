@@ -84,8 +84,23 @@ test('StaffPad clip-cache render admission remains narrowly evidenced and docume
 	assert.equal(residual.ownerMilestone, '2');
 	assert.match(residual.exposure, /useful-binary.*not.*browser heap.*RSS.*GC/isu);
 	assert.match(residual.exposure, /other render paths/iu);
-	assert.match(residual.exposure, /genuine editorial (?:video )?prox(?:y|ies)/iu);
+	assert.match(
+		residual.exposure,
+		/selected V27 editorial video proxies.*exact job-local body-capacity admission/isu,
+	);
+	assert.match(
+		residual.exposure,
+		/V27 owns menu-reached generation.*original-authoritative delivery refusal/isu,
+	);
+	assert.match(
+		residual.exposure,
+		/controls still provide no pre-encode end-to-end working-set.*product-wide qualification/isu,
+	);
 	assert.match(residual.requiredControl, /end-to-end.*browser.*worker.*renderer.*RSS/isu);
+	assert.match(
+		residual.requiredControl,
+		/format-aware pre-encode maximum for genuine editorial video proxies/iu,
+	);
 	assert.ok(residual.acceptanceCriteria.length > 0);
 
 	const threatModel = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
@@ -112,7 +127,7 @@ test('StaffPad clip-cache render admission remains narrowly evidenced and docume
 	);
 	assert.match(
 		threatModel,
-		/genuine editorial (?:video )?prox(?:y|ies).*remain/isu,
-		`${name} must retain genuine editorial proxy admission as a future gap`,
+		/selected Framescaper V27 activation\s+candidate locally implements.*general editorial proxy lifecycle.*Guided-local sign-off,\s+resource\s+qualification,\s+and external qualification remain open/isu,
+		`${name} must distinguish the implemented V27 proxy lifecycle from its open qualification`,
 	);
 });
