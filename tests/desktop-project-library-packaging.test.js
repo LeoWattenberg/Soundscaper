@@ -426,6 +426,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/common/editor/video-freeze-v24.js',
 		'src/common/editor/video-mask-matte-v24.js',
 		'src/common/editor/video-source-professional-characteristics-v25.js',
+		'src/common/editor/video-transition-preview-opacity.js',
 		'src/common/editor/video-transition-registry.js',
 		'src/common/editor/video-transition-resolution.js',
 		'src/common/editor/video-transition-v1.js',
