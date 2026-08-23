@@ -128,7 +128,11 @@ test('inherited media import batches admit an adjacent A/V lane pair atomically'
 			index: 3,
 		}],
 	});
-	assert.deepEqual(applied.tracks.slice(2).map(({ id, laneGroupId }) => ({ id, laneGroupId })), [{
+	const tracks = applied.tracks as readonly Readonly<{
+		readonly id: string;
+		readonly laneGroupId: string | null;
+	}>[];
+	assert.deepEqual(tracks.slice(2).map(({ id, laneGroupId }) => ({ id, laneGroupId })), [{
 		id: 'import-video-track', laneGroupId: 'import-media-lane',
 	}, {
 		id: 'import-audio-track', laneGroupId: 'import-media-lane',
