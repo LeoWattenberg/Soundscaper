@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { resolveVideoRenderDescription } from '../src/common/editor/video-render-description.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
+import { createVideoTrack } from '../src/common/editor/project-media-factory.ts';
 import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { bindVideoSourceTimingView } from '../src/common/editor/video-source-timing-view.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV27 } from '../src/framescaper/editor-project-unified-render-plan-v27.ts';
@@ -176,6 +177,102 @@ test('selected V27 preview uses the same exact source-layer route and presentati
 	preview.dispose();
 });
 
+test('selected V27 honors authored compositingOrder across tracks', async () => {
+	// The canonical painter order sorts by compositingOrder ascending, then
+	// track position descending: a lower track whose clip authors a higher
+	// compositingOrder must paint in front of the top track.
+	const options = twoTrackOptions();
+	(options.clips as Record<string, unknown>[])
+		.find((clip) => clip.id === 'video-clip-b')!.videoComposition = {
+		...DEFAULT_VIDEO_CLIP_COMPOSITION, compositingOrder: 5,
+	};
+	const project = createFramescaperProjectV27(PROFILE, {
+		...options, videoTransitionsByTrackId: { 'video-track': [], 'video-track-b': [] },
+		finishing: { ...finishing(), visualPresentations: [] },
+	});
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+		...renderAuthority(project, 10),
+		canvas: { width: 2, height: 2, fit: 'contain' as const,
+			pixelFormat: 'yuv420p', backgroundColor: '#000000' },
+		visualFreshnessByModelId: new Map(),
+	});
+	const signal = new AbortController().signal;
+	const execution = await createFramescaperSelectedExactFrameExecutionV27({
+		project, plan, timingSidecars: bindFramescaperUnifiedRenderTimingSidecarsV27(
+			project, renderAuthority(project, 10).timingViews,
+		), signal, assertCurrent() {},
+		captureFrame: (entry) => solidFrame((entry as { clipId?: unknown }).clipId === 'video-clip-b'
+			? [0, 255, 0, 255] : [255, 0, 0, 255]),
+	});
+	const target = new Uint8Array(16);
+	await execution.render({
+		sequencePosition: { num: 0, den: 1 },
+		layers: [
+			mediaLayer('video-clip', 1),
+			backTrackLayer('video-clip-b', 5),
+		],
+		width: 2, height: 2, target, signal,
+	});
+	assert.deepEqual(
+		[...target.subarray(0, 4)], [0, 255, 0, 255],
+		'the lower track with compositingOrder 5 paints in front',
+	);
+	await execution.dispose();
+});
+
+test('an inert adjustment layer preserves the targeted track blend mode', async () => {
+	// Flattening a targeted track must keep its authored blend authority
+	// against lower tracks; an empty adjustment layer must not change pixels.
+	const render = async (withAdjustment: boolean) => {
+		const adjustment = {
+			schemaVersion: 1, kind: 'adjustment-layer', id: 'adjustment',
+			sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
+			targetTrackIds: ['video-track'], effectIds: [],
+		};
+		const project = createFramescaperProjectV27(PROFILE, {
+			...twoTrackOptions(),
+			videoTransitionsByTrackId: { 'video-track': [], 'video-track-b': [] },
+			...(withAdjustment ? { visualModel: { adjustmentLayers: [adjustment] } } : {}),
+			finishing: {
+				...finishing(),
+				visualPresentations: [{
+					schemaVersion: 1, id: 'presentation-multiply',
+					owner: { kind: 'clip', id: 'video-clip' },
+					enabled: true, opacity: 1, blendMode: 'multiply',
+					grade: null, processorStackId: null, maskMatteIds: [],
+				}],
+			},
+		});
+		const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+			...renderAuthority(project, 10),
+			canvas: { width: 2, height: 2, fit: 'contain' as const,
+				pixelFormat: 'yuv420p', backgroundColor: '#000000' },
+			visualFreshnessByModelId: withAdjustment
+				? new Map([['adjustment', freshness(adjustment)]]) : new Map(),
+		});
+		const signal = new AbortController().signal;
+		const execution = await createFramescaperSelectedExactFrameExecutionV27({
+			project, plan, timingSidecars: bindFramescaperUnifiedRenderTimingSidecarsV27(
+				project, renderAuthority(project, 10).timingViews,
+			), signal, assertCurrent() {},
+			captureFrame: (entry) => solidFrame((entry as { clipId?: unknown }).clipId === 'video-clip'
+				? [128, 128, 128, 255] : [200, 200, 200, 255]),
+		});
+		const target = new Uint8Array(16);
+		await execution.render({
+			sequencePosition: { num: 0, den: 1 },
+			layers: [mediaLayer('video-clip', 1), backTrackLayer('video-clip-b', 0)],
+			width: 2, height: 2, target, signal,
+		});
+		await execution.dispose();
+		return [...target.subarray(0, 4)];
+	};
+	const without = await render(false);
+	const withAdjustment = await render(true);
+	assert.deepEqual(without, [99, 99, 99, 255], 'the upper clip multiplies against the lower track');
+	assert.deepEqual(withAdjustment, without, 'an empty adjustment layer changes nothing');
+});
+
 test('selected V27 decodes canvas-captured media as canvas sRGB regardless of the file tags', async () => {
 	// The browser already expanded limited range and converted the transfer
 	// while drawing the video into the capture canvas, so a BT.709
@@ -260,6 +357,45 @@ function temporalFinishing() {
 			processorStackId: 'stack-temporal', inputSha256: '12'.repeat(32),
 			settingsSha256: '34'.repeat(32), storageKey: `motion-sha256:${'56'.repeat(32)}`,
 			sha256: '56'.repeat(32), byteLength: 1, startFrame: 0, endFrame: 1,
+		}],
+	};
+}
+
+function twoTrackOptions(): Record<string, unknown> {
+	const options = framescaperV20Options();
+	(options.clips as Record<string, unknown>[]).push({
+		kind: 'video', id: 'video-clip-b', sourceId: 'video-source', title: 'Lower',
+		sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
+		sourceInFrame: 0, sourceFrameCount: 10, retimeMap: null,
+	});
+	(options.tracks as Record<string, unknown>[]).splice(1, 0, createVideoTrack({
+		id: 'video-track-b', name: 'Lower video', clipIds: ['video-clip-b'], locked: false,
+	}));
+	(options.sequences as Record<string, unknown>[])[0]!.trackIds = [
+		'video-track', 'video-track-b', 'audio-track',
+	];
+	return options;
+}
+
+function solidFrame(rgba: readonly number[]) {
+	return Object.freeze({
+		width: 2, height: 2,
+		pixels: Uint8Array.from({ length: 16 }, (_, index) => rgba[index % 4]!),
+	});
+}
+
+function backTrackLayer(clipId: string, compositingOrder: number) {
+	return {
+		trackId: 'video-track-b', trackIndex: 1, entries: [{
+			kind: 'video', role: 'single', clipId, sourceId: 'video-source',
+			presentationDescriptor: { drawableSourceFrame: 0, outerCell: 0 },
+			video: { videoWidth: 2, videoHeight: 2 },
+			displayWidth: 2, displayHeight: 2, effects: [], intervalProgress: 0,
+			renderDescription: resolveVideoRenderDescription({
+				composition: { ...DEFAULT_VIDEO_CLIP_COMPOSITION, compositingOrder },
+				sourceDisplaySize: { width: 2, height: 2 },
+				canvas: { width: 2, height: 2 }, opacityStart: 1,
+			}),
 		}],
 	};
 }

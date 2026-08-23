@@ -52,6 +52,16 @@ import {
 	type FramescaperVideoExportVisualAssetStoreV27,
 } from './video-export-visual-assets-v27.ts';
 type Data = Readonly<Record<string, unknown>>;
+/**
+ * One track's composition entries at one authored compositing order. Tracks
+ * normally contribute a single bucket at their clip's authored order; the
+ * final composite interleaves buckets across tracks by order so an authored
+ * compositingOrder can pull a lower track's picture in front of a higher one.
+ */
+interface TrackOrderBucketV27 {
+	readonly order: number;
+	entries: UnifiedExactLinearCompositionEntryV13[];
+}
 export interface FramescaperSelectedExactFrameExecutionV27 {
 	render(request: Readonly<{
 		readonly sequencePosition: Readonly<{ readonly num: number; readonly den: number }>;
@@ -149,7 +159,7 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 				visual.layers.flatMap(({ entries }) => entries), visualAssets.stills,
 				width, height, signal,
 			);
-			const trackFrames = new Map<string, UnifiedExactLinearCompositionEntryV13[]>();
+			const trackFrames = new Map<string, TrackOrderBucketV27[]>();
 			const consumed = new Set(visual.ledger.consumedNodeIds);
 			consumed.add(finishing.nodeId);
 			const adjustmentEffects = new Set(visual.activeAdjustmentLayers.flatMap(({ effectIds }) => effectIds));
@@ -167,10 +177,17 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			const output = createUnifiedExactLinearPremultipliedFrameV13(
 				width, height, backgroundLinear(options.plan, finishing),
 			);
-			for (const track of [...options.plan.tracks].sort((left, right) => (
-				right.sequenceOrder - left.sequenceOrder || compareText(left.trackId, right.trackId)
-			))) {
-				for (const { frame, blendMode } of trackFrames.get(track.trackId) ?? []) {
+			// Canonical painter order: authored compositingOrder ascending, then
+			// sequence position descending, matching resolveActiveVideoLayers.
+			const ordered = [...options.plan.tracks].flatMap((track) => (
+				(trackFrames.get(track.trackId) ?? []).map((bucket) => ({ track, bucket }))
+			)).sort((left, right) => (
+				left.bucket.order - right.bucket.order
+				|| right.track.sequenceOrder - left.track.sequenceOrder
+				|| compareText(left.track.trackId, right.track.trackId)
+			));
+			for (const { bucket } of ordered) {
+				for (const { frame, blendMode } of bucket.entries) {
 					compositeUnifiedExactLinearFrameV13(output, frame, blendMode);
 				}
 			}
@@ -188,7 +205,7 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 
 	async function renderMediaLayer(
 		layer: Data,
-		trackFrames: Map<string, UnifiedExactLinearCompositionEntryV13[]>,
+		trackFrames: Map<string, TrackOrderBucketV27[]>,
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 		consumed: Set<string>,
 		adjustmentEffects: ReadonlySet<string>,
@@ -198,7 +215,6 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 	): Promise<void> {
 		const trackId = stableId(layer.trackId, 'Selected V27 media track ID');
 		const entries = records(layer.entries, 'Selected V27 media entries');
-		const target = trackFrames.get(trackId) ?? [];
 		for (const entry of entries) {
 			const effects = records(entry.effects ?? [], 'Selected V27 media effects').filter((effect) => (
 				!adjustmentEffects.has(stableId(effect.id, 'Selected V27 media effect ID'))
@@ -251,22 +267,23 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 				opacity: presentation.opacity,
 				...(mask ? { mask } : {}),
 			});
-			addUnifiedExactLinearDissolveEntryV13(target, placed, presentation.blendMode
-				?? renderBlendMode(entry.renderDescription));
+			addUnifiedExactLinearDissolveEntryV13(
+				orderBucketEntries(trackFrames, trackId, authoredCompositingOrder(entry.renderDescription)),
+				placed, presentation.blendMode ?? renderBlendMode(entry.renderDescription),
+			);
 		}
-		trackFrames.set(trackId, target);
 	}
 
 	function renderVisualLayer(
 		trackId: string,
 		entries: readonly UnifiedExactRenderVisualFrameEntryV13[],
-		trackFrames: Map<string, UnifiedExactLinearCompositionEntryV13[]>,
+		trackFrames: Map<string, TrackOrderBucketV27[]>,
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 		width: number,
 		height: number,
 		signal: AbortSignal,
 	): void {
-		const target = trackFrames.get(trackId) ?? [];
+		const target = orderBucketEntries(trackFrames, trackId, 0);
 		for (const entry of entries) {
 			const raw = requiredVisual(maskInputs, entry.modelId);
 			const linear = gradeVisual(finishing, entry, raw, finishingAssets.luts, signal);
@@ -279,12 +296,11 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 				opacity: entry.opacity, ...(mask ? { mask } : {}),
 			}), entry.blendMode);
 		}
-		trackFrames.set(trackId, target);
 	}
 
 	async function applyAdjustment(
 		adjustment: UnifiedExactRenderActiveAdjustmentV13,
-		trackFrames: Map<string, UnifiedExactLinearCompositionEntryV13[]>,
+		trackFrames: Map<string, TrackOrderBucketV27[]>,
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 		width: number,
 		height: number,
@@ -298,25 +314,33 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 		}
 		const grades = presentations.flatMap(({ grade }) => grade ? [grade] : []);
 		for (const trackId of adjustment.targetTrackIds) {
-			const entries = trackFrames.get(trackId);
-			if (!entries) continue;
-			const target = flattenUnifiedExactLinearCompositionV13(width, height, entries);
-			let adjusted = straightUnifiedExactLinearFrameV13(target);
-			if (adjustment.effectIds.length > 0) adjusted = checkedFrame(await applyEffects(
-				adjusted, adjustment.effectIds.map((id) => requiredVisual(effectsById, id)), signal,
-			), 'Selected V27 adjustment effect frame');
-			const graded = gradeLinearFrame(adjusted, grades,
-				finishingAssets.luts, signal);
-			const mask = adjustment.masks.length === 0 ? undefined
-				: combinedGraphs(adjustment.masks, width, height, maskInputs);
-			const overlay = placeUnifiedExactLinearRgbaFrameV13({
-				frame: graded, displayWidth: width, displayHeight: height,
-				outputWidth: width, outputHeight: height,
-				renderDescription: identityDescription(width, height, adjustment.blendMode),
-				opacity: adjustment.opacity, ...(mask ? { mask } : {}),
-			});
-			compositeUnifiedExactLinearFrameV13(target, overlay, adjustment.blendMode);
-			trackFrames.set(trackId, [Object.freeze({ frame: target, blendMode: 'normal' })]);
+			for (const bucket of trackFrames.get(trackId) ?? []) {
+				if (bucket.entries.length === 0) continue;
+				// The flattened track keeps its authored blend authority against
+				// lower tracks; an adjustment layer must not rewrite it to normal.
+				const blendModes = new Set(bucket.entries.map(({ blendMode }) => blendMode));
+				if (blendModes.size > 1) {
+					throw new Error('Selected V27 adjustment flatten requires one track blend authority.');
+				}
+				const preservedBlendMode = bucket.entries[0]!.blendMode;
+				const target = flattenUnifiedExactLinearCompositionV13(width, height, bucket.entries);
+				let adjusted = straightUnifiedExactLinearFrameV13(target);
+				if (adjustment.effectIds.length > 0) adjusted = checkedFrame(await applyEffects(
+					adjusted, adjustment.effectIds.map((id) => requiredVisual(effectsById, id)), signal,
+				), 'Selected V27 adjustment effect frame');
+				const graded = gradeLinearFrame(adjusted, grades,
+					finishingAssets.luts, signal);
+				const mask = adjustment.masks.length === 0 ? undefined
+					: combinedGraphs(adjustment.masks, width, height, maskInputs);
+				const overlay = placeUnifiedExactLinearRgbaFrameV13({
+					frame: graded, displayWidth: width, displayHeight: height,
+					outputWidth: width, outputHeight: height,
+					renderDescription: identityDescription(width, height, adjustment.blendMode),
+					opacity: adjustment.opacity, ...(mask ? { mask } : {}),
+				});
+				compositeUnifiedExactLinearFrameV13(target, overlay, adjustment.blendMode);
+				bucket.entries = [Object.freeze({ frame: target, blendMode: preservedBlendMode })];
+			}
 		}
 	}
 
@@ -512,6 +536,29 @@ function renderBlendMode(value: unknown): UnifiedExactLinearBlendModeV13 {
 	if (!['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'difference', 'exclusion']
 		.includes(String(mode))) throw new RangeError('Selected V27 blend mode is unsupported.');
 	return mode as UnifiedExactLinearBlendModeV13;
+}
+
+function authoredCompositingOrder(value: unknown): number {
+	const description = record(value, 'Selected V27 render description');
+	const order = description.compositingOrder;
+	if (!Number.isSafeInteger(order) || Number(order) < -32_768 || Number(order) > 32_767) {
+		throw new RangeError('Selected V27 compositing order is outside its range.');
+	}
+	return Number(order);
+}
+
+function orderBucketEntries(
+	trackFrames: Map<string, TrackOrderBucketV27[]>,
+	trackId: string,
+	order: number,
+): UnifiedExactLinearCompositionEntryV13[] {
+	const buckets = trackFrames.get(trackId) ?? [];
+	if (!trackFrames.has(trackId)) trackFrames.set(trackId, buckets);
+	const existing = buckets.find((bucket) => bucket.order === order);
+	if (existing) return existing.entries;
+	const created: TrackOrderBucketV27 = { order, entries: [] };
+	buckets.push(created);
+	return created.entries;
 }
 
 function channels(value: Uint8Array, offset: number): readonly [number, number, number, number] {
