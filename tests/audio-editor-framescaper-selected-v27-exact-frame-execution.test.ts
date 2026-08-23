@@ -138,6 +138,7 @@ test('selected V27 preview uses the same exact source-layer route and presentati
 	assert.ok(outputState.written);
 	assert.deepEqual([...outputState.written.subarray(0, 4)], [128, 0, 0, 255]);
 	assert.equal(result.layers[0]?.trackId, 'framescaper-v27-exact-output');
+	assert.deepEqual(result.renderedEffectIds, []);
 	assert.deepEqual(result.frame.ledger.requestedNodeIds, result.frame.ledger.consumedNodeIds);
 	preview.dispose();
 });

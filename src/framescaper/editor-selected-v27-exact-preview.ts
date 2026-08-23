@@ -4,6 +4,7 @@ import { digestMediaContent } from '../common/editor/storage/media-content-diges
 import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import { multiplyDivideRationals } from '../common/editor/timeline-time.ts';
 import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-render-plan.ts';
+import { collectProductVideoVisualPreviewEffectIds } from '../common/editor/ui/workspace/product-video-visual-preview-effect-ledger.ts';
 import type { ProductVideoVisualPreviewFrame } from '../common/editor/ui/workspace/product-video-visual-preview-runtime.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
 import { createVideoKeyframeExportPresentationAuthority } from '../common/editor/video-keyframe-export-presentation-authority.ts';
@@ -35,6 +36,7 @@ export interface FramescaperSelectedExactPreviewV27 {
 	}>): Promise<Readonly<{
 		readonly frame: ProductVideoVisualPreviewFrame;
 		readonly layers: readonly Data[];
+		readonly renderedEffectIds: readonly string[];
 	}>>;
 	dispose(): void;
 }
@@ -102,6 +104,7 @@ export async function createFramescaperSelectedExactPreviewV27(options: Readonly
 				return Object.freeze({
 					frame: exactFrameLedger(request.frame, result.consumedNodeIds),
 					layers: publishedLayers,
+					renderedEffectIds: collectProductVideoVisualPreviewEffectIds(layers, request.frame),
 				});
 			} catch (error) {
 				target.fill(0);

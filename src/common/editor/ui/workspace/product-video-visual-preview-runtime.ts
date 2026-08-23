@@ -35,6 +35,7 @@ export interface ProductVideoVisualPreviewSession {
 	}>): Promise<Readonly<{
 		readonly frame: ProductVideoVisualPreviewFrame;
 		readonly layers: readonly Readonly<Record<string, unknown>>[];
+		readonly renderedEffectIds: readonly string[];
 	}>>;
 	dispose(): void;
 }

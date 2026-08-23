@@ -8,6 +8,7 @@ import {
 	resolveVideoPreviewRenderIssue,
 	shouldHideVideoPreviewIdentityFallback,
 } from '../src/common/editor/ui/workspace/video-preview-fallback.ts';
+import { collectProductVideoVisualPreviewEffectIds } from '../src/common/editor/ui/workspace/product-video-visual-preview-effect-ledger.ts';
 
 test('constructor fallback inputs retain composition identity and effects', () => {
 	const renderDescription = Object.freeze({ blendMode: 'multiply', canonical: true });
@@ -59,6 +60,46 @@ test('render issues expose composition omissions independently from effect omiss
 	});
 	assert.equal(Object.isFrozen(issue), true);
 	assert.equal(Object.isFrozen(issue.omittedCompositionClipIds), true);
+});
+
+test('render issues retain effects already executed by an exact product preview', () => {
+	assert.deepEqual(resolveVideoPreviewRenderIssue({
+		effects: { requested: [], omitted: [] },
+	}, ['adjustment-effect']), {
+		requestedEffectCount: 1,
+		omittedEffectIds: [],
+		requestedCompositionCount: 0,
+		omittedCompositionClipIds: [],
+	});
+});
+
+test('exact preview effect ledger includes each executed active effect once', () => {
+	const adjustmentEffect = Object.freeze({ id: 'adjustment-effect', enabled: true });
+	assert.deepEqual(collectProductVideoVisualPreviewEffectIds([{
+		trackId: 'video-track',
+		entries: [{ effects: [adjustmentEffect, { id: 'disabled-media-effect', enabled: false }] }],
+	}], {
+		layers: [],
+		adjustments: [{
+			nodeId: 'active-adjustment', targetTrackIds: ['video-track'],
+			effects: [adjustmentEffect], opacity: 1, blendMode: 'normal', maskIds: [],
+		}, {
+			nodeId: 'inactive-adjustment', targetTrackIds: ['absent-track'],
+			effects: [{ id: 'inactive-effect', enabled: true }], opacity: 1,
+			blendMode: 'normal', maskIds: [],
+		}],
+		activeFreezeNodeIds: [], availablePresetIds: [],
+		ledger: { requestedNodeIds: [], consumedNodeIds: [], omittedNodeIds: [] },
+	}), ['adjustment-effect']);
+});
+
+test('exact preview effect ledger rejects unauthenticated media effect state', () => {
+	assert.throws(() => collectProductVideoVisualPreviewEffectIds([{
+		trackId: 'video-track', entries: [{ effects: 'adjustment-effect' }],
+	}], {
+		layers: [], adjustments: [], activeFreezeNodeIds: [], availablePresetIds: [],
+		ledger: { requestedNodeIds: [], consumedNodeIds: [], omittedNodeIds: [] },
+	}), /effects must be an array/u);
 });
 
 test('authored composition never falls back to an untransformed DOM video', () => {

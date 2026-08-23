@@ -65,12 +65,13 @@ export function createVideoPreviewFallbackLedgerLayers(
 }
 
 /** Reduce the renderer ledger to the bounded diagnostics exposed by the panel. */
-export function resolveVideoPreviewRenderIssue(report: unknown): VideoPreviewRenderIssue {
+export function resolveVideoPreviewRenderIssue(report: unknown, renderedEffectIds: unknown = []): VideoPreviewRenderIssue {
 	const record = objectRecord(report);
 	const effects = objectRecord(record?.effects);
 	const composition = objectRecord(record?.composition);
-	const requestedEffects = stringArray(effects?.requested);
-	const omittedEffects = stringArray(effects?.omitted);
+	const renderedEffects = new Set(stringArray(renderedEffectIds));
+	const requestedEffects = uniqueStrings([...stringArray(effects?.requested), ...renderedEffects]);
+	const omittedEffects = stringArray(effects?.omitted).filter((id) => !renderedEffects.has(id));
 	const requestedComposition = requestedCompositionIds(composition?.requested);
 	const omittedComposition = uniqueStrings([
 		...stringArray(composition?.fallbackRendered),

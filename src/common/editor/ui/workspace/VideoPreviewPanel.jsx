@@ -244,8 +244,8 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		compositorStateRef.current = nextState;
 		setCompositorState(nextState);
 	}, []);
-	const updateRenderIssue = useCallback((report) => {
-		const issue = resolveVideoPreviewRenderIssue(report);
+	const updateRenderIssue = useCallback((report, renderedEffectIds) => {
+		const issue = resolveVideoPreviewRenderIssue(report, renderedEffectIds);
 		const signature = [
 			issue.requestedEffectCount,
 			issue.omittedEffectIds.join('\u0000'),
@@ -290,7 +290,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			updateVisualPreviewFrame(null, error instanceof Error ? error.message : String(error));
 			updateCompositorState('fallback');
 		};
-		const publishProductFrame = (productFrame, composedLayers, hasSession) => {
+		const publishProductFrame = (productFrame, composedLayers, hasSession, renderedEffectIds) => {
 			composedLayersRef.current = composedLayers;
 			if (hasSession) updateVisualPreviewFrame(productFrame);
 			let report;
@@ -299,7 +299,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			} catch {
 				report = createVideoPreviewCompositorFallbackReport(composedLayersRef.current);
 			}
-			updateRenderIssue(report);
+			updateRenderIssue(report, renderedEffectIds);
 			const freezeProject = freezeCaptureProjectRef.current;
 			if (report.status !== 'fallback' && freezeProject?.schemaVersion === 27) {
 				freezeEvaluatedFrameRef.current = {
@@ -330,7 +330,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 					timelineSample: timelineFrame, mediaLayers: compositorLayersRef.current,
 				}).then((result) => {
 					if (visualSessionRef.current === visualSession) {
-						publishProductFrame(result.frame, result.layers, true);
+						publishProductFrame(result.frame, result.layers, true, result.renderedEffectIds);
 					}
 				}).catch((error) => {
 					if (visualSessionRef.current === visualSession) failProductFrame(error);
