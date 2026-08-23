@@ -32,5 +32,13 @@ export function bindFramescaperSelectedVisualPreviewControllerV27(options: Reado
 				store: options.store,
 			});
 		},
+		async (request) => {
+			const module = await import('./editor-selected-v27-timeline-filmstrip.ts');
+			return module.createFramescaperSelectedTimelineFilmstripV27({
+				...request,
+				profile: options.profile,
+				store: options.store,
+			});
+		},
 	));
 }

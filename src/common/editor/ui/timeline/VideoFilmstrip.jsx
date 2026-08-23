@@ -3,10 +3,12 @@ import { CLIP_CONTENT_OFFSET } from '@dilsonspickles/components';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import { selectVideoThumbnailTimestamps } from '../../video-timeline.js';
+import { productVideoVisualPreviewRuntimeFor } from '../workspace/product-video-visual-preview-runtime.ts';
 import { createVideoRateBadgeModel } from './video-rate-badge-model.ts';
 
 export function VideoFilmstripClip({
 	controller,
+	project,
 	clip,
 	source,
 	overscanStartFrame,
@@ -61,6 +63,14 @@ export function VideoFilmstripClip({
 		visibleStartFrame,
 	]);
 	const fallbackPosterUrl = videoPosterUrl(visualData, source);
+	const thumbnailModels = useMemo(() => thumbnailPoints.map((point, index) => ({
+		key: `${point.timelineFrame}:${point.sourceFrame}:${index}`,
+		point,
+		sourceUrl: videoThumbnailUrl(visualData, point, index),
+	})), [thumbnailPoints, visualData]);
+	const presentationThumbnails = useProductTimelineFilmstrip({
+		controller, project, clip, thumbnailModels,
+	});
 	const [isRenaming, setIsRenaming] = useState(false);
 	const [renameDraft, setRenameDraft] = useState(clip.title);
 	const renameInputRef = useRef(null);
@@ -197,30 +207,39 @@ export function VideoFilmstripClip({
 					)}
 				</div>
 				<div className="audio-editor-video-clip__filmstrip" aria-hidden="true">
-					{thumbnailPoints.length ? thumbnailPoints.map((point, index) => {
+					{thumbnailModels.length ? thumbnailModels.map((model, index) => {
+						const { point } = model;
 						const nextTimelineFrame = thumbnailPoints[index + 1]?.timelineFrame ?? visibleEndFrame;
 						const cellLeft = framesToSeconds(point.timelineFrame - visibleStartFrame, { sampleRate }) * pixelsPerSecond;
 						const cellWidth = Math.max(
 							1,
 							framesToSeconds(nextTimelineFrame - point.timelineFrame, { sampleRate }) * pixelsPerSecond,
 						);
-						const thumbnailUrl = videoThumbnailUrl(visualData, point, index) || fallbackPosterUrl;
+						const thumbnailUrl = model.sourceUrl || fallbackPosterUrl;
+						const exact = presentationThumbnails.values.get(model.key) || null;
 						return (
 							<span
-								key={`${point.sourceFrame}-${index}`}
+								key={model.key}
 								className="audio-editor-video-clip__thumbnail"
+								data-product-visual-thumbnail={presentationThumbnails.supported ? 'true' : undefined}
+								data-product-visual-thumbnail-state={presentationThumbnails.supported
+									? exact ? 'ready' : presentationThumbnails.error ? 'error' : 'pending'
+									: undefined}
 								style={{ left: cellLeft, width: cellWidth }}
 								title={`${point.sourceTimeSeconds.toFixed(1)} s`}
 							>
-								{thumbnailUrl && <img src={thumbnailUrl} alt="" draggable="false" />}
-								{!thumbnailUrl && <span className="audio-editor-video-clip__thumbnail-time">
+								{exact && <ProductTimelineFilmstripCanvas value={exact} />}
+								{!presentationThumbnails.supported && thumbnailUrl
+									&& <img src={thumbnailUrl} alt="" draggable="false" />}
+								{!exact && (presentationThumbnails.supported || !thumbnailUrl)
+									&& <span className="audio-editor-video-clip__thumbnail-time">
 									{formatThumbnailTime(point.sourceTimeSeconds)}
 								</span>}
 							</span>
 						);
 					}) : (
 						<span className="audio-editor-video-clip__thumbnail audio-editor-video-clip__thumbnail--fallback">
-							{fallbackPosterUrl
+							{!presentationThumbnails.supported && fallbackPosterUrl
 								? <img src={fallbackPosterUrl} alt="" draggable="false" />
 								: <span className="audio-editor-video-clip__thumbnail-time">{copy.videoClip || 'Video'}</span>}
 						</span>
@@ -230,6 +249,71 @@ export function VideoFilmstripClip({
 			</div>
 		</div>
 	);
+}
+
+function useProductTimelineFilmstrip({ controller, project, clip, thumbnailModels }) {
+	const runtime = useMemo(() => productVideoVisualPreviewRuntimeFor(controller), [controller]);
+	const createTimelineFilmstrip = runtime?.createTimelineFilmstrip;
+	const supported = Boolean(
+		project && !clip.projectBinClipId && typeof createTimelineFilmstrip === 'function',
+	);
+	const frames = useMemo(() => supported ? thumbnailModels.flatMap((model) => (
+		model.sourceUrl ? [{
+			key: model.key,
+			clipId: clip.id,
+			sourceId: clip.sourceId,
+			timelineSample: model.point.timelineFrame,
+			sourceUrl: model.sourceUrl,
+		}] : []
+	)) : [], [clip.id, clip.sourceId, supported, thumbnailModels]);
+	const [state, setState] = useState(() => ({ pending: false, error: null, values: new Map() }));
+	useEffect(() => {
+		if (!supported || frames.length === 0) {
+			setState({ pending: false, error: null, values: new Map() });
+			return undefined;
+		}
+		const abort = new AbortController();
+		setState({ pending: true, error: null, values: new Map() });
+		void createTimelineFilmstrip({
+			project, width: 160, height: 90, frames, signal: abort.signal,
+		}).then((values) => {
+			if (abort.signal.aborted) return;
+			if (!values || values.length !== frames.length) {
+				throw new Error('The exact timeline filmstrip did not publish every requested frame.');
+			}
+			setState({
+				pending: false,
+				error: null,
+				values: new Map(values.map((value) => [value.key, value])),
+			});
+		}).catch((cause) => {
+			if (!abort.signal.aborted) setState({
+				pending: false,
+				error: cause instanceof Error ? cause.message : String(cause),
+				values: new Map(),
+			});
+		});
+		return () => { abort.abort(new DOMException('Timeline filmstrip was replaced.', 'AbortError')); };
+	}, [createTimelineFilmstrip, frames, project, supported]);
+	return { supported, ...state };
+}
+
+function ProductTimelineFilmstripCanvas({ value }) {
+	const canvasRef = useRef(null);
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		if (!canvas) return;
+		canvas.width = value.width;
+		canvas.height = value.height;
+		const context = canvas.getContext('2d');
+		if (!context) return;
+		context.putImageData(
+			new ImageData(new Uint8ClampedArray(value.pixels), value.width, value.height),
+			0,
+			0,
+		);
+	}, [value]);
+	return <canvas ref={canvasRef} data-product-visual-thumbnail-canvas aria-hidden="true" />;
 }
 
 export function useVideoClipVisualData(controller, clip) {

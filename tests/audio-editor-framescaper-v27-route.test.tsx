@@ -88,7 +88,9 @@ test('selected V27 controller creates, edits, saves, undoes, and redoes exact do
 	assert.deepEqual(proxyRuntime.pressure('video-source'), {
 		droppedFrameRatio: 0, decodeQueueDepth: 0, viewportScale: 1,
 	});
-	assert.ok(productVideoVisualPreviewRuntimeFor(controller));
+	const visualRuntime = productVideoVisualPreviewRuntimeFor(controller);
+	assert.ok(visualRuntime);
+	assert.equal(typeof visualRuntime.createTimelineFilmstrip, 'function');
 });
 
 test('selected V27 controller opens dormant V25/V26 as opaque read-only custody', async (context) => {

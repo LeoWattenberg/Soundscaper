@@ -138,6 +138,7 @@ export function TrackListView({
 				<VideoTrackRow
 					key={track.id}
 					controller={controller}
+					presentationProject={snapshot.project}
 					track={track}
 					visualHeight={visualTrackHeight(track)}
 					trackClips={projectIndex.clipsByTrackId.get(track.id) || EMPTY_TIMELINE_CLIPS}

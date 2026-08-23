@@ -64,11 +64,36 @@ export interface ProductVideoVisualProjectBinThumbnail {
 	readonly maskIds: readonly string[];
 }
 
+export interface ProductVideoTimelineFilmstripFrameRequest {
+	readonly key: string;
+	readonly clipId: string;
+	readonly sourceId: string;
+	readonly timelineSample: number;
+	readonly sourceUrl: string;
+}
+
+export interface ProductVideoTimelineFilmstripRequest
+	extends ProductVideoVisualPreviewCreateRequest {
+	readonly frames: readonly ProductVideoTimelineFilmstripFrameRequest[];
+	readonly signal?: AbortSignal;
+}
+
+export interface ProductVideoTimelineFilmstripFrame {
+	readonly key: string;
+	readonly timelineSample: number;
+	readonly width: number;
+	readonly height: number;
+	readonly pixels: Uint8Array<ArrayBuffer>;
+}
+
 export interface ProductVideoVisualPreviewRuntime {
 	create(request: ProductVideoVisualPreviewCreateRequest): Promise<ProductVideoVisualPreviewSession | null>;
 	createProjectBinThumbnail?(
 		request: ProductVideoVisualProjectBinThumbnailRequest,
 	): Promise<ProductVideoVisualProjectBinThumbnail | null>;
+	createTimelineFilmstrip?(
+		request: ProductVideoTimelineFilmstripRequest,
+	): Promise<readonly ProductVideoTimelineFilmstripFrame[] | null>;
 }
 
 const RUNTIMES = new WeakSet<ProductVideoVisualPreviewRuntime>();
@@ -77,12 +102,20 @@ const OWNER_RUNTIMES = new WeakMap<object, ProductVideoVisualPreviewRuntime>();
 export function createProductVideoVisualPreviewRuntime(
 	create: ProductVideoVisualPreviewRuntime['create'],
 	createProjectBinThumbnail?: ProductVideoVisualPreviewRuntime['createProjectBinThumbnail'],
+	createTimelineFilmstrip?: ProductVideoVisualPreviewRuntime['createTimelineFilmstrip'],
 ): ProductVideoVisualPreviewRuntime {
 	if (typeof create !== 'function') throw new TypeError('A product visual-preview factory is required.');
 	if (createProjectBinThumbnail !== undefined && typeof createProjectBinThumbnail !== 'function') {
 		throw new TypeError('A product project-bin thumbnail factory must be a function.');
 	}
-	const runtime = Object.freeze({ create, ...(createProjectBinThumbnail ? { createProjectBinThumbnail } : {}) });
+	if (createTimelineFilmstrip !== undefined && typeof createTimelineFilmstrip !== 'function') {
+		throw new TypeError('A product timeline-filmstrip factory must be a function.');
+	}
+	const runtime = Object.freeze({
+		create,
+		...(createProjectBinThumbnail ? { createProjectBinThumbnail } : {}),
+		...(createTimelineFilmstrip ? { createTimelineFilmstrip } : {}),
+	});
 	RUNTIMES.add(runtime);
 	return runtime;
 }

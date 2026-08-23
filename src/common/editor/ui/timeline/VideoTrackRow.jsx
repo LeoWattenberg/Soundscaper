@@ -9,6 +9,7 @@ import { VideoFilmstripClip } from './VideoFilmstrip.jsx';
 
 export function VideoTrackRow({
 	controller,
+	presentationProject,
 	track,
 	visualHeight,
 	trackClips,
@@ -270,6 +271,7 @@ export function VideoTrackRow({
 							<VideoFilmstripClip
 								key={`${clip.projectBinClipId ? 'project-bin-' : ''}${clip.id}`}
 								controller={controller}
+								project={presentationProject}
 								clip={clip}
 								source={sourceLookup.get(clip.sourceId)}
 								overscanStartFrame={projection.overscanStartFrame}
