@@ -16,6 +16,7 @@ import {
 	type MixerGraphV21,
 } from '../common/editor/mixer-graph-v21.ts';
 import { canonicalParameterAddressKey, type ParameterDescriptor } from '../common/editor/parameter-address.ts';
+import { resolveTerminalChannelWidths } from '../common/editor/terminal-channel-widths.ts';
 
 export interface FramescaperAudioFinishingV27 {
 	readonly automationLanes: readonly AutomationLaneV21[];
@@ -26,9 +27,13 @@ export function createDefaultFramescaperAudioFinishingV27(
 	project: Readonly<Record<string, unknown>>,
 ): FramescaperAudioFinishingV27 {
 	const masterChannels = positiveInteger(project.masterChannels, 'project.masterChannels');
+	const trackWidths = resolveTerminalChannelWidths(project, masterChannels).tracks;
 	const audioTracks = records(project.tracks, 'project.tracks')
 		.filter(({ type }) => type === 'audio')
-		.map((track) => ({ id: id(track, 'audio track'), channelCount: masterChannels }));
+		.map((track) => {
+			const trackId = id(track, 'audio track');
+			return { id: trackId, channelCount: trackWidths.get(trackId) ?? masterChannels };
+		});
 	return Object.freeze({
 		automationLanes: Object.freeze([]),
 		mixer: createDefaultMixerGraphV21(audioTracks, masterChannels),
