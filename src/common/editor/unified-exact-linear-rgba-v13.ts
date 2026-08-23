@@ -19,6 +19,8 @@ export interface UnifiedExactLinearPremultipliedFrameV13 {
 	readonly pixels: Float64Array<ArrayBuffer>;
 }
 
+export type UnifiedExactLinearBlendModeV13 = VideoClipCompositionBlendMode | 'add';
+
 export function createUnifiedExactLinearPremultipliedFrameV13(
 	widthValue: number,
 	heightValue: number,
@@ -91,7 +93,7 @@ export function addUnifiedExactLinearDissolveV13(
 export function compositeUnifiedExactLinearFrameV13(
 	targetValue: UnifiedExactLinearPremultipliedFrameV13,
 	sourceValue: UnifiedExactLinearPremultipliedFrameV13,
-	blendMode: VideoClipCompositionBlendMode,
+	blendMode: UnifiedExactLinearBlendModeV13,
 ): void {
 	const target = premultipliedFrame(targetValue, 'linear composite target');
 	const source = premultipliedFrame(sourceValue, 'linear composite source');
@@ -215,7 +217,8 @@ function sample(
 	return result as unknown as readonly [number, number, number, number];
 }
 
-function blend(backdrop: number, source: number, mode: VideoClipCompositionBlendMode): number {
+function blend(backdrop: number, source: number, mode: UnifiedExactLinearBlendModeV13): number {
+	if (mode === 'add') return Math.min(1, backdrop + source);
 	if (mode === 'multiply') return backdrop * source;
 	if (mode === 'screen') return backdrop + source - backdrop * source;
 	if (mode === 'overlay') return backdrop <= 0.5 ? 2 * backdrop * source

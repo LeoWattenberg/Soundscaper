@@ -227,6 +227,28 @@ export function applyManagedSdrGradeStackLinearPixelV1(request: Readonly<{
 }>): LinearRgbaV1 {
 	const interpretation = normalizeVideoSourceColorInterpretationV1(request?.interpretation);
 	assertManagedSdr(interpretation);
+	const rgba = rgbaTuple(request?.rgba);
+	const encoded = [rgba[0], rgba[1], rgba[2]].map((channel) => (
+		interpretation.range === 'limited' ? limitedToFull(channel) : channel
+	));
+	return applyManagedSdrLinearGradeStackPixelV1({
+		rgba: [
+			decodeTransfer(encoded[0]!, interpretation.transfer),
+			decodeTransfer(encoded[1]!, interpretation.transfer),
+			decodeTransfer(encoded[2]!, interpretation.transfer),
+			rgba[3],
+		],
+		grades: request.grades,
+		...(request.luts === undefined ? {} : { luts: request.luts }),
+	});
+}
+
+/** Apply grades to an already-decoded straight-alpha linear working pixel. */
+export function applyManagedSdrLinearGradeStackPixelV1(request: Readonly<{
+	readonly rgba: readonly number[];
+	readonly grades: readonly unknown[];
+	readonly luts?: readonly (ParsedCubeLutV1 | undefined)[];
+}>): LinearRgbaV1 {
 	if (!Array.isArray(request?.grades) || request.grades.length > 64) {
 		throw new RangeError('The managed SDR grade stack exceeds its bound.');
 	}
@@ -241,10 +263,7 @@ export function applyManagedSdrGradeStackLinearPixelV1(request: Readonly<{
 		return Object.freeze({ grade, lut });
 	});
 	const rgba = rgbaTuple(request?.rgba);
-	const encoded = [rgba[0], rgba[1], rgba[2]].map((channel) => (
-		interpretation.range === 'limited' ? limitedToFull(channel) : channel
-	));
-	let linear = encoded.map((channel) => decodeTransfer(channel, interpretation.transfer));
+	let linear = [rgba[0], rgba[1], rgba[2]];
 	for (const { grade, lut } of grades) linear = applyGrade(linear, grade, lut);
 	return Object.freeze([clamp(linear[0]!), clamp(linear[1]!), clamp(linear[2]!), rgba[3]]);
 }

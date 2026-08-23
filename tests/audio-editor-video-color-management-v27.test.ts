@@ -7,6 +7,7 @@ import {
 	applyManagedSdrGradePixelV1,
 	applyManagedSdrGradeStackLinearPixelV1,
 	applyManagedSdrGradeStackPixelV1,
+	applyManagedSdrLinearGradeStackPixelV1,
 	encodeManagedSdrLinearPixelV1,
 	defaultVideoSourceColorInterpretationV1,
 	normalizeVideoColorContextV1,
@@ -106,6 +107,12 @@ test('linear working pixels are encoded once without multiplying straight alpha'
 	const encoded = encodeManagedSdrLinearPixelV1(linear, 'srgb');
 	close(encoded[0], 0.5, 1e-12);
 	close(encoded[3], 0.5);
+	const raised = applyManagedSdrLinearGradeStackPixelV1({
+		rgba: linear,
+		grades: [{ ...normalizeVideoColorGradeV1(), exposureStops: 1 }],
+	});
+	close(raised[0], 0.4280822809644651, 1e-12);
+	close(raised[3], 0.5);
 });
 
 test('the grade owns exposure, contrast/pivot, lift/gamma/gain, saturation, and a LUT reference', () => {

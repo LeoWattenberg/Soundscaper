@@ -34,11 +34,23 @@ export interface FramescaperVideoExportFinishingAssetStoreV27 {
 	): PromiseLike<BlobLike | null>;
 }
 
-interface FinishingRequest {
+export interface FramescaperVideoExportFinishingRequestV27 {
 	readonly profile: unknown;
 	readonly project: FramescaperProjectV27;
 	readonly plan: VideoKeyframeExportPlanV7;
 	readonly timingViewsBySourceId: ReadonlyMap<string, VideoSourceTimingView>;
+	readonly store?: FramescaperVideoExportFinishingAssetStoreV27;
+	readonly signal: AbortSignal;
+	readonly assertCurrent: () => void;
+}
+
+export interface FramescaperVideoExportFinishingAssetsV27 {
+	readonly analyses: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
+	readonly luts: ReadonlyMap<string, ParsedCubeLutV1>;
+}
+
+export interface FramescaperVideoFinishingAssetLoadRequestV27 {
+	readonly project: FramescaperProjectV27;
 	readonly store?: FramescaperVideoExportFinishingAssetStoreV27;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
@@ -56,7 +68,7 @@ const MAXIMUM_TEMPORAL_CACHE_FRAMES = 17;
 
 /** Load digest-bound finishing assets, then create one export-owned post-compositor. */
 export async function createFramescaperVideoExportFinishingV27(
-	request: FinishingRequest,
+	request: FramescaperVideoExportFinishingRequestV27,
 ): Promise<VideoKeyframeOfflineRgbaPostprocessor> {
 	assertReady(request);
 	if (!(request.timingViewsBySourceId instanceof Map)) {
@@ -75,7 +87,7 @@ export async function createFramescaperVideoExportFinishingV27(
 		(node): node is UnifiedExactRenderClipNode => node.kind === 'clip',
 	).map((node) => [node.clipId, node]));
 	const sourceIdByNodeId = new Map(exactPlan.sources.map(({ nodeId, sourceId }) => [nodeId, sourceId]));
-	const assets = await loadFinishingAssets(request, finishing);
+	const assets = await loadFramescaperVideoExportFinishingAssetsV27(request, finishing);
 	const temporalCache = new Map<string, Map<number, UnifiedExactRenderRgbaFrameV13>>();
 	return async ({ frame, width, height, rgba, signal }) => {
 		assertSameSignal(request.signal, signal);
@@ -110,7 +122,7 @@ export async function createFramescaperVideoExportFinishingV27(
 	};
 }
 
-function renderAuthority(request: FinishingRequest) {
+function renderAuthority(request: FramescaperVideoExportFinishingRequestV27) {
 	const plan = request.plan;
 	const project = request.project as unknown as Readonly<Record<string, unknown>>;
 	return Object.freeze({
@@ -145,13 +157,10 @@ function renderAuthority(request: FinishingRequest) {
 	});
 }
 
-async function loadFinishingAssets(
-	request: FinishingRequest,
+export async function loadFramescaperVideoExportFinishingAssetsV27(
+	request: FramescaperVideoFinishingAssetLoadRequestV27,
 	finishing: UnifiedExactRenderFinishingNode,
-): Promise<Readonly<{
-	readonly analyses: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
-	readonly luts: ReadonlyMap<string, ParsedCubeLutV1>;
-}>> {
+): Promise<FramescaperVideoExportFinishingAssetsV27> {
 	const presentations = finishing.visualPresentations.filter(({ enabled }) => enabled);
 	const lutReferences = uniqueBy(
 		presentations.flatMap(({ grade }) => grade?.lut ? [grade.lut] : []),
@@ -206,7 +215,7 @@ async function loadFinishingAssets(
 }
 
 async function loadAsset(
-	request: FinishingRequest,
+	request: FramescaperVideoFinishingAssetLoadRequestV27,
 	reference: Readonly<{ storageKey: string; byteLength: number }>,
 ): Promise<Uint8Array<ArrayBuffer>> {
 	assertReady(request);
@@ -320,7 +329,9 @@ function assertLutReference(reference: VideoCubeLutReferenceV1, body: ParsedCube
 	}
 }
 
-function assertReady(request: Pick<FinishingRequest, 'signal' | 'assertCurrent'>): void {
+function assertReady(
+	request: Pick<FramescaperVideoExportFinishingRequestV27, 'signal' | 'assertCurrent'>,
+): void {
 	if (request.signal.aborted) {
 		throw request.signal.reason ?? new DOMException('Selected V27 export was cancelled.', 'AbortError');
 	}
