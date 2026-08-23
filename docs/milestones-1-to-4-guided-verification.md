@@ -97,7 +97,7 @@ application data directory.
 | --- | --- | --- | --- | --- |
 | FD-01 | The packaged runtime reports complete product, version, Electron/Chromium/Node, OS, architecture, package, GPU, and fixture identity. | pending | pending | — |
 | FD-02 | Repeat FB-02 through FB-17 in the packaged application. | pending | pending | — |
-| FD-03 | Seed an immutable V12 library, start V18 import, interrupt it, reopen, and verify idempotent copy-forward completion without a V12 mutation or deletion. | pending | pending | — |
+| FD-03 | Seed an immutable settled V17 library, start V18 import, interrupt it, reopen, and verify idempotent copy-forward completion without a V17 mutation or deletion. Confirm the V12→V17 lineage separately rather than treating V18 as a direct V12 importer. | pending | pending | — |
 | FD-04 | Close during a save/publication, reopen, and verify the V18 writer lease, persistent fencing, journal recovery, and exact project state. | pending | pending | — |
 | FD-05 | Start a second Framescaper writer; verify admission fencing, draining, renewal, and exact release. | pending | pending | — |
 | FD-06 | Inspect the application data roots and verify no Soundscaper catalog, database, media root, lease, or journal is present. | pending | pending | — |
