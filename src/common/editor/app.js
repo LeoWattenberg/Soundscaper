@@ -205,6 +205,7 @@ import { createSequenceTimingService } from './controller/sequence-timing-servic
 import { createVideoSourceReprobeService } from './controller/video-source-reprobe-service.ts';
 import { createSourceMonitorService } from './controller/source-monitor-service.ts';
 import { createVideoEditService } from './controller/video-edit-service.ts';
+import { createVideoRetimeProgramStateResolver } from './controller/video-retime-program-state.ts';
 import { createVideoNavigationService } from './controller/video-navigation-service.ts';
 import { createVideoTrimServices } from './controller/video-trim-composition.ts';
 import { prepareThreePointEditCommand } from './commands/three-point-edit-runtime.js';
@@ -986,16 +987,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getPositionFrames: () => engine.getPositionFrames(),
 		seek: (frame) => engine.seek(normalizePlaybackFrame(frame)),
 	});
-	const sourceMonitorService = createSourceMonitorService({
-		lifetime, getProject: getCommandProject, publishProjectState,
-	});
+	const sourceMonitorService = createSourceMonitorService({ lifetime, getProject: getCommandProject, publishProjectState });
+	const getVideoRetimeProgramState = createVideoRetimeProgramStateResolver({ getProject: () => project, projectRuntime, createBridge: options.createProductVideoRetimeProgramOrdinalBridge });
 	const videoEditService = createVideoEditService({
 		lifetime, getProject: getCommandProject, editingBlocked, commit, publishProjectState,
 		getSelectedTrackId: () => state.selectedTrackId,
 		prepareThreePointEditCommand: (commandProject, options) => (
 			prepareThreePointEditCommand(commandProject, options, createStableId)
 		),
-		getPositionFrames: () => engine.getPositionFrames(),
+		getPositionFrames: () => engine.getPositionFrames(), getVideoRetimeProgramState,
 		sourceMonitor: sourceMonitorService,
 	});
 	videoNavigationService = createVideoNavigationService({

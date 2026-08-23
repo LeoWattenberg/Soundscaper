@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createAudioEditorController } from '../common/editor/app.js';
+import { createVideoRetimeProgramOrdinalBridge } from '../common/editor/video-retime-program-ordinal-bridge.ts';
 import {
 	createFramescaperCapturedVideoProxySchedulerV27,
 	type FramescaperCapturedVideoProxyRuntimeComposition,
@@ -103,6 +104,7 @@ export function createFramescaperAudioEditorControllerV27(
 		createProjectIfAbsent: environment.createProjectIfAbsent,
 		scapeProjectRuntime: createFramescaperScapeNativeRuntimeV27(environment.runtime.profile),
 		productSequenceActions,
+		createProductVideoRetimeProgramOrdinalBridge: createVideoRetimeProgramOrdinalBridge,
 		productVideoExportStrategy: createFramescaperVideoExportStrategyV27(
 			environment.runtime.profile, undefined, environment.controllerStore,
 		),

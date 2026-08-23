@@ -18,6 +18,11 @@ import {
 	sequenceTimecodeToFrameCount,
 	type SequenceRationalRate,
 } from './sequence-timecode.ts';
+import {
+	resolveVideoRetimeProgramOrdinal,
+	VideoRetimeProgramOrdinalUnavailableError,
+	type VideoRetimeProgramOrdinalBridge,
+} from './video-retime-program-ordinal-bridge.ts';
 
 /**
  * Project-facing source properties: what a probe reported about a video source,
@@ -131,6 +136,7 @@ export function resolveSourceTimecodeAtSample(
 	projectValue: unknown,
 	sample: number,
 	sequenceId?: string,
+	bridgeValue?: VideoRetimeProgramOrdinalBridge,
 ): SourceTimecodeReading | null {
 	const project = record(projectValue, 'project');
 	const sampleRate = Number(project.sampleRate);
@@ -165,7 +171,25 @@ export function resolveSourceTimecodeAtSample(
 		);
 		const origin = characteristics.startTimecode;
 		const sourceIn = Number(value.sourceInFrame ?? value.sourceStartFrame ?? 0);
-		const sourceFrame = (Number.isSafeInteger(sourceIn) ? sourceIn : 0) + (frame - start);
+		let retimedSourceFrame: number | null;
+		try {
+			if (value.retimeMap != null && !bridgeValue) {
+				throw new VideoRetimeProgramOrdinalUnavailableError();
+			}
+			retimedSourceFrame = bridgeValue
+				? resolveVideoRetimeProgramOrdinal(bridgeValue, {
+					project,
+					clip: value,
+					source,
+					timelineSample: Math.max(0, Math.trunc(sample)),
+				})
+				: null;
+		} catch (error: unknown) {
+			if (!(error instanceof VideoRetimeProgramOrdinalUnavailableError)) throw error;
+			return null;
+		}
+		const sourceFrame = retimedSourceFrame
+			?? (Number.isSafeInteger(sourceIn) ? sourceIn : 0) + (frame - start);
 		return Object.freeze({
 			sourceId: String(source.id ?? ''),
 			sourceName: String(source.name ?? ''),
@@ -187,6 +211,7 @@ export function resolveInspectedVideoSource(
 	projectValue: unknown,
 	sample: number,
 	sequenceId?: string,
+	bridgeValue?: VideoRetimeProgramOrdinalBridge,
 ): DataRecord | null {
 	const project = record(projectValue, 'project');
 	const sources = Array.isArray(project.sources) ? project.sources : [];
@@ -204,7 +229,7 @@ export function resolveInspectedVideoSource(
 		const source = isRecord(clip) ? sourceById(clip.sourceId) : null;
 		if (isRecord(source)) return source;
 	}
-	const reading = resolveSourceTimecodeAtSample(project, sample, sequenceId);
+	const reading = resolveSourceTimecodeAtSample(project, sample, sequenceId, bridgeValue);
 	return reading ? sourceById(reading.sourceId) : null;
 }
 
