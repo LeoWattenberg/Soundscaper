@@ -129,6 +129,15 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		intro: null,
 	}),
 	Object.freeze({
+		marker: 'v16-video-retime-preservation-admission',
+		register: 'config/production-security-matrix.json',
+		riskId: 'external-project-document-validation',
+		controlId: 'v16-video-retime-preservation-admission',
+		field: 'summary',
+		document: 'docs/production-threat-model.md',
+		intro: null,
+	}),
+	Object.freeze({
 		marker: 'framescaper-v18-proxy-reattestation',
 		register: 'config/production-security-matrix.json',
 		riskId: 'external-media-parser-bounds',

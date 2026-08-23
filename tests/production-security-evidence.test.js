@@ -239,7 +239,7 @@ test('disposable video preview cache evidence binds current originals without cl
 		normalizedDocumentation,
 		/original-bound-disposable-video-preview-cache.*repository-trusted current SHA-256.*media-content token.*content-addressed key.*original storage key and digest.*poster or thumbnail type.*normalized non-negative source time.*versioned recipe.*revalidates.*immediately before publication.*payload and scalar companion.*failed publication.*staged OPFS output.*output size and SHA-256.*older original generation.*cache miss.*same digest.*malformed pair or binding.*reject.*legacy or unbound.*cache misses.*exact derivative deletion.*media-asset cascade.*full agreement.*scalar companion.*before deleting any row.*paths re-projected from validated payloads.*after the transaction commits.*mismatch.*without disposing any OPFS path.*corrupt companion path.*cannot delete an unrelated.*recipe.*normalized recipe ID and version.*omitting the recipe.*all revisions.*posterStorageKey.*thumbnailStorageKey.*null.*future read-only.*opaque.*durable desktop recipient binding.*no longer part of maintained durable binding identity.*not an editorial proxy or relink relationship/isu,
 	);
-	assert.match(documentation, /Genuine editorial video proxies remain future work/iu);
+	assert.match(documentation, /selected Framescaper V27 activation\s+candidate locally implements.*general editorial proxy lifecycle.*Guided-local sign-off.*resource\s+qualification.*external qualification remain open/isu);
 });
 
 test('project feature requirements are bounded and fail closed at activation and pre-open inspection', async () => {

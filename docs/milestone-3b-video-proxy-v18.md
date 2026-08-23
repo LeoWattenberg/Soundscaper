@@ -1,5 +1,11 @@
 # Milestone 3B-6c: durable V18 video-proxy attachment
 
+> **Historical foundation record.** The selected V27 route now completes and
+> activates the menu-reached proxy lifecycle described in the
+> [Milestones 1–4 activation plan](milestones-1-to-4-activation-plan.md). The
+> preservation details below remain authoritative for inherited V18 state; its
+> statements that maintained proxy consumers are unavailable are superseded.
+
 > **Implemented preservation boundary.** Durable Framescaper V18 attachment,
 > claim-bound proxy/timing storage, retention, format-2 Scape, desktop V10, and
 > unavailable-capability admission are implemented. Existing-attachment

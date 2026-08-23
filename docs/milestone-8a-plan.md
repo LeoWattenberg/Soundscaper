@@ -7,15 +7,18 @@
 
 ## Summary
 
-Framescaper camera, microphone, screen, and optional system-audio capture is
-implemented. MIDI remains fenced and unchanged.
+Framescaper camera, microphone, screen, and optional system-audio capture has an
+implementation-complete historical substrate. MIDI remains fenced and unchanged.
 
-**Status:** **Implemented (provisional).** Capture is runtime-gated and usable
-only on the exact schema-19 web or schema-18 desktop route where the source,
-supported video encoder, audio packet path, cross-context Web Locks, complete
-encoded/raw/manifest repositories, video probe, and canonical publication store
-are present. Implementation is complete; external qualification remains pending
-until the required real-device lab qualifies all six source combinations.
+**Status:** **Implementation complete; dormant and not activated.** The selected
+V27 product sets `framescaperCapture: false`, passes no capture route authority
+to its controller, and exposes no Recording Setup menu, preference, panel, or
+ordinary toolbar action. The exact schema-19 web, schema-18 desktop, and
+schema-20 web/desktop implementations remain historical test surfaces only. An
+already-active or recovery-owned historical session retains only the narrow
+status, stop, release, and recovery controls needed to relinquish media safely.
+Activation and external qualification remain open until a later selected route
+passes the required real-device lab for all six source combinations.
 
 ## Work packets
 
@@ -24,8 +27,9 @@ until the required real-device lab qualifies all six source combinations.
 - Add the owning milestone-8A plan and divide delivery into atomic TDD packets.
 - Introduce a Framescaper-only `framescaperCapture` capability, separate from
   Soundscaper audio recording.
-- Activate the `framescaper-capture` platform contract while preserving every
-  MIDI block and inertness test.
+- Implement the historical `framescaper-capture` platform contract while
+  preserving every MIDI block and inertness test. Selected-route activation is
+  a separate gated decision and is currently absent.
 
 ### 8A-1: Capture domain
 
@@ -305,10 +309,13 @@ camera, microphone, display, system-audio, operating-system, or browser matrix.
 - Browser and Electron media APIs are the initial encoder path. Add a native
   encoder behind the same port only if qualification proves it necessary.
 - Embedded Framescaper capture remains unsupported.
-- Runtime support requires the exact Framescaper route plus the complete source,
+- Historical runtime support requires the exact Framescaper route plus the complete source,
   supported video encoder, audio packet, cross-context Web Lock,
   encoded/raw/manifest repository, video-probe, and canonical-publication path;
   partial support does not enable Record.
+- Selected V27 rejects capture admission before app binding or runtime probing;
+  historical active/recovery ownership is the only exception and exists solely
+  to keep release and recovery reachable.
 - The capture quality fixture and workload remain provisional. Do not claim
   qualification while `capture-os-browser-lab-matrix` is unprovisioned or
   ineligible. The packaged no-device control-plane smoke is not actual packaged

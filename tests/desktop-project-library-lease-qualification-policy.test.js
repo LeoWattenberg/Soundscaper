@@ -62,7 +62,7 @@ test('roadmap binds the M2 inventory to the selected product generations', async
 	assert.match(roadmap, /cross-product-simultaneous-open.*once.*paired packages/isu);
 	assert.match(roadmap, /user_version.*20.*scope.*v18/isu);
 	assert.match(roadmap, /reimports.*V17.*V20.*V27|V20 documents.*V27/isu);
-	assert.match(roadmap, /without rewriting immutable.*V17.*V12/isu);
+	assert.match(roadmap, /without reopening, rewriting, or deleting.*V17 or V12/isu);
 	assert.match(roadmap, /Windows x64.*Linux x64.*accepted packaged results.*absent.*Partial/isu);
 });
 

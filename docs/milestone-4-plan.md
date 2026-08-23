@@ -1,5 +1,13 @@
 # Milestone 4 plan: parallel production surfaces
 
+> **Superseded selection route.** The
+> [Milestones 1–4 activation plan](milestones-1-to-4-activation-plan.md) now
+> owns M4 implementation and activation: Soundscaper V23 is implementation-
+> complete; Framescaper V27 is the selected activation candidate pending guided-
+> local sign-off and external qualification; and V25/V26 native-media/OpenFX
+> state remains opaque read-only custody. The detailed work packets below are
+> retained as historical design context.
+
 > Owning source for milestone-4 sequencing, the automation/keyframe and
 > mixer-graph decisions, their invariants, and the bounded work packets.
 > The [roadmap](../roadmap.md#4-parallel-production-surfaces) owns scope
@@ -54,20 +62,22 @@ implementation without claiming milestone-3 completion, waiving a manual or
 external row, changing an observed result, or closing either track or the
 milestone-4 exit gate.
 
-The pickups leave concurrent milestone-3 work and its evidence state untouched.
-Framescaper V20 is now the selected browser and packaged-desktop App authority;
-V19 remains the reserved dormant boundary. Historical keyed/reference
-diagnostics passed in the owner-designated run, while V20 formal, manual, and
-release qualification remain open. The globally serialized V21 slot remains
+The pickups left concurrent milestone-3 work and its evidence state untouched.
+At this historical pickup, Framescaper V20 was the selected browser and
+packaged-desktop App authority and V19 was the reserved dormant boundary.
+Selected V27 now supersedes that route as an activation candidate pending
+guided-local and external qualification. Historical keyed/reference
+diagnostics passed in the owner-designated run but are not current V27
+qualification. The globally serialized V21 slot remains
 the Soundscaper automation/mixer/PDC foundation and the selected Soundscaper
 route is V23. Framescaper transitions begin at dormant V22.
 
 ## 2026-08-14 implementation decisions
 
-- Serialized 4.0 is implemented provisionally. The Framescaper 4B-1
-  implementation candidate is complete apart from manual qualification, and
-  selected V20 4B-2 route remains in progress with
-  manual and external qualification open under its
+- Serialized 4.0 is implemented provisionally. The historical Framescaper
+  4B-1/V20 4B-2 implementation record is retained below; selected V27 now
+  carries that maintained work as an implementation-complete activation
+  candidate with guided-local and external qualification open under its
   [pickup contract](milestone-4b-framescaper-finishing.md). Soundscaper 4A now
   has explicit sequencing clearance and an active
   [V21 pickup contract](milestone-4a-soundscaper-production.md). Its local
@@ -379,12 +389,13 @@ distribution gate, config/production-licensing-matrix.json:321-325).
 Serialized product-wide, one in flight, atomic with validators,
 commands, and fixtures, under the pre-release policy (no migrations)
 until the first shipped release — unchanged from milestone 3
-(docs/milestone-3b-work-packets.md:25-28, 44-48). The bounded sequence is V19
-for the reserved 4B-1 transform boundary, selected V20 for 4B-2 keyframes, V21
+(docs/milestone-3b-work-packets.md:25-28, 44-48). The historical bounded
+sequence used V19 for the reserved 4B-1 transform boundary, V20 for 4B-2 keyframes, V21
 for the Soundscaper automation-lane/mixer-graph/PDC foundation, dormant V22 for
 4B-3 transitions, selected Soundscaper V23 for mastering sequences, and dormant
-V24 for the visual-model prerequisites; later revisions are assigned only at
-their own pickup. Every
+V24 for the visual-model prerequisites. Selected V27 now follows the V24
+lineage with maintained V20 retime/proxy work forward-ported; V25/V26 remain
+opaque read-only custody. Every
 revision walks the full registration path — command discriminants and
 one domain registry (`src/common/editor/commands/protocol.ts:9-12`,
 `commands/registry.ts:80-137`), capability id and both product profiles
@@ -412,9 +423,8 @@ its hosted correctness acceptance is green. Soundscaper M4 production is
 formally qualified; M4B-2 formal qualification remains `pending-external`, and
 milestone 3 remains recorded **In progress** with its
 manual/external evidence unchanged. The project owner explicitly cleared the
-Framescaper implementation sequencing gate: the 4B-1 implementation candidate
-is complete apart from manual/end-to-end qualification, and selected V20
-4B-2 is **In progress** under the
+Framescaper implementation sequencing gate. That historical V20 packet record
+is superseded by the implementation-complete V27 activation candidate under the
 [pickup contract](milestone-4b-framescaper-finishing.md), with manual and
 external release evidence still open. The owner also explicitly cleared
 Soundscaper 4A sequencing. Its V21 foundation is retained by selected V23 and

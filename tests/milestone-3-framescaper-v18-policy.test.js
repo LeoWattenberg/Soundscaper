@@ -6,15 +6,15 @@ import test from 'node:test';
 
 const root = new URL('../', import.meta.url);
 
-test('Framescaper V18 editorial compatibility claims match maintained scope', async () => {
+test('selected V27 retains V18 editorial foundations and completes proxy activation', async () => {
 	const register = await json('config/project-compatibility.json');
 	const rules = new Map(register.rules.map((rule) => [rule.id, rule]));
 	assert.equal(rules.size, register.rules.length, 'compatibility rule IDs must remain unique');
 
 	const expected = new Map([
 		['framescaper-v18-product-isolation', [
-			/exact.*Framescaper.*V18.*Soundscaper.*V17/isu,
-			/desktop.*V10/isu,
+			/selected exact V27.*library V18.*Soundscaper.*project V17.*desktop library V10/isu,
+			/V20, V22, and V24.*explicit reimport.*V25 and V26.*opaque read-only/isu,
 		]],
 		['framescaper-v18-nested-sequence-native', [
 			/subsequence.*menu/isu,
@@ -28,8 +28,9 @@ test('Framescaper V18 editorial compatibility claims match maintained scope', as
 		]],
 		['framescaper-v18-video-proxy-preservation', [
 			/format 2.*desktop V10/isu,
-			/Generation, retention-by-invalidation, and preview consumption are maintained/isu,
-			/attach and detach are not yet menu-reached/isu,
+			/Selected V27 reaches generation, attach, detach, relink, regenerate/isu,
+			/Original, Proxy, or Auto.*lazy menu dialog/isu,
+			/source domain before occurrence retime.*delivery.*authenticated original/isu,
 		]],
 	]);
 	for (const [id, claims] of expected) {
@@ -61,14 +62,16 @@ test('Framescaper V18 editorial compatibility claims match maintained scope', as
 	// re-proved before every preview, while the original stays authoritative for
 	// export and delivery. What is still missing is a surface to reach it from.
 	assert.match(proxyUse.currentBehavior, /originals remain authoritative/isu);
-	assert.match(proxyUse.currentBehavior, /re-attests every session/isu);
-	assert.match(proxyUse.currentBehavior, /source domain before an occurrence retime curve/isu);
+	assert.match(proxyUse.currentBehavior, /reattests each session/isu);
+	assert.match(proxyUse.currentBehavior, /source domain before (?:an )?occurrence retime(?: curve)?/isu);
 	assert.match(proxyUse.currentBehavior, /retiming does not detach/isu);
-	assert.match(proxyUse.currentBehavior, /drop stale state in the same transaction/isu);
-	assert.match(proxyUse.currentBehavior, /attach and detach are not yet menu-reached/isu);
+	assert.match(proxyUse.currentBehavior, /drops? stale state in the same transaction/isu);
+	assert.match(proxyUse.currentBehavior, /generation, attach existing, detach, relink, regenerate/isu);
+	assert.match(proxyUse.currentBehavior, /Auto adapts.*preview pressure/isu);
+	assert.match(proxyUse.currentBehavior, /delivery.*refuse.*unavailable/isu);
 });
 
-test('production capability and security registers describe only the qualified V18 surfaces', async () => {
+test('production capability and security registers select only executable V27 surfaces', async () => {
 	const capabilities = await json('config/production-capabilities.json');
 	assert.equal(capabilities.products.soundscaper.projectFeatures.nestedSequences, false);
 	assert.equal(capabilities.products.soundscaper.projectFeatures.multicamera, false);
@@ -81,8 +84,9 @@ test('production capability and security registers describe only the qualified V
 	const projectAdmission = control(risks, 'external-project-document-validation',
 		'framescaper-v18-editorial-document-admission');
 	assert.match(projectAdmission.summary, /profile.*before.*travers/isu);
-	assert.match(projectAdmission.summary, /nested.*multicamera.*owned requirement/isu);
-	assert.match(projectAdmission.summary, /copy-only.*Soundscaper/isu);
+	assert.match(projectAdmission.summary, /schema 27.*V20 retime\/proxy.*V22 dissolve.*V24 visual/isu);
+	assert.match(projectAdmission.summary, /desktop-library V18.*user_version 20.*scope v18/isu);
+	assert.match(projectAdmission.summary, /Soundscaper.*project V17.*desktop library V10/isu);
 
 	const proxyAdmission = control(risks, 'external-media-parser-bounds',
 		'framescaper-v18-proxy-reattestation');
@@ -90,51 +94,35 @@ test('production capability and security registers describe only the qualified V
 	assert.match(proxyAdmission.summary, /preview-only/isu);
 	assert.match(proxyAdmission.summary, /export.*delivery.*original/isu);
 
-	const desktop = control(risks, 'shared-desktop-project-library-integrity',
+	const historicalDesktop = control(risks, 'shared-desktop-project-library-integrity',
 		'framescaper-v18-desktop-v10-isolation');
-	assert.match(desktop.summary, /V10.*schema 18.*Framescaper/isu);
-	assert.match(desktop.summary, /proxy.*timing.*body/isu);
-	assert.match(desktop.summary, /delete.*duplicate.*main-first.*compare-and-swap/isu);
-	assert.match(desktop.summary, /delete-intent.*(?:restart|resumes).*shadow.*binding/isu);
-	assert.match(desktop.summary, /does not durably capture.*locator.*crash-.*power-loss.*unqualified/isu);
-	assert.match(desktop.summary, /no physical reclamation.*never reuses.*project ID/isu);
-	assert.match(desktop.summary, /ambiguous IPC.*authoritative/isu);
-	assert.match(desktop.summary, /Windows x64.*Linux x64.*pending-external/isu);
-	assert.match(desktop.summary, /unselected compatibility-boundary.*No current packaged route.*delete or duplicate.*remain unqualified/isu);
+	assert.match(historicalDesktop.summary, /V10.*schema 18.*Framescaper/isu);
+	assert.match(historicalDesktop.summary, /unselected compatibility-boundary/isu);
+	const selectedDesktop = control(risks, 'shared-desktop-project-library-integrity',
+		'framescaper-v20-desktop-v17-isolation');
+	assert.match(selectedDesktop.summary, /desktop-library V18.*project schema 27.*user_version 20.*scope v18/isu);
+	assert.match(selectedDesktop.summary, /V17.*read-only.*V20.*reimports.*V27.*resumes idempotently/isu);
 
-	for (const item of [projectAdmission, proxyAdmission, desktop]) {
+	for (const item of [projectAdmission, proxyAdmission, historicalDesktop, selectedDesktop]) {
 		for (const reference of item.evidence) await evidenceExists(reference.path);
 	}
 });
 
-test('milestone narratives report implemented V18 slices without closing milestone 3', async () => {
+test('milestone narratives report local V27 activation without closing external qualification', async () => {
 	const roadmap = await text('roadmap.md');
 	assert.match(roadmap, /Milestone 3.*Status:.*In progress/isu);
-	assert.match(roadmap, /nested sequences.*Implemented/isu);
-	assert.match(roadmap, /multicamera.*Implemented/isu);
-	assert.match(roadmap, /proxy.*preservation.*implemented/isu);
-	assert.match(roadmap, /capture-only.*post-commit.*generation/isu);
-	assert.match(roadmap, /general user-invoked editorial generator.*unavailable/isu);
-	assert.match(roadmap, /milestone-5 exact ordinal oracle.*native execution validation.*V20 still lacks retime\s+authoring.*videoRetime.*unavailable/isu);
-	assert.doesNotMatch(roadmap, /maintained retime workflows, nested sequences, subsequence time mapping, and\s+flattening remain later slices/iu);
-	assert.doesNotMatch(roadmap, /no selector, proxy behavior, capability flip, or Soundscaper change is authorized/iu);
+	assert.match(roadmap, /Selected V27.*set\/reset.*constant.*ramp.*reverse.*freeze.*Edit menu/isu);
+	assert.match(roadmap, /exact ordinal authority.*preview.*browser export.*NTSC.*verified VFR/isu);
+	assert.match(roadmap, /proxy\s+lifecycle.*generation, attach, detach, relink.*Original\/Proxy\/Auto.*offline editing.*atomic cleanup/isu);
+	assert.match(roadmap, /fixed-GPU, Safari, Windows, signing.*external.*remain/isu);
 
-	const packets = await text('docs/milestone-3b-work-packets.md');
-	assert.match(packets, /3B-5.*nested sequence.*implemented/isu);
-	assert.match(packets, /3B-6.*multicamera.*implemented/isu);
-	assert.match(packets, /3B-6.*proxy.*preservation.*implemented/isu);
-	assert.match(packets, /3B-6.*generation.*proxy-consuming.*unavailable/isu);
-
-	const isolation = await text('docs/milestone-3b-framescaper-v18-product-isolation.md');
-	assert.match(isolation, /production selection.*implemented/iu);
-	assert.doesNotMatch(isolation, /Contract only — production selection is not authorized/iu);
-	assert.doesNotMatch(isolation, /This contract authorizes no V18 validator or reachable runtime profile/iu);
-
-	const proxy = await text('docs/milestone-3b-video-proxy-v18.md');
-	assert.match(proxy, /durable.*V18.*implemented/isu);
-	assert.match(proxy, /re-attestation.*implemented/isu);
-	assert.match(proxy, /generation.*menu.*unavailable/isu);
-	assert.doesNotMatch(proxy, /durable proxy storage and c-c remain unauthorized/iu);
+	const plan = await text('docs/milestones-1-to-4-activation-plan.md');
+	assert.match(plan, /Milestone 3 — V20 retime and proxy activation/iu);
+	assert.match(plan, /Proxy selection occurs in the source domain.*occurrence retime/isu);
+	assert.match(plan, /Framescaper V27.*does not inherit V25\/V26/isu);
+	const verification = await text('docs/milestones-1-to-4-guided-verification.md');
+	assert.match(verification, /Generate a proxy.*cancel generation.*regenerate.*detach.*relink/isu);
+	assert.match(verification, /Verifier conclusion \| pending/iu);
 });
 
 test('milestone 3 closure blockers remain explicit and unpromoted', async () => {

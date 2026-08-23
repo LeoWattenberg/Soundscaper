@@ -251,30 +251,30 @@ test('selected keyed V20 admission and encoding reuse the existing video publica
 
 	assert.match(
 		project.summary,
-		/exact.*V20.*process-local.*authority.*before.*traversal.*whole-document.*structural budget.*closed.*per-occurrence.*keyframe.*reserved.*requirement.*future.*opaque.*read-only/isu,
+		/exact.*V27.*process-local.*authority.*before.*traversal.*whole-document.*structural budget.*V20 keyframe\/retime.*V22 transitions.*V24 visual.*motion analyses.*caption tracks.*automation lanes.*mixer graph/isu,
 	);
 	assert.match(
 		project.summary,
-		/selected runtime authority.*videoKeyframes available.*browser.*packaged desktop.*provisional.*does not claim.*qualification/isu,
+		/V20, V22 and V24.*explicit reimport.*V25\/V26.*opaque read-only.*browser.*packaged desktop.*does not claim.*qualification/isu,
 	);
 	assert.match(
 		authority.summary,
-		/canonical V20.*detached.*deep-frozen.*exact V17 playback projection.*rederive.*drift.*fallback-free/isu,
+		/selected V27 export.*canonical V27.*unified exact render plan V13.*maintained.*V20 foundation.*rederives.*refuses stale authority/isu,
 	);
 	assert.match(
 		authority.summary,
-		/exact range.*active visible.*clip.*source.*rational.*canvas.*frame count.*version-7/isu,
+		/preview and export.*same clip and transition resolvers.*source-domain proxy selection.*managed color.*processor stack.*caption sidecar.*automation.*mixer/isu,
 	);
 	assert.match(
 		authority.summary,
-		/active-source.*timing.*SHA-256.*before.*decode.*lease.*through.*encode.*publication cleanup/isu,
+		/active original source.*SHA-256.*before decode.*timing leases.*through encode.*publication cleanup/isu,
 	);
 	assert.match(
 		authority.summary,
-		/checks.*timing acquisition.*media authentication.*render.*encode.*output publication.*encoder cleanup.*always attempted.*preserves cleanup failures.*timing lease.*finally/isu,
+		/generation.*currentness.*AbortSignal.*external operations.*original-authoritative.*refuses.*original.*unavailable.*cleanup.*always attempted.*timing authority.*finally/isu,
 	);
 	assert.doesNotMatch(authority.summary, /checks.*cleanup await|fence every.*cleanup await/isu);
-	assert.match(authority.summary, /V20 selection.*reuses.*three video publication routes.*adds no route.*qualification/isu);
+	assert.match(authority.summary, /no native-media.*OpenFX.*caption burn\/mux.*codec.*qualification/isu);
 	assert.match(
 		encoder.summary,
 		/1,280.*720.*1 through 30.*2,000,000.*1 TiB/isu,
@@ -297,7 +297,7 @@ test('selected keyed V20 admission and encoding reuse the existing video publica
 	assert.doesNotMatch(encoder.summary, /checks.*cleanup await|fence every.*cleanup await/isu);
 	assert.match(
 		encoder.summary,
-		/selected V20.*reuses.*existing video routes.*does not qualify.*heap.*RSS.*GC.*CPU.*elapsed.*codec conformance.*reference scale/isu,
+		/selected V27.*maintained keyed V20 encoder.*existing video routes.*does not qualify.*heap.*RSS.*GC.*CPU.*elapsed.*codec conformance.*reference scale/isu,
 	);
 	assert.match(publication.summary, /version-6.*or.*version-7.*keyed.*same.*video.*route/isu);
 	assert.match(rollback.summary, /version-7.*keyed.*generation.*container.*digest.*exactly once/isu);

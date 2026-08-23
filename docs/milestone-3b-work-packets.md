@@ -1,5 +1,11 @@
 # Milestone 3B work packets: Framescaper editorial features
 
+> **Historical packet record.** Maintained V20 retime/proxy work is now
+> forward-ported and activated in selected V27 under the
+> [Milestones 1–4 activation plan](milestones-1-to-4-activation-plan.md).
+> Unavailable or in-progress labels below describe the earlier packet state,
+> not the selected route's current implementation status.
+
 > Pickup contract for the Framescaper half of milestone 3. This document
 > decomposes the 3B summary in [the milestone plan](milestone-3-plan.md) before
 > feature code is changed. The roadmap owns product scope; this document owns
