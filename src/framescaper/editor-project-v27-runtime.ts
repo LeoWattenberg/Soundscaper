@@ -170,7 +170,13 @@ function runtimeClip(project: FramescaperProjectV27, clip: DataRecord, runtime: 
 			} : {}),
 		},
 	) as unknown as DataRecord;
-	return Object.freeze({ ...projection, kind });
+	const source = records(
+		(project as unknown as Readonly<DataRecord>).sources, 'V27 visual runtime sources',
+	).find(({ id }) => id === clip.sourceId);
+	if (!source || typeof source.name !== 'string' || !source.name) {
+		throw new ReferenceError('Selected V27 visual runtime clip source name is unavailable.');
+	}
+	return Object.freeze({ ...projection, kind, title: source.name });
 }
 
 function isVisual(value: DataRecord): boolean { return value.kind === 'still' || value.kind === 'generator'; }

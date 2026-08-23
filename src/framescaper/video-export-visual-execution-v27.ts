@@ -114,7 +114,7 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 		if (signal !== request.signal) throw new TypeError('V27 visual execution requires its exact signal.');
 		assertReady(request);
 		if (disposed) throw new Error('V27 visual execution is disposed.');
-		await renderFrame(frame, rgba, width, height, false);
+		await renderFrame(frame, rgba, width, height, false, signal);
 	};
 
 	async function renderFrame(
@@ -123,8 +123,10 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 		width: number,
 		height: number,
 		clear: boolean,
+		executionSignal: AbortSignal,
 	): Promise<void> {
 		assertReady(request);
+		throwIfAborted(executionSignal);
 		if (clear) fillBackground(target, request.plan.canvas, width, height);
 		const resolved = consumer.resolveFrame({
 			sequencePosition: sequencePosition(frame, exactPlan),
@@ -148,7 +150,7 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 			}), {
 				targetWidth: width, targetHeight: height,
 				decodeStill: (source) => Promise.resolve(requiredStill(assets.stills, source.id)),
-				signal: request.signal,
+				signal: executionSignal,
 			});
 			const source = sourceState(entry);
 			maskInputs.set(String(source.id), raw);
@@ -162,9 +164,9 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 				targetWidth: width, targetHeight: height,
 				decodeStill: () => Promise.resolve(raw),
 				maskInputs,
-				signal: request.signal,
+				signal: executionSignal,
 			});
-			const graded = managedVisualFrame(finishing, entry, masked, assets.luts, request.signal);
+			const graded = managedVisualFrame(finishing, entry, masked, assets.luts, executionSignal);
 			composite(target, graded.pixels, entry.opacity, entry.blendMode);
 		}
 		const activeTrackIds = pictureTrackIds(frame, resolved.layers.map(({ trackId }) => trackId));
@@ -172,8 +174,9 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 			if ([...activeTrackIds].some((trackId) => !adjustment.targetTrackIds.includes(trackId))) {
 				throw new Error('V27 adjustment targeting requires unavailable per-layer browser execution.');
 			}
-			applyAdjustment(finishing, adjustment, target, width, height, assets.luts, maskInputs, request.signal);
+			applyAdjustment(finishing, adjustment, target, width, height, assets.luts, maskInputs, executionSignal);
 		}
+		throwIfAborted(executionSignal);
 		assertReady(request);
 	}
 
@@ -189,9 +192,9 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 				active = true;
 				try {
 					assertVideoKeyframeExportFrame(frameSource, frame);
-					if (options.signal !== request.signal) throw new TypeError('V27 visual producer signal changed.');
+					throwIfAborted(options.signal);
 					if (target.byteLength !== width * height * 4) throw new RangeError('V27 visual target geometry changed.');
-					await renderFrame(frame, target, width, height, true);
+					await renderFrame(frame, target, width, height, true, options.signal);
 				} catch (error) {
 					target.fill(0);
 					throw error;

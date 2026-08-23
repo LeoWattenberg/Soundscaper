@@ -5,12 +5,30 @@ import test from 'node:test';
 
 import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { applyFramescaperProjectCommandV27 } from '../src/framescaper/editor-project-v27-commands.ts';
+import { framescaperProjectForRuntimeConsumersV27 } from '../src/framescaper/editor-project-v27-runtime.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
 import { prepareFramescaperSelectedAuthoringV27 } from '../src/framescaper/editor-selected-v27-authoring-workflows.ts';
 import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
 
 const PROFILE = FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE;
+
+test('selected V27 generator persists and exposes its source name to the runtime timeline', async () => {
+	const project = createFramescaperProjectV27(PROFILE, framescaperV20Options());
+	const prepared = await prepareFramescaperSelectedAuthoringV27(
+		'video-solid', project, unusedStore(),
+	);
+	assert.ok(prepared);
+	const applied = applyFramescaperProjectCommandV27(PROFILE, project, prepared.command);
+	const state = visualState(applied);
+	const generator = state.clips.find(({ kind }) => kind === 'generator');
+	assert.ok(generator?.kind === 'generator');
+	assert.equal(state.sources.find(({ id }) => id === generator.sourceId)?.name, 'Solid');
+	const runtime = framescaperProjectForRuntimeConsumersV27(PROFILE, applied);
+	const runtimeClip = (runtime.clips as Readonly<Record<string, unknown>>[])
+		.find(({ id }) => id === generator.id);
+	assert.equal(runtimeClip?.title, 'Solid');
+});
 
 test('selected V27 dissolve authoring allocates the canonical transition through inherited history', async () => {
 	const prepared = await prepareFramescaperSelectedAuthoringV27(
@@ -152,7 +170,11 @@ interface VisualState {
 		readonly storageKey?: string;
 		readonly contentSha256?: string;
 	}>[];
-	readonly clips: readonly Readonly<{ readonly kind: string; readonly sourceId?: string }>[];
+	readonly clips: readonly Readonly<{
+		readonly id: string;
+		readonly kind: string;
+		readonly sourceId?: string;
+	}>[];
 	readonly videoSourceColorInterpretations: readonly Readonly<{
 		readonly sourceId: string;
 		readonly provenance: string;

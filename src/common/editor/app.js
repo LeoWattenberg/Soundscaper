@@ -36,6 +36,7 @@ import {
 	rackTailFrames,
 } from './effects.js';
 import { createExportPlan } from './export.js';
+import { errorDiagnosticMessage } from './error-diagnostic-message.ts';
 import { selectAudioEditorControllerEditBlock } from './edit-blocking.ts';
 import { createAudioEditorFileService } from './file-service.js';
 import { applyMediaChannelMapping } from './media-export.js';
@@ -2910,8 +2911,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function handleError(error) {
-		const message = error?.message || String(error) || copy.unknownError;
-		setStatus(copy.genericError.replace('{message}', message), 'error');
+		setStatus(copy.genericError.replace('{message}', errorDiagnosticMessage(error, copy.unknownError)), 'error');
 		return null;
 	}
 

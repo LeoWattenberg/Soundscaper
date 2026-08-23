@@ -268,6 +268,14 @@ test('the patched worker exposes the ring as a fail-closed character device', as
 		const protectedControl = new Int32Array(protectedBuffer, 0, HEADER_INTS);
 		Atomics.store(protectedControl, STATE, ABORTED);
 		await fixture.send('DELETE_INPUT_STREAM', { path: '/protected.rgba' });
+
+		const missingDelete = await fixture.send('DELETE_FILE', { path: '/not-created.mp4' });
+		assert.equal(missingDelete.data, true);
+		assert.equal(fixture.fs.calls.includes('unlink:/not-created.mp4'), false);
+		await fixture.send('WRITE_FILE', { path: '/created.mp4', data: Uint8Array.of(1) });
+		const existingDelete = await fixture.send('DELETE_FILE', { path: '/created.mp4' });
+		assert.equal(existingDelete.data, true);
+		assert.equal(fixture.fs.calls.includes('unlink:/created.mp4'), true);
 	} finally {
 		fixture.restore();
 	}
@@ -351,6 +359,7 @@ function createFakeFs() {
 		},
 		unlink(path) {
 			this.calls.push(`unlink:${path}`);
+			if (!nodes.has(path)) throw new ErrnoError(44);
 			nodes.delete(path);
 		},
 		registeredOperations() { return devices[latestDevice].stream_ops; },

@@ -52,8 +52,10 @@ test('selected V27 encodes still-only and generator-only pixels with an exact ze
 			async encodeOfflineToSink() { throw new Error('sink path is not used'); },
 			async encodePicture(_editorFfmpeg: unknown, request: VideoKeyframeVideoEncoderRequest) {
 				const pixels = new Uint8Array(request.producer.byteLength);
+				const executionSignal = new AbortController().signal;
+				assert.notStrictEqual(executionSignal, request.signal);
 				await request.producer.produce(request.frameSource.frame(0), pixels, {
-					signal: request.signal!,
+					signal: executionSignal,
 				});
 				rendered = [...pixels.subarray(0, 4)];
 				return encodedResult();

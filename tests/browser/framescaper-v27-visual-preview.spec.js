@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 
-import { expect, test } from './audio-editor-test-fixtures.js';
+import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
@@ -21,7 +21,15 @@ test.describe('selected V27 exact visual preview', () => {
 	test.describe.configure({ mode: 'serial' });
 
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
+		await installPinnedFfmpegRuntimeRoutes(page, {
+			sameOriginRoot: '/__framescaper-v27-ffmpeg',
+		});
+		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			headers: { 'Access-Control-Allow-Origin': '*' },
+			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
+		}));
 	});
 
 	test('menu-authored generator, preset, presentation, and mask change pixels, reopen, and reach video export', async ({ page }) => {
@@ -207,7 +215,93 @@ test.describe('selected V27 exact visual preview', () => {
 		expect(freezeDelta.mean).toBeLessThan(0.1);
 		expect(clientErrors).toEqual([]);
 	});
+
+	test('generator-only visual publishes one finite MP4 download', async ({ page }) => {
+		test.setTimeout(180_000);
+		const clientErrors = collectClientErrors(page);
+		await installProductionIsolationHeaders(page, '/framescaper/en/');
+		const editor = await bootEditor(page, '/framescaper/en/');
+		expect(await page.evaluate(() => ({
+			crossOriginIsolated: globalThis.crossOriginIsolated,
+			sharedArrayBuffer: typeof globalThis.SharedArrayBuffer,
+		}))).toEqual({ crossOriginIsolated: true, sharedArrayBuffer: 'function' });
+		const projectId = await editor.getAttribute('data-project-id');
+		expect(projectId).toBeTruthy();
+		await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
+		await expect.poll(() => storedVisualState(page, projectId)).toMatchObject({ generatorCount: 1 });
+		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toBeVisible();
+
+		await chooseFileAction(page, editor, 'Export audio');
+		const dialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
+		await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
+		const canvasSize = dialog.locator('[data-export-field="canvasSize"] input');
+		await canvasSize.nth(0).fill('64');
+		await canvasSize.nth(1).fill('64');
+		await dialog.locator('[data-export-field="canvasFrameRate"] input').fill('1');
+		await dialog.locator('[data-export-action="start"]').getByRole('button').click();
+		const download = dialog.locator('[data-export-download]');
+		await waitForVideoPublication(page, editor, download, 120_000, clientErrors);
+		await expect(download).toHaveAttribute('download', /\.mp4$/u);
+		const witness = await download.evaluate(async (link) => {
+			const response = await fetch(link.href);
+			const bytes = new Uint8Array(await response.arrayBuffer());
+			return {
+				byteLength: bytes.byteLength,
+				mimeType: response.headers.get('content-type'),
+				box: String.fromCharCode(...bytes.subarray(4, 8)),
+			};
+		});
+		expect(witness.byteLength).toBeGreaterThan(32);
+		expect(witness.mimeType).toContain('video/mp4');
+		expect(witness.box).toBe('ftyp');
+		expect(clientErrors).toEqual([]);
+	});
 });
+
+async function installProductionIsolationHeaders(page, path) {
+	await page.route(`**${path}`, async (route) => {
+		const response = await route.fetch();
+		await route.fulfill({
+			response,
+			headers: {
+				...response.headers(),
+				'Cross-Origin-Opener-Policy': 'same-origin',
+				'Cross-Origin-Embedder-Policy': 'credentialless',
+			},
+		});
+	});
+	await page.route('**/assets/worker-*.js', async (route) => {
+		const response = await route.fetch();
+		await route.fulfill({
+			response,
+			headers: {
+				...response.headers(),
+				'Cross-Origin-Embedder-Policy': 'credentialless',
+				'Cross-Origin-Resource-Policy': 'same-origin',
+			},
+		});
+	});
+}
+
+async function waitForVideoPublication(page, editor, download, timeout, clientErrors) {
+	const deadline = Date.now() + timeout;
+	while (Date.now() < deadline) {
+		if (await download.isVisible()) return;
+		const status = await editor.locator('[data-status]').evaluate((element) => ({
+			state: element.dataset.state ?? '', text: element.textContent ?? '',
+		}));
+		if (status.state === 'error') {
+			throw new Error(`Video publication failed: ${status.text}; console=${JSON.stringify(clientErrors)}`);
+		}
+		await page.waitForTimeout(250);
+	}
+	throw new Error(`Video publication timed out: ${JSON.stringify({
+		status: await editor.locator('[data-status]').evaluate((element) => ({
+			state: element.dataset.state ?? '', text: element.textContent ?? '',
+		})),
+		clientErrors,
+	})}`);
+}
 
 async function openVisualInspector(page, editor) {
 	await chooseNestedCommandAction(page, editor, 'Effect', [
