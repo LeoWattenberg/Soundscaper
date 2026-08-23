@@ -5,9 +5,11 @@ ledger names fixtures and proposed numeric limits, validates its own contract,
 and provides a deterministic fail-closed evaluator. The five frozen milestone 2
 first-party structural workloads have qualified. On 2026-08-21 the project
 owner also designated the Windows x64 RTX 3090 machine as the fixed-GPU
-reference and accepted its M1 preview, M4 production-parity, and M4B-2 keyed
-parity results. Other timing, heap/RSS, third-party codec-memory, device,
-durability, and release-platform workloads remain open.
+reference and accepted its then-current M1 preview, M4 production-parity, and
+M4B-2 keyed-parity results. The M1 collector contract has since been corrected;
+its historical result remains audit evidence but cannot satisfy the active v2
+profile. Other timing, heap/RSS, third-party codec-memory, device, durability,
+and release-platform workloads remain open.
 
 The source of truth is
 [`config/quality-budgets.json`](../config/quality-budgets.json). The roadmap
@@ -56,9 +58,17 @@ fixture, environment, metric, and threshold identifiers.
   plus raw byte length `5268909` and SHA-256
   `eb7e9716d75b462f9118084a36ed9a5b2a0a38f309e5345a765e24162a399b45`.
 - The 12-effect 1280x720 preview test records timing and heap data against a
-  repository-owned, digest-pinned, six-second synthetic VP8 fixture. Its
-  2026-08-21 owner-designated fixed-GPU reference run passed both thresholds.
-  Decoder/audio scheduling and other platforms remain outside that acceptance.
+  repository-owned, digest-pinned, six-second synthetic VP8 fixture. The active
+  `deterministic-video-preview-12fx-v2` collector hashes the actual runtime
+  fixture bytes, runs one unreported full warm-up trial and five measured trials
+  in fresh contexts, forces three collections before every before/after heap
+  snapshot, and retains all 605 timestamps and ten heap snapshots. It passively
+  records preview cadence without synchronously draining the GPU on each draw
+  and emits the complete packaged browser/platform/architecture/WebGL
+  fingerprint. The 2026-08-21 run passed both thresholds under the superseded
+  single-context collector, so a fresh owner-host packaged-runtime run is
+  required before M1 can be formally accepted under v2. Decoder/audio
+  scheduling and other platforms remain outside that future acceptance.
 - Hosted CI is suitable for deterministic correctness checks. Its shared CPU
   and software-renderer behavior make it ineligible for fixed-hardware timing
   qualification.
@@ -129,8 +139,9 @@ and the following common procedure:
 
 Collectors must avoid materially changing the path under measurement. In
 particular, synchronously calling `WebGL2RenderingContext.finish()` for every
-preview draw changes GPU pipelining. A replacement preview collector should
-record presentation cadence and GPU completion as separate metrics.
+preview draw changes GPU pipelining. The M1 v2 collector therefore records
+cadence passively. Any future GPU-completion metric must use a separate
+observation rather than changing the cadence path.
 
 No benchmark retry may turn a failure into a pass. A failed run may be repeated
 for diagnosis, but both runs remain evidence and the original result remains
@@ -172,8 +183,11 @@ identity is `owner-qualified-windows-x64-rtx3090-01`; the nightly-with-tests
 runner has independent formal profiles for M1 preview timing/heap, M3 long-form
 editorial, M4 render parity, and M4B-2 keyed parity. Each admission is
 independent of other results in the same run. The retained 2026-08-22 artifact
-formally accepts M4; M3 and M4B-2 require a fresh owner-host run with the new
-profiles and budget digest before their formal rows can close.
+formally accepts M4 at its recorded source revision and budget digest. M1, M3,
+and M4B-2 require a fresh owner-host run with their active profiles and current
+budget digest before their formal rows can close. M1 additionally requires the
+v2 raw fixture digest, five-trial cadence/heap samples, and full packaged-runtime
+fingerprint to match its profile exactly.
 
 Future formal runs must exactly match the profile's browser version, platform,
 architecture, WebGL vendor, WebGL renderer, and required hardware renderer

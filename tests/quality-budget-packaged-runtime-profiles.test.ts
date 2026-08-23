@@ -15,7 +15,14 @@ interface QualificationEnvironment {
 
 interface QualificationProfile {
 	readonly diagnosticKey: string;
+	readonly diagnosticIdentityFields?: readonly string[];
 	readonly environmentId: string;
+	readonly fingerprint?: Readonly<Record<string, string | number | null>>;
+	readonly fixture?: Readonly<Record<string, unknown>>;
+	readonly observationClass?: string;
+	readonly observedEnvironmentId?: string;
+	readonly profile?: string;
+	readonly rawSampleCounts?: Readonly<Record<string, number>>;
 	readonly status: string;
 	readonly workloadId: string;
 }
@@ -48,6 +55,25 @@ test('packaged-runtime profiles admit only the owner-designated host workloads',
 		'm4b2-keyframe-render-parity',
 	]);
 	assert.equal(config.packagedRuntimeQualification.status, 'active');
+	const m1 = config.packagedRuntimeQualification.profiles[0];
+	assert.equal(m1.observedEnvironmentId, 'packaged-runtime-win32-x64');
+	assert.equal(m1.profile, 'deterministic-video-preview-12fx-v2');
+	assert.equal(m1.observationClass, 'fresh-context-presentation-cadence-and-retained-js-heap-v1');
+	assert.deepEqual(m1.diagnosticIdentityFields, [
+		'workloadId', 'fixtureId', 'profile', 'observationClass',
+	]);
+	assert.deepEqual(m1.fingerprint, gpuEnvironment?.fingerprint);
+	assert.equal(m1.fixture?.sourceSha256, 'f1319d3549943c190e5eb3f86b63fd2afb644bd49b32e3f257699b450271bc8c');
+	assert.deepEqual(m1.rawSampleCounts, {
+		warmupTrials: 1,
+		measuredTrials: 5,
+		measuredFrames: 605,
+		measuredIntervals: 600,
+		forcedCollectionsBefore: 15,
+		forcedCollectionsAfter: 15,
+		heapSnapshotsBefore: 5,
+		heapSnapshotsAfter: 5,
+	});
 	assert.deepEqual(
 		config.packagedRuntimeQualification.profiles.map(
 			({ diagnosticKey, environmentId, status, workloadId }) => ({

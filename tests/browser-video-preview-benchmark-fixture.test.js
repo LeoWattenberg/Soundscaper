@@ -36,6 +36,21 @@ test('the preview benchmark does not start browser capture APIs during fixture s
 	assert.doesNotMatch(source, /\bMediaRecorder\b|\.captureStream\(|new AudioContext\(/u);
 });
 
+test('the preview benchmark uses fresh-context trials without synchronously draining the GPU', () => {
+	const source = readFileSync(
+		new URL('browser/audio-editor-video-preview-benchmark.spec.js', import.meta.url),
+		'utf8',
+	);
+
+	assert.match(source, /const MEASURED_TRIAL_COUNT = 5;/u);
+	assert.match(source, /const FORCED_COLLECTIONS_PER_SNAPSHOT = 3;/u);
+	assert.match(source, /runtimeBrowser\.newContext\(/u);
+	assert.match(source, /trialIndex < MEASURED_TRIAL_COUNT/u);
+	assert.match(source, /usedHeapAfterCollections\([^,]+, FORCED_COLLECTIONS_PER_SNAPSHOT\)/u);
+	assert.match(source, /canvas\.evaluate\(\(_element, frameCount\) =>/u);
+	assert.doesNotMatch(source, /\.finish\s*\(/u);
+});
+
 test('the quality-budget fixture registration pins the shipped benchmark media', () => {
 	const quality = JSON.parse(readFileSync(
 		new URL('../config/quality-budgets.json', import.meta.url),

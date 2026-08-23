@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-22",
+	"groundedAt": "2026-08-23",
 	"qualification": {
 		"status": "in-progress",
 		"qualifiedWorkloadIds": [
@@ -80,36 +80,39 @@
 				"status": "active",
 				"diagnosticKey": "m1-video-preview-12fx-720p",
 				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
-				"observedEnvironmentId": "local-browser-correctness",
+				"observedEnvironmentId": "packaged-runtime-win32-x64",
 				"workloadId": "m1-video-preview-12fx-720p",
 				"fixtureId": "video-preview-12fx-720p-v1",
+				"profile": "deterministic-video-preview-12fx-v2",
+				"observationClass": "fresh-context-presentation-cadence-and-retained-js-heap-v1",
 				"rendererClass": "hardware",
-				"diagnosticIdentityFields": [],
-				"diagnosticFingerprintSource": "m1-video-preview",
+				"diagnosticIdentityFields": ["workloadId", "fixtureId", "profile", "observationClass"],
 				"fingerprint": {
 					"browserVersion": "150.0.7871.114",
-					"browserEnvironment": {
-						"devicePixelRatio": 1,
-						"hardwareConcurrency": 24,
-						"userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Framescaper/0.2.0-beta.1 Chrome/150.0.7871.114 Electron/43.1.1 Safari/537.36"
-					},
-					"renderer": {
-						"vendor": "Google Inc. (NVIDIA)",
-						"renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
-					}
+					"platform": "win32",
+					"architecture": "x64",
+					"webglVendor": "Google Inc. (NVIDIA)",
+					"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)"
 				},
 				"fixture": {
 					"width": 1280,
 					"height": 720,
 					"effectCount": 12,
-					"measuredIntervals": 120
+					"measuredIntervals": 120,
+					"sourceFrameRate": 30,
+					"sourceFrameCount": 180,
+					"sourceByteLength": 109277,
+					"sourceSha256": "f1319d3549943c190e5eb3f86b63fd2afb644bd49b32e3f257699b450271bc8c"
 				},
-				"sampleShape": {
-					"resolution": [1280, 720],
-					"effects": ["Color Adjust", "Pixelate", "Vignette", "Gaussian Blur", "Sharpen", "RGB Split", "Chroma Key", "Luma Key", "Spill Suppression", "Glow", "Outline", "Drop Shadow"],
-					"warmupFrames": 40,
-					"measuredFrames": 121,
-					"measuredIntervals": 120
+				"rawSampleCounts": {
+					"warmupTrials": 1,
+					"measuredTrials": 5,
+					"measuredFrames": 605,
+					"measuredIntervals": 600,
+					"forcedCollectionsBefore": 15,
+					"forcedCollectionsAfter": 15,
+					"heapSnapshotsBefore": 5,
+					"heapSnapshotsAfter": 5
 				}
 			},
 			{

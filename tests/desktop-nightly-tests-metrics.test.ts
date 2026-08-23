@@ -36,6 +36,7 @@ test('the packaged metrics plan is Chromium-only, single-worker, and no-retry', 
 	assert.equal(plan.env.SOUNDSCAPER_M4B2_KEYFRAME_PARITY, '1');
 	assert.equal(plan.env.SOUNDSCAPER_M3_LONGFORM_BENCHMARK, '1');
 	assert.equal(plan.env.SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID, 'local-browser-correctness');
+	assert.equal(plan.env.SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID, 'local-browser-correctness');
 	assert.equal(plan.env.SOUNDSCAPER_VIDEO_PREVIEW_BENCHMARK, '1');
 	assert.equal(plan.env.AUDIO_EDITOR_FFMPEG_BROWSER, '1');
 	assert.equal(plan.env.SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID, 'local-browser-correctness');
@@ -43,34 +44,55 @@ test('the packaged metrics plan is Chromium-only, single-worker, and no-retry', 
 });
 
 test('the M1 preview collector evaluates 720p frame timing and retained heap', () => {
-	const diagnostic = {
-		resolution: [1_280, 720],
-		effects: Array.from({ length: 12 }, (_, index) => `effect-${String(index)}`),
-		warmupFrames: 10,
-		measuredFrames: 121,
-		measuredIntervals: 120,
-		p95Ms: 30,
-		retainedJsHeapDeltaBytes: 512_000,
-		renderer: { vendor: 'Example', renderer: 'Example GPU' },
-		browserVersion: '149.0.0.0',
-		browserEnvironment: { hardwareConcurrency: 8 },
-	};
+	const { config, diagnostic } = m1DiagnosticFixture();
 	const output = `noise\nSOUNDSCAPER_VIDEO_PREVIEW_BENCHMARK ${JSON.stringify(diagnostic)}\n`;
 	assert.deepEqual(parseM1VideoPreviewDiagnostic(output), diagnostic);
-	const result = createPendingM1VideoPreviewResult(diagnostic, {
-		fixtures: [{ id: 'video-preview-12fx-720p-v1', specification: {
-			width: 1_280, height: 720, effectCount: 12, measuredIntervals: 120,
-		} }],
-		workloads: [{ id: 'm1-video-preview-12fx-720p', thresholds: [
-			{ metricId: 'preview.frameIntervalP95Ms', comparison: 'lte', value: 33.34 },
-			{ metricId: 'preview.retainedJsHeapDeltaBytes', comparison: 'lte', value: 1_048_576 },
-		] }],
-	});
+	const result = createPendingM1VideoPreviewResult(diagnostic, config);
 	assert.equal(result.metricGatePassed, true);
 	assert.deepEqual(result.metrics, {
-		'preview.frameIntervalP95Ms': 30,
-		'preview.retainedJsHeapDeltaBytes': 512_000,
+		'preview.frameIntervalP95Ms': 8.4,
+		'preview.retainedJsHeapDeltaBytes': 5_000,
 	});
+	assert.deepEqual(result.fixture, diagnostic.fixture);
+	assert.deepEqual(result.rawSampleCounts, {
+		warmupTrials: 1,
+		measuredTrials: 5,
+		measuredFrames: 605,
+		measuredIntervals: 600,
+		forcedCollectionsBefore: 15,
+		forcedCollectionsAfter: 15,
+		heapSnapshotsBefore: 5,
+		heapSnapshotsAfter: 5,
+	});
+	assert.deepEqual(result.environmentFingerprint, diagnostic.environmentFingerprint);
+	assert.equal(result.environmentId, 'packaged-runtime-win32-x64');
+});
+
+test('the M1 preview collector rejects sampling, fixture-integrity, and environment drift', () => {
+	for (const [mutate, expected] of [
+		[(value: ReturnType<typeof m1DiagnosticFixture>) => {
+			value.diagnostic.fixture.sourceSha256 = '0'.repeat(64);
+		}, /fixture.*registered specification/iu],
+		[(value: ReturnType<typeof m1DiagnosticFixture>) => {
+			value.diagnostic.trials.pop();
+		}, /five measured trials/iu],
+		[(value: ReturnType<typeof m1DiagnosticFixture>) => {
+			value.diagnostic.trials[0].frameTimestampsMs.pop();
+		}, /121 finite frame timestamps/iu],
+		[(value: ReturnType<typeof m1DiagnosticFixture>) => {
+			value.diagnostic.trials[0].forcedCollectionsBefore = 2;
+		}, /three forced collections/iu],
+		[(value: ReturnType<typeof m1DiagnosticFixture>) => {
+			Reflect.deleteProperty(value.diagnostic.environmentFingerprint, 'platform');
+		}, /packaged-runtime environment fingerprint/iu],
+	] as const) {
+		const value = m1DiagnosticFixture();
+		mutate(value);
+		assert.throws(
+			() => createPendingM1VideoPreviewResult(value.diagnostic, value.config),
+			expected,
+		);
+	}
 });
 
 test('downloadable-host metric evidence can pass gates but never self-qualifies', () => {
@@ -154,30 +176,27 @@ test('packaged evidence publishes formal M4 qualification only for the owner-des
 });
 
 test('packaged evidence independently promotes an accepted M1 qualification', () => {
-	const fingerprint = {
-		browserVersion: '150.0.7871.114',
-		browserEnvironment: { devicePixelRatio: 1, hardwareConcurrency: 24, userAgent: 'qualified-host' },
-		renderer: { vendor: 'Google Inc. (NVIDIA)', renderer: 'ANGLE (NVIDIA, RTX 3090)' },
+	const { diagnostic } = m1DiagnosticFixture();
+	const fingerprint = diagnostic.environmentFingerprint;
+	const fixture = diagnostic.fixture;
+	const rawSampleCounts = {
+		warmupTrials: 1, measuredTrials: 5, measuredFrames: 605, measuredIntervals: 600,
+		forcedCollectionsBefore: 15, forcedCollectionsAfter: 15,
+		heapSnapshotsBefore: 5, heapSnapshotsAfter: 5,
 	};
-	const sampleShape = {
-		resolution: [1_280, 720], effects: ['effect'], warmupFrames: 40,
-		measuredFrames: 121, measuredIntervals: 120,
-	};
-	const fixture = { width: 1_280, height: 720, effectCount: 1, measuredIntervals: 120 };
-	const metrics = { 'preview.frameIntervalP95Ms': 8 };
-	const diagnostic = {
-		...sampleShape, p95Ms: 8, retainedJsHeapDeltaBytes: 0,
-		browserVersion: fingerprint.browserVersion,
-		browserEnvironment: fingerprint.browserEnvironment,
-		renderer: fingerprint.renderer,
+	const metrics = {
+		'preview.frameIntervalP95Ms': 8.4,
+		'preview.retainedJsHeapDeltaBytes': 5_000,
 	};
 	const profile = {
 		status: 'active', diagnosticKey: 'm1-video-preview-12fx-720p',
 		environmentId: 'owner-qualified-windows-x64-rtx3090-01',
-		observedEnvironmentId: 'local-browser-correctness',
+		observedEnvironmentId: 'packaged-runtime-win32-x64',
 		workloadId: 'm1-video-preview-12fx-720p', fixtureId: 'video-preview-12fx-720p-v1',
-		rendererClass: 'hardware', diagnosticIdentityFields: [],
-		diagnosticFingerprintSource: 'm1-video-preview', fingerprint, fixture, sampleShape,
+		profile: diagnostic.profile, observationClass: diagnostic.observationClass,
+		rendererClass: 'hardware',
+		diagnosticIdentityFields: ['workloadId', 'fixtureId', 'profile', 'observationClass'],
+		fingerprint, fixture, rawSampleCounts,
 	};
 	const m4Fingerprint = {
 		browserVersion: '150.0.7871.114', platform: 'win32', architecture: 'x64',
@@ -199,7 +218,7 @@ test('packaged evidence independently promotes an accepted M1 qualification', ()
 		config: {
 			packagedRuntimeQualification: { status: 'active', profiles: [profile, m4Profile] },
 			workloads: [
-				{ id: profile.workloadId, thresholds: [{ metricId: 'preview.frameIntervalP95Ms' }] },
+				{ id: profile.workloadId, thresholds: Object.keys(metrics).map((metricId) => ({ metricId })) },
 				{ id: m4Profile.workloadId, thresholds: [{ metricId: 'parity.silentlyOmittedEffects' }] },
 			],
 		},
@@ -210,11 +229,12 @@ test('packaged evidence independently promotes an accepted M1 qualification', ()
 		parse: () => diagnostic,
 		evaluate: () => ({
 			workloadId: profile.workloadId, fixtureId: profile.fixtureId,
+			profile: profile.profile, observationClass: profile.observationClass,
 			environmentId: profile.observedEnvironmentId, attemptCount: 1, retryCount: 0,
 			rendererClass: 'hardware', environmentFingerprint: fingerprint, fixture,
-			rawSampleCounts: { warmupFrames: 40, measuredFrames: 121, measuredIntervals: 120 },
+			rawSampleCounts,
 			metricGatePassed: true, metrics,
-			evaluation: { verdicts: [{ metricId: 'preview.frameIntervalP95Ms', passed: true }] },
+			evaluation: { verdicts: Object.keys(metrics).map((metricId) => ({ metricId, passed: true })) },
 		}),
 		metricGatePassed: () => true,
 	}, {
@@ -296,3 +316,63 @@ test('metric evidence writer retains raw diagnostics and a digest-bound summary'
 	assert.equal(summary.sourceRevision, 'd'.repeat(40));
 	assert.deepEqual(raw.diagnostics, { 'metric-pass': { sample: 1 } });
 });
+
+function m1DiagnosticFixture() {
+	const sourceSha256 = 'f1319d3549943c190e5eb3f86b63fd2afb644bd49b32e3f257699b450271bc8c';
+	const environmentFingerprint = {
+		browserVersion: '150.0.7871.114',
+		platform: 'win32',
+		architecture: 'x64',
+		webglVendor: 'Google Inc. (NVIDIA)',
+		webglRenderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3090)',
+	};
+	const fixture = {
+		width: 1_280,
+		height: 720,
+		effectCount: 12,
+		measuredIntervals: 120,
+		sourceFrameRate: 30,
+		sourceFrameCount: 180,
+		sourceByteLength: 109_277,
+		sourceSha256,
+	};
+	const trials = Array.from({ length: 5 }, (_, trialIndex) => {
+		const interval = 8 + (trialIndex * 0.1);
+		return {
+			trial: trialIndex + 1,
+			frameTimestampsMs: Array.from({ length: 121 }, (_unused, frameIndex) => frameIndex * interval),
+			heapBefore: { usedSize: 1_000_000, totalSize: 2_000_000 },
+			heapAfter: { usedSize: 1_000_000 + ((trialIndex + 1) * 1_000), totalSize: 2_000_000 },
+			forcedCollectionsBefore: 3,
+			forcedCollectionsAfter: 3,
+		};
+	});
+	return {
+		config: {
+			fixtures: [{ id: 'video-preview-12fx-720p-v1', specification: structuredClone(fixture) }],
+			workloads: [{ id: 'm1-video-preview-12fx-720p', thresholds: [
+				{ metricId: 'preview.frameIntervalP95Ms', comparison: 'lte', value: 33.34 },
+				{ metricId: 'preview.retainedJsHeapDeltaBytes', comparison: 'lte', value: 1_048_576 },
+			] }],
+		},
+		diagnostic: {
+			schemaVersion: 1,
+			profile: 'deterministic-video-preview-12fx-v2',
+			observationClass: 'fresh-context-presentation-cadence-and-retained-js-heap-v1',
+			workloadId: 'm1-video-preview-12fx-720p',
+			fixtureId: 'video-preview-12fx-720p-v1',
+			environmentId: 'packaged-runtime-win32-x64',
+			rendererClass: 'hardware',
+			environmentFingerprint,
+			fixture: structuredClone(fixture),
+			sampling: {
+				warmupTrials: 1,
+				measuredTrials: 5,
+				measuredFramesPerTrial: 121,
+				measuredIntervalsPerTrial: 120,
+				forcedCollectionsPerSnapshot: 3,
+			},
+			trials,
+		},
+	};
+}

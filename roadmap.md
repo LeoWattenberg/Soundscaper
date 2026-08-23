@@ -126,9 +126,10 @@ must not become an earlier hidden recording path.
 | **Electron Only** | Requires an OS/native facility unavailable to a normal web origin; projects still open safely on web. |
 
 Playwright Chromium, Firefox, and WebKit coverage is maintained. Soundscaper's
-fixed-GPU M4 production render-parity gate is formally qualified; the M1 and
-M4B-2 reference diagnostics also pass, while Safari remains a separate release
-gate.
+fixed-GPU M4 production render-parity gate is formally qualified; the historical
+M1 and M4B-2 reference diagnostics passed their then-current collectors, while
+their active formal profiles still need fresh owner-host runs and Safari remains
+a separate release gate.
 
 ## Current foundation
 
@@ -187,7 +188,11 @@ dispositions, MIDI fences, and the maintained Playwright engine matrix. Their
 evidence lives in the owning policies linked above.
 
 On 2026-08-21 the owner designated the Windows x64 RTX 3090 machine as the
-fixed-GPU reference. Its zero-retry M1 preview, M4 production parity, and M4B-2 keyed parity passed; details live in `docs/quality-budgets.md`.
+fixed-GPU reference. Its zero-retry M1 preview, M4 production parity, and M4B-2
+keyed parity passed their then-current diagnostics; details live in
+`docs/quality-budgets.md`. The M1 preview collector now has a corrected v2
+contract, so that historical M1 result cannot close the active profile and a
+fresh owner-host run remains required.
 
 On 2026-08-22 `nightly-with-tests` published accepted formal qualification for
 Soundscaper's `m4-production-render-parity` workload at source revision

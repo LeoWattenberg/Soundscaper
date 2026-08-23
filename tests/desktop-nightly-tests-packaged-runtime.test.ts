@@ -61,6 +61,7 @@ test('packaged-runtime metrics run through the bundled Playwright driver', () =>
 	assert.equal(plan.env.GITHUB_ACTIONS, 'false');
 	assert.equal(plan.env.SOUNDSCAPER_M3_LONGFORM_BENCHMARK, '1');
 	assert.equal(plan.env.SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID, 'packaged-runtime-linux-x64');
+	assert.equal(plan.env.SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID, 'packaged-runtime-linux-x64');
 });
 
 test('packaged-runtime Chromium arguments admit WebGL on hosted Linux renderers', () => {
@@ -87,6 +88,7 @@ test('packaged-runtime tests reuse one Electron process per product worker', asy
 	assert.match(source, /productId = workerInfo\.project\.metadata\.productId/u);
 	assert.match(source, /connectOverCDP\(endpoint,\s*\{\s*timeout:\s*90_000\s*\}\)/u);
 	assert.match(source, /Packaged runtime CDP connection failed\./u);
+	assert.match(source, /newContext:\s*\(options\) => packagedRuntime\.browser\.newContext\(options\)/u);
 	assert.match(source, /\{ scope: 'worker' \}\]/u);
 	assert.match(source, /auto: true/u);
 });
@@ -101,7 +103,8 @@ test('packaged video benchmark drives localized controls through stable hooks', 
 	assert.match(source, /\[data-video-effect-add\]/u);
 	assert.match(source, /\[data-transport="play"\]/u);
 	assert.match(source, /\[data-transport="stop"\]/u);
-	assert.match(source, /page\.goto\('\/framescaper\/de\/'\)/u);
+	assert.match(source, /runtimeBrowser\.newContext\(/u);
+	assert.match(source, /new URL\('\/framescaper\/de\/', runtimeBaseURL\)/u);
 	assert.doesNotMatch(source, /name: '(?:Clip properties|Add effect|Play|Stop)'/u);
 });
 

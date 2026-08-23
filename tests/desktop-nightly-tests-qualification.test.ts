@@ -27,20 +27,12 @@ const GENERIC_RAW_SAMPLE_COUNTS = {
 };
 const M1_FINGERPRINT = {
 	browserVersion: '150.0.7871.114',
-	browserEnvironment: {
-		devicePixelRatio: 1,
-		hardwareConcurrency: 24,
-		userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Framescaper/0.2.0-beta.1 Chrome/150.0.7871.114 Electron/43.1.1 Safari/537.36',
-	},
-	renderer: {
-		vendor: 'Google Inc. (NVIDIA)',
-		renderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)',
-	},
+	platform: 'win32',
+	architecture: 'x64',
+	webglVendor: 'Google Inc. (NVIDIA)',
+	webglRenderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)',
 };
-const M1_EFFECTS = [
-	'Color Adjust', 'Pixelate', 'Vignette', 'Gaussian Blur', 'Sharpen', 'RGB Split',
-	'Chroma Key', 'Luma Key', 'Spill Suppression', 'Glow', 'Outline', 'Drop Shadow',
-];
+const M1_SOURCE_SHA256 = 'f1319d3549943c190e5eb3f86b63fd2afb644bd49b32e3f257699b450271bc8c';
 
 test('the owner-designated packaged Windows host formally qualifies a passing M4 diagnostic', () => {
 	const { config, raw, summary } = fixture();
@@ -147,8 +139,18 @@ test('formal workload qualification fails closed for fixture and raw sample-coun
 
 test('M1 qualification fails closed for fingerprint, sampling, gate, retry, and digest drift', () => {
 	for (const mutate of [
-		(value: ReturnType<typeof m1Fixture>) => { value.raw.diagnostics['m1-video-preview-12fx-720p'].browserEnvironment.hardwareConcurrency = 16; },
-		(value: ReturnType<typeof m1Fixture>) => { value.raw.diagnostics['m1-video-preview-12fx-720p'].measuredIntervals = 119; },
+		(value: ReturnType<typeof m1Fixture>) => { value.raw.diagnostics['m1-video-preview-12fx-720p'].environmentFingerprint.architecture = 'arm64'; },
+		(value: ReturnType<typeof m1Fixture>) => { value.raw.diagnostics['m1-video-preview-12fx-720p'].environmentId = 'local-browser-correctness'; },
+		(value: ReturnType<typeof m1Fixture>) => { value.raw.diagnostics['m1-video-preview-12fx-720p'].fixture.sourceSha256 = '0'.repeat(64); },
+		(value: ReturnType<typeof m1Fixture>) => { value.summary.workloads[0].rawSampleCounts.measuredTrials = 4; },
+		(value: ReturnType<typeof m1Fixture>) => { value.raw.diagnostics['m1-video-preview-12fx-720p'].trials.pop(); },
+		(value: ReturnType<typeof m1Fixture>) => {
+			const timestamps = value.raw.diagnostics['m1-video-preview-12fx-720p'].trials[0].frameTimestampsMs;
+			timestamps[120] = timestamps[119];
+		},
+		(value: ReturnType<typeof m1Fixture>) => {
+			value.summary.workloads[0].metrics['preview.frameIntervalP95Ms'] = 7;
+		},
 		(value: ReturnType<typeof m1Fixture>) => { value.summary.workloads[0].metricGatePassed = false; },
 		(value: ReturnType<typeof m1Fixture>) => { value.summary.retryCount = 1; },
 		(value: ReturnType<typeof m1Fixture>) => { value.raw.budgetSha256 = 'c'.repeat(64); },
@@ -203,6 +205,29 @@ test('the quality register activates only the owner-designated packaged host for
 		'm4-production-render-parity',
 		'm4b2-keyframe-render-parity',
 	]);
+	assert.equal(profiles[0].observedEnvironmentId, 'packaged-runtime-win32-x64');
+	assert.equal(profiles[0].profile, 'deterministic-video-preview-12fx-v2');
+	assert.equal(
+		profiles[0].observationClass,
+		'fresh-context-presentation-cadence-and-retained-js-heap-v1',
+	);
+	assert.deepEqual(profiles[0].diagnosticIdentityFields, [
+		'workloadId', 'fixtureId', 'profile', 'observationClass',
+	]);
+	assert.deepEqual(profiles[0].fingerprint, environment.fingerprint);
+	assert.deepEqual(profiles[0].rawSampleCounts, {
+		warmupTrials: 1,
+		measuredTrials: 5,
+		measuredFrames: 605,
+		measuredIntervals: 600,
+		forcedCollectionsBefore: 15,
+		forcedCollectionsAfter: 15,
+		heapSnapshotsBefore: 5,
+		heapSnapshotsAfter: 5,
+	});
+	assert.equal(profiles[0].fixture.sourceSha256, M1_SOURCE_SHA256);
+	assert.equal(Object.hasOwn(profiles[0], 'diagnosticFingerprintSource'), false);
+	assert.equal(Object.hasOwn(profiles[0], 'sampleShape'), false);
 	assert.deepEqual(profiles[1].rawSampleCounts, {
 		positionChecks: 26,
 		decodedAvSamples: 24,
@@ -298,38 +323,73 @@ function genericWorkloadFixture(definition: {
 }
 
 function m1Fixture() {
-	const diagnostic = {
-		resolution: [1_280, 720],
-		effects: [...M1_EFFECTS],
-		warmupFrames: 40,
-		measuredFrames: 121,
+	const fixture = {
+		width: 1_280,
+		height: 720,
+		effectCount: 12,
 		measuredIntervals: 120,
-		p95Ms: 8.665,
-		retainedJsHeapDeltaBytes: -10_108,
-		renderer: structuredClone(M1_FINGERPRINT.renderer),
-		browserVersion: M1_FINGERPRINT.browserVersion,
-		browserEnvironment: structuredClone(M1_FINGERPRINT.browserEnvironment),
+		sourceFrameRate: 30,
+		sourceFrameCount: 180,
+		sourceByteLength: 109_277,
+		sourceSha256: M1_SOURCE_SHA256,
+	};
+	const trials = Array.from({ length: 5 }, (_, trialIndex) => ({
+		trial: trialIndex + 1,
+		frameTimestampsMs: Array.from({ length: 121 }, (_unused, frameIndex) => (
+			frameIndex * (8 + (trialIndex * 0.1))
+		)),
+		heapBefore: { usedSize: 1_000_000, totalSize: 2_000_000 },
+		heapAfter: { usedSize: 990_000 + (trialIndex * 1_000), totalSize: 2_000_000 },
+		forcedCollectionsBefore: 3,
+		forcedCollectionsAfter: 3,
+	}));
+	const diagnostic = {
+		schemaVersion: 1,
+		profile: 'deterministic-video-preview-12fx-v2',
+		observationClass: 'fresh-context-presentation-cadence-and-retained-js-heap-v1',
+		workloadId: 'm1-video-preview-12fx-720p',
+		fixtureId: 'video-preview-12fx-720p-v1',
+		environmentId: 'packaged-runtime-win32-x64',
+		rendererClass: 'hardware',
+		environmentFingerprint: structuredClone(M1_FINGERPRINT),
+		fixture: structuredClone(fixture),
+		sampling: {
+			warmupTrials: 1,
+			measuredTrials: 5,
+			measuredFramesPerTrial: 121,
+			measuredIntervalsPerTrial: 120,
+			forcedCollectionsPerSnapshot: 3,
+		},
+		trials,
 	};
 	const metrics = {
-		'preview.frameIntervalP95Ms': 8.665,
-		'preview.retainedJsHeapDeltaBytes': -10_108,
+		'preview.frameIntervalP95Ms': 8.4,
+		'preview.retainedJsHeapDeltaBytes': -6_000,
+	};
+	const rawSampleCounts = {
+		warmupTrials: 1,
+		measuredTrials: 5,
+		measuredFrames: 605,
+		measuredIntervals: 600,
+		forcedCollectionsBefore: 15,
+		forcedCollectionsAfter: 15,
+		heapSnapshotsBefore: 5,
+		heapSnapshotsAfter: 5,
 	};
 	const profile = {
 		status: 'active',
 		diagnosticKey: 'm1-video-preview-12fx-720p',
 		environmentId: 'owner-qualified-windows-x64-rtx3090-01',
-		observedEnvironmentId: 'local-browser-correctness',
+		observedEnvironmentId: 'packaged-runtime-win32-x64',
 		workloadId: 'm1-video-preview-12fx-720p',
 		fixtureId: 'video-preview-12fx-720p-v1',
+		profile: diagnostic.profile,
+		observationClass: diagnostic.observationClass,
 		rendererClass: 'hardware',
-		diagnosticIdentityFields: [],
-		diagnosticFingerprintSource: 'm1-video-preview',
+		diagnosticIdentityFields: ['workloadId', 'fixtureId', 'profile', 'observationClass'],
 		fingerprint: structuredClone(M1_FINGERPRINT),
-		fixture: { width: 1_280, height: 720, effectCount: 12, measuredIntervals: 120 },
-		sampleShape: {
-			resolution: [1_280, 720], effects: [...M1_EFFECTS], warmupFrames: 40,
-			measuredFrames: 121, measuredIntervals: 120,
-		},
+		fixture: structuredClone(fixture),
+		rawSampleCounts: structuredClone(rawSampleCounts),
 	};
 	return {
 		config: {
@@ -348,11 +408,11 @@ function m1Fixture() {
 			budgetSha256: BUDGET_SHA256, attemptCount: 1, retryCount: 0, workerCount: 1,
 			collectionPassed: true, failures: [] as string[], workloads: [{
 				workloadId: profile.workloadId, fixtureId: profile.fixtureId,
+				profile: profile.profile, observationClass: profile.observationClass,
 				environmentId: profile.observedEnvironmentId, attemptCount: 1, retryCount: 0,
 				rendererClass: 'hardware', environmentFingerprint: structuredClone(M1_FINGERPRINT),
-				fixture: structuredClone(profile.fixture), rawSampleCounts: {
-					warmupFrames: 40, measuredFrames: 121, measuredIntervals: 120,
-				}, metricGatePassed: true, metrics,
+				fixture: structuredClone(profile.fixture), rawSampleCounts: structuredClone(rawSampleCounts),
+				metricGatePassed: true, metrics,
 				evaluation: { verdicts: Object.keys(metrics).map((metricId) => ({ metricId, passed: true })) },
 			}],
 		},
