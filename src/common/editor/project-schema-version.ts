@@ -81,9 +81,11 @@ export function isFramescaperSequenceProjectSchema(value: unknown): value is 18 
 		|| value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION;
 }
 
-/** Framescaper generations that own the capture publication contract. */
-export function isFramescaperCaptureProjectSchema(value: unknown): value is 18 | 19 | 20 | 27 {
-	return isFramescaperSequenceProjectSchema(value);
+/** Historical Framescaper generations that own the dormant capture contract. */
+export function isFramescaperCaptureProjectSchema(value: unknown): value is 18 | 19 | 20 {
+	return value === 18
+		|| value === FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION;
 }
 
 /** Framescaper generations that own explicit clip composition state. */

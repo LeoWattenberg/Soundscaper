@@ -22,6 +22,7 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 const { createFramescaperAudioEditorControllerV27 } = await import(
 	'../src/framescaper/editor-controller-v27.ts'
 );
+const { FRAMESCAPER_PROFILE } = await import('../src/framescaper/product.js');
 const { createFramescaperEditorProjectEnvironmentV27 } = await import(
 	'../src/framescaper/editor-project-environment-v27.ts'
 );
@@ -64,6 +65,9 @@ test('selected V27 controller creates, edits, saves, undoes, and redoes exact do
 	assert.equal(ready.phase, 'ready', JSON.stringify(ready.status));
 	assert.equal(ready.project.schemaVersion, 27);
 	assert.equal(ready.readOnly, false);
+	assert.equal(FRAMESCAPER_PROFILE.applicationFeatures.framescaperCapture, false);
+	assert.equal(ready.capture, null);
+	assert.deepEqual(Object.keys(controller.actions.capture), []);
 	controller.actions.project.rename('Framescaper V27');
 	assert.equal(controller.project.title, 'Framescaper V27');
 	controller.actions.edit.undo();

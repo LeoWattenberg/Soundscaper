@@ -4,15 +4,16 @@ import {
 	createEditorProjectFeatureCapabilityProfile,
 	editorProjectFeatureCapabilityProfileDefinition,
 } from '../common/editor/project-feature-capability-profile.ts';
+import { PROJECT_FEATURE_CAPABILITY_IDS } from '../common/editor/project-feature-capabilities.ts';
 import { FRAMESCAPER_V24_PROJECT_CANDIDATE_CAPABILITY_PROFILE } from './editor-project-feature-capability-profile-v24.ts';
 
 export const FRAMESCAPER_V27_FEATURE_IDS = Object.freeze({
-	videoCaptions: 'org.soundscaper.capability.video-captions',
-	videoColorManagement: 'org.soundscaper.capability.video-color-management',
-	videoDenoise: 'org.soundscaper.capability.video-denoise',
-	videoGrading: 'org.soundscaper.capability.video-grading',
-	videoMotionTracking: 'org.soundscaper.capability.video-motion-tracking',
-	videoStabilization: 'org.soundscaper.capability.video-stabilization',
+	videoCaptions: PROJECT_FEATURE_CAPABILITY_IDS.videoCaptions,
+	videoColorManagement: PROJECT_FEATURE_CAPABILITY_IDS.videoColorManagement,
+	videoDenoise: PROJECT_FEATURE_CAPABILITY_IDS.videoDenoise,
+	videoGrading: PROJECT_FEATURE_CAPABILITY_IDS.videoGrading,
+	videoMotionTracking: PROJECT_FEATURE_CAPABILITY_IDS.videoMotionTracking,
+	videoStabilization: PROJECT_FEATURE_CAPABILITY_IDS.videoStabilization,
 });
 
 const SELECTED_AVAILABLE = new Set([

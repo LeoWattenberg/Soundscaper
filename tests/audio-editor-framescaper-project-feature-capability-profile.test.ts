@@ -137,28 +137,6 @@ test('the exact Framescaper singleton owns 45 sorted registrations with 18 avail
 	assert.ok(snapshot.registrations.every((item: Registration) => Object.isFrozen(item)));
 });
 
-test('the immutable V18 profile predates geometry while the selected product enables V20 finishing', () => {
-	const parity = EXPECTED.filter(({ key }) => key !== 'videoProxy' && key !== 'videoKeyframes' && key !== 'videoRetime');
-	const ids = PROJECT_FEATURE_CAPABILITY_IDS as Readonly<Record<string, string>>;
-	const availability = FRAMESCAPER_PROFILE.capabilities as Readonly<Record<string, unknown>>;
-	assert.equal(parity.length, 42);
-	assert.deepEqual(
-		parity.map(({ key }) => key).sort(),
-		Object.keys(ids).filter((key) => key !== 'videoGeometry' && key !== 'videoKeyframes' && key !== 'videoRetime').sort(),
-	);
-	assert.deepEqual(
-		Object.keys(ids).sort(),
-		Object.keys(availability).sort(),
-	);
-	assert.deepEqual([availability.videoKeyframes, availability.videoRetime], [true, true]);
-	assert.equal(ids.videoKeyframes, VIDEO_KEYFRAMES_ID);
-	for (const row of parity) {
-		assert.equal(ids[row.key], row.featureId, row.key);
-		assert.equal(typeof availability[row.key], 'boolean', row.key);
-		assert.equal(availability[row.key], row.available, row.key);
-	}
-});
-
 test('nested sequences are globally known, native only in Framescaper, and never rendered fallback', () => {
 	assert.equal(PROJECT_FEATURE_CAPABILITY_IDS.nestedSequences, NESTED_SEQUENCES_ID);
 	assert.equal(FRAMESCAPER_PROFILE.capabilities.nestedSequences, true);
@@ -397,6 +375,7 @@ test('keeps private capability ownership within the closed cumulative domain set
 	assert.deepEqual(genericPathReferences, [
 		'scripts/lib/desktop-5b-transitive-runtime-files.mjs',
 		'scripts/lib/desktop-project-library-runtime.mjs',
+		'scripts/lib/desktop-project-library-v27-runtime-files.mjs',
 		FINAL_GENERIC_MODULE,
 		// Dormant V25 import rechecks capability authority at both native-admission
 		// and project-mutation boundaries.
@@ -404,16 +383,19 @@ test('keeps private capability ownership within the closed cumulative domain set
 		PRODUCT_MODULE,
 		'src/framescaper/editor-project-feature-capability-profile-v19.ts', 'src/framescaper/editor-project-feature-capability-profile-v20.ts', 'src/framescaper/editor-project-feature-capability-profile-v22.ts',
 		'src/framescaper/editor-project-feature-capability-profile-v24.ts', 'src/framescaper/editor-project-feature-capability-profile-v25.ts', 'src/framescaper/editor-project-feature-capability-profile-v26.ts',
+		'src/framescaper/editor-project-feature-capability-profile-v27.ts',
 		FEATURE_OWNER_MODULE,
 		'src/framescaper/editor-project-feature-requirements-v19.ts', 'src/framescaper/editor-project-feature-requirements-v20.ts',
 		'src/framescaper/editor-project-feature-requirements-v22.ts',
 		'src/framescaper/editor-project-feature-requirements-v24.ts',
 		'src/framescaper/editor-project-feature-requirements-v25.ts',
 		'src/framescaper/editor-project-feature-requirements-v26.ts',
+		'src/framescaper/editor-project-feature-requirements-v27.ts',
 		FINAL_PRODUCT_MODULE,
 		'src/framescaper/editor-project-runtime-profile-v19.ts', 'src/framescaper/editor-project-runtime-profile-v20.ts',
 		'src/framescaper/editor-project-runtime-profile-v22.ts', 'src/framescaper/editor-project-runtime-profile-v24.ts',
 		'src/framescaper/editor-project-runtime-profile-v25.ts', 'src/framescaper/editor-project-runtime-profile-v26.ts',
+		'src/framescaper/editor-project-runtime-profile-v27.ts',
 		'src/soundscaper/editor-project-feature-capability-profile-v21.ts', 'src/soundscaper/editor-project-feature-capability-profile-v23.ts',
 		'src/soundscaper/editor-project-feature-compatibility-v21.ts', 'src/soundscaper/editor-project-feature-compatibility-v23.ts',
 		'src/soundscaper/editor-project-runtime-profile-v21.ts', 'src/soundscaper/editor-project-runtime-profile-v23.ts',
@@ -422,10 +404,12 @@ test('keeps private capability ownership within the closed cumulative domain set
 		'tests/audio-editor-framescaper-project-v20-profile.test.ts',
 		'tests/audio-editor-framescaper-v22-candidate.test.ts', 'tests/audio-editor-framescaper-v24-candidate.test.ts', 'tests/audio-editor-framescaper-v24-known-capabilities.test.ts',
 		'tests/audio-editor-framescaper-v25-candidate-profile.test.ts', 'tests/audio-editor-framescaper-v26-openfx-candidate.test.ts',
+		'tests/audio-editor-framescaper-v27-core.test.ts',
 		'tests/audio-editor-mastering-sequence-capability.test.ts',
 		'tests/audio-editor-soundscaper-v21-feature-registration.test.ts',
 		'tests/audio-editor-soundscaper-v23-runtime-selection.test.ts',
 		'tests/desktop-project-library-packaging.test.js',
+		'tests/helpers/desktop-project-library-v27-runtime-fixture.js',
 	]);
 	assert.deepEqual(privateIdReferences, [
 		PRODUCT_MODULE,

@@ -67,6 +67,8 @@ test('product-specific predicates retain their exact maintained schema sets', ()
 		assert.equal(schema.isFramescaperSequenceProjectSchema(version), true);
 		assert.equal(schema.isFramescaperCaptureProjectSchema(version), true);
 	}
+	assert.equal(schema.isFramescaperSequenceProjectSchema(27), true);
+	assert.equal(schema.isFramescaperCaptureProjectSchema(27), false);
 	assert.equal(schema.isFramescaperSequenceProjectSchema(21), false);
 	assert.equal(schema.isFramescaperCaptureProjectSchema(21), false);
 	assert.equal(schema.isFramescaperVideoCompositionProjectSchema(19), true);

@@ -20,7 +20,7 @@ test('production capability inventory covers every product profile and platform 
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 
 	assert.equal(inventory.schemaVersion, 1);
-	assert.equal(inventory.groundedAt, '2026-08-22');
+	assert.equal(inventory.groundedAt, '2026-08-23');
 	assert.deepEqual(inventory.platformTiers, PLATFORM_TIERS);
 	assert.deepEqual(Object.keys(inventory.products).sort(), [...PRODUCT_IDS].sort());
 
@@ -75,7 +75,7 @@ test('MIDI stays absent while Framescaper capture is a separate application capa
 	assert.doesNotMatch(serializedProfiles, /midi/u);
 	assert.deepEqual(inventory.products.soundscaper.applicationFeatures, {});
 	assert.deepEqual(inventory.products.framescaper.applicationFeatures, {
-		framescaperCapture: true, framescaperWebVcr: false,
+		framescaperCapture: false, framescaperWebVcr: false,
 	});
 	assert.equal(inventory.products.framescaper.projectFeatures.audioRecording, false);
 	assert.equal(inventory.products.soundscaper.projectFeatures.timelineAnnotations, true);
@@ -90,6 +90,19 @@ test('MIDI stays absent while Framescaper capture is a separate application capa
 	assert.equal(inventory.products.framescaper.projectFeatures.nestedSequences, true);
 	assert.equal(inventory.products.soundscaper.projectFeatures.multicamera, false);
 	assert.equal(inventory.products.framescaper.projectFeatures.multicamera, true);
+	for (const capability of [
+		'audioAutomation', 'audioMixerGraph',
+		'videoAdjustmentLayers', 'videoCaptions', 'videoColorManagement', 'videoDenoise',
+		'videoFreeze', 'videoGenerators', 'videoGrading', 'videoMasksMattes',
+		'videoMotionTracking', 'videoStabilization', 'videoStills',
+		'videoTransitionDissolve', 'videoTransitions',
+	]) assert.equal(inventory.products.framescaper.projectFeatures[capability], true, capability);
+	assert.equal(inventory.products.framescaper.projectFeatures.audioEffects, false);
+	for (const capability of [
+		'videoCaptions', 'videoColorManagement', 'videoDenoise', 'videoGrading',
+		'videoMotionTracking', 'videoStabilization',
+	]) assert.equal(inventory.products.soundscaper.projectFeatures[capability], false, capability);
+	assert.equal(inventory.products.framescaper.projectFeatures.ofxEffects, false);
 	assert.equal(inventory.products.framescaper.platforms['electron-only'].status, 'not-applicable');
 	assert.deepEqual(dependencyNames.filter((name) => /midi/u.test(name)), []);
 });

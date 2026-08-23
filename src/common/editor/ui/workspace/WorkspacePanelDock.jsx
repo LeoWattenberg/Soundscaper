@@ -49,7 +49,7 @@ export default function WorkspacePanelDock({
 		.map((id) => [id, snapshot.preferences?.workspace?.panels?.[id]])
 		.filter(([id, panel]) => (
 			panel?.visible
-			&& workspacePanelAvailable(snapshot.productId, id, snapshot.webVcr)
+			&& workspacePanelAvailable(snapshot.productId, id, snapshot.webVcr, snapshot.capture)
 			&& (snapshot.capabilities?.audioEffects || id !== 'effects')
 			&& (snapshot.capabilities?.audioAnalysis || (!ANALYZER_PANEL_ID_SET.has(id) && id !== 'ebu-r128'))
 			&& (id !== 'markers' || timelineAnnotationsAvailable(snapshot))

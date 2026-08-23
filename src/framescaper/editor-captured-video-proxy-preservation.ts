@@ -4,7 +4,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
-import { isFramescaperCaptureProjectSchema } from '../common/editor/project-schema-version.ts';
+import { isFramescaperSequenceProjectSchema } from '../common/editor/project-schema-version.ts';
 import { serializeScapeProjectDocument } from '../common/editor/scape-project-document.ts';
 import { request, transact } from '../common/editor/storage/indexeddb-backend.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from '../common/editor/storage/media-asset-staging-schema.ts';
@@ -64,7 +64,7 @@ export class FramescaperCapturedVideoProxyPreservationRepository {
 			readonly claims: VideoProxyClaimRepository;
 		}>,
 	) {
-		if (!isFramescaperCaptureProjectSchema(schemaVersion)) {
+		if (!isFramescaperSequenceProjectSchema(schemaVersion)) {
 			throw new TypeError('Captured proxy preservation requires a maintained Framescaper schema.');
 		}
 		if (!dependencies?.port || typeof dependencies.port.database !== 'function'

@@ -25,18 +25,18 @@ import {
 } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { DEFAULT_PANELS } from '../src/common/editor/workspace-layout-defaults.ts';
 
-test('recording setup is a default-hidden Framescaper-only workspace panel', () => {
+test('recording setup stays retained but has no selected-product panel route', () => {
 	assert.equal(FRAMESCAPER_CAPTURE_PANEL_ID, 'recording-setup');
 	assert.ok(WORKSPACE_PANEL_IDS.includes(FRAMESCAPER_CAPTURE_PANEL_ID));
 	assert.deepEqual(DEFAULT_PANELS[FRAMESCAPER_CAPTURE_PANEL_ID], {
 		visible: false, dock: 'bottom', order: 11, size: 420,
 	});
 	assert.equal(workspacePanelLabel(ENGLISH_COPY, FRAMESCAPER_CAPTURE_PANEL_ID), 'Recording setup');
-	assert.equal(workspacePanelAvailable('framescaper', FRAMESCAPER_CAPTURE_PANEL_ID), true);
+	assert.equal(workspacePanelAvailable('framescaper', FRAMESCAPER_CAPTURE_PANEL_ID), false);
 	assert.equal(workspacePanelAvailable('soundscaper', FRAMESCAPER_CAPTURE_PANEL_ID), false);
 });
 
-test('View > Panels retains recording setup only for the application capability owner', () => {
+test('View > Panels exposes no recording setup entry on either selected product', () => {
 	const menus = [{
 		id: 'view', items: [{
 			id: 'panels', items: [
@@ -49,12 +49,12 @@ test('View > Panels retains recording setup only for the application capability 
 	const soundscaper = filterProductMenus(menus, capabilities, 'soundscaper');
 	const framescaper = filterProductMenus(menus, capabilities, 'framescaper');
 	assert.equal(findMenuItem(soundscaper, 'panel-recording-setup'), null);
-	assert.ok(findMenuItem(framescaper, 'panel-recording-setup'));
+	assert.equal(findMenuItem(framescaper, 'panel-recording-setup'), null);
 });
 
-test('record control stays absent before opt-in but survives an active or recovery phase', () => {
+test('record control ignores stale opt-in and survives only historical active or recovery ownership', () => {
 	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('inactive'), false), false);
-	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('inactive'), true), true);
+	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('inactive'), true), false);
 	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('recording'), false), true);
 	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('recovery'), false), true);
 	assert.equal(framescaperCaptureRecordVisible('soundscaper', capture('recording'), true), false);
@@ -81,7 +81,7 @@ test('record primary action focuses setup until armed and never implicitly reque
 	assert.deepEqual(capturePrimaryAction(capture('inactive', 'unavailable')), { kind: 'open-setup', disabled: false });
 });
 
-test('recording setup explains unsupported runtime without opening any source', () => {
+test('selected route refuses an idle recording setup panel without opening any source', () => {
 	const calls: string[] = [];
 	const markup = render(<RecordingSetupPanel
 		controller={controller(calls)}
@@ -92,11 +92,7 @@ test('recording setup explains unsupported runtime without opening any source', 
 	/>);
 
 	assert.deepEqual(calls, []);
-	assert.match(markup, /data-framescaper-recording-setup="true"/u);
-	assert.match(markup, /role="status"/u);
-	assert.match(markup, /Capture is unavailable in this runtime/u);
-	assert.match(markup, /Embedded capture is disabled/u);
-	assert.doesNotMatch(markup, />Preview sources</u);
+	assert.doesNotMatch(markup, /data-framescaper-recording-setup/u);
 });
 
 test('recording setup presents explicit sources, destinations, capture controls and live status', () => {
@@ -277,7 +273,7 @@ test('desktop screen inventory requires an explicit pathless source choice', () 
 	const markup = render(<RecordingSetupPanel
 		controller={controller(calls)}
 		snapshot={{ productId: 'framescaper', capture: {
-			...capture('inactive'),
+			...capture('permission-pending'),
 			availability: { status: 'available', sourceRoles: ['display'] },
 			displaySelectionMode: 'source-list',
 			displaySources: [
