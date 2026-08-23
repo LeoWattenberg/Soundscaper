@@ -159,11 +159,11 @@ export function createEditorVideoExportAction(
 			? productExportProject
 			: createExportRenderProject(deliveredProject);
 		const visibleVideoTrack = createVisibleVideoTrackPredicate(exportProject.tracks);
-		const hasTimelineVideo = exportProject.tracks.some((track: RuntimeValue) => (
+		const hasTimelinePicture = exportProject.tracks.some((track: RuntimeValue) => (
 			visibleVideoTrack(track)
 			&& (track.clipIds || []).some((clipId: RuntimeValue) => findClip(exportProject, clipId)?.kind === 'video')
-		));
-		if (!hasTimelineVideo) throw new Error('Add a visible video clip to the timeline before exporting video.');
+		)) || productStrategy?.hasPicture?.(exportProject) === true;
+		if (!hasTimelinePicture) throw new Error('Add visible picture content to the timeline before exporting video.');
 		const fallbackSourceIds = new Set([
 			...delivery.requiredAudioSourceIds,
 			...delivery.requiredVideoSourceIds,
@@ -198,7 +198,7 @@ export function createEditorVideoExportAction(
 			const formatValue = videoExportPlanFormat(requestedSettings.format || 'video-mp4');
 			const descriptor = getVideoExportFormat(formatValue) as Readonly<{ id: 'mp4' | 'webm' }>;
 			const format = descriptor.id;
-			const includeAudio = exportProject.clips.some((clip: RuntimeValue) => clip.kind !== 'video');
+			const includeAudio = exportProject.clips.some((clip: RuntimeValue) => clip.kind === 'audio');
 			const requestedRange = requestedSettings.range || 'project';
 			assertVideoExportCurrent();
 			const productPlan = productStrategy?.createPlan({

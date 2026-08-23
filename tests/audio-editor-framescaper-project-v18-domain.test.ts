@@ -8,6 +8,9 @@ import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 import {
+	reconcileProjectOwnedFeatureRequirements,
+} from '../src/common/editor/project-owned-feature-requirements.ts';
+import {
 	createVideoSource,
 	createVideoTrack,
 } from '../src/common/editor/project-media-factory.ts';
@@ -129,11 +132,16 @@ test('attached V18 validates source, occurrence, timing, retime, collision, and 
 	}
 	const retimed = withAttachment(project, attachment());
 	(retimed.clips[0] as Record<string, unknown>).retimeMap = {
-		feature: 'video-retime-v2', version: 2, outerFrameCount: 10,
-		points: [{ outerFrame: 0, sourceFrame: { num: 0, den: 1 } }, { outerFrame: 10, sourceFrame: { num: 10, den: 1 } }],
-		segments: [{ mode: 'constant' }],
+		feature: 'video-retime', version: 2,
+		points: [{ outerFrame: 0, sourceFrame: { num: 10, den: 1 } },
+			{ outerFrame: 10, sourceFrame: { num: 0, den: 1 } }],
+		segments: [{ mode: 'constant-reverse' }],
 	};
-	assert.throws(() => validateFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, retimed), /retimeMap.*null/iu);
+	retimed.featureRequirements = reconcileProjectOwnedFeatureRequirements(
+		retimed,
+		retimed.featureRequirements as Parameters<typeof reconcileProjectOwnedFeatureRequirements>[1],
+	);
+	assert.doesNotThrow(() => validateFramescaperProjectV18(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE, retimed));
 	const orphan = withAttachment(project, attachment());
 	orphan.clips = [];
 	orphan.tracks = [{ ...orphan.tracks[0], clipIds: [] }];

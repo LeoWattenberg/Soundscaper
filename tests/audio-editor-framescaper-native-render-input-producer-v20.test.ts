@@ -237,6 +237,7 @@ async function producerFixture(options: Readonly<{
 			requiredTimingSources.push([...(timingOptions.requiredSourceIds ?? [])]);
 			return Object.freeze({
 				timingBySourceId,
+				timingViewsBySourceId: timingBySourceId,
 				release() { events.push('timing:release'); return true; },
 			});
 		},

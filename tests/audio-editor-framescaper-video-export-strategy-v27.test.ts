@@ -20,7 +20,10 @@ import {
 	createFramescaperProjectV27,
 	reimportFramescaperProjectV27,
 } from '../src/framescaper/editor-project-v27.ts';
-import { createFramescaperVideoExportStrategyV27 } from '../src/framescaper/video-export-strategy-v27.ts';
+import {
+	createFramescaperVideoExportStrategyV27,
+	framescaperVideoExportDispositionV27For,
+} from '../src/framescaper/video-export-strategy-v27.ts';
 import { framescaperV20Options, opacityKeyframes } from './helpers/framescaper-v20-model-fixture.ts';
 import { transitionProjectOptions } from './helpers/framescaper-unified-render-project-fixture.ts';
 
@@ -29,9 +32,18 @@ const PROFILE = FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE;
 test('selected V27 browser strategy delegates exact retime/keyframe encoding through V20', async () => {
 	const project = keyedProject();
 	const captured: VideoKeyframeOfflineVideoExportRequest[] = [];
+	let processedPixel: readonly number[] | null = null;
 	const strategy = createFramescaperVideoExportStrategyV27(PROFILE, {
 		async encodeOffline(request) {
 			captured.push(request);
+			const canvas = request.canvas;
+			const rgba = new Uint8Array(canvas.width * canvas.height * 4).fill(16);
+			for (let offset = 3; offset < rgba.length; offset += 4) rgba[offset] = 255;
+			await request.rgbaPostprocessor?.({
+				frame: exportFrame(0, 0) as never,
+				width: canvas.width, height: canvas.height, rgba, signal: request.signal,
+			});
+			processedPixel = [...rgba.subarray(0, 4)];
 			return Object.freeze({
 				bytes: Uint8Array.of(1, 2, 3), byteLength: 3, videoEncoder: 'ffmpeg' as const,
 				format: 'mp4' as const, extension: '.mp4' as const, mimeType: 'video/mp4' as const,
@@ -71,14 +83,8 @@ test('selected V27 browser strategy delegates exact retime/keyframe encoding thr
 	assert.equal(captured[0]?.project.schemaVersion, 17);
 	assert.notStrictEqual(captured[0]?.project, exportProject);
 	assert.equal(typeof captured[0]?.rgbaPostprocessor, 'function');
-	const canvas = captured[0]!.canvas;
-	const rgba = new Uint8Array(canvas.width * canvas.height * 4).fill(16);
-	for (let offset = 3; offset < rgba.length; offset += 4) rgba[offset] = 255;
-	await captured[0]!.rgbaPostprocessor!({
-		frame: exportFrame(0, 0) as never,
-		width: canvas.width, height: canvas.height, rgba, signal,
-	});
-	assert.deepEqual([...rgba.subarray(0, 4)], [0, 0, 0, 255]);
+	assert.deepEqual(processedPixel, [0, 0, 0, 255]);
+	assert.deepEqual(framescaperVideoExportDispositionV27For(plan).unexplainedOmittedNodeIds, []);
 
 	const other = keyedProject('other-v27');
 	assert.throws(() => strategy.createPlan({
@@ -87,7 +93,7 @@ test('selected V27 browser strategy delegates exact retime/keyframe encoding thr
 	}), /not owned.*exact V27/iu);
 });
 
-test('selected V27 browser strategy forces managed RGBA and refuses only unsupported visual omission', () => {
+test('selected V27 browser strategy selects exact keyed and product-owned visual RGBA routes', () => {
 	const strategy = createFramescaperVideoExportStrategyV27(PROFILE);
 	const baseline = createFramescaperProjectV27(PROFILE, framescaperV20Options());
 	const baselineExport = strategy.createExportProject({
@@ -99,14 +105,22 @@ test('selected V27 browser strategy forces managed RGBA and refuses only unsuppo
 	})?.version, 7);
 
 	const transition = createFramescaperProjectV27(PROFILE, transitionProjectOptions());
-	assert.throws(() => strategy.createExportProject({
+	const transitionExport = strategy.createExportProject({
 		canonicalProject: transition, delivery: delivery(transition),
-	}), /refuses video transitions.*exact V13 execution/iu);
+	});
+	assert.equal(strategy.createPlan({
+		canonicalProject: transition, exportProject: transitionExport,
+		format: 'mp4', range: 'project', includeAudio: false, canvas: undefined,
+	})?.version, 7);
 
 	const generator = generatorProject();
-	assert.throws(() => strategy.createExportProject({
+	const generatorExport = strategy.createExportProject({
 		canonicalProject: generator, delivery: delivery(generator),
-	}), /refuses stills or generated visuals.*exact V13 execution/iu);
+	});
+	assert.equal(strategy.createPlan({
+		canonicalProject: generator, exportProject: generatorExport,
+		format: 'mp4', range: 'project', includeAudio: false, canvas: undefined,
+	})?.version, 13);
 
 	const overriddenValue = structuredClone(baseline) as unknown as Record<string, unknown>;
 	const interpretation = (overriddenValue.videoSourceColorInterpretations as Record<string, unknown>[])[0]!;
@@ -166,6 +180,43 @@ test('selected V27 picture export retains explicit captions for sidecar-only del
 	})?.version, 7);
 });
 
+test('selected V27 keyed export consumes the canonical dissolve resolver', async () => {
+	const project = createFramescaperProjectV27(PROFILE, transitionProjectOptions());
+	const strategy = createFramescaperVideoExportStrategyV27(PROFILE, {
+		async encodeOffline(request) {
+			const rgba = new Uint8Array(request.canvas.width * request.canvas.height * 4).fill(32);
+			for (let offset = 3; offset < rgba.length; offset += 4) rgba[offset] = 255;
+			await request.rgbaPostprocessor?.({
+				frame: transitionExportFrame() as never,
+				width: request.canvas.width, height: request.canvas.height,
+				rgba, signal: request.signal,
+			});
+			return encodedResult();
+		},
+		async encodeOfflineToSink() { throw new Error('sink path is not used'); },
+	});
+	const exportProject = strategy.createExportProject({
+		canonicalProject: project, delivery: delivery(project),
+	});
+	const plan = strategy.createPlan({
+		canonicalProject: project, exportProject, format: 'mp4', range: 'project',
+		includeAudio: false, canvas: { maximumWidth: 4, maximumHeight: 4 },
+	});
+	assert.ok(plan);
+	await strategy.encode({
+		canonicalProject: project, exportProject, plan,
+		timingBySourceId: new Map(), timingViewsBySourceId: rawTiming(project),
+		videoBlobs: new Map([['video-source', new Blob(['video'])]]), audioMix: null,
+		editorFfmpeg: {}, webCodecs: null, signal: new AbortController().signal,
+		assertCurrent() {}, maximumOutputBytes: 1_024,
+	});
+	const disposition = framescaperVideoExportDispositionV27For(plan);
+	assert.deepEqual(disposition.unexplainedOmittedNodeIds, []);
+	assert.ok(disposition.nodeDispositions.some(({ kind, disposition: state }) => (
+		kind === 'transition' && state === 'executed'
+	)));
+});
+
 test('selected V27 export loads digest-bound LUT and motion bodies before encoding', async () => {
 	const options = framescaperV20Options();
 	const source = (options.sources as Readonly<Record<string, unknown>>[])[0]!;
@@ -206,12 +257,19 @@ test('selected V27 export loads digest-bound LUT and motion bodies before encodi
 		},
 	});
 	const loads: string[] = [];
-	const captured: VideoKeyframeOfflineVideoExportRequest[] = [];
+	let processedPixel: readonly number[] | null = null;
 	let encodeCalls = 0;
 	const dependencies = {
 		async encodeOffline(request: VideoKeyframeOfflineVideoExportRequest) {
 			encodeCalls += 1;
-			captured.push(request);
+			const rgba = new Uint8Array(request.canvas.width * request.canvas.height * 4).fill(16);
+			for (let offset = 3; offset < rgba.length; offset += 4) rgba[offset] = 255;
+			await request.rgbaPostprocessor?.({
+				frame: exportFrame(1, 1) as never,
+				width: request.canvas.width, height: request.canvas.height,
+				rgba, signal: request.signal,
+			});
+			processedPixel = [...rgba.subarray(0, 4)];
 			return encodedResult();
 		},
 		async encodeOfflineToSink() { throw new Error('sink path is not used'); },
@@ -243,14 +301,7 @@ test('selected V27 export loads digest-bound LUT and motion bodies before encodi
 	});
 	assert.deepEqual(loads, [`lut-sha256:${parsedLut.sha256}`, analysis.reference.storageKey]);
 	assert.equal(encodeCalls, 1);
-	const canvas = captured[0]!.canvas;
-	const rgba = new Uint8Array(canvas.width * canvas.height * 4).fill(16);
-	for (let offset = 3; offset < rgba.length; offset += 4) rgba[offset] = 255;
-	await captured[0]!.rgbaPostprocessor!({
-		frame: exportFrame(1, 1) as never,
-		width: canvas.width, height: canvas.height, rgba, signal,
-	});
-	assert.deepEqual([...rgba.subarray(0, 4)], [255, 255, 255, 255]);
+	assert.deepEqual(processedPixel, [255, 255, 255, 255]);
 
 	const missing = createFramescaperVideoExportStrategyV27(PROFILE, dependencies, {
 		loadMediaAsset: () => Promise.resolve(null),
@@ -322,6 +373,22 @@ function exportFrame(sourceFrame: number, outerCell: number) {
 	};
 }
 
+function transitionExportFrame() {
+	return {
+		index: 6, timelineSample: 28_800,
+		timelinePosition: { num: 28_800, den: 1 },
+		layers: [{ clips: [{
+			clipId: 'outgoing-clip', sourceId: 'video-source',
+			opacity: 1,
+			presentationDescriptor: { drawableSourceFrame: 6, outerCell: 6 },
+		}, {
+			clipId: 'incoming-clip', sourceId: 'video-source',
+			opacity: 0,
+			presentationDescriptor: { drawableSourceFrame: 0, outerCell: 0 },
+		}] }],
+	};
+}
+
 function motionStack() {
 	return {
 		schemaVersion: 1 as const, id: 'stack-1', sourceId: 'video-source',
@@ -350,16 +417,36 @@ function encodedResult() {
 }
 
 function generatorProject() {
+	const options = visualOnlyOptions({
+		schemaVersion: 1, kind: 'generator', id: 'solid-clip', sourceId: 'solid-source',
+		sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
+		sourceInFrame: 0, sourceFrameCount: 10,
+	});
 	return createFramescaperProjectV27(PROFILE, {
-		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
+		...options, videoTransitionsByTrackId: { 'video-track': [] },
 		visualModel: {
 			generatorSources: [{
 				schemaVersion: 1, kind: 'generator', id: 'solid-source', name: 'Solid',
-				width: 1_920, height: 1_080, frameRate: { num: 10, den: 1 }, frameCount: 10,
-				generator: { kind: 'solid', color: '#000000ff' },
+				width: 2, height: 2, frameRate: { num: 10, den: 1 }, frameCount: 10,
+				generator: { kind: 'solid', color: '#ff0000ff' },
 			}],
 		},
 	});
+}
+
+function visualOnlyOptions(
+	clipValue: Readonly<Record<string, unknown>> | readonly Readonly<Record<string, unknown>>[],
+) {
+	const clips = Array.isArray(clipValue) ? clipValue : [clipValue];
+	const options = framescaperV20Options();
+	options.sources = [];
+	options.clips = clips;
+	(options.projectBin as Record<string, unknown>).clips = [];
+	const track = (options.tracks as Record<string, unknown>[])[0]!;
+	track.clipIds = clips.map((clip) => String(clip.id));
+	options.tracks = [track];
+	(options.sequences as Record<string, unknown>[])[0]!.trackIds = ['video-track'];
+	return options;
 }
 
 function delivery(project: ReturnType<typeof createFramescaperProjectV27>): ProductVideoExportDelivery {

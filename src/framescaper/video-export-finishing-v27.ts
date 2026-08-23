@@ -25,6 +25,7 @@ import type { VideoKeyframeExportPlanV7 } from '../common/editor/video-keyframe-
 import type { VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV27 } from './editor-project-unified-render-plan-v27.ts';
+import { createFramescaperVideoExportVisualFreshnessV27 } from './video-export-visual-freshness-v27.ts';
 
 export interface FramescaperVideoExportFinishingAssetStoreV27 {
 	loadMediaAsset(
@@ -79,7 +80,7 @@ export async function createFramescaperVideoExportFinishingV27(
 	return async ({ frame, width, height, rgba, signal }) => {
 		assertSameSignal(request.signal, signal);
 		assertReady(request);
-		const occurrence = exactOccurrence(frame.layers, clips, sourceIdByNodeId);
+		const occurrence = exactOccurrence(frame.layers, clips, sourceIdByNodeId, finishing);
 		if (occurrence === null) return;
 		const input = Object.freeze({ width, height, pixels: rgba.slice() });
 		const cache = temporalCache.get(occurrence.clipId) ?? new Map();
@@ -138,7 +139,9 @@ function renderAuthority(request: FinishingRequest) {
 		includeAudio: false,
 		audioLayout: null,
 		timingViews: request.timingViewsBySourceId,
-		visualFreshnessByModelId: new Map(),
+		visualFreshnessByModelId: createFramescaperVideoExportVisualFreshnessV27(
+			request.project, plan.range,
+		),
 	});
 }
 
@@ -221,6 +224,7 @@ function exactOccurrence(
 	layersValue: readonly unknown[],
 	clips: ReadonlyMap<string, UnifiedExactRenderClipNode>,
 	sourceIdByNodeId: ReadonlyMap<string, string>,
+	finishing: UnifiedExactRenderFinishingNode,
 ): FrameOccurrence | null {
 	if (!Array.isArray(layersValue)) throw new TypeError('Selected V27 finishing requires exact frame layers.');
 	const occurrences: Readonly<Record<string, unknown>>[] = [];
@@ -230,21 +234,59 @@ function exactOccurrence(
 		for (const occurrence of layer.clips) occurrences.push(record(occurrence, 'Selected V27 finishing occurrence'));
 	}
 	if (occurrences.length === 0) return null;
-	if (occurrences.length !== 1) {
-		throw new Error('Selected V27 browser finishing refuses a multi-layer composite without per-layer execution.');
-	}
-	const occurrence = occurrences[0]!;
-	const clipId = stableId(occurrence.clipId, 'Selected V27 finishing clip');
-	const clip = clips.get(clipId);
-	if (!clip || occurrence.sourceId !== sourceIdByNodeId.get(clip.sourceNodeId)) {
-		throw new Error('Selected V27 finishing occurrence diverged from its V13 plan.');
-	}
+	const validated = occurrences.map((occurrence) => occurrenceState(occurrence, clips, sourceIdByNodeId));
+	if (validated.length > 1) assertSharedCompositeFinishing(validated, finishing);
+	const { occurrence, clipId, clip } = validated[0]!;
 	const descriptor = record(occurrence.presentationDescriptor, 'Selected V27 exact presentation');
 	const sourceFrame = nonNegativeInteger(descriptor.drawableSourceFrame, 'Selected V27 source frame');
 	const outerCell = nonNegativeInteger(descriptor.outerCell, 'Selected V27 outer cell');
 	const sequenceFrame = clip.sequenceStartFrame + outerCell;
 	if (!Number.isSafeInteger(sequenceFrame)) throw new RangeError('Selected V27 sequence frame overflowed.');
 	return Object.freeze({ clipId, sourceFrame, sequenceFrame });
+}
+
+function occurrenceState(
+	occurrence: Readonly<Record<string, unknown>>,
+	clips: ReadonlyMap<string, UnifiedExactRenderClipNode>,
+	sourceIdByNodeId: ReadonlyMap<string, string>,
+) {
+	const clipId = stableId(occurrence.clipId, 'Selected V27 finishing clip');
+	const clip = clips.get(clipId);
+	if (!clip) throw new Error('Selected V27 finishing occurrence diverged from its V13 plan.');
+	const sourceId = sourceIdByNodeId.get(clip.sourceNodeId);
+	if (!sourceId || occurrence.sourceId !== sourceId) {
+		throw new Error('Selected V27 finishing occurrence diverged from its V13 plan.');
+	}
+	return Object.freeze({ occurrence, clipId, clip, sourceId });
+}
+
+function assertSharedCompositeFinishing(
+	occurrences: readonly Readonly<{ clipId: string; sourceId: string }>[],
+	finishing: UnifiedExactRenderFinishingNode,
+): void {
+	const clipIds = new Set(occurrences.map(({ clipId }) => clipId));
+	const sourceIds = new Set(occurrences.map(({ sourceId }) => sourceId));
+	if (finishing.visualPresentations.some(({ enabled, owner }) => enabled && (
+		(owner.kind === 'clip' && clipIds.has(owner.id))
+		|| (owner.kind === 'source' && sourceIds.has(owner.id))
+	))) {
+		throw new Error('Selected V27 browser finishing requires per-layer execution for this composite.');
+	}
+	const interpretations = occurrences.map(({ sourceId }) => finishing.sourceInterpretations.find(
+		(value) => value.sourceId === sourceId,
+	));
+	if (interpretations.some((value) => value === undefined)
+		|| interpretations.some((value) => JSON.stringify(colorIdentity(value!))
+			!== JSON.stringify(colorIdentity(interpretations[0]!)))) {
+		throw new Error('Selected V27 browser finishing refuses a composite with divergent source color contexts.');
+	}
+}
+
+function colorIdentity(value: UnifiedExactRenderFinishingNode['sourceInterpretations'][number]) {
+	return Object.freeze({
+		primaries: value.primaries, transfer: value.transfer,
+		matrix: value.matrix, range: value.range,
+	});
 }
 
 function requiredAnalysis(

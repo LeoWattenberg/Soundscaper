@@ -1,6 +1,27 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
+import {
+	createVideoExactPictureExportFrameSource,
+	type VideoKeyframeExportFrame,
+} from '../common/editor/video-keyframe-export-frame-source.ts';
+import {
+	encodeVideoKeyframeVideo,
+	encodeVideoKeyframeVideoToSink,
+	type VideoKeyframeVideoEncoderRequest,
+	type VideoKeyframeVideoEncoderResult,
+	type VideoKeyframeVideoSinkEncoderResult,
+} from '../common/editor/video-keyframe-video-encoder.ts';
+import {
+	createVideoKeyframeOfflineEncoderRequest,
+	preflightVideoKeyframeOfflineEncoder,
+	type VideoKeyframeOfflineEncoderOptions,
+} from '../common/editor/ui/video-keyframe-offline-video-export-encoder.ts';
+import type {
+	VideoKeyframeOfflineRgbaPostprocessor,
+	VideoKeyframeOfflineRgbaRenderer,
+} from '../common/editor/ui/video-keyframe-offline-rgba-renderer.ts';
+import { createVisibleVideoTrackPredicate } from '../common/editor/video-track-visibility.js';
 import type {
 	ProductVideoExportEncodedOutput,
 	ProductVideoExportPlan,
@@ -28,13 +49,57 @@ import {
 } from './video-export-strategy-v20.ts';
 import {
 	createFramescaperVideoExportFinishingV27,
-	type FramescaperVideoExportFinishingAssetStoreV27,
 } from './video-export-finishing-v27.ts';
+import {
+	createFramescaperVideoExportVisualExecutionV27,
+	type FramescaperVideoExportPictureDispositionV27,
+	type FramescaperVideoExportVisualAssetStoreV27,
+} from './video-export-visual-execution-v27.ts';
+import {
+	createFramescaperVideoVisualPlanV27,
+	isFramescaperVideoVisualPlanV27,
+	type FramescaperVideoVisualPlanV27,
+} from './video-export-visual-plan-v27.ts';
 
 interface ExportAuthorityV27 {
 	readonly canonicalProject: Readonly<Record<string, unknown>>;
 	readonly v20Project: Readonly<Record<string, unknown>>;
 	readonly v20ExportProject: Readonly<Record<string, unknown>>;
+}
+
+type PictureSinkEncoderV27 = <Output>(
+	editorFfmpeg: unknown,
+	request: VideoKeyframeVideoEncoderRequest,
+	sink: FfmpegOutputSink<Output>,
+) => Promise<VideoKeyframeVideoSinkEncoderResult<Output>>;
+
+interface PictureEncodersV27 {
+	readonly encodePicture: (
+		editorFfmpeg: unknown, request: VideoKeyframeVideoEncoderRequest,
+	) => Promise<VideoKeyframeVideoEncoderResult>;
+	readonly encodePictureToSink: PictureSinkEncoderV27;
+}
+
+export interface FramescaperVideoExportStrategyV27Dependencies
+	extends FramescaperVideoExportStrategyV20Dependencies {
+	readonly encodePicture?: typeof encodeVideoKeyframeVideo;
+	readonly encodePictureToSink?: PictureSinkEncoderV27;
+}
+
+const DEFAULT_PICTURE_ENCODERS = Object.freeze({
+	encodePicture: encodeVideoKeyframeVideo,
+	encodePictureToSink: encodeVideoKeyframeVideoToSink as PictureSinkEncoderV27,
+});
+
+const DISPOSITIONS = new WeakMap<object, FramescaperVideoExportPictureDispositionV27>();
+
+/** Read the exact post-encode node ledger retained for acceptance and reports. */
+export function framescaperVideoExportDispositionV27For(
+	plan: ProductVideoExportPlan,
+): FramescaperVideoExportPictureDispositionV27 {
+	const result = DISPOSITIONS.get(plan);
+	if (!result) throw new ReferenceError('The V27 picture export plan has no completed disposition.');
+	return result;
 }
 
 /**
@@ -43,15 +108,17 @@ interface ExportAuthorityV27 {
  */
 export function createFramescaperVideoExportStrategyV27(
 	profile: unknown,
-	dependencies?: FramescaperVideoExportStrategyV20Dependencies,
-	assetStore?: FramescaperVideoExportFinishingAssetStoreV27,
+	dependencies?: FramescaperVideoExportStrategyV27Dependencies,
+	assetStore?: FramescaperVideoExportVisualAssetStoreV27,
 ): ProductVideoExportStrategy {
 	assertFramescaperProjectV27Profile(profile);
+	const pictureEncoders = snapshotPictureEncoders(dependencies);
 	const delegate = createFramescaperVideoExportStrategyV20(
 		FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, dependencies,
 		{ forceKeyed: true },
 	);
 	const exports = new WeakMap<object, ExportAuthorityV27>();
+	const plans = new WeakMap<object, ExportAuthorityV27>();
 	const timingSources = new WeakMap<object, readonly string[]>();
 	return Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
@@ -70,43 +137,50 @@ export function createFramescaperVideoExportStrategyV27(
 			}));
 			return exportProject;
 		},
+		hasPicture(exportProject: Readonly<Record<string, unknown>>) {
+			const authority = exports.get(exportProject);
+			if (!authority) throw new TypeError('Selected V27 picture authority requires an owned export project.');
+			return hasVisibleVisualPicture(authority.canonicalProject);
+		},
 		createPlan(request: ProductVideoExportStrategyPlanRequest) {
 			const authority = currentAuthority(profile, request, exports);
-			const plan = delegate.createPlan({
-				...request,
-				canonicalProject: authority.v20Project,
-				exportProject: authority.v20ExportProject,
-			});
-			if (!plan) throw new Error('Selected V27 browser export requires the exact keyed RGBA route.');
+			const plan = hasVisibleVideoPicture(authority.canonicalProject)
+				? delegate.createPlan({
+					...request,
+					canonicalProject: authority.v20Project,
+					exportProject: authority.v20ExportProject,
+					// V27 captions are accounted and delivered as explicit sidecars;
+					// they are not a keyed picture mux/burn request for the V20 core.
+					captions: undefined,
+				})
+				: createFramescaperVideoVisualPlanV27(
+					authority.canonicalProject as unknown as FramescaperProjectV27, request,
+				);
+			if (!plan) throw new Error('Selected V27 browser export requires an exact RGBA route.');
+			plans.set(plan, authority);
 			timingSources.set(plan, allVideoSourceIds(authority.canonicalProject));
 			return plan;
 		},
 		async encode(
 			request: ProductVideoExportStrategyEncodeRequest,
 		): Promise<ProductVideoExportEncodedOutput> {
-			const authority = currentAuthority(profile, request, exports);
-			const rgbaPostprocessor = await finishingPostprocessor(
-				profile, authority, request, assetStore,
-			);
-			return delegate.encode({
-				...request, canonicalProject: authority.v20Project,
-				exportProject: authority.v20ExportProject, rgbaPostprocessor,
-			});
+			const authority = ownedPlanAuthority(profile, request, exports, plans);
+			if (isFramescaperVideoVisualPlanV27(request.plan)) {
+				return encodeVisualPicture(profile, authority, request, assetStore, pictureEncoders);
+			}
+			return encodeKeyedPicture(profile, authority, request, assetStore, delegate);
 		},
 		async encodeToSink<Output>(
 			request: ProductVideoExportStrategyEncodeRequest,
 			sink: FfmpegOutputSink<Output>,
 		): Promise<ProductVideoExportSinkOutput<Output>> {
-			const authority = currentAuthority(profile, request, exports);
-			const rgbaPostprocessor = await finishingPostprocessor(
-				profile, authority, request, assetStore,
-			);
-			return delegate.encodeToSink(
-				{
-					...request, canonicalProject: authority.v20Project,
-					exportProject: authority.v20ExportProject, rgbaPostprocessor,
-				}, sink,
-			);
+			const authority = ownedPlanAuthority(profile, request, exports, plans);
+			if (isFramescaperVideoVisualPlanV27(request.plan)) {
+				return encodeVisualPictureToSink(
+					profile, authority, request, assetStore, pictureEncoders, sink,
+				);
+			}
+			return encodeKeyedPictureToSink(profile, authority, request, assetStore, delegate, sink);
 		},
 		captureTimingSourceIds(plan: ProductVideoExportPlan) {
 			const sourceIds = timingSources.get(plan);
@@ -116,25 +190,246 @@ export function createFramescaperVideoExportStrategyV27(
 	});
 }
 
-async function finishingPostprocessor(
+async function createKeyedExecution(
 	profile: unknown,
 	authority: ExportAuthorityV27,
 	request: ProductVideoExportStrategyEncodeRequest,
-	assetStore: FramescaperVideoExportFinishingAssetStoreV27 | undefined,
+	assetStore: FramescaperVideoExportVisualAssetStoreV27 | undefined,
 ) {
 	assertVideoKeyframeExportPlanV7(request.plan);
-	if (!(request.timingViewsBySourceId instanceof Map)) {
-		throw new TypeError('Selected V27 browser export lost its raw exact timing authority.');
-	}
-	return createFramescaperVideoExportFinishingV27({
+	const timingViewsBySourceId = rawTiming(request);
+	const finishing = await createFramescaperVideoExportFinishingV27({
 		profile,
 		project: authority.canonicalProject as unknown as FramescaperProjectV27,
 		plan: request.plan as VideoKeyframeExportPlanV7,
-		timingViewsBySourceId: request.timingViewsBySourceId,
+		timingViewsBySourceId,
 		...(assetStore === undefined ? {} : { store: assetStore }),
 		signal: request.signal,
 		assertCurrent: request.assertCurrent,
 	});
+	const visual = await createFramescaperVideoExportVisualExecutionV27({
+		profile, project: authority.canonicalProject as unknown as FramescaperProjectV27,
+		plan: request.plan, timingViewsBySourceId,
+		...(assetStore === undefined ? {} : { store: assetStore }),
+		signal: request.signal, assertCurrent: request.assertCurrent,
+	});
+	const postprocess: VideoKeyframeOfflineRgbaPostprocessor = async (frame) => {
+		await finishing(frame);
+		await visual.postprocess(frame);
+	};
+	return Object.freeze({ visual, postprocess });
+}
+
+async function encodeKeyedPicture(
+	profile: unknown,
+	authority: ExportAuthorityV27,
+	request: ProductVideoExportStrategyEncodeRequest,
+	assetStore: FramescaperVideoExportVisualAssetStoreV27 | undefined,
+	delegate: ProductVideoExportStrategy,
+): Promise<ProductVideoExportEncodedOutput> {
+	const execution = await createKeyedExecution(profile, authority, request, assetStore);
+	try {
+		const result = await delegate.encode({
+			...request, canonicalProject: authority.v20Project,
+			exportProject: authority.v20ExportProject, rgbaPostprocessor: execution.postprocess,
+		});
+		DISPOSITIONS.set(request.plan, execution.visual.disposition());
+		return result;
+	} finally { execution.visual.dispose(); }
+}
+
+async function encodeKeyedPictureToSink<Output>(
+	profile: unknown,
+	authority: ExportAuthorityV27,
+	request: ProductVideoExportStrategyEncodeRequest,
+	assetStore: FramescaperVideoExportVisualAssetStoreV27 | undefined,
+	delegate: ProductVideoExportStrategy,
+	sink: FfmpegOutputSink<Output>,
+): Promise<ProductVideoExportSinkOutput<Output>> {
+	const execution = await createKeyedExecution(profile, authority, request, assetStore);
+	try {
+		const result = await delegate.encodeToSink({
+			...request, canonicalProject: authority.v20Project,
+			exportProject: authority.v20ExportProject, rgbaPostprocessor: execution.postprocess,
+		}, sink);
+		DISPOSITIONS.set(request.plan, execution.visual.disposition());
+		return result;
+	} finally { execution.visual.dispose(); }
+}
+
+async function createVisualExecution(
+	profile: unknown,
+	authority: ExportAuthorityV27,
+	request: ProductVideoExportStrategyEncodeRequest,
+	assetStore: FramescaperVideoExportVisualAssetStoreV27 | undefined,
+) {
+	if (!isFramescaperVideoVisualPlanV27(request.plan)) {
+		throw new TypeError('Selected V27 picture-only execution requires its exact V13 output plan.');
+	}
+	if (!(request.videoBlobs instanceof Map) || request.videoBlobs.size !== 0) {
+		throw new TypeError('Selected V27 picture-only execution refuses unplanned video inputs.');
+	}
+	const includesAudio = request.plan.inputs.some(({ kind }) => kind === 'staged-audio-mix');
+	if (includesAudio !== (request.audioMix instanceof Blob)) {
+		throw new TypeError('Selected V27 picture-only audio must exactly match its detached plan.');
+	}
+	const visual = await createFramescaperVideoExportVisualExecutionV27({
+		profile, project: authority.canonicalProject as unknown as FramescaperProjectV27,
+		plan: request.plan, timingViewsBySourceId: rawTiming(request),
+		...(assetStore === undefined ? {} : { store: assetStore }),
+		signal: request.signal, assertCurrent: request.assertCurrent,
+	});
+	const frameSource = createVideoExactPictureExportFrameSource({
+		sampleRate: request.plan.sampleRate,
+		startFrame: request.plan.range.startFrame,
+		endFrame: request.plan.range.endFrame,
+		canvas: {
+			width: request.plan.canvas.width, height: request.plan.canvas.height,
+			frameRate: request.plan.canvas.frameRate, fit: request.plan.canvas.fit,
+			backgroundColor: request.plan.canvas.backgroundColor,
+		},
+	});
+	const producer = visual.createProducer(frameSource);
+	const renderer: VideoKeyframeOfflineRgbaRenderer = Object.freeze({
+		width: producer.width, height: producer.height, byteLength: producer.byteLength,
+		async produce(frame: VideoKeyframeExportFrame, target: Uint8Array,
+			options: Readonly<{ readonly signal: AbortSignal }>) {
+			await producer.produce(frame, target as Uint8Array<ArrayBuffer>, options);
+		},
+		async dispose() { await producer.dispose(); },
+	});
+	const encoderOptions: Readonly<Record<string, number>> = request.maximumOutputBytes === undefined
+		? Object.freeze({}) : Object.freeze({ maximumOutputBytes: request.maximumOutputBytes as number });
+	const options: VideoKeyframeOfflineEncoderOptions = Object.freeze({
+		format: request.plan.format,
+		quality: request.plan.quality,
+		...(request.webCodecs ? { webCodecs: request.webCodecs } : {}),
+		...(request.audioMix instanceof Blob ? { audioMix: request.audioMix } : {}),
+		encoderOptions,
+		signal: request.signal, assertCurrent: request.assertCurrent,
+	});
+	await preflightVideoKeyframeOfflineEncoder(options, frameSource);
+	return Object.freeze({ visual, encoderRequest: createVideoKeyframeOfflineEncoderRequest(
+		options, frameSource, renderer,
+	) });
+}
+
+async function encodeVisualPicture(
+	profile: unknown,
+	authority: ExportAuthorityV27,
+	request: ProductVideoExportStrategyEncodeRequest,
+	assetStore: FramescaperVideoExportVisualAssetStoreV27 | undefined,
+	encoders: PictureEncodersV27,
+): Promise<ProductVideoExportEncodedOutput> {
+	const execution = await createVisualExecution(profile, authority, request, assetStore);
+	try {
+		const encoded = await encoders.encodePicture(request.editorFfmpeg, execution.encoderRequest);
+		const result = pictureBrowserResult(encoded, request.plan as FramescaperVideoVisualPlanV27);
+		DISPOSITIONS.set(request.plan, execution.visual.disposition());
+		return result;
+	} finally { execution.visual.dispose(); }
+}
+
+async function encodeVisualPictureToSink<Output>(
+	profile: unknown,
+	authority: ExportAuthorityV27,
+	request: ProductVideoExportStrategyEncodeRequest,
+	assetStore: FramescaperVideoExportVisualAssetStoreV27 | undefined,
+	encoders: PictureEncodersV27,
+	sink: FfmpegOutputSink<Output>,
+): Promise<ProductVideoExportSinkOutput<Output>> {
+	const execution = await createVisualExecution(profile, authority, request, assetStore);
+	try {
+		const encoded = await encoders.encodePictureToSink(
+			request.editorFfmpeg, execution.encoderRequest, sink,
+		);
+		const result = pictureSinkResult(encoded, request.plan as FramescaperVideoVisualPlanV27);
+		DISPOSITIONS.set(request.plan, execution.visual.disposition());
+		return result;
+	} finally { execution.visual.dispose(); }
+}
+
+function snapshotPictureEncoders(
+	value: FramescaperVideoExportStrategyV27Dependencies | undefined,
+): PictureEncodersV27 {
+	const owner: object = value ?? DEFAULT_PICTURE_ENCODERS;
+	const encodePicture = optionalPictureFunction(owner, 'encodePicture')
+		?? DEFAULT_PICTURE_ENCODERS.encodePicture;
+	const encodePictureToSink = optionalPictureFunction(owner, 'encodePictureToSink')
+		?? DEFAULT_PICTURE_ENCODERS.encodePictureToSink;
+	return Object.freeze({
+		encodePicture(editorFfmpeg: unknown, request: VideoKeyframeVideoEncoderRequest) {
+			return Promise.resolve(Reflect.apply(encodePicture, owner, [editorFfmpeg, request]) as (
+				PromiseLike<VideoKeyframeVideoEncoderResult> | VideoKeyframeVideoEncoderResult
+			));
+		},
+		encodePictureToSink<Output>(
+			editorFfmpeg: unknown,
+			request: VideoKeyframeVideoEncoderRequest,
+			sink: FfmpegOutputSink<Output>,
+		) {
+			return Promise.resolve(Reflect.apply(encodePictureToSink, owner, [editorFfmpeg, request, sink]) as (
+				PromiseLike<VideoKeyframeVideoSinkEncoderResult<Output>>
+				| VideoKeyframeVideoSinkEncoderResult<Output>
+			));
+		},
+	});
+}
+
+function optionalPictureFunction(
+	value: object,
+	key: 'encodePicture' | 'encodePictureToSink',
+): ((...arguments_: never[]) => unknown) | undefined {
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	if (!descriptor) return undefined;
+	if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')
+		|| typeof descriptor.value !== 'function') {
+		throw new TypeError(`V27 picture export dependencies.${key} must be an own function.`);
+	}
+	return descriptor.value as (...arguments_: never[]) => unknown;
+}
+
+function pictureBrowserResult(
+	encoded: VideoKeyframeVideoEncoderResult,
+	plan: FramescaperVideoVisualPlanV27,
+): ProductVideoExportEncodedOutput {
+	assertPictureResult(encoded, plan);
+	if (!(encoded.bytes instanceof Uint8Array) || encoded.bytes.byteLength !== encoded.byteLength) {
+		throw new Error('The V27 picture-only output byte length is inconsistent.');
+	}
+	return Object.freeze({
+		bytes: encoded.bytes, byteLength: encoded.byteLength,
+		videoEncoder: encoded.videoEncoder,
+		...(encoded.codec === undefined ? {} : { codec: encoded.codec }),
+		extension: encoded.extension, mimeType: encoded.mimeType,
+	});
+}
+
+function pictureSinkResult<Output>(
+	encoded: VideoKeyframeVideoSinkEncoderResult<Output>,
+	plan: FramescaperVideoVisualPlanV27,
+): ProductVideoExportSinkOutput<Output> {
+	assertPictureResult(encoded, plan);
+	if (!Number.isSafeInteger(encoded.outputChunkCount) || encoded.outputChunkCount < 0) {
+		throw new RangeError('The V27 picture-only output chunk count is invalid.');
+	}
+	return Object.freeze({
+		output: encoded.output, byteLength: encoded.byteLength,
+		chunkCount: encoded.outputChunkCount, videoEncoder: encoded.videoEncoder,
+		...(encoded.codec === undefined ? {} : { codec: encoded.codec }),
+		extension: encoded.extension, mimeType: encoded.mimeType,
+	});
+}
+
+function assertPictureResult(
+	encoded: Readonly<{ byteLength: number; format: string; extension: string; mimeType: string }>,
+	plan: FramescaperVideoVisualPlanV27,
+): void {
+	if (!Number.isSafeInteger(encoded.byteLength) || encoded.byteLength < 0
+		|| encoded.format !== plan.format || encoded.extension !== `.${plan.extension}`
+		|| encoded.mimeType !== plan.mimeType) {
+		throw new Error('The V27 picture encoder output does not match its exact plan.');
+	}
 }
 
 function currentAuthority(
@@ -156,6 +451,28 @@ function currentAuthority(
 	return authority;
 }
 
+function ownedPlanAuthority(
+	profile: unknown,
+	request: ProductVideoExportStrategyEncodeRequest,
+	exports: WeakMap<object, ExportAuthorityV27>,
+	plans: WeakMap<object, ExportAuthorityV27>,
+): ExportAuthorityV27 {
+	const authority = currentAuthority(profile, request, exports);
+	if (plans.get(request.plan) !== authority) {
+		throw new TypeError('The V27 export plan is not owned by this exact project snapshot.');
+	}
+	return authority;
+}
+
+function rawTiming(
+	request: ProductVideoExportStrategyEncodeRequest,
+) {
+	if (!(request.timingViewsBySourceId instanceof Map)) {
+		throw new TypeError('Selected V27 browser export lost its raw exact timing authority.');
+	}
+	return request.timingViewsBySourceId;
+}
+
 function executableFoundation(
 	profile: unknown,
 	projectValue: unknown,
@@ -168,27 +485,6 @@ function executableFoundation(
 
 function assertSupportedBrowserFinishingState(project: FramescaperProjectV27): void {
 	const record = project as unknown as Readonly<Record<string, unknown>>;
-	const sources = records(record.sources, 'V27 browser export sources');
-	const clips = [
-		...records(record.clips, 'V27 browser export clips'),
-		...records(dataRecord(record.projectBin, 'V27 browser export project bin').clips,
-			'V27 browser export project bin clips'),
-	];
-	if (sources.some(({ kind }) => kind === 'still' || kind === 'generator')
-		|| clips.some(({ kind }) => kind === 'still' || kind === 'generator')) {
-		refuse('stills or generated visuals');
-	}
-	for (const field of [
-		'videoAdjustmentLayers', 'videoVisualPresets', 'videoMaskMattes', 'videoFreezeFallbacks',
-	]) {
-		if (array(record[field], `V27 browser export ${field}`).length > 0) refuse(field);
-	}
-	for (const track of records(record.tracks, 'V27 browser export tracks')) {
-		if (track.type === 'video'
-			&& array(track.videoTransitions, 'V27 browser export video transitions').length > 0) {
-			refuse('video transitions');
-		}
-	}
 	for (const interpretation of records(
 		record.videoSourceColorInterpretations, 'V27 browser export color interpretations',
 	)) {
@@ -201,19 +497,31 @@ function assertSupportedBrowserFinishingState(project: FramescaperProjectV27): v
 			refuse('an HDR or wide-gamut source interpretation');
 		}
 	}
-	for (const presentation of records(
-		record.videoVisualPresentations, 'V27 browser export visual presentations',
-	)) {
-		if (presentation.enabled !== true) continue;
-		const owner = dataRecord(presentation.owner, 'V27 browser export presentation owner');
-		if (!['clip', 'source'].includes(String(owner.kind))) {
-			refuse('a non-media visual presentation owner');
-		}
-		if (presentation.opacity !== 1 || presentation.blendMode !== 'normal'
-			|| array(presentation.maskMatteIds, 'V27 browser export mask/matte IDs').length > 0) {
-			refuse('presentation opacity, blending, or masks before per-layer finishing');
-		}
-	}
+}
+
+function hasVisibleVideoPicture(project: Readonly<Record<string, unknown>>): boolean {
+	return hasVisiblePictureKind(project, new Set(['video']));
+}
+
+function hasVisibleVisualPicture(project: Readonly<Record<string, unknown>>): boolean {
+	return hasVisiblePictureKind(project, new Set(['still', 'generator']));
+}
+
+function hasVisiblePictureKind(
+	project: Readonly<Record<string, unknown>>,
+	kinds: ReadonlySet<string>,
+): boolean {
+	const sequences = records(project.sequences, 'V27 picture sequences');
+	const primary = sequences.find(({ id }) => id === project.primarySequenceId);
+	if (!primary) throw new ReferenceError('V27 picture primary sequence is unavailable.');
+	const trackIds = new Set(array(primary.trackIds, 'V27 picture sequence track IDs').map(String));
+	const clips = new Map(records(project.clips, 'V27 picture clips').map((clip) => [String(clip.id), clip]));
+	const tracks = records(project.tracks, 'V27 picture tracks');
+	const visible = createVisibleVideoTrackPredicate(tracks);
+	return tracks.some((track) => trackIds.has(String(track.id)) && visible(track)
+		&& array(track.clipIds, 'V27 picture track clip IDs').some((id) => (
+			kinds.has(String(clips.get(String(id))?.kind))
+		)));
 }
 
 function refuse(feature: string): never {

@@ -93,6 +93,8 @@ export interface ProductVideoExportSinkOutput<Output> {
 
 export interface ProductVideoExportStrategy {
 	createExportProject(request: ProductVideoExportProjectRequest): Readonly<Record<string, unknown>>;
+	/** Product-owned picture kinds such as stills and generators on visible tracks. */
+	hasPicture?(exportProject: Readonly<Record<string, unknown>>): boolean;
 	createPlan(request: ProductVideoExportStrategyPlanRequest): ProductVideoExportPlan | null;
 	encode(request: ProductVideoExportStrategyEncodeRequest): Promise<ProductVideoExportEncodedOutput>;
 	encodeToSink<Output>(
@@ -113,6 +115,8 @@ export function resolveProductVideoExportStrategy(options: unknown): ProductVide
 	}
 	const strategy = descriptor.value;
 	const createExportProject = dataMethod(strategy, 'createExportProject');
+	const hasPicture = Object.hasOwn(strategy, 'hasPicture')
+		? dataMethod(strategy, 'hasPicture') : undefined;
 	const createPlan = dataMethod(strategy, 'createPlan');
 	const encode = dataMethod(strategy, 'encode');
 	const encodeToSink = dataMethod(strategy, 'encodeToSink');
@@ -122,6 +126,15 @@ export function resolveProductVideoExportStrategy(options: unknown): ProductVide
 		createExportProject(request: ProductVideoExportProjectRequest) {
 			return Reflect.apply(createExportProject, strategy, [request]) as Readonly<Record<string, unknown>>;
 		},
+		...(hasPicture ? {
+			hasPicture(exportProject: Readonly<Record<string, unknown>>): boolean {
+				const result = Reflect.apply(hasPicture, strategy, [exportProject]);
+				if (typeof result !== 'boolean') {
+					throw new TypeError('Product video export strategy.hasPicture must return boolean.');
+				}
+				return result;
+			},
+		} : {}),
 		createPlan(request: ProductVideoExportStrategyPlanRequest) {
 			return Reflect.apply(createPlan, strategy, [request]) as ProductVideoExportPlan | null;
 		},
@@ -198,13 +211,12 @@ export function captureProductVideoExportActiveSourceIds(
 	if (Reflect.ownKeys(descriptor.value).some((key) => typeof key !== 'string' || !allowed.has(key))) {
 		throw new TypeError('Product video export plan activeSourceIds must not carry custom properties.');
 	}
-	if (result.length < 1) throw new RangeError('Product video export plan requires an active source ID.');
 	return Object.freeze(result);
 }
 
 function captureSourceIdArray(value: unknown, name: string): readonly string[] {
 	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype
-		|| value.length < 1 || value.length > 4_096) {
+		|| value.length > 4_096) {
 		throw new TypeError(`Product video export ${name} must be a bounded ordinary array.`);
 	}
 	const result: string[] = [];
@@ -232,7 +244,8 @@ function captureSourceIdArray(value: unknown, name: string): readonly string[] {
 
 function dataMethod(
 	value: unknown,
-	key: 'createExportProject' | 'createPlan' | 'encode' | 'encodeToSink' | 'captureTimingSourceIds',
+	key: 'createExportProject' | 'hasPicture' | 'createPlan' | 'encode' | 'encodeToSink'
+		| 'captureTimingSourceIds',
 ): (...arguments_: never[]) => unknown {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Product video export strategy must be an object.');
