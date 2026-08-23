@@ -9,19 +9,19 @@ import {
 export interface RetentionClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly sourceId?: string | null;
-	readonly kind?: 'audio' | 'video';
+	readonly kind?: unknown;
 }
 
 export interface RetentionProject extends Readonly<Record<string, unknown>>, TakeGroupSourceReferenceProject {
 	readonly id: string;
 	readonly sources?: readonly Readonly<{
 		readonly id: string;
-		readonly kind?: 'audio' | 'video';
+		readonly kind?: unknown;
 	}>[];
 	readonly featureRequirements?: Readonly<{
 		readonly requirements?: readonly Readonly<{
 			readonly fallback?: Readonly<{
-				readonly kind?: 'audio' | 'video';
+				readonly kind?: unknown;
 				readonly sourceId?: string | null;
 			}> | null;
 		}>[];
@@ -37,7 +37,7 @@ interface RetentionClipboard {
 		readonly sourceTrackType?: 'audio' | 'video';
 		readonly clips?: readonly Readonly<{
 			readonly sourceId?: string | null;
-			readonly kind?: 'audio' | 'video';
+			readonly kind?: unknown;
 		}>[];
 	}>[];
 }
@@ -192,13 +192,15 @@ export function createProjectRetentionService<
 				};
 				for (const clip of dependencies.allProjectClips(project)) {
 					if (!clip.sourceId) continue;
-					const kind = clip.kind ?? sourceKind(clip.sourceId);
+					const kind = linkedOriginalKind(clip.kind)
+						?? (clip.kind === undefined ? sourceKind(clip.sourceId) : null);
 					if (kind) add(kind, clip.sourceId);
 				}
 				for (const requirement of project.featureRequirements?.requirements || []) {
 					const fallback = requirement.fallback;
 					if (!fallback?.sourceId) continue;
-					const kind = fallback.kind ?? sourceKind(fallback.sourceId);
+					const kind = linkedOriginalKind(fallback.kind)
+						?? (fallback.kind === undefined ? sourceKind(fallback.sourceId) : null);
 					if (kind) add(kind, fallback.sourceId);
 				}
 				for (const sourceId of collectTakeGroupSourceIds(project)) {
@@ -209,8 +211,9 @@ export function createProjectRetentionService<
 		}
 		for (const track of dependencies.state.clipboard?.tracks || []) {
 			for (const clip of track.clips || []) {
-				const kind = clip.kind ?? track.sourceTrackType ?? 'audio';
-				add(kind, clip.sourceId);
+				const kind = linkedOriginalKind(clip.kind)
+					?? (clip.kind === undefined ? track.sourceTrackType ?? 'audio' : null);
+				if (kind) add(kind, clip.sourceId);
 			}
 		}
 		for (const sourceId of transientAudioIds) add('audio', sourceId);
@@ -241,4 +244,8 @@ export function createProjectRetentionService<
 	function retainLiveClipIds(): void {
 		dependencies.clipCache.retainClipIds?.(liveSessionClipIds());
 	}
+}
+
+function linkedOriginalKind(value: unknown): 'audio' | 'video' | null {
+	return value === 'audio' || value === 'video' ? value : null;
 }

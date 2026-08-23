@@ -6,10 +6,12 @@ export const FRAMESCAPER_CANDIDATE_AUTHORING_SURFACES = Object.freeze([
 	'video-transition-dissolve',
 	'video-still',
 	'video-title',
+	'video-text',
 	'video-shape',
 	'video-solid',
 	'video-external-generator',
 	'video-adjustment-layer',
+	'video-visual-preset',
 	'video-mask-matte',
 	'video-freeze',
 ] as const);

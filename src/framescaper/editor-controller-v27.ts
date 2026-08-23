@@ -10,6 +10,7 @@ import { createFramescaperSequenceActionsV18 } from './editor-project-v18-sequen
 import { createFramescaperVideoRetimeActionsV20 } from './editor-project-v20-retime-actions.ts';
 import type { FramescaperProjectCommandV27 } from './editor-project-v27-commands.ts';
 import { createFramescaperScapeNativeRuntimeV27 } from './editor-scape-native-v27.ts';
+import { bindFramescaperSelectedAuthoringControllerV27 } from './editor-selected-v27-authoring-controller.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
@@ -58,6 +59,10 @@ export function createFramescaperAudioEditorControllerV27(
 		...presentation,
 	});
 	executeProductSequenceCommand = (command) => controller.actions.edit.commit(command);
+	bindFramescaperSelectedAuthoringControllerV27({
+		controller,
+		store: environment.controllerStore,
+	});
 	return controller;
 }
 

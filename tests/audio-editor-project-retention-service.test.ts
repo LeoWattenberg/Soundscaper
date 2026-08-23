@@ -13,11 +13,11 @@ interface TestProject extends RetentionProject {
 	readonly clips: readonly Readonly<{
 		readonly id: string;
 		readonly sourceId?: string;
-		readonly kind?: 'audio' | 'video';
+		readonly kind?: unknown;
 	}>[];
 	readonly sources?: readonly Readonly<{
 		readonly id: string;
-		readonly kind: 'audio' | 'video';
+		readonly kind: unknown;
 	}>[];
 }
 
@@ -175,6 +175,11 @@ test('linked-original roots preserve audio and video kinds across histories and 
 			{ id: 'same-id', kind: 'video' },
 		],
 	};
+	const visual = {
+		id: 'visual-project',
+		clips: [{ id: 'generator-clip', sourceId: 'generator-source', kind: 'generator' }],
+		sources: [{ id: 'generator-source', kind: 'generator' }],
+	} satisfies TestProject;
 	const service = createProjectRetentionService<TestProject, TestHistory>({
 		state: {
 			history: { present: audio },
@@ -182,6 +187,7 @@ test('linked-original roots preserve audio and video kinds across histories and 
 				tracks: [
 					{ clips: [{ sourceId: 'clipboard-audio', kind: 'audio' }] },
 					{ clips: [{ sourceId: 'clipboard-video', kind: 'video' }] },
+					{ clips: [{ sourceId: 'clipboard-generator', kind: 'generator' }] },
 				],
 			},
 			readOnly: false,
@@ -204,6 +210,7 @@ test('linked-original roots preserve audio and video kinds across histories and 
 		getSessionTabs: () => [
 			{ history: { present: audio } },
 			{ history: { present: video } },
+			{ history: { present: visual } },
 		],
 		editorHistoryProjects: (value) => [value.present],
 		allProjectClips: (value) => value.clips,

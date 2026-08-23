@@ -103,10 +103,22 @@ function mergeTracks(baseValue: unknown, canonicalValue: unknown, visualIds: Rea
 
 function runtimeClip(project: FramescaperProjectV27, clip: DataRecord, runtime: boolean): DataRecord {
 	if (!runtime) return structuredClone(clip);
-	return resolveRuntimeClipProjection(
+	const kind = clip.kind;
+	if (kind !== 'still' && kind !== 'generator') {
+		throw new RangeError('Selected V27 visual runtime clips must be stills or generators.');
+	}
+	const projection = resolveRuntimeClipProjection(
 		project as unknown as RuntimeClipProject,
-		clip,
+		{
+			...clip,
+			kind: 'video',
+			...(kind === 'still' ? {
+				sourceInFrame: 0,
+				sourceFrameCount: clip.sequenceFrameCount,
+			} : {}),
+		},
 	) as unknown as DataRecord;
+	return Object.freeze({ ...projection, kind });
 }
 
 function isVisual(value: DataRecord): boolean { return value.kind === 'still' || value.kind === 'generator'; }

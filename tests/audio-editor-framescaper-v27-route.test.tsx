@@ -32,6 +32,9 @@ const {
 const { framescaperNativeProjectActionRuntimeFor } = await import(
 	'../src/common/editor/ui/framescaper-native-project-actions.ts'
 );
+const { framescaperCandidateAuthoringActionRuntimeFor } = await import(
+	'../src/common/editor/ui/framescaper-candidate-authoring-actions.ts'
+);
 
 test('selected V27 controller creates, edits, saves, undoes, and redoes exact documents', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV27({
@@ -58,6 +61,59 @@ test('selected V27 controller creates, edits, saves, undoes, and redoes exact do
 	await controller.actions.project.save();
 	assert.equal((await environment.store.loadProject(ready.project.id))?.schemaVersion, 27);
 	assert.equal(framescaperNativeProjectActionRuntimeFor(controller), null);
+});
+
+test('selected V27 visual authoring commits maintained V24 state through controller history', async (context) => {
+	const environment = await createFramescaperEditorProjectEnvironmentV27({
+		storeOptions: {
+			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
+			preferOpfs: false,
+		},
+	});
+	const controller = createFramescaperAudioEditorControllerV27(environment, { locale: 'en' });
+	context.after(async () => {
+		await controller.dispose();
+		await environment.close();
+	});
+	const ready = await controller.ready;
+	assert.equal(ready.phase, 'ready', JSON.stringify(ready.status));
+	const runtime = framescaperCandidateAuthoringActionRuntimeFor(controller);
+	assert.ok(runtime);
+	assert.deepEqual(runtime.surfaces, [
+		'video-transition', 'video-transition-dissolve',
+		'video-still', 'video-title', 'video-text', 'video-shape', 'video-solid',
+		'video-adjustment-layer', 'video-visual-preset', 'video-mask-matte', 'video-freeze',
+	]);
+	assert.equal(runtime.surfaces.includes('video-external-generator'), false);
+
+	await runtime.run('video-solid');
+	let project = visualProject(controller.project);
+	assert.equal(project.sources.filter(({ kind }) => kind === 'generator').length, 1);
+	assert.equal(project.clips.filter(({ kind }) => kind === 'generator').length, 1);
+	const revisionAfterSolid = project.revision;
+	controller.actions.edit.undo();
+	project = visualProject(controller.project);
+	assert.equal(project.sources.some(({ kind }) => kind === 'generator'), false);
+	assert.equal(project.revision, revisionAfterSolid + 1);
+	controller.actions.edit.redo();
+	project = visualProject(controller.project);
+	assert.equal(project.sources.filter(({ kind }) => kind === 'generator').length, 1);
+
+	for (const surface of ['video-title', 'video-text', 'video-shape'] as const) {
+		await runtime.run(surface);
+	}
+	await runtime.run('video-adjustment-layer');
+	await runtime.run('video-mask-matte');
+	await runtime.run('video-visual-preset');
+	project = visualProject(controller.project);
+	assert.deepEqual(project.sources.filter(({ kind }) => kind === 'generator')
+		.map(({ generator }) => generator?.kind), ['solid', 'title', 'text', 'shape']);
+	assert.equal(project.videoAdjustmentLayers.length, 1);
+	assert.equal(project.videoMaskMattes.length, 1);
+	assert.equal(project.videoVisualPresets.length, 1);
+	await controller.actions.project.save();
+	const persisted = visualProject(await environment.store.loadProject(ready.project.id));
+	assert.equal(persisted.videoVisualPresets.length, 1);
 });
 
 test('selected Framescaper web runtime reaches V27 and its lazy bootstrap adds no visible control', async (context) => {
@@ -89,4 +145,21 @@ function installIndexedDB(context: TestContext): void {
 		if (descriptor) Object.defineProperty(globalThis, 'indexedDB', descriptor);
 		else Reflect.deleteProperty(globalThis, 'indexedDB');
 	});
+}
+
+interface VisualProjectShape {
+	readonly revision: number;
+	readonly sources: readonly Readonly<{
+		readonly kind?: unknown;
+		readonly generator?: Readonly<{ readonly kind?: unknown }>;
+	}>[];
+	readonly clips: readonly Readonly<{ readonly kind?: unknown }>[];
+	readonly videoAdjustmentLayers: readonly unknown[];
+	readonly videoMaskMattes: readonly unknown[];
+	readonly videoVisualPresets: readonly unknown[];
+}
+
+function visualProject(value: unknown): VisualProjectShape {
+	assert.ok(value && typeof value === 'object' && !Array.isArray(value));
+	return value as VisualProjectShape;
 }
