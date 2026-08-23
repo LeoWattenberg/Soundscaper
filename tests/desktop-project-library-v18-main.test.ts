@@ -296,6 +296,46 @@ test('V18 reimports immutable V17 documents and copy-forwards managed bodies exa
 	destination.close();
 });
 
+test('a completed copy-forward never reopens the retired V17 source', async (context) => {
+	// After the migration completes, whatever the old build later does to its
+	// own database — a crash leaving its lease active, a stray save changing
+	// the catalog digest — must not block the migrated library from opening.
+	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v18-retired-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	const source = await startV17(appDataPath, 1901, 'v17-source');
+	const session = source.openSession(source.localHandshake);
+	const project = createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, {
+		id: 'retired-project', title: 'Retired', revision: 0, now: NOW,
+	});
+	await session.beginPublication({
+		publicationId: 'd4'.repeat(24), expectedMetadataRevision: 0,
+		expectedProject: null, project, bodies: [],
+	});
+	await session.finishPublication({ publicationId: 'd4'.repeat(24) });
+	await session.close();
+	await source.close();
+
+	const migrated = await startV18(appDataPath, 1902, 'v18-migrated');
+	await migrated.close();
+
+	const sourcePaths = createFramescaperDesktopProjectLibraryV17Paths(appDataPath);
+	const retired = new DatabaseSync(sourcePaths.databasePath);
+	retired.prepare('UPDATE library_lease SET active = 1, lease_id = ?, expires_at_ms = ? WHERE singleton = 1')
+		.run('ff'.repeat(24), 4_102_444_800_000);
+	retired.prepare("UPDATE projects SET title = 'Edited in old build'").run();
+	retired.close();
+
+	const reopened = await startV18(appDataPath, 1903, 'v18-reopened');
+	const reopenedSession = reopened.openSession(reopened.localHandshake);
+	const bundle = await reopenedSession.readProjectBundle('retired-project') as { document: string };
+	assert.equal(
+		(JSON.parse(bundle.document) as { title?: unknown }).title, 'Retired',
+		'the migrated document is served untouched by the old build edit',
+	);
+	await reopenedSession.close();
+	await reopened.close();
+});
+
 test('V18 copy-forward resumes after a committed-row interruption without duplication', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v18-resume-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));

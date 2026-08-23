@@ -45,6 +45,11 @@ export async function importFramescaperDesktopProjectLibraryV17IntoV18(value: Re
 	assertLeaseInTransaction(database: DatabaseSync): void;
 	checkpoint: ((completedProjects: number) => void) | null;
 }>): Promise<void> {
+	// A completed copy-forward never reopens the retired source: whatever the
+	// old build later did to its own database — an unsettled lease from a
+	// crash, a divergent catalog from a stray save — must not block a library
+	// whose migration already finished.
+	if (importAlreadyComplete(value.database, value.assertLeaseInTransaction)) return;
 	const sourcePaths = createFramescaperDesktopProjectLibraryV17Paths(value.appDataPath);
 	let source: DatabaseSync | null = null;
 	try {
@@ -71,6 +76,23 @@ export async function importFramescaperDesktopProjectLibraryV17IntoV18(value: Re
 		completeImport(value.database, manifest, value.assertLeaseInTransaction);
 	} finally {
 		source?.close();
+	}
+}
+
+function importAlreadyComplete(
+	database: DatabaseSync,
+	assertLease: (database: DatabaseSync) => void,
+): boolean {
+	database.exec('BEGIN IMMEDIATE');
+	try {
+		assertLease(database);
+		const stored = database.prepare('SELECT state FROM v17_import WHERE singleton = 1').get() as
+			Record<string, unknown> | undefined;
+		database.exec('COMMIT');
+		return stored?.state === 'complete';
+	} catch (error) {
+		database.exec('ROLLBACK');
+		throw error;
 	}
 }
 
