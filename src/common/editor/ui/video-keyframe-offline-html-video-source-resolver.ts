@@ -75,6 +75,8 @@ interface SourceLifecycle {
 	readonly asset: VideoKeyframeOfflineHtmlVideoSourceAssetSnapshot;
 	readonly occurrenceKey: string;
 	readonly video: OfflineHtmlVideoElement;
+	readonly decodedWidth: number;
+	readonly decodedHeight: number;
 	readonly objectUrl: string;
 	readonly token: object;
 	readonly lifetime: AbortController;
@@ -199,10 +201,17 @@ export function createVideoKeyframeOfflineHtmlVideoSourceResolver(
 			video.load();
 			await loaded;
 			throwIfAborted(signal);
-			if (video.videoWidth !== asset.decodedWidth || video.videoHeight !== asset.decodedHeight) {
+			const decodedWidth = video.videoWidth;
+			const decodedHeight = video.videoHeight;
+			const matchesDecoded = decodedWidth === asset.decodedWidth
+				&& decodedHeight === asset.decodedHeight;
+			const matchesDisplay = decodedWidth === asset.displayWidth
+				&& decodedHeight === asset.displayHeight;
+			if (!matchesDecoded && !matchesDisplay) {
 				throw new RangeError(
-					`Offline video decoded geometry ${String(video.videoWidth)}x${String(video.videoHeight)} `
-					+ `does not match admitted ${String(asset.decodedWidth)}x${String(asset.decodedHeight)} dimensions.`,
+					`Offline video decoded geometry ${String(decodedWidth)}x${String(decodedHeight)} `
+					+ `does not match admitted decoded ${String(asset.decodedWidth)}x${String(asset.decodedHeight)} `
+					+ `or display ${String(asset.displayWidth)}x${String(asset.displayHeight)} dimensions.`,
 				);
 			}
 			if (!Number.isFinite(video.duration) || video.duration <= 0) {
@@ -213,6 +222,8 @@ export function createVideoKeyframeOfflineHtmlVideoSourceResolver(
 				asset,
 				occurrenceKey,
 				video,
+				decodedWidth,
+				decodedHeight,
 				objectUrl,
 				token,
 				lifetime: new AbortController(),
@@ -242,8 +253,13 @@ export function createVideoKeyframeOfflineHtmlVideoSourceResolver(
 			sourceId: asset.sourceId,
 			identity: asset.identity,
 			drawable: lifecycle.video as unknown as TexImageSource,
-			decodedWidth: asset.decodedWidth,
-			decodedHeight: asset.decodedHeight,
+			// HTMLVideoElement intrinsic geometry is engine-dependent: some
+			// browsers expose the decoder-rotated pixels while others also apply
+			// the admitted pixel aspect ratio. The texture must describe the
+			// drawable this engine actually supplies; display geometry remains the
+			// canonical target applied by the compositor.
+			decodedWidth: lifecycle.decodedWidth,
+			decodedHeight: lifecycle.decodedHeight,
 			displayWidth: asset.displayWidth,
 			displayHeight: asset.displayHeight,
 			async present(

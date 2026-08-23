@@ -68,6 +68,24 @@ test('resolver owns one digest-bound paused video lifecycle and exact ordinary p
 	assert.deepEqual(harness.revoked, ['blob:offline-1', 'blob:offline-2']);
 });
 
+test('resolver accepts a browser drawable that already applied the admitted display aspect', async () => {
+	const harness = runtimeHarness({ decodedWidth: 80 });
+	const resolver = createVideoKeyframeOfflineHtmlVideoSourceResolver(options(harness));
+	const presentation = await resolver.resolveSource(entry(), {
+		signal: new AbortController().signal,
+	});
+	assert.deepEqual({
+		decoded: [presentation.decodedWidth, presentation.decodedHeight],
+		display: [presentation.displayWidth, presentation.displayHeight],
+	}, {
+		decoded: [80, 32],
+		display: [80, 32],
+	});
+	presentation.dispose();
+	resolver.dispose();
+	assert.deepEqual(harness.revoked, ['blob:offline-1']);
+});
+
 test('resolver owns a distinct reusable decoder for each clip occurrence of one source', async () => {
 	const harness = runtimeHarness();
 	const resolver = createVideoKeyframeOfflineHtmlVideoSourceResolver(options(harness));
