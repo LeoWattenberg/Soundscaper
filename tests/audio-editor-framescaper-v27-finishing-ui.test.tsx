@@ -35,8 +35,16 @@ test('lazy V27 motion surface exposes bounded execution, freshness, progress, an
 		owner,
 		store: {
 			getMediaAssetMetadata: async () => null,
-			writeMediaAsset: async () => undefined,
-			deleteMediaAsset: async () => undefined,
+			beginMediaAssetWrite: async () => ({
+				maximumChunkBytes: 1_024,
+				bytesWritten: 0,
+				write: async () => undefined,
+				commitOwned: async () => ({
+					metadata: {},
+					discardIfCurrent: async () => true,
+				}),
+				abort: async () => undefined,
+			}),
 		},
 		frameProvider: async () => [],
 	}));

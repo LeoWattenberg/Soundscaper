@@ -65,13 +65,31 @@ interface MotionAnalysisOwnerV27 {
 
 interface MotionAnalysisStoreV27 {
 	getMediaAssetMetadata(key: string): PromiseLike<Readonly<Record<string, unknown>> | null>;
-	writeMediaAsset(
+	beginMediaAssetWrite(
 		key: string,
-		body: Blob,
 		metadata: Readonly<Record<string, unknown>>,
+		options: Readonly<{
+			readonly expectedBytes: number;
+			readonly expectedSha256: string;
+			readonly signal?: AbortSignal;
+		}>,
+	): PromiseLike<MotionAnalysisWriterV27>;
+}
+
+interface MotionAnalysisWriterV27 {
+	readonly maximumChunkBytes: number;
+	readonly bytesWritten: number;
+	write(
+		bytes: Uint8Array,
 		options?: Readonly<{ readonly signal?: AbortSignal }>,
-	): PromiseLike<unknown>;
-	deleteMediaAsset(key: string): PromiseLike<unknown>;
+	): PromiseLike<void>;
+	commitOwned(options?: Readonly<{ readonly signal?: AbortSignal }>): PromiseLike<MotionAnalysisPublicationV27>;
+	abort(): PromiseLike<void>;
+}
+
+interface MotionAnalysisPublicationV27 {
+	readonly metadata: Readonly<Record<string, unknown>>;
+	discardIfCurrent(): PromiseLike<boolean>;
 }
 
 export interface FramescaperMotionAnalysisActionsV27 {
@@ -98,8 +116,7 @@ export function createFramescaperMotionAnalysisActionsV27(options: Readonly<{
 		throw new TypeError('Selected V27 motion analysis requires a controller owner.');
 	}
 	if (!options.store || typeof options.store.getMediaAssetMetadata !== 'function'
-		|| typeof options.store.writeMediaAsset !== 'function'
-		|| typeof options.store.deleteMediaAsset !== 'function') {
+		|| typeof options.store.beginMediaAssetWrite !== 'function') {
 		throw new TypeError('Selected V27 motion analysis requires an exact asset store.');
 	}
 	if (typeof options.frameProvider !== 'function') {
@@ -198,19 +215,9 @@ async function publishAnalysis(
 	onProgress({ phase: 'publishing', completed: 0, total: 1 });
 	const priorBody = await options.store.getMediaAssetMetadata(result.reference.storageKey);
 	throwIfAborted(signal);
-	let created = false;
+	let created: MotionAnalysisPublicationV27 | null = null;
 	if (priorBody === null) {
-		await options.store.writeMediaAsset(
-			result.reference.storageKey,
-			new Blob([result.bytes], { type: 'application/vnd.framescaper.motion-analysis+json' }),
-			{
-				name: `${result.reference.id}.motion.json`,
-				mimeType: 'application/vnd.framescaper.motion-analysis+json',
-				sha256: result.reference.sha256,
-			},
-			signal ? { signal } : {},
-		);
-		created = true;
+		created = await writeAnalysisBody(options.store, result, signal);
 	} else {
 		assertExistingBody(priorBody, result.reference);
 	}
@@ -232,7 +239,7 @@ async function publishAnalysis(
 		return result.reference;
 	} catch (error) {
 		if (created) {
-			try { await options.store.deleteMediaAsset(result.reference.storageKey); }
+			try { await created.discardIfCurrent(); }
 			catch (cleanupError) {
 				throw new AggregateError(
 					[error, cleanupError],
@@ -240,6 +247,55 @@ async function publishAnalysis(
 					{ cause: error },
 				);
 			}
+		}
+		throw error;
+	}
+}
+
+async function writeAnalysisBody(
+	store: MotionAnalysisStoreV27,
+	result: VideoMotionAnalysisResultV1,
+	signal: AbortSignal | undefined,
+): Promise<MotionAnalysisPublicationV27> {
+	const options = signal ? { signal } : {};
+	const writer = await store.beginMediaAssetWrite(
+		result.reference.storageKey,
+		{
+			name: `${result.reference.id}.motion.json`,
+			mimeType: 'application/vnd.framescaper.motion-analysis+json',
+			sha256: result.reference.sha256,
+		},
+		{
+			expectedBytes: result.reference.byteLength,
+			expectedSha256: result.reference.sha256,
+			...(signal ? { signal } : {}),
+		},
+	);
+	let publication: MotionAnalysisPublicationV27 | null = null;
+	try {
+		const maximumChunkBytes = positiveInteger(
+			writer.maximumChunkBytes,
+			'Motion-analysis storage chunk limit',
+		);
+		if (writer.bytesWritten !== 0) throw new Error('A new motion-analysis writer is not empty.');
+		for (let offset = 0; offset < result.bytes.byteLength; offset += maximumChunkBytes) {
+			throwIfAborted(signal);
+			await writer.write(result.bytes.subarray(offset, offset + maximumChunkBytes), options);
+		}
+		throwIfAborted(signal);
+		publication = await writer.commitOwned(options);
+		assertExistingBody(publication.metadata, result.reference);
+		return publication;
+	} catch (error) {
+		try {
+			if (publication) await publication.discardIfCurrent();
+			else await writer.abort();
+		} catch (cleanupError) {
+			throw new AggregateError(
+				[error, cleanupError],
+				'Motion-analysis body staging and cleanup both failed.',
+				{ cause: error },
+			);
 		}
 		throw error;
 	}

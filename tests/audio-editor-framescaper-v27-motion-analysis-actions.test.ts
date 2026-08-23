@@ -14,7 +14,7 @@ const SHA = '12'.repeat(32);
 
 test('selected V27 motion action publishes a digest body then one stale-safe history command', async () => {
 	const project = motionProject();
-	const publications: Array<{ key: string; blob: Blob; metadata: unknown }> = [];
+	const publications: Array<{ key: string; bytes: Uint8Array; metadata: unknown }> = [];
 	const metadata = new Map<string, Readonly<Record<string, unknown>>>();
 	const commits: unknown[] = [];
 	const progress: FramescaperMotionAnalysisProgressV27[] = [];
@@ -30,11 +30,32 @@ test('selected V27 motion action publishes a digest body then one stale-safe his
 		owner,
 		store: {
 			getMediaAssetMetadata: async (key) => metadata.get(key) ?? null,
-			writeMediaAsset: async (key, blob, bodyMetadata) => {
-				publications.push({ key, blob, metadata: bodyMetadata });
-				metadata.set(key, { size: blob.size, sha256: key.slice('motion-sha256:'.length) });
+			beginMediaAssetWrite: async (key, bodyMetadata, options) => {
+				assert.equal(options.expectedSha256, key.slice('motion-sha256:'.length));
+				const chunks: Uint8Array[] = [];
+				let bytesWritten = 0;
+				return {
+					maximumChunkBytes: 17,
+					get bytesWritten() { return bytesWritten; },
+					write: async (bytes) => {
+						assert.ok(bytes.byteLength <= 17);
+						chunks.push(bytes.slice());
+						bytesWritten += bytes.byteLength;
+					},
+					commitOwned: async () => {
+						const bytes = Uint8Array.from(chunks.flatMap((chunk) => [...chunk]));
+						assert.equal(bytes.byteLength, options.expectedBytes);
+						const stored = { size: bytes.byteLength, sha256: options.expectedSha256 };
+						publications.push({ key, bytes, metadata: bodyMetadata });
+						metadata.set(key, stored);
+						return {
+							metadata: stored,
+							discardIfCurrent: async () => metadata.delete(key),
+						};
+					},
+					abort: async () => undefined,
+				};
 			},
-			deleteMediaAsset: async () => true,
 		},
 		frameProvider: async (request) => {
 			request.onProgress({ phase: 'decoding', completed: 1, total: 2 });
@@ -54,7 +75,7 @@ test('selected V27 motion action publishes a digest body then one stale-safe his
 	});
 	assert.equal(publications.length, 1);
 	assert.equal(publications[0]?.key, reference.storageKey);
-	assert.equal(await publications[0]?.blob.text(), JSON.stringify({
+	assert.equal(new TextDecoder().decode(publications[0]?.bytes), JSON.stringify({
 		schemaVersion: 1,
 		analysisId: 'analysis:stack-1', sourceId: 'video-source', processorStackId: 'stack-1',
 		inputSha256: SHA, settingsSha256: reference.settingsSha256,
@@ -91,8 +112,22 @@ test('selected V27 motion action cancels cleanly and rolls back a body when publ
 		owner,
 		store: {
 			getMediaAssetMetadata: async () => null,
-			writeMediaAsset: async () => { project.videoProcessorStacks[0]!.processors[0]!.quality = 0.2; },
-			deleteMediaAsset: async (key) => { deleted = key; return true; },
+			beginMediaAssetWrite: async (key, _metadata, options) => {
+				let bytesWritten = 0;
+				return {
+					maximumChunkBytes: 1_024,
+					get bytesWritten() { return bytesWritten; },
+					write: async (bytes) => { bytesWritten += bytes.byteLength; },
+					commitOwned: async () => {
+						project.videoProcessorStacks[0]!.processors[0]!.quality = 0.2;
+						return {
+							metadata: { size: options.expectedBytes, sha256: options.expectedSha256 },
+							discardIfCurrent: async () => { deleted = key; return true; },
+						};
+					},
+					abort: async () => undefined,
+				};
+			},
 		},
 		frameProvider: async (request) => [
 			{ frameNumber: request.startFrame, frame: gray(0) },
