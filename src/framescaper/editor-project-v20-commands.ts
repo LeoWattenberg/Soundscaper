@@ -14,6 +14,7 @@ import {
 	normalizeVideoKeyframeCurves,
 	type VideoKeyframeCurves,
 } from '../common/editor/video-keyframe-curves.ts';
+import { normalizeVideoRetimeCurveV16 } from '../common/editor/video-retime-v16.ts';
 import { createVideoKeyframesRuntimeHandlers } from '../common/editor/commands/video-keyframes-runtime.ts';
 import {
 	snapshotVideoKeyframesSetCommand,
@@ -38,6 +39,12 @@ import {
 	applyFramescaperProjectCommandV18,
 } from './editor-project-v18-commands.ts';
 import {
+	isFramescaperVideoRetimeCommandV20,
+	resolveFramescaperVideoRetimeMapV20,
+	snapshotFramescaperVideoRetimeCommandV20,
+	type FramescaperVideoRetimeCommandV20,
+} from './editor-project-v20-retime-command.ts';
+import {
 	framescaperV20FreshVideoAddAvLinkIds,
 	framescaperV20SegmentContainsAvLinkPair,
 	framescaperV20SegmentContainsAvLinkPeer,
@@ -58,7 +65,8 @@ import { framescaperProjectV18FoundationV19 } from './editor-project-v19-validat
 
 export type FramescaperProjectCommandV20 =
 	| FramescaperProjectCommandV19
-	| VideoKeyframesSetCommand;
+	| VideoKeyframesSetCommand
+	| FramescaperVideoRetimeCommandV20;
 export type FramescaperProjectCommandOptionsV20 = FramescaperProjectCommandOptionsV19;
 
 type DataRecord = Record<string, unknown>;
@@ -83,8 +91,12 @@ interface CommandSnapshotBudget {
 }
 
 /** Snapshot the one V20-owned command before project-context validation. */
-export function normalizeFramescaperProjectCommandV20(value: unknown): VideoKeyframesSetCommand {
-	return snapshotVideoKeyframesSetCommand(value);
+export function normalizeFramescaperProjectCommandV20(
+	value: unknown,
+): VideoKeyframesSetCommand | FramescaperVideoRetimeCommandV20 {
+	return isFramescaperVideoRetimeCommandV20(value)
+		? snapshotFramescaperVideoRetimeCommandV20(value)
+		: snapshotVideoKeyframesSetCommand(value);
 }
 
 export function isFramescaperVideoKeyframesCommandV20(
@@ -145,6 +157,10 @@ function snapshotCommand(
 		countOrderedBoundary(budget);
 		return normalizeFramescaperProjectCommandV20(command);
 	}
+	if (type.startsWith('video-retime/')) {
+		countOrderedBoundary(budget);
+		return snapshotFramescaperVideoRetimeCommandV20(command);
+	}
 	if (type === 'batch') {
 		const record = readClosedDomainRecord(command, 'Framescaper V20 command batch', BATCH_FIELDS);
 		if (budget.activeBatches.has(record)) {
@@ -196,6 +212,9 @@ function applySingle(
 	if (isFramescaperVideoKeyframesCommandV20(command)) {
 		return applyVideoKeyframes(profile, project, command, options);
 	}
+	if (isFramescaperVideoRetimeCommandV20(command)) {
+		return applyVideoRetime(profile, project, command, options);
+	}
 	return applyInherited(profile, project, command, options);
 }
 
@@ -207,7 +226,9 @@ function applyBatch(
 ): FramescaperProjectV20 {
 	nextRevision(project);
 	const commands = flattenBatchCommands(command);
-	const needsOrderedSegmentation = commands.some(isFramescaperVideoKeyframesCommandV20)
+	const needsOrderedSegmentation = commands.some((child) => (
+		isFramescaperVideoKeyframesCommandV20(child) || isFramescaperVideoRetimeCommandV20(child)
+	))
 		|| (commands.length > 1
 			&& commands.some((child) => framescaperV20ExplicitFreshVideoIds(child).size > 0));
 	if (!needsOrderedSegmentation) {
@@ -233,7 +254,7 @@ function applyBatch(
 		pendingFreshAvLinks.clear();
 	};
 	for (const child of commands) {
-		if (!isFramescaperVideoKeyframesCommandV20(child)) {
+		if (!isFramescaperVideoKeyframesCommandV20(child) && !isFramescaperVideoRetimeCommandV20(child)) {
 			const createsFreshVideo = framescaperV20ExplicitFreshVideoIds(child).size > 0;
 			const freshAvLinks = framescaperV20FreshVideoAddAvLinkIds(child);
 			const joinsPriorPeer = freshAvLinks.some((avLinkId) => (
@@ -254,7 +275,9 @@ function applyBatch(
 			continue;
 		}
 		flushInherited();
-		current = applyVideoKeyframes(profile, current, child, intermediateOptions);
+		current = isFramescaperVideoKeyframesCommandV20(child)
+			? applyVideoKeyframes(profile, current, child, intermediateOptions)
+			: applyVideoRetime(profile, current, child, intermediateOptions);
 		restoreOuterBookkeeping(current, project);
 	}
 	flushInherited();
@@ -300,6 +323,30 @@ function applyVideoKeyframes(
 	const draft = snapshotExactProject(profile, project) as unknown as DataRecord;
 	VIDEO_KEYFRAME_HANDLERS['video-keyframes/set'](draft, command);
 	finalizeDraft(profile, project, draft, options, 'V20 video-keyframes command');
+	return draft as FramescaperProjectV20;
+}
+
+function applyVideoRetime(
+	profile: FramescaperProjectV20Profile,
+	project: FramescaperProjectV20,
+	command: FramescaperVideoRetimeCommandV20,
+	options: FramescaperProjectCommandOptionsV20,
+): FramescaperProjectV20 {
+	if (command.scope === 'timeline') assertClipTrackUnlocked(project, command.clipId);
+	const draft = snapshotExactProject(profile, project) as unknown as DataRecord;
+	const clip = findVideoClip(draft, command.scope, command.clipId);
+	const binding = {
+		sequenceFrameCount: dataProperty(clip, 'sequenceFrameCount', 'Framescaper V20 video clip'),
+		sourceInFrame: dataProperty(clip, 'sourceInFrame', 'Framescaper V20 video clip'),
+		sourceFrameCount: dataProperty(clip, 'sourceFrameCount', 'Framescaper V20 video clip'),
+	};
+	const current = normalizeVideoRetimeMap(clip, binding);
+	const expected = normalizeVideoRetimeCurveV20(command.expectedRetimeMap, binding);
+	if (JSON.stringify(current) !== JSON.stringify(expected)) {
+		throw new RangeError(`Video clip ${command.clipId} has a stale expected retime map.`);
+	}
+	clip.retimeMap = resolveFramescaperVideoRetimeMapV20(command, binding);
+	finalizeDraft(profile, project, draft, options, 'V20 video-retime command');
 	return draft as FramescaperProjectV20;
 }
 
@@ -446,6 +493,40 @@ function assertClipTrackUnlocked(project: FramescaperProjectV20, clipId: string)
 			throw new RangeError(`Locked track ${String(dataProperty(track, 'id', 'Framescaper V20 track'))} cannot edit video clip ${clipId}.`);
 		}
 	}
+}
+
+function findVideoClip(
+	project: DataRecord,
+	scope: ClipScope,
+	clipId: string,
+): DataRecord {
+	let result: DataRecord | null = null;
+	visitClipCollections(project, (clip, name, candidateScope) => {
+		if (candidateScope !== scope || dataProperty(clip, 'id', name) !== clipId) return;
+		if (result) throw new RangeError(`Duplicate ${scope} clip ID ${clipId}.`);
+		if (dataProperty(clip, 'kind', name) !== 'video') {
+			throw new TypeError(`Clip ${clipId} is not a video occurrence.`);
+		}
+		result = clip;
+	});
+	if (!result) throw new ReferenceError(`Unknown ${scope} video clip ${clipId}.`);
+	return result;
+}
+
+function normalizeVideoRetimeMap(
+	clip: DataRecord,
+	binding: Readonly<Record<string, unknown>>,
+) {
+	return normalizeVideoRetimeCurveV20(
+		dataProperty(clip, 'retimeMap', 'Framescaper V20 video clip'), binding,
+	);
+}
+
+function normalizeVideoRetimeCurveV20(
+	value: unknown,
+	binding: Readonly<Record<string, unknown>>,
+) {
+	return normalizeVideoRetimeCurveV16(value, binding);
 }
 
 function visitClipCollections(

@@ -11,7 +11,8 @@ import {
 } from './editor-project-environment-v20.ts';
 import { createFramescaperMulticameraActionsV18 } from './editor-project-v18-multicam-actions.ts';
 import { createFramescaperSequenceActionsV18 } from './editor-project-v18-sequence-actions.ts';
-import type { FramescaperProjectCommandV18 } from './editor-project-v18-subsequence.ts';
+import { createFramescaperVideoRetimeActionsV20 } from './editor-project-v20-retime-actions.ts';
+import type { FramescaperProjectCommandV20 } from './editor-project-v20-commands.ts';
 import { createFramescaperScapeNativeRuntimeV20 } from './editor-scape-native-v20.ts';
 import { createFramescaperVideoExportStrategyV20 } from './video-export-strategy-v20.ts';
 
@@ -32,13 +33,20 @@ export function createFramescaperAudioEditorControllerV20(
 	const presentation = snapshotPresentation(presentationValue);
 	const scapeProjectRuntime = createFramescaperScapeNativeRuntimeV20(environment.runtime.profile);
 	let executeProductSequenceCommand: ((command: unknown) => unknown) | null = null;
-	const execute = (command: FramescaperProjectCommandV18): unknown => {
+	const execute = (command: FramescaperProjectCommandV20): unknown => {
 		if (!executeProductSequenceCommand) throw new Error('The Framescaper controller is not ready.');
 		return executeProductSequenceCommand(command);
 	};
+	const videoRetime = createFramescaperVideoRetimeActionsV20(execute);
 	const productSequenceActions = Object.freeze({
 		...createFramescaperSequenceActionsV18(execute),
 		...createFramescaperMulticameraActionsV18(execute),
+		retimeSet: videoRetime.set,
+		retimeReset: videoRetime.reset,
+		retimeConstant: videoRetime.constant,
+		retimeReverse: videoRetime.reverse,
+		retimeFreeze: videoRetime.freeze,
+		retimeRamp: videoRetime.ramp,
 	});
 	const nativeRenderInputAuthority = createProductNativeRenderInputAuthorityBinding();
 	const prepareNativeRenderInputsV20 = createFramescaperNativeRenderInputProducerV20(

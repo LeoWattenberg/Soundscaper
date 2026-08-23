@@ -4,6 +4,7 @@ import {
 	editorProjectFeatureCapabilityProfileDefinition,
 } from '../common/editor/project-feature-capability-profile.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../common/editor/project-feature-capabilities.ts';
+import { reconcileProjectOwnedFeatureRequirements } from '../common/editor/project-owned-feature-requirements.ts';
 import {
 	evaluateProjectFeatureRequirements,
 	normalizeProjectFeatureRequirements,
@@ -46,7 +47,7 @@ export function reconcileFramescaperProjectFeatureRequirementsV20(
 	assertFramescaperProjectV20Profile(profile);
 	admitFramescaperProjectV20Structure(project);
 	const candidate = dataRecord(project, 'Framescaper V20 project');
-	const manifest = normalizeManifest(candidate);
+	const manifest = reconcileProjectOwnedFeatureRequirements(candidate, normalizeManifest(candidate));
 	assertNoKeyframeRequirementConflict(manifest);
 	const v19Manifest = reconcileFramescaperProjectFeatureRequirementsV19(
 		FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
