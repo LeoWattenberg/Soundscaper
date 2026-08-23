@@ -15,6 +15,7 @@ import {
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES } from '../scripts/lib/desktop-5b-transitive-runtime-files.mjs';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
+import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FIXTURE } from './helpers/desktop-project-library-v27-runtime-fixture.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -469,22 +470,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'src/framescaper/editor-project-v20-profile.js',
 		'src/framescaper/editor-project-v20-structural-admission.js',
 		'src/framescaper/editor-project-v20-validation.js',
-		'src/common/editor/unified-exact-render-generation.js',
-		'src/common/editor/unified-exact-render-plan-primitives.js',
-		'src/common/editor/unified-exact-render-plan-v13.js',
-		'src/common/editor/video-caption-track-v27.js',
-		'src/common/editor/video-color-management-v27.js',
-		'src/common/editor/video-exact-presentation.js',
-		'src/common/editor/video-motion-model-v27.js',
-		'src/common/editor/video-visual-presentation-v27.js',
-		'src/framescaper/editor-audio-finishing-v27.js',
-		'src/framescaper/editor-project-feature-capability-profile-v27.js',
-		'src/framescaper/editor-project-feature-requirements-v27.js',
-		'src/framescaper/editor-project-runtime-profile-v27-prerequisite.js',
-		'src/framescaper/editor-project-runtime-profile-v27.js',
-		'src/framescaper/editor-project-storage-profile-v27.js',
-		'src/framescaper/editor-project-v27-validation.js',
-		'src/framescaper/editor-project-v27.js',
+		...DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FIXTURE,
 		].sort().filter((name, index, files) => index === 0 || files[index - 1] !== name));
 	for (const name of result.files) {
 		const source = await readFile(join(outputRoot, name), 'utf8');
