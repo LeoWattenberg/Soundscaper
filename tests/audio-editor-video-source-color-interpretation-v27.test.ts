@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { parseFfmpegVideoSourceCharacteristics } from '../src/common/editor/ffmpeg-video-source-characteristics.ts';
 import {
 	deriveVideoSourceColorInterpretationV1,
 } from '../src/common/editor/video-source-color-interpretation-v27.ts';
@@ -68,6 +69,24 @@ test('unreported current and legacy media keep their disclosed assumptions', () 
 		matrix: 'rgb',
 		range: 'full',
 		provenance: 'default-still-srgb-full',
+	});
+});
+
+test('an exact probe with only default-compatible unknown tags gets the disclosed video assumption', () => {
+	const characteristics = parseFfmpegVideoSourceCharacteristics([
+		'  Stream #0:0: Video: h264, yuv420p(tv, unknown/unknown/unknown), 32x24, 25 fps',
+	], { rate: { num: 25, den: 1 } });
+	assert.deepEqual(deriveVideoSourceColorInterpretationV1({
+		id: 'probe-video', kind: 'video', characteristics,
+	}), {
+		schemaVersion: 1,
+		sourceId: 'probe-video',
+		sourceKind: 'video',
+		primaries: 'bt709',
+		transfer: 'bt709',
+		matrix: 'bt709',
+		range: 'limited',
+		provenance: 'default-video-bt709-limited',
 	});
 });
 

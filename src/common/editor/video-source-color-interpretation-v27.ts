@@ -36,7 +36,7 @@ export function deriveVideoSourceColorInterpretationV1(
 	if (colour === null || !COLOR_FIELDS.some((field) => colour[field] != null)) {
 		return legacyFallback(fallback, options);
 	}
-	return Object.freeze({
+	const derived = Object.freeze({
 		schemaVersion: 1,
 		sourceId,
 		sourceKind: 'video',
@@ -46,6 +46,17 @@ export function deriveVideoSourceColorInterpretationV1(
 		range: range(colour.range),
 		provenance: 'metadata',
 	});
+	return defaultCompatibleUnknownVideo(derived) ? legacyFallback(fallback, options) : derived;
+}
+
+function defaultCompatibleUnknownVideo(value: VideoSourceColorInterpretationV1): boolean {
+	const unresolved = value.primaries === 'unknown' || value.transfer === 'unknown'
+		|| value.matrix === 'unknown' || value.range === 'unknown';
+	return unresolved
+		&& (value.primaries === 'unknown' || value.primaries === 'bt709')
+		&& (value.transfer === 'unknown' || value.transfer === 'bt709')
+		&& (value.matrix === 'unknown' || value.matrix === 'bt709')
+		&& (value.range === 'unknown' || value.range === 'limited');
 }
 
 function legacyFallback(
