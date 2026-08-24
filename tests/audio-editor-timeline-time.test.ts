@@ -89,6 +89,16 @@ test('seconds and hold-tempo beats use named point conversion from the origin', 
 	assert.equal(secondsToSampleFrame(0.5, 44_100, 'point'), 22_050);
 	assert.equal(secondsToSampleFrame(-0.5, 44_100, 'point'), -22_050);
 	assert.throws(() => secondsToSampleFrame(Number.NaN, 44_100), /seconds must be finite/iu);
+	// A number is an exact binary rational: the same mathematical value given
+	// as a number and as its equal Rational must resolve to the same frame
+	// under every policy, including near-boundary products the float product
+	// rounds across.
+	assert.equal(
+		secondsToSampleFrame(12_149.602630385487, 44_100, 'enclosingStart'),
+		secondsToSampleFrame(
+			{ num: 6_679_314_682_483_359, den: 549_755_813_888 }, 44_100, 'enclosingStart',
+		),
+	);
 	assert.equal(
 		secondsToSampleFrame(187.825, 44_100, 'point'),
 		secondsToSampleFrame({ num: 7_513, den: 40 }, 44_100, 'point'),

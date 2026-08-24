@@ -109,10 +109,10 @@ export function secondsToSampleFrame(
 	if (numericSeconds !== null) {
 		const scaled = numericSeconds * rate;
 		if (!Number.isFinite(scaled) || Math.abs(scaled) > Number.MAX_SAFE_INTEGER) throw new RangeError('The resolved timeline value is outside the safe integer range.');
-		if (absoluteBigInt(frames.numerator % frames.denominator) * 2n === frames.denominator) return fractionToInteger(frames, policy, direction) as SampleFrame;
-		const named = roundingPolicy(policy, direction);
-		return safeRoundedResult(named === 'point' ? (scaled < 0 ? -Math.round(-scaled) : Math.round(scaled)) : named === 'floor' ? Math.floor(scaled) : Math.ceil(scaled)) as SampleFrame;
 	}
+	// A number is an exact binary rational, so the exact product decides every
+	// policy: rounding the floating product instead can land one sample away
+	// from the identical value given as its equal Rational.
 	return fractionToInteger(frames, policy, direction) as SampleFrame;
 }
 export function sampleFrameToSeconds(frame: SampleFrame | number, sampleRate: number): number {
