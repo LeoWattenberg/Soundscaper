@@ -16,7 +16,7 @@ import {
 } from './native-media-v14-native-dispatch.ts';
 
 interface UnifiedOutputAdmission {
-	readonly version: 9 | 10 | 11 | 12 | 13 | 14;
+	readonly version: 9 | 10 | 11 | 12 | 13 | 14 | 15;
 	readonly deliveryProfile?: NativeMediaV14EncodeProfileId;
 	readonly format: Readonly<{ readonly container: 'mp4' | 'webm' | 'mov' | 'mxf' | 'matroska' | 'image2' }>;
 	readonly codecs: Readonly<{
@@ -41,7 +41,7 @@ const LEGACY_TUPLES = Object.freeze({
 
 /** Close every generation over one reproducible delivery tuple and work domain. */
 export function assertUnifiedExactRenderOutputAdmission(value: UnifiedOutputAdmission): void {
-	const descriptor = value.version === 14
+	const descriptor = value.version === 14 || value.version === 15
 		? professionalDescriptor(value.deliveryProfile)
 		: LEGACY_TUPLES[value.format.container as keyof typeof LEGACY_TUPLES];
 	if (!descriptor || descriptor.container !== value.format.container) {
@@ -67,7 +67,7 @@ export function assertUnifiedExactRenderOutputAdmission(value: UnifiedOutputAdmi
 	if (frameBytes > BigInt(VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_BYTES)) {
 		throw new RangeError('Unified render canvas exceeds the bounded RGBA frame work domain.');
 	}
-	const workExceedsBound = value.version === 14
+	const workExceedsBound = value.version === 14 || value.version === 15
 		? (() => {
 			try {
 				nativeRgbaFramePackV1ByteLength({ width, height, frameCount: value.output.frameCount });

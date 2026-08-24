@@ -25,7 +25,7 @@ export function normalizeUnifiedExactRenderFormat(
 ): UnifiedExactRenderFormat {
 	const record = readClosedDomainRecord(value, 'unified render format', FORMAT_FIELDS);
 	const container = field(record, 'container');
-	const containers = version === 14
+	const containers = version === 14 || version === 15
 		? ['mp4', 'webm', 'mov', 'mxf', 'matroska', 'image2'] as const
 		: ['mp4', 'webm'] as const;
 	if (!(containers as readonly unknown[]).includes(container)) {
@@ -54,7 +54,7 @@ export function normalizeUnifiedExactRenderDeliveryProfile(
 ): NativeMediaV14EncodeProfileId {
 	if (typeof value !== 'string'
 		|| !(NATIVE_MEDIA_V14_VIDEO_ENCODE_PROFILE_IDS as readonly string[]).includes(value)) {
-		throw new RangeError('Unified V14 delivery profile is outside the closed professional registry.');
+		throw new RangeError('Unified V14/V15 delivery profile is outside the closed professional registry.');
 	}
 	return value as NativeMediaV14EncodeProfileId;
 }
