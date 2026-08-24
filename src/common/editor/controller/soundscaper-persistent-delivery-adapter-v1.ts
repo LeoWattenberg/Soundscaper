@@ -176,7 +176,13 @@ export function createSoundscaperPersistentDeliveryQueueAdapterV1<Summary, Event
 			const signal = operationSignal(request?.signal);
 			throwIfAborted(signal);
 			const response = await queue.events({ signal });
-			if (response === null) return null;
+			if (response === null) {
+				// The port scopes sequences to one subscription and null ends it;
+				// a binding that re-subscribes numbers from zero again, and holding
+				// the old floor would wedge the event surface forever.
+				lastEventSequence = -1;
+				return null;
+			}
 			const envelope = normalizedMessage(response, eventMessageType, 'queue event');
 			if (envelope.sequence <= lastEventSequence) {
 				throw new TypeError('The Soundscaper delivery queue event sequence must increase.');

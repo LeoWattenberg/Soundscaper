@@ -174,6 +174,22 @@ test('persistent queue event envelopes must advance monotonically', async () => 
 	const signal = new AbortController().signal;
 	assert.deepEqual(await adapter.events({ signal }), { type: 'changed' });
 	await assert.rejects(adapter.events({ signal }), /event sequence must increase/iu);
+
+	// The port scopes sequences to one subscription: after the stream ends with
+	// null, a re-subscribed binding numbers from zero again, and the adapter
+	// must admit that instead of staying wedged on the old floor.
+	const resubscribed = queueAdapterWithEvents([
+		createBoundedPortMessage('queue-event-v1', { type: 'changed' }, {
+			sequence: 5, maximumEncodedBytes: 1_024,
+		}),
+		null as never,
+		createBoundedPortMessage('queue-event-v1', { type: 'restarted' }, {
+			sequence: 0, maximumEncodedBytes: 1_024,
+		}),
+	]);
+	assert.deepEqual(await resubscribed.events({ signal }), { type: 'changed' });
+	assert.equal(await resubscribed.events({ signal }), null);
+	assert.deepEqual(await resubscribed.events({ signal }), { type: 'restarted' });
 });
 
 test('persistent queue messages are structurally budgeted before JSON re-encoding', async () => {
