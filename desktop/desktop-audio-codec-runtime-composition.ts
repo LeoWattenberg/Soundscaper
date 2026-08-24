@@ -2,6 +2,7 @@
 
 /** One-target main-process composition for bundled, OS, then external audio codecs. */
 
+import { createHash } from 'node:crypto';
 import { posix, win32 } from 'node:path';
 
 import {
@@ -358,11 +359,22 @@ function externalProvider(
 			implementation: `ffmpeg-${selectedImplementation(tuple, admission.capabilities)}`,
 			requires: requirements,
 		})];
-		return createExternalFfmpegDesktopCodecProvider({
+		const catalog = createExternalFfmpegDesktopCodecProvider({
 			target, version: admission.version,
 			capabilityGeneration: admission.capabilityGeneration,
 			capabilitySets: admission.capabilities,
 			qualifiedCapabilities,
+		});
+		const resolution = catalog.resolve(operation);
+		if (resolution === null) return catalog;
+		const generation = createHash('sha256').update(JSON.stringify({
+			capabilities: admission.capabilityGeneration, identity: admission.identity,
+		})).digest('hex');
+		return Object.freeze({
+			kind: catalog.kind, id: `${catalog.id}-${resolution.capabilityId}`,
+			implementation: resolution.implementation, version: catalog.version,
+			capabilityGeneration: `ffmpeg-admission-${generation}`,
+			preflight: catalog.preflight,
 		});
 	} catch { return unavailableProvider('external-ffmpeg', target); }
 }

@@ -145,7 +145,14 @@ test('external execution uses one immutable admission snapshot and the fixed pat
 	let current: ExternalFfmpegRuntimeAdmission | null = first;
 	let admissionReads = 0;
 	const executablePaths: string[] = [];
-	const observations: Array<Readonly<{ readonly receipt: { readonly provider: { readonly version: string } } }>> = [];
+	const observations: Array<Readonly<{ readonly receipt: {
+		readonly provider: {
+			readonly id: string;
+			readonly implementation: string;
+			readonly version: string;
+		};
+		readonly capabilityGeneration: string;
+	} }>> = [];
 	let capturedRunnerOptions: ExternalFfmpegAudioOperationRunnerOptions<DesktopAudioCodecRequest> | null = null;
 	const service = createDesktopAudioCodecRuntimeComposition({
 		target: 'mac-arm64', scratchRoot: SCRATCH,
@@ -194,7 +201,36 @@ test('external execution uses one immutable admission snapshot and the fixed pat
 	assert.equal(runnerOptions.maximumInputBytes, 32 * 1_024 * 1_024);
 	assert.equal(runnerOptions.maximumOutputBytes, 129 * 1_024 * 1_024);
 	assert.equal(observations[0]?.receipt.provider.version, '9.0.1');
+	assert.equal(observations[0]?.receipt.provider.implementation, 'ffmpeg-libopus');
+	assert.match(observations[0]?.receipt.provider.id ?? '',
+		/^external-ffmpeg-mac-arm64-external-audio-encode-opus-48000-2$/u);
+	assert.match(observations[0]?.receipt.capabilityGeneration ?? '',
+		/^ffmpeg-admission-[0-9a-f]{64}$/u);
+	assert.notEqual(observations[0]?.receipt.capabilityGeneration, first.capabilityGeneration);
 	assert.equal('receipt' in result, false);
+});
+
+test('external receipt generation changes with the admitted executable identity', async () => {
+	const generations: string[] = [];
+	for (const identityCharacter of ['1', '5']) {
+		const admission = opusAdmission('/tools/ffmpeg');
+		const service = createDesktopAudioCodecRuntimeComposition({
+			target: 'linux-x64', scratchRoot: SCRATCH,
+			externalFfmpegPreferences: preferences(() => ({
+				...admission,
+				identity: { ...admission.identity, ffmpegSha256: identityCharacter.repeat(64) },
+			})),
+			createExternalRunner: () => ({
+				execute: () => Promise.resolve({
+					status: 'executed', output: Uint8Array.of(2, 4, 6), log: '',
+				}),
+			}),
+			onReceipt: ({ receipt }) => { generations.push(receipt.capabilityGeneration); },
+		});
+		await service.execute(encodeRequest('opus'), executionOptions());
+	}
+	assert.equal(generations.length, 2);
+	assert.notEqual(generations[0], generations[1]);
 });
 
 test('external decode preserves float-WAV source geometry without resampling or remixing', async () => {
