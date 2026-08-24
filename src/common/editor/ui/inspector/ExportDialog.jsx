@@ -322,7 +322,12 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	const formatDescriptor = MEDIA_EXPORT_FORMATS[settings.format];
 	const desktopFormatRefusal = desktop && !desktopExportFormatAvailable(settings.format, desktopCodecCapabilities)
 		? desktopExportFormatReason(settings.format, desktopCodecCapabilities, desktopCodecQuery === false)
-		: null;
+		: desktop && settings.format === 'wavpack'
+			&& desktopCodecCapabilities?.formats.wavpack?.provider === 'bundled'
+			&& !desktopExportWavPackCompressionLevels(desktopCodecCapabilities)
+				.includes(Number(settings.compressionLevel))
+			? 'The bundled WavPack provider supports only compression level 2 (reviewed fast mode).'
+			: null;
 	const desktopCodecNotice = desktopFormatRefusal || (desktopCodecQuery === false
 		? desktopExportFormatReason('opus', null, true)
 		: Object.values(desktopCodecCapabilities?.formats || {}).find((capability) => (
