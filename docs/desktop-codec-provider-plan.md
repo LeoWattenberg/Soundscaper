@@ -48,6 +48,29 @@ x64/ARM64. The retired macOS x64 target remains unsupported.
   SBOM entries, corresponding source, and five-target payload evidence. Codec
   admission remains fail-closed per operation/container/jurisdiction.
 
+### AV1 implementation finding
+
+`libaom` is the reference AV1 implementation and includes both encode and
+decode paths; it is not one comparable "fastest project" for both directions.
+VideoLAN's dav1d is decoder-only and explicitly optimized for speed, size, and
+correctness. It remains the bundled software-decoder choice. The dav1d project
+still describes its 1.5.4 release as the latest optimized decoder, but its
+published blanket fastest claim dates to 2019, so admission must depend on the
+five-target corpus above rather than that historical claim.
+
+SVT-AV1 is encoder-only and its current 4.2.0 release continues target-specific
+speed/quality and memory work. It is therefore the default encoder candidate;
+libaom 3.14.1 is an encoder fallback, not a dav1d replacement. There is no
+single useful encoder-speed result without fixing preset, bitrate, quality
+metric, bit depth, content class, CPU, thread count, and memory ceiling. Keep
+the Windows ARM64 fallback closed until the same corpus shows that libaom meets
+correctness and beats or is required in place of SVT-AV1 at matched quality.
+
+Primary references: [dav1d project and release](https://images.videolan.org/projects/dav1d.html),
+[dav1d 1.5.4 announcement](https://images.videolan.org/news.html),
+[SVT-AV1 releases](https://gitlab.com/AOMediaCodec/SVT-AV1/-/releases), and
+[libaom changelog](https://aomedia.googlesource.com/aom/+/refs/heads/master/CHANGELOG).
+
 ## Operating-system provider
 
 - On Windows, use Media Foundation Source Reader and Sink Writer directly.
