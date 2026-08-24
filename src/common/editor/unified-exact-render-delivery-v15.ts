@@ -229,10 +229,14 @@ function normalizeCompanionAudio(
 export function framescaperImageSequenceCompanionAudioFileNameV15(
 	format: FramescaperImageSequenceCompanionAudioFormatV1,
 ): string {
+	// These extensions restate the export catalog (media-export.js); the
+	// companion test derives its expectations from the catalog so a divergence
+	// fails there rather than shipping a file no WavPack-aware tool associates.
 	const extension = format === 'bwf' ? 'wav'
 		: format === 'ogg-vorbis' ? 'ogg'
 			: format === 'aac-m4a' ? 'm4a'
-				: format;
+				: format === 'wavpack' ? 'wv'
+					: format;
 	return `audio.${extension}`;
 }
 

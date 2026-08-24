@@ -209,6 +209,24 @@ test('V15 font subset order is code-unit exact, never the validator locale', () 
 	);
 });
 
+test('companion audio file names carry the export catalog extension', async () => {
+	// The helper restates the catalog's per-format extensions; deriving the
+	// expectation from the catalog itself is what catches the next divergence
+	// (WavPack shipped as audio.wavpack while every tool expects .wv).
+	const { framescaperImageSequenceCompanionAudioFileNameV15 } = await import(
+		'../src/common/editor/unified-exact-render-delivery-v15.ts');
+	const { PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1 } = await import(
+		'../src/common/editor/platform-image-sequence-companion-audio.ts');
+	const { MEDIA_EXPORT_FORMATS } = await import('../src/common/editor/media-export.js');
+	for (const format of PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1) {
+		assert.equal(
+			framescaperImageSequenceCompanionAudioFileNameV15(format),
+			`audio.${(MEDIA_EXPORT_FORMATS as Record<string, { extension: string }>)[format]!.extension}`,
+			format,
+		);
+	}
+});
+
 function encodedPlan(): UnifiedExactRenderPlanV14 {
 	const project = createFramescaperProjectV28(PROFILE, framescaperV20Options());
 	return createFramescaperProjectUnifiedExactRenderPlanV28(
