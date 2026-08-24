@@ -421,7 +421,7 @@ function capabilityNames(line: string, kind: CapabilityKind, majorVersion: numbe
 	} else if (kind === 'demuxers') {
 		match = /^D[E.]?[d.]?\s+([A-Za-z0-9][A-Za-z0-9_,.-]{0,511})(?:\s|$)/u.exec(line.trimStart());
 	} else {
-		const flags = majorVersion >= 9 ? '[TS.]{2}' : '[TSC.]{3}';
+		const flags = majorVersion >= 8 ? '[TS.]{2}' : '[TSC.]{3}';
 		match = new RegExp(
 			`^\\s*${flags}\\s+([A-Za-z0-9][A-Za-z0-9_.-]{0,127})(?:\\s|$)`, 'u',
 		).exec(line);

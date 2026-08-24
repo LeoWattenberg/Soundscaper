@@ -16,7 +16,7 @@ const CAPABILITIES = new Map([
 	['-hide_banner -decoders', 'Decoders:\n V..... libdav1d AV1\n A..... mp3float MP3'],
 	['-hide_banner -muxers', 'Formats:\n  E  webm WebM\n  E  opus Opus'],
 	['-hide_banner -demuxers', 'Formats:\n D   webm WebM\n D   ogg Ogg'],
-	['-hide_banner -filters', 'Filters:\n ... aresample A->A'],
+	['-hide_banner -filters', 'Filters:\n .. aresample A->A'],
 ]);
 
 test('the preference probe admits a matching released pair and binds its evidence', async () => {

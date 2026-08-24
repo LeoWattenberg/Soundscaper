@@ -304,7 +304,7 @@ function capabilityOutput(command: string, version: string): string | undefined 
 	if (command === '-hide_banner -muxers' || command === '-hide_banner -demuxers') {
 		return major <= 6 ? output.replace('Formats:', 'File formats:') : output;
 	}
-	if (command === '-hide_banner -filters' && major <= 8) {
+	if (command === '-hide_banner -filters' && major <= 7) {
 		return output
 			.replace('  T. =', '  T.. =').replace('  .S =', '  .S. =')
 			.replace('  .. aresample', '  ... aresample').replace('  TS scale', '  TSC scale');
