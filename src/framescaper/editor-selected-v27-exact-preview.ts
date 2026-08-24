@@ -8,6 +8,8 @@ import { collectProductVideoVisualPreviewEffectIds } from '../common/editor/ui/w
 import type { ProductVideoVisualPreviewFrame } from '../common/editor/ui/workspace/product-video-visual-preview-runtime.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
 import { createVideoKeyframeExportPresentationAuthority } from '../common/editor/video-keyframe-export-presentation-authority.ts';
+import { createVideoRetimeWebCoreOrdinalAuthority } from '../common/editor/video-retime-web-core-ordinal-authority.ts';
+import { videoTimelineDurationFrames } from '../common/editor/video-timeline.js';
 import { resolveVideoRenderDescription } from '../common/editor/video-render-description.ts';
 import type { BoundVideoSourceTimingView, VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
@@ -72,8 +74,19 @@ export async function createFramescaperSelectedExactPreviewV27(options: Readonly
 			.filter(({ kind }) => kind === 'video').map((clip) => [String(clip.id), clip]));
 		const sources = new Map(records(project.sources, 'Selected V27 preview sources')
 			.filter(({ kind }) => kind === 'video').map((source) => [String(source.id), source]));
+		// Preview and export are the same render: descriptors resolve through
+		// the same exact ordinal oracle the export uses, whose outer cell comes
+		// from the point-rounded sequence grid. Resolving from exact frame
+		// fractions instead disagrees with export on NTSC boundary samples.
 		const presentation = clips.size === 0 ? null : createVideoKeyframeExportPresentationAuthority({
 			project, timingBySourceId: options.boundTimingViews,
+			exactOrdinalAuthority: createVideoRetimeWebCoreOrdinalAuthority({
+				project,
+				timingBySourceId: options.boundTimingViews,
+				startFrame: 0,
+				endFrame: videoTimelineDurationFrames(project),
+				outputRate: { num: options.plan.timebase.sampleRate, den: 1 },
+			}),
 		});
 		let disposed = false;
 		let active = false;
@@ -90,9 +103,10 @@ export async function createFramescaperSelectedExactPreviewV27(options: Readonly
 				options.plan.output.canvas.width * options.plan.output.canvas.height * 4,
 			);
 			try {
-				const sequence = sequencePosition(options.plan, timelineSample(request.timelineSample));
+				const sample = timelineSample(request.timelineSample);
+				const sequence = sequencePosition(options.plan, sample);
 				const layers = enrichMediaLayers(
-					request.mediaLayers, sequence, clips, sources, presentation,
+					request.mediaLayers, sequence, sample, clips, sources, presentation,
 				);
 				const result = await exact.render({
 					sequencePosition: sequence, layers,
@@ -131,6 +145,7 @@ export async function createFramescaperSelectedExactPreviewV27(options: Readonly
 function enrichMediaLayers(
 	layersValue: readonly unknown[],
 	sequencePosition: Readonly<{ num: number; den: number }>,
+	timelineSample: number,
 	clips: ReadonlyMap<string, Data>,
 	sources: ReadonlyMap<string, Data>,
 	presentation: ReturnType<typeof createVideoKeyframeExportPresentationAuthority> | null,
@@ -151,6 +166,7 @@ function enrichMediaLayers(
 					...entry,
 					presentationDescriptor: presentation.resolvePresentationDescriptor({
 						clip, source, localSequencePosition: localPosition(sequencePosition, clip),
+						outputOrdinal: timelineSample,
 					}),
 				});
 			})),

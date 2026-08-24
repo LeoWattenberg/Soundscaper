@@ -177,6 +177,64 @@ test('selected V27 preview uses the same exact source-layer route and presentati
 	preview.dispose();
 });
 
+test('selected V27 preview resolves descriptors on the export point-rounded frame grid', async () => {
+	// Export resolves every entry through the exact ordinal oracle, whose
+	// outer cell comes from the point-rounded sequence grid. At NTSC rates the
+	// exact-fraction floor disagrees on boundary samples — sample 3203 is
+	// frame 2 on the point grid but floors to cell 1 — so a preview resolving
+	// without the oracle previews different material than the export writes.
+	const options = framescaperV20Options();
+	const source = (options.sources as Record<string, unknown>[])[0]!;
+	source.frameRate = { num: 30_000, den: 1_001 };
+	source.frameCount = 16_016;
+	source.sampleFrameCount = 16_016;
+	source.timingDecision = { mode: 'conform-cfr-at-ingest', rate: { num: 30_000, den: 1_001 } };
+	(options.sequences as Record<string, unknown>[])[0]!.rate = { num: 30_000, den: 1_001 };
+	const project = createFramescaperProjectV27(PROFILE, {
+		...options, videoTransitionsByTrackId: { 'video-track': [] },
+		finishing: finishing(),
+	});
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+		...renderAuthority(project, 10),
+		outputRate: { num: 30_000, den: 1_001 },
+		canvas: { width: 2, height: 2, fit: 'contain' as const,
+			pixelFormat: 'yuv420p', backgroundColor: '#000000' },
+		visualFreshnessByModelId: new Map(),
+	});
+	const previewSource = (project.sources as readonly VideoSourceFixture[])
+		.find((candidate) => candidate.kind === 'video')!;
+	const timingViews = new Map([[previewSource.id, Object.freeze({
+		kind: 'cfr' as const, rate: previewSource.frameRate, frameCount: previewSource.sourceFrameCount,
+	})]]);
+	const boundTimingViews = new Map([[previewSource.id, bindVideoSourceTimingView(timingViews, previewSource)]]);
+	const observedCells: unknown[] = [];
+	const signal = new AbortController().signal;
+	const preview = await createFramescaperSelectedExactPreviewV27({
+		project, plan, timingViews, boundTimingViews, signal, assertCurrent() {},
+		store: {} as AudioEditorProjectStore,
+		captureFrame: (entry) => {
+			const descriptor = (entry as {
+				presentationDescriptor?: { outerCell?: unknown };
+			}).presentationDescriptor;
+			observedCells.push(descriptor?.outerCell);
+			return {
+				width: 2, height: 2,
+				pixels: Uint8Array.from({ length: 16 }, (_, index) => index % 4 === 3 ? 255 : 128),
+			};
+		},
+		createOutput: () => ({ drawable: Object.freeze({}), write() {}, dispose() {} }),
+	});
+	const frame = Object.freeze({
+		layers: Object.freeze([]), adjustments: Object.freeze([]),
+		activeFreezeNodeIds: Object.freeze([]), availablePresetIds: Object.freeze([]),
+		ledger: Object.freeze({ requestedNodeIds: Object.freeze([]),
+			consumedNodeIds: Object.freeze([]), omittedNodeIds: Object.freeze([]) }),
+	});
+	await preview.render({ timelineSample: 3_203, mediaLayers: [mediaLayer('video-clip', 1)], frame });
+	preview.dispose();
+	assert.deepEqual(observedCells, [2], 'the boundary sample resolves the export grid cell');
+});
+
 test('selected V27 honors authored compositingOrder across tracks', async () => {
 	// The canonical painter order sorts by compositingOrder ascending, then
 	// track position descending: a lower track whose clip authors a higher
