@@ -50,7 +50,31 @@ import {
 } from './native-media-output-tree.ts';
 
 const SHA256 = /^[a-f0-9]{64}$/u;
-const PROXY_OUTPUT_MAXIMUM_BYTES = 512 * 1024 ** 2;
+const PROXY_OUTPUT_MINIMUM_CEILING_BYTES = 512 * 1024 ** 2;
+const PROXY_OUTPUT_BYTES_PER_SECOND = 8 * 1024 ** 2;
+
+/**
+ * One whole-source ProRes Proxy MOV scales with duration — roughly three
+ * megabytes a second at the 1280x720 recipe ceiling — so the previous flat
+ * half-gigabyte cap refused every clip past a few minutes: exactly the media
+ * proxies exist for. Eight megabytes per source second keeps the bound real
+ * without starving it, and the old flat value remains the floor.
+ */
+export function framescaperNativeMediaV14ProxyOutputCeiling(
+	envelope: FramescaperNativeMediaV14RuntimeRequest['attempt']['envelope'],
+): number {
+	const seconds = envelope.plan.sources.reduce((total, source) => {
+		const timing = source.timing as Readonly<{
+			kind?: string; frameCount?: number; rate?: Readonly<{ num: number; den: number }>;
+		}> | undefined;
+		return Number.isSafeInteger(timing?.frameCount) && Number.isSafeInteger(timing?.rate?.num)
+			&& (timing.rate!.num) > 0 && Number.isSafeInteger(timing?.rate?.den)
+			? Math.max(total, Math.ceil((timing.frameCount! * timing.rate!.den) / timing.rate!.num))
+			: total;
+	}, 0);
+	return Math.min(HELPER_DATA_PLANE_MAXIMUM_BYTES,
+		Math.max(PROXY_OUTPUT_MINIMUM_CEILING_BYTES, safeProduct([seconds, PROXY_OUTPUT_BYTES_PER_SECOND])));
+}
 
 export interface NativeMediaV14HelperAdapterMessageChannel {
 	readonly hostPort: HelperDataPlaneIoPort;
@@ -298,7 +322,8 @@ async function prepareProxy(
 		plan: planBinding, source: sourceGrant,
 		...(timing.length === 0 ? {} : { videoTimingAssets: Object.freeze(timing) }),
 		proxyRecipe: request.recipe,
-		output: Object.freeze({ ...destination, maximumBytes: PROXY_OUTPUT_MAXIMUM_BYTES }),
+		output: Object.freeze({ ...destination,
+			maximumBytes: framescaperNativeMediaV14ProxyOutputCeiling(request.envelope) }),
 		scratch: Object.freeze({
 			rootPath: stagingRoot, rootIdentity: scratchIdentity,
 			reservationId: randomBytes(20).toString('hex'), maximumBytes: scratchBytes,
@@ -311,7 +336,8 @@ async function prepareProxy(
 				descriptor.byteLength, planBytes.byteLength, sourceGrant.bytes,
 				...timing.map(({ bytes }) => bytes),
 			]),
-			maximumOutputBytes: PROXY_OUTPUT_MAXIMUM_BYTES, maximumScratchBytes: scratchBytes,
+			maximumOutputBytes: framescaperNativeMediaV14ProxyOutputCeiling(request.envelope),
+			maximumScratchBytes: scratchBytes,
 			maximumDataPlaneBytes: planBytes.byteLength, maximumInFlightChunks: 1,
 			maximumRssBytes: 1024 ** 3,
 		}),
@@ -454,13 +480,25 @@ export function framescaperNativeMediaV14OutputCeiling(
 	envelope: FramescaperNativeMediaV14RuntimeRequest['attempt']['envelope'],
 ): number {
 	const summary = envelope.summary;
-	const profileId = envelope.plan.deliveryProfile;
+	const plan = envelope.plan;
+	const profileId = plan.deliveryProfile;
 	const bytesPerPixel = profileId !== undefined && nativeMediaV14EncodeDispatch(profileId).imageSequence ? 16 : 4;
 	const body = safeProduct([summary.width, summary.height, summary.outputFrameCount, bytesPerPixel]);
 	const manifestAllowance = safeProduct([summary.outputFrameCount + 1, 512]);
+	// A ceiling with no audio term refused correct completed exports on small
+	// canvases: a 64x64 music-heavy timeline's PCM track alone can outweigh
+	// the raw-video allowance. Grant audio the same worst-case spirit — raw
+	// eight-channel float32 for the full output duration.
+	const rawAudio = plan.output.includeAudio
+		? (BigInt(summary.outputFrameCount) * BigInt(plan.output.frameRate.den)
+			* BigInt(plan.timebase.sampleRate) * 32n) / BigInt(plan.output.frameRate.num) + 32n
+		: 0n;
+	const audioAllowance = rawAudio > BigInt(HELPER_DATA_PLANE_MAXIMUM_BYTES)
+		? HELPER_DATA_PLANE_MAXIMUM_BYTES : Number(rawAudio);
+	const total = Math.min(HELPER_DATA_PLANE_MAXIMUM_BYTES, body + audioAllowance);
 	return Math.min(HELPER_DATA_PLANE_MAXIMUM_BYTES,
-		Math.max(1, body > HELPER_DATA_PLANE_MAXIMUM_BYTES - manifestAllowance
-			? HELPER_DATA_PLANE_MAXIMUM_BYTES : body + manifestAllowance));
+		Math.max(1, total > HELPER_DATA_PLANE_MAXIMUM_BYTES - manifestAllowance
+			? HELPER_DATA_PLANE_MAXIMUM_BYTES : total + manifestAllowance));
 }
 
 async function writeAuthenticated(path: string, bytes: Uint8Array, sha256: string): Promise<void> {

@@ -20,7 +20,10 @@ import {
 	type NativeMediaV14ExecutionResult,
 } from './native-media-v14-executor.ts';
 import type { PreparedNativeMediaQueueJobV3 } from './native-media-queue-dispatcher-v3.ts';
-import { framescaperNativeMediaV14OutputCeiling } from './native-media-v14-helper-adapter.ts';
+import {
+	framescaperNativeMediaV14OutputCeiling,
+	framescaperNativeMediaV14ProxyOutputCeiling,
+} from './native-media-v14-helper-adapter.ts';
 import type {
 	FramescaperNativeMediaV14RuntimePort,
 	FramescaperNativeMediaV14RuntimeRequest,
@@ -58,7 +61,6 @@ const MAXIMUM_BODIES = 4_096;
 const V14_QUEUE_CPU_CORES = 2;
 const V14_QUEUE_RSS_BYTES = 4 * 1_024 ** 3;
 const V14_QUEUE_MINIMUM_FREE_BYTES = 10 * 1_024 ** 3;
-const V14_PROXY_OUTPUT_MAXIMUM_BYTES = 512 * 1_024 ** 2;
 
 interface ProjectRecord {
 	readonly projectId: string;
@@ -191,7 +193,7 @@ export class FramescaperNativeSelectedV28ProjectAuthority {
 				&& body.storageKey === input.storageKey && body.sha256 === input.sha256, 'timing').byteLength);
 		scratchBytes = safeAdd(scratchBytes, fingerprintNativeMediaPlan(plan).byteLength);
 		scratchBytes = safeAdd(scratchBytes, request.taskKind === 'proxy-generation'
-			? V14_PROXY_OUTPUT_MAXIMUM_BYTES
+			? framescaperNativeMediaV14ProxyOutputCeiling(createNativeMediaPlanEnvelopeV2(plan))
 			: framescaperNativeMediaV14OutputCeiling(createNativeMediaPlanEnvelopeV2(plan)));
 		safeAdd(scratchBytes, V14_QUEUE_MINIMUM_FREE_BYTES);
 		return Object.freeze({

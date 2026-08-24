@@ -19,7 +19,11 @@ import type {
 	HelperMediaEncodeJobGrant,
 	HelperMediaProxyJobGrant,
 } from '../desktop/helper-native-job-contract.ts';
-import { createNativeMediaV14HelperAdapter } from '../desktop/native-media-v14-helper-adapter.ts';
+import {
+	createNativeMediaV14HelperAdapter,
+	framescaperNativeMediaV14OutputCeiling,
+	framescaperNativeMediaV14ProxyOutputCeiling,
+} from '../desktop/native-media-v14-helper-adapter.ts';
 import type { NativeMediaHelperPoolJobRequest } from '../desktop/native-media-helper-pool.ts';
 import { FramescaperNativeLiveRenderInputStaging } from '../desktop/native-services-live-render-input-staging.ts';
 import { createNativeMediaPublicationPlan } from '../src/common/editor/native-media-atomic-publication.ts';
@@ -43,6 +47,35 @@ const SOURCE_BYTES = new Uint8Array([9, 8, 7, 6]);
 const OUTPUT_BYTES = new Uint8Array([1, 3, 3, 7]);
 const LIVE_JOB_ID = 'bc'.repeat(20);
 const LIVE_OWNER = Object.freeze({ renderer: 'retry-test' });
+
+test('the proxy output ceiling scales with source duration instead of a flat cap', () => {
+	const ceiling = (frameCount: number, num: number, den: number) => (
+		framescaperNativeMediaV14ProxyOutputCeiling({
+			plan: { sources: [{ timing: { kind: 'cfr', frameCount, rate: { num, den } } }] },
+		} as never));
+	assert.equal(ceiling(20, 10, 1), 512 * 1024 ** 2, 'short clips keep the old flat value as a floor');
+	// A twenty-minute 30 fps source produces multiple gigabytes of ProRes
+	// Proxy; the flat half-gigabyte cap refused it after the encode finished.
+	assert.equal(ceiling(36_000, 30, 1), 1_200 * 8 * 1024 ** 2);
+});
+
+test('the encode output ceiling budgets audio alongside raw video', () => {
+	const base = {
+		summary: { width: 64, height: 64, outputFrameCount: 240 },
+		plan: {
+			output: { includeAudio: true, frameRate: { num: 24, den: 1 } },
+			timebase: { sampleRate: 48_000 },
+		},
+	};
+	const withAudio = framescaperNativeMediaV14OutputCeiling(base as never);
+	const withoutAudio = framescaperNativeMediaV14OutputCeiling({
+		...base, plan: { ...base.plan, output: { ...base.plan.output, includeAudio: false } },
+	} as never);
+	// Ten seconds of PCM stereo alone outweighs 64x64 raw video, so a ceiling
+	// without an audio term refused correct completed exports at the lease.
+	assert.ok(withAudio - withoutAudio >= 10 * 48_000 * 8,
+		'a music-heavy small-canvas export must fit its output grant');
+});
 
 test('V14 proxy adapter grants one exact original and ProRes Proxy MOV recipe to the helper', async () => {
 	const directory = await mkdtemp(join(tmpdir(), 'framescaper-v14-proxy-adapter-'));
