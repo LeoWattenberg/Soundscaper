@@ -538,13 +538,13 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 	const bridge = exposed.get('scapeDesktop');
 	const baseFields = [
 		'abortSharedSourceWrite', 'abortWrite', 'applyNativeTierControl', 'awaitVideoSourceProbe', 'beginSharedSourceWrite', 'beginVideoSourceProbe', 'beginWrite', 'bindNativeAudioSession', 'calibrateNativeAudioSession',
-			'cancelVideoSourceProbe',
+			'cancelDesktopAudioCodecOperation', 'cancelVideoSourceProbe',
 		'checkForUpdates', 'chooseExternalFfmpeg', 'chooseFiles', 'chooseLinkedAudioOriginal', 'chooseLinkedVideoOriginal', 'chooseSaveTarget', 'clearExternalFfmpeg', 'clearNativePluginQuarantine', 'closeNativeAudioSession', 'closeNativePluginInstance', 'closeNativePluginVendorUi', 'commitSharedProject',
 			'deleteSharedProject', 'describeNativeAudioBackend', 'editText', 'finishSharedSourceWrite', 'finishWrite',
 		'getEnvironment', 'getExternalFfmpegStatus', 'installAssistanceModel', 'installExternalFfmpeg', 'instantiateNativePlugin', 'listAssistanceModels', 'listNativePlugins', 'listSharedProjects', 'loadLinkedAudioOriginal', 'loadLinkedVideoOriginal', 'nativeAudioHelperAvailability', 'nativeAudioSessionStatus', 'nativePluginAvailability', 'nativeServices', 'onAssistanceInstallProgress', 'onCloseRequested',
 		'onMenuCommand', 'onOpenProject', 'onWindowStateChanged', 'openExternal', 'openNativeAudioSession', 'openNativePluginVendorUi', 'patchFinalPrefix', 'persistNativePluginState', 'probeHelperAvailability', 'readNativeTierControls', 'readSharedProject',
 		'readSharedProjectBundle', 'readSharedSourceChunk', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'removeAssistanceModel', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'reportNativeAudioSessionLoss', 'reportNativeAudioSessionTransfer', 'rescanExternalFfmpeg', 'respondToClose', 'restoreNativePluginState', 'reviewNativePluginInstallation', 'runNativePluginOffline', 'scanNativePlugins',
-		'runWindowAction', 'setLocale', 'setNativeAudioHelperEnabled', 'setNativePluginBypassed', 'setNativePluginConsent', 'signalReady', 'writeChunk', 'writeSharedSourceChunk',
+		'runDesktopAudioCodecOperation', 'runWindowAction', 'setLocale', 'setNativeAudioHelperEnabled', 'setNativePluginBypassed', 'setNativePluginConsent', 'signalReady', 'writeChunk', 'writeSharedSourceChunk',
 		].sort();
 	assert.deepEqual(Object.keys(bridge.v1).sort(), baseFields);
 	const framescaperBridge = exposed.get('framescaperDesktop');
