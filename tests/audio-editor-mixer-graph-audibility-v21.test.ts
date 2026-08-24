@@ -53,6 +53,22 @@ test('a muted VCA silences the strips it holds', () => {
 	assert.equal(audibility?.audibleTrack('music'), true);
 });
 
+test('a track reaching only a cue-role output is not in the file', () => {
+	// The render connects only the main-role output to the destination; cue
+	// and control-room outputs terminate unconnected, so a cue-only track is
+	// silent in the exported programme and must not appear in an edit list.
+	const project = cueOnlyProject();
+	const audibility = createMixerGraphAudibilityV21(project);
+	assert.ok(audibility);
+	assert.equal(audibility.audibleTrack('voice'), false);
+	assert.equal(audibility.reason('voice'), 'routed-to-silence');
+	assert.equal(audibility.audibleTrack('music'), true);
+
+	const visibility = createInterchangeVisibility(project.tracks as never, project);
+	assert.equal(visibility.contributes(track(project, 'voice') as never), false);
+	assert.equal(visibility.contributes(track(project, 'music') as never), true);
+});
+
 test('a document with no routing graph keeps the track-flag rule', () => {
 	const legacy = {
 		schemaVersion: 17,
@@ -101,6 +117,49 @@ function routedProject({ busMuted }: { busMuted: boolean }) {
 		},
 	} as never, { now: NOW });
 	return routed;
+}
+
+function cueOnlyProject() {
+	const base = createSoundscaperProjectV21({
+		id: 'graph-audibility-cue', title: 'Graph audibility cue', now: NOW,
+		tracks: [
+			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] }),
+			createAudioTrack({ id: 'music', name: 'Music', clipIds: [] }),
+		],
+		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],
+		primarySequenceId: 'main-sequence',
+	});
+	return applySoundscaperProjectCommandV21(base, {
+		type: 'mixer-graph/set',
+		expected: base.mixer,
+		mixer: {
+			...base.mixer,
+			cues: [{
+				id: 'cue-a', name: 'Cue', color: '#808080', gain: 1, pan: 0, mute: false,
+				solo: false, collapsed: false, effectsActive: true, effects: [],
+				channelCount: 2,
+			}],
+			outputs: [
+				...base.mixer.outputs,
+				{ id: 'cue-out', name: 'Cue output', role: 'cue', channelCount: 2 },
+			],
+			edges: [
+				...base.mixer.edges.filter(({ id }) => id !== 'assignment:track:voice:master'),
+				{
+					id: 'assignment:track:voice:mixer-node:cue-a', kind: 'assignment',
+					source: { kind: 'track', id: 'voice' },
+					destination: { kind: 'mixer-node', id: 'cue-a' },
+					position: 'post-fader', level: 1, enabled: true, channelMap: [],
+				},
+				{
+					id: 'assignment:mixer-node:cue-a:output:cue-out', kind: 'assignment',
+					source: { kind: 'mixer-node', id: 'cue-a' },
+					destination: { kind: 'output', id: 'cue-out' },
+					position: 'post-fader', level: 1, enabled: true, channelMap: [],
+				},
+			],
+		},
+	} as never, { now: NOW });
 }
 
 function vcaProject() {

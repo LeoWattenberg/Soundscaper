@@ -64,6 +64,12 @@ export function createMixerGraphAudibilityV21(project: unknown): MixerGraphAudib
 		if (!adjacency.has(source)) adjacency.set(source, new Set());
 		adjacency.get(source)!.add(target);
 	}
+	// The render connects only the main-role output to the destination; cue and
+	// control-room outputs terminate unconnected, so a path ending there never
+	// reaches the programme in playback or export.
+	const programmeOutputs = new Set(records(graph.outputs)
+		.filter((output) => output.role === 'main')
+		.map((output) => `output:${String(output.id)}`));
 	const soloed = [...strips].filter(([, state]) => state.soloed).map(([key]) => key);
 	const open = (key: string): boolean => {
 		const state = strips.get(key);
@@ -79,9 +85,9 @@ export function createMixerGraphAudibilityV21(project: unknown): MixerGraphAudib
 			const current = pending.pop()!;
 			if (seen.has(current)) continue;
 			seen.add(current);
-			// Master and the outputs are the end of the chain: reaching either is
-			// reaching the programme.
-			if (current.startsWith('master') || current.startsWith('output:')) return true;
+			// Master and the main-role outputs are the end of the chain: reaching
+			// either is reaching the programme.
+			if (current.startsWith('master') || programmeOutputs.has(current)) return true;
 			for (const next of adjacency.get(current) ?? []) {
 				if (next.startsWith('mixer-node:') && !open(next)) continue;
 				pending.push(next);
