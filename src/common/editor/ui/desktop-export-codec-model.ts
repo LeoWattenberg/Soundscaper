@@ -6,7 +6,10 @@ import type {
 	DesktopAudioCodecCapabilityQuery,
 	DesktopAudioCodecCapabilityResult,
 } from '../../../../desktop/desktop-audio-codec-capability-contract.ts';
-import { DESKTOP_AUDIO_CODEC_FORMATS } from '../../../../desktop/desktop-audio-codec-operation-contract.ts';
+import {
+	DESKTOP_AUDIO_CODEC_FORMATS,
+	DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE,
+} from '../../../../desktop/desktop-audio-codec-operation-contract.ts';
 import {
 	createDesktopAudioCodecCapabilityQuery,
 	desktopAudioCodecCapabilityReason,
@@ -25,6 +28,13 @@ interface DesktopExportCodecSettings {
 const COMPRESSED = new Set<string>(DESKTOP_AUDIO_CODEC_FORMATS);
 const WAVPACK_COMPRESSION_LEVELS = Object.freeze([0, 1, 2, 3, 4, 5] as const);
 const FLAC_SAMPLE_FORMATS = Object.freeze(['int16', 'int24'] as const);
+const BIT_RATES: Readonly<Record<string, readonly number[]>> = Object.freeze({
+	mp3: Object.freeze([32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]),
+	opus: Object.freeze([16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 256]),
+	mp2: Object.freeze([32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384]),
+	'aac-m4a': Object.freeze([32, 48, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]),
+});
+const VORBIS_QUALITIES = Object.freeze([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
 export function createDesktopExportCodecQuery(
 	settings: DesktopExportCodecSettings,
@@ -83,6 +93,19 @@ export function desktopExportFlacSampleFormats(
 	return capabilities?.formats.flac?.provider === 'bundled'
 		? Object.freeze(['int24'] as const)
 		: FLAC_SAMPLE_FORMATS;
+}
+
+/** Choices admitted by the strict desktop main-process operation contract. */
+export function desktopExportBitRates(format: unknown): readonly number[] {
+	return BIT_RATES[String(format)] ?? Object.freeze([]);
+}
+
+export function desktopExportVorbisQualities(): readonly number[] {
+	return VORBIS_QUALITIES;
+}
+
+export function desktopExportMaximumSampleRate(format: unknown): number {
+	return COMPRESSED.has(String(format)) ? DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE : 384_000;
 }
 
 function outputChannelCount(settings: DesktopExportCodecSettings, projectChannelCount: unknown): number {

@@ -5,12 +5,25 @@ import test from 'node:test';
 
 import {
 	createDesktopExportCodecQuery,
+	desktopExportBitRates,
 	desktopExportCodecCapabilities,
 	desktopExportFormatAvailable,
 	desktopExportFormatReason,
 	desktopExportFlacSampleFormats,
+	desktopExportMaximumSampleRate,
+	desktopExportVorbisQualities,
 	desktopExportWavPackCompressionLevels,
 } from '../src/common/editor/ui/desktop-export-codec-model.ts';
+
+test('desktop export choices stay inside the closed operation contract', () => {
+	assert.deepEqual(desktopExportBitRates('opus'), [16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 256]);
+	assert.equal(desktopExportBitRates('opus').includes(320), false);
+	assert.deepEqual(desktopExportBitRates('mp3'), [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
+	assert.deepEqual(desktopExportVorbisQualities(), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+	assert.equal(desktopExportMaximumSampleRate('opus'), 192_000);
+	assert.equal(desktopExportMaximumSampleRate('flac'), 192_000);
+	assert.equal(desktopExportMaximumSampleRate('wav'), 384_000);
+});
 
 test('desktop export codec query follows current planned sample and channel geometry', () => {
 	const preserved = createDesktopExportCodecQuery({

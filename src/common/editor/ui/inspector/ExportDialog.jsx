@@ -41,8 +41,9 @@ import {
 	parseJsonObject,
 } from './inspector-helpers.ts';
 import {
-	createDesktopExportCodecQuery, desktopExportCodecCapabilities,
+	createDesktopExportCodecQuery, desktopExportBitRates, desktopExportCodecCapabilities,
 	desktopExportFlacSampleFormats, desktopExportFormatAvailable, desktopExportFormatReason,
+	desktopExportMaximumSampleRate, desktopExportVorbisQualities,
 	desktopExportWavPackCompressionLevels,
 } from '../desktop-export-codec-model.ts';
 
@@ -262,6 +263,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	};
 	const setFormat = (format) => setSettings((current) => {
 		const passthrough = format === 'bw64' && current.adm?.mode === 'passthrough';
+		const maximumSampleRate = desktop ? desktopExportMaximumSampleRate(format) : 384_000;
 		return {
 			...current,
 			format,
@@ -270,7 +272,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			sampleFormat: passthrough
 				? `int${current.adm.geometry.bitDepth}`
 				: MEDIA_EXPORT_FORMATS[format]?.defaults?.sampleFormat || current.sampleFormat,
-			sampleRate: passthrough ? String(current.adm.geometry.sampleRate) : current.sampleRate,
+			sampleRate: passthrough
+				? String(current.adm.geometry.sampleRate)
+				: String(Math.min(Number(current.sampleRate) || 48_000, maximumSampleRate)),
 			bitRate: format === 'opus' ? '160' : format === 'mp2' ? '256' : ['mp3', 'aac-m4a'].includes(format) ? '192' : current.bitRate,
 			compressionLevel: format === 'flac' ? '5' : format === 'wavpack' ? '2' : current.compressionLevel,
 			channelMapping: format === 'bw64'
@@ -317,12 +321,18 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		}
 	};
 
-	const formatQualityOptions = ({
+	const browserBitRates = ({
 		mp3: [128, 192, 256, 320],
 		opus: [64, 96, 128, 160, 192, 256, 320],
 		mp2: [128, 160, 192, 224, 256, 320, 384],
 		'aac-m4a': [96, 128, 160, 192, 256, 320],
-	}[settings.format] || []).map(bitrateOption);
+	}[settings.format] || []);
+	const formatQualityOptions = (desktop
+		? desktopExportBitRates(settings.format)
+		: browserBitRates).map(bitrateOption);
+	const maximumAudioSampleRate = desktop
+		? desktopExportMaximumSampleRate(settings.format)
+		: 384_000;
 	const formatDescriptor = MEDIA_EXPORT_FORMATS[settings.format];
 	const sampleFormatOptions = desktop && settings.format === 'flac'
 		? desktopExportFlacSampleFormats(desktopCodecCapabilities)
@@ -528,12 +538,12 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 					) : bitrateFormat ? (
 						<LabeledDropdown label={copy.quality} hook="quality" value={settings.bitRate} onChange={(value) => set('bitRate', value)} disabled={exporting} options={formatQualityOptions} />
 					) : settings.format === 'ogg-vorbis' ? (
-						<LabeledDropdown label={copy.quality} hook="quality" value={settings.quality} onChange={(value) => set('quality', value)} disabled={exporting} options={Array.from({ length: 12 }, (_, index) => ({ value: String(index - 1), label: String(index - 1) }))} />
+						<LabeledDropdown label={copy.quality} hook="quality" value={settings.quality} onChange={(value) => set('quality', value)} disabled={exporting} options={(desktop ? desktopExportVorbisQualities() : Array.from({ length: 12 }, (_, index) => index - 1)).map((quality) => ({ value: String(quality), label: String(quality) }))} />
 					) : null)}
 					{!videoFormat && ['flac', 'wavpack'].includes(settings.format) && (
 						<LabeledDropdown label={copy.quality} hook="quality" value={settings.compressionLevel} onChange={(value) => set('compressionLevel', value)} disabled={exporting} options={(settings.format === 'wavpack' && desktop ? desktopExportWavPackCompressionLevels(desktopCodecCapabilities) : Array.from({ length: settings.format === 'flac' ? 9 : 6 }, (_, level) => level)).map((level) => ({ value: String(level), label: `${copy.level} ${level}` }))} />
 					)}
-					{!videoFormat && <label className="audio-editor-field" data-export-field="sampleRate"><span>{copy.sampleRate}</span><input type="number" min="8000" max="384000" step="1" list="audio-editor-export-rates" value={settings.sampleRate} disabled={exporting || admPassthrough} onChange={(event) => set('sampleRate', event.currentTarget.value)} /><datalist id="audio-editor-export-rates">{[8_000, 16_000, 22_050, 32_000, 44_100, 48_000, 88_200, 96_000, 192_000, 384_000, snapshot.project?.sampleRate].filter((value, index, values) => value && values.indexOf(value) === index).map((value) => <option key={value} value={value} />)}</datalist></label>}
+					{!videoFormat && <label className="audio-editor-field" data-export-field="sampleRate"><span>{copy.sampleRate}</span><input type="number" min="8000" max={maximumAudioSampleRate} step="1" list="audio-editor-export-rates" value={settings.sampleRate} disabled={exporting || admPassthrough} onChange={(event) => set('sampleRate', event.currentTarget.value)} /><datalist id="audio-editor-export-rates">{[8_000, 16_000, 22_050, 32_000, 44_100, 48_000, 88_200, 96_000, 192_000, 384_000, snapshot.project?.sampleRate].filter((value, index, values) => value && value <= maximumAudioSampleRate && values.indexOf(value) === index).map((value) => <option key={value} value={value} />)}</datalist></label>}
 					{!videoFormat && <LabeledDropdown label={copy.channelMapping} hook="channelMapping" value={settings.channelMapping} onChange={(value) => set('channelMapping', value)} disabled={exporting || settings.format === 'bw64'} options={[{ value: 'preserve', label: copy.preserveChannels }, { value: 'mono', label: copy.mono }, { value: 'stereo', label: copy.stereo }, { value: 'custom', label: copy.customChannelMapping }]} />}
 					{!videoFormat && pcmFormat && settings.sampleFormat !== 'float32' && <LabeledDropdown label={copy.dither} hook="dither" value={settings.dither} onChange={(value) => set('dither', value)} disabled={exporting || admPassthrough} options={[{ value: 'none', label: copy.none }, { value: 'triangular', label: copy.triangularDither }, { value: 'triangular-highpass', label: copy.highpassDither }]} />}
 					{/* A delivery normalizes only when a target is chosen: there is no
