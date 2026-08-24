@@ -68,6 +68,9 @@ const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' :
 const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
 const SOURCE_REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
+const DESKTOP_STAGE_TARGETS = new Set([
+	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
+]);
 
 async function main() {
 	const projectPackage = parseJson(await readFile(resolve(ROOT, 'package.json')), 'package.json');
@@ -162,8 +165,10 @@ export function resolveDesktopSourceRevision(
 }
 
 export function resolveDesktopStageTarget(nativeTarget) {
-	const match = /^(linux|mac|win)-(x64|arm64)$/u.exec(String(nativeTarget?.id ?? ''));
-	assert(match !== null && ['declared', 'build-host'].includes(nativeTarget?.source),
+	const targetId = String(nativeTarget?.id ?? '');
+	const match = /^(linux|mac|win)-(x64|arm64)$/u.exec(targetId);
+	assert(match !== null && DESKTOP_STAGE_TARGETS.has(targetId)
+		&& ['declared', 'build-host'].includes(nativeTarget?.source),
 		'Resolved desktop target is invalid.');
 	return { platform: match[1], arch: match[2] };
 }

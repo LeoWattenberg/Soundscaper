@@ -122,4 +122,10 @@ test('desktop preview workflow retains only the no-FFmpeg stage manifest', async
 	const workflow = await readFile(resolve(import.meta.dirname, '../.github/workflows/desktop-preview.yml'), 'utf8');
 	assert.match(workflow, /cp \.desktop-build\/stage-manifest\.json/u);
 	assert.doesNotMatch(workflow, /cp desktop\/ffmpeg-corresponding-source\.json/u);
+	const targetRows = [...workflow.matchAll(/platform:\s*(linux|mac|win)\s+arch:\s*(x64|arm64)/gu)]
+		.map((match) => `${match[1]}-${match[2]}`);
+	assert.deepEqual([...new Set(targetRows)].sort(), [
+		'linux-arm64', 'linux-x64', 'mac-arm64', 'win-arm64', 'win-x64',
+	]);
+	assert.doesNotMatch(workflow, /platform:\s*mac,\s*arch:\s*x64/u);
 });

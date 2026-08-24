@@ -111,21 +111,28 @@ test('package-content authority rejects bundled FFmpeg and legacy runtime summar
 	}), /legacy bundled FFmpeg runtime summary/iu);
 });
 
-test('Framescaper content closure binds media and OpenFX readiness with their review policy', async (context) => {
-	const fixture = await framescaperPackageTree(context);
-	const written = await writeDesktopPackageContentManifest({
-		resourcesRoot: fixture.resourcesRoot,
-		runtimeManifestPath: fixture.runtimeManifestPath,
+test('Framescaper rejects its static-FFmpeg media host while retaining OpenFX closure', async (context) => {
+	const forbidden = await framescaperPackageTree(context);
+	await assert.rejects(writeDesktopPackageContentManifest({
+		resourcesRoot: forbidden.resourcesRoot,
+		runtimeManifestPath: forbidden.runtimeManifestPath,
 		productId: 'framescaper',
 		targetId: 'linux-x64',
+	}), /forbidden bundled FFmpeg.*framescaper-media-host/iu);
+
+	const fixture = await framescaperPackageTree(context);
+	await makeMediaHostPending(fixture);
+	const written = await writeDesktopPackageContentManifest({
+		resourcesRoot: fixture.resourcesRoot, runtimeManifestPath: fixture.runtimeManifestPath,
+		productId: 'framescaper', targetId: 'linux-x64',
 	});
 	assert.equal(written.status, 'installed-resource-closure-audited');
 
-	for (const [host, name, expected] of [
-		['media', 'framescaper-media-host-production-readiness.json', /media-host production-readiness evidence/iu],
-		['openfx', 'framescaper-openfx-production-readiness.json', /OpenFX production-readiness evidence/iu],
-	]) {
+	for (const [host, name, expected] of [[
+		'openfx', 'framescaper-openfx-production-readiness.json', /OpenFX production-readiness evidence/iu,
+	]]) {
 		const missing = await framescaperPackageTree(context);
+		await makeMediaHostPending(missing);
 		await rm(join(
 			missing.resourcesRoot,
 			`runtime/native/framescaper-${host}-host/linux-x64/${name}`,
@@ -137,18 +144,19 @@ test('Framescaper content closure binds media and OpenFX readiness with their re
 			targetId: 'linux-x64',
 		}), expected);
 	}
-
-	const unattested = await framescaperPackageTree(context);
-	unattested.runtimeManifest.framescaperNativeHosts.mediaHost.productionReadiness = null;
-	await writeFile(unattested.runtimeManifestPath,
-		`${JSON.stringify(unattested.runtimeManifest, null, 2)}\n`);
-	await assert.rejects(writeDesktopPackageContentManifest({
-		resourcesRoot: unattested.resourcesRoot,
-		runtimeManifestPath: unattested.runtimeManifestPath,
-		productId: 'framescaper',
-		targetId: 'linux-x64',
-	}), /mediaHost.*production-readiness|media-host.*production-readiness/iu);
 });
+
+async function makeMediaHostPending(fixture) {
+	await rm(join(fixture.resourcesRoot, 'runtime/native/framescaper-media-host/linux-x64'), {
+		recursive: true, force: true,
+	});
+	fixture.runtimeManifest.framescaperNativeHosts.mediaHost = {
+		status: 'pending-external', blockedBy: 'Static FFmpeg hosts are not distributable.',
+		payloads: [], reviewPolicy: null, productionReadiness: null,
+	};
+	await writeFile(fixture.runtimeManifestPath,
+		`${JSON.stringify(fixture.runtimeManifest, null, 2)}\n`);
+}
 
 async function packageTree(context) {
 	const root = await mkdtemp(join(tmpdir(), 'desktop-package-content-'));

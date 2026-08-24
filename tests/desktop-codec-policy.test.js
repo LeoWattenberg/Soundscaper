@@ -42,6 +42,7 @@ test('desktop FFmpeg payload matcher is narrow but covers core and native libav 
 		'runtime/native/avcodec-61.dll',
 		'runtime/native/libavformat.so.61',
 		'runtime/native/libavutil.dylib',
+		'runtime/native/framescaper-media-host/linux-x64/framescaper-media-host',
 		'desktop/ffmpeg-corresponding-source.json',
 		'ffmpeg-runtime-manifest.json',
 	]) assert.equal(isForbiddenDesktopFfmpegPath(path), true, path);
@@ -49,6 +50,7 @@ test('desktop FFmpeg payload matcher is narrow but covers core and native libav 
 	for (const path of [
 		'renderer/assets/ffmpeg-wrapper-A1B2.js',
 		'desktop/project-library-runtime/src/common/editor/ffmpeg-video-timing-probe.js',
+		'desktop/project-library-runtime/desktop/framescaper-media-host-payload.js',
 		'config/framescaper-media-host-payload-manifest.json',
 		'licenses/THIRD_PARTY_LICENSES.md',
 		'runtime/native/linux-x64/libaom.so',
