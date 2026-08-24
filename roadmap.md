@@ -180,8 +180,8 @@ licensing, Audacity-action, MIDI-fence, and Playwright matrices linked above.
 On 2026-08-21 the owner designated the Windows x64 RTX 3090 machine as the
 fixed-GPU reference; its zero-retry M1 preview, M4 production parity, and M4B-2
 keyed parity passed their then-current diagnostics. The corrected packaged-
-runtime fingerprint requires driver, device, power, and display identity that
-the retained artifact does not contain. The historical result remains audit
+runtime fingerprint requires driver, power, and display identity that the
+retained artifact does not contain alongside its recorded device identity. The historical result remains audit
 evidence, but closes no current formal row: M1, M3 long-form, M4 production
 parity, and M4B-2 are all `pending-external` until a fresh owner-host run.
 Details live in `docs/quality-budgets.md`.

@@ -187,9 +187,9 @@ identity is `owner-qualified-windows-x64-rtx3090-01`; the nightly-with-tests
 runner has independent formal profiles for M1 preview timing/heap, M3 long-form
 editorial, M4 render parity, and M4B-2 keyed parity. Each admission is
 independent of other results in the same run. All four profiles are now
-`pending-external`: the retained artifact omitted GPU-driver, GPU-device,
-power-mode, and display-mode identity and cannot be promoted under the corrected
-contract. A fresh owner-host run and reviewed descriptor are required before any
+`pending-external`: the retained artifact records the GPU device identity but
+omitted GPU-driver, power-mode, and display-mode identity and cannot be
+promoted under the corrected contract. A fresh owner-host run and reviewed descriptor are required before any
 formal row can close. M1 additionally requires the v2 raw fixture digest and
 five-trial cadence/heap samples.
 
