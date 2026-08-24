@@ -453,12 +453,18 @@ export function createDesktopPluginHostingRuntime({
 		}
 		const entry = { owner, session };
 		realtime.set(instanceId, entry);
-		void session.closed.then((result) => {
+		const settleStopped = (reason) => {
 			if (realtime.get(instanceId) !== entry) return;
 			realtime.delete(instanceId);
-			try { service.reportInstanceHostStopped(owner, instanceId, stopReason(result)); }
+			try { service.reportInstanceHostStopped(owner, instanceId, reason); }
 			catch { /* owner or policy was revoked concurrently */ }
-		});
+		};
+		// The supervisor rejects this promise when the host process dies, so the
+		// rejection branch is the crash-containment path, not an error afterthought.
+		void session.closed.then(
+			(result) => settleStopped(stopReason(result)),
+			(error) => settleStopped(supervisionStopReason(error)),
+		);
 		session.transferTo(destination, { instanceId });
 	};
 	const persistState = (owner, value) => {
@@ -486,6 +492,17 @@ function stopReason(value) {
 	if (['user-cancelled', 'device-loss', 'editor-shutdown'].includes(reason)) return reason;
 	if (['crash', 'hang', 'malformed-answer', 'resource-violation', 'oversize-state', 'identity-changed'].includes(reason)) return reason;
 	return reason === 'oversized-answer' ? 'oversize-state' : 'crash';
+}
+
+/** A rejected session is the supervisor speaking; its codes are translated, never guessed. */
+function supervisionStopReason(error) {
+	const code = error?.cause_;
+	if (code === 'heartbeat' || code === 'cancellation-timeout') return 'hang';
+	if (code === 'resource-violation') return 'resource-violation';
+	if (code === 'malformed-message') return 'malformed-answer';
+	if (code === 'disposed') return 'editor-shutdown';
+	if (code === 'cancelled') return 'user-cancelled';
+	return 'crash';
 }
 
 function requireHosting(hosting) {

@@ -28,8 +28,7 @@ registerHooks({
 const { createDesktopPluginHostingRuntime } = await import('../desktop/plugin-registration.mjs');
 const { DesktopPluginRegistry } = await import('../desktop/plugin-registry.ts');
 
-test('the production host reserves only a main-minted capability for the isolated vendor window', async () => {
-	const registry = new DesktopPluginRegistry({ isQuarantined: () => false });
+function recordFixtureInstallation(registry) {
 	const admission = registry.record({
 		format: 'clap', stableId: 'org.example.effect', bundleStableIds: ['org.example.effect'],
 		name: 'Effect', vendor: 'Example', version: '1.0.0', platform: 'linux', architecture: 'x64',
@@ -40,6 +39,12 @@ test('the production host reserves only a main-minted capability for the isolate
 		compatibility: 'compatible', descriptorVersion: 1,
 	});
 	assert.equal(admission.status, 'recorded');
+	return admission;
+}
+
+test('the production host reserves only a main-minted capability for the isolated vendor window', async () => {
+	const registry = new DesktopPluginRegistry({ isQuarantined: () => false });
+	const admission = recordFixtureInstallation(registry);
 	if (admission.status !== 'recorded') return;
 	const runtime = createDesktopPluginHostingRuntime({
 		registry,
@@ -75,5 +80,44 @@ test('the production host reserves only a main-minted capability for the isolate
 	assert.equal(runtime.service.closeVendorUi(owner, {
 		instanceId: instance.instanceId, windowHandleId: outcome.window.windowHandleId,
 	}), true);
+	runtime.service.dispose();
+});
+
+test('a session the supervisor rejects reports the host crash instead of leaving the instance hosted', async () => {
+	const registry = new DesktopPluginRegistry({ isQuarantined: () => false });
+	const admission = recordFixtureInstallation(registry);
+	if (admission.status !== 'recorded') return;
+	let rejectClosed;
+	const runtime = createDesktopPluginHostingRuntime({
+		registry,
+		quarantine: { isQuarantined: () => false },
+		settings: { snapshot: () => ({ nativePluginDiscoveryEnabled: true }) },
+		stateBodies: { persist: () => { throw new Error('unused'); }, read: () => null },
+		isFormatActivated: () => true,
+		createHostHelper: () => ({
+			describePayload: async () => ({ status: 'available' }),
+			supervisor: { dispose: () => undefined },
+		}),
+		openPersistentPluginSession: async () => ({
+			format: 'clap', reportedLatencyFrames: 0,
+			closed: new Promise((_resolve, reject) => { rejectClosed = reject; }),
+			transferTo: () => undefined,
+			authenticateState: () => { throw new Error('unused'); },
+			vendorWindowCapability: (windowId) => `${windowId}.${'c'.repeat(64)}`,
+			close: async () => undefined,
+		}),
+	});
+	const owner = {};
+	const instance = await runtime.service.instantiate(owner, {
+		installationId: admission.installationId, instanceId: null, sampleRate: 48_000,
+	});
+	await runtime.openRealtime(owner, instance.instanceId, { postMessage: () => undefined }, 48_000);
+	assert.equal(runtime.isolation.describeInstance(instance.instanceId).state, 'hosted');
+	const crash = new Error('The helper process exited unexpectedly.');
+	crash.cause_ = 'helper-exit';
+	rejectClosed(crash);
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(runtime.isolation.describeInstance(instance.instanceId).state, 'faulted');
+	assert.equal(runtime.isolation.describeDigest('ab'.repeat(32)).recentFaults, 1);
 	runtime.service.dispose();
 });
