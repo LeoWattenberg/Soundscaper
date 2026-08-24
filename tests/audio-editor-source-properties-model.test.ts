@@ -135,6 +135,15 @@ test('the source timecode reads from the probed origin when there is one', () =>
 	assert.equal(reading.sourceName, 'Take 1');
 });
 
+test('a rate-stretched clip labels the source frame playback actually draws', () => {
+	const reading = resolveSourceTimecodeAtSample(project({}, {
+		sequenceStartFrame: 0, sequenceFrameCount: 100,
+		sourceInFrame: 0, sourceFrameCount: 50,
+	}), 48_000 * 80 / 25);
+	assert.ok(reading);
+	assert.equal(reading.sourceFrame, 40, 'half speed labels source frame 40 at sequence frame 80');
+});
+
 test('an unreported origin still labels the source frame and says the origin is unknown', () => {
 	const reading = resolveSourceTimecodeAtSample(project(), 48_000 * 10 / 25);
 	assert.ok(reading);

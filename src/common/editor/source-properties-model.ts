@@ -113,6 +113,31 @@ export function resolveVideoSourcePropertiesView(sourceValue: unknown): SourcePr
  * surface that names a source frame reads it from here, so a readout and a
  * monitor cannot drift into two labels for the same frame.
  */
+/**
+ * The source frame an unretimed occurrence draws at a sequence frame.
+ *
+ * A clip without a retime map still maps proportionally: uniform rate
+ * stretch persists sequenceFrameCount !== sourceFrameCount with no map, and
+ * playback resolves the drawn frame by progress through the placement, so
+ * every readout must do the same — a 1:1 walk would name frames the program
+ * never shows and can leave the clip's own source range.
+ */
+export function proportionalSourceFrame(
+	sourceIn: number,
+	sourceFrameCount: number,
+	sequenceStartFrame: number,
+	sequenceFrameCount: number,
+	frame: number,
+): number {
+	const base = Number.isSafeInteger(sourceIn) ? sourceIn : 0;
+	if (!Number.isSafeInteger(sourceFrameCount) || sourceFrameCount < 1
+		|| !Number.isSafeInteger(sequenceFrameCount) || sequenceFrameCount < 1) {
+		return base + (frame - sequenceStartFrame);
+	}
+	const offset = Math.floor((frame - sequenceStartFrame) * sourceFrameCount / sequenceFrameCount);
+	return base + Math.min(sourceFrameCount - 1, Math.max(0, offset));
+}
+
 export function sourceFrameTimecodeLabel(
 	rate: SequenceRationalRate,
 	origin: VideoSourceStartTimecode | null,
@@ -189,7 +214,7 @@ export function resolveSourceTimecodeAtSample(
 			return null;
 		}
 		const sourceFrame = retimedSourceFrame
-			?? (Number.isSafeInteger(sourceIn) ? sourceIn : 0) + (frame - start);
+			?? proportionalSourceFrame(sourceIn, Number(value.sourceFrameCount), start, end - start, frame);
 		return Object.freeze({
 			sourceId: String(source.id ?? ''),
 			sourceName: String(source.name ?? ''),

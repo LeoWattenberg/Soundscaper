@@ -145,6 +145,22 @@ test('the program frame names the clip under the playhead and its own range', ()
 	assert.equal(frame.endFrame, SAMPLE_RATE * 60 / 25);
 });
 
+test('a rate-stretched clip maps the program frame proportionally like playback', () => {
+	// Uniform rate stretch persists sequenceFrameCount !== sourceFrameCount
+	// with no retime map; playback resolves the drawn frame by progress, so
+	// match-frame must name the same picture — not walk 1:1 past the clip's
+	// own source range.
+	const stretched = project({
+		clips: [clip({
+			sequenceStartFrame: 0, sequenceFrameCount: 100,
+			sourceInFrame: 0, sourceFrameCount: 50,
+		})],
+	});
+	const frame = resolveProgramFrame(stretched, { sample: SAMPLE_RATE * 80 / 25 });
+	assert.ok(frame);
+	assert.equal(frame.sourceFrame, 40, 'half speed shows source frame 40 at sequence frame 80');
+});
+
 test('nothing under the playhead is nothing, not the nearest clip', () => {
 	assert.equal(resolveProgramFrame(project(), { sample: 0 }), null);
 	assert.equal(resolveProgramFrame(project(), { sample: SAMPLE_RATE * 90 / 25 }), null);

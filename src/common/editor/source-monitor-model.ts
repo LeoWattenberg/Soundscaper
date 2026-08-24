@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
-import { sourceFrameTimecodeLabel } from './source-properties-model.ts';
+import { proportionalSourceFrame, sourceFrameTimecodeLabel } from './source-properties-model.ts';
 import { normalizeVideoSourceCharacteristics } from './video-source-characteristics.ts';
 import { videoFrameToSampleFrame, type RationalRate } from './timeline-time.ts';
 import {
@@ -234,7 +234,10 @@ export function resolveProgramFrame(
 		sourceId: String(matched.sourceId),
 		sequenceId,
 		sourceFrame: retimedSourceFrame
-			?? (Number.isSafeInteger(sourceIn) ? sourceIn : 0) + (frame - sequenceStartFrame),
+			?? proportionalSourceFrame(
+				sourceIn, Number(matched.sourceFrameCount ?? sequenceFrameCount),
+				sequenceStartFrame, sequenceFrameCount, frame,
+			),
 		sourceIn: Number.isSafeInteger(sourceIn) ? sourceIn : 0,
 		sourceFrameCount: Number(matched.sourceFrameCount ?? sequenceFrameCount),
 		sequenceStartFrame,
