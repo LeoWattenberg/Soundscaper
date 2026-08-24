@@ -11,6 +11,7 @@ import {
 	createExternalFfmpegAudioOperationRunner,
 	type ExternalFfmpegAudioChildProcess,
 	type ExternalFfmpegAudioLaunchOptions,
+	type ExternalFfmpegAudioOperationFiles,
 	type ExternalFfmpegAudioOperationContract,
 } from '../desktop/external-ffmpeg-audio-operation-runner.ts';
 
@@ -278,7 +279,7 @@ function contract(options: Readonly<{
 	reject?: boolean;
 	maximumOutputBytes?: number;
 	onAdmit?(): void;
-	onBuild?(files: Readonly<{ readonly inputPath: string; readonly outputPath: string }>): void;
+	onBuild?(files: ExternalFfmpegAudioOperationFiles): void;
 	onValidate?(): boolean;
 }> = {}): ExternalFfmpegAudioOperationContract<Operation> {
 	return {
