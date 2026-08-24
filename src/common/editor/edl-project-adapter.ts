@@ -8,7 +8,10 @@ import {
 } from './edl-export.ts';
 import { resolveSequenceTimingView } from './sequence-timing-model.ts';
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
-import { interchangeAnnotationOmission } from './interchange-omission-inventory.ts';
+import {
+	interchangeAnnotationOmission,
+	interchangeCaptionTrackOmission,
+} from './interchange-omission-inventory.ts';
 import { createVisibleVideoTrackPredicate } from './video-track-visibility.js';
 
 /**
@@ -173,6 +176,7 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 			...subFrame,
 			...describeOmissions(tracks, selected, isVisible),
 			...describeAnnotationOmission(project),
+			...describeCaptionTrackOmission(project, sequence.id),
 		],
 	});
 }
@@ -198,6 +202,23 @@ function describeAnnotationOmission(
 			labels: omission.labels,
 		},
 		message: 'The profile carries no markers, regions, or label tracks; they stay in the project.',
+	}];
+}
+
+function describeCaptionTrackOmission(
+	project: Readonly<Record<string, unknown>>,
+	sequenceId: string,
+): readonly EdlOmission[] {
+	const omission = interchangeCaptionTrackOmission(project, sequenceId);
+	if (!omission) return [];
+	return [{
+		code: 'edl.caption-tracks-omitted',
+		scope: { kind: 'project', id: String(project.id ?? '') },
+		data: {
+			captionTracks: omission.captionTracks.length,
+			captions: omission.captions,
+		},
+		message: 'The profile carries no explicit styled-caption tracks; they stay in the project.',
 	}];
 }
 

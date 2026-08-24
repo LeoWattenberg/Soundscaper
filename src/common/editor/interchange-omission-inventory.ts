@@ -43,6 +43,11 @@ export interface InterchangeAnnotationOmission {
 	readonly labels: number;
 }
 
+export interface InterchangeCaptionTrackOmission {
+	readonly captionTracks: readonly string[];
+	readonly captions: number;
+}
+
 /**
  * The timeline annotations and label tracks a profile is about to drop.
  *
@@ -71,6 +76,27 @@ export function interchangeAnnotationOmission(project: DataRecord): InterchangeA
 
 function labelCount(track: DataRecord): number {
 	return Array.isArray(track.labels) ? track.labels.length : 0;
+}
+
+function captionCount(track: DataRecord): number {
+	return Array.isArray(track.cues) ? track.cues.length : 0;
+}
+
+/** The explicit styled-caption tracks every current interchange profile omits. */
+export function interchangeCaptionTrackOmission(
+	project: DataRecord,
+	sequenceId?: string | null,
+): InterchangeCaptionTrackOmission | null {
+	const selectedSequenceId = sequenceId
+		?? (typeof project.primarySequenceId === 'string' ? project.primarySequenceId : null);
+	const captionTracks = (Array.isArray(project.videoCaptionTracks)
+		? project.videoCaptionTracks as readonly DataRecord[] : [])
+		.filter((track) => selectedSequenceId === null || track.sequenceId === selectedSequenceId);
+	if (captionTracks.length === 0) return null;
+	return Object.freeze({
+		captionTracks: Object.freeze(captionTracks.map((track) => String(track.id))),
+		captions: captionTracks.reduce((total, track) => total + captionCount(track), 0),
+	});
 }
 
 function breakpointCount(value: unknown): number {
@@ -104,5 +130,27 @@ export function reportInterchangeAnnotationOmission(
 			labels: omission.labels,
 		},
 		message: 'The profile carries no markers, regions, or label tracks; they stay in the project.',
+	});
+}
+
+/** Name explicit caption tracks separately from labels: they are a distinct timed-text model. */
+export function reportInterchangeCaptionTrackOmission(
+	draft: DeliveryReportDraft,
+	project: Readonly<Record<string, unknown>>,
+	profile: 'otio' | 'fcpxml' | 'edl',
+	sequenceId?: string | null,
+): void {
+	const omission = interchangeCaptionTrackOmission(project, sequenceId);
+	if (!omission) return;
+	addDeliveryReportItem(draft, {
+		code: `${profile}.caption-tracks-omitted`,
+		disposition: 'omitted',
+		severity: 'warning',
+		scope: { kind: 'project', id: String(project.id ?? '') },
+		data: {
+			captionTracks: omission.captionTracks.length,
+			captions: omission.captions,
+		},
+		message: 'The profile carries no explicit styled-caption tracks; they stay in the project.',
 	});
 }

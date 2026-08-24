@@ -54,6 +54,7 @@ export async function exportProjectOtio(
 	const sequence = resolveSequenceTimingView(project, runtime.sequenceId);
 	return deliver(runtime, createOtioExport({
 		project,
+		sequenceId: sequence.id,
 		sequenceRate: sequence.rate,
 		dropFrame: sequence.dropFrame,
 		startFrameCount: sequence.startFrameCount,
@@ -68,6 +69,7 @@ export async function exportProjectFcpxml(
 	const sequence = resolveSequenceTimingView(project, runtime.sequenceId);
 	return deliver(runtime, createFcpxmlExport({
 		project,
+		sequenceId: sequence.id,
 		sequenceRate: sequence.rate,
 		dropFrame: sequence.dropFrame,
 		startFrameCount: sequence.startFrameCount,

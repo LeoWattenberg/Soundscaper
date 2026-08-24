@@ -7,6 +7,7 @@ import { createProjectEdlExport } from '../src/common/editor/edl-project-adapter
 import { createFcpxmlExport } from '../src/common/editor/fcpxml-export.ts';
 import {
 	interchangeAnnotationOmission,
+	interchangeCaptionTrackOmission,
 	interchangeClipTimeEffect,
 } from '../src/common/editor/interchange-omission-inventory.ts';
 import { createOtioExport } from '../src/common/editor/otio-export.ts';
@@ -71,6 +72,24 @@ test('markers, regions, and label tracks are counted as what a profile leaves be
 		}),
 		{ annotations: 2, labelTracks: ['labels'], labels: 3 },
 	);
+	assert.deepEqual(
+		interchangeCaptionTrackOmission({
+			id: 'p', tracks: [], timelineAnnotations: [],
+			videoCaptionTracks: [
+				{ id: 'captions-en', cues: [{ id: 'c1' }, { id: 'c2' }] },
+				{ id: 'captions-empty', cues: [] },
+			],
+		}),
+		{ captionTracks: ['captions-en', 'captions-empty'], captions: 2 },
+	);
+	assert.deepEqual(interchangeCaptionTrackOmission({
+		id: 'p', primarySequenceId: 'sequence-a',
+		videoCaptionTracks: [
+			{ id: 'a-full', sequenceId: 'sequence-a', cues: [{ id: 'c1' }] },
+			{ id: 'a-empty', sequenceId: 'sequence-a', cues: [] },
+			{ id: 'b-full', sequenceId: 'sequence-b', cues: [{ id: 'c2' }, { id: 'c3' }] },
+		],
+	}), { captionTracks: ['a-full', 'a-empty'], captions: 1 });
 });
 
 test('every profile reports the annotations and warp it cannot carry', () => {
@@ -86,6 +105,10 @@ test('every profile reports the annotations and warp it cannot carry', () => {
 		assert.ok(item, `${profile} must say the markers stay behind`);
 		assert.equal(item.disposition, 'omitted');
 		assert.deepEqual(item.data, { annotations: 1, labelTracks: 1, labels: 2 });
+		const captions = report.items.find(({ code }) => code === `${profile}.caption-tracks-omitted`);
+		assert.ok(captions, `${profile} must say explicit captions stay behind`);
+		assert.equal(captions.disposition, 'omitted');
+		assert.deepEqual(captions.data, { captionTracks: 1, captions: 2 });
 	}
 
 	// The warped audio clip is named by both profiles that describe audio.
@@ -130,6 +153,9 @@ function annotatedProject() {
 			{ type: 'audio', id: 'a1', name: 'A1', clipIds: ['a-clip'], mute: false },
 			{ type: 'label', id: 'labels', name: 'Labels', labels: [{ id: 'l1' }, { id: 'l2' }] },
 		],
+		videoCaptionTracks: [{
+			id: 'captions', sequenceId: 'seq', cues: [{ id: 'c1' }, { id: 'c2' }],
+		}],
 		timelineAnnotations: [{
 			id: 'marker', sequenceId: 'seq', kind: 'marker', anchor: 'sample',
 			name: 'Cue', positionFrame: 0,

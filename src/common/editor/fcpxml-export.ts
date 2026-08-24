@@ -11,6 +11,7 @@ import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
 import {
 	interchangeClipTimeEffect,
 	reportInterchangeAnnotationOmission,
+	reportInterchangeCaptionTrackOmission,
 } from './interchange-omission-inventory.ts';
 import { createInterchangeVisibility } from './interchange-track-visibility.ts';
 
@@ -39,6 +40,8 @@ export const FCPXML_VERSION = '1.10';
 
 export interface FcpxmlExportRequest {
 	readonly project: Readonly<Record<string, unknown>>;
+	/** Sequence whose timed-text omissions belong to this delivered timeline. */
+	readonly sequenceId?: string;
 	readonly sequenceRate: SequenceRationalRate;
 	readonly dropFrame?: boolean;
 	/** Sequence frames the timeline starts at, from the sequence's start timecode. */
@@ -113,6 +116,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 	let audioLane = 0;
 	const visibility = createInterchangeVisibility(asRecords(project.tracks) as never, project);
 	reportInterchangeAnnotationOmission(draft, project, 'fcpxml');
+	reportInterchangeCaptionTrackOmission(draft, project, 'fcpxml', request.sequenceId);
 	for (const track of asRecords(project.tracks)) {
 		const type = String(track.type ?? '');
 		if (type !== 'video' && type !== 'audio') continue;

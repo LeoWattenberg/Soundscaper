@@ -11,6 +11,7 @@ import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
 import {
 	interchangeClipTimeEffect,
 	reportInterchangeAnnotationOmission,
+	reportInterchangeCaptionTrackOmission,
 } from './interchange-omission-inventory.ts';
 import { createInterchangeVisibility } from './interchange-track-visibility.ts';
 
@@ -45,6 +46,8 @@ export const OTIO_METADATA_NAMESPACE = 'media.kw.soundscaper';
 
 export interface OtioExportRequest {
 	readonly project: Readonly<Record<string, unknown>>;
+	/** Sequence whose timed-text omissions belong to this delivered timeline. */
+	readonly sequenceId?: string;
 	readonly sequenceRate: SequenceRationalRate;
 	/**
 	 * The sequence's drop-frame flag. OTIO's time model has no drop-frame
@@ -109,6 +112,7 @@ export function createOtioExport(request: OtioExportRequest): OtioExportResult {
 
 	const visibility = createInterchangeVisibility(tracks as never, project);
 	reportInterchangeAnnotationOmission(draft, project, 'otio');
+	reportInterchangeCaptionTrackOmission(draft, project, 'otio', request.sequenceId);
 	const walks: TrackWalk[] = [];
 	for (const track of tracks) {
 		const type = String(track.type ?? '');
