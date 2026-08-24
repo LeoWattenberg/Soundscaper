@@ -38,6 +38,7 @@ import {
 	type UnifiedExactRenderFormat,
 } from './unified-exact-render-plan-format.ts';
 import {
+	assertUnifiedExactRenderCompanionAudioRequiredV15,
 	assertUnifiedExactRenderDeliveryReferencesV15,
 	normalizeUnifiedExactRenderDeliveryV15,
 	type UnifiedExactRenderCaptionDeliveryV15,
@@ -372,8 +373,13 @@ function normalizePlan(
 		assertUnifiedExactRenderDeliveryReferencesV15(
 			delivery,
 			new Set(nodes.flatMap((node) => node.kind === 'finishing'
-				? node.captionTracks.map(({ id }) => id) : [])),
+					? node.captionTracks.map(({ id }) => id) : [])),
 		);
+		assertUnifiedExactRenderCompanionAudioRequiredV15(delivery, {
+			container: format.container,
+			hasProgrammeAudio: nodes.some((node) => node.kind === 'finishing'
+				&& node.audioContext.audioTracks.length > 0),
+		});
 	}
 	return {
 		version,

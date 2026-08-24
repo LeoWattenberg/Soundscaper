@@ -8,7 +8,10 @@ import {
 	readClosedDomainRecord,
 	type ClosedDomainRecord,
 } from './closed-domain-value.ts';
-import type { NativeMediaV14EncodeProfileId } from './native-media-v14-native-dispatch.ts';
+import {
+	nativeMediaV14EncodeDispatch,
+	type NativeMediaV14EncodeProfileId,
+} from './native-media-v14-native-dispatch.ts';
 import {
 	PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1,
 	type PlatformImageSequenceCompanionAudioFormatV1,
@@ -21,6 +24,8 @@ export type FramescaperImageSequenceCompanionAudioFormatV1 =
 	PlatformImageSequenceCompanionAudioFormatV1;
 
 export interface UnifiedExactRenderCaptionDeliveryV15 {
+	/** V13/V14 finishing keeps captions out of the picture; V15 owns this later delivery stage. */
+	readonly stage: 'post-finishing-delivery';
 	readonly trackId: string;
 	readonly cueSetSha256: string;
 	readonly mux: null | Readonly<{
@@ -30,8 +35,12 @@ export interface UnifiedExactRenderCaptionDeliveryV15 {
 	readonly burnIn: null | Readonly<{
 		readonly planSha256: string;
 		readonly fontSubsetIds: readonly string[];
+		readonly alphaDisposition: 'opaque-output' | 'caption-composited';
 	}>;
-	readonly sidecarFormat: null | 'srt' | 'vtt' | 'imsc1';
+	readonly sidecar: null | Readonly<{
+		readonly format: 'srt' | 'vtt' | 'imsc1';
+		readonly documentSha256: string;
+	}>;
 }
 
 export interface UnifiedExactRenderCompanionAudioV15 {
@@ -53,10 +62,11 @@ interface DeliveryContext {
 }
 
 const CAPTION_FIELDS = Object.freeze([
-	'trackId', 'cueSetSha256', 'mux', 'burnIn', 'sidecarFormat',
+	'stage', 'trackId', 'cueSetSha256', 'mux', 'burnIn', 'sidecar',
 ]);
 const MUX_FIELDS = Object.freeze(['codec', 'documentSha256']);
-const BURN_FIELDS = Object.freeze(['planSha256', 'fontSubsetIds']);
+const BURN_FIELDS = Object.freeze(['planSha256', 'fontSubsetIds', 'alphaDisposition']);
+const SIDECAR_FIELDS = Object.freeze(['format', 'documentSha256']);
 const COMPANION_FIELDS = Object.freeze([
 	'formatId', 'fileName', 'planFingerprint', 'recoveryClass',
 ]);
@@ -85,20 +95,29 @@ export function assertUnifiedExactRenderDeliveryReferencesV15(
 	}
 }
 
+/** Image sequences cannot hide programme audio merely because their picture container cannot embed it. */
+export function assertUnifiedExactRenderCompanionAudioRequiredV15(
+	delivery: UnifiedExactRenderDeliveryV15,
+	context: Readonly<{ readonly container: DeliveryContext['container']; readonly hasProgrammeAudio: boolean }>,
+): void {
+	if (context.container === 'image2' && context.hasProgrammeAudio && delivery.companionAudio === null) {
+		throw new RangeError('Unified V15 image-sequence delivery requires companion audio for its programme audio.');
+	}
+}
+
 function normalizeCaptionDelivery(
 	value: unknown,
 	context: DeliveryContext,
 ): UnifiedExactRenderCaptionDeliveryV15 {
 	const name = 'unified V15 caption delivery';
 	const row = readClosedDomainRecord(value, name, CAPTION_FIELDS);
-	const mux = nullableMux(field(row, 'mux', name));
-	const burnIn = nullableBurn(field(row, 'burnIn', name));
-	const sidecarFormat = field(row, 'sidecarFormat', name);
-	if (sidecarFormat !== null && sidecarFormat !== 'srt'
-		&& sidecarFormat !== 'vtt' && sidecarFormat !== 'imsc1') {
-		throw new RangeError('Unified V15 caption sidecar format is unsupported.');
+	if (field(row, 'stage', name) !== 'post-finishing-delivery') {
+		throw new RangeError('Unified V15 captions require the post-finishing delivery stage.');
 	}
-	if (mux === null && burnIn === null && sidecarFormat === null) {
+	const mux = nullableMux(field(row, 'mux', name));
+	const burnIn = nullableBurn(field(row, 'burnIn', name), context);
+	const sidecar = nullableSidecar(field(row, 'sidecar', name));
+	if (mux === null && burnIn === null && sidecar === null) {
 		throw new RangeError('Unified V15 caption delivery must select mux, burn-in, or sidecar output.');
 	}
 	if (mux !== null) assertMuxContainer(mux.codec, context.container);
@@ -106,9 +125,10 @@ function normalizeCaptionDelivery(
 		throw new RangeError('ProRes 4444 alpha delivery refuses caption burn-in because it changes authored alpha.');
 	}
 	return Object.freeze({
+		stage: 'post-finishing-delivery' as const,
 		trackId: stableId(field(row, 'trackId', name), `${name}.trackId`),
 		cueSetSha256: sha256(field(row, 'cueSetSha256', name), `${name}.cueSetSha256`),
-		mux, burnIn, sidecarFormat,
+		mux, burnIn, sidecar,
 	});
 }
 
@@ -126,7 +146,10 @@ function nullableMux(value: unknown): UnifiedExactRenderCaptionDeliveryV15['mux'
 	});
 }
 
-function nullableBurn(value: unknown): UnifiedExactRenderCaptionDeliveryV15['burnIn'] {
+function nullableBurn(
+	value: unknown,
+	context: DeliveryContext,
+): UnifiedExactRenderCaptionDeliveryV15['burnIn'] {
 	if (value === null) return null;
 	const name = 'unified V15 caption burn plan';
 	const row = readClosedDomainRecord(value, name, BURN_FIELDS);
@@ -136,9 +159,32 @@ function nullableBurn(value: unknown): UnifiedExactRenderCaptionDeliveryV15['bur
 	if (new Set(sorted).size !== sorted.length || ids.some((id, index) => id !== sorted[index])) {
 		throw new RangeError('Unified V15 caption font subset IDs must be unique and sorted.');
 	}
+	const alphaDisposition = field(row, 'alphaDisposition', name);
+	const expectedAlphaDisposition = nativeMediaV14EncodeDispatch(context.deliveryProfile).supportsAlpha
+		? 'caption-composited' as const : 'opaque-output' as const;
+	if (alphaDisposition !== expectedAlphaDisposition) {
+		throw new RangeError(
+			`Unified V15 caption burn alpha disposition must be ${expectedAlphaDisposition}.`,
+		);
+	}
 	return Object.freeze({
 		planSha256: sha256(field(row, 'planSha256', name), `${name}.planSha256`),
 		fontSubsetIds: Object.freeze(sorted),
+		alphaDisposition: expectedAlphaDisposition,
+	});
+}
+
+function nullableSidecar(value: unknown): UnifiedExactRenderCaptionDeliveryV15['sidecar'] {
+	if (value === null) return null;
+	const name = 'unified V15 caption sidecar';
+	const row = readClosedDomainRecord(value, name, SIDECAR_FIELDS);
+	const format = field(row, 'format', name);
+	if (format !== 'srt' && format !== 'vtt' && format !== 'imsc1') {
+		throw new RangeError('Unified V15 caption sidecar format is unsupported.');
+	}
+	return Object.freeze({
+		format,
+		documentSha256: sha256(field(row, 'documentSha256', name), `${name}.documentSha256`),
 	});
 }
 
@@ -157,7 +203,7 @@ function normalizeCompanionAudio(
 	}
 	const typedFormat = formatId as FramescaperImageSequenceCompanionAudioFormatV1;
 	const fileName = field(row, 'fileName', name);
-	if (fileName !== companionFileName(typedFormat)) {
+	if (fileName !== framescaperImageSequenceCompanionAudioFileNameV15(typedFormat)) {
 		throw new RangeError('Unified V15 companion audio file name does not match its format.');
 	}
 	if (field(row, 'recoveryClass', name) !== 'atomic-restart') {
@@ -171,7 +217,9 @@ function normalizeCompanionAudio(
 	});
 }
 
-function companionFileName(format: FramescaperImageSequenceCompanionAudioFormatV1): string {
+export function framescaperImageSequenceCompanionAudioFileNameV15(
+	format: FramescaperImageSequenceCompanionAudioFormatV1,
+): string {
 	const extension = format === 'bwf' ? 'wav'
 		: format === 'ogg-vorbis' ? 'ogg'
 			: format === 'aac-m4a' ? 'm4a'

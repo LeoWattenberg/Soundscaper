@@ -118,7 +118,7 @@ test('native execution exposes caption, hardware, and companion-audio policy wit
 	assert.deepEqual(prores, {
 		kind: 'native-media-v15', profileId: 'encode-mov-prores-422-hq',
 		hardwarePolicy: 'native-cpu',
-		captionPolicy: { muxCodec: 'mov_text', burnIn: 'supported' },
+		captionPolicy: { muxCodec: 'mov_text', burnIn: 'supported-opaque' },
 		companionAudio: null,
 	});
 	const alpha = resolvePlatformDeliveryExecution(
@@ -132,6 +132,9 @@ test('native execution exposes caption, hardware, and companion-audio policy wit
 	const sequence = resolvePlatformDeliveryExecution(
 		findPlatformDeliveryPreset('native-image-sequence-png')!, cleared,
 	);
+	assert.deepEqual(sequence?.captionPolicy, {
+		muxCodec: null, burnIn: 'supported-alpha-composite',
+	});
 	assert.deepEqual(sequence?.companionAudio, {
 		required: true,
 		allowedFormatIds: [

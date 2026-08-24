@@ -36,7 +36,7 @@ export interface PlatformNativeMediaV15Execution {
 	readonly hardwarePolicy: 'native-cpu' | 'hardware-first-identical-cpu-retry';
 	readonly captionPolicy: Readonly<{
 		readonly muxCodec: 'mov_text' | null;
-		readonly burnIn: 'supported' | 'refused-preserve-alpha';
+		readonly burnIn: 'supported-opaque' | 'supported-alpha-composite' | 'refused-preserve-alpha';
 	}>;
 	readonly companionAudio: Readonly<{
 		readonly required: true;
@@ -74,7 +74,9 @@ export interface PlatformDeliveryPresetAvailability {
 
 const H264 = Object.freeze({ format: 'mp4', quality: 'balanced' });
 const NATIVE_FFMPEG = 'codec-native-ffmpeg-current-set';
-const MOV_TEXT_CAPTIONS = Object.freeze({ muxCodec: 'mov_text' as const, burnIn: 'supported' as const });
+const MOV_TEXT_CAPTIONS = Object.freeze({
+	muxCodec: 'mov_text' as const, burnIn: 'supported-opaque' as const,
+});
 const ALPHA_CAPTIONS = Object.freeze({
 	muxCodec: 'mov_text' as const, burnIn: 'refused-preserve-alpha' as const,
 });
@@ -102,7 +104,7 @@ function nativeExecution(
 		hardwarePolicy: options.hardware
 			? 'hardware-first-identical-cpu-retry' as const : 'native-cpu' as const,
 		captionPolicy: options.imageSequence
-			? Object.freeze({ muxCodec: null, burnIn: 'supported' as const })
+			? Object.freeze({ muxCodec: null, burnIn: 'supported-alpha-composite' as const })
 			: options.alpha ? ALPHA_CAPTIONS : MOV_TEXT_CAPTIONS,
 		companionAudio: options.imageSequence ? IMAGE_SEQUENCE_AUDIO : null,
 	});

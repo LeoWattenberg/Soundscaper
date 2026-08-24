@@ -38,9 +38,9 @@ test('V15 seals one explicit mov_text caption delivery without changing V14 cust
 
 	assert.equal(plan.version, 15);
 	assert.deepEqual(plan.captionDelivery, {
-		trackId: 'caption-main', cueSetSha256: SHA_B,
+		stage: 'post-finishing-delivery', trackId: 'caption-main', cueSetSha256: SHA_B,
 		mux: { codec: 'mov_text', documentSha256: SHA_A },
-		burnIn: null, sidecarFormat: null,
+		burnIn: null, sidecar: null,
 	});
 	assert.equal(plan.companionAudio, null);
 	assert.throws(() => createNativeMediaPlanEnvelopeV2(plan), /V13 and V14/u);
@@ -71,7 +71,9 @@ test('V15 image sequences bind one user-selected ordinary audio plan', () => {
 	]);
 	const v14 = imageSequencePlan();
 	const plan = createUnifiedExactRenderPlan(v15Candidate(v14, {
-		captionDelivery: captionDelivery({ sidecarFormat: 'vtt' }),
+		captionDelivery: captionDelivery({
+			sidecar: { format: 'vtt', documentSha256: SHA_A },
+		}),
 		companionAudio: {
 			formatId: 'bwf', fileName: 'audio.wav', planFingerprint: SHA_A,
 			recoveryClass: 'atomic-restart',
@@ -96,6 +98,17 @@ test('V15 refuses hidden caption substitutions and unclosed companion audio', ()
 		}),
 		v15Candidate(encoded, {
 			captionDelivery: null,
+			companionAudio: {
+				formatId: 'bwf', fileName: 'audio.wav', planFingerprint: SHA_A,
+				recoveryClass: 'atomic-restart',
+			},
+		}),
+		v15Candidate(image, {
+			captionDelivery: null,
+			companionAudio: null,
+		}),
+		v15Candidate(image, {
+			captionDelivery: captionDelivery({ sidecar: { format: 'vtt' } }),
 			companionAudio: {
 				formatId: 'bwf', fileName: 'audio.wav', planFingerprint: SHA_A,
 				recoveryClass: 'atomic-restart',
@@ -131,10 +144,37 @@ test('V15 refuses burn-in for the ProRes 4444 alpha mezzanine', () => {
 	output.canvas = { ...(output.canvas as Record<string, unknown>), pixelFormat: 'yuva444p10le' };
 	assert.throws(() => createUnifiedExactRenderPlan(v15Candidate(alpha as unknown as UnifiedExactRenderPlanV14, {
 		captionDelivery: captionDelivery({
-			burnIn: { planSha256: SHA_A, fontSubsetIds: ['font-main'] },
+			burnIn: {
+				planSha256: SHA_A, fontSubsetIds: ['font-main'], alphaDisposition: 'caption-composited',
+			},
 		}),
 		companionAudio: null,
 	})), /ProRes 4444.*burn/iu);
+});
+
+test('V15 makes PNG caption compositing into authored alpha explicit', () => {
+	const image = imageSequencePlan();
+	const companionAudio = {
+		formatId: 'bwf', fileName: 'audio.wav', planFingerprint: SHA_A,
+		recoveryClass: 'atomic-restart',
+	};
+	assert.throws(() => createUnifiedExactRenderPlan(v15Candidate(image, {
+		captionDelivery: captionDelivery({
+			burnIn: {
+				planSha256: SHA_A, fontSubsetIds: ['font-main'], alphaDisposition: 'opaque-output',
+			},
+		}),
+		companionAudio,
+	})), /alpha.*caption-composited/iu);
+	const plan = createUnifiedExactRenderPlan(v15Candidate(image, {
+		captionDelivery: captionDelivery({
+			burnIn: {
+				planSha256: SHA_A, fontSubsetIds: ['font-main'], alphaDisposition: 'caption-composited',
+			},
+		}),
+		companionAudio,
+	}));
+	assert.equal(plan.captionDelivery?.burnIn?.alphaDisposition, 'caption-composited');
 });
 
 function encodedPlan(): UnifiedExactRenderPlanV14 {
@@ -175,7 +215,8 @@ function captionDelivery(
 	trackId = 'caption-main',
 ): Record<string, unknown> {
 	return {
-		trackId, cueSetSha256: SHA_B, mux: null, burnIn: null, sidecarFormat: null, ...override,
+		stage: 'post-finishing-delivery', trackId, cueSetSha256: SHA_B,
+		mux: null, burnIn: null, sidecar: null, ...override,
 	};
 }
 
