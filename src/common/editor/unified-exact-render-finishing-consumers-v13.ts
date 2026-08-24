@@ -120,6 +120,19 @@ export function createUnifiedExactRenderFinishingExportConsumerV13(
 	return createConsumer(plan, timingSidecars);
 }
 
+/**
+ * Finishing for a plan another generation already validated in full. The V14
+ * surface strips its externally-owned native nodes and reuses this exact
+ * resolver; re-deriving a V13 wire instead would refuse every professional
+ * container tuple V13 never admits, so validation authority stays with the
+ * caller's own generation.
+ */
+export function createUnifiedExactRenderFinishingConsumerForValidatedFoundation(
+	planValue: UnifiedExactRenderPlanV13,
+): UnifiedExactRenderFinishingConsumerV13 {
+	return consumerForValidatedPlan(planValue);
+}
+
 function createConsumer(planValue: UnifiedExactRenderPlanV13,
 	timingSidecars?: UnifiedExactRenderTimingSidecars): UnifiedExactRenderFinishingConsumerV13 {
 	if (timingSidecars === undefined) assertUnifiedExactRenderPlanV13(planValue);
@@ -127,6 +140,12 @@ function createConsumer(planValue: UnifiedExactRenderPlanV13,
 		assertUnifiedExactRenderPlanWithTimingSidecars(planValue, timingSidecars);
 		if (planValue.version !== 13) throw new RangeError('Selected finishing requires a V13 plan.');
 	}
+	return consumerForValidatedPlan(planValue);
+}
+
+function consumerForValidatedPlan(
+	planValue: UnifiedExactRenderPlanV13,
+): UnifiedExactRenderFinishingConsumerV13 {
 	const finishingNodes = planValue.nodes.filter(
 		(node): node is UnifiedExactRenderFinishingNode => node.kind === 'finishing',
 	);

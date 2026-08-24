@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	createUnifiedExactRenderPlan,
-	createUnifiedExactRenderPlanWithTimingSidecars,
 	assertUnifiedExactRenderPlanV14,
 	assertUnifiedExactRenderPlanWithTimingSidecars,
 	type UnifiedExactRenderPlanV13,
@@ -10,8 +8,7 @@ import {
 	type UnifiedExactRenderTimingSidecars,
 } from './unified-exact-render-plan.ts';
 import {
-	createUnifiedExactRenderFinishingExportConsumerV13,
-	createUnifiedExactRenderFinishingPreviewConsumerV13,
+	createUnifiedExactRenderFinishingConsumerForValidatedFoundation,
 	type UnifiedExactRenderFinishingFrameRequestV13,
 	type UnifiedExactRenderRgbaFrameV13,
 } from './unified-exact-render-finishing-consumers-v13.ts';
@@ -26,8 +23,8 @@ export function createUnifiedExactRenderFinishingPreviewConsumerV14(
 	plan: UnifiedExactRenderPlanV14,
 	timingSidecars?: UnifiedExactRenderTimingSidecars,
 ): UnifiedExactRenderFinishingConsumerV14 {
-	const consumer = createUnifiedExactRenderFinishingPreviewConsumerV13(
-		finishingFoundation(plan, timingSidecars), timingSidecars,
+	const consumer = createUnifiedExactRenderFinishingConsumerForValidatedFoundation(
+		finishingFoundation(plan, timingSidecars),
 	);
 	return Object.freeze({ plan, resolveFrame: consumer.resolveFrame });
 }
@@ -37,12 +34,19 @@ export function createUnifiedExactRenderFinishingExportConsumerV14(
 	plan: UnifiedExactRenderPlanV14,
 	timingSidecars?: UnifiedExactRenderTimingSidecars,
 ): UnifiedExactRenderFinishingConsumerV14 {
-	const consumer = createUnifiedExactRenderFinishingExportConsumerV13(
-		finishingFoundation(plan, timingSidecars), timingSidecars,
+	const consumer = createUnifiedExactRenderFinishingConsumerForValidatedFoundation(
+		finishingFoundation(plan, timingSidecars),
 	);
 	return Object.freeze({ plan, resolveFrame: consumer.resolveFrame });
 }
 
+/**
+ * Validate as V14, then hand the resolver the plan with its externally-owned
+ * native nodes stripped. Validation authority stays with V14: re-deriving a
+ * V13 wire here would refuse the deliveryProfile field and every professional
+ * container tuple V13 never admits, so every V14 consumer threw before it
+ * could resolve a single finishing frame.
+ */
 function finishingFoundation(
 	plan: UnifiedExactRenderPlanV14,
 	timingSidecars?: UnifiedExactRenderTimingSidecars,
@@ -52,12 +56,10 @@ function finishingFoundation(
 		assertUnifiedExactRenderPlanWithTimingSidecars(plan, timingSidecars);
 		if (plan.version !== 14) throw new RangeError('Selected V14 finishing requires a V14 plan.');
 	}
-	const candidate = structuredClone(plan) as unknown as Record<string, unknown>;
-	candidate.version = 13;
-	candidate.nodes = plan.nodes.filter(({ kind }) => kind !== 'professional-media' && kind !== 'openfx');
-	const foundation = timingSidecars === undefined
-		? createUnifiedExactRenderPlan(candidate)
-		: createUnifiedExactRenderPlanWithTimingSidecars(candidate, timingSidecars);
-	if (foundation.version !== 13) throw new Error('V14 finishing projection did not produce V13.');
-	return foundation as UnifiedExactRenderPlanV13;
+	return Object.freeze({
+		...plan,
+		nodes: Object.freeze(
+			plan.nodes.filter(({ kind }) => kind !== 'professional-media' && kind !== 'openfx'),
+		),
+	}) as unknown as UnifiedExactRenderPlanV13;
 }

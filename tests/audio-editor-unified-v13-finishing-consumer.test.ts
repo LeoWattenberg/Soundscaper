@@ -298,3 +298,49 @@ function centroidX(frame: Readonly<{ width: number; height: number; pixels: Uint
 	}
 	return weighted / total;
 }
+
+test('the V14 professional plan reaches the same finishing resolver', async () => {
+	// The V14 wrappers projected onto a fake V13 wire, which refused the
+	// deliveryProfile field — and, once that was stripped, every professional
+	// container tuple V13 never admits. Every V14 finishing consumer threw
+	// before resolving a single frame; validation authority stays with V14 now.
+	const [
+		{ createFramescaperProjectUnifiedExactRenderPlanV28 },
+		{ createFramescaperNativeRenderPlanAuthorityV28 },
+		{ FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE },
+		{ createFramescaperProjectV28 },
+		{ createUnifiedExactRenderFinishingExportConsumerV14, createUnifiedExactRenderFinishingPreviewConsumerV14 },
+	] = await Promise.all([
+		import('../src/framescaper/editor-project-unified-render-plan-v28.ts'),
+		import('../src/framescaper/editor-native-render-plan-authority-v28.ts'),
+		import('../src/framescaper/editor-project-runtime-profile-v28.ts'),
+		import('../src/framescaper/editor-project-v28.ts'),
+		import('../src/common/editor/unified-exact-render-finishing-consumers-v14.ts'),
+	]);
+	const project = createFramescaperProjectV28(
+		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, framescaperV20Options(),
+	);
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV28(
+		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
+		createFramescaperNativeRenderPlanAuthorityV28(project),
+	);
+	assert.equal(plan.version, 14);
+	assert.equal(plan.format.container, 'mov');
+
+	const exporter = createUnifiedExactRenderFinishingExportConsumerV14(plan);
+	assert.equal(exporter.plan, plan);
+	const preview = createUnifiedExactRenderFinishingPreviewConsumerV14(plan);
+	const frame = await preview.resolveFrame({
+		clipId: 'video-clip', sourceFrame: 0, sequenceFrame: 0,
+		frame: { width: 2, height: 2, pixels: new Uint8Array(16) },
+	});
+	assert.deepEqual([frame.width, frame.height, frame.pixels.length], [2, 2, 16]);
+
+	// Hostile input still fails closed at the V14 boundary.
+	assert.throws(
+		() => createUnifiedExactRenderFinishingExportConsumerV14({
+			...plan, deliveryProfile: 'encode-mp4-h264',
+		} as never),
+		/unavailable|derived|exact|unsupported/iu,
+	);
+});
