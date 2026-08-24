@@ -109,7 +109,7 @@ test('fresh validation catches operation/argv drift after argument construction'
 	const built = contract.buildArguments(opus, FILES);
 	assertStringArguments(built);
 	const flac = admittedOperation(contract, {
-		...encodeRequest(), format: 'flac', settings: { compressionLevel: 5 },
+		...encodeRequest(), format: 'flac', settings: { compressionLevel: 5, bitDepth: 24 },
 	});
 	assert.equal(contract.validateArguments(built, flac, FILES), false);
 	const flacArguments = contract.buildArguments(flac, FILES);

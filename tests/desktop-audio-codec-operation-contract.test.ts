@@ -22,7 +22,7 @@ import {
 } from '../desktop/desktop-audio-ffmpeg-plan.ts';
 
 const ENCODE_FIXTURES = Object.freeze([
-	Object.freeze({ format: 'flac', settings: Object.freeze({ compressionLevel: 5 }) }),
+	Object.freeze({ format: 'flac', settings: Object.freeze({ compressionLevel: 5, bitDepth: 24 }) }),
 	Object.freeze({ format: 'mp3', settings: Object.freeze({ bitrateKbps: 192 }) }),
 	Object.freeze({ format: 'ogg-vorbis', settings: Object.freeze({ quality: 6 }) }),
 	Object.freeze({ format: 'opus', settings: Object.freeze({ bitrateKbps: 128 }) }),
@@ -114,8 +114,11 @@ test('format-specific settings and encode constraints are exact', () => {
 		...encodeRequest('ogg-vorbis'), settings: { quality: 11 },
 	}), /quality/u);
 	assert.throws(() => assertDesktopAudioCodecRequest({
-		...encodeRequest('flac'), settings: { compressionLevel: 13 },
+		...encodeRequest('flac'), settings: { compressionLevel: 13, bitDepth: 24 },
 	}), /compression/u);
+	assert.throws(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('flac'), settings: { compressionLevel: 5, bitDepth: 20 },
+	}), /bit depth/u);
 	assert.throws(() => assertDesktopAudioCodecRequest({
 		...encodeRequest('opus'), sampleRate: 44_100,
 	}), /sample rate/u);
@@ -144,6 +147,17 @@ test('result builders return owned closed bytes and renderer metadata', () => {
 		sampleRate: 44_100, channelCount: 2, frameCount: 1,
 	});
 	assertDesktopAudioCodecResult(encoded);
+
+	const flac = createDesktopAudioCodecResult(
+		normalizeDesktopAudioCodecRequest(encodeRequest('flac')), new Uint8Array([1, 2, 3]),
+	);
+	assert.deepEqual(flac.metadata, {
+		kind: 'encoded-audio', format: 'flac', mimeType: 'audio/flac', fileExtension: '.flac',
+		sampleRate: 44_100, channelCount: 2, frameCount: 1,
+		sourceSampleFormat: 'f32le', encodedSampleFormat: 's24',
+		pcmConversion: 'clamp-unit-range-to-signed-24',
+	});
+	assertDesktopAudioCodecResult(flac);
 });
 
 test('results reject unknown metadata, forged PCM geometry and oversized bytes', () => {

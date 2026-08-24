@@ -14,7 +14,11 @@ export const DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE = 192_000;
 export const DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT = 8;
 
 export type DesktopAudioDecodeSettings = Readonly<{ readonly sampleFormat: 'f32le' }>;
-export type DesktopAudioFlacEncodeSettings = Readonly<{ readonly compressionLevel: number }>;
+export type DesktopAudioFlacEncodeSettings = Readonly<{
+	readonly compressionLevel: number;
+	/** Explicit integer PCM representation written into the lossless FLAC stream. */
+	readonly bitDepth: 16 | 24;
+}>;
 export type DesktopAudioMp3EncodeSettings = Readonly<{ readonly bitrateKbps: number }>;
 export type DesktopAudioVorbisEncodeSettings = Readonly<{ readonly quality: number }>;
 export type DesktopAudioOpusEncodeSettings = Readonly<{ readonly bitrateKbps: number }>;
@@ -66,6 +70,10 @@ export interface DesktopEncodedAudioMetadata {
 	readonly sampleRate: number;
 	readonly channelCount: number;
 	readonly frameCount: number;
+	/** Present only for FLAC, whose f32 broker input is explicitly converted before lossless coding. */
+	readonly sourceSampleFormat?: 'f32le';
+	readonly encodedSampleFormat?: 's16' | 's24';
+	readonly pcmConversion?: 'clamp-unit-range-to-signed-16' | 'clamp-unit-range-to-signed-24';
 }
 
 interface DesktopAudioCodecResultBase {
@@ -197,6 +205,12 @@ export function createDesktopAudioCodecResult(
 			fileExtension: descriptor.fileExtension, sampleRate: request.sampleRate,
 			channelCount: request.channelCount,
 			frameCount: request.input.byteLength / (Float32Array.BYTES_PER_ELEMENT * request.channelCount),
+			...(request.format === 'flac' ? {
+				sourceSampleFormat: 'f32le' as const,
+				encodedSampleFormat: `s${String(request.settings.bitDepth)}` as 's16' | 's24',
+				pcmConversion: `clamp-unit-range-to-signed-${String(request.settings.bitDepth)}` as
+					'clamp-unit-range-to-signed-16' | 'clamp-unit-range-to-signed-24',
+			} : {}),
 		}),
 		...(request.requestId === undefined ? {} : { requestId: request.requestId }),
 	});
@@ -242,9 +256,17 @@ function validateDecodeSettings(value: unknown): void {
 
 function validateEncodeSettings(format: DesktopAudioCodecFormat, value: unknown): void {
 	const settings = exactRecord(value, `${format} encode settings`);
-	if (format === 'flac' || format === 'wavpack') {
+	if (format === 'flac') {
+		exactKeys(settings, ['compressionLevel', 'bitDepth'], ['compressionLevel', 'bitDepth'], 'flac encode settings');
+		integer(settings.compressionLevel, 0, 12, 'flac compression level');
+		if (settings.bitDepth !== 16 && settings.bitDepth !== 24) {
+			throw new RangeError('The desktop audio FLAC bit depth must be 16 or 24.');
+		}
+		return;
+	}
+	if (format === 'wavpack') {
 		exactKeys(settings, ['compressionLevel'], ['compressionLevel'], `${format} encode settings`);
-		integer(settings.compressionLevel, 0, format === 'flac' ? 12 : 8, `${format} compression level`);
+		integer(settings.compressionLevel, 0, 8, `${format} compression level`);
 		return;
 	}
 	if (format === 'ogg-vorbis') {
@@ -295,12 +317,15 @@ function validateDecodedMetadata(value: unknown, output: Uint8Array): void {
 
 function validateEncodedMetadata(value: unknown): void {
 	const metadata = exactRecord(value, 'encoded result metadata');
-	const fields = ['kind', 'format', 'mimeType', 'fileExtension', 'sampleRate', 'channelCount', 'frameCount'];
-	exactKeys(metadata, fields, fields, 'encoded result metadata');
 	if (metadata.kind !== 'encoded-audio') {
 		throw new TypeError('The encoded desktop audio metadata kind is invalid.');
 	}
 	const format = audioFormat(metadata.format);
+	const fields = [
+		'kind', 'format', 'mimeType', 'fileExtension', 'sampleRate', 'channelCount', 'frameCount',
+		...(format === 'flac' ? ['sourceSampleFormat', 'encodedSampleFormat', 'pcmConversion'] : []),
+	];
+	exactKeys(metadata, fields, fields, 'encoded result metadata');
 	const descriptor = FORMAT_DESCRIPTORS[format];
 	if (metadata.mimeType !== descriptor.mimeType || metadata.fileExtension !== descriptor.fileExtension) {
 		throw new TypeError('The encoded desktop audio metadata format descriptor is invalid.');
@@ -312,6 +337,11 @@ function validateEncodedMetadata(value: unknown): void {
 		throw new RangeError('The encoded desktop audio channel count is unsupported.');
 	}
 	integer(metadata.frameCount, 1, Number.MAX_SAFE_INTEGER, 'encoded frame count');
+	if (format === 'flac' && (metadata.sourceSampleFormat !== 'f32le'
+		|| (metadata.encodedSampleFormat !== 's16' && metadata.encodedSampleFormat !== 's24')
+		|| metadata.pcmConversion !== `clamp-unit-range-to-signed-${String(metadata.encodedSampleFormat).slice(1)}`)) {
+		throw new TypeError('The encoded FLAC PCM conversion report is invalid.');
+	}
 }
 
 function exactRecord(value: unknown, label: string): Record<string, unknown> {

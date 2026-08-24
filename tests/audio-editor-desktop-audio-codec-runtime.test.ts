@@ -17,7 +17,7 @@ import {
 import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream.ts';
 
 const FORMAT_CASES = Object.freeze([
-	Object.freeze({ format: 'flac', settings: Object.freeze({ compressionLevel: 5 }), expected: Object.freeze({ compressionLevel: 5 }) }),
+	Object.freeze({ format: 'flac', settings: Object.freeze({ compressionLevel: 5 }), expected: Object.freeze({ compressionLevel: 5, bitDepth: 24 }) }),
 	Object.freeze({ format: 'mp3', settings: Object.freeze({ bitRate: 192 }), expected: Object.freeze({ bitrateKbps: 192 }) }),
 	Object.freeze({ format: 'ogg-vorbis', settings: Object.freeze({ quality: 6 }), expected: Object.freeze({ quality: 6 }) }),
 	Object.freeze({ format: 'opus', settings: Object.freeze({ bitRate: 128 }), expected: Object.freeze({ bitrateKbps: 128 }) }),
@@ -111,7 +111,7 @@ test('ordinary titled-project metadata is intentionally dropped by the closed br
 		compressionLevel: 5,
 		metadata: { title: 'Named Project' },
 	});
-	assert.deepEqual(requests[0]?.settings, { compressionLevel: 5 });
+	assert.deepEqual(requests[0]?.settings, { compressionLevel: 5, bitDepth: 24 });
 	assert.equal(Object.hasOwn(requests[0] ?? {}, 'metadata'), false);
 });
 
@@ -142,6 +142,21 @@ test('integer staged WAVs reuse the WAV reader and multichannel open formats ret
 		/at most 2 output channels|channel count/iu,
 	);
 	assert.equal(requests.length, 2);
+});
+
+test('native FLAC STREAMINFO supplies decode geometry instead of project defaults', async () => {
+	const requests: DesktopAudioCodecRequest[] = [];
+	const runtime = createDesktopAudioCodecRuntime(successBridge((request) => {
+		requests.push(request);
+		return new Uint8Array(Float32Array.of(0.25).buffer);
+	}));
+	const decoded = await runtime.decode(new File([flacStreamInfo(96_000, 1, 1)], 'mono.flac'));
+	assert.equal(requests[0]?.operation, 'audio-decode');
+	assert.equal(requests[0]?.sampleRate, 96_000);
+	assert.equal(requests[0]?.channelCount, 1);
+	assert.equal(decoded.sampleRate, 96_000);
+	assert.equal(decoded.channels.length, 1);
+	assert.equal(decoded.frameCount, 1);
 });
 
 test('decode infers all seven file formats and converts exact interleaved results to planar channels', async () => {
@@ -284,6 +299,21 @@ function interleavedBytes(samples: readonly number[]): Uint8Array {
 	const bytes = new Uint8Array(samples.length * 4);
 	const view = new DataView(bytes.buffer);
 	for (const [index, sample] of samples.entries()) view.setFloat32(index * 4, sample, true);
+	return bytes;
+}
+
+function flacStreamInfo(
+	sampleRate: number, channelCount: number, frameCount: number,
+): Uint8Array<ArrayBuffer> {
+	const bytes = new Uint8Array(43);
+	bytes.set([0x66, 0x4c, 0x61, 0x43, 0x80, 0, 0, 34]);
+	const view = new DataView(bytes.buffer);
+	view.setUint16(8, 16, false);
+	view.setUint16(10, 16, false);
+	const packed = (BigInt(sampleRate) << 44n) | (BigInt(channelCount - 1) << 41n)
+		| (23n << 36n) | BigInt(frameCount);
+	view.setBigUint64(18, packed, false);
+	bytes[42] = 0xff;
 	return bytes;
 }
 

@@ -232,7 +232,7 @@ function capabilityRequest(tuple: DesktopAudioCodecCapabilityTuple): DesktopAudi
 }
 
 function capabilityEncodeSettings(format: DesktopAudioCodecRequest['format']): Readonly<Record<string, number>> {
-	if (format === 'flac') return Object.freeze({ compressionLevel: 5 });
+	if (format === 'flac') return Object.freeze({ compressionLevel: 5, bitDepth: 24 });
 	if (format === 'wavpack') return Object.freeze({ compressionLevel: 2 });
 	if (format === 'ogg-vorbis') return Object.freeze({ quality: 5 });
 	if (format === 'opus') return Object.freeze({ bitrateKbps: 160 });

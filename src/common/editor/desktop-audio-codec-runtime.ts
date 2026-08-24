@@ -10,6 +10,7 @@ import {
 	normalizeDesktopAudioCodecCapabilityQuery, normalizeDesktopAudioCodecCapabilityResult, type DesktopAudioCodecCapabilityQuery,
 	type DesktopAudioCodecCapabilityResult, type DesktopAudioCodecCapabilityTuple,
 } from '../../../desktop/desktop-audio-codec-capability-contract.ts';
+import { parseBundledFlacStream } from '../../../desktop/bundled-flac-stream.ts';
 import {
 	createDesktopAudioCodecCapabilityQuery, desktopAudioCodecCapabilityReason,
 	desktopAudioCodecMediaExportCapabilities, queryDesktopAudioCodecCapability,
@@ -87,6 +88,7 @@ interface NormalizedMediaSettings {
 	readonly extension: string; readonly mimeType: string; readonly sampleRate: number;
 	readonly inputChannelCount: number; readonly channelCount: number;
 	readonly channelMapping: unknown;
+	readonly bitDepth: number | null;
 	readonly compressionLevel?: number; readonly quality?: number; readonly bitRate?: number;
 	readonly metadata: Readonly<Record<string, unknown>>;
 }
@@ -187,8 +189,12 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 			throwIfAborted(settings.signal);
 			const input = await boundedInputBytes(file, settings.signal);
 			const format = decodeFormat(file, input, settings.format);
-			const sampleRate = normalizeMediaDecodeSampleRate(settings.sampleRate ?? 48_000) as number;
-			const channelCount = settings.channelCount ?? 2;
+			const flacGeometry = format === 'flac' && signatureFormat(input) === 'flac'
+				? parseBundledFlacStream(input)
+				: null;
+			const sampleRate = flacGeometry?.sampleRate
+				?? normalizeMediaDecodeSampleRate(settings.sampleRate ?? 48_000) as number;
+			const channelCount = flacGeometry?.channelCount ?? settings.channelCount ?? 2;
 			const maximumOutputBytes = settings.maximumOutputBytes ?? DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES;
 			const request = normalizeDesktopAudioCodecRequest({
 				operation: 'audio-decode', format, input, sampleRate, channelCount,
@@ -362,7 +368,13 @@ async function stagedPcm(file: Blob, format: DesktopAudioCodecFormat,
 
 function encodeSettings(format: DesktopAudioCodecFormat, media: NormalizedMediaSettings,
 ): Readonly<Record<string, number>> {
-	if (format === 'flac' || format === 'wavpack') {
+	if (format === 'flac') {
+		return Object.freeze({
+			compressionLevel: requiredInteger(media.compressionLevel, 'flac compression level'),
+			bitDepth: requiredInteger(media.bitDepth, 'flac bit depth'),
+		});
+	}
+	if (format === 'wavpack') {
 		return Object.freeze({ compressionLevel: requiredInteger(media.compressionLevel, `${format} compression level`) });
 	}
 	if (format === 'ogg-vorbis') {

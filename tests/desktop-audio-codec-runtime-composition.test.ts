@@ -313,7 +313,7 @@ function encodeRequest(format: 'flac' | 'opus'): DesktopAudioCodecRequest {
 		operation: 'audio-encode', format,
 		input: new Uint8Array(new Float32Array([0.25, -0.25]).buffer),
 		sampleRate: 48_000, channelCount: 2,
-		settings: format === 'flac' ? { compressionLevel: 5 } : { bitrateKbps: 128 },
+		settings: format === 'flac' ? { compressionLevel: 5, bitDepth: 24 } : { bitrateKbps: 128 },
 		maximumOutputBytes: 1_024, requestId: 'audio-runtime-1',
 	} as DesktopAudioCodecRequest;
 }

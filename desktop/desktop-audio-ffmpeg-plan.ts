@@ -163,7 +163,10 @@ export function buildDesktopAudioFfmpegPlan(
 function encodeSettingsArguments(request: DesktopAudioEncodeRequest): readonly string[] {
 	switch (request.format) {
 		case 'flac':
-			return Object.freeze(['-compression_level', String(request.settings.compressionLevel)]);
+			return Object.freeze([
+				'-sample_fmt', request.settings.bitDepth === 16 ? 's16' : 's32',
+				'-compression_level', String(request.settings.compressionLevel),
+			]);
 		case 'mp3':
 			return Object.freeze(['-b:a', `${String(request.settings.bitrateKbps)}k`]);
 		case 'ogg-vorbis':

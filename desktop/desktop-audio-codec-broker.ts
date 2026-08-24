@@ -94,7 +94,7 @@ interface AudioOperationDescriptor {
 const AUDIO_OPERATIONS: Readonly<Record<DesktopAudioCodecFormat, Readonly<AudioOperationDescriptor>>> = Object.freeze({
 	flac: Object.freeze({
 		container: 'flac', codec: 'flac', profile: null,
-		decodeSampleFormat: 's24', encodeSampleFormat: 's24',
+		decodeSampleFormat: 'f32', encodeSampleFormat: 's24',
 	}),
 	mp3: Object.freeze({
 		container: 'mp3', codec: 'mp3', profile: null,
@@ -226,7 +226,9 @@ function operationFromRequest(request: DesktopAudioCodecRequest): DesktopCodecOp
 		profile: descriptor.profile,
 		sampleFormat: direction === 'decode'
 			? descriptor.decodeSampleFormat
-			: descriptor.encodeSampleFormat,
+			: request.format === 'flac' && request.operation === 'audio-encode'
+				? `s${String(request.settings.bitDepth)}`
+				: descriptor.encodeSampleFormat,
 		pixelFormat: null,
 		sampleRate: request.sampleRate,
 		channelCount: request.channelCount,
