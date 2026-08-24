@@ -7,6 +7,7 @@ export { DESKTOP_BUNDLED_FLAC_WASM, DESKTOP_BUNDLED_WAVPACK_WASM };
 
 /** Exact compiled transitive modules required by desktop main audio codec entry points. */
 export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
+	'desktop/bounded-regular-file.js',
 	'desktop/bundled-audio-codec-runtime.js',
 	'desktop/bundled-flac-audio-codec-runtime.js',
 	'desktop/bundled-flac-stream.js',
@@ -19,6 +20,7 @@ export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/desktop-audio-codec-runtime-composition.js',
 	'desktop/desktop-audio-ffmpeg-plan.js',
 	'desktop/external-ffmpeg-audio-operation-runner.js',
+	'desktop/process-tree-termination.js',
 	'src/common/editor/desktop-codec-coordinator.js',
 	'src/common/editor/desktop-codec-provider-catalog.js',
 	'src/common/editor/desktop-wavpack-codec-profile.js',

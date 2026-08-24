@@ -16,6 +16,7 @@
 	},
 	"include": [
 		"desktop/application-lifecycle.ts",
+		"desktop/bounded-regular-file.ts",
 		"desktop/bundled-audio-codec-runtime.ts",
 		"desktop/bundled-flac-audio-codec-runtime.ts",
 		"desktop/bundled-flac-stream.ts",
@@ -174,6 +175,7 @@
 		"desktop/project-library-file-inventory.ts",
 		"desktop/project-library-host.ts",
 		"desktop/project-library-writer-coordinator.ts",
+		"desktop/process-tree-termination.ts",
 		"desktop/project-library-media.ts",
 		"desktop/project-library-persistence.ts",
 		"desktop/project-library-v10-main-ipc.ts",
