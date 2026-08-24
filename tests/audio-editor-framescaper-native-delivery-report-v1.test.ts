@@ -10,7 +10,9 @@ import {
 	sealFramescaperNativeDeliveryReportV1,
 } from '../src/framescaper/delivery-native-report-v1.ts';
 import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectNativeMediaPlanEnvelopeV15 } from '../src/framescaper/editor-project-unified-render-delivery-v15.ts';
+import {
+	createFramescaperProjectUnifiedRenderDeliveryBundleV15,
+} from '../src/framescaper/editor-project-unified-render-delivery-v15.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
 import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
 import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
@@ -32,11 +34,13 @@ const H264_ENVELOPE = h264Envelope();
 
 test('native delivery reports derive plan identity and caption state from one exact envelope', () => {
 	const report = plannedReport();
-	const envelope = v15Envelope({
+	const bundle = v15Bundle({
 		trackId: 'captions-en', mux: true, burnIn: false, sidecar: null,
 	});
+	const envelope = bundle.envelope;
 	const seed = createFramescaperNativeDeliveryReportSeedV1({
-		jobId: JOB_ID, targetId: 'native-mezzanine-prores', envelope, plannedReport: report,
+		jobId: JOB_ID, targetId: 'native-mezzanine-prores', envelope,
+		deliveryBundle: bundle, plannedReport: report,
 	});
 	assert.equal(seed.planFingerprint, envelope.fingerprint);
 	assert.equal(seed.profileId, 'encode-mov-prores-422-hq');
@@ -49,19 +53,22 @@ test('native delivery reports derive plan identity and caption state from one ex
 	const tampered = structuredClone(envelope);
 	(tampered as unknown as { fingerprint: string }).fingerprint = 'aa'.repeat(32);
 	assert.throws(() => createFramescaperNativeDeliveryReportSeedV1({
-		jobId: JOB_ID, targetId: 'native-mezzanine-prores', envelope: tampered, plannedReport: report,
+		jobId: JOB_ID, targetId: 'native-mezzanine-prores', envelope: tampered,
+		deliveryBundle: Object.freeze({ ...bundle, envelope: tampered, plan: tampered.plan }),
+		plannedReport: report,
 	}), /fingerprint.*derived/iu);
 	assert.throws(() => createFramescaperNativeDeliveryReportSeedV1({
 		jobId: JOB_ID, targetId: 'native-mezzanine-prores', envelope: envelope.plan, plannedReport: report,
 	}), /envelopeVersion|envelope version/iu);
-	const sealed = sealFramescaperNativeDeliveryReportV1(seed, {
-		status: 'succeeded',
-		backendAttempts: [{ attempt: 1, backend: 'native-cpu', outcome: 'succeeded', failureCode: null }],
-		conformance: [{ checkId: 'reopen', passed: true, detail: null }],
-		artifacts: [{ relativePath: 'master.mov', byteLength: 4096, sha256: SHA_B }],
-		publication: 'complete',
-		finalReport: report,
-	});
+	assert.throws(() => createFramescaperNativeDeliveryReportSeedV1({
+		jobId: JOB_ID, targetId: 'native-mezzanine-prores', envelope, plannedReport: report,
+	}), /V15.*bundle|bundle/iu);
+	assert.throws(() => createFramescaperNativeDeliveryReportSeedV1({
+		jobId: JOB_ID, targetId: 'native-mezzanine-prores', envelope,
+		deliveryBundle: Object.freeze({ ...bundle, plan: structuredClone(bundle.plan) }),
+		plannedReport: report,
+	}), /bundle plan|envelope plan/iu);
+	const sealed = sealFramescaperNativeDeliveryReportV1(seed, successfulResult(seed, report));
 	assert.equal(sealed.jobId, JOB_ID);
 	assert.equal(sealed.seedFingerprint, seed.seedFingerprint);
 	assert.equal(sealed.status, 'succeeded');
@@ -69,6 +76,95 @@ test('native delivery reports derive plan identity and caption state from one ex
 	assert.equal(sealed.artifacts[0]?.sha256, SHA_B);
 	assert.equal(Object.isFrozen(sealed), true);
 	assert.equal(Object.isFrozen(sealed.artifacts), true);
+});
+
+test('V15 success closes the exact derived artifact manifest and conformance inventory', () => {
+	const bundle = v15Bundle({
+		trackId: 'captions-en', mux: true, burnIn: false, sidecar: 'srt',
+	});
+	const seed = createFramescaperNativeDeliveryReportSeedV1({
+		jobId: JOB_ID, targetId: 'native-mezzanine-prores',
+		envelope: bundle.envelope, deliveryBundle: bundle, plannedReport: plannedReport(),
+	});
+	const sidecar = bundle.captionAdapter!.sidecarDocument!;
+	const changedAdapter = Object.freeze({
+		...bundle.captionAdapter!,
+		sidecarDocument: Object.freeze({ ...sidecar, text: `${sidecar.text}\nsubstituted` }),
+	});
+	assert.throws(() => createFramescaperNativeDeliveryReportSeedV1({
+		jobId: JOB_ID, targetId: 'native-mezzanine-prores', envelope: bundle.envelope,
+		deliveryBundle: Object.freeze({ ...bundle, captionAdapter: changedAdapter }),
+		plannedReport: plannedReport(),
+	}), /caption sidecar document digest/iu);
+	assert.deepEqual(seed.requiredArtifactManifest, [{
+		artifactId: 'picture-master', kind: 'file', relativePath: 'master.mov',
+		expectedByteLength: null, expectedSha256: null,
+	}, {
+		artifactId: 'caption-sidecar', kind: 'file', relativePath: 'captions.srt',
+		expectedByteLength: new TextEncoder().encode(sidecar.text).byteLength,
+		expectedSha256: sidecar.sha256,
+	}]);
+	assert.deepEqual(seed.requiredConformanceCheckIds, [
+		'artifact-integrity:caption-sidecar',
+		'artifact-integrity:picture-master',
+		'caption-mux-document',
+		'caption-sidecar-document',
+		'container-reopen',
+		'embedded-audio',
+		'picture-codec',
+		'picture-duration',
+		'picture-frame-count',
+		'picture-geometry',
+		'picture-pixel-format',
+		'publication-atomic',
+		'target-profile',
+	]);
+
+	const valid = successfulResult(seed, plannedReport());
+	assert.doesNotThrow(() => sealFramescaperNativeDeliveryReportV1(seed, valid));
+	for (const [label, mutate] of [
+		['missing artifact', (value: Record<string, unknown>) => {
+			(value.artifacts as unknown[]).pop();
+		}],
+		['extra artifact', (value: Record<string, unknown>) => {
+			(value.artifacts as unknown[]).push({
+				artifactId: 'invented', kind: 'file', relativePath: 'invented.mov',
+				byteLength: 1, sha256: SHA_B,
+			});
+		}],
+		['artifact ID substitution', (value: Record<string, unknown>) => {
+			((value.artifacts as Record<string, unknown>[])[0]!).artifactId = 'invented';
+		}],
+		['artifact path substitution', (value: Record<string, unknown>) => {
+			((value.artifacts as Record<string, unknown>[])[1]!).relativePath = 'other.srt';
+		}],
+		['known artifact digest substitution', (value: Record<string, unknown>) => {
+			((value.artifacts as Record<string, unknown>[])[1]!).sha256 = SHA_B;
+		}],
+		['missing conformance', (value: Record<string, unknown>) => {
+			(value.conformance as unknown[]).pop();
+		}],
+		['extra conformance', (value: Record<string, unknown>) => {
+			(value.conformance as unknown[]).push({ checkId: 'invented', passed: true, detail: null });
+		}],
+		['conformance ID substitution', (value: Record<string, unknown>) => {
+			((value.conformance as Record<string, unknown>[])[0]!).checkId = 'invented';
+		}],
+	] as const) {
+		const changed = structuredClone(valid) as Record<string, unknown>;
+		mutate(changed);
+		assert.throws(
+			() => sealFramescaperNativeDeliveryReportV1(seed, changed),
+			/artifact|conformance|closure|manifest/iu,
+			label,
+		);
+	}
+	const forgedSeed = structuredClone(seed);
+	(forgedSeed.requiredConformanceCheckIds as string[]).pop();
+	assert.throws(
+		() => sealFramescaperNativeDeliveryReportV1(forgedSeed, valid),
+		/seed.*exact derived|fingerprint/iu,
+	);
 });
 
 test('hardware delivery permits exactly one identical-plan CPU retry and reports both attempts', () => {
@@ -79,14 +175,11 @@ test('hardware delivery permits exactly one identical-plan CPU retry and reports
 	assert.equal(seed.profileId, 'encode-mp4-h264');
 	assert.equal(seed.hardwarePolicy, 'hardware-first-identical-cpu-retry');
 	const sealed = sealFramescaperNativeDeliveryReportV1(seed, {
-		status: 'succeeded',
+		...successfulResult(seed, reportWithItems([])),
 		backendAttempts: [
 			{ attempt: 1, backend: 'media-foundation', outcome: 'failed', failureCode: 'hardware-encode-failed' },
 			{ attempt: 2, backend: 'native-cpu', outcome: 'succeeded', failureCode: null },
 		],
-		conformance: [{ checkId: 'duration', passed: true, detail: null }],
-		artifacts: [{ relativePath: 'master.mp4', byteLength: 512, sha256: SHA_B }],
-		publication: 'complete', finalReport: reportWithItems([]),
 	});
 	assert.deepEqual(sealed.backendAttempts.map(({ attempt, backend }) => [attempt, backend]), [
 		[1, 'media-foundation'], [2, 'native-cpu'],
@@ -197,13 +290,64 @@ test('native delivery reports represent every selected caption delivery combinat
 		envelope: V14_ENVELOPE, plannedReport: plannedReport(),
 	}).captionDisposition, 'none');
 	for (const [request, expected] of combinations) {
+		const bundle = v15Bundle({ trackId: 'captions-en', ...request });
 		const seed = createFramescaperNativeDeliveryReportSeedV1({
 			jobId: JOB_ID, targetId: 'native-mezzanine-prores',
-			envelope: v15Envelope({ trackId: 'captions-en', ...request }),
+			envelope: bundle.envelope, deliveryBundle: bundle,
 			plannedReport: plannedReport(),
 		});
 		assert.equal(seed.captionDisposition, expected);
+		assert.equal(seed.requiredConformanceCheckIds.includes('caption-mux-document'), request.mux);
+		assert.equal(seed.requiredConformanceCheckIds.includes('caption-burn-plan'), request.burnIn);
+		assert.equal(seed.requiredConformanceCheckIds.includes('caption-sidecar-document'), request.sidecar !== null);
+		assert.equal(
+			seed.requiredArtifactManifest.some(({ artifactId }) => artifactId === 'caption-sidecar'),
+			request.sidecar !== null,
+		);
 	}
+});
+
+test('image-sequence closure requires its tree and exact companion-audio artifact', () => {
+	const delivery = {
+		kind: 'image-sequence' as const,
+		format: 'png' as const,
+		frameRate: { num: 24, den: 1 },
+		preserveAlpha: true as const,
+	};
+	const authority = createFramescaperNativeRenderPlanAuthorityV28(PROJECT, delivery);
+	const bundle = createFramescaperProjectUnifiedRenderDeliveryBundleV15(
+		PROFILE, PROJECT, authority, {
+			deliveryProfile: 'encode-png-sequence',
+			companionAudio: { formatId: 'bwf', sampleFormat: 'int24' },
+		},
+	);
+	const seed = createFramescaperNativeDeliveryReportSeedV1({
+		jobId: JOB_ID, targetId: 'native-image-sequence-png',
+		envelope: bundle.envelope, deliveryBundle: bundle, plannedReport: reportWithItems([]),
+	});
+	assert.deepEqual(seed.requiredArtifactManifest.map(({ artifactId, kind, relativePath }) => ({
+		artifactId, kind, relativePath,
+	})), [{
+		artifactId: 'picture-sequence', kind: 'directory', relativePath: 'frames',
+	}, {
+		artifactId: 'companion-audio', kind: 'file', relativePath: 'audio.wav',
+	}]);
+	assert.equal(seed.requiredConformanceCheckIds.includes('image-sequence-tree'), true);
+	assert.equal(seed.requiredConformanceCheckIds.includes('companion-audio-plan'), true);
+	assert.throws(() => createFramescaperNativeDeliveryReportSeedV1({
+		jobId: JOB_ID, targetId: 'native-image-sequence-png', envelope: bundle.envelope,
+		deliveryBundle: Object.freeze({
+			...bundle,
+			companionAudioBundle: Object.freeze({
+				...bundle.companionAudioBundle!,
+				authorityPayload: `${bundle.companionAudioBundle!.authorityPayload} `,
+			}),
+		}),
+		plannedReport: reportWithItems([]),
+	}), /companion-audio authority payload/iu);
+	assert.doesNotThrow(() => sealFramescaperNativeDeliveryReportV1(
+		seed, successfulResult(seed, reportWithItems([])),
+	));
 });
 
 test('native report sealing preserves every planned conversion item exactly', () => {
@@ -212,13 +356,7 @@ test('native report sealing preserves every planned conversion item exactly', ()
 		jobId: JOB_ID, targetId: 'native-mezzanine-prores',
 		envelope: V14_ENVELOPE, plannedReport: planned,
 	});
-	const base = {
-		status: 'succeeded' as const,
-		backendAttempts: [{ attempt: 1, backend: 'native-cpu', outcome: 'succeeded', failureCode: null }],
-		conformance: [{ checkId: 'reopen', passed: true, detail: null }],
-		artifacts: [{ relativePath: 'master.mov', byteLength: 4096, sha256: SHA_B }],
-		publication: 'complete' as const,
-	};
+	const base = successfulResult(seed, planned);
 	assert.throws(() => sealFramescaperNativeDeliveryReportV1(seed, {
 		...base, finalReport: reportWithItems([]),
 	}), /planned.*report item|drop/iu);
@@ -256,12 +394,34 @@ function reportWithItems(items: readonly Readonly<{
 	return sealDeliveryReport(report);
 }
 
-function v15Envelope(request: FramescaperCaptionDeliveryRequestV28) {
-	return createFramescaperProjectNativeMediaPlanEnvelopeV15(
+function v15Bundle(request: FramescaperCaptionDeliveryRequestV28) {
+	return createFramescaperProjectUnifiedRenderDeliveryBundleV15(
 		PROFILE, PROJECT, AUTHORITY, {
 			deliveryProfile: 'encode-mov-prores-422-hq', captionRequest: request,
 		},
 	);
+}
+
+function successfulResult(
+	seed: ReturnType<typeof createFramescaperNativeDeliveryReportSeedV1>,
+	finalReport: ReturnType<typeof plannedReport>,
+) {
+	return {
+		status: 'succeeded' as const,
+		backendAttempts: [{ attempt: 1, backend: 'native-cpu', outcome: 'succeeded', failureCode: null }],
+		conformance: seed.requiredConformanceCheckIds.map((checkId) => ({
+			checkId, passed: true, detail: null,
+		})),
+		artifacts: seed.requiredArtifactManifest.map((artifact) => ({
+			artifactId: artifact.artifactId,
+			kind: artifact.kind,
+			relativePath: artifact.relativePath,
+			byteLength: artifact.expectedByteLength ?? 4_096,
+			sha256: artifact.expectedSha256 ?? SHA_B,
+		})),
+		publication: 'complete' as const,
+		finalReport,
+	};
 }
 
 function h264Envelope() {

@@ -5,14 +5,6 @@
 import { assertNativeMediaRelativeDestination } from '../common/editor/native-media-atomic-publication.ts';
 import { fingerprintNativeMediaPlan } from '../common/editor/native-media-plan-canonical-form.ts';
 import {
-	assertNativeMediaPlanEnvelopeV2,
-	type NativeMediaPlanEnvelopeV2,
-} from '../common/editor/native-media-plan-envelope-v2.ts';
-import {
-	assertNativeMediaPlanEnvelopeV3,
-	type NativeMediaPlanEnvelopeV3,
-} from '../common/editor/native-media-plan-envelope-v3.ts';
-import {
 	nativeMediaV14EncodeDispatch,
 	type NativeMediaV14EncodeProfileId,
 } from '../common/editor/native-media-v14-native-dispatch.ts';
@@ -20,8 +12,12 @@ import {
 	findPlatformDeliveryPreset,
 	type PlatformNativeMediaV15Execution,
 } from '../common/editor/platform-delivery-presets.ts';
-import type { UnifiedExactRenderCaptionDeliveryV15 } from '../common/editor/unified-exact-render-delivery-v15.ts';
 import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-exact-render-plan.ts';
+import {
+	deriveFramescaperNativeDeliveryClosureV1,
+	type FramescaperNativeCaptionDispositionV1,
+	type FramescaperNativeDeliveryArtifactManifestEntryV1,
+} from './delivery-native-report-closure-v1.ts';
 import type {
 	DeliveryDisposition,
 	DeliveryReport,
@@ -29,10 +25,10 @@ import type {
 	DeliveryReportSubject,
 } from '../common/editor/delivery-report.ts';
 
-export type FramescaperNativeCaptionDispositionV1 =
-	| 'none' | 'sidecar' | 'mux' | 'burn-in'
-	| 'mux-and-burn-in' | 'mux-and-sidecar' | 'burn-in-and-sidecar'
-	| 'mux-and-burn-in-and-sidecar';
+export type {
+	FramescaperNativeCaptionDispositionV1,
+	FramescaperNativeDeliveryArtifactManifestEntryV1,
+} from './delivery-native-report-closure-v1.ts';
 
 export interface FramescaperNativeDeliveryReportSeedV1 {
 	readonly schemaVersion: 1;
@@ -42,6 +38,8 @@ export interface FramescaperNativeDeliveryReportSeedV1 {
 	readonly profileId: NativeMediaV14EncodeProfileId;
 	readonly hardwarePolicy: PlatformNativeMediaV15Execution['hardwarePolicy'];
 	readonly captionDisposition: FramescaperNativeCaptionDispositionV1;
+	readonly requiredArtifactManifest: readonly FramescaperNativeDeliveryArtifactManifestEntryV1[];
+	readonly requiredConformanceCheckIds: readonly string[];
 	readonly plannedReport: DeliveryReport;
 	readonly seedFingerprint: string;
 }
@@ -60,6 +58,8 @@ export interface FramescaperNativeDeliveryConformanceV1 {
 }
 
 export interface FramescaperNativeDeliveryArtifactV1 {
+	readonly artifactId: string;
+	readonly kind: 'file' | 'directory';
 	readonly relativePath: string;
 	readonly byteLength: number;
 	readonly sha256: string;
@@ -97,21 +97,26 @@ export function createFramescaperNativeDeliveryReportSeedV1(input: Readonly<{
 	readonly targetId: string;
 	readonly envelope: unknown;
 	readonly timingSidecars?: UnifiedExactRenderTimingSidecars;
+	readonly deliveryBundle?: unknown;
 	readonly plannedReport: DeliveryReport;
 }>): FramescaperNativeDeliveryReportSeedV1 {
 	const row = exactRecord(input, [
-		'jobId', 'targetId', 'envelope', 'timingSidecars', 'plannedReport',
-	], 'native delivery report seed input', ['timingSidecars']);
-	const authority = reportPlanAuthority(
-		row.envelope,
-		row.timingSidecars as UnifiedExactRenderTimingSidecars | undefined,
-	);
+		'jobId', 'targetId', 'envelope', 'timingSidecars', 'deliveryBundle', 'plannedReport',
+	], 'native delivery report seed input', ['timingSidecars', 'deliveryBundle']);
+	const authority = deriveFramescaperNativeDeliveryClosureV1({
+		targetId: row.targetId as string,
+		envelope: row.envelope,
+		timingSidecars: row.timingSidecars as UnifiedExactRenderTimingSidecars | undefined,
+		deliveryBundle: row.deliveryBundle,
+	});
 	return createSeed({
 		jobId: row.jobId,
 		planFingerprint: authority.planFingerprint,
 		targetId: row.targetId,
 		profileId: authority.profileId,
 		captionDisposition: authority.captionDisposition,
+		requiredArtifactManifest: authority.requiredArtifactManifest,
+		requiredConformanceCheckIds: authority.requiredConformanceCheckIds,
 		plannedReport: row.plannedReport,
 	});
 }
@@ -122,6 +127,8 @@ function createSeed(input: Readonly<{
 	readonly targetId: unknown;
 	readonly profileId: unknown;
 	readonly captionDisposition: unknown;
+	readonly requiredArtifactManifest: unknown;
+	readonly requiredConformanceCheckIds: unknown;
 	readonly plannedReport: unknown;
 }>): FramescaperNativeDeliveryReportSeedV1 {
 	const profileId = text(input.profileId, ID, 'native delivery report profile ID');
@@ -138,6 +145,8 @@ function createSeed(input: Readonly<{
 		captionDisposition: member(
 			input.captionDisposition, CAPTION_DISPOSITIONS, 'native delivery caption disposition',
 		),
+		requiredArtifactManifest: artifactManifest(input.requiredArtifactManifest),
+		requiredConformanceCheckIds: conformanceCheckIds(input.requiredConformanceCheckIds),
 		plannedReport: snapshotDeliveryReport(input.plannedReport),
 	});
 	return Object.freeze({
@@ -151,7 +160,8 @@ export function assertFramescaperNativeDeliveryReportSeedV1(
 ): asserts value is FramescaperNativeDeliveryReportSeedV1 {
 	const input = exactRecord(value, [
 		'schemaVersion', 'jobId', 'planFingerprint', 'targetId', 'profileId',
-		'hardwarePolicy', 'captionDisposition', 'plannedReport', 'seedFingerprint',
+		'hardwarePolicy', 'captionDisposition', 'requiredArtifactManifest',
+		'requiredConformanceCheckIds', 'plannedReport', 'seedFingerprint',
 	], 'native delivery report seed');
 	if (input.schemaVersion !== 1) throw new RangeError('Native delivery report seed version is unsupported.');
 	const derived = createSeed({
@@ -160,6 +170,8 @@ export function assertFramescaperNativeDeliveryReportSeedV1(
 		targetId: input.targetId,
 		profileId: input.profileId,
 		captionDisposition: input.captionDisposition,
+		requiredArtifactManifest: input.requiredArtifactManifest,
+		requiredConformanceCheckIds: input.requiredConformanceCheckIds,
 		plannedReport: input.plannedReport,
 	});
 	if (input.seedFingerprint !== derived.seedFingerprint
@@ -195,6 +207,7 @@ export function sealFramescaperNativeDeliveryReportV1(
 		if (conformance.length === 0 || conformance.some(({ passed }) => !passed)) {
 			throw new Error('A succeeded native delivery requires passing conformance results.');
 		}
+		assertSuccessfulClosure(seed, artifacts, conformance);
 	} else if (last.outcome === 'succeeded' || publication !== 'not-published' || artifacts.length !== 0) {
 		throw new Error('A failed native delivery cannot carry publication or artifact receipts.');
 	}
@@ -231,84 +244,6 @@ function nativeTargetExecution(
 		);
 	}
 	return preset.execution;
-}
-
-function reportPlanAuthority(
-	value: unknown,
-	timingSidecars?: UnifiedExactRenderTimingSidecars,
-): Readonly<{
-	readonly planFingerprint: string;
-	readonly profileId: NativeMediaV14EncodeProfileId;
-	readonly captionDisposition: FramescaperNativeCaptionDispositionV1;
-}> {
-	const envelopeVersion = ownDataValue(value, 'envelopeVersion', 'native delivery plan envelope');
-	if (envelopeVersion === 2) {
-		assertNativeMediaPlanEnvelopeV2(value, timingSidecars);
-		if (value.planVersion !== 14 || value.plan.version !== 14) {
-			throw new RangeError('A native delivery report requires an exact V14 or V15 plan envelope.');
-		}
-		return derivedReportPlanAuthority(value, null);
-	}
-	if (envelopeVersion === 3) {
-		assertNativeMediaPlanEnvelopeV3(value, timingSidecars);
-		if ((value.planVersion !== 14 && value.planVersion !== 15)
-			|| value.plan.version !== value.planVersion) {
-			throw new RangeError('A native delivery report requires an exact V14 or V15 plan envelope.');
-		}
-		return derivedReportPlanAuthority(
-			value,
-			value.plan.version === 15 ? value.plan.captionDelivery : null,
-		);
-	}
-	throw new RangeError('A native delivery report requires a V2 or V3 plan envelope.');
-}
-
-function derivedReportPlanAuthority(
-	envelope: NativeMediaPlanEnvelopeV2 | NativeMediaPlanEnvelopeV3,
-	caption: UnifiedExactRenderCaptionDeliveryV15 | null,
-): Readonly<{
-	readonly planFingerprint: string;
-	readonly profileId: NativeMediaV14EncodeProfileId;
-	readonly captionDisposition: FramescaperNativeCaptionDispositionV1;
-}> {
-	const profileId = envelope.plan.deliveryProfile;
-	if (typeof profileId !== 'string') {
-		throw new TypeError('A native delivery report plan has no exact encode profile.');
-	}
-	nativeMediaV14EncodeDispatch(profileId as NativeMediaV14EncodeProfileId);
-	return Object.freeze({
-		planFingerprint: envelope.fingerprint,
-		profileId: profileId as NativeMediaV14EncodeProfileId,
-		captionDisposition: captionDisposition(caption),
-	});
-}
-
-function captionDisposition(
-	delivery: UnifiedExactRenderCaptionDeliveryV15 | null,
-): FramescaperNativeCaptionDispositionV1 {
-	if (delivery === null) return 'none';
-	const mux = delivery.mux !== null;
-	const burn = delivery.burnIn !== null;
-	const sidecar = delivery.sidecar !== null;
-	if (mux && burn && sidecar) return 'mux-and-burn-in-and-sidecar';
-	if (mux && burn) return 'mux-and-burn-in';
-	if (mux && sidecar) return 'mux-and-sidecar';
-	if (burn && sidecar) return 'burn-in-and-sidecar';
-	if (mux) return 'mux';
-	if (burn) return 'burn-in';
-	if (sidecar) return 'sidecar';
-	throw new Error('An exact V15 caption delivery has no selected artifact.');
-}
-
-function ownDataValue(value: unknown, field: string, name: string): unknown {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError(`${name} must be an object.`);
-	}
-	const descriptor = Object.getOwnPropertyDescriptor(value, field);
-	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-		throw new TypeError(`${name}.${field} must be an own enumerable data property.`);
-	}
-	return descriptor.value;
 }
 
 function assertPlannedReportPreserved(planned: DeliveryReport, final: DeliveryReport): void {
@@ -368,6 +303,80 @@ function attempts(
 	return Object.freeze(rows);
 }
 
+function artifactManifest(
+	value: unknown,
+): readonly FramescaperNativeDeliveryArtifactManifestEntryV1[] {
+	const ids = new Set<string>();
+	const paths = new Set<string>();
+	const order = ['picture-master', 'picture-sequence', 'caption-sidecar', 'companion-audio'];
+	const rows = denseArray(value, 1, 3, 'native delivery required artifact manifest').map((entry) => {
+		const row = exactRecord(entry, [
+			'artifactId', 'kind', 'relativePath', 'expectedByteLength', 'expectedSha256',
+		], 'native delivery required artifact');
+		const artifactId = member(row.artifactId, order, 'native delivery artifact manifest ID');
+		const kind = member(row.kind, ['file', 'directory'] as const, 'native delivery artifact kind');
+		assertNativeMediaRelativeDestination(row.relativePath);
+		const relativePath = row.relativePath as string;
+		if (ids.has(artifactId) || paths.has(relativePath)) {
+			throw new RangeError('Native delivery required artifacts must have unique IDs and paths.');
+		}
+		ids.add(artifactId);
+		paths.add(relativePath);
+		const expectedByteLength = row.expectedByteLength === null ? null
+			: integer(row.expectedByteLength, 1, Number.MAX_SAFE_INTEGER, 'expected artifact byte length');
+		const expectedSha256 = row.expectedSha256 === null ? null
+			: text(row.expectedSha256, SHA256, 'expected artifact SHA-256');
+		if ((expectedByteLength === null) !== (expectedSha256 === null)) {
+			throw new Error('A known required artifact must bind both byte length and SHA-256.');
+		}
+		return Object.freeze({
+			artifactId, kind, relativePath, expectedByteLength, expectedSha256,
+		});
+	});
+	if (!rows[0]?.artifactId.startsWith('picture-')
+		|| rows.some((row, index) => index > 0
+			&& order.indexOf(row.artifactId) <= order.indexOf(rows[index - 1]!.artifactId))) {
+		throw new Error('Native delivery required artifacts are not in canonical manifest order.');
+	}
+	return Object.freeze(rows);
+}
+
+function conformanceCheckIds(value: unknown): readonly string[] {
+	const ids = denseArray(value, 1, 64, 'native delivery required conformance checks')
+		.map((entry) => text(entry, ID, 'native delivery required conformance check ID'));
+	if (new Set(ids).size !== ids.length
+		|| ids.some((id, index) => index > 0 && ids[index - 1]!.localeCompare(id) >= 0)) {
+		throw new Error('Native delivery required conformance check IDs must be unique and sorted.');
+	}
+	return Object.freeze(ids);
+}
+
+function assertSuccessfulClosure(
+	seed: FramescaperNativeDeliveryReportSeedV1,
+	artifacts: readonly FramescaperNativeDeliveryArtifactV1[],
+	conformance: readonly FramescaperNativeDeliveryConformanceV1[],
+): void {
+	if (artifacts.length !== seed.requiredArtifactManifest.length) {
+		throw new Error('Native delivery artifacts do not exactly close the required manifest.');
+	}
+	for (const [index, requirement] of seed.requiredArtifactManifest.entries()) {
+		const artifact = artifacts[index]!;
+		if (artifact.artifactId !== requirement.artifactId
+			|| artifact.kind !== requirement.kind
+			|| artifact.relativePath !== requirement.relativePath
+			|| (requirement.expectedByteLength !== null
+				&& artifact.byteLength !== requirement.expectedByteLength)
+			|| (requirement.expectedSha256 !== null
+				&& artifact.sha256 !== requirement.expectedSha256)) {
+			throw new Error(`Native delivery artifact ${requirement.artifactId} does not close its manifest entry.`);
+		}
+	}
+	if (conformance.length !== seed.requiredConformanceCheckIds.length
+		|| conformance.some(({ checkId }, index) => checkId !== seed.requiredConformanceCheckIds[index])) {
+		throw new Error('Native delivery conformance does not exactly close the required check inventory.');
+	}
+}
+
 function conformanceRows(value: unknown): readonly FramescaperNativeDeliveryConformanceV1[] {
 	const seen = new Set<string>();
 	return Object.freeze(denseArray(value, 0, 1_024, 'native delivery conformance').map((entry) => {
@@ -384,14 +393,23 @@ function conformanceRows(value: unknown): readonly FramescaperNativeDeliveryConf
 }
 
 function artifactRows(value: unknown): readonly FramescaperNativeDeliveryArtifactV1[] {
+	const ids = new Set<string>();
 	const paths = new Set<string>();
 	return Object.freeze(denseArray(value, 0, 100_000, 'native delivery artifacts').map((entry) => {
-		const row = exactRecord(entry, ['relativePath', 'byteLength', 'sha256'], 'native delivery artifact');
+		const row = exactRecord(entry, [
+			'artifactId', 'kind', 'relativePath', 'byteLength', 'sha256',
+		], 'native delivery artifact');
+		const artifactId = text(row.artifactId, ID, 'native delivery artifact ID');
+		if (ids.has(artifactId)) throw new RangeError('Native delivery artifact IDs must be unique.');
+		ids.add(artifactId);
+		const kind = member(row.kind, ['file', 'directory'] as const, 'native delivery artifact kind');
 		assertNativeMediaRelativeDestination(row.relativePath);
 		const relativePath = row.relativePath as string;
 		if (paths.has(relativePath)) throw new RangeError('Native delivery artifact paths must be unique.');
 		paths.add(relativePath);
 		return Object.freeze({
+			artifactId,
+			kind,
 			relativePath,
 			byteLength: integer(row.byteLength, 1, Number.MAX_SAFE_INTEGER, 'native delivery artifact byte length'),
 			sha256: text(row.sha256, SHA256, 'native delivery artifact SHA-256'),
