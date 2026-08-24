@@ -110,6 +110,7 @@ export class HelperSupervisor {
 	#jobAdmissionPending = false;
 	readonly #gate = new HelperAdmissionGate();
 	#pendingHandshake: { resolve: () => void; reject: (error: Error) => void } | null = null;
+	#starting: Promise<void> | null = null;
 	#disposed = false;
 
 	constructor(options: HelperSupervisorOptions) {
@@ -296,7 +297,27 @@ export class HelperSupervisor {
 	async #ensureChannel(): Promise<void> {
 		this.#assertNotDisposed();
 		if (this.#channel && this.#channelReady) return;
+		// A second caller arriving while the helper is cold joins the start in
+		// flight instead of being refused — or spawning a second process. The
+		// OFX runtime starts the shared per-plugin worker before every job, so
+		// two requests racing a cold spawn is an ordinary collision, not a fault.
+		const pending = this.#starting;
+		if (pending) {
+			await pending;
+			this.#assertNotDisposed();
+			if (this.#channel && this.#channelReady) return;
+		}
 		if (this.#channel) throw new HelperSupervisionError('handshake', 'The helper is still starting.');
+		const starting = this.#openChannel();
+		this.#starting = starting;
+		try {
+			await starting;
+		} finally {
+			if (this.#starting === starting) this.#starting = null;
+		}
+	}
+
+	async #openChannel(): Promise<void> {
 		try {
 			await this.#options.verifyBinary();
 		} catch (error) {
@@ -370,7 +391,12 @@ export class HelperSupervisor {
 		}
 		if (validated.type === 'heartbeat') {
 			const expectedJobId = this.#job?.jobId ?? null;
-			if (validated.jobId !== expectedJobId) {
+			// An idle heartbeat races job admission benignly: the helper's timer
+			// fired before the just-posted job message reached it. Liveness is
+			// what a heartbeat proves; only one naming a job the supervisor does
+			// not own is a confused helper. The duration deadline still bounds a
+			// helper that lost its job and keeps heartbeating idle.
+			if (validated.jobId !== expectedJobId && validated.jobId !== null) {
 				this.#crash(new HelperSupervisionError('job-mismatch',
 					'The helper heartbeat does not match the active job generation.'));
 				return;
@@ -398,8 +424,12 @@ export class HelperSupervisor {
 			return;
 		}
 		if (job.cancelRequested) {
-			this.#crash(new HelperSupervisionError('malformed-message',
-				'The helper sent a terminal result before cancellation quiescence was acknowledged.'));
+			// The terminal was already in flight when the cancel was posted; the
+			// worker ignores a cancel for a settled job, so no acknowledgement
+			// will ever come and waiting for one kills an innocent helper. The
+			// job is quiescent — its terminal proves it — and the caller asked
+			// for cancellation, so cancellation is what settles.
+			this.#settleJob(job, new HelperSupervisionError('cancelled', 'The helper job was cancelled.'));
 			return;
 		}
 		if (validated.type === 'error') {
