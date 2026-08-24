@@ -66,6 +66,108 @@ export function restoreFramescaperVideoRetimeMapsV20(
 	});
 }
 
+/**
+ * Rescale surviving curves onto a re-probed source's corrected frame grid.
+ *
+ * A re-probe replaces the frame grid the curve's source frames were authored
+ * against; the same instant of media keeps its time, so every point scales by
+ * the exact rate ratio and clamps into the clip's conformed range — the same
+ * conformance the clip's own in/out already received. Without this, restoring
+ * the snapshot either persists a curve whose frames mean different pictures
+ * on the new grid or fails the whole re-probe when they no longer fit.
+ */
+export function conformFramescaperVideoRetimeSnapshotsForReprobeV20(
+	before: DataRecord,
+	commanded: DataRecord,
+	command: DataRecord,
+	snapshots: readonly FramescaperVideoRetimeSnapshotV20[],
+): readonly FramescaperVideoRetimeSnapshotV20[] {
+	if (command.type !== 'source/reprobe' || snapshots.length === 0) return snapshots;
+	const sourceId = identifier(command.sourceId, 'source/reprobe.sourceId');
+	const oldRate = videoSourceRate(before, sourceId);
+	const newRate = videoSourceRate(commanded, sourceId);
+	if (!oldRate || !newRate) return snapshots;
+	const bindings = new Map<string, Readonly<{ start: number; end: number }>>();
+	visitClipCollections(commanded, (clip, name) => {
+		if (dataProperty(clip, 'kind', name) !== 'video') return;
+		if (dataProperty(clip, 'sourceId', name) !== sourceId) return;
+		const start = dataProperty(clip, 'sourceInFrame', name) as number;
+		const count = dataProperty(clip, 'sourceFrameCount', name) as number;
+		bindings.set(identifier(dataProperty(clip, 'id', name), `${name}.id`), Object.freeze({
+			start, end: start + count,
+		}));
+	});
+	if (bindings.size === 0) return snapshots;
+	return Object.freeze(snapshots.map((snapshot) => {
+		const binding = bindings.get(snapshot.id);
+		if (!binding) return snapshot;
+		const points = snapshot.retimeMap.points.map((point) => Object.freeze({
+			...point,
+			sourceFrame: clampRational(
+				scaleRational(point.sourceFrame, oldRate, newRate),
+				binding.start, binding.end,
+			),
+		}));
+		return Object.freeze({
+			id: snapshot.id,
+			retimeMap: Object.freeze({ ...snapshot.retimeMap, points: Object.freeze(points) }),
+		});
+	}));
+}
+
+function videoSourceRate(project: DataRecord, sourceId: string): Readonly<{ num: number; den: number }> | null {
+	const sources = dataProperty(project, 'sources', 'Framescaper V20 project');
+	if (!Array.isArray(sources)) return null;
+	const source = sources.find((candidate) => (
+		candidate && typeof candidate === 'object'
+		&& (candidate as DataRecord).id === sourceId && (candidate as DataRecord).kind === 'video'
+	)) as DataRecord | undefined;
+	const rate = source?.frameRate as Readonly<{ num?: unknown; den?: unknown }> | undefined;
+	return rate && Number.isSafeInteger(rate.num) && Number.isSafeInteger(rate.den)
+		&& Number(rate.num) > 0 && Number(rate.den) > 0
+		? Object.freeze({ num: Number(rate.num), den: Number(rate.den) })
+		: null;
+}
+
+function scaleRational(
+	value: Readonly<{ num: number; den: number }>,
+	oldRate: Readonly<{ num: number; den: number }>,
+	newRate: Readonly<{ num: number; den: number }>,
+): Readonly<{ num: number; den: number }> {
+	let num = BigInt(value.num) * BigInt(newRate.num) * BigInt(oldRate.den);
+	let den = BigInt(value.den) * BigInt(newRate.den) * BigInt(oldRate.num);
+	const divisor = greatestCommonDivisor(num < 0n ? -num : num, den);
+	if (divisor > 1n) {
+		num /= divisor;
+		den /= divisor;
+	}
+	if (num > BigInt(Number.MAX_SAFE_INTEGER) || den > BigInt(Number.MAX_SAFE_INTEGER)) {
+		throw new RangeError('A conformed retime source frame exceeds its exact domain.');
+	}
+	return Object.freeze({ num: Number(num), den: Number(den) });
+}
+
+function clampRational(
+	value: Readonly<{ num: number; den: number }>,
+	minimum: number,
+	maximum: number,
+): Readonly<{ num: number; den: number }> {
+	if (BigInt(value.num) < BigInt(minimum) * BigInt(value.den)) {
+		return Object.freeze({ num: minimum, den: 1 });
+	}
+	if (BigInt(value.num) > BigInt(maximum) * BigInt(value.den)) {
+		return Object.freeze({ num: maximum, den: 1 });
+	}
+	return value;
+}
+
+function greatestCommonDivisor(left: bigint, right: bigint): bigint {
+	let a = left;
+	let b = right;
+	while (b !== 0n) [a, b] = [b, a % b];
+	return a;
+}
+
 export function findFramescaperVideoClipV20(
 	project: DataRecord,
 	scope: FramescaperVideoRetimeClipScopeV20,

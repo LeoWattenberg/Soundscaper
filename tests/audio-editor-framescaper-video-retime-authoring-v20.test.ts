@@ -155,6 +155,54 @@ test('V20 inherited editorial commands preserve authored retime while linked aud
 	assert.equal(movedAudio.warpMap, null);
 });
 
+test('a re-probe conforms surviving retime curves onto the corrected frame grid', () => {
+	// A re-read replaces the frame grid the curve's source frames were
+	// authored against; the same instants of media keep their time, so every
+	// point scales by the rate ratio exactly — a stale curve would freeze or
+	// reverse through different pictures in preview and export alike.
+	const reversed = apply(linkedProject(), createFramescaperVideoRetimeReverseCommandV20({
+		clipId: 'video-clip', expectedRetimeMap: null,
+	}));
+	assert.deepEqual(map(reversed, 'video-clip')?.points, [
+		{ outerFrame: 0, sourceFrame: rational(10) },
+		{ outerFrame: 10, sourceFrame: rational(0) },
+	]);
+
+	const doubled = apply(reversed, {
+		type: 'source/reprobe', sourceId: 'video-source',
+		changes: {
+			frameRate: { num: 20, den: 1 }, sourceFrameCount: 20,
+			timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: 20, den: 1 } },
+		},
+		clips: [
+			{ clipId: 'video-clip', sourceInFrame: 0, sourceFrameCount: 20 },
+			{ clipId: 'bin-video', sourceInFrame: 0, sourceFrameCount: 20 },
+		],
+	} as never);
+	assert.deepEqual(map(doubled, 'video-clip')?.points, [
+		{ outerFrame: 0, sourceFrame: rational(20) },
+		{ outerFrame: 10, sourceFrame: rational(0) },
+	], 'the reverse curve keeps its instants of media on the doubled grid');
+
+	// Halving the rate shrinks the range below the stale indices: the old
+	// curve would be outside the source range; the conformed one fits exactly.
+	const halved = apply(reversed, {
+		type: 'source/reprobe', sourceId: 'video-source',
+		changes: {
+			frameRate: { num: 5, den: 1 }, sourceFrameCount: 5,
+			timingDecision: { mode: 'conform-cfr-at-ingest', rate: { num: 5, den: 1 } },
+		},
+		clips: [
+			{ clipId: 'video-clip', sourceInFrame: 0, sourceFrameCount: 5 },
+			{ clipId: 'bin-video', sourceInFrame: 0, sourceFrameCount: 5 },
+		],
+	} as never);
+	assert.deepEqual(map(halved, 'video-clip')?.points, [
+		{ outerFrame: 0, sourceFrame: rational(5) },
+		{ outerFrame: 10, sourceFrame: rational(0) },
+	]);
+});
+
 function linkedProject(): FramescaperProjectV20 {
 	const options = framescaperV20Options();
 	(options.clips as Record<string, unknown>[])[0]!.avLinkId = 'linked-av';
