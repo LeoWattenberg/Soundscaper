@@ -4,6 +4,7 @@
 
 import { spawn as nodeSpawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { constants as fsConstants } from 'node:fs';
 import { chmod, mkdir, mkdtemp, open, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
