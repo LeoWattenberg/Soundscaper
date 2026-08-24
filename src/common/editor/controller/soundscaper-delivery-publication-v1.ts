@@ -119,8 +119,11 @@ export function createSoundscaperDeliveryPublicationGuardV1(destination: MediaBy
 			if (finalChunkSeen) throw new Error('The staging writer already received its final byte chunk.');
 			writePending = true;
 			try {
-				digest.update(chunk.bytes);
 				await destination.write({ signal: request.signal, chunk });
+				// Digest only settled writes: a failed write may be retried at the
+				// same sequence, and hashing before settlement counts the bytes
+				// twice — refusing the very publication the retry then stages.
+				digest.update(chunk.bytes);
 				stagedBytes += chunk.byteLength;
 				nextChunkSequence += 1;
 				finalChunkSeen = chunk.final;
