@@ -74,6 +74,9 @@ export class NativeDeviceIoProcessor extends ProcessorBase {
 		this.portPeer = peer;
 		peer.onmessage = (event) => this.#message(event?.data);
 		peer.onmessageerror = () => this.#close('malformed-message');
+		// A helper process dying closes its entangled end; without this listener
+		// the session records and plays silence forever with no loss signal.
+		listenForClose(peer, () => { if (this.portPeer === peer) this.#close('peer-loss'); });
 		peer.start?.();
 		if (this.direction !== 'output') {
 			for (let id = 0; id < this.queueCapacity; id += 1) this.#issueCapture(packet(id, this.channelCount, this.periodFrames));
@@ -326,6 +329,10 @@ function planes(value, channelCount, frames) {
 }
 
 function transfer(value) { return value.map((plane) => plane.buffer); }
+function listenForClose(port, listener) {
+	if (typeof port.addEventListener === 'function') port.addEventListener('close', listener);
+	else port.onclose = listener;
+}
 function integer(value, minimum, maximum, fallback) {
 	return Number.isSafeInteger(value) && value >= minimum && value <= maximum ? value : fallback;
 }

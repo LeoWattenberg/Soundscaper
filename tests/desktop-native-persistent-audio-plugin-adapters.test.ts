@@ -154,6 +154,46 @@ test('main audio adapter transfers the peer directly after exact helper configur
 	await outcome.session.close()
 })
 
+test('a helper job that settles mid-session notifies the broker of helper exit', async () => {
+	let rejectJob!: (error: Error) => void
+	const supervisor = {
+		runJob: (request: Record<string, unknown>) => {
+			const port = (request.dataPlaneTransfers as { port: FakePort }[])[0].port
+			port.on('message', ({ data }) => {
+				const value = data as Record<string, unknown>
+				if (value.kind !== 'configure') return
+				port.postMessage({
+					protocolVersion: 1, kind: 'configured', status: 'opened', backend: 'pipewire',
+					format: { direction: 'output', mode: 'shared', sampleRate: 48_000, periodFrames: 1_024, channelCount: 2 },
+				})
+			})
+			return new Promise((_resolve, reject) => { rejectJob = reject })
+		},
+	}
+	let helperExits = 0
+	const runtime = createNativeAudioHelperRuntime({
+		supervisor: supervisor as never,
+		broker: {
+			acceptHelperPort: () => Object.freeze({ status: 'delivered' as const }),
+			notifyHelperExit: () => { helperExits += 1 },
+		},
+		createChannel: channel,
+		mintStreamId: () => 'd'.repeat(40),
+	})
+	const outcome = await runtime.adapter.open(
+		{ backend: 'pipewire', deviceHandle: '@DEFAULT_SINK@' },
+		{ direction: 'output', mode: 'shared', sampleRate: 48_000, periodFrames: 1_024, channelCount: 2 },
+	)
+	assert.equal(outcome.status, 'opened')
+	if (outcome.status !== 'opened') return
+	assert.equal(helperExits, 0)
+	rejectJob(new Error('The helper process exited unexpectedly.'))
+	await new Promise((resolve) => setImmediate(resolve))
+	assert.equal(helperExits, 1, 'a dying helper must close the live realtime generation')
+	await outcome.session.close()
+	assert.equal(helperExits, 1, 'a deliberate close is not a helper exit')
+})
+
 test('main audio adapter aborts and quiesces a helper that is still configuring', async () => {
 	const links: ReturnType<typeof channel>[] = []
 	let helperSettled = false

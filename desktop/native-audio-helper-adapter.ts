@@ -39,6 +39,8 @@ export interface NativeAudioPortBroker {
 		status: 'delivered' | 'refused'
 		message?: string
 	}>
+	/** The helper's supervised job settled while a session still held it. */
+	notifyHelperExit?(): void
 }
 
 interface HelperAudioSession extends NativeAudioAdapterSession {
@@ -165,6 +167,12 @@ function createSession(input: Readonly<{
 }>): HelperAudioSession {
 	let handedOff = false
 	let closed = false
+	// A job that settles while the session is still open is the helper dying:
+	// the broker must close its live generation, or main keeps a dead route
+	// bound and the renderer plays and records silence with no loss signal.
+	void input.completion.catch(() => undefined).then(() => {
+		if (!closed) input.broker.notifyHelperExit?.()
+	})
 	return Object.freeze({
 		backend: input.backend,
 		format: input.format,

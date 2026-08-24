@@ -42,6 +42,30 @@ test('native device worklet closes on device loss and every short transfer', asy
 	}
 });
 
+test('a peer port that closes underneath the worklet reports peer loss', async (context) => {
+	const original = globalThis.AudioWorkletProcessor;
+	class ProcessorBase {
+		constructor() {
+			this.port = { posted: [], postMessage(value) { this.posted.push(value); }, start() {}, onmessage: null };
+		}
+	}
+	globalThis.AudioWorkletProcessor = ProcessorBase;
+	context.after(() => { globalThis.AudioWorkletProcessor = original; });
+	const { NativeDeviceIoProcessor } = await import(
+		`../src/common/editor/native-device-io-worklet.js?peer-loss=${String(Date.now())}`
+	);
+	const processor = new NativeDeviceIoProcessor({ processorOptions: {
+		direction: 'input', channelCount: 2, periodFrames: 128, queueCapacity: 2,
+	} });
+	const peer = messagePort();
+	processor.port.onmessage({ data: { type: 'native-device-attach', generation: 1 }, ports: [peer] });
+	assert.equal(typeof peer.onclose, 'function',
+		'a helper process dying closes its entangled end, and the worklet must hear it');
+	peer.onclose();
+	assert.equal(processor.port.posted.at(-1).type, 'native-device-closed');
+	assert.equal(processor.port.posted.at(-1).reason, 'peer-loss');
+});
+
 test('duplex calibration injects one bounded impulse and reports only its frame offset', async (context) => {
 	const original = globalThis.AudioWorkletProcessor;
 	class ProcessorBase {
