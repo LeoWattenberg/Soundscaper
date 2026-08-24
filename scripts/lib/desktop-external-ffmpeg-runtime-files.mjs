@@ -1,11 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { DESKTOP_BUNDLED_FLAC_WASM } from './desktop-bundled-flac-runtime.mjs';
 import { DESKTOP_BUNDLED_WAVPACK_WASM } from './desktop-bundled-wavpack-runtime.mjs';
 
-export { DESKTOP_BUNDLED_WAVPACK_WASM };
+export { DESKTOP_BUNDLED_FLAC_WASM, DESKTOP_BUNDLED_WAVPACK_WASM };
 
 /** Exact compiled transitive modules required by desktop main audio codec entry points. */
 export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
+	'desktop/bundled-audio-codec-runtime.js',
+	'desktop/bundled-flac-audio-codec-runtime.js',
+	'desktop/bundled-flac-stream.js',
 	'desktop/bundled-wavpack-audio-codec-runtime.js',
 	'desktop/bundled-wavpack-stream.js',
 	'desktop/desktop-audio-codec-broker.js',
@@ -18,6 +22,7 @@ export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/desktop-codec-coordinator.js',
 	'src/common/editor/desktop-codec-provider-catalog.js',
 	'src/common/editor/desktop-wavpack-codec-profile.js',
+	DESKTOP_BUNDLED_FLAC_WASM.file,
 	DESKTOP_BUNDLED_WAVPACK_WASM.file,
 ]);
 
@@ -31,7 +36,7 @@ const DESKTOP_EXTERNAL_FFMPEG_CONTROL_RUNTIME_FILES = Object.freeze([
 	'desktop/external-ffmpeg-probe.js',
 ]);
 
-/** Exact desktop codec graph: source modules plus the one reviewed WavPack payload. */
+/** Exact desktop codec graph: source modules plus the reviewed FLAC and WavPack payloads. */
 export const DESKTOP_CODEC_RUNTIME_FILES = Object.freeze([
 	...DESKTOP_AUDIO_CODEC_RUNTIME_FILES,
 	...DESKTOP_EXTERNAL_FFMPEG_CONTROL_RUNTIME_FILES,

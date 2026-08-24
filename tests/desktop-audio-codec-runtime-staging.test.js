@@ -9,9 +9,11 @@ import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { compileDesktopProjectLibraryRuntime } from '../scripts/lib/desktop-project-library-runtime.mjs';
+import { stageDesktopBundledFlacRuntime } from '../scripts/lib/desktop-bundled-flac-runtime.mjs';
 import { stageDesktopBundledWavPackRuntime } from '../scripts/lib/desktop-bundled-wavpack-runtime.mjs';
 import {
 	DESKTOP_AUDIO_CODEC_RUNTIME_FILES,
+	DESKTOP_BUNDLED_FLAC_WASM,
 	DESKTOP_BUNDLED_WAVPACK_WASM,
 	DESKTOP_CODEC_RUNTIME_FILES,
 	DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES,
@@ -20,6 +22,9 @@ import { isForbiddenDesktopFfmpegPath } from '../scripts/lib/desktop-codec-polic
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
+	'desktop/bundled-audio-codec-runtime.js',
+	'desktop/bundled-flac-audio-codec-runtime.js',
+	'desktop/bundled-flac-stream.js',
 	'desktop/bundled-wavpack-audio-codec-runtime.js',
 	'desktop/bundled-wavpack-stream.js',
 	'desktop/desktop-audio-codec-broker.js',
@@ -32,6 +37,7 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/desktop-codec-coordinator.js',
 	'src/common/editor/desktop-codec-provider-catalog.js',
 	'src/common/editor/desktop-wavpack-codec-profile.js',
+	'src/common/editor/flac/flac.wasm',
 	'src/common/editor/wavpack/wavpack.wasm',
 ]);
 
@@ -49,7 +55,12 @@ test('desktop codec runtime inventory closes over both main audio entry points',
 	}
 });
 
-test('desktop codec runtime inventory contains only the exact reviewed WavPack WASM payload', async () => {
+test('desktop codec runtime inventory contains only the exact reviewed FLAC and WavPack payloads', async () => {
+	assert.deepEqual(DESKTOP_BUNDLED_FLAC_WASM, {
+		file: 'src/common/editor/flac/flac.wasm',
+		byteLength: 153_044,
+		sha256: '34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443',
+	});
 	assert.deepEqual(DESKTOP_BUNDLED_WAVPACK_WASM, {
 		file: 'src/common/editor/wavpack/wavpack.wasm',
 		byteLength: 145_537,
@@ -57,8 +68,11 @@ test('desktop codec runtime inventory contains only the exact reviewed WavPack W
 	});
 	assert.deepEqual(
 		DESKTOP_CODEC_RUNTIME_FILES.filter((file) => file.endsWith('.wasm')),
-		[DESKTOP_BUNDLED_WAVPACK_WASM.file],
+		[DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_WAVPACK_WASM.file],
 	);
+	const flacProvider = await import('../desktop/bundled-flac-audio-codec-runtime.ts');
+	assert.equal(flacProvider.BUNDLED_FLAC_WASM_BYTE_LENGTH, DESKTOP_BUNDLED_FLAC_WASM.byteLength);
+	assert.equal(flacProvider.BUNDLED_FLAC_WASM_SHA256, DESKTOP_BUNDLED_FLAC_WASM.sha256);
 	const provider = await import('../desktop/bundled-wavpack-audio-codec-runtime.ts');
 	assert.equal(provider.BUNDLED_WAVPACK_WASM_BYTE_LENGTH, DESKTOP_BUNDLED_WAVPACK_WASM.byteLength);
 	assert.equal(provider.BUNDLED_WAVPACK_WASM_SHA256, DESKTOP_BUNDLED_WAVPACK_WASM.sha256);
@@ -77,8 +91,11 @@ test('compiled desktop audio main entry points are importable from the staged ru
 	assert.equal(result.files.includes('src/common/editor/wavpack/runtime.js'), true);
 	assert.deepEqual(
 		result.files.filter((file) => file.endsWith('.wasm')),
-		[DESKTOP_BUNDLED_WAVPACK_WASM.file],
+		[DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_WAVPACK_WASM.file],
 	);
+	const stagedFlac = await readFile(join(outputRoot, DESKTOP_BUNDLED_FLAC_WASM.file));
+	assert.equal(stagedFlac.byteLength, DESKTOP_BUNDLED_FLAC_WASM.byteLength);
+	assert.equal(createHash('sha256').update(stagedFlac).digest('hex'), DESKTOP_BUNDLED_FLAC_WASM.sha256);
 	const stagedWasm = await readFile(join(outputRoot, DESKTOP_BUNDLED_WAVPACK_WASM.file));
 	assert.equal(stagedWasm.byteLength, DESKTOP_BUNDLED_WAVPACK_WASM.byteLength);
 	assert.equal(createHash('sha256').update(stagedWasm).digest('hex'), DESKTOP_BUNDLED_WAVPACK_WASM.sha256);
@@ -90,6 +107,22 @@ test('compiled desktop audio main entry points are importable from the staged ru
 	)).href);
 	assert.equal(typeof composition.createDesktopAudioCodecRuntimeComposition, 'function');
 	assert.equal(typeof ipc.registerDesktopAudioCodecMainIpc, 'function');
+});
+
+test('FLAC staging refuses a pre-existing destination symlink', async (context) => {
+	const temporaryRoot = await mkdtemp(join(tmpdir(), 'soundscaper-flac-link-'));
+	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
+	const outputRoot = join(temporaryRoot, 'runtime');
+	const destination = join(outputRoot, DESKTOP_BUNDLED_FLAC_WASM.file);
+	const victim = join(temporaryRoot, 'victim.wasm');
+	await mkdir(dirname(destination), { recursive: true });
+	await writeFile(victim, 'preserve-me');
+	await symlink(victim, destination);
+	await assert.rejects(
+		stageDesktopBundledFlacRuntime({ repositoryRoot: ROOT, outputRoot }),
+		/(?:EEXIST|file already exists)/iu,
+	);
+	assert.equal(await readFile(victim, 'utf8'), 'preserve-me');
 });
 
 test('WavPack staging refuses a pre-existing destination symlink', async (context) => {

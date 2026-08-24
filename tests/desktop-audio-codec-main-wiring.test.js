@@ -19,6 +19,8 @@ test('desktop main registers codec IPC after preferences and joins owner and shu
 	assert.match(mainSource, /name: 'desktop audio codecs', run: \(\) => desktopAudioCodecs\?\.dispose\(\)/u);
 	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/desktop-audio-codec-runtime-composition\.js'\)/u);
 	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/desktop-audio-codec-main-ipc\.js'\)/u);
+	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-audio-codec-runtime\.js'\)/u);
+	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-flac-audio-codec-runtime\.js'\)/u);
 	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-wavpack-audio-codec-runtime\.js'\)/u);
 	assert.doesNotMatch(mainSource, /createBundledRuntime|createOperatingSystemRuntime/u,
 		'native runtime factories remain encapsulated by the desktop codec registration');

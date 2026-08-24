@@ -41,10 +41,14 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	const compositionOptions = [];
 	const ipcOptions = [];
 	const wavPackLoads = [];
+	const flacLoads = [];
+	const bundledCompositions = [];
 	const revoked = [];
 	let disposals = 0;
 	const service = Object.freeze({ execute: async () => ({}), capabilities: async () => ({}) });
 	const bundledRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
+	const flacRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
+	const compositeRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const externalFfmpegPreferences = Object.freeze({ admission: () => null });
 	const handle = () => undefined;
 	const removeHandler = () => undefined;
@@ -55,6 +59,15 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 		platform: 'darwin', architecture: 'arm64', userDataPath: '/user-data',
 		mkdir: async (...arguments_) => { directories.push(arguments_); },
 		loadModules: async () => ({
+			createBundledDesktopAudioCodecRuntime(options) {
+				bundledCompositions.push(options);
+				return compositeRuntime;
+			},
+			async loadBundledFlacAudioCodecRuntime(options) {
+				flacLoads.push(options);
+				await Promise.resolve();
+				return flacRuntime;
+			},
 			async loadBundledWavPackAudioCodecRuntime(options) {
 				wavPackLoads.push(options);
 				await Promise.resolve();
@@ -82,10 +95,14 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 		'target', 'scratchRoot', 'externalFfmpegPreferences', 'createBundledRuntime',
 	]);
 	assert.deepEqual(wavPackLoads, [{ target: 'mac-arm64' }]);
+	assert.deepEqual(flacLoads, [{ target: 'mac-arm64' }]);
+	assert.deepEqual(bundledCompositions, [{
+		target: 'mac-arm64', runtimes: [bundledRuntime, flacRuntime],
+	}]);
 	assert.equal(compositionOptions[0].target, 'mac-arm64');
 	assert.equal(compositionOptions[0].scratchRoot, '/user-data/desktop-audio-codecs');
 	assert.equal(compositionOptions[0].externalFfmpegPreferences, externalFfmpegPreferences);
-	assert.equal(compositionOptions[0].createBundledRuntime({ target: 'mac-arm64' }), bundledRuntime);
+	assert.equal(compositionOptions[0].createBundledRuntime({ target: 'mac-arm64' }), compositeRuntime);
 	assert.equal(ipcOptions.length, 1);
 	assert.deepEqual(ipcOptions[0].channels, {
 		desktopAudioCodecExecute: CHANNELS.desktopAudioCodecExecute,
@@ -106,7 +123,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	assert.equal(disposals, 1);
 });
 
-test('registration fails closed without an admitted bundled WavPack runtime', async () => {
+test('registration fails closed without any admitted bundled runtime', async () => {
 	const compositionOptions = [];
 	await registerDesktopAudioCodecs({
 		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
@@ -114,6 +131,11 @@ test('registration fails closed without an admitted bundled WavPack runtime', as
 		platform: 'win32', architecture: 'arm64', userDataPath: '/user-data',
 		mkdir: async () => undefined,
 		loadModules: async () => ({
+			createBundledDesktopAudioCodecRuntime: () => { throw new Error('must not compose'); },
+			loadBundledFlacAudioCodecRuntime: async ({ target }) => {
+				assert.equal(target, 'win-arm64');
+				return null;
+			},
 			loadBundledWavPackAudioCodecRuntime: async ({ target }) => {
 				assert.equal(target, 'win-arm64');
 				return null;

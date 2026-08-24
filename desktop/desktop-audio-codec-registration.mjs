@@ -11,7 +11,8 @@ const TARGETS = Object.freeze(new Map([
 	['win32:arm64', 'win-arm64'],
 ]));
 const MODULE_METHODS = Object.freeze([
-	'createDesktopAudioCodecRuntimeComposition', 'loadBundledWavPackAudioCodecRuntime',
+	'createBundledDesktopAudioCodecRuntime', 'createDesktopAudioCodecRuntimeComposition',
+	'loadBundledFlacAudioCodecRuntime', 'loadBundledWavPackAudioCodecRuntime',
 	'registerDesktopAudioCodecMainIpc',
 ]);
 
@@ -31,7 +32,13 @@ export async function registerDesktopAudioCodecs(options) {
 	const target = desktopAudioCodecTargetFor(options.platform, options.architecture);
 	const modules = await (options.loadModules ?? loadRuntimeModules)();
 	validateModules(modules);
-	const bundledRuntime = await modules.loadBundledWavPackAudioCodecRuntime({ target });
+	const reviewedRuntimes = (await Promise.all([
+		modules.loadBundledWavPackAudioCodecRuntime({ target }),
+		modules.loadBundledFlacAudioCodecRuntime({ target }),
+	])).filter((runtime) => runtime !== null);
+	const bundledRuntime = reviewedRuntimes.length === 0
+		? null
+		: modules.createBundledDesktopAudioCodecRuntime({ target, runtimes: reviewedRuntimes });
 	const scratchRoot = resolve(options.userDataPath, 'desktop-audio-codecs');
 	await (options.mkdir ?? nodeMkdir)(scratchRoot, { recursive: true, mode: 0o700 });
 	const service = modules.createDesktopAudioCodecRuntimeComposition({
@@ -60,13 +67,17 @@ export async function registerDesktopAudioCodecs(options) {
 }
 
 async function loadRuntimeModules() {
-	const [composition, ipc, wavPack] = await Promise.all([
+	const [bundled, composition, flac, ipc, wavPack] = await Promise.all([
+		import('./project-library-runtime/desktop/bundled-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-runtime-composition.js'),
+		import('./project-library-runtime/desktop/bundled-flac-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-main-ipc.js'),
 		import('./project-library-runtime/desktop/bundled-wavpack-audio-codec-runtime.js'),
 	]);
 	return Object.freeze({
+		createBundledDesktopAudioCodecRuntime: bundled.createBundledDesktopAudioCodecRuntime,
 		createDesktopAudioCodecRuntimeComposition: composition.createDesktopAudioCodecRuntimeComposition,
+		loadBundledFlacAudioCodecRuntime: flac.loadBundledFlacAudioCodecRuntime,
 		loadBundledWavPackAudioCodecRuntime: wavPack.loadBundledWavPackAudioCodecRuntime,
 		registerDesktopAudioCodecMainIpc: ipc.registerDesktopAudioCodecMainIpc,
 	});
