@@ -43,7 +43,6 @@ export function applyChannelMap(
 		&& sourceWidth === destinationWidth
 		&& map.every((source, destination) => source === destination)
 	)) return input;
-	if (map.length > destinationWidth) throw new RangeError(`V21 mixer edge ${edge.id} maps beyond its destination width.`);
 	if (map.some((source) => source >= sourceWidth)) {
 		throw new RangeError(`V21 mixer edge ${edge.id} maps a missing source channel.`);
 	}
@@ -54,6 +53,10 @@ export function applyChannelMap(
 	const merger = addNode(nodes, context.createChannelMerger(destinationWidth));
 	connect(input, splitter);
 	for (const [destinationChannel, sourceChannel] of map.entries()) {
+		// The stored-document validator deliberately admits maps longer than
+		// their destination (shipped documents carry them), so the graph keeps
+		// those projects playable by routing only the in-range entries.
+		if (destinationChannel >= destinationWidth) continue;
 		if (sourceChannel >= 0) connect(splitter, merger, sourceChannel, destinationChannel);
 	}
 	return merger;

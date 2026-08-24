@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { applyChannelMap } from '../src/common/editor/engine/project-graph-v21-edges.ts';
 import { buildProjectGraphV21 } from '../src/common/editor/engine/project-graph-v21.ts';
 
 const SAMPLE_RATE = 48_000;
@@ -114,4 +115,39 @@ test('the edge level node sits after the edge compensation delay', () => {
 		compensation / SAMPLE_RATE,
 		'the delay feeding the level node carries the edge compensation',
 	);
+});
+
+test('a shipped over-length channel map still builds, routing only in-range entries', () => {
+	// The stored-document validator deliberately admits maps longer than
+	// their destination width because shipped documents carry them; the
+	// runtime graph must keep those projects playable rather than throwing
+	// at playback and export start.
+	const connections: { from: unknown; to: unknown; output?: number; input?: number }[] = [];
+	let counter = 0;
+	const makeNode = (kind: string): Record<string, unknown> => {
+		const node: Record<string, unknown> = {
+			id: `${kind}#${String(counter += 1)}`, kind,
+			connect(target: unknown, output?: number, input?: number) {
+				connections.push({ from: node, to: target, output, input });
+				return target;
+			},
+			disconnect() {},
+		};
+		return node;
+	};
+	const context = {
+		createChannelSplitter(channels: number) { return makeNode(`splitter-${String(channels)}`); },
+		createChannelMerger(channels: number) { return makeNode(`merger-${String(channels)}`); },
+	};
+	const nodes: unknown[] = [];
+	const input = makeNode('input');
+	const output = applyChannelMap(
+		context as never, nodes as never, input as never, 4, 2,
+		{ id: 'edge-a', channelMap: [0, 1, 2, 3] } as never,
+	);
+	assert.match(String((output as { id: unknown }).id), /merger/u);
+	const routed = connections
+		.filter(({ from }) => String((from as { id: unknown }).id).startsWith('splitter'))
+		.map(({ output: sourceChannel, input: destinationChannel }) => [sourceChannel, destinationChannel]);
+	assert.deepEqual(routed, [[0, 0], [1, 1]], 'entries beyond the destination width are dropped');
 });
