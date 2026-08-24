@@ -60,7 +60,12 @@ test('changing or clearing the executable invalidates all external FFmpeg probe 
 	const first = join(fixture.root, 'first', 'ffmpeg');
 	const second = join(fixture.root, 'second', 'ffmpeg');
 	await fixture.settings.setExternalFfmpegSelection(first);
-	await fixture.settings.setExternalFfmpegProbeMetadata(probeMetadata(first));
+	const firstProbe = await fixture.settings.setExternalFfmpegProbeMetadata(probeMetadata(first));
+	assert.deepEqual(
+		await fixture.settings.setExternalFfmpegSelection(join(fixture.root, 'first', '..', 'first', 'ffmpeg')),
+		firstProbe,
+		'reselecting the same canonical executable retains its probe evidence',
+	);
 
 	assert.deepEqual(await fixture.settings.setExternalFfmpegSelection(second), {
 		executablePath: resolve(second), identity: null, capabilities: null,
@@ -70,6 +75,10 @@ test('changing or clearing the executable invalidates all external FFmpeg probe 
 		/currently selected/iu,
 	);
 	assert.deepEqual(fixture.settings.snapshot().externalFfmpegSelection, {
+		executablePath: resolve(second), identity: null, capabilities: null,
+	});
+	await fixture.settings.setExternalFfmpegProbeMetadata(probeMetadata(second));
+	assert.deepEqual(await fixture.settings.clearExternalFfmpegProbeMetadata(second), {
 		executablePath: resolve(second), identity: null, capabilities: null,
 	});
 
