@@ -12,6 +12,37 @@
 > [6B](milestone-6b-framescaper-delivery.md), and
 > [6C](milestone-6c-interchange-archive.md).
 
+## Activation audit — 2026-08-24
+
+The web milestone remains implemented and menu-reached. The requested native
+activation has produced a fail-closed integration contract, not a production
+activation claim:
+
+- Soundscaper has bounded persistent delivery descriptions/results, a renderer
+  queue adapter, exact-plan revalidation, and a caller-owned atomic publication
+  fence. No main/preload job implementation currently binds that adapter to the
+  application, so the maintained product continues to run the existing
+  in-session delivery queue.
+- Framescaper V15 binds an exact platform profile, caption mux/sidecar/burn-plan
+  artifacts, image-sequence companion audio, target policy, conformance closure,
+  and a sealed delivery report. The selected native lifecycle, queue, helper
+  grant, and executor contracts still admit through V14. Their verification-only
+  V15 projection refuses any caption or companion artifact instead of silently
+  dropping it.
+- EDL, OTIO, and FCPXML exports now inventory authored caption tracks as explicit
+  omissions, including an authored track with no cues in the exported sequence.
+
+Production native activation remains blocked by facts this repository cannot
+manufacture: reviewed codec/licensing decisions, target payloads and
+corresponding-source records, signing/notarization identities, packaged native
+execution, and owner-controlled lab evidence. The milestone-6 qualification
+audit is therefore healthy but `pending-external`: zero of 19 required
+measurements are accepted (one fixed-RTX profile plus the complete 18-profile
+Windows x64/ARM64, macOS ARM64, and Linux x64/ARM64 native matrix). Run
+`npm run audit:milestone-6-qualification` for the authoritative gate and
+`npm run milestone6:handoff-matrix` for the exact external handoff inventory.
+No runtime flag or licensing row is changed while those gates remain open.
+
 ## Goals and ordering principle
 
 1. **Primary: users must not hit trouble.** No hidden conversion — the

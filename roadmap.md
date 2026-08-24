@@ -158,7 +158,7 @@ Known architectural constraints that drive later work:
 | 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
 | 4. Production surfaces | **In progress — local implementation complete; qualification open** | Complete automation, routing, compositing, captions, and finishing. |
 | 5. Electron-native services | **In progress — software complete; qualification and activation open** | Add isolated native media, audio, render, and plug-in services. |
-| 6. Delivery/interchange | **In progress — web tier implemented, none qualified** | Add professional masters, queues, exchange, and archives. |
+| 6. Delivery/interchange | **Web tier implemented; native activation blocked; none qualified** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
 | 8. Capture and MIDI | **8A substrate implemented, dormant; 8B Blocked** | Framescaper recording code is retained as an unactivated historical substrate; selected-route activation and external qualification remain open, and MIDI waits for upstream design review. |
 | 8+. Framescaper Web VCR | **Software substrate implemented — provisional, disabled** | Keep the dormant contracts, security seams, controller, crop pipeline, and UI behind `framescaperWebVcr: false` until post-milestone-8 runtime qualification. |
@@ -679,8 +679,11 @@ invariants, and the bounded work packets are owned by the
 - **Web Core — Implemented:** delivery reports, dither/channel mapping,
   BWF/RF64/BW64/ADM conformance, and AUP4 omission/conversion reporting;
   restoration provenance alone does not exist, as nothing produces one yet.
-- **Electron Enhanced — Planned:** restartable background queues, direct
-  streaming, reference-scale archives, and reviewed professional deliverables.
+- **Electron Enhanced — Planned; safety substrate implemented:** exact bounded
+  persistent-job descriptions/results, queue adapters, and a caller-owned
+  publication fence now exist, but no main/preload executor binds them to the
+  application. The active product therefore continues to use its menu-reached
+  in-session delivery queue.
 - **Shared — Implemented:** reviewed object/binaural immersive delivery — beds to
   7.1.4, objects, a named binaural model — without weakening ADM passthrough.
 
@@ -698,11 +701,11 @@ invariants, and the bounded work packets are owned by the
   FFmpeg, fallback reported per run. Only a delivery that renders its own frames
   can be handed encoded chunks, so a build mounting the V19 controller reports
   the composed-graph fallback for every delivery.
-- **Electron Enhanced — Planned; substrate implemented:** nine delivery targets
-  declare legal status and fallback behaviour; the three that ship declare their
-  container, codec and canvas through the format they resolve to, and the six
-  needing an uncleared row resolve to no plan, fall back, and report the blocker
-  with the substitution.
+- **Electron Enhanced — Planned; V15 contract implemented, execution blocked:**
+  platform targets, exact caption and image-sequence companion-audio authority,
+  sealed reports, and fail-closed V15 envelopes exist. The selected desktop
+  executor still admits V14 only and explicitly refuses V15 delivery artifacts;
+  uncleared licensing, payload, signing, and native-lab rows remain unavailable.
 - **Shared — In progress:** EDL, OTIO, and FCPXML profiles itemize conversions;
   consolidate, checksums, and lossless trim-media are done; relink is Planned.
 
