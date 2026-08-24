@@ -160,13 +160,16 @@ export function buildAudioWarpRuntimeSegments(
 	}
 	const boundaries = new Set<number>([startFrame, endFrame]);
 	for (const point of map.points.slice(1, -1)) {
-		const frame = timelineFrameAtOuter(project, clip, point.outer);
-		if (frame > startFrame && frame < endFrame) boundaries.add(frame);
+		for (const frame of timelineFramesAtOuter(project, clip, point.outer)) {
+			if (frame > startFrame && frame < endFrame) boundaries.add(frame);
+		}
 	}
 	if (isMusicalAudioWarpClip(clip)) {
 		for (const event of project.tempoMap.events.slice(1)) {
-			const frame = beatToSampleFrame(event.beat, project.tempoMap, project.sampleRate, 'point');
-			if (frame > startFrame && frame < endFrame) boundaries.add(frame);
+			for (const policy of ['enclosingStart', 'enclosingEnd'] as const) {
+				const frame = beatToSampleFrame(event.beat, project.tempoMap, project.sampleRate, policy);
+				if (frame > startFrame && frame < endFrame) boundaries.add(frame);
+			}
 		}
 	}
 	const ordered = [...boundaries].sort((left, right) => left - right);
@@ -308,24 +311,23 @@ export function evaluateAudioWarpRenderParity(
 	});
 }
 
-function timelineFrameAtOuter(
+function timelineFramesAtOuter(
 	project: AudioWarpRuntimeProject,
 	clip: AudioWarpRuntimeClip,
 	outer: Rational,
-): number {
+): readonly [number, number] {
 	if (!isMusicalAudioWarpClip(clip)) {
-		return safeAdd(
-			clip.timelineStartFrame,
-			roundRational(outer.num, outer.den, 'point'),
+		const atPolicy = (policy: 'enclosingStart' | 'enclosingEnd'): number => safeAdd(
+			clip.timelineStartFrame, roundRational(outer.num, outer.den, policy),
 			'audio warp timeline boundary',
 		);
+		return Object.freeze([atPolicy('enclosingStart'), atPolicy('enclosingEnd')]);
 	}
-	return beatToSampleFrame(
-		addRationals(clip.musicalStartBeat!, outer),
-		project.tempoMap,
-		project.sampleRate,
-		'point',
-	);
+	const beat = addRationals(clip.musicalStartBeat!, outer);
+	return Object.freeze([
+		beatToSampleFrame(beat, project.tempoMap, project.sampleRate, 'enclosingStart'),
+		beatToSampleFrame(beat, project.tempoMap, project.sampleRate, 'enclosingEnd'),
+	]);
 }
 
 function rationalNumber(value: Rational): number {

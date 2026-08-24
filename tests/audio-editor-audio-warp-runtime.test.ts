@@ -155,6 +155,64 @@ test('realtime segment projection and exact offline evaluator agree across the s
 	assert.equal(parity.errorBudgetFrames, 0.000_001);
 });
 
+test('fractional sample and musical breakpoints retain the exact discrete map', () => {
+	const fractionalSampleClip = {
+		...SAMPLE_CLIP,
+		warpMap: {
+			feature: 'audio-warp' as const,
+			points: [
+				{ outer: 0, source: 1_000, mode: 'forward' as const },
+				{ outer: { num: 1_001, den: 20 }, source: 1_050, mode: 'forward' as const },
+				{ outer: 100, source: 1_200, mode: 'forward' as const },
+			],
+		},
+	};
+	const sampleSegments = buildAudioWarpRuntimeSegments(SAMPLE_PROJECT, fractionalSampleClip, {
+		startFrame: 100, endFrame: 200, sourceSampleRate: 48_000,
+	});
+	assert.deepEqual(
+		sampleSegments.flatMap(({ timelineStartFrame, timelineEndFrame }) => (
+			[timelineStartFrame, timelineEndFrame]
+		)).filter((frame, index, frames) => frames.indexOf(frame) === index),
+		[100, 150, 151, 200],
+	);
+	assert.ok(evaluateAudioWarpRenderParity(SAMPLE_PROJECT, fractionalSampleClip, {
+		startFrame: 100, endFrame: 200, sourceSampleRate: 48_000,
+	}).maximumErrorFrames <= 0.000_001);
+
+	const musicalProject = {
+		sampleRate: 48_000,
+		tempoMap: {
+			mode: 'musical' as const,
+			events: [{ id: 'tempo', beat: { num: 0, den: 1 }, bpm: { num: 123, den: 1 } }],
+		},
+	};
+	const musicalClip = {
+		id: 'fractional-musical', kind: 'audio', anchor: 'musical',
+		musicalStartBeat: { num: 0, den: 1 }, musicalExtent: 'beat',
+		musicalDurationBeats: { num: 2, den: 1 },
+		timelineStartFrame: 0, durationFrames: 46_829,
+		sourceStartFrame: 0, sourceDurationFrames: 48_000,
+		warpMap: {
+			feature: 'audio-warp' as const,
+			points: [
+				{ outer: 0, source: 0, mode: 'forward' as const },
+				{ outer: 1, source: 10_000, mode: 'forward' as const },
+				{ outer: 2, source: 48_000, mode: 'forward' as const },
+			],
+		},
+	};
+	const musicalSegments = buildAudioWarpRuntimeSegments(musicalProject, musicalClip, {
+		startFrame: 0, endFrame: 46_829, sourceSampleRate: 48_000,
+	});
+	assert.ok(musicalSegments.some(({ timelineStartFrame, timelineEndFrame }) => (
+		timelineStartFrame === 23_414 && timelineEndFrame === 23_415
+	)));
+	assert.ok(evaluateAudioWarpRenderParity(musicalProject, musicalClip, {
+		startFrame: 0, endFrame: 46_829, sourceSampleRate: 48_000,
+	}).maximumErrorFrames <= 0.000_001);
+});
+
 test('canonical map fingerprints are stable and authority-sensitive', () => {
 	const canonical = audioWarpMapFingerprint(SAMPLE_CLIP.warpMap);
 	assert.match(canonical, /^[a-f0-9]{64}$/u);

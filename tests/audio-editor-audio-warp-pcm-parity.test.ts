@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	AUDIO_WARP_PCM_PARITY_ERROR_BUDGET,
+	AUDIO_WARP_PCM_AMPLITUDE_ERROR_BUDGET,
 	evaluateAudioWarpPcmRenderParity,
 	renderExactAudioWarpPcm,
 	renderRealtimeAudioWarpPcmProjection,
@@ -41,7 +41,7 @@ test('piecewise scheduler projection and exact evaluator interpolation agree wit
 	for (const frame of [0, 255, 511, 512, 900, 1_299, 1_300, 1_700, 2_047]) {
 		for (let channel = 0; channel < exact.length; channel += 1) {
 			assert.ok(Math.abs(exact[channel]![frame]! - realtime[channel]![frame]!)
-				<= AUDIO_WARP_PCM_PARITY_ERROR_BUDGET, `channel ${String(channel)} frame ${String(frame)}`);
+				<= AUDIO_WARP_PCM_AMPLITUDE_ERROR_BUDGET, `channel ${String(channel)} frame ${String(frame)}`);
 		}
 	}
 	const evidence = evaluateAudioWarpPcmRenderParity(PROJECT, CLIP, RANGE, source);
@@ -49,14 +49,31 @@ test('piecewise scheduler projection and exact evaluator interpolation agree wit
 		breakpointCount: evidence.breakpointCount,
 		comparedFrameCount: evidence.comparedFrameCount,
 		comparedSampleCount: evidence.comparedSampleCount,
-		errorBudget: evidence.errorBudget,
+		amplitudeErrorBudget: evidence.amplitudeErrorBudget,
 	}, {
 		breakpointCount: 4,
 		comparedFrameCount: 2_048,
 		comparedSampleCount: 4_096,
-		errorBudget: 0.000_001,
+		amplitudeErrorBudget: 0.000_001,
 	});
-	assert.ok(evidence.maximumSignalError <= evidence.errorBudget);
+	assert.ok(evidence.maximumSignalError <= evidence.amplitudeErrorBudget);
+});
+
+test('fractional breakpoints preserve exact PCM projection across every output frame', () => {
+	const clip = {
+		...CLIP,
+		warpMap: {
+			...CLIP.warpMap,
+			points: CLIP.warpMap.points.map((point, index) => index === 1
+				? { ...point, outer: { num: 1_025, den: 2 } }
+				: point),
+		},
+	};
+	const evidence = evaluateAudioWarpPcmRenderParity(
+		PROJECT, clip, RANGE, deterministicSource(4_096),
+	);
+	assert.equal(evidence.comparedFrameCount, RANGE.endFrame - RANGE.startFrame);
+	assert.ok(evidence.maximumSignalError <= evidence.amplitudeErrorBudget);
 });
 
 function deterministicSource(frameCount: number): readonly Float32Array[] {

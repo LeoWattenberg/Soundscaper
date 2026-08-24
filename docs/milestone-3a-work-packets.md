@@ -219,8 +219,11 @@ tree, through the Soundscaper capability flip — is decomposed in
 - **Acceptance:** Detector fixtures are deterministic across supported runtimes;
   corrupt/stale derived data is discarded. Warp authoring, trims, tempo edits,
   quantization strength 0/1/intermediate, groove templates, undo/redo,
-  clipboard, and save/reopen preserve meaning. Realtime and offline results
-  agree at every breakpoint and within the audio error budget between them.
+  clipboard, and save/reopen preserve meaning. Fractional warp and held-tempo
+  boundaries contribute both enclosing integer frames, so realtime and offline
+  consume the exact rational map at every discrete output frame. The positional
+  diagnostic is measured in source frames; the separately named PCM budget is
+  measured in normalized sample amplitude across every rendered output frame.
   Missing realtime acceleration selects the exact offline path with visible
   status. UI editing has pointer/keyboard/screen-reader/high-contrast parity.
 - **Non-goals:** No video speed ramps, pitch-formant editor, MIDI quantization,

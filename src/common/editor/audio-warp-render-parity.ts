@@ -8,14 +8,14 @@ import {
 	type AudioWarpRuntimeRange,
 } from './audio-warp-runtime.ts';
 
-export const AUDIO_WARP_PCM_PARITY_ERROR_BUDGET = 0.000_001;
+export const AUDIO_WARP_PCM_AMPLITUDE_ERROR_BUDGET = 0.000_001;
 
 export interface AudioWarpPcmParityEvidence {
 	readonly breakpointCount: number;
 	readonly comparedFrameCount: number;
 	readonly comparedSampleCount: number;
 	readonly maximumSignalError: number;
-	readonly errorBudget: number;
+	readonly amplitudeErrorBudget: number;
 }
 
 /** Independently sample every timeline frame through the exact map evaluator. */
@@ -86,7 +86,7 @@ export function evaluateAudioWarpPcmRenderParity(
 			);
 		}
 	}
-	if (maximumSignalError > AUDIO_WARP_PCM_PARITY_ERROR_BUDGET) {
+	if (maximumSignalError > AUDIO_WARP_PCM_AMPLITUDE_ERROR_BUDGET) {
 		throw new Error('Audio warp realtime and exact-offline PCM exceed their signal error budget.');
 	}
 	const segments = buildAudioWarpRuntimeSegments(project, clip, range);
@@ -97,7 +97,7 @@ export function evaluateAudioWarpPcmRenderParity(
 		comparedFrameCount: exact[0]?.length ?? 0,
 		comparedSampleCount: (exact[0]?.length ?? 0) * exact.length,
 		maximumSignalError,
-		errorBudget: AUDIO_WARP_PCM_PARITY_ERROR_BUDGET,
+		amplitudeErrorBudget: AUDIO_WARP_PCM_AMPLITUDE_ERROR_BUDGET,
 	});
 }
 

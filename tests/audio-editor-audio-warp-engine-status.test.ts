@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	AUDIO_WARP_PCM_PARITY_ERROR_BUDGET,
+	AUDIO_WARP_PCM_AMPLITUDE_ERROR_BUDGET,
 	renderExactAudioWarpPcm,
 	renderRealtimeAudioWarpPcmProjection,
 } from '../src/common/editor/audio-warp-render-parity.ts';
@@ -430,7 +430,7 @@ function filteredFixtureSample(frame: number, channel: number): number {
 function assertSignalWithinBudget(actual: ArrayLike<number>, expected: Float32Array): void {
 	assert.equal(actual.length, expected.length);
 	for (let frame = 0; frame < expected.length; frame += 1) {
-		assert.ok(Math.abs(actual[frame]! - expected[frame]!) <= AUDIO_WARP_PCM_PARITY_ERROR_BUDGET,
+		assert.ok(Math.abs(actual[frame]! - expected[frame]!) <= AUDIO_WARP_PCM_AMPLITUDE_ERROR_BUDGET,
 			`signal error at frame ${String(frame)}`);
 	}
 }
