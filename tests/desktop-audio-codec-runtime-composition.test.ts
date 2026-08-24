@@ -40,7 +40,7 @@ test('capability status is fail-closed, sanitized, and uses one admission snapsh
 		&& entry.reason === 'configure-external-ffmpeg'), true);
 	assert.equal(JSON.stringify(result).includes('path'), false);
 	assert.deepEqual(Reflect.ownKeys(result.capabilities[0] ?? {}), [
-		'operation', 'format', 'sampleRate', 'channelCount', 'available', 'provider', 'reason',
+		'operation', 'format', 'sampleRate', 'channelCount', 'settings', 'available', 'provider', 'reason',
 	]);
 });
 
@@ -75,6 +75,45 @@ test('capability status preserves bundled then operating-system provider priorit
 	const result = await service.capabilities({ ...query, operations: [query.operations[0]!] });
 	assert.equal(result.capabilities[0]?.provider, 'operating-system');
 	assert.deepEqual(trace, ['preflight:bundled', 'preflight:operating-system']);
+});
+
+test('capability status preflights exact encode settings before falling through a tier', async () => {
+	const trace: string[] = [];
+	const bundled = runtimeFactory('bundled', 'supported', trace, Uint8Array.of(1));
+	const service = createDesktopAudioCodecRuntimeComposition({
+		target: 'linux-x64', scratchRoot: SCRATCH,
+		createBundledRuntime: (context) => ({
+			...bundled(context),
+			preflightRequest(request) {
+				const level = request.operation === 'audio-encode' && request.format === 'wavpack'
+					? request.settings.compressionLevel : null;
+				trace.push(`exact:${level === null ? 'other' : String(level)}`);
+				return Promise.resolve(level === 2
+					? { disposition: 'supported' as const, reason: null }
+					: { disposition: 'unsupported' as const, reason: 'unsupported exact settings' });
+			},
+		}),
+		externalFfmpegPreferences: preferences(() => wavpackAdmission('/private/ffmpeg')),
+	});
+	const base = {
+		operation: 'audio-encode' as const, format: 'wavpack' as const,
+		sampleRate: 48_000, channelCount: 2,
+	};
+	const result = await service.capabilities({
+		schemaVersion: 2,
+		operations: [
+			{ ...base, settings: { compressionLevel: 2 } },
+			{ ...base, settings: { compressionLevel: 5 } },
+		],
+	});
+	assert.deepEqual(result.capabilities.map(({ settings, provider }) => ({ settings, provider })), [
+		{ settings: { compressionLevel: 2 }, provider: 'bundled' },
+		{ settings: { compressionLevel: 5 }, provider: 'external-ffmpeg' },
+	]);
+	assert.deepEqual(trace, [
+		'preflight:bundled', 'exact:2',
+		'preflight:bundled', 'exact:5',
+	]);
 });
 
 test('missing native factories and FFmpeg admission fail closed in all three priority tiers', async () => {
@@ -445,6 +484,16 @@ function opusAdmission(
 	};
 }
 
+function wavpackAdmission(executablePath: string): ExternalFfmpegRuntimeAdmission {
+	return {
+		...opusAdmission(executablePath),
+		capabilities: {
+			encoders: ['wavpack'], decoders: ['pcm_f32le'],
+			muxers: ['wv'], demuxers: ['f32le'], filters: ['aresample'],
+		},
+	};
+}
+
 function encodeRequest(format: 'flac' | 'opus'): DesktopAudioCodecRequest {
 	return {
 		operation: 'audio-encode', format,
@@ -505,12 +554,12 @@ function preferenceStatus(
 
 function capabilityQuery(): DesktopAudioCodecCapabilityQuery {
 	return {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		operations: [
-			{ operation: 'audio-encode', format: 'opus', sampleRate: 48_000, channelCount: 2 },
-			{ operation: 'audio-decode', format: 'opus', sampleRate: 48_000, channelCount: 2 },
-			{ operation: 'audio-encode', format: 'flac', sampleRate: 48_000, channelCount: 2 },
-			{ operation: 'audio-decode', format: 'flac', sampleRate: 48_000, channelCount: 2 },
+			{ operation: 'audio-encode', format: 'opus', sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 160 } },
+			{ operation: 'audio-decode', format: 'opus', sampleRate: 48_000, channelCount: 2, settings: { sampleFormat: 'f32le' } },
+			{ operation: 'audio-encode', format: 'flac', sampleRate: 48_000, channelCount: 2, settings: { compressionLevel: 5, bitDepth: 24 } },
+			{ operation: 'audio-decode', format: 'flac', sampleRate: 48_000, channelCount: 2, settings: { sampleFormat: 'f32le' } },
 		],
 	};
 }

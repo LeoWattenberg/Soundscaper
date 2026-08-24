@@ -13,8 +13,8 @@ test('desktop file service forwards only the three preload audio codec calls', a
 		maximumOutputBytes: 64, requestId: 'desktop-audio-request-1',
 	});
 	const result = Object.freeze({ status: 'main-result' });
-	const query = Object.freeze({ schemaVersion: 1, operations: Object.freeze([]) });
-	const capabilities = Object.freeze({ schemaVersion: 1, capabilities: Object.freeze([]) });
+	const query = Object.freeze({ schemaVersion: 2, operations: Object.freeze([]) });
+	const capabilities = Object.freeze({ schemaVersion: 2, capabilities: Object.freeze([]) });
 	const service = createAudioEditorFileService({
 		bridge: {
 			getDesktopAudioCodecCapabilities(value) { calls.push(['capabilities', value]); return Promise.resolve(capabilities); },

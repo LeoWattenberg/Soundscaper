@@ -18,14 +18,20 @@ const RESULT = Object.freeze({
 	}),
 });
 const CAPABILITY_QUERY = Object.freeze({
-	schemaVersion: 1,
+	schemaVersion: 2,
 	operations: Object.freeze([
-		Object.freeze({ operation: 'audio-encode', format: 'opus', sampleRate: 48_000, channelCount: 1 }),
-		Object.freeze({ operation: 'audio-decode', format: 'flac', sampleRate: 48_000, channelCount: 2 }),
+		Object.freeze({
+			operation: 'audio-encode', format: 'opus', sampleRate: 48_000, channelCount: 1,
+			settings: Object.freeze({ bitrateKbps: 128 }),
+		}),
+		Object.freeze({
+			operation: 'audio-decode', format: 'flac', sampleRate: 48_000, channelCount: 2,
+			settings: Object.freeze({ sampleFormat: 'f32le' }),
+		}),
 	]),
 });
 const CAPABILITY_RESULT = Object.freeze({
-	schemaVersion: 1,
+	schemaVersion: 2,
 	capabilities: Object.freeze([
 		Object.freeze({ ...CAPABILITY_QUERY.operations[0], available: true, provider: 'external-ffmpeg', reason: null }),
 		Object.freeze({ ...CAPABILITY_QUERY.operations[1], available: false, provider: null, reason: 'unsupported-by-configured-ffmpeg' }),
@@ -46,6 +52,7 @@ test('sandbox preload exposes a correlated pathless audio capability query', asy
 		{ ...CAPABILITY_QUERY, executablePath: '/renderer/ffmpeg' },
 		{ ...CAPABILITY_QUERY, operations: [] },
 		{ ...CAPABILITY_QUERY, operations: [CAPABILITY_QUERY.operations[0], CAPABILITY_QUERY.operations[0]] },
+		{ ...CAPABILITY_QUERY, operations: [{ ...CAPABILITY_QUERY.operations[0], settings: { bitrateKbps: 320 } }] },
 	]) await assert.rejects(() => bridge.v1.getDesktopAudioCodecCapabilities(query), /capability/iu);
 	for (const malicious of [
 		{ ...CAPABILITY_RESULT, executablePath: '/main/ffmpeg' },

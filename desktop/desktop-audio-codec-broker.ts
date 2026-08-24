@@ -210,12 +210,12 @@ async function bindRuntimesToRequest(
 }>[]> {
 	const bindings = [];
 	for (const runtime of runtimes) {
-		bindings.push(await bindRuntimeToRequest(runtime, request, operation, signal));
+		bindings.push(await bindDesktopAudioCodecRuntimeToRequest(runtime, request, operation, signal));
 	}
 	return Object.freeze(bindings);
 }
 
-async function bindRuntimeToRequest(
+export async function bindDesktopAudioCodecRuntimeToRequest(
 	runtime: DesktopAudioCodecProviderRuntime,
 	request: DesktopAudioCodecRequest,
 	operation: DesktopCodecOperation,

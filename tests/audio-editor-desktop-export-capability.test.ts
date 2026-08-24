@@ -10,10 +10,10 @@ test('desktop export gate requires the exact planned encode tuple before renderi
 	const queries: unknown[] = [];
 	const runtime = {
 		[DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true as const,
-		desktopAudioCodecCapabilities(query: { operations: readonly Record<string, unknown>[] }) {
+			desktopAudioCodecCapabilities(query: { operations: readonly Record<string, unknown>[] }) {
 			queries.push(query);
 			return Promise.resolve({
-				schemaVersion: 1 as const,
+				schemaVersion: 2 as const,
 				capabilities: query.operations.map((operation) => ({
 					...operation, available: false as const, provider: null,
 					reason: 'configure-external-ffmpeg' as const,
@@ -22,11 +22,16 @@ test('desktop export gate requires the exact planned encode tuple before renderi
 		},
 	};
 	await assert.rejects(
-		() => assertDesktopAudioExportCapability(runtime, { format: 'opus', sampleRate: 48_000, channelCount: 6 }),
+		() => assertDesktopAudioExportCapability(runtime, {
+			format: 'opus', sampleRate: 48_000, channelCount: 6, encoding: { bitRate: 128 },
+		}),
 		/Preferences > General/iu,
 	);
 	assert.deepEqual((queries[0] as { operations: unknown[] }).operations, [
-		{ operation: 'audio-encode', format: 'opus', sampleRate: 48_000, channelCount: 6 },
+		{
+			operation: 'audio-encode', format: 'opus', sampleRate: 48_000, channelCount: 6,
+			settings: { bitrateKbps: 128 },
+		},
 	]);
 });
 
@@ -39,56 +44,67 @@ test('browser runtimes and native desktop formats remain unchanged', async () =>
 	}, { format: 'wav', sampleRate: 384_000, channelCount: 32 }));
 });
 
-test('bundled WavPack refuses an unmapped compression level before rendering', async () => {
-	let queries = 0;
+test('WavPack re-queries exact levels so unsupported bundled settings can fall through', async () => {
+	const settings: unknown[] = [];
 	const runtime = {
 		[DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true as const,
 		desktopAudioCodecCapabilities(query: { operations: readonly Record<string, unknown>[] }) {
-			queries += 1;
+			settings.push(query.operations[0]?.settings);
 			return Promise.resolve({
-				schemaVersion: 1 as const,
+				schemaVersion: 2 as const,
 				capabilities: query.operations.map((operation) => ({
-					...operation, available: true as const, provider: 'bundled' as const, reason: null,
+					...operation, available: true as const,
+					provider: (operation.settings as { compressionLevel: number }).compressionLevel === 2
+						? 'bundled' as const : 'external-ffmpeg' as const,
+					reason: null,
 				})),
 			});
 		},
 	};
-	await assert.rejects(
-		() => assertDesktopAudioExportCapability(runtime, {
-			format: 'wavpack', sampleRate: 48_000, channelCount: 2,
-			encoding: { compressionLevel: 1 },
-		}),
-		/level 2/iu,
-	);
+	await assert.doesNotReject(assertDesktopAudioExportCapability(runtime, {
+		format: 'wavpack', sampleRate: 48_000, channelCount: 2,
+		encoding: { compressionLevel: 1 },
+	}));
 	await assert.doesNotReject(assertDesktopAudioExportCapability(runtime, {
 		format: 'wavpack', sampleRate: 48_000, channelCount: 2,
 		encoding: { compressionLevel: 2 },
 	}));
-	assert.equal(queries, 2);
+	assert.deepEqual(settings, [{ compressionLevel: 1 }, { compressionLevel: 2 }]);
 });
 
-test('bundled FLAC refuses non-24-bit PCM and unreviewed levels before rendering', async () => {
+test('FLAC re-queries exact bit depth and level so bundled misses can fall through', async () => {
+	const settings: unknown[] = [];
 	const runtime = {
 		[DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true as const,
 		desktopAudioCodecCapabilities(query: { operations: readonly Record<string, unknown>[] }) {
+			settings.push(query.operations[0]?.settings);
 			return Promise.resolve({
-				schemaVersion: 1 as const,
+				schemaVersion: 2 as const,
 				capabilities: query.operations.map((operation) => ({
-					...operation, available: true as const, provider: 'bundled' as const, reason: null,
+					...operation, available: true as const,
+					provider: (operation.settings as { bitDepth: number; compressionLevel: number }).bitDepth === 24
+						&& (operation.settings as { compressionLevel: number }).compressionLevel <= 8
+						? 'bundled' as const : 'external-ffmpeg' as const,
+					reason: null,
 				})),
 			});
 		},
 	};
-	await assert.rejects(() => assertDesktopAudioExportCapability(runtime, {
+	await assert.doesNotReject(assertDesktopAudioExportCapability(runtime, {
 		format: 'flac', sampleRate: 48_000, channelCount: 2,
 		encoding: { compressionLevel: 5, bitDepth: 16, sampleFormat: 'int16' },
-	}), /signed 24-bit/iu);
-	await assert.rejects(() => assertDesktopAudioExportCapability(runtime, {
+	}));
+	await assert.doesNotReject(assertDesktopAudioExportCapability(runtime, {
 		format: 'flac', sampleRate: 48_000, channelCount: 2,
 		encoding: { compressionLevel: 9, bitDepth: 24, sampleFormat: 'int24' },
-	}), /levels 0 through 8/iu);
+	}));
 	await assert.doesNotReject(assertDesktopAudioExportCapability(runtime, {
 		format: 'flac', sampleRate: 48_000, channelCount: 2,
 		encoding: { compressionLevel: 8, bitDepth: 24, sampleFormat: 'int24' },
 	}));
+	assert.deepEqual(settings, [
+		{ compressionLevel: 5, bitDepth: 16 },
+		{ compressionLevel: 9, bitDepth: 24 },
+		{ compressionLevel: 8, bitDepth: 24 },
+	]);
 });

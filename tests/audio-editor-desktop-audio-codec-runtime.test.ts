@@ -45,10 +45,18 @@ test('load is fail-closed until main admits exact desktop audio tuples', async (
 
 test('all seven legacy encode calls stage interleaved f32le and map normalized settings', async () => {
 	const requests: DesktopAudioCodecRequest[] = [];
-	const bridge = successBridge((request) => {
+	const capabilitySettings: unknown[] = [];
+	const executionBridge = successBridge((request) => {
 		requests.push(request);
 		return Uint8Array.of(1, 2, 3, requests.length);
 	});
+	const bridge = {
+		...executionBridge,
+		capabilities(query: Parameters<DesktopAudioCodecRendererBridge['capabilities']>[0]) {
+			capabilitySettings.push(query.operations[0]?.settings);
+			return admittedCapabilities(query);
+		},
+	};
 	const runtime = createDesktopAudioCodecRuntime(bridge);
 	const wav = encodeWav([
 		Float32Array.of(0.25, 0.5),
@@ -73,13 +81,14 @@ test('all seven legacy encode calls stage interleaved f32le and map normalized s
 		assert.match(request.requestId ?? '', /^desktop-audio-[a-f0-9]{32}$/u);
 		assert.deepEqual(readF32(request.input), [0.25, -0.25, 0.5, -0.5]);
 	}
+	assert.deepEqual(capabilitySettings, FORMAT_CASES.map(({ expected }) => expected));
 });
 
 test('an unavailable exact tuple refuses before the operation bridge executes', async () => {
 	let executions = 0;
 	const runtime = createDesktopAudioCodecRuntime({
 		capabilities: (query) => ({
-			schemaVersion: 1,
+			schemaVersion: 2,
 			capabilities: query.operations.map((operation) => ({
 				...operation, available: false, provider: null,
 				reason: 'configure-external-ffmpeg',
@@ -286,7 +295,7 @@ function successBridge(
 
 function admittedCapabilities(query: Parameters<DesktopAudioCodecRendererBridge['capabilities']>[0]) {
 	return {
-		schemaVersion: 1 as const,
+		schemaVersion: 2 as const,
 		capabilities: query.operations.map((operation) => ({
 			...operation, available: true as const, provider: 'external-ffmpeg' as const, reason: null,
 		})),

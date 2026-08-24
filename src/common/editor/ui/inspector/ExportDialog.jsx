@@ -106,12 +106,12 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	const desktopCodecQuery = useMemo(() => {
 		if (!desktop) return null;
 		try { return createDesktopExportCodecQuery({
-			sampleRate: settings.sampleRate, channelMapping: settings.channelMapping,
-			channelMatrix: settings.channelMatrix, binaural: settings.binaural,
+			sampleRate: settings.sampleRate, channelMapping: settings.channelMapping, channelMatrix: settings.channelMatrix, binaural: settings.binaural,
+			format: settings.format, sampleFormat: settings.sampleFormat, compressionLevel: settings.compressionLevel, quality: settings.quality, bitRate: settings.bitRate,
 		}, snapshot.project?.masterChannels || 2); }
 		catch { return false; }
-	}, [desktop, settings.binaural, settings.channelMapping, settings.channelMatrix,
-		settings.sampleRate, snapshot.project?.masterChannels]);
+	}, [desktop, settings.binaural, settings.bitRate, settings.channelMapping, settings.channelMatrix, settings.compressionLevel,
+		settings.format, settings.quality, settings.sampleFormat, settings.sampleRate, snapshot.project?.masterChannels]);
 	const desktopCodecCapabilities = useMemo(() => {
 		if (!desktopCodecQuery) return null;
 		return desktopCodecStatus?.query === desktopCodecQuery
@@ -231,7 +231,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		}
 		const descriptor = MEDIA_EXPORT_FORMATS[settings.format];
 		const sampleFormats = desktop && settings.format === 'flac'
-			? desktopExportFlacSampleFormats(desktopCodecCapabilities)
+			? desktopExportFlacSampleFormats()
 			: descriptor?.sampleFormats;
 		if (sampleFormats?.length && !sampleFormats.includes(settings.sampleFormat)) {
 			setSettings((current) => ({ ...current, sampleFormat: sampleFormats[0] }));
@@ -329,7 +329,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	const maximumAudioSampleRate = exportDialogMaximumAudioSampleRate(settings.format, desktop);
 	const formatDescriptor = MEDIA_EXPORT_FORMATS[settings.format];
 	const sampleFormatOptions = desktop && settings.format === 'flac'
-		? desktopExportFlacSampleFormats(desktopCodecCapabilities)
+		? desktopExportFlacSampleFormats()
 		: formatDescriptor?.sampleFormats || [];
 	const desktopFormatRefusal = desktop
 		? desktopExportSelectionReason(settings, desktopCodecCapabilities, desktopCodecQuery === false)
@@ -523,7 +523,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						<LabeledDropdown label={copy.quality} hook="quality" value={settings.quality} onChange={(value) => set('quality', value)} disabled={exporting} options={exportDialogVorbisQualityOptions(desktop)} />
 					) : null)}
 					{!videoFormat && ['flac', 'wavpack'].includes(settings.format) && (
-						<LabeledDropdown label={copy.quality} hook="quality" value={settings.compressionLevel} onChange={(value) => set('compressionLevel', value)} disabled={exporting} options={(settings.format === 'wavpack' && desktop ? desktopExportWavPackCompressionLevels(desktopCodecCapabilities) : Array.from({ length: settings.format === 'flac' ? 9 : 6 }, (_, level) => level)).map((level) => ({ value: String(level), label: `${copy.level} ${level}` }))} />
+						<LabeledDropdown label={copy.quality} hook="quality" value={settings.compressionLevel} onChange={(value) => set('compressionLevel', value)} disabled={exporting} options={(settings.format === 'wavpack' && desktop ? desktopExportWavPackCompressionLevels() : Array.from({ length: settings.format === 'flac' ? 9 : 6 }, (_, level) => level)).map((level) => ({ value: String(level), label: `${copy.level} ${level}` }))} />
 					)}
 					{!videoFormat && <label className="audio-editor-field" data-export-field="sampleRate"><span>{copy.sampleRate}</span><input type="number" min="8000" max={maximumAudioSampleRate} step="1" list="audio-editor-export-rates" value={settings.sampleRate} disabled={exporting || admPassthrough} onChange={(event) => set('sampleRate', event.currentTarget.value)} /><datalist id="audio-editor-export-rates">{exportDialogSampleRateSuggestions(maximumAudioSampleRate, snapshot.project?.sampleRate, settings.format, desktop).map((value) => <option key={value} value={value} />)}</datalist></label>}
 					{!videoFormat && <LabeledDropdown label={copy.channelMapping} hook="channelMapping" value={settings.channelMapping} onChange={(value) => set('channelMapping', value)} disabled={exporting || settings.format === 'bw64'} options={[{ value: 'preserve', label: copy.preserveChannels }, { value: 'mono', label: copy.mono }, { value: 'stereo', label: copy.stereo }, { value: 'custom', label: copy.customChannelMapping }]} />}

@@ -3,6 +3,7 @@
 /** Renderer-side presentation of sanitized, exact main-process codec status. */
 
 import {
+	DESKTOP_AUDIO_CODEC_CAPABILITY_SCHEMA_VERSION,
 	normalizeDesktopAudioCodecCapabilityQuery,
 	normalizeDesktopAudioCodecCapabilityResult,
 	type DesktopAudioCodecCapabilityEntry,
@@ -12,7 +13,11 @@ import {
 	type DesktopAudioCodecCapabilityResult,
 	type DesktopAudioCodecCapabilityTuple,
 } from '../../../desktop/desktop-audio-codec-capability-contract.ts';
-import { DESKTOP_AUDIO_CODEC_FORMATS } from '../../../desktop/desktop-audio-codec-operation-contract.ts';
+import {
+	DESKTOP_AUDIO_CODEC_FORMATS,
+	desktopAudioCodecEncodeBitRates,
+	type DesktopAudioCodecFormat,
+} from '../../../desktop/desktop-audio-codec-operation-contract.ts';
 import { createMediaExportCapabilities } from './media-export.js';
 
 export const DESKTOP_AUDIO_CODEC_PREFERENCES_REASON =
@@ -38,6 +43,7 @@ export interface DesktopAudioCodecCapabilityQueryOptions {
 	readonly sampleRate: number;
 	readonly channelCount: number;
 	readonly operations?: readonly ('audio-decode' | 'audio-encode')[];
+	readonly encodeSettings?: Readonly<Partial<Record<DesktopAudioCodecFormat, unknown>>>;
 }
 
 export type DesktopAudioCodecCapabilityQueryPort = (
@@ -52,9 +58,13 @@ export function createDesktopAudioCodecCapabilityQuery(
 ): DesktopAudioCodecCapabilityQuery {
 	const operations = options.operations ?? ['audio-encode', 'audio-decode'];
 	return normalizeDesktopAudioCodecCapabilityQuery({
-		schemaVersion: 1,
+		schemaVersion: DESKTOP_AUDIO_CODEC_CAPABILITY_SCHEMA_VERSION,
 		operations: DESKTOP_AUDIO_CODEC_FORMATS.flatMap((format) => operations.map((operation) => ({
 			operation, format, sampleRate: options.sampleRate, channelCount: options.channelCount,
+			settings: operation === 'audio-decode'
+				? { sampleFormat: 'f32le' }
+				: options.encodeSettings?.[format]
+					?? defaultEncodeSettings(format, options.sampleRate, options.channelCount),
 		}))),
 	});
 }
@@ -62,7 +72,9 @@ export function createDesktopAudioCodecCapabilityQuery(
 export function createDesktopAudioCodecSingleCapabilityQuery(
 	tuple: DesktopAudioCodecCapabilityTuple,
 ): DesktopAudioCodecCapabilityQuery {
-	return normalizeDesktopAudioCodecCapabilityQuery({ schemaVersion: 1, operations: [tuple] });
+	return normalizeDesktopAudioCodecCapabilityQuery({
+		schemaVersion: DESKTOP_AUDIO_CODEC_CAPABILITY_SCHEMA_VERSION, operations: [tuple],
+	});
 }
 
 export async function queryDesktopAudioCodecCapability(
@@ -131,4 +143,20 @@ export function desktopAudioCodecCapabilityReason(
 		return 'The configured FFmpeg does not support this exact operation. Choose another FFmpeg build in Edit > Preferences > General.';
 	}
 	return DESKTOP_AUDIO_CODEC_PREFERENCES_REASON;
+}
+
+function defaultEncodeSettings(
+	format: DesktopAudioCodecFormat,
+	sampleRate: number,
+	channelCount: number,
+): Readonly<Record<string, number>> {
+	if (format === 'flac') return Object.freeze({ compressionLevel: 5, bitDepth: 24 });
+	if (format === 'wavpack') return Object.freeze({ compressionLevel: 2 });
+	if (format === 'ogg-vorbis') return Object.freeze({ quality: 5 });
+	if (format === 'opus') return Object.freeze({ bitrateKbps: 160 });
+	if (format === 'mp2') return Object.freeze({ bitrateKbps: 256 });
+	return Object.freeze({
+		bitrateKbps: desktopAudioCodecEncodeBitRates(format, sampleRate, channelCount)[0]
+			?? desktopAudioCodecEncodeBitRates(format)[0] ?? 32,
+	});
 }

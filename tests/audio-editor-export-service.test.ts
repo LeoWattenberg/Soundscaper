@@ -14,6 +14,7 @@ test('desktop compressed export refuses an unavailable exact tuple before render
 	fixture.setPlan({
 		...defaultPlan(), format: 'opus', mimeType: 'audio/ogg', extension: 'opus',
 		container: 'Ogg Opus', codec: 'opus',
+		encoding: { bitRate: 160 },
 	});
 	const runtime = {
 		...fixture.runtime,
@@ -21,7 +22,7 @@ test('desktop compressed export refuses an unavailable exact tuple before render
 			...fixture.runtime.ffmpeg,
 			[DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true as const,
 			desktopAudioCodecCapabilities: (query: { operations: readonly Record<string, unknown>[] }) => ({
-				schemaVersion: 1,
+				schemaVersion: 2,
 				capabilities: query.operations.map((operation) => ({
 					...operation, available: false, provider: null,
 					reason: 'configure-external-ffmpeg',

@@ -7,10 +7,12 @@ import {
 	DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT,
 	DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE,
 	DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
+	normalizeDesktopAudioCodecRequest,
 	type DesktopAudioCodecFormat,
+	type DesktopAudioCodecRequest,
 } from './desktop-audio-codec-operation-contract.ts';
 
-export const DESKTOP_AUDIO_CODEC_CAPABILITY_SCHEMA_VERSION = 1 as const;
+export const DESKTOP_AUDIO_CODEC_CAPABILITY_SCHEMA_VERSION = 2 as const;
 export const DESKTOP_AUDIO_CODEC_CAPABILITY_QUERY_LIMIT = 14;
 
 export type DesktopAudioCodecCapabilityProvider =
@@ -23,11 +25,14 @@ export type DesktopAudioCodecCapabilityReason =
 	| 'unsupported-by-configured-ffmpeg'
 	| 'unsupported-settings';
 
+export type DesktopAudioCodecCapabilitySettings = DesktopAudioCodecRequest['settings'];
+
 export interface DesktopAudioCodecCapabilityTuple {
 	readonly operation: 'audio-decode' | 'audio-encode';
 	readonly format: DesktopAudioCodecFormat;
 	readonly sampleRate: number;
 	readonly channelCount: number;
+	readonly settings: DesktopAudioCodecCapabilitySettings;
 }
 
 export interface DesktopAudioCodecCapabilityQuery {
@@ -53,7 +58,9 @@ const REASONS = new Set<string>([
 ]);
 const QUERY_FIELDS = Object.freeze(['schemaVersion', 'operations'] as const);
 const RESULT_FIELDS = Object.freeze(['schemaVersion', 'capabilities'] as const);
-const TUPLE_FIELDS = Object.freeze(['operation', 'format', 'sampleRate', 'channelCount'] as const);
+const TUPLE_FIELDS = Object.freeze([
+	'operation', 'format', 'sampleRate', 'channelCount', 'settings',
+] as const);
 const ENTRY_FIELDS = Object.freeze([
 	...TUPLE_FIELDS, 'available', 'provider', 'reason',
 ] as const);
@@ -121,11 +128,20 @@ function normalizeTuple(value: unknown): DesktopAudioCodecCapabilityTuple {
 		record.channelCount, 1, DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT,
 		'capability tuple channel count',
 	);
+	let settings: DesktopAudioCodecCapabilitySettings;
+	try {
+		settings = normalizeCapabilitySettings(
+			record.operation, record.format as DesktopAudioCodecFormat, record.settings,
+		);
+	} catch {
+		throw new TypeError('The desktop audio codec capability tuple settings are unsupported.');
+	}
 	return Object.freeze({
 		operation: record.operation,
 		format: record.format as DesktopAudioCodecFormat,
 		sampleRate,
 		channelCount,
+		settings,
 	});
 }
 
@@ -152,7 +168,27 @@ function normalizeEntry(value: unknown): DesktopAudioCodecCapabilityEntry {
 }
 
 function tupleIdentity(tuple: DesktopAudioCodecCapabilityTuple): string {
-	return `${tuple.operation}:${tuple.format}:${String(tuple.sampleRate)}:${String(tuple.channelCount)}`;
+	return `${tuple.operation}:${tuple.format}:${String(tuple.sampleRate)}:${String(tuple.channelCount)}`
+		+ `:${JSON.stringify(tuple.settings)}`;
+}
+
+function normalizeCapabilitySettings(
+	operation: DesktopAudioCodecCapabilityTuple['operation'],
+	format: DesktopAudioCodecFormat,
+	settings: unknown,
+): DesktopAudioCodecCapabilitySettings {
+	const decode = operation === 'audio-decode';
+	const channelCount = 2;
+	const request = normalizeDesktopAudioCodecRequest({
+		operation, format, input: decode
+			? Uint8Array.of(0)
+			: new Uint8Array(channelCount * Float32Array.BYTES_PER_ELEMENT),
+		sampleRate: decode ? null : 48_000,
+		channelCount: decode ? null : channelCount,
+		settings,
+		maximumOutputBytes: 1,
+	});
+	return request.settings;
 }
 
 function exactRecord(value: unknown, label: string): Record<string, unknown> {

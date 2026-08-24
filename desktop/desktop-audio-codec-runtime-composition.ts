@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { posix, win32 } from 'node:path';
 
 import {
+	DESKTOP_AUDIO_CODEC_CAPABILITY_SCHEMA_VERSION,
 	normalizeDesktopAudioCodecCapabilityQuery,
 	normalizeDesktopAudioCodecCapabilityResult,
 	type DesktopAudioCodecCapabilityEntry,
@@ -19,7 +20,6 @@ import {
 	DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE,
 	DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
 	DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
-	desktopAudioCodecEncodeBitRates,
 	normalizeDesktopAudioCodecRequest,
 	normalizeDesktopAudioCodecResult,
 	type DesktopAudioCodecRequest,
@@ -38,6 +38,7 @@ import {
 } from './desktop-audio-ffmpeg-plan.ts';
 import {
 	createDesktopAudioCodecBroker,
+	bindDesktopAudioCodecRuntimeToRequest,
 	deriveDesktopAudioCodecOperation,
 	type DesktopAudioCodecProviderExecutionResult,
 	type DesktopAudioCodecProviderFailureReason,
@@ -172,11 +173,11 @@ export function createDesktopAudioCodecRuntimeComposition(
 			const capabilities: DesktopAudioCodecCapabilityEntry[] = [];
 			for (const tuple of query.operations) {
 				capabilities.push(await inspectCapability(
-					tuple, target, bundled.provider, operatingSystem.provider, admission,
+					tuple, target, bundled, operatingSystem, admission,
 				));
 			}
 			return normalizeDesktopAudioCodecCapabilityResult({
-				schemaVersion: 1, capabilities,
+				schemaVersion: DESKTOP_AUDIO_CODEC_CAPABILITY_SCHEMA_VERSION, capabilities,
 			}, query);
 		},
 		async execute(
@@ -209,15 +210,25 @@ export function createDesktopAudioCodecRuntimeComposition(
 async function inspectCapability(
 	tuple: DesktopAudioCodecCapabilityTuple,
 	target: DesktopCodecTarget,
-	bundled: DesktopCodecProvider,
-	operatingSystem: DesktopCodecProvider,
+	bundled: DesktopAudioCodecProviderRuntime,
+	operatingSystem: DesktopAudioCodecProviderRuntime,
 	admission: AdmissionSnapshot | null,
 ): Promise<DesktopAudioCodecCapabilityEntry> {
 	let request: DesktopAudioCodecRequest;
 	try { request = capabilityRequest(tuple); }
 	catch { return unavailableCapability(tuple, 'unsupported-settings'); }
 	const operation = deriveDesktopAudioCodecOperation(request);
-	for (const provider of [bundled, operatingSystem, externalProvider(target, request, admission)]) {
+	for (const runtime of [bundled, operatingSystem, null]) {
+		let provider: DesktopCodecProvider;
+		try {
+			provider = runtime === null
+				? externalProvider(target, request, admission)
+				: tuple.operation === 'audio-encode'
+					? (await bindDesktopAudioCodecRuntimeToRequest(
+						runtime, request, operation, undefined,
+					)).provider
+					: runtime.provider;
+		} catch { continue; }
 		let preflight: DesktopCodecPreflightResult;
 		try { preflight = await provider.preflight(operation, Object.freeze({})); }
 		catch { continue; }
@@ -239,25 +250,8 @@ function capabilityRequest(tuple: DesktopAudioCodecCapabilityTuple): DesktopAudi
 	return normalizeDesktopAudioCodecRequest({
 		...tuple, input,
 		...(tuple.operation === 'audio-decode' ? { sampleRate: null, channelCount: null } : {}),
-		settings: tuple.operation === 'audio-decode'
-			? { sampleFormat: 'f32le' }
-			: capabilityEncodeSettings(tuple.format, tuple.sampleRate, tuple.channelCount),
+		settings: tuple.settings,
 		maximumOutputBytes: 1_024,
-	});
-}
-
-function capabilityEncodeSettings(
-	format: DesktopAudioCodecRequest['format'],
-	sampleRate: number,
-	channelCount: number,
-): Readonly<Record<string, number>> {
-	if (format === 'flac') return Object.freeze({ compressionLevel: 5, bitDepth: 24 });
-	if (format === 'wavpack') return Object.freeze({ compressionLevel: 2 });
-	if (format === 'ogg-vorbis') return Object.freeze({ quality: 5 });
-	if (format === 'opus') return Object.freeze({ bitrateKbps: 160 });
-	if (format === 'mp2') return Object.freeze({ bitrateKbps: 256 });
-	return Object.freeze({
-		bitrateKbps: desktopAudioCodecEncodeBitRates(format, sampleRate, channelCount)[0] ?? 32,
 	});
 }
 

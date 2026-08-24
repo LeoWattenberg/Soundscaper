@@ -229,14 +229,16 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 		const settings = settingsRecord(settingsValue, ENCODE_SETTING_FIELDS, 'encode');
 		throwIfAborted(settings.signal);
 		const staged = await stagedPcm(file, format, settings);
+		const codecSettings = encodeSettings(format, staged.media);
 		await assertCapability({
 			operation: 'audio-encode', format,
 			sampleRate: staged.media.sampleRate, channelCount: staged.media.channelCount,
+			settings: codecSettings as DesktopAudioCodecCapabilityTuple['settings'],
 		}, settings.signal);
 		const request = normalizeDesktopAudioCodecRequest({
 			operation: 'audio-encode', format, input: staged.input,
 			sampleRate: staged.media.sampleRate, channelCount: staged.media.channelCount,
-			settings: encodeSettings(format, staged.media),
+			settings: codecSettings,
 			maximumOutputBytes: settings.maximumOutputBytes ?? DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
 			requestId: mintRequestId(active),
 		});
@@ -285,8 +287,7 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 	async function assertCapability(tuple: DesktopAudioCodecCapabilityTuple, signal?: AbortSignal): Promise<void> {
 		throwIfAborted(signal);
 		const capability = await queryDesktopAudioCodecCapability(
-			(query) => bridge.capabilities(query), { operation: tuple.operation, format: tuple.format,
-				sampleRate: tuple.sampleRate, channelCount: tuple.channelCount },
+			(query) => bridge.capabilities(query), tuple,
 		);
 		throwIfAborted(signal);
 		if (!capability.available) {

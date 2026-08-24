@@ -5,13 +5,13 @@
 import type {
 	DesktopAudioCodecCapabilityQuery,
 	DesktopAudioCodecCapabilityResult,
+	DesktopAudioCodecCapabilitySettings,
 } from '../../../../desktop/desktop-audio-codec-capability-contract.ts';
 import { DESKTOP_AUDIO_CODEC_FORMATS } from '../../../../desktop/desktop-audio-codec-operation-contract.ts';
 import {
 	desktopAudioCodecCapabilityReason,
 	queryDesktopAudioCodecCapability,
 } from '../desktop-audio-codec-capabilities.ts';
-import { DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL } from '../desktop-wavpack-codec-profile.ts';
 import {
 	DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER,
 	isDesktopMainAudioCodecRuntime,
@@ -25,6 +25,8 @@ interface DesktopAudioExportPlan {
 		readonly compressionLevel?: unknown;
 		readonly bitDepth?: unknown;
 		readonly sampleFormat?: unknown;
+		readonly quality?: unknown;
+		readonly bitRate?: unknown;
 	}>;
 }
 
@@ -40,8 +42,8 @@ export async function assertDesktopAudioExportCapability(
 	planValue: DesktopAudioExportPlan,
 ): Promise<void> {
 	if (!isDesktopMainAudioCodecRuntime(runtime)) return;
+	if (!FORMATS.has(String(planValue?.format))) return;
 	const plan = audioPlan(planValue);
-	if (!FORMATS.has(plan.format)) return;
 	const query = (runtime as Partial<DesktopAudioExportCodecRuntime>).desktopAudioCodecCapabilities;
 	if (typeof query !== 'function') {
 		throw new Error(desktopAudioCodecCapabilityReason('configure-external-ffmpeg'));
@@ -51,27 +53,15 @@ export async function assertDesktopAudioExportCapability(
 		{
 			operation: 'audio-encode', format: plan.format as never,
 			sampleRate: plan.sampleRate, channelCount: plan.channelCount,
+			settings: plan.settings,
 		},
 	);
 	if (!capability.available) throw new Error(desktopAudioCodecCapabilityReason(capability.reason));
-	if (plan.format === 'wavpack' && capability.provider === 'bundled'
-		&& plan.compressionLevel !== DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL) {
-		throw new Error('The bundled WavPack provider supports only compression level 2 (reviewed fast mode).');
-	}
-	if (plan.format === 'flac' && capability.provider === 'bundled') {
-		if (plan.bitDepth !== 24 || plan.sampleFormat !== 'int24') {
-			throw new Error('The bundled FLAC provider supports only explicitly converted signed 24-bit PCM.');
-		}
-		if (plan.compressionLevel === null || plan.compressionLevel > 8) {
-			throw new Error('The bundled FLAC provider supports compression levels 0 through 8.');
-		}
-	}
 }
 
 function audioPlan(value: DesktopAudioExportPlan): Readonly<{
 	readonly format: string; readonly sampleRate: number; readonly channelCount: number;
-	readonly compressionLevel: number | null; readonly bitDepth: number | null;
-	readonly sampleFormat: string | null;
+	readonly settings: DesktopAudioCodecCapabilitySettings;
 }> {
 	if (!value || typeof value !== 'object' || typeof value.format !== 'string'
 		|| !Number.isSafeInteger(value.sampleRate) || !Number.isSafeInteger(value.channelCount)) {
@@ -90,12 +80,29 @@ function audioPlan(value: DesktopAudioExportPlan): Readonly<{
 		|| sampleFormat !== `int${String(bitDepth)}`)) {
 		throw new TypeError('The planned desktop FLAC PCM format is invalid.');
 	}
+	let settings: DesktopAudioCodecCapabilitySettings;
+	if (value.format === 'flac') settings = Object.freeze({
+		compressionLevel: compressionLevel!, bitDepth: bitDepth as 16 | 24,
+	});
+	else if (value.format === 'wavpack') settings = Object.freeze({ compressionLevel: compressionLevel! });
+	else if (value.format === 'ogg-vorbis') settings = Object.freeze({
+		quality: plannedInteger(value.encoding?.quality, 0, 10, 'Vorbis quality'),
+	});
+	else settings = Object.freeze({
+		bitrateKbps: plannedInteger(value.encoding?.bitRate, 1, 1_000, `${value.format} bitrate`),
+	});
 	return Object.freeze({
 		format: value.format,
 		sampleRate: Number(value.sampleRate),
 		channelCount: Number(value.channelCount),
-		compressionLevel,
-		bitDepth,
-		sampleFormat,
+		settings,
 	});
+}
+
+function plannedInteger(value: unknown, minimum: number, maximum: number, label: string): number {
+	const number = Number(value);
+	if (!Number.isSafeInteger(number) || number < minimum || number > maximum) {
+		throw new TypeError(`The planned desktop ${label} is invalid.`);
+	}
+	return number;
 }

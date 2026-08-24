@@ -44,7 +44,7 @@ test('desktop codec composition routes audio through file service while video st
 		fileService: {
 			getDesktopAudioCodecCapabilities(query: DesktopAudioCodecCapabilityQuery) {
 				return {
-					schemaVersion: 1,
+					schemaVersion: 2,
 					capabilities: query.operations.map((operation) => ({
 						...operation, available: true, provider: 'external-ffmpeg', reason: null,
 					})),

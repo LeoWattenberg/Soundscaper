@@ -18,19 +18,21 @@ import {
 	desktopAudioCodecMediaExportCapabilities,
 	type DesktopAudioCodecCapabilities,
 } from '../desktop-audio-codec-capabilities.ts';
-import { DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL } from '../desktop-wavpack-codec-profile.ts';
 
 interface DesktopExportCodecSettings {
+	readonly format?: unknown;
 	readonly sampleRate?: unknown;
 	readonly channelMapping?: unknown;
 	readonly channelMatrix?: unknown;
 	readonly binaural?: unknown;
+	readonly sampleFormat?: unknown;
+	readonly compressionLevel?: unknown;
+	readonly quality?: unknown;
+	readonly bitRate?: unknown;
 }
 
 interface DesktopExportCodecSelection {
 	readonly format?: unknown;
-	readonly sampleFormat?: unknown;
-	readonly compressionLevel?: unknown;
 }
 
 const COMPRESSED = new Set<string>(DESKTOP_AUDIO_CODEC_FORMATS);
@@ -46,6 +48,7 @@ export function createDesktopExportCodecQuery(
 		sampleRate: integer(settings.sampleRate, 8_000, 192_000, 'sample rate'),
 		channelCount: outputChannelCount(settings, projectChannelCount),
 		operations: ['audio-encode'],
+		encodeSettings: selectedEncodeSettings(settings),
 	});
 }
 
@@ -82,19 +85,13 @@ export function desktopExportFormatReason(
 }
 
 export function desktopExportWavPackCompressionLevels(
-	capabilities: DesktopAudioCodecCapabilities | null,
 ): readonly number[] {
-	return capabilities?.formats.wavpack?.provider === 'bundled'
-		? Object.freeze([DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL])
-		: WAVPACK_COMPRESSION_LEVELS;
+	return WAVPACK_COMPRESSION_LEVELS;
 }
 
 export function desktopExportFlacSampleFormats(
-	capabilities: DesktopAudioCodecCapabilities | null,
 ): readonly ('int16' | 'int24')[] {
-	return capabilities?.formats.flac?.provider === 'bundled'
-		? Object.freeze(['int24'] as const)
-		: FLAC_SAMPLE_FORMATS;
+	return FLAC_SAMPLE_FORMATS;
 }
 
 /** Choices admitted by the strict desktop main-process operation contract. */
@@ -137,21 +134,25 @@ export function desktopExportSelectionReason(
 	if (!desktopExportFormatAvailable(settings.format, capabilities)) {
 		return desktopExportFormatReason(settings.format, capabilities, invalidQuery);
 	}
-	const format = String(settings.format);
-	if (format === 'wavpack' && capabilities?.formats.wavpack?.provider === 'bundled'
-		&& !desktopExportWavPackCompressionLevels(capabilities).includes(Number(settings.compressionLevel))) {
-		return 'The bundled WavPack provider supports only compression level 2 (reviewed fast mode).';
-	}
-	if (format === 'flac' && capabilities?.formats.flac?.provider === 'bundled') {
-		if (!desktopExportFlacSampleFormats(capabilities).includes(String(settings.sampleFormat) as 'int16' | 'int24')) {
-			return 'The bundled FLAC provider supports only explicitly converted signed 24-bit PCM.';
-		}
-		const level = Number(settings.compressionLevel);
-		if (!Number.isSafeInteger(level) || level < 0 || level > 8) {
-			return 'The bundled FLAC provider supports compression levels 0 through 8.';
-		}
-	}
 	return null;
+}
+
+function selectedEncodeSettings(
+	settings: DesktopExportCodecSettings,
+): Readonly<Partial<Record<DesktopAudioCodecFormat, unknown>>> {
+	const format = String(settings.format ?? '');
+	if (!COMPRESSED.has(format)) return Object.freeze({});
+	let value: Readonly<Record<string, unknown>>;
+	if (format === 'flac') value = Object.freeze({
+		compressionLevel: Number(settings.compressionLevel),
+		bitDepth: settings.sampleFormat === 'int16' ? 16 : settings.sampleFormat === 'int24' ? 24 : null,
+	});
+	else if (format === 'wavpack') value = Object.freeze({
+		compressionLevel: Number(settings.compressionLevel),
+	});
+	else if (format === 'ogg-vorbis') value = Object.freeze({ quality: Number(settings.quality) });
+	else value = Object.freeze({ bitrateKbps: Number(settings.bitRate) });
+	return Object.freeze({ [format]: value });
 }
 
 function outputChannelCount(settings: DesktopExportCodecSettings, projectChannelCount: unknown): number {

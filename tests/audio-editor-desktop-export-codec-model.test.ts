@@ -37,11 +37,18 @@ test('desktop export choices stay inside the closed operation contract', () => {
 
 test('desktop export codec query follows current planned sample and channel geometry', () => {
 	const preserved = createDesktopExportCodecQuery({
+		format: 'flac', sampleFormat: 'int16', compressionLevel: '7',
 		sampleRate: '96000', channelMapping: 'preserve', binaural: false,
 	}, 6);
 	assert.equal(preserved.operations.length, 7);
 	assert.equal(preserved.operations.every(({ operation }) => operation === 'audio-encode'), true);
 	assert.equal(preserved.operations.every(({ sampleRate, channelCount }) => sampleRate === 96_000 && channelCount === 6), true);
+	assert.deepEqual(preserved.operations.find(({ format }) => format === 'flac')?.settings, {
+		compressionLevel: 7, bitDepth: 16,
+	});
+	assert.deepEqual(preserved.operations.find(({ format }) => format === 'wavpack')?.settings, {
+		compressionLevel: 2,
+	});
 	const custom = createDesktopExportCodecQuery({
 		sampleRate: '48000', channelMapping: 'custom', channelMatrix: '{"channels":[{}, {}, {}]}',
 	}, 2);
@@ -62,7 +69,7 @@ test('desktop format choices stay fail-closed while native formats remain availa
 	assert.equal(desktopExportFormatAvailable('custom-ffmpeg', unavailable), false);
 	assert.match(desktopExportFormatReason('opus', unavailable) ?? '', /Preferences > General/iu);
 	const result = {
-		schemaVersion: 1 as const,
+		schemaVersion: 2 as const,
 		capabilities: query.operations.map((operation) => operation.format === 'opus'
 			? { ...operation, available: true as const, provider: 'external-ffmpeg' as const, reason: null }
 			: { ...operation, available: false as const, provider: null, reason: 'unsupported-by-configured-ffmpeg' as const }),
@@ -72,71 +79,28 @@ test('desktop format choices stay fail-closed while native formats remain availa
 	assert.equal(desktopExportFormatAvailable('mp3', partial), false);
 });
 
-test('desktop WavPack quality choices follow the selected provider', () => {
-	const query = createDesktopExportCodecQuery({
-		sampleRate: '48000', channelMapping: 'stereo', binaural: false,
-	}, 2);
-	const result = (provider: 'bundled' | 'external-ffmpeg') => ({
-		schemaVersion: 1 as const,
-		capabilities: query.operations.map((operation) => operation.format === 'wavpack'
-			? { ...operation, available: true as const, provider, reason: null }
-			: { ...operation, available: false as const, provider: null, reason: 'unsupported-by-configured-ffmpeg' as const }),
-	});
-	assert.deepEqual(
-		desktopExportWavPackCompressionLevels(desktopExportCodecCapabilities(result('bundled'), query)),
-		[2],
-	);
-	assert.deepEqual(
-		desktopExportWavPackCompressionLevels(desktopExportCodecCapabilities(result('external-ffmpeg'), query)),
-		[0, 1, 2, 3, 4, 5],
-	);
+test('desktop WavPack quality choices remain selectable for exact fallback queries', () => {
+	assert.deepEqual(desktopExportWavPackCompressionLevels(), [0, 1, 2, 3, 4, 5]);
 });
 
-test('bundled FLAC exposes only the signed-24 PCM profile its receipt reports', () => {
-	const query = createDesktopExportCodecQuery({
-		sampleRate: '48000', channelMapping: 'stereo', binaural: false,
-	}, 2);
-	const result = (provider: 'bundled' | 'external-ffmpeg') => ({
-		schemaVersion: 1 as const,
-		capabilities: query.operations.map((operation) => operation.format === 'flac'
-			? { ...operation, available: true as const, provider, reason: null }
-			: { ...operation, available: false as const, provider: null, reason: 'unsupported-by-configured-ffmpeg' as const }),
-	});
-	assert.deepEqual(
-		desktopExportFlacSampleFormats(desktopExportCodecCapabilities(result('bundled'), query)),
-		['int24'],
-	);
-	assert.deepEqual(
-		desktopExportFlacSampleFormats(desktopExportCodecCapabilities(result('external-ffmpeg'), query)),
-		['int16', 'int24'],
-	);
+test('desktop FLAC bit depths remain selectable for exact fallback queries', () => {
+	assert.deepEqual(desktopExportFlacSampleFormats(), ['int16', 'int24']);
 });
 
-test('desktop selection refusal owns bundled profile drift outside the dialog component', () => {
-	const query = createDesktopExportCodecQuery({
-		sampleRate: '48000', channelMapping: 'stereo', binaural: false,
-	}, 2);
-	const capabilitiesFor = (format: 'flac' | 'wavpack') => desktopExportCodecCapabilities({
-		schemaVersion: 1,
-		capabilities: query.operations.map((operation) => operation.format === format
-			? { ...operation, available: true as const, provider: 'bundled' as const, reason: null }
-			: { ...operation, available: false as const, provider: null, reason: 'unsupported-by-configured-ffmpeg' as const }),
-	}, query);
-	const wavpack = capabilitiesFor('wavpack');
-	assert.match(desktopExportSelectionReason({
-		format: 'wavpack', sampleFormat: 'int24', compressionLevel: '5',
-	}, wavpack) ?? '', /compression level 2/iu);
-	assert.equal(desktopExportSelectionReason({
-		format: 'wavpack', sampleFormat: 'int24', compressionLevel: '2',
-	}, wavpack), null);
-	const flac = capabilitiesFor('flac');
-	assert.match(desktopExportSelectionReason({
-		format: 'flac', sampleFormat: 'int16', compressionLevel: '5',
-	}, flac) ?? '', /signed 24-bit/iu);
-	assert.match(desktopExportSelectionReason({
-		format: 'flac', sampleFormat: 'int24', compressionLevel: '9',
-	}, flac) ?? '', /0 through 8/iu);
-	assert.equal(desktopExportSelectionReason({
-		format: 'flac', sampleFormat: 'int24', compressionLevel: '5',
-	}, flac), null);
+test('desktop selection authority comes from the exact settings capability result', () => {
+	for (const selection of [
+		{ format: 'flac', sampleFormat: 'int16', compressionLevel: '5' },
+		{ format: 'wavpack', sampleFormat: 'int24', compressionLevel: '5' },
+	]) {
+		const query = createDesktopExportCodecQuery({
+			...selection, sampleRate: '48000', channelMapping: 'stereo', binaural: false,
+		}, 2);
+		const capabilities = desktopExportCodecCapabilities({
+			schemaVersion: 2,
+			capabilities: query.operations.map((operation) => operation.format === selection.format
+				? { ...operation, available: true as const, provider: 'external-ffmpeg' as const, reason: null }
+				: { ...operation, available: false as const, provider: null, reason: 'unsupported-by-configured-ffmpeg' as const }),
+		}, query);
+		assert.equal(desktopExportSelectionReason(selection, capabilities), null);
+	}
 });

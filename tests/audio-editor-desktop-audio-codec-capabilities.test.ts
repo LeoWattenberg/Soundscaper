@@ -26,7 +26,7 @@ test('desktop media capabilities are fail-closed until exact main tuples are adm
 test('desktop media capabilities expose only admitted encode tuples and sanitize reasons', () => {
 	const query = createDesktopAudioCodecCapabilityQuery({ sampleRate: 48_000, channelCount: 2 });
 	const result = {
-		schemaVersion: 1 as const,
+		schemaVersion: 2 as const,
 		capabilities: query.operations.map((operation) => operation.format === 'opus'
 			? { ...operation, available: true as const, provider: 'external-ffmpeg' as const, reason: null }
 			: { ...operation, available: false as const, provider: null, reason: 'unsupported-by-configured-ffmpeg' as const }),

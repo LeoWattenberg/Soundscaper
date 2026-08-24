@@ -55,11 +55,11 @@ test('UI-facing capability status exposes only the reviewed 48 kHz mono/stereo O
 		}),
 	});
 	const operations = [
-		{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 48_000, channelCount: 2 },
-		{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 24_000, channelCount: 2 },
-		{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 48_000, channelCount: 3 },
+		{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 160 } },
+		{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 24_000, channelCount: 2, settings: { bitrateKbps: 160 } },
+		{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 48_000, channelCount: 3, settings: { bitrateKbps: 160 } },
 	];
-	const result = await service.capabilities({ schemaVersion: 1, operations });
+	const result = await service.capabilities({ schemaVersion: 2, operations });
 	assert.deepEqual(result.capabilities.map(({ available, provider, reason }) => ({
 		available, provider, reason,
 	})), [

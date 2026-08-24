@@ -228,14 +228,17 @@ function registrationFixture(
 
 function capabilityQuery() {
 	return {
-		schemaVersion: 1 as const,
-		operations: [{ operation: 'audio-encode' as const, format: 'opus' as const, sampleRate: 48_000, channelCount: 2 }],
+		schemaVersion: 2 as const,
+		operations: [{
+			operation: 'audio-encode' as const, format: 'opus' as const,
+			sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 128 },
+		}],
 	};
 }
 
 function capabilityResult(query: DesktopAudioCodecCapabilityQuery) {
 	return {
-		schemaVersion: 1 as const,
+		schemaVersion: 2 as const,
 		capabilities: query.operations.map((operation) => ({
 			...operation, available: false as const, provider: null,
 			reason: 'configure-external-ffmpeg' as const,
