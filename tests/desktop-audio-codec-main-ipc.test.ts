@@ -1,0 +1,151 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+	registerDesktopAudioCodecMainIpc,
+	type DesktopAudioCodecMainIpcService,
+} from '../desktop/desktop-audio-codec-main-ipc.ts';
+
+const CHANNELS = Object.freeze({
+	desktopAudioCodecExecute: 'soundscaper:v1:codecs:audio:execute',
+	desktopAudioCodecCancel: 'soundscaper:v1:codecs:audio:cancel',
+});
+
+test('execute requires a closed request ID and passes owned bytes to the main service', async () => {
+	const fixture = registrationFixture();
+	const input = new Uint8Array(8);
+	const result = await fixture.invoke(CHANNELS.desktopAudioCodecExecute, fixture.event, encodeRequest(input));
+	assert.deepEqual(result, { status: 'executed' });
+	assert.equal(fixture.executions.length, 1);
+	assert.notEqual(fixture.executions[0]?.request.input, input);
+	input[0] = 255;
+	assert.equal(fixture.executions[0]?.request.input[0], 0);
+	assert.equal(fixture.executions[0]?.signal.aborted, false);
+
+	await assert.rejects(
+		fixture.invoke(CHANNELS.desktopAudioCodecExecute, fixture.event, {
+			...encodeRequest(new Uint8Array(8)), argv: ['-version'],
+		}), /inexact shape/u,
+	);
+	await assert.rejects(
+		fixture.invoke(CHANNELS.desktopAudioCodecExecute, fixture.event, {
+			...encodeRequest(new Uint8Array(8)), requestId: undefined,
+		}), /request ID/u,
+	);
+	fixture.registration.dispose();
+});
+
+test('only the owning renderer can cancel its active request', async () => {
+	const pending = deferred<unknown>();
+	const fixture = registrationFixture({
+		execute: (_request, { signal }) => new Promise((resolve) => {
+			signal.addEventListener('abort', () => resolve({ status: 'cancelled' }), { once: true });
+			void pending.promise.then(resolve);
+		}),
+	});
+	const running = fixture.invoke(CHANNELS.desktopAudioCodecExecute, fixture.event, encodeRequest(new Uint8Array(8)));
+	await until(() => fixture.executions.length === 1);
+	assert.equal(await fixture.invoke(CHANNELS.desktopAudioCodecCancel, { owner: {} }, 'audio-request-1'), false);
+	assert.equal(fixture.executions[0]?.signal.aborted, false);
+	assert.equal(await fixture.invoke(CHANNELS.desktopAudioCodecCancel, fixture.event, 'audio-request-1'), true);
+	assert.deepEqual(await running, { status: 'cancelled' });
+	assert.equal(await fixture.invoke(CHANNELS.desktopAudioCodecCancel, fixture.event, 'audio-request-1'), false);
+	fixture.registration.dispose();
+});
+
+test('owner revocation aborts and drains every owned operation', async () => {
+	const fixture = registrationFixture({
+		execute: (_request, { signal }) => new Promise((resolve) => {
+			signal.addEventListener('abort', () => resolve({ status: 'revoked' }), { once: true });
+		}),
+	});
+	const running = fixture.invoke(CHANNELS.desktopAudioCodecExecute, fixture.event, encodeRequest(new Uint8Array(8)));
+	await until(() => fixture.executions.length === 1);
+	assert.equal(await fixture.registration.revokeOwner(fixture.owner), true);
+	assert.deepEqual(await running, { status: 'revoked' });
+	assert.equal(await fixture.registration.revokeOwner(fixture.owner), false);
+	fixture.registration.dispose();
+});
+
+test('dispose aborts jobs, removes both handlers, and is idempotent', async () => {
+	const fixture = registrationFixture({
+		execute: (_request, { signal }) => new Promise((resolve) => {
+			signal.addEventListener('abort', () => resolve({ status: 'disposed' }), { once: true });
+		}),
+	});
+	const running = fixture.invoke(CHANNELS.desktopAudioCodecExecute, fixture.event, encodeRequest(new Uint8Array(8)));
+	await until(() => fixture.executions.length === 1);
+	fixture.registration.dispose();
+	fixture.registration.dispose();
+	assert.deepEqual(await running, { status: 'disposed' });
+	assert.deepEqual(fixture.removed, Object.values(CHANNELS));
+});
+
+test('registration validates unique channels and rolls back partial bindings', () => {
+	assert.throws(() => registerDesktopAudioCodecMainIpc({
+		channels: { ...CHANNELS, desktopAudioCodecCancel: CHANNELS.desktopAudioCodecExecute },
+		handle() {}, removeHandler() {}, ownerFor: () => ({}), service: { execute: async () => null },
+	}), /unique/u);
+	const removed: string[] = [];
+	assert.throws(() => registerDesktopAudioCodecMainIpc({
+		channels: CHANNELS,
+		handle(channel) { if (channel === CHANNELS.desktopAudioCodecCancel) throw new Error('binding failed'); },
+		removeHandler: (channel) => { removed.push(channel); },
+		ownerFor: () => ({}), service: { execute: async () => null },
+	}), /binding failed/u);
+	assert.deepEqual(removed, [CHANNELS.desktopAudioCodecExecute]);
+});
+
+function registrationFixture(overrides: Partial<DesktopAudioCodecMainIpcService> = {}) {
+	const handlers = new Map<string, (event: unknown, ...arguments_: unknown[]) => unknown>();
+	const removed: string[] = [];
+	const executions: Array<Readonly<{ request: ReturnType<typeof encodeRequest>; signal: AbortSignal }>> = [];
+	const owner = {};
+	const event = { owner };
+	const registration = registerDesktopAudioCodecMainIpc({
+		channels: CHANNELS,
+		handle: (channel, listener) => { handlers.set(channel, listener); },
+		removeHandler: (channel) => { removed.push(channel); handlers.delete(channel); },
+		ownerFor: (value) => (value as typeof event).owner,
+		service: {
+			execute: async (request, options) => {
+				executions.push({ request: request as ReturnType<typeof encodeRequest>, signal: options.signal });
+				return overrides.execute
+					? overrides.execute(request, options)
+					: { status: 'executed' };
+			},
+		},
+	});
+	return {
+		event, executions, owner, registration, removed,
+		invoke: async (channel: string, invocationEvent: unknown, ...arguments_: unknown[]) => {
+			const handler = handlers.get(channel);
+			if (!handler) throw new Error('Missing IPC handler.');
+			return handler(invocationEvent, ...arguments_);
+		},
+	};
+}
+
+function encodeRequest(input: Uint8Array) {
+	return {
+		operation: 'audio-encode' as const, format: 'opus' as const, input,
+		sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 128 },
+		maximumOutputBytes: 8_192, requestId: 'audio-request-1',
+	};
+}
+
+function deferred<Value>() {
+	let resolve!: (value: Value) => void;
+	const promise = new Promise<Value>((resolvePromise) => { resolve = resolvePromise; });
+	return { promise, resolve };
+}
+
+async function until(predicate: () => boolean): Promise<void> {
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		if (predicate()) return;
+		await new Promise<void>((resolve) => { setImmediate(resolve); });
+	}
+	throw new Error('Condition was not reached.');
+}
