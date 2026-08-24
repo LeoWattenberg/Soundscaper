@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	DesktopHelperProbeService,
+	HELPER_PROBE_MAXIMUM_INPUT_BYTES,
 	MAXIMUM_PENDING_HELPER_PROBES,
 	type HelperProbeSupervisorPort,
 } from '../desktop/helper-probe-service.ts';
@@ -29,6 +30,7 @@ const VALID_RESULT = Object.freeze({
 function createHarness(options: Readonly<{
 	enabled?: boolean;
 	quarantined?: boolean;
+	grantSize?: number;
 	runJob?: (request: HelperJobRequest) => Promise<unknown>;
 }> = {}) {
 	let probeSequence = 0;
@@ -54,7 +56,10 @@ function createHarness(options: Readonly<{
 		grants: {
 			resolveHelperGrant: async (id, { owner }) => (
 				id === CAPABILITY_ID && owner === OWNER
-					? Object.freeze({ path: '/media/example.mp4', size: 4_096, identity: Object.freeze({ dev: 3, ino: 42 }) })
+					? Object.freeze({
+						path: '/media/example.mp4', size: options.grantSize ?? 4_096,
+						identity: Object.freeze({ dev: 3, ino: 42 }),
+					})
 					: null
 			),
 		},
@@ -109,6 +114,22 @@ test('helper probe service refuses disabled, quarantined, unknown, and foreign-o
 		'a probe pending for one owner must be invisible to another',
 	);
 	assert.deepEqual(service.cancelProbe({ owner: OTHER_OWNER, probeId }), { cancelled: false });
+});
+
+test('an input past the probe memory ceiling degrades to the wasm probe, never an RSS kill', async () => {
+	// The engine holds at least twice the input in memory under a 1 GiB RSS
+	// ceiling; admitting a larger file killed the helper mid-job and charged
+	// its crash ledger, quarantining the surface after a few large imports.
+	const oversized = createHarness({ grantSize: HELPER_PROBE_MAXIMUM_INPUT_BYTES + 1 });
+	await assert.rejects(
+		oversized.service.beginProbe({ owner: OWNER, capabilityId: CAPABILITY_ID }),
+		(error: Error & { code?: string }) => error.code === 'input-too-large',
+	);
+	assert.equal(oversized.jobs.length, 0, 'an unprobeable input must never reach the helper');
+	const bounded = createHarness();
+	await bounded.service.beginProbe({ owner: OWNER, capabilityId: CAPABILITY_ID });
+	assert.equal(bounded.jobs[0]?.resourcePolicy?.maximumInputBytes, HELPER_PROBE_MAXIMUM_INPUT_BYTES,
+		'the admitted job policy pins the same ceiling so a mis-sized grant cannot slip past');
 });
 
 test('helper probe service bounds pending probes and reports supervision failures as typed completions', async () => {

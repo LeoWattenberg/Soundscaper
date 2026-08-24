@@ -21,10 +21,23 @@ import { HelperSupervisionError, type HelperJobRequest } from './helper-supervis
 
 export const MAXIMUM_PENDING_HELPER_PROBES = 4;
 
+/**
+ * The probe engine reads the granted file into memory and copies it again into
+ * the wasm filesystem, so its peak RSS is at least twice the input on top of
+ * the engine baseline. With the helper's 1 GiB RSS ceiling, an input past this
+ * bound is not probed natively — it is killed mid-job and charged to the crash
+ * ledger, three of which quarantine the whole surface. Refusing here instead
+ * degrades those inputs to the renderer WebAssembly probe visibly, as the
+ * plan's oversized-input rule requires; 5B's native media engine owns removing
+ * the in-memory ceiling.
+ */
+export const HELPER_PROBE_MAXIMUM_INPUT_BYTES = 384 * 1024 ** 2;
+
 export type HelperProbeFailureCode =
 	| 'helper-disabled'
 	| 'helper-quarantined'
 	| 'helper-busy'
+	| 'input-too-large'
 	| 'unknown-capability'
 	| 'helper-cancelled'
 	| 'helper-failed';
@@ -104,6 +117,10 @@ export class DesktopHelperProbeService {
 		if (!grant) {
 			throw probeRefusal('unknown-capability', 'The probe capability is not live for this renderer.');
 		}
+		if (grant.size > HELPER_PROBE_MAXIMUM_INPUT_BYTES) {
+			throw probeRefusal('input-too-large',
+				'The media exceeds the native probe memory ceiling; the WebAssembly probe takes over.');
+		}
 		const probeId = this.#mintProbeId();
 		const controller = new AbortController();
 		const completion = this.#enqueue(() => this.#supervisor.runJob({
@@ -113,6 +130,7 @@ export class DesktopHelperProbeService {
 				mediaBytes: grant.size,
 				identity: grant.identity,
 			},
+			resourcePolicy: { maximumInputBytes: HELPER_PROBE_MAXIMUM_INPUT_BYTES },
 			signal: controller.signal,
 			validateResult: (value) => this.#validateProbeResult(value),
 		})).then(
