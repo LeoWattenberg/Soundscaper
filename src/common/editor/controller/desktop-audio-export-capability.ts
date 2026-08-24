@@ -11,6 +11,7 @@ import {
 	desktopAudioCodecCapabilityReason,
 	queryDesktopAudioCodecCapability,
 } from '../desktop-audio-codec-capabilities.ts';
+import { DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL } from '../desktop-wavpack-codec-profile.ts';
 import {
 	DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER,
 	isDesktopMainAudioCodecRuntime,
@@ -20,6 +21,7 @@ interface DesktopAudioExportPlan {
 	readonly format: unknown;
 	readonly sampleRate: unknown;
 	readonly channelCount: unknown;
+	readonly encoding?: Readonly<{ readonly compressionLevel?: unknown }>;
 }
 
 interface DesktopAudioExportCodecRuntime {
@@ -48,18 +50,31 @@ export async function assertDesktopAudioExportCapability(
 		},
 	);
 	if (!capability.available) throw new Error(desktopAudioCodecCapabilityReason(capability.reason));
+	if (plan.format === 'wavpack' && capability.provider === 'bundled'
+		&& plan.compressionLevel !== DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL) {
+		throw new Error('The bundled WavPack provider supports only compression level 2 (reviewed fast mode).');
+	}
 }
 
 function audioPlan(value: DesktopAudioExportPlan): Readonly<{
 	readonly format: string; readonly sampleRate: number; readonly channelCount: number;
+	readonly compressionLevel: number | null;
 }> {
 	if (!value || typeof value !== 'object' || typeof value.format !== 'string'
 		|| !Number.isSafeInteger(value.sampleRate) || !Number.isSafeInteger(value.channelCount)) {
 		throw new TypeError('The planned desktop audio export geometry is invalid.');
 	}
+	const compressionLevel = value.format === 'wavpack'
+		? Number(value.encoding?.compressionLevel)
+		: null;
+	if (compressionLevel !== null && (!Number.isSafeInteger(compressionLevel)
+		|| compressionLevel < 0 || compressionLevel > 8)) {
+		throw new TypeError('The planned desktop WavPack compression level is invalid.');
+	}
 	return Object.freeze({
 		format: value.format,
 		sampleRate: Number(value.sampleRate),
 		channelCount: Number(value.channelCount),
+		compressionLevel,
 	});
 }

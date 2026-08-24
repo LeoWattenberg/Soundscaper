@@ -38,3 +38,31 @@ test('browser runtimes and native desktop formats remain unchanged', async () =>
 		[DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true,
 	}, { format: 'wav', sampleRate: 384_000, channelCount: 32 }));
 });
+
+test('bundled WavPack refuses an unmapped compression level before rendering', async () => {
+	let queries = 0;
+	const runtime = {
+		[DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true as const,
+		desktopAudioCodecCapabilities(query: { operations: readonly Record<string, unknown>[] }) {
+			queries += 1;
+			return Promise.resolve({
+				schemaVersion: 1 as const,
+				capabilities: query.operations.map((operation) => ({
+					...operation, available: true as const, provider: 'bundled' as const, reason: null,
+				})),
+			});
+		},
+	};
+	await assert.rejects(
+		() => assertDesktopAudioExportCapability(runtime, {
+			format: 'wavpack', sampleRate: 48_000, channelCount: 2,
+			encoding: { compressionLevel: 1 },
+		}),
+		/level 2/iu,
+	);
+	await assert.doesNotReject(assertDesktopAudioExportCapability(runtime, {
+		format: 'wavpack', sampleRate: 48_000, channelCount: 2,
+		encoding: { compressionLevel: 2 },
+	}));
+	assert.equal(queries, 2);
+});

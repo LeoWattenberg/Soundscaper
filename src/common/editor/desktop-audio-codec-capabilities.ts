@@ -6,6 +6,7 @@ import {
 	normalizeDesktopAudioCodecCapabilityQuery,
 	normalizeDesktopAudioCodecCapabilityResult,
 	type DesktopAudioCodecCapabilityEntry,
+	type DesktopAudioCodecCapabilityProvider,
 	type DesktopAudioCodecCapabilityQuery,
 	type DesktopAudioCodecCapabilityReason,
 	type DesktopAudioCodecCapabilityResult,
@@ -19,6 +20,7 @@ export const DESKTOP_AUDIO_CODEC_PREFERENCES_REASON =
 
 export interface DesktopAudioCodecFormatCapability {
 	readonly available: boolean;
+	readonly provider: DesktopAudioCodecCapabilityProvider | null;
 	readonly reason: string | null;
 	readonly missingEncoders: readonly string[];
 	readonly missingMuxers: readonly string[];
@@ -93,6 +95,7 @@ export function desktopAudioCodecMediaExportCapabilities(
 			));
 			formats[format] = Object.freeze({
 				available: entry?.available === true,
+				provider: entry?.available === true ? entry.provider : null,
 				reason: entry?.available === true ? null : desktopAudioCodecCapabilityReason(entry?.reason ?? null),
 				missingEncoders: EMPTY,
 				missingMuxers: EMPTY,
@@ -100,11 +103,12 @@ export function desktopAudioCodecMediaExportCapabilities(
 		} else if (format === 'custom-ffmpeg') {
 			formats[format] = Object.freeze({
 				available: false,
+				provider: null,
 				reason: 'Custom FFmpeg arguments are not admitted by the desktop codec broker.',
 				missingEncoders: EMPTY,
 				missingMuxers: EMPTY,
 			});
-		} else formats[format] = capability;
+		} else formats[format] = Object.freeze({ ...capability, provider: null });
 	}
 	return Object.freeze({
 		profileId: 'desktop-main-audio-codecs',

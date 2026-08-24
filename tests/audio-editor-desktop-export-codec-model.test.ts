@@ -8,6 +8,7 @@ import {
 	desktopExportCodecCapabilities,
 	desktopExportFormatAvailable,
 	desktopExportFormatReason,
+	desktopExportWavPackCompressionLevels,
 } from '../src/common/editor/ui/desktop-export-codec-model.ts';
 
 test('desktop export codec query follows current planned sample and channel geometry', () => {
@@ -45,4 +46,24 @@ test('desktop format choices stay fail-closed while native formats remain availa
 	const partial = desktopExportCodecCapabilities(result, query);
 	assert.equal(desktopExportFormatAvailable('opus', partial), true);
 	assert.equal(desktopExportFormatAvailable('mp3', partial), false);
+});
+
+test('desktop WavPack quality choices follow the selected provider', () => {
+	const query = createDesktopExportCodecQuery({
+		sampleRate: '48000', channelMapping: 'stereo', binaural: false,
+	}, 2);
+	const result = (provider: 'bundled' | 'external-ffmpeg') => ({
+		schemaVersion: 1 as const,
+		capabilities: query.operations.map((operation) => operation.format === 'wavpack'
+			? { ...operation, available: true as const, provider, reason: null }
+			: { ...operation, available: false as const, provider: null, reason: 'unsupported-by-configured-ffmpeg' as const }),
+	});
+	assert.deepEqual(
+		desktopExportWavPackCompressionLevels(desktopExportCodecCapabilities(result('bundled'), query)),
+		[2],
+	);
+	assert.deepEqual(
+		desktopExportWavPackCompressionLevels(desktopExportCodecCapabilities(result('external-ffmpeg'), query)),
+		[0, 1, 2, 3, 4, 5],
+	);
 });

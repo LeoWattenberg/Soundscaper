@@ -13,6 +13,7 @@ import {
 	desktopAudioCodecMediaExportCapabilities,
 	type DesktopAudioCodecCapabilities,
 } from '../desktop-audio-codec-capabilities.ts';
+import { DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL } from '../desktop-wavpack-codec-profile.ts';
 
 interface DesktopExportCodecSettings {
 	readonly sampleRate?: unknown;
@@ -22,6 +23,7 @@ interface DesktopExportCodecSettings {
 }
 
 const COMPRESSED = new Set<string>(DESKTOP_AUDIO_CODEC_FORMATS);
+const WAVPACK_COMPRESSION_LEVELS = Object.freeze([0, 1, 2, 3, 4, 5] as const);
 
 export function createDesktopExportCodecQuery(
 	settings: DesktopExportCodecSettings,
@@ -64,6 +66,14 @@ export function desktopExportFormatReason(
 	if (invalidSettings) return desktopAudioCodecCapabilityReason('unsupported-settings');
 	return capabilities?.formats[canonical]?.reason
 		?? desktopAudioCodecCapabilityReason('configure-external-ffmpeg');
+}
+
+export function desktopExportWavPackCompressionLevels(
+	capabilities: DesktopAudioCodecCapabilities | null,
+): readonly number[] {
+	return capabilities?.formats.wavpack?.provider === 'bundled'
+		? Object.freeze([DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL])
+		: WAVPACK_COMPRESSION_LEVELS;
 }
 
 function outputChannelCount(settings: DesktopExportCodecSettings, projectChannelCount: unknown): number {

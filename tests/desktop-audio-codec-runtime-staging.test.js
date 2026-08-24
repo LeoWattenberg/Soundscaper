@@ -31,6 +31,7 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/external-ffmpeg-audio-operation-runner.js',
 	'src/common/editor/desktop-codec-coordinator.js',
 	'src/common/editor/desktop-codec-provider-catalog.js',
+	'src/common/editor/desktop-wavpack-codec-profile.js',
 	'src/common/editor/wavpack/wavpack.wasm',
 ]);
 

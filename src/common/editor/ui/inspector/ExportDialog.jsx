@@ -42,7 +42,7 @@ import {
 } from './inspector-helpers.ts';
 import {
 	createDesktopExportCodecQuery, desktopExportCodecCapabilities,
-	desktopExportFormatAvailable, desktopExportFormatReason,
+	desktopExportFormatAvailable, desktopExportFormatReason, desktopExportWavPackCompressionLevels,
 } from '../desktop-export-codec-model.ts';
 
 export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fileService, onClose }) {
@@ -511,7 +511,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						<LabeledDropdown label={copy.quality} hook="quality" value={settings.quality} onChange={(value) => set('quality', value)} disabled={exporting} options={Array.from({ length: 12 }, (_, index) => ({ value: String(index - 1), label: String(index - 1) }))} />
 					) : null)}
 					{!videoFormat && ['flac', 'wavpack'].includes(settings.format) && (
-						<LabeledDropdown label={copy.quality} hook="quality" value={settings.compressionLevel} onChange={(value) => set('compressionLevel', value)} disabled={exporting} options={Array.from({ length: settings.format === 'flac' ? 9 : 6 }, (_, level) => ({ value: String(level), label: `${copy.level} ${level}` }))} />
+						<LabeledDropdown label={copy.quality} hook="quality" value={settings.compressionLevel} onChange={(value) => set('compressionLevel', value)} disabled={exporting} options={(settings.format === 'wavpack' && desktop ? desktopExportWavPackCompressionLevels(desktopCodecCapabilities) : Array.from({ length: settings.format === 'flac' ? 9 : 6 }, (_, level) => level)).map((level) => ({ value: String(level), label: `${copy.level} ${level}` }))} />
 					)}
 					{!videoFormat && <label className="audio-editor-field" data-export-field="sampleRate"><span>{copy.sampleRate}</span><input type="number" min="8000" max="384000" step="1" list="audio-editor-export-rates" value={settings.sampleRate} disabled={exporting || admPassthrough} onChange={(event) => set('sampleRate', event.currentTarget.value)} /><datalist id="audio-editor-export-rates">{[8_000, 16_000, 22_050, 32_000, 44_100, 48_000, 88_200, 96_000, 192_000, 384_000, snapshot.project?.sampleRate].filter((value, index, values) => value && values.indexOf(value) === index).map((value) => <option key={value} value={value} />)}</datalist></label>}
 					{!videoFormat && <LabeledDropdown label={copy.channelMapping} hook="channelMapping" value={settings.channelMapping} onChange={(value) => set('channelMapping', value)} disabled={exporting || settings.format === 'bw64'} options={[{ value: 'preserve', label: copy.preserveChannels }, { value: 'mono', label: copy.mono }, { value: 'stereo', label: copy.stereo }, { value: 'custom', label: copy.customChannelMapping }]} />}
