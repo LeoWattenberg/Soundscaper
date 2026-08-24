@@ -99,6 +99,8 @@ test('preflight falls through in fixed priority and only the selected external r
 	assert.deepEqual(outcome.receipt.inputDigests, [sha256(input)]);
 	assert.equal(outcome.receipt.outputDigest, sha256(Uint8Array.of(9, 8, 7)));
 	assert.deepEqual(outcome.receipt.operation, deriveDesktopAudioCodecOperation(request));
+	assert.deepEqual(outcome.receipt.settings, { bitrateKbps: 128 });
+	assert.equal(Object.isFrozen(outcome.receipt.settings), true);
 	assert.equal(outcome.receipt.capabilityGeneration, 'external-ffmpeg-test-generation');
 	assert.equal(outcome.receipt.timing, null);
 	assert.equal(Object.isFrozen(outcome), true);

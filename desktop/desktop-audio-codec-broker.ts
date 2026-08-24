@@ -183,6 +183,7 @@ export function createDesktopAudioCodecBroker(options: Readonly<{
 			)));
 			const coordinated = await coordinator.execute(operation, {
 				inputDigests: Object.freeze([inputDigest]),
+				settings: request.settings,
 				...(executionOptions.signal ? { signal: executionOptions.signal } : {}),
 				run: async (selection): Promise<DesktopCodecExecutionResult<DesktopAudioCodecResult>> => {
 					const runtime = runtimesByProvider.get(selection.provider);

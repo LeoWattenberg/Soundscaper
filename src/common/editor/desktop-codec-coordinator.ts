@@ -57,6 +57,7 @@ export interface DesktopCodecExecutionResult<Value> {
 
 export interface DesktopCodecOperationReceipt {
 	readonly operation: DesktopCodecOperation;
+	readonly settings: Readonly<Record<string, number | string>>;
 	readonly provider: Readonly<{
 		readonly kind: DesktopCodecProviderKind;
 		readonly id: string;
@@ -74,6 +75,7 @@ export interface DesktopCodecCoordinator {
 		operation: DesktopCodecOperation,
 		options: Readonly<{
 			readonly inputDigests: readonly string[];
+			readonly settings?: Readonly<Record<string, number | string>>;
 			readonly signal?: AbortSignal;
 			readonly run: (selection: Readonly<{
 				readonly provider: DesktopCodecProvider;
@@ -127,6 +129,7 @@ export function createDesktopCodecCoordinator(options: Readonly<{
 	return Object.freeze({
 		async execute<Value>(operationValue: DesktopCodecOperation, executionOptions: Readonly<{
 			readonly inputDigests: readonly string[];
+			readonly settings?: Readonly<Record<string, number | string>>;
 			readonly signal?: AbortSignal;
 			readonly run: (selection: Readonly<{
 				readonly provider: DesktopCodecProvider;
@@ -136,6 +139,7 @@ export function createDesktopCodecCoordinator(options: Readonly<{
 		}>): Promise<Readonly<{ readonly value: Value; readonly receipt: DesktopCodecOperationReceipt }>> {
 			const operation = validateOperation(operationValue);
 			const inputDigests = validateDigests(executionOptions?.inputDigests, 'input');
+			const settings = validateSettings(executionOptions?.settings ?? {});
 			if (typeof executionOptions?.run !== 'function') {
 				throw new TypeError('A desktop codec execution callback is required.');
 			}
@@ -187,6 +191,7 @@ export function createDesktopCodecCoordinator(options: Readonly<{
 					value: executed.value,
 					receipt: Object.freeze({
 						operation: receiptOperation,
+						settings,
 						provider: Object.freeze({
 							kind: provider.kind, id: provider.id,
 							implementation: provider.implementation, version: provider.version,
@@ -205,6 +210,31 @@ export function createDesktopCodecCoordinator(options: Readonly<{
 			});
 		},
 	});
+}
+
+function validateSettings(value: unknown): Readonly<Record<string, number | string>> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
+		throw new TypeError('Desktop codec receipt settings must be a plain record.');
+	}
+	const descriptors = Object.getOwnPropertyDescriptors(value);
+	const keys = Reflect.ownKeys(descriptors);
+	if (keys.length > 16 || keys.some((key) => typeof key !== 'string'
+		|| !/^[A-Za-z][A-Za-z0-9]{0,63}$/u.test(key)
+		|| !Object.hasOwn(descriptors[key], 'value'))) {
+		throw new TypeError('Desktop codec receipt settings are invalid.');
+	}
+	const result: Record<string, number | string> = {};
+	for (const key of keys as string[]) {
+		const entry = (value as Record<string, unknown>)[key];
+		if (typeof entry !== 'number' && typeof entry !== 'string'
+			|| typeof entry === 'number' && !Number.isSafeInteger(entry)
+			|| typeof entry === 'string' && !TOKEN.test(entry)) {
+			throw new TypeError('Desktop codec receipt settings are invalid.');
+		}
+		result[key] = entry;
+	}
+	return Object.freeze(result);
 }
 
 function validateProviders(value: unknown): readonly DesktopCodecProvider[] {

@@ -34,6 +34,7 @@ test('desktop codec providers resolve in bundled, OS, external order', async () 
 
 	const result = await coordinator.execute(OPERATION, {
 		inputDigests: ['1'.repeat(64)],
+		settings: { bitrateKbps: 128 },
 		run: async ({ provider: selected }) => {
 			calls.push(`run:${selected.id}`);
 			return {
@@ -50,10 +51,28 @@ test('desktop codec providers resolve in bundled, OS, external order', async () 
 		kind: 'external-ffmpeg', id: 'ffmpeg', implementation: 'fixture-ffmpeg', version: '9.0.1',
 	});
 	assert.equal(result.receipt.capabilityGeneration, 'generation-ffmpeg');
+	assert.deepEqual(result.receipt.settings, { bitrateKbps: 128 });
+	assert.equal(Object.isFrozen(result.receipt.settings), true);
 	assert.deepEqual(result.receipt.inputDigests, ['1'.repeat(64)]);
 	assert.equal(result.receipt.outputDigest, '2'.repeat(64));
 	assert.equal(Object.isFrozen(result.receipt.operation), true);
 	assert.equal(Object.isFrozen(result.receipt.timing), true);
+});
+
+test('receipt settings are closed immutable data rather than an ambient options bag', async () => {
+	const coordinator = createDesktopCodecCoordinator({ providers: [
+		provider('bundled', 'bundled', 'supported', []),
+	] });
+	for (const settings of [
+		{ bitrateKbps: Number.NaN },
+		{ 'unsafe setting': 1 },
+		Object.defineProperty({}, 'bitrateKbps', { get: () => 128 }),
+	]) await assert.rejects(() => coordinator.execute(OPERATION, {
+		inputDigests: [], settings,
+		run: () => Promise.resolve({
+			value: null, outputDigest: '0'.repeat(64), timing: null,
+		}),
+	}), /settings/iu);
 });
 
 test('provider order is rejected when an OS or external provider precedes bundled codecs', () => {
