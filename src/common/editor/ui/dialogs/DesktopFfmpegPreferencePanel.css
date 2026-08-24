@@ -1,0 +1,35 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+#kw-audio-editor-design-system .kw-audio-editor-external-ffmpeg {
+	display: grid;
+	gap: 10px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-external-ffmpeg > :is(p, small) {
+	margin: 0;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-external-ffmpeg > small {
+	color: var(--kw-editor-muted);
+	font-size: 10px;
+	line-height: 1.45;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-external-ffmpeg > label {
+	display: grid;
+	gap: 5px;
+	color: var(--kw-editor-muted);
+	font-size: 10px;
+	font-weight: 700;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-external-ffmpeg > label input[readonly] {
+	width: 100%;
+	color: var(--kw-editor-text);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor-external-ffmpeg__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 7px;
+}

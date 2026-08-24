@@ -17,6 +17,8 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import SoundActivationPreferences from '../SoundActivationPreferences.tsx';
 import { workspacePanelAvailable } from '../framescaper-capture-ui-model.ts';
+import { workspacePreferencesPage } from '../workspace/workspace-preferences-routing.ts';
+import DesktopFfmpegPreferencePanel from './DesktopFfmpegPreferencePanel.tsx';
 import OfflineRuntimePreferencePanel from './OfflineRuntimePreferencePanel.tsx';
 import {
 	WORKSPACE_DOCK_IDS,
@@ -38,14 +40,14 @@ export default function WorkspacePreferencesDialog({
 	fileService,
 	menus,
 	run,
-	initialPage = 'shortcuts',
+	initialPage,
 	isPanelVisible = null,
 	onTogglePanel,
 	onClose,
 	productId = 'soundscaper',
 }) {
 	const sideNavRef = useRef(null);
-	const [selectedPage, setSelectedPage] = useState(preferencePage(initialPage));
+	const [selectedPage, setSelectedPage] = useState(preferencePage(initialPage, fileService.isDesktop));
 	const [shortcutSearch, setShortcutSearch] = useState('');
 	const [workspaceName, setWorkspaceName] = useState('');
 	const preferences = snapshot.preferences;
@@ -59,6 +61,7 @@ export default function WorkspacePreferencesDialog({
 	const visibleCommands = commands.filter((command) => `${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase()));
 	const activeCustom = preferences.workspace.custom.find((workspace) => workspace.id === preferences.workspace.activeId);
 	const pages = [
+		...(fileService.isDesktop ? [{ id: 'general', label: copy.metadataGeneralTab, icon: iconNameToChar('SETTINGS_COG') }] : []),
 		{ id: 'appearance', label: copy.appearance, icon: iconNameToChar('BRUSH') },
 		{ id: 'editing', label: copy.preferencesEditing, icon: iconNameToChar('WAVEFORM') },
 		{ id: 'spectrogram', label: copy.panelSpectrogram, icon: iconNameToChar('SPECTROGRAM') },
@@ -93,7 +96,7 @@ export default function WorkspacePreferencesDialog({
 		if (next.maximumFrequency <= next.minimumFrequency) return;
 		updateSpectrogram({ [name]: value });
 	};
-	useEffect(() => setSelectedPage(preferencePage(initialPage)), [initialPage]);
+	useEffect(() => setSelectedPage(preferencePage(initialPage, fileService.isDesktop)), [fileService.isDesktop, initialPage]);
 	const handleSideNavKeyDown = (event) => {
 		if (!event.target.closest('[role="tab"]') || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
 		event.preventDefault();
@@ -140,27 +143,29 @@ export default function WorkspacePreferencesDialog({
 						id={`dialog-panel-${selectedPage}`}
 						aria-label={selectedPageLabel}
 					>
+						{selectedPage === 'general' && fileService.isDesktop && (
+							<div className="kw-audio-editor-preferences__general">
+								<PreferencePanel title={copy.languageLabel}>
+									<PreferenceDropdownField
+										label={copy.languageLabel}
+										value={locale}
+										onChange={(value) => run(async () => {
+											await controller.actions.project.flush();
+											await fileService.setLocale(value);
+										})}
+										options={ROUTE_LOCALES.map((descriptor) => ({
+											value: descriptor.locale,
+											label: descriptor.nativeName,
+										}))}
+									/>
+								</PreferencePanel>
+								<Separator />
+								<DesktopFfmpegPreferencePanel fileService={fileService} copy={copy} />
+							</div>
+						)}
+
 						{selectedPage === 'appearance' && (
 							<div className="kw-audio-editor-preferences__appearance">
-								{fileService.isDesktop && (
-									<>
-										<PreferencePanel title={copy.languageLabel}>
-											<PreferenceDropdownField
-												label={copy.languageLabel}
-												value={locale}
-												onChange={(value) => run(async () => {
-													await controller.actions.project.flush();
-													await fileService.setLocale(value);
-												})}
-												options={ROUTE_LOCALES.map((descriptor) => ({
-													value: descriptor.locale,
-													label: descriptor.nativeName,
-												}))}
-											/>
-										</PreferencePanel>
-										<Separator />
-									</>
-								)}
 								<PreferencePanel title={highContrastTheme ? copy.highContrastTheme : copy.theme}>
 									<div className="kw-audio-editor-preferences__thumbnails">
 										<PreferenceChoice
@@ -402,8 +407,9 @@ export default function WorkspacePreferencesDialog({
 	);
 }
 
-function preferencePage(requestedPage) {
-	return requestedPage === 'sound-activation' ? 'editing' : requestedPage;
+function preferencePage(requestedPage, isDesktop) {
+	const page = workspacePreferencesPage(requestedPage, isDesktop);
+	return page === 'sound-activation' ? 'editing' : page;
 }
 
 function PreferenceDropdownField({ label, options, value, visuallyHiddenLabel = false, onChange }) {
