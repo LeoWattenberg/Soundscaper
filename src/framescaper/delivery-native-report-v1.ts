@@ -4,6 +4,24 @@
 
 import { assertNativeMediaRelativeDestination } from '../common/editor/native-media-atomic-publication.ts';
 import { fingerprintNativeMediaPlan } from '../common/editor/native-media-plan-canonical-form.ts';
+import {
+	assertNativeMediaPlanEnvelopeV2,
+	type NativeMediaPlanEnvelopeV2,
+} from '../common/editor/native-media-plan-envelope-v2.ts';
+import {
+	assertNativeMediaPlanEnvelopeV3,
+	type NativeMediaPlanEnvelopeV3,
+} from '../common/editor/native-media-plan-envelope-v3.ts';
+import {
+	nativeMediaV14EncodeDispatch,
+	type NativeMediaV14EncodeProfileId,
+} from '../common/editor/native-media-v14-native-dispatch.ts';
+import {
+	findPlatformDeliveryPreset,
+	type PlatformNativeMediaV15Execution,
+} from '../common/editor/platform-delivery-presets.ts';
+import type { UnifiedExactRenderCaptionDeliveryV15 } from '../common/editor/unified-exact-render-delivery-v15.ts';
+import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-exact-render-plan.ts';
 import type {
 	DeliveryDisposition,
 	DeliveryReport,
@@ -12,14 +30,17 @@ import type {
 } from '../common/editor/delivery-report.ts';
 
 export type FramescaperNativeCaptionDispositionV1 =
-	| 'none' | 'sidecar' | 'mux' | 'burn-in' | 'mux-and-sidecar' | 'burn-in-and-sidecar';
+	| 'none' | 'sidecar' | 'mux' | 'burn-in'
+	| 'mux-and-burn-in' | 'mux-and-sidecar' | 'burn-in-and-sidecar'
+	| 'mux-and-burn-in-and-sidecar';
 
 export interface FramescaperNativeDeliveryReportSeedV1 {
 	readonly schemaVersion: 1;
 	readonly jobId: string;
 	readonly planFingerprint: string;
 	readonly targetId: string;
-	readonly profileId: string;
+	readonly profileId: NativeMediaV14EncodeProfileId;
+	readonly hardwarePolicy: PlatformNativeMediaV15Execution['hardwarePolicy'];
 	readonly captionDisposition: FramescaperNativeCaptionDispositionV1;
 	readonly plannedReport: DeliveryReport;
 	readonly seedFingerprint: string;
@@ -50,7 +71,8 @@ export interface FramescaperNativeDeliveryReportV1 {
 	readonly seedFingerprint: string;
 	readonly planFingerprint: string;
 	readonly targetId: string;
-	readonly profileId: string;
+	readonly profileId: NativeMediaV14EncodeProfileId;
+	readonly hardwarePolicy: PlatformNativeMediaV15Execution['hardwarePolicy'];
 	readonly captionDisposition: FramescaperNativeCaptionDispositionV1;
 	readonly status: 'succeeded' | 'failed';
 	readonly backendAttempts: readonly FramescaperNativeDeliveryBackendAttemptV1[];
@@ -65,24 +87,54 @@ const SHA256 = /^[a-f0-9]{64}$/u;
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,4095}$/u;
 const FAILURE = /^[a-z][a-z0-9-]{0,63}$/u;
 const CAPTION_DISPOSITIONS = Object.freeze([
-	'none', 'sidecar', 'mux', 'burn-in', 'mux-and-sidecar', 'burn-in-and-sidecar',
+	'none', 'sidecar', 'mux', 'burn-in', 'mux-and-burn-in',
+	'mux-and-sidecar', 'burn-in-and-sidecar', 'mux-and-burn-in-and-sidecar',
 ] as const);
 const DISPOSITIONS = Object.freeze(['preserved', 'converted', 'missing', 'omitted'] as const);
 
 export function createFramescaperNativeDeliveryReportSeedV1(input: Readonly<{
 	readonly jobId: string;
-	readonly planFingerprint: string;
 	readonly targetId: string;
-	readonly profileId: string;
-	readonly captionDisposition: FramescaperNativeCaptionDispositionV1;
+	readonly envelope: unknown;
+	readonly timingSidecars?: UnifiedExactRenderTimingSidecars;
 	readonly plannedReport: DeliveryReport;
 }>): FramescaperNativeDeliveryReportSeedV1 {
+	const row = exactRecord(input, [
+		'jobId', 'targetId', 'envelope', 'timingSidecars', 'plannedReport',
+	], 'native delivery report seed input', ['timingSidecars']);
+	const authority = reportPlanAuthority(
+		row.envelope,
+		row.timingSidecars as UnifiedExactRenderTimingSidecars | undefined,
+	);
+	return createSeed({
+		jobId: row.jobId,
+		planFingerprint: authority.planFingerprint,
+		targetId: row.targetId,
+		profileId: authority.profileId,
+		captionDisposition: authority.captionDisposition,
+		plannedReport: row.plannedReport,
+	});
+}
+
+function createSeed(input: Readonly<{
+	readonly jobId: unknown;
+	readonly planFingerprint: unknown;
+	readonly targetId: unknown;
+	readonly profileId: unknown;
+	readonly captionDisposition: unknown;
+	readonly plannedReport: unknown;
+}>): FramescaperNativeDeliveryReportSeedV1 {
+	const profileId = text(input.profileId, ID, 'native delivery report profile ID');
+	nativeMediaV14EncodeDispatch(profileId as NativeMediaV14EncodeProfileId);
+	const targetId = text(input.targetId, ID, 'native delivery report target ID');
+	const execution = nativeTargetExecution(targetId, profileId as NativeMediaV14EncodeProfileId);
 	const foundation = Object.freeze({
 		schemaVersion: 1 as const,
 		jobId: text(input.jobId, JOB_ID, 'native delivery report jobId'),
 		planFingerprint: text(input.planFingerprint, SHA256, 'native delivery report plan fingerprint'),
-		targetId: text(input.targetId, ID, 'native delivery report target ID'),
-		profileId: text(input.profileId, ID, 'native delivery report profile ID'),
+		targetId,
+		profileId: profileId as NativeMediaV14EncodeProfileId,
+		hardwarePolicy: execution.hardwarePolicy,
 		captionDisposition: member(
 			input.captionDisposition, CAPTION_DISPOSITIONS, 'native delivery caption disposition',
 		),
@@ -99,16 +151,16 @@ export function assertFramescaperNativeDeliveryReportSeedV1(
 ): asserts value is FramescaperNativeDeliveryReportSeedV1 {
 	const input = exactRecord(value, [
 		'schemaVersion', 'jobId', 'planFingerprint', 'targetId', 'profileId',
-		'captionDisposition', 'plannedReport', 'seedFingerprint',
+		'hardwarePolicy', 'captionDisposition', 'plannedReport', 'seedFingerprint',
 	], 'native delivery report seed');
 	if (input.schemaVersion !== 1) throw new RangeError('Native delivery report seed version is unsupported.');
-	const derived = createFramescaperNativeDeliveryReportSeedV1({
-		jobId: input.jobId as string,
-		planFingerprint: input.planFingerprint as string,
-		targetId: input.targetId as string,
-		profileId: input.profileId as string,
-		captionDisposition: input.captionDisposition as FramescaperNativeCaptionDispositionV1,
-		plannedReport: input.plannedReport as DeliveryReport,
+	const derived = createSeed({
+		jobId: input.jobId,
+		planFingerprint: input.planFingerprint,
+		targetId: input.targetId,
+		profileId: input.profileId,
+		captionDisposition: input.captionDisposition,
+		plannedReport: input.plannedReport,
 	});
 	if (input.seedFingerprint !== derived.seedFingerprint
 		|| fingerprintNativeMediaPlan(value).canonical
@@ -127,13 +179,14 @@ export function sealFramescaperNativeDeliveryReportV1(
 		'status', 'backendAttempts', 'conformance', 'artifacts', 'publication', 'finalReport',
 	], 'native delivery report result');
 	const status = member(result.status, ['succeeded', 'failed'] as const, 'native delivery status');
-	const backendAttempts = attempts(result.backendAttempts);
+	const backendAttempts = attempts(result.backendAttempts, seed.hardwarePolicy);
 	const conformance = conformanceRows(result.conformance);
 	const artifacts = artifactRows(result.artifacts);
 	const publication = member(
 		result.publication, ['complete', 'not-published'] as const, 'native delivery publication',
 	);
 	const report = snapshotDeliveryReport(result.finalReport);
+	assertPlannedReportPreserved(seed.plannedReport, report);
 	const last = backendAttempts.at(-1)!;
 	if (status === 'succeeded') {
 		if (last.outcome !== 'succeeded' || publication !== 'complete' || artifacts.length === 0) {
@@ -152,6 +205,7 @@ export function sealFramescaperNativeDeliveryReportV1(
 		planFingerprint: seed.planFingerprint,
 		targetId: seed.targetId,
 		profileId: seed.profileId,
+		hardwarePolicy: seed.hardwarePolicy,
 		captionDisposition: seed.captionDisposition,
 		status,
 		backendAttempts,
@@ -162,7 +216,125 @@ export function sealFramescaperNativeDeliveryReportV1(
 	});
 }
 
-function attempts(value: unknown): readonly FramescaperNativeDeliveryBackendAttemptV1[] {
+function nativeTargetExecution(
+	targetId: string,
+	profileId: NativeMediaV14EncodeProfileId,
+): PlatformNativeMediaV15Execution {
+	const preset = findPlatformDeliveryPreset(targetId);
+	if (!preset) throw new RangeError(`Native delivery report target ${targetId} is not in the platform catalog.`);
+	if (preset.execution.kind !== 'native-media-v15') {
+		throw new RangeError(`Platform delivery target ${targetId} is not a native-media-v15 target.`);
+	}
+	if (preset.execution.profileId !== profileId) {
+		throw new RangeError(
+			`Platform delivery target ${targetId} does not select exact profile ${profileId}.`,
+		);
+	}
+	return preset.execution;
+}
+
+function reportPlanAuthority(
+	value: unknown,
+	timingSidecars?: UnifiedExactRenderTimingSidecars,
+): Readonly<{
+	readonly planFingerprint: string;
+	readonly profileId: NativeMediaV14EncodeProfileId;
+	readonly captionDisposition: FramescaperNativeCaptionDispositionV1;
+}> {
+	const envelopeVersion = ownDataValue(value, 'envelopeVersion', 'native delivery plan envelope');
+	if (envelopeVersion === 2) {
+		assertNativeMediaPlanEnvelopeV2(value, timingSidecars);
+		if (value.planVersion !== 14 || value.plan.version !== 14) {
+			throw new RangeError('A native delivery report requires an exact V14 or V15 plan envelope.');
+		}
+		return derivedReportPlanAuthority(value, null);
+	}
+	if (envelopeVersion === 3) {
+		assertNativeMediaPlanEnvelopeV3(value, timingSidecars);
+		if ((value.planVersion !== 14 && value.planVersion !== 15)
+			|| value.plan.version !== value.planVersion) {
+			throw new RangeError('A native delivery report requires an exact V14 or V15 plan envelope.');
+		}
+		return derivedReportPlanAuthority(
+			value,
+			value.plan.version === 15 ? value.plan.captionDelivery : null,
+		);
+	}
+	throw new RangeError('A native delivery report requires a V2 or V3 plan envelope.');
+}
+
+function derivedReportPlanAuthority(
+	envelope: NativeMediaPlanEnvelopeV2 | NativeMediaPlanEnvelopeV3,
+	caption: UnifiedExactRenderCaptionDeliveryV15 | null,
+): Readonly<{
+	readonly planFingerprint: string;
+	readonly profileId: NativeMediaV14EncodeProfileId;
+	readonly captionDisposition: FramescaperNativeCaptionDispositionV1;
+}> {
+	const profileId = envelope.plan.deliveryProfile;
+	if (typeof profileId !== 'string') {
+		throw new TypeError('A native delivery report plan has no exact encode profile.');
+	}
+	nativeMediaV14EncodeDispatch(profileId as NativeMediaV14EncodeProfileId);
+	return Object.freeze({
+		planFingerprint: envelope.fingerprint,
+		profileId: profileId as NativeMediaV14EncodeProfileId,
+		captionDisposition: captionDisposition(caption),
+	});
+}
+
+function captionDisposition(
+	delivery: UnifiedExactRenderCaptionDeliveryV15 | null,
+): FramescaperNativeCaptionDispositionV1 {
+	if (delivery === null) return 'none';
+	const mux = delivery.mux !== null;
+	const burn = delivery.burnIn !== null;
+	const sidecar = delivery.sidecar !== null;
+	if (mux && burn && sidecar) return 'mux-and-burn-in-and-sidecar';
+	if (mux && burn) return 'mux-and-burn-in';
+	if (mux && sidecar) return 'mux-and-sidecar';
+	if (burn && sidecar) return 'burn-in-and-sidecar';
+	if (mux) return 'mux';
+	if (burn) return 'burn-in';
+	if (sidecar) return 'sidecar';
+	throw new Error('An exact V15 caption delivery has no selected artifact.');
+}
+
+function ownDataValue(value: unknown, field: string, name: string): unknown {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError(`${name} must be an object.`);
+	}
+	const descriptor = Object.getOwnPropertyDescriptor(value, field);
+	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+		throw new TypeError(`${name}.${field} must be an own enumerable data property.`);
+	}
+	return descriptor.value;
+}
+
+function assertPlannedReportPreserved(planned: DeliveryReport, final: DeliveryReport): void {
+	if (fingerprintNativeMediaPlan(planned.subject).canonical
+		!== fingerprintNativeMediaPlan(final.subject).canonical) {
+		throw new Error('The final native delivery report changed its planned subject.');
+	}
+	const remaining = new Map<string, number>();
+	for (const item of final.items) {
+		const canonical = fingerprintNativeMediaPlan(item).canonical;
+		remaining.set(canonical, (remaining.get(canonical) ?? 0) + 1);
+	}
+	for (const item of planned.items) {
+		const canonical = fingerprintNativeMediaPlan(item).canonical;
+		const count = remaining.get(canonical) ?? 0;
+		if (count === 0) {
+			throw new Error('The final native delivery report dropped or changed a planned report item.');
+		}
+		remaining.set(canonical, count - 1);
+	}
+}
+
+function attempts(
+	value: unknown,
+	hardwarePolicy: PlatformNativeMediaV15Execution['hardwarePolicy'],
+): readonly FramescaperNativeDeliveryBackendAttemptV1[] {
 	const rows = denseArray(value, 1, 2, 'native delivery backend attempts').map((entry, index) => {
 		const row = exactRecord(entry, ['attempt', 'backend', 'outcome', 'failureCode'], 'native delivery backend attempt');
 		const attempt = integer(row.attempt, 1, 2, 'native delivery attempt');
@@ -185,6 +357,13 @@ function attempts(value: unknown): readonly FramescaperNativeDeliveryBackendAtte
 	if (rows.length === 2 && (rows[0]!.outcome !== 'failed'
 		|| rows[1]!.backend !== 'native-cpu')) {
 		throw new Error('The only native delivery retry is one CPU attempt after hardware failure.');
+	}
+	if (hardwarePolicy === 'native-cpu') {
+		if (rows.length !== 1 || rows[0]!.backend !== 'native-cpu') {
+			throw new Error('The native delivery target hardware policy permits exactly one native-cpu attempt.');
+		}
+	} else if (rows[0]!.backend === 'native-cpu' || rows[0]!.backend === 'web-core') {
+		throw new Error('The native delivery target hardware policy requires a hardware-first attempt.');
 	}
 	return Object.freeze(rows);
 }
