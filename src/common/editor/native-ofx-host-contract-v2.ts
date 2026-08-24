@@ -3,6 +3,7 @@
 import { OFX_CONTEXTS, OFX_HOST_SUITES, OFX_PARAMETER_TYPES, OFX_THREADING_DECLARATIONS, type OfxContext } from './native-ofx-descriptor.ts';
 import {
 	OFX_HOST_ACTIONS_V1,
+	snapshotOfxRetimerSourceTimeWireV1,
 	type OfxHostActionV1,
 	type OfxRetimerSourceTimeWireV1,
 	type OfxRenderBackendV1,
@@ -66,6 +67,10 @@ const { digest, exactKeys, nonNegativeInteger, pattern, plainRecord } = createNa
 export function createOfxHostInvocationV2(value: Readonly<Record<string, unknown>>): OfxHostInvocationV2 {
 	const pluginId = pattern(value.pluginId, ID, 'pluginId');
 	const pluginBinarySha256 = digest(value.pluginBinarySha256, 'pluginBinarySha256');
+	// The oracle's authentication is identity-based, so it must run on the
+	// caller's own value before any snapshot: a clone can never re-enter the
+	// WeakSet, and asserting it afterwards refused every genuine Retimer frame.
+	if (value.context === 'retimer') assertAuthenticatedOfxRetimerSourceTimeV1(value.retimerSourceTime);
 	const invocation = {
 		schemaVersion: 2 as const,
 		invocationId: pattern(value.invocationId, ID, 'invocationId'),
@@ -81,7 +86,8 @@ export function createOfxHostInvocationV2(value: Readonly<Record<string, unknown
 		outputOrdinal: nonNegativeInteger(value.outputOrdinal, 'outputOrdinal'),
 		requestedBackend: value.requestedBackend as OfxHostInvocationV2['requestedBackend'],
 		abortSignalId: pattern(value.abortSignalId, ID, 'abortSignalId'),
-		retimerSourceTime: value.retimerSourceTime === undefined ? null : structuredClone(value.retimerSourceTime) as OfxRetimerSourceTimeWireV1,
+		retimerSourceTime: value.retimerSourceTime === undefined
+			? null : snapshotOfxRetimerSourceTimeWireV1(value.retimerSourceTime),
 	};
 	assertOfxHostInvocationV2(invocation);
 	return deepFreeze(invocation);
@@ -109,7 +115,10 @@ export function assertOfxHostInvocationV2(value: unknown): asserts value is OfxH
 	pattern(invocation.abortSignalId, ID, 'abortSignalId');
 	if (invocation.context === 'retimer') {
 		if (invocation.retimerSourceTime === null) throw new Error('An OFX Retimer invocation requires SourceTime.');
-		assertAuthenticatedOfxRetimerSourceTimeV1(invocation.retimerSourceTime);
+		// Structural admission only: this assertion also runs on grants after the
+		// main-to-helper boundary, where the oracle identity cannot survive. The
+		// identity authentication belongs to construction, on the original value.
+		snapshotOfxRetimerSourceTimeWireV1(invocation.retimerSourceTime);
 	} else if (invocation.retimerSourceTime !== null) throw new Error('Only OFX Retimer may carry SourceTime.');
 }
 

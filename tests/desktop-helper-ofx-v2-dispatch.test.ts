@@ -10,6 +10,9 @@ import {
 import { HelperContractViolationError } from '../desktop/helper-wire-admission.ts';
 import { createOfxHostInvocationV1 } from '../src/common/editor/native-ofx-host-contract.ts';
 import { createOfxHostInvocationV2 } from '../src/common/editor/native-ofx-host-contract-v2.ts';
+import { createOfxRetimerSourceTimeV1 } from '../src/common/editor/native-ofx-retimer-source-time.ts';
+import { createVideoRetimeExactOrdinalAuthority } from '../src/common/editor/video-retime-exact-ordinal-authority.ts';
+import { bindCfrTiming, createFiveModeIntent } from './helpers/video-retime-export-fixtures.ts';
 
 const PLAN_SHA256 = '1'.repeat(64);
 const PLUGIN_SHA256 = '2'.repeat(64);
@@ -107,6 +110,49 @@ test('OFX helper dispatch preserves exact V1 and admits exact V2', () => {
 		assert.equal(Object.isFrozen(admitted), true);
 		assert.ok(helperNativeJobGrantResourceUsage('ofx-host', admitted).inputBytes > 0);
 	}
+});
+
+test('a V14 Retimer invocation admits the oracle SourceTime and survives the grant boundary', () => {
+	const timing = bindCfrTiming('curve-source', 20, { num: 1, den: 1 });
+	const authority = createVideoRetimeExactOrdinalAuthority(
+		createFiveModeIntent(),
+		new Map([['curve-source', timing]]),
+	);
+	const sourceTime = createOfxRetimerSourceTimeV1(authority, {
+		outputOrdinal: 7, clipId: 'curve-clip', sourceId: 'curve-source',
+	});
+	const retimerInput = (retimerSourceTime: unknown) => ({
+		invocationId: 'ofx-v2-retimer',
+		unifiedPlanVersion: 14,
+		unifiedPlanSha256: PLAN_SHA256,
+		nodeId: 'openfx-node',
+		instanceId: 'openfx-instance',
+		pluginId: 'org.framescaper.Dispatch',
+		pluginBinarySha256: PLUGIN_SHA256,
+		context: 'retimer',
+		action: 'render',
+		stateSha256: STATE_SHA256,
+		inputFrameStreamIds: [INPUT_STREAM_ID],
+		outputFrameStreamId: OUTPUT_STREAM_ID,
+		outputOrdinal: 7,
+		requestedBackend: 'cpu',
+		abortSignalId: 'abort-v2-retimer',
+		retimerSourceTime,
+	});
+	// The genuine oracle value constructs: the identity check runs on the
+	// caller's value, not on a snapshot that can never re-enter the WeakSet.
+	const invocation = createOfxHostInvocationV2(retimerInput(sourceTime));
+	assert.equal(invocation.context, 'retimer');
+	assert.deepEqual(invocation.retimerSourceTime, { ...sourceTime });
+	// The grant admission clones across the main-to-helper boundary and must
+	// still admit the invocation on structural evidence.
+	const admitted = validateHelperNativeJobGrant('ofx-host', { ...grant(2), invocation });
+	if (!('invocation' in admitted)) throw new Error('A render grant admitted as Interact.');
+	assert.equal(admitted.invocation.context, 'retimer');
+	assert.deepEqual(admitted.invocation.retimerSourceTime, { ...sourceTime });
+	// A structurally identical SourceTime that never visited the oracle is forged.
+	assert.throws(() => createOfxHostInvocationV2(retimerInput(structuredClone(sourceTime))),
+		/exact ordinal oracle/iu);
 });
 
 test('OFX helper dispatch rejects crossed, unknown, and widened invocation versions', () => {

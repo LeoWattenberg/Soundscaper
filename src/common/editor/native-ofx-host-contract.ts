@@ -346,6 +346,14 @@ export function normalizeOfxInteractEventV1(value: unknown): OfxInteractEventV1 
 	throw new OfxHostContractError('An unsupported OFX interaction cannot escape the offscreen UI.');
 }
 
+/**
+ * Structural admission for a SourceTime that already crossed a clone or process
+ * boundary, where the oracle's identity authentication can no longer hold.
+ */
+export function snapshotOfxRetimerSourceTimeWireV1(value: unknown): OfxRetimerSourceTimeWireV1 | null {
+	return snapshotSourceTime(value);
+}
+
 function snapshotSourceTime(value: unknown): OfxRetimerSourceTimeWireV1 | null {
 	if (value === null) return null;
 	const sourceTime = record(value, 'OFX Retimer SourceTime');
