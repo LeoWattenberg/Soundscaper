@@ -239,6 +239,33 @@ function assertRuntimePayloadClosure(runtime, files) {
 		if (professional.status === 'built') {
 			requireFile(`${professionalPrefix}${professional.payload?.name}`, professional.payload,
 				'professional native payload', professionalPrefix);
+			// A built row stages its whole reviewed closure — plug-in peer,
+			// isolation launcher, sandbox profile, broker policy, and runtime
+			// libraries — and the manifest validator requires them, so an audit
+			// that admits only the payload rejects every genuine built release
+			// as unexpected files under the closed prefix.
+			const relative = (path) => {
+				const sourcePrefix = `native/soundscaper-professional-host/prebuilt/${native.target}/`;
+				if (typeof path !== 'string' || !path.startsWith(sourcePrefix)) {
+					throw new Error('A professional native artifact escaped its target root.');
+				}
+				return path.slice(sourcePrefix.length);
+			};
+			const isolation = professional.isolation;
+			if (!plainRecord(professional.pluginPeer) || !plainRecord(isolation)
+				|| !Array.isArray(isolation.runtimeClosure)) {
+				throw new Error('A built professional native target requires its reviewed isolation closure.');
+			}
+			for (const [label, artifact] of [
+				['plug-in peer', professional.pluginPeer],
+				['isolation launcher', isolation.launcher],
+				['isolation sandbox profile', isolation.sandboxProfile],
+				['isolation broker policy', isolation.brokerPolicy],
+				...isolation.runtimeClosure.map((entry, index) => [`runtime closure entry ${index}`, entry]),
+			]) {
+				requireFile(`${professionalPrefix}${relative(artifact?.path)}`, artifact,
+					`professional native ${label}`, professionalPrefix);
+			}
 			if (professional.productionReadiness !== null) {
 				requireFile(`${professionalPrefix}${professional.productionReadiness?.evidence?.name}`,
 					professional.productionReadiness?.evidence,

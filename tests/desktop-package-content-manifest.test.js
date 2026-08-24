@@ -23,7 +23,7 @@ test('the embedded package-content manifest binds the exact installed resource c
 		targetId: 'linux-x64',
 	});
 	assert.equal(written.status, 'installed-resource-closure-audited');
-	assert.equal(written.fileCount, 10);
+	assert.equal(written.fileCount, 15);
 	const audit = await auditExtractedDesktopPackageContent({
 		extractedRoot: fixture.extractedRoot,
 		runtimeManifestBytes: await readFile(fixture.runtimeManifestPath),
@@ -32,7 +32,7 @@ test('the embedded package-content manifest binds the exact installed resource c
 	});
 	assert.equal(audit.contentManifestSha256, written.contentManifestSha256);
 	assert.equal(audit.sourceRevision, REVISION);
-	assert.equal(audit.fileCount, 10);
+	assert.equal(audit.fileCount, 15);
 	assert.match(audit.installedClosureSha256, /^[a-f\d]{64}$/u);
 	assert.match(audit.resourcesPath, /usr\/lib\/soundscaper\/resources$/u);
 });
@@ -144,6 +144,16 @@ async function packageTree(context) {
 			Buffer.from('authenticated professional payload'),
 		'runtime/native/soundscaper-professional-host/linux-x64/milestone-5-native-isolation-review-policy.json':
 			Buffer.from('authenticated native-isolation review policy'),
+		'runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-plugin-peer':
+			Buffer.from('authenticated professional plug-in peer'),
+		'runtime/native/soundscaper-professional-host/linux-x64/m5-native-isolation-launcher':
+			Buffer.from('authenticated isolation launcher'),
+		'runtime/native/soundscaper-professional-host/linux-x64/profiles/linux-v1.json':
+			Buffer.from('authenticated sandbox profile'),
+		'runtime/native/soundscaper-professional-host/linux-x64/profiles/linux-broker-v1.json':
+			Buffer.from('authenticated broker policy'),
+		'runtime/native/soundscaper-professional-host/linux-x64/runtime/ld-linux-x86-64.so.2':
+			Buffer.from('authenticated runtime loader'),
 		'runtime/assistance/test/node_modules/runtime/native.node': Buffer.from('authenticated assistance payload'),
 		'runtime/translations/audacity/4/latest.json': Buffer.from('authenticated translations'),
 	};
@@ -188,6 +198,28 @@ async function packageTree(context) {
 			payload: {
 				name: 'soundscaper_professional.node',
 				...descriptor('runtime/native/soundscaper-professional-host/linux-x64/soundscaper_professional.node'),
+			},
+			pluginPeer: {
+				path: 'native/soundscaper-professional-host/prebuilt/linux-x64/soundscaper-professional-plugin-peer',
+				...descriptor('runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-plugin-peer'),
+			},
+			isolation: {
+				launcher: {
+					path: 'native/soundscaper-professional-host/prebuilt/linux-x64/m5-native-isolation-launcher',
+					...descriptor('runtime/native/soundscaper-professional-host/linux-x64/m5-native-isolation-launcher'),
+				},
+				sandboxProfile: {
+					path: 'native/soundscaper-professional-host/prebuilt/linux-x64/profiles/linux-v1.json',
+					...descriptor('runtime/native/soundscaper-professional-host/linux-x64/profiles/linux-v1.json'),
+				},
+				brokerPolicy: {
+					path: 'native/soundscaper-professional-host/prebuilt/linux-x64/profiles/linux-broker-v1.json',
+					...descriptor('runtime/native/soundscaper-professional-host/linux-x64/profiles/linux-broker-v1.json'),
+				},
+				runtimeClosure: [{
+					path: 'native/soundscaper-professional-host/prebuilt/linux-x64/runtime/ld-linux-x86-64.so.2',
+					...descriptor('runtime/native/soundscaper-professional-host/linux-x64/runtime/ld-linux-x86-64.so.2'),
+				}],
 			},
 		},
 		assistanceNativeRuntime: {
