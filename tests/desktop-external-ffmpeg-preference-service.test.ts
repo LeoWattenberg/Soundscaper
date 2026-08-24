@@ -45,6 +45,7 @@ test('Browse probes the exact chosen executable and commits only verified eviden
 	]);
 	assert.deepEqual(service.admission(), {
 		executablePath: PATH, version: '9.0.1', capabilityGeneration: '4'.repeat(64),
+		identity: IDENTITY,
 		capabilities: {
 			encoders: ['libopus'], decoders: ['opus'], muxers: ['opus'],
 			demuxers: ['ogg'], filters: ['aresample'],

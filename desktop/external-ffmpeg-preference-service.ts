@@ -28,6 +28,7 @@ export interface ExternalFfmpegRuntimeAdmission {
 	readonly executablePath: string;
 	readonly version: string;
 	readonly capabilityGeneration: string;
+	readonly identity: ExternalFfmpegProbeEvidence['identity'];
 	readonly capabilities: ExternalFfmpegCapabilities;
 }
 
@@ -79,6 +80,7 @@ export interface ExternalFfmpegPreferenceService {
 
 const STATUS_DETAIL_LIMIT = 2_048;
 const CAPABILITY_TOKEN = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u;
+const SHA256 = /^[0-9a-f]{64}$/u;
 
 export function createExternalFfmpegPreferenceService(
 	options: ExternalFfmpegPreferenceServiceOptions,
@@ -210,11 +212,29 @@ function runtimeAdmission(
 		throw new TypeError('External FFmpeg evidence is invalid.');
 	}
 	const capabilities = capabilitySets(result.capabilities);
+	const identity = runtimeIdentity(evidence.identity);
 	return Object.freeze({
 		executablePath: evidence.executablePath,
-		version: evidence.identity.version,
+		version: identity.version,
 		capabilityGeneration: evidence.capabilities.digest,
+		identity,
 		capabilities,
+	});
+}
+
+function runtimeIdentity(
+	value: ExternalFfmpegProbeEvidence['identity'],
+): ExternalFfmpegProbeEvidence['identity'] {
+	if (!value || typeof value !== 'object' || typeof value.version !== 'string'
+		|| value.version.length < 1 || value.version.length > 256
+		|| !SHA256.test(value.ffmpegSha256) || !SHA256.test(value.ffprobeSha256)
+		|| !SHA256.test(value.dependencyClosureSha256)) {
+		throw new TypeError('External FFmpeg identity is invalid.');
+	}
+	return Object.freeze({
+		version: value.version, ffmpegSha256: value.ffmpegSha256,
+		ffprobeSha256: value.ffprobeSha256,
+		dependencyClosureSha256: value.dependencyClosureSha256,
 	});
 }
 
