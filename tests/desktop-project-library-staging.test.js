@@ -5,7 +5,7 @@ import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
 	compileDesktopProjectLibraryRuntime,
@@ -94,6 +94,12 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/framescaper-openfx-host-payload.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/framescaper-openfx-runtime.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/external-display-frame-port.js'));
+	for (const name of [
+		'external-ffmpeg-installer-node-runtime.js', 'external-ffmpeg-installer.js',
+		'external-ffmpeg-node-runtime.js', 'external-ffmpeg-preference-main-ipc.js',
+		'external-ffmpeg-preference-node-probe.js', 'external-ffmpeg-preference-service.js',
+		'external-ffmpeg-probe.js',
+	]) await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop', name));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-helper-job.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-capability-report.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-host-self-test.js'));
@@ -153,8 +159,42 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	const locatorRuntime = await readFile(join(applicationDesktopRoot, 'linked-video-locator-runtime.js'), 'utf8');
 	assert.match(locatorRuntime, /project-library-runtime\/desktop\/linked-video-locator-registry\.js/u);
 	assert.match(locatorRuntime, /project-library-runtime\/desktop\/linked-video-locator-store\.js/u);
+	const registrationModule = await import(pathToFileURL(
+		join(applicationDesktopRoot, 'external-ffmpeg-registration.mjs'),
+	).href);
+	const handlers = new Map();
+	const registration = await registrationModule.registerExternalFfmpegPreferences({
+		channels: {
+			externalFfmpegStatus: 'status', externalFfmpegChoose: 'choose',
+			externalFfmpegClear: 'clear', externalFfmpegRescan: 'rescan',
+			externalFfmpegInstall: 'install',
+		},
+		handle: (channel, listener) => handlers.set(channel, listener),
+		removeHandler: (channel) => handlers.delete(channel),
+		settings: inertExternalFfmpegSettings(),
+		dialog: {
+			showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
+			showMessageBox: async () => ({ response: 0 }),
+		},
+		windowFor: () => null,
+		platform: 'linux', architecture: 'x64',
+		userDataPath: temporaryRoot, environment: {},
+	});
+	assert.deepEqual([...handlers.keys()], ['status', 'choose', 'clear', 'rescan', 'install']);
+	registration.dispose();
+	assert.equal(handlers.size, 0);
 	await assert.rejects(() => access(join(applicationDesktopRoot, 'project-library-host.ts')), /ENOENT/u);
 });
+
+function inertExternalFfmpegSettings() {
+	return {
+		snapshot: () => ({ externalFfmpegSelection: null }),
+		setExternalFfmpegSelection: async () => { throw new Error('unexpected mutation'); },
+		setExternalFfmpegProbeMetadata: async () => { throw new Error('unexpected mutation'); },
+		clearExternalFfmpegProbeMetadata: async () => { throw new Error('unexpected mutation'); },
+		clearExternalFfmpegSelection: async () => { throw new Error('unexpected mutation'); },
+	};
+}
 
 test('desktop main initializes, exposes, and disposes the shared library through bounded IPC', async () => {
 	const [mainSource, preloadSource, desktopHostMenuSource, prepareSource, packageMetadata] = await Promise.all([
