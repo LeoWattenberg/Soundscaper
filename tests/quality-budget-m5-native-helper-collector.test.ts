@@ -22,6 +22,11 @@ import {
 	parseM5NativeHelperCliOptions,
 	writeM5NativeHelperResult,
 } from '../scripts/collect-m5-native-helper-quality.mjs';
+import {
+	M5_NATIVE_HELPER_COHORT_PROFILE_IDS_V2,
+	createM5NativeHelperCohort,
+} from '../scripts/lib/m5-native-helper-cohort.mjs';
+import { qualityBudgetSha256 } from '../scripts/lib/quality-budget-config-digest.mjs';
 
 type Threshold = { readonly metricId: string; readonly comparison: string; readonly value: number };
 type Descriptor = {
@@ -42,6 +47,11 @@ type MutableConfig = {
 	qualification: { qualifiedWorkloadIds: string[] };
 	environments: Array<Record<string, unknown> & { id: string }>;
 	workloads: Array<Record<string, unknown> & { id: string }>;
+};
+type V2Measurement = {
+	platformId: string;
+	observedRuntimeProfile: Record<'audioBackend' | 'audioMode', string> & Record<'bufferFrames' | 'sampleRate', number>;
+	labBinding: { platformId: string; profileId: string; physicalHost: Record<string, unknown> };
 };
 
 const config = JSON.parse(await readFile(
@@ -122,6 +132,75 @@ function makeMeasurement(): Record<string, unknown> {
 	};
 }
 
+function makeV2Measurement(): Record<string, unknown> {
+	const legacy = makeMeasurement();
+	const { fingerprint: _fingerprint, ...measurement } = legacy;
+	return {
+		...measurement,
+		schemaVersion: 2,
+		budgetSha256: qualityBudgetSha256(config),
+		sourceRevision: 'f'.repeat(40),
+		observedRuntimeProfile: {
+			audioBackend: 'asio', audioMode: 'direct', sampleRate: 48_000, bufferFrames: 128,
+			deviceIdentity: 'RME Fireface UCX II', driverIdentity: '1.226',
+		},
+		labBinding: {
+			schemaVersion: 2,
+			environmentId: 'native-os-lab-matrix',
+			platformId: 'windowsX64',
+			profileId: 'soundscaper-windows-x64-asio',
+			physicalHost: {
+				hostId: 'lab-windows-x64-01',
+				platformId: 'windowsX64',
+				architecture: 'x64',
+				osImage: 'Windows 11 lab image',
+				osVersion: '10.0.26100',
+				cpuModel: 'AMD Ryzen 9 7950X',
+				logicalCpuCount: 32,
+				memoryBytes: 68_719_476_736,
+				gpuModel: 'Lab GPU',
+				driverVersion: '1.0',
+				audioInterfaceModel: 'RME Fireface UCX II',
+				audioDriverVersion: '1.226',
+				displayIdentity: 'Lab display',
+			},
+			artifacts: {
+				sourceRevision: 'f'.repeat(40),
+				packageSha256: 'c'.repeat(64),
+				helperBinarySha256: DIGEST,
+				nativeAddonSha256: 'b'.repeat(64),
+				mediaHostSha256: null,
+				workloadRunnerSha256: 'd'.repeat(64),
+				ofxScannerSha256: null,
+				ofxRuntimeHostSha256: null,
+			},
+		},
+	};
+}
+
+function makeV2MeasurementForProfile(labProfileId: string): Record<string, unknown> {
+	const candidate = makeV2Measurement() as V2Measurement;
+	const environment = config.environments.find(({ id }) => id === 'native-os-lab-matrix') as Descriptor & {
+		profiles: Array<{ id: string; platformId: string; audioBackend: string; audioMode: string; audioSampleRate: number; audioBufferFrames: number }>;
+	};
+	const profile = environment.profiles.find(({ id }) => id === labProfileId)!;
+	const architecture = ['windowsX64', 'linuxX64'].includes(profile.platformId) ? 'x64' : 'arm64';
+	candidate.platformId = profile.platformId;
+	candidate.labBinding.platformId = profile.platformId;
+	candidate.labBinding.profileId = labProfileId;
+	candidate.observedRuntimeProfile.audioBackend = profile.audioBackend;
+	candidate.observedRuntimeProfile.audioMode = profile.audioMode;
+	candidate.observedRuntimeProfile.sampleRate = profile.audioSampleRate;
+	candidate.observedRuntimeProfile.bufferFrames = profile.audioBufferFrames;
+	candidate.labBinding.physicalHost = {
+		...candidate.labBinding.physicalHost,
+		hostId: `lab-${profile.platformId}-01`,
+		platformId: profile.platformId,
+		architecture,
+	};
+	return candidate;
+}
+
 test('the eight computed metric ids are exactly the registered thresholds', () => {
 	assert.deepEqual(
 		workload.thresholds!.map(({ metricId }) => metricId),
@@ -156,6 +235,51 @@ test('a complete record is recomputed and evaluated against the checked-in thres
 	assert.equal(result.rawSampleCounts.publishedRevisions, 6);
 	assert.equal(result.rawSampleCounts.malformedCasesPerRun, 10_000);
 	assert.equal(result.rawSampleCounts.loopbackSecondsPerRun, 1_800);
+});
+
+test('schema V2 binds helper metrics to a registered lab profile without reinterpreting V1', () => {
+	const labEnvironment = config.environments.find(({ id }) => id === 'native-os-lab-matrix')!;
+	const computed = computeM5NativeHelperMetrics(makeV2Measurement(), {
+		...expectation,
+		budgetSha256: qualityBudgetSha256(config),
+		labEnvironment,
+	} as Parameters<typeof computeM5NativeHelperMetrics>[1]) as unknown as {
+		schemaVersion: number;
+		labBinding: { profileId: string; artifacts: { helperBinarySha256: string } };
+		observedRuntimeProfile: { audioBackend: string };
+		metrics: Readonly<Record<string, number>>;
+	};
+	assert.equal(computed.schemaVersion, 2);
+	assert.equal(computed.labBinding.profileId, 'soundscaper-windows-x64-asio');
+	assert.equal(computed.labBinding.artifacts.helperBinarySha256, DIGEST);
+	assert.equal(computed.observedRuntimeProfile.audioBackend, 'asio');
+	assert.deepEqual(computed.metrics, computeM5NativeHelperMetrics(makeMeasurement(), expectation).metrics);
+	assert.throws(
+		() => validateM5NativeHelperMeasurement({
+			...makeV2Measurement(),
+			platformId: 'linuxX64',
+		}, { ...expectation, budgetSha256: qualityBudgetSha256(config), labEnvironment }),
+		/platformId does not match/iu,
+	);
+	const relabelled = makeV2Measurement() as { observedRuntimeProfile: { audioMode: string } };
+	relabelled.observedRuntimeProfile.audioMode = 'shared';
+	assert.throws(() => validateM5NativeHelperMeasurement(relabelled, { ...expectation, budgetSha256: qualityBudgetSha256(config), labEnvironment }), /observed runtime profile/iu);
+});
+
+test('the V2 Soundscaper cohort covers every required backend configuration', () => {
+	const measurements = M5_NATIVE_HELPER_COHORT_PROFILE_IDS_V2.map(makeV2MeasurementForProfile);
+	const cohort = createM5NativeHelperCohort(measurements, config);
+	assert.equal(cohort.status, 'pending-external');
+	assert.equal(cohort.profiles.length, M5_NATIVE_HELPER_COHORT_PROFILE_IDS_V2.length);
+	assert.ok(cohort.labProfileIds.includes('soundscaper-windows-x64-wasapi-exclusive'));
+	assert.ok(cohort.labProfileIds.includes('soundscaper-windows-arm64-asio'));
+	assert.ok(cohort.labProfileIds.includes('soundscaper-linux-arm64-alsa'));
+	assert.equal(cohort.qualificationEvidencePublished, false);
+	assert.equal(cohort.budgetSha256, qualityBudgetSha256(config));
+	assert.throws(
+		() => createM5NativeHelperCohort(measurements.slice(1), config),
+		/requires exactly/iu,
+	);
 });
 
 test('a breached threshold fails the metric gate instead of degrading to pending', () => {
@@ -234,7 +358,10 @@ test('an unprovisioned lab matrix cannot publish; every missing fact is named', 
 	assert.deepEqual(result.qualificationBlockers, qualification.blockers);
 	// The observed lab fingerprint stays beside the result; the null descriptor
 	// rows in config are never filled in from it.
-	assert.deepEqual(result.observedFingerprint, makeFingerprint());
+	assert.deepEqual(
+		(result as unknown as { observedFingerprint: Record<string, unknown> }).observedFingerprint,
+		makeFingerprint(),
+	);
 	const environment = config.environments.find(({ id }) => id === 'native-os-lab-matrix')!;
 	assert.ok(Object.values(environment.fingerprint!).every((row) => row === null));
 

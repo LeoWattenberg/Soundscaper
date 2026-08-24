@@ -16,6 +16,10 @@ import {
 } from './measurement-admission.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 import {
+	DEFAULT_QUALITY_BUDGET_SHA256,
+	qualityBudgetSha256,
+} from './quality-budget-config-digest.mjs';
+import {
 	M5B_WORKLOAD_DEFAULT_OUTPUT_BYTES,
 	M5B_WORKLOAD_DEFAULT_TIMEOUT_MILLISECONDS,
 	M5B_WORKLOAD_MAX_OUTPUT_BYTES,
@@ -28,8 +32,7 @@ import {
 const CONFIG_URL = new URL('../../config/quality-budgets.json', import.meta.url);
 const DEFAULT_CONFIG_BYTES = await readFile(CONFIG_URL);
 const DEFAULT_CONFIG = JSON.parse(DEFAULT_CONFIG_BYTES.toString('utf8'));
-export const M5B_DEFAULT_QUALITY_BUDGET_SHA256 = createHash('sha256')
-	.update(DEFAULT_CONFIG_BYTES).digest('hex');
+export const M5B_DEFAULT_QUALITY_BUDGET_SHA256 = DEFAULT_QUALITY_BUDGET_SHA256;
 const ENVIRONMENT_ID = 'native-os-lab-matrix';
 const PLATFORM_ARCHITECTURES = Object.freeze({
 	windowsX64: 'x64',
@@ -271,11 +274,8 @@ export async function writeM5bQualityResult(
 	return Object.freeze({ rawPath, resultPath, result: boundResult });
 }
 
-export function m5bQualityBudgetSha256(configValue = DEFAULT_CONFIG) {
-	if (configValue === DEFAULT_CONFIG) return M5B_DEFAULT_QUALITY_BUDGET_SHA256;
-	const snapshot = snapshotStrictJsonData(configValue, 'quality config');
-	if (isDeepStrictEqual(snapshot, DEFAULT_CONFIG)) return M5B_DEFAULT_QUALITY_BUDGET_SHA256;
-	return createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
+export function m5bQualityBudgetSha256(configValue = DEFAULT_CONFIG, exactBytes = null) {
+	return qualityBudgetSha256(configValue, exactBytes);
 }
 
 export function assertM5bCollectionHost(environment) {

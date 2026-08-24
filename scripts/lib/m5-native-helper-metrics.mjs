@@ -9,6 +9,7 @@ import {
 	requireRecord,
 } from './measurement-admission.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
+import { validateNativeOsLabMeasurementBindingV2 } from './native-os-lab-schema.mjs';
 
 /*
  * Milestone 5A-4 measurement arithmetic. Nothing here touches hardware or the
@@ -96,9 +97,17 @@ const FINGERPRINT_INTEGER_FIELDS = Object.freeze([
 const FINGERPRINT_DIGEST_FIELDS = Object.freeze([
 	'helperBinarySha256', 'nativeAddonSha256', 'packageSha256',
 ]);
-const MEASUREMENT_FIELDS = Object.freeze([
+const MEASUREMENT_FIELDS_V1 = Object.freeze([
 	'environmentId', 'fingerprint', 'fixtureId', 'observationClass', 'platformId',
 	'profile', 'runs', 'schemaVersion', 'warmupRuns', 'workloadId',
+]);
+const MEASUREMENT_FIELDS_V2 = Object.freeze([
+	'budgetSha256', 'environmentId', 'fixtureId', 'labBinding', 'observationClass',
+	'observedRuntimeProfile', 'platformId', 'profile', 'runs', 'schemaVersion',
+	'sourceRevision', 'warmupRuns', 'workloadId',
+]);
+const OBSERVED_RUNTIME_PROFILE_FIELDS = Object.freeze([
+	'audioBackend', 'audioMode', 'bufferFrames', 'deviceIdentity', 'driverIdentity', 'sampleRate',
 ]);
 const RUN_FIELDS = Object.freeze([
 	'attemptCount', 'audioRoundTripSamplesMs', 'audioUnderrunFrames', 'cancellationSamplesMs',
@@ -108,7 +117,10 @@ const RUN_FIELDS = Object.freeze([
 ]);
 const GRANT_FIELDS = Object.freeze(['authorized', 'capabilityId']);
 const REVISION_FIELDS = Object.freeze(['expectedSha256', 'observedSha256', 'revisionId']);
-const EXPECTATION_FIELDS = Object.freeze(['fixtureSpecification', 'measurementPolicy']);
+const EXPECTATION_FIELDS_V1 = Object.freeze(['fixtureSpecification', 'measurementPolicy']);
+const EXPECTATION_FIELDS_V2 = Object.freeze([
+	'budgetSha256', 'fixtureSpecification', 'labEnvironment', 'measurementPolicy',
+]);
 const FIXTURE_FIELDS = Object.freeze(['loopbackDurationSeconds', 'malformedCaseCount']);
 const SAMPLE_ARRAY_FIELDS = Object.freeze([
 	'cancellationSamplesMs', 'crashDetectionSamplesMs', 'editorRecoverySamplesMs',
@@ -161,8 +173,16 @@ export function computeM5NativeHelperMetrics(measurement, expectation) {
 		audioUnderrunFrames += run.audioUnderrunFrames;
 	}
 	return Object.freeze({
+		schemaVersion: validated.schemaVersion,
 		platformId: validated.platformId,
-		fingerprint: validated.fingerprint,
+		...(validated.schemaVersion === 1
+			? { fingerprint: validated.fingerprint }
+			: {
+				budgetSha256: validated.budgetSha256,
+				labBinding: validated.labBinding,
+				observedRuntimeProfile: validated.observedRuntimeProfile,
+				sourceRevision: validated.sourceRevision,
+			}),
 		metrics: Object.freeze({
 			'native.unauthorizedCapabilityGrants': unauthorizedCapabilityGrants,
 			'native.corruptPublishedRevisions': corruptPublishedRevisions,
@@ -194,20 +214,25 @@ export function computeM5NativeHelperMetrics(measurement, expectation) {
  * number of fresh timed helpers.
  */
 export function validateM5NativeHelperMeasurement(measurementValue, expectationValue) {
+	const measurementSnapshot = snapshotStrictJsonData(measurementValue, 'M5 measurement');
+	const measurementRecord = requireRecord(measurementSnapshot, 'M5 measurement');
+	const schemaVersion = measurementRecord.schemaVersion;
+	if (schemaVersion !== 1 && schemaVersion !== 2) {
+		throw new Error('M5 measurement schemaVersion must be 1 or 2.');
+	}
 	const expectation = exactRecord(
 		snapshotStrictJsonData(expectationValue, 'M5 expectation'),
-		EXPECTATION_FIELDS,
+		schemaVersion === 1 ? EXPECTATION_FIELDS_V1 : EXPECTATION_FIELDS_V2,
 		'M5 expectation',
 	);
 	const policy = assertMeasurementPolicy(expectation.measurementPolicy);
 	const fixture = assertFixtureSpecification(expectation.fixtureSpecification);
 	const measurement = exactRecord(
-		snapshotStrictJsonData(measurementValue, 'M5 measurement'),
-		MEASUREMENT_FIELDS,
+		measurementSnapshot,
+		schemaVersion === 1 ? MEASUREMENT_FIELDS_V1 : MEASUREMENT_FIELDS_V2,
 		'M5 measurement',
 	);
-	if (measurement.schemaVersion !== 1
-		|| measurement.profile !== M5_NATIVE_HELPER_PROFILE
+	if (measurement.profile !== M5_NATIVE_HELPER_PROFILE
 		|| measurement.observationClass !== M5_NATIVE_HELPER_OBSERVATION_CLASS
 		|| measurement.workloadId !== M5_NATIVE_HELPER_WORKLOAD_ID
 		|| measurement.fixtureId !== M5_NATIVE_HELPER_FIXTURE_ID
@@ -217,7 +242,9 @@ export function validateM5NativeHelperMeasurement(measurementValue, expectationV
 	if (!M5_NATIVE_HELPER_PLATFORM_IDS.includes(measurement.platformId)) {
 		throw new Error(`M5 measurement platformId must be one of ${M5_NATIVE_HELPER_PLATFORM_IDS.join(', ')}.`);
 	}
-	const fingerprint = validateFingerprint(measurement.fingerprint, measurement.platformId);
+	const environmentObservation = schemaVersion === 1
+		? { fingerprint: validateFingerprint(measurement.fingerprint, measurement.platformId) }
+		: validateV2LabBinding(measurement, expectation.labEnvironment, expectation.budgetSha256);
 	const warmupRuns = exactArray(
 		measurement.warmupRuns,
 		policy.timingWarmupTrials,
@@ -235,10 +262,57 @@ export function validateM5NativeHelperMeasurement(measurementValue, expectationV
 		validateRun(run, index, fixture, `M5 measurement.runs[${index}]`, helperProcessIds));
 	return deepFreeze({
 		...measurement,
-		fingerprint,
+		...environmentObservation,
 		warmupRuns: validatedWarmup,
 		runs: validatedRuns,
 	});
+}
+
+function validateV2LabBinding(measurement, labEnvironment, budgetSha256) {
+	const binding = validateNativeOsLabMeasurementBindingV2(
+		measurement.labBinding,
+		labEnvironment,
+	);
+	if (binding.platformId !== measurement.platformId) {
+		throw new Error('M5 measurement platformId does not match its V2 lab binding.');
+	}
+	if (binding.profile.productId !== 'soundscaper' || binding.profile.audioBackend === null) {
+		throw new Error('M5 measurement V2 lab profile must be a Soundscaper audio profile.');
+	}
+	if (typeof measurement.budgetSha256 !== 'string'
+		|| !SHA256_PATTERN.test(measurement.budgetSha256)
+		|| measurement.budgetSha256 !== budgetSha256) {
+		throw new Error('M5 measurement budget digest does not match its exact quality budget.');
+	}
+	if (typeof measurement.sourceRevision !== 'string'
+		|| !/^(?:[a-f\d]{40}|[a-f\d]{64})$/u.test(measurement.sourceRevision)
+		|| measurement.sourceRevision !== binding.artifacts.sourceRevision) {
+		throw new Error('M5 measurement source revision does not match its artifact binding.');
+	}
+	const observed = exactRecord(
+		measurement.observedRuntimeProfile,
+		OBSERVED_RUNTIME_PROFILE_FIELDS,
+		'M5 measurement.observedRuntimeProfile',
+	);
+	for (const field of ['audioBackend', 'audioMode', 'deviceIdentity', 'driverIdentity']) {
+		boundedString(observed[field], 1, 1_024, `M5 measurement.observedRuntimeProfile.${field}`);
+	}
+	positiveInteger(observed.sampleRate, 'M5 measurement.observedRuntimeProfile.sampleRate');
+	positiveInteger(observed.bufferFrames, 'M5 measurement.observedRuntimeProfile.bufferFrames');
+	if (observed.audioBackend !== binding.profile.audioBackend
+		|| observed.audioMode !== binding.profile.audioMode
+		|| observed.sampleRate !== binding.profile.audioSampleRate
+		|| observed.bufferFrames !== binding.profile.audioBufferFrames
+		|| observed.deviceIdentity !== binding.physicalHost.audioInterfaceModel
+		|| observed.driverIdentity !== binding.physicalHost.audioDriverVersion) {
+		throw new Error('M5 measurement observed runtime profile does not match its lab profile and physical host.');
+	}
+	return {
+		budgetSha256: measurement.budgetSha256,
+		labBinding: binding,
+		observedRuntimeProfile: Object.freeze(observed),
+		sourceRevision: measurement.sourceRevision,
+	};
 }
 
 function validateRun(value, index, fixture, path, helperProcessIds) {

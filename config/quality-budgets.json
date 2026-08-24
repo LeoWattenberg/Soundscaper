@@ -401,10 +401,51 @@
 		},
 		{
 			"id": "native-os-lab-matrix",
+			"descriptorVersion": 2,
 			"status": "unprovisioned",
-			"kind": "fixed-hardware-matrix",
+			"kind": "fixed-hardware-profile-matrix",
 			"qualificationEligible": false,
 			"rendererRequirement": "any",
+			"handoffGates": {
+				"legalAndTrademarkReview": "pending-external",
+				"nativeIsolationSecurityReview": "pending-external",
+				"productionSigningAndNotarization": "pending-external"
+			},
+			"eligibleWorkloadIds": [
+				"m5-native-helper-and-audio",
+				"m5b-native-media-plan-parity-and-decode",
+				"m5b-professional-media-tier",
+				"m5b-persistent-services-recovery",
+				"m5b-clean-external-display",
+				"m5b-openfx-isolation-and-packaging"
+			],
+			"physicalHosts": {
+				"windowsX64": null,
+				"windowsArm64": null,
+				"macosArm64": null,
+				"linuxX64": null,
+				"linuxArm64": null
+			},
+			"profiles": [
+				{ "id": "soundscaper-windows-x64-wasapi-shared", "productId": "soundscaper", "platformId": "windowsX64", "audioBackend": "wasapi", "audioMode": "shared", "audioSampleRate": 48000, "audioBufferFrames": 256, "mediaDecodeBackend": null, "mediaEncodeBackend": null, "ofxGpuBackend": null, "displayServer": null },
+				{ "id": "soundscaper-windows-x64-wasapi-exclusive", "productId": "soundscaper", "platformId": "windowsX64", "audioBackend": "wasapi", "audioMode": "exclusive", "audioSampleRate": 48000, "audioBufferFrames": 128, "mediaDecodeBackend": null, "mediaEncodeBackend": null, "ofxGpuBackend": null, "displayServer": null },
+				{ "id": "soundscaper-windows-x64-asio", "productId": "soundscaper", "platformId": "windowsX64", "audioBackend": "asio", "audioMode": "direct", "audioSampleRate": 48000, "audioBufferFrames": 128, "mediaDecodeBackend": null, "mediaEncodeBackend": null, "ofxGpuBackend": null, "displayServer": null },
+				{ "id": "soundscaper-windows-arm64-wasapi-shared", "productId": "soundscaper", "platformId": "windowsArm64", "audioBackend": "wasapi", "audioMode": "shared", "audioSampleRate": 48000, "audioBufferFrames": 256, "mediaDecodeBackend": null, "mediaEncodeBackend": null, "ofxGpuBackend": null, "displayServer": null },
+				{ "id": "soundscaper-windows-arm64-wasapi-exclusive", "productId": "soundscaper", "platformId": "windowsArm64", "audioBackend": "wasapi", "audioMode": "exclusive", "audioSampleRate": 48000, "audioBufferFrames": 128, "mediaDecodeBackend": null, "mediaEncodeBackend": null, "ofxGpuBackend": null, "displayServer": null },
+				{ "id": "soundscaper-windows-arm64-asio", "productId": "soundscaper", "platformId": "windowsArm64", "audioBackend": "asio", "audioMode": "direct", "audioSampleRate": 48000, "audioBufferFrames": 128, "mediaDecodeBackend": null, "mediaEncodeBackend": null, "ofxGpuBackend": null, "displayServer": null },
+				{ "id": "soundscaper-macos-arm64-coreaudio", "productId": "soundscaper", "platformId": "macosArm64", "audioBackend": "coreaudio", "audioMode": "native", "audioSampleRate": 48000, "audioBufferFrames": 128, "mediaDecodeBackend": null, "mediaEncodeBackend": null, "ofxGpuBackend": null, "displayServer": null },
+				{ "id": "soundscaper-linux-x64-pipewire", "productId": "soundscaper", "platformId": "linuxX64", "audioBackend": "pipewire", "audioMode": "shared", "audioSampleRate": 48000, "audioBufferFrames": 128, "mediaDecodeBackend": null, "mediaEncodeBackend": null, "ofxGpuBackend": null, "displayServer": null },
+				{ "id": "soundscaper-linux-x64-alsa", "productId": "soundscaper", "platformId": "linuxX64", "audioBackend": "alsa", "audioMode": "direct", "audioSampleRate": 48000, "audioBufferFrames": 128, "mediaDecodeBackend": null, "mediaEncodeBackend": null, "ofxGpuBackend": null, "displayServer": null },
+				{ "id": "soundscaper-linux-arm64-pipewire", "productId": "soundscaper", "platformId": "linuxArm64", "audioBackend": "pipewire", "audioMode": "shared", "audioSampleRate": 48000, "audioBufferFrames": 128, "mediaDecodeBackend": null, "mediaEncodeBackend": null, "ofxGpuBackend": null, "displayServer": null },
+				{ "id": "soundscaper-linux-arm64-alsa", "productId": "soundscaper", "platformId": "linuxArm64", "audioBackend": "alsa", "audioMode": "direct", "audioSampleRate": 48000, "audioBufferFrames": 128, "mediaDecodeBackend": null, "mediaEncodeBackend": null, "ofxGpuBackend": null, "displayServer": null },
+				{ "id": "framescaper-windows-x64-d3d11va-mf-opengl", "productId": "framescaper", "platformId": "windowsX64", "audioBackend": null, "audioMode": null, "audioSampleRate": null, "audioBufferFrames": null, "mediaDecodeBackend": "d3d11va", "mediaEncodeBackend": "media-foundation", "ofxGpuBackend": "opengl", "displayServer": "desktop" },
+				{ "id": "framescaper-windows-arm64-d3d11va-mf-opengl", "productId": "framescaper", "platformId": "windowsArm64", "audioBackend": null, "audioMode": null, "audioSampleRate": null, "audioBufferFrames": null, "mediaDecodeBackend": "d3d11va", "mediaEncodeBackend": "media-foundation", "ofxGpuBackend": "opengl", "displayServer": "desktop" },
+				{ "id": "framescaper-macos-arm64-videotoolbox-metal", "productId": "framescaper", "platformId": "macosArm64", "audioBackend": null, "audioMode": null, "audioSampleRate": null, "audioBufferFrames": null, "mediaDecodeBackend": "videotoolbox", "mediaEncodeBackend": "videotoolbox", "ofxGpuBackend": "metal", "displayServer": "desktop" },
+				{ "id": "framescaper-linux-x64-vaapi-opengl-x11", "productId": "framescaper", "platformId": "linuxX64", "audioBackend": null, "audioMode": null, "audioSampleRate": null, "audioBufferFrames": null, "mediaDecodeBackend": "vaapi", "mediaEncodeBackend": "vaapi", "ofxGpuBackend": "opengl", "displayServer": "x11" },
+				{ "id": "framescaper-linux-x64-vaapi-opengl-xwayland", "productId": "framescaper", "platformId": "linuxX64", "audioBackend": null, "audioMode": null, "audioSampleRate": null, "audioBufferFrames": null, "mediaDecodeBackend": "vaapi", "mediaEncodeBackend": "vaapi", "ofxGpuBackend": "opengl", "displayServer": "xwayland" },
+				{ "id": "framescaper-linux-arm64-vaapi-opengl-x11", "productId": "framescaper", "platformId": "linuxArm64", "audioBackend": null, "audioMode": null, "audioSampleRate": null, "audioBufferFrames": null, "mediaDecodeBackend": "vaapi", "mediaEncodeBackend": "vaapi", "ofxGpuBackend": "opengl", "displayServer": "x11" },
+				{ "id": "framescaper-linux-arm64-vaapi-opengl-xwayland", "productId": "framescaper", "platformId": "linuxArm64", "audioBackend": null, "audioMode": null, "audioSampleRate": null, "audioBufferFrames": null, "mediaDecodeBackend": "vaapi", "mediaEncodeBackend": "vaapi", "ofxGpuBackend": "opengl", "displayServer": "xwayland" }
+			],
 			"fingerprint": {
 				"windowsX64": null,
 				"windowsArm64": null,
@@ -412,7 +453,7 @@
 				"linuxX64": null,
 				"linuxArm64": null
 			},
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/milestone-5a-soundscaper-native.md"]
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/milestone-5a-soundscaper-native.md", "docs/milestone-5b-framescaper-native-tier.md", "scripts/lib/native-os-lab-schema.mjs", "tests/quality-budget-native-os-lab-v2.test.ts"]
 		},
 		{
 			"id": "capture-os-browser-lab-matrix",

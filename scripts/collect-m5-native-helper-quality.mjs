@@ -17,6 +17,8 @@ import {
 } from './lib/m5-native-helper-metrics.mjs';
 import { boundedString, exactRecord, isRecord, requireRecord } from './lib/measurement-admission.mjs';
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
+import { assessNativeOsLabBindingQualificationV2 } from './lib/native-os-lab-schema.mjs';
+import { qualityBudgetSha256 } from './lib/quality-budget-config-digest.mjs';
 
 /*
  * Milestone 5A-4 collector. Ordinary CI owns the correctness half of
@@ -51,7 +53,8 @@ export async function collectM5NativeHelperQuality(optionsValue, dependencies = 
 	const readMeasurement = dependencies.readMeasurement ?? readMeasurementFile;
 	const measurement = await readMeasurement(measurementPath);
 	const result = createM5NativeHelperResult(measurement, config);
-	const writeResult = dependencies.writeResult ?? writeM5NativeHelperResult;
+	const writeResult = dependencies.writeResult
+		?? ((directory, value) => writeM5NativeHelperResult(directory, value, measurement));
 	return writeResult(outputDirectory, result);
 }
 
@@ -60,15 +63,26 @@ export async function collectM5NativeHelperQuality(optionsValue, dependencies = 
  * thresholds. Threshold values live only in `config/quality-budgets.json`; this
  * module reads them and never restates one.
  */
-export function createM5NativeHelperResult(measurement, configValue) {
+export function createM5NativeHelperResult(
+	measurement,
+	configValue,
+	budgetSha256 = qualityBudgetSha256(configValue),
+) {
 	const config = snapshotStrictJsonData(configValue, 'config');
 	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
 	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
 	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
 	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
 	assertWorkloadRegistration(workload);
-	const qualification = assessM5NativeHelperQualification(config);
-	if (qualification.provisioned) {
+	const measurementSnapshot = requireRecord(
+		snapshotStrictJsonData(measurement, 'M5 measurement'),
+		'M5 measurement',
+	);
+	const isV2 = measurementSnapshot.schemaVersion === 2;
+	const qualification = isV2
+		? assessM5NativeHelperQualificationV2(config, workload, fixture, environment, measurementSnapshot.labBinding)
+		: assessM5NativeHelperQualification(config);
+	if (!isV2 && qualification.provisioned) {
 		// There is no accepted-evidence writer here yet. Emitting `pending-external`
 		// with an empty blocker list would read as "measured, awaiting sign-off"
 		// when the truth is that the publishing half is unwritten, so the
@@ -76,8 +90,10 @@ export function createM5NativeHelperResult(measurement, configValue) {
 		throw new Error(`Environment ${ENVIRONMENT_ID} is provisioned; the M5 accepted-evidence writer lands with the lab and must exist before a result is emitted.`);
 	}
 	const computed = computeM5NativeHelperMetrics(measurement, {
+		...(isV2 ? { budgetSha256 } : {}),
 		fixtureSpecification: fixture.specification,
 		measurementPolicy: policy,
+		...(isV2 ? { labEnvironment: environment } : {}),
 	});
 	const evaluation = evaluateQualityBudget({
 		environmentId: ENVIRONMENT_ID,
@@ -90,10 +106,12 @@ export function createM5NativeHelperResult(measurement, configValue) {
 	});
 	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
 		&& evaluation.verdicts.every(({ passed }) => passed);
+	const accepted = isV2 && metricGatePassed && qualification.blockers.length === 0;
 	const failures = [...new Set([...evaluation.failures, ...qualification.blockers])];
 	return Object.freeze({
-		schemaVersion: 1,
-		status: metricGatePassed ? 'pending-external' : 'failed',
+		schemaVersion: isV2 ? 2 : 1,
+		qualificationScope: isV2 ? 'single-profile' : 'legacy-single-target',
+		status: !metricGatePassed ? 'failed' : accepted ? 'accepted' : 'pending-external',
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
 		environmentId: ENVIRONMENT_ID,
@@ -106,7 +124,14 @@ export function createM5NativeHelperResult(measurement, configValue) {
 		rendererClass: 'unknown',
 		// The lab's own observation, kept beside the result. It is never merged
 		// into the descriptor's null platform row by this collector.
-		observedFingerprint: computed.fingerprint,
+		...(isV2
+			? {
+				budgetSha256: computed.budgetSha256,
+				observedLabBinding: computed.labBinding,
+				observedRuntimeProfile: computed.observedRuntimeProfile,
+				sourceRevision: computed.sourceRevision,
+			}
+			: { observedFingerprint: computed.fingerprint }),
 		fixture: Object.freeze(snapshotStrictJsonData(fixture.specification, 'fixture.specification')),
 		metrics: computed.metrics,
 		rawSampleCounts: computed.rawSampleCounts,
@@ -116,11 +141,31 @@ export function createM5NativeHelperResult(measurement, configValue) {
 		evaluation: Object.freeze({
 			// Never true here: the guard above refuses every provisioned state, so a
 			// passing metric gate is reported by `metricGatePassed` alone.
-			passed: false,
+			passed: accepted,
 			failures: Object.freeze(failures),
 			verdicts: evaluation.verdicts,
 		}),
 	});
+}
+
+function assessM5NativeHelperQualificationV2(config, workload, fixture, environment, labBinding) {
+	const assessment = assessNativeOsLabBindingQualificationV2(
+		environment,
+		labBinding,
+		WORKLOAD_ID,
+	);
+	const blockers = [...assessment.blockers];
+	if (fixture.status !== 'qualified') {
+		blockers.push(`Fixture ${FIXTURE_ID} status is ${String(fixture.status)}.`);
+	}
+	if (workload.status !== 'qualified') {
+		blockers.push(`Workload ${WORKLOAD_ID} status is ${String(workload.status)}; accepted evidence requires status qualified.`);
+	}
+	if (!Array.isArray(config.qualification?.qualifiedWorkloadIds)
+		|| !config.qualification.qualifiedWorkloadIds.includes(WORKLOAD_ID)) {
+		blockers.push(`Workload ${WORKLOAD_ID} is not registered in qualification.qualifiedWorkloadIds.`);
+	}
+	return Object.freeze({ provisioned: blockers.length === 0, blockers: Object.freeze(blockers) });
 }
 
 /**
@@ -181,18 +226,33 @@ export function assertM5NativeHelperCollectionHost(processEnvironment) {
 }
 
 /** Persist unaccepted evidence only; the accepted writer lands with the lab. */
-export async function writeM5NativeHelperResult(outputDirectory, resultValue) {
+export async function writeM5NativeHelperResult(outputDirectory, resultValue, measurementValue = null) {
 	const result = snapshotStrictJsonData(resultValue, 'result');
-	if (result.status !== 'pending-external' && result.status !== 'failed') {
+	if (result.status !== 'pending-external' && result.status !== 'failed'
+		&& !(result.schemaVersion === 2 && result.status === 'accepted')) {
 		throw new Error(`M5 collector cannot write a ${String(result.status)} result while ${ENVIRONMENT_ID} is unprovisioned.`);
 	}
 	if (result.qualificationEvidencePublished !== false) {
 		throw new Error('M5 collector must not mark qualification evidence as published.');
 	}
 	await mkdir(outputDirectory, { recursive: true });
-	const resultPath = join(outputDirectory, `${WORKLOAD_ID}.${result.status}.json`);
+	if (result.schemaVersion !== 2) {
+		const resultPath = join(outputDirectory, `${WORKLOAD_ID}.${result.status}.json`);
+		await writeFile(resultPath, `${JSON.stringify(result, null, '\t')}\n`, { flag: 'wx' });
+		return Object.freeze({ resultPath, result });
+	}
+	if (measurementValue === null) throw new Error('M5 schema V2 result requires its raw measurement.');
+	const measurement = snapshotStrictJsonData(measurementValue, 'measurement');
+	if (measurement.schemaVersion !== 2
+		|| measurement.labBinding?.profileId !== result.observedLabBinding?.profileId) {
+		throw new Error('M5 schema V2 result is detached from its raw measurement.');
+	}
+	const stem = `${WORKLOAD_ID}.${result.observedLabBinding.profileId}`;
+	const rawPath = join(outputDirectory, `${stem}.raw.json`);
+	const resultPath = join(outputDirectory, `${stem}.${result.status}.json`);
+	await writeFile(rawPath, `${JSON.stringify(measurement, null, '\t')}\n`, { flag: 'wx' });
 	await writeFile(resultPath, `${JSON.stringify(result, null, '\t')}\n`, { flag: 'wx' });
-	return Object.freeze({ resultPath, result });
+	return Object.freeze({ rawPath, resultPath, result });
 }
 
 /** Parse `[--measurement <path>] [output-directory]`; qualification flags are refused. */

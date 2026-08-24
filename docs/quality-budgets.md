@@ -562,6 +562,44 @@ unprovisioned; it deliberately refuses accepted or qualified publication.
 Another future fixture becomes active only when its implementation and
 provenance are checked in and its contract test is tightened accordingly.
 
+Milestone 5 now has the exception that its complete collection machinery is
+present even though no accepted result exists. Native-lab descriptor V2 keeps
+five physical hosts separate from eighteen exact product configurations:
+eleven Soundscaper backend/mode profiles and seven Framescaper
+decode/encode/GPU/display profiles, including both X11 and XWayland on each
+Linux architecture. The Soundscaper collector and all five Framescaper
+collectors accept digest-bound V2 measurements and write raw evidence; their
+cohort writers require every applicable profile, one source revision, and one
+host/artifact set per platform. A failed profile fails its cohort, and a
+missing or externally blocked profile leaves it `pending-external`.
+
+`npm run quality:cohort:m5-native-helper` assembles the eleven-profile audio
+cohort. `npm run quality:cohort:m5b -- --profile <pipeline>` assembles one
+seven-profile Framescaper cohort for each registered 5B pipeline. Cohorts are
+not trusted as command-line claims. The checked-in
+`config/milestone-5-qualification-evidence.json` register binds all 46 raw
+measurements and the six cohort files; `npm run milestone5:handoff` reopens and
+recomputes that evidence, audits all 20 native-payload rows and ten source
+acquisitions, and derives the licensing and lab blockers itself.
+
+One package job supplies `--product`, `--target`, and `--package-root` together
+and may use `--require-ready` only as a package-cell gate. It authenticates one
+clean HEAD revision and the exact staged runtime manifest, corresponding-source
+sidecar, and target package inventory, but deliberately emits
+`milestoneReleaseReady: null`: no individual runner can claim the milestone.
+`npm run milestone5:handoff-matrix -- --package-directory <directory>` admits
+the exact two-product, five-target package-root set and re-runs every package,
+payload, source, qualification, licensing, Git ancestry and clean-HEAD audit in
+one process. This is the first authority that can emit a Boolean milestone
+readiness result. A separate `--input-directory` mode validates and hashes ten
+serialized cell reports for inspection, but returns
+`milestoneReleaseReady: null`; canonical caller-authored JSON is not release
+provenance. The optional `--require-ready` fails unless all ten freshly audited
+cells have built payloads, accepted source activations and cohorts, provisioned
+profiles, clear legal/security/signing gates, and enabled licensing rows.
+Hosted packaging remains useful distribution evidence but cannot populate a
+physical-host or device/GPU qualification row.
+
 ## Result evaluation
 
 `evaluateQualityBudget(qualification, expectedEnvironment, measurement)` accepts
