@@ -259,8 +259,7 @@ export function buildProjectGraphV21(
 		registerEdgeParam(parameterRegistry, edge.id, level.gain, edgeLatency);
 		edgeGainParams.set(edge.id, { param: level.gain, latencyFrames: edgeLatency });
 		if (!edge.enabled || excludedTrackEdge(edge, onlyTrackId)) continue;
-		connect(edge.position === 'pre-fader' ? source.pre : source.post, level);
-		let output: AudioNode = level;
+		let output: AudioNode = edge.position === 'pre-fader' ? source.pre : source.post;
 		const destinationWidth = edgeDestinationWidth(edge, graph, tracks, trackWidths, project.masterChannels);
 		// The ADM router maps source channels onto bed channels itself, so a
 		// master-destined edge skips its own channel map rather than mapping twice.
@@ -269,6 +268,12 @@ export function buildProjectGraphV21(
 			: null;
 		if (!admTerminal) output = applyChannelMap(context, nodes, output, source.width, destinationWidth, edge);
 		output = applyEdgeCompensation(context, nodes, output, plan.edgeCompensationFrames.get(edge.id) ?? 0);
+		// The level node sits after the compensation delay so an edge-level
+		// ramp is output-referred like every other automation class: its
+		// registered latency includes the edge compensation, which is only the
+		// audio the node carries once the delay precedes it.
+		connect(output, level);
+		output = level;
 		if (admTerminal && admProgrammeRouter) {
 			admProgrammeRouter.routeTerminal(admTerminal.kind, admTerminal.id, output, source.width);
 			continue;
