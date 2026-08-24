@@ -18,6 +18,7 @@ import {
 	DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE,
 	DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
 	DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
+	desktopAudioCodecEncodeBitRates,
 	normalizeDesktopAudioCodecRequest,
 	normalizeDesktopAudioCodecResult,
 	type DesktopAudioCodecRequest,
@@ -239,18 +240,24 @@ function capabilityRequest(tuple: DesktopAudioCodecCapabilityTuple): DesktopAudi
 		...(tuple.operation === 'audio-decode' ? { sampleRate: null, channelCount: null } : {}),
 		settings: tuple.operation === 'audio-decode'
 			? { sampleFormat: 'f32le' }
-			: capabilityEncodeSettings(tuple.format),
+			: capabilityEncodeSettings(tuple.format, tuple.sampleRate, tuple.channelCount),
 		maximumOutputBytes: 1_024,
 	});
 }
 
-function capabilityEncodeSettings(format: DesktopAudioCodecRequest['format']): Readonly<Record<string, number>> {
+function capabilityEncodeSettings(
+	format: DesktopAudioCodecRequest['format'],
+	sampleRate: number,
+	channelCount: number,
+): Readonly<Record<string, number>> {
 	if (format === 'flac') return Object.freeze({ compressionLevel: 5, bitDepth: 24 });
 	if (format === 'wavpack') return Object.freeze({ compressionLevel: 2 });
 	if (format === 'ogg-vorbis') return Object.freeze({ quality: 5 });
 	if (format === 'opus') return Object.freeze({ bitrateKbps: 160 });
 	if (format === 'mp2') return Object.freeze({ bitrateKbps: 256 });
-	return Object.freeze({ bitrateKbps: 192 });
+	return Object.freeze({
+		bitrateKbps: desktopAudioCodecEncodeBitRates(format, sampleRate, channelCount)[0] ?? 32,
+	});
 }
 
 function unavailableCapability(

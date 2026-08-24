@@ -8,7 +8,9 @@ import type {
 } from '../../../../desktop/desktop-audio-codec-capability-contract.ts';
 import {
 	DESKTOP_AUDIO_CODEC_FORMATS,
-	DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE,
+	desktopAudioCodecEncodeBitRates,
+	desktopAudioCodecEncodeSampleRates,
+	type DesktopAudioCodecFormat,
 } from '../../../../desktop/desktop-audio-codec-operation-contract.ts';
 import {
 	createDesktopAudioCodecCapabilityQuery,
@@ -34,12 +36,6 @@ interface DesktopExportCodecSelection {
 const COMPRESSED = new Set<string>(DESKTOP_AUDIO_CODEC_FORMATS);
 const WAVPACK_COMPRESSION_LEVELS = Object.freeze([0, 1, 2, 3, 4, 5] as const);
 const FLAC_SAMPLE_FORMATS = Object.freeze(['int16', 'int24'] as const);
-const BIT_RATES: Readonly<Record<string, readonly number[]>> = Object.freeze({
-	mp3: Object.freeze([32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]),
-	opus: Object.freeze([16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 256]),
-	mp2: Object.freeze([32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384]),
-	'aac-m4a': Object.freeze([32, 48, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]),
-});
 const VORBIS_QUALITIES = Object.freeze([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
 export function createDesktopExportCodecQuery(
@@ -102,8 +98,18 @@ export function desktopExportFlacSampleFormats(
 }
 
 /** Choices admitted by the strict desktop main-process operation contract. */
-export function desktopExportBitRates(format: unknown): readonly number[] {
-	return BIT_RATES[String(format)] ?? Object.freeze([]);
+export function desktopExportBitRates(
+	format: unknown,
+	sampleRate?: unknown,
+	channelCount?: unknown,
+): readonly number[] {
+	const canonical = String(format);
+	if (!['mp3', 'opus', 'mp2', 'aac-m4a'].includes(canonical)) return Object.freeze([]);
+	return desktopAudioCodecEncodeBitRates(
+		canonical as DesktopAudioCodecFormat,
+		sampleRate === undefined ? undefined : Number(sampleRate),
+		channelCount === undefined ? undefined : Number(channelCount),
+	);
 }
 
 export function desktopExportVorbisQualities(): readonly number[] {
@@ -111,7 +117,16 @@ export function desktopExportVorbisQualities(): readonly number[] {
 }
 
 export function desktopExportMaximumSampleRate(format: unknown): number {
-	return COMPRESSED.has(String(format)) ? DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE : 384_000;
+	const canonical = String(format);
+	if (!COMPRESSED.has(canonical)) return 384_000;
+	return Math.max(...desktopAudioCodecEncodeSampleRates(canonical as DesktopAudioCodecFormat));
+}
+
+export function desktopExportSampleRates(format: unknown): readonly number[] {
+	const canonical = String(format);
+	return COMPRESSED.has(canonical)
+		? desktopAudioCodecEncodeSampleRates(canonical as DesktopAudioCodecFormat)
+		: Object.freeze([]);
 }
 
 export function desktopExportSelectionReason(

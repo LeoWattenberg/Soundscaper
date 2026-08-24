@@ -20,8 +20,17 @@ test('desktop export choices stay inside the closed operation contract', () => {
 	assert.deepEqual(desktopExportBitRates('opus'), [16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 256]);
 	assert.equal(desktopExportBitRates('opus').includes(320), false);
 	assert.deepEqual(desktopExportBitRates('mp3'), [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
+	assert.deepEqual(desktopExportBitRates('mp3', 8_000), [32, 40, 48, 56, 64]);
+	assert.deepEqual(desktopExportBitRates('mp3', 24_000), [32, 40, 48, 56, 64, 80, 96, 112, 128, 160]);
+	assert.deepEqual(desktopExportBitRates('mp3', 48_000), [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
+	assert.deepEqual(desktopExportBitRates('aac-m4a', 8_000, 1), [32, 48]);
+	assert.deepEqual(desktopExportBitRates('aac-m4a', 8_000, 2), [32, 48, 64, 80, 96]);
+	assert.equal(desktopExportBitRates('aac-m4a', 48_000, 1).includes(320), false);
+	assert.equal(desktopExportBitRates('aac-m4a', 48_000, 2).includes(320), true);
 	assert.deepEqual(desktopExportVorbisQualities(), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-	assert.equal(desktopExportMaximumSampleRate('opus'), 192_000);
+	assert.equal(desktopExportMaximumSampleRate('opus'), 48_000);
+	assert.equal(desktopExportMaximumSampleRate('mp3'), 48_000);
+	assert.equal(desktopExportMaximumSampleRate('aac-m4a'), 96_000);
 	assert.equal(desktopExportMaximumSampleRate('flac'), 192_000);
 	assert.equal(desktopExportMaximumSampleRate('wav'), 384_000);
 });

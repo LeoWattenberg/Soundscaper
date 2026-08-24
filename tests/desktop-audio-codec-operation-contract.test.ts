@@ -130,6 +130,43 @@ test('format-specific settings and encode constraints are exact', () => {
 	assert.throws(() => assertDesktopAudioCodecRequest({
 		...encodeRequest('mp2'), sampleRate: 96_000,
 	}), /sample rate/u);
+	assert.throws(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('aac-m4a'), sampleRate: 192_000,
+	}), /sample rate/u);
+	assert.doesNotThrow(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('aac-m4a'), sampleRate: 64_000,
+	}));
+	assert.throws(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('aac-m4a'), sampleRate: 8_000, channelCount: 1,
+		input: new Uint8Array(4), settings: { bitrateKbps: 64 },
+	}), /bitrate.*sample rate.*channel/u);
+	assert.doesNotThrow(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('aac-m4a'), sampleRate: 8_000, channelCount: 1,
+		input: new Uint8Array(4), settings: { bitrateKbps: 48 },
+	}));
+	assert.throws(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('aac-m4a'), sampleRate: 48_000, channelCount: 1,
+		input: new Uint8Array(4), settings: { bitrateKbps: 320 },
+	}), /bitrate.*sample rate.*channel/u);
+	assert.doesNotThrow(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('aac-m4a'), sampleRate: 48_000, channelCount: 2,
+		settings: { bitrateKbps: 320 },
+	}));
+	assert.throws(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('mp3'), sampleRate: 8_000, settings: { bitrateKbps: 80 },
+	}), /bitrate.*sample rate/u);
+	assert.doesNotThrow(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('mp3'), sampleRate: 8_000, settings: { bitrateKbps: 64 },
+	}));
+	assert.throws(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('mp3'), sampleRate: 24_000, settings: { bitrateKbps: 192 },
+	}), /bitrate.*sample rate/u);
+	assert.doesNotThrow(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('mp3'), sampleRate: 24_000, settings: { bitrateKbps: 160 },
+	}));
+	assert.doesNotThrow(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('mp3'), sampleRate: 48_000, settings: { bitrateKbps: 320 },
+	}));
 });
 
 test('result builders return owned closed bytes and renderer metadata', () => {

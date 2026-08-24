@@ -47,6 +47,7 @@ import {
 } from '../desktop-export-codec-model.ts';
 import {
 	constrainExportDialogSampleRate, exportDialogBitRateOptions,
+	exportDialogBitRateSelectionReason,
 	exportDialogMaximumAudioSampleRate, exportDialogSampleRateSuggestions,
 	exportDialogVorbisQualityOptions,
 } from '../export-dialog-audio-codec-options.ts';
@@ -324,7 +325,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		}
 	};
 
-	const formatQualityOptions = exportDialogBitRateOptions(settings.format, desktop);
+	const formatQualityOptions = exportDialogBitRateOptions(settings.format, desktop, settings.sampleRate, desktopCodecQuery?.operations?.[0]?.channelCount);
 	const maximumAudioSampleRate = exportDialogMaximumAudioSampleRate(settings.format, desktop);
 	const formatDescriptor = MEDIA_EXPORT_FORMATS[settings.format];
 	const sampleFormatOptions = desktop && settings.format === 'flac'
@@ -332,6 +333,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		: formatDescriptor?.sampleFormats || [];
 	const desktopFormatRefusal = desktop
 		? desktopExportSelectionReason(settings, desktopCodecCapabilities, desktopCodecQuery === false)
+			|| exportDialogBitRateSelectionReason(settings.format, settings.bitRate, formatQualityOptions, desktop)
 		: null;
 	const desktopCodecNotice = desktopFormatRefusal || (desktopCodecQuery === false
 		? desktopExportFormatReason('opus', null, true)
@@ -523,7 +525,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 					{!videoFormat && ['flac', 'wavpack'].includes(settings.format) && (
 						<LabeledDropdown label={copy.quality} hook="quality" value={settings.compressionLevel} onChange={(value) => set('compressionLevel', value)} disabled={exporting} options={(settings.format === 'wavpack' && desktop ? desktopExportWavPackCompressionLevels(desktopCodecCapabilities) : Array.from({ length: settings.format === 'flac' ? 9 : 6 }, (_, level) => level)).map((level) => ({ value: String(level), label: `${copy.level} ${level}` }))} />
 					)}
-					{!videoFormat && <label className="audio-editor-field" data-export-field="sampleRate"><span>{copy.sampleRate}</span><input type="number" min="8000" max={maximumAudioSampleRate} step="1" list="audio-editor-export-rates" value={settings.sampleRate} disabled={exporting || admPassthrough} onChange={(event) => set('sampleRate', event.currentTarget.value)} /><datalist id="audio-editor-export-rates">{exportDialogSampleRateSuggestions(maximumAudioSampleRate, snapshot.project?.sampleRate).map((value) => <option key={value} value={value} />)}</datalist></label>}
+					{!videoFormat && <label className="audio-editor-field" data-export-field="sampleRate"><span>{copy.sampleRate}</span><input type="number" min="8000" max={maximumAudioSampleRate} step="1" list="audio-editor-export-rates" value={settings.sampleRate} disabled={exporting || admPassthrough} onChange={(event) => set('sampleRate', event.currentTarget.value)} /><datalist id="audio-editor-export-rates">{exportDialogSampleRateSuggestions(maximumAudioSampleRate, snapshot.project?.sampleRate, settings.format, desktop).map((value) => <option key={value} value={value} />)}</datalist></label>}
 					{!videoFormat && <LabeledDropdown label={copy.channelMapping} hook="channelMapping" value={settings.channelMapping} onChange={(value) => set('channelMapping', value)} disabled={exporting || settings.format === 'bw64'} options={[{ value: 'preserve', label: copy.preserveChannels }, { value: 'mono', label: copy.mono }, { value: 'stereo', label: copy.stereo }, { value: 'custom', label: copy.customChannelMapping }]} />}
 					{!videoFormat && pcmFormat && settings.sampleFormat !== 'float32' && <LabeledDropdown label={copy.dither} hook="dither" value={settings.dither} onChange={(value) => set('dither', value)} disabled={exporting || admPassthrough} options={[{ value: 'none', label: copy.none }, { value: 'triangular', label: copy.triangularDither }, { value: 'triangular-highpass', label: copy.highpassDither }]} />}
 					{/* A delivery normalizes only when a target is chosen: there is no

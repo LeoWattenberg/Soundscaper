@@ -118,19 +118,23 @@ const REQUIRED_REQUEST_FIELDS = Object.freeze(REQUEST_FIELDS.filter((field) => f
 const RESULT_FIELDS = Object.freeze(['operation', 'bytes', 'metadata', 'requestId'] as const);
 const REQUIRED_RESULT_FIELDS = Object.freeze(RESULT_FIELDS.filter((field) => field !== 'requestId'));
 const REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u;
-const COMMON_SAMPLE_RATES = new Set([
+const COMMON_SAMPLE_RATE_VALUES = Object.freeze([
 	8_000, 11_025, 12_000, 16_000, 22_050, 24_000, 32_000, 44_100, 48_000,
 	88_200, 96_000, 176_400, 192_000,
 ]);
-const MPEG_AUDIO_SAMPLE_RATES = new Set([
+const MPEG_AUDIO_SAMPLE_RATE_VALUES = Object.freeze([
 	8_000, 11_025, 12_000, 16_000, 22_050, 24_000, 32_000, 44_100, 48_000,
 ]);
-const MP2_SAMPLE_RATES = new Set([32_000, 44_100, 48_000]);
-const OPUS_SAMPLE_RATES = new Set([8_000, 12_000, 16_000, 24_000, 48_000]);
-const MP3_BITRATES = new Set([32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
-const OPUS_BITRATES = new Set([16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 256]);
-const MP2_BITRATES = new Set([32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384]);
-const AAC_BITRATES = new Set([32, 48, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
+const MP2_SAMPLE_RATE_VALUES = Object.freeze([32_000, 44_100, 48_000]);
+const OPUS_SAMPLE_RATE_VALUES = Object.freeze([8_000, 12_000, 16_000, 24_000, 48_000]);
+const AAC_SAMPLE_RATE_VALUES = Object.freeze([
+	8_000, 11_025, 12_000, 16_000, 22_050, 24_000, 32_000, 44_100, 48_000, 64_000, 88_200, 96_000,
+]);
+const MP3_BITRATE_VALUES = Object.freeze([32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
+const OPUS_BITRATE_VALUES = Object.freeze([16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 256]);
+const MP2_BITRATE_VALUES = Object.freeze([32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384]);
+const AAC_BITRATE_VALUES = Object.freeze([32, 48, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]);
+const EMPTY_NUMBER_VALUES = Object.freeze([] as number[]);
 const FORMAT_DESCRIPTORS: Readonly<Record<DesktopAudioCodecFormat, Readonly<FormatDescriptor>>> = Object.freeze({
 	flac: Object.freeze({ mimeType: 'audio/flac', fileExtension: '.flac' }),
 	mp3: Object.freeze({ mimeType: 'audio/mpeg', fileExtension: '.mp3' }),
@@ -169,7 +173,7 @@ export function assertDesktopAudioCodecRequest(value: unknown): asserts value is
 			throw new RangeError(`The desktop audio ${format} channel count is unsupported.`);
 		}
 		validateEncodeSampleRate(format, sampleRate);
-		validateEncodeSettings(format, record.settings);
+		validateEncodeSettings(format, record.settings, sampleRate, channelCount);
 		if ((record.input as Uint8Array).byteLength % (Float32Array.BYTES_PER_ELEMENT * channelCount) !== 0) {
 			throw new RangeError('The desktop audio codec input must contain complete PCM frames.');
 		}
@@ -284,6 +288,43 @@ export function getDesktopAudioFormatDescriptor(format: DesktopAudioCodecFormat)
 	return FORMAT_DESCRIPTORS[audioFormat(format)];
 }
 
+/** Exact sample-rate choices admitted by the main-process encode contract. */
+export function desktopAudioCodecEncodeSampleRates(
+	format: DesktopAudioCodecFormat,
+): readonly number[] {
+	if (format === 'opus') return OPUS_SAMPLE_RATE_VALUES;
+	if (format === 'mp2') return MP2_SAMPLE_RATE_VALUES;
+	if (format === 'mp3') return MPEG_AUDIO_SAMPLE_RATE_VALUES;
+	if (format === 'aac-m4a') return AAC_SAMPLE_RATE_VALUES;
+	return COMMON_SAMPLE_RATE_VALUES;
+}
+
+/** Exact bitrate choices, including FFmpeg encoders' tuple-dependent clamp bounds. */
+export function desktopAudioCodecEncodeBitRates(
+	format: DesktopAudioCodecFormat,
+	sampleRate?: number,
+	channelCount?: number,
+): readonly number[] {
+	const values = format === 'mp3' ? MP3_BITRATE_VALUES
+		: format === 'opus' ? OPUS_BITRATE_VALUES
+			: format === 'mp2' ? MP2_BITRATE_VALUES
+				: format === 'aac-m4a' ? AAC_BITRATE_VALUES : EMPTY_NUMBER_VALUES;
+	if (sampleRate === undefined) return values;
+	if (!desktopAudioCodecEncodeSampleRates(format).includes(sampleRate)) return EMPTY_NUMBER_VALUES;
+	if (format === 'mp3') {
+		const maximum = sampleRate <= 12_000 ? 64 : sampleRate <= 24_000 ? 160 : 320;
+		return Object.freeze(values.filter((bitrate) => bitrate <= maximum));
+	}
+	if (format === 'aac-m4a') {
+		if (!Number.isSafeInteger(channelCount) || Number(channelCount) < 1
+			|| Number(channelCount) > DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT) return EMPTY_NUMBER_VALUES;
+		return Object.freeze(values.filter((bitrate) => (
+			bitrate * 1_000 * 1_024 <= 6_144 * Number(channelCount) * sampleRate
+		)));
+	}
+	return values;
+}
+
 function validateDecodeSettings(value: unknown): void {
 	const settings = exactRecord(value, 'decode settings');
 	exactKeys(settings, ['sampleFormat'], ['sampleFormat'], 'decode settings');
@@ -292,7 +333,12 @@ function validateDecodeSettings(value: unknown): void {
 	}
 }
 
-function validateEncodeSettings(format: DesktopAudioCodecFormat, value: unknown): void {
+function validateEncodeSettings(
+	format: DesktopAudioCodecFormat,
+	value: unknown,
+	sampleRate: number,
+	channelCount: number,
+): void {
 	const settings = exactRecord(value, `${format} encode settings`);
 	if (format === 'flac') {
 		exactKeys(settings, ['compressionLevel', 'bitDepth'], ['compressionLevel', 'bitDepth'], 'flac encode settings');
@@ -313,19 +359,18 @@ function validateEncodeSettings(format: DesktopAudioCodecFormat, value: unknown)
 		return;
 	}
 	exactKeys(settings, ['bitrateKbps'], ['bitrateKbps'], `${format} encode settings`);
-	const permitted = format === 'mp3' ? MP3_BITRATES
-		: format === 'opus' ? OPUS_BITRATES
-			: format === 'mp2' ? MP2_BITRATES : AAC_BITRATES;
-	if (!Number.isSafeInteger(settings.bitrateKbps) || !permitted.has(Number(settings.bitrateKbps))) {
+	const permitted = desktopAudioCodecEncodeBitRates(format);
+	if (!Number.isSafeInteger(settings.bitrateKbps) || !permitted.includes(Number(settings.bitrateKbps))) {
 		throw new RangeError(`The desktop audio ${format} bitrate is unsupported.`);
+	}
+	if (!desktopAudioCodecEncodeBitRates(format, sampleRate, channelCount)
+		.includes(Number(settings.bitrateKbps))) {
+		throw new RangeError(`The desktop audio ${format} bitrate is unsupported at this sample rate and channel count.`);
 	}
 }
 
 function validateEncodeSampleRate(format: DesktopAudioCodecFormat, sampleRate: number): void {
-	const permitted = format === 'opus' ? OPUS_SAMPLE_RATES
-		: format === 'mp2' ? MP2_SAMPLE_RATES
-			: format === 'mp3' ? MPEG_AUDIO_SAMPLE_RATES : COMMON_SAMPLE_RATES;
-	if (!permitted.has(sampleRate)) {
+	if (!desktopAudioCodecEncodeSampleRates(format).includes(sampleRate)) {
 		throw new RangeError(`The desktop audio ${format} sample rate is unsupported.`);
 	}
 }
