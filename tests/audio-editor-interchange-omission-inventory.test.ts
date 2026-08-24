@@ -119,6 +119,43 @@ test('every profile reports the annotations and warp it cannot carry', () => {
 	}
 });
 
+test('the caption inventory follows the exported sequence, not the primary', () => {
+	// The controller resolves which sequence an export describes and forwards its
+	// id; the inventory must filter by that sequence, and only fall back to the
+	// primary when no export target was stated.
+	const project = {
+		...annotatedProject(),
+		sequences: [...annotatedProject().sequences, secondSequence()],
+		videoCaptionTracks: [
+			{ id: 'captions-b', sequenceId: 'seq-b', cues: [{ id: 'c1' }, { id: 'c2' }] },
+		],
+	};
+	const otio = createOtioExport({ project, sequenceRate: PAL, sequenceId: 'seq-b' });
+	const fcpxml = createFcpxmlExport({ project, sequenceRate: PAL, sequenceId: 'seq-b' });
+	const edl = createProjectEdlExport({ project, sequenceId: 'seq-b' });
+	for (const [profile, report] of [
+		['otio', otio.report], ['fcpxml', fcpxml.report], ['edl', edl.report],
+	] as const) {
+		const item = report.items.find(({ code }) => code === `${profile}.caption-tracks-omitted`);
+		assert.ok(item, `${profile} must inventory the exported sequence's captions`);
+		assert.deepEqual(item.data, { captionTracks: 1, captions: 2 });
+	}
+
+	// Absent an explicit sequence the primary is the filter, and it has none.
+	const fallback = createOtioExport({ project, sequenceRate: PAL });
+	assert.equal(
+		fallback.report.items.find(({ code }) => code === 'otio.caption-tracks-omitted'),
+		undefined,
+	);
+});
+
+function secondSequence() {
+	return {
+		id: 'seq-b', name: 'Second', rate: PAL, dropFrame: false,
+		startTimecode: { negative: false, hours: 0, minutes: 0, seconds: 0, frames: 0 },
+	};
+}
+
 function annotatedProject() {
 	return {
 		id: 'interchange-omissions', title: 'Omissions', sampleRate: SAMPLE_RATE, primarySequenceId: 'seq',

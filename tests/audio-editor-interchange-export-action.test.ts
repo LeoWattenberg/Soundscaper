@@ -140,3 +140,30 @@ test('the FCPXML action shares the family purpose and takes drop frame from the 
 	assert.match(result!.text, /tcFormat="NDF"/u, 'the sequence owns the flag, not the rate');
 	assert.match(result!.text, /frameDuration="1\/25s"/u);
 });
+
+test('each action forwards the resolved sequence to the caption inventory', async () => {
+	// A caption track on the exported (non-primary) sequence must reach the
+	// report; dropping the sequence-id forwarding would filter by the primary
+	// sequence instead and silently lose exactly this item.
+	const captioned = {
+		...project(),
+		sequences: [
+			...project().sequences,
+			{
+				id: 'seq-b', name: 'Second', rate: { num: 25, den: 1 }, dropFrame: false,
+				startTimecode: { negative: false, hours: 0, minutes: 0, seconds: 0, frames: 0 },
+			},
+		],
+		videoCaptionTracks: [{ id: 'captions-b', sequenceId: 'seq-b', cues: [{ id: 'c1' }] }],
+	};
+	for (const [profile, action] of [
+		['edl', exportProjectEdl], ['otio', exportProjectOtio], ['fcpxml', exportProjectFcpxml],
+	] as const) {
+		const { state, runtime } = harness({ getProject: () => captioned, sequenceId: 'seq-b' });
+		await action(runtime);
+		const report = state.deliveryReport as { items?: { code: string; data?: unknown }[] };
+		const item = report?.items?.find(({ code }) => code === `${profile}.caption-tracks-omitted`);
+		assert.ok(item, `${profile} must inventory the exported sequence's captions`);
+		assert.deepEqual(item.data, { captionTracks: 1, captions: 1 });
+	}
+});
