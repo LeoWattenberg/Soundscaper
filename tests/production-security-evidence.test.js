@@ -77,14 +77,14 @@ test('threat-model documentation defines the limits of enforced controls', async
 		/storage-capacity service.*same exact headroom requirement.*checking.*ready.*unknown.*insufficient.*lastPreflight.*one normalized estimate.*Scape quota decision/isu,
 		/cancellation.*signal-ignoring estimate.*no writer or extraction.*restores the prior settled preflight snapshot.*late provider resolution or rejection.*generation-fences older work.*newer state/isu,
 		/standalone undecorated imports.*optional direct store estimator.*do not update controller state/isu,
-		/8,589,932,094.*9,448,925,304-byte.*before its media writer/isu,
+		/8,589,930,860.*9,448,923,946-byte.*before its media writer/isu,
 		/does not reserve capacity.*real browser or filesystem quota accuracy.*durable 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/isu,
 	]) assert.match(documentation, claim);
 	for (const claim of [
-		/inspection collision-cancel witness.*exact 8 GiB sparse Zip64 current-schema `?\.scape`? fixture.*real read-capability store.*protocol handler.*renderer adapter.*structural inspection.*collision lookup.*before cancellation.*less than 8 MiB.*65,557-byte suffix.*does not hash/isu,
-		/authentic exact 8 GiB fixture.*8,589,932,094-byte.*SHA-256.*7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be.*CRC-32.*2,909,126,900.*`?checkSignature: true`?.*negative rollback/isu,
-		/full-import witness.*real read-capability store.*Node protocol handler shim.*renderer adapter.*file service.*project service.*full import.*independent counting-SHA-256.*zero payload retention.*point-in-time capacity estimate.*precedes the media writer.*9,448,925,304.*no Blob materialization.*capability release.*exactly once.*pinned handle close.*exactly once/isu,
-		/verified reference evidence.*opt-in.*`npm run test:reference:scape-8gib`.*routine Node.*coverage.*fast-skip.*measured all-files coverage.*passed.*525 seconds.*does not demote.*collision-cancel.*corrupted-CRC negative rollback.*routine coverage.*sparse-file support.*Node protocol shim.*(?:not|rather than) packaged UI/isu,
+		/inspection refusal witness.*schema-9.*exact 8 GiB sparse Zip64 `?\.scape`? fixture.*read-capability store.*protocol handler.*renderer adapter.*structural inspection.*typed re-import error.*before any collision lookup.*less than 8 MiB.*65,557-byte suffix.*does not hash/isu,
+		/authentic exact 8 GiB fixture.*8,589,930,860-byte.*SHA-256.*29fe8d0dc2c84f17f76b0a8a896c33042d832681351f0798a523dcbf72c49942.*CRC-32.*1,816,305,334.*`?checkSignature: true`?.*negative rollback/isu,
+		/full-import witness.*real read-capability store.*Node protocol handler shim.*renderer adapter.*file service.*project service.*full import.*independent counting-SHA-256.*zero payload retention.*point-in-time capacity estimate.*precedes the media writer.*9,448,923,946.*no Blob materialization.*capability release.*exactly once.*pinned handle close.*exactly once/isu,
+		/verified reference evidence.*opt-in.*`npm run test:reference:scape-8gib`.*routine Node.*coverage.*fast-skip.*measured all-files coverage.*passed.*525 seconds.*does not demote.*refusal inspection.*corrupted-CRC negative rollback.*routine coverage.*sparse-file support.*Node protocol shim.*(?:not|rather than) packaged UI/isu,
 		/OPFS.*IndexedDB.*durable.*real production browser or filesystem quota accuracy.*reservation.*write-time success.*concurrent writers.*browser heap.*process RSS.*whole-storage atomicity.*publisher authentication/isu,
 	]) assert.match(documentation, claim);
 	assert.match(

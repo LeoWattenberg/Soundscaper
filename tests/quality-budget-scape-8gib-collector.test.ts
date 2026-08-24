@@ -12,8 +12,8 @@ const diagnostic = Object.freeze({
 	fixtureId: 'm2-streaming-project-8gib-v1',
 	durationMs: 525_000,
 	archiveLogicalBytes: 8_589_934_592,
-	assetBytes: 8_589_932_094,
-	assetSha256: '7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be',
+	assetBytes: 8_589_930_860,
+	assetSha256: '29fe8d0dc2c84f17f76b0a8a896c33042d832681351f0798a523dcbf72c49942',
 	protocolRangeRequests: 2050,
 	budgetMetrics: {
 		'streaming.maximumProtocolRangeBytes': 16_777_216,

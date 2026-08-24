@@ -239,10 +239,12 @@ digest must still be stable.
 
 The milestone 2 sparse fixture remains provisional and requires observable sparse-file
 support. Its generator creates an exact 8,589,934,592-byte logical Zip64 archive
-with current-schema project metadata and an 8,589,932,094-byte sparse-zero video
-asset. That asset is pinned to SHA-256
-`7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be` and
-ZIP CRC-32 `2909126900`; these values are authentic fixture identity, not
+with current-schema project metadata and an 8,589,930,860-byte sparse-zero video
+asset. The payload is pinned below the layout's natural size and the project
+title pads the difference, so schema evolution changes the padding rather than
+the recorded identity. That asset is pinned to SHA-256
+`29fe8d0dc2c84f17f76b0a8a896c33042d832681351f0798a523dcbf72c49942` and
+ZIP CRC-32 `1816305334`; these values are authentic fixture identity, not
 placeholders.
 
 `npm run quality:collect:m2-scape-8gib` runs the sparse full-import reference
@@ -422,22 +424,23 @@ sequential-retention, final-Blob, and partial-publication counters; the codec,
 worker MEMFS, native/WASM, heap/RSS, timing, browser, OS, and durability
 exclusions above remain unchanged.
 
-The [collision-cancel inspection witness](../tests/desktop-scape-sparse-range-integration.test.ts)
-remains payload-lazy. It follows the real capability store, protocol, desktop
-range adapter, file service, project router, and inspector through single exact
-closed ranges of at most 16 MiB. Every response is `206`, total transfer stays
-below 8 MiB, only the asset's bounded ZIP end-search suffix is touched, and an
-existing-ID collision cancels before import or whole-archive `Blob`
-materialization.
+The [legacy-schema refusal witness](../tests/desktop-scape-sparse-range-integration.test.ts)
+remains payload-lazy. It stamps the retired schema-9 project into the fixture
+and follows the real capability store, protocol, desktop range adapter, file
+service, project router, and inspector through single exact closed ranges of at
+most 16 MiB. Every response is `206`, total transfer stays below 8 MiB, only
+the asset's bounded ZIP end-search suffix is touched, and the archive fails
+with the typed re-import error before any collision lookup, import, or
+whole-archive `Blob` materialization.
 
 The separate [full-import witness](../tests/desktop-scape-sparse-full-import-integration.test.ts)
-runs the same exact archive through the real capability store, protocol, desktop
+runs the current-schema arm of the same fixture through the real capability store, protocol, desktop
 range adapter, file service, project service, and importer. The strict ZIP
 reader validates the authentic CRC; its focused
 [corruption regression](../tests/audio-editor-scape-streaming-video.test.ts)
 proves a stored-entry CRC mismatch is rejected. Import validates the manifest
 SHA-256, and a transactional counting sink independently rehashes and counts
-all 8,589,932,094 asset bytes without retaining payload chunks. The witness
+all 8,589,930,860 asset bytes without retaining payload chunks. The witness
 requires exact at-most-16-MiB `206` ranges, at-most-4-MiB media emissions,
 project publication after media commit, exact-once capability release and
 pinned-handle close, and no whole-archive `Blob` path.
@@ -447,8 +450,8 @@ The maintained importer's point-in-time capacity admission is covered by the
 [archive admission tests](../tests/audio-editor-scape-import-capacity-admission.test.ts).
 It checked-sums validated manifest asset sizes and adds `ceil(10%)` headroom
 before transaction capture, source remapping, writer creation, or asset
-extraction. For this fixture, 8,589,932,094 asset bytes require exactly
-9,448,925,304 free bytes; exact free space is admitted and one byte less is
+extraction. For this fixture, 8,589,930,860 asset bytes require exactly
+9,448,923,946 free bytes; exact free space is admitted and one byte less is
 refused. The full-import counting store supplies that exact injected estimate
 before its media writer opens.
 

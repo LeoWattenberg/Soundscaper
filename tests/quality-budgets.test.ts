@@ -230,17 +230,17 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		observedAllFilesCoverageTestResult: 'passed',
 		observedAllFilesCoverageTestDurationSeconds: 525,
 		logicalBytes: 8_589_934_592,
-		assetBytes: 8_589_932_094,
-		assetSha256: '7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be',
-		assetCrc32: 2_909_126_900,
+		assetBytes: 8_589_930_860,
+		assetSha256: '29fe8d0dc2c84f17f76b0a8a896c33042d832681351f0798a523dcbf72c49942',
+		assetCrc32: 1_816_305_334,
 		archiveFormat: 'zip64',
-		projectSchemaVersion: 9,
+		projectSchemaVersion: 'current',
 		sparseFilesystemRequired: true,
 		rangeRequestShape: 'single-exact-closed',
 		rangeResponseStatus: 206,
 		maxRangeBytes: 16_777_216,
 		maxInspectionTransferBytesExclusive: 8_388_608,
-		inspectionStopsAt: 'collision-cancel',
+		inspectionStopsAt: 'legacy-schema-reimport-refusal',
 		inspectionPayloadLazy: true,
 		inspectionWholeBlobMaterialization: false,
 		fullImportPipeline: [
@@ -264,7 +264,7 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		opfsIndexedDbDurableStorageQualified: false,
 		quotaPreflightQualified: true,
 		quotaPreflightPolicy: 'point-in-time-validated-asset-bytes-plus-ceil-10-percent',
-		quotaPreflightRequiredFreeBytes: 9_448_925_304,
+		quotaPreflightRequiredFreeBytes: 9_448_923_946,
 		realBrowserQuotaAvailabilityQualified: false,
 		rendererBrowserHeapQualified: false,
 		mainRendererRssQualified: false,
@@ -273,14 +273,14 @@ test('quality budget contract names numeric gates and the exact qualified struct
 	});
 	assert.equal(
 		milestone2Fixture?.specification.quotaPreflightRequiredFreeBytes,
-		8_589_932_094 + Math.ceil(8_589_932_094 / 10),
+		8_589_930_860 + Math.ceil(8_589_930_860 / 10),
 	);
 	assert.match(milestone2Fixture?.limitation ?? '', /sparse filesystem/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /counting.*sink/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /packaged Electron UI/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /OPFS.*IndexedDB/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /point-in-time capacity admission.*injected estimate/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /8,589,932,094.*9,448,925,304/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /8,589,930,860.*9,448,923,946/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /not a storage reservation/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /does not guarantee.*capacity UI snapshot.*write-time success/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /actual browser quota.*estimate freshness.*concurrent writers/iu);

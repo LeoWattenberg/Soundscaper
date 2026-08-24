@@ -9,14 +9,14 @@ import {
 	ScapeImportQuotaError,
 } from '../src/common/editor/scape-import-capacity.ts';
 
-const EXACT_EIGHT_GIB_ASSET_BYTES = 8_589_932_094;
+const EXACT_EIGHT_GIB_ASSET_BYTES = 8_589_930_860;
 
 test('Scape import capacity sums manifest assets and adds exact ten-percent headroom', () => {
 	const exact = scapeImportCapacityRequirement(manifest(EXACT_EIGHT_GIB_ASSET_BYTES));
 	assert.deepEqual(exact, {
 		assetBytes: EXACT_EIGHT_GIB_ASSET_BYTES,
-		headroomBytes: 858_993_210,
-		requiredFreeBytes: 9_448_925_304,
+		headroomBytes: 858_993_086,
+		requiredFreeBytes: 9_448_923_946,
 	});
 	assert.equal(Object.isFrozen(exact), true);
 	assert.deepEqual(scapeImportCapacityRequirement(manifest()), {
@@ -38,12 +38,12 @@ test('Scape import capacity sums manifest assets and adds exact ten-percent head
 });
 
 test('the exact sparse 8 GiB asset admits its boundary and refuses one byte less', async () => {
-	const requiredFreeBytes = 9_448_925_304;
+	const requiredFreeBytes = 9_448_923_946;
 	assert.deepEqual(await preflightScapeImportCapacity(manifest(EXACT_EIGHT_GIB_ASSET_BYTES), {
 		estimateStorage: () => ({ usage: 0, quota: requiredFreeBytes }),
 	}), {
 		assetBytes: EXACT_EIGHT_GIB_ASSET_BYTES,
-		headroomBytes: 858_993_210,
+		headroomBytes: 858_993_086,
 		requiredFreeBytes,
 	});
 
@@ -53,7 +53,7 @@ test('the exact sparse 8 GiB asset admits its boundary and refuses one byte less
 		assert.ok(error instanceof ScapeImportQuotaError);
 		assert.deepEqual(error.details, {
 			assetBytes: EXACT_EIGHT_GIB_ASSET_BYTES,
-			headroomBytes: 858_993_210,
+			headroomBytes: 858_993_086,
 			requiredFreeBytes,
 			usage: 0,
 			quota: requiredFreeBytes - 1,

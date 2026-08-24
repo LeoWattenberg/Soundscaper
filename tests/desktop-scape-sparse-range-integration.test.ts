@@ -46,15 +46,15 @@ test('an historical 8 GiB sparse desktop Scape is range-inspected and rejected b
 
 	let fixture;
 	try {
-		fixture = await createSparseEightGiBScapeFixture(join(root, 'eight-gib.scape'));
+		fixture = await createSparseEightGiBScapeFixture(join(root, 'eight-gib.scape'), { projectSchemaVersion: 9 });
 	} catch (error) {
 		if (!isSparseFixturePlatformError(error)) throw error;
 		context.skip(`Sparse-file fixture unavailable: ${error.message}`);
 		return;
 	}
 	assert.equal(fixture.logicalSize, 8 * 1024 ** 3);
-	assert.equal(fixture.assetSha256, '44aa612ac90240a47309d2c27dd8b7f2226179d059041389fb6873ca4b4236e4');
-	assert.equal(fixture.assetCrc32, 1_372_644_915);
+	assert.equal(fixture.assetSha256, '29fe8d0dc2c84f17f76b0a8a896c33042d832681351f0798a523dcbf72c49942');
+	assert.equal(fixture.assetCrc32, 1_816_305_334);
 	assert.ok(fixture.allocatedBytes < MAX_INSPECTION_TRANSFER_BYTES);
 	assert.deepEqual(fixture.entries.map(({ name }) => name), [
 		'project.json',

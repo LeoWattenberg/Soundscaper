@@ -21,9 +21,9 @@ test('production evidence pins bounded random-access .scape admission', async ()
 	for (const claim of [
 		/lower-only.*33 MiB.*native `Uint8Array`.*69,271,649-byte.*comments.*conflicting overlaps.*payload gaps.*Blob.*zero-high-water-mark.*overlap-only.*lazy/iu,
 		/immutable `scape-range-v1`.*Audacity.*`materialized-v1`.*strict renderer adapter.*descriptor URL\/declared size.*fetch implementation.*16-MiB.*`206`.*stream done.*without exposing release authority.*project-dialog.*OS-association.*awaited scope.*inspection.*open decision.*import.*exact-once release/iu,
-		/inspection collision-cancel.*less than 8 MiB.*65,557-byte suffix.*does not hash.*authentic exact 8 GiB.*8,589,932,094-byte.*7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be.*2,909,126,900/iu,
-		/real read-capability store.*protocol shim.*renderer adapter.*file service.*project service.*full import.*independent counting-SHA-256.*zero payload retention.*no Blob.*point-in-time import-capacity estimate.*precedes the media writer.*9,448,925,304-byte.*capability release.*exactly once.*pinned handle close.*exactly once/iu,
-		/verified reference evidence.*opt-in.*`npm run test:reference:scape-8gib`.*routine Node.*coverage.*fast-skip.*measured all-files coverage.*passed.*525 seconds.*does not demote.*collision-cancel.*corrupted-CRC negative rollback.*routine coverage.*sparse-file.*Node protocol shim.*not packaged UI/iu,
+		/inspection refusal.*schema-9.*typed re-import error.*less than 8 MiB.*65,557-byte suffix.*does not hash.*authentic exact 8 GiB.*8,589,930,860-byte.*29fe8d0dc2c84f17f76b0a8a896c33042d832681351f0798a523dcbf72c49942.*1,816,305,334/iu,
+		/real read-capability store.*protocol shim.*renderer adapter.*file service.*project service.*full import.*independent counting-SHA-256.*zero payload retention.*no Blob.*point-in-time import-capacity estimate.*precedes the media writer.*9,448,923,946-byte.*capability release.*exactly once.*pinned handle close.*exactly once/iu,
+		/verified reference evidence.*opt-in.*`npm run test:reference:scape-8gib`.*routine Node.*coverage.*fast-skip.*measured all-files coverage.*passed.*525 seconds.*does not demote.*refusal inspection.*corrupted-CRC negative rollback.*routine coverage.*sparse-file.*Node protocol shim.*not packaged UI/iu,
 		/OPFS.*IndexedDB.*durable.*real browser or filesystem quota accuracy.*reservation.*write-time success.*concurrent writers.*browser heap.*RSS.*whole-storage atomicity.*publisher authentication/iu,
 	]) assert.match(control.summary, claim);
 	const packagedOpenControl = matrix.risks.find(({ id }) => id === 'scape-archive-expansion')?.currentControls
@@ -96,7 +96,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/storage-capacity service.*same exact headroom requirement.*checking.*ready.*unknown.*insufficient.*lastPreflight.*one normalized estimate.*Scape quota decision/iu,
 		/cancellation.*signal-ignoring estimate.*no writer or extraction.*restores the prior settled preflight snapshot.*late provider resolution or rejection.*generation-fences older work.*newer state/iu,
 		/standalone undecorated imports.*optional direct store estimator.*do not update controller state/iu,
-		/8,589,932,094.*9,448,925,304.*before its media writer/iu,
+		/8,589,930,860.*9,448,923,946.*before its media writer/iu,
 		/does not reserve capacity.*real browser or filesystem quota accuracy.*durable OPFS or IndexedDB 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/iu,
 	]) assert.match(capacityControl.summary, claim);
 	for (const path of [
@@ -137,7 +137,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 	assert.match(referenceScaleTest, /process\.env\.npm_lifecycle_event === REFERENCE_SCALE_NPM_LIFECYCLE/u);
 	assert.match(referenceScaleTest, /process\.env\[REFERENCE_SCALE_ENVIRONMENT\] === '1'/u);
 	assert.match(referenceScaleTest, /skip: RUN_REFERENCE_SCALE_GATE \? false : REFERENCE_SCALE_SKIP_MESSAGE/u);
-	assert.match(referenceScaleTest, /EXACT_REQUIRED_FREE_BYTES = 9_448_925_304/u);
+	assert.match(referenceScaleTest, /EXACT_REQUIRED_FREE_BYTES = 9_448_923_946/u);
 	assert.match(referenceScaleTest, /'capacity-estimated',[\s\S]*'media-write-began'/u);
 	for (const path of [
 		'tests/audio-editor-scape-streaming-video.test.ts',
@@ -172,15 +172,15 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/storage-capacity service.*same exact headroom requirement.*checking.*ready.*unknown.*insufficient.*lastPreflight.*one normalized estimate.*Scape quota decision/isu,
 		/cancellation.*signal-ignoring estimate.*no writer or extraction.*restores the prior settled preflight snapshot.*late provider resolution or rejection.*generation-fences older work.*newer state/isu,
 		/standalone undecorated imports.*optional direct store estimator.*do not update controller state/isu,
-		/8,589,932,094.*9,448,925,304-byte.*before its media writer/isu,
+		/8,589,930,860.*9,448,923,946-byte.*before its media writer/isu,
 		/does not reserve capacity.*real browser or filesystem quota accuracy.*durable 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/isu,
 	]) assert.match(threatModel, claim);
 	for (const claim of [
 		/branded random-access byte-source.*lower.*33 MiB.*native typed-array.*69,271,649-byte.*central comments.*conflicting overlaps.*payload gaps.*zero-high-water-mark.*overlap-only.*lazily/isu,
 		/strict renderer adapter.*descriptor URL\/declared size.*fetch implementation.*16 MiB.*`206`.*`Content-Range`.*`Content-Length`.*stream `done`.*project-dialog.*OS-association.*terminal.*\.scape.*exact canonical Scape MIME.*awaited capability scope.*inspection.*collision decision.*import.*exactly once.*main-process release.*authoritative/isu,
-		/inspection collision-cancel.*less than 8 MiB.*65,557-byte suffix.*does not hash.*authentic exact 8 GiB.*8,589,932,094-byte.*7feeb1e9eacb6561f3c5afb4ebf3896c8237660a9b4ed8917d3275c79bed38be.*2,909,126,900.*zip\.js.*`checkSignature: true`.*CRC.*negative rollback/isu,
-		/real read-capability store.*protocol handler.*renderer adapter.*file service.*project service.*full import.*independent counting-SHA-256.*zero payload retention.*point-in-time capacity estimate.*precedes the media writer.*9,448,925,304.*no Blob.*capability release.*exactly once.*pinned handle close.*exactly once/isu,
-		/verified reference evidence.*opt-in.*`npm run test:reference:scape-8gib`.*routine Node.*coverage.*fast-skip.*measured all-files coverage.*passed.*525 seconds.*does not demote.*collision-cancel.*corrupted-CRC negative rollback.*routine coverage.*sparse-file.*Node protocol shim.*(?:not|rather than) packaged UI/isu,
+		/inspection refusal.*schema-9.*typed re-import error.*less than 8 MiB.*65,557-byte suffix.*does not hash.*authentic exact 8 GiB.*8,589,930,860-byte.*29fe8d0dc2c84f17f76b0a8a896c33042d832681351f0798a523dcbf72c49942.*1,816,305,334.*zip\.js.*`checkSignature: true`.*CRC.*negative rollback/isu,
+		/real read-capability store.*protocol handler.*renderer adapter.*file service.*project service.*full import.*independent counting-SHA-256.*zero payload retention.*point-in-time capacity estimate.*precedes the media writer.*9,448,923,946.*no Blob.*capability release.*exactly once.*pinned handle close.*exactly once/isu,
+		/verified reference evidence.*opt-in.*`npm run test:reference:scape-8gib`.*routine Node.*coverage.*fast-skip.*measured all-files coverage.*passed.*525 seconds.*does not demote.*refusal inspection.*corrupted-CRC negative rollback.*routine coverage.*sparse-file.*Node protocol shim.*(?:not|rather than) packaged UI/isu,
 		/OPFS.*IndexedDB.*durable.*real production browser or filesystem quota accuracy.*reservation.*write-time success.*concurrent writers.*browser heap.*RSS.*whole-storage atomicity.*publisher authentication/isu,
 	]) assert.match(threatModel, claim);
 	for (const claim of [

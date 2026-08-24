@@ -28,9 +28,13 @@ const VIDEO_SOURCE_ID = 'video-source';
 const VIDEO_ENTRY = 'media/video-source/original';
 // The sparse hole reads as this exact number of zero bytes. These pinned values
 // are the SHA-256 and ZIP CRC-32 of that logical body, not fixture placeholders.
-const ZERO_ASSET_BYTES = 8_589_931_116;
-const ZERO_ASSET_SHA256 = '44aa612ac90240a47309d2c27dd8b7f2226179d059041389fb6873ca4b4236e4';
-const ZERO_ASSET_CRC32 = 1_372_644_915;
+// The payload is pinned below the layout's natural size and the project title
+// pads the difference, so schema evolution changes the padding — never the
+// recorded archive identity.
+const ZERO_ASSET_BYTES = 8_589_930_860;
+const ZERO_ASSET_SHA256 = '29fe8d0dc2c84f17f76b0a8a896c33042d832681351f0798a523dcbf72c49942';
+const ZERO_ASSET_CRC32 = 1_816_305_334;
+const MAXIMUM_TITLE_PADDING = 384;
 
 interface ArchiveEntryPlan {
 	readonly name: string;
@@ -128,54 +132,85 @@ export async function probeSparseFileSupport(directory: string): Promise<SparseF
 
 export async function createSparseEightGiBScapeFixture(
 	path: string,
+	options: Readonly<{
+		/** Stamp an older schema for refusal witnesses; omitted keeps the current schema. */
+		readonly projectSchemaVersion?: number;
+	}> = {},
 ): Promise<SparseEightGiBScapeFixture> {
-	const project = {
-		...createCurrentAudioEditorProject({
-			id: PROJECT_ID,
-			title: 'Sparse 8 GiB range witness',
-			now: '2026-01-01T00:00:00.000Z',
-			sources: [{
-				kind: 'video',
-				id: VIDEO_SOURCE_ID,
-				storageKey: VIDEO_SOURCE_ID,
-				name: 'sparse-video.mp4',
-				mimeType: 'video/mp4',
-				frameCount: 1,
-				sampleRate: 48_000,
-				width: 1,
-				height: 1,
-				frameRate: 30,
-				videoCodec: 'h264',
-				audioCodec: null,
-				hasAudio: false,
-			}],
-			clips: [],
-			tracks: [],
-		}),
-		schemaVersion: 9,
-	};
-	const projectBytes = TEXT_ENCODER.encode(JSON.stringify(project));
-	const projectSha256 = createHash('sha256').update(projectBytes).digest('hex');
-	let hugePayloadBytes = LOGICAL_ARCHIVE_BYTES;
-	let manifestBytes: Uint8Array = new Uint8Array();
-	let plan: ArchivePlan | null = null;
-	for (let attempt = 0; attempt < 4; attempt += 1) {
-		manifestBytes = manifestDocument(
+	// The asset identity is pinned, not derived: the title (two document
+	// occurrences, so a two-byte step) and the source name (one occurrence,
+	// the parity byte) pad the project document until the layout lands the
+	// payload exactly on ZERO_ASSET_BYTES, so schema evolution changes the
+	// padding instead of silently changing the archive identity every quality
+	// ledger and doc has recorded.
+	let projectBytes: Uint8Array | null = null;
+	let projectSchemaVersion = 0;
+	let projectSha256 = '';
+	let titlePadding = 0;
+	let namePadding = 0;
+	for (let attempt = 0; attempt < 8 && projectBytes === null; attempt += 1) {
+		if (titlePadding > MAXIMUM_TITLE_PADDING || titlePadding < 0 || namePadding < 0) break;
+		const project = {
+			...createCurrentAudioEditorProject({
+				id: PROJECT_ID,
+				title: `Sparse 8 GiB range witness${'.'.repeat(titlePadding)}`,
+				now: '2026-01-01T00:00:00.000Z',
+				sources: [{
+					kind: 'video',
+					id: VIDEO_SOURCE_ID,
+					storageKey: VIDEO_SOURCE_ID,
+					name: `sparse-video${'x'.repeat(namePadding)}.mp4`,
+					mimeType: 'video/mp4',
+					frameCount: 1,
+					sampleRate: 48_000,
+					width: 1,
+					height: 1,
+					frameRate: 30,
+					videoCodec: 'h264',
+					audioCodec: null,
+					hasAudio: false,
+				}],
+				clips: [],
+				tracks: [],
+			}),
+			...(options.projectSchemaVersion === undefined
+				? {}
+				: { schemaVersion: options.projectSchemaVersion }),
+		};
+		const candidateBytes = TEXT_ENCODER.encode(JSON.stringify(project));
+		const candidateSha256 = createHash('sha256').update(candidateBytes).digest('hex');
+		const manifestBytes = manifestDocument(
 			project.schemaVersion,
-			projectBytes.byteLength,
-			projectSha256,
-			hugePayloadBytes,
+			candidateBytes.byteLength,
+			candidateSha256,
+			ZERO_ASSET_BYTES,
 		);
-		plan = planArchive(projectBytes, manifestBytes);
-		const plannedHugeBytes = (plan.entries[1] as ArchiveEntryPlan).size;
-		if (plannedHugeBytes === hugePayloadBytes) break;
-		hugePayloadBytes = plannedHugeBytes;
-		plan = null;
+		const plannedHugeBytes = (planArchive(candidateBytes, manifestBytes)
+			.entries[1] as ArchiveEntryPlan).size;
+		if (plannedHugeBytes === ZERO_ASSET_BYTES) {
+			projectBytes = candidateBytes;
+			projectSchemaVersion = project.schemaVersion;
+			projectSha256 = candidateSha256;
+			break;
+		}
+		const delta = plannedHugeBytes - ZERO_ASSET_BYTES;
+		const parity = ((delta % 2) + 2) % 2;
+		namePadding += parity;
+		titlePadding += (delta - (parity === 0 ? 0 : delta > 0 ? 1 : -1)) / 2;
 	}
-	if (!plan) throw new Error('The sparse Scape manifest size did not reach a stable archive layout.');
+	if (projectBytes === null) {
+		throw new Error('The sparse Scape fixture padding did not converge on its pinned payload.');
+	}
+	const manifestBytes = manifestDocument(
+		projectSchemaVersion,
+		projectBytes.byteLength,
+		projectSha256,
+		ZERO_ASSET_BYTES,
+	);
+	const plan = planArchive(projectBytes, manifestBytes);
 	const hugeEntry = plan.entries[1] as ArchiveEntryPlan;
 	const finalManifestEntry = plan.entries[2] as ArchiveEntryPlan;
-	if (hugeEntry.size !== hugePayloadBytes || hugeEntry.size <= UINT32_SENTINEL) {
+	if (hugeEntry.size !== ZERO_ASSET_BYTES || hugeEntry.size <= UINT32_SENTINEL) {
 		throw new Error('The sparse Scape fixture did not produce the required Zip64 payload.');
 	}
 
@@ -288,9 +323,8 @@ function planArchive(projectBytes: Uint8Array, manifestBytes: Uint8Array): Archi
 	if (!Number.isSafeInteger(hugeSize) || hugeSize <= UINT32_SENTINEL) {
 		throw new Error('The sparse Scape video size is outside the required Zip64 range.');
 	}
-	if (hugeSize !== ZERO_ASSET_BYTES) {
-		throw new Error('The sparse Scape video size no longer matches its pinned integrity metadata.');
-	}
+	// The fixture creator probes layouts while converging its title padding
+	// onto the pinned payload, so the pinned-identity equality is its check.
 	const huge: ArchiveEntryPlan = Object.freeze({
 		name: names[1],
 		bytes: null,
