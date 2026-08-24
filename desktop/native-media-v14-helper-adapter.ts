@@ -14,10 +14,7 @@ import {
 	assertNativeMediaRelativeDestination,
 	createNativeMediaPublicationPlan,
 } from '../src/common/editor/native-media-atomic-publication.ts';
-import {
-	NATIVE_MEDIA_CPU_BACKEND,
-	NATIVE_MEDIA_WEB_BACKEND,
-} from '../src/common/editor/native-media-backend-policy.ts';
+import { NATIVE_MEDIA_WEB_BACKEND } from '../src/common/editor/native-media-backend-policy.ts';
 import { nativeMediaV14RequiresEvaluatedCarrier } from '../src/common/editor/native-media-v14-render-family.ts';
 import { nativeMediaV14EncodeDispatch } from '../src/common/editor/native-media-v14-native-dispatch.ts';
 import { canonicalizeNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
