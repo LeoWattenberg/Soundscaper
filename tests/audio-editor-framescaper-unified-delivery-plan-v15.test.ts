@@ -161,6 +161,40 @@ test('selected V15 companion planning isolates another sequence and binds its ex
 	assert.equal(JSON.stringify(withAnotherSequence), persistedBeforePlanning);
 });
 
+test('companion planning refuses solo authority it cannot honour', () => {
+	// The engine resolves solo project-wide: a soloed strip outside the scope
+	// silences the selected tracks in playback and in the ordinary mix export.
+	// Dropping other-sequence tracks while ignoring their solo would deliver a
+	// companion that sounds different from playback.
+	const delivery = imageSequenceDelivery();
+	const soloed = structuredClone(projectWithUnrelatedAudioSequence());
+	const other = (soloed.tracks as unknown as Record<string, unknown>[])
+		.find(({ id }) => id === 'other-audio-track')!;
+	other.solo = true;
+	assert.throws(
+		() => createFramescaperProjectUnifiedRenderDeliveryBundleV15(
+			PROFILE, soloed,
+			createFramescaperNativeRenderPlanAuthorityV28(soloed, delivery), {
+				deliveryProfile: 'encode-png-sequence', companionAudio: companionAudioChoice(),
+			},
+		),
+		/solo on out-of-scope track other-audio-track/u,
+	);
+
+	// Solo inside the scope is the same authority playback resolves; it stays.
+	const inScope = structuredClone(projectWithUnrelatedAudioSequence());
+	const selected = (inScope.tracks as unknown as Record<string, unknown>[])
+		.find(({ id }) => id === 'audio-track')!;
+	selected.solo = true;
+	const bundle = createFramescaperProjectUnifiedRenderDeliveryBundleV15(
+		PROFILE, inScope,
+		createFramescaperNativeRenderPlanAuthorityV28(inScope, delivery), {
+			deliveryProfile: 'encode-png-sequence', companionAudio: companionAudioChoice(),
+		},
+	);
+	assert.notEqual(bundle.companionAudioBundle, null);
+});
+
 test('a silent delivered sequence needs no companion despite other-sequence audio', () => {
 	// Programme audio is the delivered sequence's, not the project's. With the
 	// only audio track in another sequence, a PNG-sequence delivery must build

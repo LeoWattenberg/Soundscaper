@@ -72,7 +72,9 @@ export function createFramescaperCompanionAudioProjectScopeV15(
 		}
 	}
 
-	const graphScope = selectedMixerGraph(normalizeMixerGraphV21(project.mixer), sequenceAudioTrackIds);
+	const mixer = normalizeMixerGraphV21(project.mixer);
+	const graphScope = selectedMixerGraph(mixer, sequenceAudioTrackIds);
+	assertNoOutOfScopeSoloAuthority(tracks, sequenceAudioTrackIds, mixer, graphScope);
 	const scoped = structuredClone(project) as unknown as DataRecord;
 	scoped.tracks = targetTracks.map((track) => structuredClone(track));
 	scoped.clips = renderClips.map((clip) => structuredClone(clip));
@@ -218,6 +220,35 @@ function selectedMixerGraph(
 		edges: graph.edges.filter(({ id }) => includedEdgeIds.has(id)),
 	});
 	return Object.freeze({ graph: scoped, edgeIds: includedEdgeIds, stripKeys: strips });
+}
+
+/**
+ * Solo is resolved project-wide by the engine: while any solo exists, a strip
+ * is audible only through a soloed path. A soloed strip outside this scope
+ * silences the selected tracks during playback and in the ordinary mix
+ * export, so honouring the scope while dropping the solo would deliver a
+ * companion that sounds different from playback. Refuse it, exactly like the
+ * cross-sequence sidechain — the other cross-scope silent control.
+ */
+function assertNoOutOfScopeSoloAuthority(
+	tracks: readonly DataRecord[],
+	scopeTrackIds: readonly string[],
+	graph: MixerGraphV21,
+	scope: SelectedMixerGraphScope,
+): void {
+	const inScope = new Set(scopeTrackIds);
+	for (const track of tracks) {
+		if (track.type !== 'audio' || track.solo !== true) continue;
+		const trackId = id(track, 'soloed audio track');
+		if (!inScope.has(trackId)) {
+			throw new RangeError(`Companion audio cannot honour solo on out-of-scope track ${trackId}.`);
+		}
+	}
+	for (const strip of [...graph.groups, ...graph.sends, ...graph.cues]) {
+		if (strip.solo && !scope.stripKeys.has(`mixer-node:${strip.id}`)) {
+			throw new RangeError(`Companion audio cannot honour solo on out-of-scope mixer strip ${strip.id}.`);
+		}
+	}
 }
 
 function laneSurvivesScope(lane: DataRecord, scope: SelectedMixerGraphScope): boolean {
