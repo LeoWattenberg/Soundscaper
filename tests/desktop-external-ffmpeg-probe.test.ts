@@ -182,14 +182,16 @@ test('the executable pair fails closed when either build fingerprint is incomple
 });
 
 test('version and command failures return typed unavailable reasons', async () => {
-	const mismatch = await probeExternalFfmpegCandidate(
-		createExternalFfmpegCandidate(candidateInput('/mismatch')),
-		fixtureRunner([], { ffprobeVersion: '9.0.0' }),
-	);
-	assert.equal(mismatch.status, 'unavailable');
-	if (mismatch.status === 'unavailable') {
-		assert.equal(mismatch.reason, 'version-mismatch');
-		assert.equal(mismatch.command, 'ffprobe-version');
+	for (const ffprobeVersion of ['9.0.0', '9.0.1-other-package']) {
+		const mismatch = await probeExternalFfmpegCandidate(
+			createExternalFfmpegCandidate(candidateInput('/mismatch')),
+			fixtureRunner([], { ffprobeVersion }),
+		);
+		assert.equal(mismatch.status, 'unavailable');
+		if (mismatch.status === 'unavailable') {
+			assert.equal(mismatch.reason, 'version-mismatch');
+			assert.equal(mismatch.command, 'ffprobe-version');
+		}
 	}
 
 	const timedOut = await probeExternalFfmpegCandidate(

@@ -244,7 +244,8 @@ export async function probeExternalFfmpegCandidate(
 	if (ffprobeBuild === null) {
 		return probeUnavailable(validated, 'ffprobe-version', { reason: 'malformed-output' });
 	}
-	if (ffmpegVersion.version.normalized !== ffprobeVersion.version.normalized) {
+	if (ffmpegVersion.version.raw !== ffprobeVersion.version.raw
+		|| ffmpegVersion.version.normalized !== ffprobeVersion.version.normalized) {
 		return probeUnavailable(validated, 'ffprobe-version', { reason: 'version-mismatch' });
 	}
 	if (ffmpegBuild !== ffprobeBuild) {
