@@ -21,6 +21,7 @@ test('the external FFmpeg CLI witness is digest-pinned and scoped to six Linux x
 		/^https:\/\/github\.com\/audacity\/audacity\/commit\/c016d6e1/u);
 	assert.match(evidence.architecture.audacityApproach, /ABI-major wrappers/iu);
 	assert.match(evidence.architecture.soundscaperApproach, /out of process.*released CLI/iu);
+	assert.match(evidence.architecture.soundscaperApproach, /canonical input decoders/iu);
 	assert.equal(evidence.implementation.operationContractPath,
 		'desktop/desktop-audio-codec-operation-contract.ts');
 	assert.match(evidence.implementation.operationContractSha256, /^[0-9a-f]{64}$/u);

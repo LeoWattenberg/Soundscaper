@@ -11,9 +11,9 @@
 	},
 	"implementation": {
 		"operationContractPath": "desktop/desktop-audio-codec-operation-contract.ts",
-		"operationContractSha256": "aabdb810dd464d5cc8096f0913433f357bcf9115f1b8d8bdd77bb24026d0fac5",
+		"operationContractSha256": "4296cd3cf74ade9d13edb4778feb8db6a9c1217586f0e3152b3c5f2811332ee7",
 		"planPath": "desktop/desktop-audio-ffmpeg-plan.ts",
-		"planSha256": "2576948e2638868dbad0b706857c634bed6216b80c8bda84e79acb1bf13fb787",
+		"planSha256": "8c15d77a7407149bb2a1370a8d0e2b91e5c9b5d9dec76f1d4f27c0c3de8736b1",
 		"probePath": "desktop/external-ffmpeg-probe.ts",
 		"probeSha256": "c89441a1b34b4ebc68e2496cb75a1bfee4abc6f3ee6c08b65f6a8c67f359c30e",
 		"waveParserPath": "desktop/desktop-audio-ffmpeg-wave-output.ts",
@@ -25,7 +25,7 @@
 		"audacityCommit": "c016d6e1f8f018a39f7c5c1ee56a961fec4055c2",
 		"audacityReference": "https://github.com/audacity/audacity/commit/c016d6e1f8f018a39f7c5c1ee56a961fec4055c2",
 		"audacityApproach": "Audacity loads libav in-process, so FFmpeg 9 support adds ABI-major wrappers and resolves changed codec-capability APIs.",
-		"soundscaperApproach": "Soundscaper keeps FFmpeg out of process behind the released CLI, admits a matching executable build fingerprint, parses release-specific capability-list dialects, and emits closed argv plans."
+		"soundscaperApproach": "Soundscaper keeps FFmpeg out of process behind the released CLI, admits a matching executable build fingerprint, parses release-specific capability-list dialects, emits closed argv plans, and binds canonical input decoders before opening media."
 	},
 	"fixture": {
 		"sampleFormat": "f32le",
@@ -206,7 +206,7 @@
 			]
 		}
 	],
-	"claim": "For these six exact linux/amd64 third-party static images, the checked-in external-FFmpeg probe and closed audio plans admitted the matching ffmpeg/ffprobe pair, completed one bounded encode plus source-authoritative float-WAV decode for every listed format, and the strict WAV parser reproduced the pinned geometry and finite-silence PCM profile.",
+	"claim": "For these six exact linux/amd64 third-party static images, the checked-in external-FFmpeg probe and closed audio plans admitted the matching ffmpeg/ffprobe pair, forced each admitted input through its canonical decoder, completed one bounded encode plus source-authoritative float-WAV decode for every listed format, and the strict WAV parser reproduced the pinned geometry and finite-silence PCM profile.",
 	"limitations": [
 		"This is Linux x64 CLI compatibility evidence only; it does not qualify Windows, macOS, ARM64, Homebrew, or winget packages.",
 		"The 4,800-frame fixture is not sample-count-preserving for Vorbis in any tested release, MP2 in any tested release, or AAC before FFmpeg 9; the pinned profiles record those codec-delay and granule outcomes rather than claiming an exact round-trip.",
