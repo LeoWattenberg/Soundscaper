@@ -3,7 +3,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-// @ts-expect-error The staged registration is maintained JavaScript with injected typed modules.
 import { registerExternalFfmpegPreferences } from '../desktop/external-ffmpeg-registration.mjs';
 import { createExternalFfmpegInstallerBroker, planExternalFfmpegInstall } from '../desktop/external-ffmpeg-installer.ts';
 import { registerExternalFfmpegPreferenceMainIpc } from '../desktop/external-ffmpeg-preference-main-ipc.ts';

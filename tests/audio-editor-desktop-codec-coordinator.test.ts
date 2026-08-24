@@ -114,7 +114,7 @@ test('cancellation before or during resolution is terminal', async () => {
 		() => coordinator.execute(OPERATION, { ...execution(calls), signal: alreadyCancelled.signal }),
 		(error) => error instanceof Error && error.name === 'AbortError',
 	);
-	assert.deepEqual(calls, []);
+	assert.equal(calls.length, 0);
 
 	const during = new AbortController();
 	const cancelling = provider('bundled', 'bundled', 'unsupported', calls, () => during.abort());
@@ -128,9 +128,10 @@ test('cancellation before or during resolution is terminal', async () => {
 });
 
 test('no matching provider reports every typed preflight reason', async () => {
+	const calls: string[] = [];
 	const coordinator = createDesktopCodecCoordinator({ providers: [
-		provider('bundled', 'bundled', 'unsupported', []),
-		provider('os', 'operating-system', 'unavailable', []),
+		provider('bundled', 'bundled', 'unsupported', calls),
+		provider('os', 'operating-system', 'unavailable', calls),
 	] });
 	await assert.rejects(
 		() => coordinator.execute(OPERATION, execution([])),
@@ -159,6 +160,9 @@ function provider(
 	calls: string[],
 	afterPreflight: () => void = () => {},
 ): DesktopCodecProvider {
+	const preflightResult = disposition === 'supported'
+		? Object.freeze({ disposition, reason: null })
+		: Object.freeze({ disposition, reason: `${id}-${disposition}` });
 	return Object.freeze({
 		id,
 		kind,
@@ -168,10 +172,7 @@ function provider(
 		async preflight() {
 			calls.push(`preflight:${id}`);
 			afterPreflight();
-			return Object.freeze({
-				disposition,
-				reason: disposition === 'supported' ? null : `${id}-${disposition}`,
-			});
+			return preflightResult;
 		},
 	});
 }
