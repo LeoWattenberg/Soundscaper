@@ -35,7 +35,7 @@ export type ExternalFfmpegPreferenceNodeProbe = (
 ) => Promise<ExternalFfmpegPreferenceProbeResult>;
 
 const INCOMPATIBLE_REASONS = new Set([
-	'unsupported-version', 'unreleased-build', 'version-mismatch',
+	'unsupported-version', 'unreleased-build', 'version-mismatch', 'build-mismatch',
 ]);
 
 export function createExternalFfmpegPreferenceNodeProbe(

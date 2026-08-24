@@ -33,28 +33,29 @@ const CAPABILITY_OUTPUTS = new Map<string, string>([
 		' A....D mp3float            MP3',
 	].join('\n')],
 	['-hide_banner -muxers', [
-		'Muxers:',
-		' D. = Demuxing supported',
-		' .E = Muxing supported',
-		' --',
+		'Formats:',
+		' D.. = Demuxing supported',
+		' .E. = Muxing supported',
+		' ..d = Is a device',
+		' ---',
 		'  E  matroska,webm          Matroska / WebM',
 		'  E  mp3                    MP3',
 	].join('\n')],
 	['-hide_banner -demuxers', [
-		'Demuxers:',
-		' D. = Demuxing supported',
-		' .E = Muxing supported',
-		' --',
+		'Formats:',
+		' D.. = Demuxing supported',
+		' .E. = Muxing supported',
+		' ..d = Is a device',
+		' ---',
 		' D   matroska,webm          Matroska / WebM',
 		' D   wav                    WAV',
 	].join('\n')],
 	['-hide_banner -filters', [
 		'Filters:',
-		'  T.. = Timeline support',
-		'  .S. = Slice threading',
-		'  ..C = Command support',
-		'  ... aresample         A->A       Resample audio',
-		'  T.C scale             V->V       Scale video',
+		'  T. = Timeline support',
+		'  .S = Slice threading',
+		'  .. aresample         A->A       Resample audio',
+		'  TS scale             V->V       Scale video',
 	].join('\n')],
 ]);
 
@@ -134,6 +135,52 @@ test('a matching released pair produces sorted closed capability sets', async ()
 	}
 });
 
+test('capability parsing follows the released CLI dialects from FFmpeg 4.4 through 9', async () => {
+	for (const version of ['4.4.8', '5.1.7', '6.1.3', '7.1.2', '8.0.1', '9.0.1']) {
+		const root = `/released-${version}`;
+		const result = await probeExternalFfmpegCandidate(
+			createExternalFfmpegCandidate(candidateInput(root)),
+			fixtureRunner([], { versionByRoot: new Map([[root, version]]) }),
+		);
+		assert.equal(result.status, 'available', `FFmpeg ${version}`);
+		if (result.status === 'available') {
+			assert.deepEqual(result.capabilities.filters, ['aresample', 'scale']);
+			assert.deepEqual(result.capabilities.muxers, ['matroska', 'mp3', 'webm']);
+		}
+	}
+});
+
+test('the executable pair must share one build fingerprint, not only a release number', async () => {
+	for (const mismatch of [
+		{ ffprobeConfiguration: '--enable-gpl --disable-libopus' },
+		{ ffprobeLibraryOverrides: new Map([['libavcodec', '63.  2.100 / 63.  2.100']]) },
+	] as const) {
+		const result = await probeExternalFfmpegCandidate(
+			createExternalFfmpegCandidate(candidateInput('/mixed-build')),
+			fixtureRunner([], mismatch),
+		);
+		assert.equal(result.status, 'unavailable');
+		if (result.status === 'unavailable') {
+			assert.equal(result.reason, 'build-mismatch');
+			assert.equal(result.command, 'ffprobe-version');
+		}
+	}
+});
+
+test('the executable pair fails closed when either build fingerprint is incomplete', async () => {
+	for (const incompleteProgram of ['ffmpeg', 'ffprobe'] as const) {
+		const result = await probeExternalFfmpegCandidate(
+			createExternalFfmpegCandidate(candidateInput(`/incomplete-${incompleteProgram}`)),
+			fixtureRunner([], { incompleteProgram }),
+		);
+		assert.equal(result.status, 'unavailable');
+		if (result.status === 'unavailable') {
+			assert.equal(result.reason, 'malformed-output');
+			assert.equal(result.command, `${incompleteProgram}-version`);
+		}
+	}
+});
+
 test('version and command failures return typed unavailable reasons', async () => {
 	const mismatch = await probeExternalFfmpegCandidate(
 		createExternalFfmpegCandidate(candidateInput('/mismatch')),
@@ -207,6 +254,9 @@ test('discovery preserves locator priority and selects the first compatible cand
 
 interface RunnerFixtureOptions {
 	readonly ffprobeVersion?: string;
+	readonly ffprobeConfiguration?: string;
+	readonly ffprobeLibraryOverrides?: ReadonlyMap<string, string>;
+	readonly incompleteProgram?: 'ffmpeg' | 'ffprobe';
 	readonly failure?: Readonly<{
 		command: string;
 		reason: 'not-found' | 'not-executable' | 'timeout' | 'output-limit' | 'launch-failed';
@@ -235,16 +285,58 @@ function fixtureRunner(
 			let stdout: string | undefined;
 			if (command === '-version') {
 				const program = request.executablePath.endsWith('ffprobe') ? 'ffprobe' : 'ffmpeg';
-				stdout = `${program} version ${program === 'ffprobe'
-					? (options.ffprobeVersion ?? version) : version} Copyright\n`;
+				stdout = versionOutput(program, program === 'ffprobe'
+					? (options.ffprobeVersion ?? version) : version, options);
 			} else if (options.replacement?.command === command) stdout = options.replacement.output;
-			else stdout = CAPABILITY_OUTPUTS.get(command);
+			else stdout = capabilityOutput(command, version);
 			const result: ExternalFfmpegProcessResult = stdout === undefined
 				? { status: 'unavailable', reason: 'launch-failed' }
 				: { status: 'exited', exitCode: 0, stdout, stderr: '' };
 			return Promise.resolve(result);
 		},
 	};
+}
+
+function capabilityOutput(command: string, version: string): string | undefined {
+	const output = CAPABILITY_OUTPUTS.get(command);
+	if (output === undefined) return undefined;
+	const major = Number(/^\d+/u.exec(version)?.[0]);
+	if (command === '-hide_banner -muxers' || command === '-hide_banner -demuxers') {
+		return major <= 6 ? output.replace('Formats:', 'File formats:') : output;
+	}
+	if (command === '-hide_banner -filters' && major <= 8) {
+		return output
+			.replace('  T. =', '  T.. =').replace('  .S =', '  .S. =')
+			.replace('  .. aresample', '  ... aresample').replace('  TS scale', '  TSC scale');
+	}
+	return output;
+}
+
+function versionOutput(
+	program: 'ffmpeg' | 'ffprobe',
+	version: string,
+	options: RunnerFixtureOptions,
+): string {
+	if (options.incompleteProgram === program) return `${program} version ${version} Copyright\n`;
+	const configuration = program === 'ffprobe'
+		? (options.ffprobeConfiguration ?? '--enable-gpl --enable-libopus')
+		: '--enable-gpl --enable-libopus';
+	const libraries = [
+		['libavutil', '61.  1.100 / 61.  1.100'],
+		['libavcodec', '63.  1.100 / 63.  1.100'],
+		['libavformat', '63.  1.100 / 63.  1.100'],
+		['libavfilter', '12.  1.100 / 12.  1.100'],
+		['libswresample', '7.  1.100 /  7.  1.100'],
+	] as const;
+	return [
+		`${program} version ${version} Copyright`,
+		'built with gcc 14.2.0',
+		`configuration: ${configuration}`,
+		...libraries.map(([name, value]) => (
+			`${name} ${program === 'ffprobe'
+				? (options.ffprobeLibraryOverrides?.get(name) ?? value) : value}`
+		)),
+	].join('\n');
 }
 
 function candidateInput(root: string): ExternalFfmpegCandidateInput {

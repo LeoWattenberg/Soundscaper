@@ -14,8 +14,8 @@ const FFPROBE = '/tools/ffprobe';
 const CAPABILITIES = new Map([
 	['-hide_banner -encoders', 'Encoders:\n V..... libsvtav1 AV1\n A..... libopus Opus'],
 	['-hide_banner -decoders', 'Decoders:\n V..... libdav1d AV1\n A..... mp3float MP3'],
-	['-hide_banner -muxers', 'Muxers:\n  E  webm WebM\n  E  opus Opus'],
-	['-hide_banner -demuxers', 'Demuxers:\n D   webm WebM\n D   ogg Ogg'],
+	['-hide_banner -muxers', 'Formats:\n  E  webm WebM\n  E  opus Opus'],
+	['-hide_banner -demuxers', 'Formats:\n D   webm WebM\n D   ogg Ogg'],
 	['-hide_banner -filters', 'Filters:\n ... aresample A->A'],
 ]);
 
@@ -97,7 +97,9 @@ function runner(
 			if (command === '-version') {
 				const program = request.executablePath.endsWith('ffprobe') ? 'ffprobe' : 'ffmpeg';
 				const version = versions.get(request.executablePath) ?? defaultVersion;
-				return Promise.resolve({ status: 'exited', exitCode: 0, stdout: `${program} version ${version}\n`, stderr: '' });
+				return Promise.resolve({
+					status: 'exited', exitCode: 0, stdout: versionOutput(program, version), stderr: '',
+				});
 			}
 			const stdout = CAPABILITIES.get(command);
 			return Promise.resolve(stdout === undefined
@@ -105,4 +107,17 @@ function runner(
 				: { status: 'exited', exitCode: 0, stdout, stderr: '' });
 		},
 	};
+}
+
+function versionOutput(program: 'ffmpeg' | 'ffprobe', version: string): string {
+	return [
+		`${program} version ${version}`,
+		'built with clang 18.1.8',
+		'configuration: --enable-gpl --enable-libopus',
+		'libavutil 60.  8.100 / 60.  8.100',
+		'libavcodec 62. 11.100 / 62. 11.100',
+		'libavformat 62.  3.100 / 62.  3.100',
+		'libavfilter 11.  4.100 / 11.  4.100',
+		'libswresample 6.  1.100 /  6.  1.100',
+	].join('\n');
 }

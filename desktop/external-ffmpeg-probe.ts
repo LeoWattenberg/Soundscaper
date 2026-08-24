@@ -97,7 +97,8 @@ export type ExternalFfmpegProbeFailureReason =
 	| 'malformed-output'
 	| 'unreleased-build'
 	| 'unsupported-version'
-	| 'version-mismatch';
+	| 'version-mismatch'
+	| 'build-mismatch';
 
 export type ExternalFfmpegProbeResult = Readonly<{
 	readonly status: 'available';
@@ -153,6 +154,9 @@ const CAPABILITY_COMMANDS: readonly Readonly<{
 	Object.freeze({ kind: 'demuxers', arguments: Object.freeze(['-hide_banner', '-demuxers']) }),
 	Object.freeze({ kind: 'filters', arguments: Object.freeze(['-hide_banner', '-filters']) }),
 ]);
+const PAIRING_LIBRARIES = Object.freeze([
+	'libavutil', 'libavcodec', 'libavformat', 'libavfilter', 'libswresample',
+] as const);
 
 export function createExternalFfmpegCandidate(
 	input: ExternalFfmpegCandidateInput,
@@ -221,6 +225,10 @@ export async function probeExternalFfmpegCandidate(
 	if (ffmpegVersion.status === 'unavailable') {
 		return probeUnavailable(validated, 'ffmpeg-version', ffmpegVersion);
 	}
+	const ffmpegBuild = parseExternalFfmpegBuildFingerprint(ffmpegResult.stdout);
+	if (ffmpegBuild === null) {
+		return probeUnavailable(validated, 'ffmpeg-version', { reason: 'malformed-output' });
+	}
 
 	const ffprobeResult = await runProbeCommand(
 		validated.ffprobePath, ['-version'], runner,
@@ -232,8 +240,15 @@ export async function probeExternalFfmpegCandidate(
 	if (ffprobeVersion.status === 'unavailable') {
 		return probeUnavailable(validated, 'ffprobe-version', ffprobeVersion);
 	}
+	const ffprobeBuild = parseExternalFfmpegBuildFingerprint(ffprobeResult.stdout);
+	if (ffprobeBuild === null) {
+		return probeUnavailable(validated, 'ffprobe-version', { reason: 'malformed-output' });
+	}
 	if (ffmpegVersion.version.normalized !== ffprobeVersion.version.normalized) {
 		return probeUnavailable(validated, 'ffprobe-version', { reason: 'version-mismatch' });
+	}
+	if (ffmpegBuild !== ffprobeBuild) {
+		return probeUnavailable(validated, 'ffprobe-version', { reason: 'build-mismatch' });
 	}
 
 	const capabilities: Partial<Record<CapabilityKind, readonly string[]>> = {};
@@ -242,7 +257,9 @@ export async function probeExternalFfmpegCandidate(
 		if (result.status === 'unavailable') {
 			return probeUnavailable(validated, command.kind, result);
 		}
-		const parsed = parseCapabilityOutput(result.stdout, command.kind);
+		const parsed = parseCapabilityOutput(
+			result.stdout, command.kind, ffmpegVersion.version.major,
+		);
 		if (parsed === null) {
 			return probeUnavailable(validated, command.kind, {
 				reason: 'malformed-output',
@@ -342,15 +359,21 @@ async function runProbeCommand(
 	return { status: 'available', stdout };
 }
 
-function parseCapabilityOutput(output: string, kind: CapabilityKind): readonly string[] | null {
+function parseCapabilityOutput(
+	output: string,
+	kind: CapabilityKind,
+	majorVersion: number,
+): readonly string[] | null {
 	const sanitized = sanitizeOutput(output);
 	if (sanitized === null) return null;
 	const lines = sanitized.split('\n');
-	const heading = `${kind[0]?.toUpperCase() ?? ''}${kind.slice(1)}:`;
+	const heading = kind === 'muxers' || kind === 'demuxers'
+		? majorVersion <= 6 ? 'File formats:' : 'Formats:'
+		: `${kind[0]?.toUpperCase() ?? ''}${kind.slice(1)}:`;
 	if (!lines.some((line) => line.trim() === heading)) return null;
 	const names = new Set<string>();
 	for (const line of lines) {
-		const rawNames = capabilityNames(line, kind);
+		const rawNames = capabilityNames(line, kind, majorVersion);
 		if (rawNames === null) continue;
 		for (const name of rawNames.split(',')) {
 			if (/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(name)) names.add(name);
@@ -359,16 +382,49 @@ function parseCapabilityOutput(output: string, kind: CapabilityKind): readonly s
 	return Object.freeze([...names].sort(asciiOrder));
 }
 
-function capabilityNames(line: string, kind: CapabilityKind): string | null {
+function parseExternalFfmpegBuildFingerprint(output: string): string | null {
+	const sanitized = sanitizeOutput(output);
+	if (sanitized === null) return null;
+	const lines = sanitized.split('\n').map((line) => line.trim());
+	const compiler = uniqueLine(lines, (line) => line.startsWith('built with '));
+	const configuration = uniqueLine(lines, (line) => line.startsWith('configuration:'));
+	if (compiler === null || configuration === null) return null;
+	const libraries = new Map<string, string>();
+	for (const line of lines) {
+		const match = /^(libavutil|libavcodec|libavformat|libavfilter|libswresample)\s+(\d{1,3})\.\s*(\d{1,3})\.\s*(\d{1,3})\s*\/\s*(\d{1,3})\.\s*(\d{1,3})\.\s*(\d{1,3})$/u.exec(line);
+		if (!match) continue;
+		const name = match[1];
+		if (name === undefined || libraries.has(name)) return null;
+		libraries.set(name, `${match[2]}.${match[3]}.${match[4]}/${match[5]}.${match[6]}.${match[7]}`);
+	}
+	if (PAIRING_LIBRARIES.some((name) => !libraries.has(name))) return null;
+	return [
+		compiler, configuration,
+		...PAIRING_LIBRARIES.map((name) => `${name}=${libraries.get(name) ?? ''}`),
+	].join('\n');
+}
+
+function uniqueLine(
+	lines: readonly string[],
+	predicate: (line: string) => boolean,
+): string | null {
+	const matching = lines.filter(predicate);
+	return matching.length === 1 ? matching[0] ?? null : null;
+}
+
+function capabilityNames(line: string, kind: CapabilityKind, majorVersion: number): string | null {
 	let match: RegExpExecArray | null;
 	if (kind === 'encoders' || kind === 'decoders') {
 		match = /^\s*[VAS][A-Z.]{5}\s+([A-Za-z0-9][A-Za-z0-9_.-]{0,127})(?:\s|$)/u.exec(line);
 	} else if (kind === 'muxers') {
-		match = /^\s*\.?E\s+([A-Za-z0-9][A-Za-z0-9_,.-]{0,511})(?:\s|$)/u.exec(line);
+		match = /^[D.]?E[d.]?\s+([A-Za-z0-9][A-Za-z0-9_,.-]{0,511})(?:\s|$)/u.exec(line.trimStart());
 	} else if (kind === 'demuxers') {
-		match = /^\s*D\.?\s+([A-Za-z0-9][A-Za-z0-9_,.-]{0,511})(?:\s|$)/u.exec(line);
+		match = /^D[E.]?[d.]?\s+([A-Za-z0-9][A-Za-z0-9_,.-]{0,511})(?:\s|$)/u.exec(line.trimStart());
 	} else {
-		match = /^\s*[TSC.]{3}\s+([A-Za-z0-9][A-Za-z0-9_.-]{0,127})(?:\s|$)/u.exec(line);
+		const flags = majorVersion >= 9 ? '[TS.]{2}' : '[TSC.]{3}';
+		match = new RegExp(
+			`^\\s*${flags}\\s+([A-Za-z0-9][A-Za-z0-9_.-]{0,127})(?:\\s|$)`, 'u',
+		).exec(line);
 	}
 	return match?.[1] ?? null;
 }
