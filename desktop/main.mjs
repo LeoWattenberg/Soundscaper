@@ -34,6 +34,7 @@ import { FRAMESCAPER_SELECTED_V28_IMAGE_SEQUENCE_IMPORT_AUTHORITY } from './fram
 import { framescaperWebVcrSmokeQualification } from './framescaper-web-vcr-smoke-plan.js';
 import { disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
+import { registerExternalFfmpegPreferences } from './external-ffmpeg-registration.mjs';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
 import {
 	createPendingProjectDelivery, PendingProjectQueue, extractProjectPaths,
@@ -68,13 +69,11 @@ import {
 	validateLocale,
 	validateSaveChoice,
 } from './validation.js';
-
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const readCapabilities = new ReadCapabilityStore();
 const saveTargets = new SaveTargetStore();
 const saves = new AtomicSaveManager({ targets: saveTargets });
 const rendererSaveOwnership = new RendererSaveOwnership();
-
 let mainWindow = null;
 let nightlyTestsWindow = null;
 let settings = null;
@@ -87,7 +86,7 @@ let projectLibraryIpc = null;
 let linkedVideoLocators = null;
 let nativeTier = null;
 let nativeServices = null;
-let captureSecurity = null, assistance = null;
+let captureSecurity = null, assistance = null, externalFfmpegPreferences = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 
@@ -118,6 +117,7 @@ const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery
 
 const applicationShutdown = new DesktopApplicationShutdown({
 	tasks: [
+		{ name: 'external FFmpeg preferences', run: () => externalFfmpegPreferences?.dispose() },
 		{ name: 'capture security', run: () => disposeDesktopCaptureSecurity(captureSecurity) },
 		{ name: 'native services', run: () => nativeServices?.dispose() },
 		{ name: 'project library', run: closeProjectLibraryHost },
@@ -374,6 +374,7 @@ async function registerIpcHandlers(desktopSession) {
 	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath, userDataPath: app.getPath('userData'), parentWindow: () => mainWindow, productId: PRODUCT_ID, nativePluginStateAuthority: () => projectLibraryRuntime.nativePluginStateAuthority() });
 	await nativeTier.ready();
 	registerDesktopNativeTierControls({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, settings, tier: nativeTier });
+	externalFfmpegPreferences = await registerExternalFfmpegPreferences({ channels: IPC, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), settings, dialog, windowFor: () => mainWindow, platform: process.platform, architecture: process.arch, userDataPath: app.getPath('userData'), environment: process.env });
 	handle(IPC.environment, () => ({
 		platform: process.platform,
 		arch: process.arch,

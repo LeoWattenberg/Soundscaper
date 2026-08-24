@@ -58,7 +58,7 @@ const CHANNELS = Object.freeze({
 	framescaperProjectChunk: 'framescaper:v19:projects:publication:chunk', framescaperProjectFinish: 'framescaper:v19:projects:publication:finish', framescaperProjectAbort: 'framescaper:v19:projects:publication:abort',
 	listAssistanceModels: 'soundscaper:v1:assistance:list', installAssistanceModel: 'soundscaper:v1:assistance:install',
 	removeAssistanceModel: 'soundscaper:v1:assistance:remove', assistanceInstallProgress: 'soundscaper:v1:event:assistance-progress',
-	setLocale: 'soundscaper:v1:locale:set', windowAction: 'soundscaper:v1:window:action',
+	setLocale: 'soundscaper:v1:locale:set', windowAction: 'soundscaper:v1:window:action', externalFfmpegStatus: 'soundscaper:v1:ffmpeg:status', externalFfmpegChoose: 'soundscaper:v1:ffmpeg:choose', externalFfmpegClear: 'soundscaper:v1:ffmpeg:clear', externalFfmpegRescan: 'soundscaper:v1:ffmpeg:rescan', externalFfmpegInstall: 'soundscaper:v1:ffmpeg:install',
 	checkForUpdates: 'soundscaper:v1:updates:check', openExternal: 'soundscaper:v1:external:open',
 	editText: 'soundscaper:v1:text:edit', rendererReady: 'soundscaper:v1:renderer:ready',
 	respondToClose: 'soundscaper:v1:close:respond', openProject: 'soundscaper:v1:event:project-open',
@@ -135,7 +135,7 @@ const api = Object.freeze({
 		return ipcRenderer.invoke(CHANNELS.readSharedSourceChunk, request)
 			.then((bytes) => sharedSourceChunkResult(bytes, request.length));
 	},
-	setLocale: (locale) => ipcRenderer.invoke(CHANNELS.setLocale, text(locale, 32)),
+	setLocale: (locale) => ipcRenderer.invoke(CHANNELS.setLocale, text(locale, 32)), getExternalFfmpegStatus: () => ipcRenderer.invoke(CHANNELS.externalFfmpegStatus).then(externalFfmpegStatus), chooseExternalFfmpeg: () => ipcRenderer.invoke(CHANNELS.externalFfmpegChoose).then(externalFfmpegStatus), clearExternalFfmpeg: () => ipcRenderer.invoke(CHANNELS.externalFfmpegClear).then(externalFfmpegStatus), rescanExternalFfmpeg: () => ipcRenderer.invoke(CHANNELS.externalFfmpegRescan).then(externalFfmpegStatus), installExternalFfmpeg: () => ipcRenderer.invoke(CHANNELS.externalFfmpegInstall).then(externalFfmpegStatus),
 	runWindowAction: (action) => ipcRenderer.invoke(CHANNELS.windowAction, windowAction(action)),
 	checkForUpdates: () => ipcRenderer.invoke(CHANNELS.checkForUpdates),
 	openExternal: (destination) => ipcRenderer.invoke(CHANNELS.openExternal, text(destination, 32)),
@@ -376,7 +376,7 @@ function opaqueId(value, length) {
 	if (id.length !== length || !/^[a-f0-9]+$/u.test(id)) throw new TypeError('Invalid opaque identifier');
 	return id;
 }
-function text(value, maxLength) {
+function externalFfmpegStatus(value) { const controlled = (entry) => [...entry].some((character) => { const code = character.charCodeAt(0); return code < 32 || code === 127; }); nativeRecord(value, ['state', 'location', 'version', 'detail', 'canInstall', 'canBrowse', 'canClear'], 'external FFmpeg status'); if (!['unconfigured', 'probing', 'ready', 'unsupported', 'quarantined', 'unavailable', 'installing', 'error'].includes(value.state) || !(value.location === null || typeof value.location === 'string' && value.location.length <= 4096 && !controlled(value.location)) || !(value.version === null || typeof value.version === 'string' && value.version.length <= 256 && !controlled(value.version)) || typeof value.detail !== 'string' || value.detail.length > 2048 || controlled(value.detail) || typeof value.canInstall !== 'boolean' || typeof value.canBrowse !== 'boolean' || typeof value.canClear !== 'boolean') throw new TypeError('Invalid external FFmpeg status'); return Object.freeze({ state: value.state, location: value.location, version: value.version, detail: value.detail, canInstall: value.canInstall, canBrowse: value.canBrowse, canClear: value.canClear }); } function text(value, maxLength) {
 	return String(value || '').replace(/[\u0000-\u001f]/gu, '').slice(0, maxLength);
 }
 function textEditCommand(value) {
