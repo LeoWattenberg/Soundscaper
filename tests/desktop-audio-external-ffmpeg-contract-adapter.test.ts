@@ -117,7 +117,7 @@ test('fresh validation catches operation/argv drift after argument construction'
 	assert.equal(contract.validateArguments(flacArguments, flac, FILES), true);
 });
 
-test('capability admission checks the exact request tuple and decoder alternatives', () => {
+test('capability admission requires the canonical decoder selected by the fixed plan', () => {
 	const request = decodeRequest('mp3');
 	const admission = runtimeAdmission({
 		demuxers: ['mp3'], decoders: ['mp3float'], encoders: ['pcm_f32le'],
@@ -126,6 +126,9 @@ test('capability admission checks the exact request tuple and decoder alternativ
 	assert.equal(externalFfmpegAdmissionSupportsDesktopAudioRequest(request, admission), true);
 	assert.equal(externalFfmpegAdmissionSupportsDesktopAudioRequest(request, runtimeAdmission({
 		...admission.capabilities, muxers: [],
+	})), false);
+	assert.equal(externalFfmpegAdmissionSupportsDesktopAudioRequest(request, runtimeAdmission({
+		...admission.capabilities, decoders: ['mp3'],
 	})), false);
 	assert.equal(externalFfmpegAdmissionSupportsDesktopAudioRequest(
 		{ ...request, argv: ['-version'] }, admission,

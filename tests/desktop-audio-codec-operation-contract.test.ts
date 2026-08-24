@@ -253,6 +253,9 @@ test('capability evaluation uses any-of alternatives and requires every chain ca
 	assert.equal(isDesktopAudioFfmpegCapabilityTupleSatisfied(tuple, {
 		...capabilities, muxers: [],
 	}), false);
+	assert.equal(isDesktopAudioFfmpegCapabilityTupleSatisfied(tuple, {
+		...capabilities, decoders: ['mp3'],
+	}), false, 'a noncanonical decoder must not satisfy the exact decode tuple');
 });
 
 test('decode plans use only fixed relative names and closed FFmpeg 4.4-9 arguments', () => {
@@ -265,6 +268,9 @@ test('decode plans use only fixed relative names and closed FFmpeg 4.4-9 argumen
 	]);
 	assert.deepEqual(argumentValue(plan.arguments, '-protocol_whitelist'), 'file');
 	assert.deepEqual(argumentValue(plan.arguments, '-f'), 'flac');
+	const inputIndex = plan.arguments.indexOf('-i');
+	assert.deepEqual(plan.arguments.slice(inputIndex - 2, inputIndex), ['-c:a', 'flac']);
+	assert.equal(plan.arguments.lastIndexOf('-c:a') > inputIndex, true);
 	assert.equal(plan.arguments.includes('-af'), false);
 	assert.equal(plan.arguments.includes('-ar'), false);
 	assert.equal(plan.arguments.includes('-ac'), false);
@@ -272,6 +278,21 @@ test('decode plans use only fixed relative names and closed FFmpeg 4.4-9 argumen
 	assert.equal(plan.arguments.includes('/tmp'), false);
 	assert.equal(plan.arguments.some((argument) => argument.includes('://')), false);
 	assert.deepEqual(argumentValue(plan.arguments, '-fs'), '8192');
+});
+
+test('every decode plan forces its admitted decoder before opening the input', () => {
+	const expected = new Map<DesktopAudioCodecFormat, string>([
+		['flac', 'flac'], ['mp3', 'mp3float'], ['ogg-vorbis', 'vorbis'], ['opus', 'opus'],
+		['wavpack', 'wavpack'], ['mp2', 'mp2float'], ['aac-m4a', 'aac'],
+	]);
+	for (const [format, decoder] of expected) {
+		const plan = buildDesktopAudioFfmpegPlan({ ...decodeRequest(), format });
+		const inputIndex = plan.arguments.indexOf('-i');
+		assert.deepEqual(plan.arguments.slice(inputIndex - 2, inputIndex), ['-c:a', decoder]);
+		assert.deepEqual(plan.arguments.slice(plan.arguments.lastIndexOf('-c:a'), -1).slice(0, 2), [
+			'-c:a', 'pcm_f32le',
+		]);
+	}
 });
 
 test('encode plans select only canonical encoders, muxers and settings', () => {

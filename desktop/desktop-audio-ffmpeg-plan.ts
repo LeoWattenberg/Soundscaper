@@ -50,11 +50,11 @@ interface EncodeFormatPlan {
 
 const DECODE_FORMATS: Readonly<Record<DesktopAudioCodecFormat, Readonly<DecodeFormatPlan>>> = Object.freeze({
 	flac: decodeFormat(['flac'], ['flac']),
-	mp3: decodeFormat(['mp3'], ['mp3float', 'mp3']),
+	mp3: decodeFormat(['mp3'], ['mp3float']),
 	'ogg-vorbis': decodeFormat(['ogg'], ['vorbis']),
 	opus: decodeFormat(['ogg'], ['opus']),
 	wavpack: decodeFormat(['wv'], ['wavpack']),
-	mp2: decodeFormat(['mp3'], ['mp2float', 'mp2']),
+	mp2: decodeFormat(['mp3'], ['mp2float']),
 	'aac-m4a': decodeFormat(['mov', 'm4a', 'mp4'], ['aac']),
 });
 
@@ -128,6 +128,12 @@ export function buildDesktopAudioFfmpegPlan(
 		? DECODE_FORMATS[request.format].demuxerAnyOf[0]
 		: 'f32le';
 	if (inputFormat === undefined) throw new TypeError('The desktop audio FFmpeg input format is unavailable.');
+	const inputDecoder = request.operation === 'audio-decode'
+		? DECODE_FORMATS[request.format].decoderAnyOf[0]
+		: null;
+	if (request.operation === 'audio-decode' && inputDecoder === undefined) {
+		throw new TypeError('The desktop audio FFmpeg input decoder is unavailable.');
+	}
 	const outputFormat = request.operation === 'audio-decode'
 		? 'wav'
 		: ENCODE_FORMATS[request.format].muxer;
@@ -141,9 +147,9 @@ export function buildDesktopAudioFfmpegPlan(
 		...BASE_ARGUMENTS,
 		'-protocol_whitelist', 'file',
 		'-f', inputFormat,
-		...(request.operation === 'audio-encode'
-			? ['-ar', String(request.sampleRate), '-ac', String(request.channelCount)]
-			: []),
+		...(request.operation === 'audio-decode'
+			? ['-c:a', inputDecoder!]
+			: ['-ar', String(request.sampleRate), '-ac', String(request.channelCount)]),
 		'-i', DESKTOP_AUDIO_FFMPEG_INPUT_NAME,
 		...AUDIO_MAP_ARGUMENTS,
 		...(request.operation === 'audio-encode'
