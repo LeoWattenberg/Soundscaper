@@ -437,7 +437,9 @@ function normalizeNodes(
 		} else if (kind === 'finishing') {
 			if (version !== 14 && version !== 15) requireSelectedGeneration(version, 13, kind);
 			finishingNodeCount += 1;
-			if (finishingNodeCount > 1) throw new RangeError('A V13 plan requires exactly one finishing node.');
+			if (finishingNodeCount > 1) {
+				throw new RangeError('A selected finishing plan requires exactly one finishing node.');
+			}
 			node = normalizeUnifiedExactRenderFinishingNode(candidates[index], context.sequenceId, sources.bySourceId);
 		} else throw new RangeError('Unified exact render plan node kind is unsupported.');
 		normalized.set(index, node);
