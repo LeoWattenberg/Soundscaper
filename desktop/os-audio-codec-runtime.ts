@@ -81,6 +81,24 @@ const OPERATION_FIELDS = Object.freeze([
 ] as const);
 const NATIVE_TARGETS = new Set<string>(['win-x64', 'win-arm64', 'mac-arm64']);
 const NON_NATIVE_TARGETS = new Set<string>(['linux-x64', 'linux-arm64', 'mac-x64']);
+const MP3_MPEG1_LAYER3_BITRATES_KBPS = Object.freeze([
+	0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0,
+]);
+const MP3_MPEG1_SAMPLE_RATES = Object.freeze([44_100, 48_000, 32_000]);
+const SOURCE_TUPLE_REASON = 'The OS MP3 source geometry is outside the exact canary-qualified tuple.';
+
+type RequestAdmission = Readonly<{
+	readonly disposition: 'supported';
+	readonly request: DesktopAudioCodecRequest;
+}> | Readonly<{
+	readonly disposition: 'rejected' | 'unsupported';
+}>;
+
+interface Mp3FrameHeader {
+	readonly sampleRate: number;
+	readonly channelCount: number;
+	readonly frameBytes: number;
+}
 
 const FAILURE_REASON: Readonly<Record<
 	OperatingSystemAudioCodecUnavailableReason,
@@ -153,9 +171,12 @@ export async function loadOperatingSystemAudioCodecRuntime(
 			}>,
 		): Promise<DesktopCodecPreflightResult> {
 			throwIfAborted(executionOptions?.signal);
-			return admittedRequest(requestValue, executionOptions?.operation) === null
+			const admission = requestAdmission(requestValue, executionOptions?.operation);
+			return admission.disposition === 'rejected'
 				? rejectedRequest()
-				: Object.freeze({ disposition: 'supported', reason: null });
+				: admission.disposition === 'unsupported'
+					? unsupportedSourceTuple()
+					: Object.freeze({ disposition: 'supported', reason: null });
 		},
 		async execute(
 			requestValue: DesktopAudioCodecRequest,
@@ -164,11 +185,14 @@ export async function loadOperatingSystemAudioCodecRuntime(
 				readonly signal?: AbortSignal;
 			}>,
 		): Promise<DesktopAudioCodecProviderExecutionResult> {
-			const request = admittedRequest(requestValue, executionOptions?.operation);
-			if (request === null) return failed(
-				'security-failed', 'The OS MP3 request does not match its admitted operation.',
-			);
-			const result = await runner.execute(request, Object.freeze({
+			throwIfAborted(executionOptions?.signal);
+			const admission = requestAdmission(requestValue, executionOptions?.operation);
+			if (admission.disposition !== 'supported') {
+				return admission.disposition === 'rejected'
+					? failed('security-failed', 'The OS MP3 request does not match its admitted operation.')
+					: failed('unavailable', SOURCE_TUPLE_REASON);
+			}
+			const result = await runner.execute(admission.request, Object.freeze({
 				...(executionOptions?.signal ? { signal: executionOptions.signal } : {}),
 			}));
 			return mapOperatingSystemAudioCodecOperationResult(result);
@@ -210,15 +234,75 @@ export function mapOperatingSystemAudioCodecOperationResult(
 		: failed(reason, value.detail);
 }
 
-function admittedRequest(
+function requestAdmission(
 	requestValue: DesktopAudioCodecRequest,
 	operationValue: DesktopCodecOperation | undefined,
-): DesktopAudioCodecRequest | null {
+): RequestAdmission {
 	let request: DesktopAudioCodecRequest;
 	try { request = normalizeDesktopAudioCodecRequest(requestValue); }
-	catch { return null; }
-	if (request.operation !== 'audio-decode' || request.format !== 'mp3') return null;
-	return sameOperation(operationValue, deriveDesktopAudioCodecOperation(request)) ? request : null;
+	catch { return Object.freeze({ disposition: 'rejected' }); }
+	if (request.operation !== 'audio-decode' || request.format !== 'mp3'
+		|| !sameOperation(operationValue, deriveDesktopAudioCodecOperation(request))) {
+		return Object.freeze({ disposition: 'rejected' });
+	}
+	const geometry = inspectMp3SourceGeometry(request.input);
+	return geometry?.sampleRate === MP3_CANARY_OPERATION.sampleRate
+		&& geometry.channelCount === MP3_CANARY_OPERATION.channelCount
+		? Object.freeze({ disposition: 'supported', request })
+		: Object.freeze({ disposition: 'unsupported' });
+}
+
+function inspectMp3SourceGeometry(input: Uint8Array): Readonly<{
+	readonly sampleRate: number;
+	readonly channelCount: number;
+}> | null {
+	let offset = 0;
+	if (input.byteLength >= 3 && input[0] === 0x49 && input[1] === 0x44 && input[2] === 0x33) {
+		if (input.byteLength < 10 || input[6]! >= 0x80 || input[7]! >= 0x80
+			|| input[8]! >= 0x80 || input[9]! >= 0x80) return null;
+		const tagBytes = input[6]! << 21 | input[7]! << 14 | input[8]! << 7 | input[9]!;
+		const footerBytes = (input[5]! & 0x10) === 0 ? 0 : 10;
+		offset = 10 + tagBytes + footerBytes;
+		if (!Number.isSafeInteger(offset) || offset > input.byteLength) return null;
+	}
+	let geometry: Pick<Mp3FrameHeader, 'sampleRate' | 'channelCount'> | null = null;
+	let frameCount = 0;
+	while (offset + 4 <= input.byteLength) {
+		const frame = mp3FrameHeader(input, offset);
+		if (frame === null) break;
+		if (geometry !== null && (frame.sampleRate !== geometry.sampleRate
+			|| frame.channelCount !== geometry.channelCount)) return null;
+		geometry ??= frame;
+		frameCount += 1;
+		offset += frame.frameBytes;
+	}
+	if (geometry === null || frameCount < 2) return null;
+	const id3v1 = input.byteLength - offset === 128
+		&& input[offset] === 0x54 && input[offset + 1] === 0x41 && input[offset + 2] === 0x47;
+	if (offset !== input.byteLength && !id3v1) return null;
+	return Object.freeze({ sampleRate: geometry.sampleRate, channelCount: geometry.channelCount });
+}
+
+function mp3FrameHeader(input: Uint8Array, offset: number): Mp3FrameHeader | null {
+	if (!Number.isSafeInteger(offset) || offset < 0 || offset + 4 > input.byteLength) return null;
+	const header = new DataView(input.buffer, input.byteOffset + offset, 4).getUint32(0, false);
+	const version = header >>> 19 & 0x03;
+	const layer = header >>> 17 & 0x03;
+	const bitrateIndex = header >>> 12 & 0x0f;
+	const sampleRateIndex = header >>> 10 & 0x03;
+	if (header >>> 21 !== 0x7ff || version !== 3 || layer !== 1
+		|| bitrateIndex === 0 || bitrateIndex === 0x0f || sampleRateIndex === 3) return null;
+	const bitrateKbps = MP3_MPEG1_LAYER3_BITRATES_KBPS[bitrateIndex];
+	const sampleRate = MP3_MPEG1_SAMPLE_RATES[sampleRateIndex];
+	if (bitrateKbps === undefined || bitrateKbps === 0 || sampleRate === undefined) return null;
+	const padding = header >>> 9 & 0x01;
+	const frameBytes = Math.floor(144_000 * bitrateKbps / sampleRate) + padding;
+	if (frameBytes < 4 || offset + frameBytes > input.byteLength) return null;
+	return Object.freeze({
+		sampleRate,
+		channelCount: (header >>> 6 & 0x03) === 3 ? 1 : 2,
+		frameBytes,
+	});
 }
 
 function sameOperation(
@@ -269,6 +353,10 @@ function rejectedRequest(): DesktopCodecPreflightResult {
 		disposition: 'rejected',
 		reason: 'The OS MP3 request does not match its admitted operation.',
 	});
+}
+
+function unsupportedSourceTuple(): DesktopCodecPreflightResult {
+	return Object.freeze({ disposition: 'unsupported', reason: SOURCE_TUPLE_REASON });
 }
 
 function invalidRunnerResult(): Extract<

@@ -11,6 +11,7 @@ import {
 	loadOperatingSystemAudioCodecRuntime,
 	mapOperatingSystemAudioCodecOperationResult,
 } from '../desktop/os-audio-codec-runtime.ts';
+import { createDesktopAudioCodecBroker } from '../desktop/desktop-audio-codec-broker.ts';
 import { OPERATING_SYSTEM_MP3_CANARY_SHA256 } from '../desktop/os-audio-codec-canary-adapter.ts';
 import type {
 	OperatingSystemAudioCodecChild,
@@ -21,10 +22,31 @@ import type { DesktopCodecOperation } from '../src/common/editor/desktop-codec-c
 
 const digest = (value: Uint8Array): string => createHash('sha256').update(value).digest('hex');
 const decoded = new Uint8Array(new Float32Array([0.25, -0.25, 0.5, -0.5]).buffer);
+
+function mp3Fixture(
+	sampleRateIndex: 0 | 1,
+	channelMode = 0,
+	secondSampleRateIndex = sampleRateIndex,
+): Uint8Array {
+	const sampleRate = sampleRateIndex === 0 ? 44_100 : 48_000;
+	const secondSampleRate = secondSampleRateIndex === 0 ? 44_100 : 48_000;
+	const frameBytes = Math.floor(144_000 * 128 / sampleRate);
+	const secondFrameBytes = Math.floor(144_000 * 128 / secondSampleRate);
+	const bytes = new Uint8Array(frameBytes + secondFrameBytes);
+	const header = 0xffe0_0000 | 3 << 19 | 1 << 17 | 1 << 16
+		| 9 << 12 | sampleRateIndex << 10 | channelMode << 6;
+	const secondHeader = 0xffe0_0000 | 3 << 19 | 1 << 17 | 1 << 16
+		| 9 << 12 | secondSampleRateIndex << 10 | channelMode << 6;
+	const view = new DataView(bytes.buffer);
+	view.setUint32(0, header, false);
+	view.setUint32(frameBytes, secondHeader, false);
+	return bytes;
+}
+
 const request = Object.freeze({
 	operation: 'audio-decode' as const,
 	format: 'mp3' as const,
-	input: Uint8Array.of(1, 2, 3, 4),
+	input: mp3Fixture(1),
 	sampleRate: null,
 	channelCount: null,
 	settings: Object.freeze({ sampleFormat: 'f32le' as const }),
@@ -290,4 +312,69 @@ test('exact request gate rejects request/operation substitution before helper ex
 		detail: 'The OS MP3 request does not match its admitted operation.',
 	});
 	assert.equal(spawns, 1, 'only the startup canary may spawn');
+});
+
+test('nonqualified MP3 source geometry falls through before the OS helper executes', async (context) => {
+	const scratchRoot = await scratch(context);
+	let helperSpawns = 0;
+	let externalExecutions = 0;
+	const spawn = successfulSpawn('win-x64', []);
+	const runtime = await loadOperatingSystemAudioCodecRuntime({
+		target: 'win-x64', osVersion: '10.0.26100', scratchRoot,
+		verifyAddon: async () => ({
+			target: 'win-x64', path: '/authenticated/professional.node', sha256: 'f'.repeat(64),
+		}),
+		spawn: (configuration) => { helperSpawns += 1; return spawn(configuration); },
+	});
+	assert.notEqual(runtime, null);
+	const outsideTuple = Object.freeze({ ...request, input: mp3Fixture(0) });
+	assert.deepEqual(await runtime?.preflightRequest?.(outsideTuple, { operation }), {
+		disposition: 'unsupported',
+		reason: 'The OS MP3 source geometry is outside the exact canary-qualified tuple.',
+	});
+	assert.deepEqual(await runtime?.preflightRequest?.(
+		Object.freeze({ ...request, input: mp3Fixture(1, 3) }), { operation },
+	), {
+		disposition: 'unsupported',
+		reason: 'The OS MP3 source geometry is outside the exact canary-qualified tuple.',
+	});
+	assert.deepEqual(await runtime?.preflightRequest?.(
+		Object.freeze({ ...request, input: mp3Fixture(1, 0, 0) }), { operation },
+	), {
+		disposition: 'unsupported',
+		reason: 'The OS MP3 source geometry is outside the exact canary-qualified tuple.',
+	});
+	const unsupportedProvider = Object.freeze({
+		kind: 'bundled' as const,
+		id: 'bundled-test', implementation: 'test-bundled', version: '1', capabilityGeneration: 'test-1',
+		preflight: async () => Object.freeze({
+			disposition: 'unsupported' as const, reason: 'not bundled',
+		}),
+	});
+	const externalProvider = Object.freeze({
+		kind: 'external-ffmpeg' as const,
+		id: 'external-test', implementation: 'test-external', version: '1', capabilityGeneration: 'test-1',
+		preflight: async () => Object.freeze({ disposition: 'supported' as const, reason: null }),
+	});
+	const broker = createDesktopAudioCodecBroker({
+		runtimes: [
+			{ provider: unsupportedProvider, execute: async () => assert.fail('bundled must not execute') },
+			runtime!,
+			{
+				provider: externalProvider,
+				execute: async () => {
+					externalExecutions += 1;
+					return {
+						status: 'executed',
+						output: new Uint8Array(new Float32Array([0.25, -0.25]).buffer),
+						decodedGeometry: { sampleRate: 44_100, channelCount: 2, frameCount: 1 },
+					};
+				},
+			},
+		],
+	});
+	const result = await broker.execute(outsideTuple);
+	assert.equal(result.receipt.provider.kind, 'external-ffmpeg');
+	assert.equal(externalExecutions, 1);
+	assert.equal(helperSpawns, 1, 'only the startup canary may spawn');
 });
