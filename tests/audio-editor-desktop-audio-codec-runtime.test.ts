@@ -7,6 +7,7 @@ import {
 	createDesktopAudioCodecRuntime,
 	type DesktopAudioCodecRendererBridge,
 } from '../src/common/editor/desktop-audio-codec-runtime.ts';
+import { createDesktopAudioCodecCapabilityQuery } from '../src/common/editor/desktop-audio-codec-capabilities.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 import {
 	createDesktopAudioCodecResult,
@@ -25,15 +26,19 @@ const FORMAT_CASES = Object.freeze([
 	Object.freeze({ format: 'aac-m4a', settings: Object.freeze({ bitRate: 192 }), expected: Object.freeze({ bitrateKbps: 192 }) }),
 ] as const);
 
-test('load and capabilities expose seven desktop audio formats without claiming FFmpeg', async () => {
+test('load is fail-closed until main admits exact desktop audio tuples', async () => {
 	const runtime = createDesktopAudioCodecRuntime(successBridge());
 	assert.equal(await runtime.load(), runtime);
 	const capabilities = runtime.capabilities();
 	assert.equal(capabilities.ffmpegAvailable, false);
 	assert.equal(capabilities.profileId, 'desktop-main-audio-codecs');
-	for (const { format } of FORMAT_CASES) assert.equal(capabilities.formats[format]?.available, true, format);
+	for (const { format } of FORMAT_CASES) assert.equal(capabilities.formats[format]?.available, false, format);
 	assert.equal(capabilities.formats['custom-ffmpeg']?.available, false);
 	assert.equal(Object.isFrozen(capabilities), true);
+	const exact = await runtime.desktopAudioCodecCapabilities(createDesktopAudioCodecCapabilityQuery({
+		sampleRate: 48_000, channelCount: 2,
+	}));
+	assert.equal(exact.capabilities.every(({ available }) => available), true);
 	runtime.dispose();
 	await assert.rejects(() => runtime.load(), /disposed/iu);
 });
@@ -68,6 +73,46 @@ test('all seven legacy encode calls stage interleaved f32le and map normalized s
 		assert.match(request.requestId ?? '', /^desktop-audio-[a-f0-9]{32}$/u);
 		assert.deepEqual(readF32(request.input), [0.25, -0.25, 0.5, -0.5]);
 	}
+});
+
+test('an unavailable exact tuple refuses before the operation bridge executes', async () => {
+	let executions = 0;
+	const runtime = createDesktopAudioCodecRuntime({
+		capabilities: (query) => ({
+			schemaVersion: 1,
+			capabilities: query.operations.map((operation) => ({
+				...operation, available: false, provider: null,
+				reason: 'configure-external-ffmpeg',
+			})),
+		}),
+		execute() { executions += 1; throw new Error('must not execute'); },
+		cancel() {},
+	});
+	const wav = encodeWav([Float32Array.of(0)], { sampleRate: 48_000, bitDepth: 32, float: true });
+	await assert.rejects(
+		() => runtime.encode(wav, 'opus', { bitRate: 128 }),
+		/Preferences > General/iu,
+	);
+	await assert.rejects(
+		() => runtime.decode(new File([Uint8Array.of(1)], 'project.flac'), { sampleRate: 48_000 }),
+		/Preferences > General/iu,
+	);
+	assert.equal(executions, 0);
+});
+
+test('ordinary titled-project metadata is intentionally dropped by the closed broker request', async () => {
+	const requests: DesktopAudioCodecRequest[] = [];
+	const runtime = createDesktopAudioCodecRuntime(successBridge((request) => {
+		requests.push(request);
+		return Uint8Array.of(1);
+	}));
+	const wav = encodeWav([Float32Array.of(0)], { sampleRate: 48_000, bitDepth: 32, float: true });
+	await runtime.encode(wav, 'flac', {
+		compressionLevel: 5,
+		metadata: { title: 'Named Project' },
+	});
+	assert.deepEqual(requests[0]?.settings, { compressionLevel: 5 });
+	assert.equal(Object.hasOwn(requests[0] ?? {}, 'metadata'), false);
 });
 
 test('integer staged WAVs reuse the WAV reader and multichannel open formats retain channel order', async () => {
@@ -149,6 +194,7 @@ test('AbortSignal cancellation uses only the opaque active request ID', async ()
 	let invoked!: () => void;
 	const started = new Promise<void>((resolve) => { invoked = resolve; });
 	const bridge: DesktopAudioCodecRendererBridge = {
+		capabilities: admittedCapabilities,
 		execute(request) {
 			captured.request = request;
 			invoked();
@@ -174,6 +220,7 @@ test('dispose cancels active work and custom FFmpeg and video methods stay close
 	let invoked!: () => void;
 	const started = new Promise<void>((resolve) => { invoked = resolve; });
 	const runtime = createDesktopAudioCodecRuntime({
+		capabilities: admittedCapabilities,
 		execute(request) { capture.request = request; invoked(); return new Promise(() => {}); },
 		cancel(requestId) { cancelled.push(requestId); },
 	});
@@ -192,6 +239,7 @@ test('dispose cancels active work and custom FFmpeg and video methods stay close
 
 test('result correlation rejects malformed or cross-request bridge evidence', async () => {
 	const runtime = createDesktopAudioCodecRuntime({
+		capabilities: admittedCapabilities,
 		execute(request) {
 			return {
 				...createDesktopAudioCodecResult(request, Uint8Array.of(1)),
@@ -208,8 +256,18 @@ function successBridge(
 	output: (request: DesktopAudioCodecRequest) => Uint8Array = () => Uint8Array.of(1),
 ): DesktopAudioCodecRendererBridge {
 	return {
+		capabilities: admittedCapabilities,
 		execute(request) { return createDesktopAudioCodecResult(request, output(request)); },
 		cancel() {},
+	};
+}
+
+function admittedCapabilities(query: Parameters<DesktopAudioCodecRendererBridge['capabilities']>[0]) {
+	return {
+		schemaVersion: 1 as const,
+		capabilities: query.operations.map((operation) => ({
+			...operation, available: true as const, provider: 'external-ffmpeg' as const, reason: null,
+		})),
 	};
 }
 

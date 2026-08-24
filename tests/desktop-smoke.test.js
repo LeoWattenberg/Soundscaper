@@ -48,6 +48,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'editText',
 		'finishSharedSourceWrite',
 		'finishWrite',
+		'getDesktopAudioCodecCapabilities',
 		'getEnvironment',
 		'getExternalFfmpegStatus',
 		'installAssistanceModel',

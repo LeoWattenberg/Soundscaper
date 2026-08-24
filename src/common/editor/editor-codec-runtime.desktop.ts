@@ -56,8 +56,12 @@ function desktopAudioCodecBridge(options: unknown): DesktopAudioCodecRendererBri
 	if (!fileService || typeof fileService !== 'object' || Array.isArray(fileService)) return null;
 	const execute = callable(fileService, 'runDesktopAudioCodecOperation');
 	const cancel = callable(fileService, 'cancelDesktopAudioCodecOperation');
-	if (execute === null || cancel === null) return null;
+	const capabilities = callable(fileService, 'getDesktopAudioCodecCapabilities');
+	if (execute === null || cancel === null || capabilities === null) return null;
 	return Object.freeze({
+		capabilities(query: Parameters<DesktopAudioCodecRendererBridge['capabilities']>[0]) {
+			return Reflect.apply(capabilities, fileService, [query]);
+		},
 		execute(request: Parameters<DesktopAudioCodecRendererBridge['execute']>[0]) {
 			return Reflect.apply(execute, fileService, [request]);
 		},

@@ -7,6 +7,33 @@ import { createEditorExportService } from '../src/common/editor/controller/expor
 import { countUnreportedDeliveryConversions } from '../src/common/editor/delivery-conversion-inventory.ts';
 import { createFixture, defaultPlan, defaultProject } from './helpers/export-service-fixture.ts';
 import { createExportDialogRequest } from '../src/common/editor/ui/export-dialog-model.js';
+import { DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER } from '../src/common/editor/desktop-main-audio-codec-runtime-marker.ts';
+
+test('desktop compressed export refuses an unavailable exact tuple before rendering', async () => {
+	const fixture = createFixture();
+	fixture.setPlan({
+		...defaultPlan(), format: 'opus', mimeType: 'audio/ogg', extension: 'opus',
+		container: 'Ogg Opus', codec: 'opus',
+	});
+	const runtime = {
+		...fixture.runtime,
+		ffmpeg: {
+			...fixture.runtime.ffmpeg,
+			[DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true as const,
+			desktopAudioCodecCapabilities: (query: { operations: readonly Record<string, unknown>[] }) => ({
+				schemaVersion: 1,
+				capabilities: query.operations.map((operation) => ({
+					...operation, available: false, provider: null,
+					reason: 'configure-external-ffmpeg',
+				})),
+			}),
+		},
+	};
+	await createEditorExportService(runtime).handleExportAction('export', { format: 'opus' });
+	assert.equal(fixture.errors.length, 1);
+	assert.match(String(fixture.errors[0]), /Preferences > General/iu);
+	assert.equal(fixture.calls.includes('render-realtime'), false);
+});
 
 test('export action cancellation and preconditions preserve idle state', async () => {
 	const fixture = createFixture();

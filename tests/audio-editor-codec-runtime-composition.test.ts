@@ -12,6 +12,7 @@ import {
 	createDesktopAudioCodecResult,
 	type DesktopAudioCodecRequest,
 } from '../desktop/desktop-audio-codec-operation-contract.ts';
+import type { DesktopAudioCodecCapabilityQuery } from '../desktop/desktop-audio-codec-capability-contract.ts';
 
 test('browser codec composition retains the lazy browser FFmpeg runtime', () => {
 	const runtime = createBrowserRuntime({ idleTimeoutMs: false });
@@ -41,6 +42,14 @@ test('desktop codec composition routes audio through file service while video st
 	const cancelled: string[] = [];
 	const runtime = createDesktopRuntime({
 		fileService: {
+			getDesktopAudioCodecCapabilities(query: DesktopAudioCodecCapabilityQuery) {
+				return {
+					schemaVersion: 1,
+					capabilities: query.operations.map((operation) => ({
+						...operation, available: true, provider: 'external-ffmpeg', reason: null,
+					})),
+				};
+			},
 			runDesktopAudioCodecOperation(request: DesktopAudioCodecRequest) {
 				requests.push(request);
 				return createDesktopAudioCodecResult(request, interleavedF32([0.25, -0.5]));

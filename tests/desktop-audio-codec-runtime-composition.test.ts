@@ -7,6 +7,7 @@ import {
 	createDesktopAudioCodecRuntimeComposition,
 	type DesktopAudioCodecRuntimeFactory,
 } from '../desktop/desktop-audio-codec-runtime-composition.ts';
+import type { DesktopAudioCodecCapabilityQuery } from '../desktop/desktop-audio-codec-capability-contract.ts';
 import type { DesktopAudioCodecRequest } from '../desktop/desktop-audio-codec-operation-contract.ts';
 import { DesktopAudioCodecProviderError } from '../desktop/desktop-audio-codec-broker.ts';
 import type {
@@ -22,6 +23,56 @@ import {
 } from '../src/common/editor/desktop-codec-coordinator.ts';
 
 const SCRATCH = '/private/soundscaper-codecs';
+
+test('capability status is fail-closed, sanitized, and uses one admission snapshot', async () => {
+	let admissionReads = 0;
+	const service = createDesktopAudioCodecRuntimeComposition({
+		target: 'linux-x64', scratchRoot: SCRATCH,
+		externalFfmpegPreferences: { admission: () => { admissionReads += 1; return null; } },
+	});
+	const result = await service.capabilities(capabilityQuery());
+	assert.equal(admissionReads, 1);
+	assert.equal(result.capabilities.every((entry) => !entry.available), true);
+	assert.equal(result.capabilities.every((entry) => entry.provider === null
+		&& entry.reason === 'configure-external-ffmpeg'), true);
+	assert.equal(JSON.stringify(result).includes('path'), false);
+	assert.deepEqual(Reflect.ownKeys(result.capabilities[0] ?? {}), [
+		'operation', 'format', 'sampleRate', 'channelCount', 'available', 'provider', 'reason',
+	]);
+});
+
+test('capability status exposes only exact tuples admitted by the probed FFmpeg snapshot', async () => {
+	let runnerFactories = 0;
+	const service = createDesktopAudioCodecRuntimeComposition({
+		target: 'linux-x64', scratchRoot: SCRATCH,
+		externalFfmpegPreferences: { admission: () => opusAdmission('/private/ffmpeg') },
+		createExternalRunner() { runnerFactories += 1; return neverRunner(); },
+	});
+	const result = await service.capabilities(capabilityQuery());
+	assert.deepEqual(result.capabilities.map(({ operation, format, available, provider, reason }) => ({
+		operation, format, available, provider, reason,
+	})), [
+		{ operation: 'audio-encode', format: 'opus', available: true, provider: 'external-ffmpeg', reason: null },
+		{ operation: 'audio-decode', format: 'opus', available: true, provider: 'external-ffmpeg', reason: null },
+		{ operation: 'audio-encode', format: 'flac', available: false, provider: null, reason: 'unsupported-by-configured-ffmpeg' },
+		{ operation: 'audio-decode', format: 'flac', available: false, provider: null, reason: 'unsupported-by-configured-ffmpeg' },
+	]);
+	assert.equal(runnerFactories, 0, 'status must never construct or launch the external runner');
+});
+
+test('capability status preserves bundled then operating-system provider priority', async () => {
+	const trace: string[] = [];
+	const service = createDesktopAudioCodecRuntimeComposition({
+		target: 'mac-arm64', scratchRoot: SCRATCH,
+		createBundledRuntime: runtimeFactory('bundled', 'unsupported', trace, Uint8Array.of(1)),
+		createOperatingSystemRuntime: runtimeFactory('operating-system', 'supported', trace, Uint8Array.of(2)),
+		externalFfmpegPreferences: { admission: () => opusAdmission('/private/ffmpeg') },
+	});
+	const query = capabilityQuery();
+	const result = await service.capabilities({ ...query, operations: [query.operations[0]!] });
+	assert.equal(result.capabilities[0]?.provider, 'operating-system');
+	assert.deepEqual(trace, ['preflight:bundled', 'preflight:operating-system']);
+});
 
 test('missing native factories and FFmpeg admission fail closed in all three priority tiers', async () => {
 	const service = createDesktopAudioCodecRuntimeComposition({
@@ -269,6 +320,18 @@ function encodeRequest(format: 'flac' | 'opus'): DesktopAudioCodecRequest {
 
 function executionOptions(): Readonly<{ readonly signal: AbortSignal }> {
 	return { signal: new AbortController().signal };
+}
+
+function capabilityQuery(): DesktopAudioCodecCapabilityQuery {
+	return {
+		schemaVersion: 1,
+		operations: [
+			{ operation: 'audio-encode', format: 'opus', sampleRate: 48_000, channelCount: 2 },
+			{ operation: 'audio-decode', format: 'opus', sampleRate: 48_000, channelCount: 2 },
+			{ operation: 'audio-encode', format: 'flac', sampleRate: 48_000, channelCount: 2 },
+			{ operation: 'audio-decode', format: 'flac', sampleRate: 48_000, channelCount: 2 },
+		],
+	};
 }
 
 function neverRunner(): ExternalFfmpegAudioOperationRunner {

@@ -3,6 +3,7 @@
 /** Exact compiled transitive modules required by desktop main audio codec entry points. */
 export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/desktop-audio-codec-broker.js',
+	'desktop/desktop-audio-codec-capability-contract.js',
 	'desktop/desktop-audio-codec-main-ipc.js',
 	'desktop/desktop-audio-codec-operation-contract.js',
 	'desktop/desktop-audio-codec-runtime-composition.js',

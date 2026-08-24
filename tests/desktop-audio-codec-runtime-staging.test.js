@@ -18,6 +18,7 @@ import { isForbiddenDesktopFfmpegPath } from '../scripts/lib/desktop-codec-polic
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/desktop-audio-codec-broker.js',
+	'desktop/desktop-audio-codec-capability-contract.js',
 	'desktop/desktop-audio-codec-main-ipc.js',
 	'desktop/desktop-audio-codec-operation-contract.js',
 	'desktop/desktop-audio-codec-runtime-composition.js',

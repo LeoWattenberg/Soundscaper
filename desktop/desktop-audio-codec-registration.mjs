@@ -39,6 +39,7 @@ export async function registerDesktopAudioCodecs(options) {
 		channels: Object.freeze({
 			desktopAudioCodecExecute: options.channels.desktopAudioCodecExecute,
 			desktopAudioCodecCancel: options.channels.desktopAudioCodecCancel,
+			desktopAudioCodecCapabilities: options.channels.desktopAudioCodecCapabilities,
 		}),
 		handle: options.handle, removeHandler: options.removeHandler,
 		ownerFor: options.ownerFor, service,
@@ -70,6 +71,7 @@ function validateOptions(options) {
 	if (!options || typeof options !== 'object' || !options.channels
 		|| typeof options.channels.desktopAudioCodecExecute !== 'string'
 		|| typeof options.channels.desktopAudioCodecCancel !== 'string'
+		|| typeof options.channels.desktopAudioCodecCapabilities !== 'string'
 		|| typeof options.handle !== 'function' || typeof options.removeHandler !== 'function'
 		|| typeof options.ownerFor !== 'function' || !options.externalFfmpegPreferences
 		|| typeof options.externalFfmpegPreferences.admission !== 'function'

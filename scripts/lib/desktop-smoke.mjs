@@ -34,6 +34,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'editText',
 	'finishSharedSourceWrite',
 	'finishWrite',
+	'getDesktopAudioCodecCapabilities',
 	'getEnvironment',
 	'getExternalFfmpegStatus',
 	'installAssistanceModel',

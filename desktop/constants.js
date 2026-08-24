@@ -189,6 +189,7 @@ export const IPC = Object.freeze({
 	externalFfmpegInstall: 'soundscaper:v1:ffmpeg:install',
 	desktopAudioCodecExecute: 'soundscaper:v1:codecs:audio:execute',
 	desktopAudioCodecCancel: 'soundscaper:v1:codecs:audio:cancel',
+	desktopAudioCodecCapabilities: 'soundscaper:v1:codecs:audio:capabilities',
 	setLocale: 'soundscaper:v1:locale:set',
 	windowAction: 'soundscaper:v1:window:action',
 	checkForUpdates: 'soundscaper:v1:updates:check',

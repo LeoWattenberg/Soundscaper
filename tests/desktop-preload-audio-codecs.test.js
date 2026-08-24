@@ -17,6 +17,45 @@ const RESULT = Object.freeze({
 		sampleRate: 48_000, channelCount: 1, frameCount: 1,
 	}),
 });
+const CAPABILITY_QUERY = Object.freeze({
+	schemaVersion: 1,
+	operations: Object.freeze([
+		Object.freeze({ operation: 'audio-encode', format: 'opus', sampleRate: 48_000, channelCount: 1 }),
+		Object.freeze({ operation: 'audio-decode', format: 'flac', sampleRate: 48_000, channelCount: 2 }),
+	]),
+});
+const CAPABILITY_RESULT = Object.freeze({
+	schemaVersion: 1,
+	capabilities: Object.freeze([
+		Object.freeze({ ...CAPABILITY_QUERY.operations[0], available: true, provider: 'external-ffmpeg', reason: null }),
+		Object.freeze({ ...CAPABILITY_QUERY.operations[1], available: false, provider: null, reason: 'unsupported-by-configured-ffmpeg' }),
+	]),
+});
+
+test('sandbox preload exposes a correlated pathless audio capability query', async () => {
+	const calls = [];
+	const bridge = await preloadBridge((channel, value) => {
+		calls.push([channel, value]);
+		return Promise.resolve(CAPABILITY_RESULT);
+	});
+	const result = await bridge.v1.getDesktopAudioCodecCapabilities(CAPABILITY_QUERY);
+	assert.deepEqual(JSON.parse(JSON.stringify(result)), CAPABILITY_RESULT);
+	assert.notEqual(calls[0][1], CAPABILITY_QUERY);
+	assert.deepEqual(calls[0], ['soundscaper:v1:codecs:audio:capabilities', calls[0][1]]);
+	for (const query of [
+		{ ...CAPABILITY_QUERY, executablePath: '/renderer/ffmpeg' },
+		{ ...CAPABILITY_QUERY, operations: [] },
+		{ ...CAPABILITY_QUERY, operations: [CAPABILITY_QUERY.operations[0], CAPABILITY_QUERY.operations[0]] },
+	]) await assert.rejects(() => bridge.v1.getDesktopAudioCodecCapabilities(query), /capability/iu);
+	for (const malicious of [
+		{ ...CAPABILITY_RESULT, executablePath: '/main/ffmpeg' },
+		{ ...CAPABILITY_RESULT, capabilities: [{ ...CAPABILITY_RESULT.capabilities[0], format: 'mp3' }, CAPABILITY_RESULT.capabilities[1]] },
+		{ ...CAPABILITY_RESULT, capabilities: [{ ...CAPABILITY_RESULT.capabilities[0], provider: 'renderer' }, CAPABILITY_RESULT.capabilities[1]] },
+	]) {
+		const unsafe = await preloadBridge(() => Promise.resolve(malicious));
+		await assert.rejects(() => unsafe.v1.getDesktopAudioCodecCapabilities(CAPABILITY_QUERY), /capability/iu);
+	}
+});
 
 test('sandbox preload exposes the closed audio execute and cancel bridge', async () => {
 	const calls = [];

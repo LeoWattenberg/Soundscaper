@@ -40,8 +40,12 @@ import {
 	parseJsonChannelMapping,
 	parseJsonObject,
 } from './inspector-helpers.ts';
+import {
+	createDesktopExportCodecQuery, desktopExportCodecCapabilities,
+	desktopExportFormatAvailable, desktopExportFormatReason,
+} from '../desktop-export-codec-model.ts';
 
-export function ExportDialog({ isOpen, controller, snapshot, copy, productId, onClose }) {
+export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fileService, onClose }) {
 	const exportProgress = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.exportProgress);
 	const [metadataOpen, setMetadataOpen] = useState(false);
 	const [metadataTab, setMetadataTab] = useState('general');
@@ -90,6 +94,23 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, on
 	const [error, setError] = useState('');
 	const [presetId, setPresetId] = useState('');
 	const [presetName, setPresetName] = useState('');
+	const [desktopCodecStatus, setDesktopCodecStatus] = useState(null);
+	const desktop = fileService?.isDesktop === true;
+	const desktopCodecQuery = useMemo(() => {
+		if (!desktop) return null;
+		try { return createDesktopExportCodecQuery({
+			sampleRate: settings.sampleRate, channelMapping: settings.channelMapping,
+			channelMatrix: settings.channelMatrix, binaural: settings.binaural,
+		}, snapshot.project?.masterChannels || 2); }
+		catch { return false; }
+	}, [desktop, settings.binaural, settings.channelMapping, settings.channelMatrix,
+		settings.sampleRate, snapshot.project?.masterChannels]);
+	const desktopCodecCapabilities = useMemo(() => {
+		if (!desktopCodecQuery) return null;
+		return desktopCodecStatus?.query === desktopCodecQuery
+			? desktopCodecStatus.capabilities
+			: desktopExportCodecCapabilities(null, desktopCodecQuery);
+	}, [desktopCodecQuery, desktopCodecStatus]);
 	const presetKind = isVideoExportDialogFormat(settings.format) ? 'video' : 'audio';
 	const presets = controller.actions.export.presets.list(presetKind);
 	const presetActions = {
@@ -159,6 +180,17 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, on
 			? { ...current, range: 'project', masteringSequenceId: value.slice('mastering-sequence:'.length) }
 			: { ...current, range: value, masteringSequenceId: '' }
 	));
+
+	useEffect(() => {
+		if (!isOpen || !desktopCodecQuery) { setDesktopCodecStatus(null); return undefined; }
+		let current = true;
+		setDesktopCodecStatus(null);
+		Promise.resolve().then(() => fileService.getDesktopAudioCodecCapabilities(desktopCodecQuery))
+			.then((result) => desktopExportCodecCapabilities(result ?? null, desktopCodecQuery))
+			.then((capabilities) => { if (current) setDesktopCodecStatus({ query: desktopCodecQuery, capabilities }); })
+			.catch(() => { if (current) setDesktopCodecStatus(null); });
+		return () => { current = false; };
+	}, [desktopCodecQuery, fileService, isOpen]);
 
 	useEffect(() => {
 		if (!hasSelection && settings.range === 'selection') setSettings((current) => ({ ...current, range: 'project' }));
@@ -250,6 +282,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, on
 	const start = () => {
 		try {
 			setError('');
+			if (desktopFormatRefusal) throw new Error(desktopFormatRefusal);
 			const customMetadata = parseJsonObject(settings.metadataCustom, copy.customMetadata, copy);
 			const metadata = compactFields({
 				...customMetadata,
@@ -287,6 +320,17 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, on
 		'aac-m4a': [96, 128, 160, 192, 256, 320],
 	}[settings.format] || []).map(bitrateOption);
 	const formatDescriptor = MEDIA_EXPORT_FORMATS[settings.format];
+	const desktopFormatRefusal = desktop && !desktopExportFormatAvailable(settings.format, desktopCodecCapabilities)
+		? desktopExportFormatReason(settings.format, desktopCodecCapabilities, desktopCodecQuery === false)
+		: null;
+	const desktopCodecNotice = desktopFormatRefusal || (desktopCodecQuery === false
+		? desktopExportFormatReason('opus', null, true)
+		: Object.values(desktopCodecCapabilities?.formats || {}).find((capability) => (
+			!capability.available && capability.reason?.includes('Preferences > General')
+		))?.reason || null);
+	const audioFormatDescriptors = Object.values(MEDIA_EXPORT_FORMATS).filter((descriptor) => (
+		!desktop || desktopExportFormatAvailable(descriptor.id, desktopCodecCapabilities)
+	));
 	const pcmFormat = Boolean(formatDescriptor?.sampleFormats?.length);
 	const bitrateFormat = ['mp3', 'opus', 'mp2', 'aac-m4a'].includes(settings.format);
 	const requestClose = () => {
@@ -406,7 +450,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, on
 					) : (
 						<>
 							<Button variant="secondary" onClick={requestClose}>{copy.cancel}</Button>
-							<span data-export-action="start"><Button variant="primary" disabled={blocked || admRequired} onClick={start}>{copy.startExport}</Button></span>
+							<span data-export-action="start"><Button variant="primary" disabled={blocked || admRequired || Boolean(desktopFormatRefusal)} onClick={start}>{copy.startExport}</Button></span>
 						</>
 					)}
 				/>
@@ -443,7 +487,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, on
 				<section className="audio-editor-export-section">
 					<h3>{videoFormat ? (copy.videoOptionsSection || copy.videoTrack) : copy.audioOptionsSection}</h3>
 					<LabeledDropdown label={copy.format} hook="format" value={settings.format} onChange={setFormat} disabled={exporting} options={[
-						...Object.values(MEDIA_EXPORT_FORMATS).map((descriptor) => ({
+						...audioFormatDescriptors.map((descriptor) => ({
 							value: descriptor.id,
 							label: descriptor.id === 'custom-ffmpeg'
 								? copy.customFfmpeg
@@ -520,6 +564,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, on
 					</>
 				)}
 				<p className="audio-editor-panel-hint">{copy.exportHint}</p>
+				{desktopCodecNotice && <p className="audio-editor-panel-hint" data-desktop-codec-status>{desktopCodecNotice}</p>}
 				{admRequired && <p className="audio-editor-field-error" role="alert">{copy.bw64AdmRequired}</p>}
 				<div className="audio-editor-export-progress" data-export-progress aria-live="polite" hidden={!exporting}>
 					<ProgressBar value={progress} width="100%" />

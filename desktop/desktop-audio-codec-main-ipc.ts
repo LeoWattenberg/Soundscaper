@@ -3,6 +3,11 @@
 /** Renderer-ownership and cancellation boundary for main-owned audio codec jobs. */
 
 import {
+	normalizeDesktopAudioCodecCapabilityQuery,
+	normalizeDesktopAudioCodecCapabilityResult,
+	type DesktopAudioCodecCapabilityQuery,
+} from './desktop-audio-codec-capability-contract.ts';
+import {
 	normalizeDesktopAudioCodecRequest,
 	type DesktopAudioCodecRequest,
 } from './desktop-audio-codec-operation-contract.ts';
@@ -10,9 +15,11 @@ import {
 export interface DesktopAudioCodecMainIpcChannels {
 	readonly desktopAudioCodecExecute: string;
 	readonly desktopAudioCodecCancel: string;
+	readonly desktopAudioCodecCapabilities: string;
 }
 
 export interface DesktopAudioCodecMainIpcService {
+	capabilities(query: DesktopAudioCodecCapabilityQuery): Promise<unknown>;
 	execute(
 		request: DesktopAudioCodecRequest,
 		options: Readonly<{ readonly signal: AbortSignal }>,
@@ -42,7 +49,7 @@ interface ActiveOperation<Owner extends object> {
 }
 
 const CHANNEL_FIELDS = Object.freeze([
-	'desktopAudioCodecExecute', 'desktopAudioCodecCancel',
+	'desktopAudioCodecExecute', 'desktopAudioCodecCancel', 'desktopAudioCodecCapabilities',
 ] as const);
 const REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u;
 
@@ -84,6 +91,15 @@ export function registerDesktopAudioCodecMainIpc<Owner extends object>(
 			operation.controller.abort(abortReason('The renderer cancelled the desktop audio codec operation.'));
 			return true;
 		});
+		bind(options.channels.desktopAudioCodecCapabilities, async (event, ...arguments_) => {
+			if (disposed) throw new Error('The desktop audio codec IPC service is disposed.');
+			if (arguments_.length !== 1) throw new TypeError('Desktop audio codec capability IPC requires one query.');
+			owned(options.ownerFor(event));
+			const query = normalizeDesktopAudioCodecCapabilityQuery(arguments_[0]);
+			return normalizeDesktopAudioCodecCapabilityResult(
+				await options.service.capabilities(query), query,
+			);
+		});
 	} catch (error) {
 		for (const channel of registered) options.removeHandler(channel);
 		throw error;
@@ -114,7 +130,8 @@ function validateOptions<Owner extends object>(options: DesktopAudioCodecMainIpc
 	if (!options || typeof options !== 'object' || !options.channels
 		|| typeof options.handle !== 'function' || typeof options.removeHandler !== 'function'
 		|| typeof options.ownerFor !== 'function' || !options.service
-		|| typeof options.service.execute !== 'function') {
+		|| typeof options.service.execute !== 'function'
+		|| typeof options.service.capabilities !== 'function') {
 		throw new TypeError('Desktop audio codec IPC ports are invalid.');
 	}
 	const channels = CHANNEL_FIELDS.map((field) => options.channels[field]);

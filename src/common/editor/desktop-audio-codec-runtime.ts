@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 /** Renderer adapter for the pathless, main-owned desktop audio codec bridge. */
 import {
 	DESKTOP_AUDIO_CODEC_FORMATS, DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES,
@@ -7,6 +6,15 @@ import {
 	normalizeDesktopAudioCodecRequest, normalizeDesktopAudioCodecResult,
 	type DesktopAudioCodecFormat, type DesktopAudioCodecRequest, type DesktopAudioCodecResult,
 } from '../../../desktop/desktop-audio-codec-operation-contract.ts';
+import {
+	normalizeDesktopAudioCodecCapabilityQuery, normalizeDesktopAudioCodecCapabilityResult, type DesktopAudioCodecCapabilityQuery,
+	type DesktopAudioCodecCapabilityResult, type DesktopAudioCodecCapabilityTuple,
+} from '../../../desktop/desktop-audio-codec-capability-contract.ts';
+import {
+	createDesktopAudioCodecCapabilityQuery, desktopAudioCodecCapabilityReason,
+	desktopAudioCodecMediaExportCapabilities, queryDesktopAudioCodecCapability,
+	type DesktopAudioCodecCapabilities,
+} from './desktop-audio-codec-capabilities.ts';
 import {
 	applyMediaChannelMapping, canonicalMediaExportFormat, createMediaExportCapabilities,
 	normalizeMediaDecodeSampleRate, normalizeMediaExportSettings,
@@ -19,10 +27,11 @@ import { DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER } from './desktop-main-audio-co
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
 export interface DesktopAudioCodecRendererBridge {
+	capabilities(query: DesktopAudioCodecCapabilityQuery): unknown | Promise<unknown>;
 	execute(request: DesktopAudioCodecRequest): unknown | Promise<unknown>;
 	cancel(requestId: string): unknown | Promise<unknown>;
 }
-
+type DesktopAudioCodecLegacyRendererBridge = Pick<DesktopAudioCodecRendererBridge, 'execute' | 'cancel'>;
 export interface DesktopAudioCodecRuntimeSettings {
 	readonly format?: string; readonly backend?: string; readonly extension?: string; readonly mimeType?: string;
 	readonly capabilities?: unknown; readonly sampleRate?: number; readonly inputChannelCount?: number; readonly channelCount?: number;
@@ -51,17 +60,6 @@ export interface DesktopAudioCodecStreamResult<Output> {
 	readonly extension: string; readonly mimeType: string;
 }
 
-interface MediaExportCapability {
-	readonly available: boolean; readonly reason: string | null;
-	readonly missingEncoders: readonly string[]; readonly missingMuxers: readonly string[];
-}
-
-export interface DesktopAudioCodecCapabilities {
-	readonly profileId: string; readonly ffmpegAvailable: false;
-	readonly encoders: readonly string[]; readonly muxers: readonly string[];
-	readonly formats: Readonly<Record<string, MediaExportCapability>>;
-}
-
 export interface DesktopAudioCodecRuntime {
 	load(): Promise<DesktopAudioCodecRuntime>;
 	encode(wav: Blob | ArrayBuffer | ArrayBufferView, format: string,
@@ -80,7 +78,9 @@ export interface DesktopAudioCodecRuntime {
 	runVideoKeyframeEncoderOperation(...arguments_: unknown[]): Promise<never>;
 	runTrimMediaOperation(...arguments_: unknown[]): Promise<never>;
 	runProxyMediaOperation(...arguments_: unknown[]): Promise<never>;
-	dispose(): void; capabilities(): DesktopAudioCodecCapabilities; readonly [DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true;
+	dispose(): void; capabilities(): DesktopAudioCodecCapabilities;
+	desktopAudioCodecCapabilities(query: DesktopAudioCodecCapabilityQuery): Promise<DesktopAudioCodecCapabilityResult>;
+	readonly [DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true;
 }
 
 interface NormalizedMediaSettings {
@@ -113,7 +113,9 @@ const EXTENSION_FORMATS: Readonly<Record<string, DesktopAudioCodecFormat>> = Obj
 	flac: 'flac', mp3: 'mp3', ogg: 'ogg-vorbis', oga: 'ogg-vorbis', opus: 'opus',
 	wv: 'wavpack', wavpack: 'wavpack', mp2: 'mp2', m4a: 'aac-m4a', mp4: 'aac-m4a',
 });
-const CAPABILITIES = desktopCapabilities();
+const DEFAULT_CAPABILITY_QUERY = createDesktopAudioCodecCapabilityQuery({ sampleRate: 48_000, channelCount: 2 });
+const CAPABILITIES = desktopAudioCodecMediaExportCapabilities(null, DEFAULT_CAPABILITY_QUERY);
+const NORMALIZATION_CAPABILITIES = createMediaExportCapabilities();
 
 export class DesktopAudioCodecRuntimeDisposedError extends Error {
 	readonly code = 'DESKTOP_AUDIO_CODEC_RUNTIME_DISPOSED';
@@ -124,7 +126,7 @@ export class DesktopAudioCodecRuntimeUnsupportedError extends Error {
 	constructor(message: string) { super(message); this.name = 'DesktopAudioCodecRuntimeUnsupportedError'; }
 }
 
-export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRendererBridge): DesktopAudioCodecRuntime {
+export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRendererBridge | DesktopAudioCodecLegacyRendererBridge): DesktopAudioCodecRuntime {
 	const bridge = rendererBridge(bridgeValue);
 	const active = new Map<string, ActiveRequest>();
 	let disposed = false;
@@ -193,6 +195,7 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 				settings: { sampleFormat: 'f32le' }, maximumOutputBytes,
 				requestId: mintRequestId(active),
 			});
+			await assertCapability(request, settings.signal);
 			const result = await executeRequest(request, settings.signal);
 			return decodedResult(result, request);
 		},
@@ -209,7 +212,12 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 			const reason = new DesktopAudioCodecRuntimeDisposedError();
 			for (const request of [...active.values()]) request.cancel(reason);
 		},
-		[DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true as const, capabilities: () => CAPABILITIES,
+		[DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true as const,
+		capabilities: () => CAPABILITIES,
+		async desktopAudioCodecCapabilities(query: DesktopAudioCodecCapabilityQuery) {
+			assertActive(); const normalized = normalizeDesktopAudioCodecCapabilityQuery(query);
+			return normalizeDesktopAudioCodecCapabilityResult(await bridge.capabilities(normalized), normalized);
+		},
 	});
 	return runtime;
 
@@ -221,6 +229,10 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 		const settings = settingsRecord(settingsValue, ENCODE_SETTING_FIELDS, 'encode');
 		throwIfAborted(settings.signal);
 		const staged = await stagedPcm(file, format, settings);
+		await assertCapability({
+			operation: 'audio-encode', format,
+			sampleRate: staged.media.sampleRate, channelCount: staged.media.channelCount,
+		}, settings.signal);
 		const request = normalizeDesktopAudioCodecRequest({
 			operation: 'audio-encode', format, input: staged.input,
 			sampleRate: staged.media.sampleRate, channelCount: staged.media.channelCount,
@@ -270,6 +282,20 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 		}
 	}
 
+	async function assertCapability(tuple: DesktopAudioCodecCapabilityTuple, signal?: AbortSignal): Promise<void> {
+		throwIfAborted(signal);
+		const capability = await queryDesktopAudioCodecCapability(
+			(query) => bridge.capabilities(query), { operation: tuple.operation, format: tuple.format,
+				sampleRate: tuple.sampleRate, channelCount: tuple.channelCount },
+		);
+		throwIfAborted(signal);
+		if (!capability.available) {
+			throw new DesktopAudioCodecRuntimeUnsupportedError(
+				desktopAudioCodecCapabilityReason(capability.reason),
+			);
+		}
+	}
+
 	function assertActive(): void {
 		if (disposed) throw new DesktopAudioCodecRuntimeDisposedError();
 	}
@@ -286,18 +312,14 @@ async function stagedPcm(file: Blob, format: DesktopAudioCodecFormat,
 	}
 	const media = normalizeMediaExportSettings(format, {
 		...settings,
-		capabilities: CAPABILITIES,
+		capabilities: NORMALIZATION_CAPABILITIES,
 		inputChannelCount: descriptor.channelCount,
 		sampleRate: settings.sampleRate ?? descriptor.sampleRate,
 	}) as NormalizedMediaSettings;
+	// The closed broker has no metadata field; desktop compressed metadata is intentionally dropped.
 	if (media.sampleRate !== descriptor.sampleRate) {
 		throw new DesktopAudioCodecRuntimeUnsupportedError(
 			'The desktop audio bridge cannot resample a staged WAV before encoding.',
-		);
-	}
-	if (Object.keys(media.metadata).length > 0) {
-		throw new DesktopAudioCodecRuntimeUnsupportedError(
-			'The desktop audio bridge cannot preserve compressed-export metadata yet.',
 		);
 	}
 	if (media.channelCount > DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT
@@ -498,6 +520,9 @@ function rendererBridge(value: unknown): DesktopAudioCodecRendererBridge {
 	const execute = dataMethod(value, 'execute', 'desktop audio codec bridge');
 	const cancel = dataMethod(value, 'cancel', 'desktop audio codec bridge');
 	return Object.freeze({
+		capabilities(query: DesktopAudioCodecCapabilityQuery) {
+			return Reflect.apply(dataMethod(value, 'capabilities', 'desktop audio codec bridge'), value, [query]);
+		},
 		execute(request: DesktopAudioCodecRequest) {
 			return Reflect.apply(execute, value, [request]);
 		},
@@ -536,31 +561,6 @@ function mintRequestId(active: ReadonlyMap<string, ActiveRequest>): string {
 		if (!active.has(requestId)) return requestId;
 	}
 	throw new Error('A unique desktop audio request ID could not be minted.');
-}
-
-function desktopCapabilities(): DesktopAudioCodecCapabilities {
-	const base = createMediaExportCapabilities({
-		ffmpegAvailable: false,
-		profile: Object.freeze({ id: 'desktop-main-audio-codecs', encoders: [], muxers: [] }),
-	}) as unknown as DesktopAudioCodecCapabilities;
-	const formats: Record<string, MediaExportCapability> = {};
-	for (const [id, capability] of Object.entries(base.formats)) {
-		formats[id] = FORMATS.has(id)
-			? Object.freeze({ available: true, reason: null, missingEncoders: Object.freeze([]), missingMuxers: Object.freeze([]) })
-			: id === 'custom-ffmpeg'
-				? Object.freeze({
-					available: false, reason: 'Custom FFmpeg is external-only and is not exposed through this runtime.',
-					missingEncoders: Object.freeze([]), missingMuxers: Object.freeze([]),
-				})
-				: capability;
-	}
-	return Object.freeze({
-		profileId: 'desktop-main-audio-codecs',
-		ffmpegAvailable: false,
-		encoders: Object.freeze([]),
-		muxers: Object.freeze([]),
-		formats: Object.freeze(formats),
-	});
 }
 
 function requiredInteger(value: unknown, label: string): number {

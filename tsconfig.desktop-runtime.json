@@ -17,6 +17,7 @@
 	"include": [
 		"desktop/application-lifecycle.ts",
 		"desktop/desktop-audio-codec-broker.ts",
+		"desktop/desktop-audio-codec-capability-contract.ts",
 		"desktop/desktop-audio-codec-main-ipc.ts",
 		"desktop/desktop-audio-codec-operation-contract.ts",
 		"desktop/desktop-audio-codec-runtime-composition.ts",

@@ -11,6 +11,7 @@ import {
 const CHANNELS = Object.freeze({
 	desktopAudioCodecExecute: 'soundscaper:v1:codecs:audio:execute',
 	desktopAudioCodecCancel: 'soundscaper:v1:codecs:audio:cancel',
+	desktopAudioCodecCapabilities: 'soundscaper:v1:codecs:audio:capabilities',
 	externalFfmpegStatus: 'soundscaper:v1:ffmpeg:status',
 });
 
@@ -41,7 +42,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	const ipcOptions = [];
 	const revoked = [];
 	let disposals = 0;
-	const service = Object.freeze({ execute: async () => ({}) });
+	const service = Object.freeze({ execute: async () => ({}), capabilities: async () => ({}) });
 	const externalFfmpegPreferences = Object.freeze({ admission: () => null });
 	const handle = () => undefined;
 	const removeHandler = () => undefined;
@@ -80,6 +81,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	assert.deepEqual(ipcOptions[0].channels, {
 		desktopAudioCodecExecute: CHANNELS.desktopAudioCodecExecute,
 		desktopAudioCodecCancel: CHANNELS.desktopAudioCodecCancel,
+		desktopAudioCodecCapabilities: CHANNELS.desktopAudioCodecCapabilities,
 	});
 	assert.equal(ipcOptions[0].handle, handle);
 	assert.equal(ipcOptions[0].removeHandler, removeHandler);

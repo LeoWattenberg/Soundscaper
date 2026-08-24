@@ -5,6 +5,14 @@
 import { posix, win32 } from 'node:path';
 
 import {
+	normalizeDesktopAudioCodecCapabilityQuery,
+	normalizeDesktopAudioCodecCapabilityResult,
+	type DesktopAudioCodecCapabilityEntry,
+	type DesktopAudioCodecCapabilityQuery,
+	type DesktopAudioCodecCapabilityResult,
+	type DesktopAudioCodecCapabilityTuple,
+} from './desktop-audio-codec-capability-contract.ts';
+import {
 	DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES,
 	DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
 	normalizeDesktopAudioCodecRequest,
@@ -71,6 +79,7 @@ export interface DesktopAudioCodecReceiptObservation {
 }
 
 export interface DesktopAudioCodecRuntimeComposition extends DesktopAudioCodecMainIpcService {
+	capabilities(query: DesktopAudioCodecCapabilityQuery): Promise<DesktopAudioCodecCapabilityResult>;
 	execute(
 		request: DesktopAudioCodecRequest,
 		options: Readonly<{ readonly signal: AbortSignal }>,
@@ -142,6 +151,21 @@ export function createDesktopAudioCodecRuntimeComposition(
 	const externalGate: ExternalExecutionGate = { active: false };
 
 	return Object.freeze({
+		async capabilities(
+			queryValue: DesktopAudioCodecCapabilityQuery,
+		): Promise<DesktopAudioCodecCapabilityResult> {
+			const query = normalizeDesktopAudioCodecCapabilityQuery(queryValue);
+			const admission = snapshotAdmission(options.externalFfmpegPreferences);
+			const capabilities: DesktopAudioCodecCapabilityEntry[] = [];
+			for (const tuple of query.operations) {
+				capabilities.push(await inspectCapability(
+					tuple, target, bundled.provider, operatingSystem.provider, admission,
+				));
+			}
+			return normalizeDesktopAudioCodecCapabilityResult({
+				schemaVersion: 1, capabilities,
+			}, query);
+		},
 		async execute(
 			requestValue: DesktopAudioCodecRequest,
 			executionOptions: Readonly<{ readonly signal: AbortSignal }>,
@@ -166,6 +190,61 @@ export function createDesktopAudioCodecRuntimeComposition(
 			return result;
 		},
 	});
+}
+
+async function inspectCapability(
+	tuple: DesktopAudioCodecCapabilityTuple,
+	target: DesktopCodecTarget,
+	bundled: DesktopCodecProvider,
+	operatingSystem: DesktopCodecProvider,
+	admission: AdmissionSnapshot | null,
+): Promise<DesktopAudioCodecCapabilityEntry> {
+	let request: DesktopAudioCodecRequest;
+	try { request = capabilityRequest(tuple); }
+	catch { return unavailableCapability(tuple, 'unsupported-settings'); }
+	const operation = deriveDesktopAudioCodecOperation(request);
+	for (const provider of [bundled, operatingSystem, externalProvider(target, request, admission)]) {
+		let preflight: DesktopCodecPreflightResult;
+		try { preflight = await provider.preflight(operation, Object.freeze({})); }
+		catch { continue; }
+		if (preflight.disposition === 'supported' && preflight.reason === null) {
+			return Object.freeze({
+				...tuple, available: true, provider: provider.kind, reason: null,
+			});
+		}
+		if (preflight.disposition === 'rejected') break;
+	}
+	return unavailableCapability(tuple, admission === null
+		? 'configure-external-ffmpeg' : 'unsupported-by-configured-ffmpeg');
+}
+
+function capabilityRequest(tuple: DesktopAudioCodecCapabilityTuple): DesktopAudioCodecRequest {
+	const input = tuple.operation === 'audio-encode'
+		? new Uint8Array(tuple.channelCount * Float32Array.BYTES_PER_ELEMENT)
+		: Uint8Array.of(0);
+	return normalizeDesktopAudioCodecRequest({
+		...tuple, input,
+		settings: tuple.operation === 'audio-decode'
+			? { sampleFormat: 'f32le' }
+			: capabilityEncodeSettings(tuple.format),
+		maximumOutputBytes: 1_024,
+	});
+}
+
+function capabilityEncodeSettings(format: DesktopAudioCodecRequest['format']): Readonly<Record<string, number>> {
+	if (format === 'flac') return Object.freeze({ compressionLevel: 5 });
+	if (format === 'wavpack') return Object.freeze({ compressionLevel: 2 });
+	if (format === 'ogg-vorbis') return Object.freeze({ quality: 5 });
+	if (format === 'opus') return Object.freeze({ bitrateKbps: 160 });
+	if (format === 'mp2') return Object.freeze({ bitrateKbps: 256 });
+	return Object.freeze({ bitrateKbps: 192 });
+}
+
+function unavailableCapability(
+	tuple: DesktopAudioCodecCapabilityTuple,
+	reason: 'configure-external-ffmpeg' | 'unsupported-by-configured-ffmpeg' | 'unsupported-settings',
+): DesktopAudioCodecCapabilityEntry {
+	return Object.freeze({ ...tuple, available: false, provider: null, reason });
 }
 
 function externalRuntime(options: Readonly<{
