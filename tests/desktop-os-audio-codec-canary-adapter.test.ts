@@ -7,6 +7,7 @@ import test from 'node:test';
 
 import {
 	createOperatingSystemAudioCodecCanaryAdapter,
+	OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256,
 	OPERATING_SYSTEM_MP3_CANARY_SHA256,
 } from '../desktop/os-audio-codec-canary-adapter.ts';
 import type { OperatingSystemCodecCanaryRequest } from '../desktop/os-codec-capability-adapter.ts';
@@ -20,6 +21,12 @@ const capability = Object.freeze({
 	id: 'windows-media-foundation-decode-mp3-mp3-default-f32-48000hz-2ch',
 	direction: 'decode' as const, mediaKind: 'audio' as const,
 	container: 'mp3', codec: 'mp3', profile: null, sampleFormat: 'f32',
+	pixelFormat: null, sampleRate: 48_000, channelCount: 2, width: null, height: null,
+});
+const aacCapability = Object.freeze({
+	id: 'windows-media-foundation-decode-m4a-aac-lc-f32p-48000hz-2ch',
+	direction: 'decode' as const, mediaKind: 'audio' as const,
+	container: 'm4a', codec: 'aac', profile: 'lc', sampleFormat: 'f32p',
 	pixelFormat: null, sampleRate: 48_000, channelCount: 2, width: null, height: null,
 });
 
@@ -65,6 +72,36 @@ test('canary decodes embedded MP3 through the supervised runner and binds exact 
 		implementation: 'windows-media-foundation', nativeApiReached: true,
 		exactTuplePassed: true, evidenceDigest: result.evidenceDigest,
 	});
+	assert.match(result.evidenceDigest, /^[a-f0-9]{64}$/u);
+});
+
+test('canary decodes embedded AAC-LC M4A through the reviewed native method', async () => {
+	const output = new Uint8Array(new Float32Array([0.25, -0.25]).buffer);
+	let calls = 0;
+	const runner: OperatingSystemAudioCodecOperationRunner = {
+		execute: async (decodeRequest) => {
+			calls += 1;
+			assert.equal(decodeRequest.format, 'aac-m4a');
+			assert.equal(createHash('sha256').update(decodeRequest.input).digest('hex'),
+				OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256);
+			return {
+				status: 'executed', output,
+				decodedGeometry: { sampleRate: 48_000, channelCount: 2, frameCount: 1 },
+			};
+		},
+	};
+	const adapter = createOperatingSystemAudioCodecCanaryAdapter({ target: 'mac-arm64', runner });
+	const aacRequest = request({
+		target: 'mac-arm64', osVersion: '15.6.1',
+		implementation: 'apple-audiotoolbox-avfoundation', capability: aacCapability,
+		capabilityDigest: digest(JSON.stringify(aacCapability)),
+	});
+	const result = await adapter.runCanary(aacRequest, new AbortController().signal);
+	assert.equal(calls, 1);
+	assert.equal(result.status, 'qualified');
+	if (result.status !== 'qualified') assert.fail('The exact AAC-LC M4A canary must qualify.');
+	assert.equal(result.capabilityId, aacCapability.id);
+	assert.equal(result.implementation, 'apple-audiotoolbox-avfoundation');
 	assert.match(result.evidenceDigest, /^[a-f0-9]{64}$/u);
 });
 
@@ -118,4 +155,11 @@ test('startup canary is byte-identical to the target-native self-test fixture', 
 	const fixture = Buffer.from(encoded, 'base64');
 	assert.equal(fixture.byteLength, 1_536);
 	assert.equal(createHash('sha256').update(fixture).digest('hex'), OPERATING_SYSTEM_MP3_CANARY_SHA256);
+	const aacBlock = /constexpr char aacM4aCanaryBase64\[\] =([\s\S]*?);/u.exec(source)?.[1];
+	assert.equal(typeof aacBlock, 'string');
+	const aacEncoded = [...aacBlock!.matchAll(/"([^"]*)"/gu)].map((match) => match[1]).join('');
+	const aacFixture = Buffer.from(aacEncoded, 'base64');
+	assert.equal(aacFixture.byteLength, 1_909);
+	assert.equal(createHash('sha256').update(aacFixture).digest('hex'),
+		OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256);
 });

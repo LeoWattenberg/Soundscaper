@@ -9,17 +9,17 @@ import test from 'node:test';
 
 import {
 	createOperatingSystemAudioCodecHelperWorker,
-	runOperatingSystemMp3DecodeJob,
+	runOperatingSystemAudioDecodeJob,
 } from '../desktop/os-audio-codec-helper-process.js';
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const job = (value) => ({ configuration: value.configuration, request: value.request });
 
-async function fixture(context) {
+async function fixture(context, format = 'mp3') {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-os-codec-helper-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const addonPath = join(root, 'soundscaper_professional.node');
-	const inputPath = join(root, 'input.mp3');
+	const inputPath = join(root, format === 'mp3' ? 'input.mp3' : 'input.m4a');
 	const outputPath = join(root, 'output.f32le');
 	const addonBytes = Buffer.from('authenticated-addon');
 	const input = Uint8Array.of(1, 2, 3, 4);
@@ -31,7 +31,7 @@ async function fixture(context) {
 			contractVersion: 1, target: 'mac-arm64', addonPath, addonSha256: sha256(addonBytes),
 		},
 		request: {
-			contractVersion: 1, inputPath, outputPath, inputBytes: input.byteLength,
+			contractVersion: 1, format, inputPath, outputPath, inputBytes: input.byteLength,
 			inputSha256: sha256(input), maximumOutputBytes: 1024,
 		},
 	};
@@ -41,7 +41,7 @@ test('helper reauthenticates its addon and input then returns exact decoded geom
 	const value = await fixture(context);
 	const output = new Uint8Array(new Float32Array([0.25, -0.25, 0.5, -0.5]).buffer);
 	let addonCalls = 0;
-	const result = await runOperatingSystemMp3DecodeJob(job(value), {
+	const result = await runOperatingSystemAudioDecodeJob(job(value), {
 		loadAddon: async ({ addonPath, addonSha256 }) => {
 			assert.equal(addonPath, value.addonPath);
 			assert.equal(addonSha256, value.configuration.addonSha256);
@@ -72,9 +72,37 @@ test('helper reauthenticates its addon and input then returns exact decoded geom
 	assert.deepEqual(new Uint8Array(await readFile(value.outputPath)), output);
 });
 
+test('helper dispatches AAC-LC M4A only to the reviewed native AAC method', async (context) => {
+	const value = await fixture(context, 'aac-m4a');
+	const output = new Uint8Array(new Float32Array([0.25, -0.25]).buffer);
+	let calls = 0;
+	const result = await runOperatingSystemAudioDecodeJob(job(value), {
+		loadAddon: async () => Object.freeze({
+			decodeOperatingSystemMp3: () => assert.fail('AAC must not dispatch to MP3'),
+			decodeOperatingSystemAacM4a: async (request) => {
+				calls += 1;
+				assert.equal(request.inputPath, value.inputPath);
+				await writeFile(value.outputPath, output, { flag: 'wx' });
+				return {
+					status: 'decoded', nativeApiReached: true, exactTuplePassed: true,
+					outputBytes: output.byteLength, frameCount: 1,
+					sampleRate: 48_000, channelCount: 2,
+				};
+			},
+		}),
+	});
+	assert.equal(calls, 1);
+	assert.deepEqual(result, {
+		contractVersion: 1, status: 'decoded', nativeApiReached: true,
+		exactTuplePassed: true, outputBytes: output.byteLength,
+		outputSha256: sha256(output),
+		decodedGeometry: { sampleRate: 48_000, channelCount: 2, frameCount: 1 },
+	});
+});
+
 test('helper passes through only closed native unavailability', async (context) => {
 	const value = await fixture(context);
-	const result = await runOperatingSystemMp3DecodeJob(job(value), {
+	const result = await runOperatingSystemAudioDecodeJob(job(value), {
 		loadAddon: async () => ({
 			decodeOperatingSystemMp3: () => ({
 				status: 'tuple-unsupported', nativeApiReached: true, exactTuplePassed: false,
@@ -91,23 +119,23 @@ test('helper passes through only closed native unavailability', async (context) 
 test('helper refuses changed input, changed addon, malformed native answers, and oversized output', async (context) => {
 	const changedInput = await fixture(context);
 	await writeFile(changedInput.inputPath, Uint8Array.of(9, 9, 9, 9));
-	await assert.rejects(() => runOperatingSystemMp3DecodeJob(job(changedInput), {
+	await assert.rejects(() => runOperatingSystemAudioDecodeJob(job(changedInput), {
 		loadAddon: async () => { throw new Error('must not load'); },
 	}), /input.*digest/iu);
 
 	const changedAddon = await fixture(context);
 	changedAddon.configuration.addonSha256 = '0'.repeat(64);
-	await assert.rejects(() => runOperatingSystemMp3DecodeJob(job(changedAddon), {
+	await assert.rejects(() => runOperatingSystemAudioDecodeJob(job(changedAddon), {
 		loadAddon: async () => { throw new Error('must not load'); },
 	}), /addon.*digest/iu);
 
 	const malformed = await fixture(context);
-	await assert.rejects(() => runOperatingSystemMp3DecodeJob(job(malformed), {
+	await assert.rejects(() => runOperatingSystemAudioDecodeJob(job(malformed), {
 		loadAddon: async () => ({ decodeOperatingSystemMp3: () => ({ status: 'decoded' }) }),
 	}), /native.*result/iu);
 
 	const oversized = await fixture(context);
-	await assert.rejects(() => runOperatingSystemMp3DecodeJob(job(oversized), {
+	await assert.rejects(() => runOperatingSystemAudioDecodeJob(job(oversized), {
 		loadAddon: async () => ({
 			decodeOperatingSystemMp3: async () => {
 				await writeFile(oversized.outputPath, new Uint8Array(1025), { flag: 'wx' });
@@ -122,10 +150,10 @@ test('helper refuses changed input, changed addon, malformed native answers, and
 
 test('helper rejects macOS x64 and inexact control records before native code', async (context) => {
 	const value = await fixture(context);
-	await assert.rejects(() => runOperatingSystemMp3DecodeJob({
+	await assert.rejects(() => runOperatingSystemAudioDecodeJob({
 		configuration: { ...value.configuration, target: 'mac-x64' }, request: value.request,
 	}, { loadAddon: async () => ({}) }), /target/iu);
-	await assert.rejects(() => runOperatingSystemMp3DecodeJob({
+	await assert.rejects(() => runOperatingSystemAudioDecodeJob({
 		configuration: value.configuration, request: { ...value.request, extra: true },
 	}, { loadAddon: async () => ({}) }), /request/iu);
 });

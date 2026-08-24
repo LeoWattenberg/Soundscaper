@@ -88,8 +88,12 @@ test('runner stages one MP3 job, supervises the helper, and returns authoritativ
 		spawn: (configuration) => {
 			spawnedConfiguration = configuration;
 			const child = new FakeChild((message) => {
-				const job = message as { request: { inputPath: string; outputPath: string; inputSha256: string } };
+				const job = message as { request: {
+					format: string; inputPath: string; outputPath: string; inputSha256: string;
+				} };
 				void (async () => {
+					assert.equal(job.request.format, 'mp3');
+					assert.match(job.request.inputPath, /input\.mp3$/u);
 					assert.equal(job.request.inputSha256, digest(request.input));
 					await writeFile(job.request.outputPath, output, { flag: 'wx' });
 					child.emitMessage({
@@ -121,6 +125,43 @@ test('runner stages one MP3 job, supervises the helper, and returns authoritativ
 	assert.deepEqual(await readdir(scratchRoot), []);
 });
 
+test('runner stages AAC M4A through the same supervised one-shot protocol', async (context) => {
+	const scratchRoot = await scratch(context);
+	const output = new Uint8Array(new Float32Array([0.25, -0.25]).buffer);
+	const aacRequest = Object.freeze({ ...request, format: 'aac-m4a' as const, requestId: 'decode-aac' });
+	const runner = createOperatingSystemAudioCodecOperationRunner({
+		scratchRoot, verifyAddon: async () => descriptor,
+		spawn: () => {
+			const child = new FakeChild((message) => {
+				const job = message as { request: { format: string; inputPath: string; outputPath: string } };
+				void (async () => {
+					assert.equal(job.request.format, 'aac-m4a');
+					assert.match(job.request.inputPath, /input\.m4a$/u);
+					await writeFile(job.request.outputPath, output, { flag: 'wx' });
+					child.emitMessage({
+						contractVersion: 1, type: 'result', result: {
+							contractVersion: 1, status: 'decoded', nativeApiReached: true,
+							exactTuplePassed: true, outputBytes: output.byteLength,
+							outputSha256: digest(output),
+							decodedGeometry: { sampleRate: 48_000, channelCount: 2, frameCount: 1 },
+						},
+					});
+					child.emitExit(0);
+				})();
+			});
+			queueMicrotask(() => child.emitMessage({
+				contractVersion: 1, type: 'ready', target: 'mac-arm64',
+			}));
+			return child;
+		},
+	});
+	assert.deepEqual(await runner.execute(aacRequest), {
+		status: 'executed', output,
+		decodedGeometry: { sampleRate: 48_000, channelCount: 2, frameCount: 1 },
+	});
+	assert.deepEqual(await readdir(scratchRoot), []);
+});
+
 test('runner fails closed for unavailable payloads and unsupported requests', async (context) => {
 	const scratchRoot = await scratch(context);
 	let spawns = 0;
@@ -134,9 +175,9 @@ test('runner fails closed for unavailable payloads and unsupported requests', as
 		detail: 'No authenticated target-native OS audio codec payload is available.',
 	});
 	assert.equal(spawns, 0);
-	assert.deepEqual(await runner.execute({ ...request, format: 'aac-m4a' }), {
+	assert.deepEqual(await runner.execute({ ...request, format: 'opus' }), {
 		status: 'unavailable', reason: 'request-rejected',
-		detail: 'The OS audio codec runtime admits only MP3 decode.',
+		detail: 'The OS audio codec runtime admits only reviewed MP3 or AAC-LC M4A decode.',
 	});
 	assert.equal(spawns, 0);
 	assert.deepEqual(await readdir(scratchRoot), []);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Main-owned staging and one-shot utility-process supervision for native OS MP3 decode. */
+/** Main-owned staging and one-shot utility-process supervision for reviewed OS audio decode. */
 
 import { createHash } from 'node:crypto';
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -99,6 +99,11 @@ type HelperResult = Readonly<{
 	}>;
 }> | Extract<OperatingSystemAudioCodecOperationResult, { readonly status: 'unavailable' }>;
 
+type ReviewedAudioDecodeRequest = Extract<
+	DesktopAudioCodecRequest,
+	{ readonly operation: 'audio-decode' }
+> & Readonly<{ readonly format: 'mp3' | 'aac-m4a' }>;
+
 const SHA256 = /^[a-f0-9]{64}$/u;
 const TARGETS = new Set<string>(['mac-arm64', 'win-x64', 'win-arm64']);
 const DEFAULT_DURATION_MS = 30_000;
@@ -107,7 +112,7 @@ const DEFAULT_KILL_WAIT_MS = 1_000;
 const MAXIMUM_KILL_WAIT_MS = 5_000;
 
 const DETAILS: Readonly<Record<OperatingSystemAudioCodecUnavailableReason, string>> = Object.freeze({
-	'api-unavailable': 'The target operating-system MP3 decoder API is unavailable.',
+	'api-unavailable': 'The target operating-system audio decoder API is unavailable.',
 	busy: 'Another OS audio codec operation is already active.',
 	cancelled: 'The OS audio codec operation was cancelled.',
 	'cleanup-failed': 'The OS audio codec scratch directory could not be removed.',
@@ -117,10 +122,10 @@ const DETAILS: Readonly<Record<OperatingSystemAudioCodecUnavailableReason, strin
 	'helper-timeout': 'The OS audio codec helper exceeded its runtime limit.',
 	'output-invalid': 'The OS audio codec helper output failed exact authentication.',
 	'payload-unavailable': 'No authenticated target-native OS audio codec payload is available.',
-	'request-rejected': 'The OS audio codec runtime admits only MP3 decode.',
+	'request-rejected': 'The OS audio codec runtime admits only reviewed MP3 or AAC-LC M4A decode.',
 	'scratch-failed': 'The OS audio codec scratch files could not be prepared.',
 	'spawn-failed': 'The OS audio codec helper could not be started.',
-	'tuple-unsupported': 'The operating-system MP3 decoder rejected this exact stream tuple.',
+	'tuple-unsupported': 'The operating-system audio decoder rejected this exact stream tuple.',
 });
 
 export function createOperatingSystemAudioCodecOperationRunner(
@@ -145,7 +150,7 @@ export function createOperatingSystemAudioCodecOperationRunner(
 			let request: DesktopAudioCodecRequest;
 			try { request = normalizeDesktopAudioCodecRequest(requestValue); }
 			catch { return unavailable('request-rejected'); }
-			if (request.operation !== 'audio-decode' || request.format !== 'mp3') {
+			if (!reviewedAudioDecodeRequest(request)) {
 				return unavailable('request-rejected');
 			}
 			const signal = executionSignal(executionOptions?.signal);
@@ -163,8 +168,15 @@ export function createOperatingSystemAudioCodecOperationRunner(
 	});
 }
 
+function reviewedAudioDecodeRequest(
+	request: DesktopAudioCodecRequest,
+): request is ReviewedAudioDecodeRequest {
+	return request.operation === 'audio-decode'
+		&& (request.format === 'mp3' || request.format === 'aac-m4a');
+}
+
 async function executeActive(options: Readonly<{
-	request: Extract<DesktopAudioCodecRequest, { readonly operation: 'audio-decode' }>;
+	request: ReviewedAudioDecodeRequest;
 	signal: AbortSignal | undefined;
 	scratchRoot: string;
 	verifyAddon: () => Promise<OperatingSystemAudioCodecAddonDescriptor>;
@@ -177,7 +189,8 @@ async function executeActive(options: Readonly<{
 	try {
 		scratchDirectory = await prepareScratch(options.scratchRoot);
 		const files: StagedFiles = Object.freeze({
-			inputPath: join(scratchDirectory, 'input.mp3'),
+			inputPath: join(scratchDirectory,
+				options.request.format === 'mp3' ? 'input.mp3' : 'input.m4a'),
 			outputPath: join(scratchDirectory, 'output.f32le'),
 		});
 		await writeFile(files.inputPath, Buffer.from(options.request.input), { flag: 'wx', mode: 0o600 });
@@ -193,7 +206,7 @@ async function executeActive(options: Readonly<{
 }
 
 async function executeStaged(options: Readonly<{
-	request: Extract<DesktopAudioCodecRequest, { readonly operation: 'audio-decode' }>;
+	request: ReviewedAudioDecodeRequest;
 	signal: AbortSignal | undefined;
 	files: StagedFiles;
 	verifyAddon: () => Promise<OperatingSystemAudioCodecAddonDescriptor>;
@@ -217,6 +230,7 @@ async function executeStaged(options: Readonly<{
 	catch { return unavailable('spawn-failed'); }
 	const helperResult = await superviseChild({
 		child, configuration, files: options.files,
+		format: options.request.format,
 		input: options.request.input, maximumOutputBytes: options.request.maximumOutputBytes,
 		signal: options.signal, maximumDurationMs: options.maximumDurationMs,
 		killWaitMs: options.killWaitMs,
@@ -247,6 +261,7 @@ function superviseChild(options: Readonly<{
 	child: OperatingSystemAudioCodecChild;
 	configuration: OperatingSystemAudioCodecChildConfiguration;
 	files: StagedFiles;
+	format: 'mp3' | 'aac-m4a';
 	input: Uint8Array;
 	maximumOutputBytes: number;
 	signal: AbortSignal | undefined;
@@ -276,6 +291,7 @@ function superviseChild(options: Readonly<{
 						contractVersion: 1, type: 'job',
 						request: Object.freeze({
 							contractVersion: 1,
+							format: options.format,
 							inputPath: options.files.inputPath,
 							outputPath: options.files.outputPath,
 							inputBytes: options.input.byteLength,

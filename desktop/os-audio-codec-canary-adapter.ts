@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Live startup canary for the target-native MP3 decoder, run through its production helper. */
+/** Live startup canaries for reviewed target-native decoders through the production helper. */
 
 import { createHash } from 'node:crypto';
 
@@ -15,6 +15,8 @@ import type {
 
 export const OPERATING_SYSTEM_MP3_CANARY_SHA256 =
 	'90971a846ba5d03488be96ada4f9ea6698aa47e7f487adfe65d606519b0270f2';
+export const OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256 =
+	'1db255988826f9f6f8322f6cfb6c82c6ee7873c3252c822bc0ac1793d5729451';
 
 export interface OperatingSystemAudioCodecCanaryAdapter {
 	runCanary(
@@ -26,6 +28,14 @@ export interface OperatingSystemAudioCodecCanaryAdapter {
 export interface OperatingSystemAudioCodecCanaryAdapterOptions {
 	readonly target: OperatingSystemAudioCodecTarget;
 	readonly runner: OperatingSystemAudioCodecOperationRunner;
+}
+
+interface ReviewedCanary {
+	readonly format: 'mp3' | 'aac-m4a';
+	readonly bytes: Uint8Array;
+	readonly sha256: string;
+	readonly sampleRate: 48_000;
+	readonly channelCount: 2;
 }
 
 /* Generated only as test media with digest-pinned mwader/static-ffmpeg 9.0
@@ -59,6 +69,42 @@ if (CANARY_BYTES.byteLength !== 1_536 || sha256(CANARY_BYTES) !== OPERATING_SYST
 	throw new Error('The embedded OS MP3 canary failed its source digest.');
 }
 
+/* AAC-LC-in-M4A media generated from the same source and exact pinned image.
+ * This byte sequence is shared with the target-native CTest fixture. */
+const AAC_M4A_CANARY_BASE64 =
+	'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';
+const AAC_M4A_CANARY_BYTES = Buffer.from(AAC_M4A_CANARY_BASE64, 'base64');
+if (AAC_M4A_CANARY_BYTES.byteLength !== 1_909
+	|| sha256(AAC_M4A_CANARY_BYTES) !== OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256) {
+	throw new Error('The embedded OS AAC M4A canary failed its source digest.');
+}
+
 export function createOperatingSystemAudioCodecCanaryAdapter(
 	options: OperatingSystemAudioCodecCanaryAdapterOptions,
 ): OperatingSystemAudioCodecCanaryAdapter {
@@ -69,13 +115,14 @@ export function createOperatingSystemAudioCodecCanaryAdapter(
 			request: OperatingSystemCodecCanaryRequest,
 			signal: AbortSignal,
 		): Promise<OperatingSystemCodecCanaryResult> {
-			if (!(signal instanceof AbortSignal)) throw new TypeError('The OS MP3 canary signal is invalid.');
+			if (!(signal instanceof AbortSignal)) throw new TypeError('The OS audio canary signal is invalid.');
 			signal.throwIfAborted();
-			if (!isReviewedMp3Canary(request, target)) return unavailable('canary-refused');
+			const canary = reviewedCanary(request, target);
+			if (canary === null) return unavailable('canary-refused');
 			const result = await runner.execute(Object.freeze({
 				operation: 'audio-decode' as const,
-				format: 'mp3' as const,
-				input: new Uint8Array(CANARY_BYTES),
+				format: canary.format,
+				input: new Uint8Array(canary.bytes),
 				sampleRate: null,
 				channelCount: null,
 				settings: Object.freeze({ sampleFormat: 'f32le' as const }),
@@ -86,17 +133,17 @@ export function createOperatingSystemAudioCodecCanaryAdapter(
 				return unavailable(result.reason === 'api-unavailable' ? 'api-unavailable'
 					: result.reason === 'tuple-unsupported' ? 'tuple-unsupported' : 'canary-refused');
 			}
-			if (result.decodedGeometry.sampleRate !== 48_000
-				|| result.decodedGeometry.channelCount !== 2
+			if (result.decodedGeometry.sampleRate !== canary.sampleRate
+				|| result.decodedGeometry.channelCount !== canary.channelCount
 				|| result.decodedGeometry.frameCount < 1
-				|| result.output.byteLength !== result.decodedGeometry.frameCount * 2
+				|| result.output.byteLength !== result.decodedGeometry.frameCount * canary.channelCount
 					* Float32Array.BYTES_PER_ELEMENT
 				|| !finiteNonSilentFloat32(result.output)) return unavailable('canary-refused');
 			const evidenceDigest = sha256(Buffer.from(JSON.stringify({
 				schemaVersion: 1, target, osVersion: request.osVersion,
 				implementation: request.implementation,
 				capabilityDigest: request.capabilityDigest,
-				inputSha256: OPERATING_SYSTEM_MP3_CANARY_SHA256,
+				inputSha256: canary.sha256,
 				outputSha256: sha256(result.output),
 				decodedGeometry: result.decodedGeometry,
 			})));
@@ -111,22 +158,36 @@ export function createOperatingSystemAudioCodecCanaryAdapter(
 	});
 }
 
-function isReviewedMp3Canary(
+function reviewedCanary(
 	request: OperatingSystemCodecCanaryRequest,
 	target: OperatingSystemAudioCodecTarget,
-): boolean {
+): ReviewedCanary | null {
 	if (!request || typeof request !== 'object' || request.contractVersion !== 1
 		|| request.target !== target || typeof request.osVersion !== 'string'
-		|| typeof request.capabilityDigest !== 'string') return false;
+		|| typeof request.capabilityDigest !== 'string') return null;
 	const implementation = target.startsWith('win-')
 		? 'windows-media-foundation' : 'apple-audiotoolbox-avfoundation';
-	if (request.implementation !== implementation) return false;
+	if (request.implementation !== implementation) return null;
 	const capability = request.capability;
-	return !!capability && capability.direction === 'decode' && capability.mediaKind === 'audio'
-		&& capability.container === 'mp3' && capability.codec === 'mp3'
-		&& capability.profile === null && capability.sampleFormat === 'f32'
-		&& capability.pixelFormat === null && capability.sampleRate === 48_000
-		&& capability.channelCount === 2 && capability.width === null && capability.height === null;
+	if (!capability || capability.direction !== 'decode' || capability.mediaKind !== 'audio'
+		|| capability.pixelFormat !== null || capability.sampleRate !== 48_000
+		|| capability.channelCount !== 2 || capability.width !== null || capability.height !== null) return null;
+	if (capability.container === 'mp3' && capability.codec === 'mp3'
+		&& capability.profile === null && capability.sampleFormat === 'f32') {
+		return Object.freeze({
+			format: 'mp3', bytes: CANARY_BYTES, sha256: OPERATING_SYSTEM_MP3_CANARY_SHA256,
+			sampleRate: 48_000, channelCount: 2,
+		});
+	}
+	if (capability.container === 'm4a' && capability.codec === 'aac'
+		&& capability.profile === 'lc' && capability.sampleFormat === 'f32p') {
+		return Object.freeze({
+			format: 'aac-m4a', bytes: AAC_M4A_CANARY_BYTES,
+			sha256: OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256,
+			sampleRate: 48_000, channelCount: 2,
+		});
+	}
+	return null;
 }
 
 function finiteNonSilentFloat32(value: Uint8Array): boolean {
@@ -143,17 +204,17 @@ function finiteNonSilentFloat32(value: Uint8Array): boolean {
 }
 
 function inspectedRunner(value: unknown): OperatingSystemAudioCodecOperationRunner {
-	if (!value || typeof value !== 'object') throw new TypeError('The OS MP3 canary runner is invalid.');
+	if (!value || typeof value !== 'object') throw new TypeError('The OS audio canary runner is invalid.');
 	const method = Object.getOwnPropertyDescriptor(value, 'execute');
 	if (!method || !Object.hasOwn(method, 'value') || typeof method.value !== 'function') {
-		throw new TypeError('The OS MP3 canary runner is invalid.');
+		throw new TypeError('The OS audio canary runner is invalid.');
 	}
 	return value as OperatingSystemAudioCodecOperationRunner;
 }
 
 function targetId(value: unknown): OperatingSystemAudioCodecTarget {
 	if (value !== 'mac-arm64' && value !== 'win-x64' && value !== 'win-arm64') {
-		throw new TypeError('The OS MP3 canary target is unsupported.');
+		throw new TypeError('The OS audio canary target is unsupported.');
 	}
 	return value;
 }
