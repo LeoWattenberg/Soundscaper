@@ -123,6 +123,17 @@ export class FramescaperNativeMediaQueueDispatcherV3 {
 			if (observed === null || this.#disposed) return;
 			const capacity = nativeQueueCapacitySnapshotV1(observed);
 			if (!this.#options.available() || !this.#options.nativeMediaEnabled()) return;
+			// A row resumed while its aborted execution is still settling must not
+			// be re-claimed yet: the writer-atomic claim would collide with the
+			// still-active job, stranding every other row admitted in the same
+			// pass as durably running with no executor, and the old execution's
+			// settlement would then act on the freshly resumed row.
+			for (const [jobId, operation] of [...this.#active]) {
+				if (this.#options.queue.read(jobId)?.state === 'queued') {
+					await operation.catch(() => undefined);
+				}
+			}
+			if (this.#disposed) return;
 			const admitted = this.#options.queue.dispatchReady(
 				this.#options.lease(), this.#options.now(), capacity,
 			).records;
