@@ -83,11 +83,12 @@ test('candidate creation returns an immutable absolute no-shell descriptor', () 
 	}), /identifier/u);
 });
 
-test('released FFmpeg versions from 4.4 through 9.x are admitted', () => {
+test('versioned FFmpeg CLI builds from 4.4 through 9.x are admitted', () => {
 	for (const [token, normalized] of [
 		['4.4', '4.4.0'],
 		['n4.4.8', '4.4.8'],
 		['7.1.1-full_build-www.gyan.dev', '7.1.1'],
+		['8.1.2-21-gabcdef', '8.1.2'],
 		['9.0.1', '9.0.1'],
 	] as const) {
 		const parsed = parseExternalFfmpegVersionOutput(
@@ -110,7 +111,7 @@ test('released FFmpeg versions from 4.4 through 9.x are admitted', () => {
 	}
 });
 
-test('a matching released pair produces sorted closed capability sets', async () => {
+test('a matching versioned pair produces sorted closed capability sets', async () => {
 	const calls: ExternalFfmpegProcessRequest[] = [];
 	const runner = fixtureRunner(calls);
 	const candidate = createExternalFfmpegCandidate(candidateInput('/good'));
@@ -135,7 +136,7 @@ test('a matching released pair produces sorted closed capability sets', async ()
 	}
 });
 
-test('capability parsing follows the released CLI dialects from FFmpeg 4.4 through 9', async () => {
+test('capability parsing follows the versioned CLI dialects from FFmpeg 4.4 through 9', async () => {
 	for (const version of ['4.4.8', '5.1.7', '6.1.3', '7.1.2', '8.0.1', '9.0.1']) {
 		const root = `/released-${version}`;
 		const result = await probeExternalFfmpegCandidate(

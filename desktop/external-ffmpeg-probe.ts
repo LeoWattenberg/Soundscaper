@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Closed, shell-free discovery and capability probing for user-supplied FFmpeg. */
+/** Closed, shell-free discovery and capability probing for user-supplied FFmpeg CLI builds. */
 
 import { isAbsolute } from 'node:path';
 
