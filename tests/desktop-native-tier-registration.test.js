@@ -416,10 +416,8 @@ test('a scanner fault is quarantined in the shape the durable store requires', a
 	port.quarantine('c'.repeat(64), 'not-a-reason');
 	await assert.rejects(() => port.settle(), /not-a-reason/u,
 		'an unmappable scanner fault must be loud rather than swallowed');
-	for (const reason of [
-		'scanner-crash', 'scanner-hang', 'malformed-answer', 'oversize-answer',
-		'malformed-plugin', 'oversize-plugin', 'identity-change',
-	]) {
+	for (const reason of ['scanner-crash', 'scanner-hang', 'malformed-answer',
+		'oversize-answer', 'malformed-plugin', 'oversize-plugin', 'identity-change']) {
 		port.quarantine(createHash('sha256').update(reason).digest('hex'), reason);
 	}
 	await port.settle();
@@ -451,26 +449,6 @@ test('described scan entries reach the inventory the renderer lists', async () =
 		['rejected'],
 		'a binary that has gone is refused by name rather than recorded without its identity',
 	);
-});
-
-test('a binary re-claiming a different identity is announced for durable quarantine', () => {
-	const registry = new DesktopPluginRegistry({ isQuarantined: () => false });
-	const identityChanged = [];
-	const options = { identityFor: () => ({ dev: 7, ino: 11 }), onIdentityChanged: (digest) => identityChanged.push(digest) };
-	const first = { format: 'fixture', status: 'scanned', detail: '', entries: [scanEntry()] };
-	assert.deepEqual(recordScannedPlugins(registry, first, options)
-		.map(({ status }) => status), ['recorded']);
-	assert.deepEqual(identityChanged, []);
-	// The same bytes now claim a different plug-in identity: the plan requires
-	// that digest to be quarantined immediately and durably, not silently
-	// dropped as an unrecorded admission.
-	const changed = {
-		...first,
-		entries: [{ ...scanEntry(), stableId: 'fixture:impostor' }],
-	};
-	assert.deepEqual(recordScannedPlugins(registry, changed, options)
-		.map(({ status, reason }) => `${status}:${reason ?? ''}`), ['rejected:identity-change']);
-	assert.deepEqual(identityChanged, ['d'.repeat(64)]);
 });
 
 test('the scan job answer fills the inventory on its way past', async (context) => {

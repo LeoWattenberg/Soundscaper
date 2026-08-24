@@ -21,8 +21,7 @@
  * already authored. This module cannot manufacture a freeze: it renders nothing.
  */
 
-import { HELPER_PLUGIN_FORMATS, type HelperPluginFormat } from './helper-job-grant.ts';
-import { HelperContractViolationError } from './helper-wire-admission.ts';
+import type { HelperPluginFormat } from './helper-job-grant.ts';
 import {
 	PLUGIN_HOST_BENIGN_STOP_REASONS,
 	assertPluginInstanceId,
@@ -37,6 +36,14 @@ export { PLUGIN_HOST_BENIGN_STOP_REASONS, PLUGIN_HOST_FAULT_REASONS, type Plugin
 	type PluginHostFaultReason, type PluginHostStopReason } from './plugin-instance-state.ts';
 import { PLUGIN_HOST_FAULT_LIMIT, PLUGIN_HOST_FAULT_WINDOW_MS } from './plugin-quarantine.ts';
 import { hasPluginHostProcessCapacity, pluginHostIsolationKey } from './plugin-host-process-admission.ts';
+import {
+	assertBinaryDigest,
+	assertPluginFormat,
+	describeError,
+	refused,
+	safely,
+	stopOutcome,
+} from './plugin-host-isolation-support.ts';
 import { openHelperOwnedVendorWindow } from './plugin-vendor-window-capability.ts';
 
 export { PLUGIN_HOST_MAXIMUM_PROCESSES, pluginHostIsolationKey } from './plugin-host-process-admission.ts';
@@ -160,8 +167,6 @@ interface InstanceEntry {
 	readonly binarySha256: string; readonly format: HelperPluginFormat;
 	ownerGeneration: number; hostId: string | null; state: PluginInstanceState;
 }
-
-const SHA256 = /^[a-f0-9]{64}$/u;
 
 const WITHHOLD_MESSAGES = Object.freeze({
 	'digest-revoked': 'That plug-in binary was revoked and will not be hosted again.',
@@ -571,42 +576,3 @@ function instanceRecord(entry: InstanceEntry): PluginInstanceRecord {
 	});
 }
 
-function stopOutcome(
-	hostId: string, reason: PluginHostStopReason, qualifyingFault: boolean,
-	quarantined: boolean, instanceIds: readonly string[],
-): PluginHostStopOutcome {
-	return Object.freeze({
-		hostId, reason, qualifyingFault, quarantined, instanceIds: Object.freeze([...instanceIds]),
-	});
-}
-
-function refused(code: PluginHostRefusalCode, message: string): PluginHostRefusal {
-	return Object.freeze({ status: 'refused' as const, code, message });
-}
-
-function assertBinaryDigest(value: unknown): string {
-	if (typeof value !== 'string' || !SHA256.test(value)) {
-		throw new HelperContractViolationError('unsafe-grant',
-			'A plug-in host request must name its binary by lowercase SHA-256 digest.');
-	}
-	return value;
-}
-
-function assertPluginFormat(value: unknown): HelperPluginFormat {
-	if (typeof value !== 'string' || !(HELPER_PLUGIN_FORMATS as readonly string[]).includes(value)) {
-		throw new HelperContractViolationError('unsafe-grant', 'A plug-in host request must name a supported format.');
-	}
-	return value as HelperPluginFormat;
-}
-
-function safely(operation: () => void): void {
-	// A host that is already gone cannot fail harder for being told again: the
-	// teardown was the point, and there is no reply left to act on.
-	try {
-		operation();
-	} catch (_error) { /* deliberately not surfaced */ }
-}
-
-function describeError(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
-}

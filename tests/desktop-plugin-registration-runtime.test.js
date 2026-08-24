@@ -27,9 +27,11 @@ registerHooks({
 
 const {
 	createDesktopPluginHostingRuntime,
+	recordScannedPlugins,
 	registerDesktopPluginDiscovery,
 } = await import('../desktop/plugin-registration.mjs');
 const { DesktopPluginRegistry } = await import('../desktop/plugin-registry.ts');
+const { nativeTierScanEntry: scanEntry } = await import('./helpers/desktop-native-tier-fixtures.js');
 
 function recordFixtureInstallation(registry) {
 	const admission = registry.record({
@@ -202,4 +204,24 @@ test('repeated host crashes quarantine the digest durably, and the explicit clea
 	// The clear must release the in-memory hold too, not only the durable file.
 	const rehosted = await instantiate();
 	assert.equal(rehosted.state, 'hosted');
+});
+
+test('a binary re-claiming a different identity is announced for durable quarantine', () => {
+	const registry = new DesktopPluginRegistry({ isQuarantined: () => false });
+	const identityChanged = [];
+	const options = { identityFor: () => ({ dev: 7, ino: 11 }), onIdentityChanged: (digest) => identityChanged.push(digest) };
+	const first = { format: 'fixture', status: 'scanned', detail: '', entries: [scanEntry()] };
+	assert.deepEqual(recordScannedPlugins(registry, first, options)
+		.map(({ status }) => status), ['recorded']);
+	assert.deepEqual(identityChanged, []);
+	// The same bytes now claim a different plug-in identity: the plan requires
+	// that digest to be quarantined immediately and durably, not silently
+	// dropped as an unrecorded admission.
+	const changed = {
+		...first,
+		entries: [{ ...scanEntry(), stableId: 'fixture:impostor' }],
+	};
+	assert.deepEqual(recordScannedPlugins(registry, changed, options)
+		.map(({ status, reason }) => `${status}:${reason ?? ''}`), ['rejected:identity-change']);
+	assert.deepEqual(identityChanged, ['d'.repeat(64)]);
 });
