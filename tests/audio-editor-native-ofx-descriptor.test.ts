@@ -169,6 +169,8 @@ test('a bundle binary path follows the OpenFX bundle layout', () => {
 });
 
 test('CPU and Interact qualification is required on every target', () => {
+	assert.equal(OFX_UNIVERSAL_QUALIFICATIONS.includes('interact-v2'), false);
+	assert.equal(OFX_UNIVERSAL_QUALIFICATIONS.includes('overlay-interact-v2'), true);
 	for (const target of OFX_TARGETS) {
 		const required = ofxRequiredQualifications(target);
 		for (const universal of OFX_UNIVERSAL_QUALIFICATIONS) {

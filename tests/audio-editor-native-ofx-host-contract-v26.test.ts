@@ -53,8 +53,9 @@ test('the closed V26 host surface covers all contexts, suites, actions, interact
 		assert.equal(OFX_HOST_ACTIONS_V1.includes(action as never), true, action);
 	}
 	assert.deepEqual(OFX_HOST_EXECUTION_CONTRACT_V1.interacts, [
-		'interact-v1', 'interact-v2', 'custom-parameter-interact', 'draw-suite-v1',
+		'interact-v1', 'overlay-interact-v2', 'custom-parameter-interact', 'draw-suite-v1',
 	]);
+	assert.equal(OFX_HOST_EXECUTION_CONTRACT_V1.interacts.includes('interact-v2' as never), false);
 	assert.equal(OFX_HOST_EXECUTION_CONTRACT_V1.cpuRenderingRequired, true);
 	assert.equal(OFX_HOST_EXECUTION_CONTRACT_V1.offscreenUiOnly, true);
 	assert.deepEqual(OFX_HOST_EXECUTION_CONTRACT_V1.deniedAuthorities, [

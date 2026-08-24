@@ -35,7 +35,7 @@ export const OFX_TARGET_ARCHITECTURE_DIRECTORIES: Readonly<Record<OfxTarget, str
 export const OFX_UNIVERSAL_QUALIFICATIONS: readonly string[] = Object.freeze([
 	'cpu-render',
 	'interact-v1',
-	'interact-v2',
+	'overlay-interact-v2',
 	'custom-parameter-interact',
 	'draw-suite-v1',
 	'packaging',

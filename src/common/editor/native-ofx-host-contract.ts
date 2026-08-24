@@ -85,7 +85,7 @@ export const OFX_HOST_EXECUTION_CONTRACT_V1 = Object.freeze({
 	threadingDeclarations: OFX_THREADING_DECLARATIONS,
 	actions: OFX_HOST_ACTIONS_V1,
 	interacts: Object.freeze([
-		'interact-v1', 'interact-v2', 'custom-parameter-interact', 'draw-suite-v1',
+		'interact-v1', 'overlay-interact-v2', 'custom-parameter-interact', 'draw-suite-v1',
 	] as const),
 	cpuRenderingRequired: true as const,
 	optionalGpuBackends: Object.freeze(['opengl', 'opencl', 'cuda', 'metal'] as const),
