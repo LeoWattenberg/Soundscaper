@@ -33,20 +33,19 @@ test('the pending register reserves the exact fixed RTX and native profile matri
 
 test('pending admission is closed and the audit does not touch missing external evidence', async () => {
 	const register = structuredClone(await readMilestone6QualificationEvidenceRegister(ROOT));
-	for (const mutate of [
-		(value) => value.measurements.pop(),
-		(value) => value.measurements.reverse(),
-		(value) => { value.measurements[0].environmentId = 'native-os-lab-matrix'; },
-		(value) => { value.status = 'accepted'; },
-		(value) => { value.cohort.path = 'qualification/milestone-6/invented.json'; },
-		(value) => { value.extra = true; },
+	for (const [mutate, expected] of [
+		[(value) => value.measurements.pop(), /exact 19-profile matrix/iu],
+		[(value) => value.measurements.reverse(), /order is not exact/iu],
+		[(value) => { value.measurements[0].environmentId = 'native-os-lab-matrix'; }, /order is not exact/iu],
+		[(value) => { value.status = 'accepted'; }, /source revision\/blocker is invalid/iu],
+		[(value) => { value.status = 'complete'; }, /status is unsupported/iu],
+		[(value) => { value.cohort.path = 'qualification/milestone-6/invented.json'; },
+			/must not claim accepted evidence pins/iu],
+		[(value) => { value.extra = true; }, /must contain the exact fields/iu],
 	]) {
 		const changed = structuredClone(register);
 		mutate(changed);
-		assert.throws(
-			() => validateMilestone6QualificationEvidenceRegister(changed),
-			/register|matrix|order|pending|accepted|exact/iu,
-		);
+		assert.throws(() => validateMilestone6QualificationEvidenceRegister(changed), expected);
 	}
 	const audit = await auditMilestone6QualificationEvidence({ repositoryRoot: ROOT }, {
 		loadHistoricalQualityBudget: async () => { throw new Error('pending audit loaded history'); },
@@ -130,29 +129,66 @@ test('accepted records refuse retries, hosted runners, sample drift, and metric-
 			const changedBudget = budgetDigest(config);
 			for (const record of records) record.budgetSha256 = changedBudget;
 		}
+		const expected = {
+			retry: /no retries or hosted runner/iu,
+			hosted: /no retries or hosted runner/iu,
+			warmup: /must contain exactly .+ timed runs/iu,
+			timed: /must contain exactly .+ timed runs/iu,
+			metrics: /workload registration is not exact/iu,
+			threshold: /profile .+ failed:/iu,
+			qualification: /qualification-ready fixtures\/workload/iu,
+			'premature-registry': /must not claim final qualified registration/iu,
+		}[failure];
 		assert.throws(
 			() => createMilestone6QualificationCohort(records, config, budgetDigest(config)),
-			/exact|retry|hosted|timed runs|failed|registered metrics|qualification-ready|qualified registration/iu,
+			expected,
 			failure,
 		);
 	}
 });
 
 test('accepted records bind one source, exact environment, package, and runtime payloads', () => {
-	for (const failure of ['source', 'fingerprint', 'native-host', 'native-package', 'cross-package']) {
+	for (const failure of [
+		'source', 'source-cross', 'fingerprint', 'native-host', 'native-fingerprint',
+		'native-package', 'cross-package',
+	]) {
 		const config = qualificationReadyConfig();
 		const records = acceptedMeasurements(config);
 		if (failure === 'source') records[1].sourceRevision = 'b'.repeat(40);
-		if (failure === 'fingerprint') records[0].measurement.fingerprint.gpuDeviceId = 'different';
+		// The fixed profile carries no lab binding, so only the cross-record
+		// check can catch its drifted revision.
+		if (failure === 'source-cross') records[0].sourceRevision = 'b'.repeat(40);
+		// Replace, never mutate: the fixture aliases the config's registered
+		// fingerprint, and mutating through the alias changes both sides of the
+		// comparison (and the budget digest), missing the fingerprint check.
+		if (failure === 'fingerprint') {
+			records[0].measurement.fingerprint = {
+				...records[0].measurement.fingerprint, gpuDeviceId: 'different',
+			};
+		}
 		if (failure === 'native-host') records[1].labBinding.physicalHost.cpuModel = 'different';
+		if (failure === 'native-fingerprint') {
+			records[1].measurement.fingerprint = {
+				...records[1].measurement.fingerprint, cpuModel: 'different',
+			};
+		}
 		if (failure === 'native-package') records[1].packageBindings[0].packageSha256 = digest('different');
 		if (failure === 'cross-package') {
 			records[2].packageBindings[0].packageSha256 = digest('other-windows-package');
 			records[2].labBinding.artifacts.packageSha256 = records[2].packageBindings[0].packageSha256;
 		}
+		const expected = {
+			source: /native host\/package\/source binding is invalid/iu,
+			'source-cross': /must bind one source revision/iu,
+			fingerprint: /fingerprint\/hardware binding is invalid/iu,
+			'native-host': /native environment is not qualified/iu,
+			'native-fingerprint': /native host\/package\/source binding is invalid/iu,
+			'native-package': /native host\/package\/source binding is invalid/iu,
+			'cross-package': /package\/runtime digest binding is inconsistent/iu,
+		}[failure];
 		assert.throws(
 			() => createMilestone6QualificationCohort(records, config, budgetDigest(config)),
-			/source|fingerprint|host|package|inconsistent/iu,
+			expected,
 			failure,
 		);
 	}
@@ -174,6 +210,11 @@ test('the auditor rejects pin drift, symbolic files, and a repinned fabricated c
 			await writeFile(join(fixture.root, fixture.register.cohort.path), bytes);
 			Object.assign(fixture.register.cohort, pin(fixture.register.cohort.path, bytes));
 		}
+		const expected = {
+			'raw-pin': /digest does not match its pin/iu,
+			symlink: /regular non-symbolic file path/iu,
+			cohort: /recomputed canonical cohort/iu,
+		}[failure];
 		await assert.rejects(
 			auditMilestone6QualificationEvidence({
 				repositoryRoot: fixture.root,
@@ -182,10 +223,51 @@ test('the auditor rejects pin drift, symbolic files, and a repinned fabricated c
 				loadHistoricalQualityBudget: async () => fixture.configBytes,
 				loadCurrentQualityBudget: async () => fixture.currentConfigBytes,
 			}),
-			/digest|regular non-symbolic|canonical cohort/iu,
+			expected,
 			failure,
 		);
 	}
+});
+
+test('the auditor refuses duplicate paths, budget drift, and traversal pins', async (context) => {
+	// A register naming one evidence file twice can fill the 19-row matrix with
+	// fewer than 19 measurements; the audit must count paths, not rows.
+	const duplicated = await acceptedFixture(context);
+	duplicated.register.measurements[1].path = duplicated.register.measurements[0].path;
+	duplicated.register.measurements[1].byteLength = duplicated.register.measurements[0].byteLength;
+	duplicated.register.measurements[1].sha256 = duplicated.register.measurements[0].sha256;
+	await assert.rejects(
+		auditMilestone6QualificationEvidence({
+			repositoryRoot: duplicated.root,
+			register: duplicated.register,
+		}, {
+			loadHistoricalQualityBudget: async () => duplicated.configBytes,
+			loadCurrentQualityBudget: async () => duplicated.currentConfigBytes,
+		}),
+		/registered twice/iu,
+	);
+
+	// The historical budget is digest-pinned; different bytes for the pinned
+	// revision must fail the audit, not silently re-anchor the thresholds.
+	const drifted = await acceptedFixture(context);
+	await assert.rejects(
+		auditMilestone6QualificationEvidence({
+			repositoryRoot: drifted.root,
+			register: drifted.register,
+		}, {
+			loadHistoricalQualityBudget: async () => Buffer.concat([drifted.configBytes, Buffer.from('\n')]),
+			loadCurrentQualityBudget: async () => drifted.currentConfigBytes,
+		}),
+		/historical budget digest does not match/iu,
+	);
+
+	// Pin paths are canonical and rooted; traversal segments refuse at validation.
+	const traversal = await acceptedFixture(context);
+	traversal.register.measurements[0].path = 'qualification/milestone-6/../../package.json';
+	assert.throws(
+		() => validateMilestone6QualificationEvidenceRegister(traversal.register),
+		/canonical and repo-relative/iu,
+	);
 });
 
 async function acceptedFixture(context) {
