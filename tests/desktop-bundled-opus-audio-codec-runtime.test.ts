@@ -116,6 +116,17 @@ test('the exact request gate falls through only for valid unreviewed Opus profil
 	assert.equal((await runtime.preflightRequest?.(decodeRequest(gained), {
 		operation: deriveDesktopAudioCodecOperation(decodeRequest(gained)),
 	}))?.disposition, 'unsupported');
+	for (const validUnreviewed of [
+		withHeadVersion(encoded.output, 2),
+		withTrailingTagData(encoded.output, Uint8Array.of(1, 2, 3)),
+		withInitialGranuleOffset(encoded.output, 48_000n),
+	]) assert.equal((await runtime.preflightRequest?.(decodeRequest(validUnreviewed), {
+		operation: deriveDesktopAudioCodecOperation(decodeRequest(validUnreviewed)),
+	}))?.disposition, 'unsupported');
+	const incompatibleVersion = withHeadVersion(encoded.output, 16);
+	assert.equal((await runtime.preflightRequest?.(decodeRequest(incompatibleVersion), {
+		operation: deriveDesktopAudioCodecOperation(decodeRequest(incompatibleVersion)),
+	}))?.disposition, 'rejected');
 	const corrupted = gained.slice();
 	corrupted[corrupted.byteLength - 1] ^= 1;
 	assert.equal((await runtime.preflightRequest?.(decodeRequest(corrupted), {
@@ -219,11 +230,56 @@ function withOutputGain(stream: Uint8Array, gainQ8: number): Uint8Array {
 	return result;
 }
 
+function withHeadVersion(stream: Uint8Array, version: number): Uint8Array {
+	const result = stream.slice();
+	const pageLength = firstPageLength(result);
+	const packetOffset = 27 + result[26];
+	result[packetOffset + 8] = version;
+	writePageCrc(result, 0, pageLength);
+	return result;
+}
+
+function withTrailingTagData(stream: Uint8Array, trailing: Uint8Array): Uint8Array {
+	const pageOffset = firstPageLength(stream);
+	const pageLength = oggPageLengthAt(stream, pageOffset);
+	const segmentCount = stream[pageOffset + 26];
+	const lastLacingOffset = pageOffset + 27 + segmentCount - 1;
+	if (stream[lastLacingOffset] + trailing.byteLength >= 255) throw new RangeError('Tag fixture is too large.');
+	const pageEnd = pageOffset + pageLength;
+	const result = new Uint8Array(stream.byteLength + trailing.byteLength);
+	result.set(stream.subarray(0, pageEnd));
+	result.set(trailing, pageEnd);
+	result.set(stream.subarray(pageEnd), pageEnd + trailing.byteLength);
+	result[lastLacingOffset] += trailing.byteLength;
+	writePageCrc(result, pageOffset, pageLength + trailing.byteLength);
+	return result;
+}
+
+function withInitialGranuleOffset(stream: Uint8Array, offset: bigint): Uint8Array {
+	const result = stream.slice();
+	const firstAudioPage = firstPageLength(result) + oggPageLengthAt(result, firstPageLength(result));
+	const pageLength = oggPageLengthAt(result, firstAudioPage);
+	const view = new DataView(result.buffer);
+	view.setBigUint64(6 + firstAudioPage, view.getBigUint64(6 + firstAudioPage, true) + offset, true);
+	writePageCrc(result, firstAudioPage, pageLength);
+	return result;
+}
+
 function firstPageLength(stream: Uint8Array): number {
-	const segments = stream[26];
+	return oggPageLengthAt(stream, 0);
+}
+
+function oggPageLengthAt(stream: Uint8Array, offset: number): number {
+	const segments = stream[offset + 26];
 	let body = 0;
-	for (let index = 0; index < segments; index++) body += stream[27 + index];
+	for (let index = 0; index < segments; index++) body += stream[offset + 27 + index];
 	return 27 + segments + body;
+}
+
+function writePageCrc(stream: Uint8Array, offset: number, pageLength: number): void {
+	const view = new DataView(stream.buffer);
+	view.setUint32(offset + 22, 0, true);
+	view.setUint32(offset + 22, oggCrc(stream.subarray(offset, offset + pageLength)), true);
 }
 
 function oggCrc(bytes: Uint8Array): number {

@@ -54,6 +54,7 @@ export function parseBundledOpusStream(value: unknown): BundledOpusStreamGeometr
 	let totalAudioSamples = 0;
 	let lastPacketSamples = 0;
 	let previousGranule = 0n;
+	let initialGranuleOffset = 0n;
 	let finalGranule: bigint | null = null;
 	let sawEos = false;
 	let unsupported: string | null = null;
@@ -82,6 +83,7 @@ export function parseBundledOpusStream(value: unknown): BundledOpusStreamGeometr
 		const granule = readU64(bytes, offset + 6);
 		let bodyOffset = offset + 27 + segmentCount;
 		const audioPacketsBeforePage = audioPacketCount;
+		const audioSamplesBeforePage = totalAudioSamples;
 		for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
 			const segmentBytes = bytes[offset + 27 + segmentIndex];
 			partial = appendBounded(
@@ -95,7 +97,7 @@ export function parseBundledOpusStream(value: unknown): BundledOpusStreamGeometr
 					channelCount = head.channelCount;
 					preSkip = head.preSkip;
 					unsupported ??= head.unsupported;
-				} else if (packetIndex === 1) parseOpusTags(partial);
+				} else if (packetIndex === 1) unsupported ??= parseOpusTags(partial);
 				else {
 					const samples = opusPacketSamples(partial);
 					if (samples !== 960) unsupported ??= 'Only 20 ms Opus packets are reviewed.';
@@ -110,10 +112,14 @@ export function parseBundledOpusStream(value: unknown): BundledOpusStreamGeometr
 			}
 		}
 		if (pageCount === 1 && packetIndex !== 1) fail();
-		validatePageGranule({
+		const resolvedGranuleOffset = validatePageGranule({
 			granule, eos, audioPacketsBeforePage, audioPacketCount,
-			totalAudioSamples, previousGranule,
+			audioSamplesBeforePage, totalAudioSamples, previousGranule, initialGranuleOffset,
 		});
+		if (resolvedGranuleOffset > initialGranuleOffset) {
+			initialGranuleOffset = resolvedGranuleOffset;
+			unsupported ??= 'A non-zero initial Ogg Opus granule offset is outside the reviewed profile.';
+		}
 		if (audioPacketCount > audioPacketsBeforePage && granule !== NEGATIVE_GRANULE) {
 			previousGranule = granule;
 		}
@@ -123,9 +129,10 @@ export function parseBundledOpusStream(value: unknown): BundledOpusStreamGeometr
 	if (!sawEos || partial.byteLength !== 0 || packetIndex < 3 || audioPacketCount === 0
 		|| finalGranule === null || finalGranule === NEGATIVE_GRANULE || channelCount === 0) fail();
 	const decodedEnd = BigInt(totalAudioSamples);
-	if (finalGranule > decodedEnd || finalGranule <= BigInt(preSkip)
-		|| decodedEnd - finalGranule >= BigInt(lastPacketSamples)) fail();
-	const frameCountBig = finalGranule - BigInt(preSkip);
+	const localFinalGranule = finalGranule - initialGranuleOffset;
+	if (localFinalGranule > decodedEnd || localFinalGranule <= BigInt(preSkip)
+		|| decodedEnd - localFinalGranule >= BigInt(lastPacketSamples)) fail();
+	const frameCountBig = localFinalGranule - BigInt(preSkip);
 	if (frameCountBig <= 0n || frameCountBig > BigInt(MAXIMUM_FRAME_COUNT)) fail();
 	if (unsupported !== null) throw new BundledOpusStreamUnsupportedError(unsupported);
 	return Object.freeze({
@@ -142,20 +149,22 @@ function parseOpusHead(packet: Uint8Array): Readonly<{
 	readonly preSkip: number;
 	readonly unsupported: string | null;
 }> {
-	if (packet.byteLength < 19 || !equalsAt(packet, 0, OPUS_HEAD) || packet[8] !== 1) fail();
+	if (packet.byteLength < 19 || !equalsAt(packet, 0, OPUS_HEAD) || packet[8] > 15) fail();
+	const version = packet[8];
 	const channels = packet[9];
 	const skip = readU16(packet, 10);
 	const gain = readI16(packet, 16);
 	const mappingFamily = packet[18];
 	if (channels === 0 || channels > 8 || skip > MAXIMUM_PRE_SKIP) fail();
+	let unsupported = version === 1 ? null : 'Only OpusHead version 1 is reviewed.';
 	if (mappingFamily === 0) {
-		if (packet.byteLength !== 19 || channels > 2) fail();
+		if (packet.byteLength < 19 || version === 1 && packet.byteLength !== 19 || channels > 2) fail();
+		if (gain !== 0) unsupported ??= 'Opus output gain is outside the reviewed profile.';
 		return Object.freeze({
-			channelCount: channels, preSkip: skip,
-			unsupported: gain === 0 ? null : 'Opus output gain is outside the reviewed profile.',
+			channelCount: channels, preSkip: skip, unsupported,
 		});
 	}
-	if (packet.byteLength !== 21 + channels) fail();
+	if (packet.byteLength < 21 + channels || version === 1 && packet.byteLength !== 21 + channels) fail();
 	const streams = packet[19];
 	const coupled = packet[20];
 	if (streams === 0 || coupled > streams || streams + coupled !== channels) fail();
@@ -165,11 +174,11 @@ function parseOpusHead(packet: Uint8Array): Readonly<{
 	}
 	return Object.freeze({
 		channelCount: channels, preSkip: skip,
-		unsupported: 'Only Opus mapping family 0 mono/stereo is reviewed.',
+		unsupported: unsupported ?? 'Only Opus mapping family 0 mono/stereo is reviewed.',
 	});
 }
 
-function parseOpusTags(packet: Uint8Array): void {
+function parseOpusTags(packet: Uint8Array): string | null {
 	if (packet.byteLength < 16 || !equalsAt(packet, 0, OPUS_TAGS)) fail();
 	const vendorBytes = readU32(packet, 8);
 	let offset = 12 + vendorBytes;
@@ -184,7 +193,9 @@ function parseOpusTags(packet: Uint8Array): void {
 		if (length > MAXIMUM_TAG_COMMENT_BYTES || offset + length > packet.byteLength) fail();
 		offset += length;
 	}
-	if (offset !== packet.byteLength) fail();
+	return offset === packet.byteLength
+		? null
+		: 'Trailing OpusTags data is outside the reviewed profile.';
 }
 
 function opusPacketSamples(packet: Uint8Array): number {
@@ -208,17 +219,27 @@ function validatePageGranule(options: Readonly<{
 	readonly eos: boolean;
 	readonly audioPacketsBeforePage: number;
 	readonly audioPacketCount: number;
+	readonly audioSamplesBeforePage: number;
 	readonly totalAudioSamples: number;
 	readonly previousGranule: bigint;
-}>): void {
+	readonly initialGranuleOffset: bigint;
+}>): bigint {
 	const completed = options.audioPacketCount > options.audioPacketsBeforePage;
 	if (!completed) {
 		if (options.audioPacketCount === 0 ? options.granule !== 0n : options.granule !== NEGATIVE_GRANULE) fail();
-		return;
+		return options.initialGranuleOffset;
 	}
-	if (options.granule === NEGATIVE_GRANULE || options.granule < options.previousGranule
-		|| options.granule > BigInt(options.totalAudioSamples)) fail();
-	if (!options.eos && options.granule !== BigInt(options.totalAudioSamples)) fail();
+	if (options.granule === NEGATIVE_GRANULE) fail();
+	const localSamples = BigInt(options.totalAudioSamples - options.audioSamplesBeforePage);
+	if (options.audioPacketsBeforePage === 0) {
+		const decodedSamples = BigInt(options.totalAudioSamples);
+		if (!options.eos && options.granule < decodedSamples) fail();
+		return options.granule > decodedSamples ? options.granule - decodedSamples : 0n;
+	}
+	const expectedGranule = options.previousGranule + localSamples;
+	if (options.granule < options.previousGranule || options.granule > expectedGranule) fail();
+	if (!options.eos && options.granule !== expectedGranule) fail();
+	return options.initialGranuleOffset;
 }
 
 function appendBounded(left: Uint8Array, right: Uint8Array, maximum: number): Uint8Array {

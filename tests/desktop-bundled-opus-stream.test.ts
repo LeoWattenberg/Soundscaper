@@ -26,7 +26,7 @@ test('strict bundled Ogg Opus parser makes malformed framing and metadata termin
 	checksum[checksum.length - 1] ^= 1;
 	const sequence = Uint8Array.from(valid);
 	new DataView(sequence.buffer).setUint32(firstPageLength(sequence) + 18, 7, true);
-	const badGranule = opusStream({ channels: 2, frameCount: 649, finalGranule: 10_000n });
+	const badGranule = opusStream({ channels: 2, frameCount: 649, finalGranule: 1n });
 	for (const malformed of [
 		valid.subarray(0, valid.length - 1), checksum, sequence, badGranule,
 		opusStream({ channels: 2, frameCount: 648, tags: Uint8Array.from([1, 2, 3]) }),
@@ -52,6 +52,36 @@ test('strict parser distinguishes valid but unreviewed Opus profiles for provide
 		() => parseBundledOpusStream(opusStream({ channels: 2, frameCount: 648, gainQ8: 256 })),
 		BundledOpusStreamUnsupportedError,
 	);
+	assert.throws(
+		() => parseBundledOpusStream(opusStream({
+			channels: 2, frameCount: 648, headVersion: 2,
+			headTrailingBytes: Uint8Array.of(0xa5),
+		})),
+		BundledOpusStreamUnsupportedError,
+	);
+	assert.throws(
+		() => parseBundledOpusStream(opusStream({
+			channels: 2, frameCount: 648, tagTrailingBytes: Uint8Array.of(1, 2, 3),
+		})),
+		BundledOpusStreamUnsupportedError,
+	);
+	assert.throws(
+		() => parseBundledOpusStream(opusStream({
+			channels: 2, frameCount: 648, initialGranuleOffset: 48_000n,
+		})),
+		BundledOpusStreamUnsupportedError,
+	);
+});
+
+test('strict parser keeps incompatible headers and impossible initial granules malformed', () => {
+	for (const malformed of [
+		opusStream({ channels: 2, frameCount: 648, headVersion: 16 }),
+		opusStream({ channels: 2, frameCount: 648, finalGranule: 311n }),
+	]) assert.throws(
+		() => parseBundledOpusStream(malformed),
+		(error: unknown) => error instanceof BundledOpusStreamError
+			&& !(error instanceof BundledOpusStreamUnsupportedError),
+	);
 });
 
 test('strict parser rejects chained, discontinuous, and checksum-invalid Ogg streams', () => {
@@ -71,7 +101,11 @@ function opusStream(options: Readonly<{
 	readonly finalGranule?: bigint;
 	readonly firstAudioContinuation?: boolean;
 	readonly gainQ8?: number;
+	readonly headTrailingBytes?: Uint8Array;
+	readonly headVersion?: number;
+	readonly initialGranuleOffset?: bigint;
 	readonly mappingFamily?: 0 | 1;
+	readonly tagTrailingBytes?: Uint8Array;
 	readonly tags?: Uint8Array;
 	readonly toc?: number;
 }>): Uint8Array {
@@ -79,7 +113,7 @@ function opusStream(options: Readonly<{
 	const mappingFamily = options.mappingFamily ?? 0;
 	const head = new Uint8Array(mappingFamily === 0 ? 19 : 21 + options.channels);
 	head.set(new TextEncoder().encode('OpusHead'));
-	head[8] = 1;
+	head[8] = options.headVersion ?? 1;
 	head[9] = options.channels;
 	const headView = new DataView(head.buffer);
 	headView.setUint16(10, preSkip, true);
@@ -91,19 +125,22 @@ function opusStream(options: Readonly<{
 		head[20] = 1;
 		for (let channel = 0; channel < options.channels; channel++) head[21 + channel] = channel;
 	}
+	const completeHead = concatBytes(head, options.headTrailingBytes ?? new Uint8Array(0));
 	const tags = options.tags ?? concatBytes(
 		new TextEncoder().encode('OpusTags'), u32(0), u32(0),
+		options.tagTrailingBytes ?? new Uint8Array(0),
 	);
 	const packets = Math.ceil((options.frameCount + preSkip) / 960);
 	const audioPackets = Array.from({ length: packets }, () => Uint8Array.of(options.toc ?? 0xf8));
 	const serial = 0x53434f50;
 	return concatBytes(
-		oggPage({ packets: [head], serial, sequence: 0, flags: 2, granule: 0n }),
+		oggPage({ packets: [completeHead], serial, sequence: 0, flags: 2, granule: 0n }),
 		oggPage({ packets: [tags], serial, sequence: 1, flags: 0, granule: 0n }),
 		oggPage({
 			packets: audioPackets, serial, sequence: 2,
 			flags: 4 | (options.firstAudioContinuation ? 1 : 0),
-			granule: options.finalGranule ?? BigInt(options.frameCount + preSkip),
+			granule: options.finalGranule
+				?? BigInt(options.frameCount + preSkip) + (options.initialGranuleOffset ?? 0n),
 		}),
 	);
 }
