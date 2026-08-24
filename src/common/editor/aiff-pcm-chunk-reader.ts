@@ -58,6 +58,17 @@ export interface AiffBlobPcmChunkReader {
 	): Promise<AiffBlobPcmChunk>;
 }
 
+export interface AiffBlobPcmStreamOptions {
+	readonly descriptor?: unknown;
+	readonly chunkFrames?: number;
+	readonly signal?: AbortSignal;
+	readonly onFormat?: (descriptor: AiffPcmDescriptor) => unknown | PromiseLike<unknown>;
+	readonly onChunk: (
+		channels: readonly Float32Array[],
+		chunk: AiffBlobPcmChunk,
+	) => unknown | PromiseLike<unknown>;
+}
+
 interface AiffComm {
 	readonly sampleFormat: AiffPcmSampleFormat;
 	readonly sampleRate: number;
@@ -255,6 +266,41 @@ export function createAiffBlobPcmChunkReader(
 				descriptor,
 			});
 		},
+	});
+}
+
+/** Stream maintained AIFF PCM with one bounded encoded slice and planar packet at a time. */
+export async function streamAiffBlobPcm(
+	source: unknown,
+	options: AiffBlobPcmStreamOptions,
+): Promise<Readonly<AiffPcmDescriptor & { chunkFrames: number; chunkCount: number }>> {
+	if (!options || typeof options !== 'object' || typeof options.onChunk !== 'function') {
+		throw new TypeError('AIFF onChunk must be a function.');
+	}
+	if (options.onFormat !== undefined && typeof options.onFormat !== 'function') {
+		throw new TypeError('AIFF onFormat must be a function.');
+	}
+	const descriptor = options.descriptor === undefined
+		? await inspectAiffBlobPcm(source, options.signal ? { signal: options.signal } : {})
+		: options.descriptor;
+	const reader = createAiffBlobPcmChunkReader(source, {
+		descriptor,
+		...(options.chunkFrames === undefined ? {} : { chunkFrames: options.chunkFrames }),
+	});
+	throwIfAborted(options.signal);
+	if (options.onFormat) {
+		await options.onFormat(reader.descriptor);
+		throwIfAborted(options.signal);
+	}
+	for (let index = 0; index < reader.chunkCount; index += 1) {
+		const chunk = await reader.readChunk(index, { signal: options.signal });
+		await options.onChunk(chunk.channels, chunk);
+		throwIfAborted(options.signal);
+	}
+	return Object.freeze({
+		...reader.descriptor,
+		chunkFrames: reader.chunkFrames,
+		chunkCount: reader.chunkCount,
 	});
 }
 

@@ -14,7 +14,9 @@ import {
 	normalizeProjectImportTimelineStartFrame,
 	type LinkedOriginalImportLocatorReference,
 } from './project-import-options.ts';
-import { createIncrementalWavImporter } from './incremental-wav-import-service.ts';
+import { streamAiffBlobPcm } from '../aiff-pcm-chunk-reader.ts';
+import { inspectDesktopStandalonePcm } from './desktop-standalone-pcm-import.ts';
+import { createIncrementalPcmImporter } from './incremental-wav-import-service.ts';
 import { createLinkedAudioImportAdmission } from './linked-audio-import-admission.ts';
 import { createLinkedPcmImporter } from './linked-wav-import-service.ts';
 import { decodeStandaloneAudioForImport } from './standalone-audio-import-decoder.ts';
@@ -56,13 +58,13 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		writeBuffer, taskProgress,
 	} = runtime;
 	let activeImportProgress: RuntimeValue = null;
-	const importIncrementalWav = createIncrementalWavImporter({
+	const importIncrementalPcm = createIncrementalPcmImporter({
 		SOURCE_CHUNK_FRAMES, activateStoredSource, commit, copy, createStableId,
 		getProject, importResultWithWarnings, preflightStorage,
 		prepareImportedMediaCommand, projectSampleRate,
 		reportProgress: (value) => { activeImportProgress?.update?.(value); },
 		retireSourceChunkProvider, sourceBuffers, sourcePcmBytes, sourcePeaks, store,
-		streamWavBlobPcm, stripExtension, warnEnvelope,
+		streamAiffBlobPcm, streamWavBlobPcm, stripExtension, warnEnvelope,
 	});
 	const importLinkedPcm = createLinkedPcmImporter({
 		SOURCE_CHUNK_FRAMES, activateStoredSource, assertProject, captureProject,
@@ -350,10 +352,19 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			&& isAudioEditorEngineSupported?.() === false);
 		if (wavSignature === 'RF64' || wavSignature === 'BW64') {
 			if (!wavDescriptor) throw new Error(`The ${wavSignature} WAV file could not be inspected incrementally.`);
-			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
+			return importIncrementalPcm(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
+		}
+		const desktopPcmDescriptor = await inspectDesktopStandalonePcm(file, ffmpeg, wavDescriptor);
+		if (desktopPcmDescriptor) {
+			const pcmMetadata = desktopPcmDescriptor === wavDescriptor
+				? wavMetadata
+				: prepareWavImportMetadata(desktopPcmDescriptor, normalizedImportOptions);
+			return importIncrementalPcm(file, desktopPcmDescriptor, pcmMetadata.importOptions, pcmMetadata, {
+				requireChunkStream: true,
+			});
 		}
 		if (requireChunkStream || isIncrementalWav(wavDescriptor)) {
-			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
+			return importIncrementalPcm(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
 		}
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 		const { context, decoded, originalSampleRate } = await decodeStandaloneAudioForImport({
