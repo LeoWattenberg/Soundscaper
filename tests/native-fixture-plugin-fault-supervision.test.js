@@ -221,9 +221,10 @@ test('a fixture that really aborts mid-scan is contained and classified a scanne
 
 	assert.equal(outcome.status, 'failed');
 	assert.equal(outcome.code, 'helper-failed');
-	assert.deepEqual(outcome.fault, { reason: 'scanner-crash', quarantined: false },
-		'the crash is named a scanner crash and charged to no binary the scan never got to name');
-	assert.deepEqual(rig.quarantined, [], 'quarantine is keyed by the bytes that misbehaved, never by a folder');
+	assert.deepEqual(outcome.fault, { reason: 'scanner-crash', quarantined: true },
+		'the crash is named a scanner crash and durably quarantines its root-and-format scan unit');
+	assert.deepEqual(rig.quarantined, [{ digest: rig.scanDigest, reason: 'scanner-crash' }],
+		'the scan unit is withheld so the same folder cannot crash the scanner in a loop');
 	assert.equal(rig.children.length, 1, 'the scan must have run in exactly one supervised helper');
 	const [helper] = rig.children;
 	assert.ok(helper.exit, 'the aborting fixture must have taken its helper process down');
@@ -248,8 +249,8 @@ test('a fixture that really hangs mid-scan is killed by the heartbeat watchdog a
 
 	assert.equal(outcome.status, 'failed');
 	assert.equal(outcome.code, 'helper-failed');
-	assert.deepEqual(outcome.fault, { reason: 'scanner-hang', quarantined: false });
-	assert.deepEqual(rig.quarantined, []);
+	assert.deepEqual(outcome.fault, { reason: 'scanner-hang', quarantined: true });
+	assert.deepEqual(rig.quarantined, [{ digest: rig.scanDigest, reason: 'scanner-hang' }]);
 	// The heartbeat watchdog is what gave up, not the job-duration ceiling: a
 	// helper whose thread is gone would otherwise hold the scan for five minutes.
 	assert.ok(elapsed < PLUGIN_SCAN_RESOURCE_POLICY.maximumJobDurationMs / 4,
@@ -279,15 +280,24 @@ test('one aborting candidate costs its healthy neighbours nothing at all', {
 	assert.equal(outcome.code, 'helper-failed');
 	assert.equal(outcome.scan, undefined);
 	// Progress carries a ratio and nothing else, so the scan died naming no
-	// binary. Quarantining the root instead would block rescans of every healthy
-	// plug-in beside the hostile one, and the only exit — an explicit rescan —
-	// would re-run the same root into the same abort.
-	assert.deepEqual(outcome.fault, { reason: 'scanner-crash', quarantined: false });
-	assert.deepEqual(rig.quarantined, [], 'the clean effect beside it keeps its eligibility');
+	// binary. The whole scan unit is durably withheld instead: a folder that
+	// crashes the scanner must not be rescanned into the same abort forever,
+	// and the explicit rescan clearance is the one deliberate way back in.
+	assert.deepEqual(outcome.fault, { reason: 'scanner-crash', quarantined: true });
+	assert.deepEqual(rig.quarantined, [{ digest: rig.scanDigest, reason: 'scanner-crash' }]);
 
+	const withheld = await rig.service.scanRoot({ owner: {}, rootId: 'fixtures', format: 'fixture' });
+	assert.equal(withheld.status, 'failed');
+	assert.equal(withheld.code, 'digest-quarantined', 'the location is durably withheld');
+	assert.equal(rig.children.length, 1, 'a withheld location must never reach another helper');
+
+	// The explicit clearance reopens the location; the healthy neighbour costs
+	// nothing beyond that one deliberate rescan of its folder.
+	rig.quarantined.length = 0;
 	const again = await rig.service.scanRoot({ owner: {}, rootId: 'fixtures', format: 'fixture' });
 	assert.equal(again.status, 'failed');
-	assert.notEqual(again.code, 'digest-quarantined', 'the location was never durably withheld');
+	assert.notEqual(again.code, 'digest-quarantined');
+	assert.equal(rig.children.length, 2, 'a cleared location scans again');
 });
 
 function once(emitter, event) {

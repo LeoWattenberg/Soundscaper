@@ -8,6 +8,7 @@ export const DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES = Object.freeze([
 	'desktop/native-helper-lab-diagnostic.js',
 	'desktop/native-plugin-helper-adapter.js',
 	'desktop/plugin-bundle-identity.js',
+	'desktop/plugin-host-isolation-support.js',
 	'desktop/plugin-host-isolation.js',
 	'desktop/plugin-host-descriptor.js',
 	'desktop/plugin-host-process-admission.js',

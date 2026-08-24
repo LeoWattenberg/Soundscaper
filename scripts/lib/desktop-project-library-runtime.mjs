@@ -77,6 +77,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/helper-probe-service.js',
 	'desktop/helper-resource-policy.js',
 	'desktop/helper-supervision-state.js',
+	'desktop/helper-supervisor-contracts.js',
 	'desktop/helper-supervisor.js',
 	'desktop/native-helper-service.js',
 	'desktop/native-helper-results.js',

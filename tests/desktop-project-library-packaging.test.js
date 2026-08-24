@@ -77,6 +77,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/helper-probe-service.js',
 		'desktop/helper-resource-policy.js',
 		'desktop/helper-supervision-state.js',
+		'desktop/helper-supervisor-contracts.js',
 		'desktop/helper-supervisor.js',
 		'desktop/native-addon-payload.js',
 		'desktop/native-helper-results.js',

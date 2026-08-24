@@ -28,6 +28,9 @@ test('an ended native capture lease no longer blocks idle-only calibration', () 
 	claim.revoke();
 });
 
+/** Stands in for the window the preload relay posts to; offers carry it as their source. */
+const FIXTURE_WINDOW_SOURCE = {} as Window;
+
 test('bound native input is pulled silently and records exact channels through the direct node', async () => {
 	const events: unknown[] = [];
 	const device = audioNode('device', events);
@@ -54,6 +57,7 @@ test('bound native input is pulled silently and records exact channels through t
 			play: async () => undefined,
 		},
 		windowValue: {
+			window: FIXTURE_WINDOW_SOURCE,
 			addEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
 				callbacks.receive = listener as (event: Event) => void;
 			},
@@ -78,6 +82,7 @@ test('bound native input is pulled silently and records exact channels through t
 	assert.deepEqual(events.slice(0, 2), [['connect', 'device', 'sink'], ['connect', 'sink', 'destination']]);
 	assert.equal(sink.gain.value, 0, 'native capture is pulled without direct monitoring');
 	callbacks.receive?.({
+		source: FIXTURE_WINDOW_SOURCE,
 		data: { type: 'soundscaper-native-realtime-port-v1', offer: {
 			protocolVersion: 1, generation: 1, sampleFormat: 'f32-planar', sampleRate: 48_000,
 			channelCount: 2, frameCount: 128, queueCapacity: 8, startFrame: 0,
