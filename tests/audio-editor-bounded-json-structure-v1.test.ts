@@ -80,8 +80,9 @@ test('non-JSON values are malformed: cycles, symbols, accessors, exotic objects'
 });
 
 test('arrays must be dense own data with no extra properties', () => {
-	// eslint-disable-next-line no-sparse-arrays
-	assert.equal(code(() => assertBoundedJsonStructureV1([1, , 3])), 'malformed');
+	const sparse = [1];
+	sparse.length = 3;
+	assert.equal(code(() => assertBoundedJsonStructureV1(sparse)), 'malformed');
 
 	const decorated: number[] & { extra?: number } = [1, 2, 3];
 	decorated.extra = 4;

@@ -221,7 +221,7 @@ test('companion audio file names carry the export catalog extension', async () =
 	for (const format of PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1) {
 		assert.equal(
 			framescaperImageSequenceCompanionAudioFileNameV15(format),
-			`audio.${(MEDIA_EXPORT_FORMATS as Record<string, { extension: string }>)[format]!.extension}`,
+			`audio.${(MEDIA_EXPORT_FORMATS as unknown as Record<string, { extension: string }>)[format]!.extension}`,
 			format,
 		);
 	}
