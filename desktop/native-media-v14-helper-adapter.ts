@@ -64,10 +64,13 @@ export function framescaperNativeMediaV14ProxyOutputCeiling(
 		const timing = source.timing as Readonly<{
 			kind?: string; frameCount?: number; rate?: Readonly<{ num: number; den: number }>;
 		}> | undefined;
-		return Number.isSafeInteger(timing?.frameCount) && Number.isSafeInteger(timing?.rate?.num)
-			&& (timing.rate!.num) > 0 && Number.isSafeInteger(timing?.rate?.den)
-			? Math.max(total, Math.ceil((timing.frameCount! * timing.rate!.den) / timing.rate!.num))
-			: total;
+		if (!timing || typeof timing.frameCount !== 'number' || !Number.isSafeInteger(timing.frameCount)
+			|| !timing.rate || typeof timing.rate.num !== 'number' || typeof timing.rate.den !== 'number'
+			|| !Number.isSafeInteger(timing.rate.num) || !Number.isSafeInteger(timing.rate.den)
+			|| timing.rate.num <= 0) {
+			return total;
+		}
+		return Math.max(total, Math.ceil((timing.frameCount * timing.rate.den) / timing.rate.num));
 	}, 0);
 	return Math.min(HELPER_DATA_PLANE_MAXIMUM_BYTES,
 		Math.max(PROXY_OUTPUT_MINIMUM_CEILING_BYTES, safeProduct([seconds, PROXY_OUTPUT_BYTES_PER_SECOND])));
