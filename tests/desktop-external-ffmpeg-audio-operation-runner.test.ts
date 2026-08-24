@@ -250,13 +250,39 @@ test('runtime, log, output, and process failures remain typed and bounded', asyn
 	});
 });
 
+test('the trusted contract can narrow the per-operation output limit', async (context) => {
+	const root = await temporaryRoot(context);
+	const child = fakeChild();
+	let outputPath = '';
+	let launchedArguments: readonly string[] = [];
+	const runner = createExternalFfmpegAudioOperationRunner({
+		scratchRoot: root,
+		contract: contract({
+			maximumOutputBytes: 2,
+			onBuild(files) { outputPath = files.outputPath; assert.equal(files.maximumOutputBytes, 2); },
+		}),
+		getAdmittedExecutable: admittedExecutable,
+		digestExecutable: admittedDigest,
+		maximumOutputBytes: 16,
+		spawn(_executable, arguments_) {
+			launchedArguments = arguments_;
+			void complete(child, outputPath, Uint8Array.of(1, 2, 3));
+			return child;
+		},
+	});
+	assert.deepEqual(await runner.execute(operationRequest()), unavailable('output-limit', 'encoded'));
+	assert.deepEqual(launchedArguments.slice(-3), ['-fs', '2', outputPath]);
+});
+
 function contract(options: Readonly<{
 	reject?: boolean;
+	maximumOutputBytes?: number;
 	onAdmit?(): void;
 	onBuild?(files: Readonly<{ readonly inputPath: string; readonly outputPath: string }>): void;
 	onValidate?(): boolean;
 }> = {}): ExternalFfmpegAudioOperationContract<Operation> {
 	return {
+		maximumOutputBytes: () => options.maximumOutputBytes,
 		admitOperation(value) {
 			options.onAdmit?.();
 			return options.reject || !value || typeof value !== 'object'

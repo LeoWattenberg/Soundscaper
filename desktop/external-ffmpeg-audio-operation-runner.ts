@@ -24,6 +24,7 @@ export type ExternalFfmpegAudioOperationAdmission<Operation> =
  */
 export interface ExternalFfmpegAudioOperationContract<Operation> {
 	admitOperation(value: unknown): ExternalFfmpegAudioOperationAdmission<Operation>;
+	maximumOutputBytes?(operation: Operation): number | undefined;
 	buildArguments(operation: Operation, files: ExternalFfmpegAudioOperationFiles): unknown;
 	validateArguments(
 		arguments_: readonly string[],
@@ -213,6 +214,12 @@ async function executeActive<Operation>(options: Readonly<{
 	launch: ExternalFfmpegAudioSpawn;
 	environment: Readonly<Record<string, string>>;
 }>): Promise<ExternalFfmpegAudioOperationResult> {
+	let maximumOutputBytes: number;
+	try {
+		maximumOutputBytes = options.contract.maximumOutputBytes?.(options.operation)
+			?? options.limits.output;
+		boundedInteger(maximumOutputBytes, 1, options.limits.output, 'operation output');
+	} catch { return unavailable('contract-rejected'); }
 	let scratchDirectory: string | null = null;
 	let result: ExternalFfmpegAudioOperationResult;
 	try {
@@ -220,7 +227,7 @@ async function executeActive<Operation>(options: Readonly<{
 		const files: ExternalFfmpegAudioOperationFiles = Object.freeze({
 			inputPath: join(scratchDirectory, 'input.media'),
 			outputPath: join(scratchDirectory, 'output.media'),
-			maximumOutputBytes: options.limits.output,
+			maximumOutputBytes,
 		});
 		await writeFile(files.inputPath, Buffer.from(options.request.input), { flag: 'wx', mode: 0o600 });
 		result = await executeStaged({ ...options, files, scratchDirectory });
@@ -282,7 +289,7 @@ async function executeStaged<Operation>(options: Readonly<{
 		limits: options.limits, signal: options.request.signal, launch: options.launch,
 	});
 	if (processResult.status === 'unavailable') return processResult;
-	const output = await readBoundedOutput(options.files.outputPath, options.limits.output);
+	const output = await readBoundedOutput(options.files.outputPath, options.files.maximumOutputBytes);
 	if (output.status === 'unavailable') return { ...output, log: processResult.log };
 	return Object.freeze({ status: 'executed', output: output.bytes, log: processResult.log });
 }
@@ -450,6 +457,8 @@ function validateOptions<Operation>(options: ExternalFfmpegAudioOperationRunnerO
 		|| !isAbsolute(options.scratchRoot) || options.scratchRoot.length > ARGUMENT_BYTE_LIMIT
 		|| options.scratchRoot.includes('\0') || !options.contract
 		|| typeof options.contract.admitOperation !== 'function'
+		|| options.contract.maximumOutputBytes !== undefined
+			&& typeof options.contract.maximumOutputBytes !== 'function'
 		|| typeof options.contract.buildArguments !== 'function'
 		|| typeof options.contract.validateArguments !== 'function'
 		|| typeof options.getAdmittedExecutable !== 'function'
