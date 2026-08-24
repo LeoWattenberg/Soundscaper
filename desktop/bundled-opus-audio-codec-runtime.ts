@@ -414,13 +414,20 @@ function supportedOperation(operation: DesktopCodecOperation): boolean {
 		&& Number.isSafeInteger(operation.channelCount)
 		&& operation.channelCount! >= 1 && operation.channelCount! <= BUNDLED_OPUS_MAXIMUM_CHANNELS;
 	const decodeGeometry = operation.direction === 'decode'
-		&& operation.sampleRate === null && operation.channelCount === null;
+		&& (operation.sampleRate === null && operation.channelCount === null
+			|| operation.sampleRate === BUNDLED_OPUS_SAMPLE_RATE
+				&& Number.isSafeInteger(operation.channelCount)
+				&& operation.channelCount! >= 1
+				&& operation.channelCount! <= BUNDLED_OPUS_MAXIMUM_CHANNELS);
 	return matchingOperation(operation) && (encodeGeometry || decodeGeometry);
 }
 
 function matchingOperation(operation: DesktopCodecOperation): boolean {
 	const contractGeometry = operation.direction === 'decode'
 		? operation.sampleRate === null && operation.channelCount === null
+			|| operation.sampleRate !== null && OPUS_CONTRACT_SAMPLE_RATES.has(operation.sampleRate)
+				&& Number.isSafeInteger(operation.channelCount)
+				&& operation.channelCount! >= 1 && operation.channelCount! <= 8
 		: operation.sampleRate !== null && OPUS_CONTRACT_SAMPLE_RATES.has(operation.sampleRate)
 			&& Number.isSafeInteger(operation.channelCount)
 			&& operation.channelCount! >= 1 && operation.channelCount! <= 8;

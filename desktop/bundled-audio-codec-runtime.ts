@@ -30,6 +30,26 @@ export function createBundledDesktopAudioCodecRuntime(options: Readonly<{
 	const provider = compositeProvider(target, runtimes);
 	return Object.freeze({
 		provider,
+		async selectRequestRuntime(
+			request: DesktopAudioCodecRequest,
+			executionOptions: Readonly<{
+				readonly operation: DesktopCodecOperation;
+				readonly signal?: AbortSignal;
+			}>,
+		): Promise<DesktopAudioCodecProviderRuntime | null> {
+			for (const runtime of runtimes) {
+				const tuple = await runtime.provider.preflight(
+					executionOptions.operation,
+					Object.freeze({ ...(executionOptions.signal ? { signal: executionOptions.signal } : {}) }),
+				);
+				if (tuple.disposition === 'rejected') return runtime;
+				if (tuple.disposition !== 'supported') continue;
+				if (runtime.preflightRequest === undefined) return runtime;
+				const exact = await runtime.preflightRequest(request, executionOptions);
+				if (exact.disposition === 'supported' || exact.disposition === 'rejected') return runtime;
+			}
+			return null;
+		},
 		async preflightRequest(
 			request: DesktopAudioCodecRequest,
 			executionOptions: Readonly<{

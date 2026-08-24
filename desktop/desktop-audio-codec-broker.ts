@@ -45,6 +45,14 @@ export type DesktopAudioCodecProviderExecutionResult =
 
 export interface DesktopAudioCodecProviderRuntime {
 	readonly provider: DesktopCodecProvider;
+	/** Resolve an aggregate bundled tier to the exact runtime bound to this request. */
+	selectRequestRuntime?(
+		request: DesktopAudioCodecRequest,
+		options: Readonly<{
+			readonly operation: DesktopCodecOperation;
+			readonly signal?: AbortSignal;
+		}>,
+	): Promise<DesktopAudioCodecProviderRuntime | null>;
 	/** Optional exact-request gate evaluated after the provider's tuple preflight. */
 	preflightRequest?(
 		request: DesktopAudioCodecRequest,
@@ -164,7 +172,9 @@ export function createDesktopAudioCodecBroker(options: Readonly<{
 			const request = normalizeDesktopAudioCodecRequest(requestValue);
 			const operation = operationFromRequest(request);
 			const inputDigest = sha256(request.input);
-			const bindings = runtimes.map((runtime) => bindRuntimeToRequest(runtime, request));
+			const bindings = await bindRuntimesToRequest(
+				runtimes, request, operation, executionOptions.signal,
+			);
 			const coordinator = createDesktopCodecCoordinator({
 				providers: bindings.map(({ provider }) => provider),
 			});
@@ -188,13 +198,35 @@ export function createDesktopAudioCodecBroker(options: Readonly<{
 	});
 }
 
-function bindRuntimeToRequest(
+async function bindRuntimesToRequest(
+	runtimes: DesktopAudioCodecProviderRuntimeTuple,
+	request: DesktopAudioCodecRequest,
+	operation: DesktopCodecOperation,
+	signal: AbortSignal | undefined,
+): Promise<readonly Readonly<{
+	readonly provider: DesktopCodecProvider;
+	readonly runtime: DesktopAudioCodecProviderRuntime;
+}>[]> {
+	const bindings = [];
+	for (const runtime of runtimes) {
+		bindings.push(await bindRuntimeToRequest(runtime, request, operation, signal));
+	}
+	return Object.freeze(bindings);
+}
+
+async function bindRuntimeToRequest(
 	runtime: DesktopAudioCodecProviderRuntime,
 	request: DesktopAudioCodecRequest,
-): Readonly<{ readonly provider: DesktopCodecProvider; readonly runtime: DesktopAudioCodecProviderRuntime }> {
-	const preflightRequest = runtime.preflightRequest;
-	if (preflightRequest === undefined) return Object.freeze({ provider: runtime.provider, runtime });
-	const source = runtime.provider;
+	operation: DesktopCodecOperation,
+	signal: AbortSignal | undefined,
+): Promise<Readonly<{
+	readonly provider: DesktopCodecProvider;
+	readonly runtime: DesktopAudioCodecProviderRuntime;
+}>> {
+	const selected = await selectedRuntime(runtime, request, operation, signal);
+	const preflightRequest = selected.preflightRequest;
+	if (preflightRequest === undefined) return Object.freeze({ provider: selected.provider, runtime: selected });
+	const source = selected.provider;
 	const provider: DesktopCodecProvider = Object.freeze({
 		kind: source.kind, id: source.id, implementation: source.implementation,
 		version: source.version, capabilityGeneration: source.capabilityGeneration,
@@ -204,12 +236,34 @@ function bindRuntimeToRequest(
 		) {
 			const tuple = await source.preflight(operation, options);
 			if (tuple.disposition !== 'supported') return tuple;
-			return await preflightRequest.call(runtime, request, Object.freeze({
+			return await preflightRequest.call(selected, request, Object.freeze({
 				operation, ...(options.signal ? { signal: options.signal } : {}),
 			}));
 		},
 	});
-	return Object.freeze({ provider, runtime });
+	return Object.freeze({ provider, runtime: selected });
+}
+
+async function selectedRuntime(
+	runtime: DesktopAudioCodecProviderRuntime,
+	request: DesktopAudioCodecRequest,
+	operation: DesktopCodecOperation,
+	signal: AbortSignal | undefined,
+): Promise<DesktopAudioCodecProviderRuntime> {
+	const selector = runtime.selectRequestRuntime;
+	if (selector === undefined) return runtime;
+	const selected = await selector.call(runtime, request, Object.freeze({
+		operation, ...(signal ? { signal } : {}),
+	}));
+	if (selected === null) return runtime;
+	if (!selected || typeof selected !== 'object' || Array.isArray(selected)
+		|| !selected.provider || selected.provider.kind !== runtime.provider.kind
+		|| typeof selected.provider.preflight !== 'function'
+		|| typeof selected.execute !== 'function'
+		|| selected.preflightRequest !== undefined && typeof selected.preflightRequest !== 'function') {
+		throw new TypeError('The request-scoped desktop audio codec runtime selection is invalid.');
+	}
+	return selected;
 }
 
 async function runSelectedRuntime(
@@ -296,7 +350,11 @@ function validateRuntimes(value: unknown): DesktopAudioCodecProviderRuntimeTuple
 			|| !runtime.provider || runtime.provider.kind !== PROVIDER_ORDER[index]
 			|| typeof runtime.execute !== 'function'
 			|| runtime.preflightRequest !== undefined
-				&& typeof runtime.preflightRequest !== 'function') throw runtimeOrderError();
+				&& typeof runtime.preflightRequest !== 'function'
+			|| runtime.selectRequestRuntime !== undefined
+				&& (runtime.provider.kind !== 'bundled' || typeof runtime.selectRequestRuntime !== 'function')) {
+			throw runtimeOrderError();
+		}
 	}
 	return Object.freeze([...value]) as unknown as DesktopAudioCodecProviderRuntimeTuple;
 }
