@@ -33,7 +33,7 @@ export const PLATFORM_DELIVERY_LICENSING_ROWS: readonly PlatformDeliveryLicensin
 	Object.freeze({
 		id: "codec-native-ffmpeg-current-set",
 		status: "blocked",
-		blocker: "ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review remain blocked for the shipped runtime, while the native FFmpeg 9.0.1 candidate has no reviewed build payload, exact codec/container clearance, signature, or target evidence.",
+		blocker: "ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review remain blocked for the Web runtime, while the native FFmpeg 9.0.1 provider candidate has no reviewed build payload, exact codec/container clearance, signature, or target evidence and is forbidden by the current application-provider package policy. Verification of Electron's separate alternate framework library supplies none of that provider qualification.",
 	}),
 	Object.freeze({
 		id: "codec-hardware-acceleration",
