@@ -140,8 +140,11 @@ test('quality budget contract names numeric gates and the exact qualified struct
 	assert.deepEqual(config.qualification.qualifiedWorkloadIds, [
 		'm2-streaming-project-8gib-v1',
 		'm2-direct-wav-385mib-v1',
+		'm2-direct-stem-archives-v3',
+		'm2-direct-compressed-output-v2',
+		'm2-direct-mp4-webm-video-output-v1',
 	]);
-	assert.equal(config.qualification.acceptedResultCohorts.length, 1);
+	assert.equal(config.qualification.acceptedResultCohorts.length, 2);
 	assert.deepEqual(config.qualification.resultContract, {
 		schemaVersion: 1,
 		evaluator: 'scripts/quality-budget-result.mjs',

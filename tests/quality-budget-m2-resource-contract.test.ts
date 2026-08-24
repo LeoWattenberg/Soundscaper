@@ -9,6 +9,9 @@ const ENVIRONMENT_ID = 'portable-node-structural-26.5.0';
 const QUALIFIED_IDS = Object.freeze([
 	'm2-streaming-project-8gib-v1',
 	'm2-direct-wav-385mib-v1',
+	'm2-direct-stem-archives-v3',
+	'm2-direct-compressed-output-v2',
+	'm2-direct-mp4-webm-video-output-v1',
 ]);
 
 const EXPECTED_THRESHOLDS = new Map<string, readonly Readonly<Record<string, unknown>>[]>([
@@ -79,25 +82,35 @@ test('the frozen milestone-2 resource IDs own exact structural workload contract
 	}
 });
 
-test('one reviewed no-retry cohort covers the exact qualified workload set', async () => {
+test('reviewed no-retry cohorts cover the exact qualified workload set', async () => {
 	const budgets = JSON.parse(await readFile(budgetsUrl, 'utf8'));
 	const qualifiedIds = [...QUALIFIED_IDS];
 	assert.deepEqual(budgets.qualification.qualifiedWorkloadIds, qualifiedIds);
-	assert.equal(budgets.qualification.acceptedResultCohorts.length, 1);
-	const cohort = budgets.qualification.acceptedResultCohorts[0];
-	assert.equal(cohort.id, 'm2-structural-aad0ba1');
-	assert.equal(cohort.sourceRevision, 'aad0ba1630d6c1a554da1ba5134307d274210f47');
-	assert.equal(cohort.budgetSha256, '9ebd33f88b5ce7af51a99175b48d6ddf19175b11f962c6f765d2825d59fdf7d1');
-	assert.equal(cohort.environmentId, ENVIRONMENT_ID);
-	assert.equal(cohort.attemptCount, 1);
-	assert.equal(cohort.retryCount, 0);
-	assert.equal(cohort.retention, 'reviewed-workspace-artifacts-with-checked-in-byte-length-and-sha256');
-	assert.deepEqual(cohort.artifacts.map(({ workloadId }: { readonly workloadId: string }) => workloadId), qualifiedIds);
-	for (const artifact of cohort.artifacts) {
-		assert.ok(Number.isSafeInteger(artifact.resultByteLength) && artifact.resultByteLength > 0);
-		assert.ok(Number.isSafeInteger(artifact.rawByteLength) && artifact.rawByteLength > 0);
-		assert.match(artifact.resultSha256, /^[a-f\d]{64}$/u);
-		assert.match(artifact.rawSha256, /^[a-f\d]{64}$/u);
+	assert.equal(budgets.qualification.acceptedResultCohorts.length, 2);
+	const [historical, observed] = budgets.qualification.acceptedResultCohorts;
+	assert.deepEqual([
+		[historical.id, historical.sourceRevision, historical.budgetSha256],
+		[observed.id, observed.sourceRevision, observed.budgetSha256],
+	], [
+		['m2-structural-aad0ba1', 'aad0ba1630d6c1a554da1ba5134307d274210f47', '9ebd33f88b5ce7af51a99175b48d6ddf19175b11f962c6f765d2825d59fdf7d1'],
+		['m2-direct-observed-f3d11cb3', 'f3d11cb307a227fefb60cee5392b46e8919d9eb6', 'fe1efab919627fb70cfbc640ece9a8e898895f5b6da19188444f9c45ccf09a78'],
+	]);
+	assert.deepEqual(budgets.qualification.acceptedResultCohorts.flatMap(
+		(cohort: { readonly artifacts: readonly { readonly workloadId: string }[] }) => (
+			cohort.artifacts.map(({ workloadId }) => workloadId)
+		),
+	), qualifiedIds);
+	for (const cohort of budgets.qualification.acceptedResultCohorts) {
+		assert.equal(cohort.environmentId, ENVIRONMENT_ID);
+		assert.equal(cohort.attemptCount, 1);
+		assert.equal(cohort.retryCount, 0);
+		assert.equal(cohort.retention, 'reviewed-workspace-artifacts-with-checked-in-byte-length-and-sha256');
+		for (const artifact of cohort.artifacts) {
+			assert.ok(Number.isSafeInteger(artifact.resultByteLength) && artifact.resultByteLength > 0);
+			assert.ok(Number.isSafeInteger(artifact.rawByteLength) && artifact.rawByteLength > 0);
+			assert.match(artifact.resultSha256, /^[a-f\d]{64}$/u);
+			assert.match(artifact.rawSha256, /^[a-f\d]{64}$/u);
+		}
 	}
 });
 

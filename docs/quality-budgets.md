@@ -102,18 +102,18 @@ A workload does not become qualified merely because an individual test passed,
 a proposed threshold was checked in, or a hosted runner happened to report a
 fast result.
 
-The accepted `m2-structural-aad0ba1` cohort now retains only the two frozen
+The accepted `m2-structural-aad0ba1` cohort retains the two original frozen
 workload IDs backed by production-path observations. It binds them to source
-revision `aad0ba1`, the exact quality-budget digest, the scoped
+revision `aad0ba1`, the exact historical quality-budget digest, the scoped
 portable Node environment, one attempt, zero retries, and checked-in byte
 length/SHA-256 records for each ignored raw and accepted workspace artifact.
 Each retained pair was re-read and independently verified after collection.
 This cohort qualifies only the declared first-party structural counters; every broader
 fixture limitation below remains in force. The composite
 `m2-streaming-bounded-memory` performance workload is not in the frozen closure
-set and remains planned. The direct-stem, compressed-audio, and video workloads
-are provisional pending fresh no-retry evidence after their collector stopped
-publishing fixture specification constants as observations.
+set and remains planned. The `m2-direct-observed-f3d11cb3` cohort binds the
+remaining three workloads to fresh no-retry evidence after their collector
+stopped publishing fixture specification constants as observations.
 
 ## Measurement procedure
 
@@ -424,7 +424,7 @@ process over its exact production/security files, retains that output in the
 raw evidence, and accepts only identity-bound structured diagnostics emitted by
 instrumented production-path tests. The collector requires the exact metric set,
 rejects duplicates and foreign metrics, and never derives observations from the
-quality fixture specification. Once requalified, these collectors cover only
+quality fixture specification. These collectors qualify only
 first-party slice, sequential-retention, final-Blob, and partial-publication counters; the codec,
 worker MEMFS, native/WASM, heap/RSS, timing, browser, OS, and durability
 exclusions above remain unchanged.

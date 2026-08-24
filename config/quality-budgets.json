@@ -1,13 +1,16 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-23",
+	"groundedAt": "2026-08-24",
 	"qualification": {
 		"status": "in-progress",
 		"qualifiedWorkloadIds": [
 			"m2-streaming-project-8gib-v1",
-			"m2-direct-wav-385mib-v1"
+			"m2-direct-wav-385mib-v1",
+			"m2-direct-stem-archives-v3",
+			"m2-direct-compressed-output-v2",
+			"m2-direct-mp4-webm-video-output-v1"
 		],
-		"reason": "Two frozen milestone-2 first-party structural workloads retain reviewed no-retry evidence. The direct stem, compressed-audio, and video workloads require fresh no-retry evidence from their observed-diagnostic collector contract; their former config-derived publications are not accepted. Fixed-hardware performance, browser and renderer heap, process RSS, worker/native/WASM codec memory, device, durability, the unprovisioned Framescaper Web VCR packaged real-runtime matrix, and release qualification remain open or out of this cohort's scope.",
+		"reason": "All five frozen milestone-2 first-party structural workloads have reviewed no-retry evidence. The direct stem, compressed-audio, and video workloads are bound to observed production-path diagnostics rather than fixture specification constants. Fixed-hardware performance, browser and renderer heap, process RSS, worker/native/WASM codec memory, device, durability, the unprovisioned Framescaper Web VCR packaged real-runtime matrix, and release qualification remain open or out of these cohorts' scope.",
 		"acceptedResultCohorts": [
 			{
 				"id": "m2-structural-aad0ba1",
@@ -31,6 +34,38 @@
 						"resultSha256": "78d97462105a02962ce8d72cff9957d7c1edb09b101c739cbd61c29ceb695bfe",
 						"rawByteLength": 1369,
 						"rawSha256": "20bc01c58044a3f1ee8796cd912127f8056abea5348feba82ac7950db1516720"
+					}
+				]
+			},
+			{
+				"id": "m2-direct-observed-f3d11cb3",
+				"sourceRevision": "f3d11cb307a227fefb60cee5392b46e8919d9eb6",
+				"budgetSha256": "fe1efab919627fb70cfbc640ece9a8e898895f5b6da19188444f9c45ccf09a78",
+				"environmentId": "portable-node-structural-26.5.0",
+				"attemptCount": 1,
+				"retryCount": 0,
+				"retention": "reviewed-workspace-artifacts-with-checked-in-byte-length-and-sha256",
+				"artifacts": [
+					{
+						"workloadId": "m2-direct-stem-archives-v3",
+						"resultByteLength": 1018,
+						"resultSha256": "1c35c4ce85657c971e2353d42b8f88b442d2849cd8907cc8b6d209bea98fbdea",
+						"rawByteLength": 4931,
+						"rawSha256": "e81f1ebd73c336c3c7cba832069ed58345018e472b7817b0b93b5d72aeb1af7a"
+					},
+					{
+						"workloadId": "m2-direct-compressed-output-v2",
+						"resultByteLength": 1054,
+						"resultSha256": "22d8168e9fa87511267e4b796a1b51e1c79ab7dab747b80d5291eae4b39d5e5a",
+						"rawByteLength": 4547,
+						"rawSha256": "2f84da27bc45a3c6b49fc34a3163f72f4659e279f4762940060a595f2bd49226"
+					},
+					{
+						"workloadId": "m2-direct-mp4-webm-video-output-v1",
+						"resultByteLength": 1041,
+						"resultSha256": "ca152dd5aa1b7d3543aa8461f6dea7438a818be150f7628ff4362009aa06a93a",
+						"rawByteLength": 4402,
+						"rawSha256": "2b90b8ff8f5ca2f37f4d9c872cd36e0b7e7fff52efee716b4f572f9387760524"
 					}
 				]
 			}
@@ -1396,7 +1431,7 @@
 		{
 			"id": "m2-direct-stem-archives-v3",
 			"milestone": "2",
-			"status": "provisional",
+			"status": "qualified",
 			"fixtureIds": ["m2-direct-stem-archives-v3"],
 			"environmentIds": ["portable-node-structural-26.5.0"],
 			"thresholds": [
@@ -1411,7 +1446,7 @@
 		{
 			"id": "m2-direct-compressed-output-v2",
 			"milestone": "2",
-			"status": "provisional",
+			"status": "qualified",
 			"fixtureIds": ["m2-direct-compressed-output-v2"],
 			"environmentIds": ["portable-node-structural-26.5.0"],
 			"thresholds": [
@@ -1426,7 +1461,7 @@
 		{
 			"id": "m2-direct-mp4-webm-video-output-v1",
 			"milestone": "2",
-			"status": "provisional",
+			"status": "qualified",
 			"fixtureIds": ["m2-direct-mp4-webm-video-output-v1"],
 			"environmentIds": ["portable-node-structural-26.5.0"],
 			"thresholds": [
