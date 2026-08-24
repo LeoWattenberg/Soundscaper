@@ -43,7 +43,8 @@ export type NativeMediaHelperPoolFailureCause =
 	| 'cancelled'
 	| 'disposed'
 	| 'self-test-failed'
-	| 'unsupported-operation';
+	| 'unsupported-operation'
+	| 'all-workers-quarantined';
 
 export class NativeMediaHelperPoolError extends Error {
 	readonly cause_: NativeMediaHelperPoolFailureCause;
@@ -164,6 +165,15 @@ export class NativeMediaHelperPool {
 			if (!job) return;
 			slot.busy = true;
 			void this.#execute(slot, job);
+		}
+		// Every worker quarantined and idle: nothing will ever pick a queued
+		// job up short of an explicit quarantine clear, so a job left pending
+		// here is a hang — its dispatcher slot stays running with no helper.
+		if (this.#slots.every((slot) => !slot.busy && this.#isQuarantined(slot))) {
+			for (const job of this.#queue.splice(0)) {
+				this.#settle(job, new NativeMediaHelperPoolError('all-workers-quarantined',
+					'Every native media helper worker is quarantined.'));
+			}
 		}
 	}
 

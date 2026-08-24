@@ -97,6 +97,20 @@ test('every worker self-tests before its first job and a failed worker is quaran
 	assert.equal(harness.pool.snapshot().quarantinedWorkers, 0);
 });
 
+test('a pool whose every worker is quarantined rejects queued work instead of hanging', async () => {
+	const harness = poolHarness(2, async () => { throw new Error('bad FFmpeg linkage'); });
+	const first = harness.pool.runJob(request('media-decode'));
+	const second = harness.pool.runJob(request('media-render'));
+	const queued = harness.pool.runJob(request('media-encode'));
+	await assert.rejects(first, (error: unknown) => poolCause(error) === 'self-test-failed');
+	await assert.rejects(second, (error: unknown) => poolCause(error) === 'self-test-failed');
+	// The job queued behind the failures has no worker left to ever pick it up;
+	// leaving it pending stranded its dispatcher slot as running forever.
+	await assert.rejects(queued, (error: unknown) => poolCause(error) === 'all-workers-quarantined');
+	assert.equal(harness.pool.snapshot().queuedJobs, 0);
+	assert.equal(harness.pool.snapshot().quarantinedWorkers, 2);
+});
+
 test('disposing the pool rejects queued work and disposes every supervisor', async () => {
 	const harness = poolHarness(1);
 	const running = harness.pool.runJob(request('media-render'));
