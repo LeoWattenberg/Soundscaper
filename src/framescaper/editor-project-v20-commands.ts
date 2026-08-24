@@ -46,11 +46,10 @@ import {
 } from './editor-project-v20-retime-command.ts';
 import {
 	clearFramescaperVideoRetimeMapsV20,
-	conformFramescaperVideoRetimeSnapshotsForReprobeV20,
 	findFramescaperVideoClipV20,
 	framescaperVideoRetimeBindingV20,
 	normalizeFramescaperVideoRetimeCurveV20,
-	restoreFramescaperVideoRetimeMapsV20,
+	restoreFramescaperVideoRetimeMapsAfterCommandV20,
 	snapshotFramescaperVideoRetimeMapsV20,
 } from './editor-project-v20-retime-state.ts';
 import {
@@ -385,9 +384,7 @@ function applyInherited(
 		: applyInheritedV18(foundation, keyframes, command, options);
 	commanded.schemaVersion = 20;
 	normalizeFramescaperProjectClipCompositionsV19(commanded);
-	restoreFramescaperVideoRetimeMapsV20(commanded, conformFramescaperVideoRetimeSnapshotsForReprobeV20(
-		project as unknown as DataRecord, commanded, command as unknown as DataRecord, retimeMaps,
-	));
+	restoreFramescaperVideoRetimeMapsAfterCommandV20(project as unknown as DataRecord, commanded, command as unknown as DataRecord, retimeMaps);
 	if (compositionCommand) restoreClipKeyframes(commanded, keyframes);
 	completeClipKeyframes(commanded, keyframes, command);
 	commanded.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV20(profile, commanded);

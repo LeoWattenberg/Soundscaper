@@ -298,7 +298,7 @@ test('planned native plug-in surfaces stay disabled and portable archive control
 		/storage-capacity service.*same exact headroom requirement.*checking.*ready.*unknown.*insufficient.*lastPreflight.*one normalized estimate.*Scape quota decision/iu,
 		/cancellation.*signal-ignoring estimate.*no writer or extraction.*restores the prior settled preflight snapshot.*late provider resolution or rejection.*generation-fences older work.*newer state/iu,
 		/standalone undecorated imports.*optional direct store estimator.*do not update controller state/iu,
-		/8,589,932,094.*9,448,925,304.*before its media writer/iu,
+		/8,589,930,860.*9,448,923,946.*before its media writer/iu,
 		/does not reserve capacity.*real browser or filesystem quota accuracy.*durable OPFS or IndexedDB 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/iu,
 	]) assert.match(capacitySummary, claim);
 	const residuals = new Map(archiveExpansion.residualRisks.map((risk) => [risk.id, risk]));

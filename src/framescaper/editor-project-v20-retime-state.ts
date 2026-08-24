@@ -168,6 +168,18 @@ function greatestCommonDivisor(left: bigint, right: bigint): bigint {
 	return a;
 }
 
+/** Conform for a re-probe, then restore: the one call inherited commands need. */
+export function restoreFramescaperVideoRetimeMapsAfterCommandV20(
+	before: DataRecord,
+	commanded: DataRecord,
+	command: DataRecord,
+	snapshots: readonly FramescaperVideoRetimeSnapshotV20[],
+): void {
+	restoreFramescaperVideoRetimeMapsV20(commanded, conformFramescaperVideoRetimeSnapshotsForReprobeV20(
+		before, commanded, command, snapshots,
+	));
+}
+
 export function findFramescaperVideoClipV20(
 	project: DataRecord,
 	scope: FramescaperVideoRetimeClipScopeV20,

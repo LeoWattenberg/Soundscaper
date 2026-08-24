@@ -35,6 +35,7 @@ export const DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FIXTURE = Object.freeze([
 	'src/common/editor/video-caption-interchange-contract-v27.js',
 	'src/common/editor/video-caption-interchange-v27.js',
 	'src/common/editor/video-caption-track-v27.js',
+	'src/common/editor/video-color-cube-lut-v27.js',
 	'src/common/editor/video-color-management-v27.js',
 	'src/common/editor/video-exact-presentation.js',
 	'src/common/editor/video-motion-analysis-v27.js',
