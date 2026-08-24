@@ -275,6 +275,38 @@
 				"destination-statfs-available-bytes",
 				"desktop-save-target-available-bytes"
 			],
+			"capacityBindings": [
+				{
+					"id": "project-document-bytes",
+					"controlId": "point-in-time-managed-media-publication-capacity-admission",
+					"admissionBranches": ["project-document-root"]
+				},
+				{
+					"id": "managed-catalog-row-count",
+					"controlId": "point-in-time-managed-media-publication-capacity-admission",
+					"admissionBranches": ["managed-media-catalog"]
+				},
+				{
+					"id": "managed-catalog-metadata-bytes",
+					"controlId": "point-in-time-managed-media-publication-capacity-admission",
+					"admissionBranches": ["managed-media-catalog"]
+				},
+				{
+					"id": "managed-body-declared-bytes",
+					"controlId": "point-in-time-managed-media-publication-capacity-admission",
+					"admissionBranches": ["managed-media-body-reservation"]
+				},
+				{
+					"id": "destination-statfs-available-bytes",
+					"controlId": "point-in-time-managed-media-publication-capacity-admission",
+					"admissionBranches": ["managed-media-root", "project-document-root"]
+				},
+				{
+					"id": "desktop-save-target-available-bytes",
+					"controlId": "aggregate-save-capacity-and-disk-admission",
+					"admissionBranches": ["desktop-save-target"]
+				}
+			],
 			"acceptance": [
 				"Every capacity ID is checked before its first irreversible stage or body operation and produces a typed refusal.",
 				"Known point-in-time checks remain labelled as admission rather than operating-system reservation."

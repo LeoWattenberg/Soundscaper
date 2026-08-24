@@ -6,6 +6,7 @@ import test from 'node:test';
 
 const inventoryUrl = new URL('../config/milestone-2-closure.json', import.meta.url);
 const roadmapUrl = new URL('../roadmap.md', import.meta.url);
+const securityMatrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 
 const GATE_IDS = [
 	'm2-gate-bounded-pipelines',
@@ -133,3 +134,62 @@ test('roadmap references only the frozen milestone-2 closure scope', async () =>
 		/required generic surface/iu,
 	]) assert.doesNotMatch(milestone, pattern);
 });
+
+test('every managed-capacity ID has an exact authoritative control binding', async () => {
+	const [inventory, securityMatrix] = await Promise.all([
+		readFile(inventoryUrl, 'utf8').then(JSON.parse),
+		readFile(securityMatrixUrl, 'utf8').then(JSON.parse),
+	]);
+	const item = inventory.items.find(({ id }) => id === 'm2-managed-capacity-admission');
+	assert.ok(item);
+	assert.deepEqual(item.capacityBindings, [
+		{
+			id: 'project-document-bytes',
+			controlId: 'point-in-time-managed-media-publication-capacity-admission',
+			admissionBranches: ['project-document-root'],
+		},
+		{
+			id: 'managed-catalog-row-count',
+			controlId: 'point-in-time-managed-media-publication-capacity-admission',
+			admissionBranches: ['managed-media-catalog'],
+		},
+		{
+			id: 'managed-catalog-metadata-bytes',
+			controlId: 'point-in-time-managed-media-publication-capacity-admission',
+			admissionBranches: ['managed-media-catalog'],
+		},
+		{
+			id: 'managed-body-declared-bytes',
+			controlId: 'point-in-time-managed-media-publication-capacity-admission',
+			admissionBranches: ['managed-media-body-reservation'],
+		},
+		{
+			id: 'destination-statfs-available-bytes',
+			controlId: 'point-in-time-managed-media-publication-capacity-admission',
+			admissionBranches: ['managed-media-root', 'project-document-root'],
+		},
+		{
+			id: 'desktop-save-target-available-bytes',
+			controlId: 'aggregate-save-capacity-and-disk-admission',
+			admissionBranches: ['desktop-save-target'],
+		},
+	]);
+	assert.deepEqual(item.capacityBindings.map(({ id }) => id), item.capacityIds);
+	const registeredIds = collectIds(securityMatrix);
+	for (const binding of item.capacityBindings) {
+		assert.ok(registeredIds.has(binding.controlId), `${binding.id} has an unknown control`);
+		assert.ok(binding.admissionBranches.length > 0, `${binding.id} has no admission branch`);
+	}
+});
+
+function collectIds(value, result = new Set()) {
+	if (Array.isArray(value)) {
+		for (const item of value) collectIds(item, result);
+		return result;
+	}
+	if (value && typeof value === 'object') {
+		if (typeof value.id === 'string') result.add(value.id);
+		for (const item of Object.values(value)) collectIds(item, result);
+	}
+	return result;
+}
