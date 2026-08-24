@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { generateKeyPairSync } from 'node:crypto';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -33,6 +33,19 @@ test('packaged media readiness ignores app, OpenFX, and package-signing keys', a
 	assert.equal((await ports.resolveReviewPublicKey('linux-x64', 'media-reviewer'))?.asymmetricKeyType,
 		'ed25519');
 	assert.equal(await ports.resolveReviewPublicKey('linux-x64', 'wrong-app-key'), null);
+});
+
+test('the payload stat port sees a symlink as a symlink, not its target', async (context) => {
+	const fixture = await reviewFixture(context, false);
+	const root = await mkdtemp(join(tmpdir(), 'framescaper-media-symlink-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const target = join(root, 'real-payload');
+	const link = join(root, 'linked-payload');
+	await writeFile(target, 'payload-bytes');
+	await symlink(target, link);
+	// verifyPayload refuses symlinked payloads through exactly this check; a
+	// following stat can never report one, which made the refusal dead code.
+	assert.equal((await fixture.ports.stat(link)).isSymbolicLink(), true);
 });
 
 async function reviewFixture(context, packaged) {

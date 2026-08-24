@@ -2,7 +2,7 @@
 
 /** Main-owned OpenFX readiness trust, intentionally separate from package signing. */
 
-import { readFile, stat } from 'node:fs/promises';
+import { lstat, readFile } from 'node:fs/promises';
 import { isAbsolute, join, normalize } from 'node:path';
 
 import {
@@ -40,7 +40,9 @@ export function createFramescaperOpenFxReviewPayloadPorts(options) {
 		: join(options.applicationRoot, MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH);
 	return Object.freeze({
 		readFile,
-		stat,
+		// lstat, not stat: verifyPayload refuses symlinked payloads, and a
+		// following stat can never report one.
+		stat: lstat,
 		async resolveReviewPublicKey(target, keyId) {
 			let policy;
 			try { policy = JSON.parse(String(await readFile(policyPath))); }
