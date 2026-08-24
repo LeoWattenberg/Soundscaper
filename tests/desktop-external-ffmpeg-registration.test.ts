@@ -35,6 +35,7 @@ test('registration composes Browse, probe, confirmation, install, and exact IPC 
 		},
 		windowFor: () => ({ id: 'main-window' }),
 		platform: 'darwin', architecture: 'arm64', userDataPath: '/user-data', environment: { PATH: '/bin' },
+		packageManagerExecutableAvailable: async (path: string) => path === '/opt/homebrew/bin/brew',
 		mkdir: async (...arguments_: unknown[]) => { directories.push(arguments_); },
 		loadModules: async () => ({
 			createExternalFfmpegInstallerBroker,
@@ -72,6 +73,7 @@ test('cancelled file and install dialogs cause no mutation or package-manager pr
 		},
 		windowFor: () => null, platform: 'linux', architecture: 'x64',
 		userDataPath: '/data', environment: {}, mkdir: () => Promise.resolve(),
+		packageManagerExecutableAvailable: async () => true,
 		loadModules: async () => ({
 			createExternalFfmpegInstallerBroker,
 			createExternalFfmpegInstallerNodeRunner: () => async () => {
@@ -105,6 +107,9 @@ test('Windows registration resolves WinGet from LOCALAPPDATA instead of inherite
 			LOCALAPPDATA: 'C:\\Users\\tester\\AppData\\Local',
 			PATH: 'C:\\attacker-controlled',
 		},
+		packageManagerExecutableAvailable: async (path: string) => (
+			path === 'C:\\Users\\tester\\AppData\\Local\\Microsoft\\WindowsApps\\winget.exe'
+		),
 		mkdir: () => Promise.resolve(),
 		loadModules: async () => ({
 			createExternalFfmpegInstallerBroker,
@@ -125,6 +130,36 @@ test('Windows registration resolves WinGet from LOCALAPPDATA instead of inherite
 		platform: 'win32', architecture: 'arm64',
 		packageManagerExecutable: 'C:\\Users\\tester\\AppData\\Local\\Microsoft\\WindowsApps\\winget.exe',
 	});
+	registration.dispose();
+});
+
+test('registration hides Install when the existing package manager is unavailable', async () => {
+	let confirmations = 0;
+	const checked: string[] = [];
+	const registration = await registerExternalFfmpegPreferences({
+		channels: CHANNELS, handle() {}, removeHandler() {}, settings: settingsFixture(),
+		dialog: {
+			showOpenDialog: () => Promise.resolve({ canceled: true, filePaths: [] }),
+			showMessageBox: () => { confirmations += 1; return Promise.resolve({ response: 1 }); },
+		},
+		windowFor: () => null, platform: 'darwin', architecture: 'arm64',
+		userDataPath: '/data', environment: {}, mkdir: () => Promise.resolve(),
+		packageManagerExecutableAvailable: async (path: string) => { checked.push(path); return false; },
+		loadModules: async () => ({
+			createExternalFfmpegInstallerBroker,
+			createExternalFfmpegInstallerNodeRunner: () => async () => {
+				throw new Error('must not install');
+			},
+			createExternalFfmpegPreferenceNodeProbe: () => async () => available(),
+			createExternalFfmpegPreferenceService,
+			planExternalFfmpegInstall,
+			registerExternalFfmpegPreferenceMainIpc,
+		}),
+	});
+	assert.deepEqual(checked, ['/opt/homebrew/bin/brew']);
+	assert.equal((await registration.service.status()).canInstall, false);
+	assert.equal((await registration.service.install()).state, 'unavailable');
+	assert.equal(confirmations, 0);
 	registration.dispose();
 });
 

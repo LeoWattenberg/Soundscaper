@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { mkdir as nodeMkdir } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
+import { access as nodeAccess, mkdir as nodeMkdir } from 'node:fs/promises';
 import { isAbsolute, resolve, win32 } from 'node:path';
 
 /** Compose main-owned FFmpeg preferences without loading any FFmpeg library. */
@@ -19,12 +20,17 @@ export async function registerExternalFfmpegPreferences(options) {
 		workingDirectory, environment: options.environment,
 	});
 	const abort = new AbortController();
-	const plan = () => modules.planExternalFfmpegInstall({
+	const plannedInstall = modules.planExternalFfmpegInstall({
 		platform: options.platform, architecture: options.architecture,
 		...(options.platform === 'win32'
 			? { packageManagerExecutable: windowsPackageManagerExecutable(options.environment) }
 			: {}),
 	});
+	const installPlan = await admittedInstallPlan(
+		plannedInstall, options.platform,
+		options.packageManagerExecutableAvailable ?? packageManagerExecutableAvailable,
+	);
+	const plan = () => installPlan;
 	const service = modules.createExternalFfmpegPreferenceService({
 		settings: options.settings,
 		choose: () => chooseExecutable(options),
@@ -57,6 +63,24 @@ function windowsPackageManagerExecutable(environment) {
 		|| localAppData.length > 4_096 || localAppData.includes('\0')
 		|| !win32.isAbsolute(localAppData)) return undefined;
 	return win32.join(localAppData, 'Microsoft', 'WindowsApps', 'winget.exe');
+}
+
+async function admittedInstallPlan(result, platform, available) {
+	if (result.status !== 'planned') return result;
+	let executableAvailable;
+	try { executableAvailable = await available(result.plan.executable, platform) === true; }
+	catch { executableAvailable = false; }
+	return executableAvailable ? result : Object.freeze({
+		status: 'unsupported', reason: 'package-manager-unresolved',
+		detail: `${result.plan.source === 'winget' ? 'WinGet' : 'Homebrew'} is not installed at its trusted executable location.`,
+	});
+}
+
+async function packageManagerExecutableAvailable(path, platform) {
+	try {
+		await nodeAccess(path, platform === 'win32' ? fsConstants.F_OK : fsConstants.X_OK);
+		return true;
+	} catch { return false; }
 }
 
 async function chooseExecutable(options) {
@@ -119,6 +143,8 @@ function validateOptions(options) {
 		|| options.userDataPath.includes('\0') || !isAbsolute(options.userDataPath)
 		|| typeof options.platform !== 'string' || typeof options.architecture !== 'string'
 		|| !options.environment || typeof options.environment !== 'object'
+		|| options.packageManagerExecutableAvailable !== undefined
+			&& typeof options.packageManagerExecutableAvailable !== 'function'
 		|| options.loadModules !== undefined && typeof options.loadModules !== 'function'
 		|| options.mkdir !== undefined && typeof options.mkdir !== 'function') {
 		throw new TypeError('External FFmpeg desktop registration ports are invalid.');
