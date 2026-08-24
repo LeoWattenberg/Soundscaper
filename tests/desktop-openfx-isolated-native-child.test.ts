@@ -99,6 +99,66 @@ test('the actual OpenFX scanner child executes only the one signed-and-granted p
 	}), /branded.*Ed25519/iu);
 });
 
+test('the isolated runtime admits the Interact invocation form without write authority', {
+	skip: process.platform !== 'linux' || process.arch !== 'x64',
+}, async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'openfx-interact-authority-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const launcherPath = join(root, 'm5-native-isolation-launcher');
+	const scannerPath = join(root, 'scanner');
+	const runtimePath = join(root, 'runtime');
+	const runtimeRoot = join(root, 'runtime-libraries');
+	const loaderPath = join(runtimeRoot, 'ld-linux-x86-64.so.2');
+	const pluginPath = join(root, 'admitted.ofx');
+	const grantPath = join(root, 'interact-v1-grant.json');
+	await mkdir(runtimeRoot);
+	// Authority admission is synchronous and precedes any spawn, so plain
+	// placeholder bytes are enough: nothing here may actually launch.
+	await Promise.all([
+		writeFile(launcherPath, 'placeholder'), writeFile(scannerPath, 'placeholder'),
+		writeFile(runtimePath, 'placeholder'), writeFile(loaderPath, 'placeholder'),
+		writeFile(pluginPath, 'placeholder'), writeFile(grantPath, '{"schemaVersion":1}\n'),
+	]);
+	const runtimeLibraries = Object.freeze([await descriptor(loaderPath)]);
+	const [launcher, sandboxProfile, brokerPolicy, scanner, runtimeHost] = await Promise.all([
+		descriptor(launcherPath), descriptor(PROFILE), descriptor(BROKER),
+		descriptor(scannerPath), descriptor(runtimePath),
+	]);
+	const productionReadiness = await signedReadiness({
+		launcher, sandboxProfile, brokerPolicy, scanner, runtimeHost, runtimeLibraries,
+	});
+	const authority = createIsolatedOpenFxNativeChildAuthority(Object.freeze({
+		target: 'linux-x64', runtime: 'linux-x64', hostVersion: '1.0.0',
+		openfxVersion: '1.5.1', openfxCommit: 'ab77951', scanner, runtimeHost,
+		isolation: Object.freeze({ launcher, sandboxProfile, brokerPolicy, runtimeLibraries }),
+		productionReadiness,
+	}));
+	const grantSha256 = digest(await readFile(grantPath));
+	const interactInvocation = {
+		executablePath: runtimeHost.path,
+		arguments: ['--interact-v1-grant', grantPath, '--grant-sha256', grantSha256],
+	};
+	const interactAuthority = {
+		plugin: await pathGrant(pluginPath), pluginResources: [], pluginRuntime: [],
+		readOnly: [await pathGrant(grantPath)], writeOnly: [],
+	};
+	// The Interact form crosses authority admission; the placeholder launcher
+	// then fails to execute, which is past the seam this test pins.
+	const handle = authority.invoke(interactInvocation, interactAuthority);
+	await handle.completion.catch(() => undefined);
+	assert.throws(() => authority.invoke(interactInvocation, {
+		...interactAuthority,
+		writeOnly: [{ path: root, kind: 'directory', identity: interactAuthority.plugin.identity }],
+	}), /may not receive write authority/u);
+	assert.throws(() => authority.invoke({
+		executablePath: runtimeHost.path,
+		arguments: ['--invoke-v12-grant', grantPath, '--grant-sha256', grantSha256],
+		cancellationFrame: `${JSON.stringify({
+			schemaVersion: 1, type: 'cancel', invocationId: 'invocation-1', abortSignalId: 'abort-1',
+		})}\n`,
+	}, interactAuthority), /one output directory/u);
+});
+
 async function signedReadiness(input: Readonly<{
 	launcher: FramescaperOpenFxExecutableDescriptor;
 	sandboxProfile: FramescaperOpenFxExecutableDescriptor;

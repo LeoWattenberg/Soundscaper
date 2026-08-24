@@ -209,11 +209,20 @@ function assertAuthority(
 		}
 		return;
 	}
-	if (arguments_[0] !== '--invoke-v12-grant'
+	const invokeForm = arguments_[0] === '--invoke-v12-grant';
+	const interactForm = arguments_[0] === '--interact-v1-grant';
+	if ((!invokeForm && !interactForm)
 		|| !authority.readOnly.some(({ path }) => path === arguments_[1])
-		|| authority.readOnly.some(({ kind }) => kind !== 'file')
-		|| authority.writeOnly.length !== 1 || authority.writeOnly[0]!.kind !== 'directory') {
+		|| authority.readOnly.some(({ kind }) => kind !== 'file')) {
+		throw new Error('An isolated OpenFX runtime requires its one exact readable grant.');
+	}
+	if (invokeForm && (authority.writeOnly.length !== 1 || authority.writeOnly[0]!.kind !== 'directory')) {
 		throw new Error('An isolated OpenFX runtime requires one exact grant and one output directory.');
+	}
+	// An Interact renders offscreen and answers on stdout; write authority for
+	// it would be surplus filesystem reach, so none is admitted.
+	if (interactForm && authority.writeOnly.length !== 0) {
+		throw new Error('An isolated OpenFX Interact may not receive write authority.');
 	}
 }
 
