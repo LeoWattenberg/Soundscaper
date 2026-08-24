@@ -42,6 +42,9 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	const ipcOptions = [];
 	const wavPackLoads = [];
 	const flacLoads = [];
+	const operatingSystemLoads = [];
+	const payloadLocations = [];
+	const spawnOptions = [];
 	const bundledCompositions = [];
 	const revoked = [];
 	let disposals = 0;
@@ -49,6 +52,9 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	const bundledRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const flacRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const compositeRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
+	const operatingSystemRuntime = Object.freeze({
+		provider: Object.freeze({ kind: 'operating-system' }), execute: async () => ({}),
+	});
 	const externalFfmpegPreferences = externalPreferences();
 	const handle = () => undefined;
 	const removeHandler = () => undefined;
@@ -57,6 +63,8 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 		channels: CHANNELS, handle, removeHandler, ownerFor,
 		externalFfmpegPreferences,
 		platform: 'darwin', architecture: 'arm64', userDataPath: '/user-data',
+		desktopRoot: '/app/desktop', packaged: false, resourcesPath: '/resources',
+		operatingSystemVersion: '15.6.1', forkUtilityProcess() {},
 		mkdir: async (...arguments_) => { directories.push(arguments_); },
 		loadModules: async () => ({
 			createBundledDesktopAudioCodecRuntime(options) {
@@ -72,6 +80,18 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 				wavPackLoads.push(options);
 				await Promise.resolve();
 				return bundledRuntime;
+			},
+			createOperatingSystemAudioCodecElectronSpawn(options) {
+				spawnOptions.push(options);
+				return () => ({});
+			},
+			createSoundscaperProfessionalNativeVerifier(location) {
+				payloadLocations.push(location);
+				return async () => ({});
+			},
+			async loadOperatingSystemAudioCodecRuntime(options) {
+				operatingSystemLoads.push(options);
+				return operatingSystemRuntime;
 			},
 			createDesktopAudioCodecRuntimeComposition(options) {
 				compositionOptions.push(options);
@@ -93,16 +113,31 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	assert.equal(compositionOptions.length, 1);
 	assert.deepEqual(Reflect.ownKeys(compositionOptions[0]), [
 		'target', 'scratchRoot', 'externalFfmpegPreferences', 'createBundledRuntime',
+		'createOperatingSystemRuntime',
 	]);
 	assert.deepEqual(wavPackLoads, [{ target: 'mac-arm64' }]);
 	assert.deepEqual(flacLoads, [{ target: 'mac-arm64' }]);
 	assert.deepEqual(bundledCompositions, [{
 		target: 'mac-arm64', runtimes: [bundledRuntime, flacRuntime],
 	}]);
+	assert.deepEqual(payloadLocations, [{
+		applicationRoot: '/app', packaged: false, resourcesPath: '/resources',
+		platform: 'darwin', arch: 'arm64',
+	}]);
+	assert.equal(spawnOptions.length, 1);
+	assert.equal(spawnOptions[0].helperPath, '/app/desktop/os-audio-codec-helper-process.js');
+	assert.equal(typeof spawnOptions[0].fork, 'function');
+	assert.equal(operatingSystemLoads.length, 1);
+	assert.equal(operatingSystemLoads[0].target, 'mac-arm64');
+	assert.equal(operatingSystemLoads[0].osVersion, '15.6.1');
+	assert.equal(operatingSystemLoads[0].scratchRoot, '/user-data/desktop-audio-codecs');
+	assert.equal(typeof operatingSystemLoads[0].verifyAddon, 'function');
+	assert.equal(typeof operatingSystemLoads[0].spawn, 'function');
 	assert.equal(compositionOptions[0].target, 'mac-arm64');
 	assert.equal(compositionOptions[0].scratchRoot, '/user-data/desktop-audio-codecs');
 	assert.equal(compositionOptions[0].externalFfmpegPreferences, externalFfmpegPreferences);
 	assert.equal(compositionOptions[0].createBundledRuntime({ target: 'mac-arm64' }), compositeRuntime);
+	assert.equal(compositionOptions[0].createOperatingSystemRuntime({ target: 'mac-arm64' }), operatingSystemRuntime);
 	assert.equal(ipcOptions.length, 1);
 	assert.deepEqual(ipcOptions[0].channels, {
 		desktopAudioCodecExecute: CHANNELS.desktopAudioCodecExecute,
@@ -129,6 +164,8 @@ test('registration fails closed without any admitted bundled runtime', async () 
 		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
 		externalFfmpegPreferences: externalPreferences(),
 		platform: 'win32', architecture: 'arm64', userDataPath: '/user-data',
+		desktopRoot: '/app/desktop', packaged: true, resourcesPath: '/resources',
+		operatingSystemVersion: '10.0.26100', forkUtilityProcess() {},
 		mkdir: async () => undefined,
 		loadModules: async () => ({
 			createBundledDesktopAudioCodecRuntime: () => { throw new Error('must not compose'); },
@@ -137,6 +174,12 @@ test('registration fails closed without any admitted bundled runtime', async () 
 				return null;
 			},
 			loadBundledWavPackAudioCodecRuntime: async ({ target }) => {
+				assert.equal(target, 'win-arm64');
+				return null;
+			},
+			createOperatingSystemAudioCodecElectronSpawn: () => () => ({}),
+			createSoundscaperProfessionalNativeVerifier: () => async () => ({}),
+			loadOperatingSystemAudioCodecRuntime: async ({ target }) => {
 				assert.equal(target, 'win-arm64');
 				return null;
 			},
@@ -159,6 +202,8 @@ test('unsupported targets and invalid runtime modules fail before IPC registrati
 		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
 		externalFfmpegPreferences: externalPreferences(),
 		platform: 'darwin', architecture: 'x64', userDataPath: '/user-data',
+		desktopRoot: '/app/desktop', packaged: false, resourcesPath: '/resources',
+		operatingSystemVersion: '15.6.1', forkUtilityProcess() {},
 		mkdir: async () => { directories += 1; },
 		loadModules: async () => { loads += 1; return {}; },
 	}), /macOS x64 desktop audio codecs are explicitly unsupported/u);
@@ -169,6 +214,8 @@ test('unsupported targets and invalid runtime modules fail before IPC registrati
 		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
 		externalFfmpegPreferences: externalPreferences(),
 		platform: 'linux', architecture: 'x64', userDataPath: '/user-data',
+		desktopRoot: '/app/desktop', packaged: false, resourcesPath: '/resources',
+		operatingSystemVersion: '6.16.0', forkUtilityProcess() {},
 		mkdir: async () => { directories += 1; },
 		loadModules: async () => ({ createDesktopAudioCodecRuntimeComposition() {} }),
 	}), /desktop audio codec runtime modules are invalid/u);

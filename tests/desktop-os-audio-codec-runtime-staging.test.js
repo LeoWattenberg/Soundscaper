@@ -18,6 +18,7 @@ import {
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const COMPILED_OS_CODEC_FILES = Object.freeze([
 	'desktop/desktop-audio-os-codec-candidates.js',
+	'desktop/os-audio-codec-runtime.js',
 	'desktop/os-audio-codec-canary-adapter.js',
 	'desktop/os-audio-codec-operation-runner.js',
 	'desktop/os-codec-capability-adapter.js',

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { mkdir as nodeMkdir } from 'node:fs/promises';
-import { isAbsolute, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 
 const TARGETS = Object.freeze(new Map([
 	['linux:x64', 'linux-x64'],
@@ -12,7 +12,9 @@ const TARGETS = Object.freeze(new Map([
 ]));
 const MODULE_METHODS = Object.freeze([
 	'createBundledDesktopAudioCodecRuntime', 'createDesktopAudioCodecRuntimeComposition',
+	'createOperatingSystemAudioCodecElectronSpawn', 'createSoundscaperProfessionalNativeVerifier',
 	'loadBundledFlacAudioCodecRuntime', 'loadBundledWavPackAudioCodecRuntime',
+	'loadOperatingSystemAudioCodecRuntime',
 	'registerDesktopAudioCodecMainIpc',
 ]);
 
@@ -32,6 +34,8 @@ export async function registerDesktopAudioCodecs(options) {
 	const target = desktopAudioCodecTargetFor(options.platform, options.architecture);
 	const modules = await (options.loadModules ?? loadRuntimeModules)();
 	validateModules(modules);
+	const scratchRoot = resolve(options.userDataPath, 'desktop-audio-codecs');
+	await (options.mkdir ?? nodeMkdir)(scratchRoot, { recursive: true, mode: 0o700 });
 	const reviewedRuntimes = (await Promise.all([
 		modules.loadBundledWavPackAudioCodecRuntime({ target }),
 		modules.loadBundledFlacAudioCodecRuntime({ target }),
@@ -39,11 +43,22 @@ export async function registerDesktopAudioCodecs(options) {
 	const bundledRuntime = reviewedRuntimes.length === 0
 		? null
 		: modules.createBundledDesktopAudioCodecRuntime({ target, runtimes: reviewedRuntimes });
-	const scratchRoot = resolve(options.userDataPath, 'desktop-audio-codecs');
-	await (options.mkdir ?? nodeMkdir)(scratchRoot, { recursive: true, mode: 0o700 });
+	const verifyAddon = modules.createSoundscaperProfessionalNativeVerifier(Object.freeze({
+		applicationRoot: dirname(options.desktopRoot), packaged: options.packaged,
+		resourcesPath: options.resourcesPath, platform: options.platform, arch: options.architecture,
+	}));
+	const spawn = modules.createOperatingSystemAudioCodecElectronSpawn({
+		fork: options.forkUtilityProcess,
+		helperPath: join(options.desktopRoot, 'os-audio-codec-helper-process.js'),
+	});
+	const operatingSystemRuntime = await modules.loadOperatingSystemAudioCodecRuntime({
+		target, osVersion: options.operatingSystemVersion, scratchRoot, verifyAddon, spawn,
+	});
 	const service = modules.createDesktopAudioCodecRuntimeComposition({
 		target, scratchRoot, externalFfmpegPreferences: options.externalFfmpegPreferences,
 		...(bundledRuntime === null ? {} : { createBundledRuntime: () => bundledRuntime }),
+		...(operatingSystemRuntime === null
+			? {} : { createOperatingSystemRuntime: () => operatingSystemRuntime }),
 	});
 	const ipc = modules.registerDesktopAudioCodecMainIpc({
 		channels: Object.freeze({
@@ -67,18 +82,25 @@ export async function registerDesktopAudioCodecs(options) {
 }
 
 async function loadRuntimeModules() {
-	const [bundled, composition, flac, ipc, wavPack] = await Promise.all([
+	const [bundled, composition, electronSpawn, flac, ipc, operatingSystem, professional, wavPack]
+		= await Promise.all([
 		import('./project-library-runtime/desktop/bundled-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-runtime-composition.js'),
+		import('./os-audio-codec-electron-spawn.mjs'),
 		import('./project-library-runtime/desktop/bundled-flac-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-main-ipc.js'),
+		import('./project-library-runtime/desktop/os-audio-codec-runtime.js'),
+		import('./soundscaper-professional-native-payload.mjs'),
 		import('./project-library-runtime/desktop/bundled-wavpack-audio-codec-runtime.js'),
 	]);
 	return Object.freeze({
 		createBundledDesktopAudioCodecRuntime: bundled.createBundledDesktopAudioCodecRuntime,
 		createDesktopAudioCodecRuntimeComposition: composition.createDesktopAudioCodecRuntimeComposition,
+		createOperatingSystemAudioCodecElectronSpawn: electronSpawn.createOperatingSystemAudioCodecElectronSpawn,
+		createSoundscaperProfessionalNativeVerifier: professional.createSoundscaperProfessionalNativeVerifier,
 		loadBundledFlacAudioCodecRuntime: flac.loadBundledFlacAudioCodecRuntime,
 		loadBundledWavPackAudioCodecRuntime: wavPack.loadBundledWavPackAudioCodecRuntime,
+		loadOperatingSystemAudioCodecRuntime: operatingSystem.loadOperatingSystemAudioCodecRuntime,
 		registerDesktopAudioCodecMainIpc: ipc.registerDesktopAudioCodecMainIpc,
 	});
 }
@@ -93,8 +115,16 @@ function validateOptions(options) {
 		|| typeof options.externalFfmpegPreferences.admission !== 'function'
 		|| typeof options.externalFfmpegPreferences.invalidateAdmission !== 'function'
 		|| typeof options.platform !== 'string' || typeof options.architecture !== 'string'
+		|| typeof options.operatingSystemVersion !== 'string'
+		|| options.operatingSystemVersion.length < 1 || options.operatingSystemVersion.length > 256
+		|| options.operatingSystemVersion.includes('\0')
 		|| typeof options.userDataPath !== 'string' || options.userDataPath.length > 4_096
 		|| options.userDataPath.includes('\0') || !isAbsolute(options.userDataPath)
+		|| typeof options.desktopRoot !== 'string' || options.desktopRoot.length > 4_096
+		|| options.desktopRoot.includes('\0') || !isAbsolute(options.desktopRoot)
+		|| typeof options.resourcesPath !== 'string' || options.resourcesPath.length > 4_096
+		|| options.resourcesPath.includes('\0') || !isAbsolute(options.resourcesPath)
+		|| typeof options.packaged !== 'boolean' || typeof options.forkUtilityProcess !== 'function'
 		|| options.loadModules !== undefined && typeof options.loadModules !== 'function'
 		|| options.mkdir !== undefined && typeof options.mkdir !== 'function') {
 		throw new TypeError('Desktop audio codec registration ports are invalid.');

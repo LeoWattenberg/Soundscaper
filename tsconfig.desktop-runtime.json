@@ -32,6 +32,7 @@
 		"desktop/desktop-audio-os-codec-candidates.ts",
 		"desktop/os-audio-codec-canary-adapter.ts",
 		"desktop/os-audio-codec-operation-runner.ts",
+		"desktop/os-audio-codec-runtime.ts",
 		"desktop/os-codec-capability-adapter.ts",
 		"desktop/os-codec-native-canary-runner.ts",
 		"desktop/framescaper-capture-desktop-port.ts",

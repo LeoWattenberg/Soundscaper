@@ -24,6 +24,7 @@ export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/external-ffmpeg-audio-operation-runner.js',
 	'desktop/os-audio-codec-canary-adapter.js',
 	'desktop/os-audio-codec-operation-runner.js',
+	'desktop/os-audio-codec-runtime.js',
 	'desktop/os-codec-capability-adapter.js',
 	'desktop/os-codec-native-canary-runner.js',
 	'desktop/process-tree-termination.js',
