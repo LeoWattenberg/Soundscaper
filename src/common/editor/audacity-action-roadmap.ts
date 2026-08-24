@@ -74,15 +74,9 @@ const plannedActionMilestones: Readonly<Record<string, string>> = Object.freeze(
 	'local://unmute-all': '3',
 	'local://repeat-generator': '3',
 	'local://repeat-analyzer': '3',
-	'menu-macros': '4',
-	'apply-macros-palette': '4',
-	'macro-fade-ends': '4',
-	'macro-mp3-conversion': '4',
 	'local://silence-finder': '7',
 	'local://sound-finder': '7',
-	'project-show-in-folder': '2',
 	'regular-interval-labels': '3',
-	'get-effects': '4',
 	'device-info': '5',
 	'action://playback/change-api': '5',
 	'action://playback/change-playback-device': '5',
@@ -103,7 +97,13 @@ const plannedActionMilestones: Readonly<Record<string, string>> = Object.freeze(
 	'diagnostic-save-diagnostic-files': '9',
 });
 
-const justifiedDisabledActionIds = new Set(['reset-configuration']);
+const justifiedDisabledActionIds = new Set([
+	'apply-macros-palette',
+	'macro-fade-ends',
+	'macro-mp3-conversion',
+	'menu-macros',
+	'reset-configuration',
+]);
 
 export function audacityActionRoadmapContract(
 	id: string,
