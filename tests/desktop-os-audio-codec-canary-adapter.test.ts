@@ -112,7 +112,7 @@ test('startup canary is byte-identical to the target-native self-test fixture', 
 	const source = await readFile(new URL(
 		'../native/soundscaper-professional-host/tests/os_audio_codec_self_test.cpp', import.meta.url,
 	), 'utf8');
-	const block = /constexpr char canaryBase64\[\] =([\s\S]*?);\n\nint base64Value/u.exec(source)?.[1];
+	const block = /constexpr char canaryBase64\[\] =([\s\S]*?);/u.exec(source)?.[1];
 	assert.equal(typeof block, 'string');
 	const encoded = [...block!.matchAll(/"([^"]*)"/gu)].map((match) => match[1]).join('');
 	const fixture = Buffer.from(encoded, 'base64');

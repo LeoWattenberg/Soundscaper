@@ -11,3 +11,9 @@ extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
 		: SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE;
 	return result;
 }
+
+extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_aac_m4a_decode(
+	const soundscaper_pro_os_mp3_decode_request *request)
+{
+	return soundscaper_pro_os_mp3_decode(request);
+}

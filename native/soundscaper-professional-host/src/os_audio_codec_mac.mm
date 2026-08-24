@@ -17,6 +17,11 @@
 
 namespace {
 
+enum class ReviewedCodec {
+	mp3,
+	aacM4a,
+};
+
 soundscaper_pro_os_mp3_decode_result answer(
 	soundscaper_pro_os_codec_status status,
 	bool nativeApiReached = false)
@@ -75,10 +80,23 @@ bool finiteSamples(const float *samples, size_t count)
 	return true;
 }
 
-} // namespace
+bool exactAacM4aContainer(ExtAudioFileRef input)
+{
+	AudioFileID audioFile = nullptr;
+	UInt32 audioFileBytes = sizeof(audioFile);
+	if (ExtAudioFileGetProperty(input, kExtAudioFileProperty_AudioFile,
+		&audioFileBytes, &audioFile) != noErr || audioFile == nullptr
+		|| audioFileBytes != sizeof(audioFile)) return false;
+	AudioFileTypeID fileFormat = 0u;
+	UInt32 fileFormatBytes = sizeof(fileFormat);
+	return AudioFileGetProperty(audioFile, kAudioFilePropertyFileFormat,
+		&fileFormatBytes, &fileFormat) == noErr
+		&& fileFormatBytes == sizeof(fileFormat) && fileFormat == kAudioFileM4AType;
+}
 
-extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
-	const soundscaper_pro_os_mp3_decode_request *request)
+soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
+	const soundscaper_pro_os_mp3_decode_request *request,
+	ReviewedCodec codec)
 {
 	if (!requestShape(request)) return answer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
 	if (!exactInputFile(request->input_path_utf8, request->input_bytes)) {
@@ -107,12 +125,17 @@ extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
 	AudioStreamBasicDescription source{};
 	UInt32 descriptionBytes = sizeof(source);
 	if (ExtAudioFileGetProperty(input, kExtAudioFileProperty_FileDataFormat,
-		&descriptionBytes, &source) != noErr || source.mFormatID != kAudioFormatMPEGLayer3) {
+		&descriptionBytes, &source) != noErr || descriptionBytes != sizeof(source)
+		|| source.mFormatID != (codec == ReviewedCodec::mp3
+			? kAudioFormatMPEGLayer3 : kAudioFormatMPEG4AAC)
+		|| codec == ReviewedCodec::aacM4a && !exactAacM4aContainer(input)) {
 		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true), -1);
 	}
-	if (!(source.mSampleRate >= 8000.0 && source.mSampleRate <= 192000.0)
+	const uint32_t maximumSampleRate = codec == ReviewedCodec::mp3 ? 192000u : 48000u;
+	const uint32_t maximumChannelCount = codec == ReviewedCodec::mp3 ? 2u : 6u;
+	if (!(source.mSampleRate >= 8000.0 && source.mSampleRate <= maximumSampleRate)
 		|| source.mSampleRate != static_cast<uint32_t>(source.mSampleRate)
-		|| source.mChannelsPerFrame < 1u || source.mChannelsPerFrame > 8u) {
+		|| source.mChannelsPerFrame < 1u || source.mChannelsPerFrame > maximumChannelCount) {
 		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true), -1);
 	}
 	const uint32_t sampleRate = static_cast<uint32_t>(source.mSampleRate);
@@ -174,4 +197,18 @@ extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
 	result.sample_rate = sampleRate;
 	result.channel_count = channelCount;
 	return finish(result, -1);
+}
+
+} // namespace
+
+extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
+	const soundscaper_pro_os_mp3_decode_request *request)
+{
+	return decodeOperatingSystemAudio(request, ReviewedCodec::mp3);
+}
+
+extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_aac_m4a_decode(
+	const soundscaper_pro_os_mp3_decode_request *request)
+{
+	return decodeOperatingSystemAudio(request, ReviewedCodec::aacM4a);
 }

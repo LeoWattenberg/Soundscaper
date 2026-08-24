@@ -9,14 +9,22 @@
 #include <mfreadwrite.h>
 #include <wrl/client.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <iterator>
 #include <limits>
 #include <string>
+#include <vector>
 
 namespace {
 
 using Microsoft::WRL::ComPtr;
+
+enum class ReviewedCodec {
+	mp3,
+	aacM4a,
+};
 
 soundscaper_pro_os_mp3_decode_result answer(
 	soundscaper_pro_os_codec_status status,
@@ -68,6 +76,70 @@ bool exactUnsigned(IMFMediaType *type, REFGUID key, uint32_t expected)
 	return SUCCEEDED(type->GetUINT32(key, &value)) && value == expected;
 }
 
+uint32_t bigEndian32(const BYTE *bytes)
+{
+	return static_cast<uint32_t>(bytes[0]) << 24u
+		| static_cast<uint32_t>(bytes[1]) << 16u
+		| static_cast<uint32_t>(bytes[2]) << 8u
+		| static_cast<uint32_t>(bytes[3]);
+}
+
+bool exactMp4aSampleDescription(IMFMediaType *type)
+{
+	UINT32 currentEntry = 0u;
+	UINT32 blobBytes = 0u;
+	if (FAILED(type->GetUINT32(MF_MT_MPEG4_CURRENT_SAMPLE_ENTRY, &currentEntry))
+		|| currentEntry != 0u
+		|| FAILED(type->GetBlobSize(MF_MT_MPEG4_SAMPLE_DESCRIPTION, &blobBytes))
+		|| blobBytes < 24u || blobBytes > 1024u * 1024u) return false;
+	std::vector<BYTE> blob(blobBytes);
+	UINT32 copied = 0u;
+	if (FAILED(type->GetBlob(MF_MT_MPEG4_SAMPLE_DESCRIPTION,
+		blob.data(), blobBytes, &copied)) || copied != blobBytes) return false;
+	constexpr BYTE stsd[] = { 's', 't', 's', 'd' };
+	constexpr BYTE mp4a[] = { 'm', 'p', '4', 'a' };
+	if (bigEndian32(blob.data()) != blobBytes
+		|| !std::equal(std::begin(stsd), std::end(stsd), blob.begin() + 4u)
+		|| bigEndian32(blob.data() + 8u) != 0u) return false;
+	const uint32_t entryCount = bigEndian32(blob.data() + 12u);
+	if (entryCount < 1u || entryCount > 64u) return false;
+	size_t offset = 16u;
+	for (uint32_t index = 0u; index < entryCount; ++index) {
+		if (offset > blob.size() || blob.size() - offset < 8u) return false;
+		const uint32_t entryBytes = bigEndian32(blob.data() + offset);
+		if (entryBytes < 8u || entryBytes > blob.size() - offset) return false;
+		if (index == currentEntry
+			&& !std::equal(std::begin(mp4a), std::end(mp4a), blob.begin() + offset + 4u)) return false;
+		offset += entryBytes;
+	}
+	return offset == blob.size();
+}
+
+bool exactNativeType(
+	IMFMediaType *type,
+	ReviewedCodec codec,
+	UINT32 &sampleRate,
+	UINT32 &channelCount)
+{
+	GUID majorType{};
+	GUID subtype{};
+	if (FAILED(type->GetGUID(MF_MT_MAJOR_TYPE, &majorType)) || majorType != MFMediaType_Audio
+		|| FAILED(type->GetGUID(MF_MT_SUBTYPE, &subtype))
+		|| FAILED(type->GetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, &sampleRate))
+		|| FAILED(type->GetUINT32(MF_MT_AUDIO_NUM_CHANNELS, &channelCount))) return false;
+	if (codec == ReviewedCodec::mp3) return subtype == MFAudioFormat_MP3
+		&& sampleRate >= 8000u && sampleRate <= 192000u
+		&& channelCount >= 1u && channelCount <= 2u;
+	UINT32 profile = 0u;
+	return subtype == MFAudioFormat_AAC
+		&& sampleRate >= 8000u && sampleRate <= 48000u
+		&& channelCount >= 1u && channelCount <= 6u
+		&& exactUnsigned(type, MF_MT_AAC_PAYLOAD_TYPE, 0u)
+		&& SUCCEEDED(type->GetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, &profile))
+		&& (profile == 0x29u || profile == 0x2au || profile == 0x2bu)
+		&& exactMp4aSampleDescription(type);
+}
+
 bool writeAll(HANDLE output, const BYTE *bytes, DWORD length)
 {
 	DWORD offset = 0u;
@@ -90,10 +162,9 @@ bool finiteFloatFrames(const BYTE *bytes, DWORD length)
 	return true;
 }
 
-} // namespace
-
-extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
-	const soundscaper_pro_os_mp3_decode_request *request)
+soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
+	const soundscaper_pro_os_mp3_decode_request *request,
+	ReviewedCodec codec)
 {
 	if (!requestShape(request)) return answer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
 	std::wstring inputPath;
@@ -135,10 +206,10 @@ extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
 		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_DECODE_FAILED, true));
 	}
 	ComPtr<IMFMediaType> nativeType;
-	GUID nativeSubtype{};
+	UINT32 sourceSampleRate = 0u;
+	UINT32 sourceChannelCount = 0u;
 	if (FAILED(reader->GetNativeMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0u, &nativeType))
-		|| FAILED(nativeType->GetGUID(MF_MT_SUBTYPE, &nativeSubtype))
-		|| nativeSubtype != MFAudioFormat_MP3) {
+		|| !exactNativeType(nativeType.Get(), codec, sourceSampleRate, sourceChannelCount)) {
 		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
 	}
 
@@ -160,7 +231,8 @@ extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
 		|| FAILED(grantedType->GetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, &sampleRate))
 		|| FAILED(grantedType->GetUINT32(MF_MT_AUDIO_NUM_CHANNELS, &channelCount))
 		|| sampleRate < 8000u || sampleRate > 192000u
-		|| channelCount < 1u || channelCount > 2u
+		|| channelCount < 1u || channelCount > (codec == ReviewedCodec::mp3 ? 2u : 6u)
+		|| sampleRate != sourceSampleRate || channelCount != sourceChannelCount
 		|| !exactUnsigned(grantedType.Get(), MF_MT_AUDIO_BLOCK_ALIGNMENT,
 			channelCount * static_cast<uint32_t>(sizeof(float)))) {
 		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
@@ -226,4 +298,18 @@ extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
 	result.channel_count = channelCount;
 	keepOutput = true;
 	return finish(result);
+}
+
+} // namespace
+
+extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
+	const soundscaper_pro_os_mp3_decode_request *request)
+{
+	return decodeOperatingSystemAudio(request, ReviewedCodec::mp3);
+}
+
+extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_aac_m4a_decode(
+	const soundscaper_pro_os_mp3_decode_request *request)
+{
+	return decodeOperatingSystemAudio(request, ReviewedCodec::aacM4a);
 }

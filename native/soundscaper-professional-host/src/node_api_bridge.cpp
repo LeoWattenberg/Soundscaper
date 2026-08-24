@@ -321,7 +321,8 @@ napi_value closeAudioDevice(napi_env env, napi_callback_info info)
 	closeAudio(handle); napi_value result; CHECK(napi_get_boolean(env, true, &result)); return result;
 }
 
-napi_value decodeOperatingSystemMp3(napi_env env, napi_callback_info info)
+napi_value decodeOperatingSystemAudio(napi_env env, napi_callback_info info,
+	soundscaper_pro_os_mp3_decode_result (*decode)(const soundscaper_pro_os_mp3_decode_request *))
 {
 	size_t argc = 1u;
 	napi_value argv[1];
@@ -340,7 +341,7 @@ napi_value decodeOperatingSystemMp3(napi_env env, napi_callback_info info)
 	const soundscaper_pro_os_mp3_decode_request request{
 		inputPath.c_str(), outputPath.c_str(), inputBytes, maximumOutputBytes,
 	};
-	const auto outcome = soundscaper_pro_os_mp3_decode(&request);
+	const auto outcome = decode(&request);
 	napi_value result;
 	CHECK(napi_create_object(env, &result));
 	if (!setText(env, result, "status", osCodecStatusName(outcome.status))
@@ -351,6 +352,16 @@ napi_value decodeOperatingSystemMp3(napi_env env, napi_callback_info info)
 		|| !setNumber(env, result, "sampleRate", outcome.sample_rate)
 		|| !setNumber(env, result, "channelCount", outcome.channel_count)) return nullptr;
 	return result;
+}
+
+napi_value decodeOperatingSystemMp3(napi_env env, napi_callback_info info)
+{
+	return decodeOperatingSystemAudio(env, info, soundscaper_pro_os_mp3_decode);
+}
+
+napi_value decodeOperatingSystemAacM4a(napi_env env, napi_callback_info info)
+{
+	return decodeOperatingSystemAudio(env, info, soundscaper_pro_os_aac_m4a_decode);
 }
 
 void collectCandidates(const std::filesystem::path &root, const std::string &suffix,
@@ -405,6 +416,7 @@ NAPI_MODULE_INIT()
 		{ "readAudioDevice", nullptr, readAudioDevice, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "closeAudioDevice", nullptr, closeAudioDevice, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "decodeOperatingSystemMp3", nullptr, decodeOperatingSystemMp3, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "decodeOperatingSystemAacM4a", nullptr, decodeOperatingSystemAacM4a, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "listPluginCandidates", nullptr, listPluginCandidates, nullptr, nullptr, nullptr, napi_default, nullptr },
 	};
 	if (napi_define_properties(env, exports, std::size(properties), properties) != napi_ok) {

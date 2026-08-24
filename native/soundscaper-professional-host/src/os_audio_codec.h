@@ -47,6 +47,14 @@ typedef struct soundscaper_pro_os_mp3_decode_result {
 soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
 	const soundscaper_pro_os_mp3_decode_request *request);
 
+/**
+ * Decodes one authenticated AAC-LC-in-M4A file through the target OS codec.
+ * The bounded file and authoritative float32 geometry contract is identical
+ * to MP3 decode; raw ADTS AAC and non-LC object types are refused.
+ */
+soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_aac_m4a_decode(
+	const soundscaper_pro_os_mp3_decode_request *request);
+
 #ifdef __cplusplus
 }
 #endif

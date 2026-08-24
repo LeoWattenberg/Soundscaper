@@ -1,0 +1,68 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import test from 'node:test';
+
+const ROOT = resolve(import.meta.dirname, '..');
+const SOURCE = join(ROOT, 'native/soundscaper-professional-host');
+
+test('target native ABI and Node bridge expose bounded AAC-LC M4A decode', async () => {
+	const [header, bridge, unavailable] = await Promise.all([
+		readFile(join(SOURCE, 'src/os_audio_codec.h'), 'utf8'),
+		readFile(join(SOURCE, 'src/node_api_bridge.cpp'), 'utf8'),
+		readFile(join(SOURCE, 'src/os_audio_codec_unavailable.cpp'), 'utf8'),
+	]);
+	assert.match(header, /soundscaper_pro_os_aac_m4a_decode\s*\(/u);
+	assert.match(bridge, /decodeOperatingSystemAacM4a/u);
+	assert.match(bridge, /soundscaper_pro_os_aac_m4a_decode/u);
+	assert.match(unavailable, /soundscaper_pro_os_aac_m4a_decode/u);
+});
+
+test('Windows AAC decoder proves M4A mp4a and AAC-LC before emitting float PCM', async () => {
+	const source = await readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8');
+	for (const witness of [
+		'MFAudioFormat_AAC', 'MF_MT_MPEG4_SAMPLE_DESCRIPTION',
+		'MF_MT_MPEG4_CURRENT_SAMPLE_ENTRY', 'MF_MT_AAC_PAYLOAD_TYPE',
+		'MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION', 'MFAudioFormat_Float',
+		'sourceSampleRate', 'sourceChannelCount',
+	]) assert.match(source, new RegExp(witness, 'u'), witness);
+	assert.match(source, /['"]mp4a['"]|\{\s*'m',\s*'p',\s*'4',\s*'a'\s*\}/u);
+	assert.match(source, /0x29u.*0x2au.*0x2bu/su);
+	assert.match(source, /sampleRate != sourceSampleRate.*channelCount != sourceChannelCount/su);
+});
+
+test('macOS AAC decoder proves the M4A container and distinct AAC-LC format ID', async () => {
+	const source = await readFile(join(SOURCE, 'src/os_audio_codec_mac.mm'), 'utf8');
+	for (const witness of [
+		'kExtAudioFileProperty_AudioFile', 'kAudioFilePropertyFileFormat',
+		'kAudioFileM4AType', 'kAudioFormatMPEG4AAC',
+		'kAudioFormatFlagsNativeFloatPacked',
+	]) assert.match(source, new RegExp(witness, 'u'), witness);
+});
+
+test('target CTest uses exact positive M4A and wrong-container ADTS fixtures', async () => {
+	const [source, cmake] = await Promise.all([
+		readFile(join(SOURCE, 'tests/os_audio_codec_self_test.cpp'), 'utf8'),
+		readFile(join(SOURCE, 'CMakeLists.txt'), 'utf8'),
+	]);
+	assert.match(source, /1db255988826f9f6f8322f6cfb6c82c6ee7873c3252c822bc0ac1793d5729451/u);
+	assert.match(source, /20eac200d9047ae50a6f34b7fbbe610a49a48bb58c7208df28f6a4789b67e826/u);
+	assert.match(source, /soundscaper_pro_os_aac_m4a_decode/u);
+	assert.match(source, /SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED/u);
+	assert.match(cmake, /soundscaper_os_audio_codec_self_test/u);
+	assert.doesNotMatch(cmake, /mac-x64|x86_64/iu);
+	for (const [name, byteLength, sha256] of [
+		['aacM4aCanaryBase64', 1909, '1db255988826f9f6f8322f6cfb6c82c6ee7873c3252c822bc0ac1793d5729451'],
+		['aacAdtsCanaryBase64', 1115, '20eac200d9047ae50a6f34b7fbbe610a49a48bb58c7208df28f6a4789b67e826'],
+	]) {
+		const block = new RegExp(`constexpr char ${name}\\[\\] =([\\s\\S]*?);`, 'u').exec(source)?.[1];
+		assert.equal(typeof block, 'string', name);
+		const encoded = [...block.matchAll(/"([^"]*)"/gu)].map((match) => match[1]).join('');
+		const fixture = Buffer.from(encoded, 'base64');
+		assert.equal(fixture.byteLength, byteLength, name);
+		assert.equal(createHash('sha256').update(fixture).digest('hex'), sha256, name);
+	}
+});
