@@ -150,13 +150,11 @@ async function resolveFrame(
 	const clip = clipById(authority.plan, stableId(request?.clipId, 'V13 finishing clip ID'));
 	const source = sourceForClip(authority.plan, clip);
 	const interpretation = authority.finishing.sourceInterpretations.find(
-		(candidate) => candidate.sourceId === source.sourceId,
-	);
+		({ sourceId }) => sourceId === source.sourceId);
 	if (!interpretation) throw new ReferenceError('The V13 source color interpretation is unavailable.');
 	assertManagedVideoColorRenderAdmissionV1(interpretation);
-	const presentations = applicablePresentations(
-		authority, clip, source, sequenceFrame, request.presentationScope ?? 'all',
-	);
+	const presentations = applicablePresentations(authority, clip, source, sequenceFrame,
+		request.presentationScope ?? 'all');
 	let frame = rgbaFrame(request?.frame, 'V13 finishing frame');
 	const analysisCache = new Map<string, VideoMotionAnalysisBodyV1>();
 	const stacks = new Map(authority.finishing.processorStacks.map((stack) => [stack.id, stack]));
@@ -566,15 +564,11 @@ function clipById(plan: UnifiedExactRenderPlanV13, clipId: string): UnifiedExact
 	return clip;
 }
 
-function sourceForClip(
-	plan: UnifiedExactRenderPlanV13,
-	clip: UnifiedExactRenderClipNode,
-): UnifiedExactRenderPlanSource {
+function sourceForClip(plan: UnifiedExactRenderPlanV13, clip: UnifiedExactRenderClipNode): UnifiedExactRenderPlanSource {
 	const source = plan.sources.find(({ nodeId }) => nodeId === clip.sourceNodeId);
 	if (!source) throw new ReferenceError('The V13 finishing clip source is unavailable.');
 	return source;
 }
-
 function identityTransform(): VideoSimilarityTransformV1 {
 	return Object.freeze({
 		scale: 1, rotationRadians: 0, translateX: 0, translateY: 0,

@@ -118,19 +118,10 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 		);
 	}
 	for (const id of [
-		'menu-macros',
-		'apply-macros-palette',
-		'macro-fade-ends',
-		'macro-mp3-conversion',
-		'get-effects',
-		'project-show-in-folder',
+		'menu-macros', 'apply-macros-palette', 'macro-fade-ends', 'macro-mp3-conversion', 'get-effects', 'project-show-in-folder',
 	]) {
 		const definition = audacityActionDefinition(id);
-		assert.equal(
-			definition.roadmapDisposition,
-			AUDACITY_ACTION_ROADMAP_DISPOSITION.JUSTIFIED_EXCLUDED,
-			id,
-		);
+		assert.equal(definition.roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.JUSTIFIED_EXCLUDED, id);
 		assert.equal(definition.roadmapMilestone, undefined, id);
 	}
 	assert.match(audacityActionReason('reset-configuration', 'en'), /superseded/u);

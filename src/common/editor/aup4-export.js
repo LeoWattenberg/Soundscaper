@@ -858,8 +858,7 @@ function mixInto(output, input, gain) {
 function resampleChannels(channels, inputRate, outputRate) {
 	const outputFrames = Math.max(1, scaleSampleFrame(channels[0].length, inputRate, outputRate, 'point'));
 	const resampler = createStreamingWindowedSincResampler(inputRate, outputRate, channels.length);
-	const head = resampler.push(channels);
-	const tail = resampler.finish(outputFrames);
+	const head = resampler.push(channels); const tail = resampler.finish(outputFrames);
 	return head.map((values, channel) => {
 		const output = new Float32Array(values.length + tail[channel].length);
 		output.set(values);
