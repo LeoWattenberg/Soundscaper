@@ -5,6 +5,7 @@ import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, DESKTOP_RUNTIME_BUNDLED_LEAF_FILES } from './desktop-5b-transitive-runtime-files.mjs';
+import { stageDesktopBundledWavPackRuntime } from './desktop-bundled-wavpack-runtime.mjs';
 import { DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES } from './desktop-external-ffmpeg-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES } from './desktop-project-library-exact-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES } from './desktop-project-library-v27-runtime-files.mjs';
@@ -441,11 +442,11 @@ export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outp
 		'--outDir', output,
 	], root);
 	await bundleRuntimeHashModules(root, output);
+	await stageDesktopBundledWavPackRuntime({ repositoryRoot: root, outputRoot: output });
 	const files = await listRuntimeFiles(output);
 	assertExpectedRuntime(files);
-	for (const name of files) {
-		const source = await readFile(join(output, name), 'utf8');
-		assertNoTypeScriptImportSpecifiers(`Desktop runtime ${name}`, source);
+	for (const name of files.filter((file) => /\.[cm]?js$/u.test(file))) {
+		assertNoTypeScriptImportSpecifiers(`Desktop runtime ${name}`, await readFile(join(output, name), 'utf8'));
 	}
 	return Object.freeze({ files: Object.freeze(files) });
 }

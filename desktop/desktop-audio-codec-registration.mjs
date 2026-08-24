@@ -11,7 +11,8 @@ const TARGETS = Object.freeze(new Map([
 	['win32:arm64', 'win-arm64'],
 ]));
 const MODULE_METHODS = Object.freeze([
-	'createDesktopAudioCodecRuntimeComposition', 'registerDesktopAudioCodecMainIpc',
+	'createDesktopAudioCodecRuntimeComposition', 'loadBundledWavPackAudioCodecRuntime',
+	'registerDesktopAudioCodecMainIpc',
 ]);
 
 /** Resolve Electron's runtime tuple to the closed, reviewed desktop target set. */
@@ -30,10 +31,12 @@ export async function registerDesktopAudioCodecs(options) {
 	const target = desktopAudioCodecTargetFor(options.platform, options.architecture);
 	const modules = await (options.loadModules ?? loadRuntimeModules)();
 	validateModules(modules);
+	const bundledRuntime = await modules.loadBundledWavPackAudioCodecRuntime({ target });
 	const scratchRoot = resolve(options.userDataPath, 'desktop-audio-codecs');
 	await (options.mkdir ?? nodeMkdir)(scratchRoot, { recursive: true, mode: 0o700 });
 	const service = modules.createDesktopAudioCodecRuntimeComposition({
 		target, scratchRoot, externalFfmpegPreferences: options.externalFfmpegPreferences,
+		...(bundledRuntime === null ? {} : { createBundledRuntime: () => bundledRuntime }),
 	});
 	const ipc = modules.registerDesktopAudioCodecMainIpc({
 		channels: Object.freeze({
@@ -57,12 +60,14 @@ export async function registerDesktopAudioCodecs(options) {
 }
 
 async function loadRuntimeModules() {
-	const [composition, ipc] = await Promise.all([
+	const [composition, ipc, wavPack] = await Promise.all([
 		import('./project-library-runtime/desktop/desktop-audio-codec-runtime-composition.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-main-ipc.js'),
+		import('./project-library-runtime/desktop/bundled-wavpack-audio-codec-runtime.js'),
 	]);
 	return Object.freeze({
 		createDesktopAudioCodecRuntimeComposition: composition.createDesktopAudioCodecRuntimeComposition,
+		loadBundledWavPackAudioCodecRuntime: wavPack.loadBundledWavPackAudioCodecRuntime,
 		registerDesktopAudioCodecMainIpc: ipc.registerDesktopAudioCodecMainIpc,
 	});
 }

@@ -16,6 +16,8 @@
 	},
 	"include": [
 		"desktop/application-lifecycle.ts",
+		"desktop/bundled-wavpack-audio-codec-runtime.ts",
+		"desktop/bundled-wavpack-stream.ts",
 		"desktop/desktop-audio-codec-broker.ts",
 		"desktop/desktop-audio-codec-capability-contract.ts",
 		"desktop/desktop-audio-codec-main-ipc.ts",

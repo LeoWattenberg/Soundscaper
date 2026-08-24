@@ -95,6 +95,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/framescaper-openfx-runtime.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/external-display-frame-port.js'));
 	for (const name of [
+		'bundled-wavpack-audio-codec-runtime.js', 'bundled-wavpack-stream.js',
 		'desktop-audio-codec-broker.js', 'desktop-audio-codec-main-ipc.js',
 		'desktop-audio-codec-operation-contract.js', 'desktop-audio-codec-runtime-composition.js',
 		'desktop-audio-ffmpeg-plan.js', 'external-ffmpeg-audio-operation-runner.js',
@@ -106,6 +107,9 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	for (const name of [
 		'desktop-codec-coordinator.js', 'desktop-codec-provider-catalog.js',
 	]) await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor', name));
+	await access(join(
+		applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/wavpack/wavpack.wasm',
+	));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-helper-job.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-capability-report.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-host-self-test.js'));
