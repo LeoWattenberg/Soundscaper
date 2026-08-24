@@ -25,6 +25,12 @@ interface DesktopExportCodecSettings {
 	readonly binaural?: unknown;
 }
 
+interface DesktopExportCodecSelection {
+	readonly format?: unknown;
+	readonly sampleFormat?: unknown;
+	readonly compressionLevel?: unknown;
+}
+
 const COMPRESSED = new Set<string>(DESKTOP_AUDIO_CODEC_FORMATS);
 const WAVPACK_COMPRESSION_LEVELS = Object.freeze([0, 1, 2, 3, 4, 5] as const);
 const FLAC_SAMPLE_FORMATS = Object.freeze(['int16', 'int24'] as const);
@@ -106,6 +112,31 @@ export function desktopExportVorbisQualities(): readonly number[] {
 
 export function desktopExportMaximumSampleRate(format: unknown): number {
 	return COMPRESSED.has(String(format)) ? DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE : 384_000;
+}
+
+export function desktopExportSelectionReason(
+	settings: DesktopExportCodecSelection,
+	capabilities: DesktopAudioCodecCapabilities | null,
+	invalidQuery = false,
+): string | null {
+	if (!desktopExportFormatAvailable(settings.format, capabilities)) {
+		return desktopExportFormatReason(settings.format, capabilities, invalidQuery);
+	}
+	const format = String(settings.format);
+	if (format === 'wavpack' && capabilities?.formats.wavpack?.provider === 'bundled'
+		&& !desktopExportWavPackCompressionLevels(capabilities).includes(Number(settings.compressionLevel))) {
+		return 'The bundled WavPack provider supports only compression level 2 (reviewed fast mode).';
+	}
+	if (format === 'flac' && capabilities?.formats.flac?.provider === 'bundled') {
+		if (!desktopExportFlacSampleFormats(capabilities).includes(String(settings.sampleFormat) as 'int16' | 'int24')) {
+			return 'The bundled FLAC provider supports only explicitly converted signed 24-bit PCM.';
+		}
+		const level = Number(settings.compressionLevel);
+		if (!Number.isSafeInteger(level) || level < 0 || level > 8) {
+			return 'The bundled FLAC provider supports compression levels 0 through 8.';
+		}
+	}
+	return null;
 }
 
 function outputChannelCount(settings: DesktopExportCodecSettings, projectChannelCount: unknown): number {

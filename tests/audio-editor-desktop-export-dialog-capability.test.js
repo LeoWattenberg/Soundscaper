@@ -14,9 +14,9 @@ test('desktop export dialog queries main status, filters formats, and refuses st
 	assert.match(dialog, /audioFormatDescriptors\.map/u);
 	assert.match(dialog, /desktopExportFormatAvailable\(descriptor\.id, desktopCodecCapabilities\)/u);
 	assert.match(dialog, /desktopExportWavPackCompressionLevels\(desktopCodecCapabilities\)/u);
-	assert.match(dialog, /formats\.wavpack\?\.provider === 'bundled'[\s\S]*?desktopExportWavPackCompressionLevels/u);
-	assert.match(dialog, /desktop \?[\s\S]*?desktopExportBitRates\(settings\.format\)/u);
-	assert.match(dialog, /desktop \? desktopExportVorbisQualities\(\)/u);
+	assert.match(dialog, /desktopExportSelectionReason\(settings, desktopCodecCapabilities/u);
+	assert.match(dialog, /exportDialogBitRateOptions\(settings\.format, desktop\)/u);
+	assert.match(dialog, /exportDialogVorbisQualityOptions\(desktop\)/u);
 	assert.match(dialog, /max=\{maximumAudioSampleRate\}/u);
 	assert.match(dialog, /disabled=\{blocked \|\| admRequired \|\| Boolean\(desktopFormatRefusal\)\}/u);
 	assert.match(dialog, /data-desktop-codec-status/u);

@@ -11,6 +11,7 @@ import {
 	desktopExportFormatReason,
 	desktopExportFlacSampleFormats,
 	desktopExportMaximumSampleRate,
+	desktopExportSelectionReason,
 	desktopExportVorbisQualities,
 	desktopExportWavPackCompressionLevels,
 } from '../src/common/editor/ui/desktop-export-codec-model.ts';
@@ -100,4 +101,33 @@ test('bundled FLAC exposes only the signed-24 PCM profile its receipt reports', 
 		desktopExportFlacSampleFormats(desktopExportCodecCapabilities(result('external-ffmpeg'), query)),
 		['int16', 'int24'],
 	);
+});
+
+test('desktop selection refusal owns bundled profile drift outside the dialog component', () => {
+	const query = createDesktopExportCodecQuery({
+		sampleRate: '48000', channelMapping: 'stereo', binaural: false,
+	}, 2);
+	const capabilitiesFor = (format: 'flac' | 'wavpack') => desktopExportCodecCapabilities({
+		schemaVersion: 1,
+		capabilities: query.operations.map((operation) => operation.format === format
+			? { ...operation, available: true as const, provider: 'bundled' as const, reason: null }
+			: { ...operation, available: false as const, provider: null, reason: 'unsupported-by-configured-ffmpeg' as const }),
+	}, query);
+	const wavpack = capabilitiesFor('wavpack');
+	assert.match(desktopExportSelectionReason({
+		format: 'wavpack', sampleFormat: 'int24', compressionLevel: '5',
+	}, wavpack), /compression level 2/iu);
+	assert.equal(desktopExportSelectionReason({
+		format: 'wavpack', sampleFormat: 'int24', compressionLevel: '2',
+	}, wavpack), null);
+	const flac = capabilitiesFor('flac');
+	assert.match(desktopExportSelectionReason({
+		format: 'flac', sampleFormat: 'int16', compressionLevel: '5',
+	}, flac), /signed 24-bit/iu);
+	assert.match(desktopExportSelectionReason({
+		format: 'flac', sampleFormat: 'int24', compressionLevel: '9',
+	}, flac), /0 through 8/iu);
+	assert.equal(desktopExportSelectionReason({
+		format: 'flac', sampleFormat: 'int24', compressionLevel: '5',
+	}, flac), null);
 });
