@@ -45,6 +45,7 @@ const SCANNER_FAULT_KINDS = new Map([
 	['oversize-answer', 'oversized-answer'],
 	['malformed-plugin', 'malformed-answer'],
 	['oversize-plugin', 'oversized-answer'],
+	['identity-change', 'identity-change'],
 ]);
 
 /** Host stop reasons translated into the durable store's closed fault kinds. */
@@ -101,6 +102,7 @@ export function createScannerQuarantinePort(quarantine) {
 
 export function recordScannedPlugins(registry, result, {
 	identityFor = pluginCandidateIdentity, onRecorded = () => undefined,
+	onIdentityChanged = () => undefined,
 } = {}) {
 	if (result.status !== 'scanned') return [];
 	return result.entries.map((entry) => {
@@ -125,6 +127,13 @@ export function recordScannedPlugins(registry, result, {
 			});
 			const admission = registry.record(observation);
 			if (admission.status === 'recorded') onRecorded(observation, admission);
+			// A digest that re-claims a different identity lied about what it is;
+			// the plan quarantines that immediately and durably, whichever
+			// process noticed. Dropping the rejection silently left the binary
+			// eligible for the very next scan.
+			if (admission.status === 'rejected' && admission.reason === 'identity-change') {
+				onIdentityChanged(entry.binarySha256);
+			}
 			return admission;
 		} catch (error) {
 			return Object.freeze({ status: 'rejected', reason: 'malformed', detail: describeError(error) });
@@ -140,6 +149,7 @@ export function recordScannedPlugins(registry, result, {
  */
 export function observeScannedPlugins(supervisor, registry, {
 	isFormatActivated = () => true, onRecorded = () => undefined,
+	onIdentityChanged = () => undefined,
 } = {}) {
 	return Object.freeze({
 		runJob: async (request) => {
@@ -151,7 +161,7 @@ export function observeScannedPlugins(supervisor, registry, {
 				if (!isFormatActivated(request.grant?.format)) {
 					throw new Error('That plug-in format activation changed while its scan was running.');
 				}
-				recordScannedPlugins(registry, result, { onRecorded });
+				recordScannedPlugins(registry, result, { onRecorded, onIdentityChanged });
 			}
 			return result;
 		},
@@ -213,6 +223,7 @@ export function registerDesktopPluginDiscovery({
 	const service = new DesktopPluginScanService({
 		supervisor: observeScannedPlugins(supervisor, registry, {
 			isFormatActivated: formatIsActive, onRecorded: reviews.observe,
+			onIdentityChanged: (digest) => scannerQuarantine.quarantine(digest, 'identity-change'),
 		}),
 		consent: Object.freeze({
 			isGranted: (format) => formatIsActive(format) && consent.isGranted(format),

@@ -12,11 +12,12 @@
  *
  * The renderer names an opaque root id and a format. It never names a
  * directory, never receives a raw path back, and cannot cause a scan of a
- * format it has not consented to. Quarantine is keyed by binary digest, because
- * the bytes are what misbehave: an installation the scanner calls malformed or
- * oversize loses its own digest, while a fault that names no binary is reported
- * as a fault and left non-permanent rather than costing a whole folder its
- * eligibility until the user rescans it into the same crash again.
+ * format it has not consented to. Quarantine is keyed by digest, because the
+ * bytes are what misbehave: an installation the scanner calls malformed or
+ * oversize loses its own digest, while a crash, hang, or malformed answer —
+ * which names no binary — durably quarantines the root-and-format scan unit
+ * until the user rescans that location explicitly, so a hostile folder cannot
+ * crash the scanner in a loop merely by being scanned again.
  *
  * Like every other native surface this one is off by default and degrades
  * rather than fails: disabled, unconsented, quarantined, unbuilt, or crashed,
@@ -67,8 +68,8 @@ export type PluginScanFailureCode =
  */
 export interface PluginScanRootFault {
 	readonly reason: PluginScanFaultReason;
-	/** False, always: the scan named no binary, so nothing durable is written. */
-	readonly quarantined: false;
+	/** True when the fault durably quarantined the root-and-format scan unit. */
+	readonly quarantined: boolean;
 }
 
 export type PluginScanOutcome =
@@ -128,7 +129,7 @@ export type PluginScanQuarantineReason = PluginScanFaultReason | PluginBinaryQua
 /** Durability belongs to the port; the service only decides what is a fault. */
 export interface PluginScanQuarantinePort {
 	isQuarantined(digest: string): boolean;
-	quarantine(digest: string, reason: PluginBinaryQuarantineReason): void;
+	quarantine(digest: string, reason: PluginScanQuarantineReason): void;
 }
 
 export interface PluginScanRootLocation {
@@ -293,7 +294,15 @@ export class DesktopPluginScanService {
 			});
 		} catch (error) {
 			const code = failureCode(error);
-			return failure(code, FAILURE_MESSAGES[code], scanFault(error));
+			const reason = scanFaultReason(error);
+			// A faulting scan durably quarantines its root-and-format scan unit,
+			// exactly as the plan requires: a scanner that crashes and comes back
+			// to scan the same folder again is a loop, not a retry. The explicit
+			// rescan clearance is the one way out, so a healthy neighbour is
+			// blocked only until the user deliberately rescans the location.
+			if (reason !== null) this.#quarantine.quarantine(root.scanDigest, reason);
+			return failure(code, FAILURE_MESSAGES[code],
+				reason === null ? null : Object.freeze({ reason, quarantined: true }));
 		} finally {
 			if (this.#owners.get(admitted.owner) === controller) this.#owners.delete(admitted.owner);
 		}
@@ -411,14 +420,3 @@ function scanFaultReason(error: unknown): PluginScanFaultReason | null {
 	return null;
 }
 
-/**
- * A scan-level fault names no binary — the answer that would have named one is
- * the answer that never arrived — so it is reported and left non-permanent. The
- * durable quarantine is keyed by the bytes that misbehaved, and a folder is not
- * bytes: quarantining the root would block rescans of every healthy plug-in
- * beside the hostile one, and the only exit would re-run the same root.
- */
-function scanFault(error: unknown): PluginScanRootFault | null {
-	const reason = scanFaultReason(error);
-	return reason === null ? null : Object.freeze({ reason, quarantined: false as const });
-}
