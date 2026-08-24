@@ -39,7 +39,10 @@ function clip(options = {}) {
 
 test('design-system time conversion rounds and clamps at canonical 48 kHz frame boundaries', () => {
 	assert.equal(secondsToFrames(1), 48_000);
-	assert.equal(secondsToFrames(0.5 / 48_000), 1);
+	// The double 0.5 / 48_000 sits strictly below the exact half-frame
+	// (no binary fraction lands on a 48 kHz tie), so exact point rounding
+	// names frame 0; the former 1 was a floating-product artifact.
+	assert.equal(secondsToFrames(0.5 / 48_000), 0);
 	assert.equal(secondsToFrames(-100), 0);
 	assert.equal(secondsToFrames(10, { minimumFrame: 100, maximumFrame: 200 }), 200);
 	assert.equal(framesToSeconds(48_000), 1);

@@ -398,7 +398,7 @@ test('the threat and quality documents limit direct video claims to the proved t
 	assert.ok(threatStart >= 0 && threatEnd > threatStart);
 	const threatDocumentation = threatModel.slice(threatStart, threatEnd).replace(/\s+/gu, ' ');
 	const qualityStart = qualityBudgets.indexOf('A fifth provisional milestone 2 fixture');
-	const qualityEnd = qualityBudgets.indexOf('\nThe [collision-cancel inspection witness]', qualityStart);
+	const qualityEnd = qualityBudgets.indexOf('\nThe [legacy-schema refusal witness]', qualityStart);
 	assert.ok(qualityStart >= 0 && qualityEnd > qualityStart);
 	const qualityDocumentation = qualityBudgets.slice(qualityStart, qualityEnd).replace(/\s+/gu, ' ');
 

@@ -145,7 +145,7 @@ test('a shipped over-length channel map still builds, routing only in-range entr
 		context as never, nodes as never, input as never, 4, 2,
 		{ id: 'edge-a', channelMap: [0, 1, 2, 3] } as never,
 	);
-	assert.match(String((output as { id: unknown }).id), /merger/u);
+	assert.match(String((output as unknown as { id: unknown }).id), /merger/u);
 	const routed = connections
 		.filter(({ from }) => String((from as { id: unknown }).id).startsWith('splitter'))
 		.map(({ output: sourceChannel, input: destinationChannel }) => [sourceChannel, destinationChannel]);
