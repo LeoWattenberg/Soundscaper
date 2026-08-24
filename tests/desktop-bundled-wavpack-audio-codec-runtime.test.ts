@@ -10,8 +10,15 @@ import {
 	BUNDLED_WAVPACK_WASM_SHA256,
 	loadBundledWavPackAudioCodecRuntime,
 } from '../desktop/bundled-wavpack-audio-codec-runtime.ts';
+import { createBundledDesktopAudioCodecRuntime } from '../desktop/bundled-audio-codec-runtime.ts';
+import {
+	DesktopAudioCodecProviderError,
+	createDesktopAudioCodecBroker,
+	type DesktopAudioCodecProviderRuntime,
+} from '../desktop/desktop-audio-codec-broker.ts';
 import {
 	assembleBundledWavPackChunks,
+	inspectBundledWavPackStream,
 	parseBundledWavPackStream,
 } from '../desktop/bundled-wavpack-stream.ts';
 import type {
@@ -21,6 +28,11 @@ import type {
 	DesktopAudioCodecRequest,
 } from '../desktop/desktop-audio-codec-operation-contract.ts';
 import type { DesktopCodecOperation } from '../src/common/editor/desktop-codec-coordinator.ts';
+import {
+	DesktopCodecOperationError,
+	type DesktopCodecPreflightResult,
+	type DesktopCodecProviderKind,
+} from '../src/common/editor/desktop-codec-coordinator.ts';
 import { loadWavPackWasm } from '../src/common/editor/wavpack/runtime.js';
 
 const WASM_URL = new URL('../src/common/editor/wavpack/wavpack.wasm', import.meta.url);
@@ -122,11 +134,13 @@ test('the stream authority rejects non-profile flags, correction data, extension
 		const mutated = source.slice();
 		const view = new DataView(mutated.buffer);
 		view.setUint32(24, view.getUint32(24, true) | flag, true);
+		refreshBlockChecksum(mutated);
 		assert.throws(() => parseBundledWavPackStream(mutated), /unsupported float PCM/iu);
 	}
 	const integer = source.slice();
 	const integerView = new DataView(integer.buffer);
 	integerView.setUint32(24, integerView.getUint32(24, true) & ~0x80, true);
+	refreshBlockChecksum(integer);
 	assert.throws(() => parseBundledWavPackStream(integer), /unsupported float PCM/iu);
 
 	const correction = source.slice();
@@ -134,11 +148,13 @@ test('the stream authority rejects non-profile flags, correction data, extension
 	correction[primaryBitstream.headerOffset] = (
 		correction[primaryBitstream.headerOffset]! & 0xc0
 	) | 0x0b;
+	refreshBlockChecksum(correction);
 	assert.throws(() => parseBundledWavPackStream(correction), /outside the reviewed/iu);
 
 	const extension = source.slice();
 	const config = metadata(extension, 0x25);
 	extension[config.headerOffset] = (extension[config.headerOffset]! & 0xc0) | 0x3e;
+	refreshBlockChecksum(extension);
 	assert.throws(() => parseBundledWavPackStream(extension), /outside the reviewed/iu);
 
 	const checksumFault = source.slice();
@@ -154,6 +170,111 @@ test('the stream authority rejects non-profile flags, correction data, extension
 	const outOfBounds = source.slice();
 	new DataView(outOfBounds.buffer).setUint32(4, outOfBounds.byteLength, true);
 	assert.throws(() => parseBundledWavPackStream(outOfBounds), /size exceeds/iu);
+});
+
+test('stream preflight separates structurally valid unreviewed profiles from invalid input', async () => {
+	const loaded = loadWavPackWasm as unknown as (
+		value: Uint8Array,
+	) => Promise<Awaited<ReturnType<typeof loadWavPackWasm>>>;
+	const codec = await loaded(await readFile(WASM_URL));
+	const planar = structuredPlanar(4_096, 2);
+	const source = new Uint8Array(codec.encode(planar.buffer, {
+		frames: 4_096, channelCount: 2, sampleRate: 48_000,
+		maximumOutputBytes: planar.byteLength,
+	}) as ArrayBuffer);
+	assert.equal(inspectBundledWavPackStream(source).disposition, 'supported');
+
+	const unreviewed: Uint8Array[] = [];
+	for (const updateFlags of [
+		(flags: number) => flags & ~0x80,
+		(flags: number) => flags | 0x8,
+		(flags: number) => flags | 0x8000_0000,
+	]) {
+		const mutated = source.slice();
+		const view = new DataView(mutated.buffer);
+		view.setUint32(24, updateFlags(view.getUint32(24, true)), true);
+		refreshBlockChecksum(mutated);
+		unreviewed.push(mutated);
+	}
+	const noChecksum = source.slice();
+	const checksum = metadata(noChecksum, 0x2f);
+	noChecksum[checksum.headerOffset] = noChecksum[checksum.headerOffset]! & 0xc0;
+	const noChecksumView = new DataView(noChecksum.buffer);
+	noChecksumView.setUint32(24, noChecksumView.getUint32(24, true) & ~0x1000_0000, true);
+	unreviewed.push(noChecksum);
+	const extension = source.slice();
+	const config = metadata(extension, 0x25);
+	extension[config.headerOffset] = (extension[config.headerOffset]! & 0xc0) | 0x3e;
+	refreshBlockChecksum(extension);
+	unreviewed.push(extension);
+
+	for (const input of unreviewed) {
+		const inspection = inspectBundledWavPackStream(input);
+		assert.equal(inspection.disposition, 'unsupported');
+		if (inspection.disposition === 'unsupported') {
+			assert.match(inspection.reason, /unsupported|reviewed|checksum/iu);
+		}
+		assert.throws(() => parseBundledWavPackStream(input), /unsupported|outside|checksum/iu);
+	}
+
+	const checksumFault = source.slice();
+	const fault = metadata(checksumFault, 0x2f);
+	checksumFault[fault.dataOffset + fault.dataLength - 1] ^= 1;
+	for (const invalid of [checksumFault, source.subarray(0, source.byteLength - 1)]) {
+		const inspection = inspectBundledWavPackStream(invalid);
+		assert.equal(inspection.disposition, 'rejected');
+		if (inspection.disposition === 'rejected') assert.match(inspection.reason, /checksum|size/iu);
+	}
+});
+
+test('valid unreviewed WavPack requests fall through while malformed input remains terminal', async () => {
+	const wavpack = await loadBundledWavPackAudioCodecRuntime({ target: 'linux-x64' });
+	assert.ok(wavpack);
+	const bundled = createBundledDesktopAudioCodecRuntime({
+		target: 'linux-x64', runtimes: [wavpack],
+	});
+	const encoded = await execute(wavpack, encodeRequest(structuredInterleaved(4_096, 2), 4_096, 2));
+	assert.equal(encoded.status, 'executed');
+	if (encoded.status !== 'executed') return;
+	const integer = encoded.output.slice();
+	const integerView = new DataView(integer.buffer);
+	integerView.setUint32(24, integerView.getUint32(24, true) & ~0x80, true);
+	refreshBlockChecksum(integer);
+	const checksumFault = encoded.output.slice();
+	const checksum = metadata(checksumFault, 0x2f);
+	checksumFault[checksum.dataOffset + checksum.dataLength - 1] ^= 1;
+
+	let externalExecutions = 0;
+	const broker = createDesktopAudioCodecBroker({ runtimes: [
+		bundled,
+		fallbackRuntime('operating-system', 'unavailable', () => undefined),
+		fallbackRuntime('external-ffmpeg', 'supported', (request) => {
+			externalExecutions += 1;
+			return request.operation === 'audio-decode' ? undefined : Uint8Array.of(1);
+		}),
+	] });
+	await assert.rejects(() => broker.execute(decodeRequest(integer, 4_096, 2)), (error: unknown) => {
+		assert.ok(error instanceof DesktopAudioCodecProviderError);
+		assert.equal(error.providerKind, 'external-ffmpeg');
+		assert.equal(error.reason, 'unavailable');
+		return true;
+	});
+	assert.equal(externalExecutions, 1);
+
+	await assert.rejects(() => broker.execute(decodeRequest(checksumFault, 4_096, 2)), (error: unknown) => {
+		assert.ok(error instanceof DesktopCodecOperationError);
+		assert.equal(error.code, 'DESKTOP_CODEC_PREFLIGHT_REJECTED');
+		assert.equal(error.providerId, bundled.provider.id);
+		return true;
+	});
+	assert.equal(externalExecutions, 1, 'malformed input must not reach a lower-priority codec');
+
+	const unreviewedEncode = encodeRequest(structuredInterleaved(16, 2), 16, 2);
+	const encodeOutcome = await broker.execute({
+		...unreviewedEncode, settings: Object.freeze({ compressionLevel: 1 }),
+	});
+	assert.equal(encodeOutcome.receipt.provider.kind, 'external-ffmpeg');
+	assert.equal(externalExecutions, 2);
 });
 
 test('assembly strips chunk-scoped MD5 records and refuses ambiguous RIFF trailers', async () => {
@@ -307,6 +428,30 @@ function operation(overrides: Partial<DesktopCodecOperation> = {}): DesktopCodec
 		direction: 'encode', mediaKind: 'audio', container: 'wavpack', codec: 'wavpack',
 		profile: null, sampleFormat: 'f32', pixelFormat: null, sampleRate: 48_000,
 		channelCount: 2, width: null, height: null, ...overrides,
+	});
+}
+
+function fallbackRuntime(
+	kind: Exclude<DesktopCodecProviderKind, 'bundled'>,
+	disposition: DesktopCodecPreflightResult['disposition'],
+	output: (request: DesktopAudioCodecRequest) => Uint8Array | undefined,
+): DesktopAudioCodecProviderRuntime {
+	return Object.freeze({
+		provider: Object.freeze({
+			kind, id: `${kind}-wavpack-fallback-test`, implementation: `${kind}-test`,
+			version: '1.0.0', capabilityGeneration: `${kind}-wavpack-test`,
+			preflight(): Promise<DesktopCodecPreflightResult> {
+				return Promise.resolve(disposition === 'supported'
+					? { disposition, reason: null }
+					: { disposition, reason: `${kind}-${disposition}` });
+			},
+		}),
+		execute(request: DesktopAudioCodecRequest) {
+			const bytes = output(request);
+			return Promise.resolve(bytes === undefined
+				? { status: 'failed' as const, reason: 'unavailable' as const, detail: 'not configured' }
+				: { status: 'executed' as const, output: bytes });
+		},
 	});
 }
 

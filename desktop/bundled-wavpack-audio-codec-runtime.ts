@@ -9,10 +9,12 @@ import { setImmediate as waitImmediate } from 'node:timers/promises';
 import {
 	assembleBundledWavPackChunks,
 	BundledWavPackStreamError,
+	inspectBundledWavPackStream,
 	materializeBundledWavPackDecodeGroup,
 	parseBundledWavPackStream,
 } from './bundled-wavpack-stream.ts';
 import {
+	assertDesktopAudioCodecRequest,
 	normalizeDesktopAudioCodecRequest,
 	type DesktopAudioCodecRequest,
 } from './desktop-audio-codec-operation-contract.ts';
@@ -111,6 +113,49 @@ function createRuntime(
 	const provider = bundledProvider(target);
 	return Object.freeze({
 		provider,
+		async preflightRequest(
+			requestValue: DesktopAudioCodecRequest,
+			options: Readonly<{ readonly operation: DesktopCodecOperation; readonly signal?: AbortSignal }>,
+		): Promise<DesktopCodecPreflightResult> {
+			throwIfAborted(options?.signal);
+			let request: DesktopAudioCodecRequest;
+			try {
+				assertDesktopAudioCodecRequest(requestValue);
+				request = requestValue;
+			}
+			catch {
+				return Object.freeze({ disposition: 'rejected', reason: 'The WavPack request is invalid.' });
+			}
+			const direction = request.operation === 'audio-encode' ? 'encode' : 'decode';
+			if (request.format !== 'wavpack' || direction !== options?.operation?.direction
+				|| !supportedOperation(options.operation)) {
+				return Object.freeze({
+					disposition: 'rejected', reason: 'The WavPack request does not match its admitted operation.',
+				});
+			}
+			if (request.operation === 'audio-encode') return request.settings.compressionLevel
+				=== BUNDLED_WAVPACK_COMPRESSION_LEVEL
+				? Object.freeze({ disposition: 'supported', reason: null })
+				: Object.freeze({
+					disposition: 'unsupported',
+					reason: 'The bundled WavPack provider supports only compression level 2 (reviewed fast mode).',
+				});
+			const inspection = inspectBundledWavPackStream(request.input);
+			if (inspection.disposition === 'rejected') return Object.freeze({
+				disposition: 'rejected',
+				reason: 'The WavPack input failed bounded structural or checksum validation.',
+			});
+			if (inspection.disposition === 'unsupported') return Object.freeze({
+				disposition: 'unsupported',
+				reason: 'The WavPack input uses a valid profile outside the reviewed float32 checksum surface.',
+			});
+			if (inspection.geometry.sampleRate !== request.sampleRate
+				|| inspection.geometry.channelCount !== request.channelCount) return Object.freeze({
+				disposition: 'rejected',
+				reason: 'The WavPack source geometry does not match the decode request.',
+			});
+			return Object.freeze({ disposition: 'supported', reason: null });
+		},
 		async execute(
 			requestValue: DesktopAudioCodecRequest,
 			options: Readonly<{ readonly operation: DesktopCodecOperation; readonly signal?: AbortSignal }>,

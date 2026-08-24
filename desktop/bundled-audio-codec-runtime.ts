@@ -30,6 +30,30 @@ export function createBundledDesktopAudioCodecRuntime(options: Readonly<{
 	const provider = compositeProvider(target, runtimes);
 	return Object.freeze({
 		provider,
+		async preflightRequest(
+			request: DesktopAudioCodecRequest,
+			executionOptions: Readonly<{
+				readonly operation: DesktopCodecOperation;
+				readonly signal?: AbortSignal;
+			}>,
+		): Promise<DesktopCodecPreflightResult> {
+			let exactFallback: DesktopCodecPreflightResult | null = null;
+			for (const runtime of runtimes) {
+				const tuple = await runtime.provider.preflight(executionOptions.operation, Object.freeze({
+					...(executionOptions.signal ? { signal: executionOptions.signal } : {}),
+				}));
+				if (tuple.disposition === 'rejected') return tuple;
+				if (tuple.disposition !== 'supported') continue;
+				if (runtime.preflightRequest === undefined) return tuple;
+				const exact = await runtime.preflightRequest(request, executionOptions);
+				if (exact.disposition === 'supported' || exact.disposition === 'rejected') return exact;
+				exactFallback = exact;
+			}
+			return exactFallback ?? Object.freeze({
+				disposition: 'unsupported',
+				reason: 'The reviewed bundled audio inventory has no exact codec for this request.',
+			});
+		},
 		async execute(
 			request: DesktopAudioCodecRequest,
 			executionOptions: Readonly<{
@@ -100,7 +124,9 @@ function runtimeList(
 		}
 		const runtime = candidate as DesktopAudioCodecProviderRuntime;
 		if (runtime.provider?.kind !== 'bundled' || typeof runtime.provider.preflight !== 'function'
-			|| typeof runtime.execute !== 'function' || !runtime.provider.id.endsWith(`-${target}`)
+			|| typeof runtime.execute !== 'function'
+			|| runtime.preflightRequest !== undefined && typeof runtime.preflightRequest !== 'function'
+			|| !runtime.provider.id.endsWith(`-${target}`)
 			|| identities.has(runtime.provider.id)) {
 			throw new TypeError('The bundled audio codec runtime list is invalid.');
 		}

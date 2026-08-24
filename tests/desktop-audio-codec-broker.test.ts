@@ -105,6 +105,49 @@ test('preflight falls through in fixed priority and only the selected external r
 	assert.notEqual(outcome.result.bytes, input);
 });
 
+test('request-aware runtime preflight falls through before provider selection and rejects terminally', async () => {
+	for (const disposition of ['unsupported', 'rejected'] as const) {
+		const trace: string[] = [];
+		const bundled = provider('bundled', 'supported', trace);
+		const bundledRuntime = Object.freeze({
+			provider: bundled,
+			preflightRequest() {
+				trace.push(`request-preflight:${disposition}`);
+				return Promise.resolve({ disposition, reason: `exact-${disposition}` } as const);
+			},
+			execute() {
+				trace.push('execute:bundled');
+				return executed([1]);
+			},
+		}) as DesktopAudioCodecProviderRuntime;
+		const broker = createDesktopAudioCodecBroker({ runtimes: [
+			bundledRuntime,
+			runtime(provider('operating-system', 'unavailable', trace), () => executed([2])),
+			runtime(provider('external-ffmpeg', 'supported', trace), () => {
+				trace.push('execute:external-ffmpeg');
+				return executed([3]);
+			}),
+		] });
+
+		if (disposition === 'unsupported') {
+			const outcome = await broker.execute(encodeRequest('mp3'));
+			assert.equal(outcome.receipt.provider.kind, 'external-ffmpeg');
+			assert.deepEqual(trace, [
+				'preflight:bundled', 'request-preflight:unsupported',
+				'preflight:operating-system', 'preflight:external-ffmpeg',
+				'execute:external-ffmpeg',
+			]);
+		} else {
+			await assert.rejects(() => broker.execute(encodeRequest('mp3')), (error: unknown) => {
+				assert.ok(error instanceof DesktopCodecOperationError);
+				assert.equal(error.code, 'DESKTOP_CODEC_PREFLIGHT_REJECTED');
+				return true;
+			});
+			assert.deepEqual(trace, ['preflight:bundled', 'request-preflight:rejected']);
+		}
+	}
+});
+
 test('a supported bundled runtime wins without preflighting or executing lower priorities', async () => {
 	const trace: string[] = [];
 	const providers = [

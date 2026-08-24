@@ -97,6 +97,13 @@ export interface BundledWavPackStreamGeometry {
 	readonly groups: readonly BundledWavPackGroup[];
 }
 
+export type BundledWavPackStreamInspection =
+	| Readonly<{ readonly disposition: 'supported'; readonly reason: null; readonly geometry: BundledWavPackStreamGeometry }>
+	| Readonly<{ readonly disposition: 'unsupported'; readonly reason: string; readonly geometry: BundledWavPackStreamGeometry }>
+	| Readonly<{ readonly disposition: 'rejected'; readonly reason: string; readonly geometry: null }>;
+
+interface WavPackProfileState { unsupportedReason: string | null; }
+
 export class BundledWavPackStreamError extends Error {
 	readonly code = 'BUNDLED_WAVPACK_STREAM_INVALID' as const;
 	constructor(message: string) {
@@ -106,6 +113,25 @@ export class BundledWavPackStreamError extends Error {
 }
 
 export function parseBundledWavPackStream(input: Uint8Array): BundledWavPackStreamGeometry {
+	const inspection = inspectBundledWavPackStream(input);
+	if (inspection.disposition !== 'supported') throw invalidStream(inspection.reason);
+	return inspection.geometry;
+}
+
+export function inspectBundledWavPackStream(input: Uint8Array): BundledWavPackStreamInspection {
+	const state: WavPackProfileState = { unsupportedReason: null };
+	try {
+		const geometry = parseStream(input, state);
+		return state.unsupportedReason === null
+			? Object.freeze({ disposition: 'supported', reason: null, geometry })
+			: Object.freeze({ disposition: 'unsupported', reason: state.unsupportedReason, geometry });
+	} catch (error) {
+		if (!(error instanceof BundledWavPackStreamError)) throw error;
+		return Object.freeze({ disposition: 'rejected', reason: error.message, geometry: null });
+	}
+}
+
+function parseStream(input: Uint8Array, state: WavPackProfileState): BundledWavPackStreamGeometry {
 	if (!(input instanceof Uint8Array) || input.byteLength < WAVPACK_HEADER_BYTES) {
 		throw invalidStream('The WavPack stream is empty or truncated.');
 	}
@@ -134,7 +160,7 @@ export function parseBundledWavPackStream(input: Uint8Array): BundledWavPackStre
 		if (blockCount > WAVPACK_MAXIMUM_BLOCK_COUNT) {
 			throw invalidStream('The WavPack stream contains too many bounded blocks.');
 		}
-		const block = parseBlock(input, view, offset);
+		const block = parseBlock(input, view, offset, state);
 		if (block.initial) {
 			if (active !== null) throw invalidStream('The WavPack multichannel block sequence is nested.');
 			if (block.blockIndex !== expectedBlockIndex) {
@@ -302,7 +328,7 @@ export function materializeBundledWavPackDecodeGroup(
 	return bytes;
 }
 
-function parseBlock(input: Uint8Array, view: DataView, offset: number): Readonly<{
+function parseBlock(input: Uint8Array, view: DataView, offset: number, state: WavPackProfileState): Readonly<{
 	readonly byteLength: number;
 	readonly totalFrames: number;
 	readonly blockIndex: number;
@@ -326,18 +352,21 @@ function parseBlock(input: Uint8Array, view: DataView, offset: number): Readonly
 		|| blockIndexHigh !== 0 || totalFramesHigh !== 0 || totalFrames === 0xffff_ffff
 		|| totalFrames < 1 || totalFrames > WAVPACK_MAXIMUM_FRAME_COUNT
 		|| blockFrames < 1 || blockFrames > WAVPACK_MAXIMUM_BLOCK_FRAMES
-		|| blockIndex + blockFrames > totalFrames || (flags & BYTES_STORED_MASK) !== 3
-		|| (flags & FLOAT_DATA) === 0 || (flags & HYBRID_FLAG) !== 0 || (flags & DSD_FLAG) !== 0) {
-		throw invalidStream('The WavPack block header declares unsupported float PCM geometry.');
+		|| blockIndex + blockFrames > totalFrames) {
+		throw invalidStream('The WavPack block header declares invalid bounded geometry.');
 	}
 	const entries = parseMetadata(input, offset, byteLength);
-	if (entries.some(({ id }) => !LOSSLESS_FLOAT_METADATA.has(id))) {
-		throw invalidStream('The WavPack block contains metadata outside the reviewed float32 profile.');
-	}
 	if (entries.some(({ id, dataLength }) => id === METADATA_MD5_CHECKSUM && dataLength !== 16)) {
 		throw invalidStream('The WavPack file checksum metadata is invalid.');
 	}
-	verifyBlockChecksum(input, offset, flags, entries);
+	verifyBlockChecksum(input, offset, flags, entries, state);
+	if ((flags & BYTES_STORED_MASK) !== 3 || (flags & FLOAT_DATA) === 0
+		|| (flags & HYBRID_FLAG) !== 0 || (flags & DSD_FLAG) !== 0) {
+		markUnsupported(state, 'The WavPack block header declares unsupported float PCM geometry.');
+	}
+	if (entries.some(({ id }) => !LOSSLESS_FLOAT_METADATA.has(id))) {
+		markUnsupported(state, 'The WavPack block contains metadata outside the reviewed float32 profile.');
+	}
 	const rateIndex = (flags >>> SAMPLE_RATE_SHIFT) & SAMPLE_RATE_MASK;
 	const explicitRates = entries.filter(({ id }) => id === METADATA_SAMPLE_RATE)
 		.map((entry) => littleEndianInteger(input, entry.dataOffset, entry.dataLength));
@@ -462,8 +491,13 @@ function verifyBlockChecksum(
 	blockOffset: number,
 	flags: number,
 	entries: readonly WavPackMetadataEntry[],
+	state: WavPackProfileState,
 ): void {
 	const checksums = entries.filter(({ id }) => id === METADATA_BLOCK_CHECKSUM);
+	if ((flags & HAS_CHECKSUM) === 0 && checksums.length === 0) {
+		markUnsupported(state, 'The WavPack block checksum declaration is absent from this valid profile.');
+		return;
+	}
 	if ((flags & HAS_CHECKSUM) === 0 || checksums.length !== 1
 		|| entries.at(-1) !== checksums[0]) {
 		throw invalidStream('The WavPack block checksum declaration is missing or ambiguous.');
@@ -556,4 +590,8 @@ function dataView(input: Uint8Array): DataView {
 
 function invalidStream(message: string): BundledWavPackStreamError {
 	return new BundledWavPackStreamError(message);
+}
+
+function markUnsupported(state: WavPackProfileState, reason: string): void {
+	state.unsupportedReason ??= reason;
 }
