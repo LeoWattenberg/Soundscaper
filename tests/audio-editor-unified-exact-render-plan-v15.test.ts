@@ -135,8 +135,18 @@ test('V15 refuses hidden caption substitutions and unclosed companion audio', ()
 				recoveryClass: 'atomic-restart',
 			},
 		}),
-	]) {
-		assert.throws(() => createUnifiedExactRenderPlan(candidate), /caption|companion|format|track/iu);
+	].map((candidate, index) => [candidate, [
+		/cannot be muxed into mov/iu,
+		/not in the exact finishing plan/iu,
+		/only for a non-embedded image-sequence delivery/iu,
+		/requires companion audio for its programme audio/iu,
+		/caption sidecar\.documentSha256 is required/iu,
+		/outside the closed built-in registry/iu,
+		/file name does not match its format/iu,
+	][index]!] as const)) {
+		// Each candidate pins its own refusal: a union regex over seven causes
+		// would accept the wrong branch dying for the wrong reason.
+		assert.throws(() => createUnifiedExactRenderPlan(candidate[0]), candidate[1]);
 	}
 });
 

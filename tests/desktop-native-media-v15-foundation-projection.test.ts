@@ -10,6 +10,7 @@ import {
 import { createNativeMediaPlanEnvelopeV3 } from '../src/common/editor/native-media-plan-envelope-v3.ts';
 import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV15 } from '../src/framescaper/editor-project-unified-render-delivery-v15.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
 import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
 import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
@@ -70,6 +71,43 @@ test('V15 verification projection refuses caption and companion artifacts before
 		error instanceof NativeMediaV15FoundationProjectionRefusal
 		&& error.code === 'companion-audio-artifacts-unbound'
 	));
+
+	// Every caption sub-kind funnels through the same refusal, not only mux —
+	// and a plan carrying both artifact kinds at once still refuses.
+	for (const captionRequest of [
+		{ trackId: 'captions-en', mux: false, burnIn: true, sidecar: null },
+		{ trackId: 'captions-en', mux: false, burnIn: false, sidecar: 'srt' as const },
+	]) {
+		const variant = createNativeMediaPlanEnvelopeV3(
+			createFramescaperProjectUnifiedExactRenderPlanV15(PROFILE, project, mov, {
+				deliveryProfile: 'encode-mov-prores-422-hq', captionRequest,
+			}),
+		);
+		assert.throws(() => projectNativeMediaV15FoundationForV14Verification(variant), (error: unknown) => (
+			error instanceof NativeMediaV15FoundationProjectionRefusal
+			&& error.code === 'caption-artifacts-unbound'
+		));
+	}
+	const both = createNativeMediaPlanEnvelopeV3(
+		createFramescaperProjectUnifiedExactRenderPlanV15(PROFILE, project, image, {
+			deliveryProfile: 'encode-png-sequence',
+			captionRequest: { trackId: 'captions-en', mux: false, burnIn: true, sidecar: null },
+			companionAudio: { formatId: 'bwf', sampleFormat: 'int24' },
+		}),
+	);
+	assert.throws(() => projectNativeMediaV15FoundationForV14Verification(both), (error: unknown) => (
+		error instanceof NativeMediaV15FoundationProjectionRefusal
+	));
+
+	// A legitimate V3 envelope holding an exact V14 plan is refused as a
+	// non-V15 source rather than silently projected onto itself.
+	const v14Exact = createNativeMediaPlanEnvelopeV3(
+		createFramescaperProjectUnifiedExactRenderPlanV28(PROFILE, project, mov),
+	);
+	assert.throws(
+		() => projectNativeMediaV15FoundationForV14Verification(v14Exact),
+		/requires an exact V15 envelope/iu,
+	);
 });
 
 test('V15 verification projection rejects another envelope generation and tampered metadata', () => {
