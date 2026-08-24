@@ -105,6 +105,41 @@ test('persistent audio runner opens exact format and moves blocks over only the 
 	assert.equal((await handle.completion).reason, 'editor-shutdown')
 })
 
+test('a field-invalid audio block faults the session instead of killing the helper process', async () => {
+	const link = channel()
+	const runner = createNativePersistentAudioJobRunner({
+		addonPath: '/addon.node',
+		addonSha256: 'b'.repeat(64),
+		loadAddon: async () => ({
+			openAudioDevice: (request: Record<string, unknown>) => ({
+				status: 'ok', session: Object.freeze({}), grantedBackend: 'pipewire',
+				grantedSampleRate: request.sampleRate, grantedPeriodFrames: request.periodFrames,
+				grantedChannelCount: request.channelCount, grantedExclusive: false,
+			}),
+			writeAudioDevice: () => { throw new Error('must not be reached with invalid planes') },
+			closeAudioDevice: () => true,
+		}),
+	})
+	const handle = runner({ grant: AUDIO_GRANT, ports: [link.port1] })
+	const configured = nextMessage(link.port2)
+	link.port2.postMessage({
+		protocolVersion: 1, kind: 'configure', sampleRate: 48_000, periodFrames: 1_024, channelCount: 2,
+	})
+	assert.equal((await configured).kind, 'configured')
+	const answer = nextMessage(link.port2)
+	// One plane where the configured format admits two: a validation refusal,
+	// which must fault this session rather than exit the process through an
+	// unhandled rejection and take every native audio session with it.
+	link.port2.postMessage({
+		protocolVersion: 1, kind: 'audio', generation: 3, packetId: 0, sequence: 0,
+		startFrame: 0, frameCount: 4, channels: [new Float32Array(4)],
+	})
+	const fault = await answer
+	assert.equal(fault.kind, 'fault')
+	assert.equal(fault.code, 'malformed-message')
+	assert.equal(((await handle.completion) as { reason: string }).reason, 'malformed-message')
+})
+
 test('main audio adapter transfers the peer directly after exact helper configuration', async () => {
 	const links: ReturnType<typeof channel>[] = []
 	let admittedGrantPurpose = ''

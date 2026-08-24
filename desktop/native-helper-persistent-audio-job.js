@@ -132,7 +132,19 @@ export function createNativePersistentAudioJobRunner({ loadAddon, addonPath, add
 				}
 			}
 		};
-		listen(port, (value) => { void receive(value); });
+		// A field-invalid packet is a validation refusal, not a process fault: an
+		// escaped rejection here would kill the helper — and every session it
+		// carries — through the default unhandled-rejection exit.
+		const fault = (error) => {
+			try {
+				post(port, {
+					protocolVersion: PROTOCOL_VERSION, kind: 'fault',
+					code: 'malformed-message', detail: boundedText(error),
+				});
+			} catch { /* the peer is gone; the closure still stands */ }
+			finish('malformed-message');
+		};
+		listen(port, (value) => { void receive(value).catch(fault); });
 		port.start?.();
 		return Object.freeze({ completion, cancel: async () => finish('cancelled') });
 	};
