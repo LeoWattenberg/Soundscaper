@@ -31,7 +31,7 @@ endif()
 add_subdirectory("${SOUNDSCAPER_JUCE_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/juce" EXCLUDE_FROM_ALL)
 
 add_library(soundscaper_professional_audio STATIC
-	src/juce_audio_adapter.cpp src/professional_host.cpp
+	src/juce_audio_adapter.cpp src/os_aac_m4a_profile.cpp src/professional_host.cpp
 )
 add_library(soundscaper_professional_plugin STATIC
 	src/direct_clap_adapter.cpp src/juce_message_dispatcher.cpp

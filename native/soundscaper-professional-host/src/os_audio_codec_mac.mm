@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 #include "os_audio_codec.h"
+#include "os_aac_m4a_profile.h"
 
 #include <AudioToolbox/AudioToolbox.h>
 #include <CoreFoundation/CoreFoundation.h>
@@ -10,6 +11,7 @@
 #include <cstdio>
 #include <cstring>
 #include <fcntl.h>
+#include <fstream>
 #include <limits>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -94,6 +96,24 @@ bool exactAacM4aContainer(ExtAudioFileRef input)
 		&& fileFormatBytes == sizeof(fileFormat) && fileFormat == kAudioFileM4AType;
 }
 
+bool exactAacLcInput(
+	const char *path,
+	uint64_t expectedBytes,
+	uint32_t sampleRate,
+	uint32_t channelCount)
+{
+	if (expectedBytes == 0u || expectedBytes > 32u * 1024u * 1024u
+		|| expectedBytes > std::numeric_limits<size_t>::max()
+		|| expectedBytes > static_cast<uint64_t>(std::numeric_limits<std::streamsize>::max())) return false;
+	std::ifstream file(path, std::ios::binary);
+	std::vector<uint8_t> bytes(static_cast<size_t>(expectedBytes));
+	if (!file.read(reinterpret_cast<char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()))) {
+		return false;
+	}
+	if (file.peek() != std::char_traits<char>::eof()) return false;
+	return soundscaper::os_audio::exactAacLcM4a(bytes, sampleRate, channelCount);
+}
+
 soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
 	const soundscaper_pro_os_mp3_decode_request *request,
 	ReviewedCodec codec)
@@ -140,6 +160,10 @@ soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
 	}
 	const uint32_t sampleRate = static_cast<uint32_t>(source.mSampleRate);
 	const uint32_t channelCount = source.mChannelsPerFrame;
+	if (codec == ReviewedCodec::aacM4a && !exactAacLcInput(
+		request->input_path_utf8, request->input_bytes, sampleRate, channelCount)) {
+		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true), -1);
+	}
 	AudioStreamBasicDescription client{};
 	client.mSampleRate = source.mSampleRate;
 	client.mFormatID = kAudioFormatLinearPCM;

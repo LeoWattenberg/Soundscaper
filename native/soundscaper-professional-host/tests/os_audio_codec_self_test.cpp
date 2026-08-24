@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 #include "os_audio_codec.h"
+#include "os_aac_m4a_profile.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -159,26 +161,39 @@ int main()
 	const auto m4aOutputPath = root / "m4a.f32le";
 	const auto adtsInputPath = root / "canary.aac";
 	const auto adtsOutputPath = root / "adts.f32le";
+	const auto heInputPath = root / "implicit-he.m4a";
+	const auto heOutputPath = root / "implicit-he.f32le";
 	std::error_code error;
 	if (!std::filesystem::create_directory(root, error) || error) return 1;
 	const auto mp3Input = base64Bytes(canaryBase64);
 	const auto m4aInput = base64Bytes(aacM4aCanaryBase64);
 	const auto adtsInput = base64Bytes(aacAdtsCanaryBase64);
 	if (mp3Input.size() != 1536u || m4aInput.size() != 1909u || adtsInput.size() != 1115u) return 2;
+	/* Same M4A with the AudioSpecificConfig sync-extension SBR-present bit set.
+	 * This declares implicit HE-AAC and must not inherit the AAC-LC admission.
+	 * sha256: 067e521e3f33e667840e5de1ca8b472d647e11aacce4ed052ef03137cb82a1d0 */
+	auto heInput = m4aInput;
+	constexpr std::array<uint8_t, 5u> lcConfig{ 0x11u, 0x90u, 0x56u, 0xe5u, 0x00u };
+	const auto config = std::search(heInput.begin(), heInput.end(), lcConfig.begin(), lcConfig.end());
+	if (config == heInput.end()
+		|| std::search(config + 1, heInput.end(), lcConfig.begin(), lcConfig.end()) != heInput.end()) return 3;
+	*(config + 4) = 0x80u;
+	if (!soundscaper::os_audio::exactAacLcM4a(m4aInput, 48000u, 2u)
+		|| soundscaper::os_audio::exactAacLcM4a(heInput, 48000u, 2u)) return 4;
 	if (!writeFixture(mp3InputPath, mp3Input) || !writeFixture(m4aInputPath, m4aInput)
-		|| !writeFixture(adtsInputPath, adtsInput)) return 3;
+		|| !writeFixture(adtsInputPath, adtsInput) || !writeFixture(heInputPath, heInput)) return 5;
 	const std::string mp3InputText = mp3InputPath.string();
 	const std::string mp3OutputText = mp3OutputPath.string();
 	const soundscaper_pro_os_mp3_decode_request mp3Request{
 		mp3InputText.c_str(), mp3OutputText.c_str(), mp3Input.size(), 1024u * 1024u,
 	};
-	if (!validDecode(soundscaper_pro_os_mp3_decode(&mp3Request), mp3OutputPath)) return 4;
+	if (!validDecode(soundscaper_pro_os_mp3_decode(&mp3Request), mp3OutputPath)) return 6;
 	const std::string m4aInputText = m4aInputPath.string();
 	const std::string m4aOutputText = m4aOutputPath.string();
 	const soundscaper_pro_os_mp3_decode_request m4aRequest{
 		m4aInputText.c_str(), m4aOutputText.c_str(), m4aInput.size(), 1024u * 1024u,
 	};
-	if (!validDecode(soundscaper_pro_os_aac_m4a_decode(&m4aRequest), m4aOutputPath)) return 5;
+	if (!validDecode(soundscaper_pro_os_aac_m4a_decode(&m4aRequest), m4aOutputPath)) return 7;
 	const std::string adtsInputText = adtsInputPath.string();
 	const std::string adtsOutputText = adtsOutputPath.string();
 	const soundscaper_pro_os_mp3_decode_request adtsRequest{
@@ -188,7 +203,19 @@ int main()
 	if (adtsResult.status != SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED
 		|| adtsResult.native_api_reached != 1u || adtsResult.exact_tuple_passed != 0u
 		|| adtsResult.output_bytes != 0u || adtsResult.frame_count != 0u
-		|| std::filesystem::exists(adtsOutputPath)) return 6;
+		|| std::filesystem::exists(adtsOutputPath)) return 8;
+#if defined(__APPLE__)
+	const std::string heInputText = heInputPath.string();
+	const std::string heOutputText = heOutputPath.string();
+	const soundscaper_pro_os_mp3_decode_request heRequest{
+		heInputText.c_str(), heOutputText.c_str(), heInput.size(), 1024u * 1024u,
+	};
+	const auto heResult = soundscaper_pro_os_aac_m4a_decode(&heRequest);
+	if (heResult.status != SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED
+		|| heResult.native_api_reached != 1u || heResult.exact_tuple_passed != 0u
+		|| heResult.output_bytes != 0u || heResult.frame_count != 0u
+		|| std::filesystem::exists(heOutputPath)) return 9;
+#endif
 	std::filesystem::remove_all(root, error);
-	return error ? 7 : 0;
+	return error ? 10 : 0;
 }
