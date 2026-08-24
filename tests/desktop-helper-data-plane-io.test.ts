@@ -36,6 +36,27 @@ test('data-plane file IO preserves exact bytes with sequence, digest, and acknow
 	}
 });
 
+test('a receive refused by an existing spool leaves that existing file alone', async () => {
+	const directory = await mkdtemp(join(tmpdir(), 'framescaper-plane-'));
+	try {
+		const destination = join(directory, 'destination.bin');
+		const preexisting = Buffer.from('bytes a previous attempt already spooled');
+		await writeFile(destination, preexisting);
+		const [, helper] = portPair();
+		const transfer = binding('host-to-helper', BYTES, 5, 2);
+		// The 'wx' open exists precisely to refuse clobbering; the refusal must
+		// not then delete the very file it refused to overwrite.
+		await assert.rejects(
+			receiveHelperDataPlaneFile({ binding: transfer, port: helper, path: destination }),
+			(error: NodeJS.ErrnoException) => error.code === 'EEXIST',
+		);
+		assert.deepEqual(await readFile(destination), preexisting,
+			'a no-clobber refusal must not become data loss');
+	} finally {
+		await rm(directory, { recursive: true, force: true });
+	}
+});
+
 test('tamper, reordering, oversize chunks, and early completion remove the partial spool', async () => {
 	for (const message of [
 		{

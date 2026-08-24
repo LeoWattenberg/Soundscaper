@@ -72,9 +72,11 @@ export async function receiveHelperDataPlaneFile(
 	const inbox = new PortInbox(request.port, binding.maximumInFlightChunks);
 	let handle: Awaited<ReturnType<typeof open>> | null = null;
 	let completed = false;
+	let created = false;
 	try {
 		request.signal?.throwIfAborted();
 		handle = await open(request.path, 'wx', 0o600);
+		created = true;
 		const receiver = new HelperDataPlaneReceiver(binding);
 		for (;;) {
 			const message = await inbox.next(request.signal);
@@ -113,7 +115,10 @@ export async function receiveHelperDataPlaneFile(
 	} finally {
 		inbox.dispose();
 		if (handle !== null) await handle.close().catch(() => undefined);
-		if (!completed) await rm(request.path, { force: true }).catch(() => undefined);
+		// Only a spool this call created is cleaned up: 'wx' exists to refuse
+		// clobbering, and removing the pre-existing file it refused would turn
+		// the refusal into data loss.
+		if (created && !completed) await rm(request.path, { force: true }).catch(() => undefined);
 		request.port.close();
 	}
 }
@@ -203,9 +208,11 @@ export async function receiveHelperDataPlaneReservedFile(
 	const inbox = new PortInbox(request.port, reservation.maximumInFlightChunks);
 	let handle: Awaited<ReturnType<typeof open>> | null = null;
 	let completed = false;
+	let created = false;
 	try {
 		request.signal?.throwIfAborted();
 		handle = await open(request.path, 'wx', 0o600);
+		created = true;
 		const receiver = new HelperDataPlaneOutputReceiver(reservation);
 		for (;;) {
 			const message = await inbox.next(request.signal);
@@ -244,7 +251,10 @@ export async function receiveHelperDataPlaneReservedFile(
 	} finally {
 		inbox.dispose();
 		if (handle !== null) await handle.close().catch(() => undefined);
-		if (!completed) await rm(request.path, { force: true }).catch(() => undefined);
+		// Only a spool this call created is cleaned up: 'wx' exists to refuse
+		// clobbering, and removing the pre-existing file it refused would turn
+		// the refusal into data loss.
+		if (created && !completed) await rm(request.path, { force: true }).catch(() => undefined);
 		request.port.close();
 	}
 }
