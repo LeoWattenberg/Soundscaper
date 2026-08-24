@@ -42,8 +42,9 @@ The matrix treats these as separate distributions:
 - the desktop-specific Electron renderer, whose composition excludes the Web
   FFmpeg wrapper and core;
 - translation and separately admitted native runtime assets staged beside that
-  renderer, excluding FFmpeg, libav, and FFmpeg WebAssembly;
-- the Electron shell with embedded Chromium and Node.js; and
+  renderer, excluding application-supplied FFmpeg/libav and FFmpeg WebAssembly;
+- the Electron shell with embedded Chromium and Node.js, including Electron's
+  exact alternate framework libffmpeg for the selected target; and
 - public desktop packages and their release/source archive set.
 
 A package's presence in the install closure does not prove that its bytes occur
@@ -52,9 +53,14 @@ runtime, as Electron demonstrates. Each surface must deliver the notices and,
 where applicable, corresponding source required for the actual artifact.
 Desktop packages copy the repository license, `THIRD_PARTY_LICENSES.md`, and
 the retained license directory. Desktop preparation, pre-pack, post-copy, and
-release-inventory gates reject bundled FFmpeg/libav and the FFmpeg WebAssembly
-runtime; packaging also validates the aggregate notice before fuse or signing
-work.
+release-inventory gates reject application-supplied FFmpeg/libav and the FFmpeg
+WebAssembly runtime. Separately, electron-builder replaces stock Electron
+43.1.1's Chromium media library with Electron's matching alternate release
+asset, intended upstream to omit proprietary codec support, and afterPack
+runs `scripts/lib/electron-alternate-ffmpeg.mjs` to verify its exact target,
+file type, byte length, and SHA-256 against
+`config/electron-alternate-ffmpeg-manifest.json` before fuse or signing work.
+Packaging also validates the aggregate notice.
 The current web application has no versioned route or deployed notice artifact
 for `THIRD_PARTY_LICENSES.md`; web notice delivery therefore remains blocked
 even though the repository notice exists.
@@ -73,7 +79,9 @@ the work:
 - remotely downloaded translations or runtimes retain versioned manifests,
   hashes, upstream source and license material; and
 - Electron packages retain Electron and Chromium notices in addition to the
-  application notice set.
+  application notice set. The alternate Electron framework libffmpeg also has
+  one exact five-target manifest covering Electron version, release archive,
+  archive digest, installed library name, byte length, and library digest.
 
 An audit status of `documented` means that checked-in provenance evidence is
 present and its existing automated audit remains enabled. It is not a legal
@@ -91,7 +99,8 @@ public runtime upload remains blocked whenever its notice,
 corresponding-source, or patent gates are blocked. Its legacy desktop-assembly
 authorization is not consumed by the current production desktop entry points
 and does not override the separate desktop codec policy, which requires those
-bytes to be absent.
+Web runtime and application-provider bytes to be absent. It does not prohibit
+Electron's separately inventoried alternate framework library.
 
 ## Copyleft and corresponding source
 
@@ -121,6 +130,13 @@ described by an upstream project as open or royalty-free. A future review must
 name the exact build, enabled and invoked codecs, products, territories,
 distribution surfaces, reviewer, date, assumptions, and any resulting
 disablement or licensing requirements.
+
+The same separation applies to Electron's Chromium media library. Stock
+Electron 43.1.1 includes proprietary codec support; packaging selects
+Electron's alternate asset intended upstream to omit it. Exact digest
+verification establishes the selected framework bytes, not a complete codec
+inventory, observed codec behavior, absence of patent exposure, or patent
+clearance.
 
 ## Notices
 
@@ -170,6 +186,13 @@ requirements are implemented:
 
 ### Native audio, plug-in format, and codec policy rows
 
+Electron's alternate framework libffmpeg is part of the Electron/Chromium
+shell, not this provider system. It is distributed in each desktop package and
+verified against `config/electron-alternate-ffmpeg-manifest.json` for exactly
+Linux x64, Linux ARM64, macOS ARM64, Windows x64, and Windows ARM64; there is no
+macOS x64 target. Renderer or Chromium use of that framework library does not
+make it a bundled, operating-system, or external Soundscaper provider tier.
+
 The desktop codec provider order is bundled implementation, operating-system
 service, then user-installed external FFmpeg. That order is a selection policy,
 not an availability or qualification claim. Existing first-party PCM container
@@ -187,7 +210,8 @@ after explicit confirmation. The confirmed package-manager process performs
 any network fetch and system installation; the application does not itself
 fetch or copy FFmpeg bytes, package them, sublicense them, or redistribute that
 program or its libraries, so those external bytes are outside the production
-artifact closure. Parser and command-contract
+artifact closure. They are distinct from Electron's packaged alternate
+framework library. Parser and command-contract
 support for a version range is not release qualification of every version or
 codec tuple in that range.
 

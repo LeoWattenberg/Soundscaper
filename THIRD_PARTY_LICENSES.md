@@ -134,11 +134,36 @@ desktop package or desktop release set.
 
 ## Desktop codec execution and external FFmpeg
 
-The desktop build has a separate codec composition. Its renderer audit,
-staging gate, package gate, and release-inventory gate reject FFmpeg and libav
-executables or libraries, the `@ffmpeg/core` JavaScript and WebAssembly payload,
-and the historical static FFmpeg media host. The desktop application therefore
-does not redistribute FFmpeg, libav, or FFmpeg WebAssembly.
+The desktop build has a separate application codec composition. Its renderer
+audit, staging gate, application-resource gate, and release-inventory gate
+reject application-supplied FFmpeg and libav executables or libraries, the
+`@ffmpeg/core` JavaScript and WebAssembly payload, and the historical static
+FFmpeg media host. The desktop application therefore does not redistribute an
+FFmpeg/libav application codec provider or FFmpeg WebAssembly runtime.
+
+Electron itself is a distinct framework dependency. Stock Electron 43.1.1
+includes a Chromium `libffmpeg` media library with proprietary codec support.
+Desktop packaging sets electron-builder's `downloadAlternateFFmpeg` option so
+the stock library is replaced with Electron's matching alternate release asset,
+which upstream intends to omit proprietary codec support. Every packaged
+library is then checked by
+[`scripts/lib/electron-alternate-ffmpeg.mjs`](scripts/lib/electron-alternate-ffmpeg.mjs)
+against
+[`config/electron-alternate-ffmpeg-manifest.json`](config/electron-alternate-ffmpeg-manifest.json):
+
+- Linux x64 and ARM64 use `libffmpeg.so`;
+- macOS ARM64 uses `libffmpeg.dylib`; macOS x64 is unsupported and has no row;
+- Windows x64 and ARM64 use `ffmpeg.dll`.
+
+That manifest binds Electron 43.1.1, the exact five release-archive names and
+archive SHA-256 values, and each unpacked library's byte length and SHA-256.
+The after-pack verifier re-hashes the exact framework location before fuse or
+signing work. The library remains part of Electron/Chromium and its notices; it
+is not a Soundscaper codec-provider tier, is not invoked through the desktop
+codec broker, and is not a separately distributed Soundscaper runtime. The
+alternate asset name, upstream intent, and digest verification do not prove a
+complete enabled-codec inventory, codec behavior, absence of patent exposure,
+or patent clearance.
 
 The maintained first-party PCM container readers remain application source and
 are not evidence for a bundled compressed-codec or native-codec runtime. The
@@ -155,7 +180,8 @@ Manager or Homebrew to install FFmpeg into the user's system package-manager
 prefix. The confirmed package-manager process performs any network fetch and
 system installation; Soundscaper does not itself fetch or copy FFmpeg bytes,
 package them, sublicense them, or redistribute that external executable or its
-libraries. The discovery, probe,
+libraries; it is separate from Electron's packaged alternate framework
+library. The discovery, probe,
 version-admission, and bounded command contracts do not establish codec
 conformance for every accepted version, availability on any platform, or
 patent clearance for any codec, provider, use, or territory.

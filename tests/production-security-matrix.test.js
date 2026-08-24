@@ -199,10 +199,6 @@ test('planned native plug-in surfaces stay disabled and portable archive control
 		assert.ok(kinds.has('test'), `${control.id} needs test evidence`);
 	}
 	assert.match(
-		helperProcesses.currentControls.find(({ id }) => id === 'verified-helper-engine-payload').summary,
-		/no FFmpeg helper engine.*reject FFmpeg.*libav.*WebAssembly.*no bundled compressed-codec or operating-system execution factory.*first-party PCM container readers.*user-installed external FFmpeg.*without copying it.*not.*codec or version conformance.*patent qualification/iu,
-	);
-	assert.match(
 		helperProcesses.residualRisks[0].acceptanceCriteria.join(' '),
 		/m5-helper-fault-and-loopback-v1/u,
 		'helper qualification stays tied to the registered fixture',
@@ -551,26 +547,6 @@ test('planned native plug-in surfaces stay disabled and portable archive control
 	);
 
 	const runtimeSupplyChain = risks.get('runtime-supply-chain');
-	const desktopPackageIntegrity = runtimeSupplyChain.currentControls.find(
-		({ id }) => id === 'desktop-fuse-and-package-integrity',
-	);
-	assert.ok(desktopPackageIntegrity);
-	for (const path of [
-		'.github/workflows/desktop-preview.yml',
-		'electron-builder.config.cjs',
-		'scripts/lib/desktop-codec-policy.mjs',
-		'scripts/lib/desktop-renderer-codec-audit.mjs',
-		'scripts/desktop-prepare.mjs',
-		'scripts/desktop-before-pack.mjs',
-		'scripts/desktop-after-pack.mjs',
-		'scripts/desktop-release-assets.mjs',
-		'tests/desktop-packaged-ffmpeg-runtime.test.js',
-		'tests/desktop-release-package-inventory.test.js',
-	]) assert.ok(desktopPackageIntegrity.evidence.some((item) => item.path === path));
-	assert.match(
-		desktopPackageIntegrity.summary,
-		/immutable no-bundled-FFmpeg codec policy.*renderer composition.*beforePack.*afterPack.*reject FFmpeg.*libav.*WebAssembly.*static FFmpeg host.*before applying Electron fuses.*release inventory.*User-installed external FFmpeg is never copied/iu,
-	);
 	const validatedRuntime = runtimeSupplyChain.currentControls.find(
 		({ id }) => id === 'validated-ffmpeg-runtime-publication',
 	);

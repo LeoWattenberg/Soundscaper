@@ -31,24 +31,24 @@
 		},
 		{
 			"id": "electron-runtime-assets",
-			"description": "Translation and separately admitted native runtime assets staged beside the Electron renderer; FFmpeg, libav, and the FFmpeg WebAssembly runtime are excluded.",
+			"description": "Translation and separately admitted native runtime assets staged beside the Electron renderer; application-supplied FFmpeg/libav and the FFmpeg WebAssembly runtime are excluded. Electron's separately inventoried alternate framework libffmpeg remains part of the Electron shell.",
 			"artifactStatus": "distributed",
 			"noticeDeliveryStatus": "implemented",
 			"evidence": ["scripts/lib/desktop-codec-policy.mjs", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "scripts/desktop-after-pack.mjs", "electron-builder.config.cjs"]
 		},
 		{
 			"id": "electron-shell",
-			"description": "Electron, embedded Chromium and Node.js, and the repository-owned main/preload process code.",
+			"description": "Electron, embedded Chromium and Node.js, Electron's exact alternate framework libffmpeg intended upstream to omit proprietary codec support, and the repository-owned main/preload process code. The framework library is not a Soundscaper codec-provider tier or patent-clearance evidence.",
 			"artifactStatus": "distributed",
 			"noticeDeliveryStatus": "implemented",
-			"evidence": ["electron-builder.config.cjs", "desktop/main.mjs"]
+			"evidence": ["electron-builder.config.cjs", "config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/electron-alternate-ffmpeg.mjs", "desktop/main.mjs"]
 		},
 		{
 			"id": "desktop-release-assets",
-			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed; user-installed external FFmpeg is outside this artifact closure and is not copied into the release set.",
+			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed. Each package contains the exact verified Electron alternate framework libffmpeg for its target; user-installed external FFmpeg remains outside this artifact closure and is not copied into the release set.",
 			"artifactStatus": "blocked",
 			"noticeDeliveryStatus": "implemented",
-			"evidence": ["scripts/lib/desktop-codec-policy.mjs", "scripts/desktop-release-assets.mjs", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "scripts/desktop-release-assets.mjs", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
 	"npmProductionClosure": [
@@ -344,6 +344,17 @@
 			"evidence": ["THIRD_PARTY_LICENSES.md", "electron-builder.config.cjs"]
 		},
 		{
+			"id": "electron-alternate-ffmpeg-framework-43-1-1",
+			"status": "documented",
+			"artifactSurfaces": ["electron-shell", "desktop-release-assets"],
+			"provenanceKind": "electron-upstream-alternate-framework-library-verified-after-pack",
+			"upstreamIntent": "Electron's matching alternate release asset is intended upstream to omit proprietary codec support.",
+			"providerRole": "electron-chromium-framework-internal-not-soundscaper-codec-provider",
+			"qualification": "Exact target, file type, byte length, and SHA-256 are verified. No complete codec inventory, behavior, absence-of-patent-exposure, or patent-clearance claim is made.",
+			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
+			"evidence": ["electron-builder.config.cjs", "config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/electron-alternate-ffmpeg.mjs", "scripts/desktop-after-pack.mjs", "tests/desktop-electron-alternate-ffmpeg.test.js", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
 			"id": "boost-multiprecision-1-92-0-build-source",
 			"status": "documented",
 			"artifactSurfaces": [],
@@ -391,10 +402,21 @@
 		"configurationEvidence": "THIRD_PARTY_LICENSES.md#ffmpeg-webassembly-export-and-import-core"
 	},
 	"desktopCodecPolicy": {
-		"artifactSurfaces": ["electron-renderer", "electron-runtime-assets", "desktop-release-assets"],
+		"scope": "soundscaper-application-codec-provider-layer-excluding-electron-framework-internals",
+		"artifactSurfaces": ["electron-renderer", "electron-runtime-assets", "electron-shell", "desktop-release-assets"],
 		"bundledFfmpeg": false,
 		"bundledLibav": false,
 		"bundledFfmpegWasm": false,
+		"electronFrameworkFfmpeg": {
+			"status": "distributed-verified-framework-exception",
+			"electronVersion": "43.1.1",
+			"profile": "electron-alternate-without-proprietary-codecs",
+			"upstreamIntent": "omit-proprietary-codec-support",
+			"providerTier": false,
+			"manifest": "config/electron-alternate-ffmpeg-manifest.json",
+			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
+			"qualification": "exact-bytes-only-no-codec-or-patent-clearance"
+		},
 		"providerOrder": ["bundled-open-codecs", "os", "external-user-install"],
 		"executionStatus": {
 			"firstPartyPcmReaders": "existing-application-code",
@@ -410,6 +432,10 @@
 			"scripts/desktop-before-pack.mjs",
 			"scripts/desktop-after-pack.mjs",
 			"scripts/desktop-release-assets.mjs",
+			"electron-builder.config.cjs",
+			"config/electron-alternate-ffmpeg-manifest.json",
+			"scripts/lib/electron-alternate-ffmpeg.mjs",
+			"tests/desktop-electron-alternate-ffmpeg.test.js",
 			"desktop/desktop-audio-codec-registration.mjs",
 			"desktop/external-ffmpeg-registration.mjs",
 			"THIRD_PARTY_LICENSES.md"
@@ -494,7 +520,7 @@
 			"id": "native-codecs",
 			"status": "disabled",
 			"scope": "bundled-compressed-and-operating-system-codec-execution",
-			"blocker": "The desktop composition registers no bundled compressed-codec or operating-system codec execution factory or admitted payload; both tiers fail closed. Existing first-party PCM readers are application code, and user-installed external FFmpeg remains outside the production artifact closure.",
+			"blocker": "The desktop composition registers no bundled compressed-codec or operating-system codec execution factory or admitted payload; both tiers fail closed. Existing first-party PCM readers are application code. Electron's exact alternate framework libffmpeg is distributed only as Chromium infrastructure and is not a provider tier, while user-installed external FFmpeg remains outside the production artifact closure.",
 			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery"],
 			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "desktop/desktop-audio-codec-registration.mjs"]
 		},
@@ -636,10 +662,10 @@
 			"kind": "codec-capability",
 			"upstreamLicensing": "The shipped browser runtime remains the FFmpeg GPL build with thirteen enabled external libraries pinned by the ffmpeg register. The separate native candidate pins FFmpeg 9.0.1 in GPL mode with no external libraries and admits codec or container flags only after their licensing rows clear.",
 			"agplCompatibilityDirection": "Each GPL-2.0-or-later build combines into this AGPL-3.0-only work compatibly; the native 9.0.1 source and recipe are a separate blocked provenance record and do not replace or upgrade the browser runtime.",
-			"redistribution": "No native media-host or FFmpeg 9.0.1 binary ships, and desktop package audits reject FFmpeg, libav, and FFmpeg WebAssembly. User-installed external FFmpeg is executed in place and is not copied into any production artifact. A future built target may enter a runtime payload manifest only after its exact enabled set clears corresponding-source, notices, patent, signing, and target review and the desktop exclusion policy is deliberately revised.",
+			"redistribution": "No Soundscaper native media-host or FFmpeg 9.0.1 application-provider binary ships, and desktop application-resource audits reject application-supplied FFmpeg, libav, and FFmpeg WebAssembly. Each desktop package does contain Electron's exact verified alternate framework libffmpeg, intended upstream to omit proprietary codec support; it is Chromium infrastructure, not this provider row. User-installed external FFmpeg is executed in place and is not copied into any production artifact. A future built provider target may enter a runtime payload manifest only after its exact enabled set clears corresponding-source, notices, patent, signing, and target review and the desktop exclusion policy is deliberately revised.",
 			"status": "blocked",
-			"blocker": "ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review remain blocked for the Web runtime, while the native FFmpeg 9.0.1 candidate has no reviewed build payload, exact codec/container clearance, signature, or target evidence and is forbidden by the current desktop package policy.",
-			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json", "native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "config/framescaper-media-host-payload-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "THIRD_PARTY_LICENSES.md"]
+			"blocker": "ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review remain blocked for the Web runtime, while the native FFmpeg 9.0.1 provider candidate has no reviewed build payload, exact codec/container clearance, signature, or target evidence and is forbidden by the current application-provider package policy. Verification of Electron's separate alternate framework library supplies none of that provider qualification.",
+			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json", "native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "config/framescaper-media-host-payload-manifest.json", "config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "codec-hardware-acceleration",

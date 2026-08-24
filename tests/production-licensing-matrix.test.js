@@ -156,10 +156,21 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.deepEqual(ffmpegWrapper.artifactSurfaces, ['web-pages-bundle']);
 	assert.deepEqual(provenance.get('ffmpeg-core-wasm').artifactSurfaces, ['web-runtime-assets']);
 	assert.deepEqual(matrix.desktopCodecPolicy, {
-		artifactSurfaces: ['electron-renderer', 'electron-runtime-assets', 'desktop-release-assets'],
+		scope: 'soundscaper-application-codec-provider-layer-excluding-electron-framework-internals',
+		artifactSurfaces: ['electron-renderer', 'electron-runtime-assets', 'electron-shell', 'desktop-release-assets'],
 		bundledFfmpeg: false,
 		bundledLibav: false,
 		bundledFfmpegWasm: false,
+		electronFrameworkFfmpeg: {
+			status: 'distributed-verified-framework-exception',
+			electronVersion: '43.1.1',
+			profile: 'electron-alternate-without-proprietary-codecs',
+			upstreamIntent: 'omit-proprietary-codec-support',
+			providerTier: false,
+			manifest: 'config/electron-alternate-ffmpeg-manifest.json',
+			targets: ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'],
+			qualification: 'exact-bytes-only-no-codec-or-patent-clearance',
+		},
 		providerOrder: ['bundled-open-codecs', 'os', 'external-user-install'],
 		executionStatus: {
 			firstPartyPcmReaders: 'existing-application-code',
@@ -175,11 +186,34 @@ test('runtime provenance entries and release gates fail closed without claiming 
 			'scripts/desktop-before-pack.mjs',
 			'scripts/desktop-after-pack.mjs',
 			'scripts/desktop-release-assets.mjs',
+			'electron-builder.config.cjs',
+			'config/electron-alternate-ffmpeg-manifest.json',
+			'scripts/lib/electron-alternate-ffmpeg.mjs',
+			'tests/desktop-electron-alternate-ffmpeg.test.js',
 			'desktop/desktop-audio-codec-registration.mjs',
 			'desktop/external-ffmpeg-registration.mjs',
 			'THIRD_PARTY_LICENSES.md',
 		],
 	});
+	assert.deepEqual(provenance.get('electron-alternate-ffmpeg-framework-43-1-1'), {
+		id: 'electron-alternate-ffmpeg-framework-43-1-1',
+		status: 'documented',
+		artifactSurfaces: ['electron-shell', 'desktop-release-assets'],
+		provenanceKind: 'electron-upstream-alternate-framework-library-verified-after-pack',
+		upstreamIntent: "Electron's matching alternate release asset is intended upstream to omit proprietary codec support.",
+		providerRole: 'electron-chromium-framework-internal-not-soundscaper-codec-provider',
+		qualification: 'Exact target, file type, byte length, and SHA-256 are verified. No complete codec inventory, behavior, absence-of-patent-exposure, or patent-clearance claim is made.',
+		targets: ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'],
+		evidence: [
+			'electron-builder.config.cjs',
+			'config/electron-alternate-ffmpeg-manifest.json',
+			'scripts/lib/electron-alternate-ffmpeg.mjs',
+			'scripts/desktop-after-pack.mjs',
+			'tests/desktop-electron-alternate-ffmpeg.test.js',
+			'THIRD_PARTY_LICENSES.md',
+		],
+	});
+	assert.equal(matrix.desktopCodecPolicy.electronFrameworkFfmpeg.targets.includes('mac-x64'), false);
 	assert.deepEqual(provenance.get('reviewed-effect-utility-gain-wasm'), {
 		id: 'reviewed-effect-utility-gain-wasm',
 		status: 'documented',

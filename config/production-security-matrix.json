@@ -3599,14 +3599,19 @@
 				},
 				{
 					"id": "verified-helper-engine-payload",
-					"summary": "The current desktop package supplies no FFmpeg helper engine: renderer, stage, package, and release audits reject FFmpeg, libav, the FFmpeg WebAssembly runtime, and the historical static FFmpeg host. The desktop audio broker receives no bundled compressed-codec or operating-system execution factory, so both provider tiers remain unavailable; existing first-party PCM container readers remain application code rather than native-provider evidence. The final tier may execute only a user-installed external FFmpeg in place through the bounded main-owned runner, without copying it into a production artifact. This is fail-closed routing and redistribution-boundary evidence, not bundled or operating-system codec execution, codec or version conformance, platform availability, or patent qualification.",
+					"summary": "The Soundscaper application supplies no FFmpeg helper engine: its renderer, runtime-resource, package, and release audits reject application-supplied FFmpeg, libav, the FFmpeg WebAssembly runtime, and the historical static FFmpeg host. The Electron shell is a separately scoped framework exception. Instead of stock Electron 43.1.1's Chromium libffmpeg with proprietary codec support, Electron Builder selects the matching alternate framework library that Electron intends to omit proprietary codec support, and afterPack verifies its exact target, regular-file type, byte length, and SHA-256 against config/electron-alternate-ffmpeg-manifest.json. That framework library is not passed to the helper or audio broker and is not a Soundscaper codec-provider tier. The desktop audio broker receives no bundled compressed-codec or operating-system execution factory, so both provider tiers remain unavailable; existing first-party PCM container readers remain application code rather than native-provider evidence. The final tier may execute only a user-installed external FFmpeg in place through the bounded main-owned runner, distinct from the packaged framework library and without copying the external program into a production artifact. This is fail-closed routing and redistribution-boundary evidence. The verified framework bytes and upstream intent do not establish a complete codec inventory, codec behavior, absence of patent exposure, or patent clearance; neither do these controls qualify bundled or operating-system codec execution, external FFmpeg codec or version conformance, or platform availability.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/helper-registration.mjs" },
 						{ "kind": "implementation", "path": "desktop/desktop-audio-codec-registration.mjs" },
 						{ "kind": "implementation", "path": "desktop/external-ffmpeg-registration.mjs" },
 						{ "kind": "implementation", "path": "scripts/lib/desktop-codec-policy.mjs" },
+						{ "kind": "implementation", "path": "electron-builder.config.cjs" },
+						{ "kind": "implementation", "path": "config/electron-alternate-ffmpeg-manifest.json" },
+						{ "kind": "implementation", "path": "scripts/lib/electron-alternate-ffmpeg.mjs" },
 						{ "kind": "test", "path": "tests/desktop-audio-codec-main-wiring.test.js" },
-						{ "kind": "test", "path": "tests/desktop-packaged-ffmpeg-runtime.test.js" }
+						{ "kind": "test", "path": "tests/desktop-packaged-ffmpeg-runtime.test.js" },
+						{ "kind": "test", "path": "tests/desktop-electron-alternate-ffmpeg.test.js" },
+						{ "kind": "test", "path": "tests/production-security-desktop-codec-policy.test.js" }
 					]
 				},
 				{
@@ -4413,9 +4418,11 @@
 				},
 				{
 					"id": "desktop-fuse-and-package-integrity",
-					"summary": "Desktop preparation records the immutable no-bundled-FFmpeg codec policy and audits the renderer composition; beforePack and afterPack recheck that policy and recursively reject FFmpeg, libav, FFmpeg WebAssembly, and the historical static FFmpeg host before applying Electron fuses or signing. The release inventory independently refuses FFmpeg inputs. Packaging also checks the copied aggregate notice and packaged ASAR integrity before preview smoke tests. User-installed external FFmpeg is never copied into these trees.",
+					"summary": "Desktop preparation records the application-codec policy and audits the renderer composition; beforePack and afterPack recheck that policy and recursively reject application-supplied FFmpeg, libav, FFmpeg WebAssembly, and the historical static FFmpeg host from the renderer and application resource trees. Separately, Electron Builder's downloadAlternateFFmpeg setting replaces stock Electron 43.1.1's Chromium libffmpeg, which includes proprietary codec support, with Electron's matching alternate framework library intended upstream to omit proprietary codec support. Before fuses or signing, afterPack verifies the exact library path, regular-file type, byte length, and SHA-256 for linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64 against config/electron-alternate-ffmpeg-manifest.json; there is no mac-x64 target. The release inventory independently refuses application-supplied FFmpeg inputs. Packaging also checks the copied aggregate notice and packaged ASAR integrity before preview smoke tests. The Electron framework library is not a Soundscaper codec-provider tier, and its verified identity and upstream intent establish neither a complete codec inventory nor absence of patent exposure or patent clearance. User-installed external FFmpeg is distinct from that packaged framework library and is never copied into these trees.",
 					"evidence": [
 						{ "kind": "implementation", "path": "electron-builder.config.cjs" },
+						{ "kind": "implementation", "path": "config/electron-alternate-ffmpeg-manifest.json" },
+						{ "kind": "implementation", "path": "scripts/lib/electron-alternate-ffmpeg.mjs" },
 						{ "kind": "implementation", "path": "scripts/lib/desktop-codec-policy.mjs" },
 						{ "kind": "implementation", "path": "scripts/lib/desktop-renderer-codec-audit.mjs" },
 						{ "kind": "implementation", "path": "scripts/desktop-prepare.mjs" },
@@ -4424,7 +4431,9 @@
 						{ "kind": "implementation", "path": "scripts/desktop-release-assets.mjs" },
 						{ "kind": "test", "path": "tests/desktop-asar-integrity.test.js" },
 						{ "kind": "test", "path": "tests/desktop-packaged-ffmpeg-runtime.test.js" },
+						{ "kind": "test", "path": "tests/desktop-electron-alternate-ffmpeg.test.js" },
 						{ "kind": "test", "path": "tests/desktop-release-package-inventory.test.js" },
+						{ "kind": "test", "path": "tests/production-security-desktop-codec-policy.test.js" },
 						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" }
 					]
 				},
