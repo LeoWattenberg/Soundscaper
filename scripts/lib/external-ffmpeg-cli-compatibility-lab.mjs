@@ -18,6 +18,10 @@ import {
 	deriveDesktopAudioFfmpegCapabilityTuple,
 	isDesktopAudioFfmpegCapabilityTupleSatisfied,
 } from '../../desktop/desktop-audio-ffmpeg-plan.ts';
+import {
+	DESKTOP_AUDIO_FFMPEG_WAVE_OVERHEAD_LIMIT_BYTES,
+	parseDesktopAudioFfmpegWaveOutput,
+} from '../../desktop/desktop-audio-ffmpeg-wave-output.ts';
 
 const execFile = promisify(nodeExecFile);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -53,10 +57,12 @@ export function normalizeExternalFfmpegCliCompatibilityLab(value, options = {}) 
 		|| evidence.observedAt !== '2026-08-24') fail('External FFmpeg CLI evidence identity is invalid.');
 	const scope = exactRecord(evidence.scope, [
 		'hostTarget', 'containerPlatform', 'dockerServerVersion', 'runtimeArgumentContract',
+		'decodedOutputContract',
 	], 'external FFmpeg CLI evidence scope');
 	if (scope.hostTarget !== 'linux-x64' || scope.containerPlatform !== 'linux/amd64'
 		|| scope.dockerServerVersion !== '29.1.3'
-		|| scope.runtimeArgumentContract !== 'closed-plan-before-main-runner-guard-injection') {
+		|| scope.runtimeArgumentContract !== 'closed-plan-before-main-runner-guard-injection'
+		|| scope.decodedOutputContract !== 'strict-source-authoritative-float32-wave') {
 		fail('External FFmpeg CLI evidence scope is invalid.');
 	}
 	validateImplementation(evidence.implementation, root);
@@ -153,7 +159,7 @@ async function executeFormat({ docker, evidence, row, format, capabilities, dire
 
 	const decode = Object.freeze({
 		operation: 'audio-decode', format: format.id, input: encoded,
-		sampleRate: fixture.sampleRate, channelCount: fixture.channelCount,
+		sampleRate: null, channelCount: null,
 		settings: Object.freeze({ sampleFormat: 'f32le' }),
 		maximumOutputBytes: fixture.maximumOutputBytes,
 	});
@@ -161,24 +167,28 @@ async function executeFormat({ docker, evidence, row, format, capabilities, dire
 	const decodePlan = buildDesktopAudioFfmpegPlan(decode);
 	await writeFile(join(directory, decodePlan.inputName), encoded, { flag: 'wx', mode: 0o600 });
 	await runPlan(docker, evidence.scope.containerPlatform, row.image, directory, decodePlan.arguments);
-	const decoded = await readBounded(join(directory, decodePlan.outputName), fixture.maximumOutputBytes);
+	const wave = await readBounded(
+		join(directory, decodePlan.outputName),
+		fixture.maximumOutputBytes + DESKTOP_AUDIO_FFMPEG_WAVE_OVERHEAD_LIMIT_BYTES,
+	);
+	const parsed = parseDesktopAudioFfmpegWaveOutput(wave, fixture.maximumOutputBytes);
+	const decoded = parsed.output;
+	const geometry = parsed.decodedGeometry;
 	try { assertFiniteSilentPcm(decoded); }
 	catch (error) {
 		throw new Error(`FFmpeg ${row.release} ${format.id} decode witness failed: ${error.message}`, {
 			cause: error,
 		});
 	}
-	if (decoded.byteLength % (fixture.channelCount * Float32Array.BYTES_PER_ELEMENT) !== 0) {
-		throw new Error(`FFmpeg ${row.release} ${format.id} returned a partial PCM frame.`);
-	}
 	await rm(join(directory, decodePlan.inputName));
 	await rm(join(directory, decodePlan.outputName));
 	return Object.freeze({
 		format: format.id, decodedByteLength: decoded.byteLength,
-		decodedFrameCount: decoded.byteLength
-			/ (fixture.channelCount * Float32Array.BYTES_PER_ELEMENT),
+		decodedSampleRate: geometry.sampleRate,
+		decodedChannelCount: geometry.channelCount,
+		decodedFrameCount: geometry.frameCount,
 		decodedSha256: sha256(decoded),
-		sampleCountPreserved: decoded.byteLength === pcm.byteLength,
+		sampleCountPreserved: geometry.frameCount === fixture.frameCount,
 	});
 }
 
@@ -277,9 +287,11 @@ async function runStrict(executable, arguments_, timeout, maxBuffer = 1024 * 102
 
 function validateImplementation(value, root) {
 	const implementation = exactRecord(value, [
-		'planPath', 'planSha256', 'probePath', 'probeSha256', 'runnerPath', 'runnerSha256',
+		'operationContractPath', 'operationContractSha256',
+		'planPath', 'planSha256', 'probePath', 'probeSha256',
+		'waveParserPath', 'waveParserSha256', 'runnerPath', 'runnerSha256',
 	], 'external FFmpeg CLI evidence implementation');
-	for (const name of ['plan', 'probe', 'runner']) {
+	for (const name of ['operationContract', 'plan', 'probe', 'waveParser', 'runner']) {
 		const path = implementation[`${name}Path`];
 		const expected = implementation[`${name}Sha256`];
 		if (typeof path !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._/-]{1,255}$/u.test(path)
@@ -333,14 +345,17 @@ function validateObservationProfiles(value, fixture) {
 	const profiles = new Map();
 	for (const candidate of value) {
 		const profile = exactRecord(candidate, [
-			'id', 'decodedByteLength', 'decodedFrameCount', 'decodedSha256', 'sampleCountPreserved',
+			'id', 'decodedByteLength', 'decodedSampleRate', 'decodedChannelCount',
+			'decodedFrameCount', 'decodedSha256', 'sampleCountPreserved',
 		], 'external FFmpeg CLI evidence observation profile');
 		if (!/^[a-z0-9][a-z0-9-]{2,63}$/u.test(profile.id) || profiles.has(profile.id)
 			|| !Number.isSafeInteger(profile.decodedByteLength) || profile.decodedByteLength < 1
 			|| profile.decodedByteLength > fixture.maximumOutputBytes
+			|| profile.decodedSampleRate !== fixture.sampleRate
+			|| profile.decodedChannelCount !== fixture.channelCount
 			|| !Number.isSafeInteger(profile.decodedFrameCount) || profile.decodedFrameCount < 1
 			|| profile.decodedByteLength !== profile.decodedFrameCount
-				* fixture.channelCount * Float32Array.BYTES_PER_ELEMENT
+				* profile.decodedChannelCount * Float32Array.BYTES_PER_ELEMENT
 			|| !SHA256.test(profile.decodedSha256) || typeof profile.sampleCountPreserved !== 'boolean'
 			|| profile.sampleCountPreserved !== (profile.decodedFrameCount === fixture.frameCount)) {
 			fail('External FFmpeg CLI evidence observation profile result is invalid.');
@@ -381,6 +396,8 @@ function assertRecordedObservations(row, actual, profileValues) {
 		const expected = profiles.get(binding?.profile);
 		if (binding?.format !== observation.format || !expected
 			|| expected.decodedByteLength !== observation.decodedByteLength
+			|| expected.decodedSampleRate !== observation.decodedSampleRate
+			|| expected.decodedChannelCount !== observation.decodedChannelCount
 			|| expected.decodedFrameCount !== observation.decodedFrameCount
 			|| expected.decodedSha256 !== observation.decodedSha256
 			|| expected.sampleCountPreserved !== observation.sampleCountPreserved) {

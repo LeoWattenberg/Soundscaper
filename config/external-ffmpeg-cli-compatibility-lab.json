@@ -6,15 +6,20 @@
 		"hostTarget": "linux-x64",
 		"containerPlatform": "linux/amd64",
 		"dockerServerVersion": "29.1.3",
-		"runtimeArgumentContract": "closed-plan-before-main-runner-guard-injection"
+		"runtimeArgumentContract": "closed-plan-before-main-runner-guard-injection",
+		"decodedOutputContract": "strict-source-authoritative-float32-wave"
 	},
 	"implementation": {
+		"operationContractPath": "desktop/desktop-audio-codec-operation-contract.ts",
+		"operationContractSha256": "aabdb810dd464d5cc8096f0913433f357bcf9115f1b8d8bdd77bb24026d0fac5",
 		"planPath": "desktop/desktop-audio-ffmpeg-plan.ts",
-		"planSha256": "5241f0dc01fb4afdbb6d6a9e804ab3178db88be5b23bdc16a19bcecd2939f92e",
+		"planSha256": "2576948e2638868dbad0b706857c634bed6216b80c8bda84e79acb1bf13fb787",
 		"probePath": "desktop/external-ffmpeg-probe.ts",
 		"probeSha256": "c89441a1b34b4ebc68e2496cb75a1bfee4abc6f3ee6c08b65f6a8c67f359c30e",
+		"waveParserPath": "desktop/desktop-audio-ffmpeg-wave-output.ts",
+		"waveParserSha256": "03645a8e61e8c8e1c7813dec609b382c6bd8651c1580c02d6a7a832fa60770e0",
 		"runnerPath": "scripts/lib/external-ffmpeg-cli-compatibility-lab.mjs",
-		"runnerSha256": "29145575fa88a98799b8a79832b07b821cdf87d3496930a089ea53acc96542e5"
+		"runnerSha256": "e579eaa05fbfd62a3281cb63a9f5fa3d7eba117993541773d3ae07455e7c7a0c"
 	},
 	"architecture": {
 		"audacityCommit": "c016d6e1f8f018a39f7c5c1ee56a961fec4055c2",
@@ -42,6 +47,8 @@
 		{
 			"id": "pcm-positive-zero-4800",
 			"decodedByteLength": 38400,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
 			"decodedFrameCount": 4800,
 			"decodedSha256": "5c9b37300155c1f3338bc88f17d69c51fb248b0de0155630962ca6504d789bba",
 			"sampleCountPreserved": true
@@ -49,6 +56,8 @@
 		{
 			"id": "vorbis-ffmpeg-4",
 			"decodedByteLength": 45568,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
 			"decodedFrameCount": 5696,
 			"decodedSha256": "73facf62b8604ed68f6e20a6f3c19e93d70d9a0228a32b6e7b1269665eeb8cc6",
 			"sampleCountPreserved": false
@@ -56,6 +65,8 @@
 		{
 			"id": "vorbis-ffmpeg-5",
 			"decodedByteLength": 37376,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
 			"decodedFrameCount": 4672,
 			"decodedSha256": "a50978aee20a85c1e65d0e0632ef76ee671145e6111d78baf68619d2e5427846",
 			"sampleCountPreserved": false
@@ -63,6 +74,8 @@
 		{
 			"id": "vorbis-ffmpeg-6-9",
 			"decodedByteLength": 37376,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
 			"decodedFrameCount": 4672,
 			"decodedSha256": "002b96a429973ca839bdd098baa846a56e4ea6038272b7d85f5d3e5f6c3f2c48",
 			"sampleCountPreserved": false
@@ -70,6 +83,8 @@
 		{
 			"id": "mp2-ffmpeg-4-9",
 			"decodedByteLength": 46080,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
 			"decodedFrameCount": 5760,
 			"decodedSha256": "7e36bec0af80ff78cd2cba3643b862a6c0e3ec56e52acabe92b246dcd6ad4816",
 			"sampleCountPreserved": false
@@ -77,6 +92,8 @@
 		{
 			"id": "aac-ffmpeg-4-5",
 			"decodedByteLength": 40960,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
 			"decodedFrameCount": 5120,
 			"decodedSha256": "603028d7cd3dc27813cd43fb8d083cc3e2bba87b2e13fcde36b528a6de741b03",
 			"sampleCountPreserved": false
@@ -84,6 +101,8 @@
 		{
 			"id": "aac-ffmpeg-6-8",
 			"decodedByteLength": 40960,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
 			"decodedFrameCount": 5120,
 			"decodedSha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
 			"sampleCountPreserved": false
@@ -187,7 +206,7 @@
 			]
 		}
 	],
-	"claim": "For these six exact linux/amd64 third-party static images, the checked-in external-FFmpeg probe and closed audio plans admitted the matching ffmpeg/ffprobe pair, completed one bounded encode plus decode for every listed format, and reproduced the pinned finite-silence output profile.",
+	"claim": "For these six exact linux/amd64 third-party static images, the checked-in external-FFmpeg probe and closed audio plans admitted the matching ffmpeg/ffprobe pair, completed one bounded encode plus source-authoritative float-WAV decode for every listed format, and the strict WAV parser reproduced the pinned geometry and finite-silence PCM profile.",
 	"limitations": [
 		"This is Linux x64 CLI compatibility evidence only; it does not qualify Windows, macOS, ARM64, Homebrew, or winget packages.",
 		"The 4,800-frame fixture is not sample-count-preserving for Vorbis in any tested release, MP2 in any tested release, or AAC before FFmpeg 9; the pinned profiles record those codec-delay and granule outcomes rather than claiming an exact round-trip.",

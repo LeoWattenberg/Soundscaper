@@ -13,12 +13,20 @@ test('the external FFmpeg CLI witness is digest-pinned and scoped to six Linux x
 	const evidence = EXTERNAL_FFMPEG_CLI_COMPATIBILITY_LAB;
 	assert.equal(evidence.scope.hostTarget, 'linux-x64');
 	assert.equal(evidence.scope.containerPlatform, 'linux/amd64');
+	assert.equal(evidence.scope.decodedOutputContract,
+		'strict-source-authoritative-float32-wave');
 	assert.equal(evidence.architecture.audacityCommit,
 		'c016d6e1f8f018a39f7c5c1ee56a961fec4055c2');
 	assert.match(evidence.architecture.audacityReference,
 		/^https:\/\/github\.com\/audacity\/audacity\/commit\/c016d6e1/u);
 	assert.match(evidence.architecture.audacityApproach, /ABI-major wrappers/iu);
 	assert.match(evidence.architecture.soundscaperApproach, /out of process.*released CLI/iu);
+	assert.equal(evidence.implementation.operationContractPath,
+		'desktop/desktop-audio-codec-operation-contract.ts');
+	assert.match(evidence.implementation.operationContractSha256, /^[0-9a-f]{64}$/u);
+	assert.equal(evidence.implementation.waveParserPath,
+		'desktop/desktop-audio-ffmpeg-wave-output.ts');
+	assert.match(evidence.implementation.waveParserSha256, /^[0-9a-f]{64}$/u);
 	assert.deepEqual(evidence.releases.map(({ release }) => release), [
 		'4.4.0', '5.1.0', '6.1.0', '7.1.0', '8.0.0', '9.0.0',
 	]);
@@ -36,6 +44,10 @@ test('the external FFmpeg CLI witness is digest-pinned and scoped to six Linux x
 			evidence.formats.map(({ id }) => id));
 	}
 	const profiles = new Map(evidence.observationProfiles.map((profile) => [profile.id, profile]));
+	for (const profile of profiles.values()) {
+		assert.equal(profile.decodedSampleRate, evidence.fixture.sampleRate);
+		assert.equal(profile.decodedChannelCount, evidence.fixture.channelCount);
+	}
 	assert.equal(evidence.releases.every((row) => (
 		profiles.get(row.observations[2].profile).sampleCountPreserved === false
 	)), true, 'every Vorbis witness must retain its explicit non-preserving result');
@@ -49,12 +61,18 @@ test('the witness rejects scope expansion, mutable images, stale source pins, an
 	const evidence = EXTERNAL_FFMPEG_CLI_COMPATIBILITY_LAB;
 	for (const mutation of [
 		{ ...evidence, scope: { ...evidence.scope, hostTarget: 'mac-x64' } },
+		{ ...evidence, implementation: {
+			...evidence.implementation, operationContractSha256: '0'.repeat(64),
+		} },
 		{ ...evidence, implementation: { ...evidence.implementation, planSha256: '0'.repeat(64) } },
+		{ ...evidence, implementation: { ...evidence.implementation, waveParserSha256: '0'.repeat(64) } },
 		{ ...evidence, implementation: { ...evidence.implementation, runnerSha256: '0'.repeat(64) } },
 		{ ...evidence, releases: evidence.releases.map((row, index) => index === 0
 			? { ...row, image: 'docker.io/mwader/static-ffmpeg:4.4' } : row) },
 		{ ...evidence, observationProfiles: evidence.observationProfiles.map((profile, index) => index === 0
 			? { ...profile, decodedByteLength: profile.decodedByteLength - 8 } : profile) },
+		{ ...evidence, observationProfiles: evidence.observationProfiles.map((profile, index) => index === 0
+			? { ...profile, decodedChannelCount: 1 } : profile) },
 		{ ...evidence, releases: evidence.releases.map((row, index) => index === 0
 			? { ...row, observations: row.observations.map((observation, observationIndex) => (
 				observationIndex === 0 ? { ...observation, profile: 'missing-profile' } : observation
