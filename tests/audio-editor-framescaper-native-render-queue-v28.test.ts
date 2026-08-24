@@ -156,7 +156,10 @@ for (const delivery of [
 		assert.equal(enqueued.length, 1);
 		const request = record(enqueued[0]);
 		assert.equal(request.taskKind, 'image-sequence-export');
-		assert.equal(request.recoveryClass, 'verified-frame-checkpoint');
+		// Verified-frame-checkpoint may return only once restart revalidation
+		// actually verifies existing frames; until then the label would promise
+		// a resumability the runtime downgrades to a restart from zero.
+		assert.equal(request.recoveryClass, 'atomic-restart');
 		assert.equal(request.relativeDestination,
 			`renders/framescaper-framescaper-v28-r0-60000-1001-${delivery.format}`);
 		const plan = record(JSON.parse(String(request.planPayload)));

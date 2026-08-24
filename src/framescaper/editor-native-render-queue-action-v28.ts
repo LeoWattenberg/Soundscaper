@@ -370,7 +370,12 @@ function queueRequest(
 			...FRAMESCAPER_V28_RENDER_QUEUE_RESERVATIONS,
 			scratchBytes: prepared?.scratchByteLength ?? 0,
 		}),
-		recoveryClass: imageSequence ? 'verified-frame-checkpoint' : 'atomic-restart',
+		// Image sequences may declare verified-frame-checkpoint only once
+		// recovery actually verifies existing frames; restart revalidation does
+		// not consume checkpoints for the selected V14 route yet, so the label
+		// promised a resumability the runtime silently downgraded to a restart
+		// from zero — the mislabeled resumability the 5B-3 packet forbids.
+		recoveryClass: 'atomic-restart',
 	});
 }
 

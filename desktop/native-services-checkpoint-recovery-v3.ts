@@ -8,6 +8,7 @@ import { lstat, open, realpath, rename, unlink } from 'node:fs/promises';
 import { isAbsolute, join, normalize } from 'node:path';
 
 import { createNativeMediaPlanEnvelopeV1 } from '../src/common/editor/native-media-plan-envelope.ts';
+import { createNativeMediaPlanEnvelopeV2 } from '../src/common/editor/native-media-plan-envelope-v2.ts';
 import {
 	assertNativeQueueRecordV3,
 	type NativeQueueRecordV3,
@@ -220,7 +221,13 @@ function checkpointAuthority(record: NativeQueueRecordV3): Readonly<{
 	let plan: unknown;
 	try { plan = JSON.parse(record.planPayload) as unknown; }
 	catch { throw new Error('The checkpoint queue plan is not canonical JSON.'); }
-	const envelope = createNativeMediaPlanEnvelopeV1(plan);
+	// The selected route enqueues exact plan V14, which the V1 envelope (plans
+	// seven through twelve) refuses — making every real checkpoint write an
+	// unsupported-version error. Resolve the envelope by the record's own
+	// plan version instead.
+	const envelope = record.planVersion >= 13
+		? createNativeMediaPlanEnvelopeV2(plan)
+		: createNativeMediaPlanEnvelopeV1(plan);
 	if (envelope.fingerprint !== record.planFingerprint || envelope.planVersion !== record.planVersion) {
 		throw new Error('The checkpoint queue plan changed identity.');
 	}
