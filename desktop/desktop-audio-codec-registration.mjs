@@ -91,6 +91,7 @@ function validateOptions(options) {
 		|| typeof options.handle !== 'function' || typeof options.removeHandler !== 'function'
 		|| typeof options.ownerFor !== 'function' || !options.externalFfmpegPreferences
 		|| typeof options.externalFfmpegPreferences.admission !== 'function'
+		|| typeof options.externalFfmpegPreferences.invalidateAdmission !== 'function'
 		|| typeof options.platform !== 'string' || typeof options.architecture !== 'string'
 		|| typeof options.userDataPath !== 'string' || options.userDataPath.length > 4_096
 		|| options.userDataPath.includes('\0') || !isAbsolute(options.userDataPath)

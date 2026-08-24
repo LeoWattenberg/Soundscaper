@@ -14,7 +14,10 @@ import type {
 	ExternalFfmpegAudioOperationRunner,
 	ExternalFfmpegAudioOperationRunnerOptions,
 } from '../desktop/external-ffmpeg-audio-operation-runner.ts';
-import type { ExternalFfmpegRuntimeAdmission } from '../desktop/external-ffmpeg-preference-service.ts';
+import type {
+	ExternalFfmpegPreferenceService,
+	ExternalFfmpegRuntimeAdmission,
+} from '../desktop/external-ffmpeg-preference-service.ts';
 import {
 	DesktopCodecOperationError,
 	type DesktopCodecPreflightResult,
@@ -28,7 +31,7 @@ test('capability status is fail-closed, sanitized, and uses one admission snapsh
 	let admissionReads = 0;
 	const service = createDesktopAudioCodecRuntimeComposition({
 		target: 'linux-x64', scratchRoot: SCRATCH,
-		externalFfmpegPreferences: { admission: () => { admissionReads += 1; return null; } },
+		externalFfmpegPreferences: preferences(() => { admissionReads += 1; return null; }),
 	});
 	const result = await service.capabilities(capabilityQuery());
 	assert.equal(admissionReads, 1);
@@ -45,7 +48,7 @@ test('capability status exposes only exact tuples admitted by the probed FFmpeg 
 	let runnerFactories = 0;
 	const service = createDesktopAudioCodecRuntimeComposition({
 		target: 'linux-x64', scratchRoot: SCRATCH,
-		externalFfmpegPreferences: { admission: () => opusAdmission('/private/ffmpeg') },
+		externalFfmpegPreferences: preferences(() => opusAdmission('/private/ffmpeg')),
 		createExternalRunner() { runnerFactories += 1; return neverRunner(); },
 	});
 	const result = await service.capabilities(capabilityQuery());
@@ -66,7 +69,7 @@ test('capability status preserves bundled then operating-system provider priorit
 		target: 'mac-arm64', scratchRoot: SCRATCH,
 		createBundledRuntime: runtimeFactory('bundled', 'unsupported', trace, Uint8Array.of(1)),
 		createOperatingSystemRuntime: runtimeFactory('operating-system', 'supported', trace, Uint8Array.of(2)),
-		externalFfmpegPreferences: { admission: () => opusAdmission('/private/ffmpeg') },
+		externalFfmpegPreferences: preferences(() => opusAdmission('/private/ffmpeg')),
 	});
 	const query = capabilityQuery();
 	const result = await service.capabilities({ ...query, operations: [query.operations[0]!] });
@@ -77,7 +80,7 @@ test('capability status preserves bundled then operating-system provider priorit
 test('missing native factories and FFmpeg admission fail closed in all three priority tiers', async () => {
 	const service = createDesktopAudioCodecRuntimeComposition({
 		target: 'linux-x64', scratchRoot: SCRATCH,
-		externalFfmpegPreferences: { admission: () => null },
+		externalFfmpegPreferences: preferences(() => null),
 	});
 	await assert.rejects(() => service.execute(encodeRequest('flac'), executionOptions()), (error: unknown) => {
 		assert.ok(error instanceof DesktopCodecOperationError);
@@ -100,7 +103,7 @@ test('a bundled runtime wins and its receipt remains in the main-owned observati
 		target: 'mac-arm64', scratchRoot: SCRATCH,
 		createBundledRuntime: bundled,
 		createOperatingSystemRuntime: operatingSystem,
-		externalFfmpegPreferences: { admission: () => opusAdmission('/tools/ffmpeg-a') },
+		externalFfmpegPreferences: preferences(() => opusAdmission('/tools/ffmpeg-a')),
 		createExternalRunner() { externalRunnerFactories += 1; return neverRunner(); },
 		onReceipt: (observation) => { observations.push(observation); },
 	});
@@ -121,7 +124,7 @@ test('an operating-system runtime is second priority and external FFmpeg remains
 		target: 'win-arm64', scratchRoot: SCRATCH,
 		createBundledRuntime: runtimeFactory('bundled', 'unsupported', trace, Uint8Array.of(1)),
 		createOperatingSystemRuntime: runtimeFactory('operating-system', 'supported', trace, Uint8Array.of(5)),
-		externalFfmpegPreferences: { admission: () => opusAdmission('C:\\Tools\\ffmpeg.exe') },
+		externalFfmpegPreferences: preferences(() => opusAdmission('C:\\Tools\\ffmpeg.exe')),
 		createExternalRunner() {
 			return { execute: () => { externalExecutions += 1; return Promise.resolve({
 				status: 'executed', output: Uint8Array.of(9), log: '',
@@ -146,9 +149,7 @@ test('external execution uses one immutable admission snapshot and the fixed pat
 	let capturedRunnerOptions: ExternalFfmpegAudioOperationRunnerOptions<DesktopAudioCodecRequest> | null = null;
 	const service = createDesktopAudioCodecRuntimeComposition({
 		target: 'mac-arm64', scratchRoot: SCRATCH,
-		externalFfmpegPreferences: {
-			admission() { admissionReads += 1; return current; },
-		},
+		externalFfmpegPreferences: preferences(() => { admissionReads += 1; return current; }),
 		createExternalRunner(options) {
 			capturedRunnerOptions = options;
 			return {
@@ -204,7 +205,7 @@ test('external decode preserves float-WAV source geometry without resampling or 
 	} }>> = [];
 	const service = createDesktopAudioCodecRuntimeComposition({
 		target: 'linux-x64', scratchRoot: SCRATCH,
-		externalFfmpegPreferences: { admission: () => opusAdmission('/tools/ffmpeg') },
+		externalFfmpegPreferences: preferences(() => opusAdmission('/tools/ffmpeg')),
 		createExternalRunner: (options) => ({
 			execute(invocation) {
 				const admitted = options.contract.admitOperation(invocation.operation);
@@ -245,7 +246,7 @@ test('external decode preserves float-WAV source geometry without resampling or 
 test('malformed external decode geometry is terminal at the selected provider', async () => {
 	const service = createDesktopAudioCodecRuntimeComposition({
 		target: 'linux-x64', scratchRoot: SCRATCH,
-		externalFfmpegPreferences: { admission: () => opusAdmission('/tools/ffmpeg') },
+		externalFfmpegPreferences: preferences(() => opusAdmission('/tools/ffmpeg')),
 		createExternalRunner: () => ({
 			execute: () => Promise.resolve({
 				status: 'executed', output: Uint8Array.of(1, 2, 3), log: '',
@@ -269,7 +270,7 @@ test('an admitted FFmpeg missing one exact tuple component stays unsupported and
 	let runnerFactories = 0;
 	const service = createDesktopAudioCodecRuntimeComposition({
 		target: 'linux-arm64', scratchRoot: SCRATCH,
-		externalFfmpegPreferences: { admission: () => missingEncoder },
+		externalFfmpegPreferences: preferences(() => missingEncoder),
 		createExternalRunner() { runnerFactories += 1; return neverRunner(); },
 	});
 	await assert.rejects(() => service.execute(encodeRequest('opus'), executionOptions()), (error: unknown) => {
@@ -291,9 +292,18 @@ for (const [runnerReason, brokerReason] of [
 ] as const) {
 	test(`runner ${runnerReason} maps to terminal broker ${brokerReason}`, async () => {
 		let observations = 0;
+		const admission = opusAdmission('/tools/ffmpeg');
+		const invalidations: Array<Readonly<{
+			readonly admission: ExternalFfmpegRuntimeAdmission;
+			readonly reason: 'identity-changed' | 'executable-unavailable';
+		}>> = [];
 		const service = createDesktopAudioCodecRuntimeComposition({
 			target: 'linux-x64', scratchRoot: SCRATCH,
-			externalFfmpegPreferences: { admission: () => opusAdmission('/tools/ffmpeg') },
+			externalFfmpegPreferences: preferences(() => admission, async (failed, reason) => {
+				await Promise.resolve();
+				invalidations.push({ admission: failed, reason });
+				return preferenceStatus('quarantined');
+			}),
 			createExternalRunner: () => ({
 				execute: () => Promise.resolve({
 					status: 'unavailable', reason: runnerReason,
@@ -309,18 +319,45 @@ for (const [runnerReason, brokerReason] of [
 			return true;
 		});
 		assert.equal(observations, 0);
+		if (runnerReason === 'identity-changed' || runnerReason === 'executable-unavailable') {
+			assert.equal(invalidations.length, 1);
+			assert.deepEqual(invalidations[0]?.admission, admission);
+			assert.equal(invalidations[0]?.reason, runnerReason);
+		} else assert.deepEqual(invalidations, []);
 	});
 }
+
+test('a failed FFmpeg quarantine escalates executable loss to a security failure', async () => {
+	const service = createDesktopAudioCodecRuntimeComposition({
+		target: 'linux-x64', scratchRoot: SCRATCH,
+		externalFfmpegPreferences: preferences(
+			() => opusAdmission('/tools/ffmpeg'),
+			() => Promise.reject(new Error('settings unavailable')),
+		),
+		createExternalRunner: () => ({
+			execute: () => Promise.resolve({
+				status: 'unavailable', reason: 'executable-unavailable',
+				detail: 'executable unavailable', log: '',
+			}),
+		}),
+	});
+	await assert.rejects(() => service.execute(encodeRequest('opus'), executionOptions()), (error: unknown) => {
+		assert.ok(error instanceof DesktopAudioCodecProviderError);
+		assert.equal(error.reason, 'security-failed');
+		assert.match(error.message, /could not be quarantined/iu);
+		return true;
+	});
+});
 
 test('macOS x64 and provider factories returning the wrong tier are rejected', () => {
 	assert.throws(() => createDesktopAudioCodecRuntimeComposition({
 		target: 'mac-x64' as 'mac-arm64', scratchRoot: SCRATCH,
-		externalFfmpegPreferences: { admission: () => null },
+		externalFfmpegPreferences: preferences(() => null),
 	}), /target/iu);
 	assert.throws(() => createDesktopAudioCodecRuntimeComposition({
 		target: 'linux-x64', scratchRoot: SCRATCH,
 		createBundledRuntime: runtimeFactory('operating-system', 'unavailable', [], Uint8Array.of(1)),
-		externalFfmpegPreferences: { admission: () => null },
+		externalFfmpegPreferences: preferences(() => null),
 	}), /bundled.*runtime/iu);
 });
 
@@ -411,6 +448,23 @@ function floatWave(sampleRate: number, channelCount: number, pcm: Uint8Array): U
 
 function executionOptions(): Readonly<{ readonly signal: AbortSignal }> {
 	return { signal: new AbortController().signal };
+}
+
+function preferences(
+	admission: () => ExternalFfmpegRuntimeAdmission | null,
+	invalidateAdmission: Pick<ExternalFfmpegPreferenceService, 'invalidateAdmission'>['invalidateAdmission']
+		= () => Promise.resolve(preferenceStatus('quarantined')),
+): Pick<ExternalFfmpegPreferenceService, 'admission' | 'invalidateAdmission'> {
+	return Object.freeze({ admission, invalidateAdmission });
+}
+
+function preferenceStatus(
+	state: 'quarantined',
+): Awaited<ReturnType<ExternalFfmpegPreferenceService['invalidateAdmission']>> {
+	return Object.freeze({
+		state, location: '/tools/ffmpeg', version: null, detail: '',
+		canInstall: false, canBrowse: true, canClear: true,
+	});
 }
 
 function capabilityQuery(): DesktopAudioCodecCapabilityQuery {

@@ -97,7 +97,10 @@ export interface DesktopAudioCodecRuntimeComposition extends DesktopAudioCodecMa
 export interface DesktopAudioCodecRuntimeCompositionOptions {
 	readonly target: DesktopCodecTarget;
 	readonly scratchRoot: string;
-	readonly externalFfmpegPreferences: Pick<ExternalFfmpegPreferenceService, 'admission'>;
+	readonly externalFfmpegPreferences: Pick<
+		ExternalFfmpegPreferenceService,
+		'admission' | 'invalidateAdmission'
+	>;
 	readonly createBundledRuntime?: DesktopAudioCodecRuntimeFactory;
 	readonly createOperatingSystemRuntime?: DesktopAudioCodecRuntimeFactory;
 	readonly createExternalRunner?: ExternalFfmpegAudioRunnerFactory;
@@ -187,6 +190,7 @@ export function createDesktopAudioCodecRuntimeComposition(
 			const external = externalRuntime({
 				target, request, admission, scratchRoot: options.scratchRoot,
 				createRunner, gate: externalGate,
+				preferences: options.externalFfmpegPreferences,
 			});
 			const broker = createDesktopAudioCodecBroker({ runtimes: [bundled, operatingSystem, external] });
 			const outcome = await broker.execute(request, { signal: executionOptions.signal });
@@ -263,6 +267,7 @@ function externalRuntime(options: Readonly<{
 	scratchRoot: string;
 	createRunner: ExternalFfmpegAudioRunnerFactory;
 	gate: ExternalExecutionGate;
+	preferences: Pick<ExternalFfmpegPreferenceService, 'invalidateAdmission'>;
 }>): DesktopAudioCodecProviderRuntime {
 	const provider = externalProvider(options.target, options.request, options.admission);
 	return Object.freeze({
@@ -297,6 +302,15 @@ function externalRuntime(options: Readonly<{
 					...(executionOptions.signal ? { signal: executionOptions.signal } : {}),
 				}));
 				if (outcome.status !== 'executed') {
+					if (outcome.reason === 'identity-changed'
+						|| outcome.reason === 'executable-unavailable') {
+						try {
+							await options.preferences.invalidateAdmission(snapshot, outcome.reason);
+						} catch {
+							return failed('security-failed',
+								'The failed FFmpeg admission could not be quarantined.');
+						}
+					}
 					return failed(RUNNER_FAILURES[outcome.reason], outcome.detail);
 				}
 				if (request.operation === 'audio-encode') {
@@ -549,6 +563,7 @@ function validateOptions(options: DesktopAudioCodecRuntimeCompositionOptions): v
 		|| options.scratchRoot.length > 4_096 || options.scratchRoot.includes('\0')
 		|| !options.externalFfmpegPreferences
 		|| typeof options.externalFfmpegPreferences.admission !== 'function'
+		|| typeof options.externalFfmpegPreferences.invalidateAdmission !== 'function'
 		|| options.createBundledRuntime !== undefined && typeof options.createBundledRuntime !== 'function'
 		|| options.createOperatingSystemRuntime !== undefined
 			&& typeof options.createOperatingSystemRuntime !== 'function'

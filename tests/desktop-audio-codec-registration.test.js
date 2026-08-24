@@ -49,7 +49,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	const bundledRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const flacRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const compositeRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
-	const externalFfmpegPreferences = Object.freeze({ admission: () => null });
+	const externalFfmpegPreferences = externalPreferences();
 	const handle = () => undefined;
 	const removeHandler = () => undefined;
 	const ownerFor = () => ({ id: 'renderer' });
@@ -127,7 +127,7 @@ test('registration fails closed without any admitted bundled runtime', async () 
 	const compositionOptions = [];
 	await registerDesktopAudioCodecs({
 		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
-		externalFfmpegPreferences: { admission: () => null },
+		externalFfmpegPreferences: externalPreferences(),
 		platform: 'win32', architecture: 'arm64', userDataPath: '/user-data',
 		mkdir: async () => undefined,
 		loadModules: async () => ({
@@ -157,7 +157,7 @@ test('unsupported targets and invalid runtime modules fail before IPC registrati
 	let directories = 0;
 	await assert.rejects(() => registerDesktopAudioCodecs({
 		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
-		externalFfmpegPreferences: { admission: () => null },
+		externalFfmpegPreferences: externalPreferences(),
 		platform: 'darwin', architecture: 'x64', userDataPath: '/user-data',
 		mkdir: async () => { directories += 1; },
 		loadModules: async () => { loads += 1; return {}; },
@@ -167,10 +167,20 @@ test('unsupported targets and invalid runtime modules fail before IPC registrati
 
 	await assert.rejects(() => registerDesktopAudioCodecs({
 		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
-		externalFfmpegPreferences: { admission: () => null },
+		externalFfmpegPreferences: externalPreferences(),
 		platform: 'linux', architecture: 'x64', userDataPath: '/user-data',
 		mkdir: async () => { directories += 1; },
 		loadModules: async () => ({ createDesktopAudioCodecRuntimeComposition() {} }),
 	}), /desktop audio codec runtime modules are invalid/u);
 	assert.equal(directories, 0);
 });
+
+function externalPreferences() {
+	return Object.freeze({
+		admission: () => null,
+		invalidateAdmission: async () => Object.freeze({
+			state: 'quarantined', location: null, version: null, detail: '',
+			canInstall: false, canBrowse: true, canClear: false,
+		}),
+	});
+}
