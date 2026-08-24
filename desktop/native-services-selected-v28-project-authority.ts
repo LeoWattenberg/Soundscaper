@@ -104,6 +104,8 @@ export interface FramescaperNativeSelectedV28ProjectAuthorityOptions {
 		'revalidate' | 'inspect' | 'settle'
 	>;
 	readonly platform: NativeMediaPlatform;
+	/** The user's current hardware-encode opt-in; absent means unrestricted. */
+	readonly hardwareEncodeEnabled?: () => boolean;
 	readonly probeRoot: (grant: FramescaperNativeRootGrant) => Promise<FramescaperNativeRootObservation>;
 	readonly publicationPortFor: (grant: FramescaperNativeRootGrant) => FramescaperNativePublicationPort;
 	readonly publicationFenceFor: (
@@ -210,7 +212,8 @@ export class FramescaperNativeSelectedV28ProjectAuthority {
 			const plan = storedV14Plan(record);
 			requiresCarrier = record.taskKind !== 'proxy-generation'
 				&& nativeMediaV14RequiresEvaluatedCarrier(plan);
-			framescaperNativeV14BackendPlanForRecord(record, this.#options.platform);
+			framescaperNativeV14BackendPlanForRecord(record, this.#options.platform,
+				this.#options.hardwareEncodeEnabled?.() ?? true);
 			planMatches = true;
 			const project = projectRecord(this.#options.project.projectRecord(record.projectId));
 			const awaitingCarrier = record.state === 'paused'
@@ -270,7 +273,8 @@ export class FramescaperNativeSelectedV28ProjectAuthority {
 			relativeDestination: publication.relativeDestination,
 			temporaryRelativePath: publication.temporaryRelativePath,
 		});
-		const backendPlan = framescaperNativeV14BackendPlanForRecord(record, this.#options.platform);
+		const backendPlan = framescaperNativeV14BackendPlanForRecord(record, this.#options.platform,
+			this.#options.hardwareEncodeEnabled?.() ?? true);
 		const proxyRecipeValue = proxy ? proxyRecipe(envelope, record.inputFingerprints) : null;
 		const requiresCarrier = !proxy && nativeMediaV14RequiresEvaluatedCarrier(envelope.plan);
 		let derivedInputs: Awaited<ReturnType<FramescaperNativeRenderInputSettlementPort['inspect']>> | null = null;

@@ -25,6 +25,18 @@ test('main binds one immutable OS hardware reservation and execution consumes on
 		'CPU-only proxy work cannot occupy a hardware capacity reservation');
 });
 
+test('dispatch honours the current hardware opt-in over the persisted reservation', () => {
+	const record = Object.freeze({ taskKind: 'encoded-export' as const, reservations: reservations('vaapi') });
+	assert.deepEqual(framescaperNativeV14BackendPlanForRecord(record, 'linux', true).attempts,
+		['vaapi', 'native-cpu']);
+	// The durable row keeps its reservation, but runtime capability is the
+	// intersection with the user's current opt-in: a preference turned off
+	// after enqueue must not hand the helper a hardware grant at dispatch.
+	const disabled = framescaperNativeV14BackendPlanForRecord(record, 'linux', false);
+	assert.deepEqual(disabled.attempts, ['native-cpu']);
+	assert.equal(disabled.reason, 'cpu-only');
+});
+
 test('execution refuses a persisted backend outside the exact platform baseline', () => {
 	assert.throws(() => framescaperNativeV14BackendPlanForRecord({
 		taskKind: 'encoded-export', reservations: reservations('nvenc'),

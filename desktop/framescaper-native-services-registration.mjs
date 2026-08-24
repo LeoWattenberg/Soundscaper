@@ -131,7 +131,9 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 			: modules.createSelectedV28ProjectAuthority({
 				project: options.projectAuthority, watch: projectBodyAuthority, runtime: mediaRuntime,
 				renderInputs: renderInputStaging,
-			platform: options.externalDisplay.platform, probeRoot: nodePorts.probeRoot,
+			platform: options.externalDisplay.platform,
+			hardwareEncodeEnabled: () => options.settings.snapshot().nativeHardwareEncodeEnabled === true,
+			probeRoot: nodePorts.probeRoot,
 			publicationPortFor: nodePorts.publicationPortFor,
 			publicationFenceFor: (record, root) => {
 				const assert = async () => {

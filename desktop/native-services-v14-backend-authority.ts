@@ -48,13 +48,18 @@ export function createFramescaperNativeV14QueueReservationAuthority(options: Rea
 export function framescaperNativeV14BackendPlanForRecord(
 	record: NativeV14QueueRecordBackend,
 	platform: NativeMediaPlatform,
+	hardwareEncodeEnabled = true,
 ): NativeMediaBackendPlanV1 {
-	const hardwareBackend = record.reservations.hardwareBackend;
+	const reserved = record.reservations.hardwareBackend;
 	const expected = NATIVE_MEDIA_V14_PLATFORM_ACCELERATION[platform].encode;
-	if (hardwareBackend !== null
-		&& (record.taskKind !== 'encoded-export' || hardwareBackend !== expected)) {
+	if (reserved !== null
+		&& (record.taskKind !== 'encoded-export' || reserved !== expected)) {
 		throw new Error('The persisted hardware reservation is not the selected V14 OS baseline.');
 	}
+	// Runtime capability is the intersection of the durable reservation and the
+	// user's current opt-in: a preference turned off after enqueue must not
+	// replay a hardware grant at dispatch or recovery.
+	const hardwareBackend = hardwareEncodeEnabled ? reserved : null;
 	const attempts: NativeMediaBackendPlanV1['attempts'] = Object.freeze(
 		hardwareBackend === null
 			? [NATIVE_MEDIA_CPU_BACKEND]
