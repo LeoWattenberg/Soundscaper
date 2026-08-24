@@ -126,6 +126,38 @@ test('fs.watch is only a hint and the coordinator always schedules an authoritat
 	database.close();
 });
 
+test('a rule whose root cannot be watched degrades to sweeps instead of aborting startup', async () => {
+	const database = open();
+	const roots = rootRepository(database);
+	const rules = new FramescaperNativeWatchRepository(database);
+	const lease = acquireFramescaperNativeServicesWriterLease(database, {
+		leaseId: 'lease-missing', instanceId: 'instance-missing', processId: 1, nowMs: 0,
+	});
+	rules.create({
+		ruleId: 'd'.repeat(32), grantId: GRANT_ID, projectId: 'project-1',
+		extensions: ['mov'], createdAtMs: 0,
+	}, lease, 0);
+	const failures: unknown[] = [];
+	let sweeps = 0;
+	// No watch factory: this exercises the real fs.watch hint source against the
+	// fixture root, which does not exist on disk — the unplugged-drive shape.
+	const coordinator = new FramescaperNativeWatchCoordinator({
+		repository: rules,
+		roots,
+		reconcile: async () => { sweeps += 1; },
+		schedule: () => 1,
+		cancelSchedule: () => undefined,
+		onError: (error) => { failures.push(error); },
+	});
+	await coordinator.start();
+	assert.equal(sweeps, 1, 'a missing watch folder must not abort startup');
+	assert.equal(failures.length, 1, 'the lost hint source is reported, not swallowed');
+	coordinator.refreshHints();
+	assert.equal(failures.length, 2, 'later refreshes degrade the same way instead of throwing');
+	coordinator.stop();
+	database.close();
+});
+
 test('watch shutdown closes hint sources immediately and drains an in-progress reconciliation', async () => {
 	const database = open();
 	const roots = rootRepository(database);

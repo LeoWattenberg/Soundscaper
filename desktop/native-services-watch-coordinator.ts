@@ -91,12 +91,20 @@ export class FramescaperNativeWatchCoordinator {
 		this.#watchers.clear();
 		for (const rule of this.#repository.list()) {
 			if (!rule.enabled) continue;
-			const root = this.#roots.requireActive(rule.grantId);
-			this.#watchers.set(rule.ruleId, this.#watch(
-				root.rootPath,
-				Object.freeze({ recursive: false }),
-				() => this.hint(),
-			));
+			// Hints are latency only; the scheduled sweep stays authoritative. A
+			// root that is missing, revoked, or unwatchable must therefore cost
+			// this rule its hint watcher, never the coordinator or its caller —
+			// throwing here aborted application startup over an unplugged drive.
+			try {
+				const root = this.#roots.requireActive(rule.grantId);
+				this.#watchers.set(rule.ruleId, this.#watch(
+					root.rootPath,
+					Object.freeze({ recursive: false }),
+					() => this.hint(),
+				));
+			} catch (error) {
+				this.#onError(error);
+			}
 		}
 	}
 
@@ -150,5 +158,14 @@ function defaultWatch(
 	hint: () => void,
 ): FramescaperNativeWatchHandle {
 	const watcher = watchFileSystem(path, { recursive: false }, () => hint());
+	// A watcher whose folder vanishes emits 'error' (EPERM on Windows is
+	// routine); without a listener that is an uncaught exception in main. The
+	// dying hint closes itself and pulls the authoritative sweep forward.
+	watcher.on('error', () => {
+		try {
+			watcher.close();
+		} catch { /* already closed */ }
+		hint();
+	});
 	return Object.freeze({ close: () => watcher.close() });
 }
