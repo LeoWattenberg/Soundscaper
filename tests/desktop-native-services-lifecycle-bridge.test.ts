@@ -13,6 +13,9 @@ import {
 	FramescaperNativeServicesController,
 } from '../desktop/native-services-controller.ts';
 import {
+	FramescaperNativeServicesControllerV3,
+} from '../desktop/native-services-controller-v3.ts';
+import {
 	FramescaperNativeServicesLifecycle,
 } from '../desktop/native-services-lifecycle.ts';
 import {
@@ -51,6 +54,44 @@ const usableCapabilities = () => createNativeMediaCapabilitySnapshotV1({
 		...reference, policyCleared: true, buildSupported: true, probeSucceeded: true,
 		selfTestPassed: true, userEnabled: true,
 	})),
+});
+
+test('a closed-project watch rule does not fail manual reconcile for the others', async () => {
+	const database = new DatabaseSync(':memory:');
+	initializeFramescaperNativeServicesDatabase(database);
+	const lease = acquireFramescaperNativeServicesWriterLease(database, {
+		leaseId: 'lease-reconcile', instanceId: 'instance-reconcile', processId: 7, nowMs: 1_000,
+	});
+	const roots = new FramescaperNativeRootRepository(database);
+	roots.authorize({
+		grantId: GRANT_ID, rootPath: ROOT,
+		volumeIdentity: 'volume-a', directoryIdentity: 'directory-a', authorizedAtMs: 0,
+	}, lease, 0);
+	const watch = new FramescaperNativeWatchRepository(database);
+	watch.create({
+		ruleId: 'e'.repeat(32), grantId: GRANT_ID, projectId: 'project-open',
+		extensions: ['mov'], createdAtMs: 0,
+	}, lease, 0);
+	watch.create({
+		ruleId: 'f'.repeat(32), grantId: GRANT_ID, projectId: 'project-closed',
+		extensions: ['mov'], createdAtMs: 0,
+	}, lease, 0);
+	let reconciliations = 0;
+	const controller = new FramescaperNativeServicesControllerV3({
+		queue: { list: () => [] }, roots, watch,
+		lifecycle: { reconcileWatch: async () => { reconciliations += 1; } },
+		lease: () => lease, now: () => 1_001,
+		runtimeAvailable: () => true, nativeMediaEnabled: () => true,
+		// The reconciler leaves closed-project ingests pending by contract, so
+		// the manual reconcile must run for the open rule instead of throwing.
+		projectState: (projectId: string) => ({
+			open: projectId === 'project-open', writable: projectId === 'project-open',
+		}),
+		capabilities: usableCapabilities,
+	} as never as ConstructorParameters<typeof FramescaperNativeServicesControllerV3>[0]);
+	await controller.reconcileWatch();
+	assert.equal(reconciliations, 1);
+	database.close();
 });
 
 test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, publication, checkpoints, and display', async () => {

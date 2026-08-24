@@ -275,7 +275,14 @@ export class FramescaperNativeServicesControllerV3 {
 
 	reconcileWatch(): Promise<FramescaperNativeServicesSnapshot> {
 		this.#assertOpen();
+		this.#authorizeCapability(NATIVE_MEDIA_CAPABILITY_IDS.watchFolders, 'watch folders');
 		for (const rule of this.#watch.list().filter(({ enabled }) => enabled)) {
+			// A closed or read-only project leaves its ingests pending — the
+			// reconciler's own contract — so one such rule must not fail the
+			// manual reconcile that every other rule and the background sweep
+			// would still serve.
+			const state = this.#projectState(rule.projectId);
+			if (!state.open || !state.writable) continue;
 			this.#authorizeWatchRule(rule);
 		}
 		return this.#track((async () => {
