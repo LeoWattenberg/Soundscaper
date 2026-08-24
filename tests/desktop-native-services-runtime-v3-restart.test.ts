@@ -105,6 +105,49 @@ test('graceful V3 shutdown leaves active atomic work recoverable instead of canc
 	} finally { await second.close(); }
 });
 
+test('a queued carrier row restarts into carrier regeneration, not a false fingerprint block', async (t) => {
+	const root = await mkdtemp(join(tmpdir(), 'framescaper-v3-queued-carrier-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const databasePath = join(root, 'services.sqlite');
+	let now = 20_000;
+	const first = startFramescaperNativeServicesRuntimeV3({
+		databasePath, leaseId: 'lease-queued-first', instanceId: 'instance-queued-first',
+		processId: 81, runtimeAvailable: () => true, nativeMediaEnabled: () => true,
+		now: () => ++now,
+	});
+	let record;
+	try {
+		await first.ready;
+		const grantId = authorizeTestRoot(first, root, ++now);
+		// Capacity-deferred: enqueued but never dispatched, so its live-staged
+		// carrier exists only in this process and dies with it.
+		record = enqueueCarrier(first, grantId, '44'.repeat(20), ++now);
+		assert.equal(first.queue.read(record.jobId)?.state, 'queued');
+	} finally { await first.close(); }
+	const second = startFramescaperNativeServicesRuntimeV3({
+		databasePath, leaseId: 'lease-queued-second', instanceId: 'instance-queued-second',
+		processId: 82, runtimeAvailable: () => true, nativeMediaEnabled: () => true,
+		now: () => now + 10_000,
+		// The real revalidator exempts rows already awaiting regeneration and
+		// reports the lost process-local carrier as unmatched inputs for every
+		// other state — which diagnosed a queued row's lost carrier as changed
+		// inputs and blocked it outside the regeneration flow.
+		revalidate: ({ record, rootAuthorized }) => ({
+			projectRevisionMatches: true, planFingerprintMatches: true,
+			inputFingerprintsMatch: record.state === 'paused'
+				&& record.lastFailureCode === 'awaiting-carrier-regeneration',
+			rootGrantAuthorized: rootAuthorized,
+			rootGrantValid: true, licensingCleared: true, helperBuildMatches: true,
+			scratchIdentityMatches: true,
+		}),
+	});
+	try {
+		await second.ready;
+		assert.equal(second.queue.read(record.jobId)?.state, 'paused');
+		assert.equal(second.queue.read(record.jobId)?.lastFailureCode, 'awaiting-carrier-regeneration');
+	} finally { await second.close(); }
+});
+
 test('a rich-plan proxy restarts without waiting for renderer carrier regeneration', async (t) => {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-v3-ready-'));
 	t.after(() => rm(root, { recursive: true, force: true }));

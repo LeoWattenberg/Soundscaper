@@ -291,7 +291,12 @@ export function startFramescaperNativeServicesRuntimeV3(
 		const ready = (async () => {
 			if (shutdownRequested) return;
 			for (const record of queue.list()) {
-				if (record.state === 'running' && recordAwaitsCarrierRegeneration(record)) {
+				// A carrier lives in process-local staging, so a restart lost it for
+				// queued rows exactly as for running ones. Revalidating a queued row
+				// instead diagnosed the lost carrier as input-fingerprint-changed —
+				// untrue, and a blocked state the regeneration flow refuses to serve.
+				if ((record.state === 'running' || record.state === 'queued')
+					&& recordAwaitsCarrierRegeneration(record)) {
 					queue.control(record.jobId, { kind: 'await-carrier-regeneration' }, lease!.lease(), now());
 				}
 			}
