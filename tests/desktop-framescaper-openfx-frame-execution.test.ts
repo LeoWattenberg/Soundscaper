@@ -8,6 +8,7 @@ import {
 	fingerprintNativeMediaPlan,
 } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
+import { deriveUnifiedExactOfxAbsentFreshnessV26 } from '../src/common/editor/native-ofx-freshness-authority.ts';
 import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
 import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
@@ -149,6 +150,61 @@ test('main admits only signed GPU qualification and reports exact CPU degradatio
 	assert.equal(refused.mode === 'render' ? refused.backend : null, 'cpu');
 	assert.equal(refused.mode === 'render' ? refused.retriedOnCpu : false, true);
 	assert.equal(refused.reportsDegradation, true);
+});
+
+test('the missing-plugin frozen gate derives freshness from the plan, not the authored state', async () => {
+	const buildRequest = (freshness: Record<string, unknown>, canvasSize: number) => {
+		const options = framescaperV20Options();
+		options.ofxEffects = [{
+			schemaVersion: 1, instanceId: 'ofx-1', pluginId: 'net.example.Filter', binarySha256: SHA,
+			context: 'filter', attachment: { kind: 'filter', targetId: 'video-clip' },
+			inputs: [{ name: 'Source', sourceRef: 'video-source' }],
+			parameters: [], customEncodings: {}, enabled: true, freshness,
+			frozenFallback: {
+				externalMediaSourceId: 'video-source', renderedAssetSha256: '12'.repeat(32),
+				frameCount: 10, freshness,
+			},
+		}];
+		const project = createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, options);
+		const original = createFramescaperProjectUnifiedExactRenderPlanV28(
+			FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
+			createFramescaperNativeRenderPlanAuthorityV28(project),
+		);
+		const raw = structuredClone(original) as unknown as Record<string, unknown>;
+		const output = raw.output as Record<string, unknown>;
+		output.canvas = { ...(output.canvas as Record<string, unknown>), width: canvasSize, height: canvasSize };
+		const plan = createUnifiedExactRenderPlan(raw);
+		return {
+			plan,
+			request: {
+				schemaVersion: 1 as const,
+				planPayload: canonicalizeNativeMediaPlan(plan),
+				planFingerprint: fingerprintNativeMediaPlan(plan).sha256,
+				instanceId: 'ofx-1', outputOrdinal: 0, requestedBackend: 'cpu' as const, transitionProgress: null,
+				inputs: [{ name: 'Source', sourceRef: 'video-source', width: canvasSize, height: canvasSize,
+					rgba: new Uint8Array(canvasSize * canvasSize * 4).fill(7) }],
+			},
+		};
+	};
+	const placeholder = { authoredStateSha256: SHA, inputIdentitiesSha256: SHA,
+		renderPlanFingerprintSha256: SHA, nativeEffectFingerprintSha256: SHA };
+	const frozenAt = buildRequest(placeholder, 2);
+	const derived = deriveUnifiedExactOfxAbsentFreshnessV26(
+		frozenAt.plan, 'ofx-1',
+	) as unknown as Record<string, unknown>;
+	const service = createFramescaperOpenFxFrameExecutionService({
+		inventory: () => [],
+		qualifiedGpuBackends: () => [],
+		currentProject: () => true,
+		timingAssets: async () => [],
+		execute: async () => { throw new Error('a missing plug-in cannot execute'); },
+	});
+	const fresh = await service.execute(buildRequest(derived, 2).request);
+	assert.equal(fresh.mode, 'frozen', 'an unedited plan still serves the authored freeze');
+	// The authored freshness still agrees with itself, but the plan changed:
+	// the frozen frames no longer correspond to it and must not be served.
+	const stale = await service.execute(buildRequest(derived, 4).request);
+	assert.equal(stale.mode, 'bypass', 'a plan edit must invalidate the frozen fallback');
 });
 
 function requestFixture() {

@@ -17,6 +17,7 @@ import type {
 } from '../src/common/editor/unified-exact-render-plan.ts';
 import { framescaperOpenFxTransitionProgressV28 } from '../src/framescaper/editor-openfx-frame-timing-v28.ts';
 import type { FramescaperOpenFxFrameExecutionResultV28 } from '../src/framescaper/editor-openfx-frame-graph-v28.ts';
+import { deriveUnifiedExactOfxAbsentFreshnessV26 } from '../src/common/editor/native-ofx-freshness-authority.ts';
 import { resolveOfxEffectStateV26 } from '../src/common/editor/native-ofx-state-v26.ts';
 import type { NativePlanVideoTimingAssetBytes } from './native-services-video-timing-staging.ts';
 import type { FramescaperOpenFxExecutionResultV1 } from './openfx-main-service.ts';
@@ -82,7 +83,7 @@ export function createFramescaperOpenFxFrameExecutionService(
 			const resolvedPlugin = exactPlugin(ports.inventory(), effect);
 			assertContextInputs(effect, request.inputs);
 			if (resolvedPlugin.plugin === null) {
-				return unavailableResult(effect, resolvedPlugin.availability, resolvedPlugin.observed);
+				return unavailableResult(request.plan, effect, resolvedPlugin.availability, resolvedPlugin.observed);
 			}
 			const plugin = resolvedPlugin.plugin;
 			const transitionProgress = effect.state.context === 'transition'
@@ -254,13 +255,18 @@ function exactPlugin(
 }
 
 function unavailableResult(
+	plan: UnifiedExactRenderPlanV14,
 	effect: UnifiedExactRenderOpenFxNode,
 	availability: 'missing' | 'fingerprint-changed',
 	observed: FramescaperOpenFxPluginProjectionV1 | null,
 ): FramescaperOpenFxFrameExecutionResultV28 {
+	// The freshness must be derived from current render authority, never fed
+	// back from the authored state — that made the frozen gate a tautology and
+	// served stale frozen frames after any timeline edit.
 	const resolved = resolveOfxEffectStateV26(effect.state, {
 		availability, pluginId: observed?.pluginId ?? null,
-		binarySha256: observed?.binarySha256 ?? null, freshness: effect.state.freshness,
+		binarySha256: observed?.binarySha256 ?? null,
+		freshness: deriveUnifiedExactOfxAbsentFreshnessV26(plan, effect.state.instanceId),
 	});
 	return resolved.mode === 'frozen' ? Object.freeze({
 		mode: 'frozen' as const, availability, reportsDegradation: true as const,

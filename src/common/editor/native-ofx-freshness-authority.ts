@@ -47,6 +47,31 @@ export function deriveUnifiedExactOfxFreshnessV26(
 	});
 }
 
+/**
+ * The plugin-absent derivation. With no scanned binary present there is
+ * nothing to re-observe for the native-effect component, so it is carried
+ * from the authored state; every plan-derived component is still derived
+ * independently, so a timeline or input edit invalidates a frozen fallback
+ * instead of the authored value vouching for itself.
+ */
+export function deriveUnifiedExactOfxAbsentFreshnessV26(
+	planValue: unknown,
+	instanceId: string,
+): OfxEffectFreshnessV26 {
+	assertDeferredOfxPlan(planValue);
+	const plan = planValue;
+	const effect = effectNode(plan, instanceId);
+	return Object.freeze({
+		authoredStateSha256: digest(authoredState(effect.state)),
+		inputIdentitiesSha256: digest({
+			inputs: effect.state.inputs,
+			sources: plan.sources,
+		}),
+		renderPlanFingerprintSha256: digest(renderIntent(plan)),
+		nativeEffectFingerprintSha256: effect.state.freshness.nativeEffectFingerprintSha256,
+	});
+}
+
 function assertDeferredOfxPlan(value: unknown): asserts value is UnifiedExactOfxPlan {
 	assertUnifiedExactRenderPlanWithDeferredTimingReferences(value);
 	if (value.version !== 12 && value.version !== 14) throw new RangeError('OpenFX freshness requires exact plan V12 or V14.');
