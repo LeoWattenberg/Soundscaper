@@ -18,7 +18,9 @@ import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtim
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 const CFR_VIDEO = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
-const VISUAL_READINESS_TIMEOUT = 30_000;
+// Sized from measured CI worst cases: a loaded worker renders the editor
+// several times slower than local, and a single menu click has exceeded 30s.
+const VISUAL_READINESS_TIMEOUT = 120_000;
 const VISUAL_OPERATION_TIMEOUT = 120_000;
 const VISUAL_WORKFLOW_TIMEOUT = 600_000;
 const VISUAL_COMMAND_OPTIONS = { timeout: VISUAL_READINESS_TIMEOUT };

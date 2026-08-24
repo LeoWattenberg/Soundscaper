@@ -72,21 +72,26 @@ test('a Framescaper bridge cannot surface Framescaper native menus in Soundscape
 	await expect(page.locator('[data-framescaper-native-services-dialog="true"]')).toHaveCount(0);
 });
 
+// Menu-driven OpenFX workflows render the whole editor between steps; under a
+// loaded CI worker every interaction runs several times slower than local, so
+// their budgets are sized from measured worst cases rather than defaults.
+const SLOW_WORKFLOW = { timeout: 120_000 };
+
 test('selected V28 authors typed OpenFX state only from the opted-in Effect menu', async ({ page }) => {
-	test.setTimeout(90_000);
+	test.setTimeout(240_000);
 	await installNativeServicesFixture(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
-	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
+	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…'], SLOW_WORKFLOW);
 	await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1);
-	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 30_000 });
-	const tools = await openNestedCommandMenu(page, editor, 'Tools', []);
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', SLOW_WORKFLOW);
+	const tools = await openNestedCommandMenu(page, editor, 'Tools', [], SLOW_WORKFLOW);
 	await getMenuItem(tools, 'Native media and scratch…').click();
 	let dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
 	await dialog.locator('[data-native-service-preference="native-media"]').check();
 	await dialog.locator('[data-native-service-preference="ofx-consent"]').check();
 	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
 
-	const effects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects']);
+	const effects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects'], SLOW_WORKFLOW);
 	const add = getMenuItem(effects, 'Add OFX…');
 	await expect(add).toBeEnabled();
 	await add.click();
@@ -97,27 +102,27 @@ test('selected V28 authors typed OpenFX state only from the opted-in Effect menu
 	await form.getByLabel('customState', { exact: true }).fill('opaque-state');
 	await form.getByLabel('Custom encoding for customState', { exact: true }).fill('vendor-v1');
 	await form.getByRole('button', { name: 'Add OpenFX effect', exact: true }).click();
-	await expect(form.getByRole('status')).toContainText('OpenFX effect added.', { timeout: 30_000 });
+	await expect(form.getByRole('status')).toContainText('OpenFX effect added.', SLOW_WORKFLOW);
 	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls)).toContainEqual([
 		'listOpenFxPlugins',
 	]);
 });
 
 test('selected V28 runs one cumulative accessible OpenFX Interact workflow without a vendor window', async ({ page, browserName }) => {
-	test.setTimeout(120_000);
+	test.setTimeout(360_000);
 	await page.emulateMedia({ forcedColors: 'active' });
 	await installNativeServicesFixture(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
-	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
+	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…'], SLOW_WORKFLOW);
 	await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1);
-	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 30_000 });
-	const tools = await openNestedCommandMenu(page, editor, 'Tools', []);
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', SLOW_WORKFLOW);
+	const tools = await openNestedCommandMenu(page, editor, 'Tools', [], SLOW_WORKFLOW);
 	await getMenuItem(tools, 'Native media and scratch…').click();
 	let dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
 	await dialog.locator('[data-native-service-preference="native-media"]').check();
 	await dialog.locator('[data-native-service-preference="ofx-consent"]').check();
 	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
-	let effects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects']);
+	let effects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects'], SLOW_WORKFLOW);
 	await getMenuItem(effects, 'Add OFX…').click();
 	dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
 	const form = dialog.locator('[data-framescaper-openfx-add-form="true"]');
@@ -125,11 +130,11 @@ test('selected V28 runs one cumulative accessible OpenFX Interact workflow witho
 	await form.getByLabel('customState', { exact: true }).fill('opaque-state');
 	await form.getByLabel('Custom encoding for customState', { exact: true }).fill('vendor-v1');
 	await form.getByRole('button', { name: 'Add OpenFX effect', exact: true }).click();
-	await expect(form.getByRole('status')).toContainText('OpenFX effect added.', { timeout: 30_000 });
+	await expect(form.getByRole('status')).toContainText('OpenFX effect added.', SLOW_WORKFLOW);
 	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
 
 	const effectButton = editor.getByRole('menuitem', { name: 'Effect', exact: true });
-	effects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects']);
+	effects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects'], SLOW_WORKFLOW);
 	const interact = getMenuItem(effects, 'Open OFX Interact…');
 	await expect(interact).toBeEnabled();
 	await interact.click();
@@ -160,7 +165,7 @@ test('selected V28 runs one cumulative accessible OpenFX Interact workflow witho
 	await dialog.locator('[data-framescaper-openfx-interact-target="true"]').focus();
 	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
 		.filter(([kind]) => kind === 'runOpenFxInteract').at(-1)?.[1].events.length), {
-		timeout: 30_000,
+		timeout: 120_000,
 	}).toBe(7);
 	const replay = await page.evaluate(() => globalThis.__framescaperNativeCalls
 		.filter(([kind]) => kind === 'runOpenFxInteract').at(-1)[1]);
@@ -185,7 +190,7 @@ test('selected V28 runs one cumulative accessible OpenFX Interact workflow witho
 		.selectOption('custom:customState');
 	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
 		.filter(([kind]) => kind === 'runOpenFxInteract').at(-1)?.[1]), {
-		timeout: 30_000,
+		timeout: 120_000,
 	}).toMatchObject({
 		target: 'custom-parameter', parameterName: 'customState', events: [],
 	});
