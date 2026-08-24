@@ -10,10 +10,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { compileDesktopProjectLibraryRuntime } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import { stageDesktopBundledFlacRuntime } from '../scripts/lib/desktop-bundled-flac-runtime.mjs';
+import { stageDesktopBundledOpusRuntime } from '../scripts/lib/desktop-bundled-opus-runtime.mjs';
 import { stageDesktopBundledWavPackRuntime } from '../scripts/lib/desktop-bundled-wavpack-runtime.mjs';
 import {
 	DESKTOP_AUDIO_CODEC_RUNTIME_FILES,
 	DESKTOP_BUNDLED_FLAC_WASM,
+	DESKTOP_BUNDLED_OPUS_WASM,
 	DESKTOP_BUNDLED_WAVPACK_WASM,
 	DESKTOP_CODEC_RUNTIME_FILES,
 	DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES,
@@ -26,6 +28,8 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/bundled-audio-codec-runtime.js',
 	'desktop/bundled-flac-audio-codec-runtime.js',
 	'desktop/bundled-flac-stream.js',
+	'desktop/bundled-opus-audio-codec-runtime.js',
+	'desktop/bundled-opus-stream.js',
 	'desktop/bundled-wavpack-audio-codec-runtime.js',
 	'desktop/bundled-wavpack-stream.js',
 	'desktop/desktop-audio-codec-broker.js',
@@ -39,6 +43,7 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/external-ffmpeg-audio-operation-runner.js',
 	'desktop/os-audio-codec-canary-adapter.js',
 	'desktop/os-audio-codec-operation-runner.js',
+	'desktop/os-audio-codec-runtime.js',
 	'desktop/os-codec-capability-adapter.js',
 	'desktop/os-codec-native-canary-runner.js',
 	'desktop/process-tree-termination.js',
@@ -46,6 +51,7 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/desktop-codec-provider-catalog.js',
 	'src/common/editor/desktop-wavpack-codec-profile.js',
 	'src/common/editor/flac/flac.wasm',
+	'src/common/editor/opus/opus.wasm',
 	'src/common/editor/wavpack/wavpack.wasm',
 ]);
 
@@ -63,7 +69,7 @@ test('desktop codec runtime inventory closes over both main audio entry points',
 	}
 });
 
-test('desktop codec runtime inventory contains only the exact reviewed FLAC and WavPack payloads', async () => {
+test('desktop codec runtime inventory contains only exact reviewed FLAC, Opus, and WavPack payloads', async () => {
 	assert.deepEqual(DESKTOP_BUNDLED_FLAC_WASM, {
 		file: 'src/common/editor/flac/flac.wasm',
 		byteLength: 153_044,
@@ -74,13 +80,21 @@ test('desktop codec runtime inventory contains only the exact reviewed FLAC and 
 		byteLength: 145_537,
 		sha256: 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908',
 	});
+	assert.deepEqual(DESKTOP_BUNDLED_OPUS_WASM, {
+		file: 'src/common/editor/opus/opus.wasm',
+		byteLength: 385_789,
+		sha256: 'c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853',
+	});
 	assert.deepEqual(
 		DESKTOP_CODEC_RUNTIME_FILES.filter((file) => file.endsWith('.wasm')),
-		[DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_WAVPACK_WASM.file],
+		[DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_OPUS_WASM.file, DESKTOP_BUNDLED_WAVPACK_WASM.file],
 	);
 	const flacProvider = await import('../desktop/bundled-flac-audio-codec-runtime.ts');
 	assert.equal(flacProvider.BUNDLED_FLAC_WASM_BYTE_LENGTH, DESKTOP_BUNDLED_FLAC_WASM.byteLength);
 	assert.equal(flacProvider.BUNDLED_FLAC_WASM_SHA256, DESKTOP_BUNDLED_FLAC_WASM.sha256);
+	const opusProvider = await import('../desktop/bundled-opus-audio-codec-runtime.ts');
+	assert.equal(opusProvider.BUNDLED_OPUS_WASM_BYTE_LENGTH, DESKTOP_BUNDLED_OPUS_WASM.byteLength);
+	assert.equal(opusProvider.BUNDLED_OPUS_WASM_SHA256, DESKTOP_BUNDLED_OPUS_WASM.sha256);
 	const provider = await import('../desktop/bundled-wavpack-audio-codec-runtime.ts');
 	assert.equal(provider.BUNDLED_WAVPACK_WASM_BYTE_LENGTH, DESKTOP_BUNDLED_WAVPACK_WASM.byteLength);
 	assert.equal(provider.BUNDLED_WAVPACK_WASM_SHA256, DESKTOP_BUNDLED_WAVPACK_WASM.sha256);
@@ -99,11 +113,14 @@ test('compiled desktop audio main entry points are importable from the staged ru
 	assert.equal(result.files.includes('src/common/editor/wavpack/runtime.js'), true);
 	assert.deepEqual(
 		result.files.filter((file) => file.endsWith('.wasm')),
-		[DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_WAVPACK_WASM.file],
+		[DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_OPUS_WASM.file, DESKTOP_BUNDLED_WAVPACK_WASM.file],
 	);
 	const stagedFlac = await readFile(join(outputRoot, DESKTOP_BUNDLED_FLAC_WASM.file));
 	assert.equal(stagedFlac.byteLength, DESKTOP_BUNDLED_FLAC_WASM.byteLength);
 	assert.equal(createHash('sha256').update(stagedFlac).digest('hex'), DESKTOP_BUNDLED_FLAC_WASM.sha256);
+	const stagedOpus = await readFile(join(outputRoot, DESKTOP_BUNDLED_OPUS_WASM.file));
+	assert.equal(stagedOpus.byteLength, DESKTOP_BUNDLED_OPUS_WASM.byteLength);
+	assert.equal(createHash('sha256').update(stagedOpus).digest('hex'), DESKTOP_BUNDLED_OPUS_WASM.sha256);
 	const stagedWasm = await readFile(join(outputRoot, DESKTOP_BUNDLED_WAVPACK_WASM.file));
 	assert.equal(stagedWasm.byteLength, DESKTOP_BUNDLED_WAVPACK_WASM.byteLength);
 	assert.equal(createHash('sha256').update(stagedWasm).digest('hex'), DESKTOP_BUNDLED_WAVPACK_WASM.sha256);
@@ -144,6 +161,22 @@ test('WavPack staging refuses a pre-existing destination symlink', async (contex
 	await symlink(victim, destination);
 	await assert.rejects(
 		stageDesktopBundledWavPackRuntime({ repositoryRoot: ROOT, outputRoot }),
+		/(?:EEXIST|file already exists)/iu,
+	);
+	assert.equal(await readFile(victim, 'utf8'), 'preserve-me');
+});
+
+test('Ogg Opus staging refuses a pre-existing destination symlink', async (context) => {
+	const temporaryRoot = await mkdtemp(join(tmpdir(), 'soundscaper-opus-link-'));
+	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
+	const outputRoot = join(temporaryRoot, 'runtime');
+	const destination = join(outputRoot, DESKTOP_BUNDLED_OPUS_WASM.file);
+	const victim = join(temporaryRoot, 'victim.wasm');
+	await mkdir(dirname(destination), { recursive: true });
+	await writeFile(victim, 'preserve-me');
+	await symlink(victim, destination);
+	await assert.rejects(
+		stageDesktopBundledOpusRuntime({ repositoryRoot: ROOT, outputRoot }),
 		/(?:EEXIST|file already exists)/iu,
 	);
 	assert.equal(await readFile(victim, 'utf8'), 'preserve-me');

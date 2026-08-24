@@ -5,21 +5,26 @@ import test from 'node:test';
 
 import { createBundledDesktopAudioCodecRuntime } from '../desktop/bundled-audio-codec-runtime.ts';
 import { loadBundledFlacAudioCodecRuntime } from '../desktop/bundled-flac-audio-codec-runtime.ts';
+import { loadBundledOpusAudioCodecRuntime } from '../desktop/bundled-opus-audio-codec-runtime.ts';
 import { loadBundledWavPackAudioCodecRuntime } from '../desktop/bundled-wavpack-audio-codec-runtime.ts';
 import { deriveDesktopAudioCodecOperation } from '../desktop/desktop-audio-codec-broker.ts';
 import type { DesktopAudioCodecRequest } from '../desktop/desktop-audio-codec-operation-contract.ts';
 
-test('the composite exposes one bundled tier and delegates exact FLAC and WavPack operations', async () => {
+test('the composite exposes one bundled tier and delegates exact FLAC, Opus, and WavPack operations', async () => {
 	const flac = await loadBundledFlacAudioCodecRuntime({ target: 'linux-x64' });
+	const opus = await loadBundledOpusAudioCodecRuntime({ target: 'linux-x64' });
 	const wavpack = await loadBundledWavPackAudioCodecRuntime({ target: 'linux-x64' });
 	assert.ok(flac);
+	assert.ok(opus);
 	assert.ok(wavpack);
 	const runtime = createBundledDesktopAudioCodecRuntime({
-		target: 'linux-x64', runtimes: [wavpack, flac],
+		target: 'linux-x64', runtimes: [wavpack, flac, opus],
 	});
 	assert.equal(runtime.provider.kind, 'bundled');
 	assert.equal(runtime.provider.implementation, 'soundscaper-reviewed-audio-codecs');
-	assert.match(runtime.provider.capabilityGeneration, /libflac.*wavpack|wavpack.*libflac/u);
+	assert.match(runtime.provider.capabilityGeneration, /libflac/u);
+	assert.match(runtime.provider.capabilityGeneration, /libopus-libogg/u);
+	assert.match(runtime.provider.capabilityGeneration, /wavpack/u);
 
 	const flacRequest: DesktopAudioCodecRequest = {
 		operation: 'audio-encode', format: 'flac',
@@ -44,6 +49,24 @@ test('the composite exposes one bundled tier and delegates exact FLAC and WavPac
 	}) as { readonly status: string; readonly output?: Uint8Array };
 	assert.equal(wavpackResult.status, 'executed');
 	assert.equal(Buffer.from(wavpackResult.output?.subarray(0, 4) ?? []).toString('ascii'), 'wvpk');
+
+	const opusRequest: DesktopAudioCodecRequest = {
+		operation: 'audio-encode', format: 'opus',
+		input: new Uint8Array(Float32Array.from({ length: 960 * 2 }, (_, index) => (
+			Math.sin(index / 31) * 0.25
+		)).buffer),
+		sampleRate: 48_000, channelCount: 2,
+		settings: { bitrateKbps: 128 }, maximumOutputBytes: 64 * 1024,
+	};
+	const opusResult = await runtime.execute(opusRequest, {
+		operation: deriveDesktopAudioCodecOperation(opusRequest),
+	}) as { readonly status: string; readonly output?: Uint8Array };
+	assert.equal(opusResult.status, 'executed');
+	assert.equal(Buffer.from(opusResult.output?.subarray(0, 4) ?? []).toString('ascii'), 'OggS');
+	const wrongRate = { ...opusRequest, sampleRate: 24_000 } as DesktopAudioCodecRequest;
+	assert.equal((await runtime.preflightRequest?.(wrongRate, {
+		operation: deriveDesktopAudioCodecOperation(wrongRate),
+	}))?.disposition, 'unsupported');
 });
 
 test('the composite remains fail closed for an empty or wrong-tier runtime list', () => {

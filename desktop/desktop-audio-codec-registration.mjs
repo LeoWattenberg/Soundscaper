@@ -13,7 +13,8 @@ const TARGETS = Object.freeze(new Map([
 const MODULE_METHODS = Object.freeze([
 	'createBundledDesktopAudioCodecRuntime', 'createDesktopAudioCodecRuntimeComposition',
 	'createOperatingSystemAudioCodecElectronSpawn', 'createSoundscaperProfessionalNativeVerifier',
-	'loadBundledFlacAudioCodecRuntime', 'loadBundledWavPackAudioCodecRuntime',
+	'loadBundledFlacAudioCodecRuntime', 'loadBundledOpusAudioCodecRuntime',
+	'loadBundledWavPackAudioCodecRuntime',
 	'loadOperatingSystemAudioCodecRuntime',
 	'registerDesktopAudioCodecMainIpc',
 ]);
@@ -39,6 +40,7 @@ export async function registerDesktopAudioCodecs(options) {
 	const reviewedRuntimes = (await Promise.all([
 		modules.loadBundledWavPackAudioCodecRuntime({ target }),
 		modules.loadBundledFlacAudioCodecRuntime({ target }),
+		modules.loadBundledOpusAudioCodecRuntime({ target }),
 	])).filter((runtime) => runtime !== null);
 	const bundledRuntime = reviewedRuntimes.length === 0
 		? null
@@ -82,7 +84,7 @@ export async function registerDesktopAudioCodecs(options) {
 }
 
 async function loadRuntimeModules() {
-	const [bundled, composition, electronSpawn, flac, ipc, operatingSystem, professional, wavPack]
+	const [bundled, composition, electronSpawn, flac, ipc, operatingSystem, opus, professional, wavPack]
 		= await Promise.all([
 		import('./project-library-runtime/desktop/bundled-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-runtime-composition.js'),
@@ -90,6 +92,7 @@ async function loadRuntimeModules() {
 		import('./project-library-runtime/desktop/bundled-flac-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-main-ipc.js'),
 		import('./project-library-runtime/desktop/os-audio-codec-runtime.js'),
+		import('./project-library-runtime/desktop/bundled-opus-audio-codec-runtime.js'),
 		import('./soundscaper-professional-native-payload.mjs'),
 		import('./project-library-runtime/desktop/bundled-wavpack-audio-codec-runtime.js'),
 	]);
@@ -99,6 +102,7 @@ async function loadRuntimeModules() {
 		createOperatingSystemAudioCodecElectronSpawn: electronSpawn.createOperatingSystemAudioCodecElectronSpawn,
 		createSoundscaperProfessionalNativeVerifier: professional.createSoundscaperProfessionalNativeVerifier,
 		loadBundledFlacAudioCodecRuntime: flac.loadBundledFlacAudioCodecRuntime,
+		loadBundledOpusAudioCodecRuntime: opus.loadBundledOpusAudioCodecRuntime,
 		loadBundledWavPackAudioCodecRuntime: wavPack.loadBundledWavPackAudioCodecRuntime,
 		loadOperatingSystemAudioCodecRuntime: operatingSystem.loadOperatingSystemAudioCodecRuntime,
 		registerDesktopAudioCodecMainIpc: ipc.registerDesktopAudioCodecMainIpc,

@@ -127,6 +127,40 @@ signed 24-bit PCM; the resulting FLAC is lossless over that explicit integer
 representation, not float-exact. The BSD-3-Clause license and technical review
 do not establish absence of patent exposure or patent clearance.
 
+## libopus 1.6.1 and libogg 1.3.6 WebAssembly
+
+Soundscaper distributes one exact memory-only Emscripten build of libopus
+1.6.1 and libogg 1.3.6 as a desktop bundled Ogg Opus encode/decode provider on
+Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS x64 is unsupported.
+
+- libopus upstream: <https://github.com/xiph/opus/tree/v1.6.1>
+- pinned libopus commit: `22244de5a79bd1d6d623c32e72bf1954b56235be`
+- libopus source archive SHA-256: `6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1`
+- libogg upstream: <https://github.com/xiph/ogg/tree/v1.3.6>
+- pinned libogg commit: `be05b13e98b048f0b5a0f5fa8ce514d56db5f822`
+- libogg source archive SHA-256: `5c8253428e181840cd20d41f3ca16557a9cc04bad4a3d04cce84808677fa1061`
+- retained terms: [`OPUS.txt`](src/common/editor/opus/licenses/OPUS.txt) and
+  [`OGG.txt`](src/common/editor/opus/licenses/OGG.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/opus/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/opus/source-manifest.json)
+- exact `opus.wasm`: 385,789 bytes; SHA-256
+  `c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853`
+
+The admitted public profile is Ogg Opus at the mandatory 48 kHz presentation
+rate, mapping family 0 mono or stereo, zero output gain, fixed 20 ms packets,
+and 16–256 kbit/s encoding. A strict bounded parser verifies Ogg CRC, serial,
+sequence, lacing, continuation, BOS/EOS, OpusHead/OpusTags, packet duration,
+pre-skip, and final granule trimming. Valid wider profiles fall through;
+malformed streams are terminal. Staging and startup independently recheck the
+artifact length and digest, and startup runs a lossy encode/parse/decode canary.
+Opus preserves the declared frame geometry through pre-skip and final-granule
+trimming but is not sample-exact.
+
+The libopus license notice records upstream royalty-free patent-license
+disclosures from Xiph.Org, Microsoft, and Broadcom. Those disclosures, the
+BSD-style copyright licenses, and this technical review do not establish patent
+clearance or non-infringement for any use or territory.
+
 ## WavPack 5.9.0 WebAssembly
 
 Soundscaper distributes one exact Emscripten build of WavPack 5.9.0 under the
@@ -228,13 +262,12 @@ complete enabled-codec inventory, codec behavior, absence of patent exposure,
 or patent clearance.
 
 The maintained first-party PCM container readers remain application source.
-The exact libFLAC 1.5.0 signed-24 and WavPack 5.9.0 float32 providers described
-above are the admitted bundled compressed-codec runtimes in the shipped desktop
-composition. Every other bundled compressed-codec candidate provides policy
-and tuple contracts only and fails closed as unavailable. The Windows and
-macOS operating-system codec adapters remain unavailable until an exact target
-payload, native self-test, runtime registration, and package evidence have all
-been admitted.
+The exact libFLAC 1.5.0 signed-24, libopus 1.6.1 plus libogg 1.3.6 Ogg Opus,
+and WavPack 5.9.0 float32 providers described above are the admitted bundled
+compressed-codec runtimes in the shipped desktop composition. Every other
+bundled compressed-codec candidate provides policy and tuple contracts only
+and fails closed as unavailable. Operating-system codecs remain limited to
+their separately qualified exact target profiles.
 
 As the final provider tier, the desktop application may execute an FFmpeg
 program already installed on the user's system after bounded discovery or an

@@ -42,6 +42,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	const ipcOptions = [];
 	const wavPackLoads = [];
 	const flacLoads = [];
+	const opusLoads = [];
 	const operatingSystemLoads = [];
 	const payloadLocations = [];
 	const spawnOptions = [];
@@ -51,6 +52,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	const service = Object.freeze({ execute: async () => ({}), capabilities: async () => ({}) });
 	const bundledRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const flacRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
+	const opusRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const compositeRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const operatingSystemRuntime = Object.freeze({
 		provider: Object.freeze({ kind: 'operating-system' }), execute: async () => ({}),
@@ -75,6 +77,11 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 				flacLoads.push(options);
 				await Promise.resolve();
 				return flacRuntime;
+			},
+			async loadBundledOpusAudioCodecRuntime(options) {
+				opusLoads.push(options);
+				await Promise.resolve();
+				return opusRuntime;
 			},
 			async loadBundledWavPackAudioCodecRuntime(options) {
 				wavPackLoads.push(options);
@@ -117,8 +124,9 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	]);
 	assert.deepEqual(wavPackLoads, [{ target: 'mac-arm64' }]);
 	assert.deepEqual(flacLoads, [{ target: 'mac-arm64' }]);
+	assert.deepEqual(opusLoads, [{ target: 'mac-arm64' }]);
 	assert.deepEqual(bundledCompositions, [{
-		target: 'mac-arm64', runtimes: [bundledRuntime, flacRuntime],
+		target: 'mac-arm64', runtimes: [bundledRuntime, flacRuntime, opusRuntime],
 	}]);
 	assert.deepEqual(payloadLocations, [{
 		applicationRoot: '/app', packaged: false, resourcesPath: '/resources',
@@ -170,6 +178,10 @@ test('registration fails closed without any admitted bundled runtime', async () 
 		loadModules: async () => ({
 			createBundledDesktopAudioCodecRuntime: () => { throw new Error('must not compose'); },
 			loadBundledFlacAudioCodecRuntime: async ({ target }) => {
+				assert.equal(target, 'win-arm64');
+				return null;
+			},
+			loadBundledOpusAudioCodecRuntime: async ({ target }) => {
 				assert.equal(target, 'win-arm64');
 				return null;
 			},
