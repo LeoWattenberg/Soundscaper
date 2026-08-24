@@ -1,10 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { assertNativeMediaPlanEnvelopeV3 } from '../src/common/editor/native-media-plan-envelope-v3.ts';
+import { createEffect } from '../src/common/editor/effects.js';
+import { normalizeMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import type { VideoSourceTimingView } from '../src/common/editor/video-source-timing-view.ts';
+import { createFramescaperCompanionAudioProjectScopeV15 } from '../src/framescaper/editor-project-companion-audio-scope-v15.ts';
 import {
 	createVideoTimingAssetPublication,
 	validateVideoTimingAssetBytes,
@@ -86,6 +90,7 @@ test('selected V15 image sequence binds optional ordinary companion audio', () =
 	assert.deepEqual(plan.companionAudio, {
 		formatId: 'bwf', fileName: 'audio.wav',
 		planFingerprint: bundle.companionAudioBundle!.authority.planFingerprint,
+		authorityFingerprint: bundle.companionAudioBundle!.authority.authorityFingerprint,
 		recoveryClass: 'atomic-restart',
 	});
 	assert.equal(
@@ -105,7 +110,81 @@ test('selected V15 image sequence binds optional ordinary companion audio', () =
 		JSON.parse(bundle.companionAudioBundle!.authorityPayload).project.revision,
 		project.revision,
 	);
+	assert.equal(
+		sha256(bundle.companionAudioBundle!.planPayload),
+		bundle.companionAudioBundle!.authority.planFingerprint,
+	);
+	assert.equal(
+		sha256(bundle.companionAudioBundle!.authorityPayload),
+		bundle.companionAudioBundle!.authority.authorityFingerprint,
+	);
+	assert.notEqual(
+		bundle.companionAudioBundle!.authority.planFingerprint,
+		bundle.companionAudioBundle!.authority.authorityFingerprint,
+	);
 	assert.equal(Object.isFrozen(bundle.companionAudioBundle?.plan), true);
+});
+
+test('selected V15 companion planning isolates another sequence and binds its exact track scope', () => {
+	const delivery = {
+		kind: 'image-sequence' as const,
+		format: 'png' as const,
+		frameRate: { num: 24, den: 1 },
+		preserveAlpha: true as const,
+	};
+	const selectedOnly = projectWithCaptions();
+	const withAnotherSequence = projectWithUnrelatedAudioSequence();
+	const persistedBeforePlanning = JSON.stringify(withAnotherSequence);
+	const selected = createFramescaperProjectUnifiedRenderDeliveryBundleV15(
+		PROFILE, selectedOnly,
+		createFramescaperNativeRenderPlanAuthorityV28(selectedOnly, delivery), {
+			deliveryProfile: 'encode-png-sequence', companionAudio: companionAudioChoice(),
+		},
+	);
+	const isolated = createFramescaperProjectUnifiedRenderDeliveryBundleV15(
+		PROFILE, withAnotherSequence,
+		createFramescaperNativeRenderPlanAuthorityV28(withAnotherSequence, delivery), {
+			deliveryProfile: 'encode-png-sequence', companionAudio: companionAudioChoice(),
+		},
+	);
+
+	assert.equal(isolated.companionAudioBundle?.planPayload, selected.companionAudioBundle?.planPayload);
+	assert.deepEqual(isolated.companionAudioBundle?.plan, selected.companionAudioBundle?.plan);
+	assert.deepEqual(isolated.companionAudioBundle?.sequenceAudioTrackIds, ['audio-track']);
+	assert.deepEqual(isolated.companionAudioBundle?.renderDependencyTrackIds, []);
+	assert.deepEqual(
+		JSON.parse(isolated.companionAudioBundle!.authorityPayload).trackScope,
+		{ sequenceAudioTrackIds: ['audio-track'], renderDependencyTrackIds: [] },
+	);
+	assert.equal((withAnotherSequence.tracks as readonly unknown[]).length, 3);
+	assert.equal(withAnotherSequence.sources.length, 3);
+	assert.equal(JSON.stringify(withAnotherSequence), persistedBeforePlanning);
+});
+
+test('selected V15 companion scope refuses ambiguous ownership and cross-sequence sidechains', () => {
+	const project = projectWithUnrelatedAudioSequence();
+	const ambiguous = structuredClone(project);
+	const otherSequence = (ambiguous.sequences as readonly Record<string, unknown>[])
+		.find(({ id }) => id === 'other-sequence')!;
+	(otherSequence.trackIds as string[]).push('audio-track');
+	assert.throws(
+		() => createFramescaperCompanionAudioProjectScopeV15(ambiguous, 'main-sequence'),
+		/ambiguous sequence ownership/iu,
+	);
+	const unowned = structuredClone(project);
+	const unownedSequence = (unowned.sequences as readonly Record<string, unknown>[])
+		.find(({ id }) => id === 'other-sequence')!;
+	(unownedSequence as Record<string, unknown>).trackIds = [];
+	assert.throws(
+		() => createFramescaperCompanionAudioProjectScopeV15(unowned, 'main-sequence'),
+		/no sequence owner/iu,
+	);
+
+	const crossSequence = projectWithCrossSequenceSidechain();
+	assert.throws(
+		() => createFramescaperCompanionAudioProjectScopeV15(crossSequence, 'main-sequence'),
+		/cross-sequence sidechain dependency/iu,
+	);
 });
 
 test('selected V15 envelope retains authenticated VFR timing while it is built', () => {
@@ -198,6 +277,58 @@ function projectWithCaptions() {
 	});
 }
 
+function projectWithUnrelatedAudioSequence() {
+	return createFramescaperProjectV28(PROFILE, unrelatedAudioOptions());
+}
+
+function projectWithCrossSequenceSidechain() {
+	const project = structuredClone(projectWithUnrelatedAudioSequence());
+	const target = (project.tracks as unknown as Record<string, unknown>[])
+		.find(({ id }) => id === 'audio-track')!;
+	target.effects = [createEffect('audacity-auto-duck', {
+		id: 'duck-main', context: { controlTrackId: 'other-audio-track' },
+	})];
+	const mixer = project.mixer;
+	(project as Record<string, unknown>).mixer = normalizeMixerGraphV21({
+		...mixer,
+		edges: [...mixer.edges, {
+				id: 'sidechain:other:duck-main', kind: 'sidechain',
+				source: { kind: 'track', id: 'other-audio-track' },
+				destination: {
+					kind: 'effect-sidechain', strip: { kind: 'track', id: 'audio-track' },
+					effectId: 'duck-main',
+				},
+				position: 'post-fader', level: 1, enabled: true, channelMap: [0],
+		}],
+	});
+	return project;
+}
+
+function unrelatedAudioOptions(): Record<string, unknown> {
+	const options = framescaperV20Options();
+	return {
+		...options,
+		sources: [...options.sources as readonly Record<string, unknown>[], {
+			kind: 'audio', id: 'other-audio-source', name: 'Other audio',
+			storageKey: 'other-audio-source', mimeType: 'audio/wav', frameCount: 4_800_000,
+			channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
+		}],
+		clips: [...options.clips as readonly Record<string, unknown>[], {
+			kind: 'audio', id: 'other-audio-clip', sourceId: 'other-audio-source', title: 'Other audio',
+			timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 4_800_000,
+			durationFrames: 4_800_000,
+		}],
+		tracks: [...options.tracks as readonly Record<string, unknown>[], {
+			id: 'other-audio-track', name: 'Other audio', type: 'audio',
+			clipIds: ['other-audio-clip'], height: 96, collapsed: false,
+		}],
+		sequences: [...options.sequences as readonly Record<string, unknown>[], {
+			id: 'other-sequence', rate: { num: 24, den: 1 }, trackIds: ['other-audio-track'],
+		}],
+		finishing: { captionTracks: [captionTrack()] },
+	};
+}
+
 function captionTrack(): Record<string, unknown> {
 	return {
 		schemaVersion: 1, id: 'captions-en', sequenceId: 'main-sequence', name: 'English',
@@ -210,4 +341,8 @@ function captionTrack(): Record<string, unknown> {
 
 function companionAudioChoice() {
 	return { formatId: 'bwf' as const, sampleFormat: 'int24' as const };
+}
+
+function sha256(value: string): string {
+	return createHash('sha256').update(value, 'utf8').digest('hex');
 }

@@ -46,7 +46,10 @@ export interface UnifiedExactRenderCaptionDeliveryV15 {
 export interface UnifiedExactRenderCompanionAudioV15 {
 	readonly formatId: FramescaperImageSequenceCompanionAudioFormatV1;
 	readonly fileName: string;
+	/** SHA-256 of the exposed canonical ordinary audio plan payload. */
 	readonly planFingerprint: string;
+	/** SHA-256 of the separate project/sequence/track-scope authority payload. */
+	readonly authorityFingerprint: string;
 	readonly recoveryClass: 'atomic-restart';
 }
 
@@ -68,7 +71,7 @@ const MUX_FIELDS = Object.freeze(['codec', 'documentSha256']);
 const BURN_FIELDS = Object.freeze(['planSha256', 'fontSubsetIds', 'alphaDisposition']);
 const SIDECAR_FIELDS = Object.freeze(['format', 'documentSha256']);
 const COMPANION_FIELDS = Object.freeze([
-	'formatId', 'fileName', 'planFingerprint', 'recoveryClass',
+	'formatId', 'fileName', 'planFingerprint', 'authorityFingerprint', 'recoveryClass',
 ]);
 const SHA256 = /^[a-f0-9]{64}$/u;
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,4095}$/u;
@@ -213,6 +216,9 @@ function normalizeCompanionAudio(
 		formatId: typedFormat,
 		fileName,
 		planFingerprint: sha256(field(row, 'planFingerprint', name), `${name}.planFingerprint`),
+		authorityFingerprint: sha256(
+			field(row, 'authorityFingerprint', name), `${name}.authorityFingerprint`,
+		),
 		recoveryClass: 'atomic-restart' as const,
 	});
 }

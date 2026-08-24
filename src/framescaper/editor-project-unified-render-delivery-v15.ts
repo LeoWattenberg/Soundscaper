@@ -39,6 +39,7 @@ import { createFramescaperUnifiedOpenFxRenderNodes } from './editor-project-unif
 import {
 	createFramescaperUnifiedRenderFinishingNodeV28,
 } from './editor-project-unified-render-plan-v28.ts';
+import { createFramescaperCompanionAudioProjectScopeV15 } from './editor-project-companion-audio-scope-v15.ts';
 import { createFramescaperUnifiedProfessionalRenderNodes } from './editor-project-unified-render-professional.ts';
 import { createFramescaperUnifiedVisualRenderNodes } from './editor-project-unified-render-visual.ts';
 import { validateFramescaperProjectV28, type FramescaperProjectV28 } from './editor-project-v28.ts';
@@ -62,10 +63,13 @@ export type FramescaperCompanionAudioExportPlanV15 = ReturnType<typeof createExp
 export interface FramescaperCompanionAudioPlanBundleV15 {
 	readonly authority: UnifiedExactRenderCompanionAudioV15;
 	readonly choice: PlatformImageSequenceCompanionAudioChoiceV1;
-	/** Canonical project/sequence/range/choice/plan authority hashed by planFingerprint. */
+	/** Canonical project/sequence/range/track-scope wrapper hashed by authorityFingerprint. */
 	readonly authorityPayload: string;
+	/** Bare canonical plan bytes hashed by planFingerprint. */
 	readonly planPayload: string;
 	readonly plan: Readonly<FramescaperCompanionAudioExportPlanV15>;
+	readonly sequenceAudioTrackIds: readonly string[];
+	readonly renderDependencyTrackIds: readonly string[];
 }
 
 interface SnapshotDeliveryAuthorityV15 {
@@ -253,7 +257,8 @@ function createCompanionAudioBundle(
 ): FramescaperCompanionAudioPlanBundleV15 {
 	const endFrame = plan.timebase.sampleStart + plan.timebase.sampleDuration;
 	if (!Number.isSafeInteger(endFrame)) throw new RangeError('Selected V15 companion audio range overflows.');
-	const audioPlan = createExportPlan(project, {
+	const scope = createFramescaperCompanionAudioProjectScopeV15(project, plan.timebase.sequenceId);
+	const audioPlan = createExportPlan(scope.project, {
 		mode: 'mix', format: choice.formatId,
 		range: { startFrame: plan.timebase.sampleStart, endFrame },
 		includeTail: false, sampleRate: plan.timebase.sampleRate,
@@ -263,9 +268,13 @@ function createCompanionAudioBundle(
 	});
 	assertDerivedCompanionAudioPlan(audioPlan, plan, choice, endFrame);
 	const fileName = framescaperImageSequenceCompanionAudioFileNameV15(choice.formatId);
-	const fingerprint = fingerprintNativeMediaPlan({
+	const planFingerprint = fingerprintNativeMediaPlan(audioPlan);
+	const snapshot = deepFreeze(JSON.parse(planFingerprint.canonical)) as Readonly<
+		FramescaperCompanionAudioExportPlanV15
+	>;
+	const authorityFingerprint = fingerprintNativeMediaPlan({
 		schemaVersion: 1,
-		kind: 'framescaper-image-sequence-companion-audio-plan-v1',
+		kind: 'framescaper-image-sequence-companion-audio-authority-v1',
 		project: { id: plan.project.id, revision: plan.project.revision },
 		sequenceId: plan.timebase.sequenceId,
 		range: {
@@ -273,23 +282,26 @@ function createCompanionAudioBundle(
 			sampleDuration: plan.timebase.sampleDuration,
 			sampleRate: plan.timebase.sampleRate,
 		},
+		trackScope: {
+			sequenceAudioTrackIds: scope.sequenceAudioTrackIds,
+			renderDependencyTrackIds: scope.renderDependencyTrackIds,
+		},
 		choice,
 		packageFileName: fileName,
-		plan: audioPlan,
+		plan: snapshot,
 	});
-	const snapshot = deepFreeze(JSON.parse(fingerprint.canonical)) as Readonly<{
-		readonly plan: FramescaperCompanionAudioExportPlanV15;
-	}>;
-	const planFingerprint = fingerprintNativeMediaPlan(snapshot.plan);
 	const authority = Object.freeze({
 		formatId: choice.formatId,
 		fileName,
-		planFingerprint: fingerprint.sha256,
+		planFingerprint: planFingerprint.sha256,
+		authorityFingerprint: authorityFingerprint.sha256,
 		recoveryClass: 'atomic-restart' as const,
 	});
 	return Object.freeze({
-		authority, choice, authorityPayload: fingerprint.canonical,
-		planPayload: planFingerprint.canonical, plan: snapshot.plan,
+		authority, choice, authorityPayload: authorityFingerprint.canonical,
+		planPayload: planFingerprint.canonical, plan: snapshot,
+		sequenceAudioTrackIds: scope.sequenceAudioTrackIds,
+		renderDependencyTrackIds: scope.renderDependencyTrackIds,
 	});
 }
 

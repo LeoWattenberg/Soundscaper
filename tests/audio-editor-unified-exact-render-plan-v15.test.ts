@@ -76,11 +76,14 @@ test('V15 image sequences bind one user-selected ordinary audio plan', () => {
 		}),
 		companionAudio: {
 			formatId: 'bwf', fileName: 'audio.wav', planFingerprint: SHA_A,
+			authorityFingerprint: SHA_B,
 			recoveryClass: 'atomic-restart',
 		},
 	}));
 	assert.equal(plan.companionAudio?.formatId, 'bwf');
 	assert.equal(plan.companionAudio?.fileName, 'audio.wav');
+	assert.equal(plan.companionAudio?.planFingerprint, SHA_A);
+	assert.equal(plan.companionAudio?.authorityFingerprint, SHA_B);
 	assert.equal(createNativeMediaPlanEnvelopeV3(plan).summary.companionAudio?.formatId, 'bwf');
 });
 
@@ -100,6 +103,7 @@ test('V15 refuses hidden caption substitutions and unclosed companion audio', ()
 			captionDelivery: null,
 			companionAudio: {
 				formatId: 'bwf', fileName: 'audio.wav', planFingerprint: SHA_A,
+				authorityFingerprint: SHA_B,
 				recoveryClass: 'atomic-restart',
 			},
 		}),
@@ -111,6 +115,7 @@ test('V15 refuses hidden caption substitutions and unclosed companion audio', ()
 			captionDelivery: captionDelivery({ sidecar: { format: 'vtt' } }),
 			companionAudio: {
 				formatId: 'bwf', fileName: 'audio.wav', planFingerprint: SHA_A,
+				authorityFingerprint: SHA_B,
 				recoveryClass: 'atomic-restart',
 			},
 		}),
@@ -118,6 +123,7 @@ test('V15 refuses hidden caption substitutions and unclosed companion audio', ()
 			captionDelivery: null,
 			companionAudio: {
 				formatId: 'custom-ffmpeg', fileName: 'audio.wav', planFingerprint: SHA_A,
+				authorityFingerprint: SHA_B,
 				recoveryClass: 'atomic-restart',
 			},
 		}),
@@ -125,6 +131,7 @@ test('V15 refuses hidden caption substitutions and unclosed companion audio', ()
 			captionDelivery: null,
 			companionAudio: {
 				formatId: 'flac', fileName: 'audio.wav', planFingerprint: SHA_A,
+				authorityFingerprint: SHA_B,
 				recoveryClass: 'atomic-restart',
 			},
 		}),
@@ -156,6 +163,7 @@ test('V15 makes PNG caption compositing into authored alpha explicit', () => {
 	const image = imageSequencePlan();
 	const companionAudio = {
 		formatId: 'bwf', fileName: 'audio.wav', planFingerprint: SHA_A,
+		authorityFingerprint: SHA_B,
 		recoveryClass: 'atomic-restart',
 	};
 	assert.throws(() => createUnifiedExactRenderPlan(v15Candidate(image, {
