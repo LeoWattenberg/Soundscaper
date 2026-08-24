@@ -8,6 +8,7 @@ import {
 	type DesktopAudioCodecCapabilityQuery,
 } from './desktop-audio-codec-capability-contract.ts';
 import {
+	assertDesktopAudioCodecRequest,
 	normalizeDesktopAudioCodecRequest,
 	type DesktopAudioCodecRequest,
 } from './desktop-audio-codec-operation-contract.ts';
@@ -35,6 +36,10 @@ export interface DesktopAudioCodecMainIpcOptions<Owner extends object> {
 	readonly removeHandler: (channel: string) => void;
 	readonly ownerFor: (event: unknown) => Owner;
 	readonly service: DesktopAudioCodecMainIpcService;
+	/** Lower-only test/deployment seams beneath the non-raiseable defaults. */
+	readonly maximumActiveOperationsPerOwner?: number;
+	readonly maximumActiveOperations?: number;
+	readonly maximumActiveInputBytes?: number;
 }
 
 export interface DesktopAudioCodecMainIpcRegistration<Owner extends object> {
@@ -52,12 +57,18 @@ const CHANNEL_FIELDS = Object.freeze([
 	'desktopAudioCodecExecute', 'desktopAudioCodecCancel', 'desktopAudioCodecCapabilities',
 ] as const);
 const REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u;
+export const DESKTOP_AUDIO_CODEC_IPC_MAXIMUM_ACTIVE_OPERATIONS_PER_OWNER = 2;
+export const DESKTOP_AUDIO_CODEC_IPC_MAXIMUM_ACTIVE_OPERATIONS = 4;
+export const DESKTOP_AUDIO_CODEC_IPC_MAXIMUM_ACTIVE_INPUT_BYTES = 64 * 1_024 * 1_024;
 
 export function registerDesktopAudioCodecMainIpc<Owner extends object>(
 	options: DesktopAudioCodecMainIpcOptions<Owner>,
 ): DesktopAudioCodecMainIpcRegistration<Owner> {
 	validateOptions(options);
+	const limits = ipcLimits(options);
 	const active = new Map<string, ActiveOperation<Owner>>();
+	const activeByOwner = new WeakMap<Owner, number>();
+	let activeInputBytes = 0;
 	let disposed = false;
 	const registered: string[] = [];
 	const bind = (channel: string, listener: (event: unknown, ...arguments_: unknown[]) => unknown): void => {
@@ -68,19 +79,39 @@ export function registerDesktopAudioCodecMainIpc<Owner extends object>(
 		bind(options.channels.desktopAudioCodecExecute, async (event, ...arguments_) => {
 			if (disposed) throw new Error('The desktop audio codec IPC service is disposed.');
 			if (arguments_.length !== 1) throw new TypeError('Desktop audio codec execute IPC requires one request.');
-			const request = normalizeDesktopAudioCodecRequest(arguments_[0]);
-			const requestId = requiredRequestId(request.requestId);
+			assertDesktopAudioCodecRequest(arguments_[0]);
+			const candidate = arguments_[0];
+			const requestId = requiredRequestId(candidate.requestId);
 			if (active.has(requestId)) throw new Error('The desktop audio codec request ID is already active.');
 			const owner = owned(options.ownerFor(event));
+			const ownerCount = activeByOwner.get(owner) ?? 0;
+			if (ownerCount >= limits.perOwner) {
+				throw new Error('The desktop audio codec IPC per-owner operation limit was reached.');
+			}
+			if (active.size >= limits.total) {
+				throw new Error('The desktop audio codec IPC global operation limit was reached.');
+			}
+			if (candidate.input.byteLength > limits.inputBytes - activeInputBytes) {
+				throw new Error('The desktop audio codec IPC aggregate input byte limit was reached.');
+			}
+			const request = normalizeDesktopAudioCodecRequest(candidate);
 			const controller = new AbortController();
 			const settled = Promise.resolve().then(() => options.service.execute(
 				request, Object.freeze({ signal: controller.signal }),
 			));
 			active.set(requestId, Object.freeze({ owner, controller, settled }));
+			activeByOwner.set(owner, ownerCount + 1);
+			activeInputBytes += request.input.byteLength;
 			try { return await settled; }
 			finally {
 				const current = active.get(requestId);
-				if (current?.controller === controller) active.delete(requestId);
+				if (current?.controller === controller) {
+					active.delete(requestId);
+					const remaining = (activeByOwner.get(owner) ?? 1) - 1;
+					if (remaining === 0) activeByOwner.delete(owner);
+					else activeByOwner.set(owner, remaining);
+					activeInputBytes -= request.input.byteLength;
+				}
 			}
 		});
 		bind(options.channels.desktopAudioCodecCancel, (event, ...arguments_) => {
@@ -131,7 +162,13 @@ function validateOptions<Owner extends object>(options: DesktopAudioCodecMainIpc
 		|| typeof options.handle !== 'function' || typeof options.removeHandler !== 'function'
 		|| typeof options.ownerFor !== 'function' || !options.service
 		|| typeof options.service.execute !== 'function'
-		|| typeof options.service.capabilities !== 'function') {
+		|| typeof options.service.capabilities !== 'function'
+		|| !validLowerLimit(options.maximumActiveOperationsPerOwner,
+			DESKTOP_AUDIO_CODEC_IPC_MAXIMUM_ACTIVE_OPERATIONS_PER_OWNER)
+		|| !validLowerLimit(options.maximumActiveOperations,
+			DESKTOP_AUDIO_CODEC_IPC_MAXIMUM_ACTIVE_OPERATIONS)
+		|| !validLowerLimit(options.maximumActiveInputBytes,
+			DESKTOP_AUDIO_CODEC_IPC_MAXIMUM_ACTIVE_INPUT_BYTES)) {
 		throw new TypeError('Desktop audio codec IPC ports are invalid.');
 	}
 	const channels = CHANNEL_FIELDS.map((field) => options.channels[field]);
@@ -142,6 +179,24 @@ function validateOptions<Owner extends object>(options: DesktopAudioCodecMainIpc
 	if (new Set(channels).size !== channels.length) {
 		throw new TypeError('Desktop audio codec IPC channels must be unique.');
 	}
+}
+
+function ipcLimits<Owner extends object>(
+	options: DesktopAudioCodecMainIpcOptions<Owner>,
+): Readonly<{ readonly perOwner: number; readonly total: number; readonly inputBytes: number }> {
+	const total = options.maximumActiveOperations ?? DESKTOP_AUDIO_CODEC_IPC_MAXIMUM_ACTIVE_OPERATIONS;
+	const perOwner = options.maximumActiveOperationsPerOwner
+		?? DESKTOP_AUDIO_CODEC_IPC_MAXIMUM_ACTIVE_OPERATIONS_PER_OWNER;
+	if (perOwner > total) throw new RangeError('The desktop audio codec IPC per-owner limit exceeds its global limit.');
+	return Object.freeze({
+		perOwner,
+		total,
+		inputBytes: options.maximumActiveInputBytes ?? DESKTOP_AUDIO_CODEC_IPC_MAXIMUM_ACTIVE_INPUT_BYTES,
+	});
+}
+
+function validLowerLimit(value: number | undefined, maximum: number): boolean {
+	return value === undefined || Number.isSafeInteger(value) && value >= 1 && value <= maximum;
 }
 
 function requiredRequestId(value: unknown): string {
