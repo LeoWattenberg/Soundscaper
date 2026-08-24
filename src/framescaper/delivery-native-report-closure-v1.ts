@@ -157,7 +157,9 @@ export function deriveFramescaperNativeDeliveryClosureV1(input: Readonly<{
 		...(caption?.burnIn === null || caption?.burnIn === undefined ? [] : ['caption-burn-plan']),
 		...(caption?.sidecar === null || caption?.sidecar === undefined ? [] : ['caption-sidecar-document']),
 		...(companion === null || companion === undefined ? [] : ['companion-audio-plan']),
-	].sort((left, right) => left.localeCompare(right));
+	// Code-unit order: the check inventory is validated cross-process, and an
+	// exact contract must not change meaning with the validator's ICU locale.
+	].sort();
 	return Object.freeze({
 		planFingerprint: envelope.fingerprint,
 		profileId,

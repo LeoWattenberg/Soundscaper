@@ -418,7 +418,7 @@ function conformanceCheckIds(value: unknown): readonly string[] {
 	const ids = denseArray(value, 1, 64, 'native delivery required conformance checks')
 		.map((entry) => text(entry, ID, 'native delivery required conformance check ID'));
 	if (new Set(ids).size !== ids.length
-		|| ids.some((id, index) => index > 0 && ids[index - 1]!.localeCompare(id) >= 0)) {
+		|| ids.some((id, index) => index > 0 && !(ids[index - 1]! < id))) {
 		throw new Error('Native delivery required conformance check IDs must be unique and sorted.');
 	}
 	return Object.freeze(ids);

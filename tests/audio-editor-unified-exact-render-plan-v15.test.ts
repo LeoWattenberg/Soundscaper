@@ -185,6 +185,30 @@ test('V15 makes PNG caption compositing into authored alpha explicit', () => {
 	assert.equal(plan.captionDelivery?.burnIn?.alphaDisposition, 'caption-composited');
 });
 
+test('V15 font subset order is code-unit exact, never the validator locale', () => {
+	// The adapter sorts with Array#sort (code-unit); the admission must agree
+	// under every ICU configuration, or a case-diverging subset pair becomes
+	// a plan that validates on one machine and refuses on another.
+	const image = imageSequencePlan();
+	const companionAudio = {
+		formatId: 'bwf', fileName: 'audio.wav', planFingerprint: SHA_A,
+		authorityFingerprint: SHA_B,
+		recoveryClass: 'atomic-restart',
+	};
+	const burn = (fontSubsetIds: readonly string[]) => v15Candidate(image, {
+		captionDelivery: captionDelivery({
+			burnIn: { planSha256: SHA_A, fontSubsetIds, alphaDisposition: 'caption-composited' },
+		}),
+		companionAudio,
+	});
+	const plan = createUnifiedExactRenderPlan(burn(['Zebra', 'alpha']));
+	assert.deepEqual(plan.captionDelivery?.burnIn?.fontSubsetIds, ['Zebra', 'alpha']);
+	assert.throws(
+		() => createUnifiedExactRenderPlan(burn(['alpha', 'Zebra'])),
+		/unique and sorted/u,
+	);
+});
+
 function encodedPlan(): UnifiedExactRenderPlanV14 {
 	const project = createFramescaperProjectV28(PROFILE, framescaperV20Options());
 	return createFramescaperProjectUnifiedExactRenderPlanV28(

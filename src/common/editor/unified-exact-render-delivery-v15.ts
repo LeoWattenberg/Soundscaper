@@ -158,8 +158,11 @@ function nullableBurn(
 	const row = readClosedDomainRecord(value, name, BURN_FIELDS);
 	const ids = readClosedDomainArray(field(row, 'fontSubsetIds', name), `${name}.fontSubsetIds`, 0, 256)
 		.map((id, index) => stableId(id, `${name}.fontSubsetIds[${String(index)}]`));
-	const sorted = [...ids].sort((left, right) => left.localeCompare(right));
-	if (new Set(sorted).size !== sorted.length || ids.some((id, index) => id !== sorted[index])) {
+	// Code-unit order, matching the adapter's own Array#sort: an admission
+	// contract must not depend on the validator's ICU locale, and the producer
+	// and validator must agree the day a case-diverging subset ID exists.
+	if (new Set(ids).size !== ids.length
+		|| ids.some((id, index) => index > 0 && !(ids[index - 1]! < id))) {
 		throw new RangeError('Unified V15 caption font subset IDs must be unique and sorted.');
 	}
 	const alphaDisposition = field(row, 'alphaDisposition', name);
@@ -172,7 +175,7 @@ function nullableBurn(
 	}
 	return Object.freeze({
 		planSha256: sha256(field(row, 'planSha256', name), `${name}.planSha256`),
-		fontSubsetIds: Object.freeze(sorted),
+		fontSubsetIds: Object.freeze(ids),
 		alphaDisposition: expectedAlphaDisposition,
 	});
 }

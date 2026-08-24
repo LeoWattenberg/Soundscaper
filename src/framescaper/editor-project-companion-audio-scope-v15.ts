@@ -314,7 +314,9 @@ function uniqueRecordsById(values: readonly DataRecord[], name: string): Readonl
 }
 
 function sortedIds(values: readonly DataRecord[], name: string): string[] {
-	return values.map((value) => id(value, name)).sort((left, right) => left.localeCompare(right));
+	// Code-unit order: these ids land in fingerprinted authority payloads, and
+	// two machines' ICU locales must never derive two different fingerprints.
+	return values.map((value) => id(value, name)).sort();
 }
 
 function strings(value: unknown, name: string): string[] {
