@@ -13,6 +13,7 @@ import { createPffftNodeModuleBrowserShim } from './scripts/vite-pffft-browser-s
 
 const productId = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
 const vendoredDesignSystem = resolve(import.meta.dirname, 'vendor/audacity-design-system');
+const desktopCodecComposition = process.env.SCAPE_DESKTOP_CODEC_RUNTIME === 'main-process';
 
 // The vendored design system ships ~100 component stylesheets through the
 // scoping plugin on every build. A build that scopes far fewer has silently
@@ -47,11 +48,21 @@ export default defineConfig({
 		// File-targeted aliases into the vendored design system; deep subpath
 		// imports of these specifiers are unsupported. Mirrored in
 		// tsconfig.base.json "paths" for tsc, editors, and tsx-run node tests.
-		alias: {
-			'@dilsonspickles/components': resolve(vendoredDesignSystem, 'components/src/index.ts'),
-			'@audacity-ui/core': resolve(vendoredDesignSystem, 'core/src/index.ts'),
-			'@audacity-ui/tokens': resolve(vendoredDesignSystem, 'tokens/src/index.ts'),
-		},
+		alias: [
+			...(desktopCodecComposition ? [
+				{
+					find: /^\.\/editor-codec-runtime\.ts$/u,
+					replacement: resolve(import.meta.dirname, 'src/common/editor/editor-codec-runtime.desktop.ts'),
+				},
+				{
+					find: /^\.\/OfflineRuntimePreferencePanel\.tsx$/u,
+					replacement: resolve(import.meta.dirname, 'src/common/editor/ui/dialogs/OfflineRuntimePreferencePanel.desktop.tsx'),
+				},
+			] : []),
+			{ find: '@dilsonspickles/components', replacement: resolve(vendoredDesignSystem, 'components/src/index.ts') },
+			{ find: '@audacity-ui/core', replacement: resolve(vendoredDesignSystem, 'core/src/index.ts') },
+			{ find: '@audacity-ui/tokens', replacement: resolve(vendoredDesignSystem, 'tokens/src/index.ts') },
+		],
 	},
 	envPrefix: ['VITE_', 'PUBLIC_'],
 	define: {

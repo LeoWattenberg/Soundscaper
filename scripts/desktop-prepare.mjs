@@ -23,6 +23,7 @@ import {
 	stageDesktopApplicationSources,
 } from './lib/desktop-project-library-runtime.mjs';
 import { DESKTOP_CODEC_POLICY } from './lib/desktop-codec-policy.mjs';
+import { auditDesktopRendererCodecComposition } from './lib/desktop-renderer-codec-audit.mjs';
 import {
 	nativeAddonPayloadOutputRoot,
 	resolveNativeAddonPayloadTarget,
@@ -285,9 +286,11 @@ async function buildRenderer() {
 		env: {
 			...environment,
 			SCAPE_PRODUCT: PRODUCT_ID,
+			SCAPE_DESKTOP_CODEC_RUNTIME: 'main-process',
 			PUBLIC_TRANSLATIONS_BASE_URL: `${APP_SCHEME}://bundle/runtime/translations/audacity/4/`,
 		},
 	});
+	await auditDesktopRendererCodecComposition({ root: RENDERER_ROOT });
 	await assertFile(resolve(RENDERER_ROOT, 'index.html'), 'desktop editor document');
 }
 
