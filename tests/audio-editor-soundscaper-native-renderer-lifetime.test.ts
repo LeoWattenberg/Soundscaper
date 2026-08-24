@@ -59,6 +59,28 @@ test('the workspace renderer releases sessions on disable, explicit close, and w
 	]);
 });
 
+test('a port offer from a foreign window source never attaches audio authority', async (t) => {
+	const originalNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
+	t.after(() => { globalThis.AudioWorkletNode = originalNode; });
+	const fixture = rendererFixture();
+	const renderer = createSoundscaperNativeRendererBridge({
+		bridge: fixture.bridge, engine: fixture.engine,
+		controller: fixture.controller, windowValue: fixture.windowValue,
+	});
+	await renderer.bridge.openNativeAudioSession(audioRequest('foreign'));
+	// An embedded frame can post a well-formed offer with a transferred port;
+	// accepting it would route playback into the sender's port and publish the
+	// sender's audio into canonical recording.
+	fixture.offerAudioFrom({}, 'foreign');
+	assert.equal(soundscaperNativeAudioDestination(fixture.context, fixture.fallback), fixture.fallback,
+		'a foreign-source offer must not become the playback destination');
+	fixture.offerAudio('foreign');
+	assert.notEqual(soundscaperNativeAudioDestination(fixture.context, fixture.fallback), fixture.fallback,
+		'the preload relay offer from the window itself still attaches');
+	await renderer.dispose();
+});
+
 test('a native route at a different rate than the engine context refuses instead of repitching', async (t) => {
 	const originalNode = globalThis.AudioWorkletNode;
 	globalThis.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
@@ -233,6 +255,9 @@ class FakeAudioWorkletNode {
 	connect(): void {}
 	disconnect(): void {}
 }
+
+/** Stands in for the window the preload relay posts to; offers carry it as their source. */
+const FIXTURE_WINDOW_SOURCE = {} as Window;
 
 function rendererFixture(options: Readonly<{
 	initialInstanceId?: string;
@@ -422,6 +447,7 @@ function rendererFixture(options: Readonly<{
 		bridge, calibrations, closes, context, controller, engine, fallback,
 		losses, nativeRefreshes, transfers,
 		windowValue: {
+			window: FIXTURE_WINDOW_SOURCE,
 			addEventListener: (_type: string, next: EventListenerOrEventListenerObject) => {
 				listeners.add(next as (event: Event) => void);
 			},
@@ -431,6 +457,11 @@ function rendererFixture(options: Readonly<{
 		} as Pick<Window, 'addEventListener' | 'removeEventListener'>,
 		offerAudio: (sessionId: string) => {
 			for (const listener of listeners) listener(audioOffer(sessionId));
+		},
+		offerAudioFrom: (source: object, sessionId: string) => {
+			for (const listener of listeners) {
+				listener({ ...(audioOffer(sessionId) as unknown as Record<string, unknown>), source } as unknown as Event);
+			}
 		},
 		active: () => ({ audio: [...audio], plugins: [...plugins] }),
 		effect: () => project.tracks[0]!.effects[0] as Readonly<{ bypassed: boolean }>,
@@ -453,6 +484,7 @@ function audioRequest(_sessionId: string) {
 
 function audioOffer(_sessionId: string): Event {
 	return {
+		source: FIXTURE_WINDOW_SOURCE,
 		data: { type: 'soundscaper-native-realtime-port-v1', offer: {
 			protocolVersion: 1, generation: 1, sampleFormat: 'f32-planar', sampleRate: 48_000,
 			channelCount: 2, frameCount: 128, queueCapacity: 8, startFrame: 0,
@@ -463,6 +495,7 @@ function audioOffer(_sessionId: string): Event {
 
 function pluginOffer(instanceId: string): Event {
 	return {
+		source: FIXTURE_WINDOW_SOURCE,
 		data: { type: 'soundscaper-native-plugin-rpc-port-v1', offer: {
 			instanceId, purpose: 'plugin-rpc', transport: 'message-port',
 			portContractVersion: 1, generation: 1, reportedLatencyFrames: 0,

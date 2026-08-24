@@ -54,6 +54,13 @@ export function createSoundscaperNativeAudioRenderer(options: Readonly<{
 
 	const receive = (event: Event): void => {
 		const message = event as MessageEvent<unknown>;
+		// The preload relay posts to its own window; a message from any other
+		// source — an embedded frame above all — must not attach audio
+		// authority: an accepted forged offer would route playback into the
+		// sender's port and publish its audio into canonical recording.
+		const sourceWindow = (windowValue as { window?: Window } | null)?.window
+			?? (typeof window === 'undefined' ? null : window);
+		if (message.source !== sourceWindow) return;
 		const ports = Array.from(message.ports ?? []) as NativeRealtimeTransferredPort[];
 		const data = message.data as Readonly<{ type?: unknown; offer?: unknown }> | null;
 		if (data?.type !== SOUNDSCAPER_NATIVE_AUDIO_PORT_EVENT) return;

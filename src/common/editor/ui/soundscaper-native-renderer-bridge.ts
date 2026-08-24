@@ -95,6 +95,11 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 	let listening = false;
 	const receive = (event: Event): void => {
 		const message = event as MessageEvent<unknown>;
+		// The preload relay posts to its own window; a message from any other
+		// source — an embedded frame above all — must not attach a plug-in port.
+		const sourceWindow = (windowValue as { window?: Window } | null)?.window
+			?? (typeof window === 'undefined' ? null : window);
+		if (message.source !== sourceWindow) return;
 		const data = message.data as Readonly<{ type?: unknown; offer?: unknown }> | null;
 		if (data?.type !== PLUGIN_PORT_EVENT) return;
 		acceptNativePluginPortOffer(data.offer, Array.from(message.ports ?? []));
