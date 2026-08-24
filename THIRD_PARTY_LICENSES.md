@@ -101,6 +101,42 @@ The exact allowlist, per-file hashes, imports, exports, toolchain image, modific
 
 Audacity is a registered trademark. This project is not affiliated with or endorsed by the Audacity project or Muse Group.
 
+## WavPack 5.9.0 WebAssembly
+
+Soundscaper distributes one exact Emscripten build of WavPack 5.9.0 under the
+BSD-3-Clause license. It supports persisted float32 PCM chunks in the Web and
+Electron renderer and is also staged unchanged as the desktop bundled
+float32 `.wv` encode/decode provider on Linux x64/ARM64, macOS ARM64, and
+Windows x64/ARM64. macOS x64 is unsupported.
+
+- upstream: <https://github.com/dbry/WavPack/tree/5.9.0>
+- pinned commit: `5803634a030e2a11dba602ba057b89cc34486c67`
+- retained license: [`licenses/WAVPACK.txt`](src/common/editor/wavpack/licenses/WAVPACK.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/wavpack/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/wavpack/source-manifest.json)
+- exact `wavpack.wasm`: 145,537 bytes; SHA-256 `c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908`
+
+The source and binary audit pins every compiled upstream file, the local
+in-memory ABI bridge, the Emscripten 3.1.64 toolchain, imports, exports, memory
+limits, license files, and exact artifact hash. Desktop staging rechecks the
+regular file, byte length, and SHA-256; startup rechecks byte length and SHA-256
+and requires an encode/parse/decode canary before registering the provider. The
+desktop provider accepts only lossless float32 WavPack encode/decode, one to
+eight channels, 8–192 kHz, and compression level 2, which maps to the reviewed
+`CONFIG_FAST_FLAG` ABI. Its strict parser bounds blocks, frames, metadata,
+channels, and output and rejects unsupported profiles, correction streams,
+extensions, malformed geometry, truncation, and checksum faults.
+
+An independent implementation check built stock WavPack 5.9.0 `wvunpack` from
+the same pinned upstream commit and decoded a 1,240,560-byte, three-channel,
+48 kHz multi-block `.wv` emitted by this provider. The 2,362,380-byte decoded
+float32 result matched the expected raw PCM at SHA-256
+`b7f8cd1d8e1a00374f618587eb2c5872fcd250d8686c9cbda0b46e00003ea40f`.
+That is a narrow stock-decoder interoperability witness, not qualification of
+other WavPack versions, profiles, platforms, or producers. The BSD-3-Clause
+license, exact review, and interoperability result do not establish absence of
+patent exposure or patent clearance.
+
 ## FFmpeg WebAssembly export and import core
 
 The Web editor lazily loads the upstream single-thread `@ffmpeg/core` 0.12.10 package through the MIT-licensed `@ffmpeg/ffmpeg` 0.12.15 wrapper. This Web-only runtime is not included in an Electron renderer, desktop runtime resource tree, or desktop release asset. The combined core is GPL-2.0-or-later and is used on the Web surface for media decode fallback and FLAC, MP3, Ogg Vorbis, Opus, WavPack, MP2, AAC/M4A, and explicitly bounded custom output.
@@ -165,13 +201,13 @@ alternate asset name, upstream intent, and digest verification do not prove a
 complete enabled-codec inventory, codec behavior, absence of patent exposure,
 or patent clearance.
 
-The maintained first-party PCM container readers remain application source and
-are not evidence for a bundled compressed-codec or native-codec runtime. The
-bundled compressed-codec catalog and the Windows and macOS operating-system
-codec adapters currently provide policy, tuple, and canary contracts only: no
-bundled or operating-system codec execution factory or admitted native payload
-is registered in the shipped desktop composition. Those provider tiers fail
-closed as unavailable and remain unqualified.
+The maintained first-party PCM container readers remain application source.
+The exact WavPack 5.9.0 float32 provider described above is the only admitted
+bundled compressed-codec runtime in the shipped desktop composition. Every
+other bundled compressed-codec candidate provides policy and tuple contracts
+only and fails closed as unavailable. The Windows and macOS operating-system
+codec adapters likewise have no registered execution factory, so every
+operating-system codec tuple remains unavailable and unqualified.
 
 As the final provider tier, the desktop application may execute an FFmpeg
 program already installed on the user's system after bounded discovery or an

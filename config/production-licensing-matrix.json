@@ -31,10 +31,10 @@
 		},
 		{
 			"id": "electron-runtime-assets",
-			"description": "Translation and separately admitted native runtime assets staged beside the Electron renderer; application-supplied FFmpeg/libav and the FFmpeg WebAssembly runtime are excluded. Electron's separately inventoried alternate framework libffmpeg remains part of the Electron shell.",
+			"description": "Translation and separately admitted runtime assets staged beside the Electron renderer, including the exact reviewed WavPack 5.9.0 WebAssembly provider; application-supplied FFmpeg/libav and the FFmpeg WebAssembly runtime are excluded. Electron's separately inventoried alternate framework libffmpeg remains part of the Electron shell.",
 			"artifactStatus": "distributed",
 			"noticeDeliveryStatus": "implemented",
-			"evidence": ["scripts/lib/desktop-codec-policy.mjs", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "scripts/desktop-after-pack.mjs", "electron-builder.config.cjs"]
+			"evidence": ["scripts/lib/desktop-codec-policy.mjs", "scripts/lib/desktop-bundled-wavpack-runtime.mjs", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "scripts/desktop-after-pack.mjs", "tests/desktop-audio-codec-runtime-staging.test.js", "electron-builder.config.cjs"]
 		},
 		{
 			"id": "electron-shell",
@@ -45,10 +45,10 @@
 		},
 		{
 			"id": "desktop-release-assets",
-			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed. Each package contains the exact verified Electron alternate framework libffmpeg for its target; user-installed external FFmpeg remains outside this artifact closure and is not copied into the release set.",
+			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed. Each package contains the exact reviewed WavPack 5.9.0 WebAssembly provider and the exact verified Electron alternate framework libffmpeg for its target; user-installed external FFmpeg remains outside this artifact closure and is not copied into the release set.",
 			"artifactStatus": "blocked",
 			"noticeDeliveryStatus": "implemented",
-			"evidence": ["config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "scripts/desktop-release-assets.mjs", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["config/electron-alternate-ffmpeg-manifest.json", "src/common/editor/wavpack/source-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/desktop-bundled-wavpack-runtime.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
 	"npmProductionClosure": [
@@ -320,8 +320,17 @@
 		{
 			"id": "wavpack-wasm",
 			"status": "documented",
-			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
-			"evidence": ["src/common/editor/wavpack/source-manifest.json", "src/common/editor/wavpack/NOTICE.md", "scripts/audit-wavpack-wasm.mjs"]
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer", "electron-runtime-assets", "desktop-release-assets"],
+			"provenanceKind": "pinned-in-tree-wasm-and-desktop-bundled-codec-provider",
+			"upstream": "WavPack 5.9.0 commit 5803634a030e2a11dba602ba057b89cc34486c67",
+			"license": "BSD-3-Clause",
+			"byteLength": 145537,
+			"sha256": "c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908",
+			"providerRole": "soundscaper-bundled-wavpack-float32-encode-decode",
+			"compressionLevel": 2,
+			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
+			"qualification": "Exact reviewed float32 WavPack encode/decode slice with strict bounded parsing, startup canary, and a narrow stock WavPack 5.9.0 decoder witness. No patent-clearance or non-infringement claim is made.",
+			"evidence": ["src/common/editor/wavpack/source-manifest.json", "src/common/editor/wavpack/NOTICE.md", "src/common/editor/desktop-wavpack-codec-profile.ts", "src/common/editor/controller/desktop-audio-export-capability.ts", "scripts/audit-wavpack-wasm.mjs", "scripts/lib/desktop-bundled-wavpack-runtime.mjs", "desktop/bundled-wavpack-audio-codec-runtime.ts", "desktop/bundled-wavpack-stream.ts", "desktop/desktop-audio-codec-registration.mjs", "tests/audio-editor-wavpack.test.js", "tests/audio-editor-desktop-export-capability.test.ts", "tests/audio-editor-desktop-export-codec-model.test.ts", "tests/audio-editor-desktop-export-dialog-capability.test.js", "tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "docs/desktop-codec-provider-plan.md", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "reviewed-effect-utility-gain-wasm",
@@ -418,9 +427,28 @@
 			"qualification": "exact-bytes-only-no-codec-or-patent-clearance"
 		},
 		"providerOrder": ["bundled-open-codecs", "os", "external-user-install"],
+		"bundledProviders": {
+			"wavpack": {
+				"status": "admitted",
+				"version": "5.9.0",
+				"license": "BSD-3-Clause",
+				"directions": ["encode", "decode"],
+				"container": "wavpack",
+				"codec": "wavpack",
+				"sampleFormat": "f32",
+				"compressionLevel": 2,
+				"byteLength": 145537,
+				"sha256": "c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908",
+				"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
+				"startupAdmission": ["exact-byte-length", "sha256", "encode-parse-decode-canary"],
+				"streamValidation": "strict-bounded-reviewed-float32-profile",
+				"interoperability": "narrow-stock-wvunpack-5-9-0-witness",
+				"qualification": "exact-reviewed-slice-no-patent-clearance"
+			}
+		},
 		"executionStatus": {
 			"firstPartyPcmReaders": "existing-application-code",
-			"bundledCompressedCodecs": "unqualified-fail-closed",
+			"bundledCompressedCodecs": "wavpack-f32-admitted-all-others-unqualified-fail-closed",
 			"operatingSystemCodecs": "unqualified-fail-closed",
 			"externalFfmpeg": "user-installed-no-redistribution"
 		},
@@ -436,6 +464,19 @@
 			"config/electron-alternate-ffmpeg-manifest.json",
 			"scripts/lib/electron-alternate-ffmpeg.mjs",
 			"tests/desktop-electron-alternate-ffmpeg.test.js",
+			"src/common/editor/wavpack/source-manifest.json",
+			"src/common/editor/wavpack/NOTICE.md",
+			"src/common/editor/desktop-wavpack-codec-profile.ts",
+			"src/common/editor/controller/desktop-audio-export-capability.ts",
+			"scripts/audit-wavpack-wasm.mjs",
+			"scripts/lib/desktop-bundled-wavpack-runtime.mjs",
+			"desktop/bundled-wavpack-audio-codec-runtime.ts",
+			"desktop/bundled-wavpack-stream.ts",
+			"tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts",
+			"tests/desktop-audio-codec-runtime-staging.test.js",
+			"tests/audio-editor-desktop-export-capability.test.ts",
+			"tests/audio-editor-desktop-export-codec-model.test.ts",
+			"tests/audio-editor-desktop-export-dialog-capability.test.js",
 			"desktop/desktop-audio-codec-registration.mjs",
 			"desktop/external-ffmpeg-registration.mjs",
 			"THIRD_PARTY_LICENSES.md"
@@ -519,10 +560,10 @@
 		{
 			"id": "native-codecs",
 			"status": "disabled",
-			"scope": "bundled-compressed-and-operating-system-codec-execution",
-			"blocker": "The desktop composition registers no bundled compressed-codec or operating-system codec execution factory or admitted payload; both tiers fail closed. Existing first-party PCM readers are application code. Electron's exact alternate framework libffmpeg is distributed only as Chromium infrastructure and is not a provider tier, while user-installed external FFmpeg remains outside the production artifact closure.",
+			"scope": "additional-bundled-native-and-operating-system-codec-execution",
+			"blocker": "The exact reviewed WavPack 5.9.0 float32 WebAssembly provider is admitted outside this future gate. The desktop composition registers no other bundled compressed-codec execution factory or payload and no operating-system codec execution factory; those remaining tuples fail closed. Existing first-party PCM readers are application code. Electron's exact alternate framework libffmpeg is distributed only as Chromium infrastructure and is not a provider tier, while user-installed external FFmpeg remains outside the production artifact closure.",
 			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery"],
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "desktop/desktop-audio-codec-registration.mjs"]
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "docs/desktop-codec-provider-plan.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-wavpack-audio-codec-runtime.ts", "tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts"]
 		},
 		{
 			"id": "local-models",

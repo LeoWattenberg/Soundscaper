@@ -42,7 +42,8 @@ The matrix treats these as separate distributions:
 - the desktop-specific Electron renderer, whose composition excludes the Web
   FFmpeg wrapper and core;
 - translation and separately admitted native runtime assets staged beside that
-  renderer, excluding application-supplied FFmpeg/libav and FFmpeg WebAssembly;
+  renderer, including the exact reviewed WavPack 5.9.0 WebAssembly provider but
+  excluding application-supplied FFmpeg/libav and FFmpeg WebAssembly;
 - the Electron shell with embedded Chromium and Node.js, including Electron's
   exact alternate framework libffmpeg for the selected target; and
 - public desktop packages and their release/source archive set.
@@ -82,6 +83,13 @@ the work:
   application notice set. The alternate Electron framework libffmpeg also has
   one exact five-target manifest covering Electron version, release archive,
   archive digest, installed library name, byte length, and library digest.
+
+The WavPack 5.9.0 runtime meets the generated-WebAssembly rule with a pinned
+BSD-3-Clause source and notice closure, Emscripten 3.1.64 build definition,
+145,537-byte artifact, SHA-256
+`c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908`,
+and `scripts/audit-wavpack-wasm.mjs`. Desktop staging and startup independently
+recheck that exact artifact before it can become a provider.
 
 An audit status of `documented` means that checked-in provenance evidence is
 present and its existing automated audit remains enabled. It is not a legal
@@ -138,6 +146,10 @@ verification establishes the selected framework bytes, not a complete codec
 inventory, observed codec behavior, absence of patent exposure, or patent
 clearance.
 
+WavPack's BSD-3-Clause copyright license, exact artifact review, and observed
+stock WavPack 5.9.0 decoder interoperability likewise do not establish absence
+of patent exposure, patent clearance, or non-infringement in any territory.
+
 ## Notices
 
 `THIRD_PARTY_LICENSES.md` is the canonical human-readable aggregate notice.
@@ -178,8 +190,9 @@ requirements are implemented:
   license selection for each dual-licensed input, platform-API and ASIO
   trademark review, target notices, signed packages, and provisioned device-lab
   evidence;
-- native codecs need an exact codec/license inventory, corresponding source,
-  package notices, and distribution-specific patent review; and
+- additional bundled native and operating-system codecs need an exact
+  codec/license inventory, corresponding source, package notices, and
+  distribution-specific patent review; and
 - local models need licenses for code and weights, training-data provenance,
   model cards and use restrictions, exact hashes, and versioned offline notice
   delivery.
@@ -195,13 +208,23 @@ make it a bundled, operating-system, or external Soundscaper provider tier.
 
 The desktop codec provider order is bundled implementation, operating-system
 service, then user-installed external FFmpeg. That order is a selection policy,
-not an availability or qualification claim. Existing first-party PCM container
-readers remain ordinary application code. No bundled compressed-codec execution
-factory or admitted payload is registered, and neither the Windows nor macOS
-operating-system adapter has a registered execution factory. Both tiers
-therefore fail closed as unavailable. Their tuple catalogs, candidate filters,
-and canary contracts do not establish codec execution, conformance, platform
-availability, or patent clearance.
+not a general availability or qualification claim. Existing first-party PCM
+container readers remain ordinary application code. One bundled compressed
+provider is admitted: the exact 145,537-byte WavPack 5.9.0 WASM with SHA-256
+`c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908`
+supports lossless public `.wv` float32 encode/decode at compression level 2 on
+the five supported targets. One shared profile constant binds that level in the
+main runtime, rejects other bundled levels at the export capability gate before
+rendering, and limits the desktop dialog to level 2. Exact-hash staging and
+startup checks, a startup encode/parse/decode canary, a strict bounded stream
+parser, lossless multi-block tests, and an independent stock `wvunpack` 5.9.0
+decode witness qualify that narrow provider slice. They do not qualify other
+WavPack profiles, versions, or producers. No other bundled compressed-codec
+execution factory is registered, and neither the Windows nor macOS
+operating-system adapter has a registered execution factory. Every other
+bundled tuple and every operating-system tuple therefore fails closed as
+unavailable; their catalogs, candidate filters, and canary contracts do not
+establish execution, conformance, platform availability, or patent clearance.
 
 The final tier executes an FFmpeg program already installed on the user's
 machine, whether found by bounded discovery, chosen explicitly, or installed

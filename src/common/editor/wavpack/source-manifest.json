@@ -26,7 +26,7 @@
 		"_POSIX_C_SOURCE=200809L"
 	],
 	"licenseFiles": [
-		{ "path": "NOTICE.md", "sha256": "4b613f8eb245574cd63b272917f23223b6b4d7887c52a564e127646d708928ac" },
+		{ "path": "NOTICE.md", "sha256": "1bf8aa393a23b217c55d2afd7d20dcdd1fdf1f20c168eb176619dfb0afdefb3d" },
 		{ "path": "licenses/WAVPACK.txt", "sha256": "1703dd391c9b422910287add8483a27d9bead0b0b5ccd6d5017e995a7192b3e2" },
 		{ "path": "../staffpad/licenses/COMPILER_RT.txt", "sha256": "1a8f1058753f1ba890de984e48f0242a3a5c29a6a8f2ed9fd813f36985387e8d" },
 		{ "path": "../staffpad/licenses/EMSCRIPTEN.txt", "sha256": "620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86" },

@@ -1,7 +1,8 @@
 # WavPack PCM runtime notices
 
 Soundscaper includes a WebAssembly build of WavPack 5.9.0 for lossless
-compression of persisted 32-bit floating-point PCM chunks.
+compression of persisted 32-bit floating-point PCM chunks and for the exact
+desktop public `.wv` float32 encode/decode provider.
 
 - Upstream: <https://github.com/dbry/WavPack>
 - Release: `5.9.0`
@@ -16,3 +17,7 @@ The checked-in `wavpack.wasm` artifact is built with Emscripten 3.1.64. The
 reproducible source manifest and audit intentionally exclude WavPack tags,
 filename/file-system access, DSD, pre-4.0 legacy decoding, seek APIs,
 architecture assembly/SIMD, and threading.
+
+The desktop provider admits only the exact reviewed artifact and bounded
+float32 profile. This copyright-license notice makes no patent-clearance or
+non-infringement representation.

@@ -10,9 +10,46 @@ order:
 3. an external `ffmpeg`/`ffprobe` installation selected by the user.
 
 The browser build keeps its existing pinned FFmpeg WASM runtime. Desktop
-packages contain no FFmpeg executable, libav library, or FFmpeg WASM payload.
-The supported desktop targets remain Windows x64/ARM64, macOS ARM64, and Linux
-x64/ARM64. The retired macOS x64 target remains unsupported.
+packages contain no Soundscaper application-provider FFmpeg executable, libav
+library, or FFmpeg WASM payload. Electron's separately verified alternate
+framework libffmpeg remains Chromium infrastructure rather than a Soundscaper
+provider tier. The supported desktop targets remain Windows x64/ARM64, macOS
+ARM64, and Linux x64/ARM64. The retired macOS x64 target remains unsupported.
+
+## Implementation status — 2026-08-24
+
+The first bundled compressed-codec slice is implemented and registered on all
+five supported targets:
+
+- WavPack 5.9.0 public `.wv` lossless encode/decode for float32 PCM, one to
+  eight channels and 8–192 kHz;
+- the existing 145,537-byte `wavpack.wasm`, SHA-256
+  `c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908`,
+  built from pinned BSD-3-Clause upstream commit
+  `5803634a030e2a11dba602ba057b89cc34486c67`;
+- compression level 2 only, mapped to the reviewed `CONFIG_FAST_FLAG` ABI by
+  one shared profile constant used by the main runtime, the pre-render export
+  capability gate, and the desktop dialog, which offers no other bundled level;
+- exact regular-file, length, and digest verification during staging; startup
+  rechecks byte length and digest, then requires an encode/parse/decode canary;
+- a strict bounded parser that rejects unsupported flags and profiles,
+  correction data, unreviewed extensions, malformed block/metadata geometry,
+  truncation, and checksum faults; and
+- multi-block lossless round-trip, cancellation, output-bound, five-target,
+  and explicit macOS-x64 rejection tests.
+
+A separate Linux x64 interoperability check built stock WavPack 5.9.0
+`wvunpack` from the same pinned commit. It decoded a 1,240,560-byte,
+three-channel, 48 kHz multi-block provider output into 2,362,380 bytes of raw
+float32 PCM; expected and actual bytes both had SHA-256
+`b7f8cd1d8e1a00374f618587eb2c5872fcd250d8686c9cbda0b46e00003ea40f`.
+This is a narrow stock-decoder witness, not broad cross-version, cross-platform,
+or producer interoperability qualification.
+
+All other bundled compressed-codec implementations in this plan and all
+Windows/macOS operating-system codec execution remain unimplemented and fail
+closed. The WavPack copyright license and technical evidence are not patent
+clearance or a non-infringement representation.
 
 ## Provider boundary
 
@@ -34,7 +71,9 @@ x64/ARM64. The retired macOS x64 target remains unsupported.
 - Preserve the specialized WAV/BWF/BW64 and AIFF paths. Add libsndfile with
   libFLAC, libogg, libvorbis, and libopus for the wider native audio matrix.
 - Use mpg123 for MPEG Layers I/II/III decode, LAME for MP3 encode, and TwoLAME
-  for MP2 encode. Use native libwavpack for public WavPack import/export.
+  for MP2 encode. The exact WavPack 5.9.0 float32 WASM slice above now owns its
+  public `.wv` operations; consider native libwavpack only for separately
+  reviewed profiles that the admitted slice does not cover.
 - Use libwebm with libvpx for VP8/VP9 WebM and Opus/Vorbis audio.
 - Use dav1d 1.5.4 for AV1 decode on every supported target. Prefer SVT-AV1
   4.2.0 for AV1 encode on Windows x64, macOS ARM64, and Linux x64/ARM64.
@@ -122,8 +161,9 @@ Primary references: [dav1d project and release](https://images.videolan.org/proj
   FFmpeg. Unavailable last-resort formats must show an actionable reason in the
   existing import/export UI.
 - Final package audits must prove that desktop artifacts contain only admitted
-  native codec payloads and no FFmpeg/libav/WASM runtime, while browser tests
-  continue to verify the pinned browser runtime.
+  codec payloads, including the exact WavPack WASM, and no application-supplied
+  FFmpeg/libav or FFmpeg WASM runtime, while browser tests continue to verify
+  the pinned browser runtime.
 - Update licensing/security/payload/source-offer/threat-model evidence, sync
   derived policy narratives, repin digest-bound evidence, and pass native tests,
   `npm test`, `npm run build`, `npm run check`, and the full browser suite.
