@@ -11,7 +11,7 @@ export const DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES = 32 * 1024 * 1024;
 export const DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES = 128 * 1024 * 1024;
 export const DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE = 8_000;
 export const DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE = 192_000;
-export const DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT = 2;
+export const DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT = 8;
 
 export type DesktopAudioDecodeSettings = Readonly<{ readonly sampleFormat: 'f32le' }>;
 export type DesktopAudioFlacEncodeSettings = Readonly<{ readonly compressionLevel: number }>;
@@ -138,6 +138,9 @@ export function assertDesktopAudioCodecRequest(value: unknown): asserts value is
 	const channelCount = integer(
 		record.channelCount, 1, DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT, 'channel count',
 	);
+	if (channelCount > maximumChannelCount(format)) {
+		throw new RangeError(`The desktop audio ${format} channel count is unsupported.`);
+	}
 	integer(record.maximumOutputBytes, 1, DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES, 'maximum output');
 	if (Object.hasOwn(record, 'requestId')) requestId(record.requestId);
 	if (operation === 'audio-decode') validateDecodeSettings(record.settings);
@@ -275,11 +278,14 @@ function validateDecodedMetadata(value: unknown, output: Uint8Array): void {
 		|| metadata.interleaving !== 'interleaved') {
 		throw new TypeError('The decoded desktop audio metadata representation is invalid.');
 	}
-	audioFormat(metadata.sourceFormat);
+	const sourceFormat = audioFormat(metadata.sourceFormat);
 	integer(metadata.sampleRate, DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
 		DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE, 'decoded sample rate');
 	const channels = integer(metadata.channelCount, 1, DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT,
 		'decoded channel count');
+	if (channels > maximumChannelCount(sourceFormat)) {
+		throw new RangeError('The decoded desktop audio channel count is unsupported.');
+	}
 	const bytesPerFrame = Float32Array.BYTES_PER_ELEMENT * channels;
 	if (output.byteLength % bytesPerFrame !== 0
 		|| metadata.frameCount !== output.byteLength / bytesPerFrame) {
@@ -301,7 +307,10 @@ function validateEncodedMetadata(value: unknown): void {
 	}
 	integer(metadata.sampleRate, DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
 		DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE, 'encoded sample rate');
-	integer(metadata.channelCount, 1, DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT, 'encoded channel count');
+	const channels = integer(metadata.channelCount, 1, DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT, 'encoded channel count');
+	if (channels > maximumChannelCount(format)) {
+		throw new RangeError('The encoded desktop audio channel count is unsupported.');
+	}
 	integer(metadata.frameCount, 1, Number.MAX_SAFE_INTEGER, 'encoded frame count');
 }
 
@@ -316,6 +325,10 @@ function exactRecord(value: unknown, label: string): Record<string, unknown> {
 		return descriptor !== undefined && !Object.hasOwn(descriptor, 'value');
 	})) throw new TypeError(`The desktop audio codec ${label} must contain only data properties.`);
 	return value as Record<string, unknown>;
+}
+
+function maximumChannelCount(format: DesktopAudioCodecFormat): number {
+	return format === 'mp3' || format === 'mp2' ? 2 : DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT;
 }
 
 function exactKeys(

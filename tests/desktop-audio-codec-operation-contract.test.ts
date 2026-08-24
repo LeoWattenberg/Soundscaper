@@ -94,7 +94,13 @@ test('the request boundary enforces byte, output, rate, channel and PCM-frame bo
 		...decodeRequest(), maximumOutputBytes: DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES + 1,
 	}), /maximum output/u);
 	assert.throws(() => assertDesktopAudioCodecRequest({ ...decodeRequest(), sampleRate: 7_999 }), /sample rate/u);
-	assert.throws(() => assertDesktopAudioCodecRequest({ ...decodeRequest(), channelCount: 3 }), /channel count/u);
+	assert.doesNotThrow(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('opus'), channelCount: 8, input: new Uint8Array(32), sampleRate: 48_000,
+	}));
+	assert.throws(() => assertDesktopAudioCodecRequest({ ...decodeRequest(), channelCount: 9 }), /channel count/u);
+	assert.throws(() => assertDesktopAudioCodecRequest({
+		...encodeRequest('mp3'), channelCount: 3, input: new Uint8Array(12),
+	}), /channel count/u);
 	assert.throws(() => assertDesktopAudioCodecRequest({
 		...encodeRequest('flac'), input: new Uint8Array(7),
 	}), /complete PCM frames/u);
