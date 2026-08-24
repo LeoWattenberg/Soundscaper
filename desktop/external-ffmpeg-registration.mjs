@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { mkdir as nodeMkdir } from 'node:fs/promises';
-import { isAbsolute, resolve } from 'node:path';
+import { isAbsolute, resolve, win32 } from 'node:path';
 
 /** Compose main-owned FFmpeg preferences without loading any FFmpeg library. */
 export async function registerExternalFfmpegPreferences(options) {
@@ -21,6 +21,9 @@ export async function registerExternalFfmpegPreferences(options) {
 	const abort = new AbortController();
 	const plan = () => modules.planExternalFfmpegInstall({
 		platform: options.platform, architecture: options.architecture,
+		...(options.platform === 'win32'
+			? { packageManagerExecutable: windowsPackageManagerExecutable(options.environment) }
+			: {}),
 	});
 	const service = modules.createExternalFfmpegPreferenceService({
 		settings: options.settings,
@@ -46,6 +49,14 @@ export async function registerExternalFfmpegPreferences(options) {
 			ipc.dispose();
 		},
 	});
+}
+
+function windowsPackageManagerExecutable(environment) {
+	const localAppData = environment.LOCALAPPDATA;
+	if (typeof localAppData !== 'string' || localAppData.length < 1
+		|| localAppData.length > 4_096 || localAppData.includes('\0')
+		|| !win32.isAbsolute(localAppData)) return undefined;
+	return win32.join(localAppData, 'Microsoft', 'WindowsApps', 'winget.exe');
 }
 
 async function chooseExecutable(options) {

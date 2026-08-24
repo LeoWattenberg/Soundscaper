@@ -31,6 +31,7 @@ export interface ExternalFfmpegInstallPlan {
 
 export type ExternalFfmpegInstallUnsupportedReason =
 	| 'mac-x64-unsupported'
+	| 'package-manager-unresolved'
 	| 'unsupported-architecture'
 	| 'unsupported-platform';
 
@@ -188,6 +189,12 @@ export function planExternalFfmpegInstall(
 ): ExternalFfmpegInstallPlanResult {
 	const target = installTarget(request.platform, request.architecture);
 	if (typeof target !== 'string') return target;
+	if (target.startsWith('win-') && request.packageManagerExecutable === undefined) {
+		return Object.freeze({
+			status: 'unsupported', reason: 'package-manager-unresolved',
+			detail: 'WinGet must be resolved to an absolute executable path before installation.',
+		});
+	}
 	const executable = packageManagerExecutable(target, request.packageManagerExecutable);
 	const body = target === 'win-x64' || target === 'win-arm64'
 		? windowsPlanBody(target, executable)
@@ -365,7 +372,9 @@ function packageManagerExecutable(
 	override: string | undefined,
 ): string {
 	if (override === undefined) {
-		if (target.startsWith('win-')) return 'winget.exe';
+		if (target.startsWith('win-')) {
+			throw new TypeError('WinGet must be resolved to an absolute executable path.');
+		}
 		if (target === 'mac-arm64') return '/opt/homebrew/bin/brew';
 		return '/home/linuxbrew/.linuxbrew/bin/brew';
 	}

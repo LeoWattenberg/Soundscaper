@@ -213,6 +213,7 @@ function validateRequest(request: ExternalFfmpegInstallRunnerRequest): void {
 	if (!request || typeof request !== 'object'
 		|| typeof request.executable !== 'string' || request.executable.length < 1
 		|| request.executable.length > 4_096 || request.executable.includes('\0')
+		|| !isAbsolutePath(request.executable)
 		|| !Array.isArray(request.argv) || request.argv.length < 1 || request.argv.length > 64
 		|| request.argv.some((entry) => typeof entry !== 'string' || entry.length > 4_096 || entry.includes('\0'))
 		|| !options || typeof options !== 'object'

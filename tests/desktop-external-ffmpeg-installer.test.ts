@@ -12,10 +12,13 @@ import {
 } from '../desktop/external-ffmpeg-installer.ts';
 
 const WINDOWS_PACKAGE_ID = 'BtbN.FFmpeg.GPL.8.1';
+const WINGET_PATH = 'C:\\Users\\tester\\AppData\\Local\\Microsoft\\WindowsApps\\winget.exe';
 
 test('Windows plans the exact stable WinGet package for each supported architecture', () => {
 	for (const architecture of ['x64', 'arm64'] as const) {
-		const result = planExternalFfmpegInstall({ platform: 'win32', architecture });
+		const result = planExternalFfmpegInstall({
+			platform: 'win32', architecture, packageManagerExecutable: WINGET_PATH,
+		});
 		assert.equal(result.status, 'planned');
 		if (result.status !== 'planned') continue;
 		assert.deepEqual(result.plan, {
@@ -23,7 +26,7 @@ test('Windows plans the exact stable WinGet package for each supported architect
 			planId: result.plan.planId,
 			target: `win-${architecture}`,
 			source: 'winget',
-			executable: 'winget.exe',
+			executable: WINGET_PATH,
 			argv: [
 				'install', '--exact', '--id', WINDOWS_PACKAGE_ID,
 				'--source', 'winget', '--architecture', architecture,
@@ -40,6 +43,13 @@ test('Windows plans the exact stable WinGet package for each supported architect
 		assert.doesNotMatch(result.plan.argv.join(' '), /accept-(?:package|source)-agreements/iu);
 		assertNoShellBootstrap(result.plan);
 	}
+});
+
+test('Windows refuses a PATH-resolved WinGet plan', () => {
+	assert.deepEqual(planExternalFfmpegInstall({ platform: 'win32', architecture: 'x64' }), {
+		status: 'unsupported', reason: 'package-manager-unresolved',
+		detail: 'WinGet must be resolved to an absolute executable path before installation.',
+	});
 });
 
 test('Homebrew plans only its existing executable and the exact ffmpeg formula command', () => {
@@ -141,7 +151,7 @@ test('a confirmed plan runs with one fixed, sanitized, shell-free process policy
 		status: 'installed', exitCode: 0, stdout: 'installed', stderr: 'notice',
 	});
 	assert.ok(invocation);
-	assert.equal(invocation.executable, 'winget.exe');
+	assert.equal(invocation.executable, WINGET_PATH);
 	assert.deepEqual(invocation.argv, windowsPlan().argv);
 	assert.deepEqual(invocation.options, {
 		cwd: '/installer-cwd',
@@ -269,7 +279,9 @@ test('timeouts and oversized output fail closed under broker-owned bounds', asyn
 });
 
 function windowsPlan(): ExternalFfmpegInstallPlan {
-	const result = planExternalFfmpegInstall({ platform: 'win32', architecture: 'x64' });
+	const result = planExternalFfmpegInstall({
+		platform: 'win32', architecture: 'x64', packageManagerExecutable: WINGET_PATH,
+	});
 	assert.equal(result.status, 'planned');
 	if (result.status !== 'planned') throw new Error('The supported Windows plan was refused.');
 	return result.plan;

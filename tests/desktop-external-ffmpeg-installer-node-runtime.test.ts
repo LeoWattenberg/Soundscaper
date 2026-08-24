@@ -13,6 +13,8 @@ import type {
 	ExternalFfmpegInstallRunnerRequest,
 } from '../desktop/external-ffmpeg-installer.ts';
 
+const WINGET_PATH = 'C:\\Users\\tester\\AppData\\Local\\Microsoft\\WindowsApps\\winget.exe';
+
 interface FakeChild extends ExternalFfmpegInstallerChildProcess {
 	stdout: EventEmitter;
 	stderr: EventEmitter;
@@ -43,7 +45,7 @@ test('the Node adapter launches the exact executable and argv with no shell or s
 		status: 'exited', exitCode: 0, signal: null, stdout: 'installed', stderr: 'notice',
 	});
 	assert.deepEqual(launched, {
-		executable: 'winget.exe',
+		executable: WINGET_PATH,
 		argv: request.argv,
 		options: {
 			cwd: '/installer-cwd', env: { PATH: '/safe/bin', NO_COLOR: '1' },
@@ -179,6 +181,9 @@ test('malformed invocations fail before any process is spawned', () => {
 	assert.throws(() => runner({
 		...invocation(), options: { ...invocation().options, shell: true as never },
 	}), /installer runner request/iu);
+	assert.throws(() => runner({
+		...invocation(), executable: 'winget.exe',
+	}), /installer runner request/iu);
 	assert.equal(spawns, 0);
 });
 
@@ -188,7 +193,7 @@ function invocation(overrides: Readonly<{
 	readonly maximumOutputBytes?: number;
 }> = {}): ExternalFfmpegInstallRunnerRequest {
 	return {
-		executable: 'winget.exe',
+		executable: WINGET_PATH,
 		argv: [
 			'install', '--exact', '--id', 'BtbN.FFmpeg.GPL.8.1',
 			'--source', 'winget', '--architecture', 'x64',

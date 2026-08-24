@@ -91,6 +91,43 @@ test('cancelled file and install dialogs cause no mutation or package-manager pr
 	registration.dispose();
 });
 
+test('Windows registration resolves WinGet from LOCALAPPDATA instead of inherited PATH', async () => {
+	let plannedRequest: unknown;
+	const registration = await registerExternalFfmpegPreferences({
+		channels: CHANNELS, handle() {}, removeHandler() {}, settings: settingsFixture(),
+		dialog: {
+			showOpenDialog: () => Promise.resolve({ canceled: true, filePaths: [] }),
+			showMessageBox: () => Promise.resolve({ response: 0 }),
+		},
+		windowFor: () => null, platform: 'win32', architecture: 'arm64',
+		userDataPath: '/user-data',
+		environment: {
+			LOCALAPPDATA: 'C:\\Users\\tester\\AppData\\Local',
+			PATH: 'C:\\attacker-controlled',
+		},
+		mkdir: () => Promise.resolve(),
+		loadModules: async () => ({
+			createExternalFfmpegInstallerBroker,
+			createExternalFfmpegInstallerNodeRunner: () => async () => ({
+				status: 'exited', exitCode: 0, signal: null, stdout: '', stderr: '',
+			}),
+			createExternalFfmpegPreferenceNodeProbe: () => async () => available(),
+			createExternalFfmpegPreferenceService,
+			planExternalFfmpegInstall: (request: unknown) => {
+				plannedRequest = request;
+				return planExternalFfmpegInstall(request as Parameters<typeof planExternalFfmpegInstall>[0]);
+			},
+			registerExternalFfmpegPreferenceMainIpc,
+		}),
+	});
+	await registration.service.status();
+	assert.deepEqual(plannedRequest, {
+		platform: 'win32', architecture: 'arm64',
+		packageManagerExecutable: 'C:\\Users\\tester\\AppData\\Local\\Microsoft\\WindowsApps\\winget.exe',
+	});
+	registration.dispose();
+});
+
 function settingsFixture() {
 	type Selection = Readonly<{
 		executablePath: string;
