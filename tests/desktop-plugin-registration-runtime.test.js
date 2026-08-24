@@ -25,7 +25,10 @@ registerHooks({
 	},
 });
 
-const { createDesktopPluginHostingRuntime } = await import('../desktop/plugin-registration.mjs');
+const {
+	createDesktopPluginHostingRuntime,
+	registerDesktopPluginDiscovery,
+} = await import('../desktop/plugin-registration.mjs');
 const { DesktopPluginRegistry } = await import('../desktop/plugin-registry.ts');
 
 function recordFixtureInstallation(registry) {
@@ -120,4 +123,83 @@ test('a session the supervisor rejects reports the host crash instead of leaving
 	assert.equal(runtime.isolation.describeInstance(instance.instanceId).state, 'faulted');
 	assert.equal(runtime.isolation.describeDigest('ab'.repeat(32)).recentFaults, 1);
 	runtime.service.dispose();
+});
+
+test('repeated host crashes quarantine the digest durably, and the explicit clear rehosts it', async (t) => {
+	const { mkdtemp, rm } = await import('node:fs/promises');
+	const { tmpdir } = await import('node:os');
+	const { join } = await import('node:path');
+	const userDataPath = await mkdtemp(join(tmpdir(), 'plugin-quarantine-'));
+	t.after(() => rm(userDataPath, { recursive: true, force: true }));
+	const digest = 'ab'.repeat(32);
+	const owner = {};
+	const sessions = [];
+	const handlers = new Map();
+	const channels = new Proxy({}, { get: (_target, name) => String(name) });
+	const registration = registerDesktopPluginDiscovery({
+		channels,
+		handle: (channel, handler) => handlers.set(channel, handler),
+		ownerFor: () => owner,
+		settings: { snapshot: () => ({ nativePluginDiscoveryEnabled: true }) },
+		supervisor: {
+			runJob: async () => { throw new Error('no scans in this test'); },
+			snapshot: () => ({ state: 'idle', quarantined: false }),
+			clearQuarantine: () => undefined,
+			dispose: () => undefined,
+		},
+		describePayload: async () => ({ status: 'available' }),
+		userDataPath,
+		parentWindow: () => null,
+		desktopRoot: userDataPath,
+		packaged: false,
+		resourcesPath: userDataPath,
+		nativePluginStateAuthority: { persist: () => { throw new Error('unused'); }, read: () => null },
+		isPluginHostFormatActivated: () => true,
+		createPluginHostHelper: () => ({
+			describePayload: async () => ({ status: 'available' }),
+			supervisor: { dispose: () => undefined },
+		}),
+		openPersistentPluginSession: async () => {
+			const session = {
+				format: 'clap', reportedLatencyFrames: 0,
+				closed: null, reject: null,
+				transferTo: () => undefined,
+				authenticateState: () => { throw new Error('unused'); },
+				vendorWindowCapability: (windowId) => `${windowId}.${'c'.repeat(64)}`,
+				close: async () => undefined,
+			};
+			session.closed = new Promise((_resolve, reject) => { session.reject = reject; });
+			sessions.push(session);
+			return session;
+		},
+	});
+	t.after(() => registration.dispose());
+	await registration.ready();
+	const admission = recordFixtureInstallation(registration.registry);
+	if (admission.status !== 'recorded') return;
+	const event = { sender: { postMessage: () => undefined } };
+	const instantiate = () => handlers.get('nativePluginInstantiate')(event, {
+		installationId: admission.installationId, instanceId: null, sampleRate: 48_000,
+	});
+	const crashOnce = async () => {
+		await instantiate();
+		const crash = new Error('The helper process exited unexpectedly.');
+		crash.cause_ = 'helper-exit';
+		sessions.at(-1).reject(crash);
+		await new Promise((resolve) => setImmediate(resolve));
+		await registration.settlePluginQuarantineWrites();
+	};
+	await crashOnce();
+	assert.equal(registration.quarantine.isQuarantined(digest), false);
+	await crashOnce();
+	assert.equal(registration.quarantine.isQuarantined(digest), true,
+		'two qualifying host faults within the window must reach the durable store');
+	assert.equal(registration.quarantine.describe(digest).scope, 'host');
+	await assert.rejects(instantiate, /quarantined/u);
+	const outcome = await handlers.get('nativePluginClearQuarantine')(event, { digest, clearance: 're-enable' });
+	assert.deepEqual(outcome, { cleared: true });
+	assert.equal(registration.quarantine.isQuarantined(digest), false);
+	// The clear must release the in-memory hold too, not only the durable file.
+	const rehosted = await instantiate();
+	assert.equal(rehosted.state, 'hosted');
 });

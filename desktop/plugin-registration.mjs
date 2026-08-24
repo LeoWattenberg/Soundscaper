@@ -47,6 +47,16 @@ const SCANNER_FAULT_KINDS = new Map([
 	['oversize-plugin', 'oversized-answer'],
 ]);
 
+/** Host stop reasons translated into the durable store's closed fault kinds. */
+const HOST_FAULT_KINDS = new Map([
+	['crash', 'crash'],
+	['hang', 'hang'],
+	['malformed-answer', 'malformed-answer'],
+	['resource-violation', 'crash'],
+	['oversize-state', 'oversized-answer'],
+	['identity-changed', 'identity-change'],
+]);
+
 /**
  * Both durable files have to outlive the process, so they are written
  * atomically. A half-written record would be indistinguishable from a machine
@@ -285,7 +295,15 @@ export function registerDesktopPluginDiscovery({
 		if (clearance !== 'rescan' && clearance !== 're-enable') {
 			throw new Error('A plug-in quarantine is cleared only by an explicit rescan or re-enable.');
 		}
-		return Object.freeze({ cleared: await quarantine.clear(String(value?.digest || ''), clearance) });
+		const digest = String(value?.digest || '');
+		// A fault write still in flight lands before the clearance, so the user
+		// clears the quarantine that exists rather than racing its record.
+		await hosting?.settleQuarantineWrites();
+		const cleared = await quarantine.clear(digest, clearance);
+		// The in-memory hold releases with the durable one, or an explicit
+		// re-enable would leave the digest dead until the editor restarts.
+		const restored = hosting ? hosting.isolation.restoreDigest(digest) : false;
+		return Object.freeze({ cleared: cleared || restored });
 	});
 	handle(channels.nativePluginReviewInstallation, async (event, value) => {
 		void ownerFor(event);
@@ -337,6 +355,7 @@ export function registerDesktopPluginDiscovery({
 		supervisorPort: supervisor,
 		registry,
 		quarantine,
+		settlePluginQuarantineWrites: () => hosting?.settleQuarantineWrites() ?? Promise.resolve(),
 		ready: async () => {
 			await quarantine.load();
 			return Object.freeze([]);
@@ -399,10 +418,19 @@ export function createDesktopPluginHostingRuntime({
 		if (!host) throw new Error('The isolated plug-in host is unavailable.');
 		return host.supervisor;
 	});
+	// Deferred into a chain rather than awaited in the fault path: the report
+	// that noticed the crash must not be replaced by a failure to record it.
+	let quarantineWrites = Promise.resolve();
 	isolation = new PluginHostIsolationRegistry({
 		mintId: () => randomBytes(20).toString('hex'),
 		isEnabled: () => settings.snapshot().nativePluginDiscoveryEnabled === true,
 		isDigestQuarantined: (digest) => quarantine.isQuarantined(digest),
+		onQualifyingFault: (digest, reason) => {
+			const kind = HOST_FAULT_KINDS.get(reason) ?? 'crash';
+			quarantineWrites = quarantineWrites
+				.then(() => quarantine.record({ digest, scope: 'host', kind }))
+				.catch(() => undefined);
+		},
 		startHost: async (launch) => {
 			if (isFormatActivated(launch.format) !== true) {
 				throw new Error('That plug-in format remains behind its production activation gate.');
@@ -484,6 +512,7 @@ export function createDesktopPluginHostingRuntime({
 		.filter(([, entry]) => entry.owner === owner).map(([instanceId]) => closeRealtime(instanceId)));
 	return Object.freeze({
 		isolation, service, openRealtime, closeRealtime, closeAll, revokeOwner, persistState, restoreState,
+		settleQuarantineWrites: () => quarantineWrites,
 	});
 }
 

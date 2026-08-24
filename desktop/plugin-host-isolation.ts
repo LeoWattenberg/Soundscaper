@@ -85,6 +85,12 @@ export interface PluginHostIsolationOptions {
 	readonly isStateEligible?: (instanceId: string) => boolean;
 	/** The durable quarantine, consulted rather than mirrored by this registry. */
 	readonly isDigestQuarantined?: (binarySha256: string) => boolean;
+	/**
+	 * Every qualifying host fault is also announced here so the durable store can
+	 * accrue it. Without this seam the two-in-ten-minutes quarantine lives only in
+	 * process memory and a crash-looping binary hosts again on the next launch.
+	 */
+	readonly onQualifyingFault?: (binarySha256: string, reason: PluginHostStopReason) => void;
 }
 
 export interface PluginInstanceRequest {
@@ -168,6 +174,7 @@ export class PluginHostIsolationRegistry {
 	readonly #isEnabled: () => boolean;
 	readonly #isStateEligible: (instanceId: string) => boolean;
 	readonly #isDigestQuarantined: (binarySha256: string) => boolean;
+	readonly #onQualifyingFault: (binarySha256: string, reason: PluginHostStopReason) => void;
 	readonly #now: () => number;
 	readonly #owners = new WeakMap<object, OwnerEntry>();
 	readonly #hosts = new Map<string, HostEntry>();
@@ -188,6 +195,7 @@ export class PluginHostIsolationRegistry {
 		this.#isEnabled = options.isEnabled ?? (() => false);
 		this.#isStateEligible = options.isStateEligible ?? (() => true);
 		this.#isDigestQuarantined = options.isDigestQuarantined ?? (() => false);
+		this.#onQualifyingFault = options.onQualifyingFault ?? (() => undefined);
 		this.#now = options.now ?? (() => Date.now());
 	}
 
@@ -322,6 +330,7 @@ export class PluginHostIsolationRegistry {
 		if (!qualifying) return stopOutcome(host.hostId, report.reason, false, false, instanceIds);
 		const faults = [...this.#recentFaults(digest), this.#now()];
 		this.#faults.set(digest, faults);
+		safely(() => this.#onQualifyingFault(digest, report.reason));
 		const quarantined = faults.length >= PLUGIN_HOST_FAULT_LIMIT;
 		if (quarantined) {
 			this.#quarantined.add(digest);
