@@ -101,6 +101,43 @@ export function createFramescaperCompanionAudioProjectScopeV15(
 	});
 }
 
+export interface FramescaperSequenceAudioAuthorityScopeV15 {
+	/** The delivered sequence's clip-bearing audio tracks, sorted for binding. */
+	readonly audioTrackIds: readonly string[];
+	readonly mixer: MixerGraphV21;
+	readonly automationLanes: readonly DataRecord[];
+}
+
+/**
+ * The delivered sequence's audio authority for a picture plan: its clip-bearing
+ * audio tracks, the mixer neighbourhood they reach, and the automation that
+ * survives it. Unlike the companion render scope this never refuses — a
+ * cross-scope sidechain or a silent sequence cannot change delivered pixels,
+ * so the projection stays consistent instead of failing closed.
+ */
+export function framescaperSequenceAudioAuthorityScopeV15(
+	project: FramescaperProjectV28,
+	sequenceId: string,
+): FramescaperSequenceAudioAuthorityScopeV15 {
+	const sequences = records(project.sequences, 'Framescaper sequences');
+	const selected = uniqueRecordById(sequences, sequenceId, 'selected Framescaper sequence');
+	const trackById = uniqueRecordsById(records(project.tracks, 'Framescaper tracks'), 'Framescaper track');
+	const audioClipIds = new Set(records(project.clips, 'Framescaper clips')
+		.filter(({ kind }) => kind === 'audio').map((clip) => id(clip, 'Framescaper clip')));
+	const programme = strings(selected.trackIds, 'selected Framescaper sequence track IDs')
+		.map((trackId) => trackById.get(trackId))
+		.filter((track): track is DataRecord => track !== undefined && track.type === 'audio'
+			&& strings(track.clipIds, 'audio track clip IDs').some((clipId) => audioClipIds.has(clipId)));
+	const audioTrackIds = sortedIds(programme, 'sequence audio track');
+	const scope = selectedMixerGraph(normalizeMixerGraphV21(project.mixer), audioTrackIds, 'authority');
+	return Object.freeze({
+		audioTrackIds: Object.freeze(audioTrackIds),
+		mixer: scope.graph,
+		automationLanes: Object.freeze(records(project.automationLanes, 'automation lanes')
+			.filter((lane) => laneSurvivesScope(lane, scope))),
+	});
+}
+
 interface SelectedMixerGraphScope {
 	readonly graph: MixerGraphV21;
 	readonly edgeIds: ReadonlySet<string>;
@@ -110,8 +147,15 @@ interface SelectedMixerGraphScope {
 function selectedMixerGraph(
 	graph: MixerGraphV21,
 	trackIds: readonly string[],
+	mode: 'render' | 'authority' = 'render',
 ): SelectedMixerGraphScope {
-	const reachable = new Set(trackIds.map((trackId) => `track:${trackId}`));
+	// The master strip is global authority: the authority projection seeds it so
+	// its output edges — and the main output's reachability — survive even a
+	// silent scope. The render scope must instead prove the tracks reach main.
+	const reachable = new Set([
+		...trackIds.map((trackId) => `track:${trackId}`),
+		...(mode === 'authority' ? ['master'] : []),
+	]);
 	const includedEdgeIds = new Set<string>();
 	const includedOutputIds = new Set<string>();
 	let changed = true;
@@ -139,6 +183,10 @@ function selectedMixerGraph(
 			|| edge.destination.kind !== 'effect-sidechain'
 			|| !reachable.has(stripKey(edge.destination.strip))) continue;
 		if (!reachable.has(endpointKey(edge.source))) {
+			// The authority projection describes a picture render; a sidechain fed
+			// from outside the scope cannot change its pixels, so it is projected
+			// away rather than refused.
+			if (mode === 'authority') continue;
 			throw new RangeError(
 				`Selected companion audio has a cross-sequence sidechain dependency at edge ${edge.id}.`,
 			);
@@ -148,8 +196,10 @@ function selectedMixerGraph(
 	const nodeIds = new Set([...reachable].flatMap((key) => (
 		key.startsWith('mixer-node:') ? [key.slice('mixer-node:'.length)] : []
 	)));
-	const outputs = graph.outputs.filter((output) => includedOutputIds.has(output.id));
-	if (outputs.filter(({ role }) => role === 'main').length !== 1) {
+	const outputs = mode === 'authority'
+		? graph.outputs
+		: graph.outputs.filter((output) => includedOutputIds.has(output.id));
+	if (mode === 'render' && outputs.filter(({ role }) => role === 'main').length !== 1) {
 		throw new RangeError('Selected companion audio mixer paths do not reach exactly one main output.');
 	}
 	const strips = new Set([...reachable].filter((key) => (

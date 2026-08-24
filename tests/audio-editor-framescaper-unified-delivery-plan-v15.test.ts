@@ -161,6 +161,63 @@ test('selected V15 companion planning isolates another sequence and binds its ex
 	assert.equal(JSON.stringify(withAnotherSequence), persistedBeforePlanning);
 });
 
+test('a silent delivered sequence needs no companion despite other-sequence audio', () => {
+	// Programme audio is the delivered sequence's, not the project's. With the
+	// only audio track in another sequence, a PNG-sequence delivery must build
+	// without a companion — requiring one demands exactly what the
+	// sequence-scoped companion planner then refuses, leaving the delivery
+	// unreachable in both directions.
+	const options = unrelatedAudioOptions();
+	const silent = {
+		...options,
+		tracks: (options.tracks as readonly Record<string, unknown>[])
+			.filter(({ id }) => id !== 'audio-track'),
+		clips: (options.clips as readonly Record<string, unknown>[])
+			.filter(({ id }) => id !== 'audio-clip'),
+		sequences: (options.sequences as readonly Record<string, unknown>[])
+			.map((sequence) => (sequence.id === 'main-sequence'
+				? { ...sequence, trackIds: ['video-track'] }
+				: sequence)),
+	};
+	const project = createFramescaperProjectV28(PROFILE, silent);
+	const authority = createFramescaperNativeRenderPlanAuthorityV28(project, imageSequenceDelivery());
+	const bundle = createFramescaperProjectUnifiedRenderDeliveryBundleV15(PROFILE, project, authority, {
+		deliveryProfile: 'encode-png-sequence',
+	});
+	assert.equal(bundle.plan.companionAudio, null);
+	assert.equal(bundle.companionAudioBundle, null);
+});
+
+test('a clip-less audio track is not programme audio the picture could hide', () => {
+	const options = framescaperV20Options() as Record<string, unknown> & {
+		clips: readonly Record<string, unknown>[];
+		tracks: readonly Record<string, unknown>[];
+	};
+	const silentTrack = {
+		...options,
+		finishing: { captionTracks: [] },
+		clips: options.clips.filter(({ id }) => id !== 'audio-clip'),
+		tracks: options.tracks.map((track) => (track.id === 'audio-track'
+			? { ...track, clipIds: [] }
+			: track)),
+	};
+	const project = createFramescaperProjectV28(PROFILE, silentTrack);
+	const authority = createFramescaperNativeRenderPlanAuthorityV28(project, imageSequenceDelivery());
+	const bundle = createFramescaperProjectUnifiedRenderDeliveryBundleV15(PROFILE, project, authority, {
+		deliveryProfile: 'encode-png-sequence',
+	});
+	assert.equal(bundle.plan.companionAudio, null);
+});
+
+function imageSequenceDelivery() {
+	return {
+		kind: 'image-sequence' as const,
+		format: 'png' as const,
+		frameRate: { num: 24, den: 1 },
+		preserveAlpha: true as const,
+	};
+}
+
 test('selected V15 companion scope refuses ambiguous ownership and cross-sequence sidechains', () => {
 	const project = projectWithUnrelatedAudioSequence();
 	const ambiguous = structuredClone(project);

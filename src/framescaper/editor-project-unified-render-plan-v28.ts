@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { UnifiedExactRenderFinishingNode, UnifiedExactRenderPlanV14 } from '../common/editor/unified-exact-render-plan.ts';
+import { framescaperSequenceAudioAuthorityScopeV15 } from './editor-project-companion-audio-scope-v15.ts';
 import {
 	snapshotFramescaperUnifiedExactVisualRenderAuthority,
 	type FramescaperUnifiedExactVisualRenderAuthority,
@@ -53,8 +54,16 @@ export function createFramescaperUnifiedRenderFinishingNodeV28(
 ): UnifiedExactRenderFinishingNode {
 	const colorContexts = project.videoColorContexts.filter((context) => context.sequenceId === sequenceId);
 	if (colorContexts.length !== 1) throw new ReferenceError('V28 render requires exactly one sequence color context.');
-	const audioTracks = records(project.tracks, 'V28 render tracks').filter(({ type }) => type === 'audio')
-		.map((track) => ({ id: String(track.id), effectIds: effectIds(track.effects) })).sort(compareIds);
+	// The audio authority is the delivered sequence's, not the project's: its
+	// plan-level consumer is the V15 companion-audio requirement, and a track
+	// outside the delivered sequence — or one with nothing to play — is not
+	// programme audio this picture delivery could hide. The mixer and the
+	// automation follow the same projection so the context stays consistent.
+	const scope = framescaperSequenceAudioAuthorityScopeV15(project, sequenceId);
+	const trackById = new Map(records(project.tracks, 'V28 render tracks')
+		.map((track) => [String(track.id), track]));
+	const audioTracks = scope.audioTrackIds
+		.map((id) => ({ id, effectIds: effectIds(trackById.get(id)!.effects) })).sort(compareIds);
 	const master = record(project.master, 'V28 render master');
 	return {
 		kind: 'finishing', nodeId: generatedNodeId('finishing', sequenceId, projectIdentities), sequenceId,
@@ -68,7 +77,9 @@ export function createFramescaperUnifiedRenderFinishingNodeV28(
 		audioContext: {
 			audioTracks, masterEffectIds: effectIds(master.effects),
 			masterChannels: positiveInteger(project.masterChannels, 'V28 render master channels'),
-			automationLanes: [...project.automationLanes].sort(compareIds), mixer: project.mixer,
+			automationLanes: [...scope.automationLanes as readonly { id: string }[]]
+				.sort(compareIds) as never,
+			mixer: scope.mixer,
 		},
 	};
 }
