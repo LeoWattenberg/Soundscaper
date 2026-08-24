@@ -101,6 +101,32 @@ The exact allowlist, per-file hashes, imports, exports, toolchain image, modific
 
 Audacity is a registered trademark. This project is not affiliated with or endorsed by the Audacity project or Muse Group.
 
+## libFLAC 1.5.0 WebAssembly
+
+Soundscaper distributes one exact memory-only Emscripten build of libFLAC
+1.5.0 under the BSD-3-Clause license as a desktop bundled `.flac`
+encode/decode provider on Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64.
+macOS x64 is unsupported.
+
+- upstream: <https://github.com/xiph/flac/tree/1.5.0>
+- pinned commit: `1507800de4b70e21be71f38caa0d9079d0bc6e45`
+- source archive SHA-256: `f2c1c76592a82ffff8413ba3c4a1299b6c7ab06c734dee03fd88630485c2b920`
+- retained license: [`licenses/FLAC.txt`](src/common/editor/flac/licenses/FLAC.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/flac/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/flac/source-manifest.json)
+- exact `flac.wasm`: 153,044 bytes; SHA-256 `34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443`
+
+The build contains the libFLAC stream encoder/decoder core and exposes only a
+bounded memory ABI. File access, Ogg framing, metadata mutation,
+architecture-specific SIMD, and threads are disabled. Desktop staging and
+startup recheck the artifact length and digest, and startup runs an
+encode/decode canary before registering the provider. The decoder validates
+bounded STREAMINFO geometry and relies on libFLAC's frame CRC and stream MD5
+checks. Encoding clamps float32 input to the unit PCM range and quantizes it to
+signed 24-bit PCM; the resulting FLAC is lossless over that explicit integer
+representation, not float-exact. The BSD-3-Clause license and technical review
+do not establish absence of patent exposure or patent clearance.
+
 ## WavPack 5.9.0 WebAssembly
 
 Soundscaper distributes one exact Emscripten build of WavPack 5.9.0 under the
@@ -202,12 +228,13 @@ complete enabled-codec inventory, codec behavior, absence of patent exposure,
 or patent clearance.
 
 The maintained first-party PCM container readers remain application source.
-The exact WavPack 5.9.0 float32 provider described above is the only admitted
-bundled compressed-codec runtime in the shipped desktop composition. Every
-other bundled compressed-codec candidate provides policy and tuple contracts
-only and fails closed as unavailable. The Windows and macOS operating-system
-codec adapters likewise have no registered execution factory, so every
-operating-system codec tuple remains unavailable and unqualified.
+The exact libFLAC 1.5.0 signed-24 and WavPack 5.9.0 float32 providers described
+above are the admitted bundled compressed-codec runtimes in the shipped desktop
+composition. Every other bundled compressed-codec candidate provides policy
+and tuple contracts only and fails closed as unavailable. The Windows and
+macOS operating-system codec adapters remain unavailable until an exact target
+payload, native self-test, runtime registration, and package evidence have all
+been admitted.
 
 As the final provider tier, the desktop application may execute an FFmpeg
 program already installed on the user's system after bounded discovery or an
