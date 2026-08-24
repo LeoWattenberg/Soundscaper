@@ -450,9 +450,13 @@ function assertRequest(request: FramescaperNativeMediaV14RuntimeRequest): void {
 }
 
 function helperEncodeBackend(value: string) {
-	return validateHelperNativeMediaEncodeBackend(
-		value === NATIVE_MEDIA_WEB_BACKEND ? NATIVE_MEDIA_CPU_BACKEND : value,
-	);
+	// The web fallback is a typed refusal owned by the renderer route; mapping
+	// it silently onto native CPU here would execute real native work while the
+	// result stayed labelled web-core — the synthesized receipt the plan forbids.
+	if (value === NATIVE_MEDIA_WEB_BACKEND) {
+		throw new RangeError('The Web Core fallback never executes through the native helper.');
+	}
+	return validateHelperNativeMediaEncodeBackend(value);
 }
 
 function binding(byteLength: number, sha256: string): HelperDataPlaneBinding {

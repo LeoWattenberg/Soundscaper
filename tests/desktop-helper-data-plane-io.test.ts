@@ -88,6 +88,31 @@ test('tamper, reordering, oversize chunks, and early completion remove the parti
 	}
 });
 
+test('a cancel arriving on a full in-flight window is a cancellation, not backpressure', async () => {
+	const directory = await mkdtemp(join(tmpdir(), 'framescaper-plane-cancel-'));
+	try {
+		const destination = join(directory, 'partial.bin');
+		const [, helper] = portPair();
+		const receive = receiveHelperDataPlaneFile({
+			binding: binding('host-to-helper', BYTES, 8, 1), port: helper, path: destination,
+		});
+		// Two frames land before the receiver drains its queue: a valid chunk
+		// and the sender's abandonment. The cancel filled the one-deep window,
+		// which used to be reported as a queue violation instead of what it is.
+		helper.peer!.postMessage({
+			dataPlaneVersion: 1, type: 'chunk', streamId: 'ab'.repeat(20), sequence: 0,
+			offset: 0, bytes: new Uint8Array(BYTES.subarray(0, 8)),
+		});
+		helper.peer!.postMessage({
+			dataPlaneVersion: 1, type: 'cancel', streamId: 'ab'.repeat(20), reason: 'host-abort',
+		});
+		await assert.rejects(receive, /cancelled the stream/u,
+			'the failure must name the cancellation, not an invented backpressure violation');
+	} finally {
+		await rm(directory, { recursive: true, force: true });
+	}
+});
+
 test('abort propagates a typed cancellation and closes both stream ends', async () => {
 	const directory = await mkdtemp(join(tmpdir(), 'framescaper-plane-abort-'));
 	try {

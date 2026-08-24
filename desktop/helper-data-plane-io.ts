@@ -424,7 +424,10 @@ class PortInbox {
 		}
 		const waiter = this.#waiters.shift();
 		if (!waiter) {
-			if (this.#messages.length >= this.#maximumQueuedMessages) {
+			// A cancellation is not backpressure: the peer abandoning the stream
+			// while its admitted window is full must be reported as the
+			// cancellation it is, not as a queue violation.
+			if (message.type !== 'cancel' && this.#messages.length >= this.#maximumQueuedMessages) {
 				this.#fail(new Error('The helper data-plane peer exceeded its admitted in-flight queue.'));
 				return;
 			}

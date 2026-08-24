@@ -77,6 +77,33 @@ test('the encode output ceiling budgets audio alongside raw video', () => {
 		'a music-heavy small-canvas export must fit its output grant');
 });
 
+test('the web fallback backend never executes through the native helper', async () => {
+	const directory = await mkdtemp(join(tmpdir(), 'framescaper-v14-web-backend-'));
+	try {
+		const descriptor = await mediaHostDescriptor(directory);
+		const adapter = createNativeMediaV14HelperAdapter({
+			descriptor, scratchRoot: join(directory, 'scratch'),
+			createMessageChannel: () => {
+				const [hostPort, helperPort] = portPair(); return { hostPort, helperPort };
+			},
+			runJob: async () => { throw new Error('the helper must not be reached'); },
+		});
+		// Mapping web-core silently onto native CPU would execute real native
+		// work under a web-core label — the synthesized receipt the plan forbids.
+		await assert.rejects(adapter.execute({
+			adapterVersion: 1,
+			attempt: {
+				jobId: 'ab'.repeat(20), backend: NATIVE_MEDIA_WEB_BACKEND, envelope: proxyEnvelope(),
+				sources: [], rootGrantId: 'cd'.repeat(16), relativeDestination: 'out.mov', stages: [],
+			},
+			sourceBodies: [], timingBodies: [],
+			derivedInputs: {} as never,
+			destination: {} as never,
+			onProgress: () => undefined,
+		} as never), /never executes through the native helper/u);
+	} finally { await rm(directory, { recursive: true, force: true }); }
+});
+
 test('V14 proxy adapter grants one exact original and ProRes Proxy MOV recipe to the helper', async () => {
 	const directory = await mkdtemp(join(tmpdir(), 'framescaper-v14-proxy-adapter-'));
 	try {
