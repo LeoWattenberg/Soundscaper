@@ -133,6 +133,35 @@ function createRuntime(
 	const provider = bundledProvider(target);
 	return Object.freeze({
 		provider,
+		async preflightRequest(
+			requestValue: DesktopAudioCodecRequest,
+			options: Readonly<{ readonly operation: DesktopCodecOperation; readonly signal?: AbortSignal }>,
+		): Promise<DesktopCodecPreflightResult> {
+			throwIfAborted(options?.signal);
+			let request: DesktopAudioCodecRequest;
+			try { request = normalizeDesktopAudioCodecRequest(requestValue); }
+			catch {
+				return Object.freeze({ disposition: 'rejected', reason: 'The FLAC request is invalid.' });
+			}
+			const direction = request.operation === 'audio-encode' ? 'encode' : 'decode';
+			if (request.format !== 'flac' || direction !== options?.operation?.direction
+				|| !supportedOperation(options.operation)) {
+				return Object.freeze({
+					disposition: 'rejected', reason: 'The FLAC request does not match its admitted operation.',
+				});
+			}
+			if (request.operation === 'audio-encode') {
+				if (request.settings.bitDepth !== BUNDLED_FLAC_PCM_BIT_DEPTH) return Object.freeze({
+					disposition: 'unsupported',
+					reason: 'The bundled FLAC provider supports only signed 24-bit PCM.',
+				});
+				if (request.settings.compressionLevel > 8) return Object.freeze({
+					disposition: 'unsupported',
+					reason: 'The bundled FLAC provider supports compression levels 0 through 8.',
+				});
+			}
+			return Object.freeze({ disposition: 'supported', reason: null });
+		},
 		async execute(
 			requestValue: DesktopAudioCodecRequest,
 			options: Readonly<{ readonly operation: DesktopCodecOperation; readonly signal?: AbortSignal }>,

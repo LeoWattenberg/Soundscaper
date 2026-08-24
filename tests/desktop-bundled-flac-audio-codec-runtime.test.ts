@@ -92,6 +92,14 @@ test('all reviewed compression levels round trip and other FLAC settings fail cl
 		status: 'failed', reason: 'unavailable',
 		detail: 'The bundled FLAC provider supports only signed 24-bit PCM.',
 	});
+	assert.equal(typeof runtime.preflightRequest, 'function');
+	const unreviewedLevel = encodeRequest(source, 257, 2, 9);
+	assert.deepEqual(await runtime.preflightRequest?.(unreviewedLevel, {
+		operation: deriveDesktopAudioCodecOperation(unreviewedLevel),
+	}), {
+		disposition: 'unsupported',
+		reason: 'The bundled FLAC provider supports compression levels 0 through 8.',
+	});
 });
 
 test('decode trusts bounded STREAMINFO geometry and rejects corruption', async () => {
