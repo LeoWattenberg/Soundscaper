@@ -294,6 +294,12 @@ async function executeStaged<Operation>(options: Readonly<{
 		limits: options.limits, signal: options.request.signal, launch: options.launch,
 	});
 	if (processResult.status === 'unavailable') return processResult;
+	let finalDigest: string;
+	try { finalDigest = await options.digestExecutable(executablePath); }
+	catch { return unavailable('identity-changed', processResult.log); }
+	if (!SHA256.test(finalDigest) || finalDigest !== admittedDigest) {
+		return unavailable('identity-changed', processResult.log);
+	}
 	const output = await readBoundedRegularFile(options.files.outputPath, options.files.maximumOutputBytes);
 	if (output.status === 'unavailable') return {
 		...unavailable(output.reason === 'limit' ? 'output-limit'

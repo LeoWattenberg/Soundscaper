@@ -65,7 +65,7 @@ test('an admitted operation launches only main-built argv in a private scratch d
 	const result = await runner.execute({ operation: { codec: 'opus' }, input: Uint8Array.of(1, 2, 3) });
 	assert.deepEqual(result, { status: 'executed', output: Uint8Array.of(4, 5, 6), log: 'encoded' });
 	assert.ok(files);
-	assert.deepEqual(events, ['build', 'validate', 'hash', 'spawn']);
+	assert.deepEqual(events, ['build', 'validate', 'hash', 'spawn', 'hash']);
 	assert.equal(launch?.executable, '/opt/ffmpeg/bin/ffmpeg');
 	assert.deepEqual(launch?.argv, [
 		'-nostdin', '-hide_banner', '-nostats', '-loglevel', 'error', '-y',
@@ -160,6 +160,22 @@ test('the executable is re-hashed immediately before spawn and identity drift is
 	}), unavailable('identity-changed'));
 	assert.equal(spawned, 0);
 	await assertRemoved(scratchDirectory);
+});
+
+test('a successful process is rejected when its executable identity drifts during execution', async (context) => {
+	const root = await temporaryRoot(context);
+	const child = fakeChild();
+	let outputPath = '';
+	let digests = 0;
+	const runner = createExternalFfmpegAudioOperationRunner({
+		scratchRoot: root,
+		contract: contract({ onBuild(files) { outputPath = files.outputPath; } }),
+		getAdmittedExecutable: admittedExecutable,
+		digestExecutable: () => Promise.resolve((digests += 1) === 1 ? 'a'.repeat(64) : 'b'.repeat(64)),
+		spawn() { void complete(child, outputPath, Uint8Array.of(9)); return child; },
+	});
+	assert.deepEqual(await runner.execute(operationRequest()), unavailable('identity-changed', 'encoded'));
+	assert.equal(digests, 2);
 });
 
 test('the runner is single-flight until the active process has exited and cleanup completes', async (context) => {
