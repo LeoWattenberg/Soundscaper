@@ -44,7 +44,7 @@ export async function importFramescaperDesktopProjectLibraryV12IntoV17(value: Re
 	// A completed copy-forward never reopens the retired source: whatever the
 	// old build later did to its own database must not block a library whose
 	// migration already finished.
-	if (importAlreadyComplete(value.database, value.assertLeaseInTransaction)) return;
+	if (importAlreadyComplete(value.database)) return;
 	const sourcePaths = createFramescaperDesktopProjectLibraryV12Paths(value.appDataPath);
 	let source: DatabaseSync | null = null;
 	try {
@@ -75,21 +75,14 @@ export async function importFramescaperDesktopProjectLibraryV12IntoV17(value: Re
 	}
 }
 
-function importAlreadyComplete(
-	database: DatabaseSync,
-	assertLease: (database: DatabaseSync) => void,
-): boolean {
-	database.exec('BEGIN IMMEDIATE');
-	try {
-		assertLease(database);
-		const stored = database.prepare('SELECT state FROM v12_import WHERE singleton = 1').get() as
-			Record<string, unknown> | undefined;
-		database.exec('COMMIT');
-		return stored?.state === 'complete';
-	} catch (error) {
-		database.exec('ROLLBACK');
-		throw error;
-	}
+function importAlreadyComplete(database: DatabaseSync): boolean {
+	// A pure read of the durable completion state: the writer's admission has
+	// already fenced concurrent writers, and every mutation below still runs
+	// its own lease assertion, so this probe must not race the first renewal
+	// tick on a slow host.
+	const stored = database.prepare('SELECT state FROM v12_import WHERE singleton = 1').get() as
+		Record<string, unknown> | undefined;
+	return stored?.state === 'complete';
 }
 
 function validateV12Identity(database: DatabaseSync): void {
