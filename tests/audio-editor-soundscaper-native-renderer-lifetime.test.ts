@@ -59,6 +59,31 @@ test('the workspace renderer releases sessions on disable, explicit close, and w
 	]);
 });
 
+test('a native route at a different rate than the engine context refuses instead of repitching', async (t) => {
+	const originalNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
+	t.after(() => { globalThis.AudioWorkletNode = originalNode; });
+	const fixture = rendererFixture();
+	const renderer = createSoundscaperNativeRendererBridge({
+		bridge: fixture.bridge,
+		engine: fixture.engine,
+		controller: fixture.controller,
+		windowValue: fixture.windowValue,
+	});
+	// The fixture context runs at 48 kHz; a 44.1 kHz route would play ~8.8 %
+	// fast against the export render, so the open must refuse and close the
+	// session main just granted.
+	await assert.rejects(
+		() => renderer.bridge.openNativeAudioSession({
+			...audioRequest('audio-mismatch'), sampleRate: 44_100,
+		}),
+		/context rate/u,
+	);
+	assert.deepEqual(fixture.active(), { audio: [], plugins: [] },
+		'the refused route must not leave a main-side session open');
+	await renderer.dispose();
+});
+
 test('project reconciliation restores rack projection and native state through one binding action', async (t) => {
 	const originalNode = globalThis.AudioWorkletNode;
 	globalThis.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;

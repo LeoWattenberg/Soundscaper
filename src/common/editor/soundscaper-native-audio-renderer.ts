@@ -95,6 +95,14 @@ export function createSoundscaperNativeAudioRenderer(options: Readonly<{
 			await release();
 			listen();
 			const context = await options.engine.getAudioContext({ resume: true });
+			// The worklet copies frames one-to-one between the engine graph and
+			// the native device, so a route at any other rate would repitch
+			// playback against the export render and mis-clock capture. The
+			// contract forbids silent substitution: the open refuses instead.
+			if (context.sampleRate !== request.sampleRate) {
+				throw new Error(`The engine audio context runs at ${String(context.sampleRate)} Hz; `
+					+ `a native route at ${String(request.sampleRate)} Hz must be opened at the context rate.`);
+			}
 			let capture: PreparedSession['capture'] = null;
 			const lost = (value: Readonly<{ reason?: unknown }>, fallback: string): void => {
 				if (prepared?.sessionId !== sessionId) return;
