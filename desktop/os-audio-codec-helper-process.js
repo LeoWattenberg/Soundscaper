@@ -91,6 +91,53 @@ export async function runOperatingSystemMp3DecodeJob(value, ports = {}) {
 	});
 }
 
+export function createOperatingSystemAudioCodecHelperWorker(options) {
+	const configuration = codecConfiguration(options?.configuration);
+	const target = targetForRuntime(options?.platform ?? process.platform, options?.arch ?? process.arch);
+	if (target === null || target !== configuration.target) {
+		throw new TypeError('The OS audio codec helper configuration does not match this process target.');
+	}
+	if (typeof options?.post !== 'function' || options.runJob !== undefined
+		&& typeof options.runJob !== 'function' || options.exit !== undefined
+		&& typeof options.exit !== 'function') {
+		throw new TypeError('The OS audio codec helper worker ports are invalid.');
+	}
+	const runJob = options.runJob ?? runOperatingSystemMp3DecodeJob;
+	const exit = options.exit ?? (() => undefined);
+	let active = false;
+	let disposed = false;
+	post(Object.freeze({ contractVersion: 1, type: 'ready', target }));
+
+	function post(message) {
+		if (disposed) return;
+		try { options.post(message); }
+		catch { dispose(1); }
+	}
+
+	function handleMessage(value, ports = []) {
+		if (disposed) return;
+		let message;
+		try {
+			message = exactRecord(value, ['contractVersion', 'type', 'request'], 'OS audio codec helper message');
+			if (message.contractVersion !== 1 || message.type !== 'job'
+				|| !Array.isArray(ports) || ports.length !== 0 || active) throw new TypeError('Invalid helper message.');
+		} catch { dispose(1); return; }
+		active = true;
+		void Promise.resolve().then(() => runJob({ configuration, request: message.request })).then(
+			(result) => post(Object.freeze({ contractVersion: 1, type: 'result', result })),
+			() => post(Object.freeze({ contractVersion: 1, type: 'error', code: 'job-failed' })),
+		).finally(() => { setImmediate(() => dispose(0)); });
+	}
+
+	function dispose(code) {
+		if (disposed) return;
+		disposed = true;
+		exit(code);
+	}
+
+	return Object.freeze({ handleMessage, dispose });
+}
+
 function codecConfiguration(value) {
 	const record = exactRecord(value, CONFIGURATION_FIELDS, 'OS audio codec helper configuration');
 	if (record.contractVersion !== 1 || typeof record.target !== 'string' || !TARGETS.has(record.target)) {
@@ -262,23 +309,23 @@ function sameFile(left, right) {
 
 function digest(value) { return createHash('sha256').update(value).digest('hex'); }
 
+function targetForRuntime(platform, arch) {
+	if (platform === 'darwin' && arch === 'arm64') return 'mac-arm64';
+	if (platform === 'win32' && (arch === 'x64' || arch === 'arm64')) return `win-${arch}`;
+	return null;
+}
+
 const parentPort = globalThis.process?.parentPort;
 if (parentPort && typeof parentPort.on === 'function') {
 	const argument = process.argv.find((value) => value.startsWith('--os-audio-codec-config='));
-	let configuration;
 	try {
-		configuration = codecConfiguration(JSON.parse(argument?.slice('--os-audio-codec-config='.length) ?? 'null'));
+		const worker = createOperatingSystemAudioCodecHelperWorker({
+			configuration: JSON.parse(argument?.slice('--os-audio-codec-config='.length) ?? 'null'),
+			post: (message) => parentPort.postMessage(message),
+			exit: (code) => process.exit(code),
+		});
+		parentPort.on('message', (event) => worker.handleMessage(event.data, event.ports ?? []));
 	} catch {
 		process.exit(1);
 	}
-	parentPort.postMessage(Object.freeze({ contractVersion: 1, type: 'ready', target: configuration.target }));
-	let active = false;
-	parentPort.on('message', (event) => {
-		if (active) { process.exit(1); return; }
-		active = true;
-		void runOperatingSystemMp3DecodeJob({ configuration, request: event.data?.request }).then(
-			(result) => parentPort.postMessage(Object.freeze({ contractVersion: 1, type: 'result', result })),
-			() => parentPort.postMessage(Object.freeze({ contractVersion: 1, type: 'error', code: 'job-failed' })),
-		).finally(() => { setImmediate(() => process.exit(0)); });
-	});
 }

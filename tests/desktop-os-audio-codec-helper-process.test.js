@@ -7,7 +7,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { runOperatingSystemMp3DecodeJob } from '../desktop/os-audio-codec-helper-process.js';
+import {
+	createOperatingSystemAudioCodecHelperWorker,
+	runOperatingSystemMp3DecodeJob,
+} from '../desktop/os-audio-codec-helper-process.js';
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const job = (value) => ({ configuration: value.configuration, request: value.request });
@@ -125,4 +128,60 @@ test('helper rejects macOS x64 and inexact control records before native code', 
 	await assert.rejects(() => runOperatingSystemMp3DecodeJob({
 		configuration: value.configuration, request: { ...value.request, extra: true },
 	}, { loadAddon: async () => ({}) }), /request/iu);
+});
+
+test('one-shot worker closes its wire and binds configuration to the process target', async () => {
+	const configuration = {
+		contractVersion: 1, target: 'mac-arm64', addonPath: '/private/addon.node',
+		addonSha256: 'a'.repeat(64),
+	};
+	const messages = [];
+	const exits = [];
+	let resolveJob;
+	const completion = new Promise((resolve) => { resolveJob = resolve; });
+	const worker = createOperatingSystemAudioCodecHelperWorker({
+		configuration, platform: 'darwin', arch: 'arm64',
+		post: (message) => messages.push(message),
+		exit: (code) => exits.push(code),
+		runJob: async (jobValue) => {
+			assert.deepEqual(jobValue, { configuration, request: { exact: true } });
+			await completion;
+			return { decoded: true };
+		},
+	});
+	assert.deepEqual(messages, [{ contractVersion: 1, type: 'ready', target: 'mac-arm64' }]);
+	worker.handleMessage({ contractVersion: 1, type: 'job', request: { exact: true } });
+	worker.handleMessage({ contractVersion: 1, type: 'job', request: { second: true } });
+	assert.deepEqual(exits, [1]);
+	resolveJob();
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(messages.length, 1);
+
+	assert.throws(() => createOperatingSystemAudioCodecHelperWorker({
+		configuration, platform: 'darwin', arch: 'x64', post: () => undefined,
+	}), /process target/iu);
+	const inexactExits = [];
+	const closedWorker = createOperatingSystemAudioCodecHelperWorker({
+		configuration, platform: 'darwin', arch: 'arm64', post: () => undefined,
+		exit: (code) => inexactExits.push(code), runJob: () => Promise.resolve({}),
+	});
+	closedWorker.handleMessage({ contractVersion: 1, type: 'job', request: {}, extra: true });
+	assert.deepEqual(inexactExits, [1]);
+
+	const successMessages = [];
+	const successExits = [];
+	const successWorker = createOperatingSystemAudioCodecHelperWorker({
+		configuration, platform: 'darwin', arch: 'arm64',
+		post: (message) => successMessages.push(message),
+		exit: (code) => successExits.push(code),
+		runJob: () => Promise.resolve({ decoded: true }),
+	});
+	successWorker.handleMessage({ contractVersion: 1, type: 'job', request: { exact: true } });
+	await new Promise((resolve) => setImmediate(resolve));
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(successMessages, [
+		{ contractVersion: 1, type: 'ready', target: 'mac-arm64' },
+		{ contractVersion: 1, type: 'result', result: { decoded: true } },
+	]);
+	assert.deepEqual(successExits, [0]);
 });
