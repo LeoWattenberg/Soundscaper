@@ -113,7 +113,7 @@ test('sequential ZIP32 streams apply sink backpressure and reject overlapping ad
 	assert.deepEqual(Object.keys(unzipSync(result.output)), ['first.raw', 'second.raw']);
 });
 
-test('sequential ZIP32 streams slice byte inputs and await each sink write', async () => {
+test('sequential ZIP32 streams slice byte inputs and await each sink write', async (context) => {
 	const firstWrite = deferred<void>();
 	let writeStarted = false;
 	const sink = new MemorySink();
@@ -144,8 +144,9 @@ test('sequential ZIP32 streams slice byte inputs and await each sink write', asy
 	assert.equal(sliceCount > 1, true);
 	// The qualified m2-direct-stem workload publishes a 65,536-byte maximum
 	// input-slice counter; the bound is asserted here, not merely configured.
+	const maximumInputSliceBytes = Math.max(...sink.chunks.map(({ byteLength }) => byteLength));
 	assert.equal(
-		Math.max(...sink.chunks.map(({ byteLength }) => byteLength)) <= 65_536,
+		maximumInputSliceBytes <= 65_536,
 		true,
 		'no sink write exceeds the qualified 64 KiB input-slice bound',
 	);
@@ -155,6 +156,14 @@ test('sequential ZIP32 streams slice byte inputs and await each sink write', asy
 	);
 	const result = await archive.finish();
 	assert.equal(unzipSync(result.output)['bounded.raw']?.byteLength, input.byteLength);
+	if (process.env.SOUNDSCAPER_M2_DIRECT_STRUCTURAL_WORKLOAD === 'm2-direct-stem-archives-v3') {
+		context.diagnostic(JSON.stringify({
+			profile: 'focused-direct-structural-node-v2',
+			workloadId: 'm2-direct-stem-archives-v3',
+			fixtureId: 'm2-direct-stem-archives-v3',
+			budgetMetrics: { 'directStems.maximumInputSliceBytes': maximumInputSliceBytes },
+		}));
+	}
 });
 
 test('sequential ZIP32 streams cancel a pending Blob read and abort the sink', async () => {

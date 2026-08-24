@@ -9,6 +9,7 @@ import {
 	type FfmpegOutputFileSource,
 	type FfmpegOutputSink,
 } from '../src/common/editor/ffmpeg-output-stream.ts';
+import { planOfflineRenderOutputAdmission } from '../src/common/editor/engine/offline-render-admission.ts';
 
 const MEBIBYTE = 1024 * 1024;
 
@@ -43,7 +44,7 @@ class TestSink<Output = string> implements FfmpegOutputSink<Output> {
 	}
 }
 
-test('FFmpeg output streaming handles a virtual 257 MiB file in bounded exact ranges', async () => {
+test('FFmpeg output streaming handles a virtual 257 MiB file in bounded exact ranges', async (context) => {
 	const byteLength = (257 * MEBIBYTE) + 17;
 	const fullChunk = new Uint8Array(MEBIBYTE);
 	const ranges: Array<readonly [number, number]> = [];
@@ -72,10 +73,18 @@ test('FFmpeg output streaming handles a virtual 257 MiB file in bounded exact ra
 	const sink = new TestSink(output);
 	let emittedByteLength = 0;
 	let maximumWriteBytes = 0;
+	let activeWrites = 0;
+	let maximumActiveWrites = 0;
 	sink.write = async (chunk): Promise<void> => {
 		sink.writeCount += 1;
-		emittedByteLength += chunk.byteLength;
-		maximumWriteBytes = Math.max(maximumWriteBytes, chunk.byteLength);
+		activeWrites += 1;
+		maximumActiveWrites = Math.max(maximumActiveWrites, activeWrites);
+		try {
+			emittedByteLength += chunk.byteLength;
+			maximumWriteBytes = Math.max(maximumWriteBytes, chunk.byteLength);
+		} finally {
+			activeWrites -= 1;
+		}
 	};
 
 	const result = await streamFfmpegOutputFile(source, 'large.mp3', sink);
@@ -88,11 +97,37 @@ test('FFmpeg output streaming handles a virtual 257 MiB file in bounded exact ra
 	assert.equal(emittedByteLength, byteLength);
 	assert.equal(maximumWriteBytes, FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES);
 	assert.equal(maximumActiveReads, 1);
+	assert.equal(maximumActiveWrites, 1);
 	for (let index = 0; index < ranges.length; index += 1) {
 		assert.deepEqual(ranges[index], [index * MEBIBYTE, index === 257 ? 17 : MEBIBYTE]);
 	}
 	assert.deepEqual(sink.events, [`open:${byteLength}`, 'close']);
 	assert.equal(sink.abortCount, 0);
+	const workloadId = process.env.SOUNDSCAPER_M2_DIRECT_STRUCTURAL_WORKLOAD;
+	if (workloadId === 'm2-direct-compressed-output-v2') {
+		const admission = planOfflineRenderOutputAdmission({
+			channelCount: 32, sampleRate: 48_000, contextFrames: 2_097_152,
+			captureOffsetFrames: 0, requestedFrames: 2_097_152,
+		});
+		assert.equal(admission.peakUsefulBinaryWorkingSet.bytes, 268_435_456);
+		context.diagnostic(JSON.stringify({
+			profile: 'focused-direct-structural-node-v2', workloadId, fixtureId: workloadId,
+			budgetMetrics: {
+				'directCompressed.maximumStagingBytes': admission.peakUsefulBinaryWorkingSet.bytes,
+				'directCompressed.maximumOutputRangeBytes': maximumWriteBytes,
+				'directCompressed.maximumConcurrentRangeReads': maximumActiveReads,
+			},
+		}));
+	} else if (workloadId === 'm2-direct-mp4-webm-video-output-v1') {
+		context.diagnostic(JSON.stringify({
+			profile: 'focused-direct-structural-node-v2', workloadId, fixtureId: workloadId,
+			budgetMetrics: {
+				'directVideo.maximumOutputRangeBytes': maximumWriteBytes,
+				'directVideo.maximumConcurrentRangeReads': maximumActiveReads,
+				'directVideo.maximumConcurrentSinkWrites': maximumActiveWrites,
+			},
+		}));
+	}
 });
 
 test('FFmpeg output streaming opens empty output at its exact size and closes without a read', async () => {

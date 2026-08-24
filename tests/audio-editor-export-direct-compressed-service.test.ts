@@ -189,7 +189,9 @@ test('new compressed routes refuse oversized nonpersistent staging before render
 	assert.match(String(fixture.errors[0]), /storage required/iu);
 });
 
-test('new compressed result failure and plan drift clean staging and abort exactly once', async () => {
+test('new compressed result failure and plan drift clean staging and abort exactly once', async (context) => {
+	let retainedFinalOutputBytes = 0;
+	let partialPublishedOutputs = 0;
 	for (const failure of ['result', 'drift'] as const) {
 		const fixture = serviceFixture(caseFor('ogg-vorbis'), 'stream', { failure });
 		assert.equal(await createEditorExportService(fixture.runtime).handleExportAction(
@@ -200,6 +202,21 @@ test('new compressed result failure and plan drift clean staging and abort exact
 		assert.equal(fixture.target.aborts(), 1, failure);
 		assert.equal(fixture.target.commits(), 0, failure);
 		assert.equal(fixture.downloads.length, 0, failure);
+		retainedFinalOutputBytes = Math.max(
+			retainedFinalOutputBytes, fixture.state.exportOutput === null ? 0 : Number.MAX_SAFE_INTEGER,
+		);
+		partialPublishedOutputs += fixture.target.commits();
+	}
+	if (process.env.SOUNDSCAPER_M2_DIRECT_STRUCTURAL_WORKLOAD === 'm2-direct-compressed-output-v2') {
+		context.diagnostic(JSON.stringify({
+			profile: 'focused-direct-structural-node-v2',
+			workloadId: 'm2-direct-compressed-output-v2',
+			fixtureId: 'm2-direct-compressed-output-v2',
+			budgetMetrics: {
+				'directCompressed.retainedFinalOutputBytes': retainedFinalOutputBytes,
+				'directCompressed.partialPublishedOutputs': partialPublishedOutputs,
+			},
+		}));
 	}
 });
 

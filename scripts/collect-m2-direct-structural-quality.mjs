@@ -2,7 +2,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { execFile } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -12,6 +11,31 @@ import { writeStructuralQualityBudgetEvidence } from './quality-budget-evidence.
 const execFileAsync = promisify(execFile);
 const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
 const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url));
+const PROFILE = 'focused-direct-structural-node-v2';
+
+const METRIC_IDS = Object.freeze({
+	'm2-direct-stem-archives-v3': Object.freeze([
+		'directStems.maximumInputSliceBytes',
+		'directStems.maximumOwnedCompressedStemBytes',
+		'directStems.maximumOwnedEncodedStems',
+		'directStems.finalArchiveBlobBytes',
+		'directStems.partialPublishedOutputs',
+	]),
+	'm2-direct-compressed-output-v2': Object.freeze([
+		'directCompressed.maximumStagingBytes',
+		'directCompressed.maximumOutputRangeBytes',
+		'directCompressed.maximumConcurrentRangeReads',
+		'directCompressed.retainedFinalOutputBytes',
+		'directCompressed.partialPublishedOutputs',
+	]),
+	'm2-direct-mp4-webm-video-output-v1': Object.freeze([
+		'directVideo.maximumOutputRangeBytes',
+		'directVideo.maximumConcurrentRangeReads',
+		'directVideo.maximumConcurrentSinkWrites',
+		'directVideo.retainedFinalOutputBytes',
+		'directVideo.partialPublishedOutputs',
+	]),
+});
 
 const TEST_FILES = Object.freeze({
 	'm2-direct-stem-archives-v3': Object.freeze([
@@ -39,30 +63,21 @@ const TEST_FILES = Object.freeze({
 export async function collectDirectStructuralQualityEvidence(options, dependencies = {}) {
 	const testFiles = TEST_FILES[options.workloadId];
 	if (!testFiles) throw new Error(`Unsupported direct structural workload ${options.workloadId}.`);
-	const loadConfig = dependencies.loadConfig ?? loadQualityConfig;
 	const runTests = dependencies.runTests ?? runFocusedTests;
 	const writeEvidence = dependencies.writeEvidence ?? writeStructuralQualityBudgetEvidence;
-	const config = await loadConfig();
-	const matches = Array.isArray(config.fixtures)
-		? config.fixtures.filter((fixture) => isRecord(fixture) && fixture.id === options.workloadId)
-		: [];
-	if (matches.length !== 1) {
-		throw new Error(`Quality config must contain exactly one fixture for ${options.workloadId}.`);
-	}
-	const fixture = matches[0];
-	if (!isRecord(fixture.specification)) {
-		throw new Error(`Quality fixture ${options.workloadId} has no structural specification.`);
-	}
-	const { stdout, stderr } = await runTests(testFiles);
+	const { stdout, stderr } = await runTests(testFiles, options.workloadId);
+	const diagnostic = parseDirectStructuralDiagnostics(
+		`${stdout}\n${stderr}`, options.workloadId,
+	);
 	return writeEvidence({
 		configPath: CONFIG_URL,
 		outputDirectory: options.outputDirectory,
 		workloadId: options.workloadId,
-		metrics: structuralMetricsForFixture(options.workloadId, fixture.specification),
+		metrics: diagnostic.metrics,
 		observations: {
-			profile: 'focused-direct-structural-node-v1',
+			profile: PROFILE,
 			fixtureId: options.workloadId,
-			generatorRevision: fixture.specification.generatorRevision,
+			diagnosticCount: diagnostic.diagnosticCount,
 			testFiles,
 			testStdout: stdout,
 			testStderr: stderr,
@@ -70,45 +85,48 @@ export async function collectDirectStructuralQualityEvidence(options, dependenci
 	});
 }
 
-export function structuralMetricsForFixture(workloadId, specification) {
-	if (workloadId === 'm2-direct-stem-archives-v3') {
-		return {
-			'directStems.maximumInputSliceBytes': specification.inputSliceBytes,
-			'directStems.maximumOwnedCompressedStemBytes': specification.maximumOwnedCompressedStemBytes,
-			'directStems.maximumOwnedEncodedStems': specification.compressedMaximumOwnedEncodedStems,
-			'directStems.finalArchiveBlobBytes': specification.directRouteFinalZipBlobConstructions,
-			'directStems.partialPublishedOutputs': specification.partialPublishedOutputs,
-		};
+export function parseDirectStructuralDiagnostics(output, workloadId) {
+	const expected = METRIC_IDS[workloadId];
+	if (!expected) throw new Error(`Unsupported direct structural workload ${workloadId}.`);
+	const metrics = {};
+	let diagnosticCount = 0;
+	for (const line of output.split(/\r?\n/u)) {
+		const start = line.indexOf('{');
+		if (start < 0) continue;
+		let value;
+		try { value = JSON.parse(line.slice(start)); } catch { continue; }
+		if (!isRecord(value) || value.profile !== PROFILE || value.workloadId !== workloadId
+			|| value.fixtureId !== workloadId) continue;
+		if (!isRecord(value.budgetMetrics)) {
+			throw new Error(`Structural diagnostic ${workloadId} has no metric object.`);
+		}
+		diagnosticCount += 1;
+		for (const [metricId, metricValue] of Object.entries(value.budgetMetrics)) {
+			if (!expected.includes(metricId)) {
+				throw new Error(`Structural diagnostic ${workloadId} published unexpected metric ${metricId}.`);
+			}
+			if (Object.hasOwn(metrics, metricId)) {
+				throw new Error(`Structural diagnostic ${workloadId} duplicated metric ${metricId}.`);
+			}
+			if (typeof metricValue !== 'number' || !Number.isFinite(metricValue) || metricValue < 0) {
+				throw new Error(`Structural diagnostic ${workloadId} metric ${metricId} is invalid.`);
+			}
+			metrics[metricId] = metricValue;
+		}
 	}
-	if (workloadId === 'm2-direct-compressed-output-v2') {
-		return {
-			'directCompressed.maximumStagingBytes': specification.offlineCentralUsefulBinaryAdmissionCeilingBytes,
-			'directCompressed.maximumOutputRangeBytes': specification.maximumOutputRangeBytes,
-			'directCompressed.maximumConcurrentRangeReads': specification.maximumConcurrentRangeReads,
-			'directCompressed.retainedFinalOutputBytes': specification.retainedFinalOutputBytes,
-			'directCompressed.partialPublishedOutputs': specification.partialPublishedOutputs,
-		};
+	const received = Object.keys(metrics).sort();
+	const required = [...expected].sort();
+	if (JSON.stringify(received) !== JSON.stringify(required)) {
+		throw new Error(`Structural diagnostic ${workloadId} did not publish its exact metric set.`);
 	}
-	if (workloadId === 'm2-direct-mp4-webm-video-output-v1') {
-		return {
-			'directVideo.maximumOutputRangeBytes': specification.maximumOutputRangeBytes,
-			'directVideo.maximumConcurrentRangeReads': specification.maximumConcurrentRangeReads,
-			'directVideo.maximumConcurrentSinkWrites': specification.maximumConcurrentSinkWrites,
-			'directVideo.retainedFinalOutputBytes': specification.retainedFinalOutputBytes,
-			'directVideo.partialPublishedOutputs': specification.partialPublishedOutputs,
-		};
-	}
-	throw new Error(`Unsupported direct structural workload ${workloadId}.`);
+	return Object.freeze({ metrics: Object.freeze(metrics), diagnosticCount });
 }
 
-async function loadQualityConfig() {
-	return JSON.parse(await readFile(CONFIG_URL, 'utf8'));
-}
-
-async function runFocusedTests(testFiles) {
+async function runFocusedTests(testFiles, workloadId) {
 	return execFileAsync(process.execPath, ['--import', 'tsx', '--import', new URL('./node-style-asset-loader.mjs', import.meta.url).pathname, '--test', ...testFiles], {
 		cwd: REPOSITORY_ROOT,
 		encoding: 'utf8',
+		env: { ...process.env, SOUNDSCAPER_M2_DIRECT_STRUCTURAL_WORKLOAD: workloadId },
 		maxBuffer: 32 * 1024 * 1024,
 	});
 }

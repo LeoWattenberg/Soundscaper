@@ -101,7 +101,7 @@ test('direct video publication cleans prior output, closes before commit, and to
 	assert.equal(fixture.errors.length, 0);
 });
 
-test('direct video rejects plan drift and count disagreement with one rollback and no commit', async () => {
+test('direct video rejects plan drift and count disagreement with one rollback and no commit', async (context) => {
 	const drift = createFixture({
 		afterOpen(plan) { plan.mimeType = 'video/webm'; },
 	});
@@ -115,6 +115,24 @@ test('direct video rejects plan drift and count disagreement with one rollback a
 	assert.match((counts.errors[0] as Error).message, /byte count|byte length/iu);
 	assert.equal(counts.events.filter((event) => event === 'abort').length, 1);
 	assert.equal(counts.events.includes('commit'), false);
+	if (process.env.SOUNDSCAPER_M2_DIRECT_STRUCTURAL_WORKLOAD === 'm2-direct-mp4-webm-video-output-v1') {
+		const failed = [drift, counts];
+		const retainedFinalOutputBytes = failed.reduce((maximum, fixture) => Math.max(
+			maximum, fixture.state.exportOutput === null ? 0 : Number.MAX_SAFE_INTEGER,
+		), 0);
+		const partialPublishedOutputs = failed.filter(
+			(fixture) => fixture.events.includes('commit'),
+		).length;
+		context.diagnostic(JSON.stringify({
+			profile: 'focused-direct-structural-node-v2',
+			workloadId: 'm2-direct-mp4-webm-video-output-v1',
+			fixtureId: 'm2-direct-mp4-webm-video-output-v1',
+			budgetMetrics: {
+				'directVideo.retainedFinalOutputBytes': retainedFinalOutputBytes,
+				'directVideo.partialPublishedOutputs': partialPublishedOutputs,
+			},
+		}));
+	}
 });
 
 test('direct video declines stale, aliased, and underspecified plans before target preparation', async () => {

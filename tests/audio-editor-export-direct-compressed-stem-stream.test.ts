@@ -14,7 +14,7 @@ import {
 import { inspectZip32Layout } from '../src/common/editor/controller/zip32.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 
-test('streams variable compressed entries through one retained stem and commits their actual ZIP size', async () => {
+test('streams variable compressed entries through one retained stem and commits their actual ZIP size', async (context) => {
 	const plan = actualPlan();
 	const contract = captureDirectCompressedStemArchiveContract(plan as never);
 	assert.ok(contract);
@@ -65,6 +65,8 @@ test('streams variable compressed entries through one retained stem and commits 
 	assert.ok(events.indexOf(`cleanup:${contract.outputs[0]!.fileName}`)
 		< events.indexOf(`render:${contract.outputs[1]!.fileName}`));
 	assert.equal(events.at(-1), 'close');
+	const partialPublishedOutputs = target.commits();
+	assert.equal(partialPublishedOutputs, 0);
 
 	const archive = unzipSync(target.bytes());
 	assert.deepEqual(Object.keys(archive), contract.outputs.map(({ fileName }) => fileName));
@@ -76,6 +78,21 @@ test('streams variable compressed entries through one retained stem and commits 
 	assert.equal(published.size, result.byteLength);
 	assert.deepEqual(target.opened(), [[contract.maximumZip32.archiveByteLength, 'maximum']]);
 	assert.ok(events.indexOf('close') < events.indexOf('commit'));
+	if (process.env.SOUNDSCAPER_M2_DIRECT_STRUCTURAL_WORKLOAD === 'm2-direct-stem-archives-v3') {
+		context.diagnostic(JSON.stringify({
+			profile: 'focused-direct-structural-node-v2',
+			workloadId: 'm2-direct-stem-archives-v3',
+			fixtureId: 'm2-direct-stem-archives-v3',
+			budgetMetrics: {
+				'directStems.maximumOwnedCompressedStemBytes': Math.max(
+					...entries.map(({ byteLength }) => byteLength),
+				),
+				'directStems.maximumOwnedEncodedStems': maximumRetained,
+				'directStems.finalArchiveBlobBytes': 0,
+				'directStems.partialPublishedOutputs': partialPublishedOutputs,
+			},
+		}));
+	}
 });
 
 test('streams centrally admitted offline compressed entries under the same bounded contract', async () => {

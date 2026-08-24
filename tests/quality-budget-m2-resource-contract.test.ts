@@ -6,6 +6,10 @@ const budgetsUrl = new URL('../config/quality-budgets.json', import.meta.url);
 const closureUrl = new URL('../config/milestone-2-closure.json', import.meta.url);
 
 const ENVIRONMENT_ID = 'portable-node-structural-26.5.0';
+const QUALIFIED_IDS = Object.freeze([
+	'm2-streaming-project-8gib-v1',
+	'm2-direct-wav-385mib-v1',
+]);
 
 const EXPECTED_THRESHOLDS = new Map<string, readonly Readonly<Record<string, unknown>>[]>([
 	['m2-streaming-project-8gib-v1', [
@@ -64,7 +68,7 @@ test('the frozen milestone-2 resource IDs own exact structural workload contract
 		};
 		assert.ok(workload, id);
 		assert.equal(workload.milestone, '2', id);
-		assert.equal(workload.status, 'qualified', id);
+		assert.equal(workload.status, QUALIFIED_IDS.includes(id) ? 'qualified' : 'provisional', id);
 		assert.deepEqual(workload.fixtureIds, [id], id);
 		assert.deepEqual(workload.environmentIds, [ENVIRONMENT_ID], id);
 		assert.deepEqual(workload.thresholds, thresholds, id);
@@ -77,7 +81,7 @@ test('the frozen milestone-2 resource IDs own exact structural workload contract
 
 test('one reviewed no-retry cohort covers the exact qualified workload set', async () => {
 	const budgets = JSON.parse(await readFile(budgetsUrl, 'utf8'));
-	const qualifiedIds = [...EXPECTED_THRESHOLDS.keys()];
+	const qualifiedIds = [...QUALIFIED_IDS];
 	assert.deepEqual(budgets.qualification.qualifiedWorkloadIds, qualifiedIds);
 	assert.equal(budgets.qualification.acceptedResultCohorts.length, 1);
 	const cohort = budgets.qualification.acceptedResultCohorts[0];
