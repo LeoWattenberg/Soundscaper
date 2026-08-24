@@ -75,10 +75,10 @@ test('production PDC and gain scheduling plans are metric-sensitive', () => {
 		value,
 		frame: Math.round(time * M4_PRODUCTION_PARITY_SPECIFICATION.sampleRate),
 	})), [
-		{ kind: 'set', value: 0.75, frame: 27 },
-		{ kind: 'linear', value: 0.75, frame: 24_026 },
-		{ kind: 'linear', value: 0.5, frame: 24_027 },
-		{ kind: 'linear', value: 0.5, frame: 48_027 },
+		{ kind: 'set', value: 1, frame: 37 },
+		{ kind: 'linear', value: 1, frame: 24_036 },
+		{ kind: 'linear', value: 1 / 3, frame: 24_037 },
+		{ kind: 'linear', value: 1 / 3, frame: 48_037 },
 	]);
 
 	const perturbedPdc = compileM4ProductionParityAudioPlan(38);
@@ -90,13 +90,26 @@ test('production PDC and gain scheduling plans are metric-sensitive', () => {
 	const perturbedScheduling = {
 		...plan,
 		gainEvents: plan.gainEvents.map((event, index) => (
-			index === 2 ? { ...event, value: 0.49 } : event
+			index === 2 ? { ...event, value: 0.32 } : event
 		)),
 	};
 	assert.ok(compareM4ProductionParityAudio(
 		projectFixtureFromProductionPlan(fixture.input, perturbedScheduling),
 		fixture.reference,
 	).maximumAbsoluteSampleError > 0.000_001);
+
+	const gainBeforeCompensation = {
+		...plan,
+		gainEvents: plan.gainEvents.map((event) => ({
+			...event,
+			time: event.time + 10 / M4_PRODUCTION_PARITY_SPECIFICATION.sampleRate,
+		})),
+	};
+	assert.ok(compareM4ProductionParityAudio(
+		projectFixtureFromProductionPlan(fixture.input, gainBeforeCompensation),
+		fixture.reference,
+	).maximumAbsoluteSampleError > 0.000_001,
+	'the independent PCM oracle rejects edge gain placed before its ten-frame compensation');
 });
 
 test('the registered workload compiles a production V21 sidechain, send, and nested parallel graph', () => {
@@ -113,10 +126,13 @@ test('the registered workload compiles a production V21 sidechain, send, and nes
 	assert.ok(mixer?.edges.some(({ kind }) => kind === 'send'));
 	assert.deepEqual(project.automationLanes?.map((lane) => (
 		(lane as Readonly<Record<string, unknown>>).id
-	)), ['program-gain']);
+	)), ['fast-parent-edge-level']);
 	assert.equal(plan.nodeInputLatencyFrames.get('track:program'), 7);
 	assert.equal(plan.nodeOutputLatencyFrames.get('track:program'), 27);
 	assert.equal(plan.edgeCompensationFrames.get('fast-parent'), 10);
+	assert.equal(plan.automationLatencyFrames({
+		kind: 'edge', edgeId: 'fast-parent', parameterId: 'level',
+	}), 37);
 	assert.equal(plan.latencyFrames, M4_PRODUCTION_PARITY_SPECIFICATION.pdcLatencyFrames);
 });
 
@@ -163,7 +179,8 @@ function projectFixtureFromProductionPlan(
 	const events = plan.gainEvents.map((event) => ({ ...event, frame: Math.round(event.time * rate) }));
 	for (let inputFrame = 0; inputFrame + plan.pdcLatencyFrames < output[0]!.length; inputFrame += 1) {
 		const outputFrame = inputFrame + plan.pdcLatencyFrames;
-		const gain = scheduledGainAtFrame(events, outputFrame);
+		const edgeLevel = scheduledGainAtFrame(events, outputFrame);
+		const gain = 0.75 * (0.5 + 0.5 * edgeLevel);
 		for (let channel = 0; channel < output.length; channel += 1) {
 			output[channel]![outputFrame] = Math.fround(input[channel]![inputFrame]! * gain);
 		}

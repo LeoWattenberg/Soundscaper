@@ -237,16 +237,16 @@ function parityClip(id: string, sourceId: string): Readonly<Record<string, unkno
 
 function parityAutomationLane(): Readonly<Record<string, unknown>> {
 	return Object.freeze({
-		id: 'program-gain',
+		id: 'fast-parent-edge-level',
 		address: Object.freeze({
-			kind: 'strip', strip: Object.freeze({ kind: 'track', id: 'program' }), parameterId: 'gain',
+			kind: 'edge', edgeId: 'fast-parent', parameterId: 'level',
 		}),
 		timebase: 'absolute-samples',
 		points: Object.freeze([
-			Object.freeze({ id: 'gain-start', position: 0, value: 0.75 }),
-			Object.freeze({ id: 'gain-hold-end', position: AUTOMATION_CHANGE_FRAME - 1, value: 0.75 }),
-			Object.freeze({ id: 'gain-change', position: AUTOMATION_CHANGE_FRAME, value: 0.5 }),
-			Object.freeze({ id: 'gain-end', position: FRAME_COUNT, value: 0.5 }),
+			Object.freeze({ id: 'level-start', position: 0, value: 1 }),
+			Object.freeze({ id: 'level-hold-end', position: AUTOMATION_CHANGE_FRAME - 1, value: 1 }),
+			Object.freeze({ id: 'level-change', position: AUTOMATION_CHANGE_FRAME, value: 1 / 3 }),
+			Object.freeze({ id: 'level-end', position: FRAME_COUNT, value: 1 / 3 }),
 		]),
 		segments: Object.freeze([
 			Object.freeze({ kind: 'linear' }),
