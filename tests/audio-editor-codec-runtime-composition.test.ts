@@ -8,6 +8,10 @@ import {
 	DesktopCodecRuntimeUnavailableError,
 	createEditorCodecRuntime as createDesktopRuntime,
 } from '../src/common/editor/editor-codec-runtime.desktop.ts';
+import {
+	createDesktopAudioCodecResult,
+	type DesktopAudioCodecRequest,
+} from '../desktop/desktop-audio-codec-operation-contract.ts';
 
 test('browser codec composition retains the lazy browser FFmpeg runtime', () => {
 	const runtime = createBrowserRuntime({ idleTimeoutMs: false });
@@ -31,3 +35,37 @@ test('desktop codec composition fails closed without a main-process operation br
 	await assert.rejects(() => runtime.decode(new Blob()), /desktop codec providers are unavailable/iu);
 	assert.equal(runtime.dispose(), undefined);
 });
+
+test('desktop codec composition routes audio through file service while video stays closed', async () => {
+	const requests: DesktopAudioCodecRequest[] = [];
+	const cancelled: string[] = [];
+	const runtime = createDesktopRuntime({
+		fileService: {
+			runDesktopAudioCodecOperation(request: DesktopAudioCodecRequest) {
+				requests.push(request);
+				return createDesktopAudioCodecResult(request, interleavedF32([0.25, -0.5]));
+			},
+			cancelDesktopAudioCodecOperation(requestId: string) { cancelled.push(requestId); return true; },
+		},
+	});
+	assert.equal(await runtime.load(), runtime);
+	const decoded = await runtime.decode(new File([Uint8Array.of(1, 2, 3)], 'voice.flac'), {
+		sampleRate: 48_000, channelCount: 1, maximumOutputBytes: 64,
+	});
+	assert.deepEqual(decoded.channels.map((channel) => [...channel]), [[0.25, -0.5]]);
+	assert.equal(requests.length, 1);
+	assert.equal(requests[0]?.operation, 'audio-decode');
+	assert.equal(requests[0]?.format, 'flac');
+	assert.deepEqual(cancelled, []);
+	await assert.rejects(() => runtime.encodeVideo({}, null, {}, {}), /video/iu);
+	await assert.rejects(() => runtime.runProxyMediaOperation({}), /video/iu);
+	assert.equal(requests.length, 1, 'video operations must not reach the audio bridge');
+	runtime.dispose();
+});
+
+function interleavedF32(samples: readonly number[]): Uint8Array {
+	const bytes = new Uint8Array(samples.length * Float32Array.BYTES_PER_ELEMENT);
+	const view = new DataView(bytes.buffer);
+	for (const [index, sample] of samples.entries()) view.setFloat32(index * 4, sample, true);
+	return bytes;
+}
