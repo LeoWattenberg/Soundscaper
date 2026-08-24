@@ -146,6 +146,62 @@ test('preference mutations are single-flight and never run a second probe concur
 	assert.equal((await first).state, 'ready');
 });
 
+test('runtime identity failures quarantine only the admission that actually failed', async () => {
+	const settings = settingsFixture(null);
+	let evidence = available();
+	const service = createExternalFfmpegPreferenceService(ports(settings, {
+		choose: () => Promise.resolve(PATH),
+		probe: () => Promise.resolve(evidence),
+	}));
+	await service.choose();
+	const failedAdmission = service.admission();
+	assert.ok(failedAdmission);
+
+	assert.deepEqual(
+		await service.invalidateAdmission(failedAdmission, 'identity-changed'),
+		status('quarantined', {
+			location: PATH, canClear: true,
+			detail: 'The admitted FFmpeg executable changed and must be rescanned.',
+		}),
+	);
+	assert.equal(service.admission(), null);
+	assert.deepEqual(settings.calls.at(-1), ['clear-evidence', PATH]);
+
+	evidence = available({ ffmpegSha256: '5'.repeat(64), capabilityDigest: '6'.repeat(64) });
+	assert.equal((await service.rescan()).state, 'ready');
+	const replacement = service.admission();
+	assert.ok(replacement);
+	assert.notEqual(replacement.capabilityGeneration, failedAdmission.capabilityGeneration);
+	const callsBeforeStaleFailure = settings.calls.length;
+	assert.equal((await service.invalidateAdmission(failedAdmission, 'identity-changed')).state, 'ready');
+	assert.equal(service.admission(), replacement);
+	assert.equal(settings.calls.length, callsBeforeStaleFailure);
+});
+
+test('runtime invalidation wins over an in-flight rescan of the same admission', async () => {
+	const settings = settingsFixture(null);
+	const pending = deferred<ExternalFfmpegPreferenceProbeResult>();
+	let usePending = false;
+	const service = createExternalFfmpegPreferenceService(ports(settings, {
+		choose: () => Promise.resolve(PATH),
+		probe: () => usePending ? pending.promise : Promise.resolve(available()),
+	}));
+	await service.choose();
+	const failedAdmission = service.admission();
+	assert.ok(failedAdmission);
+	usePending = true;
+	const rescan = service.rescan();
+	await Promise.resolve();
+	await service.invalidateAdmission(failedAdmission, 'executable-unavailable');
+	pending.resolve(available());
+	assert.equal((await rescan).state, 'unavailable');
+	assert.equal(service.admission(), null);
+	assert.deepEqual(await service.status(), status('unavailable', {
+		location: PATH, canClear: true,
+		detail: 'The admitted FFmpeg executable is no longer available and must be rescanned.',
+	}));
+});
+
 interface SettingsFixture extends ExternalFfmpegPreferenceSettings {
 	readonly calls: unknown[][];
 }
@@ -184,10 +240,21 @@ function ports(settings: SettingsFixture, overrides: Partial<Parameters<typeof c
 	};
 }
 
-function available(): ExternalFfmpegPreferenceProbeResult {
+function available(overrides: Readonly<{
+	readonly ffmpegSha256?: string;
+	readonly capabilityDigest?: string;
+}> = {}): ExternalFfmpegPreferenceProbeResult {
+	const identity = Object.freeze({
+		...IDENTITY,
+		...(overrides.ffmpegSha256 === undefined ? {} : { ffmpegSha256: overrides.ffmpegSha256 }),
+	});
+	const capabilities = Object.freeze({
+		...CAPABILITIES,
+		...(overrides.capabilityDigest === undefined ? {} : { digest: overrides.capabilityDigest }),
+	});
 	return {
 		status: 'available',
-		evidence: { executablePath: PATH, identity: IDENTITY, capabilities: CAPABILITIES },
+		evidence: { executablePath: PATH, identity, capabilities },
 		capabilities: {
 			encoders: ['libopus'], decoders: ['opus'], muxers: ['opus'],
 			demuxers: ['ogg'], filters: ['aresample'],

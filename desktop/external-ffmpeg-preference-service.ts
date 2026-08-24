@@ -32,6 +32,10 @@ export interface ExternalFfmpegRuntimeAdmission {
 	readonly capabilities: ExternalFfmpegCapabilities;
 }
 
+export type ExternalFfmpegRuntimeInvalidationReason =
+	| 'identity-changed'
+	| 'executable-unavailable';
+
 export type ExternalFfmpegPreferenceProbeResult =
 	| Readonly<{
 		readonly status: 'available';
@@ -76,6 +80,11 @@ export interface ExternalFfmpegPreferenceService {
 	install(): Promise<ExternalFfmpegPreferenceStatus>;
 	/** Main-process capability. It is deliberately absent from the renderer bridge. */
 	admission(): ExternalFfmpegRuntimeAdmission | null;
+	/** Quarantines only the exact admission whose runtime identity check failed. */
+	invalidateAdmission(
+		expected: ExternalFfmpegRuntimeAdmission,
+		reason: ExternalFfmpegRuntimeInvalidationReason,
+	): Promise<ExternalFfmpegPreferenceStatus>;
 }
 
 const STATUS_DETAIL_LIMIT = 2_048;
@@ -88,6 +97,7 @@ export function createExternalFfmpegPreferenceService(
 	validateOptions(options);
 	let admission: ExternalFfmpegRuntimeAdmission | null = null;
 	let busy: 'probing' | 'installing' | null = null;
+	let mutationEpoch = 0;
 	const initialSelection = options.settings.snapshot().externalFfmpegSelection;
 	let current = initialSelection === null
 		? baseStatus('unconfigured', null, null, '')
@@ -111,16 +121,27 @@ export function createExternalFfmpegPreferenceService(
 	};
 
 	const probe = async (selectedPath: string | null): Promise<ExternalFfmpegPreferenceStatus> => {
+		const probeEpoch = mutationEpoch;
 		let result: ExternalFfmpegPreferenceProbeResult;
 		try { result = await options.probe(selectedPath); }
-		catch { return fail('error', 'The FFmpeg compatibility probe failed.'); }
+		catch {
+			return probeEpoch !== mutationEpoch
+				? exposedStatus()
+				: fail('error', 'The FFmpeg compatibility probe failed.');
+		}
+		if (probeEpoch !== mutationEpoch) return exposedStatus();
 		if (result.status === 'unavailable') {
 			admission = null;
 			const selected = options.settings.snapshot().externalFfmpegSelection;
 			const location = selected?.executablePath ?? nullablePath(result.location);
 			if (selected !== null) {
 				try { await options.settings.clearExternalFfmpegProbeMetadata(selected.executablePath); }
-				catch { return fail('error', 'FFmpeg probe evidence could not be cleared.'); }
+				catch {
+					return probeEpoch !== mutationEpoch
+						? exposedStatus()
+						: fail('error', 'FFmpeg probe evidence could not be cleared.');
+				}
+				if (probeEpoch !== mutationEpoch) return exposedStatus();
 			}
 			current = baseStatus(result.state, location, null, safeDetail(result.detail));
 			return exposedStatus();
@@ -132,10 +153,14 @@ export function createExternalFfmpegPreferenceService(
 			const selected = options.settings.snapshot().externalFfmpegSelection;
 			if (selected?.executablePath !== result.evidence.executablePath) {
 				await options.settings.setExternalFfmpegSelection(result.evidence.executablePath);
+				if (probeEpoch !== mutationEpoch) return exposedStatus();
 			}
 			await options.settings.setExternalFfmpegProbeMetadata(result.evidence);
+			if (probeEpoch !== mutationEpoch) return exposedStatus();
 		} catch {
-			return fail('error', 'FFmpeg probe evidence could not be saved.');
+			return probeEpoch !== mutationEpoch
+				? exposedStatus()
+				: fail('error', 'FFmpeg probe evidence could not be saved.');
 		}
 		admission = nextAdmission;
 		current = baseStatus(
@@ -162,14 +187,16 @@ export function createExternalFfmpegPreferenceService(
 		choose: () => exclusive('probing', async () => {
 			const selectedPath = await options.choose();
 			if (selectedPath === null) return exposedStatus();
+			mutationEpoch += 1;
+			admission = null;
 			await options.settings.setExternalFfmpegSelection(selectedPath);
 			current = baseStatus('quarantined', selectedPath, null, 'The selected FFmpeg installation has not been probed.');
-			admission = null;
 			return probe(selectedPath);
 		}),
 		clear: () => exclusive('probing', async () => {
-			await options.settings.clearExternalFfmpegSelection();
+			mutationEpoch += 1;
 			admission = null;
+			await options.settings.clearExternalFfmpegSelection();
 			current = baseStatus('unconfigured', null, null, '');
 			return exposedStatus();
 		}),
@@ -199,7 +226,49 @@ export function createExternalFfmpegPreferenceService(
 			return fail('error', `The package manager could not install FFmpeg (${outcome.reason}).`);
 		}),
 		admission: () => admission,
+		async invalidateAdmission(
+			expected: ExternalFfmpegRuntimeAdmission,
+			reason: ExternalFfmpegRuntimeInvalidationReason,
+		): Promise<ExternalFfmpegPreferenceStatus> {
+			if (reason !== 'identity-changed' && reason !== 'executable-unavailable') {
+				throw new TypeError('The FFmpeg runtime invalidation reason is unsupported.');
+			}
+			if (!sameAdmission(admission, expected)) return exposedStatus();
+			mutationEpoch += 1;
+			admission = null;
+			const unavailable = reason === 'executable-unavailable';
+			current = baseStatus(
+				unavailable ? 'unavailable' : 'quarantined', expected.executablePath, null,
+				unavailable
+					? 'The admitted FFmpeg executable is no longer available and must be rescanned.'
+					: 'The admitted FFmpeg executable changed and must be rescanned.',
+			);
+			const selected = options.settings.snapshot().externalFfmpegSelection;
+			if (selected?.executablePath === expected.executablePath) {
+				try { await options.settings.clearExternalFfmpegProbeMetadata(expected.executablePath); }
+				catch {
+					current = baseStatus(
+						'error', expected.executablePath, null,
+						'FFmpeg probe evidence could not be cleared after runtime invalidation.',
+					);
+				}
+			}
+			return exposedStatus();
+		},
 	});
+}
+
+function sameAdmission(
+	left: ExternalFfmpegRuntimeAdmission | null,
+	right: ExternalFfmpegRuntimeAdmission,
+): boolean {
+	return left !== null && right !== null && typeof right === 'object'
+		&& left.executablePath === right.executablePath
+		&& left.version === right.version
+		&& left.capabilityGeneration === right.capabilityGeneration
+		&& left.identity.ffmpegSha256 === right.identity?.ffmpegSha256
+		&& left.identity.ffprobeSha256 === right.identity?.ffprobeSha256
+		&& left.identity.dependencyClosureSha256 === right.identity?.dependencyClosureSha256;
 }
 
 function runtimeAdmission(
