@@ -78,6 +78,14 @@ jobs:
         timeout-minutes: 10
         run: bash scripts/ci-apt-install.sh xvfb
 
+      - name: Allow unprivileged user namespaces for the native isolation launcher
+        # ubuntu-24.04 images restrict unprivileged user namespaces through
+        # AppArmor, so the milestone-5 launcher's unshare(CLONE_NEWUSER) fails
+        # with EPERM and every real-child enforcement test fail-closes with
+        # "The enforcement handshake ended early" before it can attest.
+        if: runner.os == 'Linux'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - name: Provision interchange conformance reference tools
         run: npm run provision:interchange-conformance
 
