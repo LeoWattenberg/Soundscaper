@@ -481,7 +481,7 @@ function snapshotAdmission(
 		|| typeof value.version !== 'string' || typeof value.capabilityGeneration !== 'string'
 		|| !value.identity || !SHA256.test(value.identity.ffmpegSha256)
 		|| !SHA256.test(value.identity.ffprobeSha256)
-		|| !SHA256.test(value.identity.dependencyClosureSha256)) return null;
+		|| !SHA256.test(value.identity.declaredFileClosureSha256)) return null;
 	const capabilities = cloneCapabilities(value.capabilities);
 	if (capabilities === null) return null;
 	return Object.freeze({

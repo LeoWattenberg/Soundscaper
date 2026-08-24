@@ -23,7 +23,7 @@ export interface ExternalFfmpegPreferenceNodeProbeOptions {
 	readonly managedPath?: string | null;
 	readonly runner?: ExternalFfmpegProcessRunner;
 	readonly isExecutable?: (path: string) => Promise<boolean>;
-	readonly dependencyPaths?: (
+	readonly identityPaths?: (
 		candidate: ExternalFfmpegExecutableCandidate,
 	) => Promise<readonly string[]>;
 	readonly digestFile?: (path: string) => Promise<string>;
@@ -46,7 +46,7 @@ export function createExternalFfmpegPreferenceNodeProbe(
 		workingDirectory: options.workingDirectory,
 		environment: options.environment,
 	});
-	const dependencyPaths = options.dependencyPaths ?? ((candidate) => Promise.resolve([
+	const identityPaths = options.identityPaths ?? ((candidate) => Promise.resolve([
 		candidate.ffmpegPath, candidate.ffprobePath,
 	]));
 	return async (selectedPath): Promise<ExternalFfmpegPreferenceProbeResult> => {
@@ -76,10 +76,10 @@ export function createExternalFfmpegPreferenceNodeProbe(
 			});
 		}
 		try {
-			const dependencies = await dependencyPaths(discovery.selected);
+			const identityFiles = await identityPaths(discovery.selected);
 			const evidence = await createExternalFfmpegProbeEvidence({
 				probe: discovery.probe,
-				dependencyPaths: dependencies,
+				identityPaths: identityFiles,
 				digestFile: options.digestFile,
 				now: options.now,
 			});

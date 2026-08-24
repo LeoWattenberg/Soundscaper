@@ -180,7 +180,7 @@ function runtimeAdmission(
 		executablePath: resolve('ffmpeg'), version: '9.0.0', capabilityGeneration: 'test-generation',
 		identity: Object.freeze({
 			version: '9.0.0', ffmpegSha256: 'a'.repeat(64), ffprobeSha256: 'b'.repeat(64),
-			dependencyClosureSha256: 'c'.repeat(64),
+			declaredFileClosureSha256: 'c'.repeat(64),
 		}),
 		capabilities,
 	});

@@ -342,7 +342,10 @@ function externalFfmpegIdentity(value) {
 		version: boundedString(value.version, MAX_FFMPEG_VERSION_LENGTH, 'FFmpeg version'),
 		ffmpegSha256: sha256(value.ffmpegSha256, 'FFmpeg executable digest'),
 		ffprobeSha256: sha256(value.ffprobeSha256, 'FFprobe executable digest'),
-		dependencyClosureSha256: sha256(value.dependencyClosureSha256, 'FFmpeg dependency-closure digest'),
+		declaredFileClosureSha256: sha256(
+			value.declaredFileClosureSha256,
+			'FFmpeg declared-file closure digest',
+		),
 	});
 }
 

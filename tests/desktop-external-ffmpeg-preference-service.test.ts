@@ -13,7 +13,7 @@ import { planExternalFfmpegInstall } from '../desktop/external-ffmpeg-installer.
 const PATH = '/opt/homebrew/bin/ffmpeg';
 const IDENTITY = Object.freeze({
 	version: '9.0.1', ffmpegSha256: '1'.repeat(64), ffprobeSha256: '2'.repeat(64),
-	dependencyClosureSha256: '3'.repeat(64),
+	declaredFileClosureSha256: '3'.repeat(64),
 });
 const CAPABILITIES = Object.freeze({ digest: '4'.repeat(64), probedAtEpochMs: 1_787_605_200_000 });
 

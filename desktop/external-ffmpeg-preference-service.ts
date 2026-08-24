@@ -268,7 +268,7 @@ function sameAdmission(
 		&& left.capabilityGeneration === right.capabilityGeneration
 		&& left.identity.ffmpegSha256 === right.identity?.ffmpegSha256
 		&& left.identity.ffprobeSha256 === right.identity?.ffprobeSha256
-		&& left.identity.dependencyClosureSha256 === right.identity?.dependencyClosureSha256;
+		&& left.identity.declaredFileClosureSha256 === right.identity?.declaredFileClosureSha256;
 }
 
 function runtimeAdmission(
@@ -297,13 +297,13 @@ function runtimeIdentity(
 	if (!value || typeof value !== 'object' || typeof value.version !== 'string'
 		|| value.version.length < 1 || value.version.length > 256
 		|| !SHA256.test(value.ffmpegSha256) || !SHA256.test(value.ffprobeSha256)
-		|| !SHA256.test(value.dependencyClosureSha256)) {
+		|| !SHA256.test(value.declaredFileClosureSha256)) {
 		throw new TypeError('External FFmpeg identity is invalid.');
 	}
 	return Object.freeze({
 		version: value.version, ffmpegSha256: value.ffmpegSha256,
 		ffprobeSha256: value.ffprobeSha256,
-		dependencyClosureSha256: value.dependencyClosureSha256,
+		declaredFileClosureSha256: value.declaredFileClosureSha256,
 	});
 }
 

@@ -116,7 +116,7 @@ test('the Node runner terminates an output flood and returns a typed reason', as
 	assert.deepEqual(child.kills, ['SIGKILL']);
 });
 
-test('probe evidence binds executable, pair, dependency closure, and capabilities', async () => {
+test('probe evidence binds executable, declared identity files, and capabilities', async () => {
 	const probe = availableProbe();
 	const digests = new Map([
 		['/tools/ffmpeg', '1'.repeat(64)],
@@ -125,7 +125,7 @@ test('probe evidence binds executable, pair, dependency closure, and capabilitie
 	]);
 	const evidence = await createExternalFfmpegProbeEvidence({
 		probe,
-		dependencyPaths: ['/tools/lib/libcodec.so', '/tools/ffmpeg', '/tools/lib/libcodec.so'],
+		identityPaths: ['/tools/lib/libcodec.so', '/tools/ffmpeg', '/tools/lib/libcodec.so'],
 		digestFile: (path) => Promise.resolve(digests.get(path) ?? Promise.reject(new Error('missing'))),
 		now: () => 1_787_605_200_000,
 	});
@@ -134,7 +134,7 @@ test('probe evidence binds executable, pair, dependency closure, and capabilitie
 		version: '9.0.1',
 		ffmpegSha256: '1'.repeat(64),
 		ffprobeSha256: '2'.repeat(64),
-		dependencyClosureSha256: 'b5faba895bc651eb19f41f5330f895c50e22d421ced5ee63c7d175931fa7fd1e',
+		declaredFileClosureSha256: 'b5faba895bc651eb19f41f5330f895c50e22d421ced5ee63c7d175931fa7fd1e',
 	});
 	assert.deepEqual(evidence.capabilities, {
 		digest: '266381af0961177e20922326f8f009b99661dccb62c1b44152564a646f816632',

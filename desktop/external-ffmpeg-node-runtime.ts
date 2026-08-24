@@ -45,7 +45,7 @@ export interface ExternalFfmpegProbeEvidence {
 		readonly version: string;
 		readonly ffmpegSha256: string;
 		readonly ffprobeSha256: string;
-		readonly dependencyClosureSha256: string;
+		readonly declaredFileClosureSha256: string;
 	}>;
 	readonly capabilities: Readonly<{
 		readonly digest: string;
@@ -216,22 +216,22 @@ export function createExternalFfmpegNodeRunner(options: NodeRunnerOptions): Exte
 
 export async function createExternalFfmpegProbeEvidence(options: Readonly<{
 	readonly probe: Extract<ExternalFfmpegProbeResult, { status: 'available' }>;
-	readonly dependencyPaths: readonly string[];
+	readonly identityPaths: readonly string[];
 	readonly digestFile?: (path: string) => Promise<string>;
 	readonly now?: () => number;
 }>): Promise<ExternalFfmpegProbeEvidence> {
 	if (options.probe?.status !== 'available') throw new TypeError('Available FFmpeg probe evidence is required.');
-	if (!Array.isArray(options.dependencyPaths) || options.dependencyPaths.length > MAXIMUM_EVIDENCE_DEPENDENCIES) {
-		throw new RangeError('The FFmpeg dependency closure is invalid.');
+	if (!Array.isArray(options.identityPaths) || options.identityPaths.length > MAXIMUM_EVIDENCE_DEPENDENCIES) {
+		throw new RangeError('The FFmpeg declared-file identity closure is invalid.');
 	}
 	const digestFile = options.digestFile ?? sha256File;
 	const ffmpegSha256 = validateDigest(await digestFile(options.probe.candidate.ffmpegPath));
 	const ffprobeSha256 = validateDigest(await digestFile(options.probe.candidate.ffprobePath));
-	const dependencyPaths = [...new Set(options.dependencyPaths)].sort(asciiOrder);
-	const dependencies = await Promise.all(dependencyPaths.map(async (path) => Object.freeze({
+	const identityPaths = [...new Set(options.identityPaths)].sort(asciiOrder);
+	const identityFiles = await Promise.all(identityPaths.map(async (path) => Object.freeze({
 		path, sha256: validateDigest(await digestFile(path)),
 	})));
-	const dependencyClosureSha256 = sha256(canonicalJson(dependencies));
+	const declaredFileClosureSha256 = sha256(canonicalJson(identityFiles));
 	const capabilitiesDigest = sha256(canonicalJson(options.probe.capabilities));
 	const probedAtEpochMs = (options.now ?? Date.now)();
 	if (!Number.isSafeInteger(probedAtEpochMs) || probedAtEpochMs < 0) {
@@ -241,7 +241,7 @@ export async function createExternalFfmpegProbeEvidence(options: Readonly<{
 		executablePath: options.probe.candidate.ffmpegPath,
 		identity: Object.freeze({
 			version: options.probe.version.normalized,
-			ffmpegSha256, ffprobeSha256, dependencyClosureSha256,
+			ffmpegSha256, ffprobeSha256, declaredFileClosureSha256,
 		}),
 		capabilities: Object.freeze({ digest: capabilitiesDigest, probedAtEpochMs }),
 	});

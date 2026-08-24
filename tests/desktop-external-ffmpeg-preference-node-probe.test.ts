@@ -25,7 +25,7 @@ test('the preference probe admits a matching released pair and binds its evidenc
 		platform: 'linux', architecture: 'x64', workingDirectory: '/scratch', environment: {},
 		isExecutable: (path) => Promise.resolve(path === FFMPEG || path === FFPROBE),
 		runner: runner(calls),
-		dependencyPaths: ({ ffmpegPath, ffprobePath }) => Promise.resolve([ffprobePath, ffmpegPath]),
+		identityPaths: ({ ffmpegPath, ffprobePath }) => Promise.resolve([ffprobePath, ffmpegPath]),
 		digestFile: (path) => Promise.resolve(path === FFMPEG ? '1'.repeat(64) : '2'.repeat(64)),
 		now: () => 1_787_605_200_000,
 	});

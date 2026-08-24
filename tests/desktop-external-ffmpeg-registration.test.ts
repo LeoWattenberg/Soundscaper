@@ -184,7 +184,7 @@ function available() {
 		status: 'available' as const,
 		evidence: {
 			executablePath: PATH,
-			identity: { version: '9.0.1', ffmpegSha256: '1'.repeat(64), ffprobeSha256: '2'.repeat(64), dependencyClosureSha256: '3'.repeat(64) },
+			identity: { version: '9.0.1', ffmpegSha256: '1'.repeat(64), ffprobeSha256: '2'.repeat(64), declaredFileClosureSha256: '3'.repeat(64) },
 			capabilities: { digest: '4'.repeat(64), probedAtEpochMs: 1 },
 		},
 		capabilities: { encoders: [], decoders: [], muxers: [], demuxers: [], filters: [] },
