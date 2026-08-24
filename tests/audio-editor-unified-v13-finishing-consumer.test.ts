@@ -10,8 +10,13 @@ import {
 import { analyzeVideoMotionV1 } from '../src/common/editor/video-motion-analysis-v27.ts';
 import { createGrayVideoFrameV1 } from '../src/common/editor/video-motion-processing-v27.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV27 } from '../src/framescaper/editor-project-unified-render-plan-v27.ts';
+import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v20.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
-import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
+import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
+import {
+	createFramescaperProjectV27,
+	reimportFramescaperProjectV27,
+} from '../src/framescaper/editor-project-v27.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
 import { renderAuthority } from './helpers/framescaper-unified-render-project-fixture.ts';
 
@@ -50,6 +55,29 @@ test('preview and V13 export use the same managed-SDR grade and denoise resolver
 	assert.notDeepEqual(previewFrame.pixels, input.pixels);
 	assert.deepEqual(progress, ['spatial-denoise', 'managed-color']);
 	assert.equal(preview.plan, exporting.plan);
+});
+
+test('preview and V13 export both refuse legacy unmanaged source color before processing', async () => {
+	const project = reimportFramescaperProjectV27(PROFILE, createFramescaperProjectV20(
+		FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, framescaperV20Options(),
+	));
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+		...renderAuthority(project, 10), visualFreshnessByModelId: new Map(),
+	});
+	const request = {
+		clipId: 'video-clip', sourceFrame: 0, sequenceFrame: 0, frame: rgba(1, 1, [128]),
+	};
+	for (const consumer of [
+		createUnifiedExactRenderFinishingPreviewConsumerV13(plan),
+		createUnifiedExactRenderFinishingExportConsumerV13(plan),
+	]) {
+		const progress: string[] = [];
+		await assert.rejects(() => consumer.resolveFrame({
+			...request,
+			onProgress(value) { progress.push(value.phase); },
+		}), /legacy unmanaged source/iu);
+		assert.deepEqual(progress, [], 'color admission precedes all pixel processing');
+	}
 });
 
 test('similarity stabilization consumes only an authenticated fresh source-domain analysis', async () => {

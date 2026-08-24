@@ -5,6 +5,7 @@
 import {
 	applyManagedSdrCanvasReadbackGradeStackLinearPixelV1,
 	applyManagedSdrGradeStackLinearPixelV1,
+	assertManagedVideoColorRenderAdmissionV1,
 	encodeManagedSdrLinearPixelV1,
 	type ParsedCubeLutV1,
 } from './video-color-management-v27.ts';
@@ -148,6 +149,11 @@ async function resolveFrame(
 	const sequenceFrame = nonNegativeInteger(request?.sequenceFrame, 'V13 sequence frame');
 	const clip = clipById(authority.plan, stableId(request?.clipId, 'V13 finishing clip ID'));
 	const source = sourceForClip(authority.plan, clip);
+	const interpretation = authority.finishing.sourceInterpretations.find(
+		(candidate) => candidate.sourceId === source.sourceId,
+	);
+	if (!interpretation) throw new ReferenceError('The V13 source color interpretation is unavailable.');
+	assertManagedVideoColorRenderAdmissionV1(interpretation);
 	const presentations = applicablePresentations(
 		authority, clip, source, sequenceFrame, request.presentationScope ?? 'all',
 	);

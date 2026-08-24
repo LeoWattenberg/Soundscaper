@@ -385,12 +385,26 @@ function assertDefaultDisclosure(value: VideoSourceColorInterpretationV1): void 
 function assertManagedSdr(
 	value: VideoSourceColorInterpretationV1,
 ): asserts value is ManagedSdrInterpretationV1 {
+	assertManagedVideoColorRenderAdmissionV1(value);
+}
+
+/** Shared fail-closed admission used before managed preview and export processing. */
+export function assertManagedVideoColorRenderAdmissionV1(
+	value: VideoSourceColorInterpretationV1,
+): asserts value is ManagedSdrInterpretationV1 {
+	if (value.provenance === 'legacy-unmanaged-encoded') {
+		throw new RangeError(
+			'Managed video rendering refuses a legacy unmanaged source; choose an explicit source color interpretation before preview or export.',
+		);
+	}
 	const primaries = value.primaries === 'srgb' || value.primaries === 'bt709';
 	const transfer = value.transfer === 'srgb' || value.transfer === 'bt709';
 	const matrix = value.matrix === 'rgb' || value.matrix === 'bt709';
 	const range = value.range === 'full' || value.range === 'limited';
 	if (!primaries || !transfer || !matrix || !range) {
-		throw new RangeError('Managed SDR grading requires an admitted SDR transform; HDR and wide-gamut identity are preserved without silent tone mapping.');
+		throw new RangeError(
+			'Managed video rendering refuses an HDR or wide-gamut source interpretation without an exact transform.',
+		);
 	}
 }
 

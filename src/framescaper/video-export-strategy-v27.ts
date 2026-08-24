@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
+import { assertManagedVideoColorRenderAdmissionV1 } from '../common/editor/video-color-management-v27.ts';
 import {
 	createVideoExactPictureExportFrameSource,
 	type VideoKeyframeExportFrame,
@@ -515,18 +516,8 @@ function executableFoundation(
 }
 
 function assertSupportedBrowserFinishingState(project: FramescaperProjectV27): void {
-	const record = project as unknown as Readonly<Record<string, unknown>>;
-	for (const interpretation of records(
-		record.videoSourceColorInterpretations, 'V27 browser export color interpretations',
-	)) {
-		if (interpretation.provenance === 'legacy-unmanaged-encoded') {
-			refuse('a legacy unmanaged source');
-		}
-		if (!['srgb', 'bt709'].includes(String(interpretation.primaries))
-			|| !['srgb', 'bt709'].includes(String(interpretation.transfer))
-			|| !['rgb', 'bt709'].includes(String(interpretation.matrix))) {
-			refuse('an HDR or wide-gamut source interpretation');
-		}
+	for (const interpretation of project.videoSourceColorInterpretations) {
+		assertManagedVideoColorRenderAdmissionV1(interpretation);
 	}
 }
 
