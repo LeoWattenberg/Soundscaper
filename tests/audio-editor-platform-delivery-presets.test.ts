@@ -11,6 +11,8 @@ import {
 	resolvePlatformDeliveryAvailability,
 	resolvePlatformDeliveryExecution,
 	resolvePlatformDeliveryPlanOptions,
+	type PlatformDeliveryExecution,
+	type PlatformNativeMediaV15Execution,
 } from '../src/common/editor/platform-delivery-presets.ts';
 import { PLATFORM_DELIVERY_LICENSING_ROWS } from '../src/common/editor/platform-delivery-licensing.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
@@ -91,7 +93,9 @@ test('the catalog binds every platform target to one explicit web or V15 native 
 	assert.equal(executions['web-vp9-1080p']?.kind, 'web-video-plan');
 	assert.deepEqual(
 		Object.fromEntries(Object.entries(executions)
-			.filter(([, execution]) => execution?.kind === 'native-media-v15')
+			.filter((entry): entry is [string, PlatformNativeMediaV15Execution] => (
+				entry[1]?.kind === 'native-media-v15'
+			))
 			.map(([id, execution]) => [id, execution.profileId])),
 		{
 			'native-uhd-hdr10': 'encode-hevc-main10-hdr10',
@@ -124,18 +128,21 @@ test('native execution exposes caption, hardware, and companion-audio policy wit
 	const alpha = resolvePlatformDeliveryExecution(
 		findPlatformDeliveryPreset('native-alpha-mezzanine')!, cleared,
 	);
-	assert.deepEqual(alpha?.captionPolicy, { muxCodec: 'mov_text', burnIn: 'refused-preserve-alpha' });
+	assertNativeExecution(alpha);
+	assert.deepEqual(alpha.captionPolicy, { muxCodec: 'mov_text', burnIn: 'refused-preserve-alpha' });
 	const hardware = resolvePlatformDeliveryExecution(
 		findPlatformDeliveryPreset('native-hardware-h264')!, cleared,
 	);
-	assert.equal(hardware?.hardwarePolicy, 'hardware-first-identical-cpu-retry');
+	assertNativeExecution(hardware);
+	assert.equal(hardware.hardwarePolicy, 'hardware-first-identical-cpu-retry');
 	const sequence = resolvePlatformDeliveryExecution(
 		findPlatformDeliveryPreset('native-image-sequence-png')!, cleared,
 	);
-	assert.deepEqual(sequence?.captionPolicy, {
+	assertNativeExecution(sequence);
+	assert.deepEqual(sequence.captionPolicy, {
 		muxCodec: null, burnIn: 'supported-alpha-composite',
 	});
-	assert.deepEqual(sequence?.companionAudio, {
+	assert.deepEqual(sequence.companionAudio, {
 		required: true,
 		allowedFormatIds: [
 			'wav', 'bwf', 'aiff', 'flac', 'mp3', 'ogg-vorbis', 'opus', 'wavpack', 'mp2', 'aac-m4a',
@@ -146,6 +153,12 @@ test('native execution exposes caption, hardware, and companion-audio policy wit
 		findPlatformDeliveryPreset('native-image-sequence-png')!, MATRIX,
 	), null, 'execution never bypasses its licensing gate');
 });
+
+function assertNativeExecution(
+	value: PlatformDeliveryExecution | null,
+): asserts value is PlatformNativeMediaV15Execution {
+	assert.equal(value?.kind, 'native-media-v15');
+}
 
 test('image-sequence companion audio is a closed built-in non-ADM choice with BWF int24 default', () => {
 	assert.deepEqual(
