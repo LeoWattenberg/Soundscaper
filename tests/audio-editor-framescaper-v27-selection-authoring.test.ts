@@ -256,6 +256,46 @@ test('freeze captures the authenticated reverse-retime ordinal at the playhead a
 	}), /stale.*selection|selection.*changed/iu);
 });
 
+test('freeze places the still on the frame containing the playhead, to the clip end', async () => {
+	// The captured picture is resolved at the playhead sample with
+	// containing-frame semantics, so the still must land on that same frame:
+	// nearest-frame rounding placed it one frame after the picture it froze in
+	// the second half of every frame cell, and refused the clip's last frame.
+	const project = linkedPairProject();
+	const freeze = async (playheadSample: number, durationFrames: number) => {
+		const model = createFramescaperSelectedVisualAuthoringModelV27({
+			surface: 'video-freeze', project,
+			selectedClipId: 'outgoing-video', playheadSample,
+		});
+		return prepareFramescaperSelectedVisualAuthoringV27({
+			surface: 'video-freeze', project,
+			store: {
+				writeMediaAsset: () => Promise.resolve(),
+				deleteMediaAsset: () => Promise.resolve(),
+			} as never,
+			capture: {
+				capture: () => Promise.resolve({
+					blob: new Blob(['exact'], { type: 'image/png' }), width: 4, height: 2,
+				}),
+			},
+			request: {
+				fence: model.fence, operation: 'create', clipId: 'outgoing-video',
+				playheadSample, durationFrames,
+			},
+		});
+	};
+
+	// Sample 12600 sits inside frame 2 (9600..14400), past its midpoint.
+	const midCell = apply(project, (await freeze(12_600, 2)).command);
+	const still = records(midCell.clips).find(({ kind }) => kind === 'still');
+	assert.equal(still?.sequenceStartFrame, 2, 'the still sits on the frame whose picture was captured');
+
+	// Sample 47000 sits inside frame 9, the clip's last frame (43200..48000).
+	const lastFrame = apply(project, (await freeze(47_000, 1)).command);
+	const lastStill = records(lastFrame.clips).find(({ kind }) => kind === 'still');
+	assert.equal(lastStill?.sequenceStartFrame, 9, 'the last frame of the clip accepts a freeze');
+});
+
 function linkedPairProject() {
 	const options = framescaperV20Options();
 	const clips = records(options.clips);

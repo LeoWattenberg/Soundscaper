@@ -10,7 +10,8 @@ import { fingerprintNativeMediaPlan } from '../common/editor/native-media-plan-c
 import { createStableId } from '../common/editor/stable-id.js';
 import { digestMediaContent } from '../common/editor/storage/media-content-digest.ts';
 import type { AudioEditorProjectStore } from '../common/editor/storage.js';
-import { sampleFrameToVideoFrame, videoFrameToSampleFrame } from '../common/editor/timeline-time.ts';
+import { videoFrameToSampleFrame } from '../common/editor/timeline-time.ts';
+import { sequenceFrameAtSample } from '../common/editor/sequence-frame-navigation.ts';
 import { createVideoFreezeFallbackV1 } from '../common/editor/video-freeze-v24.ts';
 import { resolveVideoRetimeExactPictureOrdinal } from '../common/editor/video-retime-exact-ordinal-authority.ts';
 import { createRegisteredVideoRetimeWebCorePreviewResolver } from '../common/editor/video-retime-web-core-preview.ts';
@@ -311,7 +312,11 @@ async function prepareFreeze(
 		stableId(clip.sequenceId, 'selected sequence ID'), 'selected sequence');
 	const rate = rational(sequence.rate, 'selected sequence rate');
 	const sampleRate = positiveInteger(project.sampleRate, 'project sample rate');
-	const sequenceFrame = sampleFrameToVideoFrame(playhead, rate, sampleRate, 'point');
+	// The frozen picture resolves at the playhead sample with containing-frame
+	// semantics, so the still lands on that same frame: nearest rounding would
+	// place it one frame after the picture it freezes in the second half of a
+	// cell and refuse the clip's own last frame.
+	const sequenceFrame = sequenceFrameAtSample(playhead, rate, sampleRate);
 	const start = nonNegativeInteger(clip.sequenceStartFrame, 'selected video start');
 	const end = start + positiveInteger(clip.sequenceFrameCount, 'selected video duration');
 	if (sequenceFrame < start || sequenceFrame >= end) throw new RangeError('The playhead is outside the selected video.');
