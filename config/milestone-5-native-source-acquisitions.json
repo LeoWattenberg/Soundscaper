@@ -1,0 +1,279 @@
+{
+	"schemaVersion": 1,
+	"groundedAt": "2026-08-24",
+	"purpose": "Authenticated source inputs for Milestone 5 native build recipes. Authentication does not grant redistribution, trademark, patent, signing, activation, or qualification approval.",
+	"sources": [
+		{
+			"id": "electron-node-api-headers",
+			"version": "43.1.1",
+			"git": {
+				"tag": "v43.1.1",
+				"commit": null
+			},
+			"archive": {
+				"url": "https://electronjs.org/headers/v43.1.1/node-v43.1.1-headers.tar.gz",
+				"fileName": "node-v43.1.1-headers.tar.gz",
+				"byteLength": 344774,
+				"sha256": "b1112989ad4c4807a6bf59bfc96ce8d0f0b16962efe9818fa768e5908cc24d21"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 124,
+				"sha256": "9eae0a9eb7630b1b53f98e4b7c69951aee2a159ff1f564eeed06b78580de62eb"
+			},
+			"license": "MIT",
+			"licenseSelection": "MIT",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "blocked",
+			"blockedBy": "The exact Electron Node-API header archive, target addon build, signing, packaged-runtime and qualification evidence have not all been accepted.",
+			"uses": ["soundscaper-professional-node-api-addon-build"]
+		},
+		{
+			"id": "juce",
+			"version": "9.0.1",
+			"git": {
+				"tag": "9.0.1",
+				"commit": "e18f7f506c0b96f2c738a0bcd7fe6467a5005ad8"
+			},
+			"archive": {
+				"url": "https://github.com/juce-framework/JUCE/archive/e18f7f506c0b96f2c738a0bcd7fe6467a5005ad8.tar.gz",
+				"fileName": "juce-9.0.1.tar.gz",
+				"byteLength": 23609832,
+				"sha256": "1c43b675dcf3c99889fed6f68317873048b15449455974e22859275f17b2e69b"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 4822,
+				"sha256": "c7acbb9ae26ffd890afffd7c43fb958d480ab259ad0bbe30e6271b6655fac394"
+			},
+			"license": "AGPL-3.0-only OR commercial JUCE license",
+			"licenseSelection": "AGPL-3.0-only",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "blocked",
+			"blockedBy": "Per-platform source, notice, signing and packaged-runtime review has not been accepted, and no five-target cohort exists.",
+			"uses": ["native-audio-backends", "vst3-host", "audio-unit-host", "lv2-host"]
+		},
+		{
+			"id": "clap",
+			"version": "1.2.4",
+			"git": {
+				"tag": "1.2.4",
+				"commit": "00113aabdccf69c2e27ac269c35b369770e8fa73"
+			},
+			"archive": {
+				"url": "https://github.com/free-audio/clap/archive/00113aabdccf69c2e27ac269c35b369770e8fa73.tar.gz",
+				"fileName": "clap-1.2.4.tar.gz",
+				"byteLength": 2351103,
+				"sha256": "0f937070e51d3ead11316e757995662a3ea846f81573e720b8e8f7fb63a03a35"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 91,
+				"sha256": "539b03e30fea08f0465c06e50fdc4f0aa50680d78165e9039bc5ddd8c3b0094d"
+			},
+			"license": "MIT",
+			"licenseSelection": "MIT",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "blocked",
+			"blockedBy": "Notice, isolated-host, signing and five-target packaged execution acceptance is not recorded.",
+			"uses": ["direct-clap-host"]
+		},
+		{
+			"id": "vst3-sdk",
+			"version": "3.8.0_build_66",
+			"git": {
+				"tag": "v3.8.0_build_66",
+				"commit": "9fad9770f2ae8542ab1a548a68c1ad1ac690abe0"
+			},
+			"archive": {
+				"url": "https://github.com/steinbergmedia/vst3sdk/archive/9fad9770f2ae8542ab1a548a68c1ad1ac690abe0.tar.gz",
+				"fileName": "vst3-sdk-3.8.0_build_66.tar.gz",
+				"byteLength": 325954,
+				"sha256": "121e1063962aea6e02817fec6bd3066162e22f262904c00b4be4e8a1fb3f826b"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 6,
+				"sha256": "937494a6f328c6f8270127380561a9298258983c54df7e7acfa02c5b0c5da60c"
+			},
+			"license": "MIT",
+			"licenseSelection": "MIT",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "blocked",
+			"blockedBy": "The meta-repository archive is revision provenance and does not contain its Git submodule bodies; a build must authenticate the JUCE-carried SDK closure or a separately pinned submodule closure, and legal, notice, trademark, signing and packaged-host acceptance remains external.",
+			"uses": ["vst3-provenance", "vst3-host"]
+		},
+		{
+			"id": "asio-sdk",
+			"version": "2.3.4",
+			"git": {
+				"tag": null,
+				"commit": null
+			},
+			"archive": {
+				"url": "https://download.steinberg.net/sdk_downloads/ASIO-SDK_2.3.4_2025-10-15.zip",
+				"fileName": "ASIO-SDK_2.3.4_2025-10-15.zip",
+				"byteLength": 8910208,
+				"sha256": "d5ebf0c20dd2c5f43771fd0c1418f4b361bf52434ee670097cfa6b3a335e2eca"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 48,
+				"sha256": "43cbaa8d2373fd7cf69384817b32d6211e6c2464b8dac5a79bac7d24e0826563"
+			},
+			"license": "GPL-3.0-only OR Steinberg ASIO proprietary license",
+			"licenseSelection": "GPL-3.0-only",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "blocked",
+			"blockedBy": "ASIO trademark/logo, notice, redistribution, signing and Windows device-lab acceptance remains external.",
+			"uses": ["asio-backend"]
+		},
+		{
+			"id": "lv2",
+			"version": "1.18.10",
+			"git": {
+				"tag": "v1.18.10",
+				"commit": "0bcde338db1c63bbc503b4d1f6d7b55ed43154af"
+			},
+			"archive": {
+				"url": "https://gitlab.com/lv2/lv2/-/archive/0bcde338db1c63bbc503b4d1f6d7b55ed43154af/lv2-0bcde338db1c63bbc503b4d1f6d7b55ed43154af.tar.gz",
+				"fileName": "lv2-1.18.10.tar.gz",
+				"byteLength": 299434,
+				"sha256": "38d515cf1cb95d6f7d0191b8e383cbd95975a1ccec082d4e729eece7ec6a0c3e"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 270,
+				"sha256": "af0a403e86a48d4116c7f2bad5b879363f0725dda15fb6924f08926bcb94695b"
+			},
+			"license": "ISC",
+			"licenseSelection": "ISC",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "blocked",
+			"blockedBy": "Linux notice, isolated-host, signing and x64/ARM64 packaged execution acceptance is not recorded.",
+			"uses": ["lv2-host"]
+		},
+		{
+			"id": "x264",
+			"version": "stable-b35605ac",
+			"git": {
+				"tag": null,
+				"commit": "b35605ace3ddf7c1a5d67a2eb553f034aef41d55"
+			},
+			"archive": {
+				"url": "https://code.videolan.org/videolan/x264/-/archive/b35605ace3ddf7c1a5d67a2eb553f034aef41d55/x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55.tar.gz",
+				"fileName": "x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55.tar.gz",
+				"byteLength": 1040327,
+				"sha256": "cd71a7515b0e9a012e1ac9b1f8415bebcaf6fc97d4db32286642ac4c0fbe24f9"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 270,
+				"sha256": "076152c7f1d5923ec47da253de0d13e9881c3818dc53b4c1dfb0ea8505e0c4ad"
+			},
+			"license": "GPL-2.0-or-later",
+			"licenseSelection": "GPL-2.0-or-later",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "blocked",
+			"blockedBy": "Corresponding-source, notice, AVC patent, target-build, signing and qualification gates remain open.",
+			"uses": ["ffmpeg-h264-encoder"]
+		},
+		{
+			"id": "x265",
+			"version": "4.2",
+			"git": {
+				"tag": "4.2",
+				"commit": "e444744c03978c1fb4e037168967020cf2648427"
+			},
+			"archive": {
+				"url": "https://bitbucket.org/multicoreware/x265_git/downloads/x265_4.2.tar.gz",
+				"fileName": "x265_4.2.tar.gz",
+				"byteLength": 1833442,
+				"sha256": "40b1ea0453e0309f0eba934e0ddf533f8f6295966679e8894e8f1c1c8d5e1210"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 409,
+				"sha256": "fd3b109e8d617713fba18dfcbbef8c9a5135ee4dfc7321dba2b71f3b444809bb"
+			},
+			"license": "GPL-2.0-or-later OR commercial x265 license",
+			"licenseSelection": "GPL-2.0-or-later",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "blocked",
+			"blockedBy": "Corresponding-source, notice, HEVC patent, target-build, signing and qualification gates remain open.",
+			"uses": ["ffmpeg-hevc-encoder"]
+		},
+		{
+			"id": "libvpx",
+			"version": "1.16.0",
+			"git": {
+				"tag": "v1.16.0",
+				"commit": "1024874c5919305883187e2953de8fcb4c3d7fa6"
+			},
+			"archive": {
+				"url": "https://chromium.googlesource.com/webm/libvpx/+archive/refs/tags/v1.16.0.tar.gz",
+				"fileName": "libvpx-1.16.0.tar.gz",
+				"byteLength": 5683549,
+				"sha256": "c41cef6a4f18500a08df606a00d014707fac31c83f2788160bae51287ed027ab"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 1250,
+				"sha256": "459375253b653cc26d057e102b134fb4ac3664a8eab5a01de87176d950a92594"
+			},
+			"license": "BSD-3-Clause",
+			"licenseSelection": "BSD-3-Clause",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "blocked",
+			"blockedBy": "Notice, codec/patent, target-build, signing and qualification gates remain open.",
+			"uses": ["ffmpeg-vp9-decoder", "ffmpeg-vp9-encoder"]
+		},
+		{
+			"id": "libopus",
+			"version": "1.6",
+			"git": {
+				"tag": "v1.6",
+				"commit": "a8b13e40d751c7b40833b94fc9437c5c3439da89"
+			},
+			"archive": {
+				"url": "https://downloads.xiph.org/releases/opus/opus-1.6.tar.gz",
+				"fileName": "opus-1.6.tar.gz",
+				"byteLength": 36317446,
+				"sha256": "b7637334527201fdfd6dd6a02e67aceffb0e5e60155bbd89175647a80301c92c"
+			},
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 482,
+				"sha256": "9c0e596e8baa8281d7728c8d27d3ae98624de30254bf9767f07b4d76a1a9869a"
+			},
+			"license": "BSD-3-Clause",
+			"licenseSelection": "BSD-3-Clause",
+			"authenticationStatus": "pinned-metadata",
+			"activationStatus": "blocked",
+			"blockedBy": "Notice, target-build, signing and qualification gates remain open.",
+			"uses": ["ffmpeg-opus-decoder", "ffmpeg-opus-encoder"]
+		}
+	],
+	"delegatedSources": [
+		{
+			"id": "boost-multiprecision",
+			"manifestPath": "config/boost-multiprecision-source-manifest.json"
+		},
+		{
+			"id": "ffmpeg",
+			"manifestPath": "native/framescaper-media-host/source-manifest.json"
+		},
+		{
+			"id": "ffmpeg-external-libraries",
+			"manifestPath": "native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json"
+		},
+		{
+			"id": "openfx",
+			"manifestPath": "native/framescaper-openfx-host/source-manifest.json"
+		},
+		{
+			"id": "pipewire-public-headers",
+			"manifestPath": "vendor/pipewire-headers/UPSTREAM"
+		}
+	]
+}
