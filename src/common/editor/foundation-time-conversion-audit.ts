@@ -72,10 +72,10 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 	{
 		id: 'audio-warp-runtime-mapping',
 		file: 'src/common/editor/audio-warp-runtime.ts',
-		behavior: 'Runtime warp mapping point-resolves beat and warp boundaries once, and retains rational source positions between boundaries.',
+		behavior: 'Runtime warp mapping encloses fractional beat and warp boundaries at both adjacent sample frames, and retains rational source positions between boundaries.',
 		conversions: [
-			{ helper: 'beatToSampleFrame', policies: ['point'] },
-			{ helper: 'roundRational', policies: ['point'] },
+			{ helper: 'beatToSampleFrame', policies: ['enclosingStart', 'enclosingEnd'] },
+			{ helper: 'roundRational', policies: ['enclosingStart', 'enclosingEnd'] },
 		],
 	},
 	{

@@ -394,7 +394,7 @@ export function assertManagedVideoColorRenderAdmissionV1(
 ): asserts value is ManagedSdrInterpretationV1 {
 	if (value.provenance === 'legacy-unmanaged-encoded') {
 		throw new RangeError(
-			'Managed video rendering refuses a legacy unmanaged source; choose an explicit source color interpretation before preview or export.',
+			'Managed SDR video rendering refuses a legacy unmanaged source; choose an explicit source color interpretation before preview or export.',
 		);
 	}
 	const primaries = value.primaries === 'srgb' || value.primaries === 'bt709';
@@ -403,7 +403,7 @@ export function assertManagedVideoColorRenderAdmissionV1(
 	const range = value.range === 'full' || value.range === 'limited';
 	if (!primaries || !transfer || !matrix || !range) {
 		throw new RangeError(
-			'Managed video rendering refuses an HDR or wide-gamut source interpretation without an exact transform.',
+			'Managed SDR video rendering refuses an HDR or wide-gamut source interpretation without an exact transform.',
 		);
 	}
 }

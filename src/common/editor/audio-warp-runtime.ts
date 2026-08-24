@@ -166,8 +166,10 @@ export function buildAudioWarpRuntimeSegments(
 	}
 	if (isMusicalAudioWarpClip(clip)) {
 		for (const event of project.tempoMap.events.slice(1)) {
-			for (const policy of ['enclosingStart', 'enclosingEnd'] as const) {
-				const frame = beatToSampleFrame(event.beat, project.tempoMap, project.sampleRate, policy);
+			for (const frame of [
+				beatToSampleFrame(event.beat, project.tempoMap, project.sampleRate, 'enclosingStart'),
+				beatToSampleFrame(event.beat, project.tempoMap, project.sampleRate, 'enclosingEnd'),
+			]) {
 				if (frame > startFrame && frame < endFrame) boundaries.add(frame);
 			}
 		}
@@ -317,11 +319,12 @@ function timelineFramesAtOuter(
 	outer: Rational,
 ): readonly [number, number] {
 	if (!isMusicalAudioWarpClip(clip)) {
-		const atPolicy = (policy: 'enclosingStart' | 'enclosingEnd'): number => safeAdd(
-			clip.timelineStartFrame, roundRational(outer.num, outer.den, policy),
-			'audio warp timeline boundary',
-		);
-		return Object.freeze([atPolicy('enclosingStart'), atPolicy('enclosingEnd')]);
+		return Object.freeze([
+			safeAdd(clip.timelineStartFrame, roundRational(outer.num, outer.den, 'enclosingStart'),
+				'audio warp timeline boundary'),
+			safeAdd(clip.timelineStartFrame, roundRational(outer.num, outer.den, 'enclosingEnd'),
+				'audio warp timeline boundary'),
+		]);
 	}
 	const beat = addRationals(clip.musicalStartBeat!, outer);
 	return Object.freeze([
