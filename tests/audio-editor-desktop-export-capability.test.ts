@@ -66,3 +66,29 @@ test('bundled WavPack refuses an unmapped compression level before rendering', a
 	}));
 	assert.equal(queries, 2);
 });
+
+test('bundled FLAC refuses non-24-bit PCM and unreviewed levels before rendering', async () => {
+	const runtime = {
+		[DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true as const,
+		desktopAudioCodecCapabilities(query: { operations: readonly Record<string, unknown>[] }) {
+			return Promise.resolve({
+				schemaVersion: 1 as const,
+				capabilities: query.operations.map((operation) => ({
+					...operation, available: true as const, provider: 'bundled' as const, reason: null,
+				})),
+			});
+		},
+	};
+	await assert.rejects(() => assertDesktopAudioExportCapability(runtime, {
+		format: 'flac', sampleRate: 48_000, channelCount: 2,
+		encoding: { compressionLevel: 5, bitDepth: 16, sampleFormat: 'int16' },
+	}), /signed 24-bit/iu);
+	await assert.rejects(() => assertDesktopAudioExportCapability(runtime, {
+		format: 'flac', sampleRate: 48_000, channelCount: 2,
+		encoding: { compressionLevel: 9, bitDepth: 24, sampleFormat: 'int24' },
+	}), /levels 0 through 8/iu);
+	await assert.doesNotReject(assertDesktopAudioExportCapability(runtime, {
+		format: 'flac', sampleRate: 48_000, channelCount: 2,
+		encoding: { compressionLevel: 8, bitDepth: 24, sampleFormat: 'int24' },
+	}));
+});

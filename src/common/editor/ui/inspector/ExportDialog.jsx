@@ -42,7 +42,8 @@ import {
 } from './inspector-helpers.ts';
 import {
 	createDesktopExportCodecQuery, desktopExportCodecCapabilities,
-	desktopExportFormatAvailable, desktopExportFormatReason, desktopExportWavPackCompressionLevels,
+	desktopExportFlacSampleFormats, desktopExportFormatAvailable, desktopExportFormatReason,
+	desktopExportWavPackCompressionLevels,
 } from '../desktop-export-codec-model.ts';
 
 export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fileService, onClose }) {
@@ -223,12 +224,15 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			return;
 		}
 		const descriptor = MEDIA_EXPORT_FORMATS[settings.format];
-		if (descriptor?.sampleFormats?.length && !descriptor.sampleFormats.includes(settings.sampleFormat)) {
-			setSettings((current) => ({ ...current, sampleFormat: descriptor.defaults.sampleFormat }));
+		const sampleFormats = desktop && settings.format === 'flac'
+			? desktopExportFlacSampleFormats(desktopCodecCapabilities)
+			: descriptor?.sampleFormats;
+		if (sampleFormats?.length && !sampleFormats.includes(settings.sampleFormat)) {
+			setSettings((current) => ({ ...current, sampleFormat: sampleFormats[0] }));
 		} else if (settings.sampleFormat === 'float32' && settings.dither !== 'none') {
 			setSettings((current) => ({ ...current, dither: 'none' }));
 		}
-	}, [hasTimelineVideo, settings.dither, settings.format, settings.sampleFormat]);
+	}, [desktop, desktopCodecCapabilities, hasTimelineVideo, settings.dither, settings.format, settings.sampleFormat]);
 
 	const set = (name, value) => setSettings((current) => ({ ...current, [name]: value }));
 	// A delivery target states the container it delivers, so the format control
@@ -320,6 +324,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		'aac-m4a': [96, 128, 160, 192, 256, 320],
 	}[settings.format] || []).map(bitrateOption);
 	const formatDescriptor = MEDIA_EXPORT_FORMATS[settings.format];
+	const sampleFormatOptions = desktop && settings.format === 'flac'
+		? desktopExportFlacSampleFormats(desktopCodecCapabilities)
+		: formatDescriptor?.sampleFormats || [];
 	const desktopFormatRefusal = desktop && !desktopExportFormatAvailable(settings.format, desktopCodecCapabilities)
 		? desktopExportFormatReason(settings.format, desktopCodecCapabilities, desktopCodecQuery === false)
 		: desktop && settings.format === 'wavpack'
@@ -327,6 +334,14 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			&& !desktopExportWavPackCompressionLevels(desktopCodecCapabilities)
 				.includes(Number(settings.compressionLevel))
 			? 'The bundled WavPack provider supports only compression level 2 (reviewed fast mode).'
+			: desktop && settings.format === 'flac'
+				&& desktopCodecCapabilities?.formats.flac?.provider === 'bundled'
+				&& !sampleFormatOptions.includes(settings.sampleFormat)
+				? 'The bundled FLAC provider supports only explicitly converted signed 24-bit PCM.'
+				: desktop && settings.format === 'flac'
+					&& desktopCodecCapabilities?.formats.flac?.provider === 'bundled'
+					&& (Number(settings.compressionLevel) < 0 || Number(settings.compressionLevel) > 8)
+					? 'The bundled FLAC provider supports compression levels 0 through 8.'
 			: null;
 	const desktopCodecNotice = desktopFormatRefusal || (desktopCodecQuery === false
 		? desktopExportFormatReason('opus', null, true)
@@ -504,7 +519,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						})) : []),
 					]} />
 					{!videoFormat && (pcmFormat ? (
-						<LabeledDropdown label={copy.sampleFormat || copy.bitDepth} hook="bitDepth" value={settings.sampleFormat} onChange={(value) => set('sampleFormat', value)} disabled={exporting || admPassthrough} options={formatDescriptor.sampleFormats.map((sampleFormat) => ({
+						<LabeledDropdown label={copy.sampleFormat || copy.bitDepth} hook="bitDepth" value={settings.sampleFormat} onChange={(value) => set('sampleFormat', value)} disabled={exporting || admPassthrough} options={sampleFormatOptions.map((sampleFormat) => ({
 							value: sampleFormat,
 							label: sampleFormat === 'float32'
 								? copy.sampleFormatFloat32

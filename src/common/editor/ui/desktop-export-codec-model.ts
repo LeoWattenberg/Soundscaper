@@ -24,6 +24,7 @@ interface DesktopExportCodecSettings {
 
 const COMPRESSED = new Set<string>(DESKTOP_AUDIO_CODEC_FORMATS);
 const WAVPACK_COMPRESSION_LEVELS = Object.freeze([0, 1, 2, 3, 4, 5] as const);
+const FLAC_SAMPLE_FORMATS = Object.freeze(['int16', 'int24'] as const);
 
 export function createDesktopExportCodecQuery(
 	settings: DesktopExportCodecSettings,
@@ -74,6 +75,14 @@ export function desktopExportWavPackCompressionLevels(
 	return capabilities?.formats.wavpack?.provider === 'bundled'
 		? Object.freeze([DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL])
 		: WAVPACK_COMPRESSION_LEVELS;
+}
+
+export function desktopExportFlacSampleFormats(
+	capabilities: DesktopAudioCodecCapabilities | null,
+): readonly ('int16' | 'int24')[] {
+	return capabilities?.formats.flac?.provider === 'bundled'
+		? Object.freeze(['int24'] as const)
+		: FLAC_SAMPLE_FORMATS;
 }
 
 function outputChannelCount(settings: DesktopExportCodecSettings, projectChannelCount: unknown): number {
