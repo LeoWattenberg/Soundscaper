@@ -386,9 +386,12 @@ export class PluginHostIsolationRegistry {
 	}
 
 	/** Closing the window closes the window. The effect keeps running. */
-	closeVendorUi(windowHandleId: string): boolean {
+	closeVendorUi(windowHandleId: string, instanceId?: string): boolean {
 		const open = this.#vendorWindows.get(windowHandleId);
 		if (!open) return false;
+		// The caller authorized an instance; the handle must belong to it, or
+		// any instance owner could close any registered vendor window.
+		if (instanceId !== undefined && open.instanceId !== instanceId) return false;
 		this.#vendorWindows.delete(windowHandleId);
 		const process = this.#hostsById.get(open.hostId)?.process;
 		if (process) safely(() => process.closeVendorUi(windowHandleId));

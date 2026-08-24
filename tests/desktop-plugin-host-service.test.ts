@@ -126,6 +126,28 @@ test('plug-in state is content addressed, survives restore, and supplies exact P
 	assert.deepEqual(fixture.pdc, [64, 128])
 })
 
+test('a vendor window closes only through the instance that owns it', async () => {
+	const fixture = harness()
+	const first = await fixture.service.instantiate(OWNER, {
+		installationId: fixture.installation, instanceId: 'vendor_owner_01', sampleRate: 48_000,
+	})
+	const second = await fixture.service.instantiate(OWNER, {
+		installationId: fixture.installation, instanceId: 'vendor_owner_02', sampleRate: 48_000,
+	})
+	const outcome = fixture.service.openVendorUi(OWNER, first.instanceId)
+	assert.equal(outcome.status, 'opened')
+	if (outcome.status !== 'opened') return
+	// Authorizing one instance must not close another instance's window.
+	assert.equal(fixture.service.closeVendorUi(OWNER, {
+		instanceId: second.instanceId, windowHandleId: outcome.window.windowHandleId,
+	}), false)
+	assert.deepEqual(fixture.closed, [])
+	assert.equal(fixture.service.closeVendorUi(OWNER, {
+		instanceId: first.instanceId, windowHandleId: outcome.window.windowHandleId,
+	}), true)
+	assert.deepEqual(fixture.closed, [outcome.window.windowHandleId])
+})
+
 test('closing an instance releases its retained opaque state with it', async () => {
 	const fixture = harness()
 	const instance = await fixture.service.instantiate(OWNER, {

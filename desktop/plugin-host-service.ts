@@ -285,8 +285,10 @@ export class DesktopPluginHostService {
 
 	closeVendorUi(owner: object, value: unknown): boolean {
 		const request = closedRecord(value, ['instanceId', 'windowHandleId'], 'vendor UI close request')
-		this.#owned(owner, request.instanceId)
-		return this.#isolation.closeVendorUi(opaqueId(request.windowHandleId, 'vendor window ID'))
+		const entry = this.#owned(owner, request.instanceId)
+		return this.#isolation.closeVendorUi(
+			opaqueId(request.windowHandleId, 'vendor window ID'), entry.instanceId,
+		)
 	}
 
 	reportHostStopped(value: unknown): readonly Readonly<PluginContinuityDecision>[] {
