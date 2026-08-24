@@ -17,7 +17,12 @@ export function createExactVideoPresentationMapping(
 ): Readonly<ExactVideoPresentationMapping> {
 	const value = record(descriptor, 'video presentation descriptor');
 	const sourceFrame = exactNumber(value.sourceFrame, 'video presentation sourceFrame');
-	const sourceTimeSeconds = exactNumber(value.sourceTime, 'video presentation sourceTime');
+	// The HTML-media seek target must sit inside the drawable frame's
+	// half-open interval: a reverse cell's exact source time equals the
+	// interval's exclusive end, and seeking that boundary presents the next
+	// frame instead of the picture the exact route delivers.
+	const interior = drawableInteriorSeconds(value);
+	const sourceTimeSeconds = interior ?? exactNumber(value.sourceTime, 'video presentation sourceTime');
 	return Object.freeze({
 		timelineFrame,
 		timelineTimeSeconds: timelineFrame / sampleRate,
@@ -26,6 +31,23 @@ export function createExactVideoPresentationMapping(
 		sourceFrame,
 		sourceTimeSeconds,
 	});
+}
+
+function drawableInteriorSeconds(value: Readonly<Record<string, unknown>>): number | null {
+	const start = optionalExactSeconds(value.drawableSourceStartTime);
+	const end = optionalExactSeconds(value.drawableSourceEndTime);
+	if (start === null || end === null || !(start < end)) return null;
+	const midpoint = (start + end) / 2;
+	return midpoint >= start && midpoint < end ? midpoint : start;
+}
+
+function optionalExactSeconds(value: unknown): number | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const rational = value as Readonly<{ numerator?: unknown; denominator?: unknown }>;
+	if (typeof rational.numerator !== 'bigint' || typeof rational.denominator !== 'bigint'
+		|| rational.denominator <= 0n) return null;
+	const result = Number(rational.numerator) / Number(rational.denominator);
+	return Number.isFinite(result) ? result : null;
 }
 
 function exactNumber(value: unknown, name: string): number {

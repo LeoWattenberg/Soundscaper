@@ -60,6 +60,41 @@ test('program compositor pauses and seeks retimed media from the exact ordinal d
 	assert.equal(pauses, 1);
 });
 
+test('program compositor seeks inside the drawable interval, not to its boundary', () => {
+	// Reverse ownership is ceil(position)-1, so a reverse cell's mapped source
+	// time lands exactly on the exclusive end of the owned frame's half-open
+	// interval; seeking that boundary presents the next frame. The export path
+	// seeks an interior point and asserts the presented time stays inside, so
+	// the workspace preview must seek the interior too.
+	const layerPool = [];
+	primeVideoPreviewCompositorPool(layerPool, 1);
+	const targetLayers = [];
+	const video = {
+		readyState: 4, videoWidth: 640, videoHeight: 360, currentTime: 0,
+		pause() {},
+	};
+	const timeline = compositionTimeline({});
+	timeline.resolveClipPresentation = () => ({
+		sourceTime: { numerator: 10n, denominator: 1n },
+		drawableSourceFrame: { numerator: 9n, denominator: 1n },
+		drawableSourceStartTime: { numerator: 9n, denominator: 1n },
+		drawableSourceEndTime: { numerator: 10n, denominator: 1n },
+	});
+	synchronizeVideoPreviewCompositorLayers(
+		targetLayers,
+		layerPool,
+		timeline,
+		5,
+		new Map([['clip', video]]),
+		effectBypass(),
+		new Map(),
+	);
+	assert.ok(
+		video.currentTime >= 9 && video.currentTime < 10,
+		`the seek lands inside the drawable frame [9, 10): ${String(video.currentTime)}`,
+	);
+});
+
 test('preview pool carries canonical render descriptions into entries and layer blend state', () => {
 	const renderDescription = resolveVideoRenderDescription({
 		composition: {

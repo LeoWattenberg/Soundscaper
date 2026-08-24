@@ -175,7 +175,12 @@ function synchronizeExactPresentation(timeline, clip, timelineFrame, video) {
 	const exact = descriptor.sourceTime;
 	if (!exact || typeof exact.numerator !== 'bigint' || typeof exact.denominator !== 'bigint'
 		|| exact.denominator <= 0n) throw new TypeError('Exact program preview source time is invalid.');
-	const targetTime = Number(exact.numerator) / Number(exact.denominator);
+	// Seek inside the drawable frame's half-open interval when the descriptor
+	// carries one: a reverse cell's exact source time equals the interval's
+	// exclusive end, and seeking that boundary presents the next frame instead
+	// of the picture the export path delivers.
+	const interior = drawableIntervalInterior(descriptor);
+	const targetTime = interior !== null ? interior : Number(exact.numerator) / Number(exact.denominator);
 	if (!Number.isFinite(targetTime) || targetTime < 0) {
 		throw new RangeError('Exact program preview source time exceeds the browser media range.');
 	}
@@ -186,6 +191,21 @@ function synchronizeExactPresentation(timeline, clip, timelineFrame, video) {
 	} catch {
 		// Metadata readiness callbacks and the next compositor pass retry the exact seek.
 	}
+}
+
+function drawableIntervalInterior(descriptor) {
+	const start = exactRationalSeconds(descriptor.drawableSourceStartTime);
+	const end = exactRationalSeconds(descriptor.drawableSourceEndTime);
+	if (start === null || end === null || !(start < end)) return null;
+	const midpoint = (start + end) / 2;
+	return midpoint >= start && midpoint < end ? midpoint : start;
+}
+
+function exactRationalSeconds(value) {
+	if (!value || typeof value !== 'object' || typeof value.numerator !== 'bigint'
+		|| typeof value.denominator !== 'bigint' || value.denominator <= 0n) return null;
+	const result = Number(value.numerator) / Number(value.denominator);
+	return Number.isFinite(result) ? result : null;
 }
 
 function resolveKeyframeStates(interval, timeline, timelineFrame) {
