@@ -258,6 +258,83 @@ test('the render adapter seals and verifies a result before it alone commits pub
 	assert.equal(Object.isFrozen(execution), true);
 });
 
+test('progress and result sequences must advance through the executor', async () => {
+	// A replayed or reordered envelope is refused, not re-applied: the render
+	// host owns one strictly increasing sequence across progress and result.
+	const staleProgress = (sequences: readonly number[], resultSequence: number) => {
+		const expected = description();
+		const order: string[] = [];
+		let reads = 0;
+		const host: RenderJobHostPort<
+			SoundscaperDeliveryDescriptionV1, unknown, SoundscaperDeliveryResultV1
+		> = {
+			open: async ({ destination: guarded, signal }) => {
+				await guarded.write({
+					signal,
+					chunk: createBoundedByteChunk(new Uint8Array([1, 2, 3, 4]), {
+						sequence: 0, maximumByteLength: 4, final: true,
+					}),
+				});
+				return {
+					read: async () => (reads < sequences.length
+						? createBoundedPortMessage(SOUNDSCAPER_DELIVERY_PROGRESS_MESSAGE_TYPE, {
+							completed: 1, total: 4,
+						}, { sequence: sequences[reads++]!, maximumEncodedBytes: 256 })
+						: null),
+					result: async () => createBoundedPortMessage(
+						SOUNDSCAPER_DELIVERY_RESULT_MESSAGE_TYPE, result(expected),
+						{ sequence: resultSequence, maximumEncodedBytes: 4_096 },
+					),
+					cancel: async () => { order.push('cancel'); },
+				};
+			},
+		};
+		return executeSoundscaperDeliveryRenderJobV1({
+			host, destination: boundDestination(writer(order)), description: expected,
+			signal: new AbortController().signal,
+			currentAuthority: () => ({
+				projectIdentity: PROJECT, planFingerprint: expected.planFingerprint,
+			}),
+			acquirePublicationFence: publicationFence(expected, () => undefined),
+			validateExactResult,
+		});
+	};
+	await assert.rejects(
+		staleProgress([2, 2], 3),
+		/progress message sequences must increase/iu,
+	);
+	await assert.rejects(
+		staleProgress([2], 2),
+		/result sequence must follow its progress/iu,
+	);
+	await assert.doesNotReject(staleProgress([2], 3));
+});
+
+test('the caller-owned publication fence is single-use', async () => {
+	const { validateSoundscaperDeliveryPublicationFenceV1, validateSoundscaperDeliveryDestinationV1 } = await import(
+		'../src/common/editor/controller/soundscaper-delivery-publication-v1.ts');
+	const expected = description();
+	const output = result(expected);
+	const destination = validateSoundscaperDeliveryDestinationV1(
+		boundDestination(writer([])), expected,
+	);
+	let commits = 0;
+	const fence = validateSoundscaperDeliveryPublicationFenceV1({
+		authority: { projectIdentity: PROJECT, planFingerprint: expected.planFingerprint },
+		destinationGrantId: expected.destinationGrantId,
+		fileName: output.publication.fileName,
+		commit: () => { commits += 1; },
+	}, expected, output, destination);
+	const request = Object.freeze({
+		description: expected, result: output, destination,
+		signal: new AbortController().signal,
+	});
+	fence.commit(request);
+	assert.equal(commits, 1);
+	assert.throws(() => fence.commit(request), /already consumed/iu);
+	assert.equal(commits, 1);
+});
+
 test('a project edit during rendering aborts staging and never commits stale bytes', async () => {
 	const expected = description();
 	const order: string[] = [];
