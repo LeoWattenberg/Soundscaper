@@ -3,6 +3,8 @@
 import { mkdir as nodeMkdir } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 
+import { createDesktopAudioCodecReceiptJournal } from './desktop-audio-codec-receipt-journal.mjs';
+
 const TARGETS = Object.freeze(new Map([
 	['linux:x64', 'linux-x64'],
 	['linux:arm64', 'linux-arm64'],
@@ -56,11 +58,13 @@ export async function registerDesktopAudioCodecs(options) {
 	const operatingSystemRuntime = await modules.loadOperatingSystemAudioCodecRuntime({
 		target, osVersion: options.operatingSystemVersion, scratchRoot, verifyAddon, spawn,
 	});
+	const receipts = createDesktopAudioCodecReceiptJournal();
 	const service = modules.createDesktopAudioCodecRuntimeComposition({
 		target, scratchRoot, externalFfmpegPreferences: options.externalFfmpegPreferences,
 		...(bundledRuntime === null ? {} : { createBundledRuntime: () => bundledRuntime }),
 		...(operatingSystemRuntime === null
 			? {} : { createOperatingSystemRuntime: () => operatingSystemRuntime }),
+		onReceipt: (observation) => { receipts.record(observation); },
 	});
 	const ipc = modules.registerDesktopAudioCodecMainIpc({
 		channels: Object.freeze({
@@ -75,10 +79,12 @@ export async function registerDesktopAudioCodecs(options) {
 	let disposed = false;
 	return Object.freeze({
 		revokeOwner(owner) { return ipc.revokeOwner(owner); },
+		receiptSnapshot() { return receipts.snapshot(); },
 		dispose() {
 			if (disposed) return;
 			disposed = true;
 			ipc.dispose();
+			receipts.clear();
 		},
 	});
 }

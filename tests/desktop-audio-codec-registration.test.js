@@ -120,7 +120,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	assert.equal(compositionOptions.length, 1);
 	assert.deepEqual(Reflect.ownKeys(compositionOptions[0]), [
 		'target', 'scratchRoot', 'externalFfmpegPreferences', 'createBundledRuntime',
-		'createOperatingSystemRuntime',
+		'createOperatingSystemRuntime', 'onReceipt',
 	]);
 	assert.deepEqual(wavPackLoads, [{ target: 'mac-arm64' }]);
 	assert.deepEqual(flacLoads, [{ target: 'mac-arm64' }]);
@@ -146,6 +146,8 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	assert.equal(compositionOptions[0].externalFfmpegPreferences, externalFfmpegPreferences);
 	assert.equal(compositionOptions[0].createBundledRuntime({ target: 'mac-arm64' }), compositeRuntime);
 	assert.equal(compositionOptions[0].createOperatingSystemRuntime({ target: 'mac-arm64' }), operatingSystemRuntime);
+	const observation = Object.freeze({ requestId: 'request-a', receipt: Object.freeze({ provider: {} }) });
+	compositionOptions[0].onReceipt(observation);
 	assert.equal(ipcOptions.length, 1);
 	assert.deepEqual(ipcOptions[0].channels, {
 		desktopAudioCodecExecute: CHANNELS.desktopAudioCodecExecute,
@@ -156,14 +158,16 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	assert.equal(ipcOptions[0].removeHandler, removeHandler);
 	assert.equal(ipcOptions[0].ownerFor, ownerFor);
 	assert.equal(ipcOptions[0].service, service);
-	assert.deepEqual(Reflect.ownKeys(registration), ['revokeOwner', 'dispose']);
+	assert.deepEqual(Reflect.ownKeys(registration), ['revokeOwner', 'receiptSnapshot', 'dispose']);
 	assert.equal(Object.isFrozen(registration), true);
+	assert.deepEqual(registration.receiptSnapshot(), [observation]);
 	const owner = { id: 'owner' };
 	assert.equal(await registration.revokeOwner(owner), true);
 	assert.deepEqual(revoked, [owner]);
 	registration.dispose();
 	registration.dispose();
 	assert.equal(disposals, 1);
+	assert.deepEqual(registration.receiptSnapshot(), []);
 });
 
 test('registration fails closed without any admitted bundled runtime', async () => {
@@ -203,7 +207,7 @@ test('registration fails closed without any admitted bundled runtime', async () 
 		}),
 	});
 	assert.deepEqual(Reflect.ownKeys(compositionOptions[0]), [
-		'target', 'scratchRoot', 'externalFfmpegPreferences',
+		'target', 'scratchRoot', 'externalFfmpegPreferences', 'onReceipt',
 	]);
 });
 
