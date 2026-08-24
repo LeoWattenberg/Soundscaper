@@ -106,6 +106,14 @@ function requestedCompositionIds(value: unknown): readonly string[] {
 	}));
 }
 
+/** Summarize omitted effect identities without letting the status line grow unbounded. */
+export function boundedOmissionSummary(effectIds: readonly string[]): string {
+	const visible = effectIds.slice(0, 5);
+	return effectIds.length > visible.length
+		? `${visible.join(', ')} +${String(effectIds.length - visible.length)}`
+		: visible.join(', ');
+}
+
 function stringArray(value: unknown): readonly string[] {
 	if (!Array.isArray(value)) return Object.freeze([]);
 	return uniqueStrings(value.filter((item): item is string => typeof item === 'string'));

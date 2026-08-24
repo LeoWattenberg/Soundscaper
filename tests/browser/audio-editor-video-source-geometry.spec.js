@@ -12,6 +12,7 @@ import {
 	readRgbPixel,
 } from './helpers/pinned-video-frame-decoder.mjs';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
@@ -105,6 +106,11 @@ test.describe('3B-2b source display geometry qualification', () => {
 		// SharedArrayBuffer frame stream.
 		await installProductionIsolationHeaders(page, '/framescaper/en/');
 		const editor = await openFramescaper(page);
+		test.skip(
+			!await page.evaluate(hasWebGl2Capability),
+			'The browser video export composites each frame through WebGL2, '
+				+ 'which this browser environment refuses; the export surfaces the disclosed failure status instead.',
+		);
 		expect(await page.evaluate(() => ({
 			crossOriginIsolated: globalThis.crossOriginIsolated,
 			sharedArrayBuffer: typeof globalThis.SharedArrayBuffer,

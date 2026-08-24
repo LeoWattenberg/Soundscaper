@@ -15,6 +15,7 @@ import {
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 const CFR_VIDEO = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 const VISUAL_READINESS_TIMEOUT = 30_000;
@@ -23,6 +24,8 @@ const VISUAL_WORKFLOW_TIMEOUT = 600_000;
 const VISUAL_COMMAND_OPTIONS = { timeout: VISUAL_READINESS_TIMEOUT };
 const VISUAL_FFMPEG_OPTIONS = { timeout: 120_000 };
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
+const WEBGL2_COMPOSITED_PREVIEW_REQUIRED = 'The exact composited preview and its pixel assertions require WebGL2, '
+	+ 'which this browser environment refuses; the DOM fallback tier is qualified separately.';
 
 test.describe('selected V27 exact visual preview', () => {
 	test.describe.configure({ mode: 'serial' });
@@ -41,6 +44,7 @@ test.describe('selected V27 exact visual preview', () => {
 		test.setTimeout(VISUAL_WORKFLOW_TIMEOUT);
 		const clientErrors = collectClientErrors(page);
 		let editor = await bootEditor(page, '/framescaper/embed/en/');
+		test.skip(!await page.evaluate(hasWebGl2Capability), WEBGL2_COMPOSITED_PREVIEW_REQUIRED);
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
 
@@ -202,6 +206,7 @@ test.describe('selected V27 exact visual preview', () => {
 		const clientErrors = collectClientErrors(page);
 		await installPinnedFfmpegRuntimeRoutes(page);
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
+		test.skip(!await page.evaluate(hasWebGl2Capability), WEBGL2_COMPOSITED_PREVIEW_REQUIRED);
 		await importFiles(editor, [CFR_VIDEO.file], VISUAL_FFMPEG_OPTIONS);
 		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 30_000 });
 		const projectId = await editor.getAttribute('data-project-id');
@@ -321,6 +326,48 @@ test.describe('selected V27 exact visual preview', () => {
 		expect(witness.byteLength).toBeGreaterThan(32);
 		expect(witness.mimeType).toContain('video/mp4');
 		expect(witness.box).toBe('ftyp');
+		expect(clientErrors).toEqual([]);
+	});
+});
+
+test.describe('selected V27 visual state without WebGL2', () => {
+	test.beforeEach(async ({ page }) => {
+		page.setDefaultTimeout(VISUAL_READINESS_TIMEOUT);
+		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			headers: { 'Access-Control-Allow-Origin': '*' },
+			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
+		}));
+	});
+
+	test('resolves the visual session state in the DOM fallback tier', async ({ page }) => {
+		// Regression: when the WebGL2 compositor is unavailable, the exact V27
+		// visual session previously never resolved — the preview reported
+		// visual-pending "true" forever with an empty error, which is exactly
+		// how CI browsers whose GPU blocklist refuses WebGL2 presented the
+		// workspace. The DOM fallback tier must still resolve the session
+		// state so the disclosed fallback remains observable.
+		await page.addInitScript(() => {
+			const originalGetContext = HTMLCanvasElement.prototype.getContext;
+			HTMLCanvasElement.prototype.getContext = function getContext(type, ...args) {
+				if (type === 'webgl2' && this.hasAttribute('data-video-preview-canvas')) return null;
+				return originalGetContext.call(this, type, ...args);
+			};
+		});
+		const clientErrors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/framescaper/embed/en/');
+		await chooseNestedCommandAction(
+			page, editor, 'Generate', ['Video Generators', 'Add Solid…'], VISUAL_COMMAND_OPTIONS,
+		);
+		await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1, {
+			timeout: VISUAL_READINESS_TIMEOUT,
+		});
+		const preview = editor.locator('[data-video-preview]');
+		await expect(preview).toHaveAttribute('data-video-preview-renderer', 'fallback', VISUAL_COMMAND_OPTIONS);
+		await expect(preview).toHaveAttribute('data-video-preview-visual-pending', 'false', VISUAL_COMMAND_OPTIONS);
+		await expect(preview).toHaveAttribute('data-video-preview-visual-error', '', VISUAL_COMMAND_OPTIONS);
+		await expect(preview).toHaveAttribute('data-active-track-count', '1', VISUAL_COMMAND_OPTIONS);
 		expect(clientErrors).toEqual([]);
 	});
 });

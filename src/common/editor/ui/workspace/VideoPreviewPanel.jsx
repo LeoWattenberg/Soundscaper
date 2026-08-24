@@ -30,6 +30,7 @@ import {
 	synchronizeVideoPreviewCompositorLayers,
 } from './video-preview-compositor-pool.js';
 import {
+	boundedOmissionSummary,
 	createVideoPreviewFallbackLedgerLayers,
 	resolveVideoPreviewRenderIssue,
 	shouldHideVideoPreviewIdentityFallback,
@@ -259,12 +260,24 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	const renderPreviewFrame = useCallback(function renderPreviewFrameCallback() {
 		animationFrameRef.current = 0;
 		const compositor = compositorRef.current;
-		if (!compositor) return;
 		const playhead = playheadRef.current;
 		let timelineFrame = playhead.positionFrame;
 		if (playhead.transportState === 'playing') {
 			const engineFrame = Number(controller.engine?.getPositionFrames?.());
 			if (Number.isFinite(engineFrame)) timelineFrame = Math.max(0, engineFrame);
+		}
+		if (!compositor) {
+			// The product visual session must still resolve while the WebGL
+			// compositor is unavailable: without this the session state stays
+			// pending forever, hiding the disclosed DOM-fallback warning.
+			const visualSession = visualSessionRef.current;
+			if (!visualSession) return;
+			try {
+				updateVisualPreviewFrame(visualSession.resolve(timelineFrame));
+			} catch (error) {
+				updateVisualPreviewFrame(null, error instanceof Error ? error.message : String(error));
+			}
+			return;
 		}
 		let layersSynchronized;
 		try {
@@ -584,9 +597,3 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	);
 }
 
-function boundedOmissionSummary(effectIds) {
-	const visible = effectIds.slice(0, 5);
-	return effectIds.length > visible.length
-		? `${visible.join(', ')} +${effectIds.length - visible.length}`
-		: visible.join(', ');
-}
