@@ -9,10 +9,17 @@ import {
 	findPlatformDeliveryPreset,
 	PLATFORM_DELIVERY_PRESETS,
 	resolvePlatformDeliveryAvailability,
+	resolvePlatformDeliveryExecution,
 	resolvePlatformDeliveryPlanOptions,
 } from '../src/common/editor/platform-delivery-presets.ts';
 import { PLATFORM_DELIVERY_LICENSING_ROWS } from '../src/common/editor/platform-delivery-licensing.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
+import { MEDIA_EXPORT_FORMATS } from '../src/common/editor/media-export.js';
+import {
+	DEFAULT_PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_V1,
+	PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1,
+	snapshotPlatformImageSequenceCompanionAudioChoiceV1,
+} from '../src/common/editor/platform-image-sequence-companion-audio.ts';
 import { createExportDialogRequest } from '../src/common/editor/ui/export-dialog-model.js';
 import { statedVideoDeliveryTarget } from '../src/common/editor/ui/export-preset-model.ts';
 import { inventoryVideoDeliveryConversions } from '../src/common/editor/delivery-video-conversion-inventory.ts';
@@ -73,6 +80,90 @@ test('every gated preset is blocked today, states why, and resolves to no plan',
 		);
 		assert.equal(resolvePlatformDeliveryPlanOptions(preset, MATRIX), null, preset.id);
 	}
+});
+
+test('the catalog binds every platform target to one explicit web or V15 native execution', () => {
+	const executions = Object.fromEntries(PLATFORM_DELIVERY_PRESETS.map((preset) => [
+		preset.id, preset.execution,
+	]));
+	assert.equal(executions['web-1080p']?.kind, 'web-video-plan');
+	assert.equal(executions['web-vertical-1080']?.kind, 'web-video-plan');
+	assert.equal(executions['web-vp9-1080p']?.kind, 'web-video-plan');
+	assert.deepEqual(
+		Object.fromEntries(Object.entries(executions)
+			.filter(([, execution]) => execution?.kind === 'native-media-v15')
+			.map(([id, execution]) => [id, execution.profileId])),
+		{
+			'native-uhd-hdr10': 'encode-hevc-main10-hdr10',
+			'native-10-bit-sdr': 'encode-hevc-main10-sdr',
+			'native-hardware-h264': 'encode-mp4-h264',
+			'native-mezzanine-prores': 'encode-mov-prores-422-hq',
+			'native-alpha-mezzanine': 'encode-mov-prores-4444',
+			'native-image-sequence-png': 'encode-png-sequence',
+		},
+	);
+});
+
+test('native execution exposes caption, hardware, and companion-audio policy without bypassing gates', () => {
+	const cleared = structuredClone(MATRIX) as Record<string, unknown>;
+	for (const rows of Object.values(cleared)) {
+		if (!Array.isArray(rows)) continue;
+		for (const row of rows) {
+			if (row && typeof row === 'object') (row as Record<string, unknown>).status = 'cleared';
+		}
+	}
+	const prores = resolvePlatformDeliveryExecution(
+		findPlatformDeliveryPreset('native-mezzanine-prores')!, cleared,
+	);
+	assert.deepEqual(prores, {
+		kind: 'native-media-v15', profileId: 'encode-mov-prores-422-hq',
+		hardwarePolicy: 'native-cpu',
+		captionPolicy: { muxCodec: 'mov_text', burnIn: 'supported' },
+		companionAudio: null,
+	});
+	const alpha = resolvePlatformDeliveryExecution(
+		findPlatformDeliveryPreset('native-alpha-mezzanine')!, cleared,
+	);
+	assert.deepEqual(alpha?.captionPolicy, { muxCodec: 'mov_text', burnIn: 'refused-preserve-alpha' });
+	const hardware = resolvePlatformDeliveryExecution(
+		findPlatformDeliveryPreset('native-hardware-h264')!, cleared,
+	);
+	assert.equal(hardware?.hardwarePolicy, 'hardware-first-identical-cpu-retry');
+	const sequence = resolvePlatformDeliveryExecution(
+		findPlatformDeliveryPreset('native-image-sequence-png')!, cleared,
+	);
+	assert.deepEqual(sequence?.companionAudio, {
+		required: true,
+		allowedFormatIds: [
+			'wav', 'bwf', 'aiff', 'flac', 'mp3', 'ogg-vorbis', 'opus', 'wavpack', 'mp2', 'aac-m4a',
+		],
+		defaultChoice: { formatId: 'bwf', sampleFormat: 'int24' },
+	});
+	assert.equal(resolvePlatformDeliveryExecution(
+		findPlatformDeliveryPreset('native-image-sequence-png')!, MATRIX,
+	), null, 'execution never bypasses its licensing gate');
+});
+
+test('image-sequence companion audio is a closed built-in non-ADM choice with BWF int24 default', () => {
+	assert.deepEqual(
+		PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1,
+		Object.keys(MEDIA_EXPORT_FORMATS).filter((id) => id !== 'bw64' && id !== 'custom-ffmpeg'),
+	);
+	assert.deepEqual(DEFAULT_PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_V1, {
+		formatId: 'bwf', sampleFormat: 'int24',
+	});
+	assert.deepEqual(snapshotPlatformImageSequenceCompanionAudioChoiceV1(), {
+		formatId: 'bwf', sampleFormat: 'int24',
+	});
+	assert.deepEqual(snapshotPlatformImageSequenceCompanionAudioChoiceV1({ formatId: 'mp3' }), {
+		formatId: 'mp3', sampleFormat: null,
+	});
+	for (const value of [
+		{ formatId: 'bw64', sampleFormat: 'int24' },
+		{ formatId: 'custom-ffmpeg', sampleFormat: 'int24' },
+		{ formatId: 'bwf', sampleFormat: 'float32' },
+		{ formatId: 'bwf', sampleFormat: 'int24', arguments: ['-f', 'wav'] },
+	]) assert.throws(() => snapshotPlatformImageSequenceCompanionAudioChoiceV1(value), /built-in|support|unsupported/iu);
 });
 
 test('every gated preset hands the user somewhere to go instead', () => {

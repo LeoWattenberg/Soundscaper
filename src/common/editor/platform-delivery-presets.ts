@@ -18,7 +18,36 @@
  */
 
 import { VIDEO_EXPORT_FORMATS } from './video-export.js';
+import type { NativeMediaV14EncodeProfileId } from './native-media-v14-native-dispatch.ts';
+import {
+	DEFAULT_PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_V1,
+	PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1,
+} from './platform-image-sequence-companion-audio.ts';
 import { PLATFORM_DELIVERY_LICENSING_SNAPSHOT } from './platform-delivery-licensing.ts';
+
+export interface PlatformWebVideoPlanExecution {
+	readonly kind: 'web-video-plan';
+	readonly planOptions: Readonly<Record<string, unknown>>;
+}
+
+export interface PlatformNativeMediaV15Execution {
+	readonly kind: 'native-media-v15';
+	readonly profileId: NativeMediaV14EncodeProfileId;
+	readonly hardwarePolicy: 'native-cpu' | 'hardware-first-identical-cpu-retry';
+	readonly captionPolicy: Readonly<{
+		readonly muxCodec: 'mov_text' | null;
+		readonly burnIn: 'supported' | 'refused-preserve-alpha';
+	}>;
+	readonly companionAudio: Readonly<{
+		readonly required: true;
+		readonly allowedFormatIds: typeof PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1;
+		readonly defaultChoice: typeof DEFAULT_PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_V1;
+	}> | null;
+}
+
+export type PlatformDeliveryExecution =
+	| PlatformWebVideoPlanExecution
+	| PlatformNativeMediaV15Execution;
 
 export interface PlatformDeliveryPreset {
 	readonly id: string;
@@ -29,8 +58,8 @@ export interface PlatformDeliveryPreset {
 	readonly licensingRowIds: readonly string[];
 	/** Where a blocked delivery goes instead; null when this preset is the floor. */
 	readonly fallbackPresetId: string | null;
-	/** Plan options this preset resolves to, or null when nothing here can deliver it. */
-	readonly planOptions: Readonly<Record<string, unknown>> | null;
+	/** The executor and exact profile/options this target selects once its gates clear. */
+	readonly execution: PlatformDeliveryExecution;
 }
 
 export interface PlatformDeliveryPresetAvailability {
@@ -45,6 +74,39 @@ export interface PlatformDeliveryPresetAvailability {
 
 const H264 = Object.freeze({ format: 'mp4', quality: 'balanced' });
 const NATIVE_FFMPEG = 'codec-native-ffmpeg-current-set';
+const MOV_TEXT_CAPTIONS = Object.freeze({ muxCodec: 'mov_text' as const, burnIn: 'supported' as const });
+const ALPHA_CAPTIONS = Object.freeze({
+	muxCodec: 'mov_text' as const, burnIn: 'refused-preserve-alpha' as const,
+});
+const IMAGE_SEQUENCE_AUDIO = Object.freeze({
+	required: true as const,
+	allowedFormatIds: PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1,
+	defaultChoice: DEFAULT_PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_V1,
+});
+
+function webExecution(planOptions: Readonly<Record<string, unknown>>): PlatformWebVideoPlanExecution {
+	return Object.freeze({ kind: 'web-video-plan' as const, planOptions });
+}
+
+function nativeExecution(
+	profileId: NativeMediaV14EncodeProfileId,
+	options: Readonly<{
+		readonly hardware?: true;
+		readonly alpha?: true;
+		readonly imageSequence?: true;
+	}> = {},
+): PlatformNativeMediaV15Execution {
+	return Object.freeze({
+		kind: 'native-media-v15' as const,
+		profileId,
+		hardwarePolicy: options.hardware
+			? 'hardware-first-identical-cpu-retry' as const : 'native-cpu' as const,
+		captionPolicy: options.imageSequence
+			? Object.freeze({ muxCodec: null, burnIn: 'supported' as const })
+			: options.alpha ? ALPHA_CAPTIONS : MOV_TEXT_CAPTIONS,
+		companionAudio: options.imageSequence ? IMAGE_SEQUENCE_AUDIO : null,
+	});
+}
 
 export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Object.freeze([
 	Object.freeze({
@@ -53,10 +115,10 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 		summary: 'MP4, H.264, 1920x1080, stereo.',
 		licensingRowIds: Object.freeze([]),
 		fallbackPresetId: null,
-		planOptions: Object.freeze({
+		execution: webExecution(Object.freeze({
 			...H264,
 			canvas: Object.freeze({ size: Object.freeze({ width: 1_920, height: 1_080 }) }),
-		}),
+		})),
 	}),
 	Object.freeze({
 		id: 'web-vertical-1080',
@@ -64,13 +126,13 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 		summary: 'MP4, H.264, 9:16, cropped to fill.',
 		licensingRowIds: Object.freeze([]),
 		fallbackPresetId: 'web-1080p',
-		planOptions: Object.freeze({
+		execution: webExecution(Object.freeze({
 			...H264,
 			canvas: Object.freeze({
 				size: Object.freeze({ width: 1_080, height: 1_920 }),
 				fit: 'cover',
 			}),
-		}),
+		})),
 	}),
 	Object.freeze({
 		id: 'web-vp9-1080p',
@@ -78,11 +140,11 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 		summary: 'WebM, VP9, 1920x1080, stereo.',
 		licensingRowIds: Object.freeze([]),
 		fallbackPresetId: 'web-1080p',
-		planOptions: Object.freeze({
+		execution: webExecution(Object.freeze({
 			format: 'webm',
 			quality: 'balanced',
 			canvas: Object.freeze({ size: Object.freeze({ width: 1_920, height: 1_080 }) }),
-		}),
+		})),
 	}),
 	Object.freeze({
 		id: 'native-uhd-hdr10',
@@ -92,7 +154,7 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 			'codec-encode-hevc-mp4-main10-hdr10', NATIVE_FFMPEG,
 		]),
 		fallbackPresetId: 'web-1080p',
-		planOptions: null,
+		execution: nativeExecution('encode-hevc-main10-hdr10'),
 	}),
 	Object.freeze({
 		id: 'native-10-bit-sdr',
@@ -102,7 +164,7 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 			'codec-encode-hevc-mp4-main10-sdr', NATIVE_FFMPEG,
 		]),
 		fallbackPresetId: 'web-1080p',
-		planOptions: null,
+		execution: nativeExecution('encode-hevc-main10-sdr'),
 	}),
 	Object.freeze({
 		id: 'native-hardware-h264',
@@ -110,7 +172,7 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 		summary: 'The same delivery as Web 1080p, encoded by the machine’s own hardware.',
 		licensingRowIds: Object.freeze(['codec-hardware-acceleration']),
 		fallbackPresetId: 'web-1080p',
-		planOptions: null,
+		execution: nativeExecution('encode-mp4-h264', { hardware: true }),
 	}),
 	Object.freeze({
 		id: 'native-mezzanine-prores',
@@ -120,7 +182,7 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 			'codec-encode-prores-mov-422-hq', NATIVE_FFMPEG,
 		]),
 		fallbackPresetId: 'web-1080p',
-		planOptions: null,
+		execution: nativeExecution('encode-mov-prores-422-hq'),
 	}),
 	Object.freeze({
 		id: 'native-alpha-mezzanine',
@@ -130,7 +192,7 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 			'codec-encode-prores-mov-4444', NATIVE_FFMPEG,
 		]),
 		fallbackPresetId: 'native-mezzanine-prores',
-		planOptions: null,
+		execution: nativeExecution('encode-mov-prores-4444', { alpha: true }),
 	}),
 	Object.freeze({
 		id: 'native-image-sequence-png',
@@ -140,7 +202,7 @@ export const PLATFORM_DELIVERY_PRESETS: readonly PlatformDeliveryPreset[] = Obje
 			'codec-encode-png-image-sequence', NATIVE_FFMPEG,
 		]),
 		fallbackPresetId: 'web-1080p',
-		planOptions: null,
+		execution: nativeExecution('encode-png-sequence', { imageSequence: true }),
 	}),
 ]);
 
@@ -206,12 +268,21 @@ export function resolvePlatformDeliveryPlanOptions(
 ): Readonly<Record<string, unknown>> | null {
 	const availability = resolvePlatformDeliveryAvailability(preset, licensingMatrix);
 	if (!availability.available) return null;
-	if (!preset.planOptions) return null;
-	const format = preset.planOptions.format;
+	if (preset.execution.kind !== 'web-video-plan') return null;
+	const format = preset.execution.planOptions.format;
 	if (typeof format !== 'string' || !Object.hasOwn(VIDEO_EXPORT_FORMATS, format)) {
 		throw new RangeError(`Platform delivery preset ${preset.id} names a format this build does not ship.`);
 	}
-	return preset.planOptions;
+	return preset.execution.planOptions;
+}
+
+/** Resolve the executor only after the same availability gate used by the menu. */
+export function resolvePlatformDeliveryExecution(
+	preset: PlatformDeliveryPreset,
+	licensingMatrix: unknown = PLATFORM_DELIVERY_LICENSING_SNAPSHOT,
+): PlatformDeliveryExecution | null {
+	return resolvePlatformDeliveryAvailability(preset, licensingMatrix).available
+		? preset.execution : null;
 }
 
 function findLicensingRow(matrix: unknown, rowId: string): Record<string, unknown> | null {

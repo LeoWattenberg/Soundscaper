@@ -9,13 +9,16 @@ import {
 	type ClosedDomainRecord,
 } from './closed-domain-value.ts';
 import type { NativeMediaV14EncodeProfileId } from './native-media-v14-native-dispatch.ts';
+import {
+	PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1,
+	type PlatformImageSequenceCompanionAudioFormatV1,
+} from './platform-image-sequence-companion-audio.ts';
 
-export const FRAMESCAPER_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1 = Object.freeze([
-	'wav', 'bwf', 'aiff', 'flac', 'mp3', 'ogg-vorbis', 'opus', 'wavpack', 'mp2', 'aac-m4a',
-] as const);
+export const FRAMESCAPER_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1 =
+	PLATFORM_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1;
 
 export type FramescaperImageSequenceCompanionAudioFormatV1 =
-	(typeof FRAMESCAPER_IMAGE_SEQUENCE_COMPANION_AUDIO_FORMATS_V1)[number];
+	PlatformImageSequenceCompanionAudioFormatV1;
 
 export interface UnifiedExactRenderCaptionDeliveryV15 {
 	readonly trackId: string;
