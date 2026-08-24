@@ -546,12 +546,6 @@ function hasVisiblePictureKind(
 		)));
 }
 
-function refuse(feature: string): never {
-	throw new Error(
-		`Selected V27 browser export refuses ${feature}; it has no exact V13 execution path.`,
-	);
-}
-
 function allVideoSourceIds(projectValue: Readonly<Record<string, unknown>>): readonly string[] {
 	return Object.freeze(records(projectValue.sources, 'V27 browser export timing sources')
 		.filter(({ kind }) => kind === 'video')
