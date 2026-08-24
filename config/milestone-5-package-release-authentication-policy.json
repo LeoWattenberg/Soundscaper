@@ -1,0 +1,7 @@
+{
+	"schemaVersion": 1,
+	"statementType": "soundscaper-milestone-5-package-release-authentication-v1",
+	"algorithm": "Ed25519",
+	"trustedKeys": [],
+	"blockedBy": "No Milestone 5 release-review Ed25519 trust key has been accepted. Exact platform signatures, notarization or Linux attestations, and installer semantics therefore remain pending external review."
+}
