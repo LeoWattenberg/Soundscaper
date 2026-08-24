@@ -8,6 +8,7 @@ import {
 	type UnifiedExactRenderPlan,
 	type UnifiedExactRenderPlanSource,
 	type UnifiedExactRenderPlanVersion,
+	type UnifiedExactRenderTimingSidecars,
 	type UnifiedExactRenderTrackAuthorityV1,
 } from '../common/editor/unified-exact-render-plan.ts';
 import type { NativeMediaV14EncodeProfileId } from '../common/editor/native-media-v14-native-dispatch.ts';
@@ -52,7 +53,7 @@ export function createFramescaperUnifiedRenderFoundation(
 	planVersion: UnifiedExactRenderPlanVersion = 9,
 ): FramescaperUnifiedRenderFoundation {
 	const project = record(projectValue, 'Framescaper candidate project');
-	if (authority.includeAudio === true && planVersion !== 14) {
+	if (authority.includeAudio === true && planVersion !== 14 && planVersion !== 15) {
 		throw new RangeError('Audio authority is not represented by unified plans V9-V13 without an exact audio media graph; export must fail closed.');
 	}
 	const sampleRate = positiveInteger(data(project, 'sampleRate', 'project'), 'project.sampleRate');
@@ -206,12 +207,21 @@ export function finalizeFramescaperUnifiedRenderPlan<Version extends UnifiedExac
 	version: Version,
 	extraNodes: readonly UnifiedExactRenderNode[] | readonly Readonly<Record<string, unknown>>[],
 	deliveryProfile?: NativeMediaV14EncodeProfileId,
+	deliveryV15?: Readonly<{
+		readonly captionDelivery: unknown;
+		readonly companionAudio: unknown;
+	}>,
 ): UnifiedExactRenderPlan & Readonly<{ readonly version: Version }> {
 	const timingSidecars = FOUNDATION_TIMING_SIDECARS.get(foundation);
 	if (!timingSidecars) throw new TypeError('An authenticated unified render foundation is required.');
 	const plan = createUnifiedExactRenderPlanWithTimingSidecars({
 		version,
-		...(version === 14 ? { deliveryProfile: requiredV14DeliveryProfile(deliveryProfile) } : {}),
+		...(version === 14 ? { deliveryProfile: requiredProfessionalDeliveryProfile(deliveryProfile, 14) }
+			: version === 15 ? {
+				deliveryProfile: requiredProfessionalDeliveryProfile(deliveryProfile, 15),
+				captionDelivery: deliveryV15 === undefined ? null : deliveryV15.captionDelivery,
+				companionAudio: deliveryV15 === undefined ? null : deliveryV15.companionAudio,
+			} : {}),
 		...foundation.rawPlanBase,
 		nodes: [...foundation.baseNodes, ...extraNodes],
 	}, new Map(timingSidecars));
@@ -219,10 +229,22 @@ export function finalizeFramescaperUnifiedRenderPlan<Version extends UnifiedExac
 	return plan as UnifiedExactRenderPlan & Readonly<{ readonly version: Version }>;
 }
 
-function requiredV14DeliveryProfile(
+/** Retain the authenticated process-local SCTI tokens for immediate consumers. */
+export function snapshotFramescaperUnifiedRenderTimingSidecars(
+	foundation: FramescaperUnifiedRenderFoundation,
+): UnifiedExactRenderTimingSidecars {
+	const timingSidecars = FOUNDATION_TIMING_SIDECARS.get(foundation);
+	if (!timingSidecars) throw new TypeError('An authenticated unified render foundation is required.');
+	return new Map(timingSidecars);
+}
+
+function requiredProfessionalDeliveryProfile(
 	value: NativeMediaV14EncodeProfileId | undefined,
+	version: 14 | 15,
 ): NativeMediaV14EncodeProfileId {
-	if (value === undefined) throw new TypeError('A V14 render requires one exact professional delivery profile.');
+	if (value === undefined) {
+		throw new TypeError(`A V${String(version)} render requires one exact professional delivery profile.`);
+	}
 	return value;
 }
 

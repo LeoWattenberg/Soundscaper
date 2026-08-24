@@ -36,7 +36,9 @@ export function createFramescaperProjectUnifiedExactRenderPlanV28(
 	const visual = createFramescaperUnifiedVisualRenderNodes(foundation, authority);
 	const professional = createFramescaperUnifiedProfessionalRenderNodes(foundation);
 	const openFx = createFramescaperUnifiedOpenFxRenderNodes(foundation, visual.representedIdentities);
-	const finishing = createFinishingNode(project, foundation.projectIdentities, authority.sequenceId);
+	const finishing = createFramescaperUnifiedRenderFinishingNodeV28(
+		project, foundation.projectIdentities, authority.sequenceId,
+	);
 	const delivery = snapshotFramescaperNativeRenderDeliveryRequestV28(deliveryValue);
 	return finalizeFramescaperUnifiedRenderPlan(
 		foundation, 14, [...visual.nodes, ...professional, ...openFx, finishing],
@@ -44,7 +46,7 @@ export function createFramescaperProjectUnifiedExactRenderPlanV28(
 	) as UnifiedExactRenderPlanV14;
 }
 
-function createFinishingNode(
+export function createFramescaperUnifiedRenderFinishingNodeV28(
 	project: FramescaperProjectV28,
 	projectIdentities: ReadonlySet<string>,
 	sequenceId: string,
