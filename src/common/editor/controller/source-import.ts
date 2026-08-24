@@ -66,7 +66,10 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			const preferredProbes = [helperTimingProbe, ffmpegTimingProbe]
 				.filter((probe: RuntimeValue) => Boolean(probe));
 			let timingProbe = canonicalVideoFile instanceof Blob
-				? await probeVideoTiming(canonicalVideoFile, { probes: preferredProbes })
+				? await probeVideoTiming(canonicalVideoFile, {
+					probes: preferredProbes,
+					signal: importOptions.signal,
+				})
 				: Object.freeze({
 					decision: 'conform-cfr-at-ingest' as const,
 					rate: Object.freeze({ num: 30, den: 1 }),

@@ -125,3 +125,26 @@ test('the desktop helper probe port cancels the main-side probe when its signal 
 	await assert.rejects(Promise.resolve(probing));
 	assert.ok(calls.some(([name]) => name === 'cancel'), 'an abort must reach the main-side cancel channel');
 });
+
+test('an abort landing during the begin round-trip still cancels the helper job', async () => {
+	const media = new Blob([new Uint8Array(16)], { type: 'video/mp4' });
+	registerDesktopReadCapability(media, CAPABILITY_ID);
+	const controller = new AbortController();
+	const { bridge, calls } = createBridge({
+		beginVideoSourceProbe: async (request: unknown) => {
+			calls.push(['begin', request]);
+			// The abort event dispatches while the begin IPC is in flight, so no
+			// listener attached afterwards will ever hear it.
+			controller.abort();
+			return { probeId: PROBE_ID };
+		},
+		awaitVideoSourceProbe: async () => {
+			throw new Error('an aborted probe must not be awaited');
+		},
+	});
+	const port = createDesktopHelperVideoTimingProbe({ bridge });
+	assert.ok(port);
+	await assert.rejects(port.probe(media, { signal: controller.signal }));
+	assert.ok(calls.some(([name]) => name === 'cancel'),
+		'the helper job must not run to natural completion after the caller aborted');
+});

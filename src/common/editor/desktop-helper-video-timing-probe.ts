@@ -55,6 +55,14 @@ export function createDesktopHelperVideoTimingProbe(
 			const cancel = () => {
 				void helperBridge.cancelVideoSourceProbe({ probeId }).catch(() => undefined);
 			};
+			// An abort that landed during the begin round-trip has already
+			// dispatched its event, so the listener alone would leave the helper
+			// job running to natural completion while the caller has moved on.
+			if (signal?.aborted) {
+				cancel();
+				throw (signal.reason as Error | undefined)
+					?? new DOMException('The native probe was cancelled.', 'AbortError');
+			}
 			signal?.addEventListener('abort', cancel, { once: true });
 			try {
 				const completion = await helperBridge.awaitVideoSourceProbe({ probeId });

@@ -321,6 +321,30 @@ test('video import extracts linked audio and creates a new timeline lane pair', 
 	assert.equal(fixture.calls.at(-1), 'dispose');
 });
 
+test('the first timing probe receives the import abort signal', async () => {
+	const fixture = createFixture();
+	const seen: Array<AbortSignal | undefined> = [];
+	const controller = new AbortController();
+	const importVideo = createImportVideoFile({
+		...fixture.runtime,
+		helperTimingProbe: {
+			id: 'native-helper',
+			probe: async (_input: Blob, probeOptions: Readonly<{ signal?: AbortSignal }> = {}) => {
+				seen.push(probeOptions.signal);
+				throw new Error('helper probe unavailable in this fixture');
+			},
+		},
+	} as never);
+	const blobVideo = new File([new Uint8Array(4)], 'movie.mp4', { type: 'video/mp4' });
+	await assert.rejects(() => importVideo(blobVideo as never, {
+		destination: 'timeline', trackId: null, trackIndex: 0, timelineStartFrame: 0,
+		signal: controller.signal,
+	} as never));
+	assert.equal(seen.length, 1);
+	assert.equal(seen[0], controller.signal,
+		'aborting an import must be able to cancel its in-flight helper probe');
+});
+
 test('video import reuses both members of an existing lane group', async () => {
 	const fixture = createFixture();
 	fixture.setProject({
