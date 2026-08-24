@@ -12,9 +12,9 @@ import {
 	type NativeMediaPlanFingerprint,
 } from './native-media-plan-canonical-form.ts';
 import type { NativeMediaV14EncodeProfileId } from './native-media-v14-native-dispatch.ts';
-import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
-import { isVideoDeliveryAudioLayout, type VideoDeliveryAudioLayout } from './video-delivery-audio-layout.ts';
-import { isVideoDeliveryQuality, type VideoDeliveryQuality } from './video-delivery-quality.ts';
+import type { VideoCanvasFit } from './video-canvas-fit.ts';
+import type { VideoDeliveryAudioLayout } from './video-delivery-audio-layout.ts';
+import type { VideoDeliveryQuality } from './video-delivery-quality.ts';
 import { assertUnifiedExactRenderOutputAdmission } from './unified-exact-render-output-admission.ts';
 import {
 	requireDormantRenderGeneration as requireDormantGeneration,
@@ -37,6 +37,7 @@ import {
 	normalizeUnifiedExactRenderFormat,
 	type UnifiedExactRenderFormat,
 } from './unified-exact-render-plan-format.ts';
+import { normalizeUnifiedExactRenderOutput } from './unified-exact-render-plan-output.ts';
 import {
 	assertUnifiedExactRenderCompanionAudioRequiredV15,
 	assertUnifiedExactRenderDeliveryReferencesV15,
@@ -90,7 +91,6 @@ import {
 	type UnifiedExactRenderTimingIndex,
 	type UnifiedExactRenderTimingSidecars,
 } from './unified-exact-render-timing-authority.ts';
-
 export type {
 	UnifiedExactRenderClipNode,
 	UnifiedExactRenderClipPictureStateV1,
@@ -168,8 +168,7 @@ export type UnifiedExactRenderPlanV12 = UnifiedExactRenderPlan & Readonly<{ read
 export type UnifiedExactRenderPlanV13 = UnifiedExactRenderPlan & Readonly<{ readonly version: 13 }>;
 export type UnifiedExactRenderPlanV14 = UnifiedExactRenderPlan & Readonly<{ readonly version: 14 }>;
 export type UnifiedExactRenderPlanV15 = UnifiedExactRenderPlan & Readonly<{
-	readonly version: 15;
-	readonly deliveryProfile: NativeMediaV14EncodeProfileId;
+	readonly version: 15; readonly deliveryProfile: NativeMediaV14EncodeProfileId;
 	readonly captionDelivery: UnifiedExactRenderCaptionDeliveryV15 | null;
 	readonly companionAudio: UnifiedExactRenderCompanionAudioV15 | null;
 }>;
@@ -178,18 +177,12 @@ const PLAN_FIELDS = Object.freeze([
 	'version', 'strategy', 'project', 'format', 'codecs', 'timebase', 'output', 'tracks', 'sources', 'nodes',
 ]);
 const PLAN_V14_FIELDS = Object.freeze([...PLAN_FIELDS, 'deliveryProfile']);
-const PLAN_V15_FIELDS = Object.freeze([
-	...PLAN_FIELDS, 'deliveryProfile', 'captionDelivery', 'companionAudio',
-]);
+const PLAN_V15_FIELDS = Object.freeze([...PLAN_FIELDS, 'deliveryProfile', 'captionDelivery', 'companionAudio']);
 const PROJECT_FIELDS = Object.freeze(['id', 'revision']);
 const CODEC_FIELDS = Object.freeze(['video', 'videoEncoder', 'audio', 'audioEncoder', 'pixelFormat']);
 const TIMEBASE_FIELDS = Object.freeze([
 	'sampleStart', 'sampleDuration', 'sampleRate', 'sequenceId', 'sequenceRate',
 ]);
-const OUTPUT_FIELDS = Object.freeze([
-	'frameRate', 'frameCount', 'quality', 'canvas', 'includeAudio', 'audioLayout',
-]);
-const CANVAS_FIELDS = Object.freeze(['width', 'height', 'fit', 'pixelFormat', 'backgroundColor']);
 const ALL_NODE_FIELDS = Object.freeze([
 	'kind', 'nodeId', 'clipId', 'trackId', 'sourceNodeId', 'sequenceStartFrame',
 	'sequenceFrameCount', 'sourceInFrame', 'sourceFrameCount', 'pictureState',
@@ -279,9 +272,7 @@ export function assertUnifiedExactRenderPlanV14(
 ): asserts value is UnifiedExactRenderPlanV14 {
 	assertGeneration(value, 14);
 }
-export function assertUnifiedExactRenderPlanV15(
-	value: unknown,
-): asserts value is UnifiedExactRenderPlanV15 {
+export function assertUnifiedExactRenderPlanV15(value: unknown): asserts value is UnifiedExactRenderPlanV15 {
 	assertGeneration(value, 15);
 }
 export function canonicalizeUnifiedExactRenderPlan(value: unknown): string {
@@ -335,7 +326,9 @@ function normalizePlan(
 	);
 	const codecs = normalizeCodecs(field(input, 'codecs', 'unified exact render plan'));
 	const timebase = normalizeTimebase(field(input, 'timebase', 'unified exact render plan'));
-	const output = normalizeOutput(field(input, 'output', 'unified exact render plan'), codecs, version);
+	const output = normalizeUnifiedExactRenderOutput(
+		field(input, 'output', 'unified exact render plan'), codecs, version,
+	);
 	assertUnifiedExactRenderOutputAdmission({ version, format, codecs, output, deliveryProfile });
 	const delivery = version === 15
 		? normalizeUnifiedExactRenderDeliveryV15(
@@ -591,48 +584,6 @@ function normalizeTimebase(value: unknown): UnifiedExactRenderPlan['timebase'] {
 		sampleRate: integer(field(record, 'sampleRate', 'unified render timebase'), 'sampleRate', 1),
 		sequenceId: stableId(field(record, 'sequenceId', 'unified render timebase'), 'sequenceId'),
 		sequenceRate: rational(field(record, 'sequenceRate', 'unified render timebase'), 'sequenceRate'),
-	});
-}
-
-function normalizeOutput(
-	value: unknown,
-	codecs: UnifiedExactRenderPlan['codecs'], version: UnifiedExactRenderPlanVersion,
-): UnifiedExactRenderPlan['output'] {
-	const record = readClosedDomainRecord(value, 'unified render output', OUTPUT_FIELDS);
-	const canvasRecord = readClosedDomainRecord(field(record, 'canvas', 'unified render output'), 'unified render canvas', CANVAS_FIELDS);
-	const fit = field(canvasRecord, 'fit', 'unified render canvas');
-	if (!isVideoCanvasFit(fit)) throw new RangeError('Unified render canvas fit is unsupported.');
-	const pixelFormat = text(field(canvasRecord, 'pixelFormat', 'unified render canvas'), 'canvas.pixelFormat');
-	if (pixelFormat !== codecs.pixelFormat) throw new RangeError('Unified render canvas and codec pixel formats disagree.');
-	const includeAudio = field(record, 'includeAudio', 'unified render output');
-	const audioLayout = field(record, 'audioLayout', 'unified render output');
-	const quality = field(record, 'quality', 'unified render output');
-	if (!isVideoDeliveryQuality(quality)) throw new RangeError('Unified render quality is unsupported.');
-	if (typeof includeAudio !== 'boolean') throw new TypeError('Unified render includeAudio must be boolean.');
-	if (includeAudio ? (!isVideoDeliveryAudioLayout(audioLayout) || codecs.audio === null)
-		: (audioLayout !== null || codecs.audio !== null)) {
-		throw new RangeError('Unified render audio metadata is inconsistent.');
-	}
-	if (includeAudio && version !== 14 && version !== 15) {
-		throw new RangeError('Unified plans V9-V13 cannot include audio until an exact audio media graph is represented.');
-	}
-	const backgroundColor = field(canvasRecord, 'backgroundColor', 'unified render canvas');
-	if (typeof backgroundColor !== 'string' || !/^#[a-fA-F0-9]{6}(?:[a-fA-F0-9]{2})?$/u.test(backgroundColor)) {
-		throw new RangeError('Unified render background color is not canonical hexadecimal RGB/RGBA.');
-	}
-	return Object.freeze({
-		frameRate: rational(field(record, 'frameRate', 'unified render output'), 'output.frameRate'),
-		frameCount: integer(field(record, 'frameCount', 'unified render output'), 'output.frameCount', 1),
-		quality,
-		canvas: Object.freeze({
-			width: integer(field(canvasRecord, 'width', 'unified render canvas'), 'canvas.width', 1),
-			height: integer(field(canvasRecord, 'height', 'unified render canvas'), 'canvas.height', 1),
-			fit,
-			pixelFormat,
-			backgroundColor,
-		}),
-		includeAudio,
-		audioLayout: audioLayout as VideoDeliveryAudioLayout | null,
 	});
 }
 
