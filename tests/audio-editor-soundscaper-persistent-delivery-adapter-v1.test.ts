@@ -144,6 +144,22 @@ test('the persistent adapter refuses malformed port messages and unbounded reque
 	await assert.rejects(adapter.list({ limit: 0, signal }), /page limit/iu);
 	await assert.rejects(adapter.pause({ jobId: '../job', signal }), /job id/iu);
 	await assert.rejects(adapter.reorder({ jobId: 'job-01', position: -1, signal }), /position/iu);
+
+	// The transport envelope is a closed shape like every other surface of this
+	// contract: an extra field refuses instead of being re-encoded away.
+	const decorated = createSoundscaperPersistentDeliveryQueueAdapterV1({
+		queue: {
+			...queue,
+			list: async () => Object.freeze({
+				...createBoundedPortMessage('queue-list-v1', [], { sequence: 0, maximumEncodedBytes: 64 }),
+				extra: true,
+			}) as never,
+		},
+		summaryMessageType: 'queue-summary-v1', listMessageType: 'queue-list-v1',
+		eventMessageType: 'queue-event-v1', validateSummary: (value) => value,
+		validateEvent: (value) => value,
+	});
+	await assert.rejects(decorated.list({ limit: 1, signal }), /unsupported message fields/iu);
 });
 
 test('persistent queue event envelopes must advance monotonically', async () => {

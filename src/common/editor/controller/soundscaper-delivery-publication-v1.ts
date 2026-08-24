@@ -227,6 +227,7 @@ function assertWriter(value: unknown): MediaByteWriterPort {
 function deliveryFileName(value: unknown): string {
 	if (typeof value !== 'string' || value.length === 0 || value !== value.trim()
 		|| new TextEncoder().encode(value).byteLength > 1_024
+		|| /[\u0000-\u001f\u007f-\u009f]/u.test(value)
 		|| value === '.' || value === '..' || /[/\\]/u.test(value)) {
 		throw new TypeError('The Soundscaper delivery destination file name is invalid.');
 	}

@@ -193,6 +193,22 @@ test('result validation rejects mismatched witnesses and dishonest report counts
 		}, expected),
 		/file name/iu,
 	);
+	// C0/C1 controls refuse everywhere text is admitted: a NUL survives into a
+	// future filesystem binding and a newline lets a name spoof the surface
+	// showing it.
+	assert.throws(
+		() => validateSoundscaperDeliveryResultV1({
+			...base, publication: { ...base.publication, fileName: 'evil\u0000name.wav' },
+		}, expected),
+		/bounded non-empty string/iu,
+	);
+	assert.throws(
+		() => createSoundscaperDeliveryDescriptionV1({
+			label: 'two\nlines', projectIdentity: PROJECT,
+			plan: { format: 'wav' }, destinationGrantId: 'delivery-grant-01',
+		}),
+		/bounded non-empty string/iu,
+	);
 });
 
 test('report validation preflights depth, nodes and string bytes before serialization', () => {

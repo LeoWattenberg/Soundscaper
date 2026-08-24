@@ -314,6 +314,10 @@ async function assertCurrent(
 	assertSoundscaperDeliveryCurrentV1(description, current);
 }
 
+const MESSAGE_FIELDS = Object.freeze([
+	'kind', 'type', 'sequence', 'payload', 'encodedByteLength', 'maximumEncodedBytes',
+]);
+
 function messagePayload(value: unknown, expectedType: string, label: string): unknown {
 	return normalizedMessage(value, expectedType, label).payload;
 }
@@ -327,6 +331,14 @@ function normalizedMessage(
 		throw new TypeError(`The Soundscaper ${label} must be a bounded port message.`);
 	}
 	const row = value as Record<string, unknown>;
+	// The envelope is a closed shape like every other surface of this contract:
+	// an unknown extra field refuses rather than being silently re-encoded away.
+	// Symbol keys stay admitted — the local factory brands its messages with a
+	// private symbol, and no symbol survives a real port crossing.
+	const named = Reflect.ownKeys(row).filter((key): key is string => typeof key === 'string');
+	if (named.length !== MESSAGE_FIELDS.length || named.some((key) => !MESSAGE_FIELDS.includes(key))) {
+		throw new TypeError(`The Soundscaper ${label} has unsupported message fields.`);
+	}
 	const kind = ownValue(row, 'kind', label);
 	const type = ownValue(row, 'type', label);
 	const sequence = ownValue(row, 'sequence', label);
