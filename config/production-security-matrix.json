@@ -3599,11 +3599,14 @@
 				},
 				{
 					"id": "verified-helper-engine-payload",
-					"summary": "The helper's engine payload is digest-pinned by the fuse-protected manifest copy, re-verified before every spawn and again inside the engine thread, which executes the verified bytes themselves and re-verifies the granted file's captured identity after reopening it.",
+					"summary": "The current desktop package supplies no FFmpeg helper engine: renderer, stage, package, and release audits reject FFmpeg, libav, the FFmpeg WebAssembly runtime, and the historical static FFmpeg host. The desktop audio broker receives no bundled compressed-codec or operating-system execution factory, so both provider tiers remain unavailable; existing first-party PCM container readers remain application code rather than native-provider evidence. The final tier may execute only a user-installed external FFmpeg in place through the bounded main-owned runner, without copying it into a production artifact. This is fail-closed routing and redistribution-boundary evidence, not bundled or operating-system codec execution, codec or version conformance, platform availability, or patent qualification.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/helper-registration.mjs" },
-						{ "kind": "implementation", "path": "desktop/helper-probe-engine.js" },
-						{ "kind": "test", "path": "tests/desktop-helper-probe-parity.test.ts" }
+						{ "kind": "implementation", "path": "desktop/desktop-audio-codec-registration.mjs" },
+						{ "kind": "implementation", "path": "desktop/external-ffmpeg-registration.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-codec-policy.mjs" },
+						{ "kind": "test", "path": "tests/desktop-audio-codec-main-wiring.test.js" },
+						{ "kind": "test", "path": "tests/desktop-packaged-ffmpeg-runtime.test.js" }
 					]
 				},
 				{
@@ -4410,19 +4413,25 @@
 				},
 				{
 					"id": "desktop-fuse-and-package-integrity",
-					"summary": "Desktop packaging verifies copied FFmpeg runtime, manifest, and notice bytes before applying Electron fuses, and checks packaged ASAR integrity before preview smoke tests.",
+					"summary": "Desktop preparation records the immutable no-bundled-FFmpeg codec policy and audits the renderer composition; beforePack and afterPack recheck that policy and recursively reject FFmpeg, libav, FFmpeg WebAssembly, and the historical static FFmpeg host before applying Electron fuses or signing. The release inventory independently refuses FFmpeg inputs. Packaging also checks the copied aggregate notice and packaged ASAR integrity before preview smoke tests. User-installed external FFmpeg is never copied into these trees.",
 					"evidence": [
+						{ "kind": "implementation", "path": "electron-builder.config.cjs" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-codec-policy.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-renderer-codec-audit.mjs" },
+						{ "kind": "implementation", "path": "scripts/desktop-prepare.mjs" },
+						{ "kind": "implementation", "path": "scripts/desktop-before-pack.mjs" },
 						{ "kind": "implementation", "path": "scripts/desktop-after-pack.mjs" },
+						{ "kind": "implementation", "path": "scripts/desktop-release-assets.mjs" },
 						{ "kind": "test", "path": "tests/desktop-asar-integrity.test.js" },
 						{ "kind": "test", "path": "tests/desktop-packaged-ffmpeg-runtime.test.js" },
+						{ "kind": "test", "path": "tests/desktop-release-package-inventory.test.js" },
 						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" }
 					]
 				},
 				{
 					"id": "validated-ffmpeg-runtime-publication",
-					"summary": "One checked-in, self-consistent FFmpeg runtime policy manifest binds the package and lock identity, exact JavaScript and WebAssembly byte lengths and SHA-256 digests, R2 bucket and base prefix, content types, immutable cache metadata, CORS policy, corresponding-source descriptor, aggregate notice, licensing and security matrices, licensing policy, threat model, release-severity policy, and LF checkout rules. The publisher separately derives a full-manifest-SHA release prefix and no-store final pointer under a fixed tested code policy. One shared validator rejects unknown, missing, unsafe, symbolic, stale, or tampered inputs before desktop preparation deletes its build root, before the current Soundscaper public desktop-release assembler reads its asset directory, or before the publisher invokes Wrangler. The assembler requires exact Soundscaper product/target manifests and a version-matched package inventory before network access. Desktop runtime staging is transactional, and both staging and upload consume private snapshots of bytes retained by validation. Electron Builder's beforePack hook rejects staged runtime-summary, manifest, or notice drift present when the hook runs; its afterPack hook independently revalidates the copied runtime inventory, manifest, and notice before fuse or signing work. Publication authorizations mirror the fail-closed licensing gates. Offline regressions prove invalid preflight never enters desktop assembly or invokes Wrangler, tested staged drift is rejected at beforePack, and post-copy tampering cannot reach fuse work. The manifest review marker and payload digest detect inconsistent edits but do not authenticate independent human approval.",
+					"summary": "One checked-in, self-consistent Web FFmpeg runtime policy manifest binds the package and lock identity, exact JavaScript and WebAssembly byte lengths and SHA-256 digests, R2 bucket and base prefix, content types, immutable cache metadata, CORS policy, corresponding-source descriptor, aggregate notice, licensing and security matrices, licensing policy, threat model, release-severity policy, and LF checkout rules. The Web publisher separately derives a full-manifest-SHA release prefix and no-store final pointer under a fixed tested code policy. One shared validator rejects unknown, missing, unsafe, symbolic, stale, or tampered inputs before the publisher invokes Wrangler, and upload consumes a private snapshot of bytes retained by validation. Publication authorizations mirror the fail-closed licensing gates. Offline regressions prove invalid preflight never invokes Wrangler. The desktop build and release assemblers do not consume this runtime or its source sidecars; the separate desktop package-integrity control proves their absence. The manifest review marker and payload digest detect inconsistent edits but do not authenticate independent human approval.",
 					"evidence": [
-						{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" },
 						{ "kind": "document", "path": ".gitattributes" },
 						{ "kind": "document", "path": "THIRD_PARTY_LICENSES.md" },
 						{ "kind": "document", "path": "config/ffmpeg-runtime-manifest.json" },
@@ -4430,18 +4439,11 @@
 						{ "kind": "document", "path": "config/release-severity-policy.json" },
 						{ "kind": "document", "path": "desktop/ffmpeg-corresponding-source.json" },
 						{ "kind": "document", "path": "docs/production-licensing-policy.md" },
-						{ "kind": "implementation", "path": "electron-builder.config.cjs" },
 						{ "kind": "document", "path": "r2-cors.json" },
 						{ "kind": "implementation", "path": "scripts/lib/ffmpeg-runtime-manifest.mjs" },
 						{ "kind": "implementation", "path": "scripts/lib/ffmpeg-runtime-publisher.mjs" },
 						{ "kind": "implementation", "path": "scripts/publish-runtime-assets.mjs" },
-						{ "kind": "implementation", "path": "scripts/desktop-prepare.mjs" },
-						{ "kind": "implementation", "path": "scripts/desktop-before-pack.mjs" },
-						{ "kind": "implementation", "path": "scripts/desktop-after-pack.mjs" },
-						{ "kind": "implementation", "path": "scripts/desktop-release-assets.mjs" },
 						{ "kind": "audit", "path": "scripts/audit-ffmpeg-runtime.mjs" },
-						{ "kind": "test", "path": "tests/desktop-packaged-ffmpeg-runtime.test.js" },
-						{ "kind": "test", "path": "tests/desktop-release-package-inventory.test.js" },
 						{ "kind": "test", "path": "tests/ffmpeg-runtime-manifest.test.js" }
 					]
 				},

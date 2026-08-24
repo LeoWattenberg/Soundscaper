@@ -138,17 +138,48 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.equal(gates.get('web-notice-delivery').status, 'blocked');
 	assert.equal(gates.get('ffmpeg-enabled-library-corresponding-source').status, 'blocked');
 	assert.equal(gates.get('ffmpeg-enabled-codec-patent-review').status, 'blocked');
-	for (const gateId of ['desktop-notice-delivery', 'ffmpeg-runtime-manifest-integrity']) {
-		for (const path of ['scripts/desktop-after-pack.mjs', 'tests/desktop-packaged-ffmpeg-runtime.test.js']) {
-			assert.ok(gates.get(gateId).evidence.includes(path), `${gateId} must retain post-copy verification evidence`);
-		}
+	for (const path of ['scripts/desktop-after-pack.mjs', 'tests/desktop-packaged-ffmpeg-runtime.test.js']) {
+		assert.ok(gates.get('desktop-notice-delivery').evidence.includes(path),
+			'desktop-notice-delivery must retain post-copy verification evidence');
 	}
+	assert.ok(gates.get('ffmpeg-runtime-manifest-integrity').evidence.includes('scripts/publish-runtime-assets.mjs'));
+	assert.equal(gates.get('ffmpeg-runtime-manifest-integrity').evidence.includes('scripts/desktop-prepare.mjs'), false);
 	assert.deepEqual(matrix.ffmpeg.enabledExternalLibraries, ENABLED_FFMPEG_LIBRARIES);
 	assert.equal(matrix.ffmpeg.runtimeManifest, 'config/ffmpeg-runtime-manifest.json');
 	assert.equal(matrix.ffmpeg.correspondingSourceManifest, 'desktop/ffmpeg-corresponding-source.json');
 	assert.match(gates.get('ffmpeg-enabled-library-corresponding-source').blocker, /every enabled library/u);
 	assert.match(gates.get('ffmpeg-enabled-codec-patent-review').blocker, /jurisdiction/u);
 	assert.match(gates.get('web-notice-delivery').blocker, /web route|web artifact/u);
+	const ffmpegCore = matrix.npmProductionClosure.find(({ name }) => name === '@ffmpeg/core');
+	const ffmpegWrapper = matrix.npmProductionClosure.find(({ name }) => name === '@ffmpeg/ffmpeg');
+	assert.deepEqual(ffmpegCore.artifactSurfaces, ['web-runtime-assets']);
+	assert.deepEqual(ffmpegWrapper.artifactSurfaces, ['web-pages-bundle']);
+	assert.deepEqual(provenance.get('ffmpeg-core-wasm').artifactSurfaces, ['web-runtime-assets']);
+	assert.deepEqual(matrix.desktopCodecPolicy, {
+		artifactSurfaces: ['electron-renderer', 'electron-runtime-assets', 'desktop-release-assets'],
+		bundledFfmpeg: false,
+		bundledLibav: false,
+		bundledFfmpegWasm: false,
+		providerOrder: ['bundled-open-codecs', 'os', 'external-user-install'],
+		executionStatus: {
+			firstPartyPcmReaders: 'existing-application-code',
+			bundledCompressedCodecs: 'unqualified-fail-closed',
+			operatingSystemCodecs: 'unqualified-fail-closed',
+			externalFfmpeg: 'user-installed-no-redistribution',
+		},
+		patentPosition: 'No patent clearance or non-infringement representation is made for any codec, provider, use, or territory.',
+		evidence: [
+			'scripts/lib/desktop-codec-policy.mjs',
+			'scripts/lib/desktop-renderer-codec-audit.mjs',
+			'scripts/desktop-prepare.mjs',
+			'scripts/desktop-before-pack.mjs',
+			'scripts/desktop-after-pack.mjs',
+			'scripts/desktop-release-assets.mjs',
+			'desktop/desktop-audio-codec-registration.mjs',
+			'desktop/external-ffmpeg-registration.mjs',
+			'THIRD_PARTY_LICENSES.md',
+		],
+	});
 	assert.deepEqual(provenance.get('reviewed-effect-utility-gain-wasm'), {
 		id: 'reviewed-effect-utility-gain-wasm',
 		status: 'documented',

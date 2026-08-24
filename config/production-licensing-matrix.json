@@ -24,17 +24,17 @@
 		},
 		{
 			"id": "electron-renderer",
-			"description": "The built web application copied into each Electron product.",
+			"description": "The desktop-specific Vite application copied into each Electron product; its composition excludes the Web FFmpeg wrapper and core runtime.",
 			"artifactStatus": "distributed",
 			"noticeDeliveryStatus": "implemented",
-			"evidence": ["scripts/desktop-prepare.mjs", "electron-builder.config.cjs"]
+			"evidence": ["scripts/desktop-prepare.mjs", "scripts/lib/desktop-renderer-codec-audit.mjs", "electron-builder.config.cjs"]
 		},
 		{
 			"id": "electron-runtime-assets",
-			"description": "FFmpeg and translation runtime assets staged beside the Electron renderer.",
+			"description": "Translation and separately admitted native runtime assets staged beside the Electron renderer; FFmpeg, libav, and the FFmpeg WebAssembly runtime are excluded.",
 			"artifactStatus": "distributed",
 			"noticeDeliveryStatus": "implemented",
-			"evidence": ["config/ffmpeg-runtime-manifest.json", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "electron-builder.config.cjs"]
+			"evidence": ["scripts/lib/desktop-codec-policy.mjs", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "scripts/desktop-after-pack.mjs", "electron-builder.config.cjs"]
 		},
 		{
 			"id": "electron-shell",
@@ -45,10 +45,10 @@
 		},
 		{
 			"id": "desktop-release-assets",
-			"description": "Public desktop packages, notices, checksums, and corresponding-source archives.",
+			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed; user-installed external FFmpeg is outside this artifact closure and is not copied into the release set.",
 			"artifactStatus": "blocked",
 			"noticeDeliveryStatus": "implemented",
-			"evidence": ["config/ffmpeg-runtime-manifest.json", "scripts/desktop-release-assets.mjs", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["scripts/lib/desktop-codec-policy.mjs", "scripts/desktop-release-assets.mjs", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
 	"npmProductionClosure": [
@@ -70,9 +70,9 @@
 			"license": "GPL-2.0-or-later",
 			"direct": true,
 			"role": "external-versioned-runtime",
-			"artifactSurfaces": ["web-runtime-assets", "electron-runtime-assets"],
+			"artifactSurfaces": ["web-runtime-assets"],
 			"noticeMarker": "`@ffmpeg/core` 0.12.10",
-			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "scripts/desktop-prepare.mjs"]
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "scripts/publish-runtime-assets.mjs"]
 		},
 		{
 			"lockPath": "node_modules/@ffmpeg/ffmpeg",
@@ -81,7 +81,7 @@
 			"license": "MIT",
 			"direct": true,
 			"role": "application-runtime",
-			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"artifactSurfaces": ["web-pages-bundle"],
 			"noticeMarker": "`@ffmpeg/ffmpeg` 0.12.15",
 			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
 		},
@@ -334,8 +334,8 @@
 		{
 			"id": "ffmpeg-core-wasm",
 			"status": "blocked",
-			"artifactSurfaces": ["web-runtime-assets", "electron-runtime-assets", "desktop-release-assets"],
-			"evidence": ["config/ffmpeg-runtime-manifest.json", "THIRD_PARTY_LICENSES.md", "desktop/ffmpeg-corresponding-source.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/desktop-release-assets.mjs", "tests/ffmpeg-runtime-manifest.test.js"]
+			"artifactSurfaces": ["web-runtime-assets"],
+			"evidence": ["config/ffmpeg-runtime-manifest.json", "THIRD_PARTY_LICENSES.md", "desktop/ffmpeg-corresponding-source.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/publish-runtime-assets.mjs", "tests/ffmpeg-runtime-manifest.test.js"]
 		},
 		{
 			"id": "electron-runtime",
@@ -390,6 +390,31 @@
 		],
 		"configurationEvidence": "THIRD_PARTY_LICENSES.md#ffmpeg-webassembly-export-and-import-core"
 	},
+	"desktopCodecPolicy": {
+		"artifactSurfaces": ["electron-renderer", "electron-runtime-assets", "desktop-release-assets"],
+		"bundledFfmpeg": false,
+		"bundledLibav": false,
+		"bundledFfmpegWasm": false,
+		"providerOrder": ["bundled-open-codecs", "os", "external-user-install"],
+		"executionStatus": {
+			"firstPartyPcmReaders": "existing-application-code",
+			"bundledCompressedCodecs": "unqualified-fail-closed",
+			"operatingSystemCodecs": "unqualified-fail-closed",
+			"externalFfmpeg": "user-installed-no-redistribution"
+		},
+		"patentPosition": "No patent clearance or non-infringement representation is made for any codec, provider, use, or territory.",
+		"evidence": [
+			"scripts/lib/desktop-codec-policy.mjs",
+			"scripts/lib/desktop-renderer-codec-audit.mjs",
+			"scripts/desktop-prepare.mjs",
+			"scripts/desktop-before-pack.mjs",
+			"scripts/desktop-after-pack.mjs",
+			"scripts/desktop-release-assets.mjs",
+			"desktop/desktop-audio-codec-registration.mjs",
+			"desktop/external-ffmpeg-registration.mjs",
+			"THIRD_PARTY_LICENSES.md"
+		]
+	},
 	"vendoredHeaders": [
 		{
 			"id": "pipewire-public-headers",
@@ -421,7 +446,7 @@
 		{
 			"id": "ffmpeg-runtime-manifest-integrity",
 			"status": "implemented",
-			"evidence": [".gitattributes", ".github/workflows/desktop-preview.yml", "THIRD_PARTY_LICENSES.md", "config/ffmpeg-runtime-manifest.json", "config/production-security-matrix.json", "config/release-severity-policy.json", "desktop/ffmpeg-corresponding-source.json", "docs/production-licensing-policy.md", "docs/production-threat-model.md", "electron-builder.config.cjs", "r2-cors.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/lib/ffmpeg-runtime-publisher.mjs", "scripts/audit-ffmpeg-runtime.mjs", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "scripts/desktop-after-pack.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-packaged-ffmpeg-runtime.test.js", "tests/desktop-release-package-inventory.test.js", "tests/ffmpeg-runtime-manifest.test.js"]
+			"evidence": [".gitattributes", "THIRD_PARTY_LICENSES.md", "config/ffmpeg-runtime-manifest.json", "config/production-security-matrix.json", "config/release-severity-policy.json", "desktop/ffmpeg-corresponding-source.json", "docs/production-licensing-policy.md", "docs/production-threat-model.md", "r2-cors.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/lib/ffmpeg-runtime-publisher.mjs", "scripts/publish-runtime-assets.mjs", "scripts/audit-ffmpeg-runtime.mjs", "tests/ffmpeg-runtime-manifest.test.js"]
 		},
 		{
 			"id": "web-notice-delivery",
@@ -433,7 +458,7 @@
 			"id": "ffmpeg-enabled-library-corresponding-source",
 			"status": "blocked",
 			"blocker": "The current manifest identifies FFmpeg and ffmpeg.wasm archives but does not inventory and pin complete corresponding source for every enabled library in the binary.",
-			"evidence": ["desktop/ffmpeg-corresponding-source.json", "THIRD_PARTY_LICENSES.md", "scripts/desktop-release-assets.mjs"]
+			"evidence": ["desktop/ffmpeg-corresponding-source.json", "THIRD_PARTY_LICENSES.md", "scripts/publish-runtime-assets.mjs"]
 		},
 		{
 			"id": "ffmpeg-enabled-codec-patent-review",
@@ -468,8 +493,10 @@
 		{
 			"id": "native-codecs",
 			"status": "disabled",
+			"scope": "bundled-compressed-and-operating-system-codec-execution",
+			"blocker": "The desktop composition registers no bundled compressed-codec or operating-system codec execution factory or admitted payload; both tiers fail closed. Existing first-party PCM readers are application code, and user-installed external FFmpeg remains outside the production artifact closure.",
 			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery"],
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md"]
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "desktop/desktop-audio-codec-registration.mjs"]
 		},
 		{
 			"id": "local-models",
@@ -609,10 +636,10 @@
 			"kind": "codec-capability",
 			"upstreamLicensing": "The shipped browser runtime remains the FFmpeg GPL build with thirteen enabled external libraries pinned by the ffmpeg register. The separate native candidate pins FFmpeg 9.0.1 in GPL mode with no external libraries and admits codec or container flags only after their licensing rows clear.",
 			"agplCompatibilityDirection": "Each GPL-2.0-or-later build combines into this AGPL-3.0-only work compatibly; the native 9.0.1 source and recipe are a separate blocked provenance record and do not replace or upgrade the browser runtime.",
-			"redistribution": "No native media-host or FFmpeg 9.0.1 binary ships. A built target may enter the runtime payload manifest only after its exact enabled set clears corresponding-source, notices, patent, signing, and target review.",
+			"redistribution": "No native media-host or FFmpeg 9.0.1 binary ships, and desktop package audits reject FFmpeg, libav, and FFmpeg WebAssembly. User-installed external FFmpeg is executed in place and is not copied into any production artifact. A future built target may enter a runtime payload manifest only after its exact enabled set clears corresponding-source, notices, patent, signing, and target review and the desktop exclusion policy is deliberately revised.",
 			"status": "blocked",
-			"blocker": "ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review remain blocked for the shipped runtime, while the native FFmpeg 9.0.1 candidate has no reviewed build payload, exact codec/container clearance, signature, or target evidence.",
-			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json", "native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
+			"blocker": "ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review remain blocked for the Web runtime, while the native FFmpeg 9.0.1 candidate has no reviewed build payload, exact codec/container clearance, signature, or target evidence and is forbidden by the current desktop package policy.",
+			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json", "native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "config/framescaper-media-host-payload-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "codec-hardware-acceleration",

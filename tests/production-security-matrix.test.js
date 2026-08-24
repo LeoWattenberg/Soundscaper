@@ -199,6 +199,10 @@ test('planned native plug-in surfaces stay disabled and portable archive control
 		assert.ok(kinds.has('test'), `${control.id} needs test evidence`);
 	}
 	assert.match(
+		helperProcesses.currentControls.find(({ id }) => id === 'verified-helper-engine-payload').summary,
+		/no FFmpeg helper engine.*reject FFmpeg.*libav.*WebAssembly.*no bundled compressed-codec or operating-system execution factory.*first-party PCM container readers.*user-installed external FFmpeg.*without copying it.*not.*codec or version conformance.*patent qualification/iu,
+	);
+	assert.match(
 		helperProcesses.residualRisks[0].acceptanceCriteria.join(' '),
 		/m5-helper-fault-and-loopback-v1/u,
 		'helper qualification stays tied to the registered fixture',
@@ -547,36 +551,48 @@ test('planned native plug-in surfaces stay disabled and portable archive control
 	);
 
 	const runtimeSupplyChain = risks.get('runtime-supply-chain');
+	const desktopPackageIntegrity = runtimeSupplyChain.currentControls.find(
+		({ id }) => id === 'desktop-fuse-and-package-integrity',
+	);
+	assert.ok(desktopPackageIntegrity);
+	for (const path of [
+		'.github/workflows/desktop-preview.yml',
+		'electron-builder.config.cjs',
+		'scripts/lib/desktop-codec-policy.mjs',
+		'scripts/lib/desktop-renderer-codec-audit.mjs',
+		'scripts/desktop-prepare.mjs',
+		'scripts/desktop-before-pack.mjs',
+		'scripts/desktop-after-pack.mjs',
+		'scripts/desktop-release-assets.mjs',
+		'tests/desktop-packaged-ffmpeg-runtime.test.js',
+		'tests/desktop-release-package-inventory.test.js',
+	]) assert.ok(desktopPackageIntegrity.evidence.some((item) => item.path === path));
+	assert.match(
+		desktopPackageIntegrity.summary,
+		/immutable no-bundled-FFmpeg codec policy.*renderer composition.*beforePack.*afterPack.*reject FFmpeg.*libav.*WebAssembly.*static FFmpeg host.*before applying Electron fuses.*release inventory.*User-installed external FFmpeg is never copied/iu,
+	);
 	const validatedRuntime = runtimeSupplyChain.currentControls.find(
 		({ id }) => id === 'validated-ffmpeg-runtime-publication',
 	);
 	assert.ok(validatedRuntime);
 	for (const path of [
 		'.gitattributes',
-		'.github/workflows/desktop-preview.yml',
 		'THIRD_PARTY_LICENSES.md',
 		'config/ffmpeg-runtime-manifest.json',
 		'config/production-licensing-matrix.json',
 		'config/release-severity-policy.json',
 		'desktop/ffmpeg-corresponding-source.json',
 		'docs/production-licensing-policy.md',
-		'electron-builder.config.cjs',
 		'r2-cors.json',
 		'scripts/lib/ffmpeg-runtime-manifest.mjs',
 		'scripts/lib/ffmpeg-runtime-publisher.mjs',
 		'scripts/publish-runtime-assets.mjs',
-		'scripts/desktop-prepare.mjs',
-		'scripts/desktop-before-pack.mjs',
-		'scripts/desktop-after-pack.mjs',
-		'scripts/desktop-release-assets.mjs',
 		'scripts/audit-ffmpeg-runtime.mjs',
-		'tests/desktop-packaged-ffmpeg-runtime.test.js',
-		'tests/desktop-release-package-inventory.test.js',
 		'tests/ffmpeg-runtime-manifest.test.js',
 	]) assert.ok(validatedRuntime.evidence.some((item) => item.path === path));
 	assert.match(
 		validatedRuntime.summary,
-		/self-consistent.*package and lock identity.*JavaScript and WebAssembly byte lengths.*SHA-256.*R2 bucket and base prefix.*content types.*immutable cache metadata.*CORS policy.*corresponding-source descriptor.*aggregate notice.*licensing and security matrices.*threat model.*LF checkout rules.*separately derives a full-manifest-SHA release prefix and no-store final pointer.*current Soundscaper public desktop-release assembler.*exact Soundscaper product\/target manifests.*version-matched package inventory.*runtime staging is transactional.*private snapshots.*beforePack hook rejects.*drift present when the hook runs.*afterPack.*copied runtime.*manifest.*notice.*before fuse.*invalid preflight never enters desktop assembly or invokes Wrangler.*tested staged drift is rejected at beforePack.*do not authenticate independent human approval/iu,
+		/self-consistent Web FFmpeg runtime policy manifest.*package and lock identity.*JavaScript and WebAssembly byte lengths.*SHA-256.*R2 bucket and base prefix.*content types.*immutable cache metadata.*CORS policy.*corresponding-source descriptor.*aggregate notice.*licensing and security matrices.*threat model.*LF checkout rules.*Web publisher.*full-manifest-SHA release prefix and no-store final pointer.*before the publisher invokes Wrangler.*private snapshot.*desktop build and release assemblers do not consume this runtime.*separate desktop package-integrity control proves their absence.*do not authenticate independent human approval/iu,
 	);
 	assert.equal(runtimeSupplyChain.residualRisks.some(
 		({ id }) => id === 'external-runtime-publication',

@@ -103,7 +103,7 @@ Audacity is a registered trademark. This project is not affiliated with or endor
 
 ## FFmpeg WebAssembly export and import core
 
-The editor lazily loads the upstream single-thread `@ffmpeg/core` 0.12.10 package through the MIT-licensed `@ffmpeg/ffmpeg` 0.12.15 wrapper. The combined core is GPL-2.0-or-later and is used for media decode fallback and FLAC, MP3, Ogg Vorbis, Opus, WavPack, MP2, AAC/M4A, and explicitly bounded custom output.
+The Web editor lazily loads the upstream single-thread `@ffmpeg/core` 0.12.10 package through the MIT-licensed `@ffmpeg/ffmpeg` 0.12.15 wrapper. This Web-only runtime is not included in an Electron renderer, desktop runtime resource tree, or desktop release asset. The combined core is GPL-2.0-or-later and is used on the Web surface for media decode fallback and FLAC, MP3, Ogg Vorbis, Opus, WavPack, MP2, AAC/M4A, and explicitly bounded custom output.
 
 - package source and build scripts: <https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v12.15>
 - npm source archive: <https://registry.npmjs.org/@ffmpeg/core/-/core-0.12.10.tgz>
@@ -118,17 +118,47 @@ The exact configuration string embedded in the shipped core is:
 --target-os=none --arch=x86_32 --enable-cross-compile --disable-asm --disable-stripping --disable-programs --disable-doc --disable-debug --disable-runtime-cpudetect --disable-autodetect --nm=emnm --ar=emar --ranlib=emranlib --cc=emcc --cxx=em++ --objcc=emcc --dep-cc=emcc --extra-cflags='-I/opt/include -O3 -msimd128' --extra-cxxflags='-I/opt/include -O3 -msimd128' --disable-pthreads --disable-w32threads --disable-os2threads --enable-gpl --enable-libx264 --enable-libx265 --enable-libvpx --enable-libmp3lame --enable-libtheora --enable-libvorbis --enable-libopus --enable-zlib --enable-libwebp --enable-libfreetype --enable-libfribidi --enable-libass --enable-libzimg
 ```
 
-That upstream build enables GPL components and the following separately licensed libraries: x264 and x265 (GPL-2.0-or-later), libvpx (BSD-3-Clause), LAME (LGPL-2.0-or-later), libtheora and libvorbis (BSD-3-Clause), libopus (BSD-3-Clause), zlib (Zlib), libwebp (BSD-3-Clause), FreeType (FTL or GPL-2.0-only), FriBidi (LGPL-2.1-or-later), libass (ISC), and zimg (WTFPL-2.0). The upstream build recipe identifies their licenses and preferred source locations, but fetches dependency sources during the build and does not vendor the exact complete source snapshot used for the npm core. This missing provenance is why desktop binary publication remains gated below. The combined core is offered under GPL-2.0-or-later; the repository's AGPL-3.0-only application is compatible with that selected GPL option.
+That upstream build enables GPL components and the following separately licensed libraries: x264 and x265 (GPL-2.0-or-later), libvpx (BSD-3-Clause), LAME (LGPL-2.0-or-later), libtheora and libvorbis (BSD-3-Clause), libopus (BSD-3-Clause), zlib (Zlib), libwebp (BSD-3-Clause), FreeType (FTL or GPL-2.0-only), FriBidi (LGPL-2.1-or-later), libass (ISC), and zimg (WTFPL-2.0). The upstream build recipe identifies their licenses and preferred source locations, but fetches dependency sources during the build and does not vendor the exact complete source snapshot used for the npm core. This missing provenance keeps qualified Web runtime publication gated. The combined core is offered under GPL-2.0-or-later; the repository's AGPL-3.0-only application is compatible with that selected GPL option.
 
 The npm core artifacts themselves are unpatched. Local integration is confined to `src/common/editor/ffmpeg.js`, `media-export.js`, and `video-ffmpeg.js`: same-origin lazy loading, a serialized single-worker queue, abort handling, WORKERFS staging, codec-capability/error reporting, metadata/channel-map arguments, deterministic timeline composition, and rejection of extra inputs, network/file protocols, reports, and unbounded custom arguments. Vite only fingerprints and copies the package artifacts. Video export invokes the enabled x264 encoder for MP4 or libvpx-vp9 for WebM, with AAC or libopus audio respectively; it does not invoke x265. The editor includes no SBSMS, SoundTouch, SoX, or other time-stretch library in this core.
 
 `desktop/ffmpeg-corresponding-source.json` currently pins an FFmpeg source
 archive and the `v12.15` ffmpeg.wasm build-source archive. It does not inventory
 or pin complete corresponding source for every enabled external library.
-Release tooling validates those descriptors, and the checked-in runtime policy
-manifest hashes them to reject provenance drift, but neither check establishes
-corresponding-source completeness. Public desktop release and qualified Web
-runtime distribution therefore remain blocked by the licensing matrix.
+Web runtime publication tooling validates those descriptors, and the checked-in
+runtime policy manifest hashes them to reject provenance drift, but neither
+check establishes corresponding-source completeness. Qualified Web runtime
+distribution therefore remains blocked by the licensing matrix. The descriptor
+name is historical; neither it nor its referenced archives are copied into a
+desktop package or desktop release set.
+
+## Desktop codec execution and external FFmpeg
+
+The desktop build has a separate codec composition. Its renderer audit,
+staging gate, package gate, and release-inventory gate reject FFmpeg and libav
+executables or libraries, the `@ffmpeg/core` JavaScript and WebAssembly payload,
+and the historical static FFmpeg media host. The desktop application therefore
+does not redistribute FFmpeg, libav, or FFmpeg WebAssembly.
+
+The maintained first-party PCM container readers remain application source and
+are not evidence for a bundled compressed-codec or native-codec runtime. The
+bundled compressed-codec catalog and the Windows and macOS operating-system
+codec adapters currently provide policy, tuple, and canary contracts only: no
+bundled or operating-system codec execution factory or admitted native payload
+is registered in the shipped desktop composition. Those provider tiers fail
+closed as unavailable and remain unqualified.
+
+As the final provider tier, the desktop application may execute an FFmpeg
+program already installed on the user's system after bounded discovery or an
+explicit file choice. With explicit confirmation it may ask Windows Package
+Manager or Homebrew to install FFmpeg into the user's system package-manager
+prefix. The confirmed package-manager process performs any network fetch and
+system installation; Soundscaper does not itself fetch or copy FFmpeg bytes,
+package them, sublicense them, or redistribute that external executable or its
+libraries. The discovery, probe,
+version-admission, and bounded command contracts do not establish codec
+conformance for every accepted version, availability on any platform, or
+patent clearance for any codec, provider, use, or territory.
 
 ## Boost.Multiprecision exact-retime build headers
 

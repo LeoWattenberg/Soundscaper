@@ -39,8 +39,10 @@ The matrix treats these as separate distributions:
 
 - the Cloudflare Pages application bundle;
 - optional versioned web runtime assets, including FFmpeg;
-- the Electron renderer copied from the web build;
-- runtime assets staged beside that renderer;
+- the desktop-specific Electron renderer, whose composition excludes the Web
+  FFmpeg wrapper and core;
+- translation and separately admitted native runtime assets staged beside that
+  renderer, excluding FFmpeg, libav, and FFmpeg WebAssembly;
 - the Electron shell with embedded Chromium and Node.js; and
 - public desktop packages and their release/source archive set.
 
@@ -49,8 +51,10 @@ on every surface. Conversely, a development dependency can be a shipped
 runtime, as Electron demonstrates. Each surface must deliver the notices and,
 where applicable, corresponding source required for the actual artifact.
 Desktop packages copy the repository license, `THIRD_PARTY_LICENSES.md`, and
-the retained license directory. Packaging revalidates the copied FFmpeg runtime
-and aggregate notice against the checked-in policy before fuse or signing work.
+the retained license directory. Desktop preparation, pre-pack, post-copy, and
+release-inventory gates reject bundled FFmpeg/libav and the FFmpeg WebAssembly
+runtime; packaging also validates the aggregate notice before fuse or signing
+work.
 The current web application has no versioned route or deployed notice artifact
 for `THIRD_PARTY_LICENSES.md`; web notice delivery therefore remains blocked
 even though the repository notice exists.
@@ -82,10 +86,12 @@ not a license or patent approval. It binds installed runtime bytes to the
 current notice, source descriptor, licensing matrix, and release policy, and
 its authorizations are derived from the matrix's fail-closed gates. Its review
 marker and payload digest are self-declared consistency evidence, not an
-independently authenticated approval. Local desktop assembly may use the
-verified runtime for preview testing, while public runtime upload and the
-current Soundscaper public desktop-release assembler remain blocked whenever
-their notice, corresponding-source, or patent gates are blocked.
+independently authenticated approval. It governs the optional Web runtime:
+public runtime upload remains blocked whenever its notice,
+corresponding-source, or patent gates are blocked. Its legacy desktop-assembly
+authorization is not consumed by the current production desktop entry points
+and does not override the separate desktop codec policy, which requires those
+bytes to be absent.
 
 ## Copyleft and corresponding source
 
@@ -95,7 +101,7 @@ distribution through a durable, versioned delivery path. A build-repository
 archive is not automatically complete corresponding source for the binary it
 produces, especially when its build downloads additional libraries.
 
-The shipped `@ffmpeg/core` configuration enables FFmpeg plus x264, x265,
+The Web `@ffmpeg/core` configuration enables FFmpeg plus x264, x265,
 libvpx, LAME, libtheora, libvorbis, libopus, zlib, libwebp, FreeType, FriBidi,
 libass, and zimg. The existing corresponding-source manifest pins an FFmpeg
 archive and an ffmpeg.wasm build-source archive, but it does not inventory and
@@ -106,14 +112,15 @@ treated as completion of that gate.
 ## Codec and patent review
 
 Copyright-license compatibility and patent exposure are independent reviews.
-The FFmpeg build enables codec implementations whose patent situation can vary
-by codec, use, territory, and distribution method. No jurisdiction-specific
-patent review is checked in for the enabled set. The patent-review gate
-therefore remains blocked, and this policy makes no representation that any
-enabled codec is patent-free. A future review must name the exact build,
-enabled and invoked codecs, products, territories, distribution surfaces,
-reviewer, date, assumptions, and any resulting disablement or licensing
-requirements.
+The Web FFmpeg build enables codec implementations whose patent situation can
+vary by codec, use, territory, and distribution method. No
+jurisdiction-specific patent review is checked in for the enabled set. The
+patent-review gate therefore remains blocked. This policy makes no patent
+clearance or non-infringement representation for any codec, including a codec
+described by an upstream project as open or royalty-free. A future review must
+name the exact build, enabled and invoked codecs, products, territories,
+distribution surfaces, reviewer, date, assumptions, and any resulting
+disablement or licensing requirements.
 
 ## Notices
 
@@ -163,6 +170,27 @@ requirements are implemented:
 
 ### Native audio, plug-in format, and codec policy rows
 
+The desktop codec provider order is bundled implementation, operating-system
+service, then user-installed external FFmpeg. That order is a selection policy,
+not an availability or qualification claim. Existing first-party PCM container
+readers remain ordinary application code. No bundled compressed-codec execution
+factory or admitted payload is registered, and neither the Windows nor macOS
+operating-system adapter has a registered execution factory. Both tiers
+therefore fail closed as unavailable. Their tuple catalogs, candidate filters,
+and canary contracts do not establish codec execution, conformance, platform
+availability, or patent clearance.
+
+The final tier executes an FFmpeg program already installed on the user's
+machine, whether found by bounded discovery, chosen explicitly, or installed
+into the system package-manager prefix by Windows Package Manager or Homebrew
+after explicit confirmation. The confirmed package-manager process performs
+any network fetch and system installation; the application does not itself
+fetch or copy FFmpeg bytes, package them, sublicense them, or redistribute that
+program or its libraries, so those external bytes are outside the production
+artifact closure. Parser and command-contract
+support for a version range is not release qualification of every version or
+codec tuple in that range.
+
 The matrix's `nativeFormatPolicies` register carries one fail-closed row for
 the JUCE native-audio stack, one per operating-system backend (CoreAudio,
 WASAPI, ASIO, PipeWire and ALSA), and one per plug-in format (VST3, CLAP, Audio
@@ -194,9 +222,10 @@ gate. This inventory does not change FFmpeg configure flags, publish a helper,
 populate a payload manifest, or activate native media. Those remain separate
 reviewed changes after corresponding source, notices, patent posture,
 interoperability, signing, and five-target evidence clear. User-installed
-third-party plug-in binaries are never redistributed by this project, so their
-licenses never enter the production closure; the plug-in rows govern what the
-application itself may ship and host.
+external FFmpeg and third-party plug-in binaries are never redistributed by
+this project, so their licenses never enter the production artifact closure;
+the codec and plug-in rows govern what the application itself may ship and
+host.
 
 ### Local assistance model evidence
 
